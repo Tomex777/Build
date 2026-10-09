@@ -111,30 +111,29 @@ class ScriptChatFlowTest {
     }
 
     @Test fun editorKeepsTypedTextVisibleAndSavesIt() {
-        compose.setContent { AnnieTheme { AnnieChat() } }
-        compose.onNodeWithTag("composer_input").performTextInput("/scripts")
-        compose.onNodeWithTag("send_message").performClick()
-        compose.waitUntil(5_000) {
-            compose.onAllNodesWithTag("script_studio").fetchSemanticsNodes().isNotEmpty()
-        }
-        compose.onNodeWithTag("script_tab_editor").performClick()
-        hideKeyboardAndWaitForWindowFocus()
-        val files = ScriptFiles(InstrumentationRegistry.getInstrumentation().targetContext)
-        val original = files.readFile("chess", "chess.js")
+        // Never edit the bundled chess script: autosave could race the test cleanup
+        // and poison unrelated chess/chat tests later in the same emulator suite.
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val workspace = ScriptWorkspace(context)
+        val name = "caretproof" + System.nanoTime().toString().takeLast(8)
+        val file = workspace.files.createScript(name)
+        val original = workspace.files.readFile(name, file.name)
         try {
-            compose.waitUntil(8_000) {
-                runCatching {
-                    compose.onNodeWithTag("script_editor").assertIsDisplayed()
-                    true
-                }.getOrDefault(false)
+            compose.setContent {
+                AnnieTheme { ScriptStudioSheet(workspace, {}, initialProjectId = name) }
             }
+            compose.onNodeWithTag("script_tab_editor").performClick()
+            hideKeyboardAndWaitForWindowFocus()
             compose.onNodeWithTag("script_editor").assertIsDisplayed()
             onView(isAssignableFrom(CodeEditor::class.java)).perform(insertCodeEditorText("\n//caret-proof"))
-            // Source persistence is now automatic and debounced.
-            compose.waitUntil(8_000) { files.readFile("chess", "chess.js") != original }
-            assertEquals(true, files.readFile("chess", "chess.js").contains("//caret-proof"))
+            // Debounced persistence requires no Save button.
+            compose.waitUntil(8_000) { workspace.files.readFile(name, file.name) != original }
+            assertTrue(workspace.files.readFile(name, file.name).contains("//caret-proof"))
         } finally {
-            files.writeFile("chess", "chess.js", original)
+            compose.setContent { AnnieTheme { androidx.compose.material3.Text("Editor test finished") } }
+            compose.waitForIdle()
+            workspace.close()
+            workspace.files.deleteProject(name)
         }
     }
 
@@ -175,18 +174,25 @@ class ScriptChatFlowTest {
     }
 
     @Test fun editorSupportsSelectionDeletionReplacementClipboardAndMultilineRanges() {
-        compose.setContent { AnnieTheme { AnnieChat() } }
-        compose.onNodeWithTag("composer_input").performTextInput("/scripts")
-        compose.onNodeWithTag("send_message").performClick()
-        compose.waitUntil(5_000) {
-            compose.onAllNodesWithTag("script_studio").fetchSemanticsNodes().isNotEmpty()
+        // Selection tests replace all editor content; keep the bundled chess source intact.
+        val workspace = ScriptWorkspace(InstrumentationRegistry.getInstrumentation().targetContext)
+        val name = "selectionproof" + System.nanoTime().toString().takeLast(8)
+        workspace.files.createScript(name)
+        try {
+            compose.setContent {
+                AnnieTheme { ScriptStudioSheet(workspace, {}, initialProjectId = name) }
+            }
+            compose.onNodeWithTag("script_tab_editor").performClick()
+            compose.waitForIdle()
+            hideKeyboardAndWaitForWindowFocus()
+            onView(allOf(isAssignableFrom(CodeEditor::class.java), isDisplayed()))
+                .perform(verifyEditorSelectionAndClipboardSemantics())
+        } finally {
+            compose.setContent { AnnieTheme { androidx.compose.material3.Text("Selection test finished") } }
+            compose.waitForIdle()
+            workspace.close()
+            workspace.files.deleteProject(name)
         }
-        compose.onNodeWithTag("script_tab_editor").performClick()
-        compose.waitForIdle()
-        hideKeyboardAndWaitForWindowFocus()
-
-        onView(allOf(isAssignableFrom(CodeEditor::class.java), isDisplayed()))
-            .perform(verifyEditorSelectionAndClipboardSemantics())
     }
 
     @Test fun scriptOptionTapRoutesBackToOwningJavaScriptAction() {

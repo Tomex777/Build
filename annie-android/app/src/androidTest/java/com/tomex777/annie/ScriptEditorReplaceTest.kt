@@ -31,16 +31,16 @@ class ScriptEditorReplaceTest {
             compose.onNodeWithTag("script_replace_text").performTextInput("\$saved")
             hideEmulatorKeyboard(compose.activity)
             compose.onNodeWithTag("Replace all matches").performClick()
-            compose.onNodeWithText("Save", substring = false).performClick()
             val expected = "const first = \"\$saved\"; const second = \"\$saved\";"
-            compose.waitUntil(5_000) { workspace.files.readFile(name, file.name) == expected }
+            compose.waitUntil(8_000) { workspace.files.readFile(name, file.name) == expected }
             assertEquals(expected, workspace.files.readFile(name, file.name))
             saveEmulatorScreenshot("annie-script-editor-replace")
             compose.onNodeWithTag("Undo").performClick()
-            compose.onNodeWithText("Save", substring = false).performClick()
-            compose.waitUntil(5_000) { workspace.files.readFile(name, file.name) == original }
+            compose.waitUntil(8_000) { workspace.files.readFile(name, file.name) == original }
             assertEquals(original, workspace.files.readFile(name, file.name))
         } finally {
+            compose.setContent { AnnieTheme { androidx.compose.material3.Text("Replace test finished") } }
+            compose.waitForIdle()
             workspace.close()
             workspace.files.deleteProject(name)
         }
