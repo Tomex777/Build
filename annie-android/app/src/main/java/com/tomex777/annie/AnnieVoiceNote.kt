@@ -37,6 +37,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import java.io.File
@@ -209,10 +210,11 @@ internal fun VoiceWaveform(
     progress: Float,
     modifier: Modifier = Modifier,
     onSeek: ((Float) -> Unit)? = null,
+    width: Dp = 162.dp,
 ) {
     val peaks = remember(samples) { AnnieVoiceWaveform.reduce(samples) }
     Canvas(
-        modifier = modifier.width(162.dp).height(29.dp)
+        modifier = modifier.width(width).height(29.dp)
             .then(if (onSeek != null) Modifier.pointerInput(onSeek) {
                 detectTapGestures { onSeek((it.x / size.width).coerceIn(0f, 1f)) }
             } else Modifier)
