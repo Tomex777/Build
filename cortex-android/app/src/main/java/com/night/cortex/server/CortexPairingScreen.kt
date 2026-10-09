@@ -53,6 +53,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
@@ -1222,7 +1223,9 @@ private fun PairMethodSheet(
     onCode: () -> Unit,
     onQr: () -> Unit,
 ) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     ModalBottomSheet(
+        sheetState = sheetState,
         onDismissRequest = onDismiss,
         modifier = Modifier.navigationBarsPadding(),
         containerColor = CortexSurface,
