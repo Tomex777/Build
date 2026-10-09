@@ -83,5 +83,8 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: cortex-account-ui-emulator
-          path: cortex-account-ui-results.txt
+          path: |
+            cortex-account-ui-results.txt
+            cortex-account-ui-logcat.txt
+            cortex-account-ui-processes.txt
           if-no-files-found: ignore
