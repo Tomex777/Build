@@ -33,6 +33,7 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import eu.kanade.presentation.reader.ReaderPageIndicator
+import eu.kanade.presentation.reader.ReaderContentOverlay
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.mutableIntStateOf
@@ -138,6 +139,12 @@ class ReaderActivity : ComponentActivity(), ReaderViewerHost {
                 val selectedChapter = viewerChapters.getOrNull(activeChapterIndex)
                 val pages = selectedChapter?.pages.orEmpty()
                 Box(modifier = Modifier.fillMaxSize()) {
+                    val displayPrefs = getPreferences(MODE_PRIVATE)
+                    ReaderContentOverlay(
+                        brightness = -displayPrefs.getInt(PREF_DIM_PERCENT, 0).coerceIn(0, 90),
+                        color = displayPrefs.getInt(PREF_TINT_COLOR, 0).takeIf { it != 0 },
+                        colorBlendMode = null,
+                    )
                     // Mihon displays its outlined page indicator only when the
                     // toolbars are hidden, above the viewer's image layer.
                     if (!menuVisible && getPreferences(MODE_PRIVATE).getBoolean(PREF_SHOW_PAGE_NUMBER, true)) {
@@ -244,6 +251,16 @@ class ReaderActivity : ComponentActivity(), ReaderViewerHost {
                             prefs.edit().putString(PREF_BACKGROUND, value).apply()
                             root.setBackgroundColor(backgroundColor())
                             installViewer()
+                            refreshChrome()
+                        },
+                        dimPercent = prefs.getInt(PREF_DIM_PERCENT, 0).coerceIn(0, 90),
+                        onDimPercentChange = { value ->
+                            prefs.edit().putInt(PREF_DIM_PERCENT, value.coerceIn(0, 90)).apply()
+                            refreshChrome()
+                        },
+                        colorTint = prefs.getInt(PREF_TINT_COLOR, 0),
+                        onColorTintChange = { value ->
+                            prefs.edit().putInt(PREF_TINT_COLOR, value).apply()
                             refreshChrome()
                         },
                     )
@@ -784,6 +801,8 @@ class ReaderActivity : ComponentActivity(), ReaderViewerHost {
         private const val PREF_SCALE_MODE = "scale_mode"
         private const val PREF_ORIENTATION = "orientation"
         private const val PREF_BACKGROUND = "background"
+        private const val PREF_DIM_PERCENT = "reader_dim_percent"
+        private const val PREF_TINT_COLOR = "reader_color_tint"
         private const val ORIENTATION_AUTO = "auto"
         private const val ORIENTATION_PORTRAIT = "portrait"
         private const val ORIENTATION_LANDSCAPE = "landscape"
