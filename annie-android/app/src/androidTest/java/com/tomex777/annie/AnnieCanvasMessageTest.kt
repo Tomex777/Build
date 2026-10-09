@@ -54,7 +54,7 @@ class AnnieCanvasMessageTest {
                     ?: error("Canvas WebView not attached")
             }
             compose.waitUntil(12_000) { eval(inlineWebView, "window.canvasReady") == "true" }
-            assertEquals("\\"undefined\\"", eval(inlineWebView, "typeof window.annie"))
+            assertEquals("\"undefined\"", eval(inlineWebView, "typeof window.annie"))
             assertTrue("Canvas incorrectly allows network loads", inlineWebView.settings.blockNetworkLoads)
             assertTrue("Canvas incorrectly allows file reads", !inlineWebView.settings.allowFileAccess)
             assertTrue("Canvas incorrectly allows content reads", !inlineWebView.settings.allowContentAccess)
