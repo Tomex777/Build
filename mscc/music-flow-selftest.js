@@ -190,7 +190,11 @@ if (!recoveryReplies.some(value => value.includes('RECOVERED:f2'))) {
 const recoverySearches = recoveryCalls
   .filter(call => call.payload.action === 'search')
   .map(call => call.excludedSources.join('|'))
-if (recoverySearches.join(',') !== ',primary,primary|fallback-1') {
+// Search can broaden the original query into additional variants before
+// falling back. Verify the managed source exclusions rather than assuming
+// there is exactly one unrestricted search request.
+if (!recoverySearches.length || recoverySearches[0] !== '' ||
+    recoverySearches.filter(Boolean).join(',') !== 'primary,primary|fallback-1') {
   throw new Error('Music fallback exclusions did not walk the managed chain: ' + recoverySearches.join(','))
 }
 
