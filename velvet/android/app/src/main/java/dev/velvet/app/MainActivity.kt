@@ -671,6 +671,7 @@ private fun QuestionDeckScreen(category:String,index:Int,onIndexChange:(Int)->Un
     var drag by remember(category){mutableFloatStateOf(0f)}
     var animating by remember(category){mutableStateOf(false)}
     var sentRecently by remember(category){mutableStateOf(false)}
+    var expanded by remember(category){mutableStateOf(false)}
     var sendTick by remember(category){mutableIntStateOf(0)}
     val drafts=remember(category){mutableStateMapOf<String,String>()}
     val scope=rememberCoroutineScope()
@@ -701,7 +702,7 @@ private fun QuestionDeckScreen(category:String,index:Int,onIndexChange:(Int)->Un
             IconButton(onClick=onBack){Icon(Icons.Outlined.ArrowBack,"Back",tint=V.text)}
             Column(Modifier.weight(1f)) {
                 Text(category,color=V.text,fontSize=20.sp,fontFamily=FontFamily.Serif,fontWeight=FontWeight.SemiBold)
-                Text("Question ${current+1} / ${filtered.size}  ·  Swipe ← next  ·  → previous",color=V.muted,fontSize=10.sp)
+                Text("A little closer, one question at a time ♡",color=V.muted,fontSize=11.sp)
             }
             Icon(Icons.Outlined.Style,"Card deck",tint=V.rose)
         }
@@ -711,7 +712,7 @@ private fun QuestionDeckScreen(category:String,index:Int,onIndexChange:(Int)->Un
                 Modifier.fillMaxWidth(.96f).fillMaxHeight(.96f).scale(.975f).offset(y=5.dp))
             QuestionCard(prompt.question,cardColors[tone],
                 Modifier.fillMaxWidth(.96f).fillMaxHeight(.96f).offset{IntOffset(drag.roundToInt(),0)}
-                    .graphicsLayer{rotationZ=drag/53f}.pointerInput(current,animating) {
+                    .graphicsLayer{rotationZ=drag/53f}.clickable { expanded=true }.pointerInput(current,animating) {
                         detectHorizontalDragGestures(onHorizontalDrag={change,amount->
                             if(!animating){change.consume();drag=(drag+amount).coerceIn(-680f,680f)}
                         },onDragEnd={
@@ -746,6 +747,33 @@ private fun QuestionDeckScreen(category:String,index:Int,onIndexChange:(Int)->Un
         }
         Spacer(Modifier.height(10.dp))
     }
+    if(expanded) Dialog(onDismissRequest={expanded=false},
+        properties=DialogProperties(usePlatformDefaultWidth=false)) {
+        Column(Modifier.fillMaxSize().background(V.bg).padding(horizontal=16.dp,vertical=20.dp)) {
+            Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
+                IconButton(onClick={expanded=false}){Icon(Icons.Outlined.Close,"Close question",tint=V.text)}
+                Spacer(Modifier.width(7.dp))
+                Text(category,color=V.text,fontFamily=FontFamily.Serif,fontSize=24.sp)
+            }
+            Spacer(Modifier.height(13.dp))
+            QuestionCard(prompt.question,cardColors[tone],Modifier.weight(1f).fillMaxWidth())
+            Spacer(Modifier.height(15.dp))
+            OutlinedTextField(value=drafts[prompt.id].orEmpty(),
+                onValueChange={if(it.length<=500)drafts[prompt.id]=it},
+                modifier=Modifier.fillMaxWidth(),
+                placeholder={Text("Your answer or caption…")},maxLines=3)
+            Spacer(Modifier.height(9.dp))
+            Button(onClick={
+                onSend(prompt,tone,drafts[prompt.id].orEmpty())
+                sentRecently=true;sendTick++;expanded=false
+            },modifier=Modifier.fillMaxWidth().height(52.dp)){
+                Icon(Icons.Outlined.Send,null,Modifier.size(18.dp))
+                Spacer(Modifier.width(9.dp))
+                Text("Send to Chat")
+            }
+            Spacer(Modifier.height(15.dp))
+        }
+    }
 }
 
 @Composable
@@ -769,14 +797,14 @@ private fun TicTacToeScreen(onBack:()->Unit) {
     Column(Modifier.fillMaxSize().padding(18.dp),horizontalAlignment=Alignment.CenterHorizontally) {
         Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically){IconButton(onClick=onBack){Icon(Icons.Outlined.ArrowBack,"Back")};Serif("Tic-tac-toe",27)}
         Spacer(Modifier.height(13.dp));Text("Local pass-and-play demonstration",color=V.muted,fontSize=12.sp)
-        Spacer(Modifier.weight(1f));Serif(when{winner!=null->"$winner wins!";done->"A perfect tie.";else->"$move's turn"},32)
-        Spacer(Modifier.height(22.dp))
+        Spacer(Modifier.height(34.dp));Serif(when{winner!=null->"$winner wins!";done->"A perfect tie.";else->"$move's turn"},32)
+        Spacer(Modifier.height(17.dp))
         Column(Modifier.fillMaxWidth().widthIn(max=360.dp)) {
             repeat(3){r->Row(Modifier.fillMaxWidth()) {repeat(3){c->val k=r*3+c
                 Box(Modifier.weight(1f).aspectRatio(1f).padding(5.dp).clip(RoundedCornerShape(17.dp)).background(V.paper).border(1.dp,V.border,RoundedCornerShape(17.dp)).combinedClickable(onClick={if(!done&&cells[k]==""){cells[k]=move;move=if(move=="♡")"✕" else "♡"}}),contentAlignment=Alignment.Center){Text(cells[k],color=V.rose,fontSize=43.sp,fontFamily=FontFamily.Serif)}
             }}}
         }
-        Spacer(Modifier.height(20.dp));Button(onClick={for(i in cells.indices)cells[i]="";move="♡"}){Text("New game")};Spacer(Modifier.weight(1f))
+        Spacer(Modifier.height(18.dp));Button(onClick={for(i in cells.indices)cells[i]="";move="♡"}){Text("New game")};Spacer(Modifier.weight(1f))
     }
 }
 
