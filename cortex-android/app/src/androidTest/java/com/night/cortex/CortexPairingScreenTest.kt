@@ -2,6 +2,7 @@ package com.night.cortex
 
 import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertDoesNotExist
 import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
@@ -178,7 +179,9 @@ class CortexPairingScreenTest {
         composeRule.onNodeWithText("WhatsApp Accounts").assertIsDisplayed()
         composeRule.onNodeWithText("Main Control").assertIsDisplayed()
         composeRule.onNodeWithText("Account B").assertIsDisplayed()
-        composeRule.onNodeWithText("Make destination").assertIsDisplayed()
+        // MSCC fixes the CC destination to Account A; Cortex must not offer a broken action.
+        composeRule.onNodeWithText("Make destination").assertDoesNotExist()
+        composeRule.onNodeWithTag("fixed-cc-destination-note").assertIsDisplayed()
         composeRule.onNodeWithText("Pair account").performClick()
         settleBottomSheet()
 
@@ -642,6 +645,48 @@ class CortexPairingScreenTest {
         composeRule.onNodeWithTag("diagnostic-event-event-1").performScrollTo().assertIsDisplayed()
         composeRule.onNodeWithTag("refresh-account-diagnostics").performClick()
         composeRule.runOnIdle { check(refreshTarget == "account-2") }
+    }
+
+    @Test
+    fun accountDashboardSearchAndFilterWorkWithoutChangingSessions() {
+        composeRule.setContent {
+            CortexTheme {
+                CortexPairingScreen(
+                    state = PairingState(
+                        version = "2.3.1",
+                        destination = "A",
+                        accounts = listOf(
+                            PairingAccount(
+                                id = "A", displayName = "Main Control", enabled = true,
+                                connected = true, status = "connected", numberMasked = "234••••0001",
+                                indexCount = 0, indexLimit = 5000, pairingMode = "",
+                                pairingCode = "", pairingQr = "", pairingError = "", profile = "control",
+                            ),
+                            PairingAccount(
+                                id = "account-2", displayName = "Nami", enabled = true,
+                                connected = false, status = "paused", paused = true,
+                                numberMasked = "234••••0002", indexCount = 0, indexLimit = 5000,
+                                pairingMode = "", pairingCode = "", pairingQr = "", pairingError = "",
+                                profile = "nami",
+                            ),
+                        ),
+                    ),
+                    busy = false,
+                    onRefresh = {}, onAddAccount = { _, _ -> }, onDestination = {},
+                    onPair = { _, _ -> }, onReconnect = {}, onDisconnect = {},
+                    onRemove = {}, onRepair = { _, _ -> },
+                )
+            }
+        }
+
+        composeRule.onNodeWithTag("account-search-field").assertIsDisplayed()
+        composeRule.onNodeWithTag("account-filter-paused").performClick()
+        composeRule.onNodeWithTag("session-title-account-2").performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithTag("session-title-A").assertDoesNotExist()
+        composeRule.onNodeWithTag("account-search-field").performTextReplacement("nothing here")
+        composeRule.onNodeWithText("No matching accounts").assertIsDisplayed()
+        composeRule.onNodeWithTag("reset-account-filters").performClick()
+        composeRule.onNodeWithTag("session-title-A").performScrollTo().assertIsDisplayed()
     }
 
     private fun settleBottomSheet() {
