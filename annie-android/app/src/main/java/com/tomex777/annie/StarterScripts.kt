@@ -264,8 +264,7 @@ internal object StarterScripts {
         |  usage: "/snake",
         |  keywords: ["game", "arcade", "canvas", "swipe", "snake"],
         |  async execute() {
-        |    return {
-        |      type: "canvas",
+        |    return annie.messages.canvas({
         |      title: "Snake • Arcade",
         |      height: 394,
         |      html: `<main class="game" id="game" role="application" aria-label="Swipe anywhere on the board to steer Snake" tabindex="0">
@@ -443,7 +442,7 @@ internal object StarterScripts {
         |          window.annieCanvasSnakeReady = true;
         |        })();
         |      `
-        |    };
+        |    });
         |  }
         |});
     """.trimMargin()
