@@ -4,8 +4,7 @@ export default {
   description: 'Show bot profiles, specialties and session assignments.',
   async run(ctx) {
     const profiles = ctx.botProfiles()
-    const assignments = new Map(ctx.botAssignments().map(row => [row.account_id, row.profile_id]))
-    const accountRows = ctx.diagnostics().accounts.map(account => `${account.displayName} [${account.id}] → ${assignments.get(account.id) || 'main'}`)
+    const accountRows = ctx.diagnostics().accounts.map(account => `${account.displayName || account.id} [${account.id}] → ${account.profile || 'unassigned'}`)
     const profileRows = profiles.map(profile => {
       const specialties = profile.capabilities.length
         ? profile.capabilities.map(item => item.capability).join(', ')
