@@ -44,6 +44,7 @@ class ChatHistoryTest {
         compose.onNodeWithTag("send_message").performClick()
         compose.waitForIdle()
         compose.runOnIdle { compose.activity.currentFocus?.clearFocus() }
+        hideEmulatorKeyboard(compose.activity)
         // The reply can immediately auto-scroll to the newest bubble, so the outgoing
         // animation node may legitimately leave the viewport. Its continued presence proves
         // the sent message used the animated path; persistence/reopen is asserted below.
@@ -55,7 +56,13 @@ class ChatHistoryTest {
         // Finish drawer transitions before checking visibility or reopening it.
         compose.mainClock.advanceTimeBy(320)
         compose.waitForIdle()
-        compose.onNodeWithTag("drawer_new_chat").assertIsDisplayed().performClick()
+        compose.waitUntil(4_000) {
+            runCatching {
+                compose.onNodeWithTag("drawer_new_chat").assertIsDisplayed()
+                true
+            }.getOrDefault(false)
+        }
+        compose.onNodeWithTag("drawer_new_chat").performClick()
         compose.mainClock.advanceTimeBy(260)
         compose.waitForIdle()
         compose.onNodeWithTag("chat_history_button").performClick()

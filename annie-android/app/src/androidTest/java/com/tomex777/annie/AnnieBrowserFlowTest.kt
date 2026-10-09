@@ -96,6 +96,12 @@ class AnnieBrowserFlowTest {
             compose.waitUntil(12_000) {
                 compose.onAllNodesWithTag("annie_browser_message").fetchSemanticsNodes().isNotEmpty()
             }
+            // API 26's bundled WebView may not expose MULTI_PROFILE. Annie must refuse
+            // to share cookies instead of silently weakening session isolation.
+            if (!AnnieBrowserProfiles.isSupported()) {
+                compose.onNodeWithText(AnnieBrowserProfiles.unavailableMessage()).assertExists()
+                return
+            }
             assertTrue("Verification page did not load its controlled readiness callback", server.awaitReady())
             compose.waitUntil(8_000) {
                 AnnieBrowserSessionStore.get(context, "$name.main")?.currentUrl?.endsWith("/ready") == true
@@ -220,11 +226,21 @@ class AnnieBrowserFlowTest {
                     }
                 }
             }
-            compose.waitUntil(10_000) { controllerA.webView != null && controllerB.webView != null }
-            assertTrue(
-                "This WebView provider must support isolated browser profiles.",
-                AnnieBrowserProfiles.isSupported(),
-            )
+            if (!AnnieBrowserProfiles.isSupported()) {
+                assertEquals(
+                    "Unsupported WebView must visibly reject unsafe session sharing",
+                    2,
+                    compose.onAllNodesWithText(AnnieBrowserProfiles.unavailableMessage())
+                        .fetchSemanticsNodes().size,
+                )
+                return
+            }
+            compose.waitUntil(10_000) {
+                controllerA.webView != null && controllerB.webView != null &&
+                    !controllerA.loading && !controllerB.loading &&
+                    controllerA.currentUrl.endsWith("/scroll-a") &&
+                    controllerB.currentUrl.endsWith("/scroll-b")
+            }
             val webA = controllerA.webView ?: error("First browser WebView was not attached")
             val webB = controllerB.webView ?: error("Second browser WebView was not attached")
 
@@ -259,8 +275,10 @@ class AnnieBrowserFlowTest {
             setScroll(webB, 720)
             assertEquals("Session A scroll leaked from session B", 320.0, readScrollY(webA), 2.0)
             assertEquals("Session B scroll leaked from session A", 720.0, readScrollY(webB), 2.0)
-            assertEquals("Session A controller state changed with session B", 320, controllerA.scrollY)
-            assertEquals("Session B controller state changed with session A", 720, controllerB.scrollY)
+            // DOM window.scrollY uses CSS pixels; native WebView/scroll callback uses device
+            // pixels. On 2.625-density emulators, 320 CSS pixels equals 840 native pixels.
+            assertEquals("Session A native position changed with session B", webA.scrollY, controllerA.scrollY)
+            assertEquals("Session B native position changed with session A", webB.scrollY, controllerB.scrollY)
         } finally {
             controllerA.destroy()
             controllerB.destroy()

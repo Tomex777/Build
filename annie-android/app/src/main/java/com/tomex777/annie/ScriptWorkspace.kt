@@ -595,9 +595,18 @@ internal class ScriptRuntime(
             val path = args.firstOrNull()?.toString().orEmpty()
             val directory = if (path.isBlank()) scriptDataRoot() else resolveDataFile(path, allowMissing = false)
             require(directory.isDirectory) { "Script data path is not a directory" }
-            directory.listFiles().orEmpty().sortedBy { it.name.lowercase() }.map {
-                mapOf("name" to it.name, "directory" to it.isDirectory, "size" to if (it.isFile) it.length() else 0L)
-            }
+            // QuickJS does not preserve Kotlin Map keys in nested list returns. Cross the
+            // native/JS boundary as JSON so files.list always returns named JSON objects.
+            JSONArray().apply {
+                directory.listFiles().orEmpty()
+                    .sortedWith(compareBy<File> { it.name.lowercase() }.thenBy { it.name })
+                    .forEach { entry ->
+                        put(JSONObject()
+                            .put("name", entry.name)
+                            .put("directory", entry.isDirectory)
+                            .put("size", if (entry.isFile) entry.length() else 0L))
+                    }
+            }.toString()
         }
         runtime.function("annieAssetUri") { args ->
             val logicalId = args.firstOrNull()?.toString().orEmpty()
@@ -1299,7 +1308,7 @@ internal class ScriptRuntime(
             |    readText: path => annieFileReadText(String(path)),
             |    writeText: (path, text) => annieFileWriteText(String(path), String(text)),
             |    delete: path => annieFileDelete(String(path)),
-            |    list: (path = "") => annieFileList(String(path))
+            |    list: (path = "") => JSON.parse(annieFileList(String(path)))
             |  },
             |  env: {
             |    define: definition => annieEnvDefine(JSON.stringify(definition || {})),
