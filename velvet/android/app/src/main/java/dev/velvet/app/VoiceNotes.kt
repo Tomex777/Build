@@ -13,6 +13,8 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.LayoutCoordinates
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.foundation.background
@@ -41,10 +43,10 @@ import kotlin.math.min
 
 internal data class VoiceClip(val path:String,val bars:List<Float>,val durationMs:Long)
 
-private val ink=Color(0xFFF8E8E4)
-private val blush=Color(0xFFF2BDCC)
-private val faded=Color(0xFFBCA4B4)
-private val panel=Color(0xFF281C2A)
+private val ink get() = VelvetTheme.current.text
+private val blush get() = VelvetTheme.current.rose
+private val faded get() = VelvetTheme.current.muted
+private val panel get() = VelvetTheme.current.paper
 
 private class NativeRecorder(private val context: Context) {
     private var recorder:MediaRecorder?=null
@@ -193,6 +195,7 @@ internal fun VoiceHoldControl(onRecorded:(VoiceClip)->Unit,onActiveChange:(Boole
     var locked by remember {mutableStateOf(false)}
     var error by remember {mutableStateOf<String?>(null)}
     var elapsed by remember {mutableLongStateOf(0L)}
+    var coordinates by remember {mutableStateOf<LayoutCoordinates?>(null)}
     val samples=remember {mutableStateListOf<Float>()}
     val permission=rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {allowed ->
         granted=allowed
@@ -212,6 +215,7 @@ internal fun VoiceHoldControl(onRecorded:(VoiceClip)->Unit,onActiveChange:(Boole
     val gesture=if(locked) Modifier else Modifier.pointerInput(granted) {
         awaitEachGesture {
             val down=awaitFirstDown(requireUnconsumed=false)
+            val startRoot=coordinates?.localToRoot(down.position) ?: down.position
             if(!granted) {
                 permission.launch(Manifest.permission.RECORD_AUDIO)
                 var stillDown:Boolean
@@ -229,8 +233,10 @@ internal fun VoiceHoldControl(onRecorded:(VoiceClip)->Unit,onActiveChange:(Boole
                             if(clip!=null)onRecorded(clip)
                             ended=true
                         } else {
-                            val x=change.position.x-down.position.x
-                            val y=change.position.y-down.position.y
+                            // Use root-space positions: the recording bar expands while pressed.
+                            val atRoot=coordinates?.localToRoot(change.position) ?: change.position
+                            val x=atRoot.x-startRoot.x
+                            val y=atRoot.y-startRoot.y
                             if(x < -100.dp.toPx()) {
                                 recorder.cancel();reset();ended=true
                             } else if(y < -85.dp.toPx()) {
@@ -247,7 +253,8 @@ internal fun VoiceHoldControl(onRecorded:(VoiceClip)->Unit,onActiveChange:(Boole
     }
     Column {
         Row(Modifier.width(if(recording)310.dp else 45.dp).height(50.dp)
-            .then(gesture).clip(RoundedCornerShape(24.dp))
+            .then(gesture).onGloballyPositioned {coordinates=it}
+            .clip(RoundedCornerShape(24.dp))
             .background(if(recording)panel else Color.Transparent),
             verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.Center) {
             if(recording) {
