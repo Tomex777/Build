@@ -11,9 +11,11 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performScrollToIndex
+import androidx.compose.ui.test.performTextReplacement
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.night.cortex.server.CortexPairingScreen
+import com.night.cortex.server.BotProfileOption
 import com.night.cortex.server.PairingAccount
 import com.night.cortex.server.PairingState
 import com.night.cortex.ui.theme.CortexTheme
@@ -442,6 +444,72 @@ class CortexPairingScreenTest {
         composeRule.onNodeWithText("Josia [account-3]").assertIsDisplayed()
         composeRule.onNodeWithTag("session-profile-account-3").performScrollTo().assertIsDisplayed()
         composeRule.onNodeWithText("Unassigned").assertIsDisplayed()
+    }
+
+    @Test
+    fun renameAndBotProfileSelectionRemainSeparate() {
+        var renamed: Pair<String, String>? = null
+        var assigned: Pair<String, String>? = null
+        composeRule.setContent {
+            CortexTheme {
+                CortexPairingScreen(
+                    state = PairingState(
+                        version = "2.3.1",
+                        destination = "A",
+                        accounts = listOf(
+                            PairingAccount(
+                                id = "account-2",
+                                displayName = "Josia",
+                                profile = "josiah",
+                                profileDisplayName = "Josia",
+                                enabled = true,
+                                connected = true,
+                                status = "connected",
+                                numberMasked = "234••••0002",
+                                indexCount = 0,
+                                indexLimit = 5000,
+                                pairingMode = "",
+                                pairingCode = "",
+                                pairingQr = "",
+                                pairingError = "",
+                            ),
+                        ),
+                        profiles = listOf(
+                            BotProfileOption("control", "Control"),
+                            BotProfileOption("josiah", "Josia"),
+                            BotProfileOption("nami", "Nami"),
+                            BotProfileOption("unassigned", "Unassigned"),
+                        ),
+                    ),
+                    busy = false,
+                    onRefresh = {},
+                    onAddAccount = { _, _ -> },
+                    onDestination = {},
+                    onPair = { _, _ -> },
+                    onReconnect = {},
+                    onDisconnect = {},
+                    onRemove = {},
+                    onRepair = { _, _ -> },
+                    onRename = { id, name -> renamed = id to name },
+                    onAssignProfile = { id, profile -> assigned = id to profile },
+                )
+            }
+        }
+        composeRule.onNodeWithTag("rename-account-account-2").performScrollTo().performClick()
+        composeRule.onNodeWithTag("rename-session-name").performTextReplacement("Night Backup")
+        composeRule.onNodeWithTag("confirm-rename-session").performClick()
+        composeRule.runOnIdle {
+            check(renamed == ("account-2" to "Night Backup"))
+            check(assigned == null)
+        }
+
+        composeRule.onNodeWithTag("edit-profile-account-2").performScrollTo().performClick()
+        composeRule.onNodeWithTag("choose-bot-profile-nami").performClick()
+        composeRule.onNodeWithTag("confirm-bot-profile").performClick()
+        composeRule.runOnIdle {
+            check(assigned == ("account-2" to "nami"))
+            check(renamed == ("account-2" to "Night Backup"))
+        }
     }
 
     private fun settleBottomSheet() {
