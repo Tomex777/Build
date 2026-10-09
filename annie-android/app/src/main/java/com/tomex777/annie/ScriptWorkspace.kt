@@ -105,6 +105,8 @@ internal class ScriptFiles(context: Context) : PackageAssetResolver {
                 """.trimMargin()
             )
         }
+        val snake = File(root, "canvas-snake.js")
+        if (!snake.exists()) snake.writeText(StarterScripts.canvasSnake)
         val chess = File(root, "chess.js")
         if (!chess.exists()) {
             chess.writeText(StarterScripts.chess)
