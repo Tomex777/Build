@@ -1281,14 +1281,7 @@ internal class ScriptRuntime(
             |    clear: async sessionId => await annieBrowserClear(String(sessionId)),
             |    verification: (status, message = "") => ({type: "text", text: String(message || status), verification: {status: String(status), message: String(message)}})
             |  },
-            |  messages: {
-            |    send: async message => __annieDecode(await annieMessagesSend(JSON.stringify({ message: message }))),
-            |    update: async (handle, message) => __annieDecode(await annieMessagesUpdate(JSON.stringify({
-            |      id: String(handle && typeof handle === "object" ? handle.id : handle),
-            |      message: message
-            |    })))
-            |  },
-            |  downloads: {
+                      |  downloads: {
             |    start: async spec => __annieDecode(await annieDownloadsStart(JSON.stringify(spec || {}))),
             |    status: async id => __annieDecode(await annieDownloadsStatus(String(id))),
             |    list: async () => (await __annieDecode(await annieDownloadsList())).items || [],
@@ -1331,6 +1324,12 @@ internal class ScriptRuntime(
             |    retry: async id => annieTaskRetry(String(id))
             |  },
             |  messages: {
+            |    // Keep command-return constructors and M0.5 mutable message operations together.
+            |    send: async message => __annieDecode(await annieMessagesSend(JSON.stringify({ message }))),
+            |    update: async (handle, message) => __annieDecode(await annieMessagesUpdate(JSON.stringify({
+            |      id: String(handle && typeof handle === "object" ? handle.id : handle),
+            |      message
+            |    }))),
             |    text: text => ({type: "text", text: String(text)}),
             |    image: value => Object.assign({type: "image"}, value || {}),
             |    music: value => Object.assign({type: "music"}, value || {}),

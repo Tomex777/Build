@@ -133,6 +133,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
@@ -561,9 +562,11 @@ internal fun AnnieChat() {
         val parts = value.split(Regex("\\s+"), limit = 2)
         val command = parts.firstOrNull()?.lowercase().orEmpty()
         val commandName = command.removePrefix("/")
-        val dynamicCommand = scriptCommands.firstOrNull { script ->
+        // A command only runs when explicitly invoked with '/'. Plain chat text is
+        // reserved for an active script session, never interpreted as a command name.
+        val dynamicCommand = if (command.startsWith("/")) scriptCommands.firstOrNull { script ->
             commandName == script.name.lowercase() || script.aliases.any { commandName == it.removePrefix("/").lowercase() }
-        }
+        } else null
         if (command.startsWith("/")) {
             val canonical = dynamicCommand?.let { "/${it.name}" } ?: command
             commandUsage = CommandUsageStore.record(context, commandUsage, canonical)
@@ -1653,7 +1656,10 @@ private fun ScriptImageMessage(data: org.json.JSONObject, scriptId: String) {
         }
     }
     if (expanded && imageModel != null) {
-        Dialog(onDismissRequest = { expanded = false }) {
+        Dialog(
+            onDismissRequest = { expanded = false },
+            properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false),
+        ) {
             Box(Modifier.fillMaxSize().background(Color(0xFF030811)).clickable { expanded = false }, contentAlignment = Alignment.Center) {
                 AsyncImage(model = imageModel, contentDescription = data.optString("caption"), contentScale = ContentScale.Fit,
                     modifier = Modifier.fillMaxWidth().fillMaxSize().testTag("script_image_fullscreen"))

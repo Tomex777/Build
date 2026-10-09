@@ -17,6 +17,35 @@ import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
 class ScriptRuntimeTest {
+    @Test fun messagesApiKeepsSendUpdateAndRenderConstructorsTogether() = runBlocking {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val workspace = ScriptWorkspace(context)
+        val name = "messagesapi" + System.nanoTime().toString().takeLast(8)
+        try {
+            val file = workspace.files.createScript(name)
+            workspace.files.writeFile(
+                name, file.name,
+                """
+                    annie.commands.register({
+                      name: "$name",
+                      execute() {
+                        return annie.messages.text(
+                          [typeof annie.messages.send, typeof annie.messages.update,
+                           typeof annie.messages.image, typeof annie.messages.form].join(",")
+                        );
+                      }
+                    });
+                """.trimIndent(),
+            )
+            assertTrue(workspace.reload().any { it.name == name })
+            val result = JSONObject(workspace.execute(name, "/$name", "messages-api-check", 21L))
+            assertEquals("function,function,function,function", result.getString("text"))
+        } finally {
+            runCatching { workspace.files.deleteProject(name) }
+            workspace.close()
+        }
+    }
+
     @Test fun echoCommandRegistersAndRunsThroughQuickJs() = runBlocking {
         val workspace = ScriptWorkspace(InstrumentationRegistry.getInstrumentation().targetContext)
         try {
