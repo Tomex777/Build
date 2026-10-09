@@ -178,7 +178,7 @@ object ZipArchiveScanner {
 
     private fun normalize(name: String): String = name.replace('\\', '/')
 
-    private fun isArchiveMetadata(name: String): Boolean {
+    internal fun isArchiveMetadata(name: String): Boolean {
         val segments = name.split('/')
         return segments.any { it.equals("__MACOSX", ignoreCase = true) } ||
             segments.lastOrNull()?.startsWith("._") == true ||
@@ -186,7 +186,7 @@ object ZipArchiveScanner {
     }
 
     /** Fast, bounded signature sniffing for JPEG, PNG and WebP (Android 8+). */
-    private fun isSupportedImageSignature(bytes: ByteArray, count: Int): Boolean {
+    internal fun isSupportedImageSignature(bytes: ByteArray, count: Int): Boolean {
         val jpeg = count >= 3 &&
             (bytes[0].toInt() and 0xff) == 0xff &&
             (bytes[1].toInt() and 0xff) == 0xd8 &&
@@ -202,7 +202,7 @@ object ZipArchiveScanner {
         0x89.toByte(), 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
     )
 
-    private fun isSupportedImage(name: String): Boolean {
+    internal fun isSupportedImage(name: String): Boolean {
         val lower = name.lowercase()
         return lower.endsWith(".jpg") || lower.endsWith(".jpeg") || lower.endsWith(".png") || lower.endsWith(".webp")
     }
