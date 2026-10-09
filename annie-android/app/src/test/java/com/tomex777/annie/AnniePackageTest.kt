@@ -50,14 +50,14 @@ class AnniePackageTest {
             version = "1.0.0",
             apiVersion = "1",
             entryPoint = "main.js",
-            requires = mapOf("annie" to ">=1 <3"),
+            requires = ">=1 <3",
             publisher = AnniePackagePublisher("com.example.publisher", "Example"),
-            networkHosts = setOf("api.example.com", "*.cdn.example.com"),
+            networkHosts = listOf("api.example.com", "*.cdn.example.com"),
         )
 
-        assertEquals(">=1 <3", manifest.requires["annie"])
+        assertEquals(">=1 <3", manifest.requires)
         assertEquals("com.example.publisher", manifest.publisher?.id)
-        assertEquals(setOf("api.example.com", "*.cdn.example.com"), manifest.networkHosts)
+        assertEquals(listOf("api.example.com", "*.cdn.example.com"), manifest.networkHosts)
     }
 
     @Test fun compatibleAnnieRequirementIsAccepted() {
@@ -76,7 +76,7 @@ class AnniePackageTest {
             val manifest = AnniePackageArchive.readManifestIfPresent(
                 directory, "fallback", "Fallback", setOf("main.js"),
             )
-            assertEquals(">=1 <3", manifest?.requires?.get("annie"))
+            assertEquals(">=1 <3", manifest?.requires)
         } finally {
             directory.deleteRecursively()
         }
@@ -100,7 +100,7 @@ class AnniePackageTest {
                     directory, "fallback", "Fallback", setOf("main.js"),
                 )
             }.exceptionOrNull()
-            assertTrue(error?.message.orEmpty().contains("incompatible Annie version"))
+            assertTrue(error?.message.orEmpty().contains("requires Annie API"))
         } finally {
             directory.deleteRecursively()
         }
