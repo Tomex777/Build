@@ -184,6 +184,10 @@ internal object AnnieBrowserControllers {
         controllers.getOrPut(instanceId) { AnnieBrowserController(sessionId, instanceId) }
             .also { check(it.sessionId == sessionId) { "Browser instance $instanceId belongs to session ${it.sessionId}" } }
 
+    /** Backwards-compatible test/client entry point: return the live tab if present, else create a default instance. */
+    fun get(sessionId: String): AnnieBrowserController =
+        forSession(sessionId) ?: get(sessionId, sessionId)
+
     fun markActive(controller: AnnieBrowserController) { lastActiveInstance = controller.instanceId }
 
     /** Scripts address a session by id; resolve to the live instance of that session (most recently used first). */
