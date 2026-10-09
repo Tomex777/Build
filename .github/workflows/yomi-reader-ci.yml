@@ -374,6 +374,15 @@ jobs:
             adb logcat -d -v threadtime > yomi-output/runtime-api26/logcat.txt
             ! grep -E 'FATAL EXCEPTION|AndroidRuntime:.*Process: app\.yomi\.reader\.dev' yomi-output/runtime-api26/logcat.txt
 
+            # Regression: opening a CBZ from Android Files must reach the reader,
+            # not silently stop after populating the library. The generated archive
+            # was written by YomiCiFixtureActivity above.
+            adb logcat -c
+            adb shell am force-stop app.yomi.reader.dev
+            adb shell am start -n app.yomi.reader.dev/app.yomi.reader.MainActivity -a android.intent.action.VIEW -d file:///data/user/0/app.yomi.reader.dev/cache/yomi-ci-book.cbz -t application/vnd.comicbook+zip
+            i=0; until adb logcat -d -v brief YomiStartup:I YomiReader:I '*:S' | grep -Fq 'archive-imported-and-opening title=yomi-ci-book.cbz'; do i=$((i + 1)); [ "$i" -lt 60 ] || { echo 'CBZ intent import never launched reader' >&2; adb logcat -d -v threadtime > yomi-output/runtime-api26/cbz-intent-import-failure-logcat.txt; exit 1; }; sleep 2; done
+            i=0; until adb logcat -d -v brief YomiReader:I '*:S' | grep -Fq 'reader-first-draw title=yomi-ci-book.cbz mode=LTR_PAGED'; do i=$((i + 1)); [ "$i" -lt 60 ] || { echo 'CBZ intent import failed to draw first reader page' >&2; adb logcat -d -v threadtime > yomi-output/runtime-api26/cbz-intent-reader-failure-logcat.txt; exit 1; }; sleep 2; done
+
             # Prove the same universal production-like CI candidate installs at minSdk.
             adb logcat -c
             adb install --no-streaming -r yomi-output/Yomi-ci-candidate-universal.apk
