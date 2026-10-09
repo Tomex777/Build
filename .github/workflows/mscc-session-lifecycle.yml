@@ -6,7 +6,7 @@ on:
       - 'mscc/**'
       - '.github/workflows/mscc-session-lifecycle.yml'
   pull_request:
-    branches: [fix/mscc-session-profile-identity-20261009]
+    branches: [feat/mscc-cortex-account-controls-20261009]
     paths:
       - 'mscc/**'
       - '.github/workflows/mscc-session-lifecycle.yml'
