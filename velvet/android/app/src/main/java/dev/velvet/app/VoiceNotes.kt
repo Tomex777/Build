@@ -95,6 +95,7 @@ private class NativeRecorder(private val context: Context) {
     }
     fun finish():VoiceClip? {
         if(!started)return null
+        if(pauseAt!=0L)resume()
         val duration=SystemClock.elapsedRealtime()-startAt-pausedFor-(if(pauseAt!=0L)SystemClock.elapsedRealtime()-pauseAt else 0L)
         var valid=true
         try {recorder?.stop()} catch(_:Exception){valid=false}
