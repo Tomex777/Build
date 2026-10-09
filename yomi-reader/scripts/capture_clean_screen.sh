@@ -20,27 +20,8 @@ assert_yomi_foreground() {
     fi
 }
 
-# An ANR entry in dumpsys may linger after its dialog has been dismissed.
-# A visible Android system ANR is unsafe to screenshot; a hidden historic
-# window is not. The API 36 software emulator can retain such stale entries.
-visible_anr() {
-    # Dumpsys can retain windows whose surface has already disappeared.
-    # Reject an actually drawn visible dialog, not a stale window record.
-    awk '
-        function finish_window() {
-            if (is_anr && is_visible && is_drawn) found = 1
-        }
-        /^  Window #[0-9]+ Window[{]/ {
-            finish_window()
-            is_anr = index($0, "Application Not Responding:") != 0
-            is_visible = 0
-            is_drawn = 0
-        }
-        is_anr && /isVisible=true/ { is_visible = 1 }
-        is_anr && /Surface: shown=true/ { is_drawn = 1 }
-        END { finish_window(); exit(found ? 0 : 1) }
-    ' "$1"
-}
+# Use the same tested ANR classifier in both screenshots and CI preflight.
+source "$(dirname "${BASH_SOURCE[0]}")/anr_windows.sh"
 
 reject_anr() {
     local dump=$1
