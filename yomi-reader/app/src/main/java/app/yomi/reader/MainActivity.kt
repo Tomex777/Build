@@ -118,9 +118,20 @@ class MainActivity : ComponentActivity() {
         incomingArchiveUri.value = archiveUriFromIntent(intent)
     }
 
-    private fun archiveUriFromIntent(intent: Intent?): Uri? =
-        intent?.takeIf { it.action == Intent.ACTION_VIEW }?.data
-            ?.takeIf { it.scheme == "content" || it.scheme == "file" }
+    private fun archiveUriFromIntent(intent: Intent?): Uri? {
+        val candidate = when (intent?.action) {
+            Intent.ACTION_VIEW -> intent.data
+            Intent.ACTION_SEND -> {
+                // Some Android file explorers offer Share instead of Open with
+                // when they don't have a registered CBZ MIME association.
+                @Suppress("DEPRECATION")
+                val shared = intent.getParcelableExtra<Uri>(Intent.EXTRA_STREAM)
+                shared ?: intent.clipData?.getItemAt(0)?.uri
+            }
+            else -> null
+        }
+        return candidate?.takeIf { it.scheme == "content" || it.scheme == "file" }
+    }
 
     override fun onResume() {
         super.onResume()
