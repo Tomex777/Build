@@ -49,7 +49,7 @@ internal class MessageCache(context: Context): SQLiteOpenHelper(context, "velvet
         put("quoted",m.quoted ?: JSONObject.NULL);put("pinned",m.pinned);put("starred",m.starred)
         put("deleted",m.deleted);put("kind",m.kind.name)
         put("category",m.category ?: JSONObject.NULL);put("cardTone",m.cardTone)
-        put("questionId",m.questionId ?: JSONObject.NULL)
+        put("questionId",m.questionId ?: JSONObject.NULL);put("caption",m.caption ?: JSONObject.NULL)
         put("voicePath",m.voicePath ?: JSONObject.NULL)
         put("voiceBars",JSONArray(m.voiceBars));put("durationMs",m.durationMs)
     }
@@ -63,6 +63,7 @@ internal class MessageCache(context: Context): SQLiteOpenHelper(context, "velvet
             pinned=o.optBoolean("pinned"),starred=o.optBoolean("starred"),deleted=o.optBoolean("deleted"),
             kind=kind,category=o.optString("category").takeUnless{it.isBlank()||it=="null"},
             cardTone=o.optInt("cardTone"),questionId=o.optString("questionId").takeUnless{it.isBlank()||it=="null"},
+            caption=o.optString("caption").takeUnless{it.isBlank()||it=="null"},
             voicePath=o.optString("voicePath").takeUnless{it.isBlank()||it=="null"},
             voiceBars=samples,durationMs=o.optLong("durationMs")
         )
