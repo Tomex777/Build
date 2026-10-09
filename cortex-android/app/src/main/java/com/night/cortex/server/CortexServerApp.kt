@@ -247,6 +247,12 @@ fun CortexServerApp(vm: ServerPanelViewModel = viewModel()) {
                             onDisconnect = vm::disconnectPairing,
                             onRemove = vm::removePairing,
                             onRepair = vm::repairAccount,
+                            diagnostics = state.accountDiagnostics,
+                            diagnosticsAccountId = state.diagnosticsAccountId,
+                            diagnosticsLoading = state.diagnosticsLoading,
+                            diagnosticsError = state.diagnosticsError,
+                            onDiagnostics = vm::loadAccountDiagnostics,
+                            onCloseDiagnostics = vm::closeAccountDiagnostics,
                         )
                         ServerTab.FILES -> FilesPage(
                             state = state,
