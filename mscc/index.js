@@ -246,6 +246,37 @@ async function renameAccount(id, displayName) {
   }
 }
 
+async function assignAccountProfile(id, profileId) {
+  const resolved = resolveAccountId(id)
+  if (!resolved) throw new Error(`Unknown account: ${id}`)
+  if (!sharedStorage) throw new Error('Bot profile storage is not available')
+  const requested = String(profileId || '').trim().toLowerCase()
+  if (!/^[a-z0-9][a-z0-9._-]{0,63}$/.test(requested)) {
+    throw new Error('Invalid bot profile ID')
+  }
+  // Only the permanent main control account can hold the control profile.
+  if (resolved === 'A' && requested !== 'control') {
+    throw new Error('Account A must retain the control profile')
+  }
+  if (resolved !== 'A' && requested === 'control') {
+    throw new Error('Only Account A can use the control profile')
+  }
+  if (!sharedStorage.getProfile(requested)) throw new Error(`Unknown bot profile: ${requested}`)
+  const previous = sharedStorage.profileForAccount(resolved)
+  if (previous.id === requested) {
+    return { ok: true, account: resolved, profile: previous.id, displayName: previous.displayName, unchanged: true }
+  }
+  const next = sharedStorage.assignProfile(resolved, requested)
+  // A sticky group executor chosen for an earlier profile is no longer valid.
+  sharedStorage.clearGroupRoutes()
+  await recordActivity('account.profile-changed', {
+    account: resolved,
+    previousProfile: previous.id,
+    profile: next.id,
+  })
+  return { ok: true, account: resolved, profile: next.id, displayName: next.displayName }
+}
+
 async function recordActivity(action, detail = {}) {
   try {
     await mkdir(dirname(ACTIVITY_FILE), { recursive: true })
@@ -3032,6 +3063,7 @@ async function init() {
     repairAccount,
     createAccount,
     renameAccount,
+    assignAccountProfile,
     setSetting,
     setDestination,
     reloadCommands,
