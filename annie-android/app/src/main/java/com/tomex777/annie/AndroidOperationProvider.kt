@@ -33,7 +33,7 @@ internal class CoreAndroidOperationProvider(
             "assetId" to OperationProperty("string", required = true, maxLength = 128),
         ), js = JsBinding(positional = listOf("assetId"))),
         op("android.stt", "listen", ANDROID_STT_CAPABILITY, ANDROID_STT_PERMISSION, schema(
-            "language" to OperationProperty("string", maxLength = 35, pattern = Regex("[A-Za-z]{2,8}(?:-[A-Za-z0-9]{1,8})*"), invalidMessage = "Android bridge language must be a short BCP-47 style tag", invalidMessage = "Android bridge language must be a short BCP-47 style tag"),
+            "language" to OperationProperty("string", maxLength = 35, pattern = Regex("[A-Za-z]{2,8}(?:-[A-Za-z0-9]{1,8})*"), invalidMessage = "Android bridge language must be a short BCP-47 style tag"),
             "prompt" to OperationProperty("string", maxLength = 160, invalidMessage = "STT prompt is too long"),
         ), js = JsBinding(optionsKeys = listOf("language", "prompt"))),
         op("android.documents", "pickText", ANDROID_DOCUMENTS_CAPABILITY, ANDROID_DOCUMENTS_PERMISSION, schema(

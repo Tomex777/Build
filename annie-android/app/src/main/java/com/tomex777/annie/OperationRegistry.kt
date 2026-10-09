@@ -136,7 +136,7 @@ internal data class OperationInputSchema(
                 }
                 if (property.enumValues.isNotEmpty() && value !in property.enumValues) throw AnnieError(
                     AnnieErrorCode.INVALID_ARGUMENT,
-                    errorMessage(property, "Field '$name' must be one of ${property.enumValues.joinToString("), ")}",
+                    errorMessage(property, "Field '$name' must be one of ${property.enumValues.joinToString(", ")}"),
                     operationId,
                 )
             }
