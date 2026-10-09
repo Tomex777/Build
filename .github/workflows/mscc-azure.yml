@@ -10,6 +10,11 @@ on:
     paths:
       - 'mscc/**'
       - '.github/workflows/mscc-azure.yml'
+  pull_request:
+    branches: [mscc-azure]
+    paths:
+      - 'mscc/**'
+      - '.github/workflows/mscc-azure.yml'
   workflow_dispatch:
 
 jobs:
