@@ -147,9 +147,13 @@ fun CortexPairingScreen(
                     Text("WhatsApp Accounts", fontSize = 19.sp, fontWeight = FontWeight.SemiBold)
                     Text(
                         state?.let {
-                            val destinationName = it.accounts.firstOrNull { account -> account.id == it.destination }?.title
-                                ?: "Account ${it.destination}"
-                            "${it.accounts.count { account -> account.connected }} connected · ${it.accounts.size} total · CC: $destinationName [${it.destination}]"
+                            if (it.accounts.isEmpty()) {
+                                "No WhatsApp accounts configured yet"
+                            } else {
+                                val destinationName = it.accounts.firstOrNull { account -> account.id == it.destination }?.title
+                                    ?: "Account ${it.destination}"
+                                "${it.accounts.count { account -> account.connected }} connected · ${it.accounts.size} total · CC: $destinationName [${it.destination}]"
+                            }
                         } ?: "Connect to your server to manage linked accounts",
                         color = CortexMuted,
                         fontSize = 11.sp,
@@ -174,15 +178,17 @@ fun CortexPairingScreen(
                     Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 9.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    Text(
-                        "CC inbox fixed to " +
-                            (state.accounts.firstOrNull { it.id == state.destination }?.title ?: "Main Control") +
-                            " [${state.destination}] · change unavailable",
-                        color = CortexMuted,
-                        fontSize = 10.sp,
-                        maxLines = 2,
-                        modifier = Modifier.testTag("fixed-cc-destination-note"),
-                    )
+                    if (state.accounts.isNotEmpty() && state.destination.isNotBlank()) {
+                        Text(
+                            "CC inbox fixed to " +
+                                (state.accounts.firstOrNull { it.id == state.destination }?.title ?: "Main Control") +
+                                " [${state.destination}] · change unavailable",
+                            color = CortexMuted,
+                            fontSize = 10.sp,
+                            maxLines = 2,
+                            modifier = Modifier.testTag("fixed-cc-destination-note"),
+                        )
+                    }
                     Row(
                         Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
