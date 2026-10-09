@@ -116,7 +116,6 @@ fun CortexPairingScreen(
     onCloseDiagnostics: () -> Unit = {},
 ) {
     var selected by remember { mutableStateOf<PairingAccount?>(null) }
-    var destinationCandidate by remember { mutableStateOf<PairingAccount?>(null) }
     var disconnectCandidate by remember { mutableStateOf<PairingAccount?>(null) }
     var removeCandidate by remember { mutableStateOf<PairingAccount?>(null) }
     var action by remember { mutableStateOf(PairAction.PAIR) }
@@ -175,6 +174,12 @@ fun CortexPairingScreen(
                     Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 9.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
+                    Text(
+                        "CC inbox: Main Control (Account A) · destination locked by MSCC",
+                        color = CortexMuted,
+                        fontSize = 10.sp,
+                        modifier = Modifier.testTag("fixed-cc-destination-note"),
+                    )
                     Row(
                         Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -343,7 +348,6 @@ fun CortexPairingScreen(
                                 selected = account
                                 action = PairAction.PAIR
                             },
-                            onDestination = { destinationCandidate = account },
                             onReconnect = { onReconnect(account.id) },
                             onRename = { renameCandidate = account },
                             onEditProfile = { profileCandidate = account },
@@ -632,17 +636,6 @@ fun CortexPairingScreen(
         )
     }
 
-    destinationCandidate?.let { account ->
-        DestinationSheet(
-            account = account,
-            onDismiss = { destinationCandidate = null },
-            onConfirm = {
-                onDestination(account.id)
-                destinationCandidate = null
-            },
-        )
-    }
-
     repairConfirmation?.let { (account, mode) ->
         AlertDialog(
             onDismissRequest = { repairConfirmation = null },
@@ -699,7 +692,6 @@ private fun PairingAccountCard(
     duplicateName: Boolean,
     busy: Boolean,
     onPair: () -> Unit,
-    onDestination: () -> Unit,
     onReconnect: () -> Unit,
     onRename: () -> Unit,
     onEditProfile: () -> Unit,
@@ -935,23 +927,8 @@ private fun PairingAccountCard(
                 )
             }
 
-            if (account.enabled && !destination) {
-                HorizontalDivider(color = CortexLine)
-                Row(
-                    Modifier
-                        .fillMaxWidth()
-                        .clickable(enabled = !busy, onClick = onDestination)
-                        .padding(horizontal = 13.dp, vertical = 10.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Column(Modifier.weight(1f)) {
-                        Text("Make destination", fontSize = 12.sp, fontWeight = FontWeight.Medium)
-                        Text("Recovered media will be sent to ${account.title}.", color = CortexMuted, fontSize = 10.sp)
-                    }
-                    Text("CHANGE", color = CortexAccent, fontSize = 9.sp, fontWeight = FontWeight.Bold)
-                }
-            }
-
+            // MSCC fixes the CC destination to Account A; do not offer an
+            // action that its server API will reject.
             if (!account.connected) {
                 HorizontalDivider(color = CortexLine)
                 Row(
