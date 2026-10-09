@@ -32,6 +32,24 @@ class YomiCiFixtureActivity : Activity() {
                 YomiCiDocumentsProvider.ROOT_ID,
             )
             Triple(uri, "folder", "Yomi CI Folder")
+        } else if (kind == KIND_EXTENSIONLESS) {
+            // Test actual Android decoding of a PNG whose ZIP member has no
+            // suffix. Mihon detects images from their content signatures.
+            val archive = File(cacheDir, "yomi-ci-extensionless.cbz")
+            if (!archive.exists() || intent.getBooleanExtra(EXTRA_RESET, false)) {
+                archive.parentFile?.mkdirs()
+                ZipOutputStream(archive.outputStream().buffered()).use { zip ->
+                    writePage(zip, "Chapter 1/1", Color.rgb(42, 56, 86))
+                    writePage(zip, "Chapter 1/2", Color.rgb(68, 86, 122))
+                    writePage(zip, "Chapter 1/3", Color.rgb(94, 116, 154))
+                }
+            }
+            Triple(Uri.fromFile(archive), "archive", "Yomi CI Extensionless")
+        } else if (kind == KIND_IMPORTED) {
+            val stored = File(filesDir, "imported-books").walkTopDown()
+                .firstOrNull { it.isFile && it.extension.equals("cbz", true) }
+                ?: error("No privately retained CBZ found; ACTION_VIEW import regression failed")
+            Triple(Uri.fromFile(stored), "archive", stored.name)
         } else {
             val archive = File(cacheDir, "yomi-ci-book.cbz")
             if (!archive.exists() || intent.getBooleanExtra(EXTRA_RESET, false)) {
@@ -122,5 +140,7 @@ class YomiCiFixtureActivity : Activity() {
         const val EXTRA_OPEN_SETTINGS = "openSettings"
         const val KIND_ARCHIVE = "archive"
         const val KIND_FOLDER = "folder"
+        const val KIND_IMPORTED = "imported"
+        const val KIND_EXTENSIONLESS = "extensionless"
     }
 }

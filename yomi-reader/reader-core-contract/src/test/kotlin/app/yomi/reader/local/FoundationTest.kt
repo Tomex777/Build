@@ -208,6 +208,51 @@ class FoundationTest {
     }
 
     @Test
+    fun extensionlessImagesAreRecognizedByRealImageMagic() {
+        val jpg = byteArrayOf(0xFF.toByte(), 0xD8.toByte(), 0xFF.toByte(), 0xE0.toByte())
+        val png = byteArrayOf(
+            0x89.toByte(), 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
+        )
+        val webp = "RIFF".encodeToByteArray() +
+            byteArrayOf(0, 0, 0, 0) + "WEBP".encodeToByteArray()
+        val archive = zipOf(
+            "Chapter 1/001" to jpg,
+            "Chapter 1/002.data" to png,
+            "Chapter 1/003.bin" to webp,
+            "note.txt" to "not an image".encodeToByteArray(),
+        )
+        val scan = assertIs<ArchiveScanResult.Success>(
+            ZipArchiveScanner.scan(ByteArrayInputStream(archive)),
+        )
+        assertEquals(
+            listOf("Chapter 1/001", "Chapter 1/002.data", "Chapter 1/003.bin"),
+            scan.catalog.pages.map { it.name },
+        )
+        val page = assertIs<ArchivePageRead.Success>(
+            ZipArchiveScanner.readPage(ByteArrayInputStream(archive), "Chapter 1/002.data"),
+        )
+        assertContentEquals(png, page.bytes)
+        assertEquals(
+            scan.catalog.pages.map { it.name },
+            ZipArchiveCatalog.scan(ByteArrayInputStream(archive)).map { it.name },
+        )
+    }
+
+    @Test
+    fun macOsResourceForksAreNotIndexedAsUnreadablePages() {
+        val archive = zipOf(
+            "__MACOSX/._001.jpg" to byteArrayOf(1),
+            "Chapter 1/._002.png" to byteArrayOf(1),
+            "Chapter 1/001.jpg" to byteArrayOf(1),
+            ".DS_Store" to byteArrayOf(1),
+        )
+        val scan = assertIs<ArchiveScanResult.Success>(
+            ZipArchiveScanner.scan(ByteArrayInputStream(archive)),
+        )
+        assertEquals(listOf("Chapter 1/001.jpg"), scan.catalog.pages.map { it.name })
+    }
+
+    @Test
     fun archiveScannerRejectsArchiveWithoutImages() {
         val archive = zipOf(
             "README.txt" to "no pages".encodeToByteArray(),

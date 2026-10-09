@@ -1,6 +1,12 @@
 package reader.shared.android.pager
 
 import android.graphics.PointF
+import android.util.Log
+import android.view.Gravity
+import android.widget.FrameLayout
+import android.widget.ProgressBar
+import android.widget.TextView
+import kotlinx.coroutines.CancellationException
 import android.view.InputDevice
 import android.view.KeyEvent
 import android.view.MotionEvent
@@ -234,23 +240,74 @@ class SharedPagerViewer(
     ) : ReaderPageImageView(host.context), ViewPagerAdapter.PositionableView {
         override val item: Any get() = page
         private var loadJob: Job? = null
+        private val spinner = ProgressBar(host.context).apply { isIndeterminate = true }
+        private var errorMessage: TextView? = null
 
         init {
             setBackgroundColor(config.backgroundColor)
+            addView(
+                spinner,
+                FrameLayout.LayoutParams(
+                    FrameLayout.LayoutParams.WRAP_CONTENT,
+                    FrameLayout.LayoutParams.WRAP_CONTENT,
+                    Gravity.CENTER,
+                ),
+            )
             onScaleChanged = { host.hideMenu() }
-            onImageLoadError = { setBackgroundColor(0xFF341A1A.toInt()) }
-            loadJob = scope.launch {
-                val stream = withContext(Dispatchers.IO) { page.open() }
-                setImage(
-                    stream,
-                    Config(
-                        zoomDurationMillis = config.zoomDurationMillis,
-                        minimumScaleType = config.minimumScaleType,
-                        cropBorders = config.cropBorders,
-                        landscapeZoom = direction != PagerDirection.VERTICAL,
-                    ),
-                )
+            onImageLoaded = {
+                spinner.visibility = View.GONE
+                Log.i("YomiReader", "page-image-ready name=${page.displayName}")
             }
+            onImageLoadError = { error -> showPageError(error) }
+            startPageLoad()
+        }
+
+        private fun startPageLoad() {
+            errorMessage?.let(::removeView)
+            errorMessage = null
+            spinner.visibility = View.VISIBLE
+            loadJob?.cancel()
+            loadJob = scope.launch {
+                try {
+                    val stream = withContext(Dispatchers.IO) { page.open() }
+                    setImage(
+                        stream,
+                        Config(
+                            zoomDurationMillis = config.zoomDurationMillis,
+                            minimumScaleType = config.minimumScaleType,
+                            cropBorders = config.cropBorders,
+                            zoomStartPosition = config.zoomStartPosition,
+                            landscapeZoom = config.landscapeZoom && direction != PagerDirection.VERTICAL,
+                        ),
+                    )
+                } catch (error: CancellationException) {
+                    throw error
+                } catch (error: Exception) {
+                    showPageError(error)
+                }
+            }
+        }
+
+        private fun showPageError(error: Throwable?) {
+            Log.e("YomiReader", "page-image-failed name=${page.displayName}", error)
+            spinner.visibility = View.GONE
+            errorMessage?.let(::removeView)
+            errorMessage = TextView(host.context).apply {
+                text = "Unable to display this page. Tap to retry."
+                textSize = 15f
+                gravity = Gravity.CENTER
+                setTextColor(0xFFFFFFFF.toInt())
+                setPadding(24, 24, 24, 24)
+                setOnClickListener { startPageLoad() }
+            }
+            addView(
+                errorMessage,
+                FrameLayout.LayoutParams(
+                    FrameLayout.LayoutParams.MATCH_PARENT,
+                    FrameLayout.LayoutParams.WRAP_CONTENT,
+                    Gravity.CENTER,
+                ),
+            )
         }
 
         fun destroy() {

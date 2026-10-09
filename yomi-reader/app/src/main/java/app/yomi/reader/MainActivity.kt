@@ -37,6 +37,7 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -81,6 +82,7 @@ import app.yomi.reader.local.ReaderBookmarkStore
 import app.yomi.reader.local.SharedPreferencesProgressSink
 import app.yomi.reader.local.TreeBookCatalog
 import app.yomi.reader.local.ZipArchiveScanner
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -91,10 +93,12 @@ class MainActivity : ComponentActivity() {
     private val bookmarkStore by lazy { ReaderBookmarkStore(this) }
     private val progressStore by lazy { SharedPreferencesProgressSink(this) }
     private val libraryRevision = mutableIntStateOf(0)
+    private val incomingArchiveUri = mutableStateOf<Uri?>(null)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         Log.i(STARTUP_TAG, "activity-created")
+        incomingArchiveUri.value = archiveUriFromIntent(intent)
         enableEdgeToEdge()
         WindowCompat.getInsetsController(window, window.decorView).apply {
             isAppearanceLightStatusBars = false
@@ -106,6 +110,27 @@ class MainActivity : ComponentActivity() {
             }
         }
         Log.i(STARTUP_TAG, "compose-content-attached")
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        incomingArchiveUri.value = archiveUriFromIntent(intent)
+    }
+
+    private fun archiveUriFromIntent(intent: Intent?): Uri? {
+        val candidate = when (intent?.action) {
+            Intent.ACTION_VIEW -> intent.data
+            Intent.ACTION_SEND -> {
+                // Some Android file explorers offer Share instead of Open with
+                // when they don't have a registered CBZ MIME association.
+                @Suppress("DEPRECATION")
+                val shared = intent.getParcelableExtra<Uri>(Intent.EXTRA_STREAM)
+                shared ?: intent.clipData?.getItemAt(0)?.uri
+            }
+            else -> null
+        }
+        return candidate?.takeIf { it.scheme == "content" || it.scheme == "file" }
     }
 
     override fun onResume() {
@@ -138,6 +163,97 @@ class MainActivity : ComponentActivity() {
         val stream = contentResolver.openInputStream(uri)
             ?: return ArchiveScanResult.Rejected("cannot-open")
         return stream.use(ZipArchiveScanner::scan)
+    }
+
+    /**
+     * Documents picked through ACTION_OPEN_DOCUMENT generally have persistent
+     * access. A CBZ opened from My Files with ACTION_VIEW usually does not.
+     * Store that temporary-grant archive in the app's private library so it
+     * remains readable after Android revokes the sender's permission.
+     */
+    private suspend fun retainExternalArchive(uri: Uri): Uri = withContext(Dispatchers.IO) {
+        if (uri.scheme == "file" && uri.path?.startsWith(filesDir.canonicalPath + java.io.File.separator) == true) {
+            return@withContext uri
+        }
+
+        if (uri.scheme == "content") {
+            val persisted = runCatching {
+                contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }.isSuccess
+            if (persisted) return@withContext uri
+        }
+
+        val sourceName = runCatching { queryDisplayName(uri) }.getOrNull()
+            ?: uri.lastPathSegment?.substringAfterLast('/') ?: "Imported.cbz"
+        val safeName = sourceName.replace(Regex("[^A-Za-z0-9._ -]"), "_")
+            .take(120)
+            .ifBlank { "Imported.cbz" }
+            .let { if (it.endsWith(".cbz", true) || it.endsWith(".zip", true)) it else "$it.cbz" }
+        val key = java.security.MessageDigest.getInstance("SHA-256")
+            .digest(uri.toString().toByteArray(Charsets.UTF_8))
+            .joinToString("") { "%02x".format(it.toInt() and 0xff) }
+        val directory = java.io.File(filesDir, "imported-books/$key").apply { mkdirs() }
+        val stored = java.io.File(directory, safeName)
+        if (stored.isFile && stored.length() > 0L) return@withContext Uri.fromFile(stored)
+
+        val staging = java.io.File.createTempFile("yomi-import-", ".tmp", directory)
+        try {
+            val stream = contentResolver.openInputStream(uri)
+                ?: throw java.io.IOException("Unable to read Android file provider")
+            stream.use { input ->
+                staging.outputStream().buffered().use { out ->
+                    val buffer = ByteArray(64 * 1024)
+                    var total = 0L
+                    while (true) {
+                        val count = input.read(buffer)
+                        if (count < 0) break
+                        if (count == 0) continue
+                        total += count
+                        if (total > 4L * 1024 * 1024 * 1024) {
+                            throw java.io.IOException("CBZ exceeds Yomi's archive size limit")
+                        }
+                        out.write(buffer, 0, count)
+                    }
+                }
+            }
+            if (!staging.renameTo(stored)) {
+                staging.copyTo(stored, overwrite = true)
+            }
+            Log.i(STARTUP_TAG, "external-archive-copied-to-private-library bytes=${stored.length()}")
+            Uri.fromFile(stored)
+        } finally {
+            staging.delete()
+        }
+    }
+
+    private suspend fun importArchive(uri: Uri): LibraryBook {
+        val catalog = when (val scan = withContext(Dispatchers.IO) { inspectArchive(uri) }) {
+            is ArchiveScanResult.Success -> scan.catalog
+            is ArchiveScanResult.Rejected -> throw IllegalArgumentException("cbz:" + scan.reason)
+        }
+        val book = persistSelection(uri, "archive", catalog.pages.size)
+        // Real-world CBZs sometimes begin with an unsupported/corrupt front-matter
+        // image. Find the first *decodable* page rather than silently dropping the
+        // cover because only the first catalog entry was attempted.
+        val coverUri = withContext(Dispatchers.IO) {
+            catalog.pages.take(8).firstNotNullOfOrNull { page ->
+                createCoverThumbnail(uri, page.name, book.id.value)
+            }
+        }
+        if (coverUri == null) {
+            Log.w(STARTUP_TAG, "archive-cover-unavailable title=${book.title} checked=${minOf(catalog.pages.size, 8)}")
+        }
+        if (coverUri != null) {
+            libraryStore.upsert(
+                uri = uri,
+                title = book.title,
+                locationType = LibraryLocationType.DOCUMENT,
+                pageCount = catalog.pages.size,
+                coverUri = coverUri,
+            )
+            Log.i(STARTUP_TAG, "archive-cover-created title=${book.title}")
+        }
+        return book
     }
 
     private fun createCoverThumbnail(uri: Uri, pageName: String, bookId: String): String? {
@@ -260,13 +376,15 @@ class MainActivity : ComponentActivity() {
         )
     }
 
-    private fun queryDisplayName(uri: Uri): String? =
-        contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)
+    private fun queryDisplayName(uri: Uri): String? {
+        if (uri.scheme == "file") return uri.lastPathSegment?.substringAfterLast('/')
+        return contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)
             ?.use { cursor ->
                 if (!cursor.moveToFirst()) return@use null
                 val index = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
                 if (index >= 0) cursor.getString(index) else null
             }
+    }
 
     @OptIn(ExperimentalMaterial3Api::class)
     @Composable
@@ -274,6 +392,45 @@ class MainActivity : ComponentActivity() {
         val revision = libraryRevision.intValue
         var library by remember(revision) { mutableStateOf(libraryStore.list()) }
         StartupDrawProbe()
+
+        // Upgrade existing libraries: older Yomi builds saved CBZ books without
+        // a real cover. Regenerate a thumbnail without deleting progress or the
+        // original file. Do this off the main thread to avoid a blank home screen.
+        LaunchedEffect(revision) {
+            val missingCovers = libraryStore.list().filter {
+                it.locationType == LibraryLocationType.DOCUMENT &&
+                    it.coverUri.isNullOrBlank() &&
+                    it.availability == LibraryAvailability.AVAILABLE
+            }.take(8)
+            if (missingCovers.isNotEmpty()) {
+                withContext(Dispatchers.IO) {
+                    missingCovers.forEach { item ->
+                        runCatching {
+                            val uri = Uri.parse(item.locationUri)
+                            val scan = inspectArchive(uri)
+                            if (scan is ArchiveScanResult.Success) {
+                                val cover = scan.catalog.pages.take(8).firstNotNullOfOrNull { page ->
+                                    createCoverThumbnail(uri, page.name, item.id.value)
+                                }
+                                if (cover != null) {
+                                    libraryStore.upsert(
+                                        uri = uri,
+                                        title = item.title,
+                                        locationType = LibraryLocationType.DOCUMENT,
+                                        pageCount = scan.catalog.pages.size,
+                                        coverUri = cover,
+                                    )
+                                    Log.i(STARTUP_TAG, "archive-cover-restored title=${item.title}")
+                                }
+                            }
+                        }.onFailure { error ->
+                            Log.w(STARTUP_TAG, "archive-cover-repair-failed title=${item.title}", error)
+                        }
+                    }
+                }
+                library = libraryStore.list()
+            }
+        }
 
         LaunchedEffect(Unit) {
             Log.i(STARTUP_TAG, "home-content-composed sections=Home,Folders")
@@ -289,32 +446,48 @@ class MainActivity : ComponentActivity() {
         var importError by remember { mutableStateOf<String?>(null) }
         val scope = rememberCoroutineScope()
 
+        var importingArchive by remember { mutableStateOf(false) }
+
+        suspend fun importAndOpenArchive(uri: Uri, fromExternalApp: Boolean = false) {
+            if (importingArchive) return
+            importingArchive = true
+            importError = null
+            try {
+                val storedUri = if (fromExternalApp) retainExternalArchive(uri) else uri
+                val book = importArchive(storedUri)
+                library = libraryStore.list()
+                Log.i(STARTUP_TAG, "archive-imported-and-opening title=${book.title}")
+                openReader(book)
+            } catch (error: Exception) {
+                if (error is CancellationException) throw error
+                Log.e(STARTUP_TAG, "archive-import-or-open-failed", error)
+                importError = when {
+                    error is SecurityException ->
+                        "Yomi can't access this file. Choose it again from your device's files."
+                    error.message == "cbz:no-image-pages" ->
+                        "This archive has no JPG, PNG, or WebP pages to read."
+                    error is IllegalArgumentException && error.message?.startsWith("cbz:") == true ->
+                        "This CBZ/ZIP couldn't be read. It may be damaged, encrypted, or too large."
+                    else -> "Couldn't open this CBZ/ZIP. Try another file or check that it isn't damaged."
+                }
+            } finally {
+                importingArchive = false
+            }
+        }
+
         val openBook = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
             if (uri != null) {
-                scope.launch {
-                    when (val scan = withContext(Dispatchers.IO) { inspectArchive(uri) }) {
-                        is ArchiveScanResult.Success -> {
-                            val book = persistSelection(uri, "archive", scan.catalog.pages.size)
-                            val coverUri = withContext(Dispatchers.IO) {
-                                createCoverThumbnail(uri, scan.catalog.pages.first().name, book.id.value)
-                            }
-                            if (coverUri != null) {
-                                libraryStore.upsert(
-                                    uri = uri,
-                                    title = book.title,
-                                    locationType = LibraryLocationType.DOCUMENT,
-                                    pageCount = scan.catalog.pages.size,
-                                    coverUri = coverUri,
-                                )
-                            }
-                            library = libraryStore.list()
-                            importError = null
-                        }
-                        is ArchiveScanResult.Rejected -> {
-                            importError = "This file couldn’t be opened as a CBZ or ZIP book."
-                        }
-                    }
-                }
+                scope.launch { importAndOpenArchive(uri) }
+            }
+        }
+
+        // ACTION_VIEW files from Android Files must use the same validation and reader
+        // launch as CBZ documents chosen through Yomi's own "Open a book" button.
+        val incoming = incomingArchiveUri.value
+        LaunchedEffect(incoming) {
+            if (incoming != null) {
+                importAndOpenArchive(incoming, fromExternalApp = true)
+                incomingArchiveUri.value = null
             }
         }
 
@@ -356,8 +529,12 @@ class MainActivity : ComponentActivity() {
                                 contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
                             }
                             val title = queryDisplayName(uri) ?: item.title
+                            // Relink must be as resilient as a first import:
+                            // archives sometimes include a corrupt front page.
                             val coverUri = withContext(Dispatchers.IO) {
-                                createCoverThumbnail(uri, scan.catalog.pages.first().name, item.id.value)
+                                scan.catalog.pages.take(8).firstNotNullOfOrNull { page ->
+                                    createCoverThumbnail(uri, page.name, item.id.value)
+                                }
                             }
                             runCatching {
                                 libraryStore.relink(
@@ -462,6 +639,16 @@ class MainActivity : ComponentActivity() {
                     },
                     onAdd = { showAddSheet = true },
                 )
+                if (importingArchive) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+                        Text("Opening CBZ/ZIP…", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
 
                 when (destination) {
                     HomeDestination.HOME -> HomeContent(
