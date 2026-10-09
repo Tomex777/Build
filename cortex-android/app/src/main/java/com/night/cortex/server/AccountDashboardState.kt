@@ -8,6 +8,7 @@ internal enum class AccountViewFilter(val title: String) {
     ONLINE("Online"),
     ATTENTION("Needs attention"),
     PAUSED("Paused"),
+    CONNECTING("Connecting"),
     OFFLINE("Offline"),
 }
 
@@ -16,6 +17,7 @@ internal data class AccountOverview(
     val online: Int,
     val attention: Int,
     val paused: Int,
+    val connecting: Int,
     val offline: Int,
 )
 
@@ -30,8 +32,12 @@ internal fun PairingAccount.needsAttention(): Boolean {
 internal fun PairingAccount.isPaused(): Boolean =
     paused || status.equals("paused", ignoreCase = true)
 
+internal fun PairingAccount.isConnecting(): Boolean =
+    !connected && !isPaused() && !needsAttention() &&
+        status.lowercase(Locale.ROOT) in setOf("connecting", "reconnecting", "pairing", "pending")
+
 internal fun PairingAccount.isOffline(): Boolean =
-    !connected && !isPaused() && !needsAttention()
+    !connected && !isPaused() && !needsAttention() && !isConnecting()
 
 internal fun accountOverview(accounts: List<PairingAccount>): AccountOverview =
     AccountOverview(
@@ -39,6 +45,7 @@ internal fun accountOverview(accounts: List<PairingAccount>): AccountOverview =
         online = accounts.count { it.connected },
         attention = accounts.count { it.needsAttention() },
         paused = accounts.count { it.isPaused() && !it.needsAttention() },
+        connecting = accounts.count { it.isConnecting() },
         offline = accounts.count { it.isOffline() },
     )
 
@@ -54,6 +61,7 @@ internal fun visibleAccounts(
             AccountViewFilter.ONLINE -> account.connected
             AccountViewFilter.ATTENTION -> account.needsAttention()
             AccountViewFilter.PAUSED -> account.isPaused() && !account.needsAttention()
+            AccountViewFilter.CONNECTING -> account.isConnecting()
             AccountViewFilter.OFFLINE -> account.isOffline()
         }
         val matchesSearch = needle.isEmpty() || listOf(
