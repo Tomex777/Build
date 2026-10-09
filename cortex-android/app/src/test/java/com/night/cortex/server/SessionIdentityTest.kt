@@ -63,6 +63,6 @@ class SessionIdentityTest {
     @Test fun profileDisplayNameDoesNotReplaceSessionName() {
         val session = account("account-9", name = "Night Backup", profile = "nami", profileName = "Nami")
         assertEquals("Night Backup", session.title)
-        assertEquals("Nami (nami)", session.profileLabel)
+        assertEquals("Nami", session.profileLabel)
     }
 }
