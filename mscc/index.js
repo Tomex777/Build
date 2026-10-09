@@ -2565,6 +2565,7 @@ async function closeAccount(a) {
   clearTimeout(a.reconnectTimer)
   a.reconnectTimer = null
   a.nextReconnectAt = 0
+  a.pairingRequested = false
   a.generation++
   const old = a.sock
   a.sock = null
@@ -2576,26 +2577,32 @@ async function closeAccount(a) {
 
 async function makePairOutput(account) {
   if (!account.lastQr || !account.sock || account.connected || account.registered) return
+  const generation = account.generation
+  const socket = account.sock
+  const stillCurrent = () => account.generation === generation && account.sock === socket && !account.connected
   if (account.pairingMode === 'qr') {
     try {
-      account.pairingQr = await QRCode.toDataURL(account.lastQr, { width: 340, margin: 1 })
+      const qr = await QRCode.toDataURL(account.lastQr, { width: 340, margin: 1 })
+      if (!stillCurrent() || account.pairingMode !== 'qr') return
+      account.pairingQr = qr
       account.pairingCode = ''
       account.pairingError = ''
-    } catch (e) { account.pairingError = e?.message || String(e) }
+    } catch (e) { if (stillCurrent()) account.pairingError = e?.message || String(e) }
     return
   }
   if (account.pairingMode !== 'code' || account.pairingRequested) return
   account.pairingRequested = true
   try {
-    const code = await account.sock.requestPairingCode(account.number)
+    const code = await socket.requestPairingCode(account.number)
+    if (!stillCurrent() || account.pairingMode !== 'code') return
     account.pairingCode = code?.match(/.{1,4}/g)?.join('-') || code || ''
     account.pairingQr = ''
     account.pairingError = ''
     account.lastCodeAt = Date.now()
-    console.log(`PAIRING CODE [${account.id}]: ${account.pairingCode}`)
+    console.log(`[${account.id}] pairing code ready (code value withheld from logs)`)
   } catch (e) {
-    account.pairingError = e?.message || String(e)
-  } finally { account.pairingRequested = false }
+    if (stillCurrent()) account.pairingError = e?.message || String(e)
+  } finally { if (stillCurrent()) account.pairingRequested = false }
 }
 
 function scheduleAccountReconnect(account, generation, delayMs) {
