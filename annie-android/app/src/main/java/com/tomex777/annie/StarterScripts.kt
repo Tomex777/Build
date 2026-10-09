@@ -248,4 +248,109 @@ internal object StarterScripts {
         |  }
         |});
     """.trimMargin()
+
+    /** Built-in playable game demonstrating HTML/CSS/JS Canvas as a chat message. */
+    val canvasSnake: String = """
+        |annie.commands.register({
+        |  name: "snake",
+        |  description: "Play Snake directly inside an Annie chat",
+        |  usage: "/snake",
+        |  keywords: ["game", "canvas", "play", "snake"],
+        |  async execute() {
+        |    return {
+        |      type: "canvas",
+        |      title: "Snake • Canvas",
+        |      height: 440,
+        |      html: `<main class="game">
+        |        <header><strong>🐍 Snake</strong><span id="score">Score 0</span></header>
+        |        <canvas id="board" width="300" height="300" aria-label="Snake board"></canvas>
+        |        <div class="pad">
+        |          <span></span><button data-dir="up" aria-label="Up">▲</button><span></span>
+        |          <button data-dir="left" aria-label="Left">◀</button>
+        |          <button id="restart">↻</button>
+        |          <button data-dir="right" aria-label="Right">▶</button>
+        |          <span></span><button data-dir="down" aria-label="Down">▼</button><span></span>
+        |        </div>
+        |        <p id="hint">Tap arrows or use your keyboard</p>
+        |      </main>`,
+        |      css: `
+        |        body { background:#071622; margin:0; color:#eef5ff; }
+        |        .game { width:100%; max-width:320px; padding:8px 10px; margin:auto; text-align:center; }
+        |        header { display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; color:#54d6ae; }
+        |        #board { display:block; background:#0c2230; width:min(100%,300px); aspect-ratio:1; border-radius:12px; touch-action:none; }
+        |        .pad { display:grid; grid-template-columns:repeat(3,42px); justify-content:center; gap:3px; margin-top:8px; }
+        |        button { background:#244256; color:white; border:0; border-radius:9px; height:32px; touch-action:manipulation; }
+        |        button:active { background:#168eea; }
+        |        #restart { background:#168eea; }
+        |        #hint { color:#9cb2cc; font-size:11px; margin:6px 0 0; }
+        |      `,
+        |      javascript: `
+        |        (() => {
+        |          const board = document.getElementById('board');
+        |          const ctx = board.getContext('2d');
+        |          const score = document.getElementById('score');
+        |          const hint = document.getElementById('hint');
+        |          const unit = 15, cells = 20;
+        |          let snake, direction, nextDirection, food, points, lost;
+        |          const rand = () => Math.floor(Math.random() * cells);
+        |          function placeFood() {
+        |            do { food = {x: rand(), y: rand()}; }
+        |            while (snake.some(p => p.x === food.x && p.y === food.y));
+        |          }
+        |          function draw() {
+        |            ctx.fillStyle = '#0c2230'; ctx.fillRect(0, 0, 300, 300);
+        |            ctx.fillStyle = '#e78e8e';
+        |            ctx.fillRect(food.x * unit + 2, food.y * unit + 2, unit - 4, unit - 4);
+        |            snake.forEach((p, i) => {
+        |              ctx.fillStyle = i ? '#36bca0' : '#91f2cb';
+        |              ctx.fillRect(p.x * unit + 1, p.y * unit + 1, unit - 2, unit - 2);
+        |            });
+        |          }
+        |          function reset() {
+        |            snake = [{x:10,y:10},{x:9,y:10},{x:8,y:10}];
+        |            direction = {x:1,y:0}; nextDirection = direction;
+        |            points = 0; lost = false; score.textContent = 'Score 0';
+        |            hint.textContent = 'Tap arrows or use your keyboard';
+        |            placeFood(); draw();
+        |          }
+        |          function turn(x,y) {
+        |            if (direction.x + x === 0 && direction.y + y === 0) return;
+        |            nextDirection = {x,y};
+        |          }
+        |          function tick() {
+        |            if (lost) return;
+        |            direction = nextDirection;
+        |            const head = {x:snake[0].x+direction.x,y:snake[0].y+direction.y};
+        |            const eat = head.x === food.x && head.y === food.y;
+        |            const body = eat ? snake : snake.slice(0,-1);
+        |            if (head.x<0 || head.y<0 || head.x>=cells || head.y>=cells ||
+        |              body.some(p=>p.x===head.x && p.y===head.y)) {
+        |              lost=true; hint.textContent='Game over — tap ↻ to restart'; return;
+        |            }
+        |            snake.unshift(head);
+        |            if (eat) { points++; score.textContent='Score '+points; placeFood(); }
+        |            else snake.pop();
+        |            draw();
+        |          }
+        |          const directions = {up:[0,-1],down:[0,1],left:[-1,0],right:[1,0]};
+        |          document.querySelectorAll('[data-dir]').forEach(button => {
+        |            button.addEventListener('click', () => {
+        |              const dir = directions[button.dataset.dir]; turn(dir[0],dir[1]);
+        |            });
+        |          });
+        |          document.addEventListener('keydown', event => {
+        |            const name = event.key.replace('Arrow','').toLowerCase();
+        |            if (directions[name]) {
+        |              event.preventDefault(); const dir = directions[name]; turn(dir[0],dir[1]);
+        |            }
+        |          });
+        |          document.getElementById('restart').addEventListener('click', reset);
+        |          reset(); setInterval(tick, 160);
+        |          window.annieCanvasSnakeReady = true;
+        |        })();
+        |      `
+        |    };
+        |  }
+        |});
+    """.trimMargin()
 }
