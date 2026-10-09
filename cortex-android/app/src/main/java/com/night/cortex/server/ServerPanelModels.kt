@@ -95,6 +95,14 @@ data class PairingAccount(
     val role: String = "linked",
     val profile: String = "",
     val profileDisplayName: String = "",
+    val paused: Boolean = false,
+    val registered: Boolean = false,
+    val reconnectAttempts: Int = 0,
+    val nextReconnectAt: Long = 0L,
+    val lastConnectedAt: Long = 0L,
+    val lastDisconnectedAt: Long = 0L,
+    val lastDisconnectCode: Int? = null,
+    val disconnectReason: String = "",
 )
 
 data class BotProfileOption(
