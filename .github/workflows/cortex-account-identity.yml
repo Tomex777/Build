@@ -1,5 +1,9 @@
 name: Cortex Account Identity
 
+concurrency:
+  group: cortex-account-identity-priority1
+  cancel-in-progress: true
+
 on:
   push:
     branches: [fix/cortex-account-identities-20261009]
@@ -36,4 +40,4 @@ jobs:
           yes | "$SDKMANAGER" --licenses >/dev/null || true
           "$SDKMANAGER" "platforms;android-36" "build-tools;36.0.0"
       - name: Compile Cortex and test account identity labels
-        run: gradle -p cortex-android :app:testDebugUnitTest :app:assembleDebug --stacktrace
+        run: gradle -p cortex-android :app:testDebugUnitTest :app:assembleDebug :app:assembleDebugAndroidTest --stacktrace
