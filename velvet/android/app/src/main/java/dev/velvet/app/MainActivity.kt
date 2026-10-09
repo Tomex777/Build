@@ -119,7 +119,7 @@ private fun VelvetApp() {
                     messages.add(ChatMessage((messages.maxOfOrNull { it.id } ?: 0) + 1, text, true, "Now")); page = Page.CHAT
                 })
                 Page.TTT -> TicTacToeScreen(onBack = { page = Page.GAMES })
-                Page.STORY -> StoryScreen()
+                Page.STORY -> GalleryFirstScreen(ownerName)
                 Page.US -> UsScreen(ownerName, partnerName, onOwnProfile = { profileDraft = ownerName; ownEdit = true })
             }
         }
