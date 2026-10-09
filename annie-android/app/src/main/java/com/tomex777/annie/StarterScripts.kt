@@ -275,16 +275,16 @@ internal object StarterScripts {
         |      </main>`,
         |      css: `
         |        html, body { margin:0; padding:0; overflow:hidden; background:#090f19; color:#e9f6ff; }
-        |        .game { padding:9px 10px 5px; max-width:360px; margin:auto; user-select:none; -webkit-user-select:none; touch-action:none; outline:none; }
+        |        .game { width:100%; min-height:100vh; max-width:860px; padding:9px 10px 5px; margin:auto; display:flex; flex-direction:column; justify-content:center; user-select:none; -webkit-user-select:none; touch-action:none; outline:none; }
         |        header { display:flex; justify-content:space-between; align-items:center; min-height:26px; margin-bottom:8px; }
         |        .identity { display:flex; align-items:center; gap:7px; font-size:11px; font-weight:800; letter-spacing:2px; color:#a2f4dc; }
         |        .identity small { color:#667b8d; font-weight:600; font-size:10px; letter-spacing:1px; }
         |        .spark { font-size:17px; color:#65e3d1; }
         |        #score { border-radius:13px; color:#caffea; background:#163b39; padding:5px 12px; font-size:15px; font-weight:800; font-variant-numeric:tabular-nums; }
-        |        .stage { position:relative; display:flex; justify-content:center; align-items:center; overflow:hidden; border-radius:18px;
+        |        .stage { position:relative; display:flex; flex:1 1 auto; min-height:0; max-height:min(82vh,760px); justify-content:center; align-items:center; overflow:hidden; border-radius:18px;
         |          background:radial-gradient(circle at 50% 35%,#183344 0%,#101e2d 52%,#0b1725 100%);
         |          border:1px solid #233e4d; box-shadow:inset 0 0 28px #0a1523; }
-        |        #board { display:block; width:min(100%,300px); aspect-ratio:1; height:auto; touch-action:none; }
+        |        #board { display:block; width:min(100%,calc(100vh - 112px),720px); aspect-ratio:1; height:auto; touch-action:none; }
         |        .hint { pointer-events:none; position:absolute; left:0; right:0; bottom:22px; text-align:center;
         |          font-size:11px; font-weight:800; color:#b0ffe5; letter-spacing:2px; text-shadow:0 2px 10px #04090f; }
         |        .hint span { display:block; font-size:10px; letter-spacing:7px; color:#80b0b9; margin-top:6px; }
