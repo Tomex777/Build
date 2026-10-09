@@ -47,6 +47,8 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -101,6 +103,7 @@ import io.github.rosemoe.sora.widget.CodeEditor
 import io.github.rosemoe.sora.widget.EditorSearcher
 import io.github.rosemoe.sora.widget.subscribeAlways
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -211,6 +214,8 @@ private fun ScriptStudioContent(
     }
     var status by remember { mutableStateOf("") }
     var saving by remember { mutableStateOf(false) }
+    var previewResult by remember { mutableStateOf<String?>(null) }
+    var previewOpen by remember { mutableStateOf(false) }
     var newFileName by remember { mutableStateOf("") }
     var dialogTitle by remember { mutableStateOf<String?>(null) }
     var dialogValue by remember { mutableStateOf("") }
@@ -231,6 +236,45 @@ private fun ScriptStudioContent(
     var permissionsProject by remember { mutableStateOf<ScriptProject?>(null) }
     var selectedPackageEntry by remember { mutableStateOf("") }
 
+    fun flushPendingEdits() {
+        val id = selectedProjectId ?: return
+        val path = selectedPath ?: return
+        if (editorValue.text == savedSource) return
+        workspace.files.writeFile(id, path, editorValue.text)
+        savedSource = editorValue.text
+    }
+
+    // Persist source quietly, never reloading the JS engine just because someone types.
+    LaunchedEffect(selectedProjectId, selectedPath, editorValue.text, saving) {
+        val id = selectedProjectId ?: return@LaunchedEffect
+        val path = selectedPath ?: return@LaunchedEffect
+        val source = editorValue.text
+        if (saving || source == savedSource) return@LaunchedEffect
+        delay(650)
+        runCatching {
+            withContext(Dispatchers.IO) { workspace.files.writeFile(id, path, source) }
+        }.onSuccess {
+            if (selectedProjectId == id && selectedPath == path && editorValue.text == source) {
+                savedSource = source
+                status = "Saved automatically"
+            }
+        }.onFailure { error -> status = "Autosave failed: " + (error.message ?: "unknown error") }
+    }
+
+    // A user may exit before the debounce interval. Keep the final edit durable.
+    val latestDraft = rememberUpdatedState(
+        Triple(selectedProjectId to selectedPath, editorValue.text, savedSource)
+    )
+    DisposableEffect(workspace) {
+        onDispose {
+            val (selected, text, stored) = latestDraft.value
+            val (id, path) = selected
+            if (id != null && path != null && text != stored) {
+                runCatching { workspace.files.writeFile(id, path, text) }
+            }
+        }
+    }
+
     fun refreshProjects(preferredProject: String? = selectedProjectId, preferredPath: String? = selectedPath) {
         projects = workspace.files.listProjects()
         val project = projects.firstOrNull { it.id == preferredProject } ?: projects.firstOrNull()
@@ -247,6 +291,7 @@ private fun ScriptStudioContent(
     }
 
     fun selectFile(project: ScriptProject, path: String, openEditor: Boolean = true) {
+        runCatching { flushPendingEdits() }.onFailure { status = "Could not save previous file" }
         selectedProjectId = project.id
         selectedPath = path
         currentDirectory = path.substringBeforeLast('/', "")
@@ -257,7 +302,7 @@ private fun ScriptStudioContent(
         if (openEditor) page = StudioPage.EDITOR
     }
 
-    fun saveScript(runAfterSave: Boolean = false) {
+    fun saveScript(runAfterSave: Boolean = false, openPreview: Boolean = false) {
         if (saving) return
         val project = projects.firstOrNull { it.id == selectedProjectId } ?: run {
             status = "Choose a script first"
@@ -279,6 +324,10 @@ private fun ScriptStudioContent(
             }.onSuccess { result ->
                 savedSource = source
                 refreshProjects(project.id, path)
+                if (openPreview && result != null) {
+                    previewResult = result
+                    previewOpen = true
+                }
                 status = if (runAfterSave) {
                     val response = runCatching { org.json.JSONObject(result.orEmpty()) }.getOrNull()
                     response?.optString("text")?.takeIf(String::isNotBlank)
@@ -461,11 +510,17 @@ private fun ScriptStudioContent(
                 Text(selectedProject?.let { "${it.name} · ${selectedPath ?: it.entryPath}" } ?: "Your JavaScript workspace", color = StudioMuted, fontSize = 12.sp, maxLines = 1)
             }
             StudioAction(
-                label = when { saving -> "Saving…"; dirty -> "Save"; else -> "Saved" },
-                emphasized = dirty || saving,
-                icon = StudioGlyph.SAVE,
-                onClick = { saveScript() },
-                enabled = !saving && dirty && selectedProject != null && selectedPath != null,
+                label = when { saving -> "Preparing…"; dirty -> "Preview •"; else -> "Preview" },
+                emphasized = !saving,
+                icon = StudioGlyph.RUN,
+                onClick = {
+                    if (selectedPath?.endsWith(".js", ignoreCase = true) == true) {
+                        saveScript(runAfterSave = true, openPreview = true)
+                    } else {
+                        status = "Preview isn't supported for this file type yet. Changes are saved automatically."
+                    }
+                },
+                enabled = !saving && selectedProject != null && selectedPath != null,
             )
             Spacer(Modifier.width(8.dp))
             StudioIconAction(StudioGlyph.CLOSE, "Close Script Studio", onClick = onClose)
@@ -556,7 +611,7 @@ private fun ScriptStudioContent(
                                         isFolder = isFolder,
                                         isEntry = true,
                                         selected = selectedProjectId == project.id && selectedPath == project.entryPath,
-                                        onClick = { if (isFolder) { selectedProjectId = project.id; selectedPath = project.entryPath; currentDirectory = "" } else selectFile(project, project.entryPath) },
+                                        onClick = { if (isFolder) { runCatching { flushPendingEdits() }; selectedProjectId = project.id; selectedPath = project.entryPath; currentDirectory = "" } else selectFile(project, project.entryPath) },
                                         actions = listOf(
                                             FileAction.RENAME,
                                             FileAction.SHARE,
@@ -947,6 +1002,54 @@ private fun ScriptStudioContent(
                     }) { Text("Cancel", color = StudioMuted) }
                 },
             )
+        }
+        if (previewOpen) {
+            Dialog(
+                onDismissRequest = { previewOpen = false },
+                properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false),
+            ) {
+                Column(
+                    Modifier.fillMaxSize().background(StudioPanel).statusBarsPadding().navigationBarsPadding()
+                        .testTag("script_message_preview")
+                ) {
+                    Row(
+                        Modifier.fillMaxWidth().padding(16.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("Message Preview", color = StudioText, fontWeight = FontWeight.Bold)
+                        TextButton(onClick = { previewOpen = false }) { Text("Back to editor") }
+                    }
+                    Column(Modifier.fillMaxWidth().weight(1f).padding(16.dp)) {
+                        val result = previewResult
+                        if (result.isNullOrBlank()) {
+                            Text("The command returned no message.", color = StudioMuted)
+                        } else {
+                            ChatBubble(
+                                entry = ChatEntry(
+                                    id = 0L,
+                                    fromUser = false,
+                                    text = "",
+                                    scriptMessageJson = result,
+                                    scriptId = selectedProjectId
+                                ),
+                                onCatalogClick = {},
+                                onActionClick = { _, _ -> },
+                                onOpenSource = {},
+                                onSeriesAction = { _, _, _ -> },
+                                onScriptAction = { _, _, done -> done(null) },
+                                onScriptInlineAction = { _, _, done -> done(null) },
+                            )
+                        }
+                    }
+                    Text(
+                        "Rendered with Annie's chat components. Script actions are disabled in preview.",
+                        color = StudioMuted,
+                        fontSize = 12.sp,
+                        modifier = Modifier.padding(16.dp)
+                    )
+                }
+            }
         }
         if (assistOpen && selectedProject != null && selectedPath != null) {
             ScriptAssistDialog(

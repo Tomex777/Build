@@ -130,10 +130,7 @@ class ScriptChatFlowTest {
             }
             compose.onNodeWithTag("script_editor").assertIsDisplayed()
             onView(isAssignableFrom(CodeEditor::class.java)).perform(insertCodeEditorText("\n//caret-proof"))
-            compose.waitUntil(5_000) {
-                compose.onAllNodesWithText("Save", substring = false).fetchSemanticsNodes().isNotEmpty()
-            }
-            compose.onNodeWithText("Save", substring = false).performClick()
+            // Source persistence is now automatic and debounced.
             compose.waitUntil(8_000) { files.readFile("chess", "chess.js") != original }
             assertEquals(true, files.readFile("chess", "chess.js").contains("//caret-proof"))
         } finally {
