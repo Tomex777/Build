@@ -16,7 +16,7 @@ import { dispatchNamespacedCommand, loadCommands } from './command-registry.js'
 import { AccountRegistry, legacyAccountRecords } from './account-registry.js'
 import { selectCcDestination } from './cc-routing.js'
 import { isPrivateOwnerDm } from './control-context.js'
-import { classifyDisconnect, jidPhoneNumber, reconnectDelay } from './session-policy.js'
+import { classifyDisconnect, jidPhoneNumber, reconnectDelay, sessionStatus } from './session-policy.js'
 import { openSharedStorage } from './shared-storage.js'
 import { chooseGroupExecutor, canExecuteDirect } from './bot-routing.js'
 import { SourceRegistry } from './source-registry.js'
@@ -2550,16 +2550,7 @@ async function onMessages(account, { messages, type }) {
   }
 }
 
-function statusOf(a) {
-  if (!a.enabled) return 'disabled'
-  if (a.connected) return 'connected'
-  if (a.invalid) return 'auth-invalid'
-  if (a.paused) return 'paused'
-  if (a.reconnectTimer) return 'reconnecting'
-  if (a.pairingMode) return 'pairing'
-  if (a.sock) return 'connecting'
-  return 'offline'
-}
+const statusOf = sessionStatus
 
 async function closeAccount(a) {
   clearTimeout(a.reconnectTimer)
