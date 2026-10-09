@@ -62,6 +62,54 @@ class ZipArchiveCatalogTest {
         assertEquals("entry-count", error.message)
     }
 
+    @Test
+    fun measuresDataDescriptorSizesRatherThanTrustingUnknownZipMetadata() {
+        // The default ZipOutputStream writes its entry sizes AFTER the data,
+        // meaning ZipInputStream.nextEntry.size returns -1 while indexing.
+        val bytes = zipOf("001.jpg" to ByteArray(128) { 7 })
+        val result = ZipArchiveCatalog.scan(ByteArrayInputStream(bytes))
+        assertEquals(128L, result.single().declaredSize)
+    }
+
+    @Test
+    fun rejectsInflatedEntryEvenWhenDeclaredSizeIsInitiallyUnknown() {
+        val bytes = zipOf("001.jpg" to ByteArray(128) { 7 })
+        val error = assertFailsWith<UnsafeArchiveException> {
+            ZipArchiveCatalog.scan(
+                ByteArrayInputStream(bytes),
+                ArchiveLimits(maxSingleEntryBytes = 64L),
+            )
+        }
+        assertEquals("entry-too-large", error.message)
+    }
+
+    @Test
+    fun rejectsExceededExpandedArchiveLimit() {
+        val bytes = zipOf(
+            "001.jpg" to ByteArray(40) { 1 },
+            "002.png" to ByteArray(40) { 2 },
+        )
+        val error = assertFailsWith<UnsafeArchiveException> {
+            ZipArchiveCatalog.scan(
+                ByteArrayInputStream(bytes),
+                ArchiveLimits(maxExpandedBytes = 70L),
+            )
+        }
+        assertEquals("archive-too-large", error.message)
+    }
+
+    @Test
+    fun rejectsDuplicateCaseInsensitiveImageNames() {
+        val bytes = zipOf(
+            "Chapter/001.jpg" to byteArrayOf(1),
+            "chapter/001.JPG" to byteArrayOf(2),
+        )
+        val error = assertFailsWith<UnsafeArchiveException> {
+            ZipArchiveCatalog.scan(ByteArrayInputStream(bytes))
+        }
+        assertEquals("duplicate-name", error.message)
+    }
+
     private fun zipOf(vararg entries: Pair<String, ByteArray>): ByteArray {
         val output = ByteArrayOutputStream()
         ZipOutputStream(output).use { zip ->
