@@ -144,7 +144,7 @@ class ChatHistoryTest {
         compose.onNodeWithTag("library_content").assertIsDisplayed()
         compose.onNodeWithTag("library_empty").assertDoesNotExist()
         compose.onNodeWithTag("library_manga").assertIsDisplayed()
-        compose.onNodeWithTag("library_packages").assertDoesNotExist()
+        assertTrue(compose.onAllNodesWithTag("library_packages").fetchSemanticsNodes().isEmpty())
         saveEmulatorScreenshot("annie-library")
 
         compose.onNodeWithTag("library_downloads").assertIsDisplayed().performClick()
