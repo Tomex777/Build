@@ -56,7 +56,7 @@ internal object ChatHistoryStore {
                 if (messages.isNotEmpty()) {
                     val characterId = json.optString("characterId").takeIf(String::isNotBlank)
                         ?: AnnieCharacters.stableIdForExistingChat(id)
-                    add(ChatSession(id, messages, characterId, json.optString("customTitle").takeIf(String::isNotBlank)))
+                    add(ChatSession(id, messages, characterId, json.optString("customTitle").takeIf { it.isNotBlank() && it != "null" }))
                 }
             }
         }
