@@ -119,18 +119,7 @@ class ReaderActivity : ComponentActivity(), ReaderViewerHost {
         // Mihon's original Compose reader bars occupy a transparent overlay.
         // Empty space passes touch gestures through to the original page viewer.
         positionLabel = TextView(this)
-        chrome = object : ComposeView(this) {
-            private var trackingChromeGesture = false
-
-            override fun dispatchTouchEvent(event: MotionEvent): Boolean {
-                if (!menuVisible) return false
-                if (event.actionMasked == MotionEvent.ACTION_DOWN) {
-                    trackingChromeGesture =
-                        event.y <= dp(112) || event.y >= height - dp(190)
-                }
-                return trackingChromeGesture && super.dispatchTouchEvent(event)
-            }
-        }
+        chrome = ComposeView(this)
         chrome.setContent {
             chromeRevision.intValue // refresh on page/mode/bookmark/chrome state
             MaterialTheme(
