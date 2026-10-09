@@ -179,6 +179,7 @@ class MainActivity : ComponentActivity() {
                 pageCount = catalog.pages.size,
                 coverUri = coverUri,
             )
+            Log.i(STARTUP_TAG, "archive-cover-created title=${book.title}")
         }
         return book
     }
