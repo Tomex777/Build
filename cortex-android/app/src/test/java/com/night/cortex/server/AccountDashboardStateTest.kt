@@ -34,7 +34,7 @@ class AccountDashboardStateTest {
 
     @Test fun overviewCountsDoNotMergeDuplicateAccountIdentities() {
         assertEquals(
-            AccountOverview(total = 7, online = 2, attention = 2, paused = 1, offline = 2),
+            AccountOverview(total = 7, online = 2, attention = 2, paused = 1, connecting = 1, offline = 1),
             accountOverview(accounts),
         )
     }
@@ -43,7 +43,8 @@ class AccountDashboardStateTest {
         assertEquals(listOf("A", "account-2"), visibleAccounts(accounts, "", AccountViewFilter.ONLINE).map { it.id })
         assertEquals(listOf("account-4", "account-7"), visibleAccounts(accounts, "", AccountViewFilter.ATTENTION).map { it.id })
         assertEquals(listOf("account-3"), visibleAccounts(accounts, "", AccountViewFilter.PAUSED).map { it.id })
-        assertEquals(listOf("account-5", "account-6"), visibleAccounts(accounts, "", AccountViewFilter.OFFLINE).map { it.id })
+        assertEquals(listOf("account-6"), visibleAccounts(accounts, "", AccountViewFilter.CONNECTING).map { it.id })
+        assertEquals(listOf("account-5"), visibleAccounts(accounts, "", AccountViewFilter.OFFLINE).map { it.id })
     }
 
     @Test fun searchMatchesNicknameStableIdMaskedNumberAndBotProfile() {
