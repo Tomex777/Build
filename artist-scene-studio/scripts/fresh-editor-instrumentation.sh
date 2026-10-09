@@ -14,7 +14,12 @@ case "$TEST_SUITE" in
 esac
 TEST_LOG="artist-scene-studio-${API_TAG}-instrumentation-run.log"
 fail() { echo "ERROR: $*" >&2; exit 1; }
-adb_bounded() { timeout 30s adb "$@"; }
+# A fresh API 26 emulator may not service package-manager commands until well after the
+# runner's boot-completed signal. Keep each ADB operation bounded, but allow startup slack.
+adb_bounded() {
+  echo "ADB: $1 (timeout 150s)"
+  timeout 150s adb "$@"
+}
 cleanup() {
   # Retain the last rendered frames even when a later assertion fails.
   timeout 15s adb pull "/sdcard/Android/data/$APP_ID/files/" "artist-scene-studio-${API_TAG}-instrumentation-device-files" >/dev/null 2>&1 || true
@@ -42,13 +47,25 @@ assert not re.search(r"INSTRUMENTATION_STATUS_CODE:\s*-(?:1|2|3|4)\b", text), "F
 assert "FAILURES!!!" not in text and "INSTRUMENTATION_FAILED" not in text
 print("Complete Android instrumentation suite passed")
 PYINSTRUMENTATION
-adb_bounded get-state | grep -qx device || fail "Emulator disconnected after instrumentation"
-# Fetch all proof in one transfer while the emulator is still running.
+# Copy only the screenshots required for acceptance. Pulling the entire app-private files
+# directory caused a 30-second ADB transfer timeout (and loss of evidence) on API 36.
+# Mandatory frames remain mandatory: missing or corrupt proof still fails the job.
 PROOF_DIR="artist-scene-studio-${API_TAG}-instrumentation-device-files"
-adb_bounded pull "/sdcard/Android/data/$APP_ID/files/" "$PROOF_DIR" >/dev/null 2>&1 || fail "Instrumentation proof transfer failed"
+REMOTE_DIR="/sdcard/Android/data/$APP_ID/files"
+mkdir -p "$PROOF_DIR"
+pull_proof() {
+  local filename="$1"
+  local target="$PROOF_DIR/$filename"
+  echo "Retrieving acceptance proof: $filename"
+  timeout 120s adb pull "$REMOTE_DIR/$filename" "$target" ||
+    fail "Could not retrieve $filename from API $API_LEVEL emulator"
+  test -s "$target" || fail "Empty proof file: $filename"
+}
+timeout 30s adb get-state | grep -qx device || fail "Emulator disconnected after instrumentation"
 if [ "$TEST_SUITE" != editor ] && [ "$TEST_SUITE" != humanoid ]; then
   if [ "$TEST_SUITE" = tree ]; then stages=tree; else stages="$TEST_SUITE-before $TEST_SUITE-after $TEST_SUITE-saved"; fi
   for stage in $stages; do
+    pull_proof "mechanical-${stage}.png"
     cp "$PROOF_DIR/mechanical-${stage}.png" "artist-scene-studio-${API_TAG}-mechanical-${stage}.png" || fail "Mechanical $stage screenshot was missing"
     python3 scripts/check-viewport-pixels.py "artist-scene-studio-${API_TAG}-mechanical-${stage}.png" || fail "Mechanical $stage viewport was black"
   done
@@ -56,10 +73,12 @@ if [ "$TEST_SUITE" != editor ] && [ "$TEST_SUITE" != humanoid ]; then
   exit 0
 fi
 if [ "$TEST_SUITE" = editor ]; then
+pull_proof "instrumented-viewport.png"
 cp "$PROOF_DIR/instrumented-viewport.png" "artist-scene-studio-${API_TAG}-instrumented.png" || fail "Instrumentation screenshot was missing"
 python3 scripts/check-viewport-pixels.py "artist-scene-studio-${API_TAG}-instrumented.png" || fail "Instrumentation viewport was black"
 else
 for stage in before hair-short hair-afro hair-bob appearance posed; do
+  pull_proof "humanoid-${stage}.png"
   cp "$PROOF_DIR/humanoid-${stage}.png" "artist-scene-studio-${API_TAG}-humanoid-${stage}.png" || fail "Humanoid $stage screenshot was missing"
   python3 scripts/check-viewport-pixels.py "artist-scene-studio-${API_TAG}-humanoid-${stage}.png" || fail "Humanoid $stage viewport was black"
 done
