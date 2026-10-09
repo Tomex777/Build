@@ -129,6 +129,23 @@ if (!instantLists[0].rows?.[0]?.id?.startsWith('.lyrics ~track ')) {
 }
 
 
+
+const fallbackReplies = []
+let fallbackSession = null
+await runSongCommand({
+  publicPrefix:'.',
+  reply:async value => { fallbackReplies.push(String(value)); return value },
+  replyList:async () => { throw new Error('interactive delivery unavailable') },
+  setCommandReplySession:value => { fallbackSession = value },
+  executeSource:ctx.executeSource,
+}, { args:['hello'] })
+if (!fallbackReplies.at(-1)?.includes('🎵 *Song Search Results*') ||
+    !fallbackReplies.at(-1)?.includes('1. Song A') ||
+    fallbackSession?.kind !== 'number-selection') {
+  throw new Error('Unavailable interactive lists must preserve song search text and numeric selection')
+}
+console.log('PASS song Lyrics instant action and graceful plain-text fallback')
+
 const recoveryCalls = []
 const recoveryReplies = []
 let recoverySession = null
