@@ -39,6 +39,32 @@ class AccountDashboardStateTest {
         )
     }
 
+    @Test fun staleConnectedFlagsCannotDoubleCountSessionStatuses() {
+        val connectedWithStaleFailure = account(
+            "account-8", "Live",
+            "connected", connected = true, paused = true,
+            pairingError = "previous error",
+        )
+        val pausedButExpired = account(
+            "account-9", "Expired",
+            "auth-invalid", paused = true,
+        )
+        val result = accountOverview(listOf(connectedWithStaleFailure, pausedButExpired))
+        assertEquals(
+            AccountOverview(
+                total = 2, online = 1, attention = 1,
+                paused = 0, connecting = 0, offline = 0,
+            ),
+            result,
+        )
+        assertEquals(1, visibleAccounts(listOf(connectedWithStaleFailure, pausedButExpired), "",
+            AccountViewFilter.ONLINE).size)
+        assertEquals(listOf("account-9"), visibleAccounts(
+            listOf(connectedWithStaleFailure, pausedButExpired), "",
+            AccountViewFilter.ATTENTION,
+        ).map { it.id })
+    }
+
     @Test fun filterByLiveConnectionState() {
         assertEquals(listOf("A", "account-2"), visibleAccounts(accounts, "", AccountViewFilter.ONLINE).map { it.id })
         assertEquals(listOf("account-4", "account-7"), visibleAccounts(accounts, "", AccountViewFilter.ATTENTION).map { it.id })
