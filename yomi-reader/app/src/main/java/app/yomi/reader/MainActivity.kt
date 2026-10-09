@@ -529,8 +529,12 @@ class MainActivity : ComponentActivity() {
                                 contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
                             }
                             val title = queryDisplayName(uri) ?: item.title
+                            // Relink must be as resilient as a first import:
+                            // archives sometimes include a corrupt front page.
                             val coverUri = withContext(Dispatchers.IO) {
-                                createCoverThumbnail(uri, scan.catalog.pages.first().name, item.id.value)
+                                scan.catalog.pages.take(8).firstNotNullOfOrNull { page ->
+                                    createCoverThumbnail(uri, page.name, item.id.value)
+                                }
                             }
                             runCatching {
                                 libraryStore.relink(
