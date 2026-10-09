@@ -628,6 +628,47 @@ private fun PairingAccountCard(
                 )
             }
 
+            if (account.disconnectReason.isNotBlank() && !account.connected) {
+                HorizontalDivider(color = CortexLine)
+                Column(Modifier.fillMaxWidth().padding(horizontal = 13.dp, vertical = 8.dp)) {
+                    Text(
+                        account.disconnectReason,
+                        color = if (requiresRepair) CortexDanger else CortexMuted,
+                        fontSize = 11.sp,
+                        lineHeight = 15.sp,
+                        modifier = Modifier.testTag("session-reason-${account.id}"),
+                    )
+                    if (account.lastDisconnectCode != null) {
+                        Text(
+                            "WhatsApp disconnect code: ${account.lastDisconnectCode}",
+                            color = CortexMuted,
+                            fontSize = 10.sp,
+                        )
+                    }
+                }
+            }
+            if (account.reconnectAttempts > 0 || account.nextReconnectAt > 0L ||
+                account.lastConnectedAt > 0L || account.lastDisconnectedAt > 0L
+            ) {
+                Column(
+                    Modifier.fillMaxWidth().padding(horizontal = 13.dp, vertical = 7.dp),
+                    verticalArrangement = Arrangement.spacedBy(3.dp),
+                ) {
+                    if (account.reconnectAttempts > 0) {
+                        Text("Reconnect attempts: ${account.reconnectAttempts}", color = CortexMuted, fontSize = 10.sp)
+                    }
+                    if (account.nextReconnectAt > 0L) {
+                        Text("Next attempt: ${sessionClockTime(account.nextReconnectAt)}", color = CortexMuted, fontSize = 10.sp)
+                    }
+                    if (account.lastConnectedAt > 0L) {
+                        Text("Last connected: ${sessionClockTime(account.lastConnectedAt)}", color = CortexMuted, fontSize = 10.sp)
+                    }
+                    if (account.lastDisconnectedAt > 0L) {
+                        Text("Last disconnected: ${sessionClockTime(account.lastDisconnectedAt)}", color = CortexMuted, fontSize = 10.sp)
+                    }
+                }
+            }
+
             if (account.pairingCode.isNotBlank()) {
                 HorizontalDivider(color = CortexLine)
                 Column(
