@@ -70,14 +70,19 @@ class AnnieCanvasMessageTest {
             compose.onNodeWithTag("annie_canvas_fullscreen").performClick()
             fullscreen = instrumentation.waitForMonitorWithTimeout(monitor, 8_000) as? AnnieCanvasActivity
             assertNotNull("Expand did not open the Canvas Activity", fullscreen)
-            lateinit var fullscreenWebView: WebView
-            instrumentation.runOnMainSync {
-                fullscreenWebView = findCanvasWebView(fullscreen!!.window.decorView)
-                    ?: error("Fullscreen Canvas WebView not attached")
+            // Android launches the Activity before its Compose AndroidView is attached.
+            // Wait for the actual interactive WebView, not merely Activity.onCreate().
+            var fullscreenWebView: WebView? = null
+            compose.waitUntil(12_000) {
+                instrumentation.runOnMainSync {
+                    fullscreenWebView = findCanvasWebView(fullscreen!!.window.decorView)
+                }
+                fullscreenWebView != null
             }
+            assertNotNull("Fullscreen Canvas WebView not attached", fullscreenWebView)
             assertSame("Expanding Canvas must reuse the running WebView", inlineWebView, fullscreenWebView)
-            assertEquals("1", eval(fullscreenWebView, "window.tapCount"))
-            assertEquals("2", eval(fullscreenWebView, "(document.querySelector('#plus').click(), window.tapCount)"))
+            assertEquals("1", eval(fullscreenWebView!!, "window.tapCount"))
+            assertEquals("2", eval(fullscreenWebView!!, "(document.querySelector('#plus').click(), window.tapCount)"))
             saveEmulatorScreenshot("annie-canvas-fullscreen-counter")
             instrumentation.runOnMainSync { fullscreen?.finish() }
             compose.waitUntil(8_000) { inlineWebView.parent != null }
