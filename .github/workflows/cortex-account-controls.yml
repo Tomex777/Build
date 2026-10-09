@@ -1,0 +1,48 @@
+name: Cortex Account Controls
+on:
+  push:
+    branches: [feat/cortex-account-controls-20261009]
+    paths:
+      - 'cortex-agent/**'
+      - 'cortex-android/**'
+      - '.github/workflows/cortex-account-controls.yml'
+  pull_request:
+    branches: [fix/cortex-account-identities-20261009]
+    paths:
+      - 'cortex-agent/**'
+      - 'cortex-android/**'
+      - '.github/workflows/cortex-account-controls.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: cortex-account-controls
+  cancel-in-progress: true
+
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '9.6.0'
+      - name: Check agent and new account controls
+        run: |
+          node --check cortex-agent/index.js
+          grep -q 'account.profile-changed' cortex-agent/index.js
+          grep -q '/profile' cortex-android/app/src/main/java/com/night/cortex/server/CortexServerApi.kt
+      - name: Install Android SDK 36
+        run: |
+          SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          if [ ! -x "$SDKMANAGER" ]; then
+            SDKMANAGER="$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager"
+          fi
+          yes | "$SDKMANAGER" --licenses >/dev/null || true
+          "$SDKMANAGER" "platforms;android-36" "build-tools;36.0.0"
+      - name: Compile and test Cortex account controls
+        run: gradle -p cortex-android :app:testDebugUnitTest :app:assembleDebug :app:assembleDebugAndroidTest --stacktrace
