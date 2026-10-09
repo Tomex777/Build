@@ -12,8 +12,8 @@ android {
         applicationId = "dev.velvet.app"
         minSdk = 26
         targetSdk = 35
-        versionCode = 5
-        versionName = "0.3.2-stable-signing-alpha"
+        versionCode = 6
+        versionName = "0.4.0-velvet-experience-alpha"
     }
     // Only the release APK uses the permanent Velvet key. Never commit the private
     // key or password to the repository; CI injects them from GitHub Actions secrets.
