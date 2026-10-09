@@ -53,6 +53,9 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -134,7 +137,16 @@ private fun VelvetApp() {
     var questionTab by remember { mutableStateOf("Heart to heart") }
     var studioNote by remember { mutableStateOf(settings.getString("studio_note", "You feel like home to me. ♡") ?: "") }
     var videoCall by remember { mutableStateOf(false) }
-    LaunchedEffect(Unit) { VelvetTheme.selected = settings.getString("velvet_theme", "Midnight Rose") ?: "Midnight Rose" }
+    LaunchedEffect(Unit) { VelvetChatStyle.load(ctx) }
+    DisposableEffect(page) {
+        val activity = ctx as? android.app.Activity
+        if(page == Page.CALL && activity != null) {
+            val ctrl=androidx.core.view.WindowCompat.getInsetsController(activity.window,activity.window.decorView)
+            ctrl.systemBarsBehavior=androidx.core.view.WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+            ctrl.hide(androidx.core.view.WindowInsetsCompat.Type.systemBars())
+            onDispose {ctrl.show(androidx.core.view.WindowInsetsCompat.Type.systemBars())}
+        } else onDispose {}
+    }
     val immersive = page in setOf(Page.CHAT, Page.CHAT_INFO, Page.DECK, Page.TTT, Page.STUDIO, Page.CALL)
     BackHandler(enabled = immersive) {
         page = when(page) {
@@ -174,7 +186,6 @@ private fun VelvetApp() {
                 Page.STORY -> GalleryFirstScreen(ownerName)
                 Page.STUDIO -> VelvetStudioScreen(note=studioNote,
                     onNoteChange={value->studioNote=value;settings.edit().putString("studio_note",value).apply()},
-                    onThemeChange={name->VelvetTheme.selected=name;settings.edit().putString("velvet_theme",name).apply()},
                     onBack={page=Page.US})
                 Page.CALL -> VelvetCallPreview(partnerName,videoCall,onBack={page=Page.CHAT})
                 Page.US -> UsScreen(ownerName, partnerName, anniversary=anniversary,
@@ -409,7 +420,9 @@ private fun ChatScreen(
                 if(pinned.size>1)Text("${pinned.size}",color=V.gold,fontSize=12.sp)
             }
         }
-        LazyColumn(state=listState, modifier=Modifier.weight(1f).fillMaxWidth(), contentPadding=PaddingValues(horizontal=6.dp,vertical=15.dp)) {
+        Box(Modifier.weight(1f).fillMaxWidth()) {
+          ChatWallpaper(Modifier.matchParentSize())
+          LazyColumn(state=listState, modifier=Modifier.fillMaxSize(), contentPadding=PaddingValues(horizontal=6.dp,vertical=9.dp)) {
             item {Text("Today",Modifier.fillMaxWidth().padding(bottom=12.dp),textAlign=TextAlign.Center,color=V.muted,fontSize=11.sp)}
             items(messages,key={it.id}) { msg ->
                 MessageRow(msg,onReply={onReply(msg)},onEdit={editId=msg.id;editBody=msg.body},
@@ -419,30 +432,40 @@ private fun ChatScreen(
                         val k=messages.indexOfFirst{it.id==msg.id};if(k>=0)messages[k]=msg.copy(starred=bool)
                     })
             }
+          }
         }
-        if(replyTo!=null) Row(Modifier.fillMaxWidth().background(V.raised).padding(horizontal=18.dp,vertical=10.dp),verticalAlignment=Alignment.CenterVertically){
+        if(replyTo!=null) Row(Modifier.fillMaxWidth().background(V.raised).padding(horizontal=13.dp,vertical=5.dp),verticalAlignment=Alignment.CenterVertically){
             Column(Modifier.weight(1f)){Text("Replying to ${if(replyTo.mine)"yourself" else partner}",color=V.rose,fontSize=11.sp)
                 Text(if(replyTo.deleted)"This message was deleted" else replyTo.body,maxLines=1,overflow=TextOverflow.Ellipsis,color=V.text,fontSize=13.sp)}
             IconButton(onClick=onDismissReply){Icon(Icons.Outlined.Close,"Cancel reply",tint=V.muted)}
         }
-        Row(Modifier.fillMaxWidth().background(V.paper).padding(horizontal=10.dp,vertical=9.dp),
-            verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.End) {
+        Row(Modifier.fillMaxWidth().background(V.paper).padding(horizontal=8.dp,vertical=6.dp),
+            verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(6.dp)) {
             if(!voiceActive) {
-                IconButton(onClick={showAttachment=true},modifier=Modifier.size(44.dp)) {
-                    Icon(Icons.Outlined.AddCircleOutline,"Attach",tint=V.rose,modifier=Modifier.size(27.dp))
-                }
-                Box(Modifier.weight(1f).heightIn(min=44.dp,max=125.dp)
-                    .clip(RoundedCornerShape(23.dp)).background(V.raised)
-                    .padding(horizontal=15.dp,vertical=11.dp)) {
-                    if(draft.isBlank())Text("Message…",color=V.muted,fontSize=14.sp)
-                    BasicTextField(value=draft,onValueChange={draft=it},
-                        textStyle=androidx.compose.ui.text.TextStyle(color=V.text,fontSize=14.sp),
-                        modifier=Modifier.fillMaxWidth())
+                Row(Modifier.weight(1f).heightIn(min=47.dp,max=125.dp).clip(RoundedCornerShape(25.dp))
+                    .background(V.raised).padding(horizontal=3.dp),
+                    verticalAlignment=Alignment.CenterVertically) {
+                    IconButton(onClick={showAttachment=true},modifier=Modifier.size(40.dp)) {
+                        Icon(Icons.Outlined.SentimentSatisfiedAlt,"Emoji and attachments",tint=V.muted,modifier=Modifier.size(23.dp))
+                    }
+                    Box(Modifier.weight(1f).padding(vertical=9.dp)) {
+                        if(draft.isBlank())Text("Message",color=V.muted,fontSize=14.sp)
+                        BasicTextField(value=draft,onValueChange={draft=it},
+                            textStyle=androidx.compose.ui.text.TextStyle(color=V.text,fontSize=14.sp),
+                            modifier=Modifier.fillMaxWidth())
+                    }
+                    IconButton(onClick={showAttachment=true},modifier=Modifier.size(36.dp)) {
+                        Icon(Icons.Outlined.AttachFile,"Attachments",tint=V.muted,modifier=Modifier.size(21.dp))
+                    }
+                    IconButton(onClick={showAttachment=true},modifier=Modifier.size(36.dp)) {
+                        Icon(Icons.Outlined.PhotoCamera,"Camera",tint=V.muted,modifier=Modifier.size(21.dp))
+                    }
                 }
             } else Spacer(Modifier.weight(1f))
             if(draft.isNotBlank() && !voiceActive) {
-                IconButton(onClick={onSend(draft);draft=""},modifier=Modifier.size(45.dp)) {
-                    Icon(Icons.Outlined.Send,"Send message",tint=V.rose,modifier=Modifier.size(26.dp))
+                IconButton(onClick={onSend(draft);draft=""},modifier=Modifier.size(46.dp)
+                    .clip(CircleShape).background(V.rose)) {
+                    Icon(Icons.Outlined.Send,"Send message",tint=V.bg,modifier=Modifier.size(24.dp))
                 }
             } else {
                 VoiceHoldControl(onRecorded=onVoice,onActiveChange={voiceActive=it})
@@ -470,26 +493,40 @@ private fun MessageRow(msg:ChatMessage,onReply:()->Unit,onEdit:()->Unit,onDelete
     val haptic=LocalHapticFeedback.current
     var shift by remember(msg.id){mutableFloatStateOf(0f)}
     var menu by remember {mutableStateOf(false)}
-    val shape=RoundedCornerShape(topStart=17.dp,topEnd=17.dp,bottomEnd=if(msg.mine)5.dp else 17.dp,bottomStart=if(msg.mine)17.dp else 5.dp)
+    val shape=VelvetChatStyle.bubbleShape(msg.mine)
     // Gesture detector belongs to the FULL ROW, including the empty space beside the bubble.
-    Box(Modifier.fillMaxWidth().heightIn(min=54.dp).pointerInput(msg.id) {
+    Box(Modifier.fillMaxWidth().heightIn(min=34.dp).pointerInput(msg.id) {
         detectHorizontalDragGestures(onHorizontalDrag={change,amount->change.consume();shift=(shift+amount).coerceIn(0f,155f)},
             onDragEnd={if(shift>52f){haptic.performHapticFeedback(HapticFeedbackType.LongPress);onReply()};shift=0f},onDragCancel={shift=0f})
-    }.padding(horizontal=8.dp,vertical=4.dp)) {
+    }.padding(horizontal=7.dp,vertical=2.dp)) {
         if(shift>15f)Icon(Icons.Outlined.Reply,"Reply",Modifier.align(Alignment.CenterStart).size(22.dp),tint=V.rose)
         Row(Modifier.fillMaxWidth().offset{IntOffset(shift.roundToInt(),0)},horizontalArrangement=if(msg.mine)Arrangement.End else Arrangement.Start){
             Box {
-                Column(Modifier.widthIn(max=294.dp).clip(shape).background(if(msg.mine)V.raised else V.paper)
-                    .border(1.dp,V.border.copy(alpha=.5f),shape).combinedClickable(onClick={},onLongClick={menu=true})
-                    .padding(horizontal=12.dp,vertical=10.dp)) {
+                Column(Modifier.widthIn(max=300.dp).clip(shape)
+                    .background(if(msg.mine)VelvetChatStyle.outgoingColor else VelvetChatStyle.incomingColor)
+                    .combinedClickable(onClick={},onLongClick={menu=true})
+                    .padding(horizontal=11.dp,vertical=7.dp)) {
                     if(msg.deleted) {
                         Row(verticalAlignment=Alignment.CenterVertically){Icon(Icons.Outlined.Block,null,Modifier.size(14.dp),tint=V.muted);Spacer(Modifier.width(6.dp))
                             Text("This message was deleted",color=V.muted,fontSize=13.sp,fontStyle=androidx.compose.ui.text.font.FontStyle.Italic)}
                     } else {
-                        msg.quoted?.let { Text(it,color=V.rose,fontSize=11.sp,maxLines=2,modifier=Modifier.fillMaxWidth()
-                            .background(V.bg.copy(alpha=.65f),RoundedCornerShape(8.dp)).padding(9.dp)) }
+                        msg.quoted?.let {
+                            Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(7.dp))
+                                .background(V.bg.copy(alpha=.65f)).padding(horizontal=8.dp,vertical=5.dp)) {
+                                Box(Modifier.width(3.dp).height(24.dp).background(V.rose, RoundedCornerShape(3.dp)))
+                                Spacer(Modifier.width(7.dp))
+                                Text(it,color=V.rose,fontSize=11.sp,lineHeight=14.sp,maxLines=2)
+                            }
+                            Spacer(Modifier.height(4.dp))
+                        }
                         when(msg.kind) {
-                            MessageKind.TEXT -> Text(msg.body,color=V.text,fontSize=14.sp,lineHeight=20.sp)
+                            MessageKind.TEXT -> Text(buildAnnotatedString {
+                                append(msg.body.trimEnd())
+                                if(!msg.starred && !msg.pinned) {
+                                    append("   ")
+                                    withStyle(SpanStyle(color=V.muted,fontSize=9.sp)) {append(msg.time)}
+                                }
+                            },color=V.text,fontFamily=VelvetChatStyle.font,fontSize=14.sp,lineHeight=19.sp)
                             MessageKind.QUESTION -> {
                                 val tone=cardColors[msg.cardTone.mod(cardColors.size)]
                                 Column(Modifier.widthIn(min=205.dp).clip(RoundedCornerShape(15.dp)).background(tone).padding(14.dp)) {
@@ -509,11 +546,11 @@ private fun MessageRow(msg:ChatMessage,onReply:()->Unit,onEdit:()->Unit,onDelete
                             Text(msg.caption,color=V.text,fontSize=14.sp,lineHeight=20.sp)
                         }
                     }
-                    Spacer(Modifier.height(4.dp))
+                    if(msg.kind != MessageKind.TEXT || msg.starred || msg.pinned || msg.deleted)
                     Row(Modifier.align(Alignment.End),verticalAlignment=Alignment.CenterVertically){
                         if(msg.starred && !msg.deleted){Icon(Icons.Outlined.Star,"Starred",Modifier.size(13.dp),tint=V.gold);Spacer(Modifier.width(4.dp))}
                         if(msg.pinned && !msg.deleted){Icon(Icons.Outlined.PushPin,"Pinned",Modifier.size(12.dp),tint=V.gold);Spacer(Modifier.width(3.dp))}
-                        Text(msg.time,color=V.muted,fontSize=10.sp)
+                        Text(msg.time,color=V.muted,fontSize=9.sp)
                     }
                 }
                 DropdownMenu(expanded=menu,onDismissRequest={menu=false},modifier=Modifier.background(V.paper)) {
