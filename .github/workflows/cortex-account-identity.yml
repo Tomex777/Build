@@ -1,0 +1,39 @@
+name: Cortex Account Identity
+
+on:
+  push:
+    branches: [fix/cortex-account-identities-20261009]
+    paths:
+      - 'cortex-android/**'
+      - '.github/workflows/cortex-account-identity.yml'
+  pull_request:
+    branches: [cortex-production-finalization]
+    paths:
+      - 'cortex-android/**'
+      - '.github/workflows/cortex-account-identity.yml'
+  workflow_dispatch:
+
+jobs:
+  identity-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '9.6.0'
+      - name: Install Android SDK 36
+        shell: bash
+        run: |
+          SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          if [ ! -x "$SDKMANAGER" ]; then
+            SDKMANAGER="$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager"
+          fi
+          yes | "$SDKMANAGER" --licenses >/dev/null || true
+          "$SDKMANAGER" "platforms;android-36" "build-tools;36.0.0"
+      - name: Compile Cortex and test account identity labels
+        run: gradle -p cortex-android :app:testDebugUnitTest :app:assembleDebug --stacktrace
