@@ -49,6 +49,7 @@ jobs:
           grep -q 'workflow_dispatch:' .github/workflows/yomi-production-release.yml
           grep -q 'YOMI_RELEASE_KEYSTORE_BASE64' .github/workflows/yomi-production-release.yml
           ! grep -R --line-number --include='*.kt' --include='*.kts' 'app\.torri\|Torri' yomi-reader/reader-core-contract yomi-reader/app
+          bash yomi-reader/scripts/test_anr_windows.sh
 
       - name: Test Yomi reader contracts
         working-directory: yomi-reader
