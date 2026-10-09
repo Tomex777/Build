@@ -1,6 +1,13 @@
 package com.tomex777.annie
 
 internal object StarterScripts {
+    /** Upgrade only the original bundled button-controlled /snake script.
+     * User-edited scripts must never be overwritten by an app update.
+     * The length and Java String hash identify the exact previously-shipped starter source.
+     */
+    internal fun migrateCanvasSnake(source: String): String =
+        if (source.length == 4749 && source.hashCode() == -1907834826) canvasSnake else source
+
     internal fun migrateChess(source: String): String {
         var migrated = source
         if ("capabilities:" !in migrated) {
