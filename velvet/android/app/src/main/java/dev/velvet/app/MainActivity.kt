@@ -375,7 +375,7 @@ private fun ChatScreen(
     var editId by remember { mutableStateOf<Int?>(null) }
     var editBody by remember { mutableStateOf("") }
     var showAttachment by remember { mutableStateOf(false) }
-    var showVoiceRecorder by remember { mutableStateOf(false) }
+    var voiceActive by remember { mutableStateOf(false) }
     var deleteTarget by remember { mutableStateOf<ChatMessage?>(null) }
     val listState=rememberLazyListState()
     val scope=rememberCoroutineScope()
@@ -425,16 +425,27 @@ private fun ChatScreen(
                 Text(if(replyTo.deleted)"This message was deleted" else replyTo.body,maxLines=1,overflow=TextOverflow.Ellipsis,color=V.text,fontSize=13.sp)}
             IconButton(onClick=onDismissReply){Icon(Icons.Outlined.Close,"Cancel reply",tint=V.muted)}
         }
-        Row(Modifier.fillMaxWidth().background(V.paper).padding(horizontal=10.dp,vertical=9.dp),verticalAlignment=Alignment.Bottom) {
-            IconButton(onClick={showAttachment=true},modifier=Modifier.size(44.dp)) {
-                Icon(Icons.Outlined.AddCircleOutline,"Attach",tint=V.rose,modifier=Modifier.size(28.dp))
-            }
-            Box(Modifier.weight(1f).heightIn(min=43.dp,max=125.dp).clip(RoundedCornerShape(23.dp)).background(V.raised).padding(horizontal=15.dp,vertical=11.dp)) {
-                if(draft.isBlank())Text("Message…",color=V.muted,fontSize=14.sp)
-                BasicTextField(value=draft,onValueChange={draft=it},textStyle=androidx.compose.ui.text.TextStyle(color=V.text,fontSize=14.sp),modifier=Modifier.fillMaxWidth())
-            }
-            IconButton(onClick={if(draft.isNotBlank()){onSend(draft);draft=""}else showVoiceRecorder=true},modifier=Modifier.size(45.dp)){
-                Icon(if(draft.isNotBlank())Icons.Outlined.Send else Icons.Outlined.Mic,if(draft.isNotBlank())"Send" else "Voice note",tint=V.rose,modifier=Modifier.size(26.dp))
+        Row(Modifier.fillMaxWidth().background(V.paper).padding(horizontal=10.dp,vertical=9.dp),
+            verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.End) {
+            if(!voiceActive) {
+                IconButton(onClick={showAttachment=true},modifier=Modifier.size(44.dp)) {
+                    Icon(Icons.Outlined.AddCircleOutline,"Attach",tint=V.rose,modifier=Modifier.size(27.dp))
+                }
+                Box(Modifier.weight(1f).heightIn(min=44.dp,max=125.dp)
+                    .clip(RoundedCornerShape(23.dp)).background(V.raised)
+                    .padding(horizontal=15.dp,vertical=11.dp)) {
+                    if(draft.isBlank())Text("Message…",color=V.muted,fontSize=14.sp)
+                    BasicTextField(value=draft,onValueChange={draft=it},
+                        textStyle=androidx.compose.ui.text.TextStyle(color=V.text,fontSize=14.sp),
+                        modifier=Modifier.fillMaxWidth())
+                }
+            } else Spacer(Modifier.weight(1f))
+            if(draft.isNotBlank() && !voiceActive) {
+                IconButton(onClick={onSend(draft);draft=""},modifier=Modifier.size(45.dp)) {
+                    Icon(Icons.Outlined.Send,"Send message",tint=V.rose,modifier=Modifier.size(26.dp))
+                }
+            } else {
+                VoiceHoldControl(onRecorded=onVoice,onActiveChange={voiceActive=it})
             }
         }
     }
@@ -449,7 +460,7 @@ private fun ChatScreen(
             }},dismissButton={TextButton(onClick={deleteTarget=null}){Text("Cancel")}},containerColor=V.paper)
     }
     if(showAttachment)AlertDialog(onDismissRequest={showAttachment=false},title={Text("Chat attachments")},text={Text("Chat attachments will be stored separately from Our Story. Azure uploads need your backend credentials and pairing setup; media cannot be sent to your partner from this offline alpha yet.")},confirmButton={TextButton(onClick={showAttachment=false}){Text("Got it")}},containerColor=V.paper)
-    if(showVoiceRecorder)VoiceRecorderDialog(onDismiss={showVoiceRecorder=false},onRecorded={clip->showVoiceRecorder=false;onVoice(clip)})
+
 }
 
 @OptIn(ExperimentalFoundationApi::class)
