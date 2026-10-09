@@ -65,16 +65,15 @@ import java.util.UUID
  * will be introduced later; do not present local content as shared across both phones.
  */
 private object StoryColors {
-    val bg = Color(0xFF171019)
-    val panel = Color(0xFF281C2A)
-    val raised = Color(0xFF352337)
-    val stroke = Color(0xFF584154)
-    val rose = Color(0xFFF2BDCC)
-    val cream = Color(0xFFF8E9E2)
-    val muted = Color(0xFFBEA8B5)
-    val gold = Color(0xFFE3BCA3)
+    val bg get() = VelvetTheme.current.bg
+    val panel get() = VelvetTheme.current.paper
+    val raised get() = VelvetTheme.current.raised
+    val stroke get() = VelvetTheme.current.border
+    val rose get() = VelvetTheme.current.rose
+    val cream get() = VelvetTheme.current.text
+    val muted get() = VelvetTheme.current.muted
+    val gold get() = VelvetTheme.current.gold
 }
-
 private data class StoryAsset(
     val id: String,
     val storedFileName: String,
@@ -183,9 +182,7 @@ internal fun GalleryFirstScreen(ownerName: String) {
             Spacer(Modifier.height(5.dp))
             Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.SpaceBetween) {
                 Text("Our Story.",fontSize=39.sp,fontFamily=FontFamily.Serif,color=StoryColors.cream)
-                IconButton(onClick=pickMedia,modifier=Modifier.size(44.dp).background(StoryColors.raised,CircleShape).border(1.dp,StoryColors.stroke,CircleShape),enabled=!busy) {
-                    Icon(Icons.Outlined.Add,"Add photos or videos",tint=StoryColors.rose)
-                }
+                // One gallery Add control remains in the content area; avoid duplicate header actions.
             }
             Text("Every picture. Every little chapter.",fontSize=13.sp,color=StoryColors.muted)
             Spacer(Modifier.height(18.dp))
