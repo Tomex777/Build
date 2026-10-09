@@ -50,6 +50,7 @@ jobs:
           grep -q 'YOMI_RELEASE_KEYSTORE_BASE64' .github/workflows/yomi-production-release.yml
           ! grep -R --line-number --include='*.kt' --include='*.kts' 'app\.torri\|Torri' yomi-reader/reader-core-contract yomi-reader/app
           bash yomi-reader/scripts/test_anr_windows.sh
+          bash yomi-reader/scripts/test_crash_classifier.sh
 
       - name: Test Yomi reader contracts
         working-directory: yomi-reader
@@ -296,7 +297,7 @@ jobs:
             bash yomi-reader/scripts/capture_clean_screen.sh yomi-output/runtime/yomi-folders.png
             test "$(wc -c < yomi-output/runtime/yomi-folders.png)" -gt 4096
 
-            ! grep -E 'FATAL EXCEPTION|AndroidRuntime:.*Process: app\\.yomi\\.reader\\.dev' yomi-output/runtime/logcat.txt
+            bash yomi-reader/scripts/assert_no_yomi_crash.sh yomi-output/runtime/logcat.txt
 
             # Prove the exact universal production-like CI candidate installs and draws on Android 16.
             adb logcat -c
@@ -390,7 +391,7 @@ jobs:
             i=0; until adb logcat -d -v brief YomiReader:I '*:S' | grep -Fq 'position title=Yomi CI Folder mode=LTR_PAGED label=Chapter 1 · page 2/2'; do i=$((i + 1)); [ "$i" -lt 60 ] || { echo 'API 26 folder reverse transition did not restore chapter 1 page 2' >&2; exit 1; }; sleep 2; done
             bash yomi-reader/scripts/capture_clean_screen.sh yomi-output/runtime-api26/yomi-folder-reader.png
             adb logcat -d -v threadtime > yomi-output/runtime-api26/logcat.txt
-            ! grep -E 'FATAL EXCEPTION|AndroidRuntime:.*Process: app\.yomi\.reader\.dev' yomi-output/runtime-api26/logcat.txt
+            bash yomi-reader/scripts/assert_no_yomi_crash.sh yomi-output/runtime-api26/logcat.txt
 
             # Regression: opening a CBZ from Android Files must reach the reader,
             # not silently stop after populating the library. The generated archive
