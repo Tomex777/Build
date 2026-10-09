@@ -52,6 +52,8 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -387,6 +389,8 @@ private fun ChatScreen(
     var editBody by remember { mutableStateOf("") }
     var showAttachment by remember { mutableStateOf(false) }
     var voiceActive by remember { mutableStateOf(false) }
+    val keyboardController=LocalSoftwareKeyboardController.current
+    val focusManager=LocalFocusManager.current
     var deleteTarget by remember { mutableStateOf<ChatMessage?>(null) }
     val listState=rememberLazyListState()
     val scope=rememberCoroutineScope()
@@ -468,7 +472,10 @@ private fun ChatScreen(
                     Icon(Icons.Outlined.Send,"Send message",tint=V.bg,modifier=Modifier.size(24.dp))
                 }
             } else {
-                VoiceHoldControl(onRecorded=onVoice,onActiveChange={voiceActive=it})
+                VoiceHoldControl(onRecorded=onVoice,onActiveChange={active ->
+                    voiceActive=active
+                    if(active){keyboardController?.hide();focusManager.clearFocus()}
+                })
             }
         }
     }
