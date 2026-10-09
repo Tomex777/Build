@@ -1638,6 +1638,7 @@ private fun ScriptMessageCard(
         ScriptMessageKind.TEXT -> ScriptTextMessage(data.optString("text"))
         ScriptMessageKind.CODE -> ScriptCodeBlockMessage(data)
         ScriptMessageKind.COPY -> ScriptCopyBlockMessage(data)
+        ScriptMessageKind.CANVAS -> AnnieCanvasMessage(data)
         ScriptMessageKind.UNKNOWN -> ScriptTextMessage(
             data.optString("text").takeIf(String::isNotBlank) ?: "Script response"
         )
