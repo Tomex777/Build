@@ -34,6 +34,8 @@ jobs:
       - name: Check agent and new account controls
         run: |
           node --check cortex-agent/index.js
+          node --check cortex-agent/account-controls-selftest.js
+          node cortex-agent/account-controls-selftest.js
           grep -q 'account.profile-changed' cortex-agent/index.js
           grep -q '/profile' cortex-android/app/src/main/java/com/night/cortex/server/CortexServerApi.kt
       - name: Install Android SDK 36
