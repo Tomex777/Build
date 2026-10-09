@@ -126,6 +126,7 @@ class ReaderActivity : ComponentActivity(), ReaderViewerHost {
         setContentView(root)
         readIntentReaderState()
         applySavedOrientation()
+        applyCustomBrightness()
         Log.i(READER_TAG, "activity-created title=$title mode=$mode")
         // Mihon's original Compose reader bars occupy a transparent overlay.
         // Empty space passes touch gestures through to the original page viewer.
@@ -145,7 +146,11 @@ class ReaderActivity : ComponentActivity(), ReaderViewerHost {
                 Box(modifier = Modifier.fillMaxSize()) {
                     val displayPrefs = getPreferences(MODE_PRIVATE)
                     ReaderContentOverlay(
-                        brightness = -displayPrefs.getInt(PREF_DIM_PERCENT, 0).coerceIn(0, 90),
+                        brightness = if (displayPrefs.getBoolean(PREF_CUSTOM_BRIGHTNESS, false)) {
+                            displayPrefs.getInt(PREF_BRIGHTNESS_VALUE, 0).coerceIn(-75, 100)
+                        } else {
+                            0
+                        },
                         color = displayPrefs.getInt(PREF_TINT_COLOR, 0).takeIf { it != 0 },
                         colorBlendMode = when (displayPrefs.getInt(PREF_COLOR_BLEND_MODE, 0)) {
                             1 -> BlendMode.Modulate
@@ -264,9 +269,16 @@ class ReaderActivity : ComponentActivity(), ReaderViewerHost {
                             installViewer()
                             refreshChrome()
                         },
-                        dimPercent = prefs.getInt(PREF_DIM_PERCENT, 0).coerceIn(0, 90),
-                        onDimPercentChange = { value ->
-                            prefs.edit().putInt(PREF_DIM_PERCENT, value.coerceIn(0, 90)).apply()
+                        customBrightness = prefs.getBoolean(PREF_CUSTOM_BRIGHTNESS, false),
+                        onCustomBrightnessChange = { value ->
+                            prefs.edit().putBoolean(PREF_CUSTOM_BRIGHTNESS, value).apply()
+                            applyCustomBrightness()
+                            refreshChrome()
+                        },
+                        brightnessValue = prefs.getInt(PREF_BRIGHTNESS_VALUE, 0).coerceIn(-75, 100),
+                        onBrightnessValueChange = { value ->
+                            prefs.edit().putInt(PREF_BRIGHTNESS_VALUE, value.coerceIn(-75, 100)).apply()
+                            applyCustomBrightness()
                             refreshChrome()
                         },
                         colorTint = prefs.getInt(PREF_TINT_COLOR, 0),
@@ -742,6 +754,26 @@ class ReaderActivity : ComponentActivity(), ReaderViewerHost {
         }
     }
 
+    /**
+     * Mihon brightness semantics: a positive value overrides Android window
+     * brightness, a negative value uses minimal brightness plus a Compose
+     * black overlay, and zero returns control to system brightness.
+     */
+    private fun applyCustomBrightness() {
+        val prefs = getPreferences(MODE_PRIVATE)
+        val value = if (prefs.getBoolean(PREF_CUSTOM_BRIGHTNESS, false)) {
+            prefs.getInt(PREF_BRIGHTNESS_VALUE, 0).coerceIn(-75, 100)
+        } else {
+            0
+        }
+        val screenBrightness = when {
+            value > 0 -> value / 100f
+            value < 0 -> 0.01f
+            else -> WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE
+        }
+        window.attributes = window.attributes.apply { this.screenBrightness = screenBrightness }
+    }
+
     private fun applySavedOrientation() {
         requestedOrientation = when (
             getPreferences(MODE_PRIVATE).getString(PREF_ORIENTATION, ORIENTATION_AUTO)
@@ -864,7 +896,8 @@ class ReaderActivity : ComponentActivity(), ReaderViewerHost {
         private const val PREF_SCALE_MODE = "scale_mode"
         private const val PREF_ORIENTATION = "orientation"
         private const val PREF_BACKGROUND = "background"
-        private const val PREF_DIM_PERCENT = "reader_dim_percent"
+        private const val PREF_CUSTOM_BRIGHTNESS = "reader_custom_brightness"
+        private const val PREF_BRIGHTNESS_VALUE = "reader_brightness_value"
         private const val PREF_TINT_COLOR = "reader_color_tint"
         private const val PREF_COLOR_BLEND_MODE = "reader_color_filter_blend_mode"
         private const val PREF_GRAYSCALE = "reader_grayscale"
