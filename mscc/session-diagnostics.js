@@ -9,6 +9,8 @@ const SESSION_ACTIONS = new Set([
   'account.disconnected',
   'account.disconnected-manually',
   'account.reconnect-requested',
+  'account.reconnect-scheduled',
+  'account.reconnect-failed',
   'account.identity-mismatch',
   'account.profile-changed',
   'account.renamed',
@@ -19,7 +21,7 @@ const SESSION_ACTIONS = new Set([
 ])
 
 const ALLOWED_DETAIL_FIELDS = new Set([
-  'mode', 'reasonCode', 'profile', 'previousProfile', 'authPreserved',
+  'mode', 'reasonCode', 'profile', 'previousProfile', 'authPreserved', 'attempt', 'delayMs',
 ])
 
 export function sessionEventsFromJsonl(text, accountId, limit = 40) {
@@ -35,7 +37,7 @@ export function sessionEventsFromJsonl(text, accountId, limit = 40) {
     for (const key of ALLOWED_DETAIL_FIELDS) {
       const value = row.detail?.[key]
       if (typeof value === 'boolean') detail[key] = value
-      else if (key === 'reasonCode' && Number.isFinite(value)) detail[key] = value
+      else if (['reasonCode', 'attempt', 'delayMs'].includes(key) && Number.isFinite(value)) detail[key] = value
       else if (typeof value === 'string' && /^[a-zA-Z0-9._-]{1,64}$/.test(value)) detail[key] = value
     }
     found.push({
