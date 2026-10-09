@@ -24,7 +24,7 @@ class ZipDocumentPageSource(
 
     override suspend fun pages(chapter: ReaderChapter): List<ReaderPage> {
         val entries = catalog ?: run {
-            val localFile = if (uri.scheme == "file") uri.path?.let(::File)?.takeIf(File::isFile) else null
+            val localFile = if (uri.scheme == "file") uri.path?.let(::File)?.takeIf { it.isFile } else null
             val scanned = if (localFile != null) {
                 val result = ZipArchiveCatalog.scanFile(localFile, limits)
                 Log.i("YomiReader", "indexed-cbz-catalog-ready pages=${result.size}")
