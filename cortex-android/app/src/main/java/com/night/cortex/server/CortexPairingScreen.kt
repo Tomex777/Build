@@ -11,6 +11,7 @@ import android.util.Base64
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -40,11 +41,14 @@ import androidx.compose.material.icons.rounded.Link
 import androidx.compose.material.icons.rounded.PhoneAndroid
 import androidx.compose.material.icons.rounded.QrCode2
 import androidx.compose.material.icons.rounded.Refresh
+import androidx.compose.material.icons.rounded.Search
+import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.RestartAlt
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -120,6 +124,12 @@ fun CortexPairingScreen(
     var renameCandidate by remember { mutableStateOf<PairingAccount?>(null) }
     var profileCandidate by remember { mutableStateOf<PairingAccount?>(null) }
     var repairConfirmation by remember { mutableStateOf<Pair<PairingAccount, String>?>(null) }
+    var accountQuery by remember { mutableStateOf("") }
+    var accountFilter by remember { mutableStateOf(AccountViewFilter.ALL) }
+    val overview = remember(state?.accounts) { accountOverview(state?.accounts.orEmpty()) }
+    val filteredAccounts = remember(state?.accounts, accountQuery, accountFilter) {
+        visibleAccounts(state?.accounts.orEmpty(), accountQuery, accountFilter)
+    }
     val duplicateNames = remember(state?.accounts) {
         duplicateSavedNameIds(state?.accounts.orEmpty())
     }
@@ -159,6 +169,63 @@ fun CortexPairingScreen(
                 }
             }
             HorizontalDivider(color = CortexLine)
+
+            if (state != null) {
+                Column(
+                    Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 9.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Row(
+                        Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        AccountMetric("ONLINE", overview.online.toString(), CortexGood, Modifier.weight(1f))
+                        AccountMetric(
+                            "ATTENTION", overview.attention.toString(),
+                            if (overview.attention > 0) CortexDanger else CortexMuted,
+                            Modifier.weight(1f),
+                        )
+                        AccountMetric("PAUSED", overview.paused.toString(), CortexMuted, Modifier.weight(1f))
+                        AccountMetric("TOTAL", overview.total.toString(), CortexText, Modifier.weight(1f))
+                    }
+
+                    OutlinedTextField(
+                        value = accountQuery,
+                        onValueChange = { accountQuery = it },
+                        modifier = Modifier.fillMaxWidth().testTag("account-search-field"),
+                        placeholder = { Text("Search name, session ID or profile", fontSize = 12.sp) },
+                        leadingIcon = { Icon(Icons.Rounded.Search, null, Modifier.size(19.dp)) },
+                        trailingIcon = if (accountQuery.isNotEmpty()) ({
+                            IconButton(onClick = { accountQuery = "" }) {
+                                Icon(Icons.Rounded.Close, "Clear search", Modifier.size(18.dp))
+                            }
+                        }) else null,
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                        colors = cortexPairingTextFieldColors(),
+                    )
+                    Row(
+                        Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        AccountViewFilter.entries.forEach { option ->
+                            val count = when (option) {
+                                AccountViewFilter.ALL -> overview.total
+                                AccountViewFilter.ONLINE -> overview.online
+                                AccountViewFilter.ATTENTION -> overview.attention
+                                AccountViewFilter.PAUSED -> overview.paused
+                                AccountViewFilter.OFFLINE -> overview.offline
+                            }
+                            FilterChip(
+                                selected = accountFilter == option,
+                                onClick = { accountFilter = option },
+                                label = { Text("${option.title} ($count)", fontSize = 11.sp) },
+                                modifier = Modifier.testTag("account-filter-${option.name.lowercase()}"),
+                            )
+                        }
+                    }
+                }
+            }
 
             if (state == null) {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -236,7 +303,37 @@ fun CortexPairingScreen(
                             }
                         }
                     }
-                    items(state.accounts, key = { it.id }) { account ->
+                    if (filteredAccounts.isEmpty() && state.accounts.isNotEmpty()) {
+                        item(key = "empty-account-results") {
+                            Surface(
+                                color = CortexSurface,
+                                shape = RoundedCornerShape(12.dp),
+                            ) {
+                                Column(
+                                    Modifier.fillMaxWidth().padding(22.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                                ) {
+                                    Icon(Icons.Rounded.Search, null, tint = CortexMuted, modifier = Modifier.size(24.dp))
+                                    Text("No matching accounts", fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                                    Text(
+                                        "Change your search or status filter. Your WhatsApp sessions are unchanged.",
+                                        color = CortexMuted,
+                                        fontSize = 11.sp,
+                                        textAlign = TextAlign.Center,
+                                    )
+                                    TextButton(
+                                        onClick = {
+                                            accountQuery = ""
+                                            accountFilter = AccountViewFilter.ALL
+                                        },
+                                        modifier = Modifier.testTag("reset-account-filters"),
+                                    ) { Text("Show all accounts", color = CortexAccent) }
+                                }
+                            }
+                        }
+                    }
+                    items(filteredAccounts, key = { it.id }) { account ->
                         PairingAccountCard(
                             account = account,
                             destination = state.destination == account.id,
@@ -976,6 +1073,29 @@ private fun PairingAccountCard(
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun AccountMetric(
+    title: String,
+    value: String,
+    accent: Color,
+    modifier: Modifier = Modifier,
+) {
+    Surface(
+        modifier = modifier,
+        color = CortexSurface,
+        shape = RoundedCornerShape(10.dp),
+    ) {
+        Column(
+            Modifier.padding(horizontal = 8.dp, vertical = 10.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(2.dp),
+        ) {
+            Text(value, color = accent, fontSize = 19.sp, fontWeight = FontWeight.Bold)
+            Text(title, color = CortexMuted, fontSize = 9.sp, maxLines = 1)
         }
     }
 }
