@@ -688,6 +688,45 @@ class ServerPanelViewModel(application: Application) : AndroidViewModel(applicat
         }
     }
 
+    fun loadAccountDiagnostics(id: String) {
+        if (!_state.value.configured || id.isBlank()) return
+        viewModelScope.launch {
+            _state.value = _state.value.copy(
+                diagnosticsAccountId = id,
+                diagnosticsLoading = true,
+                diagnosticsError = null,
+                accountDiagnostics = null,
+            )
+            val result = withContext(Dispatchers.IO) {
+                runCatching { api().accountDiagnostics(id) }
+            }
+            // Discard stale responses if the user switched to another account.
+            if (_state.value.diagnosticsAccountId != id) return@launch
+            result.onSuccess { data ->
+                _state.value = _state.value.copy(
+                    accountDiagnostics = data,
+                    diagnosticsLoading = false,
+                    diagnosticsError = null,
+                )
+            }.onFailure { error ->
+                _state.value = _state.value.copy(
+                    accountDiagnostics = null,
+                    diagnosticsLoading = false,
+                    diagnosticsError = error.message ?: "Could not load session diagnostics.",
+                )
+            }
+        }
+    }
+
+    fun closeAccountDiagnostics() {
+        _state.value = _state.value.copy(
+            diagnosticsAccountId = null,
+            accountDiagnostics = null,
+            diagnosticsLoading = false,
+            diagnosticsError = null,
+        )
+    }
+
     fun renameAccount(id: String, displayName: String) {
         if (!_state.value.configured) return
         viewModelScope.launch {
