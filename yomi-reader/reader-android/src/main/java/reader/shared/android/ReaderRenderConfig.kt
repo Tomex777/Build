@@ -14,6 +14,8 @@ data class ReaderRenderConfig(
     val longTapEnabled: Boolean = true,
     val zoomDurationMillis: Int = 300,
     val minimumScaleType: Int = SubsamplingScaleImageView.SCALE_TYPE_CENTER_INSIDE,
+    val zoomStartPosition: ReaderPageImageView.ZoomStartPosition = ReaderPageImageView.ZoomStartPosition.CENTER,
+    val landscapeZoom: Boolean = false,
     val webtoonSidePaddingPercent: Int = 0,
     val doubleTapZoom: Boolean = true,
     val webtoonZoomOutDisabled: Boolean = false,
