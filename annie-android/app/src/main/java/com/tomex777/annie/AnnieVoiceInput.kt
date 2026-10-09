@@ -25,6 +25,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -58,6 +59,7 @@ internal class VoiceNoteController(
     var elapsedMs by mutableLongStateOf(0L)
         private set
     private var startedAt = 0L
+    val waveformPeaks = mutableStateListOf<Float>()
 
     fun hasPermission() = recorder.hasPermission()
 
@@ -67,18 +69,28 @@ internal class VoiceNoteController(
         AnnieVoicePlayer.stop()
         startedAt = System.currentTimeMillis()
         elapsedMs = 0L
+        waveformPeaks.clear()
         locked = false
         cancelling = false
         recording = true
         return true
     }
 
-    fun tick() { if (recording) elapsedMs = System.currentTimeMillis() - startedAt }
+    fun tick() {
+        if (!recording) return
+        elapsedMs = System.currentTimeMillis() - startedAt
+        waveformPeaks.add(recorder.peak())
+        if (waveformPeaks.size > 600) waveformPeaks.removeAt(0)
+        if (elapsedMs >= AnnieVoiceRecorder.MAX_DURATION_MS) finish()
+    }
 
     fun finish() {
         if (!recording) return
         reset()
-        recorder.stop()?.let { (path, duration) -> onVoiceNote(path, duration) }
+        recorder.stop()?.let { (path, duration) ->
+            AnnieVoiceWaveform.save(path, waveformPeaks.toList())
+            onVoiceNote(path, duration)
+        }
     }
 
     fun cancel() {
@@ -160,40 +172,39 @@ internal fun VoiceHoldButton(
 private suspend fun androidx.compose.ui.input.pointer.AwaitPointerEventScope.awaitPointerEventChange() =
     awaitPointerEvent().changes.firstOrNull()
 
-/** Replaces the text field while recording. */
+/** Recording state stays visible, with a LIVE waveform and explicit delete/send when locked. */
 @Composable
 internal fun VoiceRecordingBar(controller: VoiceNoteController, modifier: Modifier = Modifier) {
     Row(
         modifier.clip(RoundedCornerShape(28.dp)).background(Color(0xFF102139))
-            .padding(horizontal = 14.dp, vertical = 11.dp).testTag("voice_recording_bar"),
+            .padding(horizontal = 10.dp, vertical = 10.dp).testTag("voice_recording_bar"),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        horizontalArrangement = Arrangement.spacedBy(7.dp),
     ) {
         if (controller.locked) {
             Icon(
                 AnnieIcons.Close, contentDescription = "Delete recording", tint = Color(0xFFFF8A80),
-                modifier = Modifier.size(26.dp).clip(CircleShape).clickable { controller.cancel() }.testTag("voice_delete"),
+                modifier = Modifier.size(23.dp).clip(CircleShape).clickable { controller.cancel() }
+                    .testTag("voice_delete"),
             )
+        } else {
+            VoiceRecordingDot()
         }
-        VoiceRecordingDot()
-        Text(formatVoiceDuration(controller.elapsedMs), color = Color.White, fontSize = 15.sp)
-        androidx.compose.foundation.layout.Spacer(Modifier.weight(1f))
-        Text(
-            when {
-                controller.locked -> "Recording locked"
-                controller.cancelling -> "Release to cancel"
-                else -> "‹ Slide to cancel  ·  ˄ Lock"
-            },
-            color = if (controller.cancelling) Color(0xFFFF8A80) else Color(0xFF9CB2CC),
-            fontSize = 12.sp,
+        Text(formatVoiceDuration(controller.elapsedMs), color = Color.White, fontSize = 13.sp)
+        VoiceWaveform(
+            samples = controller.waveformPeaks.toList().takeLast(40),
+            progress = 1f,
+            width = if (controller.locked) 99.dp else 139.dp,
         )
         if (controller.locked) {
             Text(
                 "Send", color = Color.White, fontSize = 13.sp,
                 modifier = Modifier.clip(RoundedCornerShape(14.dp)).background(Color(0xFF168EEA))
-                    .clickable { controller.finish() }.padding(horizontal = 12.dp, vertical = 6.dp)
+                    .clickable { controller.finish() }.padding(horizontal = 9.dp, vertical = 6.dp)
                     .testTag("voice_send"),
             )
+        } else if (controller.cancelling) {
+            Text("Cancel", color = Color(0xFFFF8A80), fontSize = 11.sp)
         }
     }
 }
