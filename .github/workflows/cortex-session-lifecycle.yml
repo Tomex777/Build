@@ -7,7 +7,7 @@ on:
       - 'cortex-android/**'
       - '.github/workflows/cortex-session-lifecycle.yml'
   pull_request:
-    branches: [fix/cortex-account-identities-20261009]
+    branches: [feat/cortex-account-controls-20261009]
     paths:
       - 'cortex-agent/**'
       - 'cortex-android/**'
