@@ -11,6 +11,8 @@ import android.util.Base64
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -20,6 +22,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
@@ -97,6 +100,8 @@ fun CortexPairingScreen(
     onDisconnect: (String) -> Unit,
     onRemove: (String) -> Unit,
     onRepair: (String, String) -> Unit,
+    onRename: (String, String) -> Unit = { _, _ -> },
+    onAssignProfile: (String, String) -> Unit = { _, _ -> },
 ) {
     var selected by remember { mutableStateOf<PairingAccount?>(null) }
     var destinationCandidate by remember { mutableStateOf<PairingAccount?>(null) }
@@ -104,6 +109,8 @@ fun CortexPairingScreen(
     var removeCandidate by remember { mutableStateOf<PairingAccount?>(null) }
     var action by remember { mutableStateOf(PairAction.PAIR) }
     var addingNumber by remember { mutableStateOf(false) }
+    var renameCandidate by remember { mutableStateOf<PairingAccount?>(null) }
+    var profileCandidate by remember { mutableStateOf<PairingAccount?>(null) }
     val duplicateNames = remember(state?.accounts) {
         duplicateSavedNameIds(state?.accounts.orEmpty())
     }
@@ -232,6 +239,8 @@ fun CortexPairingScreen(
                             },
                             onDestination = { destinationCandidate = account },
                             onReconnect = { onReconnect(account.id) },
+                            onRename = { renameCandidate = account },
+                            onEditProfile = { profileCandidate = account },
                             onDisconnect = { disconnectCandidate = account },
                             onRemove = { removeCandidate = account },
                             onRepair = {
@@ -243,6 +252,118 @@ fun CortexPairingScreen(
                 }
             }
         }
+    }
+
+    renameCandidate?.let { account ->
+        var changedName by remember(account.id, account.displayName) { mutableStateOf(account.displayName) }
+        val valid = changedName.trim().isNotEmpty() && changedName.trim().length <= 48
+        AlertDialog(
+            onDismissRequest = { renameCandidate = null },
+            containerColor = CortexSurface,
+            titleContentColor = CortexText,
+            textContentColor = CortexMuted,
+            title = { Text("Rename ${account.title}") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text("Session ID: ${account.id} · ${account.numberMasked}", fontSize = 11.sp)
+                    OutlinedTextField(
+                        value = changedName,
+                        onValueChange = { changedName = it.take(48) },
+                        label = { Text("Saved account name") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth().testTag("rename-session-name"),
+                        colors = cortexPairingTextFieldColors(),
+                    )
+                    Text(
+                        "This only changes the label in MSCC. The linked WhatsApp session and its bot profile are preserved.",
+                        color = CortexMuted,
+                        fontSize = 11.sp,
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    enabled = !busy && valid && changedName.trim() != account.displayName,
+                    onClick = {
+                        onRename(account.id, changedName.trim())
+                        renameCandidate = null
+                    },
+                    modifier = Modifier.testTag("confirm-rename-session"),
+                ) { Text("Save name", color = CortexAccent) }
+            },
+            dismissButton = { TextButton(onClick = { renameCandidate = null }) { Text("Cancel") } },
+        )
+    }
+
+    profileCandidate?.let { account ->
+        var choice by remember(account.id, account.profile) { mutableStateOf(account.profile) }
+        val available = state?.profiles.orEmpty().filter { option ->
+            option.id != "control" || account.id == "A"
+        }.filter { option ->
+            account.id != "A" || option.id == "control"
+        }
+        AlertDialog(
+            onDismissRequest = { profileCandidate = null },
+            containerColor = CortexSurface,
+            titleContentColor = CortexText,
+            textContentColor = CortexMuted,
+            title = { Text("Bot profile · ${account.title}") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text(
+                        "Account: ${account.id} · ${account.numberMasked}\nCurrent: ${account.profileLabel}",
+                        color = CortexMuted, fontSize = 11.sp,
+                    )
+                    Text(
+                        "Changing the bot personality affects command routing, not WhatsApp authentication or the saved account name.",
+                        color = CortexMuted, fontSize = 11.sp,
+                    )
+                    Column(
+                        Modifier.heightIn(max = 320.dp).verticalScroll(rememberScrollState()),
+                        verticalArrangement = Arrangement.spacedBy(4.dp),
+                    ) {
+                        if (available.isEmpty()) {
+                            Text(
+                                "Bot profiles are unavailable. Update MSCC and refresh Accounts.",
+                                color = CortexDanger, fontSize = 12.sp,
+                            )
+                        }
+                        available.forEach { option ->
+                            val selectedOption = option.id == choice
+                            Surface(
+                                color = if (selectedOption) CortexAccent.copy(alpha = .16f) else CortexSurface2,
+                                shape = RoundedCornerShape(9.dp),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable(enabled = !busy) { choice = option.id }
+                                    .testTag("choose-bot-profile-${option.id}"),
+                            ) {
+                                Column(Modifier.padding(12.dp)) {
+                                    Text(
+                                        (if (selectedOption) "✓  " else "") + option.displayName,
+                                        color = CortexText, fontSize = 13.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                    )
+                                    Text(option.id, color = CortexMuted, fontSize = 10.sp)
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    enabled = !busy && choice.isNotBlank() && choice != account.profile &&
+                        available.any { it.id == choice },
+                    onClick = {
+                        onAssignProfile(account.id, choice)
+                        profileCandidate = null
+                    },
+                    modifier = Modifier.testTag("confirm-bot-profile"),
+                ) { Text("Apply profile", color = CortexAccent) }
+            },
+            dismissButton = { TextButton(onClick = { profileCandidate = null }) { Text("Cancel") } },
+        )
     }
 
     if (addingNumber) {
@@ -351,6 +472,8 @@ private fun PairingAccountCard(
     onPair: () -> Unit,
     onDestination: () -> Unit,
     onReconnect: () -> Unit,
+    onRename: () -> Unit,
+    onEditProfile: () -> Unit,
     onDisconnect: () -> Unit,
     onRemove: () -> Unit,
     onRepair: () -> Unit,
@@ -442,6 +565,24 @@ private fun PairingAccountCard(
                     modifier = Modifier.weight(1f).testTag("session-profile-${account.id}"),
                     textAlign = TextAlign.End,
                 )
+            }
+            Row(
+                Modifier.fillMaxWidth().padding(horizontal = 12.dp),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                TextButton(
+                    onClick = onRename,
+                    enabled = !busy,
+                    modifier = Modifier.testTag("rename-account-${account.id}"),
+                ) { Text("Rename", color = CortexAccent, fontSize = 11.sp) }
+                if (account.id != "A") {
+                    TextButton(
+                        onClick = onEditProfile,
+                        enabled = !busy,
+                        modifier = Modifier.testTag("edit-profile-${account.id}"),
+                    ) { Text("Change bot profile", color = CortexAccent, fontSize = 11.sp) }
+                }
             }
             if (duplicateName) {
                 Text(
