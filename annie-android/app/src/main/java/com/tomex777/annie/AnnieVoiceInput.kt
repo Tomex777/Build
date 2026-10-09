@@ -6,6 +6,7 @@ import android.os.Bundle
 import android.speech.RecognitionListener
 import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitEachGesture
@@ -50,6 +51,7 @@ internal class VoiceNoteController(
     private val onVoiceNote: (String, Long) -> Unit,
 ) {
     private val recorder = AnnieVoiceRecorder(context)
+    private val appContext = context.applicationContext
     var recording by mutableStateOf(false)
         private set
     var locked by mutableStateOf(false)
@@ -65,7 +67,10 @@ internal class VoiceNoteController(
 
     fun begin(): Boolean {
         if (recording) return false
-        if (!recorder.start()) return false
+        if (!recorder.start()) {
+            Toast.makeText(appContext, "Couldn\u0027t start recording. Check microphone access.", Toast.LENGTH_SHORT).show()
+            return false
+        }
         AnnieVoicePlayer.stop()
         startedAt = System.currentTimeMillis()
         elapsedMs = 0L
@@ -87,7 +92,11 @@ internal class VoiceNoteController(
     fun finish() {
         if (!recording) return
         reset()
-        recorder.stop()?.let { (path, duration) ->
+        val recording = recorder.stop()
+        if (recording == null) {
+            Toast.makeText(appContext, "Hold the microphone for at least a second.", Toast.LENGTH_SHORT).show()
+        } else {
+            val (path, duration) = recording
             AnnieVoiceWaveform.save(path, waveformPeaks.toList())
             onVoiceNote(path, duration)
         }
