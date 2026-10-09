@@ -1636,6 +1636,8 @@ private fun ScriptMessageCard(
             onAction(action, payloadJson) {}
         }
         ScriptMessageKind.TEXT -> ScriptTextMessage(data.optString("text"))
+        ScriptMessageKind.CODE -> ScriptCodeBlockMessage(data)
+        ScriptMessageKind.COPY -> ScriptCopyBlockMessage(data)
         ScriptMessageKind.UNKNOWN -> ScriptTextMessage(
             data.optString("text").takeIf(String::isNotBlank) ?: "Script response"
         )

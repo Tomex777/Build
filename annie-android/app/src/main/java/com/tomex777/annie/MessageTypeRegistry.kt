@@ -10,6 +10,8 @@ import org.json.JSONObject
  */
 internal enum class ScriptMessageKind {
     TEXT,
+    CODE,
+    COPY,
     IMAGE,
     MUSIC,
     VIDEO,
@@ -33,6 +35,8 @@ internal data class NativeMessageType(
 internal object MessageTypeRegistry {
     private val registered = linkedMapOf(
         "text" to NativeMessageType("text", ScriptMessageKind.TEXT),
+        "code" to NativeMessageType("code", ScriptMessageKind.CODE),
+        "copy" to NativeMessageType("copy", ScriptMessageKind.COPY),
         "image" to NativeMessageType("image", ScriptMessageKind.IMAGE),
         "music" to NativeMessageType("music", ScriptMessageKind.MUSIC),
         "video" to NativeMessageType("video", ScriptMessageKind.VIDEO),

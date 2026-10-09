@@ -9,6 +9,8 @@ class MessageTypeRegistryTest {
     @Test fun firstPartyStructuredTypesResolveThroughTheRegistry() {
         val expected = mapOf(
             "text" to ScriptMessageKind.TEXT,
+            "code" to ScriptMessageKind.CODE,
+            "copy" to ScriptMessageKind.COPY,
             "image" to ScriptMessageKind.IMAGE,
             "music" to ScriptMessageKind.MUSIC,
             "video" to ScriptMessageKind.VIDEO,

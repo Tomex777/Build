@@ -1342,6 +1342,8 @@ internal class ScriptRuntime(
             |      message
             |    }))),
             |    text: text => ({type: "text", text: String(text)}),
+            |    code: value => Object.assign({type: "code"}, value || {}),
+            |    copy: value => Object.assign({type: "copy"}, value || {}),
             |    image: value => Object.assign({type: "image"}, value || {}),
             |    music: value => Object.assign({type: "music"}, value || {}),
             |    file: value => Object.assign({type: "file"}, value || {}),
