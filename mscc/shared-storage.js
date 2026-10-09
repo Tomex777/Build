@@ -197,6 +197,8 @@ export class SharedStorage {
         updated_at_ms = excluded.updated_at_ms
     `)
     seedProfile.run('control', 'Control', 0, 0, now, now)
+    // Linked sessions start inactive rather than inheriting the Josia personality.
+    seedProfile.run('unassigned', 'Unassigned', 0, 0, now, now)
     seedProfile.run('josiah', 'Josia', 1, 10, now, now)
     seedProfile.run('nami', 'Nami', 0, 0, now, now)
     seedProfile.run('mimi', 'MiMi', 0, 0, now, now)
@@ -444,6 +446,7 @@ export class SharedStorage {
 
   setProfileMode(id, universal) {
     const normalized = profileId(id)
+    if (normalized === 'unassigned') throw new Error('Unassigned sessions cannot run public commands')
     const result = this.db.prepare(`
       UPDATE bot_profiles SET universal = ?, updated_at_ms = ?
       WHERE profile_id = ?
@@ -454,6 +457,7 @@ export class SharedStorage {
 
   setCapability(id, capability, priority) {
     const normalized = profileId(id)
+    if (normalized === 'unassigned') throw new Error('Unassigned sessions cannot run public commands')
     if (!this.getProfile(normalized)) throw new Error(`Unknown profile: ${normalized}`)
     const cap = capabilityId(capability)
     if (priority === null || priority === undefined || String(priority).toLowerCase() === 'off') {
@@ -490,6 +494,9 @@ export class SharedStorage {
 
   assignProfile(accountId, id) {
     const normalized = profileId(id)
+    const account = String(accountId)
+    if (account === 'A' && normalized !== 'control') throw new Error('Account A must retain the control profile')
+    if (account !== 'A' && normalized === 'control') throw new Error('Only Account A can use the control profile')
     if (!this.getProfile(normalized)) throw new Error(`Unknown profile: ${normalized}`)
     this.db.prepare(`
       INSERT INTO account_profiles(account_id, profile_id, updated_at_ms)
@@ -509,7 +516,7 @@ export class SharedStorage {
       WHERE a.account_id = ?
     `).get(String(accountId))
 
-    const fallbackId = String(accountId) === 'A' ? 'control' : 'josiah'
+    const fallbackId = String(accountId) === 'A' ? 'control' : 'unassigned'
     const effective = row || this.db.prepare(`
       SELECT profile_id, display_name, universal, base_priority
       FROM bot_profiles WHERE profile_id = ?
@@ -532,6 +539,51 @@ export class SharedStorage {
     `).get(profile.id, cap)
     if (exact) return Number(exact.priority)
     return profile.universal ? Number(profile.basePriority) : null
+  }
+
+  /**
+   * Upgrade the old implicit "every linked account is Josia" behavior once.
+   * Never overwrite user-assigned profiles. Guess known legacy names only; if
+   * needed, keep Josia on the oldest pre-existing linked account. New accounts
+   * added after migration have no bot personality until explicitly assigned.
+   */
+  migrateLegacyAccountProfiles(accounts = []) {
+    const markerKey = 'account-profile-isolation-v1'
+    if (this.sharedGet('mscc-migrations', markerKey)) return { migrated: false, assigned: [] }
+
+    const assignments = new Map(this.assignments().map(row => [row.account_id, row.profile_id]))
+    const usedProfiles = new Set(assignments.values())
+    const linked = accounts
+      .filter(row => row?.id && String(row.id) !== 'A')
+      .sort((a, b) => (Number(a.createdAt) || 0) - (Number(b.createdAt) || 0) ||
+        String(a.id).localeCompare(String(b.id)))
+    const changes = []
+    const add = (accountId, profileId) => {
+      this.assignProfile(accountId, profileId)
+      assignments.set(accountId, profileId)
+      usedProfiles.add(profileId)
+      changes.push({ accountId, profileId })
+    }
+    const profileFromName = name => {
+      const normalized = String(name || '').trim().toLowerCase()
+      if (normalized === 'josia' || normalized === 'josiah') return 'josiah'
+      if (normalized === 'nami') return 'nami'
+      if (normalized === 'mimi' || normalized === 'mimi🌸') return 'mimi'
+      return ''
+    }
+
+    for (const account of linked) {
+      const id = String(account.id)
+      const hinted = profileFromName(account.displayName)
+      if (!assignments.has(id) && hinted && !usedProfiles.has(hinted)) add(id, hinted)
+    }
+    if (!usedProfiles.has('josiah')) {
+      const oldest = linked.find(row => !assignments.has(String(row.id)))
+      if (oldest) add(String(oldest.id), 'josiah')
+    }
+
+    this.sharedSet('mscc-migrations', markerKey, { version: 1, at: Date.now(), assigned: changes })
+    return { migrated: true, assigned: changes }
   }
 
   assignments() {
