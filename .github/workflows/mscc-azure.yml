@@ -18,6 +18,33 @@ on:
   workflow_dispatch:
 
 jobs:
+  verify-session-profiles:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+      - name: Install dependencies
+        working-directory: mscc
+        run: npm install --no-audit --no-fund
+      - name: Verify session implementation
+        working-directory: mscc
+        run: npm run check:sessions
+      - name: Verify bot profile isolation and routing
+        working-directory: mscc
+        run: npm run check:routing
+      - name: Syntax-check affected modules
+        working-directory: mscc
+        run: |
+          node --check shared-storage.js
+          node --check index.js
+          node --check routing-selftest.js
+          node --check private-commands/accounts.js
+          node --check private-commands/addaccount.js
+          node --check private-commands/profiles.js
+
   validate:
     runs-on: ubuntu-latest
     timeout-minutes: 15
