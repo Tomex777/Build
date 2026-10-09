@@ -263,6 +263,8 @@ class CortexPairingScreenTest {
             }
         }
 
+        composeRule.onNodeWithText("No WhatsApp accounts configured yet").assertIsDisplayed()
+        composeRule.onNodeWithTag("fixed-cc-destination-note").assertDoesNotExist()
         composeRule.onNodeWithText("No accounts paired yet.").assertIsDisplayed()
         composeRule.onNodeWithText("Add number").assertIsDisplayed()
         composeRule.onNodeWithText(
