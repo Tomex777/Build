@@ -688,6 +688,34 @@ class ServerPanelViewModel(application: Application) : AndroidViewModel(applicat
         }
     }
 
+    fun renameAccount(id: String, displayName: String) {
+        if (!_state.value.configured) return
+        viewModelScope.launch {
+            busy("Account renamed.") {
+                val pairing = withContext(Dispatchers.IO) {
+                    val client = api()
+                    client.renameAccount(id, displayName)
+                    client.pairingState()
+                }
+                _state.value = _state.value.copy(pairing = pairing)
+            }
+        }
+    }
+
+    fun assignAccountProfile(id: String, profileId: String) {
+        if (!_state.value.configured) return
+        viewModelScope.launch {
+            busy("Bot profile updated. Group routes recalculated.") {
+                val pairing = withContext(Dispatchers.IO) {
+                    val client = api()
+                    client.assignProfile(id, profileId)
+                    client.pairingState()
+                }
+                _state.value = _state.value.copy(pairing = pairing)
+            }
+        }
+    }
+
     fun setDestination(id: String) {
         if (!_state.value.configured) return
         viewModelScope.launch {
