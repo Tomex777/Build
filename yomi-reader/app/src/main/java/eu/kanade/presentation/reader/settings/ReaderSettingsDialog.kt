@@ -45,6 +45,12 @@ fun ReaderSettingsDialog(
     onZoomStartChange: (String) -> Unit,
     landscapeZoom: Boolean,
     onLandscapeZoomChange: (Boolean) -> Unit,
+    webtoonSidePadding: Int,
+    onWebtoonSidePaddingChange: (Int) -> Unit,
+    webtoonDoubleTapZoom: Boolean,
+    onWebtoonDoubleTapZoomChange: (Boolean) -> Unit,
+    webtoonZoomOutDisabled: Boolean,
+    onWebtoonZoomOutDisabledChange: (Boolean) -> Unit,
     cropEnabled: Boolean,
     onCropChange: (Boolean) -> Unit,
     showPageNumber: Boolean,
@@ -133,6 +139,31 @@ fun ReaderSettingsDialog(
                                         onChange = onZoomStartChange,
                                     )
                                     SettingSwitch("Landscape zoom", landscapeZoom, onLandscapeZoomChange)
+                                }
+                                if (readingMode == ReadingMode.WEBTOON) {
+                                    // Ported from Mihon's WebtoonViewerSettings: 0–25%
+                                    // side padding, double-tap zoom and zoom-out behavior.
+                                    SettingHeading("Webtoon viewer")
+                                    Text(
+                                        "Side padding: $webtoonSidePadding%",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                    )
+                                    Slider(
+                                        value = webtoonSidePadding.toFloat(),
+                                        onValueChange = { onWebtoonSidePaddingChange(it.roundToInt()) },
+                                        valueRange = 0f..25f,
+                                        modifier = Modifier.fillMaxWidth(),
+                                    )
+                                    SettingSwitch(
+                                        "Double-tap to zoom",
+                                        webtoonDoubleTapZoom,
+                                        onWebtoonDoubleTapZoomChange,
+                                    )
+                                    SettingSwitch(
+                                        "Disable zoom out",
+                                        webtoonZoomOutDisabled,
+                                        onWebtoonZoomOutDisabledChange,
+                                    )
                                 }
                                 SettingSwitch("Crop borders", cropEnabled, onCropChange)
                                 SettingSwitch("Volume key navigation", volumeKeys, onVolumeKeysChange)
