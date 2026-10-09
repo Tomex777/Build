@@ -23,8 +23,12 @@ class ScriptEditorReplaceTest {
         val file = workspace.files.createScript(name)
         val original = "const first = \"needle\"; const second = \"NEEDLE\";"
         workspace.files.writeFile(name, file.name, original)
+        val showStudio = androidx.compose.runtime.mutableStateOf(true)
         try {
-            compose.setContent { AnnieTheme { ScriptStudioSheet(workspace, {}, initialProjectId = name) } }
+            compose.setContent { AnnieTheme {
+                if (showStudio.value) ScriptStudioSheet(workspace, {}, initialProjectId = name)
+                else androidx.compose.material3.Text("Test finished")
+            } }
             compose.onNodeWithTag("script_tab_editor").performClick()
             compose.onNodeWithTag("Find and replace").performClick()
             compose.onNodeWithTag("script_find_query").performTextInput("needle")
@@ -39,7 +43,7 @@ class ScriptEditorReplaceTest {
             compose.waitUntil(8_000) { workspace.files.readFile(name, file.name) == original }
             assertEquals(original, workspace.files.readFile(name, file.name))
         } finally {
-            compose.setContent { AnnieTheme { androidx.compose.material3.Text("Replace test finished") } }
+            compose.runOnIdle { showStudio.value = false }
             compose.waitForIdle()
             workspace.close()
             workspace.files.deleteProject(name)

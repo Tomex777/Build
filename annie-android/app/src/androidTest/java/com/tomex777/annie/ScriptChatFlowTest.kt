@@ -118,9 +118,13 @@ class ScriptChatFlowTest {
         val name = "caretproof" + System.nanoTime().toString().takeLast(8)
         val file = workspace.files.createScript(name)
         val original = workspace.files.readFile(name, file.name)
+        val showStudio = androidx.compose.runtime.mutableStateOf(true)
         try {
             compose.setContent {
-                AnnieTheme { ScriptStudioSheet(workspace, {}, initialProjectId = name) }
+                AnnieTheme {
+                    if (showStudio.value) ScriptStudioSheet(workspace, {}, initialProjectId = name)
+                    else androidx.compose.material3.Text("Test finished")
+                }
             }
             compose.onNodeWithTag("script_tab_editor").performClick()
             hideKeyboardAndWaitForWindowFocus()
@@ -130,7 +134,7 @@ class ScriptChatFlowTest {
             compose.waitUntil(8_000) { workspace.files.readFile(name, file.name) != original }
             assertTrue(workspace.files.readFile(name, file.name).contains("//caret-proof"))
         } finally {
-            compose.setContent { AnnieTheme { androidx.compose.material3.Text("Editor test finished") } }
+            compose.runOnIdle { showStudio.value = false }
             compose.waitForIdle()
             workspace.close()
             workspace.files.deleteProject(name)
@@ -178,9 +182,13 @@ class ScriptChatFlowTest {
         val workspace = ScriptWorkspace(InstrumentationRegistry.getInstrumentation().targetContext)
         val name = "selectionproof" + System.nanoTime().toString().takeLast(8)
         workspace.files.createScript(name)
+        val showStudio = androidx.compose.runtime.mutableStateOf(true)
         try {
             compose.setContent {
-                AnnieTheme { ScriptStudioSheet(workspace, {}, initialProjectId = name) }
+                AnnieTheme {
+                    if (showStudio.value) ScriptStudioSheet(workspace, {}, initialProjectId = name)
+                    else androidx.compose.material3.Text("Test finished")
+                }
             }
             compose.onNodeWithTag("script_tab_editor").performClick()
             compose.waitForIdle()
@@ -188,7 +196,7 @@ class ScriptChatFlowTest {
             onView(allOf(isAssignableFrom(CodeEditor::class.java), isDisplayed()))
                 .perform(verifyEditorSelectionAndClipboardSemantics())
         } finally {
-            compose.setContent { AnnieTheme { androidx.compose.material3.Text("Selection test finished") } }
+            compose.runOnIdle { showStudio.value = false }
             compose.waitForIdle()
             workspace.close()
             workspace.files.deleteProject(name)
