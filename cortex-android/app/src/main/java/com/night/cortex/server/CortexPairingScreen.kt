@@ -222,6 +222,7 @@ fun CortexPairingScreen(
                                 AccountViewFilter.ONLINE -> overview.online
                                 AccountViewFilter.ATTENTION -> overview.attention
                                 AccountViewFilter.PAUSED -> overview.paused
+                                AccountViewFilter.CONNECTING -> overview.connecting
                                 AccountViewFilter.OFFLINE -> overview.offline
                             }
                             FilterChip(
