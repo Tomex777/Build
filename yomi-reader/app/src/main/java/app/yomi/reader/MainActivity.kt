@@ -320,6 +320,45 @@ class MainActivity : ComponentActivity() {
         var library by remember(revision) { mutableStateOf(libraryStore.list()) }
         StartupDrawProbe()
 
+        // Upgrade existing libraries: older Yomi builds saved CBZ books without
+        // a real cover. Regenerate a thumbnail without deleting progress or the
+        // original file. Do this off the main thread to avoid a blank home screen.
+        LaunchedEffect(revision) {
+            val missingCovers = libraryStore.list().filter {
+                it.locationType == LibraryLocationType.DOCUMENT &&
+                    it.coverUri.isNullOrBlank() &&
+                    it.availability == LibraryAvailability.AVAILABLE
+            }.take(8)
+            if (missingCovers.isNotEmpty()) {
+                withContext(Dispatchers.IO) {
+                    missingCovers.forEach { item ->
+                        runCatching {
+                            val uri = Uri.parse(item.locationUri)
+                            val scan = inspectArchive(uri)
+                            if (scan is ArchiveScanResult.Success) {
+                                val cover = scan.catalog.pages.take(8).firstNotNullOfOrNull { page ->
+                                    createCoverThumbnail(uri, page.name, item.id.value)
+                                }
+                                if (cover != null) {
+                                    libraryStore.upsert(
+                                        uri = uri,
+                                        title = item.title,
+                                        locationType = LibraryLocationType.DOCUMENT,
+                                        pageCount = scan.catalog.pages.size,
+                                        coverUri = cover,
+                                    )
+                                    Log.i(STARTUP_TAG, "archive-cover-restored title=${item.title}")
+                                }
+                            }
+                        }.onFailure { error ->
+                            Log.w(STARTUP_TAG, "archive-cover-repair-failed title=${item.title}", error)
+                        }
+                    }
+                }
+                library = libraryStore.list()
+            }
+        }
+
         LaunchedEffect(Unit) {
             Log.i(STARTUP_TAG, "home-content-composed sections=Home,Folders")
         }
