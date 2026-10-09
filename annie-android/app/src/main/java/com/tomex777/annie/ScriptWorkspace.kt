@@ -106,7 +106,13 @@ internal class ScriptFiles(context: Context) : PackageAssetResolver {
             )
         }
         val snake = File(root, "canvas-snake.js")
-        if (!snake.exists()) snake.writeText(StarterScripts.canvasSnake)
+        if (!snake.exists()) {
+            snake.writeText(StarterScripts.canvasSnake)
+        } else {
+            val current = snake.readText()
+            val migrated = StarterScripts.migrateCanvasSnake(current)
+            if (migrated != current) snake.writeText(migrated)
+        }
         val chess = File(root, "chess.js")
         if (!chess.exists()) {
             chess.writeText(StarterScripts.chess)
