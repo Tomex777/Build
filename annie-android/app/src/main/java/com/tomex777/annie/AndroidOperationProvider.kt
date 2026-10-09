@@ -21,9 +21,9 @@ internal class CoreAndroidOperationProvider(
     override val operations = listOf(
         op("android.device", "info", ANDROID_DEVICE_INFO_CAPABILITY, ANDROID_DEVICE_INFO_PERMISSION, schema(), js = JsBinding(path = "android.deviceInfo", returns = "{ platform: string; apiLevel: number; locale: string }")),
         op("android.tts", "speak", ANDROID_TTS_CAPABILITY, ANDROID_TTS_PERMISSION, schema(
-            "text" to OperationProperty("string", required = true, minLength = 1, maxLength = 2000, invalidMessage = "TTS text must be 1-2000 characters"),
-            "language" to OperationProperty("string", maxLength = 35, pattern = Regex("[A-Za-z]{2,8}(?:-[A-Za-z0-9]{1,8})*"), invalidMessage = "Android bridge language must be a short BCP-47 style tag"),
-            "queue" to OperationProperty("string", enumValues = setOf("add", "flush"), invalidMessage = "TTS queue must be add or flush"),
+            "text" to OperationProperty("string", required = true, minLength = 1, maxLength = 2000),
+            "language" to OperationProperty("string", maxLength = 35, pattern = Regex("[A-Za-z]{2,8}(?:-[A-Za-z0-9]{1,8})*")),
+            "queue" to OperationProperty("string", enumValues = setOf("add", "flush")),
         ), js = JsBinding(positional = listOf("text"), optionsKeys = listOf("language", "queue"))),
         op("android.tts", "status", ANDROID_TTS_CAPABILITY, ANDROID_TTS_CONTROL_PERMISSION, schema(
             "utteranceId" to OperationProperty("string", required = true, maxLength = 96, pattern = Regex("[A-Za-z0-9._-]+"), invalidMessage = "TTS status requires a valid package-owned utterance ID"),
@@ -91,7 +91,10 @@ internal class CoreAndroidOperationProvider(
             "android.ocr.asset" -> {
                 val assetId = input.optString("assetId").trim()
                 require(assetId.isNotBlank() && assetId.length <= 128) { "OCR requires a package asset ID" }
-                val image = files.resolveAssetFile(invocation.packageId, assetId)
+                val image = files.resolveAssetFile(invocation.projectId ?: throw AnnieError(
+                    AnnieErrorCode.NOT_A_PACKAGE,
+                    "Package project identity is unavailable", operation.id,
+                ), assetId)
                 require(image.extension.lowercase() in setOf("png", "jpg", "jpeg", "webp", "bmp")) {
                     "OCR accepts only a declared PNG, JPEG, WebP, or BMP package asset"
                 }
@@ -115,7 +118,10 @@ internal class CoreAndroidOperationProvider(
             "android.media.inspectAsset" -> {
                 val assetId = input.optString("assetId").trim()
                 require(assetId.isNotBlank() && assetId.length <= 128) { "Media inspection requires a package asset ID" }
-                val media = files.resolveAssetFile(invocation.packageId, assetId)
+                val media = files.resolveAssetFile(invocation.projectId ?: throw AnnieError(
+                    AnnieErrorCode.NOT_A_PACKAGE,
+                    "Package project identity is unavailable", operation.id,
+                ), assetId)
                 require(media.extension.lowercase() in setOf(
                     "mp3", "m4a", "aac", "ogg", "opus", "wav", "flac",
                     "mp4", "webm", "mkv", "ts", "m4v",
