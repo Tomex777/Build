@@ -16,6 +16,8 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.Button
 import androidx.compose.material3.OutlinedTextField
@@ -47,7 +49,7 @@ internal class AnnieBrowserTabsActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         setContent {
             AnnieTheme {
-                AnnieStandaloneTabs(
+                AnnieGeckoStandaloneBrowser(
                     onExit = ::finish,
                     onOwn = { ownedInstances.add(it) },
                     onRelease = { ownedInstances.remove(it) },
@@ -76,7 +78,7 @@ private const val BROWSER_START_URL = "https://www.google.com/"
 private data class StandaloneTab(val id: String, val startUrl: String = BROWSER_START_URL)
 
 @Composable
-private fun AnnieStandaloneTabs(
+internal fun AnnieStandaloneTabs(
     onExit: () -> Unit,
     onOwn: (String) -> Unit,
     onRelease: (String) -> Unit,
@@ -105,7 +107,8 @@ private fun AnnieStandaloneTabs(
     }
     BackHandler(enabled = controller.canGoBack) { controller.goBack() }
 
-    Column(Modifier.fillMaxSize().background(BrowserNight)) {
+    Column(Modifier.fillMaxSize().background(BrowserNight)
+        .statusBarsPadding().navigationBarsPadding()) {
         Row(
             Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())
                 .padding(top = 8.dp),
