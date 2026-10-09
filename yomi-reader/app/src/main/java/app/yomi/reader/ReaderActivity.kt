@@ -27,6 +27,14 @@ import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.ComponentActivity
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.darkColorScheme
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.ui.graphics.Color as ComposeColor
+import androidx.compose.ui.platform.ComposeView
+import eu.kanade.presentation.reader.appbars.ReaderAppBars
+import eu.kanade.tachiyomi.ui.reader.setting.ReaderOrientation as MihonReaderOrientation
+import eu.kanade.tachiyomi.ui.reader.setting.ReadingMode as MihonReadingMode
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
@@ -70,8 +78,9 @@ class ReaderActivity : ComponentActivity(), ReaderViewerHost {
         private set
 
     private lateinit var root: FrameLayout
-    private lateinit var topControls: LinearLayout
-    private lateinit var controls: LinearLayout
+    private lateinit var chrome: ComposeView
+    private val chromeRevision = mutableIntStateOf(0)
+    // Kept for diagnostic log continuity while migrating reader UI to Mihon's bars.
     private lateinit var positionLabel: TextView
     private val hideChromeRunnable = Runnable {
         if (!isFinishing && menuVisible) hideMenu()
@@ -104,44 +113,83 @@ class ReaderActivity : ComponentActivity(), ReaderViewerHost {
         readIntentReaderState()
         applySavedOrientation()
         Log.i(READER_TAG, "activity-created title=$title mode=$mode")
-        topControls = buildTopControls()
-        controls = buildControls()
-        root.addView(
-            topControls,
-            FrameLayout.LayoutParams(
-                FrameLayout.LayoutParams.MATCH_PARENT,
-                FrameLayout.LayoutParams.WRAP_CONTENT,
-                Gravity.TOP,
-            ).apply {
-                leftMargin = dp(12)
-                rightMargin = dp(12)
-                topMargin = dp(12)
-            },
-        )
-        root.addView(
-            controls,
-            FrameLayout.LayoutParams(
-                FrameLayout.LayoutParams.MATCH_PARENT,
-                FrameLayout.LayoutParams.WRAP_CONTENT,
-                Gravity.BOTTOM,
-            ).apply {
-                leftMargin = dp(12)
-                rightMargin = dp(12)
-                bottomMargin = dp(12)
-            },
-        )
-        ViewCompat.setOnApplyWindowInsetsListener(root) { _, insets ->
-            val bars = insets.getInsetsIgnoringVisibility(WindowInsetsCompat.Type.systemBars())
-            (topControls.layoutParams as? FrameLayout.LayoutParams)?.let { params ->
-                params.topMargin = bars.top + dp(8)
-                topControls.layoutParams = params
+        // Mihon's original Compose reader bars occupy a transparent overlay.
+        // Empty space passes touch gestures through to the original page viewer.
+        positionLabel = TextView(this)
+        chrome = object : ComposeView(this) {
+            private var trackingChromeGesture = false
+
+            override fun dispatchTouchEvent(event: MotionEvent): Boolean {
+                if (!menuVisible) return false
+                if (event.actionMasked == MotionEvent.ACTION_DOWN) {
+                    trackingChromeGesture =
+                        event.y <= dp(112) || event.y >= height - dp(190)
+                }
+                return trackingChromeGesture && super.dispatchTouchEvent(event)
             }
-            (controls.layoutParams as? FrameLayout.LayoutParams)?.let { params ->
-                params.bottomMargin = bars.bottom + dp(10)
-                controls.layoutParams = params
-            }
-            insets
         }
+        chrome.setContent {
+            chromeRevision.intValue // refresh on page/mode/bookmark/chrome state
+            MaterialTheme(
+                colorScheme = darkColorScheme(
+                    primary = ComposeColor(0xFFD4E4FF),
+                    surface = ComposeColor(0xFF111722),
+                    onSurface = ComposeColor.White,
+                ),
+            ) {
+                val selectedChapter = viewerChapters.getOrNull(activeChapterIndex)
+                val pages = selectedChapter?.pages.orEmpty()
+                ReaderAppBars(
+                    visible = menuVisible,
+                    mangaTitle = title,
+                    chapterTitle = selectedChapter?.chapter?.title?.takeIf { viewerChapters.size > 1 },
+                    navigateUp = ::finish,
+                    onClickTopAppBar = {},
+                    bookmarked = lastLocation?.let(bookmarkStore::contains) ?: false,
+                    onToggleBookmarked = {
+                        lastLocation?.let { bookmarkStore.toggle(it) }
+                        refreshChrome()
+                    },
+                    onOpenInWebView = null,
+                    onOpenInBrowser = null,
+                    onShare = null,
+                    isRtl = mode == ReadingMode.RTL_PAGED,
+                    onNextChapter = { changeChapter(1) },
+                    enabledNext = activeChapterIndex < viewerChapters.lastIndex,
+                    onPreviousChapter = { changeChapter(-1) },
+                    enabledPrevious = activeChapterIndex > 0,
+                    currentPage = ((lastLocation?.takeIf { it.chapterId == selectedChapter?.chapter?.id }?.pageIndex
+                        ?: selectedChapter?.requestedPage ?: 0) + 1).coerceAtLeast(1),
+                    totalPages = pages.size,
+                    onPageIndexChange = ::navigateToPage,
+                    readingMode = when (mode) {
+                        ReadingMode.LTR_PAGED -> MihonReadingMode.LEFT_TO_RIGHT
+                        ReadingMode.RTL_PAGED -> MihonReadingMode.RIGHT_TO_LEFT
+                        ReadingMode.VERTICAL_PAGED -> MihonReadingMode.VERTICAL
+                        ReadingMode.WEBTOON -> MihonReadingMode.WEBTOON
+                    },
+                    onClickReadingMode = ::showReaderSettings,
+                    orientation = when (getPreferences(MODE_PRIVATE).getString(PREF_ORIENTATION, ORIENTATION_AUTO)) {
+                        ORIENTATION_PORTRAIT -> MihonReaderOrientation.PORTRAIT
+                        ORIENTATION_LANDSCAPE -> MihonReaderOrientation.LANDSCAPE
+                        else -> MihonReaderOrientation.DEFAULT
+                    },
+                    onClickOrientation = ::showReaderSettings,
+                    cropEnabled = getPreferences(MODE_PRIVATE).getBoolean(PREF_CROP, false),
+                    onClickCropBorder = {
+                        val prefs = getPreferences(MODE_PRIVATE)
+                        prefs.edit().putBoolean(PREF_CROP, !prefs.getBoolean(PREF_CROP, false)).apply()
+                        installViewer()
+                        refreshChrome()
+                    },
+                    onClickSettings = ::showReaderSettings,
+                )
+            }
+        }
+        root.addView(
+            chrome,
+            FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT),
+        )
         applyImmersive()
         openIntentBook()
     }
@@ -286,9 +334,7 @@ class ReaderActivity : ComponentActivity(), ReaderViewerHost {
         )
         viewer!!.setChapters(window())
         updatePositionLabel(lastLocation)
-        val chromeVisibility = if (menuVisible) View.VISIBLE else View.GONE
-        topControls.visibility = chromeVisibility
-        controls.visibility = chromeVisibility
+        refreshChrome()
         if (menuVisible) scheduleChromeHide()
         Log.i(READER_TAG, "viewer-installed title=$title mode=$mode")
         reportReaderFirstDraw()
@@ -297,15 +343,13 @@ class ReaderActivity : ComponentActivity(), ReaderViewerHost {
     override fun hideMenu() {
         menuVisible = false
         if (::root.isInitialized) root.removeCallbacks(hideChromeRunnable)
-        if (::topControls.isInitialized) topControls.visibility = View.GONE
-        if (::controls.isInitialized) controls.visibility = View.GONE
+        refreshChrome()
         applyImmersive()
     }
 
     override fun showMenu() {
         menuVisible = true
-        if (::topControls.isInitialized) topControls.visibility = View.VISIBLE
-        if (::controls.isInitialized) controls.visibility = View.VISIBLE
+        refreshChrome()
         applyImmersive()
         scheduleChromeHide()
     }
@@ -420,67 +464,35 @@ class ReaderActivity : ComponentActivity(), ReaderViewerHost {
         super.onDestroy()
     }
 
-    private fun buildTopControls(): LinearLayout {
-        return LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-            setPadding(dp(6), dp(4), dp(8), dp(4))
-            background = roundedPanel(0xD9111722.toInt(), dp(20).toFloat())
-
-            addView(
-                ImageButton(this@ReaderActivity).apply {
-                    setImageResource(R.drawable.ic_yomi_back)
-                    setBackgroundColor(Color.TRANSPARENT)
-                    setColorFilter(Color.WHITE)
-                    contentDescription = "Back"
-                    setPadding(dp(10), dp(10), dp(10), dp(10))
-                    setOnClickListener { finish() }
-                },
-                LinearLayout.LayoutParams(dp(44), dp(44)),
-            )
-            addView(
-                TextView(this@ReaderActivity).apply {
-                    text = title
-                    textSize = 16f
-                    setTextColor(Color.WHITE)
-                    maxLines = 1
-                    ellipsize = android.text.TextUtils.TruncateAt.END
-                    setPadding(dp(8), 0, dp(8), 0)
-                },
-                LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f),
-            )
-        }
+    private fun refreshChrome() {
+        chromeRevision.intValue += 1
     }
 
-    private fun buildControls(): LinearLayout {
-        return LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-            setPadding(dp(16), dp(6), dp(6), dp(6))
-            background = roundedPanel(0xE6111722.toInt(), dp(20).toFloat())
+    private fun navigateToPage(index: Int) {
+        val current = viewerChapters.getOrNull(activeChapterIndex) ?: return
+        val pages = current.pages.orEmpty()
+        if (index !in pages.indices) return
+        current.requestedPage = index
+        current.requestedOffsetFraction = 0.0
+        viewer?.moveToPage(pages[index], 0.0)
+        refreshChrome()
+    }
 
-            positionLabel = TextView(this@ReaderActivity).apply {
-                textSize = 13f
-                setTextColor(0xFFD7DEEA.toInt())
-                maxLines = 1
-                ellipsize = android.text.TextUtils.TruncateAt.END
+    private fun changeChapter(offset: Int) {
+        val target = activeChapterIndex + offset
+        if (target !in viewerChapters.indices) return
+        lifecycleScope.launch {
+            runCatching {
+                prepareWindow(target)
+                activeChapterIndex = target
+                val chapter = viewerChapters[target]
+                lastLocation = null
+                viewer?.setChapters(window(target))
+                refreshChrome()
+            }.onFailure {
+                Log.e(READER_TAG, "chapter-navigation-failed", it)
+                Toast.makeText(this@ReaderActivity, "Could not open chapter", Toast.LENGTH_SHORT).show()
             }
-            addView(
-                positionLabel,
-                LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f),
-            )
-
-            addView(
-                ImageButton(this@ReaderActivity).apply {
-                    setImageResource(R.drawable.ic_yomi_settings)
-                    setBackgroundColor(Color.TRANSPARENT)
-                    setColorFilter(0xFFD7DEEA.toInt())
-                    contentDescription = "Reader settings"
-                    setPadding(dp(10), dp(10), dp(10), dp(10))
-                    setOnClickListener { showReaderSettings() }
-                },
-                LinearLayout.LayoutParams(dp(44), dp(44)),
-            )
         }
     }
 
@@ -706,6 +718,7 @@ class ReaderActivity : ComponentActivity(), ReaderViewerHost {
             }
         }
         Log.i(READER_TAG, "position title=$title mode=$mode label=${positionLabel.text}")
+        refreshChrome()
     }
 
     private fun reportReaderFirstDraw() {
