@@ -84,6 +84,8 @@ import com.night.cortex.ui.theme.CortexMuted
 import com.night.cortex.ui.theme.CortexSurface
 import com.night.cortex.ui.theme.CortexSurface2
 import com.night.cortex.ui.theme.CortexText
+import java.text.DateFormat
+import java.util.Date
 
 private enum class PairAction { PAIR, REPAIR }
 
@@ -382,11 +384,11 @@ fun CortexPairingScreen(
             containerColor = CortexSurface,
             titleContentColor = CortexText,
             textContentColor = CortexMuted,
-            title = { Text("Disconnect ${account.title}?") },
+            title = { Text("Pause ${account.title}?") },
             text = {
                 Text(
-                    "This takes the account offline without removing it or deleting its saved sign-in state. " +
-                        "You can reconnect without re-pairing unless the session expires or becomes invalid."
+                    "This pauses the WhatsApp connection, even across MSCC restarts, without deleting saved authentication. " +
+                        "Use Resume to reconnect whenever you want."
                 )
             },
             confirmButton = {
@@ -397,7 +399,7 @@ fun CortexPairingScreen(
                     },
                     modifier = Modifier.testTag("confirm-disconnect-account"),
                 ) {
-                    Text("Disconnect", color = CortexDanger)
+                    Text("Pause session", color = CortexDanger)
                 }
             },
             dismissButton = {
@@ -752,7 +754,7 @@ private fun PairingAccountCard(
                             enabled = !busy,
                             modifier = Modifier.weight(1f),
                         ) {
-                            Text("Disconnect", fontSize = 10.sp)
+                            Text("Pause", fontSize = 10.sp)
                         }
                     }
                     if (!destination) {
@@ -771,6 +773,9 @@ private fun PairingAccountCard(
         }
     }
 }
+
+private fun sessionClockTime(timeMs: Long): String =
+    DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT).format(Date(timeMs))
 
 private fun copySensitivePairingCode(context: android.content.Context, code: String) {
     val clipboard = context.getSystemService(ClipboardManager::class.java) ?: return
@@ -811,6 +816,7 @@ private fun StatusPill(status: String) {
         Text(
             when (normalized) {
                 "connected" -> "CONNECTED"
+                "paused" -> "PAUSED"
                 "auth-invalid", "logged-out", "revoked", "session-expired", "expired" -> "SIGN-IN REQUIRED"
                 "pairing" -> "PAIRING"
                 "connecting" -> "CONNECTING"
