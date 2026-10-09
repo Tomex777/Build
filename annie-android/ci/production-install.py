@@ -9,8 +9,11 @@ out.mkdir(exist_ok=True)
 apk = Path('signed/production/Annie-1.0.0-universal-production-signed.apk')
 assert apk.is_file()
 
-def adb(*args):
-    return subprocess.check_output(['adb', *args], text=True, timeout=60)
+def adb(*args, timeout=60):
+    # Android 8 can require >60s to transfer and install the universal, GeckoView-sized
+    # production APK. Keep the strict render/reinstall assertions; only installs
+    # receive a larger transport timeout, not UI readiness or acceptance checks.
+    return subprocess.check_output(['adb', *args], text=True, timeout=timeout)
 
 def launch(label):
     adb('shell', 'am', 'force-stop', 'com.tomex777.annie')
@@ -38,9 +41,9 @@ def launch(label):
     assert visible > 100, 'Production screenshot must contain actual app content'
 
 try:
-    (out / 'install.txt').write_text(adb('install', str(apk)))
+    (out / 'install.txt').write_text(adb('install', str(apk), timeout=180))
     launch('fresh-install')
-    (out / 'reinstall.txt').write_text(adb('install', '-r', str(apk)))
+    (out / 'reinstall.txt').write_text(adb('install', '-r', str(apk), timeout=180))
     launch('reinstall')
     (out / 'package.txt').write_text(adb('shell', 'dumpsys', 'package', 'com.tomex777.annie'))
     (out / 'ACCEPTANCE.txt').write_text('Permanent-key production APK installed, rendered and reinstalled successfully.\n')
