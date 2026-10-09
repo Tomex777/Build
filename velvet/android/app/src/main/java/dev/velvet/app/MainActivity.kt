@@ -71,25 +71,25 @@ import kotlin.math.abs
 import kotlin.math.roundToInt
 
 private object V {
-    val bg = Color(0xFF171019)
-    val paper = Color(0xFF281C2A)
-    val raised = Color(0xFF352639)
-    val border = Color(0xFF574052)
-    val rose = Color(0xFFF2BDCC)
-    val roseDark = Color(0xFFB87694)
-    val text = Color(0xFFF8E8E4)
-    val muted = Color(0xFFBCA4B4)
-    val gold = Color(0xFFE1BDA3)
+    val bg get() = VelvetTheme.current.bg
+    val paper get() = VelvetTheme.current.paper
+    val raised get() = VelvetTheme.current.raised
+    val border get() = VelvetTheme.current.border
+    val rose get() = VelvetTheme.current.rose
+    val roseDark get() = VelvetTheme.current.roseDark
+    val text get() = VelvetTheme.current.text
+    val muted get() = VelvetTheme.current.muted
+    val gold get() = VelvetTheme.current.gold
 }
 private val round = RoundedCornerShape(22.dp)
-private enum class Page { HOME, CHAT, GAMES, STORY, US, CHAT_INFO, DECK, TTT }
+private enum class Page { HOME, CHAT, GAMES, STORY, US, CHAT_INFO, DECK, TTT, STUDIO, CALL }
 internal enum class MessageKind { TEXT, QUESTION, VOICE }
 internal data class ChatMessage(
     val id: Int, val body: String, val mine: Boolean, val time: String,
     val quoted: String? = null, val pinned: Boolean = false,
     val starred: Boolean = false, val deleted: Boolean = false,
     val kind: MessageKind = MessageKind.TEXT, val category: String? = null,
-    val cardTone: Int = 0, val questionId: String? = null,
+    val cardTone: Int = 0, val questionId: String? = null, val caption: String? = null,
     val voicePath: String? = null, val voiceBars: List<Float> = emptyList(), val durationMs: Long = 0L
 )
 
@@ -132,10 +132,14 @@ private fun VelvetApp() {
     val deckPositions = remember { mutableStateMapOf<String,Int>() }
     var replyTo by remember { mutableStateOf<ChatMessage?>(null) }
     var questionTab by remember { mutableStateOf("Heart to heart") }
-    val immersive = page in setOf(Page.CHAT, Page.CHAT_INFO, Page.DECK, Page.TTT)
+    var studioNote by remember { mutableStateOf(settings.getString("studio_note", "You feel like home to me. ♡") ?: "") }
+    var videoCall by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) { VelvetTheme.selected = settings.getString("velvet_theme", "Midnight Rose") ?: "Midnight Rose" }
+    val immersive = page in setOf(Page.CHAT, Page.CHAT_INFO, Page.DECK, Page.TTT, Page.STUDIO, Page.CALL)
     BackHandler(enabled = immersive) {
         page = when(page) {
-            Page.CHAT_INFO -> Page.CHAT
+            Page.CHAT_INFO, Page.CALL -> Page.CHAT
+            Page.STUDIO -> Page.US
             Page.CHAT -> chatBackTo
             Page.DECK, Page.TTT -> Page.GAMES
             else -> Page.HOME
@@ -145,11 +149,12 @@ private fun VelvetApp() {
     Column(Modifier.fillMaxSize().background(V.bg).windowInsetsPadding(WindowInsets.safeDrawing)) {
         Box(Modifier.weight(1f)) {
             when (page) {
-                Page.HOME -> HomeScreen(ownerName = ownerName, anniversary = anniversary,
+                Page.HOME -> HomeScreen(ownerName = ownerName, anniversary = anniversary, note=studioNote,
                     openChat = { chatBackTo = Page.HOME; page = Page.CHAT }, openGames = { page = Page.GAMES })
                 Page.CHAT -> ChatScreen(messages, partnerName, replyTo,
                     onReply = { replyTo = it }, onDismissReply = { replyTo = null },
                     onInfo = { page = Page.CHAT_INFO }, onBack = { page = chatBackTo },
+                    onCall = { isVideo -> videoCall=isVideo;page=Page.CALL },
                     onSend = { body ->
                         if (body.isNotBlank()) { sendMessage(ChatMessage(0, body.trim(),true,nowTime(),replyTo?.body));replyTo = null }
                     }, onVoice = { clip ->
@@ -161,15 +166,21 @@ private fun VelvetApp() {
                 Page.DECK -> QuestionDeckScreen(questionTab, index=deckPositions[questionTab] ?: 0,
                     onIndexChange={deckPositions[questionTab]=it},
                     onBack={page=Page.GAMES},
-                    onSend = { prompt,tone ->
+                    onSend = { prompt,tone,caption ->
                         sendMessage(ChatMessage(0,prompt.question,true,nowTime(),kind=MessageKind.QUESTION,
-                            category=prompt.category,cardTone=tone,questionId=prompt.id))
+                            category=prompt.category,cardTone=tone,questionId=prompt.id,caption=caption.takeIf{it.isNotBlank()}))
                     }, onViewChat={chatBackTo=Page.DECK;page=Page.CHAT})
                 Page.TTT -> TicTacToeScreen(onBack = { page = Page.GAMES })
                 Page.STORY -> GalleryFirstScreen(ownerName)
+                Page.STUDIO -> VelvetStudioScreen(note=studioNote,
+                    onNoteChange={value->studioNote=value;settings.edit().putString("studio_note",value).apply()},
+                    onThemeChange={name->VelvetTheme.selected=name;settings.edit().putString("velvet_theme",name).apply()},
+                    onBack={page=Page.US})
+                Page.CALL -> VelvetCallPreview(partnerName,videoCall,onBack={page=Page.CHAT})
                 Page.US -> UsScreen(ownerName, partnerName, anniversary=anniversary,
                     onDateChange={date -> anniversary=date;settings.edit().putString("anniversary",date).apply()},
-                    onOwnProfile = { profileDraft = ownerName; ownEdit = true })
+                    onOwnProfile = { profileDraft = ownerName; ownEdit = true },
+                    onStudio = { page=Page.STUDIO })
             }
         }
         if (!immersive) MainNav(page) { selected -> chatBackTo=Page.HOME;page=selected }
@@ -243,7 +254,7 @@ private fun MainNav(page: Page, go: (Page) -> Unit) {
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun HomeScreen(ownerName: String, anniversary:String, openChat: () -> Unit, openGames: () -> Unit) {
+private fun HomeScreen(ownerName: String, anniversary:String, note:String, openChat: () -> Unit, openGames: () -> Unit) {
     val haptics = LocalHapticFeedback.current
     var heartCount by remember { mutableIntStateOf(0) }
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal=18.dp)) {
@@ -278,6 +289,15 @@ private fun HomeScreen(ownerName: String, anniversary:String, openChat: () -> Un
             OutlinedButton(onClick=openChat) { Text("Go to our chat",fontSize=12.sp); Spacer(Modifier.width(7.dp)); Icon(Icons.Outlined.ArrowForward,null,Modifier.size(16.dp)) }
         }
         if(heartCount>0) { Spacer(Modifier.height(8.dp)); Text("A pulse was felt on this phone. Two-phone heartbeat delivery comes with pairing.",color=V.rose,fontSize=11.sp) }
+        if(note.isNotBlank()) {
+            Spacer(Modifier.height(13.dp))
+            Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(V.paper)
+                .padding(horizontal=17.dp,vertical=13.dp),verticalAlignment=Alignment.CenterVertically) {
+                Icon(Icons.Outlined.AutoAwesome,null,Modifier.size(18.dp),tint=V.gold)
+                Spacer(Modifier.width(10.dp))
+                Text(note,color=V.rose,fontSize=14.sp,fontFamily=FontFamily.Serif)
+            }
+        }
         Spacer(Modifier.height(27.dp)); SectionLabel("SMALL GESTURES, BIG FEELINGS")
         Spacer(Modifier.height(8.dp)); Serif("Little things.",31)
         Text("The little ways to say ‘I'm here.’",color=V.muted,fontSize=12.sp)
@@ -349,7 +369,7 @@ private fun FlameChip() {
 @Composable
 private fun ChatScreen(
     messages: MutableList<ChatMessage>, partner:String,replyTo:ChatMessage?,onReply:(ChatMessage)->Unit,
-    onDismissReply:()->Unit,onInfo:()->Unit,onBack:()->Unit,onSend:(String)->Unit,onVoice:(VoiceClip)->Unit
+    onDismissReply:()->Unit,onInfo:()->Unit,onBack:()->Unit,onCall:(Boolean)->Unit,onSend:(String)->Unit,onVoice:(VoiceClip)->Unit
 ) {
     var draft by remember { mutableStateOf("") }
     var editId by remember { mutableStateOf<Int?>(null) }
@@ -367,6 +387,12 @@ private fun ChatScreen(
             Row(Modifier.weight(1f).clip(RoundedCornerShape(16.dp)).clickable(onClick=onInfo).padding(4.dp),verticalAlignment=Alignment.CenterVertically) {
                 Avatar(43,true);Spacer(Modifier.width(11.dp))
                 Column {Text(partner,color=V.text,fontSize=16.sp,fontWeight=FontWeight.Medium,maxLines=1,overflow=TextOverflow.Ellipsis);Text("Away for now",color=V.muted,fontSize=11.sp)}
+            }
+            IconButton(onClick={onCall(false)},modifier=Modifier.size(38.dp)) {
+                Icon(Icons.Outlined.Call,"Voice call preview",tint=V.rose,modifier=Modifier.size(21.dp))
+            }
+            IconButton(onClick={onCall(true)},modifier=Modifier.size(38.dp)) {
+                Icon(Icons.Outlined.Videocam,"Video call preview",tint=V.rose,modifier=Modifier.size(22.dp))
             }
             FlameChip()
         }
@@ -466,6 +492,10 @@ private fun MessageRow(msg:ChatMessage,onReply:()->Unit,onEdit:()->Unit,onDelete
                                 }
                             }
                             MessageKind.VOICE -> VoiceBubble(path=msg.voicePath,bars=msg.voiceBars,durationMs=msg.durationMs)
+                        }
+                        if(msg.kind==MessageKind.QUESTION && !msg.caption.isNullOrBlank()) {
+                            Spacer(Modifier.height(9.dp))
+                            Text(msg.caption,color=V.text,fontSize=14.sp,lineHeight=20.sp)
                         }
                     }
                     Spacer(Modifier.height(4.dp))
@@ -584,61 +614,89 @@ private fun GameEntry(title:String,subtitle:String,enabled:Boolean,modifier:Modi
 }
 
 @Composable
-private fun QuestionDeckScreen(category:String,index:Int,onIndexChange:(Int)->Unit,onBack:()->Unit,onSend:(Prompt,Int)->Unit,onViewChat:()->Unit) {
-    val filtered = remember(category) {prompts.filter{it.category==category}}
-    var drag by remember(category) {mutableFloatStateOf(0f)}
-    var animating by remember(category) {mutableStateOf(false)}
-    var sentRecently by remember(category) {mutableStateOf(false)}
-    var sendTick by remember(category) {mutableIntStateOf(0)}
+private fun QuestionDeckScreen(category:String,index:Int,onIndexChange:(Int)->Unit,onBack:()->Unit,onSend:(Prompt,Int,String)->Unit,onViewChat:()->Unit) {
+    val filtered=remember(category){prompts.filter{it.category==category}}
+    if(filtered.isEmpty()){
+        Column {Text("No questions in this deck yet.",color=V.text);TextButton(onClick=onBack){Text("Back")}}
+        return
+    }
+    var drag by remember(category){mutableFloatStateOf(0f)}
+    var animating by remember(category){mutableStateOf(false)}
+    var sentRecently by remember(category){mutableStateOf(false)}
+    var sendTick by remember(category){mutableIntStateOf(0)}
+    val drafts=remember(category){mutableStateMapOf<String,String>()}
     val scope=rememberCoroutineScope()
-    val current=index.mod(filtered.size)
+    val current=index.coerceIn(0,filtered.lastIndex)
+    val prompt=filtered[current]
     val colorOffset=deckCategories.indexOf(category).coerceAtLeast(0)*2
     val tone=(current+colorOffset)%cardColors.size
-    fun moveCard() {
+    val availableNext=current<filtered.lastIndex
+    val availablePrevious=current>0
+    fun moveCard(direction:Int) {
         if(animating)return
+        if((direction<0 && !availableNext)||(direction>0 && !availablePrevious)){
+            scope.launch {val a=Animatable(drag);a.animateTo(0f,tween(170)){drag=value}}
+            return
+        }
         animating=true
         scope.launch {
-            val direction=if(drag<0)-1 else 1
-            val anim=Animatable(drag)
-            anim.animateTo(direction*900f,tween(240)){drag=value}
-            onIndexChange((current+1)%filtered.size)
+            val a=Animatable(drag)
+            a.animateTo(direction*850f,tween(225)){drag=value}
+            onIndexChange(current+if(direction<0)1 else -1)
             drag=0f
             animating=false
         }
     }
-    LaunchedEffect(sendTick){if(sendTick>0){kotlinx.coroutines.delay(3200);sentRecently=false}}
-    Column(Modifier.fillMaxSize().padding(horizontal=16.dp)) {
-        Row(Modifier.fillMaxWidth().padding(top=8.dp),verticalAlignment=Alignment.CenterVertically){
-            IconButton(onClick=onBack){Icon(Icons.Outlined.ArrowBack,"Back")}
-            Column(Modifier.weight(1f)){Text(category,color=V.text,fontSize=19.sp,fontFamily=FontFamily.Serif)
-                Text("${current+1} of ${filtered.size} starter questions",color=V.muted,fontSize=10.sp)}
+    LaunchedEffect(sendTick) {if(sendTick>0){kotlinx.coroutines.delay(2800);sentRecently=false}}
+    Column(Modifier.fillMaxSize().padding(horizontal=12.dp)) {
+        Row(Modifier.fillMaxWidth().padding(top=4.dp),verticalAlignment=Alignment.CenterVertically) {
+            IconButton(onClick=onBack){Icon(Icons.Outlined.ArrowBack,"Back",tint=V.text)}
+            Column(Modifier.weight(1f)) {
+                Text(category,color=V.text,fontSize=20.sp,fontFamily=FontFamily.Serif,fontWeight=FontWeight.SemiBold)
+                Text("Question ${current+1} / ${filtered.size}  ·  Swipe ← next  ·  → previous",color=V.muted,fontSize=10.sp)
+            }
             Icon(Icons.Outlined.Style,"Card deck",tint=V.rose)
         }
-        Spacer(Modifier.height(9.dp));Text("Swipe to reveal the next card.",Modifier.fillMaxWidth(),textAlign=TextAlign.Center,color=V.muted,fontSize=12.sp)
-        Box(Modifier.weight(1f).fillMaxWidth(),contentAlignment=Alignment.Center) {
-            val next=(current+1)%filtered.size
-            QuestionCard(filtered[next].question,cardColors[(next+colorOffset)%cardColors.size],
-                Modifier.fillMaxWidth(.90f).height(366.dp).scale(.95f).offset(y=10.dp))
-            QuestionCard(filtered[current].question,cardColors[tone],
-                Modifier.fillMaxWidth(.90f).height(366.dp).offset{IntOffset(drag.roundToInt(),0)}
-                    .graphicsLayer{rotationZ=drag/37f}.pointerInput(current,animating){
-                        detectHorizontalDragGestures(onHorizontalDrag={change,amount->if(!animating){change.consume();drag=(drag+amount).coerceIn(-700f,700f)}},
-                            onDragEnd={if(!animating){if(abs(drag)>90f)moveCard() else scope.launch {val anim=Animatable(drag);anim.animateTo(0f,tween(190)){drag=value}}}},onDragCancel={drag=0f})
+        Box(Modifier.weight(1f).fillMaxWidth().padding(vertical=6.dp),contentAlignment=Alignment.Center) {
+            val behind=if(drag>0f)(current-1).coerceAtLeast(0) else (current+1).coerceAtMost(filtered.lastIndex)
+            QuestionCard(filtered[behind].question,cardColors[(behind+colorOffset)%cardColors.size],
+                Modifier.fillMaxWidth(.96f).fillMaxHeight(.96f).scale(.975f).offset(y=5.dp))
+            QuestionCard(prompt.question,cardColors[tone],
+                Modifier.fillMaxWidth(.96f).fillMaxHeight(.96f).offset{IntOffset(drag.roundToInt(),0)}
+                    .graphicsLayer{rotationZ=drag/53f}.pointerInput(current,animating) {
+                        detectHorizontalDragGestures(onHorizontalDrag={change,amount->
+                            if(!animating){change.consume();drag=(drag+amount).coerceIn(-680f,680f)}
+                        },onDragEnd={
+                            if(!animating) {
+                                if(abs(drag)>92f)moveCard(if(drag<0f)-1 else 1)
+                                else scope.launch{val a=Animatable(drag);a.animateTo(0f,tween(180)){drag=value}}
+                            }
+                        },onDragCancel={drag=0f})
                     })
         }
-        AnimatedVisibility(sentRecently){
-            Row(Modifier.fillMaxWidth().padding(vertical=4.dp).clip(RoundedCornerShape(14.dp)).background(V.raised).padding(horizontal=12.dp,vertical=6.dp),
-                horizontalArrangement=Arrangement.SpaceBetween,verticalAlignment=Alignment.CenterVertically){
+        AnimatedVisibility(sentRecently) {
+            Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(13.dp)).background(V.raised)
+                .padding(horizontal=12.dp,vertical=5.dp),horizontalArrangement=Arrangement.SpaceBetween,
+                verticalAlignment=Alignment.CenterVertically) {
                 Text("♡ Sent to Chat",color=V.rose,fontSize=12.sp)
                 TextButton(onClick=onViewChat){Text("View in Chat →",color=V.gold,fontSize=11.sp)}
             }
         }
-        Row(Modifier.fillMaxWidth().padding(bottom=12.dp),horizontalArrangement=Arrangement.spacedBy(10.dp)) {
-            OutlinedButton(onClick={drag=-120f;moveCard()},modifier=Modifier.weight(1f)){Text("Next card")}
-            Button(onClick={onSend(filtered[current],tone);sentRecently=true;sendTick++},modifier=Modifier.weight(1f)){
-                Icon(Icons.Outlined.Send,null,Modifier.size(16.dp));Spacer(Modifier.width(5.dp));Text("Send to Chat")
-            }
+        OutlinedTextField(value=drafts[prompt.id].orEmpty(),
+            onValueChange={if(it.length<=500)drafts[prompt.id]=it},
+            modifier=Modifier.fillMaxWidth().padding(horizontal=4.dp),
+            placeholder={Text("Add your answer or a little note…",fontSize=13.sp)},
+            maxLines=3,shape=RoundedCornerShape(17.dp),
+            leadingIcon={Icon(Icons.Outlined.Edit,null,tint=V.rose,modifier=Modifier.size(18.dp))})
+        Spacer(Modifier.height(9.dp))
+        Button(onClick={onSend(prompt,tone,drafts[prompt.id].orEmpty());sentRecently=true;sendTick++},
+            modifier=Modifier.fillMaxWidth().padding(horizontal=4.dp).height(50.dp),
+            shape=RoundedCornerShape(17.dp)) {
+            Icon(Icons.Outlined.Send,null,Modifier.size(18.dp))
+            Spacer(Modifier.width(9.dp))
+            Text("Send to Chat",fontWeight=FontWeight.SemiBold)
         }
+        Spacer(Modifier.height(10.dp))
     }
 }
 
@@ -646,7 +704,9 @@ private fun QuestionDeckScreen(category:String,index:Int,onIndexChange:(Int)->Un
 private fun QuestionCard(question:String,color:Color,modifier:Modifier) {
     Column(modifier.clip(RoundedCornerShape(28.dp)).background(color).border(2.dp,Color(0xFF614158).copy(alpha=.32f),RoundedCornerShape(28.dp)).padding(25.dp),horizontalAlignment=Alignment.CenterHorizontally,verticalArrangement=Arrangement.SpaceBetween) {
         Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceBetween){Text("VELVET",letterSpacing=2.sp,color=Color(0xFF493044),fontSize=11.sp,fontWeight=FontWeight.Bold);Icon(Icons.Outlined.FavoriteBorder,null,tint=Color(0xFF493044))}
-        Text(question,color=Color(0xFF3E283D),fontSize=28.sp,fontFamily=FontFamily.Serif,lineHeight=34.sp,textAlign=TextAlign.Center)
+        Text(question,color=Color(0xFF3E283D),fontSize=if(question.length>125)23.sp else if(question.length>80)27.sp else 31.sp,
+            fontFamily=FontFamily.Serif,fontWeight=FontWeight.SemiBold,
+            lineHeight=if(question.length>125)30.sp else 39.sp,textAlign=TextAlign.Center)
         Text("A little closer, one answer at a time",color=Color(0xFF553847),fontSize=11.sp,textAlign=TextAlign.Center)
     }
 }
@@ -695,7 +755,7 @@ private fun StoryScreen() {
 }
 
 @Composable
-private fun UsScreen(owner:String,partner:String,anniversary:String,onDateChange:(String)->Unit,onOwnProfile:()->Unit) {
+private fun UsScreen(owner:String,partner:String,anniversary:String,onDateChange:(String)->Unit,onOwnProfile:()->Unit,onStudio:()->Unit) {
     val context=LocalContext.current
     val counts=relationshipCounts(anniversary)
     val datePicker={
@@ -714,6 +774,17 @@ private fun UsScreen(owner:String,partner:String,anniversary:String,onDateChange
                 HeartDrawing(Modifier.size(33.dp))
                 Column(horizontalAlignment=Alignment.CenterHorizontally){Avatar(72,true);Spacer(Modifier.height(9.dp));Text(partner,color=V.text);Text("Managed by your partner",color=V.muted,fontSize=10.sp)}
             }
+        }
+        Spacer(Modifier.height(14.dp))
+        Row(Modifier.fillMaxWidth().clip(round).background(V.raised).clickable(onClick=onStudio)
+            .padding(horizontal=18.dp,vertical=18.dp),verticalAlignment=Alignment.CenterVertically) {
+            Icon(Icons.Outlined.Palette,"Our Studio",Modifier.size(30.dp),tint=V.rose)
+            Spacer(Modifier.width(14.dp))
+            Column(Modifier.weight(1f)) {
+                Text("Our Studio",color=V.text,fontSize=17.sp,fontWeight=FontWeight.SemiBold)
+                Text("Themes, a shared note, and little drawings",color=V.muted,fontSize=11.sp)
+            }
+            Icon(Icons.Outlined.ChevronRight,null,tint=V.rose)
         }
         Spacer(Modifier.height(20.dp));SectionLabel("THE DAYS WE KEEP")
         Spacer(Modifier.height(11.dp))
