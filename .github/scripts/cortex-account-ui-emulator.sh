@@ -9,6 +9,26 @@ adb shell settings put system screen_off_timeout 1800000 || true
 adb shell svc power stayon true || true
 adb shell input keyevent KEYCODE_WAKEUP || true
 adb shell wm dismiss-keyguard || true
+# An unaccelerated GitHub emulator can kill first-run app startup while
+# dex compilation is blocking the main thread. The main acceptance harness
+# already uses pre-compilation for this reason.
+for package in com.night.cortex com.night.cortex.test; do
+  compiled=0
+  for attempt in 1 2 3; do
+    if adb shell cmd package compile -m speed -f "$package"; then
+      compiled=1
+      break
+    fi
+    sleep 8
+    adb wait-for-device
+  done
+  if [[ $compiled -ne 1 ]]; then
+    echo "::error::Android package service failed to precompile $package"
+    exit 1
+  fi
+done
+# Let the activity/package services settle after the test APK install.
+sleep 15
 adb logcat -c || true
 
 # Preserve instrumentation output and Android crash evidence even if the
