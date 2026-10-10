@@ -2,6 +2,9 @@ package com.tomex777.annie
 
 import android.webkit.WebView
 import android.os.SystemClock
+import android.graphics.Rect
+import android.content.Context
+import android.view.inputmethod.InputMethodManager
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
@@ -9,6 +12,8 @@ import androidx.activity.ComponentActivity
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.hasTestTag
+import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performClick
@@ -152,6 +157,16 @@ class AnnieCanvasMessageTest {
         compose.waitUntil(12_000) {
             compose.onAllNodesWithTag("annie_canvas_message").fetchSemanticsNodes().isNotEmpty()
         }
+        // The composer IME obscures most of a tall Canvas on phones. Dismiss it and
+        // scroll the actual chat bubble into the viewport before sending real touch input.
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+        instrumentation.runOnMainSync {
+            compose.activity.currentFocus?.clearFocus()
+            val imm = compose.activity.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+            imm.hideSoftInputFromWindow(compose.activity.window.decorView.windowToken, 0)
+        }
+        compose.waitForIdle()
+        compose.onNodeWithTag("conversation").performScrollToNode(hasTestTag("annie_canvas_message"))
         compose.onNodeWithTag("annie_canvas_message").assertIsDisplayed()
         lateinit var snakeWebView: WebView
         compose.runOnIdle {
@@ -196,17 +211,15 @@ class AnnieCanvasMessageTest {
 
     private fun swipeDownOnWebView(web: WebView) {
         val instrumentation = InstrumentationRegistry.getInstrumentation()
-        val location = IntArray(2)
-        var width = 0
-        var height = 0
+        val visible = Rect()
         instrumentation.runOnMainSync {
-            web.getLocationOnScreen(location)
-            width = web.width
-            height = web.height
+            assertTrue("Canvas must be attached and visible before swiping", web.isShown)
+            assertTrue("Canvas has no visible window intersection", web.getGlobalVisibleRect(visible))
         }
-        val x = location[0] + width / 2f
-        val y1 = location[1] + height * 0.38f
-        val y2 = location[1] + height * 0.63f
+        assertTrue("Need enough exposed Canvas to perform a real swipe: $visible", visible.height() >= 90)
+        val x = visible.exactCenterX()
+        val y1 = visible.top + visible.height() * 0.36f
+        val y2 = visible.top + visible.height() * 0.68f
         val t = SystemClock.uptimeMillis()
         fun send(action: Int, y: Float, at: Long) {
             val event = MotionEvent.obtain(t, at, action, x, y, 0)
