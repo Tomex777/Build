@@ -92,6 +92,9 @@ data class PairingAccount(
     val pairingQr: String,
     val pairingError: String,
     val displayName: String = "",
+    val role: String = "linked",
+    val profile: String = "",
+    val profileDisplayName: String = "",
 )
 
 data class PairingState(

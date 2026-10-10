@@ -104,6 +104,9 @@ fun CortexPairingScreen(
     var removeCandidate by remember { mutableStateOf<PairingAccount?>(null) }
     var action by remember { mutableStateOf(PairAction.PAIR) }
     var addingNumber by remember { mutableStateOf(false) }
+    val duplicateNames = remember(state?.accounts) {
+        duplicateSavedNameIds(state?.accounts.orEmpty())
+    }
 
     Surface(
         modifier = Modifier.fillMaxSize(),
@@ -116,12 +119,12 @@ fun CortexPairingScreen(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Column(Modifier.weight(1f)) {
-                    Text("WhatsApp Pairing", fontSize = 19.sp, fontWeight = FontWeight.SemiBold)
+                    Text("WhatsApp Accounts", fontSize = 19.sp, fontWeight = FontWeight.SemiBold)
                     Text(
                         state?.let {
                             val destinationName = it.accounts.firstOrNull { account -> account.id == it.destination }?.title
                                 ?: "Account ${it.destination}"
-                            "Destination: $destinationName"
+                            "${it.accounts.count { account -> account.connected }} connected · ${it.accounts.size} total · CC: $destinationName [${it.destination}]"
                         } ?: "Connect to your server to manage linked accounts",
                         color = CortexMuted,
                         fontSize = 11.sp,
@@ -136,7 +139,7 @@ fun CortexPairingScreen(
                     }
                 }
                 IconButton(onClick = onRefresh, enabled = !busy) {
-                    Icon(Icons.Rounded.Refresh, "Refresh pairing")
+                    Icon(Icons.Rounded.Refresh, "Refresh accounts")
                 }
             }
             HorizontalDivider(color = CortexLine)
@@ -157,6 +160,25 @@ fun CortexPairingScreen(
                     contentPadding = PaddingValues(12.dp),
                     verticalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
+                    if (duplicateNames.isNotEmpty()) {
+                        item(key = "duplicate-session-names") {
+                            Surface(
+                                color = CortexDanger.copy(alpha = .13f),
+                                shape = RoundedCornerShape(10.dp),
+                            ) {
+                                Text(
+                                    "Multiple sessions have the same saved account name. " +
+                                        "They are not necessarily the same WhatsApp connection. " +
+                                        "Use the session ID and masked number to tell them apart.",
+                                    color = CortexText,
+                                    fontSize = 11.sp,
+                                    lineHeight = 16.sp,
+                                    modifier = Modifier.fillMaxWidth().padding(12.dp)
+                                        .testTag("duplicate-session-name-warning"),
+                                )
+                            }
+                        }
+                    }
                     if (state.accounts.isEmpty()) {
                         item {
                             Surface(color = CortexSurface, shape = RoundedCornerShape(12.dp)) {
@@ -202,6 +224,7 @@ fun CortexPairingScreen(
                         PairingAccountCard(
                             account = account,
                             destination = state.destination == account.id,
+                            duplicateName = account.id in duplicateNames,
                             busy = busy,
                             onPair = {
                                 selected = account
@@ -323,6 +346,7 @@ fun CortexPairingScreen(
 private fun PairingAccountCard(
     account: PairingAccount,
     destination: Boolean,
+    duplicateName: Boolean,
     busy: Boolean,
     onPair: () -> Unit,
     onDestination: () -> Unit,
@@ -369,7 +393,22 @@ private fun PairingAccountCard(
                 }
                 Spacer(Modifier.width(10.dp))
                 Column(Modifier.weight(1f)) {
-                    Text(account.title, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                    Text(
+                        if (duplicateName) "${account.title} [${account.id}]" else account.title,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.testTag("session-title-${account.id}"),
+                    )
+                    Text(
+                        "ID: ${account.id} · ${account.accountRoleLabel}",
+                        color = CortexMuted,
+                        fontSize = 10.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.testTag("session-identity-${account.id}"),
+                    )
                     Text(
                         account.numberMasked,
                         color = CortexMuted,
@@ -385,6 +424,32 @@ private fun PairingAccountCard(
                         Text("DESTINATION", color = CortexAccent, fontSize = 9.sp, fontWeight = FontWeight.Bold)
                     }
                 }
+            }
+
+            HorizontalDivider(color = CortexLine)
+            Row(
+                Modifier.fillMaxWidth().padding(horizontal = 13.dp, vertical = 9.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text("BOT PROFILE", color = CortexMuted, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                Spacer(Modifier.width(9.dp))
+                Text(
+                    account.profileLabel,
+                    color = if (account.profile == "unassigned") CortexMuted else CortexText,
+                    fontSize = 11.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f).testTag("session-profile-${account.id}"),
+                    textAlign = TextAlign.End,
+                )
+            }
+            if (duplicateName) {
+                Text(
+                    "Duplicate saved name · verify this session's ID and number.",
+                    color = CortexDanger,
+                    fontSize = 10.sp,
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 13.dp, vertical = 5.dp),
+                )
             }
 
             if (account.pairingCode.isNotBlank()) {
@@ -775,9 +840,6 @@ private fun PairMethodRow(
 }
 
 
-private val PairingAccount.title: String
-    get() = displayName.trim().ifBlank { "Account $id" }
-
 private val PairingAccount.badge: String
     get() {
         val friendly = displayName.trim()
@@ -820,7 +882,7 @@ private fun AddNumberSheet(
         ) {
             Text("Add number", fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
             Text(
-                "Create a new isolated WhatsApp session. Phone-number pairing stays the primary method.",
+                "Create a separate WhatsApp session. Its saved name is independent of its bot profile; unassigned profiles cannot run public commands.",
                 color = CortexMuted,
                 fontSize = 10.sp,
             )
