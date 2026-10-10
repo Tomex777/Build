@@ -677,40 +677,88 @@ private val prompts:List<Prompt> get() = defaultPrompts +
 private val cardColors=listOf(Color(0xFFF4B8C7),Color(0xFFB6A4D8),Color(0xFFF3C5A2),Color(0xFFB8D6C7),Color(0xFFF0D99D),Color(0xFFB6CEE4),Color(0xFFD5AFCE),Color(0xFFDBD49D))
 
 @Composable
-private fun GamesScreen(onDeck:(String)->Unit,onTTT:()->Unit) {
-    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal=18.dp)) {
-        Spacer(Modifier.height(14.dp));SectionLabel("TOGETHER IS THE FUN PART")
-        Spacer(Modifier.height(8.dp));Serif("Let's play.",38)
-        Text("A little competition. A lot of connection.",fontSize=13.sp,color=V.muted)
-        Spacer(Modifier.height(24.dp))
-        Tile(Modifier.fillMaxWidth()) {
-            SectionLabel("FEATURED DECK");Spacer(Modifier.height(9.dp));Serif("Heart to heart",29,color=V.rose)
-            Text("One question at a time, with room for real answers.",color=V.muted,fontSize=13.sp)
-            Spacer(Modifier.height(12.dp));Button(onClick={onDeck("Heart to heart")}){Text("Pick a card →")}
+private fun GamesScreen(
+    onDeck:(String)->Unit,onTTT:()->Unit,onConnect4:()->Unit,onChess:()->Unit,
+    onLudo:()->Unit,onDraw:()->Unit,onDeckEditor:()->Unit,onTogether:()->Unit
+) {
+    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal=17.dp)) {
+        Spacer(Modifier.height(13.dp))
+        SectionLabel("THE LITTLE LOUNGE FOR TWO")
+        Spacer(Modifier.height(8.dp));Serif("Let's play, love.",37)
+        Text("Some days we compete. Some days we just share a moment.",fontSize=12.sp,color=V.muted)
+        Spacer(Modifier.height(18.dp))
+        Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(23.dp))
+            .background(Brush.verticalGradient(listOf(V.raised,V.paper)))
+            .padding(18.dp)) {
+            Row(verticalAlignment=Alignment.CenterVertically) {
+                Icon(Icons.Outlined.FavoriteBorder,null,Modifier.size(25.dp),tint=V.rose)
+                Spacer(Modifier.width(8.dp))
+                Text("Together time ♡",fontSize=22.sp,color=V.text,fontFamily=FontFamily.Serif)
+            }
+            Spacer(Modifier.height(8.dp))
+            Text("Answer separately and reveal what you both wrote. Pass one phone between you for now.",
+                color=V.muted,fontSize=12.sp,lineHeight=18.sp)
+            Spacer(Modifier.height(12.dp))
+            Button(onClick=onTogether,modifier=Modifier.fillMaxWidth()){
+                Text("Play answer & reveal →")
+            }
         }
-        Spacer(Modifier.height(23.dp));SectionLabel("QUESTION GAMES")
+        Spacer(Modifier.height(23.dp))
+        Row(verticalAlignment=Alignment.CenterVertically) {
+            SectionLabel("CONVERSATION DECKS")
+            Spacer(Modifier.weight(1f))
+            Text("${prompts.size} offline cards",color=V.muted,fontSize=11.sp)
+        }
         Spacer(Modifier.height(10.dp))
-        deckCategories.chunked(2).forEachIndexed {rowI,pair->
-            Row(horizontalArrangement=Arrangement.spacedBy(10.dp)) {pair.forEachIndexed {i,c->
-                val index=rowI*2+i
-                Column(Modifier.weight(1f).clip(round).background(cardColors[index]).combinedClickable(onClick={onDeck(c)}).padding(18.dp).height(93.dp),verticalArrangement=Arrangement.SpaceBetween) {
-                    Icon(Icons.Outlined.Style,null,tint=Color(0xFF4A3142));Text(c,color=Color(0xFF41283D),fontSize=16.sp,fontFamily=FontFamily.Serif,lineHeight=18.sp)
+        deckCategories.chunked(2).forEachIndexed {rowI,pair ->
+            Row(horizontalArrangement=Arrangement.spacedBy(10.dp)) {
+                pair.forEachIndexed{i,category->
+                    val index=rowI*2+i
+                    Column(Modifier.weight(1f).clip(RoundedCornerShape(19.dp))
+                        .background(cardColors[index.mod(cardColors.size)])
+                        .clickable{onDeck(category)}
+                        .padding(17.dp).height(103.dp),
+                        verticalArrangement=Arrangement.SpaceBetween){
+                        Icon(Icons.Outlined.Style,null,tint=Color(0xFF53394F))
+                        Text(category,color=Color(0xFF432A3D),fontSize=20.sp,
+                            fontFamily=FontFamily.Serif,fontWeight=FontWeight.SemiBold,lineHeight=23.sp)
+                    }
                 }
-            }};Spacer(Modifier.height(10.dp))
+            }
+            Spacer(Modifier.height(10.dp))
         }
-        Spacer(Modifier.height(16.dp));SectionLabel("PLAY TOGETHER")
-        Spacer(Modifier.height(10.dp))
         Row(horizontalArrangement=Arrangement.spacedBy(10.dp)) {
-            GameEntry("Tic-tac-toe","Play locally",true,Modifier.weight(1f),onTTT)
-            GameEntry("Connect Four","Multiplayer later",false,Modifier.weight(1f),{})
+            OutlinedButton(onClick={onDeck("Saved cards")},modifier=Modifier.weight(1f),
+                contentPadding=PaddingValues(horizontal=5.dp)) {
+                Icon(Icons.Outlined.FavoriteBorder,null,Modifier.size(18.dp))
+                Spacer(Modifier.width(5.dp));Text("Saved cards",fontSize=12.sp)
+            }
+            OutlinedButton(onClick=onDeckEditor,modifier=Modifier.weight(1f),
+                contentPadding=PaddingValues(horizontal=5.dp)) {
+                Icon(Icons.Outlined.Edit,null,Modifier.size(18.dp))
+                Spacer(Modifier.width(5.dp));Text("Our own deck",fontSize=12.sp)
+            }
         }
-        Spacer(Modifier.height(10.dp))
+        Spacer(Modifier.height(26.dp))
+        SectionLabel("REAL GAMES · PASS & PLAY")
+        Spacer(Modifier.height(8.dp))
+        Serif("Pick your board.",28)
+        Spacer(Modifier.height(12.dp))
         Row(horizontalArrangement=Arrangement.spacedBy(10.dp)) {
-            GameEntry("Chess","Rules engine later",false,Modifier.weight(1f),{})
-            GameEntry("Ludo","Rules engine later",false,Modifier.weight(1f),{})
+            GameEntry("Tic-tac-toe","Quick rounds ♡",true,Modifier.weight(1f),onTTT)
+            GameEntry("Connect Four","Drop, connect, win",true,Modifier.weight(1f),onConnect4)
         }
-        Spacer(Modifier.height(10.dp));GameEntry("Draw & Guess","Realtime canvas later",false,Modifier.fillMaxWidth(),{})
-        Spacer(Modifier.height(20.dp))
+        Spacer(Modifier.height(11.dp))
+        Row(horizontalArrangement=Arrangement.spacedBy(10.dp)) {
+            GameEntry("Chess","Legal moves · Checkmate",true,Modifier.weight(1f),onChess)
+            GameEntry("Ludo","Roll for six",true,Modifier.weight(1f),onLudo)
+        }
+        Spacer(Modifier.height(11.dp))
+        GameEntry("Draw & Guess","Draw a secret prompt together",true,Modifier.fillMaxWidth(),onDraw)
+        Spacer(Modifier.height(14.dp))
+        Text("Games currently work on one phone. Live two-device turns, rematches and invitations need account pairing.",
+            color=V.muted,fontSize=11.sp,lineHeight=16.sp)
+        Spacer(Modifier.height(22.dp))
     }
 }
 
@@ -865,7 +913,7 @@ private fun TicTacToeScreen(onBack:()->Unit) {
     val winner=patterns.firstOrNull{line->cells[line[0]].isNotEmpty()&&cells[line[0]]==cells[line[1]]&&cells[line[1]]==cells[line[2]]}?.let{cells[it[0]]}
     val done=winner!=null||cells.none{it==""}
     Column(Modifier.fillMaxSize().padding(18.dp),horizontalAlignment=Alignment.CenterHorizontally) {
-        Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically){IconButton(onClick=onBack){Icon(Icons.Outlined.ArrowBack,"Back",tint=V.text)};Serif("Tic-tac-toe",27)}
+        VelvetGameBar("Tic-tac-toe","Two players · Quick round",onBack)
         Spacer(Modifier.height(13.dp));Text("Local pass-and-play demonstration",color=V.muted,fontSize=12.sp)
         Spacer(Modifier.height(34.dp));Serif(when{winner!=null->"$winner wins!";done->"A perfect tie.";else->"$move's turn"},32)
         Spacer(Modifier.height(17.dp))
