@@ -129,6 +129,23 @@ if (!instantLists[0].rows?.[0]?.id?.startsWith('.lyrics ~track ')) {
 }
 
 
+
+const fallbackReplies = []
+let fallbackSession = null
+await runSongCommand({
+  publicPrefix:'.',
+  reply:async value => { fallbackReplies.push(String(value)); return value },
+  replyList:async () => { throw new Error('interactive delivery unavailable') },
+  setCommandReplySession:value => { fallbackSession = value },
+  executeSource:ctx.executeSource,
+}, { args:['hello'] })
+if (!fallbackReplies.at(-1)?.includes('🎵 *Song Search Results*') ||
+    !fallbackReplies.at(-1)?.includes('1. Song A') ||
+    fallbackSession?.kind !== 'number-selection') {
+  throw new Error('Unavailable interactive lists must preserve song search text and numeric selection')
+}
+console.log('PASS song Lyrics instant action and graceful plain-text fallback')
+
 const recoveryCalls = []
 const recoveryReplies = []
 let recoverySession = null
@@ -190,7 +207,11 @@ if (!recoveryReplies.some(value => value.includes('RECOVERED:f2'))) {
 const recoverySearches = recoveryCalls
   .filter(call => call.payload.action === 'search')
   .map(call => call.excludedSources.join('|'))
-if (recoverySearches.join(',') !== ',primary,primary|fallback-1') {
+// Search can broaden the original query into additional variants before
+// falling back. Verify the managed source exclusions rather than assuming
+// there is exactly one unrestricted search request.
+if (!recoverySearches.length || recoverySearches[0] !== '' ||
+    recoverySearches.filter(Boolean).join(',') !== 'primary,primary|fallback-1') {
   throw new Error('Music fallback exclusions did not walk the managed chain: ' + recoverySearches.join(','))
 }
 
