@@ -2,7 +2,7 @@ name: Annie Android CI
 
 on:
   push:
-    branches: [annie-android-ci, annie-m0b-validation-20261009, annie-rich-message-types-20261009, annie-gecko-browser-voice-20261009]
+    branches: [annie-android-ci, annie-m0b-validation-20261009, annie-rich-message-types-20261009, annie-gecko-browser-voice-20261009, annie-canvas-message-20261009]
     paths:
       - 'annie-android/**'
       - '.github/workflows/annie-android-ci.yml'
@@ -100,6 +100,9 @@ jobs:
             rm -rf "$ANDROID_HOME/emulator"
             sleep $((attempt * 5))
           done
+      - name: Verify Android 36 emulator system image with retry
+        shell: bash
+        run: bash annie-android/ci/install-emulator-system-image.sh 36
       - name: Enable KVM for Android emulator
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
@@ -216,7 +219,9 @@ jobs:
 
   api-26-edge:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    # Cold Gradle + Android 8 image + full 123+ instrumentation test suite can exceed 20m.
+    # Give the complete suite time; do not skip or weaken any device tests.
+    timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v5
@@ -277,6 +282,9 @@ jobs:
             rm -rf "$ANDROID_HOME/emulator"
             sleep $((attempt * 5))
           done
+      - name: Verify Android 26 emulator system image with retry
+        shell: bash
+        run: bash annie-android/ci/install-emulator-system-image.sh 26
       - name: Enable KVM for Android 8 emulator
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
@@ -330,6 +338,10 @@ jobs:
         if: steps.signing.outputs.ready == 'true'
         with:
           packages: 'platform-tools'
+      - name: Verify production-install emulator system image with retry
+        if: steps.signing.outputs.ready == 'true'
+        shell: bash
+        run: bash annie-android/ci/install-emulator-system-image.sh ${{ matrix.api }}
       - name: Enable KVM
         if: steps.signing.outputs.ready == 'true'
         run: |
