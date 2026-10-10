@@ -1,7 +1,7 @@
 package dev.velvet.app
 
 import android.graphics.BitmapFactory
-import android.media.MediaController
+import android.widget.MediaController
 import android.widget.VideoView
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
