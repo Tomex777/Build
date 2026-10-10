@@ -182,7 +182,16 @@ class CortexPairingScreenTest {
         // MSCC fixes the CC destination to Account A; Cortex must not offer a broken action.
         composeRule.onNodeWithText("Make destination").assertDoesNotExist()
         composeRule.onNodeWithTag("fixed-cc-destination-note").assertIsDisplayed()
-        composeRule.onNodeWithText("Pair account").performClick()
+        // P5's search, counters and filters reduce the visible account-card
+        // height. Scroll the pairing CTA onscreen before clicking so the
+        // emulator cannot dispatch a tap against clipped card content.
+        composeRule.onNodeWithText("Pair account")
+            .performScrollTo()
+            .assertIsDisplayed()
+            .performClick()
+        composeRule.waitUntil(timeoutMillis = 10_000) {
+            composeRule.onAllNodesWithTag("pair-method-sheet").fetchSemanticsNodes().isNotEmpty()
+        }
         settleBottomSheet()
 
         composeRule.onNodeWithTag("pair-method-sheet").assertIsDisplayed()
