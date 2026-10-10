@@ -49,6 +49,14 @@ try {
         { id: 'nami', displayName: 'Nami' },
       ] });
     }
+    if (req.url === '/accounts/account-2/diagnostics?limit=5' && req.method === 'GET') {
+      return respond(200, {
+        snapshot: { id: 'account-2', displayName: 'Josia', status: 'reconnecting',
+          profile: 'josiah', numberMasked: '234***0002', lastDisconnectCode: 408 },
+        events: [{ id: 'e1', at: '2026-10-09T10:00:00Z',
+          action: 'account.disconnected', detail: { reasonCode: 408 } }],
+      });
+    }
     if (req.url === '/accounts/account-2' && req.method === 'PATCH') {
       return respond(200, { ok: true, account: 'account-2', displayName: parsed.displayName });
     }
@@ -98,6 +106,15 @@ try {
   assert.equal(profile.status, 200);
   assert.equal((await profile.json()).profile, 'nami');
 
+  const diagDenied = await request('GET', '/api/cortex/mscc/accounts/account-2/diagnostics?limit=5', undefined, false);
+  assert.equal(diagDenied.status, 401, 'Diagnostic data must require authentication');
+  const diagResponse = await request('GET', '/api/cortex/mscc/accounts/account-2/diagnostics?limit=5');
+  assert.equal(diagResponse.status, 200);
+  const diagnostics = await diagResponse.json();
+  assert.equal(diagnostics.snapshot.id, 'account-2');
+  assert.deepEqual(diagnostics.events[0].detail, { reasonCode: 408 });
+  assert.equal(JSON.stringify(diagnostics).includes('pairingCode'), false);
+
   const invalidName = await request('PATCH', '/api/cortex/mscc/accounts/account-2', { displayName: '' });
   assert.equal(invalidName.status, 400);
   const invalidProfile = await request('POST', '/api/cortex/mscc/accounts/account-2/profile', { profileId: '../control' });
@@ -108,8 +125,9 @@ try {
   assert.deepEqual(unexpected, [
     { method: 'PATCH', path: '/accounts/account-2', body: { displayName: 'Night Backup' } },
     { method: 'POST', path: '/accounts/account-2/profile', body: { profileId: 'nami' } },
+    { method: 'GET', path: '/accounts/account-2/diagnostics?limit=5', body: {} },
   ], 'Only valid, authenticated updates may reach MSCC');
-  console.log('PASS Cortex Agent authenticated account rename/profile proxy, validations, audit boundary');
+  console.log('PASS Cortex Agent authenticated account controls and private per-session diagnostics');
 } finally {
   if (agent && agent.exitCode === null) {
     agent.kill('SIGTERM');

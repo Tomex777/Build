@@ -395,6 +395,48 @@ class CortexServerApi(
         )
     }
 
+    fun accountDiagnostics(id: String, limit: Int = 40): AccountDiagnostics {
+        val json = getJson(
+            "/api/cortex/mscc/accounts/${encodeAccount(id)}/diagnostics?limit=${limit.coerceIn(1, 100)}"
+        )
+        val snap = json.optJSONObject("snapshot")
+            ?: throw IllegalStateException("MSCC did not return a session snapshot")
+        val rows = json.optJSONArray("events") ?: JSONArray()
+        val events = buildList {
+            for (i in 0 until rows.length()) {
+                val row = rows.optJSONObject(i) ?: continue
+                val details = row.optJSONObject("detail")
+                val allowed = listOf("mode", "reasonCode", "profile", "previousProfile", "authPreserved", "attempt", "delayMs")
+                val description = allowed.mapNotNull { key ->
+                    if (details?.has(key) == true && !details.isNull(key)) {
+                        "$key: ${details.optString(key)}"
+                    } else null
+                }.joinToString(" · ")
+                add(
+                    AccountDiagnosticEvent(
+                        id = row.optString("id", i.toString()),
+                        at = row.optString("at"),
+                        action = row.optString("action"),
+                        detail = description,
+                    )
+                )
+            }
+        }
+        return AccountDiagnostics(
+            accountId = snap.optString("id"),
+            accountName = snap.optString("displayName"),
+            status = snap.optString("status", "offline"),
+            profile = snap.optString("profile", "unassigned"),
+            connected = snap.optBoolean("connected"),
+            lastConnectedAt = snap.optLong("lastConnectedAt", 0L),
+            lastDisconnectedAt = snap.optLong("lastDisconnectedAt", 0L),
+            reconnectAttempts = snap.optInt("reconnectAttempts", 0),
+            nextReconnectAt = snap.optLong("nextReconnectAt", 0L),
+            disconnectReason = snap.optString("disconnectReason"),
+            events = events,
+        )
+    }
+
     fun renameAccount(id: String, displayName: String) {
         val name = displayName.trim()
         require(name.isNotEmpty() && name.length <= 48) { "Account name must be 1–48 characters" }

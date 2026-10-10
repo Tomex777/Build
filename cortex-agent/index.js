@@ -1295,6 +1295,15 @@ async function handler(req, res) {
     if (req.method === 'GET' && url.pathname === '/api/cortex/mscc/pairing') {
       return json(res, 200, await msccControl('GET', '/state'));
     }
+    const accountDiagnosticsRoute = url.pathname.match(/^\/api\/cortex\/mscc\/accounts\/([A-Za-z0-9][A-Za-z0-9._-]{0,63})\/diagnostics$/);
+    if (req.method === 'GET' && accountDiagnosticsRoute) {
+      const count = Math.max(1, Math.min(100, Number(url.searchParams.get('limit')) || 40));
+      // MSCC returns only a redacted lifecycle snapshot and allowlisted events.
+      // No process logs, WhatsApp messages or auth files pass through this route.
+      return json(res, 200, await msccControl(
+        'GET', '/accounts/' + accountDiagnosticsRoute[1] + '/diagnostics?limit=' + count
+      ));
+    }
     if (req.method === 'POST' && url.pathname === '/api/cortex/mscc/accounts') {
       const body = await readJson(req);
       const phoneNumber = String(body.phoneNumber || '').replace(/\D/g, '');

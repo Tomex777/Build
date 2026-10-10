@@ -120,6 +120,27 @@ data class PairingState(
     val profiles: List<BotProfileOption> = emptyList(),
 )
 
+data class AccountDiagnosticEvent(
+    val id: String,
+    val at: String,
+    val action: String,
+    val detail: String = "",
+)
+
+data class AccountDiagnostics(
+    val accountId: String,
+    val accountName: String,
+    val status: String,
+    val profile: String,
+    val connected: Boolean,
+    val lastConnectedAt: Long,
+    val lastDisconnectedAt: Long,
+    val reconnectAttempts: Int,
+    val nextReconnectAt: Long,
+    val disconnectReason: String,
+    val events: List<AccountDiagnosticEvent>,
+)
+
 data class PendingDownload(
     val name: String,
     val cachePath: String,
@@ -149,5 +170,9 @@ data class ServerPanelState(
     val commandSettings: List<CommandSetting> = emptyList(),
     val runtimeRegistry: RuntimeRegistry? = null,
     val pairing: PairingState? = null,
+    val accountDiagnostics: AccountDiagnostics? = null,
+    val diagnosticsAccountId: String? = null,
+    val diagnosticsLoading: Boolean = false,
+    val diagnosticsError: String? = null,
     val pendingDownload: PendingDownload? = null,
 )

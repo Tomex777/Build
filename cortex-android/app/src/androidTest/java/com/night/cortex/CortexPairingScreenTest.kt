@@ -16,6 +16,8 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.night.cortex.server.CortexPairingScreen
 import com.night.cortex.server.BotProfileOption
+import com.night.cortex.server.AccountDiagnostics
+import com.night.cortex.server.AccountDiagnosticEvent
 import com.night.cortex.server.PairingAccount
 import com.night.cortex.server.PairingState
 import com.night.cortex.ui.theme.CortexTheme
@@ -114,6 +116,7 @@ class CortexPairingScreenTest {
 
         composeRule.onNodeWithText("Main").assertIsDisplayed()
         composeRule.onNodeWithText("Second").assertIsDisplayed()
+        composeRule.onNodeWithTag("pairing-account-list").performScrollToIndex(3)
         composeRule.onNodeWithText("Work").assertIsDisplayed()
         composeRule.onNodeWithTag("pairing-account-list").performScrollToIndex(4)
         composeRule.onNodeWithText("Archive").assertIsDisplayed()
@@ -229,7 +232,7 @@ class CortexPairingScreenTest {
         composeRule.onNodeWithContentDescription("WhatsApp pairing QR")
             .performScrollTo()
             .assertIsDisplayed()
-        composeRule.onNodeWithText("QR appears only because you selected QR pairing.").assertIsDisplayed()
+        composeRule.onNodeWithText("QR appears only because you selected QR pairing.").performScrollTo().assertIsDisplayed()
         saveVisualEvidence("cortex-pairing-qr-emulator.png", "pairing-screen-root")
     }
 
@@ -372,7 +375,7 @@ class CortexPairingScreenTest {
         composeRule.onNodeWithText("PAIRING CODE").assertIsDisplayed()
         composeRule.onNodeWithText("ABCD-EFGH").assertIsDisplayed()
         composeRule.onNodeWithText("WhatsApp → Linked devices → Link with phone number").assertIsDisplayed()
-        composeRule.onNodeWithText("This code is temporary. If it expires, start pairing again.").assertIsDisplayed()
+        composeRule.onNodeWithText("This code is temporary. If it expires, start pairing again.").performScrollTo().assertIsDisplayed()
         composeRule.onNodeWithText("Waiting for link…").assertIsDisplayed()
         check(composeRule.onAllNodesWithText("Pair account").fetchSemanticsNodes().isEmpty()) {
             "Pairing-active state must not expose a second Pair account action"
@@ -545,7 +548,7 @@ class CortexPairingScreenTest {
                 )
             }
         }
-        composeRule.onNodeWithText("PAUSED").assertIsDisplayed()
+        composeRule.onNodeWithTag("resume-session-account-2").performScrollTo().assertIsDisplayed()
         composeRule.onNodeWithTag("resume-session-account-2").performScrollTo().performClick()
         composeRule.runOnIdle {
             check(resumedId == "account-2")
@@ -594,6 +597,52 @@ class CortexPairingScreenTest {
         composeRule.runOnIdle { check(repaired == null) }
         composeRule.onNodeWithTag("confirm-repair-session").performClick()
         composeRule.runOnIdle { check(repaired == ("account-2" to "code")) }
+    }
+
+    @Test
+    fun sessionDiagnosticsShowsOnlyAccountEventsAndSupportsRefresh() {
+        var refreshTarget = ""
+        composeRule.setContent {
+            CortexTheme {
+                CortexPairingScreen(
+                    state = PairingState(
+                        version = "2.3.1", destination = "A",
+                        accounts = listOf(
+                            PairingAccount(
+                                id = "account-2", displayName = "Josia",
+                                enabled = true, connected = false, status = "reconnecting",
+                                numberMasked = "234••••0002", indexCount = 0, indexLimit = 5000,
+                                pairingMode = "", pairingCode = "", pairingQr = "", pairingError = "",
+                            ),
+                        ),
+                    ),
+                    busy = false,
+                    onRefresh = {}, onAddAccount = { _, _ -> },
+                    onDestination = {}, onPair = { _, _ -> }, onReconnect = {},
+                    onDisconnect = {}, onRemove = {}, onRepair = { _, _ -> },
+                    diagnosticsAccountId = "account-2",
+                    diagnostics = AccountDiagnostics(
+                        accountId = "account-2", accountName = "Josia",
+                        status = "reconnecting", profile = "josiah", connected = false,
+                        lastConnectedAt = 0L, lastDisconnectedAt = 0L,
+                        reconnectAttempts = 2, nextReconnectAt = 0L,
+                        disconnectReason = "Connection dropped. Retrying automatically.",
+                        events = listOf(
+                            AccountDiagnosticEvent(
+                                id = "event-1", at = "2026-10-09T12:00:00Z",
+                                action = "account.disconnected", detail = "reasonCode: 408",
+                            ),
+                        ),
+                    ),
+                    onDiagnostics = { refreshTarget = it },
+                )
+            }
+        }
+        composeRule.onNodeWithText("Session diagnostics").assertIsDisplayed()
+        composeRule.onNodeWithTag("diagnostics-summary").assertIsDisplayed()
+        composeRule.onNodeWithTag("diagnostic-event-event-1").performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithTag("refresh-account-diagnostics").performClick()
+        composeRule.runOnIdle { check(refreshTarget == "account-2") }
     }
 
     private fun settleBottomSheet() {
