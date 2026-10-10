@@ -45,6 +45,9 @@ internal object VelvetChatStyle {
     var fontIndex by mutableIntStateOf(0)
     var wallpaperIndex by mutableIntStateOf(0)
     var wallpaperPath by mutableStateOf("")
+    var wallpaperDim by mutableFloatStateOf(.48f)
+    var textSize by mutableFloatStateOf(14f)
+    var partnerNickname by mutableStateOf("")
     val outgoingColor get() = outgoing[outgoingIndex.coerceIn(outgoing.indices)]
     val incomingColor get() = incoming[incomingIndex.coerceIn(incoming.indices)]
     val font get() = when(fontIndex){1->FontFamily.Serif;2->FontFamily.Monospace;else->FontFamily.Default}
@@ -62,12 +65,17 @@ internal object VelvetChatStyle {
         fontIndex=p.getInt("font",0).coerceIn(0,2)
         wallpaperIndex=p.getInt("wallpaper",0).coerceIn(0,3)
         wallpaperPath=p.getString("wallpaper_path","") ?: ""
+        wallpaperDim=p.getFloat("wallpaper_dim",.48f).coerceIn(.15f,.8f)
+        textSize=p.getFloat("message_text_size",14f).coerceIn(12f,19f)
+        partnerNickname=p.getString("partner_nickname","") ?: ""
     }
     fun save(context:Context){
         context.getSharedPreferences("velvet_chat_appearance",Context.MODE_PRIVATE).edit()
             .putInt("outgoing",outgoingIndex).putInt("incoming",incomingIndex)
             .putInt("shape",shapeIndex).putInt("font",fontIndex).putInt("wallpaper",wallpaperIndex)
-            .putString("wallpaper_path",wallpaperPath).apply()
+            .putString("wallpaper_path",wallpaperPath)
+            .putFloat("wallpaper_dim",wallpaperDim).putFloat("message_text_size",textSize)
+            .putString("partner_nickname",partnerNickname).apply()
     }
 }
 
@@ -88,7 +96,7 @@ internal fun ChatWallpaper(modifier:Modifier=Modifier) {
         }
         if(selected==3 && bitmap!=null){
             Image(bitmap.asImageBitmap(),null,Modifier.fillMaxSize(),contentScale=ContentScale.Crop)
-            Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha=.48f)))
+            Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha=VelvetChatStyle.wallpaperDim)))
         }
         if(selected==1){
             Canvas(Modifier.fillMaxSize()){
@@ -219,22 +227,53 @@ internal fun ChatAppearanceEditor() {
                 }
             }
         }
+        Spacer(Modifier.height(17.dp))
+        Text("MESSAGE TEXT SIZE · ${VelvetChatStyle.textSize.toInt()}sp",fontSize=11.sp,
+            letterSpacing=1.1.sp,color=p.gold)
+        Slider(value=VelvetChatStyle.textSize,onValueChange={
+                VelvetChatStyle.textSize=it
+            },onValueChangeFinished={VelvetChatStyle.save(ctx)},
+            valueRange=12f..19f,steps=6,modifier=Modifier.fillMaxWidth())
+        Spacer(Modifier.height(10.dp))
+        Text("WALLPAPER DIMMING · ${(VelvetChatStyle.wallpaperDim*100).toInt()}%",fontSize=11.sp,
+            letterSpacing=1.1.sp,color=p.gold)
+        Slider(value=VelvetChatStyle.wallpaperDim,onValueChange={
+                VelvetChatStyle.wallpaperDim=it
+            },onValueChangeFinished={VelvetChatStyle.save(ctx)},
+            valueRange=.15f.. .8f,modifier=Modifier.fillMaxWidth(),
+            enabled=VelvetChatStyle.wallpaperIndex==3)
+        Text("Adjusts contrast when using your own photo.",fontSize=11.sp,color=p.muted)
+        Spacer(Modifier.height(13.dp))
+        OutlinedTextField(value=VelvetChatStyle.partnerNickname,onValueChange={
+                if(it.length<=32){VelvetChatStyle.partnerNickname=it;VelvetChatStyle.save(ctx)}
+            },label={Text("Your private nickname for your love")},
+            placeholder={Text("e.g. Sunshine ♡")},singleLine=true,modifier=Modifier.fillMaxWidth())
+        Text("A nickname on this phone only; it won't edit your partner's profile.",
+            color=p.muted,fontSize=11.sp)
         Spacer(Modifier.height(18.dp))
-        Box(Modifier.fillMaxWidth().height(118.dp).clip(RoundedCornerShape(15.dp))){
+        Box(Modifier.fillMaxWidth().height(120.dp).clip(RoundedCornerShape(15.dp))){
             ChatWallpaper(Modifier.fillMaxSize())
             Column(Modifier.fillMaxSize().padding(10.dp),verticalArrangement=Arrangement.SpaceEvenly){
                 Box(Modifier.align(Alignment.Start).clip(VelvetChatStyle.bubbleShape(false))
                     .background(VelvetChatStyle.incomingColor).padding(horizontal=12.dp,vertical=7.dp)){
-                    Text("You make my days brighter ♡",color=p.text,fontFamily=VelvetChatStyle.font,fontSize=12.sp)
+                    Text("You make my days brighter ♡",color=p.text,fontFamily=VelvetChatStyle.font,fontSize=(VelvetChatStyle.textSize-2f).sp)
                 }
                 Box(Modifier.align(Alignment.End).clip(VelvetChatStyle.bubbleShape(true))
                     .background(VelvetChatStyle.outgoingColor).padding(horizontal=12.dp,vertical=7.dp)){
-                    Text("Right back at you ♡",color=p.text,fontFamily=VelvetChatStyle.font,fontSize=12.sp)
+                    Text("Right back at you ♡",color=p.text,fontFamily=VelvetChatStyle.font,fontSize=(VelvetChatStyle.textSize-2f).sp)
                 }
             }
         }
         Spacer(Modifier.height(9.dp))
         Text("Preview · changes appear in Chat immediately.",fontSize=11.sp,color=p.muted)
+        TextButton(onClick={
+            VelvetChatStyle.outgoingIndex=0;VelvetChatStyle.incomingIndex=0
+            VelvetChatStyle.shapeIndex=0;VelvetChatStyle.fontIndex=0
+            VelvetChatStyle.wallpaperIndex=0;VelvetChatStyle.wallpaperPath=""
+            VelvetChatStyle.wallpaperDim=.48f;VelvetChatStyle.textSize=14f
+            VelvetChatStyle.partnerNickname=""
+            VelvetChatStyle.save(ctx)
+        }) {Text("Restore classic chat appearance",color=p.rose)}
         if(savedNotice)Text("Wallpaper saved on this phone ♡",color=p.rose,fontSize=11.sp)
     }
 }
