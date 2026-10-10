@@ -23,6 +23,7 @@ function normalizeRecord(row) {
     displayName: String(row?.displayName || '').trim().slice(0, 48),
     authDir: resolve(authDir),
     role: row?.role === 'owner' ? 'owner' : 'linked',
+    paused: row?.paused === true,
     createdAt: Number(row?.createdAt) || Date.now(),
   }
 }
@@ -184,10 +185,20 @@ export class AccountRegistry {
       displayName: String(displayName || '').trim().slice(0, 48) || defaultDisplayName(id, firstAccount ? 'owner' : 'linked'),
       authDir: firstAccount ? join(this.authRoot, 'A') : join(this.authRoot, id),
       role: firstAccount ? 'owner' : 'linked',
+      paused: false,
       createdAt: Date.now(),
     }
     this.records.set(id, record)
     await mkdir(record.authDir, { recursive: true })
+    await this.save()
+    return { ...record }
+  }
+
+  async setPaused(value, paused) {
+    const id = this.resolveId(value)
+    if (!id) throw new Error('Unknown account')
+    const record = this.records.get(id)
+    record.paused = paused === true
     await this.save()
     return { ...record }
   }

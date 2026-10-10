@@ -7,6 +7,21 @@ export function jidPhoneNumber(jid) {
   return local.replace(/\D/g, '')
 }
 
+/**
+ * A stable, operator-facing lifecycle state. In particular, a queued retry
+ * must not be presented as an inert offline account in Cortex.
+ */
+export function sessionStatus(account) {
+  if (!account?.enabled) return 'disabled'
+  if (account.connected) return 'connected'
+  if (account.invalid) return 'auth-invalid'
+  if (account.paused) return 'paused'
+  if (account.reconnectTimer) return 'reconnecting'
+  if (account.pairingMode) return 'pairing'
+  if (account.sock) return 'connecting'
+  return 'offline'
+}
+
 export function reconnectDelay(attempt, { baseMs = 2000, maxMs = 30000 } = {}) {
   const safeAttempt = Math.max(1, Number(attempt) || 1)
   return Math.min(maxMs, baseMs * (2 ** Math.min(4, safeAttempt - 1)))

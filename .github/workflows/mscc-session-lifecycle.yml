@@ -1,0 +1,44 @@
+name: MSCC Session Lifecycle
+on:
+  push:
+    branches: [feat/mscc-session-lifecycle-p3-20261009]
+    paths:
+      - 'mscc/**'
+      - '.github/workflows/mscc-session-lifecycle.yml'
+  pull_request:
+    branches: [feat/mscc-cortex-account-controls-20261009]
+    paths:
+      - 'mscc/**'
+      - '.github/workflows/mscc-session-lifecycle.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: mscc-session-lifecycle
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+      - name: Install MSCC dependencies
+        working-directory: mscc
+        run: npm install --no-audit --no-fund
+      - name: Syntax check API
+        working-directory: mscc
+        run: |
+          node --check index.js
+          node --check account-registry.js
+          node --check session-policy.js
+          node --check web-panel.js
+          node --check account-controls-selftest.js
+      - name: Verify existing auth isolation
+        working-directory: mscc
+        run: npm run check:sessions
+      - name: Verify new account control contracts
+        working-directory: mscc
+        run: npm run check:account-controls
