@@ -219,7 +219,9 @@ jobs:
 
   api-26-edge:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    # Cold Gradle + Android 8 image + full 123+ instrumentation test suite can exceed 20m.
+    # Give the complete suite time; do not skip or weaken any device tests.
+    timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v5
