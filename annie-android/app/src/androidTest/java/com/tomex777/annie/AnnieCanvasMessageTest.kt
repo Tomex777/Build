@@ -167,6 +167,31 @@ class AnnieCanvasMessageTest {
             eval(snakeWebView, "window.annieCanvasSnakeState().pending === 'down' && window.annieCanvasSnakeState().started") == "true"
         }
         saveEmulatorScreenshot("annie-canvas-arcade-real-chat")
+        // Expansion belongs to the rendered message, never to a prebuilt Snake screen.
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+        val monitor = instrumentation.addMonitor(AnnieCanvasActivity::class.java.name, null, false)
+        var fullscreen: AnnieCanvasActivity? = null
+        try {
+            compose.onNodeWithTag("annie_canvas_fullscreen").performClick()
+            fullscreen = instrumentation.waitForMonitorWithTimeout(monitor, 8_000) as? AnnieCanvasActivity
+            assertNotNull("Canvas message did not open fullscreen", fullscreen)
+            var expandedWebView: WebView? = null
+            compose.waitUntil(12_000) {
+                instrumentation.runOnMainSync {
+                    expandedWebView = findCanvasWebView(fullscreen!!.window.decorView)
+                }
+                expandedWebView != null
+            }
+            assertSame("Fullscreen must continue the SAME message WebView", snakeWebView, expandedWebView)
+            assertEquals("true", eval(snakeWebView, "window.annieCanvasSnakeState().started"))
+            saveEmulatorScreenshot("annie-canvas-arcade-fullscreen-message")
+            instrumentation.runOnMainSync { fullscreen?.finish() }
+            compose.waitUntil(12_000) { snakeWebView.parent != null }
+            assertEquals("true", eval(snakeWebView, "window.annieCanvasSnakeReady"))
+        } finally {
+            fullscreen?.finish()
+            instrumentation.removeMonitor(monitor)
+        }
     }
 
     private fun swipeDownOnWebView(web: WebView) {
