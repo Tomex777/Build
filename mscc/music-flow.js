@@ -218,6 +218,28 @@ async function search(ctx, query, { delivery = 'audio' } = {}) {
       : '> Add `-d` or `--doc` to your search to receive the selected track(s) as documents.',
   ]
   const text = lines.join('\n')
+  // Expose an exact-track lyrics action when interactive WhatsApp lists are
+  // supported. Numeric selection stays available in the same search message;
+  // plain text remains the fallback for unsupported clients or send failures.
+  const lyricsRows = lyricsInstantRows(tracks, {
+    prefix:ctx.publicPrefix || '.',
+    max:25,
+  })
+  if (lyricsRows.length && typeof ctx.replyList === 'function') {
+    const coverUrl = tracks.find(track => /^https?:\/\//i.test(track.cover))?.cover || ''
+    try {
+      return await ctx.replyList({
+        title:'Song Search Results',
+        text,
+        caption:text,
+        buttonText:'Lyrics',
+        rows:lyricsRows,
+        ...(coverUrl ? { image:{ url:coverUrl } } : {}),
+      })
+    } catch (error) {
+      console.warn('MSCC song lyrics interactive menu fallback:', error?.message || error)
+    }
+  }
   return ctx.reply(text)
 }
 

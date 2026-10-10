@@ -1,0 +1,35 @@
+name: MSCC Music Lyrics Regression
+on:
+  push:
+    branches: [fix/mscc-song-lyrics-instant-ci-20261009]
+    paths:
+      - 'mscc/music-flow.js'
+      - 'mscc/lyrics-flow.js'
+      - 'mscc/music-flow-selftest.js'
+      - '.github/workflows/mscc-music-lyrics-repair.yml'
+  pull_request:
+    branches: [mscc-azure]
+    paths:
+      - 'mscc/music-flow.js'
+      - 'mscc/lyrics-flow.js'
+      - 'mscc/music-flow-selftest.js'
+      - '.github/workflows/mscc-music-lyrics-repair.yml'
+  workflow_dispatch:
+
+jobs:
+  song-lyrics:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+      - name: Install MSCC dependencies
+        working-directory: mscc
+        run: npm install --no-audit --no-fund
+      - name: Verify song numeric selection and Lyrics instant action
+        working-directory: mscc
+        run: |
+          node --check music-flow.js
+          node music-flow-selftest.js
