@@ -52,6 +52,7 @@ internal class MessageCache(context: Context): SQLiteOpenHelper(context, "velvet
         put("questionId",m.questionId ?: JSONObject.NULL);put("caption",m.caption ?: JSONObject.NULL)
         put("voicePath",m.voicePath ?: JSONObject.NULL)
         put("voiceBars",JSONArray(m.voiceBars));put("durationMs",m.durationMs)
+        put("mediaPath",m.mediaPath ?: JSONObject.NULL);put("mediaMime",m.mediaMime ?: JSONObject.NULL)
     }
     private fun fromJson(o:JSONObject):ChatMessage {
         val arr=o.optJSONArray("voiceBars") ?: JSONArray()
@@ -65,7 +66,9 @@ internal class MessageCache(context: Context): SQLiteOpenHelper(context, "velvet
             cardTone=o.optInt("cardTone"),questionId=o.optString("questionId").takeUnless{it.isBlank()||it=="null"},
             caption=o.optString("caption").takeUnless{it.isBlank()||it=="null"},
             voicePath=o.optString("voicePath").takeUnless{it.isBlank()||it=="null"},
-            voiceBars=samples,durationMs=o.optLong("durationMs")
+            voiceBars=samples,durationMs=o.optLong("durationMs"),
+            mediaPath=o.optString("mediaPath").takeUnless{it.isBlank()||it=="null"},
+            mediaMime=o.optString("mediaMime").takeUnless{it.isBlank()||it=="null"}
         )
     }
 }
