@@ -183,7 +183,6 @@ class AnnieCanvasMessageTest {
         }
         saveEmulatorScreenshot("annie-canvas-arcade-real-chat")
         // Expansion belongs to the rendered message, never to a prebuilt Snake screen.
-        val instrumentation = InstrumentationRegistry.getInstrumentation()
         val monitor = instrumentation.addMonitor(AnnieCanvasActivity::class.java.name, null, false)
         var fullscreen: AnnieCanvasActivity? = null
         try {
