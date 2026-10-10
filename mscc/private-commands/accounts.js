@@ -7,7 +7,7 @@ export default {
     const rows = d.accounts.map(account => {
       const main = account.id === 'A' ? ' • MAIN' : ''
       const destination = account.id === d.destination ? ' • CC inbox' : ''
-      return `\${account.displayName || account.id} [\${account.id}] • \${account.profile || 'main'}: \${account.status} • \${account.numberMasked}\${main}\${destination}`
+      return `${account.displayName || account.id} [${account.id}] • ${account.profile || 'unassigned'}: ${account.status} • ${account.numberMasked}${main}${destination}`
     })
     await ctx.reply(['📱 MSCC accounts','',...rows].join('\n'))
   },
