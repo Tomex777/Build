@@ -88,14 +88,15 @@ private object V {
 }
 private val round = RoundedCornerShape(22.dp)
 private enum class Page { HOME, CHAT, GAMES, STORY, US, CHAT_INFO, DECK, TTT, STUDIO, CALL, MUSIC, CONNECT4, CHESS, LUDO, DRAW, DECK_EDITOR, TOGETHER }
-internal enum class MessageKind { TEXT, QUESTION, VOICE }
+internal enum class MessageKind { TEXT, QUESTION, VOICE, MEDIA }
 internal data class ChatMessage(
     val id: Int, val body: String, val mine: Boolean, val time: String,
     val quoted: String? = null, val pinned: Boolean = false,
     val starred: Boolean = false, val deleted: Boolean = false,
     val kind: MessageKind = MessageKind.TEXT, val category: String? = null,
     val cardTone: Int = 0, val questionId: String? = null, val caption: String? = null,
-    val voicePath: String? = null, val voiceBars: List<Float> = emptyList(), val durationMs: Long = 0L
+    val voicePath: String? = null, val voiceBars: List<Float> = emptyList(), val durationMs: Long = 0L,
+    val mediaPath:String?=null,val mediaMime:String?=null
 )
 
 class MainActivity : ComponentActivity() {
@@ -174,6 +175,16 @@ private fun VelvetApp() {
                     onCall = { isVideo -> videoCall=isVideo;page=Page.CALL },
                     onSend = { body ->
                         if (body.isNotBlank()) { sendMessage(ChatMessage(0, body.trim(),true,nowTime(),replyTo?.body));replyTo = null }
+                    },onSendMedia = { assets,caption ->
+                        assets.forEachIndexed {i,asset->
+                            sendMessage(ChatMessage(0,if(asset.mime.startsWith("image/"))"Photo"
+                                else if(asset.mime.startsWith("video/"))"Video"
+                                else if(asset.mime.startsWith("audio/"))"Audio file" else "Document",
+                                true,nowTime(),if(i==0)replyTo?.body else null,
+                                kind=MessageKind.MEDIA,caption=if(i==0)caption else null,
+                                mediaPath=asset.path,mediaMime=asset.mime))
+                        }
+                        replyTo=null
                     }, onVoice = { clip ->
                         sendMessage(ChatMessage(0,"Voice note",true,nowTime(),replyTo?.body,kind=MessageKind.VOICE,
                             voicePath=clip.path,voiceBars=clip.bars,durationMs=clip.durationMs));replyTo=null
@@ -416,7 +427,8 @@ private fun FlameChip() {
 @Composable
 private fun ChatScreen(
     messages: MutableList<ChatMessage>, partner:String,replyTo:ChatMessage?,onReply:(ChatMessage)->Unit,
-    onDismissReply:()->Unit,onInfo:()->Unit,onBack:()->Unit,onCall:(Boolean)->Unit,onSend:(String)->Unit,onVoice:(VoiceClip)->Unit
+    onDismissReply:()->Unit,onInfo:()->Unit,onBack:()->Unit,onCall:(Boolean)->Unit,onSend:(String)->Unit,
+    onSendMedia:(List<PickedVelvetMedia>,String)->Unit,onVoice:(VoiceClip)->Unit
 ) {
     var draft by remember { mutableStateOf("") }
     var editId by remember { mutableStateOf<Int?>(null) }
@@ -525,7 +537,8 @@ private fun ChatScreen(
                 TextButton(onClick={messages.removeAll{it.id==msg.id};deleteTarget=null}){Text("Delete for me")}
             }},dismissButton={TextButton(onClick={deleteTarget=null}){Text("Cancel")}},containerColor=V.paper)
     }
-    if(showAttachment)AlertDialog(onDismissRequest={showAttachment=false},title={Text("Chat attachments")},text={Text("Chat attachments will be stored separately from Our Story. Azure uploads need your backend credentials and pairing setup; media cannot be sent to your partner from this offline alpha yet.")},confirmButton={TextButton(onClick={showAttachment=false}){Text("Got it")}},containerColor=V.paper)
+    if(showAttachment)VelvetAttachmentSheet(
+        onDismiss={showAttachment=false},onSend=onSendMedia)
 
 }
 
@@ -592,8 +605,9 @@ private fun MessageRow(msg:ChatMessage,onReply:()->Unit,onEdit:()->Unit,onDelete
                                 }
                             }
                             MessageKind.VOICE -> VoiceBubble(path=msg.voicePath,bars=msg.voiceBars,durationMs=msg.durationMs)
+                            MessageKind.MEDIA -> VelvetMediaBubble(msg.mediaPath,msg.mediaMime)
                         }
-                        if(msg.kind==MessageKind.QUESTION && !msg.caption.isNullOrBlank()) {
+                        if((msg.kind==MessageKind.QUESTION || msg.kind==MessageKind.MEDIA) && !msg.caption.isNullOrBlank()) {
                             Spacer(Modifier.height(9.dp))
                             Text(msg.caption,color=V.text,fontSize=14.sp,lineHeight=20.sp)
                         }
@@ -643,7 +657,9 @@ private fun ChatInfoScreen(partner:String,messages:List<ChatMessage>,onBack:()->
             }
             Text("Chat media is separate from Our Story until someone explicitly adds it.",color=V.muted,fontSize=12.sp,modifier=Modifier.padding(bottom=24.dp,top=9.dp))
         } else {
-            val chosen = when(detail) {"Pinned" -> messages.filter{it.pinned && !it.deleted};"Starred messages" -> messages.filter{it.starred && !it.deleted};"Audio" -> messages.filter{it.kind==MessageKind.VOICE && !it.deleted};else -> emptyList()}
+            val chosen = when(detail) {"Pinned" -> messages.filter{it.pinned && !it.deleted};"Starred messages" -> messages.filter{it.starred && !it.deleted};"Audio" -> messages.filter{it.kind==MessageKind.VOICE && !it.deleted};
+                "Shared media" -> messages.filter{it.kind==MessageKind.MEDIA && !it.deleted};
+                else -> emptyList()}
             Spacer(Modifier.height(15.dp))
             if(detail=="Wallpaper") {
                 ChatAppearanceEditor()
@@ -652,7 +668,11 @@ private fun ChatInfoScreen(partner:String,messages:List<ChatMessage>,onBack:()->
             chosen.forEach { msg ->
                 Tile(Modifier.fillMaxWidth().padding(bottom=9.dp)){
                     Text(if(msg.mine)"You · ${msg.time}" else "$partner · ${msg.time}",color=V.rose,fontSize=11.sp)
-                    Spacer(Modifier.height(7.dp));Text(if(msg.kind==MessageKind.VOICE)"Voice note" else msg.body,color=V.text,fontSize=14.sp)
+                    Spacer(Modifier.height(7.dp))
+                    if(msg.kind==MessageKind.MEDIA) {
+                        VelvetMediaBubble(msg.mediaPath,msg.mediaMime)
+                        if(!msg.caption.isNullOrBlank())Text(msg.caption,color=V.text,fontSize=13.sp)
+                    } else Text(if(msg.kind==MessageKind.VOICE)"Voice note" else msg.body,color=V.text,fontSize=14.sp)
                 }
             }
             }
