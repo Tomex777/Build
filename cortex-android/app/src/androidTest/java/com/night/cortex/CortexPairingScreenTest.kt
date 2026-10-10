@@ -4,6 +4,7 @@ import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.junit4.v2.createComposeRule
+import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
@@ -179,11 +180,25 @@ class CortexPairingScreenTest {
         composeRule.onNodeWithText("WhatsApp Accounts").assertIsDisplayed()
         composeRule.onNodeWithText("Main Control").assertIsDisplayed()
         composeRule.onNodeWithText("Account B").assertIsDisplayed()
-        composeRule.onNodeWithText("Make destination").assertIsDisplayed()
-        composeRule.onNodeWithText("Pair account").performClick()
+        // MSCC fixes the CC destination to Account A; Cortex must not offer a broken action.
+        composeRule.onNodeWithText("Make destination").assertDoesNotExist()
+        composeRule.onNodeWithTag("fixed-cc-destination-note").assertIsDisplayed()
+        // P5's search, counters and filters reduce the visible account-card
+        // height. Scroll the pairing CTA onscreen before clicking so the
+        // emulator cannot dispatch a tap against clipped card content.
+        composeRule.onNodeWithText("Pair account")
+            .performScrollTo()
+            .assertIsDisplayed()
+            .performClick()
+        composeRule.waitUntil(timeoutMillis = 10_000) {
+            composeRule.onAllNodesWithTag("pair-method-sheet").fetchSemanticsNodes().isNotEmpty()
+        }
         settleBottomSheet()
 
-        composeRule.onNodeWithText("Pair Account B").assertIsDisplayed()
+        composeRule.onNodeWithTag("pair-method-sheet").assertIsDisplayed()
+        // The title can lie above the visible bottom-sheet viewport on narrow screens.
+        // Verify its presence while separately asserting the actionable rows are visible.
+        composeRule.onNodeWithText("Pair Account B").assertExists()
         composeRule.onNodeWithText("Link with phone number").assertIsDisplayed()
         composeRule.onNodeWithText("PRIMARY").assertIsDisplayed()
         composeRule.onNodeWithText("Use QR code").assertIsDisplayed()
@@ -261,6 +276,8 @@ class CortexPairingScreenTest {
             }
         }
 
+        composeRule.onNodeWithText("No WhatsApp accounts configured yet").assertIsDisplayed()
+        composeRule.onNodeWithTag("fixed-cc-destination-note").assertDoesNotExist()
         composeRule.onNodeWithText("No accounts paired yet.").assertIsDisplayed()
         composeRule.onNodeWithText("Add number").assertIsDisplayed()
         composeRule.onNodeWithText(
@@ -376,7 +393,7 @@ class CortexPairingScreenTest {
         composeRule.onNodeWithText("ABCD-EFGH").assertIsDisplayed()
         composeRule.onNodeWithText("WhatsApp → Linked devices → Link with phone number").assertIsDisplayed()
         composeRule.onNodeWithText("This code is temporary. If it expires, start pairing again.").performScrollTo().assertIsDisplayed()
-        composeRule.onNodeWithText("Waiting for link…").assertIsDisplayed()
+        composeRule.onNodeWithText("Waiting for link…").performScrollTo().assertIsDisplayed()
         check(composeRule.onAllNodesWithText("Pair account").fetchSemanticsNodes().isEmpty()) {
             "Pairing-active state must not expose a second Pair account action"
         }
@@ -643,6 +660,49 @@ class CortexPairingScreenTest {
         composeRule.onNodeWithTag("diagnostic-event-event-1").performScrollTo().assertIsDisplayed()
         composeRule.onNodeWithTag("refresh-account-diagnostics").performClick()
         composeRule.runOnIdle { check(refreshTarget == "account-2") }
+    }
+
+    @Test
+    fun accountDashboardSearchAndFilterWorkWithoutChangingSessions() {
+        composeRule.setContent {
+            CortexTheme {
+                CortexPairingScreen(
+                    state = PairingState(
+                        version = "2.3.1",
+                        destination = "A",
+                        accounts = listOf(
+                            PairingAccount(
+                                id = "A", displayName = "Main Control", enabled = true,
+                                connected = true, status = "connected", numberMasked = "234••••0001",
+                                indexCount = 0, indexLimit = 5000, pairingMode = "",
+                                pairingCode = "", pairingQr = "", pairingError = "", profile = "control",
+                            ),
+                            PairingAccount(
+                                id = "account-2", displayName = "Nami", enabled = true,
+                                connected = false, status = "paused", paused = true,
+                                numberMasked = "234••••0002", indexCount = 0, indexLimit = 5000,
+                                pairingMode = "", pairingCode = "", pairingQr = "", pairingError = "",
+                                profile = "nami",
+                            ),
+                        ),
+                    ),
+                    busy = false,
+                    onRefresh = {}, onAddAccount = { _, _ -> }, onDestination = {},
+                    onPair = { _, _ -> }, onReconnect = {}, onDisconnect = {},
+                    onRemove = {}, onRepair = { _, _ -> },
+                )
+            }
+        }
+
+        composeRule.onNodeWithTag("account-search-field").assertIsDisplayed()
+        saveVisualEvidence("cortex-accounts-dashboard-emulator.png", "pairing-screen-root")
+        composeRule.onNodeWithTag("account-filter-paused").performClick()
+        composeRule.onNodeWithTag("session-title-account-2").performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithTag("session-title-A").assertDoesNotExist()
+        composeRule.onNodeWithTag("account-search-field").performTextReplacement("nothing here")
+        composeRule.onNodeWithText("No matching accounts").assertIsDisplayed()
+        composeRule.onNodeWithTag("reset-account-filters").performClick()
+        composeRule.onNodeWithTag("session-title-A").performScrollTo().assertIsDisplayed()
     }
 
     private fun settleBottomSheet() {
