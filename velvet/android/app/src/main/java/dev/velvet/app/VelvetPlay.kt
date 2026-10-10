@@ -229,10 +229,10 @@ private data class ChessPosition(
                         val right=if(white)'K' else 'k'
                         val left=if(white)'Q' else 'q'
                         if(right in castle && squares[base+5]=='.' && squares[base+6]=='.' &&
-                            squares[base+7]==if(white)'R' else 'r' &&
+                            squares[base+7]==(if(white)'R' else 'r') &&
                             !attacked(base+5,!white) && !attacked(base+6,!white))tos.add(base+6)
                         if(left in castle && squares[base+1]=='.' && squares[base+2]=='.' &&
-                            squares[base+3]=='.' && squares[base]==if(white)'R' else 'r' &&
+                            squares[base+3]=='.' && squares[base]==(if(white)'R' else 'r') &&
                             !attacked(base+3,!white) && !attacked(base+2,!white))tos.add(base+2)
                     }
                 }
