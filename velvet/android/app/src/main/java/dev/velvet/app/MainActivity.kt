@@ -388,9 +388,12 @@ private fun ChatScreen(
     var editId by remember { mutableStateOf<Int?>(null) }
     var editBody by remember { mutableStateOf("") }
     var showAttachment by remember { mutableStateOf(false) }
-    var voiceActive by remember { mutableStateOf(false) }
+    val voiceState=rememberVoiceCaptureState()
     val keyboardController=LocalSoftwareKeyboardController.current
     val focusManager=LocalFocusManager.current
+    LaunchedEffect(voiceState.recording) {
+        if(voiceState.recording){keyboardController?.hide();focusManager.clearFocus()}
+    }
     var deleteTarget by remember { mutableStateOf<ChatMessage?>(null) }
     val listState=rememberLazyListState()
     val scope=rememberCoroutineScope()
@@ -445,7 +448,7 @@ private fun ChatScreen(
         }
         Row(Modifier.fillMaxWidth().background(V.paper).padding(horizontal=8.dp,vertical=6.dp),
             verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.spacedBy(6.dp)) {
-            if(!voiceActive) {
+            if(!voiceState.recording) {
                 Row(Modifier.weight(1f).heightIn(min=47.dp,max=125.dp).clip(RoundedCornerShape(25.dp))
                     .background(V.raised).padding(horizontal=3.dp),
                     verticalAlignment=Alignment.CenterVertically) {
@@ -465,17 +468,16 @@ private fun ChatScreen(
                         Icon(Icons.Outlined.PhotoCamera,"Camera",tint=V.muted,modifier=Modifier.size(21.dp))
                     }
                 }
-            } else Spacer(Modifier.weight(1f))
-            if(draft.isNotBlank() && !voiceActive) {
-                IconButton(onClick={onSend(draft);draft=""},modifier=Modifier.size(46.dp)
+            } else {
+                VoiceRecordingBar(voiceState,Modifier.weight(1f),onRecorded=onVoice)
+            }
+            if(!voiceState.recording && draft.isNotBlank()) {
+                IconButton(onClick={onSend(draft);draft=""},modifier=Modifier.size(48.dp)
                     .clip(CircleShape).background(V.rose)) {
                     Icon(Icons.Outlined.Send,"Send message",tint=V.bg,modifier=Modifier.size(24.dp))
                 }
-            } else {
-                VoiceHoldControl(onRecorded=onVoice,onActiveChange={active ->
-                    voiceActive=active
-                    if(active){keyboardController?.hide();focusManager.clearFocus()}
-                })
+            } else if(!voiceState.locked) {
+                VoiceHoldControl(voiceState,onRecorded=onVoice)
             }
         }
     }
@@ -511,21 +513,30 @@ private fun MessageRow(msg:ChatMessage,onReply:()->Unit,onEdit:()->Unit,onDelete
             Box {
                 Column(Modifier.widthIn(max=300.dp).clip(shape)
                     .background(if(msg.mine)VelvetChatStyle.outgoingColor else VelvetChatStyle.incomingColor)
-                    .combinedClickable(onClick={},onLongClick={menu=true})
-                    .padding(horizontal=11.dp,vertical=7.dp)) {
+                    .combinedClickable(onClick={},onLongClick={menu=true})) {
+                    // Quoted content occupies the ENTIRE top of the bubble, like a media caption.
+                    if(!msg.deleted) msg.quoted?.let { quoted ->
+                        Row(Modifier.fillMaxWidth()
+                            .background(V.bg.copy(alpha=.46f))
+                            .padding(start=8.dp,end=9.dp,top=8.dp,bottom=8.dp),
+                            verticalAlignment=Alignment.CenterVertically) {
+                            Box(Modifier.width(3.dp).height(32.dp)
+                                .clip(RoundedCornerShape(3.dp)).background(V.rose))
+                            Spacer(Modifier.width(8.dp))
+                            Column(Modifier.weight(1f)) {
+                                Text("Replying to message",color=V.rose,fontSize=11.sp,
+                                    fontWeight=FontWeight.SemiBold,maxLines=1)
+                                Spacer(Modifier.height(2.dp))
+                                Text(quoted,color=V.text.copy(alpha=.86f),fontSize=12.sp,
+                                    maxLines=2,lineHeight=15.sp,overflow=TextOverflow.Ellipsis)
+                            }
+                        }
+                    }
+                    Column(Modifier.padding(horizontal=11.dp,vertical=7.dp)) {
                     if(msg.deleted) {
                         Row(verticalAlignment=Alignment.CenterVertically){Icon(Icons.Outlined.Block,null,Modifier.size(14.dp),tint=V.muted);Spacer(Modifier.width(6.dp))
                             Text("This message was deleted",color=V.muted,fontSize=13.sp,fontStyle=androidx.compose.ui.text.font.FontStyle.Italic)}
                     } else {
-                        msg.quoted?.let {
-                            Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(7.dp))
-                                .background(V.bg.copy(alpha=.65f)).padding(horizontal=8.dp,vertical=5.dp)) {
-                                Box(Modifier.width(3.dp).height(24.dp).background(V.rose, RoundedCornerShape(3.dp)))
-                                Spacer(Modifier.width(7.dp))
-                                Text(it,color=V.rose,fontSize=11.sp,lineHeight=14.sp,maxLines=2)
-                            }
-                            Spacer(Modifier.height(4.dp))
-                        }
                         when(msg.kind) {
                             MessageKind.TEXT -> Text(buildAnnotatedString {
                                 append(msg.body.trimEnd())
@@ -559,6 +570,7 @@ private fun MessageRow(msg:ChatMessage,onReply:()->Unit,onEdit:()->Unit,onDelete
                         if(msg.pinned && !msg.deleted){Icon(Icons.Outlined.PushPin,"Pinned",Modifier.size(12.dp),tint=V.gold);Spacer(Modifier.width(3.dp))}
                         Text(msg.time,color=V.muted,fontSize=9.sp)
                     }
+                    }
                 }
                 DropdownMenu(expanded=menu,onDismissRequest={menu=false},modifier=Modifier.background(V.paper)) {
                     DropdownMenuItem(text={Text("Reply")},onClick={menu=false;onReply()},leadingIcon={Icon(Icons.Outlined.Reply,null)})
@@ -581,7 +593,7 @@ private fun ChatInfoScreen(partner:String,messages:List<ChatMessage>,onBack:()->
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal=18.dp)) {
         Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
             IconButton(onClick={ if(detail != null) detail = null else onBack() }) {
-                Icon(Icons.Outlined.ArrowBack,"Back")
+                Icon(Icons.Outlined.ArrowBack,"Back",tint=V.text)
             }
             Text(detail ?: "Conversation", color=V.text, fontSize=17.sp)
         }
@@ -806,7 +818,7 @@ private fun TicTacToeScreen(onBack:()->Unit) {
     val winner=patterns.firstOrNull{line->cells[line[0]].isNotEmpty()&&cells[line[0]]==cells[line[1]]&&cells[line[1]]==cells[line[2]]}?.let{cells[it[0]]}
     val done=winner!=null||cells.none{it==""}
     Column(Modifier.fillMaxSize().padding(18.dp),horizontalAlignment=Alignment.CenterHorizontally) {
-        Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically){IconButton(onClick=onBack){Icon(Icons.Outlined.ArrowBack,"Back")};Serif("Tic-tac-toe",27)}
+        Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically){IconButton(onClick=onBack){Icon(Icons.Outlined.ArrowBack,"Back",tint=V.text)};Serif("Tic-tac-toe",27)}
         Spacer(Modifier.height(13.dp));Text("Local pass-and-play demonstration",color=V.muted,fontSize=12.sp)
         Spacer(Modifier.height(34.dp));Serif(when{winner!=null->"$winner wins!";done->"A perfect tie.";else->"$move's turn"},32)
         Spacer(Modifier.height(17.dp))
