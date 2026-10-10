@@ -1,6 +1,6 @@
 # Velvet backend contract — not deployed
 
-Android's current **0.3.1 alpha stores demonstration and newly composed messages in a local SQLite cache**. Installing the APK does not connect to Supabase, Azure, FCM, or a second phone.
+Android's **0.6.0 alpha stores demonstration and newly composed messages in a local SQLite cache**. Installing the APK does not connect to Supabase, Azure, FCM, or a second phone.
 
 Stack selected: Supabase Auth / PostgreSQL / Realtime (authorized private channels), Azure private Blob Storage, Firebase Cloud Messaging, and Room for offline caching.
 
@@ -21,3 +21,30 @@ Stack selected: Supabase Auth / PostgreSQL / Realtime (authorized private channe
 - `media` is a storage reference; `message_media` and `story_entries` are **separate logical libraries** and can reference the same blob without duplication. `uploaded_by` and `added_by` are distinct.
 - Heartbeats are not chat messages. Use short-lived authorized realtime events while online; background push must respect OS limitations and user opt-in.
 - A security audit is required before production. Database RLS is one layer; trusted endpoints must also verify ownership, rate limits, scoped SAS and message/reply references.
+
+## Android 0.6.0 preview boundaries
+
+The newest preview contains **offline** question decks, editable personal decks, a two-answer reveal mode,
+local/pass-and-play Tic-Tac-Toe, Connect Four, Chess, Ludo and Draw & Guess, a private media
+selection/preview flow, Our Studio, and Spotify Jam invitations/song dedications.
+
+- Spotify content **never** streams through our APK. A Jam starts in Spotify. Remote participants
+  require individual Premium eligibility; Velvet only stores approved links and the notes users write.
+  The actual Spotify listening session, controls and audio remain in Spotify. Android deep-links
+  launch the official Spotify destination or browser. We do **not** manufacture Jam links.
+- Music notifications, partner auto-join, two-phone question reveals, remote game moves, multi-device
+  media sharing, and live voice/video calling are **not active** until authentication, pairing, trusted
+  server endpoints, notifications and media infrastructure are deployed.
+- Custom question decks are authored manually on-device. Server-side optional AI generation would
+  produce entire drafts only **by request**, with editorial review and semantic deduplication prior
+  to inclusion. No generation runs on each swipe. No AI credentials are embedded in this app.
+- 174 new human-written questions are bundled with the earlier starter questions. They are
+  curated for variety, but lexical screening is not a mathematical uniqueness guarantee. Later
+  packs should receive intent labeling, embedding-based checking and human spot reviews.
+- Chat attachments selected through Android's privacy-preserving photo picker / system file picker
+  are copied to local private storage. Video files can be previewed. **They do not upload or sync
+  to the other person's phone yet.** Chat media is separate from curated Our Story.
+- Board games are local versions. Online match validation must happen inside trusted endpoints,
+  not through client-side state writes.
+
+The migrations in this folder are a *design contract*, not evidence of a deployed backend.
