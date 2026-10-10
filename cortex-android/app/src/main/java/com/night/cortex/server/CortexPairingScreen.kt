@@ -84,6 +84,8 @@ import com.night.cortex.ui.theme.CortexMuted
 import com.night.cortex.ui.theme.CortexSurface
 import com.night.cortex.ui.theme.CortexSurface2
 import com.night.cortex.ui.theme.CortexText
+import java.text.DateFormat
+import java.util.Date
 
 private enum class PairAction { PAIR, REPAIR }
 
@@ -111,6 +113,7 @@ fun CortexPairingScreen(
     var addingNumber by remember { mutableStateOf(false) }
     var renameCandidate by remember { mutableStateOf<PairingAccount?>(null) }
     var profileCandidate by remember { mutableStateOf<PairingAccount?>(null) }
+    var repairConfirmation by remember { mutableStateOf<Pair<PairingAccount, String>?>(null) }
     val duplicateNames = remember(state?.accounts) {
         duplicateSavedNameIds(state?.accounts.orEmpty())
     }
@@ -382,11 +385,11 @@ fun CortexPairingScreen(
             containerColor = CortexSurface,
             titleContentColor = CortexText,
             textContentColor = CortexMuted,
-            title = { Text("Disconnect ${account.title}?") },
+            title = { Text("Pause ${account.title}?") },
             text = {
                 Text(
-                    "This takes the account offline without removing it or deleting its saved sign-in state. " +
-                        "You can reconnect without re-pairing unless the session expires or becomes invalid."
+                    "This pauses the WhatsApp connection, even across MSCC restarts, without deleting saved authentication. " +
+                        "Use Resume to reconnect whenever you want."
                 )
             },
             confirmButton = {
@@ -397,7 +400,7 @@ fun CortexPairingScreen(
                     },
                     modifier = Modifier.testTag("confirm-disconnect-account"),
                 ) {
-                    Text("Disconnect", color = CortexDanger)
+                    Text("Pause session", color = CortexDanger)
                 }
             },
             dismissButton = {
@@ -446,17 +449,49 @@ fun CortexPairingScreen(
         )
     }
 
+    repairConfirmation?.let { (account, mode) ->
+        AlertDialog(
+            onDismissRequest = { repairConfirmation = null },
+            containerColor = CortexSurface,
+            titleContentColor = CortexText,
+            textContentColor = CortexMuted,
+            title = { Text("Re-pair ${account.title}?") },
+            text = {
+                Text(
+                    "MSCC will back up this account's saved WhatsApp authentication and start " +
+                        (if (mode == "qr") "QR" else "phone-code") +
+                        " pairing. Re-pair only after regular reconnect fails, or when sign-in is invalid."
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    enabled = !busy,
+                    onClick = {
+                        onRepair(account.id, mode)
+                        repairConfirmation = null
+                    },
+                    modifier = Modifier.testTag("confirm-repair-session"),
+                ) { Text("Back up & re-pair", color = CortexDanger) }
+            },
+            dismissButton = {
+                TextButton(onClick = { repairConfirmation = null }) { Text("Cancel") }
+            },
+        )
+    }
+
     selected?.let { account ->
         PairMethodSheet(
             account = account,
             repair = action == PairAction.REPAIR,
             onDismiss = { selected = null },
             onCode = {
-                if (action == PairAction.REPAIR) onRepair(account.id, "code") else onPair(account.id, "code")
+                if (action == PairAction.REPAIR) repairConfirmation = account to "code"
+                else onPair(account.id, "code")
                 selected = null
             },
             onQr = {
-                if (action == PairAction.REPAIR) onRepair(account.id, "qr") else onPair(account.id, "qr")
+                if (action == PairAction.REPAIR) repairConfirmation = account to "qr"
+                else onPair(account.id, "qr")
                 selected = null
             },
         )
@@ -593,6 +628,47 @@ private fun PairingAccountCard(
                 )
             }
 
+            if (account.disconnectReason.isNotBlank() && !account.connected) {
+                HorizontalDivider(color = CortexLine)
+                Column(Modifier.fillMaxWidth().padding(horizontal = 13.dp, vertical = 8.dp)) {
+                    Text(
+                        account.disconnectReason,
+                        color = if (requiresRepair) CortexDanger else CortexMuted,
+                        fontSize = 11.sp,
+                        lineHeight = 15.sp,
+                        modifier = Modifier.testTag("session-reason-${account.id}"),
+                    )
+                    if (account.lastDisconnectCode != null) {
+                        Text(
+                            "WhatsApp disconnect code: ${account.lastDisconnectCode}",
+                            color = CortexMuted,
+                            fontSize = 10.sp,
+                        )
+                    }
+                }
+            }
+            if (account.reconnectAttempts > 0 || account.nextReconnectAt > 0L ||
+                account.lastConnectedAt > 0L || account.lastDisconnectedAt > 0L
+            ) {
+                Column(
+                    Modifier.fillMaxWidth().padding(horizontal = 13.dp, vertical = 7.dp),
+                    verticalArrangement = Arrangement.spacedBy(3.dp),
+                ) {
+                    if (account.reconnectAttempts > 0) {
+                        Text("Reconnect attempts: ${account.reconnectAttempts}", color = CortexMuted, fontSize = 10.sp)
+                    }
+                    if (account.nextReconnectAt > 0L) {
+                        Text("Next attempt: ${sessionClockTime(account.nextReconnectAt)}", color = CortexMuted, fontSize = 10.sp)
+                    }
+                    if (account.lastConnectedAt > 0L) {
+                        Text("Last connected: ${sessionClockTime(account.lastConnectedAt)}", color = CortexMuted, fontSize = 10.sp)
+                    }
+                    if (account.lastDisconnectedAt > 0L) {
+                        Text("Last disconnected: ${sessionClockTime(account.lastDisconnectedAt)}", color = CortexMuted, fontSize = 10.sp)
+                    }
+                }
+            }
+
             if (account.pairingCode.isNotBlank()) {
                 HorizontalDivider(color = CortexLine)
                 Column(
@@ -684,6 +760,18 @@ private fun PairingAccountCard(
                 ) {
                     if (!account.enabled) {
                         Text("This account is not configured on the server.", color = CortexMuted, fontSize = 11.sp)
+                    } else if ((account.paused || normalizedStatus == "paused") && !requiresRepair) {
+                        Button(
+                            onClick = onReconnect,
+                            enabled = !busy,
+                            colors = ButtonDefaults.buttonColors(containerColor = CortexAccent),
+                            shape = RoundedCornerShape(9.dp),
+                            modifier = Modifier.weight(1f).testTag("resume-session-${account.id}"),
+                        ) {
+                            Icon(Icons.Rounded.RestartAlt, null, Modifier.size(14.dp))
+                            Spacer(Modifier.width(4.dp))
+                            Text("Resume session", fontSize = 11.sp)
+                        }
                     } else if (requiresRepair) {
                         Button(
                             onClick = onRepair,
@@ -718,6 +806,23 @@ private fun PairingAccountCard(
                             Spacer(Modifier.width(4.dp))
                             Text("Connecting…", fontSize = 11.sp)
                         }
+                    } else if (account.registered) {
+                        Button(
+                            onClick = onReconnect,
+                            enabled = !busy,
+                            colors = ButtonDefaults.buttonColors(containerColor = CortexAccent),
+                            shape = RoundedCornerShape(9.dp),
+                            modifier = Modifier.weight(1f).testTag("reconnect-session-${account.id}"),
+                        ) {
+                            Icon(Icons.Rounded.RestartAlt, null, Modifier.size(14.dp))
+                            Spacer(Modifier.width(4.dp))
+                            Text("Reconnect", fontSize = 11.sp)
+                        }
+                        OutlinedButton(
+                            onClick = onRepair,
+                            enabled = !busy,
+                            shape = RoundedCornerShape(9.dp),
+                        ) { Text("Re-pair", fontSize = 11.sp) }
                     } else {
                         Button(
                             onClick = onPair,
@@ -752,7 +857,7 @@ private fun PairingAccountCard(
                             enabled = !busy,
                             modifier = Modifier.weight(1f),
                         ) {
-                            Text("Disconnect", fontSize = 10.sp)
+                            Text("Pause", fontSize = 10.sp)
                         }
                     }
                     if (!destination) {
@@ -771,6 +876,9 @@ private fun PairingAccountCard(
         }
     }
 }
+
+private fun sessionClockTime(timeMs: Long): String =
+    DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT).format(Date(timeMs))
 
 private fun copySensitivePairingCode(context: android.content.Context, code: String) {
     val clipboard = context.getSystemService(ClipboardManager::class.java) ?: return
@@ -811,6 +919,7 @@ private fun StatusPill(status: String) {
         Text(
             when (normalized) {
                 "connected" -> "CONNECTED"
+                "paused" -> "PAUSED"
                 "auth-invalid", "logged-out", "revoked", "session-expired", "expired" -> "SIGN-IN REQUIRED"
                 "pairing" -> "PAIRING"
                 "connecting" -> "CONNECTING"

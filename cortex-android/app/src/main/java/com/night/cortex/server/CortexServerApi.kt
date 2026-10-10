@@ -365,6 +365,15 @@ class CortexServerApi(
                         role = row.optString("role", if (row.optString("id") == "A") "owner" else "linked"),
                         profile = row.optString("profile"),
                         profileDisplayName = profileNames[row.optString("profile")].orEmpty(),
+                        paused = row.optBoolean("paused", row.optString("status") == "paused"),
+                        registered = row.optBoolean("registered", false),
+                        reconnectAttempts = row.optInt("reconnectAttempts", 0),
+                        nextReconnectAt = row.optLong("nextReconnectAt", 0L),
+                        lastConnectedAt = row.optLong("lastConnectedAt", 0L),
+                        lastDisconnectedAt = row.optLong("lastDisconnectedAt", 0L),
+                        lastDisconnectCode = if (row.isNull("lastDisconnectCode")) null
+                            else row.optInt("lastDisconnectCode"),
+                        disconnectReason = row.optString("disconnectReason"),
                     )
                 )
             }

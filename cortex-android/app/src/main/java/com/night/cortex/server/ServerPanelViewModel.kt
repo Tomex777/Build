@@ -763,7 +763,7 @@ class ServerPanelViewModel(application: Application) : AndroidViewModel(applicat
     fun disconnectPairing(id: String) {
         if (!_state.value.configured) return
         viewModelScope.launch {
-            busy("Account disconnected.") {
+            busy("Session paused. Saved WhatsApp sign-in preserved.") {
                 withContext(Dispatchers.IO) { api().disconnectAccount(id) }
                 val pairing = withContext(Dispatchers.IO) { api().pairingState() }
                 _state.value = _state.value.copy(pairing = pairing)
