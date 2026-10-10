@@ -87,7 +87,7 @@ private object V {
     val gold get() = VelvetTheme.current.gold
 }
 private val round = RoundedCornerShape(22.dp)
-private enum class Page { HOME, CHAT, GAMES, STORY, US, CHAT_INFO, DECK, TTT, STUDIO, CALL }
+private enum class Page { HOME, CHAT, GAMES, STORY, US, CHAT_INFO, DECK, TTT, STUDIO, CALL, MUSIC, CONNECT4, CHESS, LUDO, DRAW, DECK_EDITOR, TOGETHER }
 internal enum class MessageKind { TEXT, QUESTION, VOICE }
 internal data class ChatMessage(
     val id: Int, val body: String, val mine: Boolean, val time: String,
@@ -134,12 +134,12 @@ private fun VelvetApp() {
         }
     }
     LaunchedEffect(messages.toList()) {cache.save(messages.toList())}
-    val deckPositions = remember { mutableStateMapOf<String,Int>() }
+    val deckPositions = VelvetQuestionProgress.positions
     var replyTo by remember { mutableStateOf<ChatMessage?>(null) }
     var questionTab by remember { mutableStateOf("Heart to heart") }
     var studioNote by remember { mutableStateOf(settings.getString("studio_note", "You feel like home to me. ♡") ?: "") }
     var videoCall by remember { mutableStateOf(false) }
-    LaunchedEffect(Unit) { VelvetChatStyle.load(ctx) }
+    LaunchedEffect(Unit) { VelvetChatStyle.load(ctx);OurDeck.load(ctx);VelvetQuestionProgress.load(ctx) }
     DisposableEffect(page) {
         val activity = ctx as? android.app.Activity
         if(page == Page.CALL && activity != null) {
@@ -149,13 +149,15 @@ private fun VelvetApp() {
             onDispose {ctrl.show(androidx.core.view.WindowInsetsCompat.Type.systemBars())}
         } else onDispose {}
     }
-    val immersive = page in setOf(Page.CHAT, Page.CHAT_INFO, Page.DECK, Page.TTT, Page.STUDIO, Page.CALL)
+    val immersive = page in setOf(Page.CHAT, Page.CHAT_INFO, Page.DECK, Page.TTT, Page.STUDIO, Page.CALL,
+        Page.MUSIC,Page.CONNECT4,Page.CHESS,Page.LUDO,Page.DRAW,Page.DECK_EDITOR,Page.TOGETHER)
     BackHandler(enabled = immersive) {
         page = when(page) {
             Page.CHAT_INFO, Page.CALL -> Page.CHAT
             Page.STUDIO -> Page.US
+            Page.MUSIC -> Page.HOME
             Page.CHAT -> chatBackTo
-            Page.DECK, Page.TTT -> Page.GAMES
+            Page.DECK,Page.TTT,Page.CONNECT4,Page.CHESS,Page.LUDO,Page.DRAW,Page.DECK_EDITOR,Page.TOGETHER -> Page.GAMES
             else -> Page.HOME
         }
     }
@@ -164,7 +166,8 @@ private fun VelvetApp() {
         Box(Modifier.weight(1f)) {
             when (page) {
                 Page.HOME -> HomeScreen(ownerName = ownerName, anniversary = anniversary, note=studioNote,
-                    openChat = { chatBackTo = Page.HOME; page = Page.CHAT }, openGames = { page = Page.GAMES })
+                    openChat = { chatBackTo = Page.HOME; page = Page.CHAT },
+                    openGames = { page = Page.GAMES },openMusic={page=Page.MUSIC})
                 Page.CHAT -> ChatScreen(messages, partnerName, replyTo,
                     onReply = { replyTo = it }, onDismissReply = { replyTo = null },
                     onInfo = { page = Page.CHAT_INFO }, onBack = { page = chatBackTo },
@@ -176,15 +179,27 @@ private fun VelvetApp() {
                             voicePath=clip.path,voiceBars=clip.bars,durationMs=clip.durationMs));replyTo=null
                     })
                 Page.CHAT_INFO -> ChatInfoScreen(partnerName, messages, onBack = { page = Page.CHAT })
-                Page.GAMES -> GamesScreen(onDeck = { tab -> questionTab = tab; page = Page.DECK }, onTTT = { page = Page.TTT })
+                Page.GAMES -> GamesScreen(
+                    onDeck={ tab -> questionTab=tab;page=Page.DECK },
+                    onTTT={page=Page.TTT},onConnect4={page=Page.CONNECT4},
+                    onChess={page=Page.CHESS},onLudo={page=Page.LUDO},onDraw={page=Page.DRAW},
+                    onDeckEditor={page=Page.DECK_EDITOR},onTogether={page=Page.TOGETHER})
                 Page.DECK -> QuestionDeckScreen(questionTab, index=deckPositions[questionTab] ?: 0,
-                    onIndexChange={deckPositions[questionTab]=it},
+                    onIndexChange={deckPositions[questionTab]=it;VelvetQuestionProgress.save(ctx)},
                     onBack={page=Page.GAMES},
                     onSend = { prompt,tone,caption ->
                         sendMessage(ChatMessage(0,prompt.question,true,nowTime(),kind=MessageKind.QUESTION,
                             category=prompt.category,cardTone=tone,questionId=prompt.id,caption=caption.takeIf{it.isNotBlank()}))
                     }, onViewChat={chatBackTo=Page.DECK;page=Page.CHAT})
                 Page.TTT -> TicTacToeScreen(onBack = { page = Page.GAMES })
+                Page.CONNECT4 -> ConnectFourGame(onBack={page=Page.GAMES},onOtherGame={page=Page.GAMES})
+                Page.CHESS -> VelvetChessGame(onBack={page=Page.GAMES})
+                Page.LUDO -> VelvetLudoGame(onBack={page=Page.GAMES})
+                Page.DRAW -> DrawGuessGame(onBack={page=Page.GAMES})
+                Page.DECK_EDITOR -> OurDeckCreator(onBack={page=Page.GAMES},
+                    onPlay={questionTab="Our own deck";page=Page.DECK})
+                Page.TOGETHER -> TogetherAnswers(onBack={page=Page.GAMES})
+                Page.MUSIC -> SpotifyListeningRoom(onBack={page=Page.HOME})
                 Page.STORY -> GalleryFirstScreen(ownerName)
                 Page.STUDIO -> VelvetStudioScreen(note=studioNote,
                     onNoteChange={value->studioNote=value;settings.edit().putString("studio_note",value).apply()},
@@ -267,7 +282,8 @@ private fun MainNav(page: Page, go: (Page) -> Unit) {
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun HomeScreen(ownerName: String, anniversary:String, note:String, openChat: () -> Unit, openGames: () -> Unit) {
+private fun HomeScreen(ownerName: String, anniversary:String, note:String,
+    openChat: () -> Unit, openGames: () -> Unit,openMusic:()->Unit) {
     val haptics = LocalHapticFeedback.current
     var heartCount by remember { mutableIntStateOf(0) }
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal=18.dp)) {
@@ -309,6 +325,24 @@ private fun HomeScreen(ownerName: String, anniversary:String, note:String, openC
                 Icon(Icons.Outlined.AutoAwesome,null,Modifier.size(18.dp),tint=V.gold)
                 Spacer(Modifier.width(10.dp))
                 Text(note,color=V.rose,fontSize=14.sp,fontFamily=FontFamily.Serif)
+            }
+        }
+        Spacer(Modifier.height(19.dp))
+        Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(21.dp))
+            .background(Brush.verticalGradient(listOf(V.raised,V.paper)))
+            .padding(17.dp)) {
+            Row(verticalAlignment=Alignment.CenterVertically) {
+                Icon(Icons.Outlined.MusicNote,"Music",Modifier.size(27.dp),tint=V.rose)
+                Spacer(Modifier.width(11.dp))
+                Column(Modifier.weight(1f)) {
+                    Text("Our soundtrack ♡",color=V.text,fontFamily=FontFamily.Serif,fontSize=22.sp)
+                    Text("A song can make anywhere feel like home.",color=V.muted,fontSize=11.sp)
+                }
+                Icon(Icons.Outlined.ChevronRight,null,tint=V.rose)
+            }
+            Spacer(Modifier.height(11.dp))
+            OutlinedButton(onClick=openMusic,modifier=Modifier.fillMaxWidth()) {
+                Text("Listen together · Spotify Jam")
             }
         }
         Spacer(Modifier.height(27.dp)); SectionLabel("SMALL GESTURES, BIG FEELINGS")
@@ -628,7 +662,7 @@ private fun ChatInfoScreen(partner:String,messages:List<ChatMessage>,onBack:()->
 
 private val deckCategories = listOf("Heart to heart","Little laughs","Our future","Sweet & silly","Deep talks","Would you rather")
 private data class Prompt(val category: String,val question: String) { val id:String get() = "${category.lowercase(Locale.ROOT).replace(" ","_")}_${question.hashCode().toUInt().toString(16)}" }
-private val prompts = listOf(
+private val defaultPrompts = listOf(
     Prompt("Heart to heart","When do you feel closest to me?"),Prompt("Heart to heart","What tiny thing always reminds you of us?"),Prompt("Heart to heart","What's one memory you want us to make again?"),Prompt("Heart to heart","What part of our story makes you smile instantly?"),Prompt("Heart to heart","When have you felt most understood?"),Prompt("Heart to heart","What do we do that makes ordinary days special?"),Prompt("Heart to heart","What should we make more time for?"),Prompt("Heart to heart","What surprised you about falling for me?"),
     Prompt("Little laughs","Which of us would lose our keys on a date?"),Prompt("Little laughs","What silly nickname would you invent for me?"),Prompt("Little laughs","If we had a secret handshake, what would it be?"),Prompt("Little laughs","What would our imaginary restaurant serve?"),Prompt("Little laughs","Which of us would fall asleep first during a movie?"),Prompt("Little laughs","What is our funniest inside joke?"),
     Prompt("Our future","Where should we take our first spontaneous trip?"),Prompt("Our future","What little tradition should we start?"),Prompt("Our future","What's one skill we could learn together?"),Prompt("Our future","What would our ideal weekend look like?"),Prompt("Our future","What do you want to celebrate together next year?"),Prompt("Our future","What tiny dream should we chase this month?"),Prompt("Our future","How should we decorate our someday corner?"),Prompt("Our future","What song belongs on our future road trip?"),Prompt("Our future","Where should our next photo together be taken?"),
@@ -636,6 +670,10 @@ private val prompts = listOf(
     Prompt("Deep talks","What's something you wish people understood about you?"),Prompt("Deep talks","When do you feel most supported?"),Prompt("Deep talks","What's a value we both want to protect?"),Prompt("Deep talks","What would help us disagree more gently?"),Prompt("Deep talks","What have you learned about yourself recently?"),Prompt("Deep talks","What does feeling safe together mean to you?"),Prompt("Deep talks","How can we make tough days easier for each other?"),Prompt("Deep talks","What's one habit we can build together?"),Prompt("Deep talks","What helps you feel heard?"),
     Prompt("Would you rather","Would you rather watch sunrise together or stay up for the stars?"),Prompt("Would you rather","Would you rather cook together or explore a new café?"),Prompt("Would you rather","Would you rather swap playlists or write each other notes?"),Prompt("Would you rather","Would you rather dance in the rain or picnic under the sun?"),Prompt("Would you rather","Would you rather take a train trip or a beach holiday?"),Prompt("Would you rather","Would you rather explore a museum or a night market?"),Prompt("Would you rather","Would you rather build a blanket fort or go camping?"),Prompt("Would you rather","Would you rather make a scrapbook or record a mini-film?"),Prompt("Would you rather","Would you rather learn painting or pottery together?")
 )
+private val prompts:List<Prompt> get() = defaultPrompts +
+    VelvetOfflineLibrary.questions.map{(cat,q)->Prompt(cat,q)} +
+    OurDeck.questions.map{Prompt("Our own deck",it)}
+
 private val cardColors=listOf(Color(0xFFF4B8C7),Color(0xFFB6A4D8),Color(0xFFF3C5A2),Color(0xFFB8D6C7),Color(0xFFF0D99D),Color(0xFFB6CEE4),Color(0xFFD5AFCE),Color(0xFFDBD49D))
 
 @Composable
@@ -686,7 +724,9 @@ private fun GameEntry(title:String,subtitle:String,enabled:Boolean,modifier:Modi
 
 @Composable
 private fun QuestionDeckScreen(category:String,index:Int,onIndexChange:(Int)->Unit,onBack:()->Unit,onSend:(Prompt,Int,String)->Unit,onViewChat:()->Unit) {
-    val filtered=remember(category){prompts.filter{it.category==category}}
+    val deckContext=LocalContext.current
+    val filtered=if(category=="Saved cards")prompts.filter{it.id in VelvetQuestionProgress.saved}
+        else prompts.filter{it.category==category}
     if(filtered.isEmpty()){
         Column {Text("No questions in this deck yet.",color=V.text);TextButton(onClick=onBack){Text("Back")}}
         return
@@ -727,7 +767,14 @@ private fun QuestionDeckScreen(category:String,index:Int,onIndexChange:(Int)->Un
                 Text(category,color=V.text,fontSize=20.sp,fontFamily=FontFamily.Serif,fontWeight=FontWeight.SemiBold)
                 Text("A little closer, one question at a time ♡",color=V.muted,fontSize=11.sp)
             }
-            Icon(Icons.Outlined.Style,"Card deck",tint=V.rose)
+            IconButton(onClick={
+                if(prompt.id in VelvetQuestionProgress.saved) VelvetQuestionProgress.saved.remove(prompt.id)
+                else VelvetQuestionProgress.saved.add(prompt.id)
+                VelvetQuestionProgress.save(deckContext)
+            }) {
+                Icon(if(prompt.id in VelvetQuestionProgress.saved)Icons.Outlined.Favorite
+                    else Icons.Outlined.FavoriteBorder,"Save question",tint=V.rose)
+            }
         }
         Box(Modifier.weight(1f).fillMaxWidth().padding(vertical=6.dp),contentAlignment=Alignment.Center) {
             val behind=if(drag>0f)(current-1).coerceAtLeast(0) else (current+1).coerceAtMost(filtered.lastIndex)
