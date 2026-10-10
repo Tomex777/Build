@@ -157,7 +157,8 @@ internal fun VoiceBubble(path:String?,bars:List<Float>,durationMs:Long) {
         else {playing=false;progress=0f}
         delay(100)
     }}
-    Row(verticalAlignment=Alignment.CenterVertically,modifier=Modifier.widthIn(min=218.dp,max=270.dp)){
+    Row(verticalAlignment=Alignment.CenterVertically,modifier=Modifier.widthIn(min=232.dp,max=275.dp)
+        .heightIn(min=55.dp)){
         IconButton(onClick={
             if(path==null || !File(path).exists())return@IconButton
             try {
@@ -169,9 +170,13 @@ internal fun VoiceBubble(path:String?,bars:List<Float>,durationMs:Long) {
                 } else if(previous.isPlaying){previous.pause();playing=false}
                 else {previous.start();playing=true}
             }catch(_:Exception){playing=false}
-        }){Icon(if(playing)Icons.Outlined.Pause else Icons.Outlined.PlayArrow,"Play voice note",tint=blush)}
+        },modifier=Modifier.size(42.dp).clip(CircleShape).background(blush.copy(alpha=.16f))){
+            Icon(if(playing)Icons.Outlined.Pause else Icons.Outlined.PlayArrow,
+                if(playing)"Pause voice note" else "Play voice note",tint=blush,modifier=Modifier.size(26.dp))
+        }
+        Spacer(Modifier.width(8.dp))
         Column(Modifier.weight(1f)){
-            Waveform(bars,progress,Modifier.fillMaxWidth().height(32.dp).pointerInput(path) {
+            Waveform(bars,progress,Modifier.fillMaxWidth().height(34.dp).pointerInput(path) {
                 detectTapGestures { offset ->
                     val fraction=(offset.x/size.width.toFloat()).coerceIn(0f,1f)
                     player?.let { if(it.duration>0){it.seekTo((it.duration*fraction).toInt());progress=fraction} }
@@ -191,13 +196,14 @@ internal fun VoiceBubble(path:String?,bars:List<Float>,durationMs:Long) {
 @Composable
 private fun Waveform(bars:List<Float>,progress:Float,modifier:Modifier=Modifier) {
     Canvas(modifier){
-        val data=if(bars.isEmpty())List(20){.03f} else bars
+        val data=if(bars.isEmpty())List(25){.15f} else bars
         val step=size.width/data.size
         data.forEachIndexed {index,value->
-            val bar=max(3f, min(size.height*.96f, value*size.height*.93f))
+            val bar=max(6.dp.toPx(), min(size.height*.94f, kotlin.math.sqrt(value.coerceIn(.01f,1f))*size.height*.94f))
             val x=(index+.5f)*step
             drawLine(if(index.toFloat()/data.size<=progress)blush else blush.copy(alpha=.52f),
-                Offset(x,(size.height-bar)/2),Offset(x,(size.height+bar)/2),strokeWidth=step.coerceIn(2f,5f))
+                Offset(x,(size.height-bar)/2),Offset(x,(size.height+bar)/2),strokeWidth=step.coerceIn(2.5f,5f),
+                cap=androidx.compose.ui.graphics.StrokeCap.Round)
         }
     }
 }
