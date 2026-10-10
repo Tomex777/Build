@@ -1,0 +1,47 @@
+name: MSCC Account Diagnostics
+on:
+  push:
+    branches: [feat/mscc-account-diagnostics-p4-20261009]
+    paths:
+      - 'mscc/**'
+      - '.github/workflows/mscc-account-diagnostics.yml'
+  pull_request:
+    branches: [feat/mscc-session-lifecycle-p3-20261009]
+    paths:
+      - 'mscc/**'
+      - '.github/workflows/mscc-account-diagnostics.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: mscc-account-diagnostics-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+      - name: Install MSCC dependencies
+        working-directory: mscc
+        run: npm install --no-audit --no-fund
+      - name: Syntax check API
+        working-directory: mscc
+        run: |
+          node --check index.js
+          node --check account-registry.js
+          node --check session-policy.js
+          node --check session-diagnostics.js
+          node --check session-diagnostics-selftest.js
+          node session-diagnostics-selftest.js
+          node --check web-panel.js
+          node --check account-controls-selftest.js
+      - name: Verify existing auth isolation
+        working-directory: mscc
+        run: npm run check:sessions
+      - name: Verify new account control contracts
+        working-directory: mscc
+        run: npm run check:account-controls

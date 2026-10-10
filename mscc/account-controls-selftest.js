@@ -6,6 +6,7 @@ import { createServer } from 'node:net'
 import { AccountRegistry } from './account-registry.js'
 import { openSharedStorage } from './shared-storage.js'
 import { startWebPanel } from './web-panel.js'
+import { sessionEventsFromJsonl, sessionSnapshot } from './session-diagnostics.js'
 
 async function freePort() {
   const server = createServer()
@@ -57,6 +58,19 @@ try {
     port, host: '127.0.0.1', password: 'selftest-not-a-real-password',
     localControlPort, getState: () => ({ accounts: registry.list() }),
     renameAccount, assignAccountProfile,
+    getAccountDiagnostics: async id => {
+      if (id !== linked.id) return null
+      return {
+        snapshot: sessionSnapshot({
+          id, displayName:'Night Backup', profile:'nami', status:'connected',
+          numberMasked:'234***0002', connected:true,
+        }),
+        events: sessionEventsFromJsonl(JSON.stringify({
+          id:'evt1', at:'2026-10-09T10:00:00Z', action:'account.connected',
+          detail:{ account:id, authToken:'do-not-leak' },
+        }), id),
+      }
+    },
   })
   const target = `http://127.0.0.1:${localControlPort}`
   async function request(method, pathname, body) {
@@ -65,7 +79,7 @@ try {
       try {
         response = await fetch(target + pathname, {
           method, headers: { 'content-type': 'application/json' },
-          body: JSON.stringify(body || {}),
+          ...(method === 'GET' ? {} : { body: JSON.stringify(body || {}) }),
         })
         break
       } catch (error) {
@@ -87,6 +101,14 @@ try {
   assert.equal(storage.getGroupRoute('some-group@g.us', 'general'), '', 'Routing must be invalidated')
   assert.equal(registry.get(linked.id).displayName, 'Night Backup', 'Profile changes must not rename account')
   assert.equal(await readFile(authFile, 'utf8'), authBefore, 'Credentials were modified')
+
+  const diag = await request('GET', `/accounts/${linked.id}/diagnostics?limit=5`)
+  assert.equal(diag.status, 200)
+  assert.equal(diag.data.snapshot.id, linked.id)
+  assert.deepEqual(diag.data.events.map(row => row.action), ['account.connected'])
+  assert.equal(JSON.stringify(diag.data).includes('do-not-leak'), false)
+  const unknownDiagnostics = await request('GET', '/accounts/unknown/diagnostics')
+  assert.equal(unknownDiagnostics.status, 404)
 
   const badRequest = await request('POST', `/accounts/${linked.id}/profile`, {})
   assert.equal(badRequest.status, 400)

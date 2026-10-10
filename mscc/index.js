@@ -17,6 +17,7 @@ import { AccountRegistry, legacyAccountRecords } from './account-registry.js'
 import { selectCcDestination } from './cc-routing.js'
 import { isPrivateOwnerDm } from './control-context.js'
 import { classifyDisconnect, jidPhoneNumber, reconnectDelay, sessionStatus } from './session-policy.js'
+import { sessionEventsFromJsonl, sessionSnapshot } from './session-diagnostics.js'
 import { openSharedStorage } from './shared-storage.js'
 import { chooseGroupExecutor, canExecuteDirect } from './bot-routing.js'
 import { SourceRegistry } from './source-registry.js'
@@ -300,6 +301,29 @@ async function recordActivity(action, detail = {}) {
   } catch (error) {
     console.warn('Activity write failed:', error?.message || error)
   }
+}
+
+async function getAccountDiagnostics(value, limit = 40) {
+  const resolved = resolveAccountId(value)
+  const account = resolved ? accounts.get(resolved) : null
+  if (!account) return null
+
+  const snapshot = sessionSnapshot({
+    ...account,
+    profile: sharedStorage?.profileForAccount(account.id)?.id || 'unassigned',
+    numberMasked: masked(account.number),
+    status: statusOf(account),
+  })
+  let events = []
+  try {
+    // The bounded activity file contains a maximum of 2MB of recent entries.
+    // Filter all available entries so quieter sessions remain visible.
+    const text = await readFile(ACTIVITY_FILE, 'utf8')
+    events = sessionEventsFromJsonl(text, account.id, limit)
+  } catch (error) {
+    if (error?.code !== 'ENOENT') throw error
+  }
+  return { snapshot, events }
 }
 
 async function activity(limit = 100) {
@@ -2601,6 +2625,11 @@ function scheduleAccountReconnect(account, generation, delayMs) {
   clearTimeout(account.reconnectTimer)
   const wait = Math.max(0, Number(delayMs) || 0)
   account.nextReconnectAt = Date.now() + wait
+  recordActivity('account.reconnect-scheduled', {
+    account: account.id,
+    attempt: account.reconnectAttempts,
+    delayMs: wait,
+  }).catch(() => {})
   account.reconnectTimer = setTimeout(() => {
     if (generation !== account.generation || account.paused || account.invalid) return
     account.reconnectTimer = null
@@ -2620,6 +2649,10 @@ async function startAccountSafely(account, source = 'startup') {
     account.disconnectReason = `${source} failed: ${error?.message || String(error)}`
     console.error(`[${account.id}] ${source}:`, error?.message || error)
     account.reconnectAttempts += 1
+    recordActivity('account.reconnect-failed', {
+      account: account.id,
+      attempt: account.reconnectAttempts,
+    }).catch(() => {})
     scheduleAccountReconnect(account, account.generation, reconnectDelay(account.reconnectAttempts))
   }
 }
@@ -3123,6 +3156,7 @@ async function init() {
     localControlPort: LOCAL_CONTROL_PORT,
     getState: webState,
     getActivity: activity,
+    getAccountDiagnostics,
     pairAccount,
     reconnectAccount,
     disconnectAccount,
