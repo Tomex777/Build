@@ -1,0 +1,84 @@
+name: Cortex Android Release Readiness
+
+on:
+  push:
+    branches: [cortex-production-finalization]
+    paths:
+      - 'cortex-android/**'
+      - '.github/workflows/cortex-release-finalization.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      RELEASE_KEYSTORE_B64: ${{ secrets.CORTEX_RELEASE_KEYSTORE_B64 }}
+      CORTEX_RELEASE_STORE_PASSWORD: ${{ secrets.CORTEX_RELEASE_STORE_PASSWORD }}
+      CORTEX_RELEASE_KEY_ALIAS: ${{ secrets.CORTEX_RELEASE_KEY_ALIAS }}
+      CORTEX_RELEASE_KEY_PASSWORD: ${{ secrets.CORTEX_RELEASE_KEY_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '9.6.0'
+      - name: Install Android SDK 36
+        run: |
+          SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          if [ ! -x "$SDKMANAGER" ]; then
+            SDKMANAGER="$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager"
+          fi
+          yes | "$SDKMANAGER" --licenses >/dev/null || true
+          "$SDKMANAGER" "platforms;android-36" "build-tools;36.0.0"
+      - name: Prepare release signing without exposing keys
+        id: signing
+        shell: bash
+        run: |
+          set -euo pipefail
+          supplied=0
+          for secret in RELEASE_KEYSTORE_B64 CORTEX_RELEASE_STORE_PASSWORD CORTEX_RELEASE_KEY_ALIAS CORTEX_RELEASE_KEY_PASSWORD; do
+            if [[ -n "${!secret}" ]]; then supplied=$((supplied + 1)); fi
+          done
+          if [[ "$supplied" == 0 ]]; then
+            echo "signed=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::Cortex signing secrets are not configured; verifying unsigned release compilation only. Do not distribute an unsigned APK."
+          elif [[ "$supplied" != 4 ]]; then
+            echo "::error::Cortex release signing requires all four secrets; partial configuration is unsafe."
+            exit 1
+          else
+            printf '%s' "$RELEASE_KEYSTORE_B64" | base64 --decode > "$RUNNER_TEMP/cortex-release.jks"
+            chmod 600 "$RUNNER_TEMP/cortex-release.jks"
+            echo "CORTEX_RELEASE_KEYSTORE=$RUNNER_TEMP/cortex-release.jks" >> "$GITHUB_ENV"
+            echo "signed=true" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Run JVM tests and build release
+        run: gradle -p cortex-android :app:testDebugUnitTest :app:assembleRelease --stacktrace
+      - name: Verify signed APK and calculate digest
+        if: steps.signing.outputs.signed == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          APK="cortex-android/app/build/outputs/apk/release/app-release.apk"
+          test -s "$APK"
+          "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --verbose --print-certs "$APK"
+          sha256sum "$APK"
+      - name: Upload installable signed Cortex release APK
+        if: steps.signing.outputs.signed == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: cortex-release-signed-apk
+          path: cortex-android/app/build/outputs/apk/release/app-release.apk
+          if-no-files-found: error
+          retention-days: 30
+      - name: Confirm unsigned-only readiness
+        if: steps.signing.outputs.signed != 'true'
+        run: |
+          test -s cortex-android/app/build/outputs/apk/release/app-release-unsigned.apk
+          echo "::notice::Release compilation passed, but publishing is blocked until Cortex signing secrets are set."
