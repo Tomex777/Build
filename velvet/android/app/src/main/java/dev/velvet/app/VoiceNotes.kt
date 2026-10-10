@@ -203,119 +203,155 @@ private fun Waveform(bars:List<Float>,progress:Float,modifier:Modifier=Modifier)
 }
 
 
-/**
- * The actual microphone recorder used by the inline chat composer.
- * Hold to record, release to send, slide left to discard, slide up to lock.
- * The first use may require a microphone permission prompt; hold again afterwards.
- */
-@Composable
-internal fun VoiceHoldControl(onRecorded:(VoiceClip)->Unit,onActiveChange:(Boolean)->Unit) {
-    val context=LocalContext.current
-    val recorder=remember {NativeRecorder(context)}
-    var granted by remember {
-        mutableStateOf(ContextCompat.checkSelfPermission(context,Manifest.permission.RECORD_AUDIO)==PackageManager.PERMISSION_GRANTED)
+/** Gesture and microphone state survives Compose recompositions and layout changes. */
+internal class VoiceCaptureState(context:Context) {
+    private val recorder=NativeRecorder(context)
+    var recording by mutableStateOf(false); private set
+    var locked by mutableStateOf(false); private set
+    var paused by mutableStateOf(false); private set
+    var elapsed by mutableLongStateOf(0L); private set
+    var error by mutableStateOf<String?>(null)
+    val bars=mutableStateListOf<Float>()
+    var granted by mutableStateOf(
+        ContextCompat.checkSelfPermission(context,Manifest.permission.RECORD_AUDIO)==PackageManager.PERMISSION_GRANTED
+    )
+    private var startAt=0L
+    private var pausedAt=0L
+    private var pausedTotal=0L
+
+    fun begin():Boolean {
+        if(recording)return true
+        if(!granted){error="Microphone permission needed";return false}
+        val ok=recorder.start()
+        if(!ok){error="Couldn't start recording";return false}
+        bars.clear();elapsed=0L;locked=false;paused=false;pausedTotal=0L;pausedAt=0L
+        startAt=SystemClock.elapsedRealtime()
+        recording=true;error=null
+        return true
     }
-    var recording by remember {mutableStateOf(false)}
-    var locked by remember {mutableStateOf(false)}
-    var paused by remember {mutableStateOf(false)}
-    var error by remember {mutableStateOf<String?>(null)}
-    var elapsed by remember {mutableLongStateOf(0L)}
-    var coordinates by remember {mutableStateOf<LayoutCoordinates?>(null)}
-    val samples=remember {mutableStateListOf<Float>()}
-    val permission=rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {allowed ->
-        granted=allowed
-        error=if(allowed)"Hold the mic to record" else "Microphone permission needed"
+    fun sample() {
+        if(!recording || paused)return
+        elapsed=(SystemClock.elapsedRealtime()-startAt-pausedTotal).coerceAtLeast(0L)
+        bars.add(recorder.sample())
+        if(bars.size>48)bars.removeAt(0)
     }
-    DisposableEffect(Unit){onDispose {recorder.cancel()}}
-    LaunchedEffect(recording) {
-        val begin=SystemClock.elapsedRealtime()
-        while(recording) {
-            if(!paused){
-                elapsed=SystemClock.elapsedRealtime()-begin
-                samples.add(recorder.sample())
-                if(samples.size>38)samples.removeAt(0)
+    fun lock(){if(recording)locked=true}
+    fun togglePause(){
+        if(!recording || !locked)return
+        if(paused) {
+            if(recorder.resume()) {
+                pausedTotal += SystemClock.elapsedRealtime()-pausedAt
+                paused=false
             }
-            delay(90)
+        } else if(recorder.pause()) {
+            pausedAt=SystemClock.elapsedRealtime();paused=true
         }
     }
-    fun reset() { recording=false;locked=false;paused=false;onActiveChange(false);samples.clear();elapsed=0 }
-    val gesture=if(locked) Modifier else Modifier.pointerInput(granted) {
+    fun finish():VoiceClip? {
+        if(!recording)return null
+        val clip=recorder.finish()
+        reset()
+        if(clip==null)error="Hold a little longer to record"
+        return clip
+    }
+    fun cancel(){recorder.cancel();reset()}
+    private fun reset(){
+        recording=false;locked=false;paused=false;elapsed=0L
+        bars.clear();pausedAt=0L;pausedTotal=0L
+    }
+}
+
+@Composable
+internal fun rememberVoiceCaptureState():VoiceCaptureState {
+    val context=LocalContext.current
+    val state=remember { VoiceCaptureState(context) }
+    DisposableEffect(state){onDispose{state.cancel()}}
+    LaunchedEffect(state.recording){
+        while(state.recording) {
+            state.sample()
+            delay(80)
+        }
+    }
+    return state
+}
+
+/** Fixed-size touch target: it never expands or slides beneath the user's finger. */
+@Composable
+internal fun VoiceHoldControl(state:VoiceCaptureState,onRecorded:(VoiceClip)->Unit) {
+    val permission=rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {
+        state.granted=it
+        state.error=if(it)null else "Microphone permission denied"
+    }
+    val active=state.recording
+    val color=VelvetTheme.current
+    val gesture=Modifier.pointerInput(state.granted, state.locked) {
         awaitEachGesture {
             val down=awaitFirstDown(requireUnconsumed=false)
-            val startRoot=coordinates?.localToRoot(down.position) ?: down.position
-            if(!granted) {
+            if(!state.granted){
                 permission.launch(Manifest.permission.RECORD_AUDIO)
-                var stillDown:Boolean
-                do {val event=awaitPointerEvent();stillDown=event.changes.any{it.pressed}} while(stillDown)
-            } else if(!recording) {
-                if(recorder.start()) {
-                    recording=true;onActiveChange(true);error=null
-                    var ended=false
-                    while(!ended) {
-                        val event=awaitPointerEvent()
-                        val change=event.changes.firstOrNull{it.id==down.id}
-                        if(change==null || !change.pressed) {
-                            val clip=recorder.finish()
-                            reset()
-                            if(clip!=null)onRecorded(clip)
-                            ended=true
-                        } else {
-                            // Use root-space positions: the recording bar expands while pressed.
-                            val atRoot=coordinates?.localToRoot(change.position) ?: change.position
-                            val x=atRoot.x-startRoot.x
-                            val y=atRoot.y-startRoot.y
-                            if(x < -100.dp.toPx()) {
-                                recorder.cancel();reset();ended=true
-                            } else if(y < -85.dp.toPx()) {
-                                locked=true;ended=true
-                            } else change.consume()
+                var held:Boolean
+                do{val e=awaitPointerEvent();held=e.changes.any{it.pressed}}while(held)
+            } else if(!state.locked && state.begin()) {
+                var done=false
+                while(!done) {
+                    val event=awaitPointerEvent()
+                    val change=event.changes.firstOrNull{it.id==down.id}
+                    if(change==null || !change.pressed) {
+                        val clip=state.finish()
+                        if(clip!=null)onRecorded(clip)
+                        done=true
+                    } else {
+                        val dx=change.position.x-down.position.x
+                        val dy=change.position.y-down.position.y
+                        when {
+                            dx < -76.dp.toPx() -> {state.cancel();done=true}
+                            dy < -72.dp.toPx() -> {state.lock();done=true}
+                            else -> change.consume()
                         }
                     }
-                } else error="Microphone could not start"
+                }
             } else {
-                var stillDown:Boolean
-                do {val event=awaitPointerEvent();stillDown=event.changes.any{it.pressed}} while(stillDown)
+                var held:Boolean
+                do{val e=awaitPointerEvent();held=e.changes.any{it.pressed}}while(held)
             }
         }
     }
-    Column {
-        Row(Modifier.width(if(recording)310.dp else 45.dp).height(50.dp)
-            .then(gesture).onGloballyPositioned {coordinates=it}
-            .clip(RoundedCornerShape(24.dp))
-            .background(if(recording)panel else Color.Transparent),
-            verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.Center) {
-            if(recording) {
-                if(locked) {
-                    IconButton(onClick={recorder.cancel();reset()},modifier=Modifier.size(40.dp)) {
-                        Icon(Icons.Outlined.DeleteOutline,"Discard voice note",tint=faded)
-                    }
-                } else {
-                    Text("●",color=blush,modifier=Modifier.padding(start=12.dp),fontSize=17.sp)
-                }
-                Text("${elapsed/60000}:${((elapsed/1000)%60).toString().padStart(2,'0')}",
-                    color=ink,fontSize=12.sp,modifier=Modifier.padding(horizontal=7.dp))
-                Waveform(samples.takeLast(24),0f,Modifier.weight(1f).height(29.dp))
-                if(locked) {
-                    IconButton(onClick={
-                        if(paused) {if(recorder.resume())paused=false}
-                        else {if(recorder.pause())paused=true}
-                    },modifier=Modifier.size(38.dp)) {
-                        Icon(if(paused)Icons.Outlined.PlayArrow else Icons.Outlined.Pause,
-                            if(paused)"Resume recording" else "Pause recording",tint=blush)
-                    }
-                    IconButton(onClick={
-                        val clip=recorder.finish();reset();if(clip!=null)onRecorded(clip)
-                    },modifier=Modifier.size(44.dp)) {
-                        Icon(Icons.Outlined.Send,"Send voice note",tint=blush)
-                    }
-                } else {
-                    Text("↑ Lock\n← Cancel",color=faded,fontSize=10.sp,lineHeight=13.sp,
-                        modifier=Modifier.padding(horizontal=9.dp))
-                }
-            } else {
-                Icon(Icons.Outlined.Mic,"Hold to record",Modifier.size(27.dp),tint=blush)
+    Box(Modifier.size(48.dp).clip(CircleShape).background(color.rose).then(gesture),
+        contentAlignment=Alignment.Center) {
+        Icon(Icons.Outlined.Mic,"Hold microphone to record; slide left to cancel, up to lock",
+            modifier=Modifier.size(25.dp),tint=color.bg)
+    }
+}
+
+/** Composer replacement on the left of the stationary microphone button. */
+@Composable
+internal fun VoiceRecordingBar(state:VoiceCaptureState,modifier:Modifier=Modifier,onRecorded:(VoiceClip)->Unit){
+    val p=VelvetTheme.current
+    Row(modifier.height(48.dp).clip(RoundedCornerShape(24.dp))
+        .background(p.raised).padding(horizontal=7.dp),
+        verticalAlignment=Alignment.CenterVertically){
+        if(state.locked) {
+            IconButton(onClick=state::cancel,modifier=Modifier.size(36.dp)){
+                Icon(Icons.Outlined.DeleteOutline,"Discard recording",tint=p.rose,modifier=Modifier.size(22.dp))
             }
+        } else {
+            Text("●",fontSize=14.sp,color=p.rose,modifier=Modifier.padding(horizontal=5.dp))
         }
-        error?.let {Text(it,color=blush,fontSize=10.sp)}
+        Text("${state.elapsed/60000}:${(state.elapsed/1000%60).toString().padStart(2,'0')}",
+            fontSize=12.sp,color=p.text,modifier=Modifier.padding(horizontal=5.dp))
+        Waveform(state.bars.toList(),0f,Modifier.weight(1f).height(31.dp))
+        if(state.locked){
+            IconButton(onClick=state::togglePause,modifier=Modifier.size(36.dp)) {
+                Icon(if(state.paused)Icons.Outlined.PlayArrow else Icons.Outlined.Pause,
+                    if(state.paused)"Resume" else "Pause",tint=p.text,modifier=Modifier.size(21.dp))
+            }
+            IconButton(onClick={state.finish()?.let(onRecorded)},modifier=Modifier.size(39.dp)
+                .clip(CircleShape).background(p.rose)){
+                Icon(Icons.Outlined.Send,"Send recording",tint=p.bg,modifier=Modifier.size(20.dp))
+            }
+        } else {
+            Text("← cancel   ↑ lock",fontSize=10.sp,color=p.muted,
+                modifier=Modifier.padding(horizontal=4.dp))
+        }
     }
 }
