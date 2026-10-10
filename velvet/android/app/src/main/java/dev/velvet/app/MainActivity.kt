@@ -119,7 +119,7 @@ private fun VelvetApp() {
     var page by remember { mutableStateOf(Page.HOME) }
     var chatBackTo by remember { mutableStateOf(Page.HOME) }
     var ownerName by remember { mutableStateOf(settings.getString("my_name", "You") ?: "You") }
-    val partnerName = "Your love" // Read-only until the partner's own authenticated profile is synced.
+    val partnerName = VelvetChatStyle.partnerNickname.ifBlank { "Your love" } // Local nickname, not an edit to the authenticated partner profile.
     var anniversary by remember { mutableStateOf(settings.getString("anniversary", "") ?: "") }
     var ownEdit by remember { mutableStateOf(false) }
     var profileDraft by remember { mutableStateOf(ownerName) }
@@ -544,7 +544,7 @@ private fun MessageRow(msg:ChatMessage,onReply:()->Unit,onEdit:()->Unit,onDelete
                                     append("   ")
                                     withStyle(SpanStyle(color=V.muted,fontSize=9.sp)) {append(msg.time)}
                                 }
-                            },color=V.text,fontFamily=VelvetChatStyle.font,fontSize=14.sp,lineHeight=19.sp)
+                            },color=V.text,fontFamily=VelvetChatStyle.font,fontSize=VelvetChatStyle.textSize.sp,lineHeight=(VelvetChatStyle.textSize+5f).sp)
                             MessageKind.QUESTION -> {
                                 val tone=cardColors[msg.cardTone.mod(cardColors.size)]
                                 Column(Modifier.widthIn(min=205.dp).clip(RoundedCornerShape(15.dp)).background(tone).padding(14.dp)) {
