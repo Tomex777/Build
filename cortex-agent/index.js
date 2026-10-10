@@ -1370,6 +1370,33 @@ async function handler(req, res) {
       return json(res, 200, result);
     }
 
+    // Neither rename nor profile assignment touches WhatsApp authentication.
+    const accountProfileRoute = url.pathname.match(/^\/api\/cortex\/mscc\/accounts\/([A-Za-z0-9][A-Za-z0-9._-]{0,63})\/profile$/);
+    if (req.method === 'POST' && accountProfileRoute) {
+      const id = accountProfileRoute[1];
+      const body = await readJson(req);
+      const profileId = String(body.profileId || '').trim().toLowerCase();
+      if (!/^[a-z0-9][a-z0-9._-]{0,63}$/.test(profileId)) {
+        throw Object.assign(new Error('Invalid bot profile ID'), { statusCode: 400 });
+      }
+      const result = await msccControl('POST', '/accounts/' + id + '/profile', { profileId });
+      await recordActivity('mscc:account.profile-changed', { account: id, profile: result?.profile || profileId });
+      return json(res, 200, result);
+    }
+
+    const accountRenameRoute = url.pathname.match(/^\/api\/cortex\/mscc\/accounts\/([A-Za-z0-9][A-Za-z0-9._-]{0,63})$/);
+    if (req.method === 'PATCH' && accountRenameRoute) {
+      const id = accountRenameRoute[1];
+      const body = await readJson(req);
+      const displayName = typeof body.displayName === 'string' ? body.displayName.trim() : '';
+      if (!displayName || displayName.length > 48) {
+        throw Object.assign(new Error('Account name must be 1–48 characters'), { statusCode: 400 });
+      }
+      const result = await msccControl('PATCH', '/accounts/' + id, { displayName });
+      await recordActivity('mscc:account.renamed', { account: id, displayName: result?.displayName || displayName });
+      return json(res, 200, result);
+    }
+
     const removeAccountRoute = url.pathname.match(/^\/api\/cortex\/mscc\/accounts\/([A-Za-z0-9][A-Za-z0-9._-]{0,63})$/);
     if (req.method === 'DELETE' && removeAccountRoute) {
       const id = removeAccountRoute[1];

@@ -97,12 +97,19 @@ data class PairingAccount(
     val profileDisplayName: String = "",
 )
 
+data class BotProfileOption(
+    val id: String,
+    val displayName: String,
+    val universal: Boolean = false,
+)
+
 data class PairingState(
     val version: String,
     val destination: String,
     val accounts: List<PairingAccount>,
     val maxAccounts: Int? = null,
     val canAddAccount: Boolean = false,
+    val profiles: List<BotProfileOption> = emptyList(),
 )
 
 data class PendingDownload(
