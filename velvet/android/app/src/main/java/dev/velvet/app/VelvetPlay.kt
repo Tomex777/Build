@@ -250,7 +250,7 @@ private data class ChessPosition(
         val p=board[step.from];val captured=board[step.to]
         board[step.from]='.'
         val endRow=step.to/8
-        board[step.to]=if(p.lowercaseChar()=='p' && endRow==if(white)0 else 7)
+        board[step.to]=if(p.lowercaseChar()=='p' && endRow==(if(white)0 else 7))
             if(white)'Q' else 'q' else p
         var available=castle
         if(p=='K')available=available.replace("K","").replace("Q","")
