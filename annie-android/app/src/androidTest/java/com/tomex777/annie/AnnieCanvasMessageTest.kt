@@ -1,11 +1,13 @@
 package com.tomex777.annie
 
 import android.webkit.WebView
+import android.os.SystemClock
+import android.view.InputDevice
+import android.view.MotionEvent
 import android.util.Log
 import android.graphics.Rect
 import android.content.Context
 import android.view.inputmethod.InputMethodManager
-import androidx.test.uiautomator.UiDevice
 import android.view.View
 import android.view.ViewGroup
 import androidx.activity.ComponentActivity
@@ -286,15 +288,45 @@ class AnnieCanvasMessageTest {
         assertTrue("Board center lies outside exposed Canvas: $visible board=$board",
             x >= visible.left && x <= visible.right)
 
-        // Real event timestamps and intermediate movements are important for
-        // Android WebView pointer capture. Do not replace with JS-dispatched events.
-        val uiDevice = UiDevice.getInstance(instrumentation)
-        val swipeX = x.toInt()
-        val sy1 = y1.toInt()
-        val sy2 = y2.toInt()
-        Log.i("AnnieCanvasTest", "swipe geometry x=$swipeX from=$sy1 to=$sy2 visible=$visible board=$board")
-        assertTrue("Android touch injection returned false", uiDevice.swipe(swipeX, sy1, swipeX, sy2, 20))
-        instrumentation.waitForIdleSync()
+        // UiAutomator.UiDevice.swipe() blocks waiting for Accessibility window
+        // idle on Android 8 WebView, sometimes for the entire CI timeout. Send
+        // ordinary touchscreen MotionEvents to the actual window instead. The
+        // SOURCE_TOUCHSCREEN and FINGER tool type are essential for older
+        // Chromium WebViews to dispatch native TouchEvents, not mouse events.
+        Log.i("AnnieCanvasTest", "swipe geometry x=$x from=$y1 to=$y2 visible=$visible board=$board")
+        val downTime = SystemClock.uptimeMillis()
+        fun inject(action: Int, pointY: Float) {
+            val props = arrayOf(MotionEvent.PointerProperties().apply {
+                id = 0
+                toolType = MotionEvent.TOOL_TYPE_FINGER
+            })
+            val coords = arrayOf(MotionEvent.PointerCoords().apply {
+                this.x = x
+                this.y = pointY
+                pressure = if (action == MotionEvent.ACTION_UP) 0f else 1f
+                size = 1f
+            })
+            val event = MotionEvent.obtain(
+                downTime, SystemClock.uptimeMillis(), action,
+                1, props, coords,
+                0, 0, 1f, 1f, 0, 0,
+                InputDevice.SOURCE_TOUCHSCREEN, 0
+            )
+            try {
+                instrumentation.sendPointerSync(event)
+            } finally {
+                event.recycle()
+            }
+        }
+        Log.i("AnnieCanvasTest", "swipe: ACTION_DOWN")
+        inject(MotionEvent.ACTION_DOWN, y1)
+        for (step in 1..12) {
+            SystemClock.sleep(18L)
+            inject(MotionEvent.ACTION_MOVE, y1 + (y2 - y1) * step / 12f)
+        }
+        SystemClock.sleep(18L)
+        inject(MotionEvent.ACTION_UP, y2)
+        Log.i("AnnieCanvasTest", "swipe: ACTION_UP delivered")
         val state = eval(web, "JSON.stringify({game:window.annieCanvasSnakeState(), events:window.annieCanvasInputDiagnostics()})")
         Log.i("AnnieCanvasTest", "post-swipe state: $state")
     }
