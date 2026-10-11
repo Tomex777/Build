@@ -1682,7 +1682,7 @@ private fun ScriptTextMessage(text: String, muted: Boolean = false) {
 }
 
 @Composable
-private fun ScriptImageMessage(data: org.json.JSONObject, scriptId: String) {
+internal fun ScriptImageMessage(data: org.json.JSONObject, scriptId: String) {
     val context = LocalContext.current
     val uri = data.optString("uri").takeIf(String::isNotBlank)
     val imageModel = remember(uri, scriptId) {
@@ -1690,7 +1690,6 @@ private fun ScriptImageMessage(data: org.json.JSONObject, scriptId: String) {
             resolvePackageAsset(context, scriptId, value) ?: value.takeUnless { it.startsWith("annie-asset://") }
         }
     }
-    var expanded by remember(uri) { mutableStateOf(false) }
     Column(
         Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp, 20.dp, 20.dp, 20.dp)).background(Bubble).padding(8.dp)
     ) {
@@ -1702,22 +1701,17 @@ private fun ScriptImageMessage(data: org.json.JSONObject, scriptId: String) {
                 contentDescription = data.optString("caption").ifBlank { "Image message" },
                 contentScale = ContentScale.Fit,
                 modifier = Modifier.fillMaxWidth().heightIn(max = 360.dp).clip(RoundedCornerShape(14.dp))
-                    .clickable { expanded = true }.testTag("script_image_message"),
+                    .clickable {
+                        context.startActivity(
+                            AnnieImageViewerActivity.intent(
+                                context, uri.orEmpty(), scriptId, data.optString("caption")
+                            )
+                        )
+                    }.testTag("script_image_message"),
             )
         }
         data.optString("caption").takeIf(String::isNotBlank)?.let {
             Text(it, color = BrightText, fontSize = 14.sp, lineHeight = 20.sp, modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp))
-        }
-    }
-    if (expanded && imageModel != null) {
-        Dialog(
-            onDismissRequest = { expanded = false },
-            properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false),
-        ) {
-            Box(Modifier.fillMaxSize().background(Color(0xFF030811)).clickable { expanded = false }, contentAlignment = Alignment.Center) {
-                AsyncImage(model = imageModel, contentDescription = data.optString("caption"), contentScale = ContentScale.Fit,
-                    modifier = Modifier.fillMaxWidth().fillMaxSize().testTag("script_image_fullscreen"))
-            }
         }
     }
 }
