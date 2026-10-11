@@ -151,7 +151,7 @@ where c.created_by='cccccccc-cccc-4ccc-8ccc-cccccccccccc';
 
 set role authenticated;
 set request.jwt.claims='{"is_anonymous":false}';
-do $
+do $$
 declare r jsonb; state jsonb;
 begin
   perform set_config('request.jwt.claim.sub','cccccccc-cccc-4ccc-8ccc-cccccccccccc',false);
@@ -169,7 +169,7 @@ begin
   if r->>'error'<>'not_found' then
     raise exception 'Second outsider of another couple read text: %',r;
   end if;
-end $;
+end $$;
 reset role;
 
 select 'Velvet couple read receipt tests passed' as status;
