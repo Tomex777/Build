@@ -216,6 +216,48 @@ internal fun VelvetConnectedChat(
                     color=muted,fontSize=13.sp)
             }
         } else {
+            if(hasOlder || historyLoading) {
+                TextButton(
+                    onClick={
+                        if(!historyLoading && oldestAt!=null && oldestId!=null) {
+                            historyLoading=true
+                            historyError=""
+                            scope.launch {
+                                try {
+                                    val older=client.pageText(oldestAt,oldestId)
+                                    val fetched=(0 until older.length()).map { i ->
+                                        val row=older.getJSONObject(i)
+                                        ConnectedText(
+                                            id=row.getString("id"),
+                                            body=row.optString("body"),
+                                            senderId=row.optString("sender_id"),
+                                            at=row.getString("created_at"),
+                                            replyTo=row.optString("reply_to")
+                                                .takeIf {it.isNotBlank() && it!="null"}
+                                        )
+                                    }
+                                    val before=messages.map {it.id}.toSet()
+                                    val unseen=fetched.filter {it.id !in before}
+                                    if(unseen.isNotEmpty()) messages.addAll(0,unseen)
+                                    if(fetched.isNotEmpty()) {
+                                        oldestAt=fetched.first().at
+                                        oldestId=fetched.first().id
+                                    }
+                                    hasOlder=fetched.size>=80
+                                } catch(e:Exception) {
+                                    historyError=e.message ?: "Could not load older messages."
+                                } finally {historyLoading=false}
+                            }
+                        }
+                    },
+                    modifier=Modifier.fillMaxWidth(),
+                    enabled=!historyLoading
+                ) { Text(if(historyLoading) "Loading older messages…" else "↑ Earlier messages",color=rose) }
+            }
+            if(historyError.isNotEmpty()) {
+                Text(historyError,modifier=Modifier.padding(horizontal=18.dp),
+                    color=muted,fontSize=12.sp)
+            }
             LazyColumn(
                 modifier=Modifier.weight(1f).fillMaxWidth().padding(horizontal=12.dp),
                 state=listState,
@@ -230,8 +272,18 @@ internal fun VelvetConnectedChat(
                             Modifier.widthIn(max=290.dp)
                                 .background(if(mine) Color(0xFF60354C) else card,
                                     RoundedCornerShape(18.dp))
+                                .combinedClickable(onClick={replyingTo=msg},onLongClick={replyingTo=msg})
                                 .padding(horizontal=14.dp,vertical=10.dp)
                         ) {
+                            if(!msg.replyTo.isNullOrBlank()) {
+                                val source=combined.firstOrNull {it.id==msg.replyTo}
+                                Text("↳ "+(source?.body ?: "Earlier message"),
+                                    color=rose,fontSize=12.sp,maxLines=2,
+                                    modifier=Modifier.fillMaxWidth()
+                                        .background(Color(0xFF4A2C3E),RoundedCornerShape(9.dp))
+                                        .padding(8.dp))
+                                Spacer(Modifier.height(6.dp))
+                            }
                             Text(msg.body,color=cream,fontSize=15.sp,lineHeight=21.sp)
                             Spacer(Modifier.height(4.dp))
                             val time=runCatching {
@@ -245,6 +297,19 @@ internal fun VelvetConnectedChat(
             }
         }
         if(ready) {
+            replyingTo?.let { target ->
+                Row(Modifier.fillMaxWidth().background(Color(0xFF40283A))
+                    .padding(start=18.dp,end=10.dp,top=7.dp,bottom=7.dp),
+                    verticalAlignment=Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text("Replying to",color=rose,fontSize=11.sp,fontWeight=FontWeight.SemiBold)
+                        Text(target.body,color=cream,fontSize=12.sp,maxLines=2)
+                    }
+                    IconButton(onClick={replyingTo=null}) {
+                        Icon(Icons.Outlined.Close,"Cancel reply",tint=cream)
+                    }
+                }
+            }
             Row(Modifier.fillMaxWidth().background(card)
                     .padding(horizontal=12.dp,vertical=10.dp),
                 verticalAlignment=Alignment.Bottom) {
@@ -261,11 +326,13 @@ internal fun VelvetConnectedChat(
                     val body=text.trim()
                     if(body.isNotEmpty() && outboxScope.isNotEmpty()) {
                         val entry=ConnectedText(UUID.randomUUID().toString(),body,ownId,
-                            OffsetDateTime.now().toString(),pending=true)
+                            OffsetDateTime.now().toString(),pending=true,
+                            replyTo=replyingTo?.id)
                         try {
                             outbox.add(outboxScope,entry)
                             queued.add(entry)
                             text=""
+                            replyingTo=null
                             status="Message saved locally, sending…"
                         } catch(e:Exception) {
                             status=e.message ?: "Couldn't queue this message."
@@ -276,7 +343,7 @@ internal fun VelvetConnectedChat(
                 }
             }
         }
-        Text("Text only · No end-to-end encryption · Photos, voice and games aren't synced yet",
+        Text("Tap a message to reply · Text only · No end-to-end encryption · Media and games aren't synced",
             color=muted,fontSize=10.sp,modifier=Modifier.fillMaxWidth()
                 .background(card).padding(start=16.dp,end=16.dp,bottom=8.dp))
     }
