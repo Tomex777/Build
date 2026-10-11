@@ -65,6 +65,8 @@ internal fun VelvetWaveform(samples:List<Int>,highlight:Color,
 @Composable
 internal fun VelvetVoiceCapture(
     enabled:Boolean,
+    showIdleButton:Boolean=true,
+    onBusyChanged:(Boolean)->Unit={},
     onSend:suspend (VelvetVoiceDraft)->Boolean
 ) {
     val context=LocalContext.current
@@ -142,6 +144,10 @@ internal fun VelvetVoiceCapture(
             file.delete()
             error=e.message ?: "Microphone unavailable."
         }
+    }
+
+    LaunchedEffect(recording,staged,sending) {
+        onBusyChanged(recording || staged!=null || sending)
     }
 
     val askPermission=rememberLauncherForActivityResult(
@@ -255,7 +261,7 @@ internal fun VelvetVoiceCapture(
             }
         }
         else -> {
-            IconButton(enabled=enabled,onClick={
+            if(showIdleButton) IconButton(enabled=enabled,onClick={
                 if(context.checkSelfPermission(Manifest.permission.RECORD_AUDIO)==
                     PackageManager.PERMISSION_GRANTED) startCapture()
                 else askPermission.launch(Manifest.permission.RECORD_AUDIO)
