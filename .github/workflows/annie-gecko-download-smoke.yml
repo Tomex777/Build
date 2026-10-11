@@ -1,0 +1,38 @@
+name: Annie Gecko download compile
+
+on:
+  push:
+    branches: [annie-gecko-response-downloads-20261011, annie-gecko-download-manager-20261011]
+    paths:
+      - 'annie-android/**'
+      - '.github/workflows/annie-gecko-download-smoke.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: annie-gecko-download-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  compile-and-unit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: 'platform-tools platforms;android-36 build-tools;36.0.0'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '9.7.1'
+      - name: Validate Annie overlay
+        run: |
+          python3 annie-android/scripts/test-repair-contract.py
+          python3 annie-android/scripts/repair-m0b-merge.py
+          sh annie-android/scripts/check-annie-types.sh
+      - name: Compile app and Android instrumentation, run JVM tests
+        run: |
+          gradle --no-daemon --stacktrace -p annie-android :app:testDebugUnitTest :app:compileDebugAndroidTestKotlin
