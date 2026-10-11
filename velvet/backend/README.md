@@ -135,3 +135,14 @@ The `velvet_send_image` function verifies ownership of the uploaded Storage obje
 **Storage lifecycle limitations:** Upload bytes are encrypted in transport over TLS but are **not end-to-end encrypted**. Deleted or unsent images are not automatically purged from Supabase Storage; Storage object deletion MUST later use the Storage API from a trusted server/Edge Function rather than manipulating `storage.objects` directly. The current milestone denies subsequent reads through RLS, but secure erase and orphan cleanup are not yet deployed. Chat photos remain separate from **Our Story**; nothing is copied automatically. Image loading is authenticated, never a publicly accessible URL.
 
 `velvet/backend/tests/images.sql` runs using a disposable PostgreSQL simulation of Storage's metadata/RLS. That verifies private upload restrictions, member-only reads, owner-only publication, no double-send/reuse, caption and MIME checks, partner-only hiding, and global tombstone behavior. It does **not** emulate actual upload-binary APIs; end-to-end two-phone testing requires a real Supabase project with migrations **01–09** deployed.
+
+## v0.14 — Scoped Chat Info photo gallery + conversation search
+
+Migration `20261011000010_velvet_chat_info.sql` adds two authenticated, read-only RPCs, granted **only** to `authenticated`:
+
+- `velvet_chat_photos(p_before_at,p_before_id,p_limit)` serves the newest non-deleted photo messages for the signed-in member's **current fully paired couple**, excluding that member's personally hidden messages. Results contain sender ID, caption, creation time, MIME and private Storage path, not binary bytes. Keyset history pagination uses `(created_at,id)`, maximum 60 items per page.
+- `velvet_search_chat(p_query,p_before_at,p_before_id,p_limit)` searches literal (not SQL-wildcard) case-insensitive message text and photo captions, between **2 and 64 characters**. It hides deleted and personally hidden messages and never exposes another couple's history. The same bounded keyset pagination applies.
+
+The gallery queries `velvet_messages` only: Chat photos remain separate from `velvet_story_entries` and are **never automatically copied to Our Story**. A per-couple partial image index supports chronological photo history.
+
+`velvet/backend/tests/chat_info.sql` tests member authorization, the partner's visibility, anonymous/outsider denial, photo history pages, literal % and _ matching, case-insensitive captions, search pagination, malformed cursors and immediate exclusion of deleted or personally hidden content. The backend CI applies **all ten numbered migrations (01–10)** and runs these checks in PostgreSQL. A production Supabase Storage backend is still not connected; CI does not validate real-device media delivery.
