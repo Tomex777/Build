@@ -27,7 +27,11 @@ import kotlinx.coroutines.withContext
 
 /** In-memory-only previews of private Storage objects. Not a public URL or Story copy. */
 @Composable
-internal fun VelvetPrivateImage(client:VelvetPairClient,storagePath:String) {
+internal fun VelvetPrivateImage(
+    client:VelvetPairClient,
+    storagePath:String,
+    modifier:Modifier=Modifier.width(242.dp).height(188.dp)
+) {
     var bitmap by remember(storagePath){mutableStateOf<ImageBitmap?>(null)}
     var error by remember(storagePath){mutableStateOf<String?>(null)}
     var loading by remember(storagePath){mutableStateOf(true)}
@@ -55,7 +59,7 @@ internal fun VelvetPrivateImage(client:VelvetPairClient,storagePath:String) {
             error=e.message ?: "Could not load this private photo."
         } finally { loading=false }
     }
-    Box(Modifier.width(242.dp).height(188.dp),contentAlignment=Alignment.Center) {
+    Box(modifier,contentAlignment=Alignment.Center) {
         if(bitmap!=null) {
             Image(bitmap!!,contentDescription="Private chat photo, open fullscreen",
                 contentScale=ContentScale.Crop,
