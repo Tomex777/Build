@@ -49,6 +49,7 @@ class AnnieGeckoBrowserUiTest {
             compose.waitUntil(30_000) {
                 compose.onAllNodesWithText("Gecko one", substring = true).fetchSemanticsNodes().isNotEmpty()
             }
+            waitForNativePageColor(32, 48, 64)
             val address = compose.onNodeWithTag("annie_browser_tabs_address")
             val back = compose.onNodeWithTag("annie_browser_back")
             val addressBounds = address.fetchSemanticsNode().boundsInRoot
@@ -68,6 +69,7 @@ class AnnieGeckoBrowserUiTest {
             compose.waitUntil(30_000) {
                 compose.onAllNodesWithText("Gecko two", substring = true).fetchSemanticsNodes().isNotEmpty()
             }
+            waitForNativePageColor(48, 64, 32)
             compose.waitUntil(8_000) {
                 var hidden = false
                 InstrumentationRegistry.getInstrumentation().runOnMainSync {
@@ -88,6 +90,7 @@ class AnnieGeckoBrowserUiTest {
                 compose.onAllNodesWithText("Gecko one", substring = true).fetchSemanticsNodes().isNotEmpty()
             }
             compose.onNodeWithTag("annie_browser_tabs_webview").assertIsDisplayed()
+            waitForNativePageColor(32, 48, 64)
             saveEmulatorScreenshot("annie-gecko-system-bars-and-keyboard")
         } finally {
             // Wait for disposal before restoring preferences; destroy persists tabs.
@@ -107,4 +110,20 @@ class AnnieGeckoBrowserUiTest {
             }
         }
     }
+
+    private fun waitForNativePageColor(red: Int, green: Int, blue: Int) {
+        val viewport = compose.onNodeWithTag("annie_browser_tabs_webview").fetchSemanticsNode().boundsInRoot
+        val x = viewport.center.x.toInt()
+        val y = viewport.center.y.toInt()
+        compose.waitUntil(10_000) {
+            val pixels = checkNotNull(InstrumentationRegistry.getInstrumentation().uiAutomation.takeScreenshot())
+            try {
+                val actual = pixels.getPixel(x, y)
+                kotlin.math.abs(android.graphics.Color.red(actual) - red) <= 8 &&
+                    kotlin.math.abs(android.graphics.Color.green(actual) - green) <= 8 &&
+                    kotlin.math.abs(android.graphics.Color.blue(actual) - blue) <= 8
+            } finally { pixels.recycle() }
+        }
+    }
+
 }

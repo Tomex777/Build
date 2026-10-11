@@ -153,7 +153,7 @@ internal class GeckoLocalFixture : AutoCloseable {
                     while (!input.readLine().isNullOrBlank()) { }
                     val download = path == "/download"
                     val body = if (download) bytes else
-                        "<html><head><title>Gecko ${if (path == "/one") "one" else "two"}</title></head><body>Local browser acceptance</body></html>".toByteArray()
+                        "<html><head><title>Gecko ${if (path == "/one") "one" else "two"}</title></head><body style='margin:0;min-height:100vh;background:${if (path == "/one") "#203040" else "#304020"};color:#e8f6ef;padding:24px;font:20px sans-serif'><h1>Local browser acceptance</h1><p>Native Gecko page ${if (path == "/one") "one" else "two"}</p></body></html>".toByteArray()
                     if (download) downloadRequested.set(true)
                     val type = if (download) "application/octet-stream" else "text/html; charset=utf-8"
                     val disposition = if (download) "Content-Disposition: attachment; filename=\"$name\"\r\n" else ""
