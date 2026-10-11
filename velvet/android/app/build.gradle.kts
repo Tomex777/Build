@@ -17,8 +17,8 @@ android {
             (System.getenv("VELVET_SUPABASE_URL") ?: "").replace("\\", "\\\\").replace("\"", "\\\"") + "\"")
         buildConfigField("String", "VELVET_SUPABASE_PUBLISHABLE_KEY", "\"" +
             (System.getenv("VELVET_SUPABASE_PUBLISHABLE_KEY") ?: "").replace("\\", "\\\\").replace("\"", "\\\"") + "\"")
-        versionCode = 11
-        versionName = "0.8.0-connected-text-alpha"
+        versionCode = 12
+        versionName = "0.9.0-unified-chat-alpha"
     }
     // Only the release APK uses the permanent Velvet key. Never commit the private
     // key or password to the repository; CI injects them from GitHub Actions secrets.
