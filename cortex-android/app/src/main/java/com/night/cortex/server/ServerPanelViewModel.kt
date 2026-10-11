@@ -932,7 +932,11 @@ class ServerPanelViewModel(application: Application) : AndroidViewModel(applicat
                 delay(30_000L)
                 val current = _state.value
                 if (!current.configured || !current.agentReachable || current.authFailed || current.loading) continue
+                val requestedUrl = serverUrl()
+                val requestedToken = serverToken()
                 val result = withContext(Dispatchers.IO) { runCatching { api().pairingState() } }
+                // Never display a late response from the previous server/token.
+                if (serverUrl() != requestedUrl || serverToken() != requestedToken) continue
                 val fresh = result.getOrNull()
                 if (fresh != null) {
                     _state.update { state ->
