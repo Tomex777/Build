@@ -891,7 +891,7 @@ internal fun FilesPage(
     onUpload: () -> Unit,
 ) {
     Column(Modifier.fillMaxSize()) {
-        Breadcrumbs(state.currentPath, onPath)
+        Breadcrumbs(state.currentPath, onPath, enabled = state.agentReachable && !state.loading)
         HorizontalDivider(color = CortexLine)
         Row(
             Modifier
@@ -900,17 +900,17 @@ internal fun FilesPage(
                 .padding(10.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            SmallAction("Create Directory", Icons.Rounded.CreateNewFolder, onNewDirectory)
-            SmallAction("Upload", Icons.Rounded.Upload, onUpload)
-            SmallAction("New File", Icons.Rounded.NoteAdd, onNewFile)
-            SmallAction("Refresh", Icons.Rounded.Refresh, onRefresh)
+            SmallAction("Create Directory", Icons.Rounded.CreateNewFolder, onNewDirectory, enabled = state.agentReachable && !state.loading)
+            SmallAction("Upload", Icons.Rounded.Upload, onUpload, enabled = state.agentReachable && !state.loading)
+            SmallAction("New File", Icons.Rounded.NoteAdd, onNewFile, enabled = state.agentReachable && !state.loading)
+            SmallAction("Refresh", Icons.Rounded.Refresh, onRefresh, enabled = state.agentReachable && !state.loading)
         }
         HorizontalDivider(color = CortexLine)
         if (state.currentPath != "/") {
             Row(
                 Modifier
                     .fillMaxWidth()
-                    .clickable(onClick = onUp)
+                    .clickable(enabled = state.agentReachable && !state.loading, onClick = onUp)
                     .padding(horizontal = 13.dp, vertical = 12.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
@@ -922,12 +922,12 @@ internal fun FilesPage(
         }
         if (state.files.isEmpty()) {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text("This directory is empty.", color = CortexMuted)
+                Text(if (!state.agentReachable) "File browsing requires a connection." else "This directory is empty.", color = CortexMuted)
             }
         } else {
             LazyColumn(Modifier.fillMaxSize()) {
                 items(state.files, key = { it.name }) { entry ->
-                    FileRow(entry, onOpen = { onOpen(entry) }, onMore = { onMore(entry) })
+                    FileRow(entry, onOpen = { onOpen(entry) }, onMore = { onMore(entry) }, enabled = state.agentReachable && !state.loading)
                 }
             }
         }
@@ -935,7 +935,7 @@ internal fun FilesPage(
 }
 
 @Composable
-private fun Breadcrumbs(path: String, onPath: (String) -> Unit) {
+private fun Breadcrumbs(path: String, onPath: (String) -> Unit, enabled: Boolean = true) {
     val parts = path.trim('/').split('/').filter(String::isNotBlank)
     Row(
         Modifier
@@ -944,21 +944,22 @@ private fun Breadcrumbs(path: String, onPath: (String) -> Unit) {
             .padding(horizontal = 12.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text("/", color = CortexAccent, modifier = Modifier.clickable { onPath("/") })
+        Text("/", color = CortexAccent, modifier = Modifier.clickable(enabled = enabled) { onPath("/") })
         var current = ""
         parts.forEach { part ->
             current += "/$part"
             val target = current
             Text("  /  ", color = CortexMuted)
-            Text(part, color = CortexAccent, modifier = Modifier.clickable { onPath(target) })
+            Text(part, color = CortexAccent, modifier = Modifier.clickable(enabled = enabled) { onPath(target) })
         }
     }
 }
 
 @Composable
-private fun SmallAction(text: String, icon: androidx.compose.ui.graphics.vector.ImageVector, click: () -> Unit) {
+private fun SmallAction(text: String, icon: androidx.compose.ui.graphics.vector.ImageVector, click: () -> Unit, enabled: Boolean = true) {
     OutlinedButton(
         onClick = click,
+        enabled = enabled,
         shape = RoundedCornerShape(4.dp),
         contentPadding = PaddingValues(horizontal = 10.dp, vertical = 7.dp),
     ) {
@@ -969,11 +970,11 @@ private fun SmallAction(text: String, icon: androidx.compose.ui.graphics.vector.
 }
 
 @Composable
-private fun FileRow(entry: HostingFileEntry, onOpen: () -> Unit, onMore: () -> Unit) {
+private fun FileRow(entry: HostingFileEntry, onOpen: () -> Unit, onMore: () -> Unit, enabled: Boolean = true) {
     Row(
         Modifier
             .fillMaxWidth()
-            .clickable(onClick = onOpen)
+            .clickable(enabled = enabled, onClick = onOpen)
             .padding(start = 13.dp, end = 5.dp, top = 11.dp, bottom = 11.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -993,7 +994,7 @@ private fun FileRow(entry: HostingFileEntry, onOpen: () -> Unit, onMore: () -> U
                 overflow = TextOverflow.Ellipsis,
             )
         }
-        IconButton(onClick = onMore) { Icon(Icons.Rounded.MoreVert, "File actions") }
+        IconButton(onClick = onMore, enabled = enabled) { Icon(Icons.Rounded.MoreVert, "File actions") }
     }
     HorizontalDivider(color = CortexLine)
 }
@@ -1025,6 +1026,7 @@ internal fun BackupsPage(
         ) {
             Button(
                 onClick = onDownloadProject,
+                enabled = state.agentReachable && !state.loading,
                 modifier = Modifier.weight(1f),
                 shape = RoundedCornerShape(4.dp),
             ) {
@@ -1032,7 +1034,7 @@ internal fun BackupsPage(
                 Spacer(Modifier.width(5.dp))
                 Text("Download Project ZIP", fontSize = 10.sp)
             }
-            OutlinedButton(onClick = onCreate, shape = RoundedCornerShape(4.dp)) {
+            OutlinedButton(onClick = onCreate, enabled = state.agentReachable && !state.loading, shape = RoundedCornerShape(4.dp)) {
                 Text("More", fontSize = 10.sp)
             }
         }
@@ -1040,7 +1042,7 @@ internal fun BackupsPage(
         if (state.backups.isEmpty()) {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("No Cortex backups yet.", color = CortexMuted)
+                    Text(if (!state.agentReachable) "Backups are unavailable offline." else "No Cortex backups yet.", color = CortexMuted)
                 }
             }
         } else {
@@ -1063,14 +1065,14 @@ internal fun BackupsPage(
                             )
                         }
                         if (!backup.privateBackup) {
-                            IconButton(onClick = { restoring = backup }) {
+                            IconButton(onClick = { restoring = backup }, enabled = state.agentReachable && !state.loading) {
                                 Icon(Icons.Rounded.Unarchive, "Restore project backup")
                             }
                         }
-                        IconButton(onClick = { onDownload(backup) }) {
+                        IconButton(onClick = { onDownload(backup) }, enabled = state.agentReachable && !state.loading) {
                             Icon(Icons.Rounded.Download, "Download backup")
                         }
-                        IconButton(onClick = { deleting = backup }) {
+                        IconButton(onClick = { deleting = backup }, enabled = state.agentReachable && !state.loading) {
                             Icon(Icons.Rounded.Delete, "Delete backup", tint = CortexDanger)
                         }
                     }
@@ -1155,11 +1157,11 @@ internal fun StartupPage(
                             )
                         }
                         Surface(
-                            color = if (snapshot?.state.equals("active", true) || snapshot?.state.equals("running", true)) Color(0xFF166534) else CortexSurface2,
+                            color = if (!state.agentReachable) CortexSurface2 else if (snapshot?.state.equals("active", true) || snapshot?.state.equals("running", true)) Color(0xFF166534) else CortexSurface2,
                             shape = RoundedCornerShape(3.dp),
                         ) {
                             Text(
-                                (snapshot?.state ?: "unknown").uppercase(),
+                                (if (!state.agentReachable) "LAST SEEN: " else "") + (snapshot?.state ?: "unknown").uppercase(),
                                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp),
                                 fontSize = 8.sp,
                                 fontWeight = FontWeight.Bold,
@@ -1217,7 +1219,7 @@ internal fun StartupPage(
                         )
                     }
                     Spacer(Modifier.height(10.dp))
-                    Button(onClick = installDependencies, shape = RoundedCornerShape(4.dp)) {
+                    Button(onClick = installDependencies, enabled = state.agentReachable && !state.loading, shape = RoundedCornerShape(4.dp)) {
                         Text("Install dependencies")
                     }
                 }
