@@ -60,7 +60,13 @@ internal class AnnieImageViewerActivity : ComponentActivity() {
             resolvePackageResourceUri(this, projectId, it)
         }
         setContent {
-            AnnieTheme { FullScreenImageContent(image, caption, onClose = ::finish) }
+            AnnieTheme {
+                FullScreenImageContent(
+                    image, caption,
+                    onEdit = { startActivity(AnnieImageEditorActivity.intent(this, source, projectId)) },
+                    onClose = ::finish,
+                )
+            }
         }
     }
 
@@ -78,7 +84,9 @@ internal class AnnieImageViewerActivity : ComponentActivity() {
 }
 
 @Composable
-private fun FullScreenImageContent(model: String?, caption: String, onClose: () -> Unit) {
+private fun FullScreenImageContent(
+    model: String?, caption: String, onEdit: () -> Unit, onClose: () -> Unit
+) {
     var scale by remember { mutableFloatStateOf(1f) }
     var translation by remember { mutableStateOf(Offset.Zero) }
     var viewport by remember { mutableStateOf(IntSize.Zero) }
@@ -128,6 +136,12 @@ private fun FullScreenImageContent(model: String?, caption: String, onClose: () 
                 modifier = Modifier.fillMaxWidth().background(Color(0xCC030811)),
                 horizontalArrangement = Arrangement.End,
             ) {
+                if (model != null) {
+                    TextButton(
+                        onClick = onEdit,
+                        modifier = Modifier.testTag("script_image_edit"),
+                    ) { Text("Edit", color = Color.White) }
+                }
                 TextButton(
                     onClick = onClose,
                     modifier = Modifier.testTag("script_image_close")
