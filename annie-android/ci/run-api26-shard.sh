@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-SHARD="${1:?Usage: run-api26-shard.sh <0|1|2|3|canvas|rest>}"
-case "$SHARD" in 0|1|2|3|canvas|rest) ;; *) echo "::error::Invalid shard $SHARD" >&2; exit 2 ;; esac
+SHARD="${1:?Usage: run-api26-shard.sh <0|1|2|3|canvas|rest|inline|snake|chat>}"
+case "$SHARD" in 0|1|2|3|canvas|rest|inline|snake|chat) ;; *) echo "::error::Invalid shard $SHARD" >&2; exit 2 ;; esac
 
 # Each non-process-death instrumentation class is in exactly one shard.
 # Process death and release-smoke acceptance remain separate gates.
@@ -13,6 +13,15 @@ sources = sorted(path for path in root.rglob("*Test.kt")
                  if "processdeath" not in path.parts)
 group = sys.argv[1]
 names = [p.with_suffix("").relative_to(root).as_posix().replace("/", ".") for p in sources]
+if group in ("inline", "snake", "chat"):
+    method = {
+        "inline": "interactiveCanvasRunsOfflineAndRetainsItsWebViewAcrossFullscreen",
+        "snake": "builtInSnakeCommandProducesPlayableCanvasAndCapturesItsChatPreview",
+        "chat": "snakeCanvasAppearsInsideTheRealChatAndAcceptsFingerSwipes",
+    }[group]
+    print("com.tomex777.annie.AnnieCanvasMessageTest#" + method)
+    print(f"Android 8 Canvas method: {method}", file=sys.stderr)
+    sys.exit(0)
 if group in ("canvas", "rest"):
     # Isolate the 9 classes in the one slow shard. Canvas previously had
     # flaky emulator interactions and is tested alone first.

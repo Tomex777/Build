@@ -1,0 +1,74 @@
+name: Annie Android 8 Canvas method diagnostics
+
+on:
+  push:
+    branches: [annie-api26-canvas-methods-20261011]
+    paths:
+      - 'annie-android/**'
+      - '.github/workflows/annie-api26-canvas-methods.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: annie-api26-canvas-methods-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  api26-shard:
+    name: Android 8 Canvas ${{ matrix.shard }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 55
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [inline, snake, chat]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: 'platform-tools platforms;android-36 build-tools;36.0.0'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '9.7.1'
+      - name: Build fixture application and test runner
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 annie-android/scripts/test-repair-contract.py
+          python3 annie-android/scripts/repair-m0b-merge.py
+          sh annie-android/scripts/check-annie-types.sh
+          gradle --no-daemon --stacktrace -p annie-android :app:assembleDebug :app:assembleDebugAndroidTest
+      - name: Install Android emulator and API 26 image
+        shell: bash
+        run: |
+          set -euo pipefail
+          sdkmanager --install emulator
+          bash annie-android/ci/install-emulator-system-image.sh 26
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Run isolated instrumentation classes on Android 8
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 26
+          target: google_apis
+          arch: x86_64
+          profile: pixel_2
+          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -partition-size 4096
+          script: bash annie-android/ci/run-api26-shard.sh ${{ matrix.shard }}
+      - name: Upload isolated Android 8 diagnostic reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: annie-api26-shard-${{ matrix.shard }}
+          path: |
+            annie-android/build/api26-shards/${{ matrix.shard }}/
+            annie-android/app/build/outputs/androidTest-results/
+            annie-android/app/build/reports/androidTests/
+          if-no-files-found: warn
+          retention-days: 7
