@@ -84,6 +84,30 @@ else
   echo ">>> AnimePahe source stack v$SOURCE_STACK_VERSION already installed."
 fi
 
+# The Cortex Agent is an unprivileged service account. Its installer grants
+# write permissions to the original resolved project directory, not to later
+# sibling directories created by an atomic MSCC upgrade. Before switching
+# /opt/mscc/current, explicitly grant the new release its own narrow ACLs.
+# Do not grant access to auth state or the protected private config tree.
+grant_cortex_release_access() {
+  if ! id -u cortex-agent >/dev/null 2>&1; then
+    return 0  # The Cortex Agent has not been installed on this VM yet.
+  fi
+  if ! command -v setfacl >/dev/null 2>&1; then
+    echo "Cortex Agent is installed, but setfacl is unavailable; refusing incomplete upgrade." >&2
+    return 1
+  fi
+  echo ">>> Granting Cortex Agent access to the new MSCC release..."
+  find "$RELEASE" \
+    \( -name node_modules -o -name .git -o -name .ssh -o -name .gradle -o -name .cortex -o -name auth -o -name '.env*' \) -prune -o \
+    \( -type f -o -type d \) -exec sudo setfacl -m 'u:cortex-agent:rwX' {} +
+  find "$RELEASE" \
+    \( -name node_modules -o -name .git -o -name .ssh -o -name .gradle -o -name .cortex -o -name auth -o -name '.env*' \) -prune -o \
+    -type d -exec sudo setfacl -m 'd:u:cortex-agent:rwX' {} +
+}
+
+grant_cortex_release_access
+
 echo ">>> Activating release..."
 switch_release "$RELEASE"
 ACTIVATED=1
