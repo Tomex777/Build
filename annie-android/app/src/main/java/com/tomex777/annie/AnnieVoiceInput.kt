@@ -101,6 +101,22 @@ internal class VoiceNoteController(
         }
     }
 
+    /** Keep a locked draft paused when the app leaves the foreground; never send on interruption. */
+    fun onHostStopped() {
+        if (!recording) return
+        if (!locked) {
+            cancel()
+        } else if (!paused) {
+            if (recorder.pause()) {
+                paused = true
+                elapsedMs = recorder.durationMillis
+            } else {
+                cancel()
+                Toast.makeText(appContext, "Recording interrupted. Please record again.", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
     fun finish() {
         if (!recording) return
         reset()
@@ -129,6 +145,14 @@ internal fun rememberVoiceNoteController(onVoiceNote: (String, Long) -> Unit): V
     val latest = androidx.compose.runtime.rememberUpdatedState(onVoiceNote)
     val controller = remember(context) { VoiceNoteController(context) { path, ms -> latest.value(path, ms) } }
     DisposableEffect(controller) { onDispose { controller.cancel() } }
+    val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
+    DisposableEffect(controller, lifecycleOwner) {
+        val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
+            if (event == androidx.lifecycle.Lifecycle.Event.ON_STOP) controller.onHostStopped()
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
     LaunchedEffect(controller.recording) {
         while (controller.recording) { controller.tick(); delay(200) }
     }

@@ -38,8 +38,10 @@ class AnnieVoiceRecordingTest {
                 controller.locked = true
             }
             Thread.sleep(1_000)
-            instrumentation.runOnMainSync { controller.tick(); controller.togglePause() }
+            instrumentation.runOnMainSync { controller.tick(); controller.onHostStopped() }
             assertTrue("Locked voice recorder did not pause", controller.paused)
+            instrumentation.runOnMainSync { controller.onHostStopped() }
+            assertTrue("A repeated stop event resumed the microphone", controller.paused)
             val pausedDuration = controller.elapsedMs
             val peakCount = controller.waveformPeaks.size
             Thread.sleep(800)
@@ -79,6 +81,38 @@ class AnnieVoiceRecordingTest {
         } finally {
             if (initialized) instrumentation.runOnMainSync { controller.cancel() }
             target?.let { File("${it.absolutePath}.wave").delete(); it.delete() }
+        }
+    }
+
+    @Test fun backgroundInterruptionCancelsUnlockedDraftWithoutSendingOrLeavingAudio() {
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+        val context = instrumentation.targetContext
+        instrumentation.uiAutomation.executeShellCommand(
+            "pm grant ${context.packageName} ${Manifest.permission.RECORD_AUDIO}"
+        ).use { descriptor ->
+            android.os.ParcelFileDescriptor.AutoCloseInputStream(descriptor).use { it.readBytes() }
+        }
+        val directory = File(context.filesDir, AnnieVoiceRecorder.VOICE_DIR)
+        val originalFiles = directory.list()?.toSet().orEmpty()
+        var sends = 0
+        lateinit var controller: VoiceNoteController
+        instrumentation.runOnMainSync {
+            controller = VoiceNoteController(context) { _, _ -> sends++ }
+        }
+        try {
+            repeat(2) {
+                instrumentation.runOnMainSync { assertTrue(controller.begin()) }
+                Thread.sleep(800)
+                instrumentation.runOnMainSync {
+                    controller.onHostStopped()
+                    assertTrue("Background interruption kept recording", !controller.recording)
+                    controller.finish() // A delayed gesture release must not send a cancelled draft.
+                    assertEquals(0, sends)
+                }
+                assertEquals("Cancelled recording left an audio file", originalFiles, directory.list()?.toSet().orEmpty())
+            }
+        } finally {
+            instrumentation.runOnMainSync { controller.cancel() }
         }
     }
 }

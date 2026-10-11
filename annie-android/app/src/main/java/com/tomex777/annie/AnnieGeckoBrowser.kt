@@ -437,7 +437,7 @@ internal class AnnieGeckoBrowserModel(private val context: Context) {
         val selectedIndex = prefs.getInt("selected", 0)
         val saved = runCatching { JSONArray(prefs.getString("open", "[]")) }.getOrNull()
         if (saved != null) {
-            for (i in 0 until minOf(saved.length(), 12)) {
+            for (i in 0 until saved.length()) {
                 // Accept the original URL-only format without losing existing tabs.
                 val entry = saved.optJSONObject(i)
                 val url = entry?.optString("url") ?: saved.optString(i)
@@ -455,7 +455,9 @@ internal class AnnieGeckoBrowserModel(private val context: Context) {
 
     private fun persistTabs() {
         if (restoringTabs) return
-        val normalTabs = tabs.filterNot { it.privateMode }.take(12)
+        // Persist every user-created normal tab; truncation silently lost tabs
+        // and reset selection when the active tab was beyond the twelfth.
+        val normalTabs = tabs.filterNot { it.privateMode }
         val urls = JSONArray()
         normalTabs.forEach { urls.put(JSONObject().put("url", it.url).put("desktop", it.desktopMode)) }
         // A private tab never writes its URL, mode, identity or selection to disk.

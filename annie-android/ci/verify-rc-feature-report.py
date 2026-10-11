@@ -8,9 +8,9 @@ EXPECTED = {
     "AnnieGeckoFilePickerTest": {"singleFilePickerUsesAndroidDocumentApiAndRestrictsAcceptedMimeType", "multipleFilePickerPreservesSupportedMimeTypes", "selectedDocumentUrisAreCollectedWithoutDuplicates"},
     "AnnieImageViewerTest": {"tappingChatImageOpensGenuineScreenWidthViewer"},
     "AnnieImageEditorTest": {"inlineImageDecodesIntoBoundedEditableBitmap", "editsRotateRealBitmapWithoutChangingOriginal", "squareCropProducesSquareImageWithoutAlteringOriginal", "horizontalMirrorChangesPixelOrientation"},
-    "AnnieVoiceRecordingTest": {"lockedRecordingPausesMicrophoneAndSendsOneAacFile"},
+    "AnnieVoiceRecordingTest": {"lockedRecordingPausesMicrophoneAndSendsOneAacFile", "backgroundInterruptionCancelsUnlockedDraftWithoutSendingOrLeavingAudio"},
     "AnnieVoicePauseResumeTest": {"pauseSeekAndResumePreservesPlaybackPosition"},
-    "AnnieGeckoTabRestoreTest": {"recreationRestoresSelectedNormalTabAndDesktopModeWithoutPrivateTabs"},
+    "AnnieGeckoTabRestoreTest": {"recreationRestoresSelectedNormalTabAndDesktopModeWithoutPrivateTabs", "recreationPreservesNormalTabsBeyondTwelveAndTheirSelection"},
     "AnnieGeckoDownloadHistoryTest": {"completedFileReopensFromRecreatedHistoryWithoutNetworkOrRequestSecrets"},
     "AnnieGeckoDownloadManagerTest": {
         "progressIsClampedAndSafeForUnknownLength",

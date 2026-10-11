@@ -12,6 +12,44 @@ import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
 class AnnieGeckoTabRestoreTest {
+    @Test fun recreationPreservesNormalTabsBeyondTwelveAndTheirSelection() {
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+        val context = instrumentation.targetContext
+        val prefs = context.getSharedPreferences("annie_gecko_tabs_v1", Context.MODE_PRIVATE)
+        val original = prefs.all
+        instrumentation.runOnMainSync {
+            var model: AnnieGeckoBrowserModel? = null
+            try {
+                val saved = JSONArray()
+                repeat(13) { saved.put("https://example.org/tab-$it") }
+                prefs.edit().clear().putString("open", saved.toString()).putInt("selected", 12).commit()
+                model = AnnieGeckoBrowserModel(context)
+                assertEquals(13, model!!.tabs.size)
+                assertEquals("https://example.org/tab-12", model!!.active!!.url)
+                model!!.toggleDesktop(model!!.active!!)
+                model!!.newTab(privateMode = true, address = "https://example.net/private-overflow-proof", autoLoad = false)
+                assertEquals(13, JSONArray(prefs.getString("open", "[]")).length())
+                assertFalse(prefs.getString("open", "")!!.contains("private-overflow-proof"))
+                model!!.destroy()
+                model = AnnieGeckoBrowserModel(context)
+                assertEquals(13, model!!.tabs.size)
+                assertEquals("https://example.org/tab-12", model!!.active!!.url)
+                assertTrue(model!!.active!!.desktopMode)
+                assertTrue(model!!.tabs.none { it.privateMode })
+            } finally {
+                model?.destroy()
+                val edit = prefs.edit().clear()
+                original.forEach { (key, value) ->
+                    when (value) {
+                        is String -> edit.putString(key, value)
+                        is Int -> edit.putInt(key, value)
+                    }
+                }
+                edit.commit()
+            }
+        }
+    }
+
     @Test fun recreationRestoresSelectedNormalTabAndDesktopModeWithoutPrivateTabs() {
         val instrumentation = InstrumentationRegistry.getInstrumentation()
         val context = instrumentation.targetContext
