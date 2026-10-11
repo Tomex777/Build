@@ -173,6 +173,7 @@ private fun VelvetApp() {
                 Page.CHAT -> ChatScreen(messages, partnerName, replyTo,
                     onReply = { replyTo = it }, onDismissReply = { replyTo = null },
                     onInfo = { page = Page.CHAT_INFO }, onBack = { page = chatBackTo },
+                    onConnected = { page = Page.PAIR },
                     onCall = { isVideo -> videoCall=isVideo;page=Page.CALL },
                     onSend = { body ->
                         if (body.isNotBlank()) { sendMessage(ChatMessage(0, body.trim(),true,nowTime(),replyTo?.body));replyTo = null }
@@ -435,7 +436,7 @@ private fun FlameChip() {
 @Composable
 private fun ChatScreen(
     messages: MutableList<ChatMessage>, partner:String,replyTo:ChatMessage?,onReply:(ChatMessage)->Unit,
-    onDismissReply:()->Unit,onInfo:()->Unit,onBack:()->Unit,onCall:(Boolean)->Unit,onSend:(String)->Unit,
+    onDismissReply:()->Unit,onInfo:()->Unit,onBack:()->Unit,onConnected:()->Unit,onCall:(Boolean)->Unit,onSend:(String)->Unit,
     onSendMedia:(List<PickedVelvetMedia>,String)->Unit,onVoice:(VoiceClip)->Unit
 ) {
     var draft by remember { mutableStateOf("") }
@@ -460,6 +461,9 @@ private fun ChatScreen(
                 Avatar(43,true);Spacer(Modifier.width(11.dp))
                 Column {Text(partner,color=V.text,fontSize=16.sp,fontWeight=FontWeight.Medium,maxLines=1,overflow=TextOverflow.Ellipsis);Text("Away for now",color=V.muted,fontSize=11.sp)}
             }
+            IconButton(onClick=onConnected,modifier=Modifier.size(36.dp)) {
+                Icon(Icons.Outlined.Link,"Connect our two phones",tint=V.rose,modifier=Modifier.size(21.dp))
+            }
             IconButton(onClick={onCall(false)},modifier=Modifier.size(38.dp)) {
                 Icon(Icons.Outlined.Call,"Voice call preview",tint=V.rose,modifier=Modifier.size(21.dp))
             }
@@ -467,6 +471,13 @@ private fun ChatScreen(
                 Icon(Icons.Outlined.Videocam,"Video call preview",tint=V.rose,modifier=Modifier.size(22.dp))
             }
             FlameChip()
+        }
+        Row(Modifier.fillMaxWidth().background(V.raised).clickable(onClick=onConnected)
+            .padding(horizontal=14.dp,vertical=6.dp),verticalAlignment=Alignment.CenterVertically) {
+            Icon(Icons.Outlined.Info,"Local chat preview",Modifier.size(15.dp),tint=V.gold)
+            Spacer(Modifier.width(8.dp))
+            Text("Local preview · Messages stay on this phone",color=V.muted,fontSize=10.sp,modifier=Modifier.weight(1f))
+            Text("Connect →",color=V.rose,fontSize=10.sp)
         }
         if(pinned.isNotEmpty()) {
             val top=pinned.last()
