@@ -4,6 +4,7 @@ import android.content.ClipData
 import android.content.Intent
 import android.net.Uri
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import androidx.test.platform.app.InstrumentationRegistry
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -39,7 +40,10 @@ class AnnieGeckoFilePickerTest {
         val second = Uri.parse("content://documents/two")
         val intent = Intent().apply {
             data = first
-            clipData = ClipData.newUri(null, "one", first).apply {
+            clipData = ClipData.newUri(
+                InstrumentationRegistry.getInstrumentation().targetContext.contentResolver,
+                "one", first
+            ).apply {
                 addItem(ClipData.Item(second))
             }
         }
