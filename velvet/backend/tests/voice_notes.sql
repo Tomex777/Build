@@ -41,7 +41,7 @@ begin
  if not exists(select 1 from storage.objects o where o.name=path) then
    raise exception 'Sender cannot download sent voice';end if;
 
- history:=public.velvet_list_chat();
+ history:=public.velvet_list_chat(now()-interval '30 seconds', '00000000-0000-4000-8000-000000000000'::uuid);
  if not exists(select 1 from jsonb_array_elements(history) as row(value)
    where row.value->>'id'='22222222-2222-4222-8222-222222222222'
     and row.value->>'kind'='voice'
@@ -55,7 +55,7 @@ declare path text;v jsonb;history jsonb;
 begin
  perform set_config('request.jwt.claim.sub','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',false);
  select row.value->'payload'->>'storage_path' into path
- from jsonb_array_elements(public.velvet_list_chat()) row(value)
+ from jsonb_array_elements(public.velvet_list_chat(now()-interval '30 seconds', '00000000-0000-4000-8000-000000000000'::uuid)) row(value)
  where row.value->>'id'='22222222-2222-4222-8222-222222222222';
  if path is null or not exists(select 1 from storage.objects o where o.name=path) then
    raise exception 'Partner cannot fetch private voice attachment';end if;
@@ -67,7 +67,7 @@ begin
  if v->>'ok'<>'true' then raise exception 'Partner could not personally hide voice: %',v;end if;
  if exists(select 1 from storage.objects o where o.name=path) then
    raise exception 'Hidden voice still accessible by partner';end if;
- history:=public.velvet_list_chat();
+ history:=public.velvet_list_chat(now()-interval '30 seconds', '00000000-0000-4000-8000-000000000000'::uuid);
  if exists(select 1 from jsonb_array_elements(history) row(value)
     where row.value->>'id'='22222222-2222-4222-8222-222222222222') then
    raise exception 'Hidden voice appeared in mixed chat list';end if;
@@ -78,7 +78,7 @@ declare path text;v jsonb;
 begin
  perform set_config('request.jwt.claim.sub','bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',false);
  select row.value->'payload'->>'storage_path' into path
- from jsonb_array_elements(public.velvet_list_chat()) row(value)
+ from jsonb_array_elements(public.velvet_list_chat(now()-interval '30 seconds', '00000000-0000-4000-8000-000000000000'::uuid)) row(value)
  where row.value->>'id'='22222222-2222-4222-8222-222222222222';
  if not exists(select 1 from storage.objects o where o.name=path) then
    raise exception 'Personal hide affected sender';end if;
