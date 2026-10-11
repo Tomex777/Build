@@ -74,6 +74,7 @@ private fun VelvetVideoFullscreen(
     var loading by remember(storagePath){mutableStateOf(true)}
     var problem by remember(storagePath){mutableStateOf("")}
     var retry by remember(storagePath){mutableIntStateOf(0)}
+    var activeVideo by remember(storagePath){mutableStateOf<VideoView?>(null)}
 
     LaunchedEffect(storagePath,retry) {
         loading=true
@@ -88,8 +89,16 @@ private fun VelvetVideoFullscreen(
             loading=false
         }
     }
-    DisposableEffect(storagePath) {
-        onDispose {videoFile?.delete()}
+    DisposableEffect(storagePath,lifecycle) {
+        val observer=LifecycleEventObserver {_,event->
+            if(event==Lifecycle.Event.ON_STOP) activeVideo?.pause()
+        }
+        lifecycle.addObserver(observer)
+        onDispose {
+            lifecycle.removeObserver(observer)
+            activeVideo?.stopPlayback()
+            videoFile?.delete()
+        }
     }
 
     Dialog(
@@ -122,13 +131,15 @@ private fun VelvetVideoFullscreen(
                                 setMediaController(controls)
                                 setVideoPath(file.absolutePath)
                                 setOnPreparedListener {start()}
+                                activeVideo=this
                             }
                         },
                         modifier=Modifier.fillMaxWidth()
                             .heightIn(min=180.dp),
-                        update={view->view.setOnPreparedListener {
-                            if(!view.isPlaying) view.start()
-                        }}
+                        onRelease={view->
+                            view.stopPlayback()
+                            if(activeVideo===view)activeVideo=null
+                        }
                     )
                 } else if(loading) {
                     Column(horizontalAlignment=Alignment.CenterHorizontally) {
