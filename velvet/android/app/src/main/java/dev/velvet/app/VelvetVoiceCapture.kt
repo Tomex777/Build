@@ -4,6 +4,12 @@ import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
 import android.media.MediaRecorder
+import android.media.MediaPlayer
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.LifecycleOwner
+import androidx.compose.material.icons.outlined.PlayArrow
+import androidx.compose.material.icons.outlined.Pause
 import android.os.SystemClock
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -63,7 +69,10 @@ internal fun VelvetVoiceCapture(
 ) {
     val context=LocalContext.current
     val scope=rememberCoroutineScope()
+    val lifecycle=(context as LifecycleOwner).lifecycle
     var recorder by remember {mutableStateOf<MediaRecorder?>(null)}
+    var previewPlayer by remember {mutableStateOf<MediaPlayer?>(null)}
+    var previewPlaying by remember {mutableStateOf(false)}
     var captureFile by remember {mutableStateOf<File?>(null)}
     var staged by remember {mutableStateOf<VelvetVoiceDraft?>(null)}
     var startMs by remember {mutableLongStateOf(0L)}
@@ -74,6 +83,12 @@ internal fun VelvetVoiceCapture(
     val amplitudes=remember {mutableStateListOf<Int>()}
     val rose=Color(0xFFE4A1B6)
     val cream=Color(0xFFFFEAF0)
+
+    fun stopPreview() {
+        runCatching {previewPlayer?.release()}
+        previewPlayer=null
+        previewPlaying=false
+    }
 
     fun stopCapture(save:Boolean) {
         val active=recorder
@@ -98,7 +113,12 @@ internal fun VelvetVoiceCapture(
     fun startCapture() {
         if(!enabled || recording || sending || staged!=null)return
         error=""
-        val file=File.createTempFile("velvet_note_",".m4a",context.cacheDir)
+        val file=runCatching {
+            File.createTempFile("velvet_note_",".m4a",context.cacheDir)
+        }.getOrElse {
+            error="Couldn't create the private recording file."
+            return
+        }
         val next=MediaRecorder()
         try {
             next.setAudioSource(MediaRecorder.AudioSource.MIC)
@@ -142,8 +162,18 @@ internal fun VelvetVoiceCapture(
             if(elapsedMs>=119800)stopCapture(true)
         }
     }
-    DisposableEffect(Unit) {
+    DisposableEffect(lifecycle) {
+        val observer=LifecycleEventObserver { _,event ->
+            if(event==Lifecycle.Event.ON_STOP && recording) {
+                stopCapture(false)
+                error="Recording discarded when Velvet went to the background."
+            }
+            if(event==Lifecycle.Event.ON_STOP) stopPreview()
+        }
+        lifecycle.addObserver(observer)
         onDispose {
+            lifecycle.removeObserver(observer)
+            runCatching {previewPlayer?.release()}
             runCatching {recorder?.stop()}
             runCatching {recorder?.release()}
             recorder=null
@@ -172,11 +202,40 @@ internal fun VelvetVoiceCapture(
                 Text("🎙 "+velvetVoiceTime(draft.durationMs),color=rose,fontSize=12.sp)
                 Spacer(Modifier.width(5.dp))
                 IconButton(enabled=!sending,onClick={
+                    val active=previewPlayer
+                    if(active!=null && active.isPlaying) {
+                        active.pause()
+                        previewPlaying=false
+                    } else if(active!=null) {
+                        if(active.currentPosition>=active.duration-200)active.seekTo(0)
+                        active.start()
+                        previewPlaying=true
+                    } else {
+                        runCatching {
+                            val next=MediaPlayer()
+                            next.setDataSource(draft.file.absolutePath)
+                            next.prepare()
+                            next.setOnCompletionListener {previewPlaying=false}
+                            previewPlayer=next
+                            next.start()
+                            previewPlaying=true
+                        }.onFailure {
+                            stopPreview()
+                            error="Voice preview unavailable."
+                        }
+                    }
+                }) {
+                    Icon(if(previewPlaying) Icons.Outlined.Pause else Icons.Outlined.PlayArrow,
+                        if(previewPlaying) "Pause preview" else "Preview recording",tint=rose)
+                }
+                IconButton(enabled=!sending,onClick={
+                    stopPreview()
                     draft.file.delete()
                     staged=null
                     error=""
                 }) {Icon(Icons.Outlined.Close,"Discard voice note",tint=cream)}
                 IconButton(enabled=!sending && enabled,onClick={
+                    stopPreview()
                     sending=true
                     scope.launch {
                         try {
