@@ -96,6 +96,15 @@ internal data class AnnieCanvasDocument(
     }
 }
 
+/**
+ * WebView 69 on Android 8 (API 26/27) can flood its EGL emulator/driver with
+ * glUtilsParamSize 0x85b5 errors while a 2D Canvas is visible. Prefer the
+ * software compositor on those old system WebViews; leave modern hardware
+ * accelerated rendering unchanged. This is intentionally NOT a test-only flag.
+ */
+internal fun annieCanvasUseSoftwareLayer(apiLevel: Int): Boolean =
+    apiLevel in 26..27
+
 internal class AnnieCanvasController(private val id: String) {
     private var web: WebView? = null
     private var inlineHost: FrameLayout? = null
@@ -108,6 +117,9 @@ internal class AnnieCanvasController(private val id: String) {
     private fun prepare(context: Context, next: AnnieCanvasDocument): WebView {
         val current = web ?: WebView(context).apply {
             setBackgroundColor(android.graphics.Color.rgb(11, 24, 40))
+            if (annieCanvasUseSoftwareLayer(android.os.Build.VERSION.SDK_INT)) {
+                setLayerType(android.view.View.LAYER_TYPE_SOFTWARE, null)
+            }
             // Games own gestures inside the Canvas surface. Prevent the surrounding
             // chat LazyColumn from stealing a vertical or diagonal finger swipe.
             setOnTouchListener { view, event ->
