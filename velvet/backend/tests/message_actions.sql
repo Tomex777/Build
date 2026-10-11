@@ -96,20 +96,30 @@ begin
 end $$;
 reset role;
 
--- Test age limits using the trusted fixture owner, not a client credential.
-update public.velvet_messages set created_at=now()-interval '50 hours'
-  where id='11111111-1111-4111-8111-111111111111';
+-- Age-limit check must target an OLD BUT NOT DELETED message, otherwise
+-- an already-deleted guard would mask the edit/deletion expiry policies.
+insert into public.velvet_messages(id,couple_id,sender_id,kind,body,created_at)
+  select '66666666-6666-4666-8666-666666666666',m.couple_id,m.user_id,'text',
+    'Old enough to expire',now()-interval '50 hours'
+  from public.velvet_members m
+  where m.user_id='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 set role authenticated;
 set request.jwt.claims='{"is_anonymous":false}';
-do $$
+do $
 declare v jsonb;
 begin
   perform set_config('request.jwt.claim.sub','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',false);
-  -- Global deletion idempotently repeats, but an old, not-deleted message may
-  -- not be edited. Use one of the initial flood-test text messages.
-  v:=public.velvet_edit_text('11111111-1111-4111-8111-111111111111','Too late');
-  if v->>'error'<>'already_deleted' then raise exception 'Deleted text editable: %',v; end if;
-end $$;
+  v:=public.velvet_edit_text('66666666-6666-4666-8666-666666666666','Too late');
+  if v->>'error'<>'edit_window_expired' then
+    raise exception 'Old message editable outside ten-minute window: %',v;
+  end if;
+  v:=public.velvet_delete_text('66666666-6666-4666-8666-666666666666',true);
+  if v->>'error'<>'delete_window_expired' then
+    raise exception 'Old message delete-for-everyone accepted outside 48h: %',v;
+  end if;
+  v:=public.velvet_delete_text('66666666-6666-4666-8666-666666666666',false);
+  if v->>'ok'<>'true' then raise exception 'User cannot hide old message locally: %',v; end if;
+end $;
 reset role;
 
 set role anon;
