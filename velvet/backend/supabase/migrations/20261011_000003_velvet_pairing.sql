@@ -61,7 +61,8 @@ begin
 
   -- A 20-hex-character code holds 80 unpredictable bits and is copy/shareable.
   -- Only its SHA256 digest is stored; repeated generation invalidates older codes.
-  v_code := upper(substr(replace(pg_catalog.gen_random_uuid()::text,'-',''),1,20));
+  v_code := upper(substr(pg_catalog.encode(pg_catalog.sha256(pg_catalog.convert_to(
+    pg_catalog.gen_random_uuid()::text || pg_catalog.gen_random_uuid()::text,'UTF8')),'hex'),1,20));
   insert into public.velvet_pair_invites(couple_id,code_hash,issued_by,expires_at,consumed_by,consumed_at,created_at)
     values(v_couple,pg_catalog.sha256(pg_catalog.convert_to(v_code,'UTF8')),v_user,v_expiry,null,null,now())
   on conflict(couple_id) do update set
