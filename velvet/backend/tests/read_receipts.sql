@@ -137,4 +137,39 @@ begin
   if not denied then raise exception 'Anonymous account marked message read';end if;
 end $$;
 reset role;
+-- Cross-couple adversary: two other fixture users form a separate pair.
+-- Neither partner can acknowledge or inspect messages from the original pair.
+insert into public.velvet_couples(created_by)
+  values('cccccccc-cccc-4ccc-8ccc-cccccccccccc');
+insert into public.velvet_members(couple_id,user_id)
+select c.id,u.id from public.velvet_couples c
+cross join (values
+  ('cccccccc-cccc-4ccc-8ccc-cccccccccccc'::uuid),
+  ('dddddddd-dddd-4ddd-8ddd-dddddddddddd'::uuid)
+) as u(id)
+where c.created_by='cccccccc-cccc-4ccc-8ccc-cccccccccccc';
+
+set role authenticated;
+set request.jwt.claims='{"is_anonymous":false}';
+do $
+declare r jsonb; state jsonb;
+begin
+  perform set_config('request.jwt.claim.sub','cccccccc-cccc-4ccc-8ccc-cccccccccccc',false);
+  r:=public.velvet_mark_chat_read('eeeeeeee-0000-4000-8000-000000000002');
+  if r->>'error'<>'not_found' then
+    raise exception 'Member of another couple acknowledged foreign photo: %',r;
+  end if;
+  state:=public.velvet_chat_read_state();
+  if state is null or state->>'my_read_id' is not null or
+     state->>'partner_read_id' is not null then
+    raise exception 'Cross-couple read state exposed foreign receipts: %',state;
+  end if;
+  perform set_config('request.jwt.claim.sub','dddddddd-dddd-4ddd-8ddd-dddddddddddd',false);
+  r:=public.velvet_mark_chat_read('eeeeeeee-0000-4000-8000-000000000001');
+  if r->>'error'<>'not_found' then
+    raise exception 'Second outsider of another couple read text: %',r;
+  end if;
+end $;
+reset role;
+
 select 'Velvet couple read receipt tests passed' as status;
