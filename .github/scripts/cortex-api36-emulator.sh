@@ -632,7 +632,7 @@ SUITE_OUT="$GITHUB_WORKSPACE/cortex-api36-suite.txt"
 # instrumentation process, not executing Cortex assertions. Run the complete
 # acceptance set in one AndroidJUnitRunner session so every required screen
 # and lifecycle check still runs without paying four separate startup stalls.
-run_test_class "com.night.cortex.CortexSmokeTest,com.night.cortex.CortexPairingScreenTest,com.night.cortex.CortexPowerControlsTest,com.night.cortex.server.OfflineDashboardCacheTest,com.night.cortex.server.CortexWorkspaceVisualTest" "$SUITE_OUT" "CortexApi36Suite"
+run_test_class "com.night.cortex.CortexSmokeTest,com.night.cortex.CortexPairingScreenTest,com.night.cortex.CortexPowerControlsTest,com.night.cortex.server.OfflineDashboardCacheTest,com.night.cortex.server.CortexStaleSessionTest,com.night.cortex.server.CortexWorkspaceVisualTest" "$SUITE_OUT" "CortexApi36Suite"
 cp "$SUITE_OUT" "$INSTRUMENTATION"
 
 pull_app_cache_visual() {
