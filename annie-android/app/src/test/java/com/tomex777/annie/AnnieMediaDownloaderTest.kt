@@ -102,8 +102,8 @@ class AnnieMediaDownloaderTest {
 
     @Test fun downloadHeaderPolicyRejectsNewlinesAndControlCharacters() {
         val malicious = mapOf(
-            "X-Test" to "hello\\r\\nInjected: yes",
-            "X-Header\\n" to "invalid",
+            "X-Test" to "hello\r\nInjected: yes",
+            "X-Header\n" to "invalid",
             "User-Agent" to "Annie/1.0",
         )
         val sanitized = AnnieDownloadHeaderPolicy.sanitize(malicious, isolatedBrowserSession = true)
