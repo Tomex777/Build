@@ -415,4 +415,142 @@ internal fun VelvetConnectedChat(
             color=muted,fontSize=10.sp,modifier=Modifier.fillMaxWidth()
                 .background(card).padding(start=16.dp,end=16.dp,bottom=8.dp))
     }
+
+    selectedAction?.let { target ->
+        ModalBottomSheet(
+            onDismissRequest={ selectedAction=null },
+            containerColor=card
+        ) {
+            Column(Modifier.fillMaxWidth().padding(horizontal=18.dp,vertical=8.dp)) {
+                Text("Message actions",color=cream,fontSize=19.sp,fontWeight=FontWeight.SemiBold)
+                Spacer(Modifier.height(7.dp))
+                if(!target.deleted) {
+                    TextButton(
+                        onClick={ replyingTo=target; selectedAction=null },
+                        modifier=Modifier.fillMaxWidth()
+                    ) { Text("Reply to this message",color=rose) }
+                }
+                val isMine=target.senderId==ownId || target.pending
+                if(isMine && !target.pending && !target.deleted) {
+                    TextButton(
+                        onClick={
+                            editTarget=target
+                            editDraft=target.body
+                            selectedAction=null
+                        },
+                        modifier=Modifier.fillMaxWidth()
+                    ) { Text("Edit message (10 minutes)",color=rose) }
+                }
+                if(!target.pending) {
+                    TextButton(
+                        onClick={
+                            selectedAction=null
+                            scope.launch {
+                                try {
+                                    val result=client.deleteText(target.id,false)
+                                    if(result.optBoolean("ok")) {
+                                        messages.removeAll{it.id==target.id}
+                                        if(replyingTo?.id==target.id) replyingTo=null
+                                        status="Hidden from your chat only. Your partner still has it."
+                                    } else status="Couldn't hide message: "+
+                                        result.optString("error","Try again.")
+                                } catch(e:Exception) {
+                                    status=e.message ?: "Couldn't hide message."
+                                }
+                            }
+                        },
+                        modifier=Modifier.fillMaxWidth()
+                    ) { Text("Delete for me",color=cream) }
+                }
+                if(isMine && !target.pending && !target.deleted) {
+                    TextButton(
+                        onClick={
+                            selectedAction=null
+                            scope.launch {
+                                try {
+                                    val result=client.deleteText(target.id,true)
+                                    if(result.optBoolean("ok")) {
+                                        val position=messages.indexOfFirst{it.id==target.id}
+                                        if(position>=0) {
+                                            messages[position]=messages[position].copy(
+                                                body="",deleted=true,edited=false
+                                            )
+                                        }
+                                        if(replyingTo?.id==target.id) replyingTo=null
+                                        status="Message deleted for both people."
+                                    } else {
+                                        status="Couldn't delete for everyone: "+
+                                            result.optString("error","Try again.")
+                                    }
+                                } catch(e:Exception) {
+                                    status=e.message ?: "Couldn't delete message."
+                                }
+                            }
+                        },
+                        modifier=Modifier.fillMaxWidth()
+                    ) { Text("Delete for everyone (48 hours)",color=rose) }
+                }
+                TextButton(onClick={selectedAction=null},modifier=Modifier.fillMaxWidth()) {
+                    Text("Cancel",color=muted)
+                }
+                Spacer(Modifier.height(20.dp))
+            }
+        }
+    }
+
+    editTarget?.let { target ->
+        AlertDialog(
+            onDismissRequest={if(!editBusy) editTarget=null},
+            title={Text("Edit your message",color=cream)},
+            text={
+                Column {
+                    Text("You can edit messages within 10 minutes of sending.",
+                        color=muted,fontSize=12.sp)
+                    Spacer(Modifier.height(10.dp))
+                    OutlinedTextField(
+                        value=editDraft,
+                        onValueChange={if(it.length<=4000) editDraft=it},
+                        label={Text("Message")},maxLines=6,
+                        modifier=Modifier.fillMaxWidth()
+                    )
+                }
+            },
+            confirmButton={
+                TextButton(
+                    enabled=!editBusy && editDraft.isNotBlank(),
+                    onClick={
+                        val changedText=editDraft.trim()
+                        editBusy=true
+                        scope.launch {
+                            try {
+                                val result=client.editText(target.id,changedText)
+                                if(result.optBoolean("ok")) {
+                                    val position=messages.indexOfFirst{it.id==target.id}
+                                    if(position>=0) {
+                                        messages[position]=messages[position].copy(
+                                            body=result.optString("body",changedText),
+                                            edited=!result.isNull("edited_at")
+                                        )
+                                    }
+                                    status="Message updated for both people."
+                                    editTarget=null
+                                } else {
+                                    status="Couldn't edit: "+
+                                        result.optString("error","Try again.")
+                                }
+                            } catch(e:Exception) {
+                                status=e.message ?: "Couldn't edit message."
+                            } finally {editBusy=false}
+                        }
+                    }
+                ) { Text(if(editBusy) "Saving…" else "Save",color=rose) }
+            },
+            dismissButton={
+                TextButton(onClick={editTarget=null},enabled=!editBusy) {
+                    Text("Cancel",color=muted)
+                }
+            },
+            containerColor=card
+        )
+    }
 }
