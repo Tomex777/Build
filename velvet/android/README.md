@@ -71,3 +71,9 @@ The existing `velvet_my_pair()` response is expanded without removing previous f
 **Android:** In **Us**, tap **Your profile** to edit your display name and optional pronouns. Changes are first saved locally, then sent to the user's authenticated account. Velvet displays whether sync completed or needs retry. Unsynced local edits are never overwritten by server fetches; on an account-connected device with no local unsynced edit, the authenticated profile is loaded on entering Us. The partner's profile remains view-only. When available, the partner's name is read from their account profile rather than silently rewriting it through a local nickname.
 
 **Activation:** Apply all six migrations in filename order to a real Supabase project, keep email confirmation enabled, and rebuild with the HTTPS project URL and public publishable key in CI variables. There is **no active Supabase project** on the connected account at the time of this change. Server tests alone do not prove two-phone behavior.
+
+## v0.11.0 — Us: shared anniversary
+
+The Us screen's anniversary picker now has an account-backed update path through `velvet_set_anniversary`. Local edits are retained on this device when offline/unpaired; **Share date with my partner** explicitly retries when needed. On a paired device without a pending local edit, the shared date is loaded from the server. The database records who last edited this shared field.
+
+This is distinct from private profiles: nobody can edit the other person's name or pronouns. Neither location nor profile photos are shared by this milestone. Check `../backend/README.md` for the `20261011000007_velvet_shared_anniversary.sql` migration and activation steps. The connected account still has **no Supabase project**, so live two-phone delivery remains unverified.
