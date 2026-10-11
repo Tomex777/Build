@@ -541,6 +541,10 @@ fun CortexPairingScreen(
                             if (snapshot.disconnectReason.isNotBlank()) {
                                 Text(snapshot.disconnectReason, color = CortexMuted, fontSize = 11.sp)
                             }
+                            sessionRecoveryHint(snapshot.status, snapshot.disconnectReason)?.let { hint ->
+                                Text(hint, color = CortexText, fontSize = 11.sp, lineHeight = 16.sp,
+                                    modifier = Modifier.testTag("session-recovery-guidance"))
+                            }
                             HorizontalDivider(color = CortexLine)
                             Text(
                                 "SESSION EVENTS · ${snapshot.events.size}",
