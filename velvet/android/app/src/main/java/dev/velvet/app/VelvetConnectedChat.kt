@@ -74,7 +74,7 @@ private class ConnectedTextOutbox(context:Context) {
     }
 }
 
-@OptIn(ExperimentalFoundationApi::class)
+@OptIn(ExperimentalFoundationApi::class,ExperimentalMaterial3Api::class)
 @Composable
 internal fun VelvetConnectedChat(
     onBack:()->Unit,onOpenLocalPreview:(()->Unit)?=null,sharedClient:VelvetPairClient?=null
