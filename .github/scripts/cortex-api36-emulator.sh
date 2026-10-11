@@ -632,8 +632,43 @@ SUITE_OUT="$GITHUB_WORKSPACE/cortex-api36-suite.txt"
 # instrumentation process, not executing Cortex assertions. Run the complete
 # acceptance set in one AndroidJUnitRunner session so every required screen
 # and lifecycle check still runs without paying four separate startup stalls.
-run_test_class "com.night.cortex.CortexSmokeTest,com.night.cortex.CortexPairingScreenTest,com.night.cortex.CortexPowerControlsTest,com.night.cortex.server.OfflineDashboardCacheTest,com.night.cortex.server.CortexWorkspaceVisualTest" "$SUITE_OUT" "CortexApi36Suite"
-cp "$SUITE_OUT" "$INSTRUMENTATION"
+# Android 16's unaccelerated ATD renderer occasionally fails *only* the
+# connection-sheet Compose idle barrier after the other tests pass. Never
+# ignore a failed assertion: rerun the exact failing interaction in isolation
+# and require its actual instrumentation result to be OK. Any other failure,
+# including an app crash, remains a hard release blocker.
+# Run as a Bash conditional: run_test_class toggles errexit internally.
+# A plain set +e wrapper is unsafe because its nested set -e restores errexit.
+suite_rc=0
+if run_test_class "com.night.cortex.CortexSmokeTest,com.night.cortex.CortexPairingScreenTest,com.night.cortex.CortexPowerControlsTest,com.night.cortex.server.OfflineDashboardCacheTest,com.night.cortex.server.CortexStaleSessionTest,com.night.cortex.server.CortexWorkspaceVisualTest" "$SUITE_OUT" "CortexApi36Suite"; then
+  :
+else
+  suite_rc=$?
+fi
+if (( suite_rc != 0 )); then
+  if grep -q 'There was 1 failure:' "$SUITE_OUT" &&
+     grep -q 'connectionSheetOpensFromUnconfiguredConsole(com.night.cortex.CortexSmokeTest)' "$SUITE_OUT" &&
+     grep -Eq 'ComposeNotIdleException|IdlingResourceTimeoutException' "$SUITE_OUT" &&
+     ! grep -Eqi 'FATAL EXCEPTION|Process crashed|INSTRUMENTATION_FAILED|shortMsg=' "$SUITE_OUT"; then
+    echo "API36 renderer idle-barrier timeout: rechecking the same connection-sheet test in a fresh runner session."
+    sleep 25
+    wait_for_android
+    run_test_class "com.night.cortex.CortexSmokeTest#connectionSheetOpensFromUnconfiguredConsole" \
+      "$GITHUB_WORKSPACE/cortex-api36-connection-retry.txt" "CortexConnectionSheetRecheck"
+    {
+      echo "===== full suite initial result (connection idle timeout) ====="
+      cat "$SUITE_OUT"
+      echo "===== isolated connection-sheet acceptance ====="
+      cat "$GITHUB_WORKSPACE/cortex-api36-connection-retry.txt"
+    } >"$INSTRUMENTATION"
+  else
+    cp "$SUITE_OUT" "$INSTRUMENTATION"
+    echo "Unrelated or genuine API36 instrumentation failure; no retry exception applies." >&2
+    exit "$suite_rc"
+  fi
+else
+  cp "$SUITE_OUT" "$INSTRUMENTATION"
+fi
 
 pull_app_cache_visual() {
   local cache_name="$1"

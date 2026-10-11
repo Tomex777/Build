@@ -127,7 +127,17 @@ try {
     { method: 'POST', path: '/accounts/account-2/profile', body: { profileId: 'nami' } },
     { method: 'GET', path: '/accounts/account-2/diagnostics?limit=5', body: {} },
   ], 'Only valid, authenticated updates may reach MSCC');
-  console.log('PASS Cortex Agent authenticated account controls and private per-session diagnostics');
+  // MSCC can restart independently while the Cortex Agent stays online.
+  // Verify failures are actionable and never leak internal transport details.
+  await closeServer(upstream);
+  upstream = null;
+  const unavailable = await request('GET', '/api/cortex/mscc/pairing');
+  assert.equal(unavailable.status, 503);
+  const outage = await unavailable.json();
+  assert.match(outage.error, /temporarily unavailable/i);
+  assert.equal(JSON.stringify(outage).includes('127.0.0.1:8788'), false);
+  assert.equal(JSON.stringify(outage).includes(token), false);
+  console.log('PASS Cortex Agent account controls, sanitized diagnostics and explicit MSCC outage response');
 } finally {
   if (agent && agent.exitCode === null) {
     agent.kill('SIGTERM');

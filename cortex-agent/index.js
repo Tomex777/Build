@@ -105,6 +105,7 @@ function publicErrorMessage(statusCode) {
   if (status === 409) return 'Request conflicts with the current state.';
   if (status === 413) return 'Request is too large.';
   if (status === 429) return 'Too many requests. Try again shortly.';
+  if (status === 503) return 'MSCC account service is temporarily unavailable; saved WhatsApp sign-ins were not changed.';
   if (status >= 500 && status <= 599) return 'Server request failed.';
   return 'Request failed.';
 }
@@ -1280,7 +1281,9 @@ async function msccControl(method, pathname, body = null) {
     return payload;
   } catch (error) {
     if (error?.statusCode) throw error;
-    throw Object.assign(new Error('MSCC pairing control unavailable: ' + (error?.message || error)), { statusCode: 502 });
+    // Do not echo network URLs or internal errors to mobile clients.
+    // The agent itself may still be online: MSCC uses a separate service.
+    throw Object.assign(new Error('MSCC pairing control unavailable'), { statusCode: 503 });
   }
 }
 

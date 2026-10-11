@@ -287,8 +287,9 @@ fun CortexServerApp(vm: ServerPanelViewModel = viewModel()) {
                         ServerTab.CONSOLE -> ConsolePage(state, vm::power, vm::refreshConsole, vm::clearConsole)
                         ServerTab.PAIRING -> CortexPairingScreen(
                             state = state.pairing,
-                            busy = state.loading || !state.agentReachable,
-                            offline = !state.agentReachable,
+                            busy = state.loading || !state.agentReachable || !state.pairingFresh,
+                            offline = !state.agentReachable || !state.pairingFresh,
+                            refreshEnabled = !state.loading,
                             onRefresh = vm::refreshPairing,
                             onAddAccount = vm::addAccount,
                             onRename = vm::renameAccount,

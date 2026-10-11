@@ -41,6 +41,7 @@ class ServerPanelViewModel(application: Application) : AndroidViewModel(applicat
     private var reconnectJob: Job? = null
     private var logStreamJob: Job? = null
     private var pairingMonitorJob: Job? = null
+    private var accountStatusJob: Job? = null
     private val networkCallback = object : ConnectivityManager.NetworkCallback() {
         override fun onAvailable(network: Network) {
             if (_state.value.configured && !_state.value.loading) {
@@ -53,7 +54,7 @@ class ServerPanelViewModel(application: Application) : AndroidViewModel(applicat
 
         override fun onLost(network: Network) {
             if (connectivityManager.activeNetwork == null && _state.value.configured) {
-                _state.value = _state.value.copy(agentReachable = false)
+                _state.value = _state.value.copy(agentReachable = false, pairingFresh = false)
                 scheduleReconnect()
             }
         }
@@ -74,6 +75,7 @@ class ServerPanelViewModel(application: Application) : AndroidViewModel(applicat
         if (_state.value.configured) {
             refreshAll()
             startLogStream()
+            startAccountStatusLoop()
         }
     }
 
@@ -81,6 +83,7 @@ class ServerPanelViewModel(application: Application) : AndroidViewModel(applicat
         logStreamJob?.cancel()
         reconnectJob?.cancel()
         pairingMonitorJob?.cancel()
+        accountStatusJob?.cancel()
         cacheJob?.cancel()
         runCatching { connectivityManager.unregisterNetworkCallback(networkCallback) }
         super.onCleared()
@@ -144,6 +147,7 @@ class ServerPanelViewModel(application: Application) : AndroidViewModel(applicat
         if (_state.value.configured) {
             refreshAll()
             startLogStream()
+            startAccountStatusLoop()
         }
     }
 
@@ -202,9 +206,13 @@ class ServerPanelViewModel(application: Application) : AndroidViewModel(applicat
         _state.value = _state.value.copy(
             snapshot = cached.snapshot,
             pairing = cached.pairing,
+            pairingFresh = false,
             startup = cached.startup,
             commandSettings = cached.commandSettings,
             runtimeRegistry = cached.registry,
+            currentPath = cached.currentPath,
+            files = cached.files,
+            activity = cached.activity,
             lastSuccessfulSyncAt = cached.savedAt.takeIf { it > 0L },
             agentReachable = false, // Cached status must never be mistaken for a live connection.
         )
@@ -250,6 +258,7 @@ class ServerPanelViewModel(application: Application) : AndroidViewModel(applicat
                     commandSettings = result.commandSettings,
                     runtimeRegistry = result.runtimeRegistry ?: _state.value.runtimeRegistry,
                     pairing = result.pairing ?: _state.value.pairing,
+                    pairingFresh = result.pairing != null,
                 )
                 result.pairing?.let(::resumePairingMonitorIfNeeded)
             }
@@ -717,7 +726,7 @@ class ServerPanelViewModel(application: Application) : AndroidViewModel(applicat
         viewModelScope.launch {
             busy {
                 val pairing = withContext(Dispatchers.IO) { api().pairingState() }
-                _state.value = _state.value.copy(pairing = pairing)
+                _state.value = _state.value.copy(pairing = pairing, pairingFresh = true)
                 resumePairingMonitorIfNeeded(pairing)
             }
         }
@@ -729,7 +738,7 @@ class ServerPanelViewModel(application: Application) : AndroidViewModel(applicat
             busy("Account added.") {
                 withContext(Dispatchers.IO) { api().addAccount(phoneNumber, displayName) }
                 val pairing = withContext(Dispatchers.IO) { api().pairingState() }
-                _state.value = _state.value.copy(pairing = pairing)
+                _state.value = _state.value.copy(pairing = pairing, pairingFresh = true)
             }
         }
     }
@@ -782,7 +791,7 @@ class ServerPanelViewModel(application: Application) : AndroidViewModel(applicat
                     client.renameAccount(id, displayName)
                     client.pairingState()
                 }
-                _state.value = _state.value.copy(pairing = pairing)
+                _state.value = _state.value.copy(pairing = pairing, pairingFresh = true)
             }
         }
     }
@@ -796,7 +805,7 @@ class ServerPanelViewModel(application: Application) : AndroidViewModel(applicat
                     client.assignProfile(id, profileId)
                     client.pairingState()
                 }
-                _state.value = _state.value.copy(pairing = pairing)
+                _state.value = _state.value.copy(pairing = pairing, pairingFresh = true)
             }
         }
     }
@@ -807,7 +816,7 @@ class ServerPanelViewModel(application: Application) : AndroidViewModel(applicat
             busy("Destination changed to Account $id.") {
                 withContext(Dispatchers.IO) { api().setDestination(id) }
                 val pairing = withContext(Dispatchers.IO) { api().pairingState() }
-                _state.value = _state.value.copy(pairing = pairing)
+                _state.value = _state.value.copy(pairing = pairing, pairingFresh = true)
             }
         }
     }
@@ -851,7 +860,7 @@ class ServerPanelViewModel(application: Application) : AndroidViewModel(applicat
             busy("Session paused. Saved WhatsApp sign-in preserved.") {
                 withContext(Dispatchers.IO) { api().disconnectAccount(id) }
                 val pairing = withContext(Dispatchers.IO) { api().pairingState() }
-                _state.value = _state.value.copy(pairing = pairing)
+                _state.value = _state.value.copy(pairing = pairing, pairingFresh = true)
             }
         }
     }
@@ -862,7 +871,7 @@ class ServerPanelViewModel(application: Application) : AndroidViewModel(applicat
             busy {
                 val authPreserved = withContext(Dispatchers.IO) { api().removeAccount(id) }
                 val pairing = withContext(Dispatchers.IO) { api().pairingState() }
-                _state.value = _state.value.copy(pairing = pairing)
+                _state.value = _state.value.copy(pairing = pairing, pairingFresh = true)
                 if (!authPreserved) {
                     error("Account was removed, but the server did not confirm that its saved sign-in state was preserved.")
                 }
@@ -875,7 +884,7 @@ class ServerPanelViewModel(application: Application) : AndroidViewModel(applicat
         repeat(10) { attempt ->
             delay(if (attempt == 0) 300 else 650)
             val pairing = withContext(Dispatchers.IO) { api().pairingState() }
-            _state.value = _state.value.copy(pairing = pairing)
+            _state.value = _state.value.copy(pairing = pairing, pairingFresh = true)
             val account = pairing.accounts.firstOrNull { it.id == id }
             if (
                 account?.connected == true ||
@@ -910,6 +919,47 @@ class ServerPanelViewModel(application: Application) : AndroidViewModel(applicat
             )
     }
 
+    /**
+     * Cortex Agent can be reachable while MSCC is restarting. Periodically
+     * refresh the lightweight, sanitized session registry without showing an
+     * infinite progress indicator or blocking locally cached navigation.
+     * Do not touch Baileys auth storage or trigger repair automatically.
+     */
+    private fun startAccountStatusLoop() {
+        if (accountStatusJob?.isActive == true) return
+        accountStatusJob = viewModelScope.launch {
+            while (isActive) {
+                delay(30_000L)
+                val current = _state.value
+                if (!current.configured || !current.agentReachable || current.authFailed || current.loading) continue
+                val requestedUrl = serverUrl()
+                val requestedToken = serverToken()
+                val result = withContext(Dispatchers.IO) { runCatching { api().pairingState() } }
+                // Never display a late response from the previous server/token.
+                if (serverUrl() != requestedUrl || serverToken() != requestedToken) continue
+                val fresh = result.getOrNull()
+                if (fresh != null) {
+                    _state.update { state ->
+                        if (!state.configured) state else state.copy(
+                            pairing = fresh,
+                            pairingFresh = true,
+                            lastSuccessfulSyncAt = System.currentTimeMillis(),
+                        )
+                    }
+                    cacheDashboard()
+                    resumePairingMonitorIfNeeded(fresh)
+                } else {
+                    val error = result.exceptionOrNull()
+                    _state.update { state ->
+                        state.copy(pairingFresh = false,
+                            agentReachable = if (error is CortexTransportException) false else state.agentReachable)
+                    }
+                    if (error is CortexTransportException) scheduleReconnect()
+                }
+            }
+        }
+    }
+
     private fun startPairingMonitor() {
         if (!_state.value.configured || pairingMonitorJob?.isActive == true) return
         pairingMonitorJob = viewModelScope.launch {
@@ -925,6 +975,7 @@ class ServerPanelViewModel(application: Application) : AndroidViewModel(applicat
                     if (pairing != null) {
                         _state.value = _state.value.copy(
                             pairing = pairing,
+                            pairingFresh = true,
                             agentReachable = true,
                             reconnecting = false,
                             authFailed = false,
@@ -936,7 +987,7 @@ class ServerPanelViewModel(application: Application) : AndroidViewModel(applicat
 
                     when (val error = result.exceptionOrNull()) {
                         is CortexTransportException -> {
-                            _state.value = _state.value.copy(agentReachable = false)
+                            _state.value = _state.value.copy(agentReachable = false, pairingFresh = false)
                             scheduleReconnect()
                         }
                         is CortexHttpException -> {
@@ -1004,6 +1055,8 @@ class ServerPanelViewModel(application: Application) : AndroidViewModel(applicat
                 _state.value = _state.value.copy(
                     loading = false,
                     agentReachable = if (transportFailure) false else _state.value.agentReachable,
+                    pairingFresh = if (transportFailure || (error is CortexHttpException && error.statusCode == 503)) false
+                        else _state.value.pairingFresh,
                     authFailed = authFailure,
                     error = error.message ?: "Request failed",
                     message = null,
@@ -1036,7 +1089,7 @@ class ServerPanelViewModel(application: Application) : AndroidViewModel(applicat
                 val error = result.exceptionOrNull()
                 when (error) {
                     is CortexTransportException -> {
-                        _state.value = _state.value.copy(agentReachable = false)
+                        _state.value = _state.value.copy(agentReachable = false, pairingFresh = false)
                         scheduleReconnect()
                     }
                     is CortexHttpException -> {
@@ -1091,7 +1144,7 @@ class ServerPanelViewModel(application: Application) : AndroidViewModel(applicat
                         )
                         return@launch
                     }
-                    _state.value = _state.value.copy(agentReachable = false, reconnecting = true)
+                    _state.value = _state.value.copy(agentReachable = false, pairingFresh = false, reconnecting = true)
                     waitMs = if (waitMs == 0L) 2_000L else (waitMs * 2).coerceAtMost(60_000L)
                 }
             } finally {

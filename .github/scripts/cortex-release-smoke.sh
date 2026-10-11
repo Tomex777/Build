@@ -252,10 +252,58 @@ if [[ "$API_LEVEL" == "36" ]]; then
   settle_android_after_install
 fi
 
-adb shell am force-stop com.night.cortex
-adb shell am start -n com.night.cortex/.MainActivity >/dev/null
-wake_and_unlock
-wait_for_cortex_foreground
+# The API 36 aosp_atd framework sometimes reports a successful APK install
+# and then temporarily forgets the package while the package scanner settles.
+# This retries *platform registration* only. Do not hide an app crash or accept
+# a screen without an actual running Cortex MainActivity.
+launch_verified_cortex() {
+  local attempt launch_output package_paths
+  for attempt in 1 2 3; do
+    wait_for_android
+    package_paths="$(adb shell pm path com.night.cortex 2>/dev/null | tr -d '\r' || true)"
+    if ! grep -q '^package:' <<<"$package_paths"; then
+      echo "Android PackageManager lost Cortex registration after install; retrying APK installation ($attempt/3)." | tee -a "$DIAGNOSTICS"
+      install_release_with_retry
+      if [[ "$API_LEVEL" == "36" ]]; then
+        settle_android_after_install
+      fi
+    fi
+
+    adb shell am force-stop com.night.cortex >/dev/null 2>&1 || true
+    launch_output="$(timeout 75s adb shell am start -W -n com.night.cortex/.MainActivity 2>&1)" || true
+    {
+      echo "===== Cortex release launch attempt $attempt ====="
+      echo "$launch_output"
+      adb shell pm path com.night.cortex 2>/dev/null || true
+    } >>"$DIAGNOSTICS"
+    wake_and_unlock
+    if grep -Eqi 'Error type 3|Activity class .* does not exist|SecurityException|Permission Denial' <<<"$launch_output"; then
+      # Missing activity registration is an Android package-manager problem.
+      # A permission denial is *not* transient and must always fail.
+      if grep -Eqi 'SecurityException|Permission Denial' <<<"$launch_output"; then
+        cat "$DIAGNOSTICS" >&2
+        return 1
+      fi
+    elif wait_for_cortex_foreground; then
+      return 0
+    fi
+
+    adb logcat -b crash -d -v threadtime >"$LOGCAT" 2>&1 || true
+    if grep -Eq 'FATAL EXCEPTION|ANR in com\.night\.cortex' "$LOGCAT" &&
+       grep -q 'com.night.cortex' "$LOGCAT"; then
+      echo "Cortex release crashed after launch. This is an application failure, not a package scan retry." >&2
+      cat "$LOGCAT" >&2
+      return 1
+    fi
+    echo "Android release activity was not available yet (attempt $attempt/3)." >&2
+    sleep 15
+  done
+  cat "$DIAGNOSTICS" >&2
+  echo "Release Cortex MainActivity did not launch after three verified attempts." >&2
+  return 1
+}
+
+launch_verified_cortex
 wait_for_cortex_ui
 
 # Capture renderer evidence before framebuffer validation. On API 36 aosp_atd,
@@ -315,10 +363,7 @@ if (( pixel_rc != 0 )); then
 fi
 
 # Prove the actual minified release package survives process recreation.
-adb shell am force-stop com.night.cortex
-adb shell am start -n com.night.cortex/.MainActivity >/dev/null
-wake_and_unlock
-wait_for_cortex_foreground
+launch_verified_cortex
 wait_for_cortex_ui
 
 adb logcat -b crash -d -v threadtime >"$LOGCAT" 2>&1 || true
