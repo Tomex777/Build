@@ -28,4 +28,5 @@ jobs:
       - name: Install actionlint
         run: go install github.com/rhysd/actionlint/cmd/actionlint@v1.7.7
       - name: Validate MSCC Actions workflow syntax
-        run: "$(go env GOPATH)/bin/actionlint" -shellcheck= -pyflakes= .github/workflows/mscc-azure.yml
+        run: |
+          "$(go env GOPATH)/bin/actionlint" -shellcheck= -pyflakes= .github/workflows/mscc-azure.yml
