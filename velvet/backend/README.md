@@ -95,3 +95,15 @@ The previously broad direct `velvet_messages` client INSERT/UPDATE/DELETE permis
 Migration `20261011000005_velvet_history.sql` adds `velvet_page_text(p_before_at,p_before_id,p_limit)`. It reads only the authenticated caller's **fully paired** conversation and selects at most 100 earlier text messages per call, using a strict **before** tuple comparison on server timestamp + UUID. The result is chronological. The existing `velvet_list_text` remains the **after** cursor used for foreground polling, and no direct client `SELECT` privilege has been granted.
 
 The backend test suite now includes `velvet/backend/tests/history.sql`, verifying two-page ordering, no repeated boundary records, input bounds, cross-couple isolation and denied anonymous access. This works with PostgreSQL CI fixtures; there is no live Supabase project in the connected account.
+
+## v0.10.0 — Owner-controlled account profiles
+
+Migration `20261011000006_velvet_profile_sync.sql` introduces two authenticated RPCs. `velvet_get_my_profile()` retrieves **only the caller's** display name and pronouns, and `velvet_update_my_profile(p_display_name,p_pronouns)` modifies **only the caller's** profile. A confirmed account is required for writes. Names are trimmed and limited to 50 characters; optional pronouns are limited to 32 characters. Callers cannot supply a user ID or alter the partner's profile, avatar blob key, or pair membership through these functions.
+
+The existing `velvet_my_pair()` response is expanded without removing previous fields: `own_name`, `own_pronouns`, `partner_name`, `partner_pronouns`. Client profile mutation privileges are revoked in favor of narrowly scoped RPCs. This does **not** enable cloud avatar uploads (still requires restricted media infrastructure).
+
+`velvet/backend/tests/profiles.sql` verifies owner-only changes, validation, read-only partner access, unpaired-user isolation, confirmation requirements, revoked direct SQL writes, and anonymous denial; GitHub Actions now executes those tests.
+
+**Android:** In **Us**, tap **Your profile** to edit your display name and optional pronouns. Changes are first saved locally, then sent to the user's authenticated account. Velvet displays whether sync completed or needs retry. Unsynced local edits are never overwritten by server fetches; on an account-connected device with no local unsynced edit, the authenticated profile is loaded on entering Us. The partner's profile remains view-only. When available, the partner's name is read from their account profile rather than silently rewriting it through a local nickname.
+
+**Activation:** Apply all six migrations in filename order to a real Supabase project, keep email confirmation enabled, and rebuild with the HTTPS project URL and public publishable key in CI variables. There is **no active Supabase project** on the connected account at the time of this change. Server tests alone do not prove two-phone behavior.
