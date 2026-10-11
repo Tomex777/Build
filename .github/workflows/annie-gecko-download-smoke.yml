@@ -2,7 +2,7 @@ name: Annie Gecko download compile
 
 on:
   push:
-    branches: [annie-gecko-response-downloads-20261011]
+    branches: [annie-gecko-response-downloads-20261011, annie-gecko-download-manager-20261011]
     paths:
       - 'annie-android/**'
       - '.github/workflows/annie-gecko-download-smoke.yml'
