@@ -176,9 +176,21 @@ internal fun VelvetConnectedChatInfo(
         }
 
         if(tab==0) {
-            Text("SHARED CHAT PHOTOS",
-                color=rose,fontSize=10.sp,letterSpacing=1.3.sp,
-                modifier=Modifier.padding(start=18.dp,top=17.dp,bottom=5.dp))
+            Row(Modifier.fillMaxWidth().padding(start=18.dp,end=12.dp,top=7.dp),
+                verticalAlignment=Alignment.CenterVertically) {
+                Text("SHARED CHAT PHOTOS",
+                    color=rose,fontSize=10.sp,letterSpacing=1.3.sp,
+                    modifier=Modifier.weight(1f))
+                TextButton(
+                    enabled=!loadingPhotos,
+                    onClick={
+                        photos.clear()
+                        morePhotos=true
+                        photosFetched=false
+                        loadMorePhotos()
+                    }
+                ) { Text("Refresh",color=rose,fontSize=11.sp) }
+            }
             Text("Photos sent in Chat only. Nothing is automatically added to Our Story.",
                 color=muted,fontSize=11.sp,
                 modifier=Modifier.padding(start=18.dp,end=18.dp,bottom=14.dp))
@@ -199,9 +211,12 @@ internal fun VelvetConnectedChatInfo(
                             Text(photo.caption,color=cream,fontSize=10.sp,
                                 maxLines=1,modifier=Modifier.padding(top=4.dp))
                         }
-                        Text(velvetDate(photo.createdAt),
-                            color=muted,fontSize=9.sp,
-                            modifier=Modifier.padding(top=2.dp))
+                        Text(
+                            (if(photo.senderId==myId) "You" else partnerName)+
+                                " · "+velvetDate(photo.createdAt),
+                            color=muted,fontSize=9.sp,maxLines=1,
+                            modifier=Modifier.padding(top=2.dp)
+                        )
                     }
                 }
                 item(span={GridItemSpan(maxLineSpan)}) {
