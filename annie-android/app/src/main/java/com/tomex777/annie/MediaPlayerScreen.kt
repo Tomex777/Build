@@ -186,7 +186,7 @@ internal fun playerHeadersForSource(context: Context, source: PlayerSource): Map
     val headers = source.headers.toMutableMap()
     val scoped = source.browserSessionId != null
     if (scoped) headers.keys.filter { it.equals("Cookie", ignoreCase = true) }
-        .forEach(headers::remove)
+        .forEach { headers.remove(it) }
     if (headers.keys.none { it.equals("Cookie", ignoreCase = true) }) {
         playerCookiesForSource(context, source)?.takeIf(String::isNotBlank)?.let { cookie ->
             headers["Cookie"] = cookie
@@ -194,7 +194,8 @@ internal fun playerHeadersForSource(context: Context, source: PlayerSource): Map
     }
     // VLC :http-* option values must never contain linebreaks/control sequences.
     return headers.filter { (key, value) ->
-        key.none(Char::isISOControl) && value.none(Char::isISOControl)
+        key.none { it.code < 32 || it.code == 127 } &&
+            value.none { it.code < 32 || it.code == 127 }
     }
 }
 
