@@ -62,7 +62,9 @@ import java.net.URI
 import java.net.URLDecoder
 import java.net.URLEncoder
 import java.util.UUID
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.ensureActive
@@ -237,38 +239,100 @@ internal object AnnieGeckoDownloadStore {
         }?.value?.substringBefore(';')?.trim()?.takeIf(String::isNotBlank)
             ?: "application/octet-stream"
         val name = filename(response.uri, disposition, type)
+        val total = response.headers.entries.firstOrNull {
+            it.key.equals("content-length", ignoreCase = true)
+        }?.value?.toLongOrNull()?.takeIf { it > 0 }
+        val id = UUID.randomUUID().toString()
         val app = context.applicationContext
-        scope.launch {
+        AnnieGeckoDownloads.started(id, name, type, total)
+        // Register cancellation before starting IO to prevent a race with the UI.
+        val job = scope.launch(start = CoroutineStart.LAZY) {
             try {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                    saveToDownloads(app, name, type, body)
-                    toast(app, "Saved to Downloads/Annie: $name")
-                } else {
-                    saveToAppDownloads(app, name, body)
-                    toast(app, "Saved in Annie app downloads: $name")
+                val onProgress: (Long) -> Unit = { bytes ->
+                    AnnieGeckoDownloads.progress(id, bytes)
                 }
+                val savedUri = saveResponse(app, name, type, body, onProgress)
+                // Save commits are cancellation-aware; in the rare case that a
+                // user cancels just as the commit finishes, remove the output.
+                if (AnnieGeckoDownloads.isCancelled(id)) {
+                    runCatching {
+                        app.contentResolver.delete(savedUri, null, null)
+                    }
+                    AnnieGeckoDownloads.cancelled(id)
+                } else {
+                    AnnieGeckoDownloads.completed(id, savedUri)
+                }
+                toast(app, "Download complete: $name")
+            } catch (_: CancellationException) {
+                AnnieGeckoDownloads.cancelled(id)
             } catch (problem: Exception) {
-                toast(app, "Download failed: " + (problem.message ?: "storage unavailable"))
+                if (AnnieGeckoDownloads.isCancelled(id)) {
+                    AnnieGeckoDownloads.cancelled(id)
+                } else {
+                    AnnieGeckoDownloads.failed(id, problem.message ?: "Storage unavailable")
+                    toast(app, "Download failed: " + (problem.message ?: "storage unavailable"))
+                }
             } finally {
                 runCatching { body.close() }
+                AnnieGeckoDownloads.untrack(id)
             }
         }
+        AnnieGeckoDownloads.track(id) {
+            job.cancel()
+            scope.launch { runCatching { body.close() } }
+        }
+        job.start()
     }
 
-    private suspend fun copyBody(source: InputStream, destination: java.io.OutputStream) {
+    /**
+     * Actual storage entrypoint; using it from Android tests exercises MediaStore
+     * on API 29+ and our FileProvider on API 26-28 with real copied bytes.
+     */
+    internal suspend fun saveResponse(
+        context: Context,
+        name: String,
+        mime: String,
+        body: InputStream,
+        onProgress: (Long) -> Unit = {},
+    ): Uri = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+        saveToDownloads(context, name, mime, body, onProgress)
+    } else {
+        saveToAppDownloads(context, name, body, onProgress)
+    }
+
+    private suspend fun copyBody(
+        source: InputStream,
+        destination: java.io.OutputStream,
+        onProgress: (Long) -> Unit,
+    ) {
         val buffer = ByteArray(64 * 1024)
+        var copied = 0L
+        var lastNotification = android.os.SystemClock.elapsedRealtime()
         while (true) {
             kotlinx.coroutines.currentCoroutineContext().ensureActive()
             val count = source.read(buffer)
             if (count < 0) break
-            if (count > 0) destination.write(buffer, 0, count)
+            if (count > 0) {
+                destination.write(buffer, 0, count)
+                copied += count
+                val now = android.os.SystemClock.elapsedRealtime()
+                if (now - lastNotification >= 250) {
+                    onProgress(copied)
+                    lastNotification = now
+                }
+            }
         }
         destination.flush()
+        onProgress(copied)
     }
 
     private suspend fun saveToDownloads(
-        context: Context, name: String, mime: String, body: InputStream,
-    ) {
+        context: Context,
+        name: String,
+        mime: String,
+        body: InputStream,
+        onProgress: (Long) -> Unit,
+    ): Uri {
         val provider = context.contentResolver
         val values = ContentValues().apply {
             put(MediaStore.MediaColumns.DISPLAY_NAME, name)
@@ -280,20 +344,26 @@ internal object AnnieGeckoDownloadStore {
             ?: throw IllegalStateException("Can't create the download destination")
         try {
             provider.openOutputStream(uri, "w")?.use { stream ->
-                copyBody(body, stream)
+                copyBody(body, stream, onProgress)
             } ?: throw IllegalStateException("Can't write the download")
+            kotlinx.coroutines.currentCoroutineContext().ensureActive()
             provider.update(uri, ContentValues().apply {
                 put(MediaStore.MediaColumns.IS_PENDING, 0)
             }, null, null)
+            return uri
         } catch (failure: Throwable) {
             runCatching { provider.delete(uri, null, null) }
             throw failure
         }
     }
 
-    private suspend fun saveToAppDownloads(context: Context, name: String, body: InputStream) {
+    private suspend fun saveToAppDownloads(
+        context: Context, name: String, body: InputStream, onProgress: (Long) -> Unit,
+    ): Uri {
+        // Must match the existing FileProvider's Download/Annie/ path on API 26-28.
         val folder = (context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)
-            ?: File(context.filesDir, "downloads")).apply { mkdirs() }
+            ?.let { File(it, "Annie") }
+            ?: File(context.filesDir, "downloads/Annie")).apply { mkdirs() }
         val base = name.substringBeforeLast('.', name)
         val extension = name.substringAfterLast('.', "").takeIf { '.' in name }
             ?.let { ".$it" }.orEmpty()
@@ -303,8 +373,14 @@ internal object AnnieGeckoDownloadStore {
             ?: throw IllegalStateException("Too many files with the same name")
         val temporary = File.createTempFile("annie-gecko-", ".part", folder)
         try {
-            temporary.outputStream().buffered().use { copyBody(body, it) }
+            temporary.outputStream().buffered().use { copyBody(body, it, onProgress) }
+            kotlinx.coroutines.currentCoroutineContext().ensureActive()
             check(temporary.renameTo(destination)) { "Couldn't finish the download" }
+            return androidx.core.content.FileProvider.getUriForFile(
+                context,
+                context.packageName + ".download-files",
+                destination,
+            )
         } finally {
             if (temporary.exists()) temporary.delete()
         }
@@ -621,18 +697,22 @@ internal fun AnnieGeckoStandaloneBrowser(
             progress = { tab.progress / 100f }, modifier = Modifier.fillMaxWidth(), color = BrowserTeal)
         tab.error?.let { Text(it, Modifier.padding(12.dp), color = BrowserSoftText) }
         if (panel != null) {
-            val entries = if (panel == "Bookmarks") model.bookmarks else model.history
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 Text(panel.orEmpty(), Modifier.padding(16.dp), color = BrowserBrightText)
                 TextButton(onClick = { panel = null }) { Text("Close") }
             }
-            androidx.compose.foundation.lazy.LazyColumn(Modifier.weight(1f)) {
-                items(entries.size) { i ->
-                    val entry = entries[i]
-                    TextButton(onClick = { model.load(tab, entry.url); panel = null }) {
-                        Column {
-                            Text(entry.title.ifBlank { entry.url }, color = BrowserBrightText, maxLines = 1)
-                            Text(entry.url, color = BrowserSoftText, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            if (panel == "Downloads") {
+                AnnieGeckoDownloadPanel(Modifier.weight(1f))
+            } else {
+                val entries = if (panel == "Bookmarks") model.bookmarks else model.history
+                androidx.compose.foundation.lazy.LazyColumn(Modifier.weight(1f)) {
+                    items(entries.size) { i ->
+                        val entry = entries[i]
+                        TextButton(onClick = { model.load(tab, entry.url); panel = null }) {
+                            Column {
+                                Text(entry.title.ifBlank { entry.url }, color = BrowserBrightText, maxLines = 1)
+                                Text(entry.url, color = BrowserSoftText, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            }
                         }
                     }
                 }
@@ -662,6 +742,9 @@ internal fun AnnieGeckoStandaloneBrowser(
                 })
                 DropdownMenuItem(text = { Text("History") }, onClick = {
                     menuOpen = false; panel = "History"
+                })
+                DropdownMenuItem(text = { Text("Downloads") }, onClick = {
+                    menuOpen = false; panel = "Downloads"
                 })
                 DropdownMenuItem(text = { Text(if (tab.desktopMode) "Mobile site" else "Desktop site") }, onClick = {
                     menuOpen = false; model.toggleDesktop(tab)
