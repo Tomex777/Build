@@ -70,4 +70,23 @@ class AnnieCharacterAndStarterMigrationTest {
         assertTrue("""action === "hint"""" in migrated)
         assertTrue("""action === "resign"""" in migrated)
     }
+    @Test fun canvasSnakeRendersStaticIdleStateWithoutPermanentFrameLoop() {
+        val source = StarterScripts.canvasSnake
+        assertTrue("Canvas must initially draw a playable board", "draw(1);" in source)
+        assertTrue("Game should render after play", "scheduleFrame();" in source)
+        assertTrue("Canvas startup must not run an endless animation",
+            "reset();\n          requestAnimationFrame(frame);" !in source)
+        assertTrue("Frame rate should be throttled on older Android WebViews",
+            "setTimeout(() => requestAnimationFrame(frame), 32);" in source)
+        assertTrue("Idle frames should stop after the game finishes",
+            "if (!started || lost) return;" in source)
+    }
+
+    @Test fun canvasSnakeMigrationPreservesCustomEditedScripts() {
+        val edited = StarterScripts.canvasSnake + "\n// user customization"
+        assertEquals(edited, StarterScripts.migrateCanvasSnake(edited))
+        val oldStarter = "old game seed"
+        assertEquals(oldStarter, StarterScripts.migrateCanvasSnake(oldStarter))
+    }
+
 }
