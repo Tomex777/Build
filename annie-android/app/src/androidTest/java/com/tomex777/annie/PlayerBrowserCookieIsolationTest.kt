@@ -63,6 +63,17 @@ class PlayerBrowserCookieIsolationTest {
                 assertFalse(playerCookiesForSource(context, sources[0]).orEmpty().contains("annie_player=b"))
                 assertTrue(playerCookiesForSource(context, sources[1]).orEmpty().contains("annie_player=b"))
                 assertFalse(playerCookiesForSource(context, sources[1]).orEmpty().contains("annie_player=a"))
+                val forged = sources[0].copy(
+                    headers = mapOf("Cookie" to "stolen=forged", "Referer" to "https://watch.example")
+                )
+                val sanitized = playerHeadersForSource(context, forged)
+                assertFalse("Explicit cookies overrode browser isolation",
+                    sanitized["Cookie"].orEmpty().contains("stolen=forged"))
+                assertTrue(sanitized["Cookie"].orEmpty().contains("annie_player=a"))
+                assertEquals("https://watch.example", sanitized["Referer"])
+                assertTrue("Control-character header leaked to VLC",
+                    "X-Test" !in playerHeadersForSource(context,
+                        forged.copy(headers = forged.headers + ("X-Test" to "bad\r\nheader"))))
             }
         } finally {
             AnnieBrowserSessionStore.clear(context, id1, clearCookies = true)

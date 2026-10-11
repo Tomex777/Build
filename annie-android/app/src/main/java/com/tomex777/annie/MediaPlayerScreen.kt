@@ -176,6 +176,28 @@ internal fun playerCookiesForSource(context: Context, source: PlayerSource): Str
     return AnnieBrowserProfiles.cookieManagerOnMain(id).getCookie(uri)
 }
 
+/**
+ * Caller-provided cookies cannot override browser-profile isolation. For session-
+ * backed playback, the cookie header is exclusively selected from that profile.
+ * For ordinary non-browser streams, explicit headers remain supported.
+ */
+internal fun playerHeadersForSource(context: Context, source: PlayerSource): Map<String, String> {
+    if (!playerSourceAllowed(context, source)) return emptyMap()
+    val headers = source.headers.toMutableMap()
+    val scoped = source.browserSessionId != null
+    if (scoped) headers.keys.filter { it.equals("Cookie", ignoreCase = true) }
+        .forEach(headers::remove)
+    if (headers.keys.none { it.equals("Cookie", ignoreCase = true) }) {
+        playerCookiesForSource(context, source)?.takeIf(String::isNotBlank)?.let { cookie ->
+            headers["Cookie"] = cookie
+        }
+    }
+    // VLC :http-* option values must never contain linebreaks/control sequences.
+    return headers.filter { (key, value) ->
+        key.none(Char::isISOControl) && value.none(Char::isISOControl)
+    }
+}
+
 private enum class AnnieVideoScale(val label: String, val scale: MediaPlayer.ScaleType) {
     FIT("Fit", MediaPlayer.ScaleType.SURFACE_BEST_FIT),
     FILL("Fill", MediaPlayer.ScaleType.SURFACE_FILL),
@@ -349,18 +371,12 @@ internal fun MediaPlayerScreen(
             // rendered frame remains real and screenshot-verifiable.
             setHWDecoderEnabled(!runningOnEmulator, false)
             addOption(":network-caching=1500")
-            val sourceHeaders = activeSource?.headers.orEmpty().toMutableMap()
+            val sourceHeaders = activeSource?.let { playerHeadersForSource(context, it) }
+                .orEmpty().toMutableMap()
             val browserSession = activeSource?.browserSessionId
                 ?.let { AnnieBrowserSessionStore.get(context, it) }
             if (sourceHeaders.keys.none { it.equals("User-Agent", true) } && browserSession != null) {
                 sourceHeaders["User-Agent"] = browserSession.userAgent ?: WebSettings.getDefaultUserAgent(context)
-            }
-            if (sourceHeaders.keys.none { it.equals("Cookie", true) }) {
-                activeSource?.let { source ->
-                    playerCookiesForSource(context, source)?.takeIf(String::isNotBlank)?.let {
-                        sourceHeaders["Cookie"] = it
-                    }
-                }
             }
             sourceHeaders.forEach { (name, value) ->
                 when (name.lowercase()) {
