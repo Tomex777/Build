@@ -111,6 +111,7 @@ internal fun VelvetConnectedChat(
     var ownId by remember {mutableStateOf("")}
     var coupleId by remember {mutableStateOf("")}
     var uploading by remember {mutableStateOf(false)}
+    var voiceComposerActive by remember {mutableStateOf(false)}
     var partnerName by remember {mutableStateOf("Your love")}
     var outboxScope by remember {mutableStateOf("")}
     var status by remember {mutableStateOf("Connecting…")}
@@ -533,59 +534,72 @@ internal fun VelvetConnectedChat(
                     }
                 }
             }
-            Row(Modifier.fillMaxWidth().background(card).padding(end=12.dp),
-                horizontalArrangement=Arrangement.End) {
-                VelvetVoiceCapture(enabled=ready && !uploading,onSend={draft->
-                    val result=client.sendVoice(
-                        coupleId,ownId,draft.file,draft.durationMs,
-                        draft.waveform,replyingTo?.id
-                    )
-                    if(result.optBoolean("ok")) {
-                        replyingTo=null
-                        status="Your voice note was shared privately ♡"
-                        true
-                    } else {
-                        status="Voice wasn't sent: "+result.optString("error","Retry.")
-                        false
+            // One WhatsApp-style composer: the trailing control switches
+            // Mic ↔ Send, while active voice drafts replace the text editor
+            // without disposing recorder/preview state.
+            Row(
+                Modifier.fillMaxWidth().background(card)
+                    .padding(horizontal=10.dp,vertical=7.dp),
+                verticalAlignment=Alignment.CenterVertically
+            ) {
+                if(!voiceComposerActive) {
+                    IconButton(
+                        enabled=!uploading,
+                        onClick={pickPhoto.launch("image/*")}
+                    ) {
+                        Icon(Icons.Outlined.Image,"Share private photo",tint=rose)
                     }
-                })
-            }
-            Row(Modifier.fillMaxWidth().background(card)
-                    .padding(horizontal=12.dp,vertical=10.dp),
-                verticalAlignment=Alignment.Bottom) {
-                IconButton(
-                    enabled=!uploading,
-                    onClick={pickPhoto.launch("image/*")}
-                ) {
-                    Icon(Icons.Outlined.Image,"Share a private photo",tint=rose)
+                    OutlinedTextField(
+                        value=text,
+                        onValueChange={if(it.length<=4000)text=it},
+                        placeholder={Text("Message your person…",color=muted)},
+                        maxLines=5,
+                        modifier=Modifier.weight(1f),
+                        shape=RoundedCornerShape(21.dp)
+                    )
                 }
-                OutlinedTextField(
-                    value=text,
-                    onValueChange={ if(it.length<=4000) text=it },
-                    placeholder={Text("Message your person…",color=muted)},
-                    maxLines=5,
-                    modifier=Modifier.weight(1f),
-                    shape=RoundedCornerShape(21.dp)
-                )
-                Spacer(Modifier.width(7.dp))
-                IconButton(onClick={
-                    val body=text.trim()
-                    if(body.isNotEmpty() && outboxScope.isNotEmpty()) {
-                        val entry=ConnectedText(UUID.randomUUID().toString(),body,ownId,
-                            OffsetDateTime.now().toString(),pending=true,
-                            replyTo=replyingTo?.id)
-                        try {
-                            outbox.add(outboxScope,entry)
-                            queued.add(entry)
-                            text=""
+                VelvetVoiceCapture(
+                    enabled=ready && !uploading && text.isBlank(),
+                    showIdleButton=text.isBlank(),
+                    onBusyChanged={voiceComposerActive=it},
+                    onSend={draft->
+                        val result=client.sendVoice(
+                            coupleId,ownId,draft.file,draft.durationMs,
+                            draft.waveform,replyingTo?.id
+                        )
+                        if(result.optBoolean("ok")) {
                             replyingTo=null
-                            status="Message saved locally, sending…"
-                        } catch(e:Exception) {
-                            status=e.message ?: "Couldn't queue this message."
+                            status="Your voice note was shared privately ♡"
+                            true
+                        } else {
+                            status="Voice wasn't sent: "+
+                                result.optString("error","Retry.")
+                            false
                         }
                     }
-                }, enabled=text.isNotBlank()) {
-                    Icon(Icons.Outlined.Send,"Send",tint=rose)
+                )
+                if(!voiceComposerActive && text.isNotBlank()) {
+                    IconButton(onClick={
+                        val body=text.trim()
+                        if(body.isNotEmpty() && outboxScope.isNotEmpty()) {
+                            val entry=ConnectedText(
+                                UUID.randomUUID().toString(),body,ownId,
+                                OffsetDateTime.now().toString(),
+                                pending=true,replyTo=replyingTo?.id
+                            )
+                            try {
+                                outbox.add(outboxScope,entry)
+                                queued.add(entry)
+                                text=""
+                                replyingTo=null
+                                status="Message saved locally, sending…"
+                            } catch(e:Exception) {
+                                status=e.message ?: "Couldn't queue this message."
+                            }
+                        }
+                    },enabled=!uploading) {
+                        Icon(Icons.Outlined.Send,"Send message",tint=rose)
+                    }
                 }
             }
         }
