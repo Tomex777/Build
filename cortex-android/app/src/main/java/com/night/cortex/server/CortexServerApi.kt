@@ -98,7 +98,8 @@ class CortexServerApi(
                 conn.instanceFollowRedirects = false
                 conn.requestMethod = "PUT"
                 conn.connectTimeout = 12_000
-                conn.readTimeout = 10 * 60_000
+                // Fail promptly on dead connections; transfers use their own longer timeouts.
+                conn.readTimeout = 20_000
                 conn.doOutput = true
                 conn.setRequestProperty("Accept", "application/json")
                 conn.setRequestProperty("Authorization", "Bearer $token")
