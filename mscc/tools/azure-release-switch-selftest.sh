@@ -41,6 +41,11 @@ awk '
 ' "$INSTALLER" >> "$TEST_ROOT/switch.sh"
 source "$TEST_ROOT/switch.sh"
 
+# Release-pointer tests exercise the handler with config backup/restore mocked;
+# the real config functions are exercised in azure-config-rollback-selftest.sh.
+restore_configs() { :; }
+cleanup_config_snapshot() { :; }
+
 sudo() {
   if [[ "$*" == "systemctl restart mscc.service" ]]; then
     printf 'restart\n' >> "$TEST_ROOT/mock-systemctl.txt"
