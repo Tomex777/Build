@@ -157,9 +157,14 @@ internal fun VelvetConnectedChat(onBack:()->Unit) {
 
     val combined=messages.toList()+queued.toList()
     LaunchedEffect(combined.size) {
-        if(combined.isNotEmpty()) listState.animateScrollToItem(combined.lastIndex)
+        if(combined.isNotEmpty()) {
+            val lastVisible=listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: -1
+            if(lastVisible<0 || lastVisible>=combined.lastIndex-3) {
+                listState.animateScrollToItem(combined.lastIndex)
+            }
+        }
     }
-    Column(Modifier.fillMaxSize().background(bg)) {
+    Column(Modifier.fillMaxSize().background(bg).imePadding()) {
         Row(Modifier.fillMaxWidth().background(card).padding(12.dp),
             verticalAlignment=Alignment.CenterVertically) {
             IconButton(onClick=onBack) { Icon(Icons.Outlined.ArrowBack,"Back",tint=cream) }
