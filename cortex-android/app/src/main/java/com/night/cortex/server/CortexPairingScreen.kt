@@ -169,7 +169,7 @@ fun CortexPairingScreen(
                         Icon(Icons.Rounded.Add, "Add number")
                     }
                 }
-                IconButton(onClick = onRefresh, enabled = !busy) {
+                IconButton(onClick = onRefresh, enabled = !busy || offline) {
                     Icon(Icons.Rounded.Refresh, "Refresh accounts")
                 }
             }
