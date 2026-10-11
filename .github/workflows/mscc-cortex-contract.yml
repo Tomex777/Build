@@ -1,0 +1,43 @@
+name: MSCC ↔ Cortex Contract
+
+on:
+  pull_request:
+    branches: [mscc-azure]
+    paths:
+      - 'mscc/**'
+      - '.github/workflows/mscc-cortex-contract.yml'
+  push:
+    branches: [mscc-azure]
+    paths:
+      - 'mscc/**'
+      - '.github/workflows/mscc-cortex-contract.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mscc-cortex-contract-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  real-loopback:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          path: mscc-source
+      - uses: actions/checkout@v5
+        with:
+          ref: cortex-production-finalization
+          path: cortex-source
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+      - name: Syntax-check cross-stack integration test
+        run: node --check cortex-source/cortex-agent/mscc-real-loopback-selftest.mjs
+      - name: Validate real MSCC private panel behind Cortex Agent
+        env:
+          MSCC_CHECKOUT: ${{ github.workspace }}/mscc-source/mscc
+        run: node cortex-source/cortex-agent/mscc-real-loopback-selftest.mjs
