@@ -25,6 +25,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
+import org.json.JSONArray
+import java.util.UUID
 import java.net.HttpURLConnection
 import java.net.URL
 import java.security.KeyStore
@@ -46,8 +48,9 @@ internal class VelvetPairClient(private val context: Context) {
         publishable.isNotBlank() && runCatching { URL(endpoint).host.isNotBlank() }.getOrDefault(false)
     private val vault = RefreshTokenVault(context)
     private var accessToken: String? = null
+    private var expiresAtMs: Long = 0L
 
-    private fun send(path: String, body: JSONObject, bearer: String? = null): JSONObject {
+    private fun sendRaw(path: String, body: JSONObject, bearer: String? = null): String {
         check(configured) { "Online pairing has not been configured in this build." }
         val connection = URL(endpoint + path).openConnection() as HttpURLConnection
         try {
@@ -76,10 +79,23 @@ internal class VelvetPairClient(private val context: Context) {
                     else -> detail ?: "Connection failed (HTTP $status)."
                 })
             }
-            return if(response.trim().startsWith("{")) JSONObject(response) else JSONObject()
+            return response
         } finally {
             connection.disconnect()
         }
+    }
+
+    private fun send(path: String, body: JSONObject, bearer: String? = null): JSONObject {
+        val raw=sendRaw(path,body,bearer)
+        return if(raw.trim().startsWith("{")) JSONObject(raw) else JSONObject()
+    }
+
+    private fun activeToken(): String {
+        accessToken?.takeIf {System.currentTimeMillis()<expiresAtMs}?.let {return it}
+        val refresh=vault.read() ?: throw IllegalStateException("Please sign in again.")
+        val result=send("/auth/v1/token?grant_type=refresh_token",JSONObject().put("refresh_token",refresh))
+        if(!acceptAuth(result)) throw IllegalStateException("Please sign in again.")
+        return accessToken ?: throw IllegalStateException("Please sign in again.")
     }
 
     private fun acceptAuth(body: JSONObject): Boolean {
@@ -87,6 +103,7 @@ internal class VelvetPairClient(private val context: Context) {
         val newRefresh = body.optString("refresh_token")
         if (newAccess.isBlank() || newRefresh.isBlank()) return false
         accessToken = newAccess
+        expiresAtMs = System.currentTimeMillis() + (body.optLong("expires_in",3600L)-60L).coerceAtLeast(1L)*1000L
         vault.write(newRefresh)
         return true
     }
@@ -96,7 +113,10 @@ internal class VelvetPairClient(private val context: Context) {
         runCatching {
             acceptAuth(send("/auth/v1/token?grant_type=refresh_token",
                 JSONObject().put("refresh_token", refresh)))
-        }.getOrElse { vault.clear(); accessToken=null; false }
+        }.getOrElse { error ->
+            if(error.message?.contains("Invalid Refresh Token",true)==true || error.message?.contains("Refresh Token Not Found",true)==true) vault.clear()
+            accessToken=null; false
+        }
     }
 
     suspend fun signUp(email: String, password: String): Boolean = withContext(Dispatchers.IO) {
@@ -126,12 +146,25 @@ internal class VelvetPairClient(private val context: Context) {
         rpcBoolean("velvet_revoke_pair_invite")
     }
 
+    suspend fun sendText(id:UUID, body:String): JSONObject = withContext(Dispatchers.IO) {
+        rpc("velvet_send_text",JSONObject().put("p_id",id.toString()).put("p_body",body))
+    }
+
+    suspend fun listText(afterAt:String?=null,afterId:String?=null): JSONArray =
+        withContext(Dispatchers.IO) {
+            val params=JSONObject()
+            if(afterAt!=null && afterId!=null) {
+                params.put("p_after_at",afterAt).put("p_after_id",afterId)
+            }
+            val raw=sendRaw("/rest/v1/rpc/velvet_list_text",params,activeToken())
+            JSONArray(raw)
+        }
+
     private fun rpc(name:String, data:JSONObject=JSONObject()): JSONObject {
-        val bearer=accessToken ?: throw IllegalStateException("Sign in to pair your phones.")
-        return send("/rest/v1/rpc/$name",data,bearer)
+        return send("/rest/v1/rpc/$name",data,activeToken())
     }
     private fun rpcBoolean(name:String): Boolean {
-        val bearer=accessToken ?: throw IllegalStateException("Sign in to pair your phones.")
+        val bearer=activeToken()
         // Supabase PostgREST returns a primitive JSON boolean for this RPC.
         val response = URL(endpoint+"/rest/v1/rpc/$name").openConnection() as HttpURLConnection
         try {
@@ -150,6 +183,7 @@ internal class VelvetPairClient(private val context: Context) {
     }
     fun signOut() {
         accessToken=null
+        expiresAtMs=0L
         vault.clear()
     }
 }
@@ -189,7 +223,7 @@ private class RefreshTokenVault(context:Context) {
 }
 
 @Composable
-internal fun VelvetPairingScreen(onBack:()->Unit) {
+internal fun VelvetPairingScreen(onBack:()->Unit,onConnectedChat:()->Unit) {
     val ctx=LocalContext.current
     val api=remember { VelvetPairClient(ctx.applicationContext) }
     val scope=rememberCoroutineScope()
@@ -279,8 +313,12 @@ internal fun VelvetPairingScreen(onBack:()->Unit) {
                 Text("Your space now has two members"+(partner?.let{": $it"} ?: "."),
                     color=muted)
                 Spacer(Modifier.height(7.dp))
-                Text("This proves the pairing handshake. Chat and games are still local previews until sync ships.",
+                Text("Pairing is ready. Your connected text chat is separate from offline Chat, games and media.",
                     color=muted,fontSize=12.sp)
+                Spacer(Modifier.height(15.dp))
+                Button(onClick=onConnectedChat,enabled=!loading,modifier=Modifier.fillMaxWidth()) {
+                    Text("Open connected chat →")
+                }
             } else {
                 Text("Connect with your person",color=rose,fontSize=21.sp)
                 Spacer(Modifier.height(8.dp))
@@ -348,7 +386,7 @@ internal fun VelvetPairingScreen(onBack:()->Unit) {
             Text(notice,color=rose,fontSize=13.sp)
         }
         Spacer(Modifier.height(28.dp))
-        Text("Your local chat preview is not sent to another phone. Velvet will only begin sharing messages after secure sync is enabled.",
+        Text("Connected text chat only: local Chat history, photos, voice notes and games are not automatically shared.",
             color=muted,fontSize=11.sp,lineHeight=17.sp)
         Spacer(Modifier.height(20.dp))
     }
