@@ -164,3 +164,11 @@ The restricted `velvet_send_voice` RPC checks membership, uploaded object owners
 The `velvet/backend/tests/voice_notes.sql` integration suite checks storage upload/read RLS, forged paths, pending versus published attachment access, sender/partner rights, personal hide, global delete, duplicate publication, invalid waveform rejection and deletion path recycling. These are **database-level tests only**, using test Storage metadata and not real audio bytes. For actual playback, a real Supabase deployment is required.
 
 **Limitations**: Audio is transmitted over TLS but **is not end-to-end encrypted**. Deleted attachments and failed uploads still need a trusted Storage cleanup worker. There is no background media outbox or notifications yet. Voice notes belong to **Chat**, not to Our Story.
+
+## v0.17 — Pair-private Chat Info Audio library
+
+Migration `20261011000013_velvet_chat_audio_gallery.sql` adds `velvet_chat_audio(p_before_at,p_before_id,p_limit)`, a read-only authenticated RPC with a bounded keyset cursor. It returns only **voice messages** in the caller's currently paired couple, excluding deleted recordings and messages personally hidden from that member. Returned metadata includes sender ID, creation time, voice duration, waveform, private Storage path and MIME type. No public URLs, media bytes, or cross-couple results are returned. A partial chronological voice index supports history pagination.
+
+`velvet/backend/tests/chat_audio_gallery.sql` verifies chronological 2+2 pages without gaps, cursor termination, MIME/metadata, member visibility, personal hides, sender-only global deletes, malformed cursors, a second fully paired couple's isolation, and anonymous refusal. CI runs it after the voice notes tests. Gallery results are a view of **Chat attachments only** and never insert into Our Story.
+
+Actual voice playback on two phones is not verified until a live Supabase project and all migrations through 13 are deployed.
