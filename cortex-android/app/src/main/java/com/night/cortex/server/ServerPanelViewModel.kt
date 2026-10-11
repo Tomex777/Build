@@ -1055,7 +1055,8 @@ class ServerPanelViewModel(application: Application) : AndroidViewModel(applicat
                 _state.value = _state.value.copy(
                     loading = false,
                     agentReachable = if (transportFailure) false else _state.value.agentReachable,
-                    pairingFresh = if (transportFailure) false else _state.value.pairingFresh,
+                    pairingFresh = if (transportFailure || (error is CortexHttpException && error.statusCode == 503)) false
+                        else _state.value.pairingFresh,
                     authFailed = authFailure,
                     error = error.message ?: "Request failed",
                     message = null,
