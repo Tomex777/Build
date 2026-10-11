@@ -148,8 +148,13 @@ internal fun VelvetConnectedChat(
             status="Online chat is not configured. Your local preview is still available."
             return@LaunchedEffect
         }
-        if(!client.hasSession()) {
-            status="Please sign in through Connect our phones first."
+        try {
+            if(!client.hasSession()) {
+                status="Please sign in through Connect our phones first."
+                return@LaunchedEffect
+            }
+        } catch(error:Exception) {
+            status=error.message ?: "Couldn't check this account while offline."
             return@LaunchedEffect
         }
         try {
