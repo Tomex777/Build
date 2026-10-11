@@ -41,3 +41,11 @@ Home has a **Connect our phones · Pairing** destination using Supabase email/pa
 The build reads `VELVET_SUPABASE_URL` and `VELVET_SUPABASE_PUBLISHABLE_KEY` from CI Actions *Variables* (or environment variables locally). If absent, the pairing screen clearly reports that the backend is unavailable and does not pretend to have paired anything.
 
 ⚠️ Pairing is **not live yet**, because no Supabase project/migrations were deployed through this workspace. Even when activated, this milestone shares *membership state only*: existing chat messages, games, media and music are still local demos. Do not interpret their UI as two-phone synchronization. See `../backend/README.md` for the deployment order and SQL security tests.
+
+## v0.8 alpha — Paired two-phone text messaging (backend activation required)
+
+A separate native **Connected chat** screen now appears after two accounts complete pairing. It uses the authenticated `velvet_send_text` and `velvet_list_text` RPCs, polls only when the chat is open (~3 seconds), and retries idempotently from an app-private, account-and-couple-scoped outgoing queue. The existing **Chat tab** remains an offline preview and is never silently uploaded to the server.
+
+This feature is **not enabled in pre-configured builds**. CI can produce a signed APK, but two phones will not exchange data until the SQL migrations (including `20261011_000004_velvet_text_chat.sql`) are deployed to a real Supabase project, and the publishable URL/key are embedded by CI variables. It is not push messaging, end-to-end encryption, or a fully offline-synchronized history. Media, voice, games and calls remain preview-only.
+
+After activating, test on two Android phones: sign up + verify each account → generate and redeem a code → open Connected chat on both devices → send each direction → temporarily disable Wi-Fi, queue a message, reconnect → verify it sends exactly once → reopen to verify server history.
