@@ -135,6 +135,10 @@ begin
         join public.velvet_messages m on m.id=c.message_id
       where c.couple_id=v_couple and c.id>greatest(0,coalesce(p_after_id,0))
         and (c.action<>'hidden' or c.actor_id=v_user)
+        and (c.action='hidden' or not exists (
+          select 1 from public.velvet_hidden_messages h
+          where h.user_id=v_user and h.message_id=c.message_id
+        ))
       order by c.id asc limit least(greatest(coalesce(p_limit,100),1),100)
     ) t;
   return v_items;
