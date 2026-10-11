@@ -118,18 +118,27 @@ begin
   if v_code !~ '^[A-F0-9]{20}$' then
     return jsonb_build_object('ok',false,'error','invalid_or_expired');
   end if;
-  select i.couple_id,i.issued_by,i.expires_at,i.consumed_by
-    into v_invite
+  -- Find a candidate without locking. Consistently acquire the couple lock
+  -- FIRST, then recheck/lock the invite to avoid a join/reinvite deadlock.
+  select i.couple_id into v_invite
     from public.velvet_pair_invites i
-    where i.code_hash=pg_catalog.sha256(pg_catalog.convert_to(v_code,'UTF8'))
+    where i.code_hash=pg_catalog.sha256(pg_catalog.convert_to(v_code,'UTF8'));
+  if not found then
+    return jsonb_build_object('ok',false,'error','invalid_or_expired');
+  end if;
+  perform 1 from public.velvet_couples where id=v_invite.couple_id for update;
+  select i.couple_id,i.issued_by,i.expires_at,i.consumed_by into v_invite
+    from public.velvet_pair_invites i
+    where i.couple_id=v_invite.couple_id
+      and i.code_hash=pg_catalog.sha256(pg_catalog.convert_to(v_code,'UTF8'))
     for update;
-  if not found or v_invite.expires_at<=now() or v_invite.consumed_by is not null
+  if not found then
+    return jsonb_build_object('ok',false,'error','invalid_or_expired');
+  end if;
+  if v_invite.expires_at<=now() or v_invite.consumed_by is not null
      or v_invite.issued_by=v_user then
     return jsonb_build_object('ok',false,'error','invalid_or_expired');
   end if;
-  -- Invite row lock serializes simultaneous redemptions; couple row lock
-  -- also serializes with capacity trigger and new invitation generation.
-  perform 1 from public.velvet_couples where id=v_invite.couple_id for update;
   select count(*) into v_count from public.velvet_members where couple_id=v_invite.couple_id;
   if v_count<>1 then
     return jsonb_build_object('ok',false,'error','invalid_or_expired');
