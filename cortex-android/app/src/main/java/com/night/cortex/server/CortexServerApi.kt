@@ -98,10 +98,8 @@ class CortexServerApi(
                 conn.instanceFollowRedirects = false
                 conn.requestMethod = "PUT"
                 conn.connectTimeout = 12_000
-                // Short reads let the dashboard detect an outage promptly.
-                // Keep long-running POST operations (backups/install/restart) their
-                // original allowance so slow remote work is not mistaken for failure.
-                conn.readTimeout = if (method == "GET") 20_000 else 10 * 60_000
+                // File uploads can take longer than a status refresh.
+                conn.readTimeout = 10 * 60_000
                 conn.doOutput = true
                 conn.setRequestProperty("Accept", "application/json")
                 conn.setRequestProperty("Authorization", "Bearer $token")
@@ -589,7 +587,8 @@ class CortexServerApi(
                 conn.instanceFollowRedirects = false
                 conn.requestMethod = method
                 conn.connectTimeout = 12_000
-                conn.readTimeout = 10 * 60_000
+                // Keep dashboard reads responsive while permitting slow remote writes.
+                conn.readTimeout = if (method == "GET") 20_000 else 10 * 60_000
                 conn.setRequestProperty("Accept", "*/*")
                 conn.setRequestProperty("Authorization", "Bearer $token")
                 if (body != null) {
