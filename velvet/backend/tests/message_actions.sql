@@ -49,6 +49,17 @@ begin
       where t.value->>'id'='11111111-1111-4111-8111-111111111111') then
     raise exception 'Hidden message still in partner feed: %',rows;
   end if;
+  feed:=public.velvet_list_text_changes();
+  if exists(select 1 from jsonb_array_elements(feed) as t(value)
+      where t.value->>'action'='edited'
+        and t.value->>'message_id'='11111111-1111-4111-8111-111111111111') then
+    raise exception 'Personally hidden content still visible through change feed: %',feed;
+  end if;
+  if not exists(select 1 from jsonb_array_elements(feed) as t(value)
+      where t.value->>'action'='hidden'
+        and t.value->>'message_id'='11111111-1111-4111-8111-111111111111') then
+    raise exception 'Own hidden event missing: %',feed;
+  end if;
 end $$;
 
 do $$
