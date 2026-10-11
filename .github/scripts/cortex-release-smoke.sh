@@ -289,7 +289,7 @@ launch_verified_cortex() {
     fi
 
     adb logcat -b crash -d -v threadtime >"$LOGCAT" 2>&1 || true
-    if grep -Eq 'FATAL EXCEPTION|ANR in com\\.night\\.cortex' "$LOGCAT" &&
+    if grep -Eq 'FATAL EXCEPTION|ANR in com\.night\.cortex' "$LOGCAT" &&
        grep -q 'com.night.cortex' "$LOGCAT"; then
       echo "Cortex release crashed after launch. This is an application failure, not a package scan retry." >&2
       cat "$LOGCAT" >&2
