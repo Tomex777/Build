@@ -181,10 +181,17 @@ internal class VelvetPairClient(private val context: Context) {
             return response.inputStream.bufferedReader().use {it.readText()}.trim()=="true"
         } finally {response.disconnect()}
     }
-    fun signOut() {
-        accessToken=null
-        expiresAtMs=0L
-        vault.clear()
+    suspend fun signOut() = withContext(Dispatchers.IO) {
+        // Attempt server-side revocation, but always remove the local credential,
+        // including when connectivity is unavailable during sign-out.
+        try { if(configured && vault.read()!=null)
+            send("/auth/v1/logout",JSONObject(),activeToken())
+        } catch (_:Exception) { /* Offline logout is local-only until JWT expiry. */ }
+        finally {
+            accessToken=null
+            expiresAtMs=0L
+            vault.clear()
+        }
     }
 }
 
@@ -288,6 +295,7 @@ internal fun VelvetPairingScreen(onBack:()->Unit,onConnectedChat:()->Unit) {
                     runAction {
                         if(newAccount) {
                             signedIn=api.signUp(email,password)
+                            password=""
                             notice=if(signedIn) "Account created. You are signed in."
                                    else "Check your email to confirm your account, then sign in."
                         } else {
@@ -377,8 +385,10 @@ internal fun VelvetPairingScreen(onBack:()->Unit,onConnectedChat:()->Unit) {
                 runAction {pair=api.myPair();notice="Pairing status refreshed."}
             },enabled=!loading){Text("Refresh pairing status",color=rose)}
             TextButton(onClick={
-                api.signOut();signedIn=false;pair=null;invitation="";code=""
-                notice="Signed out of this phone."
+                runAction {
+                    api.signOut();signedIn=false;pair=null;invitation="";code=""
+                    notice="Signed out of this phone."
+                }
             },enabled=!loading){Text("Sign out",color=muted)}
         }
         if(notice.isNotEmpty()) {
