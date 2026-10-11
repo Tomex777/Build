@@ -45,3 +45,5 @@ jobs:
         run: psql -v ON_ERROR_STOP=1 -f velvet/backend/tests/history.sql
       - name: Test owner-only profiles and partner display
         run: psql -v ON_ERROR_STOP=1 -f velvet/backend/tests/profiles.sql
+      - name: Test shared relationship anniversary
+        run: psql -v ON_ERROR_STOP=1 -f velvet/backend/tests/anniversary.sql
