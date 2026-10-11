@@ -64,3 +64,5 @@ jobs:
         run: psql -v ON_ERROR_STOP=1 -f velvet/backend/tests/read_receipts.sql
       - name: Test private AAC voice notes and two-person authorization
         run: psql -v ON_ERROR_STOP=1 -f velvet/backend/tests/voice_notes.sql
+      - name: Test private Chat Info audio gallery pagination
+        run: psql -v ON_ERROR_STOP=1 -f velvet/backend/tests/chat_audio_gallery.sql
