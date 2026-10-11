@@ -87,7 +87,7 @@ private object V {
     val gold get() = VelvetTheme.current.gold
 }
 private val round = RoundedCornerShape(22.dp)
-private enum class Page { HOME, CHAT, GAMES, STORY, US, CHAT_INFO, DECK, TTT, STUDIO, CALL, MUSIC, CONNECT4, CHESS, LUDO, DRAW, DECK_EDITOR, TOGETHER, PAIR }
+private enum class Page { HOME, CHAT, GAMES, STORY, US, CHAT_INFO, DECK, TTT, STUDIO, CALL, MUSIC, CONNECT4, CHESS, LUDO, DRAW, DECK_EDITOR, TOGETHER, PAIR, ONLINE_CHAT }
 internal enum class MessageKind { TEXT, QUESTION, VOICE, MEDIA }
 internal data class ChatMessage(
     val id: Int, val body: String, val mine: Boolean, val time: String,
@@ -151,12 +151,13 @@ private fun VelvetApp() {
         } else onDispose {}
     }
     val immersive = page in setOf(Page.CHAT, Page.CHAT_INFO, Page.DECK, Page.TTT, Page.STUDIO, Page.CALL,
-        Page.MUSIC,Page.CONNECT4,Page.CHESS,Page.LUDO,Page.DRAW,Page.DECK_EDITOR,Page.TOGETHER,Page.PAIR)
+        Page.MUSIC,Page.CONNECT4,Page.CHESS,Page.LUDO,Page.DRAW,Page.DECK_EDITOR,Page.TOGETHER,Page.PAIR,Page.ONLINE_CHAT)
     BackHandler(enabled = immersive) {
         page = when(page) {
             Page.CHAT_INFO, Page.CALL -> Page.CHAT
             Page.STUDIO -> Page.US
             Page.MUSIC, Page.PAIR -> Page.HOME
+            Page.ONLINE_CHAT -> Page.PAIR
             Page.CHAT -> chatBackTo
             Page.DECK,Page.TTT,Page.CONNECT4,Page.CHESS,Page.LUDO,Page.DRAW,Page.DECK_EDITOR,Page.TOGETHER -> Page.GAMES
             else -> Page.HOME
@@ -211,7 +212,8 @@ private fun VelvetApp() {
                     onPlay={questionTab="Our own deck";page=Page.DECK})
                 Page.TOGETHER -> TogetherAnswers(onBack={page=Page.GAMES})
                 Page.MUSIC -> SpotifyListeningRoom(onBack={page=Page.HOME})
-                Page.PAIR -> VelvetPairingScreen(onBack={page=Page.HOME})
+                Page.PAIR -> VelvetPairingScreen(onBack={page=Page.HOME},onConnectedChat={page=Page.ONLINE_CHAT})
+                Page.ONLINE_CHAT -> VelvetConnectedChat(onBack={page=Page.PAIR})
                 Page.STORY -> GalleryFirstScreen(ownerName)
                 Page.STUDIO -> VelvetStudioScreen(note=studioNote,
                     onNoteChange={value->studioNote=value;settings.edit().putString("studio_note",value).apply()},
