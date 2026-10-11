@@ -1,12 +1,10 @@
 package com.tomex777.annie
 
 import android.webkit.WebView
-import android.os.SystemClock
 import android.util.Log
 import android.graphics.Rect
 import android.content.Context
 import android.view.inputmethod.InputMethodManager
-import android.view.MotionEvent
 import androidx.test.uiautomator.UiDevice
 import android.view.View
 import android.view.ViewGroup
@@ -290,7 +288,6 @@ class AnnieCanvasMessageTest {
 
         // Real event timestamps and intermediate movements are important for
         // Android WebView pointer capture. Do not replace with JS-dispatched events.
-        val downTime = SystemClock.uptimeMillis()
         val uiDevice = UiDevice.getInstance(instrumentation)
         val swipeX = x.toInt()
         val sy1 = y1.toInt()
