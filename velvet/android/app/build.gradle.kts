@@ -12,8 +12,13 @@ android {
         applicationId = "dev.velvet.app"
         minSdk = 26
         targetSdk = 35
-        versionCode = 9
-        versionName = "0.6.0-our-little-world-alpha"
+        // Public client configuration only; private Supabase/service keys NEVER belong here.
+        buildConfigField("String", "VELVET_SUPABASE_URL", "\\\"" +
+            (System.getenv("VELVET_SUPABASE_URL") ?: "").replace("\\\"", "\\\\\"") + "\\\"")
+        buildConfigField("String", "VELVET_SUPABASE_PUBLISHABLE_KEY", "\\\"" +
+            (System.getenv("VELVET_SUPABASE_PUBLISHABLE_KEY") ?: "").replace("\\\"", "\\\\\"") + "\\\"")
+        versionCode = 10
+        versionName = "0.7.0-pairing-alpha"
     }
     // Only the release APK uses the permanent Velvet key. Never commit the private
     // key or password to the repository; CI injects them from GitHub Actions secrets.
@@ -41,7 +46,7 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
     kotlinOptions { jvmTarget = "17" }
-    buildFeatures { compose = true }
+    buildFeatures { compose = true; buildConfig = true }
     packaging { resources { excludes += "/META-INF/{AL2.0,LGPL2.1}" } }
 }
 
