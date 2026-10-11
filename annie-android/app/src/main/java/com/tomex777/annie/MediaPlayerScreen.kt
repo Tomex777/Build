@@ -1013,7 +1013,7 @@ private fun formatPlayerTime(milliseconds: Long): String {
 private fun formatRate(rate: Float): String =
     if (rate % 1f == 0f) rate.toInt().toString() else rate.toString()
 
-private fun parsePlayerSources(config: JSONObject?, fallback: Uri?): List<PlayerSource> {
+internal fun parsePlayerSources(config: JSONObject?, fallback: Uri?): List<PlayerSource> {
     if (config == null) return fallback?.let { listOf(PlayerSource("Source", it)) }.orEmpty()
     val topHeaders = config.optJSONObject("headers").stringMap()
     val browserSessionId = config.optString("browserSession").takeIf(String::isNotBlank)
@@ -1036,9 +1036,26 @@ private fun parsePlayerSources(config: JSONObject?, fallback: Uri?): List<Player
             }
         }
     }
-    if (parsed.isNotEmpty()) return parsed
-    val direct = config.optString("uri").takeIf(String::isNotBlank)?.let(Uri::parse) ?: fallback
-    return direct?.let { listOf(PlayerSource(config.optString("quality", "Source"), it, topHeaders, browserSessionId)) }.orEmpty()
+    if (parsed.isNotEmpty()) {
+        // The chat preview and downloader both use ScriptVideoDownloadSource to pick
+        // defaultQuality (or highest resolution). VLC previously always played the
+        // FIRST item in qualities, which could be the wrong episode/source/quality.
+        val intended = ScriptVideoDownloadSource.from(config)
+        val preferredIndex = parsed.indexOfFirst { it.uri.toString() == intended?.url }
+        return if (preferredIndex > 0) {
+            listOf(parsed[preferredIndex]) + parsed.filterIndexed { i, _ -> i != preferredIndex }
+        } else parsed
+    }
+    // Some scripts only return "streamUrl" or "url". These keys must work even
+    // without an EXTRA_MEDIA_URI on the Activity launch intent.
+    val direct = listOf(
+        config.optString("uri"),
+        config.optString("url"),
+        config.optString("streamUrl"),
+    ).firstOrNull(String::isNotBlank)?.let(Uri::parse) ?: fallback
+    return direct?.let {
+        listOf(PlayerSource(config.optString("quality", "Source"), it, topHeaders, browserSessionId))
+    }.orEmpty()
 }
 
 private fun JSONObject?.stringMap(): Map<String, String> {
