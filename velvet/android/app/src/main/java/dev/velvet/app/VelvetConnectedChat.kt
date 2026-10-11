@@ -197,10 +197,16 @@ internal fun VelvetConnectedChat(
                     val changeId=change.getLong("change_id")
                     val messageId=change.getString("message_id")
                     when(change.optString("action")) {
-                        "hidden" -> messages.removeAll {it.id==messageId}
+                        "hidden" -> {
+                            messages.removeAll {it.id==messageId}
+                            if(replyingTo?.id==messageId) replyingTo=null
+                        }
                         "deleted" -> {
                             val pos=messages.indexOfFirst {it.id==messageId}
-                            if(pos>=0) messages[pos]=messages[pos].copy(body="",deleted=true)
+                            if(pos>=0) {
+                                messages[pos]=messages[pos].copy(body="",deleted=true,edited=false)
+                            }
+                            if(replyingTo?.id==messageId) replyingTo=null
                         }
                         "edited" -> {
                             val pos=messages.indexOfFirst {it.id==messageId}
@@ -324,7 +330,11 @@ internal fun VelvetConnectedChat(
                         ) {
                             if(!msg.replyTo.isNullOrBlank()) {
                                 val source=combined.firstOrNull {it.id==msg.replyTo}
-                                Text("↳ "+(source?.body ?: "Earlier message"),
+                                Text("↳ "+(when {
+                                    source==null -> "Earlier message"
+                                    source.deleted -> "This message was deleted"
+                                    else -> source.body
+                                }),
                                     color=rose,fontSize=12.sp,maxLines=2,
                                     modifier=Modifier.fillMaxWidth()
                                         .background(Color(0xFF4A2C3E),RoundedCornerShape(9.dp))
