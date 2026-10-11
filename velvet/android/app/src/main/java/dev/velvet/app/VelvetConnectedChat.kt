@@ -39,7 +39,9 @@ private data class ConnectedText(
     val senderId:String,
     val at:String,
     val pending:Boolean=false,
-    val replyTo:String?=null
+    val replyTo:String?=null,
+    val edited:Boolean=false,
+    val deleted:Boolean=false
 )
 
 /**
@@ -93,6 +95,10 @@ internal fun VelvetConnectedChat(
     var text by remember {mutableStateOf("")}
     var ready by remember {mutableStateOf(false)}
     var replyingTo by remember {mutableStateOf<ConnectedText?>(null)}
+    var selectedAction by remember {mutableStateOf<ConnectedText?>(null)}
+    var editTarget by remember {mutableStateOf<ConnectedText?>(null)}
+    var editDraft by remember {mutableStateOf("")}
+    var editBusy by remember {mutableStateOf(false)}
     var historyLoading by remember {mutableStateOf(false)}
     var historyError by remember {mutableStateOf("")}
     var hasOlder by remember {mutableStateOf(false)}
@@ -142,6 +148,7 @@ internal fun VelvetConnectedChat(
 
         var lastAt:String?=null
         var lastId:String?=null
+        var lastChangeId=0L
         // repeatOnLifecycle halts all network polling when the screen/activity
         // is no longer STARTED, resuming with the same cursor on foreground.
         activityLifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
@@ -173,12 +180,39 @@ internal fun VelvetConnectedChat(
                     val item=fresh.getJSONObject(i)
                     val id=item.getString("id")
                     if(messages.none{it.id==id}) {
-                        messages.add(ConnectedText(id,item.optString("body"),
+                        messages.add(ConnectedText(id,item.optString("body").takeIf{it!="null"} ?: "",
                             item.optString("sender_id"),item.optString("created_at"),
-                            replyTo=item.optString("reply_to").takeIf { it.isNotBlank() && it!="null" }))
+                            replyTo=item.optString("reply_to").takeIf { it.isNotBlank() && it!="null" },
+                            edited=!item.isNull("edited_at"),deleted=item.optBoolean("deleted")))
+
                     }
                     lastAt=item.getString("created_at")
                     lastId=id
+                }
+                // Edits and deletes touch older message IDs, so the ordinary
+                // append-only message cursor cannot detect them by itself.
+                val changes=client.listTextChanges(lastChangeId)
+                for(index in 0 until changes.length()) {
+                    val change=changes.getJSONObject(index)
+                    val changeId=change.getLong("change_id")
+                    val messageId=change.getString("message_id")
+                    when(change.optString("action")) {
+                        "hidden" -> messages.removeAll {it.id==messageId}
+                        "deleted" -> {
+                            val pos=messages.indexOfFirst {it.id==messageId}
+                            if(pos>=0) messages[pos]=messages[pos].copy(body="",deleted=true)
+                        }
+                        "edited" -> {
+                            val pos=messages.indexOfFirst {it.id==messageId}
+                            if(pos>=0) {
+                                val gone=change.optBoolean("deleted")
+                                messages[pos]=messages[pos].copy(
+                                    body=if(gone) "" else change.optString("body"),
+                                    edited=!gone,deleted=gone)
+                            }
+                        }
+                    }
+                    lastChangeId=changeId
                 }
                 status=sendError ?: "Connected · updates while this screen is open"
             } catch(e:Exception) {
@@ -241,7 +275,9 @@ internal fun VelvetConnectedChat(
                                             senderId=row.optString("sender_id"),
                                             at=row.getString("created_at"),
                                             replyTo=row.optString("reply_to")
-                                                .takeIf {it.isNotBlank() && it!="null"}
+                                                .takeIf {it.isNotBlank() && it!="null"},
+                                            edited=!row.isNull("edited_at"),
+                                            deleted=row.optBoolean("deleted")
                                         )
                                     }
                                     val before=messages.map {it.id}.toSet()
@@ -280,7 +316,10 @@ internal fun VelvetConnectedChat(
                             Modifier.widthIn(max=290.dp)
                                 .background(if(mine) Color(0xFF60354C) else card,
                                     RoundedCornerShape(18.dp))
-                                .combinedClickable(onClick={replyingTo=msg},onLongClick={replyingTo=msg})
+                                .combinedClickable(
+                                    onClick={if(!msg.deleted) replyingTo=msg},
+                                    onLongClick={selectedAction=msg}
+                                )
                                 .padding(horizontal=14.dp,vertical=10.dp)
                         ) {
                             if(!msg.replyTo.isNullOrBlank()) {
@@ -292,7 +331,14 @@ internal fun VelvetConnectedChat(
                                         .padding(8.dp))
                                 Spacer(Modifier.height(6.dp))
                             }
-                            Text(msg.body,color=cream,fontSize=15.sp,lineHeight=21.sp)
+                            Text(
+                                if(msg.deleted) "This message was deleted" else msg.body,
+                                color=if(msg.deleted) muted else cream,
+                                fontSize=15.sp,lineHeight=21.sp
+                            )
+                            if(msg.edited && !msg.deleted) {
+                                Text("Edited",color=muted,fontSize=10.sp)
+                            }
                             Spacer(Modifier.height(4.dp))
                             val time=runCatching {
                                 OffsetDateTime.parse(msg.at).format(DateTimeFormatter.ofPattern("HH:mm"))
@@ -365,7 +411,7 @@ internal fun VelvetConnectedChat(
                 }
             }
         }
-        Text("Tap a message to reply · Text only · No end-to-end encryption · Media and games aren't synced",
+        Text("Tap to reply · Hold for actions · No end-to-end encryption · Text only",
             color=muted,fontSize=10.sp,modifier=Modifier.fillMaxWidth()
                 .background(card).padding(start=16.dp,end=16.dp,bottom=8.dp))
     }
