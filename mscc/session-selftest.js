@@ -7,7 +7,7 @@ import {
   useMultiFileAuthState,
 } from '@itsliaaa/baileys'
 import { AccountRegistry } from './account-registry.js'
-import { classifyDisconnect, jidPhoneNumber, reconnectDelay, sessionStatus } from './session-policy.js'
+import { canStartScheduledReconnect, classifyDisconnect, jidPhoneNumber, reconnectDelay, serializeSessionOperation, sessionStatus } from './session-policy.js'
 
 const root = await mkdtemp(join(tmpdir(), 'mscc-session-test-'))
 
@@ -64,6 +64,45 @@ try {
   assert.equal(sessionStatus(session), 'connecting')
   session.connected = true
   assert.equal(sessionStatus(session), 'connected')
+
+  // A stale timer or an already-live socket must never re-open the same
+  // Baileys auth directory, even if a reconnect callback fires late.
+  const guarded = { enabled:true, generation:3, paused:false, invalid:false, sock:null, op:Promise.resolve() }
+  assert.equal(canStartScheduledReconnect(guarded, 3), true)
+  guarded.sock = {}
+  assert.equal(canStartScheduledReconnect(guarded, 3), false, 'Do not create a second socket')
+  guarded.sock = null
+  guarded.paused = true
+  assert.equal(canStartScheduledReconnect(guarded, 3), false)
+  guarded.paused = false
+  guarded.invalid = true
+  assert.equal(canStartScheduledReconnect(guarded, 3), false)
+  guarded.invalid = false
+  assert.equal(canStartScheduledReconnect(guarded, 2), false, 'Old generation is stale')
+
+  // Reconnection must wait for any in-flight per-account operation rather
+  // than racing a manual pause, repair or credential update.
+  let releaseFirst
+  const firstGate = new Promise(resolve => { releaseFirst = resolve })
+  const sequence = []
+  const firstTask = serializeSessionOperation(guarded, async () => {
+    sequence.push('first-start')
+    await firstGate
+    sequence.push('first-end')
+  })
+  const secondTask = serializeSessionOperation(guarded, async () => {
+    sequence.push('second-start')
+  })
+  await new Promise(resolve => setTimeout(resolve, 10))
+  assert.deepEqual(sequence, ['first-start'])
+  releaseFirst()
+  await Promise.all([firstTask, secondTask])
+  assert.deepEqual(sequence, ['first-start', 'first-end', 'second-start'])
+  await assert.rejects(serializeSessionOperation(guarded, async () => {
+    throw new Error('transient auth reload error')
+  }), /transient auth reload error/)
+  await serializeSessionOperation(guarded, async () => sequence.push('third-after-failure'))
+  assert.equal(sequence.at(-1), 'third-after-failure', 'One failed reload cannot poison subsequent retries')
 
   const duplicateRegistryFile = join(root, 'data', 'duplicate-accounts.json')
   await import('node:fs/promises').then(({ mkdir }) => mkdir(join(root, 'data'), { recursive:true }))

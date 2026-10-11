@@ -53,3 +53,23 @@ export function classifyDisconnect(code) {
 
   return { action: 'reconnect' }
 }
+
+/**
+ * A delayed retry is only eligible while it still owns the current account
+ * generation. The socket check prevents a timer from creating a second active
+ * Baileys client for the same auth directory.
+ */
+export function canStartScheduledReconnect(account, generation) {
+  return Boolean(
+    account?.enabled &&
+    account.generation === generation &&
+    !account.paused && !account.invalid && !account.sock
+  )
+}
+
+/** Queues all socket-changing operations against one account's auth storage. */
+export function serializeSessionOperation(account, operation) {
+  const task = Promise.resolve(account.op).catch(() => {}).then(operation)
+  account.op = task.catch(() => {})
+  return task
+}
