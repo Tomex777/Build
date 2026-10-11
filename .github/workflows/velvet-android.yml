@@ -27,6 +27,9 @@ jobs:
       # Debug is a compile smoke test ONLY; never hand it out as an update APK.
       - name: Compile native Android app
         working-directory: velvet/android
+        env:
+          VELVET_SUPABASE_URL: ${{ vars.VELVET_SUPABASE_URL }}
+          VELVET_SUPABASE_PUBLISHABLE_KEY: ${{ vars.VELVET_SUPABASE_PUBLISHABLE_KEY }}
         run: gradle --no-daemon :app:assembleDebug
 
       - name: Check permanent signing secrets
@@ -64,6 +67,8 @@ jobs:
         working-directory: velvet/android
         env:
           VELVET_KEYSTORE_PASSWORD: ${{ secrets.VELVET_KEYSTORE_PASSWORD }}
+          VELVET_SUPABASE_URL: ${{ vars.VELVET_SUPABASE_URL }}
+          VELVET_SUPABASE_PUBLISHABLE_KEY: ${{ vars.VELVET_SUPABASE_PUBLISHABLE_KEY }}
         run: gradle --no-daemon :app:assembleRelease
 
       - name: Verify Velvet APK signature
