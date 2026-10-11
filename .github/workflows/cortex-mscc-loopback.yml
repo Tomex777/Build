@@ -1,0 +1,39 @@
+name: Cortex + MSCC Integrated Loopback
+
+on:
+  pull_request:
+    branches: [cortex-production-finalization]
+    paths:
+      - 'cortex-agent/**'
+      - '.github/workflows/cortex-mscc-loopback.yml'
+  push:
+    branches: [cortex-production-finalization]
+    paths:
+      - 'cortex-agent/**'
+      - '.github/workflows/cortex-mscc-loopback.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          path: cortex-source
+      - uses: actions/checkout@v5
+        with:
+          ref: mscc-azure
+          path: mscc-source
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+      - name: Check live proxy contract test
+        run: node --check cortex-source/cortex-agent/mscc-real-loopback-selftest.mjs
+      - name: Validate actual Cortex Agent ↔ MSCC loopback integration
+        env:
+          MSCC_CHECKOUT: ${{ github.workspace }}/mscc-source/mscc
+        run: node cortex-source/cortex-agent/mscc-real-loopback-selftest.mjs
