@@ -116,6 +116,9 @@ class CortexPairingScreenTest {
         }
 
         composeRule.onNodeWithText("Main").assertIsDisplayed()
+        // API 26's smaller viewport cannot display multiple tall account cards.
+        // Materialize each lazy item before checking it.
+        composeRule.onNodeWithTag("pairing-account-list").performScrollToIndex(2)
         composeRule.onNodeWithText("Second").assertIsDisplayed()
         composeRule.onNodeWithTag("pairing-account-list").performScrollToIndex(3)
         composeRule.onNodeWithText("Work").assertIsDisplayed()
@@ -391,7 +394,8 @@ class CortexPairingScreenTest {
 
         composeRule.onNodeWithText("PAIRING CODE").assertIsDisplayed()
         composeRule.onNodeWithText("ABCD-EFGH").assertIsDisplayed()
-        composeRule.onNodeWithText("WhatsApp → Linked devices → Link with phone number").assertIsDisplayed()
+        composeRule.onNodeWithText("WhatsApp → Linked devices → Link with phone number")
+            .performScrollTo().assertIsDisplayed()
         composeRule.onNodeWithText("This code is temporary. If it expires, start pairing again.").performScrollTo().assertIsDisplayed()
         composeRule.onNodeWithText("Waiting for link…").performScrollTo().assertIsDisplayed()
         check(composeRule.onAllNodesWithText("Pair account").fetchSemanticsNodes().isEmpty()) {
@@ -460,6 +464,9 @@ class CortexPairingScreenTest {
         composeRule.onNodeWithText("Josia [account-2]").assertIsDisplayed()
         composeRule.onNodeWithTag("session-profile-account-2").performScrollTo().assertIsDisplayed()
         composeRule.onNodeWithText("Josia (josiah)").assertIsDisplayed()
+        // The duplicate-name warning is a separate lazy item at index 0;
+        // account-3 is the second account card at index 2.
+        composeRule.onNodeWithTag("pairing-account-list").performScrollToIndex(2)
         composeRule.onNodeWithTag("session-title-account-3").performScrollTo().assertIsDisplayed()
         composeRule.onNodeWithText("Josia [account-3]").assertIsDisplayed()
         composeRule.onNodeWithTag("session-profile-account-3").performScrollTo().assertIsDisplayed()
