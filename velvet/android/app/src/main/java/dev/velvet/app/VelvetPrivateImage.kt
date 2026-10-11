@@ -25,17 +25,32 @@ import androidx.compose.ui.window.DialogProperties
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
+private fun decodePrivatePhoto(bytes:ByteArray,maxPx:Int):ImageBitmap {
+    val bounds=BitmapFactory.Options().apply{inJustDecodeBounds=true}
+    BitmapFactory.decodeByteArray(bytes,0,bytes.size,bounds)
+    require(bounds.outWidth>0 && bounds.outHeight>0) {"The photo is damaged."}
+    var sample=1
+    while(bounds.outWidth/sample>maxPx || bounds.outHeight/sample>maxPx) sample*=2
+    val options=BitmapFactory.Options().apply{inSampleSize=sample}
+    val decoded=BitmapFactory.decodeByteArray(bytes,0,bytes.size,options)
+        ?: throw IllegalStateException("Could not decode this photo.")
+    return decoded.asImageBitmap()
+}
+
 /** In-memory-only previews of private Storage objects. Not a public URL or Story copy. */
 @Composable
 internal fun VelvetPrivateImage(
     client:VelvetPairClient,
     storagePath:String,
-    modifier:Modifier=Modifier.width(242.dp).height(188.dp)
+    modifier:Modifier=Modifier.width(242.dp).height(188.dp),
+    thumbMaxDimension:Int=2048
 ) {
     var bitmap by remember(storagePath){mutableStateOf<ImageBitmap?>(null)}
     var error by remember(storagePath){mutableStateOf<String?>(null)}
     var loading by remember(storagePath){mutableStateOf(true)}
     var expanded by remember(storagePath){mutableStateOf(false)}
+    var largeBitmap by remember(storagePath){mutableStateOf<ImageBitmap?>(null)}
+    var expanding by remember(storagePath){mutableStateOf(false)}
     var attempt by remember(storagePath){mutableIntStateOf(0)}
     LaunchedEffect(storagePath,attempt) {
         error=null
@@ -43,21 +58,27 @@ internal fun VelvetPrivateImage(
         bitmap=null
         try {
             val decoded=withContext(Dispatchers.IO) {
-                val bytes=client.downloadImage(storagePath)
-                val bounds=BitmapFactory.Options().apply{inJustDecodeBounds=true}
-                BitmapFactory.decodeByteArray(bytes,0,bytes.size,bounds)
-                require(bounds.outWidth>0 && bounds.outHeight>0) {"The photo is damaged."}
-                // Bound the decoded bitmap on older Android phones.
-                var sample=1
-                while(bounds.outWidth/sample>2048 || bounds.outHeight/sample>2048) sample*=2
-                val options=BitmapFactory.Options().apply{inSampleSize=sample}
-                BitmapFactory.decodeByteArray(bytes,0,bytes.size,options)
-                    ?: throw IllegalStateException("Could not decode this photo.")
+                decodePrivatePhoto(client.downloadImage(storagePath),thumbMaxDimension)
             }
-            bitmap=decoded.asImageBitmap()
+            bitmap=decoded
         } catch(e:Exception) {
             error=e.message ?: "Could not load this private photo."
         } finally { loading=false }
+    }
+    LaunchedEffect(expanded,storagePath) {
+        if(!expanded) {
+            largeBitmap=null
+            expanding=false
+        } else if(thumbMaxDimension<2048) {
+            expanding=true
+            try {
+                largeBitmap=withContext(Dispatchers.IO) {
+                    decodePrivatePhoto(client.downloadImage(storagePath),2048)
+                }
+            } catch(_:Exception) {
+                // The already-loaded thumbnail remains available if offline.
+            } finally {expanding=false}
+        }
     }
     Box(modifier,contentAlignment=Alignment.Center) {
         if(bitmap!=null) {
@@ -80,8 +101,15 @@ internal fun VelvetPrivateImage(
             properties=DialogProperties(usePlatformDefaultWidth=false)) {
             Box(Modifier.fillMaxSize().background(Color(0xFF120E16)),
                 contentAlignment=Alignment.Center) {
-                Image(bitmap!!,contentDescription="Full screen private chat photo",
+                Image(largeBitmap ?: bitmap!!,
+                    contentDescription="Full screen private chat photo",
                     contentScale=ContentScale.Fit,modifier=Modifier.fillMaxSize())
+                if(expanding) {
+                    CircularProgressIndicator(
+                        color=Color(0xFFE4A1B6),
+                        modifier=Modifier.align(Alignment.BottomCenter).padding(42.dp)
+                    )
+                }
                 IconButton(onClick={expanded=false},
                     modifier=Modifier.align(Alignment.TopEnd).padding(20.dp)) {
                     Icon(Icons.Outlined.Close,contentDescription="Close photo",
