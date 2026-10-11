@@ -51,8 +51,9 @@ do $$
 declare v jsonb; rows jsonb; object_path text;
 begin
  perform set_config('request.jwt.claim.sub','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',false);
- select payload->>'storage_path' into object_path from public.velvet_messages
-   where id='77777777-7777-4777-8777-777777777777';
+ select row.value->'payload'->>'storage_path' into object_path
+   from jsonb_array_elements(public.velvet_list_chat()) as row(value)
+   where row.value->>'id'='77777777-7777-4777-8777-777777777777';
  if not exists(select 1 from storage.objects where name=object_path) then
    raise exception 'Partner could not download image';end if;
  rows:=public.velvet_list_chat();
@@ -77,8 +78,9 @@ do $$
 declare v jsonb; object_path text; rows jsonb;
 begin
  perform set_config('request.jwt.claim.sub','bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',false);
- select payload->>'storage_path' into object_path from public.velvet_messages
-  where id='77777777-7777-4777-8777-777777777777';
+ select row.value->'payload'->>'storage_path' into object_path
+   from jsonb_array_elements(public.velvet_list_chat()) as row(value)
+   where row.value->>'id'='77777777-7777-4777-8777-777777777777';
  if not exists(select 1 from storage.objects where name=object_path) then
    raise exception 'Partner hide affected sender image access';end if;
  v:=public.velvet_delete_text('77777777-7777-4777-8777-777777777777',true);
