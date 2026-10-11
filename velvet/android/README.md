@@ -95,3 +95,11 @@ The connected Chat composer now has a **photo attachment** button. Android's sys
 Incoming photo bubbles request bytes with the signed-in user's access token and display bounded bitmap thumbnails; tapping opens an immersive, full-screen image viewer. Image metadata pages together with text and participates in the existing **Delete for me** / **Delete for everyone** actions. Photos are **not** automatically saved to Our Story. GIFs currently render as a static first-frame preview.
 
 There is **no end-to-end encryption**, offline media outbox, background media transfer, automatic Storage cleanup, or cloud media gallery yet. Actual Storage HTTP behavior and real-device sharing remain unverified until a real Supabase project is connected. This is an alpha milestone, not a production-ready encrypted messenger.
+
+## v0.14 — Full-screen Chat Info, shared gallery and message search
+
+**Tap your partner's name at the top of connected Chat.** Velvet opens a dedicated full-screen Chat Info screen, not a narrow modal. Its working **Photos** tab shows authenticated, private Chat-only images in a three-column gallery, in newest-first order, paginating twelve items at a time. Gallery previews decode at reduced resolution for low memory use, and tapping any image opens the higher-resolution full-screen viewer (with thumbnail fallback when offline).
+
+The working **Search** tab looks for literal text in this paired conversation and photo captions (2–64 characters, case-insensitive), with newest-first results and pagination. Results are shown as excerpts with sender and date; tapping results to jump into old messages is **not implemented yet**. Links, documents, voice recordings, and pinned-message galleries are **not implemented online yet** and are explicitly labeled as pending, rather than pretending local preview data is synced.
+
+The backend excludes deleted and personally hidden images from new gallery queries. Nothing is copied from Chat into Our Story without an explicit user-directed feature in a later milestone. Online operation requires deploying migrations **01–10** and configuring a real Supabase project's public key. It is not end-to-end encrypted. Real two-device media and gallery behavior are not yet verified.
