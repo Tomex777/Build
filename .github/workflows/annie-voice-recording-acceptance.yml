@@ -61,6 +61,29 @@ jobs:
           profile: pixel_2
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -no-boot-anim -partition-size 4096
           script: bash annie-android/ci/run-rc-feature-tests.sh && timeout --signal=TERM --kill-after=20s 300s gradle --no-daemon --stacktrace -p annie-android :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.tomex777.annie.AnnieCanvasMessageTest
+      - name: Require all Canvas gesture and fullscreen methods
+        if: always()
+        shell: bash
+        run: |
+          python3 - <<'PYTHON'
+          from pathlib import Path
+          import xml.etree.ElementTree as ET
+          expected = {
+              "interactiveCanvasRunsOfflineAndRetainsItsWebViewAcrossFullscreen",
+              "builtInSnakeCommandProducesPlayableCanvasAndCapturesItsChatPreview",
+              "snakeCanvasAppearsInsideTheRealChatAndAcceptsFingerSwipes",
+          }
+          cases = {}
+          for report in Path("annie-android/app/build/outputs/androidTest-results").rglob("*.xml"):
+              root = ET.parse(report).getroot()
+              for case in root.iter("testcase"):
+                  if case.get("classname") == "com.tomex777.annie.AnnieCanvasMessageTest":
+                      cases[case.get("name")] = case
+          assert expected <= cases.keys(), f"Missing Canvas acceptance methods: {expected - cases.keys()}"
+          for name in expected:
+              assert all(cases[name].find(tag) is None for tag in ("failure", "error", "skipped")), name
+          print("PASS all three Canvas methods, including native gestures and fullscreen continuity")
+          PYTHON
       - name: Upload voice recording and tab restoration report
         if: always()
         uses: actions/upload-artifact@v4
