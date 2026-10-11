@@ -2,6 +2,7 @@ package com.night.cortex.server
 
 import android.content.Context
 import android.util.AtomicFile
+import com.night.cortex.hosting.HostingFileEntry
 import com.night.cortex.hosting.HostingRuntime
 import com.night.cortex.hosting.HostingSnapshot
 import java.io.File
@@ -26,6 +27,9 @@ internal class OfflineDashboardCache(context: Context) {
         val startup: StartupInfo?,
         val commandSettings: List<CommandSetting>,
         val registry: RuntimeRegistry?,
+        val currentPath: String,
+        val files: List<HostingFileEntry>,
+        val activity: List<ActivityEntry>,
     )
 
     fun clear() = file.delete()
@@ -175,7 +179,38 @@ internal class OfflineDashboardCache(context: Context) {
                     commands = commands,
                 )
             }
-            Restored(root.optLong("savedAt"), snapshot, pairing, startup, settings, registry)
+            // Store filenames and sanitized audit action types only. Never persist
+            // file contents, log lines or activity detail strings.
+            val currentPath = root.optString("currentPath", "/").takeIf {
+                it.startsWith("/") && !it.contains("..") && it.length < 512
+            } ?: "/"
+            val files = buildList {
+                val rows = root.optJSONArray("files") ?: JSONArray()
+                for (index in 0 until minOf(rows.length(), 150)) {
+                    val row = rows.optJSONObject(index) ?: continue
+                    val name = row.optString("name")
+                    if (name.isBlank() || name.length > 255 || name.contains('/')) continue
+                    add(HostingFileEntry(
+                        name = name,
+                        type = row.optString("type"),
+                        sizeBytes = row.optLong("sizeBytes"),
+                        modifiedAt = row.optString("modifiedAt"),
+                    ))
+                }
+            }
+            val activity = buildList {
+                val rows = root.optJSONArray("activity") ?: JSONArray()
+                for (index in 0 until minOf(rows.length(), 50)) {
+                    val row = rows.optJSONObject(index) ?: continue
+                    add(ActivityEntry(
+                        id = row.optString("id"),
+                        at = row.optString("at"),
+                        action = row.optString("action"),
+                        detail = "", // Never restore arbitrary detail payloads.
+                    ))
+                }
+            }
+            Restored(root.optLong("savedAt"), snapshot, pairing, startup, settings, registry, currentPath, files, activity)
         }.getOrNull()
     }
 
@@ -185,6 +220,31 @@ internal class OfflineDashboardCache(context: Context) {
             put("schema", 1)
             put("connection", fingerprint(url, token))
             put("savedAt", System.currentTimeMillis())
+            put("currentPath", state.currentPath.take(500))
+            put("files", JSONArray().apply {
+                state.files.take(150).filter { file ->
+                    file.name.isNotBlank() && !file.name.contains('/') &&
+                        !file.name.contains("..") && file.name.length <= 255
+                }.forEach { item ->
+                    put(JSONObject().apply {
+                        put("name", item.name)
+                        put("type", item.type)
+                        put("sizeBytes", item.sizeBytes)
+                        put("modifiedAt", item.modifiedAt)
+                    })
+                }
+            })
+            put("activity", JSONArray().apply {
+                state.activity.takeLast(50).forEach { event ->
+                    put(JSONObject().apply {
+                        put("id", event.id.take(128))
+                        put("at", event.at.take(64))
+                        put("action", event.action.take(100))
+                        // Deliberately exclude event.detail, which may contain
+                        // names, phone numbers or raw API errors.
+                    })
+                }
+            })
             put("snapshot", state.snapshot.let { snap ->
                 JSONObject().apply {
                     put("state", snap.state)
