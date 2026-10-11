@@ -119,8 +119,24 @@ internal class VelvetPairClient(private val context: Context) {
             acceptAuth(send("/auth/v1/token?grant_type=refresh_token",
                 JSONObject().put("refresh_token", refresh)))
         }.getOrElse { error ->
-            if(error.message?.contains("Invalid Refresh Token",true)==true || error.message?.contains("Refresh Token Not Found",true)==true) vault.clear()
-            accessToken=null; false
+            val revoked=error.message?.let {message ->
+                message.contains("Invalid Refresh Token",true) ||
+                    message.contains("Refresh Token Not Found",true) ||
+                    message.contains("Session expired",true) ||
+                    message.contains("Invalid JWT",true)
+            } ?: false
+            if(revoked) {
+                vault.clear()
+                accessToken=null
+                false
+            } else {
+                // Connectivity failures and HTTP 5xx must NOT be interpreted as
+                // "signed out"; the encrypted refresh token remains on device.
+                throw IllegalStateException(
+                    "Can't verify your saved session right now. Your account wasn't signed out.",
+                    error
+                )
+            }
         }
     }
 
@@ -423,9 +439,17 @@ internal fun VelvetPairingScreen(
     }
     LaunchedEffect(Unit) {
         if(api.configured) {
-            signedIn=api.hasSession()
-            if(signedIn) pair=runCatching {api.myPair()}.getOrNull()
-            loading=false
+            try {
+                signedIn=api.hasSession()
+                if(signedIn) {
+                    pair=runCatching {api.myPair()}.getOrElse {error->
+                        notice=error.message ?: "Can't load pairing status while offline."
+                        null
+                    }
+                }
+            } catch(error:Exception) {
+                notice=error.message ?: "Could not check your saved account."
+            } finally {loading=false}
         }
     }
     Column(
