@@ -13,7 +13,7 @@ create policy velvet_image_upload on storage.objects for insert to authenticated
 with check (
   bucket_id='velvet-chat-media'
   and (storage.foldername(name))[2]=(select auth.uid())::text
-  and name ~* '^[0-9a-f-]{36}/[0-9a-f-]{36}/[0-9a-f-]{36}\\.(jpg|png|webp|gif)$'
+  and name ~* '^[0-9a-f-]{36}/[0-9a-f-]{36}/[0-9a-f-]{36}\.(jpg|png|webp|gif)$'
   and exists (
     select 1 from public.velvet_members mine
     where mine.user_id=(select auth.uid())
@@ -67,11 +67,11 @@ begin
   end if;
   if p_id is null or p_bytes is null or p_bytes<1 or p_bytes>8388608
       or char_length(v_caption)>1200 or p_storage_path is null
-      or p_storage_path !~* '^[0-9a-f-]{36}/[0-9a-f-]{36}/[0-9a-f-]{36}\\.(jpg|png|webp|gif)$'
+      or p_storage_path !~* '^[0-9a-f-]{36}/[0-9a-f-]{36}/[0-9a-f-]{36}\.(jpg|png|webp|gif)$'
       or p_mime not in ('image/jpeg','image/png','image/webp','image/gif') then
     return jsonb_build_object('ok',false,'error','invalid_image');
   end if;
-  v_ext:=lower(substring(p_storage_path from '\\.([^.]+)$'));
+  v_ext:=lower(substring(p_storage_path from '\.([^.]+)$'));
   if (p_mime='image/jpeg' and v_ext<>'jpg')
     or (p_mime='image/png' and v_ext<>'png')
     or (p_mime='image/webp' and v_ext<>'webp')
@@ -217,7 +217,12 @@ begin
         and not exists(select 1 from public.velvet_hidden_messages h
           where h.user_id=v_user and h.message_id=m.id)
         and (p_after_at is null or (m.created_at,m.id)>(p_after_at,p_after_id))
-      order by m.created_at desc,m.id desc limit v_limit
+      order by
+        case when p_after_at is null then m.created_at end desc,
+        case when p_after_at is null then m.id end desc,
+        case when p_after_at is not null then m.created_at end asc,
+        case when p_after_at is not null then m.id end asc
+      limit v_limit
     ) t;
   return v_items;
 end;
