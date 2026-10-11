@@ -49,7 +49,8 @@ jobs:
                               problem = case.find(tag)
                               if problem is not None: print(f"UNSUCCESSFUL {key}: {problem.text}")
                   elif folder.name == "original-api26" and path.suffix in (".log", ".txt"):
-                      print(path.read_text(errors="replace")[-20000:])
+                      text = path.read_text(errors="replace")
+                      print("\n".join(line for line in text.splitlines() if any(tag in line for tag in ("TestRunner", "AnnieCanvasTest", "AndroidRuntime", "ANR", "not responding")))[-30000:])
                   elif folder.name == "original-api26" and path.suffix in (".pb", ".proto"):
                       strings = re.findall(rb"[ -~]{12,}", path.read_bytes())
                       for value in strings[-100:]: print("PROTO_TEXT", value.decode(errors="replace"))
