@@ -245,6 +245,7 @@ internal object AnnieGeckoDownloadStore {
         }?.value?.toLongOrNull()?.takeIf { it > 0 }
         val id = UUID.randomUUID().toString()
         val app = context.applicationContext
+        AnnieGeckoDownloads.initialize(app)
         AnnieGeckoDownloads.started(id, name, type, total)
         // Register cancellation before starting IO to prevent a race with the UI.
         val job = scope.launch(start = CoroutineStart.LAZY) {
@@ -262,8 +263,8 @@ internal object AnnieGeckoDownloadStore {
                     AnnieGeckoDownloads.cancelled(id)
                 } else {
                     AnnieGeckoDownloads.completed(id, savedUri)
+                    toast(app, "Download complete: $name")
                 }
-                toast(app, "Download complete: $name")
             } catch (_: CancellationException) {
                 AnnieGeckoDownloads.cancelled(id)
             } catch (problem: Exception) {
@@ -432,6 +433,7 @@ internal class AnnieGeckoBrowserModel(private val context: Context) {
     private var lastNormalSelectedId = ""
 
     init {
+        AnnieGeckoDownloads.initialize(context)
         val selectedIndex = prefs.getInt("selected", 0)
         val saved = runCatching { JSONArray(prefs.getString("open", "[]")) }.getOrNull()
         if (saved != null) {
