@@ -2,6 +2,7 @@ package com.tomex777.annie
 
 import android.webkit.WebView
 import android.os.SystemClock
+import android.util.Log
 import android.graphics.Rect
 import android.content.Context
 import android.view.inputmethod.InputMethodManager
@@ -35,6 +36,10 @@ import org.junit.runner.RunWith
 class AnnieCanvasMessageTest {
     @get:Rule val compose = createAndroidComposeRule<ComponentActivity>()
 
+    private fun checkpoint(stage: String) {
+        Log.i("AnnieCanvasTest", stage)
+    }
+
     @Test fun interactiveCanvasRunsOfflineAndRetainsItsWebViewAcrossFullscreen() {
         val instrumentation = InstrumentationRegistry.getInstrumentation()
         val payload = JSONObject()
@@ -53,7 +58,9 @@ class AnnieCanvasMessageTest {
         val monitor = instrumentation.addMonitor(AnnieCanvasActivity::class.java.name, null, false)
         var fullscreen: AnnieCanvasActivity? = null
         try {
+            checkpoint("counter: before setContent")
             compose.setContent { AnnieTheme { AnnieCanvasMessage(payload) } }
+            checkpoint("counter: after setContent")
             compose.onNodeWithTag("annie_canvas_message").assertIsDisplayed()
             compose.onNodeWithTag("annie_canvas_webview").assertIsDisplayed()
 
@@ -74,6 +81,17 @@ class AnnieCanvasMessageTest {
             assertEquals("1", eval(inlineWebView, "(document.querySelector('#plus').click(), window.tapCount)"))
             saveEmulatorScreenshot("annie-canvas-inline-counter")
 
+            // Test Restart while the original Compose test host is active.
+            // AndroidX ActivityScenario can close its synthetic ComponentActivity
+            // after an external Activity returns, leaving no Compose semantics
+            // hierarchy even though the retained WebView itself is still live.
+            compose.onNodeWithTag("annie_canvas_restart").performClick()
+            compose.waitUntil(12_000) {
+                eval(inlineWebView, "window.canvasReady") == "true" &&
+                    eval(inlineWebView, "window.tapCount") == "0"
+            }
+            assertEquals("1", eval(inlineWebView, "(document.querySelector('#plus').click(), window.tapCount)"))
+            checkpoint("counter: restart verified, opening fullscreen")
             compose.onNodeWithTag("annie_canvas_fullscreen").performClick()
             fullscreen = instrumentation.waitForMonitorWithTimeout(monitor, 8_000) as? AnnieCanvasActivity
             assertNotNull("Expand did not open the Canvas Activity", fullscreen)
@@ -94,8 +112,7 @@ class AnnieCanvasMessageTest {
             instrumentation.runOnMainSync { fullscreen?.finish() }
             compose.waitUntil(8_000) { inlineWebView.parent != null }
             assertEquals("2", eval(inlineWebView, "window.tapCount"))
-            compose.onNodeWithTag("annie_canvas_restart").performClick()
-            compose.waitUntil(12_000) { eval(inlineWebView, "window.canvasReady") == "true" && eval(inlineWebView, "window.tapCount") == "0" }
+            checkpoint("counter: WebView preserved after fullscreen close")
         } finally {
             fullscreen?.finish()
             instrumentation.removeMonitor(monitor)
@@ -103,8 +120,10 @@ class AnnieCanvasMessageTest {
     }
 
     @Test fun builtInSnakeCommandProducesPlayableCanvasAndCapturesItsChatPreview() {
+        checkpoint("snake: test started")
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         val workspace = ScriptWorkspace(context)
+        checkpoint("snake: workspace created")
         val payload = try {
             val commands = kotlinx.coroutines.runBlocking { workspace.reload() }
             assertTrue("The /snake starter command was not registered", commands.any { it.name == "snake" })
@@ -115,35 +134,47 @@ class AnnieCanvasMessageTest {
             workspace.close()
         }
         assertEquals("canvas", payload.optString("type"))
+        checkpoint("snake: payload executed")
         compose.setContent { AnnieTheme { AnnieCanvasMessage(payload) } }
+        checkpoint("snake: setContent returned")
         compose.onNodeWithTag("annie_canvas_message").assertIsDisplayed()
+        checkpoint("snake: bubble visible")
         lateinit var snake: WebView
+        checkpoint("snake: before runOnIdle")
         compose.runOnIdle {
             snake = findCanvasWebView(compose.activity.window.decorView)
                 ?: error("Snake Canvas WebView was not attached")
         }
+        checkpoint("snake: WebView attached")
         compose.waitUntil(12_000) { eval(snake, "window.annieCanvasSnakeReady") == "true" }
         assertEquals("300", eval(snake, "document.getElementById('board').width"))
         // Canvas Arcade steers by touch on its board; no D-pad buttons belong in the UI.
         assertEquals("true", eval(snake, "document.querySelectorAll('[data-dir]').length === 0"))
         assertEquals("false", eval(snake, "window.annieCanvasSnakeState().started"))
+        checkpoint("snake: ready for physical swipe")
         swipeDownOnWebView(snake)
+        checkpoint("snake: swipe injected")
         compose.waitUntil(8_000) {
             eval(snake, "window.annieCanvasSnakeState().pending === 'down' && window.annieCanvasSnakeState().started") == "true"
         }
+        checkpoint("snake: gameplay verified")
         saveEmulatorScreenshot("annie-canvas-snake-in-chat")
     }
 
     /** Send real Android touch input through the window, not synthetic JS events. */
     @Test fun snakeCanvasAppearsInsideTheRealChatAndAcceptsFingerSwipes() {
+        checkpoint("chat: test started")
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         compose.setContent { AnnieTheme { AnnieChat() } }
+        checkpoint("chat: setContent returned")
         compose.onNodeWithTag("composer_input").performTextInput("/snake")
+        checkpoint("chat: composer filled")
         compose.waitUntil(12_000) {
             compose.onAllNodesWithTag("slash_command_/snake").fetchSemanticsNodes().isNotEmpty()
         }
         compose.onNodeWithTag("slash_command_/snake").performClick()
         compose.onNodeWithTag("send_message").performClick()
+        checkpoint("chat: send tapped")
         compose.waitUntil(15_000) {
             ChatHistoryStore.read(context).any { conversation ->
                 conversation.messages.any { entry ->
@@ -157,6 +188,7 @@ class AnnieCanvasMessageTest {
         compose.waitUntil(12_000) {
             compose.onAllNodesWithTag("annie_canvas_message").fetchSemanticsNodes().isNotEmpty()
         }
+        checkpoint("chat: Canvas bubble exists")
         // The composer IME obscures most of a tall Canvas on phones. Dismiss it and
         // scroll the actual chat bubble into the viewport before sending real touch input.
         val instrumentation = InstrumentationRegistry.getInstrumentation()
@@ -168,6 +200,7 @@ class AnnieCanvasMessageTest {
         compose.waitForIdle()
         compose.onNodeWithTag("conversation").performScrollToNode(hasTestTag("annie_canvas_message"))
         compose.onNodeWithTag("annie_canvas_message").assertIsDisplayed()
+        checkpoint("chat: bubble scrolled visible")
         lateinit var snakeWebView: WebView
         compose.runOnIdle {
             snakeWebView = findCanvasWebView(compose.activity.window.decorView)
@@ -177,7 +210,9 @@ class AnnieCanvasMessageTest {
             eval(snakeWebView, "window.annieCanvasSnakeReady") == "true"
         }
         assertEquals("false", eval(snakeWebView, "window.annieCanvasSnakeState().started"))
+        checkpoint("chat: JS ready")
         swipeDownOnWebView(snakeWebView)
+        checkpoint("chat: physical swipe injected")
         compose.waitUntil(8_000) {
             eval(snakeWebView, "window.annieCanvasSnakeState().pending === 'down' && window.annieCanvasSnakeState().started") == "true"
         }
