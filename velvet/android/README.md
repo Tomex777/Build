@@ -107,3 +107,9 @@ The backend excludes deleted and personally hidden images from new gallery queri
 ### v0.14.1 reliability fix — offline session checks
 
 An Android phone with an encrypted saved sign-in no longer silently treats a temporary network outage or Supabase HTTP 5xx as an account sign-out. Only a recognized revoked/expired refresh token invalidates the local session; transient failures keep the encrypted credential available for retry. The Chat gateway shows its recoverable connection banner rather than implying an authenticated conversation has disappeared. The pairing screen and connected Chat catch session-restore failures instead of allowing an uncaught coroutine exception. There is still no offline cache of cloud message history or realtime background delivery.
+
+## v0.15 — Read ticks and connection-safe Chat entry
+
+Connected Chat now acknowledges only partner-authored bubbles present in the visible list while the activity is STARTED and the user is **not** browsing Chat Info. The sender sees **✓ Sent** for server-saved texts/photos and **✓✓ Read** after their partner explicitly acknowledges seeing that point in the conversation; offline text messages remain labeled **Queued**. These are not delivery acknowledgments, and the foreground poll frequency remains approximately 3 seconds, with no push notifications or end-to-end encryption.
+
+If Velvet cannot check an existing online account during an outage, the Chat gateway no longer silently loads a local preview that might be mistaken for a real partner conversation. It instead shows a recoverable connection screen and requires explicitly selecting the offline demo. Unpaired/unconfigured users see a prominent LOCAL PREVIEW label. Online testing still requires a real Supabase deployment with migrations 01–11.
