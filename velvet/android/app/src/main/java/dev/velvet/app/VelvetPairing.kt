@@ -171,6 +171,21 @@ internal class VelvetPairClient(private val context: Context) {
         rpcBoolean("velvet_revoke_pair_invite")
     }
 
+    suspend fun editText(id:String,body:String): JSONObject = withContext(Dispatchers.IO) {
+        rpc("velvet_edit_text",JSONObject().put("p_id",id).put("p_body",body))
+    }
+
+    suspend fun deleteText(id:String,everyone:Boolean): JSONObject = withContext(Dispatchers.IO) {
+        rpc("velvet_delete_text",JSONObject()
+            .put("p_id",id).put("p_for_everyone",everyone))
+    }
+
+    suspend fun listTextChanges(afterId:Long): JSONArray = withContext(Dispatchers.IO) {
+        val raw=sendRaw("/rest/v1/rpc/velvet_list_text_changes",
+            JSONObject().put("p_after_id",afterId).put("p_limit",100),activeToken())
+        JSONArray(raw)
+    }
+
     suspend fun sendText(id:UUID, body:String,replyTo:String?=null): JSONObject =
         withContext(Dispatchers.IO) {
             val params=JSONObject().put("p_id",id.toString()).put("p_body",body)
