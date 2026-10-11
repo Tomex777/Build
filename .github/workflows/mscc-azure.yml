@@ -59,6 +59,8 @@ jobs:
         run: |
           set -euo pipefail
           bash -n install-azure.sh tools/install-flaresolverr-tor.sh tools/test-animepahe-azure.sh
+          bash -n tools/azure-release-switch-selftest.sh
+          bash tools/azure-release-switch-selftest.sh
           grep -Eq '^VERSION="[0-9]+\.[0-9]+\.[0-9]+"$' install-azure.sh
           grep -Fq 'SOURCE_REF="${MSCC_SOURCE_REF:-mscc-azure}"' install-azure.sh
           grep -Fq 'archive/$SOURCE_REF.tar.gz' install-azure.sh
