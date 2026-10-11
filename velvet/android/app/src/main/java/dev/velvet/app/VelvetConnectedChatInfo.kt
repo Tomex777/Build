@@ -227,9 +227,11 @@ internal fun VelvetConnectedChatInfo(
             Tab(selected=tab==0,onClick={tab=0},
                 text={Text("Photos",color=if(tab==0)cream else muted)})
             Tab(selected=tab==1,onClick={tab=1},
-                text={Text("Search",color=if(tab==1)cream else muted)})
+                text={Text("Audio",color=if(tab==1)cream else muted)})
             Tab(selected=tab==2,onClick={tab=2},
                 text={Text("Links",color=if(tab==2)cream else muted)})
+            Tab(selected=tab==3,onClick={tab=3},
+                text={Text("Search",color=if(tab==3)cream else muted)})
         }
 
         if(tab==0) {
@@ -298,6 +300,10 @@ internal fun VelvetConnectedChatInfo(
                     }
                 }
             }
+        } else if(tab==1) {
+            VelvetChatAudioGallery(
+                client=client,myId=myId,partnerName=partnerName
+            )
         } else if(tab==2) {
             Column(Modifier.fillMaxSize().padding(16.dp)) {
                 Row(verticalAlignment=Alignment.CenterVertically) {
@@ -424,7 +430,7 @@ internal fun VelvetConnectedChatInfo(
                         }
                     }
                 }
-                Text("Documents, audio and pinned-message lists are not synced yet.",
+                Text("Documents and pinned-message lists are not synced yet.",
                     color=muted,fontSize=10.sp,
                     modifier=Modifier.fillMaxWidth().padding(top=8.dp,bottom=5.dp))
             }
