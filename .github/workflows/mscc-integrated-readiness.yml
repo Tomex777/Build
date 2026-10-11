@@ -1,0 +1,45 @@
+name: MSCC Integrated Readiness
+
+on:
+  pull_request:
+    branches: [mscc-azure]
+    paths:
+      - 'mscc/**'
+      - '.github/workflows/mscc-integrated-readiness.yml'
+  push:
+    branches: [mscc-azure]
+    paths:
+      - 'mscc/**'
+      - '.github/workflows/mscc-integrated-readiness.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+      - name: Install MSCC dependencies
+        working-directory: mscc
+        run: npm install --no-audit --no-fund
+      - name: Verify merged MSCC runtime and command regression suite
+        working-directory: mscc
+        run: npm run check
+      - name: Verify account identity, registry and session lifecycle
+        working-directory: mscc
+        run: npm run check:sessions && npm run check:routing
+      - name: Verify Cortex account-control mutation security
+        working-directory: mscc
+        run: npm run check:account-controls
+      - name: Verify per-account diagnostics isolation
+        working-directory: mscc
+        run: node session-diagnostics-selftest.js
+      - name: Verify pairing and lyrics baseline regressions
+        working-directory: mscc
+        run: node music-flow-selftest.js && node session-selftest.js
