@@ -43,16 +43,48 @@ internal fun VelvetChatGateway(
         true -> VelvetConnectedChat(onBack=onBack,
             onOpenLocalPreview=onLocalPreview,sharedClient=client)
         false -> {
-            Column(Modifier.fillMaxSize().background(Color(0xFF171019))) {
-                if(error.isNotEmpty()) {
-                    Row(Modifier.fillMaxWidth().padding(horizontal=12.dp,vertical=5.dp),
-                        verticalAlignment=Alignment.CenterVertically) {
-                        Text(error,color=Color(0xFFF0C7D4),
-                            modifier=Modifier.weight(1f))
-                        TextButton(onClick={checks++}) {Text("Retry")}
+            if(error.isNotEmpty()) {
+                // Never silently substitute a LOCAL chat after failure to check
+                // a saved online couple. Messages might appear sent but cannot
+                // reach the partner. A local demo must be consciously opened.
+                Column(
+                    Modifier.fillMaxSize().background(Color(0xFF171019))
+                        .padding(23.dp),
+                    horizontalAlignment=Alignment.CenterHorizontally,
+                    verticalArrangement=Arrangement.Center
+                ) {
+                    Text("Couldn't reach our connected space",
+                        color=Color(0xFFFFE3EA),
+                        style=MaterialTheme.typography.titleLarge)
+                    Spacer(Modifier.height(12.dp))
+                    Text(
+                        "Your previous conversation and sign-in remain safe. "+
+                            "Check your connection and retry. Local preview messages "+
+                            "are never delivered to your partner.",
+                        color=Color(0xFFF0C7D4)
+                    )
+                    Spacer(Modifier.height(20.dp))
+                    Button(onClick={checks++},modifier=Modifier.fillMaxWidth()) {
+                        Text("Try connected Chat again")
+                    }
+                    TextButton(onClick=onLocalPreview) {
+                        Text("Open offline demo instead")
                     }
                 }
-                Box(Modifier.weight(1f)) { localPreview() }
+            } else {
+                Column(Modifier.fillMaxSize().background(Color(0xFF171019))) {
+                    Text(
+                        if(!client.configured)
+                            "LOCAL PREVIEW ONLY · Online messaging isn't configured"
+                        else
+                            "LOCAL PREVIEW ONLY · Pair two signed-in accounts to send messages",
+                        color=Color(0xFFF0C7D4),
+                        modifier=Modifier.fillMaxWidth()
+                            .padding(horizontal=15.dp,vertical=9.dp),
+                        style=MaterialTheme.typography.labelSmall
+                    )
+                    Box(Modifier.weight(1f)) { localPreview() }
+                }
             }
         }
         null -> Box(Modifier.fillMaxSize().background(Color(0xFF171019)),
