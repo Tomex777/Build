@@ -1,0 +1,50 @@
+{
+  "target": {
+    "host": "cdn.animeonsen.xyz",
+    "path": "/video/mp4-dash/HjQaSpwuZPFvPqo4/1/manifest.mpd"
+  },
+  "http": {
+    "exit": 0,
+    "statuses": [
+      403
+    ],
+    "finalStatus": 403,
+    "contentType": "text/html; charset=UTF-8",
+    "manifestBytes": 5867,
+    "looksLikeMpd": false,
+    "stderr": ""
+  },
+  "probe": {
+    "exit": 1,
+    "wall": 0.35,
+    "timeout": false,
+    "stderr": "https://cdn.animeonsen.xyz/video/mp4-dash/HjQaSpwuZPFvPqo4/1/manifest.mpd: Server returned 403 Forbidden (access denied)\n",
+    "format": {
+      "format_name": null,
+      "duration": null,
+      "start_time": null,
+      "bit_rate": null
+    },
+    "streams": []
+  },
+  "decodeFirst": {
+    "seconds": 120,
+    "exit": 8,
+    "wall": 0.1,
+    "timeout": false,
+    "warnings": "[https @ 0x55e352be89c0] HTTP error 403 Forbidden\n[in#0 @ 0x55e352be7f80] Error opening input: Server returned 403 Forbidden (access denied)\nError opening input file https://cdn.animeonsen.xyz/video/mp4-dash/HjQaSpwuZPFvPqo4/1/manifest.mpd.\nError opening input files: Server returned 403 Forbidden (access denied)\n"
+  },
+  "decodeLate": {
+    "seekSeconds": 600,
+    "seconds": 60,
+    "exit": 8,
+    "wall": 0.12,
+    "timeout": false,
+    "warnings": "[https @ 0x55675fd439c0] HTTP error 403 Forbidden\n[in#0 @ 0x55675fd42f80] Error opening input: Server returned 403 Forbidden (access denied)\nError opening input file https://cdn.animeonsen.xyz/video/mp4-dash/HjQaSpwuZPFvPqo4/1/manifest.mpd.\nError opening input files: Server returned 403 Forbidden (access denied)\n"
+  },
+  "packets": {
+    "exit": 1,
+    "timeout": false,
+    "stderr": "https://cdn.animeonsen.xyz/video/mp4-dash/HjQaSpwuZPFvPqo4/1/manifest.mpd: Server returned 403 Forbidden (access denied)\n"
+  }
+}

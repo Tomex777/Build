@@ -1,0 +1,17 @@
+<resources>
+    <style name="Theme.Annie" parent="android:style/Theme.Material.NoActionBar">
+        <item name="android:fontFamily">sans</item>
+        <item name="android:colorAccent">#42B9F5</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:statusBarColor">@color/annie_navy</item>
+        <item name="android:navigationBarColor">@color/annie_navy</item>
+        <item name="android:windowBackground">@color/annie_navy</item>
+        <item name="android:windowActionModeOverlay">true</item>
+    </style>
+    <style name="Theme.Annie.Starting" parent="android:style/Theme.Material.NoActionBar">
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:statusBarColor">@color/annie_navy</item>
+        <item name="android:navigationBarColor">@color/annie_navy</item>
+        <item name="android:windowBackground">@drawable/annie_splash_legacy</item>
+    </style>
+</resources>

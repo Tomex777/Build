@@ -1,0 +1,283 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://annie.invalid/schema/package-manifest.json",
+  "title": "Annie package manifest (derived from AnniePackageArchive.decodeManifest and contract v0.2)",
+  "type": "object",
+  "required": [
+    "packageId",
+    "entryPoint"
+  ],
+  "description": "Only packageId and entryPoint matter for import: the validator fills displayName (from name or packageId), version (0.0.0-local) and apiVersion (current) when missing. Unknown top-level keys are ignored by the validator.",
+  "properties": {
+    "packageId": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"
+    },
+    "displayName": {
+      "type": "string",
+      "maxLength": 120
+    },
+    "version": {
+      "type": "string",
+      "maxLength": 64,
+      "default": "0.0.0-local"
+    },
+    "apiVersion": {
+      "type": "string",
+      "pattern": "^[1-9][0-9]{0,2}$",
+      "default": "1",
+      "description": "Contract dialect. 1 = legacy permissive validation; >= 2 = strict. Must not exceed the API this Annie provides."
+    },
+    "requires": {
+      "type": "object",
+      "properties": {
+        "annie": {
+          "type": "string",
+          "pattern": "^(?:(?:>=|<=|>|<|=)?[0-9]+(?:\\.[0-9]+){0,2})(?: (?:(?:>=|<=|>|<|=)?[0-9]+(?:\\.[0-9]+){0,2})){0,3}$",
+          "examples": [
+            ">=1 <3"
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "publisher": {
+      "type": "object",
+      "required": [
+        "id",
+        "name"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9-]*(\\.[a-z0-9][a-z0-9-]*)+$",
+          "maxLength": 128
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80
+        }
+      },
+      "additionalProperties": false
+    },
+    "network": {
+      "type": "object",
+      "properties": {
+        "hosts": {
+          "type": "array",
+          "maxItems": 32,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "maxLength": 253,
+            "pattern": "^(\\*\\.)?[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)*$"
+          },
+          "description": "Declaration only for now: http.request and downloads do not consult it yet."
+        }
+      },
+      "additionalProperties": false
+    },
+    "entryPoint": {
+      "type": "string",
+      "pattern": "\\.[jJ][sS]$",
+      "description": "Relative path of a .js file inside the package. Defaults to main.js, or the only .js file."
+    },
+    "permissions": {
+      "type": "array",
+      "maxItems": 128,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "pattern": "^[A-Za-z][A-Za-z0-9_.:/-]{0,255}$"
+      }
+    },
+    "capabilities": {
+      "type": "array",
+      "maxItems": 128,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "pattern": "^[A-Za-z][A-Za-z0-9_.-]{0,63}$"
+      }
+    },
+    "commands": {
+      "type": "array",
+      "maxItems": 128,
+      "items": {
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "pattern": "^[A-Za-z][A-Za-z0-9_-]{0,31}$"
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 256
+          }
+        }
+      }
+    },
+    "sources": {
+      "type": "array",
+      "maxItems": 64,
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "mediaTypes",
+          "command"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[A-Za-z][A-Za-z0-9_.-]{0,63}$"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80
+          },
+          "mediaTypes": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": {
+              "enum": [
+                "anime",
+                "movie",
+                "tv",
+                "manga",
+                "music",
+                "image",
+                "document"
+              ]
+            }
+          },
+          "command": {
+            "type": "string",
+            "description": "Must name a declared command."
+          }
+        }
+      }
+    },
+    "assets": {
+      "type": "array",
+      "maxItems": 256,
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "path"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[A-Za-z][A-Za-z0-9_.-]{0,63}$"
+          },
+          "path": {
+            "type": "string",
+            "description": "Relative file inside the package; no leading dot segments, no executable extensions."
+          },
+          "mimeType": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      }
+    },
+    "services": {
+      "type": "array",
+      "maxItems": 128,
+      "items": {
+        "type": "object",
+        "required": [
+          "name",
+          "version",
+          "input",
+          "output"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "pattern": "^[A-Za-z][A-Za-z0-9_.-]{0,63}$"
+          },
+          "version": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9.+_-]{0,63}$"
+          },
+          "input": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:/-]{0,127}$",
+            "description": "Schema identifier, not an inline schema."
+          },
+          "output": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:/-]{0,127}$"
+          }
+        }
+      }
+    },
+    "serviceDependencies": {
+      "type": "array",
+      "maxItems": 128,
+      "items": {
+        "type": "object",
+        "required": [
+          "packageId",
+          "name",
+          "version",
+          "input",
+          "output"
+        ],
+        "properties": {
+          "packageId": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"
+          },
+          "name": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          },
+          "input": {
+            "type": "string"
+          },
+          "output": {
+            "type": "string"
+          }
+        },
+        "description": "Must match the provider's declared service exactly. Callers also need capability services.invoke, permission service:<packageId>/<name>, and a dependencies entry."
+      }
+    },
+    "dependencies": {
+      "type": "object",
+      "maxProperties": 128,
+      "propertyNames": {
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$"
+      },
+      "additionalProperties": {
+        "type": "string",
+        "pattern": "^(?:\\*|[A-Za-z0-9][A-Za-z0-9.+_-]{0,63})$"
+      },
+      "description": "packageId -> exact installed version, or *"
+    },
+    "background": {
+      "enum": [
+        "none",
+        "tasks",
+        "media"
+      ],
+      "default": "none",
+      "description": "Validated only; no runtime semantics yet."
+    }
+  },
+  "additionalProperties": true
+}

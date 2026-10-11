@@ -1,0 +1,441 @@
+package com.tomex777.annie
+
+import android.webkit.WebView
+import android.os.SystemClock
+import android.view.InputDevice
+import android.view.MotionEvent
+import android.util.Log
+import android.graphics.Rect
+import android.content.Context
+import android.view.inputmethod.InputMethodManager
+import android.view.View
+import android.view.ViewGroup
+import androidx.activity.ComponentActivity
+import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.hasTestTag
+import androidx.compose.ui.test.performScrollToNode
+import androidx.compose.ui.test.onAllNodesWithTag
+import androidx.compose.ui.test.performTextInput
+import androidx.compose.ui.test.performClick
+import androidx.test.ext.junit.runners.AndroidJUnit4
+import androidx.test.platform.app.InstrumentationRegistry
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicReference
+import org.json.JSONObject
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertSame
+import org.junit.Assert.assertTrue
+import org.junit.After
+import org.junit.Before
+import org.junit.Rule
+import org.junit.Test
+import org.junit.runner.RunWith
+
+@RunWith(AndroidJUnit4::class)
+class AnnieCanvasMessageTest {
+    @get:Rule(order = 0) val stalledThreadEvidence: org.junit.rules.TestRule = StalledThreadEvidenceRule()
+    @get:Rule(order = 1) val compose = createAndroidComposeRule<ComponentActivity>()
+
+    private var hostActivity: ComponentActivity? = null
+
+    @Before fun retainHostBeforeCanvasStartsAnimating() {
+        hostActivity = compose.activity
+    }
+
+    @After fun stopRenderingBeforeActivityScenarioWaitsForIdle() {
+        // API26 ActivityScenario.close first waits for main-loop idle. A live
+        // animated WebView can keep rendering forever, so finish the test's
+        // native host before that framework wait. Gameplay remains unchanged.
+        val activity = hostActivity ?: return
+        InstrumentationRegistry.getInstrumentation().runOnMainSync {
+            findCanvasWebView(activity.window.decorView)?.let { web ->
+                (web.parent as? ViewGroup)?.removeView(web)
+                web.onPause()
+            }
+            // API26 needs its native host finished before the idle wait.
+            // Newer ActivityScenario versions can race a manual finish during
+            // RESTARTED, so let their normal close own that transition.
+            if (android.os.Build.VERSION.SDK_INT == 26) activity.finish()
+        }
+        if (android.os.Build.VERSION.SDK_INT == 26) {
+            val deadline = SystemClock.uptimeMillis() + 8_000L
+            var destroyed = false
+            while (!destroyed && SystemClock.uptimeMillis() < deadline) {
+                InstrumentationRegistry.getInstrumentation().runOnMainSync { destroyed = activity.isDestroyed }
+                if (!destroyed) SystemClock.sleep(16L)
+            }
+            assertTrue("Canvas host did not finish before framework teardown", destroyed)
+        }
+        hostActivity = null
+        checkpoint("Canvas host finish requested before framework teardown")
+    }
+
+    private fun checkpoint(stage: String) {
+        Log.i("AnnieCanvasTest", stage)
+    }
+
+    @Test fun interactiveCanvasRunsOfflineAndRetainsItsWebViewAcrossFullscreen() {
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+        val payload = JSONObject()
+            .put("type", "canvas")
+            .put("title", "Counter • Canvas")
+            .put("height", 300)
+            .put("html", "<button id='plus'>Tap</button><output id='count'>0</output>")
+            .put("css", "button { background: teal; color: white; padding: 12px; }")
+            .put("javascript", """
+                window.tapCount = 0;
+                document.getElementById('plus').addEventListener('click', () => {
+                    document.getElementById('count').textContent = String(++window.tapCount);
+                });
+                window.canvasReady = true;
+            """.trimIndent())
+        val monitor = instrumentation.addMonitor(AnnieCanvasActivity::class.java.name, null, false)
+        var fullscreen: AnnieCanvasActivity? = null
+        try {
+            checkpoint("counter: before setContent")
+            compose.setContent { AnnieTheme { AnnieCanvasMessage(payload) } }
+            checkpoint("counter: after setContent")
+            compose.onNodeWithTag("annie_canvas_message").assertIsDisplayed()
+            compose.onNodeWithTag("annie_canvas_webview").assertIsDisplayed()
+
+            lateinit var inlineWebView: WebView
+            compose.runOnIdle {
+                inlineWebView = findCanvasWebView(compose.activity.window.decorView)
+                    ?: error("Canvas WebView not attached")
+            }
+            compose.waitUntil(12_000) { eval(inlineWebView, "window.canvasReady") == "true" }
+            assertEquals("\"undefined\"", eval(inlineWebView, "typeof window.annie"))
+            // WebView.getSettings(), like every WebView API, must run on its owning UI thread.
+            instrumentation.runOnMainSync {
+                assertTrue("Canvas incorrectly allows network loads", inlineWebView.settings.blockNetworkLoads)
+                assertTrue("Canvas incorrectly allows file reads", !inlineWebView.settings.allowFileAccess)
+                assertTrue("Canvas incorrectly allows content reads", !inlineWebView.settings.allowContentAccess)
+            }
+
+            assertEquals("1", eval(inlineWebView, "(document.querySelector('#plus').click(), window.tapCount)"))
+            saveEmulatorScreenshot("annie-canvas-inline-counter")
+
+            // Test Restart while the original Compose test host is active.
+            // AndroidX ActivityScenario can close its synthetic ComponentActivity
+            // after an external Activity returns, leaving no Compose semantics
+            // hierarchy even though the retained WebView itself is still live.
+            compose.onNodeWithTag("annie_canvas_restart").performClick()
+            compose.waitUntil(12_000) {
+                eval(inlineWebView, "window.canvasReady") == "true" &&
+                    eval(inlineWebView, "window.tapCount") == "0"
+            }
+            assertEquals("1", eval(inlineWebView, "(document.querySelector('#plus').click(), window.tapCount)"))
+            checkpoint("counter: restart verified, opening fullscreen")
+            compose.onNodeWithTag("annie_canvas_fullscreen").performClick()
+            fullscreen = instrumentation.waitForMonitorWithTimeout(monitor, 8_000) as? AnnieCanvasActivity
+            assertNotNull("Expand did not open the Canvas Activity", fullscreen)
+            // Android launches the Activity before its Compose AndroidView is attached.
+            // Wait for the actual interactive WebView, not merely Activity.onCreate().
+            var fullscreenWebView: WebView? = null
+            compose.waitUntil(12_000) {
+                instrumentation.runOnMainSync {
+                    fullscreenWebView = findCanvasWebView(fullscreen!!.window.decorView)
+                }
+                fullscreenWebView != null
+            }
+            assertNotNull("Fullscreen Canvas WebView not attached", fullscreenWebView)
+            assertSame("Expanding Canvas must reuse the running WebView", inlineWebView, fullscreenWebView)
+            assertEquals("1", eval(fullscreenWebView!!, "window.tapCount"))
+            assertEquals("2", eval(fullscreenWebView!!, "(document.querySelector('#plus').click(), window.tapCount)"))
+            awaitCanvasPresentation(fullscreenWebView!!)
+            saveEmulatorScreenshot("annie-canvas-fullscreen-counter")
+            instrumentation.runOnMainSync { fullscreen?.finish() }
+            compose.waitUntil(8_000) { inlineWebView.parent != null }
+            assertEquals("2", eval(inlineWebView, "window.tapCount"))
+            checkpoint("counter: WebView preserved after fullscreen close")
+        } finally {
+            fullscreen?.finish()
+            instrumentation.removeMonitor(monitor)
+        }
+    }
+
+    @Test fun builtInSnakeCommandProducesPlayableCanvasAndCapturesItsChatPreview() {
+        checkpoint("snake: test started")
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val workspace = ScriptWorkspace(context)
+        checkpoint("snake: workspace created")
+        val payload = try {
+            val commands = kotlinx.coroutines.runBlocking { workspace.reload() }
+            assertTrue("The /snake starter command was not registered", commands.any { it.name == "snake" })
+            JSONObject(kotlinx.coroutines.runBlocking {
+                workspace.execute("snake", "/snake", "canvas-snake-proof", 730L)
+            })
+        } finally {
+            workspace.close()
+        }
+        assertEquals("canvas", payload.optString("type"))
+        checkpoint("snake: payload executed")
+        compose.setContent { AnnieTheme { AnnieCanvasMessage(payload) } }
+        checkpoint("snake: setContent returned")
+        compose.onNodeWithTag("annie_canvas_message").assertIsDisplayed()
+        checkpoint("snake: bubble visible")
+        lateinit var snake: WebView
+        checkpoint("snake: before runOnIdle")
+        compose.runOnIdle {
+            snake = findCanvasWebView(compose.activity.window.decorView)
+                ?: error("Snake Canvas WebView was not attached")
+        }
+        checkpoint("snake: WebView attached")
+        compose.waitUntil(12_000) { eval(snake, "window.annieCanvasSnakeReady") == "true" }
+        assertEquals("300", eval(snake, "document.getElementById('board').width"))
+        // Canvas Arcade steers by touch on its board; no D-pad buttons belong in the UI.
+        assertEquals("true", eval(snake, "document.querySelectorAll('[data-dir]').length === 0"))
+        assertEquals("false", eval(snake, "window.annieCanvasSnakeState().started"))
+        checkpoint("snake: ready for physical swipe")
+        swipeDownOnWebView(snake)
+        checkpoint("snake: swipe injected")
+        compose.waitUntil(8_000) {
+            eval(snake, "window.annieCanvasSnakeState().pending === 'down' && window.annieCanvasSnakeState().started") == "true"
+        }
+        checkpoint("snake: gameplay verified")
+        saveEmulatorScreenshot("annie-canvas-snake-in-chat")
+        checkpoint("snake: screenshot saved, test body complete")
+    }
+
+    /** Send real Android touch input through the window, not synthetic JS events. */
+    @Test fun snakeCanvasAppearsInsideTheRealChatAndAcceptsFingerSwipes() {
+        checkpoint("chat: test started")
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        compose.setContent { AnnieTheme { AnnieChat() } }
+        checkpoint("chat: setContent returned")
+        compose.onNodeWithTag("composer_input").performTextInput("/snake")
+        checkpoint("chat: composer filled")
+        compose.waitUntil(12_000) {
+            compose.onAllNodesWithTag("slash_command_/snake").fetchSemanticsNodes().isNotEmpty()
+        }
+        compose.onNodeWithTag("slash_command_/snake").performClick()
+        compose.onNodeWithTag("send_message").performClick()
+        checkpoint("chat: send tapped")
+        compose.waitUntil(15_000) {
+            ChatHistoryStore.read(context).any { conversation ->
+                conversation.messages.any { entry ->
+                    entry.scriptMessageJson?.let { data ->
+                        runCatching { JSONObject(data).optString("title") == "Snake • Arcade" }
+                            .getOrDefault(false)
+                    } == true
+                }
+            }
+        }
+        compose.waitUntil(12_000) {
+            compose.onAllNodesWithTag("annie_canvas_message").fetchSemanticsNodes().isNotEmpty()
+        }
+        checkpoint("chat: Canvas bubble exists")
+        // The composer IME obscures most of a tall Canvas on phones. Dismiss it and
+        // scroll the actual chat bubble into the viewport before sending real touch input.
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+        instrumentation.runOnMainSync {
+            compose.activity.currentFocus?.clearFocus()
+            val imm = compose.activity.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+            imm.hideSoftInputFromWindow(compose.activity.window.decorView.windowToken, 0)
+        }
+        compose.waitForIdle()
+        compose.onNodeWithTag("conversation").performScrollToNode(hasTestTag("annie_canvas_message"))
+        compose.onNodeWithTag("annie_canvas_message").assertIsDisplayed()
+        checkpoint("chat: bubble scrolled visible")
+        lateinit var snakeWebView: WebView
+        compose.runOnIdle {
+            snakeWebView = findCanvasWebView(compose.activity.window.decorView)
+                ?: error("The real chat's Canvas Arcade has no interactive WebView")
+        }
+        compose.waitUntil(12_000) {
+            eval(snakeWebView, "window.annieCanvasSnakeReady") == "true"
+        }
+        assertEquals("false", eval(snakeWebView, "window.annieCanvasSnakeState().started"))
+        checkpoint("chat: JS ready")
+        swipeDownOnWebView(snakeWebView)
+        checkpoint("chat: physical swipe injected")
+        compose.waitUntil(8_000) {
+            eval(snakeWebView, "window.annieCanvasSnakeState().pending === 'down' && window.annieCanvasSnakeState().started") == "true"
+        }
+        saveEmulatorScreenshot("annie-canvas-arcade-real-chat")
+        // Expansion belongs to the rendered message, never to a prebuilt Snake screen.
+        val monitor = instrumentation.addMonitor(AnnieCanvasActivity::class.java.name, null, false)
+        var fullscreen: AnnieCanvasActivity? = null
+        try {
+            compose.onNodeWithTag("annie_canvas_fullscreen").performClick()
+            fullscreen = instrumentation.waitForMonitorWithTimeout(monitor, 8_000) as? AnnieCanvasActivity
+            assertNotNull("Canvas message did not open fullscreen", fullscreen)
+            var expandedWebView: WebView? = null
+            compose.waitUntil(12_000) {
+                instrumentation.runOnMainSync {
+                    expandedWebView = findCanvasWebView(fullscreen!!.window.decorView)
+                }
+                expandedWebView != null
+            }
+            assertSame("Fullscreen must continue the SAME message WebView", snakeWebView, expandedWebView)
+            assertEquals("true", eval(snakeWebView, "window.annieCanvasSnakeState().started"))
+            val fullscreenStarts = eval(snakeWebView, "(window.annieCanvasInputDiagnostics().pointerStarts + window.annieCanvasInputDiagnostics().touchStarts)").toInt()
+            swipeDownOnWebView(snakeWebView)
+            assertTrue("Fullscreen Canvas received no native finger touch", eval(snakeWebView,
+                "(window.annieCanvasInputDiagnostics().pointerStarts + window.annieCanvasInputDiagnostics().touchStarts)").toInt() > fullscreenStarts)
+            saveEmulatorScreenshot("annie-canvas-arcade-fullscreen-message")
+            instrumentation.runOnMainSync { fullscreen?.finish() }
+            compose.waitUntil(12_000) { snakeWebView.parent != null }
+            assertEquals("true", eval(snakeWebView, "window.annieCanvasSnakeReady"))
+        } finally {
+            fullscreen?.finish()
+            instrumentation.removeMonitor(monitor)
+        }
+    }
+
+    private fun awaitCanvasPresentation(web: WebView) {
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+        // DOM readiness can precede Chromium's first presented frame and the
+        // host window's input focus. A swipe at that point can be injected into
+        // the window successfully while the new WebView receives no events.
+        val focusDeadline = SystemClock.uptimeMillis() + 8_000L
+        var focused = false
+        while (!focused && SystemClock.uptimeMillis() < focusDeadline) {
+            instrumentation.runOnMainSync {
+                focused = web.isAttachedToWindow && web.isShown && web.hasWindowFocus()
+            }
+            if (!focused) SystemClock.sleep(16L)
+        }
+        assertTrue("Canvas host never acquired input focus", focused)
+        val presented = CountDownLatch(1)
+        instrumentation.runOnMainSync {
+            web.postVisualStateCallback(SystemClock.uptimeMillis(), object : WebView.VisualStateCallback() {
+                override fun onComplete(requestId: Long) {
+                    web.postOnAnimation { web.postOnAnimation { presented.countDown() } }
+                }
+            })
+        }
+        assertTrue("Canvas never presented its ready frame", presented.await(8, TimeUnit.SECONDS))
+        val visible = Rect()
+        instrumentation.runOnMainSync {
+            assertTrue("Canvas has no visible display bounds", web.getGlobalVisibleRect(visible))
+        }
+        val deadline = SystemClock.uptimeMillis() + 6_000L
+        var brightPixels = 0
+        do {
+            val screenshot = checkNotNull(instrumentation.uiAutomation.takeScreenshot())
+            try {
+                brightPixels = 0
+                for (y in visible.top.coerceAtLeast(0) until visible.bottom.coerceAtMost(screenshot.height) step 4) {
+                    for (x in visible.left.coerceAtLeast(0) until visible.right.coerceAtMost(screenshot.width) step 4) {
+                        val color = screenshot.getPixel(x, y)
+                        if (android.graphics.Color.green(color) > 90 &&
+                            (android.graphics.Color.red(color) > 90 || android.graphics.Color.blue(color) > 90)) brightPixels++
+                    }
+                }
+            } finally { screenshot.recycle() }
+            if (brightPixels < 24) SystemClock.sleep(100L)
+        } while (brightPixels < 24 && SystemClock.uptimeMillis() < deadline)
+        assertTrue("Canvas DOM is live but its native display is blank ($brightPixels visible content samples)", brightPixels >= 24)
+    }
+
+    private fun swipeDownOnWebView(web: WebView) {
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+        awaitCanvasPresentation(web)
+        val visible = Rect()
+        val screenLocation = IntArray(2)
+        var viewWidth = 0
+        var viewHeight = 0
+        instrumentation.runOnMainSync {
+            assertTrue("Canvas must be attached and visible before swiping", web.isShown)
+            assertTrue("Canvas has no visible window intersection", web.getGlobalVisibleRect(visible))
+            web.getLocationOnScreen(screenLocation)
+            viewWidth = web.width
+            viewHeight = web.height
+        }
+
+        // WebView can be visible while the actual board is partly off-screen. The
+        // previous helper swiped relative to the WebView's clipped rectangle; on
+        // different emulator densities it sometimes started outside #board.
+        // Use the rendered board's own CSS viewport coordinates, converted to
+        // physical screen pixels, to exercise a real Android finger gesture.
+        val board = org.json.JSONArray(eval(web, """
+            (() => {
+                const r = document.getElementById('board').getBoundingClientRect();
+                return [r.left, r.top, r.width, r.height, innerWidth, innerHeight];
+            })()
+        """.trimIndent()))
+        val widthCss = board.getDouble(4).toFloat()
+        val heightCss = board.getDouble(5).toFloat()
+        assertTrue("Invalid Canvas viewport: $board", widthCss > 0f && heightCss > 0f)
+        val sx = viewWidth / widthCss
+        val sy = viewHeight / heightCss
+        val x = screenLocation[0] + (board.getDouble(0) + board.getDouble(2) * 0.5).toFloat() * sx
+        val boardTop = screenLocation[1] + board.getDouble(1).toFloat() * sy
+        val boardBottom = boardTop + board.getDouble(3).toFloat() * sy
+        // A Canvas in chat may be partially clipped by the conversation viewport.
+        // Stay inside the exposed board instead of requiring the entire board on screen.
+        val exposedTop = maxOf(boardTop, visible.top.toFloat())
+        val exposedBottom = minOf(boardBottom, visible.bottom.toFloat())
+        assertTrue("Board has too little exposed playing area: $visible board=$board",
+            exposedBottom - exposedTop >= 90f)
+        val y1 = exposedTop + (exposedBottom - exposedTop) * 0.25f
+        val y2 = exposedTop + (exposedBottom - exposedTop) * 0.75f
+        assertTrue("Board center lies outside exposed Canvas: $visible board=$board",
+            x >= visible.left && x <= visible.right)
+
+        // UiAutomator.UiDevice.swipe() blocks waiting for Accessibility window
+        // idle on Android 8 WebView, sometimes for the entire CI timeout. Send
+        // ordinary touchscreen MotionEvents to the actual window instead. The
+        // SOURCE_TOUCHSCREEN and FINGER tool type are essential for older
+        // Chromium WebViews to dispatch native TouchEvents, not mouse events.
+        Log.i("AnnieCanvasTest", "swipe geometry x=$x from=$y1 to=$y2 visible=$visible board=$board")
+        val downTime = SystemClock.uptimeMillis()
+        fun inject(action: Int, pointY: Float) {
+            val props = arrayOf(MotionEvent.PointerProperties().apply {
+                id = 0
+                toolType = MotionEvent.TOOL_TYPE_FINGER
+            })
+            val coords = arrayOf(MotionEvent.PointerCoords().apply {
+                this.x = x
+                this.y = pointY
+                pressure = if (action == MotionEvent.ACTION_UP) 0f else 1f
+                size = 1f
+            })
+            val event = MotionEvent.obtain(
+                downTime, SystemClock.uptimeMillis(), action,
+                1, props, coords,
+                0, 0, 1f, 1f, 0, 0,
+                InputDevice.SOURCE_TOUCHSCREEN, 0
+            )
+            try {
+                instrumentation.sendPointerSync(event)
+            } finally {
+                event.recycle()
+            }
+        }
+        Log.i("AnnieCanvasTest", "swipe: ACTION_DOWN")
+        inject(MotionEvent.ACTION_DOWN, y1)
+        for (step in 1..12) {
+            SystemClock.sleep(18L)
+            inject(MotionEvent.ACTION_MOVE, y1 + (y2 - y1) * step / 12f)
+        }
+        SystemClock.sleep(18L)
+        inject(MotionEvent.ACTION_UP, y2)
+        Log.i("AnnieCanvasTest", "swipe: ACTION_UP delivered")
+        val state = eval(web, "JSON.stringify({game:window.annieCanvasSnakeState(), events:window.annieCanvasInputDiagnostics()})")
+        Log.i("AnnieCanvasTest", "post-swipe state: $state")
+    }
+
+    private fun eval(web: WebView, script: String): String {
+        val value = AtomicReference<String?>()
+        val done = CountDownLatch(1)
+        InstrumentationRegistry.getInstrumentation().runOnMainSync {
+            web.evaluateJavascript(script) { text -> value.set(text); done.countDown() }
+        }
+        assertTrue("Canvas script did not respond: $script", done.await(3, TimeUnit.SECONDS))
+        return value.get().orEmpty()
+    }
+
+    private fun findCanvasWebView(view: View): WebView? {
+        if (view is WebView) return view
+        if (view is ViewGroup) for (i in 0 until view.childCount) {
+            findCanvasWebView(view.getChildAt(i))?.let { return it }
+        }
+        return null
+    }
+}

@@ -1,0 +1,134 @@
+name: TheNkiri Downloadwella trace
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/thenkiri-downloadwella-trace.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  trace:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Trace Downloadwella free-download POST
+        shell: bash
+        run: |
+          mkdir -p diagnostics
+          python3 - <<'PY'
+          import urllib.request, urllib.parse, urllib.error, http.cookiejar, re, json, html, time
+          from urllib.parse import urljoin
+
+          UA='Mozilla/5.0 (Linux; Android 16; SM-A165F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Mobile Safari/537.36'
+          samples=[
+            {
+              'label':'movie',
+              'page':'https://downloadwella.com/015xrt6sv992/Almost.Popular.(THENKIRI.COM).2025.WEBRip.DOWNLOADED.FROM.THENKIRI.COM.mkv.html',
+              'referer':'https://thenkiri.com/almost-popular-2025-download-hollywood-movie/'
+            },
+            {
+              'label':'episode',
+              'page':'https://downloadwella.com/jw919q64dtwv/The.Blame.S01E01.(THENKIRI.COM).mkv.html',
+              'referer':'https://thenkiri.com/the-blame-s01-complete-tv-series/'
+            }
+          ]
+          out={'samples':[]}
+
+          def strip(s):
+              return re.sub(r'\s+',' ',html.unescape(re.sub(r'<[^>]+>',' ',s or ''))).strip()
+
+          def anchors(src,base):
+              arr=[]
+              for m in re.finditer(r'<a\b([^>]*)>([\s\S]*?)</a>',src or '',re.I):
+                  hm=re.search(r'\bhref\s*=\s*["\']([^"\']+)',m.group(1),re.I)
+                  if not hm: continue
+                  arr.append({'text':strip(m.group(2)),'href':urljoin(base,html.unescape(hm.group(1)))})
+              return arr
+
+          def parse_forms(src,base):
+              forms=[]
+              for fm in re.finditer(r'<form\b[\s\S]*?</form>',src or '',re.I):
+                  f=fm.group(0)
+                  am=re.search(r'\baction\s*=\s*["\']([^"\']*)',f,re.I)
+                  mm=re.search(r'\bmethod\s*=\s*["\']([^"\']*)',f,re.I)
+                  action=urljoin(base,html.unescape(am.group(1))) if am else base
+                  method=(mm.group(1).lower() if mm else 'get')
+                  fields=[]
+                  for im in re.finditer(r'<input\b[^>]*>',f,re.I):
+                      tag=im.group(0)
+                      def at(n):
+                          m=re.search(r'\b'+re.escape(n)+r'\s*=\s*["\']([^"\']*)',tag,re.I)
+                          return html.unescape(m.group(1)) if m else None
+                      fields.append({'type':at('type'),'name':at('name'),'value':at('value'),'id':at('id'),'placeholder':at('placeholder')})
+                  forms.append({'action':action,'method':method,'fields':fields})
+              return forms
+
+          for s in samples:
+              rec={'label':s['label'],'page':s['page']}
+              jar=http.cookiejar.CookieJar()
+              opener=urllib.request.build_opener(urllib.request.HTTPCookieProcessor(jar))
+              def req(url,method='GET',data=None,referer=None):
+                  h={'User-Agent':UA,'Accept':'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'}
+                  if referer: h['Referer']=referer
+                  if data is not None: h['Content-Type']='application/x-www-form-urlencoded'
+                  r=urllib.request.Request(url,method=method,headers=h,data=data)
+                  try:
+                      with opener.open(r,timeout=30) as x:
+                          b=x.read(2000000).decode('utf-8','ignore')
+                          return {'status':x.status,'url':x.geturl(),'headers':dict(x.headers),'body':b}
+                  except urllib.error.HTTPError as e:
+                      return {'status':e.code,'url':url,'headers':dict(e.headers),'body':e.read(2000000).decode('utf-8','ignore'),'error':'HTTPError'}
+                  except Exception as e:
+                      return {'status':None,'url':url,'headers':{},'body':'','error':repr(e)}
+
+              g=req(s['page'],referer=s['referer'])
+              forms=parse_forms(g['body'],g['url'])
+              rec['get']={
+                'status':g['status'],'finalUrl':g['url'],'title':strip((re.search(r'<title[^>]*>([\s\S]*?)</title>',g['body'],re.I) or [None,''])[1]),
+                'text':strip(g['body'])[:5000],'forms':forms,
+                'scripts':[x for x in re.findall(r'<script\b[^>]*\bsrc\s*=\s*["\']([^"\']+)',g['body'],re.I)][:100]
+              }
+
+              dlform=next((f for f in forms if any(x.get('name')=='op' and x.get('value')=='download2' for x in f['fields'])),None)
+              if dlform:
+                  vals={}
+                  for x in dlform['fields']:
+                      if x.get('name') is not None:
+                          vals[x['name']]=x.get('value') or ''
+                  rec['submittedFields']=vals
+                  # Behave like a user pressing "Create download link"; no CAPTCHA fields are invented or solved.
+                  p=req(dlform['action'],method='POST',data=urllib.parse.urlencode(vals).encode(),referer=s['page'])
+                  pforms=parse_forms(p['body'],p['url'])
+                  pa=anchors(p['body'],p['url'])
+                  rec['post']={
+                    'status':p['status'],'finalUrl':p['url'],
+                    'contentType':p['headers'].get('Content-Type'),
+                    'location':p['headers'].get('Location'),
+                    'title':strip((re.search(r'<title[^>]*>([\s\S]*?)</title>',p['body'],re.I) or [None,''])[1]),
+                    'text':strip(p['body'])[:9000],
+                    'forms':pforms,
+                    'interestingLinks':[a for a in pa if re.search(r'download|file|direct|stream|continue|get link',a['text']+' '+a['href'],re.I)][:100],
+                    'directCandidates':[a for a in pa if re.search(r'\.mkv(?:\?|$)|\.mp4(?:\?|$)|/d/|download',a['href'],re.I)][:100],
+                    'inlineHints':[m.group(0)[:3000] for m in re.finditer(r'.{0,500}(?:download_url|download1|download2|captcha|countdown|seconds|window\.location|document\.location|file_code|direct).{0,1200}',p['body'],re.I|re.S)][:40]
+                  }
+                  rec['humanBoundary']=bool(re.search(r'captcha|verify you are human|enter.{0,20}(number|code)|verification code|security code|g-recaptcha|hcaptcha|turnstile',strip(p['body']),re.I))
+              out['samples'].append(rec)
+
+          with open('diagnostics/thenkiri-downloadwella-trace.json','w') as f: json.dump(out,f,indent=2)
+          print(json.dumps(out,indent=2)[:60000])
+          PY
+
+      - name: Commit result
+        if: always()
+        run: |
+          test -f diagnostics/thenkiri-downloadwella-trace.json || echo '{"error":"no result"}' > diagnostics/thenkiri-downloadwella-trace.json
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add diagnostics/thenkiri-downloadwella-trace.json
+          git commit -m "record TheNkiri Downloadwella trace" || true
+          git push || true

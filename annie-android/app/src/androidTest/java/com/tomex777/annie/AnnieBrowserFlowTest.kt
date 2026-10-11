@@ -1,0 +1,447 @@
+package com.tomex777.annie
+
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.height
+
+import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.ui.test.onAllNodesWithTag
+import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performTextInput
+import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.swipeUp
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
+import androidx.test.ext.junit.runners.AndroidJUnit4
+import androidx.test.platform.app.InstrumentationRegistry
+import androidx.activity.ComponentActivity
+import java.io.BufferedReader
+import java.io.InputStreamReader
+import java.net.InetAddress
+import java.net.ServerSocket
+import java.net.Socket
+import java.net.SocketException
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicReference
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertSame
+import org.junit.Assert.assertTrue
+import org.junit.Rule
+import org.junit.Test
+import org.junit.runner.RunWith
+
+@RunWith(AndroidJUnit4::class)
+class AnnieBrowserFlowTest {
+    @get:Rule val compose = createAndroidComposeRule<ComponentActivity>()
+
+    @Test fun browserMessageVerifiesCookieBackedHttpSessionAndExpandsToFullBrowser() {
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+        val context = instrumentation.targetContext
+        val server = ControlledBrowserServer()
+        val name = "browserflow${System.nanoTime().toString().takeLast(8)}"
+        val files = ScriptFiles(context)
+        val entry = files.createScript(name)
+        files.writeFile(
+            name,
+            entry.name,
+            """
+                |const sessionId = "$name.main";
+                |annie.actions.register("verifySource", async payload => {
+                |  if (!payload.cookieNames.includes("cf_clearance")) {
+                |    return annie.browser.verification("failed", "Browser clearance cookie is missing.");
+                |  }
+                |  const response = await annie.browser.fetch({
+                |    url: "${server.baseUrl}/protected",
+                |    sessionId,
+                |    timeoutMs: 5000
+                |  });
+                |  return response.ok
+                |    ? annie.browser.verification("verified", "Protected source request succeeded.")
+                |    : annie.browser.verification("failed", "Protected request returned " + response.status);
+                |});
+                |annie.commands.register({
+                |  name: "$name",
+                |  async execute() {
+                |    return annie.browser.open({
+                |      title: "Verify controlled source",
+                |      sessionId,
+                |      url: "${server.baseUrl}/verify",
+                |      allowedHosts: ["127.0.0.1"],
+                |      restricted: true,
+                |      verifyAction: "verifySource",
+                |      verifyLabel: "Verify",
+                |      userAgent: "AnnieBrowserProof/1.0",
+                |      javaScriptEnabled: true,
+                |      thirdPartyCookies: true
+                |    });
+                |  }
+                |});
+            """.trimMargin(),
+        )
+        val monitor = instrumentation.addMonitor(AnnieBrowserActivity::class.java.name, null, false)
+        var browserActivity: AnnieBrowserActivity? = null
+        try {
+            compose.setContent { AnnieTheme { AnnieChat() } }
+            compose.onNodeWithTag("composer_input").performTextInput("/$name")
+            compose.waitUntil(8_000) {
+                compose.onAllNodesWithTag("slash_command_/$name").fetchSemanticsNodes().isNotEmpty()
+            }
+            compose.onNodeWithTag("slash_command_/$name").performClick()
+            compose.onNodeWithTag("send_message").performClick()
+            compose.runOnIdle { compose.activity.currentFocus?.clearFocus() }
+            compose.waitUntil(12_000) {
+                compose.onAllNodesWithTag("annie_browser_message").fetchSemanticsNodes().isNotEmpty()
+            }
+            // API 26's bundled WebView may not expose MULTI_PROFILE. Annie must refuse
+            // to share cookies instead of silently weakening session isolation.
+            if (!AnnieBrowserProfiles.isSupported()) {
+                compose.onNodeWithText(AnnieBrowserProfiles.unavailableMessage()).assertExists()
+                return
+            }
+            assertTrue("Verification page did not load its controlled readiness callback", server.awaitReady())
+            compose.waitUntil(8_000) {
+                AnnieBrowserSessionStore.get(context, "$name.main")?.currentUrl?.endsWith("/ready") == true
+            }
+            lateinit var inlineWebView: android.webkit.WebView
+            compose.runOnIdle {
+                inlineWebView = findWebView(compose.activity.window.decorView)
+                    ?: error("Inline browser WebView was not attached")
+            }
+            compose.onNodeWithTag("annie_browser_inline_webview").performTouchInput { swipeUp() }
+            val scrollPosition = AtomicReference<String?>(null)
+            compose.waitUntil(5_000) {
+                compose.runOnIdle {
+                    inlineWebView.evaluateJavascript("window.scrollY") { scrollPosition.set(it) }
+                }
+                scrollPosition.get()?.toDoubleOrNull()?.let { it > 0.0 } == true
+            }
+            compose.onNodeWithTag("annie_browser_verify").performClick()
+            val protectedRequestOk = server.protectedRequestWasValid()
+            assertTrue(
+                "The browser verification action did not reach the protected endpoint; " +
+                    "valid=$protectedRequestOk, session=${AnnieBrowserSessionStore.get(context, "$name.main")}",
+                protectedRequestOk,
+            )
+            compose.waitUntil(25_000) {
+                compose.onAllNodesWithText("Verified", substring = false).fetchSemanticsNodes().isNotEmpty()
+            }
+            compose.onAllNodesWithText("Protected source request succeeded.", substring = false)[0].assertExists()
+            assertEquals(
+                "Browser verification result should stay inside the browser card instead of being duplicated in chat",
+                1,
+                compose.onAllNodesWithText("Protected source request succeeded.", substring = false).fetchSemanticsNodes().size,
+            )
+
+            val downloadFinished = CountDownLatch(1)
+            val downloaded = AtomicReference<DownloadItem?>()
+            val downloader = AnnieMediaDownloader(context) { item ->
+                if (item.id == "${name}_download") {
+                    downloaded.set(item)
+                    if (item.state == DownloadState.COMPLETE || item.state == DownloadState.FAILED) {
+                        downloadFinished.countDown()
+                    }
+                }
+            }
+            val downloadItem = DownloadItem(
+                id = "${name}_download",
+                canonicalTitleId = "browser-proof",
+                sourceId = "controlled-source",
+                sourceName = "Controlled source",
+                kind = DownloadMediaKind.MOVIE,
+                title = "Browser session proof",
+                unitTitle = "Session identity",
+                state = DownloadState.QUEUED,
+                sourceUrl = "${server.baseUrl}/media.mp4",
+                sourceMimeType = "video/mp4",
+                browserSessionId = "$name.main",
+            )
+            try {
+                downloader.enqueue(downloadItem)
+                assertTrue("Downloader did not finish the controlled protected resource", downloadFinished.await(12, TimeUnit.SECONDS))
+                assertEquals(DownloadState.COMPLETE, downloaded.get()?.state)
+                assertTrue("Downloader did not share the browser cookie and User-Agent", server.downloadRequestWasValid())
+                assertEquals("browser-session-video", java.io.File(downloaded.get()!!.localPath).readText())
+            } finally {
+                downloader.close()
+                downloaded.get()?.localPath?.takeIf(String::isNotBlank)?.let { runCatching { java.io.File(it).delete() } }
+            }
+            saveEmulatorScreenshot("annie-browser-session-verified")
+
+            // Keep the proof away from the page bottom. Expanding the viewport
+            // legitimately clamps a bottom offset to the new maximum scrollY.
+            val positioned = CountDownLatch(1)
+            instrumentation.runOnMainSync {
+                inlineWebView.evaluateJavascript("window.scrollTo(0, 500)") { positioned.countDown() }
+            }
+            assertTrue("Timed out positioning the browser fixture", positioned.await(3, TimeUnit.SECONDS))
+            val inlineScrollY = readScrollY(inlineWebView)
+            assertEquals("Browser fixture did not reach its interior scroll position", 500.0, inlineScrollY, 1.0)
+            compose.onNodeWithTag("annie_browser_fullscreen").performClick()
+            browserActivity = instrumentation.waitForMonitorWithTimeout(monitor, 8_000) as? AnnieBrowserActivity
+            assertNotNull("Inline browser did not open Annie's full-screen browser activity", browserActivity)
+            val sharedController = AnnieBrowserControllers.get("$name.main")
+            assertSame("Fullscreen must reuse the live inline WebView", inlineWebView, sharedController.webView)
+            assertTrue("Fullscreen lost the inline page position", sharedController.currentUrl.endsWith("/ready"))
+            assertEquals("Fullscreen changed the page's scroll position", inlineScrollY, readScrollY(sharedController.webView!!), 1.0)
+            browserActivity?.finish()
+            compose.waitUntil(5_000) { !sharedController.inFullscreen }
+            assertSame("Returning to chat must restore the same WebView", inlineWebView, sharedController.webView)
+            assertEquals("Returning to chat changed the page's scroll position", inlineScrollY, readScrollY(inlineWebView), 1.0)
+        } finally {
+            browserActivity?.finish()
+            instrumentation.removeMonitor(monitor)
+            server.close()
+            runCatching { files.deleteProject(name) }
+            AnnieBrowserSessionStore.clear(context, "$name.main")
+        }
+    }
+
+
+    @Test fun browserSessionsKeepIndependentLiveWebViewScrollState() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val server = ControlledBrowserServer()
+        val suffix = System.nanoTime().toString().takeLast(8)
+        val specA = AnnieBrowserSpec(
+            sessionId = "scroll-a-" + suffix,
+            url = server.baseUrl + "/scroll-a",
+            allowedHosts = listOf("127.0.0.1"),
+        )
+        val specB = AnnieBrowserSpec(
+            sessionId = "scroll-b-" + suffix,
+            url = server.baseUrl + "/scroll-b",
+            allowedHosts = listOf("127.0.0.1"),
+        )
+        val controllerA = AnnieBrowserControllers.get(specA.sessionId)
+        val controllerB = AnnieBrowserControllers.get(specB.sessionId)
+        try {
+            compose.setContent {
+                AnnieTheme {
+                    Column {
+                        AnnieBrowserWebView(specA, controllerA, Modifier.height(220.dp))
+                        AnnieBrowserWebView(specB, controllerB, Modifier.height(220.dp))
+                    }
+                }
+            }
+            if (!AnnieBrowserProfiles.isSupported()) {
+                assertEquals(
+                    "Unsupported WebView must visibly reject unsafe session sharing",
+                    2,
+                    compose.onAllNodesWithText(AnnieBrowserProfiles.unavailableMessage())
+                        .fetchSemanticsNodes().size,
+                )
+                return
+            }
+            compose.waitUntil(10_000) {
+                controllerA.webView != null && controllerB.webView != null &&
+                    !controllerA.loading && !controllerB.loading &&
+                    controllerA.currentUrl.endsWith("/scroll-a") &&
+                    controllerB.currentUrl.endsWith("/scroll-b")
+            }
+            val webA = controllerA.webView ?: error("First browser WebView was not attached")
+            val webB = controllerB.webView ?: error("Second browser WebView was not attached")
+
+            lateinit var cookiesA: android.webkit.CookieManager
+            lateinit var cookiesB: android.webkit.CookieManager
+            InstrumentationRegistry.getInstrumentation().runOnMainSync {
+                cookiesA = AnnieBrowserProfiles.cookieManager(webA)
+                cookiesB = AnnieBrowserProfiles.cookieManager(webB)
+            }
+            cookiesA.setCookie(server.baseUrl + "/", "session=alpha; Path=/")
+            cookiesB.setCookie(server.baseUrl + "/", "session=beta; Path=/")
+            cookiesA.flush()
+            cookiesB.flush()
+            assertTrue(
+                "Session A did not retain its own browser cookie",
+                cookiesA.getCookie(server.baseUrl + "/scroll-a").orEmpty().contains("session=alpha"),
+            )
+            assertTrue(
+                "Session A received Session B's browser cookie",
+                !cookiesA.getCookie(server.baseUrl + "/scroll-a").orEmpty().contains("session=beta"),
+            )
+            assertTrue(
+                "Session B did not retain its own browser cookie",
+                cookiesB.getCookie(server.baseUrl + "/scroll-b").orEmpty().contains("session=beta"),
+            )
+            assertTrue(
+                "Session B received Session A's browser cookie",
+                !cookiesB.getCookie(server.baseUrl + "/scroll-b").orEmpty().contains("session=alpha"),
+            )
+
+            setScroll(webA, 320)
+            setScroll(webB, 720)
+            assertEquals("Session A scroll leaked from session B", 320.0, readScrollY(webA), 2.0)
+            assertEquals("Session B scroll leaked from session A", 720.0, readScrollY(webB), 2.0)
+            // DOM window.scrollY uses CSS pixels; native WebView/scroll callback uses device
+            // pixels. On 2.625-density emulators, 320 CSS pixels equals 840 native pixels.
+            assertEquals("Session A native position changed with session B", webA.scrollY, controllerA.scrollY)
+            assertEquals("Session B native position changed with session A", webB.scrollY, controllerB.scrollY)
+        } finally {
+            controllerA.destroy()
+            controllerB.destroy()
+            AnnieBrowserSessionStore.clear(context, specA.sessionId, clearCookies = false)
+            AnnieBrowserSessionStore.clear(context, specB.sessionId, clearCookies = false)
+            server.close()
+        }
+    }
+
+    private fun setScroll(webView: android.webkit.WebView, value: Int) {
+        // A successful evaluateJavascript callback means the script ran, not that the
+        // renderer has committed a new scroll offset. This is especially visible when
+        // two isolated WebViews render at once. Verify both the scrollable document and
+        // its committed scroll offset instead of racing the next frame.
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+        var latestPosition = -1.0
+        var latestMetrics = "unknown"
+        repeat(10) { attempt ->
+            val done = CountDownLatch(1)
+            instrumentation.runOnMainSync {
+                webView.evaluateJavascript(
+                    "JSON.stringify({height: document.documentElement.scrollHeight, viewport: window.innerHeight, y: (window.scrollTo(0, $value), window.scrollY)})"
+                ) { valueJson ->
+                    latestMetrics = valueJson.orEmpty()
+                    done.countDown()
+                }
+            }
+            assertTrue("Timed out positioning browser WebView", done.await(3, TimeUnit.SECONDS))
+            latestPosition = readScrollY(webView)
+            if (kotlin.math.abs(latestPosition - value) <= 2.0) return
+            Thread.sleep(200L + 100L * attempt)
+        }
+        throw AssertionError(
+            "Browser fixture did not commit requested scroll $value; " +
+                "lastScrollY=$latestPosition, documentMetrics=$latestMetrics, " +
+                "viewHeight=${webView.height}, contentHeight=${webView.contentHeight}"
+        )
+    }
+    private class ControlledBrowserServer : AutoCloseable {
+        private val listener = ServerSocket(0, 32, InetAddress.getByName("127.0.0.1"))
+        private val ready = CountDownLatch(1)
+        private val protected = CountDownLatch(1)
+        private val download = CountDownLatch(1)
+        private val validProtectedRequest = AtomicBoolean(false)
+        private val validDownloadRequest = AtomicBoolean(false)
+        @Volatile private var closed = false
+        val baseUrl = "http://127.0.0.1:${listener.localPort}"
+        private val worker = Thread({
+            while (!closed) {
+                val socket = runCatching { listener.accept() }.getOrNull() ?: break
+                Thread({
+                    try {
+                        socket.use(::respond)
+                    } catch (error: SocketException) {
+                        val message = error.message.orEmpty().lowercase()
+                        val clientClosedEarly = "broken pipe" in message || "connection reset" in message || "socket closed" in message
+                        if (!clientClosedEarly && !closed) throw error
+                    }
+                }, "annie-browser-fixture-client").apply {
+                    isDaemon = true
+                    start()
+                }
+            }
+        }, "annie-browser-fixture").apply { isDaemon = true; start() }
+
+        fun awaitReady(): Boolean = ready.await(10, TimeUnit.SECONDS)
+        fun protectedRequestWasValid(): Boolean = protected.await(12, TimeUnit.SECONDS) && validProtectedRequest.get()
+        fun downloadRequestWasValid(): Boolean = download.await(3, TimeUnit.SECONDS) && validDownloadRequest.get()
+
+        private fun respond(socket: Socket) {
+            socket.soTimeout = 5_000
+            val reader = BufferedReader(InputStreamReader(socket.getInputStream(), Charsets.US_ASCII))
+            val requestLine = reader.readLine().orEmpty()
+            val headers = linkedMapOf<String, String>()
+            while (true) {
+                val line = reader.readLine() ?: break
+                if (line.isEmpty()) break
+                val separator = line.indexOf(':')
+                if (separator > 0) headers[line.substring(0, separator).trim().lowercase()] = line.substring(separator + 1).trim()
+            }
+            val path = requestLine.split(' ').getOrNull(1).orEmpty().substringBefore('?')
+            val body: String
+            val code: Int
+            val contentType: String
+            var extraHeaders = ""
+            when (path) {
+                "/verify" -> {
+                    code = 200
+                    contentType = "text/html; charset=utf-8"
+                    extraHeaders = "Set-Cookie: cf_clearance=annie-ok; Path=/\r\n"
+                    body = """
+                        |<!doctype html><html><head><title>Controlled verification</title>
+                        |<script>
+                        |setTimeout(() => { location.href = "/ready"; }, 100);
+                        |</script></head><body>Challenge completed</body></html>
+                    """.trimMargin()
+                }
+                "/ready" -> {
+                    ready.countDown()
+                    code = 200
+                    contentType = "text/html; charset=utf-8"
+                    body = "<!doctype html><html><head><title>Long page</title></head><body><main style='height:4000px;padding:24px'>Inline scroll fixture</main></body></html>"
+                }
+                "/protected" -> {
+                    // API 26 WebView predates Fetch Metadata request headers. The
+                    // browser-backed guarantee here is the shared clearance cookie and
+                    // the session's exact User-Agent; both must survive browser.fetch.
+                    val ok = headers["cookie"].orEmpty().contains("cf_clearance=annie-ok") &&
+                        headers["user-agent"] == "AnnieBrowserProof/1.0"
+                    validProtectedRequest.set(ok)
+                    protected.countDown()
+                    code = if (ok) 200 else 403
+                    contentType = "text/plain"
+                    body = if (ok) "clearance-ok" else "browser identity missing"
+                }
+                "/scroll-a", "/scroll-b" -> {
+                    code = 200
+                    contentType = "text/html; charset=utf-8"
+                    body = "<!doctype html><html><head><title>Scroll session</title></head><body><main style='height:5000px;padding:24px'>Independent browser session fixture</main></body></html>"
+                }
+                "/media.mp4" -> {
+                    val ok = headers["cookie"].orEmpty().contains("cf_clearance=annie-ok") &&
+                        headers["user-agent"] == "AnnieBrowserProof/1.0"
+                    validDownloadRequest.set(ok)
+                    download.countDown()
+                    code = if (ok) 200 else 403
+                    contentType = "video/mp4"
+                    body = if (ok) "browser-session-video" else "browser identity missing"
+                    extraHeaders = "Content-Disposition: attachment; filename=proof.mp4\r\n"
+                }
+                else -> { code = 404; contentType = "text/plain"; body = "not found" }
+            }
+            val bytes = body.toByteArray(Charsets.UTF_8)
+            val status = if (code == 200) "OK" else if (code == 403) "Forbidden" else "Not Found"
+            val output = socket.getOutputStream()
+            output.write("HTTP/1.1 $code $status\r\nContent-Type: $contentType\r\n${extraHeaders}Content-Length: ${bytes.size}\r\nConnection: close\r\n\r\n".toByteArray(Charsets.US_ASCII))
+            output.write(bytes)
+            output.flush()
+        }
+
+        override fun close() {
+            closed = true
+            runCatching { listener.close() }
+            runCatching { worker.join(1_000) }
+        }
+    }
+
+    private fun findWebView(view: android.view.View): android.webkit.WebView? {
+        if (view is android.webkit.WebView) return view
+        if (view is android.view.ViewGroup) {
+            for (index in 0 until view.childCount) findWebView(view.getChildAt(index))?.let { return it }
+        }
+        return null
+    }
+
+    private fun readScrollY(webView: android.webkit.WebView): Double {
+        val value = AtomicReference<String?>()
+        val finished = CountDownLatch(1)
+        InstrumentationRegistry.getInstrumentation().runOnMainSync {
+            webView.evaluateJavascript("window.scrollY") { value.set(it); finished.countDown() }
+        }
+        assertTrue("Timed out reading browser page position", finished.await(3, TimeUnit.SECONDS))
+        return value.get()?.toDoubleOrNull() ?: error("Browser page did not return a scroll position")
+    }
+}

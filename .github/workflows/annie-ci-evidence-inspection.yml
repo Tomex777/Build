@@ -1,0 +1,62 @@
+name: Annie CI evidence inspection
+on:
+  push:
+    branches: [annie-rc-download-history-20261011]
+    paths: ['.github/workflows/annie-ci-evidence-inspection.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Download original Android 8 stalled-suite evidence
+        uses: actions/download-artifact@v4
+        with:
+          name: annie-api26-acceptance
+          run-id: 38150304637
+          github-token: ${{ github.token }}
+          path: evidence/original-api26
+      - name: Download validated focused Android 16 reports
+        uses: actions/download-artifact@v4
+        with:
+          name: annie-voice-browser-api36-test-report
+          run-id: 38155131253
+          github-token: ${{ github.token }}
+          path: evidence/focused-api36
+      - name: Inspect reports and stalled runner checkpoints
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          import xml.etree.ElementTree as ET
+          for folder in Path("evidence").iterdir():
+              print(f"=== {folder.name} ===")
+              unique = {}
+              for path in sorted(folder.rglob("*")):
+                  if not path.is_file(): continue
+                  print(f"FILE {path.relative_to(folder)} bytes={path.stat().st_size}")
+                  if path.suffix == ".xml":
+                      try: root = ET.parse(path).getroot()
+                      except ET.ParseError: continue
+                      for case in root.iter("testcase"):
+                          key = (case.get("classname"), case.get("name"))
+                          unique[key] = case
+                          for tag in ("failure", "error", "skipped"):
+                              problem = case.find(tag)
+                              if problem is not None: print(f"UNSUCCESSFUL {key}: {problem.text}")
+                  elif folder.name == "original-api26" and path.suffix in (".log", ".txt"):
+                      text = path.read_text(errors="replace")
+                      print("\n".join(line for line in text.splitlines() if any(tag in line for tag in ("TestRunner", "AnnieCanvasTest", "AndroidRuntime", "ANR", "not responding")))[-30000:])
+                  elif folder.name == "original-api26" and path.suffix in (".pb", ".proto"):
+                      strings = re.findall(rb"[ -~]{12,}", path.read_bytes())
+                      for value in strings[-100:]: print("PROTO_TEXT", value.decode(errors="replace"))
+              failed = sum(any(case.find(t) is not None for t in ("failure", "error")) for case in unique.values())
+              skipped = sum(case.find("skipped") is not None for case in unique.values())
+              print(f"UNIQUE_TESTS {folder.name}: {len(unique)} failures={failed} skipped={skipped}")
+              junit = [k for k in unique if k[0] and k[0].endswith("AnnieImageRequestsTest")]
+              print("Image decoder JVM cases:", junit)
+          PY

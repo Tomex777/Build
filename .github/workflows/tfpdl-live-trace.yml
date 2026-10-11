@@ -1,0 +1,236 @@
+name: TFPDL live endpoint trace
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/tfpdl-live-trace.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  trace:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install Chromium driver
+        run: |
+          mkdir -p /tmp/tfpdl-probe
+          cd /tmp/tfpdl-probe
+          npm init -y >/dev/null 2>&1
+          npm install playwright@1.55.0 >/dev/null 2>&1
+          npx playwright install --with-deps chromium >/dev/null 2>&1
+
+      - name: Trace fresh TFPDL download flow
+        run: |
+          cat > /tmp/tfpdl-probe/trace.mjs <<'JS'
+          import { chromium } from 'playwright';
+          import fs from 'node:fs';
+
+          const out = {
+            startedAt: new Date().toISOString(),
+            api: {},
+            selected: {},
+            events: [],
+            stages: [],
+            forms: [],
+            scripts: [],
+            final: {}
+          };
+
+          const add = (type, data={}) => {
+            const row = { t: new Date().toISOString(), type, ...data };
+            out.events.push(row);
+            console.log(JSON.stringify(row));
+          };
+
+          const apiGet = async (context, url) => {
+            const r = await context.request.get(url, { timeout: 30000, failOnStatusCode: false });
+            return { status: r.status(), url: r.url(), headers: r.headers(), text: await r.text() };
+          };
+
+          const browser = await chromium.launch({ headless: true });
+          const context = await browser.newContext({
+            userAgent: 'Mozilla/5.0 (Linux; Android 16; SM-A165F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Mobile Safari/537.36',
+            viewport: { width: 412, height: 915 },
+            locale: 'en-US'
+          });
+          const page = await context.newPage();
+          page.setDefaultTimeout(12000);
+
+          page.on('request', req => {
+            if (['document','xhr','fetch','script'].includes(req.resourceType())) {
+              add('request', {
+                method: req.method(),
+                resourceType: req.resourceType(),
+                url: req.url(),
+                postData: req.postData() || null
+              });
+            }
+          });
+          page.on('response', async res => {
+            if (['document','xhr','fetch','script'].includes(res.request().resourceType())) {
+              const h = await res.allHeaders().catch(() => ({}));
+              add('response', {
+                status: res.status(),
+                resourceType: res.request().resourceType(),
+                url: res.url(),
+                location: h.location || null,
+                contentType: h['content-type'] || null,
+                server: h.server || null,
+                cfMitigated: h['cf-mitigated'] || null
+              });
+            }
+          });
+          page.on('framenavigated', frame => {
+            if (frame === page.mainFrame()) add('navigation', { url: frame.url() });
+          });
+          page.on('console', m => add('console', { level: m.type(), text: m.text().slice(0,1500) }));
+          page.on('pageerror', e => add('pageerror', { message: e.message }));
+
+          async function snapshot(label) {
+            const body = await page.locator('body').innerText().catch(() => '');
+            const forms = await page.locator('form').evaluateAll(fs => fs.map(f => ({
+              action: f.action,
+              method: (f.method || 'get').toLowerCase(),
+              id: f.id || null,
+              className: f.className || null,
+              inputs: Array.from(f.querySelectorAll('input,button')).map(el => ({
+                tag: el.tagName,
+                type: el.getAttribute('type'),
+                name: el.getAttribute('name'),
+                value: el.getAttribute('value'),
+                placeholder: el.getAttribute('placeholder'),
+                text: (el.textContent || '').trim()
+              }))
+            }))).catch(() => []);
+            const links = await page.locator('a').evaluateAll(as => as.map(a => ({
+              text: (a.textContent || '').trim(),
+              href: a.href
+            })).filter(x => x.href)).catch(() => []);
+            const scripts = await page.locator('script[src]').evaluateAll(ss => ss.map(s => s.src)).catch(() => []);
+            const stage = {
+              label,
+              url: page.url(),
+              title: await page.title().catch(()=>''),
+              body: body.slice(0,6000),
+              forms,
+              links: links.slice(0,100),
+              scripts
+            };
+            out.stages.push(stage);
+            out.forms.push(...forms.map(f => ({stage: label, url: page.url(), ...f})));
+            out.scripts.push(...scripts);
+            console.log('SNAPSHOT', JSON.stringify({label,url:stage.url,title:stage.title,body:stage.body.slice(0,800),forms:forms.length,links:links.length}));
+            return stage;
+          }
+
+          try {
+            const apiUrl = 'https://tfp.re/wp-json/wp/v2/posts?per_page=20&orderby=date&order=desc&_fields=id,link,slug,title,content,date';
+            const api = await apiGet(context, apiUrl);
+            out.api.posts = { url: apiUrl, status: api.status, finalUrl: api.url, contentType: api.headers['content-type'] || null };
+            if (api.status !== 200) throw new Error('posts API status ' + api.status);
+            const posts = JSON.parse(api.text);
+            let selected = null;
+            for (const p of posts) {
+              const html = p?.content?.rendered || '';
+              const m = html.match(/href=["']([^"']*\/tfpdl\?[^"']+)["']/i);
+              if (m) {
+                const href = m[1].replaceAll('&amp;','&');
+                selected = {
+                  id: p.id,
+                  title: p?.title?.rendered || '',
+                  postUrl: p.link,
+                  wrapper: new URL(href, p.link).href
+                };
+                break;
+              }
+            }
+            if (!selected) throw new Error('No current post exposed a /tfpdl? wrapper in first 20 posts');
+            out.selected = selected;
+            console.log('SELECTED', JSON.stringify(selected));
+
+            await page.goto(selected.postUrl, { waitUntil:'domcontentloaded', timeout:45000 });
+            await page.waitForTimeout(2500);
+            await snapshot('post');
+
+            await page.goto(selected.wrapper, { waitUntil:'domcontentloaded', timeout:45000 }).catch(e => add('wrapperGotoError',{message:e.message}));
+            await page.waitForTimeout(4000);
+            await snapshot('wrapper+4s');
+
+            // Let JS countdown/interstitial evolve naturally.
+            await page.waitForTimeout(20000);
+            let s = await snapshot('wrapper+24s');
+
+            // Stop at any user-entered CAPTCHA/number challenge.
+            const challengeRx = /(captcha|verification|verify|enter\s+(the\s+)?(number|code)|type\s+(the\s+)?(number|code)|security\s+code)/i;
+            const hasEditable = s.forms.some(f => f.inputs.some(i => ['text','number','tel'].includes((i.type || '').toLowerCase())));
+            if (challengeRx.test(s.body) || hasEditable) {
+              add('human_boundary', { url: page.url(), reason: challengeRx.test(s.body) ? 'challenge_text' : 'editable_input' });
+            } else {
+              const names = /continue|get\s*link|proceed|download|next/i;
+              const candidates = page.locator('a:visible, button:visible, input[type="submit"]:visible, input[type="button"]:visible');
+              const count = Math.min(await candidates.count(), 80);
+              let clicked = false;
+              for (let i=0; i<count; i++) {
+                const el = candidates.nth(i);
+                const txt = ((await el.innerText().catch(()=>'')) || (await el.getAttribute('value').catch(()=>'')) || '').trim();
+                const href = await el.getAttribute('href').catch(()=>null);
+                if (names.test(txt)) {
+                  add('click_candidate',{text:txt,href});
+                  await el.click({timeout:10000}).catch(e=>add('click_error',{message:e.message}));
+                  clicked = true;
+                  break;
+                }
+              }
+              if (clicked) {
+                await page.waitForTimeout(8000);
+                s = await snapshot('after-continue');
+                const hasEditable2 = s.forms.some(f => f.inputs.some(i => ['text','number','tel'].includes((i.type || '').toLowerCase())));
+                if (challengeRx.test(s.body) || hasEditable2) {
+                  add('human_boundary', { url: page.url(), reason: challengeRx.test(s.body) ? 'challenge_text' : 'editable_input' });
+                } else {
+                  await page.waitForTimeout(15000);
+                  await snapshot('after-continue+15s');
+                }
+              } else {
+                add('no_continue_found',{url:page.url()});
+              }
+            }
+
+            out.final = {
+              url: page.url(),
+              title: await page.title().catch(()=>''),
+              cookies: (await context.cookies()).map(c => ({name:c.name,domain:c.domain,path:c.path,httpOnly:c.httpOnly,secure:c.secure,sameSite:c.sameSite}))
+            };
+          } catch (e) {
+            out.error = { message: e.message, stack: e.stack };
+            console.error(e);
+          } finally {
+            out.finishedAt = new Date().toISOString();
+            fs.writeFileSync('/tmp/tfpdl-live-result.json', JSON.stringify(out,null,2));
+            await browser.close();
+          }
+          JS
+          cd /tmp/tfpdl-probe
+          node trace.mjs
+
+      - name: Commit trace result
+        if: always()
+        run: |
+          mkdir -p diagnostics
+          cp /tmp/tfpdl-live-result.json diagnostics/tfpdl-live-result.json 2>/dev/null || echo '{"error":"probe produced no result"}' > diagnostics/tfpdl-live-result.json
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add diagnostics/tfpdl-live-result.json
+          git commit -m "record TFPDL live endpoint trace" || true
+          git push origin HEAD:main || true
