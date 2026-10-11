@@ -126,9 +126,18 @@ class CortexSmokeTest {
 
     private fun saveConnectionVisualEvidence() {
         composeRule.waitForIdle()
-        val bitmap = composeRule.onNodeWithTag("connection-sheet-root", useUnmergedTree = true)
-            .captureToImage()
-            .asAndroidBitmap()
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+        val bitmap = if (android.os.Build.VERSION.SDK_INT < 28) {
+            // Compose cannot capture dialog-window content on API 26/27.
+            // Take an actual device screenshot while the sheet is visibly open.
+            checkNotNull(instrumentation.uiAutomation.takeScreenshot()) {
+                "Unable to capture Cortex connection dialog on API below 28"
+            }
+        } else {
+            composeRule.onNodeWithTag("connection-sheet-root", useUnmergedTree = true)
+                .captureToImage()
+                .asAndroidBitmap()
+        }
         saveVisualEvidence(bitmap, "cortex-connection-setup-compose.png", "connection setup")
     }
 
