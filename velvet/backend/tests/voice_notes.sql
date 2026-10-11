@@ -32,10 +32,10 @@ begin
  v:=public.velvet_send_voice('22222222-2222-4222-8222-222222222222',
    path,22012,3000,'[8,20,60,15]'::jsonb);
  if v->>'duplicate'<>'true' then raise exception 'Retry inserted duplicate: %',v;end if;
- v:=public.velvet_send_voice('33333333-3333-4333-8333-333333333333',
+ v:=public.velvet_send_voice('99999999-1212-4121-8121-989898989898',
    path,22012,3000,'[8,20,60,15]'::jsonb);
  if v->>'error'<>'file_already_sent' then raise exception 'Reused uploaded voice: %',v;end if;
- v:=public.velvet_send_voice('33333333-3333-4333-8333-333333333333',
+ v:=public.velvet_send_voice('99999999-1212-4121-8121-989898989898',
    path,22012,3000,'[8,105,15]'::jsonb);
  if v->>'error'<>'invalid_voice' then raise exception 'Invalid waveform accepted: %',v;end if;
  if not exists(select 1 from storage.objects o where o.name=path) then
@@ -86,7 +86,7 @@ begin
  if v->>'ok'<>'true' then raise exception 'Sender voice deletion failed: %',v;end if;
  if exists(select 1 from storage.objects o where o.name=path) then
    raise exception 'Globally deleted voice remains downloadable';end if;
- v:=public.velvet_send_voice('33333333-3333-4333-8333-333333333333',
+ v:=public.velvet_send_voice('99999999-1212-4121-8121-989898989898',
    path,22012,3000,'[8,20,60,15]'::jsonb);
  if v->>'error'<>'file_already_sent' then raise exception 'Deleted voice path reused: %',v;end if;
 end $$;
@@ -95,7 +95,7 @@ do $$
 declare v jsonb;
 begin
  perform set_config('request.jwt.claim.sub','cccccccc-cccc-4ccc-8ccc-cccccccccccc',false);
- v:=public.velvet_send_voice('33333333-3333-4333-8333-333333333333',
+ v:=public.velvet_send_voice('99999999-1212-4121-8121-989898989898',
   '12121212-1212-4121-8121-121212121212/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb/12121212-1212-4121-8121-121212121212.m4a',
   22012,3000,'[10]'::jsonb);
  if v->>'error'<>'wrong_owner' then raise exception 'Other couple can post voice into foreign path: %',v;end if;
@@ -106,7 +106,7 @@ do $$
 declare blocked boolean:=false;
 begin
  begin
-   perform public.velvet_send_voice('33333333-3333-4333-8333-333333333333',
+   perform public.velvet_send_voice('99999999-1212-4121-8121-989898989898',
     '12121212-1212-4121-8121-121212121212/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb/12121212-1212-4121-8121-121212121212.m4a',
     22012,3000,'[10]'::jsonb);
  exception when insufficient_privilege then blocked:=true;end;
