@@ -16,7 +16,7 @@ import { dispatchNamespacedCommand, loadCommands } from './command-registry.js'
 import { AccountRegistry, legacyAccountRecords } from './account-registry.js'
 import { selectCcDestination } from './cc-routing.js'
 import { isPrivateOwnerDm } from './control-context.js'
-import { classifyDisconnect, jidPhoneNumber, reconnectDelay, sessionStatus } from './session-policy.js'
+import { canStartScheduledReconnect, classifyDisconnect, jidPhoneNumber, reconnectDelay, serializeSessionOperation, sessionStatus } from './session-policy.js'
 import { sessionEventsFromJsonl, sessionSnapshot } from './session-diagnostics.js'
 import { openSharedStorage } from './shared-storage.js'
 import { chooseGroupExecutor, canExecuteDirect } from './bot-routing.js'
@@ -1040,9 +1040,7 @@ async function backupAuth(account) {
 }
 
 function runOp(account, fn) {
-  const r = account.op.catch(() => {}).then(fn)
-  account.op = r.catch(() => {})
-  return r
+  return serializeSessionOperation(account, fn)
 }
 
 async function resolvePhoneJid(account, jid) {
@@ -2621,7 +2619,7 @@ async function makePairOutput(account) {
 }
 
 function scheduleAccountReconnect(account, generation, delayMs) {
-  if (generation !== account.generation || account.paused || account.invalid) return
+  if (!canStartScheduledReconnect(account, generation)) return
   clearTimeout(account.reconnectTimer)
   const wait = Math.max(0, Number(delayMs) || 0)
   account.nextReconnectAt = Date.now() + wait
@@ -2631,14 +2629,14 @@ function scheduleAccountReconnect(account, generation, delayMs) {
     delayMs: wait,
   }).catch(() => {})
   account.reconnectTimer = setTimeout(() => {
-    if (generation !== account.generation || account.paused || account.invalid) return
+    if (!canStartScheduledReconnect(account, generation)) return
     account.reconnectTimer = null
     account.nextReconnectAt = 0
     // Manual reconnect / repair / pause operations already use runOp.
     // A timer must join that queue or two sockets can load and mutate the
     // same Signal key store concurrently (causing replaced sessions / Bad MAC).
     runOp(account, async () => {
-      if (generation !== account.generation || account.paused || account.invalid || account.sock) return
+      if (!canStartScheduledReconnect(account, generation)) return
       await startAccountSafely(account, 'reconnect')
     }).catch(error => {
       console.error(`[${account.id}] reconnect recovery:`, error?.message || error)
