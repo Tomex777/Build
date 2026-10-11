@@ -5,6 +5,11 @@ on:
     paths: ["velvet/android/**", ".github/workflows/velvet-android.yml"]
   workflow_dispatch:
 
+# Avoid wasting build minutes on superseded commits to this alpha branch.
+concurrency:
+  group: velvet-android-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build:
     runs-on: ubuntu-latest
