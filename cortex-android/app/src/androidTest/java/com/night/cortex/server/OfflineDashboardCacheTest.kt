@@ -44,12 +44,26 @@ class OfflineDashboardCacheTest {
                     ),
                 ),
                 logs = listOf("SENSITIVE-CONSOLE-LOG"),
+                currentPath = "/commands",
+                files = listOf(com.night.cortex.hosting.HostingFileEntry(
+                    name = "public.js", type = "file", sizeBytes = 99L,
+                )),
+                activity = listOf(ActivityEntry(
+                    id = "entry-1", at = "2026-10-11T12:00:00Z",
+                    action = "server:file.write",
+                    detail = "SENSITIVE-ACTIVITY-DETAIL",
+                )),
+                editorContent = "SENSITIVE-EDITOR-CONTENT",
             )
             cache.save("https://one.example", "SECRET-TOKEN", state)
             val restored = cache.load("https://one.example", "SECRET-TOKEN")
             assertNotNull(restored)
             assertEquals("active", restored!!.snapshot!!.state)
             assertEquals("main", restored.pairing!!.accounts.single().displayName)
+            assertEquals("/commands", restored.currentPath)
+            assertEquals("public.js", restored.files.single().name)
+            assertEquals("server:file.write", restored.activity.single().action)
+            assertTrue(restored.activity.single().detail.isEmpty())
             assertTrue(restored.pairing!!.accounts.single().pairingQr.isEmpty())
             assertTrue(restored.pairing!!.accounts.single().pairingCode.isEmpty())
             assertNull(cache.load("https://two.example", "SECRET-TOKEN"))
@@ -59,6 +73,8 @@ class OfflineDashboardCacheTest {
             assertFalse(bytes.contains("SENSITIVE-QR-IMAGE"))
             assertFalse(bytes.contains("SENSITIVE-PAIR-CODE"))
             assertFalse(bytes.contains("SENSITIVE-CONSOLE-LOG"))
+            assertFalse(bytes.contains("SENSITIVE-EDITOR-CONTENT"))
+            assertFalse(bytes.contains("SENSITIVE-ACTIVITY-DETAIL"))
         } finally {
             cache.clear()
             directory.deleteRecursively()
