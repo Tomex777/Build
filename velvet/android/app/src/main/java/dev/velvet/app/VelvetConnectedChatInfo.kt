@@ -1,6 +1,9 @@
 package dev.velvet.app
 
 import androidx.compose.foundation.background
+import androidx.compose.ui.platform.LocalContext
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -32,6 +35,9 @@ private data class VelvetGalleryPhoto(
 private data class VelvetSearchHit(
     val id:String,val senderId:String,val kind:String,val body:String,
     val createdAt:String
+)
+private data class VelvetChatLink(
+    val id:String,val url:String,val senderId:String,val createdAt:String
 )
 
 private fun velvetDate(value:String):String = runCatching {
@@ -66,6 +72,16 @@ internal fun VelvetConnectedChatInfo(
     val bg=Color(0xFF171019)
     val card=Color(0xFF30202D)
     val scope=rememberCoroutineScope()
+    val context=LocalContext.current
+    val urlRegex=remember {Regex("""https?://[^\s<>"']+""",RegexOption.IGNORE_CASE)}
+    val links=remember {mutableStateListOf<VelvetChatLink>()}
+    var linksLoading by remember {mutableStateOf(false)}
+    var linksFetched by remember {mutableStateOf(false)}
+    var linksError by remember {mutableStateOf("")}
+    var moreLinks by remember {mutableStateOf(true)}
+    var linksCursorAt by remember {mutableStateOf<String?>(null)}
+    var linksCursorId by remember {mutableStateOf<String?>(null)}
+    var urlToOpen by remember {mutableStateOf<String?>(null)}
     var tab by remember { mutableIntStateOf(0) }
     val photos=remember {mutableStateListOf<VelvetGalleryPhoto>()}
     var loadingPhotos by remember {mutableStateOf(false)}
@@ -137,7 +153,46 @@ internal fun VelvetConnectedChatInfo(
         }
     }
 
+    fun loadMoreLinks() {
+        if(linksLoading || !moreLinks) return
+        linksLoading=true
+        linksError=""
+        val beforeAt=linksCursorAt
+        val beforeId=linksCursorId
+        scope.launch {
+            try {
+                // This uses the same couple-scoped literal-text search RPC.
+                val rows=client.searchChat("http",beforeAt,beforeId,40)
+                val fetched=mutableListOf<VelvetChatLink>()
+                for(i in 0 until rows.length()) {
+                    val row=rows.getJSONObject(i)
+                    val msgId=row.getString("id")
+                    val body=row.optString("body")
+                    urlRegex.findAll(body).forEachIndexed {index,match->
+                        val clean=match.value.trimEnd('.',',',';',':','!','?')
+                        fetched.add(VelvetChatLink(
+                            "$msgId-$index",clean,row.optString("sender_id"),
+                            row.getString("created_at")
+                        ))
+                    }
+                }
+                if(rows.length()>0) {
+                    linksCursorAt=rows.getJSONObject(rows.length()-1).getString("created_at")
+                    linksCursorId=rows.getJSONObject(rows.length()-1).getString("id")
+                }
+                val ids=links.map{it.id}.toSet()
+                links.addAll(fetched.filter{it.id !in ids})
+                moreLinks=rows.length()>=40
+            } catch(e:Exception) {
+                linksError=e.message ?: "Could not load chat links."
+            } finally {linksFetched=true;linksLoading=false}
+        }
+    }
+
     LaunchedEffect(Unit) { loadMorePhotos() }
+    LaunchedEffect(tab) {
+        if(tab==2 && !linksFetched) loadMoreLinks()
+    }
 
     Column(Modifier.fillMaxSize().background(bg)) {
         Row(Modifier.fillMaxWidth().background(card)
@@ -173,6 +228,8 @@ internal fun VelvetConnectedChatInfo(
                 text={Text("Photos",color=if(tab==0)cream else muted)})
             Tab(selected=tab==1,onClick={tab=1},
                 text={Text("Search",color=if(tab==1)cream else muted)})
+            Tab(selected=tab==2,onClick={tab=2},
+                text={Text("Links",color=if(tab==2)cream else muted)})
         }
 
         if(tab==0) {
@@ -234,6 +291,69 @@ internal fun VelvetConnectedChatInfo(
                             if(morePhotos) {
                                 TextButton(onClick={loadMorePhotos()}) {
                                     Text(if(photosError.isBlank()) "Load older photos" else "Retry",
+                                        color=rose)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        } else if(tab==2) {
+            Column(Modifier.fillMaxSize().padding(16.dp)) {
+                Row(verticalAlignment=Alignment.CenterVertically) {
+                    Text("Links shared in Chat",
+                        color=cream,fontSize=18.sp,fontWeight=FontWeight.SemiBold,
+                        modifier=Modifier.weight(1f))
+                    TextButton(onClick={
+                        if(!linksLoading) {
+                            links.clear()
+                            linksCursorAt=null
+                            linksCursorId=null
+                            moreLinks=true
+                            linksFetched=false
+                            loadMoreLinks()
+                        }
+                    },enabled=!linksLoading) {Text("Refresh",color=rose)}
+                }
+                Text("Only links found in your private messages or photo captions.",
+                    color=muted,fontSize=11.sp)
+                Spacer(Modifier.height(14.dp))
+                LazyColumn(Modifier.weight(1f),
+                    verticalArrangement=Arrangement.spacedBy(9.dp)) {
+                    items(links.size,key={index->links[index].id}) {index->
+                        val link=links[index]
+                        Column(
+                            Modifier.fillMaxWidth()
+                                .background(card,RoundedCornerShape(14.dp))
+                                .clickable{urlToOpen=link.url}
+                                .padding(15.dp)
+                        ) {
+                            Text(Uri.parse(link.url).host ?: "Link",
+                                color=rose,fontWeight=FontWeight.SemiBold,fontSize=14.sp)
+                            Spacer(Modifier.height(5.dp))
+                            Text(link.url,color=cream,maxLines=2,fontSize=12.sp)
+                            Spacer(Modifier.height(6.dp))
+                            Text(
+                                (if(link.senderId==myId) "You" else partnerName)+
+                                    " · "+velvetDate(link.createdAt),
+                                color=muted,fontSize=10.sp
+                            )
+                        }
+                    }
+                    item {
+                        Column(Modifier.fillMaxWidth(),
+                            horizontalAlignment=Alignment.CenterHorizontally) {
+                            if(linksLoading) CircularProgressIndicator(color=rose)
+                            if(linksError.isNotBlank()) {
+                                Text(linksError,color=rose,fontSize=12.sp)
+                            }
+                            if(linksFetched && links.isEmpty() &&
+                                linksError.isBlank() && !linksLoading) {
+                                Text("No shared links found ♡",color=muted)
+                            }
+                            if(moreLinks && !linksLoading) {
+                                TextButton(onClick={loadMoreLinks()}) {
+                                    Text(if(linksError.isBlank()) "Load older links" else "Retry",
                                         color=rose)
                                 }
                             }
@@ -304,10 +424,35 @@ internal fun VelvetConnectedChatInfo(
                         }
                     }
                 }
-                Text("Links, documents, audio and pinned-message lists are not synced yet.",
+                Text("Documents, audio and pinned-message lists are not synced yet.",
                     color=muted,fontSize=10.sp,
                     modifier=Modifier.fillMaxWidth().padding(top=8.dp,bottom=5.dp))
             }
         }
+    }
+    urlToOpen?.let { destination ->
+        AlertDialog(
+            onDismissRequest={urlToOpen=null},
+            title={Text("Open external link?",color=cream)},
+            text={Text(
+                "This will open a website outside Velvet.\n\n"+
+                    destination.take(200),
+                color=muted
+            )},
+            confirmButton={
+                TextButton(onClick={
+                    val url=destination
+                    urlToOpen=null
+                    runCatching {
+                        val intent=Intent(Intent.ACTION_VIEW,Uri.parse(url))
+                        context.startActivity(intent)
+                    }.onFailure { linksError="There is no browser available for this link." }
+                }) {Text("Open",color=rose)}
+            },
+            dismissButton={
+                TextButton(onClick={urlToOpen=null}) {Text("Cancel",color=muted)}
+            },
+            containerColor=card
+        )
     }
 }
