@@ -53,6 +53,7 @@ jobs:
         run: |
           node music-flow-selftest.js
           node account-controls-selftest.js
+          node panel-login-throttle-selftest.js
       - name: Validate Azure installer and source helper scripts
         working-directory: mscc
         shell: bash
