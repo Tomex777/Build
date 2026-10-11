@@ -202,11 +202,11 @@ internal object AnnieGeckoDownloadStore {
 
     internal fun filename(uri: String, disposition: String?, mimeType: String?): String {
         val extended = Regex(
-            """filename\\*\\s*=\\s*(?:UTF-8'')?["]?([^;"]+)""",
+            """filename\*\s*=\s*(?:UTF-8'')?["]?([^;"]+)""",
             RegexOption.IGNORE_CASE,
         ).find(disposition.orEmpty())?.groupValues?.getOrNull(1)
             ?.let { raw -> runCatching { URLDecoder.decode(raw, "UTF-8") }.getOrNull() }
-        val basic = Regex("""filename\\s*=\\s*"?([^;"]+)""", RegexOption.IGNORE_CASE)
+        val basic = Regex("""filename\s*=\s*"?([^;"]+)""", RegexOption.IGNORE_CASE)
             .find(disposition.orEmpty())?.groupValues?.getOrNull(1)
         val pathName = runCatching { URI(uri).path?.substringAfterLast('/') }.getOrNull()
         val candidate = (extended ?: basic ?: pathName).orEmpty().trim()

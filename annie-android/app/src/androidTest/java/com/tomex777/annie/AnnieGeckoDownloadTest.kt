@@ -25,7 +25,7 @@ class AnnieGeckoDownloadTest {
     }
 
     @Test fun maliciousFilenameDoesNotContainPathSeparators() {
-        assertEquals("secret_file.txt", AnnieGeckoDownloadStore.filename(
+        assertEquals("file.txt", AnnieGeckoDownloadStore.filename(
             "https://files.example/get", "attachment; filename=\"secret\\\\file.txt\"", "text/plain"))
     }
 }
