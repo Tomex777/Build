@@ -62,3 +62,5 @@ jobs:
         run: psql -v ON_ERROR_STOP=1 -f velvet/backend/tests/chat_info.sql
       - name: Test private and monotonic read acknowledgments
         run: psql -v ON_ERROR_STOP=1 -f velvet/backend/tests/read_receipts.sql
+      - name: Test private AAC voice notes and two-person authorization
+        run: psql -v ON_ERROR_STOP=1 -f velvet/backend/tests/voice_notes.sql
