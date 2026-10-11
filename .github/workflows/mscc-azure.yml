@@ -61,6 +61,8 @@ jobs:
           bash -n install-azure.sh tools/install-flaresolverr-tor.sh tools/test-animepahe-azure.sh
           bash -n tools/azure-release-switch-selftest.sh
           bash tools/azure-release-switch-selftest.sh
+          bash -n tools/azure-config-rollback-selftest.sh
+          bash tools/azure-config-rollback-selftest.sh
           bash -n tools/azure-cortex-acl-selftest.sh
           bash tools/azure-cortex-acl-selftest.sh
           grep -Eq '^VERSION="[0-9]+\.[0-9]+\.[0-9]+"$' install-azure.sh
