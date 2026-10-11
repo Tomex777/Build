@@ -52,3 +52,5 @@ jobs:
         run: psql -v ON_ERROR_STOP=1 -f velvet/backend/tests/profiles.sql
       - name: Test shared relationship anniversary
         run: psql -v ON_ERROR_STOP=1 -f velvet/backend/tests/anniversary.sql
+      - name: Test text edits, delete semantics and mutation feed
+        run: psql -v ON_ERROR_STOP=1 -f velvet/backend/tests/message_actions.sql
