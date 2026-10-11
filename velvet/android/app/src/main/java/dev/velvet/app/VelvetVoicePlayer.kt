@@ -1,6 +1,9 @@
 package dev.velvet.app
 
 import android.media.MediaPlayer
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.LifecycleOwner
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.PlayArrow
@@ -25,9 +28,12 @@ internal fun VelvetVoicePlayer(
     client:VelvetPairClient,
     storagePath:String,
     durationMs:Int,
-    waveform:List<Int>
+    waveform:List<Int>,
+    onPlaybackStart:()->Unit={},
+    playingAllowed:Boolean=true
 ) {
     val context=LocalContext.current
+    val lifecycle=(context as LifecycleOwner).lifecycle
     val scope=rememberCoroutineScope()
     var player by remember(storagePath){mutableStateOf<MediaPlayer?>(null)}
     var localFile by remember(storagePath){mutableStateOf<File?>(null)}
@@ -38,10 +44,26 @@ internal fun VelvetVoicePlayer(
     val rose=Color(0xFFE4A1B6)
     val cream=Color(0xFFFFEAF0)
 
-    DisposableEffect(storagePath) {
+    DisposableEffect(storagePath,lifecycle) {
+        val observer=LifecycleEventObserver {_,event->
+            if(event==Lifecycle.Event.ON_STOP) {
+                runCatching {player?.pause()}
+                playing=false
+            }
+        }
+        lifecycle.addObserver(observer)
         onDispose {
+            lifecycle.removeObserver(observer)
             runCatching {player?.release()}
+            player=null
             runCatching {localFile?.delete()}
+            localFile=null
+        }
+    }
+    LaunchedEffect(playingAllowed) {
+        if(!playingAllowed) {
+            runCatching {player?.pause()}
+            playing=false
         }
     }
     LaunchedEffect(playing) {
@@ -61,6 +83,7 @@ internal fun VelvetVoicePlayer(
             } else {
                 runCatching {
                     if(active.currentPosition>=active.duration-200)active.seekTo(0)
+                    onPlaybackStart()
                     active.start()
                     playing=true
                 }.onFailure{error="Playback could not resume."}
@@ -86,6 +109,7 @@ internal fun VelvetVoicePlayer(
                             }
                             player=next
                             localFile=nextFile
+                            onPlaybackStart()
                             next.start()
                             playing=true
                         } catch(e:Exception) {
