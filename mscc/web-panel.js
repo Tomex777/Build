@@ -69,7 +69,10 @@ function mutationAllowed(req) {
 }
 
 function ip(req) {
-  return String(req.headers['x-forwarded-for'] || '').split(',')[0].trim() || req.socket.remoteAddress || 'unknown'
+  // X-Forwarded-For is fully caller-controlled unless a verified reverse proxy
+  // overwrites it. Never allow arbitrary public clients to evade login
+  // throttling by rotating this header on every password attempt.
+  return req.socket.remoteAddress || 'unknown'
 }
 
 export function startWebPanel({ port, host = '127.0.0.1', password, sessionSecret, localControlPort = 8788, getState, getActivity = async () => [], getAccountDiagnostics = async () => null, pairAccount, reconnectAccount, disconnectAccount, removeAccount, repairAccount, createAccount, renameAccount, assignAccountProfile, setSetting, setDestination, reloadCommands, reloadModule }) {
