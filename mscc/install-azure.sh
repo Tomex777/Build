@@ -176,6 +176,11 @@ echo "Local Cortex pairing bridge:"
 curl -fsS http://127.0.0.1:8788/state
 echo
 
+# Assert the deployed Cortex/MSCC account-management contract before
+# disarming the automatic release rollback.
+echo ">>> Validating live Cortex/MSCC session API..."
+node "$BASE/current/tools/azure-smoke.mjs"
+
 echo
 ACTIVATED=0
 echo "=== MSCC INSTALL COMPLETE ==="
