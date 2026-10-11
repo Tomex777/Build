@@ -56,7 +56,19 @@ class AnnieCanvasMessageTest {
                 (web.parent as? ViewGroup)?.removeView(web)
                 web.onPause()
             }
-            activity.finish()
+            // API26 needs its native host finished before the idle wait.
+            // Newer ActivityScenario versions can race a manual finish during
+            // RESTARTED, so let their normal close own that transition.
+            if (android.os.Build.VERSION.SDK_INT == 26) activity.finish()
+        }
+        if (android.os.Build.VERSION.SDK_INT == 26) {
+            val deadline = SystemClock.uptimeMillis() + 8_000L
+            var destroyed = false
+            while (!destroyed && SystemClock.uptimeMillis() < deadline) {
+                InstrumentationRegistry.getInstrumentation().runOnMainSync { destroyed = activity.isDestroyed }
+                if (!destroyed) SystemClock.sleep(16L)
+            }
+            assertTrue("Canvas host did not finish before framework teardown", destroyed)
         }
         hostActivity = null
         checkpoint("Canvas host finish requested before framework teardown")
@@ -261,10 +273,10 @@ class AnnieCanvasMessageTest {
             }
             assertSame("Fullscreen must continue the SAME message WebView", snakeWebView, expandedWebView)
             assertEquals("true", eval(snakeWebView, "window.annieCanvasSnakeState().started"))
-            val fullscreenStarts = eval(snakeWebView, "window.annieCanvasInputDiagnostics().pointerStarts").toInt()
+            val fullscreenStarts = eval(snakeWebView, "(window.annieCanvasInputDiagnostics().pointerStarts + window.annieCanvasInputDiagnostics().touchStarts)").toInt()
             swipeDownOnWebView(snakeWebView)
             assertTrue("Fullscreen Canvas received no native finger touch", eval(snakeWebView,
-                "window.annieCanvasInputDiagnostics().pointerStarts").toInt() > fullscreenStarts)
+                "(window.annieCanvasInputDiagnostics().pointerStarts + window.annieCanvasInputDiagnostics().touchStarts)").toInt() > fullscreenStarts)
             saveEmulatorScreenshot("annie-canvas-arcade-fullscreen-message")
             instrumentation.runOnMainSync { fullscreen?.finish() }
             compose.waitUntil(12_000) { snakeWebView.parent != null }
