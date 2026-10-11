@@ -173,9 +173,8 @@ echo
 cat /tmp/mscc-health.json
 echo
 echo "Local Cortex pairing bridge:"
-curl -fsS http://127.0.0.1:8788/state
-echo
-
+# Never print /state: it may include temporary pairing codes or session data.
+# The smoke probe reports only aggregate health counts.
 # Assert the deployed Cortex/MSCC account-management contract before
 # disarming the automatic release rollback.
 echo ">>> Validating live Cortex/MSCC session API..."
