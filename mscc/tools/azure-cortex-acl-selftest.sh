@@ -17,6 +17,8 @@ RELEASE="$TEST_ROOT/release"
 mkdir -p "$TEST_ROOT/bin" "$RELEASE/nested" "$RELEASE/node_modules/package" "$RELEASE/.ssh" "$RELEASE/auth" "$RELEASE/.cortex"
 touch "$RELEASE/editable.js" "$RELEASE/nested/update.js"
 touch "$RELEASE/node_modules/package/private.js" "$RELEASE/.ssh/id_rsa" "$RELEASE/auth/creds.json" "$RELEASE/.env" "$RELEASE/.cortex/secret"
+touch "$RELEASE/.env.production"
+ln -s /etc/passwd "$RELEASE/outside-link"
 ACL_TEST_LOG="$TEST_ROOT/acl.log"
 export ACL_TEST_LOG RELEASE
 
