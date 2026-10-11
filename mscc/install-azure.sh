@@ -98,11 +98,11 @@ grant_cortex_release_access() {
     return 1
   fi
   echo ">>> Granting Cortex Agent access to the new MSCC release..."
-  find "$RELEASE" \\
-    \( -type d \( -name node_modules -o -name .git -o -name .ssh -o -name .gradle -o -name .cortex \) -prune \) -o \\
+  find "$RELEASE" \
+    \( -type d \( -name node_modules -o -name .git -o -name .ssh -o -name .gradle -o -name .cortex \) -prune \) -o \
     -exec sudo setfacl -m 'u:cortex-agent:rwX' {} +
-  find "$RELEASE" \\
-    \( -type d \( -name node_modules -o -name .git -o -name .ssh -o -name .gradle -o -name .cortex \) -prune \) -o \\
+  find "$RELEASE" \
+    \( -type d \( -name node_modules -o -name .git -o -name .ssh -o -name .gradle -o -name .cortex \) -prune \) -o \
     -type d -exec sudo setfacl -m 'd:u:cortex-agent:rwX' {} +
 }
 
