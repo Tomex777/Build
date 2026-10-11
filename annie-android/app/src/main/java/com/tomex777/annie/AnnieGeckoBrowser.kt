@@ -16,6 +16,7 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -46,9 +47,13 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
@@ -692,10 +697,24 @@ internal fun AnnieGeckoStandaloneBrowser(
     var editing by remember(tab.id) { mutableStateOf(false) }
     var menuOpen by remember { mutableStateOf(false) }
     var panel by remember { mutableStateOf<String?>(null) }
+    val pageFocus = remember(tab.id) { FocusRequester() }
+    var addressSubmission by remember(tab.id) { mutableIntStateOf(0) }
+    LaunchedEffect(addressSubmission, tab.id) {
+        if (addressSubmission > 0) {
+            // On API26 the native IME may restore the text field during the
+            // same frame as Go. Transfer focus after the page/panel layout has
+            // settled, rather than leaving the focus owner with no target.
+            withFrameNanos { }
+            pageFocus.requestFocus()
+            keyboard?.hide()
+        }
+    }
     LaunchedEffect(tab.url) { if (!editing) address = tab.url }
     fun submitAddress() {
         if (model.load(tab, address)) {
             editing = false
+            panel = null
+            addressSubmission++
             focusManager.clearFocus(force = true)
             keyboard?.hide()
         }
@@ -769,7 +788,7 @@ internal fun AnnieGeckoStandaloneBrowser(
         } else key(tab.id) {
             AndroidView(
                 factory = { GeckoView(it).apply { setSession(tab.session) } },
-                modifier = Modifier.fillMaxWidth().weight(1f).testTag("annie_browser_tabs_webview"),
+                modifier = Modifier.fillMaxWidth().weight(1f).focusRequester(pageFocus).focusable().testTag("annie_browser_tabs_webview"),
                 onRelease = { view -> view.releaseSession() },
             )
         }

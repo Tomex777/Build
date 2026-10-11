@@ -9,6 +9,8 @@ import androidx.compose.ui.test.assertIsNotFocused
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performImeAction
 import androidx.compose.ui.test.performTextReplacement
@@ -74,6 +76,18 @@ class AnnieGeckoBrowserUiTest {
                 }
                 hidden
             }
+            // Address entry must also dismiss an open browser panel and hand
+            // focus to the reattached page, including the explicit Go button.
+            compose.onNodeWithContentDescription("Browser menu").performClick()
+            compose.onNodeWithText("Downloads", substring = false).performClick()
+            address.performClick()
+            address.performTextReplacement(fixture.baseUrl + "/one")
+            compose.onNodeWithTag("annie_browser_go").performClick()
+            address.assertIsNotFocused()
+            compose.waitUntil(30_000) {
+                compose.onAllNodesWithText("Gecko one", substring = true).fetchSemanticsNodes().isNotEmpty()
+            }
+            compose.onNodeWithTag("annie_browser_tabs_webview").assertIsDisplayed()
             saveEmulatorScreenshot("annie-gecko-system-bars-and-keyboard")
         } finally {
             // Wait for disposal before restoring preferences; destroy persists tabs.
