@@ -1081,9 +1081,21 @@ private fun ScriptStudioContent(
                     val owner = selectedProject?.takeIf { File(workspace.files.root, it.id).isDirectory }
                     askForText("New file from Assist", "generated.js") { rawName ->
                         runCatching {
-                            val name = rawName.trim().let { if (it.endsWith(".js", true)) it else "$it.js" }
-                            val file = if (owner == null) workspace.files.createScript(name)
-                                else workspace.files.createFile(owner.id, name)
+                            // Respect the user's requested extension. Previously Assist
+                            // appended .js to generated.html, generated.py, etc.
+                            val name = rawName.trim().let { raw ->
+                                if (raw.substringAfterLast('/').contains('.')) raw else "$raw.js"
+                            }
+                            val file = if (owner != null) {
+                                workspace.files.createFile(owner.id, name)
+                            } else if (name.endsWith(".js", ignoreCase = true)) {
+                                workspace.files.createScript(name)
+                            } else {
+                                // Standalone projects require an executable JS entry point;
+                                // keep auxiliary documents in their own project folder.
+                                val folder = workspace.files.createFolder(name.substringBeforeLast('.'))
+                                workspace.files.createFile(folder.name, name)
+                            }
                             val id = if (owner == null) file.nameWithoutExtension else owner.id
                             val path = if (owner == null) file.name
                                 else file.relativeTo(File(workspace.files.root, id)).invariantSeparatorsPath
