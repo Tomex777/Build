@@ -2628,10 +2628,12 @@ function scheduleAccountReconnect(account, generation, delayMs) {
     attempt: account.reconnectAttempts,
     delayMs: wait,
   }).catch(() => {})
-  account.reconnectTimer = setTimeout(() => {
-    if (!canStartScheduledReconnect(account, generation)) return
+  const timer = setTimeout(() => {
+    // Ignore a superseded timer and clear elapsed retry status before guards.
+    if (account.reconnectTimer !== timer) return
     account.reconnectTimer = null
     account.nextReconnectAt = 0
+    if (!canStartScheduledReconnect(account, generation)) return
     // Manual reconnect / repair / pause operations already use runOp.
     // A timer must join that queue or two sockets can load and mutate the
     // same Signal key store concurrently (causing replaced sessions / Bad MAC).
@@ -2642,6 +2644,7 @@ function scheduleAccountReconnect(account, generation, delayMs) {
       console.error(`[${account.id}] reconnect recovery:`, error?.message || error)
     })
   }, wait)
+  account.reconnectTimer = timer
   account.reconnectTimer.unref?.()
 }
 
