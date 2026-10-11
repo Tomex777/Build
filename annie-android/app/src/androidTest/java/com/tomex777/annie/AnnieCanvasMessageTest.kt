@@ -35,7 +35,7 @@ import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
 class AnnieCanvasMessageTest {
-    @get:Rule(order = 0) val stalledThreadEvidence = StalledThreadEvidenceRule()
+    @get:Rule(order = 0) val stalledThreadEvidence: org.junit.rules.TestRule = StalledThreadEvidenceRule()
     @get:Rule(order = 1) val compose = createAndroidComposeRule<ComponentActivity>()
 
     private fun checkpoint(stage: String) {
