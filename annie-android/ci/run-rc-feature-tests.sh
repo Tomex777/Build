@@ -10,6 +10,8 @@ classes=(
   AnnieGeckoDownloadHistoryTest
   AnnieGeckoDownloadManagerTest
   AnnieGeckoBrowserEndToEndTest
+  AnnieImageViewerTest
+  AnnieImageEditorTest
 )
 status=0
 for class in "${classes[@]}"; do

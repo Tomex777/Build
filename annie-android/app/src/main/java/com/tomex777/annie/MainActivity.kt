@@ -1688,6 +1688,7 @@ internal fun ScriptImageMessage(data: org.json.JSONObject, scriptId: String) {
     val imageModel = remember(uri, scriptId) {
         uri?.let { value ->
             resolvePackageAsset(context, scriptId, value) ?: value.takeUnless { it.startsWith("annie-asset://") }
+                ?.let(::annieImageRequestData)
         }
     }
     Column(

@@ -42,7 +42,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
-import coil.ImageLoader
+import coil.imageLoader
 import coil.request.ImageRequest
 import coil.request.SuccessResult
 import kotlinx.coroutines.Dispatchers
@@ -106,9 +106,10 @@ internal class AnnieImageEditorActivity : ComponentActivity() {
 
 private suspend fun loadEditableAnnieBitmap(context: Context, source: String): Bitmap? =
     withContext(Dispatchers.IO) {
+        val data = annieImageRequestData(source) ?: return@withContext null
         val request = ImageRequest.Builder(context)
-            .data(source).allowHardware(false).build()
-        val result = ImageLoader(context).execute(request) as? SuccessResult ?: return@withContext null
+            .data(data).allowHardware(false).build()
+        val result = context.imageLoader.execute(request) as? SuccessResult ?: return@withContext null
         val drawable = result.drawable
         val intrinsicWidth = drawable.intrinsicWidth
         val intrinsicHeight = drawable.intrinsicHeight

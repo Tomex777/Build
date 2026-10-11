@@ -23,7 +23,7 @@ class AnnieImageViewerTest {
     @Test fun tappingChatImageOpensGenuineScreenWidthViewer() {
         val instrumentation = InstrumentationRegistry.getInstrumentation()
         val payload = JSONObject().put("type", "image")
-            .put("uri", "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jEekAAAAASUVORK5CYII=")
+            .put("uri", "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAIAAAD8GO2jAAAALUlEQVR4nGN8vVOXgZaAiaamj1owasGoBaMWjFowasGoBaMWjFowasGoBVQEAJS1AhGDSM2vAAAAAElFTkSuQmCC")
             .put("caption", "Annie photo")
         val monitor = instrumentation.addMonitor(AnnieImageViewerActivity::class.java.name, null, false)
         var viewer: AnnieImageViewerActivity? = null
@@ -38,6 +38,15 @@ class AnnieImageViewerTest {
                 instrumentation.runOnMainSync { width = viewer!!.window.decorView.width }
                 width >= 200
             }
+            compose.waitUntil(10_000) { viewer!!.imageLoaded || viewer!!.imageLoadError != null }
+            assertTrue("Fullscreen image did not decode: ${viewer!!.imageLoadError}", viewer!!.imageLoaded)
+            val presented = java.util.concurrent.CountDownLatch(1)
+            instrumentation.runOnMainSync {
+                viewer!!.window.decorView.postOnAnimation {
+                    viewer!!.window.decorView.postOnAnimation { presented.countDown() }
+                }
+            }
+            assertTrue("Decoded image did not reach a display frame", presented.await(5, java.util.concurrent.TimeUnit.SECONDS))
             val expected = viewer!!.resources.displayMetrics.widthPixels
             var actual = 0
             instrumentation.runOnMainSync {

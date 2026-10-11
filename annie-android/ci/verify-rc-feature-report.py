@@ -5,6 +5,8 @@ import sys
 import xml.etree.ElementTree as ET
 
 EXPECTED = {
+    "AnnieImageViewerTest": {"tappingChatImageOpensGenuineScreenWidthViewer"},
+    "AnnieImageEditorTest": {"editsRotateRealBitmapWithoutChangingOriginal", "squareCropProducesSquareImageWithoutAlteringOriginal", "horizontalMirrorChangesPixelOrientation"},
     "AnnieVoiceRecordingTest": {"lockedRecordingPausesMicrophoneAndSendsOneAacFile"},
     "AnnieVoicePauseResumeTest": {"pauseSeekAndResumePreservesPlaybackPosition"},
     "AnnieGeckoTabRestoreTest": {"recreationRestoresSelectedNormalTabAndDesktopModeWithoutPrivateTabs"},
