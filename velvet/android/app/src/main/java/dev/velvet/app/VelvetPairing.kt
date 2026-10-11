@@ -243,6 +243,122 @@ internal class VelvetPairClient(private val context: Context) {
         rpc("velvet_send_image",params)
     }
 
+    /** MP4 only: strict 20 MiB upload, with no re-encoding or background queue. */
+    suspend fun sendVideo(
+        coupleId:String,me:String,uri:android.net.Uri,
+        caption:String,replyTo:String?=null
+    ): JSONObject = withContext(Dispatchers.IO) {
+        require(configured) {"Online video sharing isn't configured."}
+        require(UUID.fromString(coupleId).toString()==coupleId)
+        require(UUID.fromString(me).toString()==me)
+        val mime=context.contentResolver.getType(uri)
+            ?.substringBefore(';')?.lowercase()
+        require(mime=="video/mp4") {
+            "Choose an MP4 video. Other video formats aren't supported yet."
+        }
+        require(caption.length<=1200) {"Video caption must be under 1,200 characters."}
+        val retriever=android.media.MediaMetadataRetriever()
+        val durationMs=try {
+            retriever.setDataSource(context,uri)
+            retriever.extractMetadata(
+                android.media.MediaMetadataRetriever.METADATA_KEY_DURATION
+            )?.toIntOrNull() ?: 0
+        } finally {
+            retriever.release()
+        }
+        require(durationMs in 100..120000) {
+            "Choose a video between 0.1 and 120 seconds."
+        }
+        val stream=java.io.ByteArrayOutputStream()
+        context.contentResolver.openInputStream(uri)?.use {source->
+            val chunk=ByteArray(8192)
+            while(true) {
+                val n=source.read(chunk)
+                if(n<0)break
+                stream.write(chunk,0,n)
+                require(stream.size()<=20971520) {
+                    "Video is larger than 20 MB. Choose a shorter clip."
+                }
+            }
+        } ?: throw IllegalStateException("The selected video can't be opened.")
+        val bytes=stream.toByteArray()
+        require(bytes.isNotEmpty()) {"The chosen video is empty."}
+        val path="$coupleId/$me/${UUID.randomUUID()}.mp4"
+        val upload=URL("$endpoint/storage/v1/object/velvet-chat-video/$path")
+            .openConnection() as HttpURLConnection
+        try {
+            upload.requestMethod="POST"
+            upload.connectTimeout=25000
+            upload.readTimeout=90000
+            upload.doOutput=true
+            upload.setFixedLengthStreamingMode(bytes.size)
+            upload.setRequestProperty("apikey",publishable)
+            upload.setRequestProperty("Authorization","Bearer ${activeToken()}")
+            upload.setRequestProperty("Content-Type","video/mp4")
+            upload.setRequestProperty("x-upsert","false")
+            upload.outputStream.use{it.write(bytes)}
+            if(upload.responseCode !in 200..299) {
+                throw IllegalStateException(
+                    "Private video upload rejected (HTTP ${upload.responseCode})."
+                )
+            }
+        } finally {upload.disconnect()}
+        val params=JSONObject().put("p_id",UUID.randomUUID().toString())
+            .put("p_storage_path",path).put("p_bytes",bytes.size)
+            .put("p_duration_ms",durationMs)
+            .put("p_caption",caption.trim())
+        if(!replyTo.isNullOrBlank())params.put("p_reply_to",replyTo)
+        rpc("velvet_send_video",params)
+    }
+
+    /** Stream authenticated MP4 into an app-private temporary file. Caller deletes it. */
+    suspend fun downloadVideo(storagePath:String):java.io.File =
+        withContext(Dispatchers.IO) {
+            require(storagePath.matches(Regex(
+                "[0-9a-f-]{36}/[0-9a-f-]{36}/[0-9a-f-]{36}\\.mp4"
+            ))) {"Invalid private video path."}
+            val file=java.io.File.createTempFile(
+                "velvet_video_",".mp4",context.cacheDir
+            )
+            val connection=URL(
+                "$endpoint/storage/v1/object/authenticated/velvet-chat-video/$storagePath"
+            ).openConnection() as HttpURLConnection
+            try {
+                connection.requestMethod="GET"
+                connection.connectTimeout=20000
+                connection.readTimeout=90000
+                connection.setRequestProperty("apikey",publishable)
+                connection.setRequestProperty("Authorization","Bearer ${activeToken()}")
+                if(connection.responseCode !in 200..299) {
+                    throw IllegalStateException(
+                        "Private video unavailable (HTTP ${connection.responseCode})."
+                    )
+                }
+                connection.inputStream.use {input->
+                    file.outputStream().use {output->
+                        val chunk=ByteArray(8192)
+                        var count=0L
+                        while(true) {
+                            val n=input.read(chunk)
+                            if(n<0)break
+                            count+=n
+                            require(count<=20971520) {
+                                "Video exceeds the private 20 MB limit."
+                            }
+                            output.write(chunk,0,n)
+                        }
+                        check(count>0) {"The video file was empty."}
+                    }
+                }
+                file
+            } catch(e:Exception) {
+                file.delete()
+                throw e
+            } finally {
+                connection.disconnect()
+            }
+        }
+
     /** Send an AAC voice note to the PRIVATE couple Storage bucket. */
     suspend fun sendVoice(
         coupleId:String,me:String,recording:java.io.File,
