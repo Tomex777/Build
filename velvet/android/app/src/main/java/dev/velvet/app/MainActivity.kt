@@ -119,6 +119,7 @@ private fun VelvetApp() {
     val settings = remember { ctx.getSharedPreferences("velvet_couple_settings", android.content.Context.MODE_PRIVATE) }
     var page by remember { mutableStateOf(Page.HOME) }
     var chatBackTo by remember { mutableStateOf(Page.HOME) }
+    var demoBackTo by remember { mutableStateOf(Page.CHAT) }
     var chatPreviewFrom by remember { mutableStateOf(Page.CHAT) }
     val pairClient=remember { VelvetPairClient(ctx.applicationContext) }
     var ownerName by remember { mutableStateOf(settings.getString("my_name", "You") ?: "You") }
@@ -161,7 +162,7 @@ private fun VelvetApp() {
             Page.MUSIC, Page.PAIR -> Page.HOME
             Page.ONLINE_CHAT -> Page.PAIR
             Page.CHAT -> chatBackTo
-            Page.CHAT_DEMO -> Page.CHAT
+            Page.CHAT_DEMO -> demoBackTo
             Page.DECK,Page.TTT,Page.CONNECT4,Page.CHESS,Page.LUDO,Page.DRAW,Page.DECK_EDITOR,Page.TOGETHER -> Page.GAMES
             else -> Page.HOME
         }
@@ -170,7 +171,8 @@ private fun VelvetApp() {
     val previewChat: @Composable () -> Unit = {
         ChatScreen(messages, partnerName, replyTo,
                     onReply = { replyTo = it }, onDismissReply = { replyTo = null },
-                    onInfo = { chatPreviewFrom=page; page = Page.CHAT_INFO }, onBack = { page = chatBackTo },
+                    onInfo = { chatPreviewFrom=page; page = Page.CHAT_INFO },
+                    onBack = { page = if(page==Page.CHAT_DEMO) demoBackTo else chatBackTo },
                     onConnected = { page = Page.PAIR },
                     onCall = { isVideo -> chatPreviewFrom=page; videoCall=isVideo;page=Page.CALL },
                     onSend = { body ->
@@ -199,7 +201,7 @@ private fun VelvetApp() {
                 Page.CHAT -> VelvetChatGateway(
                     client=pairClient,
                     onBack={page=chatBackTo},
-                    onLocalPreview={page=Page.CHAT_DEMO},
+                    onLocalPreview={demoBackTo=Page.CHAT;page=Page.CHAT_DEMO},
                     localPreview=previewChat
                 )
                 Page.CHAT_DEMO -> previewChat()
@@ -215,7 +217,7 @@ private fun VelvetApp() {
                     onSend = { prompt,tone,caption ->
                         sendMessage(ChatMessage(0,prompt.question,true,nowTime(),kind=MessageKind.QUESTION,
                             category=prompt.category,cardTone=tone,questionId=prompt.id,caption=caption.takeIf{it.isNotBlank()}))
-                    }, onViewChat={chatBackTo=Page.DECK;page=Page.CHAT_DEMO})
+                    }, onViewChat={demoBackTo=Page.DECK;page=Page.CHAT_DEMO})
                 Page.TTT -> TicTacToeScreen(onBack = { page = Page.GAMES })
                 Page.CONNECT4 -> ConnectFourGame(onBack={page=Page.GAMES},onOtherGame={page=Page.GAMES})
                 Page.CHESS -> VelvetChessGame(onBack={page=Page.GAMES})
