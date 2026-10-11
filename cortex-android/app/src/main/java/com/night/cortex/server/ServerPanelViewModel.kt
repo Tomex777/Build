@@ -205,6 +205,9 @@ class ServerPanelViewModel(application: Application) : AndroidViewModel(applicat
             startup = cached.startup,
             commandSettings = cached.commandSettings,
             runtimeRegistry = cached.registry,
+            currentPath = cached.currentPath,
+            files = cached.files,
+            activity = cached.activity,
             lastSuccessfulSyncAt = cached.savedAt.takeIf { it > 0L },
             agentReachable = false, // Cached status must never be mistaken for a live connection.
         )
