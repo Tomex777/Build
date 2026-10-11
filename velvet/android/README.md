@@ -121,3 +121,11 @@ Connected Chat now has a microphone recording control. Android asks for `RECORD_
 Voice upload uses the authenticated private `velvet-chat-voice` Storage bucket, followed by the `velvet_send_voice` RPC. Conversation history and older pages now include voice messages with waveform and duration metadata. Playback loads the private file using the signed-in user's access token into app-private cache, with Play/Pause, waveform, and scrubbing. Cached audio is deleted on player disposal. Sender-scoped delete actions, quoted replies and read receipts also apply to voice messages.
 
 This is an **alpha**, with no end-to-end encryption, outgoing offline voice queue, media compression options, background transfer, push notifications or secure cloud media erasure. Voice is not automatically shared with Our Story. Connected audio cannot be tested between real devices until a Supabase project is configured and migration 12 deployed.
+
+## v0.17 — Audio gallery and polished connected composer
+
+Tapping your partner's name now opens Chat Info with four sections: **Photos · Audio · Links · Search**. The Audio tab lists real server-backed voice messages with sender attribution, timestamps, duration, and private authenticated playback. Voice history loads in batches of 16 with a bounded older-history cursor, explicit refresh and retry UI. Switching away from Audio disposes its player components; playback also pauses when the activity goes to the background, and choosing another recording pauses the previous one.
+
+The connected Chat composer now uses a single row with photo attachment, text field, and a trailing action that changes between **microphone and send**. While recording or previewing a voice draft, the recording UI replaces the text editor without resetting the active MediaRecorder. The user still explicitly previews or sends audio, rather than uploading on record.
+
+All voice media stays separate from Our Story. Real paired-device verification still depends on a linked Supabase project, and media transport is **not end-to-end encrypted**. This release does not yet implement realtime WebSockets, offline media outbox, voice transcription, or push notifications.
