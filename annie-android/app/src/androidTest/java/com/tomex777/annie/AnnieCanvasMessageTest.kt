@@ -35,7 +35,8 @@ import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
 class AnnieCanvasMessageTest {
-    @get:Rule val compose = createAndroidComposeRule<ComponentActivity>()
+    @get:Rule(order = 0) val stalledThreadEvidence: org.junit.rules.TestRule = StalledThreadEvidenceRule()
+    @get:Rule(order = 1) val compose = createAndroidComposeRule<ComponentActivity>()
 
     private fun checkpoint(stage: String) {
         Log.i("AnnieCanvasTest", stage)
@@ -160,6 +161,7 @@ class AnnieCanvasMessageTest {
         }
         checkpoint("snake: gameplay verified")
         saveEmulatorScreenshot("annie-canvas-snake-in-chat")
+        checkpoint("snake: screenshot saved, test body complete")
     }
 
     /** Send real Android touch input through the window, not synthetic JS events. */

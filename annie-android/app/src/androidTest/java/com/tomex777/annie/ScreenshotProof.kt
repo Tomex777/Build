@@ -61,12 +61,19 @@ internal fun saveEmulatorScreenshot(name: String): Uri {
         screenshot.recycle()
         // AGP removes app-specific external storage when uninstalling the test target.
         // Copy through the test shell so API 26 evidence survives that cleanup.
-        instrumentation.uiAutomation.executeShellCommand("mkdir -p /sdcard/Pictures/AnnieCI").use {
-            android.os.ParcelFileDescriptor.AutoCloseInputStream(it).readBytes()
+        android.util.Log.i("AnnieCanvasTest", "screenshot $name: copying evidence")
+        instrumentation.uiAutomation.executeShellCommand(
+            "mkdir -p /sdcard/Pictures/AnnieCI && cp ${file.absolutePath} /sdcard/Pictures/AnnieCI/${file.name} && echo ANNIE_SCREENSHOT_SAVED"
+        ).use { descriptor ->
+            // API 26 can retain a shell pipe writer after the command completes.
+            // Consume an explicit success marker rather than waiting forever for EOF.
+            android.os.ParcelFileDescriptor.AutoCloseInputStream(descriptor).bufferedReader().use { reader ->
+                check(reader.readLine() == "ANNIE_SCREENSHOT_SAVED") {
+                    "Could not preserve emulator screenshot: $safe"
+                }
+            }
         }
-        instrumentation.uiAutomation.executeShellCommand("cp ${file.absolutePath} /sdcard/Pictures/AnnieCI/${file.name}").use {
-            android.os.ParcelFileDescriptor.AutoCloseInputStream(it).readBytes()
-        }
+        android.util.Log.i("AnnieCanvasTest", "screenshot $name: saved and copied")
         return Uri.fromFile(file)
     }
     val values = ContentValues().apply {
