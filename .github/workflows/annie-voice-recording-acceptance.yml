@@ -60,7 +60,7 @@ jobs:
           arch: x86_64
           profile: pixel_2
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -no-boot-anim -partition-size 4096
-          script: bash annie-android/ci/run-rc-feature-tests.sh && timeout --signal=TERM --kill-after=20s 300s gradle --no-daemon --stacktrace -p annie-android :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.tomex777.annie.AnnieCanvasMessageTest
+          script: bash annie-android/ci/run-rc-and-canvas-tests.sh
       - name: Require all Canvas gesture and fullscreen methods
         if: always()
         shell: bash

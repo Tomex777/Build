@@ -119,7 +119,7 @@ internal object AnnieBrowserAddress {
 internal object AnnieGeckoFilePicker {
     fun intent(types: Array<String>?, multiple: Boolean): Intent {
         val allowed = types.orEmpty().map(String::trim).filter { mime ->
-            mime.matches(Regex("[A-Za-z0-9!#internal data class AnnieBrowserVisit(val title: String, val url: String)^_.+-]+/[A-Za-z0-9!#internal data class AnnieBrowserVisit(val title: String, val url: String)^_.+*-]+"))
+            mime.matches(Regex("[A-Za-z0-9!#^_.+-]+/[A-Za-z0-9!#^_.+*-]+"))
         }.distinct()
         return Intent(Intent.ACTION_OPEN_DOCUMENT)
             .addCategory(Intent.CATEGORY_OPENABLE)

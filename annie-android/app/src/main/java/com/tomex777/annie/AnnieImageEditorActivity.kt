@@ -45,6 +45,7 @@ import androidx.compose.ui.unit.dp
 import coil.imageLoader
 import coil.request.ImageRequest
 import coil.request.SuccessResult
+import coil.size.Scale
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.launch
@@ -104,11 +105,11 @@ internal class AnnieImageEditorActivity : ComponentActivity() {
     }
 }
 
-private suspend fun loadEditableAnnieBitmap(context: Context, source: String): Bitmap? =
+internal suspend fun loadEditableAnnieBitmap(context: Context, source: String): Bitmap? =
     withContext(Dispatchers.IO) {
         val data = annieImageRequestData(source) ?: return@withContext null
         val request = ImageRequest.Builder(context)
-            .data(data).allowHardware(false).build()
+            .data(data).allowHardware(false).size(4096, 4096).scale(Scale.FIT).build()
         val result = context.imageLoader.execute(request) as? SuccessResult ?: return@withContext null
         val drawable = result.drawable
         val intrinsicWidth = drawable.intrinsicWidth

@@ -12,6 +12,7 @@ classes=(
   AnnieGeckoBrowserEndToEndTest
   AnnieImageViewerTest
   AnnieImageEditorTest
+  AnnieGeckoFilePickerTest
 )
 status=0
 for class in "${classes[@]}"; do

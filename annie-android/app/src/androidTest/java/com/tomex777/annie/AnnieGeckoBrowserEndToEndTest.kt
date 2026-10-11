@@ -14,6 +14,7 @@ import java.net.InetAddress
 import java.net.ServerSocket
 import java.util.UUID
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.CopyOnWriteArrayList
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -30,15 +31,30 @@ class AnnieGeckoBrowserEndToEndTest {
     @Test fun geckoNavigatesBackAndDownloadsTheActualResponseForOfflineOpening() {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         val server = GeckoLocalFixture()
+        val preferenceSnapshots = listOf("annie_gecko_tabs_v1", "annie_gecko_library_v1").map { name ->
+            val prefs = context.getSharedPreferences(name, android.content.Context.MODE_PRIVATE)
+            prefs to prefs.all
+        }
         lateinit var model: AnnieGeckoBrowserModel
         var initialized = false
+        lateinit var tab: AnnieGeckoTab
         var entry: AnnieGeckoDownloadEntry? = null
         try {
             compose.runOnUiThread {
                 model = AnnieGeckoBrowserModel(context)
                 initialized = true
+                // The controlled session must not inherit a restored navigation
+                // already in flight to an external site.
+                val previous = model.tabs.toList()
+                tab = model.newTab(address = server.baseUrl + "/one", autoLoad = false)
+                previous.forEach(model::close)
             }
-            val tab = model.active!!
+            fun waitForNavigation(stage: String, condition: () -> Boolean) {
+                try { compose.waitUntil(30_000, condition) }
+                catch (problem: androidx.compose.ui.test.ComposeTimeoutException) {
+                    throw AssertionError("$stage: url=${tab.url}, title=${tab.title}, loading=${tab.loading}, back=${tab.canBack}, forward=${tab.canForward}, error=${tab.error}, requests=${server.requests}", problem)
+                }
+            }
             compose.setContent {
                 AndroidView(
                     factory = { GeckoView(it).apply { setSession(tab.session) } },
@@ -47,13 +63,13 @@ class AnnieGeckoBrowserEndToEndTest {
                 )
             }
             compose.runOnUiThread { assertTrue(model.load(tab, server.baseUrl + "/one")) }
-            compose.waitUntil(30_000) { tab.title == "Gecko one" && !tab.loading }
+            waitForNavigation("first page") { tab.url == server.baseUrl + "/one" && tab.title == "Gecko one" && !tab.loading }
             compose.runOnUiThread { assertTrue(model.load(tab, server.baseUrl + "/two")) }
-            compose.waitUntil(20_000) { tab.title == "Gecko two" && tab.canBack && !tab.loading }
+            waitForNavigation("second page") { tab.url == server.baseUrl + "/two" && tab.title == "Gecko two" && tab.canBack && !tab.loading }
             compose.runOnUiThread { tab.session.goBack() }
-            compose.waitUntil(20_000) { tab.url == server.baseUrl + "/one" && tab.canForward && !tab.loading }
+            waitForNavigation("back") { tab.url == server.baseUrl + "/one" && tab.canForward && !tab.loading }
             compose.runOnUiThread { tab.session.goForward() }
-            compose.waitUntil(20_000) { tab.title == "Gecko two" && !tab.loading }
+            waitForNavigation("forward") { tab.url == server.baseUrl + "/two" && tab.title == "Gecko two" && !tab.loading }
             compose.runOnUiThread { assertTrue(model.load(tab, server.baseUrl + "/download")) }
             compose.waitUntil(30_000) {
                 entry = AnnieGeckoDownloads.current.firstOrNull { it.name == server.name }
@@ -86,6 +102,18 @@ class AnnieGeckoBrowserEndToEndTest {
                 }
             }
             server.close()
+            compose.runOnUiThread {
+                preferenceSnapshots.forEach { (prefs, original) ->
+                    val edit = prefs.edit().clear()
+                    original.forEach { (key, value) ->
+                        when (value) {
+                            is String -> edit.putString(key, value)
+                            is Int -> edit.putInt(key, value)
+                        }
+                    }
+                    edit.commit()
+                }
+            }
         }
     }
 }
@@ -94,6 +122,7 @@ private class GeckoLocalFixture : AutoCloseable {
     val name = "annie-gecko-live-${UUID.randomUUID()}.bin"
     val bytes = ByteArray(64 * 1024) { (it % 251).toByte() }
     val downloadRequested = AtomicBoolean(false)
+    val requests = CopyOnWriteArrayList<String>()
     private val stopped = AtomicBoolean(false)
     private val server = ServerSocket(0, 16, InetAddress.getByName("127.0.0.1"))
     val baseUrl = "http://127.0.0.1:${server.localPort}"
@@ -104,6 +133,7 @@ private class GeckoLocalFixture : AutoCloseable {
                     socket.soTimeout = 5_000
                     val input = socket.getInputStream().bufferedReader()
                     val path = input.readLine()?.split(' ')?.getOrNull(1).orEmpty()
+                    requests.add(path)
                     while (!input.readLine().isNullOrBlank()) { }
                     val download = path == "/download"
                     val body = if (download) bytes else

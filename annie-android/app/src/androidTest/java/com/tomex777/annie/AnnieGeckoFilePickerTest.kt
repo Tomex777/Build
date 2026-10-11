@@ -25,7 +25,8 @@ class AnnieGeckoFilePickerTest {
 
     @Test fun multipleFilePickerPreservesSupportedMimeTypes() {
         val intent = AnnieGeckoFilePicker.intent(
-            arrayOf("image/png", "image/jpeg", "image/png", "javascript:alert(1)"), true
+            arrayOf("image/png", "image/jpeg", "image/png", "javascript:alert(1)",
+                "image/(png)", "image/png extra", "image/png:bad"), true
         )
         assertEquals("*/*", intent.type)
         assertArrayEquals(

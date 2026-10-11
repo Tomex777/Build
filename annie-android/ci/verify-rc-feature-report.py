@@ -5,8 +5,9 @@ import sys
 import xml.etree.ElementTree as ET
 
 EXPECTED = {
+    "AnnieGeckoFilePickerTest": {"singleFilePickerUsesAndroidDocumentApiAndRestrictsAcceptedMimeType", "multipleFilePickerPreservesSupportedMimeTypes", "selectedDocumentUrisAreCollectedWithoutDuplicates"},
     "AnnieImageViewerTest": {"tappingChatImageOpensGenuineScreenWidthViewer"},
-    "AnnieImageEditorTest": {"editsRotateRealBitmapWithoutChangingOriginal", "squareCropProducesSquareImageWithoutAlteringOriginal", "horizontalMirrorChangesPixelOrientation"},
+    "AnnieImageEditorTest": {"inlineImageDecodesIntoBoundedEditableBitmap", "editsRotateRealBitmapWithoutChangingOriginal", "squareCropProducesSquareImageWithoutAlteringOriginal", "horizontalMirrorChangesPixelOrientation"},
     "AnnieVoiceRecordingTest": {"lockedRecordingPausesMicrophoneAndSendsOneAacFile"},
     "AnnieVoicePauseResumeTest": {"pauseSeekAndResumePreservesPlaybackPosition"},
     "AnnieGeckoTabRestoreTest": {"recreationRestoresSelectedNormalTabAndDesktopModeWithoutPrivateTabs"},
