@@ -87,7 +87,7 @@ private object V {
     val gold get() = VelvetTheme.current.gold
 }
 private val round = RoundedCornerShape(22.dp)
-private enum class Page { HOME, CHAT, GAMES, STORY, US, CHAT_INFO, DECK, TTT, STUDIO, CALL, MUSIC, CONNECT4, CHESS, LUDO, DRAW, DECK_EDITOR, TOGETHER, PAIR, ONLINE_CHAT }
+private enum class Page { HOME, CHAT, CHAT_DEMO, GAMES, STORY, US, CHAT_INFO, DECK, TTT, STUDIO, CALL, MUSIC, CONNECT4, CHESS, LUDO, DRAW, DECK_EDITOR, TOGETHER, PAIR, ONLINE_CHAT }
 internal enum class MessageKind { TEXT, QUESTION, VOICE, MEDIA }
 internal data class ChatMessage(
     val id: Int, val body: String, val mine: Boolean, val time: String,
@@ -119,6 +119,8 @@ private fun VelvetApp() {
     val settings = remember { ctx.getSharedPreferences("velvet_couple_settings", android.content.Context.MODE_PRIVATE) }
     var page by remember { mutableStateOf(Page.HOME) }
     var chatBackTo by remember { mutableStateOf(Page.HOME) }
+    var chatPreviewFrom by remember { mutableStateOf(Page.CHAT) }
+    val pairClient=remember { VelvetPairClient(ctx.applicationContext) }
     var ownerName by remember { mutableStateOf(settings.getString("my_name", "You") ?: "You") }
     val partnerName = VelvetChatStyle.partnerNickname.ifBlank { "Your love" } // Local nickname, not an edit to the authenticated partner profile.
     var anniversary by remember { mutableStateOf(settings.getString("anniversary", "") ?: "") }
@@ -150,31 +152,27 @@ private fun VelvetApp() {
             onDispose {ctrl.show(androidx.core.view.WindowInsetsCompat.Type.systemBars())}
         } else onDispose {}
     }
-    val immersive = page in setOf(Page.CHAT, Page.CHAT_INFO, Page.DECK, Page.TTT, Page.STUDIO, Page.CALL,
+    val immersive = page in setOf(Page.CHAT, Page.CHAT_DEMO, Page.CHAT_INFO, Page.DECK, Page.TTT, Page.STUDIO, Page.CALL,
         Page.MUSIC,Page.CONNECT4,Page.CHESS,Page.LUDO,Page.DRAW,Page.DECK_EDITOR,Page.TOGETHER,Page.PAIR,Page.ONLINE_CHAT)
     BackHandler(enabled = immersive) {
         page = when(page) {
-            Page.CHAT_INFO, Page.CALL -> Page.CHAT
+            Page.CHAT_INFO, Page.CALL -> chatPreviewFrom
             Page.STUDIO -> Page.US
             Page.MUSIC, Page.PAIR -> Page.HOME
             Page.ONLINE_CHAT -> Page.PAIR
             Page.CHAT -> chatBackTo
+            Page.CHAT_DEMO -> Page.CHAT
             Page.DECK,Page.TTT,Page.CONNECT4,Page.CHESS,Page.LUDO,Page.DRAW,Page.DECK_EDITOR,Page.TOGETHER -> Page.GAMES
             else -> Page.HOME
         }
     }
     fun sendMessage(msg: ChatMessage) { messages.add(msg.copy(id=(messages.maxOfOrNull { it.id } ?: 0)+1)) }
-    Column(Modifier.fillMaxSize().background(V.bg).windowInsetsPadding(WindowInsets.safeDrawing)) {
-        Box(Modifier.weight(1f)) {
-            when (page) {
-                Page.HOME -> HomeScreen(ownerName = ownerName, anniversary = anniversary, note=studioNote,
-                    openChat = { chatBackTo = Page.HOME; page = Page.CHAT },
-                    openGames = { page = Page.GAMES },openMusic={page=Page.MUSIC},openPair={page=Page.PAIR})
-                Page.CHAT -> ChatScreen(messages, partnerName, replyTo,
+    val previewChat: @Composable () -> Unit = {
+        ChatScreen(messages, partnerName, replyTo,
                     onReply = { replyTo = it }, onDismissReply = { replyTo = null },
-                    onInfo = { page = Page.CHAT_INFO }, onBack = { page = chatBackTo },
+                    onInfo = { chatPreviewFrom=page; page = Page.CHAT_INFO }, onBack = { page = chatBackTo },
                     onConnected = { page = Page.PAIR },
-                    onCall = { isVideo -> videoCall=isVideo;page=Page.CALL },
+                    onCall = { isVideo -> chatPreviewFrom=page; videoCall=isVideo;page=Page.CALL },
                     onSend = { body ->
                         if (body.isNotBlank()) { sendMessage(ChatMessage(0, body.trim(),true,nowTime(),replyTo?.body));replyTo = null }
                     },onSendMedia = { assets,caption ->
@@ -191,7 +189,21 @@ private fun VelvetApp() {
                         sendMessage(ChatMessage(0,"Voice note",true,nowTime(),replyTo?.body,kind=MessageKind.VOICE,
                             voicePath=clip.path,voiceBars=clip.bars,durationMs=clip.durationMs));replyTo=null
                     })
-                Page.CHAT_INFO -> ChatInfoScreen(partnerName, messages, onBack = { page = Page.CHAT })
+    }
+    Column(Modifier.fillMaxSize().background(V.bg).windowInsetsPadding(WindowInsets.safeDrawing)) {
+        Box(Modifier.weight(1f)) {
+            when (page) {
+                Page.HOME -> HomeScreen(ownerName = ownerName, anniversary = anniversary, note=studioNote,
+                    openChat = { chatBackTo = Page.HOME; page = Page.CHAT },
+                    openGames = { page = Page.GAMES },openMusic={page=Page.MUSIC},openPair={page=Page.PAIR})
+                Page.CHAT -> VelvetChatGateway(
+                    client=pairClient,
+                    onBack={page=chatBackTo},
+                    onLocalPreview={page=Page.CHAT_DEMO},
+                    localPreview=previewChat
+                )
+                Page.CHAT_DEMO -> previewChat()
+                Page.CHAT_INFO -> ChatInfoScreen(partnerName, messages, onBack = { page = chatPreviewFrom })
                 Page.GAMES -> GamesScreen(
                     onDeck={ tab -> questionTab=tab;page=Page.DECK },
                     onTTT={page=Page.TTT},onConnect4={page=Page.CONNECT4},
@@ -203,7 +215,7 @@ private fun VelvetApp() {
                     onSend = { prompt,tone,caption ->
                         sendMessage(ChatMessage(0,prompt.question,true,nowTime(),kind=MessageKind.QUESTION,
                             category=prompt.category,cardTone=tone,questionId=prompt.id,caption=caption.takeIf{it.isNotBlank()}))
-                    }, onViewChat={chatBackTo=Page.DECK;page=Page.CHAT})
+                    }, onViewChat={chatBackTo=Page.DECK;page=Page.CHAT_DEMO})
                 Page.TTT -> TicTacToeScreen(onBack = { page = Page.GAMES })
                 Page.CONNECT4 -> ConnectFourGame(onBack={page=Page.GAMES},onOtherGame={page=Page.GAMES})
                 Page.CHESS -> VelvetChessGame(onBack={page=Page.GAMES})
@@ -213,8 +225,8 @@ private fun VelvetApp() {
                     onPlay={questionTab="Our own deck";page=Page.DECK})
                 Page.TOGETHER -> TogetherAnswers(onBack={page=Page.GAMES})
                 Page.MUSIC -> SpotifyListeningRoom(onBack={page=Page.HOME})
-                Page.PAIR -> VelvetPairingScreen(onBack={page=Page.HOME},onConnectedChat={page=Page.ONLINE_CHAT})
-                Page.ONLINE_CHAT -> VelvetConnectedChat(onBack={page=Page.PAIR})
+                Page.PAIR -> VelvetPairingScreen(onBack={page=Page.HOME},onConnectedChat={page=Page.ONLINE_CHAT},sharedClient=pairClient)
+                Page.ONLINE_CHAT -> VelvetConnectedChat(onBack={page=Page.PAIR},sharedClient=pairClient)
                 Page.STORY -> GalleryFirstScreen(ownerName)
                 Page.STUDIO -> VelvetStudioScreen(note=studioNote,
                     onNoteChange={value->studioNote=value;settings.edit().putString("studio_note",value).apply()},
