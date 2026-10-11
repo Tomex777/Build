@@ -1,6 +1,6 @@
 -- Velvet's next data contract: questions, music dedications, and a couples' corner.
 -- DESIGN ONLY: this migration is not applied to any user's Supabase project.
--- Requires 20261009_000001_velvet_core.sql first.
+-- Requires 20261009000001_velvet_core.sql first.
 -- Only trusted server code may create pairings or validate online game moves.
 
 create table if not exists public.velvet_question_catalog (

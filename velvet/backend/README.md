@@ -51,7 +51,7 @@ The migrations in this folder are a *design contract*, not evidence of a deploye
 
 ## Pairing milestone — code completed, deployment not yet available
 
-Migration `20261011_000003_velvet_pairing.sql` introduces a verified-account, two-person handshake:
+Migration `20261011000003_velvet_pairing.sql` introduces a verified-account, two-person handshake:
 
 - `velvet_create_pair_invite()`: creates a private couple if necessary and returns a **single-use, 80-bit invitation code** (20 hexadecimal characters, grouped for easier entry), valid for 20 minutes.
 - `velvet_join_pair_invite(p_code)`: consumes the token atomically, admits only a distinct, verified second account, and enforces a 10-attempt-per-hour per-account limiter.
@@ -75,7 +75,7 @@ On sign-out, Android deletes the locally encrypted refresh token. The token was 
 
 ## v0.8.0 — Connected text chat contract (not deployed)
 
-Migration `20261011_000004_velvet_text_chat.sql` revokes client-side table writes and exposes two intentionally scoped SQL RPC endpoints:
+Migration `20261011000004_velvet_text_chat.sql` revokes client-side table writes and exposes two intentionally scoped SQL RPC endpoints:
 
 - `velvet_send_text(p_id, p_body, p_reply_to)` validates authentication, the caller's authenticated membership, exactly two members in the couple, 1–4000 characters, and reply ownership. Messages receive a client-generated UUID for **idempotent retry**; a retry with altered content is rejected. 40 sends per user per minute is the database-side safety ceiling.
 - `velvet_list_text(p_after_at, p_after_id, p_limit)` returns at most 100 text messages in chronological order, initially taking the newest 80. Later requests use a stable (server timestamp, UUID) cursor. It returns nothing for users without a completed two-person pairing.

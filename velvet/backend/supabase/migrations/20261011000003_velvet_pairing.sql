@@ -1,5 +1,5 @@
 -- Pairing milestone: a two-person, expiring, one-time invitation handshake.
--- Apply AFTER 20261009_000001_velvet_core.sql.
+-- Apply AFTER 20261009000001_velvet_core.sql.
 -- No client may insert or update couple memberships directly.
 -- Not yet deployed to a Supabase project.
 create table if not exists public.velvet_pair_invites (
