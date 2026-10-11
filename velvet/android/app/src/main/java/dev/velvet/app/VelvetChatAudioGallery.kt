@@ -64,6 +64,7 @@ internal fun VelvetChatAudioGallery(
     val card=Color(0xFF30202D)
     val scope=rememberCoroutineScope()
     val recordings=remember {mutableStateListOf<ChatAudioItem>()}
+    var activeAudioId by remember {mutableStateOf<String?>(null)}
     var loading by remember {mutableStateOf(false)}
     var fetched by remember {mutableStateOf(false)}
     var hasMore by remember {mutableStateOf(true)}
@@ -118,6 +119,7 @@ internal fun VelvetChatAudioGallery(
             TextButton(onClick={
                 if(!loading) {
                     recordings.clear()
+                    activeAudioId=null
                     cursorAt=null
                     cursorId=null
                     hasMore=true
@@ -149,7 +151,9 @@ internal fun VelvetChatAudioGallery(
                         client=client,
                         storagePath=note.path,
                         durationMs=note.durationMs,
-                        waveform=note.samples
+                        waveform=note.samples,
+                        onPlaybackStart={activeAudioId=note.id},
+                        playingAllowed=activeAudioId==null || activeAudioId==note.id
                     )
                 }
             }
