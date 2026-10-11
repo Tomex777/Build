@@ -42,5 +42,6 @@ language sql immutable as $$
       then left(path,length(path)-length(split_part(path,'/',array_length(string_to_array(path,'/'),1)))-1)
       else '' end,'/')
 $$;
+alter table storage.objects enable row level security;
 grant usage on schema storage to authenticated,anon;
 grant select,insert on storage.objects to authenticated;
