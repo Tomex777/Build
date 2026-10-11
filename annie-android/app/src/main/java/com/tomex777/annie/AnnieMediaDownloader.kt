@@ -37,6 +37,38 @@ import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import kotlin.coroutines.resume
 
+/**
+ * No caller-provided cookie may override a browser's independent profile.
+ * Android's session-specific CookieManager supplies those cookies in open().
+ * Reject header control characters before handing values to HttpURLConnection.
+ */
+internal object AnnieDownloadHeaderPolicy {
+    fun sanitize(headers: Map<String, String>, isolatedBrowserSession: Boolean): Map<String, String> =
+        headers.filter { (name, value) ->
+            name.isNotBlank() && value.isNotBlank() &&
+                !(isolatedBrowserSession && name.equals("Cookie", ignoreCase = true)) &&
+                name.none { it.code < 32 || it.code == 127 } &&
+                value.none { it.code < 32 || it.code == 127 }
+        }
+
+    /**
+     * A persisted browser session's User-Agent must be treated as untrusted,
+     * just like script-supplied headers. Never add it after the last filter.
+     */
+    fun withBrowserAgent(
+        headers: Map<String, String>,
+        sessionUserAgent: String?,
+        defaultUserAgent: String,
+    ): Map<String, String> {
+        val safe = sanitize(headers, isolatedBrowserSession = true)
+        if (safe.keys.any { it.equals("User-Agent", ignoreCase = true) }) return safe
+        val agent = listOfNotNull(sessionUserAgent, defaultUserAgent).firstOrNull { proposed ->
+            sanitize(mapOf("User-Agent" to proposed), true).isNotEmpty()
+        } ?: return safe
+        return sanitize(safe + ("User-Agent" to agent), isolatedBrowserSession = true)
+    }
+}
+
 internal data class AnnieDownloadSource(
     val url: String,
     val headers: Map<String, String> = emptyMap(),
@@ -320,11 +352,16 @@ internal class AnnieMediaDownloader(
             }
             session
         }
+        // A script may supply a Cookie header, but it must not impersonate
+        // credentials from an isolated browser profile. Use that profile's cookie
+        // store for the initial request and all HLS segment requests instead.
         val sessionHeaders = browserSession?.let { session ->
-            if (headers.keys.none { it.equals("User-Agent", true) }) {
-                headers + ("User-Agent" to (session.userAgent ?: android.webkit.WebSettings.getDefaultUserAgent(context)))
-            } else headers
-        } ?: headers
+            AnnieDownloadHeaderPolicy.withBrowserAgent(
+                headers,
+                session.userAgent,
+                android.webkit.WebSettings.getDefaultUserAgent(context),
+            )
+        } ?: AnnieDownloadHeaderPolicy.sanitize(headers, isolatedBrowserSession = false)
         val browserCookieManager = browserSession?.let { AnnieBrowserProfiles.cookieManager(it.sessionId) }
 
         val first = open(

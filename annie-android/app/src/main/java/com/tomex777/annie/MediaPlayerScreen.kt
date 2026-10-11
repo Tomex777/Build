@@ -158,6 +158,47 @@ internal data class PlayerSource(
     val browserSessionId: String? = null,
 )
 
+/** A scripted browser stream must only load through its registered isolated session. */
+internal fun playerSourceAllowed(context: Context, source: PlayerSource): Boolean {
+    val id = source.browserSessionId ?: return true
+    if (!AnnieBrowserProfiles.isSupported()) return false
+    val session = AnnieBrowserSessionStore.get(context, id) ?: return false
+    return AnnieBrowserSessionStore.allows(session, source.uri.toString())
+}
+
+/** Called on the main thread, like the Compose playback effect that owns Gecko/VLC. */
+internal fun playerCookiesForSource(context: Context, source: PlayerSource): String? {
+    val uri = source.uri.toString()
+    val id = source.browserSessionId
+    if (id == null) return CookieManager.getInstance().getCookie(uri)
+    if (!playerSourceAllowed(context, source)) return null
+    // Never substitute the global WebView cookie jar for an isolated browser profile.
+    return AnnieBrowserProfiles.cookieManagerOnMain(id).getCookie(uri)
+}
+
+/**
+ * Caller-provided cookies cannot override browser-profile isolation. For session-
+ * backed playback, the cookie header is exclusively selected from that profile.
+ * For ordinary non-browser streams, explicit headers remain supported.
+ */
+internal fun playerHeadersForSource(context: Context, source: PlayerSource): Map<String, String> {
+    if (!playerSourceAllowed(context, source)) return emptyMap()
+    val headers = source.headers.toMutableMap()
+    val scoped = source.browserSessionId != null
+    if (scoped) headers.keys.filter { it.equals("Cookie", ignoreCase = true) }
+        .forEach { headers.remove(it) }
+    if (headers.keys.none { it.equals("Cookie", ignoreCase = true) }) {
+        playerCookiesForSource(context, source)?.takeIf(String::isNotBlank)?.let { cookie ->
+            headers["Cookie"] = cookie
+        }
+    }
+    // VLC :http-* option values must never contain linebreaks/control sequences.
+    return headers.filter { (key, value) ->
+        key.none { it.code < 32 || it.code == 127 } &&
+            value.none { it.code < 32 || it.code == 127 }
+    }
+}
+
 private enum class AnnieVideoScale(val label: String, val scale: MediaPlayer.ScaleType) {
     FIT("Fit", MediaPlayer.ScaleType.SURFACE_BEST_FIT),
     FILL("Fill", MediaPlayer.ScaleType.SURFACE_FILL),
@@ -201,14 +242,19 @@ internal fun MediaPlayerScreen(
         onDispose { if (immersive) controller?.show(WindowInsetsCompat.Type.systemBars()) }
     }
 
-    val sourceChoices = remember(mediaUri, sources) {
+    val rawSources = remember(mediaUri, sources) {
         if (sources.isNotEmpty()) sources else mediaUri?.let { listOf(PlayerSource("Source", it)) }.orEmpty()
     }
+    val sourceChoices = remember(context, rawSources) {
+        rawSources.filter { playerSourceAllowed(context, it) }
+    }
+    val blockedBrowserSources = rawSources.any { it.browserSessionId != null } &&
+        sourceChoices.isEmpty()
     var sourceIndex by remember(sourceChoices) { mutableStateOf(0) }
     var switchResumePosition by remember { mutableLongStateOf(0L) }
     val activeSource = sourceChoices.getOrNull(sourceIndex)
     val activeUri = activeSource?.uri
-    val playable = sourceAvailable || activeUri != null
+    val playable = !blockedBrowserSources && (sourceAvailable || activeUri != null)
     val isOffline = mode == PlayerMode.OFFLINE
     val resumePrefs = remember { appContext.getSharedPreferences("annie_video_resume", Context.MODE_PRIVATE) }
     val resumeKey = remember(item.id, item.title) { "${item.id}:${item.title}" }
@@ -326,17 +372,12 @@ internal fun MediaPlayerScreen(
             // rendered frame remains real and screenshot-verifiable.
             setHWDecoderEnabled(!runningOnEmulator, false)
             addOption(":network-caching=1500")
-            val sourceHeaders = activeSource?.headers.orEmpty().toMutableMap()
+            val sourceHeaders = activeSource?.let { playerHeadersForSource(context, it) }
+                .orEmpty().toMutableMap()
             val browserSession = activeSource?.browserSessionId
                 ?.let { AnnieBrowserSessionStore.get(context, it) }
-                ?.takeIf { AnnieBrowserSessionStore.allows(it, activeUri.toString()) }
             if (sourceHeaders.keys.none { it.equals("User-Agent", true) } && browserSession != null) {
                 sourceHeaders["User-Agent"] = browserSession.userAgent ?: WebSettings.getDefaultUserAgent(context)
-            }
-            if (sourceHeaders.keys.none { it.equals("Cookie", true) }) {
-                CookieManager.getInstance().getCookie(activeUri.toString())?.takeIf(String::isNotBlank)?.let {
-                    sourceHeaders["Cookie"] = it
-                }
             }
             sourceHeaders.forEach { (name, value) ->
                 when (name.lowercase()) {

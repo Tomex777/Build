@@ -86,6 +86,52 @@ class AnnieMediaDownloaderTest {
         assertEquals("https://cdn.example/720/video.mp4", source.url)
     }
 
+    @Test fun protectedBrowserDownloadsIgnoreInjectedCookiesButKeepReferer() {
+        val original = linkedMapOf(
+            "Cookie" to "stolen=old",
+            "cOoKiE" to "secret=another",
+            "Referer" to "https://watch.example/episode",
+            "Accept" to "video/*",
+        )
+        val safe = AnnieDownloadHeaderPolicy.sanitize(original, isolatedBrowserSession = true)
+        assertTrue(safe.keys.none { it.equals("Cookie", ignoreCase = true) })
+        assertEquals("https://watch.example/episode", safe["Referer"])
+        assertEquals("video/*", safe["Accept"])
+        assertEquals("stolen=old", AnnieDownloadHeaderPolicy.sanitize(original, false)["Cookie"])
+    }
+
+    @Test fun downloadHeaderPolicyRejectsNewlinesAndControlCharacters() {
+        val malicious = mapOf(
+            "X-Test" to "hello\r\nInjected: yes",
+            "X-Header\n" to "invalid",
+            "User-Agent" to "Annie/1.0",
+        )
+        val sanitized = AnnieDownloadHeaderPolicy.sanitize(malicious, isolatedBrowserSession = true)
+        assertEquals(mapOf("User-Agent" to "Annie/1.0"), sanitized)
+    }
+
+    @Test fun invalidBrowserUserAgentCannotBypassHeaderSanitization() {
+        val safe = AnnieDownloadHeaderPolicy.withBrowserAgent(
+            mapOf("Referer" to "https://watch.example", "cOoKiE" to "injected=1"),
+            "Mozilla/5.0\\r\\nX-Injected: yes".replace("\\r", "\r").replace("\\n", "\n"),
+            "Annie Safe Agent",
+        )
+        assertEquals("Annie Safe Agent", safe["User-Agent"])
+        assertEquals("https://watch.example", safe["Referer"])
+        assertTrue(safe.keys.none { it.equals("Cookie", ignoreCase = true) })
+        assertTrue(safe.values.none { '\r' in it || '\n' in it })
+    }
+
+    @Test fun safeBrowserSessionUserAgentOverridesFallbackWithoutLeakingCookies() {
+        val safe = AnnieDownloadHeaderPolicy.withBrowserAgent(
+            mapOf("Cookie" to "stolen=1", "User-Agent" to "Site-specific/1.0"),
+            "Mozilla/5.0",
+            "Android",
+        )
+        assertEquals("Site-specific/1.0", safe["User-Agent"])
+        assertTrue(safe.keys.none { it.equals("Cookie", true) })
+    }
+
     @Test fun scriptVideoResolutionKeepsHeadersAndChoosesBestQuality() {
         val data = JSONObject()
             .put("type", "video")
