@@ -1,0 +1,33 @@
+name: Cortex Remote Readiness Tests
+
+on:
+  pull_request:
+    branches: [cortex-production-finalization]
+    paths:
+      - 'cortex-agent/remote-readiness*.mjs'
+      - '.github/workflows/cortex-remote-readiness.yml'
+  push:
+    branches: [cortex-production-finalization]
+    paths:
+      - 'cortex-agent/remote-readiness*.mjs'
+      - '.github/workflows/cortex-remote-readiness.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  readiness:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+      - name: Check remote readiness verifier syntax
+        run: |
+          node --check cortex-agent/remote-readiness.mjs
+          node --check cortex-agent/remote-readiness-selftest.mjs
+      - name: Run contract, auth and privacy checks without connecting to Azure
+        run: node cortex-agent/remote-readiness-selftest.mjs
