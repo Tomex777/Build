@@ -273,6 +273,16 @@ internal class VelvetPairClient(private val context: Context) {
         } finally {con.disconnect()}
     }
 
+    /** Acknowledges the newest partner-authored Chat bubble actually on screen. */
+    suspend fun markChatRead(messageId:String): JSONObject = withContext(Dispatchers.IO) {
+        rpc("velvet_mark_chat_read",JSONObject().put("p_message_id",messageId))
+    }
+
+    /** Partner cursor is returned only to the signed-in member of this pair. */
+    suspend fun chatReadState(): JSONObject = withContext(Dispatchers.IO) {
+        rpc("velvet_chat_read_state")
+    }
+
     suspend fun editText(id:String,body:String): JSONObject = withContext(Dispatchers.IO) {
         rpc("velvet_edit_text",JSONObject().put("p_id",id).put("p_body",body))
     }
