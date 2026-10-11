@@ -171,6 +171,8 @@ jobs:
             annie-android/app/build/outputs/androidTest-results/
             annie-android/app/build/reports/androidTests/
             annie-android/build/ci-test-reports/
+            annie-android/app/build/test-results/
+            annie-android/app/build/reports/tests/
           if-no-files-found: warn
           retention-days: 7
       - uses: actions/upload-artifact@v4
@@ -310,6 +312,8 @@ jobs:
             annie-android/app/build/outputs/androidTest-results/
             annie-android/app/build/reports/androidTests/
             annie-android/build/ci-test-reports/
+            annie-android/app/build/test-results/
+            annie-android/app/build/reports/tests/
           if-no-files-found: warn
           retention-days: 7
 
