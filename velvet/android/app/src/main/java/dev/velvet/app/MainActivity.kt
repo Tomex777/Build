@@ -123,10 +123,40 @@ private fun VelvetApp() {
     var chatPreviewFrom by remember { mutableStateOf(Page.CHAT) }
     val pairClient=remember { VelvetPairClient(ctx.applicationContext) }
     var ownerName by remember { mutableStateOf(settings.getString("my_name", "You") ?: "You") }
-    val partnerName = VelvetChatStyle.partnerNickname.ifBlank { "Your love" } // Local nickname, not an edit to the authenticated partner profile.
+    var pairedPartnerName by remember { mutableStateOf("") }
+    val partnerName = pairedPartnerName.ifBlank {
+        VelvetChatStyle.partnerNickname.ifBlank { "Your love" }
+    } // Partner's authenticated profile remains view-only.
     var anniversary by remember { mutableStateOf(settings.getString("anniversary", "") ?: "") }
     var ownEdit by remember { mutableStateOf(false) }
     var profileDraft by remember { mutableStateOf(ownerName) }
+    var ownPronouns by remember {
+        mutableStateOf(settings.getString("my_pronouns", "") ?: "")
+    }
+    var pronounsDraft by remember { mutableStateOf(ownPronouns) }
+    var profileStatus by remember { mutableStateOf("") }
+    val profileScope=rememberCoroutineScope()
+    fun syncOwnProfile() {
+        if(!pairClient.configured) {
+            profileStatus="Saved on this phone. Online profile sync isn't configured yet."
+            return
+        }
+        profileScope.launch {
+            profileStatus="Syncing your profile…"
+            try {
+                if(!pairClient.hasSession()) {
+                    profileStatus="Saved on this phone. Sign in under Connect our phones to sync."
+                } else {
+                    val result=pairClient.updateMyProfile(ownerName,ownPronouns)
+                    profileStatus=if(result.optBoolean("ok"))
+                        "Your account profile is synced ♡"
+                    else "Saved on this phone; check your name or pronouns before retrying."
+                }
+            } catch(error:Exception) {
+                profileStatus="Saved on this phone. Connection failed; use Retry sync."
+            }
+        }
+    }
     val cache=remember {MessageCache(ctx)}
     val messages = remember {
         mutableStateListOf<ChatMessage>().apply {
@@ -144,6 +174,20 @@ private fun VelvetApp() {
     var studioNote by remember { mutableStateOf(settings.getString("studio_note", "You feel like home to me. ♡") ?: "") }
     var videoCall by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) { VelvetChatStyle.load(ctx);OurDeck.load(ctx);VelvetQuestionProgress.load(ctx) }
+    LaunchedEffect(page) {
+        if(page==Page.US && pairClient.configured) {
+            try {
+                if(pairClient.hasSession()) {
+                    val pair=pairClient.myPair()
+                    val serverPartner=pair?.optString("partner_name").orEmpty()
+                    if(serverPartner.isNotBlank() && serverPartner!="null") {
+                        pairedPartnerName=serverPartner
+                    }
+                    // Never overwrite locally edited personal details on network load.
+                }
+            } catch(_:Exception) { /* Offline profile continues from local state. */ }
+        }
+    }
     DisposableEffect(page) {
         val activity = ctx as? android.app.Activity
         if(page == Page.CALL && activity != null) {
@@ -236,7 +280,13 @@ private fun VelvetApp() {
                 Page.CALL -> VelvetCallPreview(partnerName,videoCall,onBack={page=Page.CHAT})
                 Page.US -> UsScreen(ownerName, partnerName, anniversary=anniversary,
                     onDateChange={date -> anniversary=date;settings.edit().putString("anniversary",date).apply()},
-                    onOwnProfile = { profileDraft = ownerName; ownEdit = true },
+                    onOwnProfile = {
+                        profileDraft = ownerName
+                        pronounsDraft = ownPronouns
+                        ownEdit = true
+                    },
+                    profileStatus=profileStatus,
+                    onRetryProfileSync={syncOwnProfile()},
                     onStudio = { page=Page.STUDIO })
             }
         }
@@ -247,9 +297,28 @@ private fun VelvetApp() {
         title = { Text("Your profile", color = V.text) },
         text = { Column {
             Text("Only you can change your information. Your partner manages their own profile.", color = V.muted, fontSize = 13.sp)
-            Spacer(Modifier.height(12.dp)); OutlinedTextField(value = profileDraft, onValueChange = { profileDraft = it }, label = { Text("Your name") }, singleLine = true)
+            Spacer(Modifier.height(12.dp))
+            OutlinedTextField(value = profileDraft,
+                onValueChange = { profileDraft = it.take(50) },
+                label = { Text("Your name") }, singleLine = true)
+            Spacer(Modifier.height(8.dp))
+            OutlinedTextField(value = pronounsDraft,
+                onValueChange = { pronounsDraft = it.take(32) },
+                label = { Text("Pronouns (optional)") }, singleLine = true)
         } },
-        confirmButton = { TextButton(onClick = { if(profileDraft.isNotBlank()) {ownerName = profileDraft.trim();settings.edit().putString("my_name",ownerName).apply()}; ownEdit = false }) { Text("Save") } },
+        confirmButton = {
+            TextButton(
+                enabled=profileDraft.trim().isNotEmpty(),
+                onClick={
+                    ownerName=profileDraft.trim()
+                    ownPronouns=pronounsDraft.trim()
+                    settings.edit().putString("my_name",ownerName)
+                        .putString("my_pronouns",ownPronouns).apply()
+                    ownEdit=false
+                    syncOwnProfile()
+                }
+            ) { Text("Save") }
+        },
         dismissButton = { TextButton(onClick = { ownEdit = false }) { Text("Cancel") } },
         containerColor = V.paper
     )
@@ -1002,7 +1071,11 @@ private fun StoryScreen() {
 }
 
 @Composable
-private fun UsScreen(owner:String,partner:String,anniversary:String,onDateChange:(String)->Unit,onOwnProfile:()->Unit,onStudio:()->Unit) {
+private fun UsScreen(
+    owner:String,partner:String,anniversary:String,onDateChange:(String)->Unit,
+    onOwnProfile:()->Unit,onStudio:()->Unit,
+    profileStatus:String="",onRetryProfileSync:()->Unit={}
+) {
     val context=LocalContext.current
     val counts=relationshipCounts(anniversary)
     val datePicker={
@@ -1020,6 +1093,18 @@ private fun UsScreen(owner:String,partner:String,anniversary:String,onDateChange
                 Column(Modifier.clickable(onClick=onOwnProfile),horizontalAlignment=Alignment.CenterHorizontally){Avatar(72,false);Spacer(Modifier.height(9.dp));Text(owner,color=V.text);Text("Your profile",color=V.rose,fontSize=10.sp)}
                 HeartDrawing(Modifier.size(33.dp))
                 Column(horizontalAlignment=Alignment.CenterHorizontally){Avatar(72,true);Spacer(Modifier.height(9.dp));Text(partner,color=V.text);Text("Managed by your partner",color=V.muted,fontSize=10.sp)}
+            }
+        }
+        if(profileStatus.isNotBlank()) {
+            Spacer(Modifier.height(8.dp))
+            Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically) {
+                Text(profileStatus,color=V.muted,fontSize=11.sp,modifier=Modifier.weight(1f))
+                if(profileStatus.contains("Retry",ignoreCase=true) ||
+                    profileStatus.contains("Sign in",ignoreCase=true)) {
+                    TextButton(onClick=onRetryProfileSync) {
+                        Text("Retry sync",color=V.rose,fontSize=11.sp)
+                    }
+                }
             }
         }
         Spacer(Modifier.height(14.dp))
