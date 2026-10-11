@@ -128,6 +128,10 @@ private fun VelvetApp() {
         VelvetChatStyle.partnerNickname.ifBlank { "Your love" }
     } // Partner's authenticated profile remains view-only.
     var anniversary by remember { mutableStateOf(settings.getString("anniversary", "") ?: "") }
+    var anniversaryPending by remember {
+        mutableStateOf(settings.getBoolean("anniversary_pending_sync",false))
+    }
+    var anniversaryStatus by remember { mutableStateOf("") }
     var ownEdit by remember { mutableStateOf(false) }
     var profileDraft by remember { mutableStateOf(ownerName) }
     var ownPronouns by remember {
@@ -164,6 +168,35 @@ private fun VelvetApp() {
             }
         }
     }
+    fun syncAnniversary() {
+        if(anniversary.isBlank()) {
+            anniversaryStatus="Choose our date before sharing it."
+            return
+        }
+        if(!pairClient.configured) {
+            anniversaryStatus="Saved on this phone. Online sharing is not configured."
+            return
+        }
+        profileScope.launch {
+            anniversaryStatus="Sharing our date…"
+            try {
+                if(!pairClient.hasSession() || pairClient.myPair()?.optInt("member_count")!=2) {
+                    anniversaryStatus="Saved locally. Both accounts must be paired to share our date."
+                } else {
+                    val result=pairClient.setAnniversary(anniversary)
+                    if(result.optBoolean("ok")) {
+                        anniversaryPending=false
+                        settings.edit().putBoolean("anniversary_pending_sync",false).apply()
+                        anniversaryStatus="Our date is now shared with your partner ♡"
+                    } else {
+                        anniversaryStatus="Saved locally. Correct the date and try sharing again."
+                    }
+                }
+            } catch(_:Exception) {
+                anniversaryStatus="Saved locally. Couldn't share; try again when connected."
+            }
+        }
+    }
     val cache=remember {MessageCache(ctx)}
     val messages = remember {
         mutableStateListOf<ChatMessage>().apply {
@@ -197,6 +230,17 @@ private fun VelvetApp() {
                         }
                     }
                     val pair=pairClient.myPair()
+                    if(pair?.optInt("member_count")==2 && !anniversaryPending) {
+                        val shared=pairClient.getAnniversary()
+                        val sharedDate=shared?.optString("anniversary").orEmpty()
+                        if(sharedDate.isNotBlank() && sharedDate!="null") {
+                            anniversary=sharedDate
+                            settings.edit().putString("anniversary",anniversary).apply()
+                            anniversaryStatus="Our date is shared with your partner ♡"
+                        } else if(anniversary.isNotBlank()) {
+                            anniversaryStatus="This date is on your phone. Tap Share date to send it."
+                        }
+                    }
                     val serverPartner=pair?.optString("partner_name").orEmpty()
                     if(serverPartner.isNotBlank() && serverPartner!="null") {
                         pairedPartnerName=serverPartner
@@ -297,7 +341,15 @@ private fun VelvetApp() {
                     onBack={page=Page.US})
                 Page.CALL -> VelvetCallPreview(partnerName,videoCall,onBack={page=Page.CHAT})
                 Page.US -> UsScreen(ownerName, partnerName, anniversary=anniversary,
-                    onDateChange={date -> anniversary=date;settings.edit().putString("anniversary",date).apply()},
+                    onDateChange={date ->
+                        anniversary=date
+                        anniversaryPending=true
+                        settings.edit().putString("anniversary",date)
+                            .putBoolean("anniversary_pending_sync",true).apply()
+                        syncAnniversary()
+                    },
+                    anniversaryStatus=anniversaryStatus,
+                    onShareDate={syncAnniversary()},
                     onOwnProfile = {
                         profileDraft = ownerName
                         pronounsDraft = ownPronouns
@@ -1094,7 +1146,8 @@ private fun StoryScreen() {
 private fun UsScreen(
     owner:String,partner:String,anniversary:String,onDateChange:(String)->Unit,
     onOwnProfile:()->Unit,onStudio:()->Unit,
-    profileStatus:String="",onRetryProfileSync:()->Unit={}
+    profileStatus:String="",onRetryProfileSync:()->Unit={},
+    anniversaryStatus:String="",onShareDate:()->Unit={}
 ) {
     val context=LocalContext.current
     val counts=relationshipCounts(anniversary)
@@ -1150,7 +1203,16 @@ private fun UsScreen(
                 Text("Our anniversary",color=V.text,fontSize=15.sp)
                 Text(if(counts==null)"Choose the day your story began" else runCatching{LocalDate.parse(anniversary).format(DateTimeFormatter.ofPattern("d MMMM yyyy"))}.getOrDefault(anniversary),color=V.muted,fontSize=12.sp)
             };TextButton(onClick=datePicker){Text(if(counts==null)"Set date" else "Change")}}
-            Text("This is saved on this phone for now. Once paired, Velvet will synchronize the date with your partner.",color=V.muted,fontSize=11.sp)
+            Text(
+                anniversaryStatus.ifBlank {
+                    "Choose our date here. Both people must be paired for it to sync."
+                },color=V.muted,fontSize=11.sp,lineHeight=16.sp
+            )
+            if(anniversary.isNotBlank() &&
+                (anniversaryStatus.isBlank() ||
+                    !anniversaryStatus.contains("shared",ignoreCase=true))) {
+                TextButton(onClick=onShareDate) {Text("Share date with my partner",color=V.rose)}
+            }
         }
         Spacer(Modifier.height(20.dp));SectionLabel("ACROSS ANY DISTANCE")
         Spacer(Modifier.height(10.dp))
