@@ -5,6 +5,7 @@ import sys
 import xml.etree.ElementTree as ET
 
 EXPECTED = {
+    "ChatHistoryTest": {"chatsPersistAndHistoryCanCreateAndReopenConversations", "manageChatRenamesAndDeletesWithConfirmation", "navigationDrawerOpensLibraryAndRoutesToDownloads", "profilePickerUsesApprovedAvatarLibraryAndCanResetToAnnieMark", "historyStoreRestoresCatalogCardsAndTheirActions"},
     "ScriptStudioFileCreationTest": {"typeSelectionCreatesHtmlAndExplicitCssExtensionOverridesIt"},
     "AnnieGeckoBrowserUiTest": {"addressSubmissionDismissesKeyboardAndBrowserControlsRespectSystemBars"},
     "AnnieVoiceGestureTest": {"slidingLeftCancelsTheActualRecordingWithoutSending", "slidingUpLocksAcrossButtonRemovalAndPauseResumeSendsOneAudioFile", "cancelledFingerHoldDoesNotSendOrLeaveTheMicrophoneRunning", "fingerHoldAndReleaseSendsExactlyOneRealAudioFile"},

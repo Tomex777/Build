@@ -4,6 +4,7 @@ set -euo pipefail
 REPORT_ROOT=annie-android/build/rc-feature-reports
 mkdir -p "$REPORT_ROOT"
 classes=(
+  ChatHistoryTest
   ScriptStudioFileCreationTest
   AnnieVoiceRecordingTest
   AnnieVoiceGestureTest
