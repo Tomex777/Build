@@ -637,10 +637,14 @@ SUITE_OUT="$GITHUB_WORKSPACE/cortex-api36-suite.txt"
 # ignore a failed assertion: rerun the exact failing interaction in isolation
 # and require its actual instrumentation result to be OK. Any other failure,
 # including an app crash, remains a hard release blocker.
-set +e
-run_test_class "com.night.cortex.CortexSmokeTest,com.night.cortex.CortexPairingScreenTest,com.night.cortex.CortexPowerControlsTest,com.night.cortex.server.OfflineDashboardCacheTest,com.night.cortex.server.CortexStaleSessionTest,com.night.cortex.server.CortexWorkspaceVisualTest" "$SUITE_OUT" "CortexApi36Suite"
-suite_rc=$?
-set -e
+# Run as a Bash conditional: run_test_class toggles errexit internally.
+# A plain set +e wrapper is unsafe because its nested set -e restores errexit.
+suite_rc=0
+if run_test_class "com.night.cortex.CortexSmokeTest,com.night.cortex.CortexPairingScreenTest,com.night.cortex.CortexPowerControlsTest,com.night.cortex.server.OfflineDashboardCacheTest,com.night.cortex.server.CortexStaleSessionTest,com.night.cortex.server.CortexWorkspaceVisualTest" "$SUITE_OUT" "CortexApi36Suite"; then
+  :
+else
+  suite_rc=$?
+fi
 if (( suite_rc != 0 )); then
   if grep -q 'There was 1 failure:' "$SUITE_OUT" &&
      grep -q 'connectionSheetOpensFromUnconfiguredConsole(com.night.cortex.CortexSmokeTest)' "$SUITE_OUT" &&
