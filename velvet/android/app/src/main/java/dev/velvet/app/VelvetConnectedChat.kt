@@ -2,6 +2,8 @@ package dev.velvet.app
 
 import android.content.Context
 import androidx.compose.foundation.background
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -10,6 +12,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.Send
+import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -20,6 +23,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 import org.json.JSONArray
 import org.json.JSONObject
 import java.time.OffsetDateTime
@@ -31,7 +35,8 @@ private data class ConnectedText(
     val body:String,
     val senderId:String,
     val at:String,
-    val pending:Boolean=false
+    val pending:Boolean=false,
+    val replyTo:String?=null
 )
 
 /**
@@ -45,14 +50,18 @@ private class ConnectedTextOutbox(context:Context) {
         val arr=JSONArray(prefs.getString(scope,"[]"))
         (0 until arr.length()).map {i->
             val o=arr.getJSONObject(i)
-            ConnectedText(o.getString("id"),o.getString("body"),"",o.optString("at"),true)
+            ConnectedText(o.getString("id"),o.getString("body"),"",o.optString("at"),
+                true,o.optString("reply_to").takeIf{it.isNotBlank()})
         }
     }.getOrDefault(emptyList())
     fun add(scope:String, entry:ConnectedText) = save(scope,get(scope)+entry)
     fun drop(scope:String,id:String) = save(scope,get(scope).filterNot{it.id==id})
     private fun save(scope:String,items:List<ConnectedText>) {
         val arr=JSONArray()
-        items.forEach {arr.put(JSONObject().put("id",it.id).put("body",it.body).put("at",it.at))}
+        items.forEach {
+            arr.put(JSONObject().put("id",it.id).put("body",it.body)
+                .put("at",it.at).put("reply_to",it.replyTo ?: ""))
+        }
         // commit() before showing success avoids losing a queued message on fast exits.
         check(prefs.edit().putString(scope,arr.toString()).commit()) {
             "Could not save your outgoing message on this phone."
@@ -60,10 +69,15 @@ private class ConnectedTextOutbox(context:Context) {
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-internal fun VelvetConnectedChat(onBack:()->Unit) {
+internal fun VelvetConnectedChat(
+    onBack:()->Unit,onOpenLocalPreview:(()->Unit)?=null,sharedClient:VelvetPairClient?=null
+) {
     val context=androidx.compose.ui.platform.LocalContext.current
-    val client=remember {VelvetPairClient(context.applicationContext)}
+    val rememberedClient=remember {VelvetPairClient(context.applicationContext)}
+    val client=sharedClient ?: rememberedClient
+    val scope=rememberCoroutineScope()
     val outbox=remember {ConnectedTextOutbox(context.applicationContext)}
     val messages=remember {mutableStateListOf<ConnectedText>()}
     val queued=remember {mutableStateListOf<ConnectedText>()}
@@ -74,6 +88,12 @@ internal fun VelvetConnectedChat(onBack:()->Unit) {
     var status by remember {mutableStateOf("Connecting…")}
     var text by remember {mutableStateOf("")}
     var ready by remember {mutableStateOf(false)}
+    var replyingTo by remember {mutableStateOf<ConnectedText?>(null)}
+    var historyLoading by remember {mutableStateOf(false)}
+    var historyError by remember {mutableStateOf("")}
+    var hasOlder by remember {mutableStateOf(false)}
+    var oldestAt by remember {mutableStateOf<String?>(null)}
+    var oldestId by remember {mutableStateOf<String?>(null)}
     val bg=Color(0xFF171019)
     val card=Color(0xFF30202D)
     val rose=Color(0xFFE4A1B6)
@@ -87,7 +107,7 @@ internal fun VelvetConnectedChat(onBack:()->Unit) {
             status="Online chat is not configured. Your local preview is still available."
             return@LaunchedEffect
         }
-        if(!client.restore()) {
+        if(!client.hasSession()) {
             status="Please sign in through Connect our phones first."
             return@LaunchedEffect
         }
@@ -122,7 +142,7 @@ internal fun VelvetConnectedChat(onBack:()->Unit) {
             try {
                 var sendError:String?=null
                 for(entry in queued.toList()) {
-                    val result=client.sendText(UUID.fromString(entry.id),entry.body)
+                    val result=client.sendText(UUID.fromString(entry.id),entry.body,entry.replyTo)
                     if(result.optBoolean("ok")) {
                         outbox.drop(outboxScope,entry.id)
                         queued.removeAll {it.id==entry.id}
@@ -137,12 +157,18 @@ internal fun VelvetConnectedChat(onBack:()->Unit) {
                     }
                 }
                 val fresh=client.listText(lastAt,lastId)
+                if(lastAt==null && fresh.length()>0) {
+                    hasOlder=fresh.length()>=80
+                    oldestAt=fresh.getJSONObject(0).getString("created_at")
+                    oldestId=fresh.getJSONObject(0).getString("id")
+                }
                 for(i in 0 until fresh.length()) {
                     val item=fresh.getJSONObject(i)
                     val id=item.getString("id")
                     if(messages.none{it.id==id}) {
                         messages.add(ConnectedText(id,item.optString("body"),
-                            item.optString("sender_id"),item.optString("created_at")))
+                            item.optString("sender_id"),item.optString("created_at"),
+                            replyTo=item.optString("reply_to").takeIf { it.isNotBlank() && it!="null" }))
                     }
                     lastAt=item.getString("created_at")
                     lastId=id
@@ -171,6 +197,11 @@ internal fun VelvetConnectedChat(onBack:()->Unit) {
             Column(Modifier.weight(1f)) {
                 Text(partnerName,color=cream,fontSize=20.sp,fontWeight=FontWeight.SemiBold)
                 Text("Our connected text chat ♡",color=rose,fontSize=11.sp)
+            }
+            if(onOpenLocalPreview!=null) {
+                TextButton(onClick=onOpenLocalPreview) {
+                    Text("Local preview",color=rose,fontSize=11.sp)
+                }
             }
         }
         Text(status,Modifier.fillMaxWidth().padding(horizontal=17.dp,vertical=8.dp),
