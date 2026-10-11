@@ -141,6 +141,15 @@ internal class VelvetPairClient(private val context: Context) {
         val data = rpc("velvet_my_pair")
         if(data.length()==0) null else data
     }
+    suspend fun getAnniversary(): JSONObject? = withContext(Dispatchers.IO) {
+        val result=rpc("velvet_get_anniversary")
+        if(result.length()==0) null else result
+    }
+
+    suspend fun setAnniversary(date:String): JSONObject = withContext(Dispatchers.IO) {
+        rpc("velvet_set_anniversary",JSONObject().put("p_date",date))
+    }
+
     suspend fun getMyProfile(): JSONObject = withContext(Dispatchers.IO) {
         rpc("velvet_get_my_profile")
     }
