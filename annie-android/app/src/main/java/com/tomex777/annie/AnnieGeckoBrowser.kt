@@ -251,12 +251,17 @@ internal object AnnieGeckoDownloadStore {
                 val onProgress: (Long) -> Unit = { bytes ->
                     AnnieGeckoDownloads.progress(id, bytes)
                 }
-                val savedUri = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                    saveToDownloads(app, name, type, body, onProgress)
+                val savedUri = saveResponse(app, name, type, body, onProgress)
+                // Save commits are cancellation-aware; in the rare case that a
+                // user cancels just as the commit finishes, remove the output.
+                if (AnnieGeckoDownloads.isCancelled(id)) {
+                    runCatching {
+                        app.contentResolver.delete(savedUri, null, null)
+                    }
+                    AnnieGeckoDownloads.cancelled(id)
                 } else {
-                    saveToAppDownloads(app, name, body, onProgress)
+                    AnnieGeckoDownloads.completed(id, savedUri)
                 }
-                AnnieGeckoDownloads.completed(id, savedUri)
                 toast(app, "Download complete: $name")
             } catch (_: CancellationException) {
                 AnnieGeckoDownloads.cancelled(id)
@@ -277,6 +282,22 @@ internal object AnnieGeckoDownloadStore {
             scope.launch { runCatching { body.close() } }
         }
         job.start()
+    }
+
+    /**
+     * Actual storage entrypoint; using it from Android tests exercises MediaStore
+     * on API 29+ and our FileProvider on API 26-28 with real copied bytes.
+     */
+    internal suspend fun saveResponse(
+        context: Context,
+        name: String,
+        mime: String,
+        body: InputStream,
+        onProgress: (Long) -> Unit = {},
+    ): Uri = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+        saveToDownloads(context, name, mime, body, onProgress)
+    } else {
+        saveToAppDownloads(context, name, body, onProgress)
     }
 
     private suspend fun copyBody(
@@ -325,6 +346,7 @@ internal object AnnieGeckoDownloadStore {
             provider.openOutputStream(uri, "w")?.use { stream ->
                 copyBody(body, stream, onProgress)
             } ?: throw IllegalStateException("Can't write the download")
+            kotlinx.coroutines.currentCoroutineContext().ensureActive()
             provider.update(uri, ContentValues().apply {
                 put(MediaStore.MediaColumns.IS_PENDING, 0)
             }, null, null)
@@ -352,6 +374,7 @@ internal object AnnieGeckoDownloadStore {
         val temporary = File.createTempFile("annie-gecko-", ".part", folder)
         try {
             temporary.outputStream().buffered().use { copyBody(body, it, onProgress) }
+            kotlinx.coroutines.currentCoroutineContext().ensureActive()
             check(temporary.renameTo(destination)) { "Couldn't finish the download" }
             return androidx.core.content.FileProvider.getUriForFile(
                 context,

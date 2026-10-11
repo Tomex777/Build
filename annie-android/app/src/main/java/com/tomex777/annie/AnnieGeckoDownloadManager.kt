@@ -54,6 +54,9 @@ internal object AnnieGeckoDownloads {
     private val handler = Handler(Looper.getMainLooper())
     private val entries = mutableStateListOf<AnnieGeckoDownloadEntry>()
     private val cancellation = ConcurrentHashMap<String, () -> Unit>()
+    // Cancellation is queried by IO workers; Compose's SnapshotStateList must
+    // not be read from those threads for concurrency decisions.
+    private val cancelledIds = ConcurrentHashMap.newKeySet<String>()
 
     val current: List<AnnieGeckoDownloadEntry> get() = entries
 
@@ -65,12 +68,14 @@ internal object AnnieGeckoDownloads {
     }
 
     fun started(id: String, name: String, mime: String, total: Long?) {
+        cancelledIds.remove(id)
         handler.post {
             entries.add(0, AnnieGeckoDownloadEntry(id, name, mime, total))
             while (entries.size > 75) {
                 val removable = entries.indexOfLast { it.status != AnnieGeckoDownloadStatus.DOWNLOADING }
                 if (removable == -1) break
-                entries.removeAt(removable)
+                val removed = entries.removeAt(removable)
+                cancelledIds.remove(removed.id)
             }
         }
     }
@@ -91,7 +96,7 @@ internal object AnnieGeckoDownloads {
     fun completed(id: String, uri: Uri) {
         cancellation.remove(id)
         update(id) {
-            if (it.status == AnnieGeckoDownloadStatus.CANCELLED) it
+            if (cancelledIds.contains(id)) it
             else it.copy(status = AnnieGeckoDownloadStatus.COMPLETED,
                 bytesDone = maxOf(it.bytesDone, it.totalBytes ?: 0L),
                 contentUri = uri.toString())
@@ -106,17 +111,18 @@ internal object AnnieGeckoDownloads {
         }
     }
 
-    fun isCancelled(id: String): Boolean =
-        entries.firstOrNull { it.id == id }?.status == AnnieGeckoDownloadStatus.CANCELLED
+    fun isCancelled(id: String): Boolean = cancelledIds.contains(id)
 
     fun cancelled(id: String) {
         cancellation.remove(id)
+        cancelledIds.add(id)
         update(id) { it.copy(status = AnnieGeckoDownloadStatus.CANCELLED) }
     }
 
     fun cancel(id: String) {
         val action = cancellation.remove(id) ?: return
-        cancelled(id)
+        cancelledIds.add(id) // Set first, before coroutine cancellation races IO.
+        update(id) { it.copy(status = AnnieGeckoDownloadStatus.CANCELLED) }
         action()
     }
 }
