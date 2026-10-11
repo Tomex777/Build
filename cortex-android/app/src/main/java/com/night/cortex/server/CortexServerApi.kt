@@ -98,8 +98,10 @@ class CortexServerApi(
                 conn.instanceFollowRedirects = false
                 conn.requestMethod = "PUT"
                 conn.connectTimeout = 12_000
-                // Fail promptly on dead connections; transfers use their own longer timeouts.
-                conn.readTimeout = 20_000
+                // Short reads let the dashboard detect an outage promptly.
+                // Keep long-running POST operations (backups/install/restart) their
+                // original allowance so slow remote work is not mistaken for failure.
+                conn.readTimeout = if (method == "GET") 20_000 else 10 * 60_000
                 conn.doOutput = true
                 conn.setRequestProperty("Accept", "application/json")
                 conn.setRequestProperty("Authorization", "Bearer $token")
