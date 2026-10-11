@@ -149,7 +149,7 @@ internal class VelvetPairClient(private val context: Context) {
         withContext(Dispatchers.IO) {
             rpc("velvet_update_my_profile",JSONObject()
                 .put("p_display_name",name.trim())
-                .put("p_pronouns",pronouns.trim().ifBlank {JSONObject.NULL}))
+                .put("p_pronouns",if(pronouns.isBlank()) JSONObject.NULL else pronouns.trim()))
         }
 
     suspend fun createInvite(): JSONObject = withContext(Dispatchers.IO) {
