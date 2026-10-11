@@ -1,8 +1,10 @@
 package com.night.cortex.ui.theme
 
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.graphics.Color
 
 // Near-black surfaces, readable contrast and restrained accents throughout Cortex.
@@ -34,6 +36,13 @@ private val CortexColors = darkColorScheme(
 fun CortexTheme(content: @Composable () -> Unit) {
     MaterialTheme(
         colorScheme = CortexColors,
-        content = content,
+        // MaterialTheme sets typography and the palette, but a composable
+        // rendered directly inside a Box/Column may otherwise inherit black
+        // content from its parent (notably Settings and Files).
+        content = {
+            CompositionLocalProvider(LocalContentColor provides CortexText) {
+                content()
+            }
+        },
     )
 }

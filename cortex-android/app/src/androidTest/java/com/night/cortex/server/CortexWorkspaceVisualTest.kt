@@ -228,7 +228,30 @@ class CortexWorkspaceVisualTest {
         show(page, Page.BACKUPS, "cortex-backups-emulator.png")
         show(page, Page.STARTUP, "cortex-startup-emulator.png")
         show(page, Page.SETTINGS, "cortex-settings-emulator.png")
+        assertSettingsHeadingIsReadable()
         show(page, Page.ACTIVITY, "cortex-activity-emulator.png")
+    }
+
+    private fun assertSettingsHeadingIsReadable() {
+        // Regression for near-black default Material3 text on Cortex's
+        // near-black Settings background. The title is above all card surfaces.
+        // The muted subtitle is intentionally below this near-white threshold.
+        val bitmap = composeRule
+            .onNodeWithTag("workspace-visual-root", useUnmergedTree = true)
+            .captureToImage().asAndroidBitmap()
+        var brightTitlePixels = 0
+        for (y in 20 until minOf(140, bitmap.height)) {
+            for (x in 24 until minOf(630, bitmap.width)) {
+                val color = bitmap.getPixel(x, y)
+                val red = android.graphics.Color.red(color)
+                val green = android.graphics.Color.green(color)
+                val blue = android.graphics.Color.blue(color)
+                if (red > 232 && green > 232 && blue > 232) brightTitlePixels++
+            }
+        }
+        check(brightTitlePixels >= 30) {
+            "Night settings heading has insufficient text contrast against the black background"
+        }
     }
 
     private fun show(page: androidx.compose.runtime.MutableState<Page>, next: Page, name: String) {
