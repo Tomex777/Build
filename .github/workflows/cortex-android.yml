@@ -1,12 +1,20 @@
 name: Cortex Android
 
 concurrency:
-  group: cortex-android-live-v2
+  group: cortex-android-${{ github.ref }}
   cancel-in-progress: true
 
 on:
   push:
     branches: [cortex-android-live, cortex-production-finalization]
+    paths:
+      - 'cortex-android/**'
+      - '.github/workflows/cortex-android.yml'
+      - '.github/scripts/cortex-api36-emulator.sh'
+      - '.github/scripts/cortex-api26-emulator.sh'
+      - '.github/scripts/cortex-release-smoke.sh'
+  pull_request:
+    branches: [cortex-production-finalization]
     paths:
       - 'cortex-android/**'
       - '.github/workflows/cortex-android.yml'
@@ -44,6 +52,8 @@ jobs:
         with:
           gradle-version: '9.6.0'
       - name: Configure release signing when secrets are available
+        # Pull-request code must never have access to the production keystore.
+        if: github.event_name != 'pull_request'
         shell: bash
         env:
           CORTEX_RELEASE_KEYSTORE_B64: ${{ secrets.CORTEX_RELEASE_KEYSTORE_B64 }}

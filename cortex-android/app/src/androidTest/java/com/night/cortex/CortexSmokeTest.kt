@@ -5,10 +5,12 @@ import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
+import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.night.cortex.hosting.canSaveHttpsConnection
@@ -32,25 +34,35 @@ class CortexSmokeTest {
         composeRule.onNodeWithText("Backups").assertIsDisplayed()
         composeRule.onNodeWithText("Startup").assertIsDisplayed()
         composeRule.onNodeWithText("Settings").assertIsDisplayed()
-        composeRule.onNodeWithText("Activity").assertIsDisplayed()
+        // The Activity tab lives to the right of a horizontally scrollable tab row.
+        // Scroll to it before asserting visibility, especially on API 26 devices.
+        composeRule.onNodeWithText("Activity").performScrollTo().assertIsDisplayed()
         composeRule.onNodeWithText("Connect server").assertIsDisplayed()
 
         composeRule.onNodeWithTag("server-tab-console").assertIsSelected()
         listOf("pairing", "files", "backups", "startup", "settings", "activity").forEach { tab ->
-            composeRule.onNodeWithTag("server-tab-$tab").performClick().assertIsSelected()
+            composeRule.onNodeWithTag("server-tab-$tab")
+                .performScrollTo()
+                .performClick()
+                .assertIsSelected()
             composeRule.onNodeWithText("Connect server").assertIsDisplayed()
         }
-        composeRule.onNodeWithTag("server-tab-console").performClick().assertIsSelected()
+        composeRule.onNodeWithTag("server-tab-console").performScrollTo().performClick().assertIsSelected()
         saveHomeVisualEvidence()
+    }
 
-        composeRule.onNodeWithText("Connect").performClick()
-        composeRule.waitUntil(timeoutMillis = 10_000L) {
-            runCatching {
-                composeRule.onNodeWithTag("connection-sheet-root").assertIsDisplayed()
-                composeRule.onNodeWithText("Server connection").assertIsDisplayed()
-            }.isSuccess
-        }
+    @Test
+    fun connectionSheetOpensFromUnconfiguredConsole() {
+        // Keep modal-opening acceptance independent from rapidly switching
+        // every screen tab. A software-rendered API 36 emulator may defer a
+        // sheet transition after many navigation/recomposition operations.
+        composeRule.onNodeWithText("Connect server").assertIsDisplayed()
         composeRule.waitForIdle()
+        composeRule.onNodeWithText("Connect").performClick()
+        composeRule.waitUntil(timeoutMillis = 40_000L) {
+            composeRule.onAllNodesWithTag("connection-sheet-root")
+                .fetchSemanticsNodes().isNotEmpty()
+        }
         composeRule.onNodeWithTag("connection-sheet-root").assertIsDisplayed()
         composeRule.onNodeWithText("Server connection").assertIsDisplayed()
         composeRule.onNodeWithText("Server URL").assertIsDisplayed()
@@ -120,9 +132,18 @@ class CortexSmokeTest {
 
     private fun saveConnectionVisualEvidence() {
         composeRule.waitForIdle()
-        val bitmap = composeRule.onNodeWithTag("connection-sheet-root", useUnmergedTree = true)
-            .captureToImage()
-            .asAndroidBitmap()
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+        val bitmap = if (android.os.Build.VERSION.SDK_INT < 28) {
+            // Compose cannot capture dialog-window content on API 26/27.
+            // Take an actual device screenshot while the sheet is visibly open.
+            checkNotNull(instrumentation.uiAutomation.takeScreenshot()) {
+                "Unable to capture Cortex connection dialog on API below 28"
+            }
+        } else {
+            composeRule.onNodeWithTag("connection-sheet-root", useUnmergedTree = true)
+                .captureToImage()
+                .asAndroidBitmap()
+        }
         saveVisualEvidence(bitmap, "cortex-connection-setup-compose.png", "connection setup")
     }
 
