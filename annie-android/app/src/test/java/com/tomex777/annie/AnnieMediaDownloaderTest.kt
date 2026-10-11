@@ -86,6 +86,30 @@ class AnnieMediaDownloaderTest {
         assertEquals("https://cdn.example/720/video.mp4", source.url)
     }
 
+    @Test fun protectedBrowserDownloadsIgnoreInjectedCookiesButKeepReferer() {
+        val original = linkedMapOf(
+            "Cookie" to "stolen=old",
+            "cOoKiE" to "secret=another",
+            "Referer" to "https://watch.example/episode",
+            "Accept" to "video/*",
+        )
+        val safe = AnnieDownloadHeaderPolicy.sanitize(original, isolatedBrowserSession = true)
+        assertTrue(safe.keys.none { it.equals("Cookie", ignoreCase = true) })
+        assertEquals("https://watch.example/episode", safe["Referer"])
+        assertEquals("video/*", safe["Accept"])
+        assertEquals("stolen=old", AnnieDownloadHeaderPolicy.sanitize(original, false)["Cookie"])
+    }
+
+    @Test fun downloadHeaderPolicyRejectsNewlinesAndControlCharacters() {
+        val malicious = mapOf(
+            "X-Test" to "hello\\r\\nInjected: yes",
+            "X-Header\\n" to "invalid",
+            "User-Agent" to "Annie/1.0",
+        )
+        val sanitized = AnnieDownloadHeaderPolicy.sanitize(malicious, isolatedBrowserSession = true)
+        assertEquals(mapOf("User-Agent" to "Annie/1.0"), sanitized)
+    }
+
     @Test fun scriptVideoResolutionKeepsHeadersAndChoosesBestQuality() {
         val data = JSONObject()
             .put("type", "video")
