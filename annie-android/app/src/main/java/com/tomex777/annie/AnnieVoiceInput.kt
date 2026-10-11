@@ -183,17 +183,25 @@ internal fun VoiceHoldButton(
                 }
                 if (!controller.begin()) { waitForUpOrCancellation(); return@awaitEachGesture }
                 var lockedHere = false
-                while (true) {
-                    val change = awaitPointerEventChange() ?: break
-                    val dx = change.position.x - down.position.x
-                    val dy = change.position.y - down.position.y
-                    controller.cancelling = dx < -cancelPx
-                    if (!lockedHere && dy < -lockPx && !controller.cancelling) {
-                        lockedHere = true
-                        controller.locked = true
+                var released = false
+                try {
+                    while (true) {
+                        val change = awaitPointerEventChange() ?: break
+                        val dx = change.position.x - down.position.x
+                        val dy = change.position.y - down.position.y
+                        controller.cancelling = dx < -cancelPx
+                        if (!lockedHere && dy < -lockPx && !controller.cancelling) {
+                            lockedHere = true
+                            controller.locked = true
+                        }
+                        if (!change.pressed) { released = true; break }
+                        change.consume()
                     }
-                    if (!change.pressed) break
-                    change.consume()
+                } finally {
+                    // Android can cancel a pointer stream without an ordinary finger
+                    // release. Discard an interrupted hold instead of sending it or
+                    // leaving the microphone active. A deliberately locked draft stays.
+                    if (!released && !lockedHere) controller.cancel()
                 }
                 when {
                     controller.cancelling -> controller.cancel()
@@ -205,7 +213,7 @@ internal fun VoiceHoldButton(
     ) {
         Box(contentAlignment = Alignment.Center) {
             Icon(
-                AnnieIcons.AudioTrack,
+                AnnieIcons.Microphone,
                 contentDescription = "Hold to record a voice note",
                 tint = Color.White,
                 modifier = Modifier.size(22.dp),

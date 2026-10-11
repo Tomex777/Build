@@ -6,6 +6,40 @@ import androidx.compose.ui.graphics.vector.path
 import androidx.compose.ui.unit.dp
 
 internal object AnnieIcons {
+    val Microphone: ImageVector by lazy {
+        ImageVector.Builder(name = "Microphone", defaultWidth = 24.dp, defaultHeight = 24.dp,
+            viewportWidth = 24f, viewportHeight = 24f).apply {
+            path(fill = SolidColor(androidx.compose.ui.graphics.Color.White)) {
+                moveTo(12f, 2f); curveTo(10.34f, 2f, 9f, 3.34f, 9f, 5f)
+                verticalLineTo(11f); curveTo(9f, 12.66f, 10.34f, 14f, 12f, 14f)
+                curveTo(13.66f, 14f, 15f, 12.66f, 15f, 11f); verticalLineTo(5f)
+                curveTo(15f, 3.34f, 13.66f, 2f, 12f, 2f); close()
+                moveTo(5f, 10f); horizontalLineTo(7f); verticalLineTo(11f)
+                curveTo(7f, 13.76f, 9.24f, 16f, 12f, 16f)
+                curveTo(14.76f, 16f, 17f, 13.76f, 17f, 11f)
+                verticalLineTo(10f); horizontalLineTo(19f); verticalLineTo(11f)
+                curveTo(19f, 14.53f, 16.39f, 17.43f, 13f, 17.93f)
+                verticalLineTo(20f); horizontalLineTo(16f); verticalLineTo(22f)
+                horizontalLineTo(8f); verticalLineTo(20f); horizontalLineTo(11f)
+                verticalLineTo(17.93f); curveTo(7.61f, 17.43f, 5f, 14.53f, 5f, 11f); close()
+            }
+        }.build()
+    }
+
+    val Dictation: ImageVector by lazy {
+        ImageVector.Builder(name = "Dictation", defaultWidth = 24.dp, defaultHeight = 24.dp,
+            viewportWidth = 24f, viewportHeight = 24f).apply {
+            path(fill = SolidColor(androidx.compose.ui.graphics.Color.White)) {
+                moveTo(2f, 10f); horizontalLineTo(4f); verticalLineTo(14f); horizontalLineTo(2f); close()
+                moveTo(6f, 6f); horizontalLineTo(8f); verticalLineTo(18f); horizontalLineTo(6f); close()
+                moveTo(10f, 8f); horizontalLineTo(12f); verticalLineTo(16f); horizontalLineTo(10f); close()
+                moveTo(15f, 6f); horizontalLineTo(22f); verticalLineTo(8f); horizontalLineTo(15f); close()
+                moveTo(15f, 11f); horizontalLineTo(22f); verticalLineTo(13f); horizontalLineTo(15f); close()
+                moveTo(15f, 16f); horizontalLineTo(20f); verticalLineTo(18f); horizontalLineTo(15f); close()
+            }
+        }.build()
+    }
+
     val File: ImageVector by lazy {
         ImageVector.Builder(name = "File", defaultWidth = 24.dp, defaultHeight = 24.dp, viewportWidth = 24f, viewportHeight = 24f).apply {
             path(fill = SolidColor(androidx.compose.ui.graphics.Color.White)) {
