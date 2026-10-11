@@ -83,3 +83,30 @@ If it does not, pass the correct static address explicitly:
 ```bash
 sudo bash cortex-agent/install-azure-ip-https.sh <STATIC_PUBLIC_IPV4>
 ```
+
+## Post-deployment end-to-end readiness (read-only)
+
+After the Azure VM is configured, nginx serves HTTPS, and both `mscc.service`
+and `cortex-agent.service` are running, run the **read-only**
+`remote-readiness.mjs` verifier from a trusted computer with Node.js 24+.
+It uses the public Cortex Agent HTTPS endpoint — the same network path the
+Android client uses — rather than querying the private MSCC loopback directly.
+
+```bash
+read -r -s -p 'Cortex Agent token (hidden): ' token
+printf '\n'
+CORTEX_AGENT_URL='https://<AZURE_STATIC_PUBLIC_IPV4>' \
+CORTEX_AGENT_TOKEN="$token" node cortex-agent/remote-readiness.mjs
+unset token
+```
+
+It verifies TLS transport, **401 without a bearer token**, authenticated host
+status, active MSCC service, stable per-account IDs, fixed Account A routing,
+bot-profile isolation, and the proxied account registry. Output contains only
+counts. It never sends a mutation request or prints pairing codes, names,
+numbers, tokens, or private session contents.
+
+A passing result confirms API reachability and account-contract health. It
+does **not** prove that a WhatsApp number is paired, outgoing messages are
+delivered, or the Android app has been tested on a physical phone. Verify
+those separately with consented test accounts before marking production live.
