@@ -3,7 +3,6 @@ package com.tomex777.annie
 import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
-import android.graphics.BitmapFactory
 import android.graphics.Canvas as AndroidCanvas
 import android.graphics.Matrix
 import android.os.Bundle
@@ -162,7 +161,7 @@ internal fun AnnieImageEditorScreen(source: String?, onClose: () -> Unit) {
                             check(bitmap.compress(Bitmap.CompressFormat.PNG, 100, output)) {
                                 "Couldn't encode the edited image"
                             }
-                        } ?: error("Couldn't create the image file")
+                        } ?: throw IllegalStateException("Couldn't create the image file")
                     }
                 }.onSuccess {
                     saved = true
