@@ -193,7 +193,8 @@ internal fun VelvetConnectedChatInfo(
                     val photo=photos[index]
                     Column(Modifier.fillMaxWidth()) {
                         VelvetPrivateImage(client,photo.path,
-                            modifier=Modifier.fillMaxWidth().aspectRatio(1f))
+                            modifier=Modifier.fillMaxWidth().aspectRatio(1f),
+                            thumbMaxDimension=640)
                         if(photo.caption.isNotBlank()) {
                             Text(photo.caption,color=cream,fontSize=10.sp,
                                 maxLines=1,modifier=Modifier.padding(top=4.dp))
