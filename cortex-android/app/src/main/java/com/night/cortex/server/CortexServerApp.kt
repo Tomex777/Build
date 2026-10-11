@@ -289,6 +289,7 @@ fun CortexServerApp(vm: ServerPanelViewModel = viewModel()) {
                             state = state.pairing,
                             busy = state.loading || !state.agentReachable || !state.pairingFresh,
                             offline = !state.agentReachable || !state.pairingFresh,
+                            refreshEnabled = !state.loading,
                             onRefresh = vm::refreshPairing,
                             onAddAccount = vm::addAccount,
                             onRename = vm::renameAccount,
