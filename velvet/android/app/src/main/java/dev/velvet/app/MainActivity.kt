@@ -87,7 +87,7 @@ private object V {
     val gold get() = VelvetTheme.current.gold
 }
 private val round = RoundedCornerShape(22.dp)
-private enum class Page { HOME, CHAT, GAMES, STORY, US, CHAT_INFO, DECK, TTT, STUDIO, CALL, MUSIC, CONNECT4, CHESS, LUDO, DRAW, DECK_EDITOR, TOGETHER }
+private enum class Page { HOME, CHAT, GAMES, STORY, US, CHAT_INFO, DECK, TTT, STUDIO, CALL, MUSIC, CONNECT4, CHESS, LUDO, DRAW, DECK_EDITOR, TOGETHER, PAIR }
 internal enum class MessageKind { TEXT, QUESTION, VOICE, MEDIA }
 internal data class ChatMessage(
     val id: Int, val body: String, val mine: Boolean, val time: String,
@@ -151,12 +151,12 @@ private fun VelvetApp() {
         } else onDispose {}
     }
     val immersive = page in setOf(Page.CHAT, Page.CHAT_INFO, Page.DECK, Page.TTT, Page.STUDIO, Page.CALL,
-        Page.MUSIC,Page.CONNECT4,Page.CHESS,Page.LUDO,Page.DRAW,Page.DECK_EDITOR,Page.TOGETHER)
+        Page.MUSIC,Page.CONNECT4,Page.CHESS,Page.LUDO,Page.DRAW,Page.DECK_EDITOR,Page.TOGETHER,Page.PAIR)
     BackHandler(enabled = immersive) {
         page = when(page) {
             Page.CHAT_INFO, Page.CALL -> Page.CHAT
             Page.STUDIO -> Page.US
-            Page.MUSIC -> Page.HOME
+            Page.MUSIC, Page.PAIR -> Page.HOME
             Page.CHAT -> chatBackTo
             Page.DECK,Page.TTT,Page.CONNECT4,Page.CHESS,Page.LUDO,Page.DRAW,Page.DECK_EDITOR,Page.TOGETHER -> Page.GAMES
             else -> Page.HOME
@@ -168,7 +168,7 @@ private fun VelvetApp() {
             when (page) {
                 Page.HOME -> HomeScreen(ownerName = ownerName, anniversary = anniversary, note=studioNote,
                     openChat = { chatBackTo = Page.HOME; page = Page.CHAT },
-                    openGames = { page = Page.GAMES },openMusic={page=Page.MUSIC})
+                    openGames = { page = Page.GAMES },openMusic={page=Page.MUSIC},openPair={page=Page.PAIR})
                 Page.CHAT -> ChatScreen(messages, partnerName, replyTo,
                     onReply = { replyTo = it }, onDismissReply = { replyTo = null },
                     onInfo = { page = Page.CHAT_INFO }, onBack = { page = chatBackTo },
@@ -211,6 +211,7 @@ private fun VelvetApp() {
                     onPlay={questionTab="Our own deck";page=Page.DECK})
                 Page.TOGETHER -> TogetherAnswers(onBack={page=Page.GAMES})
                 Page.MUSIC -> SpotifyListeningRoom(onBack={page=Page.HOME})
+                Page.PAIR -> VelvetPairingScreen(onBack={page=Page.HOME})
                 Page.STORY -> GalleryFirstScreen(ownerName)
                 Page.STUDIO -> VelvetStudioScreen(note=studioNote,
                     onNoteChange={value->studioNote=value;settings.edit().putString("studio_note",value).apply()},
@@ -294,7 +295,7 @@ private fun MainNav(page: Page, go: (Page) -> Unit) {
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun HomeScreen(ownerName: String, anniversary:String, note:String,
-    openChat: () -> Unit, openGames: () -> Unit,openMusic:()->Unit) {
+    openChat: () -> Unit, openGames: () -> Unit,openMusic:()->Unit,openPair:()->Unit) {
     val haptics = LocalHapticFeedback.current
     var heartCount by remember { mutableIntStateOf(0) }
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal=18.dp)) {
@@ -355,6 +356,11 @@ private fun HomeScreen(ownerName: String, anniversary:String, note:String,
             OutlinedButton(onClick=openMusic,modifier=Modifier.fillMaxWidth()) {
                 Text("Listen together · Spotify Jam")
             }
+        }
+        Spacer(Modifier.height(13.dp))
+        OutlinedButton(onClick=openPair,modifier=Modifier.fillMaxWidth()) {
+            Icon(Icons.Outlined.Link,null,Modifier.size(18.dp));Spacer(Modifier.width(8.dp))
+            Text("Connect our phones · Pairing")
         }
         Spacer(Modifier.height(27.dp)); SectionLabel("SMALL GESTURES, BIG FEELINGS")
         Spacer(Modifier.height(8.dp)); Serif("Little things.",31)
