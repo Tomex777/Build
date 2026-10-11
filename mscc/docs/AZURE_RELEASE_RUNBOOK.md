@@ -79,3 +79,37 @@ If state formats changed between versions, consult the backup/restore plan befor
 The production-signed Cortex APK is built by `Cortex Android Release Readiness` on the trusted `cortex-production-finalization` branch. Confirm successful `apksigner verify` output and a matching SHA-256 digest before distributing it. The debug APK and any CI QA/debug-signed `INSTALLABLE` variant are **not** substitutes for the production-signed APK.
 
 The dedicated `Cortex Android` full-emulator suite must also pass on both API 26 and API 36. A successful compilation alone is insufficient.
+
+## Cortex Agent and Android connection (one-time installation)
+
+MSCC is the WhatsApp backend. The Android app reaches its account dashboard **through Cortex Agent**, a separate service. A healthy `mscc.service` alone does not mean that the mobile dashboard is reachable.
+
+On the **same Azure VM** after MSCC is healthy:
+
+1. Review the trusted `cortex-production-finalization` commit you intend to run, plus the current `cortex-agent/README.md`, `cortex-agent/install.sh` and `cortex-agent/install-azure-ip-https.sh` scripts. They manage systemd, ACLs, nginx, TLS and firewall-facing HTTPS.
+2. Pin a full 40-character `CORTEX_SOURCE_REF` commit, download the entire archive to a temporary restricted directory and run `sudo bash cortex-agent/install.sh` from the extracted source. Do not execute a branch head that can change between review and installation.
+3. If the VM has a **static public IPv4** and no conflicting nginx site configuration, use the reviewed `install-azure-ip-https.sh` to set up the Android HTTPS endpoint. The helper changes nginx's default site, so review it carefully if the VM hosts other websites.
+4. In the Azure network security group, permit TCP **443** for the app and TCP **80** for ACME certificate issuance/renewal. Restrict SSH access. Never expose the private Cortex Agent **47831** or MSCC **8787/8788** ports publicly.
+5. Save the generated Cortex Agent bearer token securely on first installation. **Never paste it into GitHub, CI logs, or support chats.** Configure Cortex Android with the trusted HTTPS URL and that token.
+6. Confirm `systemctl is-active cortex-agent`, `systemctl is-active mscc`, HTTPS certificate validity, and the authenticated Cortex host/status and MSCC pairing screens from the Android device.
+
+Example pinned-source preparation (on the VM; replace the placeholder with an already reviewed commit SHA):
+
+```bash
+set -euo pipefail
+export CORTEX_SOURCE_REF='<TESTED_CORTEX_COMMIT_SHA>'
+[[ "$CORTEX_SOURCE_REF" =~ ^[[:xdigit:]]{40}$ ]] || exit 1
+work="$(mktemp -d)"
+chmod 700 "$work"
+curl -fsSL "https://github.com/Tomex777/Build/archive/$CORTEX_SOURCE_REF.tar.gz" -o "$work/cortex.tar.gz"
+mkdir "$work/source"
+tar -xzf "$work/cortex.tar.gz" -C "$work/source" --strip-components=1
+bash -n "$work/source/cortex-agent/install.sh" "$work/source/cortex-agent/install-azure-ip-https.sh"
+sudo bash "$work/source/cortex-agent/install.sh"
+# Review the HTTPS helper and confirm the VM's static Azure public IPv4 first:
+# sudo bash "$work/source/cortex-agent/install-azure-ip-https.sh" <AZURE_STATIC_PUBLIC_IPV4>
+```
+
+Keep the temporary checkout until you have completed and inspected the HTTPS setup, then remove it. The Cortex Agent installation is separate from the MSCC application installer. Once installed, the MSCC atomic upgrade script refreshes Cortex Agent ACL permissions on each **new** release directory so that file editing remains available across upgrades.
+
+A successful local simulated Cortex↔MSCC contract test proves HTTP compatibility but cannot replace an actual on-device connectivity, pairing and real-message test.
