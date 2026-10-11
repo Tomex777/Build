@@ -89,3 +89,9 @@ The previously broad direct `velvet_messages` client INSERT/UPDATE/DELETE permis
 **CI:** `velvet/backend/tests/messages.sql` runs with a disposable PostgreSQL Auth fixture, after the pairing tests, and proves cross-account exchange, cursor fetching, idempotent retry, outsider isolation, direct-write denial and 40/min rate limiting.
 
 **Activation:** Apply *all* four migrations in filename order to a dedicated Supabase project, enable verified email/password auth, and set both public Android build variables described above. The current connected Supabase account has no project configured; the live feature cannot be exercised yet. Validate two physical phones before relying on this implementation.
+
+## v0.9 historical chat pagination
+
+Migration `20261011000005_velvet_history.sql` adds `velvet_page_text(p_before_at,p_before_id,p_limit)`. It reads only the authenticated caller's **fully paired** conversation and selects at most 100 earlier text messages per call, using a strict **before** tuple comparison on server timestamp + UUID. The result is chronological. The existing `velvet_list_text` remains the **after** cursor used for foreground polling, and no direct client `SELECT` privilege has been granted.
+
+The backend test suite now includes `velvet/backend/tests/history.sql`, verifying two-page ordering, no repeated boundary records, input bounds, cross-couple isolation and denied anonymous access. This works with PostgreSQL CI fixtures; there is no live Supabase project in the connected account.
