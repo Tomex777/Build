@@ -68,3 +68,5 @@ jobs:
         run: psql -v ON_ERROR_STOP=1 -f velvet/backend/tests/chat_audio_gallery.sql
       - name: Test private coupled MP4 video messages
         run: psql -v ON_ERROR_STOP=1 -f velvet/backend/tests/video_chat.sql
+      - name: Test pair-private video gallery history
+        run: psql -v ON_ERROR_STOP=1 -f velvet/backend/tests/video_gallery.sql
