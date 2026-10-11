@@ -50,6 +50,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -682,11 +686,20 @@ internal fun AnnieGeckoStandaloneBrowser(
         }
     }
     val tab = model.active ?: return
+    val focusManager = LocalFocusManager.current
+    val keyboard = LocalSoftwareKeyboardController.current
     var address by remember(tab.id) { mutableStateOf(tab.url) }
     var editing by remember(tab.id) { mutableStateOf(false) }
     var menuOpen by remember { mutableStateOf(false) }
     var panel by remember { mutableStateOf<String?>(null) }
     LaunchedEffect(tab.url) { if (!editing) address = tab.url }
+    fun submitAddress() {
+        if (model.load(tab, address)) {
+            editing = false
+            focusManager.clearFocus(force = true)
+            keyboard?.hide()
+        }
+    }
     BackHandler(enabled = panel != null || tab.canBack) {
         if (panel != null) panel = null else tab.session.goBack()
     }
@@ -700,7 +713,7 @@ internal fun AnnieGeckoStandaloneBrowser(
             Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 6.dp, vertical = 2.dp),
             horizontalArrangement = Arrangement.spacedBy(2.dp),
         ) {
-            TextButton(onClick = onExit) { Text("✕", color = BrowserBrightText) }
+            TextButton(onClick = onExit, modifier = Modifier.semantics { contentDescription = "Close browser" }) { Text("✕", color = BrowserBrightText) }
             model.tabs.forEach { item ->
                 TextButton(onClick = { model.select(item); panel = null },
                     modifier = Modifier.testTag("annie_browser_tab_" + item.id)) {
@@ -724,12 +737,10 @@ internal fun AnnieGeckoStandaloneBrowser(
                 singleLine = true,
                 shape = RoundedCornerShape(16.dp),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri, imeAction = ImeAction.Go),
-                keyboardActions = KeyboardActions(onGo = {
-                    if (model.load(tab, address)) editing = false
-                }),
+                keyboardActions = KeyboardActions(onGo = { submitAddress() }),
                 placeholder = { Text("Search or enter address") },
             )
-            Button(onClick = { if (model.load(tab, address)) editing = false }) { Text("Go") }
+            Button(onClick = { submitAddress() }, modifier = Modifier.testTag("annie_browser_go")) { Text("Go") }
         }
         if (tab.loading) LinearProgressIndicator(
             progress = { tab.progress / 100f }, modifier = Modifier.fillMaxWidth(), color = BrowserTeal)
@@ -764,13 +775,13 @@ internal fun AnnieGeckoStandaloneBrowser(
         }
         Row(Modifier.fillMaxWidth().padding(horizontal = 6.dp),
             horizontalArrangement = Arrangement.SpaceBetween) {
-            TextButton(onClick = { tab.session.goBack() }, enabled = tab.canBack) { Text("‹", color = BrowserBrightText) }
-            TextButton(onClick = { tab.session.goForward() }, enabled = tab.canForward) { Text("›", color = BrowserBrightText) }
-            TextButton(onClick = { model.reload(tab) }) { Text("⟳", color = BrowserBrightText) }
+            TextButton(onClick = { tab.session.goBack() }, enabled = tab.canBack, modifier = Modifier.testTag("annie_browser_back").semantics { contentDescription = "Go back" }) { Text("‹", color = BrowserBrightText) }
+            TextButton(onClick = { tab.session.goForward() }, enabled = tab.canForward, modifier = Modifier.semantics { contentDescription = "Go forward" }) { Text("›", color = BrowserBrightText) }
+            TextButton(onClick = { model.reload(tab) }, modifier = Modifier.semantics { contentDescription = "Reload page" }) { Text("⟳", color = BrowserBrightText) }
             TextButton(onClick = { model.toggleBookmark(tab) }, enabled = !tab.privateMode) {
                 Text(if (model.isBookmarked(tab)) "★" else "☆", color = BrowserTeal)
             }
-            TextButton(onClick = { menuOpen = true }) { Text("⋮", color = BrowserBrightText) }
+            TextButton(onClick = { menuOpen = true }, modifier = Modifier.semantics { contentDescription = "Browser menu" }) { Text("⋮", color = BrowserBrightText) }
             DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
                 DropdownMenuItem(text = { Text("New private tab") }, onClick = {
                     menuOpen = false; model.newTab(privateMode = true)

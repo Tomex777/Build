@@ -5,6 +5,9 @@ import androidx.activity.ComponentActivity
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.test.performClick
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
@@ -36,8 +39,9 @@ class AnnieVoiceGestureTest {
         compose.setContent {
             AnnieTheme {
                 controller = rememberVoiceNoteController(onSent)
-                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    VoiceHoldButton(controller, onNeedPermission = { error("Microphone permission was granted") })
+                Box(Modifier.fillMaxSize().testTag("voice_gesture_surface"), contentAlignment = Alignment.Center) {
+                    if (controller.locked) VoiceRecordingBar(controller)
+                    else VoiceHoldButton(controller, onNeedPermission = { error("Microphone permission was granted") })
                 }
             }
         }
@@ -93,4 +97,59 @@ class AnnieVoiceGestureTest {
             sent.get()?.first?.let { File("$it.wave").delete(); File(it).delete() }
         }
     }
+
+    @Test fun slidingLeftCancelsTheActualRecordingWithoutSending() {
+        var sends = 0
+        val controller = showMicrophone { _, _ -> sends++ }
+        val density = compose.activity.resources.displayMetrics.density
+        try {
+            compose.onNodeWithTag("composer_voice_hold").performTouchInput { down(center) }
+            Thread.sleep(900)
+            compose.onNodeWithTag("composer_voice_hold").performTouchInput {
+                moveTo(center - Offset(150f * density, 0f))
+                up()
+            }
+            compose.runOnIdle {
+                assertTrue(!controller.recording)
+                assertEquals(0, sends)
+            }
+        } finally { compose.runOnIdle { controller.cancel() } }
+    }
+
+    @Test fun slidingUpLocksAcrossButtonRemovalAndPauseResumeSendsOneAudioFile() {
+        val sent = AtomicReference<Pair<String, Long>?>(null)
+        var sends = 0
+        val controller = showMicrophone { path, duration -> sends++; sent.set(path to duration) }
+        val density = compose.activity.resources.displayMetrics.density
+        try {
+            compose.onNodeWithTag("composer_voice_hold").performTouchInput { down(center) }
+            Thread.sleep(900)
+            compose.onNodeWithTag("composer_voice_hold").performTouchInput {
+                moveTo(center - Offset(0f, 100f * density))
+            }
+            // The chat replaces the hold button with locked recording controls.
+            compose.onNodeWithTag("voice_gesture_surface").performTouchInput { up() }
+            compose.runOnIdle {
+                assertTrue("Removing the locked microphone button cancelled the draft", controller.recording)
+                assertTrue(controller.locked)
+                assertEquals(0, sends)
+            }
+            compose.onNodeWithTag("voice_pause_resume").performClick()
+            var pausedDuration = 0L
+            compose.runOnIdle { assertTrue(controller.paused); pausedDuration = controller.elapsedMs }
+            Thread.sleep(350)
+            compose.runOnIdle { assertEquals(pausedDuration, controller.elapsedMs) }
+            compose.onNodeWithTag("voice_pause_resume").performClick()
+            compose.runOnIdle { assertTrue(!controller.paused) }
+            Thread.sleep(400)
+            compose.onNodeWithTag("voice_send").performClick()
+            compose.runOnIdle { assertEquals(1, sends); assertTrue(!controller.recording) }
+            assertTrue(File(sent.get()!!.first).length() > 0)
+            assertEquals(48, AnnieVoiceWaveform.load(sent.get()!!.first).size)
+        } finally {
+            compose.runOnIdle { controller.cancel() }
+            sent.get()?.first?.let { File("$it.wave").delete(); File(it).delete() }
+        }
+    }
+
 }

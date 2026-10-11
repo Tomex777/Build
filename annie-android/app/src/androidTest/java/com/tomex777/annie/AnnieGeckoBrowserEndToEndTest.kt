@@ -134,7 +134,7 @@ class AnnieGeckoBrowserEndToEndTest {
     }
 }
 
-private class GeckoLocalFixture : AutoCloseable {
+internal class GeckoLocalFixture : AutoCloseable {
     val name = "annie-gecko-live-${UUID.randomUUID()}.bin"
     val bytes = ByteArray(64 * 1024) { (it % 251).toByte() }
     val downloadRequested = AtomicBoolean(false)

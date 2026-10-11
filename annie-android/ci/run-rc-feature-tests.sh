@@ -10,6 +10,7 @@ classes=(
   AnnieGeckoTabRestoreTest
   AnnieGeckoDownloadHistoryTest
   AnnieGeckoDownloadManagerTest
+  AnnieGeckoBrowserUiTest
   AnnieGeckoBrowserEndToEndTest
   AnnieImageViewerTest
   AnnieImageEditorTest
