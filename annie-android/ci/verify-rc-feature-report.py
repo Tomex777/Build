@@ -5,6 +5,7 @@ import sys
 import xml.etree.ElementTree as ET
 
 EXPECTED = {
+    "ScriptStudioFileCreationTest": {"typeSelectionCreatesHtmlAndExplicitCssExtensionOverridesIt"},
     "AnnieGeckoBrowserUiTest": {"addressSubmissionDismissesKeyboardAndBrowserControlsRespectSystemBars"},
     "AnnieVoiceGestureTest": {"slidingLeftCancelsTheActualRecordingWithoutSending", "slidingUpLocksAcrossButtonRemovalAndPauseResumeSendsOneAudioFile", "cancelledFingerHoldDoesNotSendOrLeaveTheMicrophoneRunning", "fingerHoldAndReleaseSendsExactlyOneRealAudioFile"},
     "AnnieGeckoFilePickerTest": {"singleFilePickerUsesAndroidDocumentApiAndRestrictsAcceptedMimeType", "multipleFilePickerPreservesSupportedMimeTypes", "selectedDocumentUrisAreCollectedWithoutDuplicates"},

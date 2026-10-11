@@ -11,6 +11,8 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.systemBars
@@ -237,7 +239,7 @@ private fun ScriptStudioContent(
     var saving by remember { mutableStateOf(false) }
     var previewResult by remember { mutableStateOf<String?>(null) }
     var previewOpen by remember { mutableStateOf(false) }
-    var newFileName by remember { mutableStateOf("") }
+    var dialogFileType by remember { mutableStateOf<String?>(null) }
     var dialogTitle by remember { mutableStateOf<String?>(null) }
     var dialogValue by remember { mutableStateOf("") }
     var dialogAction by remember { mutableStateOf<(String) -> Unit>({}) }
@@ -553,8 +555,14 @@ private fun ScriptStudioContent(
 
     fun askForText(title: String, initial: String = "", action: (String) -> Unit) {
         dialogTitle = title
+        dialogFileType = null
         dialogValue = initial
         dialogAction = action
+    }
+
+    fun askForFileName(title: String, initial: String = "", action: (String) -> Unit) {
+        askForText(title, initial, action)
+        dialogFileType = studioDefaultFileType(selectedPath)
     }
 
     val selectedProject = projects.firstOrNull { it.id == selectedProjectId }
@@ -607,11 +615,9 @@ private fun ScriptStudioContent(
                 Row(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     StudioAction("New File", emphasized = true, icon = StudioGlyph.ADD, onClick = {
                         val owner = selectedProject?.takeIf { File(workspace.files.root, it.id).isDirectory }
-                        askForText(if (owner == null) "New script" else "New file", "") { rawName ->
+                        askForFileName("New file", "") { rawName ->
                             runCatching {
-                                val name = rawName.trim().let { raw ->
-                                    if (raw.substringAfterLast('/').contains('.')) raw else "$raw.js"
-                                }
+                                val name = rawName
                                 if (owner != null) {
                                     workspace.files.createFile(owner.id, listOf(currentDirectory.trim('/'), name).filter(String::isNotBlank).joinToString("/"))
                                 } else if (name.endsWith(".js", ignoreCase = true)) {
@@ -941,10 +947,28 @@ private fun ScriptStudioContent(
                 titleContentColor = StudioText,
                 textContentColor = StudioMuted,
                 title = { Text(dialogTitle.orEmpty()) },
-                text = { StudioInput(dialogValue, { dialogValue = it }, "Name", Modifier.fillMaxWidth()) },
+                text = {
+                    Column {
+                        StudioInput(dialogValue, { dialogValue = it }, "Name", Modifier.fillMaxWidth(), tag = "script_file_name")
+                        if (dialogFileType != null) {
+                            Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())) {
+                                StudioFileTypes.forEach { type ->
+                                    TextButton(onClick = { dialogFileType = type },
+                                        modifier = Modifier.testTag("script_file_type_$type")) {
+                                        Text((if (dialogFileType == type) "✓ " else "") + type.uppercase(),
+                                            color = if (dialogFileType == type) StudioBlue else StudioMuted)
+                                    }
+                                }
+                            }
+                            Text("A filename extension overrides the selected type.", color = StudioMuted, fontSize = 11.sp)
+                        }
+                    }
+                },
                 confirmButton = {
                     TextButton(onClick = {
-                        val value = dialogValue
+                        val value = if (dialogFileType == null) dialogValue else
+                            runCatching { studioNewFileName(dialogValue, dialogFileType!!) }
+                                .getOrElse { status = it.message ?: "Enter a filename"; return@TextButton }
                         dialogTitle = null
                         dialogAction(value)
                     }) { Text("Continue", color = StudioBlue) }
@@ -1146,13 +1170,11 @@ private fun ScriptStudioContent(
                 onCreateNew = { proposed ->
                     assistOpen = false
                     val owner = selectedProject?.takeIf { File(workspace.files.root, it.id).isDirectory }
-                    askForText("New file from Assist", "generated.js") { rawName ->
+                    askForFileName("New file from Assist", "generated") { rawName ->
                         runCatching {
                             // Respect the user's requested extension. Previously Assist
                             // appended .js to generated.html, generated.py, etc.
-                            val name = rawName.trim().let { raw ->
-                                if (raw.substringAfterLast('/').contains('.')) raw else "$raw.js"
-                            }
+                            val name = rawName
                             val file = if (owner != null) {
                                 workspace.files.createFile(owner.id, name)
                             } else if (name.endsWith(".js", ignoreCase = true)) {
