@@ -191,7 +191,7 @@ internal fun VelvetConnectedChatInfo(
 
     LaunchedEffect(Unit) { loadMorePhotos() }
     LaunchedEffect(tab) {
-        if(tab==2 && !linksFetched) loadMoreLinks()
+        if(tab==3 && !linksFetched) loadMoreLinks()
     }
 
     Column(Modifier.fillMaxSize().background(bg)) {
@@ -222,16 +222,21 @@ internal fun VelvetConnectedChatInfo(
             }
         }
 
-        TabRow(selectedTabIndex=tab,containerColor=card,
-            contentColor=rose) {
+        ScrollableTabRow(
+            selectedTabIndex=tab,
+            containerColor=card,contentColor=rose,
+            edgePadding=8.dp
+        ) {
             Tab(selected=tab==0,onClick={tab=0},
                 text={Text("Photos",color=if(tab==0)cream else muted)})
             Tab(selected=tab==1,onClick={tab=1},
-                text={Text("Audio",color=if(tab==1)cream else muted)})
+                text={Text("Videos",color=if(tab==1)cream else muted)})
             Tab(selected=tab==2,onClick={tab=2},
-                text={Text("Links",color=if(tab==2)cream else muted)})
+                text={Text("Audio",color=if(tab==2)cream else muted)})
             Tab(selected=tab==3,onClick={tab=3},
-                text={Text("Search",color=if(tab==3)cream else muted)})
+                text={Text("Links",color=if(tab==3)cream else muted)})
+            Tab(selected=tab==4,onClick={tab=4},
+                text={Text("Search",color=if(tab==4)cream else muted)})
         }
 
         if(tab==0) {
@@ -301,10 +306,14 @@ internal fun VelvetConnectedChatInfo(
                 }
             }
         } else if(tab==1) {
-            VelvetChatAudioGallery(
+            VelvetChatVideoGallery(
                 client=client,myId=myId,partnerName=partnerName
             )
         } else if(tab==2) {
+            VelvetChatAudioGallery(
+                client=client,myId=myId,partnerName=partnerName
+            )
+        } else if(tab==3) {
             Column(Modifier.fillMaxSize().padding(16.dp)) {
                 Row(verticalAlignment=Alignment.CenterVertically) {
                     Text("Links shared in Chat",
