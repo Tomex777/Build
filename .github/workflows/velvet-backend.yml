@@ -58,3 +58,5 @@ jobs:
         run: psql -v ON_ERROR_STOP=1 -f velvet/backend/tests/images.sql
       - name: Test mixed-chat pagination after large offline backlog
         run: psql -v ON_ERROR_STOP=1 -f velvet/backend/tests/chat_cursor_flood.sql
+      - name: Test connected Chat Info gallery and search
+        run: psql -v ON_ERROR_STOP=1 -f velvet/backend/tests/chat_info.sql
