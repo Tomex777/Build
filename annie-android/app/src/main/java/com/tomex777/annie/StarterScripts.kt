@@ -422,7 +422,10 @@ internal object StarterScripts {
         |            return true;
         |          }
         |          let origin = null;
+        |          let touchOrigin = null;
+        |          let pointerStarts = 0, pointerMoves = 0, touchStarts = 0, touchMoves = 0;
         |          surface.addEventListener('pointerdown', event => {
+        |            pointerStarts++;
         |            origin={x:event.clientX,y:event.clientY};
         |            if (lost) play();
         |            else if (!started) play();
@@ -430,6 +433,7 @@ internal object StarterScripts {
         |            event.preventDefault();
         |          });
         |          surface.addEventListener('pointermove', event => {
+        |            pointerMoves++;
         |            if (!origin) return;
         |            if (swipe(event.clientX-origin.x,event.clientY-origin.y))
         |              origin={x:event.clientX,y:event.clientY};
@@ -442,6 +446,37 @@ internal object StarterScripts {
         |          };
         |          surface.addEventListener('pointerup',finish);
         |          surface.addEventListener('pointercancel', () => { origin=null; });
+        |          // Android 8 WebView may deliver a real swipe as TouchEvents
+        |          // without dispatching the matching PointerEvent sequence.
+        |          // Support both native event families; do not synthesize gestures.
+        |          surface.addEventListener('touchstart', event => {
+        |            if (event.touches.length !== 1) return;
+        |            const t = event.touches[0];
+        |            touchStarts++;
+        |            touchOrigin = {x:t.clientX, y:t.clientY};
+        |            if (!started || lost) play();
+        |            event.preventDefault();
+        |          }, {passive:false});
+        |          surface.addEventListener('touchmove', event => {
+        |            if (!touchOrigin || event.touches.length !== 1) return;
+        |            const t = event.touches[0];
+        |            touchMoves++;
+        |            if (swipe(t.clientX-touchOrigin.x,t.clientY-touchOrigin.y)) {
+        |              touchOrigin={x:t.clientX,y:t.clientY};
+        |            }
+        |            event.preventDefault();
+        |          }, {passive:false});
+        |          surface.addEventListener('touchend', event => {
+        |            if (!touchOrigin) return;
+        |            const t = event.changedTouches[0];
+        |            if (t) swipe(t.clientX-touchOrigin.x,t.clientY-touchOrigin.y);
+        |            touchOrigin=null;
+        |            event.preventDefault();
+        |          }, {passive:false});
+        |          surface.addEventListener('touchcancel', () => { touchOrigin=null; });
+        |          window.annieCanvasInputDiagnostics = () => ({
+        |            pointerStarts, pointerMoves, touchStarts, touchMoves
+        |          });
         |          document.addEventListener('keydown', event => {
         |            const key = event.key.replace('Arrow','').toLowerCase();
         |            const mapped = key==='w'?'up':key==='a'?'left':key==='s'?'down':key==='d'?'right':key;

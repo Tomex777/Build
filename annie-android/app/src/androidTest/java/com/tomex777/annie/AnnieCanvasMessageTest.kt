@@ -7,6 +7,7 @@ import android.graphics.Rect
 import android.content.Context
 import android.view.inputmethod.InputMethodManager
 import android.view.MotionEvent
+import androidx.test.uiautomator.UiDevice
 import android.view.View
 import android.view.ViewGroup
 import androidx.activity.ComponentActivity
@@ -290,18 +291,15 @@ class AnnieCanvasMessageTest {
         // Real event timestamps and intermediate movements are important for
         // Android WebView pointer capture. Do not replace with JS-dispatched events.
         val downTime = SystemClock.uptimeMillis()
-        fun send(action: Int, y: Float) {
-            val event = MotionEvent.obtain(downTime, SystemClock.uptimeMillis(), action, x, y, 0)
-            try { instrumentation.sendPointerSync(event) } finally { event.recycle() }
-        }
-        send(MotionEvent.ACTION_DOWN, y1)
-        SystemClock.sleep(30)
-        send(MotionEvent.ACTION_MOVE, y1 + (y2-y1) * 0.33f)
-        SystemClock.sleep(30)
-        send(MotionEvent.ACTION_MOVE, y1 + (y2-y1) * 0.67f)
-        SystemClock.sleep(30)
-        send(MotionEvent.ACTION_UP, y2)
+        val uiDevice = UiDevice.getInstance(instrumentation)
+        val sx = x.toInt()
+        val sy1 = y1.toInt()
+        val sy2 = y2.toInt()
+        Log.i("AnnieCanvasTest", "swipe geometry x=$sx from=$sy1 to=$sy2 visible=$visible board=$board")
+        assertTrue("Android touch injection returned false", uiDevice.swipe(sx, sy1, sx, sy2, 20))
         instrumentation.waitForIdleSync()
+        val state = eval(web, "JSON.stringify({game:window.annieCanvasSnakeState(), events:window.annieCanvasInputDiagnostics()})")
+        Log.i("AnnieCanvasTest", "post-swipe state: $state")
     }
 
     private fun eval(web: WebView, script: String): String {
