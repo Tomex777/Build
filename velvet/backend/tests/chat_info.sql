@@ -73,6 +73,20 @@ begin
  if jsonb_array_length(results)<>4 then
    raise exception 'Case-insensitive caption search failed: %',results;
  end if;
+ results:=public.velvet_search_chat('Gallery',null,null,2);
+ if jsonb_array_length(results)<>2
+   or results->0->>'id'<>'00000000-0000-4000-8000-000000000001'
+   or results->1->>'id'<>'00000000-0000-4000-8000-000000000002' then
+   raise exception 'First search page was not newest-first: %',results;
+ end if;
+ results:=public.velvet_search_chat('Gallery',
+    (results->1->>'created_at')::timestamptz,
+    (results->1->>'id')::uuid,2);
+ if jsonb_array_length(results)<>2
+   or results->0->>'id'<>'00000000-0000-4000-8000-000000000003'
+   or results->1->>'id'<>'00000000-0000-4000-8000-000000000004' then
+   raise exception 'Conversation search older cursor failed: %',results;
+ end if;
  if public.velvet_search_chat('x') <> '[]'::jsonb then
    raise exception 'Search accepted one-character broad query';
  end if;
