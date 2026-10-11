@@ -291,6 +291,20 @@ internal fun VelvetConnectedChat(
                             }.getOrDefault("")
                             Text(if(msg.pending) "Queued · ${time}" else time,
                                 color=muted,fontSize=10.sp)
+                            if(msg.pending) {
+                                TextButton(onClick={
+                                    try {
+                                        outbox.drop(outboxScope,msg.id)
+                                        queued.removeAll {it.id==msg.id}
+                                        if(replyingTo?.id==msg.id) replyingTo=null
+                                        status="Local retry discarded. This does not delete messages received by your partner."
+                                    } catch(e:Exception) {
+                                        status=e.message ?: "Couldn't discard this queued message."
+                                    }
+                                }) {
+                                    Text("Discard retry",fontSize=10.sp,color=rose)
+                                }
+                            }
                         }
                     }
                 }
