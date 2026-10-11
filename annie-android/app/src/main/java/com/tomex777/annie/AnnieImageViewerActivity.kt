@@ -98,6 +98,7 @@ private fun FullScreenImageContent(
     var scale by remember { mutableFloatStateOf(1f) }
     var translation by remember { mutableStateOf(Offset.Zero) }
     var viewport by remember { mutableStateOf(IntSize.Zero) }
+    var imageSize by remember(model) { mutableStateOf(IntSize.Zero) }
     val imageData = remember(model) { annieImageRequestData(model) }
     var retry by remember(model) { mutableStateOf(0) }
     var loading by remember(model, retry) { mutableStateOf(imageData != null) }
@@ -114,7 +115,12 @@ private fun FullScreenImageContent(
             AsyncImage(
                 model = imageData,
                 onLoading = { loading = true; onLoadState(false, null) },
-                onSuccess = { loading = false; failed = false; onLoadState(true, null) },
+                onSuccess = {
+                    imageSize = IntSize(it.result.drawable.intrinsicWidth, it.result.drawable.intrinsicHeight)
+                    loading = false
+                    failed = false
+                    onLoadState(true, null)
+                },
                 onError = {
                     loading = false
                     failed = true
@@ -132,8 +138,9 @@ private fun FullScreenImageContent(
                     .pointerInput(Unit) {
                         detectTransformGestures { _, pan, zoom, _ ->
                             val nextScale = (scale * zoom).coerceIn(1f, 5f)
-                            val maxX = viewport.width * (nextScale - 1f) / 2f
-                            val maxY = viewport.height * (nextScale - 1f) / 2f
+                            val (maxX, maxY) = annieImagePanBounds(
+                                imageSize.width, imageSize.height, viewport.width, viewport.height, nextScale,
+                            )
                             scale = nextScale
                             translation = if (nextScale == 1f) Offset.Zero else Offset(
                                 (translation.x + pan.x).coerceIn(-maxX, maxX),
