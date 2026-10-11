@@ -1,0 +1,41 @@
+name: Velvet · Backend pairing checks
+on:
+  push:
+    branches: ["velvet-android-foundation"]
+    paths: ["velvet/backend/**", ".github/workflows/velvet-backend.yml"]
+  workflow_dispatch:
+
+jobs:
+  pairing-security:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 12
+    env:
+      PGHOST: localhost
+      PGPORT: "5432"
+      PGUSER: postgres
+      PGPASSWORD: postgres
+      PGDATABASE: postgres
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install PostgreSQL client
+        run: sudo apt-get update -qq && sudo apt-get install -y postgresql-client
+      - name: Apply schema and test auth fixture
+        run: |
+          set -euo pipefail
+          psql -v ON_ERROR_STOP=1 -f velvet/backend/tests/bootstrap.sql
+          for migration in velvet/backend/supabase/migrations/*.sql; do
+            echo "Applying $migration"
+            psql -v ON_ERROR_STOP=1 -f "$migration"
+          done
+      - name: Test pairing, rate limits and RLS
+        run: psql -v ON_ERROR_STOP=1 -f velvet/backend/tests/pairing.sql
