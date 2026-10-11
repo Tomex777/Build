@@ -1,0 +1,247 @@
+package dev.velvet.app
+
+import android.content.Context
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.ArrowBack
+import androidx.compose.material.icons.outlined.Send
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import org.json.JSONArray
+import org.json.JSONObject
+import java.time.OffsetDateTime
+import java.time.format.DateTimeFormatter
+import java.util.UUID
+
+private data class ConnectedText(
+    val id:String,
+    val body:String,
+    val senderId:String,
+    val at:String,
+    val pending:Boolean=false
+)
+
+/**
+ * Dedicated scoped outbox: prevents retrying messages from one account/couple
+ * under a different account after sign-out or phone re-pairing.
+ * Stored only in app-private preferences (device backup is disabled).
+ */
+private class ConnectedTextOutbox(context:Context) {
+    private val prefs=context.getSharedPreferences("velvet_connected_outbox",Context.MODE_PRIVATE)
+    fun get(scope:String):List<ConnectedText> = runCatching {
+        val arr=JSONArray(prefs.getString(scope,"[]"))
+        (0 until arr.length()).map {i->
+            val o=arr.getJSONObject(i)
+            ConnectedText(o.getString("id"),o.getString("body"),"",o.optString("at"),true)
+        }
+    }.getOrDefault(emptyList())
+    fun add(scope:String, entry:ConnectedText) = save(scope,get(scope)+entry)
+    fun drop(scope:String,id:String) = save(scope,get(scope).filterNot{it.id==id})
+    private fun save(scope:String,items:List<ConnectedText>) {
+        val arr=JSONArray()
+        items.forEach {arr.put(JSONObject().put("id",it.id).put("body",it.body).put("at",it.at))}
+        // commit() before showing success avoids losing a queued message on fast exits.
+        check(prefs.edit().putString(scope,arr.toString()).commit()) {
+            "Could not save your outgoing message on this phone."
+        }
+    }
+}
+
+@Composable
+internal fun VelvetConnectedChat(onBack:()->Unit) {
+    val context=androidx.compose.ui.platform.LocalContext.current
+    val client=remember {VelvetPairClient(context.applicationContext)}
+    val outbox=remember {ConnectedTextOutbox(context.applicationContext)}
+    val messages=remember {mutableStateListOf<ConnectedText>()}
+    val queued=remember {mutableStateListOf<ConnectedText>()}
+    val listState=rememberLazyListState()
+    var ownId by remember {mutableStateOf("")}
+    var partnerName by remember {mutableStateOf("Your love")}
+    var outboxScope by remember {mutableStateOf("")}
+    var status by remember {mutableStateOf("Connecting…")}
+    var text by remember {mutableStateOf("")}
+    var ready by remember {mutableStateOf(false)}
+    val bg=Color(0xFF171019)
+    val card=Color(0xFF30202D)
+    val rose=Color(0xFFE4A1B6)
+    val cream=Color(0xFFFFEAF0)
+    val muted=Color(0xFFD1B7C1)
+
+    // Foreground-only pull, about every 3s. This is NOT push/Realtime WebSockets.
+    // The UUID cursor and persisted outbox make retries idempotent and loss-resistant.
+    LaunchedEffect(Unit) {
+        if(!client.configured) {
+            status="Online chat is not configured. Your local preview is still available."
+            return@LaunchedEffect
+        }
+        if(!client.restore()) {
+            status="Please sign in through Connect our phones first."
+            return@LaunchedEffect
+        }
+        try {
+            val pair=client.myPair()
+            if(pair?.optInt("member_count")!=2) {
+                status="Pair both accounts before opening connected chat."
+                return@LaunchedEffect
+            }
+            val me=pair.optString("my_id")
+            val couple=pair.optString("couple_id")
+            if(me.isBlank() || couple.isBlank()) {
+                status="Update the chat database migration before opening connected chat."
+                return@LaunchedEffect
+            }
+            ownId=me
+            outboxScope="outbox_${me}_${couple}"
+            partnerName=pair.optString("partner_name").takeIf{
+                it.isNotBlank() && it!="null"
+            } ?: "Your love"
+            queued.clear()
+            queued.addAll(outbox.get(outboxScope))
+            ready=true
+        } catch(e:Exception) {
+            status=e.message ?: "Could not read the couple's account."
+            return@LaunchedEffect
+        }
+
+        var lastAt:String?=null
+        var lastId:String?=null
+        while(isActive) {
+            try {
+                var sendError:String?=null
+                for(entry in queued.toList()) {
+                    val result=client.sendText(UUID.fromString(entry.id),entry.body)
+                    if(result.optBoolean("ok")) {
+                        outbox.drop(outboxScope,entry.id)
+                        queued.removeAll {it.id==entry.id}
+                    } else {
+                        sendError=when(result.optString("error")) {
+                            "rate_limited"->"Sending limited for a minute. Your message is queued."
+                            "not_paired"->"This couple is no longer paired."
+                            else->"One message is queued for retry."
+                        }
+                        // Don't try more sends while the server is rate limiting.
+                        break
+                    }
+                }
+                val fresh=client.listText(lastAt,lastId)
+                for(i in 0 until fresh.length()) {
+                    val item=fresh.getJSONObject(i)
+                    val id=item.getString("id")
+                    if(messages.none{it.id==id}) {
+                        messages.add(ConnectedText(id,item.optString("body"),
+                            item.optString("sender_id"),item.optString("created_at")))
+                    }
+                    lastAt=item.getString("created_at")
+                    lastId=id
+                }
+                status=sendError ?: "Connected · updates while this screen is open"
+            } catch(e:Exception) {
+                status="Offline · outgoing messages stay queued. ${e.message ?: "Retrying…"}"
+            }
+            delay(3000)
+        }
+    }
+
+    val combined=messages.toList()+queued.toList()
+    LaunchedEffect(combined.size) {
+        if(combined.isNotEmpty()) listState.animateScrollToItem(combined.lastIndex)
+    }
+    Column(Modifier.fillMaxSize().background(bg)) {
+        Row(Modifier.fillMaxWidth().background(card).padding(12.dp),
+            verticalAlignment=Alignment.CenterVertically) {
+            IconButton(onClick=onBack) { Icon(Icons.Outlined.ArrowBack,"Back",tint=cream) }
+            Column(Modifier.weight(1f)) {
+                Text(partnerName,color=cream,fontSize=20.sp,fontWeight=FontWeight.SemiBold)
+                Text("Our connected text chat ♡",color=rose,fontSize=11.sp)
+            }
+        }
+        Text(status,Modifier.fillMaxWidth().padding(horizontal=17.dp,vertical=8.dp),
+            color=muted,fontSize=11.sp,lineHeight=15.sp)
+        if(!ready) {
+            Column(Modifier.weight(1f).fillMaxWidth().padding(25.dp),
+                horizontalAlignment=Alignment.CenterHorizontally,
+                verticalArrangement=Arrangement.Center) {
+                Text("Our messages, once we're connected.",color=cream,fontSize=20.sp)
+                Spacer(Modifier.height(12.dp))
+                Text("Connect both accounts to begin exchanging text across phones.",
+                    color=muted,fontSize=13.sp)
+            }
+        } else {
+            LazyColumn(
+                modifier=Modifier.weight(1f).fillMaxWidth().padding(horizontal=12.dp),
+                state=listState,
+                contentPadding=PaddingValues(vertical=14.dp),
+                verticalArrangement=Arrangement.spacedBy(8.dp)
+            ) {
+                items(combined,key={it.id}) { msg->
+                    val mine=msg.pending || msg.senderId==ownId
+                    Row(Modifier.fillMaxWidth(),
+                        horizontalArrangement=if(mine) Arrangement.End else Arrangement.Start) {
+                        Column(
+                            Modifier.widthIn(max=290.dp)
+                                .background(if(mine) Color(0xFF60354C) else card,
+                                    RoundedCornerShape(18.dp))
+                                .padding(horizontal=14.dp,vertical=10.dp)
+                        ) {
+                            Text(msg.body,color=cream,fontSize=15.sp,lineHeight=21.sp)
+                            Spacer(Modifier.height(4.dp))
+                            val time=runCatching {
+                                OffsetDateTime.parse(msg.at).format(DateTimeFormatter.ofPattern("HH:mm"))
+                            }.getOrDefault("")
+                            Text(if(msg.pending) "Queued · ${time}" else time,
+                                color=muted,fontSize=10.sp)
+                        }
+                    }
+                }
+            }
+        }
+        if(ready) {
+            Row(Modifier.fillMaxWidth().background(card)
+                    .padding(horizontal=12.dp,vertical=10.dp),
+                verticalAlignment=Alignment.Bottom) {
+                OutlinedTextField(
+                    value=text,
+                    onValueChange={ if(it.length<=4000) text=it },
+                    placeholder={Text("Message your person…",color=muted)},
+                    maxLines=5,
+                    modifier=Modifier.weight(1f),
+                    shape=RoundedCornerShape(21.dp)
+                )
+                Spacer(Modifier.width(7.dp))
+                IconButton(onClick={
+                    val body=text.trim()
+                    if(body.isNotEmpty() && outboxScope.isNotEmpty()) {
+                        val entry=ConnectedText(UUID.randomUUID().toString(),body,ownId,
+                            OffsetDateTime.now().toString(),pending=true)
+                        try {
+                            outbox.add(outboxScope,entry)
+                            queued.add(entry)
+                            text=""
+                            status="Message saved locally, sending…"
+                        } catch(e:Exception) {
+                            status=e.message ?: "Couldn't queue this message."
+                        }
+                    }
+                }, enabled=text.isNotBlank()) {
+                    Icon(Icons.Outlined.Send,"Send",tint=rose)
+                }
+            }
+        }
+        Text("Text only · No end-to-end encryption · Photos, voice and games aren't synced yet",
+            color=muted,fontSize=10.sp,modifier=Modifier.fillMaxWidth()
+                .background(card).padding(start=16.dp,end=16.dp,bottom=8.dp))
+    }
+}
