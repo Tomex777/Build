@@ -266,6 +266,30 @@ internal class VelvetPairClient(private val context: Context) {
             .put("p_id",id).put("p_for_everyone",everyone))
     }
 
+    /** Private Chat Info gallery, newest photos first; never an Our Story copy. */
+    suspend fun chatPhotos(
+        beforeAt:String?=null,beforeId:String?=null,limit:Int=30
+    ): JSONArray = withContext(Dispatchers.IO) {
+        val payload=JSONObject().put("p_limit",limit.coerceIn(1,60))
+        if(!beforeAt.isNullOrBlank() && !beforeId.isNullOrBlank()) {
+            payload.put("p_before_at",beforeAt).put("p_before_id",beforeId)
+        }
+        JSONArray(sendRaw("/rest/v1/rpc/velvet_chat_photos",payload,activeToken()))
+    }
+
+    /** Search literal text/captions in the caller's current paired space. */
+    suspend fun searchChat(
+        query:String,beforeAt:String?=null,beforeId:String?=null,limit:Int=40
+    ): JSONArray = withContext(Dispatchers.IO) {
+        require(query.trim().length in 2..64) {"Use 2–64 characters to search."}
+        val payload=JSONObject().put("p_query",query.trim())
+            .put("p_limit",limit.coerceIn(1,60))
+        if(!beforeAt.isNullOrBlank() && !beforeId.isNullOrBlank()) {
+            payload.put("p_before_at",beforeAt).put("p_before_id",beforeId)
+        }
+        JSONArray(sendRaw("/rest/v1/rpc/velvet_search_chat",payload,activeToken()))
+    }
+
     suspend fun listTextChanges(afterId:Long): JSONArray = withContext(Dispatchers.IO) {
         val raw=sendRaw("/rest/v1/rpc/velvet_list_text_changes",
             JSONObject().put("p_after_id",afterId).put("p_limit",100),activeToken())
