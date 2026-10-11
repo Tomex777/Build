@@ -171,6 +171,92 @@ internal class VelvetPairClient(private val context: Context) {
         rpcBoolean("velvet_revoke_pair_invite")
     }
 
+    /** Upload binary only to the caller's scoped PRIVATE storage path. */
+    suspend fun sendImage(
+        coupleId:String,me:String,uri:android.net.Uri,
+        caption:String,replyTo:String?=null
+    ): JSONObject = withContext(Dispatchers.IO) {
+        require(configured) {"Online image sharing isn't configured."}
+        require(UUID.fromString(coupleId).toString()==coupleId)
+        require(UUID.fromString(me).toString()==me)
+        val mime=context.contentResolver.getType(uri)?.substringBefore(';')?.lowercase()
+        val ext=when(mime) {
+            "image/jpeg"->"jpg"
+            "image/png"->"png"
+            "image/webp"->"webp"
+            "image/gif"->"gif"
+            else->throw IllegalArgumentException("Choose a JPEG, PNG, WebP or GIF image.")
+        }
+        require(caption.length<=1200) {"Image caption is too long."}
+        val buffer=java.io.ByteArrayOutputStream()
+        context.contentResolver.openInputStream(uri)?.use { source->
+            val chunk=ByteArray(8192)
+            while(true) {
+                val read=source.read(chunk)
+                if(read<0) break
+                buffer.write(chunk,0,read)
+                require(buffer.size()<=8*1024*1024) {"Image exceeds the 8 MB limit."}
+            }
+        } ?: throw IllegalStateException("The chosen image can't be opened.")
+        val bytes=buffer.toByteArray()
+        require(bytes.isNotEmpty()) {"The image file is empty."}
+        val path="$coupleId/$me/${UUID.randomUUID()}.$ext"
+        val upload=URL("$endpoint/storage/v1/object/velvet-chat-media/$path")
+            .openConnection() as HttpURLConnection
+        try {
+            upload.requestMethod="POST"
+            upload.connectTimeout=25000
+            upload.readTimeout=30000
+            upload.doOutput=true
+            upload.setFixedLengthStreamingMode(bytes.size)
+            upload.setRequestProperty("apikey",publishable)
+            upload.setRequestProperty("Authorization","Bearer ${activeToken()}")
+            upload.setRequestProperty("Content-Type",mime)
+            upload.setRequestProperty("x-upsert","false")
+            upload.outputStream.use {it.write(bytes)}
+            if(upload.responseCode !in 200..299) {
+                val detail=upload.errorStream?.bufferedReader()?.use {it.readText()}
+                    ?.take(260).orEmpty()
+                throw IllegalStateException("Private upload rejected (HTTP ${upload.responseCode}). $detail")
+            }
+        } finally {upload.disconnect()}
+        val params=JSONObject().put("p_id",UUID.randomUUID().toString())
+            .put("p_storage_path",path).put("p_mime",mime)
+            .put("p_bytes",bytes.size).put("p_caption",caption.trim())
+        if(!replyTo.isNullOrBlank()) params.put("p_reply_to",replyTo)
+        rpc("velvet_send_image",params)
+    }
+
+    /** Never create a public URL: private downloads carry the authenticated JWT. */
+    suspend fun downloadImage(storagePath:String):ByteArray = withContext(Dispatchers.IO) {
+        require(storagePath.matches(Regex(
+            "[0-9a-f-]{36}/[0-9a-f-]{36}/[0-9a-f-]{36}\\.(jpg|png|webp|gif)"
+        ))) {"Invalid private image path."}
+        val con=URL("$endpoint/storage/v1/object/authenticated/velvet-chat-media/$storagePath")
+            .openConnection() as HttpURLConnection
+        try {
+            con.requestMethod="GET"
+            con.connectTimeout=15000
+            con.readTimeout=30000
+            con.setRequestProperty("apikey",publishable)
+            con.setRequestProperty("Authorization","Bearer ${activeToken()}")
+            if(con.responseCode !in 200..299) {
+                throw IllegalStateException("Photo unavailable (HTTP ${con.responseCode}).")
+            }
+            val out=java.io.ByteArrayOutputStream()
+            con.inputStream.use {src->
+                val chunk=ByteArray(8192)
+                while(true) {
+                    val count=src.read(chunk)
+                    if(count<0)break
+                    out.write(chunk,0,count)
+                    require(out.size()<=8*1024*1024) {"Photo exceeds the 8 MB limit."}
+                }
+            }
+            out.toByteArray()
+        } finally {con.disconnect()}
+    }
+
     suspend fun editText(id:String,body:String): JSONObject = withContext(Dispatchers.IO) {
         rpc("velvet_edit_text",JSONObject().put("p_id",id).put("p_body",body))
     }
@@ -199,7 +285,7 @@ internal class VelvetPairClient(private val context: Context) {
             if(beforeAt!=null && beforeId!=null) {
                 params.put("p_before_at",beforeAt).put("p_before_id",beforeId)
             }
-            val raw=sendRaw("/rest/v1/rpc/velvet_page_text",params,activeToken())
+            val raw=sendRaw("/rest/v1/rpc/velvet_page_chat",params,activeToken())
             JSONArray(raw)
         }
 
@@ -209,7 +295,7 @@ internal class VelvetPairClient(private val context: Context) {
             if(afterAt!=null && afterId!=null) {
                 params.put("p_after_at",afterAt).put("p_after_id",afterId)
             }
-            val raw=sendRaw("/rest/v1/rpc/velvet_list_text",params,activeToken())
+            val raw=sendRaw("/rest/v1/rpc/velvet_list_chat",params,activeToken())
             JSONArray(raw)
         }
 
