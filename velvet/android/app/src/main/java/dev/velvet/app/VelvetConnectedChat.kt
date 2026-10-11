@@ -24,6 +24,9 @@ import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleOwner
+import androidx.lifecycle.repeatOnLifecycle
 import org.json.JSONArray
 import org.json.JSONObject
 import java.time.OffsetDateTime
@@ -75,6 +78,7 @@ internal fun VelvetConnectedChat(
     onBack:()->Unit,onOpenLocalPreview:(()->Unit)?=null,sharedClient:VelvetPairClient?=null
 ) {
     val context=androidx.compose.ui.platform.LocalContext.current
+    val activityLifecycle=(context as LifecycleOwner).lifecycle
     val rememberedClient=remember {VelvetPairClient(context.applicationContext)}
     val client=sharedClient ?: rememberedClient
     val scope=rememberCoroutineScope()
@@ -138,6 +142,9 @@ internal fun VelvetConnectedChat(
 
         var lastAt:String?=null
         var lastId:String?=null
+        // repeatOnLifecycle halts all network polling when the screen/activity
+        // is no longer STARTED, resuming with the same cursor on foreground.
+        activityLifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
         while(isActive) {
             try {
                 var sendError:String?=null
@@ -178,6 +185,7 @@ internal fun VelvetConnectedChat(
                 status="Offline · outgoing messages stay queued. ${e.message ?: "Retrying…"}"
             }
             delay(3000)
+        }
         }
     }
 
