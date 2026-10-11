@@ -134,8 +134,7 @@ private fun VelvetVideoFullscreen(
                                 activeVideo=this
                             }
                         },
-                        modifier=Modifier.fillMaxWidth()
-                            .heightIn(min=180.dp),
+                        modifier=Modifier.fillMaxSize(),
                         onRelease={view->
                             view.stopPlayback()
                             if(activeVideo===view)activeVideo=null
