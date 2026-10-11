@@ -148,17 +148,23 @@ private fun VelvetApp() {
             profileStatus="Saved on this phone. Online profile sync isn't configured yet."
             return
         }
+        val sendingName=ownerName
+        val sendingPronouns=ownPronouns
         profileScope.launch {
             profileStatus="Syncing your profile…"
             try {
                 if(!pairClient.hasSession()) {
                     profileStatus="Saved on this phone. Sign in under Connect our phones to sync."
                 } else {
-                    val result=pairClient.updateMyProfile(ownerName,ownPronouns)
+                    val result=pairClient.updateMyProfile(sendingName,sendingPronouns)
                     if(result.optBoolean("ok")) {
-                        profilePending=false
-                        settings.edit().putBoolean("profile_pending_sync",false).apply()
-                        profileStatus="Your account profile is synced ♡"
+                        if(ownerName==sendingName && ownPronouns==sendingPronouns) {
+                            profilePending=false
+                            settings.edit().putBoolean("profile_pending_sync",false).apply()
+                            profileStatus="Your account profile is synced ♡"
+                        } else {
+                            profileStatus="A newer profile change still needs sync."
+                        }
                     } else {
                         profileStatus="Saved on this phone; check your name or pronouns before retrying."
                     }
@@ -177,17 +183,22 @@ private fun VelvetApp() {
             anniversaryStatus="Saved on this phone. Online sharing is not configured."
             return
         }
+        val sendingDate=anniversary
         profileScope.launch {
             anniversaryStatus="Sharing our date…"
             try {
                 if(!pairClient.hasSession() || pairClient.myPair()?.optInt("member_count")!=2) {
                     anniversaryStatus="Saved locally. Both accounts must be paired to share our date."
                 } else {
-                    val result=pairClient.setAnniversary(anniversary)
+                    val result=pairClient.setAnniversary(sendingDate)
                     if(result.optBoolean("ok")) {
-                        anniversaryPending=false
-                        settings.edit().putBoolean("anniversary_pending_sync",false).apply()
-                        anniversaryStatus="Our date is now shared with your partner ♡"
+                        if(anniversary==sendingDate) {
+                            anniversaryPending=false
+                            settings.edit().putBoolean("anniversary_pending_sync",false).apply()
+                            anniversaryStatus="Our date is now shared with your partner ♡"
+                        } else {
+                            anniversaryStatus="You changed the date again. Share the newest date."
+                        }
                     } else {
                         anniversaryStatus="Saved locally. Correct the date and try sharing again."
                     }
@@ -221,7 +232,7 @@ private fun VelvetApp() {
                     if(!profilePending) {
                         val myProfile=pairClient.getMyProfile()
                         val serverOwn=myProfile.optString("display_name")
-                        if(serverOwn.isNotBlank() && serverOwn!="null") {
+                        if(serverOwn.isNotBlank() && serverOwn!="null" && !profilePending) {
                             ownerName=serverOwn
                             ownPronouns=myProfile.optString("pronouns")
                                 .takeUnless {it=="null"} ?: ""
@@ -233,7 +244,7 @@ private fun VelvetApp() {
                     if(pair?.optInt("member_count")==2 && !anniversaryPending) {
                         val shared=pairClient.getAnniversary()
                         val sharedDate=shared?.optString("anniversary").orEmpty()
-                        if(sharedDate.isNotBlank() && sharedDate!="null") {
+                        if(sharedDate.isNotBlank() && sharedDate!="null" && !anniversaryPending) {
                             anniversary=sharedDate
                             settings.edit().putString("anniversary",anniversary).apply()
                             anniversaryStatus="Our date is shared with your partner ♡"
