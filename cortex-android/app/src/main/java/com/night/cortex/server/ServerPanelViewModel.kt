@@ -41,6 +41,7 @@ class ServerPanelViewModel(application: Application) : AndroidViewModel(applicat
     private var reconnectJob: Job? = null
     private var logStreamJob: Job? = null
     private var pairingMonitorJob: Job? = null
+    private var accountStatusJob: Job? = null
     private val networkCallback = object : ConnectivityManager.NetworkCallback() {
         override fun onAvailable(network: Network) {
             if (_state.value.configured && !_state.value.loading) {
@@ -74,6 +75,7 @@ class ServerPanelViewModel(application: Application) : AndroidViewModel(applicat
         if (_state.value.configured) {
             refreshAll()
             startLogStream()
+            startAccountStatusLoop()
         }
     }
 
@@ -81,6 +83,7 @@ class ServerPanelViewModel(application: Application) : AndroidViewModel(applicat
         logStreamJob?.cancel()
         reconnectJob?.cancel()
         pairingMonitorJob?.cancel()
+        accountStatusJob?.cancel()
         cacheJob?.cancel()
         runCatching { connectivityManager.unregisterNetworkCallback(networkCallback) }
         super.onCleared()
@@ -144,6 +147,7 @@ class ServerPanelViewModel(application: Application) : AndroidViewModel(applicat
         if (_state.value.configured) {
             refreshAll()
             startLogStream()
+            startAccountStatusLoop()
         }
     }
 
@@ -913,6 +917,43 @@ class ServerPanelViewModel(application: Application) : AndroidViewModel(applicat
                     account.pairingCode.isNotBlank() ||
                     account.pairingQr.isNotBlank()
             )
+    }
+
+    /**
+     * Cortex Agent can be reachable while MSCC is restarting. Periodically
+     * refresh the lightweight, sanitized session registry without showing an
+     * infinite progress indicator or blocking locally cached navigation.
+     * Do not touch Baileys auth storage or trigger repair automatically.
+     */
+    private fun startAccountStatusLoop() {
+        if (accountStatusJob?.isActive == true) return
+        accountStatusJob = viewModelScope.launch {
+            while (isActive) {
+                delay(30_000L)
+                val current = _state.value
+                if (!current.configured || !current.agentReachable || current.authFailed || current.loading) continue
+                val result = withContext(Dispatchers.IO) { runCatching { api().pairingState() } }
+                val fresh = result.getOrNull()
+                if (fresh != null) {
+                    _state.update { state ->
+                        if (!state.configured) state else state.copy(
+                            pairing = fresh,
+                            pairingFresh = true,
+                            lastSuccessfulSyncAt = System.currentTimeMillis(),
+                        )
+                    }
+                    cacheDashboard()
+                    resumePairingMonitorIfNeeded(fresh)
+                } else {
+                    val error = result.exceptionOrNull()
+                    _state.update { state ->
+                        state.copy(pairingFresh = false,
+                            agentReachable = if (error is CortexTransportException) false else state.agentReachable)
+                    }
+                    if (error is CortexTransportException) scheduleReconnect()
+                }
+            }
+        }
     }
 
     private fun startPairingMonitor() {
