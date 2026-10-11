@@ -2634,7 +2634,13 @@ function scheduleAccountReconnect(account, generation, delayMs) {
     if (generation !== account.generation || account.paused || account.invalid) return
     account.reconnectTimer = null
     account.nextReconnectAt = 0
-    startAccountSafely(account, 'reconnect').catch(error => {
+    // Manual reconnect / repair / pause operations already use runOp.
+    // A timer must join that queue or two sockets can load and mutate the
+    // same Signal key store concurrently (causing replaced sessions / Bad MAC).
+    runOp(account, async () => {
+      if (generation !== account.generation || account.paused || account.invalid || account.sock) return
+      await startAccountSafely(account, 'reconnect')
+    }).catch(error => {
       console.error(`[${account.id}] reconnect recovery:`, error?.message || error)
     })
   }, wait)
@@ -2658,12 +2664,18 @@ async function startAccountSafely(account, source = 'startup') {
 }
 
 async function startAccount(account) {
-  if (!account.enabled || account.invalid || account.paused) return
+  if (!account.enabled || account.invalid || account.paused || account.sock) return
   const generation = ++account.generation
+  // A close can schedule a retry while the previous socket's creds.update
+  // writes are still pending. Never reload partially saved auth state.
+  await account.credSave
+  if (generation !== account.generation || !account.enabled ||
+      account.invalid || account.paused || account.sock) return
   const { state, saveCreds } = await useMultiFileAuthState(account.authDir)
   // A disconnect/remove request can happen while auth is loading.
   // Do not create a ghost socket for an obsolete generation.
-  if (generation !== account.generation || !account.enabled || account.invalid || account.paused) return
+  if (generation !== account.generation || !account.enabled ||
+      account.invalid || account.paused || account.sock) return
   account.registered = Boolean(state.creds.registered)
   account.nextReconnectAt = 0
 
