@@ -4,10 +4,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -191,7 +189,8 @@ internal fun VelvetConnectedChatInfo(
                 verticalArrangement=Arrangement.spacedBy(8.dp),
                 modifier=Modifier.weight(1f)
             ) {
-                items(photos,key={it.id}) {photo->
+                items(photos.size,key={ index->photos[index].id }) {index->
+                    val photo=photos[index]
                     Column(Modifier.fillMaxWidth()) {
                         VelvetPrivateImage(client,photo.path,
                             modifier=Modifier.fillMaxWidth().aspectRatio(1f))
@@ -217,7 +216,7 @@ internal fun VelvetConnectedChatInfo(
                                 Text(photosError,color=rose,fontSize=12.sp)
                             }
                             if(morePhotos) {
-                                TextButton(onClick={loadMorePhotos}) {
+                                TextButton(onClick={loadMorePhotos()}) {
                                     Text(if(photosError.isBlank()) "Load older photos" else "Retry",
                                         color=rose)
                                 }
@@ -260,7 +259,8 @@ internal fun VelvetConnectedChatInfo(
                 }
                 LazyColumn(Modifier.weight(1f),
                     verticalArrangement=Arrangement.spacedBy(9.dp)) {
-                    items(hits,key={it.id}) {hit->
+                    items(hits.size,key={index->hits[index].id}) {index->
+                        val hit=hits[index]
                         Column(
                             Modifier.fillMaxWidth()
                                 .background(card,RoundedCornerShape(15.dp))
