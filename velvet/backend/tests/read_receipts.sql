@@ -105,7 +105,7 @@ begin
   end if;
   state:=public.velvet_chat_read_state();
   if state->>'partner_read_id'<>'eeeeeeee-0000-4000-8000-000000000003' then
-    raise exception 'Partner's acknowledgement not reciprocally visible: %',state;
+    raise exception 'Partner acknowledgement not reciprocally visible: %',state;
   end if;
 end $$;
 
