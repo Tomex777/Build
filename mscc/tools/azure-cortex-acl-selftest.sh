@@ -52,7 +52,12 @@ grep -Fxq "u:cortex-agent:rwX|$RELEASE/nested/update.js" "$ACL_TEST_LOG"
 grep -Fxq "d:u:cortex-agent:rwX|$RELEASE/nested" "$ACL_TEST_LOG"
 grep -Fxq "d:u:cortex-agent:rwX|$RELEASE" "$ACL_TEST_LOG"
 
-if grep -E '/(node_modules|auth|\.ssh|\.cortex)/|/\.env($|/)' "$ACL_TEST_LOG"; then
+if grep -E '/(node_modules|auth|\.ssh|\.cortex)/|/\.env[^/]*($|/)|/outside-link
+  echo "Cortex Agent received ACL grants to protected release paths" >&2
+  exit 1
+fi
+echo 'PASS Cortex Agent release ACL refresh and protected-path isolation'
+ "$ACL_TEST_LOG"; then
   echo "Cortex Agent received ACL grants to protected release paths" >&2
   exit 1
 fi
