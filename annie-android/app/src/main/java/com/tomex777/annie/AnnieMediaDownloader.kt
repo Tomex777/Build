@@ -50,6 +50,23 @@ internal object AnnieDownloadHeaderPolicy {
                 name.none { it.code < 32 || it.code == 127 } &&
                 value.none { it.code < 32 || it.code == 127 }
         }
+
+    /**
+     * A persisted browser session's User-Agent must be treated as untrusted,
+     * just like script-supplied headers. Never add it after the last filter.
+     */
+    fun withBrowserAgent(
+        headers: Map<String, String>,
+        sessionUserAgent: String?,
+        defaultUserAgent: String,
+    ): Map<String, String> {
+        val safe = sanitize(headers, isolatedBrowserSession = true)
+        if (safe.keys.any { it.equals("User-Agent", ignoreCase = true) }) return safe
+        val agent = listOfNotNull(sessionUserAgent, defaultUserAgent).firstOrNull { proposed ->
+            sanitize(mapOf("User-Agent" to proposed), true).isNotEmpty()
+        } ?: return safe
+        return sanitize(safe + ("User-Agent" to agent), isolatedBrowserSession = true)
+    }
 }
 
 internal data class AnnieDownloadSource(
@@ -338,12 +355,13 @@ internal class AnnieMediaDownloader(
         // A script may supply a Cookie header, but it must not impersonate
         // credentials from an isolated browser profile. Use that profile's cookie
         // store for the initial request and all HLS segment requests instead.
-        val safeHeaders = AnnieDownloadHeaderPolicy.sanitize(headers, browserSession != null)
         val sessionHeaders = browserSession?.let { session ->
-            if (safeHeaders.keys.none { it.equals("User-Agent", true) }) {
-                safeHeaders + ("User-Agent" to (session.userAgent ?: android.webkit.WebSettings.getDefaultUserAgent(context)))
-            } else safeHeaders
-        } ?: safeHeaders
+            AnnieDownloadHeaderPolicy.withBrowserAgent(
+                headers,
+                session.userAgent,
+                android.webkit.WebSettings.getDefaultUserAgent(context),
+            )
+        } ?: AnnieDownloadHeaderPolicy.sanitize(headers, isolatedBrowserSession = false)
         val browserCookieManager = browserSession?.let { AnnieBrowserProfiles.cookieManager(it.sessionId) }
 
         val first = open(

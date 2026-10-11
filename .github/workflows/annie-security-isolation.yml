@@ -6,6 +6,8 @@ on:
     paths:
       - '.github/workflows/annie-security-isolation.yml'
       - 'annie-android/app/src/androidTest/java/com/tomex777/annie/PlayerBrowserCookieIsolationTest.kt'
+      - 'annie-android/app/src/main/java/com/tomex777/annie/AnnieMediaDownloader.kt'
+      - 'annie-android/app/src/test/java/com/tomex777/annie/AnnieMediaDownloaderTest.kt'
   workflow_dispatch:
 
 concurrency:

@@ -110,6 +110,28 @@ class AnnieMediaDownloaderTest {
         assertEquals(mapOf("User-Agent" to "Annie/1.0"), sanitized)
     }
 
+    @Test fun invalidBrowserUserAgentCannotBypassHeaderSanitization() {
+        val safe = AnnieDownloadHeaderPolicy.withBrowserAgent(
+            mapOf("Referer" to "https://watch.example", "cOoKiE" to "injected=1"),
+            "Mozilla/5.0\\r\\nX-Injected: yes".replace("\\r", "\r").replace("\\n", "\n"),
+            "Annie Safe Agent",
+        )
+        assertEquals("Annie Safe Agent", safe["User-Agent"])
+        assertEquals("https://watch.example", safe["Referer"])
+        assertTrue(safe.keys.none { it.equals("Cookie", ignoreCase = true) })
+        assertTrue(safe.values.none { '\r' in it || '\n' in it })
+    }
+
+    @Test fun safeBrowserSessionUserAgentOverridesFallbackWithoutLeakingCookies() {
+        val safe = AnnieDownloadHeaderPolicy.withBrowserAgent(
+            mapOf("Cookie" to "stolen=1", "User-Agent" to "Site-specific/1.0"),
+            "Mozilla/5.0",
+            "Android",
+        )
+        assertEquals("Site-specific/1.0", safe["User-Agent"])
+        assertTrue(safe.keys.none { it.equals("Cookie", true) })
+    }
+
     @Test fun scriptVideoResolutionKeepsHeadersAndChoosesBestQuality() {
         val data = JSONObject()
             .put("type", "video")
