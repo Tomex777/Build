@@ -13,10 +13,10 @@ android {
         minSdk = 26
         targetSdk = 35
         // Public client configuration only; private Supabase/service keys NEVER belong here.
-        buildConfigField("String", "VELVET_SUPABASE_URL", "\\\"" +
-            (System.getenv("VELVET_SUPABASE_URL") ?: "").replace("\\\"", "\\\\\"") + "\\\"")
-        buildConfigField("String", "VELVET_SUPABASE_PUBLISHABLE_KEY", "\\\"" +
-            (System.getenv("VELVET_SUPABASE_PUBLISHABLE_KEY") ?: "").replace("\\\"", "\\\\\"") + "\\\"")
+        buildConfigField("String", "VELVET_SUPABASE_URL", "\"" +
+            (System.getenv("VELVET_SUPABASE_URL") ?: "").replace("\\", "\\\\").replace("\"", "\\\"") + "\"")
+        buildConfigField("String", "VELVET_SUPABASE_PUBLISHABLE_KEY", "\"" +
+            (System.getenv("VELVET_SUPABASE_PUBLISHABLE_KEY") ?: "").replace("\\", "\\\\").replace("\"", "\\\"") + "\"")
         versionCode = 10
         versionName = "0.7.0-pairing-alpha"
     }
