@@ -1,0 +1,31 @@
+name: MSCC Workflow Syntax Guard
+
+on:
+  pull_request:
+    branches: [mscc-azure]
+    paths:
+      - '.github/workflows/mscc-azure.yml'
+      - '.github/workflows/mscc-workflow-syntax.yml'
+  push:
+    branches: [mscc-azure]
+    paths:
+      - '.github/workflows/mscc-azure.yml'
+      - '.github/workflows/mscc-workflow-syntax.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v6
+        with:
+          go-version: '1.24'
+      - name: Install actionlint
+        run: go install github.com/rhysd/actionlint/cmd/actionlint@v1.7.7
+      - name: Validate MSCC Actions workflow syntax
+        run: "$(go env GOPATH)/bin/actionlint" -shellcheck= -pyflakes= .github/workflows/mscc-azure.yml
