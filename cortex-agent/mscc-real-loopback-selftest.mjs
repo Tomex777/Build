@@ -25,6 +25,7 @@ async function ephemeralPort() {
 }
 const root = await mkdtemp(join(tmpdir(), 'cortex-mscc-integration-'));
 const token = 'integration-test-token-not-real-please-discard';
+const lifecycleCalls = [];
 let panel;
 let agent;
 let stderr = '';
@@ -60,6 +61,26 @@ try {
     sessionSecret: 'mock-session-secret-do-not-use',
     getState: publicState,
     getActivity: async () => [],
+    createAccount: async ({ phoneNumber, displayName }) => {
+      const account = await registry.create({ phoneNumber, displayName });
+      return { ok: true, account };
+    },
+    pairAccount: async (id, mode) => {
+      lifecycleCalls.push({ id, action: 'pair', mode });
+      return { ok: true, account: id, mode };
+    },
+    reconnectAccount: async id => {
+      lifecycleCalls.push({ id, action: 'reconnect' });
+      return { ok: true, account: id };
+    },
+    disconnectAccount: async id => {
+      lifecycleCalls.push({ id, action: 'disconnect' });
+      return { ok: true, account: id };
+    },
+    repairAccount: async (id, mode) => {
+      lifecycleCalls.push({ id, action: 'repair', mode });
+      return { ok: true, account: id, mode };
+    },
     getAccountDiagnostics: async id => {
       if (id !== linked.id) return null;
       return {
@@ -128,6 +149,41 @@ try {
   assert.equal(state.accounts.find(a => a.id === linked.id).profile, 'nami');
   assert.equal(await readFile(creds, 'utf8'), before, 'Real MSCC auth state mutated during rename/profile update');
 
+  // Exercise the full Cortex Agent -> real MSCC local listener pairing API.
+  // These callbacks are deterministic: CI never links a real WhatsApp number.
+  response = await request('POST', '/api/cortex/mscc/accounts/' + linked.id + '/pair', { mode: 'code' });
+  assert.equal(response.status, 200);
+  assert.equal((await response.json()).mode, 'code');
+  response = await request('POST', '/api/cortex/mscc/accounts/' + linked.id + '/pair', { mode: 'qr' });
+  assert.equal(response.status, 200);
+  assert.equal((await response.json()).mode, 'qr');
+  response = await request('POST', '/api/cortex/mscc/accounts/' + linked.id + '/reconnect', {});
+  assert.equal(response.status, 200);
+  response = await request('POST', '/api/cortex/mscc/accounts/' + linked.id + '/disconnect', {});
+  assert.equal(response.status, 200);
+  response = await request('POST', '/api/cortex/mscc/accounts/' + linked.id + '/repair', { mode: 'code' });
+  assert.equal(response.status, 200);
+  assert.deepEqual(lifecycleCalls, [
+    { id: linked.id, action: 'pair', mode: 'code' },
+    { id: linked.id, action: 'pair', mode: 'qr' },
+    { id: linked.id, action: 'reconnect' },
+    { id: linked.id, action: 'disconnect' },
+    { id: linked.id, action: 'repair', mode: 'code' },
+  ]);
+  assert.equal(await readFile(creds, 'utf8'), before, 'Pairing API probe modified existing WhatsApp credentials');
+
+  const deniedPair = await request('POST', '/api/cortex/mscc/accounts/' + linked.id + '/pair', { mode: 'code' }, false);
+  assert.equal(deniedPair.status, 401, 'Unauthenticated pairing must be denied');
+  assert.equal(lifecycleCalls.length, 5, 'Denied pairing must never reach MSCC');
+  response = await request('POST', '/api/cortex/mscc/accounts', { phoneNumber: '123', displayName: 'Bad' });
+  assert.equal(response.status, 400, 'Phone number must be validated before reaching MSCC');
+  response = await request('POST', '/api/cortex/mscc/accounts', { phoneNumber: '234000000003', displayName: 'Third' });
+  assert.equal(response.status, 200);
+  const added = (await response.json()).account;
+  assert.equal(added.displayName, 'Third');
+  assert.equal((await (await request('GET', '/api/cortex/mscc/pairing')).json()).accounts.length, 3);
+  assert.equal(await readFile(creds, 'utf8'), before, 'Adding a linked account modified an existing session');
+
   response = await request('GET', '/api/cortex/mscc/accounts/' + linked.id + '/diagnostics?limit=5', undefined, false);
   assert.equal(response.status, 401);
   response = await request('GET', '/api/cortex/mscc/accounts/' + linked.id + '/diagnostics?limit=5');
@@ -142,7 +198,7 @@ try {
   assert.notEqual(response.status, 200, 'Permanent Account A control personality must remain locked');
   assert.equal(profiles.get('A'), 'control');
   assert.equal(await readFile(creds, 'utf8'), before);
-  console.log('PASS Cortex Agent ↔ real MSCC loopback account management, auth, persistence and diagnostics');
+  console.log('PASS Cortex Agent ↔ real MSCC loopback account management, pairing/reconnection, auth, persistence and diagnostics');
 } finally {
   if (agent && agent.exitCode === null) {
     agent.kill('SIGTERM');
