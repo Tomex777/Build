@@ -35,6 +35,8 @@ class ServerPanelViewModel(application: Application) : AndroidViewModel(applicat
 
     private val connectionPrefs = application.getSharedPreferences("cortex_hosting", Context.MODE_PRIVATE)
     private val secretVault = SecretVault(application)
+    private val offlineCache = OfflineDashboardCache(application)
+    private var cacheJob: Job? = null
     private val connectivityManager = application.getSystemService(ConnectivityManager::class.java)
     private var reconnectJob: Job? = null
     private var logStreamJob: Job? = null
@@ -42,14 +44,17 @@ class ServerPanelViewModel(application: Application) : AndroidViewModel(applicat
     private val networkCallback = object : ConnectivityManager.NetworkCallback() {
         override fun onAvailable(network: Network) {
             if (_state.value.configured && !_state.value.loading) {
-                refreshAll()
-                startLogStream()
+                // An existing backoff must not delay a retry when Wi-Fi/mobile data returns.
+                reconnectJob?.cancel()
+                reconnectJob = null
+                scheduleReconnect(immediate = true)
             }
         }
 
         override fun onLost(network: Network) {
-            if (connectivityManager.activeNetwork == null) {
+            if (connectivityManager.activeNetwork == null && _state.value.configured) {
                 _state.value = _state.value.copy(agentReachable = false)
+                scheduleReconnect()
             }
         }
     }
@@ -64,6 +69,7 @@ class ServerPanelViewModel(application: Application) : AndroidViewModel(applicat
     init {
         viewModelScope.launch(Dispatchers.IO) { cleanupDownloadCache() }
         syncConfigured()
+        restoreCachedDashboard()
         runCatching { connectivityManager.registerDefaultNetworkCallback(networkCallback) }
         if (_state.value.configured) {
             refreshAll()
@@ -75,6 +81,7 @@ class ServerPanelViewModel(application: Application) : AndroidViewModel(applicat
         logStreamJob?.cancel()
         reconnectJob?.cancel()
         pairingMonitorJob?.cancel()
+        cacheJob?.cancel()
         runCatching { connectivityManager.unregisterNetworkCallback(networkCallback) }
         super.onCleared()
     }
@@ -93,7 +100,8 @@ class ServerPanelViewModel(application: Application) : AndroidViewModel(applicat
         }
 
         val savedUrl = serverUrl()
-        val savedTokenPresent = serverToken().isNotBlank()
+        val savedToken = serverToken()
+        val savedTokenPresent = savedToken.isNotBlank()
         if (!canSaveHttpsConnection(savedUrl, clean, savedTokenPresent, token)) {
             _state.value = _state.value.copy(
                 loading = false,
@@ -113,15 +121,26 @@ class ServerPanelViewModel(application: Application) : AndroidViewModel(applicat
         reconnectJob = null
         pairingMonitorJob?.cancel()
         pairingMonitorJob = null
+        cacheJob?.cancel()
         saveServerUrl(clean)
         if (token.isNotBlank()) saveServerToken(token.trim())
-        _state.value = _state.value.copy(
-            baseUrl = clean,
-            hasToken = serverToken().isNotBlank(),
-            error = null,
-            message = "Connection saved.",
-        )
+        val changedIdentity = clean != savedUrl || serverToken() != savedToken
+        _state.value = if (changedIdentity) {
+            ServerPanelState(
+                baseUrl = clean,
+                hasToken = serverToken().isNotBlank(),
+                message = "Connection saved.",
+            )
+        } else {
+            _state.value.copy(baseUrl = clean, hasToken = serverToken().isNotBlank(), error = null,
+                message = "Connection saved.")
+        }
         syncConfigured()
+        if (changedIdentity) {
+            // Old user/server metadata must not remain on disk after switching.
+            offlineCache.clear()
+            restoreCachedDashboard()
+        }
         if (_state.value.configured) {
             refreshAll()
             startLogStream()
@@ -135,6 +154,8 @@ class ServerPanelViewModel(application: Application) : AndroidViewModel(applicat
         reconnectJob = null
         pairingMonitorJob?.cancel()
         pairingMonitorJob = null
+        cacheJob?.cancel()
+        offlineCache.clear()
         saveServerUrl("")
         saveServerToken("")
         _state.value = ServerPanelState(
@@ -175,6 +196,31 @@ class ServerPanelViewModel(application: Application) : AndroidViewModel(applicat
         secretVault.put("hosting_AZURE", value)
     }
 
+    private fun restoreCachedDashboard() {
+        if (!_state.value.configured) return
+        val cached = offlineCache.load(serverUrl(), serverToken()) ?: return
+        _state.value = _state.value.copy(
+            snapshot = cached.snapshot,
+            pairing = cached.pairing,
+            startup = cached.startup,
+            commandSettings = cached.commandSettings,
+            runtimeRegistry = cached.registry,
+            lastSuccessfulSyncAt = cached.savedAt.takeIf { it > 0L },
+            agentReachable = false, // Cached status must never be mistaken for a live connection.
+        )
+    }
+
+    private fun cacheDashboard() {
+        cacheJob?.cancel()
+        cacheJob = viewModelScope.launch(Dispatchers.IO) {
+            delay(500L) // Collapse quick account/status updates into a single atomic write.
+            val current = _state.value
+            if (current.configured && current.agentReachable && current.snapshot != null) {
+                runCatching { offlineCache.save(serverUrl(), serverToken(), current) }
+            }
+        }
+    }
+
     fun refreshAll() {
         if (!_state.value.configured) return
         viewModelScope.launch {
@@ -184,12 +230,12 @@ class ServerPanelViewModel(application: Application) : AndroidViewModel(applicat
                     val api = api()
                     Bundle(
                         snapshot = api.snapshot(),
-                        logs = api.logs(),
-                        files = api.listFiles(path),
+                        logs = runCatching { api.logs() }.getOrDefault(_state.value.logs),
+                        files = runCatching { api.listFiles(path) }.getOrDefault(_state.value.files),
                         startup = runCatching { api.startup() }.getOrNull(),
-                        activity = runCatching { api.activity() }.getOrDefault(emptyList()),
-                        backups = runCatching { api.backups() }.getOrDefault(emptyList()),
-                        commandSettings = runCatching { api.commandSettings() }.getOrDefault(emptyList()),
+                        activity = runCatching { api.activity() }.getOrElse { _state.value.activity },
+                        backups = runCatching { api.backups() }.getOrElse { _state.value.backups },
+                        commandSettings = runCatching { api.commandSettings() }.getOrElse { _state.value.commandSettings },
                         runtimeRegistry = runCatching { api.runtimeRegistry() }.getOrNull(),
                         pairing = runCatching { api.pairingState() }.getOrNull(),
                     )
@@ -198,12 +244,12 @@ class ServerPanelViewModel(application: Application) : AndroidViewModel(applicat
                     snapshot = result.snapshot,
                     logs = result.logs,
                     files = result.files,
-                    startup = result.startup,
+                    startup = result.startup ?: _state.value.startup,
                     activity = result.activity,
                     backups = result.backups,
                     commandSettings = result.commandSettings,
                     runtimeRegistry = result.runtimeRegistry ?: _state.value.runtimeRegistry,
-                    pairing = result.pairing,
+                    pairing = result.pairing ?: _state.value.pairing,
                 )
                 result.pairing?.let(::resumePairingMonitorIfNeeded)
             }
@@ -950,6 +996,7 @@ class ServerPanelViewModel(application: Application) : AndroidViewModel(applicat
                     error = null,
                     message = _state.value.message ?: success,
                 )
+                cacheDashboard()
             }
             .onFailure { error ->
                 val transportFailure = error is CortexTransportException
@@ -1010,48 +1057,48 @@ class ServerPanelViewModel(application: Application) : AndroidViewModel(applicat
         }
     }
 
-    private fun scheduleReconnect() {
-        if (!_state.value.configured || reconnectJob?.isActive == true) return
+    private fun scheduleReconnect(immediate: Boolean = false) {
+        if (!_state.value.configured || _state.value.authFailed || reconnectJob?.isActive == true) return
         _state.value = _state.value.copy(reconnecting = true)
         reconnectJob = viewModelScope.launch {
-            var waitMs = 2_000L
-            repeat(6) {
-                delay(waitMs)
-                if (!_state.value.configured) return@launch
-                val result = withContext(Dispatchers.IO) { runCatching { api().snapshot() } }
-                val snapshot = result.getOrNull()
-                if (snapshot != null) {
-                    _state.value = _state.value.copy(
-                        snapshot = snapshot,
-                        agentReachable = true,
-                        reconnecting = false,
-                        lastSuccessfulSyncAt = System.currentTimeMillis(),
-                        error = null,
-                    )
-                    reconnectJob = null
-                    refreshAll()
-                    startLogStream()
-                    return@launch
+            var waitMs = if (immediate) 0L else 2_000L
+            try {
+                // Keep trying at a capped, battery-friendly interval rather than giving up
+                // after six attempts. NetworkCallback also forces an immediate new probe.
+                while (isActive && _state.value.configured && !_state.value.authFailed) {
+                    delay(waitMs)
+                    val result = withContext(Dispatchers.IO) { runCatching { api().snapshot() } }
+                    val snapshot = result.getOrNull()
+                    if (snapshot != null) {
+                        _state.value = _state.value.copy(
+                            snapshot = snapshot,
+                            agentReachable = true,
+                            reconnecting = false,
+                            authFailed = false,
+                            lastSuccessfulSyncAt = System.currentTimeMillis(),
+                            error = null,
+                        )
+                        cacheDashboard()
+                        refreshAll()
+                        startLogStream()
+                        return@launch
+                    }
+                    val failure = result.exceptionOrNull()
+                    if (failure is CortexHttpException && failure.statusCode in setOf(401, 403)) {
+                        _state.value = _state.value.copy(
+                            agentReachable = true, reconnecting = false,
+                            authFailed = true, error = failure.message,
+                        )
+                        return@launch
+                    }
+                    _state.value = _state.value.copy(agentReachable = false, reconnecting = true)
+                    waitMs = if (waitMs == 0L) 2_000L else (waitMs * 2).coerceAtMost(60_000L)
                 }
-                if (result.exceptionOrNull() is CortexHttpException) {
-                    val http = result.exceptionOrNull() as CortexHttpException
-                    _state.value = _state.value.copy(
-                        agentReachable = true,
-                        reconnecting = false,
-                        authFailed = http.statusCode in setOf(401, 403),
-                        error = http.message,
-                    )
-                    reconnectJob = null
-                    return@launch
+            } finally {
+                if (!_state.value.agentReachable) {
+                    _state.value = _state.value.copy(reconnecting = false)
                 }
-                waitMs = (waitMs * 2).coerceAtMost(30_000L)
             }
-            _state.value = _state.value.copy(
-                reconnecting = false,
-                error = _state.value.error
-                    ?: "Server is still unreachable. Check the network or server, then refresh.",
-            )
-            reconnectJob = null
         }
     }
 

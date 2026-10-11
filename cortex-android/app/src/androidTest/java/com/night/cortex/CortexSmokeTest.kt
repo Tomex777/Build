@@ -57,7 +57,9 @@ class CortexSmokeTest {
         // every screen tab. A software-rendered API 36 emulator may defer a
         // sheet transition after many navigation/recomposition operations.
         composeRule.onNodeWithText("Connect server").assertIsDisplayed()
-        composeRule.waitForIdle()
+        // A separate explicit waitForIdle here can exhaust Espresso's idle
+        // timeout on the slow API 36 software renderer before the sheet opens.
+        // The following Compose node operation already synchronizes as needed.
         composeRule.onNodeWithText("Connect").performClick()
         composeRule.waitUntil(timeoutMillis = 40_000L) {
             composeRule.onAllNodesWithTag("connection-sheet-root")

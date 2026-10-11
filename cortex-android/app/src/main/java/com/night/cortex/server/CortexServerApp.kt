@@ -61,7 +61,7 @@ import androidx.compose.material.icons.rounded.Warning
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.HorizontalDivider
@@ -128,6 +128,7 @@ import java.util.Date
 import java.util.Locale
 import org.json.JSONObject
 import kotlin.math.roundToInt
+import kotlinx.coroutines.delay
 
 private enum class ServerTab(val label: String) {
     CONSOLE("Console"),
@@ -159,6 +160,14 @@ fun CortexServerApp(vm: ServerPanelViewModel = viewModel()) {
     var sheet by remember { mutableStateOf<SheetMode?>(null) }
     var selectedEntry by remember { mutableStateOf<HostingFileEntry?>(null) }
     var deleteCandidate by remember { mutableStateOf<HostingFileEntry?>(null) }
+    var showSyncBar by remember { mutableStateOf(false) }
+    LaunchedEffect(state.loading) {
+        if (!state.loading) showSyncBar = false
+        else {
+            delay(500L)
+            showSyncBar = true
+        }
+    }
 
     val uploadLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
         ActivityResultContracts.OpenDocument()
@@ -216,17 +225,59 @@ fun CortexServerApp(vm: ServerPanelViewModel = viewModel()) {
             )
             ServerTabs(tab = tab, busy = state.loading, onTab = {
                 tab = it
-                when (it) {
-                    ServerTab.CONSOLE -> vm.refreshConsole()
-                    ServerTab.PAIRING -> vm.refreshPairing()
-                    ServerTab.FILES -> vm.refreshFiles()
-                    ServerTab.BACKUPS -> vm.refreshBackups()
-                    ServerTab.ACTIVITY -> vm.refreshActivity()
-                    ServerTab.SETTINGS -> vm.refreshSettings()
-                    ServerTab.STARTUP -> vm.refreshStartup()
+                // Browsing cached information stays available while offline.
+                if (state.agentReachable) {
+                    when (it) {
+                        ServerTab.CONSOLE -> vm.refreshConsole()
+                        ServerTab.PAIRING -> vm.refreshPairing()
+                        ServerTab.FILES -> vm.refreshFiles()
+                        ServerTab.BACKUPS -> vm.refreshBackups()
+                        ServerTab.ACTIVITY -> vm.refreshActivity()
+                        ServerTab.SETTINGS -> vm.refreshSettings()
+                        ServerTab.STARTUP -> vm.refreshStartup()
+                    }
                 }
             })
-            HorizontalDivider(color = CortexLine)
+            Box(Modifier.fillMaxWidth().height(2.dp)) {
+                if (showSyncBar) {
+                    LinearProgressIndicator(
+                        modifier = Modifier.fillMaxSize(),
+                        color = CortexAccent,
+                        trackColor = CortexLine,
+                    )
+                } else {
+                    HorizontalDivider(color = CortexLine)
+                }
+            }
+            if (state.configured && !state.agentReachable) {
+                Surface(color = Color(0xFF111E30), modifier = Modifier.fillMaxWidth()) {
+                    Row(
+                        Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 9.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Icon(Icons.Rounded.Warning, null, tint = Color(0xFFF6C978), modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(10.dp))
+                        Column(Modifier.weight(1f)) {
+                            Text(
+                                if (state.authFailed) "Sign-in required" else "Offline mode · saved data",
+                                fontWeight = FontWeight.SemiBold, fontSize = 12.sp,
+                            )
+                            Text(
+                                if (state.authFailed) "Update your access token to reconnect."
+                                else state.lastSuccessfulSyncAt?.let {
+                                    "Last sync: " + DateFormat.getTimeInstance(DateFormat.SHORT).format(Date(it)) +
+                                        " · remote controls unavailable"
+                                } ?: "No saved data yet · remote controls unavailable",
+                                color = CortexMuted, fontSize = 10.sp,
+                            )
+                        }
+                        TextButton(
+                            onClick = { if (state.authFailed) sheet = SheetMode.CONNECTION else vm.refreshAll() },
+                            enabled = !state.loading,
+                        ) { Text(if (state.authFailed) "Sign in" else "Retry", fontSize = 12.sp) }
+                    }
+                }
+            }
 
             if (!state.configured) {
                 NotConnected(onConnect = { sheet = SheetMode.CONNECTION })
@@ -236,7 +287,8 @@ fun CortexServerApp(vm: ServerPanelViewModel = viewModel()) {
                         ServerTab.CONSOLE -> ConsolePage(state, vm::power, vm::refreshConsole, vm::clearConsole)
                         ServerTab.PAIRING -> CortexPairingScreen(
                             state = state.pairing,
-                            busy = state.loading,
+                            busy = state.loading || !state.agentReachable,
+                            offline = !state.agentReachable,
                             onRefresh = vm::refreshPairing,
                             onAddAccount = vm::addAccount,
                             onRename = vm::renameAccount,
@@ -296,17 +348,7 @@ fun CortexServerApp(vm: ServerPanelViewModel = viewModel()) {
                         )
                         ServerTab.ACTIVITY -> ActivityPage(state, vm::refreshActivity)
                     }
-                    if (state.loading) {
-                        Box(
-                            Modifier
-                                .align(Alignment.TopEnd)
-                                .padding(14.dp)
-                                .size(22.dp),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            CircularProgressIndicator(strokeWidth = 2.dp, color = CortexAccent)
-                        }
-                    }
+                    // Delayed fixed-height progress line above replaces the floating spinner.
                 }
             }
         }
@@ -499,9 +541,9 @@ private fun Header(
             Surface(
                 shape = RoundedCornerShape(3.dp),
                 color = when {
-                    authFailed -> Color(0xFF7F1D1D)
-                    !reachable -> Color(0xFF7F1D1D)
-                    state.equals("active", true) || state.equals("running", true) -> Color(0xFF166534)
+                    authFailed -> Color(0xFF4D1F2B)
+                    !reachable -> Color(0xFF4D1F2B)
+                    state.equals("active", true) || state.equals("running", true) -> Color(0xFF134633)
                     else -> CortexSurface2
                 },
             ) {
@@ -540,7 +582,7 @@ private fun ServerTabs(tab: ServerTab, busy: Boolean, onTab: (ServerTab) -> Unit
                 Modifier
                     .selectable(
                         selected = selected,
-                        enabled = !busy,
+                        enabled = true,
                         onClick = { onTab(item) },
                         role = Role.Tab,
                     )
@@ -620,7 +662,7 @@ internal fun ConsolePage(
     ) {
         item {
             CortexPowerControls(
-                busy = state.loading,
+                busy = state.loading || !state.agentReachable,
                 onPower = power,
             )
         }
@@ -654,7 +696,7 @@ internal fun ConsolePage(
                         TextButton(onClick = clear, enabled = state.logs.isNotEmpty()) {
                             Text("CLEAR", fontSize = 8.sp)
                         }
-                        IconButton(onClick = refresh, modifier = Modifier.size(28.dp)) {
+                        IconButton(onClick = refresh, enabled = state.agentReachable && !state.loading, modifier = Modifier.size(28.dp)) {
                             Icon(Icons.Rounded.Refresh, "Refresh logs", Modifier.size(16.dp))
                         }
                     }
@@ -681,7 +723,7 @@ internal fun ConsolePage(
                         ) {
                             if (visibleLogs.isEmpty()) {
                                 Text(
-                                    if (state.logs.isEmpty()) "No console output returned." else "No console lines match this filter.",
+                                    if (state.logs.isEmpty() && !state.agentReachable) "Console logs require a connection. Saved status is available below." else if (state.logs.isEmpty()) "No console output returned." else "No console lines match this filter.",
                                     color = CortexMuted,
                                     fontSize = 10.sp,
                                     fontFamily = FontFamily.Monospace,
@@ -761,8 +803,8 @@ fun CortexPowerControls(
             onClick = { onPower(HostingPowerAction.START) },
             enabled = !busy,
             modifier = Modifier.weight(1f).testTag("power-start"),
-            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF16A34A)),
-            shape = RoundedCornerShape(4.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF133428), contentColor = Color(0xFF7DF1BB)),
+            shape = RoundedCornerShape(10.dp),
         ) {
             Icon(Icons.Rounded.PlayArrow, null, Modifier.size(15.dp))
             Spacer(Modifier.width(4.dp))
@@ -772,8 +814,8 @@ fun CortexPowerControls(
             onClick = { pending = HostingPowerAction.RESTART },
             enabled = !busy,
             modifier = Modifier.weight(1f).testTag("power-restart"),
-            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFEAB308)),
-            shape = RoundedCornerShape(4.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF342914), contentColor = Color(0xFFFFD37A)),
+            shape = RoundedCornerShape(10.dp),
         ) {
             Icon(Icons.Rounded.RestartAlt, null, Modifier.size(15.dp))
             Spacer(Modifier.width(4.dp))
@@ -783,8 +825,8 @@ fun CortexPowerControls(
             onClick = { pending = HostingPowerAction.STOP },
             enabled = !busy,
             modifier = Modifier.weight(1f).testTag("power-stop"),
-            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFDC2626)),
-            shape = RoundedCornerShape(4.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF351B25), contentColor = Color(0xFFFFA0AD)),
+            shape = RoundedCornerShape(10.dp),
         ) {
             Icon(Icons.Rounded.Stop, null, Modifier.size(15.dp))
             Spacer(Modifier.width(4.dp))
@@ -849,7 +891,7 @@ internal fun FilesPage(
     onUpload: () -> Unit,
 ) {
     Column(Modifier.fillMaxSize()) {
-        Breadcrumbs(state.currentPath, onPath)
+        Breadcrumbs(state.currentPath, onPath, enabled = state.agentReachable && !state.loading)
         HorizontalDivider(color = CortexLine)
         Row(
             Modifier
@@ -858,17 +900,17 @@ internal fun FilesPage(
                 .padding(10.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            SmallAction("Create Directory", Icons.Rounded.CreateNewFolder, onNewDirectory)
-            SmallAction("Upload", Icons.Rounded.Upload, onUpload)
-            SmallAction("New File", Icons.Rounded.NoteAdd, onNewFile)
-            SmallAction("Refresh", Icons.Rounded.Refresh, onRefresh)
+            SmallAction("Create Directory", Icons.Rounded.CreateNewFolder, onNewDirectory, enabled = state.agentReachable && !state.loading)
+            SmallAction("Upload", Icons.Rounded.Upload, onUpload, enabled = state.agentReachable && !state.loading)
+            SmallAction("New File", Icons.Rounded.NoteAdd, onNewFile, enabled = state.agentReachable && !state.loading)
+            SmallAction("Refresh", Icons.Rounded.Refresh, onRefresh, enabled = state.agentReachable && !state.loading)
         }
         HorizontalDivider(color = CortexLine)
         if (state.currentPath != "/") {
             Row(
                 Modifier
                     .fillMaxWidth()
-                    .clickable(onClick = onUp)
+                    .clickable(enabled = state.agentReachable && !state.loading, onClick = onUp)
                     .padding(horizontal = 13.dp, vertical = 12.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
@@ -880,12 +922,12 @@ internal fun FilesPage(
         }
         if (state.files.isEmpty()) {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text("This directory is empty.", color = CortexMuted)
+                Text(if (!state.agentReachable) "File browsing requires a connection." else "This directory is empty.", color = CortexMuted)
             }
         } else {
             LazyColumn(Modifier.fillMaxSize()) {
                 items(state.files, key = { it.name }) { entry ->
-                    FileRow(entry, onOpen = { onOpen(entry) }, onMore = { onMore(entry) })
+                    FileRow(entry, onOpen = { onOpen(entry) }, onMore = { onMore(entry) }, enabled = state.agentReachable && !state.loading)
                 }
             }
         }
@@ -893,7 +935,7 @@ internal fun FilesPage(
 }
 
 @Composable
-private fun Breadcrumbs(path: String, onPath: (String) -> Unit) {
+private fun Breadcrumbs(path: String, onPath: (String) -> Unit, enabled: Boolean = true) {
     val parts = path.trim('/').split('/').filter(String::isNotBlank)
     Row(
         Modifier
@@ -902,21 +944,22 @@ private fun Breadcrumbs(path: String, onPath: (String) -> Unit) {
             .padding(horizontal = 12.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text("/", color = CortexAccent, modifier = Modifier.clickable { onPath("/") })
+        Text("/", color = CortexAccent, modifier = Modifier.clickable(enabled = enabled) { onPath("/") })
         var current = ""
         parts.forEach { part ->
             current += "/$part"
             val target = current
             Text("  /  ", color = CortexMuted)
-            Text(part, color = CortexAccent, modifier = Modifier.clickable { onPath(target) })
+            Text(part, color = CortexAccent, modifier = Modifier.clickable(enabled = enabled) { onPath(target) })
         }
     }
 }
 
 @Composable
-private fun SmallAction(text: String, icon: androidx.compose.ui.graphics.vector.ImageVector, click: () -> Unit) {
+private fun SmallAction(text: String, icon: androidx.compose.ui.graphics.vector.ImageVector, click: () -> Unit, enabled: Boolean = true) {
     OutlinedButton(
         onClick = click,
+        enabled = enabled,
         shape = RoundedCornerShape(4.dp),
         contentPadding = PaddingValues(horizontal = 10.dp, vertical = 7.dp),
     ) {
@@ -927,11 +970,11 @@ private fun SmallAction(text: String, icon: androidx.compose.ui.graphics.vector.
 }
 
 @Composable
-private fun FileRow(entry: HostingFileEntry, onOpen: () -> Unit, onMore: () -> Unit) {
+private fun FileRow(entry: HostingFileEntry, onOpen: () -> Unit, onMore: () -> Unit, enabled: Boolean = true) {
     Row(
         Modifier
             .fillMaxWidth()
-            .clickable(onClick = onOpen)
+            .clickable(enabled = enabled, onClick = onOpen)
             .padding(start = 13.dp, end = 5.dp, top = 11.dp, bottom = 11.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -951,7 +994,7 @@ private fun FileRow(entry: HostingFileEntry, onOpen: () -> Unit, onMore: () -> U
                 overflow = TextOverflow.Ellipsis,
             )
         }
-        IconButton(onClick = onMore) { Icon(Icons.Rounded.MoreVert, "File actions") }
+        IconButton(onClick = onMore, enabled = enabled) { Icon(Icons.Rounded.MoreVert, "File actions") }
     }
     HorizontalDivider(color = CortexLine)
 }
@@ -975,7 +1018,7 @@ internal fun BackupsPage(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text("Backups", fontSize = 18.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
-            IconButton(onClick = onRefresh) { Icon(Icons.Rounded.Refresh, "Refresh backups") }
+            IconButton(onClick = onRefresh, enabled = state.agentReachable && !state.loading) { Icon(Icons.Rounded.Refresh, "Refresh backups") }
         }
         Row(
             Modifier.fillMaxWidth().padding(start = 12.dp, end = 12.dp, bottom = 12.dp),
@@ -983,6 +1026,7 @@ internal fun BackupsPage(
         ) {
             Button(
                 onClick = onDownloadProject,
+                enabled = state.agentReachable && !state.loading,
                 modifier = Modifier.weight(1f),
                 shape = RoundedCornerShape(4.dp),
             ) {
@@ -990,7 +1034,7 @@ internal fun BackupsPage(
                 Spacer(Modifier.width(5.dp))
                 Text("Download Project ZIP", fontSize = 10.sp)
             }
-            OutlinedButton(onClick = onCreate, shape = RoundedCornerShape(4.dp)) {
+            OutlinedButton(onClick = onCreate, enabled = state.agentReachable && !state.loading, shape = RoundedCornerShape(4.dp)) {
                 Text("More", fontSize = 10.sp)
             }
         }
@@ -998,7 +1042,7 @@ internal fun BackupsPage(
         if (state.backups.isEmpty()) {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("No Cortex backups yet.", color = CortexMuted)
+                    Text(if (!state.agentReachable) "Backups are unavailable offline." else "No Cortex backups yet.", color = CortexMuted)
                 }
             }
         } else {
@@ -1021,14 +1065,14 @@ internal fun BackupsPage(
                             )
                         }
                         if (!backup.privateBackup) {
-                            IconButton(onClick = { restoring = backup }) {
+                            IconButton(onClick = { restoring = backup }, enabled = state.agentReachable && !state.loading) {
                                 Icon(Icons.Rounded.Unarchive, "Restore project backup")
                             }
                         }
-                        IconButton(onClick = { onDownload(backup) }) {
+                        IconButton(onClick = { onDownload(backup) }, enabled = state.agentReachable && !state.loading) {
                             Icon(Icons.Rounded.Download, "Download backup")
                         }
-                        IconButton(onClick = { deleting = backup }) {
+                        IconButton(onClick = { deleting = backup }, enabled = state.agentReachable && !state.loading) {
                             Icon(Icons.Rounded.Delete, "Delete backup", tint = CortexDanger)
                         }
                     }
@@ -1113,11 +1157,11 @@ internal fun StartupPage(
                             )
                         }
                         Surface(
-                            color = if (snapshot?.state.equals("active", true) || snapshot?.state.equals("running", true)) Color(0xFF166534) else CortexSurface2,
+                            color = if (!state.agentReachable) CortexSurface2 else if (snapshot?.state.equals("active", true) || snapshot?.state.equals("running", true)) Color(0xFF166534) else CortexSurface2,
                             shape = RoundedCornerShape(3.dp),
                         ) {
                             Text(
-                                (snapshot?.state ?: "unknown").uppercase(),
+                                (if (!state.agentReachable) "LAST SEEN: " else "") + (snapshot?.state ?: "unknown").uppercase(),
                                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp),
                                 fontSize = 8.sp,
                                 fontWeight = FontWeight.Bold,
@@ -1126,7 +1170,7 @@ internal fun StartupPage(
                     }
                     Spacer(Modifier.height(12.dp))
                     CortexPowerControls(
-                        busy = state.loading,
+                        busy = state.loading || !state.agentReachable,
                         onPower = power,
                     )
                 }
@@ -1153,7 +1197,7 @@ internal fun StartupPage(
                     Switch(
                         checked = startup?.startupMode == "enabled",
                         onCheckedChange = setStartupEnabled,
-                        enabled = startup != null && startup.startupMode != "unknown" && !state.loading,
+                        enabled = state.agentReachable && startup != null && startup.startupMode != "unknown" && !state.loading,
                     )
                 }
             }
@@ -1175,7 +1219,7 @@ internal fun StartupPage(
                         )
                     }
                     Spacer(Modifier.height(10.dp))
-                    Button(onClick = installDependencies, shape = RoundedCornerShape(4.dp)) {
+                    Button(onClick = installDependencies, enabled = state.agentReachable && !state.loading, shape = RoundedCornerShape(4.dp)) {
                         Text("Install dependencies")
                     }
                 }
@@ -1221,7 +1265,7 @@ internal fun SettingsPage(
                         fontSize = 10.sp,
                     )
                 }
-                IconButton(onClick = onRefresh) { Icon(Icons.Rounded.Refresh, "Refresh settings") }
+                IconButton(onClick = onRefresh, enabled = state.agentReachable && !state.loading) { Icon(Icons.Rounded.Refresh, "Refresh settings") }
             }
         }
 
@@ -1328,7 +1372,7 @@ internal fun SettingsPage(
                             )
                             TextButton(
                                 onClick = { onReloadModule(module.id) },
-                                enabled = !state.loading,
+                                enabled = state.agentReachable && !state.loading,
                             ) {
                                 Text("RELOAD", fontSize = 9.sp)
                             }
@@ -1403,6 +1447,7 @@ internal fun SettingsPage(
             ) {
                 OutlinedButton(
                     onClick = onNewCommand,
+                    enabled = state.agentReachable && !state.loading,
                     modifier = Modifier.weight(1f),
                     shape = RoundedCornerShape(4.dp),
                 ) {
@@ -1412,6 +1457,7 @@ internal fun SettingsPage(
                 }
                 OutlinedButton(
                     onClick = onReloadCommands,
+                    enabled = state.agentReachable && !state.loading,
                     modifier = Modifier.weight(1f),
                     shape = RoundedCornerShape(4.dp),
                 ) {
@@ -1449,7 +1495,7 @@ internal fun SettingsPage(
                     Row(
                         Modifier
                             .fillMaxWidth()
-                            .clickable { onToggle(setting.key, !setting.enabled) }
+                            .clickable(enabled = state.agentReachable && !state.loading) { onToggle(setting.key, !setting.enabled) }
                             .padding(14.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
@@ -1465,7 +1511,7 @@ internal fun SettingsPage(
                         Switch(
                             checked = setting.enabled,
                             onCheckedChange = { onToggle(setting.key, it) },
-                            enabled = !state.loading,
+                            enabled = state.agentReachable && !state.loading,
                         )
                     }
                 }
@@ -1505,7 +1551,7 @@ internal fun ActivityPage(state: ServerPanelState, refresh: () -> Unit) {
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text("Activity", fontSize = 18.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
-            TextButton(onClick = refresh) { Text("Refresh") }
+            TextButton(onClick = refresh, enabled = state.agentReachable && !state.loading) { Text("Refresh") }
         }
         HorizontalDivider(color = CortexLine)
         if (state.activity.isEmpty()) {

@@ -99,6 +99,7 @@ private enum class PairAction { PAIR, REPAIR }
 fun CortexPairingScreen(
     state: PairingState?,
     busy: Boolean,
+    offline: Boolean = false,
     onRefresh: () -> Unit,
     onAddAccount: (String, String) -> Unit,
     onDestination: (String) -> Unit,
@@ -153,7 +154,7 @@ fun CortexPairingScreen(
                             } else {
                                 val destinationName = it.accounts.firstOrNull { account -> account.id == it.destination }?.title
                                     ?: "Account ${it.destination}"
-                                "${it.accounts.count { account -> account.connected }} connected · ${it.accounts.size} total · CC: $destinationName [${it.destination}]"
+                                "${it.accounts.count { account -> account.connected }} ${if (offline) "last known connected" else "connected"} · ${it.accounts.size} total · CC: $destinationName [${it.destination}]"
                             }
                         } ?: "Connect to your server to manage linked accounts",
                         color = CortexMuted,
@@ -194,7 +195,7 @@ fun CortexPairingScreen(
                         Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
-                        AccountMetric("ONLINE", overview.online.toString(), CortexGood, Modifier.weight(1f))
+                        AccountMetric(if (offline) "LAST ONLINE" else "ONLINE", overview.online.toString(), CortexGood, Modifier.weight(1f))
                         AccountMetric(
                             "ATTENTION", overview.attention.toString(),
                             if (overview.attention > 0) CortexDanger else CortexMuted,

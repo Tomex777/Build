@@ -206,6 +206,7 @@ run_test_class() {
 # Run the UI smoke first, before the heavier pairing suite can stress the old
 # software-emulated API 26 framework.
 run_test_class "com.night.cortex.CortexSmokeTest" "CortexSmokeTest"
+run_test_class "com.night.cortex.server.OfflineDashboardCacheTest" "OfflineDashboardCacheTest"
 run_test_class "com.night.cortex.CortexPairingScreenTest" "CortexPairingScreenTest"
 run_test_class "com.night.cortex.CortexPowerControlsTest" "CortexPowerControlsTest"
 run_test_class "com.night.cortex.CortexReleaseVisualTest" "CortexReleaseVisualTest"
