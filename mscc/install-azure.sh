@@ -5,7 +5,7 @@ export DEBIAN_FRONTEND=noninteractive
 VERSION="2.3.1"
 SOURCE_REF="${MSCC_SOURCE_REF:-mscc-azure}"
 BASE="/opt/mscc"
-RELEASE="$BASE/releases/$VERSION"
+RELEASE="$BASE/releases/$VERSION-$(date -u +%Y%m%dT%H%M%SZ)-$$"
 STATE="/var/lib/mscc"
 BACKUPS="/var/backups/mscc"
 ENV_FILE="/etc/mscc.env"
@@ -13,6 +13,32 @@ ENV_EXAMPLE="/etc/mscc.env.example"
 SERVICE="/etc/systemd/system/mscc.service"
 ARCHIVE="/tmp/mscc-azure.tar.gz"
 UNPACK="/tmp/mscc-azure-src"
+
+PREVIOUS_RELEASE="$(readlink -f "$BASE/current" 2>/dev/null || true)"
+ACTIVATED=0
+
+switch_release() {
+  local target="$1"
+  local candidate="$BASE/.current-next-$$"
+  ln -s "$target" "$candidate"
+  mv -Tf "$candidate" "$BASE/current"
+}
+
+rollback_on_error() {
+  local status=$?
+  if [ "$status" -ne 0 ] && [ "$ACTIVATED" -eq 1 ]; then
+    echo "Deployment failed after activation; attempting MSCC rollback." >&2
+    if [ -n "$PREVIOUS_RELEASE" ] && [ -d "$PREVIOUS_RELEASE" ]; then
+      switch_release "$PREVIOUS_RELEASE" || true
+      sudo systemctl restart mscc.service || true
+      echo "Restored previous release: $PREVIOUS_RELEASE" >&2
+    else
+      sudo systemctl stop mscc.service || true
+      echo "No previous release available; stopped the failed first deployment." >&2
+    fi
+  fi
+}
+trap rollback_on_error EXIT
 
 echo "=== MSCC Azure install v$VERSION ==="
 echo "Source ref: $SOURCE_REF"
@@ -26,7 +52,8 @@ rm -rf "$UNPACK" "$ARCHIVE"
 curl -fsSL "https://github.com/Tomex777/Build/archive/$SOURCE_REF.tar.gz" -o "$ARCHIVE"
 mkdir -p "$UNPACK"
 tar -xzf "$ARCHIVE" -C "$UNPACK" --strip-components=1
-rm -rf "$RELEASE"
+# Never remove the currently running release; each deployment gets a new directory.
+test ! -e "$RELEASE"
 mkdir -p "$RELEASE"
 cp -a "$UNPACK/mscc/." "$RELEASE/"
 rm -rf "$UNPACK" "$ARCHIVE" "$RELEASE/dist"
@@ -58,7 +85,8 @@ else
 fi
 
 echo ">>> Activating release..."
-ln -sfn "$RELEASE" "$BASE/current"
+switch_release "$RELEASE"
+ACTIVATED=1
 
 echo ">>> Installing environment template..."
 sudo cp "$RELEASE/.env.example" "$ENV_EXAMPLE"
@@ -149,6 +177,7 @@ curl -fsS http://127.0.0.1:8788/state
 echo
 
 echo
+ACTIVATED=0
 echo "=== MSCC INSTALL COMPLETE ==="
 echo "Release: $RELEASE"
 echo "Current: $BASE/current"
