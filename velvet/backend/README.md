@@ -72,3 +72,20 @@ Only salted? **No:** only a SHA-256 digest of the high-entropy token is stored. 
 4. Confirm both accounts see two members before building messaging. Rate-limit invites at the perimeter as a second layer; obtain a professional security audit before a production launch.
 
 On sign-out, Android deletes the locally encrypted refresh token. The token was stored using the non-exportable Android Keystore AES-GCM key. Device-only local preview messages remain separate; they are NOT imported into a shared conversation.
+
+## v0.8.0 — Connected text chat contract (not deployed)
+
+Migration `20261011_000004_velvet_text_chat.sql` revokes client-side table writes and exposes two intentionally scoped SQL RPC endpoints:
+
+- `velvet_send_text(p_id, p_body, p_reply_to)` validates authentication, the caller's authenticated membership, exactly two members in the couple, 1–4000 characters, and reply ownership. Messages receive a client-generated UUID for **idempotent retry**; a retry with altered content is rejected. 40 sends per user per minute is the database-side safety ceiling.
+- `velvet_list_text(p_after_at, p_after_id, p_limit)` returns at most 100 text messages in chronological order, initially taking the newest 80. Later requests use a stable (server timestamp, UUID) cursor. It returns nothing for users without a completed two-person pairing.
+
+The previously broad direct `velvet_messages` client INSERT/UPDATE/DELETE permissions are explicitly revoked, closing an existing mass-assignment risk; updates, reactions, pins, media, and deletes await separately audited endpoints. Neither the mobile client nor its SQL calls select a couple ID directly.
+
+**Android:** Home → **Connect our phones** → sign in/pair → **Open connected chat**. The text-only screen refreshes the server every ~3 seconds **while open** (foreground polling, not Realtime WebSockets or background delivery). It queues unacknowledged text locally under the *specific user + couple IDs*, preserving the same UUID on every retry. This is not end-to-end encryption. The user has no indication that a partner read a message yet.
+
+**Not included:** encrypted end-to-end messaging, push notifications, presence/typing, synchronized preview Chat history, media uploads, game state synchronization, offline history pagination, background delivery, websocket subscriptions. Do not market this as full realtime/push messaging until those milestones are actually delivered.
+
+**CI:** `velvet/backend/tests/messages.sql` runs with a disposable PostgreSQL Auth fixture, after the pairing tests, and proves cross-account exchange, cursor fetching, idempotent retry, outsider isolation, direct-write denial and 40/min rate limiting.
+
+**Activation:** Apply *all* four migrations in filename order to a dedicated Supabase project, enable verified email/password auth, and set both public Android build variables described above. The current connected Supabase account has no project configured; the live feature cannot be exercised yet. Validate two physical phones before relying on this implementation.
