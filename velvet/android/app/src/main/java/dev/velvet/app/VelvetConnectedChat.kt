@@ -59,7 +59,9 @@ private data class ConnectedText(
     val edited:Boolean=false,
     val deleted:Boolean=false,
     val kind:String="text",
-    val storagePath:String?=null
+    val storagePath:String?=null,
+    val voiceDurationMs:Int=0,
+    val waveform:List<Int> = emptyList()
 )
 
 /**
@@ -238,7 +240,13 @@ internal fun VelvetConnectedChat(
                             edited=!item.isNull("edited_at"),deleted=item.optBoolean("deleted"),
                             kind=item.optString("kind","text"),
                             storagePath=item.optJSONObject("payload")
-                                ?.optString("storage_path")?.takeIf{it.isNotBlank()}))
+                                ?.optString("storage_path")?.takeIf{it.isNotBlank()},
+                            voiceDurationMs=item.optJSONObject("payload")
+                                ?.optInt("duration_ms") ?: 0,
+                            waveform=item.optJSONObject("payload")
+                                ?.optJSONArray("waveform")?.let {arr->
+                                    (0 until arr.length()).map{arr.optInt(it).coerceIn(0,100)}
+                                } ?: emptyList()))
 
                     }
                     lastAt=item.getString("created_at")
@@ -383,7 +391,15 @@ internal fun VelvetConnectedChat(
                                             deleted=row.optBoolean("deleted"),
                                             kind=row.optString("kind","text"),
                                             storagePath=row.optJSONObject("payload")
-                                                ?.optString("storage_path")?.takeIf{it.isNotBlank()}
+                                                ?.optString("storage_path")?.takeIf{it.isNotBlank()},
+                                            voiceDurationMs=row.optJSONObject("payload")
+                                                ?.optInt("duration_ms") ?: 0,
+                                            waveform=row.optJSONObject("payload")
+                                                ?.optJSONArray("waveform")?.let {arr->
+                                                    (0 until arr.length()).map{
+                                                        arr.optInt(it).coerceIn(0,100)
+                                                    }
+                                                } ?: emptyList()
                                         )
                                     }
                                     val before=messages.map {it.id}.toSet()
@@ -434,6 +450,7 @@ internal fun VelvetConnectedChat(
                                     source==null -> "Earlier message"
                                     source.deleted -> "This message was deleted"
                                     source.kind=="image" -> "Photo · ${source.body}"
+                                    source.kind=="voice" -> "🎙 Voice note"
                                     else -> source.body
                                 }),
                                     color=rose,fontSize=12.sp,maxLines=2,
@@ -449,6 +466,12 @@ internal fun VelvetConnectedChat(
                                     Text("Photo unavailable",color=muted,fontSize=13.sp)
                                 }
                                 if(msg.body.isNotBlank()) Spacer(Modifier.height(7.dp))
+                            }
+                            if(msg.kind=="voice" && !msg.deleted) {
+                                if(msg.storagePath!=null) {
+                                    VelvetVoicePlayer(client,msg.storagePath,
+                                        msg.voiceDurationMs,msg.waveform)
+                                } else Text("Voice note unavailable",color=muted)
                             }
                             if(msg.deleted || msg.body.isNotBlank() || msg.kind=="text") {
                                 Text(
@@ -499,13 +522,33 @@ internal fun VelvetConnectedChat(
                     verticalAlignment=Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
                         Text("Replying to",color=rose,fontSize=11.sp,fontWeight=FontWeight.SemiBold)
-                        Text(if(target.kind=="image") "Photo · ${target.body}" else target.body,
-                            color=cream,fontSize=12.sp,maxLines=2)
+                        Text(when(target.kind) {
+                            "image" -> "Photo · ${target.body}"
+                            "voice" -> "🎙 Voice note"
+                            else -> target.body
+                        },color=cream,fontSize=12.sp,maxLines=2)
                     }
                     IconButton(onClick={replyingTo=null}) {
                         Icon(Icons.Outlined.Close,"Cancel reply",tint=cream)
                     }
                 }
+            }
+            Row(Modifier.fillMaxWidth().background(card).padding(end=12.dp),
+                horizontalArrangement=Arrangement.End) {
+                VelvetVoiceCapture(enabled=ready && !uploading,onSend={draft->
+                    val result=client.sendVoice(
+                        coupleId,ownId,draft.file,draft.durationMs,
+                        draft.waveform,replyingTo?.id
+                    )
+                    if(result.optBoolean("ok")) {
+                        replyingTo=null
+                        status="Your voice note was shared privately ♡"
+                        true
+                    } else {
+                        status="Voice wasn't sent: "+result.optString("error","Retry.")
+                        false
+                    }
+                })
             }
             Row(Modifier.fillMaxWidth().background(card)
                     .padding(horizontal=12.dp,vertical=10.dp),
@@ -548,7 +591,7 @@ internal fun VelvetConnectedChat(
         }
         Text(
             if(uploading) "Uploading encrypted-transport photo…"
-            else "Tap to reply · Hold for actions · Photos in private Storage · Not end-to-end encrypted",
+            else "Hold for actions · Photos & voice in private Storage · Not end-to-end encrypted",
             color=muted,fontSize=10.sp,modifier=Modifier.fillMaxWidth()
                 .background(card).padding(start=16.dp,end=16.dp,bottom=8.dp))
     }
