@@ -105,7 +105,7 @@ insert into public.velvet_messages(id,couple_id,sender_id,kind,body,created_at)
   where m.user_id='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 set role authenticated;
 set request.jwt.claims='{"is_anonymous":false}';
-do $
+do $$
 declare v jsonb;
 begin
   perform set_config('request.jwt.claim.sub','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',false);
@@ -119,7 +119,7 @@ begin
   end if;
   v:=public.velvet_delete_text('66666666-6666-4666-8666-666666666666',false);
   if v->>'ok'<>'true' then raise exception 'User cannot hide old message locally: %',v; end if;
-end $;
+end $$;
 reset role;
 
 set role anon;
