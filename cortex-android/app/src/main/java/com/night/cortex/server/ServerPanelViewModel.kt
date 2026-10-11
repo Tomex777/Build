@@ -136,7 +136,11 @@ class ServerPanelViewModel(application: Application) : AndroidViewModel(applicat
                 message = "Connection saved.")
         }
         syncConfigured()
-        if (changedIdentity) restoreCachedDashboard()
+        if (changedIdentity) {
+            // Old user/server metadata must not remain on disk after switching.
+            offlineCache.clear()
+            restoreCachedDashboard()
+        }
         if (_state.value.configured) {
             refreshAll()
             startLogStream()
@@ -198,6 +202,9 @@ class ServerPanelViewModel(application: Application) : AndroidViewModel(applicat
         _state.value = _state.value.copy(
             snapshot = cached.snapshot,
             pairing = cached.pairing,
+            startup = cached.startup,
+            commandSettings = cached.commandSettings,
+            runtimeRegistry = cached.registry,
             lastSuccessfulSyncAt = cached.savedAt.takeIf { it > 0L },
             agentReachable = false, // Cached status must never be mistaken for a live connection.
         )
