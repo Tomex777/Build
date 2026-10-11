@@ -108,6 +108,11 @@ internal class VelvetPairClient(private val context: Context) {
         return true
     }
 
+    suspend fun hasSession(): Boolean = withContext(Dispatchers.IO) {
+        if (accessToken!=null && System.currentTimeMillis()<expiresAtMs) true
+        else restore()
+    }
+
     suspend fun restore(): Boolean = withContext(Dispatchers.IO) {
         val refresh = vault.read() ?: return@withContext false
         runCatching {
@@ -146,9 +151,22 @@ internal class VelvetPairClient(private val context: Context) {
         rpcBoolean("velvet_revoke_pair_invite")
     }
 
-    suspend fun sendText(id:UUID, body:String): JSONObject = withContext(Dispatchers.IO) {
-        rpc("velvet_send_text",JSONObject().put("p_id",id.toString()).put("p_body",body))
-    }
+    suspend fun sendText(id:UUID, body:String,replyTo:String?=null): JSONObject =
+        withContext(Dispatchers.IO) {
+            val params=JSONObject().put("p_id",id.toString()).put("p_body",body)
+            if(!replyTo.isNullOrBlank()) params.put("p_reply_to",replyTo)
+            rpc("velvet_send_text",params)
+        }
+
+    suspend fun pageText(beforeAt:String?,beforeId:String?,limit:Int=80): JSONArray =
+        withContext(Dispatchers.IO) {
+            val params=JSONObject().put("p_limit",limit.coerceIn(1,100))
+            if(beforeAt!=null && beforeId!=null) {
+                params.put("p_before_at",beforeAt).put("p_before_id",beforeId)
+            }
+            val raw=sendRaw("/rest/v1/rpc/velvet_page_text",params,activeToken())
+            JSONArray(raw)
+        }
 
     suspend fun listText(afterAt:String?=null,afterId:String?=null): JSONArray =
         withContext(Dispatchers.IO) {
@@ -230,9 +248,12 @@ private class RefreshTokenVault(context:Context) {
 }
 
 @Composable
-internal fun VelvetPairingScreen(onBack:()->Unit,onConnectedChat:()->Unit) {
+internal fun VelvetPairingScreen(
+    onBack:()->Unit,onConnectedChat:()->Unit,sharedClient:VelvetPairClient?=null
+) {
     val ctx=LocalContext.current
-    val api=remember { VelvetPairClient(ctx.applicationContext) }
+    val rememberedApi=remember { VelvetPairClient(ctx.applicationContext) }
+    val api=sharedClient ?: rememberedApi
     val scope=rememberCoroutineScope()
     val clipboard=LocalClipboardManager.current
     var loading by remember { mutableStateOf(api.configured) }
@@ -257,7 +278,7 @@ internal fun VelvetPairingScreen(onBack:()->Unit,onConnectedChat:()->Unit) {
     }
     LaunchedEffect(Unit) {
         if(api.configured) {
-            signedIn=api.restore()
+            signedIn=api.hasSession()
             if(signedIn) pair=runCatching {api.myPair()}.getOrNull()
             loading=false
         }
