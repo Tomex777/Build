@@ -2,7 +2,7 @@ name: Annie editor and Canvas repair acceptance
 
 on:
   push:
-    branches: [annie-rc-editor-canvas-repair-20261011, annie-rc-acceptance-repair-20261011]
+    branches: [annie-rc-editor-canvas-repair-20261011, annie-rc-acceptance-repair-20261011, annie-rc-file-types-20261011]
     paths:
       - 'annie-android/**'
       - '.github/workflows/annie-editor-canvas-repair.yml'

@@ -2,7 +2,7 @@ name: Annie browser UI and voice lock acceptance
 
 on:
   push:
-    branches: [annie-rc-browser-ux-20261011]
+    branches: [annie-rc-browser-ux-20261011, annie-rc-file-types-20261011]
     paths:
       - 'annie-android/**'
       - '.github/workflows/annie-browser-ux.yml'

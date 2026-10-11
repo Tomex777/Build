@@ -2,7 +2,7 @@ name: Annie voice recording and browser restoration acceptance
 
 on:
   push:
-    branches: [annie-rc-voice-recording-20261011, annie-rc-download-history-20261011, annie-rc-lifecycle-tabs-20261011, annie-rc-acceptance-repair-20261011]
+    branches: [annie-rc-voice-recording-20261011, annie-rc-download-history-20261011, annie-rc-lifecycle-tabs-20261011, annie-rc-acceptance-repair-20261011, annie-rc-file-types-20261011]
     paths:
       - 'annie-android/**'
       - '.github/workflows/annie-voice-recording-acceptance.yml'

@@ -59,7 +59,9 @@ class AnnieGeckoBrowserUiTest {
                 assertTrue("Navigation controls overlap system navigation bar", backBounds.bottom <=
                     decor.height - insets.getInsets(WindowInsetsCompat.Type.navigationBars()).bottom)
             }
-            address.performClick().performTextReplacement(fixture.baseUrl + "/two").performImeAction()
+            address.performClick()
+            address.performTextReplacement(fixture.baseUrl + "/two")
+            address.performImeAction()
             address.assertIsNotFocused()
             compose.waitUntil(30_000) {
                 compose.onAllNodesWithText("Gecko two", substring = true).fetchSemanticsNodes().isNotEmpty()

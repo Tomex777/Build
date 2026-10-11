@@ -134,6 +134,7 @@ class AnnieCanvasMessageTest {
             assertSame("Expanding Canvas must reuse the running WebView", inlineWebView, fullscreenWebView)
             assertEquals("1", eval(fullscreenWebView!!, "window.tapCount"))
             assertEquals("2", eval(fullscreenWebView!!, "(document.querySelector('#plus').click(), window.tapCount)"))
+            awaitCanvasPresentation(fullscreenWebView!!)
             saveEmulatorScreenshot("annie-canvas-fullscreen-counter")
             instrumentation.runOnMainSync { fullscreen?.finish() }
             compose.waitUntil(8_000) { inlineWebView.parent != null }
@@ -260,6 +261,10 @@ class AnnieCanvasMessageTest {
             }
             assertSame("Fullscreen must continue the SAME message WebView", snakeWebView, expandedWebView)
             assertEquals("true", eval(snakeWebView, "window.annieCanvasSnakeState().started"))
+            val fullscreenStarts = eval(snakeWebView, "window.annieCanvasInputDiagnostics().pointerStarts").toInt()
+            swipeDownOnWebView(snakeWebView)
+            assertTrue("Fullscreen Canvas received no native finger touch", eval(snakeWebView,
+                "window.annieCanvasInputDiagnostics().pointerStarts").toInt() > fullscreenStarts)
             saveEmulatorScreenshot("annie-canvas-arcade-fullscreen-message")
             instrumentation.runOnMainSync { fullscreen?.finish() }
             compose.waitUntil(12_000) { snakeWebView.parent != null }
@@ -270,7 +275,7 @@ class AnnieCanvasMessageTest {
         }
     }
 
-    private fun swipeDownOnWebView(web: WebView) {
+    private fun awaitCanvasPresentation(web: WebView) {
         val instrumentation = InstrumentationRegistry.getInstrumentation()
         // DOM readiness can precede Chromium's first presented frame and the
         // host window's input focus. A swipe at that point can be injected into
@@ -293,6 +298,32 @@ class AnnieCanvasMessageTest {
             })
         }
         assertTrue("Canvas never presented its ready frame", presented.await(8, TimeUnit.SECONDS))
+        val visible = Rect()
+        instrumentation.runOnMainSync {
+            assertTrue("Canvas has no visible display bounds", web.getGlobalVisibleRect(visible))
+        }
+        val deadline = SystemClock.uptimeMillis() + 6_000L
+        var brightPixels = 0
+        do {
+            val screenshot = checkNotNull(instrumentation.uiAutomation.takeScreenshot())
+            try {
+                brightPixels = 0
+                for (y in visible.top.coerceAtLeast(0) until visible.bottom.coerceAtMost(screenshot.height) step 4) {
+                    for (x in visible.left.coerceAtLeast(0) until visible.right.coerceAtMost(screenshot.width) step 4) {
+                        val color = screenshot.getPixel(x, y)
+                        if (android.graphics.Color.green(color) > 90 &&
+                            (android.graphics.Color.red(color) > 90 || android.graphics.Color.blue(color) > 90)) brightPixels++
+                    }
+                }
+            } finally { screenshot.recycle() }
+            if (brightPixels < 24) SystemClock.sleep(100L)
+        } while (brightPixels < 24 && SystemClock.uptimeMillis() < deadline)
+        assertTrue("Canvas DOM is live but its native display is blank ($brightPixels visible content samples)", brightPixels >= 24)
+    }
+
+    private fun swipeDownOnWebView(web: WebView) {
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+        awaitCanvasPresentation(web)
         val visible = Rect()
         val screenLocation = IntArray(2)
         var viewWidth = 0
