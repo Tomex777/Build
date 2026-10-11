@@ -138,6 +138,27 @@ private fun ensureAnnieMonarchTheme(context: android.content.Context): ThemeMode
     ThemeRegistry.currentTheme
 }
 
+/**
+ * Resolve the newly created file back to its owning project. Root-level .js
+ * scripts are standalone; other root creations live inside a project folder.
+ * A file's extension is not its project identity.
+ */
+internal fun studioCreatedFileLocation(root: File, created: File, ownerId: String? = null): Pair<String, String> {
+    val workspaceRoot = root.canonicalFile
+    val file = created.canonicalFile
+    require(file.toPath().startsWith(workspaceRoot.toPath()) && file != workspaceRoot) {
+        "The created file must be in Script Studio's workspace"
+    }
+    val relative = file.relativeTo(workspaceRoot).invariantSeparatorsPath
+    if (ownerId != null) {
+        require(relative.startsWith("$ownerId/")) { "The file is not inside the selected project" }
+        return ownerId to relative.removePrefix("$ownerId/")
+    }
+    val projectId = relative.substringBefore('/')
+    return if ('/' in relative) projectId to relative.substringAfter('/')
+        else file.nameWithoutExtension to file.name
+}
+
 private enum class StudioPage(val title: String) { FILES("Files"), EDITOR("Editor"), ENV("ENV"), API("API") }
 private enum class FileAction { RENAME, SHARE, EXPORT, DELETE, ENABLE, DISABLE, PERMISSIONS }
 private enum class StudioGlyph { SAVE, CLOSE, ASSIST, RUN, FIND, REPLACE, UNDO, REDO, REFRESH, EXPAND, COLLAPSE, FOLDER, MORE, ADD, CHECK }
@@ -340,6 +361,48 @@ private fun ScriptStudioContent(
         }
     }
 
+    fun previewDocument() {
+        if (saving) return
+        val project = projects.firstOrNull { it.id == selectedProjectId } ?: run {
+            status = "Choose a file first"
+            return
+        }
+        val path = selectedPath ?: return
+        val extension = path.substringAfterLast('.', "").lowercase()
+        if (extension !in setOf("html", "css")) {
+            status = "Only self-contained HTML and CSS documents support offline preview"
+            return
+        }
+        val source = editorValue.text
+        val document = org.json.JSONObject()
+            .put("type", "canvas")
+            .put("title", "Preview • " + path.substringAfterLast('/'))
+            .put("height", 460)
+            .put("html", if (extension == "html") source else
+                "<main><h1>CSS preview</h1><p>Style this text or the sample button to see your rules.</p><button>Sample button</button></main>")
+            .put("css", if (extension == "css") source else "")
+        // Reuse Canvas's offline WebView sandbox. No device bridge, local file
+        // access, network fetches, or browser cookies are exposed to previews.
+        if (AnnieCanvasDocument.from(document) == null) {
+            status = "Document is too large for the 48 KB offline preview"
+            return
+        }
+        saving = true
+        scope.launch {
+            runCatching {
+                withContext(Dispatchers.IO) { workspace.files.writeFile(project.id, path, source) }
+            }.onSuccess {
+                savedSource = source
+                refreshProjects(project.id, path)
+                previewResult = document.toString()
+                previewOpen = true
+                status = "Offline preview • external assets are disabled"
+            }.onFailure { error ->
+                status = "Preview couldn't save changes: " + (error.message ?: "unknown error")
+            }.also { saving = false }
+        }
+    }
+
     val importScript = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) scope.launch {
             runCatching {
@@ -514,10 +577,10 @@ private fun ScriptStudioContent(
                 emphasized = !saving,
                 icon = StudioGlyph.RUN,
                 onClick = {
-                    if (selectedPath?.endsWith(".js", ignoreCase = true) == true) {
-                        saveScript(runAfterSave = true, openPreview = true)
-                    } else {
-                        status = "Preview isn't supported for this file type yet. Changes are saved automatically."
+                    when (selectedPath?.substringAfterLast('.', "")?.lowercase()) {
+                        "js" -> saveScript(runAfterSave = true, openPreview = true)
+                        "html", "css" -> previewDocument()
+                        else -> status = "Preview supports JavaScript commands and offline HTML/CSS documents."
                     }
                 },
                 enabled = !saving && selectedProject != null && selectedPath != null,
@@ -560,8 +623,7 @@ private fun ScriptStudioContent(
                                     workspace.files.createFile(folder.name, name)
                                 }
                             }.onSuccess { file ->
-                                val id = if (owner == null) file.nameWithoutExtension else owner!!.id
-                                val path = if (owner == null) file.name else file.relativeTo(File(workspace.files.root, id)).invariantSeparatorsPath
+                                val (id, path) = studioCreatedFileLocation(workspace.files.root, file, owner?.id)
                                 refreshProjects(id, path)
                                 currentDirectory = path.substringBeforeLast('/', "")
                                 status = "Created ${file.name}"
@@ -731,13 +793,18 @@ private fun ScriptStudioContent(
                                                     }
                                                     FileAction.SHARE -> shareFile(path.substringAfterLast('/'), project.files[path].orEmpty())
                                                     FileAction.EXPORT -> exportFile(path.substringAfterLast('/'), project.files[path].orEmpty())
-                                                    FileAction.DELETE -> runCatching { workspace.files.deleteFile(project.id, path) }
-                                                        .onSuccess {
-                                                            refreshProjects(project.id, project.entryPath)
-                                                            currentDirectory = normalizedDirectory
-                                                            status = "Deleted $path"
-                                                        }
-                                                        .onFailure { status = it.message ?: "Delete failed" }
+                                                    FileAction.DELETE -> askForText(
+                                                        "Type ${path.substringAfterLast('/')} to delete", ""
+                                                    ) { confirmation ->
+                                                        if (confirmation == path.substringAfterLast('/')) {
+                                                            runCatching { workspace.files.deleteFile(project.id, path) }
+                                                                .onSuccess {
+                                                                    refreshProjects(project.id, project.entryPath)
+                                                                    currentDirectory = normalizedDirectory
+                                                                    status = "Deleted $path"
+                                                                }.onFailure { status = it.message ?: "Delete failed" }
+                                                        } else status = "Delete cancelled"
+                                                    }
                                                     else -> Unit
                                                 }
                                             },
@@ -1096,9 +1163,7 @@ private fun ScriptStudioContent(
                                 val folder = workspace.files.createFolder(name.substringBeforeLast('.'))
                                 workspace.files.createFile(folder.name, name)
                             }
-                            val id = if (owner == null) file.nameWithoutExtension else owner.id
-                            val path = if (owner == null) file.name
-                                else file.relativeTo(File(workspace.files.root, id)).invariantSeparatorsPath
+                            val (id, path) = studioCreatedFileLocation(workspace.files.root, file, owner?.id)
                             workspace.files.writeFile(id, path, proposed)
                             id to path
                         }.onSuccess { (id, path) ->
