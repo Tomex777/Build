@@ -233,9 +233,9 @@ class ServerPanelViewModel(application: Application) : AndroidViewModel(applicat
                         logs = runCatching { api.logs() }.getOrDefault(_state.value.logs),
                         files = runCatching { api.listFiles(path) }.getOrDefault(_state.value.files),
                         startup = runCatching { api.startup() }.getOrNull(),
-                        activity = runCatching { api.activity() }.getOrDefault(emptyList()),
-                        backups = runCatching { api.backups() }.getOrDefault(emptyList()),
-                        commandSettings = runCatching { api.commandSettings() }.getOrDefault(emptyList()),
+                        activity = runCatching { api.activity() }.getOrElse { _state.value.activity },
+                        backups = runCatching { api.backups() }.getOrElse { _state.value.backups },
+                        commandSettings = runCatching { api.commandSettings() }.getOrElse { _state.value.commandSettings },
                         runtimeRegistry = runCatching { api.runtimeRegistry() }.getOrNull(),
                         pairing = runCatching { api.pairingState() }.getOrNull(),
                     )
@@ -244,12 +244,12 @@ class ServerPanelViewModel(application: Application) : AndroidViewModel(applicat
                     snapshot = result.snapshot,
                     logs = result.logs,
                     files = result.files,
-                    startup = result.startup,
+                    startup = result.startup ?: _state.value.startup,
                     activity = result.activity,
                     backups = result.backups,
                     commandSettings = result.commandSettings,
                     runtimeRegistry = result.runtimeRegistry ?: _state.value.runtimeRegistry,
-                    pairing = result.pairing,
+                    pairing = result.pairing ?: _state.value.pairing,
                 )
                 result.pairing?.let(::resumePairingMonitorIfNeeded)
             }
