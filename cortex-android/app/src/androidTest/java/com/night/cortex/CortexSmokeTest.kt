@@ -5,6 +5,7 @@ import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
+import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
@@ -48,15 +49,20 @@ class CortexSmokeTest {
         }
         composeRule.onNodeWithTag("server-tab-console").performScrollTo().performClick().assertIsSelected()
         saveHomeVisualEvidence()
+    }
 
-        composeRule.onNodeWithText("Connect").performClick()
-        composeRule.waitUntil(timeoutMillis = 10_000L) {
-            runCatching {
-                composeRule.onNodeWithTag("connection-sheet-root").assertIsDisplayed()
-                composeRule.onNodeWithText("Server connection").assertIsDisplayed()
-            }.isSuccess
-        }
+    @Test
+    fun connectionSheetOpensFromUnconfiguredConsole() {
+        // Keep modal-opening acceptance independent from rapidly switching
+        // every screen tab. A software-rendered API 36 emulator may defer a
+        // sheet transition after many navigation/recomposition operations.
+        composeRule.onNodeWithText("Connect server").assertIsDisplayed()
         composeRule.waitForIdle()
+        composeRule.onNodeWithText("Connect").performClick()
+        composeRule.waitUntil(timeoutMillis = 40_000L) {
+            composeRule.onAllNodesWithTag("connection-sheet-root")
+                .fetchSemanticsNodes().isNotEmpty()
+        }
         composeRule.onNodeWithTag("connection-sheet-root").assertIsDisplayed()
         composeRule.onNodeWithText("Server connection").assertIsDisplayed()
         composeRule.onNodeWithText("Server URL").assertIsDisplayed()
