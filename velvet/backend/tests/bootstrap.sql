@@ -20,3 +20,27 @@ insert into auth.users(id,email_confirmed_at) values
   ('bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',now()),
   ('cccccccc-cccc-4ccc-8ccc-cccccccccccc',now()),
   ('dddddddd-dddd-4ddd-8ddd-dddddddddddd',null);
+
+-- PostgreSQL-only storage API metadata stand-in, NOT a production migration.
+-- Supabase creates and owns these real objects; CI only checks our policies/RPCs.
+create schema storage;
+create table storage.buckets (
+  id text primary key,name text not null,public boolean not null default false,
+  file_size_limit bigint,allowed_mime_types text[]
+);
+create table storage.objects (
+  id uuid primary key default gen_random_uuid(),
+  bucket_id text not null references storage.buckets(id),
+  name text not null,
+  owner_id text,
+  unique(bucket_id,name)
+);
+create function storage.foldername(path text) returns text[]
+language sql immutable as $$
+  select string_to_array(
+    case when position('/' in path)>0
+      then left(path,length(path)-length(split_part(path,'/',array_length(string_to_array(path,'/'),1)))-1)
+      else '' end,'/')
+$$;
+grant usage on schema storage to authenticated,anon;
+grant select,insert on storage.objects to authenticated;
