@@ -18,6 +18,8 @@ import androidx.compose.material.icons.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.Send
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Image
+import androidx.compose.material.icons.outlined.Videocam
+import androidx.compose.material.icons.outlined.AttachFile
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -61,7 +63,8 @@ private data class ConnectedText(
     val kind:String="text",
     val storagePath:String?=null,
     val voiceDurationMs:Int=0,
-    val waveform:List<Int> = emptyList()
+    val waveform:List<Int> = emptyList(),
+    val videoDurationMs:Int=0
 )
 
 /**
@@ -112,6 +115,7 @@ internal fun VelvetConnectedChat(
     var coupleId by remember {mutableStateOf("")}
     var uploading by remember {mutableStateOf(false)}
     var voiceComposerActive by remember {mutableStateOf(false)}
+    var showAttachmentPicker by remember {mutableStateOf(false)}
     var partnerName by remember {mutableStateOf("Your love")}
     var outboxScope by remember {mutableStateOf("")}
     var status by remember {mutableStateOf("Connecting…")}
@@ -247,7 +251,9 @@ internal fun VelvetConnectedChat(
                             waveform=item.optJSONObject("payload")
                                 ?.optJSONArray("waveform")?.let {arr->
                                     (0 until arr.length()).map{arr.optInt(it).coerceIn(0,100)}
-                                } ?: emptyList()))
+                                } ?: emptyList(),
+                            videoDurationMs=item.optJSONObject("payload")
+                                ?.optInt("duration_ms") ?: 0))
 
                     }
                     lastAt=item.getString("created_at")
@@ -400,7 +406,9 @@ internal fun VelvetConnectedChat(
                                                     (0 until arr.length()).map{
                                                         arr.optInt(it).coerceIn(0,100)
                                                     }
-                                                } ?: emptyList()
+                                                } ?: emptyList(),
+                                            videoDurationMs=row.optJSONObject("payload")
+                                                ?.optInt("duration_ms") ?: 0
                                         )
                                     }
                                     val before=messages.map {it.id}.toSet()
@@ -452,6 +460,7 @@ internal fun VelvetConnectedChat(
                                     source.deleted -> "This message was deleted"
                                     source.kind=="image" -> "Photo · ${source.body}"
                                     source.kind=="voice" -> "🎙 Voice note"
+                                    source.kind=="video" -> "Video · ${source.body}"
                                     else -> source.body
                                 }),
                                     color=rose,fontSize=12.sp,maxLines=2,
@@ -467,6 +476,13 @@ internal fun VelvetConnectedChat(
                                     Text("Photo unavailable",color=muted,fontSize=13.sp)
                                 }
                                 if(msg.body.isNotBlank()) Spacer(Modifier.height(7.dp))
+                            }
+                            if(msg.kind=="video" && !msg.deleted) {
+                                if(msg.storagePath!=null) {
+                                    VelvetPrivateVideo(client,msg.storagePath,
+                                        msg.videoDurationMs)
+                                } else Text("Video unavailable",color=muted,fontSize=13.sp)
+                                if(msg.body.isNotBlank())Spacer(Modifier.height(7.dp))
                             }
                             if(msg.kind=="voice" && !msg.deleted) {
                                 if(msg.storagePath!=null) {
@@ -526,6 +542,7 @@ internal fun VelvetConnectedChat(
                         Text(when(target.kind) {
                             "image" -> "Photo · ${target.body}"
                             "voice" -> "🎙 Voice note"
+                            "video" -> "Video · ${target.body}"
                             else -> target.body
                         },color=cream,fontSize=12.sp,maxLines=2)
                     }
@@ -545,9 +562,9 @@ internal fun VelvetConnectedChat(
                 if(!voiceComposerActive) {
                     IconButton(
                         enabled=!uploading,
-                        onClick={pickPhoto.launch("image/*")}
+                        onClick={showAttachmentPicker=true}
                     ) {
-                        Icon(Icons.Outlined.Image,"Share private photo",tint=rose)
+                        Icon(Icons.Outlined.AttachFile,"Attach photo or video",tint=rose)
                     }
                     OutlinedTextField(
                         value=text,
@@ -604,8 +621,8 @@ internal fun VelvetConnectedChat(
             }
         }
         Text(
-            if(uploading) "Uploading encrypted-transport photo…"
-            else "Hold for actions · Photos & voice in private Storage · Not end-to-end encrypted",
+            if(uploading) "Uploading private photo or video…"
+            else "Hold for actions · Private photos, videos and voice · Not end-to-end encrypted",
             color=muted,fontSize=10.sp,modifier=Modifier.fillMaxWidth()
                 .background(card).padding(start=16.dp,end=16.dp,bottom=8.dp))
     }
