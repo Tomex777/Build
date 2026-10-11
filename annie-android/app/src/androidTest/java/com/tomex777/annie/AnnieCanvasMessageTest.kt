@@ -211,22 +211,55 @@ class AnnieCanvasMessageTest {
     private fun swipeDownOnWebView(web: WebView) {
         val instrumentation = InstrumentationRegistry.getInstrumentation()
         val visible = Rect()
+        val screenLocation = IntArray(2)
+        var viewWidth = 0
+        var viewHeight = 0
         instrumentation.runOnMainSync {
             assertTrue("Canvas must be attached and visible before swiping", web.isShown)
             assertTrue("Canvas has no visible window intersection", web.getGlobalVisibleRect(visible))
+            web.getLocationOnScreen(screenLocation)
+            viewWidth = web.width
+            viewHeight = web.height
         }
-        assertTrue("Need enough exposed Canvas to perform a real swipe: $visible", visible.height() >= 90)
-        val x = visible.exactCenterX()
-        val y1 = visible.top + visible.height() * 0.36f
-        val y2 = visible.top + visible.height() * 0.68f
-        val t = SystemClock.uptimeMillis()
-        fun send(action: Int, y: Float, at: Long) {
-            val event = MotionEvent.obtain(t, at, action, x, y, 0)
+
+        // WebView can be visible while the actual board is partly off-screen. The
+        // previous helper swiped relative to the WebView's clipped rectangle; on
+        // different emulator densities it sometimes started outside #board.
+        // Use the rendered board's own CSS viewport coordinates, converted to
+        // physical screen pixels, to exercise a real Android finger gesture.
+        val board = org.json.JSONArray(eval(web, """
+            (() => {
+                const r = document.getElementById('board').getBoundingClientRect();
+                return [r.left, r.top, r.width, r.height, innerWidth, innerHeight];
+            })()
+        """.trimIndent()))
+        val widthCss = board.getDouble(4).toFloat()
+        val heightCss = board.getDouble(5).toFloat()
+        assertTrue("Invalid Canvas viewport: $board", widthCss > 0f && heightCss > 0f)
+        val sx = viewWidth / widthCss
+        val sy = viewHeight / heightCss
+        val x = screenLocation[0] + (board.getDouble(0) + board.getDouble(2) * 0.5).toFloat() * sx
+        val y1 = screenLocation[1] + (board.getDouble(1) + board.getDouble(3) * 0.30).toFloat() * sy
+        val y2 = screenLocation[1] + (board.getDouble(1) + board.getDouble(3) * 0.70).toFloat() * sy
+        assertTrue("Board swipe starts outside exposed Canvas: $visible board=$board",
+            x >= visible.left && x <= visible.right && y1 >= visible.top && y1 < visible.bottom)
+        assertTrue("Board swipe ends outside exposed Canvas: $visible board=$board",
+            y2 > y1 + 32f && y2 < visible.bottom)
+
+        // Real event timestamps and intermediate movements are important for
+        // Android WebView pointer capture. Do not replace with JS-dispatched events.
+        val downTime = SystemClock.uptimeMillis()
+        fun send(action: Int, y: Float) {
+            val event = MotionEvent.obtain(downTime, SystemClock.uptimeMillis(), action, x, y, 0)
             try { instrumentation.sendPointerSync(event) } finally { event.recycle() }
         }
-        send(MotionEvent.ACTION_DOWN, y1, t)
-        send(MotionEvent.ACTION_MOVE, (y1+y2)/2, t + 24)
-        send(MotionEvent.ACTION_UP, y2, t + 48)
+        send(MotionEvent.ACTION_DOWN, y1)
+        SystemClock.sleep(30)
+        send(MotionEvent.ACTION_MOVE, y1 + (y2-y1) * 0.33f)
+        SystemClock.sleep(30)
+        send(MotionEvent.ACTION_MOVE, y1 + (y2-y1) * 0.67f)
+        SystemClock.sleep(30)
+        send(MotionEvent.ACTION_UP, y2)
         instrumentation.waitForIdleSync()
     }
 
