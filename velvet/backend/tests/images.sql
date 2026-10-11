@@ -87,6 +87,10 @@ begin
  if v->>'ok'<>'true' then raise exception 'Sender global image delete failed: %',v;end if;
  if exists(select 1 from storage.objects where name=object_path) then
    raise exception 'Deleted image could still be downloaded';end if;
+ v:=public.velvet_send_image('aaaaaaaa-aaaa-4aaa-8aaa-111111111111',
+    object_path,'image/jpeg',125,'Reusing deleted upload');
+ if v->>'error'<>'file_already_sent' then
+   raise exception 'Deleted object could be recycled into new chat message: %',v;end if;
  rows:=public.velvet_list_chat();
  if not exists(select 1 from jsonb_array_elements(rows) as row(value)
    where row.value->>'id'='77777777-7777-4777-8777-777777777777'
