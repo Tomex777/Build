@@ -158,6 +158,24 @@ internal data class PlayerSource(
     val browserSessionId: String? = null,
 )
 
+/** A scripted browser stream must only load through its registered isolated session. */
+internal fun playerSourceAllowed(context: Context, source: PlayerSource): Boolean {
+    val id = source.browserSessionId ?: return true
+    if (!AnnieBrowserProfiles.isSupported()) return false
+    val session = AnnieBrowserSessionStore.get(context, id) ?: return false
+    return AnnieBrowserSessionStore.allows(session, source.uri.toString())
+}
+
+/** Called on the main thread, like the Compose playback effect that owns Gecko/VLC. */
+internal fun playerCookiesForSource(context: Context, source: PlayerSource): String? {
+    val uri = source.uri.toString()
+    val id = source.browserSessionId
+    if (id == null) return CookieManager.getInstance().getCookie(uri)
+    if (!playerSourceAllowed(context, source)) return null
+    // Never substitute the global WebView cookie jar for an isolated browser profile.
+    return AnnieBrowserProfiles.cookieManagerOnMain(id).getCookie(uri)
+}
+
 private enum class AnnieVideoScale(val label: String, val scale: MediaPlayer.ScaleType) {
     FIT("Fit", MediaPlayer.ScaleType.SURFACE_BEST_FIT),
     FILL("Fill", MediaPlayer.ScaleType.SURFACE_FILL),
@@ -201,14 +219,19 @@ internal fun MediaPlayerScreen(
         onDispose { if (immersive) controller?.show(WindowInsetsCompat.Type.systemBars()) }
     }
 
-    val sourceChoices = remember(mediaUri, sources) {
+    val rawSources = remember(mediaUri, sources) {
         if (sources.isNotEmpty()) sources else mediaUri?.let { listOf(PlayerSource("Source", it)) }.orEmpty()
     }
+    val sourceChoices = remember(context, rawSources) {
+        rawSources.filter { playerSourceAllowed(context, it) }
+    }
+    val blockedBrowserSources = rawSources.any { it.browserSessionId != null } &&
+        sourceChoices.isEmpty()
     var sourceIndex by remember(sourceChoices) { mutableStateOf(0) }
     var switchResumePosition by remember { mutableLongStateOf(0L) }
     val activeSource = sourceChoices.getOrNull(sourceIndex)
     val activeUri = activeSource?.uri
-    val playable = sourceAvailable || activeUri != null
+    val playable = !blockedBrowserSources && (sourceAvailable || activeUri != null)
     val isOffline = mode == PlayerMode.OFFLINE
     val resumePrefs = remember { appContext.getSharedPreferences("annie_video_resume", Context.MODE_PRIVATE) }
     val resumeKey = remember(item.id, item.title) { "${item.id}:${item.title}" }
@@ -329,13 +352,14 @@ internal fun MediaPlayerScreen(
             val sourceHeaders = activeSource?.headers.orEmpty().toMutableMap()
             val browserSession = activeSource?.browserSessionId
                 ?.let { AnnieBrowserSessionStore.get(context, it) }
-                ?.takeIf { AnnieBrowserSessionStore.allows(it, activeUri.toString()) }
             if (sourceHeaders.keys.none { it.equals("User-Agent", true) } && browserSession != null) {
                 sourceHeaders["User-Agent"] = browserSession.userAgent ?: WebSettings.getDefaultUserAgent(context)
             }
             if (sourceHeaders.keys.none { it.equals("Cookie", true) }) {
-                CookieManager.getInstance().getCookie(activeUri.toString())?.takeIf(String::isNotBlank)?.let {
-                    sourceHeaders["Cookie"] = it
+                activeSource?.let { source ->
+                    playerCookiesForSource(context, source)?.takeIf(String::isNotBlank)?.let {
+                        sourceHeaders["Cookie"] = it
+                    }
                 }
             }
             sourceHeaders.forEach { (name, value) ->
