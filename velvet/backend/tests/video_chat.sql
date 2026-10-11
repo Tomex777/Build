@@ -109,9 +109,9 @@ do $$
 declare pair uuid; path text;v jsonb;
 begin
  perform set_config('request.jwt.claim.sub','cccccccc-cccc-4ccc-8ccc-cccccccccccc',false);
- select couple_id into pair from public.velvet_members
- where user_id='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
- path:=pair::text||'/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb/34343434-3434-4434-8434-343434343434.mp4';
+ -- Deliberately foreign user folder; the caller cannot SELECT other-couple
+ -- membership rows under RLS, so use a known syntactically valid fake path.
+ path:='11111111-1111-4111-8111-111111111111/bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb/34343434-3434-4434-8434-343434343434.mp4';
  if exists(select 1 from storage.objects where name=path) then
    raise exception 'Second couple read foreign video';end if;
  v:=public.velvet_send_video('40404040-4040-4040-8040-404040404040',
