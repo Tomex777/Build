@@ -177,8 +177,12 @@ jobs:
           "$apksigner_bin" verify --verbose --print-certs cortex-release-package/Cortex_X86_64_INSTALLABLE.apk
           "$aapt_bin" dump badging cortex-release-package/Cortex_ARM64_INSTALLABLE.apk > cortex-release-package/Cortex_ARM64_badging.txt
           "$aapt_bin" dump badging cortex-release-package/Cortex_X86_64_INSTALLABLE.apk > cortex-release-package/Cortex_X86_64_badging.txt
+          # Keep APK badging verification in sync with the checked-in app version.
+          version_code="$(sed -nE 's/^[[:space:]]*versionCode = ([0-9]+).*$/\1/p' cortex-android/app/build.gradle.kts | head -n1)"
+          version_name="$(sed -nE 's/^[[:space:]]*versionName = "([^"]+)".*$/\1/p' cortex-android/app/build.gradle.kts | head -n1)"
+          test -n "$version_code" && test -n "$version_name"
           for badging in cortex-release-package/Cortex_ARM64_badging.txt cortex-release-package/Cortex_X86_64_badging.txt; do
-            grep -q "package: name='com.night.cortex' versionCode='100' versionName='1.0.0'" "$badging"
+            grep -q "package: name='com.night.cortex' versionCode='$version_code' versionName='$version_name'" "$badging"
             grep -q "sdkVersion:'26'" "$badging"
             grep -q "targetSdkVersion:'36'" "$badging"
             grep -Eq "application: label='Cortex' icon='[^']+'" "$badging"
