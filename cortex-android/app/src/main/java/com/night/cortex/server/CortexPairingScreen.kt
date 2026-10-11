@@ -116,6 +116,7 @@ fun CortexPairingScreen(
     diagnosticsError: String? = null,
     onDiagnostics: (String) -> Unit = {},
     onCloseDiagnostics: () -> Unit = {},
+    refreshEnabled: Boolean = true,
 ) {
     var selected by remember { mutableStateOf<PairingAccount?>(null) }
     var disconnectCandidate by remember { mutableStateOf<PairingAccount?>(null) }
@@ -169,7 +170,7 @@ fun CortexPairingScreen(
                         Icon(Icons.Rounded.Add, "Add number")
                     }
                 }
-                IconButton(onClick = onRefresh, enabled = !busy || offline) {
+                IconButton(onClick = onRefresh, enabled = refreshEnabled) {
                     Icon(Icons.Rounded.Refresh, "Refresh accounts")
                 }
             }
@@ -180,6 +181,14 @@ fun CortexPairingScreen(
                     Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 9.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
+                    if (offline) {
+                        Text(
+                            "SESSION STATUS IS LAST KNOWN · MSCC may be offline. Controls will return when fresh account data arrives.",
+                            color = CortexMuted,
+                            fontSize = 10.sp,
+                            modifier = Modifier.testTag("stale-account-status-warning"),
+                        )
+                    }
                     if (state.accounts.isNotEmpty() && state.destination.isNotBlank()) {
                         Text(
                             "CC inbox fixed to " +
