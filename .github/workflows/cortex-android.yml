@@ -52,6 +52,8 @@ jobs:
         with:
           gradle-version: '9.6.0'
       - name: Configure release signing when secrets are available
+        # Pull-request code must never have access to the production keystore.
+        if: github.event_name != 'pull_request'
         shell: bash
         env:
           CORTEX_RELEASE_KEYSTORE_B64: ${{ secrets.CORTEX_RELEASE_KEYSTORE_B64 }}
