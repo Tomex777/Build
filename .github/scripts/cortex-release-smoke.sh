@@ -200,10 +200,28 @@ if mx<=12 or mx-mn<=6 or fraction<0.01 or len(unique)<8:
 PY
 }
 
-wait_for_android
-wake_and_unlock
-adb uninstall com.night.cortex >/dev/null 2>&1 || true
-adb install -r "$APK"
+# Installing a minified release can coincide with transient system_server /
+# PackageManager churn on software-only Android 16 emulators. Recheck the
+# framework before *each* bounded attempt; never treat install failures as an
+# app failure or as passing release verification.
+install_release_with_retry() {
+  local attempt
+  for attempt in 1 2 3; do
+    wait_for_android
+    wake_and_unlock
+    if timeout 180s adb install -r "$APK"; then
+      return 0
+    fi
+    echo "Cortex release installation failed on attempt $attempt/3; rechecking PackageManager..." >&2
+    if (( attempt < 3 )); then sleep 15; fi
+  done
+  echo "Cortex release could not be installed after three verified attempts." >&2
+  return 1
+}
+
+# CI starts from a new emulator. Avoid an unnecessary uninstall broadcast that
+# can destabilize PackageManager before the release APK is installed.
+install_release_with_retry
 
 # Package metadata is already verified from the exact APK with aapt during the
 # build job. On unaccelerated API 36, a full dumpsys package can time out even
