@@ -246,6 +246,27 @@ class AnnieCanvasMessageTest {
 
     private fun swipeDownOnWebView(web: WebView) {
         val instrumentation = InstrumentationRegistry.getInstrumentation()
+        // DOM readiness can precede Chromium's first presented frame and the
+        // host window's input focus. A swipe at that point can be injected into
+        // the window successfully while the new WebView receives no events.
+        val focusDeadline = SystemClock.uptimeMillis() + 8_000L
+        var focused = false
+        while (!focused && SystemClock.uptimeMillis() < focusDeadline) {
+            instrumentation.runOnMainSync {
+                focused = web.isAttachedToWindow && web.isShown && web.hasWindowFocus()
+            }
+            if (!focused) SystemClock.sleep(16L)
+        }
+        assertTrue("Canvas host never acquired input focus", focused)
+        val presented = CountDownLatch(1)
+        instrumentation.runOnMainSync {
+            web.postVisualStateCallback(SystemClock.uptimeMillis(), object : WebView.VisualStateCallback() {
+                override fun onComplete(requestId: Long) {
+                    web.postOnAnimation { web.postOnAnimation { presented.countDown() } }
+                }
+            })
+        }
+        assertTrue("Canvas never presented its ready frame", presented.await(8, TimeUnit.SECONDS))
         val visible = Rect()
         val screenLocation = IntArray(2)
         var viewWidth = 0
