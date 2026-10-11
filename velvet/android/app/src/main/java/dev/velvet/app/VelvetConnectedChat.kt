@@ -2,6 +2,8 @@ package dev.velvet.app
 
 import android.content.Context
 import androidx.compose.foundation.background
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
@@ -13,6 +15,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.Send
 import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.Image
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -41,7 +44,9 @@ private data class ConnectedText(
     val pending:Boolean=false,
     val replyTo:String?=null,
     val edited:Boolean=false,
-    val deleted:Boolean=false
+    val deleted:Boolean=false,
+    val kind:String="text",
+    val storagePath:String?=null
 )
 
 /**
@@ -89,6 +94,8 @@ internal fun VelvetConnectedChat(
     val queued=remember {mutableStateListOf<ConnectedText>()}
     val listState=rememberLazyListState()
     var ownId by remember {mutableStateOf("")}
+    var coupleId by remember {mutableStateOf("")}
+    var uploading by remember {mutableStateOf(false)}
     var partnerName by remember {mutableStateOf("Your love")}
     var outboxScope by remember {mutableStateOf("")}
     var status by remember {mutableStateOf("Connecting…")}
@@ -109,6 +116,27 @@ internal fun VelvetConnectedChat(
     val rose=Color(0xFFE4A1B6)
     val cream=Color(0xFFFFEAF0)
     val muted=Color(0xFFD1B7C1)
+    val pickPhoto=rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri->
+        if(uri!=null && ready && !uploading) {
+            uploading=true
+            val draftCaption=text.take(1200)
+            val reply=replyingTo?.id
+            scope.launch {
+                try {
+                    val result=client.sendImage(coupleId,ownId,uri,draftCaption,reply)
+                    if(result.optBoolean("ok")) {
+                        text=""
+                        replyingTo=null
+                        status="Photo shared privately with your partner ♡"
+                    } else {
+                        status="Image wasn't sent: "+result.optString("error","Please retry.")
+                    }
+                } catch(e:Exception) {
+                    status=e.message ?: "Photo upload failed; please select it again."
+                } finally {uploading=false}
+            }
+        }
+    }
 
     // Foreground-only pull, about every 3s. This is NOT push/Realtime WebSockets.
     // The UUID cursor and persisted outbox make retries idempotent and loss-resistant.
@@ -134,6 +162,7 @@ internal fun VelvetConnectedChat(
                 return@LaunchedEffect
             }
             ownId=me
+            coupleId=couple
             outboxScope="outbox_${me}_${couple}"
             partnerName=pair.optString("partner_name").takeIf{
                 it.isNotBlank() && it!="null"
@@ -183,7 +212,10 @@ internal fun VelvetConnectedChat(
                         messages.add(ConnectedText(id,item.optString("body").takeIf{it!="null"} ?: "",
                             item.optString("sender_id"),item.optString("created_at"),
                             replyTo=item.optString("reply_to").takeIf { it.isNotBlank() && it!="null" },
-                            edited=!item.isNull("edited_at"),deleted=item.optBoolean("deleted")))
+                            edited=!item.isNull("edited_at"),deleted=item.optBoolean("deleted"),
+                            kind=item.optString("kind","text"),
+                            storagePath=item.optJSONObject("payload")
+                                ?.optString("storage_path")?.takeIf{it.isNotBlank()}))
 
                     }
                     lastAt=item.getString("created_at")
@@ -204,7 +236,8 @@ internal fun VelvetConnectedChat(
                         "deleted" -> {
                             val pos=messages.indexOfFirst {it.id==messageId}
                             if(pos>=0) {
-                                messages[pos]=messages[pos].copy(body="",deleted=true,edited=false)
+                                messages[pos]=messages[pos].copy(
+                                    body="",deleted=true,edited=false,storagePath=null)
                             }
                             if(replyingTo?.id==messageId) replyingTo=null
                         }
@@ -283,7 +316,10 @@ internal fun VelvetConnectedChat(
                                             replyTo=row.optString("reply_to")
                                                 .takeIf {it.isNotBlank() && it!="null"},
                                             edited=!row.isNull("edited_at"),
-                                            deleted=row.optBoolean("deleted")
+                                            deleted=row.optBoolean("deleted"),
+                                            kind=row.optString("kind","text"),
+                                            storagePath=row.optJSONObject("payload")
+                                                ?.optString("storage_path")?.takeIf{it.isNotBlank()}
                                         )
                                     }
                                     val before=messages.map {it.id}.toSet()
@@ -333,6 +369,7 @@ internal fun VelvetConnectedChat(
                                 Text("↳ "+(when {
                                     source==null -> "Earlier message"
                                     source.deleted -> "This message was deleted"
+                                    source.kind=="image" -> "Photo · ${source.body}"
                                     else -> source.body
                                 }),
                                     color=rose,fontSize=12.sp,maxLines=2,
@@ -341,11 +378,21 @@ internal fun VelvetConnectedChat(
                                         .padding(8.dp))
                                 Spacer(Modifier.height(6.dp))
                             }
-                            Text(
-                                if(msg.deleted) "This message was deleted" else msg.body,
-                                color=if(msg.deleted) muted else cream,
-                                fontSize=15.sp,lineHeight=21.sp
-                            )
+                            if(msg.kind=="image" && !msg.deleted) {
+                                if(msg.storagePath!=null) {
+                                    VelvetPrivateImage(client,msg.storagePath)
+                                } else {
+                                    Text("Photo unavailable",color=muted,fontSize=13.sp)
+                                }
+                                if(msg.body.isNotBlank()) Spacer(Modifier.height(7.dp))
+                            }
+                            if(msg.deleted || msg.body.isNotBlank() || msg.kind=="text") {
+                                Text(
+                                    if(msg.deleted) "This message was deleted" else msg.body,
+                                    color=if(msg.deleted) muted else cream,
+                                    fontSize=15.sp,lineHeight=21.sp
+                                )
+                            }
                             if(msg.edited && !msg.deleted) {
                                 Text("Edited",color=muted,fontSize=10.sp)
                             }
@@ -381,7 +428,8 @@ internal fun VelvetConnectedChat(
                     verticalAlignment=Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
                         Text("Replying to",color=rose,fontSize=11.sp,fontWeight=FontWeight.SemiBold)
-                        Text(target.body,color=cream,fontSize=12.sp,maxLines=2)
+                        Text(if(target.kind=="image") "Photo · ${target.body}" else target.body,
+                            color=cream,fontSize=12.sp,maxLines=2)
                     }
                     IconButton(onClick={replyingTo=null}) {
                         Icon(Icons.Outlined.Close,"Cancel reply",tint=cream)
@@ -391,6 +439,12 @@ internal fun VelvetConnectedChat(
             Row(Modifier.fillMaxWidth().background(card)
                     .padding(horizontal=12.dp,vertical=10.dp),
                 verticalAlignment=Alignment.Bottom) {
+                IconButton(
+                    enabled=!uploading,
+                    onClick={pickPhoto.launch("image/*")}
+                ) {
+                    Icon(Icons.Outlined.Image,"Share a private photo",tint=rose)
+                }
                 OutlinedTextField(
                     value=text,
                     onValueChange={ if(it.length<=4000) text=it },
@@ -421,7 +475,9 @@ internal fun VelvetConnectedChat(
                 }
             }
         }
-        Text("Tap to reply · Hold for actions · No end-to-end encryption · Text only",
+        Text(
+            if(uploading) "Uploading encrypted-transport photo…"
+            else "Tap to reply · Hold for actions · Photos in private Storage · Not end-to-end encrypted",
             color=muted,fontSize=10.sp,modifier=Modifier.fillMaxWidth()
                 .background(card).padding(start=16.dp,end=16.dp,bottom=8.dp))
     }
@@ -441,7 +497,7 @@ internal fun VelvetConnectedChat(
                     ) { Text("Reply to this message",color=rose) }
                 }
                 val isMine=target.senderId==ownId || target.pending
-                if(isMine && !target.pending && !target.deleted) {
+                if(isMine && target.kind=="text" && !target.pending && !target.deleted) {
                     TextButton(
                         onClick={
                             editTarget=target
