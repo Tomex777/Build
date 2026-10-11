@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-SHARD="${1:?Usage: run-api26-shard.sh <0|1|2|3>}"
-case "$SHARD" in 0|1|2|3) ;; *) echo "::error::Invalid shard $SHARD" >&2; exit 2 ;; esac
+SHARD="${1:?Usage: run-api26-shard.sh <0|1|2|3|canvas|rest>}"
+case "$SHARD" in 0|1|2|3|canvas|rest) ;; *) echo "::error::Invalid shard $SHARD" >&2; exit 2 ;; esac
 
 # Each non-process-death instrumentation class is in exactly one shard.
 # Process death and release-smoke acceptance remain separate gates.
@@ -11,10 +11,16 @@ import pathlib, sys
 root = pathlib.Path("annie-android/app/src/androidTest/java")
 sources = sorted(path for path in root.rglob("*Test.kt")
                  if "processdeath" not in path.parts)
-group = int(sys.argv[1])
-selected = [p.with_suffix("").relative_to(root).as_posix().replace("/", ".")
-            for i, p in enumerate(sources) if i % 4 == group]
-assert selected, "Empty Android 8 test shard"
+group = sys.argv[1]
+names = [p.with_suffix("").relative_to(root).as_posix().replace("/", ".") for p in sources]
+if group in ("canvas", "rest"):
+    # Isolate the 9 classes in the one slow shard. Canvas previously had
+    # flaky emulator interactions and is tested alone first.
+    subset = [n for i, n in enumerate(names) if i % 4 == 1]
+    selected = [n for n in subset if (n.endswith(".AnnieCanvasMessageTest")) == (group == "canvas")]
+else:
+    selected = [n for i, n in enumerate(names) if i % 4 == int(group)]
+assert selected, f"Empty Android 8 test shard {group}"
 print(",".join(selected))
 print(f"Shard {group}: {len(selected)} classes", file=sys.stderr)
 PY
@@ -40,7 +46,9 @@ PY
 
 echo "Android 8 shard $SHARD classes: $CLASSES"
 set +e
-gradle --no-daemon --stacktrace -p annie-android :app:connectedDebugAndroidTest \
+# Bound a hung instrumentation command to 25 minutes so a single Android 8
+# test cannot silently consume the full 80-minute release-gate budget.
+timeout --signal=TERM --kill-after=20s 1500s gradle --no-daemon --stacktrace -p annie-android :app:connectedDebugAndroidTest \
   "-Pandroid.testInstrumentationRunnerArguments.class=$CLASSES"
 RESULT=$?
 set -e
