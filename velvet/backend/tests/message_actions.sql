@@ -35,9 +35,9 @@ begin
   v:=public.velvet_delete_text('33333333-3333-4333-8333-333333333333',true);
   if v->>'ok'<>'true' then raise exception 'Sender delete-everyone failed: %',v; end if;
   rows:=public.velvet_list_text();
-  if not exists(select 1 from jsonb_array_elements(rows) as t
-      where t->>'id'='33333333-3333-4333-8333-333333333333'
-        and t->>'deleted'='true' and t->>'body' is null) then
+  if not exists(select 1 from jsonb_array_elements(rows) as t(value)
+      where t.value->>'id'='33333333-3333-4333-8333-333333333333'
+        and t.value->>'deleted'='true' and t.value->>'body' is null) then
     raise exception 'Deleted message must be a blank-content tombstone: %',rows;
   end if;
   v:=public.velvet_edit_text('33333333-3333-4333-8333-333333333333','Resurrect');
@@ -45,8 +45,8 @@ begin
   v:=public.velvet_delete_text('11111111-1111-4111-8111-111111111111',false);
   if v->>'ok'<>'true' then raise exception 'Partner local hide failed: %',v; end if;
   rows:=public.velvet_list_text();
-  if exists(select 1 from jsonb_array_elements(rows) as t
-      where t->>'id'='11111111-1111-4111-8111-111111111111') then
+  if exists(select 1 from jsonb_array_elements(rows) as t(value)
+      where t.value->>'id'='11111111-1111-4111-8111-111111111111') then
     raise exception 'Hidden message still in partner feed: %',rows;
   end if;
 end $$;
@@ -68,9 +68,9 @@ begin
     raise exception 'Mutation cursor repeated or exposed other partner hide';
   end if;
   rows:=public.velvet_list_text();
-  if not exists(select 1 from jsonb_array_elements(rows) as t
-      where t->>'id'='11111111-1111-4111-8111-111111111111'
-        and t->>'body'='Edited by Alex') then
+  if not exists(select 1 from jsonb_array_elements(rows) as t(value)
+      where t.value->>'id'='11111111-1111-4111-8111-111111111111'
+        and t.value->>'body'='Edited by Alex') then
     raise exception 'Partner hide incorrectly removed original from sender: %',rows;
   end if;
   v:=public.velvet_delete_text('11111111-1111-4111-8111-111111111111',true);
