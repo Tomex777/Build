@@ -43,7 +43,7 @@ trap rollback_on_error EXIT
 echo "=== MSCC Azure install v$VERSION ==="
 echo "Source ref: $SOURCE_REF"
 
-sudo mkdir -p "$RELEASE" "$STATE/auth" "$STATE/auth-b" "$STATE/data" "$BACKUPS"
+sudo mkdir -p "$BASE/releases" "$STATE/auth" "$STATE/auth-b" "$STATE/data" "$BACKUPS"
 sudo chown -R "$USER:$USER" "$BASE" "$STATE" "$BACKUPS"
 chmod 700 "$STATE" "$STATE/auth" "$STATE/auth-b" "$STATE/data"
 
