@@ -239,12 +239,18 @@ class AnnieCanvasMessageTest {
         val sx = viewWidth / widthCss
         val sy = viewHeight / heightCss
         val x = screenLocation[0] + (board.getDouble(0) + board.getDouble(2) * 0.5).toFloat() * sx
-        val y1 = screenLocation[1] + (board.getDouble(1) + board.getDouble(3) * 0.30).toFloat() * sy
-        val y2 = screenLocation[1] + (board.getDouble(1) + board.getDouble(3) * 0.70).toFloat() * sy
-        assertTrue("Board swipe starts outside exposed Canvas: $visible board=$board",
-            x >= visible.left && x <= visible.right && y1 >= visible.top && y1 < visible.bottom)
-        assertTrue("Board swipe ends outside exposed Canvas: $visible board=$board",
-            y2 > y1 + 32f && y2 < visible.bottom)
+        val boardTop = screenLocation[1] + board.getDouble(1).toFloat() * sy
+        val boardBottom = boardTop + board.getDouble(3).toFloat() * sy
+        // A Canvas in chat may be partially clipped by the conversation viewport.
+        // Stay inside the exposed board instead of requiring the entire board on screen.
+        val exposedTop = maxOf(boardTop, visible.top.toFloat())
+        val exposedBottom = minOf(boardBottom, visible.bottom.toFloat())
+        assertTrue("Board has too little exposed playing area: $visible board=$board",
+            exposedBottom - exposedTop >= 90f)
+        val y1 = exposedTop + (exposedBottom - exposedTop) * 0.25f
+        val y2 = exposedTop + (exposedBottom - exposedTop) * 0.75f
+        assertTrue("Board center lies outside exposed Canvas: $visible board=$board",
+            x >= visible.left && x <= visible.right)
 
         // Real event timestamps and intermediate movements are important for
         // Android WebView pointer capture. Do not replace with JS-dispatched events.
