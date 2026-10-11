@@ -243,6 +243,80 @@ internal class VelvetPairClient(private val context: Context) {
         rpc("velvet_send_image",params)
     }
 
+    /** Send an AAC voice note to the PRIVATE couple Storage bucket. */
+    suspend fun sendVoice(
+        coupleId:String,me:String,recording:java.io.File,
+        durationMs:Int,waveform:List<Int>,replyTo:String?=null
+    ): JSONObject = withContext(Dispatchers.IO) {
+        require(configured) {"Online voice sharing isn't configured."}
+        require(UUID.fromString(coupleId).toString()==coupleId)
+        require(UUID.fromString(me).toString()==me)
+        require(durationMs in 500..120000) {"Voice notes must be 0.5–120 seconds."}
+        require(waveform.size<=42 && waveform.all{it in 0..100})
+        require(recording.isFile && recording.length() in 1..5242880) {
+            "The voice note is empty or exceeds 5 MB."
+        }
+        val path="$coupleId/$me/${UUID.randomUUID()}.m4a"
+        val bytes=recording.readBytes()
+        val upload=URL("$endpoint/storage/v1/object/velvet-chat-voice/$path")
+            .openConnection() as HttpURLConnection
+        try {
+            upload.requestMethod="POST"
+            upload.connectTimeout=20000
+            upload.readTimeout=30000
+            upload.doOutput=true
+            upload.setFixedLengthStreamingMode(bytes.size)
+            upload.setRequestProperty("apikey",publishable)
+            upload.setRequestProperty("Authorization","Bearer ${activeToken()}")
+            upload.setRequestProperty("Content-Type","audio/mp4")
+            upload.setRequestProperty("x-upsert","false")
+            upload.outputStream.use {it.write(bytes)}
+            if(upload.responseCode !in 200..299) {
+                throw IllegalStateException(
+                    "Voice upload rejected (HTTP ${upload.responseCode})."
+                )
+            }
+        } finally {upload.disconnect()}
+        val samples=JSONArray().apply{waveform.forEach{put(it)}}
+        val args=JSONObject().put("p_id",UUID.randomUUID().toString())
+            .put("p_storage_path",path).put("p_bytes",bytes.size)
+            .put("p_duration_ms",durationMs).put("p_waveform",samples)
+        if(!replyTo.isNullOrBlank())args.put("p_reply_to",replyTo)
+        rpc("velvet_send_voice",args)
+    }
+
+    /** Authenticated GET; the Storage SELECT policy validates pairing + visibility. */
+    suspend fun downloadVoice(storagePath:String):ByteArray = withContext(Dispatchers.IO) {
+        require(storagePath.matches(Regex(
+            "[0-9a-f-]{36}/[0-9a-f-]{36}/[0-9a-f-]{36}\\.m4a"
+        ))) {"Invalid voice path."}
+        val con=URL("$endpoint/storage/v1/object/authenticated/velvet-chat-voice/$storagePath")
+            .openConnection() as HttpURLConnection
+        try {
+            con.requestMethod="GET"
+            con.connectTimeout=15000
+            con.readTimeout=30000
+            con.setRequestProperty("apikey",publishable)
+            con.setRequestProperty("Authorization","Bearer ${activeToken()}")
+            if(con.responseCode !in 200..299) {
+                throw IllegalStateException(
+                    "Voice note unavailable (HTTP ${con.responseCode})."
+                )
+            }
+            val out=java.io.ByteArrayOutputStream()
+            con.inputStream.use {source->
+                val chunk=ByteArray(8192)
+                while(true) {
+                    val n=source.read(chunk)
+                    if(n<0)break
+                    out.write(chunk,0,n)
+                    require(out.size()<=5242880) {"Voice note exceeds 5 MB."}
+                }
+            }
+            out.toByteArray()
+        } finally {con.disconnect()}
+    }
+
     /** Never create a public URL: private downloads carry the authenticated JWT. */
     suspend fun downloadImage(storagePath:String):ByteArray = withContext(Dispatchers.IO) {
         require(storagePath.matches(Regex(
