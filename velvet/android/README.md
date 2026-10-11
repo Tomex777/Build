@@ -33,3 +33,11 @@ See [SIGNING.md](SIGNING.md) for the one-time setup, certificate fingerprint, an
 Real multi-device messaging, remote heartbeats, notifications, Azure Blob Storage access, Supabase Auth / Realtime, and multiplayer synchronization are still to be integrated. Local preview functionality is **not** a live two-device service.
 
 This branch is independent of other app development branches in the shared Build repository.
+
+## v0.7 native account and pairing groundwork
+
+Home has a **Connect our phones · Pairing** destination using Supabase email/password authentication, email confirmation, short-lived one-time invitations, and a pairing-status display. Refresh tokens are stored via Android Keystore AES-GCM, not plaintext preferences. The client makes only authenticated HTTPS requests and embeds a **public publishable** Supabase key.
+
+The build reads `VELVET_SUPABASE_URL` and `VELVET_SUPABASE_PUBLISHABLE_KEY` from CI Actions *Variables* (or environment variables locally). If absent, the pairing screen clearly reports that the backend is unavailable and does not pretend to have paired anything.
+
+⚠️ Pairing is **not live yet**, because no Supabase project/migrations were deployed through this workspace. Even when activated, this milestone shares *membership state only*: existing chat messages, games, media and music are still local demos. Do not interpret their UI as two-phone synchronization. See `../backend/README.md` for the deployment order and SQL security tests.
