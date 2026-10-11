@@ -39,3 +39,5 @@ jobs:
           done
       - name: Test pairing, rate limits and RLS
         run: psql -v ON_ERROR_STOP=1 -f velvet/backend/tests/pairing.sql
+      - name: Test paired text messaging and isolation
+        run: psql -v ON_ERROR_STOP=1 -f velvet/backend/tests/messages.sql
