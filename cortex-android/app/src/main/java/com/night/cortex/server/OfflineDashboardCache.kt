@@ -23,6 +23,9 @@ internal class OfflineDashboardCache(context: Context) {
         val savedAt: Long,
         val snapshot: HostingSnapshot?,
         val pairing: PairingState?,
+        val startup: StartupInfo?,
+        val commandSettings: List<CommandSetting>,
+        val registry: RuntimeRegistry?,
     )
 
     fun clear() = file.delete()
@@ -106,7 +109,73 @@ internal class OfflineDashboardCache(context: Context) {
                     profiles = profiles,
                 )
             }
-            Restored(root.optLong("savedAt"), snapshot, pairing)
+            val startup = root.optJSONObject("startup")?.let { json ->
+                StartupInfo(
+                    runtime = json.optString("runtime", "Node.js"),
+                    version = json.optString("version"),
+                    entryFile = json.optString("entryFile", "index.js"),
+                    startupMode = json.optString("startupMode", "unknown"),
+                )
+            }
+            val settings = buildList {
+                val rows = root.optJSONArray("settings") ?: JSONArray()
+                for (i in 0 until rows.length()) {
+                    val row = rows.optJSONObject(i) ?: continue
+                    add(CommandSetting(
+                        key = row.optString("key"),
+                        label = row.optString("label"),
+                        description = row.optString("description"),
+                        command = row.optString("command"),
+                        enabled = row.optBoolean("enabled"),
+                    ))
+                }
+            }
+            val registry = root.optJSONObject("registry")?.let { json ->
+                val moduleRows = json.optJSONArray("modules") ?: JSONArray()
+                val modules = buildList {
+                    for (i in 0 until moduleRows.length()) {
+                        val row = moduleRows.optJSONObject(i) ?: continue
+                        add(RuntimeModule(
+                            id = row.optString("id"),
+                            displayName = row.optString("displayName"),
+                            version = row.optString("version"),
+                            status = row.optString("status"),
+                            enabled = row.optBoolean("enabled"),
+                            commands = row.optJSONArray("commands").strings(),
+                            configuration = emptyList(),
+                            loadError = "",
+                            lastReload = row.optString("lastReload"),
+                            moduleDirectory = "",
+                            dependencies = emptyList(),
+                            permissions = row.optJSONArray("permissions").strings(),
+                        ))
+                    }
+                }
+                val commandRows = json.optJSONArray("commands") ?: JSONArray()
+                val commands = buildList {
+                    for (i in 0 until commandRows.length()) {
+                        val row = commandRows.optJSONObject(i) ?: continue
+                        add(RuntimeCommand(
+                            name = row.optString("name"),
+                            moduleId = row.optString("moduleId"),
+                            description = row.optString("description"),
+                            aliases = row.optJSONArray("aliases").strings(),
+                            enabled = row.optBoolean("enabled"),
+                            permission = row.optString("permission"),
+                            usage = row.optString("usage"),
+                            error = "",
+                        ))
+                    }
+                }
+                RuntimeRegistry(
+                    version = json.optInt("version"),
+                    generatedAt = json.optString("generatedAt"),
+                    source = "offline-cache",
+                    modules = modules,
+                    commands = commands,
+                )
+            }
+            Restored(root.optLong("savedAt"), snapshot, pairing, startup, settings, registry)
         }.getOrNull()
     }
 
@@ -131,6 +200,59 @@ internal class OfflineDashboardCache(context: Context) {
                             put("version", runtime.version)
                             put("entryFile", runtime.entryFile)
                             // Do not persist start commands: they may contain secrets.
+                        }
+                    })
+                }
+            })
+            put("startup", state.startup?.let { startup ->
+                JSONObject().apply {
+                    put("runtime", startup.runtime)
+                    put("version", startup.version)
+                    put("entryFile", startup.entryFile)
+                    put("startupMode", startup.startupMode)
+                    // Do not cache start commands or environment variables.
+                }
+            })
+            put("settings", JSONArray().apply {
+                state.commandSettings.forEach { setting ->
+                    put(JSONObject().apply {
+                        put("key", setting.key)
+                        put("label", setting.label)
+                        put("description", setting.description)
+                        put("command", setting.command)
+                        put("enabled", setting.enabled)
+                    })
+                }
+            })
+            put("registry", state.runtimeRegistry?.let { registry ->
+                JSONObject().apply {
+                    put("version", registry.version)
+                    put("generatedAt", registry.generatedAt)
+                    put("modules", JSONArray().apply {
+                        registry.modules.forEach { module ->
+                            put(JSONObject().apply {
+                                put("id", module.id)
+                                put("displayName", module.displayName)
+                                put("version", module.version)
+                                put("status", module.status)
+                                put("enabled", module.enabled)
+                                put("commands", JSONArray(module.commands))
+                                put("lastReload", module.lastReload)
+                                put("permissions", JSONArray(module.permissions))
+                            })
+                        }
+                    })
+                    put("commands", JSONArray().apply {
+                        registry.commands.forEach { command ->
+                            put(JSONObject().apply {
+                                put("name", command.name)
+                                put("moduleId", command.moduleId)
+                                put("description", command.description)
+                                put("aliases", JSONArray(command.aliases))
+                                put("enabled", command.enabled)
+                                put("permission", command.permission)
+                                put("usage", command.usage)
+                            })
                         }
                     })
                 }
@@ -186,6 +308,11 @@ internal class OfflineDashboardCache(context: Context) {
             file.failWrite(stream)
             throw error
         }
+    }
+
+    private fun JSONArray?.strings(): List<String> {
+        val array = this ?: return emptyList()
+        return List(array.length()) { array.optString(it) }
     }
 
     private fun fingerprint(url: String, token: String): String {
