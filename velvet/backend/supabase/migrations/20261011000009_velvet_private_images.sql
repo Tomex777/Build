@@ -7,6 +7,19 @@ values('velvet-chat-media','velvet-chat-media',false,8388608,
 on conflict (id) do update set public=false,file_size_limit=8388608,
   allowed_mime_types=excluded.allowed_mime_types;
 
+-- Preserve an immutable claim for every bound Storage object, including after a
+-- delete-for-everyone tombstone removes the message payload. Prevents recycling
+-- a deleted image path into another message. Clients have zero table privileges.
+create table if not exists public.velvet_image_claims (
+  storage_path text primary key,
+  message_id uuid not null unique,
+  couple_id uuid not null references public.velvet_couples(id) on delete cascade,
+  owner_id uuid not null references auth.users(id) on delete cascade,
+  claimed_at timestamptz not null default now()
+);
+alter table public.velvet_image_claims enable row level security;
+revoke all on public.velvet_image_claims from public,anon,authenticated;
+
 -- <couple UUID>/<sender UUID>/<random UUID>.<ext> exactly.
 -- A paired member can upload only under their OWN user-id folder.
 create policy velvet_image_upload on storage.objects for insert to authenticated
@@ -139,6 +152,13 @@ begin
       then now() else public.velvet_text_send_rates.window_start end
   returning attempts into v_attempts;
   if v_attempts>40 then return jsonb_build_object('ok',false,'error','rate_limited'); end if;
+
+  insert into public.velvet_image_claims(storage_path,message_id,couple_id,owner_id)
+    values(p_storage_path,p_id,v_couple,v_user)
+    on conflict do nothing;
+  if not found then
+    return jsonb_build_object('ok',false,'error','file_already_sent');
+  end if;
 
   insert into public.velvet_messages(id,couple_id,sender_id,kind,body,reply_to,payload)
   values(p_id,v_couple,v_user,'image',nullif(v_caption,''),p_reply_to,
