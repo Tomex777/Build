@@ -571,7 +571,11 @@ internal class AnnieGeckoBrowserModel(private val context: Context) {
     fun load(tab: AnnieGeckoTab, address: String): Boolean {
         val url = AnnieBrowserAddress.resolve(address) ?: return false
         tab.error = null
-        tab.session.loadUri(url)
+        tab.loading = true
+        tab.progress = 0
+        // Address-bar navigation carries the original input into Gecko's load
+        // handling, including URI fixup and the user-entered navigation source.
+        tab.session.load(GeckoSession.Loader().uri(url).originalInput(address))
         return true
     }
 

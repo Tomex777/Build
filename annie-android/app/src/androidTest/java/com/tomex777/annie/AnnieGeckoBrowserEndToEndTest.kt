@@ -1,6 +1,9 @@
 package com.tomex777.annie
 
 import android.os.Build
+import android.os.SystemClock
+import android.view.MotionEvent
+import android.graphics.Rect
 import android.os.Environment
 import androidx.activity.ComponentActivity
 import androidx.compose.ui.Modifier
@@ -38,6 +41,7 @@ class AnnieGeckoBrowserEndToEndTest {
         lateinit var model: AnnieGeckoBrowserModel
         var initialized = false
         lateinit var tab: AnnieGeckoTab
+        lateinit var browserView: GeckoView
         var entry: AnnieGeckoDownloadEntry? = null
         try {
             compose.runOnUiThread {
@@ -57,13 +61,25 @@ class AnnieGeckoBrowserEndToEndTest {
             }
             compose.setContent {
                 AndroidView(
-                    factory = { GeckoView(it).apply { setSession(tab.session) } },
+                    factory = { GeckoView(it).apply { setSession(tab.session); browserView = this } },
                     modifier = Modifier.fillMaxSize(),
                     onRelease = { it.releaseSession() },
                 )
             }
             compose.runOnUiThread { assertTrue(model.load(tab, server.baseUrl + "/one")) }
             waitForNavigation("first page") { tab.url == server.baseUrl + "/one" && tab.title == "Gecko one" && !tab.loading }
+            // A real user interacts with the rendered page before another
+            // navigation. Preserve Gecko's history-interaction protections and
+            // exercise native input rather than a JavaScript activation shortcut.
+            val bounds = Rect()
+            compose.runOnUiThread { browserView.getGlobalVisibleRect(bounds) }
+            val downTime = SystemClock.uptimeMillis()
+            listOf(MotionEvent.ACTION_DOWN, MotionEvent.ACTION_UP).forEach { action ->
+                val event = MotionEvent.obtain(downTime, SystemClock.uptimeMillis(), action,
+                    bounds.exactCenterX(), bounds.exactCenterY(), 0)
+                try { InstrumentationRegistry.getInstrumentation().sendPointerSync(event) }
+                finally { event.recycle() }
+            }
             compose.runOnUiThread { assertTrue(model.load(tab, server.baseUrl + "/two")) }
             waitForNavigation("second page") { tab.url == server.baseUrl + "/two" && tab.title == "Gecko two" && tab.canBack && !tab.loading }
             compose.runOnUiThread { tab.session.goBack() }

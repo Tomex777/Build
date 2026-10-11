@@ -62,16 +62,26 @@ internal fun saveEmulatorScreenshot(name: String): Uri {
         // AGP removes app-specific external storage when uninstalling the test target.
         // Copy through the test shell so API 26 evidence survives that cleanup.
         android.util.Log.i("AnnieCanvasTest", "screenshot $name: copying evidence")
-        instrumentation.uiAutomation.executeShellCommand(
-            "mkdir -p /sdcard/Pictures/AnnieCI && cp ${file.absolutePath} /sdcard/Pictures/AnnieCI/${file.name} && echo ANNIE_SCREENSHOT_SAVED"
-        ).use { descriptor ->
-            // API 26 can retain a shell pipe writer after the command completes.
-            // Consume an explicit success marker rather than waiting forever for EOF.
-            android.os.ParcelFileDescriptor.AutoCloseInputStream(descriptor).bufferedReader().use { reader ->
-                check(reader.readLine() == "ANNIE_SCREENSHOT_SAVED") {
-                    "Could not preserve emulator screenshot: $safe"
+        // UiAutomation's Android 8 command endpoint starts a process directly;
+        // shell operators in the command string are not interpreted. Execute a
+        // short app-owned script explicitly and consume its completion marker.
+        val copyScript = File(directory, "copy-$safe.sh")
+        copyScript.writeText("""
+            set -e
+            mkdir -p /sdcard/Pictures/AnnieCI
+            cp '${file.absolutePath}' '/sdcard/Pictures/AnnieCI/${file.name}'
+            echo ANNIE_SCREENSHOT_SAVED
+        """.trimIndent())
+        try {
+            instrumentation.uiAutomation.executeShellCommand("sh ${copyScript.absolutePath}").use { descriptor ->
+                android.os.ParcelFileDescriptor.AutoCloseInputStream(descriptor).bufferedReader().use { reader ->
+                    check(reader.readLine() == "ANNIE_SCREENSHOT_SAVED") {
+                        "Could not preserve emulator screenshot: $safe"
+                    }
                 }
             }
+        } finally {
+            copyScript.delete()
         }
         android.util.Log.i("AnnieCanvasTest", "screenshot $name: saved and copied")
         return Uri.fromFile(file)

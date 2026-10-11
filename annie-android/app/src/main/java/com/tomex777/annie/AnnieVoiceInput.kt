@@ -7,11 +7,9 @@ import android.speech.RecognitionListener
 import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
 import android.widget.Toast
+import android.view.MotionEvent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.awaitEachGesture
-import androidx.compose.foundation.gestures.awaitFirstDown
-import androidx.compose.foundation.gestures.waitForUpOrCancellation
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
@@ -35,7 +33,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.pointerInteropFilter
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
@@ -160,6 +158,7 @@ internal fun rememberVoiceNoteController(onVoiceNote: (String, Long) -> Unit): V
 }
 
 /** The hold-to-record microphone. Use in place of the send button while the draft is empty. */
+@OptIn(androidx.compose.ui.ExperimentalComposeUiApi::class)
 @Composable
 internal fun VoiceHoldButton(
     controller: VoiceNoteController,
@@ -169,46 +168,49 @@ internal fun VoiceHoldButton(
     val density = LocalDensity.current
     val cancelPx = with(density) { 110.dp.toPx() }
     val lockPx = with(density) { 70.dp.toPx() }
+    val gesture = remember(controller) { VoiceHoldGesture() }
+    DisposableEffect(controller) {
+        onDispose { if (!controller.locked) controller.cancel() }
+    }
     Surface(
         color = if (controller.recording) Color(0xFFFF4D4D) else Color(0xFF168EEA),
         shape = CircleShape,
-        modifier = modifier.size(46.dp).testTag("composer_voice_hold").pointerInput(controller) {
-            awaitEachGesture {
-                val down = awaitFirstDown(requireUnconsumed = false)
-                if (controller.recording) { waitForUpOrCancellation(); return@awaitEachGesture }
-                if (!controller.hasPermission()) {
-                    onNeedPermission()
-                    waitForUpOrCancellation()
-                    return@awaitEachGesture
-                }
-                if (!controller.begin()) { waitForUpOrCancellation(); return@awaitEachGesture }
-                var lockedHere = false
-                var released = false
-                try {
-                    while (true) {
-                        val change = awaitPointerEventChange() ?: break
-                        val dx = change.position.x - down.position.x
-                        val dy = change.position.y - down.position.y
-                        controller.cancelling = dx < -cancelPx
-                        if (!lockedHere && dy < -lockPx && !controller.cancelling) {
-                            lockedHere = true
-                            controller.locked = true
-                        }
-                        if (!change.pressed) { released = true; break }
-                        change.consume()
+        modifier = modifier.size(46.dp).testTag("composer_voice_hold").pointerInteropFilter { event ->
+            // Compose represents ACTION_CANCEL as unpressed pointers. Keep the
+            // native distinction: only ACTION_UP may send an unlocked draft.
+            when (event.actionMasked) {
+                MotionEvent.ACTION_DOWN -> {
+                    gesture.started = false
+                    gesture.startX = event.x
+                    gesture.startY = event.y
+                    if (!controller.recording) {
+                        if (!controller.hasPermission()) onNeedPermission()
+                        else gesture.started = controller.begin()
                     }
-                } finally {
-                    // Android can cancel a pointer stream without an ordinary finger
-                    // release. Discard an interrupted hold instead of sending it or
-                    // leaving the microphone active. A deliberately locked draft stays.
-                    if (!released && !lockedHere) controller.cancel()
                 }
-                when {
-                    controller.cancelling -> controller.cancel()
-                    lockedHere -> Unit // stays recording until Delete / Send is tapped
-                    else -> controller.finish()
+                MotionEvent.ACTION_MOVE -> if (gesture.started && controller.recording) {
+                    val dx = event.x - gesture.startX
+                    val dy = event.y - gesture.startY
+                    controller.cancelling = dx < -cancelPx
+                    if (dy < -lockPx && !controller.cancelling) controller.locked = true
+                }
+                MotionEvent.ACTION_UP -> {
+                    if (gesture.started) {
+                        when {
+                            controller.cancelling -> controller.cancel()
+                            controller.locked -> Unit
+                            else -> controller.finish()
+                        }
+                    }
+                    gesture.started = false
+                }
+                MotionEvent.ACTION_CANCEL -> {
+                    if (gesture.started && !controller.locked) controller.cancel()
+                    gesture.started = false
                 }
             }
+            true
+
         },
     ) {
         Box(contentAlignment = Alignment.Center) {
@@ -222,8 +224,11 @@ internal fun VoiceHoldButton(
     }
 }
 
-private suspend fun androidx.compose.ui.input.pointer.AwaitPointerEventScope.awaitPointerEventChange() =
-    awaitPointerEvent().changes.firstOrNull()
+private class VoiceHoldGesture {
+    var started = false
+    var startX = 0f
+    var startY = 0f
+}
 
 /** Recording state stays visible, with a LIVE waveform and explicit delete/send when locked. */
 @Composable

@@ -29,6 +29,8 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
+import org.junit.After
+import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -37,6 +39,28 @@ import org.junit.runner.RunWith
 class AnnieCanvasMessageTest {
     @get:Rule(order = 0) val stalledThreadEvidence: org.junit.rules.TestRule = StalledThreadEvidenceRule()
     @get:Rule(order = 1) val compose = createAndroidComposeRule<ComponentActivity>()
+
+    private var hostActivity: ComponentActivity? = null
+
+    @Before fun retainHostBeforeCanvasStartsAnimating() {
+        hostActivity = compose.activity
+    }
+
+    @After fun stopRenderingBeforeActivityScenarioWaitsForIdle() {
+        // API26 ActivityScenario.close first waits for main-loop idle. A live
+        // animated WebView can keep rendering forever, so finish the test's
+        // native host before that framework wait. Gameplay remains unchanged.
+        val activity = hostActivity ?: return
+        InstrumentationRegistry.getInstrumentation().runOnMainSync {
+            findCanvasWebView(activity.window.decorView)?.let { web ->
+                (web.parent as? ViewGroup)?.removeView(web)
+                web.onPause()
+            }
+            activity.finish()
+        }
+        hostActivity = null
+        checkpoint("Canvas host finish requested before framework teardown")
+    }
 
     private fun checkpoint(stage: String) {
         Log.i("AnnieCanvasTest", stage)

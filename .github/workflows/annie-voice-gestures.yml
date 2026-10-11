@@ -2,7 +2,7 @@ name: Annie microphone gesture acceptance
 
 on:
   push:
-    branches: [annie-rc-voice-gestures-20261011]
+    branches: [annie-rc-voice-gestures-20261011, annie-rc-acceptance-repair-20261011]
     paths:
       - 'annie-android/**'
       - '.github/workflows/annie-voice-gestures.yml'
