@@ -38,6 +38,17 @@ import java.time.OffsetDateTime
 import java.time.format.DateTimeFormatter
 import java.util.UUID
 
+/** Postgres read cursors order messages by creation instant, then UUID. */
+private fun coversReadCursor(message:ConnectedText,at:String?,id:String?):Boolean {
+    if(at.isNullOrBlank() || id.isNullOrBlank() || message.pending) return false
+    return runCatching {
+        val cursorTime=OffsetDateTime.parse(at).toInstant()
+        val messageTime=OffsetDateTime.parse(message.at).toInstant()
+        messageTime.isBefore(cursorTime) ||
+            (messageTime==cursorTime && message.id<=id)
+    }.getOrDefault(false)
+}
+
 private data class ConnectedText(
     val id:String,
     val body:String,
@@ -104,6 +115,8 @@ internal fun VelvetConnectedChat(
     var text by remember {mutableStateOf("")}
     var ready by remember {mutableStateOf(false)}
     var showingInfo by remember {mutableStateOf(false)}
+    var partnerReadAt by remember {mutableStateOf<String?>(null)}
+    var partnerReadId by remember {mutableStateOf<String?>(null)}
     var replyingTo by remember {mutableStateOf<ConnectedText?>(null)}
     var selectedAction by remember {mutableStateOf<ConnectedText?>(null)}
     var editTarget by remember {mutableStateOf<ConnectedText?>(null)}
@@ -186,6 +199,8 @@ internal fun VelvetConnectedChat(
         var lastAt:String?=null
         var lastId:String?=null
         var lastChangeId=0L
+        var myReadAt:String?=null
+        var myReadId:String?=null
         // repeatOnLifecycle halts all network polling when the screen/activity
         // is no longer STARTED, resuming with the same cursor on foreground.
         activityLifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
@@ -260,6 +275,37 @@ internal fun VelvetConnectedChat(
                         }
                     }
                     lastChangeId=changeId
+                }
+                // A fetch alone is NOT a read: only advance to an actually
+                // visible partner bubble while Chat is on screen and foreground.
+                // Chat Info and background activity cannot generate receipts.
+                val state=client.chatReadState()
+                partnerReadAt=state.optString("partner_read_at")
+                    .takeIf{it.isNotBlank() && it!="null"}
+                partnerReadId=state.optString("partner_read_id")
+                    .takeIf{it.isNotBlank() && it!="null"}
+                myReadAt=state.optString("my_read_at")
+                    .takeIf{it.isNotBlank() && it!="null"}
+                myReadId=state.optString("my_read_id")
+                    .takeIf{it.isNotBlank() && it!="null"}
+
+                if(!showingInfo) {
+                    val visibleKeys=listState.layoutInfo.visibleItemsInfo
+                        .mapNotNull{it.key as? String}.toSet()
+                    val latestSeen=messages.asSequence()
+                        .filter{!it.pending && !it.deleted && it.senderId!=ownId}
+                        .filter{it.id in visibleKeys}
+                        .filter{!coversReadCursor(it,myReadAt,myReadId)}
+                        .maxWithOrNull(compareBy<ConnectedText> {
+                            OffsetDateTime.parse(it.at).toInstant()
+                        }.thenBy {it.id})
+                    if(latestSeen!=null) {
+                        val ack=client.markChatRead(latestSeen.id)
+                        if(ack.optBoolean("ok")) {
+                            myReadAt=latestSeen.at
+                            myReadId=latestSeen.id
+                        }
+                    }
                 }
                 status=sendError ?: "Connected · updates while this screen is open"
             } catch(e:Exception) {
@@ -418,8 +464,15 @@ internal fun VelvetConnectedChat(
                             val time=runCatching {
                                 OffsetDateTime.parse(msg.at).format(DateTimeFormatter.ofPattern("HH:mm"))
                             }.getOrDefault("")
-                            Text(if(msg.pending) "Queued · ${time}" else time,
-                                color=muted,fontSize=10.sp)
+                            val seen=mine && coversReadCursor(
+                                msg,partnerReadAt,partnerReadId
+                            )
+                            Text(when {
+                                msg.pending -> "Queued · ${time}"
+                                mine && seen -> "${time} · ✓✓ Read"
+                                mine -> "${time} · ✓ Sent"
+                                else -> time
+                            },color=if(seen) rose else muted,fontSize=10.sp)
                             if(msg.pending) {
                                 TextButton(onClick={
                                     try {
