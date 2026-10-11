@@ -60,7 +60,8 @@ internal class VoiceNoteController(
         internal set
     var elapsedMs by mutableLongStateOf(0L)
         private set
-    private var startedAt = 0L
+    var paused by mutableStateOf(false)
+        private set
     val waveformPeaks = mutableStateListOf<Float>()
 
     fun hasPermission() = recorder.hasPermission()
@@ -72,7 +73,7 @@ internal class VoiceNoteController(
             return false
         }
         AnnieVoicePlayer.stop()
-        startedAt = System.currentTimeMillis()
+        paused = false
         elapsedMs = 0L
         waveformPeaks.clear()
         locked = false
@@ -82,11 +83,22 @@ internal class VoiceNoteController(
     }
 
     fun tick() {
-        if (!recording) return
-        elapsedMs = System.currentTimeMillis() - startedAt
+        if (!recording || paused) return
+        elapsedMs = recorder.durationMillis
         waveformPeaks.add(recorder.peak())
         if (waveformPeaks.size > 600) waveformPeaks.removeAt(0)
         if (elapsedMs >= AnnieVoiceRecorder.MAX_DURATION_MS) finish()
+    }
+
+    fun togglePause() {
+        if (!recording || !locked) return
+        val succeeded = if (paused) recorder.resume() else recorder.pause()
+        if (succeeded) {
+            paused = recorder.isPaused
+            elapsedMs = recorder.durationMillis
+        } else {
+            Toast.makeText(appContext, "Couldn't ${if (paused) "resume" else "pause"} recording.", Toast.LENGTH_SHORT).show()
+        }
     }
 
     fun finish() {
@@ -108,7 +120,7 @@ internal class VoiceNoteController(
         recorder.cancel()
     }
 
-    private fun reset() { recording = false; locked = false; cancelling = false }
+    private fun reset() { recording = false; locked = false; cancelling = false; paused = false }
 }
 
 @Composable
@@ -203,9 +215,15 @@ internal fun VoiceRecordingBar(controller: VoiceNoteController, modifier: Modifi
         VoiceWaveform(
             samples = controller.waveformPeaks.toList().takeLast(40),
             progress = 1f,
-            width = if (controller.locked) 99.dp else 139.dp,
+            width = if (controller.locked) 60.dp else 139.dp,
         )
         if (controller.locked) {
+            Text(
+                if (controller.paused) "Resume" else "Pause", color = Color.White, fontSize = 13.sp,
+                modifier = Modifier.clip(RoundedCornerShape(14.dp))
+                    .clickable { controller.togglePause() }.padding(horizontal = 5.dp, vertical = 6.dp)
+                    .testTag("voice_pause_resume"),
+            )
             Text(
                 "Send", color = Color.White, fontSize = 13.sp,
                 modifier = Modifier.clip(RoundedCornerShape(14.dp)).background(Color(0xFF168EEA))

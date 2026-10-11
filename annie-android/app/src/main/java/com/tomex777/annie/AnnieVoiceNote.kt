@@ -6,6 +6,7 @@ import android.content.pm.PackageManager
 import android.media.MediaPlayer
 import android.media.MediaRecorder
 import android.os.Build
+import android.os.SystemClock
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -53,6 +54,14 @@ internal class AnnieVoiceRecorder(context: Context) {
     private var recorder: MediaRecorder? = null
     private var file: File? = null
     private var startedAtMillis = 0L
+    private var pausedAtMillis = 0L
+    private var pausedDurationMillis = 0L
+    var isPaused: Boolean = false
+        private set
+
+    val durationMillis: Long get() = if (recorder == null) 0L else
+        ((if (isPaused) pausedAtMillis else SystemClock.elapsedRealtime()) -
+            startedAtMillis - pausedDurationMillis).coerceAtLeast(0L)
 
     val isRecording: Boolean get() = recorder != null
 
@@ -77,13 +86,39 @@ internal class AnnieVoiceRecorder(context: Context) {
             next.start()
             recorder = next
             file = target
-            startedAtMillis = System.currentTimeMillis()
+            startedAtMillis = SystemClock.elapsedRealtime()
+            pausedDurationMillis = 0L
+            pausedAtMillis = 0L
+            isPaused = false
             true
         }.getOrElse {
             runCatching { next.release() }
             target.delete()
             false
         }
+    }
+
+    /** MediaRecorder pause/resume keeps one AAC file and excludes paused time. */
+    fun pause(): Boolean {
+        val active = recorder ?: return false
+        if (isPaused) return true
+        return runCatching {
+            active.pause()
+            pausedAtMillis = SystemClock.elapsedRealtime()
+            isPaused = true
+            true
+        }.getOrDefault(false)
+    }
+
+    fun resume(): Boolean {
+        val active = recorder ?: return false
+        if (!isPaused) return true
+        return runCatching {
+            active.resume()
+            pausedDurationMillis += SystemClock.elapsedRealtime() - pausedAtMillis
+            isPaused = false
+            true
+        }.getOrDefault(false)
     }
 
     /** Returns the current peak reading; safe if the microphone/recorder has stopped. */
@@ -97,9 +132,10 @@ internal class AnnieVoiceRecorder(context: Context) {
     fun stop(): Pair<String, Long>? {
         val active = recorder ?: return null
         val target = file
-        val duration = System.currentTimeMillis() - startedAtMillis
+        val duration = durationMillis
         recorder = null
         file = null
+        isPaused = false
         val ok = runCatching { active.stop() }.isSuccess
         runCatching { active.release() }
         if (!ok || target == null || duration < MIN_DURATION_MS ||
@@ -113,6 +149,7 @@ internal class AnnieVoiceRecorder(context: Context) {
     fun cancel() {
         val active = recorder ?: return
         recorder = null
+        isPaused = false
         runCatching { active.stop() }
         runCatching { active.release() }
         file?.delete()
