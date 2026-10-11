@@ -48,3 +48,27 @@ selection/preview flow, Our Studio, and Spotify Jam invitations/song dedications
   not through client-side state writes.
 
 The migrations in this folder are a *design contract*, not evidence of a deployed backend.
+
+## Pairing milestone — code completed, deployment not yet available
+
+Migration `20261011_000003_velvet_pairing.sql` introduces a verified-account, two-person handshake:
+
+- `velvet_create_pair_invite()`: creates a private couple if necessary and returns a **single-use, 80-bit invitation code** (20 hexadecimal characters, grouped for easier entry), valid for 20 minutes.
+- `velvet_join_pair_invite(p_code)`: consumes the token atomically, admits only a distinct, verified second account, and enforces a 10-attempt-per-hour per-account limiter.
+- `velvet_my_pair()`: returns only the authenticated user's membership state and (when paired) their partner's existing profile name.
+- `velvet_revoke_pair_invite()`: invalidates the unused code. Issuing a new code automatically supersedes the old code.
+
+Only salted? **No:** only a SHA-256 digest of the high-entropy token is stored. The token itself is returned once. The two sensitive tables have RLS enabled **without any client policies**. Only explicitly granted, carefully scoped membership-checked functions operate on them.
+
+`velvet/backend/tests/bootstrap.sql` sets up a disposable PostgreSQL-only Auth stub, and `velvet/backend/tests/pairing.sql` verifies two-person membership, redemption replay prevention, third-party RLS isolation, direct-write denial, rate limiting, verified-account requirement and anonymous RPC denial. CI runs these tests against a fresh PostgreSQL 16 service.
+
+**Deployment boundary:** No Supabase project is connected to this workspace yet; these migrations are only in GitHub. Nothing can synchronize between phones until a project is provisioned, all migrations are applied, API variables are configured, and Android builds are rebuilt. An invite code is NOT a message encryption key. Authentication and pairing alone do not turn the local Chat/Games previews into live synchronization.
+
+### Activation (administrator)
+
+1. Provision a dedicated Supabase project with email confirmation enabled. Apply the existing migrations in filename order through the Supabase CLI; run the pairing security tests against a disposable database beforehand.
+2. In repository Actions **Variables** (not signing secrets), configure `VELVET_SUPABASE_URL` (the HTTPS project URL) and `VELVET_SUPABASE_PUBLISHABLE_KEY` (the public `sb_publishable_...` key). Never use a `service_role`, `sb_secret_...`, or database password.
+3. Rebuild the signed Android APK; open Home → **Connect our phones · Pairing**. On phone A create and verify an account, sign in, generate a code. On phone B sign in separately and redeem the code. Tap **Refresh pairing status** on A.
+4. Confirm both accounts see two members before building messaging. Rate-limit invites at the perimeter as a second layer; obtain a professional security audit before a production launch.
+
+On sign-out, Android deletes the locally encrypted refresh token. The token was stored using the non-exportable Android Keystore AES-GCM key. Device-only local preview messages remain separate; they are NOT imported into a shared conversation.
