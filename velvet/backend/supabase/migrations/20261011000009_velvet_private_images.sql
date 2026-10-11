@@ -23,24 +23,35 @@ with check (
   )
 );
 
--- The object's path alone is not permission to download. Only an existing,
--- non-deleted, non-personally-hidden message enables authenticated downloads.
--- Supabase private-bucket GET enforces storage.objects SELECT RLS.
-create policy velvet_image_download on storage.objects for select to authenticated
-using (
-  bucket_id='velvet-chat-media'
-  and exists (
+-- SECURITY DEFINER check: signed-in Storage roles have no unrestricted
+-- SELECT on velvet_messages. A narrowly-scoped boolean helper makes the
+-- Storage GET policy work without granting clients direct message-table access.
+create or replace function public.velvet_image_is_visible(p_name text)
+returns boolean
+language sql stable security definer set search_path=''
+as $$
+  select (select auth.uid()) is not null and exists (
     select 1 from public.velvet_members mine
       join public.velvet_messages m on m.couple_id=mine.couple_id
     where mine.user_id=(select auth.uid())
-      and mine.couple_id::text=(storage.foldername(name))[1]
-      and m.kind='image' and m.payload->>'storage_path'=name
+      and mine.couple_id::text=(storage.foldername(p_name))[1]
+      and m.kind='image' and m.payload->>'storage_path'=p_name
       and m.deleted_at is null
       and (select count(*) from public.velvet_members members
         where members.couple_id=mine.couple_id)=2
       and not exists(select 1 from public.velvet_hidden_messages hidden
         where hidden.user_id=mine.user_id and hidden.message_id=m.id)
   )
+$$;
+revoke execute on function public.velvet_image_is_visible(text)
+  from public,anon,authenticated;
+grant execute on function public.velvet_image_is_visible(text) to authenticated;
+
+-- The object's path alone is not permission to download. Only an existing,
+-- non-deleted, non-personally-hidden image message enables authenticated GET.
+create policy velvet_image_download on storage.objects for select to authenticated
+using (
+  bucket_id='velvet-chat-media' and public.velvet_image_is_visible(name)
 );
 
 -- There is deliberately no UPDATE/DELETE storage policy for the mobile client.
