@@ -129,3 +129,11 @@ Tapping your partner's name now opens Chat Info with four sections: **Photos · 
 The connected Chat composer now uses a single row with photo attachment, text field, and a trailing action that changes between **microphone and send**. While recording or previewing a voice draft, the recording UI replaces the text editor without resetting the active MediaRecorder. The user still explicitly previews or sends audio, rather than uploading on record.
 
 All voice media stays separate from Our Story. Real paired-device verification still depends on a linked Supabase project, and media transport is **not end-to-end encrypted**. This release does not yet implement realtime WebSockets, offline media outbox, voice transcription, or push notifications.
+
+## v0.18 — Protected MP4 clips in Chat + Video gallery
+
+Connected Chat's attachment paperclip opens a short picker for **Photo** and **Video** rather than launching only a photo picker. The Video option accepts `video/mp4` clips under **20 MB and two minutes**, using Android's document/content provider and `MediaMetadataRetriever` to validate duration locally. Selected clips are sent to private Storage and explicitly finalized as a chat message with optional caption and quote. No public image/video URLs are exposed; the existing foreground chat feed and read receipts also handle videos.
+
+Each video message has a tappable video card with duration, and an **immersive full-screen video viewer**. Downloading starts only after tapping the clip. The authenticated MP4 streams to an **app-private temporary file**, with built-in Android video playback controls; the file is removed when the viewer closes. Backgrounding pauses playback. The connected Chat Info header now has **Photos · Videos · Audio · Links · Search** tabs in a scrollable row. The Videos tab provides sender attribution, captions, full-screen playback, refresh and older-media pagination. Chat-only clips are never automatically added to Our Story.
+
+This is an **alpha**: no video compression, 4K transcoding, upload progress meter, resumable offline uploads, background transfers, E2EE, media-sharing push notifications, or production-device pairing test. Configure Supabase and apply migrations 01–15 before expecting two real devices to exchange these files.
