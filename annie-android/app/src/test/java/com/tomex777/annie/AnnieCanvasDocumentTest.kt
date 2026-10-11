@@ -57,4 +57,11 @@ class AnnieCanvasDocumentTest {
         // A script edited by the user must never be replaced during migration.
         assertEquals("custom /snake content", StarterScripts.migrateCanvasSnake("custom /snake content"))
     }
+    @org.junit.Test fun olderCanvasWebViewsUseSoftwareRendering() {
+        org.junit.Assert.assertTrue(annieCanvasUseSoftwareLayer(26))
+        org.junit.Assert.assertTrue(annieCanvasUseSoftwareLayer(27))
+        org.junit.Assert.assertFalse(annieCanvasUseSoftwareLayer(28))
+        org.junit.Assert.assertFalse(annieCanvasUseSoftwareLayer(36))
+    }
+
 }
