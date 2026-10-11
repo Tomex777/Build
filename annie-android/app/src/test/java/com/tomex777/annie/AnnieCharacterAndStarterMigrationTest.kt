@@ -89,4 +89,12 @@ class AnnieCharacterAndStarterMigrationTest {
         assertEquals(oldStarter, StarterScripts.migrateCanvasSnake(oldStarter))
     }
 
+    @Test fun canvasSnakeHandlesNativeTouchAsWellAsPointerEvents() {
+        val source = StarterScripts.canvasSnake
+        assertTrue("Android 8 touchstart fallback missing", "addEventListener('touchstart'" in source)
+        assertTrue("Touch move must call game steering", "swipe(t.clientX-touchOrigin.x,t.clientY-touchOrigin.y)" in source)
+        assertTrue("Prevent WebView scrolling from intercepting game touches", "{passive:false}" in source)
+        assertTrue("Modern pointer input must remain supported", "addEventListener('pointerdown'" in source)
+    }
+
 }
