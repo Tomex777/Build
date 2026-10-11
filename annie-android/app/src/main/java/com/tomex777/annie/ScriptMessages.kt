@@ -124,6 +124,10 @@ internal class ScriptMessageOperationProvider(
         if (message.toString().toByteArray(Charsets.UTF_8).size > MAX_MESSAGE_BYTES) throw AnnieError(
             AnnieErrorCode.RESOURCE_LIMIT, "Message is too large", operationId,
         )
+        if (type == "canvas" && AnnieCanvasDocument.from(message) == null) throw AnnieError(
+            AnnieErrorCode.INVALID_ARGUMENT,
+            "Canvas needs nonempty html, css or javascript content", operationId,
+        )
     }
 
     private fun enforceRate(projectId: String, operationId: String) {

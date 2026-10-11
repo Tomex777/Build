@@ -105,6 +105,14 @@ internal class ScriptFiles(context: Context) : PackageAssetResolver {
                 """.trimMargin()
             )
         }
+        val snake = File(root, "canvas-snake.js")
+        if (!snake.exists()) {
+            snake.writeText(StarterScripts.canvasSnake)
+        } else {
+            val current = snake.readText()
+            val migrated = StarterScripts.migrateCanvasSnake(current)
+            if (migrated != current) snake.writeText(migrated)
+        }
         val chess = File(root, "chess.js")
         if (!chess.exists()) {
             chess.writeText(StarterScripts.chess)
@@ -1344,6 +1352,7 @@ internal class ScriptRuntime(
             |    text: text => ({type: "text", text: String(text)}),
             |    code: value => Object.assign({type: "code"}, value || {}),
             |    copy: value => Object.assign({type: "copy"}, value || {}),
+            |    canvas: value => Object.assign({type: "canvas"}, value || {}),
             |    image: value => Object.assign({type: "image"}, value || {}),
             |    music: value => Object.assign({type: "music"}, value || {}),
             |    file: value => Object.assign({type: "file"}, value || {}),

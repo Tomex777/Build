@@ -138,6 +138,27 @@ private fun ensureAnnieMonarchTheme(context: android.content.Context): ThemeMode
     ThemeRegistry.currentTheme
 }
 
+/**
+ * Resolve the newly created file back to its owning project. Root-level .js
+ * scripts are standalone; other root creations live inside a project folder.
+ * A file's extension is not its project identity.
+ */
+internal fun studioCreatedFileLocation(root: File, created: File, ownerId: String? = null): Pair<String, String> {
+    val workspaceRoot = root.canonicalFile
+    val file = created.canonicalFile
+    require(file.toPath().startsWith(workspaceRoot.toPath()) && file != workspaceRoot) {
+        "The created file must be in Script Studio's workspace"
+    }
+    val relative = file.relativeTo(workspaceRoot).invariantSeparatorsPath
+    if (ownerId != null) {
+        require(relative.startsWith("$ownerId/")) { "The file is not inside the selected project" }
+        return ownerId to relative.removePrefix("$ownerId/")
+    }
+    val projectId = relative.substringBefore('/')
+    return if ('/' in relative) projectId to relative.substringAfter('/')
+        else file.nameWithoutExtension to file.name
+}
+
 private enum class StudioPage(val title: String) { FILES("Files"), EDITOR("Editor"), ENV("ENV"), API("API") }
 private enum class FileAction { RENAME, SHARE, EXPORT, DELETE, ENABLE, DISABLE, PERMISSIONS }
 private enum class StudioGlyph { SAVE, CLOSE, ASSIST, RUN, FIND, REPLACE, UNDO, REDO, REFRESH, EXPAND, COLLAPSE, FOLDER, MORE, ADD, CHECK }
@@ -340,6 +361,48 @@ private fun ScriptStudioContent(
         }
     }
 
+    fun previewDocument() {
+        if (saving) return
+        val project = projects.firstOrNull { it.id == selectedProjectId } ?: run {
+            status = "Choose a file first"
+            return
+        }
+        val path = selectedPath ?: return
+        val extension = path.substringAfterLast('.', "").lowercase()
+        if (extension !in setOf("html", "css")) {
+            status = "Only self-contained HTML and CSS documents support offline preview"
+            return
+        }
+        val source = editorValue.text
+        val document = org.json.JSONObject()
+            .put("type", "canvas")
+            .put("title", "Preview • " + path.substringAfterLast('/'))
+            .put("height", 460)
+            .put("html", if (extension == "html") source else
+                "<main><h1>CSS preview</h1><p>Style this text or the sample button to see your rules.</p><button>Sample button</button></main>")
+            .put("css", if (extension == "css") source else "")
+        // Reuse Canvas's offline WebView sandbox. No device bridge, local file
+        // access, network fetches, or browser cookies are exposed to previews.
+        if (AnnieCanvasDocument.from(document) == null) {
+            status = "Document is too large for the 48 KB offline preview"
+            return
+        }
+        saving = true
+        scope.launch {
+            runCatching {
+                withContext(Dispatchers.IO) { workspace.files.writeFile(project.id, path, source) }
+            }.onSuccess {
+                savedSource = source
+                refreshProjects(project.id, path)
+                previewResult = document.toString()
+                previewOpen = true
+                status = "Offline preview • external assets are disabled"
+            }.onFailure { error ->
+                status = "Preview couldn't save changes: " + (error.message ?: "unknown error")
+            }.also { saving = false }
+        }
+    }
+
     val importScript = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) scope.launch {
             runCatching {
@@ -514,10 +577,10 @@ private fun ScriptStudioContent(
                 emphasized = !saving,
                 icon = StudioGlyph.RUN,
                 onClick = {
-                    if (selectedPath?.endsWith(".js", ignoreCase = true) == true) {
-                        saveScript(runAfterSave = true, openPreview = true)
-                    } else {
-                        status = "Preview isn't supported for this file type yet. Changes are saved automatically."
+                    when (selectedPath?.substringAfterLast('.', "")?.lowercase()) {
+                        "js" -> saveScript(runAfterSave = true, openPreview = true)
+                        "html", "css" -> previewDocument()
+                        else -> status = "Preview supports JavaScript commands and offline HTML/CSS documents."
                     }
                 },
                 enabled = !saving && selectedProject != null && selectedPath != null,
@@ -560,8 +623,7 @@ private fun ScriptStudioContent(
                                     workspace.files.createFile(folder.name, name)
                                 }
                             }.onSuccess { file ->
-                                val id = if (owner == null) file.nameWithoutExtension else owner!!.id
-                                val path = if (owner == null) file.name else file.relativeTo(File(workspace.files.root, id)).invariantSeparatorsPath
+                                val (id, path) = studioCreatedFileLocation(workspace.files.root, file, owner?.id)
                                 refreshProjects(id, path)
                                 currentDirectory = path.substringBeforeLast('/', "")
                                 status = "Created ${file.name}"
@@ -731,13 +793,18 @@ private fun ScriptStudioContent(
                                                     }
                                                     FileAction.SHARE -> shareFile(path.substringAfterLast('/'), project.files[path].orEmpty())
                                                     FileAction.EXPORT -> exportFile(path.substringAfterLast('/'), project.files[path].orEmpty())
-                                                    FileAction.DELETE -> runCatching { workspace.files.deleteFile(project.id, path) }
-                                                        .onSuccess {
-                                                            refreshProjects(project.id, project.entryPath)
-                                                            currentDirectory = normalizedDirectory
-                                                            status = "Deleted $path"
-                                                        }
-                                                        .onFailure { status = it.message ?: "Delete failed" }
+                                                    FileAction.DELETE -> askForText(
+                                                        "Type ${path.substringAfterLast('/')} to delete", ""
+                                                    ) { confirmation ->
+                                                        if (confirmation == path.substringAfterLast('/')) {
+                                                            runCatching { workspace.files.deleteFile(project.id, path) }
+                                                                .onSuccess {
+                                                                    refreshProjects(project.id, project.entryPath)
+                                                                    currentDirectory = normalizedDirectory
+                                                                    status = "Deleted $path"
+                                                                }.onFailure { status = it.message ?: "Delete failed" }
+                                                        } else status = "Delete cancelled"
+                                                    }
                                                     else -> Unit
                                                 }
                                             },
@@ -1081,12 +1148,22 @@ private fun ScriptStudioContent(
                     val owner = selectedProject?.takeIf { File(workspace.files.root, it.id).isDirectory }
                     askForText("New file from Assist", "generated.js") { rawName ->
                         runCatching {
-                            val name = rawName.trim().let { if (it.endsWith(".js", true)) it else "$it.js" }
-                            val file = if (owner == null) workspace.files.createScript(name)
-                                else workspace.files.createFile(owner.id, name)
-                            val id = if (owner == null) file.nameWithoutExtension else owner.id
-                            val path = if (owner == null) file.name
-                                else file.relativeTo(File(workspace.files.root, id)).invariantSeparatorsPath
+                            // Respect the user's requested extension. Previously Assist
+                            // appended .js to generated.html, generated.py, etc.
+                            val name = rawName.trim().let { raw ->
+                                if (raw.substringAfterLast('/').contains('.')) raw else "$raw.js"
+                            }
+                            val file = if (owner != null) {
+                                workspace.files.createFile(owner.id, name)
+                            } else if (name.endsWith(".js", ignoreCase = true)) {
+                                workspace.files.createScript(name)
+                            } else {
+                                // Standalone projects require an executable JS entry point;
+                                // keep auxiliary documents in their own project folder.
+                                val folder = workspace.files.createFolder(name.substringBeforeLast('.'))
+                                workspace.files.createFile(folder.name, name)
+                            }
+                            val (id, path) = studioCreatedFileLocation(workspace.files.root, file, owner?.id)
                             workspace.files.writeFile(id, path, proposed)
                             id to path
                         }.onSuccess { (id, path) ->
@@ -1496,6 +1573,7 @@ private fun ApiReferenceScreen(search: String, onSearch: (String) -> Unit, onExp
             ApiEntry("ENV", "annie.env.define/get/set/secret/values", "Declare persistent per-script user configuration. Secret fields use Keystore-backed encrypted storage and are excluded from values().", "annie.env.define({ fields: [{ key: \"enabled\", type: \"switch\", label: \"Enabled\", default: true }] });"),
             ApiEntry("Android notifications", "annie.android.notifications.post/update/cancel", "Requires the android.notifications capability and declared permission. Annie requests runtime consent when required; keys are package-owned and rate-limited. Update and cancel require android.notifications.manage.", "await annie.android.notifications.post({ key: \"status\", title: \"Annie\", text: \"Task complete\" });\nawait annie.android.notifications.update({ key: \"status\", title: \"Annie\", text: \"Updated\" });\nawait annie.android.notifications.cancel(\"status\");"),
             ApiEntry("Messages", "Return { type, ... }", "Return structured data. Annie renders registered first-party native message types.", "return { type: \"image\", uri, caption: \"Result\" };"),
+            ApiEntry("Canvas message", "annie.messages.canvas({title, html, css, javascript, height})", "Generate an interactive Canvas message inside the conversation. Every Canvas message can expand to fullscreen and return to the same running mini-app. Runs offline in an isolated WebView with no Android permissions or native bridge.", "return annie.messages.canvas({ title: \"Counter\", height: 260, html: \"<button id=\\\"go\\\">+1</button><span id=\\\"count\\\">0</span>\", javascript: \"let n=0;document.querySelector(\\\"#go\\\").onclick=()=>{document.querySelector(\\\"#count\\\").textContent=String(++n)}\" });"),
             ApiEntry("Media messages", "annie.messages.seasonList/episodeList/continueWatching", "Render native media navigation without extension-owned UI. Episode qualities become selectors only when multiple choices are supplied.", "return annie.messages.episodeList({ title: \"Season 1\", episodes: [{ id: \"e1\", title: \"Episode 1\", qualities: [\"720p\", \"1080p\"], playAction: \"play\", downloadAction: \"download\" }] });"),
             ApiEntry("Music + lyrics", "annie.messages.music({...})", "Render the compact in-chat player. Plain lyrics remain static; standard LRC timestamps enable line highlighting and seek-on-tap.", "return annie.messages.music({ title: \"Track\", artist: \"Artist\", streamUrl, lyrics: \"[00:12.50]First line\\n[00:18.00]Second line\" });"),
             ApiEntry("Forms", "annie.messages.form({...})", "Temporary native conversation input. Submit routes the collected values back to the owning JavaScript action; use ENV for persistent configuration.", "return annie.messages.form({ title: \"Options\", fields: [{ id: \"quality\", type: \"select\", label: \"Quality\", options: [\"720p\", \"1080p\"] }], submit: { label: \"Continue\", action: \"submit-options\" } });"),
@@ -1581,7 +1659,7 @@ private fun ScriptCodeEditor(
                         "annie.env", "annie.env.define", "annie.env.get", "annie.env.set", "annie.env.secret", "annie.env.values",
                         "annie.schedule", "annie.schedule.create", "annie.schedule.list", "annie.schedule.cancel", "annie.schedule.enable", "annie.schedule.disable",
                         "annie.tasks", "annie.tasks.start", "annie.tasks.list", "annie.tasks.cancel", "annie.tasks.retry",
-                        "annie.messages", "annie.messages.form", "annie.files", "annie.log",
+                        "annie.messages", "annie.messages.form", "annie.messages.canvas", "annie.files", "annie.log",
                     )
                 )
             }

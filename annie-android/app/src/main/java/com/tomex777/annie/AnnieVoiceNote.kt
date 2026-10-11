@@ -159,11 +159,27 @@ internal object AnnieVoicePlayer {
         private set
     var positionMs by mutableFloatStateOf(0f)
         private set
+    var isPlaying by mutableStateOf(false)
+        private set
 
+    /** Tapping an active note pauses or resumes it without restarting the audio. */
     fun toggle(path: String) {
-        if (playingPath == path) { stop(); return }
+        if (playingPath == path && player != null) {
+            val active = player ?: return
+            runCatching {
+                if (isPlaying) {
+                    active.pause()
+                    positionMs = active.currentPosition.toFloat()
+                    isPlaying = false
+                } else {
+                    active.start()
+                    isPlaying = true
+                }
+            }.onFailure { stop() }
+            return
+        }
         stop()
-        if (!File(path).exists()) return
+        if (!File(path).isFile) return
         val next = MediaPlayer()
         runCatching {
             next.setDataSource(path)
@@ -173,16 +189,20 @@ internal object AnnieVoicePlayer {
             next.start()
             player = next
             playingPath = path
+            isPlaying = true
             positionMs = 0f
-        }.onFailure { runCatching { next.release() } }
+        }.onFailure { runCatching { next.release() }; stop() }
     }
 
     fun seek(path: String, fraction: Float) {
         if (playingPath != path) toggle(path)
         player?.let { p ->
             runCatching {
-                p.seekTo((p.duration * fraction.coerceIn(0f, 1f)).toInt())
-                positionMs = p.currentPosition.toFloat()
+                val requestedMs = (p.duration * fraction.coerceIn(0f, 1f)).toInt()
+                p.seekTo(requestedMs)
+                // MediaPlayer's seek can finish asynchronously. Display the selected
+                // position immediately, then let updatePosition follow playback.
+                positionMs = requestedMs.toFloat()
             }
         }
     }
@@ -195,6 +215,7 @@ internal object AnnieVoicePlayer {
         player?.let { runCatching { it.stop() }; runCatching { it.release() } }
         player = null
         playingPath = null
+        isPlaying = false
         positionMs = 0f
     }
 }
@@ -236,16 +257,18 @@ internal fun VoiceWaveform(
 
 @Composable
 internal fun VoiceNoteBubble(path: String, durationMs: Long, fromUser: Boolean) {
-    val playing = AnnieVoicePlayer.playingPath == path
+    val active = AnnieVoicePlayer.playingPath == path
+    val playing = active && AnnieVoicePlayer.isPlaying
     val missing = !File(path).exists()
     val samples = remember(path) { AnnieVoiceWaveform.load(path) }
     LaunchedEffect(playing, path) {
-        while (AnnieVoicePlayer.playingPath == path) {
+        while (AnnieVoicePlayer.playingPath == path && AnnieVoicePlayer.isPlaying) {
             AnnieVoicePlayer.updatePosition()
             delay(120)
         }
     }
-    val fraction = (if (playing && durationMs > 0) AnnieVoicePlayer.positionMs / durationMs else 0f)
+    // Preserve the waveform cursor while paused instead of resetting to zero.
+    val fraction = (if (active && durationMs > 0) AnnieVoicePlayer.positionMs / durationMs else 0f)
         .coerceIn(0f, 1f)
     Row(
         Modifier.clip(RoundedCornerShape(22.dp))
@@ -256,8 +279,12 @@ internal fun VoiceNoteBubble(path: String, durationMs: Long, fromUser: Boolean) 
         horizontalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         Icon(
-            if (playing) AnnieIcons.Close else AnnieIcons.Play,
-            contentDescription = if (playing) "Stop voice note" else "Play voice note",
+            if (playing) AnnieIcons.Pause else AnnieIcons.Play,
+            contentDescription = when {
+                playing -> "Pause voice note"
+                active -> "Resume voice note"
+                else -> "Play voice note"
+            },
             tint = Color.White,
             modifier = Modifier.size(26.dp).clip(CircleShape)
                 .clickable(enabled = !missing) { AnnieVoicePlayer.toggle(path) },
@@ -269,7 +296,7 @@ internal fun VoiceNoteBubble(path: String, durationMs: Long, fromUser: Boolean) 
             )
             Text(
                 if (missing) "Voice note unavailable"
-                else formatVoiceDuration(if (playing) AnnieVoicePlayer.positionMs.toLong() else durationMs),
+                else formatVoiceDuration(if (active) AnnieVoicePlayer.positionMs.toLong() else durationMs),
                 color = Color.White, fontSize = 12.sp,
             )
         }

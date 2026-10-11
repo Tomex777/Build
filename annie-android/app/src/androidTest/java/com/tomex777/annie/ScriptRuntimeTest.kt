@@ -31,7 +31,8 @@ class ScriptRuntimeTest {
                       execute() {
                         return annie.messages.text(
                           [typeof annie.messages.send, typeof annie.messages.update,
-                           typeof annie.messages.image, typeof annie.messages.form].join(",")
+                           typeof annie.messages.image, typeof annie.messages.form,
+                            typeof annie.messages.canvas].join(",")
                         );
                       }
                     });
@@ -39,7 +40,40 @@ class ScriptRuntimeTest {
             )
             assertTrue(workspace.reload().any { it.name == name })
             val result = JSONObject(workspace.execute(name, "/$name", "messages-api-check", 21L))
-            assertEquals("function,function,function,function", result.getString("text"))
+            assertEquals("function,function,function,function,function", result.getString("text"))
+        } finally {
+            runCatching { workspace.files.deleteProject(name) }
+            workspace.close()
+        }
+    }
+
+    @Test fun canvasConstructorReturnsAReusableFullscreenCapableMessage() = runBlocking {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val workspace = ScriptWorkspace(context)
+        val name = "canvasproof" + System.nanoTime().toString().takeLast(8)
+        try {
+            val file = workspace.files.createScript(name)
+            workspace.files.writeFile(name, file.name, """
+                annie.commands.register({
+                  name: "$name",
+                  execute() {
+                    return annie.messages.canvas({
+                      title: "Counter test", height: 260,
+                      html: "<button id='tap'>Tap me</button>",
+                      css: "button { color: teal; }",
+                      javascript: "window.counter = 42;"
+                    });
+                  }
+                });
+            """.trimIndent())
+            assertTrue("Reusable Canvas message command did not register", workspace.reload().any { it.name == name })
+            val canvas = JSONObject(workspace.execute(name, "/$name", "canvas-message-test", 22L))
+            assertEquals("canvas", canvas.optString("type"))
+            assertEquals(ScriptMessageKind.CANVAS, MessageTypeRegistry.resolve(canvas).kind)
+            assertEquals("Counter test", canvas.optString("title"))
+            assertTrue(canvas.optString("html").contains("Tap me"))
+            assertTrue(canvas.optString("javascript").contains("counter = 42"))
+            assertTrue(AnnieCanvasDocument.from(canvas) != null)
         } finally {
             runCatching { workspace.files.deleteProject(name) }
             workspace.close()

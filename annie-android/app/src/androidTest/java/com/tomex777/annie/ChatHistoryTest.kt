@@ -93,6 +93,14 @@ class ChatHistoryTest {
         compose.onNodeWithTag("rename_chat_confirm").performClick()
         compose.runOnIdle { assertEquals("My workspace", ChatHistoryStore.read(context).first { it.id == saved.id }.title) }
         compose.onNodeWithTag("delete_chat_${saved.id}").performClick()
+        // Dialog creation is asynchronous after the rename sheet closes.
+        // Keep the destructive action behind the real confirmation dialog.
+        compose.waitUntil(8_000) {
+            runCatching {
+                compose.onNodeWithTag("delete_chat_confirm").assertIsDisplayed()
+                true
+            }.getOrDefault(false)
+        }
         compose.onNodeWithTag("delete_chat_confirm").performClick()
         compose.runOnIdle { assertTrue(ChatHistoryStore.read(context).none { it.id == saved.id }) }
     }

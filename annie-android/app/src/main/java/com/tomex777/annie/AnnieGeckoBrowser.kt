@@ -1,5 +1,6 @@
 package com.tomex777.annie
 
+import android.app.Activity
 import android.app.DownloadManager
 import android.content.Context
 import android.content.Intent
@@ -7,6 +8,8 @@ import android.net.Uri
 import android.os.Environment
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -32,6 +35,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
@@ -51,6 +55,7 @@ import java.net.URI
 import java.net.URLEncoder
 import java.util.UUID
 import org.json.JSONArray
+import org.mozilla.geckoview.GeckoResult
 import org.mozilla.geckoview.GeckoRuntime
 import org.mozilla.geckoview.GeckoSession
 import org.mozilla.geckoview.GeckoSessionSettings
@@ -90,6 +95,43 @@ internal object AnnieBrowserAddress {
         return uri.toASCIIString()
     }
 }
+
+/**
+ * File input belongs to the browser's owning Android Activity, not the page.
+ * Site JavaScript only receives a URI after the user has selected a document.
+ */
+internal object AnnieGeckoFilePicker {
+    fun intent(types: Array<String>?, multiple: Boolean): Intent {
+        val allowed = types.orEmpty().map(String::trim).filter { mime ->
+            mime.matches(Regex("[A-Za-z0-9!#internal data class AnnieBrowserVisit(val title: String, val url: String)^_.+-]+/[A-Za-z0-9!#internal data class AnnieBrowserVisit(val title: String, val url: String)^_.+*-]+"))
+        }.distinct()
+        return Intent(Intent.ACTION_OPEN_DOCUMENT)
+            .addCategory(Intent.CATEGORY_OPENABLE)
+            .setType(allowed.singleOrNull() ?: "*/*")
+            .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            .apply {
+                if (allowed.size > 1) putExtra(Intent.EXTRA_MIME_TYPES, allowed.toTypedArray())
+                if (multiple) putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true)
+            }
+    }
+
+    fun uris(data: Intent?): Array<Uri> {
+        if (data == null) return emptyArray()
+        val all = mutableListOf<Uri>()
+        data.data?.let(all::add)
+        data.clipData?.let { clip ->
+            for (i in 0 until clip.itemCount) {
+                clip.getItemAt(i).uri?.let(all::add)
+            }
+        }
+        return all.distinct().toTypedArray()
+    }
+}
+
+private data class PendingGeckoFilePrompt(
+    val prompt: GeckoSession.PromptDelegate.FilePrompt,
+    val result: GeckoResult<GeckoSession.PromptDelegate.PromptResponse>,
+)
 
 internal data class AnnieBrowserVisit(val title: String, val url: String)
 
@@ -159,6 +201,13 @@ internal class AnnieGeckoBrowserModel(private val context: Context) {
     val bookmarks get() = library.bookmarks
     val history get() = library.history
     val active: AnnieGeckoTab? get() = tabs.firstOrNull { it.id == selectedId }
+
+    // Installed by the Compose screen that owns ActivityResult's document picker.
+    // No file chooser can run silently or be triggered from a closed browser.
+    var requestFilePicker: ((
+        GeckoSession.PromptDelegate.FilePrompt,
+        GeckoResult<GeckoSession.PromptDelegate.PromptResponse>,
+    ) -> Unit)? = null
 
     init {
         val saved = runCatching { JSONArray(prefs.getString("open", "[]")) }.getOrNull()
@@ -241,6 +290,18 @@ internal class AnnieGeckoBrowserModel(private val context: Context) {
             override fun onCrash(session: GeckoSession) {
                 tab.error = "Browser tab crashed. Reload to recover."
                 tab.loading = false
+            }
+        }
+        session.promptDelegate = object : GeckoSession.PromptDelegate {
+            override fun onFilePrompt(
+                session: GeckoSession,
+                prompt: GeckoSession.PromptDelegate.FilePrompt,
+            ): GeckoResult<GeckoSession.PromptDelegate.PromptResponse> {
+                val answer = GeckoResult<GeckoSession.PromptDelegate.PromptResponse>()
+                val picker = requestFilePicker
+                if (picker == null) answer.complete(prompt.dismiss())
+                else picker(prompt, answer)
+                return answer
             }
         }
         session.open(runtime)
@@ -335,7 +396,56 @@ internal fun AnnieGeckoStandaloneBrowser(
         AnnieStandaloneTabs(onExit = onExit, onOwn = onOwn, onRelease = onRelease)
         return
     }
-    DisposableEffect(model) { onDispose { model.destroy() } }
+    var pendingFilePicker by remember(model) { mutableStateOf<PendingGeckoFilePrompt?>(null) }
+    val documentPicker = rememberLauncherForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        val pending = pendingFilePicker
+        pendingFilePicker = null
+        if (pending != null) {
+            val chosen = if (result.resultCode == Activity.RESULT_OK)
+                AnnieGeckoFilePicker.uris(result.data) else emptyArray()
+            val response = if (chosen.isEmpty()) pending.prompt.dismiss()
+                else if (pending.prompt.type == GeckoSession.PromptDelegate.FilePrompt.Type.MULTIPLE)
+                    pending.prompt.confirm(context.applicationContext, chosen)
+                else pending.prompt.confirm(context.applicationContext, chosen.first())
+            pending.result.complete(response)
+        }
+    }
+    SideEffect {
+        model.requestFilePicker = { prompt, answer ->
+            if (pendingFilePicker != null) {
+                // Only one Android picker can be active at a time.
+                answer.complete(prompt.dismiss())
+            } else if (prompt.type == GeckoSession.PromptDelegate.FilePrompt.Type.FOLDER) {
+                // Directory access must not be approximated by disclosing a single file.
+                answer.complete(prompt.dismiss())
+            } else {
+                pendingFilePicker = PendingGeckoFilePrompt(prompt, answer)
+                runCatching {
+                    documentPicker.launch(
+                        AnnieGeckoFilePicker.intent(
+                            prompt.mimeTypes,
+                            prompt.type == GeckoSession.PromptDelegate.FilePrompt.Type.MULTIPLE,
+                        )
+                    )
+                }.onFailure {
+                    pendingFilePicker = null
+                    answer.complete(prompt.dismiss())
+                }
+            }
+        }
+    }
+    DisposableEffect(model) {
+        onDispose {
+            pendingFilePicker?.let { pending ->
+                runCatching { pending.result.complete(pending.prompt.dismiss()) }
+                pendingFilePicker = null
+            }
+            model.requestFilePicker = null
+            model.destroy()
+        }
+    }
     val tab = model.active ?: return
     var address by remember(tab.id) { mutableStateOf(tab.url) }
     var editing by remember(tab.id) { mutableStateOf(false) }

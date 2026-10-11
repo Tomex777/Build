@@ -104,9 +104,17 @@ class ScriptChatFlowTest {
         compose.runOnIdle { compose.activity.currentFocus?.clearFocus() }
         compose.waitForIdle()
         compose.onNodeWithText("annie.android.notifications.post/update/cancel").assertIsDisplayed()
-        compose.onNodeWithText("android.notifications.manage", substring = true).performScrollTo().assertIsDisplayed()
+        // On API 26, a lingering IME/inset animation can cover the row even after
+        // performScrollTo() succeeds. Hide the keyboard before scrolling, then
+        // require that the real permission row is actually visible to the user.
         hideKeyboardAndWaitForWindowFocus()
-        compose.waitForIdle()
+        compose.onNodeWithText("android.notifications.manage", substring = true).performScrollTo()
+        compose.waitUntil(8_000) {
+            runCatching {
+                compose.onNodeWithText("android.notifications.manage", substring = true).assertIsDisplayed()
+                true
+            }.getOrDefault(false)
+        }
         saveEmulatorScreenshot("annie-script-studio-api-notifications")
     }
 

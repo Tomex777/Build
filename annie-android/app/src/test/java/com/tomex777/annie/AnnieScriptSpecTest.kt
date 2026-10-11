@@ -22,6 +22,8 @@ class AnnieScriptSpecTest {
         assertTrue(spec.contains("annie.env.define"))
         assertTrue(spec.contains("annie.env.secret"))
         assertTrue(spec.contains("annie.messages.form"))
+        assertTrue(spec.contains("annie.messages.canvas"))
+        assertTrue(spec.contains("expand to fullscreen while preserving the same running WebView"))
         assertTrue(spec.contains("annie.messages.seasonList"))
         assertTrue(spec.contains("annie.messages.episodeList"))
         assertTrue(spec.contains("annie.messages.continueWatching"))
