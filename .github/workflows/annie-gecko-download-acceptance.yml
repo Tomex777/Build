@@ -60,9 +60,7 @@ jobs:
           arch: x86_64
           profile: pixel_2
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -partition-size 4096
-          script: |
-            gradle --no-daemon --stacktrace -p annie-android :app:connectedDebugAndroidTest \
-              -Pandroid.testInstrumentationRunnerArguments.class=com.tomex777.annie.AnnieGeckoDownloadTest,com.tomex777.annie.AnnieGeckoDownloadManagerTest
+          script: gradle --no-daemon --stacktrace -p annie-android :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.tomex777.annie.AnnieGeckoDownloadTest,com.tomex777.annie.AnnieGeckoDownloadManagerTest
       - name: Upload download acceptance report
         if: always()
         uses: actions/upload-artifact@v4
