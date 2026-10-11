@@ -663,6 +663,10 @@ private fun verifyEditorSelectionAndClipboardSemantics(): ViewAction = object : 
         val clipboard = view.context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
         editor.setText("alpha\nbeta")
         editor.selectAll()
+        // Sora rebuilds its line layout asynchronously after setText. An actual
+        // clipboard action arrives on a later UI turn; wait for that same layout
+        // before cutting so the multiline layout and Content describe one document.
+        uiController.loopMainThreadUntilIdle()
         editor.copyText(false)
         assertEquals("Copy must preserve the selected multiline text", "alpha\nbeta", clipboard.primaryClip?.getItemAt(0)?.text?.toString())
         editor.cutText()
