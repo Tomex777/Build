@@ -49,3 +49,13 @@ A separate native **Connected chat** screen now appears after two accounts compl
 This feature is **not enabled in pre-configured builds**. CI can produce a signed APK, but two phones will not exchange data until the SQL migrations (including `20261011000004_velvet_text_chat.sql`) are deployed to a real Supabase project, and the publishable URL/key are embedded by CI variables. It is not push messaging, end-to-end encryption, or a fully offline-synchronized history. Media, voice, games and calls remain preview-only.
 
 After activating, test on two Android phones: sign up + verify each account → generate and redeem a code → open Connected chat on both devices → send each direction → temporarily disable Wi-Fi, queue a message, reconnect → verify it sends exactly once → reopen to verify server history.
+
+## v0.9 alpha — Chat tab integration, replies, and older history
+
+The **Chat** tab automatically checks whether its active account belongs to a verified two-person couple. If paired, it opens the **connected text conversation**. If unpaired or unconfigured, it keeps the familiar **local prototype**. Connected chat has an explicit **Local preview** action; old device-local chat, voice recordings, games and question cards are never secretly uploaded into the live conversation.
+
+In connected text chat, tapping or holding a bubble selects a quoted reply. The composer displays the selected message and saves its stable message UUID in the offline outbox. If a message cannot be sent, the user may explicitly **Discard retry**, which removes only the local unsent retry. History can be paged backwards in 80-message blocks from the server, while the screen polls forward every ~3 seconds when visible. Data is sorted with a stable server (timestamp, UUID) cursor to avoid duplication and skipping tied timestamps.
+
+**Offline-boundary details:** A queued message is retried only while Connected chat is open; this is not Android background work or push delivery. Restoring a session and verifying two-person membership currently requires internet. If it cannot be checked, the user sees the local demo with an explicit connection status rather than a false synced-chat promise. Replies from the offline question deck remain *offline preview* content. There is no E2EE or push notifications yet.
+
+To activate on a real project, apply the additional `20261011000005_velvet_history.sql` migration and rebuild with the same public Supabase project configuration; CI executes the cursor and authorization tests against disposable PostgreSQL. This is an unverified phone-to-phone feature until a real backend has been deployed and two physical devices have exchanged messages successfully.
