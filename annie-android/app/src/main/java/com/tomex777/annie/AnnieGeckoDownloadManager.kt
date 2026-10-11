@@ -162,6 +162,17 @@ internal object AnnieGeckoDownloads {
         }
     }
 
+    /** Remove a finished item from the panel without deleting the saved file. */
+    fun forget(id: String) {
+        handler.post {
+            val entry = entries.firstOrNull { it.id == id } ?: return@post
+            if (entry.status == AnnieGeckoDownloadStatus.DOWNLOADING) return@post
+            entries.remove(entry)
+            cancelledIds.remove(id)
+            history?.save(entries)
+        }
+    }
+
     fun isCancelled(id: String): Boolean = cancelledIds.contains(id)
 
     fun cancelled(id: String) {
@@ -220,6 +231,12 @@ internal fun AnnieGeckoDownloadPanel(modifier: Modifier = Modifier) {
                             onClick = { openAnnieGeckoDownload(context, uri, download.mimeType) },
                             modifier = Modifier.testTag("annie_gecko_download_open_${download.id}"),
                         ) { Text("Open") }
+                    }
+                }
+                if (download.status != AnnieGeckoDownloadStatus.DOWNLOADING) {
+                    TextButton(onClick = { AnnieGeckoDownloads.forget(download.id) },
+                        modifier = Modifier.testTag("annie_gecko_download_forget_${download.id}")) {
+                        Text("Remove from list")
                     }
                 }
             }

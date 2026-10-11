@@ -60,7 +60,7 @@ jobs:
           arch: x86_64
           profile: pixel_2
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -no-boot-anim -partition-size 4096
-          script: gradle --no-daemon --stacktrace -p annie-android :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.tomex777.annie.AnnieVoiceRecordingTest,com.tomex777.annie.AnnieVoicePauseResumeTest,com.tomex777.annie.AnnieGeckoTabRestoreTest,com.tomex777.annie.AnnieGeckoDownloadHistoryTest,com.tomex777.annie.AnnieGeckoDownloadManagerTest
+          script: gradle --no-daemon --stacktrace -p annie-android :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.tomex777.annie.AnnieVoiceRecordingTest,com.tomex777.annie.AnnieVoicePauseResumeTest,com.tomex777.annie.AnnieGeckoTabRestoreTest,com.tomex777.annie.AnnieGeckoDownloadHistoryTest,com.tomex777.annie.AnnieGeckoDownloadManagerTest,com.tomex777.annie.AnnieGeckoBrowserEndToEndTest
       - name: Upload voice recording and tab restoration report
         if: always()
         uses: actions/upload-artifact@v4
