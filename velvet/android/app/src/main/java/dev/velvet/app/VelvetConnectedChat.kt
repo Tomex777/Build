@@ -161,6 +161,29 @@ internal fun VelvetConnectedChat(
         }
     }
 
+    val pickVideo=rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri->
+        if(uri!=null && ready && !uploading) {
+            uploading=true
+            val caption=text.take(1200)
+            val reply=replyingTo?.id
+            scope.launch {
+                try {
+                    val result=client.sendVideo(coupleId,ownId,uri,caption,reply)
+                    if(result.optBoolean("ok")) {
+                        text=""
+                        replyingTo=null
+                        status="Video shared privately with your partner ♡"
+                    } else {
+                        status="Video wasn't sent: "+
+                            result.optString("error","Please try again.")
+                    }
+                } catch(e:Exception) {
+                    status=e.message ?: "Video upload failed. Select the video again."
+                } finally {uploading=false}
+            }
+        }
+    }
+
     // Foreground-only pull, about every 3s. This is NOT push/Realtime WebSockets.
     // The UUID cursor and persisted outbox make retries idempotent and loss-resistant.
     LaunchedEffect(Unit) {
@@ -626,6 +649,49 @@ internal fun VelvetConnectedChat(
             color=muted,fontSize=10.sp,modifier=Modifier.fillMaxWidth()
                 .background(card).padding(start=16.dp,end=16.dp,bottom=8.dp))
     }
+    }
+
+    if(showAttachmentPicker) {
+        ModalBottomSheet(
+            onDismissRequest={showAttachmentPicker=false},
+            containerColor=card
+        ) {
+            Column(Modifier.fillMaxWidth().padding(horizontal=18.dp,vertical=10.dp)) {
+                Text("Share with your person",color=cream,fontSize=19.sp,
+                    fontWeight=FontWeight.SemiBold)
+                Spacer(Modifier.height(9.dp))
+                TextButton(
+                    modifier=Modifier.fillMaxWidth(),
+                    enabled=!uploading,
+                    onClick={
+                        showAttachmentPicker=false
+                        pickPhoto.launch("image/*")
+                    }
+                ) {
+                    Icon(Icons.Outlined.Image,"",tint=rose)
+                    Spacer(Modifier.width(10.dp))
+                    Text("Photo · JPEG, PNG, WebP or GIF (8 MB)",color=cream)
+                }
+                TextButton(
+                    modifier=Modifier.fillMaxWidth(),
+                    enabled=!uploading,
+                    onClick={
+                        showAttachmentPicker=false
+                        pickVideo.launch("video/mp4")
+                    }
+                ) {
+                    Icon(Icons.Outlined.Videocam,"",tint=rose)
+                    Spacer(Modifier.width(10.dp))
+                    Text("Video · MP4 only (20 MB, 2 min)",color=cream)
+                }
+                Text(
+                    "Videos and photos are stored in private Chat, never automatically "+
+                        "added to Our Story. Transfers need an internet connection.",
+                    color=muted,fontSize=11.sp,
+                    modifier=Modifier.padding(vertical=12.dp)
+                )
+            }
+        }
     }
 
     selectedAction?.let { target ->
