@@ -2,6 +2,8 @@ package dev.velvet.app
 
 import android.content.Context
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -101,6 +103,7 @@ internal fun VelvetConnectedChat(
     var status by remember {mutableStateOf("Connecting…")}
     var text by remember {mutableStateOf("")}
     var ready by remember {mutableStateOf(false)}
+    var showingInfo by remember {mutableStateOf(false)}
     var replyingTo by remember {mutableStateOf<ConnectedText?>(null)}
     var selectedAction by remember {mutableStateOf<ConnectedText?>(null)}
     var editTarget by remember {mutableStateOf<ConnectedText?>(null)}
@@ -271,13 +274,23 @@ internal fun VelvetConnectedChat(
             }
         }
     }
+    BackHandler(enabled=showingInfo) { showingInfo=false }
+    if(showingInfo) {
+        VelvetConnectedChatInfo(
+            client=client,partnerName=partnerName,myId=ownId,
+            onBack={showingInfo=false}
+        )
+    } else {
     Column(Modifier.fillMaxSize().background(bg).imePadding()) {
         Row(Modifier.fillMaxWidth().background(card).padding(12.dp),
             verticalAlignment=Alignment.CenterVertically) {
             IconButton(onClick=onBack) { Icon(Icons.Outlined.ArrowBack,"Back",tint=cream) }
-            Column(Modifier.weight(1f)) {
+            Column(Modifier.weight(1f).clickable(enabled=ready) {
+                showingInfo=true
+            }) {
                 Text(partnerName,color=cream,fontSize=20.sp,fontWeight=FontWeight.SemiBold)
-                Text("Our connected text chat ♡",color=rose,fontSize=11.sp)
+                Text(if(ready) "Tap to see chat info · Shared media"
+                     else "Our connected text chat ♡",color=rose,fontSize=11.sp)
             }
             if(onOpenLocalPreview!=null) {
                 TextButton(onClick=onOpenLocalPreview) {
@@ -480,6 +493,7 @@ internal fun VelvetConnectedChat(
             else "Tap to reply · Hold for actions · Photos in private Storage · Not end-to-end encrypted",
             color=muted,fontSize=10.sp,modifier=Modifier.fillMaxWidth()
                 .background(card).padding(start=16.dp,end=16.dp,bottom=8.dp))
+    }
     }
 
     selectedAction?.let { target ->
