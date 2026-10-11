@@ -16,6 +16,46 @@ UNPACK="/tmp/mscc-azure-src"
 
 PREVIOUS_RELEASE="$(readlink -f "$BASE/current" 2>/dev/null || true)"
 ACTIVATED=0
+CONFIG_ROLLBACK_DIR=""
+ENV_PREEXISTED=0
+SERVICE_PREEXISTED=0
+
+# Snapshot private configuration immediately before activating a new release.
+# The unique directory is mode 0700. Never print its contents or upload it.
+snapshot_configs() {
+  CONFIG_ROLLBACK_DIR="$(mktemp -d "$BACKUPS/.config-rollback-XXXXXXXX")"
+  chmod 700 "$CONFIG_ROLLBACK_DIR"
+  if sudo test -f "$ENV_FILE"; then
+    sudo cp -p "$ENV_FILE" "$CONFIG_ROLLBACK_DIR/mscc.env"
+    ENV_PREEXISTED=1
+  fi
+  if sudo test -f "$SERVICE"; then
+    sudo cp -p "$SERVICE" "$CONFIG_ROLLBACK_DIR/mscc.service"
+    SERVICE_PREEXISTED=1
+  fi
+}
+
+restore_configs() {
+  [ -n "$CONFIG_ROLLBACK_DIR" ] || return 0
+  if [ "$ENV_PREEXISTED" -eq 1 ]; then
+    sudo cp -p "$CONFIG_ROLLBACK_DIR/mscc.env" "$ENV_FILE"
+  else
+    sudo rm -f "$ENV_FILE"
+  fi
+  if [ "$SERVICE_PREEXISTED" -eq 1 ]; then
+    sudo cp -p "$CONFIG_ROLLBACK_DIR/mscc.service" "$SERVICE"
+  else
+    sudo rm -f "$SERVICE"
+  fi
+  sudo systemctl daemon-reload
+}
+
+cleanup_config_snapshot() {
+  [ -n "$CONFIG_ROLLBACK_DIR" ] || return 0
+  rm -f "$CONFIG_ROLLBACK_DIR/mscc.env" "$CONFIG_ROLLBACK_DIR/mscc.service"
+  rmdir "$CONFIG_ROLLBACK_DIR"
+  CONFIG_ROLLBACK_DIR=""
+}
 
 switch_release() {
   local target="$1"
@@ -30,13 +70,16 @@ rollback_on_error() {
     echo "Deployment failed after activation; attempting MSCC rollback." >&2
     if [ -n "$PREVIOUS_RELEASE" ] && [ -d "$PREVIOUS_RELEASE" ]; then
       switch_release "$PREVIOUS_RELEASE" || true
+      restore_configs || true
       sudo systemctl restart mscc.service || true
       echo "Restored previous release: $PREVIOUS_RELEASE" >&2
     else
       sudo systemctl stop mscc.service || true
+      restore_configs || true
       echo "No previous release available; stopped the failed first deployment." >&2
     fi
   fi
+  cleanup_config_snapshot || true
 }
 trap rollback_on_error EXIT
 
@@ -107,6 +150,9 @@ grant_cortex_release_access() {
 }
 
 grant_cortex_release_access
+
+echo ">>> Snapshotting config for rollback (secrets remain local/private)..."
+snapshot_configs
 
 echo ">>> Activating release..."
 switch_release "$RELEASE"
