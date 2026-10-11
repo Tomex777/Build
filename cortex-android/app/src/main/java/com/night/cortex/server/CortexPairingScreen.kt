@@ -11,6 +11,7 @@ import android.util.Base64
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -40,11 +41,14 @@ import androidx.compose.material.icons.rounded.Link
 import androidx.compose.material.icons.rounded.PhoneAndroid
 import androidx.compose.material.icons.rounded.QrCode2
 import androidx.compose.material.icons.rounded.Refresh
+import androidx.compose.material.icons.rounded.Search
+import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.RestartAlt
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -113,7 +117,6 @@ fun CortexPairingScreen(
     onCloseDiagnostics: () -> Unit = {},
 ) {
     var selected by remember { mutableStateOf<PairingAccount?>(null) }
-    var destinationCandidate by remember { mutableStateOf<PairingAccount?>(null) }
     var disconnectCandidate by remember { mutableStateOf<PairingAccount?>(null) }
     var removeCandidate by remember { mutableStateOf<PairingAccount?>(null) }
     var action by remember { mutableStateOf(PairAction.PAIR) }
@@ -121,6 +124,12 @@ fun CortexPairingScreen(
     var renameCandidate by remember { mutableStateOf<PairingAccount?>(null) }
     var profileCandidate by remember { mutableStateOf<PairingAccount?>(null) }
     var repairConfirmation by remember { mutableStateOf<Pair<PairingAccount, String>?>(null) }
+    var accountQuery by remember { mutableStateOf("") }
+    var accountFilter by remember { mutableStateOf(AccountViewFilter.ALL) }
+    val overview = remember(state?.accounts) { accountOverview(state?.accounts.orEmpty()) }
+    val filteredAccounts = remember(state?.accounts, accountQuery, accountFilter) {
+        visibleAccounts(state?.accounts.orEmpty(), accountQuery, accountFilter)
+    }
     val duplicateNames = remember(state?.accounts) {
         duplicateSavedNameIds(state?.accounts.orEmpty())
     }
@@ -139,9 +148,13 @@ fun CortexPairingScreen(
                     Text("WhatsApp Accounts", fontSize = 19.sp, fontWeight = FontWeight.SemiBold)
                     Text(
                         state?.let {
-                            val destinationName = it.accounts.firstOrNull { account -> account.id == it.destination }?.title
-                                ?: "Account ${it.destination}"
-                            "${it.accounts.count { account -> account.connected }} connected · ${it.accounts.size} total · CC: $destinationName [${it.destination}]"
+                            if (it.accounts.isEmpty()) {
+                                "No WhatsApp accounts configured yet"
+                            } else {
+                                val destinationName = it.accounts.firstOrNull { account -> account.id == it.destination }?.title
+                                    ?: "Account ${it.destination}"
+                                "${it.accounts.count { account -> account.connected }} connected · ${it.accounts.size} total · CC: $destinationName [${it.destination}]"
+                            }
                         } ?: "Connect to your server to manage linked accounts",
                         color = CortexMuted,
                         fontSize = 11.sp,
@@ -160,6 +173,75 @@ fun CortexPairingScreen(
                 }
             }
             HorizontalDivider(color = CortexLine)
+
+            if (state != null) {
+                Column(
+                    Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 9.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    if (state.accounts.isNotEmpty() && state.destination.isNotBlank()) {
+                        Text(
+                            "CC inbox fixed to " +
+                                (state.accounts.firstOrNull { it.id == state.destination }?.title ?: "Main Control") +
+                                " [${state.destination}] · change unavailable",
+                            color = CortexMuted,
+                            fontSize = 10.sp,
+                            maxLines = 2,
+                            modifier = Modifier.testTag("fixed-cc-destination-note"),
+                        )
+                    }
+                    Row(
+                        Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        AccountMetric("ONLINE", overview.online.toString(), CortexGood, Modifier.weight(1f))
+                        AccountMetric(
+                            "ATTENTION", overview.attention.toString(),
+                            if (overview.attention > 0) CortexDanger else CortexMuted,
+                            Modifier.weight(1f),
+                        )
+                        AccountMetric("PAUSED", overview.paused.toString(), CortexMuted, Modifier.weight(1f))
+                        AccountMetric("TOTAL", overview.total.toString(), CortexText, Modifier.weight(1f))
+                    }
+
+                    OutlinedTextField(
+                        value = accountQuery,
+                        onValueChange = { accountQuery = it },
+                        modifier = Modifier.fillMaxWidth().testTag("account-search-field"),
+                        placeholder = { Text("Search name, session ID or profile", fontSize = 12.sp) },
+                        leadingIcon = { Icon(Icons.Rounded.Search, null, Modifier.size(19.dp)) },
+                        trailingIcon = if (accountQuery.isNotEmpty()) ({
+                            IconButton(onClick = { accountQuery = "" }) {
+                                Icon(Icons.Rounded.Close, "Clear search", Modifier.size(18.dp))
+                            }
+                        }) else null,
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                        colors = cortexPairingTextFieldColors(),
+                    )
+                    Row(
+                        Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        AccountViewFilter.entries.forEach { option ->
+                            val count = when (option) {
+                                AccountViewFilter.ALL -> overview.total
+                                AccountViewFilter.ONLINE -> overview.online
+                                AccountViewFilter.ATTENTION -> overview.attention
+                                AccountViewFilter.PAUSED -> overview.paused
+                                AccountViewFilter.CONNECTING -> overview.connecting
+                                AccountViewFilter.OFFLINE -> overview.offline
+                            }
+                            FilterChip(
+                                selected = accountFilter == option,
+                                onClick = { accountFilter = option },
+                                label = { Text("${option.title} ($count)", fontSize = 11.sp) },
+                                modifier = Modifier.testTag("account-filter-${option.name.lowercase()}"),
+                            )
+                        }
+                    }
+                }
+            }
 
             if (state == null) {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -237,7 +319,37 @@ fun CortexPairingScreen(
                             }
                         }
                     }
-                    items(state.accounts, key = { it.id }) { account ->
+                    if (filteredAccounts.isEmpty() && state.accounts.isNotEmpty()) {
+                        item(key = "empty-account-results") {
+                            Surface(
+                                color = CortexSurface,
+                                shape = RoundedCornerShape(12.dp),
+                            ) {
+                                Column(
+                                    Modifier.fillMaxWidth().padding(22.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                                ) {
+                                    Icon(Icons.Rounded.Search, null, tint = CortexMuted, modifier = Modifier.size(24.dp))
+                                    Text("No matching accounts", fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                                    Text(
+                                        "Change your search or status filter. Your WhatsApp sessions are unchanged.",
+                                        color = CortexMuted,
+                                        fontSize = 11.sp,
+                                        textAlign = TextAlign.Center,
+                                    )
+                                    TextButton(
+                                        onClick = {
+                                            accountQuery = ""
+                                            accountFilter = AccountViewFilter.ALL
+                                        },
+                                        modifier = Modifier.testTag("reset-account-filters"),
+                                    ) { Text("Show all accounts", color = CortexAccent) }
+                                }
+                            }
+                        }
+                    }
+                    items(filteredAccounts, key = { it.id }) { account ->
                         PairingAccountCard(
                             account = account,
                             destination = state.destination == account.id,
@@ -247,7 +359,6 @@ fun CortexPairingScreen(
                                 selected = account
                                 action = PairAction.PAIR
                             },
-                            onDestination = { destinationCandidate = account },
                             onReconnect = { onReconnect(account.id) },
                             onRename = { renameCandidate = account },
                             onEditProfile = { profileCandidate = account },
@@ -536,17 +647,6 @@ fun CortexPairingScreen(
         )
     }
 
-    destinationCandidate?.let { account ->
-        DestinationSheet(
-            account = account,
-            onDismiss = { destinationCandidate = null },
-            onConfirm = {
-                onDestination(account.id)
-                destinationCandidate = null
-            },
-        )
-    }
-
     repairConfirmation?.let { (account, mode) ->
         AlertDialog(
             onDismissRequest = { repairConfirmation = null },
@@ -603,7 +703,6 @@ private fun PairingAccountCard(
     duplicateName: Boolean,
     busy: Boolean,
     onPair: () -> Unit,
-    onDestination: () -> Unit,
     onReconnect: () -> Unit,
     onRename: () -> Unit,
     onEditProfile: () -> Unit,
@@ -720,7 +819,7 @@ private fun PairingAccountCard(
                         onClick = onEditProfile,
                         enabled = !busy,
                         modifier = Modifier.testTag("edit-profile-${account.id}"),
-                    ) { Text("Change bot profile", color = CortexAccent, fontSize = 11.sp) }
+                    ) { Text("Bot profile", color = CortexAccent, fontSize = 11.sp) }
                 }
             }
             if (duplicateName) {
@@ -839,23 +938,8 @@ private fun PairingAccountCard(
                 )
             }
 
-            if (account.enabled && !destination) {
-                HorizontalDivider(color = CortexLine)
-                Row(
-                    Modifier
-                        .fillMaxWidth()
-                        .clickable(enabled = !busy, onClick = onDestination)
-                        .padding(horizontal = 13.dp, vertical = 10.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Column(Modifier.weight(1f)) {
-                        Text("Make destination", fontSize = 12.sp, fontWeight = FontWeight.Medium)
-                        Text("Recovered media will be sent to ${account.title}.", color = CortexMuted, fontSize = 10.sp)
-                    }
-                    Text("CHANGE", color = CortexAccent, fontSize = 9.sp, fontWeight = FontWeight.Bold)
-                }
-            }
-
+            // MSCC fixes the CC destination to Account A; do not offer an
+            // action that its server API will reject.
             if (!account.connected) {
                 HorizontalDivider(color = CortexLine)
                 Row(
@@ -977,6 +1061,29 @@ private fun PairingAccountCard(
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun AccountMetric(
+    title: String,
+    value: String,
+    accent: Color,
+    modifier: Modifier = Modifier,
+) {
+    Surface(
+        modifier = modifier,
+        color = CortexSurface,
+        shape = RoundedCornerShape(10.dp),
+    ) {
+        Column(
+            Modifier.padding(horizontal = 8.dp, vertical = 10.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(2.dp),
+        ) {
+            Text(value, color = accent, fontSize = 19.sp, fontWeight = FontWeight.Bold)
+            Text(title, color = CortexMuted, fontSize = 9.sp, maxLines = 1)
         }
     }
 }

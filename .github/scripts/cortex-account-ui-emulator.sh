@@ -42,6 +42,22 @@ instrument_status=$?
 set -e
 cat cortex-account-ui-results.txt
 
+# Retrieve any screenshot emitted by the dashboard test even when another
+# independent instrumentation test fails. This helps debug actual UI rendering.
+# The screenshot comes from a Compose-rendered view inside the emulator.
+{
+  # The screenshot comes from a Compose-rendered view inside the emulator,
+  # never from synthetic desktop HTML or an invented screen.
+  if adb exec-out run-as com.night.cortex cat cache/cortex-accounts-dashboard-emulator.png \
+      > cortex-accounts-dashboard-emulator.png 2>/dev/null &&
+      [[ -s cortex-accounts-dashboard-emulator.png ]]; then
+    echo "Dashboard screenshot retrieved from Android app cache."
+  else
+    rm -f cortex-accounts-dashboard-emulator.png
+    echo "::warning::Android dashboard screenshot not available."
+  fi
+}
+
 if [[ $instrument_status -ne 0 ]] || ! grep -Eq 'OK \([0-9]+ tests?\)' cortex-account-ui-results.txt; then
   echo "::error::Account UI instrumentation failed (exit $instrument_status). Capturing Android crash logs."
   adb logcat -d -v threadtime '*:E' > cortex-account-ui-logcat.txt 2>&1 || true
