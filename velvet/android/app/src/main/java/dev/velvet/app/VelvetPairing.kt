@@ -377,6 +377,17 @@ internal class VelvetPairClient(private val context: Context) {
         JSONArray(sendRaw("/rest/v1/rpc/velvet_chat_photos",payload,activeToken()))
     }
 
+    /** Newest private voice notes in this exact paired Chat (not Our Story). */
+    suspend fun chatAudio(
+        beforeAt:String?=null,beforeId:String?=null,limit:Int=20
+    ): JSONArray = withContext(Dispatchers.IO) {
+        val payload=JSONObject().put("p_limit",limit.coerceIn(1,60))
+        if(!beforeAt.isNullOrBlank() && !beforeId.isNullOrBlank()) {
+            payload.put("p_before_at",beforeAt).put("p_before_id",beforeId)
+        }
+        JSONArray(sendRaw("/rest/v1/rpc/velvet_chat_audio",payload,activeToken()))
+    }
+
     /** Search literal text/captions in the caller's current paired space. */
     suspend fun searchChat(
         query:String,beforeAt:String?=null,beforeId:String?=null,limit:Int=40
