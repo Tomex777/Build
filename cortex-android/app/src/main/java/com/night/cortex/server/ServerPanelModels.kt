@@ -170,6 +170,7 @@ data class ServerPanelState(
     val commandSettings: List<CommandSetting> = emptyList(),
     val runtimeRegistry: RuntimeRegistry? = null,
     val pairing: PairingState? = null,
+    val pairingFresh: Boolean = false,
     val accountDiagnostics: AccountDiagnostics? = null,
     val diagnosticsAccountId: String? = null,
     val diagnosticsLoading: Boolean = false,
