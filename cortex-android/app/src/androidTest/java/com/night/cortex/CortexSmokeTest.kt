@@ -9,6 +9,7 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.night.cortex.hosting.canSaveHttpsConnection
@@ -32,15 +33,20 @@ class CortexSmokeTest {
         composeRule.onNodeWithText("Backups").assertIsDisplayed()
         composeRule.onNodeWithText("Startup").assertIsDisplayed()
         composeRule.onNodeWithText("Settings").assertIsDisplayed()
-        composeRule.onNodeWithText("Activity").assertIsDisplayed()
+        // The Activity tab lives to the right of a horizontally scrollable tab row.
+        // Scroll to it before asserting visibility, especially on API 26 devices.
+        composeRule.onNodeWithText("Activity").performScrollTo().assertIsDisplayed()
         composeRule.onNodeWithText("Connect server").assertIsDisplayed()
 
         composeRule.onNodeWithTag("server-tab-console").assertIsSelected()
         listOf("pairing", "files", "backups", "startup", "settings", "activity").forEach { tab ->
-            composeRule.onNodeWithTag("server-tab-$tab").performClick().assertIsSelected()
+            composeRule.onNodeWithTag("server-tab-$tab")
+                .performScrollTo()
+                .performClick()
+                .assertIsSelected()
             composeRule.onNodeWithText("Connect server").assertIsDisplayed()
         }
-        composeRule.onNodeWithTag("server-tab-console").performClick().assertIsSelected()
+        composeRule.onNodeWithTag("server-tab-console").performScrollTo().performClick().assertIsSelected()
         saveHomeVisualEvidence()
 
         composeRule.onNodeWithText("Connect").performClick()
