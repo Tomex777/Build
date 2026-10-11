@@ -134,6 +134,9 @@ private fun VelvetApp() {
         mutableStateOf(settings.getString("my_pronouns", "") ?: "")
     }
     var pronounsDraft by remember { mutableStateOf(ownPronouns) }
+    var profilePending by remember {
+        mutableStateOf(settings.getBoolean("profile_pending_sync",false))
+    }
     var profileStatus by remember { mutableStateOf("") }
     val profileScope=rememberCoroutineScope()
     fun syncOwnProfile() {
@@ -148,9 +151,13 @@ private fun VelvetApp() {
                     profileStatus="Saved on this phone. Sign in under Connect our phones to sync."
                 } else {
                     val result=pairClient.updateMyProfile(ownerName,ownPronouns)
-                    profileStatus=if(result.optBoolean("ok"))
-                        "Your account profile is synced ♡"
-                    else "Saved on this phone; check your name or pronouns before retrying."
+                    if(result.optBoolean("ok")) {
+                        profilePending=false
+                        settings.edit().putBoolean("profile_pending_sync",false).apply()
+                        profileStatus="Your account profile is synced ♡"
+                    } else {
+                        profileStatus="Saved on this phone; check your name or pronouns before retrying."
+                    }
                 }
             } catch(error:Exception) {
                 profileStatus="Saved on this phone. Connection failed; use Retry sync."
@@ -178,6 +185,17 @@ private fun VelvetApp() {
         if(page==Page.US && pairClient.configured) {
             try {
                 if(pairClient.hasSession()) {
+                    if(!profilePending) {
+                        val myProfile=pairClient.getMyProfile()
+                        val serverOwn=myProfile.optString("display_name")
+                        if(serverOwn.isNotBlank() && serverOwn!="null") {
+                            ownerName=serverOwn
+                            ownPronouns=myProfile.optString("pronouns")
+                                .takeUnless {it=="null"} ?: ""
+                            settings.edit().putString("my_name",ownerName)
+                                .putString("my_pronouns",ownPronouns).apply()
+                        }
+                    }
                     val pair=pairClient.myPair()
                     val serverPartner=pair?.optString("partner_name").orEmpty()
                     if(serverPartner.isNotBlank() && serverPartner!="null") {
@@ -312,8 +330,10 @@ private fun VelvetApp() {
                 onClick={
                     ownerName=profileDraft.trim()
                     ownPronouns=pronounsDraft.trim()
+                    profilePending=true
                     settings.edit().putString("my_name",ownerName)
-                        .putString("my_pronouns",ownPronouns).apply()
+                        .putString("my_pronouns",ownPronouns)
+                        .putBoolean("profile_pending_sync",true).apply()
                     ownEdit=false
                     syncOwnProfile()
                 }
