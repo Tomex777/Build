@@ -85,6 +85,10 @@ class AnnieCharacterAndStarterMigrationTest {
     @Test fun canvasSnakeMigrationPreservesCustomEditedScripts() {
         val edited = StarterScripts.canvasSnake + "\n// user customization"
         assertEquals(edited, StarterScripts.migrateCanvasSnake(edited))
+        val userOriginal = StarterScripts.canvasSnake.replace("Swipe to change direction", "My game!")
+        assertEquals(userOriginal, StarterScripts.migrateCanvasSnake(userOriginal))
+        assertEquals(StarterScripts.canvasSnake,
+            StarterScripts.migrateCanvasSnake(StarterScripts.canvasSnake))
         val oldStarter = "old game seed"
         assertEquals(oldStarter, StarterScripts.migrateCanvasSnake(oldStarter))
     }

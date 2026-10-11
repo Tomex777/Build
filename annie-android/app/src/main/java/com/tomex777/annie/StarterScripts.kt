@@ -9,7 +9,10 @@ internal object StarterScripts {
         if ((source.length == 4749 && source.hashCode() == -1907834826) ||
             // Exact first bundled swipe-first Canvas game, before low-load frames.
             // Never overwrite anything the user has changed in Script Studio.
-            (source.length == 9968 && source.hashCode() == -42891262)) canvasSnake else source
+            (source.length == 9968 && source.hashCode() == -42891262) ||
+            // Exact intermediate performance-tuned Snake before the Android 8
+            // native-touch compatibility fix. Never rewrite edited scripts.
+            (source.length == 10641 && source.hashCode() == 2106237142)) canvasSnake else source
 
     internal fun migrateChess(source: String): String {
         var migrated = source
