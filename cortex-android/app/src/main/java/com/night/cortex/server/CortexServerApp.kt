@@ -130,7 +130,7 @@ import org.json.JSONObject
 import kotlin.math.roundToInt
 import kotlinx.coroutines.delay
 
-private enum class ServerTab(val label: String) {
+internal enum class ServerTab(val label: String) {
     CONSOLE("Console"),
     PAIRING("Accounts"),
     FILES("Files"),
@@ -157,6 +157,11 @@ fun CortexServerApp(vm: ServerPanelViewModel = viewModel()) {
     val state by vm.state.collectAsState()
     val context = LocalContext.current
     var tab by rememberSaveable { mutableStateOf(ServerTab.CONSOLE) }
+    // Tab entry and periodic synchronization are silent: only the header's
+    // refresh button initiates a visible full dashboard refresh.
+    LaunchedEffect(tab, state.configured) {
+        if (state.configured) vm.onTabSelected(tab)
+    }
     var sheet by remember { mutableStateOf<SheetMode?>(null) }
     var selectedEntry by remember { mutableStateOf<HostingFileEntry?>(null) }
     var deleteCandidate by remember { mutableStateOf<HostingFileEntry?>(null) }
@@ -223,21 +228,7 @@ fun CortexServerApp(vm: ServerPanelViewModel = viewModel()) {
                 busy = state.loading,
                 onRefresh = vm::refreshAll,
             )
-            ServerTabs(tab = tab, busy = state.loading, onTab = {
-                tab = it
-                // Browsing cached information stays available while offline.
-                if (state.agentReachable) {
-                    when (it) {
-                        ServerTab.CONSOLE -> vm.refreshConsole()
-                        ServerTab.PAIRING -> vm.refreshPairing()
-                        ServerTab.FILES -> vm.refreshFiles()
-                        ServerTab.BACKUPS -> vm.refreshBackups()
-                        ServerTab.ACTIVITY -> vm.refreshActivity()
-                        ServerTab.SETTINGS -> vm.refreshSettings()
-                        ServerTab.STARTUP -> vm.refreshStartup()
-                    }
-                }
-            })
+            ServerTabs(tab = tab, busy = state.loading, onTab = { tab = it })
             Box(Modifier.fillMaxWidth().height(2.dp)) {
                 if (showSyncBar) {
                     LinearProgressIndicator(
@@ -697,9 +688,6 @@ internal fun ConsolePage(
                         TextButton(onClick = clear, enabled = state.logs.isNotEmpty()) {
                             Text("CLEAR", fontSize = 8.sp)
                         }
-                        IconButton(onClick = refresh, enabled = state.agentReachable && !state.loading, modifier = Modifier.size(28.dp)) {
-                            Icon(Icons.Rounded.Refresh, "Refresh logs", Modifier.size(16.dp))
-                        }
                     }
                     OutlinedTextField(
                         value = query,
@@ -904,7 +892,6 @@ internal fun FilesPage(
             SmallAction("Create Directory", Icons.Rounded.CreateNewFolder, onNewDirectory, enabled = state.agentReachable && !state.loading)
             SmallAction("Upload", Icons.Rounded.Upload, onUpload, enabled = state.agentReachable && !state.loading)
             SmallAction("New File", Icons.Rounded.NoteAdd, onNewFile, enabled = state.agentReachable && !state.loading)
-            SmallAction("Refresh", Icons.Rounded.Refresh, onRefresh, enabled = state.agentReachable && !state.loading)
         }
         HorizontalDivider(color = CortexLine)
         if (state.currentPath != "/") {
@@ -1019,7 +1006,6 @@ internal fun BackupsPage(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text("Backups", fontSize = 18.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
-            IconButton(onClick = onRefresh, enabled = state.agentReachable && !state.loading) { Icon(Icons.Rounded.Refresh, "Refresh backups") }
         }
         Row(
             Modifier.fillMaxWidth().padding(start = 12.dp, end = 12.dp, bottom = 12.dp),
@@ -1266,7 +1252,6 @@ internal fun SettingsPage(
                         fontSize = 10.sp,
                     )
                 }
-                IconButton(onClick = onRefresh, enabled = state.agentReachable && !state.loading) { Icon(Icons.Rounded.Refresh, "Refresh settings") }
             }
         }
 
@@ -1552,7 +1537,6 @@ internal fun ActivityPage(state: ServerPanelState, refresh: () -> Unit) {
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text("Activity", fontSize = 18.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
-            TextButton(onClick = refresh, enabled = state.agentReachable && !state.loading) { Text("Refresh") }
         }
         HorizontalDivider(color = CortexLine)
         if (state.activity.isEmpty()) {
