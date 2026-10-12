@@ -9,6 +9,8 @@ on:
     branches: [mscc-azure]
     paths:
       - 'mscc/youtube-video.js'
+      - 'mscc/youtube-dlp.js'
+      - 'mscc/youtube-dlp-selftest.js'
       - 'mscc/youtube-flow.js'
       - 'mscc/youtube-video-selftest.js'
       - 'mscc/youtube-video-live-probe.js'
@@ -35,8 +37,10 @@ jobs:
         run: |
           node --check youtube-video.js
           node --check youtube-flow.js
+          node --check youtube-dlp.js
           node --check commands/media/youtube.js
           node youtube-video-selftest.js
+          node youtube-dlp-selftest.js
           bash -n install-azure.sh
       - name: Install FFmpeg like the Azure installer
         run: |
