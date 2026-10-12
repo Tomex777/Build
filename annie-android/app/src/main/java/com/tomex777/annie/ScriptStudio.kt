@@ -437,6 +437,7 @@ private fun ScriptStudioContent(
                 val displayName = context.contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)
                     ?.use { cursor -> if (cursor.moveToFirst()) cursor.getString(0) else null }
                     ?: uri.lastPathSegment.orEmpty().substringAfterLast('/')
+                if (!saveBeforeNavigation()) return@launch
                 val file = workspace.files.importJavaScript(displayName, source)
                 refreshProjects(file.nameWithoutExtension, file.name)
                 status = "Imported ${file.name} · disabled until you review and enable it"
@@ -484,12 +485,14 @@ private fun ScriptStudioContent(
     }
     LaunchedEffect(importFile) {
         val file = importFile ?: return@LaunchedEffect
+        if (!saveBeforeNavigation()) { onFileImportOpened(); return@LaunchedEffect }
         runCatching {
             if (file.extension.equals("js", true)) {
                 val staged = withContext(Dispatchers.IO) {
                     require(file.length() <= 2L * 1024 * 1024) { "Script is too large" }
                     workspace.files.importJavaScript(file.name, file.readText())
                 }
+                if (!saveBeforeNavigation()) { onFileImportOpened(); return@LaunchedEffect }
                 refreshProjects(staged.nameWithoutExtension, staged.name)
                 status = "Imported · review and enable to run"
             } else {
@@ -1083,6 +1086,7 @@ private fun ScriptStudioContent(
                     TextButton(
                         enabled = selectedPackageEntry in preview.javaScriptFiles,
                         onClick = {
+                            if (!saveBeforeNavigation()) return@TextButton
                             val archive = pendingPackageArchive ?: return@TextButton
                             scope.launch {
                                 runCatching {
@@ -1090,6 +1094,7 @@ private fun ScriptStudioContent(
                                         AnniePackageArchive.install(context, archive, selectedPackageEntry, pendingPackageName)
                                     }
                                 }.onSuccess { imported ->
+                                    if (!saveBeforeNavigation()) return@onSuccess
                                     archive.delete()
                                     pendingPackageArchive = null
                                     pendingPackageName = ""
