@@ -86,7 +86,7 @@ try {
     await prepared.cleanup()
   }
   assert.equal(videoFetch,false,'media bytes must go through yt-dlp Tor, not direct fetch')
-  const traceRows = (await readFile(calls,'utf8')).trim().split('\\n').map(JSON.parse)
+  const traceRows = (await readFile(calls,'utf8')).trim().split('\n').map(row => JSON.parse(row))
   assert(traceRows.some(row => !row.tor && row.metadata), 'direct metadata is tried first')
   assert(traceRows.some(row => row.tor && row.metadata), 'Tor metadata runs only as fallback')
   assert(traceRows.filter(row => !row.metadata).every(row => row.tor),
