@@ -59,6 +59,8 @@ Read the effective CI source: `scripts/repair-m0b-merge.py` integrates six gener
 
 4. Canvas and bundled-resource closing-tag escaping now uses literal replacement callbacks. Regex replacement strings had consumed the intended backslash, so snippets containing `</script>` or `</style>` could prematurely end their inline tag. New tests require exactly one real closing tag for each wrapper.
 
+The first full audit run passed the new native editor/Canvas checks on API26 but exposed an intermittent Gecko history test failure. Its first-page native tap had no observable acknowledgement. The fixture now changes its title only when a real native tap reaches the page, and navigation waits for that acknowledgement before retaining the original Back/Forward and exact-download-byte assertions. No browser history protections or assertions are removed.
+
 The new code must pass its own Android/CI run before it replaces the delivered baseline APK. New tests are not retroactively counted as baseline coverage.
 
 ## Work not silently classified as complete
