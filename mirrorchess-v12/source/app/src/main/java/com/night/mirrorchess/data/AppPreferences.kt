@@ -4,6 +4,14 @@ import android.content.Context
 import androidx.core.content.edit
 
 enum class BoardPalette { CLASSIC, WALNUT, SLATE, OCEAN }
+
+// Durations are used for a single piece glide and shared with AI move pacing.
+enum class MoveAnimationSpeed(val label: String, val durationMillis: Int) {
+    INSTANT("Off", 0),
+    FAST("Fast", 280),
+    SMOOTH("Smooth", 650),
+    SLOW("Slow", 1000),
+}
 data class AppSettings(
     val playerElo: Int = 1800,
     val showLegalMoves: Boolean = true,
@@ -13,6 +21,7 @@ data class AppSettings(
     val boardPalette: BoardPalette = BoardPalette.CLASSIC,
     val pieceSetId: String = PieceSetId.CLASSIC.name.lowercase(),
     val pieceShadows: Boolean = true,
+    val moveAnimationSpeed: MoveAnimationSpeed = MoveAnimationSpeed.SLOW,
 )
 
 class AppPreferences(context: Context) {
@@ -27,6 +36,7 @@ class AppPreferences(context: Context) {
         boardPalette = runCatching { BoardPalette.valueOf(prefs.getString("boardPalette", BoardPalette.CLASSIC.name).orEmpty()) }.getOrDefault(BoardPalette.CLASSIC),
         pieceSetId = prefs.getString("pieceSetId", prefs.getString("pieceStyle", PieceSetId.CLASSIC.name)).orEmpty().lowercase(),
         pieceShadows = prefs.getBoolean("pieceShadows", true),
+        moveAnimationSpeed = runCatching { MoveAnimationSpeed.valueOf(prefs.getString("moveAnimationSpeed", MoveAnimationSpeed.SLOW.name).orEmpty()) }.getOrDefault(MoveAnimationSpeed.SLOW),
     )
 
     fun save(settings: AppSettings) {
@@ -39,6 +49,7 @@ class AppPreferences(context: Context) {
             putString("boardPalette", settings.boardPalette.name)
             putString("pieceSetId", settings.pieceSetId)
             putBoolean("pieceShadows", settings.pieceShadows)
+            putString("moveAnimationSpeed", settings.moveAnimationSpeed.name)
         }
     }
 }
