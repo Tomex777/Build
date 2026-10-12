@@ -117,6 +117,30 @@ if [ "$NEED_APT" -eq 1 ]; then
   sudo apt-get install -y --no-install-recommends ffmpeg poppler-utils
 fi
 
+# Keep YouTube's optional maintained extractor in a private MSCC-only venv.
+# Do not replace system Python, other services, or install into site-packages.
+# An unavailable Python index must never abort a healthy MSCC deployment.
+YOUTUBE_VENV="$BASE/tools/yt-dlp"
+if [ ! -x "$YOUTUBE_VENV/bin/yt-dlp" ] || [ "${MSCC_YOUTUBE_UPDATE_YTDLP:-0}" = "1" ]; then
+  echo ">>> Installing optional YouTube extractor for MSCC..."
+  if ! command -v python3 >/dev/null 2>&1 || ! python3 -m venv --help >/dev/null 2>&1; then
+    echo "Optional YouTube extractor skipped: Python venv unavailable." >&2
+  else
+    # Some lean Ubuntu images have Python but lack ensurepip/python3-venv.
+    if ! python3 -m venv "$YOUTUBE_VENV" >/dev/null 2>&1; then
+      echo ">>> Installing missing Python venv support..."
+      if sudo apt-get update -qq && sudo apt-get install -y --no-install-recommends python3-venv; then
+        python3 -m venv "$YOUTUBE_VENV" || true
+      fi
+    fi
+    if [ -x "$YOUTUBE_VENV/bin/python" ]; then
+      if ! "$YOUTUBE_VENV/bin/python" -m pip install --disable-pip-version-check --quiet --upgrade "yt-dlp[default]"; then
+        echo "Optional YouTube extractor install failed; MSCC will continue normally." >&2
+      fi
+    fi
+  fi
+fi
+
 npm run check
 
 SOURCE_STACK_DIR="${MSCC_SOURCE_STACK_DIR:-/opt/mscc-source-stack}"
