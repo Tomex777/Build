@@ -6,6 +6,7 @@ import {
   isPublicIpv4,
   checkedMediaUrl,
   downloadFromKnightProviders,
+  probeKnightProviders,
 } from './youtube-knight-providers.js'
 
 const id = 'XEuaRjnuHlc'
@@ -66,6 +67,18 @@ try {
     providers,
     requestJson:async()=>({data:{download_url:'https://127.0.0.1/private'}}),
   }),/no external media source returned/)
+
+  const diagnostics = await probeKnightProviders(id,{
+    providers,
+    requestJson:async url => url.includes('eliteprotech')
+      ? {downloadURL:'https://cdn.example.com/signed-token-secret',title:'Secret title'}
+      : {data:{download_url:'https://127.0.0.1/private'}},
+  })
+  assert.deepEqual(diagnostics,[
+    {provider:'eliteprotech',result:'link_resolved'},
+    {provider:'yupra',result:'unavailable'},
+  ])
+  assert.equal(JSON.stringify(diagnostics).includes('signed-token-secret'),false)
 
   process.env.MSCC_YOUTUBE_KNIGHT_FALLBACK = '0'
   await assert.rejects(downloadFromKnightProviders(id,dir,4096,{
