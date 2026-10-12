@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import { youtubeFailureMessage } from './youtube-flow.js'
 import { mkdtemp, rm } from 'node:fs/promises'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
@@ -7,9 +8,40 @@ import {
   checkedMediaUrl,
   downloadFromKnightProviders,
   probeKnightProviders,
+  providerFailureCategory,
+  makeGuardedLookup,
 } from './youtube-knight-providers.js'
 
 const id = 'XEuaRjnuHlc'
+
+// Regression for Node 24 HTTPS Happy Eyeballs: `all:true` must return an
+// array, while the classic single-address lookup returns (address, family).
+const guarded = makeGuardedLookup(async () => [
+  {address:'127.0.0.1',family:4},
+  {address:'8.8.8.8',family:4},
+])
+const allRecords = await new Promise((resolve,reject) => guarded('cdn.example.com',{all:true},(error,records) => error ? reject(error) : resolve(records)))
+assert.deepEqual(allRecords,[{address:'8.8.8.8',family:4}])
+const singleRecord = await new Promise((resolve,reject) => guarded('cdn.example.com',{family:4},(error,address,family) => error ? reject(error) : resolve({address,family})))
+assert.deepEqual(singleRecord,{address:'8.8.8.8',family:4})
+const blocked = makeGuardedLookup(async()=>[{address:'127.0.0.1',family:4}])
+await assert.rejects(new Promise((resolve,reject)=>blocked('internal.local',{all:true},error=>error?reject(error):resolve())), /no permitted public/)
+
+const offlineError = new Error('All KnightBot sources unavailable')
+offlineError.code = 'YOUTUBE_KNIGHT_SOURCES_UNAVAILABLE'
+assert.match(youtubeFailureMessage(offlineError,'XEuaRjnuHlc'), /alternate video services are also unavailable/)
+assert.ok(youtubeFailureMessage(offlineError,'XEuaRjnuHlc').includes('youtube.com/watch?v=XEuaRjnuHlc'))
+assert.equal(providerFailureCategory({code:'DOWNLOADER_HTTP_404'}),'http_404')
+assert.equal(providerFailureCategory({code:'DOWNLOADER_HTTP_429'}),'http_429')
+assert.equal(providerFailureCategory({code:'DOWNLOADER_DNS_FAILURE'}),'dns_failure')
+assert.equal(providerFailureCategory({code:'DOWNLOADER_NO_PUBLIC_ADDRESS'}),'no_public_ipv4')
+assert.equal(providerFailureCategory({code:'CERT_HAS_EXPIRED'}),'tls_failure')
+assert.equal(providerFailureCategory({code:'ECONNRESET'}),'network_failure')
+assert.equal(providerFailureCategory(new Error('Downloader returned an unsafe URL.')),'invalid_media_url')
+assert.equal(providerFailureCategory(new Error('Downloader returned invalid metadata.')),'invalid_json')
+assert.equal(providerFailureCategory(new Error('hidden signed URL token')),'provider_error')
+
+
 for (const address of ['127.0.0.1','10.1.2.3','172.16.5.7','192.168.1.22',
   '169.254.169.254','100.64.0.1','0.0.0.0','203.0.113.1','198.51.100.1']) {
   assert.equal(isPublicIpv4(address),false,'private IP accepted: '+address)
@@ -76,9 +108,20 @@ try {
   })
   assert.deepEqual(diagnostics,[
     {provider:'eliteprotech',result:'link_resolved'},
-    {provider:'yupra',result:'unavailable'},
+    {provider:'yupra',result:'invalid_media_url'},
   ])
   assert.equal(JSON.stringify(diagnostics).includes('signed-token-secret'),false)
+  const safeFailure = await probeKnightProviders(id,{
+    providers:[providers[0]],
+    requestJson:async()=> {
+      const error = new Error('SECRET_SIGNED_VIDEO_URL')
+      error.code = 'ERROR/PRIVATE?SECRET'
+      throw error
+    },
+  })
+  assert.equal(safeFailure[0].result,'provider_error')
+  assert.equal(safeFailure[0].diagnosticCode,'UNKNOWN')
+  assert.equal(JSON.stringify(safeFailure).includes('SECRET'),false)
 
   process.env.MSCC_YOUTUBE_KNIGHT_FALLBACK = '0'
   await assert.rejects(downloadFromKnightProviders(id,dir,4096,{

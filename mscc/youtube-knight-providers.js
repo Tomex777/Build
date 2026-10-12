@@ -66,16 +66,31 @@ export function checkedMediaUrl(value) {
   return parsed
 }
 
-async function guardedLookup(hostname, options, callback) {
-  try {
-    const records = await lookup(hostname, {family:4, all:true, verbatim:true})
-    const publicRecord = records.find(record => isPublicIpv4(record.address))
-    if (!publicRecord) throw new Error('Unsafe downloader destination.')
-    callback(null, publicRecord.address, 4)
-  } catch {
-    callback(new Error('Unsafe downloader destination.'))
+// Node 24's Happy Eyeballs connector asks lookup() for `all:true`. In
+// that mode the callback MUST receive [{address,family}], not a single IP;
+// passing a string causes ERR_INVALID_IP_ADDRESS and makes *every* public
+// API appear offline. Keep the DNS pin/SSRF guard while honoring the contract.
+export function makeGuardedLookup(resolveAddresses = lookup) {
+  return async function guardedLookup(hostname, options, callback) {
+    try {
+      const records = await resolveAddresses(hostname, {family:4, all:true, verbatim:true})
+      const publicRecord = records.find(record => isPublicIpv4(record.address))
+      if (!publicRecord) {
+        const error = new Error('Downloader hostname has no permitted public IPv4 address.')
+        error.code = 'DOWNLOADER_NO_PUBLIC_ADDRESS'
+        throw error
+      }
+      if (options?.all) callback(null,[{address:publicRecord.address,family:4}])
+      else callback(null,publicRecord.address,4)
+    } catch (error) {
+      if (error?.code === 'DOWNLOADER_NO_PUBLIC_ADDRESS') return callback(error)
+      const failure = new Error('Downloader DNS lookup failed.')
+      failure.code = 'DOWNLOADER_DNS_FAILURE'
+      callback(failure)
+    }
   }
 }
+const guardedLookup = makeGuardedLookup()
 
 async function httpsResponse(target, redirects = 0) {
   const uri = checkedMediaUrl(String(target))
@@ -95,7 +110,11 @@ async function httpsResponse(target, redirects = 0) {
   }
   if (response.statusCode !== 200) {
     response.resume()
-    throw new Error('Downloader service is unavailable.')
+    const error = new Error('Downloader service returned an HTTP error.')
+    const status = Number(response.statusCode)
+    error.code = Number.isInteger(status) && status >= 100 && status <= 599
+      ? 'DOWNLOADER_HTTP_' + status : 'DOWNLOADER_HTTP_ERROR'
+    throw error
   }
   return response
 }
@@ -172,6 +191,27 @@ export async function videoHeightFromFile(file) {
 
 // One-shot deployment health check. No media bytes, signed URLs or account
 // data are printed; only an allowlisted public YouTube ID goes to providers.
+// A deliberately finite vocabulary: deployment logs can distinguish a dead
+// upstream API from a broken parser without exposing the upstream response,
+// personal data, signed playback links, proxy configuration, or credentials.
+export function providerFailureCategory(error) {
+  const code = String(error?.code || '')
+  if (/^DOWNLOADER_HTTP_[1-5][0-9][0-9]$/.test(code)) return 'http_' + code.slice(-3)
+  if (code === 'DOWNLOADER_DNS_FAILURE' || ['ENOTFOUND','EAI_AGAIN'].includes(code)) return 'dns_failure'
+  if (code === 'DOWNLOADER_NO_PUBLIC_ADDRESS') return 'no_public_ipv4'
+  if (code === 'ETIMEDOUT' || code === 'ESOCKETTIMEDOUT' ||
+      /timed out/i.test(String(error?.message || ''))) return 'timeout'
+  if (['ECONNREFUSED','ECONNRESET','EHOSTUNREACH','ENETUNREACH'].includes(code)) return 'network_failure'
+  if (['CERT_HAS_EXPIRED','UNABLE_TO_VERIFY_LEAF_SIGNATURE','DEPTH_ZERO_SELF_SIGNED_CERT'].includes(code)) return 'tls_failure'
+  const message = String(error?.message || '')
+  if (/unsafe URL|Invalid downloader URL/i.test(message)) return 'invalid_media_url'
+  if (/unexpected metadata/i.test(message)) return 'unexpected_content_type'
+  if (/invalid metadata/i.test(message)) return 'invalid_json'
+  if (/exceeded the safe limit/i.test(message)) return 'oversized_metadata'
+  if (/redirected too many/i.test(message)) return 'redirect_limit'
+  return 'provider_error'
+}
+
 export async function probeKnightProviders(videoId, {
   requestJson=readProviderJson, providers=PROVIDERS,
 } = {}) {
@@ -180,6 +220,7 @@ export async function probeKnightProviders(videoId, {
   const results = []
   for (const provider of providers) {
     let result = 'unavailable'
+    let safeErrorCode
     try {
       const requestUrl = new URL(provider.endpoint)
       for (const [key,value] of Object.entries(provider.params(watchUrl))) {
@@ -191,8 +232,18 @@ export async function probeKnightProviders(videoId, {
         checkedMediaUrl(candidate.url)
         result = 'link_resolved'
       } else result = 'no_media_link'
-    } catch { /* Never log signed URLs or upstream service errors. */ }
-    results.push({provider:provider.name,result})
+    } catch (error) {
+      result = providerFailureCategory(error)
+      if (result === 'provider_error') {
+        // Only a short uppercase Node error identifier (never a message,
+        // hostname, signed URL, header, or provider response) is exposed.
+        const identifier = String(error?.code || error?.name || 'UNKNOWN')
+        safeErrorCode = /^[A-Z][A-Z0-9_]{1,55}$/.test(identifier)
+          ? identifier : 'UNKNOWN'
+      }
+    }
+    results.push({provider:provider.name,result,
+      ...(safeErrorCode ? {diagnosticCode:safeErrorCode} : {})})
   }
   return results
 }

@@ -83,6 +83,11 @@ jobs:
       - name: Probe live YouTube search and media transport
         working-directory: mscc
         run: node youtube-video-live-probe.js
+      - name: Probe public KnightBot source health (redacted, optional)
+        working-directory: mscc
+        timeout-minutes: 2
+        continue-on-error: true
+        run: node tools/azure-knight-diagnostics.mjs
       - name: Verify YouTube FFmpeg mux helper
         working-directory: mscc
         run: node youtube-mux-selftest.js
