@@ -17,6 +17,12 @@ import {
   walkObjects,
 } from './sources/music/_shared.js'
 
+import {
+  downloadYouTubeWithDlp,
+  isYouTubeAccessChallenge,
+  resolveYouTubeWithDlp,
+} from './youtube-dlp.js'
+
 const WATCH = 'https://www.youtube.com/watch?v='
 const MAX_SEARCH_RESULTS = 20
 
@@ -375,7 +381,17 @@ export async function resolveYouTubeVideo(videoId) {
   const formats = [...byItag.values()]
   const candidates = buildVideoCandidates(formats)
   if (!candidates.length) {
-    throw lastError || new Error('YouTube did not expose a directly usable video format.')
+    try {
+      return await resolveYouTubeWithDlp(id)
+    } catch (extractorError) {
+      if (isYouTubeAccessChallenge(lastError) || isYouTubeAccessChallenge(extractorError)) {
+        const blocked = new Error('YouTube challenged the MSCC server while accessing the video.')
+        blocked.code = 'YOUTUBE_ACCESS_CHALLENGE'
+        throw blocked
+      }
+      if (extractorError?.code !== 'YOUTUBE_EXTRACTOR_UNAVAILABLE') throw extractorError
+      throw lastError || new Error('YouTube did not expose a directly usable video format.')
+    }
   }
 
   return {
@@ -473,13 +489,47 @@ export async function prepareYouTubeVideo(videoId, {
 
   const watchUrl = resolved.details.url || WATCH + videoId
   if (typeof onStage === 'function') await onStage('Checking media…')
-  await probeCandidate(candidate, watchUrl)
+  let extractorCandidate = candidate
+  if (candidate.source !== 'yt-dlp') {
+    try {
+      await probeCandidate(candidate, watchUrl)
+    } catch (probeError) {
+      // Signed direct URLs can fail on the Azure IP even when GitHub CI passes.
+      // Try the maintained extractor before declaring playback unavailable.
+      try {
+        const fallback = await resolveYouTubeWithDlp(videoId)
+        extractorCandidate = selectVideoCandidate(fallback.candidates, quality)
+        if (!extractorCandidate) throw new Error('No extractor format was available.')
+      } catch (error) {
+        if (isYouTubeAccessChallenge(error)) {
+          const blocked = new Error('YouTube challenged the MSCC server while accessing the video.')
+          blocked.code = 'YOUTUBE_ACCESS_CHALLENGE'
+          throw blocked
+        }
+        throw probeError
+      }
+    }
+  }
 
   const dir = join(tmpdir(), 'mscc-youtube-' + randomUUID())
   await mkdir(dir, { recursive:true })
   const cleanup = async () => rm(dir, { recursive:true, force:true }).catch(() => {})
 
   try {
+    if (extractorCandidate.source === 'yt-dlp') {
+      if (typeof onStage === 'function') await onStage(`Downloading ${extractorCandidate.height}p with the YouTube extractor…`)
+      const downloaded = await downloadYouTubeWithDlp(videoId, extractorCandidate.height, dir, MAX_DOWNLOAD_BYTES)
+      return {
+        ...resolved,
+        candidate:extractorCandidate,
+        file:downloaded.file,
+        fileName:safeVideoName(resolved.details.title, downloaded.extension),
+        mimetype:downloaded.extension === 'mp4' ? 'video/mp4' :
+          downloaded.extension === 'webm' ? 'video/webm' : 'video/x-matroska',
+        size:downloaded.size,
+        cleanup,
+      }
+    }
     const extension = candidate.container === 'webm' ? 'webm' : 'mp4'
     const output = join(dir, 'output.' + extension)
 
