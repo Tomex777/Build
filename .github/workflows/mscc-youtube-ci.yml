@@ -18,6 +18,9 @@ on:
       - 'mscc/youtube-mux-selftest.js'
       - 'mscc/commands/media/youtube.js'
       - 'mscc/install-azure.sh'
+      - 'mscc/tools/azure-youtube-diagnostics.mjs'
+      - 'mscc/tools/azure-youtube-diagnostics-selftest.mjs'
+      - 'mscc/tools/deploy-azure-ssh.sh'
       - '.github/workflows/mscc-youtube-ci.yml'
   pull_request:
     branches: [mscc-azure]
@@ -28,6 +31,9 @@ on:
       - 'mscc/youtube-dlp-selftest.js'
       - 'mscc/youtube-resolution-selftest.js'
       - 'mscc/install-azure.sh'
+      - 'mscc/tools/azure-youtube-diagnostics.mjs'
+      - 'mscc/tools/azure-youtube-diagnostics-selftest.mjs'
+      - 'mscc/tools/deploy-azure-ssh.sh'
       - '.github/workflows/mscc-youtube-ci.yml'
   workflow_dispatch:
 
@@ -53,6 +59,8 @@ jobs:
           node youtube-video-selftest.js
           node youtube-dlp-selftest.js
           node youtube-resolution-selftest.js
+          node --check tools/azure-youtube-diagnostics.mjs
+          node tools/azure-youtube-diagnostics-selftest.mjs
           bash -n install-azure.sh
       - name: Install FFmpeg like the Azure installer
         run: |
