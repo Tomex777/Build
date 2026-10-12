@@ -67,22 +67,47 @@ async function main() {
   }
   summary.extractorInstalled = true
   summary.extractorVersion = version.stdout.trim().slice(0, 60)
-  const result = await run([
-    '--ignore-config', '--no-playlist', '--no-warnings', '--js-runtimes', 'node',
-    '--socket-timeout', '12', '--retries', '0', '--fragment-retries', '0',
-    '--dump-single-json', '--skip-download', VIDEO_URL,
-  ])
-  if (result.error) {
-    summary.result = result.error === 'timeout' ? 'timeout' : 'extractor_execution_failed'
-    return summary
-  }
-  if (result.code !== 0) {
-    summary.result = categorize(result.stderr)
-    return summary
-  }
+  const profiles = ['default', 'tv,web_safari', 'web_embedded']
+  summary.attempts = []
   let parsed
-  try { parsed = JSON.parse(result.stdout) }
-  catch { summary.result = 'invalid_extractor_json'; return summary }
+  for (const profile of profiles) {
+    const args = [
+      '--ignore-config', '--no-playlist', '--no-warnings', '--js-runtimes', 'node',
+      '--socket-timeout', '12', '--retries', '0', '--fragment-retries', '0',
+      ...(profile === 'default' ? [] : ['--extractor-args', 'youtube:player_client=' + profile]),
+      '--dump-single-json', '--skip-download', VIDEO_URL,
+    ]
+    const result = await run(args, 30000)
+    if (result.error) {
+      const status = result.error === 'timeout' ? 'timeout' : 'extractor_execution_failed'
+      summary.attempts.push({profile, status})
+      summary.result = status
+      continue
+    }
+    if (result.code !== 0) {
+      const status = categorize(result.stderr)
+      summary.attempts.push({profile, status})
+      summary.result = status
+      continue
+    }
+    try { parsed = JSON.parse(result.stdout) }
+    catch {
+      summary.attempts.push({profile, status:'invalid_extractor_json'})
+      summary.result = 'invalid_extractor_json'
+      continue
+    }
+    summary.attempts.push({profile, status:'resolved'})
+    summary.successfulProfile = profile
+    break
+  }
+  if (!parsed) {
+    // Preserve a confirmed challenge instead of overwriting it with a later
+    // unrelated error when every client fails on this IP.
+    if (summary.attempts.some(row => row.status === 'youtube_access_challenge')) {
+      summary.result = 'youtube_access_challenge'
+    }
+    return summary
+  }
   const formats = Array.isArray(parsed.formats) ? parsed.formats : []
   const videos = formats.filter(f => f?.vcodec && f.vcodec !== 'none')
   const direct = videos.filter(f => {
