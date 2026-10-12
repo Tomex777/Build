@@ -108,7 +108,17 @@ open_music() {
   tap_text 'Anime & Manga'
   wait_node Music 15
   tap_text Music
-  wait_node 'Offline Proof' 25
+
+  # The personalized Music Home searches the user's favorite artists; it is
+  # not supposed to fabricate a result when the current favorite is Juice WRLD.
+  # Search for the fixture track explicitly instead of depending on fake Home
+  # matches, so this validates the same route a person would use.
+  wait_node 'Search Music' 15
+  tap_text 'Search Music'
+  wait_node 'Search Music…' 12
+  tap_text 'Search Music…'
+  adb shell input text 'Offline%sProof'
+  wait_node 'Offline Proof' 35
 }
 
 shot 00-home
