@@ -66,6 +66,6 @@ grep -Fq '  verify_existing_source_stack' "$INSTALLER"
 # switching the active release symlink or restarting mscc.service.
 awk '/^if \[ "\$\{MSCC_REUSE_EXISTING_SOURCE_STACK:-0\}" = "1" \]; then/{reuse=NR}
   /bash "\$RELEASE\/tools\/install-flaresolverr-tor.sh"/{stack=NR}
-  /^switch_release "\$RELEASE"/{switch=NR}
-  END{exit !(reuse>0 && reuse<stack && stack<switch)}' "$INSTALLER"
+  /^switch_release "\$RELEASE"/{activate=NR}
+  END{exit !(reuse>0 && reuse<stack && stack<activate)}' "$INSTALLER"
 echo 'PASS existing Tor/FlareSolverr reuse, outage guards, and no service replacement'
