@@ -262,10 +262,11 @@ fun CortexServerApp(vm: ServerPanelViewModel = viewModel()) {
                                 color = CortexMuted, fontSize = 10.sp,
                             )
                         }
-                        TextButton(
-                            onClick = { if (state.authFailed) sheet = SheetMode.CONNECTION else vm.refreshAll() },
-                            enabled = !state.loading,
-                        ) { Text(if (state.authFailed) "Sign in" else "Retry", fontSize = 12.sp) }
+                        if (state.authFailed) {
+                            TextButton(
+                                onClick = { sheet = SheetMode.CONNECTION },
+                            ) { Text("Sign in", fontSize = 12.sp) }
+                        }
                     }
                 }
             }
