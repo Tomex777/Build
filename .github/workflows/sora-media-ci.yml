@@ -15,6 +15,10 @@ on:
       - 'sora-overlay/**'
       - '.github/workflows/sora-media-ci.yml'
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   anime-manga-flow:
     runs-on: ubuntu-latest
