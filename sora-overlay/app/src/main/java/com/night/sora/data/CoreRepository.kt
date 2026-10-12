@@ -504,6 +504,11 @@ class CoreRepository(context: Context) {
                     contentType = ContentType.valueOf(item.getString("contentType")),
                     artworkUrl = item.optNullableString("artworkUrl"),
                     sourceName = item.optString("sourceName"),
+                    mediaId = item.optNullableString("mediaId"),
+                    sourceId = item.optNullableString("sourceId"),
+                    extensionPackage = item.optNullableString("extensionPackage"),
+                    subtitle = item.optString("subtitle"),
+                    mimeType = item.optNullableString("mimeType"),
                     bytesDownloaded = item.optLong("bytesDownloaded"),
                     totalBytes = item.optLong("totalBytes"),
                     status = runCatching { DownloadStatus.valueOf(item.getString("status")) }.getOrDefault(DownloadStatus.QUEUED),
@@ -524,6 +529,11 @@ class CoreRepository(context: Context) {
                 put("contentType", entry.contentType.name)
                 putNullable("artworkUrl", entry.artworkUrl)
                 put("sourceName", entry.sourceName)
+                putNullable("mediaId", entry.mediaId)
+                putNullable("sourceId", entry.sourceId)
+                putNullable("extensionPackage", entry.extensionPackage)
+                put("subtitle", entry.subtitle)
+                putNullable("mimeType", entry.mimeType)
                 put("bytesDownloaded", entry.bytesDownloaded)
                 put("totalBytes", entry.totalBytes)
                 put("status", entry.status.name)
