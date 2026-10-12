@@ -1,6 +1,14 @@
 import assert from 'node:assert/strict'
 import { createServer } from 'node:http'
+import { mkdtempSync, rmSync, symlinkSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { fileURLToPath } from 'node:url'
+import { execFile } from 'node:child_process'
+import { promisify } from 'node:util'
 import { checkAzureLoopback } from './azure-smoke.mjs'
+
+const execFileAsync = promisify(execFile)
 
 async function listen(handler) {
   const server = createServer(handler)
@@ -34,7 +42,34 @@ try {
   await assert.rejects(test(), /control profile/)
   state = { ...validState, accounts: [validState.accounts[0], { ...validState.accounts[1], id: 'A' }] }
   await assert.rejects(test(), /Duplicate account IDs/)
-  console.log('PASS MSCC post-deploy loopback smoke and invariant violation checks')
+
+  // The active /opt/mscc/current symlink must NOT suppress the CLI probe.
+  // Exercise the real Node entrypoint with a symlink and local mock servers.
+  const testDir = mkdtempSync(join(tmpdir(), 'mscc-smoke-link-'))
+  try {
+    const link = join(testDir, 'active-smoke.mjs')
+    symlinkSync(fileURLToPath(new URL('./azure-smoke.mjs', import.meta.url)), link)
+    const run = () => execFileAsync(process.execPath, [link], {
+      env: {
+        ...process.env,
+        MSCC_PANEL_PORT: String(panel.port),
+        MSCC_LOCAL_CONTROL_PORT: String(control.port),
+      },
+      timeout: 12_000,
+    })
+    state = structuredClone(validState)
+    const { stdout } = await run()
+    assert.match(stdout, /MSCC Azure loopback smoke PASS: 2 accounts, 1 connected, 1 paused/)
+    state = { ...validState, destination: 'account-2' }
+    await assert.rejects(run(), error => {
+      assert.equal(error.code, 1, 'Invalid account contract should exit nonzero')
+      assert.match(error.stderr, /MSCC Azure loopback smoke FAILED:.*CC destination/)
+      return true
+    })
+  } finally {
+    rmSync(testDir, { recursive: true, force: true })
+  }
+  console.log('PASS MSCC post-deploy loopback smoke, symlink CLI invocation and invariant violation checks')
 } finally {
   await Promise.all([new Promise(resolve => panel.server.close(resolve)), new Promise(resolve => control.server.close(resolve))])
 }
