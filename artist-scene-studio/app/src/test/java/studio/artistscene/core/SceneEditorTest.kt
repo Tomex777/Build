@@ -572,4 +572,112 @@ class SceneEditorTest {
         assertEquals(keyed.project, SceneProjectCodec.decode(SceneProjectCodec.encode(keyed.project)))
     }
 
+
+
+    @Test
+    fun duplicatingAnimatedParentClonesDescendantsAttachmentsAndIndependentTracks() {
+        val hand = RigBone("hand", "Hand")
+        val character = Actor(
+            id = "character",
+            name = "Character",
+            kind = ActorKind.CHARACTER,
+            transform = Transform(position = Vec3(x = 1f)),
+            rigDefinition = RigDefinition(bones = listOf(hand)),
+        )
+        val attached = Actor(
+            id = "sword",
+            name = "Sword",
+            kind = ActorKind.PROP,
+            parentId = character.id,
+            parentBoneId = hand.id,
+            transform = Transform(position = Vec3(x = 0.2f), scale = Vec3(0.3f, 0.3f, 0.3f)),
+        )
+        val grandchild = Actor(
+            id = "gem",
+            name = "Gem",
+            kind = ActorKind.PROP,
+            parentId = attached.id,
+            transform = Transform(position = Vec3(y = 0.4f)),
+        )
+        val unrelated = Actor("other", "Other", ActorKind.PROP)
+        val project = SceneProject(
+            id = "parent-copy", name = "Parent Copy",
+            actors = listOf(character, attached, grandchild, unrelated),
+            tracks = listOf(
+                AnimationTrack(
+                    "root-pos", character.id, SceneTimelinePaths.POSITION,
+                    listOf(Keyframe(0f, AnimatedValue(vector = Vec3(x = 1f)))),
+                ),
+                AnimationTrack(
+                    "root-joint", character.id, SceneTimelinePaths.rigJoint(hand.id),
+                    listOf(Keyframe(0f, AnimatedValue(rotationEulerDegrees = Vec3(z = 30f)))),
+                ),
+                AnimationTrack(
+                    "child-pos", attached.id, SceneTimelinePaths.POSITION,
+                    listOf(Keyframe(0f, AnimatedValue(vector = Vec3(x = 0.2f)))),
+                ),
+                AnimationTrack(
+                    "other-pos", unrelated.id, SceneTimelinePaths.POSITION,
+                    listOf(Keyframe(0f, AnimatedValue(vector = Vec3(x = 9f)))),
+                ),
+            ),
+        )
+        val start = SceneEditorState(project).selectActor(character.id)
+        val duplicate = start.duplicateSelected()
+        val copiedRoot = requireNotNull(duplicate.selectedActor)
+        val copiedSword = duplicate.project.actors.first { it.parentId == copiedRoot.id }
+        val copiedGem = duplicate.project.actors.first { it.parentId == copiedSword.id }
+
+        assertEquals(7, duplicate.project.actors.size)
+        assertEquals(7, duplicate.project.tracks.size)
+        assertEquals(copiedRoot.id, copiedSword.parentId)
+        assertEquals(hand.id, copiedSword.parentBoneId)
+        assertEquals(copiedSword.id, copiedGem.parentId)
+        assertEquals(1.25f, copiedRoot.transform.position.x)
+        assertEquals(attached.transform, copiedSword.transform)
+        assertEquals(grandchild.transform, copiedGem.transform)
+        assertEquals(project.tracks, duplicate.project.tracks.take(4))
+        assertEquals(7, duplicate.project.tracks.map { it.id }.toSet().size)
+        assertEquals(7, duplicate.project.actors.map { it.id }.toSet().size)
+
+        val snapshot = duplicate.project.evaluateTimeline(0f)
+        val rootX = snapshot.actors.first { it.id == character.id }.transform.position.x
+        val copiedRootX = snapshot.actors.first { it.id == copiedRoot.id }.transform.position.x
+        val copiedChildX = snapshot.actors.first { it.id == copiedSword.id }.transform.position.x
+        assertEquals(0.25f, copiedRootX - rootX, 0.0001f)
+        assertEquals(0.2f, copiedChildX, 0.0001f)
+        assertEquals(Vec3(z = 30f), snapshot.actors.first { it.id == copiedRoot.id }.rig?.joints?.get(hand.id))
+
+        assertEquals(project, duplicate.undo().project)
+        assertEquals(duplicate.project, duplicate.undo().redo().project)
+        assertEquals(duplicate.project, SceneProjectCodec.decode(SceneProjectCodec.encode(duplicate.project)))
+
+        val repeated = duplicate.duplicateSelected()
+        assertEquals(10, repeated.project.actors.size)
+        assertEquals(10, repeated.project.tracks.size)
+        assertEquals(10, repeated.project.actors.map { it.id }.toSet().size)
+        assertEquals(10, repeated.project.tracks.map { it.id }.toSet().size)
+    }
+
+    @Test
+    fun duplicatingChildKeepsExternalParentAndClonesOnlyItsSubtree() {
+        val scene = scene().copy(
+            actors = listOf(
+                Actor("parent", "Parent", ActorKind.PROP),
+                Actor(
+                    "child", "Child", ActorKind.PROP, parentId = "parent",
+                    transform = Transform(position = Vec3(x = 1f)),
+                ),
+                Actor("grandchild", "Grandchild", ActorKind.PROP, parentId = "child"),
+            ),
+        )
+        val copied = SceneEditorState(scene).selectActor("child").duplicateSelected()
+        val child = requireNotNull(copied.selectedActor)
+        assertEquals(5, copied.project.actors.size)
+        assertEquals("parent", child.parentId)
+        assertEquals(1.25f, child.transform.position.x)
+        assertEquals(child.id, copied.project.actors.last().parentId)
+        assertEquals(scene, copied.undo().project)
+    }
+
 }
