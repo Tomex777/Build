@@ -1169,6 +1169,7 @@ private fun ScriptStudioContent(
                 fileName = selectedPath.orEmpty(),
                 currentSource = editorValue.text,
                 assistant = scriptAssistant,
+                webProject = ScriptWebPreview.entry(selectedProject.files, selectedPath.orEmpty()) != null,
                 onDismiss = { assistOpen = false },
                 onApply = { proposed ->
                     editorValue = TextFieldValue(proposed, selection = TextRange(proposed.length))

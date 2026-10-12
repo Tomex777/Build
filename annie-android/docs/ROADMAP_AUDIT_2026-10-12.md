@@ -55,7 +55,7 @@ Read the effective CI source: `scripts/repair-m0b-merge.py` integrates six gener
 
 1. Project preview now resolves relative local stylesheet/classic-JS dependencies from the project snapshot, includes unsaved selected-file edits, preserves classic script order and runs deferred scripts after the document content. Missing dependencies, project escapes, remote URLs and module imports produce visible errors rather than silently broken previews. Network/device bridges remain disabled.
 2. File selection now reads the latest saved source from disk rather than the stale project snapshot. The native failure/recovery test switches back and asserts that the Sora editor contains the retained edit. Preview also refreshes saved project dependencies before bundling.
-3. Script Assist system/user instructions now respect the selected file's language. HTML/CSS files are no longer requested as QuickJS JavaScript commands; deferred runtime types are identified honestly.
+3. Script Assist system/user instructions now respect the selected file's language. HTML/CSS files are no longer requested as QuickJS JavaScript commands, and JavaScript belonging to an HTML project receives browser/DOM instructions rather than QuickJS command instructions; deferred runtime types are identified honestly.
 
 4. Canvas and bundled-resource closing-tag escaping now uses literal replacement callbacks. Regex replacement strings had consumed the intended backslash, so snippets containing `</script>` or `</style>` could prematurely end their inline tag. New tests require exactly one real closing tag for each wrapper.
 

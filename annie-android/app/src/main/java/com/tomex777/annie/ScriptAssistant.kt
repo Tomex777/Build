@@ -11,6 +11,7 @@ internal data class ScriptAssistRequest(
     val instruction: String,
     val fileName: String,
     val currentSource: String,
+    val webProject: Boolean = false,
 )
 
 internal data class ScriptAssistValidation(
@@ -61,7 +62,7 @@ internal class AnthropicScriptAssistantProvider(
             val body = JSONObject()
                 .put("model", model)
                 .put("max_tokens", 6_000)
-                .put("system", scriptAssistSystemPrompt(request.fileName))
+                .put("system", scriptAssistSystemPrompt(request.fileName, request.webProject))
                 .put(
                     "messages",
                     JSONArray().put(
@@ -174,8 +175,9 @@ private fun stripMarkdownFence(value: String): String {
     return trimmed.substring(firstNewline + 1, trimmed.length - 3).trim()
 }
 
-internal fun scriptAssistSystemPrompt(fileName: String): String {
+internal fun scriptAssistSystemPrompt(fileName: String, webProject: Boolean = false): String {
     val type = fileName.substringAfterLast('.', "js").lowercase()
+    if (type == "js" && webProject) return """You are Script Assist inside Annie. Return complete classic browser JavaScript for the selected offline HTML project, without Markdown fences or explanation. DOM and Canvas APIs are available; network requests and Annie QuickJS/Android bridges are unavailable. Preserve existing DOM element IDs and local file references."""
     return when (type) {
         "html", "css" -> """You are Script Assist inside Annie. Edit only the requested $type file and return its complete source without Markdown fences or explanation. HTML projects use relative local CSS and classic JavaScript files in an offline Canvas sandbox. Network requests and Android bridges are unavailable in that preview. Preserve existing local file references. Do not turn an HTML or CSS file into a QuickJS command."""
         "py", "lua", "ts" -> """You are Script Assist inside Annie. Return only complete $type source for the requested file, without Markdown fences or explanation. Annie can edit this file type but does not currently execute $type directly. Do not invent runtime bridges or native APIs."""

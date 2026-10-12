@@ -61,6 +61,7 @@ internal fun ScriptAssistDialog(
     onApply: (String) -> Unit,
     onInsert: (String) -> Unit,
     onCreateNew: (String) -> Unit,
+    webProject: Boolean = false,
 ) {
     val scope = rememberCoroutineScope()
     val providers = remember(assistant) { assistant.availableProviders() }
@@ -156,7 +157,7 @@ internal fun ScriptAssistDialog(
                             runCatching {
                                 assistant.generate(
                                     providerId = provider.id,
-                                    request = ScriptAssistRequest(instruction, fileName, currentSource),
+                                    request = ScriptAssistRequest(instruction, fileName, currentSource, webProject),
                                     apiKey = apiKey,
                                 )
                             }.onSuccess {
