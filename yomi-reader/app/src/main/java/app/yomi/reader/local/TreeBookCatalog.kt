@@ -120,7 +120,7 @@ class TreeBookCatalog(
     }
 
     private fun isSupportedImage(name: String, mime: String?): Boolean {
-        if (mime == "image/jpeg" || mime == "image/png" || mime == "image/webp") return true
+        if (mime == "image/jpeg" || mime == "image/png" || mime == "image/gif" || mime == "image/webp") return true
         return name.substringAfterLast('.', "").lowercase(Locale.ROOT) in IMAGE_EXTENSIONS
     }
 
@@ -175,7 +175,7 @@ class TreeBookCatalog(
 
     private companion object {
         const val MAX_DOCUMENTS = 20_000
-        val IMAGE_EXTENSIONS = setOf("jpg", "jpeg", "png", "webp")
+        val IMAGE_EXTENSIONS = setOf("jpg", "jpeg", "png", "gif", "webp")
         val ARCHIVE_EXTENSIONS = setOf("cbz", "zip")
     }
 }

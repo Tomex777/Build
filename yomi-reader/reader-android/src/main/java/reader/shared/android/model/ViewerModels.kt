@@ -12,6 +12,7 @@ class ViewerPage(
     val index: Int get() = page.index
     val number: Int get() = page.index + 1
     val displayName: String get() = page.displayName
+    val isAnimated: Boolean get() = displayName.endsWith(".gif", ignoreCase = true)
     lateinit var chapter: ViewerChapter
         internal set
 

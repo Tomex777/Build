@@ -279,6 +279,7 @@ class SharedPagerViewer(
                             zoomStartPosition = config.zoomStartPosition,
                             landscapeZoom = config.landscapeZoom && direction != PagerDirection.VERTICAL,
                         ),
+                        isAnimated = page.isAnimated,
                     )
                 } catch (error: CancellationException) {
                     throw error

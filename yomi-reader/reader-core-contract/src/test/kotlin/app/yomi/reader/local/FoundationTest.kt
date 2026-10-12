@@ -213,19 +213,21 @@ class FoundationTest {
         val png = byteArrayOf(
             0x89.toByte(), 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
         )
+        val gif = "GIF89a".encodeToByteArray()
         val webp = "RIFF".encodeToByteArray() +
             byteArrayOf(0, 0, 0, 0) + "WEBP".encodeToByteArray()
         val archive = zipOf(
             "Chapter 1/001" to jpg,
             "Chapter 1/002.data" to png,
-            "Chapter 1/003.bin" to webp,
+            "Chapter 1/003.gifdata" to gif,
+            "Chapter 1/004.bin" to webp,
             "note.txt" to "not an image".encodeToByteArray(),
         )
         val scan = assertIs<ArchiveScanResult.Success>(
             ZipArchiveScanner.scan(ByteArrayInputStream(archive)),
         )
         assertEquals(
-            listOf("Chapter 1/001", "Chapter 1/002.data", "Chapter 1/003.bin"),
+            listOf("Chapter 1/001", "Chapter 1/002.data", "Chapter 1/003.gifdata", "Chapter 1/004.bin"),
             scan.catalog.pages.map { it.name },
         )
         val page = assertIs<ArchivePageRead.Success>(

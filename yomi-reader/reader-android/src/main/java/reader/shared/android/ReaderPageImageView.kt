@@ -3,14 +3,28 @@ package reader.shared.android
 import android.content.Context
 import android.graphics.PointF
 import android.graphics.RectF
+import android.graphics.drawable.Animatable
+import android.view.GestureDetector
+import android.view.MotionEvent
 import android.util.AttributeSet
 import android.view.ViewGroup.LayoutParams.MATCH_PARENT
 import android.widget.FrameLayout
+import androidx.appcompat.widget.AppCompatImageView
 import androidx.core.view.isVisible
+import coil3.asDrawable
+import coil3.request.CachePolicy
+import coil3.request.Disposable
+import coil3.request.ImageRequest
+import coil3.request.crossfade
 import com.davemorrissey.labs.subscaleview.ImageSource
 import com.davemorrissey.labs.subscaleview.SubsamplingScaleImageView
 import com.davemorrissey.labs.subscaleview.SubsamplingScaleImageView.EASE_IN_OUT_QUAD
 import com.davemorrissey.labs.subscaleview.SubsamplingScaleImageView.EASE_OUT_QUAD
+import com.github.chrisbanes.photoview.PhotoView
+import okio.BufferedSource
+import okio.buffer
+import okio.source
+import reader.shared.android.coil.ReaderImageLoader
 import reader.shared.android.webtoon.WebtoonSubsamplingImageView
 import java.io.InputStream
 
@@ -20,7 +34,10 @@ open class ReaderPageImageView @JvmOverloads constructor(
     private val isWebtoon: Boolean = false,
 ) : FrameLayout(context, attrs) {
     private var imageView: SubsamplingScaleImageView? = null
+    private var animatedView: AppCompatImageView? = null
     private var currentStream: InputStream? = null
+    private var currentSource: BufferedSource? = null
+    private var imageDisposable: Disposable? = null
     private var config: Config? = null
     private var selectedDirection: Boolean? = null
 
@@ -28,7 +45,7 @@ open class ReaderPageImageView @JvmOverloads constructor(
     var onImageLoadError: ((Throwable?) -> Unit)? = null
     var onScaleChanged: ((Float) -> Unit)? = null
 
-    fun setImage(stream: InputStream, config: Config) {
+    fun setImage(stream: InputStream, config: Config, isAnimated: Boolean = false) {
         // Pager selection may arrive before this asynchronous image stream.
         // Preserve the pending direction across the old image teardown.
         val pendingDirection = selectedDirection
@@ -36,6 +53,11 @@ open class ReaderPageImageView @JvmOverloads constructor(
         selectedDirection = pendingDirection
         this.config = config
         currentStream = stream
+
+        if (isAnimated) {
+            setAnimatedImage(stream, config)
+            return
+        }
 
         val view = if (isWebtoon) {
             WebtoonSubsamplingImageView(context)
@@ -88,6 +110,57 @@ open class ReaderPageImageView @JvmOverloads constructor(
         addView(view, MATCH_PARENT, MATCH_PARENT)
         view.setImage(ImageSource.inputStream(stream))
         view.isVisible = true
+    }
+
+    /** Animated pages use Mihon's PhotoView/Coil path; tiled pages retain SSIV. */
+    private fun setAnimatedImage(stream: InputStream, config: Config) {
+        val view = if (isWebtoon) {
+            AppCompatImageView(context)
+        } else {
+            PhotoView(context).apply {
+                setScaleLevels(1f, 2f, MAX_ZOOM_SCALE)
+                setOnDoubleTapListener(
+                    object : GestureDetector.SimpleOnGestureListener() {
+                        override fun onDoubleTap(event: MotionEvent): Boolean {
+                            if (scale > 1f) {
+                                setScale(1f, event.x, event.y, true)
+                            } else {
+                                setScale(2f, event.x, event.y, true)
+                            }
+                            return true
+                        }
+                    },
+                )
+                setOnScaleChangeListener { _, _, _ -> onScaleChanged?.invoke(scale) }
+            }
+        }.apply {
+            adjustViewBounds = true
+        }
+        (view as? PhotoView)?.setZoomTransitionDuration(config.zoomDurationMillis)
+        animatedView = view
+        addView(view, MATCH_PARENT, MATCH_PARENT)
+
+        val source = stream.source().buffer()
+        currentSource = source
+        val request = ImageRequest.Builder(context)
+            .data(source)
+            .memoryCachePolicy(CachePolicy.DISABLED)
+            .diskCachePolicy(CachePolicy.DISABLED)
+            .target(
+                onSuccess = { result ->
+                    val drawable = result.asDrawable(context.resources)
+                    view.setImageDrawable(drawable)
+                    (drawable as? Animatable)?.start()
+                    view.isVisible = true
+                    onImageLoaded?.invoke()
+                },
+            )
+            .listener(
+                onError = { _, result -> onImageLoadError?.invoke(result.throwable) },
+            )
+            .crossfade(false)
+            .build()
+        imageDisposable = ReaderImageLoader.get(context).enqueue(request)
     }
 
     fun onPageSelected(forward: Boolean) {
@@ -149,9 +222,16 @@ open class ReaderPageImageView @JvmOverloads constructor(
     }
 
     fun recycle() {
+        imageDisposable?.dispose()
+        imageDisposable = null
         imageView?.recycle()
         imageView?.let(::removeView)
         imageView = null
+        animatedView?.setImageDrawable(null)
+        animatedView?.let(::removeView)
+        animatedView = null
+        runCatching { currentSource?.close() }
+        currentSource = null
         runCatching { currentStream?.close() }
         currentStream = null
         selectedDirection = null

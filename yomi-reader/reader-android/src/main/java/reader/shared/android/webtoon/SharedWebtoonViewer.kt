@@ -286,6 +286,7 @@ class SharedWebtoonViewer(
                             minimumScaleType = SubsamplingScaleImageView.SCALE_TYPE_FIT_WIDTH,
                             cropBorders = config.cropBorders,
                         ),
+                        isAnimated = page.isAnimated,
                     )
                     image.bringChildToFront(spinner)
                 } catch (error: CancellationException) {

@@ -185,26 +185,33 @@ object ZipArchiveScanner {
             segments.lastOrNull()?.equals(".DS_Store", ignoreCase = true) == true
     }
 
-    /** Fast, bounded signature sniffing for JPEG, PNG and WebP (Android 8+). */
+    /** Fast, bounded signature sniffing for JPEG, PNG, GIF and WebP (Android 8+). */
     internal fun isSupportedImageSignature(bytes: ByteArray, count: Int): Boolean {
         val jpeg = count >= 3 &&
             (bytes[0].toInt() and 0xff) == 0xff &&
             (bytes[1].toInt() and 0xff) == 0xd8 &&
             (bytes[2].toInt() and 0xff) == 0xff
         val png = count >= 8 && PNG_SIGNATURE.indices.all { bytes[it] == PNG_SIGNATURE[it] }
+        val gif = count >= 6 &&
+            (bytes.copyOfRange(0, 6).contentEquals(GIF87_SIGNATURE) ||
+                bytes.copyOfRange(0, 6).contentEquals(GIF89_SIGNATURE))
         val webp = count >= 12 &&
             bytes.copyOfRange(0, 4).contentEquals(byteArrayOf(0x52, 0x49, 0x46, 0x46)) &&
             bytes.copyOfRange(8, 12).contentEquals(byteArrayOf(0x57, 0x45, 0x42, 0x50))
-        return jpeg || png || webp
+        return jpeg || png || gif || webp
     }
 
     private val PNG_SIGNATURE = byteArrayOf(
         0x89.toByte(), 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
     )
 
+    private val GIF87_SIGNATURE = "GIF87a".encodeToByteArray()
+    private val GIF89_SIGNATURE = "GIF89a".encodeToByteArray()
+
     internal fun isSupportedImage(name: String): Boolean {
         val lower = name.lowercase()
-        return lower.endsWith(".jpg") || lower.endsWith(".jpeg") || lower.endsWith(".png") || lower.endsWith(".webp")
+        return lower.endsWith(".jpg") || lower.endsWith(".jpeg") || lower.endsWith(".png") ||
+            lower.endsWith(".gif") || lower.endsWith(".webp")
     }
     private fun isTraversal(name: String): Boolean {
         if (name.startsWith('/')) return true
