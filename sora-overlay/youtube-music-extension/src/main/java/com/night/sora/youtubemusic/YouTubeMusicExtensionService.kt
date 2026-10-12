@@ -26,16 +26,16 @@ class YouTubeMusicExtensionService : Service() {
     private val descriptor = ExtensionDescriptor(
         id = "night.sora.youtube.music",
         name = "Sora YouTube Music",
-        version = "0.1.0",
+        version = "0.1.1",
         apiVersion = ExtensionContract.API_VERSION,
         author = "Night",
         description = "YouTube Music search and audio resolver for Sora.",
         contentTypes = setOf("music"),
-        capabilities = setOf("catalog", "browse", "search", "details", "streams", ExtensionSessionContract.CAPABILITY_WEBVIEW),
+        capabilities = setOf("catalog", "browse", "search", "details", "streams", "lyrics", ExtensionSessionContract.CAPABILITY_WEBVIEW),
         permissions = listOf(
             ExtensionPermission(
                 "network",
-                listOf("music.youtube.com", "youtube.com", "googlevideo.com", "googleapis.com", "accounts.google.com"),
+                listOf("music.youtube.com", "youtube.com", "googlevideo.com", "googleapis.com", "accounts.google.com", "lrclib.net"),
             ),
         ),
         sources = listOf(
@@ -43,7 +43,7 @@ class YouTubeMusicExtensionService : Service() {
                 "youtube.music",
                 "YouTube Music",
                 setOf("music"),
-                setOf("browse", "search", "details", "streams", ExtensionSessionContract.CAPABILITY_WEBVIEW),
+                setOf("browse", "search", "details", "streams", "lyrics", ExtensionSessionContract.CAPABILITY_WEBVIEW),
             ),
         ),
     )
@@ -109,11 +109,13 @@ class YouTubeMusicExtensionService : Service() {
                             ExtensionContract.Method.PAGES,
                             ExtensionContract.Method.RELATED_ARTISTS,
                             ExtensionContract.Method.FEED -> "[]"
-                            ExtensionContract.Method.LYRICS -> JSONObject()
-                                .put("trackId", id)
-                                .put("synced", false)
-                                .put("text", "")
-                                .toString()
+                            ExtensionContract.Method.LYRICS -> YouTubeMusicCatalog.lyrics(
+                                sourceId = sourceId,
+                                id = id,
+                                title = payload.optString("title"),
+                                artist = payload.optString("artist"),
+                                album = payload.optString("album"),
+                            )
                             else -> error("Unsupported method: $method")
                         }
                     }
