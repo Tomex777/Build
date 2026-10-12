@@ -558,7 +558,7 @@ class SceneEditorTest {
                 selectedClip = "Idle",
             ),
         )
-        val original = SceneEditorState(SceneProject("not-a-version", "Animation", actors = listOf(character)))
+        val original = SceneEditorState(SceneProject(id = "numeric-animation", name = "Animation", actors = listOf(character)))
         val keyed = original.keySelectedTransform(1f).keySelectedPose(1f)
         assertTrue(keyed.project.tracks.isNotEmpty())
         listOf(
