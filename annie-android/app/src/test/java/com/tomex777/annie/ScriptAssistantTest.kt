@@ -27,6 +27,7 @@ class ScriptAssistantTest {
     @Test fun documentAssistancePreservesLanguageAndRuntimeLimits() {
         assertTrue(scriptAssistSystemPrompt("pages/index.html").contains("Do not turn an HTML or CSS"))
         assertTrue(scriptAssistSystemPrompt("theme.css").contains("requested css file"))
+        assertTrue(scriptAssistSystemPrompt("settings.json").contains("requested json document"))
         assertTrue(scriptAssistSystemPrompt("main.js").contains("QuickJS runtime"))
         assertTrue(scriptAssistSystemPrompt("scripts/app.js", webProject = true).contains("classic browser JavaScript"))
         assertTrue(scriptAssistSystemPrompt("worker.py").contains("does not currently execute py directly"))

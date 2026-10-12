@@ -36,4 +36,12 @@ class ScriptWebPreviewTest {
             fail("Modules must not silently break")
         } catch (_: IllegalArgumentException) {}
     }
+    @Test fun repeatedDependenciesCannotExpandPastThePreviewBoundary() {
+        val files = mapOf("index.html" to "<script src='app.js'></script>".repeat(8), "app.js" to "x".repeat(MAX_MESSAGE_BYTES / 4))
+        try {
+            ScriptWebPreview.bundle(files, "index.html")
+            fail("Repeated dependencies must be bounded before expansion")
+        } catch (_: IllegalArgumentException) {}
+    }
+
 }
