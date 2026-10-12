@@ -7,9 +7,21 @@ import {
   checkedMediaUrl,
   downloadFromKnightProviders,
   probeKnightProviders,
+  providerFailureCategory,
 } from './youtube-knight-providers.js'
 
 const id = 'XEuaRjnuHlc'
+assert.equal(providerFailureCategory({code:'DOWNLOADER_HTTP_404'}),'http_404')
+assert.equal(providerFailureCategory({code:'DOWNLOADER_HTTP_429'}),'http_429')
+assert.equal(providerFailureCategory({code:'DOWNLOADER_DNS_FAILURE'}),'dns_failure')
+assert.equal(providerFailureCategory({code:'DOWNLOADER_NO_PUBLIC_ADDRESS'}),'no_public_ipv4')
+assert.equal(providerFailureCategory({code:'CERT_HAS_EXPIRED'}),'tls_failure')
+assert.equal(providerFailureCategory({code:'ECONNRESET'}),'network_failure')
+assert.equal(providerFailureCategory(new Error('Downloader returned an unsafe URL.')),'invalid_media_url')
+assert.equal(providerFailureCategory(new Error('Downloader returned invalid metadata.')),'invalid_json')
+assert.equal(providerFailureCategory(new Error('hidden signed URL token')),'provider_error')
+
+
 for (const address of ['127.0.0.1','10.1.2.3','172.16.5.7','192.168.1.22',
   '169.254.169.254','100.64.0.1','0.0.0.0','203.0.113.1','198.51.100.1']) {
   assert.equal(isPublicIpv4(address),false,'private IP accepted: '+address)
@@ -76,7 +88,7 @@ try {
   })
   assert.deepEqual(diagnostics,[
     {provider:'eliteprotech',result:'link_resolved'},
-    {provider:'yupra',result:'unavailable'},
+    {provider:'yupra',result:'invalid_media_url'},
   ])
   assert.equal(JSON.stringify(diagnostics).includes('signed-token-secret'),false)
 
