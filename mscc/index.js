@@ -6,8 +6,7 @@ import makeWASocket, {
   DisconnectReason,
   fetchLatestWaWebVersion,
   WAMessageStubType,
-  makeCacheableSignalKeyStore,
-  useMultiFileAuthState
+  makeCacheableSignalKeyStore
 } from '@itsliaaa/baileys'
 import pino from 'pino'
 import QRCode from 'qrcode'
@@ -18,6 +17,7 @@ import { selectCcDestination } from './cc-routing.js'
 import { isPrivateOwnerDm } from './control-context.js'
 import { canStartScheduledReconnect, classifyDisconnect, jidPhoneNumber, reconnectDelay, serializeSessionOperation, sessionStatus } from './session-policy.js'
 import { createAccountSocketOptions } from './account-socket-options.js'
+import { assertSeparateAuthDirectories, useDurableMultiFileAuthState } from './account-auth-state.js'
 import { sessionEventsFromJsonl, sessionSnapshot } from './session-diagnostics.js'
 import { openSharedStorage } from './shared-storage.js'
 import { chooseGroupExecutor, canExecuteDirect } from './bot-routing.js'
@@ -180,6 +180,9 @@ const makeAccount = record => ({
 
 async function loadAccounts() {
   const records = await accountRegistry.load()
+  // Resolve symlink aliases before opening sockets: distinct names must never
+  // resolve to the same Signal key store, even in another account directory.
+  await assertSeparateAuthDirectories(records)
   accounts.clear()
   for (const record of records) accounts.set(record.id, makeAccount(record))
   if (!records.length) {
@@ -2733,7 +2736,7 @@ async function startAccount(account) {
   await account.credSave
   if (generation !== account.generation || !account.enabled ||
       account.invalid || account.paused || account.sock) return
-  const { state, saveCreds } = await useMultiFileAuthState(account.authDir)
+  const { state, saveCreds } = await useDurableMultiFileAuthState(account.authDir)
   // A disconnect/remove request can happen while auth is loading.
   // Do not create a ghost socket for an obsolete generation.
   if (generation !== account.generation || !account.enabled ||
