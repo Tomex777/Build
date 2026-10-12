@@ -14,6 +14,10 @@ on:
       - 'sora-ci/music-deterministic-smoke.sh'
       - '.github/workflows/sora-music-deterministic-smoke.yml'
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   music-smoke:
     name: Music emulator API ${{ matrix.api-level }}
