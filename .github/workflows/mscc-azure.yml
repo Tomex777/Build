@@ -64,6 +64,12 @@ jobs:
           bash -n install-azure.sh tools/install-flaresolverr-tor.sh tools/test-animepahe-azure.sh
           bash -n tools/deploy-azure-ssh.sh tools/deploy-azure-ssh-selftest.sh
           bash tools/deploy-azure-ssh-selftest.sh
+          bash -n tools/mscc-github-deploy-wrapper.sh tools/azure-main-ssh-monitor.sh tools/azure-main-ssh-monitor-selftest.sh
+          bash tools/azure-main-ssh-monitor-selftest.sh
+          node --check tools/azure-main-diagnostics.mjs
+          node --check tools/azure-main-diagnostics-selftest.mjs
+          node tools/azure-main-diagnostics-selftest.mjs
+          grep -Fq 'mscc-github-deploy-wrapper.sh' install-azure.sh
           bash -n tools/azure-release-switch-selftest.sh
           bash tools/azure-release-switch-selftest.sh
           bash -n tools/azure-config-rollback-selftest.sh
