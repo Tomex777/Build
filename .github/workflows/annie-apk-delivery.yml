@@ -1,0 +1,42 @@
+name: Annie validated ARM64 delivery
+on:
+  push:
+    branches: [annie-apk-delivery-20261012]
+    paths: ['.github/workflows/annie-apk-delivery.yml']
+permissions:
+  contents: read
+  actions: read
+jobs:
+  extract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: Annie-1.0.0-validated-production-release
+          run-id: 38184842896
+          github-token: ${{ github.token }}
+          path: validated
+      - name: Select verified permanent signed ARM64 APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          find validated -maxdepth 4 -type f -printf '%P\n'
+          apk="$(find validated -name 'Annie-1.0.0-arm64-v8a-production-signed.apk' -print -quit)"
+          checksums="$(find validated -name SHA256SUMS.txt -print -quit)"
+          certificate="$(find validated -name ANNIE-CERTIFICATE.txt -print -quit)"
+          test -s "$apk"
+          test -s "$checksums"
+          test "$(tr -d '[:space:]' < "$certificate")" = "4e7ab744bdbbcf6ddb577186e8163be4b0f4127d2123ed21108ca6e7dce70288"
+          cd "$(dirname "$apk")"
+          sha256sum --check "$(basename "$checksums")"
+          mkdir -p "$GITHUB_WORKSPACE/delivery"
+          cp "$(basename "$apk")" "$GITHUB_WORKSPACE/delivery/Annie-1.0.0-ARM64-Permanent-Signed.apk"
+          cp "$(basename "$certificate")" "$GITHUB_WORKSPACE/delivery/"
+          cd "$GITHUB_WORKSPACE/delivery"
+          sha256sum Annie-1.0.0-ARM64-Permanent-Signed.apk > SHA256SUMS.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Annie-validated-permanent-ARM64-delivery
+          path: delivery/
+          if-no-files-found: error
