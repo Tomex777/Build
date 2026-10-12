@@ -2,6 +2,8 @@ package com.night.mirrorchess.viewmodel
 
 import android.app.Application
 import android.net.Uri
+import android.os.SystemClock
+import android.provider.Settings
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -27,6 +29,7 @@ import com.night.mirrorchess.data.moveFromUci
 import com.night.mirrorchess.mirror.MirrorProfile
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
@@ -260,6 +263,7 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         val after = ChessRules.applyLegalMove(before, move)
         val learnedProfile = (uiState.mirrorProfile ?: MirrorProfile.empty()).observeMove(before, move)
         mirrorRepository.save(learnedProfile)
+        val moveStartedAt = SystemClock.elapsedRealtime()
         appendMove(after, move, notation)
         publish {
             copy(
@@ -290,6 +294,14 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
                     )
                 }
             }
+            // Preserve the full human glide even when the engine replies instantly.
+            // Honor Android's animator scale; a disabled animation must not delay play.
+            val animatorScale = Settings.Global.getFloat(
+                app.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f,
+            ).coerceAtLeast(0f)
+            val glideMillis = (uiState.settings.moveAnimationSpeed.durationMillis * animatorScale).toLong()
+            val remaining = glideMillis - (SystemClock.elapsedRealtime() - moveStartedAt)
+            if (remaining > 0) delay(remaining)
             if (finishIfNeeded(after)) return@launch
             launchAiMoveInternal()
         }
