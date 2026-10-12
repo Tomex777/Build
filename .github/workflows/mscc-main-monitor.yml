@@ -2,6 +2,11 @@ name: MSCC Main Azure Monitor
 
 on:
   workflow_dispatch:
+  # Launch one read-only check whenever this isolated monitor workflow changes.
+  # Unlike changing mscc/**, this does not deploy or restart Night.
+  push:
+    branches: [mscc-azure]
+    paths: ['.github/workflows/mscc-main-monitor.yml']
 
 permissions:
   contents: read
@@ -18,9 +23,10 @@ jobs:
     timeout-minutes: 8
     environment: mscc-production
     steps:
-      - name: Check out monitor code
+      - name: Check out current diagnostic code (including safe disconnect origin)
         uses: actions/checkout@v5
         with:
+          ref: mscc-azure
           persist-credentials: false
       - name: Watch sanitized Main connection state for 2.5 minutes
         env:
