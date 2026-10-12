@@ -86,6 +86,7 @@ import {
 } from './utils/whatsapp/messages.js'
 import { createWhatsAppUi } from './utils/whatsapp/ui.js'
 import { sendText, sendImageDataUrl, startProgress } from './utils/whatsapp/replies.js'
+import { findGroupParticipant, groupMemberLabel, groupTargetJid, memberIdentityKey, participantIds, updateSucceeded } from './group-member-identity.js'
 
 // Shared WhatsApp nativeFlow implementation lives in utils/whatsapp/native-flow.js.
 // The max-row invariant is enforced there (legacy CI marker: remaining = 1000).
@@ -1546,35 +1547,52 @@ async function resolveGroupParticipant(account, msg, raw = '') {
   const chat = normalizeJid(msg?.key?.remoteJid)
   if (!isGroup(chat)) return null
 
-  const target = await resolveCommandTarget(account, msg, raw)
-  const phone = digits(target?.phoneNumber)
-  if (!phone) return null
+  const requestedJid = groupTargetJid(raw, contextInfo(msg?.message))
+  if (!requestedJid) return null
 
   const metadata = await groupMetadataCached(account, chat)
-  const participants = Array.isArray(metadata?.participants) ? metadata.participants : []
-  for (const participant of participants) {
-    const jid = normalizeJid(
-      typeof participant === 'string'
-        ? participant
-        : participant?.id || participant?.jid || participant?.lid || ''
-    )
-    if (!jid) continue
-    const phoneJid = await resolvePhoneJid(account, jid)
-    if (jidPhoneNumber(phoneJid) !== phone) continue
-    return {
-      phoneNumber:phone,
-      jid,
-      phoneJid:phoneJid || phone + '@s.whatsapp.net',
-      participant,
-      displayName:String(
-        participant?.notify ||
-        participant?.displayName ||
-        participant?.name ||
-        ''
-      ).trim() || sharedStorage?.latestConversationSpeaker(chat, jid) || 'WhatsApp user',
-    }
+  const found = await findGroupParticipant(
+    metadata?.participants,
+    requestedJid,
+    jid => resolvePhoneJid(account, jid),
+  )
+  if (!found) return null
+
+  const { participant, jid } = found
+  const aliases = participantIds(participant)
+  const verifiedPhoneJid = aliases.find(alias => alias.endsWith('@s.whatsapp.net'))
+    || await resolvePhoneJid(account, jid)
+  const phoneNumber = verifiedPhoneJid.endsWith('@s.whatsapp.net')
+    ? jidUser(verifiedPhoneJid)
+    : ''
+  const memberKey = memberIdentityKey(verifiedPhoneJid, jid)
+
+  // Push names are attached to messages, not necessarily to group metadata.
+  // Use the current command sender's push name only when targeting that sender.
+  const sender = normalizeJid(msg?.key?.participant || msg?.participant)
+  const senderPhone = sender ? await resolvePhoneJid(account, sender) : ''
+  const isSender = Boolean(
+    aliases.includes(sender) ||
+    (phoneNumber && senderPhone.endsWith('@s.whatsapp.net') && jidUser(senderPhone) === phoneNumber)
+  )
+  const historyNames = [...new Set([jid, ...aliases, verifiedPhoneJid])]
+    .map(candidate => sharedStorage?.latestConversationSpeaker(chat, candidate))
+    .filter(Boolean)
+  const label = groupMemberLabel({
+    participant,
+    historyNames,
+    pushName:isSender ? msg?.pushName : '',
+    jid,
+  })
+
+  return {
+    phoneNumber,
+    memberKey,
+    jid,
+    phoneJid:verifiedPhoneJid || '',
+    participant,
+    ...label,
   }
-  return null
 }
 
 function preferredJosiaAccount(fallback = null) {
@@ -1728,7 +1746,30 @@ async function groupParticipantAction(account, msg, raw, action) {
   if (!target) throw new Error('Mention somebody or reply to their message.')
   if (await jidBelongsToAccount(account, target.jid)) throw new Error('Night cannot apply that action to itself.')
 
-  await account.sock.groupParticipantsUpdate(chat, [target.jid], String(action || ''))
+  const operation = String(action || '')
+  const status = updateSucceeded(await account.sock.groupParticipantsUpdate(chat, [target.jid], operation))
+  if (status === false) throw new Error('WhatsApp rejected the group change.')
+
+  // A successful server status is confirmation. If the library provides no
+  // status, verify fresh metadata instead of claiming an unconfirmed change.
+  if (status === null) {
+    const updated = await account.sock.groupMetadata(chat).catch(() => null)
+    const found = await findGroupParticipant(
+      updated?.participants,
+      target.jid,
+      jid => resolvePhoneJid(account, jid),
+    )
+    const isAdmin = found?.participant?.admin === 'admin' || found?.participant?.admin === 'superadmin'
+    const confirmed = operation === 'remove'
+      ? Boolean(updated && !found)
+      : operation === 'promote'
+        ? Boolean(found && isAdmin)
+        : operation === 'demote'
+          ? Boolean(found && !isAdmin)
+          : false
+    if (!confirmed) throw new Error('WhatsApp has not confirmed the group change. Check the group and retry if needed.')
+  }
+
   invalidateGroupMetadata(account.id, chat)
   return target
 }
@@ -1992,19 +2033,16 @@ async function publicUserProfile(account, msg, phoneNumber) {
 async function isGroupAdminContext(account, msg) {
   const chat = normalizeJid(msg?.key?.remoteJid)
   if (!isGroup(chat)) return false
-  const rawSender = normalizeJid(msg?.key?.participant || msg?.participant)
-  if (!rawSender) return false
+  const sender = normalizeJid(msg?.key?.participant || msg?.participant)
+  if (!sender) return false
 
   const metadata = await groupMetadataCached(account, chat)
-  const participants = metadata?.participants || []
-  let participant = participants.find(item => normalizeJid(item?.id) === rawSender)
-
-  if (!participant) {
-    const senderPhone = jidUser(await resolvePhoneJid(account, rawSender))
-    participant = participants.find(item => jidPhoneNumber(item?.id) === senderPhone)
-  }
-
-  return participant?.admin === 'admin' || participant?.admin === 'superadmin'
+  const found = await findGroupParticipant(
+    metadata?.participants,
+    sender,
+    jid => resolvePhoneJid(account, jid),
+  )
+  return found?.participant?.admin === 'admin' || found?.participant?.admin === 'superadmin'
 }
 
 async function isBotGroupAdminContext(account, msg) {
@@ -2349,22 +2387,23 @@ async function onMessages(account, { messages, type }) {
           groupWarn: async (raw, reason = '') => {
             const target = await resolveGroupParticipant(account, msg, raw)
             if (!target) throw new Error('Mention somebody or reply to their message.')
-            return { target, state:addWarning(sharedStorage, chat, target.phoneNumber, reason, authority.senderNumber) }
+            return { target, state:addWarning(sharedStorage, chat, target.memberKey, reason, authority.senderNumber) }
           },
           groupWarnClear: async raw => {
             const target = await resolveGroupParticipant(account, msg, raw)
             if (!target) throw new Error('Mention somebody or reply to their message.')
-            return { target, cleared:clearWarnings(sharedStorage, chat, target.phoneNumber) }
+            return { target, cleared:clearWarnings(sharedStorage, chat, target.memberKey) }
           },
           groupWarningState: async raw => {
             const target = await resolveGroupParticipant(account, msg, raw)
             if (!target) throw new Error('Mention somebody or reply to their message.')
-            return { target, state:warningState(sharedStorage, chat, target.phoneNumber) }
+            return { target, state:warningState(sharedStorage, chat, target.memberKey) }
           },
           setMentionMute: async (raw, enabled) => {
             const target = await resolveGroupParticipant(account, msg, raw)
             if (!target) throw new Error('Mention somebody or reply to their message.')
             if (target.phoneNumber === authority.senderNumber) throw new Error('Choose somebody else.')
+            if (!target.phoneNumber) throw new Error('WhatsApp has not shared a phone identity for that member, so mention muting cannot be saved reliably.')
             setUserMentionMute(sharedStorage, chat, authority.senderNumber, target.phoneNumber, enabled)
             return target
           },
@@ -2386,6 +2425,10 @@ async function onMessages(account, { messages, type }) {
             delete: (namespace, key) => sharedStorage?.sharedDelete(namespace, key) || 0,
           },
           reply: async value => sendCommandReply(account, msg, value),
+          replyWithMentions: async (value, mentions = []) => account.sock.sendMessage(chat, {
+            text:String(value ?? ''),
+            mentions:[...new Set(mentions.map(normalizeJid).filter(Boolean))],
+          }, { quoted:msg }),
           ui,
           replyList: options => ui.singleSelect(options),
           replySelectors: options => ui.native(options),
