@@ -29,6 +29,8 @@ exit 1
   assert.equal(blocked.result, 'youtube_access_challenge')
   assert.equal(blocked.extractorInstalled, true)
   assert.equal(blocked.extractorVersion, '2026.10.01')
+  assert.equal(blocked.attempts.length, 3)
+  assert.equal(blocked.attempts.every(x => x.status === 'youtube_access_challenge'), true)
   assert.equal(JSON.stringify(blocked).includes('SECRET'), false)
 
   const ok = await execute(`if [ "$1" = "--version" ]; then echo 2026.10.01; exit 0; fi
@@ -41,6 +43,21 @@ EOF
   assert.equal(ok.maxHeight, 720)
   assert.equal(ok.directVideoFormatCount, 0)
   assert.equal(JSON.stringify(ok).includes('untrusted.example'), false)
+
+  const resolvedAlternative = await execute(`if [ "$1" = "--version" ]; then echo 2026.10.01; exit 0; fi
+if printf '%s ' "$@" | grep -q 'player_client=tv,web_safari'; then
+cat <<'EOF'
+{"formats":[{"height":360,"vcodec":"avc1","url":"https://untrusted.example/video"}]}
+EOF
+else
+echo "ERROR: Sign in to confirm you're not a bot" >&2
+exit 1
+fi
+`)
+  assert.equal(resolvedAlternative.successfulProfile, 'tv,web_safari')
+  assert.deepEqual(resolvedAlternative.attempts.map(a => a.status),
+    ['youtube_access_challenge', 'resolved'])
+  assert.equal(resolvedAlternative.result, 'formats_resolved')
 
   const missing = await exec(process.execPath, [diagnostic], {
     env:{...process.env,MSCC_YOUTUBE_YTDLP_BIN:join(folder, 'missing')},
