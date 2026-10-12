@@ -672,7 +672,7 @@ private fun ScriptStudioContent(
                     })
                 }
 
-                StudioInput(query, { query = it }, "Search files", Modifier.fillMaxWidth().padding(horizontal = 14.dp))
+                StudioInput(query, { query = it }, "Search files", Modifier.fillMaxWidth().padding(horizontal = 14.dp), tag = "script_file_search")
                 if (projects.isEmpty()) {
                     EmptyStudioState("No scripts yet", "Create a file or folder to start a script project.")
                 } else {

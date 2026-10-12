@@ -8,6 +8,7 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextClearance
 import androidx.compose.ui.test.performTextInput
+import androidx.test.espresso.Espresso.closeSoftKeyboard
 import androidx.test.espresso.Espresso.pressBack
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
@@ -83,6 +84,9 @@ class ScriptStudioFileCreationTest {
             compose.onNodeWithTag("Replace all matches").performClick()
             compose.onNodeWithTag("script_find_query").performTextClearance()
             compose.onNodeWithText("Files", substring = false).performClick()
+            compose.onNodeWithTag("script_file_search").performTextInput(otherName)
+            closeSoftKeyboard()
+            compose.waitForIdle()
             compose.onNodeWithText(other.name, substring = false).performClick()
             compose.onNodeWithText("Could not save previous file:", substring = true).assertExists()
             compose.onNodeWithText("$name · ${file.name}").assertExists()
@@ -105,6 +109,9 @@ class ScriptStudioFileCreationTest {
             compose.runOnIdle { shown.value = false }
             compose.waitForIdle()
             workspace.close()
+            // Restore the damaged fixture before cleanup so it cannot mask assertions.
+            if (file.isDirectory) file.deleteRecursively()
+            if (!file.isFile) file.writeText("")
             workspace.files.deleteProject(name)
             workspace.files.deleteProject(otherName)
         }
