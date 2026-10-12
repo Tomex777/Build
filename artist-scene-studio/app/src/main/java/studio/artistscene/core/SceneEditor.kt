@@ -57,7 +57,7 @@ data class SceneEditorState(
         }
 
     fun scale(axis: TransformAxis, delta: Float): SceneEditorState =
-        updateSelectedTransform { transform ->
+        if (!delta.isFinite()) this else updateSelectedTransform { transform ->
             transform.copy(
                 scale = transform.scale.withAxis(
                     axis,
@@ -67,7 +67,7 @@ data class SceneEditorState(
         }
 
     fun setScale(axis: TransformAxis, value: Float): SceneEditorState =
-        updateSelectedTransform { transform ->
+        if (!value.isFinite()) this else updateSelectedTransform { transform ->
             transform.copy(scale = transform.scale.withAxis(axis, value.coerceAtLeast(MIN_SCALE)))
         }
 
@@ -282,7 +282,7 @@ data class SceneEditorState(
     fun cancelTransformGesture(before: SceneProject): SceneEditorState = copy(project = before)
 
     fun scaleUniform(delta: Float): SceneEditorState =
-        updateSelectedTransform { transform ->
+        if (!delta.isFinite()) this else updateSelectedTransform { transform ->
             val next = (transform.scale.x + delta).coerceAtLeast(MIN_SCALE)
             transform.copy(scale = Vec3(next, next, next))
         }
@@ -391,7 +391,7 @@ data class SceneEditorState(
         updateReference(referenceId) { it.copy(visible = !it.visible) }
 
     fun setReferenceOpacity(referenceId: String, opacity: Float): SceneEditorState =
-        updateReference(referenceId) { it.copy(opacity = opacity.coerceIn(0.05f, 1f)) }
+        if (!opacity.isFinite()) this else updateReference(referenceId) { it.copy(opacity = opacity.coerceIn(0.05f, 1f)) }
 
     fun translateReference(referenceId: String, axis: TransformAxis, delta: Float): SceneEditorState =
         updateReference(referenceId) { reference ->
@@ -404,7 +404,7 @@ data class SceneEditorState(
         }
 
     fun scaleReference(referenceId: String, delta: Float): SceneEditorState =
-        updateReference(referenceId) { reference ->
+        if (!delta.isFinite()) this else updateReference(referenceId) { reference ->
             val next = (reference.transform.scale.x + delta).coerceIn(0.1f, 20f)
             reference.copy(
                 transform = reference.transform.copy(scale = Vec3(next, next, next)),
@@ -455,6 +455,7 @@ data class SceneEditorState(
     }
 
     fun setActiveCameraVerticalFov(degrees: Float): SceneEditorState {
+        if (!degrees.isFinite()) return this
         val camera = project.cameras.firstOrNull { it.id == project.activeCameraId } ?: return this
         val normalized = degrees.coerceIn(MIN_CAMERA_FOV, MAX_CAMERA_FOV)
         if (camera.verticalFovDegrees == normalized) return this
@@ -462,6 +463,7 @@ data class SceneEditorState(
     }
 
     fun setActiveCameraOrthographicHeight(meters: Float): SceneEditorState {
+        if (!meters.isFinite()) return this
         val camera = project.cameras.firstOrNull { it.id == project.activeCameraId } ?: return this
         val normalized = meters.coerceIn(MIN_ORTHOGRAPHIC_HEIGHT, MAX_ORTHOGRAPHIC_HEIGHT)
         if (camera.orthographicHeightMeters == normalized) return this
@@ -634,7 +636,7 @@ data class SceneEditorState(
     }
 
     fun setSelectedLightIntensity(value: Float): SceneEditorState =
-        updateSelectedLight { settings ->
+        if (!value.isFinite()) this else updateSelectedLight { settings ->
             settings.copy(intensity = value.coerceIn(0f, MAX_LIGHT_INTENSITY))
         }
 
@@ -645,7 +647,7 @@ data class SceneEditorState(
     }
 
     fun setSelectedLightRangeMeters(value: Float): SceneEditorState =
-        updateSelectedLight { settings ->
+        if (!value.isFinite()) this else updateSelectedLight { settings ->
             settings.copy(rangeMeters = value.coerceIn(MIN_LIGHT_RANGE_METERS, MAX_LIGHT_RANGE_METERS))
         }
 
@@ -662,7 +664,7 @@ data class SceneEditorState(
     }
 
     fun setSelectedSpotConeDegrees(innerDegrees: Float, outerDegrees: Float): SceneEditorState =
-        updateSelectedLight { settings ->
+        if (!innerDegrees.isFinite() || !outerDegrees.isFinite()) this else updateSelectedLight { settings ->
             if (settings.type != LightType.SPOT) {
                 settings
             } else {
