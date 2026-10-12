@@ -70,3 +70,5 @@ jobs:
         run: psql -v ON_ERROR_STOP=1 -f velvet/backend/tests/video_chat.sql
       - name: Test pair-private video gallery history
         run: psql -v ON_ERROR_STOP=1 -f velvet/backend/tests/video_gallery.sql
+      - name: Test online game validation and explicit Story isolation
+        run: psql -v ON_ERROR_STOP=1 -f velvet/backend/tests/connected_games_story.sql

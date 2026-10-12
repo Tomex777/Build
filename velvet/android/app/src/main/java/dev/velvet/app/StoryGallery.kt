@@ -153,7 +153,7 @@ private enum class StoryFilter(val label: String) {
 }
 
 @Composable
-internal fun GalleryFirstScreen(ownerName: String) {
+internal fun GalleryFirstScreen(ownerName: String,onSharedStory:()->Unit={}) {
     val context = LocalContext.current
     val scope= rememberCoroutineScope()
     val store=remember { StoryLibrary(context.applicationContext) }
@@ -178,6 +178,7 @@ internal fun GalleryFirstScreen(ownerName: String) {
 
     Column(Modifier.fillMaxSize().background(StoryColors.bg)) {
         Column(Modifier.padding(top=24.dp,start=16.dp,end=16.dp)) {
+            TextButton(onClick=onSharedStory) { Text("Shared Story · Saved from connected Chat",color=StoryColors.rose) }
             Text("THE DAYS THAT MAKE US",fontSize=10.sp,letterSpacing=2.5.sp,color=StoryColors.gold)
             Spacer(Modifier.height(5.dp))
             Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.SpaceBetween) {

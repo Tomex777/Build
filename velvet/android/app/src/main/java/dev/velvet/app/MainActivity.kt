@@ -87,7 +87,7 @@ private object V {
     val gold get() = VelvetTheme.current.gold
 }
 private val round = RoundedCornerShape(22.dp)
-private enum class Page { HOME, CHAT, CHAT_DEMO, GAMES, STORY, US, CHAT_INFO, DECK, TTT, STUDIO, CALL, MUSIC, CONNECT4, CHESS, LUDO, DRAW, DECK_EDITOR, TOGETHER, PAIR, ONLINE_CHAT }
+private enum class Page { HOME, CHAT, CHAT_DEMO, GAMES, STORY, US, CHAT_INFO, DECK, TTT, STUDIO, CALL, MUSIC, CONNECT4, CHESS, LUDO, DRAW, DECK_EDITOR, TOGETHER, PAIR, ONLINE_CHAT, ONLINE_GAMES, SHARED_STORY }
 internal enum class MessageKind { TEXT, QUESTION, VOICE, MEDIA }
 internal data class ChatMessage(
     val id: Int, val body: String, val mine: Boolean, val time: String,
@@ -278,6 +278,8 @@ private fun VelvetApp() {
             Page.STUDIO -> Page.US
             Page.MUSIC, Page.PAIR -> Page.HOME
             Page.ONLINE_CHAT -> Page.PAIR
+            Page.ONLINE_GAMES -> Page.GAMES
+            Page.SHARED_STORY -> Page.STORY
             Page.CHAT -> chatBackTo
             Page.CHAT_DEMO -> demoBackTo
             Page.DECK,Page.TTT,Page.CONNECT4,Page.CHESS,Page.LUDO,Page.DRAW,Page.DECK_EDITOR,Page.TOGETHER -> Page.GAMES
@@ -327,7 +329,7 @@ private fun VelvetApp() {
                     onDeck={ tab -> questionTab=tab;page=Page.DECK },
                     onTTT={page=Page.TTT},onConnect4={page=Page.CONNECT4},
                     onChess={page=Page.CHESS},onLudo={page=Page.LUDO},onDraw={page=Page.DRAW},
-                    onDeckEditor={page=Page.DECK_EDITOR},onTogether={page=Page.TOGETHER})
+                    onDeckEditor={page=Page.DECK_EDITOR},onTogether={page=Page.TOGETHER},onOnline={page=Page.ONLINE_GAMES})
                 Page.DECK -> QuestionDeckScreen(questionTab, index=deckPositions[questionTab] ?: 0,
                     onIndexChange={deckPositions[questionTab]=it;VelvetQuestionProgress.save(ctx)},
                     onBack={page=Page.GAMES},
@@ -346,7 +348,9 @@ private fun VelvetApp() {
                 Page.MUSIC -> SpotifyListeningRoom(onBack={page=Page.HOME})
                 Page.PAIR -> VelvetPairingScreen(onBack={page=Page.HOME},onConnectedChat={page=Page.ONLINE_CHAT},sharedClient=pairClient)
                 Page.ONLINE_CHAT -> VelvetConnectedChat(onBack={page=Page.PAIR},sharedClient=pairClient)
-                Page.STORY -> GalleryFirstScreen(ownerName)
+                Page.ONLINE_GAMES -> VelvetOnlineGames(pairClient,onBack={page=Page.GAMES},onPair={page=Page.PAIR})
+                Page.SHARED_STORY -> VelvetSharedStory(pairClient,onBack={page=Page.STORY},onPair={page=Page.PAIR})
+                Page.STORY -> GalleryFirstScreen(ownerName,onSharedStory={page=Page.SHARED_STORY})
                 Page.STUDIO -> VelvetStudioScreen(note=studioNote,
                     onNoteChange={value->studioNote=value;settings.edit().putString("studio_note",value).apply()},
                     onBack={page=Page.US})
@@ -884,7 +888,7 @@ private val cardColors=listOf(Color(0xFFF4B8C7),Color(0xFFB6A4D8),Color(0xFFF3C5
 @Composable
 private fun GamesScreen(
     onDeck:(String)->Unit,onTTT:()->Unit,onConnect4:()->Unit,onChess:()->Unit,
-    onLudo:()->Unit,onDraw:()->Unit,onDeckEditor:()->Unit,onTogether:()->Unit
+    onLudo:()->Unit,onDraw:()->Unit,onDeckEditor:()->Unit,onTogether:()->Unit,onOnline:()->Unit
 ) {
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal=17.dp)) {
         Spacer(Modifier.height(13.dp))
@@ -961,7 +965,9 @@ private fun GamesScreen(
         Spacer(Modifier.height(11.dp))
         GameEntry("Draw & Guess","Draw a secret prompt together",true,Modifier.fillMaxWidth(),onDraw)
         Spacer(Modifier.height(14.dp))
-        Text("Games currently work on one phone. Live two-device turns, rematches and invitations need account pairing.",
+        Button(onClick=onOnline,modifier=Modifier.fillMaxWidth()) { Text("Play on two phones · Online lounge") }
+        Spacer(Modifier.height(8.dp))
+        Text("Online Tic-tac-toe and Connect Four use paired accounts. The boards above are pass-and-play on this phone.",
             color=V.muted,fontSize=11.sp,lineHeight=16.sp)
         Spacer(Modifier.height(22.dp))
     }

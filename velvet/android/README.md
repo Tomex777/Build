@@ -143,3 +143,11 @@ This is an **alpha**: no video compression, 4K transcoding, upload progress mete
 Video downloads now have caller-owned temporary files, including cancellation before the IO dispatcher can return a result. Closing a viewer cancels the download and removes its private file; bounded download loops check coroutine cancellation. Video and voice playback do not auto-start after a download finishes while the activity is in the background. Voice cancellation releases the player and removes the draft cache. Unsupported/corrupt video playback shows a retry action instead of an empty viewer. Full-screen video controls respect system-bar and display-cutout insets. Pairing copy describes the connected media features currently implemented.
 
 Release acceptance still requires physical-device checks: close a video while downloading, background during voice/video loading, retry a corrupt MP4, and check gesture-navigation/cutout layouts. No real Supabase project is configured, so paired-device delivery, notifications, Our Story sync, online games and E2EE remain unfinished.
+
+## v0.19 — Connected play and explicitly saved Our Story
+
+Games → Online lounge has two-phone Tic-tac-toe and Connect Four rounds with server-enforced turns, board rules, win/draw detection, version checks and rematches. Updates poll every three seconds while the screen is foregrounded. Up to five active rounds are permitted; interrupted round creation reuses its UUID. Local board games remain separate.
+
+Long-press a connected Chat photo/video → Save to Our Story. Our Story → Shared Story lists only explicitly curated media, with original sender and saver attribution. Saving is idempotent and the first saver is retained. The saver can remove the shared entry without modifying Chat. Saved media remains accessible independently of Chat deletion/hiding until removed from Story. No automatic copy takes place.
+
+Requires the connected_games_and_story migration after migrations 01–15. Live two-device operation remains unverified until backend activation. No push notifications, realtime WebSockets, online Chess/Ludo/Draw, cloud uploads directly from the local Story gallery or end-to-end encryption are implemented by this release.

@@ -566,6 +566,27 @@ internal class VelvetPairClient(private val context: Context) {
             JSONArray(raw)
         }
 
+    suspend fun onlineGames():JSONArray = withContext(Dispatchers.IO) {
+        JSONArray(sendRaw("/rest/v1/rpc/velvet_game_list",JSONObject(),activeToken()))
+    }
+    suspend fun createOnlineGame(id:String,kind:String):JSONObject = withContext(Dispatchers.IO) {
+        rpc("velvet_game_create",JSONObject().put("p_id",id).put("p_kind",kind))
+    }
+    suspend fun moveOnlineGame(id:String,version:Int,cell:Int):JSONObject = withContext(Dispatchers.IO) {
+        rpc("velvet_game_move",JSONObject().put("p_id",id).put("p_version",version).put("p_cell",cell))
+    }
+    suspend fun saveChatToStory(id:String):JSONObject = withContext(Dispatchers.IO) {
+        rpc("velvet_story_save",JSONObject().put("p_message",id))
+    }
+    suspend fun sharedStory(beforeAt:String?=null,beforeId:String?=null):JSONArray = withContext(Dispatchers.IO) {
+        val args=JSONObject().put("p_limit",20)
+        if(beforeAt!=null && beforeId!=null) args.put("p_before_at",beforeAt).put("p_before_id",beforeId)
+        JSONArray(sendRaw("/rest/v1/rpc/velvet_story_list",args,activeToken()))
+    }
+    suspend fun removeSharedStory(id:String):JSONObject = withContext(Dispatchers.IO) {
+        rpc("velvet_story_remove",JSONObject().put("p_id",id))
+    }
+
     private fun rpc(name:String, data:JSONObject=JSONObject()): JSONObject {
         return send("/rest/v1/rpc/$name",data,activeToken())
     }

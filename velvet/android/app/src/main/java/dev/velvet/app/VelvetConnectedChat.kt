@@ -713,6 +713,19 @@ internal fun VelvetConnectedChat(
                         modifier=Modifier.fillMaxWidth()
                     ) { Text("Reply to this message",color=rose) }
                 }
+                if(!target.pending && !target.deleted && target.kind in listOf("image","video")) {
+                    TextButton(onClick={
+                        selectedAction=null
+                        scope.launch {
+                            try {
+                                val result=client.saveChatToStory(target.id)
+                                status=if(result.optBoolean("ok")) "Saved to shared Our Story ♡" else
+                                    "Couldn't save: "+result.optString("error","Please retry.")
+                            } catch(cancelled:CancellationException) {throw cancelled}
+                            catch(error:Exception) {status=error.message ?: "Couldn't save to Our Story."}
+                        }
+                    },modifier=Modifier.fillMaxWidth()) {Text("Save to Our Story",color=rose)}
+                }
                 val isMine=target.senderId==ownId || target.pending
                 if(isMine && target.kind=="text" && !target.pending && !target.deleted) {
                     TextButton(
