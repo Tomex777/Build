@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import { youtubeFailureMessage } from './youtube-flow.js'
 import { mkdtemp, rm } from 'node:fs/promises'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
@@ -26,6 +27,10 @@ assert.deepEqual(singleRecord,{address:'8.8.8.8',family:4})
 const blocked = makeGuardedLookup(async()=>[{address:'127.0.0.1',family:4}])
 await assert.rejects(new Promise((resolve,reject)=>blocked('internal.local',{all:true},error=>error?reject(error):resolve())), /no permitted public/)
 
+const offlineError = new Error('All KnightBot sources unavailable')
+offlineError.code = 'YOUTUBE_KNIGHT_SOURCES_UNAVAILABLE'
+assert.match(youtubeFailureMessage(offlineError,'XEuaRjnuHlc'), /alternate video services are also unavailable/)
+assert.match(youtubeFailureMessage(offlineError,'XEuaRjnuHlc'), /youtube.com\\/watch\\?v=XEuaRjnuHlc/)
 assert.equal(providerFailureCategory({code:'DOWNLOADER_HTTP_404'}),'http_404')
 assert.equal(providerFailureCategory({code:'DOWNLOADER_HTTP_429'}),'http_429')
 assert.equal(providerFailureCategory({code:'DOWNLOADER_DNS_FAILURE'}),'dns_failure')
