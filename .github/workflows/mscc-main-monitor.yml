@@ -2,6 +2,11 @@ name: MSCC Main Azure Monitor
 
 on:
   workflow_dispatch:
+  # One-shot sanitized forensic run after a reviewed monitor workflow update.
+  # Never deploy or modify WhatsApp auth while collecting evidence.
+  push:
+    branches: [main]
+    paths: ['.github/workflows/mscc-main-monitor.yml']
 
 permissions:
   contents: read
@@ -13,14 +18,15 @@ concurrency:
 jobs:
   monitor:
     name: Read-only Main session watch
-    if: github.ref == 'refs/heads/mscc-azure'
+    if: github.ref == 'refs/heads/mscc-azure' || github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 8
     environment: mscc-production
     steps:
-      - name: Check out monitor code
+      - name: Check out current MSCC sanitized diagnostic code
         uses: actions/checkout@v5
         with:
+          ref: mscc-azure
           persist-credentials: false
       - name: Watch sanitized Main connection state for 2.5 minutes
         env:
