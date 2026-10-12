@@ -482,4 +482,94 @@ class SceneEditorTest {
         assertEquals(deleted.project, deleted.undo().redo().project)
     }
 
+
+
+    @Test
+    fun invalidTransformNumbersDoNotEnterRendererOrUndoHistory() {
+        val start = SceneEditorState(scene()).selectActor("prop-a")
+        val invalid = listOf(
+            start.setPosition(TransformAxis.X, Float.NaN),
+            start.translate(TransformAxis.X, Float.POSITIVE_INFINITY),
+            start.setRotation(TransformAxis.Y, Float.NEGATIVE_INFINITY),
+            start.rotate(TransformAxis.Z, Float.NaN),
+            start.setScale(TransformAxis.Z, Float.NaN),
+            start.scale(TransformAxis.X, Float.POSITIVE_INFINITY),
+            start.scaleUniform(Float.NaN),
+            start.previewSelectedTransform(Transform(position = Vec3(x = Float.NaN))),
+            start.previewSelectedTransform(Transform(scale = Vec3(1f, 0f, 1f))),
+        )
+        invalid.forEach { assertEquals(start, it) }
+        assertFalse(start.canUndo)
+
+        val veryFar = start.setPosition(TransformAxis.X, Float.MAX_VALUE)
+        assertTrue(veryFar.canUndo)
+        assertEquals(veryFar, veryFar.translate(TransformAxis.X, Float.MAX_VALUE))
+        assertEquals(start.project, veryFar.undo().project)
+
+        val accepted = start.scaleUniform(0.5f)
+        assertEquals(Vec3(1.5f, 1.5f, 1.5f), accepted.selectedActor?.transform?.scale)
+        assertEquals(start.project, accepted.undo().project)
+    }
+
+    @Test
+    fun invalidNumericEditorValuesDoNotCorruptCameraLightsReferencesOrTimeline() {
+        val lamp = Actor("lamp", "Lamp", ActorKind.LIGHT, light = LightSettings(type = LightType.SPOT))
+        val ref = ReferenceImage("ref", "Reference", "content://mise/reference")
+        val start = SceneEditorState(scene().copy(actors = scene().actors + lamp)).addReferenceImage(ref)
+        val camera = start.project.cameras.first()
+
+        val invalid = listOf(
+            start.setReferenceOpacity(ref.id, Float.NaN),
+            start.translateReference(ref.id, TransformAxis.Y, Float.NEGATIVE_INFINITY),
+            start.scaleReference(ref.id, Float.NaN),
+            start.setTimelineDurationSeconds(Float.NaN),
+            start.setTimelinePlaybackSpeed(Float.POSITIVE_INFINITY),
+            start.setActiveCameraVerticalFov(Float.NaN),
+            start.setActiveCameraOrthographicHeight(Float.NaN),
+            start.updateActiveCamera(camera.copy(target = Vec3(x = Float.NaN))),
+            start.updateActiveCamera(camera.copy(nearMeters = 10f, farMeters = 5f)),
+        )
+        invalid.forEach { assertEquals(start, it) }
+
+        val light = start.selectActor("lamp")
+        listOf(
+            light.setSelectedLightIntensity(Float.NaN),
+            light.setSelectedLightRangeMeters(Float.POSITIVE_INFINITY),
+            light.setSelectedLightDirection(Vec3(x = Float.MAX_VALUE)),
+            light.setSelectedSpotConeDegrees(Float.NaN, 30f),
+        ).forEach { assertEquals(light, it) }
+
+        val accepted = light.setSelectedLightIntensity(800f)
+        assertEquals(800f, accepted.selectedActor?.light?.intensity)
+        assertEquals(light.project, accepted.undo().project)
+    }
+
+    @Test
+    fun invalidTimeAndMorphInputsCannotCreateUnserializableKeyframes() {
+        val bone = RigBone("arm", "Arm")
+        val morph = RigMorphTarget("smile", "Smile", "Face")
+        val character = Actor(
+            id = "actor",
+            name = "Animated",
+            kind = ActorKind.CHARACTER,
+            rigDefinition = RigDefinition(bones = listOf(bone), morphTargets = listOf(morph)),
+            animation = ActorAnimationState(
+                clips = listOf(AnimationClipDefinition("Idle", 2f)),
+                selectedClip = "Idle",
+            ),
+        )
+        val original = SceneEditorState(SceneProject(id = "numeric-animation", name = "Animation", actors = listOf(character)))
+        val keyed = original.keySelectedTransform(1f).keySelectedPose(1f)
+        assertTrue(keyed.project.tracks.isNotEmpty())
+        listOf(
+            keyed.keySelectedTransform(Float.NaN),
+            keyed.keySelectedPose(Float.POSITIVE_INFINITY),
+            keyed.removeSelectedTransformKeyframe(Float.NaN),
+            keyed.removeSelectedPoseKeyframe(Float.NEGATIVE_INFINITY),
+            keyed.setRigMorphWeight(morph.id, Float.NaN),
+            keyed.setSelectedAnimationSpeed(Float.NaN),
+        ).forEach { assertEquals(keyed, it) }
+        assertEquals(keyed.project, SceneProjectCodec.decode(SceneProjectCodec.encode(keyed.project)))
+    }
+
 }

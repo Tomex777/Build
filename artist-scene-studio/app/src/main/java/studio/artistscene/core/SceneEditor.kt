@@ -57,7 +57,7 @@ data class SceneEditorState(
         }
 
     fun scale(axis: TransformAxis, delta: Float): SceneEditorState =
-        updateSelectedTransform { transform ->
+        if (!delta.isFinite()) this else updateSelectedTransform { transform ->
             transform.copy(
                 scale = transform.scale.withAxis(
                     axis,
@@ -67,7 +67,7 @@ data class SceneEditorState(
         }
 
     fun setScale(axis: TransformAxis, value: Float): SceneEditorState =
-        updateSelectedTransform { transform ->
+        if (!value.isFinite()) this else updateSelectedTransform { transform ->
             transform.copy(scale = transform.scale.withAxis(axis, value.coerceAtLeast(MIN_SCALE)))
         }
 
@@ -151,7 +151,7 @@ data class SceneEditorState(
 
     fun setRigMorphWeight(targetId: String, weight: Float): SceneEditorState {
         val actor = selectedActor ?: return this
-        if (actor.kind != ActorKind.CHARACTER || actor.locked) return this
+        if (actor.kind != ActorKind.CHARACTER || actor.locked || !weight.isFinite()) return this
         if (actor.rigDefinition?.morphTargets?.none { it.id == targetId } != false) return this
         val morphWeights = actor.rig?.morphWeights.orEmpty().toMutableMap()
         val normalized = weight.coerceIn(0f, 1f)
@@ -255,7 +255,7 @@ data class SceneEditorState(
 
     fun setSelectedAnimationSpeed(speed: Float): SceneEditorState {
         val actor = selectedActor ?: return this
-        if (actor.animation.clips.isEmpty()) return this
+        if (actor.animation.clips.isEmpty() || !speed.isFinite()) return this
         val normalized = speed.coerceIn(MIN_ANIMATION_SPEED, MAX_ANIMATION_SPEED)
         if (normalized == actor.animation.speed) return this
         return replaceSelected(actor.copy(animation = actor.animation.copy(speed = normalized)))
@@ -264,7 +264,7 @@ data class SceneEditorState(
     /** Applies a live viewport preview without adding one undo entry per pointer sample. */
     fun previewSelectedTransform(transform: Transform): SceneEditorState {
         val actor = selectedActor ?: return this
-        if (actor.locked) return this
+        if (actor.locked || !transform.isRenderable()) return this
         return copy(project = project.copy(actors = project.actors.map {
             if (it.id == actor.id) it.copy(transform = transform) else it
         }))
@@ -281,12 +281,11 @@ data class SceneEditorState(
 
     fun cancelTransformGesture(before: SceneProject): SceneEditorState = copy(project = before)
 
-    fun scaleUniform(delta: Float): SceneEditorState {
-        val actor = selectedActor ?: return this
-        if (actor.locked) return this
-        val next = (actor.transform.scale.x + delta).coerceAtLeast(MIN_SCALE)
-        return replaceSelected(actor.copy(transform = actor.transform.copy(scale = Vec3(next, next, next))))
-    }
+    fun scaleUniform(delta: Float): SceneEditorState =
+        if (!delta.isFinite()) this else updateSelectedTransform { transform ->
+            val next = (transform.scale.x + delta).coerceAtLeast(MIN_SCALE)
+            transform.copy(scale = Vec3(next, next, next))
+        }
 
     fun resetTransform(): SceneEditorState {
         val actor = selectedActor ?: return this
@@ -392,7 +391,7 @@ data class SceneEditorState(
         updateReference(referenceId) { it.copy(visible = !it.visible) }
 
     fun setReferenceOpacity(referenceId: String, opacity: Float): SceneEditorState =
-        updateReference(referenceId) { it.copy(opacity = opacity.coerceIn(0.05f, 1f)) }
+        if (!opacity.isFinite()) this else updateReference(referenceId) { it.copy(opacity = opacity.coerceIn(0.05f, 1f)) }
 
     fun translateReference(referenceId: String, axis: TransformAxis, delta: Float): SceneEditorState =
         updateReference(referenceId) { reference ->
@@ -405,7 +404,7 @@ data class SceneEditorState(
         }
 
     fun scaleReference(referenceId: String, delta: Float): SceneEditorState =
-        updateReference(referenceId) { reference ->
+        if (!delta.isFinite()) this else updateReference(referenceId) { reference ->
             val next = (reference.transform.scale.x + delta).coerceIn(0.1f, 20f)
             reference.copy(
                 transform = reference.transform.copy(scale = Vec3(next, next, next)),
@@ -426,7 +425,8 @@ data class SceneEditorState(
     ): SceneEditorState {
         val current = project.referenceImages.firstOrNull { it.id == referenceId } ?: return this
         val updated = change(current)
-        if (updated == current) return this
+        if (updated == current || !updated.transform.isRenderable() ||
+            !updated.opacity.isFinite() || updated.opacity !in 0f..1f) return this
         return commit(
             project.copy(referenceImages = project.referenceImages.map {
                 if (it.id == referenceId) updated else it
@@ -436,7 +436,7 @@ data class SceneEditorState(
     }
 
     fun updateActiveCamera(camera: SceneCamera): SceneEditorState {
-        if (project.cameras.none { it.id == camera.id }) return this
+        if (project.cameras.none { it.id == camera.id } || !camera.hasSafeNumbers()) return this
         return commit(
             project.copy(cameras = project.cameras.map { if (it.id == camera.id) camera else it }),
             selectedActorId,
@@ -455,6 +455,7 @@ data class SceneEditorState(
     }
 
     fun setActiveCameraVerticalFov(degrees: Float): SceneEditorState {
+        if (!degrees.isFinite()) return this
         val camera = project.cameras.firstOrNull { it.id == project.activeCameraId } ?: return this
         val normalized = degrees.coerceIn(MIN_CAMERA_FOV, MAX_CAMERA_FOV)
         if (camera.verticalFovDegrees == normalized) return this
@@ -462,6 +463,7 @@ data class SceneEditorState(
     }
 
     fun setActiveCameraOrthographicHeight(meters: Float): SceneEditorState {
+        if (!meters.isFinite()) return this
         val camera = project.cameras.firstOrNull { it.id == project.activeCameraId } ?: return this
         val normalized = meters.coerceIn(MIN_ORTHOGRAPHIC_HEIGHT, MAX_ORTHOGRAPHIC_HEIGHT)
         if (camera.orthographicHeightMeters == normalized) return this
@@ -469,6 +471,7 @@ data class SceneEditorState(
     }
 
     fun setTimelineDurationSeconds(seconds: Float): SceneEditorState {
+        if (!seconds.isFinite()) return this
         val normalized = seconds.coerceIn(MIN_TIMELINE_DURATION_SECONDS, MAX_TIMELINE_DURATION_SECONDS)
         if (project.timeline.durationSeconds == normalized) return this
         return commit(
@@ -484,6 +487,7 @@ data class SceneEditorState(
         )
 
     fun setTimelinePlaybackSpeed(speed: Float): SceneEditorState {
+        if (!speed.isFinite()) return this
         val normalized = speed.coerceIn(MIN_TIMELINE_SPEED, MAX_TIMELINE_SPEED)
         if (project.timeline.playbackSpeed == normalized) return this
         return commit(
@@ -498,7 +502,7 @@ data class SceneEditorState(
      */
     fun keySelectedTransform(timeSeconds: Float): SceneEditorState {
         val actor = selectedActor ?: return this
-        if (actor.locked) return this
+        if (actor.locked || !timeSeconds.isFinite()) return this
         val time = timeSeconds.coerceIn(0f, project.timeline.durationSeconds.coerceAtLeast(0f))
         var tracks = project.tracks
         tracks = upsertTimelineTrack(
@@ -527,6 +531,7 @@ data class SceneEditorState(
 
     fun removeSelectedTransformKeyframe(timeSeconds: Float): SceneEditorState {
         val actor = selectedActor ?: return this
+        if (!timeSeconds.isFinite()) return this
         val time = timeSeconds.coerceAtLeast(0f)
         val transformPaths = setOf(
             SceneTimelinePaths.POSITION,
@@ -552,7 +557,7 @@ data class SceneEditorState(
     fun keySelectedPose(timeSeconds: Float): SceneEditorState {
         val actor = selectedActor ?: return this
         val definition = actor.rigDefinition ?: return this
-        if (actor.locked || actor.animation.playing) return this
+        if (actor.locked || actor.animation.playing || !timeSeconds.isFinite()) return this
         if (definition.bones.isEmpty() && definition.morphTargets.isEmpty()) return this
 
         val time = timeSeconds.coerceIn(0f, project.timeline.durationSeconds.coerceAtLeast(0f))
@@ -584,6 +589,7 @@ data class SceneEditorState(
 
     fun removeSelectedPoseKeyframe(timeSeconds: Float): SceneEditorState {
         val actor = selectedActor ?: return this
+        if (!timeSeconds.isFinite()) return this
         val time = timeSeconds.coerceAtLeast(0f)
         val updated = project.tracks.mapNotNull { track ->
             val isPoseTrack = track.propertyPath.startsWith(SceneTimelinePaths.RIG_JOINT_PREFIX) ||
@@ -630,7 +636,7 @@ data class SceneEditorState(
     }
 
     fun setSelectedLightIntensity(value: Float): SceneEditorState =
-        updateSelectedLight { settings ->
+        if (!value.isFinite()) this else updateSelectedLight { settings ->
             settings.copy(intensity = value.coerceIn(0f, MAX_LIGHT_INTENSITY))
         }
 
@@ -641,13 +647,13 @@ data class SceneEditorState(
     }
 
     fun setSelectedLightRangeMeters(value: Float): SceneEditorState =
-        updateSelectedLight { settings ->
+        if (!value.isFinite()) this else updateSelectedLight { settings ->
             settings.copy(rangeMeters = value.coerceIn(MIN_LIGHT_RANGE_METERS, MAX_LIGHT_RANGE_METERS))
         }
 
     fun setSelectedLightDirection(direction: Vec3): SceneEditorState {
         val lengthSquared = direction.x * direction.x + direction.y * direction.y + direction.z * direction.z
-        if (lengthSquared < 0.000001f) return this
+        if (!lengthSquared.isFinite() || lengthSquared < 0.000001f) return this
         val inverseLength = 1f / kotlin.math.sqrt(lengthSquared)
         val normalized = Vec3(
             direction.x * inverseLength,
@@ -658,7 +664,7 @@ data class SceneEditorState(
     }
 
     fun setSelectedSpotConeDegrees(innerDegrees: Float, outerDegrees: Float): SceneEditorState =
-        updateSelectedLight { settings ->
+        if (!innerDegrees.isFinite() || !outerDegrees.isFinite()) this else updateSelectedLight { settings ->
             if (settings.type != LightType.SPOT) {
                 settings
             } else {
@@ -678,7 +684,9 @@ data class SceneEditorState(
         val actor = selectedActor ?: return this
         val settings = actor.light ?: return this
         if (actor.kind != ActorKind.LIGHT || actor.locked) return this
-        return replaceSelected(actor.copy(light = change(settings)))
+        val next = change(settings)
+        if (!next.hasSafeNumbers()) return this
+        return replaceSelected(actor.copy(light = next))
     }
 
     fun canReparentSelected(parentId: String?): Boolean {
@@ -742,7 +750,9 @@ data class SceneEditorState(
     private fun updateSelectedTransform(change: (Transform) -> Transform): SceneEditorState {
         val actor = selectedActor ?: return this
         if (actor.locked) return this
-        return replaceSelected(actor.copy(transform = change(actor.transform)))
+        val next = change(actor.transform)
+        if (!next.isRenderable()) return this
+        return replaceSelected(actor.copy(transform = next))
     }
 
     private fun replaceSelected(actor: Actor): SceneEditorState {
@@ -800,6 +810,27 @@ data class SceneEditorState(
 
     private fun String?.validFor(project: SceneProject): String? =
         this?.takeIf { id -> project.actors.any { it.id == id } } ?: project.actors.firstOrNull()?.id
+
+    /** Reject NaN, infinities and invalid scale before they reach Filament or JSON persistence. */
+    private fun Vec3.hasFiniteComponents(): Boolean =
+        x.isFinite() && y.isFinite() && z.isFinite()
+
+    private fun Transform.isRenderable(): Boolean =
+        position.hasFiniteComponents() &&
+            rotationEulerDegrees.hasFiniteComponents() &&
+            scale.hasFiniteComponents() &&
+            scale.x >= MIN_SCALE && scale.y >= MIN_SCALE && scale.z >= MIN_SCALE
+
+    private fun SceneCamera.hasSafeNumbers(): Boolean =
+        position.hasFiniteComponents() && target.hasFiniteComponents() &&
+            verticalFovDegrees.isFinite() && orthographicHeightMeters.isFinite() &&
+            rollDegrees.isFinite() && nearMeters.isFinite() && farMeters.isFinite() &&
+            nearMeters > 0f && farMeters > nearMeters
+
+    private fun LightSettings.hasSafeNumbers(): Boolean =
+        intensity.isFinite() && direction.hasFiniteComponents() &&
+            rangeMeters.isFinite() && spotInnerConeDegrees.isFinite() &&
+            spotOuterConeDegrees.isFinite()
 
     private fun Vec3.axis(axis: TransformAxis): Float = when (axis) {
         TransformAxis.X -> x
