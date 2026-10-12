@@ -5,6 +5,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextClearance
 import androidx.compose.ui.test.performTextInput
@@ -147,7 +149,7 @@ class ScriptStudioFileCreationTest {
             } }
             compose.onNodeWithTag("script_file_search").performTextInput(second.name)
             closeSoftKeyboard()
-            compose.onNodeWithText(second.name, substring = false).performClick()
+            compose.onNode(hasText(second.name, substring = false) and !hasTestTag("script_file_search")).performClick()
             compose.onNodeWithTag("script_tab_editor").performClick()
             onView(isAssignableFrom(CodeEditor::class.java)).check { view, failure ->
                 if (failure != null) throw failure
