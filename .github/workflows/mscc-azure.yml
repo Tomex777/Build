@@ -69,6 +69,8 @@ jobs:
           bash tools/azure-singleton-flock-selftest.sh
           bash tools/mscc-github-deploy-wrapper-selftest.sh
           node youtube-tor-delivery-selftest.js
+          node --check youtube-knight-providers.js
+          node youtube-knight-selftest.js
           node --check tools/azure-youtube-diagnostics.mjs
           node tools/azure-youtube-diagnostics-selftest.mjs
           node --check tools/azure-main-diagnostics.mjs
