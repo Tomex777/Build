@@ -136,4 +136,106 @@ class SceneTimelineTest {
         assertEquals(3f, nonLooping.evaluateTimeline(10f).actors.first().transform.position.x, 0.0001f)
         assertFalse(nonLooping.timeline.loop)
     }
+
+
+    @Test
+    fun keyNavigationCombinesRigAndTransformAndSkipsKeysUnderPlayhead() {
+        val actor = Actor(
+            id = "character",
+            name = "Character",
+            kind = ActorKind.CHARACTER,
+            rigDefinition = RigDefinition(bones = listOf(RigBone("arm", "Arm"))),
+        )
+        val state = project().copy(
+            actors = listOf(actor, Actor("other", "Other", ActorKind.PROP)),
+            tracks = listOf(
+                AnimationTrack(
+                    "position", actor.id, SceneTimelinePaths.POSITION,
+                    listOf(
+                        Keyframe(0f, AnimatedValue(vector = Vec3())),
+                        Keyframe(2f, AnimatedValue(vector = Vec3(x = 2f))),
+                    ),
+                ),
+                AnimationTrack(
+                    "pose", actor.id, SceneTimelinePaths.rigJoint("arm"),
+                    listOf(
+                        Keyframe(1f, AnimatedValue(rotationEulerDegrees = Vec3(z = 20f))),
+                        Keyframe(3f, AnimatedValue(rotationEulerDegrees = Vec3(z = 40f))),
+                    ),
+                ),
+                AnimationTrack(
+                    "other-position", "other", SceneTimelinePaths.POSITION,
+                    listOf(Keyframe(1.5f, AnimatedValue(vector = Vec3(x = 2f)))),
+                ),
+            ),
+        )
+        assertEquals(listOf(0f, 1f, 2f, 3f), state.actorKeyTimes(actor.id))
+        assertEquals(listOf(1.5f), state.actorKeyTimes("other"))
+        assertEquals(emptyList<Float>(), state.actorKeyTimes("missing"))
+        assertEquals(1f, state.nextActorKeyTime(actor.id, 0f))
+        assertEquals(1f, state.previousActorKeyTime(actor.id, 2f))
+        assertEquals(2f, state.nextActorKeyTime(actor.id, 1.0005f))
+        assertEquals(0f, state.previousActorKeyTime(actor.id, 1f))
+        assertEquals(null, state.previousActorKeyTime(actor.id, 0f))
+        assertEquals(null, state.nextActorKeyTime(actor.id, 3f))
+        assertEquals(null, state.nextActorKeyTime(actor.id, Float.NaN))
+        assertEquals(null, state.previousActorKeyTime(actor.id, Float.POSITIVE_INFINITY))
+    }
+
+    @Test
+    fun interpolationModesAffectOnlySelectedTransformOrPoseAndAreUndoable() {
+        val actor = Actor(
+            "character", "Character", ActorKind.CHARACTER,
+            rigDefinition = RigDefinition(bones = listOf(RigBone("arm", "Arm"))),
+        )
+        val base = project().copy(
+            actors = listOf(actor, Actor("other", "Other", ActorKind.PROP)),
+            tracks = listOf(
+                AnimationTrack(
+                    "position", actor.id, SceneTimelinePaths.POSITION,
+                    listOf(
+                        Keyframe(0f, AnimatedValue(vector = Vec3())),
+                        Keyframe(4f, AnimatedValue(vector = Vec3(x = 4f))),
+                    ),
+                ),
+                AnimationTrack(
+                    "pose", actor.id, SceneTimelinePaths.rigJoint("arm"),
+                    listOf(
+                        Keyframe(0f, AnimatedValue(rotationEulerDegrees = Vec3())),
+                        Keyframe(4f, AnimatedValue(rotationEulerDegrees = Vec3(z = 80f))),
+                    ),
+                ),
+                AnimationTrack(
+                    "other-position", "other", SceneTimelinePaths.POSITION,
+                    listOf(
+                        Keyframe(0f, AnimatedValue(vector = Vec3())),
+                        Keyframe(4f, AnimatedValue(vector = Vec3(x = 4f))),
+                    ),
+                ),
+            ),
+        )
+        val start = SceneEditorState(base).selectActor(actor.id)
+        val updated = start
+            .setSelectedTransformInterpolation(Interpolation.LINEAR)
+            .setSelectedPoseInterpolation(Interpolation.STEP)
+        assertEquals(
+            listOf(Interpolation.LINEAR, Interpolation.STEP, Interpolation.SMOOTH),
+            updated.project.tracks.map { it.interpolation },
+        )
+        val sampled = updated.project.evaluateTimeline(1f)
+        assertEquals(1f, sampled.actors.first().transform.position.x, 0.0001f)
+        assertEquals(
+            0f,
+            sampled.actors.first().rig?.joints?.get("arm")?.z ?: 0f,
+            0.0001f,
+        )
+        assertEquals(0.625f, sampled.actors.last().transform.position.x, 0.0001f)
+        assertEquals(start.project, updated.undo().undo().project)
+        assertEquals(updated.project, updated.undo().undo().redo().redo().project)
+        assertEquals(updated, updated.setSelectedPoseInterpolation(Interpolation.STEP))
+        val locked = updated.toggleSelectedLocked()
+        assertEquals(locked, locked.setSelectedTransformInterpolation(Interpolation.STEP))
+        assertEquals(locked, locked.setSelectedPoseInterpolation(Interpolation.SMOOTH))
+        assertEquals(updated.project, SceneProjectCodec.decode(SceneProjectCodec.encode(updated.project)))
+    }
 }
