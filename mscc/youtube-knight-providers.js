@@ -66,23 +66,31 @@ export function checkedMediaUrl(value) {
   return parsed
 }
 
-async function guardedLookup(hostname, options, callback) {
-  try {
-    const records = await lookup(hostname, {family:4, all:true, verbatim:true})
-    const publicRecord = records.find(record => isPublicIpv4(record.address))
-    if (!publicRecord) {
-      const error = new Error('Downloader hostname has no permitted public IPv4 address.')
-      error.code = 'DOWNLOADER_NO_PUBLIC_ADDRESS'
-      throw error
+// Node 24's Happy Eyeballs connector asks lookup() for `all:true`. In
+// that mode the callback MUST receive [{address,family}], not a single IP;
+// passing a string causes ERR_INVALID_IP_ADDRESS and makes *every* public
+// API appear offline. Keep the DNS pin/SSRF guard while honoring the contract.
+export function makeGuardedLookup(resolveAddresses = lookup) {
+  return async function guardedLookup(hostname, options, callback) {
+    try {
+      const records = await resolveAddresses(hostname, {family:4, all:true, verbatim:true})
+      const publicRecord = records.find(record => isPublicIpv4(record.address))
+      if (!publicRecord) {
+        const error = new Error('Downloader hostname has no permitted public IPv4 address.')
+        error.code = 'DOWNLOADER_NO_PUBLIC_ADDRESS'
+        throw error
+      }
+      if (options?.all) callback(null,[{address:publicRecord.address,family:4}])
+      else callback(null,publicRecord.address,4)
+    } catch (error) {
+      if (error?.code === 'DOWNLOADER_NO_PUBLIC_ADDRESS') return callback(error)
+      const failure = new Error('Downloader DNS lookup failed.')
+      failure.code = 'DOWNLOADER_DNS_FAILURE'
+      callback(failure)
     }
-    callback(null, publicRecord.address, 4)
-  } catch (error) {
-    if (error?.code === 'DOWNLOADER_NO_PUBLIC_ADDRESS') return callback(error)
-    const failure = new Error('Downloader DNS lookup failed.')
-    failure.code = 'DOWNLOADER_DNS_FAILURE'
-    callback(failure)
   }
 }
+const guardedLookup = makeGuardedLookup()
 
 async function httpsResponse(target, redirects = 0) {
   const uri = checkedMediaUrl(String(target))
