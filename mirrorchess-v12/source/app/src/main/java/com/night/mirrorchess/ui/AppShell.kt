@@ -1357,7 +1357,7 @@ private fun GameplaySettings(viewModel: GameViewModel) {
                 )
             }
         }
-        Text("Slow movement is the default. Pieces glide across the board rather than jumping; captures finish as the piece lands. Android reduced-motion settings are respected.", modifier = Modifier.padding(18.dp), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text("Standard (~0.3 seconds) is the default, similar to a typical online chess board. Pieces slide naturally; captures finish on landing. Choose Fast, Relaxed or Off. Android reduced-motion settings are respected.", modifier = Modifier.padding(18.dp), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 
