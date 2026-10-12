@@ -607,4 +607,58 @@ class SceneEditorTest {
         assertTrue(unlocked.resetRigPose().selectedActor?.rig == null)
     }
 
+
+    @Test
+    fun undoAndRedoPreserveFocusAcrossDuplicateDeleteAndAddOperations() {
+        val start = SceneEditorState(scene()).selectActor("prop-b")
+        val duplicated = start.duplicateSelected()
+        val copiedId = requireNotNull(duplicated.selectedActorId)
+        assertNotEquals("prop-b", copiedId)
+
+        val undoneDuplicate = duplicated.undo()
+        assertEquals(start.project, undoneDuplicate.project)
+        assertEquals("prop-b", undoneDuplicate.selectedActorId)
+        assertEquals(copiedId, undoneDuplicate.redo().selectedActorId)
+
+        val deleted = duplicated.deleteSelected()
+        assertEquals("prop-a", deleted.selectedActorId)
+        val undoDelete = deleted.undo()
+        assertEquals(duplicated.project, undoDelete.project)
+        assertEquals(copiedId, undoDelete.selectedActorId)
+        assertEquals(deleted.project, undoDelete.redo().project)
+        assertEquals("prop-a", undoDelete.redo().selectedActorId)
+
+        val inserted = start.addActor(Actor("new", "New", ActorKind.PROP))
+        assertEquals("new", inserted.selectedActorId)
+        val undoneAdd = inserted.undo()
+        assertEquals("prop-b", undoneAdd.selectedActorId)
+        assertEquals("new", undoneAdd.redo().selectedActorId)
+    }
+
+    @Test
+    fun newEditsClearRedoSelectionHistoryWhileGesturesPreserveIt() {
+        val start = SceneEditorState(scene()).selectActor("prop-b")
+        val first = start.setPosition(TransformAxis.X, 4f)
+        val undone = first.undo()
+        assertTrue(undone.canRedo)
+        assertEquals("prop-b", undone.selectedActorId)
+
+        val fresh = undone.setRotation(TransformAxis.Z, 20f)
+        assertFalse(fresh.canRedo)
+        assertTrue(fresh.redoSelections.isEmpty())
+
+        val preview = start.previewSelectedTransform(
+            requireNotNull(start.selectedActor).transform.copy(position = Vec3(x = 8f)),
+        )
+        val gestured = preview.commitTransformGesture(start.project)
+        assertEquals("prop-b", gestured.undo().selectedActorId)
+        assertEquals("prop-b", gestured.undo().redo().selectedActorId)
+
+        val replaced = fresh.replaceProject(scene())
+        assertFalse(replaced.canUndo)
+        assertFalse(replaced.canRedo)
+        assertTrue(replaced.undoSelections.isEmpty())
+        assertTrue(replaced.redoSelections.isEmpty())
+    }
+
 }
