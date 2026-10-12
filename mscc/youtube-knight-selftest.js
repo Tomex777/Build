@@ -8,9 +8,24 @@ import {
   downloadFromKnightProviders,
   probeKnightProviders,
   providerFailureCategory,
+  makeGuardedLookup,
 } from './youtube-knight-providers.js'
 
 const id = 'XEuaRjnuHlc'
+
+// Regression for Node 24 HTTPS Happy Eyeballs: `all:true` must return an
+// array, while the classic single-address lookup returns (address, family).
+const guarded = makeGuardedLookup(async () => [
+  {address:'127.0.0.1',family:4},
+  {address:'8.8.8.8',family:4},
+])
+const allRecords = await new Promise((resolve,reject) => guarded('cdn.example.com',{all:true},(error,records) => error ? reject(error) : resolve(records)))
+assert.deepEqual(allRecords,[{address:'8.8.8.8',family:4}])
+const singleRecord = await new Promise((resolve,reject) => guarded('cdn.example.com',{family:4},(error,address,family) => error ? reject(error) : resolve({address,family})))
+assert.deepEqual(singleRecord,{address:'8.8.8.8',family:4})
+const blocked = makeGuardedLookup(async()=>[{address:'127.0.0.1',family:4}])
+await assert.rejects(new Promise((resolve,reject)=>blocked('internal.local',{all:true},error=>error?reject(error):resolve())), /no permitted public/)
+
 assert.equal(providerFailureCategory({code:'DOWNLOADER_HTTP_404'}),'http_404')
 assert.equal(providerFailureCategory({code:'DOWNLOADER_HTTP_429'}),'http_429')
 assert.equal(providerFailureCategory({code:'DOWNLOADER_DNS_FAILURE'}),'dns_failure')
