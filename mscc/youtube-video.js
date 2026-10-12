@@ -22,6 +22,7 @@ import {
   isYouTubeAccessChallenge,
   resolveYouTubeWithDlp,
 } from './youtube-dlp.js'
+import { downloadFromKnightProviders } from './youtube-knight-providers.js'
 
 const WATCH = 'https://www.youtube.com/watch?v='
 const MAX_SEARCH_RESULTS = 20
@@ -517,11 +518,51 @@ function safeVideoName(title, extension = 'mp4') {
   return `${base || 'YouTube video'}.${String(extension || 'mp4').replace(/[^a-z0-9]/gi, '') || 'mp4'}`
 }
 
+async function prepareKnightFallback(videoId, onStage) {
+  const dir = join(tmpdir(), 'mscc-youtube-knight-' + randomUUID())
+  await mkdir(dir,{recursive:true})
+  const cleanup = async () => rm(dir,{recursive:true,force:true}).catch(() => {})
+  try {
+    if (typeof onStage === 'function') {
+      await onStage('YouTube blocked the server; checking alternate media sources…')
+    }
+    const result = await downloadFromKnightProviders(videoId,dir,MAX_DOWNLOAD_BYTES)
+    return {
+      details:{
+        id:videoId,title:result.title,channel:'',
+        url:WATCH + videoId,
+        thumbnail:'https://i.ytimg.com/vi/' + videoId + '/hqdefault.jpg',
+      },
+      candidate:{
+        // The external services do not guarantee the requested resolution.
+        // Use the actual ffprobe height, or mark it as unspecified.
+        height:result.height || 0,
+        quality:result.height ? String(result.height) : 'unknown',
+        kind:'external',source:'knight-api',
+      },
+      file:result.file,
+      fileName:safeVideoName(result.title,'mp4'),
+      mimetype:'video/mp4',
+      size:result.size,
+      cleanup,
+    }
+  } catch (error) {
+    await cleanup()
+    throw error
+  }
+}
+
 export async function prepareYouTubeVideo(videoId, {
   quality = 'best',
   onStage = null,
 } = {}) {
-  const resolved = await resolveYouTubeVideo(videoId)
+  let resolved
+  try {
+    resolved = await resolveYouTubeVideo(videoId)
+  } catch (error) {
+    if (!isYouTubeAccessChallenge(error)) throw error
+    return prepareKnightFallback(videoId,onStage)
+  }
   const candidate = selectVideoCandidate(resolved.candidates, quality)
   if (!candidate) throw new Error('No usable YouTube video quality was found.')
 
@@ -628,6 +669,9 @@ export async function prepareYouTubeVideo(videoId, {
     }
   } catch (error) {
     await cleanup()
+    if (isYouTubeAccessChallenge(error)) {
+      return prepareKnightFallback(videoId,onStage)
+    }
     throw error
   }
 }
