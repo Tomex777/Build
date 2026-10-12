@@ -6,6 +6,13 @@ on:
     paths:
       - 'sora-ci/music-deterministic-smoke-trigger.txt'
   workflow_dispatch:
+  pull_request:
+    branches: [sora-media-ci]
+    paths:
+      - 'sora-overlay/app/src/main/java/com/night/sora/playback/**'
+      - 'sora-overlay/app/src/main/java/com/night/sora/ui/screens/NowPlayingScreen.kt'
+      - 'sora-ci/music-deterministic-smoke.sh'
+      - '.github/workflows/sora-music-deterministic-smoke.yml'
 
 jobs:
   music-smoke:
