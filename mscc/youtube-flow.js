@@ -111,6 +111,15 @@ async function sendSearch(ctx, query, { deliveryOverride = '' } = {}) {
   return ctx.reply(text)
 }
 
+export function youtubeFailureMessage(error, videoId) {
+  if (error?.code === 'YOUTUBE_KNIGHT_SOURCES_UNAVAILABLE') {
+    return `YouTube asked this server to verify itself, and the alternate video services are also unavailable. You can watch the video here: https://www.youtube.com/watch?v=${videoId}`
+  }
+  return isYouTubeAccessChallenge(error)
+    ? youtubeChallengeMessage(videoId)
+    : (error?.message || 'YouTube video delivery failed.')
+}
+
 async function sendVideo(ctx, videoId, quality, delivery = 'video') {
   const chosenDelivery = delivery === 'document' ? 'document' : 'video'
   const progress = typeof ctx.progress === 'function'
@@ -159,9 +168,7 @@ async function sendVideo(ctx, videoId, quality, delivery = 'video') {
     return true
   } catch (error) {
     console.error('MSCC YouTube delivery failed:', error)
-    const message = isYouTubeAccessChallenge(error)
-      ? youtubeChallengeMessage(videoId)
-      : (error?.message || 'YouTube video delivery failed.')
+    const message = youtubeFailureMessage(error,videoId)
     await progress?.fail?.(message)
     if (!progress) await ctx.reply(message)
     return false
