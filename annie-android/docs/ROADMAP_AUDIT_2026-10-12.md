@@ -13,6 +13,7 @@ Read the effective CI source: `scripts/repair-m0b-merge.py` integrates six gener
 | Chat-first slash commands; no AI requirement for commands | MainActivity, ScriptWorkspace; ReportedFlowsTest, ScriptChatFlowTest, CommandSuggestionEngineTest | Implemented and baseline tested |
 | Multiple chats; rename/delete; process-death persistence | ChatHistoryStore and MainActivity; ChatHistoryTest and separate process-death acceptance | Implemented and baseline tested |
 | Consolidated drawer/tools; retained header Studio route | MainActivity; ChatHistoryTest and ReportedFlowsTest | Implemented and baseline tested |
+| Profile image selection/reset using approved avatar library | MainActivity and avatar resources; ChatHistoryTest.profilePickerUsesApprovedAvatarLibraryAndCanResetToAnnieMark | Implemented and baseline tested |
 | QuickJS commands, actions, sessions and project isolation | ScriptWorkspace; ScriptRuntimeTest, ScriptChatFlowTest, ScriptFilesListTest | Implemented and baseline tested |
 | Package manifests, ZIP install, review-before-enable, uninstall | AnniePackageArchive, InstalledPackageRegistry, ExtensionsManager; package/manifest/import tests | Implemented and baseline tested |
 | API compatibility and publisher identity | ApiCompatibility plus generated merge repair; ApiCompatibilityTest, AnniePackageManifestTest | API1 supported; API2 migration deliberately deferred |
@@ -35,6 +36,7 @@ Read the effective CI source: `scripts/repair-m0b-merge.py` integrates six gener
 | Create/edit .js/.ts/.py/.lua/.html/.css and text files | ScriptStudioFileTypes, ScriptFiles; file-type/location/native creation tests | File editing implemented; direct TS/Python/Lua execution is not implemented |
 | Live command/document preview; fullscreen Canvas | ScriptStudio preview and native renderers; script/chat/Canvas tests | JS command and document previews implemented; multi-file project gap repaired here |
 | Script deletion, folder/file selection, sharing, clipboard, find/replace/undo | ScriptStudio and repaired Sora editor; ScriptChatFlowTest, ScriptEditorReplaceTest; new folder/share regressions | Baseline editing tested; folder/share fixes require new validation |
+| Export selected documents through Android's document picker | ScriptStudio export launcher; ScriptStudioSharingTest.exportUsesCurrentDraftOrFreshDiskAndCorrectDocumentContract | Stale snapshot and JS-only document type repaired; picker destination write remains separate platform coverage |
 | Image fullscreen viewer and editor | Viewer activity, image bounds and editor; image decode/transform/viewer/pixel tests | Fit/zoom/pan, rotate/flip/center-square/reset/save-copy implemented; freely positioned crop and image sharing are not implemented or claimed as agreed baseline requirements |
 | Image saving tied to the current render | ImageEditorActivity captures the ready bitmap and blocks edits during picker/save | Implemented; transformation tests pass, but automated document-picker save-to-destination coverage remains a validation gap |
 | Full browser: tabs, normal/private separation, desktop mode, navigation, uploads/downloads/history | Gecko browser; restore/UI/file-picker/end-to-end/history tests | Implemented and baseline tested; “full-fledged” is bounded by these concrete features, not feature parity with every browser |
@@ -61,6 +63,7 @@ Read the effective CI source: `scripts/repair-m0b-merge.py` integrates six gener
 
 5. Folder selection now loads that project's entry file instead of changing selection IDs while keeping another document's editor contents. A native regression asserts the displayed entry and both projects' persisted contents.
 6. Script sharing uses the current selected draft or fresh disk bytes, the correct HTML/CSS/JS/JSON MIME type, and an independent file snapshot per share. A native FileProvider test verifies readable content, read grants, MIME type and that later shares cannot overwrite an earlier snapshot.
+7. Export now captures the current draft or fresh disk bytes before opening the picker and requests the selected document's MIME type and basename. A native regression distinguishes a stale project snapshot, current draft, another project's draft, fresh disk contents and a stable pending export snapshot, and verifies the document creation contract.
 
 The first full audit run passed the new native editor/Canvas checks on API26 but exposed an intermittent Gecko history test failure. Its first-page native tap had no observable acknowledgement. The fixture now changes its title only when a real native tap reaches the page, and navigation waits for that acknowledgement before retaining the original Back/Forward and exact-download-byte assertions. No browser history protections or assertions are removed.
 

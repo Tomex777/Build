@@ -10,6 +10,29 @@ import java.io.File
 
 @RunWith(AndroidJUnit4::class)
 class ScriptStudioSharingTest {
+    @Test fun exportUsesCurrentDraftOrFreshDiskAndCorrectDocumentContract() {
+        val files = ScriptFiles(InstrumentationRegistry.getInstrumentation().targetContext)
+        val folder = files.createFolder("exports${System.nanoTime()}")
+        try {
+            files.writeFile(folder.name, "index.html", "<p>Old</p>")
+            val stale = files.listProjects().first { it.id == folder.name }
+            files.writeFile(folder.name, "index.html", "<p>Fresh disk</p>")
+            assertEquals("<p>Old</p>", stale.files["index.html"])
+            assertEquals("<p>Unsaved draft</p>", studioDocumentSource(files, folder.name, "index.html",
+                folder.name, "index.html", "<p>Unsaved draft</p>"))
+            val snapshot = studioDocumentSource(files, folder.name, "index.html", "another", "index.html", "Other draft")
+            assertEquals("<p>Fresh disk</p>", snapshot)
+            files.writeFile(folder.name, "index.html", "<p>Later edit</p>")
+            assertEquals("<p>Fresh disk</p>", snapshot)
+            val intent = studioExportIntent("pages/index.html")
+            assertEquals(Intent.ACTION_CREATE_DOCUMENT, intent.action)
+            assertTrue(Intent.CATEGORY_OPENABLE in intent.categories)
+            assertEquals("text/html", intent.type)
+            assertEquals("index.html", intent.getStringExtra(Intent.EXTRA_TITLE))
+            assertEquals("application/json", studioExportIntent("data.json").type)
+        } finally { folder.deleteRecursively() }
+    }
+
     @Test fun sharedSnapshotsKeepTheirBytesAndUseDocumentMimeAndReadGrant() {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         val root = File(context.cacheDir, "shared-scripts")

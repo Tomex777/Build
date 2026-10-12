@@ -519,14 +519,15 @@ private fun ScriptStudioContent(
         }
     }
 
-    val exportScript = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("text/javascript")) { uri ->
+    val exportScript = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        val uri = result.data?.data?.takeIf { result.resultCode == android.app.Activity.RESULT_OK }
         val pending = pendingExport
         pendingExport = null
         if (uri != null && pending != null) scope.launch {
             runCatching {
                 withContext(Dispatchers.IO) {
                     context.contentResolver.openOutputStream(uri)?.bufferedWriter(Charsets.UTF_8)?.use { it.write(pending.second) }
-                        ?: error("Could not write the JavaScript file")
+                        ?: error("Could not write the document")
                 }
             }.onSuccess { status = "Exported ${pending.first}" }
                 .onFailure { status = it.message ?: "Export failed" }
@@ -547,9 +548,13 @@ private fun ScriptStudioContent(
         }
     }
 
-    fun exportFile(name: String, source: String) {
-        pendingExport = name to source
-        exportScript.launch(name)
+    fun exportFile(project: ScriptProject, path: String) {
+        runCatching {
+            val source = studioDocumentSource(workspace.files, project.id, path, selectedProjectId, selectedPath, editorValue.text)
+            val name = path.substringAfterLast('/')
+            pendingExport = name to source
+            exportScript.launch(studioExportIntent(name))
+        }.onFailure { pendingExport = null; status = it.message ?: "Could not export file" }
     }
 
     fun exportAiSpec() {
@@ -564,8 +569,7 @@ private fun ScriptStudioContent(
 
     fun shareProjectFile(project: ScriptProject, path: String) {
         runCatching {
-            val source = if (selectedProjectId == project.id && selectedPath == path) editorValue.text
-                else workspace.files.readFile(project.id, path)
+            val source = studioDocumentSource(workspace.files, project.id, path, selectedProjectId, selectedPath, editorValue.text)
             val send = studioShareIntent(context, path, source)
             context.startActivity(Intent.createChooser(send, "Share file").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
             status = "Sharing ${path.substringAfterLast('/')}"
@@ -715,7 +719,7 @@ private fun ScriptStudioContent(
                                                         .onFailure { status = it.message ?: "Rename failed" }
                                                 }
                                                 FileAction.SHARE -> shareProjectFile(project, project.entryPath)
-                                                FileAction.EXPORT -> exportFile(project.entryPath, project.files[project.entryPath].orEmpty())
+                                                FileAction.EXPORT -> exportFile(project, project.entryPath)
                                                 FileAction.PERMISSIONS -> permissionsProject = project
                                                 FileAction.DELETE -> askForText("Type ${project.name} to delete", "") { confirm ->
                                                     if (confirm == project.name) {
@@ -818,7 +822,7 @@ private fun ScriptStudioContent(
                                                             .onFailure { status = it.message ?: "Rename failed" }
                                                     }
                                                     FileAction.SHARE -> shareProjectFile(project, path)
-                                                    FileAction.EXPORT -> exportFile(path.substringAfterLast('/'), project.files[path].orEmpty())
+                                                    FileAction.EXPORT -> exportFile(project, path)
                                                     FileAction.DELETE -> askForText(
                                                         "Type ${path.substringAfterLast('/')} to delete", ""
                                                     ) { confirmation ->
