@@ -11,6 +11,8 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.onNodeWithText
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.night.cortex.hosting.HostingFileEntry
@@ -223,13 +225,18 @@ class CortexWorkspaceVisualTest {
         }
 
         capture("cortex-console-connected-emulator.png")
+        composeRule.onNodeWithContentDescription("Refresh logs").assertDoesNotExist()
         show(page, Page.FILES, "cortex-files-emulator.png")
+        composeRule.onNodeWithText("Refresh").assertDoesNotExist()
         show(page, Page.EDITOR, "cortex-editor-emulator.png")
         show(page, Page.BACKUPS, "cortex-backups-emulator.png")
+        composeRule.onNodeWithContentDescription("Refresh backups").assertDoesNotExist()
         show(page, Page.STARTUP, "cortex-startup-emulator.png")
         show(page, Page.SETTINGS, "cortex-settings-emulator.png")
+        composeRule.onNodeWithContentDescription("Refresh settings").assertDoesNotExist()
         assertSettingsHeadingIsReadable()
         show(page, Page.ACTIVITY, "cortex-activity-emulator.png")
+        composeRule.onNodeWithText("Refresh").assertDoesNotExist()
     }
 
     private fun assertSettingsHeadingIsReadable() {

@@ -1,6 +1,7 @@
 package com.night.cortex.server
 
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
@@ -53,6 +54,7 @@ class CortexStaleSessionTest {
             }
         }
         rule.onNodeWithTag("stale-account-status-warning").assertIsDisplayed()
+        rule.onNodeWithContentDescription("Refresh accounts").assertDoesNotExist()
         rule.onNodeWithText("Re-pair account").assertIsNotEnabled()
     }
 }
