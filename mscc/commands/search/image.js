@@ -1,26 +1,24 @@
 import { searchImages } from '../../utils/web-search.js'
 import { downloadImageUrl } from '../../utils/remote-image.js'
+import {
+  parseSearchImageArgs,
+  fetchQualityImage,
+  qualityImagePayload,
+} from '../../utils/search-image-quality.js'
 
 const DEFAULT_COUNT = 6
 const MAX_COUNT = 20
 
-function parseArgs(args = []) {
-  const parts = args.map(value => String(value || '').trim()).filter(Boolean)
-  let count = DEFAULT_COUNT
-  if (parts.length && /^\d{1,2}$/.test(parts[parts.length - 1])) {
-    count = Math.max(1, Math.min(MAX_COUNT, Number(parts.pop()) || DEFAULT_COUNT))
-  }
-  return { query:parts.join(' ').trim(), count }
-}
-
 export default {
   name:'image',
   aliases:['img'],
-  description:'Search the web for images and send the matching pictures.',
-  usage:'.image <search> [amount]',
+  description:'Find source-resolution web images. Add hd to deliver uncompressed originals as documents.',
+  usage:'.image <search> [amount] [hd]',
   async run(ctx) {
-    const { query, count } = parseArgs(ctx.args)
-    if (!query) return ctx.reply(`Usage: ${ctx.publicPrefix || '.'}image <search> [1-${MAX_COUNT}]`)
+    const { query, count, original } = parseSearchImageArgs(ctx.args, {
+      defaultCount:DEFAULT_COUNT, maxCount:MAX_COUNT,
+    })
+    if (!query) return ctx.reply(`Usage: ${ctx.publicPrefix || '.'}image <search> [1-${MAX_COUNT}] [hd]`)
 
     let results
     try {
@@ -37,18 +35,12 @@ export default {
     if (!chat || !sock) return ctx.reply('WhatsApp connection is unavailable.')
 
     let sent = 0
+    const seen = new Set()
     for (const item of results) {
       if (sent >= count) break
 
-      const candidates = [item.imageUrl, item.thumbnailUrl].filter(Boolean)
-      let image = null
-      for (const url of candidates) {
-        try {
-          image = await downloadImageUrl(url)
-          if (image?.buffer?.length) break
-        } catch {}
-      }
-      if (!image?.buffer?.length) continue
+      const image = await fetchQualityImage(item, { download:downloadImageUrl, seen })
+      if (!image) continue
 
       const caption = sent === 0
         ? [
@@ -59,18 +51,17 @@ export default {
         : ''
 
       try {
-        await sock.sendMessage(chat, {
-          image:image.buffer,
-          ...(caption ? { caption } : {}),
-        }, { quoted:sent === 0 ? ctx.message : undefined })
+        await sock.sendMessage(chat, qualityImagePayload(image, {
+          original, caption, index:sent + 1,
+        }), { quoted:sent === 0 ? ctx.message : undefined })
         sent += 1
       } catch (error) {
         console.warn('MSCC image result skipped:', error?.message || error)
       }
     }
 
-    if (!sent) return ctx.reply('I found image results, but none of them could be delivered.')
-    if (sent < count) return ctx.reply(`I found ${sent} usable image${sent === 1 ? '' : 's'} for that search.`)
+    if (!sent) return ctx.reply('No sufficiently large source images could be delivered. Try a different search.')
+    if (sent < count) return ctx.reply(`I found ${sent} usable high-resolution image${sent === 1 ? '' : 's'} for that search.`)
     return true
   },
 }
