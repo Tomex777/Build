@@ -22,6 +22,20 @@ export function sessionStatus(account) {
   return 'offline'
 }
 
+/**
+ * Only emit fixed buckets to diagnostics. A raw Baileys error can contain
+ * WhatsApp JIDs or session details; it must never reach Cortex/Azure logs.
+ */
+export function disconnectOrigin(error) {
+  const message = typeof error?.message === 'string' ? error.message : ''
+  if (message === 'Intentional Logout') return 'intentional-logout'
+  if (message.startsWith('Stream Errored')) return 'stream-error'
+  if (message === 'Connection Failure') return 'server-failure'
+  if (/connection was replaced/i.test(message)) return 'connection-replaced'
+  if (/Connection Terminated|Connection Closed|Connection was lost/i.test(message)) return 'transport-close'
+  return 'other'
+}
+
 export function reconnectDelay(attempt, { baseMs = 2000, maxMs = 30000 } = {}) {
   const safeAttempt = Math.max(1, Number(attempt) || 1)
   return Math.min(maxMs, baseMs * (2 ** Math.min(4, safeAttempt - 1)))
