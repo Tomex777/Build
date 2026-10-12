@@ -6,6 +6,14 @@ on:
     branches: [sora-media-ci]
     paths:
       - 'sora-ci/sora-media-ci-trigger.txt'
+      - 'sora-overlay/**'
+      - '.github/workflows/sora-media-ci.yml'
+  pull_request:
+    branches: [sora-media-ci]
+    paths:
+      - 'sora-ci/**'
+      - 'sora-overlay/**'
+      - '.github/workflows/sora-media-ci.yml'
 
 jobs:
   anime-manga-flow:
