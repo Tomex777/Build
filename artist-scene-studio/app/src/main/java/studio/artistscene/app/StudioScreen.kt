@@ -1852,21 +1852,6 @@ private fun EditorContextSheet(
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                         ) {
                             Button(
-                                onClick = { previousKey?.let(onTimelineTimeChange) },
-                                enabled = !timelinePlaying && previousKey != null,
-                                modifier = Modifier.weight(1f).testTag("timeline-previous-key"),
-                            ) { Text("Previous key") }
-                            Button(
-                                onClick = { nextKey?.let(onTimelineTimeChange) },
-                                enabled = !timelinePlaying && nextKey != null,
-                                modifier = Modifier.weight(1f).testTag("timeline-next-key"),
-                            ) { Text("Next key") }
-                        }
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        ) {
-                            Button(
                                 onClick = { onTimelinePlayingChange(!timelinePlaying) },
                                 enabled = sceneHasKeys,
                                 modifier = Modifier.weight(1f).testTag("timeline-play"),
@@ -2017,6 +2002,23 @@ private fun EditorContextSheet(
                             ) { Text("Longer") }
                         }
 
+                        if (allKeyTimes.size > 1) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            Button(
+                                onClick = { previousKey?.let(onTimelineTimeChange) },
+                                enabled = !timelinePlaying && previousKey != null,
+                                modifier = Modifier.weight(1f).testTag("timeline-previous-key"),
+                            ) { Text("Previous key") }
+                            Button(
+                                onClick = { nextKey?.let(onTimelineTimeChange) },
+                                enabled = !timelinePlaying && nextKey != null,
+                                modifier = Modifier.weight(1f).testTag("timeline-next-key"),
+                            ) { Text("Next key") }
+                        }
+                        }
                         if (actor.asset != null) {
                             Text("Model animation", color = PrimaryText, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
                             if (actor.animation.clips.isEmpty()) {
