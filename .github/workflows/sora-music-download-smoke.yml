@@ -1,0 +1,90 @@
+name: Sora Music Download Smoke
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [sora-media-ci]
+    paths:
+      - 'sora-overlay/app/src/main/java/com/night/sora/**'
+      - 'sora-overlay/test-extension/**'
+      - 'sora-ci/music-download-smoke.sh'
+      - '.github/workflows/sora-music-download-smoke.yml'
+  push:
+    branches: [sora-media-ci]
+    paths:
+      - 'sora-ci/music-download-smoke-trigger.txt'
+
+jobs:
+  download-offline:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - name: Reconstruct committed Sora source
+        run: |
+          rm -rf /tmp/sora-src /tmp/sora.zip
+          cat sora-ci/chunks/part-*.txt | base64 -d > /tmp/sora.zip
+          unzip -q /tmp/sora.zip -d /tmp/sora-src
+          ROOT=/tmp/sora-src/Sora_Android_v0_1
+          test -f "$ROOT/settings.gradle.kts"
+          cp -R sora-overlay/. "$ROOT/"
+          echo "SORA_ROOT=$ROOT" >> "$GITHUB_ENV"
+      - name: Prepare isolated Music download test fixture
+        run: |
+          python3 - "$SORA_ROOT" <<'PY'
+          from pathlib import Path
+          import sys
+          root = Path(sys.argv[1])
+          demo = root / "test-extension/src/main/java/com/night/sora/testextension/DemoExtensionService.kt"
+          text = demo.read_text()
+          old = 'capabilities = setOf("diagnostic", "browse", "search", "details", "episodes", "chapters", "pages", "streams", "lyrics", "relatedArtists", "feed"),'
+          new = old.replace('"diagnostic"', '"catalog"')
+          if text.count(old) != 1:
+              raise SystemExit("Could not promote deterministic test extension")
+          demo.write_text(text.replace(old, new, 1))
+          assert '"Offline Proof"' in (root / "test-extension/src/main/java/com/night/sora/testextension/DemoCatalog.kt").read_text()
+          # Only this disposable emulator fixture talks to a local HTTP media server.
+          manifest = root / "app/src/main/AndroidManifest.xml"
+          xml = manifest.read_text()
+          if 'android:usesCleartextTraffic=' not in xml:
+              xml = xml.replace('<application', '<application android:usesCleartextTraffic="true"', 1)
+          manifest.write_text(xml)
+          PY
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Set up Android 36 SDK
+        uses: android-actions/setup-android@v3
+        with:
+          cmdline-tools-version: 12266719
+          packages: 'platform-tools platforms;android-36 build-tools;36.0.0 emulator system-images;android-36;google_apis;x86_64'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '9.5.0'
+      - name: Build Core and deterministic Music source
+        working-directory: /tmp/sora-src/Sora_Android_v0_1
+        run: gradle --stacktrace :app:assembleDebug :test-extension:assembleDebug
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Run real download and offline playback proof
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 36
+          target: google_apis
+          arch: x86_64
+          profile: pixel_6
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -camera-front none
+          script: bash sora-ci/music-download-smoke.sh
+      - name: Upload Music download evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sora-music-download-smoke-evidence-${{ github.run_id }}
+          path: /tmp/sora-music-download-smoke
+          if-no-files-found: warn
+          retention-days: 3
