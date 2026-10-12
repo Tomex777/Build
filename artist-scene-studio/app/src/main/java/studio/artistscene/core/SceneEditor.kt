@@ -314,15 +314,38 @@ data class SceneEditorState(
     fun duplicateSelected(): SceneEditorState {
         val actor = selectedActor ?: return this
         val id = uniqueActorId(actor.id + "-copy")
+        val offsetX = 0.25f
         val copy = actor.copy(
             id = id,
             name = uniqueActorName(actor.name + " Copy"),
             parentId = actor.parentId,
             transform = actor.transform.copy(
-                position = actor.transform.position.copy(x = actor.transform.position.x + 0.25f),
+                position = actor.transform.position.copy(x = actor.transform.position.x + offsetX),
             ),
         )
-        return commit(project.copy(actors = project.actors + copy), selected = id)
+        // Duplicate authored animation as well as the actor's current pose. Offset position
+        // keyframes so timeline playback does not stack the copy onto the original.
+        val occupiedTrackIds = project.tracks.mapTo(mutableSetOf()) { it.id }
+        val copiedTracks = project.tracks.filter { it.targetActorId == actor.id }.map { track ->
+            val keyframes = if (track.propertyPath == SceneTimelinePaths.POSITION) {
+                track.keyframes.map { key ->
+                    key.copy(value = key.value.copy(
+                        vector = key.value.vector?.let { it.copy(x = it.x + offsetX) },
+                    ))
+                }
+            } else {
+                track.keyframes
+            }
+            track.copy(
+                id = uniqueTrackId("${track.id}-copy", occupiedTrackIds),
+                targetActorId = id,
+                keyframes = keyframes,
+            )
+        }
+        return commit(
+            project.copy(actors = project.actors + copy, tracks = project.tracks + copiedTracks),
+            selected = id,
+        )
     }
 
     fun deleteSelected(): SceneEditorState {
@@ -332,7 +355,13 @@ data class SceneEditorState(
             .filterNot { it.id == actor.id }
             .map { child -> if (child.parentId == actor.id) child.copy(parentId = null, parentBoneId = null) else child }
         val nextSelection = remaining.firstOrNull()?.id
-        return commit(project.copy(actors = remaining), selected = nextSelection)
+        return commit(
+            project.copy(
+                actors = remaining,
+                tracks = project.tracks.filterNot { it.targetActorId == actor.id },
+            ),
+            selected = nextSelection,
+        )
     }
 
     fun addActor(actor: Actor): SceneEditorState {
@@ -733,6 +762,16 @@ data class SceneEditorState(
             undoStack = (undoStack + project).takeLast(HISTORY_LIMIT),
             redoStack = emptyList(),
         )
+    }
+
+    private fun uniqueTrackId(base: String, occupied: MutableSet<String>): String {
+        var candidate = base
+        var index = 2
+        while (!occupied.add(candidate)) {
+            candidate = "$base-$index"
+            index++
+        }
+        return candidate
     }
 
     private fun uniqueActorId(base: String): String {
