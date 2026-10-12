@@ -131,7 +131,7 @@ fun MediaScreen(
     }
     var favoriteArtists by remember(musicTastePreferences) {
         val stored = musicTastePreferences.getStringSet("favorite_artists", null)
-        mutableStateOf(stored?.toList()?.sorted() ?: listOf("Juice WRLD"))
+        mutableStateOf(stored?.toList()?.sorted() ?: emptyList())
     }
     val musicTasteArtists = remember(favoriteArtists, rankedTaste) {
         (favoriteArtists + rankedTaste.map { it.artistName })
@@ -303,7 +303,12 @@ fun MediaScreen(
             return
         }
 
-        val providerQueries = if (requestType == ContentType.MUSIC && requestQuery.isBlank()) {
+        // Do not force everyone to start with a made-up favorite artist.
+        // With no preferences or listening history, use the source's real
+        // general catalog instead of issuing an arbitrary empty-result search.
+        val unpersonalizedMusic = requestType == ContentType.MUSIC &&
+            requestQuery.isBlank() && musicTasteArtists.isEmpty()
+        val providerQueries = if (requestType == ContentType.MUSIC && requestQuery.isBlank() && !unpersonalizedMusic) {
             musicTasteArtists
         } else {
             listOf(requestQuery)
@@ -316,7 +321,11 @@ fun MediaScreen(
             primaryError = "Choose artists you like in Music → Tune your taste to build your personal feed."
             return
         }
-        val method = if (requestQuery.isBlank() && requestType != ContentType.MUSIC) ExtensionContract.Method.BROWSE else ExtensionContract.Method.SEARCH
+        val method = if (requestQuery.isBlank() && (requestType != ContentType.MUSIC || unpersonalizedMusic)) {
+            ExtensionContract.Method.BROWSE
+        } else {
+            ExtensionContract.Method.SEARCH
+        }
         primaryLoading = rows.isEmpty()
         val failures = MutableList<String?>(providerRequests.size) { null }
         val collected = MutableList(providerRequests.size) { emptyList<BrowseCard>() }
@@ -794,7 +803,7 @@ private fun MusicHome(
         item {
             MusicSectionTitle(
                 "For you",
-                if (tasteArtists.isEmpty()) "Add artists you like to shape your music feed."
+                if (tasteArtists.isEmpty()) "Explore real source tracks, then add artists to personalize."
                 else "Built around " + tasteArtists.take(3).joinToString(", "),
                 null,
             )
