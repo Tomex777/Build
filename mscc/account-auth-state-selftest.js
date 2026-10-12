@@ -47,6 +47,10 @@ try {
   await writeFile(join(A, 'creds.json'), '{corrupted')
   await assert.rejects(() => useDurableMultiFileAuthState(A), /authentication file creds.json is invalid/)
   assert.equal(await readFile(join(A, 'creds.json'), 'utf8'), '{corrupted')
+  await writeFile(join(A, 'creds.json'), 'null')
+  await assert.rejects(() => useDurableMultiFileAuthState(A), /creds.json is incomplete/)
+  await writeFile(join(A, 'creds.json'), '{}')
+  await assert.rejects(() => useDurableMultiFileAuthState(A), /creds.json is incomplete/)
 
   // A separate account's key store cannot be read from a corrupt A directory.
   second.state.creds.registered = true
