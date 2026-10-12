@@ -83,9 +83,9 @@ curl --fail --silent --show-error --max-time 10 \
   http://127.0.0.1:8787/health >/dev/null
 echo "MSCC Azure deployment verified at $MSCC_SOURCE_REF"
 
-// Run a single bounded read-only YouTube metadata probe *on Azure*, not the
-// GitHub runner. Print only structured, redacted health evidence; a YouTube
-// access challenge must not roll back an otherwise healthy WhatsApp service.
+# Run a single bounded read-only YouTube metadata probe *on Azure*, not the
+# GitHub runner. Print only structured, redacted health evidence; a YouTube
+# access challenge must not roll back an otherwise healthy WhatsApp service.
 if [[ -f /opt/mscc/current/tools/azure-youtube-diagnostics.mjs ]]; then
   echo "Azure YouTube diagnostics (no accounts, credentials or media downloads):"
   /usr/bin/node /opt/mscc/current/tools/azure-youtube-diagnostics.mjs || \
