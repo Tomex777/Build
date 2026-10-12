@@ -28,9 +28,22 @@ class MusicDownloadManager(context: Context, private val repository: CoreReposit
     private val root = File(app.getExternalFilesDir(Environment.DIRECTORY_MUSIC) ?: File(app.filesDir, "music"), "downloads").apply { mkdirs() }
 
     init {
+        // A completed entry is only useful when the actual file still exists.
         repository.downloads.filter { it.contentType == ContentType.MUSIC && it.status == DownloadStatus.COMPLETED }
             .filter { it.filePath.isNullOrBlank() || File(it.filePath).let { f -> !f.isFile || f.length() <= 0L } }
             .map { it.id }.forEach(repository::removeDownload)
+
+        // Transfers are scoped to the application process, not a background
+        // system download service. After a crash/restart they cannot still be
+        // downloading: recover them as retryable failures instead of displaying
+        // permanent "Downloading" or "Queued" states with no active worker.
+        repository.downloads.filter {
+            it.contentType == ContentType.MUSIC &&
+                it.status in setOf(DownloadStatus.QUEUED, DownloadStatus.DOWNLOADING, DownloadStatus.PAUSED)
+        }.map { it.id }.forEach { key ->
+            runCatching { part(key).delete() }
+            repository.setDownloadStatus(key, DownloadStatus.FAILED)
+        }
     }
 
     fun updateExtensions(value: List<InstalledExtension>) { extensions = value }
