@@ -141,6 +141,7 @@ fun GameScreen(
                 showCoordinates = ui.settings.showCoordinates,
                 interactionsEnabled = !ui.reviewing && !ui.gameOver && !ui.thinking && ui.game.turn == ui.playerSide,
                 hapticsEnabled = ui.settings.haptics,
+                moveAnimationSpeed = ui.settings.moveAnimationSpeed,
             )
 
             PlayerBar(
