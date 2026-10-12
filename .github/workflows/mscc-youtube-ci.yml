@@ -11,6 +11,7 @@ on:
       - 'mscc/youtube-video.js'
       - 'mscc/youtube-dlp.js'
       - 'mscc/youtube-dlp-selftest.js'
+      - 'mscc/youtube-client-fallback-selftest.js'
       - 'mscc/youtube-resolution-selftest.js'
       - 'mscc/youtube-flow.js'
       - 'mscc/youtube-video-selftest.js'
@@ -29,6 +30,7 @@ on:
       - 'mscc/youtube-flow.js'
       - 'mscc/youtube-dlp.js'
       - 'mscc/youtube-dlp-selftest.js'
+      - 'mscc/youtube-client-fallback-selftest.js'
       - 'mscc/youtube-resolution-selftest.js'
       - 'mscc/install-azure.sh'
       - 'mscc/tools/azure-youtube-diagnostics.mjs'
@@ -58,6 +60,7 @@ jobs:
           node --check commands/media/youtube.js
           node youtube-video-selftest.js
           node youtube-dlp-selftest.js
+          node youtube-client-fallback-selftest.js
           node youtube-resolution-selftest.js
           node --check tools/azure-youtube-diagnostics.mjs
           node tools/azure-youtube-diagnostics-selftest.mjs
