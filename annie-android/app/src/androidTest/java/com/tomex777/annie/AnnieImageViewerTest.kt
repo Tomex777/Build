@@ -5,6 +5,7 @@ import androidx.activity.ComponentActivity
 import androidx.compose.material3.Text
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -54,6 +55,10 @@ class AnnieImageViewerTest {
             }
             assertTrue("Image viewer must use the device width, not dialog width: $actual/$expected",
                 actual >= expected * 0.9f)
+            compose.waitUntil(10_000) {
+                compose.onAllNodesWithText("Loading image…").fetchSemanticsNodes().isEmpty()
+            }
+            compose.onNodeWithTag("script_image_fullscreen").assertIsDisplayed()
             saveEmulatorScreenshot("annie-image-fullscreen-activity")
         } finally {
             viewer?.finish()
