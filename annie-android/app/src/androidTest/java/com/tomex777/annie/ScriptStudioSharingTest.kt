@@ -26,7 +26,7 @@ class ScriptStudioSharingTest {
             assertEquals("<p>Fresh disk</p>", snapshot)
             val intent = studioExportIntent("pages/index.html")
             assertEquals(Intent.ACTION_CREATE_DOCUMENT, intent.action)
-            assertTrue(Intent.CATEGORY_OPENABLE in intent.categories)
+            assertTrue(intent.hasCategory(Intent.CATEGORY_OPENABLE))
             assertEquals("text/html", intent.type)
             assertEquals("index.html", intent.getStringExtra(Intent.EXTRA_TITLE))
             assertEquals("application/json", studioExportIntent("data.json").type)
