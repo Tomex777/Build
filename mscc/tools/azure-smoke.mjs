@@ -1,4 +1,5 @@
 import { pathToFileURL } from 'node:url'
+import { realpathSync } from 'node:fs'
 
 function assert(condition, message) {
   if (!condition) throw new Error(message)
@@ -65,7 +66,11 @@ export async function checkAzureLoopback({
   }
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+// Node resolves module import URLs through /opt/mscc/current (a symlink) to
+// the real release directory, but argv[1] still contains the symlink path.
+// Compare canonical paths: otherwise the post-deploy smoke probe silently
+// exits 0 without checking the account-control endpoint.
+if (process.argv[1] && import.meta.url === pathToFileURL(realpathSync(process.argv[1])).href) {
   checkAzureLoopback({
     panelPort: Number(process.env.MSCC_PANEL_PORT || 8787),
     localPort: Number(process.env.MSCC_LOCAL_CONTROL_PORT || 8788),
