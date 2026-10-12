@@ -153,8 +153,8 @@ shot 04-offline-local-playback
 # Remove through the real overflow action; this avoids confusing the Downloaded source label
 # with the Downloaded secondary action.
 tap_text 'Track options'
-wait_node 'Remove download' 15
-tap_text 'Remove download'
+wait_node 'Remove offline download' 15
+tap_text 'Remove offline download'
 wait_node Download 20
 sleep 2
 adb shell 'find /sdcard/Android/data/com.night.sora/files/Music/downloads -type f -size +0c 2>/dev/null' > "$OUT/files-after-delete.txt" || true
