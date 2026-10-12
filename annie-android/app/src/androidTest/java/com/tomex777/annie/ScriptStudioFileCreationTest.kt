@@ -8,6 +8,7 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextClearance
 import androidx.compose.ui.test.performTextInput
+import androidx.test.espresso.Espresso.pressBack
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import java.io.File
@@ -87,12 +88,19 @@ class ScriptStudioFileCreationTest {
             compose.onNodeWithText("$name · ${file.name}").assertExists()
             compose.onNodeWithTag("Close Script Studio").performClick()
             assertFalse("Failed save must keep Studio open", closed)
+            pressBack()
+            compose.waitForIdle()
+            assertFalse("System Back must preserve a draft after failed save", closed)
+            compose.onNodeWithText("Could not save previous file:", substring = true).assertExists()
             // Recover storage, then navigation must write the retained draft.
             assertTrue(file.delete())
             file.writeText("const value = 'needle';")
             compose.onNodeWithText(other.name, substring = false).performClick()
             compose.waitUntil(8_000) { file.isFile && file.readText().contains("retained") }
             assertTrue(file.readText().contains("retained"))
+            pressBack()
+            compose.waitForIdle()
+            assertTrue("System Back may close after the draft is saved", closed)
         } finally {
             compose.runOnIdle { shown.value = false }
             compose.waitForIdle()
