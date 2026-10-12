@@ -37,6 +37,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
 import com.night.sora.model.ExtensionMediaSelection
+import com.night.sora.model.DownloadEntry
+import com.night.sora.model.DownloadStatus
 import com.night.sora.playback.MusicPlaybackController
 import com.night.sora.playback.MusicRepeatMode
 import com.night.sora.ui.theme.*
@@ -50,12 +52,15 @@ fun NowPlayingScreen(
     player: MusicPlaybackController,
     isSaved: (ExtensionMediaSelection) -> Boolean,
     onToggleSaved: (ExtensionMediaSelection) -> Unit,
+    downloadEntry: (ExtensionMediaSelection) -> DownloadEntry?,
+    downloadAllowed: (ExtensionMediaSelection) -> Boolean,
+    onDownload: (ExtensionMediaSelection) -> Unit,
+    onRemoveDownload: (ExtensionMediaSelection) -> Unit,
     onBack: () -> Unit,
 ) {
     val track = player.currentTrack
     var queueOpen by remember { mutableStateOf(false) }
     var optionsOpen by remember { mutableStateOf(false) }
-    var downloadNoticeOpen by remember { mutableStateOf(false) }
     val lyricsRequester = remember { BringIntoViewRequester() }
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
@@ -78,6 +83,11 @@ fun NowPlayingScreen(
     } else 0f
     val sessionPlayer = remember(player) { player.sessionPlayer() }
     val saved = isSaved(track)
+    val download = downloadEntry(track)
+    val downloaded = download?.status == DownloadStatus.COMPLETED && !download.filePath.isNullOrBlank()
+    val downloadBusy = download?.status == DownloadStatus.DOWNLOADING || download?.status == DownloadStatus.QUEUED
+    val sourceAllowsDownload = downloaded || downloadAllowed(track)
+    val downloadAction: () -> Unit = { if (downloaded) onRemoveDownload(track) else onDownload(track) }
 
     Column(
         Modifier.fillMaxSize().background(SoraBg).statusBarsPadding().navigationBarsPadding()
@@ -105,6 +115,18 @@ fun NowPlayingScreen(
                                 }, "Share track"))
                             }
                         },
+                    )
+                    DropdownMenuItem(
+                        text = { Text(when {
+                            downloaded -> "Remove offline download"
+                            !sourceAllowsDownload -> "Switch Music source to download"
+                            downloadBusy -> "Downloading"
+                            download?.status == DownloadStatus.FAILED -> "Retry download"
+                            else -> "Download"
+                        }) },
+                        leadingIcon = { Icon(if (downloaded) Icons.Rounded.DeleteOutline else Icons.Rounded.Download, null) },
+                        enabled = !downloadBusy && sourceAllowsDownload,
+                        onClick = { optionsOpen = false; downloadAction() },
                     )
                     DropdownMenuItem(
                         text = { Text(if (saved) "Remove from Library" else "Add to Library") },
@@ -217,7 +239,18 @@ fun NowPlayingScreen(
                 scope.launch { lyricsRequester.bringIntoView() }
             })
             PlayerSecondary(Icons.Rounded.QueueMusic, "Queue", onClick = { queueOpen = true })
-            PlayerSecondary(Icons.Rounded.Download, "Download", onClick = { downloadNoticeOpen = true })
+            PlayerSecondary(
+                if (downloaded) Icons.Rounded.OfflinePin else Icons.Rounded.Download,
+                when {
+                    downloaded -> "Downloaded"
+                    !sourceAllowsDownload -> "Switch source"
+                    downloadBusy -> "Downloading"
+                    download?.status == DownloadStatus.FAILED -> "Retry"
+                    else -> "Download"
+                },
+                enabled = !downloadBusy && sourceAllowsDownload,
+                onClick = downloadAction,
+            )
         }
 
         Spacer(Modifier.height(22.dp))
@@ -257,29 +290,6 @@ fun NowPlayingScreen(
             }
             Text("Output", color = SoraMuted, fontSize = 10.sp)
         }
-    }
-
-    if (downloadNoticeOpen) {
-        AlertDialog(
-            onDismissRequest = { downloadNoticeOpen = false },
-            title = { Text("Offline download") },
-            text = {
-                Text("This track is streamed by its source. Sora cannot download a local audio file from this source. Saving the track to your Library keeps a shortcut, not the audio.")
-            },
-            confirmButton = {
-                TextButton(onClick = { downloadNoticeOpen = false }) {
-                    Text("OK")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = {
-                    downloadNoticeOpen = false
-                    if (!saved) onToggleSaved(track)
-                }) {
-                    Text(if (saved) "Already saved" else "Save to Library")
-                }
-            },
-        )
     }
 
     if (queueOpen) {
@@ -421,11 +431,12 @@ private fun MusicSeekBar(
 private fun PlayerSecondary(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     label: String,
+    enabled: Boolean = true,
     onClick: () -> Unit = {},
 ) {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier.clickable(onClick = onClick).padding(horizontal = 10.dp, vertical = 6.dp),
+        modifier = Modifier.clickable(enabled = enabled, onClick = onClick).padding(horizontal = 10.dp, vertical = 6.dp),
     ) {
         Icon(icon, null, tint = SoraMuted)
         Text(label, color = SoraMuted, fontSize = 9.sp, modifier = Modifier.padding(top = 4.dp))
