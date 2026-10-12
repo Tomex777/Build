@@ -255,7 +255,7 @@ class ServerPanelViewModel(application: Application) : AndroidViewModel(applicat
      * Never disable controls, clear old data or display loading toasts for
      * ordinary synchronization.
      */
-    fun onTabSelected(tab: ServerTab) {
+    internal fun onTabSelected(tab: ServerTab) {
         if (activeTab == tab) return
         activeTab = tab
         if (!_state.value.configured || !_state.value.agentReachable || _state.value.loading) return
