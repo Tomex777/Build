@@ -6,6 +6,33 @@ const BASE = 'https://www.youtube.com/watch?v='
 const DEFAULT_BINARY = '/opt/mscc/tools/yt-dlp/bin/yt-dlp'
 const BASE_ARGS = ['--ignore-config', '--no-playlist', '--no-warnings', '--js-runtimes', 'node']
 const ID_RE = /^[A-Za-z0-9_-]{11}$/
+const TOR_PROXY = 'socks5://127.0.0.1:9050'
+
+// This is an intentionally narrow media-only fallback. Neither WhatsApp nor
+// Cortex traffic is proxied. Operators can opt out without changing code.
+function torFallbackEnabled() {
+  return process.env.MSCC_YOUTUBE_TOR_FALLBACK !== '0'
+}
+
+function argsForTransport(args, transport) {
+  return transport === 'tor' ? ['--proxy', TOR_PROXY, ...args] : args
+}
+
+async function runYouTubeExtractor(args, opts = {}, { preferTor = false } = {}) {
+  if (preferTor && torFallbackEnabled()) {
+    return { output:await runDlp(argsForTransport(args, 'tor'), opts), transport:'tor' }
+  }
+  try {
+    return { output:await runDlp(args, opts), transport:'direct' }
+  } catch (error) {
+    if (!torFallbackEnabled() || !isYouTubeAccessChallenge(error)) throw error
+    // The previous production probe established that Azure's local Tor service
+    // can resolve the same video. Retry only a YouTube bot challenge, not all
+    // errors (bad IDs, private videos, file limits, or network issues).
+    return { output:await runDlp(argsForTransport(args, 'tor'), opts), transport:'tor' }
+  }
+}
+
 
 export function isYouTubeAccessChallenge(error) {
   const message = String(error?.message || error || '')
@@ -111,7 +138,9 @@ export function directFormatsFromDlp(info = {}) {
 
 export async function resolveYouTubeWithDlp(videoId) {
   if (!ID_RE.test(String(videoId || ''))) throw new Error('Invalid YouTube video ID.')
-  const output = await runDlp(['--dump-single-json', '--skip-download', BASE + videoId])
+  const { output, transport } = await runYouTubeExtractor([
+    '--dump-single-json', '--skip-download', BASE + videoId,
+  ])
   let data
   try { data = JSON.parse(output) }
   catch { throw new Error('YouTube extractor returned invalid video information.') }
@@ -132,20 +161,24 @@ export async function resolveYouTubeWithDlp(videoId) {
       thumbnail:`https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`,
       url:BASE + videoId,
     },
-    formats:directFormatsFromDlp(data),
+    // Signed CDN URLs resolved using Tor must also be consumed using Tor.
+    // Keep these on yt-dlp so we never accidentally fetch them directly.
+    formats:transport === 'tor' ? [] : directFormatsFromDlp(data),
+    transport,
     candidates:heights.map(height => ({
-      quality:String(height), height, kind:'yt-dlp', container:'mp4', source:'yt-dlp', video:null, audio:null,
+      quality:String(height), height, kind:'yt-dlp', container:'mp4', source:'yt-dlp',
+      transport, video:null, audio:null,
     })),
   }
 }
 
-export async function downloadYouTubeWithDlp(videoId, height, outputDir, maxBytes) {
+export async function downloadYouTubeWithDlp(videoId, height, outputDir, maxBytes, transport = 'direct') {
   if (!ID_RE.test(String(videoId || ''))) throw new Error('Invalid YouTube video ID.')
   const h = Number(height)
   if (!Number.isInteger(h) || h < 144 || h > 4320) throw new Error('Invalid YouTube quality.')
   const max = Math.max(1, Math.floor(Number(maxBytes) || 0))
   const template = resolve(outputDir, 'video.%(ext)s')
-  const text = await runDlp([
+  const { output:text } = await runYouTubeExtractor([
     '--no-part',
     '--max-filesize', String(max),
     '--socket-timeout', '30',
@@ -156,7 +189,9 @@ export async function downloadYouTubeWithDlp(videoId, height, outputDir, maxByte
     '-o', template,
     '--print', 'after_move:filepath',
     BASE + videoId,
-  ], { timeoutMs:15 * 60 * 1000, maxOutput:16384 })
+  ], { timeoutMs:15 * 60 * 1000, maxOutput:16384 }, {
+    preferTor:transport === 'tor',
+  })
   const chosen = text.trim().split(/\r?\n/).filter(Boolean).at(-1) || ''
   const file = resolve(chosen)
   const folder = resolve(outputDir) + sep

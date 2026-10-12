@@ -36,8 +36,11 @@ function rememberResolvedVideo(id, resolved) {
 }
 
 function promoteExtractorFormats(info) {
+  // A stream signed from a Tor exit must not be fetched directly from Azure.
+  // Prefer yt-dlp to carry both the manifest and the bytes over Tor.
+  if (info.transport === 'tor') return info
   const direct = buildVideoCandidates(info.formats).map(candidate => ({
-    ...candidate, source:'yt-dlp',
+    ...candidate, source:'yt-dlp', transport:'direct',
   }))
   return {
     ...info,
@@ -332,16 +335,26 @@ export async function resolveYouTubeVideo(videoId, { refresh = false } = {}) {
     if (cached) cachedResolutions.delete(id)
   }
   const watchUrl = WATCH + encodeURIComponent(id)
-  const { text:watchHtml } = await fetchText(watchUrl, {
-    headers:{
-      accept:'text/html,application/xhtml+xml',
-      'accept-language':'en-US,en;q=0.9',
-    },
-    timeoutMs:20000,
-  })
+  let watchHtml = ''
+  try {
+    const page = await fetchText(watchUrl, {
+      headers:{
+        accept:'text/html,application/xhtml+xml',
+        'accept-language':'en-US,en;q=0.9',
+      },
+      timeoutMs:20000,
+    })
+    watchHtml = page.text
+  } catch {
+    // YouTube can block its HTML page before we can even read the API key.
+    // The yt-dlp fallback will use Tor only on a confirmed access challenge.
+    return rememberResolvedVideo(id, promoteExtractorFormats(await resolveYouTubeWithDlp(id)))
+  }
   const apiKey = innertubeValue(watchHtml, 'INNERTUBE_API_KEY')
   const webVersion = innertubeValue(watchHtml, 'INNERTUBE_CONTEXT_CLIENT_VERSION')
-  if (!apiKey) throw new Error('YouTube Innertube key was not found.')
+  if (!apiKey) {
+    return rememberResolvedVideo(id, promoteExtractorFormats(await resolveYouTubeWithDlp(id)))
+  }
 
   const clients = [
     {
@@ -545,7 +558,8 @@ export async function prepareYouTubeVideo(videoId, {
   try {
     if (extractorCandidate.source === 'yt-dlp' && !extractorCandidate.video) {
       if (typeof onStage === 'function') await onStage(`Downloading ${extractorCandidate.height}p with the YouTube extractor…`)
-      const downloaded = await downloadYouTubeWithDlp(videoId, extractorCandidate.height, dir, MAX_DOWNLOAD_BYTES)
+      const downloaded = await downloadYouTubeWithDlp(
+        videoId, extractorCandidate.height, dir, MAX_DOWNLOAD_BYTES, extractorCandidate.transport)
       return {
         ...resolved,
         candidate:extractorCandidate,
@@ -582,7 +596,7 @@ export async function prepareYouTubeVideo(videoId, {
       if (typeof onStage === 'function') await onStage('Retrying YouTube download…')
       try {
         const downloaded = await downloadYouTubeWithDlp(
-          videoId, extractorCandidate.height, dir, MAX_DOWNLOAD_BYTES)
+          videoId, extractorCandidate.height, dir, MAX_DOWNLOAD_BYTES, extractorCandidate.transport)
         return {
           ...resolved,
           candidate:extractorCandidate,
