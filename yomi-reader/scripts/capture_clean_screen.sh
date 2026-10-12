@@ -12,12 +12,27 @@ activity_postflight="$runtime_dir/$base-activity-postflight.txt"
 assert_yomi_foreground() {
     local phase=$1
     local dump=$2
-    adb shell dumpsys activity activities > "$dump"
-    if ! grep -Eq "mResumedActivity:.*app\\.yomi\\.reader(\\.dev)?/(app\\.yomi\\.reader\\.)?\\.?(MainActivity|ReaderActivity)|topResumedActivity=.*app\\.yomi\\.reader(\\.dev)?/(app\\.yomi\\.reader\\.)?\\.?(MainActivity|ReaderActivity)" "$dump"; then
+    local attempt=0
+    while :; do
+        adb shell dumpsys activity activities > "$dump" 2>&1 || true
+        if grep -Eq "mResumedActivity:.*app\\.yomi\\.reader(\\.dev)?/(app\\.yomi\\.reader\\.)?\\.?(MainActivity|ReaderActivity)|topResumedActivity=.*app\\.yomi\\.reader(\\.dev)?/(app\\.yomi\\.reader\\.)?\\.?(MainActivity|ReaderActivity)" "$dump"; then
+            return 0
+        fi
+
+        # Android 16's software emulator can briefly lose the activity
+        # service (DEAD_OBJECT) under screenshot load. Retry that transient
+        # system failure; a healthy service reporting another foreground
+        # app still fails immediately so a bad screenshot cannot pass.
+        if grep -Fq "Error with service 'activity'" "$dump" && grep -Fq 'DEAD_OBJECT' "$dump" && [ "$attempt" -lt 5 ]; then
+            attempt=$((attempt + 1))
+            sleep 3
+            continue
+        fi
+
         echo "Refusing $output: Yomi is not the resumed app during $phase" >&2
-        grep -E "mResumedActivity|topResumedActivity" "$dump" | tail -n 20 >&2 || true
+        grep -E "mResumedActivity|topResumedActivity|Error with service 'activity'" "$dump" | tail -n 20 >&2 || true
         exit 1
-    fi
+    done
 }
 
 # Use the same tested ANR classifier in both screenshots and CI preflight.
