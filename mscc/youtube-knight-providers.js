@@ -170,6 +170,33 @@ export async function videoHeightFromFile(file) {
   })
 }
 
+// One-shot deployment health check. No media bytes, signed URLs or account
+// data are printed; only an allowlisted public YouTube ID goes to providers.
+export async function probeKnightProviders(videoId, {
+  requestJson=readProviderJson, providers=PROVIDERS,
+} = {}) {
+  if (!ID_RE.test(String(videoId || ''))) throw new Error('Invalid YouTube video ID.')
+  const watchUrl = 'https://www.youtube.com/watch?v=' + videoId
+  const results = []
+  for (const provider of providers) {
+    let result = 'unavailable'
+    try {
+      const requestUrl = new URL(provider.endpoint)
+      for (const [key,value] of Object.entries(provider.params(watchUrl))) {
+        requestUrl.searchParams.set(key,value)
+      }
+      const payload = await requestJson(requestUrl.toString())
+      const candidate = provider.parse(payload)
+      if (candidate?.url) {
+        checkedMediaUrl(candidate.url)
+        result = 'link_resolved'
+      } else result = 'no_media_link'
+    } catch { /* Never log signed URLs or upstream service errors. */ }
+    results.push({provider:provider.name,result})
+  }
+  return results
+}
+
 export async function downloadFromKnightProviders(videoId, outputDir, maxBytes, {
   requestJson=readProviderJson, downloadFile=streamMp4, providers=PROVIDERS,
   inspectHeight=videoHeightFromFile,
