@@ -15,7 +15,7 @@ import { dispatchNamespacedCommand, loadCommands } from './command-registry.js'
 import { AccountRegistry, legacyAccountRecords } from './account-registry.js'
 import { selectCcDestination } from './cc-routing.js'
 import { isPrivateOwnerDm } from './control-context.js'
-import { canStartScheduledReconnect, classifyDisconnect, jidPhoneNumber, reconnectDelay, serializeSessionOperation, sessionStatus } from './session-policy.js'
+import { canStartScheduledReconnect, classifyDisconnect, disconnectOrigin, jidPhoneNumber, reconnectDelay, serializeSessionOperation, sessionStatus } from './session-policy.js'
 import { createAccountSocketOptions } from './account-socket-options.js'
 import { assertSeparateAuthDirectories, useDurableMultiFileAuthState } from './account-auth-state.js'
 import { sessionEventsFromJsonl, sessionSnapshot } from './session-diagnostics.js'
@@ -2839,6 +2839,7 @@ async function startAccount(account) {
       account: account.id,
       displayName: account.displayName,
       reasonCode: code ?? null,
+      origin: disconnectOrigin(update.lastDisconnect?.error),
     })
     if (policy.action === 'repair') {
       account.invalid = true
