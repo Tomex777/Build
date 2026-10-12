@@ -30,7 +30,7 @@ class ScriptWebPreviewTest {
         val files = mapOf("index.html" to "<script src='first.js'></script><script src='second.js'></script>", "first.js" to "window.value=1;", "second.js" to "window.value++; // </SCRIPT>")
         val bundled = ScriptWebPreview.bundle(files, "index.html")
         assertTrue(bundled.indexOf("window.value=1") < bundled.indexOf("window.value++"))
-        assertTrue(bundled.contains("<\\/script>"))
+        assertTrue(bundled.contains("<\\/SCRIPT>"))
         try {
             ScriptWebPreview.bundle(files + ("index.html" to "<script type='module' src='first.js'></script>"), "index.html")
             fail("Modules must not silently break")

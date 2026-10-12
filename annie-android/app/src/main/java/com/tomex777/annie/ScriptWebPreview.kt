@@ -40,8 +40,8 @@ internal object ScriptWebPreview {
             require(path.endsWith(if (script) ".js" else ".css", true)) { "Unsupported preview dependency: $path" }
             val source = files[path] ?: error("Preview dependency is missing: $path")
             require(source.toByteArray(Charsets.UTF_8).size <= MAX_MESSAGE_BYTES) { "Preview dependency is too large: $path" }
-            val replacement = if (script) "<script>" + source.replace(Regex("</script", RegexOption.IGNORE_CASE)) { "<\\/script" } + "</script>"
-            else "<style>" + source.replace(Regex("</style", RegexOption.IGNORE_CASE)) { "<\\/style" } + "</style>"
+            val replacement = if (script) "<script>" + source.replace(Regex("</script", RegexOption.IGNORE_CASE)) { "<\\/" + it.value.substring(2) } + "</script>"
+            else "<style>" + source.replace(Regex("</style", RegexOption.IGNORE_CASE)) { "<\\/" + it.value.substring(2) } + "</style>"
             bytes += replacement.toByteArray(Charsets.UTF_8).size - tag.toByteArray(Charsets.UTF_8).size
             require(bytes <= MAX_MESSAGE_BYTES) { "Combined project is too large for offline preview" }
             if (script && Regex("""\sdefer(?:\s|>|/)""", RegexOption.IGNORE_CASE).containsMatchIn(opening)) {
