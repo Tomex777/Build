@@ -6,6 +6,16 @@ const BASE = 'https://www.youtube.com/watch?v='
 const DEFAULT_BINARY = '/opt/mscc/tools/yt-dlp/bin/yt-dlp'
 const BASE_ARGS = ['--ignore-config', '--no-playlist', '--no-warnings', '--js-runtimes', 'node']
 const ID_RE = /^[A-Za-z0-9_-]{11}$/
+const YOUTUBE_CLIENT_PROFILES = ['default', 'tv,web_safari', 'web_embedded']
+
+function clientArgs(profile) {
+  return profile === 'default' ? [] :
+    ['--extractor-args', 'youtube:player_client=' + profile]
+}
+
+function orderedProfiles(preferred = 'default') {
+  return [...new Set([preferred, ...YOUTUBE_CLIENT_PROFILES])]
+}
 
 export function isYouTubeAccessChallenge(error) {
   const message = String(error?.message || error || '')
@@ -111,10 +121,25 @@ export function directFormatsFromDlp(info = {}) {
 
 export async function resolveYouTubeWithDlp(videoId) {
   if (!ID_RE.test(String(videoId || ''))) throw new Error('Invalid YouTube video ID.')
-  const output = await runDlp(['--dump-single-json', '--skip-download', BASE + videoId])
   let data
-  try { data = JSON.parse(output) }
-  catch { throw new Error('YouTube extractor returned invalid video information.') }
+  let chosenProfile = 'default'
+  let lastError
+  for (const profile of orderedProfiles()) {
+    try {
+      const output = await runDlp([
+        ...clientArgs(profile),
+        '--dump-single-json', '--skip-download', BASE + videoId,
+      ], { timeoutMs:35000 })
+      data = JSON.parse(output)
+      chosenProfile = profile
+      break
+    } catch (error) {
+      lastError = error
+      if (!isYouTubeAccessChallenge(error) && !(error instanceof SyntaxError) &&
+          !/No downloadable video formats/i.test(String(error?.message || ''))) throw error
+    }
+  }
+  if (!data) throw lastError || new Error('YouTube extractor returned invalid video information.')
 
   const heights = [...new Set((Array.isArray(data.formats) ? data.formats : [])
     .filter(row => row?.vcodec && row.vcodec !== 'none')
@@ -134,29 +159,42 @@ export async function resolveYouTubeWithDlp(videoId) {
     },
     formats:directFormatsFromDlp(data),
     candidates:heights.map(height => ({
-      quality:String(height), height, kind:'yt-dlp', container:'mp4', source:'yt-dlp', video:null, audio:null,
+      quality:String(height), height, kind:'yt-dlp', container:'mp4', source:'yt-dlp',
+      extractorProfile:chosenProfile, video:null, audio:null,
     })),
   }
 }
 
-export async function downloadYouTubeWithDlp(videoId, height, outputDir, maxBytes) {
+export async function downloadYouTubeWithDlp(videoId, height, outputDir, maxBytes, preferredProfile = 'default') {
   if (!ID_RE.test(String(videoId || ''))) throw new Error('Invalid YouTube video ID.')
   const h = Number(height)
   if (!Number.isInteger(h) || h < 144 || h > 4320) throw new Error('Invalid YouTube quality.')
   const max = Math.max(1, Math.floor(Number(maxBytes) || 0))
   const template = resolve(outputDir, 'video.%(ext)s')
-  const text = await runDlp([
-    '--no-part',
-    '--max-filesize', String(max),
-    '--socket-timeout', '30',
-    '--retries', '2',
-    '--fragment-retries', '2',
-    '-f', `bv*[height<=${h}]+ba/b[height<=${h}]`,
-    '--merge-output-format', 'mp4',
-    '-o', template,
-    '--print', 'after_move:filepath',
-    BASE + videoId,
-  ], { timeoutMs:15 * 60 * 1000, maxOutput:16384 })
+  let text
+  let lastError
+  for (const profile of orderedProfiles(preferredProfile)) {
+    try {
+      text = await runDlp([
+        ...clientArgs(profile),
+        '--no-part',
+        '--max-filesize', String(max),
+        '--socket-timeout', '30',
+        '--retries', '2',
+        '--fragment-retries', '2',
+        '-f', `bv*[height<=${h}]+ba/b[height<=${h}]`,
+        '--merge-output-format', 'mp4',
+        '-o', template,
+        '--print', 'after_move:filepath',
+        BASE + videoId,
+      ], { timeoutMs:15 * 60 * 1000, maxOutput:16384 })
+      break
+    } catch (error) {
+      lastError = error
+      if (!isYouTubeAccessChallenge(error)) throw error
+    }
+  }
+  if (text === undefined) throw lastError || new Error('All YouTube playback clients were rejected.')
   const chosen = text.trim().split(/\r?\n/).filter(Boolean).at(-1) || ''
   const file = resolve(chosen)
   const folder = resolve(outputDir) + sep
