@@ -32,6 +32,19 @@ class YomiCiFixtureActivity : Activity() {
                 YomiCiDocumentsProvider.ROOT_ID,
             )
             Triple(uri, "folder", "Yomi CI Folder")
+        } else if (kind == KIND_ANIMATED_GIF) {
+            val archive = File(cacheDir, "yomi-ci-animated-gif.cbz")
+            if (!archive.exists() || intent.getBooleanExtra(EXTRA_RESET, false)) {
+                archive.parentFile?.mkdirs()
+                ZipOutputStream(archive.outputStream().buffered()).use { zip ->
+                    // Keep the archive member extensionless to verify both
+                    // signature-based animated classification and Coil GIF decode.
+                    zip.putNextEntry(ZipEntry("Chapter 1/1"))
+                    assets.open("animated-reader-test.gif").use { it.copyTo(zip) }
+                    zip.closeEntry()
+                }
+            }
+            Triple(Uri.fromFile(archive), "archive", "Yomi CI Animated GIF")
         } else if (kind == KIND_EXTENSIONLESS) {
             // Test actual Android decoding of a PNG whose ZIP member has no
             // suffix. Mihon detects images from their content signatures.
@@ -62,7 +75,11 @@ class YomiCiFixtureActivity : Activity() {
             uri = target.first,
             title = target.third,
             locationType = if (kind == KIND_FOLDER) LibraryLocationType.TREE else LibraryLocationType.DOCUMENT,
-            pageCount = if (kind == KIND_FOLDER) 4 else ARCHIVE_PAGE_COUNT,
+            pageCount = when (kind) {
+                KIND_FOLDER -> 4
+                KIND_ANIMATED_GIF -> 1
+                else -> ARCHIVE_PAGE_COUNT
+            },
         )
 
         val readerIntent = ReaderActivity.newIntent(this, target.first.toString(), target.second, target.third)
@@ -142,5 +159,6 @@ class YomiCiFixtureActivity : Activity() {
         const val KIND_FOLDER = "folder"
         const val KIND_IMPORTED = "imported"
         const val KIND_EXTENSIONLESS = "extensionless"
+        const val KIND_ANIMATED_GIF = "animated-gif"
     }
 }

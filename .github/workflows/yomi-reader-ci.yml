@@ -425,6 +425,17 @@ jobs:
             i=0; until adb logcat -d -v brief YomiReader:I '*:S' | grep -Fq 'page-image-ready name=1'; do i=$((i + 1)); [ "$i" -lt 60 ] || { echo 'Extensionless CBZ page did not decode' >&2; adb logcat -d -v threadtime > yomi-output/runtime-api26/extensionless-decode-failure-logcat.txt || true; exit 1; }; sleep 2; done
             bash yomi-reader/scripts/capture_clean_screen.sh yomi-output/runtime-api26/yomi-extensionless-reader.png
 
+            # Verify an extensionless animated GIF is decoded and actually animates on API 26.
+            adb logcat -c
+            adb shell am force-stop app.yomi.reader.dev
+            adb shell am start -n app.yomi.reader.dev/app.yomi.reader.YomiCiFixtureActivity --es kind animated-gif --es mode LTR_PAGED --ez reset true
+            i=0; until adb logcat -d -v brief YomiReader:I '*:S' | grep -Fq 'reader-first-draw title=Yomi CI Animated GIF mode=LTR_PAGED'; do i=$((i + 1)); [ "$i" -lt 60 ] || { echo 'Animated GIF reader did not draw' >&2; exit 1; }; sleep 2; done
+            i=0; until adb logcat -d -v brief YomiReader:I '*:S' | grep -Fq 'page-image-ready name=1'; do i=$((i + 1)); [ "$i" -lt 60 ] || { echo 'Extensionless GIF did not decode' >&2; adb logcat -d -v threadtime > yomi-output/runtime-api26/gif-decode-failure-logcat.txt; exit 1; }; sleep 2; done
+            bash yomi-reader/scripts/capture_clean_screen.sh yomi-output/runtime-api26/gif-frame-1.png
+            sleep 0.55
+            bash yomi-reader/scripts/capture_clean_screen.sh yomi-output/runtime-api26/gif-frame-2.png
+            python3 yomi-reader/scripts/assert_gif_animation.py yomi-output/runtime-api26/gif-frame-1.png yomi-output/runtime-api26/gif-frame-2.png
+
             # Prove the same universal production-like CI candidate installs at minSdk.
             i=0; until adb logcat -c; do i=$((i + 1)); [ "$i" -lt 6 ] || { echo 'Logcat clear failed before candidate APK check' >&2; exit 1; }; sleep 2; done
             adb install --no-streaming -r yomi-output/Yomi-ci-candidate-universal.apk

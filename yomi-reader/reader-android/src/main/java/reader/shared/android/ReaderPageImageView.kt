@@ -4,9 +4,9 @@ import android.content.Context
 import android.graphics.PointF
 import android.graphics.RectF
 import android.graphics.drawable.Animatable
+import android.util.AttributeSet
 import android.view.GestureDetector
 import android.view.MotionEvent
-import android.util.AttributeSet
 import android.view.ViewGroup.LayoutParams.MATCH_PARENT
 import android.widget.FrameLayout
 import androidx.appcompat.widget.AppCompatImageView
@@ -26,6 +26,7 @@ import okio.buffer
 import okio.source
 import reader.shared.android.coil.ReaderImageLoader
 import reader.shared.android.webtoon.WebtoonSubsamplingImageView
+import java.io.BufferedInputStream
 import java.io.InputStream
 
 open class ReaderPageImageView @JvmOverloads constructor(
@@ -52,10 +53,14 @@ open class ReaderPageImageView @JvmOverloads constructor(
         recycle()
         selectedDirection = pendingDirection
         this.config = config
-        currentStream = stream
+        // Some supported archives contain extensionless images. Mihon detects
+        // animation from the bytes, so keep that behavior instead of relying
+        // only on the filename metadata supplied by the local catalog.
+        val imageStream = if (stream.markSupported()) stream else BufferedInputStream(stream)
+        currentStream = imageStream
 
-        if (isAnimated) {
-            setAnimatedImage(stream, config)
+        if (isAnimated || imageStream.hasGifSignature()) {
+            setAnimatedImage(imageStream, config)
             return
         }
 
@@ -108,7 +113,7 @@ open class ReaderPageImageView @JvmOverloads constructor(
 
         imageView = view
         addView(view, MATCH_PARENT, MATCH_PARENT)
-        view.setImage(ImageSource.inputStream(stream))
+        view.setImage(ImageSource.inputStream(imageStream))
         view.isVisible = true
     }
 
@@ -254,3 +259,21 @@ open class ReaderPageImageView @JvmOverloads constructor(
 }
 
 private const val MAX_ZOOM_SCALE = 5f
+
+private fun InputStream.hasGifSignature(): Boolean {
+    mark(GIF_SIGNATURE_LENGTH)
+    val signature = ByteArray(GIF_SIGNATURE_LENGTH)
+    var count = 0
+    while (count < signature.size) {
+        val read = read(signature, count, signature.size - count)
+        if (read <= 0) break
+        count += read
+    }
+    reset()
+    return count == signature.size &&
+        (signature.contentEquals(GIF87_SIGNATURE) || signature.contentEquals(GIF89_SIGNATURE))
+}
+
+private const val GIF_SIGNATURE_LENGTH = 6
+private val GIF87_SIGNATURE = "GIF87a".encodeToByteArray()
+private val GIF89_SIGNATURE = "GIF89a".encodeToByteArray()
