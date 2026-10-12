@@ -31,6 +31,10 @@ export function summarizeMainDiagnostics(payload, observedAt = new Date().toISOS
       if (['intentional-logout', 'stream-error', 'server-failure', 'connection-replaced', 'transport-close', 'other'].includes(origin)) {
         row.origin = origin
       }
+      const protocolDetail = event.detail?.protocolDetail
+      if (['device-removed', 'connection-replaced', 'other-conflict', 'not-authorized', 'bad-session', 'policy-violation', 'unclassified'].includes(protocolDetail)) {
+        row.protocolDetail = protocolDetail
+      }
     }
     if (row.at) recentEvents.push(row)
   }
