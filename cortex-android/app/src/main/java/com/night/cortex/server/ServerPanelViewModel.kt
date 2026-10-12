@@ -286,6 +286,7 @@ class ServerPanelViewModel(application: Application) : AndroidViewModel(applicat
         val backups: List<BackupEntry>? = null,
         val commandSettings: List<CommandSetting>? = null,
         val registry: RuntimeRegistry? = null,
+        val pairing: PairingState? = null,
     )
 
     private suspend fun silentRefresh(tab: ServerTab, includeSnapshot: Boolean) {
@@ -308,9 +309,9 @@ class ServerPanelViewModel(application: Application) : AndroidViewModel(applicat
                         registry = runCatching { client.runtimeRegistry() }.getOrNull(),
                     )
                     ServerTab.ACTIVITY -> SilentUpdate(activity = client.activity())
-                    // An independent account loop already monitors this tab,
-                    // including MSCC-only outages without marking Agent down.
-                    ServerTab.PAIRING -> SilentUpdate()
+                    // Refresh immediately on entry; the existing account loop
+                    // then keeps the registry current every 30 seconds.
+                    ServerTab.PAIRING -> SilentUpdate(pairing = client.pairingState())
                 }
             }
             snapshot to detail
@@ -334,17 +335,23 @@ class ServerPanelViewModel(application: Application) : AndroidViewModel(applicat
                     backups = usable?.backups ?: old.backups,
                     commandSettings = usable?.commandSettings ?: old.commandSettings,
                     runtimeRegistry = usable?.registry ?: old.runtimeRegistry,
+                    pairing = usable?.pairing ?: old.pairing,
+                    pairingFresh = if (usable?.pairing != null) true else old.pairingFresh,
                     agentReachable = true,
                     reconnecting = false,
                     lastSuccessfulSyncAt = System.currentTimeMillis(),
                 )
             }
             cacheDashboard()
+            detail?.pairing?.let(::resumePairingMonitorIfNeeded)
         }
         val failure = snapshotResult?.exceptionOrNull() ?: tabResult.exceptionOrNull()
         when {
             failure is CortexHttpException && failure.statusCode in setOf(401, 403) -> {
                 _state.update { it.copy(authFailed = true, reconnecting = false) }
+            }
+            failure is CortexHttpException && failure.statusCode == 503 && tab == ServerTab.PAIRING -> {
+                _state.update { it.copy(pairingFresh = false) }
             }
             failure is CortexTransportException && snapshot == null -> {
                 // Keep last-known state and let the existing capped backoff
