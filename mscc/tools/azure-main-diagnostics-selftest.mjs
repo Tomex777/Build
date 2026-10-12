@@ -9,7 +9,7 @@ const report = summarizeMainDiagnostics({
     pairingCode: 'SECRET-CODE', pairingQr: 'SECRET-QR',
   },
   events: [
-    { at: '2026-10-12T12:25:17.077Z', action: 'account.disconnected', detail: { reasonCode: 401, account: 'A', number: '2348012345678' } },
+    { at: '2026-10-12T12:25:17.077Z', action: 'account.disconnected', detail: { reasonCode: 401, origin: 'stream-error', account: 'A', number: '2348012345678' } },
     { at: '2026-10-12T12:20:00.000Z', action: 'account.connected', detail: { account: 'A', phone: '2348012345678' } },
     { at: '2026-10-12T12:19:00.000Z', action: 'pairing.requested', detail: { pairingCode: 'SECRET-CODE' } },
   ],
@@ -25,7 +25,7 @@ assert.deepEqual(report, {
   lastDisconnectCode: 401,
   disconnectsByCode: { '401': 1 },
   recentEvents: [
-    { at: '2026-10-12T12:25:17.077Z', action: 'account.disconnected', reasonCode: 401 },
+    { at: '2026-10-12T12:25:17.077Z', action: 'account.disconnected', reasonCode: 401, origin: 'stream-error' },
     { at: '2026-10-12T12:20:00.000Z', action: 'account.connected' },
   ],
 })
