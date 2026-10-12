@@ -72,12 +72,19 @@ export async function useDurableMultiFileAuthState(folder) {
       throw new Error(`WhatsApp authentication file ${safeName(name)} is invalid; preserving it for investigation`)
     }
   }
-  const writeData = (name, data) => withFileQueue(pathFor(name), () => atomicWrite(pathFor(name), data))
-  const removeData = name => withFileQueue(pathFor(name), async () => {
+  const pendingWrites = new Set()
+  const trackWrite = task => {
+    pendingWrites.add(task)
+    task.then(() => pendingWrites.delete(task), () => pendingWrites.delete(task))
+    return task
+  }
+  const writeData = (name, data) =>
+    trackWrite(withFileQueue(pathFor(name), () => atomicWrite(pathFor(name), data)))
+  const removeData = name => trackWrite(withFileQueue(pathFor(name), async () => {
     await unlink(pathFor(name)).catch(error => {
       if (error.code !== 'ENOENT') throw error
     })
-  })
+  }))
 
   const creds = (await readData('creds.json')) || initAuthCreds()
   return {
@@ -109,6 +116,11 @@ export async function useDurableMultiFileAuthState(folder) {
       },
     },
     saveCreds: () => writeData('creds.json', creds),
+    // Wait for Signal-key writes as well as creds.json before replacing this
+    // account's socket, archiving auth, or stopping the runtime.
+    flush: async () => {
+      while (pendingWrites.size) await Promise.all([...pendingWrites])
+    },
   }
 }
 
