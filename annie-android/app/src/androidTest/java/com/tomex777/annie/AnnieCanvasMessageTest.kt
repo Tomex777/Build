@@ -93,6 +93,14 @@ class AnnieCanvasMessageTest {
                 });
                 window.canvasReady = true;
             """.trimIndent())
+        // Exercise the same local HTML/CSS/JS bundler used by Script Studio Preview.
+        val projectFiles = mapOf(
+            "index.html" to "<link rel='stylesheet' href='styles/theme.css'><button id='plus'>Tap</button><output id='count'>0</output><script defer src='scripts/app.js'></script>",
+            "styles/theme.css" to payload.getString("css"),
+            "scripts/app.js" to payload.getString("javascript"),
+        )
+        payload.put("html", ScriptWebPreview.bundle(projectFiles, "index.html"))
+            .put("css", "").put("javascript", "")
         val monitor = instrumentation.addMonitor(AnnieCanvasActivity::class.java.name, null, false)
         var fullscreen: AnnieCanvasActivity? = null
         try {
@@ -108,6 +116,7 @@ class AnnieCanvasMessageTest {
                     ?: error("Canvas WebView not attached")
             }
             compose.waitUntil(12_000) { eval(inlineWebView, "window.canvasReady") == "true" }
+            assertEquals("\"rgb(0, 128, 128)\"", eval(inlineWebView, "getComputedStyle(document.getElementById('plus')).backgroundColor"))
             assertEquals("\"undefined\"", eval(inlineWebView, "typeof window.annie"))
             // WebView.getSettings(), like every WebView API, must run on its owning UI thread.
             instrumentation.runOnMainSync {

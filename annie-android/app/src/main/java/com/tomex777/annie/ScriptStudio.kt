@@ -327,10 +327,11 @@ private fun ScriptStudioContent(
 
     fun selectFile(project: ScriptProject, path: String, openEditor: Boolean = true) {
         if (!saveBeforeNavigation()) return
+        val source = runCatching { workspace.files.readFile(project.id, path) }
+            .getOrElse { status = "Could not open file: " + (it.message ?: "unknown error"); return }
         selectedProjectId = project.id
         selectedPath = path
         currentDirectory = path.substringBeforeLast('/', "")
-        val source = project.files[path].orEmpty()
         editorValue = TextFieldValue(source, selection = TextRange(source.length))
         savedSource = source
         status = ""
@@ -383,18 +384,26 @@ private fun ScriptStudioContent(
         }
         val path = selectedPath ?: return
         val extension = path.substringAfterLast('.', "").lowercase()
-        if (extension !in setOf("html", "css")) {
-            status = "Only self-contained HTML and CSS documents support offline preview"
+        if (extension !in setOf("html", "css", "js")) {
+            status = "Choose HTML, CSS, or a JavaScript file belonging to an HTML project"
             return
         }
         val source = editorValue.text
+        val files = workspace.files.listProjects().firstOrNull { it.id == project.id }?.files.orEmpty() + (path to source)
+        val entry = ScriptWebPreview.entry(files, path)
+        val html = runCatching {
+            if (entry != null) ScriptWebPreview.bundle(files, entry)
+            else {
+                require(extension == "css") { "This JavaScript file has no index.html or main.html to preview" }
+                "<main><h1>CSS preview</h1><p>Style this text or the sample button to see your rules.</p><button>Sample button</button></main>"
+            }
+        }.getOrElse { status = it.message ?: "Couldn't prepare project preview"; return }
         val document = org.json.JSONObject()
             .put("type", "canvas")
             .put("title", "Preview • " + path.substringAfterLast('/'))
             .put("height", 460)
-            .put("html", if (extension == "html") source else
-                "<main><h1>CSS preview</h1><p>Style this text or the sample button to see your rules.</p><button>Sample button</button></main>")
-            .put("css", if (extension == "css") source else "")
+            .put("html", html)
+            .put("css", if (entry == null && extension == "css") source else "")
         // Reuse Canvas's offline WebView sandbox. No device bridge, local file
         // access, network fetches, or browser cookies are exposed to previews.
         if (AnnieCanvasDocument.from(document) == null) {
@@ -598,7 +607,8 @@ private fun ScriptStudioContent(
                 icon = StudioGlyph.RUN,
                 onClick = {
                     when (selectedPath?.substringAfterLast('.', "")?.lowercase()) {
-                        "js" -> saveScript(runAfterSave = true, openPreview = true)
+                        "js" -> if (ScriptWebPreview.entry(selectedProject?.files.orEmpty(), selectedPath.orEmpty()) != null) previewDocument()
+                            else saveScript(runAfterSave = true, openPreview = true)
                         "html", "css" -> previewDocument()
                         else -> status = "Preview supports JavaScript commands and offline HTML/CSS documents."
                     }

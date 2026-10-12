@@ -8,6 +8,9 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextClearance
 import androidx.compose.ui.test.performTextInput
+import androidx.test.espresso.Espresso.onView
+import androidx.test.espresso.matcher.ViewMatchers.isAssignableFrom
+import io.github.rosemoe.sora.widget.CodeEditor
 import androidx.test.espresso.Espresso.closeSoftKeyboard
 import androidx.test.espresso.Espresso.pressBack
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -102,6 +105,16 @@ class ScriptStudioFileCreationTest {
             compose.onNodeWithText(other.name, substring = false).performClick()
             compose.waitUntil(8_000) { file.isFile && file.readText().contains("retained") }
             assertTrue(file.readText().contains("retained"))
+            compose.onNodeWithText("Files", substring = false).performClick()
+            compose.onNodeWithTag("script_file_search").performTextClearance()
+            compose.onNodeWithTag("script_file_search").performTextInput(name)
+            closeSoftKeyboard()
+            compose.onNodeWithText(file.name, substring = false).performClick()
+            onView(isAssignableFrom(CodeEditor::class.java)).check { view, failure ->
+                if (failure != null) throw failure
+                assertTrue("Reopening must retain the latest saved source", (view as CodeEditor).text.toString().contains("retained"))
+            }
+            closeSoftKeyboard()
             pressBack()
             compose.waitForIdle()
             assertTrue("System Back may close after the draft is saved", closed)

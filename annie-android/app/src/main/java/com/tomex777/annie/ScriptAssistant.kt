@@ -56,12 +56,12 @@ internal class AnthropicScriptAssistantProvider(
                 appendLine("Current source:")
                 appendLine(request.currentSource)
                 appendLine()
-                appendLine("Return the complete proposed JavaScript source for this file only.")
+                appendLine("Return the complete proposed source in the language of ${request.fileName}, for this file only.")
             }
             val body = JSONObject()
                 .put("model", model)
                 .put("max_tokens", 6_000)
-                .put("system", ANNIE_SCRIPT_ASSIST_SYSTEM)
+                .put("system", scriptAssistSystemPrompt(request.fileName))
                 .put(
                     "messages",
                     JSONArray().put(
@@ -172,6 +172,15 @@ private fun stripMarkdownFence(value: String): String {
     val firstNewline = trimmed.indexOf('\n')
     if (firstNewline < 0) return trimmed
     return trimmed.substring(firstNewline + 1, trimmed.length - 3).trim()
+}
+
+internal fun scriptAssistSystemPrompt(fileName: String): String {
+    val type = fileName.substringAfterLast('.', "js").lowercase()
+    return when (type) {
+        "html", "css" -> """You are Script Assist inside Annie. Edit only the requested $type file and return its complete source without Markdown fences or explanation. HTML projects use relative local CSS and classic JavaScript files in an offline Canvas sandbox. Network requests and Android bridges are unavailable in that preview. Preserve existing local file references. Do not turn an HTML or CSS file into a QuickJS command."""
+        "py", "lua", "ts" -> """You are Script Assist inside Annie. Return only complete $type source for the requested file, without Markdown fences or explanation. Annie can edit this file type but does not currently execute $type directly. Do not invent runtime bridges or native APIs."""
+        else -> ANNIE_SCRIPT_ASSIST_SYSTEM
+    }
 }
 
 private const val ANNIE_SCRIPT_ASSIST_SYSTEM = """You are Script Assist inside Annie, a native Android commands-first media/script app.
