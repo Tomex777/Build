@@ -6,6 +6,7 @@ import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performTextClearance
 import androidx.compose.ui.test.performTextInput
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
@@ -56,4 +57,50 @@ class ScriptStudioFileCreationTest {
             workspace.files.deleteProject(folder.name)
         }
     }
+    @Test fun failedDiskWriteKeepsDraftAndBlocksFileSwitchAndClose() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val workspace = ScriptWorkspace(context)
+        val name = "savefail" + System.nanoTime().toString().takeLast(8)
+        val file = workspace.files.createScript(name)
+        val otherName = "other" + System.nanoTime().toString().takeLast(8)
+        val other = workspace.files.createScript(otherName)
+        workspace.files.writeFile(name, file.name, "const value = 'needle';")
+        val shown = mutableStateOf(true)
+        var closed = false
+        try {
+            compose.setContent { AnnieTheme {
+                if (shown.value) ScriptStudioSheet(workspace, {}, initialProjectId = name,
+                    onClose = { closed = true })
+            } }
+            compose.onNodeWithTag("script_tab_editor").performClick()
+            // Replace the backing file with a directory to force a real write failure.
+            assertTrue(file.delete())
+            assertTrue(file.mkdir())
+            compose.onNodeWithTag("Find and replace").performClick()
+            compose.onNodeWithTag("script_find_query").performTextInput("needle")
+            compose.onNodeWithTag("script_replace_text").performTextInput("retained")
+            compose.onNodeWithTag("Replace all matches").performClick()
+            compose.onNodeWithTag("script_find_query").performTextClearance()
+            compose.onNodeWithText("Files", substring = false).performClick()
+            compose.onNodeWithText(other.name, substring = false).performClick()
+            compose.onNodeWithText("Could not save previous file:", substring = true).assertExists()
+            compose.onNodeWithText("$name · ${file.name}").assertExists()
+            compose.onNodeWithTag("Close Script Studio").performClick()
+            assertFalse("Failed save must keep Studio open", closed)
+            // Recover storage, then navigation must write the retained draft.
+            assertTrue(file.delete())
+            file.writeText("const value = 'needle';")
+            compose.onNodeWithText(other.name, substring = false).performClick()
+            compose.waitUntil(8_000) { file.isFile && file.readText().contains("retained") }
+            assertTrue(file.readText().contains("retained"))
+        } finally {
+            compose.runOnIdle { shown.value = false }
+            compose.waitForIdle()
+            workspace.close()
+            workspace.files.deleteProject(name)
+            workspace.files.deleteProject(otherName)
+        }
+    }
+
 }
+
