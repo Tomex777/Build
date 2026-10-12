@@ -62,7 +62,7 @@ export async function useDurableMultiFileAuthState(folder) {
     try {
       raw = await readFile(pathFor(name), 'utf8')
     } catch (error) {
-      if (error.code === 'ENOENT') return null
+      if (error.code === 'ENOENT') return undefined
       throw error
     }
     try {
@@ -86,7 +86,12 @@ export async function useDurableMultiFileAuthState(folder) {
     })
   }))
 
-  const creds = (await readData('creds.json')) || initAuthCreds()
+  const savedCreds = await readData('creds.json')
+  if (savedCreds !== undefined && (!savedCreds || typeof savedCreds !== 'object' ||
+      !savedCreds.noiseKey || !savedCreds.signedIdentityKey)) {
+    throw new Error('WhatsApp authentication file creds.json is incomplete; preserving it for investigation')
+  }
+  const creds = savedCreds === undefined ? initAuthCreds() : savedCreds
   return {
     state: {
       creds,
@@ -94,7 +99,7 @@ export async function useDurableMultiFileAuthState(folder) {
         get: async (type, ids) => {
           const found = {}
           await Promise.all(ids.map(async id => {
-            let value = await readData(`${type}-${id}.json`)
+            let value = (await readData(`${type}-${id}.json`)) ?? null
             if (type === 'app-state-sync-key' && value) {
               value = proto.Message.AppStateSyncKeyData.fromObject(value)
             }
