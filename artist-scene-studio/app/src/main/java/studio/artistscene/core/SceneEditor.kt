@@ -14,6 +14,9 @@ data class SceneEditorState(
     val activeTool: TransformTool = TransformTool.MOVE,
     val undoStack: List<SceneProject> = emptyList(),
     val redoStack: List<SceneProject> = emptyList(),
+    // UI-only history: keep the actor in focus when undo/redo crosses creation or deletion.
+    val undoSelections: List<String?> = emptyList(),
+    val redoSelections: List<String?> = emptyList(),
 ) {
     val selectedActor: Actor?
         get() = project.actors.firstOrNull { it.id == selectedActorId }
@@ -144,7 +147,12 @@ data class SceneEditorState(
 
     fun commitRigGesture(before: SceneProject): SceneEditorState {
         if (before == project) return this
-        return copy(undoStack = (undoStack + before).takeLast(HISTORY_LIMIT), redoStack = emptyList())
+        return copy(
+            undoStack = (undoStack + before).takeLast(HISTORY_LIMIT),
+            redoStack = emptyList(),
+            undoSelections = (undoSelections + selectedActorId).takeLast(HISTORY_LIMIT),
+            redoSelections = emptyList(),
+        )
     }
 
     fun cancelRigGesture(before: SceneProject): SceneEditorState = copy(project = before)
@@ -276,6 +284,8 @@ data class SceneEditorState(
         return copy(
             undoStack = (undoStack + before).takeLast(HISTORY_LIMIT),
             redoStack = emptyList(),
+            undoSelections = (undoSelections + selectedActorId).takeLast(HISTORY_LIMIT),
+            redoSelections = emptyList(),
         )
     }
 
@@ -720,22 +730,28 @@ data class SceneEditorState(
     fun undo(): SceneEditorState {
         if (undoStack.isEmpty()) return this
         val previous = undoStack.last()
+        val previousSelection = if (undoSelections.isNotEmpty()) undoSelections.last() else selectedActorId
         return copy(
             project = previous,
-            selectedActorId = selectedActorId.validFor(previous),
+            selectedActorId = previousSelection.validFor(previous),
             undoStack = undoStack.dropLast(1),
             redoStack = (redoStack + project).takeLast(HISTORY_LIMIT),
+            undoSelections = undoSelections.dropLast(1),
+            redoSelections = (redoSelections + selectedActorId).takeLast(HISTORY_LIMIT),
         )
     }
 
     fun redo(): SceneEditorState {
         if (redoStack.isEmpty()) return this
         val next = redoStack.last()
+        val nextSelection = if (redoSelections.isNotEmpty()) redoSelections.last() else selectedActorId
         return copy(
             project = next,
-            selectedActorId = selectedActorId.validFor(next),
+            selectedActorId = nextSelection.validFor(next),
             undoStack = (undoStack + project).takeLast(HISTORY_LIMIT),
             redoStack = redoStack.dropLast(1),
+            undoSelections = (undoSelections + selectedActorId).takeLast(HISTORY_LIMIT),
+            redoSelections = redoSelections.dropLast(1),
         )
     }
 
@@ -745,6 +761,8 @@ data class SceneEditorState(
             selectedActorId = if (preserveSelection) selectedActorId.validFor(next) else next.actors.firstOrNull()?.id,
             undoStack = emptyList(),
             redoStack = emptyList(),
+            undoSelections = emptyList(),
+            redoSelections = emptyList(),
         )
 
     private fun updateSelectedTransform(change: (Transform) -> Transform): SceneEditorState {
@@ -771,6 +789,8 @@ data class SceneEditorState(
             selectedActorId = selected.validFor(nextProject),
             undoStack = (undoStack + project).takeLast(HISTORY_LIMIT),
             redoStack = emptyList(),
+            undoSelections = (undoSelections + selectedActorId).takeLast(HISTORY_LIMIT),
+            redoSelections = emptyList(),
         )
     }
 
