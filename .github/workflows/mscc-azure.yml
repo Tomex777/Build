@@ -70,6 +70,10 @@ jobs:
           bash -n tools/azure-source-stack-reuse-selftest.sh
           bash tools/azure-source-stack-reuse-selftest.sh
           bash -n tools/install-personality-art.sh tools/personality-art-selftest.sh
+          if ! command -v ffmpeg >/dev/null; then
+            sudo apt-get update -qq
+            sudo apt-get install -y -qq ffmpeg
+          fi
           bash tools/personality-art-selftest.sh
           node tools/azure-smoke-selftest.mjs
           grep -Fq 'readlink -f "$BASE/current/tools/azure-smoke.mjs"' install-azure.sh
