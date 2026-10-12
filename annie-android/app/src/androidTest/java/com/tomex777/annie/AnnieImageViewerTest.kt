@@ -59,7 +59,32 @@ class AnnieImageViewerTest {
                 compose.onAllNodesWithText("Loading image…").fetchSemanticsNodes().isEmpty()
             }
             compose.onNodeWithTag("script_image_fullscreen").assertIsDisplayed()
-            saveEmulatorScreenshot("annie-image-fullscreen-activity")
+            fun hasPresentedPhoto(bitmap: android.graphics.Bitmap): Boolean {
+                var yellow = 0
+                var samples = 0
+                for (y in 0 until bitmap.height step 12) {
+                    for (x in 0 until bitmap.width step 12) {
+                        val pixel = bitmap.getPixel(x, y)
+                        if (android.graphics.Color.red(pixel) > 200 &&
+                            android.graphics.Color.green(pixel) in 140..220 &&
+                            android.graphics.Color.blue(pixel) < 90) yellow++
+                        samples++
+                    }
+                }
+                return yellow > samples / 5
+            }
+            compose.waitUntil(15_000) {
+                val bitmap = instrumentation.uiAutomation.takeScreenshot()
+                if (bitmap == null) false else try { hasPresentedPhoto(bitmap) } finally { bitmap.recycle() }
+            }
+            val evidence = saveEmulatorScreenshot("annie-image-fullscreen-activity")
+            val captured = instrumentation.targetContext.contentResolver.openInputStream(evidence).use {
+                android.graphics.BitmapFactory.decodeStream(it)
+            }
+            assertNotNull("Saved photo evidence could not be decoded", captured)
+            try {
+                assertTrue("Saved fullscreen evidence must contain the actual photo pixels", hasPresentedPhoto(captured!!))
+            } finally { captured?.recycle() }
         } finally {
             viewer?.finish()
             instrumentation.removeMonitor(monitor)
