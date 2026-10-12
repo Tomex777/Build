@@ -70,6 +70,7 @@ jobs:
           bash tools/mscc-github-deploy-wrapper-selftest.sh
           node --check tools/azure-youtube-diagnostics.mjs
           node tools/azure-youtube-diagnostics-selftest.mjs
+          node youtube-client-fallback-selftest.js
           node --check tools/azure-main-diagnostics.mjs
           node --check tools/azure-main-diagnostics-selftest.mjs
           node tools/azure-main-diagnostics-selftest.mjs
