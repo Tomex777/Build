@@ -1360,7 +1360,7 @@ internal fun SettingsPage(
                                 onClick = { onReloadModule(module.id) },
                                 enabled = state.agentReachable && !state.loading,
                             ) {
-                                Text("RELOAD", fontSize = 9.sp)
+                                Text("APPLY CODE", fontSize = 9.sp)
                             }
                         }
                     }
@@ -1447,9 +1447,9 @@ internal fun SettingsPage(
                     modifier = Modifier.weight(1f),
                     shape = RoundedCornerShape(4.dp),
                 ) {
-                    Icon(Icons.Rounded.Refresh, null, Modifier.size(15.dp))
+                    Icon(Icons.Rounded.CheckCircle, null, Modifier.size(15.dp))
                     Spacer(Modifier.width(5.dp))
-                    Text("Reload commands", fontSize = 9.sp)
+                    Text("Apply command edits", fontSize = 9.sp)
                 }
             }
         }
