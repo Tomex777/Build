@@ -30,7 +30,7 @@ await assert.rejects(new Promise((resolve,reject)=>blocked('internal.local',{all
 const offlineError = new Error('All KnightBot sources unavailable')
 offlineError.code = 'YOUTUBE_KNIGHT_SOURCES_UNAVAILABLE'
 assert.match(youtubeFailureMessage(offlineError,'XEuaRjnuHlc'), /alternate video services are also unavailable/)
-assert.match(youtubeFailureMessage(offlineError,'XEuaRjnuHlc'), /youtube.com\\/watch\\?v=XEuaRjnuHlc/)
+assert.ok(youtubeFailureMessage(offlineError,'XEuaRjnuHlc').includes('youtube.com/watch?v=XEuaRjnuHlc'))
 assert.equal(providerFailureCategory({code:'DOWNLOADER_HTTP_404'}),'http_404')
 assert.equal(providerFailureCategory({code:'DOWNLOADER_HTTP_429'}),'http_429')
 assert.equal(providerFailureCategory({code:'DOWNLOADER_DNS_FAILURE'}),'dns_failure')
