@@ -1,6 +1,7 @@
 package com.night.sora.ui.screens
 
 import android.content.Intent
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -8,6 +9,8 @@ import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -39,8 +42,9 @@ import com.night.sora.playback.MusicRepeatMode
 import com.night.sora.ui.theme.*
 import java.util.Locale
 import java.util.concurrent.TimeUnit
+import kotlinx.coroutines.launch
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun NowPlayingScreen(
     player: MusicPlaybackController,
@@ -51,6 +55,9 @@ fun NowPlayingScreen(
     val track = player.currentTrack
     var queueOpen by remember { mutableStateOf(false) }
     var optionsOpen by remember { mutableStateOf(false) }
+    var downloadNoticeOpen by remember { mutableStateOf(false) }
+    val lyricsRequester = remember { BringIntoViewRequester() }
+    val scope = rememberCoroutineScope()
     val context = LocalContext.current
 
     if (track == null) {
@@ -206,13 +213,15 @@ fun NowPlayingScreen(
 
         Spacer(Modifier.height(20.dp))
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-            PlayerSecondary(Icons.Rounded.Lyrics, "Lyrics")
+            PlayerSecondary(Icons.Rounded.Lyrics, "Lyrics", onClick = {
+                scope.launch { lyricsRequester.bringIntoView() }
+            })
             PlayerSecondary(Icons.Rounded.QueueMusic, "Queue", onClick = { queueOpen = true })
-            PlayerSecondary(Icons.Rounded.Download, "Download")
+            PlayerSecondary(Icons.Rounded.Download, "Download", onClick = { downloadNoticeOpen = true })
         }
 
         Spacer(Modifier.height(22.dp))
-        Surface(color = Color(0xFF26241D), shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth()) {
+        Surface(color = Color(0xFF26241D), shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth().bringIntoViewRequester(lyricsRequester)) {
             Column(Modifier.padding(16.dp)) {
                 Text("LYRICS", color = SoraMuted, fontSize = 8.sp, fontWeight = FontWeight.Black, letterSpacing = 1.sp)
                 when {
@@ -248,6 +257,29 @@ fun NowPlayingScreen(
             }
             Text("Output", color = SoraMuted, fontSize = 10.sp)
         }
+    }
+
+    if (downloadNoticeOpen) {
+        AlertDialog(
+            onDismissRequest = { downloadNoticeOpen = false },
+            title = { Text("Offline download") },
+            text = {
+                Text("This track is streamed by its source. Sora cannot download a local audio file from this source. Saving the track to your Library keeps a shortcut, not the audio.")
+            },
+            confirmButton = {
+                TextButton(onClick = { downloadNoticeOpen = false }) {
+                    Text("OK")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    downloadNoticeOpen = false
+                    if (!saved) onToggleSaved(track)
+                }) {
+                    Text(if (saved) "Already saved" else "Save to Library")
+                }
+            },
+        )
     }
 
     if (queueOpen) {
