@@ -1,8 +1,8 @@
-name: Annie Script Studio file type acceptance
+name: Annie Studio and image editing acceptance
 
 on:
   push:
-    branches: [annie-rc-file-types-20261011]
+    branches: [annie-rc-file-types-20261011, annie-studio-image-save-safety-20261012]
     paths:
       - 'annie-android/**'
       - '.github/workflows/annie-file-types.yml'
@@ -33,6 +33,10 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '9.7.1'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install -g typescript@5.9.3
       - name: Validate overlay, run JVM tests and compile device tests
         shell: bash
         run: |

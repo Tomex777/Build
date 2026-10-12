@@ -267,6 +267,10 @@ private fun ScriptStudioContent(
         savedSource = editorValue.text
     }
 
+    fun saveBeforeNavigation(): Boolean = runCatching { flushPendingEdits() }
+        .onFailure { status = "Could not save previous file: " + (it.message ?: "unknown error") }
+        .isSuccess
+
     // Persist source quietly, never reloading the JS engine just because someone types.
     LaunchedEffect(selectedProjectId, selectedPath, editorValue.text, saving) {
         val id = selectedProjectId ?: return@LaunchedEffect
@@ -314,7 +318,7 @@ private fun ScriptStudioContent(
     }
 
     fun selectFile(project: ScriptProject, path: String, openEditor: Boolean = true) {
-        runCatching { flushPendingEdits() }.onFailure { status = "Could not save previous file" }
+        if (!saveBeforeNavigation()) return
         selectedProjectId = project.id
         selectedPath = path
         currentDirectory = path.substringBeforeLast('/', "")
@@ -679,7 +683,7 @@ private fun ScriptStudioContent(
                                         isFolder = isFolder,
                                         isEntry = true,
                                         selected = selectedProjectId == project.id && selectedPath == project.entryPath,
-                                        onClick = { if (isFolder) { runCatching { flushPendingEdits() }; selectedProjectId = project.id; selectedPath = project.entryPath; currentDirectory = "" } else selectFile(project, project.entryPath) },
+                                        onClick = { if (isFolder) { if (saveBeforeNavigation()) { selectedProjectId = project.id; selectedPath = project.entryPath; currentDirectory = "" } } else selectFile(project, project.entryPath) },
                                         actions = listOf(
                                             FileAction.RENAME,
                                             FileAction.SHARE,
