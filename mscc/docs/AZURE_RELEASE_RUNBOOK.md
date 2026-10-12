@@ -2,6 +2,76 @@
 
 This is an **operator-run procedure**. Repository CI verifies code; it does not demonstrate that a real Azure VM, WhatsApp session, or Cortex Agent has been deployed. Never put WhatsApp auth files, account state, `/etc/mscc.env`, pairing codes, or SSH keys in GitHub issues, logs, or CI artifacts.
 
+## GitHub Actions automatic deployment to Azure
+
+The `.github/workflows/mscc-azure.yml` workflow now has two stages: `validate` and
+`deploy`. A pull request runs validation **only**. A push or merge to the
+`mscc-azure` branch runs validation first, and then requests access to the
+`mscc-production` GitHub Actions **environment** to deploy the exact tested
+commit over SSH. Deployment fails visibly if any of the credentials are
+missing, the host key does not match, or the live smoke check fails. Green
+validation checks alone are not evidence of a deployment; check the
+**Deploy tested MSCC commit to Azure** job too.
+
+### One-time setup by the Azure/GitHub administrator
+
+1. In the repository's **Settings → Environments**, create environment
+   `mscc-production`. Limit it to the protected `mscc-azure` branch.
+   Prefer required reviewers so a source-code push cannot immediately
+   trigger privileged production access. Protect the branch against
+   unauthorized direct pushes.
+2. Create a dedicated SSH key pair for the existing non-root account that
+   already owns `mscc.service` on the Azure VM. Add its **public** key to
+   that account's `~/.ssh/authorized_keys` with restrictive permissions.
+   Never paste the private key into source code, issues, chats, or logs.
+3. Add these **environment secrets** (not repository variables):
+
+   | Name | Value |
+   | --- | --- |
+   | `MSCC_SSH_HOST` | Azure VM's stable DNS name or public IPv4 |
+   | `MSCC_SSH_USER` | Existing MSCC service account name (non-root) |
+   | `MSCC_SSH_KEY` | Entire matching OpenSSH **private** key, including its original line breaks |
+   | `MSCC_SSH_KNOWN_HOSTS` | One or more verified OpenSSH known-hosts lines for that Azure host |
+
+   For a nondefault SSH port, set environment **variable**
+   `MSCC_SSH_PORT` (otherwise port 22 is used). A known-hosts line for
+   a nondefault port must use the `[hostname]:port` form. Collect the
+   SSH host key on the VM or compare its fingerprint through an already
+   trusted channel. Running `ssh-keyscan` from an untrusted network
+   **without verifying** its fingerprint does not establish trust.
+4. Ensure the deployment account has noninteractive `sudo` for the existing
+   `install-azure.sh` deployment operations. The SSH job tests
+   `sudo -n true` and stops if this is missing. Do not switch to a
+   different service owner; the installer manages persistent state ownership.
+   Restrict SSH to trusted sources where possible, and avoid opening
+   private Cortex/MSCC application ports to the Internet.
+5. Merge the reviewed change to `mscc-azure` (or use the workflow's manual
+   **Run workflow** button on that branch), approve the production environment
+   if prompted, and watch **both** jobs. The log should finish with
+   `MSCC Azure deployment verified at <SHA>`.
+   Confirm the deployed ref with:
+   `cat /opt/mscc/current/.deployed-source-ref`.
+   It must match the workflow's commit SHA.
+
+The deploy helper refuses unpinned refs, validates all required secrets,
+strictly checks the pinned host key, and runs the existing atomic release
+installer, which performs health and account-contract smoke checks and
+attempts to roll back on activation failure. The helper also checks the
+deployed commit marker and active service. CI does **not** provision SSH
+keys, bypass the GitHub environment, or sign into Azure on its own.
+
+### What deployment does not upload
+
+Repository source assets (including the existing miniature `.webp.b64`
+personality fallbacks) are delivered with code. The nine original high-
+resolution Josia/Nami/MiMi images are **not present in GitHub**, so deploying
+the source will not manufacture or transfer them. Install the separate ZIP
+once using `mscc/docs/personality-hd-art.md`, or use a future dedicated
+Cortex artwork upload. Files in `/var/lib/mscc/personality-art` persist
+across subsequent code deployments.
+
+---
+
 ## Requirements
 
 - SSH access to the intended Azure Linux VM with `sudo`.
