@@ -78,6 +78,11 @@ begin
   if v->'game'->>'winner'<>'1' then raise exception 'C4 direction % failed: %',i,v;end if;
  end loop;
 end $$;
+-- Fill the remaining active slots directly; injected win fixtures count toward creation rate limits.
+insert into public.velvet_online_games(couple_id,kind,player_one,player_two,board)
+select m.couple_id,'ttt','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',array_fill(0,array[9])
+from public.velvet_members m cross join generate_series(1,3)
+where m.user_id='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 set role authenticated;
 set request.jwt.claim.sub='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
 do $$begin

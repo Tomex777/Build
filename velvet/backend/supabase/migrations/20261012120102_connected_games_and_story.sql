@@ -79,12 +79,12 @@ begin
  if p_version is null or p_version<>g.version then
   return jsonb_build_object('ok',false,'error','stale_move','game',to_jsonb(g));end if;
  if g.winner<>0 then return jsonb_build_object('ok',false,'error','game_finished');end if;
- if u<>case when g.turn=1 then g.player_one else g.player_two end then
+ if u<>(case when g.turn=1 then g.player_one else g.player_two end) then
   return jsonb_build_object('ok',false,'error','not_your_turn');end if;
  rows:=case when g.kind='ttt' then 3 else 6 end;
  cols:=case when g.kind='ttt' then 3 else 7 end;
  needed:=case when g.kind='ttt' then 3 else 4 end;
- if p_cell is null or p_cell<0 or p_cell>=case when g.kind='ttt' then 9 else 7 end then
+ if p_cell is null or p_cell<0 or p_cell>=(case when g.kind='ttt' then 9 else 7 end) then
   return jsonb_build_object('ok',false,'error','invalid_move');end if;
  if g.kind='ttt' then pos:=p_cell+1;
  else
