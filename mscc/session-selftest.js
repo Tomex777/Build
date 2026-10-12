@@ -7,7 +7,7 @@ import {
   useMultiFileAuthState,
 } from '@itsliaaa/baileys'
 import { AccountRegistry } from './account-registry.js'
-import { canStartScheduledReconnect, classifyDisconnect, jidPhoneNumber, reconnectDelay, serializeSessionOperation, sessionStatus } from './session-policy.js'
+import { canStartScheduledReconnect, classifyDisconnect, disconnectOrigin, jidPhoneNumber, reconnectDelay, serializeSessionOperation, sessionStatus } from './session-policy.js'
 
 const root = await mkdtemp(join(tmpdir(), 'mscc-session-test-'))
 
@@ -34,6 +34,11 @@ try {
   const credsB = JSON.parse(await readFile(join(authB, 'creds.json'), 'utf8'))
   assert.notDeepEqual(credsA.me, credsB.me)
 
+  assert.equal(disconnectOrigin({ message:'Stream Errored (401): private@lid' }), 'stream-error')
+  assert.equal(disconnectOrigin({ message:'Connection Failure' }), 'server-failure')
+  assert.equal(disconnectOrigin({ message:'Intentional Logout' }), 'intentional-logout')
+  assert.equal(disconnectOrigin({ message:'Connection Terminated by Server' }), 'transport-close')
+  assert.equal(disconnectOrigin({ message:'unknown details 2348012345678' }), 'other')
   assert.equal(classifyDisconnect(DisconnectReason.loggedOut).action, 'repair')
   assert.equal(classifyDisconnect(DisconnectReason.badSession).action, 'repair')
   assert.equal(classifyDisconnect(DisconnectReason.multideviceMismatch).action, 'repair')
