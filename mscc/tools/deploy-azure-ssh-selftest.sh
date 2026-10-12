@@ -2,6 +2,10 @@
 set -euo pipefail
 cd "$(dirname "$0")/../.."
 script=mscc/tools/deploy-azure-ssh.sh
+if ! grep -Fq '"$USER_NAME@$HOST" "MSCC_SOURCE_REF=$SHA MSCC_REUSE_EXISTING_SOURCE_STACK=1 bash -se"' "$script"; then
+  echo "Deployment must preserve and verify the existing Azure Tor + FlareSolverr stack." >&2
+  exit 1
+fi
 out="$(mktemp)"
 trap 'rm -f "$out"' EXIT
 sha=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
