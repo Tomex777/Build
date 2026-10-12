@@ -29,6 +29,7 @@ exit 1
   assert.equal(blocked.result, 'youtube_access_challenge')
   assert.equal(blocked.extractorInstalled, true)
   assert.equal(blocked.extractorVersion, '2026.10.01')
+  assert.equal(blocked.tor.result, 'youtube_access_challenge')
   assert.equal(JSON.stringify(blocked).includes('SECRET'), false)
 
   const ok = await execute(`if [ "$1" = "--version" ]; then echo 2026.10.01; exit 0; fi
@@ -41,6 +42,21 @@ EOF
   assert.equal(ok.maxHeight, 720)
   assert.equal(ok.directVideoFormatCount, 0)
   assert.equal(JSON.stringify(ok).includes('untrusted.example'), false)
+
+  const torSuccess = await execute(`if [ "$1" = "--version" ]; then echo 2026.10.01; exit 0; fi
+case " $* " in
+  *" --proxy "*) cat <<'EOF'
+{"formats":[{"height":360,"vcodec":"avc1","url":"https://never-print-video-url.invalid/signed"},{"height":720,"vcodec":"avc1","url":"https://never-print-video-url.invalid/signed2"}]}
+EOF
+  ;;
+  *) echo "ERROR: Sign in to confirm you're not a bot" >&2; exit 1 ;;
+esac
+`)
+  assert.equal(torSuccess.result, 'youtube_access_challenge')
+  assert.equal(torSuccess.tor.result, 'formats_resolved')
+  assert.equal(torSuccess.tor.videoFormatCount, 2)
+  assert.equal(torSuccess.tor.maxHeight, 720)
+  assert.equal(JSON.stringify(torSuccess).includes('never-print-video-url'), false)
 
   const missing = await exec(process.execPath, [diagnostic], {
     env:{...process.env,MSCC_YOUTUBE_YTDLP_BIN:join(folder, 'missing')},
