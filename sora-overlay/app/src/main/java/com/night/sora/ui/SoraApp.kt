@@ -33,7 +33,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import com.night.sora.data.CoreRepository
 import com.night.sora.data.MediaCatalogCache
-import com.night.sora.download.MusicDownloadManager
+import com.night.sora.data.SoraCoreRuntime
 import com.night.sora.extension.ExtensionManager
 import com.night.sora.extension.InstalledExtension
 import com.night.sora.model.ContentType
@@ -69,11 +69,11 @@ sealed interface AppScreen {
 @Composable
 fun SoraApp() {
     val context = LocalContext.current
-    val repository = remember { CoreRepository(context.applicationContext) }
+    val repository = remember { SoraCoreRuntime.repository(context.applicationContext) }
     val mediaCatalogCache = remember { MediaCatalogCache(context.applicationContext) }
-    val extensionManager = remember { ExtensionManager(context.applicationContext) }
+    val extensionManager = remember { SoraCoreRuntime.extensions(context.applicationContext) }
     val musicPlayer = remember { MusicPlaybackRuntime.get(context.applicationContext, extensionManager) }
-    val musicDownloads = remember { MusicDownloadManager(context.applicationContext, repository, extensionManager) }
+    val musicDownloads = remember { SoraCoreRuntime.downloads(context.applicationContext) }
     var tab by remember { mutableStateOf(RootTab.HOME) }
     val screenStack = remember { mutableStateListOf<AppScreen>() }
     var extensions by remember { mutableStateOf<List<InstalledExtension>>(emptyList()) }
