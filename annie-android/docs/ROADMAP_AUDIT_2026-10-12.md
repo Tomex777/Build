@@ -34,7 +34,7 @@ Read the effective CI source: `scripts/repair-m0b-merge.py` integrates six gener
 | Autosave and failed-save draft retention | ScriptStudio; disk-write failure/recovery/Back test plus editor tests | Implemented and baseline tested; latest typed text is supplied to project preview |
 | Create/edit .js/.ts/.py/.lua/.html/.css and text files | ScriptStudioFileTypes, ScriptFiles; file-type/location/native creation tests | File editing implemented; direct TS/Python/Lua execution is not implemented |
 | Live command/document preview; fullscreen Canvas | ScriptStudio preview and native renderers; script/chat/Canvas tests | JS command and document previews implemented; multi-file project gap repaired here |
-| Script deletion, selection/clipboard, find/replace/undo | ScriptStudio and repaired Sora editor; ScriptChatFlowTest, ScriptEditorReplaceTest | Implemented and baseline tested |
+| Script deletion, folder/file selection, sharing, clipboard, find/replace/undo | ScriptStudio and repaired Sora editor; ScriptChatFlowTest, ScriptEditorReplaceTest; new folder/share regressions | Baseline editing tested; folder/share fixes require new validation |
 | Image fullscreen viewer and editor | Viewer activity, image bounds and editor; image decode/transform/viewer/pixel tests | Fit/zoom/pan, rotate/flip/center-square/reset/save-copy implemented; freely positioned crop and image sharing are not implemented or claimed as agreed baseline requirements |
 | Image saving tied to the current render | ImageEditorActivity captures the ready bitmap and blocks edits during picker/save | Implemented; transformation tests pass, but automated document-picker save-to-destination coverage remains a validation gap |
 | Full browser: tabs, normal/private separation, desktop mode, navigation, uploads/downloads/history | Gecko browser; restore/UI/file-picker/end-to-end/history tests | Implemented and baseline tested; “full-fledged” is bounded by these concrete features, not feature parity with every browser |
@@ -58,6 +58,9 @@ Read the effective CI source: `scripts/repair-m0b-merge.py` integrates six gener
 3. Script Assist system/user instructions now respect the selected file's language. HTML/CSS files are no longer requested as QuickJS JavaScript commands, and JavaScript belonging to an HTML project receives browser/DOM instructions rather than QuickJS command instructions; deferred runtime types are identified honestly.
 
 4. Canvas and bundled-resource closing-tag escaping now uses literal replacement callbacks. Regex replacement strings had consumed the intended backslash, so snippets containing `</script>` or `</style>` could prematurely end their inline tag. New tests require exactly one real closing tag for each wrapper.
+
+5. Folder selection now loads that project's entry file instead of changing selection IDs while keeping another document's editor contents. A native regression asserts the displayed entry and both projects' persisted contents.
+6. Script sharing uses the current selected draft or fresh disk bytes, the correct HTML/CSS/JS/JSON MIME type, and an independent file snapshot per share. A native FileProvider test verifies readable content, read grants, MIME type and that later shares cannot overwrite an earlier snapshot.
 
 The first full audit run passed the new native editor/Canvas checks on API26 but exposed an intermittent Gecko history test failure. Its first-page native tap had no observable acknowledgement. The fixture now changes its title only when a real native tap reaches the page, and navigation waits for that acknowledgement before retaining the original Back/Forward and exact-download-byte assertions. No browser history protections or assertions are removed.
 

@@ -6,7 +6,7 @@ import xml.etree.ElementTree as ET
 
 EXPECTED = {
     "ChatHistoryTest": {"chatsPersistAndHistoryCanCreateAndReopenConversations", "manageChatRenamesAndDeletesWithConfirmation", "navigationDrawerOpensLibraryAndRoutesToDownloads", "profilePickerUsesApprovedAvatarLibraryAndCanResetToAnnieMark", "historyStoreRestoresCatalogCardsAndTheirActions"},
-    "ScriptStudioFileCreationTest": {"typeSelectionCreatesHtmlAndExplicitCssExtensionOverridesIt", "failedDiskWriteKeepsDraftAndBlocksFileSwitchAndClose"},
+    "ScriptStudioFileCreationTest": {"typeSelectionCreatesHtmlAndExplicitCssExtensionOverridesIt", "failedDiskWriteKeepsDraftAndBlocksFileSwitchAndClose", "folderSelectionLoadsItsOwnEntryWithoutLeakingOtherDraft"},
     "AnnieGeckoBrowserUiTest": {"addressSubmissionDismissesKeyboardAndBrowserControlsRespectSystemBars"},
     "AnnieVoiceGestureTest": {"slidingLeftCancelsTheActualRecordingWithoutSending", "slidingUpLocksAcrossButtonRemovalAndPauseResumeSendsOneAudioFile", "cancelledFingerHoldDoesNotSendOrLeaveTheMicrophoneRunning", "fingerHoldAndReleaseSendsExactlyOneRealAudioFile"},
     "AnnieGeckoFilePickerTest": {"singleFilePickerUsesAndroidDocumentApiAndRestrictsAcceptedMimeType", "multipleFilePickerPreservesSupportedMimeTypes", "selectedDocumentUrisAreCollectedWithoutDuplicates"},

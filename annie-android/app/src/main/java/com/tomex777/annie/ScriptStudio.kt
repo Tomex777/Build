@@ -325,10 +325,10 @@ private fun ScriptStudioContent(
         savedSource = source
     }
 
-    fun selectFile(project: ScriptProject, path: String, openEditor: Boolean = true) {
-        if (!saveBeforeNavigation()) return
+    fun selectFile(project: ScriptProject, path: String, openEditor: Boolean = true): Boolean {
+        if (!saveBeforeNavigation()) return false
         val source = runCatching { workspace.files.readFile(project.id, path) }
-            .getOrElse { status = "Could not open file: " + (it.message ?: "unknown error"); return }
+            .getOrElse { status = "Could not open file: " + (it.message ?: "unknown error"); return false }
         selectedProjectId = project.id
         selectedPath = path
         currentDirectory = path.substringBeforeLast('/', "")
@@ -336,6 +336,7 @@ private fun ScriptStudioContent(
         savedSource = source
         status = ""
         if (openEditor) page = StudioPage.EDITOR
+        return true
     }
 
     fun saveScript(runAfterSave: Boolean = false, openPreview: Boolean = false) {
@@ -558,20 +559,14 @@ private fun ScriptStudioContent(
         exportSpec.launch(AnnieScriptSpec.FILE_NAME)
     }
 
-    fun shareFile(name: String, source: String) {
+    fun shareProjectFile(project: ScriptProject, path: String) {
         runCatching {
-            val directory = File(context.cacheDir, "shared-scripts").apply { mkdirs() }
-            val sharedFile = File(directory, name).apply { writeText(source) }
-            val sharedUri = FileProvider.getUriForFile(context, "${context.packageName}.script-files", sharedFile)
-            val send = Intent(Intent.ACTION_SEND).apply {
-                type = "text/javascript"
-                putExtra(Intent.EXTRA_STREAM, sharedUri)
-                clipData = android.content.ClipData.newUri(context.contentResolver, name, sharedUri)
-                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-            }
-            context.startActivity(Intent.createChooser(send, "Share script").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
-            status = "Sharing $name"
-        }.onFailure { status = it.message ?: "Could not share script" }
+            val source = if (selectedProjectId == project.id && selectedPath == path) editorValue.text
+                else workspace.files.readFile(project.id, path)
+            val send = studioShareIntent(context, path, source)
+            context.startActivity(Intent.createChooser(send, "Share file").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+            status = "Sharing ${path.substringAfterLast('/')}"
+        }.onFailure { status = it.message ?: "Could not share file" }
     }
 
     fun askForText(title: String, initial: String = "", action: (String) -> Unit) {
@@ -701,7 +696,7 @@ private fun ScriptStudioContent(
                                         isFolder = isFolder,
                                         isEntry = true,
                                         selected = selectedProjectId == project.id && selectedPath == project.entryPath,
-                                        onClick = { if (isFolder) { if (saveBeforeNavigation()) { selectedProjectId = project.id; selectedPath = project.entryPath; currentDirectory = "" } } else selectFile(project, project.entryPath) },
+                                        onClick = { if (isFolder) { if (selectFile(project, project.entryPath, openEditor = false)) currentDirectory = "" } else selectFile(project, project.entryPath) },
                                         actions = listOf(
                                             FileAction.RENAME,
                                             FileAction.SHARE,
@@ -716,7 +711,7 @@ private fun ScriptStudioContent(
                                                         .onSuccess { id -> refreshProjects(id, if (isFolder) "main.js" else "$id.js"); status = "Renamed to $id" }
                                                         .onFailure { status = it.message ?: "Rename failed" }
                                                 }
-                                                FileAction.SHARE -> shareFile(project.entryPath, project.files[project.entryPath].orEmpty())
+                                                FileAction.SHARE -> shareProjectFile(project, project.entryPath)
                                                 FileAction.EXPORT -> exportFile(project.entryPath, project.files[project.entryPath].orEmpty())
                                                 FileAction.PERMISSIONS -> permissionsProject = project
                                                 FileAction.DELETE -> askForText("Type ${project.name} to delete", "") { confirm ->
@@ -819,7 +814,7 @@ private fun ScriptStudioContent(
                                                             }
                                                             .onFailure { status = it.message ?: "Rename failed" }
                                                     }
-                                                    FileAction.SHARE -> shareFile(path.substringAfterLast('/'), project.files[path].orEmpty())
+                                                    FileAction.SHARE -> shareProjectFile(project, path)
                                                     FileAction.EXPORT -> exportFile(path.substringAfterLast('/'), project.files[path].orEmpty())
                                                     FileAction.DELETE -> askForText(
                                                         "Type ${path.substringAfterLast('/')} to delete", ""

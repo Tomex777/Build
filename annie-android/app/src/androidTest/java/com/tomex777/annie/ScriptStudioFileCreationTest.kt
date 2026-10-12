@@ -130,5 +130,39 @@ class ScriptStudioFileCreationTest {
         }
     }
 
+    @Test fun folderSelectionLoadsItsOwnEntryWithoutLeakingOtherDraft() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val workspace = ScriptWorkspace(context)
+        val suffix = System.nanoTime().toString().takeLast(8)
+        val first = workspace.files.createFolder("first$suffix")
+        val second = workspace.files.createFolder("second$suffix")
+        val firstSource = "const owner = 'first';"
+        val secondSource = "const owner = 'second';"
+        workspace.files.writeFile(first.name, "main.js", firstSource)
+        workspace.files.writeFile(second.name, "main.js", secondSource)
+        val shown = mutableStateOf(true)
+        try {
+            compose.setContent { AnnieTheme {
+                if (shown.value) ScriptStudioSheet(workspace, {}, initialProjectId = first.name)
+            } }
+            compose.onNodeWithTag("script_file_search").performTextInput(second.name)
+            closeSoftKeyboard()
+            compose.onNodeWithText(second.name, substring = false).performClick()
+            compose.onNodeWithTag("script_tab_editor").performClick()
+            onView(isAssignableFrom(CodeEditor::class.java)).check { view, failure ->
+                if (failure != null) throw failure
+                org.junit.Assert.assertEquals(secondSource, (view as CodeEditor).text.toString())
+            }
+            org.junit.Assert.assertEquals(firstSource, workspace.files.readFile(first.name, "main.js"))
+            org.junit.Assert.assertEquals(secondSource, workspace.files.readFile(second.name, "main.js"))
+        } finally {
+            compose.runOnIdle { shown.value = false }
+            compose.waitForIdle()
+            workspace.close()
+            workspace.files.deleteProject(first.name)
+            workspace.files.deleteProject(second.name)
+        }
+    }
+
 }
 
