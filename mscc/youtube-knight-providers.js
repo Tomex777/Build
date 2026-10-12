@@ -212,6 +212,7 @@ export async function probeKnightProviders(videoId, {
   const results = []
   for (const provider of providers) {
     let result = 'unavailable'
+    let safeErrorCode
     try {
       const requestUrl = new URL(provider.endpoint)
       for (const [key,value] of Object.entries(provider.params(watchUrl))) {
@@ -225,9 +226,16 @@ export async function probeKnightProviders(videoId, {
       } else result = 'no_media_link'
     } catch (error) {
       result = providerFailureCategory(error)
-      // Never log raw exceptions or signed URLs.
+      if (result === 'provider_error') {
+        // Only a short uppercase Node error identifier (never a message,
+        // hostname, signed URL, header, or provider response) is exposed.
+        const identifier = String(error?.code || error?.name || 'UNKNOWN')
+        safeErrorCode = /^[A-Z][A-Z0-9_]{1,55}$/.test(identifier)
+          ? identifier : 'UNKNOWN'
+      }
     }
-    results.push({provider:provider.name,result})
+    results.push({provider:provider.name,result,
+      ...(safeErrorCode ? {diagnosticCode:safeErrorCode} : {})})
   }
   return results
 }
