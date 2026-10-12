@@ -61,6 +61,8 @@ jobs:
           node youtube-resolution-selftest.js
           node --check tools/azure-youtube-diagnostics.mjs
           node tools/azure-youtube-diagnostics-selftest.mjs
+          bash -n tools/deploy-azure-ssh.sh
+          ! grep -Eq '^//[[:space:]]' tools/deploy-azure-ssh.sh
           bash -n install-azure.sh
       - name: Install FFmpeg like the Azure installer
         run: |
