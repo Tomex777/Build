@@ -7,7 +7,7 @@ import {
   useMultiFileAuthState,
 } from '@itsliaaa/baileys'
 import { AccountRegistry } from './account-registry.js'
-import { canStartScheduledReconnect, classifyDisconnect, disconnectOrigin, jidPhoneNumber, reconnectDelay, serializeSessionOperation, sessionStatus } from './session-policy.js'
+import { canStartScheduledReconnect, classifyDisconnect, disconnectOrigin, disconnectProtocolDetail, jidPhoneNumber, reconnectDelay, serializeSessionOperation, sessionStatus } from './session-policy.js'
 
 const root = await mkdtemp(join(tmpdir(), 'mscc-session-test-'))
 
@@ -34,6 +34,23 @@ try {
   const credsB = JSON.parse(await readFile(join(authB, 'creds.json'), 'utf8'))
   assert.notDeepEqual(credsA.me, credsB.me)
 
+  // A 401 from WhatsApp can distinguish device revocation from transport closure.
+  const serverRemoval = { message: 'Stream Errored (conflict)', data: {
+    tag: 'conflict', attrs: { type: 'device_removed', jid: 'private-user@s.whatsapp.net' },
+  } }
+  assert.equal(disconnectProtocolDetail(serverRemoval), 'device-removed')
+  assert.equal(disconnectProtocolDetail({ data: { tag: 'stream:error', content: [
+    { tag: 'conflict', attrs: { type: 'device_removed' } }
+  ] } }), 'device-removed')
+  assert.equal(disconnectProtocolDetail({ data: { tag: 'conflict', attrs: {
+    type: 'different', jid: 'private@s.whatsapp.net',
+  } } }), 'other-conflict')
+  assert.equal(disconnectProtocolDetail({ data: { tag: 'not-authorized' } }), 'not-authorized')
+  assert.equal(disconnectProtocolDetail({ data: { tag: 'conflict', attrs: { type: 'replaced' } } }), 'connection-replaced')
+  assert.equal(disconnectProtocolDetail({ data: { tag: 'conflict', attrs: {
+    type: 'private-token-and-phone-2348012345678',
+  } } }), 'other-conflict')
+  assert.equal(disconnectProtocolDetail({ data: 'private token 2348012345678' }), 'unclassified')
   assert.equal(disconnectOrigin({ message:'Stream Errored (401): private@lid' }), 'stream-error')
   assert.equal(disconnectOrigin({ message:'Connection Failure' }), 'server-failure')
   assert.equal(disconnectOrigin({ message:'Intentional Logout' }), 'intentional-logout')
