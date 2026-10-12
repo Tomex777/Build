@@ -305,6 +305,12 @@ echo ">>> Validating live Cortex/MSCC session API..."
 node "$(readlink -f "$BASE/current/tools/azure-smoke.mjs")"
 
 echo
+echo ">>> Installing restricted GitHub SSH command wrapper..."
+bash -n "$RELEASE/tools/mscc-github-deploy-wrapper.sh"
+sudo install -o root -g root -m 0755 \
+  "$RELEASE/tools/mscc-github-deploy-wrapper.sh" \
+  /usr/local/sbin/mscc-github-deploy
+
 ACTIVATED=0
 echo "=== MSCC INSTALL COMPLETE ==="
 echo "Release: $RELEASE"
