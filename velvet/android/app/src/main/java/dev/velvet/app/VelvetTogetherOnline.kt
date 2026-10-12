@@ -1,5 +1,7 @@
 package dev.velvet.app
 
+import androidx.activity.compose.BackHandler
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -97,6 +99,7 @@ internal fun VelvetTogetherOnline(client:VelvetPairClient,onBack:()->Unit,onPair
         catch(e:Exception){error=e.message ?: "Couldn't connect."}
     }
     val round=rounds.firstOrNull{it.id==selected}
+    BackHandler(enabled=selected!=null) {selected=null}
     Column(Modifier.fillMaxSize().background(bg).imePadding().padding(16.dp)) {
         Row(verticalAlignment=Alignment.CenterVertically) {
             TextButton(onClick={if(selected!=null)selected=null else onBack()}){Text("← Back",color=rose)}

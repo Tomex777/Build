@@ -1064,8 +1064,8 @@ private fun QuestionDeckScreen(category:String,index:Int,onIndexChange:(Int)->Un
             Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(13.dp)).background(V.raised)
                 .padding(horizontal=12.dp,vertical=5.dp),horizontalArrangement=Arrangement.SpaceBetween,
                 verticalAlignment=Alignment.CenterVertically) {
-                Text("♡ Sent to Chat",color=V.rose,fontSize=12.sp)
-                TextButton(onClick=onViewChat){Text("View in Chat →",color=V.gold,fontSize=11.sp)}
+                Text("♡ Saved in local Chat",color=V.rose,fontSize=12.sp)
+                TextButton(onClick=onViewChat){Text("View local Chat →",color=V.gold,fontSize=11.sp)}
             }
         }
         OutlinedTextField(value=drafts[prompt.id].orEmpty(),
@@ -1080,7 +1080,7 @@ private fun QuestionDeckScreen(category:String,index:Int,onIndexChange:(Int)->Un
             shape=RoundedCornerShape(17.dp)) {
             Icon(Icons.Outlined.Send,null,Modifier.size(18.dp))
             Spacer(Modifier.width(9.dp))
-            Text("Send to Chat",fontWeight=FontWeight.SemiBold)
+            Text("Send to local Chat",fontWeight=FontWeight.SemiBold)
         }
         OutlinedButton(onClick={
             sharingTogether=true
@@ -1125,7 +1125,7 @@ private fun QuestionDeckScreen(category:String,index:Int,onIndexChange:(Int)->Un
             },modifier=Modifier.fillMaxWidth().height(52.dp)){
                 Icon(Icons.Outlined.Send,null,Modifier.size(18.dp))
                 Spacer(Modifier.width(9.dp))
-                Text("Send to Chat")
+                Text("Send to local Chat")
             }
             Spacer(Modifier.height(15.dp))
         }

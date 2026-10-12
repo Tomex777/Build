@@ -1,5 +1,7 @@
 package dev.velvet.app
 
+import androidx.activity.compose.BackHandler
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -107,6 +109,7 @@ internal fun VelvetOnlineGames(client:VelvetPairClient,onBack:()->Unit,onPair:()
         }
     }
     val game=games.firstOrNull{it.id==selected}
+    BackHandler(enabled=selected!=null) {selected=null}
     Column(Modifier.fillMaxSize().background(bg).padding(16.dp)) {
         Row(verticalAlignment=Alignment.CenterVertically) {
             TextButton(onClick={if(selected!=null)selected=null else onBack()}) {Text("← Back",color=rose)}
