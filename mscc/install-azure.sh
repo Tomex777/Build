@@ -120,7 +120,55 @@ SOURCE_STACK_DIR="${MSCC_SOURCE_STACK_DIR:-/opt/mscc-source-stack}"
 SOURCE_STACK_MARKER="$SOURCE_STACK_DIR/.animepahe-stack-version"
 SOURCE_STACK_VERSION="3"
 CURRENT_SOURCE_STACK_VERSION="$(cat "$SOURCE_STACK_MARKER" 2>/dev/null || true)"
-if [ "$CURRENT_SOURCE_STACK_VERSION" != "$SOURCE_STACK_VERSION" ]; then
+
+# Some existing Azure installations run Tor as a host systemd service on
+# 127.0.0.1:9050 and FlareSolverr under pre-existing Docker container names.
+# Starting a second Tor container on that port fails before MSCC can update.
+# Opt-in reuse validates both existing endpoints and DOES NOT stop/replace them.
+# It deliberately does not write the source stack version marker: external
+# services must not be falsely registered as our Docker-managed source stack.
+verify_existing_source_stack() {
+  local tor_port="${MSCC_TOR_PORT:-9050}"
+  local flare_port="${MSCC_FLARE_PORT:-8191}"
+  for port in "$tor_port" "$flare_port"; do
+    if ! [[ "$port" =~ ^[0-9]+$ ]] || (( port < 1 || port > 65535 )); then
+      echo "Existing source stack port is invalid." >&2
+      return 1
+    fi
+  done
+
+  echo ">>> Verifying existing Tor SOCKS proxy on 127.0.0.1:$tor_port..."
+  local tor_probe
+  tor_probe="$(curl -fsS --connect-timeout 5 --max-time 35 \
+    --proxy "socks5h://127.0.0.1:$tor_port" \
+    https://check.torproject.org/api/ip)" || {
+    echo "Existing Tor proxy did not respond. Leaving MSCC and source services untouched." >&2
+    return 1
+  }
+  if ! printf '%s' "$tor_probe" | node -e '
+    let input = "";
+    process.stdin.on("data", data => input += data);
+    process.stdin.on("end", () => {
+      try { if (JSON.parse(input).IsTor !== true) process.exitCode = 1; }
+      catch { process.exitCode = 1; }
+    });
+  '; then
+    echo "Existing proxy was not confirmed as a Tor exit; refusing to reuse." >&2
+    return 1
+  fi
+
+  echo ">>> Verifying existing FlareSolverr on 127.0.0.1:$flare_port..."
+  if ! curl -fsS --connect-timeout 5 --max-time 12 \
+    "http://127.0.0.1:$flare_port/health" >/dev/null; then
+    echo "Existing FlareSolverr health endpoint is unavailable; leaving services untouched." >&2
+    return 1
+  fi
+  echo ">>> Reusing verified existing Tor + FlareSolverr; no Docker containers replaced."
+}
+
+if [ "${MSCC_REUSE_EXISTING_SOURCE_STACK:-0}" = "1" ]; then
+  verify_existing_source_stack
+elif [ "$CURRENT_SOURCE_STACK_VERSION" != "$SOURCE_STACK_VERSION" ]; then
   echo ">>> Installing/upgrading AnimePahe Tor + FlareSolverr source stack..."
   bash "$RELEASE/tools/install-flaresolverr-tor.sh"
 else
