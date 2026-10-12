@@ -89,6 +89,7 @@ class ScriptStudioFileCreationTest {
             assertFalse("Failed save must keep Studio open", closed)
             // Recover storage, then navigation must write the retained draft.
             assertTrue(file.delete())
+            file.writeText("const value = 'needle';")
             compose.onNodeWithText(other.name, substring = false).performClick()
             compose.waitUntil(8_000) { file.isFile && file.readText().contains("retained") }
             assertTrue(file.readText().contains("retained"))
