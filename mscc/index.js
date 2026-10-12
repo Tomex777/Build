@@ -172,7 +172,7 @@ const makeAccount = record => ({
   sock: null, connected: false, registered: false, invalid: false,
   generation: 0, reconnectTimer: null, reconnectAttempts: 0, nextReconnectAt: 0,
   lastConnectedAt: 0, lastDisconnectedAt: 0, lastDisconnectCode: null, disconnectReason: '',
-  credSave: Promise.resolve(),
+  credSave: Promise.resolve(), authFlush: null,
   pairingMode: '', pairingCode: '', pairingQr: '', pairingError: '',
   lastQr: '', lastCodeAt: 0, pairingRequested: false,
   op: Promise.resolve()
@@ -2649,7 +2649,9 @@ async function closeAccount(a) {
   a.connected = false
   try { old?.ws?.close?.() } catch {}
   await new Promise(r => setTimeout(r, 120))
-  try { await a.credSave } catch {}
+  await a.credSave
+  await a.authFlush?.()
+  a.authFlush = null
 }
 
 async function makePairOutput(account) {
@@ -2734,13 +2736,15 @@ async function startAccount(account) {
   // A close can schedule a retry while the previous socket's creds.update
   // writes are still pending. Never reload partially saved auth state.
   await account.credSave
+  await account.authFlush?.()
   if (generation !== account.generation || !account.enabled ||
       account.invalid || account.paused || account.sock) return
-  const { state, saveCreds } = await useDurableMultiFileAuthState(account.authDir)
+  const { state, saveCreds, flush } = await useDurableMultiFileAuthState(account.authDir)
   // A disconnect/remove request can happen while auth is loading.
   // Do not create a ghost socket for an obsolete generation.
   if (generation !== account.generation || !account.enabled ||
       account.invalid || account.paused || account.sock) return
+  account.authFlush = flush
   account.registered = Boolean(state.creds.registered)
   account.nextReconnectAt = 0
 
