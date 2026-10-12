@@ -36,6 +36,32 @@ export function disconnectOrigin(error) {
   return 'other'
 }
 
+/**
+ * Preserve only protocol-category evidence from Baileys. The raw error
+ * contains binary WhatsApp nodes and may include user IDs, auth material or
+ * phone numbers; never log error.data, node.attrs or arbitrary type strings.
+ *
+ * A 401 with "device-removed" means WhatsApp actively unlinked the device.
+ * This is materially different from an unrelated transport drop or another
+ * socket replacing the connection.
+ */
+export function disconnectProtocolDetail(error) {
+  const data = error?.data
+  const reason = data?.tag === 'stream:error'
+    ? (Array.isArray(data.content) ? data.content.find(child => child?.tag === 'conflict') : null)
+    : data
+
+  if (reason?.tag === 'conflict') {
+    if (reason.attrs?.type === 'device_removed') return 'device-removed'
+    if (reason.attrs?.type === 'replaced') return 'connection-replaced'
+    return 'other-conflict'
+  }
+  if (reason?.tag === 'not-authorized') return 'not-authorized'
+  if (reason?.tag === 'bad-session') return 'bad-session'
+  if (reason?.tag === 'policy-violation') return 'policy-violation'
+  return 'unclassified'
+}
+
 export function reconnectDelay(attempt, { baseMs = 2000, maxMs = 30000 } = {}) {
   const safeAttempt = Math.max(1, Number(attempt) || 1)
   return Math.min(maxMs, baseMs * (2 ** Math.min(4, safeAttempt - 1)))

@@ -62,7 +62,8 @@ for sample in 1 2 3 4 5 6; do
             action: ["account.connected", "account.disconnected", "account.reconnect-scheduled", "account.reconnect-failed"].includes(event.action)
               ? event.action : "unknown",
             ...(Number.isFinite(event.reasonCode) ? { reasonCode: event.reasonCode } : {}),
-            ...(["intentional-logout", "stream-error", "server-failure", "connection-replaced", "transport-close", "other"].includes(event.origin) ? { origin: event.origin } : {})
+            ...(["intentional-logout", "stream-error", "server-failure", "connection-replaced", "transport-close", "other"].includes(event.origin) ? { origin: event.origin } : {}),
+            ...(["device-removed", "connection-replaced", "other-conflict", "not-authorized", "bad-session", "policy-violation", "unclassified"].includes(event.protocolDetail) ? { protocolDetail: event.protocolDetail } : {})
           }))
         };
         process.stdout.write(JSON.stringify(output));
