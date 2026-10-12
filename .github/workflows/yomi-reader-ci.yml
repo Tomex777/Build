@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - yomi-reader-foundation
-      - feat/yomi-mihon-reader-port-20261009
   pull_request:
     branches:
       - yomi-reader-foundation
