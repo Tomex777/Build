@@ -48,7 +48,7 @@ assert.equal(Object.hasOwn(createAccountSocketOptions({
   browser: ['Mac OS', 'Chrome', '120'],
   getMessage: async () => undefined,
 }), 'version'), false, 'Allow Baileys default version when latest lookup fails')
-assert.throws(() => createAccountSocketOptions({ auth: authA }), /own auth state/,
+assert.throws(() => createAccountSocketOptions({ auth: { creds: authA.creds } }), /own auth state/,
   'An account without a separate key store must be rejected')
 
 console.log('PASS per-account socket isolation and Baileys selective INITIAL_BOOTSTRAP/RECENT sync')
