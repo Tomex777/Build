@@ -86,7 +86,7 @@ fun ChessBoard(
     showCoordinates: Boolean = true,
     interactionsEnabled: Boolean = true,
     hapticsEnabled: Boolean = true,
-    moveAnimationSpeed: MoveAnimationSpeed = MoveAnimationSpeed.SLOW,
+    moveAnimationSpeed: MoveAnimationSpeed = MoveAnimationSpeed.SMOOTH,
 ) {
     val boardColors = colorsFor(palette)
     val haptics = LocalHapticFeedback.current
