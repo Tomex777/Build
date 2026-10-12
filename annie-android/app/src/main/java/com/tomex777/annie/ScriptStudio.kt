@@ -267,7 +267,7 @@ private fun ScriptStudioContent(
         savedSource = editorValue.text
     }
 
-    fun saveBeforeNavigation(): Boolean = runCatching { flushPendingEdits() }
+    fun saveBeforeNavigation(): Boolean = !saving && runCatching { flushPendingEdits() }
         .onFailure { status = "Could not save previous file: " + (it.message ?: "unknown error") }
         .isSuccess
 
@@ -410,7 +410,7 @@ private fun ScriptStudioContent(
     }
 
     val importScript = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
-        if (uri != null) scope.launch {
+        if (uri != null && saveBeforeNavigation()) scope.launch {
             runCatching {
                 val source = withContext(Dispatchers.IO) {
                     context.contentResolver.openInputStream(uri)?.bufferedReader(Charsets.UTF_8)?.use { it.readText() }
@@ -561,7 +561,7 @@ private fun ScriptStudioContent(
         dialogTitle = title
         dialogFileType = null
         dialogValue = initial
-        dialogAction = action
+        dialogAction = { value -> if (saveBeforeNavigation()) action(value) }
     }
 
     fun askForFileName(title: String, initial: String = "", action: (String) -> Unit) {
@@ -598,7 +598,7 @@ private fun ScriptStudioContent(
                 enabled = !saving && selectedProject != null && selectedPath != null,
             )
             Spacer(Modifier.width(8.dp))
-            StudioIconAction(StudioGlyph.CLOSE, "Close Script Studio", onClick = onClose)
+            StudioIconAction(StudioGlyph.CLOSE, "Close Script Studio", onClick = { if (saveBeforeNavigation()) onClose() })
         }
 
         Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp).background(StudioSurface, RoundedCornerShape(13.dp)).padding(4.dp)) {
@@ -885,7 +885,7 @@ private fun ScriptStudioContent(
                         value = editorValue,
                         onValueChange = { editorValue = it },
                         onEditorReady = { codeEditor = it },
-                        enabled = true,
+                        enabled = !saving,
                         modifier = Modifier.weight(1f).fillMaxWidth().padding(horizontal = 8.dp).testTag("script_editor"),
                     )
                     ScriptConsolePanel(
