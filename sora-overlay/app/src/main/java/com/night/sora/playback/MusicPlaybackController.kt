@@ -169,6 +169,18 @@ class MusicPlaybackController(
 
     fun playQueueIndex(index: Int) {
         if (index !in queue.indices) return
+        // Invalidate any in-flight stream/lyrics result before switching media.
+        // Otherwise the previous track can keep playing (or its headers/lyrics
+        // can appear under the newly selected track) while a source resolves.
+        requestSerial++
+        player.stop()
+        player.clearMediaItems()
+        streamHeaders.clear()
+        isPlaying = false
+        isLoading = false
+        lyricsLoading = false
+        streamLabel = ""
+        sourceName = ""
         currentIndex = index
         val track = queue[index]
         currentTrack = track
