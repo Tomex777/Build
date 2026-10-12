@@ -8,6 +8,8 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.media3.common.AudioAttributes
+import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.PlaybackException
@@ -23,6 +25,7 @@ import com.night.sora.extension.InstalledExtension
 import com.night.sora.extension.api.ExtensionContract
 import com.night.sora.model.ExtensionMediaSelection
 import com.night.sora.model.PlaybackStream
+import java.io.File
 import java.util.concurrent.ConcurrentHashMap
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -67,12 +70,24 @@ class MusicPlaybackController(
     private val player = ExoPlayer.Builder(appContext)
         .setMediaSourceFactory(DefaultMediaSourceFactory(resolvingDataSourceFactory))
         .build()
+        .apply {
+            setAudioAttributes(
+                AudioAttributes.Builder()
+                    .setUsage(C.USAGE_MEDIA)
+                    .setContentType(C.AUDIO_CONTENT_TYPE_MUSIC)
+                    .build(),
+                true,
+            )
+            setHandleAudioBecomingNoisy(true)
+            setWakeMode(C.WAKE_MODE_LOCAL)
+        }
     private var requestSerial = 0L
     private var listeningEventSerial = 0L
     private var startedEventTrackKey: String? = null
     private var previousRestartRequestedAtMs = Long.MIN_VALUE
     private var baseQueue: List<ExtensionMediaSelection> = emptyList()
     private var extensions: List<InstalledExtension> = emptyList()
+    private var offlineResolver: ((ExtensionMediaSelection) -> String?)? = null
 
     var currentTrack by mutableStateOf<ExtensionMediaSelection?>(null)
         private set
@@ -146,6 +161,8 @@ class MusicPlaybackController(
         extensions = value
     }
 
+    fun setOfflineResolver(resolver: (ExtensionMediaSelection) -> String?) { offlineResolver = resolver }
+
     fun sessionPlayer(): Player = player
 
     fun play(
@@ -169,9 +186,8 @@ class MusicPlaybackController(
 
     fun playQueueIndex(index: Int) {
         if (index !in queue.indices) return
-        // Invalidate any in-flight stream/lyrics result before switching media.
-        // Otherwise the previous track can keep playing (or its headers/lyrics
-        // can appear under the newly selected track) while a source resolves.
+        // Stop the previous stream and invalidate its pending resolver and lyrics.
+        // Switching to an offline file must not leave the old online item playing.
         requestSerial++
         player.stop()
         player.clearMediaItems()
@@ -272,6 +288,20 @@ class MusicPlaybackController(
     }
 
     private fun resolveAndPlay(track: ExtensionMediaSelection) {
+        // Every track selection invalidates older asynchronous resolver callbacks,
+        // including when this selection can play immediately from a local download.
+        val requestId = ++requestSerial
+        offlineResolver?.invoke(track)?.let { path ->
+            val file = File(path)
+            if (file.isFile && file.length() > 0L) { playLocal(track, file); return }
+        }
+        if (!isActiveMusicSource(track)) {
+            isLoading = false
+            sourceName = ""
+            streamLabel = ""
+            errorMessage = "This track belongs to a different Music source. Change the selected Music source to play it."
+            return
+        }
         val extension = extensions.firstOrNull { it.packageName == track.extensionPackage }
         if (extension == null) {
             isLoading = false
@@ -281,7 +311,6 @@ class MusicPlaybackController(
         sourceName = extension.descriptor?.sources?.firstOrNull { it.id == track.sourceId }?.name
             ?: extension.declaredName
         isLoading = true
-        val requestId = ++requestSerial
         val payload = JSONObject().put("sourceId", track.sourceId).put("id", track.id).toString()
         manager.call(extension, ExtensionContract.Method.STREAMS, payload) { result ->
             scope.launch {
@@ -317,6 +346,14 @@ class MusicPlaybackController(
         }
     }
 
+    private fun playLocal(track: ExtensionMediaSelection, file: File) {
+        sourceName = "Downloaded"; streamLabel = "Offline"; streamHeaders.clear(); lyricsText = null; lyricsLoading = false; errorMessage = null; isLoading = true
+        val metadata = MediaMetadata.Builder().setTitle(track.title).setArtist(track.artistName())
+            .apply { track.artworkUrl?.takeIf(String::isNotBlank)?.let { setArtworkUri(Uri.parse(it)) } }.build()
+        player.setMediaItem(MediaItem.Builder().setUri(Uri.fromFile(file)).setMediaId(track.identityKey()).setMediaMetadata(metadata).build())
+        player.prepare(); player.playWhenReady = true
+    }
+
     private fun loadLyrics(extension: InstalledExtension, track: ExtensionMediaSelection, requestId: Long) {
         val supportsLyrics = extension.descriptor?.sources
             ?.firstOrNull { it.id == track.sourceId }
@@ -331,7 +368,13 @@ class MusicPlaybackController(
         manager.call(
             extension,
             ExtensionContract.Method.LYRICS,
-            JSONObject().put("sourceId", track.sourceId).put("id", track.id).toString(),
+            JSONObject()
+                .put("sourceId", track.sourceId)
+                .put("id", track.id)
+                .put("title", track.title)
+                .put("artist", track.artistName())
+                .put("album", track.albumName())
+                .toString(),
         ) { result ->
             scope.launch {
                 if (requestId != requestSerial) return@launch
@@ -429,7 +472,15 @@ class MusicPlaybackController(
         values: List<ExtensionMediaSelection>,
     ): List<ExtensionMediaSelection> = listOf(track) + values.filterNot { it.sameTrack(track) }.shuffled()
 
+    private fun isActiveMusicSource(track: ExtensionMediaSelection): Boolean {
+        val selected = appContext.getSharedPreferences("sora_preferred_sources_v1", Context.MODE_PRIVATE)
+            .getString("preferred_music", null)
+            ?: return true
+        return selected == "${track.extensionPackage}|${track.sourceId}"
+    }
+
     private fun ExtensionMediaSelection.sameTrack(other: ExtensionMediaSelection): Boolean = identityKey() == other.identityKey()
     private fun ExtensionMediaSelection.identityKey(): String = "$extensionPackage|$sourceId|$id"
     private fun ExtensionMediaSelection.artistName(): String = subtitle.substringBefore(" · ").ifBlank { title }
+    private fun ExtensionMediaSelection.albumName(): String = subtitle.substringAfter(" · ", "").trim()
 }
