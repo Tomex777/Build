@@ -28,6 +28,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
@@ -154,6 +155,8 @@ internal fun VelvetConnectedChat(
                     } else {
                         status="Image wasn't sent: "+result.optString("error","Please retry.")
                     }
+                } catch(cancelled:CancellationException) {
+                    throw cancelled
                 } catch(e:Exception) {
                     status=e.message ?: "Photo upload failed; please select it again."
                 } finally {uploading=false}
@@ -177,6 +180,8 @@ internal fun VelvetConnectedChat(
                         status="Video wasn't sent: "+
                             result.optString("error","Please try again.")
                     }
+                } catch(cancelled:CancellationException) {
+                    throw cancelled
                 } catch(e:Exception) {
                     status=e.message ?: "Video upload failed. Select the video again."
                 } finally {uploading=false}

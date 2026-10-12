@@ -16,6 +16,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -107,11 +110,15 @@ internal fun VelvetVoicePlayer(
                                 progress=0
                                 it.seekTo(0)
                             }
+                            currentCoroutineContext().ensureActive()
                             player=next
                             localFile=nextFile
-                            onPlaybackStart()
-                            next.start()
-                            playing=true
+                            // Loading can finish after the user leaves or selects another clip.
+                            if(playingAllowed && lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) {
+                                onPlaybackStart()
+                                next.start()
+                                playing=true
+                            }
                         } catch(e:Exception) {
                             runCatching {next.release()}
                             throw e
@@ -120,6 +127,8 @@ internal fun VelvetVoicePlayer(
                         nextFile.delete()
                         throw e
                     }
+                } catch(cancelled:CancellationException) {
+                    throw cancelled
                 } catch(e:Exception) {
                     error=e.message ?: "Couldn't download this private voice note."
                 } finally {loading=false}

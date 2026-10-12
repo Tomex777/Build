@@ -80,7 +80,16 @@ private fun VelvetVideoFullscreen(
         loading=true
         problem=""
         try {
-            videoFile=client.downloadVideo(storagePath)
+            // Own the file before crossing a cancellable dispatcher boundary.
+            val destination=File.createTempFile("velvet_video_",".mp4",context.cacheDir)
+            videoFile=destination
+            try {
+                client.downloadVideo(storagePath,destination)
+            } catch(error:Exception) {
+                destination.delete()
+                videoFile=null
+                throw error
+            }
         } catch(cancelled:CancellationException) {
             throw cancelled
         } catch(e:Exception) {
@@ -108,9 +117,10 @@ private fun VelvetVideoFullscreen(
             decorFitsSystemWindows=false
         )
     ) {
-        Column(Modifier.fillMaxSize().background(Color.Black)) {
+        Column(Modifier.fillMaxSize().background(Color.Black)
+            .windowInsetsPadding(WindowInsets.safeDrawing)) {
             Row(
-                Modifier.fillMaxWidth().padding(top=26.dp,start=8.dp,end=12.dp),
+                Modifier.fillMaxWidth().padding(start=8.dp,end=12.dp),
                 verticalAlignment=Alignment.CenterVertically
             ) {
                 IconButton(onClick=onDismiss) {
@@ -122,7 +132,7 @@ private fun VelvetVideoFullscreen(
             Box(Modifier.fillMaxWidth().weight(1f),
                 contentAlignment=Alignment.Center) {
                 val file=videoFile
-                if(file!=null) {
+                if(file!=null && !loading && problem.isBlank()) {
                     AndroidView(
                         factory={viewContext->
                             VideoView(viewContext).apply {
@@ -130,7 +140,15 @@ private fun VelvetVideoFullscreen(
                                 controls.setAnchorView(this)
                                 setMediaController(controls)
                                 setVideoPath(file.absolutePath)
-                                setOnPreparedListener {start()}
+                                setOnPreparedListener {
+                                    if(lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) start()
+                                }
+                                setOnErrorListener {_,_,_->
+                                    problem="This clip couldn't be played. Try downloading it again."
+                                    videoFile?.delete()
+                                    videoFile=null
+                                    true
+                                }
                                 activeVideo=this
                             }
                         },

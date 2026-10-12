@@ -21,6 +21,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -312,14 +314,13 @@ internal class VelvetPairClient(private val context: Context) {
     }
 
     /** Stream authenticated MP4 into an app-private temporary file. Caller deletes it. */
-    suspend fun downloadVideo(storagePath:String):java.io.File =
+    suspend fun downloadVideo(storagePath:String, destination:java.io.File):java.io.File =
         withContext(Dispatchers.IO) {
+            val downloadContext=currentCoroutineContext()
             require(storagePath.matches(Regex(
                 "[0-9a-f-]{36}/[0-9a-f-]{36}/[0-9a-f-]{36}\\.mp4"
             ))) {"Invalid private video path."}
-            val file=java.io.File.createTempFile(
-                "velvet_video_",".mp4",context.cacheDir
-            )
+            val file=destination
             val connection=URL(
                 "$endpoint/storage/v1/object/authenticated/velvet-chat-video/$storagePath"
             ).openConnection() as HttpURLConnection
@@ -334,11 +335,14 @@ internal class VelvetPairClient(private val context: Context) {
                         "Private video unavailable (HTTP ${connection.responseCode})."
                     )
                 }
+                downloadContext.ensureActive()
                 connection.inputStream.use {input->
+                    downloadContext.ensureActive()
                     file.outputStream().use {output->
                         val chunk=ByteArray(8192)
                         var count=0L
                         while(true) {
+                            downloadContext.ensureActive()
                             val n=input.read(chunk)
                             if(n<0)break
                             count+=n
@@ -350,6 +354,7 @@ internal class VelvetPairClient(private val context: Context) {
                         check(count>0) {"The video file was empty."}
                     }
                 }
+                downloadContext.ensureActive()
                 file
             } catch(e:Exception) {
                 file.delete()
@@ -733,7 +738,7 @@ internal fun VelvetPairingScreen(
                 Text("Your space now has two members"+(partner?.let{": $it"} ?: "."),
                     color=muted)
                 Spacer(Modifier.height(7.dp))
-                Text("Pairing is ready. Your connected text chat is separate from offline Chat, games and media.",
+                Text("Pairing is ready. Connected Chat supports text, photos, voice notes and MP4 clips. Offline demos remain separate.",
                     color=muted,fontSize=12.sp)
                 Spacer(Modifier.height(15.dp))
                 Button(onClick=onConnectedChat,enabled=!loading,modifier=Modifier.fillMaxWidth()) {
@@ -808,7 +813,7 @@ internal fun VelvetPairingScreen(
             Text(notice,color=rose,fontSize=13.sp)
         }
         Spacer(Modifier.height(28.dp))
-        Text("Connected text chat only: local Chat history, photos, voice notes and games are not automatically shared.",
+        Text("Send through connected Chat to share with your partner. Offline Chat, games and Our Story stay on this phone; they are not automatically shared.",
             color=muted,fontSize=11.sp,lineHeight=17.sp)
         Spacer(Modifier.height(20.dp))
     }
