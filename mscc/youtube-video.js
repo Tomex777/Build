@@ -545,7 +545,7 @@ export async function prepareYouTubeVideo(videoId, {
   try {
     if (extractorCandidate.source === 'yt-dlp' && !extractorCandidate.video) {
       if (typeof onStage === 'function') await onStage(`Downloading ${extractorCandidate.height}p with the YouTube extractor…`)
-      const downloaded = await downloadYouTubeWithDlp(videoId, extractorCandidate.height, dir, MAX_DOWNLOAD_BYTES)
+      const downloaded = await downloadYouTubeWithDlp(videoId, extractorCandidate.height, dir, MAX_DOWNLOAD_BYTES, extractorCandidate.extractorProfile)
       return {
         ...resolved,
         candidate:extractorCandidate,
@@ -582,7 +582,7 @@ export async function prepareYouTubeVideo(videoId, {
       if (typeof onStage === 'function') await onStage('Retrying YouTube download…')
       try {
         const downloaded = await downloadYouTubeWithDlp(
-          videoId, extractorCandidate.height, dir, MAX_DOWNLOAD_BYTES)
+          videoId, extractorCandidate.height, dir, MAX_DOWNLOAD_BYTES, extractorCandidate.extractorProfile)
         return {
           ...resolved,
           candidate:extractorCandidate,
