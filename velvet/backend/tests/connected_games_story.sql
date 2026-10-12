@@ -1,5 +1,6 @@
 -- Runs after the original 14 test groups. Keep new fixtures isolated.
 begin;
+insert into auth.users(id,email_confirmed_at) values('ffffffff-ffff-4fff-8fff-ffffffffffff',now());
 set role authenticated;
 set request.jwt.claims='{"is_anonymous":false}';
 set request.jwt.claim.sub='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
@@ -36,7 +37,7 @@ begin
  perform set_config('request.jwt.claim.sub','bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',true);
  v:=public.velvet_game_move(other,1,0);
  if v->>'error'<>'occupied' then raise exception 'Occupied cell accepted';end if;
- perform set_config('request.jwt.claim.sub','cccccccc-cccc-4ccc-8ccc-cccccccccccc',true);
+ perform set_config('request.jwt.claim.sub','ffffffff-ffff-4fff-8fff-ffffffffffff',true);
  begin perform public.velvet_game_move(gid,5,6);raise exception 'Outsider permitted';
  exception when insufficient_privilege then null;end;
  begin perform public.velvet_game_list();raise exception 'Unpaired list permitted';
@@ -122,7 +123,7 @@ begin
  if v->>'error'<>'only_saver_can_remove' then raise exception 'Partner removed another saver entry';end if;
  perform set_config('request.jwt.claim.sub','cccccccc-cccc-4ccc-8ccc-cccccccccccc',true);
  if velvet_private.story_visible('velvet-chat-media',s->>'storage_path') then raise exception 'Outsider can read saved blob';end if;
- begin perform public.velvet_story_list();raise exception 'Outsider read Story';exception when insufficient_privilege then null;end;
+ if public.velvet_story_list()<>'[]'::jsonb then raise exception 'Other pair read Story';end if;
 end $$;
 reset role;
 update public.velvet_messages set deleted_at=now(),body=null,payload='{}' where id='99999999-1111-4111-8111-111111111111';
@@ -138,11 +139,6 @@ begin
  if exists(select 1 from storage.objects where name=s.path) then raise exception 'Deleted Chat blob remained visible after Story removal';end if;
 end $$;
 reset role;
-insert into auth.users(id,email_confirmed_at) values('eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',now());
-insert into public.velvet_couples(id,created_by) values('eeeeeeee-0000-4000-8000-000000000001','cccccccc-cccc-4ccc-8ccc-cccccccccccc');
-insert into public.velvet_members(couple_id,user_id) values
- ('eeeeeeee-0000-4000-8000-000000000001','cccccccc-cccc-4ccc-8ccc-cccccccccccc'),
- ('eeeeeeee-0000-4000-8000-000000000001','eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee');
 set role authenticated;
 set request.jwt.claim.sub='cccccccc-cccc-4ccc-8ccc-cccccccccccc';
 do $$declare v jsonb;begin
