@@ -22,6 +22,11 @@ import com.metrolist.innertube.models.YouTubeClient.Companion.WEB_REMIX
 import kotlinx.coroutines.withTimeoutOrNull
 import org.json.JSONArray
 import org.json.JSONObject
+import java.net.HttpURLConnection
+import java.net.URL
+import java.net.URLEncoder
+import java.nio.charset.StandardCharsets
+import java.util.Locale
 
 object YouTubeMusicCatalog {
     private const val SOURCE_ID = "youtube.music"
@@ -30,6 +35,8 @@ object YouTubeMusicCatalog {
     private const val SESSION_PREFS = "sora_youtube_music_session_v1"
     private const val SESSION_COOKIE = "cookie"
     private const val SESSION_USER_AGENT = "userAgent"
+    private const val LYRICS_NETWORK_TIMEOUT_MS = 12_000
+    private const val LRCLIB_USER_AGENT = "Sora/0.1.1 (https://github.com/Tomex777/Build)"
 
     @Volatile
     private var poTokenProvider: YouTubePoTokenProvider? = null
@@ -172,6 +179,53 @@ object YouTubeMusicCatalog {
             .put("status", response.playabilityStatus.status)
             .put("durationSeconds", details?.lengthSeconds?.toLongOrNull() ?: 0L)
             .toString()
+    }
+
+
+    suspend fun lyrics(
+        sourceId: String,
+        id: String,
+        title: String,
+        artist: String,
+        album: String,
+    ): String {
+        requireSource(sourceId)
+        ensureVisitorData()
+
+        val youtubeText = runCatching { youtubeMusicLyrics(id) }
+            .onFailure { Log.w(TAG, "YouTube Music lyrics lookup failed id=$id: ${it.message}") }
+            .getOrNull()
+            ?.takeIf(String::isNotBlank)
+
+        if (youtubeText != null) {
+            return lyricsJson(
+                trackId = id,
+                provider = "youtube_music",
+                text = youtubeText,
+                syncedText = null,
+            )
+        }
+
+        val fallback = runCatching {
+            lrclibLyrics(
+                title = title.trim(),
+                artist = artist.trim(),
+                album = album.trim(),
+            )
+        }.onFailure {
+            Log.w(TAG, "LRCLIB fallback failed id=$id: ${it.message}")
+        }.getOrNull()
+
+        return if (fallback != null) {
+            lyricsJson(
+                trackId = id,
+                provider = "lrclib",
+                text = fallback.plainText,
+                syncedText = fallback.syncedText,
+            )
+        } else {
+            lyricsJson(trackId = id, provider = "none", text = "", syncedText = null)
+        }
     }
 
     suspend fun streams(sourceId: String, id: String): String {
@@ -392,6 +446,229 @@ object YouTubeMusicCatalog {
 
         error("No YouTube Music playback path resolved direct audio: ${failures.joinToString("; ")}")
     }
+
+
+    private fun youtubeMusicLyrics(videoId: String): String? {
+        val nextBody = youtubeRequestBody().put("videoId", videoId)
+        val next = youtubeMusicPost("next", nextBody)
+        val browseId = findLyricsBrowseId(next) ?: return null
+        val browse = youtubeMusicPost("browse", youtubeRequestBody().put("browseId", browseId))
+        return findLyricsDescription(browse)?.trim()?.takeIf(String::isNotBlank)
+    }
+
+    private fun youtubeRequestBody(): JSONObject {
+        val locale = Locale.getDefault()
+        val client = JSONObject()
+            .put("clientName", WEB_REMIX.clientName)
+            .put("clientVersion", WEB_REMIX.clientVersion)
+            .put("hl", locale.language.takeIf(String::isNotBlank) ?: "en")
+            .put("gl", locale.country.takeIf(String::isNotBlank) ?: "US")
+        YouTube.visitorData?.takeIf(String::isNotBlank)?.let { client.put("visitorData", it) }
+        return JSONObject().put("context", JSONObject().put("client", client))
+    }
+
+    private fun youtubeMusicPost(endpoint: String, payload: JSONObject): JSONObject {
+        val connection = URL("https://music.youtube.com/youtubei/v1/$endpoint?prettyPrint=false")
+            .openConnection() as HttpURLConnection
+        return try {
+            connection.requestMethod = "POST"
+            connection.doOutput = true
+            connection.connectTimeout = LYRICS_NETWORK_TIMEOUT_MS
+            connection.readTimeout = LYRICS_NETWORK_TIMEOUT_MS
+            connection.setRequestProperty("Content-Type", "application/json")
+            connection.setRequestProperty("Accept", "application/json")
+            connection.setRequestProperty(
+                "User-Agent",
+                sessionUserAgent?.takeIf(String::isNotBlank) ?: WEB_REMIX.userAgent,
+            )
+            connection.setRequestProperty("X-YouTube-Client-Name", WEB_REMIX.clientId)
+            connection.setRequestProperty("X-YouTube-Client-Version", WEB_REMIX.clientVersion)
+            connection.setRequestProperty("Origin", YouTubeClient.ORIGIN_YOUTUBE_MUSIC)
+            connection.setRequestProperty("Referer", YouTubeClient.REFERER_YOUTUBE_MUSIC)
+            YouTube.visitorData?.takeIf(String::isNotBlank)?.let {
+                connection.setRequestProperty("X-Goog-Visitor-Id", it)
+            }
+            connection.outputStream.use { it.write(payload.toString().toByteArray(StandardCharsets.UTF_8)) }
+            val code = connection.responseCode
+            val body = (if (code in 200..299) connection.inputStream else connection.errorStream)
+                ?.bufferedReader()
+                ?.use { it.readText() }
+                .orEmpty()
+            if (code !in 200..299) error("YouTube Music $endpoint HTTP $code")
+            JSONObject(body)
+        } finally {
+            connection.disconnect()
+        }
+    }
+
+    private fun findLyricsBrowseId(value: Any?): String? = when (value) {
+        is JSONObject -> {
+            val endpoint = value.optJSONObject("browseEndpoint")
+            val direct = endpoint
+                ?.takeIf { jsonContainsString(it, "MUSIC_PAGE_TYPE_TRACK_LYRICS") }
+                ?.optString("browseId")
+                ?.takeIf(String::isNotBlank)
+            if (direct != null) {
+                direct
+            } else {
+                val keys = value.keys()
+                var found: String? = null
+                while (keys.hasNext() && found == null) {
+                    found = findLyricsBrowseId(value.opt(keys.next()))
+                }
+                found
+            }
+        }
+        is JSONArray -> {
+            var found: String? = null
+            for (index in 0 until value.length()) {
+                found = findLyricsBrowseId(value.opt(index))
+                if (found != null) break
+            }
+            found
+        }
+        else -> null
+    }
+
+    private fun jsonContainsString(value: Any?, expected: String): Boolean = when (value) {
+        is JSONObject -> {
+            val keys = value.keys()
+            var found = false
+            while (keys.hasNext() && !found) {
+                found = jsonContainsString(value.opt(keys.next()), expected)
+            }
+            found
+        }
+        is JSONArray -> (0 until value.length()).any { jsonContainsString(value.opt(it), expected) }
+        is String -> value == expected
+        else -> false
+    }
+
+    private fun findLyricsDescription(value: Any?): String? = when (value) {
+        is JSONObject -> {
+            val shelf = value.optJSONObject("musicDescriptionShelfRenderer")
+            val direct = shelf?.optJSONObject("description")?.let(::runsText)?.takeIf(String::isNotBlank)
+            if (direct != null) {
+                direct
+            } else {
+                val keys = value.keys()
+                var found: String? = null
+                while (keys.hasNext() && found == null) {
+                    found = findLyricsDescription(value.opt(keys.next()))
+                }
+                found
+            }
+        }
+        is JSONArray -> {
+            var found: String? = null
+            for (index in 0 until value.length()) {
+                found = findLyricsDescription(value.opt(index))
+                if (found != null) break
+            }
+            found
+        }
+        else -> null
+    }
+
+    private fun runsText(description: JSONObject): String {
+        val runs = description.optJSONArray("runs") ?: return ""
+        return buildString {
+            for (index in 0 until runs.length()) {
+                val text = runs.optJSONObject(index)?.optString("text").orEmpty()
+                if (text.isNotEmpty()) append(text)
+            }
+        }
+    }
+
+    private data class LrclibLyrics(val plainText: String, val syncedText: String?)
+
+    private fun lrclibLyrics(title: String, artist: String, album: String): LrclibLyrics? {
+        if (title.isBlank() || artist.isBlank()) return null
+        val common = buildString {
+            append("track_name=").append(urlEncode(title))
+            append("&artist_name=").append(urlEncode(artist))
+            if (album.isNotBlank()) append("&album_name=").append(urlEncode(album))
+        }
+
+        val exact = lrclibGet("https://lrclib.net/api/get?$common")
+        if (exact.first == 200 && exact.second.isNotBlank()) {
+            parseLrclibObject(JSONObject(exact.second))?.let { return it }
+        }
+
+        if (exact.first != 404 && exact.first !in 200..299) {
+            error("LRCLIB /get HTTP ${exact.first}")
+        }
+
+        val search = lrclibGet("https://lrclib.net/api/search?$common")
+        if (search.first !in 200..299) {
+            if (search.first == 404) return null
+            error("LRCLIB /search HTTP ${search.first}")
+        }
+        val results = JSONArray(search.second)
+        for (index in 0 until results.length()) {
+            val parsed = results.optJSONObject(index)?.let(::parseLrclibObject)
+            if (parsed != null) return parsed
+        }
+        return null
+    }
+
+    private fun lrclibGet(url: String): Pair<Int, String> {
+        val connection = URL(url).openConnection() as HttpURLConnection
+        return try {
+            connection.requestMethod = "GET"
+            connection.connectTimeout = LYRICS_NETWORK_TIMEOUT_MS
+            connection.readTimeout = LYRICS_NETWORK_TIMEOUT_MS
+            connection.setRequestProperty("Accept", "application/json")
+            connection.setRequestProperty("User-Agent", LRCLIB_USER_AGENT)
+            val code = connection.responseCode
+            val body = (if (code in 200..299) connection.inputStream else connection.errorStream)
+                ?.bufferedReader()
+                ?.use { it.readText() }
+                .orEmpty()
+            code to body
+        } finally {
+            connection.disconnect()
+        }
+    }
+
+    private fun parseLrclibObject(value: JSONObject): LrclibLyrics? {
+        if (value.optBoolean("instrumental", false)) return null
+        val plain = jsonString(value, "plainLyrics")
+        val synced = jsonString(value, "syncedLyrics")
+        val display = plain ?: synced?.let(::stripLrcTimestamps) ?: return null
+        if (display.isBlank()) return null
+        return LrclibLyrics(display.trim(), synced?.trim()?.takeIf(String::isNotBlank))
+    }
+
+    private fun jsonString(value: JSONObject, key: String): String? {
+        val raw = value.opt(key)
+        return if (raw == null || raw == JSONObject.NULL) null else raw.toString().takeIf(String::isNotBlank)
+    }
+
+    private fun stripLrcTimestamps(value: String): String = value
+        .lineSequence()
+        .map { line -> line.replace(Regex("^\\s*(?:\\[[^]]+])+\\s*"), "") }
+        .filter(String::isNotBlank)
+        .joinToString("\n")
+        .trim()
+
+    private fun lyricsJson(
+        trackId: String,
+        provider: String,
+        text: String,
+        syncedText: String?,
+    ): String = JSONObject()
+        .put("trackId", trackId)
+        .put("provider", provider)
+        .put("synced", !syncedText.isNullOrBlank())
+        .put("text", text)
+        .apply {
+            if (!syncedText.isNullOrBlank()) put("syncedText", syncedText)
+        }
+        .toString()
+
+    private fun urlEncode(value: String): String =
+        URLEncoder.encode(value, StandardCharsets.UTF_8.name())
 
     private fun directAudioFormats(
         formats: List<com.metrolist.innertube.models.response.PlayerResponse.StreamingData.Format>,
