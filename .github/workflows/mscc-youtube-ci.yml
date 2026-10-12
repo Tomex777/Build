@@ -18,6 +18,15 @@ on:
       - 'mscc/commands/media/youtube.js'
       - 'mscc/install-azure.sh'
       - '.github/workflows/mscc-youtube-ci.yml'
+  pull_request:
+    branches: [mscc-azure]
+    paths:
+      - 'mscc/youtube-video.js'
+      - 'mscc/youtube-flow.js'
+      - 'mscc/youtube-dlp.js'
+      - 'mscc/youtube-dlp-selftest.js'
+      - 'mscc/install-azure.sh'
+      - '.github/workflows/mscc-youtube-ci.yml'
   workflow_dispatch:
 
 jobs:
