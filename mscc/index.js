@@ -55,6 +55,7 @@ import {
   warningState,
 } from './group-policy.js'
 import { looksLikeNumberSelection } from './number-selection.js'
+import { createInboundMessageGuard, matchesDisplayedChoice } from './inbound-message-guard.js'
 import { chessRecordAcceptsInput } from './utils/chess-game.js'
 import { ticTacToeRecordAcceptsInput } from './utils/tictactoe-game.js'
 import { checkersRecordAcceptsInput } from './utils/checkers-game.js'
@@ -2218,10 +2219,25 @@ async function onDelete(account, updates) {
   }
 }
 
+const acceptInboundCommand = createInboundMessageGuard()
+
 async function onMessages(account, { messages, type }) {
   for (const msg of messages || []) {
     try {
       if (!msg?.message || !msg?.key?.id) continue
+
+      // Preserve bot-authored messages for quoting / chat context only.
+      // NEVER interpret our own replies as commands or pending choices:
+      // replying "I could not match that choice" used to feed itself
+      // indefinitely until WhatsApp received hundreds of bot messages.
+      if (msg.key.fromMe === true) {
+        remember(account, msg)
+        rememberConversation(account, msg)
+        continue
+      }
+      // Replayed/duplicated Baileys upserts must not execute a choice twice.
+      if (!acceptInboundCommand(account.id, msg)) continue
+
       const chat = normalizeJid(msg.key.remoteJid)
       const text = commandText(msg.message)
       const authority = await authorityContext(account, msg)
@@ -2280,7 +2296,8 @@ async function onMessages(account, { messages, type }) {
             looksLikeNumberSelection(text) ||
             String(text || '').trim().toLowerCase() === 'all'
           )) ||
-          (pendingReply?.kind === 'choice-selection' && String(text || '').trim())
+          (pendingReply?.kind === 'choice-selection' &&
+             matchesDisplayedChoice(text, pendingReply.entries))
         )
       )
 
