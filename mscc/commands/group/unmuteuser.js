@@ -7,7 +7,7 @@ export default {
     const raw = String(ctx.args?.[0] || '').trim()
     try {
       const target = await ctx.setMentionMute?.(raw, false)
-      return ctx.reply('Unmuted mentions from *' + (target?.displayName || 'that member') + '*.')
+      return ctx.replyWithMentions('Unmuted mentions from ' + target.mentionText + '.', [target.jid])
     } catch (error) { return ctx.reply(error?.message || 'I could not unmute that member.') }
   },
 }

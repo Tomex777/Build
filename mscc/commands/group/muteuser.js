@@ -7,7 +7,7 @@ export default {
     const raw = String(ctx.args?.[0] || '').trim()
     try {
       const target = await ctx.setMentionMute?.(raw, true)
-      return ctx.reply('Muted mentions from *' + (target?.displayName || 'that member') + '*. If they tag you, Night will remove the message.')
+      return ctx.replyWithMentions('Muted mentions from ' + target.mentionText + '. If they tag you, Night will remove the message.', [target.jid])
     } catch (error) { return ctx.reply(error?.message || 'I could not mute that member.') }
   },
 }
