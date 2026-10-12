@@ -575,6 +575,94 @@ class SceneEditorTest {
 
 
     @Test
+    fun lockedCharacterCannotDeleteKeysResetPoseOrChangeEasing() {
+        val arm = RigBone("arm", "Arm")
+        val blink = RigMorphTarget("blink", "Blink", "Face")
+        val character = Actor(
+            id = "locked-character", name = "Locked Character", kind = ActorKind.CHARACTER,
+            rigDefinition = RigDefinition(bones = listOf(arm), morphTargets = listOf(blink)),
+        )
+        val beforeLock = SceneEditorState(
+            SceneProject(
+                id = "locked-key-test", name = "Locked key test", actors = listOf(character),
+            ),
+        )
+            .setRigJointRotation(arm.id, Vec3(z = 20f))
+            .setRigMorphWeight(blink.id, 0.5f)
+            .keySelectedTransform(0f)
+            .keySelectedPose(0f)
+        val locked = beforeLock.toggleSelectedLocked()
+        assertTrue(locked.selectedActor?.locked == true)
+        assertEquals(locked, locked.resetRigPose())
+        assertEquals(locked, locked.resetRigJoint(arm.id))
+        assertEquals(locked, locked.resetRigMorph(blink.id))
+        assertEquals(locked, locked.removeSelectedTransformKeyframe(0f))
+        assertEquals(locked, locked.removeSelectedPoseKeyframe(0f))
+        assertEquals(locked, locked.setSelectedTransformInterpolation(Interpolation.LINEAR))
+        assertEquals(locked, locked.setSelectedPoseInterpolation(Interpolation.STEP))
+        assertEquals(beforeLock.project, locked.undo().project)
+
+        val unlocked = locked.toggleSelectedLocked()
+        assertTrue(unlocked.removeSelectedPoseKeyframe(0f).project.tracks.size < unlocked.project.tracks.size)
+        assertTrue(unlocked.resetRigPose().selectedActor?.rig == null)
+    }
+
+
+    @Test
+    fun undoAndRedoPreserveFocusAcrossDuplicateDeleteAndAddOperations() {
+        val start = SceneEditorState(scene()).selectActor("prop-b")
+        val duplicated = start.duplicateSelected()
+        val copiedId = requireNotNull(duplicated.selectedActorId)
+        assertNotEquals("prop-b", copiedId)
+
+        val undoneDuplicate = duplicated.undo()
+        assertEquals(start.project, undoneDuplicate.project)
+        assertEquals("prop-b", undoneDuplicate.selectedActorId)
+        assertEquals(copiedId, undoneDuplicate.redo().selectedActorId)
+
+        val deleted = duplicated.deleteSelected()
+        assertEquals("prop-a", deleted.selectedActorId)
+        val undoDelete = deleted.undo()
+        assertEquals(duplicated.project, undoDelete.project)
+        assertEquals(copiedId, undoDelete.selectedActorId)
+        assertEquals(deleted.project, undoDelete.redo().project)
+        assertEquals("prop-a", undoDelete.redo().selectedActorId)
+
+        val inserted = start.addActor(Actor("new", "New", ActorKind.PROP))
+        assertEquals("new", inserted.selectedActorId)
+        val undoneAdd = inserted.undo()
+        assertEquals("prop-b", undoneAdd.selectedActorId)
+        assertEquals("new", undoneAdd.redo().selectedActorId)
+    }
+
+    @Test
+    fun newEditsClearRedoSelectionHistoryWhileGesturesPreserveIt() {
+        val start = SceneEditorState(scene()).selectActor("prop-b")
+        val first = start.setPosition(TransformAxis.X, 4f)
+        val undone = first.undo()
+        assertTrue(undone.canRedo)
+        assertEquals("prop-b", undone.selectedActorId)
+
+        val fresh = undone.setRotation(TransformAxis.Z, 20f)
+        assertFalse(fresh.canRedo)
+        assertTrue(fresh.redoSelections.isEmpty())
+
+        val preview = start.previewSelectedTransform(
+            requireNotNull(start.selectedActor).transform.copy(position = Vec3(x = 8f)),
+        )
+        val gestured = preview.commitTransformGesture(start.project)
+        assertEquals("prop-b", gestured.undo().selectedActorId)
+        assertEquals("prop-b", gestured.undo().redo().selectedActorId)
+
+        val replaced = fresh.replaceProject(scene())
+        assertFalse(replaced.canUndo)
+        assertFalse(replaced.canRedo)
+        assertTrue(replaced.undoSelections.isEmpty())
+        assertTrue(replaced.redoSelections.isEmpty())
+    }
+
+
+    @Test
     fun duplicatingAnimatedParentClonesDescendantsAttachmentsAndIndependentTracks() {
         val hand = RigBone("hand", "Hand")
         val character = Actor(

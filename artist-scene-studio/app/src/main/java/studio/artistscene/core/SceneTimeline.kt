@@ -88,6 +88,27 @@ fun SceneProject.poseKeyTimes(actorId: String): List<Float> =
         .sorted()
         .toList()
 
+/**
+ * Combined authored keys for one actor. Supports precise navigation even when transform and
+ * rig-pose keys were authored at different times.
+ */
+fun SceneProject.actorKeyTimes(actorId: String): List<Float> =
+    (transformKeyTimes(actorId) + poseKeyTimes(actorId))
+        .filter { it.isFinite() && it >= 0f }
+        .distinct()
+        .sorted()
+
+/** Strict navigation: a key at the current playhead does not trap Previous/Next. */
+fun SceneProject.previousActorKeyTime(actorId: String, playheadSeconds: Float): Float? =
+    if (!playheadSeconds.isFinite()) null
+    else actorKeyTimes(actorId).lastOrNull { it < playheadSeconds - KEY_NAVIGATION_EPSILON }
+
+fun SceneProject.nextActorKeyTime(actorId: String, playheadSeconds: Float): Float? =
+    if (!playheadSeconds.isFinite()) null
+    else actorKeyTimes(actorId).firstOrNull { it > playheadSeconds + KEY_NAVIGATION_EPSILON }
+
+private const val KEY_NAVIGATION_EPSILON = 0.001f
+
 private fun Actor.withTimelineJoint(boneId: String, rotation: Vec3): Actor {
     if (rigDefinition?.bones?.none { it.id == boneId } != false) return this
     val joints = rig?.joints.orEmpty().toMutableMap()

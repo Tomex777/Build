@@ -14,6 +14,9 @@ data class SceneEditorState(
     val activeTool: TransformTool = TransformTool.MOVE,
     val undoStack: List<SceneProject> = emptyList(),
     val redoStack: List<SceneProject> = emptyList(),
+    // UI-only history: keep the actor in focus when undo/redo crosses creation or deletion.
+    val undoSelections: List<String?> = emptyList(),
+    val redoSelections: List<String?> = emptyList(),
 ) {
     val selectedActor: Actor?
         get() = project.actors.firstOrNull { it.id == selectedActorId }
@@ -144,7 +147,12 @@ data class SceneEditorState(
 
     fun commitRigGesture(before: SceneProject): SceneEditorState {
         if (before == project) return this
-        return copy(undoStack = (undoStack + before).takeLast(HISTORY_LIMIT), redoStack = emptyList())
+        return copy(
+            undoStack = (undoStack + before).takeLast(HISTORY_LIMIT),
+            redoStack = emptyList(),
+            undoSelections = (undoSelections + selectedActorId).takeLast(HISTORY_LIMIT),
+            redoSelections = emptyList(),
+        )
     }
 
     fun cancelRigGesture(before: SceneProject): SceneEditorState = copy(project = before)
@@ -169,6 +177,7 @@ data class SceneEditorState(
 
     fun resetRigMorph(targetId: String): SceneEditorState {
         val actor = selectedActor ?: return this
+        if (actor.locked) return this
         val pose = actor.rig ?: return this
         if (targetId !in pose.morphWeights) return this
         val reset = pose.copy(morphWeights = pose.morphWeights - targetId)
@@ -182,6 +191,7 @@ data class SceneEditorState(
 
     fun resetRigJoint(boneId: String): SceneEditorState {
         val actor = selectedActor ?: return this
+        if (actor.locked) return this
         val pose = actor.rig ?: return this
         if (boneId !in pose.joints) return this
         val reset = pose.copy(joints = pose.joints - boneId)
@@ -193,7 +203,7 @@ data class SceneEditorState(
 
     fun resetRigPose(): SceneEditorState {
         val actor = selectedActor ?: return this
-        if (actor.rig == null) return this
+        if (actor.locked || actor.rig == null) return this
         return replaceSelected(actor.copy(rig = null, animation = actor.animation.copy(playing = false)))
     }
 
@@ -276,6 +286,8 @@ data class SceneEditorState(
         return copy(
             undoStack = (undoStack + before).takeLast(HISTORY_LIMIT),
             redoStack = emptyList(),
+            undoSelections = (undoSelections + selectedActorId).takeLast(HISTORY_LIMIT),
+            redoSelections = emptyList(),
         )
     }
 
@@ -581,7 +593,7 @@ data class SceneEditorState(
 
     fun removeSelectedTransformKeyframe(timeSeconds: Float): SceneEditorState {
         val actor = selectedActor ?: return this
-        if (!timeSeconds.isFinite()) return this
+        if (actor.locked || !timeSeconds.isFinite()) return this
         val time = timeSeconds.coerceAtLeast(0f)
         val transformPaths = setOf(
             SceneTimelinePaths.POSITION,
@@ -639,7 +651,7 @@ data class SceneEditorState(
 
     fun removeSelectedPoseKeyframe(timeSeconds: Float): SceneEditorState {
         val actor = selectedActor ?: return this
-        if (!timeSeconds.isFinite()) return this
+        if (actor.locked || !timeSeconds.isFinite()) return this
         val time = timeSeconds.coerceAtLeast(0f)
         val updated = project.tracks.mapNotNull { track ->
             val isPoseTrack = track.propertyPath.startsWith(SceneTimelinePaths.RIG_JOINT_PREFIX) ||
@@ -649,6 +661,38 @@ data class SceneEditorState(
             } else {
                 val keys = track.keyframes.filterNot { kotlin.math.abs(it.timeSeconds - time) <= KEYFRAME_EPSILON_SECONDS }
                 if (keys.isEmpty()) null else track.copy(keyframes = keys)
+            }
+        }
+        if (updated == project.tracks) return this
+        return commit(project.copy(tracks = updated), actor.id)
+    }
+
+    /** Apply easing to all transform tracks for the selected actor as one undoable edit. */
+    fun setSelectedTransformInterpolation(interpolation: Interpolation): SceneEditorState =
+        updateSelectedTrackInterpolation(interpolation) { path ->
+            path == SceneTimelinePaths.POSITION ||
+                path == SceneTimelinePaths.ROTATION ||
+                path == SceneTimelinePaths.SCALE
+        }
+
+    /** Adjust pose animation easing without modifying other characters or transform tracks. */
+    fun setSelectedPoseInterpolation(interpolation: Interpolation): SceneEditorState =
+        updateSelectedTrackInterpolation(interpolation) { path ->
+            path.startsWith(SceneTimelinePaths.RIG_JOINT_PREFIX) ||
+                path.startsWith(SceneTimelinePaths.RIG_MORPH_PREFIX)
+        }
+
+    private fun updateSelectedTrackInterpolation(
+        interpolation: Interpolation,
+        pathMatches: (String) -> Boolean,
+    ): SceneEditorState {
+        val actor = selectedActor ?: return this
+        if (actor.locked) return this
+        val updated = project.tracks.map { track ->
+            if (track.targetActorId == actor.id && pathMatches(track.propertyPath)) {
+                track.copy(interpolation = interpolation)
+            } else {
+                track
             }
         }
         if (updated == project.tracks) return this
@@ -770,22 +814,28 @@ data class SceneEditorState(
     fun undo(): SceneEditorState {
         if (undoStack.isEmpty()) return this
         val previous = undoStack.last()
+        val previousSelection = if (undoSelections.isNotEmpty()) undoSelections.last() else selectedActorId
         return copy(
             project = previous,
-            selectedActorId = selectedActorId.validFor(previous),
+            selectedActorId = previousSelection.validFor(previous),
             undoStack = undoStack.dropLast(1),
             redoStack = (redoStack + project).takeLast(HISTORY_LIMIT),
+            undoSelections = undoSelections.dropLast(1),
+            redoSelections = (redoSelections + selectedActorId).takeLast(HISTORY_LIMIT),
         )
     }
 
     fun redo(): SceneEditorState {
         if (redoStack.isEmpty()) return this
         val next = redoStack.last()
+        val nextSelection = if (redoSelections.isNotEmpty()) redoSelections.last() else selectedActorId
         return copy(
             project = next,
-            selectedActorId = selectedActorId.validFor(next),
+            selectedActorId = nextSelection.validFor(next),
             undoStack = (undoStack + project).takeLast(HISTORY_LIMIT),
             redoStack = redoStack.dropLast(1),
+            undoSelections = (undoSelections + selectedActorId).takeLast(HISTORY_LIMIT),
+            redoSelections = redoSelections.dropLast(1),
         )
     }
 
@@ -795,6 +845,8 @@ data class SceneEditorState(
             selectedActorId = if (preserveSelection) selectedActorId.validFor(next) else next.actors.firstOrNull()?.id,
             undoStack = emptyList(),
             redoStack = emptyList(),
+            undoSelections = emptyList(),
+            redoSelections = emptyList(),
         )
 
     private fun updateSelectedTransform(change: (Transform) -> Transform): SceneEditorState {
@@ -821,6 +873,8 @@ data class SceneEditorState(
             selectedActorId = selected.validFor(nextProject),
             undoStack = (undoStack + project).takeLast(HISTORY_LIMIT),
             redoStack = emptyList(),
+            undoSelections = (undoSelections + selectedActorId).takeLast(HISTORY_LIMIT),
+            redoSelections = emptyList(),
         )
     }
 
