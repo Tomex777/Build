@@ -7,6 +7,7 @@ import {
   youtubeChallengeMessage,
   resolveYouTubeWithDlp,
   downloadYouTubeWithDlp,
+  directFormatsFromDlp,
 } from './youtube-dlp.js'
 
 const id = 'dQw4w9WgXcQ'
@@ -14,6 +15,18 @@ assert.equal(isYouTubeAccessChallenge(new Error("Sign in to confirm you’re not
 assert.equal(isYouTubeAccessChallenge(new Error('Video unavailable')), false)
 assert.match(youtubeChallengeMessage(id), /MSCC server/)
 assert.match(youtubeChallengeMessage(id), /youtube.com\/watch\?v=dQw4w9WgXcQ/)
+
+const direct = directFormatsFromDlp({formats:[
+  {format_id:'137', url:'https://media.example.invalid/video.mp4',ext:'mp4',protocol:'https',
+    height:1080,vcodec:'avc1.640028',acodec:'none',tbr:2500},
+  {format_id:'140', url:'https://media.example.invalid/audio.m4a',ext:'m4a',protocol:'https',
+    vcodec:'none',acodec:'mp4a.40.2',tbr:128},
+  {format_id:'hls', url:'https://media.example.invalid/playlist.m3u8',ext:'mp4',protocol:'m3u8_native',
+    height:720,vcodec:'avc1',acodec:'none'},
+]})
+assert.equal(direct.length, 2)
+assert.deepEqual(direct.map(row => [row.container, row.hasVideo, row.hasAudio]),
+  [['mp4', true, false],['mp4', false, true]])
 
 const folder = await mkdtemp(join(tmpdir(), 'mscc-yt-dlp-test-'))
 try {

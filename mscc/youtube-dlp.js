@@ -75,6 +75,40 @@ function runDlp(args, { timeoutMs = 60000, maxOutput = 8 * 1024 * 1024 } = {}) {
   })
 }
 
+// yt-dlp has already resolved signed stream URLs while producing metadata.
+// Re-use those URLs rather than making a second player request for download.
+export function directFormatsFromDlp(info = {}) {
+  const formats = Array.isArray(info.formats) ? info.formats : []
+  return formats.filter(row => {
+    const url = String(row?.url || '')
+    const protocol = String(row?.protocol || 'https')
+    const ext = String(row?.ext || '').toLowerCase()
+    return /^https:\/\//i.test(url) &&
+      ['https', 'http'].includes(protocol) &&
+      ['mp4', 'm4a', 'webm'].includes(ext)
+  }).map(row => {
+    const vcodec = String(row.vcodec || 'none')
+    const acodec = String(row.acodec || 'none')
+    const hasVideo = vcodec !== 'none'
+    const hasAudio = acodec !== 'none'
+    const ext = String(row.ext || '').toLowerCase()
+    const container = ext === 'm4a' ? 'mp4' : ext
+    return {
+      url:String(row.url),
+      itag:Number(row.format_id) || 0,
+      mimeType:(hasVideo ? 'video/' : 'audio/') + container,
+      codecs:[vcodec, acodec].filter(value => value !== 'none').join(', '),
+      container,
+      width:Number(row.width || 0) || 0,
+      height:Number(row.height || 0) || 0,
+      bitrate:Math.round((Number(row.tbr || 0) || 0) * 1000),
+      contentLength:Number(row.filesize || row.filesize_approx || 0) || 0,
+      hasVideo,
+      hasAudio,
+    }
+  }).filter(row => row.hasVideo || row.hasAudio)
+}
+
 export async function resolveYouTubeWithDlp(videoId) {
   if (!ID_RE.test(String(videoId || ''))) throw new Error('Invalid YouTube video ID.')
   const output = await runDlp(['--dump-single-json', '--skip-download', BASE + videoId])
@@ -98,7 +132,7 @@ export async function resolveYouTubeWithDlp(videoId) {
       thumbnail:`https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`,
       url:BASE + videoId,
     },
-    formats:[],
+    formats:directFormatsFromDlp(data),
     candidates:heights.map(height => ({
       quality:String(height), height, kind:'yt-dlp', container:'mp4', source:'yt-dlp', video:null, audio:null,
     })),

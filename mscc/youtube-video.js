@@ -25,6 +25,26 @@ import {
 
 const WATCH = 'https://www.youtube.com/watch?v='
 const MAX_SEARCH_RESULTS = 20
+const RESOLUTION_TTL_MS = 90_000
+const cachedResolutions = new Map()
+
+function rememberResolvedVideo(id, resolved) {
+  cachedResolutions.delete(id)
+  cachedResolutions.set(id, { resolved, expiresAt:Date.now() + RESOLUTION_TTL_MS })
+  while (cachedResolutions.size > 32) cachedResolutions.delete(cachedResolutions.keys().next().value)
+  return resolved
+}
+
+function promoteExtractorFormats(info) {
+  const direct = buildVideoCandidates(info.formats).map(candidate => ({
+    ...candidate, source:'yt-dlp',
+  }))
+  return {
+    ...info,
+    candidates:direct.length ? direct : info.candidates,
+  }
+}
+
 
 export function parseYouTubeVideoId(value) {
   const raw = String(value || '').trim()
@@ -302,10 +322,15 @@ export function selectVideoCandidate(candidates = [], quality = 'best') {
   return lower || [...list].sort((a,b) => a.height - b.height)[0]
 }
 
-export async function resolveYouTubeVideo(videoId) {
+export async function resolveYouTubeVideo(videoId, { refresh = false } = {}) {
   const id = String(videoId || '').trim()
   if (!/^[A-Za-z0-9_-]{11}$/.test(id)) throw new Error('Invalid YouTube video ID.')
 
+  if (!refresh) {
+    const cached = cachedResolutions.get(id)
+    if (cached && cached.expiresAt > Date.now()) return cached.resolved
+    if (cached) cachedResolutions.delete(id)
+  }
   const watchUrl = WATCH + encodeURIComponent(id)
   const { text:watchHtml } = await fetchText(watchUrl, {
     headers:{
@@ -382,7 +407,7 @@ export async function resolveYouTubeVideo(videoId) {
   const candidates = buildVideoCandidates(formats)
   if (!candidates.length) {
     try {
-      return await resolveYouTubeWithDlp(id)
+      return rememberResolvedVideo(id, promoteExtractorFormats(await resolveYouTubeWithDlp(id)))
     } catch (extractorError) {
       if (isYouTubeAccessChallenge(lastError) || isYouTubeAccessChallenge(extractorError)) {
         const blocked = new Error('YouTube challenged the MSCC server while accessing the video.')
@@ -394,7 +419,7 @@ export async function resolveYouTubeVideo(videoId) {
     }
   }
 
-  return {
+  return rememberResolvedVideo(id, {
     details:details || {
       id,
       title:'YouTube video',
@@ -405,7 +430,7 @@ export async function resolveYouTubeVideo(videoId) {
     },
     formats,
     candidates,
-  }
+  })
 }
 
 async function probeCandidate(candidate, watchUrl) {
@@ -490,24 +515,26 @@ export async function prepareYouTubeVideo(videoId, {
   const watchUrl = resolved.details.url || WATCH + videoId
   if (typeof onStage === 'function') await onStage('Checking media…')
   let extractorCandidate = candidate
-  if (candidate.source !== 'yt-dlp') {
+  try {
+    if (candidate.video) await probeCandidate(candidate, watchUrl)
+  } catch (probeError) {
+    // A previously resolved signed URL may have expired or been blocked.
+    // Refresh it through yt-dlp, retaining its direct transport URLs.
+    cachedResolutions.delete(videoId)
     try {
-      await probeCandidate(candidate, watchUrl)
-    } catch (probeError) {
-      // Signed direct URLs can fail on the Azure IP even when GitHub CI passes.
-      // Try the maintained extractor before declaring playback unavailable.
-      try {
-        const fallback = await resolveYouTubeWithDlp(videoId)
-        extractorCandidate = selectVideoCandidate(fallback.candidates, quality)
-        if (!extractorCandidate) throw new Error('No extractor format was available.')
-      } catch (error) {
-        if (isYouTubeAccessChallenge(error)) {
-          const blocked = new Error('YouTube challenged the MSCC server while accessing the video.')
-          blocked.code = 'YOUTUBE_ACCESS_CHALLENGE'
-          throw blocked
-        }
-        throw probeError
-      }
+      const fallback = promoteExtractorFormats(await resolveYouTubeWithDlp(videoId))
+      extractorCandidate = selectVideoCandidate(fallback.candidates, quality)
+      if (!extractorCandidate) throw new Error('No extractor format was available.')
+      if (extractorCandidate.video) await probeCandidate(extractorCandidate, watchUrl)
+    } catch (error) {
+      // A transport rejection is more informative than a subsequent unrelated
+      // extractor failure, unless the extractor explicitly confirms botgate.
+      if (isYouTubeAccessChallenge(error)) throw error
+      console.error('MSCC YouTube stream probe and extractor failed:', {
+        probe:probeError?.code || String(probeError?.message || '').slice(0, 100),
+        extractor:error?.code || String(error?.message || '').slice(0, 100),
+      })
+      throw error
     }
   }
 
@@ -516,7 +543,7 @@ export async function prepareYouTubeVideo(videoId, {
   const cleanup = async () => rm(dir, { recursive:true, force:true }).catch(() => {})
 
   try {
-    if (extractorCandidate.source === 'yt-dlp') {
+    if (extractorCandidate.source === 'yt-dlp' && !extractorCandidate.video) {
       if (typeof onStage === 'function') await onStage(`Downloading ${extractorCandidate.height}p with the YouTube extractor…`)
       const downloaded = await downloadYouTubeWithDlp(videoId, extractorCandidate.height, dir, MAX_DOWNLOAD_BYTES)
       return {
@@ -530,27 +557,55 @@ export async function prepareYouTubeVideo(videoId, {
         cleanup,
       }
     }
-    const extension = candidate.container === 'webm' ? 'webm' : 'mp4'
+    const extension = extractorCandidate.container === 'webm' ? 'webm' : 'mp4'
     const output = join(dir, 'output.' + extension)
 
-    if (candidate.kind === 'progressive') {
-      if (typeof onStage === 'function') await onStage(`Downloading ${candidate.height}p…`)
-      await downloadUrl(candidate.video.url, output, watchUrl)
-    } else {
-      if (typeof onStage === 'function') await onStage(`Downloading ${candidate.height}p video…`)
-      const videoFile = join(dir, 'video.' + (candidate.video.container || 'mp4'))
-      const audioFile = join(dir, 'audio.' + (candidate.audio.container === 'mp4' ? 'm4a' : candidate.audio.container || 'webm'))
-      await downloadUrl(candidate.video.url, videoFile, watchUrl)
-      if (typeof onStage === 'function') await onStage('Downloading audio…')
-      await downloadUrl(candidate.audio.url, audioFile, watchUrl)
-      if (typeof onStage === 'function') await onStage('Combining video + audio…')
-      await muxMediaFiles(videoFile, audioFile, output)
+    try {
+      if (extractorCandidate.kind === 'progressive') {
+        if (typeof onStage === 'function') await onStage(`Downloading ${extractorCandidate.height}p…`)
+        await downloadUrl(extractorCandidate.video.url, output, watchUrl)
+      } else {
+        if (typeof onStage === 'function') await onStage(`Downloading ${extractorCandidate.height}p video…`)
+        const videoFile = join(dir, 'video.' + (extractorCandidate.video.container || 'mp4'))
+        const audioFile = join(dir, 'audio.' + (extractorCandidate.audio.container === 'mp4' ? 'm4a' : extractorCandidate.audio.container || 'webm'))
+        await downloadUrl(extractorCandidate.video.url, videoFile, watchUrl)
+        if (typeof onStage === 'function') await onStage('Downloading audio…')
+        await downloadUrl(extractorCandidate.audio.url, audioFile, watchUrl)
+        if (typeof onStage === 'function') await onStage('Combining video + audio…')
+        await muxMediaFiles(videoFile, audioFile, output)
+      }
+    } catch (transportError) {
+      // Retry a failed signed URL with a fresh yt-dlp player extraction.
+      // Unlike the old implementation, the happy path makes no second
+      // metadata request between choosing a quality and downloading it.
+      cachedResolutions.delete(videoId)
+      if (typeof onStage === 'function') await onStage('Retrying YouTube download…')
+      try {
+        const downloaded = await downloadYouTubeWithDlp(
+          videoId, extractorCandidate.height, dir, MAX_DOWNLOAD_BYTES)
+        return {
+          ...resolved,
+          candidate:extractorCandidate,
+          file:downloaded.file,
+          fileName:safeVideoName(resolved.details.title, downloaded.extension),
+          mimetype:downloaded.extension === 'mp4' ? 'video/mp4' :
+            downloaded.extension === 'webm' ? 'video/webm' : 'video/x-matroska',
+          size:downloaded.size,
+          cleanup,
+        }
+      } catch (extractorError) {
+        console.error('MSCC YouTube signed-media retry failed:', {
+          transport:transportError?.code || String(transportError?.message || '').slice(0, 100),
+          extractor:extractorError?.code || String(extractorError?.message || '').slice(0, 100),
+        })
+        throw extractorError
+      }
     }
 
     const info = await stat(output)
     return {
       ...resolved,
-      candidate,
+      candidate:extractorCandidate,
       file:output,
       fileName:safeVideoName(resolved.details.title, extension),
       mimetype:extension === 'webm' ? 'video/webm' : 'video/mp4',
