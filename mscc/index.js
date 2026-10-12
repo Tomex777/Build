@@ -17,6 +17,7 @@ import { AccountRegistry, legacyAccountRecords } from './account-registry.js'
 import { selectCcDestination } from './cc-routing.js'
 import { isPrivateOwnerDm } from './control-context.js'
 import { canStartScheduledReconnect, classifyDisconnect, jidPhoneNumber, reconnectDelay, serializeSessionOperation, sessionStatus } from './session-policy.js'
+import { createAccountSocketOptions } from './account-socket-options.js'
 import { sessionEventsFromJsonl, sessionSnapshot } from './session-diagnostics.js'
 import { openSharedStorage } from './shared-storage.js'
 import { chooseGroupExecutor, canExecuteDirect } from './bot-routing.js'
@@ -2740,17 +2741,13 @@ async function startAccount(account) {
   account.registered = Boolean(state.creds.registered)
   account.nextReconnectAt = 0
 
-  const options = {
+  const options = createAccountSocketOptions({
     auth: { creds: state.creds, keys: makeCacheableSignalKeyStore(state.keys, logger) },
     logger,
     browser: Browsers.macOS('Chrome'),
-    markOnlineOnConnect: false,
-    syncFullHistory: false,
-    shouldSyncHistoryMessage: () => false,
-    generateHighQualityLinkPreview: false,
-    getMessage: async key => findCached(account.id, key, key?.remoteJid)?.message
-  }
-  if (Array.isArray(waVersion)) options.version = waVersion
+    getMessage: async key => findCached(account.id, key, key?.remoteJid)?.message,
+    version: waVersion,
+  })
 
   const sock = makeWASocket(options)
   account.sock = sock
