@@ -179,6 +179,16 @@ async function chooseQuality(ctx, video, { deliveryOverride = '' } = {}) {
   try {
     resolved = await resolveYouTubeVideo(video.id)
   } catch (error) {
+    if (isYouTubeAccessChallenge(error) && process.env.MSCC_YOUTUBE_KNIGHT_FALLBACK !== '0') {
+      // KnightBot-style provider APIs supply an MP4, but not an authoritative
+      // quality list. Skip the misleading quality selector and report the
+      // actual resolution later (if ffprobe can determine it).
+      await progress?.done?.('YouTube blocked quality options; trying alternate video sources…')
+      const saved = ctx.getDeliveryDefault?.('youtube') || null
+      const delivery = deliveryOverride ||
+        (saved?.delivery === 'document' ? 'document' : 'video')
+      return sendVideo(ctx,video.id,'best',delivery)
+    }
     console.error('MSCC YouTube format resolution failed:', error)
     const message = isYouTubeAccessChallenge(error)
       ? youtubeChallengeMessage(video.id)
