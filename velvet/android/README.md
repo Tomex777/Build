@@ -151,3 +151,11 @@ Games → Online lounge has two-phone Tic-tac-toe and Connect Four rounds with s
 Long-press a connected Chat photo/video → Save to Our Story. Our Story → Shared Story lists only explicitly curated media, with original sender and saver attribution. Saving is idempotent and the first saver is retained. The saver can remove the shared entry without modifying Chat. Saved media remains accessible independently of Chat deletion/hiding until removed from Story. No automatic copy takes place.
 
 Requires the connected_games_and_story migration after migrations 01–15. Live two-device operation remains unverified until backend activation. No push notifications, realtime WebSockets, online Chess/Ludo/Draw, cloud uploads directly from the local Story gallery or end-to-end encryption are implemented by this release.
+
+## v0.20 — Two-phone questions, joint reveal and game resignation
+
+Games → Answer together on two phones lists shared questions. Share a card from a conversation deck without leaving it, or write a custom question in the shared screen. Each person submits their own final answer; the other answer is withheld by server RPCs until both have submitted. Own answers stay visible immediately. The second submission reveals both answers to both partners. Create/answer retries are idempotent, raw answer tables have no client grants, and other couples cannot read or answer the round. Questions and answers are server-stored plaintext with access controls, NOT E2EE. Updates poll while the screen is foregrounded, including older selected rounds; history paginates twenty questions at a time.
+
+Online board players can concede with an explicit confirmation, including when it is the partner's turn. The server checks round version and ends it with the other player as winner. Active games are listed ahead of finished rounds so they remain reachable after twenty completed matches. A shared monitor serializes authentication refresh-token rotation across concurrent polling and media calls.
+
+Requires the together_questions_and_resign migration. Live backend setup, push/WebSocket delivery, end-to-end encryption, other online games and physical-device verification remain unfinished.

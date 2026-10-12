@@ -92,6 +92,7 @@ internal class VelvetPairClient(private val context: Context) {
         return if(raw.trim().startsWith("{")) JSONObject(raw) else JSONObject()
     }
 
+    @Synchronized
     private fun activeToken(): String {
         accessToken?.takeIf {System.currentTimeMillis()<expiresAtMs}?.let {return it}
         val refresh=vault.read() ?: throw IllegalStateException("Please sign in again.")
@@ -100,6 +101,7 @@ internal class VelvetPairClient(private val context: Context) {
         return accessToken ?: throw IllegalStateException("Please sign in again.")
     }
 
+    @Synchronized
     private fun acceptAuth(body: JSONObject): Boolean {
         val newAccess = body.optString("access_token")
         val newRefresh = body.optString("refresh_token")
@@ -116,10 +118,12 @@ internal class VelvetPairClient(private val context: Context) {
     }
 
     suspend fun restore(): Boolean = withContext(Dispatchers.IO) {
-        val refresh = vault.read() ?: return@withContext false
+        if(vault.read()==null)return@withContext false
         runCatching {
-            acceptAuth(send("/auth/v1/token?grant_type=refresh_token",
-                JSONObject().put("refresh_token", refresh)))
+            // One shared client may poll Chat, games and media concurrently.
+            // Rotate the single-use refresh token under the same monitor.
+            activeToken()
+            true
         }.getOrElse { error ->
             val revoked=error.message?.let {message ->
                 message.contains("Invalid Refresh Token",true) ||
@@ -585,6 +589,24 @@ internal class VelvetPairClient(private val context: Context) {
     }
     suspend fun removeSharedStory(id:String):JSONObject = withContext(Dispatchers.IO) {
         rpc("velvet_story_remove",JSONObject().put("p_id",id))
+    }
+
+    suspend fun resignGame(id:String,version:Int):JSONObject = withContext(Dispatchers.IO) {
+        rpc("velvet_game_resign",JSONObject().put("p_id",id).put("p_version",version))
+    }
+    suspend fun createTogether(id:String,question:String,category:String):JSONObject = withContext(Dispatchers.IO) {
+        rpc("velvet_together_create",JSONObject().put("p_id",id).put("p_question",question).put("p_category",category))
+    }
+    suspend fun answerTogether(id:String,answer:String):JSONObject = withContext(Dispatchers.IO) {
+        rpc("velvet_together_answer",JSONObject().put("p_id",id).put("p_answer",answer))
+    }
+    suspend fun getTogether(id:String):JSONObject = withContext(Dispatchers.IO) {
+        rpc("velvet_together_get",JSONObject().put("p_id",id))
+    }
+    suspend fun listTogether(beforeAt:String?=null,beforeId:String?=null):JSONArray = withContext(Dispatchers.IO) {
+        val args=JSONObject().put("p_limit",20)
+        if(beforeAt!=null && beforeId!=null)args.put("p_before_at",beforeAt).put("p_before_id",beforeId)
+        JSONArray(sendRaw("/rest/v1/rpc/velvet_together_list",args,activeToken()))
     }
 
     private fun rpc(name:String, data:JSONObject=JSONObject()): JSONObject {

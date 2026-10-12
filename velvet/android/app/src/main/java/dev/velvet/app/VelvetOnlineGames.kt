@@ -53,13 +53,14 @@ internal fun VelvetOnlineGames(client:VelvetPairClient,onBack:()->Unit,onPair:()
     var ready by remember {mutableStateOf(false)}
     var busy by remember {mutableStateOf(false)}
     var error by remember {mutableStateOf("")}
+    var resigning by remember {mutableStateOf(false)}
     var notice by remember {mutableStateOf("Connecting…")}
     var attempts by remember {mutableIntStateOf(0)}
     var pendingCreate by remember {mutableStateOf<Pair<String,String>?>(null)}
     val rose=Color(0xFFE4A1B6);val cream=Color(0xFFFFEAF0);val bg=Color(0xFF171019)
     fun applyGame(game:OnlineBoard) {
         val index=games.indexOfFirst{it.id==game.id}
-        if(index<0) games.add(0,game)
+        if(index<0) games.add(game)
         else if(game.version>=games[index].version)games[index]=game
     }
     LaunchedEffect(client,attempts) {
@@ -77,7 +78,9 @@ internal fun VelvetOnlineGames(client:VelvetPairClient,onBack:()->Unit,onPair:()
                     try {
                         val page=client.onlineGames()
                         for(i in 0 until page.length())applyGame(OnlineBoard.parse(page.getJSONObject(i)))
-                        if(error.isBlank())notice="Paired lounge · Refreshes while open"
+                        // A successful refresh resolves transient polling errors.
+                        error=""
+                        notice="Paired lounge · Refreshes while open"
                     } catch(cancelled:CancellationException) {throw cancelled}
                     catch(e:Exception) {error=e.message ?: "Couldn't refresh the lounge."}
                     delay(3000)
@@ -123,7 +126,7 @@ internal fun VelvetOnlineGames(client:VelvetPairClient,onBack:()->Unit,onPair:()
             Text("Your partner opens this lounge to join. Up to five active rounds.",color=cream,fontSize=12.sp,
                 modifier=Modifier.padding(vertical=12.dp))
             LazyColumn(verticalArrangement=Arrangement.spacedBy(10.dp)) {
-                items(games,key={it.id}) {g->
+                items(games.sortedBy{it.winner!=0},key={it.id}) {g->
                     Card(onClick={selected=g.id},modifier=Modifier.fillMaxWidth()) {
                         Column(Modifier.padding(16.dp)) {
                             Text(if(g.kind=="ttt")"Tic-tac-toe" else "Connect Four")
@@ -177,9 +180,25 @@ internal fun VelvetOnlineGames(client:VelvetPairClient,onBack:()->Unit,onPair:()
                     }
                 }
             }
+            if(game.winner==0)TextButton(onClick={resigning=true},enabled=!busy,modifier=Modifier.fillMaxWidth()){Text("Concede this round",color=rose)}
             if(game.winner!=0)Button(onClick={create(game.kind)},enabled=!busy,modifier=Modifier.fillMaxWidth()){Text("Invite a rematch")}
             Text("Server-checked turns · Foreground updates · No background game notifications yet",
                 color=rose,fontSize=11.sp,modifier=Modifier.padding(top=12.dp))
         }
     }
+    if(resigning && game!=null)AlertDialog(onDismissRequest={resigning=false},
+        title={Text("Concede this round?")},text={Text("Your partner wins this round. You can invite a rematch afterward.")},
+        confirmButton={TextButton(onClick={
+            resigning=false;busy=true
+            scope.launch {
+                try {
+                    val result=client.resignGame(game.id,game.version)
+                    result.optJSONObject("game")?.let{applyGame(OnlineBoard.parse(it))}
+                    if(!result.optBoolean("ok"))error="This round changed. Refresh and try again."
+                } catch(cancelled:CancellationException) {throw cancelled}
+                catch(e:Exception) {error=e.message ?: "Couldn't concede this round."}
+                finally {busy=false}
+            }
+        }) {Text("Concede")}},dismissButton={TextButton(onClick={resigning=false}) {Text("Keep playing")}})
+
 }

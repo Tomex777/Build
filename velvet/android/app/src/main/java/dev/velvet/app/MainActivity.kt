@@ -87,7 +87,7 @@ private object V {
     val gold get() = VelvetTheme.current.gold
 }
 private val round = RoundedCornerShape(22.dp)
-private enum class Page { HOME, CHAT, CHAT_DEMO, GAMES, STORY, US, CHAT_INFO, DECK, TTT, STUDIO, CALL, MUSIC, CONNECT4, CHESS, LUDO, DRAW, DECK_EDITOR, TOGETHER, PAIR, ONLINE_CHAT, ONLINE_GAMES, SHARED_STORY }
+private enum class Page { HOME, CHAT, CHAT_DEMO, GAMES, STORY, US, CHAT_INFO, DECK, TTT, STUDIO, CALL, MUSIC, CONNECT4, CHESS, LUDO, DRAW, DECK_EDITOR, TOGETHER, PAIR, ONLINE_CHAT, ONLINE_GAMES, SHARED_STORY, SHARED_QUESTIONS }
 internal enum class MessageKind { TEXT, QUESTION, VOICE, MEDIA }
 internal data class ChatMessage(
     val id: Int, val body: String, val mine: Boolean, val time: String,
@@ -280,6 +280,7 @@ private fun VelvetApp() {
             Page.ONLINE_CHAT -> Page.PAIR
             Page.ONLINE_GAMES -> Page.GAMES
             Page.SHARED_STORY -> Page.STORY
+            Page.SHARED_QUESTIONS -> Page.GAMES
             Page.CHAT -> chatBackTo
             Page.CHAT_DEMO -> demoBackTo
             Page.DECK,Page.TTT,Page.CONNECT4,Page.CHESS,Page.LUDO,Page.DRAW,Page.DECK_EDITOR,Page.TOGETHER -> Page.GAMES
@@ -329,14 +330,16 @@ private fun VelvetApp() {
                     onDeck={ tab -> questionTab=tab;page=Page.DECK },
                     onTTT={page=Page.TTT},onConnect4={page=Page.CONNECT4},
                     onChess={page=Page.CHESS},onLudo={page=Page.LUDO},onDraw={page=Page.DRAW},
-                    onDeckEditor={page=Page.DECK_EDITOR},onTogether={page=Page.TOGETHER},onOnline={page=Page.ONLINE_GAMES})
+                    onDeckEditor={page=Page.DECK_EDITOR},onTogether={page=Page.TOGETHER},onOnline={page=Page.ONLINE_GAMES},onSharedQuestions={page=Page.SHARED_QUESTIONS})
                 Page.DECK -> QuestionDeckScreen(questionTab, index=deckPositions[questionTab] ?: 0,
                     onIndexChange={deckPositions[questionTab]=it;VelvetQuestionProgress.save(ctx)},
                     onBack={page=Page.GAMES},
                     onSend = { prompt,tone,caption ->
                         sendMessage(ChatMessage(0,prompt.question,true,nowTime(),kind=MessageKind.QUESTION,
                             category=prompt.category,cardTone=tone,questionId=prompt.id,caption=caption.takeIf{it.isNotBlank()}))
-                    }, onViewChat={demoBackTo=Page.DECK;page=Page.CHAT_DEMO})
+                    }, onViewChat={demoBackTo=Page.DECK;page=Page.CHAT_DEMO},
+                    onShareTogether={prompt,id->pairClient.createTogether(id,prompt.question,prompt.category)},
+                    onViewTogether={page=Page.SHARED_QUESTIONS})
                 Page.TTT -> TicTacToeScreen(onBack = { page = Page.GAMES })
                 Page.CONNECT4 -> ConnectFourGame(onBack={page=Page.GAMES},onOtherGame={page=Page.GAMES})
                 Page.CHESS -> VelvetChessGame(onBack={page=Page.GAMES})
@@ -348,6 +351,7 @@ private fun VelvetApp() {
                 Page.MUSIC -> SpotifyListeningRoom(onBack={page=Page.HOME})
                 Page.PAIR -> VelvetPairingScreen(onBack={page=Page.HOME},onConnectedChat={page=Page.ONLINE_CHAT},sharedClient=pairClient)
                 Page.ONLINE_CHAT -> VelvetConnectedChat(onBack={page=Page.PAIR},sharedClient=pairClient)
+                Page.SHARED_QUESTIONS -> VelvetTogetherOnline(pairClient,onBack={page=Page.GAMES},onPair={page=Page.PAIR})
                 Page.ONLINE_GAMES -> VelvetOnlineGames(pairClient,onBack={page=Page.GAMES},onPair={page=Page.PAIR})
                 Page.SHARED_STORY -> VelvetSharedStory(pairClient,onBack={page=Page.STORY},onPair={page=Page.PAIR})
                 Page.STORY -> GalleryFirstScreen(ownerName,onSharedStory={page=Page.SHARED_STORY})
@@ -888,7 +892,7 @@ private val cardColors=listOf(Color(0xFFF4B8C7),Color(0xFFB6A4D8),Color(0xFFF3C5
 @Composable
 private fun GamesScreen(
     onDeck:(String)->Unit,onTTT:()->Unit,onConnect4:()->Unit,onChess:()->Unit,
-    onLudo:()->Unit,onDraw:()->Unit,onDeckEditor:()->Unit,onTogether:()->Unit,onOnline:()->Unit
+    onLudo:()->Unit,onDraw:()->Unit,onDeckEditor:()->Unit,onTogether:()->Unit,onOnline:()->Unit,onSharedQuestions:()->Unit
 ) {
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal=17.dp)) {
         Spacer(Modifier.height(13.dp))
@@ -911,6 +915,7 @@ private fun GamesScreen(
             Button(onClick=onTogether,modifier=Modifier.fillMaxWidth()){
                 Text("Play answer & reveal →")
             }
+            OutlinedButton(onClick=onSharedQuestions,modifier=Modifier.fillMaxWidth()){Text("Answer together on two phones →")}
         }
         Spacer(Modifier.height(23.dp))
         Row(verticalAlignment=Alignment.CenterVertically) {
@@ -982,7 +987,7 @@ private fun GameEntry(title:String,subtitle:String,enabled:Boolean,modifier:Modi
 }
 
 @Composable
-private fun QuestionDeckScreen(category:String,index:Int,onIndexChange:(Int)->Unit,onBack:()->Unit,onSend:(Prompt,Int,String)->Unit,onViewChat:()->Unit) {
+private fun QuestionDeckScreen(category:String,index:Int,onIndexChange:(Int)->Unit,onBack:()->Unit,onSend:(Prompt,Int,String)->Unit,onViewChat:()->Unit,onShareTogether:suspend (Prompt,String)->org.json.JSONObject,onViewTogether:()->Unit) {
     val deckContext=LocalContext.current
     val filtered=if(category=="Saved cards")prompts.filter{it.id in VelvetQuestionProgress.saved}
         else prompts.filter{it.category==category}
@@ -995,6 +1000,9 @@ private fun QuestionDeckScreen(category:String,index:Int,onIndexChange:(Int)->Un
     var sentRecently by remember(category){mutableStateOf(false)}
     var expanded by remember(category){mutableStateOf(false)}
     var sendTick by remember(category){mutableIntStateOf(0)}
+    var togetherNotice by remember(category){mutableStateOf("")}
+    var sharingTogether by remember(category){mutableStateOf(false)}
+    val togetherIds=remember(category){mutableMapOf<String,String>()}
     val drafts=remember(category){mutableStateMapOf<String,String>()}
     val scope=rememberCoroutineScope()
     val current=index.coerceIn(0,filtered.lastIndex)
@@ -1073,6 +1081,25 @@ private fun QuestionDeckScreen(category:String,index:Int,onIndexChange:(Int)->Un
             Icon(Icons.Outlined.Send,null,Modifier.size(18.dp))
             Spacer(Modifier.width(9.dp))
             Text("Send to Chat",fontWeight=FontWeight.SemiBold)
+        }
+        OutlinedButton(onClick={
+            sharingTogether=true
+            scope.launch {
+                try {
+                    val id=togetherIds.getOrPut(prompt.id){java.util.UUID.randomUUID().toString()}
+                    val result=onShareTogether(prompt,id)
+                    if(result.optBoolean("ok")) {
+                        togetherIds.remove(prompt.id)
+                        togetherNotice="Shared for two-phone answer & reveal ♡"
+                    } else togetherNotice=result.optString("error","Couldn't share this question.")
+                } catch(cancelled:kotlinx.coroutines.CancellationException) {throw cancelled}
+                catch(e:Exception) {togetherNotice=e.message ?: "Couldn't share this question."}
+                finally {sharingTogether=false}
+            }
+        },enabled=!sharingTogether,modifier=Modifier.fillMaxWidth()) {Text(if(sharingTogether)"Sharing…" else "Share for two-phone answer & reveal")}
+        if(togetherNotice.isNotBlank()) {
+            Text(togetherNotice,color=V.rose,fontSize=12.sp)
+            TextButton(onClick=onViewTogether){Text("Open our shared questions →")}
         }
         Spacer(Modifier.height(10.dp))
     }
