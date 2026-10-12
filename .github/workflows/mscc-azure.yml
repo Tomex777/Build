@@ -39,6 +39,7 @@ jobs:
         working-directory: mscc
         run: |
           npm run check:sessions
+          npm run check:inbound
           npm run check:routing
           npm run check:account-controls
           node session-diagnostics-selftest.js
