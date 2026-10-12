@@ -130,10 +130,13 @@ async function sendVideo(ctx, videoId, quality, delivery = 'video') {
     const sock = ctx.account?.sock
     if (!chat || !sock) throw new Error('WhatsApp connection is unavailable.')
 
+    const qualityCaption = media.candidate.height > 0
+      ? `${media.candidate.height}p`
+      : 'Quality not verified (external source)'
     const caption = [
       `*${media.details.title}*`,
       media.details.channel ? media.details.channel : '',
-      `${media.candidate.height}p`,
+      qualityCaption,
     ].filter(Boolean).join('\n')
 
     if (chosenDelivery === 'document' || media.mimetype !== 'video/mp4') {
@@ -152,7 +155,7 @@ async function sendVideo(ctx, videoId, quality, delivery = 'video') {
       }, { quoted:ctx.message })
     }
 
-    await progress?.done?.(`Sent *${media.details.title}* • ${media.candidate.height}p`)
+    await progress?.done?.(`Sent *${media.details.title}* • ${qualityCaption}`)
     return true
   } catch (error) {
     console.error('MSCC YouTube delivery failed:', error)
