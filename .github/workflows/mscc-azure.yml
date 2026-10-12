@@ -68,6 +68,8 @@ jobs:
           bash tools/azure-cortex-acl-selftest.sh
           bash -n tools/azure-source-stack-reuse-selftest.sh
           bash tools/azure-source-stack-reuse-selftest.sh
+          node tools/azure-smoke-selftest.mjs
+          grep -Fq 'readlink -f "$BASE/current/tools/azure-smoke.mjs"' install-azure.sh
           grep -Eq '^VERSION="[0-9]+\.[0-9]+\.[0-9]+"$' install-azure.sh
           grep -Fq 'SOURCE_REF="${MSCC_SOURCE_REF:-mscc-azure}"' install-azure.sh
           grep -Fq 'archive/$SOURCE_REF.tar.gz' install-azure.sh
