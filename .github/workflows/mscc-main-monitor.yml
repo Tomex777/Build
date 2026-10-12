@@ -1,0 +1,32 @@
+name: MSCC Main Azure Monitor
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mscc-main-monitor
+  cancel-in-progress: false
+
+jobs:
+  monitor:
+    name: Read-only Main session watch
+    if: github.ref == 'refs/heads/mscc-azure'
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    environment: mscc-production
+    steps:
+      - name: Check out monitor code
+        uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - name: Watch sanitized Main connection state for 2.5 minutes
+        env:
+          MSCC_SSH_HOST: ${{ secrets.MSCC_SSH_HOST }}
+          MSCC_SSH_USER: ${{ secrets.MSCC_SSH_USER }}
+          MSCC_SSH_KEY: ${{ secrets.MSCC_SSH_KEY }}
+          MSCC_SSH_KNOWN_HOSTS: ${{ secrets.MSCC_SSH_KNOWN_HOSTS }}
+          MSCC_SSH_PORT: ${{ vars.MSCC_SSH_PORT }}
+        run: bash mscc/tools/azure-main-ssh-monitor.sh
