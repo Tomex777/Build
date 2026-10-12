@@ -181,8 +181,9 @@ internal fun ScriptStudioSheet(
     // Use the host window insets: the full-screen dialog can report no gesture
     // navigation inset on Android 16 while still drawing behind its handle.
     val systemBars = WindowInsets.systemBars.asPaddingValues()
+    var dismissRequest by remember { mutableStateOf(0) }
     Dialog(
-        onDismissRequest = onClose,
+        onDismissRequest = { dismissRequest += 1 },
         properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false),
     ) {
         Box(Modifier.fillMaxSize().background(StudioPanel).padding(systemBars).consumeWindowInsets(systemBars)) {
@@ -190,6 +191,7 @@ internal fun ScriptStudioSheet(
             workspace = workspace,
             onCommandsReloaded = onCommandsReloaded,
             onClose = onClose,
+            dismissRequest = dismissRequest,
             initialProjectId = initialProjectId,
             openEnvironment = openEnvironment,
             openPackageImport = openPackageImport,
@@ -206,6 +208,7 @@ private fun ScriptStudioContent(
     workspace: ScriptWorkspace,
     onCommandsReloaded: (List<ScriptCommand>) -> Unit,
     onClose: () -> Unit,
+    dismissRequest: Int,
     initialProjectId: String?,
     openEnvironment: Boolean,
     openPackageImport: Boolean,
@@ -270,6 +273,11 @@ private fun ScriptStudioContent(
     fun saveBeforeNavigation(): Boolean = !saving && runCatching { flushPendingEdits() }
         .onFailure { status = "Could not save previous file: " + (it.message ?: "unknown error") }
         .isSuccess
+
+    // System Back and outside dismissal must preserve a draft just like Close.
+    LaunchedEffect(dismissRequest) {
+        if (dismissRequest > 0 && saveBeforeNavigation()) onClose()
+    }
 
     // Persist source quietly, never reloading the JS engine just because someone types.
     LaunchedEffect(selectedProjectId, selectedPath, editorValue.text, saving) {
@@ -664,7 +672,7 @@ private fun ScriptStudioContent(
                     })
                 }
 
-                StudioInput(query, { query = it }, "Search files", Modifier.fillMaxWidth().padding(horizontal = 14.dp))
+                StudioInput(query, { query = it }, "Search files", Modifier.fillMaxWidth().padding(horizontal = 14.dp), tag = "script_file_search")
                 if (projects.isEmpty()) {
                     EmptyStudioState("No scripts yet", "Create a file or folder to start a script project.")
                 } else {

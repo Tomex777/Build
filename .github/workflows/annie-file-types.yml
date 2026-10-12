@@ -2,7 +2,7 @@ name: Annie Studio and image editing acceptance
 
 on:
   push:
-    branches: [annie-rc-file-types-20261011, annie-studio-image-save-safety-20261012]
+    branches: [annie-rc-file-types-20261011, annie-studio-image-save-safety-20261012, annie-studio-back-save-safety-20261012]
     paths:
       - 'annie-android/**'
       - '.github/workflows/annie-file-types.yml'
