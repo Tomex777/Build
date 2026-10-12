@@ -4,6 +4,10 @@ import { fileURLToPath } from 'node:url'
 import { pickLine } from './response-pools.js'
 
 const ASSET_ROOT = fileURLToPath(new URL('./assets/personalities/', import.meta.url))
+// Unlike /opt/mscc/current, this directory survives Azure release switches.
+// User-supplied full-resolution artwork always takes precedence over the old
+// miniature bundled .webp.b64 previews (128–240px on the long edge).
+const HD_ASSET_ROOT = process.env.MSCC_PERSONALITY_ART_DIR || '/var/lib/mscc/personality-art'
 const assetBags = new Map()
 
 const PROFILES = {
@@ -202,10 +206,18 @@ export async function chooseProfileAsset(profileId, kind, { returning = false } 
 
   const dirs = safeKind === 'intro'
     ? [
+        join(HD_ASSET_ROOT, profile.id, 'intro', returning ? 'return' : 'first'),
+        join(HD_ASSET_ROOT, profile.id, 'intro'),
+        // Initial HD upload contains menu artwork; reuse it for introductions
+        // until dedicated HD intro images are added later.
+        join(HD_ASSET_ROOT, profile.id, 'menu'),
         join(ASSET_ROOT, profile.id, 'intro', returning ? 'return' : 'first'),
         join(ASSET_ROOT, profile.id, 'intro'),
       ]
-    : [join(ASSET_ROOT, profile.id, 'menu')]
+    : [
+        join(HD_ASSET_ROOT, profile.id, 'menu'),
+        join(ASSET_ROOT, profile.id, 'menu'),
+      ]
 
   let dir = ''
   let names = []
@@ -221,7 +233,7 @@ export async function chooseProfileAsset(profileId, kind, { returning = false } 
   }
   if (!dir || !names.length) return ''
 
-  const key = profile.id + ':' + safeKind + (safeKind === 'intro' ? ':' + (returning ? 'return' : 'first') : '')
+  const key = profile.id + ':' + safeKind + (safeKind === 'intro' ? ':' + (returning ? 'return' : 'first') : '') + ':' + dir
   let bag = assetBags.get(key)
   const signature = names.join('\n')
   if (!bag || bag.signature !== signature || !bag.items.length) {
