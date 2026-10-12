@@ -22,7 +22,7 @@ function cleanUrl(value) {
   }
 }
 
-function mainImage(result) {
+export function pinterestImageUrls(result) {
   const images = result?.images || {}
   const variants = Object.values(images)
     .map(value => ({
@@ -32,7 +32,13 @@ function mainImage(result) {
     .filter(value => value.url)
     .sort((a, b) => b.area - a.area)
 
-  return cleanUrl(images?.orig?.url) || variants[0]?.url || ''
+  // Always try Pinterest's original first, followed by descending resolution.
+  // A missing/dead original can fall back to the next real image, not a grid thumbnail.
+  return [...new Set([cleanUrl(images?.orig?.url), ...variants.map(variant => variant.url)].filter(Boolean))]
+}
+
+function mainImage(result) {
+  return pinterestImageUrls(result)[0] || ''
 }
 
 function resultTitle(result) {
@@ -191,6 +197,7 @@ export async function searchPinterestImages(query, {
         id:String(pin?.id || '').trim(),
         title:resultTitle(pin),
         imageUrl,
+        imageUrls:pinterestImageUrls(pin),
         pinUrl:pin?.id ? `${PINTEREST_ORIGIN}/pin/${pin.id}/` : '',
       })
       if (items.length >= candidateTarget) break
