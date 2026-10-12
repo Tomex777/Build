@@ -296,7 +296,10 @@ echo "Local Cortex pairing bridge:"
 # Assert the deployed Cortex/MSCC account-management contract before
 # disarming the automatic release rollback.
 echo ">>> Validating live Cortex/MSCC session API..."
-node "$BASE/current/tools/azure-smoke.mjs"
+# Canonicalize the release path so even smoke scripts with a strict
+# import.meta.url / argv[1] entrypoint guard actually run via current symlink.
+# Any account-contract failure must abort and roll back the activation.
+node "$(readlink -f "$BASE/current/tools/azure-smoke.mjs")"
 
 echo
 ACTIVATED=0
