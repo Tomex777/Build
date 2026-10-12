@@ -99,6 +99,9 @@ tar -xzf "$ARCHIVE" -C "$UNPACK" --strip-components=1
 test ! -e "$RELEASE"
 mkdir -p "$RELEASE"
 cp -a "$UNPACK/mscc/." "$RELEASE/"
+# Record precisely which source is active so CI can detect stale deployments.
+# This marker contains a public commit ref only, never credentials or state.
+printf '%s\n' "$SOURCE_REF" > "$RELEASE/.deployed-source-ref"
 rm -rf "$UNPACK" "$ARCHIVE" "$RELEASE/dist"
 
 echo ">>> Installing Node dependencies..."

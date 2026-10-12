@@ -18,7 +18,8 @@ permissions:
 
 concurrency:
   group: mscc-azure-${{ github.ref }}
-  cancel-in-progress: true
+  # Never interrupt a VM installation halfway through because another push arrived.
+  cancel-in-progress: false
 
 jobs:
   validate:
@@ -61,6 +62,8 @@ jobs:
         run: |
           set -euo pipefail
           bash -n install-azure.sh tools/install-flaresolverr-tor.sh tools/test-animepahe-azure.sh
+          bash -n tools/deploy-azure-ssh.sh tools/deploy-azure-ssh-selftest.sh
+          bash tools/deploy-azure-ssh-selftest.sh
           bash -n tools/azure-release-switch-selftest.sh
           bash tools/azure-release-switch-selftest.sh
           bash -n tools/azure-config-rollback-selftest.sh
@@ -97,3 +100,26 @@ jobs:
           path: mscc/artifacts/chess-preview.png
           if-no-files-found: error
           retention-days: 7
+
+  deploy:
+    name: Deploy tested MSCC commit to Azure
+    needs: validate
+    # PRs never receive server credentials or deploy. Protected environment
+    # approval (if configured) is required before accessing production secrets.
+    if: github.event_name == 'push' && github.ref == 'refs/heads/mscc-azure'
+    runs-on: ubuntu-latest
+    timeout-minutes: 55
+    environment: mscc-production
+    steps:
+      - name: Check out the exact verified commit
+        uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - name: SSH deploy (verified host key, pinned commit, health + rollback)
+        env:
+          MSCC_SSH_HOST: ${{ secrets.MSCC_SSH_HOST }}
+          MSCC_SSH_USER: ${{ secrets.MSCC_SSH_USER }}
+          MSCC_SSH_KEY: ${{ secrets.MSCC_SSH_KEY }}
+          MSCC_SSH_KNOWN_HOSTS: ${{ secrets.MSCC_SSH_KNOWN_HOSTS }}
+          MSCC_SSH_PORT: ${{ vars.MSCC_SSH_PORT }}
+        run: bash mscc/tools/deploy-azure-ssh.sh
