@@ -6,8 +6,7 @@ import makeWASocket, {
   DisconnectReason,
   fetchLatestWaWebVersion,
   WAMessageStubType,
-  makeCacheableSignalKeyStore,
-  useMultiFileAuthState
+  makeCacheableSignalKeyStore
 } from '@itsliaaa/baileys'
 import pino from 'pino'
 import QRCode from 'qrcode'
@@ -16,7 +15,9 @@ import { dispatchNamespacedCommand, loadCommands } from './command-registry.js'
 import { AccountRegistry, legacyAccountRecords } from './account-registry.js'
 import { selectCcDestination } from './cc-routing.js'
 import { isPrivateOwnerDm } from './control-context.js'
-import { canStartScheduledReconnect, classifyDisconnect, jidPhoneNumber, reconnectDelay, serializeSessionOperation, sessionStatus } from './session-policy.js'
+import { canStartScheduledReconnect, classifyDisconnect, disconnectOrigin, jidPhoneNumber, reconnectDelay, serializeSessionOperation, sessionStatus } from './session-policy.js'
+import { createAccountSocketOptions } from './account-socket-options.js'
+import { assertSeparateAuthDirectories, useDurableMultiFileAuthState } from './account-auth-state.js'
 import { sessionEventsFromJsonl, sessionSnapshot } from './session-diagnostics.js'
 import { openSharedStorage } from './shared-storage.js'
 import { chooseGroupExecutor, canExecuteDirect } from './bot-routing.js'
@@ -171,7 +172,7 @@ const makeAccount = record => ({
   sock: null, connected: false, registered: false, invalid: false,
   generation: 0, reconnectTimer: null, reconnectAttempts: 0, nextReconnectAt: 0,
   lastConnectedAt: 0, lastDisconnectedAt: 0, lastDisconnectCode: null, disconnectReason: '',
-  credSave: Promise.resolve(),
+  credSave: Promise.resolve(), authFlush: null,
   pairingMode: '', pairingCode: '', pairingQr: '', pairingError: '',
   lastQr: '', lastCodeAt: 0, pairingRequested: false,
   op: Promise.resolve()
@@ -179,6 +180,9 @@ const makeAccount = record => ({
 
 async function loadAccounts() {
   const records = await accountRegistry.load()
+  // Resolve symlink aliases before opening sockets: distinct names must never
+  // resolve to the same Signal key store, even in another account directory.
+  await assertSeparateAuthDirectories(records)
   accounts.clear()
   for (const record of records) accounts.set(record.id, makeAccount(record))
   if (!records.length) {
@@ -2645,7 +2649,9 @@ async function closeAccount(a) {
   a.connected = false
   try { old?.ws?.close?.() } catch {}
   await new Promise(r => setTimeout(r, 120))
-  try { await a.credSave } catch {}
+  await a.credSave
+  await a.authFlush?.()
+  a.authFlush = null
 }
 
 async function makePairOutput(account) {
@@ -2730,27 +2736,25 @@ async function startAccount(account) {
   // A close can schedule a retry while the previous socket's creds.update
   // writes are still pending. Never reload partially saved auth state.
   await account.credSave
+  await account.authFlush?.()
   if (generation !== account.generation || !account.enabled ||
       account.invalid || account.paused || account.sock) return
-  const { state, saveCreds } = await useMultiFileAuthState(account.authDir)
+  const { state, saveCreds, flush } = await useDurableMultiFileAuthState(account.authDir)
   // A disconnect/remove request can happen while auth is loading.
   // Do not create a ghost socket for an obsolete generation.
   if (generation !== account.generation || !account.enabled ||
       account.invalid || account.paused || account.sock) return
+  account.authFlush = flush
   account.registered = Boolean(state.creds.registered)
   account.nextReconnectAt = 0
 
-  const options = {
+  const options = createAccountSocketOptions({
     auth: { creds: state.creds, keys: makeCacheableSignalKeyStore(state.keys, logger) },
     logger,
     browser: Browsers.macOS('Chrome'),
-    markOnlineOnConnect: false,
-    syncFullHistory: false,
-    shouldSyncHistoryMessage: () => false,
-    generateHighQualityLinkPreview: false,
-    getMessage: async key => findCached(account.id, key, key?.remoteJid)?.message
-  }
-  if (Array.isArray(waVersion)) options.version = waVersion
+    getMessage: async key => findCached(account.id, key, key?.remoteJid)?.message,
+    version: waVersion,
+  })
 
   const sock = makeWASocket(options)
   account.sock = sock
@@ -2835,6 +2839,7 @@ async function startAccount(account) {
       account: account.id,
       displayName: account.displayName,
       reasonCode: code ?? null,
+      origin: disconnectOrigin(update.lastDisconnect?.error),
     })
     if (policy.action === 'repair') {
       account.invalid = true

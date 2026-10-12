@@ -66,6 +66,7 @@ jobs:
           bash tools/deploy-azure-ssh-selftest.sh
           bash -n tools/mscc-github-deploy-wrapper.sh tools/mscc-github-deploy-wrapper-selftest.sh tools/azure-main-ssh-monitor.sh tools/azure-main-ssh-monitor-selftest.sh
           bash tools/azure-main-ssh-monitor-selftest.sh
+          bash tools/azure-singleton-flock-selftest.sh
           bash tools/mscc-github-deploy-wrapper-selftest.sh
           node --check tools/azure-main-diagnostics.mjs
           node --check tools/azure-main-diagnostics-selftest.mjs

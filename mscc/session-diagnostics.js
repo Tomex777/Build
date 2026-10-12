@@ -21,7 +21,7 @@ const SESSION_ACTIONS = new Set([
 ])
 
 const ALLOWED_DETAIL_FIELDS = new Set([
-  'mode', 'reasonCode', 'profile', 'previousProfile', 'authPreserved', 'attempt', 'delayMs',
+  'mode', 'reasonCode', 'profile', 'previousProfile', 'authPreserved', 'attempt', 'delayMs', 'origin',
 ])
 
 export function sessionEventsFromJsonl(text, accountId, limit = 40) {
@@ -38,7 +38,8 @@ export function sessionEventsFromJsonl(text, accountId, limit = 40) {
       const value = row.detail?.[key]
       if (typeof value === 'boolean') detail[key] = value
       else if (['reasonCode', 'attempt', 'delayMs'].includes(key) && Number.isFinite(value)) detail[key] = value
-      else if (typeof value === 'string' && /^[a-zA-Z0-9._-]{1,64}$/.test(value)) detail[key] = value
+      else if (key === 'origin' && ['intentional-logout', 'stream-error', 'server-failure', 'connection-replaced', 'transport-close', 'other'].includes(value)) detail[key] = value
+      else if (key !== 'origin' && typeof value === 'string' && /^[a-zA-Z0-9._-]{1,64}$/.test(value)) detail[key] = value
     }
     found.push({
       id: String(row.id || '').slice(0, 80),
