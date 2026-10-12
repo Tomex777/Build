@@ -91,4 +91,11 @@ if [[ -f /opt/mscc/current/tools/azure-youtube-diagnostics.mjs ]]; then
   /usr/bin/node /opt/mscc/current/tools/azure-youtube-diagnostics.mjs || \
     echo '{"component":"mscc-youtube-azure","result":"probe_failed"}'
 fi
+# Check external public-media API health without downloading any content.
+# Never print actual signed media URLs or any WhatsApp credentials.
+if [[ -f /opt/mscc/current/tools/azure-knight-diagnostics.mjs ]]; then
+  echo "Azure KnightBot-style source health (metadata only):"
+  /usr/bin/node /opt/mscc/current/tools/azure-knight-diagnostics.mjs || \
+    echo '{"component":"mscc-knight-sources","status":"probe_failed"}'
+fi
 REMOTE
