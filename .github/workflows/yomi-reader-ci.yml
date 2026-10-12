@@ -369,7 +369,7 @@ jobs:
 
             # Verify the actual Mihon tabbed reader settings sheet on the
             # minimum supported Android version, not just Android 16.
-            adb logcat -c
+            i=0; until adb logcat -c; do i=$((i + 1)); [ "$i" -lt 6 ] || { echo 'API 26 logcat clear failed' >&2; adb logcat -d -v threadtime > yomi-output/runtime-api26/logcat-clear-failure.txt || true; exit 1; }; sleep 2; done
             adb shell am force-stop app.yomi.reader.dev
             adb shell am start -n app.yomi.reader.dev/app.yomi.reader.YomiCiFixtureActivity --es kind archive --es mode LTR_PAGED --ez keepChrome true --ez openSettings true
             i=0; until adb logcat -d -v brief YomiReader:I '*:S' | grep -Fq 'reader-settings-opened'; do i=$((i + 1)); [ "$i" -lt 60 ] || { echo 'API 26 Mihon reader settings sheet did not open' >&2; adb logcat -d -v threadtime > yomi-output/runtime-api26/reader-settings-failure-logcat.txt || true; exit 1; }; sleep 2; done
@@ -426,7 +426,7 @@ jobs:
             bash yomi-reader/scripts/capture_clean_screen.sh yomi-output/runtime-api26/yomi-extensionless-reader.png
 
             # Verify an extensionless animated GIF is decoded and actually animates on API 26.
-            adb logcat -c
+            i=0; until adb logcat -c; do i=$((i + 1)); [ "$i" -lt 6 ] || { echo 'API 26 logcat clear failed' >&2; adb logcat -d -v threadtime > yomi-output/runtime-api26/logcat-clear-failure.txt || true; exit 1; }; sleep 2; done
             adb shell am force-stop app.yomi.reader.dev
             adb shell am start -n app.yomi.reader.dev/app.yomi.reader.YomiCiFixtureActivity --es kind animated-gif --es mode LTR_PAGED --ez reset true
             i=0; until adb logcat -d -v brief YomiReader:I '*:S' | grep -Fq 'reader-first-draw title=Yomi CI Animated GIF mode=LTR_PAGED'; do i=$((i + 1)); [ "$i" -lt 60 ] || { echo 'Animated GIF reader did not draw' >&2; exit 1; }; sleep 2; done
