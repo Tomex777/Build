@@ -16,7 +16,12 @@ on:
 
 jobs:
   music-smoke:
+    name: Music emulator API ${{ matrix.api-level }}
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        api-level: [26, 36]
     timeout-minutes: 35
     steps:
       - uses: actions/checkout@v4
@@ -70,7 +75,7 @@ jobs:
       - name: Prove deterministic Music playback
         uses: reactivecircus/android-emulator-runner@v2
         with:
-          api-level: 36
+          api-level: ${{ matrix.api-level }}
           target: google_apis
           arch: x86_64
           profile: pixel_7
@@ -81,6 +86,6 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: sora-music-deterministic-smoke
+          name: sora-music-deterministic-smoke-api${{ matrix.api-level }}
           path: /tmp/sora-music-deterministic
           if-no-files-found: warn
