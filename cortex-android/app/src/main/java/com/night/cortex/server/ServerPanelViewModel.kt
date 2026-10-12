@@ -42,9 +42,12 @@ class ServerPanelViewModel(application: Application) : AndroidViewModel(applicat
     private var logStreamJob: Job? = null
     private var pairingMonitorJob: Job? = null
     private var accountStatusJob: Job? = null
+    private var autoSyncJob: Job? = null
+    private var tabRefreshJob: Job? = null
+    private var activeTab: ServerTab = ServerTab.CONSOLE
     private val networkCallback = object : ConnectivityManager.NetworkCallback() {
         override fun onAvailable(network: Network) {
-            if (_state.value.configured && !_state.value.loading) {
+            if (_state.value.configured && !_state.value.agentReachable && !_state.value.loading) {
                 // An existing backoff must not delay a retry when Wi-Fi/mobile data returns.
                 reconnectJob?.cancel()
                 reconnectJob = null
@@ -76,6 +79,7 @@ class ServerPanelViewModel(application: Application) : AndroidViewModel(applicat
             refreshAll()
             startLogStream()
             startAccountStatusLoop()
+            startAutomaticSync()
         }
     }
 
@@ -84,6 +88,8 @@ class ServerPanelViewModel(application: Application) : AndroidViewModel(applicat
         reconnectJob?.cancel()
         pairingMonitorJob?.cancel()
         accountStatusJob?.cancel()
+        autoSyncJob?.cancel()
+        tabRefreshJob?.cancel()
         cacheJob?.cancel()
         runCatching { connectivityManager.unregisterNetworkCallback(networkCallback) }
         super.onCleared()
@@ -124,6 +130,12 @@ class ServerPanelViewModel(application: Application) : AndroidViewModel(applicat
         reconnectJob = null
         pairingMonitorJob?.cancel()
         pairingMonitorJob = null
+        accountStatusJob?.cancel()
+        accountStatusJob = null
+        autoSyncJob?.cancel()
+        autoSyncJob = null
+        tabRefreshJob?.cancel()
+        tabRefreshJob = null
         cacheJob?.cancel()
         saveServerUrl(clean)
         if (token.isNotBlank()) saveServerToken(token.trim())
@@ -148,6 +160,7 @@ class ServerPanelViewModel(application: Application) : AndroidViewModel(applicat
             refreshAll()
             startLogStream()
             startAccountStatusLoop()
+            startAutomaticSync()
         }
     }
 
@@ -158,6 +171,12 @@ class ServerPanelViewModel(application: Application) : AndroidViewModel(applicat
         reconnectJob = null
         pairingMonitorJob?.cancel()
         pairingMonitorJob = null
+        accountStatusJob?.cancel()
+        accountStatusJob = null
+        autoSyncJob?.cancel()
+        autoSyncJob = null
+        tabRefreshJob?.cancel()
+        tabRefreshJob = null
         cacheJob?.cancel()
         offlineCache.clear()
         saveServerUrl("")
@@ -225,6 +244,113 @@ class ServerPanelViewModel(application: Application) : AndroidViewModel(applicat
             val current = _state.value
             if (current.configured && current.agentReachable && current.snapshot != null) {
                 runCatching { offlineCache.save(serverUrl(), serverToken(), current) }
+            }
+        }
+    }
+
+    /**
+     * The header is the only manual dashboard refresh. Switching tabs triggers
+     * a silent load and the visible tab plus server health refresh in the
+     * background every 30 seconds. Accounts already use their own 30s monitor.
+     * Never disable controls, clear old data or display loading toasts for
+     * ordinary synchronization.
+     */
+    fun onTabSelected(tab: ServerTab) {
+        if (activeTab == tab) return
+        activeTab = tab
+        if (!_state.value.configured || !_state.value.agentReachable || _state.value.loading) return
+        tabRefreshJob?.cancel()
+        tabRefreshJob = viewModelScope.launch {
+            silentRefresh(tab, includeSnapshot = false)
+        }
+    }
+
+    private fun startAutomaticSync() {
+        if (autoSyncJob?.isActive == true) return
+        autoSyncJob = viewModelScope.launch {
+            while (isActive) {
+                delay(30_000L)
+                val current = _state.value
+                if (!current.configured || !current.agentReachable ||
+                    current.authFailed || current.loading) continue
+                silentRefresh(activeTab, includeSnapshot = true)
+            }
+        }
+    }
+
+    private data class SilentUpdate(
+        val logs: List<String>? = null,
+        val files: List<HostingFileEntry>? = null,
+        val startup: StartupInfo? = null,
+        val activity: List<ActivityEntry>? = null,
+        val backups: List<BackupEntry>? = null,
+        val commandSettings: List<CommandSetting>? = null,
+        val registry: RuntimeRegistry? = null,
+    )
+
+    private suspend fun silentRefresh(tab: ServerTab, includeSnapshot: Boolean) {
+        val initial = _state.value
+        if (!initial.configured || !initial.agentReachable || initial.loading) return
+        val url = serverUrl()
+        val token = serverToken()
+        val path = initial.currentPath
+        val (snapshotResult, tabResult) = withContext(Dispatchers.IO) {
+            val client = CortexServerApi(url, token)
+            val snapshot = if (includeSnapshot) runCatching { client.snapshot() } else null
+            val detail = runCatching {
+                when (tab) {
+                    ServerTab.CONSOLE -> SilentUpdate(logs = client.logs())
+                    ServerTab.FILES -> SilentUpdate(files = client.listFiles(path))
+                    ServerTab.BACKUPS -> SilentUpdate(backups = client.backups())
+                    ServerTab.STARTUP -> SilentUpdate(startup = client.startup())
+                    ServerTab.SETTINGS -> SilentUpdate(
+                        commandSettings = client.commandSettings(),
+                        registry = runCatching { client.runtimeRegistry() }.getOrNull(),
+                    )
+                    ServerTab.ACTIVITY -> SilentUpdate(activity = client.activity())
+                    // An independent account loop already monitors this tab,
+                    // including MSCC-only outages without marking Agent down.
+                    ServerTab.PAIRING -> SilentUpdate()
+                }
+            }
+            snapshot to detail
+        }
+        // Never apply delayed data after switching server, credentials or tabs.
+        if (serverUrl() != url || serverToken() != token || !_state.value.configured) return
+        val snapshot = snapshotResult?.getOrNull()
+        val detail = tabResult.getOrNull()?.takeIf { activeTab == tab }
+        val success = snapshot != null || tabResult.isSuccess
+        if (success) {
+            _state.update { old ->
+                val usable = detail?.takeUnless {
+                    tab == ServerTab.FILES && old.currentPath != path
+                }
+                old.copy(
+                    snapshot = snapshot ?: old.snapshot,
+                    logs = usable?.logs ?: old.logs,
+                    files = usable?.files ?: old.files,
+                    startup = usable?.startup ?: old.startup,
+                    activity = usable?.activity ?: old.activity,
+                    backups = usable?.backups ?: old.backups,
+                    commandSettings = usable?.commandSettings ?: old.commandSettings,
+                    runtimeRegistry = usable?.registry ?: old.runtimeRegistry,
+                    agentReachable = true,
+                    reconnecting = false,
+                    lastSuccessfulSyncAt = System.currentTimeMillis(),
+                )
+            }
+            cacheDashboard()
+        }
+        val failure = snapshotResult?.exceptionOrNull() ?: tabResult.exceptionOrNull()
+        when {
+            failure is CortexHttpException && failure.statusCode in setOf(401, 403) -> {
+                _state.update { it.copy(authFailed = true, reconnecting = false) }
+            }
+            failure is CortexTransportException && snapshot == null -> {
+                // Keep last-known state and let the existing capped backoff
+                // repair connectivity. No intrusive page-specific errors.
+                _state.update { it.copy(agentReachable = false, pairingFresh = false) }
+                scheduleReconnect()
             }
         }
     }
