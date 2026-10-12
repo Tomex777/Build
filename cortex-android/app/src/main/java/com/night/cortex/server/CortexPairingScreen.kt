@@ -170,9 +170,6 @@ fun CortexPairingScreen(
                         Icon(Icons.Rounded.Add, "Add number")
                     }
                 }
-                IconButton(onClick = onRefresh, enabled = refreshEnabled) {
-                    Icon(Icons.Rounded.Refresh, "Refresh accounts")
-                }
             }
             HorizontalDivider(color = CortexLine)
 
@@ -260,7 +257,7 @@ fun CortexPairingScreen(
                         Spacer(Modifier.height(8.dp))
                         Text("Pairing is unavailable.", color = CortexMuted)
                         Spacer(Modifier.height(6.dp))
-                        TextButton(onClick = onRefresh) { Text("Try again") }
+                        Text("Use the header refresh to retry, or wait for automatic reconnection.", color = CortexMuted, fontSize = 11.sp)
                     }
                 }
             } else {
