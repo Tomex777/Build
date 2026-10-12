@@ -16,6 +16,40 @@ function categorize(reason = '') {
   return 'extractor_error'
 }
 
+// Tor runs on the same Azure VM, but only this isolated yt-dlp metadata
+// probe uses it. WhatsApp, Cortex, and all other Azure services stay direct.
+const TOR_PROXY = 'socks5://127.0.0.1:9050'
+const YOUTUBE_METADATA_ARGS = [
+  '--ignore-config', '--no-playlist', '--no-warnings', '--js-runtimes', 'node',
+  '--socket-timeout', '12', '--retries', '0', '--fragment-retries', '0',
+  '--dump-single-json', '--skip-download',
+]
+
+function formatCount(json) {
+  const formats = Array.isArray(json?.formats) ? json.formats : []
+  const videos = formats.filter(f => f?.vcodec && f.vcodec !== 'none')
+  return {
+    videoFormatCount:videos.length,
+    maxHeight:Math.max(0, ...videos.map(f => Number(f.height || 0) || 0)),
+  }
+}
+
+async function torMetadataProbe() {
+  const result = await run([...YOUTUBE_METADATA_ARGS, '--proxy', TOR_PROXY, VIDEO_URL], 40000)
+  if (result.error) return {result:result.error === 'timeout' ? 'timeout' : 'tor_transport_error'}
+  if (result.code !== 0) {
+    if (/proxy|socks|connection refused|failed to connect/i.test(result.stderr)) return {result:'tor_transport_error'}
+    return {result:categorize(result.stderr)}
+  }
+  try {
+    const parsed = JSON.parse(result.stdout)
+    const formats = formatCount(parsed)
+    return {result:formats.videoFormatCount ? 'formats_resolved' : 'no_formats',...formats}
+  } catch {
+    return {result:'invalid_extractor_json'}
+  }
+}
+
 function run(args, timeoutMs = 45000) {
   return new Promise(resolve => {
     let stdout = ''
@@ -67,17 +101,15 @@ async function main() {
   }
   summary.extractorInstalled = true
   summary.extractorVersion = version.stdout.trim().slice(0, 60)
-  const result = await run([
-    '--ignore-config', '--no-playlist', '--no-warnings', '--js-runtimes', 'node',
-    '--socket-timeout', '12', '--retries', '0', '--fragment-retries', '0',
-    '--dump-single-json', '--skip-download', VIDEO_URL,
-  ])
+  const result = await run([...YOUTUBE_METADATA_ARGS, VIDEO_URL])
   if (result.error) {
     summary.result = result.error === 'timeout' ? 'timeout' : 'extractor_execution_failed'
+    summary.tor = await torMetadataProbe()
     return summary
   }
   if (result.code !== 0) {
     summary.result = categorize(result.stderr)
+    summary.tor = await torMetadataProbe()
     return summary
   }
   let parsed
