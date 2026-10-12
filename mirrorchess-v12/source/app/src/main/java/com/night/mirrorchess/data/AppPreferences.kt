@@ -9,7 +9,7 @@ enum class BoardPalette { CLASSIC, WALNUT, SLATE, OCEAN }
 enum class MoveAnimationSpeed(val label: String, val durationMillis: Int) {
     INSTANT("Off", 0),
     FAST("Fast", 170),
-    SMOOTH("Standard", 320),
+    SMOOTH("Standard", 300),
     SLOW("Relaxed", 600),
 }
 data class AppSettings(
