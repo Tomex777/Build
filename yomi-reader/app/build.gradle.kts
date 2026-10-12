@@ -77,6 +77,7 @@ android {
     sourceSets {
         getByName("acceptance") {
             java.srcDir("src/debug/java")
+            assets.srcDir("src/debug/assets")
             manifest.srcFile("src/debug/AndroidManifest.xml")
         }
     }
