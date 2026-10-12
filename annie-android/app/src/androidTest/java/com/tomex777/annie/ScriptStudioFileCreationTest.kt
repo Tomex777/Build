@@ -6,6 +6,7 @@ import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performTextClearance
 import androidx.compose.ui.test.performTextInput
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
@@ -79,6 +80,7 @@ class ScriptStudioFileCreationTest {
             compose.onNodeWithTag("script_find_query").performTextInput("needle")
             compose.onNodeWithTag("script_replace_text").performTextInput("retained")
             compose.onNodeWithTag("Replace all matches").performClick()
+            compose.onNodeWithTag("script_find_query").performTextClearance()
             compose.onNodeWithText("Files", substring = false).performClick()
             compose.onNodeWithText(other.name, substring = false).performClick()
             compose.onNodeWithText("Could not save previous file:", substring = true).assertExists()
@@ -100,3 +102,4 @@ class ScriptStudioFileCreationTest {
     }
 
 }
+
