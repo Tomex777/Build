@@ -27,6 +27,10 @@ export function summarizeMainDiagnostics(payload, observedAt = new Date().toISOS
       const code = String(event.detail.reasonCode)
       disconnectsByCode[code] = (disconnectsByCode[code] || 0) + 1
       row.reasonCode = event.detail.reasonCode
+      const origin = event.detail?.origin
+      if (['intentional-logout', 'stream-error', 'server-failure', 'connection-replaced', 'transport-close', 'other'].includes(origin)) {
+        row.origin = origin
+      }
     }
     if (row.at) recentEvents.push(row)
   }
