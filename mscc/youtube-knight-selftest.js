@@ -91,6 +91,17 @@ try {
     {provider:'yupra',result:'invalid_media_url'},
   ])
   assert.equal(JSON.stringify(diagnostics).includes('signed-token-secret'),false)
+  const safeFailure = await probeKnightProviders(id,{
+    providers:[providers[0]],
+    requestJson:async()=> {
+      const error = new Error('SECRET_SIGNED_VIDEO_URL')
+      error.code = 'ERROR/PRIVATE?SECRET'
+      throw error
+    },
+  })
+  assert.equal(safeFailure[0].result,'provider_error')
+  assert.equal(safeFailure[0].diagnosticCode,'UNKNOWN')
+  assert.equal(JSON.stringify(safeFailure).includes('SECRET'),false)
 
   process.env.MSCC_YOUTUBE_KNIGHT_FALLBACK = '0'
   await assert.rejects(downloadFromKnightProviders(id,dir,4096,{
