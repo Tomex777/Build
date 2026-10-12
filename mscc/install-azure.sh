@@ -86,6 +86,7 @@ trap rollback_on_error EXIT
 echo "=== MSCC Azure install v$VERSION ==="
 echo "Source ref: $SOURCE_REF"
 
+command -v flock >/dev/null || { echo 'MSCC requires flock to prevent simultaneous WhatsApp session ownership.' >&2; exit 1; }
 sudo mkdir -p "$BASE/releases" "$STATE/auth" "$STATE/auth-b" "$STATE/data" "$BACKUPS"
 sudo chown -R "$USER:$USER" "$BASE" "$STATE" "$BACKUPS"
 chmod 700 "$STATE" "$STATE/auth" "$STATE/auth-b" "$STATE/data"
@@ -279,7 +280,11 @@ User=$USER
 Group=$USER
 WorkingDirectory=$BASE/current
 EnvironmentFile=$ENV_FILE
-ExecStart=/usr/bin/node --max-old-space-size=192 $BASE/current/index.js
+# Atomic cross-process singleton lock for this MSCC runtime. A second
+# service/manual instance must never mutate the same WhatsApp Signal keys.
+# flock holds the lock for the Node process lifetime; systemd tears down
+# the process cgroup on restart, releasing the lock without stale PID files.
+ExecStart=$(command -v flock) -n -E 75 $STATE/data/.mscc-runtime.lock /usr/bin/node --max-old-space-size=192 $BASE/current/index.js
 Restart=on-failure
 RestartSec=4
 KillSignal=SIGINT
