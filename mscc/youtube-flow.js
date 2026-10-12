@@ -1,4 +1,5 @@
 import { parseNumberSelection } from './number-selection.js'
+import { isYouTubeAccessChallenge, youtubeChallengeMessage } from './youtube-dlp.js'
 import {
   prepareYouTubeVideo,
   resolveYouTubeVideo,
@@ -155,8 +156,11 @@ async function sendVideo(ctx, videoId, quality, delivery = 'video') {
     return true
   } catch (error) {
     console.error('MSCC YouTube delivery failed:', error)
-    await progress?.fail?.(error?.message || 'YouTube video delivery failed.')
-    if (!progress) await ctx.reply(error?.message || 'YouTube video delivery failed.')
+    const message = isYouTubeAccessChallenge(error)
+      ? youtubeChallengeMessage(videoId)
+      : (error?.message || 'YouTube video delivery failed.')
+    await progress?.fail?.(message)
+    if (!progress) await ctx.reply(message)
     return false
   } finally {
     await media?.cleanup?.()
@@ -173,8 +177,11 @@ async function chooseQuality(ctx, video, { deliveryOverride = '' } = {}) {
     resolved = await resolveYouTubeVideo(video.id)
   } catch (error) {
     console.error('MSCC YouTube format resolution failed:', error)
-    await progress?.fail?.(error?.message || 'I could not resolve that YouTube video.')
-    if (!progress) await ctx.reply(error?.message || 'I could not resolve that YouTube video.')
+    const message = isYouTubeAccessChallenge(error)
+      ? youtubeChallengeMessage(video.id)
+      : (error?.message || 'I could not resolve that YouTube video.')
+    await progress?.fail?.(message)
+    if (!progress) await ctx.reply(message)
     return
   }
 
