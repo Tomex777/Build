@@ -43,7 +43,7 @@ ssh -T -F /dev/null \
   -o IdentitiesOnly=yes -o IdentityAgent=none \
   -o ConnectTimeout=20 -o ServerAliveInterval=15 -o ServerAliveCountMax=3 \
   -i "$tmp/deploy_key" -p "$PORT" \
-  "$USER_NAME@$HOST" "MSCC_SOURCE_REF=$SHA bash -se" <<'REMOTE'
+  "$USER_NAME@$HOST" "MSCC_SOURCE_REF=$SHA MSCC_REUSE_EXISTING_SOURCE_STACK=1 bash -se" <<'REMOTE'
 set -euo pipefail
 umask 077
 
