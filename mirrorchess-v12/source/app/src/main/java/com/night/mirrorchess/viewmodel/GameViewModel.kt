@@ -283,7 +283,12 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
 
         aiJob = viewModelScope.launch {
             if (uiState.settings.coachEnabled) {
-                val coach = predictor.predict(before, uiState.coachElo, uiState.opponentElo, limit = 5)
+                val coachElo = uiState.coachElo
+                val opponentElo = uiState.opponentElo
+                // ONNX inference and heuristic search must never block Compose frames.
+                val coach = withContext(Dispatchers.Default) {
+                    predictor.predict(before, coachElo, opponentElo, limit = 5)
+                }
                 val match = coach.candidates.firstOrNull { it.move == move }
                 publish {
                     copy(
@@ -316,7 +321,12 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
     private suspend fun launchAiMoveInternal() {
         val before = uiState.game
         if (finishIfNeeded(before)) return
-        var bundle = predictor.predict(before, uiState.opponentElo, uiState.coachElo, limit = if (uiState.opponentProfile.mirror) 64 else 12)
+        val opponentElo = uiState.opponentElo
+        val coachElo = uiState.coachElo
+        val mirrorOpponent = uiState.opponentProfile.mirror
+        var bundle = withContext(Dispatchers.Default) {
+            predictor.predict(before, opponentElo, coachElo, limit = if (mirrorOpponent) 64 else 12)
+        }
         if (uiState.opponentProfile.mirror) {
             uiState.mirrorProfile?.let { profile ->
                 bundle = bundle.copy(
