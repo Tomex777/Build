@@ -142,6 +142,10 @@ jobs:
           test "$(stat -c%s "$ASSETS/moon_lola_terrain.bin")" -eq 51842
           test "$(stat -c%s "$ASSETS/mars_mola_terrain.bin")" -eq 51842
 
+      - name: Validate NASA Trek geographic site mapping
+        shell: bash
+        run: python3 -m unittest discover -s endless_ci -p 'test_prepare_nasa_trek_imagery.py' -v
+
       - name: Fetch NASA Trek photographic landing mosaics
         shell: bash
         run: |
