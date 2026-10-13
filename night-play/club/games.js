@@ -146,6 +146,74 @@ let shape=kind==="whot"?'<label class="small" for="wishShape">Shape to call (cha
 controlsHTML('<div class="row"><button class="primary" type="button" data-action="card-draw" '+(s.turn!==0||s.winner!==null?"disabled":"")+'>Pick one card</button></div><p class="small">Cards left: you '+s.hands[0].length+' · computer '+s.hands[1].length+'</p>'+shape);
 rules(kind==="whot"?"Shape Cards rules":"Colour Clash rules",kind==="whot"?"Play a matching <b>shape</b> or <b>number</b>. 1 & 8: play again; 2: opponent picks two; 5: opponent picks three; 14: opponent picks one; 20: choose a shape. Pick a card if you cannot play. This is our house-rules variant.":"Play a matching <b>colour</b> or <b>number/action</b>. Skip / reverse skips the computer, +2 and +4 draw penalties, and WILD lets you choose a colour. The first player to empty their hand wins. Original artwork; no UNO trademarks.");
 }
+
+/* A recognizable numbered board with every square and slide displayed. */
+const ups={3:22,5:8,11:26,20:29,27:56,36:44,51:67,71:92,80:99};
+const downs={17:4,19:7,21:9,43:34,47:27,54:31,62:18,64:60,87:24,93:73,95:75,98:79};
+function renderSnakes(){
+const s=state.snakes;let html='<div class="snakes-board" role="grid" aria-label="100 square snakes and ladders board">';
+for(let row=0;row<10;row++)for(let c=0;c<10;c++){const base=(9-row)*10+1,num=(9-row)%2===0?base+c:base+(9-c);
+let tokens=s.players.map((p,i)=>p.pos===num?'<span style="color:'+p.color+'" title="'+p.name+'">●</span>':"").join("");
+let jump=ups[num]?"<span class='jump' aria-label='Ladder to "+ups[num]+"'>↗</span>":downs[num]?"<span class='jump' aria-label='Snake to "+downs[num]+"'>↘</span>":"";
+html+='<div class="square" role="gridcell" aria-label="Square '+num+'" style="grid-row:'+(row+1)+';grid-column:'+(c+1)+'">'+num+jump+'<span class="marker">'+tokens+'</span></div>';
+}board.innerHTML=html+"</div>";
+setStatus(s.winner!==null?s.players[s.winner].name+" won the race to 100!":s.players[s.turn].name+"'s turn. "+s.msg);
+controlsHTML('<div class="dice">'+("⚀⚁⚂⚃⚄⚅"[(s.last||1)-1])+'</div><button type="button" class="primary" data-action="snakes-roll" '+(s.winner!==null?"disabled":"")+'>Roll dice</button>'+scoreList(s.players,x=>"Square "+x.pos)+choosePlayers("snakes",s.players.length,4));
+rules("Snakes & Ladders","Roll one die to advance. <b>↗</b> means climb a ladder to a higher square; <b>↘</b> means slide down a snake to a lower square. You must land on exactly 100 to win. Players share the same phone.");
+}
+function snakesRoll(){const s=state.snakes;if(s.winner!==null)return;const p=s.players[s.turn],n=die();s.last=n;const old=p.pos;if(p.pos+n<=100)p.pos+=n;s.msg=(p.pos===old?"Exact roll needed. ":"Rolled "+n+". ");if(ups[p.pos]){s.msg+="Climbed to "+ups[p.pos]+"!";p.pos=ups[p.pos];}if(downs[p.pos]){s.msg+="Slid to "+downs[p.pos]+"!";p.pos=downs[p.pos];}if(p.pos===100)s.winner=s.turn;else s.turn=(s.turn+1)%s.players.length;render();}
+
+/* Draughts: mandatory captures, chained jumps, kings and no-move loss. */
+function checkerOptions(s,at,captureOnly){
+const piece=s.cells[at];if(!piece)return[];const r=Math.floor(at/8),c=at%8;const dirs=piece===piece.toUpperCase()?[-1,1]:[piece==="w"?-1:1],list=[];
+for(const dr of dirs)for(const dc of [-1,1]){
+const ny=r+dr,nx=c+dc;if(ny<0||ny>7||nx<0||nx>7)continue;
+const ix=ny*8+nx,other=s.cells[ix];if(other&&other.toLowerCase()!==piece.toLowerCase()){
+const ty=r+2*dr,tx=c+2*dc;if(ty>=0&&ty<8&&tx>=0&&tx<8&&s.cells[ty*8+tx]===null)list.push({from:at,to:ty*8+tx,capture:ix});}
+else if(!captureOnly&&other===null)list.push({from:at,to:ix,capture:null});
+}
+return list;}
+function allCheckerMoves(s){let entries=[];for(let i=0;i<64;i++){const p=s.cells[i];if(p&&p.toLowerCase()===s.turn&&(s.forced===null||s.forced===i))entries.push(...checkerOptions(s,i,s.forced!==null));}if(entries.some(m=>m.capture!==null))entries=entries.filter(m=>m.capture!==null);return entries;}
+function renderCheckers(){
+const s=state.checkers,options=allCheckerMoves(s),valid=s.selected===null?[]:options.filter(m=>m.from===s.selected).map(m=>m.to);let html='<div class="checkerboard" role="group" aria-label="Eight by eight draughts board">';
+for(let i=0;i<64;i++){const dark=(Math.floor(i/8)+i%8)%2===1,p=s.cells[i];html+='<button type="button" data-checker="'+i+'" class="checker-square '+(dark?"dark":"light")+(valid.includes(i)?" target":"")+'" aria-label="'+(p?(p.toLowerCase()==="w"?"White":"Black")+(p!==p.toLowerCase()?" king":" piece"):"Empty")+' row '+(Math.floor(i/8)+1)+' column '+(i%8+1)+'">'+(p?'<span class="checker-piece '+(p.toLowerCase()==="w"?"white":"black")+(s.selected===i?" selected":"")+'">'+(p===p.toLowerCase()?"":"♛")+'</span>':"")+'</button>'; }board.innerHTML=html+"</div>";
+setStatus(s.winner!==null?(s.winner==="w"?"White":"Black")+" wins!":(s.turn==="w"?"White":"Black")+" to move. "+s.msg);
+controlsHTML('<div class="row"><span class="badge">WHITE '+s.cells.filter(x=>x&&x.toLowerCase()==="w").length+'</span><span class="badge">BLACK '+s.cells.filter(x=>x&&x.toLowerCase()==="b").length+'</span></div><p class="small">Select a piece, then an empty square highlighted in yellow.</p><button class="secondary" data-action="checkers-reset">Restart draughts</button>');
+rules("Draughts rules","<b>Captures are mandatory.</b> Move diagonally on dark squares; jump an opponent's piece to capture it. When a capture is available, other moves are disabled. Continue a capture chain with the same piece. Reach the opposite edge to crown a king. If the opponent has no moves, you win.");
+}
+function checkerClick(at){const s=state.checkers;if(s.winner!==null)return;const legal=allCheckerMoves(s);
+if(s.selected!==null){const move=legal.find(m=>m.from===s.selected&&m.to===at);if(move){const piece=s.cells[move.from];s.cells[move.from]=null;s.cells[move.to]=piece;if(move.capture!==null)s.cells[move.capture]=null;
+const row=Math.floor(move.to/8);if(row===0&&piece==="w")s.cells[move.to]="W";if(row===7&&piece==="b")s.cells[move.to]="B";
+if(move.capture!==null&&s.cells[move.to]===piece){const follow=checkerOptions(s,move.to,true).filter(m=>m.capture!==null);if(follow.length){s.forced=move.to;s.selected=move.to;s.msg="Capture again with the same piece.";render();return;}}
+s.selected=null;s.forced=null;s.turn=s.turn==="w"?"b":"w";s.msg=move.capture!==null?"Captured!":"Piece moved.";if(!allCheckerMoves(s).length)s.winner=s.turn==="w"?"b":"w";render();return;}}
+if(s.forced!==null)return;
+if(s.cells[at]&&s.cells[at].toLowerCase()===s.turn&&legal.some(m=>m.from===at)){s.selected=at;s.msg="Choose a highlighted destination.";render();}}
+ 
+/* Draw & Guess: one phone, one artist, friendly spoken guesses. */
+const words=["football","umbrella","elephant","jollof rice","airplane","bicycle","lion","pineapple","school bag","microphone","volcano","ice cream","traffic light","watermelon","motorbike","headphones","telephone","palm tree","basketball","sunflower","crocodile","laptop","octopus","birthday cake","rainbow","rocket","guitar","market","football boot","computer","mountain","butterfly","camera","book","candle","shark","raincoat","sunglasses","spider","banana"];
+let paintColor="#202f2c",painting=false,lastPoint=null,brushWidth=7;
+function renderDraw(){
+const s=state.draw;if(s.mode!=="playing"){board.innerHTML='<div class="table-surface"><div class="secret">'+(s.mode==="reveal"?"Artist's word: "+h(s.word):"Ready for round "+s.round+"?")+'</div><p style="color:#f4f4eb;text-align:center;max-width:320px">The artist reads the secret word first. Everyone else should look away. Then hide the word and draw!</p></div>';}
+else{
+board.innerHTML='<div class="draw-board"><canvas id="drawCanvas" width="800" height="600" aria-label="Drawing canvas; draw with finger or mouse"></canvas></div><div class="toolbelt" id="brushes"><button type="button" data-brush="#202f2c" style="background:#202f2c" aria-label="Black ink" aria-pressed="true"></button><button type="button" data-brush="#e2343b" style="background:#e2343b" aria-label="Red ink"></button><button type="button" data-brush="#2876ca" style="background:#2876ca" aria-label="Blue ink"></button><button type="button" data-brush="#2a914e" style="background:#2a914e" aria-label="Green ink"></button><button type="button" data-brush="#e3b02a" style="background:#e3b02a" aria-label="Yellow ink"></button><button type="button" data-brush="#ffffff" aria-label="Eraser">⌫</button><button type="button" data-action="draw-clear">Clear drawing</button></div>';
+const c=$("drawCanvas");drawCtx=c.getContext("2d");drawCtx.lineCap="round";drawCtx.lineJoin="round";
+function pos(e){const box=c.getBoundingClientRect();return [Math.max(0,Math.min(800,(e.clientX-box.left)*800/box.width)),Math.max(0,Math.min(600,(e.clientY-box.top)*600/box.height))];}
+c.addEventListener("pointerdown",e=>{painting=true;c.setPointerCapture(e.pointerId);lastPoint=pos(e);drawCtx.fillStyle=paintColor;drawCtx.beginPath();drawCtx.arc(lastPoint[0],lastPoint[1],brushWidth/2,0,Math.PI*2);drawCtx.fill();});
+c.addEventListener("pointermove",e=>{if(!painting)return;const q=pos(e);drawCtx.beginPath();drawCtx.strokeStyle=paintColor;drawCtx.lineWidth=brushWidth;drawCtx.moveTo(lastPoint[0],lastPoint[1]);drawCtx.lineTo(q[0],q[1]);drawCtx.stroke();lastPoint=q;});
+const stop=()=>{painting=false;lastPoint=null;};c.addEventListener("pointerup",stop);c.addEventListener("pointercancel",stop);c.addEventListener("lostpointercapture",stop);
+$("brushes").addEventListener("click",e=>{const b=e.target.closest("[data-brush]");if(!b)return;paintColor=b.dataset.brush;brushWidth=paintColor==="#ffffff"?24:7;for(const btn of document.querySelectorAll("[data-brush]"))btn.setAttribute("aria-pressed",String(btn===b));});
+}
+const artist=s.players[s.drawer],sc='Player 1 '+s.points[0]+' · Player 2 '+s.points[1];setStatus(s.mode==="playing"?artist+" is drawing. "+s.seconds+" seconds left.":artist+"'s turn to draw.");
+controlsHTML('<p class="badge">'+sc+'</p>'+(s.mode==="ready"?'<p class="small">Others look away while the artist reads their secret word.</p><button class="primary" data-action="draw-ready">Reveal my word</button>':s.mode==="reveal"?'<p class="small">Memorize the word, then hide it before showing the screen.</p><button class="primary" data-action="draw-ready">Hide word & start timer</button>':'<form id="guessForm"><label class="small" for="guessWord">Guess what the picture means</label><input class="guess-input" id="guessWord" maxlength="40" autocomplete="off" placeholder="Type a guess"><button class="primary" type="submit">Check guess</button></form><div class="small" id="drawTimer">Time left: '+s.seconds+'s</div><ul class="guess-log" id="guessLog"></ul>')+'<p><button class="secondary" data-action="draw-next">Next artist ↻</button></p>');
+if(s.mode==="playing"){timer=setInterval(()=>{s.seconds=Math.max(0,s.seconds-1);const el=$("drawTimer");if(el)el.textContent="Time left: "+s.seconds+"s";if(s.seconds===0){clearInterval(timer);timer=null;s.mode="ready";s.drawer=1-s.drawer;s.round++;s.word=null;render();}},1000);}
+rules("Party mode","One player sees a secret word and draws it. The other calls out guesses or types them into the box. Guess correctly before 60 seconds to earn a point. Swap artists after each round. <b>Local pass-and-play only</b>, not a cross-phone multiplayer room.");
+}
+function drawReady(){const s=state.draw;if(s.mode==="ready"){s.word=words[Math.floor(Math.random()*words.length)];s.mode="reveal";}else if(s.mode==="reveal"){s.mode="playing";s.seconds=60;paintColor="#202f2c";brushWidth=7;}render();}
+function drawNext(){const s=state.draw;s.mode="ready";s.word=null;s.drawer=1-s.drawer;s.round++;render();}
+function setBrush(color){paintColor=color;brushWidth=color==="#ffffff"?24:7;}
+document.addEventListener("submit",e=>{if(e.target.id!=="guessForm")return;e.preventDefault();const s=state.draw;if(s.mode!=="playing")return;const input=$("guessWord");const guess=input.value.toLowerCase().trim().replace(/[^a-z0-9 ]/g,"");const answer=(s.word||"").toLowerCase().trim().replace(/[^a-z0-9 ]/g,"");if(!guess)return;if(guess===answer){s.points[1-s.drawer]++;const who=s.players[1-s.drawer];s.mode="ready";s.drawer=1-s.drawer;s.round++;alert("Correct! "+who+" gets a point. The word was "+s.word+".");s.word=null;render();return;}if($("guessLog"))$("guessLog").insertAdjacentHTML("afterbegin","<li>Not quite: "+h(guess)+"</li>");input.value="";});
+document.addEventListener("click",e=>{const tile=e.target.closest("[data-checker]");if(tile&&active==="checkers")checkerClick(Number(tile.dataset.checker));});
+
 load();picks.addEventListener("click",e=>{const btn=e.target.closest("[data-pick]");if(btn)pick(btn.dataset.pick);});
 $("newRound").addEventListener("click",()=>{if(confirm("Start a new "+titles[active][0]+" match? Current progress will be cleared."))reset(active);});
 document.addEventListener("change",e=>{const sel=e.target.closest("[data-players]");if(!sel)return;const id=sel.dataset.players,n=Math.max(2,Math.min(4,Number(sel.value)||2));if(id==="ludo"){const order=["red","green","yellow","blue"];state.ludo.players=order.slice(0,n).map(k=>({name:k[0].toUpperCase()+k.slice(1),color:colors[k],key:k,tokens:[-1,-1,-1,-1]}));state.ludo.turn=0;state.ludo.rolled=false;state.ludo.die=null;state.ludo.winner=null;state.ludo.msg="New match. Roll a six to leave home.";}if(id==="estate"){const order=["red","blue","green","yellow"];reset("estate");state.estate.players=order.slice(0,n).map(k=>({name:k[0].toUpperCase()+k.slice(1),color:colors[k],cash:1500,pos:0,bankrupt:false}));}if(id==="snakes"){const order=["red","blue","green","yellow"];reset("snakes");state.snakes.players=order.slice(0,n).map(k=>({name:k[0].toUpperCase()+k.slice(1),color:colors[k],pos:1}));}render();});
