@@ -61,6 +61,10 @@ fun ReaderSettingsDialog(
     onVolumeKeysInvertedChange: (Boolean) -> Unit,
     pageTransitions: Boolean,
     onPageTransitionsChange: (Boolean) -> Unit,
+    tapZones: String,
+    onTapZonesChange: (String) -> Unit,
+    tapZoneInvert: String,
+    onTapZoneInvertChange: (String) -> Unit,
     background: String,
     onBackgroundChange: (String) -> Unit,
     customBrightness: Boolean,
@@ -170,6 +174,30 @@ fun ReaderSettingsDialog(
                                     )
                                 }
                                 SettingSwitch("Crop borders", cropEnabled, onCropChange)
+                                SettingHeading("Tap zones")
+                                SettingChoices(
+                                    options = listOf(
+                                        "Default" to "default",
+                                        "Right / left" to "right_left",
+                                        "L-shape" to "l",
+                                        "Kindle" to "kindle",
+                                        "Edges" to "edge",
+                                        "No page-turn taps" to "disabled",
+                                    ),
+                                    value = tapZones,
+                                    onChange = onTapZonesChange,
+                                )
+                                SettingHeading("Invert tap zones")
+                                SettingChoices(
+                                    options = listOf(
+                                        "Off" to "none",
+                                        "Horizontal" to "horizontal",
+                                        "Vertical" to "vertical",
+                                        "Both" to "both",
+                                    ),
+                                    value = tapZoneInvert,
+                                    onChange = onTapZoneInvertChange,
+                                )
                                 SettingSwitch("Page transitions", pageTransitions, onPageTransitionsChange)
                                 SettingSwitch("Volume key navigation", volumeKeys, onVolumeKeysChange)
                                 if (volumeKeys) {
