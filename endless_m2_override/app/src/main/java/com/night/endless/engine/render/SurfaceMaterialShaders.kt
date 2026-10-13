@@ -144,7 +144,15 @@ void main() {
         abs(ground.x) <= 13.6 && abs(ground.y) <= 13.6) {
         vec2 photoUv = vec2(0.5 + ground.x / 27.2,
                             0.5 - ground.y / 27.2);
-        vec3 photo = texture(uLandingAlbedo, photoUv).rgb;
+        // Hardware mip-filter the georeferenced NASA mosaic; high-angle
+        // ground viewing otherwise shimmers as orbital-sized texels approach
+        // subpixel size. Moon WAC imagery has more high-frequency crater
+        // detail, so it uses a slightly higher LOD bias.
+        float photoLodBias = uWorld == 1 ? 0.95 : 0.65;
+        vec3 photo = texture(uLandingAlbedo, photoUv, photoLodBias).rgb;
+        // Highlight compression preserves actual photographed geography
+        // without turning naturally bright cliffs into glowing white bands.
+        photo = photo / (vec3(1.0) + photo * 0.22);
         // Orbital imagery is not photometrically corrected against the
         // in-engine Sun: preserve surface detail but avoid strong baked
         // false-color lighting and keep a small, detailed regolith layer.
@@ -173,7 +181,7 @@ void main() {
         // Warm atmospheric extinction and aerial perspective on Mars, with
         // clear close foreground. The Moon intentionally has zero dust fog.
         vec3 dust = vec3(0.42, 0.235, 0.16);
-        float transmittance = exp(-max(vDistance, 0.0) * 0.125);
+        float transmittance = exp(-max(vDistance, 0.0) * 0.205);
         color = mix(dust, color, transmittance);
     }
 
