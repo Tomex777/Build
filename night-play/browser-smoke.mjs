@@ -14,6 +14,7 @@ try {
  page.on('pageerror',err=>failures.push(String(err)))
  await page.goto(base+'/')
  await page.locator('#view-welcome').waitFor({state:'visible'})
+ console.log('DEBUG landing',await page.evaluate(()=>({view:document.body.dataset.view,mobileNav:window.getComputedStyle(document.querySelector('.mobile-nav')).display,links:window.getComputedStyle(document.querySelector('header .links')).display,cta:window.getComputedStyle(document.querySelector('header .landing-enter')).display})),failures)
  assert.equal(await page.locator('#view-games').isVisible(),false)
  assert.equal(await page.locator('.mobile-nav').isVisible(),false,'Landing page must not show app tabs')
  assert.equal(await page.locator('header .links').isVisible(),false,'Landing page must not show app navigation')
