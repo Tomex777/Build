@@ -238,10 +238,76 @@ header{position:sticky;top:0;z-index:60;box-shadow:0 1px 0 #e7e8e7;background:#f
 @media(max-width:600px){.snake-mode-grid button{padding:7px;gap:6px}.snake-mode-grid button strong{font-size:11px}}
 /* Fullscreen games must paint above sticky navigation and site-wide notices. */
 .game-page{z-index:110}
+
+/* V6 — a separate landing experience, grounded footer and scalable analytics */
+body[data-view="welcome"] .mobile-nav,body[data-view="welcome"] header .links,body[data-view="welcome"] header .profile-icon,body[data-view="welcome"] header button[data-dialog="connect"]{display:none!important}
+header .landing-enter{display:none}
+body[data-view="welcome"] header .landing-enter{display:inline-flex}
+.site-footer{width:100%;flex-shrink:0;padding:0;margin-top:auto;background:var(--bg);border-top:1px solid var(--line)}
+.footer-inner{display:flex;align-items:center;justify-content:space-between;gap:16px;min-height:73px;color:#9b9d9d;font-size:12px}
+.footer-inner strong{color:#303437;letter-spacing:-.3px}
+#siteMain{flex:1 0 auto}
+#view-welcome{min-height:calc(100dvh - 230px)}
+.announcement-bar.dismissed{display:none!important}
+.announcement-bar.dismissed .announcement-history{display:none!important}
+body[data-view="welcome"] .site-footer{padding-bottom:0}
+body[data-view="profile"] header button[data-dialog="connect"]{display:none!important}
+.profile-overview{margin-bottom:8px}
+.analytics-panel{position:relative;background:#fff;border:1px solid #e8e8e7;border-radius:24px;padding:25px 28px 20px;margin-bottom:34px}
+.analytics-top{display:flex;align-items:center;justify-content:space-between;gap:18px;position:relative;z-index:8}
+.analytics-top h3{font-size:23px;letter-spacing:-.85px;margin:0 0 6px}
+.analytics-subtitle{font-size:12px;color:#999}
+.analytics-picker{position:relative;z-index:12}
+.records-picker{border:1px solid #dedfde;padding:12px 16px;border-radius:12px;background:#f6f6f6;display:flex;align-items:center;gap:18px;font-weight:740;font-size:12px}
+.records-picker:hover{background:#eee}
+.records-menu{position:absolute;right:0;top:calc(100% + 10px);width:min(350px,85vw);border:1px solid #e5e5e4;background:#fff;border-radius:17px;box-shadow:0 19px 43px #1010101c;padding:12px;z-index:15}
+.records-menu[hidden]{display:none}
+.records-menu label{display:flex;align-items:center;gap:7px;background:#f1f1f0;border-radius:11px;padding:0 11px}
+.records-menu label>span{font-size:21px;color:#8c8c8c}
+.records-menu input{background:transparent;border:none;outline:none;font:inherit;font-size:13px;padding:14px 0;width:100%}
+.record-options{max-height:min(300px,42dvh);overflow-y:auto;overscroll-behavior:contain;display:grid;gap:3px;margin-top:7px}
+.record-options button{padding:13px 12px;border:0;border-radius:10px;background:none;text-align:left;font:inherit;font-size:13px;display:flex;align-items:center;justify-content:space-between;color:#2f3434;gap:9px}
+.record-options button[aria-selected="true"]{background:#eceeed;font-weight:800}
+.record-options button:hover{background:#f4f4f4}
+.record-options button span{font-size:10px;color:#999;white-space:nowrap}
+.record-empty{font-size:12px;color:#909090;padding:13px;margin:0}
+.analytics-metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));border-bottom:1px solid #ededed;margin-top:23px;padding:14px 0 25px}
+.analytics-metrics>div{display:flex;flex-direction:column;gap:8px;min-width:0;padding:0 23px;border-right:1px solid #ebebeb}
+.analytics-metrics>div:first-child{padding-left:0}
+.analytics-metrics>div:last-child{border:0}
+.analytics-metrics span{font-size:12px;color:#909393}
+.analytics-metrics strong{font-size:clamp(25px,4vw,42px);letter-spacing:-1.6px;font-variant-numeric:tabular-nums;overflow:hidden;text-overflow:ellipsis}
+.analytics-chart{position:relative;padding-top:23px}
+.chart-head{display:flex;justify-content:space-between;align-items:center;gap:15px;font-size:13px;font-weight:800}
+.chart-head small{color:#9a9d9e;font-size:10px;font-weight:500}
+#analyticsGraph{width:100%;height:auto;aspect-ratio:680/250;display:block;margin:14px 0 8px;overflow:visible}
+.chart-no-data{position:absolute;inset:65px 0 32px;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:7px;background:#fff;color:#565d5c;font-size:14px}
+.chart-no-data span{font-size:12px;color:#9c9f9f}
+.chart-no-data[hidden]{display:none}
+.chart-axis-labels{display:flex;justify-content:space-between;color:#999;font-size:11px}
+.analytics-footnote{margin:17px 0 0;color:#9a9c9e;font-size:11px}
+.record-grid{display:none}
+@media(max-width:600px){
+ body[data-view="welcome"] .mobile-nav{display:none!important}
+ .footer-inner{min-height:65px;padding-bottom:8px;align-items:flex-start;flex-direction:column;justify-content:center;gap:5px;font-size:11px}
+ body[data-view="welcome"] .site-footer{padding-bottom:0!important}
+ .site-footer{padding-bottom:calc(65px + env(safe-area-inset-bottom))!important}
+ .analytics-panel{padding:20px 16px 18px;border-radius:19px}
+ .analytics-top h3{font-size:21px}
+ .records-picker{padding:10px 11px}
+ .analytics-metrics>div{padding:0 10px}
+ .analytics-metrics span{font-size:10px}
+ .analytics-metrics strong{font-size:25px}
+ .analytics-metrics{padding-bottom:21px}
+ .chart-head small{font-size:9px}
+ #analyticsGraph{aspect-ratio:680/360;margin-top:18px}
+ .chart-no-data{inset:55px 0 24px}
+}
+
 </style>
 </head>
 <body>
-<header><div class="wrap nav"><a href="/welcome" data-route class="logo" aria-label="NIGHT Play welcome">NIGHT <span class="brand-sub">PLAY</span></a><nav class="links" aria-label="Main navigation"><a data-route href="/dashboard">Home</a><a data-route href="/games">Games</a></nav><div class="actions"><a class="profile-icon" data-route href="/profile" aria-label="My profile" title="My profile"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4.5 20c1.2-4.7 13.8-4.7 15 0"/></svg></a><button class="btn light" data-dialog="connect">Connect WhatsApp ↗</button></div></div></header>
+<header><div class="wrap nav"><a href="/welcome" data-route class="logo" aria-label="NIGHT Play welcome">NIGHT <span class="brand-sub">PLAY</span></a><nav class="links" aria-label="Main navigation"><a data-route href="/dashboard">Home</a><a data-route href="/games">Games</a></nav><div class="actions"><a class="profile-icon" data-route href="/profile" aria-label="My profile" title="My profile"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4.5 20c1.2-4.7 13.8-4.7 15 0"/></svg></a><button class="btn light" data-dialog="connect">Connect WhatsApp ↗</button><a class="btn landing-enter" data-route href="/dashboard">Enter NIGHT Play ↗</a></div></div></header>
 <aside id="announcementBar" class="announcement-bar" role="region" aria-label="NIGHT site announcements">
  <div class="wrap announcement-content"><span class="announce-badge">NEW</span><div class="announce-copy"><strong>NIGHT Play preview is evolving</strong><span>Full-page games and a larger 2048 board are being refined.</span></div><button id="announcementMore" type="button" aria-controls="announcementHistory" aria-expanded="false">Past notices <span aria-hidden="true">⌄</span></button><button id="announcementDismiss" type="button" aria-label="Dismiss announcement">×</button></div>
  <div id="announcementHistory" class="wrap announcement-history" hidden>
@@ -292,20 +358,35 @@ header{position:sticky;top:0;z-index:60;box-shadow:0 1px 0 #e7e8e7;background:#f
  </div><p class="no-results" id="noGameResults" hidden>No games found. Try another name or category.</p>
 </section>
 <section class="site-page" id="view-profile" data-view="profile" hidden>
- <div class="inner-page-head profile-heading"><div><span class="eyebrow">ACCOUNT</span><h1>Profile<span class="muted">.</span></h1></div><span class="status-pill">NOT CONNECTED</span></div>
- <div class="profile-overview">
-  <div class="profile-identity"><div class="profile-monogram" aria-hidden="true"><svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4.5 20c1.2-4.7 13.8-4.7 15 0"/></svg></div><div><span class="eyebrow">NIGHT PLAYER</span><h2>Connect WhatsApp</h2><span class="muted">Account linking is coming soon.</span></div><button class="btn light" data-dialog="connect">Connect ↗</button></div>
-  <div class="profile-preview-stats"><div><strong id="profileGamesRecorded">0</strong><span>Completed rounds</span></div><div><strong id="profileSnakeBest">0</strong><span>Snake best</span></div><div><strong id="profile2048Best">0</strong><span>2048 best · 4×4</span></div></div>
+<div class="inner-page-head profile-heading"><div><span class="eyebrow">ACCOUNT</span><h1>Account <span class="muted">profile.</span></h1></div><span class="status-pill">NOT CONNECTED</span></div>
+<div class="profile-overview">
+ <div class="profile-identity"><div class="profile-monogram" aria-hidden="true"><svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4.5 20c1.2-4.7 13.8-4.7 15 0"/></svg></div><div><h2>Connect WhatsApp</h2><span class="muted">Not connected</span></div><button class="btn light" data-dialog="connect">Connect ↗</button></div>
+</div>
+<div class="records-heading"><div><span class="eyebrow">YOUR GAME STATS</span><h2>Game records</h2></div><span class="record-mode-tag">Device only · Unranked</span></div>
+<div class="analytics-panel">
+ <div class="analytics-top">
+  <div><h3 id="selectedGameTitle">Snake</h3><span class="analytics-subtitle" id="analyticsSubtitle">Recent scores</span></div>
+  <div class="analytics-picker">
+   <button id="recordsPicker" class="records-picker" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="recordsMenu">Choose game <span aria-hidden="true">⌄</span></button>
+   <div id="recordsMenu" class="records-menu" hidden><label><span aria-hidden="true">⌕</span><input id="recordSearch" placeholder="Find a game..." type="search" autocomplete="off" aria-label="Search game records"></label><div id="recordOptions" class="record-options" role="listbox" aria-label="Games with score records"></div><p id="recordEmpty" class="record-empty" hidden>No games found</p></div>
+  </div>
  </div>
- <div class="records-heading"><div><span class="eyebrow">SCOREBOARD</span><h2>Game records</h2></div><span class="record-mode-tag">Device only · Unranked</span></div>
- <div class="record-grid">
-  <article class="record-tile"><div class="record-tile-top"><div><span class="record-glyph">🐍</span><h3>Snake</h3></div><span class="record-chip">BEST RUN</span></div><div class="record-score"><strong id="recordSnakeValue">0</strong><span>points</span></div><svg id="chartSnake" class="record-spark" viewBox="0 0 260 72" preserveAspectRatio="none" role="img" aria-label="Recent Snake scores"></svg><span class="record-caption" id="captionSnake">No runs completed yet</span></article>
-  <article class="record-tile"><div class="record-tile-top"><div><span class="record-glyph">🔢</span><h3>2048</h3></div><span class="record-chip">4 × 4</span></div><div class="record-score"><strong id="record2048Value">0</strong><span>points</span></div><svg id="chart2048" class="record-spark" viewBox="0 0 260 72" preserveAspectRatio="none" role="img" aria-label="Recent 2048 scores"></svg><span class="record-caption" id="caption2048">No rounds recorded yet</span></article>
-  <article class="record-tile small-record"><div class="record-tile-top"><div><h3>2048 · 5×5</h3></div><span class="record-chip">BEST</span></div><div class="record-score"><strong id="profile2048Best5">0</strong><span>points</span></div><svg id="chart2048_5" class="record-spark" viewBox="0 0 260 72" preserveAspectRatio="none" role="img" aria-label="Recent 5 by 5 scores"></svg></article>
-  <article class="record-tile small-record"><div class="record-tile-top"><div><h3>2048 · 6×6</h3></div><span class="record-chip">BEST</span></div><div class="record-score"><strong id="profile2048Best6">0</strong><span>points</span></div><svg id="chart2048_6" class="record-spark" viewBox="0 0 260 72" preserveAspectRatio="none" role="img" aria-label="Recent 6 by 6 scores"></svg></article>
- </div></section>
+ <div class="analytics-metrics">
+   <div><span>Personal best</span><strong id="analyticsBest">0</strong></div>
+   <div><span>Last score</span><strong id="analyticsLatest">—</strong></div>
+   <div><span>Recorded rounds</span><strong id="analyticsRuns">0</strong></div>
+ </div>
+ <div class="analytics-chart">
+  <div class="chart-head"><span>Score history</span><small id="chartNote">Last 12 completed rounds</small></div>
+  <svg id="analyticsGraph" viewBox="0 0 680 250" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Scores for the selected game plotted over recent rounds"></svg>
+  <div id="chartEmptyState" class="chart-no-data" hidden><strong>No scores yet</strong><span>Play a round to see your progress here.</span></div>
+  <div class="chart-axis-labels"><span>Earlier</span><span>Recent</span></div>
+ </div>
+ <p class="analytics-footnote" id="recordsGameCount">Your game records</p>
+</div>
+</section>
 </main>
-<footer class="wrap"><span><strong>NIGHT PLAY</strong> · Games, challenges and community.</span><span>Preview · Scores saved only on this device</span></footer>
+<footer class="site-footer"><div class="wrap footer-inner"><strong>NIGHT PLAY</strong><span>© 2026 NIGHT. Preview build.</span></div></footer>
 <dialog id="infoDialog" aria-labelledby="infoTitle"><div class="modalhead"><h2 id="infoTitle">NIGHT Play</h2><button class="xbtn" data-close aria-label="Close">×</button></div><div class="modalbody" id="infoBody"></div></dialog>
 <dialog id="settingsDialog" aria-labelledby="settingsTitle"><div class="modalhead"><h2 id="settingsTitle">Game settings</h2><button class="xbtn" id="closeSettings" type="button" aria-label="Close settings">×</button></div><div class="modalbody" id="settingsBody"></div></dialog>
 <section id="gameDialog" class="game-page" aria-label="Fullscreen game view" aria-hidden="true">
@@ -335,24 +416,115 @@ function modal(kind){
 const UPDATE_VERSION="nightplay-ui-20261013-v4";
 const ENTER_KEY="night-play-has-entered";
 const READ_KEY="night-play-update-seen";
+const getSaved=(key)=>{try{return localStorage.getItem(key)}catch{return null}};
+const putSaved=(key,value)=>{try{localStorage.setItem(key,String(value))}catch{}};
 const scoreHistoryKey="night-play-history-v1-";
 function scoreHistory(id){try{const a=JSON.parse(localStorage.getItem(scoreHistoryKey+id)||"[]");return Array.isArray(a)?a.filter(x=>Number.isFinite(x)&&x>=0).slice(-12):[]}catch{return []}}
-function recordSession(id,score){if(!Number.isFinite(score)||score<0)return;try{localStorage.setItem(scoreHistoryKey+id,JSON.stringify([...scoreHistory(id),Math.round(score)].slice(-12)))}catch{}}
-function paintHistory(id,svgId,captionId){
- const svg=document.getElementById(svgId);if(!svg)return;
- const history=scoreHistory(id),max=Math.max(1,...history,best(id));
- const ns="http://www.w3.org/2000/svg";svg.replaceChildren();
- const base=document.createElementNS(ns,"path");base.setAttribute("d","M 0 68 L 260 68");base.setAttribute("stroke","#d9dede");base.setAttribute("stroke-width","1");svg.appendChild(base);
- if(history.length){const pad=8,step=240/Math.max(1,history.length),barWidth=Math.min(26,step*.62);
- history.forEach((score,index)=>{const h=Math.max(3,Math.round(score/max*53)),r=document.createElementNS(ns,"rect");r.setAttribute("x",String(pad+index*step+(step-barWidth)/2));r.setAttribute("y",String(68-h));r.setAttribute("width",String(barWidth));r.setAttribute("height",String(h));r.setAttribute("rx","3");r.setAttribute("fill",index===history.length-1?"#232a2a":"#bbc4c1");svg.appendChild(r)})}
- if(captionId){const n=document.getElementById(captionId);if(n)n.textContent=history.length?(history.length+" recent round"+(history.length>1?"s":"")):"No completed rounds"}
+const scoreCountKey="night-play-history-count-v1-";
+function scoreCount(id){const n=Number(getSaved(scoreCountKey+id));return Number.isFinite(n)&&n>0?Math.floor(n):scoreHistory(id).length}
+function recordSession(id,score){if(!Number.isFinite(score)||score<0)return;try{
+ const previous=scoreCount(id);localStorage.setItem(scoreHistoryKey+id,JSON.stringify([...scoreHistory(id),Math.round(score)].slice(-12)));
+ localStorage.setItem(scoreCountKey+id,String(previous+1))
+ }catch{}}
+// One chart with a searchable game selector scales to large catalogues.
+const RECORD_LABELS={"snake":"Snake","2048":"2048 · 4×4","2048-5":"2048 · 5×5","2048-6":"2048 · 6×6"};
+const RECORD_DEFAULTS=["snake","2048","2048-5","2048-6"];
+let selectedRecordGame=getSaved("night-play-selected-record")||"snake";
+function recordTitle(id){
+ if(RECORD_LABELS[id])return RECORD_LABELS[id];
+ return String(id).replace(/[-_]+/g," ").replace(/\b\w/g,letter=>letter.toUpperCase()).slice(0,60);
+}
+function availableRecordGames(){
+ const ids=new Set(RECORD_DEFAULTS);
+ try{for(let i=0;i<localStorage.length;i++){
+  const k=localStorage.key(i);
+  if(k&&k.startsWith(scoreHistoryKey))ids.add(k.slice(scoreHistoryKey.length));
+  if(k&&k.startsWith(scoreKey))ids.add(k.slice(scoreKey.length));
+ }}catch{}
+ return [...ids].filter(id=>id.length>0&&id.length<80).sort((a,b)=>{
+   const aHas=scoreHistory(a).length>0||best(a)>0,bHas=scoreHistory(b).length>0||best(b)>0;
+   if(aHas!==bHas)return aHas?-1:1;
+   return recordTitle(a).localeCompare(recordTitle(b))
+ })
+}
+function setText(id,v){const el=document.getElementById(id);if(el)el.textContent=v}
+function renderRecordOptions(){
+ const query=document.getElementById("recordSearch").value.toLowerCase().trim();
+ const target=document.getElementById("recordOptions");target.replaceChildren();
+ const all=availableRecordGames(),found=all.filter(id=>recordTitle(id).toLowerCase().includes(query));
+ for(const id of found){
+   const button=document.createElement("button");button.type="button";button.setAttribute("role","option");
+   button.setAttribute("aria-selected",String(id===selectedRecordGame));
+   const label=document.createElement("strong");label.textContent=recordTitle(id);
+   const sub=document.createElement("span");sub.textContent=scoreCount(id)+" rounds";
+   button.append(label,sub);button.onclick=()=>{
+    selectedRecordGame=id;putSaved("night-play-selected-record",id);
+    document.getElementById("recordsMenu").hidden=true;
+    document.getElementById("recordsPicker").setAttribute("aria-expanded","false");
+    drawRecordChart();
+   };target.appendChild(button)
+ }
+ document.getElementById("recordEmpty").hidden=found.length!==0;
+ setText("recordsGameCount",all.length+" game records available · Local scores only");
+}
+function plotSVG(svg,history,bestScore){
+ const ns="http://www.w3.org/2000/svg";
+ const elt=(tag,attrs)=>{const n=document.createElementNS(ns,tag);for(const [k,v] of Object.entries(attrs))n.setAttribute(k,String(v));return n};
+ svg.replaceChildren();
+ const max=Math.max(1,...history,bestScore),top=30,bottom=211,left=68,right=657;
+ // Horizontal reference lines and actual score labels.
+ for(let i=0;i<4;i++){
+  const y=top+(bottom-top)*i/3,raw=Math.round(max*(1-i/3));
+  svg.appendChild(elt("line",{x1:left,y1:y,x2:right,y2:y,stroke:"#e9ebeb","stroke-width":"1"}));
+  const text=elt("text",{x:left-12,y:y+4,"text-anchor":"end",fill:"#979c9a","font-size":"12","font-family":"Arial, sans-serif"});
+  text.textContent=raw.toLocaleString();svg.appendChild(text)
+ }
+ if(!history.length)return;
+ const pts=history.map((score,i)=>{
+  const x=history.length===1?(left+right)/2:left+i*(right-left)/(history.length-1);
+  return {x,y:bottom-(Math.min(score,max)/max)*(bottom-top),score}
+ });
+ if(pts.length>1){
+  const area=elt("path",{d:"M"+pts.map(p=>p.x+" "+p.y).join(" L")+" L"+pts[pts.length-1].x+" "+bottom+" L"+pts[0].x+" "+bottom+" Z",fill:"#e4ebe8",opacity:"0.85"});
+  svg.appendChild(area);
+  const line=elt("polyline",{points:pts.map(p=>p.x+","+p.y).join(" "),stroke:"#273d39","stroke-width":"3.6",fill:"none","stroke-linejoin":"round","stroke-linecap":"round"});
+  svg.appendChild(line)
+ }
+ pts.forEach((p,i)=>{
+  const c=elt("circle",{cx:p.x,cy:p.y,r:i===pts.length-1?6:4,fill:i===pts.length-1?"#1c2d29":"#fff",stroke:"#253d36","stroke-width":"2"});
+  const title=elt("title",{});title.textContent="Round "+(i+1)+": "+p.score.toLocaleString();c.appendChild(title);svg.appendChild(c)
+ })
+}
+function drawRecordChart(){
+ const id=selectedRecordGame,history=scoreHistory(id),topScore=best(id);
+ setText("selectedGameTitle",recordTitle(id));
+ setText("analyticsBest",topScore.toLocaleString());
+ setText("analyticsLatest",history.length?history[history.length-1].toLocaleString():"—");
+ setText("analyticsRuns",scoreCount(id).toLocaleString());
+ setText("analyticsSubtitle","Personal scores · Not ranked");
+ setText("chartNote","Last "+Math.min(12,history.length)+" recorded rounds");
+ plotSVG(document.getElementById("analyticsGraph"),history,topScore);
+ document.getElementById("chartEmptyState").hidden=history.length!==0;
+ document.getElementById("recordsPicker").firstChild.textContent="Choose game ";
 }
 function renderProfileRecords(){
- const set=(id,value)=>{const el=document.getElementById(id);if(el)el.textContent=Number(value).toLocaleString()};
- for(const [id,key] of [["profileSnakeBest","snake"],["recordSnakeValue","snake"],["profile2048Best","2048"],["record2048Value","2048"],["profile2048Best5","2048-5"],["profile2048Best6","2048-6"]])set(id,best(key));
- set("profileGamesRecorded",["snake","2048","2048-5","2048-6"].reduce((n,id)=>n+scoreHistory(id).length,0));
- for(const [id,svg,caption] of [["snake","chartSnake","captionSnake"],["2048","chart2048","caption2048"],["2048-5","chart2048_5",null],["2048-6","chart2048_6",null]])paintHistory(id,svg,caption)
+ const all=availableRecordGames();
+ if(!all.includes(selectedRecordGame))selectedRecordGame=all[0]||"snake";
+ renderRecordOptions();drawRecordChart()
 }
+document.getElementById("recordsPicker").addEventListener("click",()=>{
+ const menu=document.getElementById("recordsMenu");menu.hidden=!menu.hidden;
+ document.getElementById("recordsPicker").setAttribute("aria-expanded",String(!menu.hidden));
+ if(!menu.hidden){document.getElementById("recordSearch").value="";renderRecordOptions();document.getElementById("recordSearch").focus()}
+});
+document.getElementById("recordSearch").addEventListener("input",renderRecordOptions);
+document.addEventListener("click",e=>{if(!e.target.closest(".analytics-picker")){
+ const menu=document.getElementById("recordsMenu");if(menu&&!menu.hidden){menu.hidden=true;document.getElementById("recordsPicker").setAttribute("aria-expanded","false")}
+}});
+document.addEventListener("keydown",e=>{if(e.key==="Escape"){
+ const menu=document.getElementById("recordsMenu");if(menu&&!menu.hidden){menu.hidden=true;document.getElementById("recordsPicker").setAttribute("aria-expanded","false");document.getElementById("recordsPicker").focus()}
+}});
+
 function greetingText(hour){return hour>=5&&hour<12?"Good morning":hour>=12&&hour<17?"Good afternoon":hour>=17&&hour<22?"Good evening":"Good night"}
 function updateGreeting(){
  const title=document.getElementById("homeGreeting");if(!title)return;
@@ -362,8 +534,7 @@ function updateGreeting(){
 }
 setInterval(()=>{if(!document.getElementById("view-dashboard").hidden)updateGreeting()},60000);
 
-const getSaved=(key)=>{try{return localStorage.getItem(key)}catch{return null}};
-const putSaved=(key,value)=>{try{localStorage.setItem(key,String(value))}catch{}};
+
 let activeFilter="all";
 function pathView(){
  const path=location.pathname.replace(/\/+$/,"")||"/";
@@ -407,6 +578,7 @@ function filterGames(){
 }
 function renderRoute(){
  const current=pathView();
+ document.body.dataset.view=current;
  if(location.pathname==="/updates")history.replaceState({},"","/dashboard");
  for(const page of document.querySelectorAll(".site-page"))page.hidden=page.dataset.view!==current;
  for(const link of document.querySelectorAll("[data-route]")){
