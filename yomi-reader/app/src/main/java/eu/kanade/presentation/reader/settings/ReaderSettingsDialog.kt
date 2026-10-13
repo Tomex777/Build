@@ -15,6 +15,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
@@ -35,6 +36,8 @@ import kotlin.math.roundToInt
 @Composable
 fun ReaderSettingsDialog(
     onDismissRequest: () -> Unit,
+    onShowMenus: () -> Unit,
+    onHideMenus: () -> Unit,
     readingMode: ReadingMode,
     onReadingModeChange: (ReadingMode) -> Unit,
     orientation: String,
@@ -83,6 +86,12 @@ fun ReaderSettingsDialog(
     val titles = listOf("Reading mode", "General", "Color filter")
     val pagerState = rememberPagerState { titles.size }
     val height = LocalConfiguration.current.screenHeightDp.dp * 0.75f
+
+    // Upstream hides the reader chrome while previewing color filters, then
+    // restores it for mode/general settings and when the sheet closes.
+    LaunchedEffect(pagerState.currentPage) {
+        if (pagerState.currentPage == 2) onHideMenus() else onShowMenus()
+    }
 
     // Mihon's original tabbed, swipeable bottom-sheet structure.
     TabbedDialog(
