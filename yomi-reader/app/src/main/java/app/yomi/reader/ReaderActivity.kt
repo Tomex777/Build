@@ -182,6 +182,7 @@ class ReaderActivity : ComponentActivity(), ReaderViewerHost {
         readIntentReaderState()
         applySavedOrientation()
         applyCustomBrightness()
+        applyScreenAwake()
         Log.i(READER_TAG, "activity-created title=$title mode=$mode")
         // Mihon's original Compose reader bars occupy a transparent overlay.
         // Empty space passes touch gestures through to the original page viewer.
@@ -389,6 +390,24 @@ class ReaderActivity : ComponentActivity(), ReaderViewerHost {
                         onShowPageNumberChange = { value ->
                             prefs.edit().putBoolean(PREF_SHOW_PAGE_NUMBER, value).apply()
                             updatePositionLabel(lastLocation)
+                            refreshChrome()
+                        },
+                        fullscreen = prefs.getBoolean(PREF_FULLSCREEN, true),
+                        onFullscreenChange = { value ->
+                            prefs.edit().putBoolean(PREF_FULLSCREEN, value).apply()
+                            applyImmersive()
+                            refreshChrome()
+                        },
+                        keepScreenOn = prefs.getBoolean(PREF_KEEP_SCREEN_ON, false),
+                        onKeepScreenOnChange = { value ->
+                            prefs.edit().putBoolean(PREF_KEEP_SCREEN_ON, value).apply()
+                            applyScreenAwake()
+                            refreshChrome()
+                        },
+                        readWithLongTap = prefs.getBoolean(PREF_READ_WITH_LONG_TAP, true),
+                        onReadWithLongTapChange = { value ->
+                            prefs.edit().putBoolean(PREF_READ_WITH_LONG_TAP, value).apply()
+                            installViewer()
                             refreshChrome()
                         },
                         volumeKeys = prefs.getBoolean(PREF_VOLUME_KEYS, false),
@@ -670,6 +689,7 @@ class ReaderActivity : ComponentActivity(), ReaderViewerHost {
             volumeKeysInverted = getPreferences(MODE_PRIVATE).getBoolean(PREF_VOLUME_KEYS_INVERTED, false),
             minimumScaleType = minimumScaleType(),
             pageTransitions = getPreferences(MODE_PRIVATE).getBoolean(PREF_PAGE_TRANSITIONS, true),
+            longTapEnabled = getPreferences(MODE_PRIVATE).getBoolean(PREF_READ_WITH_LONG_TAP, true),
             pagerNavigation = readerTapZones(pager = true),
             webtoonNavigation = readerTapZones(pager = false),
         )
@@ -928,9 +948,22 @@ class ReaderActivity : ComponentActivity(), ReaderViewerHost {
     }
 
     private fun applyImmersive() {
+        val fullscreen = getPreferences(MODE_PRIVATE).getBoolean(PREF_FULLSCREEN, true)
         WindowInsetsControllerCompat(window, window.decorView).apply {
             systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
-            if (menuVisible) show(WindowInsetsCompat.Type.systemBars()) else hide(WindowInsetsCompat.Type.systemBars())
+            if (menuVisible || !fullscreen) {
+                show(WindowInsetsCompat.Type.systemBars())
+            } else {
+                hide(WindowInsetsCompat.Type.systemBars())
+            }
+        }
+    }
+
+    private fun applyScreenAwake() {
+        if (getPreferences(MODE_PRIVATE).getBoolean(PREF_KEEP_SCREEN_ON, false)) {
+            window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        } else {
+            window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         }
     }
 
@@ -1298,6 +1331,9 @@ class ReaderActivity : ComponentActivity(), ReaderViewerHost {
         private const val PREF_TAP_ZONES = "reader_tap_zones"
         private const val PREF_TAP_ZONE_INVERT = "reader_tap_zone_invert"
         private const val PREF_SHOW_PAGE_NUMBER = "show_page_number"
+        private const val PREF_FULLSCREEN = "reader_fullscreen"
+        private const val PREF_KEEP_SCREEN_ON = "reader_keep_screen_on"
+        private const val PREF_READ_WITH_LONG_TAP = "reader_long_tap"
         private const val PREF_SCALE_MODE = "scale_mode"
         private const val PREF_ZOOM_START = "reader_zoom_start"
         private const val PREF_LANDSCAPE_ZOOM = "reader_landscape_zoom"
