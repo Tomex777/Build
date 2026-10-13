@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#f7f7f7">
+<meta name="description" content="NIGHT Play — a home for games, challenges, and friends.">
+<title>NIGHT Play — Play your way</title>
+<style>
+:root{--bg:#f7f7f7;--surface:#fff;--soft:#ededed;--ink:#1e242a;--dark:#080808;--muted:#777e83;--line:#e4e5e5;--radius:24px}
+*{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:var(--bg);color:var(--ink);font-family:Inter,"DM Sans",Arial,system-ui,sans-serif;-webkit-font-smoothing:antialiased}button,a{-webkit-tap-highlight-color:transparent}button{font:inherit;cursor:pointer}a{color:inherit;text-decoration:none}.wrap{max-width:1260px;padding:0 32px;margin:auto}
+header{border-bottom:1px solid var(--line);height:88px;display:flex;align-items:center}.nav{display:flex;align-items:center;justify-content:space-between;width:100%;gap:22px}
+.logo{display:flex;align-items:center;gap:9px;font-size:21px;font-weight:900;letter-spacing:-1.2px;color:var(--dark)}.moon{width:36px;height:36px;background:var(--dark);display:grid;place-items:center;border-radius:12px}.moon svg{width:24px;height:24px}
+.brand-sub{font-weight:500;font-size:11px;vertical-align:middle;background:#e6e8e8;color:#434849;padding:5px 8px;border-radius:6px;letter-spacing:1px;margin-left:2px}
+.links{display:flex;gap:28px;font-size:13px;color:#6b7074}.links a:hover{color:#080808}.actions{display:flex;align-items:center;gap:11px}.btn{border:none;padding:12px 19px;border-radius:100px;background:var(--dark);color:#fff;font-weight:650;font-size:13px;display:inline-flex;align-items:center;justify-content:center;gap:8px}.btn.light{background:#ebebeb;color:var(--ink)}.btn.outline{background:transparent;border:1px solid #d5d6d6;color:var(--ink)}.btn:hover{opacity:.87}.btn:focus-visible,a:focus-visible{outline:3px solid #979797;outline-offset:3px}
+.section{padding:65px 0 0}.eyebrow{text-transform:uppercase;letter-spacing:2.3px;font-size:11px;font-weight:800;color:#818585}.hero{display:grid;grid-template-columns:1.1fr .9fr;gap:40px;align-items:center;padding:70px 0 85px}.hero h1{font-weight:870;line-height:.99;letter-spacing:-4.9px;font-size:clamp(54px,7vw,98px);margin:25px 0 25px;color:var(--dark)}.hero p{color:#72767a;font-size:16px;max-width:450px;line-height:1.85;margin:0 0 30px}.hero-btns{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.hero-art{min-height:430px;border-radius:32px;background:#eaeaea;position:relative;overflow:hidden;display:grid;place-items:center}.hero-art:before{content:"";position:absolute;inset:22px;border:1px solid #d0d0d0;border-radius:24px}.hero-art .disc{width:278px;height:278px;border-radius:50%;background:#17191b;box-shadow:38px 45px 0 #d4d5d4;position:relative;transform:rotate(-25deg);overflow:hidden}.disc:after{content:"";position:absolute;top:-28px;left:65px;width:280px;height:280px;border-radius:50%;background:#eaeaea}.floating{position:absolute;background:#fff;border-radius:18px;padding:15px 19px;box-shadow:0 14px 50px #0000000b;font-size:13px;font-weight:750}.f1{top:56px;left:20px;transform:rotate(-6deg)}.f2{bottom:54px;right:21px;transform:rotate(5deg)}.f3{bottom:34px;left:38px;color:#73777a;font-size:12px;font-weight:600}.online-dot{height:8px;width:8px;border-radius:50%;background:#85ae8b;display:inline-block;margin-right:6px}
+.topbar{display:flex;align-items:end;justify-content:space-between;gap:16px;margin:0 0 22px}.topbar h2{font-size:32px;letter-spacing:-1.2px;margin:10px 0 0;color:#131516}.topbar p{margin:7px 0 0;color:var(--muted);font-size:14px}.see{font-size:13px;font-weight:750;white-space:nowrap}
+.grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:17px}.gamecard{border:1px solid #ededed;background:#fff;padding:12px;border-radius:26px;min-width:0;transition:transform .2s,box-shadow .2s}.gamecard:hover{transform:translateY(-3px);box-shadow:0 16px 25px #00000008}.thumb{height:222px;display:grid;place-items:center;border-radius:18px;overflow:hidden;position:relative;background:#e9e9e9}.thumb .tag{position:absolute;top:14px;left:14px;background:#fff;border-radius:30px;padding:7px 12px;font-size:10px;font-weight:750;letter-spacing:.15px;z-index:1}.thumb .game-emoji{font-size:90px;filter:grayscale(1);text-shadow:1px 12px 9px #00000012;transform:rotate(-8deg)}.thumb.snake{background:#e9eeea}.thumb.tictactoe{background:#e7e9ed}.thumb.tiles{background:#efeae2}.thumb.chess{background:#ebe9e5}.thumb.ludo{background:#ede8eb}.thumb.mines{background:#e5e9ed}
+.cardrow{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:16px 9px 10px}.cardrow h3{font-size:19px;letter-spacing:-.55px;margin:0 0 6px}.cardrow p{font-size:12px;color:var(--muted);margin:0}.arrow{background:#f0f0f0;border:none;width:41px;height:41px;border-radius:50%;font-size:21px;flex-shrink:0}.arrow:hover{background:#d8d8d8}
+.featured{display:flex;gap:17px;overflow-x:auto;scrollbar-width:thin;padding-bottom:10px;scroll-snap-type:x proximity}.featured .gamecard{min-width:305px;flex:1;scroll-snap-align:start}
+.info{display:grid;grid-template-columns:1fr 1fr;gap:18px;padding:80px 0 0}.info-box{border-radius:30px;background:#ececec;padding:32px;min-height:248px;display:flex;flex-direction:column;align-items:start;justify-content:space-between}.info-box.dark{background:#131517;color:#fff}.info-box .tiny{color:#888b8d;font-size:11px;font-weight:750;letter-spacing:1.8px}.info-box h3{font-size:29px;letter-spacing:-1.3px;line-height:1.2;margin:26px 0 13px;max-width:360px}.info-box p{font-size:13px;line-height:1.7;color:#787d80;max-width:430px}.info-box.dark p{color:#b4b7b8}
+.pill{display:inline-block;background:#e3e3e3;color:#555;padding:8px 11px;border-radius:50px;font-size:11px;font-weight:700}.info-box.dark .pill{background:#2a2b2d;color:#b5b7b7}
+footer{padding:80px 0 32px;display:flex;align-items:center;justify-content:space-between;color:#878888;font-size:12px}footer strong{color:#151515}
+dialog{border:none;border-radius:29px;max-width:min(92vw,580px);width:100%;padding:0;background:#f9f9f9;color:#151515;box-shadow:0 30px 120px #00000035}dialog::backdrop{background:#0a0a0ab8;backdrop-filter:blur(5px)}.modalhead{padding:23px 24px 14px;display:flex;align-items:center;justify-content:space-between;gap:10px;border-bottom:1px solid #e6e6e6}.modalhead h2{margin:0;font-size:19px;letter-spacing:-.5px}.xbtn{border:0;background:#ececec;border-radius:50%;width:36px;height:36px;font-size:22px}.modalbody{padding:23px 24px 25px}.modalnote{font-size:13px;color:#71767a;line-height:1.7;margin:0 0 22px}.notice{background:#eeeeee;border-radius:15px;padding:18px;line-height:1.75;color:#555;font-size:13px}.notice code{background:#fff;border-radius:6px;padding:4px 6px;font-family:ui-monospace,monospace;color:#171717}.muted{color:#727779}.playarea{display:grid;place-items:center}.scorebar{display:flex;align-items:center;justify-content:space-between;width:100%;margin-bottom:14px;font-size:13px}.scorebar b{font-size:16px}.scorebar .right{display:flex;gap:8px;align-items:center}
+#snakeCanvas{width:min(100%,360px);height:auto;aspect-ratio:1/1;image-rendering:pixelated;border-radius:13px;background:#e5e7e5;border:1px solid #d1d4d2;touch-action:none}
+.dpad{display:grid;grid-template-columns:repeat(3,52px);gap:5px;justify-content:center;margin:18px auto 0}.dpad button{background:#e9e9e9;border:0;border-radius:13px;height:49px;font-size:22px}.dpad [data-dir=up]{grid-column:2}.dpad [data-dir=left]{grid-column:1;grid-row:2}.dpad [data-dir=down]{grid-column:2;grid-row:2}.dpad [data-dir=right]{grid-column:3;grid-row:2}
+.tttboard{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;max-width:360px;width:100%;margin:auto}.tttboard button{aspect-ratio:1;border:0;border-radius:17px;background:#e9e9e9;font-size:58px;font-weight:600;color:#111}.tttboard button:disabled{cursor:default}
+.board2048{background:#d8d8d8;border-radius:13px;padding:8px;display:grid;grid-template-columns:repeat(4,1fr);gap:8px;width:min(100%,360px);aspect-ratio:1}.tile{border-radius:8px;display:grid;place-items:center;background:#eee;color:#141414;font-weight:800;font-size:clamp(18px,5vw,34px)}.tile[data-v="0"]{color:transparent;background:#c8c8c8}.tile[data-v="2"]{background:#f8f7f3}.tile[data-v="4"]{background:#ebe9e2}.tile[data-v="8"]{background:#dddacf}.tile[data-v="16"]{background:#d4d1c7}.tile[data-v="32"]{background:#c7c5bb}.tile[data-v="64"]{background:#bbb9ad}.tile[data-v="128"],.tile[data-v="256"],.tile[data-v="512"],.tile[data-v="1024"],.tile[data-v="2048"]{background:#222;color:white}
+.modal-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:23px}
+hr{border:0;border-top:1px solid var(--line);margin:24px 0}
+@media(max-width:900px){header{height:72px}.hero{grid-template-columns:1fr;padding:52px 0 48px}.hero-art{min-height:310px}.hero-art .disc{width:215px;height:215px}.disc:after{width:220px;height:220px;left:49px;top:-20px}.grid{grid-template-columns:repeat(2,minmax(0,1fr))}.links{display:none}.info{padding-top:56px}}
+@media(max-width:600px){.wrap{padding:0 18px}.hero h1{font-size:62px;letter-spacing:-3.7px}.hero p{font-size:14px}.hero-art{min-height:295px;border-radius:22px}.hero-art:before{inset:14px}.f1{top:29px}.f2{bottom:32px}.f3{display:none}.section{padding-top:45px}.topbar h2{font-size:25px}.grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:11px}.gamecard{padding:7px;border-radius:18px}.thumb{height:138px;border-radius:12px}.thumb .game-emoji{font-size:62px}.thumb .tag{top:8px;left:8px;padding:5px 8px;font-size:9px}.cardrow{padding:11px 4px 6px}.cardrow h3{font-size:15px}.cardrow p{font-size:10px}.arrow{width:30px;height:30px;font-size:17px}.featured .gamecard{min-width:244px}.featured .thumb{height:173px}.info{grid-template-columns:1fr;gap:12px}.info-box{border-radius:22px;padding:25px;min-height:208px}.nav .btn{padding:11px 14px}.brand-sub{display:none}.modalbody{padding:18px}.modalhead{padding:18px}}
+@media(prefers-reduced-motion:reduce){*,*:before,*:after{scroll-behavior:auto!important;transition:none!important}}
+</style>
+</head>
+<body>
+<header><div class="wrap nav"><a href="#" class="logo"><span class="moon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path fill="#fff" d="M16.7 2.5A8.95 8.95 0 0 0 12.5 19a9 9 0 1 1 4.2-16.5Z"/></svg></span>NIGHT <span class="brand-sub">PLAY</span></a><nav class="links"><a href="#games">Explore games</a><a href="#arcade">Arcade</a><a href="#connect">Connect</a></nav><div class="actions"><button class="btn light" data-dialog="connect">Connect WhatsApp ↗</button></div></div></header>
+<main class="wrap">
+<section class="hero"><div><div class="eyebrow">THE NIGHT IS YOURS · EARLY PLAYABLE PREVIEW</div><h1>Play your<br>next move.</h1><p>From quick arcade runs to classic board battles. One place to play, challenge friends, and build your NIGHT legacy.</p><div class="hero-btns"><a class="btn" href="#games">Explore games <span aria-hidden="true">↗</span></a><button class="btn outline" data-dialog="crossplay">How multiplayer will work</button></div></div><div class="hero-art" role="img" aria-label="Minimalist moon illustration"><div class="disc"></div><div class="floating f1">🌙 &nbsp; NIGHT is calling</div><div class="floating f2"><span class="online-dot"></span>Play without a login</div><div class="floating f3">● &nbsp; Keep your winning streak alive</div></div></section>
+<section id="games" class="section"><div class="topbar"><div><span class="eyebrow">JUST ONE MORE ROUND</span><h2>Featured games.</h2><p>Three games are playable right now, on this device.</p></div><a class="see" href="#arcade">See all games ↗</a></div><div class="featured">
+<article class="gamecard"><div class="thumb snake"><span class="tag">PLAYABLE · ARCADE</span><span class="game-emoji">🐍</span></div><div class="cardrow"><div><h3>Snake</h3><p>Eat. Grow. Survive.</p></div><button class="arrow" aria-label="Play Snake" data-game="snake">↗</button></div></article>
+<article class="gamecard"><div class="thumb tiles"><span class="tag">PLAYABLE · PUZZLE</span><span class="game-emoji">🔢</span></div><div class="cardrow"><div><h3>2048</h3><p>Slide to the top.</p></div><button class="arrow" aria-label="Play 2048" data-game="2048">↗</button></div></article>
+<article class="gamecard"><div class="thumb tictactoe"><span class="tag">PLAYABLE · CLASSIC</span><span class="game-emoji">❎</span></div><div class="cardrow"><div><h3>Tic-Tac-Toe</h3><p>Against bot or local friend.</p></div><button class="arrow" aria-label="Play Tic-Tac-Toe" data-game="ttt">↗</button></div></article>
+</div></section>
+<section class="section" id="arcade"><div class="topbar"><div><span class="eyebrow">THE COLLECTION</span><h2>Find your game.</h2><p>Board games are coming to web; your WhatsApp games stay untouched.</p></div><span class="pill">More on the way</span></div><div class="grid">
+<article class="gamecard"><div class="thumb chess"><span class="tag">WHATSAPP NOW</span><span class="game-emoji">♟️</span></div><div class="cardrow"><div><h3>Chess</h3><p>Cross-play planned.</p></div><button class="arrow" data-dialog="crossplay" aria-label="Chess cross-play details">↗</button></div></article>
+<article class="gamecard"><div class="thumb ludo"><span class="tag">WHATSAPP NOW</span><span class="game-emoji">🎲</span></div><div class="cardrow"><div><h3>Ludo</h3><p>Web board coming soon.</p></div><button class="arrow" data-dialog="crossplay" aria-label="Ludo cross-play details">↗</button></div></article>
+<article class="gamecard"><div class="thumb mines"><span class="tag">COMING SOON</span><span class="game-emoji">💣</span></div><div class="cardrow"><div><h3>Minesweeper</h3><p>Think before you tap.</p></div><button class="arrow" data-dialog="soon" aria-label="Minesweeper coming soon">↗</button></div></article>
+</div></section>
+<section class="info" id="connect"><div class="info-box dark"><div><span class="tiny">ONE NIGHT IDENTITY</span><h3>Your games. Your wins. Your profile.</h3><p>Later, link your NIGHT WhatsApp profile securely to share achievements, levels, and verified scores across devices.</p></div><button class="btn light" data-dialog="connect">See connection plan ↗</button></div><div class="info-box"><div><span class="tiny">PLAY TOGETHER</span><h3>Different screens. Same match.</h3><p>Chess, Ludo, Checkers and Tic-Tac-Toe can support web versus WhatsApp players through one shared match engine.</p></div><button class="btn" data-dialog="crossplay">Explore cross-play ↗</button></div></section>
+</main>
+<footer class="wrap"><span><strong>NIGHT PLAY</strong> · Built for the night owls.</span><span>Preview · Scores saved only on this device</span></footer>
+<dialog id="infoDialog" aria-labelledby="infoTitle"><div class="modalhead"><h2 id="infoTitle">NIGHT Play</h2><button class="xbtn" data-close aria-label="Close">×</button></div><div class="modalbody" id="infoBody"></div></dialog>
+<dialog id="gameDialog" aria-labelledby="gameTitle"><div class="modalhead"><h2 id="gameTitle">NIGHT Game</h2><button class="xbtn" data-close aria-label="Close game">×</button></div><div class="modalbody"><p class="modalnote" id="gameHelp"></p><div id="gameRoot" class="playarea"></div><div class="modal-actions"><button class="btn" id="restart">Restart ↻</button><button class="btn outline" data-close>Back to games</button></div></div></dialog>
+<script>
+"use strict";
+const infoDialog=document.getElementById("infoDialog"),gameDialog=document.getElementById("gameDialog");
+const root=document.getElementById("gameRoot"),title=document.getElementById("gameTitle"),help=document.getElementById("gameHelp");
+let active="",snakeTimer=null,snake={},ttt=[],turn="X",mode="bot",tttFinished=false,grid=[],tileScore=0;
+const scoreKey="night-play-v1-";
+function best(key){try{return Number(localStorage.getItem(scoreKey+key)||0)||0}catch{return 0}}
+function record(key,value){if(value>best(key)){try{localStorage.setItem(scoreKey+key,String(value))}catch{}}}
+function modal(kind){
+ const content={
+ connect:["Connect your WhatsApp profile",'<p class="modalnote">The website and WhatsApp will use the same NIGHT identity. Here is the planned secure linking flow:</p><div class="notice"><b>1.</b> Message NIGHT on WhatsApp with <code>.minigames link</code><br><b>2.</b> NIGHT generates a single-use code that expires after a few minutes.<br><b>3.</b> Enter the code here to connect your profile.<br><b>4.</b> Your verified matches, ranks and achievements stay synced.</div><p class="modalnote" style="margin-top:18px"><b>Preview status:</b> linking is not active yet. Do not send a real pairing code or WhatsApp login credentials to this demo. Local scores remain on this device only.</p>'],
+ crossplay:["Web × WhatsApp cross-play",'<p class="modalnote">A Chess player on the website will be able to challenge someone playing through <b>.chess</b> in WhatsApp. The same match ID and server-validated turns keep the board synchronized.</p><div class="notice"><b>Planned modes</b><br>↗ Challenge a friend with an invite link<br>↗ Match with a random verified NIGHT player<br>↗ Play with the bot<br>↗ Cross-platform matches in turn-based games<br><br><b>Current status:</b> this is the design plan, not an active multiplayer connection. Existing WhatsApp games remain unchanged.</div>'],
+ soon:["More games are coming",'<p class="modalnote">The web version is being built. Try Snake, 2048 or Tic-Tac-Toe in this preview. Other games will be added once their rules and score verification are ready.</p>']
+ }[kind]||["NIGHT Play",""];
+ document.getElementById("infoTitle").textContent=content[0];document.getElementById("infoBody").innerHTML=content[1];infoDialog.showModal();
+}
+function stop(){if(snakeTimer){clearInterval(snakeTimer);snakeTimer=null}active="";}
+document.addEventListener("click",e=>{
+ const dialog=e.target.closest("[data-dialog]");if(dialog)modal(dialog.dataset.dialog);
+ const g=e.target.closest("[data-game]");if(g)openGame(g.dataset.game);
+ if(e.target.closest("[data-close]")){infoDialog.close();gameDialog.close();stop()}
+ const direction=e.target.closest("[data-dir]");if(direction)snakeTurn(direction.dataset.dir);
+});
+gameDialog.addEventListener("close",stop);
+document.getElementById("restart").addEventListener("click",()=>openGame(active));
+function openGame(kind){
+ stop();active=kind;gameDialog.showModal();title.textContent=kind==="ttt"?"Tic-Tac-Toe":kind==="2048"?"2048":"Snake";
+ if(kind==="snake"){help.textContent="Use arrow keys, swipe, or the touch controls. Stay alive and beat your own record.";initSnake()}
+ if(kind==="2048"){help.textContent="Swipe or use arrow keys to merge equal numbers. Can you reach 2048?";init2048()}
+ if(kind==="ttt"){help.textContent="Play against NIGHT's bot or a friend sharing this device. Online matchmaking comes later.";initTtt()}
+}
+function initSnake(){
+ const size=18,c=document.createElement("canvas");c.id="snakeCanvas";c.width=360;c.height=360;
+ snake={size,body:[{x:7,y:9},{x:6,y:9},{x:5,y:9}],dir:"right",next:"right",food:null,score:0,alive:true};
+ const control=document.createElement("div");control.className="dpad";["up","left","down","right"].forEach(d=>{const b=document.createElement("button");b.dataset.dir=d;b.textContent={up:"↑",down:"↓",left:"←",right:"→"}[d];b.setAttribute("aria-label",d);control.appendChild(b)});
+ root.innerHTML='<div class="scorebar"><span>Score: <b id="score">0</b></span><span>Best: <b id="best">'+best("snake")+'</b></span></div>';root.appendChild(c);root.appendChild(control);
+ snake.canvas=c;snake.food=food();drawSnake();
+ let origin=null;c.addEventListener("touchstart",e=>{origin={x:e.touches[0].clientX,y:e.touches[0].clientY}},{passive:true});
+ c.addEventListener("touchend",e=>{if(!origin)return;const dx=e.changedTouches[0].clientX-origin.x,dy=e.changedTouches[0].clientY-origin.y;if(Math.max(Math.abs(dx),Math.abs(dy))>17)snakeTurn(Math.abs(dx)>Math.abs(dy)?dx>0?"right":"left":dy>0?"down":"up");origin=null},{passive:true});
+ snakeTimer=setInterval(stepSnake,135);
+}
+function food(){let v;do{v={x:Math.floor(Math.random()*snake.size),y:Math.floor(Math.random()*snake.size)}}while(snake.body.some(p=>p.x===v.x&&p.y===v.y));return v}
+function snakeTurn(dir){if(active!=="snake"||!snake.alive)return;const opposite={up:"down",down:"up",left:"right",right:"left"};if(dir!==opposite[snake.dir])snake.next=dir}
+function drawSnake(){
+ const ctx=snake.canvas.getContext("2d");const step=snake.canvas.width/snake.size;
+ ctx.fillStyle="#e5e7e5";ctx.fillRect(0,0,360,360);
+ for(let i=0;i<snake.size;i++)for(let j=0;j<snake.size;j++)if((i+j)%2===0){ctx.fillStyle="#e0e3e0";ctx.fillRect(i*step,j*step,step,step)}
+ ctx.fillStyle="#c27668";ctx.beginPath();ctx.arc((snake.food.x+.5)*step,(snake.food.y+.5)*step,step*.34,0,Math.PI*2);ctx.fill();
+ snake.body.forEach((p,i)=>{ctx.fillStyle=i===0?"#080808":"#293139";const d=i===0?1.5:2;ctx.beginPath();ctx.roundRect(p.x*step+d,p.y*step+d,step-d*2,step-d*2,5);ctx.fill()});
+ if(!snake.alive){ctx.fillStyle="#111c";ctx.fillRect(0,145,360,68);ctx.fillStyle="#fff";ctx.font="bold 26px Arial";ctx.textAlign="center";ctx.fillText("GAME OVER",180,186)}
+}
+function stepSnake(){
+ if(!snake.alive)return;snake.dir=snake.next;
+ const p={...snake.body[0]};if(snake.dir==="right")p.x++;if(snake.dir==="left")p.x--;if(snake.dir==="down")p.y++;if(snake.dir==="up")p.y--;
+ const eating=p.x===snake.food.x&&p.y===snake.food.y;
+ const check=eating?snake.body:snake.body.slice(0,-1);
+ if(p.x<0||p.y<0||p.x>=snake.size||p.y>=snake.size||check.some(x=>x.x===p.x&&x.y===p.y)){snake.alive=false;clearInterval(snakeTimer);snakeTimer=null;drawSnake();return}
+ snake.body.unshift(p);if(!eating)snake.body.pop();else{snake.score+=10;record("snake",snake.score);snake.food=food();document.getElementById("score").textContent=snake.score;document.getElementById("best").textContent=best("snake")}drawSnake();
+}
+function initTtt(){
+ ttt=Array(9).fill("");turn="X";tttFinished=false;
+ root.innerHTML='<div class="scorebar"><span id="turnlabel">Your turn · X</span><span class="right"><button class="btn light" id="modeBtn">VS BOT</button></span></div><div class="tttboard" id="tttboard"></div>';
+ document.getElementById("modeBtn").onclick=()=>{mode=mode==="bot"?"local":"bot";initTtt()};
+ drawTtt();
+}
+function isWin(b,m){return [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]].some(line=>line.every(i=>b[i]===m))}
+function drawTtt(){
+ document.getElementById("modeBtn").textContent=mode==="bot"?"VS BOT":"2 PLAYERS";
+ const label=document.getElementById("turnlabel");
+ label.textContent=tttFinished?(isWin(ttt,"X")?"X wins!":isWin(ttt,"O")?"O wins!":"It's a draw!"):(turn==="X"?"X to play":mode==="bot"?"Bot thinking…":"O to play");
+ const board=document.getElementById("tttboard");board.innerHTML="";
+ ttt.forEach((value,i)=>{const b=document.createElement("button");b.textContent=value;b.disabled=Boolean(value)||tttFinished||(mode==="bot"&&turn==="O");b.setAttribute("aria-label","cell "+(i+1));b.onclick=()=>moveTtt(i);board.appendChild(b)});
+}
+function moveTtt(i){if(active!=="ttt"||tttFinished||ttt[i])return;ttt[i]=turn;if(isWin(ttt,turn)||!ttt.includes(""))tttFinished=true;else turn=turn==="X"?"O":"X";drawTtt();
+ if(mode==="bot"&&!tttFinished&&turn==="O"){setTimeout(()=>{if(active!=="ttt"||turn!=="O"||tttFinished)return;const moves=ttt.map((v,i)=>v?-1:i).filter(v=>v>=0);
+ function winMove(token){return moves.find(i=>{const cp=[...ttt];cp[i]=token;return isWin(cp,token)})}
+ const pick=winMove("O")??winMove("X")??(moves.includes(4)?4:moves[Math.floor(Math.random()*moves.length)]);moveTtt(pick)},260)}
+}
+function init2048(){grid=Array.from({length:4},()=>[0,0,0,0]);tileScore=0;spawn();spawn();root.innerHTML='<div class="scorebar"><span>Score: <b id="score">0</b></span><span>Best: <b id="best">'+best("2048")+'</b></span></div><div id="board2048" class="board2048"></div><p class="modalnote" style="margin:15px 0 0;text-align:center">Swipe anywhere on the board to move tiles.</p>';draw2048();let start=null;const board=document.getElementById("board2048");board.addEventListener("touchstart",e=>{start={x:e.touches[0].clientX,y:e.touches[0].clientY}},{passive:true});board.addEventListener("touchend",e=>{if(!start)return;let x=e.changedTouches[0].clientX-start.x,y=e.changedTouches[0].clientY-start.y;if(Math.max(Math.abs(x),Math.abs(y))>20)move2048(Math.abs(x)>Math.abs(y)?x>0?"right":"left":y>0?"down":"up");start=null},{passive:true})}
+function spawn(){const empty=[];grid.forEach((row,r)=>row.forEach((v,c)=>{if(v===0)empty.push([r,c])}));if(!empty.length)return;const p=empty[Math.floor(Math.random()*empty.length)];grid[p[0]][p[1]]=Math.random()<.9?2:4}
+function slide(arr){const n=arr.filter(Boolean),o=[];for(let i=0;i<n.length;i++){if(n[i]===n[i+1]){o.push(n[i]*2);tileScore+=n[i]*2;i++}else o.push(n[i])}while(o.length<4)o.push(0);return o}
+function move2048(dir){if(active!=="2048")return;const before=JSON.stringify(grid);if(dir==="left")grid=grid.map(slide);if(dir==="right")grid=grid.map(r=>slide([...r].reverse()).reverse());if(dir==="up"||dir==="down"){for(let c=0;c<4;c++){let col=grid.map(r=>r[c]);if(dir==="down")col.reverse();col=slide(col);if(dir==="down")col.reverse();for(let r=0;r<4;r++)grid[r][c]=col[r]}}
+ if(JSON.stringify(grid)!==before){spawn();record("2048",tileScore);draw2048();if(!grid.flat().includes(0)){let moves=false;for(let r=0;r<4;r++)for(let c=0;c<4;c++)if((r<3&&grid[r][c]===grid[r+1][c])||(c<3&&grid[r][c]===grid[r][c+1]))moves=true;if(!moves)document.querySelector("#gameHelp").textContent="No more moves! Restart to try again."}}
+}
+function draw2048(){document.getElementById("score").textContent=tileScore;document.getElementById("best").textContent=best("2048");const board=document.getElementById("board2048");board.innerHTML="";grid.flat().forEach(v=>{const t=document.createElement("div");t.className="tile";t.dataset.v=v;t.textContent=v||"";board.appendChild(t)})}
+document.addEventListener("keydown",e=>{if(!gameDialog.open)return;const dirs={ArrowUp:"up",ArrowDown:"down",ArrowLeft:"left",ArrowRight:"right",w:"up",s:"down",a:"left",d:"right"};const dir=dirs[e.key];if(dir){e.preventDefault();if(active==="snake")snakeTurn(dir);if(active==="2048")move2048(dir)}});
+</script>
+</body></html>
