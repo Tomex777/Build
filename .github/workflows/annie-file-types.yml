@@ -42,7 +42,7 @@ jobs:
       - run: python3 -m unittest discover -s annie-android/tests -v
         timeout-minutes: 2
       - run: python3 annie-android/scripts/vendor-typescript.py
-      - run: node --test test/typescript-runtime.test.mjs test/message-stream.test.mjs
+      - run: node --test test/typescript-runtime.test.mjs test/message-stream.test.mjs test/api2-bindings.test.mjs
       - run: npm install -g typescript@5.9.3
       - name: Validate overlay, run JVM tests and compile device tests
         shell: bash

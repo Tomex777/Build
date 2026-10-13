@@ -97,7 +97,7 @@ internal object AnniePackageArchive {
                     packageId = packageSlug(title),
                     displayName = title,
                     version = "0.0.0-local",
-                    apiVersion = AnniePackageManifest.CURRENT_API_VERSION,
+                    apiVersion = "1",
                     entryPoint = entry,
                     assets = files.map { it.path }
                         .filter { it !in scripts && it != "manifest.json" }

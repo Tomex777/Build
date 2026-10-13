@@ -6,7 +6,7 @@ function setup() {
   const updates = [];
   const context = vm.createContext({annie:{messages:{
     send:async message => { updates.push(message); return {id:'one'}; },
-    update:async (handle,message) => { assert.equal(handle.id,'one'); updates.push(message); }
+    update:async (handle,message) => { assert.equal(handle,'one'); updates.push(message); }
   }}});
   vm.runInContext(fs.readFileSync('annie-android/app/src/main/assets/script-stream.js','utf8'),context);
   return {updates, context};

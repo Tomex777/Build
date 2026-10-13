@@ -496,6 +496,7 @@ internal class ScriptRuntime(
     private val serviceBridge: suspend (ScriptProject, String, String, String) -> String,
     private val androidBridge: suspend (ScriptProject, String, String, String?) -> String,
     private val commandsList: () -> String = { "[]" },
+    private val operationBindings: List<OperationDefinition> = emptyList(),
 ) : AutoCloseable {
     private val lock = Mutex()
     private val registered = linkedMapOf<String, ScriptCommand>()
@@ -834,6 +835,10 @@ internal class ScriptRuntime(
         // The bootstrap's final assignment evaluates to an object. Keep that value
         // inside an IIFE so Unit receives JavaScript undefined instead.
         runtime.evaluate<Unit>("(() => {\n$BOOTSTRAP\n})()", filename = "annie-runtime.js")
+        if (project.manifest.validationMode == ValidationMode.STRICT) {
+            runtime.evaluate<Unit>(context.assets.open("api2-bindings.js").bufferedReader().use { it.readText() }, filename = "api2-bindings.js")
+            runtime.evaluate<Unit>("__annieInstallApi2(" + operationBindingMetadata(operationBindings) + "); void 0;", filename = "api2-install.js")
+        }
         runtime.evaluate<Unit>(context.assets.open("script-stream.js").bufferedReader().use { it.readText() }, filename = "script-stream.js")
         val entryModule = "${project.id}/${project.entryPath}"
         val entry = executableFiles[project.entryPath] ?: error("Missing script entry: ${project.entryPath}")
@@ -1550,6 +1555,7 @@ internal class ScriptWorkspace(
                     ::invokePackageService,
                     ::invokeAndroidBridge,
                     ::commandsListJson,
+                    operationRegistry.all(),
                 )
                 val loadedCommands = try {
                     engine.load().also { commands ->

@@ -11,7 +11,7 @@ globalThis.annie.messages.stream = async function(initial = '') {
     queue = queue.then(async () => {
       text += addition;
       if (text.length > 8000) throw new Error('Message stream exceeds its size limit');
-      await annie.messages.update(handle, {type:'text', text, streaming:!final, streamFailed:!!failed});
+      await annie.messages.update(handle.id, {type:'text', text, streaming:!final, streamFailed:!!failed});
       return handle;
     });
     return queue;
