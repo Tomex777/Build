@@ -25,9 +25,13 @@ internal object SurfaceMidfieldMesh {
 
     private fun fineAmplitude(x: Double, z: Double): Double {
         // <1.7m detail relief, not claimed spacecraft measurement.
-        val ripples = sin(x * 650.0 + sin(z * 170.0) * 0.45) * cos(z * 540.0)
-        val low = sin(x * 172.0 + z * 51.0) * cos(z * 189.0 - x * 38.0)
-        return 0.00028 * ripples + 0.00028 * low
+        // The shortest meaningful wavelength stays above 110 metres:
+        // 21m vertices must not be fed sub-Nyquist 30m sine waves.
+        val ripples = sin(x * 138.0 + sin(z * 41.0) * .31) *
+            cos(z * 94.0 + sin(x * 38.0) * .7)
+        val low = sin(x * 49.0 + z * 21.0) *
+            cos(z * 67.0 - x * 16.0)
+        return 0.00023 * ripples + 0.00019 * low
     }
 
     fun build(
