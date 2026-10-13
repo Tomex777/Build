@@ -6,6 +6,11 @@ on:
     paths:
       - 'cortex-agent/**'
       - '.github/workflows/cortex-agent.yml'
+  pull_request:
+    branches: [cortex-android-live]
+    paths:
+      - 'cortex-agent/**'
+      - '.github/workflows/cortex-agent.yml'
   workflow_dispatch:
 
 jobs:
