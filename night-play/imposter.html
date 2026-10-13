@@ -1,0 +1,452 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#101624">
+<title>Imposter — NIGHT Play | Interactive Preview</title>
+<meta name="description" content="NIGHT Play Imposter: a playable isometric deception and mystery game prototype.">
+<style>
+:root{--paper:#f5f5f2;--ink:#151a24;--deep:#0c1422;--panel:#111c2d;--line:#26384c;--mint:#a4f0c5;--accent:#ceff8f;--red:#fb6e71;--muted:#a4b3c8}
+*{box-sizing:border-box}html,body{margin:0;min-height:100%;font-family:Inter,"Segoe UI",system-ui,sans-serif;background:var(--paper);color:var(--ink)}button,input{font:inherit}button{cursor:pointer}button:disabled{cursor:not-allowed;opacity:.55}a{text-decoration:none;color:inherit}button:focus-visible,input:focus-visible,a:focus-visible{outline:3px solid #84c9dd;outline-offset:3px}[hidden]{display:none!important}
+.global{height:70px;border-bottom:1px solid #e0e2df;display:flex;align-items:center;justify-content:space-between;gap:14px;padding:0 clamp(18px,4vw,68px);background:#fcfcfa}
+.brand{display:inline-flex;align-items:center;gap:11px;font-weight:900;letter-spacing:-.9px;font-size:19px}.brandmark{background:#141a25;color:white;border-radius:11px;width:37px;height:37px;display:grid;place-items:center}.brandmark svg{width:27px;height:27px}.brand small{font-size:10px;letter-spacing:2px;border-left:1px solid #c5c7c8;margin-left:4px;padding-left:12px;color:#737779}
+.nav-right{display:flex;align-items:center;gap:14px}.nav-right .badge{font-size:10px;font-weight:900;letter-spacing:1.4px;background:#e6e9e8;padding:8px 11px;border-radius:100px}.back{font-size:12px;font-weight:750;border:1px solid #d1d4d4;padding:10px 16px;border-radius:100px}
+.page{max-width:1550px;padding:28px clamp(14px,3vw,54px) 38px;margin:auto}.headline{display:flex;align-items:end;justify-content:space-between;gap:20px;margin-bottom:22px}.eyebrow{color:#68717b;letter-spacing:2.5px;font-weight:900;font-size:10px}.headline h1{margin:7px 0 0;line-height:.98;font-size:clamp(42px,6vw,78px);font-weight:950;letter-spacing:-4.6px}.headline h1 span{color:#668274}.headline p{max-width:420px;margin:0;color:#66717a;line-height:1.65;font-size:13px}
+.grid{display:grid;grid-template-columns:minmax(0,1fr) 298px;gap:17px}.game{background:var(--deep);border-radius:25px;overflow:hidden;box-shadow:0 28px 65px #13202a27;min-width:0;border:1px solid #273244}.game-bar{padding:13px 17px;display:flex;justify-content:space-between;align-items:center;background:#111a27;border-bottom:1px solid #293548;gap:12px;color:#fff}.roomtag{display:flex;align-items:center;gap:9px;font-size:11px;letter-spacing:1.4px;font-weight:900}.green-dot{height:7px;width:7px;background:#b5f4a7;border-radius:50%;box-shadow:0 0 14px #c1ffc9}.game-bar .secondary{font-size:10px;color:#889aaf;letter-spacing:1px;font-weight:800}.viewport{position:relative;height:clamp(385px,62vh,690px);background:radial-gradient(ellipse at 50% 20%,#1a3b47 0%,#0b1723 67%);overflow:hidden;isolation:isolate;touch-action:none}.viewport canvas{width:100%;height:100%;display:block;touch-action:none;cursor:crosshair}
+.viewport:after{content:"";pointer-events:none;position:absolute;inset:0;box-shadow:inset 0 0 85px #020a18ad;border-radius:0}
+.game-hud{position:absolute;z-index:2;left:14px;right:14px;top:13px;display:flex;justify-content:space-between;pointer-events:none;gap:10px}.hud-pill{background:#111b2ddc;color:#e4efef;border:1px solid #ffffff24;padding:9px 12px;border-radius:11px;backdrop-filter:blur(7px);font-size:11px;font-weight:850;letter-spacing:.5px}.hud-pill b{color:#c8ff9a}.hud-right{text-align:right}
+.game-toast{position:absolute;z-index:3;bottom:18px;left:50%;transform:translateX(-50%);min-width:185px;max-width:78%;background:#101a2be9;color:white;text-align:center;padding:11px 15px;border:1px solid #43526d;border-radius:11px;font-weight:730;font-size:12px;pointer-events:none;transition:opacity .25s}.game-toast:empty{opacity:0}
+.controls{position:absolute;z-index:4;bottom:16px;left:17px;right:17px;display:flex;justify-content:space-between;align-items:end;pointer-events:none}.stick{pointer-events:auto;width:104px;height:104px;border-radius:50%;border:2px solid #9ad9d758;background:#1c32416b;display:grid;place-items:center;touch-action:none;user-select:none;position:relative;backdrop-filter:blur(3px)}.stick:before,.stick:after{content:"";position:absolute;background:#98d4d65b}.stick:before{width:1px;height:76px}.stick:after{height:1px;width:76px}.knob{position:relative;z-index:1;width:46px;height:46px;border-radius:50%;background:#c1f8d9;box-shadow:0 4px 16px #0008;border:5px solid #92c6b2;transform:translate(0,0);touch-action:none}.actions{pointer-events:auto;display:grid;grid-template-columns:repeat(2,auto);gap:8px;align-items:end}.round-action{height:50px;min-width:59px;padding:6px 12px;border-radius:15px;background:#1c2b3ee8;color:#f4f7f5;border:1px solid #516278;font-size:10px;font-weight:900;letter-spacing:.5px;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:3px;box-shadow:0 6px 18px #0003}.round-action svg{height:18px;width:18px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}.round-action.critical{background:#9d3d4be8;border-color:#d76a76}.round-action:active{transform:scale(.95)}.round-action.ready{border-color:var(--accent);color:var(--accent)}
+.game-footer{display:flex;justify-content:space-between;gap:15px;align-items:center;padding:14px 19px;background:#101a29;color:#93a5bb;font-size:11px}.game-footer strong{color:#dde9ec}.keycap{display:inline-block;border-radius:5px;background:#26394b;color:#ecf5ef;padding:4px 6px;font-weight:850;font-size:10px}
+.sidebar{display:flex;flex-direction:column;gap:13px}.sidecard{background:#fff;border:1px solid #e3e5e4;border-radius:22px;padding:21px}.sidecard.dark{background:#172332;color:#f3f6f2;border:1px solid #27394d}.side-eyebrow{font-size:10px;font-weight:900;letter-spacing:1.8px;color:#839097}.sidecard.dark .side-eyebrow{color:#a3c7c3}.sidecard h2{font-size:20px;letter-spacing:-.6px;margin:11px 0 7px}.sidecard p{font-size:12px;color:#78848d;line-height:1.65;margin:0}.sidecard.dark p{color:#a6b6c6}.role-chip{display:inline-flex;background:#35465a;color:#dfffe4;border-radius:7px;padding:7px 10px;font-size:11px;letter-spacing:1px;font-weight:900;margin-top:15px}.roster{list-style:none;margin:13px 0 0;padding:0;display:flex;flex-direction:column;gap:10px;max-height:239px;overflow:auto}.roster li{display:flex;align-items:center;gap:8px;font-size:12px;font-weight:750;color:#5e6770}.avatar{width:22px;height:22px;flex:0 0 22px;border-radius:7px;display:inline-block;border:2px solid #192b36;box-shadow:inset 0 -5px 0 #0003}.roster li.dead{opacity:.45;text-decoration:line-through}.roster li span:last-child{margin-left:auto;font-size:9px;font-weight:750;color:#9a9fa0}.list-line{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:12px;padding:11px 0;border-bottom:1px solid #e9eae8}.list-line b{font-size:12px}.help{font-size:11px!important;margin-top:14px!important}.mini{margin:13px 0 0;background:#edf3ec;color:#507458;border-radius:11px;padding:10px 12px;font-size:11px;line-height:1.5}.footnote{font-size:11px;color:#6f797f;margin:18px 5px}
+.overlay{position:absolute;inset:0;z-index:8;background:#09111fdc;backdrop-filter:blur(9px);display:grid;place-items:center;padding:16px;overflow-y:auto}.dialog{background:#f7f8f5;border:1px solid #fff5;border-radius:21px;padding:clamp(21px,3vw,32px);width:min(96%,490px);color:#171e23;box-shadow:0 26px 90px #02091499;max-height:100%;overflow-y:auto}.dialog-head{display:flex;justify-content:space-between;align-items:center;gap:15px;margin-bottom:18px}.dialog-head .eyebrow{color:#6a847c}.dialog h2{font-size:clamp(28px,5vw,38px);line-height:1.04;letter-spacing:-1.4px;margin:10px 0}.dialog p{color:#6b7680;font-size:12px;line-height:1.65;margin:9px 0 17px}.dialog label{display:block;font-size:11px;color:#647079;font-weight:850;margin:12px 0 6px}.textinput,.select{border:1px solid #d4dadd;border-radius:12px;width:100%;background:#fff;padding:12px 13px;font-size:13px;outline:none;color:#1f2832}.select{appearance:auto}.row{display:flex;gap:9px;align-items:center}.row>input,.row>.select{flex:1;min-width:0}.btn{border:0;border-radius:12px;padding:13px 17px;font-size:12px;font-weight:850;background:#151d25;color:#fff;white-space:nowrap}.btn.ghost{background:#e6ece9;color:#263d37}.btn.accent{background:#b9f5ba;color:#183a24}.btn.red{background:#ba4652;color:#fff}.btn.full{width:100%;margin-top:13px}.divider{height:1px;background:#e4e9e7;margin:16px 0}.pair{display:grid;grid-template-columns:1fr 1fr;gap:8px}.hint{font-size:10px!important;color:#8b989f!important}.invitebox{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:14px 0;border:1px dashed #98aba5;border-radius:12px;padding:10px 13px;background:#eaf1eb}.invitebox code{font-weight:900;letter-spacing:3px;color:#193c2c;font-size:20px}.choice-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:9px;margin-top:14px}.choice-grid button{border:1px solid #c9d3d1;background:#fff;padding:13px 9px;border-radius:12px;text-align:left;font-weight:850;font-size:12px}.choice-grid button small{display:block;margin-top:4px;font-size:10px;font-weight:500;color:#7b8986;line-height:1.4}.choice-grid button.active{background:#203d34;border-color:#203d34;color:#e3ffe8}.choice-grid button.active small{color:#b5d9c7}.task-pads{display:flex;justify-content:center;gap:10px;margin:20px 0}.task-pads button{width:65px;height:65px;border-radius:13px;border:4px solid #dbe0df;font-size:19px;font-weight:900;background:#c4e1e8;color:#173c46}.task-pads button:nth-child(2){background:#e9d0b3}.task-pads button:nth-child(3){background:#d6c8e9}.task-pads button.pressed{outline:3px solid #64a87a}.vote-list{display:grid;grid-template-columns:repeat(2,1fr);gap:9px;max-height:265px;overflow:auto;margin:14px 0}.vote-list button{background:#fff;border:1px solid #dce1df;border-radius:12px;padding:12px;text-align:left;font-size:12px;font-weight:800;display:flex;align-items:center;gap:7px}.vote-list button:hover{background:#eef5ee}.vote-list button:disabled{opacity:.4}.vote-list button.selected{background:#d3f4db;border:2px solid #639774}.scoreline{font-weight:900;font-size:18px;background:#eef1ed;padding:13px;border-radius:12px;letter-spacing:-.2px}
+@media(max-width:1050px){.grid{grid-template-columns:1fr}.sidebar{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.sidebar .sidecard:last-child{grid-column:span 2}.viewport{height:clamp(390px,58vh,680px)}}
+@media(max-width:600px){.global{height:62px;padding:0 14px}.brand{font-size:16px}.brand small{display:none}.nav-right .badge{display:none}.back{font-size:10px}.page{padding:20px 9px 35px}.headline{padding:0 8px;display:block}.headline h1{letter-spacing:-2.7px;font-size:44px}.headline p{margin-top:10px;font-size:11px}.game{border-radius:17px}.game-bar{padding:10px 12px}.game-bar .secondary{font-size:9px}.viewport{height:min(67dvh,560px);min-height:370px}.game-hud{left:8px;right:8px;top:8px}.hud-pill{font-size:9px;padding:7px 9px}.controls{left:10px;right:9px;bottom:9px}.stick{height:90px;width:90px}.round-action{height:47px;min-width:53px;padding:5px 8px;font-size:9px}.actions{gap:5px}.game-footer{padding:12px;font-size:10px;flex-wrap:wrap}.sidebar{display:flex}.sidecard{padding:16px}.overlay{padding:10px}.dialog{padding:19px;max-height:95%;border-radius:16px}.dialog h2{font-size:29px}}
+@media(prefers-reduced-motion:reduce){*,*:before,*:after{scroll-behavior:auto!important;animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<header class="global">
+<a class="brand" href="./" aria-label="NIGHT Play Home"><span class="brandmark"><svg viewBox="0 0 72 72" fill="none" aria-hidden="true"><path d="M24 54 C24 37.43 37.43 24 54 24" stroke="white" stroke-width="7" stroke-linecap="round"/><path d="M14 60H58" stroke="white" stroke-width="7" stroke-linecap="round"/></svg></span>NIGHT <small>PLAY</small></a>
+<div class="nav-right"><span class="badge">INTERACTIVE PROTOTYPE 01</span><a class="back" href="./games">← Game Library</a></div>
+</header>
+<div class="page">
+<section class="headline"><div><div class="eyebrow">SOCIAL DEDUCTION • MYSTERY • SABOTAGE</div><h1>IMPOSTER<span>.</span></h1></div><p>Explore the station. Complete the mission. Conceal your identity. Trust is the most dangerous weapon.</p></section>
+<div class="grid">
+<main class="game" aria-label="Interactive Imposter game preview">
+<div class="game-bar"><span class="roomtag"><span class="green-dot"></span> STATION // ECHO-9</span><span class="secondary">NO DOWNLOAD • LOCAL DEMO</span></div>
+<div class="viewport" id="viewport">
+<canvas id="world" aria-label="Isometric space station game world. Use WASD, arrows, tap-to-move, or touch joystick."></canvas>
+<div class="game-hud"><div class="hud-pill" id="roleHud">MISSION STATUS <b>WAITING</b></div><div class="hud-pill hud-right" id="timeHud">04:00 · ROUND 01</div></div>
+<div id="toast" class="game-toast" role="status" aria-live="polite"></div>
+<div class="controls" id="controls" hidden>
+<div class="stick" id="stick" aria-label="Movement joystick" role="application"><div class="knob" id="knob"></div></div>
+<div class="actions">
+<button class="round-action" id="interactBtn" title="Interact (E)"><svg viewBox="0 0 24 24"><path d="M12 2v20M2 12h20"/><circle cx="12" cy="12" r="5"/></svg>USE <span class="keycap">E</span></button>
+<button class="round-action" id="meetingBtn" title="Emergency meeting (M)"><svg viewBox="0 0 24 24"><path d="M12 3l9 16H3z"/><path d="M12 8v5m0 3v1"/></svg>MEET <span class="keycap">M</span></button>
+<button class="round-action" id="reportBtn" title="Report a body (R)"><svg viewBox="0 0 24 24"><path d="M4 20V5a2 2 0 012-2h8l5 5v12z"/><path d="M13 3v6h6M8 13h7M8 17h7"/></svg>REPORT <span class="keycap">R</span></button>
+<button class="round-action critical" id="killBtn" title="Eliminate nearest player (K)" hidden><svg viewBox="0 0 24 24"><path d="m5 19 14-14M9 5l10 10M5 9l10 10"/></svg>KILL <span class="keycap">K</span></button>
+</div></div>
+<div class="overlay" id="lobbyOverlay"><div class="dialog">
+<div class="dialog-head"><div><span class="eyebrow">NIGHT / IMPOSTER</span><h2>THE GAME BEGINS WITH A LIE.</h2></div></div>
+<p>Play the actual 2.5D prototype right here. Explore, interact, sabotage, eliminate, report bodies and vote. Your opponents are simulated for this first preview.</p>
+<div class="pair"><button class="btn accent" id="createBtn">+ Create demo lobby</button><button class="btn ghost" id="joinToggle">Join by code</button></div>
+<div id="createOptions" hidden>
+<label for="nameInput">Your name</label><input class="textinput" id="nameInput" maxlength="16" value="Hex" autocomplete="off">
+<div class="invitebox"><div><small style="font-weight:850;color:#65796f">DEMO ROOM CODE</small><br><code id="lobbyCode">------</code></div><button class="btn ghost" id="copyBtn">Copy</button></div>
+<div class="eyebrow" style="margin-top:15px">CHOOSE A ROLE FOR TESTING</div>
+<div class="choice-grid"><button class="role-choice active" data-role="imposter" type="button">IMPOSTER<small>Eliminate, sabotage and deceive.</small></button><button class="role-choice" data-role="crew" type="button">INVESTIGATOR<small>Complete tasks and expose the killer.</small></button></div>
+<button class="btn full" id="startBtn">Start simulated match →</button>
+<p class="hint">Demo codes work only in this browser tab. Live multiplayer and WhatsApp joining are not connected yet.</p>
+</div>
+<div id="joinOptions" hidden><label for="joinInput">Room code</label><div class="row"><input class="textinput" id="joinInput" maxlength="6" placeholder="6-character code"><button class="btn" id="joinBtn">Join</button></div><p class="hint">This local prototype cannot join another person's device. Cross-device rooms require the multiplayer backend.</p></div>
+</div></div>
+<div class="overlay" id="taskOverlay" hidden><div class="dialog"><span class="eyebrow">SYSTEM INTERFACE</span><h2 id="taskTitle">REROUTE SIGNAL</h2><p id="taskCopy">Tap the switches in the order 2 → 1 → 3.</p><div class="task-pads" id="taskPads"><button data-pad="1">01</button><button data-pad="2">02</button><button data-pad="3">03</button></div><button class="btn ghost full" id="closeTask">Leave station</button></div></div>
+<div class="overlay" id="voteOverlay" hidden><div class="dialog"><span class="eyebrow">EMERGENCY MEETING</span><h2>WHO CAN YOU TRUST?</h2><p id="voteNote">Discuss what you saw, then vote. Everyone gets one vote.</p><div id="voteList" class="vote-list"></div><div class="row"><button id="skipVote" class="btn ghost">Skip vote</button><button id="voteConfirm" class="btn accent" disabled style="flex:1">CAST VOTE</button></div></div></div>
+<div class="overlay" id="resultOverlay" hidden><div class="dialog"><span class="eyebrow">MATCH RESULT</span><h2 id="resultTitle">MISSION COMPLETE</h2><p id="resultText">The station has been secured.</p><div class="scoreline" id="scoreline"></div><button class="btn full" id="againBtn">Play another match ↗</button></div></div>
+</div>
+<div class="game-footer"><span><strong>MOVE</strong> · WASD / ARROWS / TAP / JOYSTICK</span><span><strong>INTERACT</strong> · <span class="keycap">E</span> &nbsp; <strong>MEETING</strong> · <span class="keycap">M</span></span></div>
+</main>
+<aside class="sidebar">
+<section class="sidecard dark"><span class="side-eyebrow">YOUR CLASSIFIED DOSSIER</span><h2 id="roleName">Identity unknown</h2><p id="roleDesc">Create a lobby to receive a secret role.</p><span class="role-chip" id="roleChip">AWAITING ASSIGNMENT</span></section>
+<section class="sidecard"><span class="side-eyebrow">MISSION CONTROL</span><h2 id="objectiveTitle">Explore Echo-9</h2><p id="objectiveDesc">Explore a real isometric level with movable characters and interactive locations.</p><div class="list-line"><span>Signal stations</span><b id="taskCount">0 / 3</b></div><div class="list-line"><span>Players remaining</span><b id="playerCount">7 / 7</b></div><div class="list-line"><span>Meeting rounds</span><b id="meetCount">0 / 3</b></div><div class="mini" id="eventLine">TIP: Tap the floor to walk there, or use the joystick.</div></section>
+<section class="sidecard"><span class="side-eyebrow">ACTIVE OPERATIVES</span><h2>Room roster</h2><ul class="roster" id="roster"></ul><p class="help">This preview uses six computer-controlled operatives. Secret roles remain hidden during play.</p></section>
+</aside>
+</div>
+<p class="footnote">NIGHT Play · Interactive design preview. Isometric movement, investigations, sabotage, elimination, reports and voting are playable locally. Shared rooms, real opponents, voice chat, WhatsApp commands and persistent rankings are not yet implemented.</p>
+</div>
+<script>
+(function(){
+'use strict';
+const $=id=>document.getElementById(id);
+const canvas=$('world'),ctx=canvas.getContext('2d');
+const tile={w:82,h:41}; const MAP_W=12,MAP_H=9;
+const nodes=[
+{id:'archives',x:2.3,y:2.0,label:'ARCHIVES',type:'terminal',done:false},
+{id:'comms',x:9.1,y:2.1,label:'COMMS',type:'terminal',done:false},
+{id:'lab',x:8.1,y:7.0,label:'RESEARCH',type:'terminal',done:false},
+{id:'reactor',x:3.0,y:6.8,label:'REACTOR',type:'reactor'},
+{id:'table',x:5.8,y:4.6,label:'MEETING',type:'meeting'},
+{id:'cargo',x:10.3,y:6.5,label:'CARGO',type:'crate'}
+];
+const rosterColors=['#a8e9b8','#e4bce3','#f0c59e','#a9d9f4','#d2e7a0','#f1b2a0','#9aaccd'];
+const state={phase:'lobby',role:'imposter',name:'Hex',room:'',player:{x:6,y:7.5,alive:true,color:'#b1f0bd',name:'Hex'},npcs:[],bodies:[],keys:new Set(),axis:{x:0,y:0},goal:null,remaining:240,last:0,cooldown:0,kills:0,meetings:0,tasks:0,sabotage:0,activeNode:null,taskSteps:0,selectedVote:null,events:[],camX:0,camY:0,ticker:0,aiTime:0,aiKills:0,witness:0,fx:[],frame:0,toastTimer:null,viewW:800,viewH:530,win:null};
+const names=['Arlo','Kira','Nova','Echo','Rune','Iris'];
+const rand=(a,b)=>Math.random()*(b-a)+a;
+const dist=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+const findNear=(arr,r=1.45)=>arr.filter(x=>x.alive!==false&&dist(x,state.player)<r).sort((a,b)=>dist(a,state.player)-dist(b))[0];
+const isPaused=()=>state.phase!=='playing';
+function alertMessage(msg){$('toast').textContent=msg;clearTimeout(state.toastTimer);state.toastTimer=setTimeout(()=>{$('toast').textContent=''},3000)}
+function setEvent(msg){state.events.unshift(msg);$('eventLine').textContent=msg}
+function createLobby(){
+ state.room=Math.random().toString(36).slice(2,8).toUpperCase().padEnd(6,'8');$('lobbyCode').textContent=state.room;
+ $('createOptions').hidden=false;$('joinOptions').hidden=true;alertMessage('Your local demo lobby is ready');
+}
+$('createBtn').addEventListener('click',createLobby);
+$('joinToggle').addEventListener('click',()=>{$('joinOptions').hidden=!$('joinOptions').hidden;$('createOptions').hidden=true});
+$('joinBtn').addEventListener('click',()=>{
+ const code=$('joinInput').value.trim().toUpperCase();
+ if(!state.room){$('joinOptions').querySelector('.hint').textContent='Create a demo lobby in this tab first. External rooms are not connected.';return}
+ if(code!==state.room){$('joinOptions').querySelector('.hint').textContent='That code is not an active lobby in this tab.';return}
+ $('createOptions').hidden=false;$('joinOptions').hidden=true;alertMessage('Joined local demo room');
+});
+$('copyBtn').addEventListener('click',async()=>{
+ try{await navigator.clipboard.writeText(state.room);$('copyBtn').textContent='Copied!'}catch(e){$('copyBtn').textContent='Select code'}
+ setTimeout(()=>$('copyBtn').textContent='Copy',1800);
+});
+document.querySelectorAll('.role-choice').forEach(b=>b.addEventListener('click',()=>{
+ state.role=b.dataset.role;document.querySelectorAll('.role-choice').forEach(x=>x.classList.toggle('active',x===b));
+}));
+$('startBtn').addEventListener('click',start);
+$('againBtn').addEventListener('click',()=>{state.phase='lobby';$('resultOverlay').hidden=true;$('lobbyOverlay').hidden=false;$('createOptions').hidden=false;state.room=state.room||'ECHO09';updateHUD()});
+function start(){
+ state.phase='playing';state.name=($('nameInput').value.trim().slice(0,16)||'Agent');state.player={x:6,y:7.6,alive:true,name:state.name,color:'#baf0c4'};
+ state.npcs=names.map((name,i)=>({name,x:1.8+(i%3)*4.1,y:1.6+Math.floor(i/3)*5.6,color:rosterColors[i+1],alive:true,dir:0,aiX:rand(-.7,.7),aiY:rand(-.7,.7),wander:rand(.2,2.5),imposter:state.role==='crew'&&i===1}));
+ nodes.forEach(n=>n.done=false);state.bodies=[];state.fx=[];state.goal=null;state.remaining=240;state.cooldown=0;state.kills=0;state.meetings=0;state.tasks=0;state.sabotage=0;state.aiTime=0;state.aiKills=0;state.witness=0;state.win=null;state.events=[];state.last=performance.now();state.ticker=0;state.axis={x:0,y:0};
+ $('lobbyOverlay').hidden=true;$('controls').hidden=false;$('killBtn').hidden=state.role!=='imposter';
+ $('roleName').textContent=state.role==='imposter'?'YOU ARE THE IMPOSTER':'YOU ARE AN INVESTIGATOR';
+ $('roleDesc').textContent=state.role==='imposter'?'Blend in, fake tasks, sabotage reactor and eliminate operatives before they expose you.':'Repair three signal stations, find evidence and vote out the hidden impostor before the crew is lost.';
+ $('roleChip').textContent=state.role==='imposter'?'CLASSIFIED / IMPOSTER':'CLEARANCE / CREW';
+ $('objectiveTitle').textContent=state.role==='imposter'?'Eliminate two operatives':'Restore three signal stations';
+ $('objectiveDesc').textContent=state.role==='imposter'?'Approach an operative and tap KILL. Reactor sabotage creates a distraction. Meetings can expose you.':'Find three glowing terminals. Get close and tap USE, then complete their puzzles. Report bodies and vote.';
+ setEvent('Move through the station. The mission has started.');alertMessage(state.role==='imposter'?'You are the IMPOSTER. Stay convincing.':'You are CREW. Watch your back.');updateHUD();
+}
+function updateHUD(){
+ const active=1+state.npcs.filter(x=>x.alive).length;
+ $('roleHud').innerHTML=(state.phase==='playing'?(state.role==='imposter'?'<b>IMPOSTER</b> · REMAIN HIDDEN':'<b>CREW</b> · INVESTIGATE'):'MISSION STATUS <b>WAITING</b>');
+ $('timeHud').textContent=String(Math.floor(Math.max(0,state.remaining)/60)).padStart(2,'0')+':'+String(Math.floor(Math.max(0,state.remaining)%60)).padStart(2,'0')+' · ROUND '+String(state.meetings+1).padStart(2,'0');
+ $('taskCount').textContent=state.tasks+' / 3';
+ $('playerCount').textContent=active+' / 7';
+ $('meetCount').textContent=state.meetings+' / 3';
+ const all=[state.player,...state.npcs];
+ $('roster').innerHTML=all.map(n=>'<li class="'+(n.alive?'':'dead')+'"><span class="avatar" style="background:'+n.color+'"></span><span>'+safeText(n.name)+(n===state.player?' (YOU)':'')+'</span><span>'+(n.alive?'ACTIVE':'OUT')+'</span></li>').join('');
+ const nearNode=findNear(nodes,1.6);
+ const body=findNear(state.bodies,1.6);
+ $('interactBtn').classList.toggle('ready',Boolean(nearNode));
+ $('reportBtn').classList.toggle('ready',Boolean(body));
+ if(state.role==='imposter'&&state.phase==='playing'){
+ const near=findNear(state.npcs,1.5);
+ $('killBtn').disabled=state.cooldown>0||!near;
+ $('killBtn').classList.toggle('ready',Boolean(near)&&state.cooldown<=0);
+ $('killBtn').lastChild.textContent=state.cooldown>0?Math.ceil(state.cooldown)+'s':'KILL';
+ }
+}
+function safeText(s){return String(s).replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]))}
+function resize(){
+ const rect=canvas.getBoundingClientRect(),dpr=Math.min(2,window.devicePixelRatio||1);
+ state.viewW=rect.width;state.viewH=rect.height;
+ canvas.width=Math.round(rect.width*dpr);canvas.height=Math.round(rect.height*dpr);ctx.setTransform(dpr,0,0,dpr,0,0);
+ tile.w=rect.width<480?80:88;tile.h=tile.w*.5;
+}
+window.addEventListener('resize',resize);
+function iso(x,y,h=0){return {x:state.camX+(x-y)*tile.w*.5,y:state.camY+(x+y)*tile.h*.5-h}}
+function polygon(points,fill,stroke){ctx.beginPath();ctx.moveTo(points[0].x,points[0].y);for(let i=1;i<points.length;i++)ctx.lineTo(points[i].x,points[i].y);ctx.closePath();if(fill){ctx.fillStyle=fill;ctx.fill()}if(stroke){ctx.strokeStyle=stroke;ctx.lineWidth=1;ctx.stroke()}}
+function ellipse(x,y,rx,ry,fill){ctx.beginPath();ctx.ellipse(x,y,rx,ry,0,0,Math.PI*2);ctx.fillStyle=fill;ctx.fill()}
+function segment(x1,y1,x2,y2,color,width=1){ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);ctx.strokeStyle=color;ctx.lineWidth=width;ctx.stroke()}
+function label(str,x,y,fill='#c7dcd6'){
+ ctx.fillStyle=fill;ctx.font='800 9px Inter,system-ui';ctx.textAlign='center';ctx.fillText(str,x,y);
+}
+function world(){
+ const w=state.viewW,h=state.viewH;
+ const moveCameraX=w/2-(state.player.x-state.player.y)*tile.w*.5;
+ const moveCameraY=h*.51-(state.player.x+state.player.y)*tile.h*.5;
+ state.camX+=(moveCameraX-state.camX)*.09;state.camY+=(moveCameraY-state.camY)*.09;
+ ctx.clearRect(0,0,w,h);
+ const bg=ctx.createRadialGradient(w*.45,h*.2,20,w*.48,h*.45,w*.9);
+ bg.addColorStop(0,'#23434e');bg.addColorStop(.52,'#14293a');bg.addColorStop(1,'#07121e');ctx.fillStyle=bg;ctx.fillRect(0,0,w,h);
+ // Far bulkhead walls and thickness.
+ for(let x=0;x<MAP_W;x++){
+ const a=iso(x,0),b=iso(x+1,0),height=54;
+ polygon([{x:a.x,y:a.y},{x:b.x,y:b.y},{x:b.x,y:b.y-height},{x:a.x,y:a.y-height}],x%2?'#263747':'#2b4050','#354b5a');
+ segment(a.x,a.y-height,b.x,b.y-height,'#64817e',3);
+ if(x===4||x===9){let mid=iso(x+.5,0);ctx.fillStyle='#8cdacb';ctx.fillRect(mid.x-8,mid.y-45,16,14)}
+ }
+ for(let y=0;y<MAP_H;y++){
+ const a=iso(0,y),b=iso(0,y+1),height=54;
+ polygon([{x:a.x,y:a.y},{x:b.x,y:b.y},{x:b.x,y:b.y-height},{x:a.x,y:a.y-height}],y%2?'#213547':'#283e4a','#345062');
+ segment(a.x,a.y-height,b.x,b.y-height,'#5f7e80',2);
+ }
+ // Tile floor with seams, room division and light strips.
+ for(let y=0;y<MAP_H;y++)for(let x=0;x<MAP_W;x++){
+ const p=iso(x,y),q=iso(x+1,y),r=iso(x+1,y+1),s=iso(x,y+1);
+ const shade=(x+y)%2===0?'#263f49':'#28424d';
+ polygon([p,q,r,s],shade,'#415d6285');
+ if((x+y)%4===0){segment((p.x+s.x)/2,(p.y+s.y)/2,(q.x+r.x)/2,(q.y+r.y)/2,'#3b657154',2)}
+ if((x===1||x===10)&&y>0&&y<7){segment(p.x,p.y,s.x,s.y,'#96e6af',2)}
+ if(x===5&&y===4){polygon([p,q,r,s],'#335b58','#71b6a0')}
+ }
+ // Decals: hatch marks on upper edge, reactor vents and hazard stripes.
+ for(let i=0;i<5;i++){
+ const a=iso(i+3,8.5),b=iso(i+3.45,8.5);
+ segment(a.x,a.y,b.x,b.y,'#f4c47688',4);
+ }
+ const bottom=iso(MAP_W,MAP_H);
+ ellipse(bottom.x,bottom.y+11,65,12,'#0005');
+ // Lights and rooms.
+ nodes.forEach(n=>{
+ const p=iso(n.x,n.y);
+ const col=n.type==='reactor'?'#ed686b':n.type==='meeting'?'#ffe1a2':n.done?'#91ee99':'#8ee2db';
+ const halo=ctx.createRadialGradient(p.x,p.y,3,p.x,p.y,65);
+ halo.addColorStop(0,col+'44');halo.addColorStop(1,'#0000');ctx.fillStyle=halo;ctx.fillRect(p.x-70,p.y-70,140,140);
+ });
+ const objects=[...nodes.map(x=>({...x,objType:'node'})),...state.bodies.map(x=>({...x,objType:'body'})),...state.npcs.filter(x=>x.alive).map(x=>({...x,objType:'actor'})),{...state.player,objType:'player'}];
+ objects.sort((a,b)=>(a.x+a.y)-(b.x+b.y));
+ objects.forEach(o=>{if(o.objType==='node')drawNode(o);else if(o.objType==='body')drawBody(o);else drawAgent(o,o.objType==='player')});
+ // Particles of recent eliminations.
+ state.fx.forEach(f=>{const p=iso(f.x,f.y,20);ctx.save();ctx.globalAlpha=clamp(f.life,0,1);segment(p.x-27*f.life,p.y-25,p.x+30*f.life,p.y-6,'#ff7474',6);segment(p.x+18*f.life,p.y-29,p.x-14*f.life,p.y+6,'#ffc2c2',4);ctx.restore()});
+ const dark=state.sabotage>0;
+ if(dark){
+ ctx.fillStyle='rgba(5,6,20,'+(.25+.14*Math.sin(state.frame*.04))+')';ctx.fillRect(0,0,w,h);
+ const p=iso(state.player.x,state.player.y);
+ const light=ctx.createRadialGradient(p.x,p.y,30,p.x,p.y,220);light.addColorStop(0,'#0000');light.addColorStop(1,'#020614cc');ctx.fillStyle=light;ctx.fillRect(0,0,w,h);
+ ctx.fillStyle='#ff8787';ctx.font='900 13px Inter,system-ui';ctx.textAlign='center';ctx.fillText('⚠ REACTOR INTERFERENCE',w/2,75);
+ }
+}
+function drawNode(n){
+ const p=iso(n.x,n.y),near=dist(n,state.player)<1.65;
+ if(near&&state.phase==='playing'){ctx.strokeStyle='#c6fcaa';ctx.lineWidth=2;ctx.beginPath();ctx.ellipse(p.x,p.y,33,16,0,0,Math.PI*2);ctx.stroke()}
+ if(n.type==='meeting'){
+  ellipse(p.x,p.y+4,48,16,'#08151a9e');
+  polygon([{x:p.x-45,y:p.y-15},{x:p.x+4,y:p.y-38},{x:p.x+51,y:p.y-10},{x:p.x,y:p.y+13}],'#785c4b','#ceab7b');
+  ctx.fillStyle='#36485b';ctx.fillRect(p.x-3,p.y-30,8,30);
+  ellipse(p.x+3,p.y-28,11,6,'#f4bc85');ctx.fillStyle='#f0cba1';ctx.fillRect(p.x-2,p.y-42,10,10);
+  label('EMERGENCY',p.x,p.y-57,'#f7d8b6');return;
+ }
+ if(n.type==='crate'){
+  drawBox(p,30,26,'#4f7382','#2e5365','#314655');label('CARGO',p.x,p.y-40);return;
+ }
+ if(n.type==='reactor'){
+  drawBox(p,36,36,'#6d3d49','#913e4e','#492838');
+  ellipse(p.x,p.y-44,14,6,'#fe7d7d');ctx.fillStyle='#ff5f67';ctx.fillRect(p.x-14,p.y-48,28,9);
+  label('REACTOR',p.x,p.y-68,'#f99da0');return;
+ }
+ drawBox(p,33,25,n.done?'#306b63':'#285e68','#325c6c','#1c3947');
+ // Console display and its bright little buttons.
+ polygon([{x:p.x-15,y:p.y-43},{x:p.x+7,y:p.y-52},{x:p.x+21,y:p.y-44},{x:p.x-1,y:p.y-35}],n.done?'#a4eaa6':'#9be5d9','#d6ffff');
+ segment(p.x-14,p.y-40,p.x+12,p.y-45,'#284b55',2);
+ label(n.done?'COMPLETE':n.label,p.x,p.y-61,n.done?'#a9f5b5':'#bbf8e9');
+}
+function drawBox(p,w,h,top,left,right){
+ const z=25,hh=h*.5,ww=w;
+ polygon([{x:p.x-ww,y:p.y-z},{x:p.x,y:p.y-z-hh},{x:p.x+ww,y:p.y-z},{x:p.x,y:p.y-z+hh}],top,'#86a1a066');
+ polygon([{x:p.x-ww,y:p.y-z},{x:p.x,y:p.y-z+hh},{x:p.x,y:p.y+hh},{x:p.x-ww,y:p.y}],left);
+ polygon([{x:p.x,y:p.y-z+hh},{x:p.x+ww,y:p.y-z},{x:p.x+ww,y:p.y},{x:p.x,y:p.y+hh}],right);
+}
+function drawAgent(a,isPlayer){
+ const p=iso(a.x,a.y),t=performance.now()*.003,step=state.phase==='playing'?Math.sin(t*4+a.x*2)*1.8:0;
+ ellipse(p.x,p.y+2,17,7,'#0009');
+ if(isPlayer){ctx.strokeStyle='#d8ffb6';ctx.lineWidth=2;ctx.beginPath();ctx.ellipse(p.x,p.y+2,21,10,0,0,Math.PI*2);ctx.stroke()}
+ // Human-shaped operatives with legs, sleeves, jacket and helmet, not Among Us character copies.
+ ctx.fillStyle='#1a2a37';ctx.fillRect(p.x-11,p.y-17,8,19+step);ctx.fillRect(p.x+3,p.y-17,8,19-step);
+ ctx.fillStyle='#0c111d';ctx.fillRect(p.x-13,p.y-1+step,10,5);ctx.fillRect(p.x+3,p.y-1-step,11,5);
+ ctx.fillStyle=a.color;
+ ctx.beginPath();ctx.roundRect(p.x-16,p.y-44,32,30,8);ctx.fill();
+ ctx.fillStyle='#00000032';ctx.fillRect(p.x+6,p.y-43,6,26);
+ ctx.fillStyle=a.color;ctx.beginPath();ctx.roundRect(p.x-22,p.y-39,8,21,4);ctx.fill();ctx.beginPath();ctx.roundRect(p.x+14,p.y-39,8,21,4);ctx.fill();
+ // Neck and head.
+ ctx.fillStyle='#f5d8b4';ctx.fillRect(p.x-5,p.y-52,10,9);ellipse(p.x,p.y-61,13.5,15,'#f2d7b8');
+ ctx.fillStyle='#192b3b';ctx.beginPath();ctx.arc(p.x,p.y-65,13.8,Math.PI,Math.PI*2);ctx.lineTo(p.x+14,p.y-58);ctx.lineTo(p.x-14,p.y-58);ctx.fill();
+ ctx.fillStyle='#2d4752';ctx.beginPath();ctx.roundRect(p.x-10,p.y-63,20,8,4);ctx.fill();
+ ctx.fillStyle='#9be6e9';ctx.fillRect(p.x-6,p.y-61,12,3);
+ label(a.name+(isPlayer?' • YOU':''),p.x,p.y-85,isPlayer?'#e7ffa5':'#f0f4ff');
+ if(state.role==='imposter'&&!isPlayer&&state.phase==='playing'&&dist(state.player,a)<1.55){
+ ctx.strokeStyle='#ff818b';ctx.lineWidth=2;ctx.beginPath();ctx.ellipse(p.x,p.y+3,23,13,0,0,Math.PI*2);ctx.stroke();
+ }
+}
+function drawBody(b){
+ const p=iso(b.x,b.y);
+ ellipse(p.x,p.y+1,25,12,'#080d17b3');
+ ctx.save();ctx.translate(p.x,p.y-8);ctx.rotate(-.4);
+ ctx.fillStyle=b.color;ctx.beginPath();ctx.roundRect(-20,-6,31,14,5);ctx.fill();ctx.fillStyle='#f6c2af';ellipse(-24,0,9,9,'#e2af99');ctx.restore();
+ segment(p.x-10,p.y-18,p.x+10,p.y-29,'#ff7878',3);
+ label('REPORT',p.x,p.y-42,'#ffa1a1');
+}
+function move(dt){
+ let dx=0,dy=0;
+ if(state.keys.has('ArrowUp')||state.keys.has('w')){dx-=1;dy-=1}
+ if(state.keys.has('ArrowDown')||state.keys.has('s')){dx+=1;dy+=1}
+ if(state.keys.has('ArrowLeft')||state.keys.has('a')){dx-=1;dy+=1}
+ if(state.keys.has('ArrowRight')||state.keys.has('d')){dx+=1;dy-=1}
+ if(state.axis.x||state.axis.y){dx=state.axis.x-state.axis.y;dy=state.axis.x+state.axis.y}
+ if(Math.abs(dx)+Math.abs(dy)>.05){state.goal=null;const len=Math.hypot(dx,dy);dx/=len;dy/=len}
+ else if(state.goal){const goalDx=state.goal.x-state.player.x,goalDy=state.goal.y-state.player.y,len=Math.hypot(goalDx,goalDy);if(len>.08){dx=goalDx/len;dy=goalDy/len}else state.goal=null}
+ state.player.x=clamp(state.player.x+dx*dt*2.7,.45,MAP_W-.45);
+ state.player.y=clamp(state.player.y+dy*dt*2.7,.45,MAP_H-.45);
+ state.npcs.forEach(n=>{
+ if(!n.alive)return;
+ n.wander-=dt;if(n.wander<=0){n.aiX=rand(-1,1);n.aiY=rand(-1,1);n.wander=rand(.8,3)}
+ n.x=clamp(n.x+n.aiX*dt*.66,.6,MAP_W-.65);
+ n.y=clamp(n.y+n.aiY*dt*.66,.6,MAP_H-.65);
+ });
+}
+function tick(now){
+ const dt=Math.min((now-state.last)/1000||0,.05);state.last=now;state.frame++;
+ if(state.phase==='playing'){
+ state.remaining-=dt;state.cooldown=Math.max(0,state.cooldown-dt);state.sabotage=Math.max(0,state.sabotage-dt);
+ state.fx.forEach(f=>f.life-=dt*1.5);state.fx=state.fx.filter(f=>f.life>0);
+ move(dt);state.ticker+=dt;state.aiTime+=dt;
+ if(state.role==='crew'&&state.aiTime>=13){
+  state.aiTime=0;
+  const killer=state.npcs.find(n=>n.imposter&&n.alive),victims=state.npcs.filter(n=>n.alive&&!n.imposter);
+  if(killer&&victims.length){const victim=victims[Math.floor(Math.random()*victims.length)];
+   state.bodies.push({name:victim.name,color:victim.color,x:victim.x,y:victim.y});victim.alive=false;state.aiKills++;state.fx.push({x:victim.x,y:victim.y,life:1});
+   setEvent('An emergency signal was detected near '+victim.name+'!');alertMessage('An operative has gone missing...')}
+  if(state.aiKills>=2&&state.tasks<3)finish(false,'The hidden impostor eliminated too many operatives.');
+ }
+ if(state.remaining<=0)finish(state.role==='imposter','The station clock reached zero.');
+ if(state.ticker>.18){state.ticker=0;updateHUD()}
+ }
+ if(canvas.width)world();
+ requestAnimationFrame(tick);
+}
+function startTask(n){
+ state.activeNode=n;state.taskSteps=0;
+ $('taskOverlay').hidden=false;state.phase='task';
+ if(n.type==='terminal'){
+ $('taskTitle').textContent=n.done?'STATION ONLINE':'REROUTE SIGNAL';
+ $('taskCopy').textContent=n.done?'This signal station is already operational.':'Tap the switches in this order: 2 → 1 → 3.';
+ $('taskPads').hidden=Boolean(n.done);document.querySelectorAll('[data-pad]').forEach(x=>x.classList.remove('pressed'));
+ }else{
+ $('taskTitle').textContent='REACTOR CONTROL';
+ $('taskCopy').textContent=state.role==='imposter'?'You can disrupt the lights to hide your movements. Press any panel button to initiate sabotage.':'Inspect the reactor controls. The system is showing unusual interference.';
+ $('taskPads').hidden=state.role!=='imposter';
+ }
+}
+document.querySelectorAll('[data-pad]').forEach(b=>b.addEventListener('click',()=>{
+ if(state.phase!=='task')return;const n=state.activeNode;
+ if(n.type==='reactor'){state.sabotage=14;state.phase='playing';$('taskOverlay').hidden=true;setEvent('Reactor sabotaged. Station lights are failing!');alertMessage('REACTOR SABOTAGE');return}
+ if(n.done)return;
+ const correct=[2,1,3];
+ if(Number(b.dataset.pad)!==correct[state.taskSteps]){state.taskSteps=0;document.querySelectorAll('[data-pad]').forEach(x=>x.classList.remove('pressed'));alertMessage('Incorrect sequence. Try again.');return}
+ state.taskSteps++;b.classList.add('pressed');
+ if(state.taskSteps===3){
+  n.done=true;state.tasks++;state.phase='playing';$('taskOverlay').hidden=true;setEvent('Signal restored at '+n.label+'.');alertMessage('Task completed! Signal restored.');updateHUD();
+  if(state.role==='crew'&&state.tasks===3)finish(true,'All station signals restored. The crew survives.');
+ }
+}));
+$('closeTask').addEventListener('click',()=>{state.phase='playing';$('taskOverlay').hidden=true});
+function interact(){
+ if(isPaused())return;const n=findNear(nodes,1.6);
+ if(!n){alertMessage('Move close to a glowing station to interact.');return}
+ if(n.type==='meeting'){meeting('An emergency meeting was called.');return}
+ if(n.type==='crate'){setEvent('You searched the cargo bay. Nothing conclusive.');alertMessage('Cargo manifest: all operatives accounted for.');return}
+ startTask(n);
+}
+function kill(){
+ if(isPaused()||state.role!=='imposter')return;
+ if(state.cooldown>0){alertMessage('Ability recharging: '+Math.ceil(state.cooldown)+'s');return}
+ const n=findNear(state.npcs,1.5);
+ if(!n){alertMessage('Get closer to another operative first.');return}
+ n.alive=false;state.kills++;state.cooldown=11;
+ state.bodies.push({name:n.name,color:n.color,x:n.x,y:n.y});state.fx.push({x:n.x,y:n.y,life:1});
+ const witnesses=state.npcs.filter(x=>x.alive&&dist(x,n)<2.15).length;state.witness+=witnesses;
+ setEvent(n.name+' was eliminated'+(witnesses?' — someone may have seen you.':'.'));alertMessage('OPERATIVE ELIMINATED');
+ updateHUD();if(state.kills>=2)finish(true,'Two operatives eliminated. Your deception was successful.');
+}
+function report(){
+ if(isPaused())return;const b=findNear(state.bodies,1.6);
+ if(!b){alertMessage('No reported incident nearby.');return}
+ state.bodies=state.bodies.filter(x=>x!==b);meeting(state.name+' reported the body of '+b.name+'.');
+}
+function meeting(reason){
+ if(isPaused())return;
+ state.meetings++;state.phase='vote';$('voteOverlay').hidden=false;$('voteNote').textContent=reason+' Choose who you think is the imposter.';
+ state.selectedVote=null;
+ const all=[state.player,...state.npcs].filter(x=>x.alive);
+ $('voteList').innerHTML=all.filter(x=>x!==state.player).map((x,i)=>'<button type="button" data-suspect="'+safeText(x.name)+'"><span class="avatar" style="background:'+x.color+'"></span>'+safeText(x.name)+'</button>').join('');
+ $('voteList').querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>{
+  state.selectedVote=b.dataset.suspect;$('voteList').querySelectorAll('button').forEach(x=>x.classList.toggle('selected',x===b));$('voteConfirm').disabled=false;
+ }));
+ $('voteConfirm').disabled=true;updateHUD();
+}
+function finishVote(){
+ if(state.phase!=='vote')return;
+ const target=state.npcs.find(x=>x.alive&&x.name===state.selectedVote);
+ const ai=state.npcs.filter(x=>x.alive);
+ const choices=ai.map(x=>{
+  const pool=[state.player,...state.npcs].filter(z=>z.alive&&z!==x);
+  if(state.role==='imposter'&&state.witness>0&&Math.random()<Math.min(.23+state.witness*.2,.82))return state.player.name;
+  if(state.role==='crew'&&x.imposter)return state.player.name;
+  if(state.role==='crew'&&Math.random()<.4){const imp=state.npcs.find(y=>y.alive&&y.imposter);if(imp)return imp.name}
+  return pool[Math.floor(Math.random()*pool.length)].name;
+ });
+ const votes={};ai.forEach((_,i)=>votes[choices[i]]=(votes[choices[i]]||0)+1);
+ if(target)votes[target.name]=(votes[target.name]||0)+1;
+ const leader=Object.entries(votes).sort((a,b)=>b[1]-a[1])[0];
+ const ties=Object.entries(votes).filter(x=>x[1]===leader[1]);
+ const out=ties.length===1?leader[0]:null;
+ $('voteOverlay').hidden=true;state.phase='playing';
+ if(out===state.player.name){finish(false,'The crew voted you out.');return}
+ const ejected=state.npcs.find(x=>x.alive&&x.name===out);
+ if(ejected){
+  ejected.alive=false;
+  if(state.role==='crew'&&ejected.imposter){finish(true,ejected.name+' was the hidden imposter. The crew wins!');return}
+  setEvent('The vote removed '+ejected.name+'. '+(state.role==='imposter'?'Your cover holds.':'The investigation continues.'));
+  alertMessage(ejected.name+' WAS EJECTED');
+ }else{setEvent('Voting ended in a tie or was skipped. Nobody was removed.');alertMessage('NO ONE WAS EJECTED')}
+ state.witness=0;
+ if(state.role==='imposter'&&state.meetings>=3){finish(true,'You survived three meetings without being exposed.');return}
+ if(state.role==='crew'&&state.meetings>=3){finish(false,'Three inconclusive meetings. The imposter escaped.');return}
+ updateHUD();
+}
+$('voteConfirm').addEventListener('click',finishVote);
+$('skipVote').addEventListener('click',()=>{state.selectedVote=null;finishVote()});
+function finish(win,reason){
+ if(state.phase==='ended')return;state.phase='ended';state.win=win;$('resultOverlay').hidden=false;
+ $('taskOverlay').hidden=true;$('voteOverlay').hidden=true;$('controls').hidden=true;
+ $('resultTitle').textContent=win?'VICTORY IS YOURS.':'THE STATION HAS FALLEN.';
+ $('resultText').textContent=reason;
+ $('scoreline').textContent=(state.role==='imposter'?'ELIMINATIONS: '+state.kills:'SIGNALS: '+state.tasks+'/3')+'  ·  MEETINGS: '+state.meetings;
+ updateHUD();
+}
+$('interactBtn').addEventListener('click',interact);
+$('meetingBtn').addEventListener('click',()=>meeting('An emergency meeting was called.'));
+$('reportBtn').addEventListener('click',report);$('killBtn').addEventListener('click',kill);
+const navKeys=new Set(['w','a','s','d','ArrowUp','ArrowDown','ArrowLeft','ArrowRight']);
+window.addEventListener('keydown',e=>{
+ if(document.activeElement&&/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName))return;
+ const k=e.key.length===1?e.key.toLowerCase():e.key;
+ if(navKeys.has(k)){state.keys.add(k);e.preventDefault()}if(e.repeat)return;
+ if(k==='e')interact();if(k==='k')kill();if(k==='r')report();if(k==='m')meeting('An emergency meeting was called.');
+});
+window.addEventListener('keyup',e=>state.keys.delete(e.key.length===1?e.key.toLowerCase():e.key));
+window.addEventListener('blur',()=>{state.keys.clear();state.axis={x:0,y:0};$('knob').style.transform='translate(0,0)'});
+const stick=$('stick'),knob=$('knob');let pointer=null;
+function stickMove(e){const r=stick.getBoundingClientRect();let dx=e.clientX-(r.left+r.width/2),dy=e.clientY-(r.top+r.height/2);let len=Math.hypot(dx,dy);if(len>32){dx*=32/len;dy*=32/len}knob.style.transform='translate('+dx+'px,'+dy+'px)';state.axis.x=dx/32;state.axis.y=dy/32}
+stick.addEventListener('pointerdown',e=>{pointer=e.pointerId;stick.setPointerCapture(pointer);stickMove(e);e.preventDefault()});
+stick.addEventListener('pointermove',e=>{if(e.pointerId===pointer)stickMove(e)});
+function stickRelease(e){if(e.pointerId!==pointer)return;pointer=null;state.axis={x:0,y:0};knob.style.transform='translate(0,0)'}
+stick.addEventListener('pointerup',stickRelease);stick.addEventListener('pointercancel',stickRelease);
+canvas.addEventListener('pointerdown',e=>{
+ if(isPaused())return;
+ const r=canvas.getBoundingClientRect();const sx=e.clientX-r.left,sy=e.clientY-r.top;
+ const a=(sx-state.camX)/(tile.w*.5),b=(sy-state.camY)/(tile.h*.5);
+ state.goal={x:clamp((a+b)/2,.5,MAP_W-.5),y:clamp((b-a)/2,.5,MAP_H-.5)};
+});
+resize();state.last=performance.now();
+requestAnimationFrame(tick);updateHUD();
+})();
+</script>
+</body></html>
