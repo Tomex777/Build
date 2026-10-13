@@ -11,6 +11,7 @@ class MoonSurfaceTerrain {
     private val vertices: FloatBuffer
     private val indices: ShortBuffer
     private val indexCount: Int
+    private val detail = SurfaceDetailRenderer { x, z -> heightAt(x, z) }
 
     init {
         val mesh = MoonSurfaceMeshGenerator.build()
@@ -19,13 +20,14 @@ class MoonSurfaceTerrain {
         indices = ByteBuffer.allocateDirect(mesh.indices.size * 2).order(ByteOrder.nativeOrder())
             .asShortBuffer().apply { put(mesh.indices); position(0) }
         indexCount = mesh.indices.size
-        program = createProgram(VS, FS)
+        program = createProgram(SurfaceMaterialShaders.VERTEX, SurfaceMaterialShaders.FRAGMENT)
     }
 
     fun draw(vp: FloatArray, offsetX: Float, offsetZ: Float) {
         GLES30.glUseProgram(program)
         GLES30.glUniformMatrix4fv(GLES30.glGetUniformLocation(program, "uVp"), 1, false, vp, 0)
         GLES30.glUniform2f(GLES30.glGetUniformLocation(program, "uOffset"), offsetX, offsetZ)
+        GLES30.glUniform1i(GLES30.glGetUniformLocation(program, "uWorld"), 1)
         GLES30.glUniform3f(GLES30.glGetUniformLocation(program, "uLight"), -0.74f, 0.38f, 0.31f)
         GLES30.glDisable(GLES30.GL_CULL_FACE); GLES30.glEnable(GLES30.GL_DEPTH_TEST)
         vertices.position(0); GLES30.glEnableVertexAttribArray(0)
@@ -37,6 +39,7 @@ class MoonSurfaceTerrain {
         vertices.position(0); indices.position(0)
         GLES30.glDrawElements(GLES30.GL_TRIANGLES, indexCount, GLES30.GL_UNSIGNED_SHORT, indices)
         GLES30.glDisableVertexAttribArray(0); GLES30.glDisableVertexAttribArray(1); GLES30.glDisableVertexAttribArray(2)
+        detail.draw(-offsetX.toDouble(), -offsetZ.toDouble())
         GLES30.glEnable(GLES30.GL_CULL_FACE)
     }
 
