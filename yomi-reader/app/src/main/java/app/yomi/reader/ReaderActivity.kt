@@ -971,7 +971,7 @@ class ReaderActivity : ComponentActivity(), ReaderViewerHost {
     private suspend fun stageReaderPage(page: ViewerPage): File {
         val directory = File(cacheDir, "reader-pages").apply { mkdirs() }
         val expiry = System.currentTimeMillis() - 24L * 60L * 60L * 1000L
-        directory.listFiles()?.filter { it.lastModified() < expiry }?.forEach(File::delete)
+        directory.listFiles()?.filter { it.lastModified() < expiry }?.forEach { it.delete() }
         val stream = BufferedInputStream(page.open())
         return stream.use { input ->
             input.mark(12)
