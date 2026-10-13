@@ -4,6 +4,7 @@ import android.graphics.PointF
 import android.util.Log
 import android.view.Gravity
 import android.widget.FrameLayout
+import android.widget.LinearLayout
 import android.widget.ProgressBar
 import android.widget.TextView
 import kotlinx.coroutines.CancellationException
@@ -14,7 +15,6 @@ import android.view.View
 import android.view.ViewGroup
 import androidx.core.view.children
 import androidx.viewpager.widget.ViewPager
-import app.yomi.reader.core.assembleContinuousPagedWindow
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -26,6 +26,7 @@ import reader.shared.android.ReaderPageImageView
 import reader.shared.android.ReaderRenderConfig
 import reader.shared.android.ReaderViewerHost
 import reader.shared.android.Viewer
+import reader.shared.android.model.ChapterTransition
 import reader.shared.android.model.ViewerChapter
 import reader.shared.android.model.ViewerChapters
 import reader.shared.android.model.ViewerPage
@@ -119,7 +120,7 @@ class SharedPagerViewer(
     }
 
     private fun setChaptersInternal(window: ViewerChapters) {
-        val original = currentItem as? ViewerPage
+        val original = currentItem
         pager.removeOnPageChangeListener(pagerListener)
         changingChapterWindow = true
         try {
@@ -156,17 +157,28 @@ class SharedPagerViewer(
         val old = currentItem
         currentItem = item
 
-        val page = item
-        val forward = when (old) {
-            is ViewerPage -> page.number >= old.number
-            else -> true
-        }
-        host.onPageSelected(page, 0.0)
-        pageHolder(page)?.onPageSelected(forward)
+        when (item) {
+            is ViewerPage -> {
+                val forward = when (old) {
+                    is ViewerPage -> item.number >= old.number
+                    else -> true
+                }
+                host.onPageSelected(item, 0.0)
+                pageHolder(item)?.onPageSelected(forward)
 
-        val pages = page.chapter.pages.orEmpty()
-        if (pages.size - page.number < PRELOAD_DISTANCE && page.chapter == chapters?.currChapter) {
-            chapters?.nextChapter?.let(host::requestPreloadChapter)
+                val pages = item.chapter.pages.orEmpty()
+                if (pages.size - item.number < PRELOAD_DISTANCE && item.chapter == chapters?.currChapter) {
+                    chapters?.nextChapter?.let(host::requestPreloadChapter)
+                }
+            }
+            is ChapterTransition -> {
+                // Match Mihon's transition-page preloader; the host publishes
+                // an updated page window as soon as its local chapter is ready.
+                item.to?.let(host::requestPreloadChapter)
+                if (item is ChapterTransition.Next && item.to == null) {
+                    host.showMenu()
+                }
+            }
         }
     }
 
@@ -239,22 +251,36 @@ class SharedPagerViewer(
     }
 
     private inner class Adapter : ViewPagerAdapter() {
-        var items: List<ViewerPage> = emptyList()
+        var items: List<Any> = emptyList()
             private set
 
         fun setChapters(window: ViewerChapters) {
-            items = assembleContinuousPagedWindow(
-                previous = window.prevChapter?.pages,
-                current = window.currChapter.pages.orEmpty(),
-                next = window.nextChapter?.pages,
-                reversed = direction == PagerDirection.RTL,
-            )
+            val previous = window.prevChapter
+            val next = window.nextChapter
+            val forceTransition = config.alwaysShowChapterTransition || currentItem is ChapterTransition
+            val newItems = mutableListOf<Any>()
+            previous?.pages?.let(newItems::addAll)
+            if (forceTransition || previous?.pages == null) {
+                newItems.add(ChapterTransition.Prev(window.currChapter, previous))
+            }
+            newItems.addAll(window.currChapter.pages.orEmpty())
+            if (forceTransition || next?.pages == null) {
+                newItems.add(ChapterTransition.Next(window.currChapter, next))
+            }
+            next?.pages?.let(newItems::addAll)
+            if (direction == PagerDirection.RTL) newItems.reverse()
+            items = newItems
             notifyDataSetChanged()
         }
 
         override fun getCount(): Int = items.size
 
-        override fun createView(container: ViewGroup, position: Int): View = PageHolder(items[position])
+        override fun createView(container: ViewGroup, position: Int): View =
+            when (val item = items[position]) {
+                is ViewerPage -> PageHolder(item)
+                is ChapterTransition -> TransitionHolder(item)
+                else -> error("Unsupported reader page type")
+            }
 
         override fun getItemPosition(view: Any): Int {
             val item = (view as? PositionableView)?.item ?: return POSITION_NONE
@@ -268,6 +294,47 @@ class SharedPagerViewer(
 
         fun destroyAll() {
             pager.children.filterIsInstance<PageHolder>().forEach(PageHolder::destroy)
+        }
+    }
+
+    private inner class TransitionHolder(
+        val transition: ChapterTransition,
+    ) : FrameLayout(host.context), ViewPagerAdapter.PositionableView {
+        override val item: Any get() = transition
+
+        init {
+            layoutParams = ViewGroup.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT,
+            )
+            setBackgroundColor(config.backgroundColor)
+            val content = LinearLayout(host.context).apply {
+                orientation = LinearLayout.VERTICAL
+                gravity = Gravity.CENTER
+            }
+            content.addView(
+                host.createChapterTransitionView(transition),
+                LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT,
+                ),
+            )
+            if (transition.to?.pages == null && transition.to != null) {
+                content.addView(ProgressBar(host.context).apply { isIndeterminate = true })
+                content.addView(TextView(host.context).apply {
+                    text = "Loading chapter…"
+                    setTextColor(0xFFCFD8E5.toInt())
+                    gravity = Gravity.CENTER
+                })
+            }
+            addView(
+                content,
+                FrameLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT,
+                    Gravity.CENTER,
+                ),
+            )
         }
     }
 
