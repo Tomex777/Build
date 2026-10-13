@@ -736,6 +736,13 @@ body{background:var(--bg)}
  .game-page .game-status{display:none}
  .game-page.focus-active{--board-size:min(calc(100vw - 4px),calc(100dvh - 108px),860px)}
 }
+
+/* Keep the actual board near the visual middle, not the bottom third. */
+@media(max-width:600px) and (min-height:740px){
+ .game-page .game-wrap{transform:translateY(-28px)}
+ .game-page.focus-active .game-wrap{transform:none}
+}
+@media(prefers-reduced-motion:reduce){.game-page .game-wrap{transition:none}}
 </style>
 </head>
 <body>
@@ -807,7 +814,7 @@ body{background:var(--bg)}
  <div class="dash-bottom"><div class="topbar"><div><span class="eyebrow">CONTINUE PLAYING</span><h2>Right where you left off.</h2></div></div><div class="resume-card" id="resumeCard"><p>No unfinished games.</p><a class="btn outline" href="/games" data-route>Find a game <svg class="ui-icon" viewBox="0 0 24 24" focusable="false" aria-hidden="true"><use href="#icon-arrowright"></use></svg></a></div></div>
  </section>
 <section class="site-page" id="view-games" data-view="games" hidden>
- <div class="inner-page-head"><div><span class="eyebrow">THE NIGHT ARCADE</span><h1>Choose your <span class="muted">adventure.</span></h1><p>Pick your next obsession. Every round has its own rhythm.</p></div><span class="status-pill">3 READY TO PLAY</span></div>
+ <div class="inner-page-head"><div><span class="eyebrow">THE NIGHT ARCADE</span><h1>One more <span class="muted">round?</span></h1><p>Pick an arcade classic, solve a puzzle, or find your next favorite.</p></div></div>
  <div class="library-toolbar"><div class="filter-buttons" role="group" aria-label="Filter games"><button class="filter-btn active" type="button" data-filter="all" aria-pressed="true">All games</button><button class="filter-btn" type="button" data-filter="arcade" aria-pressed="false">Arcade</button><button class="filter-btn" type="button" data-filter="puzzle" aria-pressed="false">Puzzle</button><button class="filter-btn" type="button" data-filter="board" aria-pressed="false">Board games</button></div><label class="searchbox"><svg class="ui-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><use href="#icon-search"></use></svg><input id="gameSearch" type="search" placeholder="Search games..." aria-label="Search games" autocomplete="off"></label></div>
  <div class="library-counter" id="libraryCount" aria-live="polite">Browse 11 games · 3 playable</div>
  <div class="grid library-grid" id="libraryGrid">
@@ -1248,7 +1255,7 @@ function initSnake(fresh=false){
  const size=18,c=document.createElement("canvas");c.id="snakeCanvas";c.width=360;c.height=360;
  let loaded=null;try{loaded=!fresh?JSON.parse(localStorage.getItem("night-play-save-snake")||"null"):null}catch{}
  const selected=currentSnakeMode();
- snake=loaded&&Array.isArray(loaded.body)&&loaded.body.length&&loaded.alive&&loaded.food&&(!loaded.mode||loaded.mode===selected)?{...loaded,size,alive:true,canvas:c}:{size,body:[{x:7,y:9},{x:6,y:9},{x:5,y:9}],dir:"right",next:"right",food:null,score:0,alive:true};
+ snake=loaded&&Array.isArray(loaded.body)&&loaded.body.length&&loaded.alive&&loaded.food&&(!loaded.mode||loaded.mode===selected)?{...loaded,size,alive:true,canvas:c}:{size,body:[{x:8,y:9},{x:7,y:9},{x:6,y:9},{x:5,y:9},{x:4,y:9}],dir:"right",next:"right",food:null,score:0,alive:true};
  snake.mode=selected;snake.wrap=selected==="wrap";snake.maze=makeSnakeMaze(selected,size);snake.started=false;
  root.innerHTML='<div class="scorebar scoreboard"><div class="score-unit"><span class="score-label">SCORE</span><b id="score">'+snake.score+'</b></div><span class="score-divider" aria-hidden="true"></span><div class="score-unit"><span class="score-label">PERSONAL BEST</span><b id="best">'+best("snake")+'</b></div></div>';
  const shell=document.createElement("div");shell.className="snake-shell";shell.appendChild(c);
@@ -1476,7 +1483,7 @@ const settingsDialog=document.getElementById("settingsDialog"),settingsBody=docu
 let previousPause=false;
 const gameSettings={
  snake:{title:"Snake settings",groups:[
- {key:"snake-mode",name:"Choose an arena",description:"Preview each layout. Mazes contain real obstacles.",default:"walls",choices:[["wrap","Open"],["walls","Classic"],["maze1","Maze I"],["maze2","Maze II"],["maze3","Maze III"]]},
+ {key:"snake-mode",name:"Choose an arena",description:"Choose an arena. Mazes contain real obstacles.",default:"walls",choices:[["wrap","Open"],["walls","Classic"],["maze1","Maze I"],["maze2","Maze II"],["maze3","Maze III"]]},
  {key:"snake-speed",name:"Snake speed",description:"Moves per second: Relaxed 5 · Classic 9 · Fast 12 · Turbo 15. Applied immediately.",default:"normal",choices:[["slow","Relaxed"],["normal","Classic"],["fast","Fast"],["turbo","Turbo"]]},
  {key:"snake-style",name:"Screen style",description:"",default:"modern",choices:[["modern","Modern"],["lcd","Retro LCD"]]}
 ]},
