@@ -2,6 +2,14 @@
   "version": 2,
   "rewrites": [
     {
+      "source": "/club",
+      "destination": "/club/index.html"
+    },
+    {
+      "source": "/club/",
+      "destination": "/club/index.html"
+    },
+    {
       "source": "/play/:game",
       "destination": "/index.html"
     },
