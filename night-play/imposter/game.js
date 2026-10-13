@@ -10,7 +10,8 @@ const names=['ASTRA','BECK','LYRA','NOVA','PIP','SOL'];
 const panels=[{id:'engine',x:293,y:514,title:'REACTOR',type:'sabotage',color:'#ff9e77'},
  {id:'transmission',x:1453,y:432,title:'TRANSMITTER',type:'task',color:'#7de9ed'},
  {id:'navigation',x:773,y:420,title:'STAR CHART',type:'task',color:'#b5c6ff'},
- {id:'specimens',x:991,y:894,title:'RESEARCH',type:'task',color:'#c6f4a2'}];
+ {id:'specimens',x:991,y:894,title:'RESEARCH',type:'task',color:'#c6f4a2'},
+ {id:'archive',x:651,y:372,title:'SECURITY CAM',type:'evidence',color:'#ffe4a4'}];
 const props=[{x:356,y:692,r:45},{x:638,y:659,r:34},{x:1059,y:587,r:42},{x:1290,y:618,r:36},{x:887,y:918,r:32},{x:1616,y:599,r:38}];
 const stations=[{name:'THE REACTOR',x:70,y:252,w:478,h:552,c:'#30646f'},{name:'THE ATRIUM',x:495,y:160,w:728,h:655,c:'#395d7c'},{name:'COMMUNICATIONS',x:1179,y:206,w:530,h:570,c:'#436277'},{name:'RESEARCH',x:722,y:768,w:574,h:296,c:'#447b75'}];
 const S={mode:'lobby',name:'HEX',role:'crew',room:'',player:null,bots:[],bodies:[],taskCount:0,meetings:0,killCount:0,time:245,kcd:0,warning:0,aiTimer:0,discussion:[],selected:null,currentTask:null,source:null,solved:new Set(),shade:0,camera:{x:0,y:0},frame:0,last:0,pointer:null,joy:{x:0,y:0},keys:new Set(),goal:null,dead:false,overlayBack:'lobby',noticeT:0,elapsed:0,showLabels:true,emergencyLeft:2,scene:'',pendingMeeting:null,gameWin:false};
@@ -28,7 +29,7 @@ function text(str,x,y,size=12,color='#e8f0f6',weight=800,spacing=0){ctx.save();c
 function tint(hex,n){const v=parseInt(hex.slice(1),16),r=clamp((v>>16)+n,0,255),g=clamp(((v>>8)&255)+n,0,255),b=clamp((v&255)+n,0,255);return 'rgb('+r+','+g+','+b+')'}
 function gradient(x,y,r,col){const g=ctx.createRadialGradient(x,y,1,x,y,r);g.addColorStop(0,col);g.addColorStop(1,'#0000');return g}
 function toast(msg){$('status').textContent=msg;$('status').classList.add('show');clearTimeout(S.noticeT);S.noticeT=setTimeout(()=>$('status').classList.remove('show'),3100)}
-function hideScreens(){['lobby','how','taskScreen','meetingScreen','endScreen'].forEach(id=>$(id).hidden=true)}
+function hideScreens(){['lobby','how','taskScreen','evidenceScreen','meetingScreen','endScreen'].forEach(id=>$(id).hidden=true)}
 function reveal(id){hideScreens();$(id).hidden=false}
 function resize(){const r=canvas.getBoundingClientRect(),d=Math.min(devicePixelRatio||1,2);canvas.width=Math.round(r.width*d);canvas.height=Math.round(r.height*d);ctx.setTransform(d,0,0,d,0,0);S.w=r.width;S.h=r.height}
 window.addEventListener('resize',resize);
@@ -163,8 +164,10 @@ function drawWorld(now){
  S.camera.x+=(tx-S.camera.x)*.105;S.camera.y+=(ty-S.camera.y)*.105;
  ctx.translate(S.camera.x,S.camera.y);ctx.scale(zoom,zoom);
  drawStation();drawFurniture();
+ if(S.path?.length){ctx.save();ctx.strokeStyle='#d4f8ba9a';ctx.lineWidth=3;ctx.setLineDash([4,14]);ctx.beginPath();ctx.moveTo(S.player.x,S.player.y+6);for(const p of S.path)ctx.lineTo(p.x,p.y+6);ctx.stroke();ctx.setLineDash([]);const p=S.path[S.path.length-1];ellipse(p.x,p.y,9,4,'#b9ffc6');ctx.restore()}
  const all=[...S.bodies.map(e=>({...e,isBody:true})),...S.bots.filter(a=>!a.dead),...(S.player?[S.player]:[])];
  all.sort((a,b)=>a.y-b.y);for(const a of all){if(a.isBody)drawBody(a);else chibi(a,now)}
+ if(S.flashEffect&&S.flashEffect.t>0){const fx=S.flashEffect,age=1-fx.t/.7;ctx.save();ctx.globalAlpha=Math.max(0,1-age);ctx.strokeStyle='#ffb3a1';ctx.lineWidth=7-4*age;ctx.beginPath();ctx.ellipse(fx.x,fx.y,35+90*age,17+35*age,0,0,TAU);ctx.stroke();ctx.strokeStyle='#fff2d1';ctx.lineWidth=2;ctx.beginPath();ctx.ellipse(fx.x,fx.y,22+52*age,13+28*age,0,0,TAU);ctx.stroke();ctx.restore()}
  ctx.restore();
  if(S.mode==='playing'&&S.warning>0){ctx.save();ctx.fillStyle='#ec38411c';ctx.fillRect(0,0,S.w,S.h);ctx.restore()}
  // Vignette + film grain made with gradients rather than a solid black overlay.
@@ -213,13 +216,18 @@ function start(){
  S.player={name:S.name,x:891,y:643,vx:0,vy:0,color:'#97ecd3',hair:'#324c49',skin:'#eed0ad',seed:11,dead:false};
  const slots=[[754,609],[1050,433],[1314,494],[1122,688],[700,489],[958,887]];
  S.bots=names.map((name,i)=>({name,x:slots[i][0],y:slots[i][1],vx:0,vy:0,color:palettes[i+1],hair:['#263742','#5e4548','#38455c','#393e46','#695145','#2e504c'][i],skin:['#d6a57e','#f1ca9d','#ba806a','#e6ad8d','#f5d0ad','#af735f'][i],seed:i*1.7,dead:false,imposter:S.role==='crew'&&i===3,walk:0,target:null}));
- S.bodies=[];S.taskCount=0;S.killCount=0;S.meetings=0;S.time=245;S.kcd=0;S.warning=0;S.aiTimer=0;S.elapsed=0;S.solved.clear();S.emergencyLeft=2;S.dead=false;S.discussion=[];S.goal=null;S.camera.ready=false;S.selected=null;
+ S.bodies=[];S.taskCount=0;S.killCount=0;S.path=[];S.flashEffect=null;S.meetings=0;S.time=245;S.kcd=0;S.warning=0;S.aiTimer=0;S.elapsed=0;S.solved.clear();S.emergencyLeft=2;S.dead=false;S.discussion=[];S.evidenceReads=0;S.goal=null;S.camera.ready=false;S.selected=null;
  $('missionTitle').textContent=S.role==='crew'?'RESTORE THREE SYSTEMS':'STAY ABOVE SUSPICION';
  $('missionBody').textContent=S.role==='crew'?'Visit the Star Chart, Transmitter and Research Lab. Match the coloured wires.':'Take down operatives, fake repairs and sabotage the Reactor. Survive the meetings.';
  $('kill').hidden=S.role!=='imposter';$('bottomhud').hidden=false;S.mode='playing';hideScreens();updateUI();toast(S.role==='crew'?'INVESTIGATOR — Repair the station.':'IMPOSTER — Your identity is classified.');
 }
 $('start').onclick=start;
 function use(){if(S.mode!=='playing'||S.dead)return;const p=nearest(panels,93);if(!p){toast('Move closer to a glowing console.');return}
+ if(p.type==='evidence'){
+  S.evidenceReads++;S.mode='evidence';
+  $('evidenceContent').innerHTML=S.role==='crew'?'<b>OBSERVATION '+S.evidenceReads+'</b><br>UNAUTHORIZED ACCESS: 23:41<br>ACTIVITY SEEN: NOVA, BECK, SOL<br>FEED RELIABILITY: PARTIAL'+(S.evidenceReads>1?'<br><br><b>ADDITIONAL RECORD:</b> NOVA made an unscheduled visit to restricted storage. Investigate before accusing.':'<br><br>Return to the terminal later for a second log.'): '<b>ARCHIVE COMPROMISED</b><br>Recent access records are incomplete. You may use this ambiguity to mislead the crew.';
+  reveal('evidenceScreen');return
+ }
  if(p.type==='sabotage'){
   if(S.role==='imposter'){S.warning=15;toast('REACTOR SABOTAGED — Warning lights activated!')}else{S.warning=0;toast('Reactor inspected. No outstanding faults.')}return
  }
@@ -238,8 +246,9 @@ function drawWires(){const left=$('leftwires'),right=$('rightwires');left.innerH
  $('taskFeedback').textContent='Choose a colour on the left, then its matching receiver.';
 }
 $('taskClose').onclick=()=>{if(S.mode==='task'){hideScreens();S.mode='playing'}};
+$('evidenceClose').onclick=()=>{if(S.mode==='evidence'){hideScreens();S.mode='playing'}};
 function kill(){if(S.mode!=='playing'||S.role!=='imposter'||S.dead)return;if(S.kcd>0){toast('Ability recharging: '+Math.ceil(S.kcd)+'s');return}const n=nearest(S.bots,82);if(!n){toast('An operative must be within reach.');return}
- n.dead=true;S.killCount++;S.kcd=12;S.bodies.push({name:n.name,color:n.color,x:n.x,y:n.y,skin:n.skin,dead:false});toast(n.name+' ELIMINATED — Find an alibi.');S.warning=Math.max(S.warning,2);
+ n.dead=true;S.killCount++;S.kcd=12;S.flashEffect={x:n.x,y:n.y,t:.7};S.bodies.push({name:n.name,color:n.color,x:n.x,y:n.y,skin:n.skin,dead:false});toast(n.name+' ELIMINATED — Find an alibi.');S.warning=Math.max(S.warning,2);
  if(S.killCount>=3){finish(true,'Three operatives eliminated. Nobody stopped your mission.');return}updateUI();
 }
 function report(){if(S.mode!=='playing'||S.dead)return;const body=nearest(S.bodies,82);if(!body){toast('No evidence in range to report.');return}S.bodies.splice(S.bodies.indexOf(body),1);meeting(S.name+' reported '+body.name+' down in '+placeOf()+'.')}
@@ -278,6 +287,26 @@ $('cast').onclick=()=>resolveVote(false);$('skip').onclick=()=>resolveVote(true)
 $('use').onclick=use;$('kill').onclick=kill;$('report').onclick=report;$('meet').onclick=()=>{if(S.mode==='playing')meeting(S.name+' called an emergency meeting.');};
 function finish(win,message){S.gameWin=win;S.mode='ended';hideScreens();$('endTitle').textContent=win?'MISSION COMPLETE.':'MISSION FAILED.';$('endCopy').textContent=message;$('endStats').textContent=(S.role==='crew'?'SIGNALS '+S.taskCount+'/3':'ELIMINATIONS '+S.killCount) +'    ·    MEETINGS '+S.meetings;reveal('endScreen');$('bottomhud').hidden=true}
 $('again').onclick=()=>{S.mode='lobby';S.player=null;S.bots=[];S.bodies=[];S.camera.ready=false;$('bottomhud').hidden=true;reveal('lobby');$('lobbyRoom').hidden=false;updateUI()};
+function findPath(start,target){
+ // Local A* for touch-to-move: prevents taps from getting stuck behind partitions.
+ const cell=35,cols=Math.ceil(WORLD.w/cell),rows=Math.ceil(WORLD.h/cell);
+ const pos=(x,y)=>({x:(x+.5)*cell,y:(y+.5)*cell});
+ function closest(point){const ci=clamp(Math.floor(point.x/cell),0,cols-1),cj=clamp(Math.floor(point.y/cell),0,rows-1);let best=null,min=Infinity;for(let r=0;r<6;r++){for(let y=cj-r;y<=cj+r;y++)for(let x=ci-r;x<=ci+r;x++){if(x<0||y<0||x>=cols||y>=rows)continue;const p=pos(x,y);if(!validMove(p.x,p.y))continue;const d=Math.hypot(p.x-point.x,p.y-point.y);if(d<min){best={x,y};min=d}}if(best)break}return best}
+ const a=closest(start),b=closest(target);if(!a||!b)return[];
+ const index=(x,y)=>x+y*cols,source=index(a.x,a.y),end=index(b.x,b.y);
+ const nodes=new Map([[source,{index:source,x:a.x,y:a.y,g:0,f:0,parent:null}]]),open=[nodes.get(source)],closed=new Set();
+ const dirs=[[1,0],[-1,0],[0,1],[0,-1],[1,1],[-1,1],[1,-1],[-1,-1]];
+ let steps=0;while(open.length&&steps++<2800){open.sort((u,v)=>u.f-v.f);const curr=open.shift();if(closed.has(curr.index))continue;if(curr.index===end){const path=[];let n=curr;while(n&&n.parent!==null){path.push(pos(n.x,n.y));n=nodes.get(n.parent)}path.reverse();if(validMove(target.x,target.y))path.push(target);return path}closed.add(curr.index);
+  for(const [dx,dy] of dirs){const x=curr.x+dx,y=curr.y+dy,k=index(x,y);if(x<0||y<0||x>=cols||y>=rows||closed.has(k))continue;
+   const p=pos(x,y),prev=pos(curr.x,curr.y);
+   if(!validMove(p.x,p.y)||!validMove((p.x+prev.x)/2,(p.y+prev.y)/2))continue;
+   if(dx&&dy){if(!validMove(pos(curr.x+dx,curr.y).x,pos(curr.x+dx,curr.y).y)||!validMove(pos(curr.x,curr.y+dy).x,pos(curr.x,curr.y+dy).y))continue}
+   const g=curr.g+Math.hypot(dx,dy),candidate=nodes.get(k);if(candidate&&candidate.g<=g)continue;
+   const node={index:k,x,y,g,f:g+Math.hypot(x-b.x,y-b.y),parent:curr.index};nodes.set(k,node);open.push(node)
+  }
+ }
+ return[];
+}
 function movement(dt){if(!S.player)return;
  let dx=0,dy=0;const k=S.keys;
  if(k.has('w')||k.has('ArrowUp'))dy--;
@@ -285,7 +314,8 @@ function movement(dt){if(!S.player)return;
  if(k.has('a')||k.has('ArrowLeft'))dx--;
  if(k.has('d')||k.has('ArrowRight'))dx++;
  if(Math.abs(S.joy.x)+Math.abs(S.joy.y)>.08){dx=S.joy.x;dy=S.joy.y}
- if(dx||dy){S.goal=null;const length=Math.hypot(dx,dy);dx/=length;dy/=length}
+ if(dx||dy){S.goal=null;S.path=[];const length=Math.hypot(dx,dy);dx/=length;dy/=length}
+ else if(S.path?.length){const step=S.path[0];const a=step.x-S.player.x,b=step.y-S.player.y,len=Math.hypot(a,b);if(len<13)S.path.shift();else{dx=a/len;dy=b/len}}
  else if(S.goal){const a=S.goal.x-S.player.x,b=S.goal.y-S.player.y,length=Math.hypot(a,b);if(length<12)S.goal=null;else{dx=a/length;dy=b/length}}
  const speed=215;S.player.vx=dx;S.player.vy=dy;
  if(dx||dy){changePosition(S.player,S.player.x+dx*dt*speed,S.player.y+dy*dt*speed)}
@@ -298,7 +328,7 @@ function movement(dt){if(!S.player)return;
 }
 function tick(now){if(!S.last)S.last=now;const dt=Math.min(.05,(now-S.last)/1000);S.last=now;S.frame++;
  if(S.mode==='playing'){
-  S.time=Math.max(0,S.time-dt);S.kcd=Math.max(0,S.kcd-dt);S.warning=Math.max(0,S.warning-dt);S.elapsed+=dt;S.aiTimer+=dt;
+  S.time=Math.max(0,S.time-dt);S.kcd=Math.max(0,S.kcd-dt);if(S.flashEffect)S.flashEffect.t-=dt;S.warning=Math.max(0,S.warning-dt);S.elapsed+=dt;S.aiTimer+=dt;
   movement(dt);
   if(S.role==='crew'&&S.aiTimer>=23){S.aiTimer=0;const murderer=S.bots.find(b=>b.imposter&&!b.dead),victims=S.bots.filter(b=>!b.imposter&&!b.dead);
    if(murderer&&victims.length){const v=choose(victims);v.dead=true;S.bodies.push({name:v.name,color:v.color,skin:v.skin,x:v.x,y:v.y,dead:false});toast('A DISTRESS SIGNAL WAS DETECTED');}
@@ -324,6 +354,6 @@ stick.addEventListener('pointermove',e=>{if(e.pointerId===stickId)joyMove(e)});
 function joyMove(e){const r=stick.getBoundingClientRect(),size=r.width*.29;let dx=e.clientX-r.left-r.width/2,dy=e.clientY-r.top-r.height/2;const length=Math.hypot(dx,dy);if(length>size){dx=dx/length*size;dy=dy/length*size}S.joy={x:dx/size,y:dy/size};knob.style.transform=`translate(${dx}px,${dy}px)`}
 function joyEnd(e){if(e.pointerId!==stickId)return;stickId=null;S.joy={x:0,y:0};knob.style.transform='translate(0,0)'}
 stick.addEventListener('pointerup',joyEnd);stick.addEventListener('pointercancel',joyEnd);
-canvas.addEventListener('pointerdown',e=>{if(S.mode!=='playing')return;const r=canvas.getBoundingClientRect();S.goal={x:(e.clientX-r.left-S.camera.x)/S.zoom,y:(e.clientY-r.top-S.camera.y)/S.zoom};S.goal.x=clamp(S.goal.x,80,WORLD.w-80);S.goal.y=clamp(S.goal.y,164,WORLD.h-85)});
+canvas.addEventListener('pointerdown',e=>{if(S.mode!=='playing')return;const r=canvas.getBoundingClientRect();S.goal={x:(e.clientX-r.left-S.camera.x)/S.zoom,y:(e.clientY-r.top-S.camera.y)/S.zoom};S.goal.x=clamp(S.goal.x,80,WORLD.w-80);S.goal.y=clamp(S.goal.y,164,WORLD.h-85);S.path=findPath(S.player,S.goal);if(!S.path.length)toast('No safe route found. Try a closer floor tile.');S.goal=null});
 resize();updateUI();requestAnimationFrame(tick);
 })();
