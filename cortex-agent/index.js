@@ -1748,7 +1748,7 @@ function presentAccountSlots(state) {
     ...state,
     accounts: state.accounts.map(a => {
       if (!a || typeof a !== 'object') return a;
-      const idMatch = /^account-(\\d+)$/.exec(String(a.id || ''));
+      const idMatch = /^account-(\d+)$/.exec(String(a.id || ''));
       const fallbackName = idMatch ? 'Account ' + idMatch[1] : '';
       if (!fallbackName || a.displayName !== fallbackName) return a;
       return { ...a, displayName: 'Account ' + positions.get(a.id) };
