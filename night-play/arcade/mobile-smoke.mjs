@@ -1,0 +1,57 @@
+import assert from "node:assert/strict";
+import {createServer} from "node:http";
+import {readFileSync} from "node:fs";
+import path from "node:path";
+import {fileURLToPath} from "node:url";
+import {chromium} from "playwright";
+const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),"..");
+const assets={"/arcade/":"arcade/index.html","/arcade":"arcade/index.html","/arcade/style.css":"arcade/style.css","/arcade/games.js":"arcade/games.js","/games":"index.html"};
+const server=createServer((req,res)=>{const file=assets[new URL(req.url,"http://localhost").pathname];if(!file){res.writeHead(404);res.end();return;}const kind=file.endsWith(".js")?"text/javascript":file.endsWith(".css")?"text/css":"text/html";res.writeHead(200,{"content-type":kind});res.end(readFileSync(path.join(root,file)));});
+await new Promise(resolve=>server.listen(0,"127.0.0.1",resolve));const url="http://127.0.0.1:"+server.address().port;
+let browser;try{
+browser=await chromium.launch({headless:true,channel:"chrome",args:["--no-sandbox"]});
+const page=await browser.newPage({viewport:{width:390,height:844},isMobile:true,hasTouch:true});const errors=[];
+page.on("pageerror",e=>errors.push(String(e)));
+await page.goto(url+"/arcade/?game=bird");await page.locator("canvas").waitFor();
+assert.equal(await page.locator("#title").innerText(),"Wing Hop");
+await page.locator('button[data-control="flap"]').click();
+assert.equal(await page.evaluate(()=>window.__nightArcadeTest.snapshot().started),true,"flapping starts physics");
+await page.locator("#restart").click();
+assert.equal(await page.evaluate(()=>window.__nightArcadeTest.snapshot().started),false,"restart resets bird");
+await page.locator('[data-game="blocks"]').click();
+assert.equal(await page.locator("#title").innerText(),"Block Drop");
+const initial=await page.evaluate(()=>[state.cur.x,state.cur.y]);
+await page.locator('[data-control="left"]').click();assert.equal(await page.evaluate(()=>window.__nightArcadeTest.snapshot().cur.x),initial[0]-1);
+await page.locator('[data-control="drop"]').click();
+assert.ok(await page.evaluate(()=>window.__nightArcadeTest.snapshot().grid.flat().some(x=>x!==null)),"hard-drop locks shape");
+await page.locator('[data-game="mines"]').click();
+assert.equal(await page.locator("#mineboard button").count(),81);
+await page.locator('[data-tile="40"]').click();
+assert.equal(await page.evaluate(()=>window.__nightArcadeTest.snapshot().started),true,"first reveal plants mines");
+assert.equal(await page.evaluate(()=>window.__nightArcadeTest.snapshot().cells[40]),0,"first reveal keeps 3x3 clear");
+assert.equal(await page.evaluate(()=>window.__nightArcadeTest.flags().finished),false,"first tap cannot lose");
+await page.locator('[data-control="flag"]').first().click();
+const covered=await page.evaluate(()=>window.__nightArcadeTest.snapshot().open.findIndex((v,i)=>!v&&!state.flags[i]));
+await page.locator('[data-tile="'+covered+'"]').click();
+assert.equal(await page.evaluate(i=>window.__nightArcadeTest.snapshot().flags[i],covered),true,"flag mode marks cell");
+await page.locator('[data-game="maze"]').click();
+assert.equal(await page.locator("#title").innerText(),"Maze Chase");
+assert.equal(await page.evaluate(()=>window.__nightArcadeTest.snapshot().walls.length),21);
+assert.ok(await page.evaluate(()=>window.__nightArcadeTest.snapshot().total)>100);
+await page.locator('[data-control="down"]').click();
+assert.deepEqual(await page.evaluate(()=>window.__nightArcadeTest.snapshot().p.dir),[0,1]);
+await page.locator('[data-control="pause"]').click();
+assert.equal(await page.evaluate(()=>window.__nightArcadeTest.flags().paused),true);
+for(const name of ["bird","blocks","mines","maze"]){
+  await page.goto(url+"/arcade/?game="+name);
+  assert.equal(await page.locator("#picks [aria-current=true]").getAttribute("data-game"),name);
+  assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+2),"no sideways scroll on phone: "+name);
+}
+await page.goto(url+"/games");await page.locator("#view-games").waitFor({state:"visible"});
+assert.equal(await page.locator("[data-arcade]").count(),4,"all four in current library");
+await page.locator('[data-arcade="mines"]').click();
+await page.waitForURL("**/arcade/?game=mines");
+assert.equal(await page.locator("#mineboard button").count(),81);
+assert.deepEqual(errors,[],"no browser exceptions");
+console.log("PASS NIGHT arcade: 4 playable responsive original games; physics, touch, hard-drop, safe mines, flags, mazes, routing");
+}finally{if(browser)await browser.close();await new Promise(resolve=>server.close(resolve));}

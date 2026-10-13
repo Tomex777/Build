@@ -2,6 +2,22 @@
   "version": 2,
   "rewrites": [
     {
+      "source": "/arcade",
+      "destination": "/arcade/index.html"
+    },
+    {
+      "source": "/arcade/",
+      "destination": "/arcade/index.html"
+    },
+    {
+      "source": "/club",
+      "destination": "/club/index.html"
+    },
+    {
+      "source": "/club/",
+      "destination": "/club/index.html"
+    },
+    {
       "source": "/play/:game",
       "destination": "/index.html"
     },

@@ -38,6 +38,10 @@ jobs:
         run: npm install --no-save playwright@1.56.1
       - name: Exercise mobile interactions
         run: node night-play/browser-smoke.mjs
+      - name: Verify mobile Ludo, property trading, card games, drawing, snakes and draughts
+        run: node night-play/club/mobile-smoke.mjs
+      - name: Verify four mobile arcade games
+        run: node night-play/arcade/mobile-smoke.mjs
       - name: Capture mobile board visual diagnostics
         run: node night-play/visual-inspect.mjs
       - name: Upload game screenshots
