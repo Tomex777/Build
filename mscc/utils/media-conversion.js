@@ -8,9 +8,18 @@ import { normalizeJid } from './whatsapp/jid.js'
 import { applyStickerMetadata } from './sticker-metadata.js'
 
 export const STICKER_CANVAS = 512
+// Nexia_bot.zip: utils/stickerUtils.js uses a 20px rounded-square alpha mask.
+// Preserve the original shape rather than guessing a larger corner radius.
+export const STICKER_CORNER_RADIUS = 20
+const STICKER_CORNER_END = STICKER_CANVAS - STICKER_CORNER_RADIUS
+const STICKER_CORNER_RADIUS_SQUARED = STICKER_CORNER_RADIUS ** 2
 export const STICKER_FIT_FILTER =
-  'scale=512:512:force_original_aspect_ratio=increase:flags=lanczos,' +
-  'crop=512:512,setsar=1'
+  `scale=${STICKER_CANVAS}:${STICKER_CANVAS}:force_original_aspect_ratio=increase,` +
+  `crop=${STICKER_CANVAS}:${STICKER_CANVAS},format=rgba,` +
+  "geq=r='r(X,Y)':g='g(X,Y)':b='b(X,Y)':" +
+  `a='if(lte(pow(max(${STICKER_CORNER_RADIUS}-X,max(X-${STICKER_CORNER_END},0)),2)+` +
+  `pow(max(${STICKER_CORNER_RADIUS}-Y,max(Y-${STICKER_CORNER_END},0)),2),` +
+  `${STICKER_CORNER_RADIUS_SQUARED}),alpha(X,Y),0)',setsar=1`
 
 const MAX_STICKER_BYTES = 900 * 1024
 const MAX_INPUT_BYTES = 32 * 1024 * 1024
