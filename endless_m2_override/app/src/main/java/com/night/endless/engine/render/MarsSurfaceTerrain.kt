@@ -69,7 +69,10 @@ class MarsSurfaceTerrain {
     }
 
     companion object {
+        @Volatile var elevationPatch: MeasuredElevationPatch? = null
+
         fun heightAt(x: Double, z: Double): Double {
+            elevationPatch?.heightAt(x, z)?.let { return it + 0.003 * sin(x * 9.0 + z * 4.0) * cos(z * 11.0 - x * 1.7) }
             val broad = 0.16 * sin(x * 0.36) * cos(z * 0.29)
             val ridges = 0.09 * sin(x * 1.08 + cos(z * 0.44)) * cos(z * 0.83)
             val ripples = 0.035 * sin(x * 2.6 + z * 1.7) * cos(z * 2.1 - x * 0.8)
