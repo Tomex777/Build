@@ -31,7 +31,7 @@ private data class GameStats(val quizzes: Int, val correct: Int, val bestStreak:
 fun GamesScreen(modifier: Modifier = Modifier, library: List<LibraryEntry>) {
     var selectedGame by rememberSaveable { mutableStateOf("") }
     if (selectedGame != "quiz") {
-        SoraArcadePage(selectedGame, onSelect = { selectedGame = it }, modifier = modifier)
+        SoraArcadePage(selectedGame, onSelect = { selectedGame = it }, library = library, modifier = modifier)
         return
     }
     val context = LocalContext.current
