@@ -1,13 +1,15 @@
 package com.night.endless.engine.render
 
+import android.content.Context
 import android.opengl.GLES30
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.nio.FloatBuffer
 import java.nio.ShortBuffer
 
-class MoonSurfaceTerrain {
+class MoonSurfaceTerrain(private val context: Context) {
     private val program: Int
+    private val landingPhotoTexture: Int
     private val vertices: FloatBuffer
     private val indices: ShortBuffer
     private val indexCount: Int
@@ -21,6 +23,7 @@ class MoonSurfaceTerrain {
             .asShortBuffer().apply { put(mesh.indices); position(0) }
         indexCount = mesh.indices.size
         program = createProgram(SurfaceMaterialShaders.VERTEX, SurfaceMaterialShaders.FRAGMENT)
+        landingPhotoTexture = LandingPhotoTexture.load(context, "moon")
     }
 
     fun draw(vp: FloatArray, offsetX: Float, offsetZ: Float) {
@@ -29,6 +32,7 @@ class MoonSurfaceTerrain {
         GLES30.glUniform2f(GLES30.glGetUniformLocation(program, "uOffset"), offsetX, offsetZ)
         GLES30.glUniform1f(GLES30.glGetUniformLocation(program, "uPlanetRadiusUnits"), 1737.4f / 3.0f)
         GLES30.glUniform1i(GLES30.glGetUniformLocation(program, "uWorld"), 1)
+        LandingPhotoTexture.bind(program, landingPhotoTexture)
         GLES30.glUniform2f(
             GLES30.glGetUniformLocation(program, "uViewAnchor"), -offsetX, -offsetZ
         )
