@@ -34,10 +34,10 @@ const declared = new Set([...html.matchAll(/id="([^"]+)"/g)].map(x=>x[1]))
 for(const id of [...html.matchAll(/getElementById\("([^"]+)"\)/g)].map(x=>x[1])){
  assert.ok(declared.has(id)||dynamicIds.has(id), 'missing element '+id)
 }
-const engine= scripts[0].split('function isWin(b,m)')[1].split('function botMoveTtt()')[0]
+const engine = 'function minimaxTtt('+scripts[0].split('function minimaxTtt(')[1].split('function botMoveTtt()')[0]
 const sandbox={};vm.runInNewContext('const isWin = (b,m)=>'+
  '[[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]].some(line=>line.every(i=>b[i]===m));\n'+
- 'function minimaxTtt'+engine+'this.evalMove=(b,mark)=>minimaxTtt(b,mark);',sandbox)
+ engine+'this.evalMove=(b,mark)=>minimaxTtt(b,mark);',sandbox)
 assert.equal(sandbox.evalMove(['X','X','X','','','','','',''],'O'), -10)
 assert.equal(sandbox.evalMove(['O','O','O','','','','','',''],'X'), 10)
 const full=['X','O','X','X','O','O','O','X','X']
