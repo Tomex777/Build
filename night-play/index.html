@@ -34,8 +34,8 @@ hr{border:0;border-top:1px solid var(--line);margin:24px 0}
 @media(prefers-reduced-motion:reduce){*,*:before,*:after{scroll-behavior:auto!important;transition:none!important}}
 
 /* NIGHT PLAY V2 — immersive, single-route game views */
-html,body{min-height:100%;overscroll-behavior-y:none}
-body.in-game{overflow:hidden;touch-action:pan-x pan-y}
+html,body{min-height:100%}
+body.in-game{overflow:hidden;overscroll-behavior-y:none;touch-action:pan-x pan-y}
 a[href="#connect"]{display:none}
 .hero{padding-bottom:50px}
 .hero h1{max-width:720px}
@@ -55,7 +55,7 @@ a[href="#connect"]{display:none}
 .game-page .board2048,.game-page .tttboard{width:min(79vw,53dvh,510px);max-width:100%;touch-action:none;overscroll-behavior:contain}
 .game-page .tttboard button{touch-action:manipulation}
 .game-page .modal-actions{margin:15px auto 0;justify-content:center;gap:8px}
-.game-page .modal-actions .btn{padding:12px 16px}
+.game-page .modal-actions .btn{padding:12px 16px}.game-page .modal-actions .btn[hidden]{display:none}
 .game-page .dpad{margin-top:14px}
 .game-page .dpad button{touch-action:manipulation;user-select:none}
 .game-page .dpad button:active{background:#bbb}
@@ -145,7 +145,7 @@ document.getElementById("pauseGame").addEventListener("click",()=>{
 document.addEventListener("visibilitychange",()=>{
  if(document.hidden&&gameDialog.open&&active==="snake"){gamePaused=true;document.getElementById("pauseGame").textContent="Resume ▶"}
 });
-function exitGame(){if(gameDialog.open)gameDialog.close();if(location.pathname.startsWith("/play/"))history.pushState({},"","/")}
+function exitGame(){if(gameDialog.open)gameDialog.close();if(location.pathname.startsWith("/play/"))history.replaceState({},"","/")}
 
 document.getElementById("restart").addEventListener("click",()=>openGame(active,{push:false,fresh:true}));
 function openGame(kind,{push=true,fresh=false}={}){
@@ -155,6 +155,7 @@ function openGame(kind,{push=true,fresh=false}={}){
  if(kind==="snake"){help.textContent="Swipe the board, tap the arrows or use your keyboard. Pause is automatic if you switch apps.";initSnake(fresh)}
  if(kind==="2048"){help.textContent="Slide matching tiles together. Your board is automatically saved after every move.";init2048(fresh)}
  if(kind==="ttt"){help.textContent="Play against NIGHT's bot or someone beside you. Online multiplayer is coming later.";initTtt(fresh)}
+ document.getElementById("pauseGame").hidden=(kind==="ttt")
 }
 function initSnake(fresh=false){
  const size=18,c=document.createElement("canvas");c.id="snakeCanvas";c.width=360;c.height=360;
@@ -185,10 +186,13 @@ function stepSnake(){
  if(p.x<0||p.y<0||p.x>=snake.size||p.y>=snake.size||check.some(x=>x.x===p.x&&x.y===p.y)){snake.alive=false;localStorage.removeItem("night-play-save-snake");clearInterval(snakeTimer);snakeTimer=null;drawSnake();return}
  snake.body.unshift(p);if(!eating)snake.body.pop();else{snake.score+=10;record("snake",snake.score);snake.food=food();document.getElementById("score").textContent=snake.score;document.getElementById("best").textContent=best("snake")}localStorage.setItem("night-play-save-snake",JSON.stringify({size:snake.size,body:snake.body,dir:snake.dir,next:snake.next,food:snake.food,score:snake.score,alive:snake.alive}));drawSnake();
 }
-function initTtt(){
- ttt=Array(9).fill("");turn="X";tttFinished=false;
+function initTtt(fresh=false){
+ const saved=!fresh?JSON.parse(localStorage.getItem("night-play-save-ttt")||"null"):null;
+ ttt=saved&&Array.isArray(saved.board)&&saved.board.length===9?saved.board:Array(9).fill("");
+ turn=saved?.turn==="O"?"O":"X";tttFinished=Boolean(saved?.finished);mode=saved?.mode==="local"?"local":"bot";
+ if(fresh)localStorage.removeItem("night-play-save-ttt");
  root.innerHTML='<div class="scorebar"><span id="turnlabel">Your turn · X</span><span class="right"><button class="btn light" id="modeBtn">VS BOT</button></span></div><div class="tttboard" id="tttboard"></div>';
- document.getElementById("modeBtn").onclick=()=>{mode=mode==="bot"?"local":"bot";initTtt()};
+ document.getElementById("modeBtn").onclick=()=>{const next=mode==="bot"?"local":"bot";initTtt(true);mode=next;drawTtt()};
  drawTtt();
 }
 function isWin(b,m){return [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]].some(line=>line.every(i=>b[i]===m))}
@@ -199,7 +203,7 @@ function drawTtt(){
  const board=document.getElementById("tttboard");board.innerHTML="";
  ttt.forEach((value,i)=>{const b=document.createElement("button");b.textContent=value;b.disabled=Boolean(value)||tttFinished||(mode==="bot"&&turn==="O");b.setAttribute("aria-label","cell "+(i+1));b.onclick=()=>moveTtt(i);board.appendChild(b)});
 }
-function moveTtt(i){if(active!=="ttt"||tttFinished||ttt[i])return;ttt[i]=turn;if(isWin(ttt,turn)||!ttt.includes(""))tttFinished=true;else turn=turn==="X"?"O":"X";drawTtt();
+function moveTtt(i){if(active!=="ttt"||tttFinished||ttt[i]||gamePaused)return;ttt[i]=turn;if(isWin(ttt,turn)||!ttt.includes(""))tttFinished=true;else turn=turn==="X"?"O":"X";localStorage.setItem("night-play-save-ttt",JSON.stringify({board:ttt,turn,finished:tttFinished,mode}));drawTtt();
  if(mode==="bot"&&!tttFinished&&turn==="O"){setTimeout(()=>{if(active!=="ttt"||turn!=="O"||tttFinished)return;const moves=ttt.map((v,i)=>v?-1:i).filter(v=>v>=0);
  function winMove(token){return moves.find(i=>{const cp=[...ttt];cp[i]=token;return isWin(cp,token)})}
  const pick=winMove("O")??winMove("X")??(moves.includes(4)?4:moves[Math.floor(Math.random()*moves.length)]);moveTtt(pick)},260)}
