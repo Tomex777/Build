@@ -78,6 +78,60 @@ class AnnieCanvasMessageTest {
         Log.i("AnnieCanvasTest", stage)
     }
 
+    @Test fun webGlShadersDrawReadPixelsAndSurviveFullscreen() {
+        val payload = JSONObject().put("type", "canvas").put("title", "WebGL proof")
+            .put("html", "<canvas id='gl' width='64' height='64'></canvas>")
+            .put("javascript", """
+                try {
+                  const canvas = document.getElementById('gl');
+                  const gl = canvas.getContext('webgl', {preserveDrawingBuffer:true});
+                  if (!gl) throw new Error('WebGL context unavailable');
+                  function shader(type, source) {
+                    const value = gl.createShader(type); gl.shaderSource(value, source); gl.compileShader(value);
+                    if (!gl.getShaderParameter(value, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(value));
+                    return value;
+                  }
+                  const program = gl.createProgram();
+                  gl.attachShader(program, shader(gl.VERTEX_SHADER, 'attribute vec2 p; void main(){gl_Position=vec4(p,0.0,1.0);}'));
+                  gl.attachShader(program, shader(gl.FRAGMENT_SHADER, 'precision mediump float; void main(){gl_FragColor=vec4(0.0,1.0,0.0,1.0);}'));
+                  gl.linkProgram(program);
+                  if (!gl.getProgramParameter(program, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(program));
+                  gl.useProgram(program); gl.bindBuffer(gl.ARRAY_BUFFER, gl.createBuffer());
+                  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1,3,-1,-1,3]), gl.STATIC_DRAW);
+                  const location=gl.getAttribLocation(program,'p'); gl.enableVertexAttribArray(location);
+                  gl.vertexAttribPointer(location,2,gl.FLOAT,false,0,0);
+                  window.drawProof = function(size) {
+                    canvas.width=size; canvas.height=size; gl.viewport(0,0,size,size);
+                    gl.drawArrays(gl.TRIANGLES,0,3);
+                    const pixel=new Uint8Array(4); gl.readPixels(size/2,size/2,1,1,gl.RGBA,gl.UNSIGNED_BYTE,pixel);
+                    if (gl.getError() !== gl.NO_ERROR) throw new Error('WebGL rendering error');
+                    return Array.from(pixel).join(',');
+                  };
+                  window.glPixel = drawProof(64); window.glReady=true;
+                } catch(error) { window.glFailure=String(error); window.glReady=true; }
+            """.trimIndent())
+        compose.setContent { AnnieTheme { AnnieCanvasMessage(payload) } }
+        compose.onNodeWithTag("annie_canvas_webview").assertIsDisplayed()
+        lateinit var web: WebView
+        compose.runOnIdle { web = findCanvasWebView(compose.activity.window.decorView) ?: error("No Canvas") }
+        compose.waitUntil(12_000) { eval(web, "window.glReady") == "true" }
+        assertEquals("WebGL failure: " + eval(web, "window.glFailure"), "\"0,255,0,255\"", eval(web, "window.glPixel"))
+        assertEquals("\"0,255,0,255\"", eval(web, "drawProof(128)"))
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+        val monitor = instrumentation.addMonitor(AnnieCanvasActivity::class.java.name, null, false)
+        var fullscreen: AnnieCanvasActivity? = null
+        try {
+            compose.onNodeWithTag("annie_canvas_fullscreen").performClick()
+            fullscreen = instrumentation.waitForMonitorWithTimeout(monitor, 8000) as? AnnieCanvasActivity
+            assertNotNull("Canvas did not expand", fullscreen)
+            assertEquals("\"0,255,0,255\"", eval(web, "drawProof(32)"))
+            assertEquals("\"undefined\"", eval(web, "typeof annie"))
+        } finally {
+            fullscreen?.let { activity -> instrumentation.runOnMainSync { activity.finish() } }
+            instrumentation.removeMonitor(monitor)
+        }
+    }
+
     @Test fun interactiveCanvasRunsOfflineAndRetainsItsWebViewAcrossFullscreen() {
         val instrumentation = InstrumentationRegistry.getInstrumentation()
         val payload = JSONObject()

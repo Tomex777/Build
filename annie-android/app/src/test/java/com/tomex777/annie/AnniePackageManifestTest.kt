@@ -42,10 +42,10 @@ class AnniePackageManifestTest {
     }
 
     @Test fun incompatibleOrMalformedVersionFieldsAreImportErrorsWithAFix() {
-        rejects(manifest { put("apiVersion", "2") }, "supports up to 1")
+        rejects(manifest { put("apiVersion", "3") }, "supports up to 2")
         rejects(manifest { put("apiVersion", "0") }, "whole number")
         rejects(manifest { put("apiVersion", "1.0") }, "whole number")
-        rejects(manifest { put("requires", JSONObject().put("annie", ">=2")) }, "provides API 1")
+        rejects(manifest { put("requires", JSONObject().put("annie", ">=3")) }, "provides API 2")
         rejects(manifest { put("requires", JSONObject().put("annie", "^1")) }, "not a valid range")
     }
 

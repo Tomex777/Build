@@ -2,7 +2,7 @@ name: Annie Studio and image editing acceptance
 
 on:
   push:
-    branches: [annie-rc-file-types-20261011, annie-studio-image-save-safety-20261012, annie-studio-back-save-safety-20261012]
+    branches: [annie-typescript-runtime-20261013, annie-rc-file-types-20261011, annie-studio-image-save-safety-20261012, annie-studio-back-save-safety-20261012]
     paths:
       - 'annie-android/**'
       - '.github/workflows/annie-file-types.yml'
@@ -36,6 +36,12 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+      - run: python3 -m unittest discover -s annie-android/tests -v
+      - run: python3 annie-android/scripts/vendor-typescript.py
+      - run: node --test test/typescript-runtime.test.mjs test/message-stream.test.mjs
       - run: npm install -g typescript@5.9.3
       - name: Validate overlay, run JVM tests and compile device tests
         shell: bash

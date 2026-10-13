@@ -22,6 +22,7 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.Annie">
+        <service android:name=".GuestRuntimeService" android:process=":guestRuntime" android:exported="false" />
         <activity
             android:name=".MainActivity"
             android:theme="@style/Theme.Annie.Starting"

@@ -1,4 +1,5 @@
 plugins {
+    id("com.chaquo.python")
     id("com.android.application")
     id("org.jetbrains.kotlin.plugin.compose")
 }
@@ -13,6 +14,7 @@ android {
         targetSdk = 36
         versionCode = 1
         versionName = "1.0.0"
+        ndk { abiFilters += listOf("arm64-v8a", "x86_64") }
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
@@ -33,7 +35,10 @@ android {
     }
 }
 
+chaquopy { defaultConfig { version = "3.10" } }
+
 dependencies {
+    implementation("org.luaj:luaj-jse:3.0.1")
     implementation(platform("androidx.compose:compose-bom:2025.01.00"))
     implementation("androidx.activity:activity-compose:1.10.0")
     implementation("androidx.webkit:webkit:1.17.1")
@@ -76,3 +81,9 @@ dependencies {
     androidTestImplementation("androidx.compose.ui:ui-test-junit4")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
 }
+
+// Bundle the pinned compiler before asset merging; no runtime downloads are required.
+val prepareTypeScript by tasks.registering(Exec::class) {
+    commandLine("python3", rootProject.file("scripts/vendor-typescript.py").absolutePath)
+}
+tasks.matching { it.name == "preBuild" }.configureEach { dependsOn(prepareTypeScript) }

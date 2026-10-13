@@ -152,4 +152,18 @@ interface Annie {
      */
     update(id: string, message: AnnieMessage): Promise<AnnieMessageHandle>;
   };
+  ai: {
+    /**
+     * Registry operation ai.generate.
+     * Uses the host's configured AI provider. Scripts never receive its API key.
+     * @throws AnnieError CANCELLED, FOREGROUND_REQUIRED, HOST_NOT_ALLOWED, INTERNAL, INVALID_ARGUMENT, NETWORK_ERROR, NOT_A_PACKAGE, NOT_DECLARED, NOT_FOUND, NOT_GRANTED, RATE_LIMITED, RESOURCE_LIMIT, TIMEOUT, UNAVAILABLE, UNSUPPORTED
+     */
+    generate(prompt: string): Promise<{ text: string }>;
+    /**
+     * Registry operation ai.stream.
+     * Uses the host's configured AI provider. Scripts never receive its API key.
+     * @throws AnnieError CANCELLED, FOREGROUND_REQUIRED, HOST_NOT_ALLOWED, INTERNAL, INVALID_ARGUMENT, NETWORK_ERROR, NOT_A_PACKAGE, NOT_DECLARED, NOT_FOUND, NOT_GRANTED, RATE_LIMITED, RESOURCE_LIMIT, TIMEOUT, UNAVAILABLE, UNSUPPORTED
+     */
+    stream(prompt: string): Promise<AnnieMessageHandle>;
+  };
 }

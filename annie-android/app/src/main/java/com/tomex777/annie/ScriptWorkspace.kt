@@ -154,7 +154,7 @@ internal class ScriptFiles(context: Context) : PackageAssetResolver {
     fun readProject(file: File): ScriptProject? = runCatching {
         if (!file.canonicalFile.toPath().startsWith(root.canonicalFile.toPath())) return null
         val relative = file.relativeTo(root).invariantSeparatorsPath
-        if (!file.isDirectory && !file.extension.equals("js", ignoreCase = true)) return null
+        if (!file.isDirectory && !isExecutableScript(file.name)) return null
         val sourceFiles = linkedMapOf<String, String>()
         if (file.isDirectory) {
             file.walkTopDown().filter { it.isFile && isProjectTextFile(it) }
@@ -162,12 +162,12 @@ internal class ScriptFiles(context: Context) : PackageAssetResolver {
         } else {
             sourceFiles[file.name] = file.readText()
         }
-        val id = relative.removeSuffix(".js")
+        val id = if (file.isDirectory) relative else file.nameWithoutExtension
         val importedManifest = if (file.isDirectory) {
             AnniePackageArchive.readManifestIfPresent(file, id, file.nameWithoutExtension, sourceFiles.keys)
         } else null
         val entryRelative = importedManifest?.entryPoint ?: if (file.isDirectory) {
-            "main.js".takeIf { it in sourceFiles } ?: sourceFiles.keys.singleOrNull() ?: return null
+            "main.js".takeIf { it in sourceFiles } ?: "main.ts".takeIf { it in sourceFiles } ?: "main.py".takeIf { it in sourceFiles } ?: "main.lua".takeIf { it in sourceFiles } ?: sourceFiles.keys.filter(::isExecutableScript).singleOrNull() ?: return null
         } else file.name
         if (entryRelative !in sourceFiles) return null
         ScriptProject(
@@ -199,15 +199,18 @@ internal class ScriptFiles(context: Context) : PackageAssetResolver {
         }
         if (stack.isEmpty() || stack.any { it.startsWith('.') && it == ".." }) return null
         val resolved = stack.joinToString("/")
-        return if (resolved.endsWith(".js", ignoreCase = true)) "$prefix$resolved" else "$prefix$resolved.js"
+        return if (isExecutableScript(resolved)) "$prefix$resolved" else "$prefix$resolved.js"
     }
 
     fun createScript(name: String): File {
-        val safe = validateName(name, ".js")
+        val suffix = name.substringAfterLast('.', "").lowercase().takeIf { it in setOf("ts", "py", "lua") }?.let { ".$it" } ?: ".js"
+        val safe = validateName(name, suffix)
         return File(root, safe).apply {
             require(!exists()) { "A script with this name already exists" }
-            writeText("""annie.commands.register({
-                |  name: "${safe.removeSuffix(".js")}",
+            writeText(if (suffix == ".py") "def main(ctx):\n    return {\"type\": \"text\", \"text\": \"Hello from Python\"}\n"
+                else if (suffix == ".lua") "function main(ctx)\n  return {type = \"text\", text = \"Hello from Lua\"}\nend\n"
+                else """annie.commands.register({
+                |  name: "${safe.removeSuffix(suffix)}",
                 |  description: "My command",
                 |  async execute(ctx) {
                 |    return { type: "text", text: "Hello from JavaScript" };
@@ -341,10 +344,10 @@ internal class ScriptFiles(context: Context) : PackageAssetResolver {
         val starter = when (target.extension.lowercase()) {
             "js" -> "// Annie JavaScript module\n"
             "py" -> "# Python source (execution runtime not installed yet)\n"
-            "lua" -> "-- Lua source (execution runtime not installed yet)\n"
+            "lua" -> "-- Lua source (Lua 5.2 computation runtime)\n"
             "html" -> "<!doctype html>\n<html lang=\"en\"><head><meta charset=\"utf-8\"></head><body></body></html>\n"
             "css" -> "/* Project styles */\n"
-            "ts" -> "// TypeScript source (compilation runtime not installed yet)\n"
+            "ts" -> "// TypeScript source (compiled offline before execution)\n"
             else -> ""
         }
         target.writeText(starter)
@@ -368,7 +371,7 @@ internal class ScriptFiles(context: Context) : PackageAssetResolver {
     fun renameProject(projectId: String, newName: String): String {
         val source = resolveProjectContainer(projectId)
         val normalized = validateName(newName, "")
-        val destination = if (source.isDirectory) File(root, normalized) else File(root, "$normalized.js")
+        val destination = if (source.isDirectory) File(root, normalized) else File(root, "$normalized.${source.extension}")
         require(!destination.exists()) { "A script project with this name already exists" }
         val wasEnabled = isEnabled(projectId)
         require(source.renameTo(destination)) { "Could not rename script project" }
@@ -432,6 +435,12 @@ internal class ScriptFiles(context: Context) : PackageAssetResolver {
         if (directory.isDirectory) return directory
         val standalone = File(root, "$projectId.js").canonicalFile
         if (standalone.isFile) return standalone
+        val typescript = File(root, "$projectId.ts").canonicalFile
+        if (typescript.isFile) return typescript
+        for (extension in listOf("py", "lua")) {
+            val guest = File(root, "$projectId.$extension").canonicalFile
+            if (guest.isFile) return guest
+        }
         throw IllegalArgumentException("Script project does not exist")
     }
 
@@ -491,6 +500,7 @@ internal class ScriptRuntime(
     private val lock = Mutex()
     private val registered = linkedMapOf<String, ScriptCommand>()
     private val runtime: QuickJs
+    private var executableFiles: Map<String, String> = emptyMap()
     private var capturedModuleResult: String? = null
     private val envStore = ScriptEnvStore(context, project.id)
     private var envDefinition: ScriptEnvDefinition? = null
@@ -503,7 +513,9 @@ internal class ScriptRuntime(
         val loader = ModuleLoader { normalizedName ->
             if (!normalizedName.startsWith(modulePrefix)) return@ModuleLoader null
             val relative = normalizedName.removePrefix(modulePrefix)
-            project.files[relative]?.let(ModuleContent::Source)
+            val candidates = listOf(relative, "$relative.ts", "$relative.js", "$relative/index.ts", "$relative/index.js") +
+                if (relative.endsWith(".js")) listOf(relative.removeSuffix(".js") + ".ts") else emptyList()
+            candidates.firstNotNullOfOrNull { executableFiles[it] }?.let(ModuleContent::Source)
         }
         runtime = QuickJs.create(Dispatchers.IO, loader)
         runtime.memoryLimit = MAX_RUNTIME_BYTES
@@ -560,6 +572,14 @@ internal class ScriptRuntime(
                 val error = failure.toAnnieError(operation)
                 JSONObject().put("__annieError", error.toPublicJson()).toString()
             }
+        }
+        runtime.asyncFunction("annieRuntimeCall") { args ->
+            val request = JSONObject(args.firstOrNull()?.toString() ?: "{}")
+            val path = request.optString("path")
+            require(path in project.files && path.substringAfterLast('.') in setOf("py", "lua")) { "Choose a package-local Python or Lua file" }
+            val source = project.files.getValue(path)
+            GuestRuntimeClient.run(context, if (path.endsWith(".py")) "python" else "lua", path, source,
+                request.optString("function", "main"), JSONArray().put(request.opt("input") ?: JSONObject.NULL).toString().let { it.substring(1, it.length - 1) })
         }
         runtime.function("annieCommandsList") { _ -> commandsList() }
         runtime.function("annieStoreGet") { args ->
@@ -797,14 +817,26 @@ internal class ScriptRuntime(
     }
 
     suspend fun load(): List<ScriptCommand> = lock.withLock {
+        executableFiles = AnnieTypeScript.compile(context, project.files).toMutableMap().apply {
+            project.files.keys.filter { it.endsWith(".py") || it.endsWith(".lua") }.forEach { path ->
+                val call = "JSON.parse(await annieRuntimeCall(JSON.stringify({path:" + JSONObject.quote(path) + ",function:'main',input:ctx})))"
+                val wrapper = "export async function main(ctx) { return $call; }"
+                val registrations = if (path == project.entryPath) {
+                    val names = project.manifest.commands.map { it.name }.ifEmpty { listOf(project.id.lowercase().take(32)) }
+                    names.joinToString("\n") { name -> "annie.commands.register({name:" + JSONObject.quote(name) + ",execute:main});" }
+                } else ""
+                put(path, "$wrapper\n$registrations")
+            }
+        }
         registered.clear()
         registeredServices.clear()
         envDefinition = null
         // The bootstrap's final assignment evaluates to an object. Keep that value
         // inside an IIFE so Unit receives JavaScript undefined instead.
         runtime.evaluate<Unit>("(() => {\n$BOOTSTRAP\n})()", filename = "annie-runtime.js")
+        runtime.evaluate<Unit>(context.assets.open("script-stream.js").bufferedReader().use { it.readText() }, filename = "script-stream.js")
         val entryModule = "${project.id}/${project.entryPath}"
-        val entry = project.files[project.entryPath] ?: error("Missing script entry: ${project.entryPath}")
+        val entry = executableFiles[project.entryPath] ?: error("Missing script entry: ${project.entryPath}")
         runtime.evaluate<JsObject>(entry, filename = entryModule, asModule = true)
         registered.values.distinctBy { it.name }
     }
@@ -914,7 +946,10 @@ internal class ScriptRuntime(
         return capturedModuleResult ?: error("Script module did not return a message")
     }
 
-    override fun close() { runtime.close() }
+    override fun close() {
+        runtime.close()
+        ChatHistoryStore.interruptScriptStreams(context, project.id)
+    }
 
     private fun scriptDataRoot(): File =
         File(context.filesDir, "annie-script-data/${project.id}").canonicalFile.apply { mkdirs() }
@@ -1237,6 +1272,13 @@ internal class ScriptRuntime(
             |    if (!definition || !definition.name || typeof definition.onMessage !== "function") throw new TypeError("Session requires name and onMessage(ctx)");
             |    globalThis.__annieSessionHandlers[String(definition.name)] = definition.onMessage;
             |  }},
+            |  ai: {
+            |    generate: async prompt => __annieDecode(await annieAndroidBridge("ai.generate", JSON.stringify({prompt:String(prompt)}))),
+            |    stream: async prompt => __annieDecode(await annieAndroidBridge("ai.stream", JSON.stringify({prompt:String(prompt)})))
+            |  },
+            |  runtime: {
+            |    call: async (path, input, functionName = "main") => JSON.parse(await annieRuntimeCall(JSON.stringify({path:String(path), input, function:String(functionName)})))
+            |  },
             |  services: {
             |    provide(name, handler) {
             |      name = String(name);
@@ -1442,6 +1484,9 @@ internal class ScriptWorkspace(
         register(CoreAndroidOperationProvider(androidCapabilities, files))
         register(PackageDownloadOperationProvider(appContext))
         register(ScriptMessageOperationProvider(appContext))
+        register(HostAiOperationProvider(appContext, granted = { id ->
+            if (files.listProjects().any { it.id == id && it.enabled }) files.grantedPermissions(id) else emptySet()
+        }))
     }
     private val runtimes = ConcurrentHashMap<String, ScriptRuntime>()
     private val activePackageIds = ConcurrentHashMap.newKeySet<String>()
@@ -1469,6 +1514,7 @@ internal class ScriptWorkspace(
         val removedPermissions = files.grantedPermissions(projectId) - permissions
         files.setGrantedPermissions(projectId, permissions)
         if (removedPermissions.isNotEmpty()) {
+            ChatHistoryStore.interruptScriptStreams(appContext, project.id)
             androidCapabilities.revokePackage(project.manifest.packageId)
         }
     }
@@ -1628,10 +1674,13 @@ internal class ScriptWorkspace(
             projectId = caller.id,
             chatId = chatId,
             validationMode = caller.manifest.validationMode,
+            apiVersion = caller.manifest.apiVersion.toInt(),
         )
         val registryOperation = when {
             operation.startsWith("android.") -> operation
             operation.startsWith("downloads.") -> operation
+            operation.startsWith("messages.") -> operation
+            operation.startsWith("ai.") -> operation
             else -> "android.$operation"
         }
         return operationRegistry.invoke(registryOperation, invocation, inputJson)

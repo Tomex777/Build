@@ -17,7 +17,7 @@ class AnniePackageTest {
         assertEquals("hello", project.manifest.packageId)
         assertEquals("Hello", project.manifest.displayName)
         assertEquals("hello.js", project.manifest.entryPoint)
-        assertEquals(AnniePackageManifest.CURRENT_API_VERSION, project.manifest.apiVersion)
+        assertEquals("1", project.manifest.apiVersion)
         assertTrue(project.manifest.generated)
         assertTrue(project.manifest.permissions.isEmpty())
     }

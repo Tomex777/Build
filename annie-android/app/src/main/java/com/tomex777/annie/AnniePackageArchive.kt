@@ -32,7 +32,7 @@ internal object AnniePackageArchive {
     private const val MAX_COMPRESSION_RATIO = 200L
     private val forbiddenExtensions = setOf(
         "apk", "aab", "dex", "jar", "so", "dll", "exe", "bat", "cmd", "ps1", "sh",
-        "py", "mjs", "cjs", "wasm", "class",
+        "mjs", "cjs", "wasm", "class",
     )
 
     private data class InspectedFile(val entry: ZipEntry, val path: String)
@@ -57,7 +57,7 @@ internal object AnniePackageArchive {
                 require(fileCount <= MAX_FILES) { "ZIP contains too many files" }
                 filePaths += path
                 require(entry.size in 0..MAX_ENTRY_BYTES) { "ZIP entry is too large: $path" }
-                if (path.endsWith(".js", true)) require(entry.size <= MAX_JAVASCRIPT_BYTES) {
+                if (isExecutableScript(path)) require(entry.size <= MAX_JAVASCRIPT_BYTES) {
                     "JavaScript source is too large: $path"
                 }
                 require(entry.compressedSize >= 0L) { "ZIP entry size is unknown: $path" }
@@ -74,8 +74,8 @@ internal object AnniePackageArchive {
                 filePaths.any { other -> other.length > filePath.length && other.startsWith("$filePath/") }
             }) { "ZIP file paths conflict with package folders" }
 
-            val scripts = files.map { it.path }.filter { it.endsWith(".js", true) }.sorted()
-            require(scripts.isNotEmpty()) { "Package ZIP must contain at least one JavaScript file" }
+            val scripts = files.map { it.path }.filter { isExecutableScript(it) }.sorted()
+            require(scripts.isNotEmpty()) { "Package ZIP must contain at least one JavaScript or TypeScript file" }
             val rawManifest = files.firstOrNull { it.path == "manifest.json" }?.let { file ->
                 require(file.entry.size <= MAX_MANIFEST_BYTES) { "manifest.json is too large" }
                 zip.getInputStream(file.entry).bufferedReader(Charsets.UTF_8).use { it.readText() }
@@ -86,6 +86,9 @@ internal object AnniePackageArchive {
             } else {
                 val entry = when {
                     "main.js" in scripts -> "main.js"
+                    "main.ts" in scripts -> "main.ts"
+                    "main.py" in scripts -> "main.py"
+                    "main.lua" in scripts -> "main.lua"
                     scripts.size == 1 -> scripts.single()
                     else -> ""
                 }
@@ -136,7 +139,7 @@ internal object AnniePackageArchive {
     ): ScriptProject {
         val preview = inspect(archive, suggestedName)
         val entryPoint = preview.manifest.entryPoint.ifBlank { selectedEntryPoint.orEmpty() }
-        require(entryPoint in preview.javaScriptFiles) { "Choose a valid JavaScript entry point" }
+        require(entryPoint in preview.javaScriptFiles) { "Choose a valid JavaScript or TypeScript entry point" }
         val manifest = preview.manifest.copy(entryPoint = entryPoint)
         val files = ScriptFiles(context)
         val alreadyInstalled = files.listProjects().any { it.manifest.packageId.equals(manifest.packageId, ignoreCase = true) }
@@ -237,7 +240,7 @@ internal object AnniePackageArchive {
 
     internal fun validateArchivePath(path: String, directory: Boolean = false): String = validatePath(path, directory)
 
-    private fun decodeManifest(
+    internal fun decodeManifest(
         json: JSONObject,
         javascriptPaths: Collection<String>,
         fallbackId: String = "",
@@ -249,63 +252,50 @@ internal object AnniePackageArchive {
         require(displayName.length <= 120) { "Package display name is too long" }
         val version = json.optString("version").ifBlank { "0.0.0-local" }
         require(version.length <= 64) { "Package version is too long" }
-        val apiVersion = json.optString("apiVersion").ifBlank { AnniePackageManifest.CURRENT_API_VERSION }
-        require(apiVersion == AnniePackageManifest.CURRENT_API_VERSION) { "Package requires unsupported Annie API $apiVersion" }
-        val requires = manifestObject(json, "requires")?.let { value ->
-            require(value.length() <= 8) { "Package declares too many requirements" }
-            buildMap {
-                val keys = value.keys()
-                while (keys.hasNext()) {
-                    val key = keys.next()
-                    require(key == "annie") { "Only the Annie compatibility requirement is supported" }
-                    val range = value.optString(key).trim()
-                    require(range.isNotBlank() && range.length <= 64 && range.matches(Regex("""[<>=0-9.*+ _-]+"""))) {
-                        "Package has an invalid Annie compatibility range"
-                    }
-                    put(key, range)
-                }
-            }
-        }.orEmpty()
-        requires["annie"]?.let { range ->
-            require(satisfiesVersionRange(AnniePackageManifest.CURRENT_API_VERSION.toInt(), range)) {
-                "Package requires an incompatible Annie version: $range"
+        val apiVersion = json.optString("apiVersion").ifBlank { "1" }
+        // Validation and version-range checks share one contract; do not pre-empt
+        // them with the historical exact-equality or independent regex checks.
+        val requiresObject = manifestObject(json, "requires")
+        if (requiresObject != null) {
+            require(requiresObject.length() <= 1 && requiresObject.has("annie")) {
+                "Only requires.annie is supported"
             }
         }
-        val publisher = manifestObject(json, "publisher")?.let { value ->
-            val publisherId = value.optString("id").trim()
-            val publisherName = value.optString("name").trim()
-            require(
-                publisherId.matches(Regex("[A-Za-z0-9][A-Za-z0-9_.-]{0,127}")) &&
-                    publisherName.isNotBlank() && publisherName.length <= 120
-            ) { "Package has an invalid publisher declaration" }
-            AnniePackagePublisher(publisherId, publisherName)
+        val requiresAnnie = requiresObject?.let { row ->
+            require(row.opt("annie") is String) { "requires.annie must be a version range string" }
+            row.getString("annie").trim()
         }
-        val networkHosts = manifestObject(json, "network")?.let { value ->
-            val hosts = value.optJSONArray("hosts")
-            require(hosts != null) { "Package network declaration requires hosts" }
-            buildSet {
-                require(hosts.length() <= 128) { "Package declares too many network hosts" }
-                for (index in 0 until hosts.length()) {
-                    val host = hosts.optString(index).trim().lowercase()
-                    require(
-                        host.length in 1..253 &&
-                            host.matches(Regex("""(?:\*\.)?[a-z0-9](?:[a-z0-9.-]*[a-z0-9])?"""))
-                    ) { "Package has an invalid network host: $host" }
-                    add(host)
-                }
+        ApiCompatibility.check(apiVersion, requiresAnnie, AnniePackageManifest.CURRENT_API_VERSION.toInt())
+            ?.let { throw IllegalArgumentException(it) }
+        val publisher = manifestObject(json, "publisher")?.let { row ->
+            val id = row.optString("id").trim()
+            val name = row.optString("name").trim()
+            ManifestIdentity.validatePublisher(id.ifBlank { null }, name)
+                ?.let { throw IllegalArgumentException(it) }
+            AnniePackagePublisher(id, name)
+        }
+        val networkHosts = manifestObject(json, "network")?.let { row ->
+            val hosts = manifestArray(row, "hosts")
+                ?: throw IllegalArgumentException("network.hosts must be an array")
+            List(hosts.length()) { index ->
+                require(hosts.opt(index) is String) { "network.hosts must contain only strings" }
+                hosts.getString(index).trim()
             }
         }.orEmpty()
-
+        ManifestIdentity.validateHosts(networkHosts)?.let { throw IllegalArgumentException(it) }
         val entryPoint = json.optString("entryPoint").ifBlank {
             when {
                 "main.js" in javascriptPaths -> "main.js"
+                "main.ts" in javascriptPaths -> "main.ts"
+                "main.py" in javascriptPaths -> "main.py"
+                "main.lua" in javascriptPaths -> "main.lua"
                 javascriptPaths.size == 1 -> javascriptPaths.single()
                 else -> ""
             }
         }
         if (entryPoint.isNotBlank()) {
             validatePath(entryPoint, false)
-            require(entryPoint.endsWith(".js", true) && entryPoint in javascriptPaths) {
+            require(isExecutableScript(entryPoint) && entryPoint in javascriptPaths) {
                 "Package entry point is missing: $entryPoint"
             }
         }
@@ -400,7 +390,7 @@ internal object AnniePackageArchive {
             version = version,
             apiVersion = apiVersion,
             entryPoint = entryPoint,
-            requires = requires,
+            requires = requiresAnnie,
             publisher = publisher,
             networkHosts = networkHosts,
             permissions = permissions,
@@ -416,15 +406,17 @@ internal object AnniePackageArchive {
         )
     }
 
-    private fun encodeManifest(manifest: AnniePackageManifest): JSONObject = JSONObject()
+    internal fun encodeManifest(manifest: AnniePackageManifest): JSONObject = JSONObject()
         .put("packageId", manifest.packageId)
         .put("displayName", manifest.displayName)
         .put("version", manifest.version)
         .put("apiVersion", manifest.apiVersion)
         .put("entryPoint", manifest.entryPoint)
-        .put("requires", JSONObject().apply { manifest.requires.forEach { (key, value) -> put(key, value) } })
-        .put("publisher", manifest.publisher?.let { JSONObject().put("id", it.id).put("name", it.name) } ?: JSONObject.NULL)
-        .put("network", JSONObject().put("hosts", JSONArray(manifest.networkHosts.toList())))
+        .apply {
+            manifest.requires?.let { put("requires", JSONObject().put("annie", it)) }
+            manifest.publisher?.let { put("publisher", JSONObject().put("id", it.id).put("name", it.name)) }
+            if (manifest.networkHosts.isNotEmpty()) put("network", JSONObject().put("hosts", JSONArray(manifest.networkHosts)))
+        }
         .put("permissions", JSONArray(manifest.permissions.toList()))
         .put("commands", JSONArray().apply { manifest.commands.forEach { put(JSONObject().put("name", it.name).put("description", it.description)) } })
         .put("sources", JSONArray().apply { manifest.sources.forEach { source ->
