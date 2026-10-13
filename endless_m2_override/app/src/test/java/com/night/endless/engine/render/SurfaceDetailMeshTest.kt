@@ -25,7 +25,7 @@ class SurfaceDetailMeshTest {
         assertTrue(first.count > 200)
         assertEquals(first.count, second.count)
         assertTrue(first.vertices.contentEquals(second.vertices))
-        assertEquals(first.count * 8 * 3 * 9, first.vertices.size)
+        assertEquals(first.count * 8 * 5 * 3 * 9, first.vertices.size)
         assertTrue(first.vertices.all { it.isFinite() })
     }
 
