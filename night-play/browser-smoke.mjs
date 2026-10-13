@@ -99,6 +99,17 @@ try {
  const title2048=await page.locator('#gameTitle').boundingBox();
  assert.ok(title2048.y<130,'Game title is at the TOP, not alongside the board');
  // The game must consume a swipe before releasing the finger.
+ // Send real Chromium touch events, not only synthetic PointerEvents.
+ // Verify the 2048 move happens on touchMove, while the finger is still down.
+ await page.evaluate(()=>{grid=[[2,0,0,0],[0,0,0,0],[0,0,0,0],[0,0,0,0]];tileScore=0;draw2048()});
+ const cdp=await page.context().newCDPSession(page);
+ const b2048=await page.locator('#board2048').boundingBox();
+ const sx=b2048.x+b2048.width*.3,sy=b2048.y+b2048.height*.4;
+ await cdp.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x:sx,y:sy,id:7}]});
+ await cdp.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x:sx+75,y:sy,id:7}]});
+ await page.waitForFunction(()=>grid[0][3]===2,null,{timeout:1500});
+ assert.equal(await page.evaluate(()=>grid[0][3]),2,'Real 2048 gesture must act before touch release');
+ await cdp.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
  const movedOnPointerMove=await page.evaluate(()=>{
   grid=[[2,0,0,0],[0,0,0,0],[0,0,0,0],[0,0,0,0]];tileScore=0;draw2048();
   const el=document.getElementById('board2048');
@@ -124,6 +135,16 @@ try {
  assert.ok(Math.abs(arenaPlacement.boardCenter-arenaPlacement.screenCenter)<30,'Snake arena must be central, not pushed down the screen')
  assert.equal(await page.locator('#snakeCanvas').evaluate(el=>getComputedStyle(el).imageRendering),'auto','No pixelated performance-heavy interpolation')
  assert.equal(await page.evaluate(()=>snakeTickMs()),115,'Classic speed restored and slightly quicker')
+ // Test a real finger swipe with the snake's game-loop paused for deterministic input inspection.
+ await page.evaluate(()=>{if(snakeTimer)clearInterval(snakeTimer);snakeTimer=null;snake.dir='right';snake.next='right';snake.turnQueue=[];snake.started=true;gamePaused=false;});
+ const bSnake=await page.locator('#snakeCanvas').boundingBox();
+ const px=bSnake.x+bSnake.width*.55,py=bSnake.y+bSnake.height*.58;
+ await cdp.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x:px,y:py,id:8}]});
+ await cdp.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x:px,y:py-34,id:8}]});
+ await page.waitForFunction(()=>snake.turnQueue.includes('up'),null,{timeout:1500});
+ assert.equal((await page.evaluate(()=>snake.turnQueue))[0],'up','Real Snake swipe is accepted before finger release');
+ await cdp.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
+ await page.evaluate(()=>{snake.turnQueue=[];snake.dir='right';snake.next='right';snakeTimer=setInterval(stepSnake,snakeTickMs())});
  const touchQueue=await page.evaluate(()=>{
   const el=document.getElementById('snakeCanvas');
   snake.turnQueue=[];snake.dir='right';snake.next='right';snake.started=true;gamePaused=false;
