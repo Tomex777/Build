@@ -4,6 +4,8 @@ import app.yomi.reader.core.ReaderChapter
 import app.yomi.reader.core.ReaderPage
 import app.yomi.reader.core.ReaderPageSource
 import java.io.InputStream
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 class ViewerPage(
     val page: ReaderPage,
@@ -28,15 +30,16 @@ class ViewerChapter(
     val chapter: ReaderChapter,
     private val source: ReaderPageSource,
 ) {
-    var pages: List<ViewerPage>? = null
+    @Volatile var pages: List<ViewerPage>? = null
         private set
+    private val loadMutex = Mutex()
 
     var requestedPage: Int = 0
     var requestedOffsetFraction: Double = 0.0
 
-    suspend fun load(): List<ViewerPage> {
-        pages?.let { return it }
-        return source.pages(chapter)
+    suspend fun load(): List<ViewerPage> = loadMutex.withLock {
+        pages?.let { return@withLock it }
+        source.pages(chapter)
             .map { ViewerPage(it, source).also { page -> page.chapter = this } }
             .also { pages = it }
     }
