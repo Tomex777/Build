@@ -914,6 +914,156 @@ class ReaderActivity : ComponentActivity(), ReaderViewerHost {
         }
     }
 
+    private fun promptSavePage(page: ViewerPage) {
+        pendingSavePage = page
+        val name = page.displayName
+            .replace('/', '_')
+            .replace('\\', '_')
+            .take(120)
+            .ifBlank { "page.png" }
+        val mime = when (name.substringAfterLast('.', "").lowercase()) {
+            "jpeg", "jpg" -> "image/jpeg"
+            "gif" -> "image/gif"
+            "webp" -> "image/webp"
+            "png" -> "image/png"
+            else -> "image/*"
+        }
+        savePageLauncher.launch(
+            Intent(Intent.ACTION_CREATE_DOCUMENT).apply {
+                addCategory(Intent.CATEGORY_OPENABLE)
+                type = mime
+                putExtra(Intent.EXTRA_TITLE, name)
+            },
+        )
+    }
+
+    private fun shareReaderPage(page: ViewerPage, copyToClipboard: Boolean) {
+        lifecycleScope.launch {
+            runCatching {
+                val file = withContext(Dispatchers.IO) { stageReaderPage(page) }
+                val sharedUri = FileProvider.getUriForFile(
+                    this@ReaderActivity,
+                    "${packageName}.fileprovider",
+                    file,
+                )
+                if (copyToClipboard) {
+                    val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                    clipboard.setPrimaryClip(
+                        ClipData.newUri(contentResolver, page.displayName, sharedUri),
+                    )
+                    Toast.makeText(this@ReaderActivity, "Page copied", Toast.LENGTH_SHORT).show()
+                } else {
+                    val share = Intent(Intent.ACTION_SEND).apply {
+                        type = "image/*"
+                        putExtra(Intent.EXTRA_STREAM, sharedUri)
+                        clipData = ClipData.newRawUri("Yomi reader page", sharedUri)
+                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                    }
+                    startActivity(Intent.createChooser(share, "Share page"))
+                }
+            }.onFailure {
+                Log.e(READER_TAG, "page-export-failed", it)
+                Toast.makeText(this@ReaderActivity, "Unable to share this page", Toast.LENGTH_LONG).show()
+            }
+        }
+    }
+
+    private suspend fun stageReaderPage(page: ViewerPage): File {
+        val directory = File(cacheDir, "reader-pages").apply { mkdirs() }
+        val expiry = System.currentTimeMillis() - 24L * 60L * 60L * 1000L
+        directory.listFiles()?.filter { it.lastModified() < expiry }?.forEach(File::delete)
+        val stream = BufferedInputStream(page.open())
+        return stream.use { input ->
+            input.mark(12)
+            val magic = ByteArray(12)
+            var readBytes = 0
+            while (readBytes < magic.size) {
+                val count = input.read(magic, readBytes, magic.size - readBytes)
+                if (count <= 0) break
+                readBytes += count
+            }
+            input.reset()
+            val ext = when {
+                readBytes >= 8 && magic[0] == 0x89.toByte() &&
+                    magic[1] == 'P'.code.toByte() && magic[2] == 'N'.code.toByte() -> ".png"
+                readBytes >= 4 && magic[0] == 'G'.code.toByte() &&
+                    magic[1] == 'I'.code.toByte() && magic[2] == 'F'.code.toByte() -> ".gif"
+                readBytes >= 12 && String(magic, 0, 4, Charsets.US_ASCII) == "RIFF" &&
+                    String(magic, 8, 4, Charsets.US_ASCII) == "WEBP" -> ".webp"
+                else -> ".jpg"
+            }
+            val target = File.createTempFile("yomi-page-", ext, directory)
+            try {
+                target.outputStream().buffered().use { output ->
+                    val buffer = ByteArray(32 * 1024)
+                    var total = 0L
+                    while (true) {
+                        val count = input.read(buffer)
+                        if (count < 0) break
+                        if (count == 0) continue
+                        total += count
+                        require(total <= 128L * 1024 * 1024) { "Page too large to share" }
+                        output.write(buffer, 0, count)
+                    }
+                }
+                target
+            } catch (error: Throwable) {
+                target.delete()
+                throw error
+            }
+        }
+    }
+
+    private fun saveAsBookCover(page: ViewerPage) {
+        val currentBook = book ?: return
+        lifecycleScope.launch {
+            runCatching {
+                val coverUri = withContext(Dispatchers.IO) {
+                    val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+                    page.open().use { BitmapFactory.decodeStream(it, null, bounds) }
+                    require(bounds.outWidth > 0 && bounds.outHeight > 0 &&
+                        bounds.outWidth.toLong() * bounds.outHeight <= 250_000_000L) {
+                        "Invalid cover image dimensions"
+                    }
+                    var sample = 1
+                    while (maxOf(bounds.outWidth, bounds.outHeight) / sample > 640) sample *= 2
+                    val bitmap = page.open().use {
+                        BitmapFactory.decodeStream(
+                            it, null, BitmapFactory.Options().apply { inSampleSize = sample },
+                        )
+                    } ?: error("Could not decode this page as a cover")
+                    try {
+                        val directory = File(filesDir, "covers").apply { mkdirs() }
+                        val safeId = currentBook.id.value.filter {
+                            it.isLetterOrDigit() || it == '-' || it == '_'
+                        }.ifBlank { "book" }
+                        val destination = File(directory, "$safeId.jpg")
+                        val staging = File.createTempFile("cover-", ".jpg", directory)
+                        try {
+                            staging.outputStream().buffered().use {
+                                check(bitmap.compress(Bitmap.CompressFormat.JPEG, 84, it))
+                            }
+                            if (!staging.renameTo(destination)) {
+                                staging.copyTo(destination, overwrite = true)
+                            }
+                        } finally {
+                            staging.delete()
+                        }
+                        Uri.fromFile(destination).toString()
+                    } finally {
+                        bitmap.recycle()
+                    }
+                }
+                libraryStore.setCover(currentBook.id, coverUri)
+            }.onSuccess {
+                Toast.makeText(this@ReaderActivity, "Book cover updated", Toast.LENGTH_SHORT).show()
+            }.onFailure {
+                Log.e(READER_TAG, "page-set-cover-failed", it)
+                Toast.makeText(this@ReaderActivity, "Unable to set this cover", Toast.LENGTH_LONG).show()
+            }
+        }
+    }
+
     private fun readerTapZones(pager: Boolean): ViewerNavigation {
         val preferences = getPreferences(MODE_PRIVATE)
         val layout = preferences.getString(PREF_TAP_ZONES, "default")
