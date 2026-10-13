@@ -51,6 +51,7 @@ import {
   clearWarnings,
   enforceGroupMessage,
   groupPolicy,
+  groupMessageNeedsModeration,
   renderGroupTemplate,
   setGroupPolicy,
   setUserMentionMute,
@@ -58,6 +59,9 @@ import {
 } from './group-policy.js'
 import { looksLikeNumberSelection } from './number-selection.js'
 import { createInboundMessageGuard, matchesDisplayedChoice } from './inbound-message-guard.js'
+import { createCommandTiming } from './command-performance.js'
+import { createMessageScheduler } from './command-scheduler.js'
+import { resolveIdentityWithDeadline } from './identity-resolution.js'
 import { chessRecordAcceptsInput } from './utils/chess-game.js'
 import { ticTacToeRecordAcceptsInput } from './utils/tictactoe-game.js'
 import { checkersRecordAcceptsInput } from './utils/checkers-game.js'
@@ -403,6 +407,7 @@ const groupMetaCache = new Map()
 const routeLocks = new Map()
 const senderResolutionCache = new Map()
 const SENDER_CACHE_TTL_MS = 10 * 60 * 1000
+const LID_LOOKUP_TIMEOUT_MS = num('MSCC_LID_LOOKUP_TIMEOUT_MS', 2500, 200, 10000)
 const SENDER_CACHE_MAX = 4096
 
 const isGroup = isGroupJid
@@ -1057,17 +1062,30 @@ async function resolvePhoneJid(account, jid) {
   if (normalized.endsWith('@s.whatsapp.net')) return normalized
   const key = String(account?.id || '') + '|' + normalized
   const cached = senderResolutionCache.get(key)
-  if (cached && Date.now() - cached.at < SENDER_CACHE_TTL_MS) return cached.phoneJid
+  if (cached && Date.now() - cached.at < (cached.ttlMs || SENDER_CACHE_TTL_MS)) {
+    return cached.phoneJid
+  }
   if (normalized.endsWith('@lid') || normalized.endsWith('@hosted.lid')) {
-    try {
-      const ids = await account.sock?.findUserId?.(normalized)
-      const phoneJid = normalizeJid(ids?.phoneNumber || '') || normalized
-      senderResolutionCache.set(key, { phoneJid, at:Date.now() })
+    const generation = account.generation
+    const cacheIdentity = (phoneJid, ttlMs = SENDER_CACHE_TTL_MS) => {
+      // An old socket must not update sender identities after a reconnect.
+      if (generation !== account.generation) return
+      senderResolutionCache.set(key, { phoneJid, at:Date.now(), ttlMs })
       while (senderResolutionCache.size > SENDER_CACHE_MAX) {
         senderResolutionCache.delete(senderResolutionCache.keys().next().value)
       }
-      return phoneJid
-    } catch {}
+    }
+    const phoneJid = await resolveIdentityWithDeadline({
+      jid:normalized,
+      lookup: id => account.sock?.findUserId?.(id),
+      normalize:normalizeJid,
+      timeoutMs:LID_LOOKUP_TIMEOUT_MS,
+      onResolved:phone => cacheIdentity(phone),
+    })
+    // An unresolved LID never grants phone-number-based owner access.
+    // Briefly cache misses to avoid repeated 2.5s waits, but allow retries.
+    cacheIdentity(phoneJid, phoneJid === normalized ? 10000 : SENDER_CACHE_TTL_MS)
+    return phoneJid
   }
   return normalized
 }
@@ -1842,6 +1860,12 @@ async function deletePolicyMessage(account, msg) {
 async function enforceCurrentGroupPolicy(account, msg, authority) {
   const chat = normalizeJid(msg?.key?.remoteJid)
   if (!isGroup(chat) || msg?.key?.fromMe || !sharedStorage) return { handled:false }
+  // With default moderation settings, group permissions don't need to be
+  // fetched from WhatsApp for every ordinary command. A group mentioning a
+  // member still goes through mention-mute checks.
+  if (!groupMessageNeedsModeration(groupPolicy(sharedStorage, chat), msg)) {
+    return { handled:false }
+  }
   return enforceGroupMessage({
     storage:sharedStorage,
     msg,
@@ -2268,10 +2292,25 @@ async function onDelete(account, updates) {
 
 const acceptInboundCommand = createInboundMessageGuard()
 
-async function onMessages(account, { messages, type }) {
-  for (const msg of messages || []) {
+const messageScheduler = createMessageScheduler({
+  process:processInboundMessage,
+  textOf:msg => commandText(msg?.message),
+  prefix:() => settings.publicPrefix || DEFAULT_PUBLIC_PREFIX,
+})
+
+async function onMessages(account, { messages }) {
+  await messageScheduler.submitBatch(account, messages)
+}
+
+async function processInboundMessage(account, msg) {
+    const probe = createCommandTiming({
+      accountId:account.id,
+      text:commandText(msg?.message),
+      prefix:settings.publicPrefix || DEFAULT_PUBLIC_PREFIX,
+      thresholdMs:Number(process.env.MSCC_SLOW_COMMAND_MS || 2000),
+    })
     try {
-      if (!msg?.message || !msg?.key?.id) continue
+      if (!msg?.message || !msg?.key?.id) return
 
       // Preserve bot-authored messages for quoting / chat context only.
       // NEVER interpret our own replies as commands or pending choices:
@@ -2280,28 +2319,32 @@ async function onMessages(account, { messages, type }) {
       if (msg.key.fromMe === true) {
         remember(account, msg)
         rememberConversation(account, msg)
-        continue
+        return
       }
       // Replayed/duplicated Baileys upserts must not execute a choice twice.
-      if (!acceptInboundCommand(account.id, msg)) continue
+      if (!acceptInboundCommand(account.id, msg)) return
 
       const chat = normalizeJid(msg.key.remoteJid)
       const text = commandText(msg.message)
       const authority = await authorityContext(account, msg)
       const controller = authority.isSupremeOwner
       const privateControl = await isPrivateControlContext(account, msg, authority)
+      probe?.mark('identity')
 
       remember(account, msg)
       rememberConversation(account, msg, authority)
+      probe?.mark('storage')
 
       const publicPrefix = settings.publicPrefix || DEFAULT_PUBLIC_PREFIX
 
       const moderation = await enforceCurrentGroupPolicy(account, msg, authority)
-      if (moderation.handled) continue
+      if (moderation.handled) return
 
       await handleAfkGroupMessage(account, msg, authority, text)
+      probe?.mark('moderation')
 
       const ui = commandUi(account, msg, publicPrefix)
+      const trackSend = task => probe ? probe.send(task) : task()
       const pendingReply = readCommandReplySession(account, msg, authority)
       const isExplicitCommand = Boolean(publicPrefix && String(text || '').trim().startsWith(publicPrefix))
       const ludoRecord = sharedStorage?.sharedGet('ludo-game', chat) || null
@@ -2437,16 +2480,16 @@ async function onMessages(account, { messages, type }) {
             set: (namespace, key, value) => sharedStorage?.sharedSet(namespace, key, value),
             delete: (namespace, key) => sharedStorage?.sharedDelete(namespace, key) || 0,
           },
-          reply: async value => sendCommandReply(account, msg, value),
+          reply: value => trackSend(() => sendCommandReply(account, msg, value)),
           replyWithMentions: async (value, mentions = []) => account.sock.sendMessage(chat, {
             text:String(value ?? ''),
             mentions:[...new Set(mentions.map(normalizeJid).filter(Boolean))],
           }, { quoted:msg }),
           ui,
-          replyList: options => ui.singleSelect(options),
-          replySelectors: options => ui.native(options),
-          replyInstant: options => ui.instantReplies(options),
-          replyInteractive: options => ui.interactive(options),
+          replyList: options => trackSend(() => ui.singleSelect(options)),
+          replySelectors: options => trackSend(() => ui.native(options)),
+          replyInstant: options => trackSend(() => ui.instantReplies(options)),
+          replyInteractive: options => trackSend(() => ui.interactive(options)),
           progress: initial => startProgress(account.sock, chat, initial, { quoted:msg }),
           scheduleAdd: ({ kind = 'reminder', text = '', dueAt, meta = {} }) => addScheduledTask(sharedStorage, {
             userKey:authority.senderNumber,
@@ -2483,7 +2526,7 @@ async function onMessages(account, { messages, type }) {
             })
           },
           sendImageDataUrl: async (dataUrl, caption) => sendCommandImageDataUrl(account, msg, dataUrl, caption),
-          sendImageFile: async (file, caption) => sendCommandImageFile(account, msg, file, caption),
+          sendImageFile: (file, caption) => trackSend(() => sendCommandImageFile(account, msg, file, caption)),
           sendImageUrl: async (url, caption = '') => account.sock.sendMessage(chat, {
             image:{ url:String(url || '') },
             caption:String(caption || ''),
@@ -2572,8 +2615,8 @@ async function onMessages(account, { messages, type }) {
               userKey: authority.senderNumber,
               reply: value => sendCommandReply(account, msg, value),
               ui,
-              replyList: options => ui.singleSelect(options),
-              replySelectors: options => ui.native(options),
+              replyList: options => trackSend(() => ui.singleSelect(options)),
+              replySelectors: options => trackSend(() => ui.native(options)),
               resolveTmdbTitles: (query, type = 'movie') => tmdbResolver.search(query, type),
               browseTmdbMedia: (type = 'movie') => tmdbResolver.browse(type),
               resolveTmdbMedia: (id, type = 'movie') => tmdbResolver.details(id, type),
@@ -2591,9 +2634,10 @@ async function onMessages(account, { messages, type }) {
           diagnostics: commandDiagnostics,
         },
       })
-      if (commandHandled) continue
+      probe?.mark('command')
+      if (commandHandled) return
 
-      if (await handleProfileAssistant(account, msg, authority, text)) continue
+      if (await handleProfileAssistant(account, msg, authority, text)) return
 
       const vo = !msg.key.fromMe && futureproof(msg.message)
 
@@ -2611,11 +2655,11 @@ async function onMessages(account, { messages, type }) {
         }
       }
 
-      if (!settings.replyCc) continue
+      if (!settings.replyCc) return
       const ctx = contextInfo(msg.message)
-      if (!ctx?.stanzaId) continue
+      if (!ctx?.stanzaId) return
       const rk = `${account.id}|${msg.key.id}`
-      if (handledReply.has(rk)) continue
+      if (handledReply.has(rk)) return
 
       const quoted = quotedMessage(msg, ctx, chat)
       let source = quoted && futureproof(quoted.message) ? quoted : null
@@ -2627,7 +2671,7 @@ async function onMessages(account, { messages, type }) {
         }, chat)
         if (c && futureproof(c.message)) source = c
       }
-      if (!source) continue
+      if (!source) return
 
       if (!controller || account.id !== destinationIdFor()) {
         await sendInbox(account, { text: `↩️ V1 reply detected\n${await describe(account, msg)}` })
@@ -2641,8 +2685,9 @@ async function onMessages(account, { messages, type }) {
       })
     } catch (e) {
       console.error(`[${account.id}] message error:`, e?.message || e)
+    } finally {
+      probe?.finish()
     }
-  }
 }
 
 const statusOf = sessionStatus

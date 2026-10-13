@@ -3,6 +3,7 @@ import * as cheerio from 'cheerio'
 import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { currentSourceSignal } from '../../source-execution-context.js'
 
 export const MANGA_UA = 'Mozilla/5.0 (Linux; Android 16) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0 Mobile Safari/537.36'
 const NYORA_BASES = [...new Set([
@@ -14,8 +15,10 @@ let nyoraBaseIndex = 0
 function nyoraBase() { return NYORA_BASES[nyoraBaseIndex] || NYORA_BASES[0] }
 
 export async function nyoraFetchJson(path, timeoutMs = 60000) {
+  const signal = currentSourceSignal()
   let last
   for (let offset = 0; offset < NYORA_BASES.length; offset += 1) {
+    signal?.throwIfAborted?.()
     const index = (nyoraBaseIndex + offset) % NYORA_BASES.length
     const root = NYORA_BASES[index]
     try {
@@ -23,6 +26,7 @@ export async function nyoraFetchJson(path, timeoutMs = 60000) {
       nyoraBaseIndex = index
       return result
     } catch (error) {
+      signal?.throwIfAborted?.()
       last = error
     }
   }
@@ -53,20 +57,26 @@ export function browserHeaders(url, headers = {}) {
   }
 }
 
-export async function solveBrowserSession(url) {
+export async function solveBrowserSession(url, signal = null) {
+  signal ||= currentSourceSignal()
+  signal?.throwIfAborted?.()
   const target = String(url)
   const response = await fetch(FLARE_URL + '/v1', {
     method:'POST',
     headers:{ 'content-type':'application/json' },
     body:JSON.stringify({ cmd:'request.get', url:target, maxTimeout:FLARE_TIMEOUT }),
-    signal:AbortSignal.timeout(FLARE_TIMEOUT + 10000),
+    signal:signal
+      ? AbortSignal.any([signal, AbortSignal.timeout(FLARE_TIMEOUT + 10000)])
+      : AbortSignal.timeout(FLARE_TIMEOUT + 10000),
   })
+  signal?.throwIfAborted?.()
   if (!response.ok) throw new Error('FlareSolverr HTTP ' + response.status)
   const data = await response.json()
   const solution = data?.solution || {}
   if (data?.status !== 'ok' || Number(solution.status || 0) >= 400) {
     throw new Error('Browser verification failed for ' + new URL(target).hostname)
   }
+  signal?.throwIfAborted?.()
   const host = browserSessionKey(target)
   if (host) {
     browserSessions.set(host, {
@@ -107,20 +117,24 @@ function challengeLike(status, text) {
   return false
 }
 
-async function flareText(url) {
-  const solution = await solveBrowserSession(url)
+async function flareText(url, signal = null) {
+  const solution = await solveBrowserSession(url, signal)
   return {
     text:String(solution.response || ''),
     response:{ ok:true, status:Number(solution.status || 200), url:String(solution.url || url), headers:new Headers() },
   }
 }
 
-export async function fetchText(url, headers = {}, timeoutMs = 25000) {
+export async function fetchText(url, headers = {}, timeoutMs = 25000, signal = null) {
+  signal ||= currentSourceSignal()
+  signal?.throwIfAborted?.()
   try {
     const response = await fetch(url, {
       headers:browserHeaders(url, { accept:'text/html,application/xhtml+xml,application/json;q=0.9,*/*;q=0.8', ...headers }),
       redirect:'follow',
-      signal:AbortSignal.timeout(timeoutMs),
+      signal:signal
+        ? AbortSignal.any([signal, AbortSignal.timeout(timeoutMs)])
+        : AbortSignal.timeout(timeoutMs),
     })
     const text = await response.text()
     if (response.ok && !challengeLike(response.status, text)) return { text, response }
@@ -131,30 +145,41 @@ export async function fetchText(url, headers = {}, timeoutMs = 25000) {
       throw error
     }
   } catch (error) {
+    // Abort is a user-request deadline, not a Cloudflare challenge. Never
+    // start FlareSolverr as a fallback for an already cancelled source.
+    signal?.throwIfAborted?.()
     if (error?.status && ![403,429,503].includes(Number(error.status))) throw error
   }
-  return flareText(url)
+  signal?.throwIfAborted?.()
+  return flareText(url, signal)
 }
 
 export async function fetchJson(url, headers = {}, timeoutMs = 25000, init = {}) {
+  const signal = init.signal || currentSourceSignal()
+  signal?.throwIfAborted?.()
   const request = async () => {
     const response = await fetch(url, {
       ...init,
       headers:browserHeaders(url, { accept:'application/json, text/plain, */*', ...headers, ...(init.headers || {}) }),
       redirect:'follow',
-      signal:init.signal || AbortSignal.timeout(timeoutMs),
+      signal:signal
+        ? AbortSignal.any([signal, AbortSignal.timeout(timeoutMs)])
+        : AbortSignal.timeout(timeoutMs),
     })
     const text = await response.text()
     return { response, text }
   }
 
   let { response, text } = await request()
+  signal?.throwIfAborted?.()
   if (!response.ok && challengeLike(response.status, text)) {
     const origin = new URL(url).origin + '/'
-    await solveBrowserSession(origin)
+    await solveBrowserSession(origin, signal)
+    signal?.throwIfAborted?.()
     ;({ response, text } = await request())
   }
 
+  signal?.throwIfAborted?.()
   if (!response.ok) {
     const error = new Error('HTTP ' + response.status + ' for ' + new URL(url).hostname)
     error.status = response.status
@@ -173,8 +198,8 @@ export async function load(url, headers = {}) {
   }
 }
 
-export async function loadDocument(url, headers = {}) {
-  const { text, response } = await fetchText(url, headers)
+export async function loadDocument(url, headers = {}, signal = null) {
+  const { text, response } = await fetchText(url, headers, 25000, signal)
   return { $:cheerio.load(text), text, response }
 }
 

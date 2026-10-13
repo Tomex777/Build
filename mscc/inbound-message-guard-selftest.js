@@ -54,7 +54,7 @@ assert.equal(guard('A', original), false, 'same user command cannot process twic
 
 const index = await readFile(new URL('./index.js', import.meta.url), 'utf8')
 const inboundGate = index.indexOf('if (msg.key.fromMe === true)')
-const dedupeGate = index.indexOf('if (!acceptInboundCommand(account.id, msg)) continue')
+const dedupeGate = index.search(/if \(!acceptInboundCommand\(account\.id, msg\)\) (?:return|continue)/)
 const dispatcher = index.indexOf('const commandHandled = await dispatchNamespacedCommand(', inboundGate)
 assert(inboundGate >= 0 && dedupeGate > inboundGate && dispatcher > dedupeGate,
   'Main Baileys upsert handler must reject self/duplicate before dispatch')
