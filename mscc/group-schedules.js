@@ -120,7 +120,7 @@ export function removeGroupSchedule(storage, group, id) {
 // Shared storage exposes lists through sharedList(namespace), used here to avoid
 // a separate shadow index which can get out of sync on crashes.
 export function dueGroupSchedules(storage, now=Date.now()) {
-  const rows = storage?.sharedList?.(NS) || []
+  const rows = storage?.sharedEntries?.(NS) || []
   const due = []
   for (const item of rows) {
     const group = String(item.key || '')
