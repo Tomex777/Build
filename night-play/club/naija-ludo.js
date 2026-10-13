@@ -6,8 +6,8 @@
 "use strict";
 const COLORS={red:"#df3439",green:"#2e9655",yellow:"#e8b327",blue:"#2d73ba"};
 const TRACK=[[6,1],[6,2],[6,3],[6,4],[6,5],[5,6],[4,6],[3,6],[2,6],[1,6],[0,6],[0,7],[0,8],[1,8],[2,8],[3,8],[4,8],[5,8],[6,9],[6,10],[6,11],[6,12],[6,13],[6,14],[7,14],[8,14],[8,13],[8,12],[8,11],[8,10],[8,9],[9,8],[10,8],[11,8],[12,8],[13,8],[14,8],[14,7],[14,6],[13,6],[12,6],[11,6],[10,6],[9,6],[8,5],[8,4],[8,3],[8,2],[8,1],[8,0],[7,0],[6,0]];
-const START={red:0,green:13,yellow:26,blue:39};
-const HOME={red:[[7,1],[7,2],[7,3],[7,4],[7,5]],green:[[1,7],[2,7],[3,7],[4,7],[5,7]],yellow:[[7,13],[7,12],[7,11],[7,10],[7,9]],blue:[[13,7],[12,7],[11,7],[10,7],[9,7]]};
+const START={green:0,yellow:13,blue:26,red:39};
+const HOME={green:[[7,1],[7,2],[7,3],[7,4],[7,5]],yellow:[[1,7],[2,7],[3,7],[4,7],[5,7]],blue:[[7,13],[7,12],[7,11],[7,10],[7,9]],red:[[13,7],[12,7],[11,7],[10,7],[9,7]]};
 const SAFE=new Set([0,8,13,21,26,34,39,47]);
 const PIPS={1:[4],2:[0,8],3:[0,4,8],4:[0,2,6,8],5:[0,2,4,6,8],6:[0,2,3,5,6,8]};
 const label=k=>k[0].toUpperCase()+k.slice(1);
@@ -111,7 +111,7 @@ function drawBoard(s){
   if(!body&&idx>=0&&[3,16,29,42].includes(idx))body='<span class="nj-arrow" aria-hidden="true">'+(["↑","→","↓","←"][[3,16,29,42].indexOf(idx)])+'</span>';
   out+='<div class="'+classes.join(" ")+'" style="grid-row:'+(r+1)+';grid-column:'+(c+1)+'">'+body+'</div>';
  }
- const yards=[["red",1,1],["green",1,10],["blue",10,1],["yellow",10,10]];
+ const yards=[["green",1,1],["yellow",1,10],["red",10,1],["blue",10,10]];
  for(const [k,row,col] of yards){
   const info=activeHouses.get(k);
   out+='<div class="l-base nj-yard nj-yard-'+k+(info&&s.turn===info.pi?' is-turn':'')+'" style="--house:'+COLORS[k]+';grid-row:'+row+'/span 6;grid-column:'+col+'/span 6">';
