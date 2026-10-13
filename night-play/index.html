@@ -229,6 +229,13 @@ header{position:sticky;top:0;z-index:60;box-shadow:0 1px 0 #e7e8e7;background:#f
 .record-caption{font-size:11px;color:#939797}
 .profile-records,.profile-layout{display:none}
 @media(max-width:600px){header{top:0}.announcement-bar{top:72px}.profile-identity{padding:20px;gap:13px;flex-wrap:wrap}.profile-identity .profile-monogram{width:54px;height:54px}.profile-identity h2{font-size:19px}.profile-identity .btn{margin-left:auto}.profile-preview-stats div{padding:13px 11px}.profile-preview-stats strong{font-size:21px}.profile-preview-stats span{font-size:10px}.record-grid{grid-template-columns:1fr;gap:11px}.record-tile{padding:19px}.records-heading{margin-top:30px}.record-mode-tag{font-size:10px}}
+
+.settings-choices.snake-mode-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:11px}
+.snake-mode-grid button{display:flex;flex-direction:column;align-items:stretch;gap:12px;padding:9px;border-radius:15px;border:2px solid transparent;background:#eeeeec;text-align:left}
+.snake-mode-grid button[aria-pressed="true"]{border-color:#1c2526;background:#f4f5f3;color:#171a1b}
+.snake-mode-grid button strong{font-size:12px;font-weight:800;margin:1px 4px 5px}
+.snake-mode-preview{display:block;width:100%;height:auto;aspect-ratio:3/2;border:1px solid #ced2cf;border-radius:9px;image-rendering:pixelated}
+@media(max-width:600px){.snake-mode-grid button{padding:7px;gap:6px}.snake-mode-grid button strong{font-size:11px}}
 </style>
 </head>
 <body>
@@ -622,10 +629,38 @@ function setSetting(key,value){putSaved(SETTINGS_PREFIX+key,value)}
 const settingsDialog=document.getElementById("settingsDialog"),settingsBody=document.getElementById("settingsBody");
 let previousPause=false;
 const gameSettings={
- snake:{title:"Snake settings",groups:[{key:"snake-wrap",name:"Board edges",description:"Walls end the run. Wrap lets the snake move through the opposite edge.",default:"walls",choices:[["walls","Walls"],["wrap","Wrap around"]]}]},
+ snake:{title:"Snake settings",groups:[
+ {key:"snake-mode",name:"Choose an arena",description:"Preview each layout. Ma​zes contain real obstacles.",default:"walls",choices:[["wrap","Open"],["walls","Classic"],["maze1","Maze I"],["maze2","Maze II"],["maze3","Maze III"]]},
+ {key:"snake-speed",name:"Speed",description:"",default:"normal",choices:[["slow","Relaxed"],["normal","Normal"],["fast","Fast"]]},
+ {key:"snake-style",name:"Screen style",description:"",default:"modern",choices:[["modern","Modern"],["lcd","Retro LCD"]]}
+]},
  "2048":{title:"2048 settings",groups:[{key:"2048-size",name:"Board size",description:"Changing the board size starts a new round. High scores are separate for each size.",default:"4",choices:[["4","4 × 4"],["5","5 × 5"],["6","6 × 6"]]}]},
  ttt:{title:"Tic-Tac-Toe settings",groups:[{key:"ttt-difficulty",name:"Bot difficulty",description:"Easy makes random moves, Medium blocks threats, Hard plays an optimal game.",default:"medium",choices:[["easy","Easy"],["medium","Medium"],["hard","Hard"]]}]}
 };
+
+let snakePreviewTimer=null;
+function drawSnakePreview(canvas,mode,tick=0){
+ const ctx=canvas.getContext("2d"),cols=18,rows=12,cell=10;
+ const retro=getSetting("snake-style","modern")==="lcd";
+ ctx.fillStyle=retro?"#bed06c":"#e5e7e5";ctx.fillRect(0,0,180,120);
+ for(let x=0;x<cols;x++)for(let y=0;y<rows;y++)if((x+y)%2===0){ctx.fillStyle=retro?"#b8ca66":"#dfe2df";ctx.fillRect(x*cell,y*cell,cell,cell)}
+ const border=retro?"#31421e":"#657275";
+ if(mode==="walls"){ctx.strokeStyle=border;ctx.lineWidth=2;ctx.strokeRect(1,1,178,118)}
+ ctx.fillStyle=border;
+ for(const p of makeSnakeMaze(mode,18)){const y=Math.round(p.y*rows/18);ctx.fillRect(p.x*cell+1,y*cell+1,cell-2,cell-2)}
+ const x0=2+(tick%4);
+ ctx.fillStyle=retro?"#273b1d":"#202b2b";
+ for(let i=0;i<4;i++)ctx.fillRect((x0+3-i)*cell+1,5*cell+1,cell-2,cell-2);
+ ctx.fillStyle=retro?"#293b23":"#a46f59";ctx.fillRect(13*cell+2,8*cell+2,6,6)
+}
+function startSnakePreviews(){
+ if(snakePreviewTimer)clearInterval(snakePreviewTimer);
+ const canvases=[...settingsBody.querySelectorAll("canvas[data-maze]")];if(!canvases.length)return;
+ let frame=0;const draw=()=>canvases.forEach(canvas=>drawSnakePreview(canvas,canvas.dataset.maze,frame));
+ draw();snakePreviewTimer=setInterval(()=>{frame++;draw()},640)
+}
+function stopSnakePreviews(){if(snakePreviewTimer)clearInterval(snakePreviewTimer);snakePreviewTimer=null}
+
 function showSettings(){
  if(!active||!gameSettings[active])return;
  previousPause=gamePaused;gamePaused=true;
@@ -636,14 +671,21 @@ function showSettings(){
   const heading=document.createElement("h3");heading.textContent=group.name;section.appendChild(heading);
   const description=document.createElement("p");description.textContent=group.description;section.appendChild(description);
   const buttons=document.createElement("div");buttons.className="settings-choices";
+  if(group.key==="snake-mode")buttons.classList.add("snake-mode-grid");
   for(const [value,label] of group.choices){
-   const button=document.createElement("button");button.type="button";button.textContent=label;
+   const button=document.createElement("button");button.type="button";
+   if(group.key==="snake-mode"){const canvas=document.createElement("canvas");canvas.width=180;canvas.height=120;canvas.dataset.maze=value;canvas.className="snake-mode-preview";button.appendChild(canvas);const txt=document.createElement("strong");txt.textContent=label;button.appendChild(txt)}
+   else button.textContent=label;
    button.setAttribute("aria-pressed",String(getSetting(group.key,group.default)===value));
    button.onclick=()=>{
     const previous=getSetting(group.key,group.default);setSetting(group.key,value);
     for(const b of buttons.querySelectorAll("button"))b.setAttribute("aria-pressed",String(b===button));
     if(previous!==value){
-     if(active==="snake"){snake.wrap=value==="wrap"}
+     if(active==="snake"){
+      if(group.key==="snake-mode"){stopSnakePreviews();openGame("snake",{push:false,fresh:true});previousPause=true}
+      if(group.key==="snake-speed"){if(snakeTimer)clearInterval(snakeTimer);snakeTimer=setInterval(stepSnake,snakeTickMs())}
+      if(group.key==="snake-style")drawSnake();
+     }
      if(active==="2048"){if(tileScore>0)recordSession("2048"+(grid.length===4?"":"-"+grid.length),tileScore);openGame("2048",{push:false,fresh:true});previousPause=false}
      if(active==="ttt"){openGame("ttt",{push:false,fresh:true});previousPause=false}
     }
@@ -652,10 +694,11 @@ function showSettings(){
   }
   section.appendChild(buttons);settingsBody.appendChild(section)
  }
- const note=document.createElement("p");note.className="settings-foot";note.textContent="Settings are saved on this device. Verified profile sync is not available yet.";settingsBody.appendChild(note);
+ const note=document.createElement("p");note.className="settings-foot";note.textContent="Saved on this device";settingsBody.appendChild(note);
+ if(active==="snake")startSnakePreviews();
  settingsDialog.showModal();
 }
-function closeGameSettings(){if(settingsDialog.open)settingsDialog.close();gamePaused=previousPause;const btn=document.getElementById("pauseGame");if(btn&&!btn.hidden)btn.textContent=gamePaused?"Resume ▶":"Pause ⏸";if(active==="ttt"&&mode==="bot"&&!tttFinished&&turn==="O"&&!gamePaused)setTimeout(botMoveTtt,200)}
+function closeGameSettings(){stopSnakePreviews();if(settingsDialog.open)settingsDialog.close();gamePaused=previousPause;const btn=document.getElementById("pauseGame");if(btn&&!btn.hidden)btn.textContent=gamePaused?"Resume ▶":"Pause ⏸";if(active==="ttt"&&mode==="bot"&&!tttFinished&&turn==="O"&&!gamePaused)setTimeout(botMoveTtt,200)}
 document.getElementById("gameSettings").addEventListener("click",showSettings);
 document.getElementById("closeSettings").addEventListener("click",closeGameSettings);
 settingsDialog.addEventListener("cancel",e=>{e.preventDefault();closeGameSettings()});
