@@ -32,13 +32,65 @@ hr{border:0;border-top:1px solid var(--line);margin:24px 0}
 @media(max-width:900px){header{height:72px}.hero{grid-template-columns:1fr;padding:52px 0 48px}.hero-art{min-height:310px}.hero-art .disc{width:215px;height:215px}.disc:after{width:220px;height:220px;left:49px;top:-20px}.grid{grid-template-columns:repeat(2,minmax(0,1fr))}.links{display:none}.info{padding-top:56px}}
 @media(max-width:600px){.wrap{padding:0 18px}.hero h1{font-size:62px;letter-spacing:-3.7px}.hero p{font-size:14px}.hero-art{min-height:295px;border-radius:22px}.hero-art:before{inset:14px}.f1{top:29px}.f2{bottom:32px}.f3{display:none}.section{padding-top:45px}.topbar h2{font-size:25px}.grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:11px}.gamecard{padding:7px;border-radius:18px}.thumb{height:138px;border-radius:12px}.thumb .game-emoji{font-size:62px}.thumb .tag{top:8px;left:8px;padding:5px 8px;font-size:9px}.cardrow{padding:11px 4px 6px}.cardrow h3{font-size:15px}.cardrow p{font-size:10px}.arrow{width:30px;height:30px;font-size:17px}.featured .gamecard{min-width:244px}.featured .thumb{height:173px}.info{grid-template-columns:1fr;gap:12px}.info-box{border-radius:22px;padding:25px;min-height:208px}.nav .btn{padding:11px 14px}.brand-sub{display:none}.modalbody{padding:18px}.modalhead{padding:18px}}
 @media(prefers-reduced-motion:reduce){*,*:before,*:after{scroll-behavior:auto!important;transition:none!important}}
+
+/* NIGHT PLAY V2 — immersive, single-route game views */
+html,body{min-height:100%;overscroll-behavior-y:none}
+body.in-game{overflow:hidden;touch-action:pan-x pan-y}
+a[href="#connect"]{display:none}
+.hero{padding-bottom:50px}
+.hero h1{max-width:720px}
+.game-page{position:fixed;inset:0;z-index:20;background:#f7f7f7;display:none;flex-direction:column;width:100%;height:100dvh;min-height:0;overflow-y:auto;overscroll-behavior:contain}
+.game-page.active{display:flex}
+.game-topline{display:flex;align-items:center;justify-content:space-between;padding:16px clamp(16px,4vw,52px);border-bottom:1px solid #e4e4e4;gap:12px;flex:0 0 auto;background:#f7f7f7}
+.game-topline button{border:0;border-radius:100px;background:#ededed;padding:11px 16px;font-weight:750;font-size:12px;cursor:pointer}
+.game-topline .game-brand{font-weight:900;letter-spacing:-.7px;font-size:15px;white-space:nowrap}
+.game-topline .game-hint{font-size:10px;color:#898989;font-weight:700;letter-spacing:1.5px}
+.game-wrap{width:min(100%,760px);margin:auto;padding:20px 18px 24px;display:flex;flex-direction:column;align-items:center;justify-content:center;flex:1 0 auto;min-height:0}
+.game-wrap .eyebrow{font-size:10px;margin-bottom:8px}
+.game-wrap h2{font-size:clamp(28px,5vw,42px);letter-spacing:-1.7px;line-height:1.1;margin:0 0 8px;text-align:center;color:#111}
+.game-wrap #gameHelp{text-align:center;margin:0 auto 18px;max-width:460px;font-size:12px;line-height:1.55}
+.game-page .playarea{width:100%;margin:0 auto}
+.game-page .scorebar{width:min(100%,520px)}
+.game-page #snakeCanvas{width:min(75vw,54dvh,510px);max-width:100%;border-radius:17px;touch-action:none}
+.game-page .board2048,.game-page .tttboard{width:min(79vw,53dvh,510px);max-width:100%;touch-action:none;overscroll-behavior:contain}
+.game-page .tttboard button{touch-action:manipulation}
+.game-page .modal-actions{margin:15px auto 0;justify-content:center;gap:8px}
+.game-page .modal-actions .btn{padding:12px 16px}
+.game-page .dpad{margin-top:14px}
+.game-page .dpad button{touch-action:manipulation;user-select:none}
+.game-page .dpad button:active{background:#bbb}
+.game-page .game-status{font-size:11px;color:#8a8d8d;padding-top:15px;text-align:center}
+.guest-note{display:flex;align-items:center;justify-content:space-between;gap:20px;padding:23px 26px;margin:8px 0 6px;border-radius:20px;background:#ebebeb}
+.guest-note h3{margin:0 0 7px;font-size:17px;letter-spacing:-.35px}
+.guest-note p{margin:0;font-size:12px;line-height:1.7;color:#777}
+.guest-note .badge{display:inline-flex;background:#dedede;border-radius:100px;padding:7px 12px;font-size:11px;font-weight:800;flex:0 0 auto}
+.info-compact{background:#ececec;border-radius:24px;margin-top:55px;padding:24px 28px;display:flex;gap:20px;align-items:center;justify-content:space-between}
+.info-compact h3{margin:0 0 7px;font-size:21px;letter-spacing:-.7px}.info-compact p{font-size:12px;color:#777;line-height:1.7;max-width:610px;margin:0}
+#gameDialog:not(.active){visibility:hidden}
+@media(max-width:600px){
+ .hero{padding-bottom:34px}
+ .guest-note{padding:18px;gap:12px}
+ .guest-note .badge{display:none}
+ .info-compact{margin-top:45px;padding:19px;border-radius:18px;align-items:start;flex-direction:column}
+ .game-topline{padding:11px 14px}
+ .game-topline button{padding:10px 12px}
+ .game-wrap{padding:12px 12px 16px;justify-content:flex-start}
+ .game-page .modal-actions{margin:14px auto 0}
+ .game-page .dpad{margin:9px auto 0;gap:4px}
+ .game-page .dpad button{height:43px}
+ .game-page #snakeCanvas{width:min(88vw,49dvh,440px)}
+ .game-page .board2048,.game-page .tttboard{width:min(90vw,48dvh,440px)}
+ .game-wrap #gameHelp{margin-bottom:10px}
+}
+
 </style>
 </head>
 <body>
-<header><div class="wrap nav"><a href="#" class="logo"><span class="moon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path fill="#fff" d="M16.7 2.5A8.95 8.95 0 0 0 12.5 19a9 9 0 1 1 4.2-16.5Z"/></svg></span>NIGHT <span class="brand-sub">PLAY</span></a><nav class="links"><a href="#games">Explore games</a><a href="#arcade">Arcade</a><a href="#connect">Connect</a></nav><div class="actions"><button class="btn light" data-dialog="connect">Connect WhatsApp ↗</button></div></div></header>
+<header><div class="wrap nav"><a href="#" class="logo"><span class="moon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path fill="#fff" d="M16.7 2.5A8.95 8.95 0 0 0 12.5 19a9 9 0 1 1 4.2-16.5Z"/></svg></span>NIGHT <span class="brand-sub">PLAY</span></a><nav class="links"><a href="#games">Explore games</a><a href="#arcade">Arcade</a><a href="#arcade">More games</a></nav><div class="actions"><button class="btn light" data-dialog="connect">Connect WhatsApp ↗</button></div></div></header>
 <main class="wrap">
-<section class="hero"><div><div class="eyebrow">THE NIGHT IS YOURS · EARLY PLAYABLE PREVIEW</div><h1>Play your<br>next move.</h1><p>From quick arcade runs to classic board battles. One place to play, challenge friends, and build your NIGHT legacy.</p><div class="hero-btns"><a class="btn" href="#games">Explore games <span aria-hidden="true">↗</span></a><button class="btn outline" data-dialog="crossplay">How multiplayer will work</button></div></div><div class="hero-art" role="img" aria-label="Minimalist moon illustration"><div class="disc"></div><div class="floating f1">🌙 &nbsp; NIGHT is calling</div><div class="floating f2"><span class="online-dot"></span>Play without a login</div><div class="floating f3">● &nbsp; Keep your winning streak alive</div></div></section>
-<section id="games" class="section"><div class="topbar"><div><span class="eyebrow">JUST ONE MORE ROUND</span><h2>Featured games.</h2><p>Three games are playable right now, on this device.</p></div><a class="see" href="#arcade">See all games ↗</a></div><div class="featured">
+<section class="hero"><div><div class="eyebrow">NIGHT PLAY · PUBLIC PREVIEW</div><h1>Good games.<br>Late nights.</h1><p>Step into your next favourite game. Full-screen arcade runs, thoughtful puzzles and board battles — all in one home. No login required to start.</p><div class="hero-btns"><a class="btn" href="#games">Explore games <span aria-hidden="true">↗</span></a><button class="btn outline" data-dialog="crossplay">Multiplayer roadmap</button></div></div><div class="hero-art" role="img" aria-label="Minimalist moon illustration"><div class="disc"></div><div class="floating f1">🌙 &nbsp; NIGHT is calling</div><div class="floating f2"><span class="online-dot"></span>Play without a login</div><div class="floating f3">● &nbsp; Keep your winning streak alive</div></div></section>
+<section class="guest-note"><div><h3>Just visiting? You can play right away.</h3><p>Guest scores are saved on this device. NIGHT account linking and competitive rankings are coming next.</p></div><span class="badge">GUEST MODE IS ON</span></section>
+<section id="games" class="section"><div class="topbar"><div><span class="eyebrow">JUST ONE MORE ROUND</span><h2>Featured games.</h2><p>Fullscreen games. Touch controls. Progress that survives a refresh.</p></div><a class="see" href="#arcade">See all games ↗</a></div><div class="featured">
 <article class="gamecard"><div class="thumb snake"><span class="tag">PLAYABLE · ARCADE</span><span class="game-emoji">🐍</span></div><div class="cardrow"><div><h3>Snake</h3><p>Eat. Grow. Survive.</p></div><button class="arrow" aria-label="Play Snake" data-game="snake">↗</button></div></article>
 <article class="gamecard"><div class="thumb tiles"><span class="tag">PLAYABLE · PUZZLE</span><span class="game-emoji">🔢</span></div><div class="cardrow"><div><h3>2048</h3><p>Slide to the top.</p></div><button class="arrow" aria-label="Play 2048" data-game="2048">↗</button></div></article>
 <article class="gamecard"><div class="thumb tictactoe"><span class="tag">PLAYABLE · CLASSIC</span><span class="game-emoji">❎</span></div><div class="cardrow"><div><h3>Tic-Tac-Toe</h3><p>Against bot or local friend.</p></div><button class="arrow" aria-label="Play Tic-Tac-Toe" data-game="ttt">↗</button></div></article>
@@ -48,48 +100,69 @@ hr{border:0;border-top:1px solid var(--line);margin:24px 0}
 <article class="gamecard"><div class="thumb ludo"><span class="tag">WHATSAPP NOW</span><span class="game-emoji">🎲</span></div><div class="cardrow"><div><h3>Ludo</h3><p>Web board coming soon.</p></div><button class="arrow" data-dialog="crossplay" aria-label="Ludo cross-play details">↗</button></div></article>
 <article class="gamecard"><div class="thumb mines"><span class="tag">COMING SOON</span><span class="game-emoji">💣</span></div><div class="cardrow"><div><h3>Minesweeper</h3><p>Think before you tap.</p></div><button class="arrow" data-dialog="soon" aria-label="Minesweeper coming soon">↗</button></div></article>
 </div></section>
-<section class="info" id="connect"><div class="info-box dark"><div><span class="tiny">ONE NIGHT IDENTITY</span><h3>Your games. Your wins. Your profile.</h3><p>Later, link your NIGHT WhatsApp profile securely to share achievements, levels, and verified scores across devices.</p></div><button class="btn light" data-dialog="connect">See connection plan ↗</button></div><div class="info-box"><div><span class="tiny">PLAY TOGETHER</span><h3>Different screens. Same match.</h3><p>Chess, Ludo, Checkers and Tic-Tac-Toe can support web versus WhatsApp players through one shared match engine.</p></div><button class="btn" data-dialog="crossplay">Explore cross-play ↗</button></div></section>
+<section class="info-compact" id="connect"><div><h3>Play here. Challenge anywhere.</h3><p>Online matches, shared leaderboards, and secure WhatsApp account linking are planned for NIGHT Play. For now, these are playable guest games — the existing WhatsApp board-game commands continue separately.</p></div><button class="btn outline" data-dialog="crossplay">The vision ↗</button></section>
 </main>
 <footer class="wrap"><span><strong>NIGHT PLAY</strong> · Built for the night owls.</span><span>Preview · Scores saved only on this device</span></footer>
 <dialog id="infoDialog" aria-labelledby="infoTitle"><div class="modalhead"><h2 id="infoTitle">NIGHT Play</h2><button class="xbtn" data-close aria-label="Close">×</button></div><div class="modalbody" id="infoBody"></div></dialog>
-<dialog id="gameDialog" aria-labelledby="gameTitle"><div class="modalhead"><h2 id="gameTitle">NIGHT Game</h2><button class="xbtn" data-close aria-label="Close game">×</button></div><div class="modalbody"><p class="modalnote" id="gameHelp"></p><div id="gameRoot" class="playarea"></div><div class="modal-actions"><button class="btn" id="restart">Restart ↻</button><button class="btn outline" data-close>Back to games</button></div></div></dialog>
+<section id="gameDialog" class="game-page" aria-label="Fullscreen game view" aria-hidden="true">
+<div class="game-topline"><button type="button" data-close-game>← All games</button><span class="game-brand">NIGHT <span class="muted">PLAY</span></span><span class="game-hint">LOCAL PREVIEW</span></div>
+<div class="game-wrap"><span class="eyebrow">YOUR PLAYGROUND</span><h2 id="gameTitle">NIGHT Game</h2><p class="modalnote" id="gameHelp"></p><div id="gameRoot" class="playarea"></div><div class="modal-actions"><button class="btn" id="restart">New game ↻</button><button class="btn outline" id="pauseGame" type="button">Pause ⏸</button><button class="btn outline" data-close-game>Exit</button></div><p class="game-status">Touch-first controls · no account required · your personal scores stay here</p></div>
+</section>
 <script>
 "use strict";
 const infoDialog=document.getElementById("infoDialog"),gameDialog=document.getElementById("gameDialog");
+gameDialog.open=false;
+gameDialog.showModal=()=>{gameDialog.classList.add("active");gameDialog.setAttribute("aria-hidden","false");gameDialog.open=true;document.body.classList.add("in-game")};
+gameDialog.close=()=>{gameDialog.classList.remove("active");gameDialog.setAttribute("aria-hidden","true");gameDialog.open=false;document.body.classList.remove("in-game");gameDialog.dispatchEvent(new Event("close"))};
 const root=document.getElementById("gameRoot"),title=document.getElementById("gameTitle"),help=document.getElementById("gameHelp");
-let active="",snakeTimer=null,snake={},ttt=[],turn="X",mode="bot",tttFinished=false,grid=[],tileScore=0;
+let active="",snakeTimer=null,snake={},ttt=[],turn="X",mode="bot",tttFinished=false,grid=[],tileScore=0,gamePaused=false,boardRestore=null;
 const scoreKey="night-play-v1-";
 function best(key){try{return Number(localStorage.getItem(scoreKey+key)||0)||0}catch{return 0}}
 function record(key,value){if(value>best(key)){try{localStorage.setItem(scoreKey+key,String(value))}catch{}}}
 function modal(kind){
  const content={
- connect:["Connect your WhatsApp profile",'<p class="modalnote">The website and WhatsApp will use the same NIGHT identity. Here is the planned secure linking flow:</p><div class="notice"><b>1.</b> Message NIGHT on WhatsApp with <code>.minigames link</code><br><b>2.</b> NIGHT generates a single-use code that expires after a few minutes.<br><b>3.</b> Enter the code here to connect your profile.<br><b>4.</b> Your verified matches, ranks and achievements stay synced.</div><p class="modalnote" style="margin-top:18px"><b>Preview status:</b> linking is not active yet. Do not send a real pairing code or WhatsApp login credentials to this demo. Local scores remain on this device only.</p>'],
+ connect:["Connect WhatsApp to NIGHT",'<p class="modalnote">Play as a guest today. Soon you will be able to connect your NIGHT profile without passwords or giving the website your WhatsApp number.</p><div class="notice"><b>Planned secure flow</b><br><b>1.</b> Tap Connect here. NIGHT generates a short-lived linking code.<br><b>2.</b> Copy the command <code>.minigames link CODE</code>.<br><b>3.</b> Send it to NIGHT privately on WhatsApp.<br><b>4.</b> NIGHT verifies the sender and automatically signs you in here.<br><br>Existing <code>.chess</code>, <code>.ludo</code>, <code>.checkers</code>, and <code>.ttt</code> remain unchanged.</div><p class="modalnote" style="margin-top:18px"><b>Not live yet:</b> there is no code to copy at this stage. Linking and online leaderboards require a backend; no phone number, JID or LID is being collected by this preview.</p>'],
  crossplay:["Web × WhatsApp cross-play",'<p class="modalnote">A Chess player on the website will be able to challenge someone playing through <b>.chess</b> in WhatsApp. The same match ID and server-validated turns keep the board synchronized.</p><div class="notice"><b>Planned modes</b><br>↗ Challenge a friend with an invite link<br>↗ Match with a random verified NIGHT player<br>↗ Play with the bot<br>↗ Cross-platform matches in turn-based games<br><br><b>Current status:</b> this is the design plan, not an active multiplayer connection. Existing WhatsApp games remain unchanged.</div>'],
  soon:["More games are coming",'<p class="modalnote">The web version is being built. Try Snake, 2048 or Tic-Tac-Toe in this preview. Other games will be added once their rules and score verification are ready.</p>']
  }[kind]||["NIGHT Play",""];
  document.getElementById("infoTitle").textContent=content[0];document.getElementById("infoBody").innerHTML=content[1];infoDialog.showModal();
 }
-function stop(){if(snakeTimer){clearInterval(snakeTimer);snakeTimer=null}active="";}
+function stop(){if(snakeTimer){clearInterval(snakeTimer);snakeTimer=null}active="";gamePaused=false;document.getElementById("pauseGame").textContent="Pause ⏸";}
 document.addEventListener("click",e=>{
  const dialog=e.target.closest("[data-dialog]");if(dialog)modal(dialog.dataset.dialog);
  const g=e.target.closest("[data-game]");if(g)openGame(g.dataset.game);
- if(e.target.closest("[data-close]")){infoDialog.close();gameDialog.close();stop()}
+ if(e.target.closest("[data-close]")) infoDialog.close();
+ if(e.target.closest("[data-close-game]")) exitGame();
  const direction=e.target.closest("[data-dir]");if(direction)snakeTurn(direction.dataset.dir);
 });
 gameDialog.addEventListener("close",stop);
-document.getElementById("restart").addEventListener("click",()=>openGame(active));
-function openGame(kind){
+window.addEventListener("popstate",()=>{const k=location.pathname.split("/")[2];if(["snake","2048","ttt"].includes(k))openGame(k,{push:false});else if(gameDialog.open)gameDialog.close()});
+document.getElementById("pauseGame").addEventListener("click",()=>{
+ if(!gameDialog.open)return;
+ gamePaused=!gamePaused;
+ document.getElementById("pauseGame").textContent=gamePaused?"Resume ▶":"Pause ⏸";
+});
+document.addEventListener("visibilitychange",()=>{
+ if(document.hidden&&gameDialog.open&&active==="snake"){gamePaused=true;document.getElementById("pauseGame").textContent="Resume ▶"}
+});
+function exitGame(){if(gameDialog.open)gameDialog.close();if(location.pathname.startsWith("/play/"))history.pushState({},"","/")}
+
+document.getElementById("restart").addEventListener("click",()=>openGame(active,{push:false,fresh:true}));
+function openGame(kind,{push=true,fresh=false}={}){
+ if(!["snake","2048","ttt"].includes(kind))return;
+ if(push)history.pushState({game:kind},"","/play/"+kind);
  stop();active=kind;gameDialog.showModal();title.textContent=kind==="ttt"?"Tic-Tac-Toe":kind==="2048"?"2048":"Snake";
- if(kind==="snake"){help.textContent="Use arrow keys, swipe, or the touch controls. Stay alive and beat your own record.";initSnake()}
- if(kind==="2048"){help.textContent="Swipe or use arrow keys to merge equal numbers. Can you reach 2048?";init2048()}
- if(kind==="ttt"){help.textContent="Play against NIGHT's bot or a friend sharing this device. Online matchmaking comes later.";initTtt()}
+ if(kind==="snake"){help.textContent="Swipe the board, tap the arrows or use your keyboard. Pause is automatic if you switch apps.";initSnake(fresh)}
+ if(kind==="2048"){help.textContent="Slide matching tiles together. Your board is automatically saved after every move.";init2048(fresh)}
+ if(kind==="ttt"){help.textContent="Play against NIGHT's bot or someone beside you. Online multiplayer is coming later.";initTtt(fresh)}
 }
-function initSnake(){
+function initSnake(fresh=false){
  const size=18,c=document.createElement("canvas");c.id="snakeCanvas";c.width=360;c.height=360;
- snake={size,body:[{x:7,y:9},{x:6,y:9},{x:5,y:9}],dir:"right",next:"right",food:null,score:0,alive:true};
+ const loaded=!fresh?JSON.parse(localStorage.getItem("night-play-save-snake")||"null"):null;
+ snake=loaded&&Array.isArray(loaded.body)&&loaded.body.length&&loaded.alive&&loaded.food?{...loaded,size,alive:true,canvas:c}:{size,body:[{x:7,y:9},{x:6,y:9},{x:5,y:9}],dir:"right",next:"right",food:null,score:0,alive:true};
  const control=document.createElement("div");control.className="dpad";["up","left","down","right"].forEach(d=>{const b=document.createElement("button");b.dataset.dir=d;b.textContent={up:"↑",down:"↓",left:"←",right:"→"}[d];b.setAttribute("aria-label",d);control.appendChild(b)});
- root.innerHTML='<div class="scorebar"><span>Score: <b id="score">0</b></span><span>Best: <b id="best">'+best("snake")+'</b></span></div>';root.appendChild(c);root.appendChild(control);
- snake.canvas=c;snake.food=food();drawSnake();
+ root.innerHTML='<div class="scorebar"><span>Score: <b id="score">'+snake.score+'</b></span><span>Best: <b id="best">'+best("snake")+'</b></span></div>';root.appendChild(c);root.appendChild(control);
+ snake.canvas=c;snake.food=snake.food||food();drawSnake();
  let origin=null;c.addEventListener("touchstart",e=>{origin={x:e.touches[0].clientX,y:e.touches[0].clientY}},{passive:true});
  c.addEventListener("touchend",e=>{if(!origin)return;const dx=e.changedTouches[0].clientX-origin.x,dy=e.changedTouches[0].clientY-origin.y;if(Math.max(Math.abs(dx),Math.abs(dy))>17)snakeTurn(Math.abs(dx)>Math.abs(dy)?dx>0?"right":"left":dy>0?"down":"up");origin=null},{passive:true});
  snakeTimer=setInterval(stepSnake,135);
@@ -105,12 +178,12 @@ function drawSnake(){
  if(!snake.alive){ctx.fillStyle="#111c";ctx.fillRect(0,145,360,68);ctx.fillStyle="#fff";ctx.font="bold 26px Arial";ctx.textAlign="center";ctx.fillText("GAME OVER",180,186)}
 }
 function stepSnake(){
- if(!snake.alive)return;snake.dir=snake.next;
+ if(!snake.alive||gamePaused)return;snake.dir=snake.next;
  const p={...snake.body[0]};if(snake.dir==="right")p.x++;if(snake.dir==="left")p.x--;if(snake.dir==="down")p.y++;if(snake.dir==="up")p.y--;
  const eating=p.x===snake.food.x&&p.y===snake.food.y;
  const check=eating?snake.body:snake.body.slice(0,-1);
- if(p.x<0||p.y<0||p.x>=snake.size||p.y>=snake.size||check.some(x=>x.x===p.x&&x.y===p.y)){snake.alive=false;clearInterval(snakeTimer);snakeTimer=null;drawSnake();return}
- snake.body.unshift(p);if(!eating)snake.body.pop();else{snake.score+=10;record("snake",snake.score);snake.food=food();document.getElementById("score").textContent=snake.score;document.getElementById("best").textContent=best("snake")}drawSnake();
+ if(p.x<0||p.y<0||p.x>=snake.size||p.y>=snake.size||check.some(x=>x.x===p.x&&x.y===p.y)){snake.alive=false;localStorage.removeItem("night-play-save-snake");clearInterval(snakeTimer);snakeTimer=null;drawSnake();return}
+ snake.body.unshift(p);if(!eating)snake.body.pop();else{snake.score+=10;record("snake",snake.score);snake.food=food();document.getElementById("score").textContent=snake.score;document.getElementById("best").textContent=best("snake")}localStorage.setItem("night-play-save-snake",JSON.stringify({size:snake.size,body:snake.body,dir:snake.dir,next:snake.next,food:snake.food,score:snake.score,alive:snake.alive}));drawSnake();
 }
 function initTtt(){
  ttt=Array(9).fill("");turn="X";tttFinished=false;
@@ -131,13 +204,14 @@ function moveTtt(i){if(active!=="ttt"||tttFinished||ttt[i])return;ttt[i]=turn;if
  function winMove(token){return moves.find(i=>{const cp=[...ttt];cp[i]=token;return isWin(cp,token)})}
  const pick=winMove("O")??winMove("X")??(moves.includes(4)?4:moves[Math.floor(Math.random()*moves.length)]);moveTtt(pick)},260)}
 }
-function init2048(){grid=Array.from({length:4},()=>[0,0,0,0]);tileScore=0;spawn();spawn();root.innerHTML='<div class="scorebar"><span>Score: <b id="score">0</b></span><span>Best: <b id="best">'+best("2048")+'</b></span></div><div id="board2048" class="board2048"></div><p class="modalnote" style="margin:15px 0 0;text-align:center">Swipe anywhere on the board to move tiles.</p>';draw2048();let start=null;const board=document.getElementById("board2048");board.addEventListener("touchstart",e=>{start={x:e.touches[0].clientX,y:e.touches[0].clientY}},{passive:true});board.addEventListener("touchend",e=>{if(!start)return;let x=e.changedTouches[0].clientX-start.x,y=e.changedTouches[0].clientY-start.y;if(Math.max(Math.abs(x),Math.abs(y))>20)move2048(Math.abs(x)>Math.abs(y)?x>0?"right":"left":y>0?"down":"up");start=null},{passive:true})}
+function init2048(fresh=false){const saved=!fresh?JSON.parse(localStorage.getItem("night-play-save-2048")||"null"):null;grid=saved&&Array.isArray(saved.grid)&&saved.grid.length===4&&saved.grid.every(row=>Array.isArray(row)&&row.length===4)?saved.grid:Array.from({length:4},()=>[0,0,0,0]);tileScore=Number(saved?.score||0);if(!saved||fresh){tileScore=0;spawn();spawn()}root.innerHTML='<div class="scorebar"><span>Score: <b id="score">'+tileScore+'</b></span><span>Best: <b id="best">'+best("2048")+'</b></span></div><div id="board2048" class="board2048"></div><p class="modalnote" style="margin:15px 0 0;text-align:center">Swipe anywhere on the board to move tiles.</p>';draw2048();let start=null;const board=document.getElementById("board2048");board.addEventListener("touchstart",e=>{start={x:e.touches[0].clientX,y:e.touches[0].clientY}},{passive:true});board.addEventListener("touchend",e=>{if(!start)return;let x=e.changedTouches[0].clientX-start.x,y=e.changedTouches[0].clientY-start.y;if(Math.max(Math.abs(x),Math.abs(y))>20)move2048(Math.abs(x)>Math.abs(y)?x>0?"right":"left":y>0?"down":"up");start=null},{passive:true})}
 function spawn(){const empty=[];grid.forEach((row,r)=>row.forEach((v,c)=>{if(v===0)empty.push([r,c])}));if(!empty.length)return;const p=empty[Math.floor(Math.random()*empty.length)];grid[p[0]][p[1]]=Math.random()<.9?2:4}
 function slide(arr){const n=arr.filter(Boolean),o=[];for(let i=0;i<n.length;i++){if(n[i]===n[i+1]){o.push(n[i]*2);tileScore+=n[i]*2;i++}else o.push(n[i])}while(o.length<4)o.push(0);return o}
-function move2048(dir){if(active!=="2048")return;const before=JSON.stringify(grid);if(dir==="left")grid=grid.map(slide);if(dir==="right")grid=grid.map(r=>slide([...r].reverse()).reverse());if(dir==="up"||dir==="down"){for(let c=0;c<4;c++){let col=grid.map(r=>r[c]);if(dir==="down")col.reverse();col=slide(col);if(dir==="down")col.reverse();for(let r=0;r<4;r++)grid[r][c]=col[r]}}
- if(JSON.stringify(grid)!==before){spawn();record("2048",tileScore);draw2048();if(!grid.flat().includes(0)){let moves=false;for(let r=0;r<4;r++)for(let c=0;c<4;c++)if((r<3&&grid[r][c]===grid[r+1][c])||(c<3&&grid[r][c]===grid[r][c+1]))moves=true;if(!moves)document.querySelector("#gameHelp").textContent="No more moves! Restart to try again."}}
+function move2048(dir){if(active!=="2048"||gamePaused)return;const before=JSON.stringify(grid);if(dir==="left")grid=grid.map(slide);if(dir==="right")grid=grid.map(r=>slide([...r].reverse()).reverse());if(dir==="up"||dir==="down"){for(let c=0;c<4;c++){let col=grid.map(r=>r[c]);if(dir==="down")col.reverse();col=slide(col);if(dir==="down")col.reverse();for(let r=0;r<4;r++)grid[r][c]=col[r]}}
+ if(JSON.stringify(grid)!==before){spawn();record("2048",tileScore);localStorage.setItem("night-play-save-2048",JSON.stringify({grid,score:tileScore}));draw2048();if(!grid.flat().includes(0)){let moves=false;for(let r=0;r<4;r++)for(let c=0;c<4;c++)if((r<3&&grid[r][c]===grid[r+1][c])||(c<3&&grid[r][c]===grid[r][c+1]))moves=true;if(!moves)document.querySelector("#gameHelp").textContent="No more moves! Restart to try again."}}
 }
 function draw2048(){document.getElementById("score").textContent=tileScore;document.getElementById("best").textContent=best("2048");const board=document.getElementById("board2048");board.innerHTML="";grid.flat().forEach(v=>{const t=document.createElement("div");t.className="tile";t.dataset.v=v;t.textContent=v||"";board.appendChild(t)})}
-document.addEventListener("keydown",e=>{if(!gameDialog.open)return;const dirs={ArrowUp:"up",ArrowDown:"down",ArrowLeft:"left",ArrowRight:"right",w:"up",s:"down",a:"left",d:"right"};const dir=dirs[e.key];if(dir){e.preventDefault();if(active==="snake")snakeTurn(dir);if(active==="2048")move2048(dir)}});
+document.addEventListener("keydown",e=>{if(!gameDialog.open)return;const dirs={ArrowUp:"up",ArrowDown:"down",ArrowLeft:"left",ArrowRight:"right",w:"up",s:"down",a:"left",d:"right"};const dir=dirs[e.key];if(dir){e.preventDefault();if(gamePaused)return;if(active==="snake")snakeTurn(dir);if(active==="2048")move2048(dir)}});
 </script>
+<script>if(location.pathname.startsWith("/play/")){const id=location.pathname.split("/")[2];if(["snake","2048","ttt"].includes(id))openGame(id,{push:false});}</script>
 </body></html>
