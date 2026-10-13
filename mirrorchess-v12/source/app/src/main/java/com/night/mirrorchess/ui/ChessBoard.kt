@@ -1,6 +1,7 @@
 package com.night.mirrorchess.ui
 
 import android.provider.Settings
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.tween
@@ -172,6 +173,16 @@ fun ChessBoard(
                         val isLastMove = displayedState.lastMove?.let { it.from == square || it.to == square } == true
                         val background = if (light) boardColors.light else boardColors.dark
                         val coordinateColor = if (light) boardColors.coordLight else boardColors.coordDark
+                        val highlight by animateColorAsState(
+                            targetValue = when {
+                                checkedKingSquare == square -> Color(0xFFD74646).copy(alpha = .25f)
+                                isSelected -> boardColors.selected.copy(alpha = .23f)
+                                isLastMove -> boardColors.last.copy(alpha = .19f)
+                                else -> Color.Transparent
+                            },
+                            animationSpec = tween(durationMillis = 160),
+                            label = "square-highlight",
+                        )
 
                         Box(
                             modifier = Modifier
@@ -194,15 +205,8 @@ fun ChessBoard(
                                     onSquareTap(square)
                                 },
                         ) {
-                            if (isLastMove) {
-                                Box(Modifier.fillMaxSize().background(boardColors.last.copy(alpha = .18f)))
-                            }
-                            if (isSelected) {
-                                Box(Modifier.fillMaxSize().background(boardColors.selected.copy(alpha = .12f)))
-                            }
-                            if (checkedKingSquare == square) {
-                                Box(Modifier.fillMaxSize().background(Color(0xFFD74646).copy(alpha = .24f)))
-                            }
+                            // Fade square feedback gently without obscuring pieces or targets.
+                            Box(Modifier.fillMaxSize().background(highlight))
                             if (showLegalMoves && legalTargets.contains(square)) {
                                 val capture = piece != null
                                 Box(
