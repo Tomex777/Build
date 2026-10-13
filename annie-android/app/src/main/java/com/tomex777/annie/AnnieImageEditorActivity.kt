@@ -30,6 +30,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.key
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -42,9 +43,10 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
-import coil.ImageLoader
+import coil.imageLoader
 import coil.request.ImageRequest
 import coil.request.SuccessResult
+import coil.size.Scale
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.launch
@@ -104,11 +106,12 @@ internal class AnnieImageEditorActivity : ComponentActivity() {
     }
 }
 
-private suspend fun loadEditableAnnieBitmap(context: Context, source: String): Bitmap? =
+internal suspend fun loadEditableAnnieBitmap(context: Context, source: String): Bitmap? =
     withContext(Dispatchers.IO) {
+        val data = annieImageRequestData(source) ?: return@withContext null
         val request = ImageRequest.Builder(context)
-            .data(source).allowHardware(false).build()
-        val result = ImageLoader(context).execute(request) as? SuccessResult ?: return@withContext null
+            .data(data).allowHardware(false).size(4096, 4096).scale(Scale.FIT).build()
+        val result = context.imageLoader.execute(request) as? SuccessResult ?: return@withContext null
         val drawable = result.drawable
         val intrinsicWidth = drawable.intrinsicWidth
         val intrinsicHeight = drawable.intrinsicHeight
@@ -144,15 +147,23 @@ internal fun AnnieImageEditorScreen(source: String?, onClose: () -> Unit) {
         loading = false
     }
 
-    val output by produceState<Bitmap?>(initialValue = null, original, edits) {
-        value = original?.let { input ->
-            withContext(Dispatchers.Default) { applyAnnieImageEdits(input, edits) }
+    // A new edit owns a fresh state holder, so an older render is never saveable.
+    val output: Bitmap? = key(original, edits) {
+        val rendered by produceState<Bitmap?>(initialValue = null) {
+            value = original?.let { input ->
+                withContext(Dispatchers.Default) { applyAnnieImageEdits(input, edits) }
+            }
         }
+        rendered
     }
+    var pendingSave by remember { mutableStateOf<Bitmap?>(null) }
+    var saving by remember { mutableStateOf(false) }
     val saveCopy = rememberLauncherForActivityResult(
         ActivityResultContracts.CreateDocument("image/png")
     ) { uri ->
-        val bitmap = output
+        val bitmap = pendingSave
+        pendingSave = null
+        if (uri == null || bitmap == null) saving = false
         if (uri != null && bitmap != null) {
             scope.launch {
                 runCatching {
@@ -164,9 +175,11 @@ internal fun AnnieImageEditorScreen(source: String?, onClose: () -> Unit) {
                         } ?: throw IllegalStateException("Couldn't create the image file")
                     }
                 }.onSuccess {
+                    saving = false
                     saved = true
                     error = null
                 }.onFailure {
+                    saving = false
                     error = "Save failed: " + (it.message ?: "unknown error")
                 }
             }
@@ -183,8 +196,12 @@ internal fun AnnieImageEditorScreen(source: String?, onClose: () -> Unit) {
             TextButton(onClick = onClose) { Text("Close", color = Color.White) }
             Text("Edit image", color = Color.White)
             TextButton(
-                enabled = output != null,
-                onClick = { saveCopy.launch("Annie-edited.png") },
+                enabled = output != null && !saving,
+                onClick = {
+                    pendingSave = output
+                    saving = true
+                    saveCopy.launch("Annie-edited.png")
+                },
                 modifier = Modifier.testTag("annie_image_save"),
             ) { Text("Save copy", color = Color(0xFF54D6AE)) }
         }
@@ -212,21 +229,21 @@ internal fun AnnieImageEditorScreen(source: String?, onClose: () -> Unit) {
             TextButton(onClick = {
                 edits = edits.copy(quarterTurns = (edits.quarterTurns + 3) % 4)
                 saved = false
-            }, enabled = original != null,
+            }, enabled = original != null && !saving,
                 modifier = Modifier.testTag("annie_image_rotate_left")) {
                 Text("↶ Rotate", color = Color.White)
             }
             TextButton(onClick = {
                 edits = edits.copy(quarterTurns = (edits.quarterTurns + 1) % 4)
                 saved = false
-            }, enabled = original != null,
+            }, enabled = original != null && !saving,
                 modifier = Modifier.testTag("annie_image_rotate_right")) {
                 Text("Rotate ↷", color = Color.White)
             }
             TextButton(onClick = {
                 edits = edits.copy(mirrored = !edits.mirrored)
                 saved = false
-            }, enabled = original != null,
+            }, enabled = original != null && !saving,
                 modifier = Modifier.testTag("annie_image_flip")) {
                 Text("Flip", color = Color.White)
             }
@@ -238,13 +255,13 @@ internal fun AnnieImageEditorScreen(source: String?, onClose: () -> Unit) {
             TextButton(onClick = {
                 edits = edits.copy(squareCrop = !edits.squareCrop)
                 saved = false
-            }, enabled = original != null,
+            }, enabled = original != null && !saving,
                 modifier = Modifier.testTag("annie_image_crop")) {
                 Text(if (edits.squareCrop) "Original ratio" else "Square crop",
                     color = Color.White)
             }
             TextButton(onClick = { edits = AnnieImageEdits(); saved = false },
-                enabled = original != null,
+                enabled = original != null && !saving,
                 modifier = Modifier.testTag("annie_image_reset")) {
                 Text("Reset edits", color = Color.White)
             }

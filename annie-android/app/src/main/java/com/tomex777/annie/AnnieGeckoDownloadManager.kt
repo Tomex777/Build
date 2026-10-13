@@ -25,6 +25,8 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.math.roundToInt
+import org.json.JSONArray
+import org.json.JSONObject
 
 internal enum class AnnieGeckoDownloadStatus {
     DOWNLOADING, COMPLETED, FAILED, CANCELLED
@@ -45,14 +47,60 @@ internal data class AnnieGeckoDownloadEntry(
             ?.let { (bytesDone.toDouble() / it).toFloat().coerceIn(0f, 1f) }
 }
 
-/**
- * In-process download registry for Gecko response streams. This is a live activity
- * panel, not a persisted system download history; completed files remain on disk.
- * UI state is always updated on the Android main thread.
- */
+/** Completed-file metadata only: never persist source URLs, request headers or cookies. */
+internal class AnnieGeckoDownloadHistory(context: Context) {
+    private val prefs = context.applicationContext.getSharedPreferences("annie_gecko_downloads_v1", Context.MODE_PRIVATE)
+
+    fun read(): List<AnnieGeckoDownloadEntry> = try {
+        val saved = JSONArray(prefs.getString("completed", "[]"))
+        buildList {
+            for (index in 0 until minOf(saved.length(), 75)) {
+                val item = saved.optJSONObject(index) ?: continue
+                val uri = item.optString("uri")
+                val id = item.optString("id")
+                if (id.isBlank() || Uri.parse(uri).scheme != "content") continue
+                add(AnnieGeckoDownloadEntry(
+                    id = id.take(100), name = item.optString("name").take(150),
+                    mimeType = item.optString("mime", "application/octet-stream").take(150),
+                    totalBytes = item.optLong("total", -1).takeIf { it > 0 },
+                    bytesDone = item.optLong("bytes", 0).coerceAtLeast(0),
+                    status = AnnieGeckoDownloadStatus.COMPLETED, contentUri = uri,
+                ))
+            }
+        }
+    } catch (problem: org.json.JSONException) {
+        android.util.Log.w("AnnieGeckoDownloads", "Invalid saved download history", problem)
+        emptyList()
+    }
+
+    fun save(entries: List<AnnieGeckoDownloadEntry>) {
+        val saved = JSONArray()
+        entries.asSequence().filter {
+            it.status == AnnieGeckoDownloadStatus.COMPLETED &&
+                it.contentUri?.let(Uri::parse)?.scheme == "content"
+        }.take(75).forEach { item ->
+            saved.put(JSONObject().put("id", item.id).put("name", item.name)
+                .put("mime", item.mimeType).put("total", item.totalBytes ?: -1)
+                .put("bytes", item.bytesDone).put("uri", item.contentUri))
+        }
+        prefs.edit().putString("completed", saved.toString()).apply()
+    }
+}
+
+/** Live Gecko response downloads plus persistent completed files; all UI updates run on main. */
 internal object AnnieGeckoDownloads {
     private val handler = Handler(Looper.getMainLooper())
     private val entries = mutableStateListOf<AnnieGeckoDownloadEntry>()
+    private var history: AnnieGeckoDownloadHistory? = null
+
+    fun initialize(context: Context) {
+        check(Looper.myLooper() == Looper.getMainLooper())
+        if (history != null) return
+        val store = AnnieGeckoDownloadHistory(context)
+        history = store
+        val existing = entries.map { it.id }.toSet()
+        entries.addAll(store.read().filterNot { it.id in existing })
+    }
     private val cancellation = ConcurrentHashMap<String, () -> Unit>()
     // Cancellation is queried by IO workers; Compose's SnapshotStateList must
     // not be read from those threads for concurrency decisions.
@@ -60,10 +108,13 @@ internal object AnnieGeckoDownloads {
 
     val current: List<AnnieGeckoDownloadEntry> get() = entries
 
-    private fun update(id: String, transform: (AnnieGeckoDownloadEntry) -> AnnieGeckoDownloadEntry) {
+    private fun update(id: String, persist: Boolean = false, transform: (AnnieGeckoDownloadEntry) -> AnnieGeckoDownloadEntry) {
         handler.post {
             val index = entries.indexOfFirst { it.id == id }
-            if (index >= 0) entries[index] = transform(entries[index])
+            if (index >= 0) {
+                entries[index] = transform(entries[index])
+                if (persist) history?.save(entries)
+            }
         }
     }
 
@@ -95,7 +146,7 @@ internal object AnnieGeckoDownloads {
 
     fun completed(id: String, uri: Uri) {
         cancellation.remove(id)
-        update(id) {
+        update(id, persist = true) {
             if (cancelledIds.contains(id)) it
             else it.copy(status = AnnieGeckoDownloadStatus.COMPLETED,
                 bytesDone = maxOf(it.bytesDone, it.totalBytes ?: 0L),
@@ -108,6 +159,17 @@ internal object AnnieGeckoDownloads {
         update(id) {
             if (it.status == AnnieGeckoDownloadStatus.CANCELLED) it
             else it.copy(status = AnnieGeckoDownloadStatus.FAILED, reason = problem.take(160))
+        }
+    }
+
+    /** Remove a finished item from the panel without deleting the saved file. */
+    fun forget(id: String) {
+        handler.post {
+            val entry = entries.firstOrNull { it.id == id } ?: return@post
+            if (entry.status == AnnieGeckoDownloadStatus.DOWNLOADING) return@post
+            entries.remove(entry)
+            cancelledIds.remove(id)
+            history?.save(entries)
         }
     }
 
@@ -134,7 +196,7 @@ internal fun AnnieGeckoDownloadPanel(modifier: Modifier = Modifier) {
     if (tasks.isEmpty()) {
         Column(modifier.padding(18.dp)) {
             Text("No downloads yet", color = BrowserBrightText)
-            Text("Files downloaded in this browser session will appear here.",
+            Text("Saved browser downloads remain available after reopening Annie.",
                 color = BrowserSoftText)
         }
         return
@@ -169,6 +231,12 @@ internal fun AnnieGeckoDownloadPanel(modifier: Modifier = Modifier) {
                             onClick = { openAnnieGeckoDownload(context, uri, download.mimeType) },
                             modifier = Modifier.testTag("annie_gecko_download_open_${download.id}"),
                         ) { Text("Open") }
+                    }
+                }
+                if (download.status != AnnieGeckoDownloadStatus.DOWNLOADING) {
+                    TextButton(onClick = { AnnieGeckoDownloads.forget(download.id) },
+                        modifier = Modifier.testTag("annie_gecko_download_forget_${download.id}")) {
+                        Text("Remove from list")
                     }
                 }
             }

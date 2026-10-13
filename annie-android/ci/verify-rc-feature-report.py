@@ -1,0 +1,58 @@
+#!/usr/bin/env python3
+"""Reject green device runs that omit requested acceptance methods."""
+from pathlib import Path
+import sys
+import xml.etree.ElementTree as ET
+
+EXPECTED = {
+    "ApiTwoRuntimeTest": {'strictWrappersPreserveTypesAndStreamOnePersistentMessage'},
+    "GuestRuntimeTest": {'typedEntryCannotBeMovedOrDeletedOutOfItsManifest', 'projectNamesCannotCollideAcrossRuntimeLanguages', 'nativeInterpreterRejectsHostAccessAndRecovers', 'javascriptOrchestratesPythonAndLuaWithJson', 'pythonAndLuaCommandsExecuteInTheWorker'},
+    "HostAiRuntimeTest": {'aiRateLimitIsSharedAcrossProviderInstances', 'aiStreamsIntoOneStoredMessageAndHonoursRevocation', 'hostCredentialsAreEncryptedAndOutsideScriptEnvironmentStorage', 'permissionRevocationDuringGenerationPreservesPartialTextAndEndsStreaming'},
+    "TypeScriptRuntimeTest": {'typescriptFolderImportsAndJavascriptInterop', 'typedEntryAndImportedModuleRunThroughAnnie'},
+    "AnnieCanvasMessageTest": {'webGlShadersDrawReadPixelsAndSurviveFullscreen', 'builtInSnakeCommandProducesPlayableCanvasAndCapturesItsChatPreview', 'snakeCanvasAppearsInsideTheRealChatAndAcceptsFingerSwipes', 'interactiveCanvasRunsOfflineAndRetainsItsWebViewAcrossFullscreen'},
+    "ChatHistoryTest": {"chatsPersistAndHistoryCanCreateAndReopenConversations", "manageChatRenamesAndDeletesWithConfirmation", "navigationDrawerOpensLibraryAndRoutesToDownloads", "profilePickerUsesApprovedAvatarLibraryAndCanResetToAnnieMark", "historyStoreRestoresCatalogCardsAndTheirActions"},
+    "ScriptStudioFileCreationTest": {"typeSelectionCreatesHtmlAndExplicitCssExtensionOverridesIt", "failedDiskWriteKeepsDraftAndBlocksFileSwitchAndClose", "folderSelectionLoadsItsOwnEntryWithoutLeakingOtherDraft"},
+    "AnnieGeckoBrowserUiTest": {"addressSubmissionDismissesKeyboardAndBrowserControlsRespectSystemBars"},
+    "AnnieVoiceGestureTest": {"slidingLeftCancelsTheActualRecordingWithoutSending", "slidingUpLocksAcrossButtonRemovalAndPauseResumeSendsOneAudioFile", "cancelledFingerHoldDoesNotSendOrLeaveTheMicrophoneRunning", "fingerHoldAndReleaseSendsExactlyOneRealAudioFile"},
+    "AnnieGeckoFilePickerTest": {"singleFilePickerUsesAndroidDocumentApiAndRestrictsAcceptedMimeType", "multipleFilePickerPreservesSupportedMimeTypes", "selectedDocumentUrisAreCollectedWithoutDuplicates"},
+    "AnnieImageViewerTest": {"tappingChatImageOpensGenuineScreenWidthViewer"},
+    "AnnieImageEditorTest": {"inlineImageDecodesIntoBoundedEditableBitmap", "editsRotateRealBitmapWithoutChangingOriginal", "squareCropProducesSquareImageWithoutAlteringOriginal", "horizontalMirrorChangesPixelOrientation"},
+    "AnnieVoiceRecordingTest": {"lockedRecordingPausesMicrophoneAndSendsOneAacFile", "backgroundInterruptionCancelsUnlockedDraftWithoutSendingOrLeavingAudio"},
+    "AnnieVoicePauseResumeTest": {"pauseSeekAndResumePreservesPlaybackPosition"},
+    "AnnieGeckoTabRestoreTest": {"recreationRestoresSelectedNormalTabAndDesktopModeWithoutPrivateTabs", "recreationPreservesNormalTabsBeyondTwelveAndTheirSelection"},
+    "AnnieGeckoDownloadHistoryTest": {"completedFileReopensFromRecreatedHistoryWithoutNetworkOrRequestSecrets"},
+    "AnnieGeckoDownloadManagerTest": {
+        "progressIsClampedAndSafeForUnknownLength",
+        "cancelAndCompleteTransitionsDoNotReviveCancelledFile",
+        "actualDownloadPersistsBytesAndCanBeReadThroughReturnedUri",
+        "storageFailureDoesNotLeaveIncompleteDownload",
+    },
+    "AnnieGeckoBrowserEndToEndTest": {"geckoNavigatesBackAndDownloadsTheActualResponseForOfflineOpening"},
+}
+
+
+def verify(root, name):
+    if name not in EXPECTED:
+        print(f"ERROR unknown acceptance class: {name}")
+        return False
+    cases = {}
+    for report in Path(root).rglob("*.xml"):
+        try:
+            document = ET.parse(report).getroot()
+        except ET.ParseError:
+            continue
+        for case in document.iter("testcase"):
+            if case.get("classname") == f"com.tomex777.annie.{name}":
+                cases[case.get("name")] = case
+    missing = EXPECTED[name] - cases.keys()
+    failures = [method for method, case in cases.items()
+                if any(case.find(tag) is not None for tag in ("failure", "error", "skipped"))]
+    if missing or failures:
+        print(f"ERROR {name}: missing={sorted(missing)}, unsuccessful={failures}")
+        return False
+    print(f"PASS {name}: all {len(EXPECTED[name])} required methods executed successfully")
+    return True
+
+
+if __name__ == "__main__":
+    sys.exit(0 if verify(sys.argv[1], sys.argv[2]) else 1)

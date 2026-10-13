@@ -7,11 +7,9 @@ import android.speech.RecognitionListener
 import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
 import android.widget.Toast
+import android.view.MotionEvent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.awaitEachGesture
-import androidx.compose.foundation.gestures.awaitFirstDown
-import androidx.compose.foundation.gestures.waitForUpOrCancellation
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
@@ -35,7 +33,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.pointerInteropFilter
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
@@ -60,7 +58,8 @@ internal class VoiceNoteController(
         internal set
     var elapsedMs by mutableLongStateOf(0L)
         private set
-    private var startedAt = 0L
+    var paused by mutableStateOf(false)
+        private set
     val waveformPeaks = mutableStateListOf<Float>()
 
     fun hasPermission() = recorder.hasPermission()
@@ -72,7 +71,7 @@ internal class VoiceNoteController(
             return false
         }
         AnnieVoicePlayer.stop()
-        startedAt = System.currentTimeMillis()
+        paused = false
         elapsedMs = 0L
         waveformPeaks.clear()
         locked = false
@@ -82,11 +81,38 @@ internal class VoiceNoteController(
     }
 
     fun tick() {
-        if (!recording) return
-        elapsedMs = System.currentTimeMillis() - startedAt
+        if (!recording || paused) return
+        elapsedMs = recorder.durationMillis
         waveformPeaks.add(recorder.peak())
         if (waveformPeaks.size > 600) waveformPeaks.removeAt(0)
         if (elapsedMs >= AnnieVoiceRecorder.MAX_DURATION_MS) finish()
+    }
+
+    fun togglePause() {
+        if (!recording || !locked) return
+        val succeeded = if (paused) recorder.resume() else recorder.pause()
+        if (succeeded) {
+            paused = recorder.isPaused
+            elapsedMs = recorder.durationMillis
+        } else {
+            Toast.makeText(appContext, "Couldn't ${if (paused) "resume" else "pause"} recording.", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    /** Keep a locked draft paused when the app leaves the foreground; never send on interruption. */
+    fun onHostStopped() {
+        if (!recording) return
+        if (!locked) {
+            cancel()
+        } else if (!paused) {
+            if (recorder.pause()) {
+                paused = true
+                elapsedMs = recorder.durationMillis
+            } else {
+                cancel()
+                Toast.makeText(appContext, "Recording interrupted. Please record again.", Toast.LENGTH_SHORT).show()
+            }
+        }
     }
 
     fun finish() {
@@ -108,7 +134,7 @@ internal class VoiceNoteController(
         recorder.cancel()
     }
 
-    private fun reset() { recording = false; locked = false; cancelling = false }
+    private fun reset() { recording = false; locked = false; cancelling = false; paused = false }
 }
 
 @Composable
@@ -117,6 +143,14 @@ internal fun rememberVoiceNoteController(onVoiceNote: (String, Long) -> Unit): V
     val latest = androidx.compose.runtime.rememberUpdatedState(onVoiceNote)
     val controller = remember(context) { VoiceNoteController(context) { path, ms -> latest.value(path, ms) } }
     DisposableEffect(controller) { onDispose { controller.cancel() } }
+    val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
+    DisposableEffect(controller, lifecycleOwner) {
+        val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
+            if (event == androidx.lifecycle.Lifecycle.Event.ON_STOP) controller.onHostStopped()
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
     LaunchedEffect(controller.recording) {
         while (controller.recording) { controller.tick(); delay(200) }
     }
@@ -124,6 +158,7 @@ internal fun rememberVoiceNoteController(onVoiceNote: (String, Long) -> Unit): V
 }
 
 /** The hold-to-record microphone. Use in place of the send button while the draft is empty. */
+@OptIn(androidx.compose.ui.ExperimentalComposeUiApi::class)
 @Composable
 internal fun VoiceHoldButton(
     controller: VoiceNoteController,
@@ -133,43 +168,54 @@ internal fun VoiceHoldButton(
     val density = LocalDensity.current
     val cancelPx = with(density) { 110.dp.toPx() }
     val lockPx = with(density) { 70.dp.toPx() }
+    val gesture = remember(controller) { VoiceHoldGesture() }
+    DisposableEffect(controller) {
+        onDispose { if (!controller.locked) controller.cancel() }
+    }
     Surface(
         color = if (controller.recording) Color(0xFFFF4D4D) else Color(0xFF168EEA),
         shape = CircleShape,
-        modifier = modifier.size(46.dp).testTag("composer_voice_hold").pointerInput(controller) {
-            awaitEachGesture {
-                val down = awaitFirstDown(requireUnconsumed = false)
-                if (controller.recording) { waitForUpOrCancellation(); return@awaitEachGesture }
-                if (!controller.hasPermission()) {
-                    onNeedPermission()
-                    waitForUpOrCancellation()
-                    return@awaitEachGesture
-                }
-                if (!controller.begin()) { waitForUpOrCancellation(); return@awaitEachGesture }
-                var lockedHere = false
-                while (true) {
-                    val change = awaitPointerEventChange() ?: break
-                    val dx = change.position.x - down.position.x
-                    val dy = change.position.y - down.position.y
-                    controller.cancelling = dx < -cancelPx
-                    if (!lockedHere && dy < -lockPx && !controller.cancelling) {
-                        lockedHere = true
-                        controller.locked = true
+        modifier = modifier.size(46.dp).testTag("composer_voice_hold").pointerInteropFilter { event ->
+            // Compose represents ACTION_CANCEL as unpressed pointers. Keep the
+            // native distinction: only ACTION_UP may send an unlocked draft.
+            when (event.actionMasked) {
+                MotionEvent.ACTION_DOWN -> {
+                    gesture.started = false
+                    gesture.startX = event.x
+                    gesture.startY = event.y
+                    if (!controller.recording) {
+                        if (!controller.hasPermission()) onNeedPermission()
+                        else gesture.started = controller.begin()
                     }
-                    if (!change.pressed) break
-                    change.consume()
                 }
-                when {
-                    controller.cancelling -> controller.cancel()
-                    lockedHere -> Unit // stays recording until Delete / Send is tapped
-                    else -> controller.finish()
+                MotionEvent.ACTION_MOVE -> if (gesture.started && controller.recording) {
+                    val dx = event.x - gesture.startX
+                    val dy = event.y - gesture.startY
+                    controller.cancelling = dx < -cancelPx
+                    if (dy < -lockPx && !controller.cancelling) controller.locked = true
+                }
+                MotionEvent.ACTION_UP -> {
+                    if (gesture.started) {
+                        when {
+                            controller.cancelling -> controller.cancel()
+                            controller.locked -> Unit
+                            else -> controller.finish()
+                        }
+                    }
+                    gesture.started = false
+                }
+                MotionEvent.ACTION_CANCEL -> {
+                    if (gesture.started && !controller.locked) controller.cancel()
+                    gesture.started = false
                 }
             }
+            true
+
         },
     ) {
         Box(contentAlignment = Alignment.Center) {
             Icon(
-                AnnieIcons.AudioTrack,
+                AnnieIcons.Microphone,
                 contentDescription = "Hold to record a voice note",
                 tint = Color.White,
                 modifier = Modifier.size(22.dp),
@@ -178,8 +224,11 @@ internal fun VoiceHoldButton(
     }
 }
 
-private suspend fun androidx.compose.ui.input.pointer.AwaitPointerEventScope.awaitPointerEventChange() =
-    awaitPointerEvent().changes.firstOrNull()
+private class VoiceHoldGesture {
+    var started = false
+    var startX = 0f
+    var startY = 0f
+}
 
 /** Recording state stays visible, with a LIVE waveform and explicit delete/send when locked. */
 @Composable
@@ -203,9 +252,15 @@ internal fun VoiceRecordingBar(controller: VoiceNoteController, modifier: Modifi
         VoiceWaveform(
             samples = controller.waveformPeaks.toList().takeLast(40),
             progress = 1f,
-            width = if (controller.locked) 99.dp else 139.dp,
+            width = if (controller.locked) 60.dp else 139.dp,
         )
         if (controller.locked) {
+            Text(
+                if (controller.paused) "Resume" else "Pause", color = Color.White, fontSize = 13.sp,
+                modifier = Modifier.clip(RoundedCornerShape(14.dp))
+                    .clickable { controller.togglePause() }.padding(horizontal = 5.dp, vertical = 6.dp)
+                    .testTag("voice_pause_resume"),
+            )
             Text(
                 "Send", color = Color.White, fontSize = 13.sp,
                 modifier = Modifier.clip(RoundedCornerShape(14.dp)).background(Color(0xFF168EEA))

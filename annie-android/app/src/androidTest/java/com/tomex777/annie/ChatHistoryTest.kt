@@ -86,12 +86,31 @@ class ChatHistoryTest {
         compose.runOnIdle { compose.activity.currentFocus?.clearFocus() }
         hideEmulatorKeyboard(compose.activity)
         compose.onNodeWithTag("composer_tools").performClick()
+        // A bottom sheet's native window/layout transition can outlive Compose
+        // idling on API26. Match the readiness checks used by drawer navigation
+        // before injecting another physical tap; never retry or bypass an action.
+        compose.mainClock.advanceTimeBy(320)
+        waitForDisplayedTag("quick_action_manage_chat")
         compose.onNodeWithTag("quick_action_manage_chat").performClick()
+        compose.mainClock.advanceTimeBy(320)
+        waitForDisplayedTag("rename_chat_${saved.id}")
         compose.onNodeWithTag("rename_chat_${saved.id}").performClick()
         compose.onNodeWithTag("rename_chat_input").performTextClearance()
         compose.onNodeWithTag("rename_chat_input").performTextInput("My workspace")
         compose.onNodeWithTag("rename_chat_confirm").performClick()
         compose.runOnIdle { assertEquals("My workspace", ChatHistoryStore.read(context).first { it.id == saved.id }.title) }
+        waitForDisplayedTag("delete_chat_${saved.id}")
+        compose.onNodeWithTag("delete_chat_${saved.id}").performClick()
+        waitForDisplayedTag("delete_chat_confirm")
+        compose.onNodeWithText("Cancel", substring = false).performClick()
+        compose.waitUntil(8_000) {
+            compose.onAllNodesWithTag("delete_chat_confirm").fetchSemanticsNodes().isEmpty()
+        }
+        compose.runOnIdle {
+            assertEquals("Cancelling deletion must preserve the renamed chat", "My workspace",
+                ChatHistoryStore.read(context).first { it.id == saved.id }.title)
+        }
+        waitForDisplayedTag("delete_chat_${saved.id}")
         compose.onNodeWithTag("delete_chat_${saved.id}").performClick()
         // Dialog creation is asynchronous after the rename sheet closes.
         // Keep the destructive action behind the real confirmation dialog.
@@ -103,6 +122,12 @@ class ChatHistoryTest {
         }
         compose.onNodeWithTag("delete_chat_confirm").performClick()
         compose.runOnIdle { assertTrue(ChatHistoryStore.read(context).none { it.id == saved.id }) }
+    }
+
+    private fun waitForDisplayedTag(tag: String) {
+        compose.waitUntil(8_000) {
+            runCatching { compose.onNodeWithTag(tag).assertIsDisplayed(); true }.getOrDefault(false)
+        }
     }
 
     @Test fun navigationDrawerOpensLibraryAndRoutesToDownloads() {
