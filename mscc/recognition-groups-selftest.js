@@ -62,10 +62,11 @@ assert.deepEqual(pickJoinRequests(rows,'999'),[])
 let text=''
 const ctx={groupKey:group,account:{sock:{
   groupRequestParticipantsList:async()=>rows.map(row=>({jid:row.jid})),
-  groupRequestParticipantsUpdate:async(jid,action)=>{
+  groupRequestParticipantsUpdate:async(groupJid,participants,action)=>{
+    assert.equal(groupJid,group)
     assert.equal(action,'approve')
-    assert.deepEqual(jid,['111@s.whatsapp.net'])
-    return [{jid:jid[0],status:'200'}]
+    assert.deepEqual(participants,['111@s.whatsapp.net'])
+    return [{jid:participants[0],status:'200'}]
   },
 }},args:['accept','1'],isBotGroupAdmin:async()=>true,reply:v=>{text=v;return v}}
 await joinreq.run(ctx)
