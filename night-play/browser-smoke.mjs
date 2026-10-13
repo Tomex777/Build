@@ -118,7 +118,7 @@ try {
  assert.equal(await page.locator('.snake-mode-preview').count(),5)
  await page.getByRole('button',{name:'Turbo'}).click()
  assert.equal(await page.evaluate(()=>snakeTickMs()),66)
- await page.getByRole('button',{name:'Classic'}).click()
+ await page.locator('.settings-group').filter({hasText:'Snake speed'}).getByRole('button',{name:'Classic'}).click()
  assert.equal(await page.evaluate(()=>snakeTickMs()),115)
  await page.getByRole('button',{name:'Maze I',exact:true}).click()
  await page.locator('#closeSettings').click()
