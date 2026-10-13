@@ -575,5 +575,42 @@ if adb logcat -d -t 1500 | grep -E 'FATAL EXCEPTION|ANR in com\.night\.sora'; th
   echo 'Android reported a Sora crash or ANR during hub validation.' >&2
   exit 1
 fi
+# Re-check the real Compose boards at 360dp (720x1600 / 2x density).
+# This catches layouts that fit the Pixel 7's default viewport but overflow on
+# narrower Android phones. Keep this after the full-flow checks so coordinates
+# used for the deterministic media validations still refer to the stock device.
+adb shell wm size 720x1600
+adb shell wm density 320
+adb shell am force-stop com.night.sora
+adb shell am start -W -n com.night.sora/.MainActivity >/dev/null
+sleep 3
+tap Games
+wait_for "Snake"
+tap Snake
+wait_for "SCORE"
+wait_for "Start"
+shot responsive-360dp-snake
+tap "All games"
+tap "2048"
+wait_for "New"
+shot responsive-360dp-2048
+tap "All games"
+tap "Tic-tac-toe"
+wait_for "Your turn"
+shot responsive-360dp-tictactoe
+tap "All games"
+tap "Memory match"
+wait_for "MOVES"
+shot responsive-360dp-memory
+tap "All games"
+tap_scrolling "Bible trivia"
+wait_for "QUESTION"
+shot responsive-360dp-trivia
+tap "All games"
+tap_scrolling "Would you rather?"
+wait_for "Make your choice"
+shot responsive-360dp-rather
+tap "All games"
+
 touch "$OUT/HUB_TABS_PASS"
-echo 'Hub tabs emulator walkthrough passed.'
+echo 'Hub tabs emulator walkthrough and 360dp responsive game checks passed.'
