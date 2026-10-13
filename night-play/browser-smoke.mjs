@@ -96,6 +96,18 @@ try {
 
  assert.equal(await page.locator('#board2048 .tile').count(),16)
  assert.ok(await page.locator('#board2048').evaluate(el=>el.getBoundingClientRect().width)>=376,'2048 arena occupies nearly full 390px viewport')
+ const title2048=await page.locator('#gameTitle').boundingBox();
+ assert.ok(title2048.y<130,'Game title is at the TOP, not alongside the board');
+ // The game must consume a swipe before releasing the finger.
+ const movedOnPointerMove=await page.evaluate(()=>{
+  grid=[[2,0,0,0],[0,0,0,0],[0,0,0,0],[0,0,0,0]];tileScore=0;draw2048();
+  const el=document.getElementById('board2048');
+  const send=(type,x,y)=>el.dispatchEvent(new PointerEvent(type,{bubbles:true,pointerId:73,pointerType:'touch',clientX:x,clientY:y}));
+  send('pointerdown',100,200);send('pointermove',160,200);
+  const received=grid[0][3]===2;send('pointerup',160,200);return received
+ });
+ assert.equal(movedOnPointerMove,true,'2048 touch input must act during swipe, not on touchend');
+
 
  await page.locator('#gameSettings').click()
  await page.getByRole('button',{name:'5 × 5'}).click()
@@ -112,6 +124,20 @@ try {
  assert.ok(Math.abs(arenaPlacement.boardCenter-arenaPlacement.screenCenter)<30,'Snake arena must be central, not pushed down the screen')
  assert.equal(await page.locator('#snakeCanvas').evaluate(el=>getComputedStyle(el).imageRendering),'auto','No pixelated performance-heavy interpolation')
  assert.equal(await page.evaluate(()=>snakeTickMs()),115,'Classic speed restored and slightly quicker')
+ const touchQueue=await page.evaluate(()=>{
+  const el=document.getElementById('snakeCanvas');
+  snake.turnQueue=[];snake.dir='right';snake.next='right';snake.started=true;gamePaused=false;
+  const send=(type,x,y)=>el.dispatchEvent(new PointerEvent(type,{bubbles:true,pointerId:21,pointerType:'touch',clientX:x,clientY:y}));
+  send('pointerdown',170,170);send('pointermove',170,154);
+  const beforeLift=[...snake.turnQueue];
+  send('pointermove',151,154);
+  const corners=[...snake.turnQueue];
+  send('pointerup',151,154);
+  return {beforeLift,corners}
+ });
+ assert.deepEqual(touchQueue.beforeLift,['up'],'Snake responds before finger lifts');
+ assert.deepEqual(touchQueue.corners,['up','left'],'Fast swipe corners must queue without dropped inputs');
+
  await page.locator('#snakeOverlay').waitFor({state:'visible'})
  await page.locator('#snakeOverlay').click()
  await page.waitForTimeout(180)
@@ -135,10 +161,13 @@ try {
  await page.locator('#closeSettings').click()
  assert.equal(await page.locator('#tttboard button').count(),9)
  assert.ok(await page.locator('#tttboard').evaluate(el=>el.getBoundingClientRect().width)>=376,'TTT board should fill almost the entire viewport')
+ const naturalBoardWidth=await page.locator('#tttboard').evaluate(el=>el.getBoundingClientRect().width);
  await page.locator('#gameFocus').click()
  assert.equal(await page.locator('#gameDialog').evaluate(el=>el.classList.contains('focus-active')),true)
  assert.equal(await page.locator('#gameFocus').getAttribute('aria-pressed'),'true')
- assert.ok(await page.locator('#tttboard').evaluate(el=>el.getBoundingClientRect().width)>=378,'Focused arena gains width')
+ const focusBoardWidth=await page.locator('#tttboard').evaluate(el=>el.getBoundingClientRect().width);
+ assert.ok(Math.abs(focusBoardWidth-naturalBoardWidth)<=1,'Focus must NOT enlarge the board');
+ assert.ok((await page.locator('#gameTitle').boundingBox()).y<130,'Game title stays near top even in focus mode')
  await page.locator('#gameFocus').click()
  assert.equal(await page.locator('#gameFocus').getAttribute('aria-pressed'),'false')
 
