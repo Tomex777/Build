@@ -48,7 +48,9 @@ export function disconnectOrigin(error) {
 export function disconnectProtocolDetail(error) {
   const data = error?.data
   const reason = data?.tag === 'stream:error'
-    ? (Array.isArray(data.content) ? data.content.find(child => child?.tag === 'conflict') : null)
+    ? (Array.isArray(data.content) ? data.content.find(child =>
+      ['conflict', 'not-authorized', 'bad-session', 'policy-violation'].includes(child?.tag)
+    ) : null)
     : data
 
   if (reason?.tag === 'conflict') {
