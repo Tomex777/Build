@@ -116,35 +116,50 @@ internal object SurfaceDetailMesh {
             val squish = 0.38 + hash2(gx - 7, gz + 45) * 0.45
             val topY = base + size * squish
             val offset = hash2(gx, gz - 27) * PI * 2.0
+            val rockHeight = size * squish
+            val tipX = x + cos(offset + 0.4) * size * 0.075
+            val tipZ = z + sin(offset + 0.4) * size * 0.075
+            data class Point(val x: Double, val y: Double, val z: Double)
+            fun point(angleIndex: Int, tier: Int): Point {
+                val angle = offset + 2.0 * PI * (angleIndex % 8) / 8.0
+                val random = hash2(gx * 17 + (angleIndex % 8), gz)
+                val radius = size * (0.71 + 0.35 * random)
+                val diameter = when (tier) {
+                    0 -> radius
+                    1 -> radius * (0.70 + 0.08 * random)
+                    else -> radius * (0.25 + 0.07 * random)
+                }
+                val height = when (tier) {
+                    0 -> base + size * 0.018
+                    1 -> base + rockHeight * (0.52 + 0.09 * random)
+                    else -> base + rockHeight * (0.88 + 0.08 * random)
+                }
+                return Point(x + cos(angle) * diameter, height, z + sin(angle) * diameter)
+            }
+            fun triangle(a: Point, b: Point, c: Point) {
+                val ux = b.x - a.x; val uy = b.y - a.y; val uz = b.z - a.z
+                val vx = c.x - a.x; val vy = c.y - a.y; val vz = c.z - a.z
+                var nx = uy * vz - uz * vy
+                var ny = uz * vx - ux * vz
+                var nz = ux * vy - uy * vx
+                val len = sqrt(nx * nx + ny * ny + nz * nz).coerceAtLeast(1e-12)
+                nx /= len; ny /= len; nz /= len
+                triVertex(a.x, a.y, a.z, nx, ny, nz)
+                triVertex(b.x, b.y, b.z, nx, ny, nz)
+                triVertex(c.x, c.y, c.z, nx, ny, nz)
+            }
+            val top = Point(tipX, base + rockHeight, tipZ)
             for (side in 0 until 8) {
-                val a0 = offset + 2.0 * PI * side / 8.0
-                val a1 = offset + 2.0 * PI * (side + 1) / 8.0
-                val r0 = size * (0.74 + hash2(gx * 17 + side, gz) * 0.38)
-                val r1 = size * (0.74 + hash2(gx * 17 + side + 1, gz) * 0.38)
-                val x0 = x + cos(a0) * r0
-                val z0 = z + sin(a0) * r0
-                val x1 = x + cos(a1) * r1
-                val z1 = z + sin(a1) * r1
-                val y0 = base + size * 0.06
-                val y1 = base + size * 0.06
-                val tipX = x + cos(offset + 0.4) * size * 0.12
-                val tipZ = z + sin(offset + 0.4) * size * 0.12
-                val ux = x1 - x0
-                val uy = y1 - y0
-                val uz = z1 - z0
-                val vx = tipX - x0
-                val vy = topY - y0
-                val vz = tipZ - z0
-                // Cross order yields an outward/upward face normal for
-                // counterclockwise ring samples.
-                var nx = uy*vz - uz*vy
-                var ny = uz*vx - ux*vz
-                var nz = ux*vy - uy*vx
-                if (ny < 0) { nx = -nx; ny = -ny; nz = -nz }
-                val n = sqrt(nx*nx + ny*ny + nz*nz).coerceAtLeast(1e-12)
-                triVertex(x0, y0, z0, nx/n, ny/n, nz/n)
-                triVertex(x1, y1, z1, nx/n, ny/n, nz/n)
-                triVertex(tipX, topY, tipZ, nx/n, ny/n, nz/n)
+                val lowA = point(side, 0); val lowB = point(side + 1, 0)
+                val midA = point(side, 1); val midB = point(side + 1, 1)
+                val highA = point(side, 2); val highB = point(side + 1, 2)
+                // Faceted eroded boulder: broad shoulders, uneven cut facets,
+                // chipped upper ridge; physically raised, not a pyramid decal.
+                triangle(lowA, midA, lowB)
+                triangle(lowB, midA, midB)
+                triangle(midA, highA, midB)
+                triangle(midB, highA, highB)
+                triangle(highA, top, highB)
             }
             stones++
         }
