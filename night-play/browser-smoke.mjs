@@ -82,7 +82,7 @@ try {
  await page.locator('.library-card[data-game="2048"]').click()
  await page.locator('#board2048 .tile').first().waitFor()
  assert.equal(new URL(page.url()).pathname,'/play/2048')
- assert.equal(await page.locator('#gameDialog').getAttribute('data-game'),'2048','Game-specific visual skin is applied')
+ assert.equal(await page.locator('#gameDialog').getAttribute('data-skin'),'2048','Game-specific visual skin is applied')
 
  assert.equal(await page.locator('#board2048 .tile').count(),16)
  await page.locator('#gameSettings').click()
@@ -97,12 +97,7 @@ try {
  await page.locator('#snakeOverlay').waitFor({state:'visible'})
  await page.locator('#snakeOverlay').click()
  await page.waitForTimeout(180)
- const snakeOverlayState=await page.evaluate(()=>{
-  const el=document.getElementById('snakeOverlay');
-  return {hidden:el.hidden,visible:getComputedStyle(el).display,started:snake.started,alive:snake.alive,paused:gamePaused,mode:snake.mode,location:location.pathname,text:el.textContent}
- })
- console.log('Snake overlay start diagnostics',JSON.stringify(snakeOverlayState))
- assert.equal(await page.locator('#snakeOverlay').isVisible(),false,'Snake start overlay should become invisible: '+JSON.stringify(snakeOverlayState))
+ assert.equal(await page.locator('#snakeOverlay').isVisible(),false,'Snake start overlay should become invisible without resetting on a bubbling click')
  await page.locator('#gameSettings').click()
  assert.equal(await page.locator('.snake-mode-preview').count(),5)
  await page.getByRole('button',{name:'Maze I',exact:true}).click()
