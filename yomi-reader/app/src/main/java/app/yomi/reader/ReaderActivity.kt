@@ -78,6 +78,7 @@ import app.yomi.reader.local.ReaderBookmark
 import app.yomi.reader.local.ReaderBookmarkStore
 import app.yomi.reader.local.SharedPreferencesProgressSink
 import app.yomi.reader.local.TreeBookCatalog
+import app.yomi.reader.local.UnsafeArchiveException
 import app.yomi.reader.local.ZipDocumentPageSource
 import com.davemorrissey.labs.subscaleview.SubsamplingScaleImageView
 import kotlinx.coroutines.Dispatchers
@@ -627,16 +628,28 @@ class ReaderActivity : ComponentActivity(), ReaderViewerHost {
                 libraryStore.setAvailability(bookId, LibraryAvailability.AVAILABLE)
                 installViewer()
             } catch (t: Throwable) {
+                if (t is kotlinx.coroutines.CancellationException) throw t
                 Log.e(READER_TAG, "open-book-failed title=$title kind=$kind uri=$uriString", t)
                 libraryStore.setAvailability(
                     bookId,
                     if (t is SecurityException) LibraryAvailability.PERMISSION_LOST else LibraryAvailability.UNAVAILABLE,
                 )
                 showFatal(
-                    if (t is SecurityException) {
-                        "Yomi no longer has access to this book. Add it again from Home."
-                    } else {
-                        "Check that the book is still available, then try opening it again."
+                    when {
+                        t is SecurityException ->
+                            "Yomi no longer has access to this file. Add it again from your library."
+                        t is UnsafeArchiveException && t.message == "no-image-pages" ->
+                            "No readable JPG, PNG, GIF or WebP pages were found in this archive."
+                        t is UnsafeArchiveException &&
+                            t.message in setOf("entry-count", "entry-too-large", "archive-too-large", "expanded-size-overflow") ->
+                            "This archive exceeds Yomi's safe file-size or page-count limits."
+                        t is UnsafeArchiveException &&
+                            t.message in setOf("path-traversal", "duplicate-name", "encrypted") ->
+                            "This archive has unsupported or unsafe entries. Try a clean CBZ export."
+                        t is UnsafeArchiveException ->
+                            "The CBZ/ZIP cannot be decoded. It may be damaged or incomplete."
+                        else ->
+                            "Check that the book is still available, then try opening it again."
                     },
                 )
             }
@@ -1296,6 +1309,12 @@ class ReaderActivity : ComponentActivity(), ReaderViewerHost {
                         textSize = 15f
                         gravity = Gravity.CENTER
                         setPadding(0, dp(12), 0, dp(20))
+                    },
+                )
+                addView(
+                    Button(this@ReaderActivity).apply {
+                        text = "Retry"
+                        setOnClickListener { recreate() }
                     },
                 )
                 addView(
