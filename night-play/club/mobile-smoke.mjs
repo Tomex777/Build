@@ -44,6 +44,10 @@ try{
   await page.waitForTimeout(260);
   assert.ok(await page.locator('[data-ludo-die="1"]').count(),"second die remains selectable");
   assert.equal(await page.locator('[data-dice-mode="ludo"]').isDisabled(),true,"dice configuration locked until remaining roll is played");
+  assert.equal(await page.locator('[data-ludo-die="1"]').first().isEnabled(),true,"second die becomes playable after releasing a piece with six");
+  await page.locator(".l-cell .l-token.eligible").first().click();
+  await page.getByText(/Six! Roll again/).waitFor({timeout:4500});
+  assert.equal(await page.locator('[data-dice-mode="ludo"]').isEnabled(),true,"settings unlock once both dice were used");
   await page.locator("[data-players=ludo]").selectOption("4");
   assert.equal(await page.locator("[data-piece]").count(),16,"four players each have one house");
   await page.locator('[data-dice-mode="ludo"]').selectOption("1");
