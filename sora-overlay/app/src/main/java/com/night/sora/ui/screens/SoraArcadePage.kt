@@ -18,6 +18,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.night.sora.R
+import com.night.sora.model.LibraryEntry
 import com.night.sora.ui.theme.*
 
 private data class ArcadeEntry(val key: String, val title: String, val subtitle: String, val icon: Int)
@@ -28,10 +29,16 @@ private val arcadeEntries = listOf(
     ArcadeEntry("ttt", "Tic-tac-toe", "Challenge a computer opponent", R.drawable.sora_game_tictactoe),
     ArcadeEntry("memory", "Memory match", "Find all eight hidden pairs", R.drawable.sora_game_memory),
     ArcadeEntry("quiz", "Cover quiz", "Guess titles saved in your Library", R.drawable.sora_game_memory),
+    ArcadeEntry("daily", "Daily 5", "Five quick questions, fresh each session", R.drawable.sora_game_tiles),
+    ArcadeEntry("who", "Who am I?", "Identify the character from its clues", R.drawable.sora_game_tictactoe),
+    ArcadeEntry("quotes", "Who said it?", "Match a famous line to its speaker", R.drawable.sora_game_tictactoe),
+    ArcadeEntry("bible", "Bible trivia", "Test your Bible knowledge", R.drawable.sora_game_memory),
+    ArcadeEntry("rather", "Would you rather?", "Make tough choices; see your own picks", R.drawable.sora_game_tiles),
+    ArcadeEntry("meme", "Meme caption", "Write captions for saved memes", R.drawable.sora_game_memory),
 )
 
 @Composable
-fun SoraArcadePage(selected: String, onSelect: (String) -> Unit, modifier: Modifier = Modifier) {
+fun SoraArcadePage(selected: String, onSelect: (String) -> Unit, library: List<LibraryEntry>, modifier: Modifier = Modifier) {
     if (selected.isEmpty()) {
         LazyColumn(modifier.fillMaxSize(), contentPadding = PaddingValues(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             item {
@@ -74,6 +81,9 @@ fun SoraArcadePage(selected: String, onSelect: (String) -> Unit, modifier: Modif
             "tiles" -> TilesArcade(Modifier.weight(1f))
             "ttt" -> TicTacToeArcade(Modifier.weight(1f))
             "memory" -> MemoryArcade(Modifier.weight(1f))
+            "daily", "who", "quotes", "bible" -> MediaTriviaArcade(selected, Modifier.weight(1f))
+            "rather" -> RatherArcade(Modifier.weight(1f))
+            "meme" -> MemeCaptionArcade(library, Modifier.weight(1f))
         }
     }
 }
