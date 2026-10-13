@@ -59,6 +59,7 @@ import {
 } from './group-policy.js'
 import { looksLikeNumberSelection } from './number-selection.js'
 import { createInboundMessageGuard, matchesDisplayedChoice } from './inbound-message-guard.js'
+import { createCommandTiming } from './command-performance.js'
 import { chessRecordAcceptsInput } from './utils/chess-game.js'
 import { ticTacToeRecordAcceptsInput } from './utils/tictactoe-game.js'
 import { checkersRecordAcceptsInput } from './utils/checkers-game.js'
@@ -2277,6 +2278,12 @@ const acceptInboundCommand = createInboundMessageGuard()
 
 async function onMessages(account, { messages, type }) {
   for (const msg of messages || []) {
+    const probe = createCommandTiming({
+      accountId:account.id,
+      text:commandText(msg?.message),
+      prefix:settings.publicPrefix || DEFAULT_PUBLIC_PREFIX,
+      thresholdMs:Number(process.env.MSCC_SLOW_COMMAND_MS || 2000),
+    })
     try {
       if (!msg?.message || !msg?.key?.id) continue
 
@@ -2297,9 +2304,11 @@ async function onMessages(account, { messages, type }) {
       const authority = await authorityContext(account, msg)
       const controller = authority.isSupremeOwner
       const privateControl = await isPrivateControlContext(account, msg, authority)
+      probe?.mark('identity')
 
       remember(account, msg)
       rememberConversation(account, msg, authority)
+      probe?.mark('storage')
 
       const publicPrefix = settings.publicPrefix || DEFAULT_PUBLIC_PREFIX
 
@@ -2307,8 +2316,10 @@ async function onMessages(account, { messages, type }) {
       if (moderation.handled) continue
 
       await handleAfkGroupMessage(account, msg, authority, text)
+      probe?.mark('moderation')
 
       const ui = commandUi(account, msg, publicPrefix)
+      const trackSend = task => probe ? probe.send(task) : task()
       const pendingReply = readCommandReplySession(account, msg, authority)
       const isExplicitCommand = Boolean(publicPrefix && String(text || '').trim().startsWith(publicPrefix))
       const ludoRecord = sharedStorage?.sharedGet('ludo-game', chat) || null
@@ -2444,16 +2455,16 @@ async function onMessages(account, { messages, type }) {
             set: (namespace, key, value) => sharedStorage?.sharedSet(namespace, key, value),
             delete: (namespace, key) => sharedStorage?.sharedDelete(namespace, key) || 0,
           },
-          reply: async value => sendCommandReply(account, msg, value),
+          reply: value => trackSend(() => sendCommandReply(account, msg, value)),
           replyWithMentions: async (value, mentions = []) => account.sock.sendMessage(chat, {
             text:String(value ?? ''),
             mentions:[...new Set(mentions.map(normalizeJid).filter(Boolean))],
           }, { quoted:msg }),
           ui,
-          replyList: options => ui.singleSelect(options),
-          replySelectors: options => ui.native(options),
-          replyInstant: options => ui.instantReplies(options),
-          replyInteractive: options => ui.interactive(options),
+          replyList: options => trackSend(() => ui.singleSelect(options)),
+          replySelectors: options => trackSend(() => ui.native(options)),
+          replyInstant: options => trackSend(() => ui.instantReplies(options)),
+          replyInteractive: options => trackSend(() => ui.interactive(options)),
           progress: initial => startProgress(account.sock, chat, initial, { quoted:msg }),
           scheduleAdd: ({ kind = 'reminder', text = '', dueAt, meta = {} }) => addScheduledTask(sharedStorage, {
             userKey:authority.senderNumber,
@@ -2490,7 +2501,7 @@ async function onMessages(account, { messages, type }) {
             })
           },
           sendImageDataUrl: async (dataUrl, caption) => sendCommandImageDataUrl(account, msg, dataUrl, caption),
-          sendImageFile: async (file, caption) => sendCommandImageFile(account, msg, file, caption),
+          sendImageFile: (file, caption) => trackSend(() => sendCommandImageFile(account, msg, file, caption)),
           sendImageUrl: async (url, caption = '') => account.sock.sendMessage(chat, {
             image:{ url:String(url || '') },
             caption:String(caption || ''),
@@ -2579,8 +2590,8 @@ async function onMessages(account, { messages, type }) {
               userKey: authority.senderNumber,
               reply: value => sendCommandReply(account, msg, value),
               ui,
-              replyList: options => ui.singleSelect(options),
-              replySelectors: options => ui.native(options),
+              replyList: options => trackSend(() => ui.singleSelect(options)),
+              replySelectors: options => trackSend(() => ui.native(options)),
               resolveTmdbTitles: (query, type = 'movie') => tmdbResolver.search(query, type),
               browseTmdbMedia: (type = 'movie') => tmdbResolver.browse(type),
               resolveTmdbMedia: (id, type = 'movie') => tmdbResolver.details(id, type),
@@ -2598,6 +2609,7 @@ async function onMessages(account, { messages, type }) {
           diagnostics: commandDiagnostics,
         },
       })
+      probe?.mark('command')
       if (commandHandled) continue
 
       if (await handleProfileAssistant(account, msg, authority, text)) continue
@@ -2648,6 +2660,8 @@ async function onMessages(account, { messages, type }) {
       })
     } catch (e) {
       console.error(`[${account.id}] message error:`, e?.message || e)
+    } finally {
+      probe?.finish()
     }
   }
 }
