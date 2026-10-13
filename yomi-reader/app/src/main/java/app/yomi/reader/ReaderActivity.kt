@@ -102,6 +102,7 @@ import reader.shared.android.navigation.KindlishNavigation
 import reader.shared.android.navigation.LNavigation
 import reader.shared.android.navigation.RightAndLeftNavigation
 import reader.shared.android.navigation.ViewerNavigation
+import reader.shared.android.navigation.ReaderNavigationOverlayView
 import reader.shared.android.webtoon.SharedWebtoonViewer
 import java.io.BufferedInputStream
 import java.io.File
@@ -114,6 +115,7 @@ class ReaderActivity : ComponentActivity(), ReaderViewerHost {
     private lateinit var root: FrameLayout
     private lateinit var chrome: ComposeView
     private var loadingView: View? = null
+    private var tapZoneOverlay: ReaderNavigationOverlayView? = null
     // Page-change callbacks may enqueue several IO jobs during a fast swipe.
     // Serialize their commits and reject stale snapshots so the last page wins.
     private val progressWriteMutex = Mutex()
@@ -441,6 +443,7 @@ class ReaderActivity : ComponentActivity(), ReaderViewerHost {
                             installViewer()
                             refreshChrome()
                         },
+                        onPreviewTapZones = ::previewTapZones,
                         background = prefs.getString(PREF_BACKGROUND, "black") ?: "black",
                         onBackgroundChange = { value ->
                             prefs.edit().putString(PREF_BACKGROUND, value).apply()
@@ -864,6 +867,8 @@ class ReaderActivity : ComponentActivity(), ReaderViewerHost {
         if (::root.isInitialized) root.removeCallbacks(hideChromeRunnable)
         chapterPromotionJob?.cancel()
         viewer?.destroy()
+        tapZoneOverlay?.let(root::removeView)
+        tapZoneOverlay = null
         pageSources.distinct().forEach { source -> runCatching { source.close() } }
         pageSources.clear()
         super.onDestroy()
@@ -911,6 +916,25 @@ class ReaderActivity : ComponentActivity(), ReaderViewerHost {
         if (isFinishing) return
         root.removeCallbacks(hideChromeRunnable)
         quickOrientationOpen.value = true
+    }
+
+    private fun previewTapZones() {
+        settingsOpen.value = false
+        val navigation = readerTapZones(pager = mode != ReadingMode.WEBTOON)
+        if (navigation is DisabledNavigation) {
+            Toast.makeText(this, "No page-turn tap zones selected", Toast.LENGTH_SHORT).show()
+            return
+        }
+        tapZoneOverlay?.let(root::removeView)
+        root.removeCallbacks(hideChromeRunnable)
+        val overlay = ReaderNavigationOverlayView(this)
+        tapZoneOverlay = overlay
+        root.addView(
+            overlay,
+            FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT),
+        )
+        overlay.setNavigation(navigation, showOnStart = true)
+        Log.i(READER_TAG, "reader-tap-zones-preview mode=$mode")
     }
 
     private fun showReaderSettings() {
