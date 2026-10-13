@@ -81,7 +81,7 @@ for sample in 1 2 3 4 5 6; do
                   recentEvents: (Array.isArray(a.recentEvents) ? a.recentEvents : []).slice(0,8).flatMap(e => {
                     if (!["account.connected","account.disconnected","account.reconnect-failed","account.reconnect-scheduled"].includes(e.action)) return [];
                     return [{
-                      at: typeof e.at === "string" && /^\\d{4}-\\d{2}-\\d{2}T/.test(e.at) ? e.at.slice(0,48) : "",
+                      at: typeof e.at === "string" && Number.isFinite(Date.parse(e.at)) ? new Date(e.at).toISOString() : "",
                       action: e.action,
                       ...(Number.isInteger(e.code) ? { code:e.code } : {}),
                       ...(["intentional-logout","stream-error","server-failure","connection-replaced","transport-close","other"].includes(e.origin) ? { origin:e.origin } : {}),
