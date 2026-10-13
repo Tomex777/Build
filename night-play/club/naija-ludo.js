@@ -123,7 +123,7 @@ function drawBoard(s){
  }
  const centerVals=s.rolling?(Array.isArray(s.preview)?s.preview:[1,2]):s.rolls.length?s.rolls.map(d=>d.value):s.last;
  out+='<div class="nj-dice-center'+(s.rolling?' is-rolling':'')+'" style="grid-row:7/span 3;grid-column:7/span 3" aria-label="Central dice tray"><div class="nj-dice-pair">';
- centerVals.slice(0,s.diceCount).forEach((n,i)=>{out+=diceFace(n,s.rolling?"is-tumbling":"", 'data-center-die="'+i+'"');});
+ centerVals.slice(0,s.diceCount).forEach((n,i)=>{const action=s.rolls.length?'data-ludo-die="'+i+'"':'data-action="ludo-roll"';const enabled=!s.rolling&&!s.moving&&s.winner===null&&(!s.rolls.length||!!s.rolls[i]&&!s.rolls[i].used&&canForDie(s,i));out+='<button type="button" class="nj-center-button" '+action+' aria-label="'+(s.rolls.length?'Choose die '+(i+1):'Throw dice')+'" '+(enabled?'':'disabled')+'>'+diceFace(n,s.rolling?"is-tumbling":"", 'data-center-die="'+i+'"')+'</button>';});
  out+='</div></div></div>';
  return out;
 }
@@ -142,7 +142,7 @@ function render(s,ui){
  const progress=ui.scoreList(s.players,x=>x.tokens.filter(pos=>pos===56).length+"/"+x.tokens.length+" home");
  const pending=s.rolls.length?'<div class="nj-active-rolls">Rolled: '+s.rolls.map((d,i)=>'<span class="nj-number'+(d.used?' is-used':'')+(i===s.selectedDie?' is-selected':'')+'">'+d.value+(d.used?' ✓':'')+'</span>').join("")+' <span class="small">Tap a die to choose which value to use.</span></div>':"";
  const soundToggle='<button type="button" class="nj-sound" data-action="ludo-sound" aria-pressed="'+s.sound+'">'+(s.sound?'♫ Sound on':'♪ Sound off')+'</button>';
- const config='<div class="nj-options"><label>Dice <select class="select" data-dice-mode="ludo" '+(locked?'disabled':'')+'><option value="2"'+(s.diceCount===2?' selected':'')+'>2 dice · Naija</option><option value="1"'+(s.diceCount===1?' selected':'')+'>1 die · Classic</option></select></label>'+ui.choosePlayers("ludo",s.players.length,4)+'</div>';
+ const config='<div class="nj-options"><label>Dice <select class="select" data-dice-mode="ludo" '+(locked?'disabled':'')+'><option value="2"'+(s.diceCount===2?' selected':'')+'>2 dice · Naija</option><option value="1"'+(s.diceCount===1?' selected':'')+'>1 die · Classic</option></select></label>'+'<div class="nj-player-config">'+ui.choosePlayers("ludo",s.players.length,4)+'</div></div>';
  ui.controls.innerHTML='<div class="nj-roll-station"><div class="nj-dice-caption">TAP THE DICE TO ROLL</div>'+big+'<button class="primary nj-roll-btn" type="button" data-action="ludo-roll" '+(canRoll?'':'disabled')+'>'+(s.rolling?'Rolling…':s.rolls.length?'Play your dice':'Throw dice 🎲')+'</button>'+pending+'</div>'+progress+config+soundToggle;
  ui.rules("Play it like Naija Ludo","<b>Two real dice</b> by default. The dice tumble before settling; use each value separately and tap the counter you want to move. A 6 releases a piece and gives another throw after the current dice are played. The <b>2-player mode uses two houses per player (8 pieces)</b>, as in the familiar Nigerian game. Safe squares ✦ protect counters. Capture an opponent to send their piece back. Your chosen dice and moves must be completed before the next throw. House rules can vary; this is the default NIGHT version.");
  ui.save();
