@@ -20,7 +20,7 @@ await page.locator("#restart").click();
 assert.equal(await page.evaluate(()=>window.__nightArcadeTest.snapshot().started),false,"restart resets bird");
 await page.locator('[data-game="blocks"]').click();
 assert.equal(await page.locator("#title").innerText(),"Block Drop");
-const initial=await page.evaluate(()=>[state.cur.x,state.cur.y]);
+const initial=await page.evaluate(()=>{const s=window.__nightArcadeTest.snapshot();return [s.cur.x,s.cur.y];});
 await page.locator('[data-control="left"]').click();assert.equal(await page.evaluate(()=>window.__nightArcadeTest.snapshot().cur.x),initial[0]-1);
 await page.locator('[data-control="drop"]').click();
 assert.ok(await page.evaluate(()=>window.__nightArcadeTest.snapshot().grid.flat().some(x=>x!==null)),"hard-drop locks shape");
@@ -31,7 +31,7 @@ assert.equal(await page.evaluate(()=>window.__nightArcadeTest.snapshot().started
 assert.equal(await page.evaluate(()=>window.__nightArcadeTest.snapshot().cells[40]),0,"first reveal keeps 3x3 clear");
 assert.equal(await page.evaluate(()=>window.__nightArcadeTest.flags().finished),false,"first tap cannot lose");
 await page.locator('[data-control="flag"]').first().click();
-const covered=await page.evaluate(()=>window.__nightArcadeTest.snapshot().open.findIndex((v,i)=>!v&&!state.flags[i]));
+const covered=await page.evaluate(()=>{const s=window.__nightArcadeTest.snapshot();return s.open.findIndex((v,i)=>!v&&!s.flags[i]);});
 await page.locator('[data-tile="'+covered+'"]').click();
 assert.equal(await page.evaluate(i=>window.__nightArcadeTest.snapshot().flags[i],covered),true,"flag mode marks cell");
 await page.locator('[data-game="maze"]').click();
