@@ -46,11 +46,13 @@ internal class SurfaceDetailRenderer(
         anchorZ = centerZ
     }
 
-    fun draw(centerX: Double, centerZ: Double) {
+    fun draw(centerX: Double, centerZ: Double, program: Int) {
         update(centerX, centerZ)
 
         val vertices = patchVertices ?: return
         val indices = patchIndices ?: return
+        val patchLocation = GLES30.glGetUniformLocation(program, "uPatchType")
+        GLES30.glUniform1i(patchLocation, 1)
         GLES30.glEnable(GLES30.GL_POLYGON_OFFSET_FILL)
         GLES30.glPolygonOffset(-1.0f, -1.0f)
         bindAttributes(vertices)
@@ -62,10 +64,12 @@ internal class SurfaceDetailRenderer(
         unbindAttributes()
 
         rockVertices?.takeIf { rockCount > 0 }?.let {
+            GLES30.glUniform1i(patchLocation, 2)
             bindAttributes(it)
             GLES30.glDrawArrays(GLES30.GL_TRIANGLES, 0, rockCount)
             unbindAttributes()
         }
+        GLES30.glUniform1i(patchLocation, 0)
     }
 
     private fun bindAttributes(buffer: FloatBuffer) {
