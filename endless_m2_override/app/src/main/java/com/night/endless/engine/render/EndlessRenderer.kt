@@ -1836,7 +1836,9 @@ void main() {
     if (uMode == 1) {
         float cloud = dot(texel.rgb, vec3(0.333333));
         if (cloud < 0.025) discard;
-        fragColor = vec4(texel.rgb, cloud * uOpacity);
+        // Clouds should not emit full daylight brightness on the night side.
+        float sunlight = max(dot(normalize(vNormal), normalize(-vWorld)), 0.0);
+        fragColor = vec4(texel.rgb * (0.06 + 0.94 * sunlight), cloud * uOpacity);
         return;
     }
 
@@ -1861,7 +1863,9 @@ void main() {
     }
 
     if (uMode == 2) {
-        fragColor = vec4(texel.rgb, uOpacity);
+        // Venus' opaque upper cloud deck obeys the day/night terminator.
+        float sunlight = max(dot(N, L), 0.0);
+        fragColor = vec4(texel.rgb * (0.06 + 0.94 * sunlight), uOpacity);
         return;
     }
 
