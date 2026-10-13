@@ -240,10 +240,10 @@ class EndlessRenderer(
         buildOrbitBuffers()
         buildFormationDiskBuffers()
         buildRingMesh()
-        marsSurfaceTerrain = MarsSurfaceTerrain()
+        marsSurfaceTerrain = MarsSurfaceTerrain(context)
         MoonSurfaceMeshGenerator.elevationPatch = MeasuredElevationPatch.load(context, "moon_lola_terrain.bin")
         MarsSurfaceTerrain.elevationPatch = MeasuredElevationPatch.load(context, "mars_mola_terrain.bin")
-        moonSurfaceTerrain = MoonSurfaceTerrain()
+        moonSurfaceTerrain = MoonSurfaceTerrain(context)
     }
 
     override fun onSurfaceChanged(gl: GL10?, w: Int, h: Int) {
