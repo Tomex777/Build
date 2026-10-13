@@ -99,7 +99,7 @@ export async function identifyWithAcoustId(file, { key=process.env.ACOUSTID_API_
   if (!fingerprint.duration || !fingerprint.fingerprint) return null
   const body = new URLSearchParams({
     client:key, duration:String(Math.round(fingerprint.duration)),
-    fingerprint:fingerprint.fingerprint, meta:'recordings+releasegroups',
+    fingerprint:fingerprint.fingerprint, meta:'recordings releasegroups compress',
   })
   const response = await fetcher('https://api.acoustid.org/v2/lookup', {
     method:'POST', body, signal:AbortSignal.timeout(15000),
