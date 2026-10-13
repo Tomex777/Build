@@ -64,7 +64,32 @@ for sample in 1 2 3 4 5 6; do
             ...(Number.isFinite(event.reasonCode) ? { reasonCode: event.reasonCode } : {}),
             ...(["intentional-logout", "stream-error", "server-failure", "connection-replaced", "transport-close", "other"].includes(event.origin) ? { origin: event.origin } : {}),
             ...(["device-removed", "connection-replaced", "other-conflict", "not-authorized", "bad-session", "policy-violation", "unclassified"].includes(event.protocolDetail) ? { protocolDetail: event.protocolDetail } : {})
-          }))
+          })),
+          accountComparison: row.accountComparison && Array.isArray(row.accountComparison.accounts) &&
+            row.accountComparison.accounts.length <= 50
+            ? {
+                verdict: ["main-revoked-while-linked-connected","multiple-connected","inconclusive"].includes(row.accountComparison.verdict)
+                  ? row.accountComparison.verdict : "inconclusive",
+                accounts: row.accountComparison.accounts.map((a,i) => ({
+                  account: i === 0 ? "Main" : "Linked #" + i,
+                  status: ["connected","connecting","reconnecting","auth-invalid","offline","paused","pairing","disabled","unknown"].includes(a.status)
+                    ? a.status : "unknown",
+                  connected: a.connected === true,
+                  registered: a.registered === true,
+                  paused: a.paused === true,
+                  lastDisconnectCode: Number.isInteger(a.lastDisconnectCode) ? a.lastDisconnectCode : null,
+                  recentEvents: (Array.isArray(a.recentEvents) ? a.recentEvents : []).slice(0,8).flatMap(e => {
+                    if (!["account.connected","account.disconnected","account.reconnect-failed","account.reconnect-scheduled"].includes(e.action)) return [];
+                    return [{
+                      at: typeof e.at === "string" && Number.isFinite(Date.parse(e.at)) ? new Date(e.at).toISOString() : "",
+                      action: e.action,
+                      ...(Number.isInteger(e.code) ? { code:e.code } : {}),
+                      ...(["intentional-logout","stream-error","server-failure","connection-replaced","transport-close","other"].includes(e.origin) ? { origin:e.origin } : {}),
+                      ...(["device-removed","connection-replaced","other-conflict","not-authorized","bad-session","policy-violation","unclassified"].includes(e.protocolDetail) ? { protocolDetail:e.protocolDetail } : {})
+                    }];
+                  })
+                }))
+              } : null
         };
         process.stdout.write(JSON.stringify(output));
       } catch { process.exit(2); }

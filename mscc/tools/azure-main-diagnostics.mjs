@@ -1,5 +1,6 @@
 import { pathToFileURL } from 'node:url'
 import { realpathSync } from 'node:fs'
+import { readAccountComparison } from './azure-account-comparison.mjs'
 
 function assert(condition, message) {
   if (!condition) throw new Error(message)
@@ -66,7 +67,10 @@ export async function readMainDiagnostics({
     signal: AbortSignal.timeout(8_000),
   })
   assert(response.ok, 'Main diagnostics endpoint failed')
-  return summarizeMainDiagnostics(await response.json())
+  const summary = summarizeMainDiagnostics(await response.json())
+  try { summary.accountComparison = await readAccountComparison({ fetcher, localPort }) }
+  catch { summary.accountComparison = null }
+  return summary
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(realpathSync(process.argv[1])).href) {
