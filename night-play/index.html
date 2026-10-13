@@ -104,14 +104,64 @@ a[href="#connect"]{display:none}
 @media(max-width:600px){.mobile-nav{position:fixed;z-index:15;bottom:0;left:0;right:0;display:flex;justify-content:space-around;align-items:center;padding:10px 10px calc(9px + env(safe-area-inset-bottom));background:#f8f8f8f5;border-top:1px solid #ddd;backdrop-filter:blur(12px)}.mobile-nav a{font-size:10px;color:#8c8c8c;font-weight:700;text-align:center;display:flex;flex-direction:column;gap:4px;min-width:75px}.mobile-nav a span{font-size:24px;line-height:1}.site-page{padding-bottom:18px}footer{padding-bottom:100px!important}.inner-page-head{padding:32px 0 25px;flex-direction:column;align-items:flex-start;gap:14px}.inner-page-head h1{font-size:41px;letter-spacing:-2.1px}.inner-page-head p{font-size:13px}.status-pill{font-size:9px}.hero{padding-top:34px}.intro-steps{grid-template-columns:1fr;gap:11px}.intro-steps article{min-height:0;padding:23px}.intro-steps h3{margin:15px 0 8px}.welcome-banner{padding:26px;align-items:flex-start;flex-direction:column}.welcome-banner h2{font-size:25px}.dash-layout{gap:11px}.dash-hero-card{min-height:325px}.dash-side{grid-template-columns:1fr;gap:11px}.dash-mini{padding:21px}.dash-bottom{padding-top:34px}.resume-card{flex-direction:column;align-items:flex-start}.dashboard-callout{align-items:flex-start;flex-wrap:wrap;padding:18px}.dashboard-callout a{margin-left:0}.library-toolbar{flex-direction:column;align-items:stretch;gap:15px}.filter-buttons{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;padding:3px 0}.filter-btn{white-space:nowrap}.searchbox{width:100%}.library-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.news-article{padding:24px}.news-article h2{font-size:20px}.news-aside{padding:23px}}
 @media(prefers-reduced-motion:reduce){.site-page:not([hidden]){animation:none}}
 
+
+/* V4: actual site-wide notices, true footer and identity-first profile */
+html,body{min-height:100%}
+body{min-height:100dvh;display:flex;flex-direction:column}
+#siteMain{width:100%;flex:1 0 auto}
+footer{margin-top:auto;width:100%}
+.hero-art .disc{border-radius:22px;transform:rotate(-16deg);box-shadow:27px 34px 0 #d4d5d4}
+.hero-art .disc:after{border-radius:15px;transform:rotate(4deg)}
+.announcement-bar{background:#171a1c;color:#f8f8f8;position:relative;z-index:16}
+.announcement-content{min-height:62px;display:flex;align-items:center;gap:15px}
+.announce-badge{flex-shrink:0;font-size:9px;font-weight:900;letter-spacing:1.2px;padding:7px 9px;border-radius:7px;background:#f7f7f7;color:#191b1d}
+.announce-copy{display:flex;align-items:baseline;gap:12px;min-width:0;flex:1;font-size:12px}.announce-copy strong{font-size:12px;font-weight:800;white-space:nowrap}.announce-copy span{color:#c4c9ca;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.announcement-content button,.announcement-bottom button{background:none;border:0;color:#fff;font-size:11px;font-weight:760}
+.announcement-content button:hover,.announcement-bottom button:hover{text-decoration:underline}
+#announcementDismiss{font-size:23px;font-weight:400;line-height:1}
+.announcement-history{padding-top:14px;padding-bottom:21px;border-top:1px solid #383a3c;display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.announcement-history[hidden]{display:none}
+.announcement-history h3,.announcement-bottom{grid-column:1/-1}
+.announcement-history h3{font-size:16px;margin:5px 0 8px}
+.announcement-history h3 span{color:#9fa3a3;font-size:10px;letter-spacing:0;margin-left:12px;font-weight:500}
+.announcement-history article{border:1px solid #424547;border-radius:15px;padding:15px}
+.announcement-history small{font-size:10px;color:#b9bdbd;font-weight:750;display:block;margin-bottom:8px}
+.announcement-history article strong{font-size:13px}
+.announcement-history article p{font-size:12px;color:#bdc0c1;line-height:1.65;margin-bottom:0}
+.announcement-bottom{display:flex;align-items:center;justify-content:space-between;gap:16px;color:#94999a;font-size:11px;padding-top:8px}
+.profile-layout{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+.profile-hero,.profile-records{border-radius:26px;padding:32px;background:#eaeaea}
+.profile-hero{background:#191b1e;color:#fff;display:flex;flex-direction:column;align-items:flex-start;min-height:365px}
+.profile-monogram{background:#333639;border-radius:24px;padding:17px;margin-bottom:28px;display:grid;place-items:center}
+.profile-hero .eyebrow{color:#aeb4b7}
+.profile-hero h2{font-size:36px;letter-spacing:-1.5px;margin:12px 0}
+.profile-hero p{color:#bcc0c1;font-size:13px;line-height:1.8;max-width:420px}
+.profile-hero .btn{background:#fff;color:#1b1b1b;margin-top:auto}
+.profile-records h3{font-size:24px;letter-spacing:-.7px;margin:14px 0 8px}
+.profile-records>p{font-size:12px;color:#777b7d;line-height:1.8}
+.profile-record-row{padding:15px 0;border-bottom:1px solid #d3d3d3;display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:13px}
+.profile-record-row strong{font-size:19px;font-variant-numeric:tabular-nums;letter-spacing:-.5px}
+.profile-records .record-footnote{padding-top:10px;font-size:11px}
+@media(max-width:850px){.announce-copy{align-items:flex-start;flex-direction:column;gap:3px}.profile-layout{grid-template-columns:1fr}}
+@media(max-width:600px){.announcement-content{min-height:65px;gap:9px}.announce-copy{font-size:11px}.announce-copy strong{font-size:11px}.announcement-content #announcementMore{font-size:0;padding:9px 4px}.announcement-content #announcementMore span{font-size:19px}.announce-badge{font-size:8px;padding:6px}.announcement-history{grid-template-columns:1fr}.profile-hero,.profile-records{padding:24px}.profile-hero{min-height:330px}.announcement-history h3 span{display:block;margin:5px 0 0}}
+
 </style>
 </head>
 <body>
-<header><div class="wrap nav"><a href="/welcome" data-route class="logo" aria-label="NIGHT Play welcome"><span class="moon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path fill="#fff" d="M16.7 2.5A8.95 8.95 0 0 0 12.5 19a9 9 0 1 1 4.2-16.5Z"/></svg></span>NIGHT <span class="brand-sub">PLAY</span></a><nav class="links" aria-label="Main navigation"><a data-route href="/dashboard">Home</a><a data-route href="/games">Games</a><a data-route href="/updates">Updates</a></nav><div class="actions"><a class="alert-button" href="/updates" data-route aria-label="News and announcements" title="News and announcements"><svg width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9ZM10 21h4"/></svg><span class="notify-dot" id="notifyDot" hidden></span></a><button class="btn light" data-dialog="connect">Connect WhatsApp ↗</button></div></div></header>
-<nav class="mobile-nav" aria-label="Bottom navigation"><a href="/dashboard" data-route><span>⌂</span>Home</a><a href="/games" data-route><span>▦</span>Games</a><a href="/updates" data-route><span>◌</span>Updates</a></nav>
+<header><div class="wrap nav"><a href="/welcome" data-route class="logo" aria-label="NIGHT Play welcome">NIGHT <span class="brand-sub">PLAY</span></a><nav class="links" aria-label="Main navigation"><a data-route href="/dashboard">Home</a><a data-route href="/games">Games</a><a data-route href="/profile">Profile</a></nav><div class="actions"><button class="alert-button" type="button" id="announcementToggle" aria-expanded="false" aria-controls="announcementHistory" aria-label="See past site announcements" title="Site announcements"><svg width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9ZM10 21h4"/></svg><span class="notify-dot" id="notifyDot" hidden></span></button><button class="btn light" data-dialog="connect">Connect WhatsApp ↗</button></div></div></header>
+<aside id="announcementBar" class="announcement-bar" role="region" aria-label="NIGHT site announcements">
+ <div class="wrap announcement-content"><span class="announce-badge">NEW</span><div class="announce-copy"><strong>NIGHT Play preview is evolving</strong><span>Full-page games and a larger 2048 board are being refined.</span></div><button id="announcementMore" type="button" aria-controls="announcementHistory" aria-expanded="false">Past notices <span aria-hidden="true">⌄</span></button><button id="announcementDismiss" type="button" aria-label="Dismiss announcement">×</button></div>
+ <div id="announcementHistory" class="wrap announcement-history" hidden>
+   <h3>Site announcements <span>Latest and previous notices</span></h3>
+   <article><small>13 OCT · PLATFORM</small><strong>NIGHT Play is changing</strong><p>A separate Games Library, fullscreen play, and profile-linking plans.</p></article>
+   <article><small>COMING NEXT · ACCOUNT</small><strong>WhatsApp linking</strong><p>Account verification through <code>.minigames link CODE</code> is under development and is not yet available.</p></article>
+   <div class="announcement-bottom"><span>Official site-wide notices only. Personal invitations will be separate.</span><button type="button" id="announcementHistoryClose">Close ×</button></div>
+ </div>
+</aside>
+<nav class="mobile-nav" aria-label="Bottom navigation"><a href="/dashboard" data-route><span>⌂</span>Home</a><a href="/games" data-route><span>▦</span>Games</a><a href="/profile" data-route><span>◎</span>Profile</a></nav>
 <main class="wrap" id="siteMain">
 <section class="site-page" id="view-welcome" data-view="welcome">
-  <div class="hero"><div><div class="eyebrow">WELCOME TO NIGHT PLAY · YOUR NEW PLAYGROUND</div><h1>Good games.<br>Late nights.</h1><p>Your favourite classics, arcade challenges and eventually real opponents — all in one place. Explore what NIGHT Play can become, then jump in whenever you're ready.</p><div class="hero-btns"><a class="btn" href="/dashboard" data-route data-enter="true">Enter NIGHT Play <span aria-hidden="true">↗</span></a><a class="btn outline" href="/games" data-route data-enter="true">Browse games</a></div><p class="welcome-fine">Free to play as a guest · No account needed</p></div><div class="hero-art" role="img" aria-label="Minimal black moon artwork against a soft gray background"><div class="disc"></div><div class="floating f1">🌙 &nbsp; NIGHT PLAY</div><div class="floating f2"><span class="online-dot"></span>Find your next favourite</div><div class="floating f3">♟️ &nbsp; Arcade, classics, challenges.</div></div></div>
+  <div class="hero"><div><div class="eyebrow">WELCOME TO NIGHT PLAY · YOUR NEW PLAYGROUND</div><h1>Good games.<br>Great company.</h1><p>Arcade favourites, board games and friendly competition — all in one place. Explore what NIGHT Play can become, then jump in whenever you're ready.</p><div class="hero-btns"><a class="btn" href="/dashboard" data-route data-enter="true">Enter NIGHT Play <span aria-hidden="true">↗</span></a><a class="btn outline" href="/games" data-route data-enter="true">Browse games</a></div><p class="welcome-fine">Free to play as a guest · No account needed</p></div><div class="hero-art" role="img" aria-label="Minimal abstract geometric game illustration"><div class="disc"></div><div class="floating f1">NIGHT &nbsp; PLAY</div><div class="floating f2"><span class="online-dot"></span>Discover something fun</div><div class="floating f3">♟️ &nbsp; Arcade, classics, challenges.</div></div></div>
   <div class="landing-section"><div class="topbar"><div><span class="eyebrow">HOW IT WORKS</span><h2>A little play goes a long way.</h2></div></div><div class="intro-steps">
   <article><span class="step-num">01</span><h3>Pick your game.</h3><p>Jump from a simple puzzle to something that takes serious skill. Everything playable lives in the Games Library.</p></article>
   <article><span class="step-num">02</span><h3>Make it yours.</h3><p>Enjoy full-page, touch-first games. Your guest progress stays on this device where supported.</p></article>
@@ -120,17 +170,16 @@ a[href="#connect"]{display:none}
   <div class="welcome-banner"><div><span class="eyebrow">NIGHT × WHATSAPP</span><h2>One player. More ways to play.</h2><p>Your existing NIGHT Chess, Ludo, Checkers and Tic-Tac-Toe commands stay as they are. The web will connect with them once secure linking and shared matches are ready.</p></div><a class="btn light" href="/dashboard" data-route data-enter="true">Take me inside ↗</a></div>
 </section>
 <section class="site-page" id="view-dashboard" data-view="dashboard" hidden>
- <div class="inner-page-head"><div><span class="eyebrow">YOUR NIGHT SPACE</span><h1>Welcome, <span class="muted">player.</span></h1><p>Here's your corner of NIGHT Play. Your guest progress lives on this device until verified accounts launch.</p></div><span class="status-pill">● GUEST SESSION</span></div>
+ <div class="inner-page-head"><div><span class="eyebrow">YOUR NIGHT SPACE</span><h1>Play something <span class="muted">great.</span></h1><p>A home for discovering games and picking up a saved session. Player stats will live in your verified profile.</p></div><span class="status-pill">PREVIEW</span></div>
  <div class="dash-layout">
   <article class="dash-hero-card"><div class="dash-label">READY WHEN YOU ARE</div><h2>Your next<br>game awaits.</h2><p>Pick up where you left off, or discover something new.</p><a class="btn" data-route href="/games">Open Game Library ↗</a><span class="dash-moon" aria-hidden="true">☾</span></article>
   <div class="dash-side">
-   <div class="dash-mini"><span class="eyebrow">LOCAL HIGH SCORES</span><div class="highscore-pair"><div><b id="dashSnakeBest">0</b><small>Snake</small></div><div><b id="dash2048Best">0</b><small>2048</small></div></div><p>Guest records · Not part of competitive rankings</p></div>
-   <div class="dash-mini updates-mini"><span class="eyebrow">LATEST ANNOUNCEMENT</span><h3>Fullscreen games are here.</h3><p>Explore NIGHT Play's upgraded game pages and touch controls.</p><a data-route href="/updates" class="text-arrow">Read what's new ↗</a></div>
+   <div class="dash-mini updates-mini"><span class="eyebrow">FEATURED NEXT</span><h3>Pick the way you play.</h3><p>Board games, puzzles and arcade challenges now have their own dedicated Games Library.</p><a class="text-arrow" data-route href="/games">Explore game categories ↗</a></div>
+   <div class="dash-mini"><span class="eyebrow">NIGHT PROFILE</span><h3>Your achievements belong to you.</h3><p>Verified profiles will collect your records, tournament entries and friends across WhatsApp and web.</p><a class="text-arrow" data-route href="/profile">View profile ↗</a></div>
   </div>
  </div>
  <div class="dash-bottom"><div class="topbar"><div><span class="eyebrow">CONTINUE PLAYING</span><h2>Right where you left off.</h2></div></div><div class="resume-card" id="resumeCard"><p>Nothing to resume just yet. Your adventure starts in the Games Library.</p><a class="btn outline" href="/games" data-route>Find a game ↗</a></div></div>
- <div class="dashboard-callout"><span aria-hidden="true">🔔</span><div><strong>Announcements & alerts</strong><p>Release news lives in Updates. Personal challenges and account alerts will appear here once accounts and multiplayer launch.</p></div><a href="/updates" data-route>View updates ↗</a></div>
-</section>
+ </section>
 <section class="site-page" id="view-games" data-view="games" hidden>
  <div class="inner-page-head"><div><span class="eyebrow">THE NIGHT ARCADE</span><h1>Choose your <span class="muted">adventure.</span></h1><p>Play instantly. No tiny popups, no endless scrolling through menus.</p></div><span class="status-pill">03 PLAYABLE NOW</span></div>
  <div class="library-toolbar"><div class="filter-buttons" role="group" aria-label="Filter games"><button class="filter-btn active" type="button" data-filter="all" aria-pressed="true">All games</button><button class="filter-btn" type="button" data-filter="arcade" aria-pressed="false">Arcade</button><button class="filter-btn" type="button" data-filter="puzzle" aria-pressed="false">Puzzle</button><button class="filter-btn" type="button" data-filter="board" aria-pressed="false">Board games</button></div><label class="searchbox"><span aria-hidden="true">⌕</span><input id="gameSearch" type="search" placeholder="Search games..." aria-label="Search games" autocomplete="off"></label></div>
@@ -149,17 +198,13 @@ a[href="#connect"]{display:none}
   <article class="gamecard library-card" data-cat="arcade" data-name="racing" data-dialog="soon" tabindex="0" role="button" aria-label="Racing game planned"><div class="thumb tictactoe"><span class="tag">PLANNED</span><span class="game-emoji">🏎️</span></div><div class="cardrow"><div><h3>Racing</h3><p>Race for the line.</p></div><button class="arrow" aria-label="Racing planned" tabindex="-1">↗</button></div></article>
  </div><p class="no-results" id="noGameResults" hidden>No games found. Try another name or category.</p>
 </section>
-<section class="site-page" id="view-updates" data-view="updates" hidden>
- <div class="inner-page-head"><div><span class="eyebrow">NIGHT BULLETIN</span><h1>News, alerts & <span class="muted">what's next.</span></h1><p>Release notes, upcoming features and your notifications — without cluttering the Games Library.</p></div><button class="btn light" id="markUpdatesRead" type="button">Mark as read ✓</button></div>
- <div class="updates-layout"><div class="updates-feed">
-  <article class="news-article"><div class="news-meta"><span class="news-label live">LIVE IN THIS PREVIEW</span><time datetime="2026-10-13">13 OCT 2026</time></div><h2>Games have their own space.</h2><p>We separated the welcome experience, player dashboard and Games Library. Snake, 2048 and Tic-Tac-Toe now open into their own fullscreen game views.</p><a href="/games" data-route class="text-arrow">Visit the Game Library ↗</a></article>
-  <article class="news-article"><div class="news-meta"><span class="news-label">PREVIEW FEATURE</span><span>GUEST MODE</span></div><h2>Your progress stays close.</h2><p>Guest highs and game progress can be saved on this device. They're not verified scores and won't affect multiplayer rankings yet.</p><a href="/dashboard" data-route class="text-arrow">See your dashboard ↗</a></article>
-  <article class="news-article"><div class="news-meta"><span class="news-label upcoming">IN DEVELOPMENT</span><span>COMING NEXT</span></div><h2>Connect WhatsApp to NIGHT Play.</h2><p>We're planning private <strong>.minigames link CODE</strong> verification, shared identities and separate competitive rankings. Real linking is not live in this preview.</p><button class="text-arrow text-button" data-dialog="connect">See linking plan ↗</button></article>
-  <article class="news-article"><div class="news-meta"><span class="news-label upcoming">ON THE ROADMAP</span><span>MULTIPLAYER</span></div><h2>Play with friends, wherever they are.</h2><p>Cross-platform Chess and Ludo, random matchmaking, group competitions and shared achievements are planned — not yet online.</p><button class="text-arrow text-button" data-dialog="crossplay">See multiplayer plan ↗</button></article>
- </div><aside class="news-aside"><span class="eyebrow">YOUR ALERTS</span><h3>All quiet for now.</h3><p>Personal game invites, challenges, wins and account alerts will appear here once real accounts are enabled.</p><div class="notice">No personal alerts in this guest preview.<br><br><strong>Release announcements</strong> are available above and can be marked as read on this device.</div><a class="btn outline" href="/games" data-route>Play something ↗</a></aside></div>
-</section>
+<section class="site-page" id="view-profile" data-view="profile" hidden>
+ <div class="inner-page-head"><div><span class="eyebrow">YOUR PLAYER ACCOUNT</span><h1>The profile is <span class="muted">yours.</span></h1><p>Connect WhatsApp to keep your player identity, match history and achievements together.</p></div><span class="status-pill">ACCOUNT LINKING IN DEVELOPMENT</span></div>
+ <div class="profile-layout"><div class="profile-hero"><div class="profile-monogram" aria-label="Account not linked"><svg viewBox="0 0 24 24" width="34" height="34" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4.5 20c1.2-4.7 13.8-4.7 15 0"/></svg></div><span class="eyebrow">ACCOUNT STATUS</span><h2>Not connected</h2><p>NIGHT Play will use a verified WhatsApp identity, not an anonymous guest account. Account linking is not live in this prototype.</p><button class="btn" data-dialog="connect">How WhatsApp linking works ↗</button></div>
+  <div class="profile-records"><span class="eyebrow">THIS DEVICE · TEST DATA ONLY</span><h3>Local game records</h3><p>While we're testing, game saves stay on this device. They cannot count toward official rankings until the backend can verify game results.</p><div class="profile-record-row"><span>🐍 Snake · best</span><strong id="profileSnakeBest">—</strong></div><div class="profile-record-row"><span>🔢 2048 · best</span><strong id="profile2048Best">—</strong></div><div class="profile-record-row"><span>❎ Tic-Tac-Toe</span><strong>Unranked</strong></div><p class="record-footnote">Achievements, ranked scores, match histories, and account recovery will appear here after WhatsApp verification ships.</p></div></div>
+ </section>
 </main>
-<footer class="wrap"><span><strong>NIGHT PLAY</strong> · Built for the night owls.</span><span>Preview · Scores saved only on this device</span></footer>
+<footer class="wrap"><span><strong>NIGHT PLAY</strong> · Games, challenges and community.</span><span>Preview · Scores saved only on this device</span></footer>
 <dialog id="infoDialog" aria-labelledby="infoTitle"><div class="modalhead"><h2 id="infoTitle">NIGHT Play</h2><button class="xbtn" data-close aria-label="Close">×</button></div><div class="modalbody" id="infoBody"></div></dialog>
 <section id="gameDialog" class="game-page" aria-label="Fullscreen game view" aria-hidden="true">
 <div class="game-topline"><button type="button" data-close-game>← All games</button><span class="game-brand">NIGHT <span class="muted">PLAY</span></span><span class="game-hint">LOCAL PREVIEW</span></div>
