@@ -33,9 +33,11 @@ export function createMessageScheduler({
   function submit(account, msg) {
     const key = accountKey(account) + '|' + chatKey(msg)
     const fast = isStatelessFastCommand(textOf(msg), prefix())
+    const generation = account?.generation
+    const safelyProcess = () => account?.generation === generation ? process(account, msg) : false
     if (fast) {
-      return Promise.resolve().then(() => process(account, msg))
-        .catch(error => log('[MSCC scheduler] fast command failed: ' + String(error?.message || error).slice(0, 150)))
+      return Promise.resolve().then(safelyProcess)
+        .catch(() => log('[MSCC scheduler] fast command handler failed'))
     }
 
     const count = counters.get(key) || 0
@@ -48,9 +50,9 @@ export function createMessageScheduler({
     counters.set(key, count + 1)
     const previous = queued.get(key) || Promise.resolve()
     const job = previous.catch(() => {})
-      .then(() => process(account, msg))
-      .catch(error => {
-        log('[MSCC scheduler] message processing failed: ' + String(error?.message || error).slice(0, 150))
+      .then(safelyProcess)
+      .catch(() => {
+        log('[MSCC scheduler] message processing failed')
         return false
       })
     queued.set(key, job)
