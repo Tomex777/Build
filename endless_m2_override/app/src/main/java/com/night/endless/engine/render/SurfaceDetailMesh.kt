@@ -104,18 +104,30 @@ internal object SurfaceDetailMesh {
         fun triVertex(x: Double, y: Double, z: Double, nx: Double, ny: Double, nz: Double) {
             data.add(x.toFloat()); data.add(y.toFloat()); data.add(z.toFloat())
             data.add(nx.toFloat()); data.add(ny.toFloat()); data.add(nz.toFloat())
-            data.add(.18f); data.add(.18f); data.add(.18f)
+            val grit = hash2((x * 193000.0).toInt(), (z * 171000.0).toInt())
+            val tone = (0.17 + grit * 0.54).toFloat()
+            data.add(tone); data.add(tone); data.add(tone)
         }
         for (gz in lowZ..highZ) for (gx in lowX..highX) {
-            if (hash2(gx, gz) > 0.73) continue
+            // Real scree is clustered around eroded slopes and outcrops,
+            // not placed as a uniformly spaced field of large pebbles.
+            val regionX = floor(gx / 8.0).toInt()
+            val regionZ = floor(gz / 8.0).toInt()
+            val region = hash2(regionX - 19, regionZ + 4)
+            val density = 0.14 + 0.58 * region * region
+            if (hash2(gx, gz) > density) continue
             val x = (gx + 0.17 + hash2(gx + 11, gz)) * spacing
             val z = (gz + 0.15 + hash2(gx, gz + 23)) * spacing
             if (hypot(x - centerX, z - centerZ) > radius) continue
             val base = elevation(x, z)
-            val size = (0.000085 + hash2(gx + 31, gz - 9).let { it*it } * 0.00036)
+            // Heavy-tailed fragment sizes: mostly gravel, with occasional
+            // large embedded meter-scale basalt blocks. Prior min radius
+            // 25 cm created a cartoon field of repeated boulders.
+            val grainSize = hash2(gx + 31, gz - 9)
+            val size = (0.000022 + grainSize * grainSize *
+                grainSize * grainSize * 0.00048)
             val squish = 0.38 + hash2(gx - 7, gz + 45) * 0.45
-            val topY = base + size * squish
-            val offset = hash2(gx, gz - 27) * PI * 2.0
+             val offset = hash2(gx, gz - 27) * PI * 2.0
             val rockHeight = size * squish
             val tipX = x + cos(offset + 0.4) * size * 0.075
             val tipZ = z + sin(offset + 0.4) * size * 0.075
