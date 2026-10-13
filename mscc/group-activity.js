@@ -13,8 +13,8 @@ export function activityPeriod(raw = '') {
 }
 
 export function activitySenderKey(jid = '') {
-  const value = String(jid || '').trim().replace(/:\\d+(?=@)/, '')
-  if (/^\\d{7,15}@s\\.whatsapp\\.net$/.test(value)) return value.split('@')[0]
+  const value = String(jid || '').trim().replace(/:\d+(?=@)/, '')
+  if (/^\d{7,15}@s\.whatsapp\.net$/.test(value)) return value.split('@')[0]
   // Never interpret the numerical part of an opaque LID as a phone number.
   return value ? 'jid:' + value : ''
 }
@@ -42,7 +42,7 @@ export function aggregateActivity(rows = [], { nowMs = Date.now(), period = '7d'
     const member = members.get(key)
     const name = String(row.speaker || '').trim()
     if (name && !/^(?:unknown|whatsapp user)$/i.test(name) && member.name === 'Member') {
-      member.name = name.slice(0, 50).replace(/[\\r\\n\\t]+/g, ' ')
+      member.name = name.slice(0, 50).replace(/[\r\n\t]+/g, ' ')
     }
     member.messages += 1
     total += 1
