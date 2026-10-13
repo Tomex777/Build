@@ -272,6 +272,14 @@ class MoonSurfaceRuntimeTest {
                 device.findObject(By.textContains("Take off")) != null &&
                     device.findObject(By.textContains("Overview")) == null
             }
+            // The Compose surface controls can appear before the GLES frame
+            // finishes its first fully-populated terrain pass. Capture the
+            // stable rendered scene, not an intermediate sky-only swap.
+            val secondLandingFrame = renderer.completedFrameCount()
+            await("Cross-body Mars terrain frames are ready", 15_000) {
+                renderer.completedFrameCount() >= secondLandingFrame + 5L
+            }
+            SystemClock.sleep(650)
             capture(instrumentation, "moon-to-mars-surface", glView)
 
             val marsClockBeforeTakeoff = renderer.currentTimeMillis()
