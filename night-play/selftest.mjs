@@ -60,6 +60,11 @@ assert.ok(!html.includes('control.className="dpad"'),'Snake has no generated D-p
 assert.ok(!html.includes('snakeFrame=requestAnimationFrame(renderFrame)'),'Snake must not redraw each frame or interpolate step-by-step')
 assert.ok(!html.includes('snakePrevBody=snake.body.map'),'Restore the previous immediate tile/tick movement')
 assert.ok(html.includes('turbo:66'),'Snake turbo speed is available')
+assert.ok(html.includes('function bindSwipeGesture('),'Games share prompt pointer gesture handling')
+assert.ok(html.includes('snake.turnQueue=[]'),'Snake uses a two-step input queue for tight turns')
+assert.ok(html.includes('pointermove'),'Handle input during a gesture, not at delayed touchend')
+assert.ok(html.includes('--locked-board-size'),'Focus must not expand the board')
+
 assert.ok(html.includes('const focusButton=document.getElementById("gameFocus")'),'Focus button must expand arena')
 assert.ok(html.includes('M24 54 C24 37.43'),'Use the actual NIGHT logo paths, not the invented game badge')
 assert.ok(html.includes('function tileMovePaths(before,dir)'),'2048 slides animate through tile move paths')

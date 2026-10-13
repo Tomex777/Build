@@ -96,6 +96,29 @@ try {
 
  assert.equal(await page.locator('#board2048 .tile').count(),16)
  assert.ok(await page.locator('#board2048').evaluate(el=>el.getBoundingClientRect().width)>=376,'2048 arena occupies nearly full 390px viewport')
+ const title2048=await page.locator('#gameTitle').boundingBox();
+ assert.ok(title2048.y<130,'Game title is at the TOP, not alongside the board');
+ // The game must consume a swipe before releasing the finger.
+ // Send real Chromium touch events, not only synthetic PointerEvents.
+ // Verify the 2048 move happens on touchMove, while the finger is still down.
+ await page.evaluate(()=>{grid=[[2,0,0,0],[0,0,0,0],[0,0,0,0],[0,0,0,0]];tileScore=0;draw2048()});
+ const cdp=await page.context().newCDPSession(page);
+ const b2048=await page.locator('#board2048').boundingBox();
+ const sx=b2048.x+b2048.width*.3,sy=b2048.y+b2048.height*.4;
+ await cdp.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x:sx,y:sy,id:7}]});
+ await cdp.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x:sx+75,y:sy,id:7}]});
+ await page.waitForFunction(()=>grid[0][3]===2,null,{timeout:1500});
+ assert.equal(await page.evaluate(()=>grid[0][3]),2,'Real 2048 gesture must act before touch release');
+ await cdp.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
+ const movedOnPointerMove=await page.evaluate(()=>{
+  grid=[[2,0,0,0],[0,0,0,0],[0,0,0,0],[0,0,0,0]];tileScore=0;draw2048();
+  const el=document.getElementById('board2048');
+  const send=(type,x,y)=>el.dispatchEvent(new PointerEvent(type,{bubbles:true,pointerId:73,pointerType:'touch',clientX:x,clientY:y}));
+  send('pointerdown',100,200);send('pointermove',160,200);
+  const received=grid[0][3]===2;send('pointerup',160,200);return received
+ });
+ assert.equal(movedOnPointerMove,true,'2048 touch input must act during swipe, not on touchend');
+
 
  await page.locator('#gameSettings').click()
  await page.getByRole('button',{name:'5 × 5'}).click()
@@ -114,8 +137,31 @@ try {
  assert.equal(await page.evaluate(()=>snakeTickMs()),115,'Classic speed restored and slightly quicker')
  await page.locator('#snakeOverlay').waitFor({state:'visible'})
  await page.locator('#snakeOverlay').click()
- await page.waitForTimeout(180)
- assert.equal(await page.locator('#snakeOverlay').isVisible(),false,'Snake start overlay should become invisible without resetting on a bubbling click')
+ assert.equal(await page.locator('#snakeOverlay').isVisible(),false,'Snake overlay dismissed before any touch gesture')
+ // Test a real finger swipe with the snake's game-loop paused for deterministic input inspection.
+ await page.evaluate(()=>{if(snakeTimer)clearInterval(snakeTimer);snakeTimer=null;snake.dir='right';snake.next='right';snake.turnQueue=[];snake.started=true;gamePaused=false;});
+ const bSnake=await page.locator('#snakeCanvas').boundingBox();
+ const px=bSnake.x+bSnake.width*.55,py=bSnake.y+bSnake.height*.58;
+ await cdp.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x:px,y:py,id:8}]});
+ await cdp.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x:px,y:py-34,id:8}]});
+ await page.waitForFunction(()=>snake.turnQueue.includes('up'),null,{timeout:1500});
+ assert.equal((await page.evaluate(()=>snake.turnQueue))[0],'up','Real Snake swipe is accepted before finger release');
+ await cdp.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
+ await page.evaluate(()=>{snake.turnQueue=[];snake.dir='right';snake.next='right';snakeTimer=setInterval(stepSnake,snakeTickMs())});
+ const touchQueue=await page.evaluate(()=>{
+  const el=document.getElementById('snakeCanvas');
+  snake.turnQueue=[];snake.dir='right';snake.next='right';snake.started=true;gamePaused=false;
+  const send=(type,x,y)=>el.dispatchEvent(new PointerEvent(type,{bubbles:true,pointerId:21,pointerType:'touch',clientX:x,clientY:y}));
+  send('pointerdown',170,170);send('pointermove',170,154);
+  const beforeLift=[...snake.turnQueue];
+  send('pointermove',151,154);
+  const corners=[...snake.turnQueue];
+  send('pointerup',151,154);
+  return {beforeLift,corners}
+ });
+ assert.deepEqual(touchQueue.beforeLift,['up'],'Snake responds before finger lifts');
+ assert.deepEqual(touchQueue.corners,['up','left'],'Fast swipe corners must queue without dropped inputs');
+
  await page.locator('#gameSettings').click()
  assert.equal(await page.locator('.snake-mode-preview').count(),5)
  await page.getByRole('button',{name:'Turbo'}).click()
@@ -135,10 +181,13 @@ try {
  await page.locator('#closeSettings').click()
  assert.equal(await page.locator('#tttboard button').count(),9)
  assert.ok(await page.locator('#tttboard').evaluate(el=>el.getBoundingClientRect().width)>=376,'TTT board should fill almost the entire viewport')
+ const naturalBoardWidth=await page.locator('#tttboard').evaluate(el=>el.getBoundingClientRect().width);
  await page.locator('#gameFocus').click()
  assert.equal(await page.locator('#gameDialog').evaluate(el=>el.classList.contains('focus-active')),true)
  assert.equal(await page.locator('#gameFocus').getAttribute('aria-pressed'),'true')
- assert.ok(await page.locator('#tttboard').evaluate(el=>el.getBoundingClientRect().width)>=378,'Focused arena gains width')
+ const focusBoardWidth=await page.locator('#tttboard').evaluate(el=>el.getBoundingClientRect().width);
+ assert.ok(Math.abs(focusBoardWidth-naturalBoardWidth)<=1,'Focus must NOT enlarge the board');
+ assert.ok((await page.locator('#gameTitle').boundingBox()).y<130,'Game title stays near top even in focus mode')
  await page.locator('#gameFocus').click()
  assert.equal(await page.locator('#gameFocus').getAttribute('aria-pressed'),'false')
 

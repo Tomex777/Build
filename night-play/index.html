@@ -743,6 +743,44 @@ body{background:var(--bg)}
  .game-page.focus-active .game-wrap,#gameDialog.focus-active .game-wrap{padding-bottom:6px}
 }
 @media(prefers-reduced-motion:reduce){.game-page .game-wrap{transition:none}}
+
+/* V11: game title always belongs to the TOP of the playing screen.
+   The board remains comfortably centred and unchanged in Focus mode. */
+.game-page .game-wrap,#gameDialog .game-wrap{position:relative}
+.game-page .game-intro,#gameDialog .game-intro{
+ position:absolute;top:12px;left:0;right:0;z-index:1;
+ width:100%;margin:0;display:flex;flex-direction:column-reverse;
+ align-items:center;justify-content:flex-start;gap:4px;
+ text-align:center;pointer-events:none;
+}
+.game-page .game-intro h2,#gameDialog .game-intro h2{
+ font-size:clamp(27px,4vw,37px);letter-spacing:-1.5px;
+ margin:0;line-height:1.05;
+}
+.game-page .game-intro .eyebrow{font-size:9px;letter-spacing:1.2px}
+.game-page.focus-active .game-intro,#gameDialog.focus-active .game-intro{display:flex}
+.game-page.focus-active,#gameDialog.focus-active{
+ --board-size:min(var(--locked-board-size, 760px), calc(100vw - 10px), calc(100dvh - 178px));
+}
+.game-page.focus-active .game-wrap,#gameDialog.focus-active .game-wrap{padding-bottom:62px}
+.game-page .board2048{touch-action:none}
+.game-page #snakeCanvas{touch-action:none}
+.game-page .tttboard button{touch-action:manipulation}
+@media(max-width:600px){
+ .game-page .game-intro,#gameDialog .game-intro{top:10px;gap:3px}
+ .game-page .game-intro h2,#gameDialog .game-intro h2{font-size:28px}
+ .game-page.focus-active,#gameDialog.focus-active{
+  --board-size:min(var(--locked-board-size, 760px), calc(100vw - 10px), calc(100dvh - 178px));
+ }
+}
+@media(max-height:610px){
+ .game-page .game-intro,#gameDialog .game-intro{top:5px}
+ .game-page .game-intro h2,#gameDialog .game-intro h2{font-size:20px}
+ .game-page.focus-active,#gameDialog.focus-active{
+  --board-size:min(var(--locked-board-size, 760px), calc(100vw - 10px), calc(100dvh - 159px));
+ }
+ .game-page.focus-active .game-wrap,#gameDialog.focus-active .game-wrap{padding-bottom:12px}
+}
 </style>
 </head>
 <body>
@@ -1212,15 +1250,19 @@ document.addEventListener("visibilitychange",()=>{
 function exitGame(){if(document.fullscreenElement===gameDialog)document.exitFullscreen().catch(()=>{});if(gameDialog.open)gameDialog.close();if(location.pathname.startsWith("/play/"))history.replaceState({},"","/games");renderRoute()}
 
 const focusButton=document.getElementById("gameFocus");
+function currentArena(){return document.querySelector(gameDialog.dataset.skin==="snake"?".snake-shell":gameDialog.dataset.skin==="2048"?"#board2048":"#tttboard")}
 function updateFocusButton(){const activeFocus=gameDialog.classList.contains("focus-active");focusButton.setAttribute("aria-pressed",String(activeFocus));focusButton.setAttribute("aria-label",activeFocus?"Show full game controls":"Expand arena");focusButton.querySelector("span").textContent=activeFocus?"Normal":"Focus";}
 focusButton.addEventListener("click",async()=>{
+ const locked=currentArena()?.getBoundingClientRect().width;
+ if(!gameDialog.classList.contains("focus-active")&&locked)gameDialog.style.setProperty("--locked-board-size",locked+"px");
  const activeFocus=gameDialog.classList.toggle("focus-active");
  updateFocusButton();
- if(activeFocus&&gameDialog.requestFullscreen){try{await gameDialog.requestFullscreen()}catch{ /* CSS focus remains available */ }}
+ if(activeFocus&&gameDialog.requestFullscreen){try{await gameDialog.requestFullscreen()}catch{ /* Retain focus layout without browser fullscreen */ }}
  else if(!activeFocus&&document.fullscreenElement===gameDialog){try{await document.exitFullscreen()}catch{}}
+ if(!activeFocus)gameDialog.style.removeProperty("--locked-board-size");
 });
 document.addEventListener("fullscreenchange",()=>{
- if(!document.fullscreenElement&&gameDialog.classList.contains("focus-active")){gameDialog.classList.remove("focus-active");updateFocusButton()}
+ if(!document.fullscreenElement&&gameDialog.classList.contains("focus-active")){gameDialog.classList.remove("focus-active");gameDialog.style.removeProperty("--locked-board-size");updateFocusButton()}
 });
 document.getElementById("restart").addEventListener("click",()=>{
  if(active==="2048"&&tileScore>0&&!gameOverRecorded)recordSession("2048"+(grid.length===4?"":"-"+grid.length),tileScore);
@@ -1230,7 +1272,7 @@ function openGame(kind,{push=true,fresh=false}={}){
  if(!["snake","2048","ttt"].includes(kind))return;
  if(push)history.pushState({game:kind},"","/play/"+kind);
  renderRoute();
- stop();active=kind;gameDialog.dataset.skin=kind;gameDialog.classList.remove("focus-active");document.getElementById("gameFocus").setAttribute("aria-pressed","false");document.getElementById("gameFocus").querySelector("span").textContent="Focus";gameDialog.showModal();
+ stop();active=kind;gameDialog.dataset.skin=kind;gameDialog.classList.remove("focus-active");gameDialog.style.removeProperty("--locked-board-size");document.getElementById("gameFocus").setAttribute("aria-pressed","false");document.getElementById("gameFocus").querySelector("span").textContent="Focus";gameDialog.showModal();
  const sub=document.getElementById("gameSubheading");
  sub.textContent=kind==="snake"?"THE CLASSIC ARCADE":kind==="2048"?"THE NUMBER PUZZLE":"THE STRATEGY BOARD";title.textContent=kind==="ttt"?"Tic-Tac-Toe":kind==="2048"?"2048":"Snake";
  if(kind==="snake"){help.textContent="Swipe the arena to turn. On desktop, use the arrow keys.";initSnake(fresh);pauseLabel("Tap board to start")}
@@ -1239,6 +1281,46 @@ function openGame(kind,{push=true,fresh=false}={}){
  document.getElementById("pauseGame").hidden=(kind==="ttt");
  document.getElementById("undo2048").hidden=(kind!=="2048");
 }
+
+/** Low-latency touch/mouse swipes: use pointermove rather than delayed touchend.
+ * Captures the pointer on board, responds at threshold, and respects touch-action:none.
+ * Opposite-direction inputs are rejected by the game itself.
+ */
+function bindSwipeGesture(board,turn,{threshold=10,allowMultiple=false}={}){
+ let pointer=null;
+ board.addEventListener("pointerdown",e=>{
+  if(e.pointerType==="mouse"&&e.button!==0)return;
+  if(pointer!==null)return;
+  pointer={id:e.pointerId,x:e.clientX,y:e.clientY,fired:false};
+  if(board.setPointerCapture)try{board.setPointerCapture(e.pointerId)}catch{}
+ },{passive:true});
+ board.addEventListener("pointermove",e=>{
+  if(!pointer||e.pointerId!==pointer.id||pointer.fired)return;
+  const dx=e.clientX-pointer.x,dy=e.clientY-pointer.y;
+  if(Math.max(Math.abs(dx),Math.abs(dy))<threshold)return;
+  const dir=Math.abs(dx)>Math.abs(dy)?dx>0?"right":"left":dy>0?"down":"up";
+  if(turn(dir)!==false){
+   if(allowMultiple){pointer.x=e.clientX;pointer.y=e.clientY}
+   else pointer.fired=true;
+  }
+ },{passive:true});
+ function release(e){
+  if(pointer?.id!==e.pointerId)return;
+  // Short, decisive flicks can end before pointermove fires at high frame load.
+  if(!pointer.fired){
+   const dx=e.clientX-pointer.x,dy=e.clientY-pointer.y;
+   if(Math.max(Math.abs(dx),Math.abs(dy))>=threshold){
+    const dir=Math.abs(dx)>Math.abs(dy)?dx>0?"right":"left":dy>0?"down":"up";
+    turn(dir);
+   }
+  }
+  pointer=null;
+ }
+ board.addEventListener("pointerup",release,{passive:true});
+ board.addEventListener("pointercancel",e=>{if(pointer?.id===e.pointerId)pointer=null},{passive:true});
+ board.addEventListener("lostpointercapture",e=>{if(pointer?.id===e.pointerId)pointer=null});
+}
+
 const SNAKE_MODES=["wrap","walls","maze1","maze2","maze3"];
 function currentSnakeMode(){const selected=getSetting("snake-mode",getSetting("snake-wrap","walls"));return SNAKE_MODES.includes(selected)?selected:"walls"}
 function makeSnakeMaze(mode,size){
@@ -1256,7 +1338,7 @@ function initSnake(fresh=false){
  let loaded=null;try{loaded=!fresh?JSON.parse(localStorage.getItem("night-play-save-snake")||"null"):null}catch{}
  const selected=currentSnakeMode();
  snake=loaded&&Array.isArray(loaded.body)&&loaded.body.length&&loaded.alive&&loaded.food&&(!loaded.mode||loaded.mode===selected)?{...loaded,size,alive:true,canvas:c}:{size,body:[{x:8,y:9},{x:7,y:9},{x:6,y:9},{x:5,y:9},{x:4,y:9}],dir:"right",next:"right",food:null,score:0,alive:true};
- snake.mode=selected;snake.wrap=selected==="wrap";snake.maze=makeSnakeMaze(selected,size);snake.started=false;
+ snake.mode=selected;snake.wrap=selected==="wrap";snake.maze=makeSnakeMaze(selected,size);snake.started=false;snake.turnQueue=[];snake.next=snake.dir;
  root.innerHTML='<div class="scorebar scoreboard"><div class="score-unit"><span class="score-label">SCORE</span><b id="score">'+snake.score+'</b></div><span class="score-divider" aria-hidden="true"></span><div class="score-unit"><span class="score-label">PERSONAL BEST</span><b id="best">'+best("snake")+'</b></div></div>';
  const shell=document.createElement("div");shell.className="snake-shell";shell.appendChild(c);
  const overlay=document.createElement("button");overlay.id="snakeOverlay";overlay.className="snake-screen-overlay";overlay.type="button";overlay.innerHTML='<strong>Ready to play?</strong><small>Swipe to steer. Collect fruit. Keep moving.</small><span>Tap to start <svg class="ui-icon" viewBox="0 0 24 24" focusable="false" aria-hidden="true"><use href="#icon-play"></use></svg></span>';
@@ -1264,12 +1346,22 @@ function initSnake(fresh=false){
  snake.started=true;gamePaused=false;overlay.hidden=true;pauseLabel("Pause")};
  shell.appendChild(overlay);root.appendChild(shell);
  snake.canvas=c;snake.food=snake.food||food();drawSnake();gamePaused=true;
- let origin=null;c.addEventListener("touchstart",e=>{origin={x:e.touches[0].clientX,y:e.touches[0].clientY}},{passive:true});
- c.addEventListener("touchend",e=>{if(!origin)return;const dx=e.changedTouches[0].clientX-origin.x,dy=e.changedTouches[0].clientY-origin.y;if(Math.max(Math.abs(dx),Math.abs(dy))>17)snakeTurn(Math.abs(dx)>Math.abs(dy)?dx>0?"right":"left":dy>0?"down":"up");origin=null},{passive:true});
+ // Respond during the gesture, not when the finger is lifted.
+ // A two-turn queue preserves rapid corner gestures at Turbo speed.
+ bindSwipeGesture(c,dir=>snakeTurn(dir),{threshold:9,allowMultiple:true});
+
  snakeTimer=setInterval(stepSnake,snakeTickMs());
 }
 function food(){const free=[];for(let y=0;y<snake.size;y++)for(let x=0;x<snake.size;x++)if(!snake.body.some(p=>p.x===x&&p.y===y)&&!snake.maze.some(p=>p.x===x&&p.y===y))free.push({x,y});return free.length?free[Math.floor(Math.random()*free.length)]:null}
-function snakeTurn(dir){if(active!=="snake"||!snake.alive)return;const opposite={up:"down",down:"up",left:"right",right:"left"};if(dir!==opposite[snake.dir])snake.next=dir}
+function snakeTurn(dir){
+ if(active!=="snake"||!snake.alive||!snake.started||gamePaused)return false;
+ const opposite={up:"down",down:"up",left:"right",right:"left"};
+ const queue=snake.turnQueue||(snake.turnQueue=[]);
+ const last=queue.length?queue[queue.length-1]:snake.dir;
+ if(dir===last||dir===opposite[last]||queue.length>=2)return false;
+ queue.push(dir);
+ snake.next=queue[0];return true;
+}
 function drawSnake(){
  const ctx=snake.canvas.getContext("2d"),size=snake.size,step=snake.canvas.width/size;
  const retro=getSetting("snake-style","modern")==="lcd";
@@ -1311,7 +1403,7 @@ function finishSnake(){
 }
 function stepSnake(){
  if(!snake.alive||!snake.started||gamePaused)return;
- snake.dir=snake.next;const p={...snake.body[0]};
+ snake.dir=(snake.turnQueue&&snake.turnQueue.shift())||snake.next||snake.dir;snake.next=snake.turnQueue?.[0]||snake.dir;const p={...snake.body[0]};
  if(snake.dir==="right")p.x++;if(snake.dir==="left")p.x--;if(snake.dir==="down")p.y++;if(snake.dir==="up")p.y--;
  if(snake.wrap){p.x=(p.x+snake.size)%snake.size;p.y=(p.y+snake.size)%snake.size}
  if(p.x<0||p.y<0||p.x>=snake.size||p.y>=snake.size){finishSnake();return}
@@ -1388,9 +1480,8 @@ function init2048(fresh=false){
  if(!valid){spawn();spawn()}
  root.innerHTML='<div class="scorebar scoreboard"><div class="score-unit"><span class="score-label">SCORE</span><b id="score">'+tileScore+'</b></div><div class="score-unit"><span class="score-label">PERSONAL BEST</span><b id="best">'+best(tileBestKey())+'</b></div><span class="board-size">'+size+' × '+size+'</span></div><div id="board2048" class="board2048"></div>';
  draw2048();
- let start=null;const board=document.getElementById("board2048");
- board.addEventListener("touchstart",e=>{start={x:e.touches[0].clientX,y:e.touches[0].clientY}},{passive:true});
- board.addEventListener("touchend",e=>{if(!start)return;let x=e.changedTouches[0].clientX-start.x,y=e.changedTouches[0].clientY-start.y;if(Math.max(Math.abs(x),Math.abs(y))>20)move2048(Math.abs(x)>Math.abs(y)?x>0?"right":"left":y>0?"down":"up");start=null},{passive:true})
+ const board=document.getElementById("board2048");
+ bindSwipeGesture(board,dir=>{move2048(dir);return true},{threshold:12});
 }
 document.getElementById("undo2048").addEventListener("click",()=>{
  if(active!=="2048"||gamePaused||!undoStack2048.length)return;
