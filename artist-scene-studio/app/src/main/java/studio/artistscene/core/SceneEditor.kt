@@ -322,23 +322,73 @@ data class SceneEditorState(
         return replaceSelected(actor.copy(name = normalized))
     }
 
+    /**
+     * Clone a selected actor and its descendants as one independent hierarchy. A copy retains
+     * all authored tracks and local bone attachments. Only the root is translated for visual
+     * separation: offsetting child-local transforms would double-move attached props.
+     */
     fun duplicateSelected(): SceneEditorState {
-        val actor = selectedActor ?: return this
-        val id = uniqueActorId(actor.id + "-copy")
+        val root = selectedActor ?: return this
+        val sourceIds = mutableSetOf(root.id)
+        // Traverse the original graph, not the growing copies. The visited set also bounds
+        // traversal of malformed imported cycles.
+        var changed: Boolean
+        do {
+            changed = false
+            project.actors.forEach { candidate ->
+                if (candidate.id !in sourceIds && candidate.parentId?.let { it in sourceIds } == true) {
+                    sourceIds.add(candidate.id)
+                    changed = true
+                }
+            }
+        } while (changed)
+
+        val originals = project.actors.filter { it.id in sourceIds }
+        val occupiedIds = project.actors.mapTo(mutableSetOf()) { it.id }
+        val occupiedNames = project.actors.mapTo(mutableSetOf()) { it.name }
+        fun reserveName(base: String, occupied: MutableSet<String>): String {
+            var candidate = base
+            var index = 2
+            while (!occupied.add(candidate)) {
+                candidate = "$base $index"
+                index++
+            }
+            return candidate
+        }
+        fun reserveId(base: String): String {
+            var candidate = base
+            var index = 2
+            while (!occupiedIds.add(candidate)) {
+                candidate = "$base-$index"
+                index++
+            }
+            return candidate
+        }
+
+        val idMap = originals.associate { original -> original.id to reserveId("${original.id}-copy") }
         val offsetX = 0.25f
-        val copy = actor.copy(
-            id = id,
-            name = uniqueActorName(actor.name + " Copy"),
-            parentId = actor.parentId,
-            transform = actor.transform.copy(
-                position = actor.transform.position.copy(x = actor.transform.position.x + offsetX),
-            ),
-        )
-        // Duplicate authored animation as well as the actor's current pose. Offset position
-        // keyframes so timeline playback does not stack the copy onto the original.
+        val copies = originals.map { original ->
+            original.copy(
+                id = requireNotNull(idMap[original.id]),
+                name = reserveName("${original.name} Copy", occupiedNames),
+                parentId = original.parentId?.let { idMap[it] ?: it },
+                transform = if (original.id == root.id) {
+                    original.transform.copy(
+                        position = original.transform.position.copy(x = original.transform.position.x + offsetX),
+                    )
+                } else {
+                    original.transform
+                },
+            )
+        }
+
         val occupiedTrackIds = project.tracks.mapTo(mutableSetOf()) { it.id }
-        val copiedTracks = project.tracks.filter { it.targetActorId == actor.id }.map { track ->
-            val keyframes = if (track.propertyPath == SceneTimelinePaths.POSITION) {
+        val copiedTracks = project.tracks.filter { it.targetActorId in sourceIds }.map { track ->
+            // The root shifts in world/parent space. Child position tracks remain local to
+            // their duplicated parent, preserving the authored pose during playback.
+            val keys = if (track.targetActorId == root.id &&
+                track.propertyPath == SceneTimelinePaths.POSITION
+            ) {
                 track.keyframes.map { key ->
                     key.copy(value = key.value.copy(
                         vector = key.value.vector?.let { it.copy(x = it.x + offsetX) },
@@ -349,13 +399,13 @@ data class SceneEditorState(
             }
             track.copy(
                 id = uniqueTrackId("${track.id}-copy", occupiedTrackIds),
-                targetActorId = id,
-                keyframes = keyframes,
+                targetActorId = requireNotNull(idMap[track.targetActorId]),
+                keyframes = keys,
             )
         }
         return commit(
-            project.copy(actors = project.actors + copy, tracks = project.tracks + copiedTracks),
-            selected = id,
+            project.copy(actors = project.actors + copies, tracks = project.tracks + copiedTracks),
+            selected = idMap[root.id],
         )
     }
 
@@ -836,20 +886,6 @@ data class SceneEditorState(
             index++
         }
         return candidate
-    }
-
-    private fun uniqueActorId(base: String): String {
-        if (project.actors.none { it.id == base }) return base
-        var index = 2
-        while (project.actors.any { it.id == "$base-$index" }) index++
-        return "$base-$index"
-    }
-
-    private fun uniqueActorName(base: String): String {
-        if (project.actors.none { it.name == base }) return base
-        var index = 2
-        while (project.actors.any { it.name == "$base $index" }) index++
-        return "$base $index"
     }
 
     private fun wouldCreateCycle(actorId: String, proposedParentId: String?): Boolean {
