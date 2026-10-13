@@ -223,8 +223,12 @@ class MediaDownloadPlaybackTest {
         compose.waitUntil(30_000) {
             compose.onAllNodesWithText("—:—").fetchSemanticsNodes().isEmpty()
         }
+        // The one-second MKV may finish before Compose's idle synchronization returns.
+        // A completed clip legitimately shows Play; the colored-frame assertion below
+        // still requires actual decoded video after all native controls are hidden.
         compose.waitUntil(45_000) {
-            compose.onAllNodesWithContentDescription("Pause video").fetchSemanticsNodes().isNotEmpty()
+            compose.onAllNodesWithContentDescription("Pause video").fetchSemanticsNodes().isNotEmpty() ||
+                compose.onAllNodesWithContentDescription("Play video").fetchSemanticsNodes().isNotEmpty()
         }
         if (compose.onAllNodesWithTag("player_title", useUnmergedTree = true).fetchSemanticsNodes().isNotEmpty()) {
             // Do not inject the hide-controls tap through the center transport button.

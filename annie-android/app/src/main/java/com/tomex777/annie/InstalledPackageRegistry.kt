@@ -117,7 +117,7 @@ internal class InstalledPackageRegistry(context: Context) {
                         packageId = packageId,
                         displayName = row.optString("displayName").ifBlank { packageId },
                         version = row.optString("version").ifBlank { "0.0.0-local" },
-                        apiVersion = row.optString("apiVersion").ifBlank { AnniePackageManifest.CURRENT_API_VERSION },
+                        apiVersion = row.optString("apiVersion").ifBlank { "1" },
                         entryPoint = row.optString("entryPoint"),
                         installedAtMillis = row.optLong("installedAtMillis"),
                         enabled = row.optBoolean("enabled", false),

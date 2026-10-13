@@ -5,9 +5,14 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextClearance
 import androidx.compose.ui.test.performTextInput
+import androidx.test.espresso.Espresso.onView
+import androidx.test.espresso.matcher.ViewMatchers.isAssignableFrom
+import io.github.rosemoe.sora.widget.CodeEditor
 import androidx.test.espresso.Espresso.closeSoftKeyboard
 import androidx.test.espresso.Espresso.pressBack
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -102,6 +107,16 @@ class ScriptStudioFileCreationTest {
             compose.onNodeWithText(other.name, substring = false).performClick()
             compose.waitUntil(8_000) { file.isFile && file.readText().contains("retained") }
             assertTrue(file.readText().contains("retained"))
+            compose.onNodeWithText("Files", substring = false).performClick()
+            compose.onNodeWithTag("script_file_search").performTextClearance()
+            compose.onNodeWithTag("script_file_search").performTextInput(name)
+            closeSoftKeyboard()
+            compose.onNodeWithText(file.name, substring = false).performClick()
+            onView(isAssignableFrom(CodeEditor::class.java)).check { view, failure ->
+                if (failure != null) throw failure
+                assertTrue("Reopening must retain the latest saved source", (view as CodeEditor).text.toString().contains("retained"))
+            }
+            closeSoftKeyboard()
             pressBack()
             compose.waitForIdle()
             assertTrue("System Back may close after the draft is saved", closed)
@@ -114,6 +129,40 @@ class ScriptStudioFileCreationTest {
             if (!file.isFile) file.writeText("")
             workspace.files.deleteProject(name)
             workspace.files.deleteProject(otherName)
+        }
+    }
+
+    @Test fun folderSelectionLoadsItsOwnEntryWithoutLeakingOtherDraft() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val workspace = ScriptWorkspace(context)
+        val suffix = System.nanoTime().toString().takeLast(8)
+        val first = workspace.files.createFolder("first$suffix")
+        val second = workspace.files.createFolder("second$suffix")
+        val firstSource = "const owner = 'first';"
+        val secondSource = "const owner = 'second';"
+        workspace.files.writeFile(first.name, "main.js", firstSource)
+        workspace.files.writeFile(second.name, "main.js", secondSource)
+        val shown = mutableStateOf(true)
+        try {
+            compose.setContent { AnnieTheme {
+                if (shown.value) ScriptStudioSheet(workspace, {}, initialProjectId = first.name)
+            } }
+            compose.onNodeWithTag("script_file_search").performTextInput(second.name)
+            closeSoftKeyboard()
+            compose.onNode(hasText(second.name, substring = false) and !hasTestTag("script_file_search")).performClick()
+            compose.onNodeWithTag("script_tab_editor").performClick()
+            onView(isAssignableFrom(CodeEditor::class.java)).check { view, failure ->
+                if (failure != null) throw failure
+                org.junit.Assert.assertEquals(secondSource, (view as CodeEditor).text.toString())
+            }
+            org.junit.Assert.assertEquals(firstSource, workspace.files.readFile(first.name, "main.js"))
+            org.junit.Assert.assertEquals(secondSource, workspace.files.readFile(second.name, "main.js"))
+        } finally {
+            compose.runOnIdle { shown.value = false }
+            compose.waitForIdle()
+            workspace.close()
+            workspace.files.deleteProject(first.name)
+            workspace.files.deleteProject(second.name)
         }
     }
 

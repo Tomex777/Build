@@ -3,7 +3,7 @@ set -uo pipefail
 REPORT_ROOT=annie-android/build/repair-reports
 mkdir -p "$REPORT_ROOT"
 status=0
-for class in ScriptStudioFileCreationTest AnnieImageEditorTest; do
+for class in ApiTwoRuntimeTest GuestRuntimeTest HostAiRuntimeTest AnnieCanvasMessageTest TypeScriptRuntimeTest ScriptStudioFileCreationTest AnnieImageEditorTest; do
     timeout --signal=TERM --kill-after=20s 420s gradle --no-daemon --stacktrace -p annie-android \
         :app:connectedDebugAndroidTest \
         "-Pandroid.testInstrumentationRunnerArguments.class=com.tomex777.annie.$class" || status=1

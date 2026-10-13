@@ -2,7 +2,7 @@ name: Annie Android CI
 
 on:
   push:
-    branches: [annie-android-ci, annie-m0b-validation-20261009, annie-rich-message-types-20261009, annie-gecko-browser-voice-20261009, annie-canvas-message-20261009, annie-player-cookie-isolation-20261011, annie-release-candidate-integration-20261011, annie-rc-browser-restoration-20261011, annie-rc-download-history-20261011, annie-rc-lifecycle-tabs-20261011, annie-rc-acceptance-repair-20261011, annie-rc-file-types-20261011]
+    branches: [annie-typescript-runtime-20261013, annie-roadmap-audit-20261012, annie-android-ci, annie-m0b-validation-20261009, annie-rich-message-types-20261009, annie-gecko-browser-voice-20261009, annie-canvas-message-20261009, annie-player-cookie-isolation-20261011, annie-release-candidate-integration-20261011, annie-rc-browser-restoration-20261011, annie-rc-download-history-20261011, annie-rc-lifecycle-tabs-20261011, annie-rc-acceptance-repair-20261011, annie-rc-file-types-20261011]
     paths:
       - 'annie-android/**'
       - '.github/workflows/annie-android-ci.yml'
@@ -38,6 +38,13 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '9.7.1'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install -g typescript@5.9.3
       - name: Ensure CI signing keystore
         shell: bash
         run: |
@@ -237,6 +244,13 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '9.7.1'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install -g typescript@5.9.3
       - name: Ensure CI signing keystore
         shell: bash
         run: |

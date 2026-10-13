@@ -113,8 +113,10 @@ class AnnieGeckoBrowserUiTest {
 
     private fun waitForNativePageColor(red: Int, green: Int, blue: Int) {
         val viewport = compose.onNodeWithTag("annie_browser_tabs_webview").fetchSemanticsNode().boundsInRoot
-        val x = viewport.center.x.toInt()
-        val y = viewport.center.y.toInt()
+        // Sample plain page background, outside the history fixture's center
+        // activation button and the text at the top of the page.
+        val x = (viewport.left + viewport.width * 0.1f).toInt()
+        val y = (viewport.top + viewport.height * 0.8f).toInt()
         compose.waitUntil(10_000) {
             val pixels = checkNotNull(InstrumentationRegistry.getInstrumentation().uiAutomation.takeScreenshot())
             try {

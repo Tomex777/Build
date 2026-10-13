@@ -25,7 +25,7 @@ class OperationGeneratedArtifactsTest {
         override fun resolveAssetFile(projectId: String, logicalId: String): File = File("unused")
     }
 
-    private fun allDefinitions() = CoreAndroidOperationProvider(NoBackend(), noAssets).operations + downloadOperationDefinitions() + messageOperationDefinitions()
+    private fun allDefinitions() = CoreAndroidOperationProvider(NoBackend(), noAssets).operations + downloadOperationDefinitions() + messageOperationDefinitions() + hostAiOperationDefinitions()
 
     private fun committed(name: String): File {
         // Gradle runs unit tests with the module directory (app/) as the working directory.

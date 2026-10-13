@@ -57,4 +57,14 @@ class AnnieCanvasDocumentTest {
         // A script edited by the user must never be replaced during migration.
         assertEquals("custom /snake content", StarterScripts.migrateCanvasSnake("custom /snake content"))
     }
+    @Test fun literalClosingTagsDoNotTerminateInlineCode() {
+        val canvas = AnnieCanvasDocument("Tags", "<p>Safe</p>",
+            "p::after { content: '</STYLE>'; }", "const snippet = '</SCRIPT>';", 300)
+        val page = canvas.page()
+        assertTrue(page.contains("<\\/STYLE>"))
+        assertTrue(page.contains("<\\/SCRIPT>"))
+        assertEquals(1, Regex("</script>", RegexOption.IGNORE_CASE).findAll(page).count())
+        assertEquals(1, Regex("</style>", RegexOption.IGNORE_CASE).findAll(page).count())
+    }
+
 }

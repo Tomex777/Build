@@ -73,12 +73,22 @@ class AnnieGeckoBrowserEndToEndTest {
             // exercise native input rather than a JavaScript activation shortcut.
             val bounds = Rect()
             compose.runOnUiThread { browserView.getGlobalVisibleRect(bounds) }
-            val downTime = SystemClock.uptimeMillis()
-            listOf(MotionEvent.ACTION_DOWN, MotionEvent.ACTION_UP).forEach { action ->
-                val event = MotionEvent.obtain(downTime, SystemClock.uptimeMillis(), action,
-                    bounds.exactCenterX(), bounds.exactCenterY(), 0)
-                try { InstrumentationRegistry.getInstrumentation().sendPointerSync(event) }
-                finally { event.recycle() }
+            var lastTap = 0L
+            waitForNavigation("first-page native activation") {
+                val now = SystemClock.uptimeMillis()
+                if (tab.title != "Gecko one activated" && now - lastTap >= 500L) {
+                    // Page-stop may precede presentation on API26. Repeated real
+                    // taps wait for observable DOM activation, never a JS shortcut.
+                    lastTap = now
+                    val downTime = now
+                    listOf(MotionEvent.ACTION_DOWN, MotionEvent.ACTION_UP).forEach { action ->
+                        val event = MotionEvent.obtain(downTime, SystemClock.uptimeMillis(), action,
+                            bounds.exactCenterX(), bounds.exactCenterY(), 0)
+                        try { InstrumentationRegistry.getInstrumentation().sendPointerSync(event) }
+                        finally { event.recycle() }
+                    }
+                }
+                tab.title == "Gecko one activated"
             }
             compose.runOnUiThread { assertTrue(model.load(tab, server.baseUrl + "/two")) }
             waitForNavigation("second page") { tab.url == server.baseUrl + "/two" && tab.title == "Gecko two" && tab.canBack && !tab.loading }
@@ -152,8 +162,9 @@ internal class GeckoLocalFixture : AutoCloseable {
                     requests.add(path)
                     while (!input.readLine().isNullOrBlank()) { }
                     val download = path == "/download"
+                    val activation = if (path == "/one") """<button type="button" onclick="document.title='Gecko one activated'" style="position:fixed;left:20%;top:35%;width:60%;height:30%">Activate first page</button>""" else ""
                     val body = if (download) bytes else
-                        "<html><head><title>Gecko ${if (path == "/one") "one" else "two"}</title></head><body style='margin:0;min-height:100vh;background:${if (path == "/one") "#203040" else "#304020"};color:#e8f6ef;padding:24px;font:20px sans-serif'><h1>Local browser acceptance</h1><p>Native Gecko page ${if (path == "/one") "one" else "two"}</p></body></html>".toByteArray()
+                        "<html><head><title>Gecko ${if (path == "/one") "one" else "two"}</title></head><body style='margin:0;min-height:100vh;background:${if (path == "/one") "#203040" else "#304020"};color:#e8f6ef;padding:24px;font:20px sans-serif'><h1>Local browser acceptance</h1><p>Native Gecko page ${if (path == "/one") "one" else "two"}</p>$activation</body></html>".toByteArray()
                     if (download) downloadRequested.set(true)
                     val type = if (download) "application/octet-stream" else "text/html; charset=utf-8"
                     val disposition = if (download) "Content-Disposition: attachment; filename=\"$name\"\r\n" else ""

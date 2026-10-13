@@ -1,3 +1,5 @@
+> Historical implementation record. For current feature/test status, see `docs/ROADMAP_AUDIT_2026-10-12.md` (relative to annie-android). Statements below describe their original checkpoint.
+
 # Merge notes (read before building)
 
 This is an **overlay**, not a complete checkout. Extract into a full checkout of branch

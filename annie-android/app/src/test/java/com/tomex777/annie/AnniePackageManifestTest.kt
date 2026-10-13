@@ -41,11 +41,21 @@ class AnniePackageManifestTest {
         assertEquals(listOf("api.example.com", "*.cdn.example.com"), decoded.networkHosts)
     }
 
+    @Test fun apiTwoPackagesUseStrictValidation() {
+        val decoded = decode(manifest { put("apiVersion", "2"); put("requires", JSONObject().put("annie", ">=2 <3")) })
+        assertEquals(ValidationMode.STRICT, decoded.validationMode)
+    }
+
+    @Test fun manifestsWithoutAnExplicitVersionRetainLegacyValidation() {
+        val value = manifest().apply { remove("apiVersion") }
+        assertEquals(ValidationMode.LEGACY, decode(value).validationMode)
+    }
+
     @Test fun incompatibleOrMalformedVersionFieldsAreImportErrorsWithAFix() {
-        rejects(manifest { put("apiVersion", "2") }, "supports up to 1")
+        rejects(manifest { put("apiVersion", "3") }, "supports up to 2")
         rejects(manifest { put("apiVersion", "0") }, "whole number")
         rejects(manifest { put("apiVersion", "1.0") }, "whole number")
-        rejects(manifest { put("requires", JSONObject().put("annie", ">=2")) }, "provides API 1")
+        rejects(manifest { put("requires", JSONObject().put("annie", ">=3")) }, "provides API 2")
         rejects(manifest { put("requires", JSONObject().put("annie", "^1")) }, "not a valid range")
     }
 

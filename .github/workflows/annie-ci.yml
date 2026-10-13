@@ -2,7 +2,7 @@ name: Annie CI
 
 on:
   push:
-    branches: [annie-media-ci]
+    branches: [annie-media-ci, annie-typescript-runtime-20261013]
   pull_request:
     branches: [main]
   workflow_dispatch:
@@ -15,6 +15,9 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+      - name: Prepare pinned compiler for runtime tests
+        if: hashFiles('annie-android/scripts/vendor-typescript.py') != ''
+        run: python3 annie-android/scripts/vendor-typescript.py
       - run: npm test
       - run: npm run check
       - run: npm run build

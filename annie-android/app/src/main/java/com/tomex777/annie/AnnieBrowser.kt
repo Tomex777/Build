@@ -253,6 +253,19 @@ internal object AnnieBrowserSessionStore {
     fun scrollY(context: Context, spec: AnnieBrowserSpec): Int =
         prefs(context).getInt(key(spec.sanitized().sessionId, "scrollY"), 0).coerceAtLeast(0)
 
+    /** Scroll positions belong to a browser tab instance, not the shared cookie/session profile. */
+    fun saveScroll(context: Context, spec: AnnieBrowserSpec, instanceId: String, scrollY: Int) {
+        require(instanceId.matches(Regex("[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}"))) { "Invalid browser instance id" }
+        val sessionId = spec.sanitized().sessionId
+        prefs(context).edit().putInt(key(sessionId, "scrollY::$instanceId"), scrollY.coerceAtLeast(0)).apply()
+    }
+
+    /** A tab created for the first time starts at the top; never borrows another tab's position. */
+    fun scrollY(context: Context, spec: AnnieBrowserSpec, instanceId: String): Int {
+        require(instanceId.matches(Regex("[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}"))) { "Invalid browser instance id" }
+        return prefs(context).getInt(key(spec.sanitized().sessionId, "scrollY::$instanceId"), 0).coerceAtLeast(0)
+    }
+
     fun setVerification(
         context: Context,
         sessionId: String,
@@ -305,8 +318,10 @@ internal object AnnieBrowserSessionStore {
             if (android.os.Looper.myLooper() == android.os.Looper.getMainLooper()) clear.run()
             else android.os.Handler(android.os.Looper.getMainLooper()).post(clear)
         }
-        p.edit().remove(key(sessionId, "url")).remove(key(sessionId, "spec"))
-            .remove(key(sessionId, "state")).remove(key(sessionId, "verifiedAt")).remove(key(sessionId, "scrollY")).apply()
+        val edit = p.edit().remove(key(sessionId, "url")).remove(key(sessionId, "spec"))
+            .remove(key(sessionId, "state")).remove(key(sessionId, "verifiedAt")).remove(key(sessionId, "scrollY"))
+        p.all.keys.filter { it.startsWith(key(sessionId, "scrollY::")) }.forEach { edit.remove(it) }
+        edit.apply()
     }
 
     private fun prefs(context: Context) = context.applicationContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
