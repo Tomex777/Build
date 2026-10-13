@@ -1,4 +1,5 @@
 import { readFileSync } from 'node:fs';
+import {mkdir,writeFile} from 'node:fs/promises';
 import { createServer } from 'node:http';
 import { chromium } from 'playwright';
 const html=readFileSync(new URL('./index.html',import.meta.url));
@@ -10,8 +11,9 @@ try{
  const home='http://127.0.0.1:'+server.address().port;
  await page.goto(home+'/games');await page.locator('#view-games').waitFor({state:'visible'});
  const snapshot=async name=>{
-  const shot=await page.screenshot({type:'jpeg',quality:27,fullPage:false,animations:'disabled'});
-  console.log('VISUAL_SHOT_'+name+':'+shot.toString('base64'));
+  const shot=await page.screenshot({type:'jpeg',quality:65,fullPage:false,animations:'disabled'});
+  await mkdir('night-play/visual-output',{recursive:true});
+  await writeFile('night-play/visual-output/'+name.toLowerCase()+'.jpg',shot);
  };
  await snapshot('LIBRARY');
  for(const kind of ['snake','2048','ttt']){
@@ -21,6 +23,7 @@ try{
   const dim=await page.evaluate(()=>{const id=({snake:'.snake-shell','2048':'#board2048',ttt:'#tttboard'})[document.querySelector('#gameDialog').dataset.skin];
     const board=document.querySelector(id),r=board.getBoundingClientRect();return {size:Math.round(r.width),height:Math.round(r.height),top:Math.round(r.top),vw:innerWidth,vh:innerHeight,centerY:Math.round(r.top+r.height/2),pageCenterY:Math.round(innerHeight/2)}})
   console.log('ARENA_METRICS_'+kind+':'+JSON.stringify(dim));
+  if(Math.abs(dim.centerY-dim.pageCenterY)>30)throw Error('Arena not centred: '+kind+' '+JSON.stringify(dim));
   await snapshot(kind.toUpperCase());
   await page.locator('[data-close-game]').first().click();
  }
