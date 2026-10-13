@@ -17,7 +17,7 @@ class MarsSurfaceTerrain(private val context: Context) {
     private val vertices: FloatBuffer
     private val indices: ShortBuffer
     private val indexCount: Int
-    private val detail = SurfaceDetailRenderer { x, z -> renderedHeightAt(x, z) }
+    private val detail = SurfaceDetailRenderer(-.45, .85, .35) { x, z -> renderedHeightAt(x, z) }
 
     init {
         val side = 121
