@@ -239,7 +239,8 @@ class EndlessRenderer(
         buildFormationDiskBuffers()
         buildRingMesh()
         marsSurfaceTerrain = MarsSurfaceTerrain()
-        MoonSurfaceMeshGenerator.elevationPatch = LunarElevationPatch.load(context)
+        MoonSurfaceMeshGenerator.elevationPatch = MeasuredElevationPatch.load(context, "moon_lola_terrain.bin")
+        MarsSurfaceTerrain.elevationPatch = MeasuredElevationPatch.load(context, "mars_mola_terrain.bin")
         moonSurfaceTerrain = MoonSurfaceTerrain()
     }
 
