@@ -12,6 +12,7 @@ import com.night.endless.engine.math.Vec3d
 import com.night.endless.engine.scene.AsteroidBeltModel
 import com.night.endless.engine.scene.CelestialBody
 import com.night.endless.engine.scene.DeepTimeHistory
+import com.night.endless.engine.scene.KeplerEphemeris
 import com.night.endless.engine.scene.UniverseClock
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
@@ -238,6 +239,7 @@ class EndlessRenderer(
         buildFormationDiskBuffers()
         buildRingMesh()
         marsSurfaceTerrain = MarsSurfaceTerrain()
+        MoonSurfaceMeshGenerator.elevationPatch = LunarElevationPatch.load(context)
         moonSurfaceTerrain = MoonSurfaceTerrain()
     }
 
@@ -302,8 +304,8 @@ class EndlessRenderer(
                     )
                 }
             }
-            if (body.id == "mars") {
-                drawMarsAtmosphere(body)
+            if (body.id == "earth" || body.id == "venus" || body.id == "mars") {
+                drawPlanetAtmosphere(body)
             }
         }
 
@@ -859,25 +861,38 @@ class EndlessRenderer(
 
     private fun updateBodyPositions(simSeconds: Double) {
         val days = simSeconds / 86400.0
+        val utcMillis = clock.currentTimeMillis()
         val map = HashMap<String, CelestialBody>()
-
         for (body in bodies) {
-            if (body.id == "sun") {
-                body.position = Vec3d.ZERO
-            } else {
-                val angle = body.phaseRad + (2.0 * PI * days / body.orbitPeriodDays)
-                val local = Vec3d(
-                    cos(angle) * body.orbitRadius,
-                    0.0,
-                    sin(angle) * body.orbitRadius
-                )
-                body.position = body.parentId?.let { parent ->
-                    (map[parent]?.position ?: Vec3d.ZERO) + local
-                } ?: local
+            body.position = when {
+                body.id == "sun" -> Vec3d.ZERO
+                // Ceres is illustrative; the JPL eight-planet table excludes Ceres.
+                body.id == "ceres" -> {
+                    val angle = body.phaseRad + 2.0 * PI * days / body.orbitPeriodDays
+                    Vec3d(cos(angle) * body.orbitRadius, 0.0, sin(angle) * body.orbitRadius)
+                }
+                body.id == "moon" -> {
+                    // Elliptical (e=0.0549), 5.145° inclined approximation.
+                    // This is NOT JPL's high-precision lunar ephemeris.
+                    val elapsedDays = (utcMillis - 946728000000L) / 86400000.0
+                    val mean = Math.toRadians(134.963) + 2.0 * PI * elapsedDays / 27.321661
+                    val eccentric = KeplerEphemeris.solveEccentricAnomaly(mean % (2.0 * PI), .0549)
+                    val x = body.orbitRadius * (cos(eccentric) - .0549)
+                    val z = body.orbitRadius * sqrt(1.0 - .0549 * .0549) * sin(eccentric)
+                    val tilt = Math.toRadians(5.145)
+                    val node = Math.toRadians(125.045 - .0529539 * elapsedDays)
+                    val local = Vec3d(
+                        x * cos(node) - z * sin(node) * cos(tilt),
+                        z * sin(tilt),
+                        x * sin(node) + z * cos(node) * cos(tilt)
+                    )
+                    (map["earth"]?.position ?: Vec3d.ZERO) + local
+                }
+                else -> KeplerEphemeris.position(body.id, utcMillis, body.orbitRadius)
+                    ?: Vec3d.ZERO
             }
             map[body.id] = body
         }
-
         collision.replaceSpheres(
             bodies.filter { isBodyFormed(it.id, deepTimeAgeGa) }
                 .map { SphereCollider(it.id, it.position, it.radius) }
@@ -1126,6 +1141,10 @@ class EndlessRenderer(
             GLES30.glGetUniformLocation(planetProgram, "uEmissive"),
             if (body.id == "sun") 1f else 0f
         )
+        GLES30.glUniform1i(
+            GLES30.glGetUniformLocation(planetProgram, "uPlanetKind"),
+            if (body.id == "earth") 1 else 0
+        )
     }
 
     private fun drawSphereGeometry() {
@@ -1156,19 +1175,22 @@ class EndlessRenderer(
     }
 
     private fun buildOrbitBuffers() {
+        orbitBuffers.clear()
+        orbitCounts.clear()
         for (body in bodies) {
             if (body.id == "sun") continue
-
             val segments = if (body.id == "moon") 96 else 180
-            val values = FloatArray(segments * 3)
-
-            for (i in 0 until segments) {
-                val a = i.toDouble() / segments.toDouble() * PI * 2.0
-                values[i * 3] = (cos(a) * body.orbitRadius).toFloat()
-                values[i * 3 + 1] = 0f
-                values[i * 3 + 2] = (sin(a) * body.orbitRadius).toFloat()
+            val jpl = KeplerEphemeris.orbitPoints(
+                body.id, clock.currentTimeMillis(), body.orbitRadius, segments
+            )
+            val values = jpl ?: FloatArray(segments * 3).also { out ->
+                for (i in 0 until segments) {
+                    val angle = i.toDouble() / segments * 2.0 * PI
+                    out[i * 3] = (cos(angle) * body.orbitRadius).toFloat()
+                    out[i * 3 + 1] = 0f
+                    out[i * 3 + 2] = (sin(angle) * body.orbitRadius).toFloat()
+                }
             }
-
             orbitBuffers[body.id] = floatBuffer(values)
             orbitCounts[body.id] = segments
         }
@@ -1473,26 +1495,30 @@ class EndlessRenderer(
         )
     }
 
-    private fun drawMarsAtmosphere(body: CelestialBody) {
-        if (latestApproach.bodyId != "mars") return
-
-        val altitude = latestApproach.altitudeKm
-        val opacity = when {
-            altitude > 2500.0 -> 0.08f
-            altitude > 300.0 -> 0.13f
-            altitude > 80.0 -> 0.20f
-            else -> 0.27f
+    private fun drawPlanetAtmosphere(body: CelestialBody) {
+        if (body.id !in setOf("earth", "venus", "mars")) return
+        val altitude = if (latestApproach.bodyId == body.id) latestApproach.altitudeKm else 1e6
+        val opacity = when (body.id) {
+            "earth" -> if (altitude < 150.0) 0.60f else 0.43f
+            "venus" -> 0.56f
+            else -> if (altitude < 300.0) 0.30f else 0.16f
         }
 
         GLES30.glDisable(GLES30.GL_CULL_FACE)
         GLES30.glDepthMask(false)
 
-        buildBodyModel(body, 1.022f, 0f)
+        buildBodyModel(body, when (body.id) {
+            "earth" -> 1.038f
+            "venus" -> 1.045f
+            else -> 1.022f
+        }, 0f)
         GLES30.glUseProgram(planetProgram)
         bindPlanetCommon(body)
         GLES30.glUniform4f(
             GLES30.glGetUniformLocation(planetProgram, "uColor"),
-            .92f, .38f, .18f, 1f
+            when (body.id) { "earth" -> .28f; "venus" -> .99f; else -> .92f },
+            when (body.id) { "earth" -> .57f; "venus" -> .73f; else -> .38f },
+            when (body.id) { "earth" -> 1.0f; "venus" -> .48f; else -> .18f }, 1f
         )
         bindTexture(0, 0)
         GLES30.glUniform1i(GLES30.glGetUniformLocation(planetProgram, "uTexture"), 0)
@@ -1719,6 +1745,7 @@ uniform sampler2D uTexture;
 uniform sampler2D uNightTexture;
 uniform sampler2D uNormalTexture;
 uniform int uUseTexture;
+uniform int uPlanetKind;
 uniform int uUseNight;
 uniform int uUseNormal;
 uniform int uCloseMaterial;
@@ -1798,11 +1825,18 @@ void main() {
     vec3 V = normalize(uCamera - vWorld);
 
     if (uMode == 3) {
-        float rim = pow(1.0 - max(dot(N, V), 0.0), 2.0);
-        float daylight = 0.32 + 0.68 * max(dot(N, L), 0.0);
-        float alpha = rim * uOpacity;
+        // Single-scattering-inspired limb glow, strongest toward the Sun.
+        // An approximation, not full atmospheric radiative transfer.
+        float mu = dot(N, L);
+        float limb = pow(1.0 - clamp(dot(N, V), 0.0, 1.0), 3.0);
+        float daylight = smoothstep(-0.42, 0.26, mu);
+        float horizon = pow(max(1.0 - abs(mu), 0.0), 3.0);
+        vec3 sunset = mix(uColor.rgb * vec3(1.0, 0.40, 0.12), uColor.rgb,
+            smoothstep(-0.12, 0.30, mu));
+        vec3 atmosphere = sunset * (0.12 + 0.88 * daylight);
+        float alpha = limb * (0.32 + 0.68 * daylight + 0.16 * horizon) * uOpacity;
         if (alpha < 0.003) discard;
-        fragColor = vec4(uColor.rgb * daylight, alpha);
+        fragColor = vec4(atmosphere, clamp(alpha, 0.0, 0.85));
         return;
     }
 
@@ -1849,6 +1883,13 @@ void main() {
     light = mix(light, 1.0, uEmissive);
 
     vec3 color = texel.rgb * light;
+    if (uPlanetKind == 1 && uUseTexture == 1) {
+        // A first-pass ocean mask using blue-dominant day-map pixels.
+        float ocean = smoothstep(0.015, 0.15, texel.b - texel.r) *
+            smoothstep(0.005, 0.095, texel.b - texel.g);
+        float reflection = pow(max(dot(reflect(-L, N), V), 0.0), 110.0);
+        color += vec3(0.84, 0.94, 1.0) * reflection * ocean * ndl * 0.85;
+    }
 
     if (uUseNight == 1 && uEmissive < 0.5) {
         vec3 night = texture(uNightTexture, vUv).rgb;
