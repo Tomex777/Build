@@ -8,6 +8,7 @@ on:
       - feature/night-play-v6-account-profile-analytics
       - feature/night-play-v7-profile-overview-policies
       - feature/night-play-v9-immersive-games
+      - feature/night-play-v10-arena-rework
     paths:
       - 'night-play/**'
       - '.github/workflows/night-play-preview-ci.yml'
