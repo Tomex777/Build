@@ -1,14 +1,19 @@
 import assert from 'node:assert/strict'
 import {
   STICKER_CANVAS,
+  STICKER_CORNER_RADIUS,
   STICKER_FIT_FILTER,
   classifyMessageMedia,
   mediaIsAnimated,
 } from './utils/media-conversion.js'
 
 assert.equal(STICKER_CANVAS, 512)
+assert.equal(STICKER_CORNER_RADIUS, 20, 'Nexia stickerUtils.js rounded-square radius is 20px, not 48/56px')
 assert.match(STICKER_FIT_FILTER, /scale=512:512:force_original_aspect_ratio=increase/)
-assert.match(STICKER_FIT_FILTER, /crop=512:512/)
+assert.match(STICKER_FIT_FILTER, /crop=512:512,format=rgba/)
+assert.match(STICKER_FIT_FILTER, /geq=r='r\(X,Y\)':g='g\(X,Y\)':b='b\(X,Y\)'/)
+assert.ok(STICKER_FIT_FILTER.includes("pow(max(20-X,max(X-492,0)),2)+pow(max(20-Y,max(Y-492,0)),2),400),alpha(X,Y),0)"),
+  'Mask must match the exact Nexia stickerUtils.js 20px alpha expression')
 assert.doesNotMatch(STICKER_FIT_FILTER, /pad=/)
 assert.doesNotMatch(STICKER_FIT_FILTER, /color=0x00000000/)
 
