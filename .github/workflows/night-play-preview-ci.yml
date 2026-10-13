@@ -36,3 +36,5 @@ jobs:
         run: npm install --no-save playwright@1.56.1
       - name: Exercise mobile interactions
         run: node night-play/browser-smoke.mjs
+      - name: Capture mobile board visual diagnostics
+        run: node night-play/visual-inspect.mjs
