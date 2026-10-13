@@ -241,6 +241,8 @@ header{position:sticky;top:0;z-index:60;box-shadow:0 1px 0 #e7e8e7;background:#f
 
 /* V6 — a separate landing experience, grounded footer and scalable analytics */
 body[data-view="welcome"] .mobile-nav,body[data-view="welcome"] header .links,body[data-view="welcome"] header .profile-icon,body[data-view="welcome"] header button[data-dialog="connect"]{display:none!important}
+body[data-view="terms"] .mobile-nav,body[data-view="privacy"] .mobile-nav{display:none!important}
+body[data-view="terms"] header .links,body[data-view="privacy"] header .links,body[data-view="terms"] header .profile-icon,body[data-view="privacy"] header .profile-icon,body[data-view="terms"] header button[data-dialog="connect"],body[data-view="privacy"] header button[data-dialog="connect"]{display:none!important}
 header .landing-enter{display:none}
 body[data-view="welcome"] header .landing-enter{display:inline-flex}
 .site-footer{width:100%;flex-shrink:0;padding:0;margin-top:auto;background:var(--bg);border-top:1px solid var(--line)}
@@ -276,7 +278,7 @@ body[data-view="profile"] header button[data-dialog="connect"]{display:none!impo
 .analytics-metrics>div:first-child{padding-left:0}
 .analytics-metrics>div:last-child{border:0}
 .analytics-metrics span{font-size:12px;color:#909393}
-.analytics-metrics strong{font-size:clamp(25px,4vw,42px);letter-spacing:-1.6px;font-variant-numeric:tabular-nums;overflow:hidden;text-overflow:ellipsis}
+.analytics-metrics strong{font-size:clamp(23px,3vw,39px);letter-spacing:-1.2px;font-variant-numeric:tabular-nums;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .analytics-chart{position:relative;padding-top:23px}
 .chart-head{display:flex;justify-content:space-between;align-items:center;gap:15px;font-size:13px;font-weight:800}
 .chart-head small{color:#9a9d9e;font-size:10px;font-weight:500}
@@ -284,13 +286,14 @@ body[data-view="profile"] header button[data-dialog="connect"]{display:none!impo
 .chart-no-data{position:absolute;inset:65px 0 32px;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:7px;background:#fff;color:#565d5c;font-size:14px}
 .chart-no-data span{font-size:12px;color:#9c9f9f}
 .chart-no-data[hidden]{display:none}
+#chartAxis[hidden]{display:none!important}
 .chart-axis-labels{display:flex;justify-content:space-between;color:#999;font-size:11px}
 .analytics-footnote{margin:17px 0 0;color:#9a9c9e;font-size:11px}
 .record-grid{display:none}
 @media(max-width:600px){
  body[data-view="welcome"] .mobile-nav{display:none!important}
  .footer-inner{min-height:65px;padding-bottom:8px;align-items:flex-start;flex-direction:column;justify-content:center;gap:5px;font-size:11px}
- body[data-view="welcome"] .site-footer{padding-bottom:0!important}
+ body[data-view="welcome"] .site-footer,body[data-view="privacy"] .site-footer,body[data-view="terms"] .site-footer{padding-bottom:0!important}
  .site-footer{padding-bottom:calc(65px + env(safe-area-inset-bottom))!important}
  .analytics-panel{padding:20px 16px 18px;border-radius:19px}
  .analytics-top h3{font-size:21px}
@@ -472,7 +475,7 @@ function recordSession(id,score){if(!Number.isFinite(score)||score<0)return;try{
 // One chart with a searchable game selector scales to large catalogues.
 const RECORD_LABELS={"snake":"Snake","2048":"2048 · 4×4","2048-5":"2048 · 5×5","2048-6":"2048 · 6×6"};
 const RECORD_DEFAULTS=["snake","2048","2048-5","2048-6"];
-let selectedRecordGame=getSaved("night-play-selected-record")||"snake";
+let selectedRecordGame=getSaved("night-play-selected-record-v7")||"overview";
 function recordTitle(id){
  if(RECORD_LABELS[id])return RECORD_LABELS[id];
  return String(id).replace(/[-_]+/g," ").replace(/\b\w/g,letter=>letter.toUpperCase()).slice(0,60);
@@ -494,22 +497,51 @@ function setText(id,v){const el=document.getElementById(id);if(el)el.textContent
 function renderRecordOptions(){
  const query=document.getElementById("recordSearch").value.toLowerCase().trim();
  const target=document.getElementById("recordOptions");target.replaceChildren();
- const all=availableRecordGames(),found=all.filter(id=>recordTitle(id).toLowerCase().includes(query));
- for(const id of found){
-   const button=document.createElement("button");button.type="button";button.setAttribute("role","option");
-   button.setAttribute("aria-selected",String(id===selectedRecordGame));
-   const label=document.createElement("strong");label.textContent=recordTitle(id);
-   const sub=document.createElement("span");sub.textContent=scoreCount(id)+" rounds";
-   button.append(label,sub);button.onclick=()=>{
-    selectedRecordGame=id;putSaved("night-play-selected-record",id);
-    document.getElementById("recordsMenu").hidden=true;
-    document.getElementById("recordsPicker").setAttribute("aria-expanded","false");
-    drawRecordChart();
-   };target.appendChild(button)
+ const games=availableRecordGames(), options=[{id:"overview",name:"All games",subtitle:"Activity overview"},...games.map(id=>({id,name:recordTitle(id),subtitle:scoreCount(id)+" rounds"}))];
+ const found=options.filter(opt=>opt.name.toLowerCase().includes(query));
+ for(const option of found){
+  const button=document.createElement("button");button.type="button";button.setAttribute("role","option");
+  button.setAttribute("aria-selected",String(option.id===selectedRecordGame));
+  const label=document.createElement("strong");label.textContent=option.name;
+  const sub=document.createElement("span");sub.textContent=option.subtitle;
+  button.append(label,sub);button.onclick=()=>{
+   selectedRecordGame=option.id;putSaved("night-play-selected-record-v7",option.id);
+   document.getElementById("recordsMenu").hidden=true;
+   document.getElementById("recordsPicker").setAttribute("aria-expanded","false");
+   drawRecordChart();
+  };target.appendChild(button)
  }
  document.getElementById("recordEmpty").hidden=found.length!==0;
- setText("recordsGameCount",all.length+" game records available · Local scores only");
+ setText("recordsGameCount","Device-only records · Rankings are not active");
 }
+function recordedActivity(){
+ return availableRecordGames().map(id=>({id,label:recordTitle(id),rounds:scoreCount(id)}))
+  .filter(x=>x.rounds>0).sort((a,b)=>b.rounds-a.rounds||a.label.localeCompare(b.label))
+}
+function drawActivityChart(svg,activity){
+ const ns="http://www.w3.org/2000/svg",el=(tag,attrs)=>{const x=document.createElementNS(ns,tag);for(const [key,value] of Object.entries(attrs))x.setAttribute(key,String(value));return x};
+ svg.replaceChildren();
+ if(activity.length===0)return;
+ // Compare game participation (rounds), never incompatible raw score scales.
+ const selected=activity.slice(0,6);
+ if(activity.length>6)selected.push({id:"other",label:"Other games",rounds:activity.slice(6).reduce((sum,item)=>sum+item.rounds,0)});
+ const max=Math.max(1,...selected.map(x=>x.rounds));
+ const labelSpace=175,left=labelSpace,right=625,top=14,rowHeight=32;
+ const maxWidth=right-left;
+ selected.forEach((item,index)=>{
+   const y=top+index*rowHeight,barY=y+4;
+   const label=el("text",{x:8,y:y+18,fill:"#4d5551","font-size":"14","font-family":"Arial, sans-serif"});
+   const display=item.label.length>23?item.label.slice(0,22)+"…":item.label;
+   label.textContent=display;svg.appendChild(label);
+   svg.appendChild(el("rect",{x:left,y:barY,width:maxWidth,height:18,rx:4,fill:"#f1f2f1"}));
+   const width=Math.max(4,Math.round(item.rounds/max*maxWidth));
+   const b=el("rect",{x:left,y:barY,width,height:18,rx:4,fill:"#293b36"});
+   const tt=el("title",{});tt.textContent=item.label+": "+item.rounds+" rounds";b.appendChild(tt);svg.appendChild(b);
+   const count=el("text",{x:643,y:y+18,fill:"#293b36","font-size":"12","text-anchor":"end","font-weight":"700","font-family":"Arial, sans-serif"});
+   count.textContent=item.rounds.toLocaleString();svg.appendChild(count);
+ });
+}
+
 function plotSVG(svg,history,bestScore){
  const ns="http://www.w3.org/2000/svg";
  const elt=(tag,attrs)=>{const n=document.createElementNS(ns,tag);for(const [k,v] of Object.entries(attrs))n.setAttribute(k,String(v));return n};
@@ -539,22 +571,44 @@ function plotSVG(svg,history,bestScore){
  })
 }
 function drawRecordChart(){
- const id=selectedRecordGame,history=scoreHistory(id),topScore=best(id);
- setText("selectedGameTitle",recordTitle(id));
- setText("analyticsBest",topScore.toLocaleString());
- setText("analyticsLatest",history.length?history[history.length-1].toLocaleString():"—");
- setText("analyticsRuns",scoreCount(id).toLocaleString());
- setText("analyticsSubtitle","Personal scores · Not ranked");
- setText("chartNote","Last "+Math.min(12,history.length)+" recorded rounds");
- plotSVG(document.getElementById("analyticsGraph"),history,topScore);
- document.getElementById("chartEmptyState").hidden=history.length!==0;
- document.getElementById("recordsPicker").firstChild.textContent="Choose game ";
+ const id=selectedRecordGame;
+ const svg=document.getElementById("analyticsGraph");
+ const empty=document.getElementById("chartEmptyState");
+ const axis=document.getElementById("chartAxis");
+ if(id==="overview"){
+  const activity=recordedActivity();
+  const rounds=activity.reduce((total,item)=>total+item.rounds,0);
+  setText("selectedGameTitle","Game activity");
+  setText("analyticsSubtitle","Most played games");
+  setText("metricLabelBest","Games played");setText("analyticsBest",activity.length.toLocaleString());
+  setText("metricLabelLatest","Rounds played");setText("analyticsLatest",rounds.toLocaleString());
+  setText("metricLabelRuns","Most played");setText("analyticsRuns",activity.length?activity[0].label:"—");
+  setText("chartHeading","Completed rounds by game");
+  setText("chartNote",activity.length>6?"Top 6 + others":"All played games");
+  axis.hidden=true;empty.hidden=activity.length!==0;
+  if(activity.length===0){empty.querySelector("strong").textContent="No activity yet";empty.querySelector("span").textContent="Finished games will appear here."}
+  drawActivityChart(svg,activity);
+ }else{
+  const scores=scoreHistory(id),top=best(id);
+  setText("selectedGameTitle",recordTitle(id));setText("analyticsSubtitle","Personal game records");
+  setText("metricLabelBest","Personal best");setText("analyticsBest",top.toLocaleString());
+  setText("metricLabelLatest","Last score");setText("analyticsLatest",scores.length?scores[scores.length-1].toLocaleString():"—");
+  setText("metricLabelRuns","Recorded rounds");setText("analyticsRuns",scoreCount(id).toLocaleString());
+  setText("chartHeading","Score history");setText("chartNote","Last "+Math.min(12,scores.length)+" rounds");
+  axis.hidden=false;empty.hidden=scores.length!==0;
+  if(scores.length===0){empty.querySelector("strong").textContent="No recorded scores";empty.querySelector("span").textContent="Complete a round to start your history."}
+  plotSVG(svg,scores,top);
+ }
+ const picker=document.getElementById("recordsPicker");
+ picker.firstChild.textContent=id==="overview"?"All games ":"Choose game ";
+ svg.setAttribute("aria-label",id==="overview"?"Comparison of completed rounds across played games":"Score history for "+recordTitle(id));
 }
 function renderProfileRecords(){
  const all=availableRecordGames();
- if(!all.includes(selectedRecordGame))selectedRecordGame=all[0]||"snake";
+ if(selectedRecordGame!=="overview"&&!all.includes(selectedRecordGame))selectedRecordGame="overview";
  renderRecordOptions();drawRecordChart()
 }
+
 document.getElementById("recordsPicker").addEventListener("click",()=>{
  const menu=document.getElementById("recordsMenu");menu.hidden=!menu.hidden;
  document.getElementById("recordsPicker").setAttribute("aria-expanded",String(!menu.hidden));
@@ -584,6 +638,8 @@ function pathView(){
  if(path==="/"||path==="/welcome")return "welcome";
  if(path==="/games"||path.startsWith("/play/"))return "games";
  if(path==="/profile")return "profile";
+ if(path==="/privacy")return "privacy";
+ if(path==="/terms")return "terms";
  if(path==="/updates")return "dashboard";
  if(path==="/dashboard")return "dashboard";
  return "welcome";
@@ -630,7 +686,7 @@ function renderRoute(){
    if(key===location.pathname||(location.pathname.startsWith("/play/")&&key==="/games"))link.setAttribute("aria-current","page");
    else link.removeAttribute("aria-current")
  }
- document.title=({welcome:"NIGHT Play — Welcome",dashboard:"NIGHT Play — Home",games:"NIGHT Play — Games",profile:"NIGHT Play — Profile"})[current];
+ document.title=({welcome:"NIGHT Play — Welcome",dashboard:"NIGHT Play — Home",games:"NIGHT Play — Games",profile:"NIGHT Play — Account",terms:"NIGHT Play — Terms",privacy:"NIGHT Play — Privacy"})[current];
  if(current==="dashboard")updateDashboard();
  if(current==="games")filterGames();
  if(current==="profile")renderProfileRecords();
@@ -638,7 +694,7 @@ function renderRoute(){
  updateBell();window.scrollTo(0,0)
 }
 function navigate(path,{replace=false}={}){
- if(!["/","/welcome","/dashboard","/games","/profile"].includes(path))return;
+ if(!["/","/welcome","/dashboard","/games","/profile","/terms","/privacy"].includes(path))return;
  if(path==="/dashboard"||path==="/games")putSaved(ENTER_KEY,"1");
  if(gameDialog.open)gameDialog.close();
  if(infoDialog.open)infoDialog.close();
