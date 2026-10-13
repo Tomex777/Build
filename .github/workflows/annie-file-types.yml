@@ -40,6 +40,7 @@ jobs:
         with:
           python-version: "3.10"
       - run: python3 -m unittest discover -s annie-android/tests -v
+        timeout-minutes: 2
       - run: python3 annie-android/scripts/vendor-typescript.py
       - run: node --test test/typescript-runtime.test.mjs test/message-stream.test.mjs
       - run: npm install -g typescript@5.9.3

@@ -71,6 +71,8 @@ def run(source, filename, function, input_json):
     budget = 1000000
     def trace(frame, event, arg):
         nonlocal budget
+        # Opcode tracing also bounds single-line loops on CPython 3.10.
+        frame.f_trace_opcodes = True
         budget -= 1
         if budget <= 0 or time.monotonic() >= deadline:
             raise TimeoutError('Python execution exceeded its time limit')
