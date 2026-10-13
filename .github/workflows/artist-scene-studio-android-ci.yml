@@ -2,12 +2,12 @@ name: Artist Scene Studio Android CI
 
 on:
   push:
-    branches: [artist-scene-studio-foundation]
+    branches: [artist-scene-studio-foundation, main]
     paths:
       - "artist-scene-studio/**"
       - ".github/workflows/artist-scene-studio-android-ci.yml"
   pull_request:
-    branches: [artist-scene-studio-foundation]
+    branches: [artist-scene-studio-foundation, main]
     paths:
       - "artist-scene-studio/**"
       - ".github/workflows/artist-scene-studio-android-ci.yml"
