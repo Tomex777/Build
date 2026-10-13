@@ -6,6 +6,17 @@ on:
     paths:
       - 'sora-ci/youtube-music-smoke-trigger.txt'
   workflow_dispatch:
+  pull_request:
+    branches: [sora-media-ci]
+    paths:
+      - 'sora-overlay/youtube-music-extension/**'
+      - 'sora-overlay/app/src/main/java/com/night/sora/playback/**'
+      - 'sora-ci/youtube-music-smoke.sh'
+      - '.github/workflows/sora-youtube-music-smoke.yml'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 jobs:
   emulator-smoke:
