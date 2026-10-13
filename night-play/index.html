@@ -417,21 +417,105 @@ const READ_KEY="night-play-update-seen";
 const scoreHistoryKey="night-play-history-v1-";
 function scoreHistory(id){try{const a=JSON.parse(localStorage.getItem(scoreHistoryKey+id)||"[]");return Array.isArray(a)?a.filter(x=>Number.isFinite(x)&&x>=0).slice(-12):[]}catch{return []}}
 function recordSession(id,score){if(!Number.isFinite(score)||score<0)return;try{localStorage.setItem(scoreHistoryKey+id,JSON.stringify([...scoreHistory(id),Math.round(score)].slice(-12)))}catch{}}
-function paintHistory(id,svgId,captionId){
- const svg=document.getElementById(svgId);if(!svg)return;
- const history=scoreHistory(id),max=Math.max(1,...history,best(id));
- const ns="http://www.w3.org/2000/svg";svg.replaceChildren();
- const base=document.createElementNS(ns,"path");base.setAttribute("d","M 0 68 L 260 68");base.setAttribute("stroke","#d9dede");base.setAttribute("stroke-width","1");svg.appendChild(base);
- if(history.length){const pad=8,step=240/Math.max(1,history.length),barWidth=Math.min(26,step*.62);
- history.forEach((score,index)=>{const h=Math.max(3,Math.round(score/max*53)),r=document.createElementNS(ns,"rect");r.setAttribute("x",String(pad+index*step+(step-barWidth)/2));r.setAttribute("y",String(68-h));r.setAttribute("width",String(barWidth));r.setAttribute("height",String(h));r.setAttribute("rx","3");r.setAttribute("fill",index===history.length-1?"#232a2a":"#bbc4c1");svg.appendChild(r)})}
- if(captionId){const n=document.getElementById(captionId);if(n)n.textContent=history.length?(history.length+" recent round"+(history.length>1?"s":"")):"No completed rounds"}
+// One chart with a searchable game selector scales to large catalogues.
+const RECORD_LABELS={"snake":"Snake","2048":"2048 · 4×4","2048-5":"2048 · 5×5","2048-6":"2048 · 6×6"};
+const RECORD_DEFAULTS=["snake","2048","2048-5","2048-6"];
+let selectedRecordGame=getSaved("night-play-selected-record")||"snake";
+function recordTitle(id){
+ if(RECORD_LABELS[id])return RECORD_LABELS[id];
+ return String(id).replace(/[-_]+/g," ").replace(/\b\w/g,letter=>letter.toUpperCase()).slice(0,60);
+}
+function availableRecordGames(){
+ const ids=new Set(RECORD_DEFAULTS);
+ try{for(let i=0;i<localStorage.length;i++){
+  const k=localStorage.key(i);
+  if(k&&k.startsWith(scoreHistoryKey))ids.add(k.slice(scoreHistoryKey.length));
+  if(k&&k.startsWith(scoreKey))ids.add(k.slice(scoreKey.length));
+ }}catch{}
+ return [...ids].filter(id=>id.length>0&&id.length<80).sort((a,b)=>{
+   const aHas=scoreHistory(a).length>0||best(a)>0,bHas=scoreHistory(b).length>0||best(b)>0;
+   if(aHas!==bHas)return aHas?-1:1;
+   return recordTitle(a).localeCompare(recordTitle(b))
+ })
+}
+function setText(id,v){const el=document.getElementById(id);if(el)el.textContent=v}
+function renderRecordOptions(){
+ const query=document.getElementById("recordSearch").value.toLowerCase().trim();
+ const target=document.getElementById("recordOptions");target.replaceChildren();
+ const all=availableRecordGames(),found=all.filter(id=>recordTitle(id).toLowerCase().includes(query));
+ for(const id of found){
+   const button=document.createElement("button");button.type="button";button.setAttribute("role","option");
+   button.setAttribute("aria-selected",String(id===selectedRecordGame));
+   const label=document.createElement("strong");label.textContent=recordTitle(id);
+   const sub=document.createElement("span");sub.textContent=scoreHistory(id).length+" rounds";
+   button.append(label,sub);button.onclick=()=>{
+    selectedRecordGame=id;putSaved("night-play-selected-record",id);
+    document.getElementById("recordsMenu").hidden=true;
+    document.getElementById("recordsPicker").setAttribute("aria-expanded","false");
+    drawRecordChart();
+   };target.appendChild(button)
+ }
+ document.getElementById("recordEmpty").hidden=found.length!==0;
+ setText("recordsGameCount",all.length+" game records available · Local scores only");
+}
+function plotSVG(svg,history,bestScore){
+ const ns="http://www.w3.org/2000/svg";
+ const elt=(tag,attrs)=>{const n=document.createElementNS(ns,tag);for(const [k,v] of Object.entries(attrs))n.setAttribute(k,String(v));return n};
+ svg.replaceChildren();
+ const max=Math.max(1,...history,bestScore),top=30,bottom=211,left=68,right=657;
+ // Horizontal reference lines and actual score labels.
+ for(let i=0;i<4;i++){
+  const y=top+(bottom-top)*i/3,raw=Math.round(max*(1-i/3));
+  svg.appendChild(elt("line",{x1:left,y1:y,x2:right,y2:y,stroke:"#e9ebeb","stroke-width":"1"}));
+  const text=elt("text",{x:left-12,y:y+4,"text-anchor":"end",fill:"#979c9a","font-size":"12","font-family":"Arial, sans-serif"});
+  text.textContent=raw.toLocaleString();svg.appendChild(text)
+ }
+ if(!history.length)return;
+ const pts=history.map((score,i)=>{
+  const x=history.length===1?(left+right)/2:left+i*(right-left)/(history.length-1);
+  return {x,y:bottom-(Math.min(score,max)/max)*(bottom-top),score}
+ });
+ if(pts.length>1){
+  const area=elt("path",{d:"M"+pts.map(p=>p.x+" "+p.y).join(" L")+" L"+pts[pts.length-1].x+" "+bottom+" L"+pts[0].x+" "+bottom+" Z",fill:"#e4ebe8",opacity:"0.85"});
+  svg.appendChild(area);
+  const line=elt("polyline",{points:pts.map(p=>p.x+","+p.y).join(" "),stroke:"#273d39","stroke-width":"3.6",fill:"none","stroke-linejoin":"round","stroke-linecap":"round"});
+  svg.appendChild(line)
+ }
+ pts.forEach((p,i)=>{
+  const c=elt("circle",{cx:p.x,cy:p.y,r:i===pts.length-1?6:4,fill:i===pts.length-1?"#1c2d29":"#fff",stroke:"#253d36","stroke-width":"2"});
+  const title=elt("title",{});title.textContent="Round "+(i+1)+": "+p.score.toLocaleString();c.appendChild(title);svg.appendChild(c)
+ })
+}
+function drawRecordChart(){
+ const id=selectedRecordGame,history=scoreHistory(id),topScore=best(id);
+ setText("selectedGameTitle",recordTitle(id));
+ setText("analyticsBest",topScore.toLocaleString());
+ setText("analyticsLatest",history.length?history[history.length-1].toLocaleString():"—");
+ setText("analyticsRuns",history.length.toLocaleString());
+ setText("analyticsSubtitle","Personal scores · Not ranked");
+ setText("chartNote","Last "+Math.min(12,history.length)+" recorded rounds");
+ plotSVG(document.getElementById("analyticsGraph"),history,topScore);
+ document.getElementById("chartEmptyState").hidden=history.length!==0;
+ document.getElementById("recordsPicker").firstChild.textContent="Choose game ";
 }
 function renderProfileRecords(){
- const set=(id,value)=>{const el=document.getElementById(id);if(el)el.textContent=Number(value).toLocaleString()};
- for(const [id,key] of [["profileSnakeBest","snake"],["recordSnakeValue","snake"],["profile2048Best","2048"],["record2048Value","2048"],["profile2048Best5","2048-5"],["profile2048Best6","2048-6"]])set(id,best(key));
- set("profileGamesRecorded",["snake","2048","2048-5","2048-6"].reduce((n,id)=>n+scoreHistory(id).length,0));
- for(const [id,svg,caption] of [["snake","chartSnake","captionSnake"],["2048","chart2048","caption2048"],["2048-5","chart2048_5",null],["2048-6","chart2048_6",null]])paintHistory(id,svg,caption)
+ const all=availableRecordGames();
+ if(!all.includes(selectedRecordGame))selectedRecordGame=all[0]||"snake";
+ renderRecordOptions();drawRecordChart()
 }
+document.getElementById("recordsPicker").addEventListener("click",()=>{
+ const menu=document.getElementById("recordsMenu");menu.hidden=!menu.hidden;
+ document.getElementById("recordsPicker").setAttribute("aria-expanded",String(!menu.hidden));
+ if(!menu.hidden){document.getElementById("recordSearch").value="";renderRecordOptions();document.getElementById("recordSearch").focus()}
+});
+document.getElementById("recordSearch").addEventListener("input",renderRecordOptions);
+document.addEventListener("click",e=>{if(!e.target.closest(".analytics-picker")){
+ const menu=document.getElementById("recordsMenu");if(menu&&!menu.hidden){menu.hidden=true;document.getElementById("recordsPicker").setAttribute("aria-expanded","false")}
+}});
+document.addEventListener("keydown",e=>{if(e.key==="Escape"){
+ const menu=document.getElementById("recordsMenu");if(menu&&!menu.hidden){menu.hidden=true;document.getElementById("recordsPicker").setAttribute("aria-expanded","false");document.getElementById("recordsPicker").focus()}
+}});
+
 function greetingText(hour){return hour>=5&&hour<12?"Good morning":hour>=12&&hour<17?"Good afternoon":hour>=17&&hour<22?"Good evening":"Good night"}
 function updateGreeting(){
  const title=document.getElementById("homeGreeting");if(!title)return;
