@@ -24,9 +24,11 @@ export async function chooseGroupExecutor({
 
   for (const account of [...accounts].sort((a, b) => String(a.id).localeCompare(String(b.id)))) {
     if (!account?.enabled || !account?.connected || !account?.sock) continue
-    if (!(await isMember(account, groupJid))) continue
+    // Most linked bots aren't eligible for this capability. Avoid requesting
+    // their WhatsApp group metadata (remote network I/O) just to discard them.
     const score = scoreFor(account.id, cap)
     if (score === null || score === undefined) continue
+    if (!(await isMember(account, groupJid))) continue
     candidates.push({ id: account.id, score: Number(score) })
   }
 
