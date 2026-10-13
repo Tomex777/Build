@@ -43,6 +43,7 @@ import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.Modifier
 import eu.kanade.presentation.reader.ReaderPageIndicator
 import eu.kanade.presentation.reader.ReaderPageActionsDialog
+import eu.kanade.presentation.reader.ReaderChapterTransition
 import eu.kanade.presentation.reader.ReadingModeSelectDialog
 import eu.kanade.presentation.reader.OrientationSelectDialog
 import eu.kanade.presentation.reader.ReaderContentOverlay
@@ -91,6 +92,7 @@ import reader.shared.android.ReaderPageImageView
 import reader.shared.android.ReaderRenderConfig
 import reader.shared.android.ReaderViewerHost
 import reader.shared.android.Viewer
+import reader.shared.android.model.ChapterTransition
 import reader.shared.android.model.ViewerChapter
 import reader.shared.android.model.ViewerChapters
 import reader.shared.android.model.ViewerPage
@@ -833,6 +835,27 @@ class ReaderActivity : ComponentActivity(), ReaderViewerHost {
             }
         }
     }
+
+    override fun createChapterTransitionView(transition: ChapterTransition): View =
+        ComposeView(this).apply {
+            layoutParams = ViewGroup.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+            )
+            setContent {
+                MaterialTheme(
+                    colorScheme = darkColorScheme(
+                        primary = ComposeColor(0xFFD4E4FF),
+                        surface = ComposeColor(0xFF111722),
+                        onSurface = ComposeColor.White,
+                    ),
+                ) {
+                    Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                        ReaderChapterTransition(transition)
+                    }
+                }
+            }
+        }
 
     override fun onPageLongTap(page: ViewerPage): Boolean {
         if (isFinishing) return false
