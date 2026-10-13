@@ -7,9 +7,10 @@ import {
 } from './utils/media-conversion.js'
 
 assert.equal(STICKER_CANVAS, 512)
-assert.match(STICKER_FIT_FILTER, /scale=512:512:force_original_aspect_ratio=decrease/)
-assert.match(STICKER_FIT_FILTER, /pad=512:512:\(ow-iw\)\/2:\(oh-ih\)\/2:color=0x00000000/)
-assert.doesNotMatch(STICKER_FIT_FILTER, /crop=/)
+assert.match(STICKER_FIT_FILTER, /scale=512:512:force_original_aspect_ratio=increase/)
+assert.match(STICKER_FIT_FILTER, /crop=512:512/)
+assert.doesNotMatch(STICKER_FIT_FILTER, /pad=/)
+assert.doesNotMatch(STICKER_FIT_FILTER, /color=0x00000000/)
 
 assert.equal(classifyMessageMedia({ key:'imageMessage', media:{ mimetype:'image/jpeg' } }), 'image')
 assert.equal(classifyMessageMedia({ key:'videoMessage', media:{ mimetype:'video/mp4' } }), 'video')
