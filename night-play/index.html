@@ -233,7 +233,7 @@ footer{margin-top:auto;width:100%}
 <section class="site-page" id="view-profile" data-view="profile" hidden>
  <div class="inner-page-head"><div><span class="eyebrow">YOUR PLAYER ACCOUNT</span><h1>The profile is <span class="muted">yours.</span></h1><p>Connect WhatsApp to keep your player identity, match history and achievements together.</p></div><span class="status-pill">ACCOUNT LINKING IN DEVELOPMENT</span></div>
  <div class="profile-layout"><div class="profile-hero"><div class="profile-monogram" aria-label="Account not linked"><svg viewBox="0 0 24 24" width="34" height="34" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4.5 20c1.2-4.7 13.8-4.7 15 0"/></svg></div><span class="eyebrow">ACCOUNT STATUS</span><h2>Not connected</h2><p>NIGHT Play will use a verified WhatsApp identity, not an anonymous guest account. Account linking is not live in this prototype.</p><button class="btn" data-dialog="connect">How WhatsApp linking works ↗</button></div>
-  <div class="profile-records"><span class="eyebrow">THIS DEVICE · TEST DATA ONLY</span><h3>Local game records</h3><p>While we're testing, game saves stay on this device. They cannot count toward official rankings until the backend can verify game results.</p><div class="profile-record-row"><span>🐍 Snake · best</span><strong id="profileSnakeBest">—</strong></div><div class="profile-record-row"><span>🔢 2048 · best</span><strong id="profile2048Best">—</strong></div><div class="profile-record-row"><span>❎ Tic-Tac-Toe</span><strong>Unranked</strong></div><p class="record-footnote">Achievements, ranked scores, match histories, and account recovery will appear here after WhatsApp verification ships.</p></div></div>
+  <div class="profile-records"><span class="eyebrow">THIS DEVICE · TEST DATA ONLY</span><h3>Local game records</h3><p>While we're testing, game saves stay on this device. They cannot count toward official rankings until the backend can verify game results.</p><div class="profile-record-row"><span>🐍 Snake · best</span><strong id="profileSnakeBest">—</strong></div><div class="profile-record-row"><span>🔢 2048 · 4 × 4 best</span><strong id="profile2048Best">—</strong></div><div class="profile-record-row"><span>🔢 2048 · 5 × 5 best</span><strong id="profile2048Best5">—</strong></div><div class="profile-record-row"><span>🔢 2048 · 6 × 6 best</span><strong id="profile2048Best6">—</strong></div><div class="profile-record-row"><span>❎ Tic-Tac-Toe</span><strong>Unranked</strong></div><p class="record-footnote">Achievements, ranked scores, match histories, and account recovery will appear here after WhatsApp verification ships.</p></div></div>
  </section>
 </main>
 <footer class="wrap"><span><strong>NIGHT PLAY</strong> · Games, challenges and community.</span><span>Preview · Scores saved only on this device</span></footer>
@@ -292,8 +292,9 @@ function toggleAnnouncement(open){
 function updateDashboard(){
  
  const rows=[];
- const history=[["snake","🐍 Snake",getSaved("night-play-save-snake")],["2048","🔢 2048",getSaved("night-play-save-2048")],["ttt","❎ Tic-Tac-Toe",getSaved("night-play-save-ttt")]];
- for(const [id,name,save] of history){if(save)rows.push({id,name})}
+ const history=[["snake","Snake",getSaved("night-play-save-snake")],["2048","2048",getSaved("night-play-save-2048-"+getSetting("2048-size","4"))||getSaved("night-play-save-2048")],["ttt","Tic-Tac-Toe",getSaved("night-play-save-ttt")]];
+ for(const [id,name,save] of history){if(save){try{const parsed=JSON.parse(save);rows.push({id,name,updatedAt:Number(parsed.updatedAt)||0})}catch{}}}
+ rows.sort((a,b)=>b.updatedAt-a.updatedAt);
  const target=document.getElementById("resumeCard");
  if(!rows.length){target.innerHTML='<p>Nothing to resume just yet. Your adventure starts in the Games Library.</p><a class="btn outline" href="/games" data-route>Find a game ↗</a>';return}
  const first=rows[0];target.innerHTML='<div><strong>'+first.name+'</strong><small>Unfinished guest game saved on this device'+(rows.length>1?' · '+(rows.length-1)+' more saved':'')+'</small></div><button class="btn" data-game="'+first.id+'">Continue playing ↗</button>'
@@ -323,7 +324,9 @@ function renderRoute(){
  if(current==="games")filterGames();
  if(current==="profile"){
  document.getElementById("profileSnakeBest").textContent=best("snake").toLocaleString();
- document.getElementById("profile2048Best").textContent=best("2048").toLocaleString()
+ document.getElementById("profile2048Best").textContent=best("2048").toLocaleString();
+ document.getElementById("profile2048Best5").textContent=best("2048-5").toLocaleString();
+ document.getElementById("profile2048Best6").textContent=best("2048-6").toLocaleString()
  }
  updateBell();window.scrollTo(0,0)
 }
@@ -436,7 +439,7 @@ function stepSnake(){
  if(occupied.some(x=>x.x===p.x&&x.y===p.y)){finishSnake();return}
  snake.body.unshift(p);if(!eating)snake.body.pop();
  else{snake.score+=10;record("snake",snake.score);snake.food=food();document.getElementById("score").textContent=snake.score;document.getElementById("best").textContent=best("snake");if(!snake.food){finishSnake();return}}
- try{localStorage.setItem("night-play-save-snake",JSON.stringify({size:snake.size,body:snake.body,dir:snake.dir,next:snake.next,food:snake.food,score:snake.score,alive:snake.alive}))}catch{}
+ try{localStorage.setItem("night-play-save-snake",JSON.stringify({size:snake.size,body:snake.body,dir:snake.dir,next:snake.next,food:snake.food,score:snake.score,alive:snake.alive,updatedAt:Date.now()}))}catch{}
  drawSnake()
 }
 function initTtt(fresh=false){
@@ -477,13 +480,13 @@ function botMoveTtt(){
 function moveTtt(i){
  if(active!=="ttt"||tttFinished||ttt[i]||gamePaused)return;
  ttt[i]=turn;if(isWin(ttt,turn)||!ttt.includes(""))tttFinished=true;else turn=turn==="X"?"O":"X";
- try{localStorage.setItem("night-play-save-ttt",JSON.stringify({board:ttt,turn,finished:tttFinished,mode}))}catch{}
+ try{localStorage.setItem("night-play-save-ttt",JSON.stringify({board:ttt,turn,finished:tttFinished,mode,updatedAt:Date.now()}))}catch{}
  drawTtt();
  if(mode==="bot"&&!tttFinished&&turn==="O")setTimeout(botMoveTtt,330)
 }
 function init2048(fresh=false){
  const configured=Number(getSetting("2048-size","4"));const size=[4,5,6].includes(configured)?configured:4;
- let saved=null;try{saved=!fresh?JSON.parse(localStorage.getItem("night-play-save-2048")||"null"):null}catch{}
+ let saved=null;try{saved=!fresh?JSON.parse(localStorage.getItem("night-play-save-2048-"+size)||((size===4)?localStorage.getItem("night-play-save-2048"):"")||"null"):null}catch{}
  const valid=saved&&Number(saved.size||4)===size&&Array.isArray(saved.grid)&&saved.grid.length===size&&saved.grid.every(row=>Array.isArray(row)&&row.length===size&&row.every(n=>Number.isSafeInteger(n)&&n>=0));
  grid=valid?saved.grid:Array.from({length:size},()=>Array(size).fill(0));
  tileScore=valid?Number(saved.score||0):0;
@@ -504,7 +507,7 @@ function move2048(dir){
  if(dir==="up"||dir==="down"){for(let c=0;c<size;c++){let col=grid.map(row=>row[c]);if(dir==="down")col.reverse();col=slide(col);if(dir==="down")col.reverse();for(let r=0;r<size;r++)grid[r][c]=col[r]}}
  if(JSON.stringify(grid)!==before){
  spawn();record(tileBestKey(),tileScore);
- try{localStorage.setItem("night-play-save-2048",JSON.stringify({grid,size,score:tileScore}))}catch{}
+ try{localStorage.setItem("night-play-save-2048-"+size,JSON.stringify({grid,size,score:tileScore,updatedAt:Date.now()}))}catch{}
  draw2048();
  if(!grid.flat().includes(0)){let moves=false;for(let r=0;r<size;r++)for(let c=0;c<size;c++)if((r<size-1&&grid[r][c]===grid[r+1][c])||(c<size-1&&grid[r][c]===grid[r][c+1]))moves=true;if(!moves)document.getElementById("gameHelp").textContent="No more moves! Start a new game to try again."}
  }
