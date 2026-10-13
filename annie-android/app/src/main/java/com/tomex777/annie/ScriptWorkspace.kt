@@ -413,7 +413,7 @@ internal class ScriptFiles(context: Context) : PackageAssetResolver {
     fun renameFile(projectId: String, relativePath: String, newRelativePath: String): String {
         val project = resolveProjectContainer(projectId)
         require(project.isDirectory) { "Rename the standalone project instead" }
-        require(relativePath != "main.js") { "main.js is the folder entry point and cannot be moved" }
+        require(relativePath != readProject(project)?.entryPath) { "$relativePath is the folder entry point and cannot be moved" }
         val source = resolveProjectFile(projectId, relativePath)
         require(source.isFile) { "Script file does not exist" }
         val safeTarget = validateProjectTextPath(newRelativePath)
@@ -427,7 +427,7 @@ internal class ScriptFiles(context: Context) : PackageAssetResolver {
     fun deleteFile(projectId: String, relativePath: String) {
         val project = resolveProjectContainer(projectId)
         require(project.isDirectory) { "Delete the standalone project instead" }
-        require(relativePath != "main.js") { "main.js is the folder entry point and cannot be deleted" }
+        require(relativePath != readProject(project)?.entryPath) { "$relativePath is the folder entry point and cannot be deleted" }
         val target = resolveProjectFile(projectId, relativePath)
         require(target.isFile && target.delete()) { "Could not delete script file" }
     }

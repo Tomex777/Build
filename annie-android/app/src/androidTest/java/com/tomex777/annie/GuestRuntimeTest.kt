@@ -10,6 +10,21 @@ import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
 class GuestRuntimeTest {
+    @Test fun typedEntryCannotBeMovedOrDeletedOutOfItsManifest() {
+        val files = ScriptFiles(InstrumentationRegistry.getInstrumentation().targetContext)
+        val name = "typedentry" + System.nanoTime().toString().takeLast(8)
+        try {
+            val folder = files.createFolder(name)
+            files.createFile(name, "main.ts")
+            java.io.File(folder, "manifest.json").writeText("""
+                {"packageId":"com.example.$name","displayName":"Typed entry","version":"1.0.0","apiVersion":"2","entryPoint":"main.ts"}
+            """.trimIndent())
+            assertTrue(runCatching { files.deleteFile(name, "main.ts") }.isFailure)
+            assertTrue(runCatching { files.renameFile(name, "main.ts", "moved.ts") }.isFailure)
+            assertEquals("main.ts", files.readProject(folder)?.entryPath)
+        } finally { runCatching { files.deleteProject(name) } }
+    }
+
     @Test fun projectNamesCannotCollideAcrossRuntimeLanguages() {
         val files = ScriptFiles(InstrumentationRegistry.getInstrumentation().targetContext)
         val name = "guestnames" + System.nanoTime().toString().takeLast(8)

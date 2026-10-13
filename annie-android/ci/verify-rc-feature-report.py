@@ -6,7 +6,7 @@ import xml.etree.ElementTree as ET
 
 EXPECTED = {
     "ApiTwoRuntimeTest": {'strictWrappersPreserveTypesAndStreamOnePersistentMessage'},
-    "GuestRuntimeTest": {'projectNamesCannotCollideAcrossRuntimeLanguages', 'nativeInterpreterRejectsHostAccessAndRecovers', 'javascriptOrchestratesPythonAndLuaWithJson', 'pythonAndLuaCommandsExecuteInTheWorker'},
+    "GuestRuntimeTest": {'typedEntryCannotBeMovedOrDeletedOutOfItsManifest', 'projectNamesCannotCollideAcrossRuntimeLanguages', 'nativeInterpreterRejectsHostAccessAndRecovers', 'javascriptOrchestratesPythonAndLuaWithJson', 'pythonAndLuaCommandsExecuteInTheWorker'},
     "HostAiRuntimeTest": {'aiStreamsIntoOneStoredMessageAndHonoursRevocation', 'hostCredentialsAreEncryptedAndOutsideScriptEnvironmentStorage', 'permissionRevocationDuringGenerationPreservesPartialTextAndEndsStreaming'},
     "TypeScriptRuntimeTest": {'typescriptFolderImportsAndJavascriptInterop', 'typedEntryAndImportedModuleRunThroughAnnie'},
     "AnnieCanvasMessageTest": {'webGlShadersDrawReadPixelsAndSurviveFullscreen', 'builtInSnakeCommandProducesPlayableCanvasAndCapturesItsChatPreview', 'snakeCanvasAppearsInsideTheRealChatAndAcceptsFingerSwipes', 'interactiveCanvasRunsOfflineAndRetainsItsWebViewAcrossFullscreen'},
