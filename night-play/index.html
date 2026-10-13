@@ -768,7 +768,7 @@ gameDialog.open=false;
 gameDialog.showModal=()=>{gameDialog.classList.add("active");gameDialog.setAttribute("aria-hidden","false");gameDialog.open=true;document.body.classList.add("in-game")};
 gameDialog.close=()=>{gameDialog.classList.remove("active");gameDialog.setAttribute("aria-hidden","true");gameDialog.open=false;document.body.classList.remove("in-game");gameDialog.dispatchEvent(new Event("close"))};
 const root=document.getElementById("gameRoot"),title=document.getElementById("gameTitle"),help=document.getElementById("gameHelp");
-let active="",snakeTimer=null,snake={},ttt=[],turn="X",mode="bot",tttFinished=false,grid=[],tileScore=0,gamePaused=false,boardRestore=null,gameOverRecorded=false;
+let active="",snakeTimer=null,snakeFrame=null,snakePrevBody=null,snakeTickAt=0,snake={},ttt=[],turn="X",mode="bot",tttFinished=false,grid=[],tileScore=0,gamePaused=false,boardRestore=null,gameOverRecorded=false;
 const scoreKey="night-play-v1-";
 function best(key){try{return Number(localStorage.getItem(scoreKey+key)||0)||0}catch{return 0}}
 function record(key,value){if(value>best(key)){try{localStorage.setItem(scoreKey+key,String(value))}catch{}}}
@@ -1064,7 +1064,7 @@ document.getElementById("announcementHistoryClose").addEventListener("click",()=
 document.getElementById("announcementDismiss").addEventListener("click",()=>{putSaved(ANNOUNCEMENT_KEY,"2026-10-13-preview-notice");toggleAnnouncement(false);document.getElementById("announcementMore").innerHTML='Announcements <svg class="ui-icon" viewBox="0 0 24 24" focusable="false" aria-hidden="true"><use href="#icon-chevron"></use></svg>';updateBell()});
 
 function pauseLabel(text){const button=document.getElementById("pauseGame");if(!button)return;button.innerHTML='<svg class="ui-icon" viewBox="0 0 24 24" focusable="false" aria-hidden="true"><use href="#icon-pause"></use></svg> '+text}
-function stop(){if(snakeTimer){clearInterval(snakeTimer);snakeTimer=null}active="";gamePaused=false;pauseLabel("Pause")}
+function stop(){if(snakeTimer){clearInterval(snakeTimer);snakeTimer=null}if(snakeFrame){cancelAnimationFrame(snakeFrame);snakeFrame=null}snakePrevBody=null;active="";gamePaused=false;pauseLabel("Pause")}
 document.addEventListener("click",e=>{
  const dialog=e.target.closest("[data-dialog]");if(dialog)modal(dialog.dataset.dialog);
  const g=e.target.closest("[data-game]");if(g)openGame(g.dataset.game);
@@ -1125,7 +1125,9 @@ function initSnake(fresh=false){
  overlay.onclick=()=>{if(!snake.alive){openGame("snake",{push:false,fresh:true});return}
  snake.started=true;gamePaused=false;overlay.hidden=true;pauseLabel("Pause")};
  shell.appendChild(overlay);root.appendChild(shell);
- snake.canvas=c;snake.food=snake.food||food();drawSnake();gamePaused=true;
+ snake.canvas=c;snake.food=snake.food||food();snakePrevBody=null;drawSnake();gamePaused=true;
+ const renderFrame=()=>{if(active!=="snake"||!gameDialog.open)return;if(snake.started&&!gamePaused)drawSnake();snakeFrame=requestAnimationFrame(renderFrame)};
+ snakeFrame=requestAnimationFrame(renderFrame);
  let origin=null;c.addEventListener("touchstart",e=>{origin={x:e.touches[0].clientX,y:e.touches[0].clientY}},{passive:true});
  c.addEventListener("touchend",e=>{if(!origin)return;const dx=e.changedTouches[0].clientX-origin.x,dy=e.changedTouches[0].clientY-origin.y;if(Math.max(Math.abs(dx),Math.abs(dy))>17)snakeTurn(Math.abs(dx)>Math.abs(dy)?dx>0?"right":"left":dy>0?"down":"up");origin=null},{passive:true});
  snakeTimer=setInterval(stepSnake,snakeTickMs());
@@ -1133,17 +1135,43 @@ function initSnake(fresh=false){
 function food(){const free=[];for(let y=0;y<snake.size;y++)for(let x=0;x<snake.size;x++)if(!snake.body.some(p=>p.x===x&&p.y===y)&&!snake.maze.some(p=>p.x===x&&p.y===y))free.push({x,y});return free.length?free[Math.floor(Math.random()*free.length)]:null}
 function snakeTurn(dir){if(active!=="snake"||!snake.alive)return;const opposite={up:"down",down:"up",left:"right",right:"left"};if(dir!==opposite[snake.dir])snake.next=dir}
 function drawSnake(){
- const ctx=snake.canvas.getContext("2d");const step=snake.canvas.width/snake.size;
+ const ctx=snake.canvas.getContext("2d"),size=snake.size,step=snake.canvas.width/size;
  const retro=getSetting("snake-style","modern")==="lcd";
- ctx.fillStyle=retro?"#bed06c":"#e5e7e5";ctx.fillRect(0,0,360,360);
- for(let i=0;i<snake.size;i++)for(let j=0;j<snake.size;j++)if((i+j)%2===0){ctx.fillStyle=retro?"#b8ca66":"#e0e3e0";ctx.fillRect(i*step,j*step,step,step)}
- ctx.fillStyle=retro?"#303e25":"#656f72";
- for(const point of snake.maze){ctx.fillRect(point.x*step+1,point.y*step+1,step-2,step-2)}
- if(snake.mode==="walls"){ctx.strokeStyle=retro?"#354426":"#a1a7a7";ctx.lineWidth=3;ctx.strokeRect(1.5,1.5,357,357)}
- if(snake.food){ctx.fillStyle=retro?"#293b23":"#b46f63";ctx.beginPath();ctx.arc((snake.food.x+.5)*step,(snake.food.y+.5)*step,step*.34,0,Math.PI*2);ctx.fill()}
- snake.body.forEach((p,i)=>{ctx.fillStyle=retro?(i===0?"#24341c":"#374a29"):(i===0?"#080808":"#293139");const d=i===0?1.5:2;ctx.beginPath();ctx.roundRect(p.x*step+d,p.y*step+d,step-d*2,step-d*2,5);ctx.fill()});
+ const bg=retro?"#b9ca79":"#d6e6d2",alt=retro?"#b2c371":"#cee0c8";
+ ctx.fillStyle=bg;ctx.fillRect(0,0,360,360);
+ for(let y=0;y<size;y++)for(let x=0;x<size;x++)if((x+y)%2===1){
+  ctx.fillStyle=alt;ctx.fillRect(x*step,y*step,step,step)
+ }
+ ctx.fillStyle=retro?"#364f2c":"#547d64";
+ for(const block of snake.maze){const x=block.x*step,y=block.y*step;ctx.beginPath();ctx.roundRect(x+2,y+2,step-4,step-4,3);ctx.fill()}
+ if(snake.mode==="walls"){ctx.strokeStyle=retro?"#71844e":"#9fbea8";ctx.lineWidth=3;ctx.strokeRect(2,2,356,356)}
+ if(snake.food){
+  const cx=(snake.food.x+.5)*step,cy=(snake.food.y+.5)*step;
+  ctx.fillStyle="#9e4938";ctx.beginPath();ctx.arc(cx+1,cy+2,step*.34,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle="#e08060";ctx.beginPath();ctx.arc(cx-1,cy,step*.34,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle="#f6ae8d";ctx.beginPath();ctx.arc(cx-4,cy-5,step*.11,0,Math.PI*2);ctx.fill();
+  ctx.strokeStyle="#477f4d";ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(cx,cy-7);ctx.quadraticCurveTo(cx+6,cy-13,cx+10,cy-11);ctx.stroke();
+ }
+ const interpolating=snakePrevBody&&snake.started&&!gamePaused;
+ const fraction=interpolating?Math.min(1,(performance.now()-snakeTickAt)/snakeTickMs()):1;
+ snake.body.forEach((point,i)=>{
+  const old=interpolating?(snakePrevBody[i]||snakePrevBody[snakePrevBody.length-1]):point;
+  const x=(Math.abs(point.x-old.x)>1?point.x:old.x+(point.x-old.x)*fraction)*step;
+  const y=(Math.abs(point.y-old.y)>1?point.y:old.y+(point.y-old.y)*fraction)*step;
+  const head=i===0;
+  ctx.fillStyle=retro?(head?"#263e24":"#36532b"):(head?"#1e664e":"#3a8a63");
+  ctx.beginPath();ctx.roundRect(x+1.7,y+1.7,step-3.4,step-3.4,head?7:5);ctx.fill();
+  if(head){
+   const cx=x+step/2,cy=y+step/2;
+   ctx.fillStyle="#fff9ed";const offsets=snake.dir==="right"?[[4,-4],[4,4]]:snake.dir==="left"?[[-4,-4],[-4,4]]:snake.dir==="up"?[[-4,-4],[4,-4]]:[[-4,4],[4,4]];
+   for(const [ex,ey] of offsets){ctx.beginPath();ctx.arc(cx+ex,cy+ey,2,0,Math.PI*2);ctx.fill()}
+  }else{
+   ctx.fillStyle=retro?"#607646":"#85b894";ctx.beginPath();ctx.arc(x+step/2,y+step/2,2,0,Math.PI*2);ctx.fill()
+  }
+ })
 }
 function finishSnake(){
+ snakePrevBody=null;
  recordSession("snake",snake.score);
  snake.alive=false;gamePaused=true;clearInterval(snakeTimer);snakeTimer=null;
  try{localStorage.removeItem("night-play-save-snake")}catch{}
@@ -1152,6 +1180,7 @@ function finishSnake(){
 }
 function stepSnake(){
  if(!snake.alive||!snake.started||gamePaused)return;
+ snakePrevBody=snake.body.map(point=>({...point}));snakeTickAt=performance.now();
  snake.dir=snake.next;const p={...snake.body[0]};
  if(snake.dir==="right")p.x++;if(snake.dir==="left")p.x--;if(snake.dir==="down")p.y++;if(snake.dir==="up")p.y--;
  if(snake.wrap){p.x=(p.x+snake.size)%snake.size;p.y=(p.y+snake.size)%snake.size}
