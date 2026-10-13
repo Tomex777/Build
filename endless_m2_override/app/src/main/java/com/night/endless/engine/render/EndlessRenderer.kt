@@ -504,7 +504,10 @@ class EndlessRenderer(
         marsSurfaceX = 0.0
         marsSurfaceZ = 0.0
         marsSurfaceMode = true
-        pitch = -0.04
+        pendingYaw = 0.0
+        pendingPitch = 0.0
+        yaw = 1.05
+        pitch = -0.07
         return true
     }
 
@@ -515,6 +518,9 @@ class EndlessRenderer(
         moonSurfaceX = 1.5
         moonSurfaceZ = -0.5
         moonSurfaceMode = true
+        pendingYaw = 0.0
+        pendingPitch = 0.0
+        yaw = 0.72
         // The first landed frame should show nearby relief without snapping the
         // user's heading away from the approach direction.
         pitch = -0.09
