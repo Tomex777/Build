@@ -61,12 +61,13 @@ class MarsSurfaceTerrain(private val context: Context) {
         GLES30.glUniform1f(GLES30.glGetUniformLocation(program, "uPlanetRadiusUnits"), 3389.5f / 3.0f)
         GLES30.glUniform1i(GLES30.glGetUniformLocation(program, "uWorld"), 0)
         LandingPhotoTexture.bind(program, landingPhotoTexture)
-        GLES30.glUniform2f(
-            GLES30.glGetUniformLocation(program, "uViewAnchor"), -offsetX, -offsetZ
-        )
         // Initialize/reanchor midfield LOD *before* drawing the coarse
         // mesh, so its masked region always matches the actual replacement.
         detail.prepare(-offsetX.toDouble(), -offsetZ.toDouble())
+        GLES30.glUniform2f(
+            GLES30.glGetUniformLocation(program, "uViewAnchor"),
+            detail.foregroundAnchorX, detail.foregroundAnchorZ
+        )
         GLES30.glUniform2f(
             GLES30.glGetUniformLocation(program, "uMidAnchor"),
             detail.midfieldAnchorX, detail.midfieldAnchorZ
