@@ -33,7 +33,7 @@ try {
     const input = join(dir, name + '.ppm')
     const webp = join(dir, name + '.webp')
     const decoded = join(dir, name + '.rgba')
-    const header = Buffer.from('P6\\n' + width + ' ' + height + '\\n255\\n', 'ascii')
+    const header = Buffer.from('P6\n' + width + ' ' + height + '\n255\n', 'ascii')
     const pixels = Buffer.alloc(width * height * 3)
     for (let p = 0; p < pixels.length; p += 3) {
       pixels[p] = 30; pixels[p + 1] = 160; pixels[p + 2] = 250
