@@ -15,6 +15,7 @@ class MarsSurfaceTerrain {
     private val vertices: FloatBuffer
     private val indices: ShortBuffer
     private val indexCount: Int
+    private val detail = SurfaceDetailRenderer { x, z -> heightAt(x, z) }
 
     init {
         val side = 121
@@ -47,13 +48,14 @@ class MarsSurfaceTerrain {
         vertices = ByteBuffer.allocateDirect(data.size * 4).order(ByteOrder.nativeOrder()).asFloatBuffer().apply { put(data); position(0) }
         indices = ByteBuffer.allocateDirect(indexData.size * 2).order(ByteOrder.nativeOrder()).asShortBuffer().apply { put(indexData); position(0) }
         indexCount = indexData.size
-        program = createProgram(VS, FS)
+        program = createProgram(SurfaceMaterialShaders.VERTEX, SurfaceMaterialShaders.FRAGMENT)
     }
 
     fun draw(vp: FloatArray, offsetX: Float, offsetZ: Float) {
         GLES30.glUseProgram(program)
         GLES30.glUniformMatrix4fv(GLES30.glGetUniformLocation(program, "uVp"), 1, false, vp, 0)
         GLES30.glUniform2f(GLES30.glGetUniformLocation(program, "uOffset"), offsetX, offsetZ)
+        GLES30.glUniform1i(GLES30.glGetUniformLocation(program, "uWorld"), 0)
         GLES30.glUniform3f(GLES30.glGetUniformLocation(program, "uLight"), -0.45f, 0.85f, 0.35f)
         GLES30.glDisable(GLES30.GL_CULL_FACE); GLES30.glEnable(GLES30.GL_DEPTH_TEST)
         vertices.position(0); GLES30.glEnableVertexAttribArray(0)
@@ -65,6 +67,7 @@ class MarsSurfaceTerrain {
         vertices.position(0); indices.position(0)
         GLES30.glDrawElements(GLES30.GL_TRIANGLES, indexCount, GLES30.GL_UNSIGNED_SHORT, indices)
         GLES30.glDisableVertexAttribArray(0); GLES30.glDisableVertexAttribArray(1); GLES30.glDisableVertexAttribArray(2)
+        detail.draw(-offsetX.toDouble(), -offsetZ.toDouble())
         GLES30.glEnable(GLES30.GL_CULL_FACE)
     }
 
