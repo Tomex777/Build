@@ -5,6 +5,15 @@
         android:label="Yomi"
         android:supportsRtl="true"
         android:theme="@style/Theme.Yomi">
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/yomi_share_paths" />
+        </provider>
         <activity
             android:name=".ReaderActivity"
             android:exported="false"
