@@ -12,7 +12,7 @@ This pass changes **presentation only**. The eleven game tiles and their SVG art
 - Animation is for feedback: gentle hover within the artwork (~200 ms), never constant floating. Respect `prefers-reduced-motion`.
 
 ## Per-game personality
-Snake's game canvas uses a green physical-board border; 2048 uses warm stone tile colors; Tic-Tac-Toe uses cool blue/ink squares. Per-game styles are selected with `#gameDialog[data-game]` and must not affect game engine state. All controls remain touch-safe.
+Snake's game canvas uses a green physical-board border; 2048 uses warm stone tile colors; Tic-Tac-Toe uses cool blue/ink squares. Per-game styles are selected with `#gameDialog[data-skin]` and must not affect game engine state. All controls remain touch-safe.
 
 ## Real-data and safety contract
 Profile numbers are derived from *device-local* activity only, no fake ranks, completed rounds or linked WhatsApp identity. Keep a single global Connect WhatsApp action; the modal must clearly indicate account linking is not live. The existing WhatsApp commands and production NIGHT Play remain untouched.
