@@ -100,7 +100,7 @@ export function classifyDisconnect(code, error = null, ambiguous500Attempts = 0)
     const attempts = Math.max(0, Math.floor(Number(ambiguous500Attempts) || 0))
     // Even the library's own "Bad Session" text is not independently
     // verified WhatsApp revocation. Allow just one non-destructive probe.
-    const libraryBadSessionHint = /^Bad Session(?:\\s*\\(500\\))?$/i.test(
+    const libraryBadSessionHint = /^Bad Session(?:\s*\(500\))?$/i.test(
       typeof error.message === 'string' ? error.message.trim() : ''
     )
     const maxRetries = libraryBadSessionHint ? 1 : 3
