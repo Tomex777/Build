@@ -11,6 +11,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -28,6 +29,11 @@ private data class GameStats(val quizzes: Int, val correct: Int, val bestStreak:
 
 @Composable
 fun GamesScreen(modifier: Modifier = Modifier, library: List<LibraryEntry>) {
+    var selectedGame by rememberSaveable { mutableStateOf("") }
+    if (selectedGame != "quiz") {
+        SoraArcadePage(selectedGame, onSelect = { selectedGame = it }, modifier = modifier)
+        return
+    }
     val context = LocalContext.current
     val candidates = remember(library) {
         library.filter { (it.contentType == ContentType.ANIME || it.contentType == ContentType.MANGA) && !it.artworkUrl.isNullOrBlank() }
@@ -83,7 +89,10 @@ fun GamesScreen(modifier: Modifier = Modifier, library: List<LibraryEntry>) {
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
         item {
-            Text("Games", fontSize = 28.sp, fontWeight = FontWeight.ExtraBold)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                IconButton(onClick = { selectedGame = "" }) { Icon(Icons.Rounded.ArrowBack, "All games") }
+                Text("Cover quiz", fontSize = 28.sp, fontWeight = FontWeight.ExtraBold)
+            }
             Text("A title quiz built from your saved collection.", color = SoraMuted, fontSize = 12.sp, modifier = Modifier.padding(top = 3.dp))
         }
         item {
