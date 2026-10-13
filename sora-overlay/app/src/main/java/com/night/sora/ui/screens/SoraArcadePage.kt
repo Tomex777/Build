@@ -28,13 +28,13 @@ private val arcadeEntries = listOf(
     ArcadeEntry("tiles", "2048", "Swipe and merge matching numbers", R.drawable.sora_game_tiles),
     ArcadeEntry("ttt", "Tic-tac-toe", "Challenge a computer opponent", R.drawable.sora_game_tictactoe),
     ArcadeEntry("memory", "Memory match", "Find all eight hidden pairs", R.drawable.sora_game_memory),
-    ArcadeEntry("quiz", "Cover quiz", "Guess titles saved in your Library", R.drawable.sora_game_memory),
-    ArcadeEntry("daily", "Daily 5", "Five quick questions, fresh each session", R.drawable.sora_game_tiles),
-    ArcadeEntry("who", "Who am I?", "Identify the character from its clues", R.drawable.sora_game_tictactoe),
-    ArcadeEntry("quotes", "Who said it?", "Match a famous line to its speaker", R.drawable.sora_game_tictactoe),
-    ArcadeEntry("bible", "Bible trivia", "Test your Bible knowledge", R.drawable.sora_game_memory),
-    ArcadeEntry("rather", "Would you rather?", "Make tough choices; see your own picks", R.drawable.sora_game_tiles),
-    ArcadeEntry("meme", "Meme caption", "Write captions for saved memes", R.drawable.sora_game_memory),
+    ArcadeEntry("quiz", "Cover quiz", "Guess titles saved in your Library", R.drawable.sora_game_quiz),
+    ArcadeEntry("daily", "Daily 5", "Five quick questions, fresh each session", R.drawable.sora_game_daily),
+    ArcadeEntry("who", "Who am I?", "Identify the character from its clues", R.drawable.sora_game_who),
+    ArcadeEntry("quotes", "Who said it?", "Match a famous line to its speaker", R.drawable.sora_game_quotes),
+    ArcadeEntry("bible", "Bible trivia", "Test your Bible knowledge", R.drawable.sora_game_bible),
+    ArcadeEntry("rather", "Would you rather?", "Make tough choices; see your own picks", R.drawable.sora_game_rather),
+    ArcadeEntry("meme", "Meme caption", "Write captions for saved memes", R.drawable.sora_game_meme),
 )
 
 @Composable

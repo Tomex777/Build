@@ -12,7 +12,7 @@ SOURCE = ROOT / "sora-overlay/app/src/main/assets/icons"
 NATIVE = ROOT / "sora-overlay/app/src/main/res/drawable"
 OUT = ROOT / "artifacts"
 OUT.mkdir(exist_ok=True)
-NAMES = ("snake", "tiles", "tictactoe", "memory")
+NAMES = ("snake", "tiles", "tictactoe", "memory", "daily", "who", "quotes", "bible", "rather", "meme", "quiz")
 A = "{http://schemas.android.com/apk/res/android}"
 SVG = "{http://www.w3.org/2000/svg}"
 sizes = (40, 96, 256)
@@ -63,12 +63,14 @@ def validate_pair(name: str):
 for name in NAMES:
     validate_pair(name)
 
-surface = Image.new("RGB",(4*304,3*332),(16,16,15))
+surface = Image.new("RGB",(4*304,3*4*332),(16,16,15))
 draw = ImageDraw.Draw(surface)
 for row,size in enumerate(sizes):
-    for col,name in enumerate(NAMES):
+    for index,name in enumerate(NAMES):
+        col=index%4
+        tile_row=row*4+index//4
         icon=Image.open(OUT/f"{name}-{size}px.png").convert("RGBA")
-        draw.rounded_rectangle((col*304+14,row*332+14,col*304+290,row*332+316),radius=20,fill=(31,31,28))
+        draw.rounded_rectangle((col*304+14,tile_row*332+14,col*304+290,tile_row*332+316),radius=20,fill=(31,31,28))
         width,height=icon.size
         fitted=icon.copy()
         if size>220:
@@ -78,8 +80,8 @@ for row,size in enumerate(sizes):
         else:
             fitted=fitted.resize((180,180))
         x=col*304+(304-fitted.width)//2
-        y=row*332+30+(235-fitted.height)//2
+        y=tile_row*332+30+(235-fitted.height)//2
         surface.paste(fitted,(x,y),fitted)
-        draw.text((col*304+28,row*332+271),f"{name.upper()}  -  {size}px source",fill=(233,185,73))
+        draw.text((col*304+28,tile_row*332+271),f"{name.upper()}  -  {size}px source",fill=(233,185,73))
 surface.save(OUT/"sora-svg-contact-sheet.png")
 print("Created artifacts/sora-svg-contact-sheet.png")
