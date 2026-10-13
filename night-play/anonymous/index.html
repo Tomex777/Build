@@ -102,11 +102,11 @@ body[data-visitor-mode="true"] .topbar-inner{justify-content:center}
 <main class="shell main">
 <section id="page-studio" class="page active">
 <div class="breadcrumbs"><span>NIGHT PLAY</span><span class="crumb-chevron"></span><span>CHANNEL TOOLS</span><span class="crumb-chevron"></span><span style="color:#587b62">ANONYMOUS NIGHTS</span></div>
-<div class="hero"><div><h1>Let the channel <em>speak.</em></h1><p>Set the stage. Open anonymous submissions. Publish carefully moderated stories as beautiful cards — right to your WhatsApp Channel.</p></div><div class="hero-buttons"><button class="button secondary" id="scheduleButton"> <svg class="icon icon-sm"><use href="#i-calendar"></use></svg> Schedule</button><button class="button primary" id="heroPrimary"><svg class="icon icon-sm"><use href="#i-pause"></use></svg><span>Pause session</span></button></div></div>
-<div class="channel-strip"><span class="channel-avatar">AH</span><span><span class="channel-name" style="display:block">The After Hours Club</span><span class="channel-handle" style="display:block">WhatsApp Channel · example</span></span><div class="status-area"><span class="status-pill" id="sessionStatus"><span class="dot"></span><span id="sessionStatusText">Session live</span></span></div><span class="connected"><svg class="icon icon-sm"><use href="#i-shield"></use></svg>Bot permission not verified · prototype</span></div>
+<div class="hero"><div><h1>Let the channel <em>speak.</em></h1><p>Set the stage. Open anonymous submissions. Publish carefully moderated stories as beautiful cards — right to your WhatsApp Channel.</p></div><div class="hero-buttons"><button class="button secondary" id="scheduleButton"> <svg class="icon icon-sm"><use href="#i-calendar"></use></svg> Schedule</button><button class="button primary" id="heroPrimary"><svg class="icon icon-sm"><use href="#i-play"></use></svg><span>Start session</span></button></div></div>
+<div class="channel-strip"><span class="channel-avatar">AH</span><span><span class="channel-name" style="display:block">The After Hours Club</span><span class="channel-handle" style="display:block">WhatsApp Channel · example</span></span><div class="status-area"><span class="status-pill" id="sessionStatus"><span class="dot"></span><span id="sessionStatusText">Session ended</span></span></div><span class="connected"><svg class="icon icon-sm"><use href="#i-shield"></use></svg>Bot permission not verified · prototype</span></div>
 
 <section class="night-invite-panel" aria-labelledby="nightInviteHeading">
- <div class="night-invite-header"><div><span class="side-eyebrow">PRIVATE CHANNEL INVITE</span><h2 id="nightInviteHeading">Your session link</h2><p>Share this link in your WhatsApp Channel announcement. Only people opening that specific link see the confession form.</p></div><span id="nightLinkBadge" class="night-link-badge">Active link</span></div>
+ <div class="night-invite-header"><div><span class="side-eyebrow">PRIVATE CHANNEL INVITE</span><h2 id="nightInviteHeading">Your session link</h2><p>Share this link in your WhatsApp Channel announcement. Only people opening that specific link see the confession form.</p></div><span id="nightLinkBadge" class="night-link-badge inactive">Link inactive</span></div>
  <div class="night-invite-bar"><label for="nightSessionUrl" class="sr-only-night">Current anonymous session link</label><input type="url" id="nightSessionUrl" readonly autocomplete="off" aria-label="Session invite link"><button class="button primary" id="copyNightLink" type="button">Copy link</button></div>
  <div class="night-invite-actions"><button type="button" id="rotateNightLink" class="night-text-action">Generate new link</button><a id="testNightLink" class="night-text-action" href="#" target="_blank" rel="noopener noreferrer">Open follower link ↗</a><span id="nightLinkExpires">Ends automatically with the session</span></div>
  <p class="night-link-notice">Prototype link: expiry and local-tab revocation work in this preview. Real cross-device revocation, bot verification and submission storage require a connected backend.</p>
@@ -153,7 +153,7 @@ body[data-visitor-mode="true"] .topbar-inner{justify-content:center}
  midnight:{title:'Confession',icon:'spark',name:'Midnight blue',demo:'When everyone is asleep, I sometimes wish I could start over.'},
  ink:{title:'Confession',icon:'quote',name:'Monochrome ink',demo:'I say I am fine more often than I actually feel fine.'}
 };
-  const state={page:'studio',session:'live',filter:'all',category:'confession',posts:samplePosts.map(p=>({...p})),total:128,published:104,pending:0,filtered:24,settings:{max:220,cooldown:60,blocked:'spam, scam, click here',manual:false,rate:true},lastSubmission:0,selectedId:126,sessionEnd:'11:30 PM',schedule:null,inviteToken:'',inviteUntil:0,visitorMode:false};
+  const state={page:'studio',session:'stopped',filter:'all',category:'confession',posts:samplePosts.map(p=>({...p})),total:128,published:104,pending:0,filtered:24,settings:{max:220,cooldown:60,blocked:'spam, scam, click here',manual:false,rate:true},lastSubmission:0,selectedId:126,sessionEnd:'11:30 PM',schedule:null,inviteToken:'',inviteUntil:0,visitorMode:false};
   const $=id=>document.getElementById(id);
   const safe=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
@@ -226,7 +226,8 @@ body[data-visitor-mode="true"] .topbar-inner{justify-content:center}
       }else if(saved && ['paused','stopped','scheduled'].includes(saved.session)){
         state.inviteToken='';state.inviteUntil=0;state.session=saved.session;
       }else{
-        createInvite(Date.now()+2*60*60*1000);
+        // A new channel must explicitly start a night before any link exists.
+        state.session='stopped';state.inviteToken='';state.inviteUntil=0;saveInvite();
       }
     }
     if(state.inviteUntil){
