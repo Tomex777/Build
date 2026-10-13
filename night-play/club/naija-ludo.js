@@ -46,7 +46,7 @@ function create(count=2,diceCount=2){
 }
 function normalize(s){
  if(!s||s.version!==2||!Array.isArray(s.players)||s.players.some(p=>!Array.isArray(p.houses)||p.tokens.length!==p.houses.length*4))return create();
- s.diceCount=s.diceCount===1?1:2;s.rolling=false;s.moving=false;
+ s.diceCount=s.diceCount===1?1:2;if(typeof s.rolling!=="boolean")s.rolling=false;if(typeof s.moving!=="boolean")s.moving=false;
  s.rolls=Array.isArray(s.rolls)?s.rolls.filter(d=>d&&d.value>=1&&d.value<=6).slice(0,2):[];
  if(s.selectedDie!==null&&(!Number.isInteger(s.selectedDie)||!s.rolls[s.selectedDie]||s.rolls[s.selectedDie].used))s.selectedDie=null;
  return s;
