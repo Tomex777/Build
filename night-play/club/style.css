@@ -114,3 +114,7 @@
  box-shadow:inset 1px 1px 2px #fff6,inset -2px -3px 4px #67122777,0 2px 0 #81192e,0 4px 3px #0006;
 }
 .nj-dice-controls{background:radial-gradient(ellipse at 50% 75%,#d7ddd7 0,#f5f5ef 49%,#fff 84%)}
+
+/* Game advice must not resemble a broken disabled action. */
+.nj-move-hint{background:#e4f3e7;border:1px solid #a6cbb0;border-radius:9px;min-height:50px;display:flex;align-items:center;justify-content:center;padding:10px;color:#255b38;font-size:13px;font-weight:850;line-height:1.35}
+.nj-board .nj-piece.eligible{outline:2px solid #ffe7a3;outline-offset:1px;box-shadow:0 0 0 2px #fff,0 0 0 4px #e7b43e,0 2px 5px #0004!important}
