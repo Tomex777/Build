@@ -157,12 +157,58 @@ tap_scrolling() {
   return 1
 }
 
-# Games now uses actual saved Anime/Manga art and reports real play counts.
+# Games must expose real playable boards instead of no-op game cards.
 tap Games
-wait_for "Title Match"
+wait_for "Snake"
+wait_for "2048"
+wait_for "Tic-tac-toe"
+wait_for "Memory match"
+wait_for "Cover quiz"
+shot games-arcade-hub
+
+tap "Snake"
+wait_for "SCORE"
+wait_for "Start"
+tap "Start"
+shot games-snake-running
+tap "All games"
+
+tap "2048"
+wait_for "SCORE"
+wait_for "New"
+shot games-2048-board
+tap "All games"
+
+tap "Tic-tac-toe"
+wait_for "Your turn"
+shot games-tictactoe-board
+tap "All games"
+
+tap "Memory match"
+wait_for "MOVES"
+shot games-memory-board
+tap "All games"
+
+tap "Cover quiz"
+wait_for "TITLE MATCH"
 wait_for "YOUR PLAY"
 wait_for "Save at least two Anime or Manga titles"
 shot games-empty-library
+tap "All games"
+
+tap "Daily 5"
+wait_for "QUESTION"
+shot games-daily-five
+tap "All games"
+
+tap "Would you rather?"
+wait_for "Make your choice"
+shot games-would-rather
+tap "All games"
+
+tap_scrolling "Meme caption"
+wait_for "Save a meme in your Library"
+shot games-meme-caption-empty
 
 # The live Anime flow can seed a real title before this walkthrough. Check that
 # Library shows its count and matching content/empty state, then verify Memes.
