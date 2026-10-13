@@ -331,6 +331,11 @@ body[data-view="welcome"] .site-footer{padding-bottom:0}
 .legal-content p:not(.legal-asof){font-size:14px;color:#656a68;line-height:1.85;margin:0 0 17px}
 @media(max-width:600px){.profile-overview{margin-top:28px}.profile-identity{padding:20px;min-height:107px;gap:14px}.profile-identity .profile-monogram{width:56px;height:56px}.profile-identity h2{font-size:22px}.player-card-brand{font-size:13px}.player-card-brand span{font-size:8px}.footer-inner{flex-direction:row;align-items:center;gap:12px}.footer-inner nav{gap:17px}.legal-content{margin:37px auto 65px}}
 
+/* V7: restrained records typography and legible mobile charts */
+#view-profile .records-heading{margin:29px 0 17px}
+#view-profile .records-heading h2{margin:0;font-size:26px;letter-spacing:-.8px}
+#view-profile .analytics-panel{padding-top:24px}
+@media(max-width:600px){#analyticsGraph{aspect-ratio:400/250}#view-profile .records-heading h2{font-size:23px}}
 </style>
 </head>
 <body>
@@ -392,7 +397,7 @@ body[data-view="welcome"] .site-footer{padding-bottom:0}
   <span class="player-card-brand" aria-hidden="true">NIGHT<span>PLAY</span></span>
  </div>
 </div>
-<div class="records-heading"><div><span class="eyebrow">YOUR GAME STATS</span><h2>Game records</h2></div><span class="record-mode-tag">Device only · Unranked</span></div>
+<div class="records-heading"><h2>Game records</h2></div>
 <div class="analytics-panel">
  <div class="analytics-top">
   <div><h3 id="selectedGameTitle">Game activity</h3><span class="analytics-subtitle" id="analyticsSubtitle">Completed rounds by game</span></div>
@@ -512,13 +517,15 @@ function renderRecordOptions(){
   };target.appendChild(button)
  }
  document.getElementById("recordEmpty").hidden=found.length!==0;
- setText("recordsGameCount","Device-only records · Rankings are not active");
+ setText("recordsGameCount","Scores on this device · Not ranked");
 }
 function recordedActivity(){
  return availableRecordGames().map(id=>({id,label:recordTitle(id),rounds:scoreCount(id)}))
   .filter(x=>x.rounds>0).sort((a,b)=>b.rounds-a.rounds||a.label.localeCompare(b.label))
 }
 function drawActivityChart(svg,activity){
+ const mobile=window.matchMedia("(max-width:600px)").matches;
+ svg.setAttribute("viewBox",mobile?"0 0 400 250":"0 0 680 250");
  const ns="http://www.w3.org/2000/svg",el=(tag,attrs)=>{const x=document.createElementNS(ns,tag);for(const [key,value] of Object.entries(attrs))x.setAttribute(key,String(value));return x};
  svg.replaceChildren();
  if(activity.length===0)return;
@@ -526,18 +533,19 @@ function drawActivityChart(svg,activity){
  const selected=activity.slice(0,6);
  if(activity.length>6)selected.push({id:"other",label:"Other games",rounds:activity.slice(6).reduce((sum,item)=>sum+item.rounds,0)});
  const max=Math.max(1,...selected.map(x=>x.rounds));
- const labelSpace=175,left=labelSpace,right=625,top=14,rowHeight=32;
+ const left=mobile?135:175,right=mobile?345:625,top=14,rowHeight=32;
  const maxWidth=right-left;
  selected.forEach((item,index)=>{
    const y=top+index*rowHeight,barY=y+4;
-   const label=el("text",{x:8,y:y+18,fill:"#4d5551","font-size":"14","font-family":"Arial, sans-serif"});
-   const display=item.label.length>23?item.label.slice(0,22)+"…":item.label;
+   const label=el("text",{x:8,y:y+18,fill:"#4d5551","font-size":mobile?"13":"14","font-family":"Arial, sans-serif"});
+   const labelLimit=mobile?17:23;
+   const display=item.label.length>labelLimit?item.label.slice(0,labelLimit-1)+"…":item.label;
    label.textContent=display;svg.appendChild(label);
    svg.appendChild(el("rect",{x:left,y:barY,width:maxWidth,height:18,rx:4,fill:"#f1f2f1"}));
    const width=Math.max(4,Math.round(item.rounds/max*maxWidth));
    const b=el("rect",{x:left,y:barY,width,height:18,rx:4,fill:"#293b36"});
    const tt=el("title",{});tt.textContent=item.label+": "+item.rounds+" rounds";b.appendChild(tt);svg.appendChild(b);
-   const count=el("text",{x:643,y:y+18,fill:"#293b36","font-size":"12","text-anchor":"end","font-weight":"700","font-family":"Arial, sans-serif"});
+   const count=el("text",{x:mobile?394:663,y:y+18,fill:"#293b36","font-size":"12","text-anchor":"end","font-weight":"700","font-family":"Arial, sans-serif"});
    count.textContent=item.rounds.toLocaleString();svg.appendChild(count);
  });
 }
@@ -546,7 +554,9 @@ function plotSVG(svg,history,bestScore){
  const ns="http://www.w3.org/2000/svg";
  const elt=(tag,attrs)=>{const n=document.createElementNS(ns,tag);for(const [k,v] of Object.entries(attrs))n.setAttribute(k,String(v));return n};
  svg.replaceChildren();
- const max=Math.max(1,...history,bestScore),top=30,bottom=211,left=68,right=657;
+ const mobile=window.matchMedia("(max-width:600px)").matches;
+ svg.setAttribute("viewBox",mobile?"0 0 400 250":"0 0 680 250");
+ const max=Math.max(1,...history,bestScore),top=30,bottom=211,left=mobile?48:68,right=mobile?386:657;
  // Horizontal reference lines and actual score labels.
  for(let i=0;i<4;i++){
   const y=top+(bottom-top)*i/3,raw=Math.round(max*(1-i/3));
