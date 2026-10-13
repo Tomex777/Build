@@ -317,6 +317,33 @@ jobs:
           cp mirrorchess-piece-acceptance-result-loss.png portfolio/mirrorchess-defeat.png
           cp mirrorchess-piece-acceptance-result-draw.png portfolio/mirrorchess-draw.png
 
+      - name: Expose compact emulator screenshots for manual visual review
+        if: always() && matrix.api-level == 36
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import base64
+          from io import BytesIO
+          from PIL import Image
+          names = (
+              "mirrorchess-api-36.png",
+              "mirrorchess-piece-acceptance-custom-set-on-board.png",
+              "mirrorchess-piece-acceptance-result-win.png",
+          )
+          for name in names:
+              if not Path(name).is_file():
+                  continue
+              frame = Image.open(name).convert("RGB")
+              frame.thumbnail((360, 720))
+              blob = BytesIO()
+              frame.save(blob, format="JPEG", quality=53, optimize=True)
+              encoded = base64.b64encode(blob.getvalue()).decode("ascii")
+              print("MIRRORCHESS_PREVIEW_START " + name)
+              for i in range(0, len(encoded), 150):
+                  print(encoded[i:i+150])
+              print("MIRRORCHESS_PREVIEW_END " + name)
+          PY
+
       - name: Upload portfolio screenshots
         if: matrix.api-level == 36
         uses: actions/upload-artifact@v4
