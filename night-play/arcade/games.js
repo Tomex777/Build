@@ -99,7 +99,7 @@ function action(control){if(type==="bird"&&control==="flap")flap();if(type==="bl
 $("picks").addEventListener("click",e=>{const target=e.target.closest("[data-game]");if(target)pick(target.dataset.game);});
 $("restart").addEventListener("click",restart);
 document.addEventListener("click",e=>{const control=e.target.closest("[data-control]");if(control)action(control.dataset.control);});
-board.addEventListener("click",e=>{if(type==="mines"){const b=e.target.closest("[data-tile]");if(b)mineTap(Number(b.dataset.tile));}});
+board.addEventListener("click",e=>{if(type==="mines"){const b=e.target.closest("[data-tile]");if(b){if(held){held=false;return;}mineTap(Number(b.dataset.tile));}}});
 board.addEventListener("contextmenu",e=>{if(type!=="mines")return;const b=e.target.closest("[data-tile]");if(!b)return;e.preventDefault();const s=state,i=Number(b.dataset.tile);if(!finished&&!s.open[i]){s.flags[i]=!s.flags[i];drawMines();}});
 let holdTimer=null,held=false;
 board.addEventListener("pointerdown",e=>{if(type!=="mines")return;const b=e.target.closest("[data-tile]");if(!b)return;held=false;const at=Number(b.dataset.tile);holdTimer=setTimeout(()=>{if(type==="mines"&&!finished&&!state.open[at]){state.flags[at]=!state.flags[at];drawMines();held=true;}},550);});
