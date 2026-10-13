@@ -291,6 +291,9 @@ jobs:
             test "$(wc -c < yomi-output/runtime/yomi-add-sheet.png)" -gt 4096
             adb shell input keyevent KEYCODE_BACK
             sleep 1
+            # Search hides the Home/Folders bar. Close Search before exercising the Folders tab.
+            adb shell input tap 1000 160
+            sleep 1
             adb shell input tap 800 2250
             sleep 1
             bash yomi-reader/scripts/capture_clean_screen.sh yomi-output/runtime/yomi-folders.png
