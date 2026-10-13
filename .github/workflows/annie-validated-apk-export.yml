@@ -9,6 +9,7 @@ on:
 permissions:
   contents: write
   actions: read
+  issues: write
 
 jobs:
   export:
@@ -60,6 +61,14 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
+      - name: Record verified export and release run
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.issues.createComment({
+              ...context.repo, issue_number: 181,
+              body: 'Annie signed APK export verified and publishing started. Run: https://github.com/' + context.repo.owner + '/' + context.repo.repo + '/actions/runs/' + context.runId
+            })
       - name: Publish verified owner-signed ARM64 APK to GitHub pre-release
         shell: bash
         env:
@@ -79,3 +88,12 @@ jobs:
               --title "Annie 1.0.0 — validated Android release candidate" \
               --notes "Validated owner-signed ARM64 Android APK, compiled from commit 770983847b39d26e0eb0affd3f434363c03788a9 and consolidated on branch annie-release-1.0.0-20261013 (application source unchanged). CI run 38381728899 passed Android API 26 and 36 suites plus permanent-key production installation. Signing certificate SHA-256: 4e7ab744bdbbcf6ddb577186e8163be4b0f4127d2123ed21108ca6e7dce70288. Physical-device and live-paid-provider testing are still outstanding."
           fi
+
+      - name: Record downloadable signed release
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.issues.createComment({
+              ...context.repo, issue_number: 181,
+              body: 'Annie production-signed ARM64 release published successfully from passing CI 38381728899. Download APK: https://github.com/' + context.repo.owner + '/' + context.repo.repo + '/releases/download/annie-v1.0.0-20261013/Annie-2026-10-13-Validated-arm64-release.apk . Export workflow run: https://github.com/' + context.repo.owner + '/' + context.repo.repo + '/actions/runs/' + context.runId
+            })
