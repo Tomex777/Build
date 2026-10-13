@@ -196,12 +196,12 @@ wait_for "Save at least two Anime or Manga titles"
 shot games-empty-library
 tap "All games"
 
-tap "Daily 5"
+tap_scrolling "Daily 5"
 wait_for "QUESTION"
 shot games-daily-five
 tap "All games"
 
-tap "Would you rather?"
+tap_scrolling "Would you rather?"
 wait_for "Make your choice"
 shot games-would-rather
 tap "All games"
