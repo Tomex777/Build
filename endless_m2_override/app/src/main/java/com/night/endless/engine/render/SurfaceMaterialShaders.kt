@@ -86,6 +86,12 @@ float geologicalDetail(vec2 pos) {
 }
 
 void main() {
+    if (uPatchType == 3) {
+        // Ground-hugging rock contact shadows. Smoothly taper opacity at
+        // ellipse edges to avoid cartoon-hard circles and artificial halos.
+        fragColor = vec4(vec3(0.022, 0.019, 0.018), clamp(vColor.r, 0.0, 0.38));
+        return;
+    }
     // Avoid the precision loss and visible depth-fighting when meter-scale
     // foreground triangles overlap the orbital-resolution DEM grid.
     if (uPatchType == 0 && max(
