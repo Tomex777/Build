@@ -39,8 +39,7 @@ try{
   await page.locator(".l-token.eligible").first().click();
   await page.waitForTimeout(260);
   assert.ok(await page.locator('[data-ludo-die="1"]').count(),"second die remains selectable");
-  await page.locator('[data-dice-mode="ludo"]').selectOption("1");
-  assert.equal(await page.locator(".nj-die-button").count(),2,"dice configuration waits for turn to finish");
+  assert.equal(await page.locator('[data-dice-mode="ludo"]').isDisabled(),true,"dice configuration locked until remaining roll is played");
   await page.locator("[data-players=ludo]").selectOption("4");
   assert.equal(await page.locator("[data-piece]").count(),16,"four players each have one house");
   await page.locator('[data-dice-mode="ludo"]').selectOption("1");
