@@ -232,6 +232,9 @@ jobs:
               'games-empty-library','games-daily-five','games-who-am-i',
               'games-who-said-it','games-bible-trivia-result',
               'games-would-rather-next','games-meme-caption-empty',
+              'responsive-360dp-snake','responsive-360dp-2048',
+              'responsive-360dp-tictactoe','responsive-360dp-memory',
+              'responsive-360dp-trivia','responsive-360dp-rather',
           ]
           thumbs=[]
           for name in shots:
@@ -252,7 +255,7 @@ jobs:
                   gallery.paste(img,(x,y+30))
               output=root/'android-game-contact.jpg'
               gallery.save(output,'JPEG',quality=56,optimize=True)
-              print('Android screenshots visually assembled:',len(thumbs),'of 12. Asset:',output)
+              print('Android screenshots visually assembled:',len(thumbs),'of 18. Asset:',output)
               value=base64.b64encode(output.read_bytes()).decode()
               for i in range(0,len(value),2500):
                   print('SORA_CONTACT_CHUNK:'+value[i:i+2500])
