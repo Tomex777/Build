@@ -2,7 +2,6 @@ package com.night.endless.engine.render
 
 import kotlin.math.PI
 import kotlin.math.cos
-import kotlin.math.max
 import kotlin.math.sin
 
 /**
@@ -63,9 +62,9 @@ internal object SurfaceRockShadows {
             val baseZ = (maxZ + minZ) * .5
             val cx = baseX - lightX / lightY * height * 0.42
             val cz = baseZ - lightZ / lightY * height * 0.42
-            val rx = max((maxX - minX) * .64, 0.000065f).toDouble() +
+            val rx = ((maxX - minX).toDouble() * 0.64).coerceAtLeast(0.000065) +
                 kotlin.math.abs(lightX / lightY) * height * .6
-            val rz = max((maxZ - minZ) * .64, 0.000065f).toDouble() +
+            val rz = ((maxZ - minZ).toDouble() * 0.64).coerceAtLeast(0.000065) +
                 kotlin.math.abs(lightZ / lightY) * height * .6
             for (edge in 0 until SEGMENTS) {
                 val a0 = edge * 2.0 * PI / SEGMENTS
