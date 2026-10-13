@@ -28,6 +28,13 @@ jobs:
       - name: Install MSCC dependencies
         working-directory: mscc
         run: npm install --no-audit --no-fund
+      - name: Ensure FFmpeg for Nexia sticker rendering regression
+        shell: bash
+        run: |
+          if ! command -v ffmpeg >/dev/null 2>&1; then
+            sudo apt-get update -qq
+            sudo apt-get install -y -qq ffmpeg
+          fi
       - name: Verify merged MSCC runtime and command regression suite
         working-directory: mscc
         run: npm run check
