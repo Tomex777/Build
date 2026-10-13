@@ -67,6 +67,7 @@ function read(storage, group) {
   const saved = storage?.sharedGet?.(NS, group)
   return {
     timezone:saved?.timezone || DEFAULT_TZ,
+    hold:saved?.hold === true,
     entries:Array.isArray(saved?.entries) ? saved.entries : [],
   }
 }
@@ -74,6 +75,17 @@ function read(storage, group) {
 function write(storage, group, value) {
   storage?.sharedSet?.(NS, group, value)
   return value
+}
+
+export function isGroupScheduleHeld(storage,group) {
+  return read(storage,group).hold
+}
+
+export function setGroupScheduleHold(storage,group,enabled) {
+  const state=read(storage,group)
+  state.hold=Boolean(enabled)
+  write(storage,group,state)
+  return state.hold
 }
 
 export function groupScheduleInfo(storage, group) {
