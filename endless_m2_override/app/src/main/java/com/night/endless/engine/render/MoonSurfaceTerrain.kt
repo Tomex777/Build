@@ -11,7 +11,7 @@ class MoonSurfaceTerrain {
     private val vertices: FloatBuffer
     private val indices: ShortBuffer
     private val indexCount: Int
-    private val detail = SurfaceDetailRenderer { x, z -> heightAt(x, z) }
+    private val detail = SurfaceDetailRenderer { x, z -> renderedHeightAt(x, z) }
 
     init {
         val mesh = MoonSurfaceMeshGenerator.build()
@@ -44,6 +44,10 @@ class MoonSurfaceTerrain {
     }
 
     companion object {
+        /** Triangles actually visible to the player, not unmeshed DEM samples. */
+        fun renderedHeightAt(x: Double, z: Double): Double =
+            SurfaceTerrainSampling.renderedHeight(x, z, 161, MoonSurfaceMeshGenerator.DEFAULT_STEP.toDouble(), ::heightAt)
+
         fun heightAt(x: Double, z: Double): Double = MoonSurfaceMeshGenerator.heightAt(x, z)
 
         private fun createProgram(vs: String, fs: String): Int {
