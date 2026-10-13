@@ -60,6 +60,7 @@ import {
 import { looksLikeNumberSelection } from './number-selection.js'
 import { createInboundMessageGuard, matchesDisplayedChoice } from './inbound-message-guard.js'
 import { createCommandTiming } from './command-performance.js'
+import { createMessageScheduler } from './command-scheduler.js'
 import { resolveIdentityWithDeadline } from './identity-resolution.js'
 import { chessRecordAcceptsInput } from './utils/chess-game.js'
 import { ticTacToeRecordAcceptsInput } from './utils/tictactoe-game.js'
@@ -2291,8 +2292,17 @@ async function onDelete(account, updates) {
 
 const acceptInboundCommand = createInboundMessageGuard()
 
-async function onMessages(account, { messages, type }) {
-  for (const msg of messages || []) {
+const messageScheduler = createMessageScheduler({
+  process:processInboundMessage,
+  textOf:msg => commandText(msg?.message),
+  prefix:() => settings.publicPrefix || DEFAULT_PUBLIC_PREFIX,
+})
+
+async function onMessages(account, { messages }) {
+  await messageScheduler.submitBatch(account, messages)
+}
+
+async function processInboundMessage(account, msg) {
     const probe = createCommandTiming({
       accountId:account.id,
       text:commandText(msg?.message),
@@ -2678,7 +2688,6 @@ async function onMessages(account, { messages, type }) {
     } finally {
       probe?.finish()
     }
-  }
 }
 
 const statusOf = sessionStatus
