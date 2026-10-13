@@ -105,7 +105,10 @@ internal class HostAiOperationProvider(
     override val id = "host-ai"
     override val version = "2"
     override val operations = hostAiOperationDefinitions()
-    private val requestWindows = ConcurrentHashMap<String, ArrayDeque<Long>>()
+    private companion object {
+        // Share limits across foreground screens and background ScriptWorkspace instances.
+        val requestWindows = ConcurrentHashMap<String, ArrayDeque<Long>>()
+    }
     private fun enforceRate(projectId: String, operation: String) {
         val requests = requestWindows.getOrPut(projectId) { ArrayDeque() }
         synchronized(requests) {

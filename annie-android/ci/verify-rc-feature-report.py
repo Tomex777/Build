@@ -7,7 +7,7 @@ import xml.etree.ElementTree as ET
 EXPECTED = {
     "ApiTwoRuntimeTest": {'strictWrappersPreserveTypesAndStreamOnePersistentMessage'},
     "GuestRuntimeTest": {'typedEntryCannotBeMovedOrDeletedOutOfItsManifest', 'projectNamesCannotCollideAcrossRuntimeLanguages', 'nativeInterpreterRejectsHostAccessAndRecovers', 'javascriptOrchestratesPythonAndLuaWithJson', 'pythonAndLuaCommandsExecuteInTheWorker'},
-    "HostAiRuntimeTest": {'aiStreamsIntoOneStoredMessageAndHonoursRevocation', 'hostCredentialsAreEncryptedAndOutsideScriptEnvironmentStorage', 'permissionRevocationDuringGenerationPreservesPartialTextAndEndsStreaming'},
+    "HostAiRuntimeTest": {'aiRateLimitIsSharedAcrossProviderInstances', 'aiStreamsIntoOneStoredMessageAndHonoursRevocation', 'hostCredentialsAreEncryptedAndOutsideScriptEnvironmentStorage', 'permissionRevocationDuringGenerationPreservesPartialTextAndEndsStreaming'},
     "TypeScriptRuntimeTest": {'typescriptFolderImportsAndJavascriptInterop', 'typedEntryAndImportedModuleRunThroughAnnie'},
     "AnnieCanvasMessageTest": {'webGlShadersDrawReadPixelsAndSurviveFullscreen', 'builtInSnakeCommandProducesPlayableCanvasAndCapturesItsChatPreview', 'snakeCanvasAppearsInsideTheRealChatAndAcceptsFingerSwipes', 'interactiveCanvasRunsOfflineAndRetainsItsWebViewAcrossFullscreen'},
     "ChatHistoryTest": {"chatsPersistAndHistoryCanCreateAndReopenConversations", "manageChatRenamesAndDeletesWithConfirmation", "navigationDrawerOpensLibraryAndRoutesToDownloads", "profilePickerUsesApprovedAvatarLibraryAndCanResetToAnnieMark", "historyStoreRestoresCatalogCardsAndTheirActions"},

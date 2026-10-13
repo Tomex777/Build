@@ -11,6 +11,23 @@ import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
 class HostAiRuntimeTest {
+    @Test fun aiRateLimitIsSharedAcrossProviderInstances() = runBlocking {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val project = "ai-rate-" + System.nanoTime()
+        val grants = setOf("ai.generate")
+        val backend = object : HostAiBackend {
+            override suspend fun generate(prompt: String, onDelta: suspend (String) -> Unit): String = "ok"
+        }
+        val invocation = OperationInvocation("ai-rate", true, setOf("ai"), grants, grants, project, "rate-chat", apiVersion = 2)
+        repeat(5) {
+            val registry = OperationRegistry().apply { register(HostAiOperationProvider(context, backend) { grants }) }
+            assertEquals("ok", JSONObject(registry.invoke("ai.generate", invocation, "{\"prompt\":\"test\"}")).getString("text"))
+        }
+        val registry = OperationRegistry().apply { register(HostAiOperationProvider(context, backend) { grants }) }
+        try { registry.invoke("ai.generate", invocation, "{\"prompt\":\"test\"}"); fail("A new provider bypassed the request limit") }
+        catch (failure: AnnieError) { assertEquals(AnnieErrorCode.RATE_LIMITED, failure.code) }
+    }
+
     @Test fun hostCredentialsAreEncryptedAndOutsideScriptEnvironmentStorage() {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         val previousKey = HostAiConfig.key(context)
