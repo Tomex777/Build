@@ -319,7 +319,7 @@ gameDialog.open=false;
 gameDialog.showModal=()=>{gameDialog.classList.add("active");gameDialog.setAttribute("aria-hidden","false");gameDialog.open=true;document.body.classList.add("in-game")};
 gameDialog.close=()=>{gameDialog.classList.remove("active");gameDialog.setAttribute("aria-hidden","true");gameDialog.open=false;document.body.classList.remove("in-game");gameDialog.dispatchEvent(new Event("close"))};
 const root=document.getElementById("gameRoot"),title=document.getElementById("gameTitle"),help=document.getElementById("gameHelp");
-let active="",snakeTimer=null,snake={},ttt=[],turn="X",mode="bot",tttFinished=false,grid=[],tileScore=0,gamePaused=false,boardRestore=null;
+let active="",snakeTimer=null,snake={},ttt=[],turn="X",mode="bot",tttFinished=false,grid=[],tileScore=0,gamePaused=false,boardRestore=null,gameOverRecorded=false;
 const scoreKey="night-play-v1-";
 function best(key){try{return Number(localStorage.getItem(scoreKey+key)||0)||0}catch{return 0}}
 function record(key,value){if(value>best(key)){try{localStorage.setItem(scoreKey+key,String(value))}catch{}}}
@@ -478,7 +478,7 @@ document.addEventListener("visibilitychange",()=>{
 function exitGame(){if(gameDialog.open)gameDialog.close();if(location.pathname.startsWith("/play/"))history.replaceState({},"","/games");renderRoute()}
 
 document.getElementById("restart").addEventListener("click",()=>{
- if(active==="2048"&&tileScore>0)recordSession("2048"+(grid.length===4?"":"-"+grid.length),tileScore);
+ if(active==="2048"&&tileScore>0&&!gameOverRecorded)recordSession("2048"+(grid.length===4?"":"-"+grid.length),tileScore);
  openGame(active,{push:false,fresh:true})
 });
 function openGame(kind,{push=true,fresh=false}={}){
@@ -598,6 +598,7 @@ function moveTtt(i){
  if(mode==="bot"&&!tttFinished&&turn==="O")setTimeout(botMoveTtt,330)
 }
 function init2048(fresh=false){
+ gameOverRecorded=false;
  const configured=Number(getSetting("2048-size","4"));const size=[4,5,6].includes(configured)?configured:4;
  let saved=null;try{saved=!fresh?JSON.parse(localStorage.getItem("night-play-save-2048-"+size)||((size===4)?localStorage.getItem("night-play-save-2048"):"")||"null"):null}catch{}
  const valid=saved&&Number(saved.size||4)===size&&Array.isArray(saved.grid)&&saved.grid.length===size&&saved.grid.every(row=>Array.isArray(row)&&row.length===size&&row.every(n=>Number.isSafeInteger(n)&&n>=0));
@@ -622,7 +623,7 @@ function move2048(dir){
  spawn();record(tileBestKey(),tileScore);
  try{localStorage.setItem("night-play-save-2048-"+size,JSON.stringify({grid,size,score:tileScore,updatedAt:Date.now()}))}catch{}
  draw2048();
- if(!grid.flat().includes(0)){let moves=false;for(let r=0;r<size;r++)for(let c=0;c<size;c++)if((r<size-1&&grid[r][c]===grid[r+1][c])||(c<size-1&&grid[r][c]===grid[r][c+1]))moves=true;if(!moves){recordSession(tileBestKey(),tileScore);document.getElementById("gameHelp").textContent="No more moves! Start a new game to try again."}}
+ if(!grid.flat().includes(0)){let moves=false;for(let r=0;r<size;r++)for(let c=0;c<size;c++)if((r<size-1&&grid[r][c]===grid[r+1][c])||(c<size-1&&grid[r][c]===grid[r][c+1]))moves=true;if(!moves){if(!gameOverRecorded){recordSession(tileBestKey(),tileScore);gameOverRecorded=true}document.getElementById("gameHelp").textContent="No more moves! Start a new game to try again."}}
  }
 }
 function draw2048(){
@@ -694,7 +695,7 @@ function showSettings(){
       if(group.key==="snake-speed"){if(snakeTimer)clearInterval(snakeTimer);snakeTimer=setInterval(stepSnake,snakeTickMs())}
       if(group.key==="snake-style")drawSnake();
      }
-     if(active==="2048"){if(tileScore>0)recordSession("2048"+(grid.length===4?"":"-"+grid.length),tileScore);openGame("2048",{push:false,fresh:true});previousPause=false}
+     if(active==="2048"){if(tileScore>0&&!gameOverRecorded)recordSession("2048"+(grid.length===4?"":"-"+grid.length),tileScore);openGame("2048",{push:false,fresh:true});previousPause=false}
      if(active==="ttt"){openGame("ttt",{push:false,fresh:true});previousPause=false}
     }
    };
