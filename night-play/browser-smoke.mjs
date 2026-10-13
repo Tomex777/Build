@@ -108,6 +108,8 @@ try {
  await page.locator('.library-card[data-game="snake"]').click()
  assert.equal(await page.locator('.dpad').count(),0,'No Snake directional buttons exist')
  assert.ok(await page.locator('#snakeCanvas').evaluate(el=>el.getBoundingClientRect().width)>=370,'Snake board uses width instead of tiny centered box')
+ const arenaPlacement=await page.locator('.snake-shell').evaluate(el=>{const r=el.getBoundingClientRect();return {boardCenter:r.top+r.height/2,screenCenter:innerHeight/2}});
+ assert.ok(Math.abs(arenaPlacement.boardCenter-arenaPlacement.screenCenter)<30,'Snake arena must be central, not pushed down the screen')
  assert.equal(await page.locator('#snakeCanvas').evaluate(el=>getComputedStyle(el).imageRendering),'auto','No pixelated performance-heavy interpolation')
  assert.equal(await page.evaluate(()=>snakeTickMs()),115,'Classic speed restored and slightly quicker')
  await page.locator('#snakeOverlay').waitFor({state:'visible'})
