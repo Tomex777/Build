@@ -13,3 +13,89 @@
 @media(max-width:820px){.play-layout{grid-template-columns:1fr}.controls-col{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px}.info-panel{position:static}.fair-note{grid-column:1/-1}.board-area{min-height:200px}}@media(max-width:540px){.top{height:61px;padding:0 10px}.loc-tag{font-size:8px}.back span{display:none}#club{padding:17px 8px}.club-intro{padding:3px 5px}.club-intro h1{letter-spacing:-1.2px}.game-picks{flex-wrap:nowrap;overflow-x:auto;padding:5px 0 13px;scrollbar-width:thin}.game-picks button{white-space:nowrap}.play-heading{padding:0 3px}.play-heading h2{font-size:27px}.play-heading p{font-size:11px}.board-area{min-height:0}.ludo{border-width:3px}.l-base .yard{border-width:2px;padding:3px}.l-token{border-width:1px;min-width:9px;min-height:9px}.controls-col{grid-template-columns:1fr;gap:0;margin:10px 3px 0}.panel{padding:15px}.table-surface{padding:10px;border-width:5px}.estate-board{border-width:2px}footer{flex-direction:column}}@media(prefers-reduced-motion:reduce){*{transition:none!important;scroll-behavior:auto!important}}
 /* Player yards must layer above the 225 painted track tiles. */
 .l-base{position:relative;z-index:3}.l-base .yard{position:relative;z-index:4}.l-base .yard button{position:relative;z-index:5;touch-action:manipulation}
+
+
+/* Naija Ludo: familiar painted 4-house board, tactile dice, convincing counters. */
+.nj-board.ludo{
+  border:5px solid #30423a;border-radius:3px;
+  background:#fefdf4;box-shadow:0 7px 0 #aeb9af,0 11px 22px #3a4a3924;
+  max-width:600px;isolation:isolate;--board-shadow:#2e3e30;
+}
+.nj-board .l-cell{background:#fffdf5;border:1px solid #a9b3a7;z-index:0}
+.nj-board .l-cell.track{background:#fffef8}
+.nj-board .l-cell.red{background:#d93e47}
+.nj-board .l-cell.green{background:#309354}
+.nj-board .l-cell.yellow{background:#edbc32}
+.nj-board .l-cell.blue{background:#2e70b4}
+.nj-board .l-cell.nj-home-red{background:#e86367}
+.nj-board .l-cell.nj-home-green{background:#59ab71}
+.nj-board .l-cell.nj-home-yellow{background:#efc650}
+.nj-board .l-cell.nj-home-blue{background:#5e97ca}
+.nj-board .l-cell.nj-safe{background:#f9e0a1}
+.nj-board .l-cell.nj-center-tile{background:conic-gradient(from 45deg,#e0aa28 0 25%,#2774b3 25% 50%,#d9474e 50% 75%,#2c9154 75% 100%)}
+.nj-board .nj-yard{z-index:4;border:2px solid #fff8;background:var(--house);position:relative;align-items:center;justify-items:center;box-shadow:inset 0 0 12px #0002}
+.nj-yard .nj-yard-label{font-size:clamp(8px,1.3vw,13px);color:#fff;position:absolute;top:3%;left:7%;font-weight:950;letter-spacing:1px;text-shadow:0 1px 3px #0007;z-index:1;opacity:.9}
+.nj-yard.is-turn{box-shadow:inset 0 0 0 3px #fff9,inset 0 0 13px #0003}
+.nj-board .nj-yard .yard{background:#fffdf6;border:clamp(2px,.5vw,4px) solid #eff2e8;width:74%;height:74%;padding:7%;gap:6%;border-radius:3px;box-shadow:0 4px 5px #0003,inset 0 0 0 2px #c9d3c4}
+.nj-board .nj-yard .yard button{border:2px solid color-mix(in srgb,var(--house) 50%,white);border-radius:50%;padding:5%;background:#fffef8;box-shadow:inset 0 2px 5px #0002,0 2px 0 #89928842;display:grid;place-items:center;min-width:0;min-height:0}
+.nj-yard .yard button:disabled{opacity:1}
+.nj-piece.l-token{font-size:clamp(9px,2.2vw,17px);width:86%;height:86%;min-width:0;min-height:0;border:2px solid #fff9;display:grid;place-items:center;background:linear-gradient(160deg,color-mix(in srgb,var(--token) 60%,white) 0%,var(--token) 38%,color-mix(in srgb,var(--token) 72%,black) 100%);box-shadow:inset 0 3px 3px #ffffff77,inset 0 -4px 5px #0003,0 3px 2px #0006}
+.nj-yard .yard .nj-piece{width:100%;height:100%;font-size:clamp(9px,2vw,16px);display:grid}
+.nj-piece .nj-piece-core{border:1px solid #ffffff99;border-radius:50%;width:74%;height:74%;display:grid;place-items:center;color:#fff;font-weight:900;text-shadow:0 1px 2px #0008}
+.nj-board .l-cell .star{color:#715b2c;font-size:clamp(9px,1.9vw,20px);opacity:.85}
+.nj-board .l-cell .nj-arrow{font-size:clamp(11px,2.1vw,21px);color:#26392f;font-weight:1000}
+.nj-board .l-cell.nj-stacked .nj-piece{font-size:8px;width:48%;position:absolute}
+.nj-board .l-cell.nj-stacked .nj-piece:nth-of-type(1){left:0;top:1%}
+.nj-board .l-cell.nj-stacked .nj-piece:nth-of-type(2){right:0;bottom:1%}
+.nj-board .l-cell.nj-stacked .nj-piece:nth-of-type(3){right:0;top:1%}
+.nj-board .l-cell.nj-stacked .nj-piece:nth-of-type(4){left:0;bottom:1%}
+.nj-board .nj-piece:disabled{opacity:1}
+.nj-piece.eligible{outline:2px solid #23392d;outline-offset:2px;box-shadow:0 0 0 3px #ffffffdd,0 0 0 6px #242f2d,0 2px 4px #0005!important;z-index:3;animation:njPulse 1s infinite alternate}
+@keyframes njPulse{from{filter:brightness(1)}to{filter:brightness(1.25)}}
+.nj-dice-center{display:flex;align-items:center;justify-content:center;position:relative;z-index:6;padding:2px;background:linear-gradient(145deg,#184f65,#1b6a75 52%,#1e516c);border:2px solid #e3e5cc;border-radius:4px;box-shadow:inset 0 0 9px #143149,0 2px 4px #0004}
+.nj-dice-pair{display:flex;align-items:center;justify-content:center;gap:4px;width:100%;height:100%}
+.nj-center-button{background:none;border:0;padding:0;margin:0;width:min(40%,35px);aspect-ratio:1;display:grid;place-items:center;cursor:pointer}
+.nj-center-button:disabled{opacity:1}
+.nj-die{--dieSize:58px;display:block;position:relative;width:var(--dieSize);height:var(--dieSize);flex:0 0 auto;border:2px solid #f9faf7;border-radius:clamp(4px,1.1vw,11px);background:linear-gradient(145deg,#fff,#eef2ed);box-shadow:inset -3px -3px 5px #d5dad4,inset 2px 2px 4px #fff,0 5px 1px #b4b9b0,0 7px 9px #0004;transform:rotate(-3deg)}
+.nj-die .nj-pips{display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(3,1fr);width:78%;height:78%;position:absolute;left:11%;top:11%;gap:4%}
+.nj-pips i{display:block;min-width:0;min-height:0;border-radius:50%;margin:15%}
+.nj-pips i.lit{background:radial-gradient(circle at 35% 30%,#4f625b,#152821 70%);box-shadow:inset 0 1px 2px #0005,0 1px 1px #fff}
+.nj-center-button .nj-die{--dieSize:clamp(18px,6.3vw,38px);border-width:1px;box-shadow:inset -2px -2px 3px #ced2cb,0 2px 0 #adb6ac,0 3px 3px #0003}
+.nj-center-button .nj-pips{width:78%;height:78%}
+.nj-dice-controls{display:flex;align-items:center;justify-content:center;gap:18px;padding:15px 10px 18px;margin:4px auto 11px;background:radial-gradient(ellipse,#eff3ea 0%,#fffdf6 70%);border:1px solid #d5dbd2;border-radius:12px;max-width:280px}
+.nj-die-button{background:transparent;border:0;min-width:68px;min-height:68px;padding:2px;display:grid;place-items:center;position:relative;border-radius:10px}
+.nj-die-button .nj-die{--dieSize:58px}
+.nj-die-button.is-selected{background:#d5e9d7;outline:3px solid #347a50}
+.nj-die-button.is-used{opacity:.35;filter:grayscale(1)}
+.nj-die-button:disabled{opacity:1}
+.nj-die-button.is-used:disabled{opacity:.35}
+.nj-die-button.is-tumbling .nj-die,.nj-dice-center.is-rolling .nj-die{animation:njRattle .25s infinite ease-in-out;transform-origin:45% 85%}
+@keyframes njRattle{0%{transform:translate(-3px,-5px) rotate(-28deg) rotateX(25deg) scale(.91)}35%{transform:translate(3px,-10px) rotate(26deg) rotateY(30deg) scale(1.04)}70%{transform:translate(-4px,-3px) rotate(-18deg) scale(.96)}100%{transform:translate(3px,-5px) rotate(23deg) scale(1.03)}}
+.nj-roll-station{background:#fafcf8;border:1px solid #e1e7df;border-radius:12px;padding:12px 11px 16px;text-align:center}
+.nj-dice-caption{font-size:10px;letter-spacing:1.6px;font-weight:900;color:#516e5a}
+.nj-roll-btn{width:100%;min-height:54px;border-radius:9px;font-size:15px;box-shadow:0 3px 0 #0f251b}
+.nj-active-rolls{display:flex;gap:7px;align-items:center;flex-wrap:wrap;margin-top:12px;font-size:12px;text-align:left}
+.nj-active-rolls .nj-number{border:2px solid #c7d5c8;border-radius:7px;background:white;min-width:37px;padding:5px;font-size:16px;font-weight:900;text-align:center}
+.nj-number.is-selected{background:#d9f1df;border-color:#35764a}
+.nj-number.is-used{opacity:.35;text-decoration:line-through}
+.nj-options{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:15px 0 9px}
+.nj-options>label,.nj-options .nj-player-config{font-size:12px;color:#67736c;display:flex;flex-direction:column;gap:5px;min-width:0}
+.nj-options .select{width:100%;font-size:14px;padding:7px 9px;min-height:43px}
+.nj-sound{width:100%;background:#fff;border:1px solid #d3ded4;border-radius:8px;padding:12px 6px;font-size:12px;font-weight:800;margin-top:2px;min-height:43px}
+.nj-board.is-moving .nj-piece{transition:transform .095s ease-out}
+@media(max-width:540px){
+ .nj-board.ludo{border-width:3px}
+ .nj-board .nj-yard .yard{padding:5%}
+ .nj-board .nj-yard .yard button{border-width:1px;padding:3%}
+ .nj-yard .nj-yard-label{font-size:8px}
+ .nj-dice-center{padding:1px;border-width:1px}
+ .nj-dice-pair{gap:2px}
+ .nj-center-button{width:43%}
+ .nj-center-button .nj-die{--dieSize:clamp(18px,6.5vw,29px)}
+ .nj-die-button{min-width:72px;min-height:72px}
+ .nj-roll-station{padding:10px}
+ .nj-dice-controls{gap:24px;max-width:none;margin:7px 0 12px}
+}
+@media(prefers-reduced-motion:reduce){
+ .nj-die-button.is-tumbling .nj-die,.nj-dice-center.is-rolling .nj-die,.nj-piece.eligible{animation:none!important}
+}
