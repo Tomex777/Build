@@ -18,6 +18,10 @@
       "destination": "/index.html"
     },
     {
+      "source": "/profile",
+      "destination": "/index.html"
+    },
+    {
       "source": "/updates",
       "destination": "/index.html"
     }
