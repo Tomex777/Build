@@ -24,6 +24,8 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
+import androidx.compose.ui.Alignment
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -47,6 +49,10 @@ import coil.compose.AsyncImage
  * The Activity is internal and accepts no exported intents.
  */
 internal class AnnieImageViewerActivity : ComponentActivity() {
+    @Volatile internal var imageLoaded = false
+        private set
+    @Volatile internal var imageLoadError: String? = null
+        private set
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge(
@@ -65,6 +71,7 @@ internal class AnnieImageViewerActivity : ComponentActivity() {
                     image, caption,
                     onEdit = { startActivity(AnnieImageEditorActivity.intent(this, source, projectId)) },
                     onClose = ::finish,
+                    onLoadState = { loaded, problem -> imageLoaded = loaded; imageLoadError = problem },
                 )
             }
         }
@@ -85,22 +92,40 @@ internal class AnnieImageViewerActivity : ComponentActivity() {
 
 @Composable
 private fun FullScreenImageContent(
-    model: String?, caption: String, onEdit: () -> Unit, onClose: () -> Unit
+    model: String?, caption: String, onEdit: () -> Unit, onClose: () -> Unit,
+    onLoadState: (Boolean, String?) -> Unit,
 ) {
     var scale by remember { mutableFloatStateOf(1f) }
     var translation by remember { mutableStateOf(Offset.Zero) }
     var viewport by remember { mutableStateOf(IntSize.Zero) }
+    var imageSize by remember(model) { mutableStateOf(IntSize.Zero) }
+    val imageData = remember(model) { annieImageRequestData(model) }
+    var retry by remember(model) { mutableStateOf(0) }
+    var loading by remember(model, retry) { mutableStateOf(imageData != null) }
+    var failed by remember(model, retry) { mutableStateOf(false) }
 
     Box(
         modifier = Modifier.fillMaxSize().background(Color(0xFF030811))
             .clipToBounds().onSizeChanged { viewport = it }
             .testTag("script_image_fullscreen_viewport")
     ) {
-        if (model == null) {
+        if (imageData == null) {
             Text("This image is unavailable.", color = Color.White, modifier = Modifier.padding(24.dp))
-        } else {
+        } else key(retry) {
             AsyncImage(
-                model = model,
+                model = imageData,
+                onLoading = { loading = true; onLoadState(false, null) },
+                onSuccess = {
+                    imageSize = IntSize(it.result.drawable.intrinsicWidth, it.result.drawable.intrinsicHeight)
+                    loading = false
+                    failed = false
+                    onLoadState(true, null)
+                },
+                onError = {
+                    loading = false
+                    failed = true
+                    onLoadState(false, "Couldn't load this image.")
+                },
                 contentDescription = caption.ifBlank { "Full-screen image" },
                 contentScale = ContentScale.Fit,
                 modifier = Modifier.fillMaxSize()
@@ -113,8 +138,9 @@ private fun FullScreenImageContent(
                     .pointerInput(Unit) {
                         detectTransformGestures { _, pan, zoom, _ ->
                             val nextScale = (scale * zoom).coerceIn(1f, 5f)
-                            val maxX = viewport.width * (nextScale - 1f) / 2f
-                            val maxY = viewport.height * (nextScale - 1f) / 2f
+                            val (maxX, maxY) = annieImagePanBounds(
+                                imageSize.width, imageSize.height, viewport.width, viewport.height, nextScale,
+                            )
                             scale = nextScale
                             translation = if (nextScale == 1f) Offset.Zero else Offset(
                                 (translation.x + pan.x).coerceIn(-maxX, maxX),
@@ -130,6 +156,14 @@ private fun FullScreenImageContent(
                     }
                     .testTag("script_image_fullscreen")
             )
+        }
+        if (loading || failed) {
+            Column(Modifier.align(Alignment.Center), horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(if (failed) "Couldn't load this image." else "Loading image…", color = Color.White)
+                if (failed) TextButton(onClick = { retry++ }, modifier = Modifier.testTag("script_image_retry")) {
+                    Text("Retry", color = Color.White)
+                }
+            }
         }
         Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding()) {
             Row(

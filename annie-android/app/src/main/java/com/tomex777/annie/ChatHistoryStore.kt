@@ -138,6 +138,18 @@ internal object ChatHistoryStore {
             null
         }.getOrNull()
 
+    /** End partial replies when their owning runtime closes or loses its permission. */
+    fun interruptScriptStreams(context: Context, scriptId: String) {
+        read(context).flatMap { it.messages }.filter { it.scriptId == scriptId }.forEach { entry ->
+            val payload = runCatching { JSONObject(entry.scriptMessageJson.orEmpty()) }.getOrNull() ?: return@forEach
+            if (payload.optBoolean("streaming")) {
+                val handle = entry.scriptHandleId?.takeIf(String::isNotBlank) ?: return@forEach
+                payload.put("streaming", false).put("streamFailed", true)
+                updateScriptMessage(context, handle, scriptId, payload.toString())
+            }
+        }
+    }
+
     private fun appendEntry(
         context: Context,
         chatId: String,

@@ -6,7 +6,13 @@ internal object StarterScripts {
      * The length and Java String hash identify the exact previously-shipped starter source.
      */
     internal fun migrateCanvasSnake(source: String): String =
-        if (source.length == 4749 && source.hashCode() == -1907834826) canvasSnake else source
+        if ((source.length == 4749 && source.hashCode() == -1907834826) ||
+            // Exact first bundled swipe-first Canvas game, before low-load frames.
+            // Never overwrite anything the user has changed in Script Studio.
+            (source.length == 9968 && source.hashCode() == -42891262) ||
+            // Exact intermediate performance-tuned Snake before the Android 8
+            // native-touch compatibility fix. Never rewrite edited scripts.
+            (source.length == 10641 && source.hashCode() == 2106237142)) canvasSnake else source
 
     internal fun migrateChess(source: String): String {
         var migrated = source
@@ -308,6 +314,14 @@ internal object StarterScripts {
         |          const cell = (x,y) => ({x,y});
         |          let snake, previous, food, direction, pending, points, record = 0;
         |          let started = false, lost = false, moves = 0, accumulator = 0, lastFrame = 0;
+        |          let frameScheduled = false;
+        |          function scheduleFrame() {
+        |            // On Android 8 a perpetually active 60fps WebView can starve
+        |            // chat/Compose idle transitions even while the game is waiting.
+        |            if (!started || lost || frameScheduled) return;
+        |            frameScheduled = true;
+        |            setTimeout(() => requestAnimationFrame(frame), 32);
+        |          }
         |          function placeFood() {
         |            if (snake.length === cells*cells) { lost = true; status.textContent = 'Board cleared! Tap to replay'; return; }
         |            do { food = cell(rand(), rand()); }
@@ -331,6 +345,7 @@ internal object StarterScripts {
         |            started = true;
         |            hint.classList.add('hidden');
         |            status.textContent = 'Swipe to change direction';
+        |            scheduleFrame();
         |          }
         |          function turn(name) {
         |            if (!vectors[name]) return;
@@ -392,15 +407,17 @@ internal object StarterScripts {
         |            });
         |          }
         |          function frame(time) {
+        |            frameScheduled = false;
+        |            // Idle and game-over screens are static. Do not redraw them
+        |            // indefinitely or retain a background animation loop.
+        |            if (!started || lost) return;
         |            if (!lastFrame) lastFrame=time;
         |            const delta = Math.min(48,time-lastFrame);
         |            lastFrame=time;
-        |            if (started && !lost) {
-        |              accumulator += delta;
-        |              if (accumulator >= interval) { accumulator -= interval; tick(); }
-        |            }
+        |            accumulator += delta;
+        |            if (accumulator >= interval) { accumulator -= interval; tick(); }
         |            draw(started && !lost ? Math.min(1,accumulator/interval) : 1);
-        |            requestAnimationFrame(frame);
+        |            scheduleFrame();
         |          }
         |          function swipe(dx,dy) {
         |            if (Math.max(Math.abs(dx),Math.abs(dy)) < 16) return false;
@@ -408,7 +425,10 @@ internal object StarterScripts {
         |            return true;
         |          }
         |          let origin = null;
+        |          let touchOrigin = null;
+        |          let pointerStarts = 0, pointerMoves = 0, touchStarts = 0, touchMoves = 0;
         |          surface.addEventListener('pointerdown', event => {
+        |            pointerStarts++;
         |            origin={x:event.clientX,y:event.clientY};
         |            if (lost) play();
         |            else if (!started) play();
@@ -416,6 +436,7 @@ internal object StarterScripts {
         |            event.preventDefault();
         |          });
         |          surface.addEventListener('pointermove', event => {
+        |            pointerMoves++;
         |            if (!origin) return;
         |            if (swipe(event.clientX-origin.x,event.clientY-origin.y))
         |              origin={x:event.clientX,y:event.clientY};
@@ -428,6 +449,37 @@ internal object StarterScripts {
         |          };
         |          surface.addEventListener('pointerup',finish);
         |          surface.addEventListener('pointercancel', () => { origin=null; });
+        |          // Android 8 WebView may deliver a real swipe as TouchEvents
+        |          // without dispatching the matching PointerEvent sequence.
+        |          // Support both native event families; do not synthesize gestures.
+        |          surface.addEventListener('touchstart', event => {
+        |            if (event.touches.length !== 1) return;
+        |            const t = event.touches[0];
+        |            touchStarts++;
+        |            touchOrigin = {x:t.clientX, y:t.clientY};
+        |            if (!started || lost) play();
+        |            event.preventDefault();
+        |          }, {passive:false});
+        |          surface.addEventListener('touchmove', event => {
+        |            if (!touchOrigin || event.touches.length !== 1) return;
+        |            const t = event.touches[0];
+        |            touchMoves++;
+        |            if (swipe(t.clientX-touchOrigin.x,t.clientY-touchOrigin.y)) {
+        |              touchOrigin={x:t.clientX,y:t.clientY};
+        |            }
+        |            event.preventDefault();
+        |          }, {passive:false});
+        |          surface.addEventListener('touchend', event => {
+        |            if (!touchOrigin) return;
+        |            const t = event.changedTouches[0];
+        |            if (t) swipe(t.clientX-touchOrigin.x,t.clientY-touchOrigin.y);
+        |            touchOrigin=null;
+        |            event.preventDefault();
+        |          }, {passive:false});
+        |          surface.addEventListener('touchcancel', () => { touchOrigin=null; });
+        |          window.annieCanvasInputDiagnostics = () => ({
+        |            pointerStarts, pointerMoves, touchStarts, touchMoves
+        |          });
         |          document.addEventListener('keydown', event => {
         |            const key = event.key.replace('Arrow','').toLowerCase();
         |            const mapped = key==='w'?'up':key==='a'?'left':key==='s'?'down':key==='d'?'right':key;
@@ -438,7 +490,8 @@ internal object StarterScripts {
         |            direction, pending, moves, score:points, started, lost
         |          });
         |          reset();
-        |          requestAnimationFrame(frame);
+        |          // reset() already renders the ready-to-play board. Only schedule
+        |          // frames after a real swipe/tap starts the game.
         |          window.annieCanvasSnakeReady = true;
         |        })();
         |      `

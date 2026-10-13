@@ -10,9 +10,11 @@ internal data class AnniePackageManifest(
     val version: String,
     val apiVersion: String,
     val entryPoint: String,
-    val requires: Map<String, String> = emptyMap(),
+    /** Compatibility range from requires.annie. */
+    val requires: String? = null,
     val publisher: AnniePackagePublisher? = null,
-    val networkHosts: Set<String> = emptySet(),
+    /** Declared network hosts; actual HTTP enforcement is a separate feature. */
+    val networkHosts: List<String> = emptyList(),
     val permissions: Set<String> = emptySet(),
     val commands: List<AnniePackageCommand> = emptyList(),
     val sources: List<AnniePackageSource> = emptyList(),
@@ -24,8 +26,10 @@ internal data class AnniePackageManifest(
     val capabilities: Set<String> = emptySet(),
     val generated: Boolean = false,
 ) {
+    val validationMode: ValidationMode get() = ApiCompatibility.modeFor(apiVersion) ?: ValidationMode.LEGACY
+
     companion object {
-        const val CURRENT_API_VERSION = "1"
+        const val CURRENT_API_VERSION = "2"
         private const val SYNTHETIC_VERSION = "0.0.0-local"
 
         /** Metadata synthesized for existing scripts that predate manifest.json. */
@@ -34,7 +38,7 @@ internal data class AnniePackageManifest(
                 packageId = projectId,
                 displayName = displayName,
                 version = SYNTHETIC_VERSION,
-                apiVersion = CURRENT_API_VERSION,
+                apiVersion = "1",
                 entryPoint = entryPoint,
                 generated = true,
             )

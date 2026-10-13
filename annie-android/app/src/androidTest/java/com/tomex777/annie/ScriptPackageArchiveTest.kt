@@ -718,7 +718,7 @@ class ScriptPackageArchiveTest {
             assertEquals(listOf("cards.js", "chess.js"), preview.entryCandidates)
             runCatching { AnniePackageArchive.install(InstrumentationRegistry.getInstrumentation().targetContext, archive) }
                 .onSuccess { error("Import must require entry selection") }
-                .onFailure { assertTrue(it.message.orEmpty().contains("Choose a valid JavaScript entry point")) }
+                .onFailure { assertTrue(it.message.orEmpty().contains("Choose a valid script entry point")) }
         } finally {
             archive.delete()
         }

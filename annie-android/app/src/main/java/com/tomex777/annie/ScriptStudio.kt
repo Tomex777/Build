@@ -11,6 +11,8 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.systemBars
@@ -179,8 +181,9 @@ internal fun ScriptStudioSheet(
     // Use the host window insets: the full-screen dialog can report no gesture
     // navigation inset on Android 16 while still drawing behind its handle.
     val systemBars = WindowInsets.systemBars.asPaddingValues()
+    var dismissRequest by remember { mutableStateOf(0) }
     Dialog(
-        onDismissRequest = onClose,
+        onDismissRequest = { dismissRequest += 1 },
         properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false),
     ) {
         Box(Modifier.fillMaxSize().background(StudioPanel).padding(systemBars).consumeWindowInsets(systemBars)) {
@@ -188,6 +191,7 @@ internal fun ScriptStudioSheet(
             workspace = workspace,
             onCommandsReloaded = onCommandsReloaded,
             onClose = onClose,
+            dismissRequest = dismissRequest,
             initialProjectId = initialProjectId,
             openEnvironment = openEnvironment,
             openPackageImport = openPackageImport,
@@ -204,6 +208,7 @@ private fun ScriptStudioContent(
     workspace: ScriptWorkspace,
     onCommandsReloaded: (List<ScriptCommand>) -> Unit,
     onClose: () -> Unit,
+    dismissRequest: Int,
     initialProjectId: String?,
     openEnvironment: Boolean,
     openPackageImport: Boolean,
@@ -213,6 +218,8 @@ private fun ScriptStudioContent(
 ) {
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
+    var hostAiSettings by remember { mutableStateOf(false) }
+    if (hostAiSettings) HostAiSettings { hostAiSettings = false }
     val focusManager = LocalFocusManager.current
     val keyboardController = LocalSoftwareKeyboardController.current
     val scriptAssistant = remember { ScriptAssistant() }
@@ -237,7 +244,7 @@ private fun ScriptStudioContent(
     var saving by remember { mutableStateOf(false) }
     var previewResult by remember { mutableStateOf<String?>(null) }
     var previewOpen by remember { mutableStateOf(false) }
-    var newFileName by remember { mutableStateOf("") }
+    var dialogFileType by remember { mutableStateOf<String?>(null) }
     var dialogTitle by remember { mutableStateOf<String?>(null) }
     var dialogValue by remember { mutableStateOf("") }
     var dialogAction by remember { mutableStateOf<(String) -> Unit>({}) }
@@ -263,6 +270,15 @@ private fun ScriptStudioContent(
         if (editorValue.text == savedSource) return
         workspace.files.writeFile(id, path, editorValue.text)
         savedSource = editorValue.text
+    }
+
+    fun saveBeforeNavigation(): Boolean = !saving && runCatching { flushPendingEdits() }
+        .onFailure { status = "Could not save previous file: " + (it.message ?: "unknown error") }
+        .isSuccess
+
+    // System Back and outside dismissal must preserve a draft just like Close.
+    LaunchedEffect(dismissRequest) {
+        if (dismissRequest > 0 && saveBeforeNavigation()) onClose()
     }
 
     // Persist source quietly, never reloading the JS engine just because someone types.
@@ -311,16 +327,18 @@ private fun ScriptStudioContent(
         savedSource = source
     }
 
-    fun selectFile(project: ScriptProject, path: String, openEditor: Boolean = true) {
-        runCatching { flushPendingEdits() }.onFailure { status = "Could not save previous file" }
+    fun selectFile(project: ScriptProject, path: String, openEditor: Boolean = true): Boolean {
+        if (!saveBeforeNavigation()) return false
+        val source = runCatching { workspace.files.readFile(project.id, path) }
+            .getOrElse { status = "Could not open file: " + (it.message ?: "unknown error"); return false }
         selectedProjectId = project.id
         selectedPath = path
         currentDirectory = path.substringBeforeLast('/', "")
-        val source = project.files[path].orEmpty()
         editorValue = TextFieldValue(source, selection = TextRange(source.length))
         savedSource = source
         status = ""
         if (openEditor) page = StudioPage.EDITOR
+        return true
     }
 
     fun saveScript(runAfterSave: Boolean = false, openPreview: Boolean = false) {
@@ -369,18 +387,26 @@ private fun ScriptStudioContent(
         }
         val path = selectedPath ?: return
         val extension = path.substringAfterLast('.', "").lowercase()
-        if (extension !in setOf("html", "css")) {
-            status = "Only self-contained HTML and CSS documents support offline preview"
+        if (extension !in setOf("html", "css", "js")) {
+            status = "Choose HTML, CSS, or a JavaScript file belonging to an HTML project"
             return
         }
         val source = editorValue.text
+        val files = workspace.files.listProjects().firstOrNull { it.id == project.id }?.files.orEmpty() + (path to source)
+        val entry = ScriptWebPreview.entry(files, path)
+        val html = runCatching {
+            if (entry != null) ScriptWebPreview.bundle(files, entry)
+            else {
+                require(extension == "css") { "This JavaScript file has no index.html or main.html to preview" }
+                "<main><h1>CSS preview</h1><p>Style this text or the sample button to see your rules.</p><button>Sample button</button></main>"
+            }
+        }.getOrElse { status = it.message ?: "Couldn't prepare project preview"; return }
         val document = org.json.JSONObject()
             .put("type", "canvas")
             .put("title", "Preview • " + path.substringAfterLast('/'))
             .put("height", 460)
-            .put("html", if (extension == "html") source else
-                "<main><h1>CSS preview</h1><p>Style this text or the sample button to see your rules.</p><button>Sample button</button></main>")
-            .put("css", if (extension == "css") source else "")
+            .put("html", html)
+            .put("css", if (entry == null && extension == "css") source else "")
         // Reuse Canvas's offline WebView sandbox. No device bridge, local file
         // access, network fetches, or browser cookies are exposed to previews.
         if (AnnieCanvasDocument.from(document) == null) {
@@ -404,7 +430,7 @@ private fun ScriptStudioContent(
     }
 
     val importScript = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
-        if (uri != null) scope.launch {
+        if (uri != null && saveBeforeNavigation()) scope.launch {
             runCatching {
                 val source = withContext(Dispatchers.IO) {
                     context.contentResolver.openInputStream(uri)?.bufferedReader(Charsets.UTF_8)?.use { it.readText() }
@@ -413,6 +439,7 @@ private fun ScriptStudioContent(
                 val displayName = context.contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)
                     ?.use { cursor -> if (cursor.moveToFirst()) cursor.getString(0) else null }
                     ?: uri.lastPathSegment.orEmpty().substringAfterLast('/')
+                if (!saveBeforeNavigation()) return@launch
                 val file = workspace.files.importJavaScript(displayName, source)
                 refreshProjects(file.nameWithoutExtension, file.name)
                 status = "Imported ${file.name} · disabled until you review and enable it"
@@ -460,12 +487,14 @@ private fun ScriptStudioContent(
     }
     LaunchedEffect(importFile) {
         val file = importFile ?: return@LaunchedEffect
+        if (!saveBeforeNavigation()) { onFileImportOpened(); return@LaunchedEffect }
         runCatching {
             if (file.extension.equals("js", true)) {
                 val staged = withContext(Dispatchers.IO) {
                     require(file.length() <= 2L * 1024 * 1024) { "Script is too large" }
                     workspace.files.importJavaScript(file.name, file.readText())
                 }
+                if (!saveBeforeNavigation()) { onFileImportOpened(); return@LaunchedEffect }
                 refreshProjects(staged.nameWithoutExtension, staged.name)
                 status = "Imported · review and enable to run"
             } else {
@@ -492,14 +521,15 @@ private fun ScriptStudioContent(
         }
     }
 
-    val exportScript = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("text/javascript")) { uri ->
+    val exportScript = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        val uri = result.data?.data?.takeIf { result.resultCode == android.app.Activity.RESULT_OK }
         val pending = pendingExport
         pendingExport = null
         if (uri != null && pending != null) scope.launch {
             runCatching {
                 withContext(Dispatchers.IO) {
                     context.contentResolver.openOutputStream(uri)?.bufferedWriter(Charsets.UTF_8)?.use { it.write(pending.second) }
-                        ?: error("Could not write the JavaScript file")
+                        ?: error("Could not write the document")
                 }
             }.onSuccess { status = "Exported ${pending.first}" }
                 .onFailure { status = it.message ?: "Export failed" }
@@ -520,9 +550,13 @@ private fun ScriptStudioContent(
         }
     }
 
-    fun exportFile(name: String, source: String) {
-        pendingExport = name to source
-        exportScript.launch(name)
+    fun exportFile(project: ScriptProject, path: String) {
+        runCatching {
+            val source = studioDocumentSource(workspace.files, project.id, path, selectedProjectId, selectedPath, editorValue.text)
+            val name = path.substringAfterLast('/')
+            pendingExport = name to source
+            exportScript.launch(studioExportIntent(name))
+        }.onFailure { pendingExport = null; status = it.message ?: "Could not export file" }
     }
 
     fun exportAiSpec() {
@@ -535,26 +569,25 @@ private fun ScriptStudioContent(
         exportSpec.launch(AnnieScriptSpec.FILE_NAME)
     }
 
-    fun shareFile(name: String, source: String) {
+    fun shareProjectFile(project: ScriptProject, path: String) {
         runCatching {
-            val directory = File(context.cacheDir, "shared-scripts").apply { mkdirs() }
-            val sharedFile = File(directory, name).apply { writeText(source) }
-            val sharedUri = FileProvider.getUriForFile(context, "${context.packageName}.script-files", sharedFile)
-            val send = Intent(Intent.ACTION_SEND).apply {
-                type = "text/javascript"
-                putExtra(Intent.EXTRA_STREAM, sharedUri)
-                clipData = android.content.ClipData.newUri(context.contentResolver, name, sharedUri)
-                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-            }
-            context.startActivity(Intent.createChooser(send, "Share script").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
-            status = "Sharing $name"
-        }.onFailure { status = it.message ?: "Could not share script" }
+            val source = studioDocumentSource(workspace.files, project.id, path, selectedProjectId, selectedPath, editorValue.text)
+            val send = studioShareIntent(context, path, source)
+            context.startActivity(Intent.createChooser(send, "Share file").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+            status = "Sharing ${path.substringAfterLast('/')}"
+        }.onFailure { status = it.message ?: "Could not share file" }
     }
 
     fun askForText(title: String, initial: String = "", action: (String) -> Unit) {
         dialogTitle = title
+        dialogFileType = null
         dialogValue = initial
-        dialogAction = action
+        dialogAction = { value -> if (saveBeforeNavigation()) action(value) }
+    }
+
+    fun askForFileName(title: String, initial: String = "", action: (String) -> Unit) {
+        askForText(title, initial, action)
+        dialogFileType = studioDefaultFileType(selectedPath)
     }
 
     val selectedProject = projects.firstOrNull { it.id == selectedProjectId }
@@ -572,13 +605,16 @@ private fun ScriptStudioContent(
                 Text("Script Studio", color = StudioText, fontSize = 21.sp, fontWeight = FontWeight.Bold)
                 Text(selectedProject?.let { "${it.name} · ${selectedPath ?: it.entryPath}" } ?: "Your JavaScript workspace", color = StudioMuted, fontSize = 12.sp, maxLines = 1)
             }
+            StudioAction("Host AI", onClick = { hostAiSettings = true })
             StudioAction(
                 label = when { saving -> "Preparing…"; dirty -> "Preview •"; else -> "Preview" },
                 emphasized = !saving,
                 icon = StudioGlyph.RUN,
                 onClick = {
                     when (selectedPath?.substringAfterLast('.', "")?.lowercase()) {
-                        "js" -> saveScript(runAfterSave = true, openPreview = true)
+                        "ts", "py", "lua" -> saveScript(runAfterSave = true, openPreview = true)
+                        "js" -> if (ScriptWebPreview.entry(selectedProject?.files.orEmpty(), selectedPath.orEmpty()) != null) previewDocument()
+                            else saveScript(runAfterSave = true, openPreview = true)
                         "html", "css" -> previewDocument()
                         else -> status = "Preview supports JavaScript commands and offline HTML/CSS documents."
                     }
@@ -586,7 +622,7 @@ private fun ScriptStudioContent(
                 enabled = !saving && selectedProject != null && selectedPath != null,
             )
             Spacer(Modifier.width(8.dp))
-            StudioIconAction(StudioGlyph.CLOSE, "Close Script Studio", onClick = onClose)
+            StudioIconAction(StudioGlyph.CLOSE, "Close Script Studio", onClick = { if (saveBeforeNavigation()) onClose() })
         }
 
         Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp).background(StudioSurface, RoundedCornerShape(13.dp)).padding(4.dp)) {
@@ -607,14 +643,12 @@ private fun ScriptStudioContent(
                 Row(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     StudioAction("New File", emphasized = true, icon = StudioGlyph.ADD, onClick = {
                         val owner = selectedProject?.takeIf { File(workspace.files.root, it.id).isDirectory }
-                        askForText(if (owner == null) "New script" else "New file", "") { rawName ->
+                        askForFileName("New file", "") { rawName ->
                             runCatching {
-                                val name = rawName.trim().let { raw ->
-                                    if (raw.substringAfterLast('/').contains('.')) raw else "$raw.js"
-                                }
+                                val name = rawName
                                 if (owner != null) {
                                     workspace.files.createFile(owner.id, listOf(currentDirectory.trim('/'), name).filter(String::isNotBlank).joinToString("/"))
-                                } else if (name.endsWith(".js", ignoreCase = true)) {
+                                } else if (isExecutableScript(name)) {
                                     workspace.files.createScript(name)
                                 } else {
                                     // Non-JS documents always belong to a project directory.
@@ -654,7 +688,7 @@ private fun ScriptStudioContent(
                     })
                 }
 
-                StudioInput(query, { query = it }, "Search files", Modifier.fillMaxWidth().padding(horizontal = 14.dp))
+                StudioInput(query, { query = it }, "Search files", Modifier.fillMaxWidth().padding(horizontal = 14.dp), tag = "script_file_search")
                 if (projects.isEmpty()) {
                     EmptyStudioState("No scripts yet", "Create a file or folder to start a script project.")
                 } else {
@@ -673,7 +707,7 @@ private fun ScriptStudioContent(
                                         isFolder = isFolder,
                                         isEntry = true,
                                         selected = selectedProjectId == project.id && selectedPath == project.entryPath,
-                                        onClick = { if (isFolder) { runCatching { flushPendingEdits() }; selectedProjectId = project.id; selectedPath = project.entryPath; currentDirectory = "" } else selectFile(project, project.entryPath) },
+                                        onClick = { if (isFolder) { if (selectFile(project, project.entryPath, openEditor = false)) currentDirectory = "" } else selectFile(project, project.entryPath) },
                                         actions = listOf(
                                             FileAction.RENAME,
                                             FileAction.SHARE,
@@ -688,8 +722,8 @@ private fun ScriptStudioContent(
                                                         .onSuccess { id -> refreshProjects(id, if (isFolder) "main.js" else "$id.js"); status = "Renamed to $id" }
                                                         .onFailure { status = it.message ?: "Rename failed" }
                                                 }
-                                                FileAction.SHARE -> shareFile(project.entryPath, project.files[project.entryPath].orEmpty())
-                                                FileAction.EXPORT -> exportFile(project.entryPath, project.files[project.entryPath].orEmpty())
+                                                FileAction.SHARE -> shareProjectFile(project, project.entryPath)
+                                                FileAction.EXPORT -> exportFile(project, project.entryPath)
                                                 FileAction.PERMISSIONS -> permissionsProject = project
                                                 FileAction.DELETE -> askForText("Type ${project.name} to delete", "") { confirm ->
                                                     if (confirm == project.name) {
@@ -791,8 +825,8 @@ private fun ScriptStudioContent(
                                                             }
                                                             .onFailure { status = it.message ?: "Rename failed" }
                                                     }
-                                                    FileAction.SHARE -> shareFile(path.substringAfterLast('/'), project.files[path].orEmpty())
-                                                    FileAction.EXPORT -> exportFile(path.substringAfterLast('/'), project.files[path].orEmpty())
+                                                    FileAction.SHARE -> shareProjectFile(project, path)
+                                                    FileAction.EXPORT -> exportFile(project, path)
                                                     FileAction.DELETE -> askForText(
                                                         "Type ${path.substringAfterLast('/')} to delete", ""
                                                     ) { confirmation ->
@@ -832,7 +866,7 @@ private fun ScriptStudioContent(
                         }
                         StudioAction("AI spec", icon = StudioGlyph.ASSIST, onClick = { exportAiSpec() }, enabled = !saving)
                         Spacer(Modifier.width(7.dp))
-                        StudioAction("Run", emphasized = true, icon = StudioGlyph.RUN, onClick = { saveScript(runAfterSave = true) }, enabled = !saving && path.endsWith(".js", ignoreCase = true))
+                        StudioAction("Run", emphasized = true, icon = StudioGlyph.RUN, onClick = { saveScript(runAfterSave = true) }, enabled = !saving && isExecutableScript(path))
                     }
                     val matches = remember(query, editorValue.text) {
                         if (query.isBlank()) 0 else Regex(Regex.escape(query), RegexOption.IGNORE_CASE).findAll(editorValue.text).count()
@@ -875,7 +909,7 @@ private fun ScriptStudioContent(
                         value = editorValue,
                         onValueChange = { editorValue = it },
                         onEditorReady = { codeEditor = it },
-                        enabled = true,
+                        enabled = !saving,
                         modifier = Modifier.weight(1f).fillMaxWidth().padding(horizontal = 8.dp).testTag("script_editor"),
                     )
                     ScriptConsolePanel(
@@ -941,10 +975,28 @@ private fun ScriptStudioContent(
                 titleContentColor = StudioText,
                 textContentColor = StudioMuted,
                 title = { Text(dialogTitle.orEmpty()) },
-                text = { StudioInput(dialogValue, { dialogValue = it }, "Name", Modifier.fillMaxWidth()) },
+                text = {
+                    Column {
+                        StudioInput(dialogValue, { dialogValue = it }, "Name", Modifier.fillMaxWidth(), tag = "script_file_name")
+                        if (dialogFileType != null) {
+                            Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())) {
+                                StudioFileTypes.forEach { type ->
+                                    TextButton(onClick = { dialogFileType = type },
+                                        modifier = Modifier.testTag("script_file_type_$type")) {
+                                        Text((if (dialogFileType == type) "✓ " else "") + type.uppercase(),
+                                            color = if (dialogFileType == type) StudioBlue else StudioMuted)
+                                    }
+                                }
+                            }
+                            Text("A filename extension overrides the selected type.", color = StudioMuted, fontSize = 11.sp)
+                        }
+                    }
+                },
                 confirmButton = {
                     TextButton(onClick = {
-                        val value = dialogValue
+                        val value = if (dialogFileType == null) dialogValue else
+                            runCatching { studioNewFileName(dialogValue, dialogFileType!!) }
+                                .getOrElse { status = it.message ?: "Enter a filename"; return@TextButton }
                         dialogTitle = null
                         dialogAction(value)
                     }) { Text("Continue", color = StudioBlue) }
@@ -1042,6 +1094,7 @@ private fun ScriptStudioContent(
                     TextButton(
                         enabled = selectedPackageEntry in preview.javaScriptFiles,
                         onClick = {
+                            if (!saveBeforeNavigation()) return@TextButton
                             val archive = pendingPackageArchive ?: return@TextButton
                             scope.launch {
                                 runCatching {
@@ -1049,6 +1102,7 @@ private fun ScriptStudioContent(
                                         AnniePackageArchive.install(context, archive, selectedPackageEntry, pendingPackageName)
                                     }
                                 }.onSuccess { imported ->
+                                    if (!saveBeforeNavigation()) return@onSuccess
                                     archive.delete()
                                     pendingPackageArchive = null
                                     pendingPackageName = ""
@@ -1123,6 +1177,7 @@ private fun ScriptStudioContent(
                 fileName = selectedPath.orEmpty(),
                 currentSource = editorValue.text,
                 assistant = scriptAssistant,
+                webProject = ScriptWebPreview.entry(selectedProject.files, selectedPath.orEmpty()) != null,
                 onDismiss = { assistOpen = false },
                 onApply = { proposed ->
                     editorValue = TextFieldValue(proposed, selection = TextRange(proposed.length))
@@ -1146,16 +1201,14 @@ private fun ScriptStudioContent(
                 onCreateNew = { proposed ->
                     assistOpen = false
                     val owner = selectedProject?.takeIf { File(workspace.files.root, it.id).isDirectory }
-                    askForText("New file from Assist", "generated.js") { rawName ->
+                    askForFileName("New file from Assist", "generated") { rawName ->
                         runCatching {
                             // Respect the user's requested extension. Previously Assist
                             // appended .js to generated.html, generated.py, etc.
-                            val name = rawName.trim().let { raw ->
-                                if (raw.substringAfterLast('/').contains('.')) raw else "$raw.js"
-                            }
+                            val name = rawName
                             val file = if (owner != null) {
                                 workspace.files.createFile(owner.id, name)
-                            } else if (name.endsWith(".js", ignoreCase = true)) {
+                            } else if (isExecutableScript(name)) {
                                 workspace.files.createScript(name)
                             } else {
                                 // Standalone projects require an executable JS entry point;
@@ -1562,6 +1615,9 @@ private fun ApiReferenceScreen(search: String, onSearch: (String) -> Unit, onExp
     val clipboard = LocalClipboardManager.current
     val entries = remember {
         listOf(
+            ApiEntry("Mixed-language calls", "annie.runtime.call(path, input, functionName?)", "Call a package-local Python or Lua function with JSON data. Guests run as restricted computation workers, with fresh state, without filesystem/network/native access. Python and Lua entries define main(ctx).", "const result = await annie.runtime.call(\"logic.py\", { value: 21 });\nreturn annie.messages.text(String(result));"),
+            ApiEntry("Host AI", "annie.ai.generate/stream(prompt)", "API 2 packages need the ai capability, ai.generate permission and a user grant. Configure your Anthropic key and model in Host AI. Stream also needs messages and messages.post. Scripts never receive the host key; provider usage may cost money.", "await annie.ai.stream(ctx.text);\nreturn null;"),
+            ApiEntry("Streaming replies", "annie.messages.stream(initial?)", "Create one persistent text message, append incremental text, then finish or cancel. Requires the messages capability and messages.post permission. Partial replies are marked interrupted when their runtime closes.", "const reply = await annie.messages.stream(\"Working\");\nawait reply.append(\"… done\");\nawait reply.finish();\nreturn null;"),
             ApiEntry("Commands", "annie.commands.register({...})", "Register a slash command with a name, description, and async execute(ctx) handler.", "annie.commands.register({\n  name: \"hello\",\n  async execute(ctx) {\n    return { type: \"text\", text: \"Hi!\" };\n  }\n});"),
             ApiEntry("Match results", "annie.messages.matches(value)", "Render source-labeled native results with optional relevance scores; selection routes back to the owning script action.", "return annie.messages.matches({\n  title: \"Choose a source\",\n  items: [{ id: \"train\", title: \"Evening Train\", sourceName: \"North catalog\", relevance: 0.92, action: \"details\" }]\n});"),
             ApiEntry("Package sources", "manifest.sources[]", "Register the media categories and slash command provided by this catalog source. The command must also be declared in commands and registered in JavaScript.", "{\n  \"commands\": [{ \"name\": \"search\", \"description\": \"Search catalog\" }],\n  \"sources\": [{ \"id\": \"catalog\", \"name\": \"North catalog\", \"mediaTypes\": [\"anime\", \"movie\"], \"command\": \"search\" }]\n}"),
@@ -1727,7 +1783,11 @@ private class AnnieScriptCodeEditor(context: android.content.Context) : CodeEdit
         return object : InputConnectionWrapper(connection, false) {
             private fun deleteSelectedText(): Boolean {
                 if (!isTextSelected()) return false
-                deleteText()
+                val cursor = text.cursor
+                val start = text.getCharIndex(cursor.leftLine, cursor.leftColumn)
+                val end = text.getCharIndex(cursor.rightLine, cursor.rightColumn)
+                if (start >= end) return false
+                text.replace(start, end, "")
                 notifyIMEExternalCursorChange()
                 onTextSync?.invoke()
                 return true

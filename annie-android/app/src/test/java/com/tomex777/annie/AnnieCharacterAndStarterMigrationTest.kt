@@ -70,4 +70,35 @@ class AnnieCharacterAndStarterMigrationTest {
         assertTrue("""action === "hint"""" in migrated)
         assertTrue("""action === "resign"""" in migrated)
     }
+    @Test fun canvasSnakeRendersStaticIdleStateWithoutPermanentFrameLoop() {
+        val source = StarterScripts.canvasSnake
+        assertTrue("Canvas must initially draw a playable board", "draw(1);" in source)
+        assertTrue("Game should render after play", "scheduleFrame();" in source)
+        assertTrue("Canvas startup must not run an endless animation",
+            "reset();\n          requestAnimationFrame(frame);" !in source)
+        assertTrue("Frame rate should be throttled on older Android WebViews",
+            "setTimeout(() => requestAnimationFrame(frame), 32);" in source)
+        assertTrue("Idle frames should stop after the game finishes",
+            "if (!started || lost) return;" in source)
+    }
+
+    @Test fun canvasSnakeMigrationPreservesCustomEditedScripts() {
+        val edited = StarterScripts.canvasSnake + "\n// user customization"
+        assertEquals(edited, StarterScripts.migrateCanvasSnake(edited))
+        val userOriginal = StarterScripts.canvasSnake.replace("Swipe to change direction", "My game!")
+        assertEquals(userOriginal, StarterScripts.migrateCanvasSnake(userOriginal))
+        assertEquals(StarterScripts.canvasSnake,
+            StarterScripts.migrateCanvasSnake(StarterScripts.canvasSnake))
+        val oldStarter = "old game seed"
+        assertEquals(oldStarter, StarterScripts.migrateCanvasSnake(oldStarter))
+    }
+
+    @Test fun canvasSnakeHandlesNativeTouchAsWellAsPointerEvents() {
+        val source = StarterScripts.canvasSnake
+        assertTrue("Android 8 touchstart fallback missing", "addEventListener('touchstart'" in source)
+        assertTrue("Touch move must call game steering", "swipe(t.clientX-touchOrigin.x,t.clientY-touchOrigin.y)" in source)
+        assertTrue("Prevent WebView scrolling from intercepting game touches", "{passive:false}" in source)
+        assertTrue("Modern pointer input must remain supported", "addEventListener('pointerdown'" in source)
+    }
+
 }

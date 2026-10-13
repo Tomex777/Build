@@ -47,3 +47,10 @@ async function main(): Promise<void> {
 }
 void main();
 declare const console: { log(...args: unknown[]): void };
+
+async function runtimeExpansionExamples() {
+  const result: unknown = await annie.runtime.call("logic.py", { value: 21 });
+  const response: { text: string } = await annie.ai.generate("Explain this value");
+  const stream: AnnieMessageHandle = await annie.ai.stream("Explain this value incrementally");
+  return {result, response, stream};
+}

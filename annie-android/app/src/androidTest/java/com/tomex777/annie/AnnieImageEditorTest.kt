@@ -4,11 +4,34 @@ import android.graphics.Bitmap
 import android.graphics.Color
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertTrue
+import androidx.test.platform.app.InstrumentationRegistry
+import kotlinx.coroutines.runBlocking
 import org.junit.Test
 import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
 class AnnieImageEditorTest {
+    @Test fun inlineImageDecodesIntoBoundedEditableBitmap() = runBlocking {
+        val source = Bitmap.createBitmap(16_384, 8, Bitmap.Config.ARGB_8888)
+        source.eraseColor(Color.GREEN)
+        val output = java.io.ByteArrayOutputStream()
+        assertTrue(source.compress(Bitmap.CompressFormat.PNG, 100, output))
+        val uri = "data:image/png;base64," + java.util.Base64.getEncoder().encodeToString(output.toByteArray())
+        val decoded = loadEditableAnnieBitmap(InstrumentationRegistry.getInstrumentation().targetContext, uri)
+        try {
+            assertNotNull("Inline image must be editable offline", decoded)
+            assertTrue("Editable width must be bounded", decoded!!.width <= 4096)
+            assertTrue(decoded.height >= 1)
+            assertEquals(Color.GREEN, decoded.getPixel(decoded.width / 2, decoded.height / 2))
+            assertEquals(16_384, source.width)
+        } finally {
+            decoded?.recycle()
+            source.recycle()
+        }
+    }
+
     @Test fun editsRotateRealBitmapWithoutChangingOriginal() {
         val source = Bitmap.createBitmap(4, 2, Bitmap.Config.ARGB_8888)
         source.eraseColor(Color.RED)

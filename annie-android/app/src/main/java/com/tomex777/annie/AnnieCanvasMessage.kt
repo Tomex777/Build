@@ -58,8 +58,8 @@ internal data class AnnieCanvasDocument(
 ) {
     fun page(): String {
         // Do not let inline JS or CSS close their containing tag accidentally.
-        val safeCss = css.replace(Regex("</style", RegexOption.IGNORE_CASE), "<\\/style")
-        val safeJs = javascript.replace(Regex("</script", RegexOption.IGNORE_CASE), "<\\/script")
+        val safeCss = css.replace(Regex("</style", RegexOption.IGNORE_CASE)) { "<\\/" + it.value.substring(2) }
+        val safeJs = javascript.replace(Regex("</script", RegexOption.IGNORE_CASE)) { "<\\/" + it.value.substring(2) }
         return """
             <!doctype html>
             <html lang="en"><head>

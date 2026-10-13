@@ -3,7 +3,7 @@ set -euo pipefail
 
 python3 annie-android/ci/generic-file-fixture.py > annie-generic-fixture.log 2>&1 &
 GENERIC_FIXTURE_PID=$!
-trap 'kill "$GENERIC_FIXTURE_PID" 2>/dev/null || true' EXIT
+trap 'kill "$GENERIC_FIXTURE_PID" "${TEST_LOGCAT_PID:-}" 2>/dev/null || true' EXIT
 
 # Keep the debug cleartext policy restricted to loopback. The server remains
 # outside Annie so it survives force-stop and instrumentation termination.
@@ -21,11 +21,27 @@ for attempt in range(30):
         time.sleep(.2)
 FIXTURE_READY
 
+# Keep the test-runner checkpoints outside logcat's bounded ring buffer. Older
+# emulator WebViews can flood EGL messages and erase the last useful test stage.
+mkdir -p annie-android/build/ci-test-reports
+adb logcat -v threadtime -s TestRunner:I AnnieCanvasTest:I AndroidRuntime:E \
+    > annie-android/build/ci-test-reports/instrumentation-checkpoints.txt 2>&1 &
+TEST_LOGCAT_PID=$!
+
+SUITE_TIMEOUT=15m
+if [ "$(adb shell getprop ro.build.version.sdk | tr -d '\r')" = 26 ]; then
+    SUITE_TIMEOUT=45m
+fi
 set +e
-gradle --no-daemon --stacktrace -p annie-android :app:connectedDebugAndroidTest \
+# A bounded suite timeout leaves time to collect evidence and upload it before
+# the API26 job's 80-minute limit. A timeout fails acceptance; no tests are skipped.
+timeout --signal=TERM --kill-after=30s "$SUITE_TIMEOUT" gradle --no-daemon --stacktrace -p annie-android :app:connectedDebugAndroidTest \
     -Pandroid.testInstrumentationRunnerArguments.notPackage=com.tomex777.annie.processdeath
 TEST_STATUS=$?
 set -e
+if [ "$TEST_STATUS" -eq 124 ] || [ "$TEST_STATUS" -eq 137 ]; then
+    echo '::error::Full instrumentation timed out; see instrumentation-checkpoints.txt and logcat evidence.'
+fi
 PROCESS_STATUS=0
 SCREENSHOT_DIR="annie-android/build/emulator-screenshots"
 CI_REPORT_DIR="annie-android/build/ci-test-reports"

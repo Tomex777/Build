@@ -25,7 +25,7 @@ class ExtensionPermissionLabelTest {
         val resolver = object : PackageAssetResolver {
             override fun resolveAssetFile(projectId: String, logicalId: String): File = File("unused")
         }
-        val definitions = CoreAndroidOperationProvider(NoBackend(), resolver).operations + downloadOperationDefinitions() + messageOperationDefinitions()
+        val definitions = CoreAndroidOperationProvider(NoBackend(), resolver).operations + downloadOperationDefinitions() + messageOperationDefinitions() + hostAiOperationDefinitions()
         val permissions = definitions.flatMap { it.permissions }.toSet()
         assertTrue(permissions.isNotEmpty())
         permissions.forEach { permission ->

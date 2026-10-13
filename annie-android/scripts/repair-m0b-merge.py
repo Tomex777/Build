@@ -64,7 +64,7 @@ def package(src: str) -> str:
         if src.count('val '+field) != 1: raise RepairError(f'duplicate/missing {field}')
     return src
 
-MANIFEST_PARSE = '''        val apiVersion = json.optString("apiVersion").ifBlank { AnniePackageManifest.CURRENT_API_VERSION }
+MANIFEST_PARSE = '''        val apiVersion = json.optString("apiVersion").ifBlank { "1" }
         // Validation and version-range checks share one contract; do not pre-empt
         // them with the historical exact-equality or independent regex checks.
         val requiresObject = manifestObject(json, "requires")

@@ -1,0 +1,99 @@
+name: Annie voice recording and browser restoration acceptance
+
+on:
+  push:
+    branches: [annie-rc-voice-recording-20261011, annie-rc-download-history-20261011, annie-rc-lifecycle-tabs-20261011, annie-rc-acceptance-repair-20261011, annie-rc-file-types-20261011]
+    paths:
+      - 'annie-android/**'
+      - '.github/workflows/annie-voice-recording-acceptance.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: annie-voice-recording-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  voice-browser-acceptance:
+    name: Android ${{ matrix.api }} voice recording and tab restoration
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        api: [26, 36]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: 'platform-tools platforms;android-36 build-tools;36.0.0'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '9.7.1'
+      - name: Validate overlay, run JVM tests and compile device tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 annie-android/scripts/test-repair-contract.py
+          python3 annie-android/scripts/repair-m0b-merge.py
+          sh annie-android/scripts/check-annie-types.sh
+          gradle --no-daemon --stacktrace -p annie-android :app:testDebugUnitTest :app:assembleDebug :app:assembleDebugAndroidTest
+      - name: Install Android emulator and API system image
+        shell: bash
+        run: |
+          set -euo pipefail
+          sdkmanager --install emulator
+          bash annie-android/ci/install-emulator-system-image.sh ${{ matrix.api }}
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Run real microphone, playback and tab recreation tests
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: ${{ matrix.api }}
+          target: google_apis
+          arch: x86_64
+          profile: pixel_2
+          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -no-boot-anim -partition-size 4096
+          script: bash annie-android/ci/run-rc-and-canvas-tests.sh
+      - name: Require all Canvas gesture and fullscreen methods
+        if: always()
+        shell: bash
+        run: |
+          python3 - <<'PYTHON'
+          from pathlib import Path
+          import xml.etree.ElementTree as ET
+          expected = {
+              "interactiveCanvasRunsOfflineAndRetainsItsWebViewAcrossFullscreen",
+              "builtInSnakeCommandProducesPlayableCanvasAndCapturesItsChatPreview",
+              "snakeCanvasAppearsInsideTheRealChatAndAcceptsFingerSwipes",
+          }
+          cases = {}
+          for report in Path("annie-android/app/build/outputs/androidTest-results").rglob("*.xml"):
+              root = ET.parse(report).getroot()
+              for case in root.iter("testcase"):
+                  if case.get("classname") == "com.tomex777.annie.AnnieCanvasMessageTest":
+                      cases[case.get("name")] = case
+          assert expected <= cases.keys(), f"Missing Canvas acceptance methods: {expected - cases.keys()}"
+          for name in expected:
+              assert all(cases[name].find(tag) is None for tag in ("failure", "error", "skipped")), name
+          print("PASS all three Canvas methods, including native gestures and fullscreen continuity")
+          PYTHON
+      - name: Upload voice recording and tab restoration report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: annie-voice-browser-api${{ matrix.api }}-test-report
+          path: |
+            annie-android/app/build/outputs/androidTest-results/
+            annie-android/app/build/reports/androidTests/
+            annie-android/build/rc-feature-reports/
+            annie-android/app/build/test-results/
+            annie-android/app/build/reports/tests/
+          if-no-files-found: warn
+          retention-days: 7

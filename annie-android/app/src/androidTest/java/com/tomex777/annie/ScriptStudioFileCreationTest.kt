@@ -1,0 +1,170 @@
+package com.tomex777.annie
+
+import androidx.activity.ComponentActivity
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.hasTestTag
+import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performTextClearance
+import androidx.compose.ui.test.performTextInput
+import androidx.test.espresso.Espresso.onView
+import androidx.test.espresso.matcher.ViewMatchers.isAssignableFrom
+import io.github.rosemoe.sora.widget.CodeEditor
+import androidx.test.espresso.Espresso.closeSoftKeyboard
+import androidx.test.espresso.Espresso.pressBack
+import androidx.test.ext.junit.runners.AndroidJUnit4
+import androidx.test.platform.app.InstrumentationRegistry
+import java.io.File
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
+import org.junit.Rule
+import org.junit.Test
+import org.junit.runner.RunWith
+
+@RunWith(AndroidJUnit4::class)
+class ScriptStudioFileCreationTest {
+    @get:Rule val compose = createAndroidComposeRule<ComponentActivity>()
+
+    @Test fun typeSelectionCreatesHtmlAndExplicitCssExtensionOverridesIt() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val workspace = ScriptWorkspace(context)
+        val folder = workspace.files.createFolder("filetypes${System.nanoTime()}")
+        val shown = mutableStateOf(true)
+        try {
+            compose.setContent {
+                AnnieTheme {
+                    if (shown.value) ScriptStudioSheet(workspace, onCommandsReloaded = {}, initialProjectId = folder.name)
+                }
+            }
+            compose.onNodeWithText("New File").performClick()
+            compose.onNodeWithTag("script_file_name").performTextInput("board")
+            compose.onNodeWithTag("script_file_type_html").performClick()
+            compose.onNodeWithText("Continue").performClick()
+            compose.waitUntil(8_000) { File(folder, "board.html").isFile }
+            assertFalse(File(folder, "board.js").exists())
+            assertTrue(File(folder, "board.html").readText().startsWith("<!doctype html>"))
+
+            compose.onNodeWithText("Files", substring = false).performClick()
+            compose.onNodeWithText("New File").performClick()
+            // HTML is inferred from the current document, but an explicit suffix
+            // still wins even when the selector says JavaScript.
+            compose.onNodeWithTag("script_file_type_js").performClick()
+            compose.onNodeWithTag("script_file_name").performTextInput("theme.css")
+            compose.onNodeWithText("Continue").performClick()
+            compose.waitUntil(8_000) { File(folder, "theme.css").isFile }
+            assertFalse(File(folder, "theme.css.js").exists())
+            assertTrue(File(folder, "theme.css").readText().startsWith("/*"))
+            saveEmulatorScreenshot("annie-studio-selected-file-types")
+        } finally {
+            compose.runOnIdle { shown.value = false }
+            compose.runOnIdle { workspace.close() }
+            workspace.files.deleteProject(folder.name)
+        }
+    }
+    @Test fun failedDiskWriteKeepsDraftAndBlocksFileSwitchAndClose() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val workspace = ScriptWorkspace(context)
+        val name = "savefail" + System.nanoTime().toString().takeLast(8)
+        val file = workspace.files.createScript(name)
+        val otherName = "other" + System.nanoTime().toString().takeLast(8)
+        val other = workspace.files.createScript(otherName)
+        workspace.files.writeFile(name, file.name, "const value = 'needle';")
+        val shown = mutableStateOf(true)
+        var closed = false
+        try {
+            compose.setContent { AnnieTheme {
+                if (shown.value) ScriptStudioSheet(workspace, {}, initialProjectId = name,
+                    onClose = { closed = true })
+            } }
+            compose.onNodeWithTag("script_tab_editor").performClick()
+            // Replace the backing file with a directory to force a real write failure.
+            assertTrue(file.delete())
+            assertTrue(file.mkdir())
+            compose.onNodeWithTag("Find and replace").performClick()
+            compose.onNodeWithTag("script_find_query").performTextInput("needle")
+            compose.onNodeWithTag("script_replace_text").performTextInput("retained")
+            compose.onNodeWithTag("Replace all matches").performClick()
+            compose.onNodeWithTag("script_find_query").performTextClearance()
+            compose.onNodeWithText("Files", substring = false).performClick()
+            compose.onNodeWithTag("script_file_search").performTextInput(otherName)
+            closeSoftKeyboard()
+            compose.waitForIdle()
+            compose.onNodeWithText(other.name, substring = false).performClick()
+            compose.onNodeWithText("Could not save previous file:", substring = true).assertExists()
+            compose.onNodeWithText("$name · ${file.name}").assertExists()
+            compose.onNodeWithTag("Close Script Studio").performClick()
+            assertFalse("Failed save must keep Studio open", closed)
+            pressBack()
+            compose.waitForIdle()
+            assertFalse("System Back must preserve a draft after failed save", closed)
+            compose.onNodeWithText("Could not save previous file:", substring = true).assertExists()
+            // Recover storage, then navigation must write the retained draft.
+            assertTrue(file.delete())
+            file.writeText("const value = 'needle';")
+            compose.onNodeWithText(other.name, substring = false).performClick()
+            compose.waitUntil(8_000) { file.isFile && file.readText().contains("retained") }
+            assertTrue(file.readText().contains("retained"))
+            compose.onNodeWithText("Files", substring = false).performClick()
+            compose.onNodeWithTag("script_file_search").performTextClearance()
+            compose.onNodeWithTag("script_file_search").performTextInput(name)
+            closeSoftKeyboard()
+            compose.onNodeWithText(file.name, substring = false).performClick()
+            onView(isAssignableFrom(CodeEditor::class.java)).check { view, failure ->
+                if (failure != null) throw failure
+                assertTrue("Reopening must retain the latest saved source", (view as CodeEditor).text.toString().contains("retained"))
+            }
+            closeSoftKeyboard()
+            pressBack()
+            compose.waitForIdle()
+            assertTrue("System Back may close after the draft is saved", closed)
+        } finally {
+            compose.runOnIdle { shown.value = false }
+            compose.waitForIdle()
+            workspace.close()
+            // Restore the damaged fixture before cleanup so it cannot mask assertions.
+            if (file.isDirectory) file.deleteRecursively()
+            if (!file.isFile) file.writeText("")
+            workspace.files.deleteProject(name)
+            workspace.files.deleteProject(otherName)
+        }
+    }
+
+    @Test fun folderSelectionLoadsItsOwnEntryWithoutLeakingOtherDraft() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val workspace = ScriptWorkspace(context)
+        val suffix = System.nanoTime().toString().takeLast(8)
+        val first = workspace.files.createFolder("first$suffix")
+        val second = workspace.files.createFolder("second$suffix")
+        val firstSource = "const owner = 'first';"
+        val secondSource = "const owner = 'second';"
+        workspace.files.writeFile(first.name, "main.js", firstSource)
+        workspace.files.writeFile(second.name, "main.js", secondSource)
+        val shown = mutableStateOf(true)
+        try {
+            compose.setContent { AnnieTheme {
+                if (shown.value) ScriptStudioSheet(workspace, {}, initialProjectId = first.name)
+            } }
+            compose.onNodeWithTag("script_file_search").performTextInput(second.name)
+            closeSoftKeyboard()
+            compose.onNode(hasText(second.name, substring = false) and !hasTestTag("script_file_search")).performClick()
+            compose.onNodeWithTag("script_tab_editor").performClick()
+            onView(isAssignableFrom(CodeEditor::class.java)).check { view, failure ->
+                if (failure != null) throw failure
+                org.junit.Assert.assertEquals(secondSource, (view as CodeEditor).text.toString())
+            }
+            org.junit.Assert.assertEquals(firstSource, workspace.files.readFile(first.name, "main.js"))
+            org.junit.Assert.assertEquals(secondSource, workspace.files.readFile(second.name, "main.js"))
+        } finally {
+            compose.runOnIdle { shown.value = false }
+            compose.waitForIdle()
+            workspace.close()
+            workspace.files.deleteProject(first.name)
+            workspace.files.deleteProject(second.name)
+        }
+    }
+
+}
+

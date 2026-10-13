@@ -1688,6 +1688,7 @@ internal fun ScriptImageMessage(data: org.json.JSONObject, scriptId: String) {
     val imageModel = remember(uri, scriptId) {
         uri?.let { value ->
             resolvePackageAsset(context, scriptId, value) ?: value.takeUnless { it.startsWith("annie-asset://") }
+                ?.let(::annieImageRequestData)
         }
     }
     Column(
@@ -3479,7 +3480,7 @@ internal fun Composer(
             if (!voiceNotes.recording) Surface(color = if (dictation.listening) Color(0xFFFF4D4D) else Bubble, shape = CircleShape, modifier = Modifier.size(44.dp).clickable(onClick = ::startSpeechRecognition).testTag("composer_speech")) {
                 Box(contentAlignment = Alignment.Center) {
                     Icon(
-                        imageVector = AnnieIcons.AudioTrack,
+                        imageVector = AnnieIcons.Dictation,
                         contentDescription = if (dictation.listening) "Stop dictation" else "Dictate a message",
                         tint = if (dictation.listening) Color.White else SoftText,
                         modifier = Modifier.size(22.dp),

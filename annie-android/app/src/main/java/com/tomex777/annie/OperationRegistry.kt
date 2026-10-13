@@ -177,6 +177,7 @@ internal data class OperationInvocation(
     val projectId: String? = null,
     val chatId: String? = null,
     val validationMode: ValidationMode = ValidationMode.STRICT,
+    val apiVersion: Int = 2,
 )
 
 internal interface OperationProvider {
@@ -229,6 +230,9 @@ internal class OperationRegistry {
             AnnieErrorCode.UNSUPPORTED, "Operation is not available: $id", id
         )
 
+        if (operation.since > invocation.apiVersion) throw AnnieError(
+            AnnieErrorCode.UNSUPPORTED, "Operation requires Annie API ${operation.since}", id,
+        )
         if (!invocation.isPackage) throw AnnieError(
             AnnieErrorCode.NOT_A_PACKAGE,
             "Only imported packages can use Android bridge APIs",

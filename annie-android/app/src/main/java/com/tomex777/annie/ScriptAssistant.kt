@@ -11,6 +11,7 @@ internal data class ScriptAssistRequest(
     val instruction: String,
     val fileName: String,
     val currentSource: String,
+    val webProject: Boolean = false,
 )
 
 internal data class ScriptAssistValidation(
@@ -56,12 +57,12 @@ internal class AnthropicScriptAssistantProvider(
                 appendLine("Current source:")
                 appendLine(request.currentSource)
                 appendLine()
-                appendLine("Return the complete proposed JavaScript source for this file only.")
+                appendLine("Return the complete proposed source in the language of ${request.fileName}, for this file only.")
             }
             val body = JSONObject()
                 .put("model", model)
                 .put("max_tokens", 6_000)
-                .put("system", ANNIE_SCRIPT_ASSIST_SYSTEM)
+                .put("system", scriptAssistSystemPrompt(request.fileName, request.webProject))
                 .put(
                     "messages",
                     JSONArray().put(
@@ -172,6 +173,19 @@ private fun stripMarkdownFence(value: String): String {
     val firstNewline = trimmed.indexOf('\n')
     if (firstNewline < 0) return trimmed
     return trimmed.substring(firstNewline + 1, trimmed.length - 3).trim()
+}
+
+internal fun scriptAssistSystemPrompt(fileName: String, webProject: Boolean = false): String {
+    val type = fileName.substringAfterLast('.', "js").lowercase()
+    if (type == "js" && webProject) return """You are Script Assist inside Annie. Return complete classic browser JavaScript for the selected offline HTML project, without Markdown fences or explanation. DOM and Canvas APIs are available; network requests and Annie QuickJS/Android bridges are unavailable. Preserve existing DOM element IDs and local file references."""
+    return when (type) {
+        "html", "css" -> """You are Script Assist inside Annie. Edit only the requested $type file and return its complete source without Markdown fences or explanation. HTML projects use relative local CSS and classic JavaScript files in an offline Canvas sandbox. Network requests and Android bridges are unavailable in that preview. Preserve existing local file references. Do not turn an HTML or CSS file into a QuickJS command."""
+        "json", "md", "txt" -> """You are Script Assist inside Annie. Edit only the requested $type document and return its complete content without surrounding code fences or explanation. Preserve its document format; do not replace it with a JavaScript command."""
+        "py" -> """You are Script Assist inside Annie. Return complete Python source without Markdown fences or explanation. Annie executes restricted CPython computation functions. Define main(ctx) accepting JSON and return JSON; a command entry returns a message such as {"type":"text","text":"Hello"}. Only public math imports are available. Filesystem, networking, Java imports, classes, introspection and third-party packages are unavailable. JavaScript can call this file through annie.runtime.call(path, input). Do not place Annie's JavaScript API inside Python code."""
+        "lua" -> """You are Script Assist inside Annie. Return complete Lua 5.2 source without Markdown fences or explanation. Define function main(ctx) receiving JSON-compatible data and return JSON-compatible values or a message table. Lua runs in a computation worker without io, os, require, luajava, debug or dynamic loading. JavaScript calls this file through annie.runtime.call(path, input). Do not invent a native Annie table inside Lua."""
+        "ts" -> """Annie supports offline TypeScript transpilation into its QuickJS runtime, including annotations, interfaces, enums and generics. Semantic type checking is separate. Use package-local ES module imports only. Return complete TypeScript source for this file. """ + ANNIE_SCRIPT_ASSIST_SYSTEM
+        else -> ANNIE_SCRIPT_ASSIST_SYSTEM
+    }
 }
 
 private const val ANNIE_SCRIPT_ASSIST_SYSTEM = """You are Script Assist inside Annie, a native Android commands-first media/script app.

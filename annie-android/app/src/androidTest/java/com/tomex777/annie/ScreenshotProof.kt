@@ -15,6 +15,10 @@ import java.io.FileOutputStream
 
 /** Recover Android 16's transient System UI ANR dialog and then capture the real app surface. */
 internal fun recoverSystemUiAnr() {
+    // Android 8's animated WebView can keep accessibility queries waiting
+    // indefinitely. This recovery is specifically for Android 16 System UI;
+    // older devices capture pixels directly without an accessibility idle probe.
+    if (Build.VERSION.SDK_INT < 36) return
     val instrumentation = InstrumentationRegistry.getInstrumentation()
     val device = UiDevice.getInstance(instrumentation)
     val dialog = By.textContains("System UI isn't responding")
@@ -31,12 +35,15 @@ internal fun recoverSystemUiAnr() {
 
 internal fun saveEmulatorScreenshot(name: String): Uri {
     val instrumentation = InstrumentationRegistry.getInstrumentation()
+    android.util.Log.i("AnnieCanvasTest", "screenshot $name: capture requested")
     recoverSystemUiAnr()
+    android.util.Log.i("AnnieCanvasTest", "screenshot $name: recovery complete")
     val context = instrumentation.targetContext
     val safe = name.replace(Regex("[^A-Za-z0-9_.-]"), "_")
     val screenshot = checkNotNull(instrumentation.uiAutomation.takeScreenshot()) {
         "Android could not capture the current emulator display: $safe"
     }
+    android.util.Log.i("AnnieCanvasTest", "screenshot $name: pixels captured")
     if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
         val pictureDirectory = checkNotNull(context.getExternalFilesDir(Environment.DIRECTORY_PICTURES)) {
             "App-specific picture storage is unavailable for emulator screenshot: $safe"
@@ -54,12 +61,29 @@ internal fun saveEmulatorScreenshot(name: String): Uri {
         screenshot.recycle()
         // AGP removes app-specific external storage when uninstalling the test target.
         // Copy through the test shell so API 26 evidence survives that cleanup.
-        instrumentation.uiAutomation.executeShellCommand("mkdir -p /sdcard/Pictures/AnnieCI").use {
-            android.os.ParcelFileDescriptor.AutoCloseInputStream(it).readBytes()
+        android.util.Log.i("AnnieCanvasTest", "screenshot $name: copying evidence")
+        // UiAutomation's Android 8 command endpoint starts a process directly;
+        // shell operators in the command string are not interpreted. Execute a
+        // short app-owned script explicitly and consume its completion marker.
+        val copyScript = File(directory, "copy-$safe.sh")
+        copyScript.writeText("""
+            set -e
+            mkdir -p /sdcard/Pictures/AnnieCI
+            cp '${file.absolutePath}' '/sdcard/Pictures/AnnieCI/${file.name}'
+            echo ANNIE_SCREENSHOT_SAVED
+        """.trimIndent())
+        try {
+            instrumentation.uiAutomation.executeShellCommand("sh ${copyScript.absolutePath}").use { descriptor ->
+                android.os.ParcelFileDescriptor.AutoCloseInputStream(descriptor).bufferedReader().use { reader ->
+                    check(reader.readLine() == "ANNIE_SCREENSHOT_SAVED") {
+                        "Could not preserve emulator screenshot: $safe"
+                    }
+                }
+            }
+        } finally {
+            copyScript.delete()
         }
-        instrumentation.uiAutomation.executeShellCommand("cp ${file.absolutePath} /sdcard/Pictures/AnnieCI/${file.name}").use {
-            android.os.ParcelFileDescriptor.AutoCloseInputStream(it).readBytes()
-        }
+        android.util.Log.i("AnnieCanvasTest", "screenshot $name: saved and copied")
         return Uri.fromFile(file)
     }
     val values = ContentValues().apply {
