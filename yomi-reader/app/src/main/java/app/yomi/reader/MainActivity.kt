@@ -86,6 +86,8 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.io.File
+import java.util.zip.ZipFile
 
 class MainActivity : ComponentActivity() {
     private val libraryStore by lazy { LocalLibraryStore(this) }
@@ -258,29 +260,59 @@ class MainActivity : ComponentActivity() {
 
     private fun createCoverThumbnail(uri: Uri, pageName: String, bookId: String): String? {
         return runCatching {
-            val input = contentResolver.openInputStream(uri) ?: return@runCatching null
-            val pageBytes = input.use { ZipArchiveScanner.readPage(it, pageName) }
-            val bytes = (pageBytes as? app.yomi.reader.local.ArchivePageRead.Success)?.bytes ?: return@runCatching null
-
-            val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-            BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bounds)
-            if (bounds.outWidth <= 0 || bounds.outHeight <= 0 || bounds.outWidth.toLong() * bounds.outHeight > 250_000_000L) return@runCatching null
-            var sampleSize = 1
-            while (maxOf(bounds.outWidth, bounds.outHeight) / sampleSize > 640) sampleSize *= 2
-            val bitmap = BitmapFactory.decodeByteArray(
-                bytes,
-                0,
-                bytes.size,
-                BitmapFactory.Options().apply { inSampleSize = sampleSize },
-            ) ?: return@runCatching null
-
-            val directory = java.io.File(filesDir, "covers").apply { mkdirs() }
-            val filename = bookId.filter { it.isLetterOrDigit() || it == '-' || it == '_' }.ifBlank { "book" } + ".jpg"
-            val file = java.io.File(directory, filename)
-            file.outputStream().buffered().use { bitmap.compress(Bitmap.CompressFormat.JPEG, 84, it) }
-            bitmap.recycle()
-            Uri.fromFile(file).toString()
+            val bitmap = if (uri.scheme == "file") {
+                // Imported ACTION_VIEW books live in app-private files. Decode only
+                // the requested ZIP member instead of allocating its whole image
+                // and decompressing all earlier chapters for every cover attempt.
+                val local = uri.path?.let(::File)?.takeIf { it.isFile }
+                    ?: return@runCatching null
+                ZipFile(local).use { archive ->
+                    val entry = archive.getEntry(pageName)
+                        ?: archive.entries().asSequence().firstOrNull {
+                            it.name.replace('\\', '/') == pageName
+                        }
+                        ?: return@runCatching null
+                    if (entry.isDirectory) return@runCatching null
+                    val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+                    archive.getInputStream(entry).use { BitmapFactory.decodeStream(it, null, bounds) }
+                    if (!isSafeCoverDimensions(bounds)) return@runCatching null
+                    archive.getInputStream(entry).use {
+                        BitmapFactory.decodeStream(
+                            it,
+                            null,
+                            BitmapFactory.Options().apply { inSampleSize = coverSampleSize(bounds) },
+                        )
+                    }
+                }
+            } else {
+                // SAF-only providers without a seekable file retain the bounded
+                // sequential ZIP scanner. Do not require private storage access.
+                val source = contentResolver.openInputStream(uri) ?: return@runCatching null
+                val read = source.use { ZipArchiveScanner.readPage(it, pageName) }
+                val bytes = (read as? app.yomi.reader.local.ArchivePageRead.Success)?.bytes
+                    ?: return@runCatching null
+                val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+                BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bounds)
+                if (!isSafeCoverDimensions(bounds)) return@runCatching null
+                BitmapFactory.decodeByteArray(
+                    bytes,
+                    0,
+                    bytes.size,
+                    BitmapFactory.Options().apply { inSampleSize = coverSampleSize(bounds) },
+                )
+            } ?: return@runCatching null
+            saveCoverBitmap(bitmap, bookId)
         }.getOrNull()
+    }
+
+    private fun isSafeCoverDimensions(bounds: BitmapFactory.Options): Boolean =
+        bounds.outWidth > 0 && bounds.outHeight > 0 &&
+            bounds.outWidth.toLong() * bounds.outHeight.toLong() <= 250_000_000L
+
+    private fun coverSampleSize(bounds: BitmapFactory.Options): Int {
+        var sample = 1
+        while (maxOf(bounds.outWidth, bounds.outHeight) / sample > 640) sample *= 2
+        return sample
     }
 
     private suspend fun inspectFolder(
@@ -346,17 +378,22 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun saveCoverBitmap(bitmap: Bitmap, bookId: String): String? {
-        return runCatching {
-            val directory = java.io.File(filesDir, "covers").apply { mkdirs() }
-            val filename = bookId.filter { it.isLetterOrDigit() || it == '-' || it == '_' }
-                .ifBlank { "book" } + ".jpg"
-            val file = java.io.File(directory, filename)
-            file.outputStream().buffered().use {
-                bitmap.compress(Bitmap.CompressFormat.JPEG, 84, it)
-            }
+        return try {
+            runCatching {
+                val directory = java.io.File(filesDir, "covers").apply { mkdirs() }
+                val filename = bookId.filter { it.isLetterOrDigit() || it == '-' || it == '_' }
+                    .ifBlank { "book" } + ".jpg"
+                val file = java.io.File(directory, filename)
+                file.outputStream().buffered().use {
+                    check(bitmap.compress(Bitmap.CompressFormat.JPEG, 84, it)) {
+                        "Could not encode thumbnail"
+                    }
+                }
+                Uri.fromFile(file).toString()
+            }.getOrNull()
+        } finally {
             bitmap.recycle()
-            Uri.fromFile(file).toString()
-        }.getOrNull()
+        }
     }
 
     private fun folderTitle(uri: Uri): String {
