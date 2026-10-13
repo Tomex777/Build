@@ -117,6 +117,7 @@ jobs:
           curl -fL --retry 4 --retry-delay 2 --max-time 180 \
             "https://raw.githubusercontent.com/MaxwellLee/physics-lab/main/assets/textures/earth_4096.jpg" \
             -o "$OUT/planet_earth.jpg"
+          python3 -m pip install --quiet pillow
           python3 - "$OUT/planet_earth.jpg" <<'PY_EARTH'
           import sys
           from PIL import Image
@@ -134,7 +135,6 @@ jobs:
             -o "$RUNNER_TEMP/endless-dem/megt90n000eb.img"
           test "$(stat -c%s "$RUNNER_TEMP/endless-dem/megt90n000eb.img")" -eq 33177600
           test "$(stat -c%s "$RUNNER_TEMP/endless-dem/ldem_16_uint.tif")" -gt 20000000
-          python3 -m pip install --user --quiet pillow
           python3 endless_ci/generate_landing_tiles.py \
             --moon "$RUNNER_TEMP/endless-dem/ldem_16_uint.tif" \
             --mars "$RUNNER_TEMP/endless-dem/megt90n000eb.img" \
