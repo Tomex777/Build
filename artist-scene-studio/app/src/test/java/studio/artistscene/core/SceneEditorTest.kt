@@ -575,6 +575,40 @@ class SceneEditorTest {
 
 
     @Test
+    fun lockedCharacterCannotDeleteKeysResetPoseOrChangeEasing() {
+        val arm = RigBone("arm", "Arm")
+        val blink = RigMorphTarget("blink", "Blink", "Face")
+        val character = Actor(
+            id = "locked-character", name = "Locked Character", kind = ActorKind.CHARACTER,
+            rigDefinition = RigDefinition(bones = listOf(arm), morphTargets = listOf(blink)),
+        )
+        val beforeLock = SceneEditorState(
+            SceneProject(
+                id = "locked-key-test", name = "Locked key test", actors = listOf(character),
+            ),
+        )
+            .setRigJointRotation(arm.id, Vec3(z = 20f))
+            .setRigMorphWeight(blink.id, 0.5f)
+            .keySelectedTransform(0f)
+            .keySelectedPose(0f)
+        val locked = beforeLock.toggleSelectedLocked()
+        assertTrue(locked.selectedActor?.locked == true)
+        assertEquals(locked, locked.resetRigPose())
+        assertEquals(locked, locked.resetRigJoint(arm.id))
+        assertEquals(locked, locked.resetRigMorph(blink.id))
+        assertEquals(locked, locked.removeSelectedTransformKeyframe(0f))
+        assertEquals(locked, locked.removeSelectedPoseKeyframe(0f))
+        assertEquals(locked, locked.setSelectedTransformInterpolation(Interpolation.LINEAR))
+        assertEquals(locked, locked.setSelectedPoseInterpolation(Interpolation.STEP))
+        assertEquals(beforeLock.project, locked.undo().project)
+
+        val unlocked = locked.toggleSelectedLocked()
+        assertTrue(unlocked.removeSelectedPoseKeyframe(0f).project.tracks.size < unlocked.project.tracks.size)
+        assertTrue(unlocked.resetRigPose().selectedActor?.rig == null)
+    }
+
+
+    @Test
     fun undoAndRedoPreserveFocusAcrossDuplicateDeleteAndAddOperations() {
         val start = SceneEditorState(scene()).selectActor("prop-b")
         val duplicated = start.duplicateSelected()

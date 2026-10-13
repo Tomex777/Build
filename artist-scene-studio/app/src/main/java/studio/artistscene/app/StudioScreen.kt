@@ -130,6 +130,10 @@ import studio.artistscene.core.ActorKind
 import studio.artistscene.core.mechanicalParts
 import studio.artistscene.core.SceneEditorState
 import studio.artistscene.core.SceneProject
+import studio.artistscene.core.Interpolation
+import studio.artistscene.core.actorKeyTimes
+import studio.artistscene.core.previousActorKeyTime
+import studio.artistscene.core.nextActorKeyTime
 import studio.artistscene.core.SceneCamera
 import studio.artistscene.core.CameraProjection
 import studio.artistscene.core.LightSettings
@@ -1798,6 +1802,18 @@ private fun EditorContextSheet(
                         val duration = editor.project.timeline.durationSeconds
                         val keyTimes = editor.project.transformKeyTimes(actor.id)
                         val rigKeyTimes = editor.project.poseKeyTimes(actor.id)
+                        val allKeyTimes = editor.project.actorKeyTimes(actor.id)
+                        val previousKey = editor.project.previousActorKeyTime(actor.id, timelineTime)
+                        val nextKey = editor.project.nextActorKeyTime(actor.id, timelineTime)
+                        val transformInterpolation = editor.project.tracks.filter {
+                            it.targetActorId == actor.id && it.propertyPath in setOf(
+                                "transform.position", "transform.rotation", "transform.scale",
+                            )
+                        }.map { it.interpolation }.distinct()
+                        val poseInterpolation = editor.project.tracks.filter {
+                            it.targetActorId == actor.id &&
+                                (it.propertyPath.startsWith("rig.joint.") || it.propertyPath.startsWith("rig.morph."))
+                        }.map { it.interpolation }.distinct()
                         val poseDefinition = actor.rigDefinition
                         val canAuthorPose = poseDefinition != null &&
                             (poseDefinition.bones.isNotEmpty() || poseDefinition.morphTargets.isNotEmpty())
@@ -1812,7 +1828,7 @@ private fun EditorContextSheet(
                         TimelineScrubber(
                             durationSeconds = duration,
                             timeSeconds = timelineTime,
-                            keyTimes = (keyTimes + rigKeyTimes).distinct().sorted(),
+                            keyTimes = allKeyTimes,
                             enabled = !timelinePlaying,
                             onTimeChange = onTimelineTimeChange,
                         )
@@ -1855,9 +1871,27 @@ private fun EditorContextSheet(
                             )
                             Button(
                                 onClick = { onEditor(editor.removeSelectedTransformKeyframe(timelineTime), "timeline-remove-key") },
-                                enabled = !timelinePlaying && keyTimes.any { kotlin.math.abs(it - timelineTime) <= 0.001f },
+                                enabled = !timelinePlaying && !actor.locked &&
+                                    keyTimes.any { kotlin.math.abs(it - timelineTime) <= 0.001f },
                                 modifier = Modifier.fillMaxWidth().testTag("timeline-remove-key"),
                             ) { Text("Remove key at playhead") }
+                            Text("Transform easing", color = MutedText, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                            Row(
+                                modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            ) {
+                                Interpolation.entries.forEach { mode ->
+                                    FilterChip(
+                                        selected = transformInterpolation.size == 1 && transformInterpolation.single() == mode,
+                                        onClick = {
+                                            onEditor(editor.setSelectedTransformInterpolation(mode), "timeline-transform-easing")
+                                        },
+                                        enabled = !timelinePlaying && !actor.locked,
+                                        label = { Text(mode.name.lowercase().replaceFirstChar { it.uppercase() }) },
+                                        modifier = Modifier.testTag("timeline-transform-easing-${mode.name.lowercase()}"),
+                                    )
+                                }
+                            }
                         } else {
                             Text(
                                 "Set the playhead, move or rotate the object, then key its transform.",
@@ -1878,7 +1912,7 @@ private fun EditorContextSheet(
                                 ) { Text("Key pose") }
                                 Button(
                                     onClick = { onEditor(editor.removeSelectedPoseKeyframe(timelineTime), "timeline-remove-pose-key") },
-                                    enabled = !timelinePlaying &&
+                                    enabled = !timelinePlaying && !actor.locked &&
                                         rigKeyTimes.any { kotlin.math.abs(it - timelineTime) <= 0.001f },
                                     modifier = Modifier.weight(1f).testTag("timeline-remove-pose-key"),
                                 ) { Text("Remove pose key") }
@@ -1892,6 +1926,23 @@ private fun EditorContextSheet(
                                     fontSize = 11.sp,
                                     modifier = Modifier.testTag("timeline-pose-key-list"),
                                 )
+                                Text("Pose easing", color = MutedText, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                                Row(
+                                    modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                ) {
+                                    Interpolation.entries.forEach { mode ->
+                                        FilterChip(
+                                            selected = poseInterpolation.size == 1 && poseInterpolation.single() == mode,
+                                            onClick = {
+                                                onEditor(editor.setSelectedPoseInterpolation(mode), "timeline-pose-easing")
+                                            },
+                                            enabled = !timelinePlaying && !actor.locked,
+                                            label = { Text(mode.name.lowercase().replaceFirstChar { it.uppercase() }) },
+                                            modifier = Modifier.testTag("timeline-pose-easing-${mode.name.lowercase()}"),
+                                        )
+                                    }
+                                }
                             } else {
                                 Text(
                                     if (actor.animation.playing) {
@@ -1951,6 +2002,23 @@ private fun EditorContextSheet(
                             ) { Text("Longer") }
                         }
 
+                        if (allKeyTimes.size > 1) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            ) {
+                                Button(
+                                    onClick = { previousKey?.let(onTimelineTimeChange) },
+                                    enabled = !timelinePlaying && previousKey != null,
+                                    modifier = Modifier.weight(1f).testTag("timeline-previous-key"),
+                                ) { Text("Previous key") }
+                                Button(
+                                    onClick = { nextKey?.let(onTimelineTimeChange) },
+                                    enabled = !timelinePlaying && nextKey != null,
+                                    modifier = Modifier.weight(1f).testTag("timeline-next-key"),
+                                ) { Text("Next key") }
+                            }
+                        }
                         if (actor.asset != null) {
                             Text("Model animation", color = PrimaryText, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
                             if (actor.animation.clips.isEmpty()) {
