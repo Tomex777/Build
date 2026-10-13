@@ -4,6 +4,15 @@ import { fileURLToPath, pathToFileURL } from 'node:url'
 import { brandedTitle } from './utils/media/branding.js'
 export { brandedTitle } from './utils/media/branding.js'
 
+// Bound interactive source metadata lookups, never media transfers. Keep a
+// single deadline across fallback sources so a long chain cannot block a reply
+// for several minutes. Drivers that support context.signal stop work early.
+const LOOKUP_ACTIONS = new Set(['search', 'browse', 'episodes', 'options'])
+const sourceLookupTimeoutMs = () => {
+  const configured = Number(process.env.MSCC_SOURCE_LOOKUP_TIMEOUT_MS || 60000)
+  return Number.isFinite(configured) ? Math.min(180000, Math.max(100, configured)) : 60000
+}
+
 const ID_RE = /^[a-z0-9][a-z0-9._-]{0,63}$/
 const SOURCE_POLICY = Object.freeze({
   anime: 'user-choice',
@@ -138,20 +147,38 @@ export class SourceRegistry {
         .filter(Boolean)
     )
     const available = this.list(cap).filter(source => !excluded.has(source.id))
-    const runSource = source => source.run({
-      ...payload,
-      context: {
-        ...context,
-        requestedDelivery:String(payload?.delivery || ''),
-        botName,
-        brandTitle: value => brandedTitle(value, {
+    const isLookup = ['anime', 'manga'].includes(cap) && LOOKUP_ACTIONS.has(String(payload?.action || ''))
+    const controller = isLookup ? new AbortController() : null
+    let timeoutHandle
+    // The timer fires once for the complete selection/fallback attempt. It is
+    // shared by every runSource() call and MUST be cleared when execute exits.
+    const deadlineError = new Error('The ' + cap + ' source took too long to respond. Try another source.')
+    deadlineError.code = 'source-lookup-timeout'
+    const deadline = controller ? new Promise((_, reject) => {
+      timeoutHandle = setTimeout(() => {
+        controller.abort(deadlineError)
+        reject(deadlineError)
+      }, sourceLookupTimeoutMs())
+    }) : null
+    const runSource = source => {
+      const sourcePromise = Promise.resolve().then(() => source.run({
+        ...payload,
+        context: {
+          ...context,
+          ...(controller ? { signal:controller.signal } : {}),
+          requestedDelivery:String(payload?.delivery || ''),
           botName,
-          sourceName: source.name,
-          aliases: [source.id, ...source.brandAliases],
-        }),
-      },
-      source,
-    })
+          brandTitle: value => brandedTitle(value, {
+            botName,
+            sourceName: source.name,
+            aliases: [source.id, ...source.brandAliases],
+          }),
+        },
+        source,
+      }))
+      return deadline ? Promise.race([sourcePromise, deadline]) : sourcePromise
+    }
+    try {
     if (!available.length) return { status:'no-sources', capability:cap, sources:[] }
 
     if (pinnedSource) {
@@ -252,6 +279,9 @@ export class SourceRegistry {
       capability:cap,
       sources:available,
       error:firstFailure?.error || new Error('All sources failed'),
+    }
+    } finally {
+      if (timeoutHandle) clearTimeout(timeoutHandle)
     }
   }
 }
