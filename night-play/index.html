@@ -110,8 +110,7 @@ html,body{min-height:100%}
 body{min-height:100dvh;display:flex;flex-direction:column}
 #siteMain{width:100%;flex:1 0 auto}
 footer{margin-top:auto;width:100%}
-.hero-art .disc{border-radius:22px;transform:rotate(-16deg);box-shadow:27px 34px 0 #d4d5d4}
-.hero-art .disc:after{border-radius:15px;transform:rotate(4deg)}
+.hero-art .disc{display:none}.hero-game-art{width:min(92%,360px);filter:drop-shadow(26px 24px 0 #d8d9d8);transform:rotate(-11deg)}
 .announcement-bar{background:#171a1c;color:#f8f8f8;position:relative;z-index:16}
 .announcement-content{min-height:62px;display:flex;align-items:center;gap:15px}
 .announce-badge{flex-shrink:0;font-size:9px;font-weight:900;letter-spacing:1.2px;padding:7px 9px;border-radius:7px;background:#f7f7f7;color:#191b1d}
@@ -129,7 +128,7 @@ footer{margin-top:auto;width:100%}
 .announcement-history article strong{font-size:13px}
 .announcement-history article p{font-size:12px;color:#bdc0c1;line-height:1.65;margin-bottom:0}
 .announcement-bottom{display:flex;align-items:center;justify-content:space-between;gap:16px;color:#94999a;font-size:11px;padding-top:8px}
-.profile-icon{width:39px;height:39px;display:grid;place-items:center;border-radius:50%;background:#ededed;color:#1e1e1e}.profile-icon:hover{background:#ddd}.card-subnote{display:inline-flex;color:#989898;font-weight:700;font-size:11px;margin-top:14px}.announcement-bar.dismissed .announcement-content{display:none}.announcement-bar.dismissed{display:none}.profile-layout{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+.profile-icon{width:39px;height:39px;display:grid;place-items:center;border-radius:50%;background:#ededed;color:#1e1e1e}.profile-icon:hover{background:#ddd}.card-subnote{display:inline-flex;color:#989898;font-weight:700;font-size:11px;margin-top:14px}.announcement-bar.dismissed .announce-copy,.announcement-bar.dismissed .announce-badge,.announcement-bar.dismissed #announcementDismiss{display:none}.announcement-bar.dismissed .announcement-content{min-height:44px}.announcement-bar.dismissed #announcementMore{margin-left:auto}.profile-layout{display:grid;grid-template-columns:1fr 1fr;gap:18px}
 .profile-hero,.profile-records{border-radius:26px;padding:32px;background:#eaeaea}
 .profile-hero{background:#191b1e;color:#fff;display:flex;flex-direction:column;align-items:flex-start;min-height:365px}
 .profile-monogram{background:#333639;border-radius:24px;padding:17px;margin-bottom:28px;display:grid;place-items:center}
@@ -194,7 +193,7 @@ footer{margin-top:auto;width:100%}
 <nav class="mobile-nav" aria-label="Bottom navigation"><a href="/dashboard" data-route><span>⌂</span>Home</a><a href="/games" data-route><span>▦</span>Games</a><a href="/profile" data-route><span>◎</span>Profile</a></nav>
 <main class="wrap" id="siteMain">
 <section class="site-page" id="view-welcome" data-view="welcome">
-  <div class="hero"><div><div class="eyebrow">WELCOME TO NIGHT PLAY · YOUR NEW PLAYGROUND</div><h1>Good games.<br>Great company.</h1><p>Arcade favourites, board games and friendly competition — all in one place. Explore what NIGHT Play can become, then jump in whenever you're ready.</p><div class="hero-btns"><a class="btn" href="/dashboard" data-route data-enter="true">Enter NIGHT Play <span aria-hidden="true">↗</span></a><a class="btn outline" href="/games" data-route data-enter="true">Browse games</a></div><p class="welcome-fine">Free to play as a guest · No account needed</p></div><div class="hero-art" role="img" aria-label="Minimal abstract geometric game illustration"><div class="disc"></div><div class="floating f1">NIGHT &nbsp; PLAY</div><div class="floating f2"><span class="online-dot"></span>Discover something fun</div><div class="floating f3">♟️ &nbsp; Arcade, classics, challenges.</div></div></div>
+  <div class="hero"><div><div class="eyebrow">WELCOME TO NIGHT PLAY · YOUR NEW PLAYGROUND</div><h1>Good games.<br>Great company.</h1><p>Arcade favourites, board games and friendly competition — all in one place. Explore what NIGHT Play can become, then jump in whenever you're ready.</p><div class="hero-btns"><a class="btn" href="/dashboard" data-route data-enter="true">Enter NIGHT Play <span aria-hidden="true">↗</span></a><a class="btn outline" href="/games" data-route data-enter="true">Browse games</a></div><p class="welcome-fine">Free to play as a guest · No account needed</p></div><div class="hero-art" role="img" aria-label="Flat geometric game artwork with controller buttons"><svg class="hero-game-art" viewBox="0 0 360 290" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><rect x="39" y="56" width="282" height="184" rx="46" fill="#1c2023"/><rect x="50" y="67" width="260" height="162" rx="38" stroke="#696d6f" stroke-width="2"/><rect x="98" y="105" width="23" height="92" rx="7" fill="#f1f1f1"/><rect x="63" y="139" width="93" height="23" rx="7" fill="#f1f1f1"/><circle cx="254" cy="119" r="19" fill="#f1f1f1"/><circle cx="217" cy="165" r="19" fill="#f1f1f1"/><circle cx="180" cy="119" r="7" fill="#7b8185"/><circle cx="180" cy="158" r="7" fill="#7b8185"/></svg><div class="floating f1">NIGHT &nbsp; PLAY</div><div class="floating f2"><span class="online-dot"></span>Discover something fun</div><div class="floating f3">♟️ &nbsp; Arcade, classics, challenges.</div></div></div>
   <div class="landing-section"><div class="topbar"><div><span class="eyebrow">HOW IT WORKS</span><h2>A little play goes a long way.</h2></div></div><div class="intro-steps">
   <article><span class="step-num">01</span><h3>Pick your game.</h3><p>Jump from a simple puzzle to something that takes serious skill. Everything playable lives in the Games Library.</p></article>
   <article><span class="step-num">02</span><h3>Make it yours.</h3><p>Enjoy full-page, touch-first games. Your guest progress stays on this device where supported.</p></article>
@@ -264,7 +263,7 @@ function modal(kind){
  document.getElementById("infoTitle").textContent=content[0];document.getElementById("infoBody").innerHTML=content[1];infoDialog.showModal();
 }
 
-const UPDATE_VERSION="nightplay-ui-20261013-v3";
+const UPDATE_VERSION="nightplay-ui-20261013-v4";
 const ENTER_KEY="night-play-has-entered";
 const READ_KEY="night-play-update-seen";
 const getSaved=(key)=>{try{return localStorage.getItem(key)}catch{return null}};
@@ -281,8 +280,9 @@ function pathView(){
 }
 const ANNOUNCEMENT_KEY="nightplay-announcement-v4";
 function updateBell(){
- const dismissed=getSaved(ANNOUNCEMENT_KEY)==="dismissed";
+ const dismissed=getSaved(ANNOUNCEMENT_KEY)==="2026-10-13-preview-notice";
  document.getElementById("announcementBar").classList.toggle("dismissed",dismissed);
+ if(dismissed)document.getElementById("announcementMore").innerHTML='Announcements <span aria-hidden="true">⌄</span>';
 }
 function toggleAnnouncement(open){
  const box=document.getElementById("announcementHistory");
@@ -359,7 +359,7 @@ document.addEventListener("keydown",e=>{
 document.getElementById("gameSearch").addEventListener("input",filterGames);
 document.getElementById("announcementMore").addEventListener("click",()=>toggleAnnouncement(document.getElementById("announcementHistory").hidden));
 document.getElementById("announcementHistoryClose").addEventListener("click",()=>toggleAnnouncement(false));
-document.getElementById("announcementDismiss").addEventListener("click",()=>{putSaved(ANNOUNCEMENT_KEY,"dismissed");toggleAnnouncement(false);updateBell()});
+document.getElementById("announcementDismiss").addEventListener("click",()=>{putSaved(ANNOUNCEMENT_KEY,"2026-10-13-preview-notice");toggleAnnouncement(false);document.getElementById("announcementMore").innerHTML='Announcements <span aria-hidden="true">⌄</span>';updateBell()});
 
 function stop(){if(snakeTimer){clearInterval(snakeTimer);snakeTimer=null}active="";gamePaused=false;document.getElementById("pauseGame").textContent="Pause ⏸";}
 document.addEventListener("click",e=>{
