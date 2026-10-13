@@ -336,12 +336,161 @@ body[data-view="welcome"] .site-footer{padding-bottom:0}
 #view-profile .records-heading h2{margin:0;font-size:26px;letter-spacing:-.8px}
 #view-profile .analytics-panel{padding-top:24px}
 @media(max-width:600px){#analyticsGraph{aspect-ratio:400/250}#view-profile .records-heading h2{font-size:23px}}
+
+
+/* NIGHT Play V8: handcrafted soft-flat system. No fake depth, floating chips or emoji artwork. */
+:root{--bg:#f7f7f7;--surface:#fff;--soft:#ededed;--ink:#1e242a;--muted:#737b7b;--line:#e1e5e3;--deep:#1d2a27;--focus:#356e58;--radius:18px}
+body{background:var(--bg);color:var(--ink)}
+.vector-sprite{position:absolute;width:0;height:0;overflow:hidden;pointer-events:none}
+.ui-icon{width:19px;height:19px;flex:none;display:inline-block;vertical-align:middle;stroke:currentColor}
+.btn{border-radius:11px;min-height:43px;transition:background-color .18s ease,color .18s ease;box-shadow:none}
+.btn:hover{opacity:1;background:#32443c;color:#fff}
+.btn.light:hover,.btn.outline:hover{background:#e0e6e1;color:var(--ink)}
+a:focus-visible,button:focus-visible,[role="button"]:focus-visible,input:focus-visible{outline:3px solid var(--focus);outline-offset:3px}
+header{box-shadow:none;background:#f7f7f7;border-bottom:1px solid var(--line)}
+.logo{letter-spacing:-.85px}
+.brand-sub{background:none;border:1px solid #c9d1cd;border-radius:3px;padding:4px 6px;font-size:9px}
+.links a[aria-current="page"]{text-decoration:underline;text-decoration-thickness:2px;text-underline-offset:9px}
+.hero{gap:clamp(25px,5vw,72px);padding-top:60px}
+.hero h1{font-size:clamp(49px,6vw,80px);letter-spacing:-3.7px;line-height:1.03;font-weight:830}
+.hero p{line-height:1.7}
+.hero-art{min-height:330px;border:1px solid #d7e4d9;background:#e3eee5;border-radius:18px}
+.hero-art:before{content:none!important}
+.hero-game-art{filter:none;transform:none;width:min(82%,315px);height:auto}
+.floating,.hero-art .disc{display:none!important}
+.eyebrow{letter-spacing:1.3px;color:#64736c}
+.landing-section{padding-top:32px}
+.intro-steps{gap:30px}
+.intro-steps article{padding:21px 0 10px;background:transparent;border:0;border-radius:0;border-top:2px solid #bdc8c2;min-height:0}
+.intro-steps .step-num{color:#446856}
+.intro-steps h3{margin:27px 0 8px}
+.intro-steps p{color:#66716c}
+.welcome-banner{background:var(--deep);border-radius:16px}
+.inner-page-head h1{letter-spacing:-2.4px}
+.status-pill{border-radius:5px;background:#e9ede9;color:#53685c}
+.dash-layout{gap:20px}
+.dash-hero-card{border-radius:17px;background:#20342c}
+.dash-hero-card h2{max-width:68%;line-height:1.07}
+.dash-illustration{position:absolute;right:-48px;bottom:18px;width:260px;height:230px;opacity:.42;pointer-events:none}
+.dash-side{gap:20px}
+.dash-mini{background:transparent;border:0;border-top:2px solid #bac8c0;border-radius:0;padding:25px 6px 12px}
+.dash-mini h3{margin-top:22px}
+.resume-card{background:#fff;border:1px solid var(--line);border-radius:14px}
+.library-toolbar{border-bottom:1px solid #dde3df;margin-bottom:12px}
+.filter-btn{border-radius:8px;background:transparent;border:1px solid transparent;color:#59635e}
+.filter-btn:hover{background:#e9efeb}
+.filter-btn.active{background:#e4eae5;border:1px solid #d3ded6;color:#1b3427}
+.searchbox{border-radius:10px;border-color:#d3ddd7;gap:9px}
+.searchbox .ui-icon,.records-menu .ui-icon{width:17px;height:17px;color:#737f78}
+.gamecard,.library-grid .gamecard{background:transparent;border:0;box-shadow:none;border-radius:0;padding:0}
+.gamecard:hover{box-shadow:none;transform:none}
+.gamecard:focus-within .thumb,.gamecard:focus-visible .thumb{outline:3px solid var(--focus);outline-offset:3px}
+.thumb,.gamecard .thumb{height:215px;border-radius:14px;overflow:hidden}
+.game-art{width:min(76%,184px);height:84%;display:block;transition:transform .2s ease}
+.gamecard:hover .game-art,.gamecard:focus-visible .game-art{transform:scale(1.035)}
+.thumb .tag{background:#fbfdfadf;color:#30453b;padding:6px 9px;border:1px solid #e4e8e3;border-radius:5px;font-size:9px;letter-spacing:.25px}
+.thumb.snake{background:#ddece0}.thumb.tiles{background:#f3e8d7}.thumb.tictactoe{background:#e1e8f0}.thumb.chess{background:#e7e5db}.thumb.ludo{background:#f0e5dc}.thumb.mines{background:#e0e9ed}
+.library-card[data-name="checkers"] .thumb{background:#e8e8df}
+.library-card[data-name="flappy bird"] .thumb{background:#ddeee8}
+.library-card[data-name="tetris"] .thumb{background:#eee4d9}
+.library-card[data-name="pacman maze"] .thumb{background:#e2eaf2}
+.library-card[data-name="racing"] .thumb{background:#e2e6e4}
+.cardrow{padding:14px 2px 16px}
+.cardrow h3{letter-spacing:-.45px;font-size:18px}
+.cardrow p{font-size:12px;color:#6f7a75}
+.arrow{background:transparent;border:1px solid #d9dfdb;width:38px;height:38px;display:grid;place-items:center;transition:background-color .18s ease;border-radius:10px}
+.arrow:hover{background:#e3eae5}
+.arrow .ui-icon{width:17px;height:17px}
+.profile-overview{background:#e9efe9;border:1px solid #dce5df;border-radius:15px}
+.profile-identity .profile-monogram{background:#d9e4db}
+.analytics-panel{border-radius:15px!important;box-shadow:none}
+.records-picker{border-radius:9px}
+.records-menu{border-radius:11px}
+.records-menu .ui-icon{margin-right:4px}
+.announcement-bar{background:#20362e}
+.announcement-content .ui-icon{width:16px;height:16px}
+#announcementMore{display:inline-flex;align-items:center;gap:6px}
+#announcementMore .ui-icon{width:14px;height:14px}
+#announcementDismiss{display:grid;place-items:center;min-width:34px;min-height:34px}
+.xbtn{display:grid;place-items:center}
+.game-page{background:#f7f7f7}
+.game-topline{background:#f7f7f7}
+.game-topline button{border-radius:9px;display:flex;align-items:center;gap:6px}
+.game-page .game-wrap{justify-content:center}
+.game-page .scorebar{padding:0 3px}
+.game-page .dpad button{background:#e1e9e3;border-radius:10px;font-size:18px;transition:background-color .12s ease}
+.game-page .dpad button:active{background:#a6c2b0}
+.game-page[data-skin="snake"] #snakeCanvas{border:3px solid #789381;border-radius:12px;image-rendering:pixelated}
+.game-page[data-skin="snake"] .game-wrap{--play-color:#32614b}
+.game-page[data-skin="2048"] .board2048{background:#cbbfae;border-radius:12px;padding:10px;gap:8px}
+.game-page[data-skin="2048"] .tile{border-radius:5px}
+.game-page[data-skin="ttt"] .tttboard{gap:8px}
+.game-page[data-skin="ttt"] .tttboard button{border-radius:10px;background:#dee8f0;color:#365b83;transition:background-color .2s ease}
+.game-page[data-skin="ttt"] .tttboard button:not(:disabled):hover{background:#cbdce9}
+.settings-choices button{border-radius:9px;background:#f0f2ef}
+.snake-mode-grid button{border-radius:9px}
+.site-footer{border-color:var(--line)}
+@media(max-width:900px){.hero-art{min-height:260px}}
+@media(max-width:600px){
+ .hero{gap:18px;padding-top:32px}
+ .hero h1{font-size:clamp(45px,10vw,60px);letter-spacing:-2.6px}
+ .hero-art{min-height:226px;border-radius:14px}
+ .hero-game-art{width:min(78%,250px)}
+ .intro-steps{gap:13px}
+ .intro-steps article{padding-top:14px}
+ .intro-steps h3{margin-top:16px}
+ .dash-hero-card h2{max-width:74%}
+ .dash-illustration{right:-90px;width:220px;opacity:.27}
+ .dash-mini{padding:16px 4px 10px}
+ .library-grid{gap:15px 12px}
+ .thumb,.gamecard .thumb{height:clamp(125px,36vw,172px);border-radius:10px}
+ .game-art{width:88%;height:81%}
+ .thumb .tag{top:8px;left:8px;font-size:8px;padding:4px 6px;max-width:calc(100% - 16px)}
+ .cardrow{padding:10px 2px 13px;gap:4px}
+ .cardrow h3{font-size:15px}
+ .cardrow p{font-size:11px;line-height:1.45}
+ .arrow{height:30px;width:30px;border-radius:8px}
+ .arrow .ui-icon{height:15px;width:15px}
+ .mobile-nav{backdrop-filter:none;background:#fafbf9;border-color:#dce3de}
+ .mobile-nav a{color:#6a7670;gap:5px}
+ .mobile-nav .ui-icon{width:22px;height:22px}
+ .mobile-nav a[aria-current="page"]{color:#275b42}
+ .profile-identity{gap:13px}
+ .dash-hero-card{min-height:312px}
+ .game-topline{gap:6px}
+ .game-page .dpad{gap:5px}
+ .game-page .dpad button{min-width:48px}
+}
+@media(prefers-reduced-motion:reduce){.game-art,.btn,.arrow,.game-page .dpad button,.game-page .tttboard button{transition:none!important}}
 </style>
 </head>
 <body>
+<!-- Locally authored, reusable vector icons and hand-drawn game artwork. No fonts, emoji or image dependencies. -->
+<svg class="vector-sprite" width="0" height="0" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg"><defs>
+<symbol id="icon-home" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linejoin="round" stroke-linecap="round"><path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z"/><path d="M9 21v-8h6v8"/></symbol>
+<symbol id="icon-games" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linejoin="round" stroke-linecap="round"><rect x="3.5" y="3.5" width="7" height="7" rx="1.3"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.3"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.3"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.3"/></symbol>
+<symbol id="icon-profile" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linejoin="round" stroke-linecap="round"><circle cx="12" cy="8" r="3.6"/><path d="M4.5 20c.8-6 14.2-6 15 0"/></symbol>
+<symbol id="icon-search" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linejoin="round" stroke-linecap="round"><circle cx="10.8" cy="10.8" r="6.5"/><path d="m16 16 5 5"/></symbol>
+<symbol id="icon-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linejoin="round" stroke-linecap="round"><path d="M5 19 19 5M8 5h11v11"/></symbol>
+<symbol id="icon-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linejoin="round" stroke-linecap="round"><path d="m6 9 6 6 6-6"/></symbol>
+<symbol id="icon-close" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linejoin="round" stroke-linecap="round"><path d="M5 5 19 19M19 5 5 19"/></symbol>
+<symbol id="icon-back" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.85" stroke-linejoin="round" stroke-linecap="round"><path d="m14 5-7 7 7 7M7 12h14"/></symbol>
+<symbol id="art-snake" viewBox="0 0 160 140"><path d="M30 20h100M30 50h100M30 80h100M30 110h100M30 20v90M55 20v90M80 20v90M105 20v90M130 20v90" stroke="#c4d4c7" stroke-width="1"/><path d="M43 96V71h25V46h25V71h24" stroke="#376750" stroke-width="21" stroke-linecap="round" stroke-linejoin="round"/><rect x="102" y="58" width="28" height="26" rx="9" fill="#234d3c"/><circle cx="124" cy="65" r="2.6" fill="#fff"/><circle cx="37" cy="28" r="8" fill="#db876b"/><path d="m39 17 2-5" stroke="#587b4f" stroke-width="3" stroke-linecap="round"/></symbol>
+<symbol id="art-tiles" viewBox="0 0 160 140"><rect x="21" y="18" width="54" height="48" rx="8" fill="#f7f3e9"/><rect x="84" y="18" width="54" height="48" rx="8" fill="#eedbb8"/><rect x="21" y="75" width="54" height="48" rx="8" fill="#dfc18a"/><rect x="84" y="75" width="54" height="48" rx="8" fill="#ba875f"/><g font-family="Arial,sans-serif" font-weight="800" font-size="26" text-anchor="middle" fill="#53483e"><text x="48" y="50">2</text><text x="111" y="50">4</text><text x="48" y="108">8</text><text x="111" y="108" fill="#fff">16</text></g></symbol>
+<symbol id="art-ttt" viewBox="0 0 160 140"><path d="M57 16v108M103 16v108M25 52h110M25 90h110" stroke="#a9b6c9" stroke-width="5" stroke-linecap="round"/><path d="m30 22 18 18m0-18L30 40M112 101l18 18m0-18-18 18" stroke="#476a95" stroke-width="7" stroke-linecap="round"/><circle cx="80" cy="70" r="13" stroke="#ce8065" stroke-width="7" fill="none"/><circle cx="125" cy="33" r="12" stroke="#ce8065" stroke-width="7" fill="none"/><path d="m31 102 17 17m0-17-17 17" stroke="#476a95" stroke-width="7" stroke-linecap="round"/></symbol>
+<symbol id="art-chess" viewBox="0 0 160 140"><rect x="33" y="116" width="94" height="8" rx="3" fill="#3f4743"/><path d="M46 108h68l-10-10V57l10-11V29h-17v12H87V29H73v12H63V29H46v17l10 11v41z" fill="#485651"/><path d="M63 67h34M63 90h34" stroke="#a7beb1" stroke-width="3"/><rect x="44" y="106" width="72" height="9" rx="2" fill="#617b6a"/></symbol>
+<symbol id="art-ludo" viewBox="0 0 160 140"><rect x="27" y="16" width="106" height="106" rx="9" fill="#f8f4ef"/><path d="M62 16v106M98 16v106M27 51h106M27 87h106" stroke="#d3d6ce" stroke-width="3"/><rect x="28" y="17" width="33" height="33" rx="4" fill="#d2e3d3"/><rect x="99" y="17" width="33" height="33" rx="4" fill="#f2dcc1"/><rect x="28" y="88" width="33" height="33" rx="4" fill="#d4dfeb"/><rect x="99" y="88" width="33" height="33" rx="4" fill="#f1cfc8"/><path d="m64 54 16 16 16-16v32L80 70 64 86z" fill="#506b5e"/><circle cx="44" cy="33" r="8" fill="#5f946f"/><circle cx="115" cy="33" r="8" fill="#c49759"/><circle cx="44" cy="103" r="8" fill="#7198b8"/><circle cx="115" cy="103" r="8" fill="#bf786c"/></symbol>
+<symbol id="art-checkers" viewBox="0 0 160 140"><rect x="24" y="15" width="112" height="112" rx="5" fill="#d7d8d3"/><g fill="#a9b0a8"><rect x="38" y="15" width="14" height="14"/><rect x="66" y="15" width="14" height="14"/><rect x="94" y="15" width="14" height="14"/><rect x="122" y="15" width="14" height="14"/><rect x="24" y="29" width="14" height="14"/><rect x="52" y="29" width="14" height="14"/><rect x="80" y="29" width="14" height="14"/><rect x="108" y="29" width="14" height="14"/><rect x="38" y="43" width="14" height="14"/><rect x="66" y="43" width="14" height="14"/><rect x="94" y="43" width="14" height="14"/><rect x="122" y="43" width="14" height="14"/><rect x="24" y="57" width="14" height="14"/><rect x="52" y="57" width="14" height="14"/><rect x="80" y="57" width="14" height="14"/><rect x="108" y="57" width="14" height="14"/><rect x="38" y="71" width="14" height="14"/><rect x="66" y="71" width="14" height="14"/><rect x="94" y="71" width="14" height="14"/><rect x="122" y="71" width="14" height="14"/><rect x="24" y="85" width="14" height="14"/><rect x="52" y="85" width="14" height="14"/><rect x="80" y="85" width="14" height="14"/><rect x="108" y="85" width="14" height="14"/><rect x="38" y="99" width="14" height="14"/><rect x="66" y="99" width="14" height="14"/><rect x="94" y="99" width="14" height="14"/><rect x="122" y="99" width="14" height="14"/><rect x="24" y="113" width="14" height="14"/><rect x="52" y="113" width="14" height="14"/><rect x="80" y="113" width="14" height="14"/><rect x="108" y="113" width="14" height="14"/></g><circle cx="58" cy="49" r="17" fill="#f4ece0" stroke="#cabfae" stroke-width="3"/><circle cx="101" cy="92" r="17" fill="#394844" stroke="#2d3533" stroke-width="3"/><circle cx="58" cy="49" r="11" fill="none" stroke="#d5c8b4" stroke-width="2"/><circle cx="101" cy="92" r="11" fill="none" stroke="#708077" stroke-width="2"/></symbol>
+<symbol id="art-bird" viewBox="0 0 160 140"><path d="M13 104h134" stroke="#a5c9b9" stroke-width="5" stroke-linecap="round"/><rect x="121" y="16" width="18" height="42" rx="3" fill="#7ca890"/><rect x="114" y="50" width="32" height="11" rx="3" fill="#5e937b"/><rect x="121" y="103" width="18" height="25" rx="3" fill="#7ca890"/><rect x="114" y="96" width="32" height="10" rx="3" fill="#5e937b"/><path d="M37 69c-3-28 34-47 58-24 16 15 11 41-8 53-26 15-50-3-50-29" fill="#e0b66d"/><path d="M51 73c10-15 25-14 34 0-7 13-21 19-34 0" fill="#f4da99"/><circle cx="82" cy="54" r="5" fill="#263b39"/><path d="m94 65 21 8-21 8z" fill="#c77565"/></symbol>
+<symbol id="art-blocks" viewBox="0 0 160 140"><g stroke="#f5f1e7" stroke-width="3"><rect x="36" y="79" width="29" height="29" rx="3" fill="#ba816f"/><rect x="65" y="79" width="29" height="29" rx="3" fill="#ba816f"/><rect x="94" y="79" width="29" height="29" rx="3" fill="#ba816f"/><rect x="65" y="50" width="29" height="29" rx="3" fill="#ba816f"/><rect x="36" y="21" width="29" height="29" rx="3" fill="#84a38d"/><rect x="65" y="21" width="29" height="29" rx="3" fill="#84a38d"/><rect x="36" y="50" width="29" height="29" rx="3" fill="#84a38d"/><rect x="94" y="21" width="29" height="29" rx="3" fill="#c5a26c"/><rect x="94" y="50" width="29" height="29" rx="3" fill="#c5a26c"/></g><path d="M27 115h105" stroke="#816f66" stroke-width="4" stroke-linecap="round"/></symbol>
+<symbol id="art-mines" viewBox="0 0 160 140"><rect x="24" y="16" width="112" height="112" rx="9" fill="#e5e8e9"/><path d="M61 16v112M98 16v112M24 53h112M24 90h112" stroke="#fff" stroke-width="3"/><path d="m40 34 7 7m0-7-7 7m72 62 7 7m0-7-7 7" stroke="#c57a70" stroke-width="5" stroke-linecap="round"/><circle cx="80" cy="72" r="16" fill="#465258"/><path d="M80 48v8M80 88v8M56 72h8M96 72h8m-33-17 5 5m18 24 5 5m0-34-5 5M63 89l5-5" stroke="#465258" stroke-width="4" stroke-linecap="round"/><circle cx="75" cy="67" r="4" fill="#fff"/></symbol>
+<symbol id="art-maze" viewBox="0 0 160 140"><path d="M22 23h116v94H22zM45 23v25h33V23m60 27h-35v23h35M22 69h32v25h38v23M77 69h28M52 117v-14" stroke="#7893ad" stroke-width="7" stroke-linecap="round" stroke-linejoin="round" fill="none"/><path d="M48 57a19 19 0 1 1-.1 0L63 72z" fill="#e0b96d"/><circle cx="107" cy="93" r="5" fill="#c37870"/><circle cx="124" cy="93" r="5" fill="#c37870"/></symbol>
+<symbol id="art-racing" viewBox="0 0 160 140"><path d="M51 9h58l22 122H29z" fill="#6c7e7e"/><path d="m80 12-1 24m1 16v22m0 17v26" stroke="#f0ebdf" stroke-width="5" stroke-linecap="round" stroke-dasharray="10 12"/><path d="M43 99h74" stroke="#eee6d9" stroke-width="6"/><path d="M54 62c0-8 7-14 15-14h23c8 0 15 6 15 14v29H54z" fill="#b56c60"/><rect x="62" y="55" width="37" height="18" rx="4" fill="#dfddd5"/><rect x="60" y="84" width="15" height="8" rx="2" fill="#f5db9b"/><rect x="87" y="84" width="15" height="8" rx="2" fill="#f5db9b"/><path d="M54 69h-7v16h7m53-16h7v16h-7" fill="#343d3c"/></symbol>
+</defs></svg>
+
 <header><div class="wrap nav"><a href="/welcome" data-route class="logo" aria-label="NIGHT Play welcome">NIGHT <span class="brand-sub">PLAY</span></a><nav class="links" aria-label="Main navigation"><a data-route href="/dashboard">Home</a><a data-route href="/games">Games</a></nav><div class="actions"><a class="profile-icon" data-route href="/profile" aria-label="My profile" title="My profile"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4.5 20c1.2-4.7 13.8-4.7 15 0"/></svg></a><button class="btn light" data-dialog="connect">Connect WhatsApp ↗</button><a class="btn landing-enter" data-route href="/dashboard">Enter NIGHT Play ↗</a></div></div></header>
 <aside id="announcementBar" class="announcement-bar" role="region" aria-label="NIGHT site announcements">
- <div class="wrap announcement-content"><span class="announce-badge">NEW</span><div class="announce-copy"><strong>NIGHT Play preview is evolving</strong><span>Full-page games and a larger 2048 board are being refined.</span></div><button id="announcementMore" type="button" aria-controls="announcementHistory" aria-expanded="false">Past notices <span aria-hidden="true">⌄</span></button><button id="announcementDismiss" type="button" aria-label="Dismiss announcement">×</button></div>
+ <div class="wrap announcement-content"><span class="announce-badge">NEW</span><div class="announce-copy"><strong>NIGHT Play preview is evolving</strong><span>Full-page games and a larger 2048 board are being refined.</span></div><button id="announcementMore" type="button" aria-controls="announcementHistory" aria-expanded="false">Past notices <svg class="ui-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><use href="#icon-chevron"></use></svg></button><button id="announcementDismiss" type="button" aria-label="Dismiss announcement"><svg class="ui-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><use href="#icon-close"></use></svg></button></div>
  <div id="announcementHistory" class="wrap announcement-history" hidden>
    <h3>Site announcements <span>Latest and previous notices</span></h3>
    <article><small>13 OCT · PLATFORM</small><strong>NIGHT Play is changing</strong><p>A separate Games Library, fullscreen play, and profile-linking plans.</p></article>
@@ -349,10 +498,10 @@ body[data-view="welcome"] .site-footer{padding-bottom:0}
    <div class="announcement-bottom"><span>Official site-wide notices only. Personal invitations will be separate.</span><button type="button" id="announcementHistoryClose">Close ×</button></div>
  </div>
 </aside>
-<nav class="mobile-nav" aria-label="Bottom navigation"><a href="/dashboard" data-route><span>⌂</span>Home</a><a href="/games" data-route><span>▦</span>Games</a><a href="/profile" data-route><span>◎</span>Profile</a></nav>
+<nav class="mobile-nav" aria-label="Bottom navigation"><a href="/dashboard" data-route><svg class="ui-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><use href="#icon-home"></use></svg>Home</a><a href="/games" data-route><svg class="ui-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><use href="#icon-games"></use></svg>Games</a><a href="/profile" data-route><svg class="ui-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><use href="#icon-profile"></use></svg>Profile</a></nav>
 <main class="wrap" id="siteMain">
 <section class="site-page" id="view-welcome" data-view="welcome">
-  <div class="hero"><div><div class="eyebrow">WELCOME TO NIGHT PLAY · YOUR NEW PLAYGROUND</div><h1>Good games.<br>Great company.</h1><p>Arcade favourites, board games and friendly competition — all in one place. Explore what NIGHT Play can become, then jump in whenever you're ready.</p><div class="hero-btns"><a class="btn" href="/dashboard" data-route data-enter="true">Enter NIGHT Play <span aria-hidden="true">↗</span></a><a class="btn outline" href="/games" data-route data-enter="true">Browse games</a></div><p class="welcome-fine">Play the preview · WhatsApp connection coming soon</p></div><div class="hero-art" role="img" aria-label="Flat geometric game artwork with controller buttons"><svg class="hero-game-art" viewBox="0 0 360 290" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><rect x="39" y="56" width="282" height="184" rx="46" fill="#1c2023"/><rect x="50" y="67" width="260" height="162" rx="38" stroke="#696d6f" stroke-width="2"/><rect x="98" y="105" width="23" height="92" rx="7" fill="#f1f1f1"/><rect x="63" y="139" width="93" height="23" rx="7" fill="#f1f1f1"/><circle cx="254" cy="119" r="19" fill="#f1f1f1"/><circle cx="217" cy="165" r="19" fill="#f1f1f1"/><circle cx="180" cy="119" r="7" fill="#7b8185"/><circle cx="180" cy="158" r="7" fill="#7b8185"/></svg><div class="floating f1">NIGHT &nbsp; PLAY</div><div class="floating f2"><span class="online-dot"></span>Discover something fun</div><div class="floating f3">♟️ &nbsp; Arcade, classics, challenges.</div></div></div>
+  <div class="hero"><div><div class="eyebrow">WELCOME TO NIGHT PLAY · YOUR NEW PLAYGROUND</div><h1>Good games.<br>Great company.</h1><p>Arcade favourites, board games and friendly competition — all in one place. Explore what NIGHT Play can become, then jump in whenever you're ready.</p><div class="hero-btns"><a class="btn" href="/dashboard" data-route data-enter="true">Enter NIGHT Play <span aria-hidden="true">↗</span></a><a class="btn outline" href="/games" data-route data-enter="true">Browse games</a></div><p class="welcome-fine">Play the preview · WhatsApp connection coming soon</p></div><div class="hero-art" role="img" aria-label="Original flat illustration of a game controller"><svg class="hero-game-art" viewBox="0 0 360 290" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><rect x="39" y="56" width="282" height="184" rx="46" fill="#1c2023"/><rect x="50" y="67" width="260" height="162" rx="38" stroke="#696d6f" stroke-width="2"/><rect x="98" y="105" width="23" height="92" rx="7" fill="#f1f1f1"/><rect x="63" y="139" width="93" height="23" rx="7" fill="#f1f1f1"/><circle cx="254" cy="119" r="19" fill="#f1f1f1"/><circle cx="217" cy="165" r="19" fill="#f1f1f1"/><circle cx="180" cy="119" r="7" fill="#7b8185"/><circle cx="180" cy="158" r="7" fill="#7b8185"/></svg></div></div>
   <div class="landing-section"><div class="topbar"><div><span class="eyebrow">HOW IT WORKS</span><h2>A little play goes a long way.</h2></div></div><div class="intro-steps">
   <article><span class="step-num">01</span><h3>Pick your game.</h3><p>Jump from a simple puzzle to something that takes serious skill. Everything playable lives in the Games Library.</p></article>
   <article><span class="step-num">02</span><h3>Make it yours.</h3><p>Enjoy full-page, touch-first games. Your guest progress stays on this device where supported.</p></article>
@@ -363,7 +512,7 @@ body[data-view="welcome"] .site-footer{padding-bottom:0}
 <section class="site-page" id="view-dashboard" data-view="dashboard" hidden>
  <div class="inner-page-head"><div><span class="eyebrow">YOUR NIGHT SPACE</span><h1 id="homeGreeting" aria-live="polite">Welcome.</h1><p>What will you play today?</p></div><span class="status-pill">PREVIEW</span></div>
  <div class="dash-layout">
-  <article class="dash-hero-card"><div class="dash-label">READY WHEN YOU ARE</div><h2>Your next<br>game awaits.</h2><p>Pick up where you left off, or discover something new.</p><a class="btn" data-route href="/games">Open Game Library ↗</a><span class="dash-moon" aria-hidden="true">✦</span></article>
+  <article class="dash-hero-card"><div class="dash-label">READY WHEN YOU ARE</div><h2>Your next<br>game awaits.</h2><p>Pick up where you left off, or discover something new.</p><a class="btn" data-route href="/games">Open Game Library ↗</a><svg class="dash-illustration" viewBox="0 0 160 140" aria-hidden="true" focusable="false"><use href="#art-ttt"></use></svg></article>
   <div class="dash-side">
    <div class="dash-mini updates-mini"><span class="eyebrow">COMING NEXT</span><h3>Pick the way you play.</h3><p>Board games, puzzles and arcade challenges now have their own dedicated Games Library.</p><span class="card-subnote">You decide which game to play next.</span></div>
    <div class="dash-mini"><span class="eyebrow">NIGHT PROFILE</span><h3>Your achievements belong to you.</h3><p>Verified profiles will collect your records, tournament entries and friends across WhatsApp and web.</p><span class="card-subnote">WhatsApp verification is the next milestone.</span></div>
@@ -373,20 +522,20 @@ body[data-view="welcome"] .site-footer{padding-bottom:0}
  </section>
 <section class="site-page" id="view-games" data-view="games" hidden>
  <div class="inner-page-head"><div><span class="eyebrow">THE NIGHT ARCADE</span><h1>Choose your <span class="muted">adventure.</span></h1><p>Play instantly. No tiny popups, no endless scrolling through menus.</p></div><span class="status-pill">03 PLAYABLE NOW</span></div>
- <div class="library-toolbar"><div class="filter-buttons" role="group" aria-label="Filter games"><button class="filter-btn active" type="button" data-filter="all" aria-pressed="true">All games</button><button class="filter-btn" type="button" data-filter="arcade" aria-pressed="false">Arcade</button><button class="filter-btn" type="button" data-filter="puzzle" aria-pressed="false">Puzzle</button><button class="filter-btn" type="button" data-filter="board" aria-pressed="false">Board games</button></div><label class="searchbox"><span aria-hidden="true">⌕</span><input id="gameSearch" type="search" placeholder="Search games..." aria-label="Search games" autocomplete="off"></label></div>
+ <div class="library-toolbar"><div class="filter-buttons" role="group" aria-label="Filter games"><button class="filter-btn active" type="button" data-filter="all" aria-pressed="true">All games</button><button class="filter-btn" type="button" data-filter="arcade" aria-pressed="false">Arcade</button><button class="filter-btn" type="button" data-filter="puzzle" aria-pressed="false">Puzzle</button><button class="filter-btn" type="button" data-filter="board" aria-pressed="false">Board games</button></div><label class="searchbox"><svg class="ui-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><use href="#icon-search"></use></svg><input id="gameSearch" type="search" placeholder="Search games..." aria-label="Search games" autocomplete="off"></label></div>
  <div class="library-counter" id="libraryCount" aria-live="polite">Browse 11 games · 3 playable</div>
  <div class="grid library-grid" id="libraryGrid">
-  <article class="gamecard library-card" data-cat="arcade" data-name="snake" data-live="true" data-game="snake" tabindex="0" role="button" aria-label="Play Snake"><div class="thumb snake"><span class="tag">PLAYABLE NOW</span><span class="game-emoji">🐍</span></div><div class="cardrow"><div><h3>Snake</h3><p>Survive and beat your best.</p></div><button class="arrow" aria-label="Play Snake" tabindex="-1">↗</button></div></article>
-  <article class="gamecard library-card" data-cat="puzzle" data-name="2048" data-live="true" data-game="2048" tabindex="0" role="button" aria-label="Play 2048"><div class="thumb tiles"><span class="tag">PLAYABLE NOW</span><span class="game-emoji">🔢</span></div><div class="cardrow"><div><h3>2048</h3><p>Slide, merge, repeat.</p></div><button class="arrow" aria-label="Play 2048" tabindex="-1">↗</button></div></article>
-  <article class="gamecard library-card" data-cat="board" data-name="tic tac toe ttt" data-live="true" data-game="ttt" tabindex="0" role="button" aria-label="Play Tic-Tac-Toe"><div class="thumb tictactoe"><span class="tag">PLAYABLE NOW</span><span class="game-emoji">❎</span></div><div class="cardrow"><div><h3>Tic-Tac-Toe</h3><p>Face the bot or a local friend.</p></div><button class="arrow" aria-label="Play Tic-Tac-Toe" tabindex="-1">↗</button></div></article>
-  <article class="gamecard library-card" data-cat="board" data-name="chess" data-dialog="crossplay" tabindex="0" role="button" aria-label="Chess web version planned"><div class="thumb chess"><span class="tag">WHATSAPP NOW · WEB SOON</span><span class="game-emoji">♟️</span></div><div class="cardrow"><div><h3>Chess</h3><p>Web matches planned.</p></div><button class="arrow" aria-label="Chess web version planned" tabindex="-1">↗</button></div></article>
-  <article class="gamecard library-card" data-cat="board" data-name="ludo" data-dialog="crossplay" tabindex="0" role="button" aria-label="Ludo web version planned"><div class="thumb ludo"><span class="tag">WHATSAPP NOW · WEB SOON</span><span class="game-emoji">🎲</span></div><div class="cardrow"><div><h3>Ludo</h3><p>The familiar board, online.</p></div><button class="arrow" aria-label="Ludo web version planned" tabindex="-1">↗</button></div></article>
-  <article class="gamecard library-card" data-cat="board" data-name="checkers" data-dialog="crossplay" tabindex="0" role="button" aria-label="Checkers web version planned"><div class="thumb chess"><span class="tag">WHATSAPP NOW · WEB SOON</span><span class="game-emoji">⚫</span></div><div class="cardrow"><div><h3>Checkers</h3><p>Turn-based classics.</p></div><button class="arrow" aria-label="Checkers web version planned" tabindex="-1">↗</button></div></article>
-  <article class="gamecard library-card" data-cat="arcade" data-name="flappy bird" data-dialog="soon" tabindex="0" role="button" aria-label="Flappy Bird coming soon"><div class="thumb snake"><span class="tag">COMING SOON</span><span class="game-emoji">🐦</span></div><div class="cardrow"><div><h3>Flappy Bird</h3><p>One more try.</p></div><button class="arrow" aria-label="Flappy Bird coming soon" tabindex="-1">↗</button></div></article>
-  <article class="gamecard library-card" data-cat="arcade" data-name="tetris" data-dialog="soon" tabindex="0" role="button" aria-label="Tetris coming soon"><div class="thumb tiles"><span class="tag">COMING SOON</span><span class="game-emoji">🧱</span></div><div class="cardrow"><div><h3>Tetris</h3><p>Keep stacking.</p></div><button class="arrow" aria-label="Tetris coming soon" tabindex="-1">↗</button></div></article>
-  <article class="gamecard library-card" data-cat="puzzle" data-name="minesweeper" data-dialog="soon" tabindex="0" role="button" aria-label="Minesweeper coming soon"><div class="thumb mines"><span class="tag">COMING SOON</span><span class="game-emoji">💣</span></div><div class="cardrow"><div><h3>Minesweeper</h3><p>Don't tap the bomb.</p></div><button class="arrow" aria-label="Minesweeper coming soon" tabindex="-1">↗</button></div></article>
-  <article class="gamecard library-card" data-cat="arcade" data-name="pacman maze" data-dialog="soon" tabindex="0" role="button" aria-label="Maze chase game planned"><div class="thumb ludo"><span class="tag">PLANNED</span><span class="game-emoji">👾</span></div><div class="cardrow"><div><h3>Maze Chase</h3><p>Old-school arcade vibes.</p></div><button class="arrow" aria-label="Maze Chase planned" tabindex="-1">↗</button></div></article>
-  <article class="gamecard library-card" data-cat="arcade" data-name="racing" data-dialog="soon" tabindex="0" role="button" aria-label="Racing game planned"><div class="thumb tictactoe"><span class="tag">PLANNED</span><span class="game-emoji">🏎️</span></div><div class="cardrow"><div><h3>Racing</h3><p>Race for the line.</p></div><button class="arrow" aria-label="Racing planned" tabindex="-1">↗</button></div></article>
+  <article class="gamecard library-card" data-cat="arcade" data-name="snake" data-live="true" data-game="snake" tabindex="0" role="button" aria-label="Play Snake"><div class="thumb snake"><span class="tag">PLAYABLE NOW</span><svg class="game-art" viewBox="0 0 160 140" role="img" aria-label="snake illustration"><use href="#art-snake"></use></svg></div><div class="cardrow"><div><h3>Snake</h3><p>Survive and beat your best.</p></div><button class="arrow" aria-label="Play Snake" tabindex="-1"><svg class="ui-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><use href="#icon-arrow"></use></svg></button></div></article>
+  <article class="gamecard library-card" data-cat="puzzle" data-name="2048" data-live="true" data-game="2048" tabindex="0" role="button" aria-label="Play 2048"><div class="thumb tiles"><span class="tag">PLAYABLE NOW</span><svg class="game-art" viewBox="0 0 160 140" role="img" aria-label="Number tile illustration"><use href="#art-tiles"></use></svg></div><div class="cardrow"><div><h3>2048</h3><p>Slide, merge, repeat.</p></div><button class="arrow" aria-label="Play 2048" tabindex="-1"><svg class="ui-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><use href="#icon-arrow"></use></svg></button></div></article>
+  <article class="gamecard library-card" data-cat="board" data-name="tic tac toe ttt" data-live="true" data-game="ttt" tabindex="0" role="button" aria-label="Play Tic-Tac-Toe"><div class="thumb tictactoe"><span class="tag">PLAYABLE NOW</span><svg class="game-art" viewBox="0 0 160 140" role="img" aria-label="Tic-tac-toe illustration"><use href="#art-ttt"></use></svg></div><div class="cardrow"><div><h3>Tic-Tac-Toe</h3><p>Face the bot or a local friend.</p></div><button class="arrow" aria-label="Play Tic-Tac-Toe" tabindex="-1"><svg class="ui-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><use href="#icon-arrow"></use></svg></button></div></article>
+  <article class="gamecard library-card" data-cat="board" data-name="chess" data-dialog="crossplay" tabindex="0" role="button" aria-label="Chess web version planned"><div class="thumb chess"><span class="tag">WHATSAPP NOW · WEB SOON</span><svg class="game-art" viewBox="0 0 160 140" role="img" aria-label="chess illustration"><use href="#art-chess"></use></svg></div><div class="cardrow"><div><h3>Chess</h3><p>Web matches planned.</p></div><button class="arrow" aria-label="Chess web version planned" tabindex="-1"><svg class="ui-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><use href="#icon-arrow"></use></svg></button></div></article>
+  <article class="gamecard library-card" data-cat="board" data-name="ludo" data-dialog="crossplay" tabindex="0" role="button" aria-label="Ludo web version planned"><div class="thumb ludo"><span class="tag">WHATSAPP NOW · WEB SOON</span><svg class="game-art" viewBox="0 0 160 140" role="img" aria-label="ludo illustration"><use href="#art-ludo"></use></svg></div><div class="cardrow"><div><h3>Ludo</h3><p>The familiar board, online.</p></div><button class="arrow" aria-label="Ludo web version planned" tabindex="-1"><svg class="ui-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><use href="#icon-arrow"></use></svg></button></div></article>
+  <article class="gamecard library-card" data-cat="board" data-name="checkers" data-dialog="crossplay" tabindex="0" role="button" aria-label="Checkers web version planned"><div class="thumb chess"><span class="tag">WHATSAPP NOW · WEB SOON</span><svg class="game-art" viewBox="0 0 160 140" role="img" aria-label="checkers illustration"><use href="#art-checkers"></use></svg></div><div class="cardrow"><div><h3>Checkers</h3><p>Turn-based classics.</p></div><button class="arrow" aria-label="Checkers web version planned" tabindex="-1"><svg class="ui-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><use href="#icon-arrow"></use></svg></button></div></article>
+  <article class="gamecard library-card" data-cat="arcade" data-name="flappy bird" data-dialog="soon" tabindex="0" role="button" aria-label="Flappy Bird coming soon"><div class="thumb snake"><span class="tag">COMING SOON</span><svg class="game-art" viewBox="0 0 160 140" role="img" aria-label="Bird illustration"><use href="#art-bird"></use></svg></div><div class="cardrow"><div><h3>Flappy Bird</h3><p>One more try.</p></div><button class="arrow" aria-label="Flappy Bird coming soon" tabindex="-1"><svg class="ui-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><use href="#icon-arrow"></use></svg></button></div></article>
+  <article class="gamecard library-card" data-cat="arcade" data-name="tetris" data-dialog="soon" tabindex="0" role="button" aria-label="Tetris coming soon"><div class="thumb tiles"><span class="tag">COMING SOON</span><svg class="game-art" viewBox="0 0 160 140" role="img" aria-label="Block stack illustration"><use href="#art-blocks"></use></svg></div><div class="cardrow"><div><h3>Tetris</h3><p>Keep stacking.</p></div><button class="arrow" aria-label="Tetris coming soon" tabindex="-1"><svg class="ui-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><use href="#icon-arrow"></use></svg></button></div></article>
+  <article class="gamecard library-card" data-cat="puzzle" data-name="minesweeper" data-dialog="soon" tabindex="0" role="button" aria-label="Minesweeper coming soon"><div class="thumb mines"><span class="tag">COMING SOON</span><svg class="game-art" viewBox="0 0 160 140" role="img" aria-label="Minesweeper illustration"><use href="#art-mines"></use></svg></div><div class="cardrow"><div><h3>Minesweeper</h3><p>Don't tap the bomb.</p></div><button class="arrow" aria-label="Minesweeper coming soon" tabindex="-1"><svg class="ui-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><use href="#icon-arrow"></use></svg></button></div></article>
+  <article class="gamecard library-card" data-cat="arcade" data-name="pacman maze" data-dialog="soon" tabindex="0" role="button" aria-label="Maze chase game planned"><div class="thumb ludo"><span class="tag">PLANNED</span><svg class="game-art" viewBox="0 0 160 140" role="img" aria-label="Maze chase illustration"><use href="#art-maze"></use></svg></div><div class="cardrow"><div><h3>Maze Chase</h3><p>Old-school arcade vibes.</p></div><button class="arrow" aria-label="Maze Chase planned" tabindex="-1"><svg class="ui-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><use href="#icon-arrow"></use></svg></button></div></article>
+  <article class="gamecard library-card" data-cat="arcade" data-name="racing" data-dialog="soon" tabindex="0" role="button" aria-label="Racing game planned"><div class="thumb tictactoe"><span class="tag">PLANNED</span><svg class="game-art" viewBox="0 0 160 140" role="img" aria-label="racing illustration"><use href="#art-racing"></use></svg></div><div class="cardrow"><div><h3>Racing</h3><p>Race for the line.</p></div><button class="arrow" aria-label="Racing planned" tabindex="-1"><svg class="ui-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><use href="#icon-arrow"></use></svg></button></div></article>
  </div><p class="no-results" id="noGameResults" hidden>No games found. Try another name or category.</p>
 </section>
 <section class="site-page" id="view-profile" data-view="profile" hidden>
@@ -402,8 +551,8 @@ body[data-view="welcome"] .site-footer{padding-bottom:0}
  <div class="analytics-top">
   <div><h3 id="selectedGameTitle">Game activity</h3><span class="analytics-subtitle" id="analyticsSubtitle">Completed rounds by game</span></div>
   <div class="analytics-picker">
-   <button id="recordsPicker" class="records-picker" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="recordsMenu">Choose game <span aria-hidden="true">⌄</span></button>
-   <div id="recordsMenu" class="records-menu" hidden><label><span aria-hidden="true">⌕</span><input id="recordSearch" placeholder="Find a game..." type="search" autocomplete="off" aria-label="Search game records"></label><div id="recordOptions" class="record-options" role="listbox" aria-label="Games with score records"></div><p id="recordEmpty" class="record-empty" hidden>No games found</p></div>
+   <button id="recordsPicker" class="records-picker" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="recordsMenu">Choose game <svg class="ui-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><use href="#icon-chevron"></use></svg></button>
+   <div id="recordsMenu" class="records-menu" hidden><label><svg class="ui-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><use href="#icon-search"></use></svg><input id="recordSearch" placeholder="Find a game..." type="search" autocomplete="off" aria-label="Search game records"></label><div id="recordOptions" class="record-options" role="listbox" aria-label="Games with score records"></div><p id="recordEmpty" class="record-empty" hidden>No games found</p></div>
   </div>
  </div>
  <div class="analytics-metrics">
@@ -438,10 +587,10 @@ body[data-view="welcome"] .site-footer{padding-bottom:0}
 </section>
 </main>
 <footer class="site-footer"><div class="wrap footer-inner"><span>© 2026 NIGHT Play</span><nav aria-label="Legal information"><a href="/terms" data-route>Terms</a><a href="/privacy" data-route>Privacy</a></nav></div></footer>
-<dialog id="infoDialog" aria-labelledby="infoTitle"><div class="modalhead"><h2 id="infoTitle">NIGHT Play</h2><button class="xbtn" data-close aria-label="Close">×</button></div><div class="modalbody" id="infoBody"></div></dialog>
-<dialog id="settingsDialog" aria-labelledby="settingsTitle"><div class="modalhead"><h2 id="settingsTitle">Game settings</h2><button class="xbtn" id="closeSettings" type="button" aria-label="Close settings">×</button></div><div class="modalbody" id="settingsBody"></div></dialog>
+<dialog id="infoDialog" aria-labelledby="infoTitle"><div class="modalhead"><h2 id="infoTitle">NIGHT Play</h2><button class="xbtn" data-close aria-label="Close"><svg class="ui-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><use href="#icon-close"></use></svg></button></div><div class="modalbody" id="infoBody"></div></dialog>
+<dialog id="settingsDialog" aria-labelledby="settingsTitle"><div class="modalhead"><h2 id="settingsTitle">Game settings</h2><button class="xbtn" id="closeSettings" type="button" aria-label="Close settings"><svg class="ui-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><use href="#icon-close"></use></svg></button></div><div class="modalbody" id="settingsBody"></div></dialog>
 <section id="gameDialog" class="game-page" aria-label="Fullscreen game view" aria-hidden="true">
-<div class="game-topline"><button type="button" data-close-game>← All games</button><span class="game-brand">NIGHT <span class="muted">PLAY</span></span><button class="game-settings-button" id="gameSettings" type="button" aria-label="Game settings"><svg viewBox="0 0 24 24" width="19" height="19" stroke="currentColor" stroke-width="1.7" fill="none" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="m9.4 2-.5 2.4-2 1.2-2.4-.8-2 3.5 1.9 1.7v2.4l-1.9 1.7 2 3.5 2.4-.8 2 1.2.5 2.4h4.2l.5-2.4 2-1.2 2.4.8 2-3.5-1.9-1.7v-2.4l1.9-1.7-2-3.5-2.4.8-2-1.2L14.6 2z"/></svg><span>Settings</span></button></div>
+<div class="game-topline"><button type="button" data-close-game><svg class="ui-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><use href="#icon-back"></use></svg> All games</button><span class="game-brand">NIGHT <span class="muted">PLAY</span></span><button class="game-settings-button" id="gameSettings" type="button" aria-label="Game settings"><svg viewBox="0 0 24 24" width="19" height="19" stroke="currentColor" stroke-width="1.7" fill="none" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="m9.4 2-.5 2.4-2 1.2-2.4-.8-2 3.5 1.9 1.7v2.4l-1.9 1.7 2 3.5 2.4-.8 2 1.2.5 2.4h4.2l.5-2.4 2-1.2 2.4.8 2-3.5-1.9-1.7v-2.4l1.9-1.7-2-3.5-2.4.8-2-1.2L14.6 2z"/></svg><span>Settings</span></button></div>
 <div class="game-wrap"><span class="eyebrow">YOUR PLAYGROUND</span><h2 id="gameTitle">NIGHT Game</h2><p class="modalnote" id="gameHelp"></p><div id="gameRoot" class="playarea"></div><div class="modal-actions"><button class="btn" id="restart">New game ↻</button><button class="btn outline" id="pauseGame" type="button">Pause ⏸</button><button class="btn outline" data-close-game>Exit</button></div><p class="game-status">Game preview · Device-only saves · Competitive account verification coming</p></div>
 </section>
 <script>
@@ -766,7 +915,7 @@ function openGame(kind,{push=true,fresh=false}={}){
  if(!["snake","2048","ttt"].includes(kind))return;
  if(push)history.pushState({game:kind},"","/play/"+kind);
  renderRoute();
- stop();active=kind;gameDialog.showModal();title.textContent=kind==="ttt"?"Tic-Tac-Toe":kind==="2048"?"2048":"Snake";
+ stop();active=kind;gameDialog.dataset.skin=kind;gameDialog.showModal();title.textContent=kind==="ttt"?"Tic-Tac-Toe":kind==="2048"?"2048":"Snake";
  if(kind==="snake"){help.textContent="Tap to start. Swipe the board, tap the arrows or use your keyboard. Pause is automatic if you switch apps.";initSnake(fresh);document.getElementById("pauseGame").textContent="Start on board ▶"}
  if(kind==="2048"){help.textContent="Slide matching tiles together. Your board is automatically saved after every move.";init2048(fresh)}
  if(kind==="ttt"){help.textContent="Play against NIGHT's bot or someone beside you. Online multiplayer is coming later.";initTtt(fresh)}
