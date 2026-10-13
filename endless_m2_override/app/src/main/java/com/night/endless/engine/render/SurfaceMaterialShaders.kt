@@ -86,7 +86,8 @@ void main() {
                  + cross(N, dX) * dFdy(detailHeight);
     float span = max(length(cross(dX, dY)), 1e-8);
     vec3 microNormal = normalize(N + perturb * (uWorld == 0 ? 0.11 : 0.17) / span);
-    microNormal = faceforward(microNormal, -normalize(cross(dX, dY)), microNormal);
+    // Keep relief normals in the actual upward-facing terrain hemisphere.
+    if (dot(microNormal, N) < 0.14) microNormal = normalize(microNormal + N);
 
     // Basalt outcrops, iron-oxide fines, and wind-blown surface streaks
     // are approximate physical palettes, not claimed rover photography.
@@ -121,6 +122,9 @@ void main() {
         ? 0.21 + 1.17 * direct * halfLambert
         : 0.055 + 1.38 * direct * halfLambert;
     float surfaceAo = mix(1.0, 0.78, pow(steepness, 0.7));
+    // Geometrically modelled rocks are darker than surrounding loose dust.
+    float stone = smoothstep(0.16, 0.52, length(vColor));
+    albedo *= mix(0.65, 1.0, stone);
     vec3 color = albedo * light * surfaceAo;
 
     if (uWorld == 0) {
