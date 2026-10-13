@@ -19,10 +19,10 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
-            const expected = '7f7d1cb890d7eae5bc8b8e0d0cbbb5c449ce4590';
+            const expected = '770983847b39d26e0eb0affd3f434363c03788a9';
             for (let attempt = 0; attempt < 20; attempt++) {
               const {data: run} = await github.rest.actions.getWorkflowRun({
-                owner: context.repo.owner, repo: context.repo.repo, run_id: 38251682344
+                owner: context.repo.owner, repo: context.repo.repo, run_id: 38381728899
               });
               if (run.head_sha !== expected) throw new Error('Unexpected release source commit');
               if (run.status === 'completed') {
@@ -36,7 +36,7 @@ jobs:
         with:
           name: Annie-1.0.0-validated-production-release
           path: validated
-          run-id: 38251682344
+          run-id: 38381728899
           github-token: ${{ github.token }}
       - name: Verify exact APK and preserve acceptance evidence
         shell: bash
@@ -44,18 +44,18 @@ jobs:
           set -euo pipefail
           cd validated
           sha256sum --check SHA256SUMS.txt
-          grep -Fxq 'commit=7f7d1cb890d7eae5bc8b8e0d0cbbb5c449ce4590' ACCEPTANCE.txt
+          grep -Fxq 'commit=770983847b39d26e0eb0affd3f434363c03788a9' ACCEPTANCE.txt
           grep -Fxq 'api26=PASSED' ACCEPTANCE.txt
           grep -Fxq 'api36=PASSED' ACCEPTANCE.txt
           grep -Fxq '4e7ab744bdbbcf6ddb577186e8163be4b0f4127d2123ed21108ca6e7dce70288' ANNIE-CERTIFICATE.txt
           mkdir -p ../arm64
-          cp Annie-1.0.0-arm64-v8a-production-signed.apk ../arm64/Annie-2026-10-12-Validated-arm64-release.apk
+          cp Annie-1.0.0-arm64-v8a-production-signed.apk ../arm64/Annie-2026-10-13-Validated-arm64-release.apk
           cp ACCEPTANCE.txt ANNIE-CERTIFICATE.txt ../arm64/
           cd ../arm64
-          sha256sum Annie-2026-10-12-Validated-arm64-release.apk > SHA256SUMS.txt
+          sha256sum Annie-2026-10-13-Validated-arm64-release.apk > SHA256SUMS.txt
       - uses: actions/upload-artifact@v4
         with:
-          name: Annie-2026-10-12-validated-arm64-release
+          name: Annie-2026-10-13-validated-arm64-release
           path: arm64/
           if-no-files-found: error
           retention-days: 30
