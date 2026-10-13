@@ -119,8 +119,11 @@ try {
  assert.equal(new URL(page.url()).pathname,'/terms')
  await page.locator('.legal-back').filter({visible:true}).click()
  await page.locator('#view-dashboard').waitFor({state:'visible'})
- const foot=await page.evaluate(()=>({footer:document.querySelector('footer').getBoundingClientRect().bottom,height:window.innerHeight}))
- assert.ok(foot.footer>0&&foot.footer<=foot.height+4,'Footer should sit at document foot')
+ const foot=await page.evaluate(()=>{
+   const rect=document.querySelector('footer').getBoundingClientRect();
+   return {absoluteBottom:rect.bottom+window.scrollY,documentHeight:document.documentElement.scrollHeight}
+ })
+ assert.ok(Math.abs(foot.absoluteBottom-foot.documentHeight)<5,'Footer must be the final document section')
  assert.deepEqual(failures,[],'Browser runtime errors')
  console.log('PASS NIGHT Play mobile: clean account card, real all-game participation graph, 100+ search, Terms/Privacy, Snake/2048/TTT')
 } finally {if(browser)await browser.close();await new Promise(resolve=>server.close(resolve))}
