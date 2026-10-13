@@ -2,6 +2,7 @@ import { readdir } from 'node:fs/promises'
 import { basename, dirname, extname, join, relative, sep } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { brandedTitle } from './utils/media/branding.js'
+import { withSourceDeadline } from './source-execution-context.js'
 export { brandedTitle } from './utils/media/branding.js'
 
 // Bound interactive source metadata lookups, never media transfers. Keep a
@@ -162,7 +163,7 @@ export class SourceRegistry {
     }) : null
     const runSource = source => {
       if (controller?.signal.aborted) return Promise.reject(deadlineError)
-      const sourcePromise = Promise.resolve().then(() => source.run({
+      const sourcePromise = Promise.resolve().then(() => withSourceDeadline(controller?.signal, () => source.run({
         ...payload,
         context: {
           ...context,
@@ -176,7 +177,7 @@ export class SourceRegistry {
           }),
         },
         source,
-      }))
+      })))
       return deadline ? Promise.race([sourcePromise, deadline]) : sourcePromise
     }
     try {
