@@ -1836,6 +1836,24 @@ async function handler(req, res) {
       return json(res, 200, result);
     }
 
+    // Profile assignment is a metadata-only MSCC operation: never close,
+    // re-pair, restart or otherwise change an active WhatsApp socket.
+    const accountProfileRoute = url.pathname.match(/^\/api\/cortex\/mscc\/accounts\/([A-Za-z0-9][A-Za-z0-9._-]{0,63})\/profile$/);
+    if (req.method === 'POST' && accountProfileRoute) {
+      const id = accountProfileRoute[1];
+      const body = await readJson(req);
+      const profileId = String(body.profileId || '').trim().toLowerCase();
+      if (!/^[a-z0-9][a-z0-9._-]{0,63}$/.test(profileId)) {
+        throw Object.assign(new Error('Invalid bot profile ID'), { statusCode: 400 });
+      }
+      if (id === 'A' && profileId !== 'control' || id !== 'A' && profileId === 'control') {
+        throw Object.assign(new Error('Only Account A may use the control profile'), { statusCode: 403 });
+      }
+      const result = await msccControl('POST', '/accounts/' + id + '/profile', { profileId });
+      await recordActivity('mscc:account.profile-changed', { account: id, profile: result?.profile || profileId });
+      return json(res, 200, result);
+    }
+
     const removeAccountRoute = url.pathname.match(/^\/api\/cortex\/mscc\/accounts\/([A-Za-z0-9][A-Za-z0-9._-]{0,63})$/);
     if (req.method === 'DELETE' && removeAccountRoute) {
       const id = removeAccountRoute[1];
