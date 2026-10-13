@@ -53,6 +53,7 @@ internal fun ExtensionsManagerContent(
     onLearn: () -> Unit = {},
     onInstallExtension: () -> Unit = { onOpenStudio(null) },
     grantedPermissions: (ScriptProject) -> Set<String> = { emptySet() },
+    commandWarnings: (ScriptProject) -> List<String> = { emptyList() },
 ) {
     var pendingUninstall by remember { mutableStateOf<ScriptProject?>(null) }
     Column(
@@ -106,7 +107,7 @@ internal fun ExtensionsManagerContent(
                 }
             } else {
                 items(projects, key = { it.id }) { project ->
-                    ExtensionProjectCard(project, grantedPermissions(project), onToggle, onConfigure, onOpenStudio) { pendingUninstall = project }
+                    ExtensionProjectCard(project, grantedPermissions(project), commandWarnings(project), onToggle, onConfigure, onOpenStudio) { pendingUninstall = project }
                 }
             }
         }
@@ -136,6 +137,7 @@ internal fun ExtensionsManagerContent(
 }
 
 internal fun extensionPermissionLabel(permission: String): String = when (permission) {
+    "ai.generate" -> "Use your AI provider (sends prompts; may incur charges)"
     NETWORK_ACCESS_PERMISSION -> "Network access"
     ANDROID_DEVICE_INFO_PERMISSION -> "Device info"
     ANDROID_TTS_PERMISSION -> "Speak text"
@@ -146,6 +148,9 @@ internal fun extensionPermissionLabel(permission: String): String = when (permis
     ANDROID_MEDIA_PERMISSION -> "Inspect media"
     ANDROID_NOTIFICATIONS_PERMISSION -> "Post notifications"
     ANDROID_NOTIFICATIONS_MANAGE_PERMISSION -> "Manage notifications"
+    DOWNLOADS_START_PERMISSION -> "Start downloads"
+    DOWNLOADS_CONTROL_PERMISSION -> "Manage its own downloads"
+    MESSAGES_POST_PERMISSION -> "Post and update chat messages"
     else -> if (permission.startsWith("service:")) {
         "Package service"
     } else {
@@ -159,6 +164,7 @@ internal fun extensionPermissionLabel(permission: String): String = when (permis
 private fun ExtensionProjectCard(
     project: ScriptProject,
     grantedPermissions: Set<String>,
+    commandWarnings: List<String>,
     onToggle: (ScriptProject, Boolean) -> Unit,
     onConfigure: (ScriptProject) -> Unit,
     onOpenStudio: (ScriptProject?) -> Unit,
@@ -204,6 +210,16 @@ private fun ExtensionProjectCard(
                     Text("/${command.name} · ${command.description}", color = ExtensionsMuted, fontSize = 10.sp,
                         maxLines = 1, overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.testTag("extension_command_${project.id}_${command.name}"))
+                }
+                commandWarnings.forEachIndexed { index, warning ->
+                    Text("⚠ $warning", color = Color(0xFFFFC857), fontSize = 10.sp,
+                        modifier = Modifier.testTag("extension_command_warning_${project.id}_$index"))
+                }
+                if (project.manifest.networkHosts.isNotEmpty()) {
+                    Text("Reach: " + project.manifest.networkHosts.joinToString(", "),
+                        color = ExtensionsMuted, fontSize = 10.sp, maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.testTag("extension_hosts_${project.id}"))
                 }
                 if (project.manifest.permissions.isNotEmpty()) {
                     Text("Permissions", color = ExtensionsMuted, fontSize = 10.sp,

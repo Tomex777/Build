@@ -688,17 +688,18 @@ internal class AnnieMediaDownloader(
             }
             temp.delete()
         }
-        publish(
-            item.copy(
-                state = DownloadState.COMPLETE,
-                progress = 1f,
-                bytesDone = finalFile.length(),
-                bytesTotal = finalFile.length(),
-                localPath = finalFile.absolutePath,
-                failureReason = "",
-                sourceMimeType = mimeType ?: item.sourceMimeType,
-            )
+        val completed = item.copy(
+            state = DownloadState.COMPLETE,
+            progress = 1f,
+            bytesDone = finalFile.length(),
+            bytesTotal = finalFile.length(),
+            localPath = finalFile.absolutePath,
+            failureReason = "",
+            sourceMimeType = mimeType ?: item.sourceMimeType,
         )
+        publish(completed)
+        // Only completed downloads dispatch actions, never failed or cancelled ones.
+        DownloadCompletionDispatcher.enqueue(context, completed)
     }
 
     private fun finalFile(item: DownloadItem, extension: String): File {

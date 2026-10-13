@@ -218,6 +218,8 @@ private fun ScriptStudioContent(
 ) {
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
+    var hostAiSettings by remember { mutableStateOf(false) }
+    if (hostAiSettings) HostAiSettings { hostAiSettings = false }
     val focusManager = LocalFocusManager.current
     val keyboardController = LocalSoftwareKeyboardController.current
     val scriptAssistant = remember { ScriptAssistant() }
@@ -603,12 +605,14 @@ private fun ScriptStudioContent(
                 Text("Script Studio", color = StudioText, fontSize = 21.sp, fontWeight = FontWeight.Bold)
                 Text(selectedProject?.let { "${it.name} · ${selectedPath ?: it.entryPath}" } ?: "Your JavaScript workspace", color = StudioMuted, fontSize = 12.sp, maxLines = 1)
             }
+            StudioAction("Host AI", onClick = { hostAiSettings = true })
             StudioAction(
                 label = when { saving -> "Preparing…"; dirty -> "Preview •"; else -> "Preview" },
                 emphasized = !saving,
                 icon = StudioGlyph.RUN,
                 onClick = {
                     when (selectedPath?.substringAfterLast('.', "")?.lowercase()) {
+                        "ts", "py", "lua" -> saveScript(runAfterSave = true, openPreview = true)
                         "js" -> if (ScriptWebPreview.entry(selectedProject?.files.orEmpty(), selectedPath.orEmpty()) != null) previewDocument()
                             else saveScript(runAfterSave = true, openPreview = true)
                         "html", "css" -> previewDocument()
@@ -644,7 +648,7 @@ private fun ScriptStudioContent(
                                 val name = rawName
                                 if (owner != null) {
                                     workspace.files.createFile(owner.id, listOf(currentDirectory.trim('/'), name).filter(String::isNotBlank).joinToString("/"))
-                                } else if (name.endsWith(".js", ignoreCase = true)) {
+                                } else if (isExecutableScript(name)) {
                                     workspace.files.createScript(name)
                                 } else {
                                     // Non-JS documents always belong to a project directory.
@@ -862,7 +866,7 @@ private fun ScriptStudioContent(
                         }
                         StudioAction("AI spec", icon = StudioGlyph.ASSIST, onClick = { exportAiSpec() }, enabled = !saving)
                         Spacer(Modifier.width(7.dp))
-                        StudioAction("Run", emphasized = true, icon = StudioGlyph.RUN, onClick = { saveScript(runAfterSave = true) }, enabled = !saving && path.endsWith(".js", ignoreCase = true))
+                        StudioAction("Run", emphasized = true, icon = StudioGlyph.RUN, onClick = { saveScript(runAfterSave = true) }, enabled = !saving && isExecutableScript(path))
                     }
                     val matches = remember(query, editorValue.text) {
                         if (query.isBlank()) 0 else Regex(Regex.escape(query), RegexOption.IGNORE_CASE).findAll(editorValue.text).count()
@@ -1204,7 +1208,7 @@ private fun ScriptStudioContent(
                             val name = rawName
                             val file = if (owner != null) {
                                 workspace.files.createFile(owner.id, name)
-                            } else if (name.endsWith(".js", ignoreCase = true)) {
+                            } else if (isExecutableScript(name)) {
                                 workspace.files.createScript(name)
                             } else {
                                 // Standalone projects require an executable JS entry point;
@@ -1611,6 +1615,9 @@ private fun ApiReferenceScreen(search: String, onSearch: (String) -> Unit, onExp
     val clipboard = LocalClipboardManager.current
     val entries = remember {
         listOf(
+            ApiEntry("Mixed-language calls", "annie.runtime.call(path, input, functionName?)", "Call a package-local Python or Lua function with JSON data. Guests run as restricted computation workers, with fresh state, without filesystem/network/native access. Python and Lua entries define main(ctx).", "const result = await annie.runtime.call(\"logic.py\", { value: 21 });\nreturn annie.messages.text(String(result));"),
+            ApiEntry("Host AI", "annie.ai.generate/stream(prompt)", "API 2 packages need the ai capability, ai.generate permission and a user grant. Configure your Anthropic key and model in Host AI. Stream also needs messages and messages.post. Scripts never receive the host key; provider usage may cost money.", "await annie.ai.stream(ctx.text);\nreturn null;"),
+            ApiEntry("Streaming replies", "annie.messages.stream(initial?)", "Create one persistent text message, append incremental text, then finish or cancel. Requires the messages capability and messages.post permission. Partial replies are marked interrupted when their runtime closes.", "const reply = await annie.messages.stream(\"Working\");\nawait reply.append(\"… done\");\nawait reply.finish();\nreturn null;"),
             ApiEntry("Commands", "annie.commands.register({...})", "Register a slash command with a name, description, and async execute(ctx) handler.", "annie.commands.register({\n  name: \"hello\",\n  async execute(ctx) {\n    return { type: \"text\", text: \"Hi!\" };\n  }\n});"),
             ApiEntry("Match results", "annie.messages.matches(value)", "Render source-labeled native results with optional relevance scores; selection routes back to the owning script action.", "return annie.messages.matches({\n  title: \"Choose a source\",\n  items: [{ id: \"train\", title: \"Evening Train\", sourceName: \"North catalog\", relevance: 0.92, action: \"details\" }]\n});"),
             ApiEntry("Package sources", "manifest.sources[]", "Register the media categories and slash command provided by this catalog source. The command must also be declared in commands and registered in JavaScript.", "{\n  \"commands\": [{ \"name\": \"search\", \"description\": \"Search catalog\" }],\n  \"sources\": [{ \"id\": \"catalog\", \"name\": \"North catalog\", \"mediaTypes\": [\"anime\", \"movie\"], \"command\": \"search\" }]\n}"),
@@ -1776,7 +1783,11 @@ private class AnnieScriptCodeEditor(context: android.content.Context) : CodeEdit
         return object : InputConnectionWrapper(connection, false) {
             private fun deleteSelectedText(): Boolean {
                 if (!isTextSelected()) return false
-                deleteText()
+                val cursor = text.cursor
+                val start = text.getCharIndex(cursor.leftLine, cursor.leftColumn)
+                val end = text.getCharIndex(cursor.rightLine, cursor.rightColumn)
+                if (start >= end) return false
+                text.replace(start, end, "")
                 notifyIMEExternalCursorChange()
                 onTextSync?.invoke()
                 return true

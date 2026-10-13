@@ -30,7 +30,9 @@ class ScriptAssistantTest {
         assertTrue(scriptAssistSystemPrompt("settings.json").contains("requested json document"))
         assertTrue(scriptAssistSystemPrompt("main.js").contains("QuickJS runtime"))
         assertTrue(scriptAssistSystemPrompt("scripts/app.js", webProject = true).contains("classic browser JavaScript"))
-        assertTrue(scriptAssistSystemPrompt("worker.py").contains("does not currently execute py directly"))
+        assertTrue(scriptAssistSystemPrompt("worker.py").contains("restricted CPython"))
+        assertTrue(scriptAssistSystemPrompt("logic.lua").contains("Lua 5.2"))
+        assertTrue(scriptAssistSystemPrompt("main.ts").contains("offline TypeScript transpilation"))
     }
 
 }

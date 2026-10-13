@@ -5,6 +5,11 @@ import sys
 import xml.etree.ElementTree as ET
 
 EXPECTED = {
+    "ApiTwoRuntimeTest": {'strictWrappersPreserveTypesAndStreamOnePersistentMessage'},
+    "GuestRuntimeTest": {'typedEntryCannotBeMovedOrDeletedOutOfItsManifest', 'projectNamesCannotCollideAcrossRuntimeLanguages', 'nativeInterpreterRejectsHostAccessAndRecovers', 'javascriptOrchestratesPythonAndLuaWithJson', 'pythonAndLuaCommandsExecuteInTheWorker'},
+    "HostAiRuntimeTest": {'aiRateLimitIsSharedAcrossProviderInstances', 'aiStreamsIntoOneStoredMessageAndHonoursRevocation', 'hostCredentialsAreEncryptedAndOutsideScriptEnvironmentStorage', 'permissionRevocationDuringGenerationPreservesPartialTextAndEndsStreaming'},
+    "TypeScriptRuntimeTest": {'typescriptFolderImportsAndJavascriptInterop', 'typedEntryAndImportedModuleRunThroughAnnie'},
+    "AnnieCanvasMessageTest": {'webGlShadersDrawReadPixelsAndSurviveFullscreen', 'builtInSnakeCommandProducesPlayableCanvasAndCapturesItsChatPreview', 'snakeCanvasAppearsInsideTheRealChatAndAcceptsFingerSwipes', 'interactiveCanvasRunsOfflineAndRetainsItsWebViewAcrossFullscreen'},
     "ChatHistoryTest": {"chatsPersistAndHistoryCanCreateAndReopenConversations", "manageChatRenamesAndDeletesWithConfirmation", "navigationDrawerOpensLibraryAndRoutesToDownloads", "profilePickerUsesApprovedAvatarLibraryAndCanResetToAnnieMark", "historyStoreRestoresCatalogCardsAndTheirActions"},
     "ScriptStudioFileCreationTest": {"typeSelectionCreatesHtmlAndExplicitCssExtensionOverridesIt", "failedDiskWriteKeepsDraftAndBlocksFileSwitchAndClose", "folderSelectionLoadsItsOwnEntryWithoutLeakingOtherDraft"},
     "AnnieGeckoBrowserUiTest": {"addressSubmissionDismissesKeyboardAndBrowserControlsRespectSystemBars"},
@@ -27,6 +32,9 @@ EXPECTED = {
 
 
 def verify(root, name):
+    if name not in EXPECTED:
+        print(f"ERROR unknown acceptance class: {name}")
+        return False
     cases = {}
     for report in Path(root).rglob("*.xml"):
         try:
