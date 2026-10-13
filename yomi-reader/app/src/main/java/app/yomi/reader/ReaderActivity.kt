@@ -2,9 +2,12 @@ package app.yomi.reader
 
 import android.app.Dialog
 import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.ContentResolver
 import android.content.Context
 import android.content.Intent
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.content.pm.ActivityInfo
 import android.graphics.Color
 import android.graphics.ColorMatrix
@@ -31,6 +34,7 @@ import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.ComponentActivity
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.navigationBarsPadding
@@ -38,6 +42,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.Modifier
 import eu.kanade.presentation.reader.ReaderPageIndicator
+import eu.kanade.presentation.reader.ReaderPageActionsDialog
 import eu.kanade.presentation.reader.ReaderContentOverlay
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
@@ -49,6 +54,7 @@ import eu.kanade.presentation.reader.appbars.ReaderAppBars
 import eu.kanade.presentation.reader.settings.ReaderSettingsDialog
 import eu.kanade.tachiyomi.ui.reader.setting.ReaderOrientation as MihonReaderOrientation
 import eu.kanade.tachiyomi.ui.reader.setting.ReadingMode as MihonReadingMode
+import androidx.core.content.FileProvider
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
@@ -94,6 +100,8 @@ import reader.shared.android.navigation.LNavigation
 import reader.shared.android.navigation.RightAndLeftNavigation
 import reader.shared.android.navigation.ViewerNavigation
 import reader.shared.android.webtoon.SharedWebtoonViewer
+import java.io.BufferedInputStream
+import java.io.File
 
 class ReaderActivity : ComponentActivity(), ReaderViewerHost {
     override val context: Context get() = this
@@ -109,6 +117,33 @@ class ReaderActivity : ComponentActivity(), ReaderViewerHost {
     @Volatile private var latestProgressRevision = 0L
     private val chromeRevision = mutableIntStateOf(0)
     private val settingsOpen = mutableStateOf(false)
+    private val pageActions = mutableStateOf<ViewerPage?>(null)
+    private var pendingSavePage: ViewerPage? = null
+    private val savePageLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult(),
+    ) { result ->
+        val page = pendingSavePage
+        pendingSavePage = null
+        val destination = result.data?.data
+        if (page != null && destination != null) {
+            lifecycleScope.launch {
+                runCatching {
+                    withContext(Dispatchers.IO) {
+                        page.open().use { input ->
+                            val output = contentResolver.openOutputStream(destination, "w")
+                                ?: error("Unable to write selected document")
+                            output.use { input.copyTo(it) }
+                        }
+                    }
+                }.onSuccess {
+                    Toast.makeText(this@ReaderActivity, "Page saved", Toast.LENGTH_SHORT).show()
+                }.onFailure {
+                    Log.e(READER_TAG, "page-save-failed", it)
+                    Toast.makeText(this@ReaderActivity, "Unable to save this page", Toast.LENGTH_LONG).show()
+                }
+            }
+        }
+    }
     // Kept for diagnostic log continuity while migrating reader UI to Mihon's bars.
     private lateinit var positionLabel: TextView
     private val hideChromeRunnable = Runnable {
@@ -230,6 +265,18 @@ class ReaderActivity : ComponentActivity(), ReaderViewerHost {
                         refreshChrome()
                     },
                     onClickSettings = ::showReaderSettings,
+                    )
+                }
+                pageActions.value?.let { page ->
+                    ReaderPageActionsDialog(
+                        onDismissRequest = {
+                            pageActions.value = null
+                            if (menuVisible) scheduleChromeHide()
+                        },
+                        onSetAsCover = { saveAsBookCover(page) },
+                        onCopy = { shareReaderPage(page, copyToClipboard = true) },
+                        onShare = { shareReaderPage(page, copyToClipboard = false) },
+                        onSave = { promptSavePage(page) },
                     )
                 }
                 if (settingsOpen.value) {
@@ -704,7 +751,9 @@ class ReaderActivity : ComponentActivity(), ReaderViewerHost {
     }
 
     override fun onPageLongTap(page: ViewerPage): Boolean {
-        showMenu()
+        if (isFinishing) return false
+        root.removeCallbacks(hideChromeRunnable)
+        pageActions.value = page
         return true
     }
 
