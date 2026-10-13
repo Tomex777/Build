@@ -58,6 +58,40 @@ try {
   assert.equal(disconnectOrigin({ message:'unknown details 2348012345678' }), 'other')
   assert.equal(classifyDisconnect(DisconnectReason.loggedOut).action, 'repair')
   assert.equal(classifyDisconnect(DisconnectReason.badSession).action, 'repair')
+  // A 500 is Baileys' badSession integer, but can also be reported for
+  // recoverable socket/server failures without a revocation protocol node.
+  // Probe existing credentials only a few times; never erase/auto re-pair.
+  const transient500 = { message:'Connection Failure', output:{ statusCode:500 },
+    data:{ tag:'stream:error', content:[] } }
+  assert.deepEqual(classifyDisconnect(500, transient500, 0), {
+    action:'reconnect', delayMs:4000,
+    message:'WhatsApp returned disconnect 500 without confirmed session revocation. Retrying existing saved auth.',
+  })
+  assert.equal(classifyDisconnect(500, transient500, 1).delayMs, 8000)
+  assert.equal(classifyDisconnect(500, transient500, 2).delayMs, 16000)
+  const exhausted = classifyDisconnect(500, transient500, 3)
+  assert.equal(exhausted.action, 'halt')
+  assert.match(exhausted.message, /Saved auth preserved/)
+  assert.doesNotMatch(exhausted.message, /Re-pair/)
+  assert.equal(classifyDisconnect(500, { message:'Bad Session' }, 0).action, 'reconnect')
+  assert.equal(classifyDisconnect(500, { message:'Bad Session' }, 1).action, 'halt')
+  assert.equal(classifyDisconnect(500, { message:'Bad Session',
+    data:{ tag:'bad-session' } }, 0).action, 'repair', 'Explicit server bad-session is a hard auth failure')
+  assert.equal(classifyDisconnect(500, { message:'Connection Failure',
+    data:{ tag:'not-authorized' } }, 0).action, 'repair')
+  assert.equal(classifyDisconnect(500, { message:'Stream Errored (conflict)',
+    data:{ tag:'conflict', attrs:{ type:'device_removed' } } }, 0).action, 'repair')
+  assert.equal(classifyDisconnect(500, { message:'Stream Errored (conflict)',
+    data:{ tag:'conflict', attrs:{ type:'replaced' } } }, 0).action, 'halt')
+  assert.equal(classifyDisconnect(500, { message:'Connection Failure',
+    data:{ tag:'conflict', attrs:{ type:'private@jid SECRET-TOKEN' } } }, 0).action, 'halt')
+  assert.equal(classifyDisconnect(401, transient500).action, 'repair', 'Keep definite logout handling')
+  assert.equal(classifyDisconnect(515, transient500).action, 'reconnect')
+  assert.ok(!JSON.stringify(classifyDisconnect(500, {
+    message:'Connection Failure: SECRET-TOKEN 2348012345678',
+    data:{ attrs:{ phone:'2348012345678', token:'SECRET-TOKEN' } }
+  }, 0)).includes('SECRET-TOKEN'), 'No raw private 500 details reach Cortex')
+
   assert.equal(classifyDisconnect(DisconnectReason.multideviceMismatch).action, 'repair')
   assert.equal(classifyDisconnect(DisconnectReason.forbidden).action, 'repair')
   assert.equal(classifyDisconnect(DisconnectReason.connectionReplaced).action, 'halt')
