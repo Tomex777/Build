@@ -63,14 +63,19 @@ internal class SurfaceDetailRenderer(
     private fun update(centerX: Double, centerZ: Double) {
         if (anchorX.isFinite() && hypot(centerX - anchorX, centerZ - anchorZ) < 0.0011) return
         val patch = SurfaceDetailMesh.buildPatch(centerX, centerZ, elevation)
-        val rocks = SurfaceDetailMesh.buildRocks(centerX, centerZ, elevation)
+        val actualSurface: (Double, Double) -> Double = { x, z ->
+            SurfaceDetailMesh.surfaceHeightAt(x, z, centerX, centerZ, elevation)
+        }
+        // The rock bases and their shadows sample the identical ground
+        // height field as the displayed mesh, not the unrefined DEM.
+        val rocks = SurfaceDetailMesh.buildRocks(centerX, centerZ, actualSurface)
         patchVertices = floats(patch.vertices)
         patchIndices = shorts(patch.indices)
         patchCount = patch.indices.size
         rockVertices = floats(rocks.vertices)
         rockCount = rocks.vertices.size / SurfaceDetailMesh.STRIDE
         val contact = SurfaceRockShadows.build(
-            rocks, elevation, lightX, lightY, lightZ
+            rocks, actualSurface, lightX, lightY, lightZ
         )
         shadowVertices = floats(contact)
         shadowCount = contact.size / SurfaceDetailMesh.STRIDE
