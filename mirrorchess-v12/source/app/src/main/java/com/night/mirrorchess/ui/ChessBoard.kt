@@ -22,6 +22,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -87,8 +88,10 @@ fun ChessBoard(
     interactionsEnabled: Boolean = true,
     hapticsEnabled: Boolean = true,
     moveAnimationSpeed: MoveAnimationSpeed = MoveAnimationSpeed.SMOOTH,
+    onMoveSettled: (GameState, GameState) -> Unit = { _, _ -> },
 ) {
     val boardColors = colorsFor(palette)
+    val latestOnMoveSettled by rememberUpdatedState(onMoveSettled)
     val haptics = LocalHapticFeedback.current
     val context = LocalContext.current
     val motionScale = remember(context) {
@@ -116,6 +119,7 @@ fun ChessBoard(
             fadingPieces = emptyList()
             hiddenSquares = emptySet()
             moveProgress.snapTo(1f)
+            latestOnMoveSettled(previous, state)
             return@LaunchedEffect
         }
 
@@ -132,7 +136,7 @@ fun ChessBoard(
         moveProgress.animateTo(
             targetValue = 1f,
             animationSpec = tween(
-                durationMillis = moveAnimationSpeed.durationMillis,
+                durationMillis = (moveAnimationSpeed.durationMillis * motionScale).roundToInt().coerceAtLeast(1),
                 easing = SmoothMoveEasing,
             ),
         )
@@ -140,6 +144,7 @@ fun ChessBoard(
         motions = emptyList()
         fadingPieces = emptyList()
         hiddenSquares = emptySet()
+        latestOnMoveSettled(previous, state)
     }
 
     val checkedKingSquare = if (ChessRules.isInCheck(displayedState, displayedState.turn)) {
