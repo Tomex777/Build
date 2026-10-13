@@ -618,6 +618,11 @@ body{background:var(--bg)}
  .game-page .game-status{font-size:10px}
 }
 @media(prefers-reduced-motion:reduce){.tile-fresh,.ttt-mark path,.ttt-mark circle,.ttt-win-line path{animation:none!important}}
+
+.board2048.tile-sliding>.tile{visibility:hidden}
+.tile-layer{position:absolute;inset:0;pointer-events:none;overflow:hidden;z-index:5}
+.tile-ghost{display:flex;align-items:center;justify-content:center;position:absolute;border-radius:8px;font-weight:850;letter-spacing:-1.6px;will-change:transform;transition:transform 165ms cubic-bezier(.25,.75,.25,1)}
+@media(prefers-reduced-motion:reduce){.tile-ghost{transition:none}}
 </style>
 </head>
 <body>
@@ -768,6 +773,7 @@ gameDialog.open=false;
 gameDialog.showModal=()=>{gameDialog.classList.add("active");gameDialog.setAttribute("aria-hidden","false");gameDialog.open=true;document.body.classList.add("in-game")};
 gameDialog.close=()=>{gameDialog.classList.remove("active");gameDialog.setAttribute("aria-hidden","true");gameDialog.open=false;document.body.classList.remove("in-game");gameDialog.dispatchEvent(new Event("close"))};
 const root=document.getElementById("gameRoot"),title=document.getElementById("gameTitle"),help=document.getElementById("gameHelp");
+let tileAnimId=0;
 let active="",snakeTimer=null,snakeFrame=null,snakePrevBody=null,snakeTickAt=0,snake={},ttt=[],turn="X",mode="bot",tttFinished=false,grid=[],tileScore=0,gamePaused=false,boardRestore=null,gameOverRecorded=false;
 const scoreKey="night-play-v1-";
 function best(key){try{return Number(localStorage.getItem(scoreKey+key)||0)||0}catch{return 0}}
@@ -1265,21 +1271,75 @@ function tileBestKey(){return "2048"+(grid.length===4?"":"-"+grid.length)}
 function spawn(){const empty=[];grid.forEach((row,r)=>row.forEach((v,c)=>{if(v===0)empty.push([r,c])}));if(!empty.length)return;const p=empty[Math.floor(Math.random()*empty.length)];grid[p[0]][p[1]]=Math.random()<.9?2:4}
 function slide(arr){const n=arr.filter(Boolean),o=[];for(let i=0;i<n.length;i++){if(n[i]===n[i+1]){o.push(n[i]*2);tileScore+=n[i]*2;i++}else o.push(n[i])}while(o.length<grid.length)o.push(0);return o}
 function move2048(dir){
- if(active!=="2048"||gamePaused)return;const size=grid.length,before=JSON.stringify(grid);
+ if(active!=="2048"||gamePaused)return;const size=grid.length,before=JSON.stringify(grid),beforeGrid=grid.map(row=>row.slice());
  if(dir==="left")grid=grid.map(slide);
  if(dir==="right")grid=grid.map(row=>slide([...row].reverse()).reverse());
  if(dir==="up"||dir==="down"){for(let c=0;c<size;c++){let col=grid.map(row=>row[c]);if(dir==="down")col.reverse();col=slide(col);if(dir==="down")col.reverse();for(let r=0;r<size;r++)grid[r][c]=col[r]}}
  if(JSON.stringify(grid)!==before){
  spawn();record(tileBestKey(),tileScore);
  try{localStorage.setItem("night-play-save-2048-"+size,JSON.stringify({grid,size,score:tileScore,updatedAt:Date.now()}))}catch{}
- draw2048();
+ draw2048(beforeGrid,dir);
  if(!grid.flat().includes(0)){let moves=false;for(let r=0;r<size;r++)for(let c=0;c<size;c++)if((r<size-1&&grid[r][c]===grid[r+1][c])||(c<size-1&&grid[r][c]===grid[r][c+1]))moves=true;if(!moves){if(!gameOverRecorded){recordSession(tileBestKey(),tileScore);gameOverRecorded=true}document.getElementById("gameHelp").textContent="No more moves! Start a new game to try again."}}
  }
 }
-function draw2048(){
- document.getElementById("score").textContent=tileScore;document.getElementById("best").textContent=best(tileBestKey());
- const board=document.getElementById("board2048");board.innerHTML="";board.dataset.size=String(grid.length);board.style.gridTemplateColumns="repeat("+grid.length+",minmax(0,1fr))";
- grid.flat().forEach(v=>{const t=document.createElement("div");t.className="tile";t.dataset.v=v;t.textContent=v||"";board.appendChild(t)})
+function tileMovePaths(before,dir){
+ const size=before.length,paths=[];
+ for(let fixed=0;fixed<size;fixed++){
+  const cells=Array.from({length:size},(_,i)=>{
+   if(dir==="left")return [fixed,i];
+   if(dir==="right")return [fixed,size-1-i];
+   if(dir==="up")return [i,fixed];
+   return [size-1-i,fixed]
+  });
+  const occupied=cells.map(([r,c])=>({r,c,v:before[r][c]})).filter(x=>x.v);
+  let dest=0;
+  for(let i=0;i<occupied.length;i++){
+   const item=occupied[i],to=cells[dest];
+   paths.push({from:[item.r,item.c],to,v:item.v});
+   if(occupied[i+1]?.v===item.v){
+    const next=occupied[++i];paths.push({from:[next.r,next.c],to,v:next.v})
+   }
+   dest++;
+  }
+ }
+ return paths
+}
+function animateTileSlide(board,before,dir){
+ if(window.matchMedia("(prefers-reduced-motion: reduce)").matches||!board.isConnected)return;
+ const len=before.length,children=[...board.querySelectorAll(":scope > .tile")];
+ const paths=tileMovePaths(before,dir),moving=paths.filter(x=>x.from[0]!==x.to[0]||x.from[1]!==x.to[1]);
+ if(!moving.length)return;
+ const layer=document.createElement("div");layer.className="tile-layer";layer.setAttribute("aria-hidden","true");
+ const shade={2:"#f8f4e9",4:"#f0e4ca",8:"#edc08a",16:"#e4a16e",32:"#d88b69",64:"#c87154",128:"#a77949",256:"#a77949",512:"#a77949",1024:"#4f6d53",2048:"#4f6d53"};
+ const ghosts=[];
+ for(const {from,to,v} of paths){
+  const start=children[from[0]*len+from[1]],end=children[to[0]*len+to[1]];
+  if(!start||!end)continue;
+  const item=document.createElement("div");
+  item.className="tile-ghost";item.textContent=v;item.style.left=start.offsetLeft+"px";item.style.top=start.offsetTop+"px";
+  item.style.width=start.offsetWidth+"px";item.style.height=start.offsetHeight+"px";
+  item.style.fontSize=getComputedStyle(start).fontSize;
+  item.style.background=shade[v]||"#4f6d53";item.style.color=v>=32?"#fff":"#2d2c2a";
+  layer.appendChild(item);
+  ghosts.push({item,dx:end.offsetLeft-start.offsetLeft,dy:end.offsetTop-start.offsetTop})
+ }
+ const token=++tileAnimId;
+ board.appendChild(layer);board.classList.add("tile-sliding");
+ requestAnimationFrame(()=>{if(token!==tileAnimId)return;ghosts.forEach(g=>g.item.style.transform="translate("+g.dx+"px,"+g.dy+"px)")});
+ setTimeout(()=>{if(token!==tileAnimId)return;board.classList.remove("tile-sliding");layer.remove()},185)
+}
+function draw2048(before=null,dir=null){
+ const score=document.getElementById("score"),bestEl=document.getElementById("best");
+ if(!score||!bestEl)return;
+ score.textContent=tileScore;bestEl.textContent=best(tileBestKey());
+ const board=document.getElementById("board2048");if(!board)return;
+ board.innerHTML="";board.dataset.size=String(grid.length);board.style.gridTemplateColumns="repeat("+grid.length+",minmax(0,1fr))";
+ grid.forEach((row,r)=>row.forEach((v,c)=>{
+  const el=document.createElement("div");el.className="tile";el.dataset.v=String(v);el.textContent=v||"";
+  if(before&&v&&before[r]?.[c]!==v)el.classList.add("tile-fresh");
+  board.appendChild(el)
+ }));
+ if(before&&dir)animateTileSlide(board,before,dir)
 }
 
 const SETTINGS_PREFIX="night-play-setting-";
