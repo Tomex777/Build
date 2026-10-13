@@ -1340,6 +1340,7 @@ private fun GameplaySettings(viewModel: GameViewModel) {
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(vertical = 8.dp)) {
         SettingsToggle("Legal move markers", settings.showLegalMoves) { viewModel.updateSettings(settings.copy(showLegalMoves = it)) }
         SettingsToggle("Haptics", settings.haptics) { viewModel.updateSettings(settings.copy(haptics = it)) }
+        SettingsToggle("Board sounds", settings.boardSounds) { viewModel.updateSettings(settings.copy(boardSounds = it)) }
         SectionTitle("PIECE ANIMATION")
         Column(Modifier.padding(horizontal = 18.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             MoveAnimationSpeed.entries.forEach { speed ->
@@ -1357,7 +1358,7 @@ private fun GameplaySettings(viewModel: GameViewModel) {
                 )
             }
         }
-        Text("Standard (300ms) is the default, similar to a typical online chess board. Pieces slide naturally; captures finish on landing. Choose Fast, Relaxed or Off. Android reduced-motion settings are respected.", modifier = Modifier.padding(18.dp), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text("Standard (300ms) is the default, similar to a typical online chess board. Pieces slide naturally; captures and sounds finish on landing. Choose Fast, Relaxed or Off. Android reduced-motion settings are respected.", modifier = Modifier.padding(18.dp), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 
