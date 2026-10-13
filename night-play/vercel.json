@@ -2,6 +2,10 @@
   "version": 2,
   "rewrites": [
     {
+      "source": "/anonymous/join/:token",
+      "destination": "/anonymous/index.html"
+    },
+    {
       "source": "/anonymous",
       "destination": "/anonymous/index.html"
     },
