@@ -240,9 +240,15 @@ class EndlessRenderer(
         buildOrbitBuffers()
         buildFormationDiskBuffers()
         buildRingMesh()
+        // NASA DEM assets must be loaded BEFORE any coarse geometry or
+        // cached local LOD is constructed. Previous order silently built
+        // the Mars coarse surface using its procedural fallback while the
+        // walking camera sampled NASA MOLA -- producing wrong horizons.
+        MoonSurfaceMeshGenerator.elevationPatch =
+            MeasuredElevationPatch.load(context, "moon_lola_terrain.bin")
+        MarsSurfaceTerrain.elevationPatch =
+            MeasuredElevationPatch.load(context, "mars_mola_terrain.bin")
         marsSurfaceTerrain = MarsSurfaceTerrain(context)
-        MoonSurfaceMeshGenerator.elevationPatch = MeasuredElevationPatch.load(context, "moon_lola_terrain.bin")
-        MarsSurfaceTerrain.elevationPatch = MeasuredElevationPatch.load(context, "mars_mola_terrain.bin")
         moonSurfaceTerrain = MoonSurfaceTerrain(context)
     }
 
