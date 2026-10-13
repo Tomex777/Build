@@ -51,6 +51,7 @@ uniform vec3 uLight;
 uniform int uWorld; // 0 = Mars; 1 = Moon
 uniform int uPatchType; // 0 = coarse landscape; 1 = foreground; 2 = stones
 uniform vec2 uViewAnchor;
+uniform vec2 uMidAnchor;
 uniform sampler2D uLandingAlbedo;
 uniform int uHasLandingAlbedo;
 out vec4 fragColor;
@@ -95,6 +96,10 @@ void main() {
     // Avoid the precision loss and visible depth-fighting when meter-scale
     // foreground triangles overlap the orbital-resolution DEM grid.
     if (uPatchType == 0 && max(
+        abs(vPosition.x - uMidAnchor.x),
+        abs(vPosition.z - uMidAnchor.y)) < 0.546) discard;
+
+    if (uPatchType == 4 && max(
         abs(vPosition.x - uViewAnchor.x),
         abs(vPosition.z - uViewAnchor.y)) < 0.0188) discard;
     vec3 N = normalize(vNormal);
@@ -165,7 +170,12 @@ void main() {
         vec3 sourceAlbedo = uWorld == 0
             ? photo * vec3(0.97, 0.94, 0.90)
             : photo * vec3(0.94, 0.94, 0.95);
-        float photoWeight = uPatchType == 1 ? 0.88 : 0.83;
+        // 1024px/81km orbital photos resolve ~80m, not individual pebbles.
+        // Do not enlarge those texels into artificial stripes at eye level.
+        // Preserve measured albedo for distant ridges and geological context.
+        float photoWeight = uPatchType == 1 ? 0.06 :
+                            (uPatchType == 4 ? 0.32 : 0.80);
+        photoWeight *= smoothstep(0.013, 0.20, vDistance);
         albedo = mix(albedo, sourceAlbedo, photoWeight);
         albedo *= 0.90 + 0.17 * granules;
     }
@@ -179,8 +189,11 @@ void main() {
         : 0.055 + 1.38 * direct * halfLambert;
     float surfaceAo = mix(1.0, 0.78, pow(steepness, 0.7));
     // Geometrically modelled rocks are darker than surrounding loose dust.
-    float stone = smoothstep(0.16, 0.52, length(vColor));
-    albedo *= mix(0.65, 1.0, stone);
+    // Variation between buried basalt and dust-coated stones reduces
+    // the repeated orange/black silhouette effect in the previous frame.
+    if (uPatchType == 2) {
+        albedo *= 0.72 + vColor.r * 0.65;
+    }
     vec3 color = albedo * light * surfaceAo;
 
     if (uWorld == 0) {
