@@ -420,13 +420,13 @@ header{box-shadow:none;background:#f7f7f7;border-bottom:1px solid var(--line)}
 .game-page .scorebar{padding:0 3px}
 .game-page .dpad button{background:#e1e9e3;border-radius:10px;font-size:18px;transition:background-color .12s ease}
 .game-page .dpad button:active{background:#a6c2b0}
-.game-page[data-game="snake"] #snakeCanvas{border:3px solid #789381;border-radius:12px;image-rendering:pixelated}
-.game-page[data-game="snake"] .game-wrap{--play-color:#32614b}
-.game-page[data-game="2048"] .board2048{background:#cbbfae;border-radius:12px;padding:10px;gap:8px}
-.game-page[data-game="2048"] .tile{border-radius:5px}
-.game-page[data-game="ttt"] .tttboard{gap:8px}
-.game-page[data-game="ttt"] .tttboard button{border-radius:10px;background:#dee8f0;color:#365b83;transition:background-color .2s ease}
-.game-page[data-game="ttt"] .tttboard button:not(:disabled):hover{background:#cbdce9}
+.game-page[data-skin="snake"] #snakeCanvas{border:3px solid #789381;border-radius:12px;image-rendering:pixelated}
+.game-page[data-skin="snake"] .game-wrap{--play-color:#32614b}
+.game-page[data-skin="2048"] .board2048{background:#cbbfae;border-radius:12px;padding:10px;gap:8px}
+.game-page[data-skin="2048"] .tile{border-radius:5px}
+.game-page[data-skin="ttt"] .tttboard{gap:8px}
+.game-page[data-skin="ttt"] .tttboard button{border-radius:10px;background:#dee8f0;color:#365b83;transition:background-color .2s ease}
+.game-page[data-skin="ttt"] .tttboard button:not(:disabled):hover{background:#cbdce9}
 .settings-choices button{border-radius:9px;background:#f0f2ef}
 .snake-mode-grid button{border-radius:9px}
 .site-footer{border-color:var(--line)}
@@ -915,7 +915,7 @@ function openGame(kind,{push=true,fresh=false}={}){
  if(!["snake","2048","ttt"].includes(kind))return;
  if(push)history.pushState({game:kind},"","/play/"+kind);
  renderRoute();
- stop();active=kind;gameDialog.dataset.game=kind;gameDialog.showModal();title.textContent=kind==="ttt"?"Tic-Tac-Toe":kind==="2048"?"2048":"Snake";
+ stop();active=kind;gameDialog.dataset.skin=kind;gameDialog.showModal();title.textContent=kind==="ttt"?"Tic-Tac-Toe":kind==="2048"?"2048":"Snake";
  if(kind==="snake"){help.textContent="Tap to start. Swipe the board, tap the arrows or use your keyboard. Pause is automatic if you switch apps.";initSnake(fresh);document.getElementById("pauseGame").textContent="Start on board ▶"}
  if(kind==="2048"){help.textContent="Slide matching tiles together. Your board is automatically saved after every move.";init2048(fresh)}
  if(kind==="ttt"){help.textContent="Play against NIGHT's bot or someone beside you. Online multiplayer is coming later.";initTtt(fresh)}
