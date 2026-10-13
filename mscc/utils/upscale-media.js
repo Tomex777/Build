@@ -26,7 +26,7 @@ export function targetDimensions(width, height, factor, maxDimension = MAX_CLIPD
 }
 
 export function configuredClipdropKeys(env = process.env) {
-  return [...new Set([env.CLIPDROP_API_KEY, ...(String(env.CLIPDROP_API_KEYS || '').split(/[\\s,;]+/))]
+  return [...new Set([env.CLIPDROP_API_KEY, ...(String(env.CLIPDROP_API_KEYS || '').split(/[\s,;]+/))]
     .map(value => String(value || '').trim()).filter(Boolean))]
 }
 
@@ -50,7 +50,7 @@ function ffprobeDimensions(input) {
     child.once('error',error => finish(error))
     child.once('close',code => {
       if (code !== 0) return finish(new Error('Cannot inspect image dimensions (ffprobe unavailable).'))
-      const match = output.match(/^(\\d+)x(\\d+)/)
+      const match = output.match(/^(\d+)x(\d+)/)
       return match
         ? finish(null,{width:Number(match[1]),height:Number(match[2])})
         : finish(new Error('Unsupported or damaged image.'))
@@ -58,12 +58,20 @@ function ffprobeDimensions(input) {
   })
 }
 
+function imageMime(buffer) {
+  if (buffer.subarray(0,3).equals(Buffer.from([0xff,0xd8,0xff]))) return { mime:'image/jpeg', ext:'jpg' }
+  if (buffer.subarray(0,8).equals(Buffer.from([137,80,78,71,13,10,26,10]))) return { mime:'image/png', ext:'png' }
+  if (buffer.subarray(0,4).toString('ascii') === 'RIFF' && buffer.subarray(8,12).toString('ascii') === 'WEBP') return { mime:'image/webp', ext:'webp' }
+  throw new Error('Please use a JPG, PNG, or WebP image.')
+}
+
 async function clipdropUpscale(buffer, dimensions, factor, keys, { fetchImpl = globalThis.fetch } = {}) {
   const target = targetDimensions(dimensions.width,dimensions.height,factor)
   let lastError = 'AI provider unavailable'
   for (const key of keys.slice(0,5)) {
     const form = new FormData()
-    form.append('image_file',new Blob([buffer],{type:'image/png'}),'original.png')
+    const { mime, ext } = imageMime(buffer)
+    form.append('image_file',new Blob([buffer],{type:mime}),'original.' + ext)
     form.append('target_width',String(target.width))
     form.append('target_height',String(target.height))
     try {
@@ -98,6 +106,7 @@ export async function upscaleImage(buffer, { factor = 2, env = process.env, fetc
     throw new Error('Please send an image smaller than 10 MB.')
   }
   const safeFactor = upscaleFactor(factor)
+  imageMime(buffer)
   const directory = await mkdtemp(join(tmpdir(),'mscc-upscale-'))
   try {
     const input = join(directory,'input.bin')
