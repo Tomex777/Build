@@ -26,6 +26,7 @@ import android.widget.Button
 import android.widget.FrameLayout
 import android.widget.ImageButton
 import android.widget.LinearLayout
+import android.widget.ProgressBar
 import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
@@ -75,6 +76,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import reader.shared.android.ReaderPageImageView
 import reader.shared.android.ReaderRenderConfig
 import reader.shared.android.ReaderViewerHost
@@ -93,6 +96,11 @@ class ReaderActivity : ComponentActivity(), ReaderViewerHost {
 
     private lateinit var root: FrameLayout
     private lateinit var chrome: ComposeView
+    private var loadingView: View? = null
+    // Page-change callbacks may enqueue several IO jobs during a fast swipe.
+    // Serialize their commits and reject stale snapshots so the last page wins.
+    private val progressWriteMutex = Mutex()
+    @Volatile private var latestProgressRevision = 0L
     private val chromeRevision = mutableIntStateOf(0)
     private val settingsOpen = mutableStateOf(false)
     // Kept for diagnostic log continuity while migrating reader UI to Mihon's bars.
@@ -125,6 +133,7 @@ class ReaderActivity : ComponentActivity(), ReaderViewerHost {
         WindowCompat.setDecorFitsSystemWindows(window, false)
         root = FrameLayout(this).apply { setBackgroundColor(Color.BLACK) }
         setContentView(root)
+        showBookLoading()
         readIntentReaderState()
         applySavedOrientation()
         applyCustomBrightness()
@@ -378,6 +387,30 @@ class ReaderActivity : ComponentActivity(), ReaderViewerHost {
         openIntentBook()
     }
 
+    private fun showBookLoading() {
+        val content = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER
+            setPadding(dp(24), dp(24), dp(24), dp(24))
+            addView(ProgressBar(this@ReaderActivity).apply {
+                isIndeterminate = true
+                contentDescription = "Opening book"
+            })
+            addView(TextView(this@ReaderActivity).apply {
+                text = "Opening your book…"
+                setTextColor(0xFFCFD8E5.toInt())
+                textSize = 15f
+                gravity = Gravity.CENTER
+                setPadding(0, dp(20), 0, 0)
+            })
+        }
+        loadingView = content
+        root.addView(
+            content,
+            FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT),
+        )
+    }
+
     private fun readIntentReaderState() {
         title = intent.getStringExtra(EXTRA_TITLE) ?: "Book"
         mode = intent.getStringExtra(EXTRA_MODE)
@@ -490,6 +523,8 @@ class ReaderActivity : ComponentActivity(), ReaderViewerHost {
 
     private fun installViewer() {
         if (viewerChapters.isEmpty()) return
+        loadingView?.let(root::removeView)
+        loadingView = null
         viewer?.destroy()
         viewer?.getView()?.let(root::removeView)
 
@@ -589,25 +624,31 @@ class ReaderActivity : ComponentActivity(), ReaderViewerHost {
             overallProgress = overall,
         )
         lastLocation = location
+        val progressRevision = ++latestProgressRevision
         updatePositionLabel(location)
 
         lifecycleScope.launch(Dispatchers.IO) {
-            Log.i(
-                READER_TAG,
-                "progress-save-start title=$title chapter=${location.chapterId.value} page=${page.index + 1}/$pageCount",
-            )
-            try {
-                progressSink.onLocationChanged(location)
+            progressWriteMutex.withLock {
+                // An older coroutine can resume after the user has already turned
+                // another page; never commit an outdated chapter/page in that case.
+                if (progressRevision != latestProgressRevision) return@withLock
                 Log.i(
                     READER_TAG,
-                    "progress-saved title=$title chapter=${location.chapterId.value} page=${page.index + 1}/$pageCount",
+                    "progress-save-start title=$title chapter=${location.chapterId.value} page=${page.index + 1}/$pageCount",
                 )
-            } catch (error: Throwable) {
-                Log.e(
-                    READER_TAG,
-                    "progress-save-failed title=$title chapter=${location.chapterId.value} page=${page.index + 1}/$pageCount",
-                    error,
-                )
+                try {
+                    progressSink.onLocationChanged(location)
+                    Log.i(
+                        READER_TAG,
+                        "progress-saved title=$title chapter=${location.chapterId.value} page=${page.index + 1}/$pageCount",
+                    )
+                } catch (error: Throwable) {
+                    Log.e(
+                        READER_TAG,
+                        "progress-save-failed title=$title chapter=${location.chapterId.value} page=${page.index + 1}/$pageCount",
+                        error,
+                    )
+                }
             }
         }
 
@@ -650,8 +691,14 @@ class ReaderActivity : ComponentActivity(), ReaderViewerHost {
     override fun onStop() {
         super.onStop()
         lastLocation?.let { location ->
+            val revision = latestProgressRevision
             lifecycleScope.launch(Dispatchers.IO) {
-                progressSink.onSessionClosed(location)
+                progressWriteMutex.withLock {
+                    if (revision == latestProgressRevision) {
+                        runCatching { progressSink.onSessionClosed(location) }
+                            .onFailure { Log.e(READER_TAG, "progress-close-failed", it) }
+                    }
+                }
             }
         }
     }
@@ -885,6 +932,7 @@ class ReaderActivity : ComponentActivity(), ReaderViewerHost {
     }
 
     private fun showFatal(message: String) {
+        loadingView = null
         root.removeCallbacks(hideChromeRunnable)
         root.removeAllViews()
         root.setBackgroundColor(0xFF0A0D12.toInt())
