@@ -531,24 +531,24 @@ class EndlessRenderer(
         val cosHeading = cos(yaw)
 
         if (marsSurfaceMode) {
-            val step = 0.20
+            val step = 0.00078 // 2.34 meters per tap (1 unit = 3 km)
             val nextX = (marsSurfaceX + (sinHeading * f + cosHeading * s) * step).coerceIn(-8.0, 8.0)
             val nextZ = (marsSurfaceZ + (-cosHeading * f + sinHeading * s) * step).coerceIn(-8.0, 8.0)
             val rise = MarsSurfaceTerrain.heightAt(nextX, nextZ) -
                 MarsSurfaceTerrain.heightAt(marsSurfaceX, marsSurfaceZ)
-            if (rise <= 0.055 && rise >= -0.08) {
+            if (rise <= 0.00024 && rise >= -0.00040) {
                 marsSurfaceX = nextX
                 marsSurfaceZ = nextZ
             }
             return
         }
 
-        val step = 0.27
+        val step = 0.00078 // 2.34 meters per tap
         val nextX = (moonSurfaceX + (sinHeading * f + cosHeading * s) * step).coerceIn(-8.0, 8.0)
         val nextZ = (moonSurfaceZ + (-cosHeading * f + sinHeading * s) * step).coerceIn(-8.0, 8.0)
         val rise = MoonSurfaceTerrain.heightAt(nextX, nextZ) -
             MoonSurfaceTerrain.heightAt(moonSurfaceX, moonSurfaceZ)
-        if (rise <= 0.075 && rise >= -0.10) {
+        if (rise <= 0.00024 && rise >= -0.00040) {
             moonSurfaceX = nextX
             moonSurfaceZ = nextZ
         }
@@ -597,8 +597,8 @@ class EndlessRenderer(
         GLES30.glClearColor(0.055f, 0.027f, 0.018f, 1f)
         GLES30.glClear(GLES30.GL_COLOR_BUFFER_BIT or GLES30.GL_DEPTH_BUFFER_BIT)
         drawMarsSky()
-        Matrix.perspectiveM(projection, 0, 70f, width.toFloat() / height, 0.04f, 40f)
-        val eyeY = MarsSurfaceTerrain.heightAt(marsSurfaceX, marsSurfaceZ) + 0.22
+        Matrix.perspectiveM(projection, 0, 67f, width.toFloat() / height, 0.000055f, 32f)
+        val eyeY = MarsSurfaceTerrain.heightAt(marsSurfaceX, marsSurfaceZ) + 0.00078 // 2.34m eye level
         val lookX = sin(yaw) * cos(pitch)
         val lookY = sin(pitch)
         val lookZ = -cos(yaw) * cos(pitch)
@@ -631,8 +631,8 @@ class EndlessRenderer(
     private fun drawMoonSurfaceFrame() {
         GLES30.glClearColor(0.0015f, 0.0015f, 0.0025f, 1f)
         GLES30.glClear(GLES30.GL_COLOR_BUFFER_BIT or GLES30.GL_DEPTH_BUFFER_BIT)
-        Matrix.perspectiveM(projection, 0, 68f, width.toFloat() / height, 0.035f, 180f)
-        val eyeY = MoonSurfaceTerrain.heightAt(moonSurfaceX, moonSurfaceZ) + 0.19
+        Matrix.perspectiveM(projection, 0, 67f, width.toFloat() / height, 0.000055f, 36f)
+        val eyeY = MoonSurfaceTerrain.heightAt(moonSurfaceX, moonSurfaceZ) + 0.00078 // 2.34m eye level
         val lookX = sin(yaw) * cos(pitch)
         val lookY = sin(pitch)
         val lookZ = -cos(yaw) * cos(pitch)
