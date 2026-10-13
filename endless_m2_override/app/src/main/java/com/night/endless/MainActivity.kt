@@ -382,8 +382,8 @@ private fun EndlessApp(
                 Text("ENDLESS", color = Text, fontSize = 17.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 1.7.sp)
                 Text(
                     when (landedBody) {
-                        "mars" -> "MARS SURFACE"
-                        "moon" -> "LUNAR SURFACE"
+                        "mars" -> "OLYMPUS MONS · MOLA TERRAIN"
+                        "moon" -> "TYCHO CRATER · LOLA TERRAIN"
                         else -> when {
                             historyOpen -> "SPACE & TIME EXPLORER"
                             cosmicScale != CosmicScale.SOLAR_SYSTEM -> "COSMIC SCALE EXPLORER"
