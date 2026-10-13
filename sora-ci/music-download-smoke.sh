@@ -169,6 +169,20 @@ grep -q 'proof= allowed' "$OUT/http.log"
 adb shell 'find /sdcard/Android/data/com.night.sora/files/Music/downloads -type f -size +0c 2>/dev/null' > "$OUT/files-before-offline.txt" || true
 grep -q . "$OUT/files-before-offline.txt"
 
+# Verify the actual Downloads destination lists a completed Music download,
+# not just a Now Playing button claiming "Downloaded". This guards against
+# disconnected queue state and the old "Active transfers" label expectation.
+adb shell input keyevent KEYCODE_BACK
+sleep 1
+wait_node 'More' 15
+tap_text 'More'
+wait_node 'Downloads' 15
+tap_text 'Downloads'
+wait_node 'Transfers & retries' 15
+wait_node 'Offline Proof' 15
+wait_node 'Downloaded' 15
+shot 03b-downloads-screen-with-real-file
+
 # Kill the only server capable of serving this proof track, restart Sora process,
 # and play again. Passing now requires Core to resolve the completed local file.
 kill "$SERVER_PID"; SERVER_PID=""
