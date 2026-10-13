@@ -17,9 +17,9 @@ function controlsHTML(markup){controls.innerHTML=markup;}
 function rules(title,desc){help.innerHTML="<h3>"+title+"</h3><p>"+desc+"</p>";}
 function scoreList(players,getScore){return '<div class="score-list">'+players.map((p,i)=>'<div class="score-row"><span><b style="color:'+h(p.color)+'">●</b> '+h(p.name)+'</span><b>'+h(getScore(p,i))+'</b></div>').join("")+"</div>";}
 function choosePlayers(id,selected,max){return '<label class="small">Players (local, sharing one phone)</label><select class="select" data-players="'+id+'">'+[2,3,4].filter(n=>n<=max).map(n=>'<option value="'+n+'"'+(n===selected?" selected":"")+'>'+n+' players</option>').join("")+"</select>";}
-function pick(id){if(!titles[id])id="ludo";active=id;const d=titles[id];$("gameTitle").textContent=d[0];$("gameSubtitle").textContent=d[1];$("gameCategory").textContent=d[2];[...picks.querySelectorAll("button")].forEach(x=>x.setAttribute("aria-current",String(x.dataset.pick===id)));const url=new URL(location.href);url.searchParams.set("game",id);history.replaceState(null,"",url.pathname+url.search);if(!state[id])reset(id);else render();}
+function pick(id){if(!titles[id])id="ludo";active=id;const d=titles[id];$("gameTitle").textContent=d[0];$("gameSubtitle").textContent=d[1];$("gameCategory").textContent=d[2];[...picks.querySelectorAll("button")].forEach(x=>x.setAttribute("aria-current",String(x.dataset.pick===id)));const url=new URL(location.href);url.searchParams.set("game",id);history.replaceState(null,"",url.pathname+url.search);if(id!=="ludo")window.NightLudo.cancel();if(id==="ludo"&&state.ludo){state.ludo=window.NightLudo.normalize(state.ludo);state.ludo.rolling=false;state.ludo.moving=false;}if(!state[id])reset(id);else render();}
 function reset(id){
-if(id==="ludo"){state.ludo={players:["red","green"].map(k=>({name:k[0].toUpperCase()+k.slice(1),color:colors[k],key:k,tokens:[-1,-1,-1,-1]})),turn:0,die:null,rolled:false,last:0,winner:null,msg:"Roll a six to bring a counter out."};}
+if(id==="ludo"){window.NightLudo.cancel();state.ludo=window.NightLudo.create();}
 if(id==="estate"){state.estate={players:["red","blue"].map(k=>({name:k[0].toUpperCase()+k.slice(1),color:colors[k],cash:1500,pos:0,bankrupt:false})),owners:{},upgrades:{},turn:0,rolled:false,last:0,pending:null,rounds:0,winner:null,msg:"Roll the dice to start buying properties.",inspect:0};}
 if(id==="whot"){state.whot=newShapes();}
 if(id==="colors"){state.colors=newColors();}
@@ -35,32 +35,9 @@ const safe=new Set([0,8,13,21,26,34,39,47]);
 const home={red:[[7,1],[7,2],[7,3],[7,4],[7,5],[7,7]],green:[[1,7],[2,7],[3,7],[4,7],[5,7],[7,7]],yellow:[[7,13],[7,12],[7,11],[7,10],[7,9],[7,7]],blue:[[13,7],[12,7],[11,7],[10,7],[9,7],[7,7]]};
 function pieceCell(player,pos){if(pos<0)return null;if(pos>=51)return home[player.key][pos-51];return track[(starts[player.key]+pos)%52];}
 function ludoValid(s,pi,ti){if(s.winner!==null||!s.rolled||s.turn!==pi)return false;const p=s.players[pi].tokens[ti];return p===-1?s.die===6:p<56&&p+s.die<=56;}
-function renderLudo(){
-const s=state.ludo,p=s.players[s.turn];let mapped={};
-s.players.forEach((player,pi)=>player.tokens.forEach((pos,ti)=>{const xy=pieceCell(player,pos);if(xy){const key=xy.join(",");(mapped[key]||=([])).push([pi,ti]);}}));
-let html='<div class="ludo" role="group" aria-label="15 by 15 traditional Ludo board">';
-for(let r=0;r<15;r++)for(let c=0;c<15;c++){
-let classes=["l-cell"];const idx=track.findIndex(([a,b])=>a===r&&b===c);
-if(idx>=0)classes.push("track");if([0,13,26,39].includes(idx)){classes.push(Object.keys(starts).find(k=>starts[k]===idx));}else if(safe.has(idx))classes.push("home-yellow");
-let center=r>=6&&r<=8&&c>=6&&c<=8;if(center)classes.push("center");
-for(const col of Object.keys(home)){if(home[col].slice(0,5).some(([y,x])=>y===r&&x===c))classes.push("home-"+col);}
-const occupants=mapped[r+","+c]||[];if(occupants.length>1)classes.push("stack");
-let content=occupants.slice(0,4).map(([pi,ti])=>'<button type="button" class="l-token'+(ludoValid(s,pi,ti)?" eligible":"")+'" style="--token:'+s.players[pi].color+'" data-piece="'+pi+'-'+ti+'" aria-label="'+s.players[pi].name+' counter '+(ti+1)+'" '+(ludoValid(s,pi,ti)?"":"disabled")+ '>'+(ti+1)+'</button>').join("");
-if(!content&&safe.has(idx))content='<span class="star" aria-hidden="true">★</span>';
-html+='<div class="'+classes.join(" ")+'" style="grid-row:'+(r+1)+';grid-column:'+(c+1)+'">'+content+'</div>';
-}
-const yards=[["red",1,1],["green",1,10],["blue",10,1],["yellow",10,10]];
-yards.forEach(([key,row,col])=>{const pi=s.players.findIndex(p=>p.key===key);html+='<div class="l-base '+key+'" style="grid-row:'+row+'/span 6;grid-column:'+col+'/span 6"><div class="yard">';for(let ti=0;ti<4;ti++){const inYard=pi>=0&&s.players[pi].tokens[ti]===-1;const valid=inYard&&ludoValid(s,pi,ti);html+='<button type="button" '+(inYard?'data-piece="'+pi+'-'+ti+'"':'')+' aria-label="'+key+' home counter '+(ti+1)+'" style="border-color:'+colors[key]+'" '+(valid?'':'disabled')+'>'+(inYard?'<span class="l-token'+(valid?' eligible':'')+'" style="--token:'+colors[key]+'">'+(ti+1)+'</span>':"")+'</button>';}html+='</div></div>';});
-html+='</div>';board.innerHTML=html;
-setStatus(s.winner!==null?s.players[s.winner].name+" wins!":p.name+"'s turn"+(s.rolled?" — choose a counter":" — roll the dice")+". "+s.msg);
-controlsHTML('<div class="dice" aria-label="Last die roll">'+("⚀⚁⚂⚃⚄⚅"[(s.rolled?s.die:s.last||1)-1])+'</div><button class="primary" type="button" data-action="ludo-roll" '+(s.rolled||s.winner!==null?"disabled":"")+'>Roll dice</button>'+scoreList(s.players,(x)=>x.tokens.filter(n=>n===56).length+"/4 home")+choosePlayers("ludo",s.players.length,4));
-rules("Nigerian Ludo","Roll a <b>6</b> to bring a counter out. Tap a glowing counter to move it. Land on an opponent to send them home (except safe squares ★). A six earns another roll. Move all four counters into the middle by exact count to win. Pass the phone after each turn.");
-}
-function ludoRoll(){const s=state.ludo;if(s.winner!==null||s.rolled)return;s.die=die();s.last=s.die;s.rolled=true;s.msg="";const possible=s.players[s.turn].tokens.some((_,ti)=>ludoValid(s,s.turn,ti));if(!possible){s.msg="No legal moves on "+s.last+".";s.rolled=false;s.turn=(s.turn+1)%s.players.length;}render();}
-function ludoMove(pi,ti){const s=state.ludo;if(!ludoValid(s,pi,ti))return;const me=s.players[pi];let pos=me.tokens[ti];pos=pos===-1?0:pos+s.die;me.tokens[ti]=pos;let note="";
-if(pos<=50){const idx=(starts[me.key]+pos)%52;if(!safe.has(idx))s.players.forEach((other,oi)=>{if(oi===pi)return;other.tokens=other.tokens.map(n=>{if(n>=0&&n<=50&&(starts[other.key]+n)%52===idx){note=" Captured "+other.name+"'s counter!";return -1;}return n;});});}
-const extra=s.die===6;s.rolled=false;s.msg=(pos===56?"Counter reached home. ":"Counter moved.")+note+(extra?" Another roll!":"");
-if(me.tokens.every(n=>n===56))s.winner=pi;else if(!extra)s.turn=(s.turn+1)%s.players.length;render();}
+function renderLudo(){window.NightLudo.render(state.ludo,{board,controls,status,help,save,scoreList,choosePlayers,rules});}
+function ludoRoll(){window.NightLudo.roll(state.ludo,render);}
+function ludoMove(pi,ti){window.NightLudo.move(state.ludo,pi,ti,render);}
 
 const places=["START","Eko Marina","Yaba","Community Fund","Surulere","Kaduna Road","Transit","Lekki","Sabo","Ikeja","VISIT","Ibadan","Bodija","Market Bonus","Akure","Warri","Coastal Rail","Benin","Asaba","Sapele","REST","Enugu","Nsukka","Electric Bill","Aba","Owerri","Metro Rail","Uyo","Calabar","Ikot Ekpene","HOLD","Jos","Bukuru","Lottery","Minna","Abuja Central","Capital Rail","Gwarinpa","Maitama","Luxury Tax"];
 const skipSpaces=new Set([0,3,6,10,13,16,20,23,26,30,33,36,39]);const groupColors=["#ac7c52","#8bc7d5","#e1a7b7","#e7a13e","#e64d46","#daca6f","#7cb875","#3980ba"];
@@ -216,13 +193,13 @@ document.addEventListener("click",e=>{const tile=e.target.closest("[data-checker
 
 load();picks.addEventListener("click",e=>{const btn=e.target.closest("[data-pick]");if(btn)pick(btn.dataset.pick);});
 $("newRound").addEventListener("click",()=>{if(confirm("Start a new "+titles[active][0]+" match? Current progress will be cleared."))reset(active);});
-document.addEventListener("change",e=>{const sel=e.target.closest("[data-players]");if(!sel)return;const id=sel.dataset.players,n=Math.max(2,Math.min(4,Number(sel.value)||2));if(id==="ludo"){const order=["red","green","yellow","blue"];state.ludo.players=order.slice(0,n).map(k=>({name:k[0].toUpperCase()+k.slice(1),color:colors[k],key:k,tokens:[-1,-1,-1,-1]}));state.ludo.turn=0;state.ludo.rolled=false;state.ludo.die=null;state.ludo.winner=null;state.ludo.msg="New match. Roll a six to leave home.";}if(id==="estate"){const order=["red","blue","green","yellow"];reset("estate");state.estate.players=order.slice(0,n).map(k=>({name:k[0].toUpperCase()+k.slice(1),color:colors[k],cash:1500,pos:0,bankrupt:false}));}if(id==="snakes"){const order=["red","blue","green","yellow"];reset("snakes");state.snakes.players=order.slice(0,n).map(k=>({name:k[0].toUpperCase()+k.slice(1),color:colors[k],pos:1}));}render();});
+document.addEventListener("change",e=>{const dm=e.target.closest("[data-dice-mode]");if(dm&&active==="ludo"){window.NightLudo.changeDice(state.ludo,Number(dm.value));render();return;}const sel=e.target.closest("[data-players]");if(!sel)return;const id=sel.dataset.players,n=Math.max(2,Math.min(4,Number(sel.value)||2));if(id==="ludo"){window.NightLudo.changePlayers(state.ludo,n);}if(id==="estate"){const order=["red","blue","green","yellow"];reset("estate");state.estate.players=order.slice(0,n).map(k=>({name:k[0].toUpperCase()+k.slice(1),color:colors[k],cash:1500,pos:0,bankrupt:false}));}if(id==="snakes"){const order=["red","blue","green","yellow"];reset("snakes");state.snakes.players=order.slice(0,n).map(k=>({name:k[0].toUpperCase()+k.slice(1),color:colors[k],pos:1}));}render();});
 document.addEventListener("click",e=>{
-const piece=e.target.closest("[data-piece]");if(piece){const [pi,ti]=piece.dataset.piece.split("-").map(Number);ludoMove(pi,ti);return;}
+const dice=e.target.closest("[data-ludo-die]");if(dice&&active==="ludo"){window.NightLudo.selectDie(state.ludo,Number(dice.dataset.ludoDie),render);return;}const piece=e.target.closest("[data-piece]");if(piece){const [pi,ti]=piece.dataset.piece.split("-").map(Number);ludoMove(pi,ti);return;}
 const card=e.target.closest("[data-card]");if(card){if(Number(card.dataset.card)<0)return;cardPlay(active,Number(card.dataset.card));return;}
 const sq=e.target.closest("[data-estate-info]");if(sq&&active==="estate"){state.estate.inspect=Number(sq.dataset.estateInfo);render();return;}
 const action=e.target.closest("[data-action]");if(!action)return;
-switch(action.dataset.action){case"ludo-roll":ludoRoll();break;case"estate-roll":estateRoll();break;case"estate-buy":estateDecision(true);break;case"estate-pass":estateDecision(false);break;case"estate-end":estateEnd();break;case"card-draw":cardDraw(active);break;case"snakes-roll":snakesRoll();break;case"draw-ready":drawReady();break;case"draw-next":drawNext();break;case"draw-clear":if(drawCtx){drawCtx.clearRect(0,0,800,600);}break;case"draw-erase":setBrush("erase");break;case"checkers-reset":reset("checkers");break;}
+switch(action.dataset.action){case"ludo-roll":ludoRoll();break;case"ludo-sound":state.ludo.sound=!state.ludo.sound;render();break;case"estate-roll":estateRoll();break;case"estate-buy":estateDecision(true);break;case"estate-pass":estateDecision(false);break;case"estate-end":estateEnd();break;case"card-draw":cardDraw(active);break;case"snakes-roll":snakesRoll();break;case"draw-ready":drawReady();break;case"draw-next":drawNext();break;case"draw-clear":if(drawCtx){drawCtx.clearRect(0,0,800,600);}break;case"draw-erase":setBrush("erase");break;case"checkers-reset":reset("checkers");break;}
 });
 function go(){pick(new URL(location.href).searchParams.get("game")||"ludo");}
 window.addEventListener("popstate",go);
