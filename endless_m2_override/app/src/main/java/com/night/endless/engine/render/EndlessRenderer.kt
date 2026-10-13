@@ -58,6 +58,7 @@ class EndlessRenderer(
     private var starProgram = 0
     private var lineProgram = 0
     private var ringProgram = 0
+    private var marsSkyProgram = 0
 
     private val textures = mutableMapOf<String, Int>()
     private var earthCloudsTexture = 0
@@ -231,6 +232,7 @@ class EndlessRenderer(
         starProgram = createProgram(STAR_VERTEX_SHADER, STAR_FRAGMENT_SHADER)
         lineProgram = createProgram(LINE_VERTEX_SHADER, LINE_FRAGMENT_SHADER)
         ringProgram = createProgram(RING_VERTEX_SHADER, RING_FRAGMENT_SHADER)
+        marsSkyProgram = createProgram(MARS_SKY_VERTEX_SHADER, MARS_SKY_FRAGMENT_SHADER)
 
         loadPlanetTextures()
         buildStars()
@@ -594,6 +596,7 @@ class EndlessRenderer(
     private fun drawMarsSurfaceFrame() {
         GLES30.glClearColor(0.055f, 0.027f, 0.018f, 1f)
         GLES30.glClear(GLES30.GL_COLOR_BUFFER_BIT or GLES30.GL_DEPTH_BUFFER_BIT)
+        drawMarsSky()
         Matrix.perspectiveM(projection, 0, 70f, width.toFloat() / height, 0.04f, 40f)
         val eyeY = MarsSurfaceTerrain.heightAt(marsSurfaceX, marsSurfaceZ) + 0.22
         val lookX = sin(yaw) * cos(pitch)
@@ -607,6 +610,22 @@ class EndlessRenderer(
         )
         Matrix.multiplyMM(viewProjection, 0, projection, 0, view, 0)
         marsSurfaceTerrain?.draw(viewProjection, -marsSurfaceX.toFloat(), -marsSurfaceZ.toFloat())
+    }
+
+    private fun drawMarsSky() {
+        // Mars' thin dusty atmosphere is bright at the horizon and darker
+        // toward the zenith. Night, dust storms and solar angle remain future
+        // physically-based lighting work.
+        GLES30.glDisable(GLES30.GL_DEPTH_TEST)
+        GLES30.glDepthMask(false)
+        GLES30.glUseProgram(marsSkyProgram)
+        GLES30.glUniform1f(
+            GLES30.glGetUniformLocation(marsSkyProgram, "uPitch"),
+            pitch.toFloat()
+        )
+        GLES30.glDrawArrays(GLES30.GL_TRIANGLES, 0, 3)
+        GLES30.glDepthMask(true)
+        GLES30.glEnable(GLES30.GL_DEPTH_TEST)
     }
 
     private fun drawMoonSurfaceFrame() {
@@ -1900,6 +1919,30 @@ void main() {
 
     color += texel.rgb * rim * 0.08 * (1.0 - uEmissive);
     fragColor = vec4(color, texel.a * uColor.a);
+}
+"""
+
+        private const val MARS_SKY_VERTEX_SHADER = """#version 300 es
+out vec2 vUv;
+void main() {
+    vec2 p = vec2((gl_VertexID << 1) & 2, gl_VertexID & 2);
+    vUv = p;
+    gl_Position = vec4(p * 2.0 - 1.0, 1.0, 1.0);
+}
+"""
+        private const val MARS_SKY_FRAGMENT_SHADER = """#version 300 es
+precision mediump float;
+in vec2 vUv;
+uniform float uPitch;
+out vec4 fragColor;
+void main() {
+    float heightAboveHorizon = vUv.y - 0.46 + uPitch * 0.45;
+    float t = smoothstep(-0.08, 0.85, heightAboveHorizon);
+    vec3 dustyHorizon = vec3(0.42, 0.235, 0.145);
+    vec3 thinZenith = vec3(0.125, 0.118, 0.132);
+    vec3 sky = mix(dustyHorizon, thinZenith, t);
+    float haze = (1.0 - smoothstep(-0.02, 0.26, heightAboveHorizon)) * 0.07;
+    fragColor = vec4(sky + vec3(haze, haze * 0.45, haze * 0.23), 1.0);
 }
 """
 
