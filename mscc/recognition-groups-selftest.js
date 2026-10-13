@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import {
   addGroupSchedule, dueGroupSchedules, finishGroupSchedule,
   groupScheduleInfo, nextScheduleTime, removeGroupSchedule,
-  scheduleDays, setGroupScheduleTimezone,
+  scheduleDays, setGroupScheduleTimezone, setGroupScheduleHold, isGroupScheduleHeld,
 } from './group-schedules.js'
 import { normalizeAnimeMatch, formatAnimeMatch, normalizeAudd, normalizeAcoustId,
   identifyAnime } from './media-recognition.js'
@@ -36,6 +36,11 @@ assert.equal(dueGroupSchedules(storage,now).length,0)
 assert.equal(dueGroupSchedules(storage,Date.parse('2026-10-13T21:00:01Z')).length,1)
 finishGroupSchedule(storage,group,row.id,Date.parse('2026-10-13T21:00:01Z'))
 assert.equal(dueGroupSchedules(storage,Date.parse('2026-10-13T21:00:01Z')).length,0)
+setGroupScheduleHold(storage,group,true)
+assert.equal(isGroupScheduleHeld(storage,group),true)
+assert.equal(groupScheduleInfo(storage,group).hold,true)
+setGroupScheduleHold(storage,group,false)
+assert.equal(isGroupScheduleHeld(storage,group),false)
 setGroupScheduleTimezone(storage,group,'UTC')
 assert.equal(groupScheduleInfo(storage,group).timezone,'UTC')
 assert.equal(removeGroupSchedule(storage,group,row.id),true)
