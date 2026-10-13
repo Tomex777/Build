@@ -52,6 +52,9 @@ class MarsSurfaceTerrain(private val context: Context) {
         indexCount = indexData.size
         program = createProgram(SurfaceMaterialShaders.VERTEX, SurfaceMaterialShaders.FRAGMENT)
         landingPhotoTexture = LandingPhotoTexture.load(context, "mars")
+        // Prepare the measured coarse-to-mid-to-near geometry while the GL
+        // engine initializes, not on the user's first landing frame.
+        detail.prepare(0.0, 0.0)
     }
 
     fun draw(vp: FloatArray, offsetX: Float, offsetZ: Float) {
