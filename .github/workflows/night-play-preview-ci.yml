@@ -5,6 +5,7 @@ on:
     branches:
       - feature/night-play-v4-profile-announcements-game-settings
       - feature/night-play-v5-greetings-snake-profile
+      - feature/night-play-v6-account-profile-analytics
     paths:
       - 'night-play/**'
       - '.github/workflows/night-play-preview-ci.yml'
