@@ -14,6 +14,7 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
@@ -74,6 +75,7 @@ fun ReaderSettingsDialog(
     onTapZonesChange: (String) -> Unit,
     tapZoneInvert: String,
     onTapZoneInvertChange: (String) -> Unit,
+    onPreviewTapZones: () -> Unit,
     background: String,
     onBackgroundChange: (String) -> Unit,
     customBrightness: Boolean,
@@ -213,6 +215,9 @@ fun ReaderSettingsDialog(
                                     value = tapZoneInvert,
                                     onChange = onTapZoneInvertChange,
                                 )
+                                TextButton(onClick = onPreviewTapZones) {
+                                    Text("Show tap zones")
+                                }
                                 SettingSwitch("Page transitions", pageTransitions, onPageTransitionsChange)
                                 SettingSwitch("Volume key navigation", volumeKeys, onVolumeKeysChange)
                                 if (volumeKeys) {
