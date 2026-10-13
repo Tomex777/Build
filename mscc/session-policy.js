@@ -67,30 +67,62 @@ export function reconnectDelay(attempt, { baseMs = 2000, maxMs = 30000 } = {}) {
   return Math.min(maxMs, baseMs * (2 ** Math.min(4, safeAttempt - 1)))
 }
 
-export function classifyDisconnect(code) {
+/**
+ * Baileys uses status 500 for `badSession`, but its numeric status alone is
+ * not proof that WhatsApp removed this linked device. In particular, a 500
+ * without an explicit auth-rejection protocol node gets a small, bounded
+ * recovery window using the SAME on-disk credentials. Never erase auth here.
+ *
+ * A real 401/403, or a server-auth rejection node, still requires re-pair.
+ * Old callers with no error object retain the conservative 500 behaviour.
+ */
+export function classifyDisconnect(code, error = null, ambiguous500Attempts = 0) {
+  const repair = {
+    action: 'repair',
+    message: 'Saved auth is no longer valid for this session. Use Re-pair.',
+  }
+  const duplicate = {
+    action: 'halt',
+    message: 'Connection was replaced by another active socket. Stop the duplicate session, then reconnect this account.',
+  }
+
+  if (code === DisconnectReason.badSession) {
+    if (!error) return repair
+    const detail = disconnectProtocolDetail(error)
+    if (['bad-session', 'not-authorized', 'device-removed', 'policy-violation'].includes(detail)) {
+      return repair
+    }
+    if (detail === 'connection-replaced' || detail === 'other-conflict' ||
+        disconnectOrigin(error) === 'connection-replaced') return duplicate
+
+    const attempts = Math.max(0, Math.floor(Number(ambiguous500Attempts) || 0))
+    // Even the library's own "Bad Session" text is not independently
+    // verified WhatsApp revocation. Allow just one non-destructive probe.
+    const libraryBadSessionHint = /^Bad Session(?:\\s*\\(500\\))?$/i.test(
+      typeof error.message === 'string' ? error.message.trim() : ''
+    )
+    const maxRetries = libraryBadSessionHint ? 1 : 3
+    if (attempts >= maxRetries) {
+      return {
+        action: 'halt',
+        message: 'WhatsApp returned disconnect 500 repeatedly. Saved auth preserved. Check Diagnostics, then use Reconnect; do not re-pair automatically.',
+      }
+    }
+    return {
+      action: 'reconnect',
+      delayMs: reconnectDelay(attempts + 1, { baseMs: 4000, maxMs: 16000 }),
+      message: 'WhatsApp returned disconnect 500 without confirmed session revocation. Retrying existing saved auth.',
+    }
+  }
+
   if (
     code === DisconnectReason.loggedOut ||
-    code === DisconnectReason.badSession ||
     code === DisconnectReason.multideviceMismatch ||
     code === DisconnectReason.forbidden
-  ) {
-    return {
-      action: 'repair',
-      message: 'Saved auth is no longer valid for this session. Use Re-pair.',
-    }
-  }
+  ) return repair
 
-  if (code === DisconnectReason.connectionReplaced) {
-    return {
-      action: 'halt',
-      message: 'Connection was replaced by another active socket. Stop the duplicate session, then reconnect this account.',
-    }
-  }
-
-  if (code === DisconnectReason.restartRequired) {
-    return { action: 'reconnect', delayMs: 500 }
-  }
-
+  if (code === DisconnectReason.connectionReplaced) return duplicate
+  if (code === DisconnectReason.restartRequired) return { action: 'reconnect', delayMs: 500 }
   return { action: 'reconnect' }
 }
 
