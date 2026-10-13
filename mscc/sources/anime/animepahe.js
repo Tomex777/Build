@@ -85,12 +85,13 @@ function parseFlareJsonBody(body) {
   return JSON.parse(value)
 }
 
-async function flareCommand(payload, timeoutMs = FLARE_TIMEOUT + 15000) {
+async function flareCommand(payload, timeoutMs = FLARE_TIMEOUT + 15000, signal = null) {
+  signal?.throwIfAborted?.()
   const response = await fetch(FLARE_URL + '/v1', {
     method:'POST',
     headers:{ 'content-type':'application/json' },
     body:JSON.stringify(payload),
-    signal:AbortSignal.timeout(timeoutMs),
+    signal:signal ? AbortSignal.any([signal, AbortSignal.timeout(timeoutMs)]) : AbortSignal.timeout(timeoutMs),
   })
   const raw = await response.text()
   if (!response.ok) throw new Error('FlareSolverr HTTP ' + response.status)
@@ -106,14 +107,15 @@ async function destroyBrowserSession(state = browserState) {
   await flareCommand({ cmd:'sessions.destroy', session:state.id }, 15000).catch(() => {})
 }
 
-async function createBrowserSession(preferredBase = BASES[0]) {
+async function createBrowserSession(preferredBase = BASES[0], signal = null) {
+  signal?.throwIfAborted?.()
   const token = randomUUID().replaceAll('-', '')
   const id = 'mscc-animepahe-' + token.slice(0, 20)
   const data = await flareCommand({
     cmd:'sessions.create',
     session:id,
     ...(FLARE_PROXY ? { proxy:{ url:FLARE_PROXY } } : {}),
-  }, 60000)
+  }, 60000, signal)
   if (data?.status !== 'ok') {
     throw new Error('FlareSolverr could not create the AnimePahe browser session.')
   }
@@ -136,14 +138,15 @@ function applySolution(state, solution, base = state?.base) {
   state.touchedAt = Date.now()
 }
 
-async function flareGet(url, state = browserState) {
+async function flareGet(url, state = browserState, signal = null) {
+  signal?.throwIfAborted?.()
   if (!state?.id) throw new Error('AnimePahe browser session is not available.')
   const data = await flareCommand({
     cmd:'request.get',
     url:String(url),
     session:state.id,
     maxTimeout:FLARE_TIMEOUT,
-  })
+  }, FLARE_TIMEOUT + 15000, signal)
   if (data?.status !== 'ok') {
     const error = new Error(String(data?.message || 'FlareSolverr could not open AnimePahe.'))
     error.code = 'animepahe-browser-blocked'
@@ -167,41 +170,46 @@ async function flareGet(url, state = browserState) {
   }
 }
 
-async function tryBrowserSearch(state, query, preferredBase = state?.base) {
+async function tryBrowserSearch(state, query, preferredBase = state?.base, signal = null) {
   const order = [preferredBase, ...BASES].filter(Boolean)
   const seen = new Set()
   let last
   for (const rawBase of order) {
+    signal?.throwIfAborted?.()
     const base = String(rawBase).replace(/\/$/, '')
     if (seen.has(base)) continue
     seen.add(base)
     try {
-      const loaded = await flareGet(searchUrl(base, query), state)
+      const loaded = await flareGet(searchUrl(base, query), state, signal)
       const data = parseFlareJsonBody(loaded.text)
       if (!Array.isArray(data?.data)) throw new Error('AnimePahe search returned invalid JSON data.')
       state.base = base
       return { data, base, loaded }
     } catch (error) {
+      signal?.throwIfAborted?.()
       last = error
     }
   }
   throw last || new Error('AnimePahe search failed.')
 }
 
-async function refreshBrowserSession({ query = PROBE_QUERY, preferredBase = BASES[0] } = {}) {
+async function refreshBrowserSession({ query = PROBE_QUERY, preferredBase = BASES[0], signal = null } = {}) {
+  signal?.throwIfAborted?.()
   if (refreshPromise) return refreshPromise
   refreshPromise = (async () => {
     await destroyBrowserSession().catch(() => {})
     let last
     for (let attempt = 1; attempt <= SESSION_ATTEMPTS; attempt += 1) {
-      const state = await createBrowserSession(preferredBase)
+      signal?.throwIfAborted?.()
+      const state = await createBrowserSession(preferredBase, signal)
       try {
-        const search = await tryBrowserSearch(state, query, preferredBase)
+        const search = await tryBrowserSearch(state, query, preferredBase, signal)
         browserState = state
         return { state, search }
       } catch (error) {
         last = error
         await destroyBrowserSession(state).catch(() => {})
+        signal?.throwIfAborted?.()
       }
     }
     throw last || new Error('AnimePahe browser verification failed.')
@@ -210,14 +218,18 @@ async function refreshBrowserSession({ query = PROBE_QUERY, preferredBase = BASE
   finally { refreshPromise = null }
 }
 
-async function browserSearch(query) {
+async function browserSearch(query, signal = null) {
+  signal?.throwIfAborted?.()
   const q = String(query || '').trim()
   if (!q) return { data:{ data:[] }, base:BASES[0] }
   if (browserState?.id) {
-    try { return await tryBrowserSearch(browserState, q, browserState.base) }
-    catch { await destroyBrowserSession().catch(() => {}) }
+    try { return await tryBrowserSearch(browserState, q, browserState.base, signal) }
+    catch {
+      signal?.throwIfAborted?.()
+      await destroyBrowserSession().catch(() => {})
+    }
   }
-  return (await refreshBrowserSession({ query:q })).search
+  return (await refreshBrowserSession({ query:q, signal })).search
 }
 
 async function curlRequest(url, {
@@ -225,7 +237,9 @@ async function curlRequest(url, {
   binary = false,
   timeoutMs = HTTP_TIMEOUT,
   proxy = browserState?.torProxy || TOR_PROXY,
+  signal = null,
 } = {}) {
+  signal?.throwIfAborted?.()
   const seconds = Math.max(5, Math.ceil(Number(timeoutMs || HTTP_TIMEOUT) / 1000))
   const args = [
     '--silent','--show-error','--location','--compressed',
@@ -246,9 +260,11 @@ async function curlRequest(url, {
       encoding:'buffer',
       timeout:timeoutMs + 5000,
       maxBuffer:64 * 1024 * 1024,
+      ...(signal ? { signal } : {}),
     })
     stdout = Buffer.from(result.stdout || [])
   } catch (error) {
+    signal?.throwIfAborted?.()
     const detail = Buffer.isBuffer(error?.stderr) ? error.stderr.toString('utf8') : String(error?.stderr || error?.message || '')
     throw new Error('Tor request failed for ' + new URL(String(url)).hostname + (detail ? ': ' + detail.trim().slice(-300) : ''))
   }
@@ -278,10 +294,11 @@ function requestHeaders(url, { referer = '', accept = 'text/html,application/xht
   }
 }
 
-async function ensureStateForBase(base, query = PROBE_QUERY) {
+async function ensureStateForBase(base, query = PROBE_QUERY, signal = null) {
+  signal?.throwIfAborted?.()
   const normalized = String(base || BASES[0]).replace(/\/$/, '')
   if (browserState?.id && browserState.base === normalized) return browserState
-  const refreshed = await refreshBrowserSession({ query, preferredBase:normalized })
+  const refreshed = await refreshBrowserSession({ query, preferredBase:normalized, signal })
   return refreshed.state
 }
 
@@ -289,32 +306,37 @@ async function requestText(url, {
   referer = '',
   accept = 'text/html,application/xhtml+xml,application/json',
   retry = true,
+  signal = null,
 } = {}) {
+  signal?.throwIfAborted?.()
   const target = new URL(String(url))
   const targetBase = target.hostname.includes('animepahe') ? target.origin : (browserState?.base || BASES[0])
-  let state = await ensureStateForBase(targetBase)
+  let state = await ensureStateForBase(targetBase, PROBE_QUERY, signal)
   let loaded
   try {
     loaded = await curlRequest(url, {
       headers:requestHeaders(url, { referer, accept, state }),
       proxy:state.torProxy,
+      signal,
     })
     if (loaded.status >= 200 && loaded.status < 400 && !looksBlocked(loaded.status, loaded.text)) {
       return { text:loaded.text, finalUrl:loaded.finalUrl, status:loaded.status, state }
     }
-  } catch {}
+  } catch { signal?.throwIfAborted?.() }
 
   try {
-    const browser = await flareGet(url, state)
+    const browser = await flareGet(url, state, signal)
     return { text:browser.text, finalUrl:browser.finalUrl, status:browser.status, state }
   } catch (error) {
+    signal?.throwIfAborted?.()
     if (!retry) throw error
   }
 
-  state = (await refreshBrowserSession({ query:PROBE_QUERY, preferredBase:targetBase })).state
+  state = (await refreshBrowserSession({ query:PROBE_QUERY, preferredBase:targetBase, signal })).state
   loaded = await curlRequest(url, {
     headers:requestHeaders(url, { referer, accept, state }),
     proxy:state.torProxy,
+    signal,
   })
   if (!(loaded.status >= 200 && loaded.status < 400) || looksBlocked(loaded.status, loaded.text)) {
     throw new Error('AnimePahe request remained blocked after browser refresh.')
@@ -371,22 +393,24 @@ function decodeEpisode(value) {
   }
 }
 
-async function getEpisodes(item) {
+async function getEpisodes(item, signal = null) {
+  signal?.throwIfAborted?.()
   const session = animeSession(item)
   if (!session) throw new Error('AnimePahe anime session is missing.')
   const base = animeBase(item)
   const releaseId = session
   const first = await requestJson(
     base + '/api?' + new URLSearchParams({ m:'release', id:releaseId, sort:'episode_asc', page:'1' }),
-    { referer:base + '/anime/' + session },
+    { referer:base + '/anime/' + session, signal },
   )
   const rows = Array.isArray(first.data?.data) ? [...first.data.data] : []
   const lastPage = Math.max(1, Number(first.data?.last_page || 1))
 
   for (let pageNo = 2; pageNo <= lastPage; pageNo += 1) {
+    signal?.throwIfAborted?.()
     const pageResult = await requestJson(
       base + '/api?' + new URLSearchParams({ m:'release', id:releaseId, sort:'episode_asc', page:String(pageNo) }),
-      { referer:base + '/anime/' + session },
+      { referer:base + '/anime/' + session, signal },
     )
     if (Array.isArray(pageResult.data?.data)) rows.push(...pageResult.data.data)
   }
@@ -596,17 +620,17 @@ export default {
     if (action === 'search') {
       const q = String(query || '').trim()
       if (!q) return { items:[] }
-      const { data, base } = await browserSearch(q)
+      const { data, base } = await browserSearch(q, context?.signal)
       return { items:parseSearch(data, base) }
     }
 
     if (action === 'browse') {
-      const search = await browserSearch(PROBE_QUERY)
+      const search = await browserSearch(PROBE_QUERY, context?.signal)
       const base = search.base
-      const { data } = await requestJson(base + '/api?' + new URLSearchParams({ m:'airing', page:'1' }), { referer:base + '/' })
+      const { data } = await requestJson(base + '/api?' + new URLSearchParams({ m:'airing', page:'1' }), { referer:base + '/', signal:context?.signal })
       return { items:parseSearch(data, base) }
     }
-    if (action === 'episodes') return getEpisodes(item)
+    if (action === 'episodes') return getEpisodes(item, context?.signal)
     if (action === 'options') return { qualities:['source','1080','720','480','360'], deliveries:['document','video'] }
 
     if (action === 'download') {

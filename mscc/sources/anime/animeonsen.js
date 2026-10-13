@@ -1,4 +1,4 @@
-import { spawnSync } from 'node:child_process'
+import { spawn } from 'node:child_process'
 import {
   ANIME_UA,
   deliverHls,
@@ -47,7 +47,58 @@ function curlConfigValue(value) {
   return JSON.stringify(String(value ?? ''))
 }
 
-function curlJsonViaTor(url, headers = {}, { method = 'GET', body = '' } = {}) {
+// curl is an independent OS process. Running it via spawnSync blocked Node's
+// *entire* WhatsApp event loop for up to 45 seconds per Tor request; several
+// source retries could make all bots appear unresponsive for minutes.
+async function runCurlConfig(config, { timeoutMs = 45000, maxBytes = 4 * 1024 * 1024 } = {}) {
+  return new Promise((resolve, reject) => {
+    const child = spawn('curl', ['--config', '-'], { stdio:['pipe', 'pipe', 'pipe'] })
+    const chunks = { stdout:[], stderr:[] }
+    let totalBytes = 0
+    let finished = false
+    let timedOut = false
+    const timeout = setTimeout(() => {
+      timedOut = true
+      child.kill('SIGKILL')
+    }, timeoutMs)
+    const finish = (error, result) => {
+      if (finished) return
+      finished = true
+      clearTimeout(timeout)
+      if (error) reject(error)
+      else resolve(result)
+    }
+    const collect = stream => chunk => {
+      totalBytes += chunk.length
+      if (totalBytes > maxBytes) {
+        child.kill('SIGKILL')
+        finish(new Error('AnimeOnsen Tor response exceeded its safe size limit'))
+        return
+      }
+      chunks[stream].push(chunk)
+    }
+    child.stdout.on('data', collect('stdout'))
+    child.stderr.on('data', collect('stderr'))
+    child.once('error', error => finish(error))
+    child.once('close', (code, signal) => {
+      if (timedOut) {
+        finish(new Error('AnimeOnsen Tor request timed out'))
+      } else {
+        finish(null, {
+          status:code,
+          signal,
+          stdout:Buffer.concat(chunks.stdout).toString('utf8'),
+          stderr:Buffer.concat(chunks.stderr).toString('utf8'),
+        })
+      }
+    })
+    // If curl exits early, broken stdin pipes are expected, not bot crashes.
+    child.stdin.on('error', () => {})
+    child.stdin.end(config)
+  })
+}
+
+async function curlJsonViaTor(url, headers = {}, { method = 'GET', body = '' } = {}) {
   const config = [
     'silent',
     'show-error',
@@ -66,12 +117,7 @@ function curlJsonViaTor(url, headers = {}, { method = 'GET', body = '' } = {}) {
       .map(([key, value]) => 'header = ' + curlConfigValue(key + ': ' + String(value).trim())),
   ].join('\n') + '\n'
 
-  const result = spawnSync('curl', ['--config', '-'], {
-    input:config,
-    encoding:'utf8',
-    timeout:45000,
-    maxBuffer:4 * 1024 * 1024,
-  })
+  const result = await runCurlConfig(config)
   if (result.status !== 0) {
     const error = new Error('AnimeOnsen Tor request failed')
     error.cause = String(result.stderr || '').trim().slice(-500)
@@ -270,7 +316,7 @@ async function apiJson(path, { retry = true } = {}) {
 
   if (tokenCache.viaTor) {
     try {
-      return { data:curlJsonViaTor(url, headers), response:null }
+      return { data:await curlJsonViaTor(url, headers), response:null }
     } catch {}
   }
 
@@ -291,7 +337,7 @@ async function apiJson(path, { retry = true } = {}) {
           cookie:'ao.session=' + browserSession.cookie,
         })
         try {
-          return { data:curlJsonViaTor(url, torHeaders), response:null }
+          return { data:await curlJsonViaTor(url, torHeaders), response:null }
         } catch {}
       }
 
@@ -362,7 +408,7 @@ async function searchJson(query) {
 
   try {
     const token = await browserSearchToken()
-    return curlJsonViaTor(
+    return await curlJsonViaTor(
       SEARCH + '/indexes/content/search',
       aoHeaders({
         'content-type':'application/json',
@@ -570,6 +616,6 @@ export default {
     throw new Error('Unsupported AnimeOnsen action: ' + action)
   },
 
-  _test:{ parseSearch, parseEpisodes, decodeEpisode, titleOf, searchTerms, decodeSessionToken, searchTokenFromHtml },
+  _test:{ parseSearch, parseEpisodes, decodeEpisode, titleOf, searchTerms, decodeSessionToken, searchTokenFromHtml, runCurlConfig },
   _probe:{ resolveVideo },
 }
