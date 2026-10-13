@@ -27,6 +27,7 @@ class MoonSurfaceTerrain {
         GLES30.glUseProgram(program)
         GLES30.glUniformMatrix4fv(GLES30.glGetUniformLocation(program, "uVp"), 1, false, vp, 0)
         GLES30.glUniform2f(GLES30.glGetUniformLocation(program, "uOffset"), offsetX, offsetZ)
+        GLES30.glUniform1f(GLES30.glGetUniformLocation(program, "uPlanetRadiusUnits"), 1737.4f / 3.0f)
         GLES30.glUniform1i(GLES30.glGetUniformLocation(program, "uWorld"), 1)
         GLES30.glUniform2f(
             GLES30.glGetUniformLocation(program, "uViewAnchor"), -offsetX, -offsetZ
