@@ -76,9 +76,12 @@ function finishTurn(s){
 }
 function finishIfDone(s){
  if(s.winner!==null)return;
- for(const d of s.rolls)if(!d.used){const i=s.rolls.indexOf(d);if(!canForDie(s,i))d.used=true;}
- s.selectedDie=chooseAvailable(s);
- if(s.selectedDie===null)finishTurn(s);
+ // Crucial Nigerian dual-dice rule: an unused 2 may become playable AFTER
+ // a 6 releases a piece. Never discard a currently unusable die prematurely.
+ const ready=chooseAvailable(s);
+ if(ready!==null){s.selectedDie=ready;s.die=s.rolls[ready].value;return;}
+ s.rolls.forEach(d=>{d.used=true;});
+ s.selectedDie=null;finishTurn(s);
 }
 function diceFace(n,cls="",opts=""){
  const dots=PIPS[n]||PIPS[1];
