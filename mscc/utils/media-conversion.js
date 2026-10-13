@@ -9,8 +9,8 @@ import { applyStickerMetadata } from './sticker-metadata.js'
 
 export const STICKER_CANVAS = 512
 export const STICKER_FIT_FILTER =
-  'scale=512:512:force_original_aspect_ratio=decrease:flags=lanczos,' +
-  'pad=512:512:(ow-iw)/2:(oh-ih)/2:color=0x00000000,setsar=1'
+  'scale=512:512:force_original_aspect_ratio=increase:flags=lanczos,' +
+  'crop=512:512,setsar=1'
 
 const MAX_STICKER_BYTES = 900 * 1024
 const MAX_INPUT_BYTES = 32 * 1024 * 1024
