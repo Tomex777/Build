@@ -1,0 +1,33 @@
+name: NIGHT Play Preview CI
+
+on:
+  push:
+    branches:
+      - feature/night-play-v4-profile-announcements-game-settings
+    paths:
+      - 'night-play/**'
+      - '.github/workflows/night-play-preview-ci.yml'
+  pull_request:
+    paths:
+      - 'night-play/**'
+      - '.github/workflows/night-play-preview-ci.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: NIGHT Play smoke and game-rule tests
+        run: node night-play/selftest.mjs
+      - name: Install Chromium test helper
+        run: npm install --no-save playwright@1.56.1
+      - name: Exercise mobile interactions
+        run: node night-play/browser-smoke.mjs
