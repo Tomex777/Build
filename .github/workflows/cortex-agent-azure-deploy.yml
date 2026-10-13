@@ -1,0 +1,155 @@
+name: Cortex Agent-only Azure deployment
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [mscc-azure]
+    paths:
+      - '.github/workflows/cortex-agent-azure-deploy.yml'
+  pull_request:
+    branches: [mscc-azure]
+    paths:
+      - '.github/workflows/cortex-agent-azure-deploy.yml'
+
+permissions:
+  contents: read
+
+# Pinned tested Cortex source commit; MSCC source remains completely unchanged.
+env:
+  CORTEX_AGENT_SOURCE_REF: fddadcea455493969a81787459eb04f8a2cdd1d6
+
+concurrency:
+  group: cortex-agent-azure-deploy
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ env.CORTEX_AGENT_SOURCE_REF }}
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+      - name: Validate Agent without touching WhatsApp
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check cortex-agent/index.js
+          grep -Fq 'function presentAccountSlots(state)' cortex-agent/index.js
+          grep -Fq "mscc:account.profile-changed" cortex-agent/index.js
+          sha256sum cortex-agent/index.js
+
+  deploy:
+    needs: validate
+    if: (github.event_name == 'workflow_dispatch' || github.event_name == 'push') && github.ref == 'refs/heads/mscc-azure'
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    environment: mscc-production
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ env.CORTEX_AGENT_SOURCE_REF }}
+          persist-credentials: false
+      - name: Install Cortex Agent only (no MSCC restart or credential access)
+        shell: bash
+        env:
+          MSCC_SSH_HOST: ${{ secrets.MSCC_SSH_HOST }}
+          MSCC_SSH_USER: ${{ secrets.MSCC_SSH_USER }}
+          MSCC_SSH_KEY: ${{ secrets.MSCC_SSH_KEY }}
+          MSCC_SSH_KNOWN_HOSTS: ${{ secrets.MSCC_SSH_KNOWN_HOSTS }}
+          MSCC_SSH_PORT: ${{ vars.MSCC_SSH_PORT }}
+        run: |
+          set -euo pipefail
+          SOURCE_SHA="$CORTEX_AGENT_SOURCE_REF"
+          [[ "$SOURCE_SHA" =~ ^[a-f0-9]{40}$ ]]
+          for key in MSCC_SSH_HOST MSCC_SSH_USER MSCC_SSH_KEY MSCC_SSH_KNOWN_HOSTS; do
+            [[ -n "${!key:-}" ]] || { echo "Missing required deployment secret: $key" >&2; exit 2; }
+          done
+          [[ "$MSCC_SSH_HOST" =~ ^[A-Za-z0-9][A-Za-z0-9.-]*$ ]]
+          [[ "$MSCC_SSH_USER" =~ ^[a-z_][a-z0-9_-]*$ ]]
+          PORT="${MSCC_SSH_PORT:-22}"
+          [[ "$PORT" =~ ^[0-9]{1,5}$ ]] && ((10#$PORT >= 1 && 10#$PORT <= 65535))
+          HASH="$(sha256sum cortex-agent/index.js | awk '{print $1}')"
+          umask 077
+          tmp="$(mktemp -d)"
+          trap 'rm -rf "$tmp"' EXIT
+          printf '%s\n' "$MSCC_SSH_KEY" > "$tmp/key"
+          printf '%s\n' "$MSCC_SSH_KNOWN_HOSTS" > "$tmp/known_hosts"
+          chmod 600 "$tmp/key" "$tmp/known_hosts"
+          ssh-keygen -lf "$tmp/known_hosts" >/dev/null 2>&1
+          ssh -T -F /dev/null \
+            -o BatchMode=yes -o StrictHostKeyChecking=yes \
+            -o "UserKnownHostsFile=$tmp/known_hosts" \
+            -o IdentitiesOnly=yes -o IdentityAgent=none \
+            -o ConnectTimeout=20 -o ServerAliveInterval=15 -o ServerAliveCountMax=3 \
+            -i "$tmp/key" -p "$PORT" "$MSCC_SSH_USER@$MSCC_SSH_HOST" \
+            "CORTEX_SOURCE_SHA=$SOURCE_SHA CORTEX_SOURCE_HASH=$HASH bash -se" <<'REMOTE'
+          set -euo pipefail
+          umask 077
+          [[ "${CORTEX_SOURCE_SHA:-}" =~ ^[a-f0-9]{40}$ ]]
+          [[ "${CORTEX_SOURCE_HASH:-}" =~ ^[a-f0-9]{64}$ ]]
+          [[ "$(id -u)" -ne 0 ]]
+          sudo -n true
+          command -v curl >/dev/null
+          command -v node >/dev/null
+          systemctl is-active --quiet mscc.service
+          systemctl is-active --quiet cortex-agent.service
+          mscc_pid="$(systemctl show mscc.service --property MainPID --value)"
+          [[ "$mscc_pid" =~ ^[0-9]+$ ]] && ((mscc_pid > 1))
+          [[ -f /opt/cortex-agent/index.js ]]
+          token="$(sudo -n sed -n 's/^CORTEX_AGENT_TOKEN=//p' /etc/cortex-agent.env | tail -n 1)"
+          [[ -n "$token" ]]
+          curl -fsS --max-time 10 -o /dev/null \
+            -H "Authorization: Bearer $token" \
+            http://127.0.0.1:47831/api/cortex/host/status
+          tmp="$(mktemp -d)"
+          changed=0
+          cleanup() {
+            result=$?
+            if ((result != 0)) && ((changed == 1)); then
+              echo 'Cortex Agent health check failed; restoring previous Agent version' >&2
+              sudo -n install -m 0644 "$tmp/previous.js" /opt/cortex-agent/index.js || true
+              sudo -n systemctl restart cortex-agent.service || true
+            fi
+            rm -rf "$tmp"
+            exit "$result"
+          }
+          trap cleanup EXIT
+          curl --fail --silent --show-error --location --retry 3 \
+            "https://raw.githubusercontent.com/Tomex777/Build/$CORTEX_SOURCE_SHA/cortex-agent/index.js" \
+            --output "$tmp/new.js"
+          printf '%s  %s\n' "$CORTEX_SOURCE_HASH" "$tmp/new.js" | sha256sum -c --status
+          node --check "$tmp/new.js"
+          cp /opt/cortex-agent/index.js "$tmp/previous.js"
+          sudo -n install -m 0644 "$tmp/new.js" /opt/cortex-agent/index.js.next
+          sudo -n mv /opt/cortex-agent/index.js.next /opt/cortex-agent/index.js
+          changed=1
+          sudo -n systemctl restart cortex-agent.service
+          for attempt in 1 2 3 4 5 6 7 8 9 10; do
+            if curl -fsS --max-time 5 -o /dev/null \
+                -H "Authorization: Bearer $token" \
+                http://127.0.0.1:47831/api/cortex/host/status; then break; fi
+            sleep 1
+          done
+          curl -fsS --max-time 10 \
+            -H "Authorization: Bearer $token" \
+            http://127.0.0.1:47831/api/cortex/mscc/pairing \
+            | node -e '
+              let s = ""; process.stdin.on("data", c => s += c);
+              process.stdin.on("end", () => {
+                const state = JSON.parse(s);
+                if (!Array.isArray(state.accounts)) process.exit(2);
+                console.log("Cortex Agent pairing readback OK (no private data logged)");
+              });'
+          systemctl is-active --quiet mscc.service
+          new_mscc_pid="$(systemctl show mscc.service --property MainPID --value)"
+          [[ "$new_mscc_pid" == "$mscc_pid" ]] || {
+            echo "MSCC PID changed during Agent-only deployment; investigate separately" >&2
+            exit 1
+          }
+          changed=0
+          echo 'Cortex Agent updated successfully; MSCC kept the same process throughout.'
+          REMOTE
