@@ -11,6 +11,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.FrameLayout
 import android.widget.TextView
+import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.RecyclerView
 import androidx.recyclerview.widget.WebtoonLayoutManager
 import com.davemorrissey.labs.subscaleview.SubsamplingScaleImageView
@@ -193,17 +194,33 @@ class SharedWebtoonViewer(
 
         fun setChapters(window: ViewerChapters) {
             val newItems = mutableListOf<Any>()
-            window.prevChapter?.pages?.let {
-                newItems.addAll(it)
-                newItems.add(ChapterTransition.Prev(window.currChapter, window.prevChapter))
+            val previous = window.prevChapter
+            val next = window.nextChapter
+            previous?.pages?.let(newItems::addAll)
+            // Match Mihon's transition rules: an unloaded/missing neighbor or
+            // the explicit preference presents a chapter-boundary page.
+            if (config.alwaysShowChapterTransition || previous?.pages == null) {
+                newItems.add(ChapterTransition.Prev(window.currChapter, previous))
             }
             newItems.addAll(window.currChapter.pages.orEmpty())
-            window.nextChapter?.let {
-                newItems.add(ChapterTransition.Next(window.currChapter, it))
-                newItems.addAll(it.pages.orEmpty())
+            if (config.alwaysShowChapterTransition || next?.pages == null) {
+                newItems.add(ChapterTransition.Next(window.currChapter, next))
             }
+            next?.pages?.let(newItems::addAll)
+
+            // Same delta-update model as Mihon's WebtoonAdapter; rebuilding
+            // every holder on a chapter preload used to reset scroll position.
+            val oldItems = items
+            val diff = DiffUtil.calculateDiff(object : DiffUtil.Callback() {
+                override fun getOldListSize(): Int = oldItems.size
+                override fun getNewListSize(): Int = newItems.size
+                override fun areItemsTheSame(oldPosition: Int, newPosition: Int): Boolean =
+                    oldItems[oldPosition] == newItems[newPosition]
+                override fun areContentsTheSame(oldPosition: Int, newPosition: Int): Boolean =
+                    oldItems[oldPosition] == newItems[newPosition]
+            })
             items = newItems
-            notifyDataSetChanged()
+            diff.dispatchUpdatesTo(this)
         }
 
         override fun getItemCount(): Int = items.size
