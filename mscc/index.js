@@ -40,6 +40,8 @@ import {
 import {
   dueGroupSchedules,
   finishGroupSchedule,
+  isGroupScheduleHeld,
+  setGroupScheduleHold,
 } from './group-schedules.js'
 import { mangaDexLatest } from './utility-services.js'
 import {
@@ -922,6 +924,11 @@ function startScheduledTaskRunner() {
         if (Date.now() - rule.nextAt > 10 * 60000) {
           // Never surprise a group by executing an old rule hours after downtime.
           finishGroupSchedule(sharedStorage, rule.group, rule.id)
+          continue
+        }
+        if (rule.action === 'open' && isGroupScheduleHeld(sharedStorage, rule.group)) {
+          // A manual Night lockdown overrides the next automatic opening.
+          finishGroupSchedule(sharedStorage,rule.group,rule.id)
           continue
         }
         const account = accounts.get(rule.accountId)
@@ -1832,6 +1839,7 @@ async function setGroupAnnouncement(account, msg, closed) {
   if (!isGroup(chat)) throw new Error('This one is for groups.')
   if (!(await isBotGroupAdminContext(account, msg))) throw new Error('Night needs to be a group admin for that.')
   await account.sock.groupSettingUpdate(chat, closed ? 'announcement' : 'not_announcement')
+  setGroupScheduleHold(sharedStorage,chat,Boolean(closed))
   invalidateGroupMetadata(account.id, chat)
   return { closed:Boolean(closed) }
 }
