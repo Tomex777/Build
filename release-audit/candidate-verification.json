@@ -1,0 +1,380 @@
+[
+  {
+    "app": "veya",
+    "file": "veya/Veya-1.0.0-arm64-release-production-key-candidate.apk",
+    "input": "veya/Veya-1.0.0-arm64-release-unsigned.apk",
+    "input_sha256": "e71b3e9d4dd1135ac9360f8275664ec20987299f6e5df2988edbf6b2db3be990",
+    "sha256": "e5be4c6c5b6beaef965929cfea62f180aa35261df3b06a7313a5e9930cffdfbe",
+    "signature_verified": true,
+    "signature": [
+      "Verified using v1 scheme (JAR signing): false",
+      "Verified using v2 scheme (APK Signature Scheme v2): true",
+      "Verified using v3 scheme (APK Signature Scheme v3): true",
+      "Verified using v3.1 scheme (APK Signature Scheme v3.1): false",
+      "Verified using v4 scheme (APK Signature Scheme v4): false",
+      "Signer #1 certificate DN: CN=Veya Release Signing, OU=Android, O=Tomex, C=NG",
+      "Signer #1 certificate SHA-256 digest: 2e7bb19e87af53038c8b696e472d1008b7197c8ea3dac93cf3e046bc52f4ad84",
+      "Signer #1 certificate SHA-1 digest: be156abd5396311493e938e4ccaa3589dfed2969",
+      "Signer #1 certificate MD5 digest: 1b24c5a9bc687e1b1cf4ee6e6574950b",
+      "Signer #1 key algorithm: RSA",
+      "Signer #1 key size (bits): 4096"
+    ],
+    "badging": [
+      "package: name='com.veya.app' versionCode='1' versionName='1.0.0' platformBuildVersionName='16' platformBuildVersionCode='36' compileSdkVersion='36' compileSdkVersionCodename='16'",
+      "sdkVersion:'26'",
+      "targetSdkVersion:'36'",
+      "application: label='Veya' icon='res/BW.xml'",
+      "launchable-activity: name='com.veya.app.MainActivity'  label='' icon=''",
+      "native-code: 'arm64-v8a'"
+    ],
+    "install_test": "NOT RUN"
+  },
+  {
+    "app": "veya",
+    "file": "veya/Veya-1.0.0-universal-release-production-key-candidate.apk",
+    "input": "veya/Veya-1.0.0-universal-release-unsigned.apk",
+    "input_sha256": "67fa2ec3c2165b5d45cd993886b69311e3dcbf0b3e6131c2c23fe8bda70edc57",
+    "sha256": "e21f334d9a8ad0c6af3203347cbbbef832d67706d025e5b70101da90350ca276",
+    "signature_verified": true,
+    "signature": [
+      "Verified using v1 scheme (JAR signing): false",
+      "Verified using v2 scheme (APK Signature Scheme v2): true",
+      "Verified using v3 scheme (APK Signature Scheme v3): true",
+      "Verified using v3.1 scheme (APK Signature Scheme v3.1): false",
+      "Verified using v4 scheme (APK Signature Scheme v4): false",
+      "Signer #1 certificate DN: CN=Veya Release Signing, OU=Android, O=Tomex, C=NG",
+      "Signer #1 certificate SHA-256 digest: 2e7bb19e87af53038c8b696e472d1008b7197c8ea3dac93cf3e046bc52f4ad84",
+      "Signer #1 certificate SHA-1 digest: be156abd5396311493e938e4ccaa3589dfed2969",
+      "Signer #1 certificate MD5 digest: 1b24c5a9bc687e1b1cf4ee6e6574950b",
+      "Signer #1 key algorithm: RSA",
+      "Signer #1 key size (bits): 4096"
+    ],
+    "badging": [
+      "package: name='com.veya.app' versionCode='1' versionName='1.0.0' platformBuildVersionName='16' platformBuildVersionCode='36' compileSdkVersion='36' compileSdkVersionCodename='16'",
+      "sdkVersion:'26'",
+      "targetSdkVersion:'36'",
+      "application: label='Veya' icon='res/BW.xml'",
+      "launchable-activity: name='com.veya.app.MainActivity'  label='' icon=''",
+      "native-code: 'arm64-v8a' 'armeabi-v7a' 'x86' 'x86_64'"
+    ],
+    "install_test": "NOT RUN"
+  },
+  {
+    "app": "veya",
+    "file": "veya/Veya-1.0.0-universal-release-production-key-candidate.aab",
+    "input": "veya/Veya-1.0.0-universal-release-unsigned.aab",
+    "input_sha256": "46fbbadecf21bfc410277ab0cbeb2a70fa2ccbabf9525b356d6895c2cb2b022a",
+    "sha256": "7ea55d962dcd3b548dfb1b927152320ffb51521daed81a0c0676335311f14202",
+    "signature_verified": true,
+    "signature": [
+      "jar verified."
+    ],
+    "badging": [],
+    "install_test": "NOT RUN"
+  },
+  {
+    "app": "cortex",
+    "file": "cortex/Cortex_X86_64-production-key-candidate.apk",
+    "input": "cortex/Cortex_X86_64_PRODUCTION_RAW.apk",
+    "input_sha256": "a0aeb71917c4d9cc4d08d7654ff85ac1187e25b144b8976937f68286d1b99e98",
+    "sha256": "555f9f887fb58a5448acf7a41a16982ce5f52adf977330402951496aa0192c46",
+    "signature_verified": true,
+    "signature": [
+      "Verified using v1 scheme (JAR signing): false",
+      "Verified using v2 scheme (APK Signature Scheme v2): true",
+      "Verified using v3 scheme (APK Signature Scheme v3): true",
+      "Verified using v3.1 scheme (APK Signature Scheme v3.1): false",
+      "Verified using v4 scheme (APK Signature Scheme v4): false",
+      "Signer #1 certificate DN: CN=Cortex Release Signing, OU=Android, O=Tomex, C=NG",
+      "Signer #1 certificate SHA-256 digest: 47aaa57d156ec1d2812c2787e1e12ec4e05ac59694c576dc412ef3bae2d703e8",
+      "Signer #1 certificate SHA-1 digest: b1cd1cf56a3e166d87b2b1c027fec0cfe863b292",
+      "Signer #1 certificate MD5 digest: 5ebe9c624b3574527c578e5afd8eaec6",
+      "Signer #1 key algorithm: RSA",
+      "Signer #1 key size (bits): 4096"
+    ],
+    "badging": [
+      "package: name='com.night.cortex' versionCode='100' versionName='1.0.0' platformBuildVersionName='16' platformBuildVersionCode='36' compileSdkVersion='36' compileSdkVersionCodename='16'",
+      "sdkVersion:'26'",
+      "targetSdkVersion:'36'",
+      "application: label='Cortex' icon='res/BW.xml'",
+      "launchable-activity: name='com.night.cortex.MainActivity'  label='' icon=''",
+      "native-code: 'x86_64'"
+    ],
+    "install_test": "NOT RUN"
+  },
+  {
+    "app": "cortex",
+    "file": "cortex/Cortex_ARM64-production-key-candidate.apk",
+    "input": "cortex/Cortex_ARM64_PRODUCTION_RAW.apk",
+    "input_sha256": "3e598672a079c60505598f0dedd458a9f4e98e8da7f16f7b033f5a82703861a5",
+    "sha256": "1fedd5f3451ebdca801c0d74bda7bc492b81e29223cbd5b8a51d56e46af94ad4",
+    "signature_verified": true,
+    "signature": [
+      "Verified using v1 scheme (JAR signing): false",
+      "Verified using v2 scheme (APK Signature Scheme v2): true",
+      "Verified using v3 scheme (APK Signature Scheme v3): true",
+      "Verified using v3.1 scheme (APK Signature Scheme v3.1): false",
+      "Verified using v4 scheme (APK Signature Scheme v4): false",
+      "Signer #1 certificate DN: CN=Cortex Release Signing, OU=Android, O=Tomex, C=NG",
+      "Signer #1 certificate SHA-256 digest: 47aaa57d156ec1d2812c2787e1e12ec4e05ac59694c576dc412ef3bae2d703e8",
+      "Signer #1 certificate SHA-1 digest: b1cd1cf56a3e166d87b2b1c027fec0cfe863b292",
+      "Signer #1 certificate MD5 digest: 5ebe9c624b3574527c578e5afd8eaec6",
+      "Signer #1 key algorithm: RSA",
+      "Signer #1 key size (bits): 4096"
+    ],
+    "badging": [
+      "package: name='com.night.cortex' versionCode='100' versionName='1.0.0' platformBuildVersionName='16' platformBuildVersionCode='36' compileSdkVersion='36' compileSdkVersionCodename='16'",
+      "sdkVersion:'26'",
+      "targetSdkVersion:'36'",
+      "application: label='Cortex' icon='res/BW.xml'",
+      "launchable-activity: name='com.night.cortex.MainActivity'  label='' icon=''",
+      "native-code: 'arm64-v8a'"
+    ],
+    "install_test": "NOT RUN"
+  },
+  {
+    "app": "cortex",
+    "file": "cortex/Cortex-release-production-key-candidate.aab",
+    "input": "cortex/Cortex_RELEASE.aab",
+    "input_sha256": "398effb08be22eb1e4b92f88b942214cc072d34f7f819aef2af8ba202cfd1b10",
+    "sha256": "bd33bb92f8239a52f1e3e09b27f44441dfb9b0d1a116521037d00194675d2801",
+    "signature_verified": true,
+    "signature": [
+      "jar verified."
+    ],
+    "badging": [],
+    "install_test": "NOT RUN"
+  },
+  {
+    "app": "mirrorchess",
+    "file": "mirrorchess/MirrorChess-1.2.0-arm64-v8a-release-production-key-candidate.apk",
+    "input": "mirrorchess/MirrorChess-1.2.0-arm64-v8a-release-unsigned.apk",
+    "input_sha256": "3b5db159a12e73325db99e51912aa336490898a16e76f8c32e7f8e81dff45a58",
+    "sha256": "8ac72913de8a57cdbc5c00a0d2b1466c01d14c937917764dfacb4559d2d7349c",
+    "signature_verified": true,
+    "signature": [
+      "Verified using v1 scheme (JAR signing): false",
+      "Verified using v2 scheme (APK Signature Scheme v2): true",
+      "Verified using v3 scheme (APK Signature Scheme v3): true",
+      "Verified using v3.1 scheme (APK Signature Scheme v3.1): false",
+      "Verified using v4 scheme (APK Signature Scheme v4): false",
+      "Signer #1 certificate DN: CN=MirrorChess Release Signing, OU=Android, O=Tomex, C=NG",
+      "Signer #1 certificate SHA-256 digest: 39a516df91001cd022408b2221fb434cb1283c6931595681e1a5c653c9b210f5",
+      "Signer #1 certificate SHA-1 digest: 04dcf8203bb2b10153dd104916a3049f360479c6",
+      "Signer #1 certificate MD5 digest: 8501b9b7d17004601a34608931827a73",
+      "Signer #1 key algorithm: RSA",
+      "Signer #1 key size (bits): 4096"
+    ],
+    "badging": [
+      "package: name='com.night.mirrorchess' versionCode='5' versionName='1.2.0' platformBuildVersionName='16' platformBuildVersionCode='36' compileSdkVersion='36' compileSdkVersionCodename='16'",
+      "sdkVersion:'26'",
+      "targetSdkVersion:'36'",
+      "application: label='MirrorChess' icon='res/IG.xml'",
+      "launchable-activity: name='com.night.mirrorchess.MainActivity'  label='' icon=''",
+      "native-code: 'arm64-v8a'"
+    ],
+    "install_test": "NOT RUN"
+  },
+  {
+    "app": "mirrorchess",
+    "file": "mirrorchess/MirrorChess-1.2.0-release-production-key-candidate.aab",
+    "input": "mirrorchess/MirrorChess-1.2.0-release-unsigned.aab",
+    "input_sha256": "8c3339678d2e996a148567ed30f5dbf8a178189e810bf85b4736ea5d2c55ff10",
+    "sha256": "07e323974937749a6c7d6c1098d0b637eb2d5f349810a0473d5a461a6105b0b2",
+    "signature_verified": true,
+    "signature": [
+      "jar verified."
+    ],
+    "badging": [],
+    "install_test": "NOT RUN"
+  },
+  {
+    "app": "mirrorchess",
+    "file": "mirrorchess/MirrorChess-1.2.0-universal-release-production-key-candidate.apk",
+    "input": "mirrorchess/MirrorChess-1.2.0-universal-release-unsigned.apk",
+    "input_sha256": "f7510ad76460cb8805906fe33fb22e1b52adef3193b31cb8d0147840bb9cfcea",
+    "sha256": "47293c5db6f25acfef7df58df4beebe562902e49b44303a14ffedc3af6bf4733",
+    "signature_verified": true,
+    "signature": [
+      "Verified using v1 scheme (JAR signing): false",
+      "Verified using v2 scheme (APK Signature Scheme v2): true",
+      "Verified using v3 scheme (APK Signature Scheme v3): true",
+      "Verified using v3.1 scheme (APK Signature Scheme v3.1): false",
+      "Verified using v4 scheme (APK Signature Scheme v4): false",
+      "Signer #1 certificate DN: CN=MirrorChess Release Signing, OU=Android, O=Tomex, C=NG",
+      "Signer #1 certificate SHA-256 digest: 39a516df91001cd022408b2221fb434cb1283c6931595681e1a5c653c9b210f5",
+      "Signer #1 certificate SHA-1 digest: 04dcf8203bb2b10153dd104916a3049f360479c6",
+      "Signer #1 certificate MD5 digest: 8501b9b7d17004601a34608931827a73",
+      "Signer #1 key algorithm: RSA",
+      "Signer #1 key size (bits): 4096"
+    ],
+    "badging": [
+      "package: name='com.night.mirrorchess' versionCode='5' versionName='1.2.0' platformBuildVersionName='16' platformBuildVersionCode='36' compileSdkVersion='36' compileSdkVersionCodename='16'",
+      "sdkVersion:'26'",
+      "targetSdkVersion:'36'",
+      "application: label='MirrorChess' icon='res/IG.xml'",
+      "launchable-activity: name='com.night.mirrorchess.MainActivity'  label='' icon=''",
+      "native-code: 'arm64-v8a' 'armeabi-v7a' 'x86' 'x86_64'"
+    ],
+    "install_test": "NOT RUN"
+  },
+  {
+    "app": "torri",
+    "file": "torri/Torri-1.0.0-arm64-v8a-release-production-key-candidate.apk",
+    "input": "torri/Torri-1.0.0-arm64-v8a-release-unsigned.apk",
+    "input_sha256": "bddfa31de6bccc06e7a19c0da2df5a987d5377e7dd0a803ac13da2ea89d3a08d",
+    "sha256": "98dcb6918b471553d4044c64c9a8ce250124b00ff476ef5cd06a1ff8cceb3cb3",
+    "signature_verified": true,
+    "signature": [
+      "Verified using v1 scheme (JAR signing): false",
+      "Verified using v2 scheme (APK Signature Scheme v2): true",
+      "Verified using v3 scheme (APK Signature Scheme v3): true",
+      "Verified using v3.1 scheme (APK Signature Scheme v3.1): false",
+      "Verified using v4 scheme (APK Signature Scheme v4): false",
+      "Signer #1 certificate DN: CN=Torri Release Signing, OU=Android, O=Tomex, C=NG",
+      "Signer #1 certificate SHA-256 digest: 6b1ab58169e3a8dd4370860d5d03060b035476b43cceaf2bd8da7ca1fe37ab44",
+      "Signer #1 certificate SHA-1 digest: 6355667eae5beeaab7d6699dd689cc84c4e34657",
+      "Signer #1 certificate MD5 digest: b6c71b1d2e234332d6281f8910942a15",
+      "Signer #1 key algorithm: RSA",
+      "Signer #1 key size (bits): 4096"
+    ],
+    "badging": [
+      "package: name='app.torri' versionCode='10000' versionName='1.0.0' platformBuildVersionName='16' platformBuildVersionCode='36' compileSdkVersion='36' compileSdkVersionCodename='16'",
+      "sdkVersion:'26'",
+      "targetSdkVersion:'36'",
+      "application: label='Torri' icon='res/RN.xml'",
+      "launchable-activity: name='eu.kanade.tachiyomi.ui.main.MainActivity'  label='' icon=''",
+      "native-code: 'arm64-v8a'"
+    ],
+    "install_test": "NOT RUN"
+  },
+  {
+    "app": "torri",
+    "file": "torri/Torri-1.0.0-universal-release-production-key-candidate.apk",
+    "input": "torri/Torri-1.0.0-universal-release-unsigned.apk",
+    "input_sha256": "28be9569d14f235f0c1a36eb15aa3894847e8a7ab2ffb8c0e54b418a6fee99f5",
+    "sha256": "1483c92efcbbeb2c78373d483e2c656822eca971341811ecb4fbcf6b244d304b",
+    "signature_verified": true,
+    "signature": [
+      "Verified using v1 scheme (JAR signing): false",
+      "Verified using v2 scheme (APK Signature Scheme v2): true",
+      "Verified using v3 scheme (APK Signature Scheme v3): true",
+      "Verified using v3.1 scheme (APK Signature Scheme v3.1): false",
+      "Verified using v4 scheme (APK Signature Scheme v4): false",
+      "Signer #1 certificate DN: CN=Torri Release Signing, OU=Android, O=Tomex, C=NG",
+      "Signer #1 certificate SHA-256 digest: 6b1ab58169e3a8dd4370860d5d03060b035476b43cceaf2bd8da7ca1fe37ab44",
+      "Signer #1 certificate SHA-1 digest: 6355667eae5beeaab7d6699dd689cc84c4e34657",
+      "Signer #1 certificate MD5 digest: b6c71b1d2e234332d6281f8910942a15",
+      "Signer #1 key algorithm: RSA",
+      "Signer #1 key size (bits): 4096"
+    ],
+    "badging": [
+      "package: name='app.torri' versionCode='10000' versionName='1.0.0' platformBuildVersionName='16' platformBuildVersionCode='36' compileSdkVersion='36' compileSdkVersionCodename='16'",
+      "sdkVersion:'26'",
+      "targetSdkVersion:'36'",
+      "application: label='Torri' icon='res/RN.xml'",
+      "launchable-activity: name='eu.kanade.tachiyomi.ui.main.MainActivity'  label='' icon=''",
+      "native-code: 'arm64-v8a' 'armeabi-v7a' 'x86' 'x86_64'"
+    ],
+    "install_test": "NOT RUN"
+  },
+  {
+    "app": "torri",
+    "file": "torri/Torri-1.0.0-production-key-candidate.aab",
+    "input": "torri/Torri-1.0.0.aab",
+    "input_sha256": "56cddbd3cae624c965f9f595e9898071335ca9c460b78e35a74edc8dfa265503",
+    "sha256": "f61e10bac82dc478db2e72830eadd804ed7f8f6eda685bdd34c50ba8ccc25799",
+    "signature_verified": true,
+    "signature": [
+      "jar verified."
+    ],
+    "badging": [],
+    "install_test": "NOT RUN"
+  },
+  {
+    "app": "lyra",
+    "file": "lyra/Lyra-release-production-key-candidate.aab",
+    "input": "lyra/Lyra-release-unsigned.aab",
+    "input_sha256": "5c36d8abbbafc33cdffb5f5e43f47f70694f12870cb4bc6aca3c46d4bb34b49b",
+    "sha256": "11422dc2531998391c5ae3c9c2c823289663ddf302279f5535ce161646629787",
+    "signature_verified": true,
+    "signature": [
+      "jar verified."
+    ],
+    "badging": [],
+    "install_test": "NOT RUN"
+  },
+  {
+    "app": "lyra",
+    "file": "lyra/Lyra-universal-release-production-key-candidate.apk",
+    "input": "lyra/Lyra-universal-release-unsigned.apk",
+    "input_sha256": "5ba3e9e1483d118aef51145d4f0a2fe0f3c6eadc20c65c8e113cdf0eb5c521f9",
+    "sha256": "1e64eba70a6797c777b38d98471913f21bda26efe401d8d9212fbd77593d5319",
+    "signature_verified": true,
+    "signature": [
+      "Verified using v1 scheme (JAR signing): false",
+      "Verified using v2 scheme (APK Signature Scheme v2): true",
+      "Verified using v3 scheme (APK Signature Scheme v3): true",
+      "Verified using v3.1 scheme (APK Signature Scheme v3.1): false",
+      "Verified using v4 scheme (APK Signature Scheme v4): false",
+      "Signer #1 certificate DN: CN=Lyra Release Signing, OU=Android, O=Tomex, C=NG",
+      "Signer #1 certificate SHA-256 digest: 2e0d59d39b494b5e1d8eb7ae62c9fc7ad67bad2f7b59e62d1c072feb2457d700",
+      "Signer #1 certificate SHA-1 digest: 97f6c0afe1573c9e61f8526c8d28e163c553d951",
+      "Signer #1 certificate MD5 digest: 2067adcd75f4e849208ff10af8c53614",
+      "Signer #1 key algorithm: RSA",
+      "Signer #1 key size (bits): 4096"
+    ],
+    "badging": [
+      "package: name='com.night.spotui' versionCode='1' versionName='1.0.0' platformBuildVersionName='16' platformBuildVersionCode='36' compileSdkVersion='36' compileSdkVersionCodename='16'",
+      "sdkVersion:'26'",
+      "targetSdkVersion:'36'",
+      "application: label='Lyra' icon='res/IG.xml'",
+      "launchable-activity: name='com.night.spotui.MainActivity'  label='' icon=''",
+      "native-code: 'arm64-v8a' 'armeabi-v7a' 'x86' 'x86_64'"
+    ],
+    "install_test": "NOT RUN"
+  },
+  {
+    "app": "endless",
+    "file": "endless/Endless-1.0.0-release-production-key-candidate.apk",
+    "input": "endless/Endless-1.0.0-release-unsigned.apk",
+    "input_sha256": "3c99cfb0cad7b62fc71194c42451fd868b7fcb109caf9d69fdb196ab2b17591d",
+    "sha256": "980462bfbe80370aee94d506e47bb5c6229e6c0137f4b4bc4c779040edb7fa3d",
+    "signature_verified": true,
+    "signature": [
+      "Verified using v1 scheme (JAR signing): false",
+      "Verified using v2 scheme (APK Signature Scheme v2): true",
+      "Verified using v3 scheme (APK Signature Scheme v3): true",
+      "Verified using v3.1 scheme (APK Signature Scheme v3.1): false",
+      "Verified using v4 scheme (APK Signature Scheme v4): false",
+      "Signer #1 certificate DN: CN=Endless, OU=Android Release, O=Tomex777, C=NG",
+      "Signer #1 certificate SHA-256 digest: 4379c791a42d92e349dca2e573ca69c90a25ad812609f348dfac464c12162b9d",
+      "Signer #1 certificate SHA-1 digest: c1ff6b038c67c21d0ff5df70da66e8876edc665b",
+      "Signer #1 certificate MD5 digest: e36d533594cdf019626699146ce5073e",
+      "Signer #1 key algorithm: RSA",
+      "Signer #1 key size (bits): 4096"
+    ],
+    "badging": [
+      "package: name='com.night.endless' versionCode='10' versionName='1.0.0' platformBuildVersionName='16' platformBuildVersionCode='36' compileSdkVersion='36' compileSdkVersionCodename='16'",
+      "sdkVersion:'26'",
+      "targetSdkVersion:'36'",
+      "application: label='Endless' icon='res/K6.xml'",
+      "launchable-activity: name='com.night.endless.MainActivity'  label='' icon=''",
+      "native-code: 'arm64-v8a' 'armeabi-v7a' 'x86' 'x86_64'"
+    ],
+    "install_test": "NOT RUN"
+  },
+  {
+    "app": "endless",
+    "file": "endless/Endless-1.0.0-release-production-key-candidate.aab",
+    "input": "endless/Endless-1.0.0-release-unsigned.aab",
+    "input_sha256": "fcc4f83a36166ce03d454a3bfa5a470c79aaeb1f89e9a0c52bb19f5d01e00c37",
+    "sha256": "5bcb8bc6387365ff61ea32489e142ee725b13eca23763c9c14692ec781c24ae7",
+    "signature_verified": true,
+    "signature": [
+      "jar verified."
+    ],
+    "badging": [],
+    "install_test": "NOT RUN"
+  }
+]

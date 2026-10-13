@@ -1,0 +1,31 @@
+name: Release audit safeguards
+on:
+  push:
+    branches: ['release/production-audit-20261001']
+    paths: ['release-audit/**', '.github/workflows/release-audit-checks.yml']
+  pull_request:
+    paths: ['release-audit/**', '.github/workflows/release-audit-checks.yml']
+permissions:
+  contents: read
+jobs:
+  signing-records-and-acceptance-gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate stale-run safeguards and public records
+        run: |
+          python3 -m unittest discover -s release-audit -p 'test_*.py'
+          python3 -m compileall -q release-audit
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          records = json.loads(Path('release-audit/release-identities.json').read_text())
+          fingerprints = [r['signer_sha256'] for r in records.values()]
+          assert len(fingerprints) == len(set(fingerprints)), 'Independent apps must have independent keys'
+          for app, r in records.items():
+              assert len(r['signer_sha256']) == 64
+              assert r['min_sdk'] == 26 and r['target_sdk'] == 36 and r['compile_sdk'] == 36
+              assert len(r['ci_secret_names']) == 4
+              assert r['unsigned_inputs']
+              assert r['status'].startswith('SIGNED CANDIDATE'), 'This audit must not invent final runtime proof'
+          PY

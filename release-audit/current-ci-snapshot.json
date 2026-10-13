@@ -1,0 +1,4688 @@
+{
+  "annie-android-ci": {
+    "runs": [
+      {
+        "id": 36926290734,
+        "name": "Annie Android CI",
+        "head_branch": "annie-android-ci",
+        "head_sha": "f773e9c4ef503d5aa99a110cd8a64cf46c886f2a",
+        "path": ".github/workflows/annie-android-ci.yml",
+        "run_number": 494,
+        "run_attempt": 1,
+        "status": "completed",
+        "conclusion": "failure",
+        "created_at": "2026-10-01T21:05:34Z",
+        "updated_at": "2026-10-01T21:20:51Z",
+        "html_url": "https://github.com/Tomex777/Build/actions/runs/36926290734"
+      }
+    ],
+    "jobs": [
+      {
+        "id": 110584317452,
+        "name": "api-26-edge",
+        "conclusion": "failure",
+        "steps": [
+          {
+            "name": "Set up job",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run actions/checkout@v4",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run actions/setup-java@v5",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run android-actions/setup-android@v3",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run gradle/actions/setup-gradle@v4",
+            "conclusion": "failure"
+          },
+          {
+            "name": "Ensure CI signing keystore",
+            "conclusion": "skipped"
+          },
+          {
+            "name": "Warm API 26 test dependencies with retry",
+            "conclusion": "skipped"
+          },
+          {
+            "name": "Install and verify emulator with retry",
+            "conclusion": "skipped"
+          },
+          {
+            "name": "Enable KVM for Android 8 emulator",
+            "conclusion": "skipped"
+          },
+          {
+            "name": "Run package and full product acceptance on API 26",
+            "conclusion": "skipped"
+          },
+          {
+            "name": "Upload API 26 acceptance evidence",
+            "conclusion": "success"
+          },
+          {
+            "name": "Post Run gradle/actions/setup-gradle@v4",
+            "conclusion": "success"
+          },
+          {
+            "name": "Post Run actions/setup-java@v5",
+            "conclusion": "success"
+          },
+          {
+            "name": "Post Run actions/checkout@v4",
+            "conclusion": "success"
+          },
+          {
+            "name": "Complete job",
+            "conclusion": "success"
+          }
+        ]
+      },
+      {
+        "id": 110584317777,
+        "name": "build",
+        "conclusion": "failure",
+        "steps": [
+          {
+            "name": "Set up job",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run actions/checkout@v4",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run actions/setup-java@v5",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run android-actions/setup-android@v3",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run gradle/actions/setup-gradle@v4",
+            "conclusion": "success"
+          },
+          {
+            "name": "Ensure CI signing keystore",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run unit tests and build debug and release APKs",
+            "conclusion": "success"
+          },
+          {
+            "name": "Sign installable ARM64 release candidate",
+            "conclusion": "success"
+          },
+          {
+            "name": "Create owner-signed Annie release when configured",
+            "conclusion": "success"
+          },
+          {
+            "name": "Install and verify emulator with retry",
+            "conclusion": "success"
+          },
+          {
+            "name": "Enable KVM for Android emulator",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run Android emulator UI and metadata API tests",
+            "conclusion": "failure"
+          },
+          {
+            "name": "Summarize emulator test failures",
+            "conclusion": "success"
+          },
+          {
+            "name": "Upload emulator visual proofs",
+            "conclusion": "success"
+          },
+          {
+            "name": "Upload emulator test report",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run actions/upload-artifact@v4",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run actions/upload-artifact@v4",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run actions/upload-artifact@v4",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run actions/upload-artifact@v4",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run actions/upload-artifact@v4",
+            "conclusion": "success"
+          },
+          {
+            "name": "Post Run gradle/actions/setup-gradle@v4",
+            "conclusion": "success"
+          },
+          {
+            "name": "Post Run actions/setup-java@v5",
+            "conclusion": "success"
+          },
+          {
+            "name": "Post Run actions/checkout@v4",
+            "conclusion": "success"
+          },
+          {
+            "name": "Complete job",
+            "conclusion": "success"
+          }
+        ]
+      },
+      {
+        "id": 110590166642,
+        "name": "validated-production-release",
+        "conclusion": "skipped",
+        "steps": []
+      }
+    ],
+    "artifacts": []
+  },
+  "nami/standalone-foundation": {
+    "runs": [
+      {
+        "id": 36798872564,
+        "name": "Nami Android",
+        "head_branch": "nami/standalone-foundation",
+        "head_sha": "09ff87e27c2163131ef555eea557761bbda74bdf",
+        "path": ".github/workflows/nami-android.yml",
+        "run_number": 471,
+        "run_attempt": 1,
+        "status": "completed",
+        "conclusion": "success",
+        "created_at": "2026-10-01T00:59:08Z",
+        "updated_at": "2026-10-01T01:21:20Z",
+        "html_url": "https://github.com/Tomex777/Build/actions/runs/36798872564"
+      }
+    ],
+    "jobs": [
+      {
+        "id": 110168493242,
+        "name": "build",
+        "conclusion": "success",
+        "steps": [
+          {
+            "name": "Set up job",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run actions/checkout@v4",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run actions/setup-java@v4",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run gradle/actions/setup-gradle@v4",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run android-actions/setup-android@v3",
+            "conclusion": "success"
+          },
+          {
+            "name": "Enable KVM group permissions when available",
+            "conclusion": "success"
+          },
+          {
+            "name": "Install Android SDK platform",
+            "conclusion": "success"
+          },
+          {
+            "name": "Test source runtimes and build debug APK",
+            "conclusion": "success"
+          },
+          {
+            "name": "Prepare user APK artifacts",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run actions/upload-artifact@v4",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run actions/upload-artifact@v4",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run actions/upload-artifact@v4",
+            "conclusion": "success"
+          },
+          {
+            "name": "Post Run gradle/actions/setup-gradle@v4",
+            "conclusion": "success"
+          },
+          {
+            "name": "Post Run actions/setup-java@v4",
+            "conclusion": "success"
+          },
+          {
+            "name": "Post Run actions/checkout@v4",
+            "conclusion": "success"
+          },
+          {
+            "name": "Complete job",
+            "conclusion": "success"
+          }
+        ]
+      },
+      {
+        "id": 110169498682,
+        "name": "Release candidate package",
+        "conclusion": "success",
+        "steps": [
+          {
+            "name": "Set up job",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run actions/checkout@v4",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run actions/setup-java@v4",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run gradle/actions/setup-gradle@v4",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run android-actions/setup-android@v3",
+            "conclusion": "success"
+          },
+          {
+            "name": "Install Android SDK platform",
+            "conclusion": "success"
+          },
+          {
+            "name": "Build release APKs and AAB",
+            "conclusion": "success"
+          },
+          {
+            "name": "Build release AAB with diagnostics",
+            "conclusion": "success"
+          },
+          {
+            "name": "Prepare release candidate artifacts",
+            "conclusion": "success"
+          },
+          {
+            "name": "Verify Android 16 KB ARM64 page-size compatibility",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run actions/upload-artifact@v4",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run actions/upload-artifact@v4",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run actions/upload-artifact@v4",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run actions/upload-artifact@v4",
+            "conclusion": "success"
+          },
+          {
+            "name": "Post Run gradle/actions/setup-gradle@v4",
+            "conclusion": "success"
+          },
+          {
+            "name": "Post Run actions/setup-java@v4",
+            "conclusion": "success"
+          },
+          {
+            "name": "Post Run actions/checkout@v4",
+            "conclusion": "success"
+          },
+          {
+            "name": "Complete job",
+            "conclusion": "success"
+          }
+        ]
+      },
+      {
+        "id": 110169499612,
+        "name": "Optional external compatibility build",
+        "conclusion": "skipped",
+        "steps": []
+      },
+      {
+        "id": 110172474535,
+        "name": "kayo-real-source-smoke",
+        "conclusion": "success",
+        "steps": [
+          {
+            "name": "Set up job",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run actions/checkout@v4",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run actions/download-artifact@v4",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run android-actions/setup-android@v3",
+            "conclusion": "success"
+          },
+          {
+            "name": "Enable KVM group permissions when available",
+            "conclusion": "success"
+          },
+          {
+            "name": "Install Android emulator image and SDK platform",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run KayoAnime Google Drive MKV download and VLC proof",
+            "conclusion": "success"
+          },
+          {
+            "name": "Upload KayoAnime real-source evidence",
+            "conclusion": "success"
+          },
+          {
+            "name": "Post Run actions/checkout@v4",
+            "conclusion": "success"
+          },
+          {
+            "name": "Complete job",
+            "conclusion": "success"
+          }
+        ]
+      },
+      {
+        "id": 110172474562,
+        "name": "api-36-smoke",
+        "conclusion": "success",
+        "steps": [
+          {
+            "name": "Set up job",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run actions/checkout@v4",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run actions/setup-java@v4",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run gradle/actions/setup-gradle@v4",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run android-actions/setup-android@v3",
+            "conclusion": "success"
+          },
+          {
+            "name": "Enable KVM group permissions when available",
+            "conclusion": "success"
+          },
+          {
+            "name": "Install API 36 automated-test image and SDK platform",
+            "conclusion": "success"
+          },
+          {
+            "name": "Build API 36 smoke APKs",
+            "conclusion": "success"
+          },
+          {
+            "name": "Download release candidate",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run Android 16 startup and persistence smoke",
+            "conclusion": "success"
+          },
+          {
+            "name": "Upload API 36 smoke evidence",
+            "conclusion": "success"
+          },
+          {
+            "name": "Post Run gradle/actions/setup-gradle@v4",
+            "conclusion": "success"
+          },
+          {
+            "name": "Post Run actions/setup-java@v4",
+            "conclusion": "success"
+          },
+          {
+            "name": "Post Run actions/checkout@v4",
+            "conclusion": "success"
+          },
+          {
+            "name": "Complete job",
+            "conclusion": "success"
+          }
+        ]
+      },
+      {
+        "id": 110172474571,
+        "name": "min-sdk-26-smoke",
+        "conclusion": "success",
+        "steps": [
+          {
+            "name": "Set up job",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run actions/checkout@v4",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run actions/setup-java@v4",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run gradle/actions/setup-gradle@v4",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run android-actions/setup-android@v3",
+            "conclusion": "success"
+          },
+          {
+            "name": "Enable KVM group permissions when available",
+            "conclusion": "success"
+          },
+          {
+            "name": "Install API 26 emulator image and SDK platform",
+            "conclusion": "success"
+          },
+          {
+            "name": "Build minimum-SDK smoke APKs",
+            "conclusion": "success"
+          },
+          {
+            "name": "Download release candidate",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run API 26 storage and migration smoke",
+            "conclusion": "success"
+          },
+          {
+            "name": "Upload API 26 smoke evidence",
+            "conclusion": "success"
+          },
+          {
+            "name": "Post Run gradle/actions/setup-gradle@v4",
+            "conclusion": "success"
+          },
+          {
+            "name": "Post Run actions/setup-java@v4",
+            "conclusion": "success"
+          },
+          {
+            "name": "Post Run actions/checkout@v4",
+            "conclusion": "success"
+          },
+          {
+            "name": "Complete job",
+            "conclusion": "success"
+          }
+        ]
+      },
+      {
+        "id": 110172475772,
+        "name": "Optional external compatibility smoke",
+        "conclusion": "skipped",
+        "steps": []
+      }
+    ],
+    "artifacts": [
+      {
+        "id": 11135860053,
+        "name": "nami-api26-smoke-evidence",
+        "size_in_bytes": 95362,
+        "expired": false
+      },
+      {
+        "id": 11135505398,
+        "name": "nami-aab-release-acceptance",
+        "size_in_bytes": 100039380,
+        "expired": false
+      },
+      {
+        "id": 11135475457,
+        "name": "nami-arm64-release-acceptance",
+        "size_in_bytes": 28480616,
+        "expired": false
+      },
+      {
+        "id": 11135189613,
+        "name": "nami-api36-smoke-evidence",
+        "size_in_bytes": 470933,
+        "expired": false
+      },
+      {
+        "id": 11135149317,
+        "name": "nami-kayo-real-source-evidence",
+        "size_in_bytes": 266196,
+        "expired": false
+      },
+      {
+        "id": 11134992727,
+        "name": "nami-aniyomi-compat-api",
+        "size_in_bytes": 207829,
+        "expired": false
+      },
+      {
+        "id": 11134879835,
+        "name": "nami-universal-release-acceptance",
+        "size_in_bytes": 99435062,
+        "expired": false
+      },
+      {
+        "id": 11134824916,
+        "name": "nami-release-candidate",
+        "size_in_bytes": 575381516,
+        "expired": false
+      },
+      {
+        "id": 11134748472,
+        "name": "nami-universal-debug",
+        "size_in_bytes": 118241095,
+        "expired": false
+      },
+      {
+        "id": 11134713769,
+        "name": "nami-arm64-v8a-debug",
+        "size_in_bytes": 47286310,
+        "expired": false
+      }
+    ]
+  },
+  "cortex-android-live": {
+    "runs": [
+      {
+        "id": 36830717377,
+        "name": "Cortex Android",
+        "head_branch": "cortex-android-live",
+        "head_sha": "f4a51a407d998801057a605f62afdf4147a9e9fc",
+        "path": ".github/workflows/cortex-android.yml",
+        "run_number": 213,
+        "run_attempt": 1,
+        "status": "completed",
+        "conclusion": "success",
+        "created_at": "2026-10-01T07:30:27Z",
+        "updated_at": "2026-10-01T08:04:29Z",
+        "html_url": "https://github.com/Tomex777/Build/actions/runs/36830717377"
+      }
+    ],
+    "jobs": [
+      {
+        "id": 110266572976,
+        "name": "min-sdk-smoke",
+        "conclusion": "success",
+        "steps": [
+          {
+            "name": "Set up job",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run actions/checkout@v5",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run actions/setup-java@v5",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run gradle/actions/setup-gradle@v4",
+            "conclusion": "success"
+          },
+          {
+            "name": "Prebuild minSdk instrumentation APKs",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run Cortex instrumentation on minSdk / API 26",
+            "conclusion": "success"
+          },
+          {
+            "name": "Upload API 26 evidence",
+            "conclusion": "success"
+          },
+          {
+            "name": "Post Run gradle/actions/setup-gradle@v4",
+            "conclusion": "success"
+          },
+          {
+            "name": "Post Run actions/setup-java@v5",
+            "conclusion": "success"
+          },
+          {
+            "name": "Post Run actions/checkout@v5",
+            "conclusion": "success"
+          },
+          {
+            "name": "Complete job",
+            "conclusion": "success"
+          }
+        ]
+      },
+      {
+        "id": 110266573145,
+        "name": "build",
+        "conclusion": "success",
+        "steps": [
+          {
+            "name": "Set up job",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run actions/checkout@v5",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run actions/setup-java@v5",
+            "conclusion": "success"
+          },
+          {
+            "name": "Validate Cortex CI scripts",
+            "conclusion": "success"
+          },
+          {
+            "name": "Install Android SDK 36",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run gradle/actions/setup-gradle@v4",
+            "conclusion": "success"
+          },
+          {
+            "name": "Configure release signing when secrets are available",
+            "conclusion": "success"
+          },
+          {
+            "name": "Build debug and production release artifacts",
+            "conclusion": "success"
+          },
+          {
+            "name": "Upload debug APK",
+            "conclusion": "success"
+          },
+          {
+            "name": "Upload production release artifacts",
+            "conclusion": "success"
+          },
+          {
+            "name": "Post Run gradle/actions/setup-gradle@v4",
+            "conclusion": "success"
+          },
+          {
+            "name": "Post Run actions/setup-java@v5",
+            "conclusion": "success"
+          },
+          {
+            "name": "Post Run actions/checkout@v5",
+            "conclusion": "success"
+          },
+          {
+            "name": "Complete job",
+            "conclusion": "success"
+          }
+        ]
+      },
+      {
+        "id": 110266573156,
+        "name": "emulator-smoke",
+        "conclusion": "success",
+        "steps": [
+          {
+            "name": "Set up job",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run actions/checkout@v5",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run actions/setup-java@v5",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run gradle/actions/setup-gradle@v4",
+            "conclusion": "success"
+          },
+          {
+            "name": "Prebuild instrumentation APKs",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run Cortex instrumentation on Android 16 / API 36",
+            "conclusion": "success"
+          },
+          {
+            "name": "Upload API 36 emulator evidence",
+            "conclusion": "success"
+          },
+          {
+            "name": "Post Run gradle/actions/setup-gradle@v4",
+            "conclusion": "success"
+          },
+          {
+            "name": "Post Run actions/setup-java@v5",
+            "conclusion": "success"
+          },
+          {
+            "name": "Post Run actions/checkout@v5",
+            "conclusion": "success"
+          },
+          {
+            "name": "Complete job",
+            "conclusion": "success"
+          }
+        ]
+      },
+      {
+        "id": 110268185495,
+        "name": "release-api26",
+        "conclusion": "success",
+        "steps": [
+          {
+            "name": "Set up job",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run actions/checkout@v5",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run actions/download-artifact@v4",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run minified Cortex release on minSdk / API 26",
+            "conclusion": "success"
+          },
+          {
+            "name": "Upload API 26 release evidence",
+            "conclusion": "success"
+          },
+          {
+            "name": "Post Run actions/checkout@v5",
+            "conclusion": "success"
+          },
+          {
+            "name": "Complete job",
+            "conclusion": "success"
+          }
+        ]
+      },
+      {
+        "id": 110268185513,
+        "name": "release-api36",
+        "conclusion": "success",
+        "steps": [
+          {
+            "name": "Set up job",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run actions/checkout@v5",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run actions/download-artifact@v4",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run minified Cortex release on Android 16 / API 36",
+            "conclusion": "success"
+          },
+          {
+            "name": "Upload API 36 release evidence",
+            "conclusion": "success"
+          },
+          {
+            "name": "Post Run actions/checkout@v5",
+            "conclusion": "success"
+          },
+          {
+            "name": "Complete job",
+            "conclusion": "success"
+          }
+        ]
+      }
+    ],
+    "artifacts": [
+      {
+        "id": 11148497830,
+        "name": "cortex-android36-emulator-screen",
+        "size_in_bytes": 2063976,
+        "expired": false
+      },
+      {
+        "id": 11148245932,
+        "name": "cortex-release-api26-evidence",
+        "size_in_bytes": 65990,
+        "expired": false
+      },
+      {
+        "id": 11148147888,
+        "name": "cortex-release-api36-evidence",
+        "size_in_bytes": 4308,
+        "expired": false
+      },
+      {
+        "id": 11147428826,
+        "name": "cortex-api26-emulator-screen",
+        "size_in_bytes": 148716,
+        "expired": false
+      },
+      {
+        "id": 11147385479,
+        "name": "cortex-production-release",
+        "size_in_bytes": 11336050,
+        "expired": false
+      },
+      {
+        "id": 11146874766,
+        "name": "cortex-debug",
+        "size_in_bytes": 18346077,
+        "expired": false
+      }
+    ]
+  },
+  "artist-scene-studio-foundation": {
+    "runs": [
+      {
+        "id": 36925310468,
+        "name": "Artist Scene Studio Android CI",
+        "head_branch": "artist-scene-studio-foundation",
+        "head_sha": "63e64bcfe8fda1d03e1ef5a4b3c02bdb100acf62",
+        "path": ".github/workflows/artist-scene-studio-android-ci.yml",
+        "run_number": 203,
+        "run_attempt": 1,
+        "status": "completed",
+        "conclusion": "failure",
+        "created_at": "2026-10-01T20:57:11Z",
+        "updated_at": "2026-10-01T21:17:47Z",
+        "html_url": "https://github.com/Tomex777/Build/actions/runs/36925310468"
+      }
+    ],
+    "jobs": [
+      {
+        "id": 110581070046,
+        "name": "unit-and-build",
+        "conclusion": "success",
+        "steps": [
+          {
+            "name": "Set up job",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run actions/checkout@v4",
+            "conclusion": "success"
+          },
+          {
+            "name": "Fetch pinned starter assets and GLB fixtures",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run actions/setup-java@v4",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run android-actions/setup-android@v3",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run gradle/actions/setup-gradle@v4",
+            "conclusion": "success"
+          },
+          {
+            "name": "Unit tests",
+            "conclusion": "success"
+          },
+          {
+            "name": "Build debug APK",
+            "conclusion": "success"
+          },
+          {
+            "name": "Build ARM64 debug APK",
+            "conclusion": "success"
+          },
+          {
+            "name": "Build universal release APK",
+            "conclusion": "success"
+          },
+          {
+            "name": "Build release app bundle",
+            "conclusion": "success"
+          },
+          {
+            "name": "Stage and verify Mise release candidate",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run actions/upload-artifact@v4",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run actions/upload-artifact@v4",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run actions/upload-artifact@v4",
+            "conclusion": "success"
+          },
+          {
+            "name": "Post Run gradle/actions/setup-gradle@v4",
+            "conclusion": "success"
+          },
+          {
+            "name": "Post Run actions/setup-java@v4",
+            "conclusion": "success"
+          },
+          {
+            "name": "Post Run actions/checkout@v4",
+            "conclusion": "success"
+          },
+          {
+            "name": "Complete job",
+            "conclusion": "success"
+          }
+        ]
+      },
+      {
+        "id": 110581070268,
+        "name": "api-26-renderer-smoke",
+        "conclusion": "failure",
+        "steps": [
+          {
+            "name": "Set up job",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run actions/checkout@v4",
+            "conclusion": "success"
+          },
+          {
+            "name": "Fetch pinned starter assets and GLB fixtures",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run actions/setup-java@v4",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run gradle/actions/setup-gradle@v4",
+            "conclusion": "success"
+          },
+          {
+            "name": "Enable KVM group permissions",
+            "conclusion": "success"
+          },
+          {
+            "name": "Reset renderer smoke start marker",
+            "conclusion": "success"
+          },
+          {
+            "name": "Launch renderer fixture on Android API 26",
+            "conclusion": "success"
+          },
+          {
+            "name": "Classify API 26 emulator startup failure",
+            "conclusion": "success"
+          },
+          {
+            "name": "Retry API 26 emulator startup once",
+            "conclusion": "skipped"
+          },
+          {
+            "name": "Preserve real API 26 runtime failure",
+            "conclusion": "failure"
+          },
+          {
+            "name": "Run actions/upload-artifact@v4",
+            "conclusion": "success"
+          },
+          {
+            "name": "Post Run gradle/actions/setup-gradle@v4",
+            "conclusion": "success"
+          },
+          {
+            "name": "Post Run actions/setup-java@v4",
+            "conclusion": "success"
+          },
+          {
+            "name": "Post Run actions/checkout@v4",
+            "conclusion": "success"
+          },
+          {
+            "name": "Complete job",
+            "conclusion": "success"
+          }
+        ]
+      },
+      {
+        "id": 110581070272,
+        "name": "api-36-renderer-smoke",
+        "conclusion": "failure",
+        "steps": [
+          {
+            "name": "Set up job",
+            "conclusion": "success"
+          },
+          {
+            "name": "Publish renderer smoke pending status",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run actions/checkout@v4",
+            "conclusion": "success"
+          },
+          {
+            "name": "Fetch pinned starter assets and GLB fixtures",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run actions/setup-java@v4",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run gradle/actions/setup-gradle@v4",
+            "conclusion": "success"
+          },
+          {
+            "name": "Enable KVM group permissions",
+            "conclusion": "success"
+          },
+          {
+            "name": "Reset renderer smoke start marker",
+            "conclusion": "success"
+          },
+          {
+            "name": "Launch renderer fixture on API 36",
+            "conclusion": "success"
+          },
+          {
+            "name": "Classify API 36 emulator startup failure",
+            "conclusion": "success"
+          },
+          {
+            "name": "Retry API 36 emulator startup once",
+            "conclusion": "skipped"
+          },
+          {
+            "name": "Preserve real API 36 runtime failure",
+            "conclusion": "failure"
+          },
+          {
+            "name": "Run actions/upload-artifact@v4",
+            "conclusion": "success"
+          },
+          {
+            "name": "Publish renderer smoke status",
+            "conclusion": "success"
+          },
+          {
+            "name": "Post Run gradle/actions/setup-gradle@v4",
+            "conclusion": "success"
+          },
+          {
+            "name": "Post Run actions/setup-java@v4",
+            "conclusion": "success"
+          },
+          {
+            "name": "Post Run actions/checkout@v4",
+            "conclusion": "success"
+          },
+          {
+            "name": "Complete job",
+            "conclusion": "success"
+          }
+        ]
+      },
+      {
+        "id": 110584438219,
+        "name": "release-install-smoke (26)",
+        "conclusion": "success",
+        "steps": [
+          {
+            "name": "Set up job",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run actions/checkout@v4",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run android-actions/setup-android@v3",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run actions/download-artifact@v4",
+            "conclusion": "success"
+          },
+          {
+            "name": "Enable KVM group permissions",
+            "conclusion": "success"
+          },
+          {
+            "name": "Render universal release candidate on API 26",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run actions/upload-artifact@v4",
+            "conclusion": "success"
+          },
+          {
+            "name": "Post Run actions/checkout@v4",
+            "conclusion": "success"
+          },
+          {
+            "name": "Complete job",
+            "conclusion": "success"
+          }
+        ]
+      },
+      {
+        "id": 110584438514,
+        "name": "release-install-smoke (36)",
+        "conclusion": "success",
+        "steps": [
+          {
+            "name": "Set up job",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run actions/checkout@v4",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run android-actions/setup-android@v3",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run actions/download-artifact@v4",
+            "conclusion": "success"
+          },
+          {
+            "name": "Enable KVM group permissions",
+            "conclusion": "success"
+          },
+          {
+            "name": "Render universal release candidate on API 36",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run actions/upload-artifact@v4",
+            "conclusion": "success"
+          },
+          {
+            "name": "Post Run actions/checkout@v4",
+            "conclusion": "success"
+          },
+          {
+            "name": "Complete job",
+            "conclusion": "success"
+          }
+        ]
+      }
+    ],
+    "artifacts": []
+  },
+  "later-editor-qa": {
+    "runs": [
+      {
+        "id": 36824012507,
+        "name": "Later source snapshot",
+        "head_branch": "later-editor-qa",
+        "head_sha": "ecb5328d892c437541580219f32ec3547a9a5ef9",
+        "path": ".github/workflows/later-source-snapshot.yml",
+        "run_number": 19,
+        "run_attempt": 1,
+        "status": "completed",
+        "conclusion": "success",
+        "created_at": "2026-10-01T06:17:43Z",
+        "updated_at": "2026-10-01T06:17:54Z",
+        "html_url": "https://github.com/Tomex777/Build/actions/runs/36824012507"
+      },
+      {
+        "id": 36824012526,
+        "name": "Later editor QA",
+        "head_branch": "later-editor-qa",
+        "head_sha": "ecb5328d892c437541580219f32ec3547a9a5ef9",
+        "path": ".github/workflows/later-editor-qa.yml",
+        "run_number": 195,
+        "run_attempt": 1,
+        "status": "completed",
+        "conclusion": "failure",
+        "created_at": "2026-10-01T06:17:43Z",
+        "updated_at": "2026-10-01T06:30:10Z",
+        "html_url": "https://github.com/Tomex777/Build/actions/runs/36824012526"
+      },
+      {
+        "id": 36822470027,
+        "name": "Later source snapshot",
+        "head_branch": "later-editor-qa",
+        "head_sha": "e0c805f649f8478edd469f99f647b90701783acc",
+        "path": ".github/workflows/later-source-snapshot.yml",
+        "run_number": 18,
+        "run_attempt": 1,
+        "status": "completed",
+        "conclusion": "success",
+        "created_at": "2026-10-01T05:59:46Z",
+        "updated_at": "2026-10-01T05:59:56Z",
+        "html_url": "https://github.com/Tomex777/Build/actions/runs/36822470027"
+      },
+      {
+        "id": 36822470028,
+        "name": "Later editor QA",
+        "head_branch": "later-editor-qa",
+        "head_sha": "e0c805f649f8478edd469f99f647b90701783acc",
+        "path": ".github/workflows/later-editor-qa.yml",
+        "run_number": 194,
+        "run_attempt": 1,
+        "status": "completed",
+        "conclusion": "failure",
+        "created_at": "2026-10-01T05:59:46Z",
+        "updated_at": "2026-10-01T06:12:22Z",
+        "html_url": "https://github.com/Tomex777/Build/actions/runs/36822470028"
+      },
+      {
+        "id": 36822423938,
+        "name": "Later source snapshot",
+        "head_branch": "later-editor-qa",
+        "head_sha": "6c65d130286b54a8c898bdd2ae808f6291c7912a",
+        "path": ".github/workflows/later-source-snapshot.yml",
+        "run_number": 17,
+        "run_attempt": 1,
+        "status": "completed",
+        "conclusion": "success",
+        "created_at": "2026-10-01T05:59:13Z",
+        "updated_at": "2026-10-01T05:59:21Z",
+        "html_url": "https://github.com/Tomex777/Build/actions/runs/36822423938"
+      },
+      {
+        "id": 36822423946,
+        "name": "Later editor QA",
+        "head_branch": "later-editor-qa",
+        "head_sha": "6c65d130286b54a8c898bdd2ae808f6291c7912a",
+        "path": ".github/workflows/later-editor-qa.yml",
+        "run_number": 193,
+        "run_attempt": 1,
+        "status": "completed",
+        "conclusion": "cancelled",
+        "created_at": "2026-10-01T05:59:13Z",
+        "updated_at": "2026-10-01T06:00:07Z",
+        "html_url": "https://github.com/Tomex777/Build/actions/runs/36822423946"
+      },
+      {
+        "id": 36821117999,
+        "name": "Later editor QA",
+        "head_branch": "later-editor-qa",
+        "head_sha": "a63a6a1f1f93b6f9098bedadbc1b107d2663b868",
+        "path": ".github/workflows/later-editor-qa.yml",
+        "run_number": 192,
+        "run_attempt": 1,
+        "status": "completed",
+        "conclusion": "failure",
+        "created_at": "2026-10-01T05:43:03Z",
+        "updated_at": "2026-10-01T05:55:00Z",
+        "html_url": "https://github.com/Tomex777/Build/actions/runs/36821117999"
+      },
+      {
+        "id": 36821117986,
+        "name": "Later source snapshot",
+        "head_branch": "later-editor-qa",
+        "head_sha": "a63a6a1f1f93b6f9098bedadbc1b107d2663b868",
+        "path": ".github/workflows/later-source-snapshot.yml",
+        "run_number": 16,
+        "run_attempt": 1,
+        "status": "completed",
+        "conclusion": "success",
+        "created_at": "2026-10-01T05:43:03Z",
+        "updated_at": "2026-10-01T05:43:11Z",
+        "html_url": "https://github.com/Tomex777/Build/actions/runs/36821117986"
+      }
+    ],
+    "jobs": [],
+    "artifacts": []
+  },
+  "endless-android-ci": {
+    "runs": [
+      {
+        "id": 36903683761,
+        "name": "Endless Android CI",
+        "head_branch": "endless-android-ci",
+        "head_sha": "12ff5ed1762a2f9e53a85368361e1d2fe8bcc951",
+        "path": ".github/workflows/endless-android.yml",
+        "run_number": 148,
+        "run_attempt": 1,
+        "status": "completed",
+        "conclusion": "success",
+        "created_at": "2026-10-01T18:01:04Z",
+        "updated_at": "2026-10-01T18:15:06Z",
+        "html_url": "https://github.com/Tomex777/Build/actions/runs/36903683761"
+      }
+    ],
+    "jobs": [
+      {
+        "id": 110508781267,
+        "name": "build",
+        "conclusion": "success",
+        "steps": [
+          {
+            "name": "Set up job",
+            "conclusion": "success"
+          },
+          {
+            "name": "Checkout",
+            "conclusion": "success"
+          },
+          {
+            "name": "Reconstruct Endless foundation source",
+            "conclusion": "success"
+          },
+          {
+            "name": "Fetch verified real planetary textures",
+            "conclusion": "success"
+          },
+          {
+            "name": "Set up JDK 17",
+            "conclusion": "success"
+          },
+          {
+            "name": "Set up Gradle",
+            "conclusion": "success"
+          },
+          {
+            "name": "Install required Android SDK packages",
+            "conclusion": "success"
+          },
+          {
+            "name": "Build Endless production and QA variants",
+            "conclusion": "success"
+          },
+          {
+            "name": "Sign release binary for emulator validation",
+            "conclusion": "success"
+          },
+          {
+            "name": "Verify packaged textures",
+            "conclusion": "success"
+          },
+          {
+            "name": "Runtime smoke on API 36 emulator",
+            "conclusion": "success"
+          },
+          {
+            "name": "Upload Endless API 36 emulator evidence",
+            "conclusion": "success"
+          },
+          {
+            "name": "Runtime smoke on API 26 emulator",
+            "conclusion": "success"
+          },
+          {
+            "name": "Upload Endless API 26 emulator evidence",
+            "conclusion": "success"
+          },
+          {
+            "name": "Package Endless 1.0.0 APKs",
+            "conclusion": "success"
+          },
+          {
+            "name": "Create owner-signed Endless release when configured",
+            "conclusion": "success"
+          },
+          {
+            "name": "Upload Endless owner-signed release",
+            "conclusion": "success"
+          },
+          {
+            "name": "Upload Endless universal QA APK",
+            "conclusion": "success"
+          },
+          {
+            "name": "Upload Endless unsigned release inputs",
+            "conclusion": "success"
+          },
+          {
+            "name": "Post Set up Gradle",
+            "conclusion": "success"
+          },
+          {
+            "name": "Post Set up JDK 17",
+            "conclusion": "success"
+          },
+          {
+            "name": "Post Checkout",
+            "conclusion": "success"
+          },
+          {
+            "name": "Complete job",
+            "conclusion": "success"
+          }
+        ]
+      }
+    ],
+    "artifacts": [
+      {
+        "id": 11183770187,
+        "name": "endless-api36-evidence",
+        "size_in_bytes": 22354177,
+        "expired": false
+      },
+      {
+        "id": 11183407348,
+        "name": "endless-release-unsigned-inputs",
+        "size_in_bytes": 47361948,
+        "expired": false
+      },
+      {
+        "id": 11183397178,
+        "name": "endless-universal-apk",
+        "size_in_bytes": 26959990,
+        "expired": false
+      },
+      {
+        "id": 11183097525,
+        "name": "endless-api26-evidence",
+        "size_in_bytes": 1389328,
+        "expired": false
+      },
+      {
+        "id": 11183037582,
+        "name": "endless-1.0.0-production-signing",
+        "size_in_bytes": 201,
+        "expired": false
+      }
+    ]
+  },
+  "mirrorchess-sdk36-min26-20260922": {
+    "runs": [
+      {
+        "id": 36603534779,
+        "name": "MirrorChess SDK 36 min 26",
+        "head_branch": "mirrorchess-sdk36-min26-20260922",
+        "head_sha": "ab28bb0361de95be2b389bdc820b0562d56316d7",
+        "path": ".github/workflows/mirrorchess-sdk36-min26.yml",
+        "run_number": 111,
+        "run_attempt": 1,
+        "status": "completed",
+        "conclusion": "success",
+        "created_at": "2026-09-29T17:14:28Z",
+        "updated_at": "2026-09-29T17:35:10Z",
+        "html_url": "https://github.com/Tomex777/Build/actions/runs/36603534779"
+      }
+    ],
+    "jobs": [
+      {
+        "id": 109527161440,
+        "name": "build",
+        "conclusion": "success",
+        "steps": [
+          {
+            "name": "Set up job",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run actions/checkout@v5",
+            "conclusion": "success"
+          },
+          {
+            "name": "Set up Java 17",
+            "conclusion": "success"
+          },
+          {
+            "name": "Install Android 36 platform",
+            "conclusion": "success"
+          },
+          {
+            "name": "Verify SDK baseline",
+            "conclusion": "success"
+          },
+          {
+            "name": "Test, lint, and assemble debug",
+            "conclusion": "success"
+          },
+          {
+            "name": "Build release artifacts",
+            "conclusion": "success"
+          },
+          {
+            "name": "Apply owner signing when permanent credentials are configured",
+            "conclusion": "success"
+          },
+          {
+            "name": "Verify universal and ARM64 release contents",
+            "conclusion": "success"
+          },
+          {
+            "name": "Upload APK",
+            "conclusion": "success"
+          },
+          {
+            "name": "Upload release artifacts",
+            "conclusion": "success"
+          },
+          {
+            "name": "Upload production-signed portfolio release",
+            "conclusion": "skipped"
+          },
+          {
+            "name": "Upload owner-signing inputs",
+            "conclusion": "success"
+          },
+          {
+            "name": "Upload reports",
+            "conclusion": "success"
+          },
+          {
+            "name": "Post Set up Java 17",
+            "conclusion": "success"
+          },
+          {
+            "name": "Post Run actions/checkout@v5",
+            "conclusion": "success"
+          },
+          {
+            "name": "Complete job",
+            "conclusion": "success"
+          }
+        ]
+      },
+      {
+        "id": 109530915331,
+        "name": "release-smoke (36)",
+        "conclusion": "success",
+        "steps": [
+          {
+            "name": "Set up job",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run actions/checkout@v5",
+            "conclusion": "success"
+          },
+          {
+            "name": "Download release artifacts",
+            "conclusion": "success"
+          },
+          {
+            "name": "Enable KVM",
+            "conclusion": "success"
+          },
+          {
+            "name": "API 36 release install and lifecycle smoke",
+            "conclusion": "success"
+          },
+          {
+            "name": "Upload release smoke evidence",
+            "conclusion": "success"
+          },
+          {
+            "name": "Post Run actions/checkout@v5",
+            "conclusion": "success"
+          },
+          {
+            "name": "Complete job",
+            "conclusion": "success"
+          }
+        ]
+      },
+      {
+        "id": 109530915574,
+        "name": "runtime-smoke (36)",
+        "conclusion": "success",
+        "steps": [
+          {
+            "name": "Set up job",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run actions/checkout@v5",
+            "conclusion": "success"
+          },
+          {
+            "name": "Download APK",
+            "conclusion": "success"
+          },
+          {
+            "name": "Enable KVM",
+            "conclusion": "success"
+          },
+          {
+            "name": "Install feature-test image tools",
+            "conclusion": "success"
+          },
+          {
+            "name": "API 36 launch smoke",
+            "conclusion": "success"
+          },
+          {
+            "name": "Curate portfolio screenshots",
+            "conclusion": "success"
+          },
+          {
+            "name": "Upload portfolio screenshots",
+            "conclusion": "success"
+          },
+          {
+            "name": "Upload runtime evidence",
+            "conclusion": "success"
+          },
+          {
+            "name": "Post Run actions/checkout@v5",
+            "conclusion": "success"
+          },
+          {
+            "name": "Complete job",
+            "conclusion": "success"
+          }
+        ]
+      },
+      {
+        "id": 109530915592,
+        "name": "release-smoke (26)",
+        "conclusion": "success",
+        "steps": [
+          {
+            "name": "Set up job",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run actions/checkout@v5",
+            "conclusion": "success"
+          },
+          {
+            "name": "Download release artifacts",
+            "conclusion": "success"
+          },
+          {
+            "name": "Enable KVM",
+            "conclusion": "success"
+          },
+          {
+            "name": "API 26 release install and lifecycle smoke",
+            "conclusion": "success"
+          },
+          {
+            "name": "Upload release smoke evidence",
+            "conclusion": "success"
+          },
+          {
+            "name": "Post Run actions/checkout@v5",
+            "conclusion": "success"
+          },
+          {
+            "name": "Complete job",
+            "conclusion": "success"
+          }
+        ]
+      },
+      {
+        "id": 109530915607,
+        "name": "runtime-smoke (26)",
+        "conclusion": "success",
+        "steps": [
+          {
+            "name": "Set up job",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run actions/checkout@v5",
+            "conclusion": "success"
+          },
+          {
+            "name": "Download APK",
+            "conclusion": "success"
+          },
+          {
+            "name": "Enable KVM",
+            "conclusion": "success"
+          },
+          {
+            "name": "Install feature-test image tools",
+            "conclusion": "skipped"
+          },
+          {
+            "name": "API 26 launch smoke",
+            "conclusion": "success"
+          },
+          {
+            "name": "Curate portfolio screenshots",
+            "conclusion": "skipped"
+          },
+          {
+            "name": "Upload portfolio screenshots",
+            "conclusion": "skipped"
+          },
+          {
+            "name": "Upload runtime evidence",
+            "conclusion": "success"
+          },
+          {
+            "name": "Post Run actions/checkout@v5",
+            "conclusion": "success"
+          },
+          {
+            "name": "Complete job",
+            "conclusion": "success"
+          }
+        ]
+      }
+    ],
+    "artifacts": [
+      {
+        "id": 11051485074,
+        "name": "mirrorchess-release-smoke-api-36",
+        "size_in_bytes": 379671,
+        "expired": false
+      },
+      {
+        "id": 11051301455,
+        "name": "mirrorchess-runtime-api-36",
+        "size_in_bytes": 3435343,
+        "expired": false
+      },
+      {
+        "id": 11051170095,
+        "name": "mirrorchess-1.2.0-owner-signing-required",
+        "size_in_bytes": 165386698,
+        "expired": false
+      },
+      {
+        "id": 11051085536,
+        "name": "mirrorchess-release-smoke-api-26",
+        "size_in_bytes": 416843,
+        "expired": false
+      },
+      {
+        "id": 11051045504,
+        "name": "mirrorchess-runtime-api-26",
+        "size_in_bytes": 220038,
+        "expired": false
+      },
+      {
+        "id": 11050880311,
+        "name": "mirrorchess-sdk36-min26-reports",
+        "size_in_bytes": 85093,
+        "expired": false
+      },
+      {
+        "id": 11050509936,
+        "name": "mirrorchess-portfolio-screenshots",
+        "size_in_bytes": 879813,
+        "expired": false
+      },
+      {
+        "id": 11049879618,
+        "name": "mirrorchess-sdk36-min26-apk",
+        "size_in_bytes": 64795240,
+        "expired": false
+      },
+      {
+        "id": 11049754962,
+        "name": "mirrorchess-1.2.0-release-artifacts",
+        "size_in_bytes": 226118035,
+        "expired": false
+      }
+    ]
+  },
+  "slumber-087-build": {
+    "runs": [
+      {
+        "id": 36733142086,
+        "name": "Slumber Icon Visual Preview",
+        "head_branch": "slumber-087-build",
+        "head_sha": "dc9a2e4c911246b82598120ffb4a8d60672f24e6",
+        "path": ".github/workflows/slumber-icon-preview.yml",
+        "run_number": 6,
+        "run_attempt": 1,
+        "status": "completed",
+        "conclusion": "success",
+        "created_at": "2026-09-30T14:58:13Z",
+        "updated_at": "2026-09-30T14:58:45Z",
+        "html_url": "https://github.com/Tomex777/Build/actions/runs/36733142086"
+      },
+      {
+        "id": 36732803233,
+        "name": "Slumber Icon Visual Preview",
+        "head_branch": "slumber-087-build",
+        "head_sha": "9e89cd282f0459acde04ac91ae9625d8fea706c9",
+        "path": ".github/workflows/slumber-icon-preview.yml",
+        "run_number": 5,
+        "run_attempt": 1,
+        "status": "completed",
+        "conclusion": "success",
+        "created_at": "2026-09-30T14:55:34Z",
+        "updated_at": "2026-09-30T14:56:44Z",
+        "html_url": "https://github.com/Tomex777/Build/actions/runs/36732803233"
+      },
+      {
+        "id": 36732152769,
+        "name": "Slumber Icon Visual Preview",
+        "head_branch": "slumber-087-build",
+        "head_sha": "f1ff51405d1eae03c2dfb79085f21e122c48df37",
+        "path": ".github/workflows/slumber-icon-preview.yml",
+        "run_number": 4,
+        "run_attempt": 1,
+        "status": "completed",
+        "conclusion": "success",
+        "created_at": "2026-09-30T14:50:32Z",
+        "updated_at": "2026-09-30T14:53:19Z",
+        "html_url": "https://github.com/Tomex777/Build/actions/runs/36732152769"
+      },
+      {
+        "id": 36731527045,
+        "name": "Slumber Icon Visual Preview",
+        "head_branch": "slumber-087-build",
+        "head_sha": "bf745840ff3f77fea5b084dc045affcc3716f651",
+        "path": ".github/workflows/slumber-icon-preview.yml",
+        "run_number": 3,
+        "run_attempt": 1,
+        "status": "completed",
+        "conclusion": "success",
+        "created_at": "2026-09-30T14:45:30Z",
+        "updated_at": "2026-09-30T14:51:31Z",
+        "html_url": "https://github.com/Tomex777/Build/actions/runs/36731527045"
+      },
+      {
+        "id": 36731105578,
+        "name": "Slumber Icon Visual Preview",
+        "head_branch": "slumber-087-build",
+        "head_sha": "ccea162a04d934cc84974d84e4f03fca9a49f723",
+        "path": ".github/workflows/slumber-icon-preview.yml",
+        "run_number": 2,
+        "run_attempt": 1,
+        "status": "completed",
+        "conclusion": "success",
+        "created_at": "2026-09-30T14:42:11Z",
+        "updated_at": "2026-09-30T14:44:00Z",
+        "html_url": "https://github.com/Tomex777/Build/actions/runs/36731105578"
+      },
+      {
+        "id": 36725960554,
+        "name": "Slumber Icon Visual Preview",
+        "head_branch": "slumber-087-build",
+        "head_sha": "56601099bc622533e4b64e41024651b9e61f1d85",
+        "path": ".github/workflows/slumber-icon-preview.yml",
+        "run_number": 1,
+        "run_attempt": 1,
+        "status": "completed",
+        "conclusion": "success",
+        "created_at": "2026-09-30T14:01:27Z",
+        "updated_at": "2026-09-30T14:02:24Z",
+        "html_url": "https://github.com/Tomex777/Build/actions/runs/36725960554"
+      },
+      {
+        "id": 36612087935,
+        "name": "Slumber Product Completion",
+        "head_branch": "slumber-087-build",
+        "head_sha": "3a52537c5a0c8e1ba941081c3be5536c41818d83",
+        "path": ".github/workflows/slumber-product-completion.yml",
+        "run_number": 65,
+        "run_attempt": 1,
+        "status": "completed",
+        "conclusion": "success",
+        "created_at": "2026-09-29T18:26:39Z",
+        "updated_at": "2026-09-29T18:47:39Z",
+        "html_url": "https://github.com/Tomex777/Build/actions/runs/36612087935"
+      },
+      {
+        "id": 36603352816,
+        "name": "Slumber Product Completion",
+        "head_branch": "slumber-087-build",
+        "head_sha": "94446b358de81ac27fcb8c2a02470b421e97ba92",
+        "path": ".github/workflows/slumber-product-completion.yml",
+        "run_number": 64,
+        "run_attempt": 1,
+        "status": "completed",
+        "conclusion": "failure",
+        "created_at": "2026-09-29T17:12:56Z",
+        "updated_at": "2026-09-29T17:29:04Z",
+        "html_url": "https://github.com/Tomex777/Build/actions/runs/36603352816"
+      }
+    ],
+    "jobs": [],
+    "artifacts": []
+  },
+  "yomi-reader-foundation": {
+    "runs": [
+      {
+        "id": 36648499150,
+        "name": "Yomi Reader CI",
+        "head_branch": "yomi-reader-foundation",
+        "head_sha": "2ba23c1ff49e1e45eba5c823b49000956fd95e3e",
+        "path": ".github/workflows/yomi-reader-ci.yml",
+        "run_number": 75,
+        "run_attempt": 1,
+        "status": "completed",
+        "conclusion": "success",
+        "created_at": "2026-09-30T00:04:48Z",
+        "updated_at": "2026-09-30T00:43:44Z",
+        "html_url": "https://github.com/Tomex777/Build/actions/runs/36648499150"
+      }
+    ],
+    "jobs": [
+      {
+        "id": 109677034387,
+        "name": "Core tests and Android build",
+        "conclusion": "success",
+        "steps": [
+          {
+            "name": "Set up job",
+            "conclusion": "success"
+          },
+          {
+            "name": "Checkout Yomi",
+            "conclusion": "success"
+          },
+          {
+            "name": "Set up Java 21",
+            "conclusion": "success"
+          },
+          {
+            "name": "Set up Gradle",
+            "conclusion": "success"
+          },
+          {
+            "name": "Verify SDK contract",
+            "conclusion": "success"
+          },
+          {
+            "name": "Test Yomi reader contracts",
+            "conclusion": "success"
+          },
+          {
+            "name": "Build Yomi debug, acceptance, and runtime candidate artifacts",
+            "conclusion": "success"
+          },
+          {
+            "name": "Stage APKs",
+            "conclusion": "success"
+          },
+          {
+            "name": "Upload Yomi APKs",
+            "conclusion": "success"
+          },
+          {
+            "name": "Post Set up Gradle",
+            "conclusion": "success"
+          },
+          {
+            "name": "Post Set up Java 21",
+            "conclusion": "success"
+          },
+          {
+            "name": "Post Checkout Yomi",
+            "conclusion": "success"
+          },
+          {
+            "name": "Complete job",
+            "conclusion": "success"
+          }
+        ]
+      },
+      {
+        "id": 109678648307,
+        "name": "API 26 minimum SDK reader acceptance",
+        "conclusion": "success",
+        "steps": [
+          {
+            "name": "Set up job",
+            "conclusion": "success"
+          },
+          {
+            "name": "Checkout Yomi",
+            "conclusion": "success"
+          },
+          {
+            "name": "Download Yomi APKs",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run local reader acceptance on Android 8.0",
+            "conclusion": "success"
+          },
+          {
+            "name": "Upload API 26 reader evidence",
+            "conclusion": "success"
+          },
+          {
+            "name": "Post Checkout Yomi",
+            "conclusion": "success"
+          },
+          {
+            "name": "Complete job",
+            "conclusion": "success"
+          }
+        ]
+      },
+      {
+        "id": 109678648388,
+        "name": "API 36 launch and screenshot",
+        "conclusion": "success",
+        "steps": [
+          {
+            "name": "Set up job",
+            "conclusion": "success"
+          },
+          {
+            "name": "Checkout Yomi",
+            "conclusion": "success"
+          },
+          {
+            "name": "Download Yomi APKs",
+            "conclusion": "success"
+          },
+          {
+            "name": "Launch on Android 16",
+            "conclusion": "success"
+          },
+          {
+            "name": "Upload runtime evidence",
+            "conclusion": "success"
+          },
+          {
+            "name": "Post Checkout Yomi",
+            "conclusion": "success"
+          },
+          {
+            "name": "Complete job",
+            "conclusion": "success"
+          }
+        ]
+      }
+    ],
+    "artifacts": [
+      {
+        "id": 11070518328,
+        "name": "Yomi-API36-runtime-evidence",
+        "size_in_bytes": 2302514,
+        "expired": false
+      },
+      {
+        "id": 11070240146,
+        "name": "Yomi-API26-reader-evidence",
+        "size_in_bytes": 142341,
+        "expired": false
+      },
+      {
+        "id": 11069337445,
+        "name": "Yomi-ci-apks-sdk36-min26",
+        "size_in_bytes": 68474143,
+        "expired": false
+      }
+    ]
+  },
+  "torri-compile-runner-20260922": {
+    "runs": [
+      {
+        "id": 36684086037,
+        "name": "Torri Compile Runner",
+        "head_branch": "torri-compile-runner-20260922",
+        "head_sha": "acb4ebcc7ac3fbcbffa7ee572d40c81ed60ede01",
+        "path": ".github/workflows/torri-compile-runner.yml",
+        "run_number": 97,
+        "run_attempt": 1,
+        "status": "completed",
+        "conclusion": "success",
+        "created_at": "2026-09-30T07:30:30Z",
+        "updated_at": "2026-09-30T08:07:24Z",
+        "html_url": "https://github.com/Tomex777/Build/actions/runs/36684086037"
+      }
+    ],
+    "jobs": [
+      {
+        "id": 109785822407,
+        "name": "Compile Torri SDK 36",
+        "conclusion": "success",
+        "steps": [
+          {
+            "name": "Set up job",
+            "conclusion": "success"
+          },
+          {
+            "name": "Checkout build overlay",
+            "conclusion": "success"
+          },
+          {
+            "name": "Checkout Mihon v0.19.9 SDK 36 base",
+            "conclusion": "success"
+          },
+          {
+            "name": "Apply Torri overlay",
+            "conclusion": "success"
+          },
+          {
+            "name": "Set up Java 21",
+            "conclusion": "success"
+          },
+          {
+            "name": "Set up Gradle",
+            "conclusion": "success"
+          },
+          {
+            "name": "Install Android SDK 36 and NDK",
+            "conclusion": "success"
+          },
+          {
+            "name": "Build Torri release and emulator APKs",
+            "conclusion": "success"
+          },
+          {
+            "name": "Prepare portfolio artifacts and signing",
+            "conclusion": "success"
+          },
+          {
+            "name": "Upload owner-signing inputs",
+            "conclusion": "success"
+          },
+          {
+            "name": "Upload production-signed universal APK",
+            "conclusion": "skipped"
+          },
+          {
+            "name": "Upload production-signed ARM64 APK",
+            "conclusion": "skipped"
+          },
+          {
+            "name": "Upload production-signed AAB",
+            "conclusion": "skipped"
+          },
+          {
+            "name": "Upload release runtime APKs",
+            "conclusion": "success"
+          },
+          {
+            "name": "Upload API 36 emulator debug APK",
+            "conclusion": "success"
+          },
+          {
+            "name": "Upload release metadata and checksums",
+            "conclusion": "success"
+          },
+          {
+            "name": "Post Set up Gradle",
+            "conclusion": "success"
+          },
+          {
+            "name": "Post Set up Java 21",
+            "conclusion": "success"
+          },
+          {
+            "name": "Post Checkout Mihon v0.19.9 SDK 36 base",
+            "conclusion": "success"
+          },
+          {
+            "name": "Post Checkout build overlay",
+            "conclusion": "success"
+          },
+          {
+            "name": "Complete job",
+            "conclusion": "success"
+          }
+        ]
+      },
+      {
+        "id": 109792796345,
+        "name": "Runtime smoke on Android 8.0 / API 26",
+        "conclusion": "success",
+        "steps": [
+          {
+            "name": "Set up job",
+            "conclusion": "success"
+          },
+          {
+            "name": "Checkout API 26 runtime scripts",
+            "conclusion": "success"
+          },
+          {
+            "name": "Download API 26-compatible emulator debug APK",
+            "conclusion": "success"
+          },
+          {
+            "name": "Download release runtime APKs",
+            "conclusion": "success"
+          },
+          {
+            "name": "Runtime smoke on API 26 emulator",
+            "conclusion": "success"
+          },
+          {
+            "name": "Upload API 26 runtime evidence",
+            "conclusion": "success"
+          },
+          {
+            "name": "Post Checkout API 26 runtime scripts",
+            "conclusion": "success"
+          },
+          {
+            "name": "Complete job",
+            "conclusion": "success"
+          }
+        ]
+      },
+      {
+        "id": 109792796357,
+        "name": "Runtime smoke on Android 16",
+        "conclusion": "success",
+        "steps": [
+          {
+            "name": "Set up job",
+            "conclusion": "success"
+          },
+          {
+            "name": "Checkout runtime smoke script",
+            "conclusion": "success"
+          },
+          {
+            "name": "Download API 36 emulator debug APK",
+            "conclusion": "success"
+          },
+          {
+            "name": "Download release runtime APKs",
+            "conclusion": "success"
+          },
+          {
+            "name": "Runtime smoke on API 36 emulator",
+            "conclusion": "success"
+          },
+          {
+            "name": "Upload runtime evidence",
+            "conclusion": "success"
+          },
+          {
+            "name": "Post Checkout runtime smoke script",
+            "conclusion": "success"
+          },
+          {
+            "name": "Complete job",
+            "conclusion": "success"
+          }
+        ]
+      }
+    ],
+    "artifacts": [
+      {
+        "id": 11083996108,
+        "name": "Torri-release-runtime-apks",
+        "size_in_bytes": 76494741,
+        "expired": false
+      },
+      {
+        "id": 11083953993,
+        "name": "Torri-API36-runtime-evidence",
+        "size_in_bytes": 8714516,
+        "expired": false
+      },
+      {
+        "id": 11083748528,
+        "name": "Torri-x86_64-debug-sdk36-min26",
+        "size_in_bytes": 44385792,
+        "expired": false
+      },
+      {
+        "id": 11083729500,
+        "name": "Torri-API26-runtime-evidence",
+        "size_in_bytes": 2876948,
+        "expired": false
+      },
+      {
+        "id": 11083648945,
+        "name": "Torri-1.0.0-owner-signing-required",
+        "size_in_bytes": 91674906,
+        "expired": false
+      },
+      {
+        "id": 11083558997,
+        "name": "Torri-release-metadata",
+        "size_in_bytes": 11334,
+        "expired": false
+      }
+    ]
+  },
+  "veya-android-ci": {
+    "runs": [
+      {
+        "id": 36820999157,
+        "name": "Veya Android CI",
+        "head_branch": "veya-android-ci",
+        "head_sha": "5e2c40598f98b5b4633cafee6d937cb29a506fc7",
+        "path": ".github/workflows/veya-android-ci.yml",
+        "run_number": 39,
+        "run_attempt": 1,
+        "status": "completed",
+        "conclusion": "success",
+        "created_at": "2026-10-01T05:41:36Z",
+        "updated_at": "2026-10-01T05:54:05Z",
+        "html_url": "https://github.com/Tomex777/Build/actions/runs/36820999157"
+      },
+      {
+        "id": 36820995642,
+        "name": "Veya Android CI",
+        "head_branch": "veya-android-ci",
+        "head_sha": "13a3388e03916388c4471c6b437933c05eef91d0",
+        "path": ".github/workflows/veya-android-ci.yml",
+        "run_number": 38,
+        "run_attempt": 1,
+        "status": "completed",
+        "conclusion": "cancelled",
+        "created_at": "2026-10-01T05:41:33Z",
+        "updated_at": "2026-10-01T05:41:38Z",
+        "html_url": "https://github.com/Tomex777/Build/actions/runs/36820995642"
+      },
+      {
+        "id": 36820993009,
+        "name": "Veya Android CI",
+        "head_branch": "veya-android-ci",
+        "head_sha": "0e266d0ce0a0ae4546c51a94f39beafc891254b2",
+        "path": ".github/workflows/veya-android-ci.yml",
+        "run_number": 37,
+        "run_attempt": 1,
+        "status": "completed",
+        "conclusion": "cancelled",
+        "created_at": "2026-10-01T05:41:31Z",
+        "updated_at": "2026-10-01T05:41:35Z",
+        "html_url": "https://github.com/Tomex777/Build/actions/runs/36820993009"
+      },
+      {
+        "id": 36749572253,
+        "name": "Veya Android CI",
+        "head_branch": "veya-android-ci",
+        "head_sha": "3b401d92536d8e4f08435a3b63aff731cc1585e5",
+        "path": ".github/workflows/veya-android-ci.yml",
+        "run_number": 36,
+        "run_attempt": 1,
+        "status": "completed",
+        "conclusion": "success",
+        "created_at": "2026-09-30T17:11:06Z",
+        "updated_at": "2026-09-30T17:23:37Z",
+        "html_url": "https://github.com/Tomex777/Build/actions/runs/36749572253"
+      },
+      {
+        "id": 36749552915,
+        "name": "Veya Android CI",
+        "head_branch": "veya-android-ci",
+        "head_sha": "72f088d19b330ff40e8d6cd72097a6d4f8a71f24",
+        "path": ".github/workflows/veya-android-ci.yml",
+        "run_number": 35,
+        "run_attempt": 1,
+        "status": "completed",
+        "conclusion": "cancelled",
+        "created_at": "2026-09-30T17:10:56Z",
+        "updated_at": "2026-09-30T17:11:07Z",
+        "html_url": "https://github.com/Tomex777/Build/actions/runs/36749552915"
+      },
+      {
+        "id": 36749460216,
+        "name": "Veya Android CI",
+        "head_branch": "veya-android-ci",
+        "head_sha": "7ef2aee4470fa5a523321a1fbf68891ca64a476c",
+        "path": ".github/workflows/veya-android-ci.yml",
+        "run_number": 34,
+        "run_attempt": 1,
+        "status": "completed",
+        "conclusion": "cancelled",
+        "created_at": "2026-09-30T17:10:09Z",
+        "updated_at": "2026-09-30T17:11:46Z",
+        "html_url": "https://github.com/Tomex777/Build/actions/runs/36749460216"
+      },
+      {
+        "id": 36748548424,
+        "name": "Veya Android CI",
+        "head_branch": "veya-android-ci",
+        "head_sha": "ec541d35a4b4d3429387961e264d81b6293acbd4",
+        "path": ".github/workflows/veya-android-ci.yml",
+        "run_number": 33,
+        "run_attempt": 1,
+        "status": "completed",
+        "conclusion": "failure",
+        "created_at": "2026-09-30T17:02:22Z",
+        "updated_at": "2026-09-30T17:07:49Z",
+        "html_url": "https://github.com/Tomex777/Build/actions/runs/36748548424"
+      },
+      {
+        "id": 36727507567,
+        "name": "Veya Android CI",
+        "head_branch": "veya-android-ci",
+        "head_sha": "d5f5ac456b6692d7fa6429b04b80c69f0b209720",
+        "path": ".github/workflows/veya-android-ci.yml",
+        "run_number": 32,
+        "run_attempt": 1,
+        "status": "completed",
+        "conclusion": "success",
+        "created_at": "2026-09-30T14:13:43Z",
+        "updated_at": "2026-09-30T14:24:30Z",
+        "html_url": "https://github.com/Tomex777/Build/actions/runs/36727507567"
+      }
+    ],
+    "jobs": [
+      {
+        "id": 110236343265,
+        "name": "build",
+        "conclusion": "success",
+        "steps": [
+          {
+            "name": "Set up job",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run actions/checkout@v4",
+            "conclusion": "success"
+          },
+          {
+            "name": "Checkout Shared YouTube Engine",
+            "conclusion": "success"
+          },
+          {
+            "name": "Record shared engine revision",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run actions/setup-java@v5",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run android-actions/setup-android@v3",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run gradle/actions/setup-gradle@v4",
+            "conclusion": "success"
+          },
+          {
+            "name": "Lint and build",
+            "conclusion": "success"
+          },
+          {
+            "name": "Verify package and signature",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run actions/upload-artifact@v4",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run actions/upload-artifact@v4",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run actions/upload-artifact@v4",
+            "conclusion": "success"
+          },
+          {
+            "name": "Post Run gradle/actions/setup-gradle@v4",
+            "conclusion": "success"
+          },
+          {
+            "name": "Post Run actions/setup-java@v5",
+            "conclusion": "success"
+          },
+          {
+            "name": "Post Checkout Shared YouTube Engine",
+            "conclusion": "success"
+          },
+          {
+            "name": "Post Run actions/checkout@v4",
+            "conclusion": "success"
+          },
+          {
+            "name": "Complete job",
+            "conclusion": "success"
+          }
+        ]
+      },
+      {
+        "id": 110238278273,
+        "name": "runtime-api36",
+        "conclusion": "success",
+        "steps": [
+          {
+            "name": "Set up job",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run actions/checkout@v4",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run android-actions/setup-android@v3",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run actions/download-artifact@v4",
+            "conclusion": "success"
+          },
+          {
+            "name": "Enable KVM",
+            "conclusion": "success"
+          },
+          {
+            "name": "API 36 runtime proof",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run actions/upload-artifact@v4",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run actions/upload-artifact@v4",
+            "conclusion": "success"
+          },
+          {
+            "name": "Post Run actions/checkout@v4",
+            "conclusion": "success"
+          },
+          {
+            "name": "Complete job",
+            "conclusion": "success"
+          }
+        ]
+      },
+      {
+        "id": 110238278339,
+        "name": "runtime-api26",
+        "conclusion": "success",
+        "steps": [
+          {
+            "name": "Set up job",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run actions/checkout@v4",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run android-actions/setup-android@v3",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run actions/download-artifact@v4",
+            "conclusion": "success"
+          },
+          {
+            "name": "Enable KVM",
+            "conclusion": "success"
+          },
+          {
+            "name": "API 26 runtime proof",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run actions/upload-artifact@v4",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run actions/upload-artifact@v4",
+            "conclusion": "success"
+          },
+          {
+            "name": "Post Run actions/checkout@v4",
+            "conclusion": "success"
+          },
+          {
+            "name": "Complete job",
+            "conclusion": "success"
+          }
+        ]
+      }
+    ],
+    "artifacts": [
+      {
+        "id": 11144101167,
+        "name": "veya-api26-screenshots",
+        "size_in_bytes": 217566,
+        "expired": false
+      },
+      {
+        "id": 11143907159,
+        "name": "veya-api26-runtime-report",
+        "size_in_bytes": 147164,
+        "expired": false
+      },
+      {
+        "id": 11143817234,
+        "name": "Veya-1.0.0-release-candidate",
+        "size_in_bytes": 336009567,
+        "expired": false
+      },
+      {
+        "id": 11143531752,
+        "name": "veya-runtime-apk",
+        "size_in_bytes": 94434925,
+        "expired": false
+      },
+      {
+        "id": 11143297518,
+        "name": "veya-api36-screenshots",
+        "size_in_bytes": 2006353,
+        "expired": false
+      },
+      {
+        "id": 11143272576,
+        "name": "veya-api36-runtime-report",
+        "size_in_bytes": 1125730,
+        "expired": false
+      },
+      {
+        "id": 11143082332,
+        "name": "Veya-1.0.0-debug",
+        "size_in_bytes": 111125836,
+        "expired": false
+      }
+    ]
+  },
+  "spotui-standalone-ci": {
+    "runs": [
+      {
+        "id": 36752420897,
+        "name": "Lyra Standalone Android CI",
+        "head_branch": "spotui-standalone-ci",
+        "head_sha": "4853de86c67abe3ca815c76703837e059abc4468",
+        "path": ".github/workflows/spotui-standalone-ci.yml",
+        "run_number": 166,
+        "run_attempt": 1,
+        "status": "completed",
+        "conclusion": "success",
+        "created_at": "2026-09-30T17:35:00Z",
+        "updated_at": "2026-09-30T17:56:26Z",
+        "html_url": "https://github.com/Tomex777/Build/actions/runs/36752420897"
+      },
+      {
+        "id": 36749353607,
+        "name": "Lyra Standalone Android CI",
+        "head_branch": "spotui-standalone-ci",
+        "head_sha": "0f3a0c38b995a4383df80a9897f28585363a283d",
+        "path": ".github/workflows/spotui-standalone-ci.yml",
+        "run_number": 165,
+        "run_attempt": 1,
+        "status": "completed",
+        "conclusion": "success",
+        "created_at": "2026-09-30T17:09:13Z",
+        "updated_at": "2026-09-30T17:31:37Z",
+        "html_url": "https://github.com/Tomex777/Build/actions/runs/36749353607"
+      },
+      {
+        "id": 36737188073,
+        "name": "Lyra Standalone Android CI",
+        "head_branch": "spotui-standalone-ci",
+        "head_sha": "c950f48826aed6f8c339df9f83db79b7f709e680",
+        "path": ".github/workflows/spotui-standalone-ci.yml",
+        "run_number": 164,
+        "run_attempt": 1,
+        "status": "completed",
+        "conclusion": "success",
+        "created_at": "2026-09-30T15:29:57Z",
+        "updated_at": "2026-09-30T15:53:00Z",
+        "html_url": "https://github.com/Tomex777/Build/actions/runs/36737188073"
+      },
+      {
+        "id": 36734681634,
+        "name": "Lyra Standalone Android CI",
+        "head_branch": "spotui-standalone-ci",
+        "head_sha": "692d461c0197e2b734def6de5045f29fdefdea8a",
+        "path": ".github/workflows/spotui-standalone-ci.yml",
+        "run_number": 163,
+        "run_attempt": 1,
+        "status": "completed",
+        "conclusion": "failure",
+        "created_at": "2026-09-30T15:10:20Z",
+        "updated_at": "2026-09-30T15:20:07Z",
+        "html_url": "https://github.com/Tomex777/Build/actions/runs/36734681634"
+      },
+      {
+        "id": 36733170184,
+        "name": "Lyra Standalone Android CI",
+        "head_branch": "spotui-standalone-ci",
+        "head_sha": "4a3a274b14d03cddb0f5e983afb1c19e4a917f9b",
+        "path": ".github/workflows/spotui-standalone-ci.yml",
+        "run_number": 162,
+        "run_attempt": 1,
+        "status": "completed",
+        "conclusion": "failure",
+        "created_at": "2026-09-30T14:58:26Z",
+        "updated_at": "2026-09-30T15:09:41Z",
+        "html_url": "https://github.com/Tomex777/Build/actions/runs/36733170184"
+      },
+      {
+        "id": 36733147472,
+        "name": "Lyra Standalone Android CI",
+        "head_branch": "spotui-standalone-ci",
+        "head_sha": "8649e22013b69514ba408736f564f39565072b85",
+        "path": ".github/workflows/spotui-standalone-ci.yml",
+        "run_number": 161,
+        "run_attempt": 1,
+        "status": "completed",
+        "conclusion": "cancelled",
+        "created_at": "2026-09-30T14:58:15Z",
+        "updated_at": "2026-09-30T14:59:27Z",
+        "html_url": "https://github.com/Tomex777/Build/actions/runs/36733147472"
+      },
+      {
+        "id": 36727609204,
+        "name": "Lyra Standalone Android CI",
+        "head_branch": "spotui-standalone-ci",
+        "head_sha": "14502d7efcc45f62df4497df71bc91e19298f250",
+        "path": ".github/workflows/spotui-standalone-ci.yml",
+        "run_number": 160,
+        "run_attempt": 1,
+        "status": "completed",
+        "conclusion": "failure",
+        "created_at": "2026-09-30T14:14:29Z",
+        "updated_at": "2026-09-30T14:23:14Z",
+        "html_url": "https://github.com/Tomex777/Build/actions/runs/36727609204"
+      },
+      {
+        "id": 36727482144,
+        "name": "Lyra Standalone Android CI",
+        "head_branch": "spotui-standalone-ci",
+        "head_sha": "e8f7ec035d89d59ab5658f2e588b876a4ec1e608",
+        "path": ".github/workflows/spotui-standalone-ci.yml",
+        "run_number": 159,
+        "run_attempt": 1,
+        "status": "completed",
+        "conclusion": "cancelled",
+        "created_at": "2026-09-30T14:13:31Z",
+        "updated_at": "2026-09-30T14:14:32Z",
+        "html_url": "https://github.com/Tomex777/Build/actions/runs/36727482144"
+      }
+    ],
+    "jobs": [
+      {
+        "id": 110014110052,
+        "name": "build-and-smoke",
+        "conclusion": "success",
+        "steps": [
+          {
+            "name": "Set up job",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run actions/checkout@v4",
+            "conclusion": "success"
+          },
+          {
+            "name": "Checkout pinned shared YouTube engine",
+            "conclusion": "success"
+          },
+          {
+            "name": "Import pinned SpotUI Innertube",
+            "conclusion": "success"
+          },
+          {
+            "name": "Reconstruct Android build root",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run actions/setup-java@v5",
+            "conclusion": "success"
+          },
+          {
+            "name": "Set up Android 36 SDK",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run gradle/actions/setup-gradle@v4",
+            "conclusion": "success"
+          },
+          {
+            "name": "Build and stage pinned reusable Shared YouTube Engine AARs",
+            "conclusion": "success"
+          },
+          {
+            "name": "Build core, reusable-engine consumer and host proof",
+            "conclusion": "success"
+          },
+          {
+            "name": "Prove source isolation",
+            "conclusion": "success"
+          },
+          {
+            "name": "Prove Lyra production branding",
+            "conclusion": "success"
+          },
+          {
+            "name": "Enable KVM",
+            "conclusion": "success"
+          },
+          {
+            "name": "Pass runner DNS resolvers to Android emulator",
+            "conclusion": "success"
+          },
+          {
+            "name": "Smoke test live app (challenge-aware)",
+            "conclusion": "success"
+          },
+          {
+            "name": "Minimum SDK 26 full download acceptance",
+            "conclusion": "success"
+          },
+          {
+            "name": "Build owner-signing release inputs",
+            "conclusion": "success"
+          },
+          {
+            "name": "Build CI-signed universal release QA",
+            "conclusion": "success"
+          },
+          {
+            "name": "Release-mode API 36 smoke",
+            "conclusion": "success"
+          },
+          {
+            "name": "Release-mode API 26 smoke",
+            "conclusion": "success"
+          },
+          {
+            "name": "Build ARM64 Galaxy A16 APK",
+            "conclusion": "success"
+          },
+          {
+            "name": "Stage APK",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run actions/upload-artifact@v4",
+            "conclusion": "success"
+          },
+          {
+            "name": "Post Run gradle/actions/setup-gradle@v4",
+            "conclusion": "success"
+          },
+          {
+            "name": "Post Run actions/setup-java@v5",
+            "conclusion": "success"
+          },
+          {
+            "name": "Post Checkout pinned shared YouTube engine",
+            "conclusion": "success"
+          },
+          {
+            "name": "Post Run actions/checkout@v4",
+            "conclusion": "success"
+          },
+          {
+            "name": "Complete job",
+            "conclusion": "success"
+          }
+        ]
+      }
+    ],
+    "artifacts": [
+      {
+        "id": 11116701081,
+        "name": "lyra-standalone-android",
+        "size_in_bytes": 107061132,
+        "expired": false
+      }
+    ]
+  },
+  "cubic-android-ci": {
+    "runs": [
+      {
+        "id": 36710792051,
+        "name": "Cubic Android CI",
+        "head_branch": "cubic-android-ci",
+        "head_sha": "87eac479600e0c523e3fef75bab65b0432468c38",
+        "path": ".github/workflows/cubic-android-ci.yml",
+        "run_number": 53,
+        "run_attempt": 1,
+        "status": "completed",
+        "conclusion": "success",
+        "created_at": "2026-09-30T11:48:23Z",
+        "updated_at": "2026-09-30T12:03:12Z",
+        "html_url": "https://github.com/Tomex777/Build/actions/runs/36710792051"
+      },
+      {
+        "id": 36709856154,
+        "name": "Cubic Secure Signing Rotation",
+        "head_branch": "cubic-android-ci",
+        "head_sha": "4ac9a4e40e84780d69f9a2a0369e5b440b2166e5",
+        "path": ".github/workflows/cubic-secure-signing-rotation.yml",
+        "run_number": 3,
+        "run_attempt": 1,
+        "status": "completed",
+        "conclusion": "success",
+        "created_at": "2026-09-30T11:39:13Z",
+        "updated_at": "2026-09-30T11:52:35Z",
+        "html_url": "https://github.com/Tomex777/Build/actions/runs/36709856154"
+      },
+      {
+        "id": 36709380347,
+        "name": "Cubic Secure Signing Rotation",
+        "head_branch": "cubic-android-ci",
+        "head_sha": "43750fc5c61210cd4f6985839c1e2a32fed82a6e",
+        "path": ".github/workflows/cubic-secure-signing-rotation.yml",
+        "run_number": 2,
+        "run_attempt": 1,
+        "status": "completed",
+        "conclusion": "failure",
+        "created_at": "2026-09-30T11:34:32Z",
+        "updated_at": "2026-09-30T11:37:55Z",
+        "html_url": "https://github.com/Tomex777/Build/actions/runs/36709380347"
+      },
+      {
+        "id": 36709209071,
+        "name": ".github/workflows/cubic-secure-signing-rotation.yml",
+        "head_branch": "cubic-android-ci",
+        "head_sha": "83be17050f3593fb3100748f38deac2b091dde0a",
+        "path": ".github/workflows/cubic-secure-signing-rotation.yml",
+        "run_number": 1,
+        "run_attempt": 1,
+        "status": "completed",
+        "conclusion": "failure",
+        "created_at": "2026-09-30T11:32:52Z",
+        "updated_at": "2026-09-30T11:32:52Z",
+        "html_url": "https://github.com/Tomex777/Build/actions/runs/36709209071"
+      },
+      {
+        "id": 36700822662,
+        "name": "Cubic Android CI",
+        "head_branch": "cubic-android-ci",
+        "head_sha": "a6f2ba015b02ed072e1bdf1248b4114b02dc953b",
+        "path": ".github/workflows/cubic-android-ci.yml",
+        "run_number": 52,
+        "run_attempt": 1,
+        "status": "completed",
+        "conclusion": "success",
+        "created_at": "2026-09-30T10:10:53Z",
+        "updated_at": "2026-09-30T10:24:57Z",
+        "html_url": "https://github.com/Tomex777/Build/actions/runs/36700822662"
+      },
+      {
+        "id": 36699872397,
+        "name": "Cubic Android CI",
+        "head_branch": "cubic-android-ci",
+        "head_sha": "94123ac6fe72ebf27e26b0a0151197af5d721a4b",
+        "path": ".github/workflows/cubic-android-ci.yml",
+        "run_number": 51,
+        "run_attempt": 1,
+        "status": "completed",
+        "conclusion": "cancelled",
+        "created_at": "2026-09-30T10:01:54Z",
+        "updated_at": "2026-09-30T10:11:30Z",
+        "html_url": "https://github.com/Tomex777/Build/actions/runs/36699872397"
+      },
+      {
+        "id": 36697599181,
+        "name": "Cubic Android CI",
+        "head_branch": "cubic-android-ci",
+        "head_sha": "8e48cfdd6158bdb6aeb2bf73024ab205a0d25aa1",
+        "path": ".github/workflows/cubic-android-ci.yml",
+        "run_number": 50,
+        "run_attempt": 1,
+        "status": "completed",
+        "conclusion": "success",
+        "created_at": "2026-09-30T09:40:24Z",
+        "updated_at": "2026-09-30T09:55:08Z",
+        "html_url": "https://github.com/Tomex777/Build/actions/runs/36697599181"
+      },
+      {
+        "id": 36685993096,
+        "name": "Cubic Signing Bootstrap",
+        "head_branch": "cubic-android-ci",
+        "head_sha": "9063d7cd636da2cc6e49cb8df8c02efd29aaaab5",
+        "path": ".github/workflows/cubic-signing-bootstrap.yml",
+        "run_number": 1,
+        "run_attempt": 1,
+        "status": "completed",
+        "conclusion": "success",
+        "created_at": "2026-09-30T07:50:00Z",
+        "updated_at": "2026-09-30T08:02:54Z",
+        "html_url": "https://github.com/Tomex777/Build/actions/runs/36685993096"
+      }
+    ],
+    "jobs": [
+      {
+        "id": 109871815597,
+        "name": "build",
+        "conclusion": "success",
+        "steps": [
+          {
+            "name": "Set up job",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run actions/checkout@v4",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run actions/setup-java@v5",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run android-actions/setup-android@v3",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run gradle/actions/setup-gradle@v4",
+            "conclusion": "success"
+          },
+          {
+            "name": "Test, lint and build unsigned release",
+            "conclusion": "success"
+          },
+          {
+            "name": "Verify, package and apply owner signing when configured",
+            "conclusion": "success"
+          },
+          {
+            "name": "Upload runtime APK",
+            "conclusion": "success"
+          },
+          {
+            "name": "Upload QA release candidate",
+            "conclusion": "success"
+          },
+          {
+            "name": "Upload debug APK",
+            "conclusion": "success"
+          },
+          {
+            "name": "Upload owner-signing input",
+            "conclusion": "success"
+          },
+          {
+            "name": "Upload production-signed candidate",
+            "conclusion": "skipped"
+          },
+          {
+            "name": "Post Run gradle/actions/setup-gradle@v4",
+            "conclusion": "success"
+          },
+          {
+            "name": "Post Run actions/setup-java@v5",
+            "conclusion": "success"
+          },
+          {
+            "name": "Post Run actions/checkout@v4",
+            "conclusion": "success"
+          },
+          {
+            "name": "Complete job",
+            "conclusion": "success"
+          }
+        ]
+      },
+      {
+        "id": 109873543283,
+        "name": "runtime-api26",
+        "conclusion": "success",
+        "steps": [
+          {
+            "name": "Set up job",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run actions/checkout@v4",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run android-actions/setup-android@v3",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run actions/download-artifact@v4",
+            "conclusion": "success"
+          },
+          {
+            "name": "Enable KVM",
+            "conclusion": "success"
+          },
+          {
+            "name": "API 26 release runtime proof",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run actions/upload-artifact@v4",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run actions/upload-artifact@v4",
+            "conclusion": "success"
+          },
+          {
+            "name": "Post Run actions/checkout@v4",
+            "conclusion": "success"
+          },
+          {
+            "name": "Complete job",
+            "conclusion": "success"
+          }
+        ]
+      },
+      {
+        "id": 109873543315,
+        "name": "runtime-api36",
+        "conclusion": "success",
+        "steps": [
+          {
+            "name": "Set up job",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run actions/checkout@v4",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run android-actions/setup-android@v3",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run actions/download-artifact@v4",
+            "conclusion": "success"
+          },
+          {
+            "name": "Enable KVM",
+            "conclusion": "success"
+          },
+          {
+            "name": "API 36 full release-candidate runtime proof",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run actions/upload-artifact@v4",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run actions/upload-artifact@v4",
+            "conclusion": "success"
+          },
+          {
+            "name": "Post Run actions/checkout@v4",
+            "conclusion": "success"
+          },
+          {
+            "name": "Complete job",
+            "conclusion": "success"
+          }
+        ]
+      }
+    ],
+    "artifacts": [
+      {
+        "id": 11094650768,
+        "name": "cubic-api36-production-screenshots",
+        "size_in_bytes": 935543,
+        "expired": false
+      },
+      {
+        "id": 11094407949,
+        "name": "cubic-api26-runtime-report",
+        "size_in_bytes": 111796,
+        "expired": false
+      },
+      {
+        "id": 11093939617,
+        "name": "cubic-api26-screenshots",
+        "size_in_bytes": 626388,
+        "expired": false
+      },
+      {
+        "id": 11093744775,
+        "name": "cubic-api36-runtime-report",
+        "size_in_bytes": 109686,
+        "expired": false
+      },
+      {
+        "id": 11093743370,
+        "name": "Cubic-1.0.0-universal-debug",
+        "size_in_bytes": 9249296,
+        "expired": false
+      },
+      {
+        "id": 11093653612,
+        "name": "cubic-release-runtime-apk",
+        "size_in_bytes": 6159296,
+        "expired": false
+      },
+      {
+        "id": 11093454102,
+        "name": "Cubic-1.0.0-universal-release-candidate",
+        "size_in_bytes": 6163315,
+        "expired": false
+      },
+      {
+        "id": 11093294427,
+        "name": "Cubic-1.0.0-owner-signing-required",
+        "size_in_bytes": 6155487,
+        "expired": false
+      }
+    ]
+  },
+  "aether-android-ci": {
+    "runs": [
+      {
+        "id": 36077598562,
+        "name": "Aether Android",
+        "head_branch": "aether-android-ci",
+        "head_sha": "e40abbdec07425488fa1a1b50fc3f9759fb88575",
+        "path": ".github/workflows/aether-android.yml",
+        "run_number": 9,
+        "run_attempt": 1,
+        "status": "completed",
+        "conclusion": "success",
+        "created_at": "2026-09-25T00:27:15Z",
+        "updated_at": "2026-09-25T00:32:13Z",
+        "html_url": "https://github.com/Tomex777/Build/actions/runs/36077598562"
+      },
+      {
+        "id": 36072602075,
+        "name": "Aether Android",
+        "head_branch": "aether-android-ci",
+        "head_sha": "38da9ff794de53f8b8b112b10009605e28d48ca0",
+        "path": ".github/workflows/aether-android.yml",
+        "run_number": 8,
+        "run_attempt": 1,
+        "status": "completed",
+        "conclusion": "failure",
+        "created_at": "2026-09-24T23:24:55Z",
+        "updated_at": "2026-09-24T23:30:41Z",
+        "html_url": "https://github.com/Tomex777/Build/actions/runs/36072602075"
+      },
+      {
+        "id": 36072003021,
+        "name": "Aether Android",
+        "head_branch": "aether-android-ci",
+        "head_sha": "9a999bf958615263a9ff64a80a4c48d6303f3498",
+        "path": ".github/workflows/aether-android.yml",
+        "run_number": 7,
+        "run_attempt": 1,
+        "status": "completed",
+        "conclusion": "success",
+        "created_at": "2026-09-24T23:17:50Z",
+        "updated_at": "2026-09-24T23:23:18Z",
+        "html_url": "https://github.com/Tomex777/Build/actions/runs/36072003021"
+      },
+      {
+        "id": 36071347869,
+        "name": "Aether Android",
+        "head_branch": "aether-android-ci",
+        "head_sha": "f31045e49a14ad48370626c84a443fc0998dd307",
+        "path": ".github/workflows/aether-android.yml",
+        "run_number": 6,
+        "run_attempt": 1,
+        "status": "completed",
+        "conclusion": "success",
+        "created_at": "2026-09-24T23:10:06Z",
+        "updated_at": "2026-09-24T23:15:13Z",
+        "html_url": "https://github.com/Tomex777/Build/actions/runs/36071347869"
+      },
+      {
+        "id": 36070743150,
+        "name": "Aether Android",
+        "head_branch": "aether-android-ci",
+        "head_sha": "e3d3a7942d86daddae27844357c95ab340f65ed3",
+        "path": ".github/workflows/aether-android.yml",
+        "run_number": 5,
+        "run_attempt": 1,
+        "status": "completed",
+        "conclusion": "success",
+        "created_at": "2026-09-24T23:03:09Z",
+        "updated_at": "2026-09-24T23:07:46Z",
+        "html_url": "https://github.com/Tomex777/Build/actions/runs/36070743150"
+      },
+      {
+        "id": 36070405732,
+        "name": "Aether Android",
+        "head_branch": "aether-android-ci",
+        "head_sha": "3be2e8045d27786b7a691f5bc96c8865c90839f1",
+        "path": ".github/workflows/aether-android.yml",
+        "run_number": 4,
+        "run_attempt": 1,
+        "status": "completed",
+        "conclusion": "success",
+        "created_at": "2026-09-24T22:59:23Z",
+        "updated_at": "2026-09-24T23:04:40Z",
+        "html_url": "https://github.com/Tomex777/Build/actions/runs/36070405732"
+      },
+      {
+        "id": 36070233615,
+        "name": "Aether Android",
+        "head_branch": "aether-android-ci",
+        "head_sha": "a77130fcdd08b05c4fa33cf69a3cc1d697a9583e",
+        "path": ".github/workflows/aether-android.yml",
+        "run_number": 3,
+        "run_attempt": 1,
+        "status": "completed",
+        "conclusion": "success",
+        "created_at": "2026-09-24T22:57:16Z",
+        "updated_at": "2026-09-24T23:02:37Z",
+        "html_url": "https://github.com/Tomex777/Build/actions/runs/36070233615"
+      },
+      {
+        "id": 36069841429,
+        "name": "Aether Android",
+        "head_branch": "aether-android-ci",
+        "head_sha": "ccc2e302fed3b35a7fbd96e0a0cde79e9697fc65",
+        "path": ".github/workflows/aether-android.yml",
+        "run_number": 2,
+        "run_attempt": 1,
+        "status": "completed",
+        "conclusion": "failure",
+        "created_at": "2026-09-24T22:52:43Z",
+        "updated_at": "2026-09-24T22:56:36Z",
+        "html_url": "https://github.com/Tomex777/Build/actions/runs/36069841429"
+      }
+    ],
+    "jobs": [
+      {
+        "id": 107892213307,
+        "name": "build",
+        "conclusion": "success",
+        "steps": [
+          {
+            "name": "Set up job",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run actions/checkout@v4",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run actions/setup-java@v4",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run gradle/actions/setup-gradle@v4",
+            "conclusion": "success"
+          },
+          {
+            "name": "Build debug APK",
+            "conclusion": "success"
+          },
+          {
+            "name": "Check AI server syntax",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run actions/upload-artifact@v4",
+            "conclusion": "success"
+          },
+          {
+            "name": "Post Run gradle/actions/setup-gradle@v4",
+            "conclusion": "success"
+          },
+          {
+            "name": "Post Run actions/setup-java@v4",
+            "conclusion": "success"
+          },
+          {
+            "name": "Post Run actions/checkout@v4",
+            "conclusion": "success"
+          },
+          {
+            "name": "Complete job",
+            "conclusion": "success"
+          }
+        ]
+      },
+      {
+        "id": 107893046387,
+        "name": "screenshot",
+        "conclusion": "success",
+        "steps": [
+          {
+            "name": "Set up job",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run actions/checkout@v4",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run actions/download-artifact@v4",
+            "conclusion": "success"
+          },
+          {
+            "name": "Enable KVM",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run reactivecircus/android-emulator-runner@v2",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run actions/upload-artifact@v4",
+            "conclusion": "success"
+          },
+          {
+            "name": "Post Run actions/checkout@v4",
+            "conclusion": "success"
+          },
+          {
+            "name": "Complete job",
+            "conclusion": "success"
+          }
+        ]
+      }
+    ],
+    "artifacts": []
+  },
+  "bailey-host-ci": {
+    "runs": [
+      {
+        "id": 35863851830,
+        "name": "Bailey Host CI",
+        "head_branch": "bailey-host-ci",
+        "head_sha": "5a2bb41387a0cc34dd5a694f40d308982bd7b3c0",
+        "path": ".github/workflows/bailey-host.yml",
+        "run_number": 149,
+        "run_attempt": 1,
+        "status": "completed",
+        "conclusion": "success",
+        "created_at": "2026-09-23T12:57:54Z",
+        "updated_at": "2026-09-23T13:02:56Z",
+        "html_url": "https://github.com/Tomex777/Build/actions/runs/35863851830"
+      },
+      {
+        "id": 35312137690,
+        "name": "Bailey Host CI",
+        "head_branch": "bailey-host-ci",
+        "head_sha": "a1ad6641af470f53931344d429a74e41fe006c85",
+        "path": ".github/workflows/bailey-host.yml",
+        "run_number": 148,
+        "run_attempt": 1,
+        "status": "completed",
+        "conclusion": "success",
+        "created_at": "2026-09-18T05:46:39Z",
+        "updated_at": "2026-09-18T05:51:07Z",
+        "html_url": "https://github.com/Tomex777/Build/actions/runs/35312137690"
+      },
+      {
+        "id": 35312117631,
+        "name": "Bailey Host CI",
+        "head_branch": "bailey-host-ci",
+        "head_sha": "2f347c860636fafebe35e1cb33776cba50113e1d",
+        "path": ".github/workflows/bailey-host.yml",
+        "run_number": 147,
+        "run_attempt": 1,
+        "status": "completed",
+        "conclusion": "failure",
+        "created_at": "2026-09-18T05:46:20Z",
+        "updated_at": "2026-09-18T05:47:32Z",
+        "html_url": "https://github.com/Tomex777/Build/actions/runs/35312117631"
+      },
+      {
+        "id": 35312099509,
+        "name": "Bailey Host CI",
+        "head_branch": "bailey-host-ci",
+        "head_sha": "6b2decbf667b5a6b0edbecdb347cd32ca5ccc087",
+        "path": ".github/workflows/bailey-host.yml",
+        "run_number": 146,
+        "run_attempt": 1,
+        "status": "completed",
+        "conclusion": "failure",
+        "created_at": "2026-09-18T05:46:03Z",
+        "updated_at": "2026-09-18T05:46:58Z",
+        "html_url": "https://github.com/Tomex777/Build/actions/runs/35312099509"
+      },
+      {
+        "id": 35312049238,
+        "name": "Bailey Host CI",
+        "head_branch": "bailey-host-ci",
+        "head_sha": "1f0e7d8aac7435d0bb39d8837a8b1db2e487dc5e",
+        "path": ".github/workflows/bailey-host.yml",
+        "run_number": 145,
+        "run_attempt": 1,
+        "status": "completed",
+        "conclusion": "success",
+        "created_at": "2026-09-18T05:45:19Z",
+        "updated_at": "2026-09-18T05:51:45Z",
+        "html_url": "https://github.com/Tomex777/Build/actions/runs/35312049238"
+      },
+      {
+        "id": 35311983503,
+        "name": "Bailey Host CI",
+        "head_branch": "bailey-host-ci",
+        "head_sha": "c47789b492f484440e46eb2b45779a4ef55b6516",
+        "path": ".github/workflows/bailey-host.yml",
+        "run_number": 144,
+        "run_attempt": 1,
+        "status": "completed",
+        "conclusion": "success",
+        "created_at": "2026-09-18T05:44:22Z",
+        "updated_at": "2026-09-18T05:49:42Z",
+        "html_url": "https://github.com/Tomex777/Build/actions/runs/35311983503"
+      },
+      {
+        "id": 35311970225,
+        "name": "Bailey Host CI",
+        "head_branch": "bailey-host-ci",
+        "head_sha": "ffbee0359c5df2631336db34e04fb84cc348be4b",
+        "path": ".github/workflows/bailey-host.yml",
+        "run_number": 143,
+        "run_attempt": 1,
+        "status": "completed",
+        "conclusion": "success",
+        "created_at": "2026-09-18T05:44:10Z",
+        "updated_at": "2026-09-18T05:48:47Z",
+        "html_url": "https://github.com/Tomex777/Build/actions/runs/35311970225"
+      },
+      {
+        "id": 35311922854,
+        "name": "Bailey Host CI",
+        "head_branch": "bailey-host-ci",
+        "head_sha": "91f9c2aa8ef19e22fcce499520ce00498c2b9563",
+        "path": ".github/workflows/bailey-host.yml",
+        "run_number": 142,
+        "run_attempt": 1,
+        "status": "completed",
+        "conclusion": "success",
+        "created_at": "2026-09-18T05:43:27Z",
+        "updated_at": "2026-09-18T05:47:49Z",
+        "html_url": "https://github.com/Tomex777/Build/actions/runs/35311922854"
+      }
+    ],
+    "jobs": [
+      {
+        "id": 107190386754,
+        "name": "verify-and-package",
+        "conclusion": "success",
+        "steps": [
+          {
+            "name": "Set up job",
+            "conclusion": "success"
+          },
+          {
+            "name": "Checkout",
+            "conclusion": "success"
+          },
+          {
+            "name": "Setup Node",
+            "conclusion": "success"
+          },
+          {
+            "name": "Install dependencies",
+            "conclusion": "success"
+          },
+          {
+            "name": "Typecheck",
+            "conclusion": "success"
+          },
+          {
+            "name": "Unit tests",
+            "conclusion": "success"
+          },
+          {
+            "name": "Build desktop app",
+            "conclusion": "success"
+          },
+          {
+            "name": "Electron smoke launch",
+            "conclusion": "success"
+          },
+          {
+            "name": "Install real Lia Baileys engine",
+            "conclusion": "success"
+          },
+          {
+            "name": "Install mainstream WhiskeySockets Baileys engine",
+            "conclusion": "success"
+          },
+          {
+            "name": "Build portable Windows executable",
+            "conclusion": "success"
+          },
+          {
+            "name": "Packaged app runs generated JavaScript module",
+            "conclusion": "success"
+          },
+          {
+            "name": "Packaged app installs Lia engine",
+            "conclusion": "success"
+          },
+          {
+            "name": "Upload portable Windows build",
+            "conclusion": "success"
+          },
+          {
+            "name": "Post Setup Node",
+            "conclusion": "success"
+          },
+          {
+            "name": "Post Checkout",
+            "conclusion": "success"
+          },
+          {
+            "name": "Complete job",
+            "conclusion": "success"
+          }
+        ]
+      }
+    ],
+    "artifacts": []
+  },
+  "yuwai-ci-audit": {
+    "runs": [
+      {
+        "id": 34908595739,
+        "name": "YUWAI mobile-first audit",
+        "head_branch": "yuwai-ci-audit",
+        "head_sha": "27dfe10a426149247952c8dd467539463456ca64",
+        "path": ".github/workflows/yuwai-ci.yml",
+        "run_number": 5,
+        "run_attempt": 1,
+        "status": "completed",
+        "conclusion": "success",
+        "created_at": "2026-09-14T23:22:56Z",
+        "updated_at": "2026-09-14T23:23:49Z",
+        "html_url": "https://github.com/Tomex777/Build/actions/runs/34908595739"
+      },
+      {
+        "id": 34908419802,
+        "name": "YUWAI mobile-first audit",
+        "head_branch": "yuwai-ci-audit",
+        "head_sha": "bdc3bd6ca2d6517f92139b6c1c6874c94c50d3f1",
+        "path": ".github/workflows/yuwai-ci.yml",
+        "run_number": 4,
+        "run_attempt": 1,
+        "status": "completed",
+        "conclusion": "failure",
+        "created_at": "2026-09-14T23:20:37Z",
+        "updated_at": "2026-09-14T23:21:32Z",
+        "html_url": "https://github.com/Tomex777/Build/actions/runs/34908419802"
+      },
+      {
+        "id": 34908374691,
+        "name": "YUWAI mobile-first audit",
+        "head_branch": "yuwai-ci-audit",
+        "head_sha": "6fa3ad752bbb7d00f7bd2b84baa8b590c6ea81f6",
+        "path": ".github/workflows/yuwai-ci.yml",
+        "run_number": 3,
+        "run_attempt": 1,
+        "status": "completed",
+        "conclusion": "failure",
+        "created_at": "2026-09-14T23:20:04Z",
+        "updated_at": "2026-09-14T23:21:00Z",
+        "html_url": "https://github.com/Tomex777/Build/actions/runs/34908374691"
+      },
+      {
+        "id": 34908359085,
+        "name": "YUWAI mobile-first audit",
+        "head_branch": "yuwai-ci-audit",
+        "head_sha": "332614563486650c1b71dab3a5750a613f9ecb28",
+        "path": ".github/workflows/yuwai-ci.yml",
+        "run_number": 2,
+        "run_attempt": 1,
+        "status": "completed",
+        "conclusion": "failure",
+        "created_at": "2026-09-14T23:19:51Z",
+        "updated_at": "2026-09-14T23:20:28Z",
+        "html_url": "https://github.com/Tomex777/Build/actions/runs/34908359085"
+      },
+      {
+        "id": 34908133306,
+        "name": "YUWAI mobile-first audit",
+        "head_branch": "yuwai-ci-audit",
+        "head_sha": "4e62f026a9cc9ba017d1ed0e1456ac381e5dc111",
+        "path": ".github/workflows/yuwai-ci.yml",
+        "run_number": 1,
+        "run_attempt": 1,
+        "status": "completed",
+        "conclusion": "failure",
+        "created_at": "2026-09-14T23:16:56Z",
+        "updated_at": "2026-09-14T23:17:53Z",
+        "html_url": "https://github.com/Tomex777/Build/actions/runs/34908133306"
+      }
+    ],
+    "jobs": [],
+    "artifacts": []
+  },
+  "pahebatcher-android-ci": {
+    "runs": [
+      {
+        "id": 35441911381,
+        "name": "PaheBatcher Android",
+        "head_branch": "pahebatcher-android-ci",
+        "head_sha": "837fdb22c34fef4d0a16021ece0b8cd89ced0f65",
+        "path": ".github/workflows/pahebatcher-android.yml",
+        "run_number": 171,
+        "run_attempt": 1,
+        "status": "completed",
+        "conclusion": "success",
+        "created_at": "2026-09-19T12:06:12Z",
+        "updated_at": "2026-09-19T12:15:39Z",
+        "html_url": "https://github.com/Tomex777/Build/actions/runs/35441911381"
+      },
+      {
+        "id": 35441571475,
+        "name": "PaheBatcher Android",
+        "head_branch": "pahebatcher-android-ci",
+        "head_sha": "e665e5a1593ae57018e6e62961d03affad5fe485",
+        "path": ".github/workflows/pahebatcher-android.yml",
+        "run_number": 170,
+        "run_attempt": 1,
+        "status": "completed",
+        "conclusion": "failure",
+        "created_at": "2026-09-19T11:59:02Z",
+        "updated_at": "2026-09-19T12:05:30Z",
+        "html_url": "https://github.com/Tomex777/Build/actions/runs/35441571475"
+      },
+      {
+        "id": 35441236255,
+        "name": "PaheBatcher Android",
+        "head_branch": "pahebatcher-android-ci",
+        "head_sha": "42a7fc623cea4e2b668b30f4a660bdf0ad826949",
+        "path": ".github/workflows/pahebatcher-android.yml",
+        "run_number": 169,
+        "run_attempt": 1,
+        "status": "completed",
+        "conclusion": "failure",
+        "created_at": "2026-09-19T11:51:07Z",
+        "updated_at": "2026-09-19T11:57:55Z",
+        "html_url": "https://github.com/Tomex777/Build/actions/runs/35441236255"
+      },
+      {
+        "id": 35440398468,
+        "name": "PaheBatcher Android",
+        "head_branch": "pahebatcher-android-ci",
+        "head_sha": "24b155a3e01a03f7222a68e998be4d1d642d0b00",
+        "path": ".github/workflows/pahebatcher-android.yml",
+        "run_number": 168,
+        "run_attempt": 2,
+        "status": "completed",
+        "conclusion": "success",
+        "created_at": "2026-09-19T11:32:43Z",
+        "updated_at": "2026-09-19T11:50:11Z",
+        "html_url": "https://github.com/Tomex777/Build/actions/runs/35440398468"
+      },
+      {
+        "id": 35439784218,
+        "name": "PaheBatcher Android",
+        "head_branch": "pahebatcher-android-ci",
+        "head_sha": "b8d5df184f9c1be059e90ff6c74e1195f00fac8b",
+        "path": ".github/workflows/pahebatcher-android.yml",
+        "run_number": 167,
+        "run_attempt": 1,
+        "status": "completed",
+        "conclusion": "success",
+        "created_at": "2026-09-19T11:19:13Z",
+        "updated_at": "2026-09-19T11:29:05Z",
+        "html_url": "https://github.com/Tomex777/Build/actions/runs/35439784218"
+      },
+      {
+        "id": 35439765055,
+        "name": "PaheBatcher Android",
+        "head_branch": "pahebatcher-android-ci",
+        "head_sha": "a999cd0b5a3785a64ccc60b4cb86f514edc76901",
+        "path": ".github/workflows/pahebatcher-android.yml",
+        "run_number": 166,
+        "run_attempt": 1,
+        "status": "completed",
+        "conclusion": "cancelled",
+        "created_at": "2026-09-19T11:18:47Z",
+        "updated_at": "2026-09-19T11:19:30Z",
+        "html_url": "https://github.com/Tomex777/Build/actions/runs/35439765055"
+      },
+      {
+        "id": 35439750582,
+        "name": "PaheBatcher Android",
+        "head_branch": "pahebatcher-android-ci",
+        "head_sha": "124b464cdb327b6b8ace0fb11d203bb678b27491",
+        "path": ".github/workflows/pahebatcher-android.yml",
+        "run_number": 165,
+        "run_attempt": 1,
+        "status": "completed",
+        "conclusion": "cancelled",
+        "created_at": "2026-09-19T11:18:27Z",
+        "updated_at": "2026-09-19T11:18:51Z",
+        "html_url": "https://github.com/Tomex777/Build/actions/runs/35439750582"
+      },
+      {
+        "id": 35439736175,
+        "name": "PaheBatcher Android",
+        "head_branch": "pahebatcher-android-ci",
+        "head_sha": "471839f46401091b9401fcba05cac6a44c6b455b",
+        "path": ".github/workflows/pahebatcher-android.yml",
+        "run_number": 164,
+        "run_attempt": 1,
+        "status": "completed",
+        "conclusion": "cancelled",
+        "created_at": "2026-09-19T11:18:08Z",
+        "updated_at": "2026-09-19T11:18:30Z",
+        "html_url": "https://github.com/Tomex777/Build/actions/runs/35439736175"
+      }
+    ],
+    "jobs": [
+      {
+        "id": 105894071126,
+        "name": "build-and-visual-smoke",
+        "conclusion": "success",
+        "steps": [
+          {
+            "name": "Set up job",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run actions/checkout@v5",
+            "conclusion": "success"
+          },
+          {
+            "name": "Publish current run id",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run actions/setup-java@v5",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run android-actions/setup-android@v3",
+            "conclusion": "success"
+          },
+          {
+            "name": "Install Android SDK",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run gradle/actions/setup-gradle@v4",
+            "conclusion": "success"
+          },
+          {
+            "name": "Enable KVM",
+            "conclusion": "success"
+          },
+          {
+            "name": "Verify Tor stays CI-only",
+            "conclusion": "success"
+          },
+          {
+            "name": "Verify single AnimePahe verification UI",
+            "conclusion": "success"
+          },
+          {
+            "name": "Build debug APKs",
+            "conclusion": "success"
+          },
+          {
+            "name": "Upload app APK",
+            "conclusion": "success"
+          },
+          {
+            "name": "Upload Pahe Trace APK",
+            "conclusion": "success"
+          },
+          {
+            "name": "Upload Kwik Manual APK",
+            "conclusion": "success"
+          },
+          {
+            "name": "Android 14 visual smoke",
+            "conclusion": "success"
+          },
+          {
+            "name": "Android 8.0 API 26 launch smoke",
+            "conclusion": "success"
+          },
+          {
+            "name": "Upload smoke artifacts",
+            "conclusion": "success"
+          },
+          {
+            "name": "Post Run gradle/actions/setup-gradle@v4",
+            "conclusion": "success"
+          },
+          {
+            "name": "Post Run actions/setup-java@v5",
+            "conclusion": "success"
+          },
+          {
+            "name": "Post Run actions/checkout@v5",
+            "conclusion": "success"
+          },
+          {
+            "name": "Complete job",
+            "conclusion": "success"
+          }
+        ]
+      }
+    ],
+    "artifacts": []
+  },
+  "mira/production-foundation": {
+    "runs": [
+      {
+        "id": 36923222261,
+        "name": "Mira Android",
+        "head_branch": "mira/production-foundation",
+        "head_sha": "e021f7477c16e4d7dba8a305a57de2e1ba021ff6",
+        "path": ".github/workflows/mira-android.yml",
+        "run_number": 19,
+        "run_attempt": 1,
+        "status": "completed",
+        "conclusion": "failure",
+        "created_at": "2026-10-01T20:39:49Z",
+        "updated_at": "2026-10-01T21:05:15Z",
+        "html_url": "https://github.com/Tomex777/Build/actions/runs/36923222261"
+      }
+    ],
+    "jobs": [
+      {
+        "id": 110574350086,
+        "name": "coexistence-and-extension-abi",
+        "conclusion": "failure",
+        "steps": [
+          {
+            "name": "Set up job",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run actions/checkout@v4",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run actions/setup-java@v4",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run gradle/actions/setup-gradle@v4",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run android-actions/setup-android@v3",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run sdkmanager \"platforms;android-36\" \"build-tools;35.0.0\"",
+            "conclusion": "success"
+          },
+          {
+            "name": "Build proven Nami and its extension fixture",
+            "conclusion": "success"
+          },
+          {
+            "name": "Build independent Mira and its extension fixture",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run reactivecircus/android-emulator-runner@v2",
+            "conclusion": "failure"
+          },
+          {
+            "name": "Run actions/upload-artifact@v4",
+            "conclusion": "failure"
+          },
+          {
+            "name": "Post Run gradle/actions/setup-gradle@v4",
+            "conclusion": "success"
+          },
+          {
+            "name": "Post Run actions/setup-java@v4",
+            "conclusion": "success"
+          },
+          {
+            "name": "Post Run actions/checkout@v4",
+            "conclusion": "success"
+          },
+          {
+            "name": "Complete job",
+            "conclusion": "success"
+          }
+        ]
+      },
+      {
+        "id": 110574350378,
+        "name": "build",
+        "conclusion": "success",
+        "steps": [
+          {
+            "name": "Set up job",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run actions/checkout@v4",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run actions/setup-java@v4",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run gradle/actions/setup-gradle@v4",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run android-actions/setup-android@v3",
+            "conclusion": "success"
+          },
+          {
+            "name": "Install Android SDK",
+            "conclusion": "success"
+          },
+          {
+            "name": "Build Mira and instrumentation",
+            "conclusion": "success"
+          },
+          {
+            "name": "Prepare ARM64 APK",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run actions/upload-artifact@v4",
+            "conclusion": "success"
+          },
+          {
+            "name": "Build minified AAB",
+            "conclusion": "success"
+          },
+          {
+            "name": "Verify ARM64 16 KB alignment",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run actions/upload-artifact@v4",
+            "conclusion": "success"
+          },
+          {
+            "name": "Post Run gradle/actions/setup-gradle@v4",
+            "conclusion": "success"
+          },
+          {
+            "name": "Post Run actions/setup-java@v4",
+            "conclusion": "success"
+          },
+          {
+            "name": "Post Run actions/checkout@v4",
+            "conclusion": "success"
+          },
+          {
+            "name": "Complete job",
+            "conclusion": "success"
+          }
+        ]
+      },
+      {
+        "id": 110574350405,
+        "name": "api-36-smoke",
+        "conclusion": "failure",
+        "steps": [
+          {
+            "name": "Set up job",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run actions/checkout@v4",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run actions/setup-java@v4",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run gradle/actions/setup-gradle@v4",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run android-actions/setup-android@v3",
+            "conclusion": "success"
+          },
+          {
+            "name": "Enable KVM group permissions when available",
+            "conclusion": "success"
+          },
+          {
+            "name": "Install API 36 automated-test image and SDK platform",
+            "conclusion": "success"
+          },
+          {
+            "name": "Build API 36 APKs",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run Android 16 startup smoke",
+            "conclusion": "failure"
+          },
+          {
+            "name": "Upload API 36 smoke evidence",
+            "conclusion": "success"
+          },
+          {
+            "name": "Post Run gradle/actions/setup-gradle@v4",
+            "conclusion": "success"
+          },
+          {
+            "name": "Post Run actions/setup-java@v4",
+            "conclusion": "success"
+          },
+          {
+            "name": "Post Run actions/checkout@v4",
+            "conclusion": "success"
+          },
+          {
+            "name": "Complete job",
+            "conclusion": "success"
+          }
+        ]
+      },
+      {
+        "id": 110574350418,
+        "name": "api-26-smoke",
+        "conclusion": "failure",
+        "steps": [
+          {
+            "name": "Set up job",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run actions/checkout@v4",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run actions/setup-java@v4",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run gradle/actions/setup-gradle@v4",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run android-actions/setup-android@v3",
+            "conclusion": "success"
+          },
+          {
+            "name": "Install API 26 image",
+            "conclusion": "success"
+          },
+          {
+            "name": "Build API 26 APKs",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run minSdk 26 smoke",
+            "conclusion": "failure"
+          },
+          {
+            "name": "Post Run gradle/actions/setup-gradle@v4",
+            "conclusion": "success"
+          },
+          {
+            "name": "Post Run actions/setup-java@v4",
+            "conclusion": "success"
+          },
+          {
+            "name": "Post Run actions/checkout@v4",
+            "conclusion": "success"
+          },
+          {
+            "name": "Complete job",
+            "conclusion": "success"
+          }
+        ]
+      },
+      {
+        "id": 110578006921,
+        "name": "real-source-and-download-smoke",
+        "conclusion": "success",
+        "steps": [
+          {
+            "name": "Set up job",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run actions/checkout@v4",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run actions/setup-java@v4",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run gradle/actions/setup-gradle@v4",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run android-actions/setup-android@v3",
+            "conclusion": "success"
+          },
+          {
+            "name": "Install API 30 image",
+            "conclusion": "success"
+          },
+          {
+            "name": "Build source smoke APKs",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run real source and downloader smoke",
+            "conclusion": "success"
+          },
+          {
+            "name": "Run actions/upload-artifact@v4",
+            "conclusion": "success"
+          },
+          {
+            "name": "Post Run gradle/actions/setup-gradle@v4",
+            "conclusion": "success"
+          },
+          {
+            "name": "Post Run actions/setup-java@v4",
+            "conclusion": "success"
+          },
+          {
+            "name": "Post Run actions/checkout@v4",
+            "conclusion": "success"
+          },
+          {
+            "name": "Complete job",
+            "conclusion": "success"
+          }
+        ]
+      }
+    ],
+    "artifacts": []
+  },
+  "youtube-engine-foundation": {
+    "runs": [
+      {
+        "id": 36699708761,
+        "name": "YouTube Engine Foundation",
+        "head_branch": "youtube-engine-foundation",
+        "head_sha": "034313d0c0e9219bfee7c5eefc101508fb74eec5",
+        "path": ".github/workflows/youtube-engine-ci.yml",
+        "run_number": 127,
+        "run_attempt": 1,
+        "status": "completed",
+        "conclusion": "success",
+        "created_at": "2026-09-30T10:00:23Z",
+        "updated_at": "2026-09-30T10:15:57Z",
+        "html_url": "https://github.com/Tomex777/Build/actions/runs/36699708761"
+      }
+    ],
+    "jobs": [],
+    "artifacts": []
+  },
+  "relay-integration-hardening": {
+    "runs": [
+      {
+        "id": 36734720823,
+        "name": "Relay UI build",
+        "head_branch": "relay-integration-hardening",
+        "head_sha": "9e1be389e53846ca7eb03d1e1c1cadad018fa685",
+        "path": ".github/workflows/relay-ui-build.yml",
+        "run_number": 10,
+        "run_attempt": 1,
+        "status": "completed",
+        "conclusion": "failure",
+        "created_at": "2026-09-30T15:10:38Z",
+        "updated_at": "2026-09-30T15:16:35Z",
+        "html_url": "https://github.com/Tomex777/Build/actions/runs/36734720823"
+      },
+      {
+        "id": 36734262048,
+        "name": "Relay UI build",
+        "head_branch": "relay-integration-hardening",
+        "head_sha": "5137fcc59b6a7534ae64ab4140b9dd2bb381d92e",
+        "path": ".github/workflows/relay-ui-build.yml",
+        "run_number": 9,
+        "run_attempt": 1,
+        "status": "completed",
+        "conclusion": "cancelled",
+        "created_at": "2026-09-30T15:07:00Z",
+        "updated_at": "2026-09-30T15:10:53Z",
+        "html_url": "https://github.com/Tomex777/Build/actions/runs/36734262048"
+      }
+    ],
+    "jobs": [],
+    "artifacts": []
+  },
+  "homira-call-ci": {
+    "runs": [
+      {
+        "id": 35910233415,
+        "name": "Homira TURN Relay Android",
+        "head_branch": "homira-call-ci",
+        "head_sha": "95d19cd915549f95c47616fb8ddb6e9279371a11",
+        "path": ".github/workflows/homira-turn-relay-android.yml",
+        "run_number": 123,
+        "run_attempt": 1,
+        "status": "completed",
+        "conclusion": "success",
+        "created_at": "2026-09-23T19:34:30Z",
+        "updated_at": "2026-09-23T19:39:21Z",
+        "html_url": "https://github.com/Tomex777/Build/actions/runs/35910233415"
+      },
+      {
+        "id": 35910233395,
+        "name": "Homira Android",
+        "head_branch": "homira-call-ci",
+        "head_sha": "95d19cd915549f95c47616fb8ddb6e9279371a11",
+        "path": ".github/workflows/homira-android.yml",
+        "run_number": 291,
+        "run_attempt": 1,
+        "status": "completed",
+        "conclusion": "success",
+        "created_at": "2026-09-23T19:34:30Z",
+        "updated_at": "2026-09-23T19:40:55Z",
+        "html_url": "https://github.com/Tomex777/Build/actions/runs/35910233395"
+      },
+      {
+        "id": 35910233316,
+        "name": "Homira UI Smoke",
+        "head_branch": "homira-call-ci",
+        "head_sha": "95d19cd915549f95c47616fb8ddb6e9279371a11",
+        "path": ".github/workflows/homira-ui-smoke.yml",
+        "run_number": 115,
+        "run_attempt": 1,
+        "status": "completed",
+        "conclusion": "failure",
+        "created_at": "2026-09-23T19:34:30Z",
+        "updated_at": "2026-09-23T19:45:28Z",
+        "html_url": "https://github.com/Tomex777/Build/actions/runs/35910233316"
+      }
+    ],
+    "jobs": [],
+    "artifacts": []
+  },
+  "nightmods-core-integration": {
+    "runs": [
+      {
+        "id": 35065920847,
+        "name": "Night Mods Android CI",
+        "head_branch": "nightmods-core-integration",
+        "head_sha": "056608b059fdf4e12cae29659a9ef1afb4c58b31",
+        "path": ".github/workflows/nightmods-ci.yml",
+        "run_number": 106,
+        "run_attempt": 1,
+        "status": "completed",
+        "conclusion": "failure",
+        "created_at": "2026-09-16T06:54:53Z",
+        "updated_at": "2026-09-16T06:54:57Z",
+        "html_url": "https://github.com/Tomex777/Build/actions/runs/35065920847"
+      },
+      {
+        "id": 34945683566,
+        "name": "Night Mods Android CI",
+        "head_branch": "nightmods-core-integration",
+        "head_sha": "4dccb9b43f5ba0119e85f3e71c545dc683c61ab3",
+        "path": ".github/workflows/nightmods-ci.yml",
+        "run_number": 26,
+        "run_attempt": 1,
+        "status": "completed",
+        "conclusion": "success",
+        "created_at": "2026-09-15T08:12:20Z",
+        "updated_at": "2026-09-15T08:18:23Z",
+        "html_url": "https://github.com/Tomex777/Build/actions/runs/34945683566"
+      },
+      {
+        "id": 34945049415,
+        "name": "Night Mods Android CI",
+        "head_branch": "nightmods-core-integration",
+        "head_sha": "6cf5eda4eb9302d91f37623285380a72836a59ef",
+        "path": ".github/workflows/nightmods-ci.yml",
+        "run_number": 25,
+        "run_attempt": 1,
+        "status": "completed",
+        "conclusion": "failure",
+        "created_at": "2026-09-15T08:05:17Z",
+        "updated_at": "2026-09-15T08:11:26Z",
+        "html_url": "https://github.com/Tomex777/Build/actions/runs/34945049415"
+      }
+    ],
+    "jobs": [],
+    "artifacts": []
+  },
+  "liminal-engine-ci-20260910": {
+    "runs": [],
+    "jobs": [],
+    "artifacts": []
+  },
+  "keyboard-ci": {
+    "runs": [
+      {
+        "id": 35548443001,
+        "name": "Keyboard Android CI",
+        "head_branch": "keyboard-ci",
+        "head_sha": "239eb262e755aac566e42c133bd127559635341c",
+        "path": ".github/workflows/keyboard-android-ci.yml",
+        "run_number": 91,
+        "run_attempt": 1,
+        "status": "completed",
+        "conclusion": "failure",
+        "created_at": "2026-09-21T00:40:32Z",
+        "updated_at": "2026-09-21T00:48:07Z",
+        "html_url": "https://github.com/Tomex777/Build/actions/runs/35548443001"
+      },
+      {
+        "id": 35548440693,
+        "name": "Keyboard Android CI",
+        "head_branch": "keyboard-ci",
+        "head_sha": "c3b876ff30ecec04490775e6c525173b247525c7",
+        "path": ".github/workflows/keyboard-android-ci.yml",
+        "run_number": 90,
+        "run_attempt": 1,
+        "status": "completed",
+        "conclusion": "cancelled",
+        "created_at": "2026-09-21T00:40:30Z",
+        "updated_at": "2026-09-21T00:40:33Z",
+        "html_url": "https://github.com/Tomex777/Build/actions/runs/35548440693"
+      },
+      {
+        "id": 35548188098,
+        "name": "Keyboard Android CI",
+        "head_branch": "keyboard-ci",
+        "head_sha": "11f01fd142b8d3f7e684ecf02856f19b3535ba47",
+        "path": ".github/workflows/keyboard-android-ci.yml",
+        "run_number": 89,
+        "run_attempt": 1,
+        "status": "completed",
+        "conclusion": "cancelled",
+        "created_at": "2026-09-21T00:35:32Z",
+        "updated_at": "2026-09-21T00:40:36Z",
+        "html_url": "https://github.com/Tomex777/Build/actions/runs/35548188098"
+      }
+    ],
+    "jobs": [],
+    "artifacts": []
+  },
+  "pianohub-ci": {
+    "runs": [
+      {
+        "id": 35010227947,
+        "name": "Slumber 0.8.15 Chord Provenance Build",
+        "head_branch": "pianohub-ci",
+        "head_sha": "5d43d42f2611de313045d853af9a3a187bb8595b",
+        "path": ".github/workflows/slumber-0815-chord-provenance-build.yml",
+        "run_number": 2,
+        "run_attempt": 1,
+        "status": "completed",
+        "conclusion": "success",
+        "created_at": "2026-09-15T18:53:00Z",
+        "updated_at": "2026-09-15T18:57:03Z",
+        "html_url": "https://github.com/Tomex777/Build/actions/runs/35010227947"
+      },
+      {
+        "id": 35007974842,
+        "name": "Slumber 0.8.15 Chord Provenance Build",
+        "head_branch": "pianohub-ci",
+        "head_sha": "2d25531e20c4c400e72f19d39ddfb4d1e3e2d2f6",
+        "path": ".github/workflows/slumber-0815-chord-provenance-build.yml",
+        "run_number": 1,
+        "run_attempt": 1,
+        "status": "completed",
+        "conclusion": "failure",
+        "created_at": "2026-09-15T18:31:05Z",
+        "updated_at": "2026-09-15T18:33:41Z",
+        "html_url": "https://github.com/Tomex777/Build/actions/runs/35007974842"
+      },
+      {
+        "id": 35006919593,
+        "name": "Slumber 0.8.14 Learning Polish Build",
+        "head_branch": "pianohub-ci",
+        "head_sha": "6654da3c7d9c9f14b7ac22d0d0c036fcef9679dd",
+        "path": ".github/workflows/slumber-0814-learning-polish-build.yml",
+        "run_number": 1,
+        "run_attempt": 1,
+        "status": "completed",
+        "conclusion": "success",
+        "created_at": "2026-09-15T18:21:03Z",
+        "updated_at": "2026-09-15T18:24:23Z",
+        "html_url": "https://github.com/Tomex777/Build/actions/runs/35006919593"
+      }
+    ],
+    "jobs": [],
+    "artifacts": []
+  },
+  "later-ci": {
+    "runs": [
+      {
+        "id": 34189554703,
+        "name": "Later Android CI",
+        "head_branch": "later-ci",
+        "head_sha": "fcdf207b867d05f0ee991c14148a8f58e325dab5",
+        "path": ".github/workflows/later-android-ci.yml",
+        "run_number": 6,
+        "run_attempt": 1,
+        "status": "completed",
+        "conclusion": "failure",
+        "created_at": "2026-09-08T05:09:22Z",
+        "updated_at": "2026-09-08T05:10:08Z",
+        "html_url": "https://github.com/Tomex777/Build/actions/runs/34189554703"
+      },
+      {
+        "id": 34169912362,
+        "name": "Later Android CI",
+        "head_branch": "later-ci",
+        "head_sha": "6076ffad957343c9f6a92ff6b6613c9a1e402894",
+        "path": ".github/workflows/later-android-ci.yml",
+        "run_number": 5,
+        "run_attempt": 1,
+        "status": "completed",
+        "conclusion": "failure",
+        "created_at": "2026-09-07T23:24:10Z",
+        "updated_at": "2026-09-07T23:31:24Z",
+        "html_url": "https://github.com/Tomex777/Build/actions/runs/34169912362"
+      },
+      {
+        "id": 34169904538,
+        "name": "Later Android CI",
+        "head_branch": "later-ci",
+        "head_sha": "6c6afd667d5aeec0386992e9176a3eaab8514a96",
+        "path": ".github/workflows/later-android-ci.yml",
+        "run_number": 4,
+        "run_attempt": 1,
+        "status": "completed",
+        "conclusion": "failure",
+        "created_at": "2026-09-07T23:24:02Z",
+        "updated_at": "2026-09-07T23:31:11Z",
+        "html_url": "https://github.com/Tomex777/Build/actions/runs/34169904538"
+      }
+    ],
+    "jobs": [],
+    "artifacts": []
+  },
+  "whatsapp-client": {
+    "runs": [
+      {
+        "id": 35708578717,
+        "name": "WhatsApp Client Android",
+        "head_branch": "whatsapp-client",
+        "head_sha": "adf7b91d4aeb4ecb71e1e6dbf10bf1ee7aad5cd8",
+        "path": ".github/workflows/cobalt-android-poc.yml",
+        "run_number": 42,
+        "run_attempt": 1,
+        "status": "completed",
+        "conclusion": "success",
+        "created_at": "2026-09-22T09:07:19Z",
+        "updated_at": "2026-09-22T09:17:07Z",
+        "html_url": "https://github.com/Tomex777/Build/actions/runs/35708578717"
+      },
+      {
+        "id": 35707821409,
+        "name": "WhatsApp Client Android",
+        "head_branch": "whatsapp-client",
+        "head_sha": "515dd7b1b58b11ee626f6bd049c7d66e074a54fc",
+        "path": ".github/workflows/cobalt-android-poc.yml",
+        "run_number": 41,
+        "run_attempt": 1,
+        "status": "completed",
+        "conclusion": "failure",
+        "created_at": "2026-09-22T08:59:26Z",
+        "updated_at": "2026-09-22T09:05:29Z",
+        "html_url": "https://github.com/Tomex777/Build/actions/runs/35707821409"
+      },
+      {
+        "id": 35707381777,
+        "name": "WhatsApp Client Android",
+        "head_branch": "whatsapp-client",
+        "head_sha": "3a65e6b4ddabac81f72cd1b53326327906f806fa",
+        "path": ".github/workflows/cobalt-android-poc.yml",
+        "run_number": 40,
+        "run_attempt": 1,
+        "status": "completed",
+        "conclusion": "failure",
+        "created_at": "2026-09-22T08:54:36Z",
+        "updated_at": "2026-09-22T08:58:30Z",
+        "html_url": "https://github.com/Tomex777/Build/actions/runs/35707381777"
+      }
+    ],
+    "jobs": [],
+    "artifacts": []
+  },
+  "extension-chat-render35-ci": {
+    "runs": [
+      {
+        "id": 35378264158,
+        "name": "Extension Chat Android UI",
+        "head_branch": "extension-chat-render35-ci",
+        "head_sha": "e1b25e0616233fabaea6dc3164a809cd5c813217",
+        "path": ".github/workflows/extension-chat-ui-ci.yml",
+        "run_number": 53,
+        "run_attempt": 1,
+        "status": "completed",
+        "conclusion": "success",
+        "created_at": "2026-09-18T18:06:51Z",
+        "updated_at": "2026-09-18T18:22:35Z",
+        "html_url": "https://github.com/Tomex777/Build/actions/runs/35378264158"
+      }
+    ],
+    "jobs": [],
+    "artifacts": []
+  },
+  "night-app-final-ci": {
+    "runs": [
+      {
+        "id": 35430880670,
+        "name": "Night Core APK",
+        "head_branch": "night-app-final-ci",
+        "head_sha": "1c1719126f0fd3634aca2803bea5911d34a550c6",
+        "path": ".github/workflows/night-core-apk.yml",
+        "run_number": 5,
+        "run_attempt": 1,
+        "status": "completed",
+        "conclusion": "success",
+        "created_at": "2026-09-19T08:01:25Z",
+        "updated_at": "2026-09-19T08:05:38Z",
+        "html_url": "https://github.com/Tomex777/Build/actions/runs/35430880670"
+      }
+    ],
+    "jobs": [],
+    "artifacts": []
+  }
+}

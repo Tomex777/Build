@@ -1,0 +1,10 @@
+*.jks
+*.keystore
+*.p12
+*.pfx
+*.idsig
+*-private-key.pem
+*signing-password*
+*keystore-password*
+github-secret-values/
+private-signing/

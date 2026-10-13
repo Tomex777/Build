@@ -1,0 +1,1260 @@
+[
+  {
+    "branch": "aether-android-ci",
+    "head": "e40abbdec07425488fa1a1b50fc3f9759fb88575",
+    "modules": [
+      "aether/app/build.gradle.kts"
+    ],
+    "encoded_source": false,
+    "workflow_set": "workflow-set-001"
+  },
+  {
+    "branch": "agent/relay-data",
+    "head": "504ced7933eaf53e80a7f532c439bc4eac100fd7",
+    "modules": [],
+    "encoded_source": false,
+    "workflow_set": "workflow-set-002"
+  },
+  {
+    "branch": "agent/relay-ui",
+    "head": "88982c024cf8e2d87cb8dc7cb9de6b7fc50c9923",
+    "modules": [
+      "relay-android/app/build.gradle.kts"
+    ],
+    "encoded_source": false,
+    "workflow_set": "workflow-set-003"
+  },
+  {
+    "branch": "agent/relay-ui-integration",
+    "head": "771f11a8ad1b8e903b515a5e2955695fb9d59969",
+    "modules": [
+      "relay-android/app/build.gradle.kts"
+    ],
+    "encoded_source": false,
+    "workflow_set": "workflow-set-003"
+  },
+  {
+    "branch": "anime-e2e-continuation-20260930",
+    "head": "256e3f32a4af1390fa70a3ee60826bbbddf120c1",
+    "modules": [],
+    "encoded_source": false,
+    "workflow_set": "workflow-set-004"
+  },
+  {
+    "branch": "annie-android-ci",
+    "head": "f773e9c4ef503d5aa99a110cd8a64cf46c886f2a",
+    "modules": [
+      "annie-android/app/build.gradle.kts"
+    ],
+    "encoded_source": false,
+    "workflow_set": "workflow-set-005"
+  },
+  {
+    "branch": "annie-media-ci",
+    "head": "f48ebcb6b886b97825764a4d06f029e392491e48",
+    "modules": [],
+    "encoded_source": false,
+    "workflow_set": "workflow-set-006"
+  },
+  {
+    "branch": "annie-media-proof-clean-20260925",
+    "head": "d447efde5489133b6fb9cdf2c4d40e56555c3d60",
+    "modules": [
+      "annie-android/app/build.gradle.kts"
+    ],
+    "encoded_source": false,
+    "workflow_set": "workflow-set-007"
+  },
+  {
+    "branch": "annie-media-proof-stage-20260925",
+    "head": "032a6aacb6607d1404602b86f349ec20fd081e96",
+    "modules": [
+      "annie-android/app/build.gradle.kts"
+    ],
+    "encoded_source": false,
+    "workflow_set": "workflow-set-007"
+  },
+  {
+    "branch": "aod-android-foundation",
+    "head": "3401a4c3dfe3d622fce80a769cc70ac4681b8137",
+    "modules": [
+      "aod-android/app/build.gradle.kts"
+    ],
+    "encoded_source": false,
+    "workflow_set": "workflow-set-008"
+  },
+  {
+    "branch": "apk-source-probes-20261001",
+    "head": "188124b0343c5a800f0ff05b5ff43c8ba349edc9",
+    "modules": [],
+    "encoded_source": false,
+    "workflow_set": "workflow-set-009"
+  },
+  {
+    "branch": "artist-scene-studio-foundation",
+    "head": "63e64bcfe8fda1d03e1ef5a4b3c02bdb100acf62",
+    "modules": [
+      "artist-scene-studio/app/build.gradle.kts"
+    ],
+    "encoded_source": false,
+    "workflow_set": "workflow-set-010"
+  },
+  {
+    "branch": "bailey-host-ci",
+    "head": "5a2bb41387a0cc34dd5a694f40d308982bd7b3c0",
+    "modules": [],
+    "encoded_source": false,
+    "workflow_set": "workflow-set-011"
+  },
+  {
+    "branch": "cc-stream-256mb",
+    "head": "d0e5fa4da60622dffdd128858d26b36742598927",
+    "modules": [],
+    "encoded_source": false,
+    "workflow_set": "workflow-set-012"
+  },
+  {
+    "branch": "cobalt-android-poc",
+    "head": "118da67f9555bc0798075ae24e760420266c8321",
+    "modules": [
+      "cobalt-android-poc/app/build.gradle.kts"
+    ],
+    "encoded_source": true,
+    "workflow_set": "workflow-set-013"
+  },
+  {
+    "branch": "cortex-android-live",
+    "head": "f4a51a407d998801057a605f62afdf4147a9e9fc",
+    "modules": [
+      "cortex-android/app/build.gradle.kts"
+    ],
+    "encoded_source": false,
+    "workflow_set": "workflow-set-014"
+  },
+  {
+    "branch": "cortex-app-expansion-staging",
+    "head": "4ac8c219b051d8f457c1660096e7112ee821d375",
+    "modules": [
+      "cortex-android/app/build.gradle.kts"
+    ],
+    "encoded_source": false,
+    "workflow_set": "workflow-set-015"
+  },
+  {
+    "branch": "cortex-production-cleanup-20260929",
+    "head": "9b6c942ad08e2181de0d57b4aaaaeb6e22e7558a",
+    "modules": [
+      "cortex-android/app/build.gradle.kts"
+    ],
+    "encoded_source": false,
+    "workflow_set": "workflow-set-014"
+  },
+  {
+    "branch": "cortex-production-finalization",
+    "head": "a9f89be3ca0050e735e94358a40f2b51425b4e4c",
+    "modules": [
+      "cortex-android/app/build.gradle.kts"
+    ],
+    "encoded_source": false,
+    "workflow_set": "workflow-set-014"
+  },
+  {
+    "branch": "cubic-android-ci",
+    "head": "0ac0b89539edea2783c61ed19ed4be4053f99b6d",
+    "modules": [
+      "cubic-android/app/build.gradle.kts"
+    ],
+    "encoded_source": false,
+    "workflow_set": "workflow-set-016"
+  },
+  {
+    "branch": "diana/cortex-final-visual-proof",
+    "head": "9d9d426007a2c5251dd00066c9b6834827567561",
+    "modules": [
+      "cortex-android/app/build.gradle.kts"
+    ],
+    "encoded_source": false,
+    "workflow_set": "workflow-set-014"
+  },
+  {
+    "branch": "endless-android-ci",
+    "head": "12ff5ed1762a2f9e53a85368361e1d2fe8bcc951",
+    "modules": [
+      "endless_m2_override/app/build.gradle.kts"
+    ],
+    "encoded_source": true,
+    "workflow_set": "workflow-set-017"
+  },
+  {
+    "branch": "endless-session-stage-20260930",
+    "head": "58f7fd3a1c2f03878e4f935038b996c8fcbf2886",
+    "modules": [
+      "endless_m2_override/app/build.gradle.kts"
+    ],
+    "encoded_source": true,
+    "workflow_set": "workflow-set-017"
+  },
+  {
+    "branch": "extension-chat-render-ci",
+    "head": "6a94e683453015dac8b523c73792c8d74fab0ec3",
+    "modules": [
+      "extension-chat-android/app/build.gradle.kts"
+    ],
+    "encoded_source": false,
+    "workflow_set": "workflow-set-018"
+  },
+  {
+    "branch": "extension-chat-render35-ci",
+    "head": "cdb30925a2c5d81e9019e6972dd393518a7daf6f",
+    "modules": [
+      "extension-chat-android/app/build.gradle.kts"
+    ],
+    "encoded_source": false,
+    "workflow_set": "workflow-set-018"
+  },
+  {
+    "branch": "extension-chat-ui-ci",
+    "head": "584dd0c6d8a822a769e8622b7ad8f81b21ca7252",
+    "modules": [
+      "extension-chat-android/app/build.gradle.kts"
+    ],
+    "encoded_source": false,
+    "workflow_set": "workflow-set-018"
+  },
+  {
+    "branch": "homira-call-ci",
+    "head": "95d19cd915549f95c47616fb8ddb6e9279371a11",
+    "modules": [
+      "homira-android/app/build.gradle.kts"
+    ],
+    "encoded_source": false,
+    "workflow_set": "workflow-set-019"
+  },
+  {
+    "branch": "keyboard-ci",
+    "head": "239eb262e755aac566e42c133bd127559635341c",
+    "modules": [
+      "app/build.gradle.kts"
+    ],
+    "encoded_source": false,
+    "workflow_set": "workflow-set-020"
+  },
+  {
+    "branch": "later-ci",
+    "head": "fcdf207b867d05f0ee991c14148a8f58e325dab5",
+    "modules": [],
+    "encoded_source": true,
+    "workflow_set": "workflow-set-021"
+  },
+  {
+    "branch": "later-editor-qa",
+    "head": "ecb5328d892c437541580219f32ec3547a9a5ef9",
+    "modules": [],
+    "encoded_source": true,
+    "workflow_set": "workflow-set-022"
+  },
+  {
+    "branch": "liminal-engine-ci-20260910",
+    "head": "54139b50f29b41e52e557a9650fe3e0cc7198605",
+    "modules": [],
+    "encoded_source": false,
+    "workflow_set": "workflow-set-023"
+  },
+  {
+    "branch": "lyra-production-branding-20260930",
+    "head": "452cf6875426491f215944188f15c6fac497acd0",
+    "modules": [
+      "sora-overlay/app/build.gradle.kts",
+      "spotui-overlay/spotui-app/build.gradle.kts"
+    ],
+    "encoded_source": false,
+    "workflow_set": "workflow-set-024"
+  },
+  {
+    "branch": "main",
+    "head": "d032206ff979e8006560d0e9c9bfac4d613b0281",
+    "modules": [],
+    "encoded_source": false,
+    "workflow_set": "workflow-set-002"
+  },
+  {
+    "branch": "manga-e2e-probe-20260930",
+    "head": "375446f519ec65ffad7b4916c375e2ae7b52d2d7",
+    "modules": [],
+    "encoded_source": false,
+    "workflow_set": "workflow-set-025"
+  },
+  {
+    "branch": "mira/production-foundation",
+    "head": "e021f7477c16e4d7dba8a305a57de2e1ba021ff6",
+    "modules": [
+      "apps/mira/app/build.gradle.kts",
+      "apps/nami/app/build.gradle.kts"
+    ],
+    "encoded_source": false,
+    "workflow_set": "workflow-set-026"
+  },
+  {
+    "branch": "mira/standalone-foundation",
+    "head": "0d0fee369a81be8edfa05f13a0fcfb05e9916135",
+    "modules": [
+      "apps/mira/app/build.gradle.kts",
+      "apps/nami/app/build.gradle.kts"
+    ],
+    "encoded_source": false,
+    "workflow_set": "workflow-set-027"
+  },
+  {
+    "branch": "mirrorchess-sdk36-min26-20260922",
+    "head": "ab28bb0361de95be2b389bdc820b0562d56316d7",
+    "modules": [
+      "mirrorchess-v12/source/app/build.gradle.kts"
+    ],
+    "encoded_source": false,
+    "workflow_set": "workflow-set-028"
+  },
+  {
+    "branch": "movies-source-probes-20261001",
+    "head": "5f071dee94aac1ab4e8de7910957137cb588e917",
+    "modules": [
+      "apps/mira/app/build.gradle.kts",
+      "apps/nami/app/build.gradle.kts"
+    ],
+    "encoded_source": false,
+    "workflow_set": "workflow-set-029"
+  },
+  {
+    "branch": "mscc-azure",
+    "head": "279f7c1931cd18ba11f83cca1ee62bd6ae492ba0",
+    "modules": [],
+    "encoded_source": true,
+    "workflow_set": "workflow-set-030"
+  },
+  {
+    "branch": "music-source-probes-20260930",
+    "head": "54bcd57a63d871230b395ccb486eb2e9a2d1faf5",
+    "modules": [
+      "sora-overlay/app/build.gradle.kts",
+      "spotui-overlay/spotui-app/build.gradle.kts"
+    ],
+    "encoded_source": false,
+    "workflow_set": "workflow-set-031"
+  },
+  {
+    "branch": "nami-overnight-mkv-fix",
+    "head": "e84db1fb9ecab17a676062d959e6a494e9283291",
+    "modules": [
+      "apps/nami/app/build.gradle.kts"
+    ],
+    "encoded_source": false,
+    "workflow_set": "workflow-set-032"
+  },
+  {
+    "branch": "nami/standalone-foundation",
+    "head": "09ff87e27c2163131ef555eea557761bbda74bdf",
+    "modules": [
+      "apps/nami/app/build.gradle.kts"
+    ],
+    "encoded_source": false,
+    "workflow_set": "workflow-set-033"
+  },
+  {
+    "branch": "night-agent-runtime-ci",
+    "head": "61612059bc27c8064ec582e5361496f39bbc28c0",
+    "modules": [
+      "whatsapp-ai-android/app/build.gradle.kts"
+    ],
+    "encoded_source": false,
+    "workflow_set": "workflow-set-034"
+  },
+  {
+    "branch": "night-app-final-ci",
+    "head": "1c1719126f0fd3634aca2803bea5911d34a550c6",
+    "modules": [
+      "whatsapp-ai-android/app/build.gradle.kts"
+    ],
+    "encoded_source": false,
+    "workflow_set": "workflow-set-034"
+  },
+  {
+    "branch": "night-arm64-apk-ci",
+    "head": "4cb410ef1e5460826eb83ee5ba7f00ff2a95536b",
+    "modules": [
+      "whatsapp-ai-android/app/build.gradle.kts"
+    ],
+    "encoded_source": false,
+    "workflow_set": "workflow-set-034"
+  },
+  {
+    "branch": "night-browser-message-wip",
+    "head": "948789907e785e66212d49d711b83906ac11028d",
+    "modules": [
+      "whatsapp-ai-android/app/build.gradle.kts"
+    ],
+    "encoded_source": false,
+    "workflow_set": "workflow-set-035"
+  },
+  {
+    "branch": "night-browser-verification-wip",
+    "head": "8f11485bd69450dd942b36dc77c9a8074177ee42",
+    "modules": [
+      "whatsapp-ai-android/app/build.gradle.kts"
+    ],
+    "encoded_source": false,
+    "workflow_set": "workflow-set-035"
+  },
+  {
+    "branch": "night-browser-wip",
+    "head": "8831d9ea8a1a9610f92b361de88e1b92a8d16296",
+    "modules": [
+      "whatsapp-ai-android/app/build.gradle.kts"
+    ],
+    "encoded_source": false,
+    "workflow_set": "workflow-set-035"
+  },
+  {
+    "branch": "night-buttons-ui-ci",
+    "head": "b76ca369b7ecefa5a588c114cd53da8ba82fa761",
+    "modules": [
+      "whatsapp-ai-android/app/build.gradle.kts"
+    ],
+    "encoded_source": false,
+    "workflow_set": "workflow-set-034"
+  },
+  {
+    "branch": "night-emoji-fix-ci",
+    "head": "f37ba4f17e6ae7fc7dd25493519f12e050ebab86",
+    "modules": [
+      "whatsapp-ai-android/app/build.gradle.kts"
+    ],
+    "encoded_source": false,
+    "workflow_set": "workflow-set-034"
+  },
+  {
+    "branch": "night-extension-settings-ci",
+    "head": "476126c867511015a25e56073ad824a92165b0b1",
+    "modules": [
+      "whatsapp-ai-android/app/build.gradle.kts"
+    ],
+    "encoded_source": false,
+    "workflow_set": "workflow-set-036"
+  },
+  {
+    "branch": "night-fluent-ui-ci",
+    "head": "c564763f4bf4a4e5ccf9f6f5805111761199877c",
+    "modules": [
+      "whatsapp-ai-android/app/build.gradle.kts"
+    ],
+    "encoded_source": false,
+    "workflow_set": "workflow-set-034"
+  },
+  {
+    "branch": "night-fullscreen-media-ci",
+    "head": "d8978408880fc986c87ff69e153f07772dfd5027",
+    "modules": [
+      "whatsapp-ai-android/app/build.gradle.kts"
+    ],
+    "encoded_source": false,
+    "workflow_set": "workflow-set-034"
+  },
+  {
+    "branch": "night-groq-key-pool-ci",
+    "head": "7ff120fb4af1cf2ec60c2f59a3b98a79323b955f",
+    "modules": [
+      "whatsapp-ai-android/app/build.gradle.kts"
+    ],
+    "encoded_source": false,
+    "workflow_set": "workflow-set-037"
+  },
+  {
+    "branch": "night-image-editor-ci",
+    "head": "d519ef08c5217490985b28fccae566ffb0a8eb12",
+    "modules": [
+      "whatsapp-ai-android/app/build.gradle.kts"
+    ],
+    "encoded_source": false,
+    "workflow_set": "workflow-set-038"
+  },
+  {
+    "branch": "night-keyboard-preview-ci",
+    "head": "f5d86bc93be183cd7177847726fb8e5a64cfadd0",
+    "modules": [
+      "whatsapp-ai-android/app/build.gradle.kts"
+    ],
+    "encoded_source": false,
+    "workflow_set": "workflow-set-034"
+  },
+  {
+    "branch": "night-library-tools-wip",
+    "head": "2f4a9b0d85c9582141ee60c7c7a97f0cc2fba72c",
+    "modules": [
+      "whatsapp-ai-android/app/build.gradle.kts"
+    ],
+    "encoded_source": false,
+    "workflow_set": "workflow-set-035"
+  },
+  {
+    "branch": "night-media-complete-ci",
+    "head": "45dbc16f0429901f354f59ca94cab8e7a50fecb6",
+    "modules": [
+      "whatsapp-ai-android/app/build.gradle.kts"
+    ],
+    "encoded_source": false,
+    "workflow_set": "workflow-set-034"
+  },
+  {
+    "branch": "night-media-current-ci",
+    "head": "5f8fae2f00d4da7a4603b00242b0d6657d7ac732",
+    "modules": [
+      "whatsapp-ai-android/app/build.gradle.kts"
+    ],
+    "encoded_source": false,
+    "workflow_set": "workflow-set-034"
+  },
+  {
+    "branch": "night-media-final-ci",
+    "head": "d8d2fe3896788310981ec14c720c8e4028087d7a",
+    "modules": [
+      "whatsapp-ai-android/app/build.gradle.kts"
+    ],
+    "encoded_source": false,
+    "workflow_set": "workflow-set-034"
+  },
+  {
+    "branch": "night-media-final-ci2",
+    "head": "ca198e89c05accff1e372578a5eea98d47d86d69",
+    "modules": [
+      "whatsapp-ai-android/app/build.gradle.kts"
+    ],
+    "encoded_source": false,
+    "workflow_set": "workflow-set-034"
+  },
+  {
+    "branch": "night-media-final-ci3",
+    "head": "f64bea056e3b3741e91c9d563dc209647f0be1e4",
+    "modules": [
+      "whatsapp-ai-android/app/build.gradle.kts"
+    ],
+    "encoded_source": false,
+    "workflow_set": "workflow-set-034"
+  },
+  {
+    "branch": "night-media-reply-ci",
+    "head": "558d33dbc65f5565cdf0edd65b2001d4836ba884",
+    "modules": [
+      "whatsapp-ai-android/app/build.gradle.kts"
+    ],
+    "encoded_source": false,
+    "workflow_set": "workflow-set-034"
+  },
+  {
+    "branch": "night-media-visual-ci",
+    "head": "1b04e760d269ea0af38f9ab3ac2c4cb590cc4fdb",
+    "modules": [
+      "whatsapp-ai-android/app/build.gradle.kts"
+    ],
+    "encoded_source": false,
+    "workflow_set": "workflow-set-034"
+  },
+  {
+    "branch": "night-media-visual-final-ci2",
+    "head": "8bf02a19f70d9cdde4d5679288a4ac7af7d6f11d",
+    "modules": [
+      "whatsapp-ai-android/app/build.gradle.kts"
+    ],
+    "encoded_source": false,
+    "workflow_set": "workflow-set-034"
+  },
+  {
+    "branch": "night-media-visual-final-ci3",
+    "head": "d1ced4505ea2c9af7ad3afdbbb8e8959fd770c0a",
+    "modules": [
+      "whatsapp-ai-android/app/build.gradle.kts"
+    ],
+    "encoded_source": false,
+    "workflow_set": "workflow-set-034"
+  },
+  {
+    "branch": "night-media-visual-final-ci4",
+    "head": "36021a1035118dddcee7aa855f4704f3bd8a1ae1",
+    "modules": [
+      "whatsapp-ai-android/app/build.gradle.kts"
+    ],
+    "encoded_source": false,
+    "workflow_set": "workflow-set-034"
+  },
+  {
+    "branch": "night-message-blocks-ci",
+    "head": "84229685f61faac63c301d299bcfa78ea4733ab7",
+    "modules": [
+      "whatsapp-ai-android/app/build.gradle.kts"
+    ],
+    "encoded_source": false,
+    "workflow_set": "workflow-set-039"
+  },
+  {
+    "branch": "night-message-content",
+    "head": "084add1782a45ac978b6472aac1d9da872a5f106",
+    "modules": [
+      "whatsapp-ai-android/app/build.gradle.kts"
+    ],
+    "encoded_source": false,
+    "workflow_set": "workflow-set-040"
+  },
+  {
+    "branch": "night-message-types-ci",
+    "head": "b301b8a59cd0ca7f1f766ebb12a4b45c0352a12b",
+    "modules": [
+      "whatsapp-ai-android/app/build.gradle.kts"
+    ],
+    "encoded_source": false,
+    "workflow_set": "workflow-set-041"
+  },
+  {
+    "branch": "night-message-types-wip",
+    "head": "926d7d98cebfb3c3c92c790f8e5d58b44b2ca9ed",
+    "modules": [
+      "whatsapp-ai-android/app/build.gradle.kts"
+    ],
+    "encoded_source": false,
+    "workflow_set": "workflow-set-035"
+  },
+  {
+    "branch": "night-mihon-interaction-ci",
+    "head": "ce97a2994c05e483831168b2c434686aff58e926",
+    "modules": [
+      "whatsapp-ai-android/app/build.gradle.kts"
+    ],
+    "encoded_source": false,
+    "workflow_set": "workflow-set-042"
+  },
+  {
+    "branch": "night-mihon-reader-final-ci",
+    "head": "d3aac205cfbe6d55793f72c9b0539082cb9e99cf",
+    "modules": [
+      "whatsapp-ai-android/app/build.gradle.kts"
+    ],
+    "encoded_source": false,
+    "workflow_set": "workflow-set-034"
+  },
+  {
+    "branch": "night-motion-lab",
+    "head": "b96bdda251ff725e975475cf94f2cfd87b962945",
+    "modules": [
+      "whatsapp-ai-android/app/build.gradle.kts"
+    ],
+    "encoded_source": false,
+    "workflow_set": "workflow-set-043"
+  },
+  {
+    "branch": "night-pdf-editor-ci",
+    "head": "70fce67c0d6ad314fb9f29249df81a5ef3b3b0bd",
+    "modules": [
+      "whatsapp-ai-android/app/build.gradle.kts"
+    ],
+    "encoded_source": false,
+    "workflow_set": "workflow-set-044"
+  },
+  {
+    "branch": "night-pdf-fullscreen-ci",
+    "head": "ac73ed206cc65a7e1cfc16cc288afe678e74a6aa",
+    "modules": [
+      "whatsapp-ai-android/app/build.gradle.kts"
+    ],
+    "encoded_source": false,
+    "workflow_set": "workflow-set-045"
+  },
+  {
+    "branch": "night-pdf-viewer-ci",
+    "head": "c8d9ef1630306a6849880a42389477858ff1fe26",
+    "modules": [
+      "whatsapp-ai-android/app/build.gradle.kts"
+    ],
+    "encoded_source": false,
+    "workflow_set": "workflow-set-045"
+  },
+  {
+    "branch": "night-player-final-ci",
+    "head": "8e5b19a82a2c5d704a6dfd0e3a6c6039656703d4",
+    "modules": [
+      "whatsapp-ai-android/app/build.gradle.kts"
+    ],
+    "encoded_source": false,
+    "workflow_set": "workflow-set-034"
+  },
+  {
+    "branch": "night-portfolio-site",
+    "head": "424d876dd727b0871cda3e7258c0658561a72108",
+    "modules": [],
+    "encoded_source": false,
+    "workflow_set": "workflow-set-046"
+  },
+  {
+    "branch": "night-real-core-ci",
+    "head": "39521a924daefbf8389de7c1e16b9d455832bd27",
+    "modules": [
+      "whatsapp-ai-android/app/build.gradle.kts"
+    ],
+    "encoded_source": false,
+    "workflow_set": "workflow-set-034"
+  },
+  {
+    "branch": "night-real-core-ci2",
+    "head": "ef634f93cf1a967e723a71a9db23707ad7db7074",
+    "modules": [
+      "whatsapp-ai-android/app/build.gradle.kts"
+    ],
+    "encoded_source": false,
+    "workflow_set": "workflow-set-034"
+  },
+  {
+    "branch": "night-real-core-ci3",
+    "head": "abb4b4cb93d1c86c1b640a26c34509c9288f2b47",
+    "modules": [
+      "whatsapp-ai-android/app/build.gradle.kts"
+    ],
+    "encoded_source": false,
+    "workflow_set": "workflow-set-034"
+  },
+  {
+    "branch": "night-real-core-ci4",
+    "head": "4ba9149272598ac47731f6599d491498f34e07e1",
+    "modules": [
+      "whatsapp-ai-android/app/build.gradle.kts"
+    ],
+    "encoded_source": false,
+    "workflow_set": "workflow-set-034"
+  },
+  {
+    "branch": "night-real-core-ci5",
+    "head": "b8bfd2e315e98a9d69b8e146d4774a7b078e05f0",
+    "modules": [
+      "whatsapp-ai-android/app/build.gradle.kts"
+    ],
+    "encoded_source": false,
+    "workflow_set": "workflow-set-034"
+  },
+  {
+    "branch": "night-real-core-ci6",
+    "head": "67089ba8c4bfde0731c8d14ebc7a89cda4c94892",
+    "modules": [
+      "whatsapp-ai-android/app/build.gradle.kts"
+    ],
+    "encoded_source": false,
+    "workflow_set": "workflow-set-034"
+  },
+  {
+    "branch": "night-real-core-final-ci",
+    "head": "b4d38003f86e4579fecc88eeae1f38b0a08281b2",
+    "modules": [
+      "whatsapp-ai-android/app/build.gradle.kts"
+    ],
+    "encoded_source": false,
+    "workflow_set": "workflow-set-034"
+  },
+  {
+    "branch": "night-real-core-final-ci2",
+    "head": "302d5f82d98a9c58208042075ef109a3787630eb",
+    "modules": [
+      "whatsapp-ai-android/app/build.gradle.kts"
+    ],
+    "encoded_source": false,
+    "workflow_set": "workflow-set-034"
+  },
+  {
+    "branch": "night-rich-message-persistence-wip",
+    "head": "2c503657fdc00f56e1dfa58b512df38c2c9fda0b",
+    "modules": [
+      "whatsapp-ai-android/app/build.gradle.kts"
+    ],
+    "encoded_source": false,
+    "workflow_set": "workflow-set-035"
+  },
+  {
+    "branch": "night-ui-buttons-validation-ci",
+    "head": "b65428989da979e8d4c721ee5051ed8c41be2698",
+    "modules": [
+      "whatsapp-ai-android/app/build.gradle.kts"
+    ],
+    "encoded_source": false,
+    "workflow_set": "workflow-set-034"
+  },
+  {
+    "branch": "night-ui-final-ci",
+    "head": "8c83b37f346f9e5d6c7d91bc2ac8f0e3522e648e",
+    "modules": [
+      "whatsapp-ai-android/app/build.gradle.kts"
+    ],
+    "encoded_source": false,
+    "workflow_set": "workflow-set-034"
+  },
+  {
+    "branch": "night-ui-final-validation-ci",
+    "head": "be27c6e4e33106e01be2728dcec9da28a0b04329",
+    "modules": [
+      "whatsapp-ai-android/app/build.gradle.kts"
+    ],
+    "encoded_source": false,
+    "workflow_set": "workflow-set-034"
+  },
+  {
+    "branch": "night-ui-final2-validation-ci",
+    "head": "6d02da9930fb8ce223996660ee5e96543ea0e166",
+    "modules": [
+      "whatsapp-ai-android/app/build.gradle.kts"
+    ],
+    "encoded_source": false,
+    "workflow_set": "workflow-set-034"
+  },
+  {
+    "branch": "night-ui-final3-validation-ci",
+    "head": "cbadc9d1df0b952cc0aeb25fbdbbda70eb26c56a",
+    "modules": [
+      "whatsapp-ai-android/app/build.gradle.kts"
+    ],
+    "encoded_source": false,
+    "workflow_set": "workflow-set-034"
+  },
+  {
+    "branch": "night-ui-preview-final-ci",
+    "head": "c4b704b1120f929bae58fbed3cfac8bf87185626",
+    "modules": [
+      "whatsapp-ai-android/app/build.gradle.kts"
+    ],
+    "encoded_source": false,
+    "workflow_set": "workflow-set-034"
+  },
+  {
+    "branch": "night-ui-review-ci",
+    "head": "cc3ada2c6b13cffd7abf7b102cccacbb76fe2fc5",
+    "modules": [
+      "whatsapp-ai-android/app/build.gradle.kts"
+    ],
+    "encoded_source": false,
+    "workflow_set": "workflow-set-034"
+  },
+  {
+    "branch": "night-ui-review2-ci",
+    "head": "ee833070751e94450c6b859474c4c1e30e6b9073",
+    "modules": [
+      "whatsapp-ai-android/app/build.gradle.kts"
+    ],
+    "encoded_source": false,
+    "workflow_set": "workflow-set-034"
+  },
+  {
+    "branch": "night-ui-screens-ci",
+    "head": "efae01f9702d2cf31c1eecaa3e146991c5593b3f",
+    "modules": [
+      "whatsapp-ai-android/app/build.gradle.kts"
+    ],
+    "encoded_source": false,
+    "workflow_set": "workflow-set-034"
+  },
+  {
+    "branch": "night-ui-screens2-ci",
+    "head": "748cee8d76446b0b923cbaa014c6f13a495ceae6",
+    "modules": [
+      "whatsapp-ai-android/app/build.gradle.kts"
+    ],
+    "encoded_source": false,
+    "workflow_set": "workflow-set-034"
+  },
+  {
+    "branch": "night-ui-screens3-ci",
+    "head": "5f2d708cfdb7ddc4f583e7dab25615f33ea72af5",
+    "modules": [
+      "whatsapp-ai-android/app/build.gradle.kts"
+    ],
+    "encoded_source": false,
+    "workflow_set": "workflow-set-034"
+  },
+  {
+    "branch": "night-ui-screens4-ci",
+    "head": "8618d4fcdce4b837313bcadf69aef7cde83c6a84",
+    "modules": [
+      "whatsapp-ai-android/app/build.gradle.kts"
+    ],
+    "encoded_source": false,
+    "workflow_set": "workflow-set-034"
+  },
+  {
+    "branch": "night-video-android16-ci",
+    "head": "1f6ecdca3034faf48af2fc0464bd4cc466a606e9",
+    "modules": [
+      "whatsapp-ai-android/app/build.gradle.kts"
+    ],
+    "encoded_source": false,
+    "workflow_set": "workflow-set-041"
+  },
+  {
+    "branch": "night-video-interaction-ci",
+    "head": "c15cc99e2d4298ee419d97b3991ddf550f22c06e",
+    "modules": [
+      "whatsapp-ai-android/app/build.gradle.kts"
+    ],
+    "encoded_source": false,
+    "workflow_set": "workflow-set-041"
+  },
+  {
+    "branch": "nightmods-ci",
+    "head": "f52a2baec5304f353ef8b05e625a87e9f008aec7",
+    "modules": [
+      "nightmods/nightcore/app/build.gradle.kts"
+    ],
+    "encoded_source": true,
+    "workflow_set": "workflow-set-047"
+  },
+  {
+    "branch": "nightmods-core-integration",
+    "head": "056608b059fdf4e12cae29659a9ef1afb4c58b31",
+    "modules": [
+      "nightmods/nightcore/app/build.gradle.kts"
+    ],
+    "encoded_source": true,
+    "workflow_set": "workflow-set-048"
+  },
+  {
+    "branch": "noop-temp-do-not-use",
+    "head": "0deb92035c5739002c1cabbd2a450308b509eb1e",
+    "modules": [
+      "sora-overlay/app/build.gradle.kts"
+    ],
+    "encoded_source": false,
+    "workflow_set": "workflow-set-049"
+  },
+  {
+    "branch": "pahe-diagnostics-ci",
+    "head": "47c26f8d8125e4a54ebe22e91cf70c5adfa6bb97",
+    "modules": [
+      "pahebatcher-android/app/build.gradle.kts"
+    ],
+    "encoded_source": false,
+    "workflow_set": "workflow-set-050"
+  },
+  {
+    "branch": "pahebatcher-android-ci",
+    "head": "837fdb22c34fef4d0a16021ece0b8cd89ced0f65",
+    "modules": [
+      "pahebatcher-android/app/build.gradle.kts"
+    ],
+    "encoded_source": false,
+    "workflow_set": "workflow-set-050"
+  },
+  {
+    "branch": "pianohub-ci",
+    "head": "5d43d42f2611de313045d853af9a3a187bb8595b",
+    "modules": [],
+    "encoded_source": true,
+    "workflow_set": "workflow-set-051"
+  },
+  {
+    "branch": "relay-data-contract-fix",
+    "head": "99fcfbf9f241d87d65b9bb706b75a4c115f3fa2a",
+    "modules": [
+      "relay-android/app/build.gradle.kts"
+    ],
+    "encoded_source": false,
+    "workflow_set": "workflow-set-003"
+  },
+  {
+    "branch": "relay-integration-hardening",
+    "head": "9e1be389e53846ca7eb03d1e1c1cadad018fa685",
+    "modules": [
+      "relay-android/app/build.gradle.kts"
+    ],
+    "encoded_source": false,
+    "workflow_set": "workflow-set-003"
+  },
+  {
+    "branch": "relay-multi-agent",
+    "head": "76e4697526e5e8053fab5da648d4578d20dd735c",
+    "modules": [
+      "relay-android/app/build.gradle.kts"
+    ],
+    "encoded_source": false,
+    "workflow_set": "workflow-set-003"
+  },
+  {
+    "branch": "room-visual-audit",
+    "head": "ba42e39d75be47c48545b4f2635a72497a9ff11e",
+    "modules": [],
+    "encoded_source": false,
+    "workflow_set": "workflow-set-052"
+  },
+  {
+    "branch": "secure-rendering-lab",
+    "head": "b16f37f9fc2c0d41c423293a35bda6860ff8f220",
+    "modules": [
+      "secure-rendering-lab/app/build.gradle.kts"
+    ],
+    "encoded_source": false,
+    "workflow_set": "workflow-set-053"
+  },
+  {
+    "branch": "slumber-087-build",
+    "head": "dc9a2e4c911246b82598120ffb4a8d60672f24e6",
+    "modules": [],
+    "encoded_source": true,
+    "workflow_set": "workflow-set-054"
+  },
+  {
+    "branch": "slumber-087-keyboard-restore",
+    "head": "566fa65f77847a9a0913efef35b9e1ec37731dcf",
+    "modules": [],
+    "encoded_source": true,
+    "workflow_set": "workflow-set-055"
+  },
+  {
+    "branch": "slumber-087-keyboard-restore-v2",
+    "head": "320cb2611fde9508c402d98bf2a99f035ba06891",
+    "modules": [],
+    "encoded_source": true,
+    "workflow_set": "workflow-set-055"
+  },
+  {
+    "branch": "slumber-087-keyboard-restore-v3",
+    "head": "eb697d07c4ab0d1823a30d9ea956db1c47df7324",
+    "modules": [],
+    "encoded_source": true,
+    "workflow_set": "workflow-set-055"
+  },
+  {
+    "branch": "slumber-final-hardening-20260929",
+    "head": "9ea053661cbe8d29a06503bf3ab96cc9b7fc8361",
+    "modules": [],
+    "encoded_source": true,
+    "workflow_set": "workflow-set-056"
+  },
+  {
+    "branch": "slumber-final-hardening-v2-20260929",
+    "head": "050ae8cff62994ecd4f2c2b13afeeaef8f5d085a",
+    "modules": [],
+    "encoded_source": true,
+    "workflow_set": "workflow-set-056"
+  },
+  {
+    "branch": "slumber-final-hardening-v3-20260929",
+    "head": "bd458abf0d11dd8264c7c21278b1b1765f3c62b0",
+    "modules": [],
+    "encoded_source": true,
+    "workflow_set": "workflow-set-056"
+  },
+  {
+    "branch": "sora-android-ci",
+    "head": "5445f6a6e993df0224616085e73005b38ca63b65",
+    "modules": [
+      "sora-overlay/app/build.gradle.kts"
+    ],
+    "encoded_source": false,
+    "workflow_set": "workflow-set-057"
+  },
+  {
+    "branch": "sora-media-ci",
+    "head": "6b1a226e706163aa53e2d35585f4312a76b7f1e7",
+    "modules": [
+      "sora-overlay/app/build.gradle.kts"
+    ],
+    "encoded_source": false,
+    "workflow_set": "workflow-set-058"
+  },
+  {
+    "branch": "sora-memes-bible-ci",
+    "head": "1fed897be8816551c6a4551e2793cb22e4f085fd",
+    "modules": [
+      "sora-overlay/app/build.gradle.kts"
+    ],
+    "encoded_source": false,
+    "workflow_set": "workflow-set-059"
+  },
+  {
+    "branch": "splash-cubic-bg-20260930",
+    "head": "2d4813401c1baad0b449e9c7d224673d90077df6",
+    "modules": [
+      "cubic-android/app/build.gradle.kts"
+    ],
+    "encoded_source": false,
+    "workflow_set": "workflow-set-060"
+  },
+  {
+    "branch": "splash-veya-bg-20260930",
+    "head": "12b70c51475f3ea20d7a90041caee3e7f0d21f58",
+    "modules": [
+      "veya-android/app/build.gradle.kts"
+    ],
+    "encoded_source": false,
+    "workflow_set": "workflow-set-061"
+  },
+  {
+    "branch": "splash-yomi-bg-20260930",
+    "head": "0c4a5f1fcd22d383eedf570e77e6092989c3d05e",
+    "modules": [
+      "torri-overlay/app/build.gradle.kts",
+      "yomi-reader/app/build.gradle.kts"
+    ],
+    "encoded_source": false,
+    "workflow_set": "workflow-set-062"
+  },
+  {
+    "branch": "spotui-standalone-ci",
+    "head": "4853de86c67abe3ca815c76703837e059abc4468",
+    "modules": [
+      "sora-overlay/app/build.gradle.kts",
+      "spotui-overlay/spotui-app/build.gradle.kts"
+    ],
+    "encoded_source": false,
+    "workflow_set": "workflow-set-024"
+  },
+  {
+    "branch": "tfpdl-api-diagnostics",
+    "head": "b281b31a54bdd331687ce071e7ce3eabbbaf7f12",
+    "modules": [],
+    "encoded_source": false,
+    "workflow_set": "workflow-set-063"
+  },
+  {
+    "branch": "tfpdl-focused-pr-run",
+    "head": "5f45c28e0115a16b08217a7b3c906e37dd26c733",
+    "modules": [],
+    "encoded_source": false,
+    "workflow_set": "workflow-set-064"
+  },
+  {
+    "branch": "tfpdl-live-run",
+    "head": "483eab5dd84b6ad9d8d392d470f98c68398a16d1",
+    "modules": [],
+    "encoded_source": false,
+    "workflow_set": "workflow-set-065"
+  },
+  {
+    "branch": "torri-compile-ci",
+    "head": "a2f6f28e1aa5c5278bb8b7956b9b7257e1222fcd",
+    "modules": [
+      "torri-overlay/app/build.gradle.kts"
+    ],
+    "encoded_source": false,
+    "workflow_set": "workflow-set-066"
+  },
+  {
+    "branch": "torri-compile-runner-20260922",
+    "head": "acb4ebcc7ac3fbcbffa7ee572d40c81ed60ede01",
+    "modules": [
+      "torri-overlay/app/build.gradle.kts"
+    ],
+    "encoded_source": false,
+    "workflow_set": "workflow-set-067"
+  },
+  {
+    "branch": "verify/mirrorchess-20260908",
+    "head": "9cb66240becf96dca2f4a1837887a4058bf76db9",
+    "modules": [],
+    "encoded_source": false,
+    "workflow_set": "workflow-set-068"
+  },
+  {
+    "branch": "verify/mirrorchess-v11-20260908",
+    "head": "80ed82c9716e7cfa577649654a5bf342618c01fe",
+    "modules": [],
+    "encoded_source": false,
+    "workflow_set": "workflow-set-069"
+  },
+  {
+    "branch": "verify/mirrorchess-v12-20260909",
+    "head": "c3a9fa2acdf92cb2a846297f5c93aa16b2cb6571",
+    "modules": [
+      "mirrorchess-v12/source/app/build.gradle.kts"
+    ],
+    "encoded_source": false,
+    "workflow_set": "workflow-set-070"
+  },
+  {
+    "branch": "veya-android-ci",
+    "head": "6c3837852eb03de2862ca5737583d6d8b112e364",
+    "modules": [
+      "veya-android/app/build.gradle.kts"
+    ],
+    "encoded_source": false,
+    "workflow_set": "workflow-set-061"
+  },
+  {
+    "branch": "veya-production-final-20260930",
+    "head": "5e2c40598f98b5b4633cafee6d937cb29a506fc7",
+    "modules": [
+      "veya-android/app/build.gradle.kts"
+    ],
+    "encoded_source": false,
+    "workflow_set": "workflow-set-061"
+  },
+  {
+    "branch": "vidbox-e2e-probe-20260929",
+    "head": "619d137b863b2d4ccd3b5e3527c940e86e729224",
+    "modules": [],
+    "encoded_source": false,
+    "workflow_set": "workflow-set-071"
+  },
+  {
+    "branch": "whatsapp-ai-ui-ci",
+    "head": "85249334e1953275b59c4323fc2fb81828db2fdc",
+    "modules": [
+      "whatsapp-ai-android/app/build.gradle.kts"
+    ],
+    "encoded_source": false,
+    "workflow_set": "workflow-set-041"
+  },
+  {
+    "branch": "whatsapp-client",
+    "head": "adf7b91d4aeb4ecb71e1e6dbf10bf1ee7aad5cd8",
+    "modules": [
+      "cobalt-android-poc/app/build.gradle.kts"
+    ],
+    "encoded_source": true,
+    "workflow_set": "workflow-set-013"
+  },
+  {
+    "branch": "whatsapp-clone-baseline-ci",
+    "head": "2dfbd69bb229d5dba17c281f49fa64d16d55b507",
+    "modules": [],
+    "encoded_source": false,
+    "workflow_set": "workflow-set-072"
+  },
+  {
+    "branch": "whatsapp-clone-fast-preview",
+    "head": "43d730c2806616af0516a8f3338d61887b3637ce",
+    "modules": [],
+    "encoded_source": false,
+    "workflow_set": "workflow-set-073"
+  },
+  {
+    "branch": "whatsapp-clone-preview-ci",
+    "head": "40439fc9e3db2395a199963c7305111eb23b6d25",
+    "modules": [],
+    "encoded_source": false,
+    "workflow_set": "workflow-set-074"
+  },
+  {
+    "branch": "yomi-reader-foundation",
+    "head": "2ba23c1ff49e1e45eba5c823b49000956fd95e3e",
+    "modules": [
+      "torri-overlay/app/build.gradle.kts",
+      "yomi-reader/app/build.gradle.kts"
+    ],
+    "encoded_source": false,
+    "workflow_set": "workflow-set-062"
+  },
+  {
+    "branch": "youtube-engine-foundation",
+    "head": "034313d0c0e9219bfee7c5eefc101508fb74eec5",
+    "modules": [
+      "annie-android/app/build.gradle.kts"
+    ],
+    "encoded_source": false,
+    "workflow_set": "workflow-set-075"
+  },
+  {
+    "branch": "yuwai-ci-audit",
+    "head": "27dfe10a426149247952c8dd467539463456ca64",
+    "modules": [],
+    "encoded_source": false,
+    "workflow_set": "workflow-set-076"
+  }
+]

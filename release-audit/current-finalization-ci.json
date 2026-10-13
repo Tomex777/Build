@@ -1,0 +1,52 @@
+[
+  {
+    "project": "Cortex",
+    "branch": "cortex-android-live",
+    "current_head": "6790d6d04c3e086941aa97ba04806922320dd68d",
+    "run": 36973856932,
+    "run_number": 216,
+    "status": "in_progress",
+    "conclusion": null,
+    "run_head": "6790d6d04c3e086941aa97ba04806922320dd68d"
+  },
+  {
+    "project": "Nami",
+    "branch": "nami/standalone-foundation",
+    "current_head": "276e2e33adb673ee23880b6d2935b9703160c85f",
+    "run": 36974075213,
+    "run_number": 472,
+    "status": "in_progress",
+    "conclusion": null,
+    "run_head": "276e2e33adb673ee23880b6d2935b9703160c85f"
+  },
+  {
+    "project": "MirrorChess",
+    "branch": "mirrorchess-sdk36-min26-20260922",
+    "current_head": "80dca5d24fceeb9b136234d8d1a63a8098f51ca4",
+    "run": 36974088459,
+    "run_number": 113,
+    "status": "in_progress",
+    "conclusion": null,
+    "run_head": "80dca5d24fceeb9b136234d8d1a63a8098f51ca4"
+  },
+  {
+    "project": "Lyra",
+    "branch": "spotui-standalone-ci",
+    "current_head": "959220ed9df4876d19beb73ace2d60c4bb08c899",
+    "run": 36974093015,
+    "run_number": 167,
+    "status": "in_progress",
+    "conclusion": null,
+    "run_head": "959220ed9df4876d19beb73ace2d60c4bb08c899"
+  },
+  {
+    "project": "Endless",
+    "branch": "endless-android-ci",
+    "current_head": "36e664f33948ce27e6c609108a04a880e6d8f2d7",
+    "run": 36974100181,
+    "run_number": 149,
+    "status": "in_progress",
+    "conclusion": null,
+    "run_head": "36e664f33948ce27e6c609108a04a880e6d8f2d7"
+  }
+]

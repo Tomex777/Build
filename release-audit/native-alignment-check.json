@@ -1,0 +1,88 @@
+[
+  {
+    "file": "Veya-1.0.0-universal-release-production-key-candidate.apk",
+    "app": "veya",
+    "64_bit_libraries": 10,
+    "under_16kb_alignment": []
+  },
+  {
+    "file": "Veya-1.0.0-arm64-release-production-key-candidate.apk",
+    "app": "veya",
+    "64_bit_libraries": 5,
+    "under_16kb_alignment": []
+  },
+  {
+    "file": "MirrorChess-1.2.0-universal-release-production-key-candidate.apk",
+    "app": "mirrorchess",
+    "64_bit_libraries": 6,
+    "under_16kb_alignment": []
+  },
+  {
+    "file": "MirrorChess-1.2.0-arm64-v8a-release-production-key-candidate.apk",
+    "app": "mirrorchess",
+    "64_bit_libraries": 3,
+    "under_16kb_alignment": []
+  },
+  {
+    "file": "Torri-1.0.0-arm64-v8a-release-production-key-candidate.apk",
+    "app": "torri",
+    "64_bit_libraries": 6,
+    "under_16kb_alignment": [
+      {
+        "library": "lib/arm64-v8a/libimagedecoder.so",
+        "load_segment_alignment": [
+          4096,
+          4096,
+          4096
+        ]
+      }
+    ]
+  },
+  {
+    "file": "Torri-1.0.0-universal-release-production-key-candidate.apk",
+    "app": "torri",
+    "64_bit_libraries": 12,
+    "under_16kb_alignment": [
+      {
+        "library": "lib/arm64-v8a/libimagedecoder.so",
+        "load_segment_alignment": [
+          4096,
+          4096,
+          4096
+        ]
+      },
+      {
+        "library": "lib/x86_64/libimagedecoder.so",
+        "load_segment_alignment": [
+          4096,
+          4096,
+          4096
+        ]
+      }
+    ]
+  },
+  {
+    "file": "Endless-1.0.0-release-production-key-candidate.apk",
+    "app": "endless",
+    "64_bit_libraries": 2,
+    "under_16kb_alignment": []
+  },
+  {
+    "file": "Cortex_ARM64-production-key-candidate.apk",
+    "app": "cortex",
+    "64_bit_libraries": 1,
+    "under_16kb_alignment": []
+  },
+  {
+    "file": "Cortex_X86_64-production-key-candidate.apk",
+    "app": "cortex",
+    "64_bit_libraries": 1,
+    "under_16kb_alignment": []
+  },
+  {
+    "file": "Lyra-universal-release-production-key-candidate.apk",
+    "app": "lyra",
+    "64_bit_libraries": 2,
+    "under_16kb_alignment": []
+  }
+]
