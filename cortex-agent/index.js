@@ -1729,6 +1729,33 @@ async function assertNoSymlink(target) {
   }
 }
 
+/**
+ * A persisted WhatsApp account ID is an immutable session key, not a slot
+ * number. account-5 may legitimately be only the third configured account
+ * after earlier accounts were removed. Fix the friendly number in Cortex
+ * without ever renaming the ID, auth directory or Signal credentials.
+ *
+ * Preserve all user-chosen names, including Nami and Josia. Only rewrite an
+ * exact machine-generated "Account <ID suffix>" fallback.
+ */
+function presentAccountSlots(state) {
+  if (!state || !Array.isArray(state.accounts)) return state;
+  const main = state.accounts.filter(a => a && (a.id === 'A' || a.role === 'owner'));
+  const linked = state.accounts.filter(a => a && a.id !== 'A' && a.role !== 'owner');
+  const ordered = [...main, ...linked];
+  const positions = new Map(ordered.map((a, index) => [a.id, index + 1]));
+  return {
+    ...state,
+    accounts: state.accounts.map(a => {
+      if (!a || typeof a !== 'object') return a;
+      const idMatch = /^account-(\d+)$/.exec(String(a.id || ''));
+      const fallbackName = idMatch ? 'Account ' + idMatch[1] : '';
+      if (!fallbackName || a.displayName !== fallbackName) return a;
+      return { ...a, displayName: 'Account ' + positions.get(a.id) };
+    }),
+  };
+}
+
 async function msccControl(method, pathname, body = null) {
   try {
     const response = await fetch(MSCC_CONTROL_URL + pathname, {
@@ -1759,7 +1786,7 @@ async function handler(req, res) {
       return json(res, 200, await hostStatus());
     }
     if (req.method === 'GET' && url.pathname === '/api/cortex/mscc/pairing') {
-      return json(res, 200, await msccControl('GET', '/state'));
+      return json(res, 200, presentAccountSlots(await msccControl('GET', '/state')));
     }
     if (req.method === 'POST' && url.pathname === '/api/cortex/mscc/accounts') {
       const body = await readJson(req);
@@ -1833,6 +1860,24 @@ async function handler(req, res) {
       const mode = body.mode === 'qr' ? 'qr' : 'code';
       const result = await msccControl('POST', '/accounts/' + id + '/repair', { mode });
       await recordActivity('mscc:pairing.repair', { account: id, mode });
+      return json(res, 200, result);
+    }
+
+    // Profile assignment is a metadata-only MSCC operation: never close,
+    // re-pair, restart or otherwise change an active WhatsApp socket.
+    const accountProfileRoute = url.pathname.match(/^\/api\/cortex\/mscc\/accounts\/([A-Za-z0-9][A-Za-z0-9._-]{0,63})\/profile$/);
+    if (req.method === 'POST' && accountProfileRoute) {
+      const id = accountProfileRoute[1];
+      const body = await readJson(req);
+      const profileId = String(body.profileId || '').trim().toLowerCase();
+      if (!/^[a-z0-9][a-z0-9._-]{0,63}$/.test(profileId)) {
+        throw Object.assign(new Error('Invalid bot profile ID'), { statusCode: 400 });
+      }
+      if (id === 'A' && profileId !== 'control' || id !== 'A' && profileId === 'control') {
+        throw Object.assign(new Error('Only Account A may use the control profile'), { statusCode: 403 });
+      }
+      const result = await msccControl('POST', '/accounts/' + id + '/profile', { profileId });
+      await recordActivity('mscc:account.profile-changed', { account: id, profile: result?.profile || profileId });
       return json(res, 200, result);
     }
 

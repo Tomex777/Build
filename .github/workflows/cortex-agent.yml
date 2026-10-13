@@ -6,6 +6,11 @@ on:
     paths:
       - 'cortex-agent/**'
       - '.github/workflows/cortex-agent.yml'
+  pull_request:
+    branches: [cortex-android-live]
+    paths:
+      - 'cortex-agent/**'
+      - '.github/workflows/cortex-agent.yml'
   workflow_dispatch:
 
 jobs:
@@ -185,7 +190,7 @@ jobs:
               const id = 'account-' + nextAccount++
               const row = {
                 id,
-                displayName:String(body.displayName || ''),
+                displayName:String(body.displayName || '').trim() || ('Account ' + id.split('-').at(-1)),
                 enabled:true,
                 connected:false,
                 status:'offline',
@@ -238,6 +243,17 @@ jobs:
               }
               res.setHeader('content-type','application/json')
               return res.end(JSON.stringify({ ok:true, account:row.id, status:row.status }))
+            }
+            const profile = url.pathname.match(/^\/accounts\/([A-Za-z0-9][A-Za-z0-9._-]{0,63})\/profile$/)
+            if (req.method === 'POST' && profile) {
+              const row = accounts.find(x => x.id === profile[1])
+              if (!row || !['nami', 'josiah', 'mimi', 'unassigned'].includes(body.profileId)) {
+                res.statusCode = 400
+                return res.end(JSON.stringify({ error:'bad profile' }))
+              }
+              row.profile = body.profileId
+              res.setHeader('content-type','application/json')
+              return res.end(JSON.stringify({ ok:true, account:row.id, profile:row.profile }))
             }
             const remove = url.pathname.match(/^\/accounts\/([A-Za-z0-9][A-Za-z0-9._-]{0,63})$/)
             if (req.method === 'DELETE' && remove) {
@@ -576,10 +592,30 @@ jobs:
           echo "$STATE" | grep -q '"maxAccounts":10'
           echo "$STATE" | grep -q '"addAccount":true'
 
-          ADDED=$(curl -fsS -H "$AUTH" -H 'Content-Type: application/json'             -d '{"phoneNumber":"234000000005","displayName":"Extra"}'             http://127.0.0.1:47831/api/cortex/mscc/accounts)
+          ADDED=$(curl -fsS -H "$AUTH" -H 'Content-Type: application/json'             -d '{"phoneNumber":"234000000005","displayName":""}'             http://127.0.0.1:47831/api/cortex/mscc/accounts)
           echo "added=$ADDED"
           echo "$ADDED" | grep -q '"id":"account-5"'
 
+          # Regression: account-5 may be newly paired and still syncing;
+          # assigning its bot persona must not touch the WhatsApp socket.
+          BEFORE_PROFILE=$(curl -fsS -H "$AUTH" http://127.0.0.1:47831/api/cortex/mscc/pairing)
+          ASSIGNED=$(curl -fsS -H "$AUTH" -H 'Content-Type: application/json' \
+            -d '{"profileId":"nami"}' \
+            http://127.0.0.1:47831/api/cortex/mscc/accounts/account-5/profile)
+          echo "$ASSIGNED" | grep -q '"profile":"nami"'
+          AFTER_PROFILE=$(curl -fsS -H "$AUTH" http://127.0.0.1:47831/api/cortex/mscc/pairing)
+          echo "$AFTER_PROFILE" | grep -q '"id":"account-5"'
+          echo "$AFTER_PROFILE" | grep -q '"profile":"nami"'
+          echo "$AFTER_PROFILE" | grep -q '"status":"offline"'
+          code=$(curl -s -o /tmp/invalid-bot-profile.json -w '%{http_code}' \
+            -H "$AUTH" -H 'Content-Type: application/json' -d '{"profileId":"../nami"}' \
+            http://127.0.0.1:47831/api/cortex/mscc/accounts/account-5/profile)
+          test "$code" = 400
+          code=$(curl -s -o /tmp/owner-profile-denied.json -w '%{http_code}' \
+            -H "$AUTH" -H 'Content-Type: application/json' -d '{"profileId":"nami"}' \
+            http://127.0.0.1:47831/api/cortex/mscc/accounts/A/profile)
+          test "$code" = 403
+          test -n "$BEFORE_PROFILE"
           PAIRED=$(curl -fsS -H "$AUTH" -H 'Content-Type: application/json'             -d '{"mode":"code"}'             http://127.0.0.1:47831/api/cortex/mscc/accounts/account-3/pair)
           echo "paired=$PAIRED"
           AFTER_PAIR=$(curl -fsS -H "$AUTH" http://127.0.0.1:47831/api/cortex/mscc/pairing)
@@ -655,6 +691,28 @@ jobs:
           echo "$AFTER" | grep -q '"id":"account-4"'
           echo "$AFTER" | grep -q '"pairingMode":"qr"'
           ! echo "$AFTER" | grep -q '"id":"account-3"'
+
+      - name: Verify friendly account ordinal does not mutate stable session ID
+        shell: bash
+        run: |
+          AUTH='Authorization: Bearer test-token-12345678901234567890'
+          # account-3 is already deleted; remove account-4 so account-5 is
+          # now the third visible account, not the fifth live account.
+          curl -fsS -X DELETE -H "$AUTH" \
+            http://127.0.0.1:47831/api/cortex/mscc/accounts/account-4 >/dev/null
+          PRESENTED=$(curl -fsS -H "$AUTH" http://127.0.0.1:47831/api/cortex/mscc/pairing)
+          RAW=$(curl -fsS http://127.0.0.1:8788/state)
+          PRESENTED="$PRESENTED" RAW="$RAW" node - <<'NODE'
+          const assert = require('node:assert/strict')
+          const publicState = JSON.parse(process.env.PRESENTED)
+          const internal = JSON.parse(process.env.RAW)
+          assert.equal(publicState.accounts.length, 3)
+          assert.equal(publicState.accounts.find(a => a.id === 'account-5')?.displayName, 'Account 3')
+          assert.equal(internal.accounts.find(a => a.id === 'account-5')?.displayName, 'Account 5')
+          assert.equal(publicState.accounts.find(a => a.id === 'account-2')?.displayName, 'Second')
+          assert.deepEqual(publicState.accounts.map(a => a.id), internal.accounts.map(a => a.id))
+          console.log('PASS account-5 displayed as Account 3 without mutating session IDs')
+          NODE
 
       - name: Reject unauthenticated requests
         shell: bash
