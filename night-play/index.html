@@ -1250,7 +1250,7 @@ document.addEventListener("visibilitychange",()=>{
 function exitGame(){if(document.fullscreenElement===gameDialog)document.exitFullscreen().catch(()=>{});if(gameDialog.open)gameDialog.close();if(location.pathname.startsWith("/play/"))history.replaceState({},"","/games");renderRoute()}
 
 const focusButton=document.getElementById("gameFocus");
-function currentArena(){return document.querySelector(gameDialog.dataset.skin==="snake"?"#snakeCanvas":gameDialog.dataset.skin==="2048"?"#board2048":"#tttboard")}
+function currentArena(){return document.querySelector(gameDialog.dataset.skin==="snake"?".snake-shell":gameDialog.dataset.skin==="2048"?"#board2048":"#tttboard")}
 function updateFocusButton(){const activeFocus=gameDialog.classList.contains("focus-active");focusButton.setAttribute("aria-pressed",String(activeFocus));focusButton.setAttribute("aria-label",activeFocus?"Show full game controls":"Expand arena");focusButton.querySelector("span").textContent=activeFocus?"Normal":"Focus";}
 focusButton.addEventListener("click",async()=>{
  const locked=currentArena()?.getBoundingClientRect().width;
