@@ -129,7 +129,7 @@ footer{margin-top:auto;width:100%}
 .announcement-history article strong{font-size:13px}
 .announcement-history article p{font-size:12px;color:#bdc0c1;line-height:1.65;margin-bottom:0}
 .announcement-bottom{display:flex;align-items:center;justify-content:space-between;gap:16px;color:#94999a;font-size:11px;padding-top:8px}
-.profile-layout{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+.profile-icon{width:39px;height:39px;display:grid;place-items:center;border-radius:50%;background:#ededed;color:#1e1e1e}.profile-icon:hover{background:#ddd}.card-subnote{display:inline-flex;color:#989898;font-weight:700;font-size:11px;margin-top:14px}.announcement-bar.dismissed .announcement-content{display:none}.announcement-bar.dismissed{display:none}.profile-layout{display:grid;grid-template-columns:1fr 1fr;gap:18px}
 .profile-hero,.profile-records{border-radius:26px;padding:32px;background:#eaeaea}
 .profile-hero{background:#191b1e;color:#fff;display:flex;flex-direction:column;align-items:flex-start;min-height:365px}
 .profile-monogram{background:#333639;border-radius:24px;padding:17px;margin-bottom:28px;display:grid;place-items:center}
@@ -148,7 +148,7 @@ footer{margin-top:auto;width:100%}
 </style>
 </head>
 <body>
-<header><div class="wrap nav"><a href="/welcome" data-route class="logo" aria-label="NIGHT Play welcome">NIGHT <span class="brand-sub">PLAY</span></a><nav class="links" aria-label="Main navigation"><a data-route href="/dashboard">Home</a><a data-route href="/games">Games</a><a data-route href="/profile">Profile</a></nav><div class="actions"><button class="alert-button" type="button" id="announcementToggle" aria-expanded="false" aria-controls="announcementHistory" aria-label="See past site announcements" title="Site announcements"><svg width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9ZM10 21h4"/></svg><span class="notify-dot" id="notifyDot" hidden></span></button><button class="btn light" data-dialog="connect">Connect WhatsApp ↗</button></div></div></header>
+<header><div class="wrap nav"><a href="/welcome" data-route class="logo" aria-label="NIGHT Play welcome">NIGHT <span class="brand-sub">PLAY</span></a><nav class="links" aria-label="Main navigation"><a data-route href="/dashboard">Home</a><a data-route href="/games">Games</a></nav><div class="actions"><a class="profile-icon" data-route href="/profile" aria-label="My profile" title="My profile"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4.5 20c1.2-4.7 13.8-4.7 15 0"/></svg></a><button class="btn light" data-dialog="connect">Connect WhatsApp ↗</button></div></div></header>
 <aside id="announcementBar" class="announcement-bar" role="region" aria-label="NIGHT site announcements">
  <div class="wrap announcement-content"><span class="announce-badge">NEW</span><div class="announce-copy"><strong>NIGHT Play preview is evolving</strong><span>Full-page games and a larger 2048 board are being refined.</span></div><button id="announcementMore" type="button" aria-controls="announcementHistory" aria-expanded="false">Past notices <span aria-hidden="true">⌄</span></button><button id="announcementDismiss" type="button" aria-label="Dismiss announcement">×</button></div>
  <div id="announcementHistory" class="wrap announcement-history" hidden>
@@ -174,8 +174,8 @@ footer{margin-top:auto;width:100%}
  <div class="dash-layout">
   <article class="dash-hero-card"><div class="dash-label">READY WHEN YOU ARE</div><h2>Your next<br>game awaits.</h2><p>Pick up where you left off, or discover something new.</p><a class="btn" data-route href="/games">Open Game Library ↗</a><span class="dash-moon" aria-hidden="true">☾</span></article>
   <div class="dash-side">
-   <div class="dash-mini updates-mini"><span class="eyebrow">FEATURED NEXT</span><h3>Pick the way you play.</h3><p>Board games, puzzles and arcade challenges now have their own dedicated Games Library.</p><a class="text-arrow" data-route href="/games">Explore game categories ↗</a></div>
-   <div class="dash-mini"><span class="eyebrow">NIGHT PROFILE</span><h3>Your achievements belong to you.</h3><p>Verified profiles will collect your records, tournament entries and friends across WhatsApp and web.</p><a class="text-arrow" data-route href="/profile">View profile ↗</a></div>
+   <div class="dash-mini updates-mini"><span class="eyebrow">COMING NEXT</span><h3>Pick the way you play.</h3><p>Board games, puzzles and arcade challenges now have their own dedicated Games Library.</p><span class="card-subnote">You decide which game to play next.</span></div>
+   <div class="dash-mini"><span class="eyebrow">NIGHT PROFILE</span><h3>Your achievements belong to you.</h3><p>Verified profiles will collect your records, tournament entries and friends across WhatsApp and web.</p><span class="card-subnote">WhatsApp verification is the next milestone.</span></div>
   </div>
  </div>
  <div class="dash-bottom"><div class="topbar"><div><span class="eyebrow">CONTINUE PLAYING</span><h2>Right where you left off.</h2></div></div><div class="resume-card" id="resumeCard"><p>Nothing to resume just yet. Your adventure starts in the Games Library.</p><a class="btn outline" href="/games" data-route>Find a game ↗</a></div></div>
@@ -240,15 +240,23 @@ function pathView(){
  const path=location.pathname.replace(/\/+$/,"")||"/";
  if(path==="/"||path==="/welcome")return "welcome";
  if(path==="/games"||path.startsWith("/play/"))return "games";
- if(path==="/updates")return "updates";
+ if(path==="/profile")return "profile";
+ if(path==="/updates")return "dashboard";
  if(path==="/dashboard")return "dashboard";
  return "welcome";
 }
-function updateBell(){document.getElementById("notifyDot").hidden=getSaved(READ_KEY)===UPDATE_VERSION}
-function markNewsRead(){putSaved(READ_KEY,UPDATE_VERSION);updateBell()}
+const ANNOUNCEMENT_KEY="nightplay-announcement-v4";
+function updateBell(){
+ const dismissed=getSaved(ANNOUNCEMENT_KEY)==="dismissed";
+ document.getElementById("announcementBar").classList.toggle("dismissed",dismissed);
+}
+function toggleAnnouncement(open){
+ const box=document.getElementById("announcementHistory");
+ box.hidden=!open;
+ for(const id of ["announcementMore"]){document.getElementById(id).setAttribute("aria-expanded",String(open))}
+}
 function updateDashboard(){
- document.getElementById("dashSnakeBest").textContent=best("snake").toLocaleString();
- document.getElementById("dash2048Best").textContent=best("2048").toLocaleString();
+ 
  const rows=[];
  const history=[["snake","🐍 Snake",getSaved("night-play-save-snake")],["2048","🔢 2048",getSaved("night-play-save-2048")],["ttt","❎ Tic-Tac-Toe",getSaved("night-play-save-ttt")]];
  for(const [id,name,save] of history){if(save)rows.push({id,name})}
@@ -268,6 +276,7 @@ function filterGames(){
 }
 function renderRoute(){
  const current=pathView();
+ if(location.pathname==="/updates")history.replaceState({},"","/dashboard");
  for(const page of document.querySelectorAll(".site-page"))page.hidden=page.dataset.view!==current;
  for(const link of document.querySelectorAll("[data-route]")){
    if(!link.closest(".nav")&&!link.closest(".mobile-nav"))continue;
@@ -275,14 +284,17 @@ function renderRoute(){
    if(key===location.pathname||(location.pathname.startsWith("/play/")&&key==="/games"))link.setAttribute("aria-current","page");
    else link.removeAttribute("aria-current")
  }
- document.title=({welcome:"NIGHT Play — Welcome",dashboard:"NIGHT Play — Home",games:"NIGHT Play — Games",updates:"NIGHT Play — Updates"})[current];
+ document.title=({welcome:"NIGHT Play — Welcome",dashboard:"NIGHT Play — Home",games:"NIGHT Play — Games",profile:"NIGHT Play — Profile"})[current];
  if(current==="dashboard")updateDashboard();
  if(current==="games")filterGames();
- if(current==="updates")markNewsRead();
+ if(current==="profile"){
+ document.getElementById("profileSnakeBest").textContent=best("snake").toLocaleString();
+ document.getElementById("profile2048Best").textContent=best("2048").toLocaleString()
+ }
  updateBell();window.scrollTo(0,0)
 }
 function navigate(path,{replace=false}={}){
- if(!["/","/welcome","/dashboard","/games","/updates"].includes(path))return;
+ if(!["/","/welcome","/dashboard","/games","/profile"].includes(path))return;
  if(path==="/dashboard"||path==="/games")putSaved(ENTER_KEY,"1");
  if(gameDialog.open)gameDialog.close();
  if(infoDialog.open)infoDialog.close();
@@ -311,7 +323,9 @@ document.addEventListener("keydown",e=>{
  e.preventDefault();card.click()
 });
 document.getElementById("gameSearch").addEventListener("input",filterGames);
-document.getElementById("markUpdatesRead").addEventListener("click",markNewsRead);
+document.getElementById("announcementMore").addEventListener("click",()=>toggleAnnouncement(document.getElementById("announcementHistory").hidden));
+document.getElementById("announcementHistoryClose").addEventListener("click",()=>toggleAnnouncement(false));
+document.getElementById("announcementDismiss").addEventListener("click",()=>{putSaved(ANNOUNCEMENT_KEY,"dismissed");toggleAnnouncement(false);updateBell()});
 
 function stop(){if(snakeTimer){clearInterval(snakeTimer);snakeTimer=null}active="";gamePaused=false;document.getElementById("pauseGame").textContent="Pause ⏸";}
 document.addEventListener("click",e=>{
