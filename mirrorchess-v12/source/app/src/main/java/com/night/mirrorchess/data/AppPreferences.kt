@@ -22,6 +22,7 @@ data class AppSettings(
     val pieceSetId: String = PieceSetId.CLASSIC.name.lowercase(),
     val pieceShadows: Boolean = true,
     val moveAnimationSpeed: MoveAnimationSpeed = MoveAnimationSpeed.SMOOTH,
+    val boardSounds: Boolean = true,
 )
 
 class AppPreferences(context: Context) {
@@ -37,6 +38,7 @@ class AppPreferences(context: Context) {
         pieceSetId = prefs.getString("pieceSetId", prefs.getString("pieceStyle", PieceSetId.CLASSIC.name)).orEmpty().lowercase(),
         pieceShadows = prefs.getBoolean("pieceShadows", true),
         moveAnimationSpeed = runCatching { MoveAnimationSpeed.valueOf(prefs.getString("moveAnimationSpeed", MoveAnimationSpeed.SMOOTH.name).orEmpty()) }.getOrDefault(MoveAnimationSpeed.SMOOTH),
+        boardSounds = prefs.getBoolean("boardSounds", true),
     )
 
     fun save(settings: AppSettings) {
@@ -50,6 +52,7 @@ class AppPreferences(context: Context) {
             putString("pieceSetId", settings.pieceSetId)
             putBoolean("pieceShadows", settings.pieceShadows)
             putString("moveAnimationSpeed", settings.moveAnimationSpeed.name)
+            putBoolean("boardSounds", settings.boardSounds)
         }
     }
 }
