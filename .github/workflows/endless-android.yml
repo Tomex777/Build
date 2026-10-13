@@ -111,21 +111,19 @@ jobs:
           curl -fL --retry 4 --retry-delay 3 --max-time 240 \
             "https://svs.gsfc.nasa.gov/vis/a000000/a004700/a004720/lroc_color_2k.jpg" \
             -o "$OUT/planet_moon.jpg"
-          # Higher resolution from the same CC BY 4.0 planetary map provider;
-          # keep verified 2K textures if the optional 4K variants are missing.
-          for entry in "earth_daymap:planet_earth" "mars:planet_mars"; do
-            remote="${entry%%:*}"
-            local_name="${entry#*:}"
-            url="https://www.solarsystemscope.com/textures/download/4k_${remote}.jpg"
-            if curl -fL --retry 2 --connect-timeout 15 --max-time 180 "$url" -o "$OUT/${local_name}.4k.tmp"; then
-              if test "$(stat -c%s "$OUT/${local_name}.4k.tmp")" -gt 1500000 &&
-                 file -b "$OUT/${local_name}.4k.tmp" | grep -q 'JPEG image data'; then
-                mv "$OUT/${local_name}.4k.tmp" "$OUT/${local_name}.jpg"
-                echo "Using 4K texture: ${local_name}"
-              fi
-            fi
-            rm -f "$OUT/${local_name}.4k.tmp"
-          done
+          # NASA Blue Marble Next Generation July (5400x2700)
+          # resampled to a true 4096x2048 image (not interpolated 2K).
+          # Source attribution recorded in THIRD_PARTY_NOTICES.txt.
+          curl -fL --retry 4 --retry-delay 2 --max-time 180 \
+            "https://raw.githubusercontent.com/MaxwellLee/physics-lab/main/assets/textures/earth_4096.jpg" \
+            -o "$OUT/planet_earth.jpg"
+          python3 - "$OUT/planet_earth.jpg" <<'PY_EARTH'
+          import sys
+          from PIL import Image
+          with Image.open(sys.argv[1]) as im:
+              assert im.size == (4096, 2048), "NASA Earth day map must be true 4K"
+              assert im.format == "JPEG"
+          PY_EARTH
           # Retain NASA mission DEM source only on the CI runner. The shipped APK
           # contains compact 161x161 elevation tiles, not 65MB raw archives.
           curl -fL --retry 4 --retry-delay 3 --max-time 360 \
