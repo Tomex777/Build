@@ -618,18 +618,25 @@ function best(key){try{return Number(localStorage.getItem(scoreKey+key)||0)||0}c
 function record(key,value){if(value>best(key)){try{localStorage.setItem(scoreKey+key,String(value))}catch{}}}
 function modal(kind){
  const content={
- connect:["Connect WhatsApp to NIGHT",'<p class="modalnote">Play as a guest today. Soon you will be able to connect your NIGHT profile without passwords or giving the website your WhatsApp number.</p><div class="notice"><b>Planned secure flow</b><br><b>1.</b> Tap Connect here. NIGHT generates a short-lived linking code.<br><b>2.</b> Copy the command <code>.minigames link CODE</code>.<br><b>3.</b> Send it to NIGHT privately on WhatsApp.<br><b>4.</b> NIGHT verifies the sender and automatically signs you in here.<br><br>Existing <code>.chess</code>, <code>.ludo</code>, <code>.checkers</code>, and <code>.ttt</code> remain unchanged.</div><p class="modalnote" style="margin-top:18px"><b>Not live yet:</b> there is no code to copy at this stage. Linking and online leaderboards require a backend; no phone number, JID or LID is being collected by this preview.</p>'],
+ connect:["Connect WhatsApp to NIGHT",'<p class="modalnote">Play as a guest today. Soon you will be able to connect your NIGHT profile without passwords or giving the website your WhatsApp number.</p><div class="notice"><b>Planned secure flow</b><br><b>1.</b> Tap Connect here. A linking code will be generated when connection is available.<br><b>2.</b> Copy the command <code>.minigames link CODE</code>.<br><b>3.</b> Send it to NIGHT privately on WhatsApp.<br><b>4.</b> NIGHT verifies the sender and automatically signs you in here.<br><br>Existing <code>.chess</code>, <code>.ludo</code>, <code>.checkers</code>, and <code>.ttt</code> remain unchanged.</div><p class="modalnote" style="margin-top:18px"><b>Not live yet:</b> there is no code to copy at this stage. Linking and online leaderboards require a backend; no phone number, JID or LID is being collected by this preview.</p>'],
  crossplay:["Web × WhatsApp cross-play",'<p class="modalnote">A Chess player on the website will be able to challenge someone playing through <b>.chess</b> in WhatsApp. The same match ID and server-validated turns keep the board synchronized.</p><div class="notice"><b>Planned modes</b><br>↗ Challenge a friend with an invite link<br>↗ Match with a random verified NIGHT player<br>↗ Play with the bot<br>↗ Cross-platform matches in turn-based games<br><br><b>Current status:</b> this is the design plan, not an active multiplayer connection. Existing WhatsApp games remain unchanged.</div>'],
- soon:["More games are coming",'<p class="modalnote">The web version is being built. Try Snake, 2048 or Tic-Tac-Toe in this preview. Other games will be added once their rules and score verification are ready.</p>']
+ soon:["More games are coming",'<p class="modalnote">The web version is being built. Try Snake, 2048 or Tic-Tac-Toe. Other games will be added once their rules and score verification are ready.</p>']
  }[kind]||["NIGHT Play",""];
  document.getElementById("infoTitle").textContent=content[0];document.getElementById("infoBody").innerHTML=content[1];infoDialog.showModal();
 }
 
-const UPDATE_VERSION="nightplay-ui-20261013-v4";
+const UPDATE_VERSION="nightplay-ui-20261013-v9";
 const ENTER_KEY="night-play-has-entered";
 const READ_KEY="night-play-update-seen";
 const getSaved=(key)=>{try{return localStorage.getItem(key)}catch{return null}};
 const putSaved=(key,value)=>{try{localStorage.setItem(key,String(value))}catch{}};
+const PLAYER_NAME_KEY="night-play-player-name-v1";
+function playerName(){const value=(getSaved(PLAYER_NAME_KEY)||"").trim().slice(0,28);return value||"Player"}
+function syncPlayerName(){const el=document.getElementById("playerDisplayName");if(el)el.textContent=playerName()}
+const nameForm=document.getElementById("playerNameForm");
+document.getElementById("editPlayerName").addEventListener("click",()=>{nameForm.hidden=false;const input=document.getElementById("playerNameInput");input.value=getSaved(PLAYER_NAME_KEY)||"";input.focus()});
+document.getElementById("cancelPlayerName").addEventListener("click",()=>{nameForm.hidden=true});
+nameForm.addEventListener("submit",event=>{event.preventDefault();const next=document.getElementById("playerNameInput").value.trim().replace(/[\\u0000-\\u001f<>]/g,"").slice(0,28);if(next)putSaved(PLAYER_NAME_KEY,next);else try{localStorage.removeItem(PLAYER_NAME_KEY)}catch{};nameForm.hidden=true;syncPlayerName();updateGreeting()});
 const scoreHistoryKey="night-play-history-v1-";
 function scoreHistory(id){try{const a=JSON.parse(localStorage.getItem(scoreHistoryKey+id)||"[]");return Array.isArray(a)?a.filter(x=>Number.isFinite(x)&&x>=0).slice(-12):[]}catch{return []}}
 const scoreCountKey="night-play-history-count-v1-";
@@ -798,7 +805,7 @@ function updateGreeting(){
  const title=document.getElementById("homeGreeting");if(!title)return;
  const hour=new Date().getHours(),greeting=greetingText(hour);
  // Show the verified display name only after NIGHT WhatsApp linking is implemented.
- title.textContent=greeting+".";
+ title.textContent=greeting+", "+playerName()+".";
 }
 setInterval(()=>{if(!document.getElementById("view-dashboard").hidden)updateGreeting()},60000);
 
@@ -819,7 +826,7 @@ const ANNOUNCEMENT_KEY="nightplay-announcement-v4";
 function updateBell(){
  const dismissed=getSaved(ANNOUNCEMENT_KEY)==="2026-10-13-preview-notice";
  document.getElementById("announcementBar").classList.toggle("dismissed",dismissed);
- if(dismissed)document.getElementById("announcementMore").innerHTML='Announcements <span aria-hidden="true">⌄</span>';
+ if(dismissed)document.getElementById("announcementMore").innerHTML='Announcements <svg class="ui-icon" viewBox="0 0 24 24" focusable="false" aria-hidden="true"><use href="#icon-chevron"></use></svg>';
 }
 function toggleAnnouncement(open){
  const box=document.getElementById("announcementHistory");
@@ -827,7 +834,9 @@ function toggleAnnouncement(open){
  for(const id of ["announcementMore"]){document.getElementById(id).setAttribute("aria-expanded",String(open))}
 }
 function updateDashboard(){
- 
+ const currentBest=Math.max(best("snake"),best("2048"),best("2048-5"),best("2048-6"));
+ const note=document.getElementById("dashRecordNote");
+ if(note)note.textContent=currentBest>0?"Your top arcade score is "+currentBest.toLocaleString()+". Beat it next round.":"Play a round to start your personal records.";
  const rows=[];
  const history=[["snake","Snake",getSaved("night-play-save-snake")],["2048","2048",getSaved("night-play-save-2048-"+getSetting("2048-size","4"))||getSaved("night-play-save-2048")],["ttt","Tic-Tac-Toe",getSaved("night-play-save-ttt")]];
  for(const [id,name,save] of history){if(save){try{const parsed=JSON.parse(save);rows.push({id,name,updatedAt:Number(parsed.updatedAt)||0})}catch{}}}
@@ -860,7 +869,7 @@ function renderRoute(){
  document.title=({welcome:"NIGHT Play — Welcome",dashboard:"NIGHT Play — Home",games:"NIGHT Play — Games",profile:"NIGHT Play — Account",terms:"NIGHT Play — Terms",privacy:"NIGHT Play — Privacy"})[current];
  if(current==="dashboard")updateDashboard();
  if(current==="games")filterGames();
- if(current==="profile")renderProfileRecords();
+ if(current==="profile"){renderProfileRecords();syncPlayerName()}
  if(current==="dashboard")updateGreeting();
  updateBell();window.scrollTo(0,0)
 }
@@ -896,9 +905,10 @@ document.addEventListener("keydown",e=>{
 document.getElementById("gameSearch").addEventListener("input",filterGames);
 document.getElementById("announcementMore").addEventListener("click",()=>toggleAnnouncement(document.getElementById("announcementHistory").hidden));
 document.getElementById("announcementHistoryClose").addEventListener("click",()=>toggleAnnouncement(false));
-document.getElementById("announcementDismiss").addEventListener("click",()=>{putSaved(ANNOUNCEMENT_KEY,"2026-10-13-preview-notice");toggleAnnouncement(false);document.getElementById("announcementMore").innerHTML='Announcements <span aria-hidden="true">⌄</span>';updateBell()});
+document.getElementById("announcementDismiss").addEventListener("click",()=>{putSaved(ANNOUNCEMENT_KEY,"2026-10-13-preview-notice");toggleAnnouncement(false);document.getElementById("announcementMore").innerHTML='Announcements <svg class="ui-icon" viewBox="0 0 24 24" focusable="false" aria-hidden="true"><use href="#icon-chevron"></use></svg>';updateBell()});
 
-function stop(){if(snakeTimer){clearInterval(snakeTimer);snakeTimer=null}active="";gamePaused=false;document.getElementById("pauseGame").textContent="Pause ⏸";}
+function pauseLabel(text){const button=document.getElementById("pauseGame");if(!button)return;button.innerHTML='<svg class="ui-icon" viewBox="0 0 24 24" focusable="false" aria-hidden="true"><use href="#icon-pause"></use></svg> '+text}
+function stop(){if(snakeTimer){clearInterval(snakeTimer);snakeTimer=null}active="";gamePaused=false;pauseLabel("Pause")}
 document.addEventListener("click",e=>{
  const dialog=e.target.closest("[data-dialog]");if(dialog)modal(dialog.dataset.dialog);
  const g=e.target.closest("[data-game]");if(g)openGame(g.dataset.game);
@@ -912,10 +922,10 @@ document.getElementById("pauseGame").addEventListener("click",()=>{
  if(!gameDialog.open)return;
  if(active==="snake"&&!snake.started)return;
  gamePaused=!gamePaused;
- document.getElementById("pauseGame").textContent=gamePaused?"Resume ▶":"Pause ⏸";
+ pauseLabel(gamePaused?"Resume":"Pause");
 });
 document.addEventListener("visibilitychange",()=>{
- if(document.hidden&&gameDialog.open&&active==="snake"){gamePaused=true;document.getElementById("pauseGame").textContent="Resume ▶"}
+ if(document.hidden&&gameDialog.open&&active==="snake"){gamePaused=true;pauseLabel("Resume")}
 });
 function exitGame(){if(gameDialog.open)gameDialog.close();if(location.pathname.startsWith("/play/"))history.replaceState({},"","/games");renderRoute()}
 
@@ -927,10 +937,12 @@ function openGame(kind,{push=true,fresh=false}={}){
  if(!["snake","2048","ttt"].includes(kind))return;
  if(push)history.pushState({game:kind},"","/play/"+kind);
  renderRoute();
- stop();active=kind;gameDialog.dataset.skin=kind;gameDialog.showModal();title.textContent=kind==="ttt"?"Tic-Tac-Toe":kind==="2048"?"2048":"Snake";
- if(kind==="snake"){help.textContent="Tap to start. Swipe the board, tap the arrows or use your keyboard. Pause is automatic if you switch apps.";initSnake(fresh);document.getElementById("pauseGame").textContent="Start on board ▶"}
- if(kind==="2048"){help.textContent="Slide matching tiles together. Your board is automatically saved after every move.";init2048(fresh)}
- if(kind==="ttt"){help.textContent="Play against NIGHT's bot or someone beside you. Online multiplayer is coming later.";initTtt(fresh)}
+ stop();active=kind;gameDialog.dataset.skin=kind;gameDialog.showModal();
+ const sub=document.getElementById("gameSubheading");
+ sub.textContent=kind==="snake"?"THE CLASSIC ARCADE":kind==="2048"?"THE NUMBER PUZZLE":"THE STRATEGY BOARD";title.textContent=kind==="ttt"?"Tic-Tac-Toe":kind==="2048"?"2048":"Snake";
+ if(kind==="snake"){help.textContent="Swipe the arena to turn. On desktop, use the arrow keys.";initSnake(fresh);pauseLabel("Tap board to start")}
+ if(kind==="2048"){help.textContent="Slide matching tiles. Grow the numbers. Chase 2048.";init2048(fresh)}
+ if(kind==="ttt"){help.textContent="Think ahead. Make three in a row.";initTtt(fresh)}
  document.getElementById("pauseGame").hidden=(kind==="ttt")
 }
 const SNAKE_MODES=["wrap","walls","maze1","maze2","maze3"];
@@ -951,13 +963,12 @@ function initSnake(fresh=false){
  const selected=currentSnakeMode();
  snake=loaded&&Array.isArray(loaded.body)&&loaded.body.length&&loaded.alive&&loaded.food&&(!loaded.mode||loaded.mode===selected)?{...loaded,size,alive:true,canvas:c}:{size,body:[{x:7,y:9},{x:6,y:9},{x:5,y:9}],dir:"right",next:"right",food:null,score:0,alive:true};
  snake.mode=selected;snake.wrap=selected==="wrap";snake.maze=makeSnakeMaze(selected,size);snake.started=false;
- const control=document.createElement("div");control.className="dpad";["up","left","down","right"].forEach(d=>{const b=document.createElement("button");b.dataset.dir=d;b.textContent={up:"↑",down:"↓",left:"←",right:"→"}[d];b.setAttribute("aria-label",d);control.appendChild(b)});
- root.innerHTML='<div class="scorebar"><span>Score: <b id="score">'+snake.score+'</b></span><span>Best: <b id="best">'+best("snake")+'</b></span></div>';
+ root.innerHTML='<div class="scorebar scoreboard"><div class="score-unit"><span class="score-label">SCORE</span><b id="score">'+snake.score+'</b></div><span class="score-divider" aria-hidden="true"></span><div class="score-unit"><span class="score-label">PERSONAL BEST</span><b id="best">'+best("snake")+'</b></div></div>';
  const shell=document.createElement("div");shell.className="snake-shell";shell.appendChild(c);
- const overlay=document.createElement("button");overlay.id="snakeOverlay";overlay.className="snake-screen-overlay";overlay.type="button";overlay.innerHTML='<strong>Ready to play?</strong><small>Choose your direction and stay in the game.</small><span>Tap to start ▶</span>';
+ const overlay=document.createElement("button");overlay.id="snakeOverlay";overlay.className="snake-screen-overlay";overlay.type="button";overlay.innerHTML='<strong>Ready to play?</strong><small>Swipe to steer. Collect fruit. Keep moving.</small><span>Tap to start ▶</span>';
  overlay.onclick=()=>{if(!snake.alive){openGame("snake",{push:false,fresh:true});return}
- snake.started=true;gamePaused=false;overlay.hidden=true;document.getElementById("pauseGame").textContent="Pause ⏸"};
- shell.appendChild(overlay);root.appendChild(shell);root.appendChild(control);
+ snake.started=true;gamePaused=false;overlay.hidden=true;pauseLabel("Pause")};
+ shell.appendChild(overlay);root.appendChild(shell);
  snake.canvas=c;snake.food=snake.food||food();drawSnake();gamePaused=true;
  let origin=null;c.addEventListener("touchstart",e=>{origin={x:e.touches[0].clientX,y:e.touches[0].clientY}},{passive:true});
  c.addEventListener("touchend",e=>{if(!origin)return;const dx=e.changedTouches[0].clientX-origin.x,dy=e.changedTouches[0].clientY-origin.y;if(Math.max(Math.abs(dx),Math.abs(dy))>17)snakeTurn(Math.abs(dx)>Math.abs(dy)?dx>0?"right":"left":dy>0?"down":"up");origin=null},{passive:true});
@@ -1002,7 +1013,7 @@ function initTtt(fresh=false){
  ttt=saved&&Array.isArray(saved.board)&&saved.board.length===9?saved.board:Array(9).fill("");
  turn=saved?.turn==="O"?"O":"X";tttFinished=Boolean(saved?.finished);mode=saved?.mode==="local"?"local":"bot";
  if(fresh)try{localStorage.removeItem("night-play-save-ttt")}catch{}
- root.innerHTML='<div class="scorebar"><span id="turnlabel">Your turn · X</span><span class="right"><button class="btn light" id="modeBtn">VS BOT</button></span></div><div class="tttboard" id="tttboard"></div>';
+ root.innerHTML='<div class="scorebar scoreboard ttt-scorebar"><div><span class="score-label">ON THE BOARD</span><strong id="turnlabel" aria-live="polite">Your turn · X</strong></div><span class="right"><button class="mode-toggle" id="modeBtn" type="button">VS BOT</button></span></div><div class="tttboard" id="tttboard"></div>';
  document.getElementById("modeBtn").onclick=()=>{const next=mode==="bot"?"local":"bot";initTtt(true);mode=next;drawTtt()};
  drawTtt();if(mode==="bot"&&!tttFinished&&turn==="O")setTimeout(botMoveTtt,450)
 }
@@ -1012,7 +1023,19 @@ function drawTtt(){
  const label=document.getElementById("turnlabel");
  label.textContent=tttFinished?(isWin(ttt,"X")?"X wins!":isWin(ttt,"O")?"O wins!":"It's a draw!"):(turn==="X"?"X to play":mode==="bot"?"Bot thinking…":"O to play");
  const board=document.getElementById("tttboard");board.innerHTML="";
- ttt.forEach((value,i)=>{const b=document.createElement("button");b.textContent=value;b.disabled=Boolean(value)||tttFinished||(mode==="bot"&&turn==="O");b.setAttribute("aria-label","cell "+(i+1));b.onclick=()=>moveTtt(i);board.appendChild(b)});
+ ttt.forEach((value,i)=>{
+  const b=document.createElement("button");b.className="ttt-cell";b.dataset.mark=value||"empty";
+  b.disabled=Boolean(value)||tttFinished||(mode==="bot"&&turn==="O");b.setAttribute("aria-label","cell "+(i+1)+(value?" "+value:""));
+  if(value){const path=value==="X"?'<path d="M22 22 78 78M78 22 22 78"/>':'<circle cx="50" cy="50" r="29"/>';b.innerHTML='<svg class="ttt-mark" viewBox="0 0 100 100" aria-hidden="true">'+path+'</svg><span class="sr-only">'+value+'</span>'}
+  b.onclick=()=>moveTtt(i);board.appendChild(b)
+ });
+ const winLines=[[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
+ const line=winLines.find(a=>ttt[a[0]]&&a.every(i=>ttt[i]===ttt[a[0]]));
+ if(tttFinished&&line){
+  const pos=i=>({x:50+(i%3)*100,y:50+Math.floor(i/3)*100});
+  const start=pos(line[0]),end=pos(line[2]);
+  board.insertAdjacentHTML("beforeend",'<svg class="ttt-win-line" viewBox="0 0 300 300" preserveAspectRatio="none" aria-hidden="true"><path d="M'+start.x+' '+start.y+' L'+end.x+' '+end.y+'"/></svg>');
+ }
 }
 function minimaxTtt(state,turnMark,depth=0){
  if(isWin(state,"O"))return 10-depth;if(isWin(state,"X"))return depth-10;
@@ -1047,7 +1070,7 @@ function init2048(fresh=false){
  grid=valid?saved.grid:Array.from({length:size},()=>Array(size).fill(0));
  tileScore=valid?Number(saved.score||0):0;
  if(!valid){spawn();spawn()}
- root.innerHTML='<div class="scorebar"><span>Score: <b id="score">'+tileScore+'</b></span><span>Best: <b id="best">'+best(tileBestKey())+'</b></span></div><div id="board2048" class="board2048"></div><p class="modalnote" style="margin:14px 0 0;text-align:center">Swipe anywhere on the board to move tiles. Size: '+size+' × '+size+'.</p>';
+ root.innerHTML='<div class="scorebar scoreboard"><div class="score-unit"><span class="score-label">SCORE</span><b id="score">'+tileScore+'</b></div><div class="score-unit"><span class="score-label">PERSONAL BEST</span><b id="best">'+best(tileBestKey())+'</b></div><span class="board-size">'+size+' × '+size+'</span></div><div id="board2048" class="board2048"></div>';
  draw2048();
  let start=null;const board=document.getElementById("board2048");
  board.addEventListener("touchstart",e=>{start={x:e.touches[0].clientX,y:e.touches[0].clientY}},{passive:true});
@@ -1149,7 +1172,7 @@ function showSettings(){
  if(active==="snake")startSnakePreviews();
  settingsDialog.showModal();
 }
-function closeGameSettings(){stopSnakePreviews();if(settingsDialog.open)settingsDialog.close();gamePaused=previousPause;const btn=document.getElementById("pauseGame");if(btn&&!btn.hidden)btn.textContent=gamePaused?"Resume ▶":"Pause ⏸";if(active==="ttt"&&mode==="bot"&&!tttFinished&&turn==="O"&&!gamePaused)setTimeout(botMoveTtt,200)}
+function closeGameSettings(){stopSnakePreviews();if(settingsDialog.open)settingsDialog.close();gamePaused=previousPause;const btn=document.getElementById("pauseGame");if(btn&&!btn.hidden)pauseLabel(gamePaused?"Resume":"Pause");if(active==="ttt"&&mode==="bot"&&!tttFinished&&turn==="O"&&!gamePaused)setTimeout(botMoveTtt,200)}
 document.getElementById("gameSettings").addEventListener("click",showSettings);
 document.getElementById("closeSettings").addEventListener("click",closeGameSettings);
 settingsDialog.addEventListener("cancel",e=>{e.preventDefault();closeGameSettings()});
