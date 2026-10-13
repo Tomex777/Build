@@ -60,6 +60,7 @@ import {
 import { looksLikeNumberSelection } from './number-selection.js'
 import { createInboundMessageGuard, matchesDisplayedChoice } from './inbound-message-guard.js'
 import { createCommandTiming } from './command-performance.js'
+import { resolveIdentityWithDeadline } from './identity-resolution.js'
 import { chessRecordAcceptsInput } from './utils/chess-game.js'
 import { ticTacToeRecordAcceptsInput } from './utils/tictactoe-game.js'
 import { checkersRecordAcceptsInput } from './utils/checkers-game.js'
@@ -405,6 +406,7 @@ const groupMetaCache = new Map()
 const routeLocks = new Map()
 const senderResolutionCache = new Map()
 const SENDER_CACHE_TTL_MS = 10 * 60 * 1000
+const LID_LOOKUP_TIMEOUT_MS = num('MSCC_LID_LOOKUP_TIMEOUT_MS', 2500, 200, 10000)
 const SENDER_CACHE_MAX = 4096
 
 const isGroup = isGroupJid
@@ -1059,17 +1061,30 @@ async function resolvePhoneJid(account, jid) {
   if (normalized.endsWith('@s.whatsapp.net')) return normalized
   const key = String(account?.id || '') + '|' + normalized
   const cached = senderResolutionCache.get(key)
-  if (cached && Date.now() - cached.at < SENDER_CACHE_TTL_MS) return cached.phoneJid
+  if (cached && Date.now() - cached.at < (cached.ttlMs || SENDER_CACHE_TTL_MS)) {
+    return cached.phoneJid
+  }
   if (normalized.endsWith('@lid') || normalized.endsWith('@hosted.lid')) {
-    try {
-      const ids = await account.sock?.findUserId?.(normalized)
-      const phoneJid = normalizeJid(ids?.phoneNumber || '') || normalized
-      senderResolutionCache.set(key, { phoneJid, at:Date.now() })
+    const generation = account.generation
+    const cacheIdentity = (phoneJid, ttlMs = SENDER_CACHE_TTL_MS) => {
+      // An old socket must not update sender identities after a reconnect.
+      if (generation !== account.generation) return
+      senderResolutionCache.set(key, { phoneJid, at:Date.now(), ttlMs })
       while (senderResolutionCache.size > SENDER_CACHE_MAX) {
         senderResolutionCache.delete(senderResolutionCache.keys().next().value)
       }
-      return phoneJid
-    } catch {}
+    }
+    const phoneJid = await resolveIdentityWithDeadline({
+      jid:normalized,
+      lookup: id => account.sock?.findUserId?.(id),
+      normalize:normalizeJid,
+      timeoutMs:LID_LOOKUP_TIMEOUT_MS,
+      onResolved:phone => cacheIdentity(phone),
+    })
+    // An unresolved LID never grants phone-number-based owner access.
+    // Briefly cache misses to avoid repeated 2.5s waits, but allow retries.
+    cacheIdentity(phoneJid, phoneJid === normalized ? 10000 : SENDER_CACHE_TTL_MS)
+    return phoneJid
   }
   return normalized
 }
