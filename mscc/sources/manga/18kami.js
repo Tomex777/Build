@@ -23,7 +23,8 @@ function parseCards($, query = '', pageUrl = BASE) {
   return items.slice(0,50)
 }
 
-async function searchManga(query = '') {
+async function searchManga(query = '', signal = null) {
+  signal?.throwIfAborted?.()
   const candidates = query
     ? [
         CURRENT + '/albums/meiman?search=' + encodeURIComponent(query),
@@ -35,22 +36,27 @@ async function searchManga(query = '') {
   let last
   let unfiltered = []
   for (const url of candidates) {
+    signal?.throwIfAborted?.()
     try {
-      const { $, response } = await loadDocument(url)
+      const { $, response } = await loadDocument(url, {}, signal)
       const pageUrl = String(response?.url || url)
       const items = parseCards($, query, pageUrl)
       if (items.length) return { items }
       if (!unfiltered.length) unfiltered = parseCards($, '', pageUrl)
-    } catch (error) { last = error }
+    } catch (error) {
+      signal?.throwIfAborted?.()
+      last = error
+    }
   }
   if (unfiltered.length) return { items:unfiltered }
   if (last) throw last
   return { items:[] }
 }
 
-async function chaptersFor(item) {
+async function chaptersFor(item, signal = null) {
+  signal?.throwIfAborted?.()
   const url = String(item?.id || item?.url || '')
-  const { $ } = await loadDocument(url)
+  const { $ } = await loadDocument(url, {}, signal)
   const rows = []
   $('.episode').first().find('a[href]').each((_,el) => {
     const href = absolute($(el).attr('href'), url)
@@ -92,8 +98,9 @@ export default {
   fallbackOrder:90,
   brandAliases:['18 Kami'],
   async run({ action, query, item, chapter, chapterId, range, context }) {
-    if (action === 'search' || action === 'browse') return searchManga(action === 'search' ? String(query || '').trim() : '')
-    if (action === 'chapters') return chaptersFor(item)
+    if (action === 'search' || action === 'browse')
+      return searchManga(action === 'search' ? String(query || '').trim() : '', context?.signal)
+    if (action === 'chapters') return chaptersFor(item, context?.signal)
     if (action === 'options') return { qualities:['source'], deliveries:['document'] }
     if (action === 'download') {
       const target = chapter || { id:chapterId, url:chapterId, title:'Chapter' }
