@@ -56,6 +56,10 @@ class MarsSurfaceTerrain {
         GLES30.glUniformMatrix4fv(GLES30.glGetUniformLocation(program, "uVp"), 1, false, vp, 0)
         GLES30.glUniform2f(GLES30.glGetUniformLocation(program, "uOffset"), offsetX, offsetZ)
         GLES30.glUniform1i(GLES30.glGetUniformLocation(program, "uWorld"), 0)
+        GLES30.glUniform2f(
+            GLES30.glGetUniformLocation(program, "uViewAnchor"), -offsetX, -offsetZ
+        )
+        GLES30.glUniform1i(GLES30.glGetUniformLocation(program, "uPatchType"), 0)
         GLES30.glUniform3f(GLES30.glGetUniformLocation(program, "uLight"), -0.45f, 0.85f, 0.35f)
         GLES30.glDisable(GLES30.GL_CULL_FACE); GLES30.glEnable(GLES30.GL_DEPTH_TEST)
         vertices.position(0); GLES30.glEnableVertexAttribArray(0)
@@ -67,7 +71,7 @@ class MarsSurfaceTerrain {
         vertices.position(0); indices.position(0)
         GLES30.glDrawElements(GLES30.GL_TRIANGLES, indexCount, GLES30.GL_UNSIGNED_SHORT, indices)
         GLES30.glDisableVertexAttribArray(0); GLES30.glDisableVertexAttribArray(1); GLES30.glDisableVertexAttribArray(2)
-        detail.draw(-offsetX.toDouble(), -offsetZ.toDouble())
+        detail.draw(-offsetX.toDouble(), -offsetZ.toDouble(), program)
         GLES30.glEnable(GLES30.GL_CULL_FACE)
     }
 
