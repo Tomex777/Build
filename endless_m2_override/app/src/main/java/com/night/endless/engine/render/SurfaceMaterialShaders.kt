@@ -117,7 +117,15 @@ void main() {
     vec3 perturb = cross(dY, N) * dFdx(detailHeight)
                  + cross(N, dX) * dFdy(detailHeight);
     float span = max(length(cross(dX, dY)), 1e-7);
-    float nearDetail = 1.0 - smoothstep(0.6, 3.0, vDistance);
+    // Bump normals in distant coarse spacecraft DEM were producing black/
+    // white checkerboard bands under the Moon's very low Sun. There is
+    // simply no orbital imagery for centimetre-scale normal bumps at
+    // kilometer ranges: disable them outside the meter-level foreground.
+    float nearDetail = uPatchType == 1
+        ? (1.0 - smoothstep(0.015, 0.065, vDistance))
+        : (uPatchType == 4
+           ? 0.12 * (1.0 - smoothstep(0.02, 0.12, vDistance))
+           : 0.0);
     vec3 microNormal = normalize(N + perturb *
          (uWorld == 0 ? 0.018 : 0.025) * nearDetail / span);
     // Keep relief normals in the actual upward-facing terrain hemisphere.
@@ -159,7 +167,7 @@ void main() {
         // ground viewing otherwise shimmers as orbital-sized texels approach
         // subpixel size. Moon WAC imagery has more high-frequency crater
         // detail, so it uses a slightly higher LOD bias.
-        float photoLodBias = uWorld == 1 ? 0.95 : 0.65;
+        float photoLodBias = uWorld == 1 ? 1.95 : 1.10;
         vec3 photo = texture(uLandingAlbedo, photoUv, photoLodBias).rgb;
         // Highlight compression preserves actual photographed geography
         // without turning naturally bright cliffs into glowing white bands.
