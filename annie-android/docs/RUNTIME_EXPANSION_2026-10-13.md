@@ -2,8 +2,9 @@
 
 Branch: `annie-typescript-runtime-20261013`, based on `annie-roadmap-audit-20261012`.
 The user's “ts” meant “this shit”; scope was corrected to all seven remaining areas.
-Nothing in this branch has been merged or released. GitHub publication was rejected by
-automatic approval review twice; explicit approval to push is needed before CI can run.
+Nothing in this branch has been merged or released. Publication was approved and the work
+is in draft PR #181. Android acceptance and full regression/release workflows are running;
+the current commit must pass before any completion or release claim.
 
 ## Implemented in source
 
@@ -38,7 +39,7 @@ automatic approval review twice; explicit approval to push is needed before CI c
 
 ## Local checks completed
 
-- Four TypeScript compiler tests and two message-stream tests pass in Node.
+- Four TypeScript compiler tests, two message-stream tests and three API 2 wrapper tests pass in Node.
 - Five Python computation/restriction tests pass in CPython.
 - Lua Kotlin source compiled with LuaJ; functions/loops/JSON, absence of host libraries,
   and infinite-loop termination pass in the JVM proof.
@@ -50,8 +51,7 @@ automatic approval review twice; explicit approval to push is needed before CI c
 
 ## Pending validation — completion gates
 
-1. Push the branch after explicit publication approval; open a draft PR targeting the audit
-   branch. Do not merge until the checks below pass.
+1. Draft PR #181 targets the audit branch. Do not merge until the checks below pass.
 2. Run the prepared `annie-file-types.yml` workflow on Android API 26 and 36. It now installs
    matching build Python and runs TypeScript/Python tests, Kotlin/JVM tests, APK compilation,
    GuestRuntimeTest, HostAiRuntimeTest, TypeScriptRuntimeTest, AnnieCanvasMessageTest and

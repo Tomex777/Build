@@ -10,6 +10,18 @@ import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
 class GuestRuntimeTest {
+    @Test fun projectNamesCannotCollideAcrossRuntimeLanguages() {
+        val files = ScriptFiles(InstrumentationRegistry.getInstrumentation().targetContext)
+        val name = "guestnames" + System.nanoTime().toString().takeLast(8)
+        try {
+            files.createScript("$name.py")
+            assertTrue(runCatching { files.createScript("$name.js") }.isFailure)
+            assertTrue(runCatching { files.createScript("$name.ts") }.isFailure)
+            assertTrue(runCatching { files.createScript("$name.lua") }.isFailure)
+            assertTrue(runCatching { files.createFolder(name) }.isFailure)
+        } finally { runCatching { files.deleteProject(name) } }
+    }
+
     @Test fun pythonAndLuaCommandsExecuteInTheWorker() = runBlocking {
         val workspace = ScriptWorkspace(InstrumentationRegistry.getInstrumentation().targetContext)
         val prefix = "guest" + System.nanoTime().toString().takeLast(8)

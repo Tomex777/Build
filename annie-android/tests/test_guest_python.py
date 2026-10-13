@@ -15,7 +15,7 @@ class PythonGuestTests(unittest.TestCase):
         self.assertEqual('{"type": "text", "text": "HELLO"}', guest.run('def main(ctx):\n return {"type": "text", "text": ctx["text"].upper()}', 'main.py', 'main', '{"text":"hello"}'))
 
     def test_host_access_and_introspection_rejected(self):
-        for source in ['import os', 'import java', 'x = ().__class__', 'x = "{0.__class__}".format(1)', 'from math import __dict__', '_private = 1']:
+        for source in ['import os', 'import java', 'x = ().__class__', 'x = "{0.__class__}".format(1)', 'from math import __dict__', '_private = 1', 'def main(ctx):\n match ctx:\n  case int(__class__=value): return value']:
             with self.subTest(source=source), self.assertRaises(ValueError):
                 guest.run(source, 'bad.py', 'main', '{}')
         with self.assertRaises(NameError):

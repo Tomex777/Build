@@ -11,6 +11,49 @@ import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
 class HostAiRuntimeTest {
+    @Test fun hostCredentialsAreEncryptedAndOutsideScriptEnvironmentStorage() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val previousKey = HostAiConfig.key(context)
+        val previousModel = HostAiConfig.model(context)
+        val testKey = "fake-host-ai-proof-" + System.nanoTime()
+        try {
+            HostAiConfig.save(context, testKey, "test-model")
+            assertEquals(testKey, HostAiConfig.key(context))
+            val stored = context.getSharedPreferences("annie_host_ai_credentials", android.content.Context.MODE_PRIVATE).getString("key", null)
+            assertNotNull(stored)
+            assertFalse(stored.orEmpty().contains(testKey))
+            val scriptValue = ScriptEnvStore(context, "host_ai").secret(ScriptEnvField("key", ScriptEnvFieldType.SECRET, "Key"))
+            assertNotEquals(testKey, scriptValue)
+        } finally { HostAiConfig.save(context, previousKey.orEmpty(), previousModel) }
+    }
+
+    @Test fun permissionRevocationDuringGenerationPreservesPartialTextAndEndsStreaming() = runBlocking {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val previous = ChatHistoryStore.read(context)
+        val chat = "ai-revoke-" + System.nanoTime()
+        var grants = setOf("ai.generate", "messages.post")
+        val backend = object : HostAiBackend {
+            override suspend fun generate(prompt: String, onDelta: suspend (String) -> Unit): String {
+                onDelta("Partial")
+                grants = emptySet()
+                onDelta(" must not appear")
+                return "Partial must not appear"
+            }
+        }
+        try {
+            ChatHistoryStore.write(context, previous + ChatSession(chat, mutableStateListOf(ChatEntry(1L, true, "hi"))))
+            val registry = OperationRegistry().apply { register(HostAiOperationProvider(context, backend) { grants }) }
+            val invocation = OperationInvocation("ai-revoke", true, setOf("ai", "messages"), grants, grants, "ai-revoke-project", chat, apiVersion = 2)
+            try { registry.invoke("ai.stream", invocation, "{\"prompt\":\"hello\"}"); fail("Revoked permission accepted") }
+            catch (failure: AnnieError) { assertEquals(AnnieErrorCode.NOT_GRANTED, failure.code) }
+            val entry = ChatHistoryStore.read(context).single { it.id == chat }.messages.last()
+            assertEquals("Partial", entry.text)
+            val message = JSONObject(entry.scriptMessageJson)
+            assertFalse(message.getBoolean("streaming"))
+            assertTrue(message.getBoolean("streamFailed"))
+        } finally { ChatHistoryStore.write(context, previous) }
+    }
+
     @Test fun aiStreamsIntoOneStoredMessageAndHonoursRevocation() = runBlocking {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         val previous = ChatHistoryStore.read(context)

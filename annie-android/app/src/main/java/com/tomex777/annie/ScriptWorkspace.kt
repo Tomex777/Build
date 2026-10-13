@@ -126,7 +126,7 @@ internal class ScriptFiles(context: Context) : PackageAssetResolver {
     fun listProjects(): List<ScriptProject> {
         val projects = root.listFiles().orEmpty()
             .filterNot { it.name.startsWith('.') }
-            .filter { it.isDirectory || it.isFile && it.extension.equals("js", ignoreCase = true) }
+            .filter { it.isDirectory || it.isFile && isExecutableScript(it.name) }
             .mapNotNull(::readProject)
         val installed = projects.filter { it.hasPackageManifest }.map { project ->
             val previous = packageRegistry.get(project.id)
@@ -205,6 +205,7 @@ internal class ScriptFiles(context: Context) : PackageAssetResolver {
     fun createScript(name: String): File {
         val suffix = name.substringAfterLast('.', "").lowercase().takeIf { it in setOf("ts", "py", "lua") }?.let { ".$it" } ?: ".js"
         val safe = validateName(name, suffix)
+        require(!projectNameExists(safe.substringBeforeLast('.'))) { "A project with this name already exists" }
         return File(root, safe).apply {
             require(!exists()) { "A script with this name already exists" }
             writeText(if (suffix == ".py") "def main(ctx):\n    return {\"type\": \"text\", \"text\": \"Hello from Python\"}\n"
@@ -232,7 +233,7 @@ internal class ScriptFiles(context: Context) : PackageAssetResolver {
             .ifBlank { "imported" }
         var candidate = base
         var suffix = 2
-        while (File(root, "$candidate.js").exists() || File(root, candidate).exists()) {
+        while (projectNameExists(candidate)) {
             candidate = "${base}_$suffix"
             suffix++
         }
@@ -244,6 +245,7 @@ internal class ScriptFiles(context: Context) : PackageAssetResolver {
 
     fun createFolder(name: String): File {
         val safe = validateName(name, "")
+        require(!projectNameExists(safe)) { "A project with this name already exists" }
         return File(root, safe).apply {
             require(mkdir()) { "A project with this name already exists" }
             File(this, "main.js").writeText("""annie.commands.register({
@@ -343,7 +345,7 @@ internal class ScriptFiles(context: Context) : PackageAssetResolver {
         target.parentFile?.mkdirs()
         val starter = when (target.extension.lowercase()) {
             "js" -> "// Annie JavaScript module\n"
-            "py" -> "# Python source (execution runtime not installed yet)\n"
+            "py" -> "# Python source (restricted CPython computation runtime)\n"
             "lua" -> "-- Lua source (Lua 5.2 computation runtime)\n"
             "html" -> "<!doctype html>\n<html lang=\"en\"><head><meta charset=\"utf-8\"></head><body></body></html>\n"
             "css" -> "/* Project styles */\n"
@@ -371,6 +373,7 @@ internal class ScriptFiles(context: Context) : PackageAssetResolver {
     fun renameProject(projectId: String, newName: String): String {
         val source = resolveProjectContainer(projectId)
         val normalized = validateName(newName, "")
+        require(!projectNameExists(normalized, source)) { "A project with this name already exists" }
         val destination = if (source.isDirectory) File(root, normalized) else File(root, "$normalized.${source.extension}")
         require(!destination.exists()) { "A script project with this name already exists" }
         val wasEnabled = isEnabled(projectId)
@@ -428,6 +431,13 @@ internal class ScriptFiles(context: Context) : PackageAssetResolver {
         val target = resolveProjectFile(projectId, relativePath)
         require(target.isFile && target.delete()) { "Could not delete script file" }
     }
+
+    private fun projectNameExists(id: String, except: File? = null): Boolean =
+        root.listFiles().orEmpty().any { candidate ->
+            candidate.canonicalFile != except?.canonicalFile &&
+                ((candidate.isDirectory && candidate.name == id) ||
+                    (candidate.isFile && isExecutableScript(candidate.name) && candidate.nameWithoutExtension == id))
+        }
 
     private fun resolveProjectContainer(projectId: String): File {
         require(projectId.matches(Regex("[A-Za-z0-9_-]{1,48}"))) { "Invalid project id" }

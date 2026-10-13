@@ -29,6 +29,12 @@ class Guard(ast.NodeVisitor):
             raise ValueError('Attribute is unavailable in Annie Python: ' + node.attr)
         self.generic_visit(node)
 
+    def visit_MatchClass(self, node):
+        # Pattern attributes are stored as strings rather than Attribute nodes.
+        if any(name not in ATTRIBUTES for name in node.kwd_attrs):
+            raise ValueError('Private pattern attributes are unavailable in Annie Python')
+        self.generic_visit(node)
+
     def visit_Name(self, node):
         if node.id.startswith('_'):
             raise ValueError('Private names are unavailable in Annie Python')
