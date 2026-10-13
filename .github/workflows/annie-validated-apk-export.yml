@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
   actions: read
 
 jobs:
@@ -59,3 +59,23 @@ jobs:
           path: arm64/
           if-no-files-found: error
           retention-days: 30
+
+      - name: Publish verified owner-signed ARM64 APK to GitHub pre-release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          tag="annie-v1.0.0-20261013"
+          apk="arm64/Annie-2026-10-13-Validated-arm64-release.apk"
+          test -s "$apk"
+          sha256sum --check arm64/SHA256SUMS.txt --ignore-missing || (cd arm64 && sha256sum --check SHA256SUMS.txt)
+          if gh release view "$tag" >/dev/null 2>&1; then
+            gh release upload "$tag" "$apk" arm64/SHA256SUMS.txt arm64/ACCEPTANCE.txt arm64/ANNIE-CERTIFICATE.txt --clobber
+          else
+            gh release create "$tag" "$apk" arm64/SHA256SUMS.txt arm64/ACCEPTANCE.txt arm64/ANNIE-CERTIFICATE.txt \
+              --target bad857100e3769396ab2b5195f7d9c5cf28d57bc \
+              --prerelease \
+              --title "Annie 1.0.0 — validated Android release candidate" \
+              --notes "Validated owner-signed ARM64 Android APK, compiled from commit 770983847b39d26e0eb0affd3f434363c03788a9 and consolidated on branch annie-release-1.0.0-20261013 (application source unchanged). CI run 38381728899 passed Android API 26 and 36 suites plus permanent-key production installation. Signing certificate SHA-256: 4e7ab744bdbbcf6ddb577186e8163be4b0f4127d2123ed21108ca6e7dce70288. Physical-device and live-paid-provider testing are still outstanding."
+          fi
