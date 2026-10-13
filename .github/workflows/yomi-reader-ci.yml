@@ -166,6 +166,13 @@ jobs:
             bash yomi-reader/scripts/capture_clean_screen.sh yomi-output/runtime/yomi-reader-ltr-page1.png
             test "$(wc -c < yomi-output/runtime/yomi-reader-ltr-page1.png)" -gt 4096
 
+            # Exercise Mihon's actual tap-navigation regions, not only synthetic
+            # DPAD events. The center region is handled by the pager beneath Compose.
+            adb shell input tap 920 1200
+            i=0; until adb logcat -d -v brief YomiReader:I '*:S' | grep -Fq 'position title=Yomi CI Book mode=LTR_PAGED label=page 2/3'; do i=$((i + 1)); [ "$i" -lt 30 ] || { echo 'Right tap did not advance CBZ page' >&2; exit 1; }; sleep 2; done
+            adb shell input tap 100 1200
+            i=0; until adb logcat -d -v brief YomiReader:I '*:S' | grep -Fq 'position title=Yomi CI Book mode=LTR_PAGED label=page 1/3'; do i=$((i + 1)); [ "$i" -lt 30 ] || { echo 'Left tap did not return to first CBZ page' >&2; exit 1; }; sleep 2; done
+
             # The CI fixture holds reader chrome open so screenshots stay deterministic
             # while the API 36 emulator clears background system ANRs.
             adb shell input tap 540 1200
