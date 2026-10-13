@@ -1,12 +1,13 @@
 import {
   addGroupSchedule, groupScheduleInfo, groupScheduleDaysLabel,
-  removeGroupSchedule, setGroupScheduleTimezone,
+  removeGroupSchedule, setGroupScheduleTimezone, setGroupScheduleHold,
 } from '../../group-schedules.js'
 
 function render(state) {
   return [
     '🕒 *Group schedule*',
     'Timezone: *' + state.timezone + '*',
+    'Manual lockdown: *' + (state.hold ? 'ON (automatic reopening paused)' : 'OFF') + '*',
     '',
     ...(state.entries.length ? state.entries.map(row=>
       row.id + ' · ' + row.action.toUpperCase() + ' ' + row.time +
@@ -18,6 +19,7 @@ function render(state) {
     'Timezone: .schedulegroup timezone Africa/Lagos',
     'Remove: .schedulegroup remove <id>',
     'Clear: .schedulegroup clear',
+    'Hold: .schedulegroup hold on|off',
   ].join('\n')
 }
 
@@ -25,7 +27,7 @@ export default {
   name:'schedulegroup',
   aliases:['groupschedule'],
   description:'Schedule automatic group opening/closing in the saved group timezone.',
-  usage:'.schedulegroup [open|close <HH:MM> [days]|timezone <IANA>|remove <id>|clear]',
+  usage:'.schedulegroup [open|close <HH:MM> [days]|timezone <IANA>|hold on|off|remove <id>|clear]',
   adminOnly:true,
   async run(ctx) {
     const group = ctx.groupKey
@@ -36,6 +38,12 @@ export default {
     try {
       if (action === 'list' || action === 'status') return ctx.reply(render(groupScheduleInfo(storage,group)))
       if (!(await ctx.isBotGroupAdmin?.())) return ctx.reply('Night must be a group admin to change group schedules.')
+      if (action === 'hold') {
+        const value = String(ctx.args?.[1] || '').toLowerCase()
+        if (!['on','off'].includes(value)) return ctx.reply('Use .schedulegroup hold on|off.')
+        setGroupScheduleHold(storage,group,value === 'on')
+        return ctx.reply(render(groupScheduleInfo(storage,group)))
+      }
       if (action === 'timezone' || action === 'tz') {
         const tz = String(ctx.args?.[1] || '')
         if (!tz) return ctx.reply('Example: .schedulegroup timezone Africa/Lagos')
