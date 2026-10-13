@@ -41,6 +41,8 @@ in highp vec3 vColor;
 in highp float vDistance;
 uniform vec3 uLight;
 uniform int uWorld; // 0 = Mars; 1 = Moon
+uniform int uPatchType; // 0 = coarse landscape; 1 = foreground; 2 = stones
+uniform vec2 uViewAnchor;
 out vec4 fragColor;
 
 // Hash uses fixed surface coordinates, so regolith patterns do not swim.
@@ -70,6 +72,11 @@ float geologicalDetail(vec2 pos) {
 }
 
 void main() {
+    // Avoid the precision loss and visible depth-fighting when meter-scale
+    // foreground triangles overlap the orbital-resolution DEM grid.
+    if (uPatchType == 0 && max(
+        abs(vPosition.x - uViewAnchor.x),
+        abs(vPosition.z - uViewAnchor.y)) < 0.0188) discard;
     vec3 N = normalize(vNormal);
     vec3 sun = normalize(uLight);
     vec2 ground = vPosition.xz;
