@@ -21,6 +21,7 @@ data class StoredGame(
     val playerElo: Int = 1800,
     val opponentElo: Int = 1800,
     val result: String = "*",
+    val endReason: String = "",
     val moves: List<String> = emptyList(),
 ) {
     fun replayStates(): List<GameState> {
@@ -69,6 +70,7 @@ class GameRepository(context: Context) {
         put("playerElo", game.playerElo)
         put("opponentElo", game.opponentElo)
         put("result", game.result)
+        if (game.endReason.isNotBlank()) put("endReason", game.endReason)
         put("moves", JSONArray(game.moves))
     }
 
@@ -88,6 +90,7 @@ class GameRepository(context: Context) {
             playerElo = json.optInt("playerElo", 1800),
             opponentElo = json.optInt("opponentElo", 1800),
             result = json.optString("result", "*"),
+            endReason = json.optString("endReason", ""),
             moves = moves,
         )
     }

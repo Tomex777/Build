@@ -7,7 +7,7 @@ A native Android chess-learning app built with Kotlin + Jetpack Compose. MirrorC
 ## Android baseline
 
 - package: `com.night.mirrorchess`
-- minSdk: **36**
+- minSdk: **26**
 - targetSdk: **36**
 - compileSdk: **36**
 - AGP: **9.1.1**
@@ -63,13 +63,13 @@ See `MODEL_SETUP.md` and `THIRD_PARTY_NOTICES.md`.
 1. Extract the ZIP.
 2. Open the `MirrorChess` folder in Android Studio.
 3. Let Gradle sync.
-4. Use an Android 16 / API 36 device or emulator.
+4. Use an Android 8.0 / API 26 or newer device or emulator.
 5. Run `app`.
 6. Tap the settings gear on Play, then open **AI Model** to install Maia when wanted.
 
 ## Validation performed in this source snapshot
 
-This snapshot is verified in a clean Android 36 build and emulator environment. See `BUILD_STATUS.md` for the exact test matrix and evidence.
+This branch keeps compileSdk/targetSdk at Android 16 / API 36 while lowering minSdk to Android 8.0 / API 26. CI verifies compilation/lint on API 36 and performs runtime launch checks on both API 26 and API 36.
 
 Validated:
 - starting-position perft: **20 / 400 / 8,902 / 197,281**

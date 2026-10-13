@@ -1,0 +1,426 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SERIAL="${ANDROID_SERIAL:-emulator-5554}"
+ADB=(adb -s "$SERIAL")
+API_LEVEL="$("${ADB[@]}" shell getprop ro.build.version.sdk | tr -d '\r')"
+if [[ "$API_LEVEL" != "36" ]]; then
+  echo "Skipping piece-system flow on API $API_LEVEL; API 36 runs the full acceptance." | tee -a piece-acceptance-log.txt
+  exit 0
+fi
+mkdir -p acceptance-evidence
+trap '"${ADB[@]}" exec-out screencap -p > mirrorchess-piece-acceptance-failure.png 2>/dev/null || true; "${ADB[@]}" logcat -d > piece-acceptance-logcat.txt 2>/dev/null || true' EXIT
+UI_FILE="$PWD/piece-acceptance-current.xml"
+read -r SCREEN_W SCREEN_H < <("${ADB[@]}" shell wm size | awk -F'[: x]+' '/Physical size/ {print $3, $4}')
+SCREEN_W="${SCREEN_W:-1080}"
+SCREEN_H="${SCREEN_H:-1920}"
+scroll_up() {
+  # Scroll through the outer Compose page from its left gutter. The editor canvas
+  # consumes drag gestures for painting, so a center-screen swipe can edit pixels
+  # instead of moving the page and can strand controls below the canvas.
+  local x="$((SCREEN_W * 3 / 100))"
+  "${ADB[@]}" shell input swipe "$x" "$((SCREEN_H * 82 / 100))" "$x" "$((SCREEN_H * 30 / 100))" 350
+}
+scroll_down() {
+  # Reverse through the same safe gutter when the next control is above the
+  # current viewport. Keep these swipes outside the editable piece canvas.
+  local x="$((SCREEN_W * 3 / 100))"
+  "${ADB[@]}" shell input swipe "$x" "$((SCREEN_H * 30 / 100))" "$x" "$((SCREEN_H * 82 / 100))" 350
+}
+
+ui_dump() {
+  "${ADB[@]}" shell uiautomator dump /sdcard/piece-acceptance-window.xml >/dev/null 2>&1 || true
+  "${ADB[@]}" shell cat /sdcard/piece-acceptance-window.xml > "$UI_FILE"
+  cp "$UI_FILE" "piece-acceptance-$(date +%s).xml"
+}
+find_bounds() {
+  local query="$1" mode="${2:-text}"
+  python3 - "$UI_FILE" "$query" "$mode" <<'PY'
+import sys, xml.etree.ElementTree as ET
+path, query, mode = sys.argv[1:]
+root = ET.parse(path).getroot()
+for node in root.iter():
+    value = node.attrib.get("content-desc", "") if mode in ("desc", "desc-prefix") else node.attrib.get("text", "")
+    if mode == "desc-prefix":
+        matches = value.startswith(query)
+    elif mode == "text-ci":
+        matches = value.casefold() == query.casefold()
+    else:
+        matches = value == query
+    if matches and node.attrib.get("enabled", "true") == "true":
+        b = node.attrib.get("bounds", "")
+        if b:
+            nums = [int(x) for x in __import__("re").findall(r"\d+", b)]
+            if len(nums) == 4:
+                print((nums[0] + nums[2]) // 2, (nums[1] + nums[3]) // 2)
+                raise SystemExit(0)
+raise SystemExit(1)
+PY
+}
+dismiss_quickstep_anr() {
+  if grep -q "Quickstep isn't responding" "$UI_FILE"; then
+    local bounds
+    # This is an emulator-system ANR from Launcher3/Quickstep, not MirrorChess.
+    # Choosing Wait only re-arms the same modal a few seconds later and can
+    # permanently cover the app under test. Close the hung launcher instead;
+    # MirrorChess is already foreground and must remain alive.
+    if bounds="$(find_bounds "Close app" text)"; then
+      read -r x y <<< "$bounds"
+      echo "dismiss Quickstep ANR prompt with Close app at $x,$y" | tee -a piece-acceptance-log.txt
+      "${ADB[@]}" shell input tap "$x" "$y"
+      sleep 1
+      if ! "${ADB[@]}" shell pidof com.night.mirrorchess >/dev/null; then
+        echo "MirrorChess process died while clearing external Quickstep ANR" >&2
+        return 1
+      fi
+      return 0
+    fi
+    # Keep Wait only as a compatibility fallback for system images that do not
+    # expose the Close app action.
+    if bounds="$(find_bounds "Wait" text)"; then
+      read -r x y <<< "$bounds"
+      echo "dismiss Quickstep ANR prompt with Wait fallback at $x,$y" | tee -a piece-acceptance-log.txt
+      "${ADB[@]}" shell input tap "$x" "$y"
+      sleep 1
+      return 0
+    fi
+  fi
+  return 1
+}
+tap_query() {
+  local query="$1" mode="${2:-text}" optional="${3:-false}"
+  local attempt bounds attempt_limit=35
+  if [[ "$optional" == "true" ]]; then attempt_limit=3; fi
+  for attempt in $(seq 1 "$attempt_limit"); do
+    ui_dump
+    dismiss_quickstep_anr || true
+    if bounds="$(find_bounds "$query" "$mode")"; then
+      read -r x y <<< "$bounds"
+      echo "tap [$mode] $query at $x,$y" | tee -a piece-acceptance-log.txt
+      "${ADB[@]}" shell input tap "$x" "$y"
+      sleep 1
+      return 0
+    fi
+    if (( attempt % 4 == 0 )); then
+      scroll_up
+    fi
+    sleep 1
+  done
+  if [[ "$optional" == "true" ]]; then return 1; fi
+  echo "Could not find UI node: $query ($mode)" >&2
+  cat "$UI_FILE" >&2
+  return 1
+}
+tap_query_up() {
+  local query="$1" mode="${2:-text}"
+  local attempt bounds
+  for attempt in $(seq 1 35); do
+    ui_dump
+    dismiss_quickstep_anr || true
+    if bounds="$(find_bounds "$query" "$mode")"; then
+      read -r x y <<< "$bounds"
+      echo "tap-up [$mode] $query at $x,$y" | tee -a piece-acceptance-log.txt
+      "${ADB[@]}" shell input tap "$x" "$y"
+      sleep 1
+      return 0
+    fi
+    if (( attempt % 3 == 0 )); then
+      scroll_down
+    fi
+    sleep 1
+  done
+  echo "Could not find UI node above: $query ($mode)" >&2
+  cat "$UI_FILE" >&2
+  return 1
+}
+
+assert_query_up() {
+  local query="$1" mode="${2:-text}"
+  local attempt
+  for attempt in $(seq 1 25); do
+    ui_dump
+    dismiss_quickstep_anr || true
+    if find_bounds "$query" "$mode" >/dev/null; then
+      echo "visible-up [$mode] $query" | tee -a piece-acceptance-log.txt
+      return 0
+    fi
+    if (( attempt % 3 == 0 )); then
+      scroll_down
+    fi
+    sleep 1
+  done
+  echo "Expected UI node above not visible: $query ($mode)" >&2
+  cat "$UI_FILE" >&2
+  return 1
+}
+
+assert_query() {
+  local query="$1" mode="${2:-text}"
+  local attempt
+  for attempt in $(seq 1 25); do
+    ui_dump
+    dismiss_quickstep_anr || true
+    if find_bounds "$query" "$mode" >/dev/null; then
+      echo "visible [$mode] $query" | tee -a piece-acceptance-log.txt
+      return 0
+    fi
+    if (( attempt % 4 == 0 )); then scroll_up; fi
+    sleep 1
+  done
+  echo "Expected UI node not visible: $query ($mode)" >&2
+  cat "$UI_FILE" >&2
+  return 1
+}
+snapshot() {
+  local name="$1"
+  "${ADB[@]}" exec-out screencap -p > "mirrorchess-piece-acceptance-${name}.png"
+}
+tap_query_motion_snapshot() {
+  local query="$1" mode="$2" name="$3" bounds
+  ui_dump
+  bounds="$(find_bounds "$query" "$mode")"
+  read -r x y <<< "$bounds"
+  echo "tap-motion [$mode] $query at $x,$y" | tee -a piece-acceptance-log.txt
+  "${ADB[@]}" shell input tap "$x" "$y"
+  sleep 0.08
+  snapshot "$name"
+  sleep 0.35
+}
+start_result_fixture() {
+  local kind="$1" output
+  output="$("${ADB[@]}" shell "am start -W -n com.night.mirrorchess/.ResultAcceptanceActivity --es kind $kind")"
+  echo "$output" | tee -a piece-acceptance-log.txt
+  grep -q 'Status: ok' <<< "$output"
+}
+start_fen_fixture() {
+  local fen="$1" escaped output
+  # adb shell joins argv into a remote shell command. Host-side quoting is not
+  # preserved, so raw FEN spaces get reparsed on-device (and `w` can even be
+  # mistaken for a package name). Shell-escape the complete FEN and send one
+  # remote command string so PromotionAcceptanceActivity receives it intact.
+  printf -v escaped '%q' "$fen"
+  output="$("${ADB[@]}" shell "am start -W -n com.night.mirrorchess/.PromotionAcceptanceActivity --es fen $escaped")"
+  echo "$output" | tee -a piece-acceptance-log.txt
+  grep -q 'Status: ok' <<< "$output"
+}
+select_picker_file() {
+  local name="$1"
+  tap_query "Show roots" desc true || true
+  tap_query "Downloads"
+  tap_query "$name" desc-prefix
+}
+
+python3 - <<'PY'
+from PIL import Image, ImageDraw
+from pathlib import Path
+import math
+out = Path("acceptance-evidence")
+colors = [(202,90,74,255),(57,120,165,255),(213,174,94,255),(105,148,85,255),(142,101,169,255),(66,149,136,255)]
+def sprite(kind, color):
+    im = Image.new("RGBA", (128,128), (0,0,0,0)); d = ImageDraw.Draw(im)
+    edge=(35,35,35,255); x=64
+    d.rounded_rectangle((24,102,104,117), 5, fill=color, outline=edge, width=4)
+    d.polygon([(36,100),(44,84),(84,84),(92,100)], fill=color, outline=edge)
+    d.rectangle((53,62,75,85), fill=color, outline=edge, width=4)
+    d.ellipse((43,42,85,68), fill=color, outline=edge, width=4)
+    if kind % 3 == 0:
+        d.rectangle((56,20,72,43), fill=color, outline=edge, width=4)
+        d.rectangle((48,16,80,25), fill=color, outline=edge, width=3)
+    elif kind % 3 == 1:
+        d.polygon([(64,14),(74,32),(92,27),(82,44),(96,56),(76,56),(64,72),(52,56),(32,56),(46,44),(36,27),(54,32)], fill=color, outline=edge)
+    else:
+        d.polygon([(32,52),(50,34),(74,34),(97,53),(86,65),(75,58),(58,69),(42,64)], fill=color, outline=edge)
+    return im
+sheet=Image.new("RGBA",(6*128,2*128),(0,0,0,0))
+for i in range(12): sheet.alpha_composite(sprite(i, colors[i%len(colors)]),((i%6)*128,(i//6)*128))
+sheet.save(out/"mirrorchess-sheet.png")
+sprite(4,(54,121,184,255)).save(out/"mirrorchess-knight.png")
+sprite(0,(224,211,182,255)).save(out/"mirrorchess-king.webp", "WEBP", quality=100, lossless=True)
+Image.new("RGBA", (128,128), (0,0,0,0)).save(out/"mirrorchess-invalid.png")
+PY
+"${ADB[@]}" shell mkdir -p /sdcard/Download
+"${ADB[@]}" push acceptance-evidence/mirrorchess-sheet.png /sdcard/Download/mirrorchess-sheet.png >/dev/null
+"${ADB[@]}" push acceptance-evidence/mirrorchess-knight.png /sdcard/Download/mirrorchess-knight.png >/dev/null
+"${ADB[@]}" push acceptance-evidence/mirrorchess-king.webp /sdcard/Download/mirrorchess-king.webp >/dev/null
+"${ADB[@]}" push acceptance-evidence/mirrorchess-invalid.png /sdcard/Download/mirrorchess-invalid.png >/dev/null
+for file in mirrorchess-sheet.png mirrorchess-knight.png mirrorchess-king.webp mirrorchess-invalid.png; do
+  "${ADB[@]}" shell am broadcast -a android.intent.action.MEDIA_SCANNER_SCAN_FILE -d "file:///sdcard/Download/$file" >/dev/null 2>&1 || true
+done
+sleep 2
+
+assert_query "Settings" desc
+tap_query "Settings" desc
+tap_query "Board & Pieces"
+tap_query "Modern"
+tap_query "Pixel"
+snapshot "built-in-pixel-selection"
+tap_query "Create custom set"
+tap_query "Set name"
+"${ADB[@]}" shell input text PieceQA
+tap_query "Create"
+assert_query_up "PieceQA"
+tap_query "Import 6 × 2 sprite sheet"
+select_picker_file "mirrorchess-sheet.png"
+assert_query "Check the 6 × 2 slicing"
+snapshot "sprite-sheet-preview-cancel"
+tap_query "Cancel"
+assert_query_up "PieceQA"
+
+# Re-open the preview after cancellation to prove its bitmaps were disposed cleanly.
+tap_query "Import 6 × 2 sprite sheet"
+select_picker_file "mirrorchess-sheet.png"
+assert_query "Check the 6 × 2 slicing"
+snapshot "sprite-sheet-preview"
+tap_query "Import these 12 pieces"
+assert_query_up "PieceQA"
+
+# Picker cancellation must preserve the existing complete set.
+tap_query "Import selected piece"
+"${ADB[@]}" shell input keyevent 4
+sleep 2
+assert_query_up "PieceQA"
+
+# Replace the initial White Knight, reject an invalid transparent replacement,
+# then replace it again to exercise repeated import/cache invalidation.
+tap_query "Import selected piece"
+select_picker_file "mirrorchess-knight.png"
+sleep 2
+tap_query "Import selected piece"
+select_picker_file "mirrorchess-invalid.png"
+sleep 2
+"${ADB[@]}" logcat -d -s MirrorPieceImport:E '*:S' > invalid-import-log.txt
+grep -q "fully transparent" invalid-import-log.txt
+assert_query_up "PieceQA"
+tap_query "Import selected piece"
+select_picker_file "mirrorchess-knight.png"
+sleep 2
+
+# Exercise persisted scale, position, zoom, editing and undo/redo.
+tap_query "Scale +"
+tap_query "→"
+tap_query "Zoom +"
+assert_query "Pixel art canvas" desc
+snapshot "piece-creator-zoom"
+tap_query "Pixel art canvas" desc
+tap_query "Undo"
+tap_query "Redo"
+tap_query "Save piece"
+snapshot "piece-creator-saved"
+
+# Saving leaves the long editor near its lower controls. Move back toward the
+# piece selector instead of continuing to scroll deeper into the live preview.
+# Replace a second, distinct slot with WebP so individual imports cover both supported formats.
+tap_query_up "W King"
+tap_query "Import selected piece"
+select_picker_file "mirrorchess-king.webp"
+sleep 2
+assert_query_up "PieceQA"
+
+tap_query "Export portable .mcset bundle"
+# Android 16 DocumentsUI exposes this action as uppercase SAVE; match
+# case-insensitively so the export acceptance remains tied to the real button.
+tap_query "Save" text-ci
+"${ADB[@]}" shell ls /sdcard/Download/*.mcset
+
+# Exercise management without sacrificing the original set used for game acceptance.
+tap_query "Duplicate"
+assert_query_up "PieceQA copy"
+tap_query "Rename"
+tap_query "Set name"
+"${ADB[@]}" shell input keyevent KEYCODE_MOVE_END
+for _ in $(seq 1 50); do "${ADB[@]}" shell input keyevent KEYCODE_DEL; done
+"${ADB[@]}" shell input text PieceQA_Copy
+tap_query "Rename"
+assert_query_up "PieceQA_Copy"
+tap_query "Delete custom set"
+tap_query "Delete"
+assert_query_up "Classic"
+# Built-ins are listed before custom sets, so once Classic is found the
+# surviving original custom set is below it in the list.
+tap_query "PieceQA"
+assert_query_up "PieceQA"
+
+# Re-enable the app's presentation animation path for feature acceptance. The
+# emulator runner disables animations globally for launch stability, but the
+# product-specific pass below must exercise MirrorChess's real move transitions.
+"${ADB[@]}" shell settings put global animator_duration_scale 1
+# Restart and confirm active custom set is still available, then render it in a real game.
+"${ADB[@]}" shell am force-stop com.night.mirrorchess
+"${ADB[@]}" shell am start -W -n com.night.mirrorchess/.MainActivity >/dev/null
+sleep 3
+tap_query "Settings" desc
+tap_query "Board & Pieces"
+assert_query "PieceQA"
+# The selected custom row and ACTIVE label remain on this screen after process restart.
+ui_dump
+grep -q 'PieceQA' "$UI_FILE"
+grep -q 'ACTIVE' "$UI_FILE"
+"${ADB[@]}" shell input keyevent 4
+"${ADB[@]}" shell input keyevent 4
+tap_query "Start game"
+snapshot "custom-set-on-board"
+tap_query "e2, white pawn" desc
+tap_query_motion_snapshot "e4, empty" desc-prefix "custom-set-move-animation"
+assert_query "e4, white pawn" desc
+snapshot "custom-set-real-move"
+
+# Deterministic real-board fixtures exercise capture and castling with the selected custom set.
+start_fen_fixture '6k1/8/8/3p4/4P3/8/8/6K1 w - - 0 1'
+assert_query "e4, white pawn" desc
+tap_query "e4, white pawn" desc
+tap_query_motion_snapshot "d5, black pawn" desc-prefix "custom-set-capture-animation"
+assert_query "d5, white pawn" desc
+snapshot "custom-set-capture"
+
+start_fen_fixture '6k1/8/8/3pP3/8/8/8/6K1 w - d6 0 1'
+assert_query "e5, white pawn" desc
+tap_query "e5, white pawn" desc
+tap_query_motion_snapshot "d6, empty" desc-prefix "custom-set-en-passant-animation"
+assert_query "d6, white pawn" desc
+assert_query "d5, empty" desc
+snapshot "custom-set-en-passant"
+
+start_fen_fixture '4k3/8/8/8/8/8/8/4K2R w K - 0 1'
+assert_query "e1, white king" desc
+tap_query "e1, white king" desc
+tap_query "g1, empty" desc-prefix
+assert_query "g1, white king" desc
+assert_query "f1, white rook" desc
+snapshot "custom-set-castle"
+
+start_fen_fixture '6k1/1P6/8/8/8/8/8/6K1 w - - 0 1'
+assert_query "b7, white pawn" desc
+tap_query "b7, white pawn" desc
+tap_query "b8, empty" desc-prefix
+assert_query "PROMOTE PAWN"
+assert_query "Promote to queen" desc
+assert_query "Promote to rook" desc
+assert_query "Promote to bishop" desc
+assert_query "Promote to knight" desc
+snapshot "custom-set-promotion-options"
+tap_query "Promote to queen" desc
+assert_query "b8, white queen" desc
+snapshot "custom-set-promotion-applied"
+
+# Drive the real production result overlay through its enter transition for all
+# three outcome classes and capture visual evidence.
+start_result_fixture win
+assert_query "VICTORY"
+assert_query "You won"
+assert_query "by checkmate"
+assert_query "New game"
+snapshot "result-win"
+
+start_result_fixture loss
+assert_query "DEFEAT"
+assert_query "You lost"
+assert_query "by checkmate"
+snapshot "result-loss"
+
+start_result_fixture draw
+assert_query "DRAW"
+assert_query "Draw"
+assert_query "by repetition"
+snapshot "result-draw"
+
+echo "Piece-system, move-animation, and result-card acceptance completed" | tee -a piece-acceptance-log.txt
