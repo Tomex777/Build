@@ -105,9 +105,9 @@ cp -a "$UNPACK/mscc/." "$RELEASE/"
 printf '%s\n' "$SOURCE_REF" > "$RELEASE/.deployed-source-ref"
 rm -rf "$UNPACK" "$ARCHIVE" "$RELEASE/dist"
 
-echo ">>> Installing Node dependencies..."
+echo ">>> Preparing Node dependencies for inactive release..."
 cd "$RELEASE"
-npm install --omit=dev --no-audit --no-fund
+bash "$RELEASE/tools/install-node-deps.sh" "$RELEASE" "$PREVIOUS_RELEASE"
 
 NEED_APT=0
 if ! command -v ffmpeg >/dev/null 2>&1; then NEED_APT=1; fi
