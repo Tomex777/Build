@@ -431,6 +431,12 @@ class ReaderActivity : ComponentActivity(), ReaderViewerHost {
                             installViewer()
                             refreshChrome()
                         },
+                        alwaysShowChapterTransition = prefs.getBoolean(PREF_ALWAYS_SHOW_TRANSITION, false),
+                        onAlwaysShowChapterTransitionChange = { value ->
+                            prefs.edit().putBoolean(PREF_ALWAYS_SHOW_TRANSITION, value).apply()
+                            installViewer()
+                            refreshChrome()
+                        },
                         tapZones = prefs.getString(PREF_TAP_ZONES, "default") ?: "default",
                         onTapZonesChange = { value ->
                             prefs.edit().putString(PREF_TAP_ZONES, value).apply()
@@ -705,6 +711,8 @@ class ReaderActivity : ComponentActivity(), ReaderViewerHost {
             volumeKeysInverted = getPreferences(MODE_PRIVATE).getBoolean(PREF_VOLUME_KEYS_INVERTED, false),
             minimumScaleType = minimumScaleType(),
             pageTransitions = getPreferences(MODE_PRIVATE).getBoolean(PREF_PAGE_TRANSITIONS, true),
+            alwaysShowChapterTransition = getPreferences(MODE_PRIVATE)
+                .getBoolean(PREF_ALWAYS_SHOW_TRANSITION, false),
             longTapEnabled = getPreferences(MODE_PRIVATE).getBoolean(PREF_READ_WITH_LONG_TAP, true),
             pagerNavigation = readerTapZones(pager = true),
             webtoonNavigation = readerTapZones(pager = false),
@@ -1371,6 +1379,7 @@ class ReaderActivity : ComponentActivity(), ReaderViewerHost {
         private const val PREF_VOLUME_KEYS = "volume_keys"
         private const val PREF_VOLUME_KEYS_INVERTED = "volume_keys_inverted"
         private const val PREF_PAGE_TRANSITIONS = "page_transitions"
+        private const val PREF_ALWAYS_SHOW_TRANSITION = "reader_always_show_chapter_transition"
         private const val PREF_TAP_ZONES = "reader_tap_zones"
         private const val PREF_TAP_ZONE_INVERT = "reader_tap_zone_invert"
         private const val PREF_SHOW_PAGE_NUMBER = "show_page_number"
