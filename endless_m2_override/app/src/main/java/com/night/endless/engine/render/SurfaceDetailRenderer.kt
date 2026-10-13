@@ -26,6 +26,8 @@ internal class SurfaceDetailRenderer(
 
     val midfieldAnchorX: Float get() = midAnchorX.toFloat()
     val midfieldAnchorZ: Float get() = midAnchorZ.toFloat()
+    val foregroundAnchorX: Float get() = anchorX.toFloat()
+    val foregroundAnchorZ: Float get() = anchorZ.toFloat()
 
     private var anchorX = Double.NaN
     private var anchorZ = Double.NaN
