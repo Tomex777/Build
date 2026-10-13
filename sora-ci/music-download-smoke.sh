@@ -118,6 +118,10 @@ y,x=max(matches)
 print('Tapping real Offline Proof result at',x,y,flush=True)
 subprocess.check_call(['adb','shell','input','tap',str(x),str(y)])
 PY
+  # Compose retains focus in the Search BasicTextField when a result is tapped.
+  # The keyboard covers the mini-player bounds, so a subsequent coordinate tap
+  # otherwise types a key into the query instead of opening Now Playing.
+  adb shell input keyevent KEYCODE_BACK
   sleep 2
 }
 
