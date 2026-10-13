@@ -197,6 +197,47 @@ header{background:var(--bg)}
 .mobile-nav{background:#fbfbfaf2}
 footer{border-top:1px solid #e5e6e5}
 @media(max-width:600px){.gamecard{border-radius:17px;padding:7px}.gamecard .thumb{border-radius:12px}}
+
+header{position:sticky;top:0;z-index:60;box-shadow:0 1px 0 #e7e8e7;background:#fafaf9}
+.announcement-bar{position:sticky;top:88px;z-index:59}
+.profile-heading{padding-bottom:27px}
+.profile-overview{border:1px solid #e8e9e8;background:#fff;border-radius:24px;overflow:hidden}
+.profile-identity{padding:26px;display:flex;align-items:center;gap:21px}
+.profile-identity .profile-monogram{margin:0;border-radius:18px;width:72px;height:72px;flex-shrink:0;background:#f0f0ef;color:#222}
+.profile-identity>div:nth-child(2){flex:1;min-width:0}
+.profile-identity h2{font-size:24px;letter-spacing:-.8px;margin:6px 0}
+.profile-identity .muted{font-size:12px}
+.profile-preview-stats{border-top:1px solid #ededed;display:grid;grid-template-columns:repeat(3,1fr)}
+.profile-preview-stats div{padding:19px 25px;border-right:1px solid #ededed;display:flex;flex-direction:column;gap:6px}
+.profile-preview-stats div:last-child{border:0}
+.profile-preview-stats strong{font-size:27px;letter-spacing:-.8px;font-variant-numeric:tabular-nums}
+.profile-preview-stats span{font-size:11px;color:#7d8080}
+.records-heading{display:flex;align-items:end;justify-content:space-between;gap:20px;margin:35px 0 16px}
+.records-heading h2{font-size:27px;letter-spacing:-.9px;margin:8px 0 0}
+.record-mode-tag{font-size:11px;color:#8d8f90;white-space:nowrap}
+.record-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:15px}
+.record-tile{padding:24px 25px;background:#fff;border:1px solid #ededed;border-radius:23px;min-width:0}
+.record-tile-top{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.record-tile-top>div{display:flex;align-items:center;gap:8px}
+.record-tile-top h3{font-size:17px;letter-spacing:-.4px;margin:0}
+.record-glyph{font-size:22px;filter:grayscale(.7)}
+.record-chip{font-size:10px;white-space:nowrap;color:#858585;background:#f3f3f2;padding:7px 10px;border-radius:30px;font-weight:700}
+.record-score{display:flex;align-items:baseline;gap:9px;margin:18px 0 2px}
+.record-score strong{font-size:clamp(35px,4.5vw,56px);font-variant-numeric:tabular-nums;letter-spacing:-2.2px}
+.record-score span{font-size:12px;color:#838787}
+.record-spark{display:block;width:100%;height:70px;margin-top:10px}
+.record-caption{font-size:11px;color:#939797}
+.profile-records,.profile-layout{display:none}
+@media(max-width:600px){header{top:0}.announcement-bar{top:72px}.profile-identity{padding:20px;gap:13px;flex-wrap:wrap}.profile-identity .profile-monogram{width:54px;height:54px}.profile-identity h2{font-size:19px}.profile-identity .btn{margin-left:auto}.profile-preview-stats div{padding:13px 11px}.profile-preview-stats strong{font-size:21px}.profile-preview-stats span{font-size:10px}.record-grid{grid-template-columns:1fr;gap:11px}.record-tile{padding:19px}.records-heading{margin-top:30px}.record-mode-tag{font-size:10px}}
+
+.settings-choices.snake-mode-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:11px}
+.snake-mode-grid button{display:flex;flex-direction:column;align-items:stretch;gap:12px;padding:9px;border-radius:15px;border:2px solid transparent;background:#eeeeec;text-align:left}
+.snake-mode-grid button[aria-pressed="true"]{border-color:#1c2526;background:#f4f5f3;color:#171a1b}
+.snake-mode-grid button strong{font-size:12px;font-weight:800;margin:1px 4px 5px}
+.snake-mode-preview{display:block;width:100%;height:auto;aspect-ratio:3/2;border:1px solid #ced2cf;border-radius:9px;image-rendering:pixelated}
+@media(max-width:600px){.snake-mode-grid button{padding:7px;gap:6px}.snake-mode-grid button strong{font-size:11px}}
+/* Fullscreen games must paint above sticky navigation and site-wide notices. */
+.game-page{z-index:110}
 </style>
 </head>
 <body>
@@ -213,7 +254,7 @@ footer{border-top:1px solid #e5e6e5}
 <nav class="mobile-nav" aria-label="Bottom navigation"><a href="/dashboard" data-route><span>⌂</span>Home</a><a href="/games" data-route><span>▦</span>Games</a><a href="/profile" data-route><span>◎</span>Profile</a></nav>
 <main class="wrap" id="siteMain">
 <section class="site-page" id="view-welcome" data-view="welcome">
-  <div class="hero"><div><div class="eyebrow">WELCOME TO NIGHT PLAY · YOUR NEW PLAYGROUND</div><h1>Good games.<br>Great company.</h1><p>Arcade favourites, board games and friendly competition — all in one place. Explore what NIGHT Play can become, then jump in whenever you're ready.</p><div class="hero-btns"><a class="btn" href="/dashboard" data-route data-enter="true">Enter NIGHT Play <span aria-hidden="true">↗</span></a><a class="btn outline" href="/games" data-route data-enter="true">Browse games</a></div><p class="welcome-fine">Free to play as a guest · No account needed</p></div><div class="hero-art" role="img" aria-label="Flat geometric game artwork with controller buttons"><svg class="hero-game-art" viewBox="0 0 360 290" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><rect x="39" y="56" width="282" height="184" rx="46" fill="#1c2023"/><rect x="50" y="67" width="260" height="162" rx="38" stroke="#696d6f" stroke-width="2"/><rect x="98" y="105" width="23" height="92" rx="7" fill="#f1f1f1"/><rect x="63" y="139" width="93" height="23" rx="7" fill="#f1f1f1"/><circle cx="254" cy="119" r="19" fill="#f1f1f1"/><circle cx="217" cy="165" r="19" fill="#f1f1f1"/><circle cx="180" cy="119" r="7" fill="#7b8185"/><circle cx="180" cy="158" r="7" fill="#7b8185"/></svg><div class="floating f1">NIGHT &nbsp; PLAY</div><div class="floating f2"><span class="online-dot"></span>Discover something fun</div><div class="floating f3">♟️ &nbsp; Arcade, classics, challenges.</div></div></div>
+  <div class="hero"><div><div class="eyebrow">WELCOME TO NIGHT PLAY · YOUR NEW PLAYGROUND</div><h1>Good games.<br>Great company.</h1><p>Arcade favourites, board games and friendly competition — all in one place. Explore what NIGHT Play can become, then jump in whenever you're ready.</p><div class="hero-btns"><a class="btn" href="/dashboard" data-route data-enter="true">Enter NIGHT Play <span aria-hidden="true">↗</span></a><a class="btn outline" href="/games" data-route data-enter="true">Browse games</a></div><p class="welcome-fine">Play the preview · WhatsApp connection coming soon</p></div><div class="hero-art" role="img" aria-label="Flat geometric game artwork with controller buttons"><svg class="hero-game-art" viewBox="0 0 360 290" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><rect x="39" y="56" width="282" height="184" rx="46" fill="#1c2023"/><rect x="50" y="67" width="260" height="162" rx="38" stroke="#696d6f" stroke-width="2"/><rect x="98" y="105" width="23" height="92" rx="7" fill="#f1f1f1"/><rect x="63" y="139" width="93" height="23" rx="7" fill="#f1f1f1"/><circle cx="254" cy="119" r="19" fill="#f1f1f1"/><circle cx="217" cy="165" r="19" fill="#f1f1f1"/><circle cx="180" cy="119" r="7" fill="#7b8185"/><circle cx="180" cy="158" r="7" fill="#7b8185"/></svg><div class="floating f1">NIGHT &nbsp; PLAY</div><div class="floating f2"><span class="online-dot"></span>Discover something fun</div><div class="floating f3">♟️ &nbsp; Arcade, classics, challenges.</div></div></div>
   <div class="landing-section"><div class="topbar"><div><span class="eyebrow">HOW IT WORKS</span><h2>A little play goes a long way.</h2></div></div><div class="intro-steps">
   <article><span class="step-num">01</span><h3>Pick your game.</h3><p>Jump from a simple puzzle to something that takes serious skill. Everything playable lives in the Games Library.</p></article>
   <article><span class="step-num">02</span><h3>Make it yours.</h3><p>Enjoy full-page, touch-first games. Your guest progress stays on this device where supported.</p></article>
@@ -222,15 +263,15 @@ footer{border-top:1px solid #e5e6e5}
   <div class="welcome-banner"><div><span class="eyebrow">NIGHT × WHATSAPP</span><h2>One player. More ways to play.</h2><p>Your existing NIGHT Chess, Ludo, Checkers and Tic-Tac-Toe commands stay as they are. The web will connect with them once secure linking and shared matches are ready.</p></div><a class="btn light" href="/dashboard" data-route data-enter="true">Take me inside ↗</a></div>
 </section>
 <section class="site-page" id="view-dashboard" data-view="dashboard" hidden>
- <div class="inner-page-head"><div><span class="eyebrow">YOUR NIGHT SPACE</span><h1>Play something <span class="muted">great.</span></h1><p>A home for discovering games and picking up a saved session. Player stats will live in your verified profile.</p></div><span class="status-pill">PREVIEW</span></div>
+ <div class="inner-page-head"><div><span class="eyebrow">YOUR NIGHT SPACE</span><h1 id="homeGreeting" aria-live="polite">Welcome.</h1><p>What will you play today?</p></div><span class="status-pill">PREVIEW</span></div>
  <div class="dash-layout">
-  <article class="dash-hero-card"><div class="dash-label">READY WHEN YOU ARE</div><h2>Your next<br>game awaits.</h2><p>Pick up where you left off, or discover something new.</p><a class="btn" data-route href="/games">Open Game Library ↗</a><span class="dash-moon" aria-hidden="true">☾</span></article>
+  <article class="dash-hero-card"><div class="dash-label">READY WHEN YOU ARE</div><h2>Your next<br>game awaits.</h2><p>Pick up where you left off, or discover something new.</p><a class="btn" data-route href="/games">Open Game Library ↗</a><span class="dash-moon" aria-hidden="true">✦</span></article>
   <div class="dash-side">
    <div class="dash-mini updates-mini"><span class="eyebrow">COMING NEXT</span><h3>Pick the way you play.</h3><p>Board games, puzzles and arcade challenges now have their own dedicated Games Library.</p><span class="card-subnote">You decide which game to play next.</span></div>
    <div class="dash-mini"><span class="eyebrow">NIGHT PROFILE</span><h3>Your achievements belong to you.</h3><p>Verified profiles will collect your records, tournament entries and friends across WhatsApp and web.</p><span class="card-subnote">WhatsApp verification is the next milestone.</span></div>
   </div>
  </div>
- <div class="dash-bottom"><div class="topbar"><div><span class="eyebrow">CONTINUE PLAYING</span><h2>Right where you left off.</h2></div></div><div class="resume-card" id="resumeCard"><p>Nothing to resume just yet. Your adventure starts in the Games Library.</p><a class="btn outline" href="/games" data-route>Find a game ↗</a></div></div>
+ <div class="dash-bottom"><div class="topbar"><div><span class="eyebrow">CONTINUE PLAYING</span><h2>Right where you left off.</h2></div></div><div class="resume-card" id="resumeCard"><p>No unfinished games.</p><a class="btn outline" href="/games" data-route>Find a game ↗</a></div></div>
  </section>
 <section class="site-page" id="view-games" data-view="games" hidden>
  <div class="inner-page-head"><div><span class="eyebrow">THE NIGHT ARCADE</span><h1>Choose your <span class="muted">adventure.</span></h1><p>Play instantly. No tiny popups, no endless scrolling through menus.</p></div><span class="status-pill">03 PLAYABLE NOW</span></div>
@@ -251,10 +292,18 @@ footer{border-top:1px solid #e5e6e5}
  </div><p class="no-results" id="noGameResults" hidden>No games found. Try another name or category.</p>
 </section>
 <section class="site-page" id="view-profile" data-view="profile" hidden>
- <div class="inner-page-head"><div><span class="eyebrow">YOUR PLAYER ACCOUNT</span><h1>The profile is <span class="muted">yours.</span></h1><p>Connect WhatsApp to keep your player identity, match history and achievements together.</p></div><span class="status-pill">ACCOUNT LINKING IN DEVELOPMENT</span></div>
- <div class="profile-layout"><div class="profile-hero"><div class="profile-monogram" aria-label="Account not linked"><svg viewBox="0 0 24 24" width="34" height="34" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4.5 20c1.2-4.7 13.8-4.7 15 0"/></svg></div><span class="eyebrow">ACCOUNT STATUS</span><h2>Not connected</h2><p>NIGHT Play will use a verified WhatsApp identity, not an anonymous guest account. Account linking is not live in this prototype.</p><button class="btn" data-dialog="connect">How WhatsApp linking works ↗</button></div>
-  <div class="profile-records"><span class="eyebrow">THIS DEVICE · TEST DATA ONLY</span><h3>Local game records</h3><p>While we're testing, game saves stay on this device. They cannot count toward official rankings until the backend can verify game results.</p><div class="profile-record-row"><span>🐍 Snake · best</span><strong id="profileSnakeBest">—</strong></div><div class="profile-record-row"><span>🔢 2048 · 4 × 4 best</span><strong id="profile2048Best">—</strong></div><div class="profile-record-row"><span>🔢 2048 · 5 × 5 best</span><strong id="profile2048Best5">—</strong></div><div class="profile-record-row"><span>🔢 2048 · 6 × 6 best</span><strong id="profile2048Best6">—</strong></div><div class="profile-record-row"><span>❎ Tic-Tac-Toe</span><strong>Unranked</strong></div><p class="record-footnote">Achievements, ranked scores, match histories, and account recovery will appear here after WhatsApp verification ships.</p></div></div>
- </section>
+ <div class="inner-page-head profile-heading"><div><span class="eyebrow">ACCOUNT</span><h1>Profile<span class="muted">.</span></h1></div><span class="status-pill">NOT CONNECTED</span></div>
+ <div class="profile-overview">
+  <div class="profile-identity"><div class="profile-monogram" aria-hidden="true"><svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4.5 20c1.2-4.7 13.8-4.7 15 0"/></svg></div><div><span class="eyebrow">NIGHT PLAYER</span><h2>Connect WhatsApp</h2><span class="muted">Account linking is coming soon.</span></div><button class="btn light" data-dialog="connect">Connect ↗</button></div>
+  <div class="profile-preview-stats"><div><strong id="profileGamesRecorded">0</strong><span>Completed rounds</span></div><div><strong id="profileSnakeBest">0</strong><span>Snake best</span></div><div><strong id="profile2048Best">0</strong><span>2048 best · 4×4</span></div></div>
+ </div>
+ <div class="records-heading"><div><span class="eyebrow">SCOREBOARD</span><h2>Game records</h2></div><span class="record-mode-tag">Device only · Unranked</span></div>
+ <div class="record-grid">
+  <article class="record-tile"><div class="record-tile-top"><div><span class="record-glyph">🐍</span><h3>Snake</h3></div><span class="record-chip">BEST RUN</span></div><div class="record-score"><strong id="recordSnakeValue">0</strong><span>points</span></div><svg id="chartSnake" class="record-spark" viewBox="0 0 260 72" preserveAspectRatio="none" role="img" aria-label="Recent Snake scores"></svg><span class="record-caption" id="captionSnake">No runs completed yet</span></article>
+  <article class="record-tile"><div class="record-tile-top"><div><span class="record-glyph">🔢</span><h3>2048</h3></div><span class="record-chip">4 × 4</span></div><div class="record-score"><strong id="record2048Value">0</strong><span>points</span></div><svg id="chart2048" class="record-spark" viewBox="0 0 260 72" preserveAspectRatio="none" role="img" aria-label="Recent 2048 scores"></svg><span class="record-caption" id="caption2048">No rounds recorded yet</span></article>
+  <article class="record-tile small-record"><div class="record-tile-top"><div><h3>2048 · 5×5</h3></div><span class="record-chip">BEST</span></div><div class="record-score"><strong id="profile2048Best5">0</strong><span>points</span></div><svg id="chart2048_5" class="record-spark" viewBox="0 0 260 72" preserveAspectRatio="none" role="img" aria-label="Recent 5 by 5 scores"></svg></article>
+  <article class="record-tile small-record"><div class="record-tile-top"><div><h3>2048 · 6×6</h3></div><span class="record-chip">BEST</span></div><div class="record-score"><strong id="profile2048Best6">0</strong><span>points</span></div><svg id="chart2048_6" class="record-spark" viewBox="0 0 260 72" preserveAspectRatio="none" role="img" aria-label="Recent 6 by 6 scores"></svg></article>
+ </div></section>
 </main>
 <footer class="wrap"><span><strong>NIGHT PLAY</strong> · Games, challenges and community.</span><span>Preview · Scores saved only on this device</span></footer>
 <dialog id="infoDialog" aria-labelledby="infoTitle"><div class="modalhead"><h2 id="infoTitle">NIGHT Play</h2><button class="xbtn" data-close aria-label="Close">×</button></div><div class="modalbody" id="infoBody"></div></dialog>
@@ -270,7 +319,7 @@ gameDialog.open=false;
 gameDialog.showModal=()=>{gameDialog.classList.add("active");gameDialog.setAttribute("aria-hidden","false");gameDialog.open=true;document.body.classList.add("in-game")};
 gameDialog.close=()=>{gameDialog.classList.remove("active");gameDialog.setAttribute("aria-hidden","true");gameDialog.open=false;document.body.classList.remove("in-game");gameDialog.dispatchEvent(new Event("close"))};
 const root=document.getElementById("gameRoot"),title=document.getElementById("gameTitle"),help=document.getElementById("gameHelp");
-let active="",snakeTimer=null,snake={},ttt=[],turn="X",mode="bot",tttFinished=false,grid=[],tileScore=0,gamePaused=false,boardRestore=null;
+let active="",snakeTimer=null,snake={},ttt=[],turn="X",mode="bot",tttFinished=false,grid=[],tileScore=0,gamePaused=false,boardRestore=null,gameOverRecorded=false;
 const scoreKey="night-play-v1-";
 function best(key){try{return Number(localStorage.getItem(scoreKey+key)||0)||0}catch{return 0}}
 function record(key,value){if(value>best(key)){try{localStorage.setItem(scoreKey+key,String(value))}catch{}}}
@@ -286,6 +335,33 @@ function modal(kind){
 const UPDATE_VERSION="nightplay-ui-20261013-v4";
 const ENTER_KEY="night-play-has-entered";
 const READ_KEY="night-play-update-seen";
+const scoreHistoryKey="night-play-history-v1-";
+function scoreHistory(id){try{const a=JSON.parse(localStorage.getItem(scoreHistoryKey+id)||"[]");return Array.isArray(a)?a.filter(x=>Number.isFinite(x)&&x>=0).slice(-12):[]}catch{return []}}
+function recordSession(id,score){if(!Number.isFinite(score)||score<0)return;try{localStorage.setItem(scoreHistoryKey+id,JSON.stringify([...scoreHistory(id),Math.round(score)].slice(-12)))}catch{}}
+function paintHistory(id,svgId,captionId){
+ const svg=document.getElementById(svgId);if(!svg)return;
+ const history=scoreHistory(id),max=Math.max(1,...history,best(id));
+ const ns="http://www.w3.org/2000/svg";svg.replaceChildren();
+ const base=document.createElementNS(ns,"path");base.setAttribute("d","M 0 68 L 260 68");base.setAttribute("stroke","#d9dede");base.setAttribute("stroke-width","1");svg.appendChild(base);
+ if(history.length){const pad=8,step=240/Math.max(1,history.length),barWidth=Math.min(26,step*.62);
+ history.forEach((score,index)=>{const h=Math.max(3,Math.round(score/max*53)),r=document.createElementNS(ns,"rect");r.setAttribute("x",String(pad+index*step+(step-barWidth)/2));r.setAttribute("y",String(68-h));r.setAttribute("width",String(barWidth));r.setAttribute("height",String(h));r.setAttribute("rx","3");r.setAttribute("fill",index===history.length-1?"#232a2a":"#bbc4c1");svg.appendChild(r)})}
+ if(captionId){const n=document.getElementById(captionId);if(n)n.textContent=history.length?(history.length+" recent round"+(history.length>1?"s":"")):"No completed rounds"}
+}
+function renderProfileRecords(){
+ const set=(id,value)=>{const el=document.getElementById(id);if(el)el.textContent=Number(value).toLocaleString()};
+ for(const [id,key] of [["profileSnakeBest","snake"],["recordSnakeValue","snake"],["profile2048Best","2048"],["record2048Value","2048"],["profile2048Best5","2048-5"],["profile2048Best6","2048-6"]])set(id,best(key));
+ set("profileGamesRecorded",["snake","2048","2048-5","2048-6"].reduce((n,id)=>n+scoreHistory(id).length,0));
+ for(const [id,svg,caption] of [["snake","chartSnake","captionSnake"],["2048","chart2048","caption2048"],["2048-5","chart2048_5",null],["2048-6","chart2048_6",null]])paintHistory(id,svg,caption)
+}
+function greetingText(hour){return hour>=5&&hour<12?"Good morning":hour>=12&&hour<17?"Good afternoon":hour>=17&&hour<22?"Good evening":"Good night"}
+function updateGreeting(){
+ const title=document.getElementById("homeGreeting");if(!title)return;
+ const hour=new Date().getHours(),greeting=greetingText(hour);
+ // Show the verified display name only after NIGHT WhatsApp linking is implemented.
+ title.textContent=greeting+".";
+}
+setInterval(()=>{if(!document.getElementById("view-dashboard").hidden)updateGreeting()},60000);
+
 const getSaved=(key)=>{try{return localStorage.getItem(key)}catch{return null}};
 const putSaved=(key,value)=>{try{localStorage.setItem(key,String(value))}catch{}};
 let activeFilter="all";
@@ -317,7 +393,7 @@ function updateDashboard(){
  rows.sort((a,b)=>b.updatedAt-a.updatedAt);
  const target=document.getElementById("resumeCard");
  if(!rows.length){target.innerHTML='<p>Nothing to resume just yet. Your adventure starts in the Games Library.</p><a class="btn outline" href="/games" data-route>Find a game ↗</a>';return}
- const first=rows[0];target.innerHTML='<div><strong>'+first.name+'</strong><small>Unfinished guest game saved on this device'+(rows.length>1?' · '+(rows.length-1)+' more saved':'')+'</small></div><button class="btn" data-game="'+first.id+'">Continue playing ↗</button>'
+ const first=rows[0];target.innerHTML='<div><strong>'+first.name+'</strong><small>Saved on this device'+(rows.length>1?' · '+(rows.length-1)+' more saved':'')+'</small></div><button class="btn" data-game="'+first.id+'">Continue playing ↗</button>'
 }
 function filterGames(){
  const search=document.getElementById("gameSearch").value.trim().toLowerCase();
@@ -342,12 +418,8 @@ function renderRoute(){
  document.title=({welcome:"NIGHT Play — Welcome",dashboard:"NIGHT Play — Home",games:"NIGHT Play — Games",profile:"NIGHT Play — Profile"})[current];
  if(current==="dashboard")updateDashboard();
  if(current==="games")filterGames();
- if(current==="profile"){
- document.getElementById("profileSnakeBest").textContent=best("snake").toLocaleString();
- document.getElementById("profile2048Best").textContent=best("2048").toLocaleString();
- document.getElementById("profile2048Best5").textContent=best("2048-5").toLocaleString();
- document.getElementById("profile2048Best6").textContent=best("2048-6").toLocaleString()
- }
+ if(current==="profile")renderProfileRecords();
+ if(current==="dashboard")updateGreeting();
  updateBell();window.scrollTo(0,0)
 }
 function navigate(path,{replace=false}={}){
@@ -405,7 +477,10 @@ document.addEventListener("visibilitychange",()=>{
 });
 function exitGame(){if(gameDialog.open)gameDialog.close();if(location.pathname.startsWith("/play/"))history.replaceState({},"","/games");renderRoute()}
 
-document.getElementById("restart").addEventListener("click",()=>openGame(active,{push:false,fresh:true}));
+document.getElementById("restart").addEventListener("click",()=>{
+ if(active==="2048"&&tileScore>0&&!gameOverRecorded)recordSession("2048"+(grid.length===4?"":"-"+grid.length),tileScore);
+ openGame(active,{push:false,fresh:true})
+});
 function openGame(kind,{push=true,fresh=false}={}){
  if(!["snake","2048","ttt"].includes(kind))return;
  if(push)history.pushState({game:kind},"","/play/"+kind);
@@ -416,11 +491,24 @@ function openGame(kind,{push=true,fresh=false}={}){
  if(kind==="ttt"){help.textContent="Play against NIGHT's bot or someone beside you. Online multiplayer is coming later.";initTtt(fresh)}
  document.getElementById("pauseGame").hidden=(kind==="ttt")
 }
+const SNAKE_MODES=["wrap","walls","maze1","maze2","maze3"];
+function currentSnakeMode(){const selected=getSetting("snake-mode",getSetting("snake-wrap","walls"));return SNAKE_MODES.includes(selected)?selected:"walls"}
+function makeSnakeMaze(mode,size){
+ const blocks=[];
+ if(mode==="maze1"){for(let y=4;y<size-3;y++){if(y===Math.floor(size/2))continue;blocks.push({x:4,y},{x:size-5,y})}}
+ if(mode==="maze2"){for(let x=3;x<size-3;x++){if(x===Math.floor(size/2))continue;blocks.push({x,y:4},{x,y:size-5})}}
+ if(mode==="maze3"){for(let y=3;y<7;y++)for(let x=3;x<6;x++)blocks.push({x,y},{x:size-1-x,y},{x,y:size-1-y},{x:size-1-x,y:size-1-y})}
+ return blocks.filter(({x,y})=>x>=0&&y>=0&&x<size&&y<size)
+}
+function snakeModeName(mode){return ({wrap:"Open · wraparound",walls:"Classic · borders",maze1:"Maze I · pillars",maze2:"Maze II · bridges",maze3:"Maze III · islands"})[mode]||"Classic"}
+function snakeTickMs(){return ({slow:190,normal:135,fast:92})[getSetting("snake-speed","normal")]||135}
+
 function initSnake(fresh=false){
  const size=18,c=document.createElement("canvas");c.id="snakeCanvas";c.width=360;c.height=360;
  let loaded=null;try{loaded=!fresh?JSON.parse(localStorage.getItem("night-play-save-snake")||"null"):null}catch{}
- snake=loaded&&Array.isArray(loaded.body)&&loaded.body.length&&loaded.alive&&loaded.food?{...loaded,size,alive:true,canvas:c}:{size,body:[{x:7,y:9},{x:6,y:9},{x:5,y:9}],dir:"right",next:"right",food:null,score:0,alive:true};
- snake.wrap=getSetting("snake-wrap","walls")==="wrap";snake.started=false;
+ const selected=currentSnakeMode();
+ snake=loaded&&Array.isArray(loaded.body)&&loaded.body.length&&loaded.alive&&loaded.food&&(!loaded.mode||loaded.mode===selected)?{...loaded,size,alive:true,canvas:c}:{size,body:[{x:7,y:9},{x:6,y:9},{x:5,y:9}],dir:"right",next:"right",food:null,score:0,alive:true};
+ snake.mode=selected;snake.wrap=selected==="wrap";snake.maze=makeSnakeMaze(selected,size);snake.started=false;
  const control=document.createElement("div");control.className="dpad";["up","left","down","right"].forEach(d=>{const b=document.createElement("button");b.dataset.dir=d;b.textContent={up:"↑",down:"↓",left:"←",right:"→"}[d];b.setAttribute("aria-label",d);control.appendChild(b)});
  root.innerHTML='<div class="scorebar"><span>Score: <b id="score">'+snake.score+'</b></span><span>Best: <b id="best">'+best("snake")+'</b></span></div>';
  const shell=document.createElement("div");shell.className="snake-shell";shell.appendChild(c);
@@ -431,18 +519,23 @@ function initSnake(fresh=false){
  snake.canvas=c;snake.food=snake.food||food();drawSnake();gamePaused=true;
  let origin=null;c.addEventListener("touchstart",e=>{origin={x:e.touches[0].clientX,y:e.touches[0].clientY}},{passive:true});
  c.addEventListener("touchend",e=>{if(!origin)return;const dx=e.changedTouches[0].clientX-origin.x,dy=e.changedTouches[0].clientY-origin.y;if(Math.max(Math.abs(dx),Math.abs(dy))>17)snakeTurn(Math.abs(dx)>Math.abs(dy)?dx>0?"right":"left":dy>0?"down":"up");origin=null},{passive:true});
- snakeTimer=setInterval(stepSnake,135);
+ snakeTimer=setInterval(stepSnake,snakeTickMs());
 }
-function food(){const free=[];for(let y=0;y<snake.size;y++)for(let x=0;x<snake.size;x++)if(!snake.body.some(p=>p.x===x&&p.y===y))free.push({x,y});return free.length?free[Math.floor(Math.random()*free.length)]:null}
+function food(){const free=[];for(let y=0;y<snake.size;y++)for(let x=0;x<snake.size;x++)if(!snake.body.some(p=>p.x===x&&p.y===y)&&!snake.maze.some(p=>p.x===x&&p.y===y))free.push({x,y});return free.length?free[Math.floor(Math.random()*free.length)]:null}
 function snakeTurn(dir){if(active!=="snake"||!snake.alive)return;const opposite={up:"down",down:"up",left:"right",right:"left"};if(dir!==opposite[snake.dir])snake.next=dir}
 function drawSnake(){
  const ctx=snake.canvas.getContext("2d");const step=snake.canvas.width/snake.size;
- ctx.fillStyle="#e5e7e5";ctx.fillRect(0,0,360,360);
- for(let i=0;i<snake.size;i++)for(let j=0;j<snake.size;j++)if((i+j)%2===0){ctx.fillStyle="#e0e3e0";ctx.fillRect(i*step,j*step,step,step)}
- if(snake.food){ctx.fillStyle="#b46f63";ctx.beginPath();ctx.arc((snake.food.x+.5)*step,(snake.food.y+.5)*step,step*.34,0,Math.PI*2);ctx.fill()}
- snake.body.forEach((p,i)=>{ctx.fillStyle=i===0?"#080808":"#293139";const d=i===0?1.5:2;ctx.beginPath();ctx.roundRect(p.x*step+d,p.y*step+d,step-d*2,step-d*2,5);ctx.fill()});
+ const retro=getSetting("snake-style","modern")==="lcd";
+ ctx.fillStyle=retro?"#bed06c":"#e5e7e5";ctx.fillRect(0,0,360,360);
+ for(let i=0;i<snake.size;i++)for(let j=0;j<snake.size;j++)if((i+j)%2===0){ctx.fillStyle=retro?"#b8ca66":"#e0e3e0";ctx.fillRect(i*step,j*step,step,step)}
+ ctx.fillStyle=retro?"#303e25":"#656f72";
+ for(const point of snake.maze){ctx.fillRect(point.x*step+1,point.y*step+1,step-2,step-2)}
+ if(snake.mode==="walls"){ctx.strokeStyle=retro?"#354426":"#a1a7a7";ctx.lineWidth=3;ctx.strokeRect(1.5,1.5,357,357)}
+ if(snake.food){ctx.fillStyle=retro?"#293b23":"#b46f63";ctx.beginPath();ctx.arc((snake.food.x+.5)*step,(snake.food.y+.5)*step,step*.34,0,Math.PI*2);ctx.fill()}
+ snake.body.forEach((p,i)=>{ctx.fillStyle=retro?(i===0?"#24341c":"#374a29"):(i===0?"#080808":"#293139");const d=i===0?1.5:2;ctx.beginPath();ctx.roundRect(p.x*step+d,p.y*step+d,step-d*2,step-d*2,5);ctx.fill()});
 }
 function finishSnake(){
+ recordSession("snake",snake.score);
  snake.alive=false;gamePaused=true;clearInterval(snakeTimer);snakeTimer=null;
  try{localStorage.removeItem("night-play-save-snake")}catch{}
  const overlay=document.getElementById("snakeOverlay");if(overlay){overlay.hidden=false;overlay.innerHTML='<strong>Game over</strong><small>Your score: '+snake.score+' · Best: '+best("snake")+'</small><span>Tap to play again ↻</span>'}
@@ -456,10 +549,10 @@ function stepSnake(){
  if(p.x<0||p.y<0||p.x>=snake.size||p.y>=snake.size){finishSnake();return}
  const eating=Boolean(snake.food&&p.x===snake.food.x&&p.y===snake.food.y);
  const occupied=eating?snake.body:snake.body.slice(0,-1);
- if(occupied.some(x=>x.x===p.x&&x.y===p.y)){finishSnake();return}
+ if(occupied.some(x=>x.x===p.x&&x.y===p.y)||snake.maze.some(x=>x.x===p.x&&x.y===p.y)){finishSnake();return}
  snake.body.unshift(p);if(!eating)snake.body.pop();
  else{snake.score+=10;record("snake",snake.score);snake.food=food();document.getElementById("score").textContent=snake.score;document.getElementById("best").textContent=best("snake");if(!snake.food){finishSnake();return}}
- try{localStorage.setItem("night-play-save-snake",JSON.stringify({size:snake.size,body:snake.body,dir:snake.dir,next:snake.next,food:snake.food,score:snake.score,alive:snake.alive,updatedAt:Date.now()}))}catch{}
+ try{localStorage.setItem("night-play-save-snake",JSON.stringify({size:snake.size,body:snake.body,dir:snake.dir,next:snake.next,food:snake.food,score:snake.score,alive:snake.alive,mode:snake.mode,updatedAt:Date.now()}))}catch{}
  drawSnake()
 }
 function initTtt(fresh=false){
@@ -505,6 +598,7 @@ function moveTtt(i){
  if(mode==="bot"&&!tttFinished&&turn==="O")setTimeout(botMoveTtt,330)
 }
 function init2048(fresh=false){
+ gameOverRecorded=false;
  const configured=Number(getSetting("2048-size","4"));const size=[4,5,6].includes(configured)?configured:4;
  let saved=null;try{saved=!fresh?JSON.parse(localStorage.getItem("night-play-save-2048-"+size)||((size===4)?localStorage.getItem("night-play-save-2048"):"")||"null"):null}catch{}
  const valid=saved&&Number(saved.size||4)===size&&Array.isArray(saved.grid)&&saved.grid.length===size&&saved.grid.every(row=>Array.isArray(row)&&row.length===size&&row.every(n=>Number.isSafeInteger(n)&&n>=0));
@@ -529,7 +623,7 @@ function move2048(dir){
  spawn();record(tileBestKey(),tileScore);
  try{localStorage.setItem("night-play-save-2048-"+size,JSON.stringify({grid,size,score:tileScore,updatedAt:Date.now()}))}catch{}
  draw2048();
- if(!grid.flat().includes(0)){let moves=false;for(let r=0;r<size;r++)for(let c=0;c<size;c++)if((r<size-1&&grid[r][c]===grid[r+1][c])||(c<size-1&&grid[r][c]===grid[r][c+1]))moves=true;if(!moves)document.getElementById("gameHelp").textContent="No more moves! Start a new game to try again."}
+ if(!grid.flat().includes(0)){let moves=false;for(let r=0;r<size;r++)for(let c=0;c<size;c++)if((r<size-1&&grid[r][c]===grid[r+1][c])||(c<size-1&&grid[r][c]===grid[r][c+1]))moves=true;if(!moves){if(!gameOverRecorded){recordSession(tileBestKey(),tileScore);gameOverRecorded=true}document.getElementById("gameHelp").textContent="No more moves! Start a new game to try again."}}
  }
 }
 function draw2048(){
@@ -544,10 +638,38 @@ function setSetting(key,value){putSaved(SETTINGS_PREFIX+key,value)}
 const settingsDialog=document.getElementById("settingsDialog"),settingsBody=document.getElementById("settingsBody");
 let previousPause=false;
 const gameSettings={
- snake:{title:"Snake settings",groups:[{key:"snake-wrap",name:"Board edges",description:"Walls end the run. Wrap lets the snake move through the opposite edge.",default:"walls",choices:[["walls","Walls"],["wrap","Wrap around"]]}]},
+ snake:{title:"Snake settings",groups:[
+ {key:"snake-mode",name:"Choose an arena",description:"Preview each layout. Mazes contain real obstacles.",default:"walls",choices:[["wrap","Open"],["walls","Classic"],["maze1","Maze I"],["maze2","Maze II"],["maze3","Maze III"]]},
+ {key:"snake-speed",name:"Speed",description:"",default:"normal",choices:[["slow","Relaxed"],["normal","Normal"],["fast","Fast"]]},
+ {key:"snake-style",name:"Screen style",description:"",default:"modern",choices:[["modern","Modern"],["lcd","Retro LCD"]]}
+]},
  "2048":{title:"2048 settings",groups:[{key:"2048-size",name:"Board size",description:"Changing the board size starts a new round. High scores are separate for each size.",default:"4",choices:[["4","4 × 4"],["5","5 × 5"],["6","6 × 6"]]}]},
  ttt:{title:"Tic-Tac-Toe settings",groups:[{key:"ttt-difficulty",name:"Bot difficulty",description:"Easy makes random moves, Medium blocks threats, Hard plays an optimal game.",default:"medium",choices:[["easy","Easy"],["medium","Medium"],["hard","Hard"]]}]}
 };
+
+let snakePreviewTimer=null;
+function drawSnakePreview(canvas,mode,tick=0){
+ const ctx=canvas.getContext("2d"),cols=18,rows=12,cell=10;
+ const retro=getSetting("snake-style","modern")==="lcd";
+ ctx.fillStyle=retro?"#bed06c":"#e5e7e5";ctx.fillRect(0,0,180,120);
+ for(let x=0;x<cols;x++)for(let y=0;y<rows;y++)if((x+y)%2===0){ctx.fillStyle=retro?"#b8ca66":"#dfe2df";ctx.fillRect(x*cell,y*cell,cell,cell)}
+ const border=retro?"#31421e":"#657275";
+ if(mode==="walls"){ctx.strokeStyle=border;ctx.lineWidth=2;ctx.strokeRect(1,1,178,118)}
+ ctx.fillStyle=border;
+ for(const p of makeSnakeMaze(mode,18)){const y=Math.round(p.y*rows/18);ctx.fillRect(p.x*cell+1,y*cell+1,cell-2,cell-2)}
+ const x0=2+(tick%4);
+ ctx.fillStyle=retro?"#273b1d":"#202b2b";
+ for(let i=0;i<4;i++)ctx.fillRect((x0+3-i)*cell+1,5*cell+1,cell-2,cell-2);
+ ctx.fillStyle=retro?"#293b23":"#a46f59";ctx.fillRect(13*cell+2,8*cell+2,6,6)
+}
+function startSnakePreviews(){
+ if(snakePreviewTimer)clearInterval(snakePreviewTimer);
+ const canvases=[...settingsBody.querySelectorAll("canvas[data-maze]")];if(!canvases.length)return;
+ let frame=0;const draw=()=>canvases.forEach(canvas=>drawSnakePreview(canvas,canvas.dataset.maze,frame));
+ draw();snakePreviewTimer=setInterval(()=>{frame++;draw()},640)
+}
+function stopSnakePreviews(){if(snakePreviewTimer)clearInterval(snakePreviewTimer);snakePreviewTimer=null}
+
 function showSettings(){
  if(!active||!gameSettings[active])return;
  previousPause=gamePaused;gamePaused=true;
@@ -558,15 +680,22 @@ function showSettings(){
   const heading=document.createElement("h3");heading.textContent=group.name;section.appendChild(heading);
   const description=document.createElement("p");description.textContent=group.description;section.appendChild(description);
   const buttons=document.createElement("div");buttons.className="settings-choices";
+  if(group.key==="snake-mode")buttons.classList.add("snake-mode-grid");
   for(const [value,label] of group.choices){
-   const button=document.createElement("button");button.type="button";button.textContent=label;
+   const button=document.createElement("button");button.type="button";
+   if(group.key==="snake-mode"){const canvas=document.createElement("canvas");canvas.width=180;canvas.height=120;canvas.dataset.maze=value;canvas.className="snake-mode-preview";button.appendChild(canvas);const txt=document.createElement("strong");txt.textContent=label;button.appendChild(txt)}
+   else button.textContent=label;
    button.setAttribute("aria-pressed",String(getSetting(group.key,group.default)===value));
    button.onclick=()=>{
     const previous=getSetting(group.key,group.default);setSetting(group.key,value);
     for(const b of buttons.querySelectorAll("button"))b.setAttribute("aria-pressed",String(b===button));
     if(previous!==value){
-     if(active==="snake"){snake.wrap=value==="wrap"}
-     if(active==="2048"){openGame("2048",{push:false,fresh:true});previousPause=false}
+     if(active==="snake"){
+      if(group.key==="snake-mode"){stopSnakePreviews();openGame("snake",{push:false,fresh:true});previousPause=true}
+      if(group.key==="snake-speed"){if(snakeTimer)clearInterval(snakeTimer);snakeTimer=setInterval(stepSnake,snakeTickMs())}
+      if(group.key==="snake-style")drawSnake();
+     }
+     if(active==="2048"){if(tileScore>0&&!gameOverRecorded)recordSession("2048"+(grid.length===4?"":"-"+grid.length),tileScore);openGame("2048",{push:false,fresh:true});previousPause=false}
      if(active==="ttt"){openGame("ttt",{push:false,fresh:true});previousPause=false}
     }
    };
@@ -574,10 +703,11 @@ function showSettings(){
   }
   section.appendChild(buttons);settingsBody.appendChild(section)
  }
- const note=document.createElement("p");note.className="settings-foot";note.textContent="Settings are saved on this device. Verified profile sync is not available yet.";settingsBody.appendChild(note);
+ const note=document.createElement("p");note.className="settings-foot";note.textContent="Saved on this device";settingsBody.appendChild(note);
+ if(active==="snake")startSnakePreviews();
  settingsDialog.showModal();
 }
-function closeGameSettings(){if(settingsDialog.open)settingsDialog.close();gamePaused=previousPause;const btn=document.getElementById("pauseGame");if(btn&&!btn.hidden)btn.textContent=gamePaused?"Resume ▶":"Pause ⏸";if(active==="ttt"&&mode==="bot"&&!tttFinished&&turn==="O"&&!gamePaused)setTimeout(botMoveTtt,200)}
+function closeGameSettings(){stopSnakePreviews();if(settingsDialog.open)settingsDialog.close();gamePaused=previousPause;const btn=document.getElementById("pauseGame");if(btn&&!btn.hidden)btn.textContent=gamePaused?"Resume ▶":"Pause ⏸";if(active==="ttt"&&mode==="bot"&&!tttFinished&&turn==="O"&&!gamePaused)setTimeout(botMoveTtt,200)}
 document.getElementById("gameSettings").addEventListener("click",showSettings);
 document.getElementById("closeSettings").addEventListener("click",closeGameSettings);
 settingsDialog.addEventListener("cancel",e=>{e.preventDefault();closeGameSettings()});
