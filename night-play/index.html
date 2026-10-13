@@ -626,6 +626,116 @@ body{background:var(--bg)}
 .game-page #undo2048[hidden]{display:none!important}
 .game-page #undo2048:disabled{opacity:.43;cursor:not-allowed}
 .snake-screen-overlay .ui-icon{width:17px;height:17px;vertical-align:middle;margin-left:5px}
+
+/* V10: Full-arena redesign; mobile first, space measured before rendering.
+   Official NIGHT horizon icon from the NIGHT Android project; no substitute identity. */
+.logo>.brand-mark,.brand-mark{width:38px;height:38px;flex:0 0 38px;border:0!important;border-radius:10px;padding:0!important;overflow:hidden;background:#0b0f11!important}
+.game-brand{display:inline-flex;align-items:center;gap:7px;color:#101c1a;font-size:13px;letter-spacing:.4px;font-weight:900}
+.game-brand-mark{width:24px;height:24px;border-radius:6px;flex:0 0 24px}
+.game-brand .muted{margin-left:-5px}
+.game-top-actions{display:flex;align-items:center;gap:5px}
+.game-focus-button{background:transparent;color:#2c4c40;border:1px solid #d1dcd2!important;border-radius:9px!important;display:inline-flex;align-items:center;gap:7px;font-size:12px;font-weight:780}
+.game-focus-button[aria-pressed="true"]{background:#e0eae3;color:#1d5c45}
+.game-focus-button .ui-icon{width:16px;height:16px}
+.game-topline{padding:9px clamp(8px,2.2vw,27px);min-height:54px;background:#fff}
+.game-topline .game-settings-button{padding:9px 11px;font-weight:800;background:transparent;border:1px solid #d1dcd2!important;border-radius:9px}
+.game-topline button[data-close-game]{padding:8px 9px;background:#f1f5f1!important;border-radius:8px}
+.game-page{--board-size:min(calc(100vw - 14px),calc(100dvh - 180px),760px);background:#f7f8f5;display:none}
+.game-page.active{display:flex}
+.game-page .game-wrap,#gameDialog .game-wrap{
+ width:100%;max-width:100%;min-height:0;flex:1 1 auto;
+ padding:6px 6px 8px;margin:0;
+ display:flex;flex-direction:column;align-items:center;justify-content:center;
+}
+.game-page .game-intro{flex:0 0 auto;display:flex;align-items:baseline;justify-content:center;gap:12px;margin:0 0 9px;text-align:center}
+.game-page .game-intro .eyebrow{font-size:10px;letter-spacing:1.1px;font-weight:850;margin:0}
+.game-page .game-intro h2{font-size:clamp(24px,3.7vw,34px);line-height:1.1;letter-spacing:-1px;margin:0}
+.game-page .game-intro #gameHelp{display:none}
+.game-page .playarea{width:100%;flex:0 0 auto;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.game-page .scorebar{width:var(--board-size);max-width:100%;min-height:0;padding:0;gap:8px;margin:0 0 9px}
+.game-page .scoreboard{border-radius:11px;padding:8px 15px;min-height:56px;background:#fff;border:1px solid #dce6dd;box-shadow:none}
+.game-page[data-skin="2048"] .scoreboard{border-color:#e4d6c7}
+.game-page[data-skin="ttt"] .scoreboard{border-color:#d7e2ea}
+.scoreboard .score-label{font-size:9px;letter-spacing:.8px}
+.game-page .scoreboard b{font-size:25px;letter-spacing:-.8px}
+.game-page .score-divider{height:28px}
+.game-page .snake-shell{
+ width:var(--board-size);height:auto;max-width:100%;
+ aspect-ratio:1/1;flex:0 0 auto;
+ margin:0!important;border:3px solid #2d6b50;border-radius:12px;
+ background:#d6e6d2;box-shadow:0 0 0 1px #a4bea8;
+ position:relative;overflow:hidden;
+}
+.game-page #snakeCanvas,.game-page[data-skin="snake"] #snakeCanvas{
+ display:block;width:100%!important;height:100%!important;max-width:none;
+ aspect-ratio:1/1;object-fit:fill;
+ border:0!important;outline:0!important;border-radius:0!important;image-rendering:auto!important;
+ touch-action:none;
+}
+.game-page .board2048,.game-page[data-skin="2048"] .board2048{
+ width:var(--board-size);max-width:100%;height:auto;aspect-ratio:1/1;flex:0 0 auto;
+ margin:0!important;padding:9px;border:0;border-radius:12px;gap:8px;
+ background:#c9b8a0;box-shadow:0 0 0 1px #bca98f;
+ touch-action:none;overscroll-behavior:contain;
+}
+.game-page .tttboard,.game-page[data-skin="ttt"] .tttboard{
+ width:var(--board-size)!important;max-width:100%;height:auto;aspect-ratio:1/1;flex:0 0 auto;
+ margin:0!important;background:#b5cbd4;border:7px solid #b5cbd4;border-radius:12px;gap:7px;
+ box-shadow:none;touch-action:manipulation;
+}
+.game-page .tttboard .ttt-cell{background:#f8fbfa;color:#3b747b!important;border-radius:7px!important;padding:clamp(9px,2.2vw,28px)}
+.game-page .tttboard .ttt-cell[data-mark="O"]{color:#be7462!important}
+.game-page .modal-actions{flex:0 0 auto;display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:8px;margin:11px auto 0}
+.game-page .modal-actions .btn{min-height:39px;border-radius:9px;font-size:12px;padding:9px 13px}
+.game-page .game-status{margin:0;padding:6px 0 0;font-size:10px;color:#829188;line-height:1.2}
+.game-page .snake-screen-overlay{background:#102e25d8;backdrop-filter:blur(1px);padding:18px;gap:11px}
+.game-page .snake-screen-overlay span{border-radius:9px;font-weight:750;padding:11px 13px}
+.game-page .snake-screen-overlay strong{font-size:clamp(23px,5vw,33px);letter-spacing:-.8px}
+.game-page.focus-active{--board-size:min(calc(100vw - 8px),calc(100dvh - 112px),860px)}
+.game-page.focus-active .game-intro,.game-page.focus-active .game-status{display:none}
+.game-page.focus-active .game-topline{min-height:44px;padding:5px 8px}
+.game-page.focus-active .game-wrap{padding:2px 4px 7px}
+.game-page.focus-active .scorebar{margin-bottom:5px}
+.game-page.focus-active .scoreboard{min-height:45px;padding:5px 12px}
+.game-page.focus-active .modal-actions{margin-top:6px}
+.game-page.focus-active .modal-actions button:not(#pauseGame):not(#restart){display:none}
+.game-page.focus-active .board2048,.game-page.focus-active .snake-shell,.game-page.focus-active .tttboard{border-radius:7px}
+@media(min-width:920px){
+ .game-page .game-intro{margin-bottom:13px}
+ .game-page .game-intro h2{font-size:34px}
+ .game-page .scorebar{margin-bottom:12px}
+ .game-page .modal-actions{margin-top:13px}
+}
+@media(max-width:600px){
+ .logo>.brand-mark,.brand-mark{width:33px;height:33px;flex-basis:33px}
+ .game-page{--board-size:min(calc(100vw - 10px),calc(100dvh - 178px),760px)}
+ .game-page .game-wrap,#gameDialog .game-wrap{padding:4px 4px 6px}
+ .game-page .game-intro{margin:0 0 6px;gap:9px}
+ .game-page .game-intro h2{font-size:25px}
+ .game-page .game-intro .eyebrow{font-size:9px}
+ .game-topline{min-height:48px;padding:7px 6px;gap:3px}
+ .game-topline button[data-close-game],.game-topline .game-settings-button,.game-focus-button{font-size:11px;padding:8px 7px;gap:4px}
+ .game-topline button svg{width:16px;height:16px}
+ .game-brand{font-size:12px;gap:4px}
+ .game-brand-mark{width:20px;height:20px;flex-basis:20px}
+ .game-page .scorebar{width:var(--board-size);margin-bottom:6px}
+ .game-page .scoreboard{padding:6px 12px;min-height:50px}
+ .game-page .scoreboard b{font-size:22px}
+ .game-page .snake-shell{border-width:2px;border-radius:8px}
+ .game-page .board2048{padding:7px;gap:6px;border-radius:8px}
+ .game-page .tttboard{border-width:5px;gap:5px;border-radius:8px}
+ .game-page .modal-actions{gap:6px;margin-top:9px}
+ .game-page .modal-actions .btn{padding:8px 10px;min-height:37px}
+ .game-page.focus-active{--board-size:min(calc(100vw - 4px),calc(100dvh - 112px),860px)}
+}
+@media(max-height:610px){
+ .game-page{--board-size:min(calc(100vw - 12px),calc(100dvh - 159px),760px)}
+ .game-page .game-intro{display:none}
+ .game-page .scoreboard{min-height:40px;padding:4px 11px}
+ .game-page .modal-actions{margin-top:6px}
+ .game-page .game-status{display:none}
+ .game-page.focus-active{--board-size:min(calc(100vw - 4px),calc(100dvh - 108px),860px)}
+}
 </style>
 </head>
 <body>
