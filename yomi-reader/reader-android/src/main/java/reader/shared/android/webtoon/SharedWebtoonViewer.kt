@@ -359,16 +359,26 @@ class SharedWebtoonViewer(
         fun bind(transition: ChapterTransition) {
             val root = itemView as FrameLayout
             root.removeAllViews()
+            // Share the real Mihon Compose chapter-transition presentation
+            // between webtoon and paged viewers through the Yomi host adapter.
             root.addView(
-                TextView(host.context).apply {
-                    text = transition.to?.chapter?.title ?: "End"
-                    textSize = 13f
-                    setTextColor(0xFF9EA8B7.toInt())
-                    val v = (12 * resources.displayMetrics.density).toInt()
-                    val h = (20 * resources.displayMetrics.density).toInt()
-                    setPadding(h, v, h, v)
-                },
+                host.createChapterTransitionView(transition),
+                FrameLayout.LayoutParams(
+                    FrameLayout.LayoutParams.MATCH_PARENT,
+                    FrameLayout.LayoutParams.WRAP_CONTENT,
+                    Gravity.CENTER,
+                ),
             )
+            if (transition.to?.pages == null && transition.to != null) {
+                root.addView(
+                    ProgressBar(host.context).apply { isIndeterminate = true },
+                    FrameLayout.LayoutParams(
+                        FrameLayout.LayoutParams.WRAP_CONTENT,
+                        FrameLayout.LayoutParams.WRAP_CONTENT,
+                        Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL,
+                    ),
+                )
+            }
         }
     }
 }
