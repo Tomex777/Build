@@ -96,6 +96,31 @@ PY
   sleep 2
 }
 
+tap_music_search_result() {
+  # Search text and the actual result can both have the exact text "Offline Proof".
+  # The generic tap helper hit the SEARCH INPUT rather than the music result and
+  # consequently timed out on Mini player. Select the lowest matching on-screen
+  # result title instead, independently of emulator screen size.
+  dump_ui
+  python3 - <<'PY'
+import re, subprocess, xml.etree.ElementTree as ET
+root=ET.parse('/tmp/sora-download-window.xml').getroot()
+matches=[]
+for n in root.iter('node'):
+    if (n.attrib.get('text') or '').strip() != 'Offline Proof': continue
+    m=re.match(r'\[(\d+),(\d+)\]\[(\d+),(\d+)\]',n.attrib.get('bounds',''))
+    if m:
+        x1,y1,x2,y2=map(int,m.groups())
+        matches.append(((y1+y2)//2,(x1+x2)//2))
+if len(matches) < 2:
+    raise SystemExit('Expected distinct search-input and media-result nodes, got: '+str(matches))
+y,x=max(matches)
+print('Tapping real Offline Proof result at',x,y,flush=True)
+subprocess.check_call(['adb','shell','input','tap',str(x),str(y)])
+PY
+  sleep 2
+}
+
 tap_media_tab() {
   if node_exists Media; then tap_text Media; return; fi
   read -r w h <<<"$(adb shell wm size | sed -n 's/.*Physical size: \([0-9]*\)x\([0-9]*\).*/\1 \2/p' | tail -1)"
@@ -125,7 +150,7 @@ shot 00-home
 open_music
 shot 01-music-home
 
-tap_text 'Offline Proof'
+tap_music_search_result
 wait_node 'Mini player' 20
 tap_text 'Mini player'
 wait_node 'Offline Proof' 15
@@ -147,7 +172,7 @@ adb shell am force-stop com.night.sora
 adb shell am start -W -n com.night.sora/.MainActivity >/dev/null
 sleep 4
 open_music
-tap_text 'Offline Proof'
+tap_music_search_result
 wait_node 'Mini player' 20
 tap_text 'Mini player'
 wait_node Downloaded 15
