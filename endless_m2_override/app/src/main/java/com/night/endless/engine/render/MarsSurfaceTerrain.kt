@@ -15,7 +15,7 @@ class MarsSurfaceTerrain {
     private val vertices: FloatBuffer
     private val indices: ShortBuffer
     private val indexCount: Int
-    private val detail = SurfaceDetailRenderer { x, z -> heightAt(x, z) }
+    private val detail = SurfaceDetailRenderer { x, z -> renderedHeightAt(x, z) }
 
     init {
         val side = 121
@@ -72,6 +72,10 @@ class MarsSurfaceTerrain {
     }
 
     companion object {
+        /** Triangles actually visible to the player, not unmeshed DEM samples. */
+        fun renderedHeightAt(x: Double, z: Double): Double =
+            SurfaceTerrainSampling.renderedHeight(x, z, 121, 0.22f.toDouble(), ::heightAt)
+
         @Volatile var elevationPatch: MeasuredElevationPatch? = null
 
         fun heightAt(x: Double, z: Double): Double {
