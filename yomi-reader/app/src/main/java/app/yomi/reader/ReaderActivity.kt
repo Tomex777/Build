@@ -237,8 +237,10 @@ class ReaderActivity : ComponentActivity(), ReaderViewerHost {
                     ReaderSettingsDialog(
                         onDismissRequest = {
                             settingsOpen.value = false
-                            if (menuVisible) scheduleChromeHide()
+                            showMenu()
                         },
+                        onShowMenus = ::showMenu,
+                        onHideMenus = ::hideMenu,
                         readingMode = mode,
                         onReadingModeChange = { selected ->
                             if (mode != selected) {
@@ -624,7 +626,7 @@ class ReaderActivity : ComponentActivity(), ReaderViewerHost {
     }
 
     private fun scheduleChromeHide() {
-        if (!::root.isInitialized || keepChromeVisibleForCi) return
+        if (!::root.isInitialized || keepChromeVisibleForCi || settingsOpen.value) return
         root.removeCallbacks(hideChromeRunnable)
         root.postDelayed(hideChromeRunnable, 2400L)
     }
