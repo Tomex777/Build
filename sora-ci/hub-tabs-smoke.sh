@@ -201,6 +201,21 @@ wait_for "QUESTION"
 shot games-daily-five
 tap "All games"
 
+tap_scrolling "Who am I?"
+wait_for "QUESTION"
+shot games-who-am-i
+tap "All games"
+
+tap_scrolling "Who said it?"
+wait_for "QUESTION"
+shot games-who-said-it
+tap "All games"
+
+tap_scrolling "Bible trivia"
+wait_for "QUESTION"
+shot games-bible-trivia
+tap "All games"
+
 tap_scrolling "Would you rather?"
 wait_for "Make your choice"
 shot games-would-rather
