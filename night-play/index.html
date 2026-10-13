@@ -241,6 +241,8 @@ header{position:sticky;top:0;z-index:60;box-shadow:0 1px 0 #e7e8e7;background:#f
 
 /* V6 — a separate landing experience, grounded footer and scalable analytics */
 body[data-view="welcome"] .mobile-nav,body[data-view="welcome"] header .links,body[data-view="welcome"] header .profile-icon,body[data-view="welcome"] header button[data-dialog="connect"]{display:none!important}
+body[data-view="terms"] .mobile-nav,body[data-view="privacy"] .mobile-nav{display:none!important}
+body[data-view="terms"] header .links,body[data-view="privacy"] header .links,body[data-view="terms"] header .profile-icon,body[data-view="privacy"] header .profile-icon,body[data-view="terms"] header button[data-dialog="connect"],body[data-view="privacy"] header button[data-dialog="connect"]{display:none!important}
 header .landing-enter{display:none}
 body[data-view="welcome"] header .landing-enter{display:inline-flex}
 .site-footer{width:100%;flex-shrink:0;padding:0;margin-top:auto;background:var(--bg);border-top:1px solid var(--line)}
@@ -251,7 +253,7 @@ body[data-view="welcome"] header .landing-enter{display:inline-flex}
 .announcement-bar.dismissed{display:none!important}
 .announcement-bar.dismissed .announcement-history{display:none!important}
 body[data-view="welcome"] .site-footer{padding-bottom:0}
-body[data-view="profile"] header button[data-dialog="connect"]{display:none!important}
+/* Profile keeps a single WhatsApp connect action in the site header. */
 .profile-overview{margin-bottom:8px}
 .analytics-panel{position:relative;background:#fff;border:1px solid #e8e8e7;border-radius:24px;padding:25px 28px 20px;margin-bottom:34px}
 .analytics-top{display:flex;align-items:center;justify-content:space-between;gap:18px;position:relative;z-index:8}
@@ -276,7 +278,7 @@ body[data-view="profile"] header button[data-dialog="connect"]{display:none!impo
 .analytics-metrics>div:first-child{padding-left:0}
 .analytics-metrics>div:last-child{border:0}
 .analytics-metrics span{font-size:12px;color:#909393}
-.analytics-metrics strong{font-size:clamp(25px,4vw,42px);letter-spacing:-1.6px;font-variant-numeric:tabular-nums;overflow:hidden;text-overflow:ellipsis}
+.analytics-metrics strong{font-size:clamp(23px,3vw,39px);letter-spacing:-1.2px;font-variant-numeric:tabular-nums;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .analytics-chart{position:relative;padding-top:23px}
 .chart-head{display:flex;justify-content:space-between;align-items:center;gap:15px;font-size:13px;font-weight:800}
 .chart-head small{color:#9a9d9e;font-size:10px;font-weight:500}
@@ -284,13 +286,14 @@ body[data-view="profile"] header button[data-dialog="connect"]{display:none!impo
 .chart-no-data{position:absolute;inset:65px 0 32px;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:7px;background:#fff;color:#565d5c;font-size:14px}
 .chart-no-data span{font-size:12px;color:#9c9f9f}
 .chart-no-data[hidden]{display:none}
+#chartAxis[hidden]{display:none!important}
 .chart-axis-labels{display:flex;justify-content:space-between;color:#999;font-size:11px}
 .analytics-footnote{margin:17px 0 0;color:#9a9c9e;font-size:11px}
 .record-grid{display:none}
 @media(max-width:600px){
  body[data-view="welcome"] .mobile-nav{display:none!important}
  .footer-inner{min-height:65px;padding-bottom:8px;align-items:flex-start;flex-direction:column;justify-content:center;gap:5px;font-size:11px}
- body[data-view="welcome"] .site-footer{padding-bottom:0!important}
+ body[data-view="welcome"] .site-footer,body[data-view="privacy"] .site-footer,body[data-view="terms"] .site-footer{padding-bottom:0!important}
  .site-footer{padding-bottom:calc(65px + env(safe-area-inset-bottom))!important}
  .analytics-panel{padding:20px 16px 18px;border-radius:19px}
  .analytics-top h3{font-size:21px}
@@ -304,6 +307,35 @@ body[data-view="profile"] header button[data-dialog="connect"]{display:none!impo
  .chart-no-data{inset:55px 0 24px}
 }
 
+
+/* V7 — minimal account card and matter-of-fact site/legal surfaces */
+.profile-overview{background:#f1f2f1;border:1px solid #e5e7e6;overflow:hidden;border-radius:21px;margin:24px 0 30px}
+.profile-identity{min-height:134px;padding:29px 32px;gap:22px}
+.profile-identity .profile-monogram{width:74px;height:74px;border-radius:50%;background:#e1e4e2;color:#37413c}
+.profile-identity .player-card-name{flex:1;min-width:0}
+.profile-identity h2{margin:0 0 6px;font-size:25px;letter-spacing:-.65px;font-weight:750}
+.player-card-name>span{font-size:12px;color:#7a817f}
+.player-card-brand{font-size:19px;letter-spacing:-1px;font-weight:900;color:#9ea6a3;display:flex;align-items:baseline;gap:4px;white-space:nowrap;opacity:.45}
+.player-card-brand span{font-size:9px;letter-spacing:1px;font-weight:750}
+#view-profile .records-heading{margin-top:23px}
+#view-profile .analytics-panel{border-radius:20px}
+.footer-inner nav{display:flex;align-items:center;gap:25px}
+.footer-inner nav a{font-size:12px;color:#696e6d}
+.footer-inner nav a:hover{color:#171a19;text-decoration:underline}
+.legal-page{width:100%}
+.legal-content{max-width:690px;margin:54px auto 80px}
+.legal-back{font-size:12px;font-weight:650;color:#858987}
+.legal-content h1{font-size:clamp(35px,6vw,51px);letter-spacing:-1.75px;margin:24px 0 8px}
+.legal-asof{font-size:12px;color:#929795;border-bottom:1px solid #e5e6e6;padding-bottom:30px;margin-bottom:33px}
+.legal-content h2{font-size:18px;letter-spacing:-.4px;margin:26px 0 9px}
+.legal-content p:not(.legal-asof){font-size:14px;color:#656a68;line-height:1.85;margin:0 0 17px}
+@media(max-width:600px){.profile-overview{margin-top:28px}.profile-identity{padding:20px;min-height:107px;gap:14px}.profile-identity .profile-monogram{width:56px;height:56px}.profile-identity h2{font-size:22px}.player-card-brand{font-size:13px}.player-card-brand span{font-size:8px}.footer-inner{flex-direction:row;align-items:center;gap:12px}.footer-inner nav{gap:17px}.legal-content{margin:37px auto 65px}}
+
+/* V7: restrained records typography and legible mobile charts */
+#view-profile .records-heading{margin:29px 0 17px}
+#view-profile .records-heading h2{margin:0;font-size:26px;letter-spacing:-.8px}
+#view-profile .analytics-panel{padding-top:24px}
+@media(max-width:600px){#analyticsGraph{aspect-ratio:400/250}#view-profile .records-heading h2{font-size:23px}}
 </style>
 </head>
 <body>
@@ -358,35 +390,54 @@ body[data-view="profile"] header button[data-dialog="connect"]{display:none!impo
  </div><p class="no-results" id="noGameResults" hidden>No games found. Try another name or category.</p>
 </section>
 <section class="site-page" id="view-profile" data-view="profile" hidden>
-<div class="inner-page-head profile-heading"><div><span class="eyebrow">ACCOUNT</span><h1>Account <span class="muted">profile.</span></h1></div><span class="status-pill">NOT CONNECTED</span></div>
-<div class="profile-overview">
- <div class="profile-identity"><div class="profile-monogram" aria-hidden="true"><svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4.5 20c1.2-4.7 13.8-4.7 15 0"/></svg></div><div><h2>Connect WhatsApp</h2><span class="muted">Not connected</span></div><button class="btn light" data-dialog="connect">Connect ↗</button></div>
+<div class="profile-overview" aria-label="NIGHT Play profile card">
+ <div class="profile-identity">
+  <div class="profile-monogram" aria-hidden="true"><svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4.5 20c1.2-4.7 13.8-4.7 15 0"/></svg></div>
+  <div class="player-card-name"><h2>Player</h2><span id="profileIdentityCaption">NIGHT Play</span></div>
+  <span class="player-card-brand" aria-hidden="true">NIGHT<span>PLAY</span></span>
+ </div>
 </div>
-<div class="records-heading"><div><span class="eyebrow">YOUR GAME STATS</span><h2>Game records</h2></div><span class="record-mode-tag">Device only · Unranked</span></div>
+<div class="records-heading"><h2>Game records</h2></div>
 <div class="analytics-panel">
  <div class="analytics-top">
-  <div><h3 id="selectedGameTitle">Snake</h3><span class="analytics-subtitle" id="analyticsSubtitle">Recent scores</span></div>
+  <div><h3 id="selectedGameTitle">Game activity</h3><span class="analytics-subtitle" id="analyticsSubtitle">Completed rounds by game</span></div>
   <div class="analytics-picker">
    <button id="recordsPicker" class="records-picker" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="recordsMenu">Choose game <span aria-hidden="true">⌄</span></button>
    <div id="recordsMenu" class="records-menu" hidden><label><span aria-hidden="true">⌕</span><input id="recordSearch" placeholder="Find a game..." type="search" autocomplete="off" aria-label="Search game records"></label><div id="recordOptions" class="record-options" role="listbox" aria-label="Games with score records"></div><p id="recordEmpty" class="record-empty" hidden>No games found</p></div>
   </div>
  </div>
  <div class="analytics-metrics">
-   <div><span>Personal best</span><strong id="analyticsBest">0</strong></div>
-   <div><span>Last score</span><strong id="analyticsLatest">—</strong></div>
-   <div><span>Recorded rounds</span><strong id="analyticsRuns">0</strong></div>
+   <div><span id="metricLabelBest">Games played</span><strong id="analyticsBest">0</strong></div>
+   <div><span id="metricLabelLatest">Rounds played</span><strong id="analyticsLatest">0</strong></div>
+   <div><span id="metricLabelRuns">Most played</span><strong id="analyticsRuns">—</strong></div>
  </div>
  <div class="analytics-chart">
-  <div class="chart-head"><span>Score history</span><small id="chartNote">Last 12 completed rounds</small></div>
-  <svg id="analyticsGraph" viewBox="0 0 680 250" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Scores for the selected game plotted over recent rounds"></svg>
+  <div class="chart-head"><span id="chartHeading">Most played games</span><small id="chartNote">Completed rounds</small></div>
+  <svg id="analyticsGraph" viewBox="0 0 680 250" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Games played, measured by completed rounds"></svg>
   <div id="chartEmptyState" class="chart-no-data" hidden><strong>No scores yet</strong><span>Play a round to see your progress here.</span></div>
-  <div class="chart-axis-labels"><span>Earlier</span><span>Recent</span></div>
+  <div class="chart-axis-labels" id="chartAxis"><span>Fewer rounds</span><span>More rounds</span></div>
  </div>
- <p class="analytics-footnote" id="recordsGameCount">Your game records</p>
+ <p class="analytics-footnote" id="recordsGameCount">Scores saved on this device · Unranked</p>
 </div>
 </section>
+
+<section class="site-page legal-page" id="view-terms" data-view="terms" hidden>
+ <div class="legal-content"><a href="/dashboard" class="legal-back" data-route>← Back</a><h1>Terms of use</h1><p class="legal-asof">NIGHT Play preview · Updated 13 October 2026</p>
+ <h2>Using the preview</h2><p>NIGHT Play is currently a testing preview. Games, scores, and features may change. The preview is offered without guarantees of continuous availability.</p>
+ <h2>Scores and fair play</h2><p>Scores saved on your device are not official rankings. Please avoid manipulating other players’ games, accounts, or matches. Competitive multiplayer is not yet available in this preview.</p>
+ <h2>Your account</h2><p>WhatsApp account linking has not launched. Do not enter WhatsApp passwords, pairing codes, or private session credentials into this website. When accounts launch, the terms will be updated to describe the service.</p>
+ <h2>Contact and changes</h2><p>These are provisional preview terms, not the final terms for a commercial launch. An official contact address and final legal review must be added before the public account service launches.</p></div>
+</section>
+<section class="site-page legal-page" id="view-privacy" data-view="privacy" hidden>
+ <div class="legal-content"><a href="/dashboard" class="legal-back" data-route>← Back</a><h1>Privacy</h1><p class="legal-asof">NIGHT Play preview · Updated 13 October 2026</p>
+ <h2>What this preview saves</h2><p>The games use your browser’s local storage for settings, high scores, recent game results, and whether you dismissed an announcement. These records stay in that browser unless you clear its storage or the site’s implementation changes.</p>
+ <h2>WhatsApp and identity</h2><p>The preview has no working WhatsApp account-linking system. It does not currently receive your WhatsApp phone number, JID, LID, or credentials through a sign-in flow. Do not submit account secrets here.</p>
+ <h2>Future services</h2><p>Before launching verified accounts, multiplayer, or hosted game statistics, NIGHT Play will need a revised policy covering server storage, identity linking, retention, and account removal.</p>
+ <h2>Third-party hosting</h2><p>The website is hosted through Vercel. Hosting infrastructure may process technical request information independently of the game records stored in your browser.</p>
+ <h2>Updates</h2><p>This page describes the current test build, not a final production privacy policy. It must be reviewed and completed before live account registration is enabled.</p></div>
+</section>
 </main>
-<footer class="site-footer"><div class="wrap footer-inner"><strong>NIGHT PLAY</strong><span>© 2026 NIGHT. Preview build.</span></div></footer>
+<footer class="site-footer"><div class="wrap footer-inner"><span>© 2026 NIGHT Play</span><nav aria-label="Legal information"><a href="/terms" data-route>Terms</a><a href="/privacy" data-route>Privacy</a></nav></div></footer>
 <dialog id="infoDialog" aria-labelledby="infoTitle"><div class="modalhead"><h2 id="infoTitle">NIGHT Play</h2><button class="xbtn" data-close aria-label="Close">×</button></div><div class="modalbody" id="infoBody"></div></dialog>
 <dialog id="settingsDialog" aria-labelledby="settingsTitle"><div class="modalhead"><h2 id="settingsTitle">Game settings</h2><button class="xbtn" id="closeSettings" type="button" aria-label="Close settings">×</button></div><div class="modalbody" id="settingsBody"></div></dialog>
 <section id="gameDialog" class="game-page" aria-label="Fullscreen game view" aria-hidden="true">
@@ -429,7 +480,7 @@ function recordSession(id,score){if(!Number.isFinite(score)||score<0)return;try{
 // One chart with a searchable game selector scales to large catalogues.
 const RECORD_LABELS={"snake":"Snake","2048":"2048 · 4×4","2048-5":"2048 · 5×5","2048-6":"2048 · 6×6"};
 const RECORD_DEFAULTS=["snake","2048","2048-5","2048-6"];
-let selectedRecordGame=getSaved("night-play-selected-record")||"snake";
+let selectedRecordGame=getSaved("night-play-selected-record-v7")||"overview";
 function recordTitle(id){
  if(RECORD_LABELS[id])return RECORD_LABELS[id];
  return String(id).replace(/[-_]+/g," ").replace(/\b\w/g,letter=>letter.toUpperCase()).slice(0,60);
@@ -451,27 +502,61 @@ function setText(id,v){const el=document.getElementById(id);if(el)el.textContent
 function renderRecordOptions(){
  const query=document.getElementById("recordSearch").value.toLowerCase().trim();
  const target=document.getElementById("recordOptions");target.replaceChildren();
- const all=availableRecordGames(),found=all.filter(id=>recordTitle(id).toLowerCase().includes(query));
- for(const id of found){
-   const button=document.createElement("button");button.type="button";button.setAttribute("role","option");
-   button.setAttribute("aria-selected",String(id===selectedRecordGame));
-   const label=document.createElement("strong");label.textContent=recordTitle(id);
-   const sub=document.createElement("span");sub.textContent=scoreCount(id)+" rounds";
-   button.append(label,sub);button.onclick=()=>{
-    selectedRecordGame=id;putSaved("night-play-selected-record",id);
-    document.getElementById("recordsMenu").hidden=true;
-    document.getElementById("recordsPicker").setAttribute("aria-expanded","false");
-    drawRecordChart();
-   };target.appendChild(button)
+ const games=availableRecordGames(), options=[{id:"overview",name:"All games",subtitle:"Activity overview"},...games.map(id=>({id,name:recordTitle(id),subtitle:scoreCount(id)+" rounds"}))];
+ const found=options.filter(opt=>opt.name.toLowerCase().includes(query));
+ for(const option of found){
+  const button=document.createElement("button");button.type="button";button.setAttribute("role","option");
+  button.setAttribute("aria-selected",String(option.id===selectedRecordGame));
+  const label=document.createElement("strong");label.textContent=option.name;
+  const sub=document.createElement("span");sub.textContent=option.subtitle;
+  button.append(label,sub);button.onclick=()=>{
+   selectedRecordGame=option.id;putSaved("night-play-selected-record-v7",option.id);
+   document.getElementById("recordsMenu").hidden=true;
+   document.getElementById("recordsPicker").setAttribute("aria-expanded","false");
+   drawRecordChart();
+  };target.appendChild(button)
  }
  document.getElementById("recordEmpty").hidden=found.length!==0;
- setText("recordsGameCount",all.length+" game records available · Local scores only");
+ setText("recordsGameCount","Scores on this device · Not ranked");
 }
+function recordedActivity(){
+ return availableRecordGames().map(id=>({id,label:recordTitle(id),rounds:scoreCount(id)}))
+  .filter(x=>x.rounds>0).sort((a,b)=>b.rounds-a.rounds||a.label.localeCompare(b.label))
+}
+function drawActivityChart(svg,activity){
+ const mobile=window.matchMedia("(max-width:600px)").matches;
+ svg.setAttribute("viewBox",mobile?"0 0 400 250":"0 0 680 250");
+ const ns="http://www.w3.org/2000/svg",el=(tag,attrs)=>{const x=document.createElementNS(ns,tag);for(const [key,value] of Object.entries(attrs))x.setAttribute(key,String(value));return x};
+ svg.replaceChildren();
+ if(activity.length===0)return;
+ // Compare game participation (rounds), never incompatible raw score scales.
+ const selected=activity.slice(0,6);
+ if(activity.length>6)selected.push({id:"other",label:"Other games",rounds:activity.slice(6).reduce((sum,item)=>sum+item.rounds,0)});
+ const max=Math.max(1,...selected.map(x=>x.rounds));
+ const left=mobile?135:175,right=mobile?345:625,top=14,rowHeight=32;
+ const maxWidth=right-left;
+ selected.forEach((item,index)=>{
+   const y=top+index*rowHeight,barY=y+4;
+   const label=el("text",{x:8,y:y+18,fill:"#4d5551","font-size":mobile?"13":"14","font-family":"Arial, sans-serif"});
+   const labelLimit=mobile?17:23;
+   const display=item.label.length>labelLimit?item.label.slice(0,labelLimit-1)+"…":item.label;
+   label.textContent=display;svg.appendChild(label);
+   svg.appendChild(el("rect",{x:left,y:barY,width:maxWidth,height:18,rx:4,fill:"#f1f2f1"}));
+   const width=Math.max(4,Math.round(item.rounds/max*maxWidth));
+   const b=el("rect",{x:left,y:barY,width,height:18,rx:4,fill:"#293b36"});
+   const tt=el("title",{});tt.textContent=item.label+": "+item.rounds+" rounds";b.appendChild(tt);svg.appendChild(b);
+   const count=el("text",{x:mobile?394:663,y:y+18,fill:"#293b36","font-size":"12","text-anchor":"end","font-weight":"700","font-family":"Arial, sans-serif"});
+   count.textContent=item.rounds.toLocaleString();svg.appendChild(count);
+ });
+}
+
 function plotSVG(svg,history,bestScore){
  const ns="http://www.w3.org/2000/svg";
  const elt=(tag,attrs)=>{const n=document.createElementNS(ns,tag);for(const [k,v] of Object.entries(attrs))n.setAttribute(k,String(v));return n};
  svg.replaceChildren();
- const max=Math.max(1,...history,bestScore),top=30,bottom=211,left=68,right=657;
+ const mobile=window.matchMedia("(max-width:600px)").matches;
+ svg.setAttribute("viewBox",mobile?"0 0 400 250":"0 0 680 250");
+ const max=Math.max(1,...history,bestScore),top=30,bottom=211,left=mobile?48:68,right=mobile?386:657;
  // Horizontal reference lines and actual score labels.
  for(let i=0;i<4;i++){
   const y=top+(bottom-top)*i/3,raw=Math.round(max*(1-i/3));
@@ -496,22 +581,44 @@ function plotSVG(svg,history,bestScore){
  })
 }
 function drawRecordChart(){
- const id=selectedRecordGame,history=scoreHistory(id),topScore=best(id);
- setText("selectedGameTitle",recordTitle(id));
- setText("analyticsBest",topScore.toLocaleString());
- setText("analyticsLatest",history.length?history[history.length-1].toLocaleString():"—");
- setText("analyticsRuns",scoreCount(id).toLocaleString());
- setText("analyticsSubtitle","Personal scores · Not ranked");
- setText("chartNote","Last "+Math.min(12,history.length)+" recorded rounds");
- plotSVG(document.getElementById("analyticsGraph"),history,topScore);
- document.getElementById("chartEmptyState").hidden=history.length!==0;
- document.getElementById("recordsPicker").firstChild.textContent="Choose game ";
+ const id=selectedRecordGame;
+ const svg=document.getElementById("analyticsGraph");
+ const empty=document.getElementById("chartEmptyState");
+ const axis=document.getElementById("chartAxis");
+ if(id==="overview"){
+  const activity=recordedActivity();
+  const rounds=activity.reduce((total,item)=>total+item.rounds,0);
+  setText("selectedGameTitle","Game activity");
+  setText("analyticsSubtitle","Most played games");
+  setText("metricLabelBest","Games played");setText("analyticsBest",activity.length.toLocaleString());
+  setText("metricLabelLatest","Rounds played");setText("analyticsLatest",rounds.toLocaleString());
+  setText("metricLabelRuns","Most played");setText("analyticsRuns",activity.length?activity[0].label:"—");
+  setText("chartHeading","Completed rounds by game");
+  setText("chartNote",activity.length>6?"Top 6 + others":"All played games");
+  axis.hidden=true;empty.hidden=activity.length!==0;
+  if(activity.length===0){empty.querySelector("strong").textContent="No activity yet";empty.querySelector("span").textContent="Finished games will appear here."}
+  drawActivityChart(svg,activity);
+ }else{
+  const scores=scoreHistory(id),top=best(id);
+  setText("selectedGameTitle",recordTitle(id));setText("analyticsSubtitle","Personal game records");
+  setText("metricLabelBest","Personal best");setText("analyticsBest",top.toLocaleString());
+  setText("metricLabelLatest","Last score");setText("analyticsLatest",scores.length?scores[scores.length-1].toLocaleString():"—");
+  setText("metricLabelRuns","Recorded rounds");setText("analyticsRuns",scoreCount(id).toLocaleString());
+  setText("chartHeading","Score history");setText("chartNote","Last "+Math.min(12,scores.length)+" rounds");
+  axis.hidden=false;empty.hidden=scores.length!==0;
+  if(scores.length===0){empty.querySelector("strong").textContent="No recorded scores";empty.querySelector("span").textContent="Complete a round to start your history."}
+  plotSVG(svg,scores,top);
+ }
+ const picker=document.getElementById("recordsPicker");
+ picker.firstChild.textContent=id==="overview"?"All games ":"Choose game ";
+ svg.setAttribute("aria-label",id==="overview"?"Comparison of completed rounds across played games":"Score history for "+recordTitle(id));
 }
 function renderProfileRecords(){
  const all=availableRecordGames();
- if(!all.includes(selectedRecordGame))selectedRecordGame=all[0]||"snake";
+ if(selectedRecordGame!=="overview"&&!all.includes(selectedRecordGame))selectedRecordGame="overview";
  renderRecordOptions();drawRecordChart()
 }
+
 document.getElementById("recordsPicker").addEventListener("click",()=>{
  const menu=document.getElementById("recordsMenu");menu.hidden=!menu.hidden;
  document.getElementById("recordsPicker").setAttribute("aria-expanded",String(!menu.hidden));
@@ -541,6 +648,8 @@ function pathView(){
  if(path==="/"||path==="/welcome")return "welcome";
  if(path==="/games"||path.startsWith("/play/"))return "games";
  if(path==="/profile")return "profile";
+ if(path==="/privacy")return "privacy";
+ if(path==="/terms")return "terms";
  if(path==="/updates")return "dashboard";
  if(path==="/dashboard")return "dashboard";
  return "welcome";
@@ -587,7 +696,7 @@ function renderRoute(){
    if(key===location.pathname||(location.pathname.startsWith("/play/")&&key==="/games"))link.setAttribute("aria-current","page");
    else link.removeAttribute("aria-current")
  }
- document.title=({welcome:"NIGHT Play — Welcome",dashboard:"NIGHT Play — Home",games:"NIGHT Play — Games",profile:"NIGHT Play — Profile"})[current];
+ document.title=({welcome:"NIGHT Play — Welcome",dashboard:"NIGHT Play — Home",games:"NIGHT Play — Games",profile:"NIGHT Play — Account",terms:"NIGHT Play — Terms",privacy:"NIGHT Play — Privacy"})[current];
  if(current==="dashboard")updateDashboard();
  if(current==="games")filterGames();
  if(current==="profile")renderProfileRecords();
@@ -595,7 +704,7 @@ function renderRoute(){
  updateBell();window.scrollTo(0,0)
 }
 function navigate(path,{replace=false}={}){
- if(!["/","/welcome","/dashboard","/games","/profile"].includes(path))return;
+ if(!["/","/welcome","/dashboard","/games","/profile","/terms","/privacy"].includes(path))return;
  if(path==="/dashboard"||path==="/games")putSaved(ENTER_KEY,"1");
  if(gameDialog.open)gameDialog.close();
  if(infoDialog.open)infoDialog.close();
