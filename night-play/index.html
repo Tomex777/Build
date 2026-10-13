@@ -354,7 +354,13 @@ function renderProfileRecords(){
  for(const [id,svg,caption] of [["snake","chartSnake","captionSnake"],["2048","chart2048","caption2048"],["2048-5","chart2048_5",null],["2048-6","chart2048_6",null]])paintHistory(id,svg,caption)
 }
 function greetingText(hour){return hour>=5&&hour<12?"Good morning":hour>=12&&hour<17?"Good afternoon":hour>=17&&hour<22?"Good evening":"Good night"}
-function updateGreeting(){const title=document.getElementById("homeGreeting");if(title)title.textContent=greetingText(new Date().getHours())+"."}
+function updateGreeting(){
+ const title=document.getElementById("homeGreeting");if(!title)return;
+ const hour=new Date().getHours(),greeting=greetingText(hour);
+ // Show the verified display name only after NIGHT WhatsApp linking is implemented.
+ title.textContent=greeting+".";
+}
+setInterval(()=>{if(!document.getElementById("view-dashboard").hidden)updateGreeting()},60000);
 
 const getSaved=(key)=>{try{return localStorage.getItem(key)}catch{return null}};
 const putSaved=(key,value)=>{try{localStorage.setItem(key,String(value))}catch{}};
@@ -616,7 +622,7 @@ function move2048(dir){
  spawn();record(tileBestKey(),tileScore);
  try{localStorage.setItem("night-play-save-2048-"+size,JSON.stringify({grid,size,score:tileScore,updatedAt:Date.now()}))}catch{}
  draw2048();
- if(!grid.flat().includes(0)){let moves=false;for(let r=0;r<size;r++)for(let c=0;c<size;c++)if((r<size-1&&grid[r][c]===grid[r+1][c])||(c<size-1&&grid[r][c]===grid[r][c+1]))moves=true;if(!moves)document.getElementById("gameHelp").textContent="No more moves! Start a new game to try again."}
+ if(!grid.flat().includes(0)){let moves=false;for(let r=0;r<size;r++)for(let c=0;c<size;c++)if((r<size-1&&grid[r][c]===grid[r+1][c])||(c<size-1&&grid[r][c]===grid[r][c+1]))moves=true;if(!moves){recordSession(tileBestKey(),tileScore);document.getElementById("gameHelp").textContent="No more moves! Start a new game to try again."}}
  }
 }
 function draw2048(){
