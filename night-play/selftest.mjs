@@ -52,7 +52,7 @@ assert.equal((html.match(/<symbol id="art-/g)||[]).length,11,'all game SVG illus
 assert.equal((html.match(/<symbol id="icon-/g)||[]).length,8,'navigation and actions use local SVG icons')
 assert.equal(/class="game-emoji"/.test(html),false,'game preview artwork must not rely on emoji fonts')
 assert.equal(/<div class="floating/.test(html),false,'remove generic floating overlay cards')
-assert.ok(html.includes('gameDialog.dataset.game=kind'),'game boards must be independently themeable')
+assert.ok(html.includes('gameDialog.dataset.skin=kind'),'game boards must be independently themeable')
 assert.match(html,/\.hero-game-art\{filter:none;transform:none/,'no decorative fake 3D tilt')
 assert.ok(html.includes('.mobile-nav .ui-icon'),'mobile tabs should have icon-specific responsive sizing')
 assert.ok(html.includes('@media(prefers-reduced-motion:reduce)'),'honour reduced motion for visual treatment')
