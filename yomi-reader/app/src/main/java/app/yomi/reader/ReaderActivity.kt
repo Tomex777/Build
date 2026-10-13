@@ -87,6 +87,12 @@ import reader.shared.android.model.ViewerChapters
 import reader.shared.android.model.ViewerPage
 import reader.shared.android.pager.PagerDirection
 import reader.shared.android.pager.SharedPagerViewer
+import reader.shared.android.navigation.DisabledNavigation
+import reader.shared.android.navigation.EdgeNavigation
+import reader.shared.android.navigation.KindlishNavigation
+import reader.shared.android.navigation.LNavigation
+import reader.shared.android.navigation.RightAndLeftNavigation
+import reader.shared.android.navigation.ViewerNavigation
 import reader.shared.android.webtoon.SharedWebtoonViewer
 
 class ReaderActivity : ComponentActivity(), ReaderViewerHost {
@@ -311,6 +317,18 @@ class ReaderActivity : ComponentActivity(), ReaderViewerHost {
                         pageTransitions = prefs.getBoolean(PREF_PAGE_TRANSITIONS, true),
                         onPageTransitionsChange = { value ->
                             prefs.edit().putBoolean(PREF_PAGE_TRANSITIONS, value).apply()
+                            installViewer()
+                            refreshChrome()
+                        },
+                        tapZones = prefs.getString(PREF_TAP_ZONES, "default") ?: "default",
+                        onTapZonesChange = { value ->
+                            prefs.edit().putString(PREF_TAP_ZONES, value).apply()
+                            installViewer()
+                            refreshChrome()
+                        },
+                        tapZoneInvert = prefs.getString(PREF_TAP_ZONE_INVERT, "none") ?: "none",
+                        onTapZoneInvertChange = { value ->
+                            prefs.edit().putString(PREF_TAP_ZONE_INVERT, value).apply()
                             installViewer()
                             refreshChrome()
                         },
@@ -563,6 +581,8 @@ class ReaderActivity : ComponentActivity(), ReaderViewerHost {
             volumeKeysInverted = getPreferences(MODE_PRIVATE).getBoolean(PREF_VOLUME_KEYS_INVERTED, false),
             minimumScaleType = minimumScaleType(),
             pageTransitions = getPreferences(MODE_PRIVATE).getBoolean(PREF_PAGE_TRANSITIONS, true),
+            pagerNavigation = readerTapZones(pager = true),
+            webtoonNavigation = readerTapZones(pager = false),
         )
 
         viewer = when (mode) {
@@ -843,6 +863,26 @@ class ReaderActivity : ComponentActivity(), ReaderViewerHost {
         }
     }
 
+    private fun readerTapZones(pager: Boolean): ViewerNavigation {
+        val preferences = getPreferences(MODE_PRIVATE)
+        val layout = preferences.getString(PREF_TAP_ZONES, "default")
+        val navigation = when (layout) {
+            "disabled" -> DisabledNavigation()
+            "edge" -> EdgeNavigation()
+            "kindle" -> KindlishNavigation()
+            "l" -> LNavigation()
+            "right_left" -> RightAndLeftNavigation()
+            else -> if (pager) RightAndLeftNavigation() else LNavigation()
+        }
+        navigation.invertMode = when (preferences.getString(PREF_TAP_ZONE_INVERT, "none")) {
+            "horizontal" -> ViewerNavigation.InvertMode.HORIZONTAL
+            "vertical" -> ViewerNavigation.InvertMode.VERTICAL
+            "both" -> ViewerNavigation.InvertMode.BOTH
+            else -> ViewerNavigation.InvertMode.NONE
+        }
+        return navigation
+    }
+
     private fun loadScaleMode(): ReaderScaleMode {
         return getPreferences(MODE_PRIVATE)
             .getString(PREF_SCALE_MODE, ReaderScaleMode.FIT_SCREEN.name)
@@ -1002,6 +1042,8 @@ class ReaderActivity : ComponentActivity(), ReaderViewerHost {
         private const val PREF_VOLUME_KEYS = "volume_keys"
         private const val PREF_VOLUME_KEYS_INVERTED = "volume_keys_inverted"
         private const val PREF_PAGE_TRANSITIONS = "page_transitions"
+        private const val PREF_TAP_ZONES = "reader_tap_zones"
+        private const val PREF_TAP_ZONE_INVERT = "reader_tap_zone_invert"
         private const val PREF_SHOW_PAGE_NUMBER = "show_page_number"
         private const val PREF_SCALE_MODE = "scale_mode"
         private const val PREF_ZOOM_START = "reader_zoom_start"
