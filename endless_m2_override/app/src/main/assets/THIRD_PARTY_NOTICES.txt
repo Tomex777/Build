@@ -21,3 +21,24 @@ Close-approach lunar material:
 
 Close-approach Mars normal detail is derived from the USGS Astrogeology MGS MOLA
 global elevation product, credited to the MOLA Team and NASA GSFC.
+
+
+Measured planetary surface data:
+- NASA's Scientific Visualization Studio CGI Moon Kit (ID 4720): 2025 2K
+  LRO/LROC natural-color lunar texture and LRO/LOLA `ldem_16_uint.tif`
+  elevation raster. Credited to NASA/GSFC, Ernie Wright, Noah Petro, the
+  LROC and LOLA teams. https://svs.gsfc.nasa.gov/4720/
+- NASA Mars Global Surveyor/Mars Orbiter Laser Altimeter MEGDR
+  `megt90n000eb.img` topography, courtesy NASA GSFC MOLA science team
+  and PDS Geosciences Node.
+  https://pds-geosciences.wustl.edu/missions/mgs/megdr.html
+- Raster DEMs are cropped/resampled to compact Tycho (-43.31, 348.64 E)
+  and Olympus Mons (18.65 N, 226.2 E) landing patches. Native source
+  resolution is 16 pixels/degree. Bilinear interpolation does not create
+  additional measured geological detail; subpixel visual detail remains
+  illustrative rather than measured.
+- Approximate planetary orbital elements and analytical J2000 solution:
+  NASA/JPL Solar System Dynamics, Standish/Williams Table 1 (1800-2050).
+  https://ssd.jpl.nasa.gov/planets/approx_pos.html
+  Present renderer magnifies planet sizes and compresses planet distances
+  for navigation, despite improving Keplerian phase/tilt/eccentricity.
