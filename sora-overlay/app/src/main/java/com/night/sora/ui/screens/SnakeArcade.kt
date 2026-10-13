@@ -50,6 +50,7 @@ fun SnakeArcade(modifier: Modifier = Modifier) {
     var direction by remember { mutableStateOf(SnakePoint(1,0)) }
     var turn by remember { mutableStateOf(direction) }
     var running by remember { mutableStateOf(false) }
+    var hasStarted by remember { mutableStateOf(false) }
     var alive by remember { mutableStateOf(true) }
     var score by remember { mutableIntStateOf(0) }
     var best by remember { mutableIntStateOf(prefs.getInt("snake_best",0)) }
@@ -57,7 +58,7 @@ fun SnakeArcade(modifier: Modifier = Modifier) {
     fun reset() {
         snake = initial; food = randomFood(initial)
         direction = SnakePoint(1,0); turn = direction
-        score = 0; alive = true; running = true
+        score = 0; alive = true; hasStarted = true; running = true
     }
 
     LaunchedEffect(running, alive) {
@@ -131,13 +132,14 @@ fun SnakeArcade(modifier: Modifier = Modifier) {
         Spacer(Modifier.height(18.dp))
         Text(when { !alive -> "Game over — score " + score
             running -> "Swipe anywhere on the board to turn"
+            hasStarted -> "Paused — swipe the board after resuming"
             else -> "Touch-first Snake. No buttons or D-pad." },
             color=SoraMuted,textAlign=TextAlign.Center,fontSize=13.sp)
         Spacer(Modifier.height(12.dp))
-        Button(onClick = { if (!alive || score==0 && !running) reset() else running = !running },
+        Button(onClick = { if (!alive || !hasStarted) reset() else running = !running },
             shape=RoundedCornerShape(12.dp)) {
             Icon(if (running) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,null)
-            Text(when { !alive -> "Play again"; running -> "Pause"; score==0 -> "Start"; else -> "Resume" })
+            Text(when { !alive -> "Play again"; running -> "Pause"; hasStarted -> "Resume"; else -> "Start" })
         }
     }
 }
