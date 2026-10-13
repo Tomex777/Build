@@ -190,7 +190,7 @@ jobs:
               const id = 'account-' + nextAccount++
               const row = {
                 id,
-                displayName:String(body.displayName || ''),
+                displayName:String(body.displayName || '').trim() || ('Account ' + id.split('-').at(-1)),
                 enabled:true,
                 connected:false,
                 status:'offline',
@@ -592,7 +592,7 @@ jobs:
           echo "$STATE" | grep -q '"maxAccounts":10'
           echo "$STATE" | grep -q '"addAccount":true'
 
-          ADDED=$(curl -fsS -H "$AUTH" -H 'Content-Type: application/json'             -d '{"phoneNumber":"234000000005","displayName":"Extra"}'             http://127.0.0.1:47831/api/cortex/mscc/accounts)
+          ADDED=$(curl -fsS -H "$AUTH" -H 'Content-Type: application/json'             -d '{"phoneNumber":"234000000005","displayName":""}'             http://127.0.0.1:47831/api/cortex/mscc/accounts)
           echo "added=$ADDED"
           echo "$ADDED" | grep -q '"id":"account-5"'
 
@@ -691,6 +691,28 @@ jobs:
           echo "$AFTER" | grep -q '"id":"account-4"'
           echo "$AFTER" | grep -q '"pairingMode":"qr"'
           ! echo "$AFTER" | grep -q '"id":"account-3"'
+
+      - name: Verify friendly account ordinal does not mutate stable session ID
+        shell: bash
+        run: |
+          AUTH='Authorization: Bearer test-token-12345678901234567890'
+          # account-3 is already deleted; remove account-4 so account-5 is
+          # now the third visible account, not the fifth live account.
+          curl -fsS -X DELETE -H "$AUTH" \
+            http://127.0.0.1:47831/api/cortex/mscc/accounts/account-4 >/dev/null
+          PRESENTED=$(curl -fsS -H "$AUTH" http://127.0.0.1:47831/api/cortex/mscc/pairing)
+          RAW=$(curl -fsS http://127.0.0.1:8788/state)
+          PRESENTED="$PRESENTED" RAW="$RAW" node - <<'NODE'
+          const assert = require('node:assert/strict')
+          const publicState = JSON.parse(process.env.PRESENTED)
+          const internal = JSON.parse(process.env.RAW)
+          assert.equal(publicState.accounts.length, 3)
+          assert.equal(publicState.accounts.find(a => a.id === 'account-5')?.displayName, 'Account 3')
+          assert.equal(internal.accounts.find(a => a.id === 'account-5')?.displayName, 'Account 5')
+          assert.equal(publicState.accounts.find(a => a.id === 'account-2')?.displayName, 'Second')
+          assert.deepEqual(publicState.accounts.map(a => a.id), internal.accounts.map(a => a.id))
+          console.log('PASS account-5 displayed as Account 3 without mutating session IDs')
+          NODE
 
       - name: Reject unauthenticated requests
         shell: bash
