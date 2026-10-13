@@ -8,6 +8,7 @@ on:
       - feature/night-play-v6-account-profile-analytics
       - feature/night-play-v7-profile-overview-policies
       - feature/night-play-v9-immersive-games
+      - feature/night-play-v10-arena-rework
     paths:
       - 'night-play/**'
       - '.github/workflows/night-play-preview-ci.yml'
@@ -35,3 +36,11 @@ jobs:
         run: npm install --no-save playwright@1.56.1
       - name: Exercise mobile interactions
         run: node night-play/browser-smoke.mjs
+      - name: Capture mobile board visual diagnostics
+        run: node night-play/visual-inspect.mjs
+      - name: Upload game screenshots
+        uses: actions/upload-artifact@v4
+        with:
+          name: night-play-mobile-design-review
+          path: night-play/visual-output/*.jpg
+          retention-days: 14

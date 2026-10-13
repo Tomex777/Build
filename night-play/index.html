@@ -626,6 +626,123 @@ body{background:var(--bg)}
 .game-page #undo2048[hidden]{display:none!important}
 .game-page #undo2048:disabled{opacity:.43;cursor:not-allowed}
 .snake-screen-overlay .ui-icon{width:17px;height:17px;vertical-align:middle;margin-left:5px}
+
+/* V10: Full-arena redesign; mobile first, space measured before rendering.
+   Official NIGHT horizon icon from the NIGHT Android project; no substitute identity. */
+.logo>.brand-mark,.brand-mark{width:38px;height:38px;flex:0 0 38px;border:0!important;border-radius:10px;padding:0!important;overflow:hidden;background:#0b0f11!important}
+.game-brand{display:inline-flex;align-items:center;gap:7px;color:#101c1a;font-size:13px;letter-spacing:.4px;font-weight:900}
+.game-brand-mark{width:24px;height:24px;border-radius:6px;flex:0 0 24px}
+.game-brand .muted{margin-left:-5px}
+.game-top-actions{display:flex;align-items:center;gap:5px}
+.game-focus-button{background:transparent;color:#2c4c40;border:1px solid #d1dcd2!important;border-radius:9px!important;display:inline-flex;align-items:center;gap:7px;font-size:12px;font-weight:780}
+.game-focus-button[aria-pressed="true"]{background:#e0eae3;color:#1d5c45}
+.game-focus-button .ui-icon{width:16px;height:16px}
+.game-topline{padding:9px clamp(8px,2.2vw,27px);min-height:54px;background:#fff}
+.game-topline .game-settings-button{padding:9px 11px;font-weight:800;background:transparent;border:1px solid #d1dcd2!important;border-radius:9px}
+.game-topline button[data-close-game]{padding:8px 9px;background:#f1f5f1!important;border-radius:8px}
+.game-page{--board-size:min(calc(100vw - 14px),calc(100dvh - 180px),760px);background:#f7f8f5;display:none}
+.game-page.active{display:flex}
+.game-page .game-wrap,#gameDialog .game-wrap{
+ width:100%;max-width:100%;min-height:0;flex:1 1 auto;
+ padding:6px 6px 8px;margin:0;
+ display:flex;flex-direction:column;align-items:center;justify-content:center;
+}
+.game-page .game-intro{flex:0 0 auto;display:flex;align-items:baseline;justify-content:center;gap:12px;margin:0 0 9px;text-align:center}
+.game-page .game-intro .eyebrow{font-size:10px;letter-spacing:1.1px;font-weight:850;margin:0}
+.game-page .game-intro h2{font-size:clamp(24px,3.7vw,34px);line-height:1.1;letter-spacing:-1px;margin:0}
+.game-page .game-intro #gameHelp{display:none}
+.game-page .playarea{width:100%;flex:0 0 auto;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.game-page .scorebar{width:var(--board-size);max-width:100%;min-height:0;padding:0;gap:8px;margin:0 0 9px}
+.game-page .scoreboard{border-radius:11px;padding:8px 15px;min-height:56px;background:#fff;border:1px solid #dce6dd;box-shadow:none}
+.game-page[data-skin="2048"] .scoreboard{border-color:#e4d6c7}
+.game-page[data-skin="ttt"] .scoreboard{border-color:#d7e2ea}
+.scoreboard .score-label{font-size:9px;letter-spacing:.8px}
+.game-page .scoreboard b{font-size:25px;letter-spacing:-.8px}
+.game-page .score-divider{height:28px}
+.game-page .snake-shell{
+ width:var(--board-size);height:auto;max-width:100%;
+ aspect-ratio:1/1;flex:0 0 auto;
+ margin:0!important;border:3px solid #2d6b50;border-radius:12px;
+ background:#d6e6d2;box-shadow:0 0 0 1px #a4bea8;
+ position:relative;overflow:hidden;
+}
+.game-page #snakeCanvas,.game-page[data-skin="snake"] #snakeCanvas{
+ display:block;width:100%!important;height:100%!important;max-width:none;
+ aspect-ratio:1/1;object-fit:fill;
+ border:0!important;outline:0!important;border-radius:0!important;image-rendering:auto!important;
+ touch-action:none;
+}
+.game-page .board2048,.game-page[data-skin="2048"] .board2048{
+ width:var(--board-size);max-width:100%;height:auto;aspect-ratio:1/1;flex:0 0 auto;
+ margin:0!important;padding:9px;border:0;border-radius:12px;gap:8px;
+ background:#c9b8a0;box-shadow:0 0 0 1px #bca98f;
+ touch-action:none;overscroll-behavior:contain;
+}
+.game-page .tttboard,.game-page[data-skin="ttt"] .tttboard{
+ width:var(--board-size)!important;max-width:100%;height:auto;aspect-ratio:1/1;flex:0 0 auto;
+ margin:0!important;background:#b5cbd4;border:7px solid #b5cbd4;border-radius:12px;gap:7px;
+ box-shadow:none;touch-action:manipulation;
+}
+.game-page .tttboard .ttt-cell{background:#f8fbfa;color:#3b747b!important;border-radius:7px!important;padding:clamp(9px,2.2vw,28px)}
+.game-page .tttboard .ttt-cell[data-mark="O"]{color:#be7462!important}
+.game-page .modal-actions{flex:0 0 auto;display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:8px;margin:11px auto 0}
+.game-page .modal-actions .btn{min-height:39px;border-radius:9px;font-size:12px;padding:9px 13px}
+.game-page .game-status{margin:0;padding:6px 0 0;font-size:10px;color:#829188;line-height:1.2}
+.game-page .snake-screen-overlay{background:#102e25d8;backdrop-filter:blur(1px);padding:18px;gap:11px}
+.game-page .snake-screen-overlay span{border-radius:9px;font-weight:750;padding:11px 13px}
+.game-page .snake-screen-overlay strong{font-size:clamp(23px,5vw,33px);letter-spacing:-.8px}
+.game-page.focus-active{--board-size:min(calc(100vw - 8px),calc(100dvh - 112px),860px)}
+.game-page.focus-active .game-intro,.game-page.focus-active .game-status{display:none}
+.game-page.focus-active .game-topline{min-height:44px;padding:5px 8px}
+.game-page.focus-active .game-wrap{padding:2px 4px 7px}
+.game-page.focus-active .scorebar{margin-bottom:5px}
+.game-page.focus-active .scoreboard{min-height:45px;padding:5px 12px}
+.game-page.focus-active .modal-actions{margin-top:6px}
+.game-page.focus-active .modal-actions button:not(#pauseGame):not(#restart){display:none}
+.game-page.focus-active .board2048,.game-page.focus-active .snake-shell,.game-page.focus-active .tttboard{border-radius:7px}
+@media(min-width:920px){
+ .game-page .game-intro{margin-bottom:13px}
+ .game-page .game-intro h2{font-size:34px}
+ .game-page .scorebar{margin-bottom:12px}
+ .game-page .modal-actions{margin-top:13px}
+}
+@media(max-width:600px){
+ .logo>.brand-mark,.brand-mark{width:33px;height:33px;flex-basis:33px}
+ .game-page{--board-size:min(calc(100vw - 10px),calc(100dvh - 178px),760px)}
+ .game-page .game-wrap,#gameDialog .game-wrap{padding:4px 4px 6px}
+ .game-page .game-intro{margin:0 0 6px;gap:9px}
+ .game-page .game-intro h2{font-size:25px}
+ .game-page .game-intro .eyebrow{font-size:9px}
+ .game-topline{min-height:48px;padding:7px 6px;gap:3px}
+ .game-topline button[data-close-game],.game-topline .game-settings-button,.game-focus-button{font-size:11px;padding:8px 7px;gap:4px}
+ .game-topline button svg{width:16px;height:16px}
+ .game-brand{font-size:12px;gap:4px}
+ .game-brand-mark{width:20px;height:20px;flex-basis:20px}
+ .game-page .scorebar{width:var(--board-size);margin-bottom:6px}
+ .game-page .scoreboard{padding:6px 12px;min-height:50px}
+ .game-page .scoreboard b{font-size:22px}
+ .game-page .snake-shell{border-width:2px;border-radius:8px}
+ .game-page .board2048{padding:7px;gap:6px;border-radius:8px}
+ .game-page .tttboard{border-width:5px;gap:5px;border-radius:8px}
+ .game-page .modal-actions{gap:6px;margin-top:9px}
+ .game-page .modal-actions .btn{padding:8px 10px;min-height:37px}
+ .game-page.focus-active{--board-size:min(calc(100vw - 4px),calc(100dvh - 112px),860px)}
+}
+@media(max-height:610px){
+ .game-page{--board-size:min(calc(100vw - 12px),calc(100dvh - 159px),760px)}
+ .game-page .game-intro{display:none}
+ .game-page .scoreboard{min-height:40px;padding:4px 11px}
+ .game-page .modal-actions{margin-top:6px}
+ .game-page .game-status{display:none}
+ .game-page.focus-active{--board-size:min(calc(100vw - 4px),calc(100dvh - 108px),860px)}
+}
+
+/* Keep the actual board near the visual middle, not the bottom third. */
+@media(max-width:600px) and (min-height:740px){
+ .game-page .game-wrap,#gameDialog .game-wrap{padding-bottom:62px}
+ .game-page.focus-active .game-wrap,#gameDialog.focus-active .game-wrap{padding-bottom:6px}
+}
+@media(prefers-reduced-motion:reduce){.game-page .game-wrap{transition:none}}
 </style>
 </head>
 <body>
@@ -650,7 +767,7 @@ body{background:var(--bg)}
 <symbol id="art-mines" viewBox="0 0 160 140"><rect x="8" y="7" width="144" height="126" rx="14" fill="#dbe6e6"/><rect x="21" y="20" width="118" height="103" rx="5" fill="#a7c2be"/><rect x="25" y="24" width="20" height="17" rx="2" fill="#edf3ee" stroke="#92b4ae" stroke-width="1"/><rect x="47" y="24" width="20" height="17" rx="2" fill="#d0e0da" stroke="#92b4ae" stroke-width="1"/><rect x="69" y="24" width="20" height="17" rx="2" fill="#d0e0da" stroke="#92b4ae" stroke-width="1"/><rect x="91" y="24" width="20" height="17" rx="2" fill="#edf3ee" stroke="#92b4ae" stroke-width="1"/><rect x="113" y="24" width="20" height="17" rx="2" fill="#d0e0da" stroke="#92b4ae" stroke-width="1"/><rect x="25" y="43" width="20" height="17" rx="2" fill="#d0e0da" stroke="#92b4ae" stroke-width="1"/><rect x="47" y="43" width="20" height="17" rx="2" fill="#d0e0da" stroke="#92b4ae" stroke-width="1"/><rect x="69" y="43" width="20" height="17" rx="2" fill="#edf3ee" stroke="#92b4ae" stroke-width="1"/><rect x="91" y="43" width="20" height="17" rx="2" fill="#d0e0da" stroke="#92b4ae" stroke-width="1"/><rect x="113" y="43" width="20" height="17" rx="2" fill="#d0e0da" stroke="#92b4ae" stroke-width="1"/><rect x="25" y="62" width="20" height="17" rx="2" fill="#d0e0da" stroke="#92b4ae" stroke-width="1"/><rect x="47" y="62" width="20" height="17" rx="2" fill="#edf3ee" stroke="#92b4ae" stroke-width="1"/><rect x="69" y="62" width="20" height="17" rx="2" fill="#d0e0da" stroke="#92b4ae" stroke-width="1"/><rect x="91" y="62" width="20" height="17" rx="2" fill="#d0e0da" stroke="#92b4ae" stroke-width="1"/><rect x="113" y="62" width="20" height="17" rx="2" fill="#edf3ee" stroke="#92b4ae" stroke-width="1"/><rect x="25" y="81" width="20" height="17" rx="2" fill="#edf3ee" stroke="#92b4ae" stroke-width="1"/><rect x="47" y="81" width="20" height="17" rx="2" fill="#d0e0da" stroke="#92b4ae" stroke-width="1"/><rect x="69" y="81" width="20" height="17" rx="2" fill="#d0e0da" stroke="#92b4ae" stroke-width="1"/><rect x="91" y="81" width="20" height="17" rx="2" fill="#edf3ee" stroke="#92b4ae" stroke-width="1"/><rect x="113" y="81" width="20" height="17" rx="2" fill="#d0e0da" stroke="#92b4ae" stroke-width="1"/><rect x="25" y="100" width="20" height="17" rx="2" fill="#d0e0da" stroke="#92b4ae" stroke-width="1"/><rect x="47" y="100" width="20" height="17" rx="2" fill="#d0e0da" stroke="#92b4ae" stroke-width="1"/><rect x="69" y="100" width="20" height="17" rx="2" fill="#edf3ee" stroke="#92b4ae" stroke-width="1"/><rect x="91" y="100" width="20" height="17" rx="2" fill="#d0e0da" stroke="#92b4ae" stroke-width="1"/><rect x="113" y="100" width="20" height="17" rx="2" fill="#d0e0da" stroke="#92b4ae" stroke-width="1"/><g font-family="Arial" font-weight="900" font-size="15"><text x="52" y="58" fill="#4971a3">1</text><text x="96" y="77" fill="#3e7758">2</text><text x="118" y="96" fill="#b66c5a">3</text></g><circle cx="77" cy="70" r="10" fill="#46565d"/><circle cx="73" cy="65" r="3" fill="#eff8ed"/><path d="M77 56v-5M77 89v-5M63 70h-5M96 70h-5m-24-9-4-4m27 27-4-4m0-19 4-4m-23 27 4-4" stroke="#46565d" stroke-width="3"/><path d="m106 38 13-7v18z" fill="#ca7b69"/></symbol>
 <symbol id="art-maze" viewBox="0 0 160 140"><rect x="8" y="8" width="144" height="124" rx="13" fill="#273d59"/><path d="M22 21h115v96H22zM38 21v22h32V21m22 0v35h43M22 63h31v17h35v37m47-34h-28v34M66 61v-14h24" stroke="#80a9ba" stroke-width="7" stroke-linejoin="round" fill="none"/><circle cx="48" cy="65" r="13" fill="#f2ce70"/><path d="m48 65 12-8v16z" fill="#273d59"/><circle cx="108" cy="96" r="7" fill="#dd8577"/><circle cx="128" cy="96" r="7" fill="#dd8577"/><circle cx="104" cy="44" r="2.5" fill="#fff7d2"/><circle cx="87" cy="44" r="2.5" fill="#fff7d2"/></symbol>
 <symbol id="art-racing" viewBox="0 0 160 140"><rect x="8" y="8" width="144" height="124" rx="13" fill="#cfdde0"/><path d="M56 8h48l29 124H27z" fill="#53666d"/><path d="M80 9v18m0 18v18m0 18v18m0 18v14" stroke="#f7edd1" stroke-width="3" stroke-dasharray="7 7"/><path d="M29 25h22M109 25h22M21 112h22m74 0h22" stroke="#dcb96d" stroke-width="5"/><path d="M53 64c0-11 8-18 18-18h18c10 0 18 7 18 18v34H53z" fill="#c47768"/><rect x="64" y="55" width="33" height="17" rx="4" fill="#e9ebdf"/><rect x="59" y="84" width="18" height="8" rx="2" fill="#f7d8a5"/><rect x="84" y="84" width="18" height="8" rx="2" fill="#f7d8a5"/><path d="M53 70h-7v16h7m54-16h7v16h-7" fill="#27343a"/></symbol>
-<symbol id="icon-brand" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 4h8l5 5v10H6z" fill="#2d6854" stroke="none"/><path d="M10 9v6l5-3z" fill="#fff" stroke="none"/><circle cx="19" cy="5" r="2" fill="#e8b26b" stroke="none"/></symbol>
+<symbol id="icon-brand" viewBox="0 0 108 108"><path fill="#0B0F11" d="M0 0h108v108H0z"/><path fill="#F4F5F6" d="M24 54 C24 37.43 37.43 24 54 24 C70.57 24 84 37.43 84 54 L24 54 Z"/><path fill="#F4F5F6" d="M22 66h64v6H22z"/></symbol>
 <symbol id="icon-pause" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4" width="4" height="16" rx="1.3"/><rect x="14" y="4" width="4" height="16" rx="1.3"/></symbol>
 <symbol id="icon-play" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 5.5c0-1 1.1-1.6 1.9-1.1L19 10.7c.9.6.9 1.9 0 2.5l-9.1 6.3C9.1 20 8 19.4 8 18.4z"/></symbol>
 <symbol id="icon-restart" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 11a8 8 0 1 1-2.2-5.5M20 3v6h-6"/></symbol>
@@ -664,7 +781,7 @@ body{background:var(--bg)}
 <symbol id="icon-arrowright" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h16m-6-6 6 6-6 6"/></symbol>
 </defs></svg>
 
-<header><div class="wrap nav"><a href="/welcome" data-route class="logo" aria-label="NIGHT Play welcome"><svg class="brand-mark" viewBox="0 0 24 24" aria-hidden="true"><use href="#icon-brand"></use></svg><span>NIGHT <span class="brand-sub">PLAY</span></span></a><nav class="links" aria-label="Main navigation"><a data-route href="/dashboard">Home</a><a data-route href="/games">Games</a></nav><div class="actions"><a class="profile-icon" data-route href="/profile" aria-label="My profile" title="My profile"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4.5 20c1.2-4.7 13.8-4.7 15 0"/></svg></a><button class="btn light" data-dialog="connect"><svg class="ui-icon" viewBox="0 0 24 24" focusable="false" aria-hidden="true"><use href="#icon-arrowright"></use></svg> Connect WhatsApp</button><a class="btn landing-enter" data-route href="/dashboard">Enter NIGHT Play <svg class="ui-icon" viewBox="0 0 24 24" focusable="false" aria-hidden="true"><use href="#icon-arrowright"></use></svg></a></div></div></header>
+<header><div class="wrap nav"><a href="/welcome" data-route class="logo" aria-label="NIGHT Play welcome"><svg class="brand-mark" viewBox="0 0 108 108" aria-hidden="true"><use href="#icon-brand"></use></svg><span>NIGHT <span class="brand-sub">PLAY</span></span></a><nav class="links" aria-label="Main navigation"><a data-route href="/dashboard">Home</a><a data-route href="/games">Games</a></nav><div class="actions"><a class="profile-icon" data-route href="/profile" aria-label="My profile" title="My profile"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4.5 20c1.2-4.7 13.8-4.7 15 0"/></svg></a><button class="btn light" data-dialog="connect"><svg class="ui-icon" viewBox="0 0 24 24" focusable="false" aria-hidden="true"><use href="#icon-arrowright"></use></svg> Connect WhatsApp</button><a class="btn landing-enter" data-route href="/dashboard">Enter NIGHT Play <svg class="ui-icon" viewBox="0 0 24 24" focusable="false" aria-hidden="true"><use href="#icon-arrowright"></use></svg></a></div></div></header>
 <aside id="announcementBar" class="announcement-bar" role="region" aria-label="NIGHT site announcements">
  <div class="wrap announcement-content"><span class="announce-badge">NEW</span><div class="announce-copy"><strong>New things to play</strong><span>A more playful home for your favorite games.</span></div><button id="announcementMore" type="button" aria-controls="announcementHistory" aria-expanded="false">Past notices <svg class="ui-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><use href="#icon-chevron"></use></svg></button><button id="announcementDismiss" type="button" aria-label="Dismiss announcement"><svg class="ui-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><use href="#icon-close"></use></svg></button></div>
  <div id="announcementHistory" class="wrap announcement-history" hidden>
@@ -697,7 +814,7 @@ body{background:var(--bg)}
  <div class="dash-bottom"><div class="topbar"><div><span class="eyebrow">CONTINUE PLAYING</span><h2>Right where you left off.</h2></div></div><div class="resume-card" id="resumeCard"><p>No unfinished games.</p><a class="btn outline" href="/games" data-route>Find a game <svg class="ui-icon" viewBox="0 0 24 24" focusable="false" aria-hidden="true"><use href="#icon-arrowright"></use></svg></a></div></div>
  </section>
 <section class="site-page" id="view-games" data-view="games" hidden>
- <div class="inner-page-head"><div><span class="eyebrow">THE NIGHT ARCADE</span><h1>Choose your <span class="muted">adventure.</span></h1><p>Pick your next obsession. Every round has its own rhythm.</p></div><span class="status-pill">3 READY TO PLAY</span></div>
+ <div class="inner-page-head"><div><span class="eyebrow">THE NIGHT ARCADE</span><h1>One more <span class="muted">round?</span></h1><p>Pick an arcade classic, solve a puzzle, or find your next favorite.</p></div></div>
  <div class="library-toolbar"><div class="filter-buttons" role="group" aria-label="Filter games"><button class="filter-btn active" type="button" data-filter="all" aria-pressed="true">All games</button><button class="filter-btn" type="button" data-filter="arcade" aria-pressed="false">Arcade</button><button class="filter-btn" type="button" data-filter="puzzle" aria-pressed="false">Puzzle</button><button class="filter-btn" type="button" data-filter="board" aria-pressed="false">Board games</button></div><label class="searchbox"><svg class="ui-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><use href="#icon-search"></use></svg><input id="gameSearch" type="search" placeholder="Search games..." aria-label="Search games" autocomplete="off"></label></div>
  <div class="library-counter" id="libraryCount" aria-live="polite">Browse 11 games · 3 playable</div>
  <div class="grid library-grid" id="libraryGrid">
@@ -766,7 +883,7 @@ body{background:var(--bg)}
 <dialog id="infoDialog" aria-labelledby="infoTitle"><div class="modalhead"><h2 id="infoTitle">NIGHT Play</h2><button class="xbtn" data-close aria-label="Close"><svg class="ui-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><use href="#icon-close"></use></svg></button></div><div class="modalbody" id="infoBody"></div></dialog>
 <dialog id="settingsDialog" aria-labelledby="settingsTitle"><div class="modalhead"><h2 id="settingsTitle">Game settings</h2><button class="xbtn" id="closeSettings" type="button" aria-label="Close settings"><svg class="ui-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><use href="#icon-close"></use></svg></button></div><div class="modalbody" id="settingsBody"></div></dialog>
 <section id="gameDialog" class="game-page" aria-label="Fullscreen game view" aria-hidden="true">
-<div class="game-topline"><button type="button" data-close-game><svg class="ui-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><use href="#icon-back"></use></svg> All games</button><span class="game-brand">NIGHT <span class="muted">PLAY</span></span><button class="game-settings-button" id="gameSettings" type="button" aria-label="Game settings"><svg viewBox="0 0 24 24" width="19" height="19" stroke="currentColor" stroke-width="1.7" fill="none" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="m9.4 2-.5 2.4-2 1.2-2.4-.8-2 3.5 1.9 1.7v2.4l-1.9 1.7 2 3.5 2.4-.8 2 1.2.5 2.4h4.2l.5-2.4 2-1.2 2.4.8 2-3.5-1.9-1.7v-2.4l1.9-1.7-2-3.5-2.4.8-2-1.2L14.6 2z"/></svg><span>Settings</span></button></div>
+<div class="game-topline"><button type="button" data-close-game><svg class="ui-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><use href="#icon-back"></use></svg> All games</button><span class="game-brand"><svg class="game-brand-mark" viewBox="0 0 108 108" aria-hidden="true"><use href="#icon-brand"></use></svg> NIGHT <span class="muted">PLAY</span></span><div class="game-top-actions"><button class="game-focus-button" id="gameFocus" type="button" aria-label="Expand arena" aria-pressed="false"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Focus</span></button><button class="game-settings-button" id="gameSettings" type="button" aria-label="Game settings"><svg viewBox="0 0 24 24" width="19" height="19" stroke="currentColor" stroke-width="1.7" fill="none" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="m9.4 2-.5 2.4-2 1.2-2.4-.8-2 3.5 1.9 1.7v2.4l-1.9 1.7 2 3.5 2.4-.8 2 1.2.5 2.4h4.2l.5-2.4 2-1.2 2.4.8 2-3.5-1.9-1.7v-2.4l1.9-1.7-2-3.5-2.4.8-2-1.2L14.6 2z"/></svg><span>Settings</span></button></div></div>
 <div class="game-wrap"><div class="game-intro"><span class="eyebrow" id="gameSubheading">THE ARCADE</span><h2 id="gameTitle">NIGHT Game</h2><p class="modalnote" id="gameHelp"></p></div><div id="gameRoot" class="playarea"></div><div class="modal-actions"><button class="btn outline" id="undo2048" type="button" hidden><svg class="ui-icon" viewBox="0 0 24 24" focusable="false" aria-hidden="true"><use href="#icon-undo"></use></svg> Undo</button><button class="btn" id="restart"><svg class="ui-icon" viewBox="0 0 24 24" focusable="false" aria-hidden="true"><use href="#icon-restart"></use></svg> New game</button><button class="btn outline" id="pauseGame" type="button"><svg class="ui-icon" viewBox="0 0 24 24" focusable="false" aria-hidden="true"><use href="#icon-pause"></use></svg> Pause</button><button class="btn outline" data-close-game><svg class="ui-icon" viewBox="0 0 24 24" focusable="false" aria-hidden="true"><use href="#icon-back"></use></svg> Exit</button></div><p class="game-status">Your progress is saved on this device.</p></div>
 </section>
 <script>
@@ -777,7 +894,7 @@ gameDialog.showModal=()=>{gameDialog.classList.add("active");gameDialog.setAttri
 gameDialog.close=()=>{gameDialog.classList.remove("active");gameDialog.setAttribute("aria-hidden","true");gameDialog.open=false;document.body.classList.remove("in-game");gameDialog.dispatchEvent(new Event("close"))};
 const root=document.getElementById("gameRoot"),title=document.getElementById("gameTitle"),help=document.getElementById("gameHelp");
 let tileAnimId=0,undoStack2048=[];
-let active="",snakeTimer=null,snakeFrame=null,snakePrevBody=null,snakeTickAt=0,snake={},ttt=[],turn="X",mode="bot",tttFinished=false,grid=[],tileScore=0,gamePaused=false,boardRestore=null,gameOverRecorded=false;
+let active="",snakeTimer=null,snake={},ttt=[],turn="X",mode="bot",tttFinished=false,grid=[],tileScore=0,gamePaused=false,boardRestore=null,gameOverRecorded=false;
 const scoreKey="night-play-v1-";
 function best(key){try{return Number(localStorage.getItem(scoreKey+key)||0)||0}catch{return 0}}
 function record(key,value){if(value>best(key)){try{localStorage.setItem(scoreKey+key,String(value))}catch{}}}
@@ -1073,7 +1190,7 @@ document.getElementById("announcementHistoryClose").addEventListener("click",()=
 document.getElementById("announcementDismiss").addEventListener("click",()=>{putSaved(ANNOUNCEMENT_KEY,"2026-10-13-preview-notice");toggleAnnouncement(false);document.getElementById("announcementMore").innerHTML='Announcements <svg class="ui-icon" viewBox="0 0 24 24" focusable="false" aria-hidden="true"><use href="#icon-chevron"></use></svg>';updateBell()});
 
 function pauseLabel(text){const button=document.getElementById("pauseGame");if(!button)return;button.innerHTML='<svg class="ui-icon" viewBox="0 0 24 24" focusable="false" aria-hidden="true"><use href="#icon-pause"></use></svg> '+text}
-function stop(){if(snakeTimer){clearInterval(snakeTimer);snakeTimer=null}if(snakeFrame){cancelAnimationFrame(snakeFrame);snakeFrame=null}snakePrevBody=null;active="";gamePaused=false;pauseLabel("Pause")}
+function stop(){if(snakeTimer){clearInterval(snakeTimer);snakeTimer=null}active="";gamePaused=false;pauseLabel("Pause")}
 document.addEventListener("click",e=>{
  const dialog=e.target.closest("[data-dialog]");if(dialog)modal(dialog.dataset.dialog);
  const g=e.target.closest("[data-game]");if(g)openGame(g.dataset.game);
@@ -1092,8 +1209,19 @@ document.getElementById("pauseGame").addEventListener("click",()=>{
 document.addEventListener("visibilitychange",()=>{
  if(document.hidden&&gameDialog.open&&active==="snake"){gamePaused=true;pauseLabel("Resume")}
 });
-function exitGame(){if(gameDialog.open)gameDialog.close();if(location.pathname.startsWith("/play/"))history.replaceState({},"","/games");renderRoute()}
+function exitGame(){if(document.fullscreenElement===gameDialog)document.exitFullscreen().catch(()=>{});if(gameDialog.open)gameDialog.close();if(location.pathname.startsWith("/play/"))history.replaceState({},"","/games");renderRoute()}
 
+const focusButton=document.getElementById("gameFocus");
+function updateFocusButton(){const activeFocus=gameDialog.classList.contains("focus-active");focusButton.setAttribute("aria-pressed",String(activeFocus));focusButton.setAttribute("aria-label",activeFocus?"Show full game controls":"Expand arena");focusButton.querySelector("span").textContent=activeFocus?"Normal":"Focus";}
+focusButton.addEventListener("click",async()=>{
+ const activeFocus=gameDialog.classList.toggle("focus-active");
+ updateFocusButton();
+ if(activeFocus&&gameDialog.requestFullscreen){try{await gameDialog.requestFullscreen()}catch{ /* CSS focus remains available */ }}
+ else if(!activeFocus&&document.fullscreenElement===gameDialog){try{await document.exitFullscreen()}catch{}}
+});
+document.addEventListener("fullscreenchange",()=>{
+ if(!document.fullscreenElement&&gameDialog.classList.contains("focus-active")){gameDialog.classList.remove("focus-active");updateFocusButton()}
+});
 document.getElementById("restart").addEventListener("click",()=>{
  if(active==="2048"&&tileScore>0&&!gameOverRecorded)recordSession("2048"+(grid.length===4?"":"-"+grid.length),tileScore);
  openGame(active,{push:false,fresh:true})
@@ -1102,7 +1230,7 @@ function openGame(kind,{push=true,fresh=false}={}){
  if(!["snake","2048","ttt"].includes(kind))return;
  if(push)history.pushState({game:kind},"","/play/"+kind);
  renderRoute();
- stop();active=kind;gameDialog.dataset.skin=kind;gameDialog.showModal();
+ stop();active=kind;gameDialog.dataset.skin=kind;gameDialog.classList.remove("focus-active");document.getElementById("gameFocus").setAttribute("aria-pressed","false");document.getElementById("gameFocus").querySelector("span").textContent="Focus";gameDialog.showModal();
  const sub=document.getElementById("gameSubheading");
  sub.textContent=kind==="snake"?"THE CLASSIC ARCADE":kind==="2048"?"THE NUMBER PUZZLE":"THE STRATEGY BOARD";title.textContent=kind==="ttt"?"Tic-Tac-Toe":kind==="2048"?"2048":"Snake";
  if(kind==="snake"){help.textContent="Swipe the arena to turn. On desktop, use the arrow keys.";initSnake(fresh);pauseLabel("Tap board to start")}
@@ -1121,13 +1249,13 @@ function makeSnakeMaze(mode,size){
  return blocks.filter(({x,y})=>x>=0&&y>=0&&x<size&&y<size)
 }
 function snakeModeName(mode){return ({wrap:"Open · wraparound",walls:"Classic · borders",maze1:"Maze I · pillars",maze2:"Maze II · bridges",maze3:"Maze III · islands"})[mode]||"Classic"}
-function snakeTickMs(){return ({slow:190,normal:135,fast:92})[getSetting("snake-speed","normal")]||135}
+function snakeTickMs(){return ({slow:195,normal:115,fast:85,turbo:66})[getSetting("snake-speed","normal")]||115}
 
 function initSnake(fresh=false){
  const size=18,c=document.createElement("canvas");c.id="snakeCanvas";c.width=360;c.height=360;
  let loaded=null;try{loaded=!fresh?JSON.parse(localStorage.getItem("night-play-save-snake")||"null"):null}catch{}
  const selected=currentSnakeMode();
- snake=loaded&&Array.isArray(loaded.body)&&loaded.body.length&&loaded.alive&&loaded.food&&(!loaded.mode||loaded.mode===selected)?{...loaded,size,alive:true,canvas:c}:{size,body:[{x:7,y:9},{x:6,y:9},{x:5,y:9}],dir:"right",next:"right",food:null,score:0,alive:true};
+ snake=loaded&&Array.isArray(loaded.body)&&loaded.body.length&&loaded.alive&&loaded.food&&(!loaded.mode||loaded.mode===selected)?{...loaded,size,alive:true,canvas:c}:{size,body:[{x:8,y:9},{x:7,y:9},{x:6,y:9},{x:5,y:9},{x:4,y:9}],dir:"right",next:"right",food:null,score:0,alive:true};
  snake.mode=selected;snake.wrap=selected==="wrap";snake.maze=makeSnakeMaze(selected,size);snake.started=false;
  root.innerHTML='<div class="scorebar scoreboard"><div class="score-unit"><span class="score-label">SCORE</span><b id="score">'+snake.score+'</b></div><span class="score-divider" aria-hidden="true"></span><div class="score-unit"><span class="score-label">PERSONAL BEST</span><b id="best">'+best("snake")+'</b></div></div>';
  const shell=document.createElement("div");shell.className="snake-shell";shell.appendChild(c);
@@ -1135,9 +1263,7 @@ function initSnake(fresh=false){
  overlay.onclick=()=>{if(!snake.alive){openGame("snake",{push:false,fresh:true});return}
  snake.started=true;gamePaused=false;overlay.hidden=true;pauseLabel("Pause")};
  shell.appendChild(overlay);root.appendChild(shell);
- snake.canvas=c;snake.food=snake.food||food();snakePrevBody=null;drawSnake();gamePaused=true;
- const renderFrame=()=>{if(active!=="snake"||!gameDialog.open)return;if(snake.started&&!gamePaused)drawSnake();snakeFrame=requestAnimationFrame(renderFrame)};
- snakeFrame=requestAnimationFrame(renderFrame);
+ snake.canvas=c;snake.food=snake.food||food();drawSnake();gamePaused=true;
  let origin=null;c.addEventListener("touchstart",e=>{origin={x:e.touches[0].clientX,y:e.touches[0].clientY}},{passive:true});
  c.addEventListener("touchend",e=>{if(!origin)return;const dx=e.changedTouches[0].clientX-origin.x,dy=e.changedTouches[0].clientY-origin.y;if(Math.max(Math.abs(dx),Math.abs(dy))>17)snakeTurn(Math.abs(dx)>Math.abs(dy)?dx>0?"right":"left":dy>0?"down":"up");origin=null},{passive:true});
  snakeTimer=setInterval(stepSnake,snakeTickMs());
@@ -1162,12 +1288,8 @@ function drawSnake(){
   ctx.fillStyle="#f6ae8d";ctx.beginPath();ctx.arc(cx-4,cy-5,step*.11,0,Math.PI*2);ctx.fill();
   ctx.strokeStyle="#477f4d";ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(cx,cy-7);ctx.quadraticCurveTo(cx+6,cy-13,cx+10,cy-11);ctx.stroke();
  }
- const interpolating=snakePrevBody&&snake.started&&!gamePaused;
- const fraction=interpolating?Math.min(1,(performance.now()-snakeTickAt)/snakeTickMs()):1;
  snake.body.forEach((point,i)=>{
-  const old=interpolating?(snakePrevBody[i]||snakePrevBody[snakePrevBody.length-1]):point;
-  const x=(Math.abs(point.x-old.x)>1?point.x:old.x+(point.x-old.x)*fraction)*step;
-  const y=(Math.abs(point.y-old.y)>1?point.y:old.y+(point.y-old.y)*fraction)*step;
+  const x=point.x*step,y=point.y*step;
   const head=i===0;
   ctx.fillStyle=retro?(head?"#263e24":"#36532b"):(head?"#1e664e":"#3a8a63");
   ctx.beginPath();ctx.roundRect(x+1.7,y+1.7,step-3.4,step-3.4,head?7:5);ctx.fill();
@@ -1181,7 +1303,6 @@ function drawSnake(){
  })
 }
 function finishSnake(){
- snakePrevBody=null;
  recordSession("snake",snake.score);
  snake.alive=false;gamePaused=true;clearInterval(snakeTimer);snakeTimer=null;
  try{localStorage.removeItem("night-play-save-snake")}catch{}
@@ -1190,7 +1311,6 @@ function finishSnake(){
 }
 function stepSnake(){
  if(!snake.alive||!snake.started||gamePaused)return;
- snakePrevBody=snake.body.map(point=>({...point}));snakeTickAt=performance.now();
  snake.dir=snake.next;const p={...snake.body[0]};
  if(snake.dir==="right")p.x++;if(snake.dir==="left")p.x--;if(snake.dir==="down")p.y++;if(snake.dir==="up")p.y--;
  if(snake.wrap){p.x=(p.x+snake.size)%snake.size;p.y=(p.y+snake.size)%snake.size}
@@ -1363,8 +1483,8 @@ const settingsDialog=document.getElementById("settingsDialog"),settingsBody=docu
 let previousPause=false;
 const gameSettings={
  snake:{title:"Snake settings",groups:[
- {key:"snake-mode",name:"Choose an arena",description:"Preview each layout. Mazes contain real obstacles.",default:"walls",choices:[["wrap","Open"],["walls","Classic"],["maze1","Maze I"],["maze2","Maze II"],["maze3","Maze III"]]},
- {key:"snake-speed",name:"Speed",description:"",default:"normal",choices:[["slow","Relaxed"],["normal","Normal"],["fast","Fast"]]},
+ {key:"snake-mode",name:"Choose an arena",description:"Choose an arena. Mazes contain real obstacles.",default:"walls",choices:[["wrap","Open"],["walls","Classic"],["maze1","Maze I"],["maze2","Maze II"],["maze3","Maze III"]]},
+ {key:"snake-speed",name:"Snake speed",description:"Moves per second: Relaxed 5 · Classic 9 · Fast 12 · Turbo 15. Applied immediately.",default:"normal",choices:[["slow","Relaxed"],["normal","Classic"],["fast","Fast"],["turbo","Turbo"]]},
  {key:"snake-style",name:"Screen style",description:"",default:"modern",choices:[["modern","Modern"],["lcd","Retro LCD"]]}
 ]},
  "2048":{title:"2048 settings",groups:[{key:"2048-size",name:"Board size",description:"Changing the board size starts a new round. High scores are separate for each size.",default:"4",choices:[["4","4 × 4"],["5","5 × 5"],["6","6 × 6"]]}]},
