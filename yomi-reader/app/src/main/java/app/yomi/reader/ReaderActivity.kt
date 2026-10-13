@@ -43,6 +43,8 @@ import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.Modifier
 import eu.kanade.presentation.reader.ReaderPageIndicator
 import eu.kanade.presentation.reader.ReaderPageActionsDialog
+import eu.kanade.presentation.reader.ReadingModeSelectDialog
+import eu.kanade.presentation.reader.OrientationSelectDialog
 import eu.kanade.presentation.reader.ReaderContentOverlay
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
@@ -118,6 +120,8 @@ class ReaderActivity : ComponentActivity(), ReaderViewerHost {
     private val chromeRevision = mutableIntStateOf(0)
     private val settingsOpen = mutableStateOf(false)
     private val pageActions = mutableStateOf<ViewerPage?>(null)
+    private val quickReadingModeOpen = mutableStateOf(false)
+    private val quickOrientationOpen = mutableStateOf(false)
     private var pendingSavePage: ViewerPage? = null
     private val savePageLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult(),
@@ -250,13 +254,13 @@ class ReaderActivity : ComponentActivity(), ReaderViewerHost {
                         ReadingMode.VERTICAL_PAGED -> MihonReadingMode.VERTICAL
                         ReadingMode.WEBTOON -> MihonReadingMode.WEBTOON
                     },
-                    onClickReadingMode = ::showReaderSettings,
+                    onClickReadingMode = ::showReadingModePicker,
                     orientation = when (getPreferences(MODE_PRIVATE).getString(PREF_ORIENTATION, ORIENTATION_AUTO)) {
                         ORIENTATION_PORTRAIT -> MihonReaderOrientation.PORTRAIT
                         ORIENTATION_LANDSCAPE -> MihonReaderOrientation.LANDSCAPE
                         else -> MihonReaderOrientation.DEFAULT
                     },
-                    onClickOrientation = ::showReaderSettings,
+                    onClickOrientation = ::showOrientationPicker,
                     cropEnabled = getPreferences(MODE_PRIVATE).getBoolean(PREF_CROP, false),
                     onClickCropBorder = {
                         val prefs = getPreferences(MODE_PRIVATE)
@@ -265,6 +269,42 @@ class ReaderActivity : ComponentActivity(), ReaderViewerHost {
                         refreshChrome()
                     },
                     onClickSettings = ::showReaderSettings,
+                    )
+                }
+                if (quickReadingModeOpen.value) {
+                    ReadingModeSelectDialog(
+                        current = mode,
+                        onDismissRequest = {
+                            quickReadingModeOpen.value = false
+                            showMenu()
+                        },
+                        onApply = { selected ->
+                            quickReadingModeOpen.value = false
+                            if (mode != selected) {
+                                mode = selected
+                                saveMode(selected)
+                                installViewer()
+                            }
+                            showMenu()
+                        },
+                    )
+                }
+                if (quickOrientationOpen.value) {
+                    OrientationSelectDialog(
+                        current = getPreferences(MODE_PRIVATE)
+                            .getString(PREF_ORIENTATION, ORIENTATION_AUTO) ?: ORIENTATION_AUTO,
+                        onDismissRequest = {
+                            quickOrientationOpen.value = false
+                            showMenu()
+                        },
+                        onApply = { selected ->
+                            quickOrientationOpen.value = false
+                            getPreferences(MODE_PRIVATE).edit()
+                                .putString(PREF_ORIENTATION, selected).apply()
+                            applySavedOrientation()
+                            refreshChrome()
+                            showMenu()
+                        },
                     )
                 }
                 pageActions.value?.let { page ->
@@ -826,6 +866,18 @@ class ReaderActivity : ComponentActivity(), ReaderViewerHost {
                 Toast.makeText(this@ReaderActivity, "Could not open chapter", Toast.LENGTH_SHORT).show()
             }
         }
+    }
+
+    private fun showReadingModePicker() {
+        if (isFinishing) return
+        root.removeCallbacks(hideChromeRunnable)
+        quickReadingModeOpen.value = true
+    }
+
+    private fun showOrientationPicker() {
+        if (isFinishing) return
+        root.removeCallbacks(hideChromeRunnable)
+        quickOrientationOpen.value = true
     }
 
     private fun showReaderSettings() {
