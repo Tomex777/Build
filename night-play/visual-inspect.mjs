@@ -31,6 +31,22 @@ try{
   console.log('REVIEW_SHOT_'+kind+':'+inspect.toString('base64'));
   if(Math.abs(dim.centerY-dim.pageCenterY)>30)throw Error('Arena not centred: '+kind+' '+JSON.stringify(dim));
   await snapshot(kind.toUpperCase());
+  const normalSize=dim.size;
+  await page.locator('#gameFocus').click();
+  await page.waitForTimeout(120);
+  const focused=await page.evaluate(()=>{
+   const g=document.querySelector('#gameDialog'),id=({snake:'.snake-shell','2048':'#board2048',ttt:'#tttboard'})[g.dataset.skin];
+   const board=document.querySelector(id),r=board.getBoundingClientRect();
+   const t=document.querySelector('#gameTitle').getBoundingClientRect();
+   return {size:Math.round(r.width),centerY:Math.round(r.top+r.height/2),titleY:Math.round(t.top)}
+  });
+  console.log('FOCUS_METRICS_'+kind+':'+JSON.stringify(focused));
+  if(Math.abs(focused.size-normalSize)>1)throw Error('Focus resized the arena for '+kind+': '+normalSize+' -> '+focused.size);
+  if(focused.titleY>=130)throw Error('Focus pushed the title down: '+kind+' '+focused.titleY);
+  const focusPic=await page.screenshot({type:'jpeg',quality:28,fullPage:false,animations:'disabled'});
+  console.log('REVIEW_FOCUS_SHOT_'+kind+':'+focusPic.toString('base64'));
+  await snapshot(kind.toUpperCase()+'-FOCUS');
+  await page.locator('#gameFocus').click();
   await page.locator('[data-close-game]').first().click();
  }
 }finally{await b.close();await new Promise(resolve=>server.close(resolve))}
