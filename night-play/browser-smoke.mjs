@@ -135,6 +135,9 @@ try {
  assert.ok(Math.abs(arenaPlacement.boardCenter-arenaPlacement.screenCenter)<30,'Snake arena must be central, not pushed down the screen')
  assert.equal(await page.locator('#snakeCanvas').evaluate(el=>getComputedStyle(el).imageRendering),'auto','No pixelated performance-heavy interpolation')
  assert.equal(await page.evaluate(()=>snakeTickMs()),115,'Classic speed restored and slightly quicker')
+ await page.locator('#snakeOverlay').waitFor({state:'visible'})
+ await page.locator('#snakeOverlay').click()
+ assert.equal(await page.locator('#snakeOverlay').isVisible(),false,'Snake overlay dismissed before any touch gesture')
  // Test a real finger swipe with the snake's game-loop paused for deterministic input inspection.
  await page.evaluate(()=>{if(snakeTimer)clearInterval(snakeTimer);snakeTimer=null;snake.dir='right';snake.next='right';snake.turnQueue=[];snake.started=true;gamePaused=false;});
  const bSnake=await page.locator('#snakeCanvas').boundingBox();
@@ -159,10 +162,6 @@ try {
  assert.deepEqual(touchQueue.beforeLift,['up'],'Snake responds before finger lifts');
  assert.deepEqual(touchQueue.corners,['up','left'],'Fast swipe corners must queue without dropped inputs');
 
- await page.locator('#snakeOverlay').waitFor({state:'visible'})
- await page.locator('#snakeOverlay').click()
- await page.waitForTimeout(180)
- assert.equal(await page.locator('#snakeOverlay').isVisible(),false,'Snake start overlay should become invisible without resetting on a bubbling click')
  await page.locator('#gameSettings').click()
  assert.equal(await page.locator('.snake-mode-preview').count(),5)
  await page.getByRole('button',{name:'Turbo'}).click()
