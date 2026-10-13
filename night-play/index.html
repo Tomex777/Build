@@ -174,7 +174,7 @@ footer{margin-top:auto;width:100%}
 .game-wrap{padding:13px 9px}
 .game-page .dpad{margin-top:10px}
 .game-page .scorebar{width:min(94vw,490px)}
-.game-topline .game-settings-button{font-size:11px;padding:10px 12px}
+.game-topline .game-settings-button{font-size:11px;padding:10px 12px}.profile-icon{display:none}
 .snake-screen-overlay strong{font-size:24px}
 }
 </style>
@@ -557,7 +557,7 @@ function showSettings(){
  const note=document.createElement("p");note.className="settings-foot";note.textContent="Settings are saved on this device. Verified profile sync is not available yet.";settingsBody.appendChild(note);
  settingsDialog.showModal();
 }
-function closeGameSettings(){if(settingsDialog.open)settingsDialog.close();gamePaused=previousPause;const btn=document.getElementById("pauseGame");if(btn&&!btn.hidden)btn.textContent=gamePaused?"Resume ▶":"Pause ⏸"}
+function closeGameSettings(){if(settingsDialog.open)settingsDialog.close();gamePaused=previousPause;const btn=document.getElementById("pauseGame");if(btn&&!btn.hidden)btn.textContent=gamePaused?"Resume ▶":"Pause ⏸";if(active==="ttt"&&mode==="bot"&&!tttFinished&&turn==="O"&&!gamePaused)setTimeout(botMoveTtt,200)}
 document.getElementById("gameSettings").addEventListener("click",showSettings);
 document.getElementById("closeSettings").addEventListener("click",closeGameSettings);
 settingsDialog.addEventListener("cancel",e=>{e.preventDefault();closeGameSettings()});
