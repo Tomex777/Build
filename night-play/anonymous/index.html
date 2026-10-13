@@ -153,19 +153,156 @@ body[data-visitor-mode="true"] .topbar-inner{justify-content:center}
  midnight:{title:'Confession',icon:'spark',name:'Midnight blue',demo:'When everyone is asleep, I sometimes wish I could start over.'},
  ink:{title:'Confession',icon:'quote',name:'Monochrome ink',demo:'I say I am fine more often than I actually feel fine.'}
 };
-  const state={page:'studio',session:'live',filter:'all',category:'confession',posts:samplePosts.map(p=>({...p})),total:128,published:104,pending:0,filtered:24,settings:{max:220,cooldown:60,blocked:'spam, scam, click here',manual:false,rate:true},lastSubmission:0,selectedId:126,sessionEnd:'11:30 PM',schedule:null};
+  const state={page:'studio',session:'live',filter:'all',category:'confession',posts:samplePosts.map(p=>({...p})),total:128,published:104,pending:0,filtered:24,settings:{max:220,cooldown:60,blocked:'spam, scam, click here',manual:false,rate:true},lastSubmission:0,selectedId:126,sessionEnd:'11:30 PM',schedule:null,inviteToken:'',inviteUntil:0,visitorMode:false};
   const $=id=>document.getElementById(id);
   const safe=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+  // This self-contained visual prototype uses localStorage, not a shared authenticated backend.
+  // An invite is a short-lived capability URL. Production must validate and revoke it on the server.
+  const NIGHT_INVITE_KEY='night-play-anonymous-invite-demo-v2';
+  const NIGHT_JOIN_MATCH=location.pathname.match(/^\/anonymous\/join\/([^/]+)\/?$/);
+  const NIGHT_VISITOR=Boolean(NIGHT_JOIN_MATCH);
+  const NIGHT_INCOMING=NIGHT_JOIN_MATCH?decodeURIComponent(NIGHT_JOIN_MATCH[1]):'';
+  const NIGHT_INVITE_FORMAT=/^([a-f0-9]{32})\.([0-9a-z]{7,12})$/;
+  const NIGHT_MAX_MS=48*60*60*1000;
+  function parseInvite(token){
+    const match=NIGHT_INVITE_FORMAT.exec(String(token||''));
+    if(!match)return null;
+    const expiresAt=parseInt(match[2],36);
+    if(!Number.isSafeInteger(expiresAt)||expiresAt<=Date.now()||expiresAt>Date.now()+NIGHT_MAX_MS)return null;
+    return {token,expiresAt};
+  }
+  function readInvite(){
+    try { const data=JSON.parse(localStorage.getItem(NIGHT_INVITE_KEY)||'null');return data&&typeof data==='object'?data:null; }
+    catch {return null}
+  }
+  function saveInvite(){
+    if(NIGHT_VISITOR)return;
+    try { localStorage.setItem(NIGHT_INVITE_KEY,JSON.stringify({token:state.inviteToken,expiresAt:state.inviteUntil,session:state.session,updatedAt:Date.now()})); }
+    catch {}
+  }
+  function createInvite(endAt){
+    if(NIGHT_VISITOR)return;
+    const bytes=new Uint8Array(16);crypto.getRandomValues(bytes);
+    const key=Array.from(bytes,byte=>byte.toString(16).padStart(2,'0')).join('');
+    state.inviteUntil=Math.min(Number(endAt)||Date.now()+7200000,Date.now()+NIGHT_MAX_MS);
+    state.inviteToken=key+'.'+state.inviteUntil.toString(36);
+    state.session='live';
+    state.sessionEnd=new Date(state.inviteUntil).toLocaleTimeString([],{hour:'numeric',minute:'2-digit'});
+    const endLabel=$('endPreview');if(endLabel)endLabel.textContent=state.sessionEnd;
+    saveInvite();
+  }
+  function invalidateInvite(nextState){
+    if(NIGHT_VISITOR)return;
+    state.session=nextState;
+    state.inviteToken='';
+    state.inviteUntil=0;
+    saveInvite();
+  }
+  function inviteIsActive(){
+    if(state.session!=='live')return false;
+    const token=NIGHT_VISITOR?NIGHT_INCOMING:state.inviteToken;
+    const parsed=parseInvite(token);
+    if(!parsed)return false;
+    if(NIGHT_VISITOR){
+      const local=readInvite();
+      // Same-device tabs see revocation immediately. Cross-device revocation needs a backend.
+      if(local && (local.token!==token || local.session!=='live'))return false;
+    }
+    return true;
+  }
+  function syncInviteState(){
+    state.visitorMode=NIGHT_VISITOR;
+    if(NIGHT_VISITOR){
+      document.body.dataset.visitorMode='true';
+      const parsed=parseInvite(NIGHT_INCOMING),saved=readInvite();
+      state.inviteToken=NIGHT_INCOMING;
+      state.inviteUntil=parsed?parsed.expiresAt:0;
+      state.session=(parsed&&(!saved||(saved.token===NIGHT_INCOMING&&saved.session==='live')))?'live':'stopped';
+    }else{
+      const saved=readInvite();
+      if(saved&&saved.session==='live'&&parseInvite(saved.token)&&saved.expiresAt>Date.now()){
+        state.inviteToken=saved.token;state.inviteUntil=saved.expiresAt;state.session='live';
+      }else if(saved && ['paused','stopped','scheduled'].includes(saved.session)){
+        state.inviteToken='';state.inviteUntil=0;state.session=saved.session;
+      }else{
+        createInvite(Date.now()+2*60*60*1000);
+      }
+    }
+    if(state.inviteUntil){
+      state.sessionEnd=new Date(state.inviteUntil).toLocaleTimeString([],{hour:'numeric',minute:'2-digit'});
+      $('endPreview').textContent=state.sessionEnd;
+    }
+  }
+  function inviteUrl(){
+    if(!inviteIsActive())return '';
+    return location.origin+'/anonymous/join/'+encodeURIComponent(state.inviteToken);
+  }
+  function renderInvite(){
+    if(NIGHT_VISITOR)return;
+    const url=inviteUrl(),active=Boolean(url);
+    $('nightSessionUrl').value=url;
+    $('nightSessionUrl').placeholder=active?'':'No active invite. Start a session to generate one.';
+    $('nightLinkBadge').textContent=active?'Link active':'Link inactive';
+    $('nightLinkBadge').classList.toggle('inactive',!active);
+    $('copyNightLink').disabled=!active;
+    $('rotateNightLink').disabled=!active;
+    $('testNightLink').hidden=!active;
+    if(active)$('testNightLink').href=url;
+    $('nightLinkExpires').textContent=active?'Closes at '+state.sessionEnd:'Link closed';
+  }
+  async function copyInvite(){
+    const url=inviteUrl();if(!url){toast('Start a session to generate a private link.');return}
+    try{await navigator.clipboard.writeText(url);toast('Private session link copied.')}
+    catch{$('nightSessionUrl').focus();$('nightSessionUrl').select();toast('Select and copy the link above.')}
+  }
+
   function art(post){const type=categories[post.type]?post.type:'confession';const obj=categories[type];return `<div class="art-card ${type}"><div class="art-top"><span class="art-brand">NIGHT<span style="font-size:.7em;opacity:.7"> / PLAY</span></span><span class="art-id">ANON · #${String(post.id).padStart(3,'0')}</span></div>${ic(obj.icon,'art-symbol')}<span class="art-title">${obj.title}</span><div class="art-text">“${safe(post.text)}”</div><div class="art-bottom"><span>THE AFTER HOURS CLUB</span><span>ANONYMOUS NIGHT</span></div></div>`}
-  function status(){const labels={live:'Session live',paused:'Session paused',stopped:'Session ended',scheduled:'Scheduled'}; const el=$('sessionStatus');el.className=`status-pill ${state.session}`;$('sessionStatusText').textContent=labels[state.session];let icon='pause',label='Pause session'; if(state.session==='paused'||state.session==='stopped'||state.session==='scheduled'){icon='play';label='Start session';} $('heroPrimary').innerHTML=ic(icon,'icon-sm')+`<span>${label}</span>`; $('visitorLiveLabel').textContent=state.session==='live'?'SUBMISSIONS OPEN':state.session==='scheduled'?'COMING SOON':'SUBMISSIONS CLOSED';const closed=state.session!=='live';$('visitorFormContents').style.display=closed?'none':'block';let existing=$('closedForm');if(closed){if(!existing){existing=document.createElement('div');existing.id='closedForm';existing.className='form-closed';$('visitorCard').append(existing)}existing.innerHTML=`${ic('clock')}<h2>${state.session==='scheduled'?'Not open just yet.':'This session is closed.'}</h2><p>${state.session==='scheduled'?'Anonymous Night is scheduled. Check back when it starts.':'The admin can start another anonymous night.'}</p><button class="button secondary" id="closedBack" style="margin-top:20px">Return to studio</button>`; $('closedBack').addEventListener('click',()=>navigate('studio'));}else if(existing){existing.remove()}}
+  function status(){
+    if(NIGHT_VISITOR){
+      const valid=inviteIsActive();
+      if(!valid)state.session='stopped';
+      $('visitorLiveLabel').textContent=valid?'SUBMISSIONS OPEN':'LINK CLOSED';
+      $('visitorFormContents').style.display=valid?'block':'none';
+      let closed=$('closedForm');
+      if(!valid){
+        if(!closed){closed=document.createElement('div');closed.id='closedForm';closed.className='form-closed';$('visitorCard').append(closed)}
+        closed.innerHTML=ic('clock')+'<h2>This invite has closed.</h2><p>This link has expired or the anonymous night has ended. Ask the channel owner for a new session link.</p>';
+      }else if(closed)closed.remove();
+      return;
+    }
+    if(state.session==='live'&&!inviteIsActive()){invalidateInvite('stopped')}
+    const labels={live:'Session live',paused:'Session paused',stopped:'Session ended',scheduled:'Scheduled'};
+    $('sessionStatus').className='status-pill '+state.session;
+    $('sessionStatusText').textContent=labels[state.session];
+    const open=state.session==='live';
+    $('heroPrimary').innerHTML=ic(open?'pause':'play','icon-sm')+'<span>'+(open?'Pause session':'Start session')+'</span>';
+    $('visitorLiveLabel').textContent=open?'SUBMISSIONS OPEN':state.session==='scheduled'?'COMING SOON':'SUBMISSIONS CLOSED';
+    $('visitorFormContents').style.display=open?'block':'none';
+    renderInvite();
+  }
   function metrics(){for(const [n,key] of [['Total','total'],['Published','published'],['Pending','pending'],['Filtered','filtered']])$('metric'+n).textContent=key==='pending'?String(state[key]).padStart(2,'0'):state[key].toLocaleString()}
   function inbox(){const list=$('submissionList');const posts=state.posts.filter(x=>state.filter==='all'||x.status===state.filter).slice(0,12); if(!posts.length){list.innerHTML=`<div class="empty-state">No ${safe(state.filter==='all'?'':'matching ')}submissions here yet.</div>`;return}list.innerHTML=posts.map(p=>{const cat=categories[p.type]||categories.confession;const mark=p.status==='pending'?`<span class="moderation-mark">${ic('clock')} Awaiting review</span>`:p.status==='published'?`<span class="moderation-mark mark-live">${ic('check')} Published*</span>`:`<span class="moderation-mark mark-flag">${ic('shield')} Filtered</span>`;const buttons=p.status==='pending'?`<button class="mini-action reject" data-action="reject" data-id="${p.id}">${ic('x','icon-sm')} Reject</button><button class="mini-action approve" data-action="approve" data-id="${p.id}">${ic('check','icon-sm')} Approve</button>`:p.status==='published'?`<button class="mini-action" data-action="view" data-id="${p.id}">${ic('eye','icon-sm')} View card</button>`:'';return `<article class="submission"><div class="submission-top"><span class="tag ${p.type}">${ic(cat.icon)} ${cat.title}</span><span class="submission-meta">#${String(p.id).padStart(3,'0')} <span style="color:#c7cdc6">·</span> ${p.time}</span></div><p class="submission-copy">${safe(p.text)}</p><div class="submission-foot">${mark}<div class="card-actions">${buttons}</div></div></article>`}).join('');}
   function updateArt(){const target=$('channelArt');if(!target)return;const selected=state.posts.find(p=>p.id===state.selectedId)||state.posts.find(p=>p.status==='published')||samplePosts[1];target.innerHTML=art(selected)}
   function gallery(){const ids=['confession','opinion','thought','unsent','midnight','ink'];$('galleryGrid').innerHTML=ids.map((type,i)=>{const c=categories[type];return `<div class="gallery-item">${art({type,id:130-i,text:c.demo})}<div class="gallery-info"><div><h3>${c.name}</h3><p>Confession card · ${['Warm cream','Soft lilac','Sage green','Dusty rose','Deep midnight','Monochrome'][i]}</p></div></div></div>`}).join('');}
-  function navigate(page){if(!['studio','visitor','gallery'].includes(page))return;state.page=page;document.querySelectorAll('.page').forEach(el=>el.classList.toggle('active',el.id===`page-${page}`));document.querySelectorAll('.nav-btn').forEach(el=>el.classList.toggle('active',el.dataset.page===page));$('switchText').textContent=page==='visitor'?'Back to studio':'See visitor view';history.replaceState(null,'',`#${page}`);window.scrollTo({top:0,behavior:'instant'});}
+  function navigate(page){
+    if(!['studio','visitor','gallery'].includes(page))return;
+    if(NIGHT_VISITOR && page!=='visitor')return;
+    if(!NIGHT_VISITOR && page==='visitor')return;
+    state.page=page;
+    document.querySelectorAll('.page').forEach(el=>el.classList.toggle('active',el.id==='page-'+page));
+    document.querySelectorAll('.nav-btn').forEach(el=>el.classList.toggle('active',el.dataset.page===page));
+    if(!NIGHT_VISITOR)history.replaceState(null,'','#'+page);
+    window.scrollTo({top:0,behavior:'instant'});
+  }
   function toast(msg){const el=$('toast');el.textContent=msg;el.classList.add('visible');clearTimeout(toast._timer);toast._timer=setTimeout(()=>el.classList.remove('visible'),3200)}
   const modal=id=>$(id).classList.add('open');const close=id=>$(id).classList.remove('open');
-  function toggleSession(){if(state.session==='live'){state.session='paused';toast('Session paused. Submissions are closed.')}else{state.session='live';toast('Anonymous Night is live — demo only.')}status()}
+  function toggleSession(){
+    if(NIGHT_VISITOR)return;
+    if(state.session==='live'){invalidateInvite('paused');toast('Paused. The old invitation is no longer active on this device.')}
+    else {const expiry=state.schedule?.end instanceof Date && state.schedule.end>Date.now()?+state.schedule.end:Date.now()+2*60*60*1000;createInvite(expiry);toast('New private session link created.')}
+    status();
+  }
   function addSample(){const id=Math.max(state.total+1,...state.posts.map(p=>p.id+1));state.total++;state.published++;state.posts.unshift({id,type:'thought',text:'I have a hard time accepting compliments, even when I really need to hear them.',time:'just now',status:'published'});state.filter='all';renderFilters();inbox();metrics();toast('A sample message was added to the review inbox.');}
   function renderFilters(){document.querySelectorAll('.filter').forEach(x=>x.classList.toggle('active',x.dataset.filter===state.filter))}
   function review(id,action){const p=state.posts.find(x=>x.id===id);if(!p)return;if(action==='view'){state.selectedId=id;updateArt();navigate('gallery');toast('Browse confession card designs.');return;}if(p.status!=='pending')return;state.pending=Math.max(0,state.pending-1);if(action==='approve'){p.status='published';state.published++;state.selectedId=id;updateArt();toast('Approved — shown in the simulated channel post.')}else{p.status='filtered';state.filtered++;toast('Submission moved to filtered.')}metrics();inbox();}
@@ -197,13 +334,13 @@ body[data-visitor-mode="true"] .topbar-inner{justify-content:center}
     box.innerHTML=ic(error?'shield':message.trim()?'check':'shield','icon-sm')+'<span>'+safe(label)+'</span>';
     btn.disabled=!message.trim()||!!error;
   }
-  function submit(){const textarea=$('visitorMessage');const text=textarea.value;const err=validateMessage(text);const fb=$('formFeedback');fb.className='form-feedback';if(err){fb.textContent=err;fb.classList.add('feedback-err');return;}state.lastSubmission=Date.now();const id=state.total+1;state.total++;const statusName=state.settings.manual?'pending':'published';state[statusName==='pending'?'pending':'published']++;state.posts.unshift({id,type:state.category,text:text.trim(),time:'just now',status:statusName});if(statusName==='published'){state.selectedId=id;updateArt()}metrics();inbox();$('visitorFormContents').innerHTML=`<div class="form-success"><div class="success-mark">${ic('check','icon-lg')}</div><h2>Message received.</h2><p>${state.settings.manual?'Your confession is in the optional admin review queue.':'Your confession passed the automatic checks. Live WhatsApp publishing will be connected later.'}</p><button class="button secondary" id="sendAnother">Return to admin studio ${ic('arrow','icon-sm')}</button></div>`;$('sendAnother').addEventListener('click',()=>navigate('studio'));}
+  function submit(){if(!NIGHT_VISITOR||!inviteIsActive()){status();return;}const textarea=$('visitorMessage');const text=textarea.value;const err=validateMessage(text);const fb=$('formFeedback');fb.className='form-feedback';if(err){fb.textContent=err;fb.classList.add('feedback-err');return;}state.lastSubmission=Date.now();const id=state.total+1;state.total++;const statusName=state.settings.manual?'pending':'published';state[statusName==='pending'?'pending':'published']++;state.posts.unshift({id,type:state.category,text:text.trim(),time:'just now',status:statusName});if(statusName==='published'){state.selectedId=id;updateArt()}metrics();inbox();$('visitorFormContents').innerHTML=`<div class="form-success"><div class="success-mark">${ic('check','icon-lg')}</div><h2>Message received.</h2><p>${state.settings.manual?'Your confession is in the optional admin review queue.':'Your confession passed the automatic checks. Live WhatsApp publishing will be connected later.'}</p><a class="button secondary" href="/dashboard">Back to NIGHT Play</a></div>`;}
   // All interactions are client-side and intentionally have no networking or WhatsApp access.
   document.querySelectorAll('[data-page]').forEach(b=>b.addEventListener('click',()=>navigate(b.dataset.page)));
-  $('logo').addEventListener('click',e=>{e.preventDefault();navigate('studio')});
-  $('quickSwitch').addEventListener('click',()=>navigate(state.page==='visitor'?'studio':'visitor'));
-  $('previewAsVisitor')?.addEventListener('click',()=>navigate('visitor'));$('galleryVisitor').addEventListener('click',()=>navigate('visitor'));$('galleryBack').addEventListener('click',()=>navigate('studio'));
-  $('heroPrimary').addEventListener('click',toggleSession);$('stopButton').addEventListener('click',()=>{if(state.session==='stopped'){toast('This demo session is already ended.');return;}if(confirm('End this demo anonymous night? You can start it again.')){state.session='stopped';status();toast('Anonymous Night ended in the preview.')}});
+  // Logo returns to Profile; a follower cannot open the studio from its invite link.
+  // Visitor form is accessible exclusively through a session URL, not a top-level tab.
+  $('galleryVisitor').addEventListener('click',()=>navigate('studio'));$('galleryBack').addEventListener('click',()=>navigate('studio'));
+  $('heroPrimary').addEventListener('click',toggleSession);$('stopButton').addEventListener('click',()=>{if(state.session==='stopped'){toast('This demo session is already ended.');return;}if(confirm('End this anonymous night and deactivate its invitation?')){invalidateInvite('stopped');status();toast('Night ended. Invite deactivated in this browser.')}});
   $('simulateButton').addEventListener('click',addSample);
   $('settingsButton').addEventListener('click',()=>modal('settingsModal'));$('scheduleButton').addEventListener('click',()=>{const a=new Date(),b=new Date(a.getTime()+2.5*3600000);const fmt=d=>[d.getFullYear(),String(d.getMonth()+1).padStart(2,'0'),String(d.getDate()).padStart(2,'0')].join('-')+'T'+[String(d.getHours()).padStart(2,'0'),String(d.getMinutes()).padStart(2,'0')].join(':');$('scheduleStart').value=fmt(a);$('scheduleEnd').value=fmt(b);modal('scheduleModal')});
   document.querySelectorAll('[data-close]').forEach(x=>x.addEventListener('click',()=>close(x.dataset.close)));
@@ -213,11 +350,34 @@ body[data-visitor-mode="true"] .topbar-inner{justify-content:center}
   document.querySelectorAll('.preset').forEach(b=>b.addEventListener('click',()=>{document.querySelectorAll('.preset').forEach(x=>x.classList.toggle('active',x===b))}));
   document.querySelectorAll('.toggle').forEach(b=>b.addEventListener('click',()=>{const active=b.classList.toggle('on');b.setAttribute('aria-checked',String(active))}));
   $('saveSettings').addEventListener('click',()=>{state.settings.max=Number(document.querySelector('.preset.active').dataset.max);state.settings.cooldown=Number($('settingCooldown').value);state.settings.blocked=$('blockedWords').value;state.settings.manual=$('manualToggle').classList.contains('on');state.settings.rate=$('rateToggle').classList.contains('on');$('maxPreview').textContent=state.settings.max+' chars';$('cooldownPreview').textContent=state.settings.rate?state.settings.cooldown+' sec':'Off';$('visitorLimitLine').textContent=state.settings.max+' characters maximum'+(state.settings.rate?' · '+state.settings.cooldown+'-second cooldown':'');const textarea=$('visitorMessage');if(textarea){textarea.maxLength=state.settings.max;$('charCounter').textContent=textarea.value.length+' / '+state.settings.max;}$('publishingMode').textContent=state.settings.manual?'Manual review':'Automatic';updateLiveModeration();close('settingsModal');toast('Moderation rules updated for this session.');});
-  $('confirmSchedule').addEventListener('click',()=>{const start=new Date($('scheduleStart').value),end=new Date($('scheduleEnd').value);if(!Number.isFinite(start.getTime())||!Number.isFinite(end.getTime())||end<=start||start<new Date()){toast('Choose a future start time and later end time.');return;}state.schedule={start,end};state.session='scheduled';state.sessionEnd=end.toLocaleTimeString([],{hour:'numeric',minute:'2-digit'});$('endPreview').textContent=state.sessionEnd;status();close('scheduleModal');toast('Demo schedule saved. No real job was created.');});
+  $('confirmSchedule').addEventListener('click',()=>{const start=new Date($('scheduleStart').value),end=new Date($('scheduleEnd').value);if(!Number.isFinite(start.getTime())||!Number.isFinite(end.getTime())||end<=start||start<new Date()){toast('Choose a future start time and later end time.');return;}state.schedule={start,end};invalidateInvite('scheduled');state.sessionEnd=end.toLocaleTimeString([],{hour:'numeric',minute:'2-digit'});$('endPreview').textContent=state.sessionEnd;status();close('scheduleModal');toast('Schedule saved for this preview. It activates while this page is open.');});
   document.querySelectorAll('.type-btn').forEach(b=>b.addEventListener('click',()=>{state.category=b.dataset.type;document.querySelectorAll('.type-btn').forEach(x=>x.classList.toggle('active',x===b))}));
   $('visitorMessage').addEventListener('input',e=>{$('charCounter').textContent=e.target.value.length+' / '+state.settings.max;$('formFeedback').textContent='';updateLiveModeration()});$('submitMessage').addEventListener('click',submit);
-  // Keep the sample live session, preview card and figures in sync.
-  metrics();inbox();updateArt();gallery();status();updateLiveModeration();if(['studio','visitor','gallery'].includes(location.hash.slice(1)))navigate(location.hash.slice(1));
+  // Share links can be copied or rotated by the channel admin (preview state only).
+  $('copyNightLink').addEventListener('click',copyInvite);
+  $('rotateNightLink').addEventListener('click',()=>{
+    if(state.session!=='live')return;
+    const end=state.inviteUntil>Date.now()?state.inviteUntil:Date.now()+7200000;
+    createInvite(end);renderInvite();toast('New link ready. The previous link is invalid in this browser.');
+  });
+  window.addEventListener('storage',e=>{
+    if(e.key!==NIGHT_INVITE_KEY)return;
+    const current=readInvite();
+    if(NIGHT_VISITOR){state.session=(current&&current.token===NIGHT_INCOMING&&current.session==='live')?'live':'stopped';}
+    else if(current){state.session=current.session;state.inviteToken=current.token||'';state.inviteUntil=current.expiresAt||0}
+    status();updateLiveModeration();
+  });
+  syncInviteState();
+  metrics();inbox();updateArt();gallery();status();updateLiveModeration();
+  navigate(NIGHT_VISITOR?'visitor':(['studio','gallery'].includes(location.hash.slice(1))?location.hash.slice(1):'studio'));
+  setInterval(()=>{
+    if(NIGHT_VISITOR){if(!inviteIsActive()){status();updateLiveModeration()}return}
+    if(state.session==='scheduled'&&state.schedule&&Date.now()>=+state.schedule.start&&Date.now()<+state.schedule.end){
+      createInvite(+state.schedule.end);status();toast('Scheduled anonymous night is now live. Share its new link.');
+    }else if(state.session==='live'&&Date.now()>=state.inviteUntil){
+      invalidateInvite('stopped');status();toast('Session ended; the invitation has expired.');
+    }
+  },5000);
 })();
 </script>
 </body>
