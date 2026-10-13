@@ -16,6 +16,7 @@ import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
@@ -47,6 +48,8 @@ fun TabbedDialog(
         modifier = modifier,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
         containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+        // Mihon's color-filter tab needs an undimmed page preview.
+        scrimColor = if (pagerState.currentPage == 2) Color.Transparent else Color.Black.copy(alpha = 0.5f),
     ) {
         val scope = rememberCoroutineScope()
         Column {
