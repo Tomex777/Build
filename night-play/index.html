@@ -251,6 +251,7 @@ body[data-view="welcome"] header .landing-enter{display:inline-flex}
 .announcement-bar.dismissed{display:none!important}
 .announcement-bar.dismissed .announcement-history{display:none!important}
 body[data-view="welcome"] .site-footer{padding-bottom:0}
+body[data-view="profile"] header button[data-dialog="connect"]{display:none!important}
 .profile-overview{margin-bottom:8px}
 .analytics-panel{position:relative;background:#fff;border:1px solid #e8e8e7;border-radius:24px;padding:25px 28px 20px;margin-bottom:34px}
 .analytics-top{display:flex;align-items:center;justify-content:space-between;gap:18px;position:relative;z-index:8}
@@ -419,7 +420,12 @@ const getSaved=(key)=>{try{return localStorage.getItem(key)}catch{return null}};
 const putSaved=(key,value)=>{try{localStorage.setItem(key,String(value))}catch{}};
 const scoreHistoryKey="night-play-history-v1-";
 function scoreHistory(id){try{const a=JSON.parse(localStorage.getItem(scoreHistoryKey+id)||"[]");return Array.isArray(a)?a.filter(x=>Number.isFinite(x)&&x>=0).slice(-12):[]}catch{return []}}
-function recordSession(id,score){if(!Number.isFinite(score)||score<0)return;try{localStorage.setItem(scoreHistoryKey+id,JSON.stringify([...scoreHistory(id),Math.round(score)].slice(-12)))}catch{}}
+const scoreCountKey="night-play-history-count-v1-";
+function scoreCount(id){const n=Number(getSaved(scoreCountKey+id));return Number.isFinite(n)&&n>0?Math.floor(n):scoreHistory(id).length}
+function recordSession(id,score){if(!Number.isFinite(score)||score<0)return;try{
+ const previous=scoreCount(id);localStorage.setItem(scoreHistoryKey+id,JSON.stringify([...scoreHistory(id),Math.round(score)].slice(-12)));
+ localStorage.setItem(scoreCountKey+id,String(previous+1))
+ }catch{}}
 // One chart with a searchable game selector scales to large catalogues.
 const RECORD_LABELS={"snake":"Snake","2048":"2048 · 4×4","2048-5":"2048 · 5×5","2048-6":"2048 · 6×6"};
 const RECORD_DEFAULTS=["snake","2048","2048-5","2048-6"];
@@ -450,7 +456,7 @@ function renderRecordOptions(){
    const button=document.createElement("button");button.type="button";button.setAttribute("role","option");
    button.setAttribute("aria-selected",String(id===selectedRecordGame));
    const label=document.createElement("strong");label.textContent=recordTitle(id);
-   const sub=document.createElement("span");sub.textContent=scoreHistory(id).length+" rounds";
+   const sub=document.createElement("span");sub.textContent=scoreCount(id)+" rounds";
    button.append(label,sub);button.onclick=()=>{
     selectedRecordGame=id;putSaved("night-play-selected-record",id);
     document.getElementById("recordsMenu").hidden=true;
@@ -494,7 +500,7 @@ function drawRecordChart(){
  setText("selectedGameTitle",recordTitle(id));
  setText("analyticsBest",topScore.toLocaleString());
  setText("analyticsLatest",history.length?history[history.length-1].toLocaleString():"—");
- setText("analyticsRuns",history.length.toLocaleString());
+ setText("analyticsRuns",scoreCount(id).toLocaleString());
  setText("analyticsSubtitle","Personal scores · Not ranked");
  setText("chartNote","Last "+Math.min(12,history.length)+" recorded rounds");
  plotSVG(document.getElementById("analyticsGraph"),history,topScore);
