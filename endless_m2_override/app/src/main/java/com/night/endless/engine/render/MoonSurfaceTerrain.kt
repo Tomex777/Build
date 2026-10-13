@@ -36,6 +36,13 @@ class MoonSurfaceTerrain(private val context: Context) {
         GLES30.glUniform2f(
             GLES30.glGetUniformLocation(program, "uViewAnchor"), -offsetX, -offsetZ
         )
+        // Initialize/reanchor midfield LOD *before* drawing the coarse
+        // mesh, so its masked region always matches the actual replacement.
+        detail.prepare(-offsetX.toDouble(), -offsetZ.toDouble())
+        GLES30.glUniform2f(
+            GLES30.glGetUniformLocation(program, "uMidAnchor"),
+            detail.midfieldAnchorX, detail.midfieldAnchorZ
+        )
         GLES30.glUniform1i(GLES30.glGetUniformLocation(program, "uPatchType"), 0)
         GLES30.glUniform3f(GLES30.glGetUniformLocation(program, "uLight"), -0.74f, 0.38f, 0.31f)
         // Both local and kilometer-scale meshes have counterclockwise upward faces.
