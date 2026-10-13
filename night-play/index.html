@@ -304,6 +304,30 @@ body[data-view="profile"] header button[data-dialog="connect"]{display:none!impo
  .chart-no-data{inset:55px 0 24px}
 }
 
+
+/* V7 — minimal account card and matter-of-fact site/legal surfaces */
+.profile-overview{background:#f1f2f1;border:1px solid #e5e7e6;overflow:hidden;border-radius:21px;margin:24px 0 30px}
+.profile-identity{min-height:134px;padding:29px 32px;gap:22px}
+.profile-identity .profile-monogram{width:74px;height:74px;border-radius:50%;background:#e1e4e2;color:#37413c}
+.profile-identity .player-card-name{flex:1;min-width:0}
+.profile-identity h2{margin:0 0 6px;font-size:25px;letter-spacing:-.65px;font-weight:750}
+.player-card-name>span{font-size:12px;color:#7a817f}
+.player-card-brand{font-size:19px;letter-spacing:-1px;font-weight:900;color:#9ea6a3;display:flex;align-items:baseline;gap:4px;white-space:nowrap;opacity:.45}
+.player-card-brand span{font-size:9px;letter-spacing:1px;font-weight:750}
+#view-profile .records-heading{margin-top:23px}
+#view-profile .analytics-panel{border-radius:20px}
+.footer-inner nav{display:flex;align-items:center;gap:25px}
+.footer-inner nav a{font-size:12px;color:#696e6d}
+.footer-inner nav a:hover{color:#171a19;text-decoration:underline}
+.legal-page{width:100%}
+.legal-content{max-width:690px;margin:54px auto 80px}
+.legal-back{font-size:12px;font-weight:650;color:#858987}
+.legal-content h1{font-size:clamp(35px,6vw,51px);letter-spacing:-1.75px;margin:24px 0 8px}
+.legal-asof{font-size:12px;color:#929795;border-bottom:1px solid #e5e6e6;padding-bottom:30px;margin-bottom:33px}
+.legal-content h2{font-size:18px;letter-spacing:-.4px;margin:26px 0 9px}
+.legal-content p:not(.legal-asof){font-size:14px;color:#656a68;line-height:1.85;margin:0 0 17px}
+@media(max-width:600px){.profile-overview{margin-top:28px}.profile-identity{padding:20px;min-height:107px;gap:14px}.profile-identity .profile-monogram{width:56px;height:56px}.profile-identity h2{font-size:22px}.player-card-brand{font-size:13px}.player-card-brand span{font-size:8px}.footer-inner{flex-direction:row;align-items:center;gap:12px}.footer-inner nav{gap:17px}.legal-content{margin:37px auto 65px}}
+
 </style>
 </head>
 <body>
@@ -358,35 +382,54 @@ body[data-view="profile"] header button[data-dialog="connect"]{display:none!impo
  </div><p class="no-results" id="noGameResults" hidden>No games found. Try another name or category.</p>
 </section>
 <section class="site-page" id="view-profile" data-view="profile" hidden>
-<div class="inner-page-head profile-heading"><div><span class="eyebrow">ACCOUNT</span><h1>Account <span class="muted">profile.</span></h1></div><span class="status-pill">NOT CONNECTED</span></div>
-<div class="profile-overview">
- <div class="profile-identity"><div class="profile-monogram" aria-hidden="true"><svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4.5 20c1.2-4.7 13.8-4.7 15 0"/></svg></div><div><h2>Connect WhatsApp</h2><span class="muted">Not connected</span></div><button class="btn light" data-dialog="connect">Connect ↗</button></div>
+<div class="profile-overview" aria-label="NIGHT Play profile card">
+ <div class="profile-identity">
+  <div class="profile-monogram" aria-hidden="true"><svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4.5 20c1.2-4.7 13.8-4.7 15 0"/></svg></div>
+  <div class="player-card-name"><h2>Player</h2><span id="profileIdentityCaption">NIGHT Play</span></div>
+  <span class="player-card-brand" aria-hidden="true">NIGHT<span>PLAY</span></span>
+ </div>
 </div>
 <div class="records-heading"><div><span class="eyebrow">YOUR GAME STATS</span><h2>Game records</h2></div><span class="record-mode-tag">Device only · Unranked</span></div>
 <div class="analytics-panel">
  <div class="analytics-top">
-  <div><h3 id="selectedGameTitle">Snake</h3><span class="analytics-subtitle" id="analyticsSubtitle">Recent scores</span></div>
+  <div><h3 id="selectedGameTitle">Game activity</h3><span class="analytics-subtitle" id="analyticsSubtitle">Completed rounds by game</span></div>
   <div class="analytics-picker">
    <button id="recordsPicker" class="records-picker" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="recordsMenu">Choose game <span aria-hidden="true">⌄</span></button>
    <div id="recordsMenu" class="records-menu" hidden><label><span aria-hidden="true">⌕</span><input id="recordSearch" placeholder="Find a game..." type="search" autocomplete="off" aria-label="Search game records"></label><div id="recordOptions" class="record-options" role="listbox" aria-label="Games with score records"></div><p id="recordEmpty" class="record-empty" hidden>No games found</p></div>
   </div>
  </div>
  <div class="analytics-metrics">
-   <div><span>Personal best</span><strong id="analyticsBest">0</strong></div>
-   <div><span>Last score</span><strong id="analyticsLatest">—</strong></div>
-   <div><span>Recorded rounds</span><strong id="analyticsRuns">0</strong></div>
+   <div><span id="metricLabelBest">Games played</span><strong id="analyticsBest">0</strong></div>
+   <div><span id="metricLabelLatest">Rounds played</span><strong id="analyticsLatest">0</strong></div>
+   <div><span id="metricLabelRuns">Most played</span><strong id="analyticsRuns">—</strong></div>
  </div>
  <div class="analytics-chart">
-  <div class="chart-head"><span>Score history</span><small id="chartNote">Last 12 completed rounds</small></div>
-  <svg id="analyticsGraph" viewBox="0 0 680 250" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Scores for the selected game plotted over recent rounds"></svg>
+  <div class="chart-head"><span id="chartHeading">Most played games</span><small id="chartNote">Completed rounds</small></div>
+  <svg id="analyticsGraph" viewBox="0 0 680 250" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Games played, measured by completed rounds"></svg>
   <div id="chartEmptyState" class="chart-no-data" hidden><strong>No scores yet</strong><span>Play a round to see your progress here.</span></div>
-  <div class="chart-axis-labels"><span>Earlier</span><span>Recent</span></div>
+  <div class="chart-axis-labels" id="chartAxis"><span>Fewer rounds</span><span>More rounds</span></div>
  </div>
- <p class="analytics-footnote" id="recordsGameCount">Your game records</p>
+ <p class="analytics-footnote" id="recordsGameCount">Scores saved on this device · Unranked</p>
 </div>
 </section>
+
+<section class="site-page legal-page" id="view-terms" data-view="terms" hidden>
+ <div class="legal-content"><a href="/dashboard" class="legal-back" data-route>← Back</a><h1>Terms of use</h1><p class="legal-asof">NIGHT Play preview · Updated 13 October 2026</p>
+ <h2>Using the preview</h2><p>NIGHT Play is currently a testing preview. Games, scores, and features may change. The preview is offered without guarantees of continuous availability.</p>
+ <h2>Scores and fair play</h2><p>Scores saved on your device are not official rankings. Please avoid manipulating other players’ games, accounts, or matches. Competitive multiplayer is not yet available in this preview.</p>
+ <h2>Your account</h2><p>WhatsApp account linking has not launched. Do not enter WhatsApp passwords, pairing codes, or private session credentials into this website. When accounts launch, the terms will be updated to describe the service.</p>
+ <h2>Contact and changes</h2><p>These are provisional preview terms, not the final terms for a commercial launch. An official contact address and final legal review must be added before the public account service launches.</p></div>
+</section>
+<section class="site-page legal-page" id="view-privacy" data-view="privacy" hidden>
+ <div class="legal-content"><a href="/dashboard" class="legal-back" data-route>← Back</a><h1>Privacy</h1><p class="legal-asof">NIGHT Play preview · Updated 13 October 2026</p>
+ <h2>What this preview saves</h2><p>The games use your browser’s local storage for settings, high scores, recent game results, and whether you dismissed an announcement. These records stay in that browser unless you clear its storage or the site’s implementation changes.</p>
+ <h2>WhatsApp and identity</h2><p>The preview has no working WhatsApp account-linking system. It does not currently receive your WhatsApp phone number, JID, LID, or credentials through a sign-in flow. Do not submit account secrets here.</p>
+ <h2>Future services</h2><p>Before launching verified accounts, multiplayer, or hosted game statistics, NIGHT Play will need a revised policy covering server storage, identity linking, retention, and account removal.</p>
+ <h2>Third-party hosting</h2><p>The website is hosted through Vercel. Hosting infrastructure may process technical request information independently of the game records stored in your browser.</p>
+ <h2>Updates</h2><p>This page describes the current test build, not a final production privacy policy. It must be reviewed and completed before live account registration is enabled.</p></div>
+</section>
 </main>
-<footer class="site-footer"><div class="wrap footer-inner"><strong>NIGHT PLAY</strong><span>© 2026 NIGHT. Preview build.</span></div></footer>
+<footer class="site-footer"><div class="wrap footer-inner"><span>© 2026 NIGHT Play</span><nav aria-label="Legal information"><a href="/terms" data-route>Terms</a><a href="/privacy" data-route>Privacy</a></nav></div></footer>
 <dialog id="infoDialog" aria-labelledby="infoTitle"><div class="modalhead"><h2 id="infoTitle">NIGHT Play</h2><button class="xbtn" data-close aria-label="Close">×</button></div><div class="modalbody" id="infoBody"></div></dialog>
 <dialog id="settingsDialog" aria-labelledby="settingsTitle"><div class="modalhead"><h2 id="settingsTitle">Game settings</h2><button class="xbtn" id="closeSettings" type="button" aria-label="Close settings">×</button></div><div class="modalbody" id="settingsBody"></div></dialog>
 <section id="gameDialog" class="game-page" aria-label="Fullscreen game view" aria-hidden="true">
