@@ -238,10 +238,74 @@ header{position:sticky;top:0;z-index:60;box-shadow:0 1px 0 #e7e8e7;background:#f
 @media(max-width:600px){.snake-mode-grid button{padding:7px;gap:6px}.snake-mode-grid button strong{font-size:11px}}
 /* Fullscreen games must paint above sticky navigation and site-wide notices. */
 .game-page{z-index:110}
+
+/* V6 — a separate landing experience, grounded footer and scalable analytics */
+body[data-view="welcome"] .mobile-nav,body[data-view="welcome"] header .links,body[data-view="welcome"] header .profile-icon,body[data-view="welcome"] header button[data-dialog="connect"]{display:none!important}
+header .landing-enter{display:none}
+body[data-view="welcome"] header .landing-enter{display:inline-flex}
+.site-footer{width:100%;flex-shrink:0;padding:0;margin-top:auto;background:var(--bg);border-top:1px solid var(--line)}
+.footer-inner{display:flex;align-items:center;justify-content:space-between;gap:16px;min-height:73px;color:#9b9d9d;font-size:12px}
+.footer-inner strong{color:#303437;letter-spacing:-.3px}
+#siteMain{flex:1 0 auto}
+#view-welcome{min-height:calc(100dvh - 230px)}
+.announcement-bar.dismissed{display:none!important}
+.announcement-bar.dismissed .announcement-history{display:none!important}
+body[data-view="welcome"] .site-footer{padding-bottom:0}
+.profile-overview{margin-bottom:8px}
+.analytics-panel{position:relative;background:#fff;border:1px solid #e8e8e7;border-radius:24px;padding:25px 28px 20px;margin-bottom:34px}
+.analytics-top{display:flex;align-items:center;justify-content:space-between;gap:18px;position:relative;z-index:8}
+.analytics-top h3{font-size:23px;letter-spacing:-.85px;margin:0 0 6px}
+.analytics-subtitle{font-size:12px;color:#999}
+.records-picker{border:1px solid #dedfde;padding:12px 16px;border-radius:12px;background:#f6f6f6;display:flex;align-items:center;gap:18px;font-weight:740;font-size:12px}
+.records-picker:hover{background:#eee}
+.records-menu{position:absolute;right:0;top:calc(100% + 10px);width:min(350px,85vw);border:1px solid #e5e5e4;background:#fff;border-radius:17px;box-shadow:0 19px 43px #1010101c;padding:12px;z-index:15}
+.records-menu[hidden]{display:none}
+.records-menu label{display:flex;align-items:center;gap:7px;background:#f1f1f0;border-radius:11px;padding:0 11px}
+.records-menu label>span{font-size:21px;color:#8c8c8c}
+.records-menu input{background:transparent;border:none;outline:none;font:inherit;font-size:13px;padding:14px 0;width:100%}
+.record-options{max-height:min(300px,42dvh);overflow-y:auto;overscroll-behavior:contain;display:grid;gap:3px;margin-top:7px}
+.record-options button{padding:13px 12px;border:0;border-radius:10px;background:none;text-align:left;font:inherit;font-size:13px;display:flex;align-items:center;justify-content:space-between;color:#2f3434;gap:9px}
+.record-options button[aria-selected="true"]{background:#eceeed;font-weight:800}
+.record-options button:hover{background:#f4f4f4}
+.record-options button span{font-size:10px;color:#999;white-space:nowrap}
+.record-empty{font-size:12px;color:#909090;padding:13px;margin:0}
+.analytics-metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));border-bottom:1px solid #ededed;margin-top:23px;padding:14px 0 25px}
+.analytics-metrics>div{display:flex;flex-direction:column;gap:8px;min-width:0;padding:0 23px;border-right:1px solid #ebebeb}
+.analytics-metrics>div:first-child{padding-left:0}
+.analytics-metrics>div:last-child{border:0}
+.analytics-metrics span{font-size:12px;color:#909393}
+.analytics-metrics strong{font-size:clamp(25px,4vw,42px);letter-spacing:-1.6px;font-variant-numeric:tabular-nums;overflow:hidden;text-overflow:ellipsis}
+.analytics-chart{position:relative;padding-top:23px}
+.chart-head{display:flex;justify-content:space-between;align-items:center;gap:15px;font-size:13px;font-weight:800}
+.chart-head small{color:#9a9d9e;font-size:10px;font-weight:500}
+#analyticsGraph{width:100%;height:auto;aspect-ratio:680/250;display:block;margin:14px 0 8px;overflow:visible}
+.chart-no-data{position:absolute;inset:65px 0 32px;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:7px;background:#fff;color:#565d5c;font-size:14px}
+.chart-no-data span{font-size:12px;color:#9c9f9f}
+.chart-no-data[hidden]{display:none}
+.chart-axis-labels{display:flex;justify-content:space-between;color:#999;font-size:11px}
+.analytics-footnote{margin:17px 0 0;color:#9a9c9e;font-size:11px}
+.record-grid{display:none}
+@media(max-width:600px){
+ body[data-view="welcome"] .mobile-nav{display:none!important}
+ .footer-inner{min-height:65px;padding-bottom:8px;align-items:flex-start;flex-direction:column;justify-content:center;gap:5px;font-size:11px}
+ body[data-view="welcome"] .site-footer{padding-bottom:0!important}
+ .site-footer{padding-bottom:calc(65px + env(safe-area-inset-bottom))!important}
+ .analytics-panel{padding:20px 16px 18px;border-radius:19px}
+ .analytics-top h3{font-size:21px}
+ .records-picker{padding:10px 11px}
+ .analytics-metrics>div{padding:0 10px}
+ .analytics-metrics span{font-size:10px}
+ .analytics-metrics strong{font-size:25px}
+ .analytics-metrics{padding-bottom:21px}
+ .chart-head small{font-size:9px}
+ #analyticsGraph{aspect-ratio:680/360;margin-top:18px}
+ .chart-no-data{inset:55px 0 24px}
+}
+
 </style>
 </head>
 <body>
-<header><div class="wrap nav"><a href="/welcome" data-route class="logo" aria-label="NIGHT Play welcome">NIGHT <span class="brand-sub">PLAY</span></a><nav class="links" aria-label="Main navigation"><a data-route href="/dashboard">Home</a><a data-route href="/games">Games</a></nav><div class="actions"><a class="profile-icon" data-route href="/profile" aria-label="My profile" title="My profile"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4.5 20c1.2-4.7 13.8-4.7 15 0"/></svg></a><button class="btn light" data-dialog="connect">Connect WhatsApp ↗</button></div></div></header>
+<header><div class="wrap nav"><a href="/welcome" data-route class="logo" aria-label="NIGHT Play welcome">NIGHT <span class="brand-sub">PLAY</span></a><nav class="links" aria-label="Main navigation"><a data-route href="/dashboard">Home</a><a data-route href="/games">Games</a></nav><div class="actions"><a class="profile-icon" data-route href="/profile" aria-label="My profile" title="My profile"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4.5 20c1.2-4.7 13.8-4.7 15 0"/></svg></a><button class="btn light" data-dialog="connect">Connect WhatsApp ↗</button><a class="btn landing-enter" data-route href="/dashboard">Enter NIGHT Play ↗</a></div></div></header>
 <aside id="announcementBar" class="announcement-bar" role="region" aria-label="NIGHT site announcements">
  <div class="wrap announcement-content"><span class="announce-badge">NEW</span><div class="announce-copy"><strong>NIGHT Play preview is evolving</strong><span>Full-page games and a larger 2048 board are being refined.</span></div><button id="announcementMore" type="button" aria-controls="announcementHistory" aria-expanded="false">Past notices <span aria-hidden="true">⌄</span></button><button id="announcementDismiss" type="button" aria-label="Dismiss announcement">×</button></div>
  <div id="announcementHistory" class="wrap announcement-history" hidden>
@@ -292,20 +356,35 @@ header{position:sticky;top:0;z-index:60;box-shadow:0 1px 0 #e7e8e7;background:#f
  </div><p class="no-results" id="noGameResults" hidden>No games found. Try another name or category.</p>
 </section>
 <section class="site-page" id="view-profile" data-view="profile" hidden>
- <div class="inner-page-head profile-heading"><div><span class="eyebrow">ACCOUNT</span><h1>Profile<span class="muted">.</span></h1></div><span class="status-pill">NOT CONNECTED</span></div>
- <div class="profile-overview">
-  <div class="profile-identity"><div class="profile-monogram" aria-hidden="true"><svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4.5 20c1.2-4.7 13.8-4.7 15 0"/></svg></div><div><span class="eyebrow">NIGHT PLAYER</span><h2>Connect WhatsApp</h2><span class="muted">Account linking is coming soon.</span></div><button class="btn light" data-dialog="connect">Connect ↗</button></div>
-  <div class="profile-preview-stats"><div><strong id="profileGamesRecorded">0</strong><span>Completed rounds</span></div><div><strong id="profileSnakeBest">0</strong><span>Snake best</span></div><div><strong id="profile2048Best">0</strong><span>2048 best · 4×4</span></div></div>
+<div class="inner-page-head profile-heading"><div><span class="eyebrow">ACCOUNT</span><h1>Account <span class="muted">profile.</span></h1></div><span class="status-pill">NOT CONNECTED</span></div>
+<div class="profile-overview">
+ <div class="profile-identity"><div class="profile-monogram" aria-hidden="true"><svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4.5 20c1.2-4.7 13.8-4.7 15 0"/></svg></div><div><h2>Connect WhatsApp</h2><span class="muted">Not connected</span></div><button class="btn light" data-dialog="connect">Connect ↗</button></div>
+</div>
+<div class="records-heading"><div><span class="eyebrow">YOUR GAME STATS</span><h2>Game records</h2></div><span class="record-mode-tag">Device only · Unranked</span></div>
+<div class="analytics-panel">
+ <div class="analytics-top">
+  <div><h3 id="selectedGameTitle">Snake</h3><span class="analytics-subtitle" id="analyticsSubtitle">Recent scores</span></div>
+  <div class="analytics-picker">
+   <button id="recordsPicker" class="records-picker" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="recordsMenu">Choose game <span aria-hidden="true">⌄</span></button>
+   <div id="recordsMenu" class="records-menu" hidden><label><span aria-hidden="true">⌕</span><input id="recordSearch" placeholder="Find a game..." type="search" autocomplete="off" aria-label="Search game records"></label><div id="recordOptions" class="record-options" role="listbox" aria-label="Games with score records"></div><p id="recordEmpty" class="record-empty" hidden>No games found</p></div>
+  </div>
  </div>
- <div class="records-heading"><div><span class="eyebrow">SCOREBOARD</span><h2>Game records</h2></div><span class="record-mode-tag">Device only · Unranked</span></div>
- <div class="record-grid">
-  <article class="record-tile"><div class="record-tile-top"><div><span class="record-glyph">🐍</span><h3>Snake</h3></div><span class="record-chip">BEST RUN</span></div><div class="record-score"><strong id="recordSnakeValue">0</strong><span>points</span></div><svg id="chartSnake" class="record-spark" viewBox="0 0 260 72" preserveAspectRatio="none" role="img" aria-label="Recent Snake scores"></svg><span class="record-caption" id="captionSnake">No runs completed yet</span></article>
-  <article class="record-tile"><div class="record-tile-top"><div><span class="record-glyph">🔢</span><h3>2048</h3></div><span class="record-chip">4 × 4</span></div><div class="record-score"><strong id="record2048Value">0</strong><span>points</span></div><svg id="chart2048" class="record-spark" viewBox="0 0 260 72" preserveAspectRatio="none" role="img" aria-label="Recent 2048 scores"></svg><span class="record-caption" id="caption2048">No rounds recorded yet</span></article>
-  <article class="record-tile small-record"><div class="record-tile-top"><div><h3>2048 · 5×5</h3></div><span class="record-chip">BEST</span></div><div class="record-score"><strong id="profile2048Best5">0</strong><span>points</span></div><svg id="chart2048_5" class="record-spark" viewBox="0 0 260 72" preserveAspectRatio="none" role="img" aria-label="Recent 5 by 5 scores"></svg></article>
-  <article class="record-tile small-record"><div class="record-tile-top"><div><h3>2048 · 6×6</h3></div><span class="record-chip">BEST</span></div><div class="record-score"><strong id="profile2048Best6">0</strong><span>points</span></div><svg id="chart2048_6" class="record-spark" viewBox="0 0 260 72" preserveAspectRatio="none" role="img" aria-label="Recent 6 by 6 scores"></svg></article>
- </div></section>
+ <div class="analytics-metrics">
+   <div><span>Personal best</span><strong id="analyticsBest">0</strong></div>
+   <div><span>Last score</span><strong id="analyticsLatest">—</strong></div>
+   <div><span>Recorded rounds</span><strong id="analyticsRuns">0</strong></div>
+ </div>
+ <div class="analytics-chart">
+  <div class="chart-head"><span>Score history</span><small id="chartNote">Last 12 completed rounds</small></div>
+  <svg id="analyticsGraph" viewBox="0 0 680 250" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Scores for the selected game plotted over recent rounds"></svg>
+  <div id="chartEmptyState" class="chart-no-data" hidden><strong>No scores yet</strong><span>Play a round to see your progress here.</span></div>
+  <div class="chart-axis-labels"><span>Earlier</span><span>Recent</span></div>
+ </div>
+ <p class="analytics-footnote" id="recordsGameCount">Your game records</p>
+</div>
+</section>
 </main>
-<footer class="wrap"><span><strong>NIGHT PLAY</strong> · Games, challenges and community.</span><span>Preview · Scores saved only on this device</span></footer>
+<footer class="site-footer"><div class="wrap footer-inner"><strong>NIGHT PLAY</strong><span>© 2026 NIGHT. Preview build.</span></div></footer>
 <dialog id="infoDialog" aria-labelledby="infoTitle"><div class="modalhead"><h2 id="infoTitle">NIGHT Play</h2><button class="xbtn" data-close aria-label="Close">×</button></div><div class="modalbody" id="infoBody"></div></dialog>
 <dialog id="settingsDialog" aria-labelledby="settingsTitle"><div class="modalhead"><h2 id="settingsTitle">Game settings</h2><button class="xbtn" id="closeSettings" type="button" aria-label="Close settings">×</button></div><div class="modalbody" id="settingsBody"></div></dialog>
 <section id="gameDialog" class="game-page" aria-label="Fullscreen game view" aria-hidden="true">
