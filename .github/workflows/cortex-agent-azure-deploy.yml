@@ -2,6 +2,10 @@ name: Cortex Agent-only Azure deployment
 
 on:
   workflow_dispatch:
+  push:
+    branches: [cortex-android-live]
+    paths:
+      - '.github/workflows/cortex-agent-azure-deploy.yml'
   pull_request:
     branches: [cortex-android-live]
     paths:
@@ -35,7 +39,7 @@ jobs:
 
   deploy:
     needs: validate
-    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/cortex-android-live'
+    if: (github.event_name == 'workflow_dispatch' || github.event_name == 'push') && github.ref == 'refs/heads/cortex-android-live'
     runs-on: ubuntu-latest
     timeout-minutes: 12
     environment: mscc-production
