@@ -161,6 +161,7 @@ export class SourceRegistry {
       }, sourceLookupTimeoutMs())
     }) : null
     const runSource = source => {
+      if (controller?.signal.aborted) return Promise.reject(deadlineError)
       const sourcePromise = Promise.resolve().then(() => source.run({
         ...payload,
         context: {
