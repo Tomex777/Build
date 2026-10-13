@@ -13,7 +13,7 @@ class MoonSurfaceTerrain(private val context: Context) {
     private val vertices: FloatBuffer
     private val indices: ShortBuffer
     private val indexCount: Int
-    private val detail = SurfaceDetailRenderer { x, z -> renderedHeightAt(x, z) }
+    private val detail = SurfaceDetailRenderer(-.74, .38, .31) { x, z -> renderedHeightAt(x, z) }
 
     init {
         val mesh = MoonSurfaceMeshGenerator.build()
