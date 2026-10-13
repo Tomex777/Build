@@ -51,6 +51,8 @@ uniform vec3 uLight;
 uniform int uWorld; // 0 = Mars; 1 = Moon
 uniform int uPatchType; // 0 = coarse landscape; 1 = foreground; 2 = stones
 uniform vec2 uViewAnchor;
+uniform sampler2D uLandingAlbedo;
+uniform int uHasLandingAlbedo;
 out vec4 fragColor;
 
 // Hash uses fixed surface coordinates, so regolith patterns do not swim.
@@ -133,6 +135,25 @@ void main() {
         albedo = mix(regolith, exposedRock, highlands * 0.77);
         albedo *= 0.78 + granules * 0.43;
         albedo *= 0.92 + grain * 0.13;
+    }
+
+    // NASA Trek site's 81.6-km equirectangular orbital-photo mosaic
+    // is registered to MOLA / LOLA's coordinate frame. +X points east,
+    // +Z points north. Values outside the site remain procedural.
+    if (uHasLandingAlbedo == 1 && uPatchType != 2 &&
+        abs(ground.x) <= 13.6 && abs(ground.y) <= 13.6) {
+        vec2 photoUv = vec2(0.5 + ground.x / 27.2,
+                            0.5 - ground.y / 27.2);
+        vec3 photo = texture(uLandingAlbedo, photoUv).rgb;
+        // Orbital imagery is not photometrically corrected against the
+        // in-engine Sun: preserve surface detail but avoid strong baked
+        // false-color lighting and keep a small, detailed regolith layer.
+        vec3 sourceAlbedo = uWorld == 0
+            ? photo * vec3(0.97, 0.94, 0.90)
+            : photo * vec3(0.94, 0.94, 0.95);
+        float photoWeight = uPatchType == 1 ? 0.88 : 0.83;
+        albedo = mix(albedo, sourceAlbedo, photoWeight);
+        albedo *= 0.90 + 0.17 * granules;
     }
 
     float direct = max(dot(microNormal, sun), 0.0);
