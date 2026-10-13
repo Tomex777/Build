@@ -31,6 +31,20 @@ export function groupPolicy(storage, group) {
   return { ...DEFAULT_GROUP_POLICY, ...saved }
 }
 
+// Most groups have no enabled moderation policy. Don't perform two remote
+// groupMetadata() lookups for every ordinary .ping, .menu or chat message.
+// Mention-mute must still run when a message has WhatsApp mentions.
+export function groupMessageNeedsModeration(policy = {}, msg = null) {
+  const mentioned = contextInfo(msg?.message)?.mentionedJid
+  const anyMentions = Array.isArray(mentioned) && mentioned.length > 0
+  return Boolean(
+    anyMentions ||
+    policy.antiLink || policy.antiTag || policy.antiGroupMention ||
+    policy.antiSpam ||
+    (Array.isArray(policy.filters) && policy.filters.length > 0)
+  )
+}
+
 export function setGroupPolicy(storage, group, patch = {}) {
   const current = groupPolicy(storage, group)
   const next = { ...current, ...patch, updatedAt:Date.now() }
