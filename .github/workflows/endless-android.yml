@@ -142,6 +142,23 @@ jobs:
           test "$(stat -c%s "$ASSETS/moon_lola_terrain.bin")" -eq 51842
           test "$(stat -c%s "$ASSETS/mars_mola_terrain.bin")" -eq 51842
 
+      - name: Fetch NASA Trek photographic landing mosaics
+        shell: bash
+        run: |
+          set -euo pipefail
+          OUT="$ENDLESS_PROJECT/app/src/main/res/drawable-nodpi"
+          # NASA Trek WMTS is a live external service; request once at build
+          # time and package georeferenced photos for fully offline viewing.
+          # If the service is temporarily unavailable, keep the measured
+          # DEM + illustrated material rather than substitute unrelated art.
+          if timeout 120 python3 endless_ci/prepare_nasa_trek_imagery.py --out "$OUT"; then
+            file "$OUT/mars_trek_landing.jpg" "$OUT/moon_trek_landing.jpg"
+            echo "NASA Trek photo landscapes included in APK."
+          else
+            rm -f "$OUT/mars_trek_landing.jpg" "$OUT/moon_trek_landing.jpg"
+            echo "::warning::NASA Trek WMTS unavailable; built-in MOLA/LOLA regolith fallback used."
+          fi
+
       - name: Set up JDK 17
         uses: actions/setup-java@v5
         with:
