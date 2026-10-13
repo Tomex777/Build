@@ -57,6 +57,10 @@ fun ReaderSettingsDialog(
     onShowPageNumberChange: (Boolean) -> Unit,
     volumeKeys: Boolean,
     onVolumeKeysChange: (Boolean) -> Unit,
+    volumeKeysInverted: Boolean,
+    onVolumeKeysInvertedChange: (Boolean) -> Unit,
+    pageTransitions: Boolean,
+    onPageTransitionsChange: (Boolean) -> Unit,
     background: String,
     onBackgroundChange: (String) -> Unit,
     customBrightness: Boolean,
@@ -166,7 +170,15 @@ fun ReaderSettingsDialog(
                                     )
                                 }
                                 SettingSwitch("Crop borders", cropEnabled, onCropChange)
+                                SettingSwitch("Page transitions", pageTransitions, onPageTransitionsChange)
                                 SettingSwitch("Volume key navigation", volumeKeys, onVolumeKeysChange)
+                                if (volumeKeys) {
+                                    SettingSwitch(
+                                        "Invert volume keys",
+                                        volumeKeysInverted,
+                                        onVolumeKeysInvertedChange,
+                                    )
+                                }
                             }
                             1 -> {
                                 SettingHeading("Reader theme")
