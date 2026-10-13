@@ -25,7 +25,9 @@ const stable = value => {
     return Object.fromEntries(Object.keys(value).sort().map(key => [key, stable(value[key])]))
   return value
 }
-if (!fields.every(key => JSON.stringify(stable(a[key] ?? null)) === JSON.stringify(stable(b[key] ?? null))))
+const lifecycle = ['preinstall', 'install', 'postinstall', 'prepare']
+if (!fields.every(key => JSON.stringify(stable(a[key] ?? null)) === JSON.stringify(stable(b[key] ?? null))) ||
+    !lifecycle.every(key => (a.scripts?.[key] || '') === (b.scripts?.[key] || '')))
   process.exit(1)
 JS
   then
