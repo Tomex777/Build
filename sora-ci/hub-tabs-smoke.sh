@@ -263,7 +263,14 @@ adb shell input keyevent 4
 wait_for "Downloads"
 
 tap Downloads
-wait_for "Active transfers"
+# Downloads UI now names the queue "Transfers & retries". The previous
+# "Active transfers" assertion targeted copy removed from the actual screen,
+# so it failed after successful navigation. Verify the real queue, completed
+# grouping and empty-state copy to catch an actual route/render regression.
+wait_for "Transfers & retries"
+wait_for "Nothing downloading right now"
+wait_for "Downloaded"
+wait_for "No completed files"
 shot downloads-empty
 adb shell input keyevent 4
 tap Statistics
