@@ -47,6 +47,11 @@ class SharedPagerViewer(
     private val adapter = Adapter()
     private var currentItem: Any? = null
     private var chapters: ViewerChapters? = null
+    // Mihon's pager defers chapter-window replacement until it is idle.
+    // Changing a ViewPager adapter during a swipe causes visible page jumps.
+    private var isPagerIdle = true
+    private var pendingChapters: ViewerChapters? = null
+    private var changingChapterWindow = false
 
     val pager = Pager(host.context, isHorizontal = direction != PagerDirection.VERTICAL).apply {
         layoutParams = ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
@@ -56,15 +61,26 @@ class SharedPagerViewer(
         adapter = this@SharedPagerViewer.adapter
     }
 
-    init {
-        pager.addOnPageChangeListener(
-            object : ViewPager.SimpleOnPageChangeListener() {
-                override fun onPageSelected(position: Int) {
-                    if (!host.isScrollingThroughPages) host.hideMenu()
-                    onPageChanged(position)
+    private val pagerListener = object : ViewPager.SimpleOnPageChangeListener() {
+        override fun onPageSelected(position: Int) {
+            if (changingChapterWindow) return
+            if (!host.isScrollingThroughPages) host.hideMenu()
+            onPageChanged(position)
+        }
+
+        override fun onPageScrollStateChanged(state: Int) {
+            isPagerIdle = state == ViewPager.SCROLL_STATE_IDLE
+            if (isPagerIdle) {
+                pendingChapters?.let { pending ->
+                    pendingChapters = null
+                    setChaptersInternal(pending)
                 }
-            },
-        )
+            }
+        }
+    }
+
+    init {
+        pager.addOnPageChangeListener(pagerListener)
 
         pager.tapListener = { event ->
             val position = IntArray(2)
@@ -95,21 +111,41 @@ class SharedPagerViewer(
     override fun getView(): View = pager
 
     override fun setChapters(chapters: ViewerChapters) {
-        this.chapters = chapters
-        adapter.setChapters(chapters)
-
-        val pages = chapters.currChapter.pages.orEmpty()
-        if (pages.isNotEmpty()) {
-            val requested = min(chapters.currChapter.requestedPage, pages.lastIndex)
-            moveToPage(pages[requested], chapters.currChapter.requestedOffsetFraction)
+        if (isPagerIdle) {
+            setChaptersInternal(chapters)
+        } else {
+            pendingChapters = chapters
         }
+    }
+
+    private fun setChaptersInternal(window: ViewerChapters) {
+        val original = currentItem as? ViewerPage
+        pager.removeOnPageChangeListener(pagerListener)
+        changingChapterWindow = true
+        try {
+            this.chapters = window
+            adapter.setChapters(window)
+            val pages = window.currChapter.pages.orEmpty()
+            if (pages.isNotEmpty()) {
+                val requested = min(window.currChapter.requestedPage, pages.lastIndex)
+                // Keep the actually selected page when adjacent chapters finish
+                // loading; otherwise use the restored/chapter-requested position.
+                val target = original?.takeIf { it in adapter.items } ?: pages[requested]
+                val position = adapter.items.indexOf(target)
+                if (position >= 0) pager.setCurrentItem(position, false)
+            }
+        } finally {
+            changingChapterWindow = false
+            pager.addOnPageChangeListener(pagerListener)
+        }
+        onPageChanged(pager.currentItem)
     }
 
     override fun moveToPage(page: ViewerPage, offsetFraction: Double) {
         val position = adapter.items.indexOf(page)
         if (position >= 0) {
             val previous = pager.currentItem
-            pager.setCurrentItem(position, false)
+            pager.setCurrentItem(position, config.pageTransitions)
             if (previous == position) onPageChanged(position)
         }
     }
