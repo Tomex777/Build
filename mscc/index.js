@@ -20,6 +20,7 @@ import { createAccountSocketOptions } from './account-socket-options.js'
 import { assertSeparateAuthDirectories, useDurableMultiFileAuthState } from './account-auth-state.js'
 import { sessionEventsFromJsonl, sessionSnapshot } from './session-diagnostics.js'
 import { openSharedStorage } from './shared-storage.js'
+import { activityReport, activitySenderKey } from './group-activity.js'
 import { chooseGroupExecutor, canExecuteDirect } from './bot-routing.js'
 import { SourceRegistry } from './source-registry.js'
 import { createSmartAI } from './smart-ai.js'
@@ -495,6 +496,7 @@ function rememberConversation(account, msg, authority = {}) {
     messageId:msg.key.id,
     accountId:account.id,
     participantJid:normalizeJid(msg.key.participant),
+    senderKey:fromBot ? '' : activitySenderKey(authority.senderJid || msg.key.participant),
     speaker,
     fromBot,
     text:commandText(msg.message),
@@ -1357,6 +1359,9 @@ async function sendAssistantReply(account, msg, text, {
 }
 
 async function handleProfileAssistant(account, msg, authority, rawText) {
+  // Passive mentions/replies must remain silent when no AI key is configured.
+  // Other commands and personality routing continue to work normally.
+  if (!smartAI.enabled) return false
   const assistant = assistantForAccount(account)
   if (!assistant) return false
 
@@ -1383,7 +1388,7 @@ async function handleProfileAssistant(account, msg, authority, rawText) {
     groupPersonalities:presence,
     senderPersonality,
   })
-  if (!result?.text) return false
+  if (!result?.ok || !result.text) return false
 
   await sendAssistantReply(account, msg, result.text, {
     presence,
@@ -2423,6 +2428,10 @@ async function onMessages(account, { messages, type }) {
           botProfile: sharedStorage?.profileForAccount(account.id) || { id:'unassigned', displayName:'Unassigned', universal:false, basePriority:0 },
           userKey: authority.senderNumber || '',
           groupKey: isGroup(chat) ? chat : '',
+          activityUserKey:activitySenderKey(authority.senderJid),
+          getGroupActivity:period => isGroup(chat)
+            ? activityReport(sharedStorage, chat, { period })
+            : null,
           shared: {
             get: (namespace, key) => sharedStorage?.sharedGet(namespace, key) ?? null,
             set: (namespace, key, value) => sharedStorage?.sharedSet(namespace, key, value),
