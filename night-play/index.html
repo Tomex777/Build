@@ -236,6 +236,8 @@ header{position:sticky;top:0;z-index:60;box-shadow:0 1px 0 #e7e8e7;background:#f
 .snake-mode-grid button strong{font-size:12px;font-weight:800;margin:1px 4px 5px}
 .snake-mode-preview{display:block;width:100%;height:auto;aspect-ratio:3/2;border:1px solid #ced2cf;border-radius:9px;image-rendering:pixelated}
 @media(max-width:600px){.snake-mode-grid button{padding:7px;gap:6px}.snake-mode-grid button strong{font-size:11px}}
+/* Fullscreen games must paint above sticky navigation and site-wide notices. */
+.game-page{z-index:110}
 </style>
 </head>
 <body>
