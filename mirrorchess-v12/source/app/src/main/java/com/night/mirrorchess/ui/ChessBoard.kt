@@ -1,8 +1,9 @@
 package com.night.mirrorchess.ui
 
 import android.provider.Settings
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -22,6 +23,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -55,11 +57,13 @@ import com.night.mirrorchess.chess.index
 import com.night.mirrorchess.chess.rankOf
 import com.night.mirrorchess.chess.squareName
 import com.night.mirrorchess.data.BoardPalette
+import com.night.mirrorchess.data.MoveAnimationSpeed
 import kotlin.math.roundToInt
 
 private data class BoardColors(val light: Color, val dark: Color, val selected: Color, val last: Color, val coordLight: Color, val coordDark: Color)
 private data class PieceMotion(val piece: Piece, val from: Int, val to: Int)
 private data class FadingPiece(val piece: Piece, val square: Int)
+private val SmoothMoveEasing = CubicBezierEasing(0.42f, 0f, 0.58f, 1f)
 
 private fun colorsFor(palette: BoardPalette): BoardColors = when (palette) {
     BoardPalette.CLASSIC -> BoardColors(Color(0xFFE8E9D0), Color(0xFF779455), Color(0xFFF3D35E), Color(0xFFC5B24F), Color(0xFF5F7744), Color(0xFFF1F2DE))
@@ -84,8 +88,11 @@ fun ChessBoard(
     showCoordinates: Boolean = true,
     interactionsEnabled: Boolean = true,
     hapticsEnabled: Boolean = true,
+    moveAnimationSpeed: MoveAnimationSpeed = MoveAnimationSpeed.SMOOTH,
+    onMoveSettled: (GameState, GameState) -> Unit = { _, _ -> },
 ) {
     val boardColors = colorsFor(palette)
+    val latestOnMoveSettled by rememberUpdatedState(onMoveSettled)
     val haptics = LocalHapticFeedback.current
     val context = LocalContext.current
     val motionScale = remember(context) {
@@ -107,12 +114,13 @@ fun ChessBoard(
         val previous = displayedState
         val nextMotions = derivePieceMotions(previous, state)
 
-        if (motionScale <= 0f || nextMotions.isEmpty()) {
+        if (motionScale <= 0f || moveAnimationSpeed.durationMillis == 0 || nextMotions.isEmpty()) {
             displayedState = state
             motions = emptyList()
             fadingPieces = emptyList()
             hiddenSquares = emptySet()
             moveProgress.snapTo(1f)
+            latestOnMoveSettled(previous, state)
             return@LaunchedEffect
         }
 
@@ -129,14 +137,15 @@ fun ChessBoard(
         moveProgress.animateTo(
             targetValue = 1f,
             animationSpec = tween(
-                durationMillis = (220f * motionScale).roundToInt().coerceIn(1, 650),
-                easing = FastOutSlowInEasing,
+                durationMillis = (moveAnimationSpeed.durationMillis * motionScale).roundToInt().coerceAtLeast(1),
+                easing = SmoothMoveEasing,
             ),
         )
         displayedState = state
         motions = emptyList()
         fadingPieces = emptyList()
         hiddenSquares = emptySet()
+        latestOnMoveSettled(previous, state)
     }
 
     val checkedKingSquare = if (ChessRules.isInCheck(displayedState, displayedState.turn)) {
@@ -164,6 +173,16 @@ fun ChessBoard(
                         val isLastMove = displayedState.lastMove?.let { it.from == square || it.to == square } == true
                         val background = if (light) boardColors.light else boardColors.dark
                         val coordinateColor = if (light) boardColors.coordLight else boardColors.coordDark
+                        val highlight by animateColorAsState(
+                            targetValue = when {
+                                checkedKingSquare == square -> Color(0xFFD74646).copy(alpha = .25f)
+                                isSelected -> boardColors.selected.copy(alpha = .23f)
+                                isLastMove -> boardColors.last.copy(alpha = .19f)
+                                else -> Color.Transparent
+                            },
+                            animationSpec = tween(durationMillis = 160),
+                            label = "square-highlight",
+                        )
 
                         Box(
                             modifier = Modifier
@@ -186,15 +205,8 @@ fun ChessBoard(
                                     onSquareTap(square)
                                 },
                         ) {
-                            if (isLastMove) {
-                                Box(Modifier.fillMaxSize().background(boardColors.last.copy(alpha = .18f)))
-                            }
-                            if (isSelected) {
-                                Box(Modifier.fillMaxSize().background(boardColors.selected.copy(alpha = .12f)))
-                            }
-                            if (checkedKingSquare == square) {
-                                Box(Modifier.fillMaxSize().background(Color(0xFFD74646).copy(alpha = .24f)))
-                            }
+                            // Fade square feedback gently without obscuring pieces or targets.
+                            Box(Modifier.fillMaxSize().background(highlight))
                             if (showLegalMoves && legalTargets.contains(square)) {
                                 val capture = piece != null
                                 Box(
@@ -324,7 +336,7 @@ fun ChessBoard(
                     modifier = Modifier
                         .offset { IntOffset((col * squareSize).roundToInt(), (row * squareSize).roundToInt()) }
                         .size(squareDp)
-                        .alpha((1f - progress).coerceIn(0f, 1f))
+                        .alpha(((1f - progress) / 0.18f).coerceIn(0f, 1f))
                         .zIndex(24f),
                     contentAlignment = Alignment.Center,
                 ) {

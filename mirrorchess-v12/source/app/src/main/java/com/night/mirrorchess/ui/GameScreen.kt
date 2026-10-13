@@ -47,6 +47,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -57,11 +58,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.night.mirrorchess.audio.ChessSoundCue
+import com.night.mirrorchess.audio.ChessSoundEngine
+import com.night.mirrorchess.audio.soundForMove
 import com.night.mirrorchess.chess.PieceType
 import com.night.mirrorchess.chess.Side
 import com.night.mirrorchess.viewmodel.GameUiState
@@ -75,6 +80,9 @@ fun GameScreen(
     onExport: () -> Unit,
 ) {
     val ui = viewModel.uiState
+    val context = LocalContext.current
+    val soundEngine = remember(context) { ChessSoundEngine(context.applicationContext) }
+    DisposableEffect(soundEngine) { onDispose { soundEngine.close() } }
     var showResign by remember { mutableStateOf(false) }
     var entered by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) { entered = true }
@@ -99,6 +107,9 @@ fun GameScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
+                // Keep the board full-width; let the coach and move review scroll
+                // into view rather than clipping beneath navigation on short phones.
+                .verticalScroll(rememberScrollState())
                 .offset { IntOffset(0, screenOffset.roundToPx()) }
                 .alpha(screenAlpha),
         ) {
@@ -141,6 +152,12 @@ fun GameScreen(
                 showCoordinates = ui.settings.showCoordinates,
                 interactionsEnabled = !ui.reviewing && !ui.gameOver && !ui.thinking && ui.game.turn == ui.playerSide,
                 hapticsEnabled = ui.settings.haptics,
+                moveAnimationSpeed = ui.settings.moveAnimationSpeed,
+                onMoveSettled = { previous, next ->
+                    if (ui.settings.boardSounds && !ui.reviewing) {
+                        soundForMove(previous, next, gameEnded = ui.gameOver)?.let(soundEngine::play)
+                    }
+                },
             )
 
             PlayerBar(
@@ -158,11 +175,11 @@ fun GameScreen(
 
             MoveStrip(ui)
             if (ui.reviewing) {
-                ReviewPanel(ui, Modifier.fillMaxWidth().weight(1f, fill = true))
+                ReviewPanel(ui, Modifier.fillMaxWidth().height(165.dp))
             } else if (ui.settings.coachEnabled) {
-                LearningPanel(ui, viewModel::setCoachElo, Modifier.fillMaxWidth().weight(1f, fill = true))
+                LearningPanel(ui, viewModel::setCoachElo, Modifier.fillMaxWidth().height(260.dp))
             } else {
-                Surface(modifier = Modifier.fillMaxWidth().weight(1f), color = MaterialTheme.colorScheme.surface) {
+                Surface(modifier = Modifier.fillMaxWidth().height(116.dp), color = MaterialTheme.colorScheme.surface) {
                     Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
                         Text("COACH OFF", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
                         Text("Enable move comparison in Settings.", style = MaterialTheme.typography.bodyMedium)
@@ -188,7 +205,11 @@ fun GameScreen(
             onDismissRequest = { showResign = false },
             title = { Text("Resign this game?") },
             text = { Text("The game will be saved to your recent games as a loss.") },
-            confirmButton = { TextButton(onClick = { showResign = false; viewModel.resign() }) { Text("Resign") } },
+            confirmButton = { TextButton(onClick = {
+                showResign = false
+                viewModel.resign()
+                if (ui.settings.boardSounds) soundEngine.play(ChessSoundCue.GAME_END)
+            }) { Text("Resign") } },
             dismissButton = { TextButton(onClick = { showResign = false }) { Text("Keep playing") } },
         )
     }

@@ -2,6 +2,8 @@ package com.night.mirrorchess.viewmodel
 
 import android.app.Application
 import android.net.Uri
+import android.os.SystemClock
+import android.provider.Settings
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -27,6 +29,7 @@ import com.night.mirrorchess.data.moveFromUci
 import com.night.mirrorchess.mirror.MirrorProfile
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
@@ -260,6 +263,7 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
         val after = ChessRules.applyLegalMove(before, move)
         val learnedProfile = (uiState.mirrorProfile ?: MirrorProfile.empty()).observeMove(before, move)
         mirrorRepository.save(learnedProfile)
+        val moveStartedAt = SystemClock.elapsedRealtime()
         appendMove(after, move, notation)
         publish {
             copy(
@@ -279,7 +283,12 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
 
         aiJob = viewModelScope.launch {
             if (uiState.settings.coachEnabled) {
-                val coach = predictor.predict(before, uiState.coachElo, uiState.opponentElo, limit = 5)
+                val coachElo = uiState.coachElo
+                val opponentElo = uiState.opponentElo
+                // ONNX inference and heuristic search must never block Compose frames.
+                val coach = withContext(Dispatchers.Default) {
+                    predictor.predict(before, coachElo, opponentElo, limit = 5)
+                }
                 val match = coach.candidates.firstOrNull { it.move == move }
                 publish {
                     copy(
@@ -290,6 +299,14 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
                     )
                 }
             }
+            // Preserve the full human glide even when the engine replies instantly.
+            // Honor Android's animator scale; a disabled animation must not delay play.
+            val animatorScale = Settings.Global.getFloat(
+                app.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f,
+            ).coerceAtLeast(0f)
+            val glideMillis = (uiState.settings.moveAnimationSpeed.durationMillis * animatorScale).toLong()
+            val remaining = glideMillis - (SystemClock.elapsedRealtime() - moveStartedAt)
+            if (remaining > 0) delay(remaining)
             if (finishIfNeeded(after)) return@launch
             launchAiMoveInternal()
         }
@@ -304,7 +321,12 @@ class GameViewModel(application: Application) : AndroidViewModel(application) {
     private suspend fun launchAiMoveInternal() {
         val before = uiState.game
         if (finishIfNeeded(before)) return
-        var bundle = predictor.predict(before, uiState.opponentElo, uiState.coachElo, limit = if (uiState.opponentProfile.mirror) 64 else 12)
+        val opponentElo = uiState.opponentElo
+        val coachElo = uiState.coachElo
+        val mirrorOpponent = uiState.opponentProfile.mirror
+        var bundle = withContext(Dispatchers.Default) {
+            predictor.predict(before, opponentElo, coachElo, limit = if (mirrorOpponent) 64 else 12)
+        }
         if (uiState.opponentProfile.mirror) {
             uiState.mirrorProfile?.let { profile ->
                 bundle = bundle.copy(

@@ -76,6 +76,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.night.mirrorchess.data.AppSettings
 import com.night.mirrorchess.data.BoardPalette
+import com.night.mirrorchess.data.MoveAnimationSpeed
 import com.night.mirrorchess.data.PieceSetId
 import com.night.mirrorchess.data.PieceKey
 import com.night.mirrorchess.data.PieceSetRepository
@@ -502,7 +503,7 @@ private fun SettingsMain(viewModel: GameViewModel, onPage: (SettingsPage) -> Uni
             label = "LOOK & FEEL",
             rows = listOf(
                 SettingsDestination("Board & Pieces", "Colors, pieces, shadows and coordinates", SettingsPage.BOARD),
-                SettingsDestination("Gameplay", "Move markers and haptics", SettingsPage.GAMEPLAY),
+                SettingsDestination("Gameplay", "Piece movement, markers and haptics", SettingsPage.GAMEPLAY),
             ),
             onPage = onPage,
         )
@@ -1339,7 +1340,25 @@ private fun GameplaySettings(viewModel: GameViewModel) {
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(vertical = 8.dp)) {
         SettingsToggle("Legal move markers", settings.showLegalMoves) { viewModel.updateSettings(settings.copy(showLegalMoves = it)) }
         SettingsToggle("Haptics", settings.haptics) { viewModel.updateSettings(settings.copy(haptics = it)) }
-        Text("Selected squares and previous moves use restrained translucent highlights so the board and pieces remain readable.", modifier = Modifier.padding(18.dp), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        SettingsToggle("Board sounds", settings.boardSounds) { viewModel.updateSettings(settings.copy(boardSounds = it)) }
+        SectionTitle("PIECE ANIMATION")
+        Column(Modifier.padding(horizontal = 18.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            MoveAnimationSpeed.entries.forEach { speed ->
+                ChoiceRow(
+                    title = speed.label,
+                    subtitle = if (speed.durationMillis == 0) "Move instantly; no glide" else "${speed.durationMillis} ms · smooth glide",
+                    trailing = if (settings.moveAnimationSpeed == speed) "ACTIVE" else "",
+                    selected = settings.moveAnimationSpeed == speed,
+                    leading = {
+                        Surface(Modifier.size(38.dp), shape = RoundedCornerShape(10.dp), color = MaterialTheme.colorScheme.surfaceVariant) {
+                            Box(contentAlignment = Alignment.Center) { Text("♞", style = MaterialTheme.typography.titleLarge) }
+                        }
+                    },
+                    onClick = { viewModel.updateSettings(settings.copy(moveAnimationSpeed = speed)) },
+                )
+            }
+        }
+        Text("Standard (300ms) is the default, similar to a typical online chess board. Pieces slide naturally; captures and sounds finish on landing. Choose Fast, Relaxed or Off. Android reduced-motion settings are respected.", modifier = Modifier.padding(18.dp), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 
