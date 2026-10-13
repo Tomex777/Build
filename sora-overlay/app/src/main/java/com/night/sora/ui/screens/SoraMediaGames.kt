@@ -10,6 +10,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Share
+import kotlinx.coroutines.launch
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -211,6 +212,9 @@ fun RatherArcade(modifier: Modifier = Modifier) {
 @Composable
 fun MemeCaptionArcade(library: List<LibraryEntry>, modifier: Modifier = Modifier) {
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var exporting by remember { mutableStateOf(false) }
+    var exportError by remember { mutableStateOf<String?>(null) }
     val prefs = remember { context.getSharedPreferences("sora_arcade_captions_v1",Context.MODE_PRIVATE) }
     val memes = remember(library) {
         library.filter { it.contentType==ContentType.MEME && !it.artworkUrl.isNullOrBlank() }
@@ -258,7 +262,38 @@ fun MemeCaptionArcade(library: List<LibraryEntry>, modifier: Modifier = Modifier
             Spacer(Modifier.width(8.dp))
             Text("Share caption text and meme link")
         }
-        Text("Captions are saved locally. AI judging and image export are not connected.",
+        Button(
+            enabled=caption.isNotBlank() && !exporting,
+            onClick={
+                exporting = true
+                exportError = null
+                scope.launch {
+                    try {
+                        val uri = createCaptionedMeme(context, meme.artworkUrl.orEmpty(), caption)
+                        prefs.edit().putString(meme.id, caption).apply()
+                        context.startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).apply {
+                            type = "image/png"
+                            putExtra(Intent.EXTRA_STREAM, uri)
+                            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                        }, "Share captioned meme"))
+                    } catch (error: Exception) {
+                        exportError = error.message ?: "Could not export the meme image."
+                    } finally {
+                        exporting = false
+                    }
+                }
+            },
+            modifier=Modifier.fillMaxWidth().padding(top=10.dp),
+        ) {
+            Icon(Icons.Rounded.Share, null, modifier=Modifier.size(17.dp))
+            Spacer(Modifier.width(8.dp))
+            Text(if (exporting) "Creating image…" else "Export & share captioned PNG")
+        }
+        if (exportError != null) {
+            Text(exportError.orEmpty(), color=SoraDanger, fontSize=12.sp,
+                modifier=Modifier.padding(top=8.dp))
+        }
+        Text("Captions are saved locally. AI caption judging is not connected.",
             color=SoraMuted,fontSize=11.sp,textAlign=TextAlign.Center,modifier=Modifier.padding(top=14.dp))
     }
 }
