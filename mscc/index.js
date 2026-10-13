@@ -170,7 +170,7 @@ const makeAccount = record => ({
   enabled: Boolean(record.phoneNumber),
   paused: record.paused === true,
   sock: null, connected: false, registered: false, invalid: false,
-  generation: 0, reconnectTimer: null, reconnectAttempts: 0, nextReconnectAt: 0,
+  generation: 0, reconnectTimer: null, reconnectAttempts: 0, ambiguous500Attempts: 0, nextReconnectAt: 0,
   lastConnectedAt: 0, lastDisconnectedAt: 0, lastDisconnectCode: null, disconnectReason: '',
   credSave: Promise.resolve(), authFlush: null,
   pairingMode: '', pairingCode: '', pairingQr: '', pairingError: '',
@@ -2807,6 +2807,7 @@ async function startAccount(account) {
       account.registered = true
       account.invalid = false
       account.reconnectAttempts = 0
+      account.ambiguous500Attempts = 0
       account.lastConnectedAt = Date.now()
       account.lastDisconnectCode = null
       account.disconnectReason = ''
@@ -2827,10 +2828,19 @@ async function startAccount(account) {
     account.connected = false
     invalidateGroupMetadata(account.id)
     account.sock = null
-    const code = update.lastDisconnect?.error?.output?.statusCode
-    const policy = classifyDisconnect(code)
+    const error = update.lastDisconnect?.error
+    const rawCode = error?.output?.statusCode
+    const code = rawCode == null || !Number.isFinite(Number(rawCode)) ? null : Number(rawCode)
+    // A 500 is Baileys' badSession code, but not always proof of revoked
+    // credentials. Bound probes PER ACCOUNT and keep Main/Josia independent.
+    const policy = classifyDisconnect(code, error, account.ambiguous500Attempts)
+    if (code === DisconnectReason.badSession && policy.action === 'reconnect') {
+      account.ambiguous500Attempts += 1
+    } else if (code !== DisconnectReason.badSession) {
+      account.ambiguous500Attempts = 0
+    }
     account.lastDisconnectedAt = Date.now()
-    account.lastDisconnectCode = code == null || !Number.isFinite(Number(code)) ? null : Number(code)
+    account.lastDisconnectCode = code
     account.disconnectReason = policy.message || (policy.action === 'reconnect' ? 'Connection dropped. Retrying automatically.' : 'Connection closed.')
     account.pairingCode = ''
     account.pairingQr = ''
@@ -2909,6 +2919,7 @@ async function pairAccount(id, mode) {
     a.invalid = false
     a.registered = false
     a.reconnectAttempts = 0
+    a.ambiguous500Attempts = 0
     a.pairingMode = mode === 'qr' ? 'qr' : 'code'
     a.pairingCode = ''
     a.pairingQr = ''
@@ -2932,6 +2943,7 @@ async function reconnectAccount(id) {
     a.pairingQr = ''
     a.pairingError = ''
     a.reconnectAttempts = 0
+    a.ambiguous500Attempts = 0
     await startAccount(a)
     await recordActivity('account.reconnect-requested', { account: a.id })
     return { ok: true }
@@ -2990,6 +3002,7 @@ async function repairAccount(id, mode = 'code') {
     a.invalid = false
     a.registered = false
     a.reconnectAttempts = 0
+    a.ambiguous500Attempts = 0
     a.pairingMode = mode === 'qr' ? 'qr' : 'code'
     a.pairingCode = ''
     a.pairingQr = ''
