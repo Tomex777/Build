@@ -1,6 +1,7 @@
 package com.night.sora.ui.screens
 
 import android.content.Context
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -30,6 +31,7 @@ private data class GameStats(val quizzes: Int, val correct: Int, val bestStreak:
 @Composable
 fun GamesScreen(modifier: Modifier = Modifier, library: List<LibraryEntry>) {
     var selectedGame by rememberSaveable { mutableStateOf("") }
+    BackHandler(enabled = selectedGame.isNotBlank()) { selectedGame = "" }
     if (selectedGame != "quiz") {
         SoraArcadePage(selectedGame, onSelect = { selectedGame = it }, library = library, modifier = modifier)
         return

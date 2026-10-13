@@ -171,7 +171,8 @@ wait_for "SCORE"
 wait_for "Start"
 tap "Start"
 shot games-snake-running
-tap "All games"
+adb shell input keyevent KEYCODE_BACK
+wait_for "Memory match"
 
 tap "2048"
 wait_for "SCORE"
