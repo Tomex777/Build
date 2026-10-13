@@ -302,6 +302,18 @@ class ReaderActivity : ComponentActivity(), ReaderViewerHost {
                             installViewer()
                             refreshChrome()
                         },
+                        volumeKeysInverted = prefs.getBoolean(PREF_VOLUME_KEYS_INVERTED, false),
+                        onVolumeKeysInvertedChange = { value ->
+                            prefs.edit().putBoolean(PREF_VOLUME_KEYS_INVERTED, value).apply()
+                            installViewer()
+                            refreshChrome()
+                        },
+                        pageTransitions = prefs.getBoolean(PREF_PAGE_TRANSITIONS, true),
+                        onPageTransitionsChange = { value ->
+                            prefs.edit().putBoolean(PREF_PAGE_TRANSITIONS, value).apply()
+                            installViewer()
+                            refreshChrome()
+                        },
                         background = prefs.getString(PREF_BACKGROUND, "black") ?: "black",
                         onBackgroundChange = { value ->
                             prefs.edit().putString(PREF_BACKGROUND, value).apply()
@@ -548,8 +560,9 @@ class ReaderActivity : ComponentActivity(), ReaderViewerHost {
             cropBorders = getPreferences(MODE_PRIVATE).getBoolean(PREF_CROP, false),
             backgroundColor = backgroundColor(),
             volumeKeysEnabled = getPreferences(MODE_PRIVATE).getBoolean(PREF_VOLUME_KEYS, false),
+            volumeKeysInverted = getPreferences(MODE_PRIVATE).getBoolean(PREF_VOLUME_KEYS_INVERTED, false),
             minimumScaleType = minimumScaleType(),
-            pageTransitions = true,
+            pageTransitions = getPreferences(MODE_PRIVATE).getBoolean(PREF_PAGE_TRANSITIONS, true),
         )
 
         viewer = when (mode) {
@@ -987,6 +1000,8 @@ class ReaderActivity : ComponentActivity(), ReaderViewerHost {
         private const val PREF_MODE = "reader_mode"
         private const val PREF_CROP = "crop_borders"
         private const val PREF_VOLUME_KEYS = "volume_keys"
+        private const val PREF_VOLUME_KEYS_INVERTED = "volume_keys_inverted"
+        private const val PREF_PAGE_TRANSITIONS = "page_transitions"
         private const val PREF_SHOW_PAGE_NUMBER = "show_page_number"
         private const val PREF_SCALE_MODE = "scale_mode"
         private const val PREF_ZOOM_START = "reader_zoom_start"
