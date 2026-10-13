@@ -47,6 +47,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -57,11 +58,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.night.mirrorchess.audio.ChessSoundCue
+import com.night.mirrorchess.audio.ChessSoundEngine
+import com.night.mirrorchess.audio.soundForMove
 import com.night.mirrorchess.chess.PieceType
 import com.night.mirrorchess.chess.Side
 import com.night.mirrorchess.viewmodel.GameUiState
@@ -75,6 +80,9 @@ fun GameScreen(
     onExport: () -> Unit,
 ) {
     val ui = viewModel.uiState
+    val context = LocalContext.current
+    val soundEngine = remember(context) { ChessSoundEngine(context.applicationContext) }
+    DisposableEffect(soundEngine) { onDispose { soundEngine.close() } }
     var showResign by remember { mutableStateOf(false) }
     var entered by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) { entered = true }
@@ -142,6 +150,11 @@ fun GameScreen(
                 interactionsEnabled = !ui.reviewing && !ui.gameOver && !ui.thinking && ui.game.turn == ui.playerSide,
                 hapticsEnabled = ui.settings.haptics,
                 moveAnimationSpeed = ui.settings.moveAnimationSpeed,
+                onMoveSettled = { previous, next ->
+                    if (ui.settings.boardSounds && !ui.reviewing) {
+                        soundForMove(previous, next, gameEnded = ui.gameOver)?.let(soundEngine::play)
+                    }
+                },
             )
 
             PlayerBar(
@@ -189,7 +202,11 @@ fun GameScreen(
             onDismissRequest = { showResign = false },
             title = { Text("Resign this game?") },
             text = { Text("The game will be saved to your recent games as a loss.") },
-            confirmButton = { TextButton(onClick = { showResign = false; viewModel.resign() }) { Text("Resign") } },
+            confirmButton = { TextButton(onClick = {
+                showResign = false
+                viewModel.resign()
+                if (ui.settings.boardSounds) soundEngine.play(ChessSoundCue.GAME_END)
+            }) { Text("Resign") } },
             dismissButton = { TextButton(onClick = { showResign = false }) { Text("Keep playing") } },
         )
     }
