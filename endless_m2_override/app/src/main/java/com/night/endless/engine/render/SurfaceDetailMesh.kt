@@ -35,22 +35,31 @@ internal object SurfaceDetailMesh {
                 + 0.000018 * sin(x * 14300.0 - z * 8700.0))
     }
 
+    /** The exact same sub-meter surface used by the near mesh, rocks
+     * and rock contact-shadow decals. Sharing it prevents hovering stones. */
+    fun surfaceHeightAt(
+        x: Double, z: Double,
+        centerX: Double, centerZ: Double,
+        elevation: (Double, Double) -> Double
+    ): Double {
+        val extent = (SIDE - 1) * STEP * 0.5
+        val dx = kotlin.math.abs(x - centerX)
+        val dz = kotlin.math.abs(z - centerZ)
+        val blend = ((1.0 - max(dx, dz) / extent) * 7.0).coerceIn(0.0, 1.0)
+        return elevation(x, z) + microRelief(x, z) * blend
+    }
+
     fun buildPatch(centerX: Double, centerZ: Double, elevation: (Double, Double) -> Double): Mesh {
         val heights = FloatArray(SIDE * SIDE)
         val center = (SIDE - 1) * 0.5
-        val halfExtent = center * STEP
         for (z in 0 until SIDE) for (x in 0 until SIDE) {
             val dx = (x - center) * STEP
             val dz = (z - center) * STEP
             val worldX = centerX + dx
             val worldZ = centerZ + dz
-            // Fade microridges near the edge; the DEM mesh underneath is
-            // continuous and can be viewed without visible procedural borders.
-            val fade = (1.0 - max(kotlin.math.abs(dx), kotlin.math.abs(dz)) /
-                halfExtent).coerceIn(0.0, 1.0)
-            val weight = (fade * 7.0).coerceIn(0.0, 1.0)
-            heights[z * SIDE + x] = (elevation(worldX, worldZ)
-                + microRelief(worldX, worldZ) * weight).toFloat()
+            heights[z * SIDE + x] = surfaceHeightAt(
+                worldX, worldZ, centerX, centerZ, elevation
+            ).toFloat()
         }
 
         val out = FloatArray(SIDE * SIDE * STRIDE)
