@@ -748,7 +748,7 @@ body{background:var(--bg)}
    The board remains comfortably centred and unchanged in Focus mode. */
 .game-page .game-wrap,#gameDialog .game-wrap{position:relative}
 .game-page .game-intro,#gameDialog .game-intro{
- position:absolute;top:68px;left:0;right:0;z-index:1;
+ position:absolute;top:12px;left:0;right:0;z-index:1;
  width:100%;margin:0;display:flex;flex-direction:column-reverse;
  align-items:center;justify-content:flex-start;gap:4px;
  text-align:center;pointer-events:none;
@@ -767,14 +767,14 @@ body{background:var(--bg)}
 .game-page #snakeCanvas{touch-action:none}
 .game-page .tttboard button{touch-action:manipulation}
 @media(max-width:600px){
- .game-page .game-intro,#gameDialog .game-intro{top:65px;gap:3px}
+ .game-page .game-intro,#gameDialog .game-intro{top:10px;gap:3px}
  .game-page .game-intro h2,#gameDialog .game-intro h2{font-size:28px}
  .game-page.focus-active,#gameDialog.focus-active{
   --board-size:min(var(--locked-board-size, 760px), calc(100vw - 10px), calc(100dvh - 178px));
  }
 }
 @media(max-height:610px){
- .game-page .game-intro,#gameDialog .game-intro{top:48px}
+ .game-page .game-intro,#gameDialog .game-intro{top:5px}
  .game-page .game-intro h2,#gameDialog .game-intro h2{font-size:20px}
  .game-page.focus-active,#gameDialog.focus-active{
   --board-size:min(var(--locked-board-size, 760px), calc(100vw - 10px), calc(100dvh - 159px));
