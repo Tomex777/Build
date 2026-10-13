@@ -139,7 +139,7 @@ internal object AnniePackageArchive {
     ): ScriptProject {
         val preview = inspect(archive, suggestedName)
         val entryPoint = preview.manifest.entryPoint.ifBlank { selectedEntryPoint.orEmpty() }
-        require(entryPoint in preview.javaScriptFiles) { "Choose a valid JavaScript or TypeScript entry point" }
+        require(entryPoint in preview.javaScriptFiles) { "Choose a valid script entry point" }
         val manifest = preview.manifest.copy(entryPoint = entryPoint)
         val files = ScriptFiles(context)
         val alreadyInstalled = files.listProjects().any { it.manifest.packageId.equals(manifest.packageId, ignoreCase = true) }
