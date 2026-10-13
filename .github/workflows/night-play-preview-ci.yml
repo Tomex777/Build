@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - feature/night-play-v4-profile-announcements-game-settings
+      - feature/night-play-v5-greetings-snake-profile
     paths:
       - 'night-play/**'
       - '.github/workflows/night-play-preview-ci.yml'
