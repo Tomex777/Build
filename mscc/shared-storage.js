@@ -173,6 +173,7 @@ export class SharedStorage {
         message_id TEXT NOT NULL,
         account_id TEXT NOT NULL DEFAULT '',
         participant_jid TEXT NOT NULL DEFAULT '',
+        sender_key TEXT NOT NULL DEFAULT '',
         speaker TEXT NOT NULL DEFAULT '',
         from_bot INTEGER NOT NULL DEFAULT 0,
         text_content TEXT NOT NULL DEFAULT '',
@@ -185,6 +186,13 @@ export class SharedStorage {
       CREATE INDEX IF NOT EXISTS idx_conversation_expiry
         ON conversation_messages(at_ms);
     `)
+
+    // Existing Azure databases predate stable sender identity for group analytics.
+    // Keep the migration additive, preserving all prior chat history.
+    if (!this.db.prepare('PRAGMA table_info(conversation_messages)').all().some(row => row.name === 'sender_key')) {
+      this.db.exec("ALTER TABLE conversation_messages ADD COLUMN sender_key TEXT NOT NULL DEFAULT ''")
+    }
+    this.db.exec('CREATE INDEX IF NOT EXISTS idx_conversation_group_activity ON conversation_messages(chat_jid, at_ms DESC, sender_key)')
 
     const now = Date.now()
     const seedProfile = this.db.prepare(`
@@ -254,6 +262,7 @@ export class SharedStorage {
     messageId,
     accountId = '',
     participantJid = '',
+    senderKey = '',
     speaker = '',
     fromBot = false,
     text = '',
@@ -265,13 +274,14 @@ export class SharedStorage {
     if (!chat || !id) return false
     this.db.prepare(`
       INSERT INTO conversation_messages(
-        chat_jid, message_id, account_id, participant_jid, speaker,
+        chat_jid, message_id, account_id, participant_jid, sender_key, speaker,
         from_bot, text_content, media_type, at_ms
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       ON CONFLICT(chat_jid, message_id) DO UPDATE SET
         account_id = excluded.account_id,
-        participant_jid = excluded.participant_jid,
+        participant_jid = CASE WHEN excluded.participant_jid <> '' THEN excluded.participant_jid ELSE conversation_messages.participant_jid END,
+        sender_key = CASE WHEN excluded.sender_key <> '' THEN excluded.sender_key ELSE conversation_messages.sender_key END,
         speaker = CASE WHEN excluded.speaker <> '' THEN excluded.speaker ELSE conversation_messages.speaker END,
         from_bot = excluded.from_bot,
         text_content = CASE WHEN excluded.text_content <> '' THEN excluded.text_content ELSE conversation_messages.text_content END,
@@ -282,6 +292,7 @@ export class SharedStorage {
       id,
       String(accountId || ''),
       String(participantJid || ''),
+      String(senderKey || '').slice(0, 160),
       String(speaker || '').slice(0, 120),
       fromBot ? 1 : 0,
       String(text || '').slice(0, 12000),
@@ -302,7 +313,7 @@ export class SharedStorage {
     if (!chat) return []
     const safeLimit = Math.max(1, Math.min(25000, Number(limit) || 120))
     const rows = this.db.prepare(`
-      SELECT chat_jid, message_id, account_id, participant_jid, speaker,
+      SELECT chat_jid, message_id, account_id, participant_jid, sender_key, speaker,
              from_bot, text_content, media_type, at_ms
       FROM conversation_messages
       WHERE chat_jid = ? AND at_ms >= ? AND at_ms <= ?
@@ -319,6 +330,7 @@ export class SharedStorage {
       messageId:row.message_id,
       accountId:row.account_id,
       participantJid:row.participant_jid,
+      senderKey:row.sender_key,
       speaker:row.speaker,
       fromBot:Boolean(row.from_bot),
       text:row.text_content,

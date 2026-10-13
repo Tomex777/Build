@@ -129,5 +129,22 @@ console.log('PASS Josia assistant selftest')
   assert(direct.text.includes('TODAY'))
 }
 
+
+for (const ai of [
+  { enabled:false, async complete() { throw new Error('No-key AI must never be called') } },
+  { enabled:true, async complete() { return { ok:false, reason:'http-429', text:'' } } },
+]) {
+  const quiet = createJosiahAssistant({ ai, storage, getCommands:() => [] })
+  const result = await quiet.answer({
+    chatJid:'group@g.us',
+    text:'Hey Josia, can you help?',
+    senderName:'Teddy',
+    isGroup:true,
+  })
+  assert.equal(result.ok, false)
+  assert.equal(result.text, '')
+}
+console.log('PASS silent passive AI when no provider is available')
+
 storage.close()
 console.log('PASS AI-native task routing')
