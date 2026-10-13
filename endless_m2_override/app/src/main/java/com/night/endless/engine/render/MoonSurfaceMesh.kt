@@ -17,6 +17,8 @@ object MoonSurfaceMeshGenerator {
     const val DEFAULT_STEP = 0.17f
     const val STRIDE_FLOATS = 9
 
+    @Volatile var elevationPatch: MeasuredElevationPatch? = null
+
     fun build(side: Int = DEFAULT_SIDE, step: Float = DEFAULT_STEP): MoonSurfaceMeshData {
         require(side in 2..255) { "Moon terrain side must fit unsigned-short indices" }
         require(step.isFinite() && step > 0f) { "Moon terrain step must be finite and positive" }
@@ -72,6 +74,10 @@ object MoonSurfaceMeshGenerator {
     }
 
     fun heightAt(x: Double, z: Double): Double {
+        elevationPatch?.heightAt(x, z)?.let {
+            // Subpixel dust detail is illustrative; kilometer-scale relief is LOLA.
+            return it + 0.002 * sin(x * 11.2 + z * 4.3) * cos(z * 9.1 - x * 3.2)
+        }
         var h =
             0.042 * sin(x * 0.24) * cos(z * 0.19) +
                 0.020 * sin(x * 1.42 + z * 0.36) * cos(z * 1.08) +
