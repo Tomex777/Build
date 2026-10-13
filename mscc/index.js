@@ -51,6 +51,7 @@ import {
   clearWarnings,
   enforceGroupMessage,
   groupPolicy,
+  groupMessageNeedsModeration,
   renderGroupTemplate,
   setGroupPolicy,
   setUserMentionMute,
@@ -1842,6 +1843,12 @@ async function deletePolicyMessage(account, msg) {
 async function enforceCurrentGroupPolicy(account, msg, authority) {
   const chat = normalizeJid(msg?.key?.remoteJid)
   if (!isGroup(chat) || msg?.key?.fromMe || !sharedStorage) return { handled:false }
+  // With default moderation settings, group permissions don't need to be
+  // fetched from WhatsApp for every ordinary command. A group mentioning a
+  // member still goes through mention-mute checks.
+  if (!groupMessageNeedsModeration(groupPolicy(sharedStorage, chat), msg)) {
+    return { handled:false }
+  }
   return enforceGroupMessage({
     storage:sharedStorage,
     msg,
