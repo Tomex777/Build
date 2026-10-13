@@ -257,6 +257,32 @@ body[data-visitor-mode="true"] .topbar-inner{justify-content:center}
     catch{$('nightSessionUrl').focus();$('nightSessionUrl').select();toast('Select and copy the link above.')}
   }
 
+
+  // Local device-only inbox synchronization for testing admin and visitor tabs together.
+  // A production inbox must use authenticated, access-controlled server storage.
+  const NIGHT_POSTS_KEY='night-play-anonymous-preview-posts-v1';
+  function demoPosts(){
+    try {const data=JSON.parse(localStorage.getItem(NIGHT_POSTS_KEY)||'[]');return Array.isArray(data)?data:[]}
+    catch {return []}
+  }
+  function recordDemoPost(post){
+    try{
+      const all=demoPosts();
+      all.unshift({token:NIGHT_INCOMING,...post});
+      localStorage.setItem(NIGHT_POSTS_KEY,JSON.stringify(all.slice(0,100)));
+    }catch{}
+  }
+  function loadDemoInbox(){
+    if(NIGHT_VISITOR)return;
+    const messages=demoPosts().filter(x=>x.token===state.inviteToken&&typeof x.text==='string');
+    const initial=samplePosts.map(p=>({...p}));
+    state.posts=[...messages,...initial];
+    state.total=128+messages.length;
+    state.published=104+messages.filter(x=>x.status==='published').length;
+    state.pending=messages.filter(x=>x.status==='pending').length;
+    state.filtered=24+messages.filter(x=>x.status==='filtered').length;
+  }
+
   function art(post){const type=categories[post.type]?post.type:'confession';const obj=categories[type];return `<div class="art-card ${type}"><div class="art-top"><span class="art-brand">NIGHT<span style="font-size:.7em;opacity:.7"> / PLAY</span></span><span class="art-id">ANON · #${String(post.id).padStart(3,'0')}</span></div>${ic(obj.icon,'art-symbol')}<span class="art-title">${obj.title}</span><div class="art-text">“${safe(post.text)}”</div><div class="art-bottom"><span>THE AFTER HOURS CLUB</span><span>ANONYMOUS NIGHT</span></div></div>`}
   function status(){
     if(NIGHT_VISITOR){
@@ -334,7 +360,7 @@ body[data-visitor-mode="true"] .topbar-inner{justify-content:center}
     box.innerHTML=ic(error?'shield':message.trim()?'check':'shield','icon-sm')+'<span>'+safe(label)+'</span>';
     btn.disabled=!message.trim()||!!error;
   }
-  function submit(){if(!NIGHT_VISITOR||!inviteIsActive()){status();return;}const textarea=$('visitorMessage');const text=textarea.value;const err=validateMessage(text);const fb=$('formFeedback');fb.className='form-feedback';if(err){fb.textContent=err;fb.classList.add('feedback-err');return;}state.lastSubmission=Date.now();const id=state.total+1;state.total++;const statusName=state.settings.manual?'pending':'published';state[statusName==='pending'?'pending':'published']++;state.posts.unshift({id,type:state.category,text:text.trim(),time:'just now',status:statusName});if(statusName==='published'){state.selectedId=id;updateArt()}metrics();inbox();$('visitorFormContents').innerHTML=`<div class="form-success"><div class="success-mark">${ic('check','icon-lg')}</div><h2>Message received.</h2><p>${state.settings.manual?'Your confession is in the optional admin review queue.':'Your confession passed the automatic checks. Live WhatsApp publishing will be connected later.'}</p><a class="button secondary" href="/dashboard">Back to NIGHT Play</a></div>`;}
+  function submit(){if(!NIGHT_VISITOR||!inviteIsActive()){status();return;}const textarea=$('visitorMessage');const text=textarea.value;const err=validateMessage(text);const fb=$('formFeedback');fb.className='form-feedback';if(err){fb.textContent=err;fb.classList.add('feedback-err');return;}state.lastSubmission=Date.now();const id=state.total+1;state.total++;const statusName=state.settings.manual?'pending':'published';state[statusName==='pending'?'pending':'published']++;state.posts.unshift({id,type:state.category,text:text.trim(),time:'just now',status:statusName});recordDemoPost({id,type:state.category,text:text.trim(),time:'just now',status:statusName});if(statusName==='published'){state.selectedId=id;updateArt()}metrics();inbox();$('visitorFormContents').innerHTML=`<div class="form-success"><div class="success-mark">${ic('check','icon-lg')}</div><h2>Message received.</h2><p>${state.settings.manual?'Your confession is in the optional admin review queue.':'Your confession passed the automatic checks. Live WhatsApp publishing will be connected later.'}</p><a class="button secondary" href="/dashboard">Back to NIGHT Play</a></div>`;}
   // All interactions are client-side and intentionally have no networking or WhatsApp access.
   document.querySelectorAll('[data-page]').forEach(b=>b.addEventListener('click',()=>navigate(b.dataset.page)));
   // Logo returns to Profile; a follower cannot open the studio from its invite link.
@@ -361,6 +387,7 @@ body[data-visitor-mode="true"] .topbar-inner{justify-content:center}
     createInvite(end);renderInvite();toast('New link ready. The previous link is invalid in this browser.');
   });
   window.addEventListener('storage',e=>{
+    if(e.key===NIGHT_POSTS_KEY){loadDemoInbox();metrics();inbox();return}
     if(e.key!==NIGHT_INVITE_KEY)return;
     const current=readInvite();
     if(NIGHT_VISITOR){state.session=(current&&current.token===NIGHT_INCOMING&&current.session==='live')?'live':'stopped';}
@@ -368,6 +395,7 @@ body[data-visitor-mode="true"] .topbar-inner{justify-content:center}
     status();updateLiveModeration();
   });
   syncInviteState();
+  loadDemoInbox();
   metrics();inbox();updateArt();gallery();status();updateLiveModeration();
   navigate(NIGHT_VISITOR?'visitor':(['studio','gallery'].includes(location.hash.slice(1))?location.hash.slice(1):'studio'));
   setInterval(()=>{
