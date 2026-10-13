@@ -171,6 +171,14 @@ jobs:
         working-directory: ${{ env.ENDLESS_PROJECT }}
         run: gradle :app:testDebugUnitTest :app:lintRelease :app:assembleDebug :app:assembleDebugAndroidTest :app:assembleRelease :app:bundleRelease --stacktrace
 
+      - name: Upload Endless realism preview APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: endless-realism-preview-apk
+          path: ${{ env.ENDLESS_PROJECT }}/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 14
+
       - name: Sign release binary for emulator validation
         shell: bash
         run: |
