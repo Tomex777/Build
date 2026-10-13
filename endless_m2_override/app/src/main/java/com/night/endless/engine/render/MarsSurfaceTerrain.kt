@@ -61,7 +61,9 @@ class MarsSurfaceTerrain {
         )
         GLES30.glUniform1i(GLES30.glGetUniformLocation(program, "uPatchType"), 0)
         GLES30.glUniform3f(GLES30.glGetUniformLocation(program, "uLight"), -0.45f, 0.85f, 0.35f)
-        GLES30.glDisable(GLES30.GL_CULL_FACE); GLES30.glEnable(GLES30.GL_DEPTH_TEST)
+        // Both local and kilometer-scale meshes have counterclockwise upward faces.
+// Cull rear/underside triangles so steep terrain never forms a false ceiling.
+        GLES30.glEnable(GLES30.GL_CULL_FACE); GLES30.glEnable(GLES30.GL_DEPTH_TEST)
         vertices.position(0); GLES30.glEnableVertexAttribArray(0)
         GLES30.glVertexAttribPointer(0, 3, GLES30.GL_FLOAT, false, 36, vertices)
         vertices.position(3); GLES30.glEnableVertexAttribArray(1)
