@@ -1,0 +1,162 @@
+/* NIGHT Play Club — phone-first local games. No remote players, no collection of personal data. */
+(function(){
+"use strict";
+const $=id=>document.getElementById(id);
+const board=$("board"),controls=$("controls"),status=$("status"),help=$("help"),picks=$("gamePicks");
+const KEY="night-play-club-v1";
+const state={};let active="ludo",timer=null,drawCtx=null;
+const colors={red:"#df3439",green:"#328c4b",yellow:"#e8b32a",blue:"#2767bc"};
+const titles={ludo:["Nigerian Ludo","The board you remember.","BOARD GAME"],estate:["NIGHT Estates","Buy, trade and collect rent.","PROPERTY GAME"],whot:["Shape Cards","Traditional shape-matching card play.","CARD GAME"],colors:["Colour Clash","A quick colour-matching card battle.","CARD GAME"],draw:["Draw & Guess","One draws. Everyone else guesses.","PARTY GAME"],snakes:["Snakes & Ladders","Climb fast. Slide carefully.","BOARD GAME"],checkers:["Draughts","A proper tabletop strategy game.","BOARD GAME"]};
+function h(s){return String(s).replace(/[&<>"']/g,x=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[x]));}
+function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
+function die(){return Math.floor(Math.random()*6)+1;}
+function save(){try{const copy={...state};delete copy.draw;localStorage.setItem(KEY,JSON.stringify(copy));}catch{}}
+function load(){try{const data=JSON.parse(localStorage.getItem(KEY)||"{}");for(const k of Object.keys(titles)){if(data[k]&&typeof data[k]==="object")state[k]=data[k];}}catch{}}
+function setStatus(t){status.textContent=t;}
+function controlsHTML(markup){controls.innerHTML=markup;}
+function rules(title,desc){help.innerHTML="<h3>"+title+"</h3><p>"+desc+"</p>";}
+function scoreList(players,getScore){return '<div class="score-list">'+players.map((p,i)=>'<div class="score-row"><span><b style="color:'+h(p.color)+'">●</b> '+h(p.name)+'</span><b>'+h(getScore(p,i))+'</b></div>').join("")+"</div>";}
+function choosePlayers(id,selected,max){return '<label class="small">Players (local, sharing one phone)</label><select class="select" data-players="'+id+'">'+[2,3,4].filter(n=>n<=max).map(n=>'<option value="'+n+'"'+(n===selected?" selected":"")+'>'+n+' players</option>').join("")+"</select>";}
+function pick(id){if(!titles[id])id="ludo";active=id;const d=titles[id];$("gameTitle").textContent=d[0];$("gameSubtitle").textContent=d[1];$("gameCategory").textContent=d[2];[...picks.querySelectorAll("button")].forEach(x=>x.setAttribute("aria-current",String(x.dataset.pick===id)));const url=new URL(location.href);url.searchParams.set("game",id);history.replaceState(null,"",url.pathname+url.search);if(!state[id])reset(id);else render();}
+function reset(id){
+if(id==="ludo"){state.ludo={players:["red","green"].map(k=>({name:k[0].toUpperCase()+k.slice(1),color:colors[k],key:k,tokens:[-1,-1,-1,-1]})),turn:0,die:null,rolled:false,last:0,winner:null,msg:"Roll a six to bring a counter out."};}
+if(id==="estate"){state.estate={players:["red","blue"].map(k=>({name:k[0].toUpperCase()+k.slice(1),color:colors[k],cash:1500,pos:0,bankrupt:false})),owners:{},upgrades:{},turn:0,rolled:false,last:0,pending:null,rounds:0,winner:null,msg:"Roll the dice to start buying properties.",inspect:0};}
+if(id==="whot"){state.whot=newShapes();}
+if(id==="colors"){state.colors=newColors();}
+if(id==="draw"){state.draw={players:["Player 1","Player 2"],drawer:0,word:null,mode:"ready",points:[0,0],round:1,seconds:60,log:[]};}
+if(id==="snakes"){state.snakes={players:[{name:"Red",color:colors.red,pos:1},{name:"Blue",color:colors.blue,pos:1}],turn:0,last:0,msg:"Roll to start climbing.",winner:null};}
+if(id==="checkers"){const cells=Array(64).fill(null);for(let r=0;r<8;r++)for(let c=0;c<8;c++)if((r+c)%2===1){if(r<3)cells[r*8+c]="b";if(r>4)cells[r*8+c]="w";}state.checkers={cells,turn:"w",selected:null,forced:null,winner:null,msg:"White moves first."};}
+save();render();
+}
+function render(){if(timer){clearInterval(timer);timer=null;}if(active==="ludo")renderLudo();if(active==="estate")renderEstate();if(active==="whot")renderCards("whot");if(active==="colors")renderCards("colors");if(active==="draw")renderDraw();if(active==="snakes")renderSnakes();if(active==="checkers")renderCheckers();save();}
+const track=[[6,1],[6,2],[6,3],[6,4],[6,5],[5,6],[4,6],[3,6],[2,6],[1,6],[0,6],[0,7],[0,8],[1,8],[2,8],[3,8],[4,8],[5,8],[6,9],[6,10],[6,11],[6,12],[6,13],[6,14],[7,14],[8,14],[8,13],[8,12],[8,11],[8,10],[8,9],[9,8],[10,8],[11,8],[12,8],[13,8],[14,8],[14,7],[14,6],[13,6],[12,6],[11,6],[10,6],[9,6],[8,5],[8,4],[8,3],[8,2],[8,1],[8,0],[7,0],[6,0]];
+const starts={red:0,green:13,yellow:26,blue:39};
+const safe=new Set([0,8,13,21,26,34,39,47]);
+const home={red:[[7,1],[7,2],[7,3],[7,4],[7,5],[7,7]],green:[[1,7],[2,7],[3,7],[4,7],[5,7],[7,7]],yellow:[[7,13],[7,12],[7,11],[7,10],[7,9],[7,7]],blue:[[13,7],[12,7],[11,7],[10,7],[9,7],[7,7]]};
+function pieceCell(player,pos){if(pos<0)return null;if(pos>=51)return home[player.key][pos-51];return track[(starts[player.key]+pos)%52];}
+function ludoValid(s,pi,ti){if(s.winner!==null||!s.rolled||s.turn!==pi)return false;const p=s.players[pi].tokens[ti];return p===-1?s.die===6:p<56&&p+s.die<=56;}
+function renderLudo(){
+const s=state.ludo,p=s.players[s.turn];let mapped={};
+s.players.forEach((player,pi)=>player.tokens.forEach((pos,ti)=>{const xy=pieceCell(player,pos);if(xy){const key=xy.join(",");(mapped[key]||=([])).push([pi,ti]);}}));
+let html='<div class="ludo" role="group" aria-label="15 by 15 traditional Ludo board">';
+for(let r=0;r<15;r++)for(let c=0;c<15;c++){
+let classes=["l-cell"];const idx=track.findIndex(([a,b])=>a===r&&b===c);
+if(idx>=0)classes.push("track");if([0,13,26,39].includes(idx)){classes.push(Object.keys(starts).find(k=>starts[k]===idx));}else if(safe.has(idx))classes.push("home-yellow");
+let center=r>=6&&r<=8&&c>=6&&c<=8;if(center)classes.push("center");
+for(const col of Object.keys(home)){if(home[col].slice(0,5).some(([y,x])=>y===r&&x===c))classes.push("home-"+col);}
+const occupants=mapped[r+","+c]||[];if(occupants.length>1)classes.push("stack");
+let content=occupants.slice(0,4).map(([pi,ti])=>'<button type="button" class="l-token'+(ludoValid(s,pi,ti)?" eligible":"")+'" style="--token:'+s.players[pi].color+'" data-piece="'+pi+'-'+ti+'" aria-label="'+s.players[pi].name+' counter '+(ti+1)+'" '+(ludoValid(s,pi,ti)?"":"disabled")+ '>'+(ti+1)+'</button>').join("");
+if(!content&&safe.has(idx))content='<span class="star" aria-hidden="true">★</span>';
+html+='<div class="'+classes.join(" ")+'" style="grid-row:'+(r+1)+';grid-column:'+(c+1)+'">'+content+'</div>';
+}
+const yards=[["red",1,1],["green",1,10],["blue",10,1],["yellow",10,10]];
+yards.forEach(([key,row,col])=>{const pi=s.players.findIndex(p=>p.key===key);html+='<div class="l-base '+key+'" style="grid-row:'+row+'/span 6;grid-column:'+col+'/span 6"><div class="yard">';for(let ti=0;ti<4;ti++){const inYard=pi>=0&&s.players[pi].tokens[ti]===-1;const valid=inYard&&ludoValid(s,pi,ti);html+='<button type="button" '+(inYard?'data-piece="'+pi+'-'+ti+'"':'')+' aria-label="'+key+' home counter '+(ti+1)+'" style="border-color:'+colors[key]+'" '+(valid?'':'disabled')+'>'+(inYard?'<span class="l-token'+(valid?' eligible':'')+'" style="--token:'+colors[key]+'">'+(ti+1)+'</span>':"")+'</button>';}html+='</div></div>';});
+html+='</div>';board.innerHTML=html;
+setStatus(s.winner!==null?s.players[s.winner].name+" wins!":p.name+"'s turn"+(s.rolled?" — choose a counter":" — roll the dice")+". "+s.msg);
+controlsHTML('<div class="dice" aria-label="Last die roll">'+("⚀⚁⚂⚃⚄⚅"[(s.rolled?s.die:s.last||1)-1])+'</div><button class="primary" type="button" data-action="ludo-roll" '+(s.rolled||s.winner!==null?"disabled":"")+'>Roll dice</button>'+scoreList(s.players,(x)=>x.tokens.filter(n=>n===56).length+"/4 home")+choosePlayers("ludo",s.players.length,4));
+rules("Nigerian Ludo","Roll a <b>6</b> to bring a counter out. Tap a glowing counter to move it. Land on an opponent to send them home (except safe squares ★). A six earns another roll. Move all four counters into the middle by exact count to win. Pass the phone after each turn.");
+}
+function ludoRoll(){const s=state.ludo;if(s.winner!==null||s.rolled)return;s.die=die();s.last=s.die;s.rolled=true;s.msg="";const possible=s.players[s.turn].tokens.some((_,ti)=>ludoValid(s,s.turn,ti));if(!possible){s.msg="No legal moves on "+s.last+".";s.rolled=false;s.turn=(s.turn+1)%s.players.length;}render();}
+function ludoMove(pi,ti){const s=state.ludo;if(!ludoValid(s,pi,ti))return;const me=s.players[pi];let pos=me.tokens[ti];pos=pos===-1?0:pos+s.die;me.tokens[ti]=pos;let note="";
+if(pos<=50){const idx=(starts[me.key]+pos)%52;if(!safe.has(idx))s.players.forEach((other,oi)=>{if(oi===pi)return;other.tokens=other.tokens.map(n=>{if(n>=0&&n<=50&&(starts[other.key]+n)%52===idx){note=" Captured "+other.name+"'s counter!";return -1;}return n;});});}
+const extra=s.die===6;s.rolled=false;s.msg=(pos===56?"Counter reached home. ":"Counter moved.")+note+(extra?" Another roll!":"");
+if(me.tokens.every(n=>n===56))s.winner=pi;else if(!extra)s.turn=(s.turn+1)%s.players.length;render();}
+
+const places=["START","Eko Marina","Yaba","Community Fund","Surulere","Kaduna Road","Transit","Lekki","Sabo","Ikeja","VISIT","Ibadan","Bodija","Market Bonus","Akure","Warri","Coastal Rail","Benin","Asaba","Sapele","REST","Enugu","Nsukka","Electric Bill","Aba","Owerri","Metro Rail","Uyo","Calabar","Ikot Ekpene","HOLD","Jos","Bukuru","Lottery","Minna","Abuja Central","Capital Rail","Gwarinpa","Maitama","Luxury Tax"];
+const skipSpaces=new Set([0,3,6,10,13,16,20,23,26,30,33,36,39]);const groupColors=["#ac7c52","#8bc7d5","#e1a7b7","#e7a13e","#e64d46","#daca6f","#7cb875","#3980ba"];
+function estateType(i){if(i===0)return "start";if(i===10||i===20)return "free";if(i===30)return "hold";if(i===3||i===13||i===33)return "bonus";if(i===23||i===39)return "tax";if(i===6||i===16||i===26||i===36)return "rail";return "property";}
+function estateColor(i){return groupColors[Math.min(7,Math.floor(Math.max(0,i-1)/5))];}
+function estatePrice(i){return estateType(i)==="rail"?180:100+Math.floor(i/5)*35;}
+function estateRent(i,houses){return Math.round(estatePrice(i)*(houses+1)*.14);}
+function estateTurn(s){s.turn=(s.turn+1)%s.players.length;s.rounds++;s.rolled=false;s.pending=null;let count=0;while(s.players[s.turn].bankrupt&&count++<s.players.length)s.turn=(s.turn+1)%s.players.length;const remaining=s.players.filter(p=>!p.bankrupt);if(remaining.length===1)s.winner=s.players.indexOf(remaining[0]);}
+function estateAuto(s){
+let p=s.players[s.turn],sq=p.pos,t=estateType(sq);s.inspect=sq;
+if(t==="property"||t==="rail"){
+const owner=s.owners[sq];if(owner===undefined){if(p.cash>=estatePrice(sq)){s.pending=sq;s.msg="Would you like to buy "+places[sq]+"?";return;}s.msg="You cannot afford this property.";}
+else if(owner!==s.turn){const rent=estateRent(sq,s.upgrades[sq]||0);p.cash-=rent;s.players[owner].cash+=rent;s.msg="Paid ₦"+rent+" rent to "+s.players[owner].name+".";if(p.cash<0){p.bankrupt=true;s.msg+=" Bankrupt!";}}
+else{s.msg="Your property!";if((s.upgrades[sq]||0)<3&&p.cash>=130){s.pending="upgrade:"+sq;return;}}
+}
+else if(t==="bonus"){p.cash+=150;s.msg="Bonus! Collect ₦150.";}
+else if(t==="tax"){p.cash-=100;s.msg="Pay ₦100 in city taxes.";}
+else if(t==="hold"){p.cash-=80;s.msg="Pay ₦80 to leave the holding area.";}
+else if(t==="start"){p.cash+=100;s.msg="Back at Start! Collect ₦100.";}
+else{s.msg="Safe landing.";}
+if(p.cash<0){p.bankrupt=true;s.msg+=" Bankrupt!";}estateTurn(s);
+}
+function estateRoll(){const s=state.estate;if(s.rolled||s.pending!==null||s.winner!==null)return;const steps=die()+die(),p=s.players[s.turn],was=p.pos;p.pos=(p.pos+steps)%40;if(p.pos<was)p.cash+=200;s.last=steps;s.rolled=true;s.msg=p.name+" rolled "+steps+". ";estateAuto(s);render();}
+function estateDecision(buy){const s=state.estate;if(s.pending===null)return;const p=s.players[s.turn];if(typeof s.pending==="number"&&buy){const i=s.pending,pay=estatePrice(i);if(p.cash>=pay){p.cash-=pay;s.owners[i]=s.turn;s.msg="Purchased "+places[i]+" for ₦"+pay+".";}}
+if(typeof s.pending==="string"&&buy){const i=+s.pending.split(":")[1];if(p.cash>=130){p.cash-=130;s.upgrades[i]=(s.upgrades[i]||0)+1;s.msg="Built a house at "+places[i]+".";}}
+if(!buy)s.msg="Skipped purchase.";estateTurn(s);render();}
+function estateNet(s,p){return p.cash+Object.keys(s.owners).reduce((sum,i)=>sum+(s.owners[i]===s.players.indexOf(p)?estatePrice(+i)+130*(s.upgrades[i]||0):0),0);}
+function estateEnd(){const s=state.estate;if(s.winner!==null)return;let best=-Infinity;for(let i=0;i<s.players.length;i++){let amount=estateNet(s,s.players[i]);if(amount>best){best=amount;s.winner=i;}}s.msg="Highest total wealth wins.";render();}
+function renderEstate(){
+const s=state.estate;let html='<div class="estate-board" aria-label="40-space property trading board">';
+for(let i=0;i<40;i++){let r,c;if(i<=10){r=11;c=11-i;}else if(i<=20){r=21-i;c=1;}else if(i<=30){r=1;c=i-19;}else{r=i-29;c=11;}
+const owner=s.owners[i],t=estateType(i);let markers=s.players.map((p,pi)=>p.pos===i&&!p.bankrupt?'<span style="color:'+p.color+'">●</span>':"").join("");
+html+='<button type="button" class="estate-tile'+(s.players[s.turn].pos===i?' current':'')+'" style="grid-row:'+r+';grid-column:'+c+';--tile-color:'+estateColor(i)+'" data-estate-info="'+i+'" aria-label="'+h(places[i])+', space '+i+'"><span class="strip"></span><span class="tile-label">'+h(places[i])+'</span><span class="players">'+markers+'</span>'+((owner!==undefined)?'<span class="house-tag">■'+(s.upgrades[i]||0)+'</span>':'')+'</button>';
+}
+html+='<div class="estate-center"><div><b>NIGHT<br>ESTATES</b><small>BUY · TRADE · BUILD</small><p>Own the neighbourhood.</p></div></div></div>';board.innerHTML=html;
+const p=s.players[s.turn],info=s.inspect;setStatus(s.winner!==null?s.players[s.winner].name+" wins with ₦"+estateNet(s,s.players[s.winner])+" in wealth!":p.name+"'s turn. "+s.msg);
+let action=s.pending!==null?'<div class="row"><button class="primary" data-action="estate-buy">Buy / Build</button><button class="secondary" data-action="estate-pass">Pass</button></div>':'<button class="primary" data-action="estate-roll" '+(s.winner!==null?"disabled":"")+'>Roll two dice</button>';
+controlsHTML('<div class="dice">'+(s.last||"🎲")+'</div>'+action+scoreList(s.players,x=>"₦"+x.cash+" · ₦"+estateNet(s,x)+" total")+'<p class="small">Round '+s.rounds+' · Last roll '+s.last+'</p><p class="small"><b>Inspect:</b> '+h(places[info])+' · '+(skipSpaces.has(info)?estateType(info):'₦'+estatePrice(info))+(s.owners[info]!==undefined?' · owned by '+s.players[s.owners[info]].name:'')+'</p><button type="button" class="secondary" data-action="estate-end">End & score game</button><div style="margin-top:14px">'+choosePlayers("estate",s.players.length,4)+'</div>');
+rules("NIGHT Estates rules","Roll two dice, buy unowned locations, collect rent when opponents land on your properties and build houses to increase rent. Passing START gives ₦200. Landed-property purchases are optional. Use <b>End & score game</b> to compare cash and property value. This is an original property-trading board, not Hasbro's Monopoly.");
+}
+
+const shapes=["Circle","Triangle","Cross","Square","Star"],icons=["●","▲","✚","■","★"];
+function newShapes(){let deck=[];shapes.forEach((shape,s)=>{for(let n=1;n<=14;n++)if(!(s===4&&n>8))deck.push({s,n});});for(let i=0;i<5;i++)deck.push({s:5,n:20});shuffle(deck);return {hands:[deck.splice(0,7),deck.splice(0,7)],deck,discard:[deck.shift()],turn:0,winner:null,called:null,msg:"Match the shape or number.",round:0};}
+function newColors(){let deck=[];for(let c=0;c<4;c++){for(let n=0;n<=9;n++)deck.push({c,n:String(n)});for(const n of ["SKIP","REV","+2"])for(let k=0;k<2;k++)deck.push({c,n});}for(let k=0;k<4;k++){deck.push({c:4,n:"WILD"},{c:4,n:"+4"});}shuffle(deck);return {hands:[deck.splice(0,7),deck.splice(0,7)],deck,discard:[deck.shift()],turn:0,winner:null,called:null,msg:"Match the colour or symbol.",round:0};}
+function topCard(s){return s.discard[s.discard.length-1];}
+function take(s,pi,n){for(let j=0;j<n;j++){if(!s.deck.length){if(s.discard.length<=1)break;const card=s.discard.pop();s.deck=shuffle(s.discard.splice(0));s.discard=[card];}if(s.deck.length)s.hands[pi].push(s.deck.pop());}}
+function playable(kind,s,card){const top=topCard(s);return kind==="whot"?(card.s===5||card.s===(s.called===null?top.s:s.called)||card.n===top.n):(card.c===4||card.c===(s.called===null?top.c:s.called)||card.n===top.n);}
+function nextCardTurn(kind,s,pi,card,selected){s.called=null;s.discard.push(card);s.round++;const hand=s.hands[pi];if(!hand.length){s.winner=pi;s.msg=(pi===0?"You win!":"Computer wins.");return;}
+let opp=1-pi,again=false,draw=0;
+if(kind==="whot"){
+if(card.n===20)s.called=selected;
+if(card.n===1||card.n===8)again=true;
+if(card.n===2)draw=2;if(card.n===5)draw=3;if(card.n===14)draw=1;
+}else{
+if(card.c===4)s.called=selected;
+if(card.n==="SKIP"||card.n==="REV")again=true;
+if(card.n==="+2")draw=2;if(card.n==="+4")draw=4;
+}
+if(draw){take(s,opp,draw);again=true;}
+s.msg=(pi===0?"You":"Computer")+" played "+(kind==="whot"?(card.n===20?"CHANGE":card.n+" "+shapes[card.s]):card.n)+ (draw?" · opponent draws "+draw:"")+(again?" · play again":"");
+s.turn=again?pi:opp;
+}
+function cardPlay(kind,index){
+const s=state[kind];if(s.turn!==0||s.winner!==null)return;const card=s.hands[0][index];if(!card||!playable(kind,s,card))return;
+let chosen=null;if(kind==="whot"&&card.n===20)chosen=Number($("wishShape").value);if(kind==="colors"&&card.c===4)chosen=Number($("wishColor").value);
+s.hands[0].splice(index,1);nextCardTurn(kind,s,0,card,chosen);render();if(s.turn===1)queueCPU(kind);
+}
+function cardDraw(kind){const s=state[kind];if(s.turn!==0||s.winner!==null)return;take(s,0,1);s.turn=1;s.msg="You drew a card. Computer's turn.";render();queueCPU(kind);}
+function queueCPU(kind){setTimeout(()=>{if(active!==kind)return;const s=state[kind];if(!s||s.turn!==1||s.winner!==null)return;
+const idx=s.hands[1].findIndex(card=>playable(kind,s,card));if(idx<0){take(s,1,1);s.turn=0;s.msg="Computer picked up a card.";render();return;}
+const card=s.hands[1].splice(idx,1)[0],option=kind==="whot"?Math.floor(Math.random()*5):Math.floor(Math.random()*4);nextCardTurn(kind,s,1,card,option);render();if(s.turn===1)queueCPU(kind);
+},470);}
+function cardMarkup(kind,card,index,enabled){
+if(kind==="whot"){const sym=card.n===20?"★":icons[card.s];return '<button class="playing-card'+(enabled?' playable':'')+'" data-card="'+index+'" type="button" '+(enabled?'':'disabled')+' aria-label="'+(card.n===20?'Change shape':card.n+" "+shapes[card.s])+'"><span class="rank">'+card.n+'</span><span class="symbol">'+sym+'</span><span class="shape-name">'+(card.n===20?"CHANGE":shapes[card.s].toUpperCase())+'</span></button>';}
+const clr=["#d93739","#2e81c0","#2b8d61","#d7a925","#302d3a"][card.c];return '<button class="color-card'+(enabled?' playable':'')+'" style="--color:'+clr+'" data-card="'+index+'" '+(enabled?'':'disabled')+' aria-label="'+["Red","Blue","Green","Yellow","Wild"][card.c]+' '+h(card.n)+'"><span>'+h(card.n)+'</span></button>';
+}
+function renderCards(kind){
+const s=state[kind],t=topCard(s),topSelected={...t};
+if(s.called!==null)topSelected[kind==="whot"?"s":"c"]=s.called;
+board.innerHTML='<div class="table-surface" aria-label="Card table"><h3>COMPUTER · '+s.hands[1].length+' CARDS</h3><div class="card-row"><div class="playing-card card-back" aria-label="Computer cards hidden"></div><span class="cards-counter">× '+s.hands[1].length+'</span></div><div class="card-pile"><span class="cards-counter">DECK '+s.deck.length+'</span>'+cardMarkup(kind,t,-1,false)+'</div><div class="hand"><div class="card-label">YOUR HAND · '+s.hands[0].length+' CARDS</div><div class="card-row">'+s.hands[0].map((card,i)=>cardMarkup(kind,card,i,s.turn===0&&s.winner===null&&playable(kind,s,card))).join("")+'</div></div></div>';
+setStatus(s.winner!==null?s.msg:(s.turn===0?"Your turn. ":"Computer's turn. ")+s.msg);
+let shape=kind==="whot"?'<label class="small" for="wishShape">Shape to call (change card)</label><select id="wishShape" class="select">'+shapes.map((sh,i)=>'<option value="'+i+'">'+sh+'</option>').join("")+'</select>':'<label class="small" for="wishColor">Colour to call (wild)</label><select id="wishColor" class="select">'+["Red","Blue","Green","Yellow"].map((sh,i)=>'<option value="'+i+'">'+sh+'</option>').join("")+'</select>';
+controlsHTML('<div class="row"><button class="primary" type="button" data-action="card-draw" '+(s.turn!==0||s.winner!==null?"disabled":"")+'>Pick one card</button></div><p class="small">Cards left: you '+s.hands[0].length+' · computer '+s.hands[1].length+'</p>'+shape);
+rules(kind==="whot"?"Shape Cards rules":"Colour Clash rules",kind==="whot"?"Play a matching <b>shape</b> or <b>number</b>. 1 & 8: play again; 2: opponent picks two; 5: opponent picks three; 14: opponent picks one; 20: choose a shape. Pick a card if you cannot play. This is our house-rules variant.":"Play a matching <b>colour</b> or <b>number/action</b>. Skip / reverse skips the computer, +2 and +4 draw penalties, and WILD lets you choose a colour. The first player to empty their hand wins. Original artwork; no UNO trademarks.");
+}
+load();picks.addEventListener("click",e=>{const btn=e.target.closest("[data-pick]");if(btn)pick(btn.dataset.pick);});
+$("newRound").addEventListener("click",()=>{if(confirm("Start a new "+titles[active][0]+" match? Current progress will be cleared."))reset(active);});
+document.addEventListener("change",e=>{const sel=e.target.closest("[data-players]");if(!sel)return;const id=sel.dataset.players,n=Math.max(2,Math.min(4,Number(sel.value)||2));if(id==="ludo"){const order=["red","green","yellow","blue"];state.ludo.players=order.slice(0,n).map(k=>({name:k[0].toUpperCase()+k.slice(1),color:colors[k],key:k,tokens:[-1,-1,-1,-1]}));state.ludo.turn=0;state.ludo.rolled=false;state.ludo.die=null;state.ludo.winner=null;state.ludo.msg="New match. Roll a six to leave home.";}if(id==="estate"){const order=["red","blue","green","yellow"];reset("estate");state.estate.players=order.slice(0,n).map(k=>({name:k[0].toUpperCase()+k.slice(1),color:colors[k],cash:1500,pos:0,bankrupt:false}));}if(id==="snakes"){const order=["red","blue","green","yellow"];reset("snakes");state.snakes.players=order.slice(0,n).map(k=>({name:k[0].toUpperCase()+k.slice(1),color:colors[k],pos:1}));}render();});
+document.addEventListener("click",e=>{
+const piece=e.target.closest("[data-piece]");if(piece){const [pi,ti]=piece.dataset.piece.split("-").map(Number);ludoMove(pi,ti);return;}
+const card=e.target.closest("[data-card]");if(card){if(Number(card.dataset.card)<0)return;cardPlay(active,Number(card.dataset.card));return;}
+const sq=e.target.closest("[data-estate-info]");if(sq&&active==="estate"){state.estate.inspect=Number(sq.dataset.estateInfo);render();return;}
+const action=e.target.closest("[data-action]");if(!action)return;
+switch(action.dataset.action){case"ludo-roll":ludoRoll();break;case"estate-roll":estateRoll();break;case"estate-buy":estateDecision(true);break;case"estate-pass":estateDecision(false);break;case"estate-end":estateEnd();break;case"card-draw":cardDraw(active);break;case"snakes-roll":snakesRoll();break;case"draw-ready":drawReady();break;case"draw-next":drawNext();break;case"draw-clear":if(drawCtx){drawCtx.clearRect(0,0,800,600);}break;case"draw-erase":setBrush("erase");break;case"checkers-reset":reset("checkers");break;}
+});
+function go(){pick(new URL(location.href).searchParams.get("game")||"ludo");}
+window.addEventListener("popstate",go);
+go();
+})();
