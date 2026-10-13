@@ -259,7 +259,8 @@ export function createProfileAssistant({
     const summaryHours = isGroup ? summaryWindowFor(current) : 0
     if (summaryHours) return summarize({ chatJid, hours:summaryHours, groupName })
 
-    if (!ai?.enabled) return { ok:false, text:unavailable() }
+    // A passive mention or reply must never broadcast an AI setup/error notice.
+    if (!ai?.enabled) return { ok:false, text:'' }
 
     const rows = storage?.listConversationMessages?.({
       chatJid,
@@ -318,7 +319,7 @@ export function createProfileAssistant({
       reasoningEffort:'medium',
     })
 
-    if (!result.ok) return { ok:false, text:unavailable() }
+    if (!result.ok) return { ok:false, text:'' }
     return {
       ok:true,
       text:result.text,
