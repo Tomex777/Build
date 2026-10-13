@@ -2310,7 +2310,7 @@ async function processInboundMessage(account, msg) {
       thresholdMs:Number(process.env.MSCC_SLOW_COMMAND_MS || 2000),
     })
     try {
-      if (!msg?.message || !msg?.key?.id) continue
+      if (!msg?.message || !msg?.key?.id) return
 
       // Preserve bot-authored messages for quoting / chat context only.
       // NEVER interpret our own replies as commands or pending choices:
@@ -2319,10 +2319,10 @@ async function processInboundMessage(account, msg) {
       if (msg.key.fromMe === true) {
         remember(account, msg)
         rememberConversation(account, msg)
-        continue
+        return
       }
       // Replayed/duplicated Baileys upserts must not execute a choice twice.
-      if (!acceptInboundCommand(account.id, msg)) continue
+      if (!acceptInboundCommand(account.id, msg)) return
 
       const chat = normalizeJid(msg.key.remoteJid)
       const text = commandText(msg.message)
@@ -2338,7 +2338,7 @@ async function processInboundMessage(account, msg) {
       const publicPrefix = settings.publicPrefix || DEFAULT_PUBLIC_PREFIX
 
       const moderation = await enforceCurrentGroupPolicy(account, msg, authority)
-      if (moderation.handled) continue
+      if (moderation.handled) return
 
       await handleAfkGroupMessage(account, msg, authority, text)
       probe?.mark('moderation')
@@ -2635,9 +2635,9 @@ async function processInboundMessage(account, msg) {
         },
       })
       probe?.mark('command')
-      if (commandHandled) continue
+      if (commandHandled) return
 
-      if (await handleProfileAssistant(account, msg, authority, text)) continue
+      if (await handleProfileAssistant(account, msg, authority, text)) return
 
       const vo = !msg.key.fromMe && futureproof(msg.message)
 
@@ -2655,11 +2655,11 @@ async function processInboundMessage(account, msg) {
         }
       }
 
-      if (!settings.replyCc) continue
+      if (!settings.replyCc) return
       const ctx = contextInfo(msg.message)
-      if (!ctx?.stanzaId) continue
+      if (!ctx?.stanzaId) return
       const rk = `${account.id}|${msg.key.id}`
-      if (handledReply.has(rk)) continue
+      if (handledReply.has(rk)) return
 
       const quoted = quotedMessage(msg, ctx, chat)
       let source = quoted && futureproof(quoted.message) ? quoted : null
@@ -2671,7 +2671,7 @@ async function processInboundMessage(account, msg) {
         }, chat)
         if (c && futureproof(c.message)) source = c
       }
-      if (!source) continue
+      if (!source) return
 
       if (!controller || account.id !== destinationIdFor()) {
         await sendInbox(account, { text: `↩️ V1 reply detected\n${await describe(account, msg)}` })
