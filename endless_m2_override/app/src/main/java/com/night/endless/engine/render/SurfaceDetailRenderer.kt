@@ -13,6 +13,9 @@ import kotlin.math.hypot
  * Caller owns the active SurfaceMaterialShaders program and its uniforms.
  */
 internal class SurfaceDetailRenderer(
+    private val lightX: Double,
+    private val lightY: Double,
+    private val lightZ: Double,
     private val elevation: (Double, Double) -> Double
 ) {
     private var anchorX = Double.NaN
@@ -22,6 +25,8 @@ internal class SurfaceDetailRenderer(
     private var patchCount = 0
     private var rockVertices: FloatBuffer? = null
     private var rockCount = 0
+    private var shadowVertices: FloatBuffer? = null
+    private var shadowCount = 0
 
     private fun floats(data: FloatArray): FloatBuffer =
         ByteBuffer.allocateDirect(data.size * 4)
@@ -42,6 +47,11 @@ internal class SurfaceDetailRenderer(
         patchCount = patch.indices.size
         rockVertices = floats(rocks.vertices)
         rockCount = rocks.vertices.size / SurfaceDetailMesh.STRIDE
+        val contact = SurfaceRockShadows.build(
+            rocks, elevation, lightX, lightY, lightZ
+        )
+        shadowVertices = floats(contact)
+        shadowCount = contact.size / SurfaceDetailMesh.STRIDE
         anchorX = centerX
         anchorZ = centerZ
     }
@@ -62,6 +72,19 @@ internal class SurfaceDetailRenderer(
         )
         GLES30.glDisable(GLES30.GL_POLYGON_OFFSET_FILL)
         unbindAttributes()
+
+        shadowVertices?.takeIf { shadowCount > 0 }?.let {
+            GLES30.glUniform1i(patchLocation, 3)
+            GLES30.glEnable(GLES30.GL_BLEND)
+            GLES30.glBlendFunc(GLES30.GL_SRC_ALPHA, GLES30.GL_ONE_MINUS_SRC_ALPHA)
+            GLES30.glDepthMask(false)
+            GLES30.glDisable(GLES30.GL_CULL_FACE)
+            bindAttributes(it)
+            GLES30.glDrawArrays(GLES30.GL_TRIANGLES, 0, shadowCount)
+            unbindAttributes()
+            GLES30.glDepthMask(true)
+            GLES30.glEnable(GLES30.GL_CULL_FACE)
+        }
 
         rockVertices?.takeIf { rockCount > 0 }?.let {
             GLES30.glUniform1i(patchLocation, 2)
