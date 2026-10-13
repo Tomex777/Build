@@ -46,6 +46,12 @@ try {
     type: 'different', jid: 'private@s.whatsapp.net',
   } } }), 'other-conflict')
   assert.equal(disconnectProtocolDetail({ data: { tag: 'not-authorized' } }), 'not-authorized')
+  assert.equal(disconnectProtocolDetail({ data: { tag: 'stream:error', content: [
+    { tag:'not-authorized' }
+  ] } }), 'not-authorized')
+  assert.equal(disconnectProtocolDetail({ data: { tag: 'stream:error', content: [
+    { tag:'bad-session' }
+  ] } }), 'bad-session')
   assert.equal(disconnectProtocolDetail({ data: { tag: 'conflict', attrs: { type: 'replaced' } } }), 'connection-replaced')
   assert.equal(disconnectProtocolDetail({ data: { tag: 'conflict', attrs: {
     type: 'private-token-and-phone-2348012345678',
@@ -79,6 +85,8 @@ try {
     data:{ tag:'bad-session' } }, 0).action, 'repair', 'Explicit server bad-session is a hard auth failure')
   assert.equal(classifyDisconnect(500, { message:'Connection Failure',
     data:{ tag:'not-authorized' } }, 0).action, 'repair')
+  assert.equal(classifyDisconnect(500, { message:'Stream Errored (500)',
+    data:{ tag:'stream:error', content:[{tag:'bad-session'}] } }, 0).action, 'repair')
   assert.equal(classifyDisconnect(500, { message:'Stream Errored (conflict)',
     data:{ tag:'conflict', attrs:{ type:'device_removed' } } }, 0).action, 'repair')
   assert.equal(classifyDisconnect(500, { message:'Stream Errored (conflict)',
