@@ -1,10 +1,14 @@
-# Annie runtime expansion — local implementation awaiting Android verification
+# Annie runtime expansion — implemented and emulator verified
 
 Branch: `annie-typescript-runtime-20261013`, based on `annie-roadmap-audit-20261012`.
-The user's “ts” meant “this shit”; scope was corrected to all seven remaining areas.
-Nothing in this branch has been merged or released. Publication was approved and the work
-is in draft PR #181. Android acceptance and full regression/release workflows are running;
-the current commit must pass before any completion or release claim.
+All seven runtime areas are implemented in PR #181. Code commit
+`770983847b39d26e0eb0affd3f434363c03788a9` passed Node regression,
+runtime/Studio acceptance on API 26 and 36, full Android regression, process-death
+restoration, release smoke tests and owner-signed production install checks.
+The validated production release is available from
+https://github.com/Tomex777/Build/actions/runs/38381728899.
+The API 26 full suite passed on retry after an initial Compose startup failure;
+no assertions were changed for that retry. This document update changes no executable code.
 
 ## Implemented in source
 
@@ -49,19 +53,18 @@ the current commit must pass before any completion or release claim.
   These checks are not Android compilation or device verification.
 - TypeScript declaration samples and seven repair-contract fixtures pass.
 
-## Pending validation — completion gates
+## Android verification and remaining limits
 
-1. Draft PR #181 targets the audit branch. Do not merge until the checks below pass.
-2. Run the prepared `annie-file-types.yml` workflow on Android API 26 and 36. It now installs
-   matching build Python and runs TypeScript/Python tests, Kotlin/JVM tests, APK compilation,
-   GuestRuntimeTest, HostAiRuntimeTest, TypeScriptRuntimeTest, AnnieCanvasMessageTest and
-   existing Studio/image acceptance classes. Inspect failures and repair them.
-3. Verify Chaquopy packaging/startup in the worker on both ABIs and lifecycle behavior after
-   timeout, cancellation, package disable and repeated cross-language calls. Exercise hostile
-   computation inputs and review the guest restrictions before release.
-4. Verify host credential storage on Android, live provider SSE behavior, foreground UI
-   incremental rendering, permission revocation during a request, network loss and teardown.
-   Local AI tests use mocks; no paid provider requests have been made.
-5. Run the complete Annie regression suite and release/install/reinstall checks. No new APK
-   has been produced or validated in this session. WebGL has a test, but no passing device
-   evidence yet. Do not mark the seven areas fully complete based only on local checks.
+- Real Python/Lua and TypeScript execution, mixed-language calls, worker recovery,
+  namespace collisions and entry point protections pass on Android API 26 and 36.
+- Host credential separation/encryption, incremental messages, SSE parsing, grant
+  revocation and shared per-package request limits pass with mocked provider responses.
+- WebGL shader compilation/linking, drawing, exact pixel readback, resizing and
+  fullscreen pass on both Android versions.
+- Debug/release APK and AAB builds, complete regression suites, process-death restore,
+  release launch/render and permanently signed production install checks pass.
+- Physical-phone tests and live Anthropic requests with a user-provided key remain
+  unperformed. No paid provider requests were made. Network/provider behavior needs
+  live validation; CI exercises controlled streams and errors.
+- Python/Lua remain restricted computation environments, and TypeScript performs
+  transpilation without semantic type checking. These are deliberate implementation limits.
