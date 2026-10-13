@@ -1,4 +1,4 @@
-# NIGHT Play — handcrafted visual system (V11)
+# NIGHT Play — handcrafted visual system (V12)
 
 This release prioritizes real visual playability and also changes Snake speed settings and its rendering path. The eleven game tiles and their SVG artwork are not a claim that all eleven games work: only Snake, 2048 and Tic-Tac-Toe are playable in this prototype. Chess, Ludo, Checkers and the remaining games retain their existing planned/WhatsApp statuses. Never change this contract by altering a card label.
 
@@ -29,3 +29,9 @@ Profile numbers are derived from *device-local* activity only, no fake ranks, co
 - Gameplay title is always at the **top** directly beneath the global game navigation (approximately y=61 on a 390×844 mobile viewport) while the actual square board stays visually near the viewport's center (roughly y=415 center vs y=422 screen midpoint).
 - Focus **must not enlarge or stretch** any board. Capture the current board's displayed outer width before invoking fullscreen; clamp the focused arena to that original size. Snake's measured board includes its green frame — measure `.snake-shell`, never the smaller internal canvas.
 - Visually review both regular and Focus screenshots for all three games. The CI browser test now sends **real Chromium touch events while fingers remain down**, ensuring Snake and 2048 react before touchend. Original NIGHT horizon mark remains unchanged.
+
+## V12 — portrait Snake arena (requested longer playing area)
+- Snake now has **18 columns and 25 actual rows**, not a 18×18 square stretched by CSS. Canvas uses 360×500 intrinsic pixels (20×20 px cells); the aspect ratio is **18:25**. Swipe controls and Classic/Turbo movement rates are unchanged.
+- On a 390×844 mobile viewport, the measured green playing field is **380×528 CSS pixels** versus the prior **380×380**, roughly **39% more vertical room**. The Snake title stays at the top (~61px), the score sits above the board, and the board is centered reasonably (~18px from screen center).
+- Maze construction, food placement, top/bottom walls, Y-axis wraparound and persisted saves all respect 25 rows. Existing saved 18×18 Snake games can load on the enlarged board when valid; invalid positions are rejected.
+- 2048 and Tic-Tac-Toe **remain square**: their gameplay mechanics require square grids. Focus mode retains Snake's width and height and never expands or distorts the board. Capture normal and Focus screenshots and assert both measurements in CI.

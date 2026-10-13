@@ -781,6 +781,64 @@ body{background:var(--bg)}
  }
  .game-page.focus-active .game-wrap,#gameDialog.focus-active .game-wrap{padding-bottom:12px}
 }
+
+/* V12 / Snake portrait field: more SPACE TO PLAY, not a stretched square.
+   True 18-column by 25-row cells. 2048 and TTT remain true squares. */
+.game-page[data-skin="snake"]{
+ --snake-field-width:min(calc(100vw - 10px), calc(72dvh - 137px), 700px);
+ --snake-field-ratio:18 / 25;
+}
+.game-page[data-skin="snake"] .snake-shell,
+#gameDialog[data-skin="snake"] .snake-shell{
+ width:var(--snake-field-width) !important;
+ aspect-ratio:var(--snake-field-ratio) !important;
+ height:auto !important;
+ max-width:100%;
+ flex:0 0 auto;
+ border-radius:9px;
+ border-width:3px;
+}
+.game-page[data-skin="snake"] #snakeCanvas,
+#gameDialog[data-skin="snake"] #snakeCanvas{
+ width:100%!important;
+ height:100%!important;
+ aspect-ratio:18 / 25 !important;
+ border-radius:0!important;
+ display:block;
+}
+.game-page[data-skin="snake"] .scorebar,
+#gameDialog[data-skin="snake"] .scorebar{
+ width:var(--snake-field-width);
+ max-width:100%;
+}
+.game-page[data-skin="snake"] .game-status{
+ padding-top:4px;
+}
+.game-page[data-skin="snake"] .modal-actions{
+ margin-top:8px;
+}
+.game-page[data-skin="snake"].focus-active,
+#gameDialog[data-skin="snake"].focus-active{
+ --snake-field-width:min(var(--locked-board-size, 700px), calc(100vw - 10px), calc(72dvh - 137px));
+}
+@media(max-width:600px){
+ .game-page[data-skin="snake"] .snake-shell,
+ #gameDialog[data-skin="snake"] .snake-shell{border-width:2px}
+ .game-page[data-skin="snake"] .game-wrap,
+ #gameDialog[data-skin="snake"] .game-wrap{padding-bottom:15px}
+ .game-page[data-skin="snake"].focus-active .game-wrap,
+ #gameDialog[data-skin="snake"].focus-active .game-wrap{padding-bottom:15px}
+}
+@media(max-height:740px){
+ .game-page[data-skin="snake"]{
+  --snake-field-width:min(calc(100vw - 10px), calc(72dvh - 182px), 700px);
+ }
+ .game-page[data-skin="snake"].focus-active,
+ #gameDialog[data-skin="snake"].focus-active{
+  --snake-field-width:min(var(--locked-board-size, 700px), calc(100vw - 10px), calc(72dvh - 182px));
+ }
+ .game-page[data-skin="snake"] .game-status{display:none}
+}
 </style>
 </head>
 <body>
@@ -1323,22 +1381,26 @@ function bindSwipeGesture(board,turn,{threshold=10,allowMultiple=false}={}){
 
 const SNAKE_MODES=["wrap","walls","maze1","maze2","maze3"];
 function currentSnakeMode(){const selected=getSetting("snake-mode",getSetting("snake-wrap","walls"));return SNAKE_MODES.includes(selected)?selected:"walls"}
-function makeSnakeMaze(mode,size){
+function makeSnakeMaze(mode,cols,rows=cols){
  const blocks=[];
- if(mode==="maze1"){for(let y=4;y<size-3;y++){if(y===Math.floor(size/2))continue;blocks.push({x:4,y},{x:size-5,y})}}
- if(mode==="maze2"){for(let x=3;x<size-3;x++){if(x===Math.floor(size/2))continue;blocks.push({x,y:4},{x,y:size-5})}}
- if(mode==="maze3"){for(let y=3;y<7;y++)for(let x=3;x<6;x++)blocks.push({x,y},{x:size-1-x,y},{x,y:size-1-y},{x:size-1-x,y:size-1-y})}
- return blocks.filter(({x,y})=>x>=0&&y>=0&&x<size&&y<size)
+ if(mode==="maze1"){for(let y=4;y<rows-3;y++){if(y===Math.floor(rows/2))continue;blocks.push({x:4,y},{x:cols-5,y})}}
+ if(mode==="maze2"){for(let x=3;x<cols-3;x++){if(x===Math.floor(cols/2))continue;blocks.push({x,y:5},{x,y:rows-6})}}
+ if(mode==="maze3"){for(let y=3;y<7;y++)for(let x=3;x<6;x++)blocks.push({x,y},{x:cols-1-x,y},{x,y:rows-1-y},{x:cols-1-x,y:rows-1-y})}
+ return blocks.filter(({x,y})=>x>=0&&y>=0&&x<cols&&y<rows)
 }
 function snakeModeName(mode){return ({wrap:"Open · wraparound",walls:"Classic · borders",maze1:"Maze I · pillars",maze2:"Maze II · bridges",maze3:"Maze III · islands"})[mode]||"Classic"}
 function snakeTickMs(){return ({slow:195,normal:115,fast:85,turbo:66})[getSetting("snake-speed","normal")]||115}
 
 function initSnake(fresh=false){
- const size=18,c=document.createElement("canvas");c.id="snakeCanvas";c.width=360;c.height=360;
+ const size=18,rows=25,c=document.createElement("canvas");c.id="snakeCanvas";c.width=size*20;c.height=rows*20;
  let loaded=null;try{loaded=!fresh?JSON.parse(localStorage.getItem("night-play-save-snake")||"null"):null}catch{}
  const selected=currentSnakeMode();
- snake=loaded&&Array.isArray(loaded.body)&&loaded.body.length&&loaded.alive&&loaded.food&&(!loaded.mode||loaded.mode===selected)?{...loaded,size,alive:true,canvas:c}:{size,body:[{x:8,y:9},{x:7,y:9},{x:6,y:9},{x:5,y:9},{x:4,y:9}],dir:"right",next:"right",food:null,score:0,alive:true};
- snake.mode=selected;snake.wrap=selected==="wrap";snake.maze=makeSnakeMaze(selected,size);snake.started=false;snake.turnQueue=[];snake.next=snake.dir;
+ const validSaved=loaded&&Array.isArray(loaded.body)&&loaded.body.length&&loaded.alive&&loaded.food&&
+  loaded.body.every(({x,y})=>Number.isInteger(x)&&Number.isInteger(y)&&x>=0&&y>=0&&x<size&&y<rows)&&
+  Number.isInteger(loaded.food.x)&&Number.isInteger(loaded.food.y)&&loaded.food.x>=0&&loaded.food.x<size&&loaded.food.y>=0&&loaded.food.y<rows&&
+  (!loaded.mode||loaded.mode===selected);
+ snake=validSaved?{...loaded,size,rows,alive:true,canvas:c}:{size,rows,body:[{x:8,y:12},{x:7,y:12},{x:6,y:12},{x:5,y:12},{x:4,y:12}],dir:"right",next:"right",food:null,score:0,alive:true};
+ snake.mode=selected;snake.wrap=selected==="wrap";snake.maze=makeSnakeMaze(selected,size,rows);snake.started=false;snake.turnQueue=[];snake.next=snake.dir;
  root.innerHTML='<div class="scorebar scoreboard"><div class="score-unit"><span class="score-label">SCORE</span><b id="score">'+snake.score+'</b></div><span class="score-divider" aria-hidden="true"></span><div class="score-unit"><span class="score-label">PERSONAL BEST</span><b id="best">'+best("snake")+'</b></div></div>';
  const shell=document.createElement("div");shell.className="snake-shell";shell.appendChild(c);
  const overlay=document.createElement("button");overlay.id="snakeOverlay";overlay.className="snake-screen-overlay";overlay.type="button";overlay.innerHTML='<strong>Ready to play?</strong><small>Swipe to steer. Collect fruit. Keep moving.</small><span>Tap to start <svg class="ui-icon" viewBox="0 0 24 24" focusable="false" aria-hidden="true"><use href="#icon-play"></use></svg></span>';
@@ -1352,7 +1414,7 @@ function initSnake(fresh=false){
 
  snakeTimer=setInterval(stepSnake,snakeTickMs());
 }
-function food(){const free=[];for(let y=0;y<snake.size;y++)for(let x=0;x<snake.size;x++)if(!snake.body.some(p=>p.x===x&&p.y===y)&&!snake.maze.some(p=>p.x===x&&p.y===y))free.push({x,y});return free.length?free[Math.floor(Math.random()*free.length)]:null}
+function food(){const free=[];for(let y=0;y<snake.rows;y++)for(let x=0;x<snake.size;x++)if(!snake.body.some(p=>p.x===x&&p.y===y)&&!snake.maze.some(p=>p.x===x&&p.y===y))free.push({x,y});return free.length?free[Math.floor(Math.random()*free.length)]:null}
 function snakeTurn(dir){
  if(active!=="snake"||!snake.alive||!snake.started||gamePaused)return false;
  const opposite={up:"down",down:"up",left:"right",right:"left"};
@@ -1363,16 +1425,16 @@ function snakeTurn(dir){
  snake.next=queue[0];return true;
 }
 function drawSnake(){
- const ctx=snake.canvas.getContext("2d"),size=snake.size,step=snake.canvas.width/size;
+ const ctx=snake.canvas.getContext("2d"),size=snake.size,rows=snake.rows,step=snake.canvas.width/size;
  const retro=getSetting("snake-style","modern")==="lcd";
  const bg=retro?"#b9ca79":"#d6e6d2",alt=retro?"#b2c371":"#cee0c8";
- ctx.fillStyle=bg;ctx.fillRect(0,0,360,360);
- for(let y=0;y<size;y++)for(let x=0;x<size;x++)if((x+y)%2===1){
+ ctx.fillStyle=bg;ctx.fillRect(0,0,snake.canvas.width,snake.canvas.height);
+ for(let y=0;y<rows;y++)for(let x=0;x<size;x++)if((x+y)%2===1){
   ctx.fillStyle=alt;ctx.fillRect(x*step,y*step,step,step)
  }
  ctx.fillStyle=retro?"#364f2c":"#547d64";
  for(const block of snake.maze){const x=block.x*step,y=block.y*step;ctx.beginPath();ctx.roundRect(x+2,y+2,step-4,step-4,3);ctx.fill()}
- if(snake.mode==="walls"){ctx.strokeStyle=retro?"#71844e":"#9fbea8";ctx.lineWidth=3;ctx.strokeRect(2,2,356,356)}
+ if(snake.mode==="walls"){ctx.strokeStyle=retro?"#71844e":"#9fbea8";ctx.lineWidth=3;ctx.strokeRect(2,2,snake.canvas.width-4,snake.canvas.height-4)}
  if(snake.food){
   const cx=(snake.food.x+.5)*step,cy=(snake.food.y+.5)*step;
   ctx.fillStyle="#9e4938";ctx.beginPath();ctx.arc(cx+1,cy+2,step*.34,0,Math.PI*2);ctx.fill();
@@ -1405,14 +1467,14 @@ function stepSnake(){
  if(!snake.alive||!snake.started||gamePaused)return;
  snake.dir=(snake.turnQueue&&snake.turnQueue.shift())||snake.next||snake.dir;snake.next=snake.turnQueue?.[0]||snake.dir;const p={...snake.body[0]};
  if(snake.dir==="right")p.x++;if(snake.dir==="left")p.x--;if(snake.dir==="down")p.y++;if(snake.dir==="up")p.y--;
- if(snake.wrap){p.x=(p.x+snake.size)%snake.size;p.y=(p.y+snake.size)%snake.size}
- if(p.x<0||p.y<0||p.x>=snake.size||p.y>=snake.size){finishSnake();return}
+ if(snake.wrap){p.x=(p.x+snake.size)%snake.size;p.y=(p.y+snake.rows)%snake.rows}
+ if(p.x<0||p.y<0||p.x>=snake.size||p.y>=snake.rows){finishSnake();return}
  const eating=Boolean(snake.food&&p.x===snake.food.x&&p.y===snake.food.y);
  const occupied=eating?snake.body:snake.body.slice(0,-1);
  if(occupied.some(x=>x.x===p.x&&x.y===p.y)||snake.maze.some(x=>x.x===p.x&&x.y===p.y)){finishSnake();return}
  snake.body.unshift(p);if(!eating)snake.body.pop();
  else{snake.score+=10;record("snake",snake.score);snake.food=food();document.getElementById("score").textContent=snake.score;document.getElementById("best").textContent=best("snake");if(!snake.food){finishSnake();return}}
- try{localStorage.setItem("night-play-save-snake",JSON.stringify({size:snake.size,body:snake.body,dir:snake.dir,next:snake.next,food:snake.food,score:snake.score,alive:snake.alive,mode:snake.mode,updatedAt:Date.now()}))}catch{}
+ try{localStorage.setItem("night-play-save-snake",JSON.stringify({size:snake.size,rows:snake.rows,body:snake.body,dir:snake.dir,next:snake.next,food:snake.food,score:snake.score,alive:snake.alive,mode:snake.mode,updatedAt:Date.now()}))}catch{}
  drawSnake()
 }
 function initTtt(fresh=false){
