@@ -415,6 +415,8 @@ function modal(kind){
 const UPDATE_VERSION="nightplay-ui-20261013-v4";
 const ENTER_KEY="night-play-has-entered";
 const READ_KEY="night-play-update-seen";
+const getSaved=(key)=>{try{return localStorage.getItem(key)}catch{return null}};
+const putSaved=(key,value)=>{try{localStorage.setItem(key,String(value))}catch{}};
 const scoreHistoryKey="night-play-history-v1-";
 function scoreHistory(id){try{const a=JSON.parse(localStorage.getItem(scoreHistoryKey+id)||"[]");return Array.isArray(a)?a.filter(x=>Number.isFinite(x)&&x>=0).slice(-12):[]}catch{return []}}
 function recordSession(id,score){if(!Number.isFinite(score)||score<0)return;try{localStorage.setItem(scoreHistoryKey+id,JSON.stringify([...scoreHistory(id),Math.round(score)].slice(-12)))}catch{}}
@@ -526,8 +528,7 @@ function updateGreeting(){
 }
 setInterval(()=>{if(!document.getElementById("view-dashboard").hidden)updateGreeting()},60000);
 
-const getSaved=(key)=>{try{return localStorage.getItem(key)}catch{return null}};
-const putSaved=(key,value)=>{try{localStorage.setItem(key,String(value))}catch{}};
+
 let activeFilter="all";
 function pathView(){
  const path=location.pathname.replace(/\/+$/,"")||"/";
