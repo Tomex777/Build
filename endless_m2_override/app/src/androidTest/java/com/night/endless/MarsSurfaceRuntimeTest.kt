@@ -108,7 +108,15 @@ class MarsSurfaceRuntimeTest {
                 device.findObject(By.text("↑")) != null &&
                     device.findObject(By.textContains("Take off")) != null
             }
-            SystemClock.sleep(800)
+            // Rendering the first NASA-derived frame can take longer than
+            // Compose's button transition on slower software emulators.
+            // Verify actual GL progression before capturing the ground,
+            // not a stale sky-only buffer from the previous mode.
+            val landedFrame = renderer.completedFrameCount()
+            await("Initial Mars landscape reaches display", 15_000) {
+                renderer.completedFrameCount() >= landedFrame + 5L
+            }
+            SystemClock.sleep(150)
             capture(instrumentation, "mars-surface", checkNotNull(glRef.get()))
 
             val before = renderer.surfaceCoordinates()
