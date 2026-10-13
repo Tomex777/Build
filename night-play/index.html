@@ -623,6 +623,9 @@ body{background:var(--bg)}
 .tile-layer{position:absolute;inset:0;pointer-events:none;overflow:hidden;z-index:5}
 .tile-ghost{display:flex;align-items:center;justify-content:center;position:absolute;border-radius:8px;font-weight:850;letter-spacing:-1.6px;will-change:transform;transition:transform 165ms cubic-bezier(.25,.75,.25,1)}
 @media(prefers-reduced-motion:reduce){.tile-ghost{transition:none}}
+.game-page #undo2048[hidden]{display:none!important}
+.game-page #undo2048:disabled{opacity:.43;cursor:not-allowed}
+.snake-screen-overlay .ui-icon{width:17px;height:17px;vertical-align:middle;margin-left:5px}
 </style>
 </head>
 <body>
@@ -751,7 +754,7 @@ body{background:var(--bg)}
  <h2>Contact and changes</h2><p>These terms will be updated as additional services launch. An official contact address and final legal review must be added before the public account service launches.</p></div>
 </section>
 <section class="site-page legal-page" id="view-privacy" data-view="privacy" hidden>
- <div class="legal-content"><a href="/dashboard" class="legal-back" data-route>← Back</a><h1>Privacy</h1><p class="legal-asof">NIGHT Play · Updated 13 October 2026</p>
+ <div class="legal-content"><a href="/dashboard" class="legal-back" data-route><svg class="ui-icon" viewBox="0 0 24 24" focusable="false" aria-hidden="true"><use href="#icon-back"></use></svg> Back</a><h1>Privacy</h1><p class="legal-asof">NIGHT Play · Updated 13 October 2026</p>
  <h2>What this site saves</h2><p>The games use your browser’s local storage for settings, high scores, recent game results, and whether you dismissed an announcement. These records stay in that browser unless you clear its storage or the site’s implementation changes.</p>
  <h2>WhatsApp and identity</h2><p>WhatsApp account linking is not currently available. It does not currently receive your WhatsApp phone number, JID, LID, or credentials through a sign-in flow. Do not submit account secrets here.</p>
  <h2>Future services</h2><p>Before launching verified accounts, multiplayer, or hosted game statistics, NIGHT Play will need a revised policy covering server storage, identity linking, retention, and account removal.</p>
@@ -764,7 +767,7 @@ body{background:var(--bg)}
 <dialog id="settingsDialog" aria-labelledby="settingsTitle"><div class="modalhead"><h2 id="settingsTitle">Game settings</h2><button class="xbtn" id="closeSettings" type="button" aria-label="Close settings"><svg class="ui-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><use href="#icon-close"></use></svg></button></div><div class="modalbody" id="settingsBody"></div></dialog>
 <section id="gameDialog" class="game-page" aria-label="Fullscreen game view" aria-hidden="true">
 <div class="game-topline"><button type="button" data-close-game><svg class="ui-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><use href="#icon-back"></use></svg> All games</button><span class="game-brand">NIGHT <span class="muted">PLAY</span></span><button class="game-settings-button" id="gameSettings" type="button" aria-label="Game settings"><svg viewBox="0 0 24 24" width="19" height="19" stroke="currentColor" stroke-width="1.7" fill="none" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="m9.4 2-.5 2.4-2 1.2-2.4-.8-2 3.5 1.9 1.7v2.4l-1.9 1.7 2 3.5 2.4-.8 2 1.2.5 2.4h4.2l.5-2.4 2-1.2 2.4.8 2-3.5-1.9-1.7v-2.4l1.9-1.7-2-3.5-2.4.8-2-1.2L14.6 2z"/></svg><span>Settings</span></button></div>
-<div class="game-wrap"><div class="game-intro"><span class="eyebrow" id="gameSubheading">THE ARCADE</span><h2 id="gameTitle">NIGHT Game</h2><p class="modalnote" id="gameHelp"></p></div><div id="gameRoot" class="playarea"></div><div class="modal-actions"><button class="btn" id="restart"><svg class="ui-icon" viewBox="0 0 24 24" focusable="false" aria-hidden="true"><use href="#icon-restart"></use></svg> New game</button><button class="btn outline" id="pauseGame" type="button"><svg class="ui-icon" viewBox="0 0 24 24" focusable="false" aria-hidden="true"><use href="#icon-pause"></use></svg> Pause</button><button class="btn outline" data-close-game><svg class="ui-icon" viewBox="0 0 24 24" focusable="false" aria-hidden="true"><use href="#icon-back"></use></svg> Exit</button></div><p class="game-status">Your progress is saved on this device.</p></div>
+<div class="game-wrap"><div class="game-intro"><span class="eyebrow" id="gameSubheading">THE ARCADE</span><h2 id="gameTitle">NIGHT Game</h2><p class="modalnote" id="gameHelp"></p></div><div id="gameRoot" class="playarea"></div><div class="modal-actions"><button class="btn outline" id="undo2048" type="button" hidden><svg class="ui-icon" viewBox="0 0 24 24" focusable="false" aria-hidden="true"><use href="#icon-undo"></use></svg> Undo</button><button class="btn" id="restart"><svg class="ui-icon" viewBox="0 0 24 24" focusable="false" aria-hidden="true"><use href="#icon-restart"></use></svg> New game</button><button class="btn outline" id="pauseGame" type="button"><svg class="ui-icon" viewBox="0 0 24 24" focusable="false" aria-hidden="true"><use href="#icon-pause"></use></svg> Pause</button><button class="btn outline" data-close-game><svg class="ui-icon" viewBox="0 0 24 24" focusable="false" aria-hidden="true"><use href="#icon-back"></use></svg> Exit</button></div><p class="game-status">Your progress is saved on this device.</p></div>
 </section>
 <script>
 "use strict";
@@ -773,14 +776,14 @@ gameDialog.open=false;
 gameDialog.showModal=()=>{gameDialog.classList.add("active");gameDialog.setAttribute("aria-hidden","false");gameDialog.open=true;document.body.classList.add("in-game")};
 gameDialog.close=()=>{gameDialog.classList.remove("active");gameDialog.setAttribute("aria-hidden","true");gameDialog.open=false;document.body.classList.remove("in-game");gameDialog.dispatchEvent(new Event("close"))};
 const root=document.getElementById("gameRoot"),title=document.getElementById("gameTitle"),help=document.getElementById("gameHelp");
-let tileAnimId=0;
+let tileAnimId=0,undoStack2048=[];
 let active="",snakeTimer=null,snakeFrame=null,snakePrevBody=null,snakeTickAt=0,snake={},ttt=[],turn="X",mode="bot",tttFinished=false,grid=[],tileScore=0,gamePaused=false,boardRestore=null,gameOverRecorded=false;
 const scoreKey="night-play-v1-";
 function best(key){try{return Number(localStorage.getItem(scoreKey+key)||0)||0}catch{return 0}}
 function record(key,value){if(value>best(key)){try{localStorage.setItem(scoreKey+key,String(value))}catch{}}}
 function modal(kind){
  const content={
- connect:["Connect WhatsApp to NIGHT",'<p class="modalnote">Play as a guest today. Soon you will be able to connect your NIGHT profile without passwords or giving the website your WhatsApp number.</p><div class="notice"><b>Planned secure flow</b><br><b>1.</b> Tap Connect here. A linking code will be generated when connection is available.<br><b>2.</b> Copy the command <code>.minigames link CODE</code>.<br><b>3.</b> Send it to NIGHT privately on WhatsApp.<br><b>4.</b> NIGHT verifies the sender and automatically signs you in here.<br><br>Existing <code>.chess</code>, <code>.ludo</code>, <code>.checkers</code>, and <code>.ttt</code> remain unchanged.</div><p class="modalnote" style="margin-top:18px"><b>Not live yet:</b> there is no code to copy at this stage. Linking and online leaderboards require a backend; no phone number, JID or LID is being collected by this preview.</p>'],
+ connect:["Connect WhatsApp to NIGHT",'<p class="modalnote">Play as a guest today. Soon you will be able to connect your NIGHT profile without passwords or giving the website your WhatsApp number.</p><div class="notice"><b>Planned secure flow</b><br><b>1.</b> Tap Connect here. A linking code will be generated when connection is available.<br><b>2.</b> Copy the command <code>.minigames link CODE</code>.<br><b>3.</b> Send it to NIGHT privately on WhatsApp.<br><b>4.</b> NIGHT verifies the sender and automatically signs you in here.<br><br>Existing <code>.chess</code>, <code>.ludo</code>, <code>.checkers</code>, and <code>.ttt</code> remain unchanged.</div><p class="modalnote" style="margin-top:18px"><b>Not live yet:</b> there is no code to copy at this stage. Linking and online leaderboards require a backend; no phone number, JID or LID is being collected by this site.</p>'],
  crossplay:["Web × WhatsApp cross-play",'<p class="modalnote">A Chess player on the website will be able to challenge someone playing through <b>.chess</b> in WhatsApp. The same match ID and server-validated turns keep the board synchronized.</p><div class="notice"><b>Planned modes</b><br>↗ Challenge a friend with an invite link<br>↗ Match with a random verified NIGHT player<br>↗ Play with the bot<br>↗ Cross-platform matches in turn-based games<br><br><b>Current status:</b> this is the design plan, not an active multiplayer connection. Existing WhatsApp games remain unchanged.</div>'],
  soon:["More games are coming",'<p class="modalnote">The web version is being built. Try Snake, 2048 or Tic-Tac-Toe. Other games will be added once their rules and score verification are ready.</p>']
  }[kind]||["NIGHT Play",""];
@@ -798,7 +801,7 @@ function syncPlayerName(){const el=document.getElementById("playerDisplayName");
 const nameForm=document.getElementById("playerNameForm");
 document.getElementById("editPlayerName").addEventListener("click",()=>{nameForm.hidden=false;const input=document.getElementById("playerNameInput");input.value=getSaved(PLAYER_NAME_KEY)||"";input.focus()});
 document.getElementById("cancelPlayerName").addEventListener("click",()=>{nameForm.hidden=true});
-nameForm.addEventListener("submit",event=>{event.preventDefault();const next=document.getElementById("playerNameInput").value.trim().replace(/[\\u0000-\\u001f<>]/g,"").slice(0,28);if(next)putSaved(PLAYER_NAME_KEY,next);else try{localStorage.removeItem(PLAYER_NAME_KEY)}catch{};nameForm.hidden=true;syncPlayerName();updateGreeting()});
+nameForm.addEventListener("submit",event=>{event.preventDefault();const next=document.getElementById("playerNameInput").value.trim().replace(/[<>]/g,"").slice(0,28);if(next)putSaved(PLAYER_NAME_KEY,next);else try{localStorage.removeItem(PLAYER_NAME_KEY)}catch{};nameForm.hidden=true;syncPlayerName();updateGreeting()});
 const scoreHistoryKey="night-play-history-v1-";
 function scoreHistory(id){try{const a=JSON.parse(localStorage.getItem(scoreHistoryKey+id)||"[]");return Array.isArray(a)?a.filter(x=>Number.isFinite(x)&&x>=0).slice(-12):[]}catch{return []}}
 const scoreCountKey="night-play-history-count-v1-";
@@ -1004,8 +1007,8 @@ function updateDashboard(){
  for(const [id,name,save] of history){if(save){try{const parsed=JSON.parse(save);rows.push({id,name,updatedAt:Number(parsed.updatedAt)||0})}catch{}}}
  rows.sort((a,b)=>b.updatedAt-a.updatedAt);
  const target=document.getElementById("resumeCard");
- if(!rows.length){target.innerHTML='<p>Nothing to resume just yet. Your adventure starts in the Games Library.</p><a class="btn outline" href="/games" data-route>Find a game ↗</a>';return}
- const first=rows[0];target.innerHTML='<div><strong>'+first.name+'</strong><small>Saved on this device'+(rows.length>1?' · '+(rows.length-1)+' more saved':'')+'</small></div><button class="btn" data-game="'+first.id+'">Continue playing ↗</button>'
+ if(!rows.length){target.innerHTML='<p>Nothing to resume just yet. Your adventure starts in the Games Library.</p><a class="btn outline" href="/games" data-route>Find a game <svg class="ui-icon" viewBox="0 0 24 24" focusable="false" aria-hidden="true"><use href="#icon-arrowright"></use></svg></a>';return}
+ const first=rows[0];target.innerHTML='<div><strong>'+first.name+'</strong><small>Saved on this device'+(rows.length>1?' · '+(rows.length-1)+' more saved':'')+'</small></div><button class="btn" data-game="'+first.id+'">Continue playing <svg class="ui-icon" viewBox="0 0 24 24" focusable="false" aria-hidden="true"><use href="#icon-arrowright"></use></svg></button>'
 }
 function filterGames(){
  const search=document.getElementById("gameSearch").value.trim().toLowerCase();
@@ -1105,7 +1108,8 @@ function openGame(kind,{push=true,fresh=false}={}){
  if(kind==="snake"){help.textContent="Swipe the arena to turn. On desktop, use the arrow keys.";initSnake(fresh);pauseLabel("Tap board to start")}
  if(kind==="2048"){help.textContent="Slide matching tiles. Grow the numbers. Chase 2048.";init2048(fresh)}
  if(kind==="ttt"){help.textContent="Think ahead. Make three in a row.";initTtt(fresh)}
- document.getElementById("pauseGame").hidden=(kind==="ttt")
+ document.getElementById("pauseGame").hidden=(kind==="ttt");
+ document.getElementById("undo2048").hidden=(kind!=="2048");
 }
 const SNAKE_MODES=["wrap","walls","maze1","maze2","maze3"];
 function currentSnakeMode(){const selected=getSetting("snake-mode",getSetting("snake-wrap","walls"));return SNAKE_MODES.includes(selected)?selected:"walls"}
@@ -1127,7 +1131,7 @@ function initSnake(fresh=false){
  snake.mode=selected;snake.wrap=selected==="wrap";snake.maze=makeSnakeMaze(selected,size);snake.started=false;
  root.innerHTML='<div class="scorebar scoreboard"><div class="score-unit"><span class="score-label">SCORE</span><b id="score">'+snake.score+'</b></div><span class="score-divider" aria-hidden="true"></span><div class="score-unit"><span class="score-label">PERSONAL BEST</span><b id="best">'+best("snake")+'</b></div></div>';
  const shell=document.createElement("div");shell.className="snake-shell";shell.appendChild(c);
- const overlay=document.createElement("button");overlay.id="snakeOverlay";overlay.className="snake-screen-overlay";overlay.type="button";overlay.innerHTML='<strong>Ready to play?</strong><small>Swipe to steer. Collect fruit. Keep moving.</small><span>Tap to start ▶</span>';
+ const overlay=document.createElement("button");overlay.id="snakeOverlay";overlay.className="snake-screen-overlay";overlay.type="button";overlay.innerHTML='<strong>Ready to play?</strong><small>Swipe to steer. Collect fruit. Keep moving.</small><span>Tap to start <svg class="ui-icon" viewBox="0 0 24 24" focusable="false" aria-hidden="true"><use href="#icon-play"></use></svg></span>';
  overlay.onclick=()=>{if(!snake.alive){openGame("snake",{push:false,fresh:true});return}
  snake.started=true;gamePaused=false;overlay.hidden=true;pauseLabel("Pause")};
  shell.appendChild(overlay);root.appendChild(shell);
@@ -1181,7 +1185,7 @@ function finishSnake(){
  recordSession("snake",snake.score);
  snake.alive=false;gamePaused=true;clearInterval(snakeTimer);snakeTimer=null;
  try{localStorage.removeItem("night-play-save-snake")}catch{}
- const overlay=document.getElementById("snakeOverlay");if(overlay){overlay.hidden=false;overlay.innerHTML='<strong>Game over</strong><small>Your score: '+snake.score+' · Best: '+best("snake")+'</small><span>Tap to play again ↻</span>'}
+ const overlay=document.getElementById("snakeOverlay");if(overlay){overlay.hidden=false;overlay.innerHTML='<strong>Game over</strong><small>Your score: '+snake.score+' · Best: '+best("snake")+'</small><span>Tap to play again <svg class="ui-icon" viewBox="0 0 24 24" focusable="false" aria-hidden="true"><use href="#icon-restart"></use></svg></span>'}
  drawSnake()
 }
 function stepSnake(){
@@ -1255,6 +1259,7 @@ function moveTtt(i){
 }
 function init2048(fresh=false){
  gameOverRecorded=false;
+ undoStack2048=[];document.getElementById("undo2048").disabled=true;
  const configured=Number(getSetting("2048-size","4"));const size=[4,5,6].includes(configured)?configured:4;
  let saved=null;try{saved=!fresh?JSON.parse(localStorage.getItem("night-play-save-2048-"+size)||((size===4)?localStorage.getItem("night-play-save-2048"):"")||"null"):null}catch{}
  const valid=saved&&Number(saved.size||4)===size&&Array.isArray(saved.grid)&&saved.grid.length===size&&saved.grid.every(row=>Array.isArray(row)&&row.length===size&&row.every(n=>Number.isSafeInteger(n)&&n>=0));
@@ -1267,15 +1272,24 @@ function init2048(fresh=false){
  board.addEventListener("touchstart",e=>{start={x:e.touches[0].clientX,y:e.touches[0].clientY}},{passive:true});
  board.addEventListener("touchend",e=>{if(!start)return;let x=e.changedTouches[0].clientX-start.x,y=e.changedTouches[0].clientY-start.y;if(Math.max(Math.abs(x),Math.abs(y))>20)move2048(Math.abs(x)>Math.abs(y)?x>0?"right":"left":y>0?"down":"up");start=null},{passive:true})
 }
+document.getElementById("undo2048").addEventListener("click",()=>{
+ if(active!=="2048"||gamePaused||!undoStack2048.length)return;
+ const snapshot=undoStack2048.pop();grid=snapshot.grid.map(row=>row.slice());tileScore=snapshot.score;
+ tileAnimId++;gameOverRecorded=false;draw2048();
+ const size=grid.length;try{localStorage.setItem("night-play-save-2048-"+size,JSON.stringify({grid,size,score:tileScore,updatedAt:Date.now()}))}catch{}
+ document.getElementById("undo2048").disabled=!undoStack2048.length;
+});
 function tileBestKey(){return "2048"+(grid.length===4?"":"-"+grid.length)}
 function spawn(){const empty=[];grid.forEach((row,r)=>row.forEach((v,c)=>{if(v===0)empty.push([r,c])}));if(!empty.length)return;const p=empty[Math.floor(Math.random()*empty.length)];grid[p[0]][p[1]]=Math.random()<.9?2:4}
 function slide(arr){const n=arr.filter(Boolean),o=[];for(let i=0;i<n.length;i++){if(n[i]===n[i+1]){o.push(n[i]*2);tileScore+=n[i]*2;i++}else o.push(n[i])}while(o.length<grid.length)o.push(0);return o}
 function move2048(dir){
- if(active!=="2048"||gamePaused)return;const size=grid.length,before=JSON.stringify(grid),beforeGrid=grid.map(row=>row.slice());
+ if(active!=="2048"||gamePaused)return;const size=grid.length,before=JSON.stringify(grid),beforeGrid=grid.map(row=>row.slice()),previousScore=tileScore;
  if(dir==="left")grid=grid.map(slide);
  if(dir==="right")grid=grid.map(row=>slide([...row].reverse()).reverse());
  if(dir==="up"||dir==="down"){for(let c=0;c<size;c++){let col=grid.map(row=>row[c]);if(dir==="down")col.reverse();col=slide(col);if(dir==="down")col.reverse();for(let r=0;r<size;r++)grid[r][c]=col[r]}}
  if(JSON.stringify(grid)!==before){
+ undoStack2048.push({grid:beforeGrid,score:previousScore});if(undoStack2048.length>5)undoStack2048.shift();
+ document.getElementById("undo2048").disabled=false;
  spawn();record(tileBestKey(),tileScore);
  try{localStorage.setItem("night-play-save-2048-"+size,JSON.stringify({grid,size,score:tileScore,updatedAt:Date.now()}))}catch{}
  draw2048(beforeGrid,dir);
