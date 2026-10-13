@@ -1,5 +1,6 @@
 package com.night.endless.engine.render
 
+import android.content.Context
 import android.opengl.GLES30
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
@@ -10,8 +11,9 @@ import kotlin.math.sin
 import kotlin.math.sqrt
 
 /** Deterministic first landing patch, pending georeferenced elevation tiles. */
-class MarsSurfaceTerrain {
+class MarsSurfaceTerrain(private val context: Context) {
     private val program: Int
+    private val landingPhotoTexture: Int
     private val vertices: FloatBuffer
     private val indices: ShortBuffer
     private val indexCount: Int
@@ -49,6 +51,7 @@ class MarsSurfaceTerrain {
         indices = ByteBuffer.allocateDirect(indexData.size * 2).order(ByteOrder.nativeOrder()).asShortBuffer().apply { put(indexData); position(0) }
         indexCount = indexData.size
         program = createProgram(SurfaceMaterialShaders.VERTEX, SurfaceMaterialShaders.FRAGMENT)
+        landingPhotoTexture = LandingPhotoTexture.load(context, "mars")
     }
 
     fun draw(vp: FloatArray, offsetX: Float, offsetZ: Float) {
@@ -57,6 +60,7 @@ class MarsSurfaceTerrain {
         GLES30.glUniform2f(GLES30.glGetUniformLocation(program, "uOffset"), offsetX, offsetZ)
         GLES30.glUniform1f(GLES30.glGetUniformLocation(program, "uPlanetRadiusUnits"), 3389.5f / 3.0f)
         GLES30.glUniform1i(GLES30.glGetUniformLocation(program, "uWorld"), 0)
+        LandingPhotoTexture.bind(program, landingPhotoTexture)
         GLES30.glUniform2f(
             GLES30.glGetUniformLocation(program, "uViewAnchor"), -offsetX, -offsetZ
         )
