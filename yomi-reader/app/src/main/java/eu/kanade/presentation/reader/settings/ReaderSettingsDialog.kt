@@ -58,6 +58,12 @@ fun ReaderSettingsDialog(
     onCropChange: (Boolean) -> Unit,
     showPageNumber: Boolean,
     onShowPageNumberChange: (Boolean) -> Unit,
+    fullscreen: Boolean,
+    onFullscreenChange: (Boolean) -> Unit,
+    keepScreenOn: Boolean,
+    onKeepScreenOnChange: (Boolean) -> Unit,
+    readWithLongTap: Boolean,
+    onReadWithLongTapChange: (Boolean) -> Unit,
     volumeKeys: Boolean,
     onVolumeKeysChange: (Boolean) -> Unit,
     volumeKeysInverted: Boolean,
@@ -229,6 +235,9 @@ fun ReaderSettingsDialog(
                                     onChange = onBackgroundChange,
                                 )
                                 SettingSwitch("Show page number", showPageNumber, onShowPageNumberChange)
+                                SettingSwitch("Fullscreen", fullscreen, onFullscreenChange)
+                                SettingSwitch("Keep screen on", keepScreenOn, onKeepScreenOnChange)
+                                SettingSwitch("Read with long tap", readWithLongTap, onReadWithLongTapChange)
                             }
                             2 -> {
                                 SettingSwitch(
