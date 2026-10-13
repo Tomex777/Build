@@ -197,6 +197,38 @@ header{background:var(--bg)}
 .mobile-nav{background:#fbfbfaf2}
 footer{border-top:1px solid #e5e6e5}
 @media(max-width:600px){.gamecard{border-radius:17px;padding:7px}.gamecard .thumb{border-radius:12px}}
+
+header{position:sticky;top:0;z-index:60;box-shadow:0 1px 0 #e7e8e7;background:#fafaf9}
+.announcement-bar{position:sticky;top:88px;z-index:59}
+.profile-heading{padding-bottom:27px}
+.profile-overview{border:1px solid #e8e9e8;background:#fff;border-radius:24px;overflow:hidden}
+.profile-identity{padding:26px;display:flex;align-items:center;gap:21px}
+.profile-identity .profile-monogram{margin:0;border-radius:18px;width:72px;height:72px;flex-shrink:0;background:#f0f0ef;color:#222}
+.profile-identity>div:nth-child(2){flex:1;min-width:0}
+.profile-identity h2{font-size:24px;letter-spacing:-.8px;margin:6px 0}
+.profile-identity .muted{font-size:12px}
+.profile-preview-stats{border-top:1px solid #ededed;display:grid;grid-template-columns:repeat(3,1fr)}
+.profile-preview-stats div{padding:19px 25px;border-right:1px solid #ededed;display:flex;flex-direction:column;gap:6px}
+.profile-preview-stats div:last-child{border:0}
+.profile-preview-stats strong{font-size:27px;letter-spacing:-.8px;font-variant-numeric:tabular-nums}
+.profile-preview-stats span{font-size:11px;color:#7d8080}
+.records-heading{display:flex;align-items:end;justify-content:space-between;gap:20px;margin:35px 0 16px}
+.records-heading h2{font-size:27px;letter-spacing:-.9px;margin:8px 0 0}
+.record-mode-tag{font-size:11px;color:#8d8f90;white-space:nowrap}
+.record-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:15px}
+.record-tile{padding:24px 25px;background:#fff;border:1px solid #ededed;border-radius:23px;min-width:0}
+.record-tile-top{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.record-tile-top>div{display:flex;align-items:center;gap:8px}
+.record-tile-top h3{font-size:17px;letter-spacing:-.4px;margin:0}
+.record-glyph{font-size:22px;filter:grayscale(.7)}
+.record-chip{font-size:10px;white-space:nowrap;color:#858585;background:#f3f3f2;padding:7px 10px;border-radius:30px;font-weight:700}
+.record-score{display:flex;align-items:baseline;gap:9px;margin:18px 0 2px}
+.record-score strong{font-size:clamp(35px,4.5vw,56px);font-variant-numeric:tabular-nums;letter-spacing:-2.2px}
+.record-score span{font-size:12px;color:#838787}
+.record-spark{display:block;width:100%;height:70px;margin-top:10px}
+.record-caption{font-size:11px;color:#939797}
+.profile-records,.profile-layout{display:none}
+@media(max-width:600px){header{top:0}.announcement-bar{top:72px}.profile-identity{padding:20px;gap:13px;flex-wrap:wrap}.profile-identity .profile-monogram{width:54px;height:54px}.profile-identity h2{font-size:19px}.profile-identity .btn{margin-left:auto}.profile-preview-stats div{padding:13px 11px}.profile-preview-stats strong{font-size:21px}.profile-preview-stats span{font-size:10px}.record-grid{grid-template-columns:1fr;gap:11px}.record-tile{padding:19px}.records-heading{margin-top:30px}.record-mode-tag{font-size:10px}}
 </style>
 </head>
 <body>
@@ -213,7 +245,7 @@ footer{border-top:1px solid #e5e6e5}
 <nav class="mobile-nav" aria-label="Bottom navigation"><a href="/dashboard" data-route><span>⌂</span>Home</a><a href="/games" data-route><span>▦</span>Games</a><a href="/profile" data-route><span>◎</span>Profile</a></nav>
 <main class="wrap" id="siteMain">
 <section class="site-page" id="view-welcome" data-view="welcome">
-  <div class="hero"><div><div class="eyebrow">WELCOME TO NIGHT PLAY · YOUR NEW PLAYGROUND</div><h1>Good games.<br>Great company.</h1><p>Arcade favourites, board games and friendly competition — all in one place. Explore what NIGHT Play can become, then jump in whenever you're ready.</p><div class="hero-btns"><a class="btn" href="/dashboard" data-route data-enter="true">Enter NIGHT Play <span aria-hidden="true">↗</span></a><a class="btn outline" href="/games" data-route data-enter="true">Browse games</a></div><p class="welcome-fine">Free to play as a guest · No account needed</p></div><div class="hero-art" role="img" aria-label="Flat geometric game artwork with controller buttons"><svg class="hero-game-art" viewBox="0 0 360 290" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><rect x="39" y="56" width="282" height="184" rx="46" fill="#1c2023"/><rect x="50" y="67" width="260" height="162" rx="38" stroke="#696d6f" stroke-width="2"/><rect x="98" y="105" width="23" height="92" rx="7" fill="#f1f1f1"/><rect x="63" y="139" width="93" height="23" rx="7" fill="#f1f1f1"/><circle cx="254" cy="119" r="19" fill="#f1f1f1"/><circle cx="217" cy="165" r="19" fill="#f1f1f1"/><circle cx="180" cy="119" r="7" fill="#7b8185"/><circle cx="180" cy="158" r="7" fill="#7b8185"/></svg><div class="floating f1">NIGHT &nbsp; PLAY</div><div class="floating f2"><span class="online-dot"></span>Discover something fun</div><div class="floating f3">♟️ &nbsp; Arcade, classics, challenges.</div></div></div>
+  <div class="hero"><div><div class="eyebrow">WELCOME TO NIGHT PLAY · YOUR NEW PLAYGROUND</div><h1>Good games.<br>Great company.</h1><p>Arcade favourites, board games and friendly competition — all in one place. Explore what NIGHT Play can become, then jump in whenever you're ready.</p><div class="hero-btns"><a class="btn" href="/dashboard" data-route data-enter="true">Enter NIGHT Play <span aria-hidden="true">↗</span></a><a class="btn outline" href="/games" data-route data-enter="true">Browse games</a></div><p class="welcome-fine">Play the preview · WhatsApp connection coming soon</p></div><div class="hero-art" role="img" aria-label="Flat geometric game artwork with controller buttons"><svg class="hero-game-art" viewBox="0 0 360 290" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><rect x="39" y="56" width="282" height="184" rx="46" fill="#1c2023"/><rect x="50" y="67" width="260" height="162" rx="38" stroke="#696d6f" stroke-width="2"/><rect x="98" y="105" width="23" height="92" rx="7" fill="#f1f1f1"/><rect x="63" y="139" width="93" height="23" rx="7" fill="#f1f1f1"/><circle cx="254" cy="119" r="19" fill="#f1f1f1"/><circle cx="217" cy="165" r="19" fill="#f1f1f1"/><circle cx="180" cy="119" r="7" fill="#7b8185"/><circle cx="180" cy="158" r="7" fill="#7b8185"/></svg><div class="floating f1">NIGHT &nbsp; PLAY</div><div class="floating f2"><span class="online-dot"></span>Discover something fun</div><div class="floating f3">♟️ &nbsp; Arcade, classics, challenges.</div></div></div>
   <div class="landing-section"><div class="topbar"><div><span class="eyebrow">HOW IT WORKS</span><h2>A little play goes a long way.</h2></div></div><div class="intro-steps">
   <article><span class="step-num">01</span><h3>Pick your game.</h3><p>Jump from a simple puzzle to something that takes serious skill. Everything playable lives in the Games Library.</p></article>
   <article><span class="step-num">02</span><h3>Make it yours.</h3><p>Enjoy full-page, touch-first games. Your guest progress stays on this device where supported.</p></article>
@@ -222,15 +254,15 @@ footer{border-top:1px solid #e5e6e5}
   <div class="welcome-banner"><div><span class="eyebrow">NIGHT × WHATSAPP</span><h2>One player. More ways to play.</h2><p>Your existing NIGHT Chess, Ludo, Checkers and Tic-Tac-Toe commands stay as they are. The web will connect with them once secure linking and shared matches are ready.</p></div><a class="btn light" href="/dashboard" data-route data-enter="true">Take me inside ↗</a></div>
 </section>
 <section class="site-page" id="view-dashboard" data-view="dashboard" hidden>
- <div class="inner-page-head"><div><span class="eyebrow">YOUR NIGHT SPACE</span><h1>Play something <span class="muted">great.</span></h1><p>A home for discovering games and picking up a saved session. Player stats will live in your verified profile.</p></div><span class="status-pill">PREVIEW</span></div>
+ <div class="inner-page-head"><div><span class="eyebrow">YOUR NIGHT SPACE</span><h1 id="homeGreeting" aria-live="polite">Welcome.</h1><p>What will you play today?</p></div><span class="status-pill">PREVIEW</span></div>
  <div class="dash-layout">
-  <article class="dash-hero-card"><div class="dash-label">READY WHEN YOU ARE</div><h2>Your next<br>game awaits.</h2><p>Pick up where you left off, or discover something new.</p><a class="btn" data-route href="/games">Open Game Library ↗</a><span class="dash-moon" aria-hidden="true">☾</span></article>
+  <article class="dash-hero-card"><div class="dash-label">READY WHEN YOU ARE</div><h2>Your next<br>game awaits.</h2><p>Pick up where you left off, or discover something new.</p><a class="btn" data-route href="/games">Open Game Library ↗</a><span class="dash-moon" aria-hidden="true">✦</span></article>
   <div class="dash-side">
    <div class="dash-mini updates-mini"><span class="eyebrow">COMING NEXT</span><h3>Pick the way you play.</h3><p>Board games, puzzles and arcade challenges now have their own dedicated Games Library.</p><span class="card-subnote">You decide which game to play next.</span></div>
    <div class="dash-mini"><span class="eyebrow">NIGHT PROFILE</span><h3>Your achievements belong to you.</h3><p>Verified profiles will collect your records, tournament entries and friends across WhatsApp and web.</p><span class="card-subnote">WhatsApp verification is the next milestone.</span></div>
   </div>
  </div>
- <div class="dash-bottom"><div class="topbar"><div><span class="eyebrow">CONTINUE PLAYING</span><h2>Right where you left off.</h2></div></div><div class="resume-card" id="resumeCard"><p>Nothing to resume just yet. Your adventure starts in the Games Library.</p><a class="btn outline" href="/games" data-route>Find a game ↗</a></div></div>
+ <div class="dash-bottom"><div class="topbar"><div><span class="eyebrow">CONTINUE PLAYING</span><h2>Right where you left off.</h2></div></div><div class="resume-card" id="resumeCard"><p>No unfinished games.</p><a class="btn outline" href="/games" data-route>Find a game ↗</a></div></div>
  </section>
 <section class="site-page" id="view-games" data-view="games" hidden>
  <div class="inner-page-head"><div><span class="eyebrow">THE NIGHT ARCADE</span><h1>Choose your <span class="muted">adventure.</span></h1><p>Play instantly. No tiny popups, no endless scrolling through menus.</p></div><span class="status-pill">03 PLAYABLE NOW</span></div>
@@ -251,10 +283,18 @@ footer{border-top:1px solid #e5e6e5}
  </div><p class="no-results" id="noGameResults" hidden>No games found. Try another name or category.</p>
 </section>
 <section class="site-page" id="view-profile" data-view="profile" hidden>
- <div class="inner-page-head"><div><span class="eyebrow">YOUR PLAYER ACCOUNT</span><h1>The profile is <span class="muted">yours.</span></h1><p>Connect WhatsApp to keep your player identity, match history and achievements together.</p></div><span class="status-pill">ACCOUNT LINKING IN DEVELOPMENT</span></div>
- <div class="profile-layout"><div class="profile-hero"><div class="profile-monogram" aria-label="Account not linked"><svg viewBox="0 0 24 24" width="34" height="34" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4.5 20c1.2-4.7 13.8-4.7 15 0"/></svg></div><span class="eyebrow">ACCOUNT STATUS</span><h2>Not connected</h2><p>NIGHT Play will use a verified WhatsApp identity, not an anonymous guest account. Account linking is not live in this prototype.</p><button class="btn" data-dialog="connect">How WhatsApp linking works ↗</button></div>
-  <div class="profile-records"><span class="eyebrow">THIS DEVICE · TEST DATA ONLY</span><h3>Local game records</h3><p>While we're testing, game saves stay on this device. They cannot count toward official rankings until the backend can verify game results.</p><div class="profile-record-row"><span>🐍 Snake · best</span><strong id="profileSnakeBest">—</strong></div><div class="profile-record-row"><span>🔢 2048 · 4 × 4 best</span><strong id="profile2048Best">—</strong></div><div class="profile-record-row"><span>🔢 2048 · 5 × 5 best</span><strong id="profile2048Best5">—</strong></div><div class="profile-record-row"><span>🔢 2048 · 6 × 6 best</span><strong id="profile2048Best6">—</strong></div><div class="profile-record-row"><span>❎ Tic-Tac-Toe</span><strong>Unranked</strong></div><p class="record-footnote">Achievements, ranked scores, match histories, and account recovery will appear here after WhatsApp verification ships.</p></div></div>
- </section>
+ <div class="inner-page-head profile-heading"><div><span class="eyebrow">ACCOUNT</span><h1>Profile<span class="muted">.</span></h1></div><span class="status-pill">NOT CONNECTED</span></div>
+ <div class="profile-overview">
+  <div class="profile-identity"><div class="profile-monogram" aria-hidden="true"><svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4.5 20c1.2-4.7 13.8-4.7 15 0"/></svg></div><div><span class="eyebrow">NIGHT PLAYER</span><h2>Connect WhatsApp</h2><span class="muted">Account linking is coming soon.</span></div><button class="btn light" data-dialog="connect">Connect ↗</button></div>
+  <div class="profile-preview-stats"><div><strong id="profileGamesRecorded">0</strong><span>Completed rounds</span></div><div><strong id="profileSnakeBest">0</strong><span>Snake best</span></div><div><strong id="profile2048Best">0</strong><span>2048 best · 4×4</span></div></div>
+ </div>
+ <div class="records-heading"><div><span class="eyebrow">SCOREBOARD</span><h2>Game records</h2></div><span class="record-mode-tag">Device only · Unranked</span></div>
+ <div class="record-grid">
+  <article class="record-tile"><div class="record-tile-top"><div><span class="record-glyph">🐍</span><h3>Snake</h3></div><span class="record-chip">BEST RUN</span></div><div class="record-score"><strong id="recordSnakeValue">0</strong><span>points</span></div><svg id="chartSnake" class="record-spark" viewBox="0 0 260 72" preserveAspectRatio="none" role="img" aria-label="Recent Snake scores"></svg><span class="record-caption" id="captionSnake">No runs completed yet</span></article>
+  <article class="record-tile"><div class="record-tile-top"><div><span class="record-glyph">🔢</span><h3>2048</h3></div><span class="record-chip">4 × 4</span></div><div class="record-score"><strong id="record2048Value">0</strong><span>points</span></div><svg id="chart2048" class="record-spark" viewBox="0 0 260 72" preserveAspectRatio="none" role="img" aria-label="Recent 2048 scores"></svg><span class="record-caption" id="caption2048">No rounds recorded yet</span></article>
+  <article class="record-tile small-record"><div class="record-tile-top"><div><h3>2048 · 5×5</h3></div><span class="record-chip">BEST</span></div><div class="record-score"><strong id="profile2048Best5">0</strong><span>points</span></div><svg id="chart2048_5" class="record-spark" viewBox="0 0 260 72" preserveAspectRatio="none" role="img" aria-label="Recent 5 by 5 scores"></svg></article>
+  <article class="record-tile small-record"><div class="record-tile-top"><div><h3>2048 · 6×6</h3></div><span class="record-chip">BEST</span></div><div class="record-score"><strong id="profile2048Best6">0</strong><span>points</span></div><svg id="chart2048_6" class="record-spark" viewBox="0 0 260 72" preserveAspectRatio="none" role="img" aria-label="Recent 6 by 6 scores"></svg></article>
+ </div></section>
 </main>
 <footer class="wrap"><span><strong>NIGHT PLAY</strong> · Games, challenges and community.</span><span>Preview · Scores saved only on this device</span></footer>
 <dialog id="infoDialog" aria-labelledby="infoTitle"><div class="modalhead"><h2 id="infoTitle">NIGHT Play</h2><button class="xbtn" data-close aria-label="Close">×</button></div><div class="modalbody" id="infoBody"></div></dialog>
@@ -317,7 +357,7 @@ function updateDashboard(){
  rows.sort((a,b)=>b.updatedAt-a.updatedAt);
  const target=document.getElementById("resumeCard");
  if(!rows.length){target.innerHTML='<p>Nothing to resume just yet. Your adventure starts in the Games Library.</p><a class="btn outline" href="/games" data-route>Find a game ↗</a>';return}
- const first=rows[0];target.innerHTML='<div><strong>'+first.name+'</strong><small>Unfinished guest game saved on this device'+(rows.length>1?' · '+(rows.length-1)+' more saved':'')+'</small></div><button class="btn" data-game="'+first.id+'">Continue playing ↗</button>'
+ const first=rows[0];target.innerHTML='<div><strong>'+first.name+'</strong><small>Saved on this device'+(rows.length>1?' · '+(rows.length-1)+' more saved':'')+'</small></div><button class="btn" data-game="'+first.id+'">Continue playing ↗</button>'
 }
 function filterGames(){
  const search=document.getElementById("gameSearch").value.trim().toLowerCase();
