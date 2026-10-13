@@ -239,6 +239,17 @@ jobs:
               res.setHeader('content-type','application/json')
               return res.end(JSON.stringify({ ok:true, account:row.id, status:row.status }))
             }
+            const profile = url.pathname.match(/^\/accounts\/([A-Za-z0-9][A-Za-z0-9._-]{0,63})\/profile$/)
+            if (req.method === 'POST' && profile) {
+              const row = accounts.find(x => x.id === profile[1])
+              if (!row || !['nami', 'josiah', 'mimi', 'unassigned'].includes(body.profileId)) {
+                res.statusCode = 400
+                return res.end(JSON.stringify({ error:'bad profile' }))
+              }
+              row.profile = body.profileId
+              res.setHeader('content-type','application/json')
+              return res.end(JSON.stringify({ ok:true, account:row.id, profile:row.profile }))
+            }
             const remove = url.pathname.match(/^\/accounts\/([A-Za-z0-9][A-Za-z0-9._-]{0,63})$/)
             if (req.method === 'DELETE' && remove) {
               const index = accounts.findIndex(row => row.id === remove[1])
@@ -580,6 +591,26 @@ jobs:
           echo "added=$ADDED"
           echo "$ADDED" | grep -q '"id":"account-5"'
 
+          # Regression: account-5 may be newly paired and still syncing;
+          # assigning its bot persona must not touch the WhatsApp socket.
+          BEFORE_PROFILE=$(curl -fsS -H "$AUTH" http://127.0.0.1:47831/api/cortex/mscc/pairing)
+          ASSIGNED=$(curl -fsS -H "$AUTH" -H 'Content-Type: application/json' \
+            -d '{"profileId":"nami"}' \
+            http://127.0.0.1:47831/api/cortex/mscc/accounts/account-5/profile)
+          echo "$ASSIGNED" | grep -q '"profile":"nami"'
+          AFTER_PROFILE=$(curl -fsS -H "$AUTH" http://127.0.0.1:47831/api/cortex/mscc/pairing)
+          echo "$AFTER_PROFILE" | grep -q '"id":"account-5"'
+          echo "$AFTER_PROFILE" | grep -q '"profile":"nami"'
+          echo "$AFTER_PROFILE" | grep -q '"status":"offline"'
+          code=$(curl -s -o /tmp/invalid-bot-profile.json -w '%{http_code}' \
+            -H "$AUTH" -H 'Content-Type: application/json' -d '{"profileId":"../nami"}' \
+            http://127.0.0.1:47831/api/cortex/mscc/accounts/account-5/profile)
+          test "$code" = 400
+          code=$(curl -s -o /tmp/owner-profile-denied.json -w '%{http_code}' \
+            -H "$AUTH" -H 'Content-Type: application/json' -d '{"profileId":"nami"}' \
+            http://127.0.0.1:47831/api/cortex/mscc/accounts/A/profile)
+          test "$code" = 403
+          test -n "$BEFORE_PROFILE"
           PAIRED=$(curl -fsS -H "$AUTH" -H 'Content-Type: application/json'             -d '{"mode":"code"}'             http://127.0.0.1:47831/api/cortex/mscc/accounts/account-3/pair)
           echo "paired=$PAIRED"
           AFTER_PAIR=$(curl -fsS -H "$AUTH" http://127.0.0.1:47831/api/cortex/mscc/pairing)
