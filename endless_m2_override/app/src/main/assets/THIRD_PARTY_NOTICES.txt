@@ -50,3 +50,21 @@ Blue Marble Next Generation photographic Earth imagery:
   https://github.com/MaxwellLee/physics-lab/blob/main/assets/textures/SOURCES.md
   NASA original: https://science.nasa.gov/earth/earth-observatory/blue-marble-next-generation/base-map/
   No clouds, shadows, and artificial lighting are baked into this day albedo.
+
+NASA Trek photographic landings (when imagery server is available during CI):
+- Moon: LRO Wide Angle Camera (WAC) Global Mosaic 303ppd v02,
+  NASA Moon Trek (NASA/GSFC, ASU LROC team), at Tycho Crater -43.31 latitude,
+  348.64 degrees east longitude.
+  https://trek.nasa.gov/tiles/apidoc/trekAPI.html?body=moon
+- Mars: Viking MDIM 2.1 Color Mosaic global 232 m,
+  NASA Mars Trek (NASA/JPL/USGS), near Olympus Mons 18.65 latitude,
+  226.2 degrees east longitude.
+  https://trek.nasa.gov/tiles/apidoc/trekAPI.html?body=mars
+- Product is a georeferenced ~81.6 km by ~81.6 km NASA orbital photo mosaic,
+  matched with MOLA and LOLA DEM coordinates. The orbital images are NOT
+  meter-scale rover photography or ground-truth boulder textures.
+- The app works entirely offline after installation. If the NASA Trek service
+  is unavailable during packaging, the app falls back to geologic materials
+  generated procedurally above the measured DEM and indicates that fallback
+  in CI logs. The product should not be marketed as photographic without
+  checking inclusion of these resources.
