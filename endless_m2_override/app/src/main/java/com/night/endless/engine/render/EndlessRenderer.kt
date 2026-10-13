@@ -648,11 +648,10 @@ class EndlessRenderer(
             lookX.toFloat(), (eyeY + lookY).toFloat(), lookZ.toFloat(),
             0f, 1f, 0f
         )
-        // Keep the airless lunar sky's actual starfield at its distant radius:
-        // far=36 for meter-level terrain depth would clip every star at 115+.
-        Matrix.perspectiveM(projection, 0, 67f, width.toFloat() / height, 0.035f, 180f)
-        Matrix.multiplyMM(viewProjection, 0, projection, 0, view, 0)
-        drawStars()
+        // Lunar daylight exposure: sunlit ground needs a much shorter
+        // exposure than stars. A camera exposing bright regolith shows an
+        // almost black, STARLESS sky (Apollo photographs demonstrate this).
+        // Stars remain visible when exploring from orbit.
         Matrix.perspectiveM(projection, 0, 67f, width.toFloat() / height, 0.000055f, 36f)
         Matrix.multiplyMM(viewProjection, 0, projection, 0, view, 0)
         moonSurfaceTerrain?.draw(viewProjection, -moonSurfaceX.toFloat(), -moonSurfaceZ.toFloat())
@@ -1795,7 +1794,7 @@ out vec4 fragColor;
 
 void main() {
     vec4 texel = uUseTexture == 1
-        ? (uCloseMaterial > 0 ? textureLod(uTexture, vUv, 0.0) : texture(uTexture, vUv))
+        ? texture(uTexture, vUv)
         : uColor;
 
     if (uHistoryLava > 0.001) {
@@ -1881,7 +1880,7 @@ void main() {
     }
 
     if (uUseNormal == 1) {
-        vec3 mapped = textureLod(uNormalTexture, vUv, 0.0).xyz * 2.0 - 1.0;
+        vec3 mapped = texture(uNormalTexture, vUv).xyz * 2.0 - 1.0;
 
         // Both close maps are real elevation-derived normal material. Lunar
         // relief gets a slightly harder response because there is no
