@@ -234,6 +234,10 @@ jobs:
           API36_EVIDENCE_DIR: artifacts/endless-m5-runtime
         run: bash "$GITHUB_WORKSPACE/endless_ci/start-emulator-api36.sh" "$GITHUB_WORKSPACE/endless_ci/runtime-smoke-api36.sh" "$ENDLESS_PROJECT"
 
+      - name: Check actual Mars/Moon landing visibility
+        shell: bash
+        run: python3 endless_ci/check_visual_realism.py artifacts/endless-m5-runtime/screenshots
+
       - name: Upload Endless API 36 emulator evidence
         if: always()
         uses: actions/upload-artifact@v4
