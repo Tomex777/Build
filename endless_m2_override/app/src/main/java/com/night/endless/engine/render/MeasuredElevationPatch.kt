@@ -35,6 +35,11 @@ class MeasuredElevationPatch private constructor(private val heights: ShortArray
         const val SIDE = 161
         const val CENTER = 80.0
         const val STEP = 0.17
+        fun fromSamples(samples: ShortArray): MeasuredElevationPatch {
+            require(samples.size == SIDE * SIDE) { "DEM tile must be 161 x 161" }
+            return MeasuredElevationPatch(samples.copyOf())
+        }
+
         fun load(context: Context, assetName: String): MeasuredElevationPatch? =
             try {
                 context.assets.open(assetName).use { stream ->
