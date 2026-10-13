@@ -170,7 +170,17 @@ tap "Snake"
 wait_for "SCORE"
 wait_for "Start"
 tap "Start"
-shot games-snake-running
+# The button stays at the same coordinates when its label changes to Pause.
+# Pause immediately: Snake otherwise reaches the wall before UIAutomator's
+# next multi-second accessibility dump. Verify Pause -> Resume even at score 0.
+read -r snake_button_x snake_button_y < /tmp/sora-hub-tap.txt
+adb shell input tap "$snake_button_x" "$snake_button_y"
+wait_for "Resume"
+wait_for "Paused"
+shot games-snake-paused
+tap "Resume"
+adb shell input swipe 530 850 530 640 180
+shot games-snake-steered
 adb shell input keyevent KEYCODE_BACK
 wait_for "Memory match"
 
@@ -178,16 +188,58 @@ tap "2048"
 wait_for "SCORE"
 wait_for "New"
 shot games-2048-board
+# Exercise touch/swipe control rather than accepting a static 2048 board.
+# Following a left/right pair always moves at least the initial two tiles.
+adb shell input swipe 800 800 260 800 240
+sleep 1
+shot games-2048-after-swipe
+if cmp -s "$OUT/games-2048-board.png" "$OUT/games-2048-after-swipe.png"; then
+  echo '2048 board was visually unchanged after a gesture.' >&2
+  exit 1
+fi
 tap "All games"
 
 tap "Tic-tac-toe"
 wait_for "Your turn"
 shot games-tictactoe-board
+# The nine X/O squares are drawn with Canvas; tap the top-left playable cell.
+# A successful interaction renders marks and changes the screenshot.
+adb shell input tap 265 605
+sleep 2
+shot games-tictactoe-after-move
+if cmp -s "$OUT/games-tictactoe-board.png" "$OUT/games-tictactoe-after-move.png"; then
+  echo 'Tic-tac-toe did not respond visually to a board tap.' >&2
+  exit 1
+fi
+tap "Play again"
+wait_for "Your turn"
 tap "All games"
 
 tap "Memory match"
 wait_for "MOVES"
 shot games-memory-board
+# Tap two face-down memory cards by accessibility bounds (not hardcoded
+# screen positions). The counter increments whether or not they match.
+for flip in 1 2; do
+  dump_ui
+  python3 - <<'PYMEM'
+import re,subprocess,xml.etree.ElementTree as ET
+root=ET.parse('/tmp/sora-hub-window.xml').getroot()
+for node in root.iter('node'):
+    if node.attrib.get('content-desc') != 'Hidden': continue
+    m=re.fullmatch(r'\[(\d+),(\d+)\]\[(\d+),(\d+)\]',node.attrib.get('bounds',''))
+    if m:
+        x1,y1,x2,y2=map(int,m.groups())
+        subprocess.check_call(['adb','shell','input','tap',str((x1+x2)//2),str((y1+y2)//2)])
+        break
+else: raise SystemExit('No hidden memory card available')
+PYMEM
+  sleep .15
+done
+wait_for "MOVES  1"
+shot games-memory-after-two-flips
+tap "Restart"
+wait_for "MOVES  0"
 tap "All games"
 
 tap "Cover quiz"
@@ -215,11 +267,50 @@ tap "All games"
 tap_scrolling "Bible trivia"
 wait_for "QUESTION"
 shot games-bible-trivia
+# Complete all five Bible questions using their real displayed text. That
+# verifies quiz choice, Next/Results navigation and persisted best score.
+for round in 1 2 3 4 5; do
+  dump_ui
+  answer=$(python3 - <<'PYBIBLE'
+import xml.etree.ElementTree as ET
+root=ET.parse('/tmp/sora-hub-window.xml').getroot()
+texts=[n.attrib.get('text','') for n in root.iter('node')]
+answers={
+    'Which book begins the Bible?':'Genesis',
+    'Who built the ark before the great flood?':'Noah',
+    'Who defeated Goliath using a sling?':'David',
+    'Who was thrown into a den of lions?':'Daniel',
+    'According to the Gospels, where was Jesus born?':'Bethlehem',
+    "Which book contains 'The Lord is my shepherd'?":'Psalms',
+    'Who led the Israelites out of Egypt?':'Moses',
+    'Who spent three days in a great fish?':'Jonah',
+    'Which disciple denied knowing Jesus three times?':'Peter',
+}
+for prompt,right in answers.items():
+    if prompt in texts:
+        print(right);break
+else: raise SystemExit('Unknown Bible question: '+repr(texts))
+PYBIBLE
+  )
+  tap "$answer"
+  wait_for "Correct!"
+  if (( round == 5 )); then tap "See results"; else tap "Next question"; fi
+done
+wait_for "Round complete"
+wait_for "Best: 5 correct"
+adb shell run-as com.night.sora cat shared_prefs/sora_arcade_v1.xml | grep -q 'name="quiz_best_bible" value="5"'
+shot games-bible-trivia-result
 tap "All games"
 
 tap_scrolling "Would you rather?"
 wait_for "Make your choice"
 shot games-would-rather
+tap "Finish your favorite manga in one night"
+wait_for "Choice saved on this device"
+adb shell run-as com.night.sora cat shared_prefs/sora_arcade_v1.xml | grep -q 'name="rather_0_0" value="1"'
+tap "Next choice"
+wait_for "ROUND 2 / 10"
+shot games-would-rather-next
 tap "All games"
 
 tap_scrolling "Meme caption"
