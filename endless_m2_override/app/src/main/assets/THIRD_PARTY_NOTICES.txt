@@ -42,3 +42,11 @@ Measured planetary surface data:
   https://ssd.jpl.nasa.gov/planets/approx_pos.html
   Present renderer magnifies planet sizes and compresses planet distances
   for navigation, despite improving Keplerian phase/tilt/eccentricity.
+
+Blue Marble Next Generation photographic Earth imagery:
+- Endless uses a NASA Earth Observatory Blue Marble July composite
+  (source world.200407.3x5400x2700.jpg; NASA/GSFC, Reto Stöckli).
+  Delivered in a genuine downsampled 4096x2048 image by physics-lab:
+  https://github.com/MaxwellLee/physics-lab/blob/main/assets/textures/SOURCES.md
+  NASA original: https://science.nasa.gov/earth/earth-observatory/blue-marble-next-generation/base-map/
+  No clouds, shadows, and artificial lighting are baked into this day albedo.
