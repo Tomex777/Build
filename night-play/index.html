@@ -326,6 +326,27 @@ function modal(kind){
 const UPDATE_VERSION="nightplay-ui-20261013-v4";
 const ENTER_KEY="night-play-has-entered";
 const READ_KEY="night-play-update-seen";
+const scoreHistoryKey="night-play-history-v1-";
+function scoreHistory(id){try{const a=JSON.parse(localStorage.getItem(scoreHistoryKey+id)||"[]");return Array.isArray(a)?a.filter(x=>Number.isFinite(x)&&x>=0).slice(-12):[]}catch{return []}}
+function recordSession(id,score){if(!Number.isFinite(score)||score<0)return;try{localStorage.setItem(scoreHistoryKey+id,JSON.stringify([...scoreHistory(id),Math.round(score)].slice(-12)))}catch{}}
+function paintHistory(id,svgId,captionId){
+ const svg=document.getElementById(svgId);if(!svg)return;
+ const history=scoreHistory(id),max=Math.max(1,...history,best(id));
+ const ns="http://www.w3.org/2000/svg";svg.replaceChildren();
+ const base=document.createElementNS(ns,"path");base.setAttribute("d","M 0 68 L 260 68");base.setAttribute("stroke","#d9dede");base.setAttribute("stroke-width","1");svg.appendChild(base);
+ if(history.length){const pad=8,step=240/Math.max(1,history.length),barWidth=Math.min(26,step*.62);
+ history.forEach((score,index)=>{const h=Math.max(3,Math.round(score/max*53)),r=document.createElementNS(ns,"rect");r.setAttribute("x",String(pad+index*step+(step-barWidth)/2));r.setAttribute("y",String(68-h));r.setAttribute("width",String(barWidth));r.setAttribute("height",String(h));r.setAttribute("rx","3");r.setAttribute("fill",index===history.length-1?"#232a2a":"#bbc4c1");svg.appendChild(r)})}
+ if(captionId){const n=document.getElementById(captionId);if(n)n.textContent=history.length?(history.length+" recent round"+(history.length>1?"s":"")):"No completed rounds"}
+}
+function renderProfileRecords(){
+ const set=(id,value)=>{const el=document.getElementById(id);if(el)el.textContent=Number(value).toLocaleString()};
+ for(const [id,key] of [["profileSnakeBest","snake"],["recordSnakeValue","snake"],["profile2048Best","2048"],["record2048Value","2048"],["profile2048Best5","2048-5"],["profile2048Best6","2048-6"]])set(id,best(key));
+ set("profileGamesRecorded",["snake","2048","2048-5","2048-6"].reduce((n,id)=>n+scoreHistory(id).length,0));
+ for(const [id,svg,caption] of [["snake","chartSnake","captionSnake"],["2048","chart2048","caption2048"],["2048-5","chart2048_5",null],["2048-6","chart2048_6",null]])paintHistory(id,svg,caption)
+}
+function greetingText(hour){return hour>=5&&hour<12?"Good morning":hour>=12&&hour<17?"Good afternoon":hour>=17&&hour<22?"Good evening":"Good night"}
+function updateGreeting(){const title=document.getElementById("homeGreeting");if(title)title.textContent=greetingText(new Date().getHours())+"."}
+
 const getSaved=(key)=>{try{return localStorage.getItem(key)}catch{return null}};
 const putSaved=(key,value)=>{try{localStorage.setItem(key,String(value))}catch{}};
 let activeFilter="all";
@@ -382,12 +403,8 @@ function renderRoute(){
  document.title=({welcome:"NIGHT Play — Welcome",dashboard:"NIGHT Play — Home",games:"NIGHT Play — Games",profile:"NIGHT Play — Profile"})[current];
  if(current==="dashboard")updateDashboard();
  if(current==="games")filterGames();
- if(current==="profile"){
- document.getElementById("profileSnakeBest").textContent=best("snake").toLocaleString();
- document.getElementById("profile2048Best").textContent=best("2048").toLocaleString();
- document.getElementById("profile2048Best5").textContent=best("2048-5").toLocaleString();
- document.getElementById("profile2048Best6").textContent=best("2048-6").toLocaleString()
- }
+ if(current==="profile")renderProfileRecords();
+ if(current==="dashboard")updateGreeting();
  updateBell();window.scrollTo(0,0)
 }
 function navigate(path,{replace=false}={}){
@@ -445,7 +462,10 @@ document.addEventListener("visibilitychange",()=>{
 });
 function exitGame(){if(gameDialog.open)gameDialog.close();if(location.pathname.startsWith("/play/"))history.replaceState({},"","/games");renderRoute()}
 
-document.getElementById("restart").addEventListener("click",()=>openGame(active,{push:false,fresh:true}));
+document.getElementById("restart").addEventListener("click",()=>{
+ if(active==="2048"&&tileScore>0)recordSession("2048"+(grid.length===4?"":"-"+grid.length),tileScore);
+ openGame(active,{push:false,fresh:true})
+});
 function openGame(kind,{push=true,fresh=false}={}){
  if(!["snake","2048","ttt"].includes(kind))return;
  if(push)history.pushState({game:kind},"","/play/"+kind);
@@ -483,6 +503,7 @@ function drawSnake(){
  snake.body.forEach((p,i)=>{ctx.fillStyle=i===0?"#080808":"#293139";const d=i===0?1.5:2;ctx.beginPath();ctx.roundRect(p.x*step+d,p.y*step+d,step-d*2,step-d*2,5);ctx.fill()});
 }
 function finishSnake(){
+ recordSession("snake",snake.score);
  snake.alive=false;gamePaused=true;clearInterval(snakeTimer);snakeTimer=null;
  try{localStorage.removeItem("night-play-save-snake")}catch{}
  const overlay=document.getElementById("snakeOverlay");if(overlay){overlay.hidden=false;overlay.innerHTML='<strong>Game over</strong><small>Your score: '+snake.score+' · Best: '+best("snake")+'</small><span>Tap to play again ↻</span>'}
@@ -606,7 +627,7 @@ function showSettings(){
     for(const b of buttons.querySelectorAll("button"))b.setAttribute("aria-pressed",String(b===button));
     if(previous!==value){
      if(active==="snake"){snake.wrap=value==="wrap"}
-     if(active==="2048"){openGame("2048",{push:false,fresh:true});previousPause=false}
+     if(active==="2048"){if(tileScore>0)recordSession("2048"+(grid.length===4?"":"-"+grid.length),tileScore);openGame("2048",{push:false,fresh:true});previousPause=false}
      if(active==="ttt"){openGame("ttt",{push:false,fresh:true});previousPause=false}
     }
    };
