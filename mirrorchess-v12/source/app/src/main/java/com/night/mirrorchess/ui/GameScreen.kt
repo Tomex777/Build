@@ -107,6 +107,9 @@ fun GameScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
+                // Keep the board full-width; let the coach and move review scroll
+                // into view rather than clipping beneath navigation on short phones.
+                .verticalScroll(rememberScrollState())
                 .offset { IntOffset(0, screenOffset.roundToPx()) }
                 .alpha(screenAlpha),
         ) {
@@ -172,11 +175,11 @@ fun GameScreen(
 
             MoveStrip(ui)
             if (ui.reviewing) {
-                ReviewPanel(ui, Modifier.fillMaxWidth().weight(1f, fill = true))
+                ReviewPanel(ui, Modifier.fillMaxWidth().height(165.dp))
             } else if (ui.settings.coachEnabled) {
-                LearningPanel(ui, viewModel::setCoachElo, Modifier.fillMaxWidth().weight(1f, fill = true))
+                LearningPanel(ui, viewModel::setCoachElo, Modifier.fillMaxWidth().height(260.dp))
             } else {
-                Surface(modifier = Modifier.fillMaxWidth().weight(1f), color = MaterialTheme.colorScheme.surface) {
+                Surface(modifier = Modifier.fillMaxWidth().height(116.dp), color = MaterialTheme.colorScheme.surface) {
                     Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
                         Text("COACH OFF", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
                         Text("Enable move comparison in Settings.", style = MaterialTheme.typography.bodyMedium)
