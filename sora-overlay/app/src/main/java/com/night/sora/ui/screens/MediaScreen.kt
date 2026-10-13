@@ -131,7 +131,7 @@ fun MediaScreen(
     }
     var favoriteArtists by remember(musicTastePreferences) {
         val stored = musicTastePreferences.getStringSet("favorite_artists", null)
-        mutableStateOf(stored?.toList()?.sorted() ?: emptyList())
+        mutableStateOf<List<String>>(stored?.toList()?.sorted() ?: emptyList())
     }
     val musicTasteArtists = remember(favoriteArtists, rankedTaste) {
         (favoriteArtists + rankedTaste.map { it.artistName })
