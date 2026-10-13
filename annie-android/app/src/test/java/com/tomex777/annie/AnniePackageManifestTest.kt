@@ -41,6 +41,16 @@ class AnniePackageManifestTest {
         assertEquals(listOf("api.example.com", "*.cdn.example.com"), decoded.networkHosts)
     }
 
+    @Test fun apiTwoPackagesUseStrictValidation() {
+        val decoded = decode(manifest { put("apiVersion", "2"); put("requires", JSONObject().put("annie", ">=2 <3")) })
+        assertEquals(ValidationMode.STRICT, decoded.validationMode)
+    }
+
+    @Test fun manifestsWithoutAnExplicitVersionRetainLegacyValidation() {
+        val value = manifest().apply { remove("apiVersion") }
+        assertEquals(ValidationMode.LEGACY, decode(value).validationMode)
+    }
+
     @Test fun incompatibleOrMalformedVersionFieldsAreImportErrorsWithAFix() {
         rejects(manifest { put("apiVersion", "3") }, "supports up to 2")
         rejects(manifest { put("apiVersion", "0") }, "whole number")

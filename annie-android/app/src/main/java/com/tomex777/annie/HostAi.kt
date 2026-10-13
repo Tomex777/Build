@@ -90,40 +90,9 @@ internal class AnthropicHostAiBackend(private val context: Context) : HostAiBack
             connection.outputStream.bufferedWriter().use { it.write(body.toString()) }
             if (connection.responseCode !in 200..299) throw AnnieError(
                 AnnieErrorCode.NETWORK_ERROR, "AI provider rejected the request (HTTP ${connection.responseCode})", "ai.generate")
-            val result = StringBuilder()
-            val deadline = System.nanoTime() + 120_000_000_000L
-            var complete = false
             connection.inputStream.bufferedReader().use { reader ->
-                var eventData = StringBuilder()
-                while (true) {
-                    coroutineContext.ensureActive()
-                    if (System.nanoTime() >= deadline) throw AnnieError(AnnieErrorCode.TIMEOUT, "AI response timed out", "ai.generate")
-                    val line = reader.readLine() ?: break
-                    require(line.length <= 64_000 && eventData.length <= 64_000) { "AI event exceeds the size limit" }
-                    if (line.startsWith("data:")) {
-                        if (eventData.isNotEmpty()) eventData.append('\n')
-                        eventData.append(line.removePrefix("data:").trimStart())
-                    } else if (line.isEmpty() && eventData.isNotEmpty()) {
-                        val event = JSONObject(eventData.toString())
-                        eventData = StringBuilder()
-                        when (event.optString("type")) {
-                            "content_block_delta" -> {
-                                val delta = event.optJSONObject("delta")
-                                if (delta?.optString("type") == "text_delta") {
-                                    val chunk = delta.optString("text")
-                                    result.append(chunk)
-                                    require(result.toString().toByteArray().size <= 32_000) { "AI response exceeds the size limit" }
-                                    onDelta(chunk)
-                                }
-                            }
-                            "error" -> throw AnnieError(AnnieErrorCode.NETWORK_ERROR, "AI provider interrupted the response", "ai.generate")
-                            "message_stop" -> { complete = true; break }
-                        }
-                    }
-                }
+                consumeAnthropicStream(reader, onDelta)
             }
-            if (!complete) throw AnnieError(AnnieErrorCode.NETWORK_ERROR, "AI response ended before completion", "ai.generate")
-            result.toString()
         } finally { connection.disconnect() }
     }
 }
