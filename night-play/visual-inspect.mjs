@@ -1,0 +1,27 @@
+import { readFileSync } from 'node:fs';
+import { createServer } from 'node:http';
+import { chromium } from 'playwright';
+const html=readFileSync(new URL('./index.html',import.meta.url));
+const server=createServer((req,res)=>{res.writeHead(200,{'content-type':'text/html; charset=utf-8'});res.end(html)});
+await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
+const b=await chromium.launch({headless:true,channel:'chrome',args:['--no-sandbox']});
+try{
+ const page=await b.newPage({viewport:{width:390,height:844},isMobile:true,hasTouch:true,deviceScaleFactor:1});
+ const home='http://127.0.0.1:'+server.address().port;
+ await page.goto(home+'/games');await page.locator('#view-games').waitFor({state:'visible'});
+ const snapshot=async name=>{
+  const shot=await page.screenshot({type:'jpeg',quality:27,fullPage:false,animations:'disabled'});
+  console.log('VISUAL_SHOT_'+name+':'+shot.toString('base64'));
+ };
+ await snapshot('LIBRARY');
+ for(const kind of ['snake','2048','ttt']){
+  await page.locator('.library-card[data-game="'+kind+'"]').click();
+  if(kind==='snake')await page.locator('#snakeOverlay').click();
+  await page.waitForTimeout(350);
+  const dim=await page.evaluate(()=>{const id=({snake:'.snake-shell','2048':'#board2048',ttt:'#tttboard'})[document.querySelector('#gameDialog').dataset.skin];
+    const board=document.querySelector(id),r=board.getBoundingClientRect();return {size:Math.round(r.width),height:Math.round(r.height),top:Math.round(r.top),vw:innerWidth,vh:innerHeight,centerY:Math.round(r.top+r.height/2),pageCenterY:Math.round(innerHeight/2)}})
+  console.log('ARENA_METRICS_'+kind+':'+JSON.stringify(dim));
+  await snapshot(kind.toUpperCase());
+  await page.locator('[data-close-game]').first().click();
+ }
+}finally{await b.close();await new Promise(resolve=>server.close(resolve))}
