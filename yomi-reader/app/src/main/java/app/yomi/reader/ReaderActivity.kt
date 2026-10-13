@@ -844,7 +844,25 @@ class ReaderActivity : ComponentActivity(), ReaderViewerHost {
     override fun requestPreloadChapter(chapter: ViewerChapter) {
         if (chapter.pages != null) return
         lifecycleScope.launch {
-            withContext(Dispatchers.IO) { chapter.load() }
+            try {
+                withContext(Dispatchers.IO) { chapter.load() }
+                // In Mihon's reader the page-loader state flow refreshes the
+                // adapter when a pending adjacent chapter becomes available.
+                // The local file adapter must explicitly publish that window;
+                // otherwise the reader can strand users at a transition page.
+                if (!isFinishing && chapter in viewerChapters &&
+                    chapter in listOfNotNull(
+                        viewerChapters.getOrNull(activeChapterIndex - 1),
+                        viewerChapters.getOrNull(activeChapterIndex + 1),
+                    )
+                ) {
+                    viewer?.setChapters(window())
+                }
+            } catch (error: kotlinx.coroutines.CancellationException) {
+                throw error
+            } catch (error: Exception) {
+                Log.e(READER_TAG, "chapter-preload-failed chapter=${chapter.chapter.id.value}", error)
+            }
         }
     }
 
