@@ -10,6 +10,7 @@ on:
       - feature/night-play-v9-immersive-games
       - feature/night-play-v10-arena-rework
       - feature/night-play-v11-responsive-touch-layout
+      - feature/night-play-v12-taller-snake-arena
     paths:
       - 'night-play/**'
       - '.github/workflows/night-play-preview-ci.yml'
