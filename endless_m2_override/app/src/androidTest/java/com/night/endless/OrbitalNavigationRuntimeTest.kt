@@ -163,6 +163,14 @@ class OrbitalNavigationRuntimeTest {
         val deadline = SystemClock.uptimeMillis() + 10_000
         var sawControl = false
         while (SystemClock.uptimeMillis() < deadline) {
+            // The full-screen historical explorer hides normal orbital controls.
+            // UI taps can open it while an orbital label is moving underneath.
+            // Close this modal explicitly before looking for Overview again.
+            if (device.findObject(By.text("DEEP TIME")) != null) {
+                device.findObject(By.text("×"))?.click()
+                device.waitForIdle()
+                SystemClock.sleep(250)
+            }
             if (renderer.approachSnapshot().bodyId == null) break
             val overview = device.findObject(By.textContains("Overview"))
             if (overview != null) {
