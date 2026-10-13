@@ -18,6 +18,15 @@ internal class SurfaceDetailRenderer(
     private val lightZ: Double,
     private val elevation: (Double, Double) -> Double
 ) {
+    private var midAnchorX = Double.NaN
+    private var midAnchorZ = Double.NaN
+    private var midVertices: FloatBuffer? = null
+    private var midIndices: ShortBuffer? = null
+    private var midCount = 0
+
+    val midfieldAnchorX: Float get() = midAnchorX.toFloat()
+    val midfieldAnchorZ: Float get() = midAnchorZ.toFloat()
+
     private var anchorX = Double.NaN
     private var anchorZ = Double.NaN
     private var patchVertices: FloatBuffer? = null
@@ -38,6 +47,19 @@ internal class SurfaceDetailRenderer(
             .order(ByteOrder.nativeOrder()).asShortBuffer()
             .apply { put(data); position(0) }
 
+    fun prepare(centerX: Double, centerZ: Double) {
+        if (!midAnchorX.isFinite() ||
+            hypot(centerX - midAnchorX, centerZ - midAnchorZ) >= 0.028) {
+            val mid = SurfaceMidfieldMesh.build(centerX, centerZ, elevation)
+            midVertices = floats(mid.vertices)
+            midIndices = shorts(mid.indices)
+            midCount = mid.indices.size
+            midAnchorX = centerX
+            midAnchorZ = centerZ
+        }
+        update(centerX, centerZ)
+    }
+
     private fun update(centerX: Double, centerZ: Double) {
         if (anchorX.isFinite() && hypot(centerX - anchorX, centerZ - anchorZ) < 0.0011) return
         val patch = SurfaceDetailMesh.buildPatch(centerX, centerZ, elevation)
@@ -57,11 +79,29 @@ internal class SurfaceDetailRenderer(
     }
 
     fun draw(centerX: Double, centerZ: Double, program: Int) {
-        update(centerX, centerZ)
+        prepare(centerX, centerZ)
 
         val vertices = patchVertices ?: return
         val indices = patchIndices ?: return
         val patchLocation = GLES30.glGetUniformLocation(program, "uPatchType")
+        // The middle ring is grounded in the same measured DEM as the far
+        // landscape and fades its synthetic subpixel geology at both joins.
+        midVertices?.let { middle ->
+            midIndices?.let { midIndex ->
+                GLES30.glUniform1i(patchLocation, 4)
+                GLES30.glEnable(GLES30.GL_POLYGON_OFFSET_FILL)
+                GLES30.glPolygonOffset(-1.0f, -1.0f)
+                bindAttributes(middle)
+                midIndex.position(0)
+                GLES30.glDrawElements(
+                    GLES30.GL_TRIANGLES, midCount,
+                    GLES30.GL_UNSIGNED_SHORT, midIndex
+                )
+                unbindAttributes()
+                GLES30.glDisable(GLES30.GL_POLYGON_OFFSET_FILL)
+            }
+        }
+
         GLES30.glUniform1i(patchLocation, 1)
         GLES30.glEnable(GLES30.GL_POLYGON_OFFSET_FILL)
         GLES30.glPolygonOffset(-1.0f, -1.0f)
@@ -84,6 +124,7 @@ internal class SurfaceDetailRenderer(
             unbindAttributes()
             GLES30.glDepthMask(true)
             GLES30.glEnable(GLES30.GL_CULL_FACE)
+            GLES30.glDisable(GLES30.GL_BLEND)
         }
 
         rockVertices?.takeIf { rockCount > 0 }?.let {
