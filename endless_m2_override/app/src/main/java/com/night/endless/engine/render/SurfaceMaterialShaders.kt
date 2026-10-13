@@ -61,13 +61,17 @@ float noise2(vec2 p) {
     );
 }
 
+// Derivative-filtered noise prevents subpixel grains from creating an
+// aggressive moire texture across kilometer-distant planetary slopes.
+float noiseFiltered(vec2 coordinates) {
+    float footprint = max(length(dFdx(coordinates)), length(dFdy(coordinates)));
+    return mix(noise2(coordinates), 0.5, smoothstep(0.50, 1.55, footprint));
+}
+
 float geologicalDetail(vec2 pos) {
-    float low = noise2(pos * 18.0);
-    float medium = noise2(pos * 115.0);
-    // Pixel-size attenuation to avoid high-frequency shimmering.
-    float pixelSpan = length(fwidth(pos)) * 1400.0;
-    float detail = mix(noise2(pos * 1400.0), 0.5,
-                       smoothstep(0.50, 2.5, pixelSpan));
+    float low = noiseFiltered(pos * 18.0);
+    float medium = noiseFiltered(pos * 115.0);
+    float detail = noiseFiltered(pos * 1400.0);
     return low * 0.48 + medium * 0.34 + detail * 0.18;
 }
 
@@ -81,8 +85,8 @@ void main() {
     vec3 sun = normalize(uLight);
     vec2 ground = vPosition.xz;
     float granules = geologicalDetail(ground);
-    float areaNoise = noise2(ground * 3.6);
-    float grain = noise2(ground * 470.0);
+    float areaNoise = noiseFiltered(ground * 3.6);
+    float grain = noiseFiltered(ground * 470.0);
 
     // Small-scale bump derived from the *same* geographic material pattern.
     // Prevent unstable sampling derivatives at orbital/surface extremes.
@@ -91,8 +95,10 @@ void main() {
     vec3 dY = dFdy(vPosition);
     vec3 perturb = cross(dY, N) * dFdx(detailHeight)
                  + cross(N, dX) * dFdy(detailHeight);
-    float span = max(length(cross(dX, dY)), 1e-8);
-    vec3 microNormal = normalize(N + perturb * (uWorld == 0 ? 0.11 : 0.17) / span);
+    float span = max(length(cross(dX, dY)), 1e-7);
+    float nearDetail = 1.0 - smoothstep(0.6, 3.0, vDistance);
+    vec3 microNormal = normalize(N + perturb *
+         (uWorld == 0 ? 0.018 : 0.025) * nearDetail / span);
     // Keep relief normals in the actual upward-facing terrain hemisphere.
     if (dot(microNormal, N) < 0.14) microNormal = normalize(microNormal + N);
 
@@ -106,7 +112,7 @@ void main() {
         vec3 rustDust = vec3(0.41, 0.195, 0.105);
         vec3 ferricSand = vec3(0.58, 0.295, 0.145);
         vec3 rock = vec3(0.24, 0.18, 0.15);
-        float dunes = smoothstep(0.20, 0.83, noise2(ground * vec2(80.0, 23.0)));
+        float dunes = smoothstep(0.20, 0.83, noiseFiltered(ground * vec2(80.0, 23.0)));
         albedo = mix(rustDust, ferricSand, dunes * 0.55);
         albedo = mix(albedo, rock, darkBasalt * 0.63);
         albedo *= 0.76 + granules * 0.52;
