@@ -97,7 +97,12 @@ try {
  await page.locator('#snakeOverlay').waitFor({state:'visible'})
  await page.locator('#snakeOverlay').click()
  await page.waitForTimeout(180)
- assert.equal(await page.locator('#snakeOverlay').isVisible(),false)
+ const snakeOverlayState=await page.evaluate(()=>{
+  const el=document.getElementById('snakeOverlay');
+  return {hidden:el.hidden,visible:getComputedStyle(el).display,started:snake.started,alive:snake.alive,paused:gamePaused,mode:snake.mode,location:location.pathname,text:el.textContent}
+ })
+ console.log('Snake overlay start diagnostics',JSON.stringify(snakeOverlayState))
+ assert.equal(await page.locator('#snakeOverlay').isVisible(),false,'Snake start overlay should become invisible: '+JSON.stringify(snakeOverlayState))
  await page.locator('#gameSettings').click()
  assert.equal(await page.locator('.snake-mode-preview').count(),5)
  await page.getByRole('button',{name:'Maze I',exact:true}).click()
