@@ -739,8 +739,8 @@ body{background:var(--bg)}
 
 /* Keep the actual board near the visual middle, not the bottom third. */
 @media(max-width:600px) and (min-height:740px){
- .game-page .game-wrap{transform:translateY(-28px)}
- .game-page.focus-active .game-wrap{transform:none}
+ .game-page .game-wrap,#gameDialog .game-wrap{padding-bottom:62px}
+ .game-page.focus-active .game-wrap,#gameDialog.focus-active .game-wrap{padding-bottom:6px}
 }
 @media(prefers-reduced-motion:reduce){.game-page .game-wrap{transition:none}}
 </style>
