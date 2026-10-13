@@ -193,8 +193,20 @@ shot games-2048-board
 adb shell input swipe 800 800 260 800 240
 sleep 1
 shot games-2048-after-swipe
+# Two starting tiles can randomly both occupy the left edge. In that case,
+# try right and up before failing, rather than misdiagnosing legal no-op moves.
 if cmp -s "$OUT/games-2048-board.png" "$OUT/games-2048-after-swipe.png"; then
-  echo '2048 board was visually unchanged after a gesture.' >&2
+  adb shell input swipe 260 800 800 800 240
+  sleep 1
+  shot games-2048-after-swipe
+fi
+if cmp -s "$OUT/games-2048-board.png" "$OUT/games-2048-after-swipe.png"; then
+  adb shell input swipe 540 940 540 500 240
+  sleep 1
+  shot games-2048-after-swipe
+fi
+if cmp -s "$OUT/games-2048-board.png" "$OUT/games-2048-after-swipe.png"; then
+  echo '2048 board was visually unchanged after three gestures.' >&2
   exit 1
 fi
 tap "All games"
