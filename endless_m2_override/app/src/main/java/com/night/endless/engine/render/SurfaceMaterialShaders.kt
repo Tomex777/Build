@@ -16,6 +16,7 @@ layout(location=1) in vec3 aNormal;
 layout(location=2) in vec3 aColor;
 uniform mat4 uVp;
 uniform vec2 uOffset;
+uniform float uPlanetRadiusUnits; // km planetary radius divided by 3km/world unit
 out highp vec3 vPosition;
 out highp vec3 vNormal;
 out highp vec3 vColor;
@@ -24,9 +25,16 @@ out highp float vDistance;
 void main() {
     vec3 cameraRelative = vec3(aPosition.x + uOffset.x,
                               aPosition.y, aPosition.z + uOffset.y);
+    // Local tangent approximation to the actual curved lunar/Martian globe.
+    // Beyond ~4 km on Mars and ~3 km on the Moon, curvature pushes distant
+    // terrain below the visible horizon instead of forming a fake ceiling.
+    float radius = max(uPlanetRadiusUnits, 1.0);
+    float surfaceDistance2 = dot(cameraRelative.xz, cameraRelative.xz);
+    cameraRelative.y -= surfaceDistance2 / (2.0 * radius);
     gl_Position = uVp * vec4(cameraRelative, 1.0);
     vPosition = aPosition;
-    vNormal = aNormal;
+    vNormal = normalize(aNormal +
+        vec3(cameraRelative.x / radius, 0.0, cameraRelative.z / radius));
     vColor = aColor;
     vDistance = length(cameraRelative.xz);
 }
