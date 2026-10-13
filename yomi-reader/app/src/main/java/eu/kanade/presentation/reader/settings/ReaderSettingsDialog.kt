@@ -71,6 +71,8 @@ fun ReaderSettingsDialog(
     onVolumeKeysInvertedChange: (Boolean) -> Unit,
     pageTransitions: Boolean,
     onPageTransitionsChange: (Boolean) -> Unit,
+    alwaysShowChapterTransition: Boolean,
+    onAlwaysShowChapterTransitionChange: (Boolean) -> Unit,
     tapZones: String,
     onTapZonesChange: (String) -> Unit,
     tapZoneInvert: String,
@@ -243,6 +245,11 @@ fun ReaderSettingsDialog(
                                 SettingSwitch("Fullscreen", fullscreen, onFullscreenChange)
                                 SettingSwitch("Keep screen on", keepScreenOn, onKeepScreenOnChange)
                                 SettingSwitch("Read with long tap", readWithLongTap, onReadWithLongTapChange)
+                                SettingSwitch(
+                                    "Always show chapter transitions",
+                                    alwaysShowChapterTransition,
+                                    onAlwaysShowChapterTransitionChange,
+                                )
                             }
                             2 -> {
                                 SettingSwitch(
