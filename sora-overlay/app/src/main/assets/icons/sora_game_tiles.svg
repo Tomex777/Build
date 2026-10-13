@@ -1,6 +1,11 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-<path d="M11 6 H25 Q30 6 30 11 V25 Q30 30 25 30 H11 Q6 30 6 25 V11 Q6 6 11 6 Z" fill="#554632"/>
-<path d="M39 6 H53 Q58 6 58 11 V25 Q58 30 53 30 H39 Q34 30 34 25 V11 Q34 6 39 6 Z" fill="#8C5A33"/>
-<path d="M11 34 H25 Q30 34 30 39 V53 Q30 58 25 58 H11 Q6 58 6 53 V39 Q6 34 11 34 Z" fill="#B16A32"/>
-<path d="M39 34 H53 Q58 34 58 39 V53 Q58 58 53 58 H39 Q34 58 34 53 V39 Q34 34 39 34 Z" fill="#E9B949"/>
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+  <path d="M12 2 H52 Q62 2 62 12 V52 Q62 62 52 62 H12 Q2 62 2 52 V12 Q2 2 12 2 Z" fill="#272722"/>
+  <path d="M9 8 H28 Q32 8 32 12 V28 Q32 32 28 32 H9 Q5 32 5 28 V12 Q5 8 9 8 Z" fill="#594832"/>
+  <path d="M37 8 H55 Q59 8 59 12 V28 Q59 32 55 32 H37 Q33 32 33 28 V12 Q33 8 37 8 Z" fill="#997145"/>
+  <path d="M9 36 H28 Q32 36 32 40 V55 Q32 59 28 59 H9 Q5 59 5 55 V40 Q5 36 9 36 Z" fill="#B67B38"/>
+  <path d="M37 36 H55 Q59 36 59 40 V55 Q59 59 55 59 H37 Q33 59 33 55 V40 Q33 36 37 36 Z" fill="#E9B949"/>
+  <path d="M13 18 C13 11 24 12 23 18 C23 22 14 23 13 27 H24" fill="none" stroke="#F3F1EA" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M50 13 V27 M40 13 V22 H53" fill="none" stroke="#F3F1EA" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M13 43 H25 M13 43 V54 H25 M25 43 V54 M13 49 H25" fill="none" stroke="#F3F1EA" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M41 42 H50 Q54 42 54 46 V48 Q54 50 50 50 H41 V56 H54" fill="none" stroke="#14140F" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
 </svg>
