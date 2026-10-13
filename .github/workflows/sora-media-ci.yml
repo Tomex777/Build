@@ -216,6 +216,48 @@ jobs:
           if-no-files-found: warn
           retention-days: 5
 
+      - name: Build real Android game screenshot contact sheet
+        if: always()
+        continue-on-error: true
+        run: |
+          python3 -m pip install -q "pillow==11.3.0"
+          python3 - <<'PYGALLERY'
+          from pathlib import Path
+          from PIL import Image,ImageDraw
+          import base64,io
+          root=Path('/tmp/sora-hub-tabs')
+          shots=[
+              'games-arcade-hub','games-snake-paused','games-2048-after-swipe',
+              'games-tictactoe-after-move','games-memory-after-two-flips',
+              'games-empty-library','games-daily-five','games-who-am-i',
+              'games-who-said-it','games-bible-trivia-result',
+              'games-would-rather-next','games-meme-caption-empty',
+          ]
+          thumbs=[]
+          for name in shots:
+              image_path=root/(name+'.png')
+              if not image_path.exists(): continue
+              image=Image.open(image_path).convert('RGB')
+              image.thumbnail((260,520))
+              thumbs.append((name,image))
+          if not thumbs:
+              print('No game screenshots yet; visual review needs a completed emulator run.')
+          else:
+              columns=3;cell_w=280;cell_h=560
+              gallery=Image.new('RGB',(columns*cell_w,((len(thumbs)+columns-1)//columns)*cell_h),'#171717')
+              draw=ImageDraw.Draw(gallery)
+              for i,(name,img) in enumerate(thumbs):
+                  x=(i%columns)*cell_w+10;y=(i//columns)*cell_h
+                  draw.text((x,y+5),name.replace('games-','')[:34],fill='white')
+                  gallery.paste(img,(x,y+30))
+              output=root/'android-game-contact.jpg'
+              gallery.save(output,'JPEG',quality=56,optimize=True)
+              print('Android screenshots visually assembled:',len(thumbs),'of 12. Asset:',output)
+              value=base64.b64encode(output.read_bytes()).decode()
+              for i in range(0,len(value),2500):
+                  print('SORA_CONTACT_CHUNK:'+value[i:i+2500])
+          PYGALLERY
+
       - name: Upload installable Sora APKs
         if: always()
         uses: actions/upload-artifact@v4
