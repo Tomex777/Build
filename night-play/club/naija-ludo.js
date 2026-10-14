@@ -259,6 +259,7 @@ const api={create,normalize,render,changePlayers,changeDice,changeOption,selectD
 if(isTestHost){
  api.setTestRolls=values=>{if(!Array.isArray(values)||!values.every(x=>Number.isInteger(x)&&x>=1&&x<=6))throw Error("Invalid test dice");riggedForTest=[...values];};
  api.snapshot=s=>JSON.parse(JSON.stringify(s));
+ api.testCapture=capture;api.testLegal=legal;api.testBarrier=blockedByBarrier;
 }
 window.NightLudo=Object.freeze(api);
 })();
