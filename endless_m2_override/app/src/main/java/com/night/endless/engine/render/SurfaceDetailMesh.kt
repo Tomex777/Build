@@ -19,6 +19,7 @@ internal object SurfaceDetailMesh {
     const val SIDE = 113
     const val STEP = 0.00035f // 1.05 meters between near-field vertices
     const val STRIDE = 9
+    const val ROCK_SIDES = 12
 
     data class Mesh(val vertices: FloatArray, val indices: ShortArray)
     data class Rocks(val vertices: FloatArray, val count: Int)
@@ -135,7 +136,7 @@ internal object SurfaceDetailMesh {
 
     /**
      * Stable geographic stone placement. Rebuilt only after the viewer moves
-     * enough to need another visible patch. Each rock has eight nonuniform
+     * enough to need another visible patch. Each rock has twelve nonuniform
      * triangular facets and a weathered cap: not a flat sprite.
      */
     fun buildRocks(centerX: Double, centerZ: Double, elevation: (Double, Double) -> Double): Rocks {
@@ -178,14 +179,16 @@ internal object SurfaceDetailMesh {
             val size = (0.000018 + grainSize * grainSize * grainSize *
                 grainSize * grainSize * grainSize * grainSize * 0.00043)
             val squish = 0.38 + hash2(gx - 7, gz + 45) * 0.45
-             val offset = hash2(gx, gz - 27) * PI * 2.0
+            val offset = hash2(gx, gz - 27) * PI * 2.0
             val rockHeight = size * squish
+            val aspectX = 0.72 + hash2(gx + 74, gz - 13) * 0.55
+            val aspectZ = 0.68 + hash2(gx - 39, gz + 65) * 0.59
             val tipX = x + cos(offset + 0.4) * size * 0.075
             val tipZ = z + sin(offset + 0.4) * size * 0.075
             data class Point(val x: Double, val y: Double, val z: Double)
             fun point(angleIndex: Int, tier: Int): Point {
-                val angle = offset + 2.0 * PI * (angleIndex % 8) / 8.0
-                val random = hash2(gx * 17 + (angleIndex % 8), gz)
+                val angle = offset + 2.0 * PI * (angleIndex % ROCK_SIDES) / ROCK_SIDES.toDouble()
+                val random = hash2(gx * 17 + (angleIndex % ROCK_SIDES), gz)
                 val radius = size * (0.71 + 0.35 * random)
                 val diameter = when (tier) {
                     0 -> radius
@@ -197,7 +200,8 @@ internal object SurfaceDetailMesh {
                     1 -> base + rockHeight * (0.52 + 0.09 * random)
                     else -> base + rockHeight * (0.88 + 0.08 * random)
                 }
-                return Point(x + cos(angle) * diameter, height, z + sin(angle) * diameter)
+                return Point(x + cos(angle) * diameter * aspectX, height,
+                    z + sin(angle) * diameter * aspectZ)
             }
             fun triangle(a: Point, b: Point, c: Point) {
                 val ux = b.x - a.x; val uy = b.y - a.y; val uz = b.z - a.z
@@ -207,12 +211,23 @@ internal object SurfaceDetailMesh {
                 var nz = ux * vy - uy * vx
                 val len = sqrt(nx * nx + ny * ny + nz * nz).coerceAtLeast(1e-12)
                 nx /= len; ny /= len; nz /= len
-                triVertex(a.x, a.y, a.z, nx, ny, nz, rockTone)
-                triVertex(b.x, b.y, b.z, nx, ny, nz, rockTone)
-                triVertex(c.x, c.y, c.z, nx, ny, nz, rockTone)
+                fun weatheredVertex(p: Point) {
+                    // Preserve chipped face structure while softening the
+                    // artificial triangle-to-triangle lighting discontinuity.
+                    var sx = (p.x - x) / (size * aspectX * size * aspectX)
+                    var sy = (p.y - base - rockHeight * .30) / (rockHeight * rockHeight)
+                    var sz = (p.z - z) / (size * aspectZ * size * aspectZ)
+                    val sl = sqrt(sx*sx + sy*sy + sz*sz).coerceAtLeast(1e-12)
+                    sx = sx / sl * .65 + nx * .35
+                    sy = sy / sl * .65 + ny * .35
+                    sz = sz / sl * .65 + nz * .35
+                    val length = sqrt(sx*sx + sy*sy + sz*sz).coerceAtLeast(1e-12)
+                    triVertex(p.x, p.y, p.z, sx / length, sy / length, sz / length, rockTone)
+                }
+                weatheredVertex(a); weatheredVertex(b); weatheredVertex(c)
             }
             val top = Point(tipX, base + rockHeight, tipZ)
-            for (side in 0 until 8) {
+            for (side in 0 until ROCK_SIDES) {
                 val lowA = point(side, 0); val lowB = point(side + 1, 0)
                 val midA = point(side, 1); val midB = point(side + 1, 1)
                 val highA = point(side, 2); val highB = point(side + 1, 2)

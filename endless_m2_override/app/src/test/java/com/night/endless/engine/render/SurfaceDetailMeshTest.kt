@@ -6,6 +6,17 @@ import org.junit.Test
 import kotlin.math.abs
 
 class SurfaceDetailMeshTest {
+    @Test fun weatheredRockNormalsStayFiniteAndUnitLength() {
+        val rocks = SurfaceDetailMesh.buildRocks(1.5, -.5) { x, z -> .1 + x * .06 - z * .03 }
+        assertTrue(rocks.count > 100)
+        for (i in rocks.vertices.indices step SurfaceDetailMesh.STRIDE) {
+            val nx = rocks.vertices[i + 3].toDouble()
+            val ny = rocks.vertices[i + 4].toDouble()
+            val nz = rocks.vertices[i + 5].toDouble()
+            assertEquals(1.0, kotlin.math.sqrt(nx*nx + ny*ny + nz*nz), 1e-5)
+        }
+    }
+
     @Test fun localLodPreservesPlanetCoordinatesAndAddsOnlySmallRelief() {
         val elevation: (Double, Double) -> Double = { x, z -> 0.2 + x * 0.012 + z * 0.026 }
         val mesh = SurfaceDetailMesh.buildPatch(0.01, -0.017, elevation)
@@ -25,7 +36,7 @@ class SurfaceDetailMeshTest {
         assertTrue(first.count > 200)
         assertEquals(first.count, second.count)
         assertTrue(first.vertices.contentEquals(second.vertices))
-        assertEquals(first.count * 8 * 5 * 3 * 9, first.vertices.size)
+        assertEquals(first.count * SurfaceDetailMesh.ROCK_SIDES * 5 * 3 * 9, first.vertices.size)
         assertTrue(first.vertices.all { it.isFinite() })
     }
 
@@ -33,7 +44,7 @@ class SurfaceDetailMeshTest {
     @Test fun surfaceRocksKeepCoherentReflectanceAndMostlyGravelSize() {
         val rocks = SurfaceDetailMesh.buildRocks(0.0, 0.0) { _, _ -> 0.0 }
         val stride = SurfaceDetailMesh.STRIDE
-        val verticesPerStone = 8 * 5 * 3
+        val verticesPerStone = SurfaceDetailMesh.ROCK_SIDES * 5 * 3
         var gravel = 0
         for (stone in 0 until rocks.count) {
             val first = stone * verticesPerStone * stride

@@ -95,4 +95,30 @@ def check_lunar_stippling():
 
 
 check_lunar_stippling()
+
+
+def check_composed_landing(name):
+    """The HUD and SurfaceView must agree in the actual composed window.
+    A correct PixelCopy alone previously hid a mixed orbital landing frame.
+    Sample the central unobstructed scene, outside branding and controls.
+    """
+    rendered = open_frame(name + "-render")
+    composed = open_frame(name)
+    assert rendered.size == composed.size, "Landing capture coordinate frames differ"
+    a, b = rendered.load(), composed.load()
+    total = samples = 0
+    for y in range(int(rendered.height * .40), int(rendered.height * .70), 4):
+        for x in range(int(rendered.width * .20), int(rendered.width * .80), 4):
+            total += sum(abs(a[x, y][c] - b[x, y][c]) for c in range(3))
+            samples += 3
+    difference = total / max(1, samples) / 255.0
+    print(f"{name}: composed/surface scene difference {difference:.4f}")
+    assert difference < .035, (
+        f"{name}: composed landing disagrees with rendered terrain; inspect "
+        "frame-atomic navigation and compositor/capture synchronization"
+    )
+
+
+check_composed_landing("moon-surface")
+check_composed_landing("mars-surface")
 print("Android planetary landing visibility checks passed")

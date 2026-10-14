@@ -400,6 +400,12 @@ class MoonSurfaceRuntimeTest {
     }
 
     private fun capture(instrumentation: android.app.Instrumentation, name: String, scene: EndlessGLView) {
+        // Observe completed GL frames before asking SurfaceFlinger for the
+        // whole window; a ready HUD alone does not prove terrain is on screen.
+        val baseline = scene.endlessRenderer.completedFrameCount()
+        await("Stable composed frame for $name", 20_000) {
+            scene.endlessRenderer.completedFrameCount() >= baseline + 3L
+        }
         val screenshot = checkNotNull(instrumentation.uiAutomation.takeScreenshot())
         val base = checkNotNull(instrumentation.targetContext.getExternalFilesDir(null))
         write(screenshot, File(base, "endless-runtime/$name.png"), name)

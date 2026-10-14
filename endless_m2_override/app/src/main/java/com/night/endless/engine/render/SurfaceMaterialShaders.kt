@@ -58,9 +58,13 @@ out vec4 fragColor;
 
 // Hash uses fixed surface coordinates, so regolith patterns do not swim.
 float hash21(vec2 p) {
-    p = fract(p * vec2(123.34, 456.21));
-    p += dot(p, p + 45.32);
-    return fract(p.x * p.y);
+    // Integer hashing preserves centimetre detail at kilometre-scale site
+    // coordinates, where float multiply/fract hashes lose their low bits.
+    uvec2 q = uvec2(ivec2(p));
+    uint h = q.x * 374761393u ^ q.y * 668265263u;
+    h = (h ^ (h >> 13u)) * 1274126177u;
+    h ^= h >> 16u;
+    return float(h & 0x00ffffffu) / 16777216.0;
 }
 float noise2(vec2 p) {
     vec2 i = floor(p);
@@ -111,6 +115,10 @@ void main() {
     float granules = geologicalDetail(ground);
     float areaNoise = noiseFiltered(ground * 3.6);
     float grain = noiseFiltered(ground * 470.0);
+    // 1cm and 6cm albedo grains are derivative-filtered and low contrast;
+    // subpixel grit fades to its mean instead of crawling during walking.
+    float grit = noiseFiltered(ground * 300000.0) * .55 +
+                 noiseFiltered(ground * 50000.0 + 31.7) * .45;
 
     // Small-scale bump derived from the *same* geographic material pattern.
     // Prevent unstable sampling derivatives at orbital/surface extremes.
@@ -202,6 +210,7 @@ void main() {
         albedo *= 0.90 + 0.17 * granules;
     }
 
+    albedo *= 0.95 + 0.10 * grit;
     float direct = max(dot(microNormal, sun), 0.0);
     float halfLambert = smoothstep(0.0, 0.07, direct);
     // No invented lunar atmosphere. Moon's small fill is exposure/ambient
@@ -214,7 +223,9 @@ void main() {
     // Variation between buried basalt and dust-coated stones reduces
     // the repeated orange/black silhouette effect in the previous frame.
     if (uPatchType == 2) {
-        albedo *= 0.72 + vColor.r * 0.65;
+        float rockWeathering = noiseFiltered(
+            (vPosition.xz + vPosition.y * vec2(.37, .61)) * 18000.0);
+        albedo *= (0.72 + vColor.r * 0.65) * (.92 + .16 * rockWeathering);
     }
     vec3 color = albedo * light * surfaceAo;
 

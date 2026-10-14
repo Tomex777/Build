@@ -13,7 +13,7 @@ import kotlin.math.hypot
 internal object SurfaceRockShadows {
     const val SEGMENTS = 10
     private const val ROCK_VERTEX_STRIDE = 9
-    private const val ROCK_TRIANGLES = 8 * 5
+    private const val ROCK_TRIANGLES = SurfaceDetailMesh.ROCK_SIDES * 5
     private const val VERTICES_PER_ROCK = ROCK_TRIANGLES * 3
 
     fun build(

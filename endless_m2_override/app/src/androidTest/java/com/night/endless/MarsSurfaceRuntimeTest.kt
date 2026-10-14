@@ -308,6 +308,12 @@ class MarsSurfaceRuntimeTest {
         name: String,
         renderedScene: EndlessGLView? = null
     ) {
+        renderedScene?.let { scene ->
+            val baseline = scene.endlessRenderer.completedFrameCount()
+            await("Stable composed frame for $name", 20_000) {
+                scene.endlessRenderer.completedFrameCount() >= baseline + 3L
+            }
+        }
         val screenshot: Bitmap = checkNotNull(instrumentation.uiAutomation.takeScreenshot())
         val fullTarget = File(
             checkNotNull(instrumentation.targetContext.getExternalFilesDir(null)),

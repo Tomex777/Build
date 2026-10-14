@@ -265,6 +265,9 @@ class EndlessRenderer(
         Matrix.perspectiveM(projection, 0, 48f, width.toFloat() / height, 0.03f, 300f)
     }
 
+    // UI navigation/camera mutators use this same monitor. A landing must
+    // never change mode and yaw halfway through an orbital draw.
+    @Synchronized
     override fun onDrawFrame(gl: GL10?) {
         val now = System.nanoTime()
         val dt = ((now - lastNanos) / 1_000_000_000.0).coerceIn(0.0, .05)
