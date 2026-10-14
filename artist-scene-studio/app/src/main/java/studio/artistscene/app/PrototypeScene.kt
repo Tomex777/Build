@@ -8,6 +8,7 @@ import studio.artistscene.core.LightType
 import studio.artistscene.core.HairStyle
 import studio.artistscene.core.CharacterAppearanceSettings
 import studio.artistscene.core.RigPose
+import studio.artistscene.core.RigDefinition
 import studio.artistscene.core.WorldSettings
 import studio.artistscene.core.EnvironmentPreset
 import studio.artistscene.core.SceneProject
@@ -42,6 +43,27 @@ object PrototypeScene {
         ),
         world = WorldSettings(environmentPreset = EnvironmentPreset.DAYLIGHT),
     )
+
+    /**
+     * Filament can prefix imported bone paths differently across SceneView releases.
+     * Bind the authored real-joint hero pose by *discovered* bone name when needed.
+     * Other characters, bones and user-authored poses remain untouched.
+     */
+    fun resolveAnimePose(actor: Actor, definition: RigDefinition): Actor {
+        if (actor.asset?.assetId != ANIME_ASSET_ID || actor.id != "anime-hero") return actor
+        val pose = actor.rig ?: return actor
+        val discoveredIds = definition.bones.map { it.id }.toSet()
+        if (pose.joints.keys.all { it in discoveredIds }) return actor
+        fun slug(value: String) =
+            value.lowercase().replace(Regex("[^a-z0-9]+"), "-").trim('-')
+        val mapped = pose.joints.mapNotNull { (id, rotation) ->
+            val name = id.substringAfterLast('/')
+            definition.bones.firstOrNull { slug(it.name) == name }?.let { it.id to rotation }
+        }.toMap()
+        // An incomplete mapping must never silently discard authored pose keys.
+        if (mapped.size != pose.joints.size) return actor
+        return actor.copy(rig = pose.copy(joints = mapped))
+    }
 
     /** Original stylized mesh, still bound to all 163 CC0 MakeHuman bones. */
     private fun animeActor(
