@@ -1,7 +1,6 @@
 package com.night.endless.engine.render
 
 import kotlin.math.max
-import kotlin.math.sin
 import kotlin.math.sqrt
 
 /**
