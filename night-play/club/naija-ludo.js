@@ -103,7 +103,17 @@ function finishIfDone(s){
  s.selectedDie=null;finishTurn(s);
 }
 function diceFace(n,cls="",opts=""){
- const sides=[["front",1],["back",6],["right",3],["left",4],["top",2],["bottom",5]];
+ // Keep a physically consistent opposite-face arrangement while presenting the
+ // final rolled value directly toward the player. 3D tumbling never changes result.
+ const layouts={
+ 1:{front:1,back:6,right:3,left:4,top:2,bottom:5},
+ 6:{front:6,back:1,right:4,left:3,top:2,bottom:5},
+ 2:{front:2,back:5,right:3,left:4,top:6,bottom:1},
+ 5:{front:5,back:2,right:3,left:4,top:1,bottom:6},
+ 3:{front:3,back:4,right:6,left:1,top:2,bottom:5},
+ 4:{front:4,back:3,right:1,left:6,top:2,bottom:5}
+ };
+ const sides=Object.entries(layouts[n]||layouts[1]);
  return '<span class="nj-die '+cls+'" '+opts+'><span class="nj-cube nj-value-'+n+'" aria-hidden="true">'+sides.map(([face,val])=>'<span class="nj-cube-face nj-face-'+face+'"><span class="nj-pips">'+Array.from({length:9},(_,i)=>'<i class="'+(PIPS[val].includes(i)?"lit":"")+'"></i>').join("")+'</span></span>').join("")+'</span></span>';
 }
 function drawBoard(s){
