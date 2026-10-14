@@ -50,6 +50,16 @@ class MainActivity : ComponentActivity() {
             preferences.edit().putBoolean(STARTER_SEEDED_KEY, true).apply()
         }
 
+        // Seed a separate real-human figure study on fresh installations and upgrades.
+        // The automated rig fixture remains unchanged, and existing user scenes are untouched.
+        if (!preferences.getBoolean(HUMAN_STUDY_SEEDED_KEY, false)) {
+            if (!store.exists(PrototypeScene.HUMAN_STUDY_PROJECT_ID)) {
+                runCatching { store.save(PrototypeScene.createHumanoidStudy()) }
+                    .onFailure { Log.w(RUNTIME_LOG_TAG, "human-study-create-failed", it) }
+            }
+            preferences.edit().putBoolean(HUMAN_STUDY_SEEDED_KEY, true).apply()
+        }
+
         // Clean up presentation-only fixture labels from earlier development builds without
         // changing IDs, transforms, poses, assets, or any names the artist has already edited.
         if (store.exists(PrototypeScene.PROJECT_ID)) {
@@ -187,6 +197,7 @@ class MainActivity : ComponentActivity() {
 }
 
 private const val STARTER_SEEDED_KEY = "starter-scene-seeded-v1"
+private const val HUMAN_STUDY_SEEDED_KEY = "human-study-seeded-v1"
 
 internal fun studio.artistscene.core.SceneProject.propX(): Float =
     actors.firstOrNull { it.id == PrototypeScene.PROP_ID }?.transform?.position?.x ?: 0f
