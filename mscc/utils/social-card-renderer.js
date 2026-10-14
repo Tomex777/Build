@@ -309,12 +309,22 @@ function compactCount(value) {
   return String(Math.floor(n))
 }
 
+function truncateLabel(ctx, value, maxWidth) {
+  const text = String(value || '')
+  if (ctx.measureText(text).width <= maxWidth) return text
+  const pieces = [...new Intl.Segmenter(undefined, { granularity:'grapheme' }).segment(text)]
+    .map(part => part.segment)
+  while (pieces.length && ctx.measureText(pieces.join('') + '…').width > maxWidth) pieces.pop()
+  return pieces.join('') + '…'
+}
+
 export async function renderTweetCard({
   text,
   theme = 'light',
   authorName = 'Night User',
   handle = '',
   avatarBuffer = null,
+  imageBuffer = null,
   timestamp = 'Just now',
   verified = false,
   replyCount = 0,
@@ -325,7 +335,37 @@ export async function renderTweetCard({
 } = {}) {
   const dark = String(theme).toLowerCase() === 'dark'
   const width = 1000
-  const height = 650
+  const bodyX = 54
+  const bodyW = 892
+  const bodyFont = `35px ${FONT}`
+  const measure = createCanvas(width, 64).getContext('2d')
+  measure.font = bodyFont
+
+  // Cap the card instead of clipping text against a static 650px screenshot.
+  // An image-only tweet is valid; text can include explicit blank lines.
+  const body = String(text || '').slice(0, 2800)
+  const wrapped = wrapSocialText(measure, body, bodyW, 18)
+  const rows = wrapped.lines
+  const lineHeight = 52
+  const bodyY = 186
+  let picture = null
+  if (Buffer.isBuffer(imageBuffer) && imageBuffer.length) {
+    picture = await loadImage(imageBuffer)
+  }
+
+  const pictureY = rows.length ? bodyY + rows.length * lineHeight + 18 : 176
+  // Keep photos recognizable while respecting a tweet-style 16:9..4:5 window.
+  const pictureHeight = picture
+    ? Math.max(350, Math.min(860, Math.round(bodyW * picture.height / picture.width)))
+    : 0
+  const timestampY = picture
+    ? pictureY + pictureHeight + 48
+    : bodyY + Math.max(1, rows.length) * lineHeight + 28
+  const topRuleY = timestampY + 29
+  const statsY = topRuleY + 39
+  const lowerRuleY = statsY + 26
+  const iconY = lowerRuleY + 43
+  const height = Math.max(480, iconY + 76)
   const canvas = createCanvas(width, height)
   const ctx = canvas.getContext('2d')
 
@@ -349,14 +389,14 @@ export async function renderTweetCard({
   ctx.textBaseline = 'alphabetic'
   ctx.fillStyle = fg
   ctx.font = `30px ${BOLD}`
-  const name = clean(authorName, 48)
+  const name = truncateLabel(ctx, clean(authorName, 60), 700)
   ctx.fillText(name, 164, 76)
-  let nameEnd = 164 + ctx.measureText(name).width
-  if (verified && nameEnd < 840) drawVerifiedBadge(ctx, nameEnd + 10, 54, 21)
+  const nameEnd = 164 + ctx.measureText(name).width
+  if (verified && nameEnd < 855) drawVerifiedBadge(ctx, nameEnd + 10, 54, 21)
 
   ctx.fillStyle = muted
   ctx.font = `24px ${FONT}`
-  ctx.fillText(clean(handle || handleOf(authorName), 34), 164, 111)
+  ctx.fillText(truncateLabel(ctx, clean(handle || handleOf(authorName), 34), 680), 164, 111)
 
   ctx.fillStyle = muted
   ctx.font = `28px ${BOLD}`
@@ -364,56 +404,70 @@ export async function renderTweetCard({
   ctx.fillText('•••', 946, 76)
 
   ctx.textAlign = 'left'
-  const bodyFont = `35px ${FONT}`
-  ctx.font = bodyFont
-  const lines = wrapLines(ctx, text, 892, 6)
-  let y = 188
-  for (const row of lines) {
-    drawAccentLine(ctx, row, 54, y, { color:fg, accent, font:bodyFont })
-    y += 52
+  for (let i = 0; i < rows.length; i += 1) {
+    drawAccentLine(ctx, rows[i], bodyX, bodyY + i * lineHeight, {
+      color:fg, accent, font:bodyFont,
+    })
   }
 
-  const timestampY = 440
+  if (picture) {
+    ctx.save()
+    roundedRect(ctx, bodyX, pictureY, bodyW, pictureHeight, 24)
+    ctx.clip()
+    ctx.fillStyle = dark ? '#15181b' : '#f0f2f5'
+    ctx.fillRect(bodyX, pictureY, bodyW, pictureHeight)
+    const scale = Math.max(bodyW / picture.width, pictureHeight / picture.height)
+    const targetW = picture.width * scale
+    const targetH = picture.height * scale
+    ctx.drawImage(picture,
+      bodyX + (bodyW - targetW) / 2,
+      pictureY + (pictureHeight - targetH) / 2,
+      targetW, targetH)
+    ctx.restore()
+    roundedRect(ctx, bodyX, pictureY, bodyW, pictureHeight, 24)
+    ctx.strokeStyle = line
+    ctx.lineWidth = 2
+    ctx.stroke()
+  }
+
   ctx.fillStyle = muted
   ctx.font = `22px ${FONT}`
-  ctx.fillText(clean(timestamp, 80), 54, timestampY)
+  ctx.fillText(clean(timestamp, 80), bodyX, timestampY)
   if (Number(viewCount) > 0) {
     const stampWidth = ctx.measureText(clean(timestamp,80)).width
-    ctx.fillText(' · ' + compactCount(viewCount) + ' Views', 54 + stampWidth, timestampY)
+    ctx.fillText(' · ' + compactCount(viewCount) + ' Views', bodyX + stampWidth, timestampY)
   }
 
   ctx.strokeStyle = line
   ctx.lineWidth = 1
   ctx.beginPath()
-  ctx.moveTo(54, 472)
-  ctx.lineTo(946, 472)
+  ctx.moveTo(bodyX, topRuleY)
+  ctx.lineTo(946, topRuleY)
   ctx.stroke()
 
-  const stats = [
+  let sx = bodyX
+  for (const [count,label] of [
     [replyCount, 'Replies'],
     [repostCount, 'Reposts'],
     [likeCount, 'Likes'],
-  ]
-  let sx = 54
-  for (const [count,label] of stats) {
+  ]) {
     ctx.fillStyle = fg
     ctx.font = `22px ${BOLD}`
     const n = compactCount(count)
-    ctx.fillText(n, sx, 510)
+    ctx.fillText(n, sx, statsY)
     const nw = ctx.measureText(n).width
     ctx.fillStyle = muted
     ctx.font = `22px ${FONT}`
-    ctx.fillText(' ' + label, sx + nw, 510)
+    ctx.fillText(' ' + label, sx + nw, statsY)
     sx += nw + ctx.measureText(' ' + label).width + 38
   }
 
   ctx.strokeStyle = line
   ctx.beginPath()
-  ctx.moveTo(54, 535)
-  ctx.lineTo(946, 535)
+  ctx.moveTo(bodyX, lowerRuleY)
+  ctx.lineTo(946, lowerRuleY)
   ctx.stroke()
 
-  const iconY = 568
   const iconColor = muted
   const iconXs = [80, 288, 496, 704, 912]
   strokeIcon(ctx, iconReply, { x:iconXs[0]-14, y:iconY-14, size:28, color:iconColor })
@@ -423,7 +477,7 @@ export async function renderTweetCard({
   strokeIcon(ctx, iconShare, { x:iconXs[4]-14, y:iconY-14, size:28, color:iconColor })
 
   const counts = [replyCount,repostCount,likeCount,bookmarkCount]
-  for (let i=0;i<4;i+=1) {
+  for (let i = 0; i < 4; i += 1) {
     if (Number(counts[i]) <= 0) continue
     ctx.fillStyle = muted
     ctx.font = `18px ${FONT}`
