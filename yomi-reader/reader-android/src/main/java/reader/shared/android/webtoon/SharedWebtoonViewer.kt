@@ -104,8 +104,15 @@ class SharedWebtoonViewer(
     override fun getView(): View = frame
 
     override fun setChapters(chapters: ViewerChapters) {
+        // Mihon's DiffUtil keeps the RecyclerView's visible anchor when an
+        // adjacent chapter finishes loading. Do not immediately reset the
+        // scroll offset to requestedPage: doing so jumps readers backward.
+        // Only relocate when opening or explicitly switching chapters.
+        val retainScroll = this.chapters?.currChapter == chapters.currChapter &&
+            currentPage != null
         this.chapters = chapters
         adapter.setChapters(chapters)
+        if (retainScroll && currentPage in adapter.items) return
         val pages = chapters.currChapter.pages.orEmpty()
         if (pages.isNotEmpty()) {
             val index = chapters.currChapter.requestedPage.coerceIn(0, pages.lastIndex)
