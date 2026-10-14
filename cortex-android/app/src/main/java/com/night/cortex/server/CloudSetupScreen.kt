@@ -145,6 +145,7 @@ internal fun CloudSetupPage(
                 Text(
                     when {
                         !configured -> "Save the primary account, then restart MSCC."
+                        state.cloudConnectionFailed -> "Connection check failed. Verify the primary credentials, MSCC deployment and network, then refresh."
                         dashboard == null -> "Status not loaded. Tap Refresh after restarting MSCC."
                         dashboard.configured -> "MEGA is configured. Primary account quota can be verified."
                         else -> "MEGA is not yet connected in the running MSCC process. Restart MSCC."
