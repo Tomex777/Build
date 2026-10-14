@@ -38,6 +38,12 @@ import {
   parseDuration,
   removeScheduledTask,
 } from './scheduled-tasks.js'
+import {
+  dueGroupSchedules,
+  finishGroupSchedule,
+  isGroupScheduleHeld,
+  setGroupScheduleHold,
+} from './group-schedules.js'
 import { mangaDexLatest } from './utility-services.js'
 import {
   addAfkEvent,
@@ -913,6 +919,33 @@ function startScheduledTaskRunner() {
       const due = dueScheduledTasks(sharedStorage)
       for (const task of due) {
         if (await sendScheduledTaskDm(task)) completeScheduledTask(sharedStorage, task.id)
+      }
+      // Use the existing persistent scheduler; no separate polling loop or account-wide lock.
+      for (const rule of dueGroupSchedules(sharedStorage)) {
+        if (Date.now() - rule.nextAt > 10 * 60000) {
+          // Never surprise a group by executing an old rule hours after downtime.
+          finishGroupSchedule(sharedStorage, rule.group, rule.id)
+          continue
+        }
+        if (rule.action === 'open' && isGroupScheduleHeld(sharedStorage, rule.group)) {
+          // A manual Night lockdown overrides the next automatic opening.
+          finishGroupSchedule(sharedStorage,rule.group,rule.id)
+          continue
+        }
+        const account = accounts.get(rule.accountId)
+        if (!account?.connected || !account.sock) continue
+        try {
+          if (!(await isBotGroupAdminContext(account, { key:{ remoteJid:rule.group } }))) continue
+          await account.sock.groupSettingUpdate(rule.group,
+            rule.action === 'close' ? 'announcement' : 'not_announcement')
+          invalidateGroupMetadata(account.id, rule.group)
+          finishGroupSchedule(sharedStorage, rule.group, rule.id)
+          await recordActivity('group.schedule.executed', {
+            account:account.id, group:rule.group, action:rule.action, scheduleId:rule.id,
+          })
+        } catch(error) {
+          console.warn('Group schedule failed:', rule.group, error?.message || error)
+        }
       }
     } catch (error) {
       console.warn('Scheduled task runner failed:', error?.message || error)
@@ -1807,6 +1840,7 @@ async function setGroupAnnouncement(account, msg, closed) {
   if (!isGroup(chat)) throw new Error('This one is for groups.')
   if (!(await isBotGroupAdminContext(account, msg))) throw new Error('Night needs to be a group admin for that.')
   await account.sock.groupSettingUpdate(chat, closed ? 'announcement' : 'not_announcement')
+  setGroupScheduleHold(sharedStorage,chat,Boolean(closed))
   invalidateGroupMetadata(account.id, chat)
   return { closed:Boolean(closed) }
 }
@@ -2426,6 +2460,7 @@ async function processInboundMessage(account, msg) {
           deleteRecentMessages: count => deleteRecentMessages(account, msg, count),
           groupParticipantAction: (raw, action) => groupParticipantAction(account, msg, raw, action),
           groupSetAnnouncement: closed => setGroupAnnouncement(account, msg, closed),
+          groupScheduleStorage: sharedStorage,
           groupInviteLink: () => groupInviteLink(account, msg),
           groupHiddenTag: text => hiddenTag(account, msg, text),
           groupStatusSnapshot: () => groupStatusSnapshot(account, msg),

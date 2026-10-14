@@ -916,6 +916,15 @@ export class SharedStorage {
     return value
   }
 
+  sharedEntries(namespace) {
+    const rows = this.db.prepare('SELECT item_key, value_json FROM shared_kv WHERE namespace = ?').all(String(namespace))
+    return rows.map(row => {
+      let value = null
+      try { value = JSON.parse(row.value_json) } catch {}
+      return { key:row.item_key, value }
+    })
+  }
+
   sharedDelete(namespace, key) {
     return Number(this.db.prepare('DELETE FROM shared_kv WHERE namespace = ? AND item_key = ?').run(String(namespace), String(key)).changes)
   }
