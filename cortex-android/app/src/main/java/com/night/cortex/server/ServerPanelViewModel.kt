@@ -493,20 +493,21 @@ class ServerPanelViewModel(application: Application) : AndroidViewModel(applicat
         if (!_state.value.configured) return
         viewModelScope.launch {
             busy {
-                val (env, dashboard, mounts) = withContext(Dispatchers.IO) {
+                val result = withContext(Dispatchers.IO) {
                     val client = api()
                     val environment = client.environment()
-                    val cloud = runCatching { client.cloudDashboard() }.getOrNull()
-                    val folders = if (cloud?.configured == true) {
+                    val cloudResult = runCatching { client.cloudDashboard() }
+                    val mounts = if (cloudResult.getOrNull()?.configured == true) {
                         runCatching { client.cloudMounts() }.getOrNull()
                     } else emptyList()
-                    Triple(environment, cloud, folders)
+                    Triple(environment, cloudResult, mounts)
                 }
                 _state.value = _state.value.copy(
-                    environment = env,
-                    cloudDashboard = dashboard,
-                    cloudMounts = mounts ?: emptyList(),
-                    cloudMountsLoaded = mounts != null,
+                    environment = result.first,
+                    cloudDashboard = result.second.getOrNull(),
+                    cloudConnectionFailed = result.second.isFailure,
+                    cloudMounts = result.third ?: emptyList(),
+                    cloudMountsLoaded = result.third != null,
                 )
             }
         }
