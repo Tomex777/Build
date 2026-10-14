@@ -44,6 +44,9 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: "8.13"
+      - name: Signing identity verification regression tests
+        working-directory: artist-scene-studio
+        run: python3 -m unittest discover -s scripts/tests -p 'test_*.py'
       - name: Unit tests
         working-directory: artist-scene-studio
         run: gradle :app:testDebugUnitTest || { cat app/build/test-results/testDebugUnitTest/*.xml; exit 1; }
@@ -127,17 +130,33 @@ jobs:
           grep -q "application-label:'Mise'" "$OUT/release-badging.txt"
 
           PRODUCTION_SIGNING="NOT_CONFIGURED"
-          if [[ -n "${MISE_RELEASE_KEYSTORE_BASE64:-}" &&
-                -n "${MISE_RELEASE_STORE_PASSWORD:-}" &&
-                -n "${MISE_RELEASE_KEY_ALIAS:-}" &&
-                -n "${MISE_RELEASE_KEY_PASSWORD:-}" ]]; then
+          # A half-configured signing identity is never a valid reason to fall back
+          # to QA signing: fail the release workflow instead of shipping the wrong key.
+          signing_secrets_present=0
+          for secret in "${MISE_RELEASE_KEYSTORE_BASE64:-}" "${MISE_RELEASE_STORE_PASSWORD:-}" \
+                        "${MISE_RELEASE_KEY_ALIAS:-}" "${MISE_RELEASE_KEY_PASSWORD:-}"; do
+            if [[ -n "$secret" ]]; then
+              signing_secrets_present=$((signing_secrets_present + 1))
+            fi
+          done
+          if [[ "$signing_secrets_present" != 0 && "$signing_secrets_present" != 4 ]]; then
+            echo "Incomplete Mise production signing configuration (four repository secrets required)." >&2
+            exit 1
+          fi
+          if [[ "$signing_secrets_present" == 4 ]]; then
             KEYSTORE="$RUNNER_TEMP/mise-release.jks"
             printf '%s' "$MISE_RELEASE_KEYSTORE_BASE64" | base64 --decode > "$KEYSTORE"
 
             "$BUILD_TOOLS/apksigner" sign               --ks "$KEYSTORE"               --ks-key-alias "$MISE_RELEASE_KEY_ALIAS"               --ks-pass env:MISE_RELEASE_STORE_PASSWORD               --key-pass env:MISE_RELEASE_KEY_PASSWORD               --out "$OUT/Mise-1.0.0-arm64-release-production-signed.apk"               "$ARM64_UNSIGNED"
             "$BUILD_TOOLS/apksigner" sign               --ks "$KEYSTORE"               --ks-key-alias "$MISE_RELEASE_KEY_ALIAS"               --ks-pass env:MISE_RELEASE_STORE_PASSWORD               --key-pass env:MISE_RELEASE_KEY_PASSWORD               --out "$OUT/Mise-1.0.0-universal-release-production-signed.apk"               "$UNIVERSAL_UNSIGNED"
-            "$BUILD_TOOLS/apksigner" verify               "$OUT/Mise-1.0.0-arm64-release-production-signed.apk"
-            "$BUILD_TOOLS/apksigner" verify               "$OUT/Mise-1.0.0-universal-release-production-signed.apk"
+            # Require the exact, owner-controlled permanent key, not merely any
+            # cryptographically valid APK signature. Both APKs must match the pin.
+            python3 scripts/verify_signing_identity.py \
+              --identity ../docs/mise/SIGNING_IDENTITY.json \
+              --apksigner "$BUILD_TOOLS/apksigner" \
+              "$OUT/Mise-1.0.0-arm64-release-production-signed.apk" \
+              "$OUT/Mise-1.0.0-universal-release-production-signed.apk" \
+              | tee "$OUT/PRODUCTION-IDENTITY.txt"
 
             jarsigner               -keystore "$KEYSTORE"               -storepass "$MISE_RELEASE_STORE_PASSWORD"               -keypass "$MISE_RELEASE_KEY_PASSWORD"               -signedjar "$OUT/Mise-1.0.0-release-production-signed.aab"               "$AAB_UNSIGNED"               "$MISE_RELEASE_KEY_ALIAS"
             jarsigner -verify "$OUT/Mise-1.0.0-release-production-signed.aab"
@@ -160,9 +179,15 @@ jobs:
             echo "versionCode=100"
             echo "minSdk=26"
             echo "targetSdk=36"
-            echo "arm64Release=Mise-1.0.0-arm64-release-QA-debugsigned.apk"
-            echo "universalRelease=Mise-1.0.0-universal-release-QA-debugsigned.apk"
-            echo "aabRelease=Mise-1.0.0-release-unsigned.aab"
+            if [[ "$PRODUCTION_SIGNING" == "SIGNED" ]]; then
+              echo "arm64Release=Mise-1.0.0-arm64-release-production-signed.apk"
+              echo "universalRelease=Mise-1.0.0-universal-release-production-signed.apk"
+              echo "aabRelease=Mise-1.0.0-release-production-signed.aab"
+            else
+              echo "arm64Release=Mise-1.0.0-arm64-release-QA-debugsigned.apk"
+              echo "universalRelease=Mise-1.0.0-universal-release-QA-debugsigned.apk"
+              echo "aabRelease=Mise-1.0.0-release-unsigned.aab"
+            fi
             echo "productionSigning=$PRODUCTION_SIGNING"
           } > "$OUT/RELEASE_STATUS.txt"
           ls -lh "$OUT"
@@ -189,6 +214,7 @@ jobs:
             artist-scene-studio/app/build/release-artifacts/*production-signed.aab
             artist-scene-studio/app/build/release-artifacts/ARM64-QA-SIGNATURE.txt
             artist-scene-studio/app/build/release-artifacts/UNIVERSAL-QA-SIGNATURE.txt
+            artist-scene-studio/app/build/release-artifacts/PRODUCTION-IDENTITY.txt
             artist-scene-studio/app/build/release-artifacts/release-badging.txt
             artist-scene-studio/app/build/release-artifacts/SHA256SUMS.txt
             artist-scene-studio/app/build/release-artifacts/RELEASE_STATUS.txt
