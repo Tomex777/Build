@@ -8,6 +8,8 @@ import studio.artistscene.core.ActorKind
 import studio.artistscene.core.EnvironmentPreset
 import studio.artistscene.core.HairStyle
 import studio.artistscene.core.SceneProjectCodec
+import studio.artistscene.core.RigDefinition
+import studio.artistscene.core.RigBone
 import studio.artistscene.core.Vec3
 
 class AnimePoseStudyTest {
@@ -29,6 +31,25 @@ class AnimePoseStudyTest {
         assertTrue(project.actors.any { it.kind == ActorKind.LIGHT })
         assertNotNull(project.cameras.firstOrNull())
         assertEquals(project, SceneProjectCodec.decode(SceneProjectCodec.encode(project)))
+    }
+
+    @Test fun dynamicPoseIsRetargetedByActualFilamentRigBoneNames() {
+        val character = PrototypeScene.createAnimePoseStudy().actors
+            .single { it.id == "anime-hero" }
+        val rotations = character.rig!!.joints
+        val imported = RigDefinition(
+            name = "Runtime rig with a different root",
+            bones = rotations.keys.mapIndexed { index, original ->
+                RigBone(id = "runtime-root/$index", name = original.substringAfterLast('/').replace("-", "."))
+            },
+        )
+        // The real rig names use dots before L/R; slug("upperarm01.l") is upperarm01-l.
+        val remapped = PrototypeScene.resolveAnimePose(character, imported)
+        assertEquals(rotations.size, remapped.rig!!.joints.size)
+        assertTrue(remapped.rig.joints.keys.all { it.startsWith("runtime-root/") })
+        assertEquals(character, PrototypeScene.resolveAnimePose(character, RigDefinition(
+            bones = rotations.keys.map { RigBone(it, it.substringAfterLast('/')) }
+        )))
     }
 
     @Test fun characterCatalogStillKeepsNeutralAnimeForManualPoseEditing() {
