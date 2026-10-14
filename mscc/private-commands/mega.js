@@ -2,7 +2,7 @@ import { downloadMediaMessage } from '@itsliaaa/baileys'
 import { resolveCommandMedia } from '../utils/media-conversion.js'
 import { extensionForMime } from '../utils/whatsapp/media.js'
 import {
-  megaConfig, megaRecentFiles, megaStorageDashboard,
+  megaAvailableMounts, megaConfig, megaRecentFiles, megaStorageDashboard,
   safeMegaName, uploadMegaMedia, validateMegaSize,
 } from '../mega-storage.js'
 
@@ -33,7 +33,7 @@ export default {
     const action = String(ctx.args?.[0] || 'status').trim().toLowerCase()
     const target = String(ctx.args?.[1] || 'primary').trim().toLowerCase()
     if (action === 'help') return ctx.reply(foldersHelp(prefix))
-    if (!['status', 'folders', 'list', 'upload'].includes(action)) return ctx.reply(foldersHelp(prefix))
+    if (!['status', 'folders', 'discover', 'list', 'upload'].includes(action)) return ctx.reply(foldersHelp(prefix))
     try {
       if (action === 'status' || action === 'folders') {
         const data = await megaStorageDashboard()
@@ -54,6 +54,12 @@ export default {
           ...data.targets.map(t => `• ${t.id} — ${t.label} [${t.type === 'primary' ? (data.configured ? 'ready' : 'not connected') : !t.detected ? 'not mounted' : t.uploadEnabled ? 'upload enabled' : 'read-only'}]`),
           'Uploads use the primary folder unless you explicitly select a registered target.',
         ].join('\n'))
+      }
+      if (action === 'discover') {
+        const mounts = await megaAvailableMounts()
+        return ctx.reply(mounts.length
+          ? '☁️ Available MEGA mounts (owner-only)\\n' + mounts.map(m => `• ${m.label} — nodeId: ${m.nodeId}`).join('\\n')
+          : 'No incoming MEGA folder mounts were detected. Contributors must invite the primary MSCC MEGA account and grant upload access.')
       }
       if (!megaConfig().configured) return ctx.reply('☁️ MEGA is not connected. Configure the primary MEGA account in the secure server environment.')
       if (action === 'list') {
