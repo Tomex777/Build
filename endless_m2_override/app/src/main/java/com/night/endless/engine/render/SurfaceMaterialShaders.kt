@@ -181,9 +181,17 @@ void main() {
         // 1024px/81km orbital photos resolve ~80m, not individual pebbles.
         // Do not enlarge those texels into artificial stripes at eye level.
         // Preserve measured albedo for distant ridges and geological context.
-        float photoWeight = uPatchType == 1 ? 0.06 :
-                            (uPatchType == 4 ? 0.32 : 0.80);
-        photoWeight *= smoothstep(0.013, 0.20, vDistance);
+        // Blending by patch TYPE caused conspicuous square photographic
+        // seams every time the 1m / 21m / NASA DEM LOD changed. Use the
+        // actual eye distance for identical albedo at every LOD boundary.
+        // The 80m/pixel orbital photograph only dominates distant terrain.
+        float photoWeight = mix(0.06, 0.80,
+            smoothstep(0.06, 0.70, vDistance));
+        photoWeight *= smoothstep(0.012, 0.16, vDistance);
+        // Gently hide the edge of the finite NASA Trek site instead of
+        // exposing a hard square where photos end and procedural land begins.
+        float edgeDistance = max(abs(ground.x), abs(ground.y));
+        photoWeight *= 1.0 - smoothstep(12.2, 13.55, edgeDistance);
         albedo = mix(albedo, sourceAlbedo, photoWeight);
         albedo *= 0.90 + 0.17 * granules;
     }
