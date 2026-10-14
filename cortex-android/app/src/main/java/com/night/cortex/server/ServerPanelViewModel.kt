@@ -303,6 +303,7 @@ class ServerPanelViewModel(application: Application) : AndroidViewModel(applicat
             val detail = runCatching {
                 when (tab) {
                     ServerTab.CONSOLE -> SilentUpdate(logs = client.logs())
+                    ServerTab.CLOUD -> SilentUpdate()
                     ServerTab.FILES -> SilentUpdate(files = client.listFiles(path))
                     ServerTab.BACKUPS -> SilentUpdate(backups = client.backups())
                     ServerTab.STARTUP -> SilentUpdate(startup = client.startup())
