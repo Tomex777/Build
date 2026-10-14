@@ -97,11 +97,14 @@ void main() {
     // foreground triangles overlap the orbital-resolution DEM grid.
     if (uPatchType == 0 && max(
         abs(vPosition.x - uMidAnchor.x),
-        abs(vPosition.z - uMidAnchor.y)) < 0.546) discard;
+        abs(vPosition.z - uMidAnchor.y)) < 0.560) discard;
 
+    // Clip to the exact mesh extents (160 * 21m / 2 and
+    // 112 * 1.05m / 2). The old inset left coplanar overlap rings
+    // that produced diagonal depth-buffer stippling on lunar slopes.
     if (uPatchType == 4 && max(
         abs(vPosition.x - uViewAnchor.x),
-        abs(vPosition.z - uViewAnchor.y)) < 0.0188) discard;
+        abs(vPosition.z - uViewAnchor.y)) < 0.0196) discard;
     vec3 N = normalize(vNormal);
     vec3 sun = normalize(uLight);
     vec2 ground = vPosition.xz;
