@@ -49,3 +49,16 @@ jobs:
           else
             echo "::warning::Build's repository GitHub Actions token CANNOT read private Torri source. Production signing needs a secure cross-repo source handoff."
           fi
+
+      - name: Check existing cross-repository token aliases without displaying values
+        shell: bash
+        env:
+          CROSS_REPO_TOKEN: ${{ secrets.TORRI_REPO_PAT || secrets.GH_PAT || secrets.GITHUB_PAT || secrets.CROSS_REPO_TOKEN || secrets.REPO_ACCESS_TOKEN || secrets.TORRI_PAT || secrets.PERSONAL_ACCESS_TOKEN || secrets.GH_ACCESS_TOKEN || secrets.BUILD_BOT_TOKEN || secrets.GH_TOKEN }}
+        run: |
+          if [[ -z "$CROSS_REPO_TOKEN" ]]; then
+            echo "::notice::No known cross-repository token alias is currently configured."
+          elif GH_TOKEN="$CROSS_REPO_TOKEN" gh api repos/Tomex777/Torri --jq .full_name >/dev/null 2>&1; then
+            echo "PASS: an existing dedicated token can read private Torri source from Build."
+          else
+            echo "::notice::Found an optional token alias but it has no private Torri read permission."
+          fi
