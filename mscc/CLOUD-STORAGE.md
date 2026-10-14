@@ -1,67 +1,84 @@
-# MSCC Community Cloud (MEGA phase)
+# MSCC Community Cloud — media-type automatic routing
 
-This is an **opt-in private control feature**. No donor password, account transfer,
-or automatic pooling of separate free accounts is required.
+**Private owner-only archive.** The bot chooses the destination; nobody has
+to type contributor IDs or pick cloud accounts. The donor keeps ownership of
+their MEGA account and only shares a dedicated folder with MSCC.
 
-## What works
+## Commands
 
-* `.cloud status` — MEGA's reported used/total for MSCC's **own account** only.
-* `.cloud folders` — show configured, mounted contributor locations.
-* `.cloud discover` — list accessible mount IDs in the private control inbox.
-* `.cloud list [id]` — list recent files in a selected folder.
-* `.cloud upload [id]` — reply to WhatsApp media and stream it into the
-  selected allowlisted folder (maximum 512 MiB, verified size required).
-* Cortex's authenticated GET `/api/cloud` and its loopback GET `/cloud` provide
-  the same dashboard data as JSON. Neither endpoint exposes credentials.
+- `.cloud status` — primary account quota and shared-folder connection counts.
+- `.cloud folders` — readable routing roles and status (Images, Videos, etc.).
+- `.cloud upload` — reply to any supported WhatsApp media; bot auto-routes it.
+- `.cloud list` — newest files across the primary account and connected shares.
+- `.cloud discover` — private owner setup utility; lists mounted folder node IDs.
 
-Uploaded content stays private by default: **no public MEGA link is generated**.
-There is no background auto-archive or migration of sessions/database.
+The backend supports authenticated `GET /api/cloud` and loopback `GET /cloud`
+for a Cortex Storage dashboard (UI still to be built). No passwords appear
+in API responses or in files committed to GitHub.
 
-## Activate
+## Storage rules
 
-1. Set `MSCC_MEGA_EMAIL` / `MSCC_MEGA_PASSWORD` in Azure's protected
-   `/etc/mscc.env` (or Cortex's secure environment editor), **never in GitHub**.
-2. Set `MSCC_MEGA_FOLDER=MSCC Uploads` optionally.
-3. Install the project's dependencies and redeploy MSCC normally.
-4. In the bot's private owner/control DM, run `.cloud status`, then reply to an
-   image with `.cloud upload`.
+Supported roles: `images`, `videos`, `audio`, `documents`, `archives`,
+`stickers`. A folder may cover several roles; `all` matches any role.
 
-## Contributors — shared folder invitations
+For example, five contributor accounts may each share a dedicated folder for:
+Images & Stickers, Videos, Audio, Documents, and Archives. These roles can
+also overlap without asking users where to upload. If multiple writable,
+mounted folders match one type, MSCC picks the folder with the fewest visible
+files; this is **not** a measure of free MEGA quota.
 
-Each supporter should keep their own login and recovery key.
+If a category is *unassigned*, MSCC uses its own primary MEGA account.
+If a category is assigned but the matching folder is missing or not approved
+for writes, the upload is rejected explicitly rather than secretly going to
+an unrelated storage account. Errors after an upload starts do not trigger
+an automatic retry elsewhere, avoiding possible duplicate uploads.
 
-1. On the donor's MEGA account, create a dedicated folder and invite the
-   MSCC MEGA account by its email with permissions for uploads.
-2. Accept the invitation on the MSCC MEGA account.
-3. Run `.cloud discover` privately to see which incoming folders MEGAJS can
-   access and each exact node ID. If the folder does not appear, do **not**
-   assume it is writable from the bot.
-4. Configure an explicit allowlist in the **secure** server environment:
-   `MSCC_MEGA_SHARED_FOLDERS=\'[{"id":"donor1","label":"Supporter One","nodeId":"abcdefgh","uploadEnabled":true}]\'`
-   where `nodeId` is the actual value from `.cloud discover`.
-5. Verify `.cloud folders` shows the target as connected. Make a small
-   test upload with `.cloud upload donor1`. Confirm on the donor's MEGA
-   account that the file is there and which quota changed.
+Files must have known nonzero sizes and be within a 512 MiB per-upload
+limit. Actual available capacity for *contributor-owned* accounts cannot be
+reliably established from incoming folder shares, so the dashboard shows
+verified quota for the primary account only. Do not display hypothetical
+"100 GB available" as if that were confirmed.
 
-Only the exact selected mount can receive contributor uploads. Nonlisted
-folders and entries without `uploadEnabled:true` are never uploaded to.
-`uploadEnabled` is operator approval, not a bypass of MEGA permissions.
+## Initial connection
 
-## Capacity and limits
+1. Put `MSCC_MEGA_EMAIL` and `MSCC_MEGA_PASSWORD` in Azure's protected
+   environment, never WhatsApp or GitHub. Optional
+   `MSCC_MEGA_FOLDER=MSCC Uploads`.
+2. Redeploy MSCC with installed dependencies.
+3. In your private bot control chat run `.cloud status` and reply to a
+   small test image with `.cloud upload`. Check the actual MEGA account.
 
-The dashboard displays *real* quota for the authenticated primary account;
-it intentionally does not add hypothetical 20 GB donations to the displayed
-total. MEGAJS does not provide each contributor's remaining account quota via
-a recipient's folder share. MEGA also enforces transfer and service limits.
+## Contributor onboarding
 
-The initial shared-folder integration is tested with a mock client; actual
-MEGA incoming-share upload support, permissions, and quota attribution need
-a small live verification before relying on it for important data.
+1. Each contributor keeps their MEGA credentials and recovery key.
+2. They create a *dedicated* folder in MEGA and send MSCC's primary MEGA
+   account a folder invitation with permission to add files.
+3. Accept the invite on the primary MEGA account. Run `.cloud discover`
+   privately and obtain the actual exact folder node ID. If it does not
+   appear, do not mark it as connected.
+4. Configure the opt-in role mapping in the **protected server environment**.
+   Example (replace `abcdefgh`, `ijklmnop` with discovered node IDs):
 
-The system does not automatically switch between donor folders when the
-primary is full. All uploads currently select the primary folder unless the
-owner explicitly names an allowlisted contributor target.
+   ```dotenv
+   MSCC_MEGA_SHARED_FOLDERS='[{"id":"photos","label":"Images and Stickers","nodeId":"abcdefgh","mediaTypes":["images","stickers"],"uploadEnabled":true},{"id":"films","label":"Videos","nodeId":"ijklmnop","mediaTypes":["videos"],"uploadEnabled":true}]'
+   ```
 
-Keep critical WhatsApp sessions and the SQLite database on persistent Azure
-storage with separate tested backups. Never treat community folders as the
-only backup: donors can revoke access, and service limits can change.
+   The internal IDs above are only for secure configuration. Users never
+   supply them. `uploadEnabled:true` is an additional operator-approved
+   check and does not override MEGA's own permission checks.
+5. Run `.cloud folders` to confirm the role mapping. Test each category
+   with a small upload and confirm it arrived and is readable in the
+   *contributor's* MEGA account. Confirm quota there too.
+
+## Safety and known limitations
+
+- The MEGAJS contributor-mount behavior has mock regression coverage but
+  has **not** been verified with your real accounts yet. In particular,
+  validate upload encryption/decryption and write permissions on each share.
+- Existing Azure SQLite, active WhatsApp sessions, and authentication
+  backups remain on the server. This archive must not be their only backup.
+- Donors can revoke access, quotas can run out, and MEGA enforces transfer
+  and service limits. Automatic cross-account out-of-space failover is **not**
+  supported until live correctness and quotas are verifiable.
+- No unsolicited automatic archiving of group messages, and no public MEGA
+  sharing links are generated.
