@@ -584,7 +584,17 @@ internal fun StudioScreen(
                 onAssetFailed = handleAssetFailed,
                 onRigDiscovered = { actorId, definition ->
                     rigMessages = rigMessages - actorId
-                    val next = editor.withDiscoveredRig(actorId, definition)
+                    val discovered = editor.withDiscoveredRig(actorId, definition)
+                    val posed = discovered.project.actors.firstOrNull { it.id == actorId }
+                        ?.let { PrototypeScene.resolveAnimePose(it, definition) }
+                    val next = if (posed != null &&
+                        discovered.project.actors.any { it.id == actorId && it != posed }) {
+                        discovered.copy(
+                            project = discovered.project.copy(
+                                actors = discovered.project.actors.map { if (it.id == actorId) posed else it },
+                            ),
+                        )
+                    } else discovered
                     applyEditor(next, "rig-discovered")
                     val compatibility = if (definition.bones.any { RigSemantics.label(it.name) != it.name }) {
                         RigCompatibility.POSEABLE
