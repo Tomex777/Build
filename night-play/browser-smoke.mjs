@@ -222,6 +222,34 @@ try {
  assert.equal(await page.evaluate(()=>document.querySelector('#tttboard .ttt-cell .ttt-mark')===window.__nightTttXMark),true,'Existing X must retain its SVG after bot plays O');
  await page.evaluate(()=>drawTtt());
  assert.equal(await page.evaluate(()=>document.querySelector('#tttboard .ttt-cell .ttt-mark')===window.__nightTttXMark),true,'Unrelated Tic-Tac-Toe renders must never replay the X animation');
+ // A completely filled draw should show a centered result card for ~3s,
+ // then start the next local round on the very same game screen.
+ const tiedBoard=['X','O','X','X','O','O','O','X',''];
+ await page.evaluate(tie=>{
+  mode='local';ttt=[...tie];turn='X';tttFinished=false;gamePaused=false;
+  drawTtt();moveTtt(8);
+ },tiedBoard);
+ assert.equal(await page.locator('#tttboard .ttt-cell').count(),9);
+ await page.locator('#tttboard .ttt-draw-overlay').waitFor({state:'visible',timeout:2000});
+ assert.equal(await page.locator('.ttt-draw-card h3').textContent(),"It's a draw!",'A draw must display its animated result card');
+ assert.equal(await page.locator('.ttt-draw-seconds').textContent(),'3s','Draw card holds a 3-second countdown');
+ assert.equal(await page.evaluate(()=>ttt.every(Boolean)&&tttFinished),true,'Filled round stays on screen while result appears');
+ await page.waitForFunction(()=>!tttFinished&&ttt.every(mark=>mark===''),null,{timeout:5000});
+ await page.locator('#tttboard .ttt-draw-overlay').waitFor({state:'detached',timeout:2000});
+ assert.equal(await page.evaluate(()=>mode),'local','Automatic next round keeps 2-player mode');
+ assert.equal(await page.evaluate(()=>turn),'X','Automatic next round begins with X');
+ assert.equal(new URL(page.url()).pathname,'/play/ttt','Auto-start must not navigate to another page');
+ assert.deepEqual(await page.evaluate(()=>JSON.parse(localStorage.getItem('night-play-save-ttt')).board),Array(9).fill(''),'Next round is saved with blank cells');
+
+ // Restart cancels a pending result timer; it must never erase a newly played X.
+ await page.evaluate(tie=>{ttt=[...tie];turn='X';tttFinished=false;mode='local';drawTtt();moveTtt(8)},tiedBoard);
+ await page.locator('#tttboard .ttt-draw-overlay').waitFor({state:'visible',timeout:2000});
+ await page.locator('#restart').click();
+ assert.equal(await page.locator('#tttboard .ttt-draw-overlay').count(),0,'Restart dismisses draw overlay');
+ await page.evaluate(()=>{mode='local';drawTtt();moveTtt(0)});
+ await page.waitForTimeout(3400);
+ assert.equal(await page.evaluate(()=>ttt[0]),'X','Old result timeout cannot erase new-round moves');
+ assert.equal(await page.locator('#tttboard .ttt-draw-overlay').count(),0);
  await page.locator('[data-close-game]').first().click()
  await page.locator('.mobile-nav a[href="/dashboard"]').click()
  assert.match((await page.locator('#homeGreeting').textContent())||'',/^Good (morning|afternoon|evening|night), Alex\.$/)
