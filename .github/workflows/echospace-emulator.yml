@@ -106,12 +106,12 @@ jobs:
             python3 EchoSpace/tools/emulator_probe.py tap desc 'Save current soundscape'
             sleep 2
             python3 EchoSpace/tools/emulator_probe.py assert text 'My Space'
-            # Saving a mix auto-focuses its rightmost card. Navigate back to the shore.\n            adb shell input swipe 125 1600 950 1600 650\n            sleep 2\n            python3 EchoSpace/tools/emulator_probe.py tap text 'Night Shore'
+            # Saving a mix auto-focuses its rightmost card. Navigate back to the shore.\n            adb shell input swipe 125 1810 950 1810 650\n            sleep 2\n            python3 EchoSpace/tools/emulator_probe.py tap text 'Night Shore'
             sleep 2
             # Allow the environment transition to settle before dragging the carousel.
-            adb shell input swipe 950 1600 75 1600 650
+            adb shell input swipe 950 1810 75 1810 650
             sleep 1
-            adb shell input swipe 950 1600 75 1600 650
+            adb shell input swipe 950 1810 75 1810 650
             sleep 2
             python3 EchoSpace/tools/emulator_probe.py tap text 'My Space'
             python3 EchoSpace/tools/emulator_probe.py assert desc 'Fire sound position. Drag to move.'
