@@ -29,6 +29,30 @@ class SurfaceDetailMeshTest {
         assertTrue(first.vertices.all { it.isFinite() })
     }
 
+
+    @Test fun surfaceRocksKeepCoherentReflectanceAndMostlyGravelSize() {
+        val rocks = SurfaceDetailMesh.buildRocks(0.0, 0.0) { _, _ -> 0.0 }
+        val stride = SurfaceDetailMesh.STRIDE
+        val verticesPerStone = 8 * 5 * 3
+        var gravel = 0
+        for (stone in 0 until rocks.count) {
+            val first = stone * verticesPerStone * stride
+            val tone = rocks.vertices[first + 6]
+            var minX = Float.POSITIVE_INFINITY
+            var maxX = Float.NEGATIVE_INFINITY
+            for (v in 0 until verticesPerStone) {
+                val p = first + v * stride
+                assertEquals("A single basalt stone must not have random corner tint",
+                    tone, rocks.vertices[p + 6], 0.000001f)
+                minX = minOf(minX, rocks.vertices[p])
+                maxX = maxOf(maxX, rocks.vertices[p])
+            }
+            if (maxX - minX < 0.0002f) gravel++
+        }
+        assertTrue("Most surface fragments should be sub-30cm gravel",
+            gravel > rocks.count / 2)
+    }
+
     @Test fun nearbyBouldersHaveMeterScaleRadiusesRatherThanHundredsOfMeters() {
         val data = SurfaceDetailMesh.buildRocks(0.0, 0.0) { _, _ -> 0.0 }.vertices
         var peak = 0f
