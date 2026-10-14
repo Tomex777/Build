@@ -47,7 +47,7 @@ export function validateScreenshotUrl(raw,{allowedHosts=process.env.SSWEB_ALLOWE
 }
 
 export async function validatePublicHost(hostname,{resolver=lookup}={}) {
-  const addresses=await resolver(hostname,{all:true})
+  const addresses=await resolver(hostname,{all:true,family:4})
   if (!Array.isArray(addresses)||!addresses.length||
     addresses.some(x=>!isPublicAddress(String(x.address||'')))) {
     throw new Error('Website resolved to an unsafe or unavailable IP address.')
@@ -88,6 +88,7 @@ export async function captureWebsite(raw,{allowedHosts,loadBrowser,resolveHost=v
     await page.setJavaScriptEnabled(process.env.SSWEB_ENABLE_JS==='1')
     await page.setRequestInterception(true)
     let seen=0
+    const mainHost=new URL(site).hostname.toLowerCase()
     page.on('request',request=>{
       void (async()=>{
         const dest=request.url()
@@ -96,6 +97,11 @@ export async function captureWebsite(raw,{allowedHosts,loadBrowser,resolveHost=v
         if (!['https:','http:'].includes(url.protocol)||url.username||url.password||
           isIP(url.hostname)||(!url.hostname.includes('.'))||url.port&& !['80','443'].includes(url.port)) {
           return request.abort()
+        }
+        // Never follow a top-level redirect off the originally allowlisted host.
+        if (request.isNavigationRequest() && request.frame()===page.mainFrame()) {
+          const host=url.hostname.toLowerCase()
+          if (host!==mainHost && !host.endsWith('.'+mainHost)) return request.abort()
         }
         await resolveHost(url.hostname)
         return request.continue()
