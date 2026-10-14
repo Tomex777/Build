@@ -97,6 +97,17 @@ try{
     return {captured,optionalCapture,safetyOn,safetyOff,blocked,open,sixPasses};
   });
   assert.deepEqual(outcomes,{captured:true,optionalCapture:true,safetyOn:true,safetyOff:true,blocked:true,open:true,sixPasses:true},"Naija Ludo captures, safety, barriers and six-exception");
+  await page.locator('[data-ludo-opponent]').selectOption("computer");
+  assert.equal(await page.locator('[data-ludo-opponent]').inputValue(),"computer","computer is an actual playable local mode");
+  await page.locator('[data-ludo-difficulty]').selectOption("advanced");
+  assert.equal(await page.locator('[data-ludo-difficulty]').inputValue(),"advanced","advanced CPU difficulty configurable");
+  await page.locator(".nj-settings summary").click();
+  await page.evaluate(()=>window.NightLudo.setTestRolls([2,3,2,3]));
+  await page.locator('[data-action="ludo-roll"]').first().click();
+  await page.getByText(/Computer's turn/).waitFor({timeout:5000});
+  await page.getByText(/Red & Yellow's turn/).waitFor({timeout:8500});
+  await page.locator(".nj-settings summary").click();
+  await page.locator('[data-ludo-opponent]').selectOption("local");
   await page.locator(".nj-settings summary").click();
   await page.locator("[data-pick=estate]").click();
   await page.locator(".estate-tile").first().waitFor();
