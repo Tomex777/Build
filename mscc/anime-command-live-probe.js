@@ -68,7 +68,7 @@ const ctx = {
 
 function argsFromRow(row) {
   assert.ok(row && row.id, 'Interactive row has no command ID')
-  const match = /^\.\anime(?:\s+([\s\S]+))?$/.exec(String(row.id).trim())
+  const match = /^\.anime(?:\s+([\s\S]+))?$/.exec(String(row.id).trim())
   assert.ok(match, 'Interactive row does not route back to .anime: ' + row.id)
   return String(match[1] || '').trim().split(/\s+/).filter(Boolean)
 }
