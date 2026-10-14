@@ -1,0 +1,51 @@
+name: Torri production signing continuity probe
+on:
+  push:
+    branches:
+      - torri/v1-1-prod-sign
+    paths:
+      - .github/workflows/torri-signing-continuity-probe.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  preflight:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Verify Torri original signing certificate without disclosing key
+        shell: bash
+        env:
+          TORRI_RELEASE_KEYSTORE_B64: ${{ secrets.TORRI_RELEASE_KEYSTORE_B64 }}
+          TORRI_RELEASE_KEY_ALIAS: ${{ secrets.TORRI_RELEASE_KEY_ALIAS }}
+          TORRI_RELEASE_KEYSTORE_PASSWORD: ${{ secrets.TORRI_RELEASE_KEYSTORE_PASSWORD }}
+          TORRI_RELEASE_KEY_PASSWORD: ${{ secrets.TORRI_RELEASE_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          for key in TORRI_RELEASE_KEYSTORE_B64 TORRI_RELEASE_KEY_ALIAS TORRI_RELEASE_KEYSTORE_PASSWORD TORRI_RELEASE_KEY_PASSWORD; do
+            if [[ -z "${!key}" ]]; then
+              echo "::error::Original Torri signing secret is unavailable: $key"
+              exit 1
+            fi
+          done
+          umask 077
+          trap 'rm -f "$RUNNER_TEMP/torri-permanent.jks"' EXIT
+          printf '%s' "$TORRI_RELEASE_KEYSTORE_B64" | base64 --decode > "$RUNNER_TEMP/torri-permanent.jks"
+          actual="$(keytool -list -v -keystore "$RUNNER_TEMP/torri-permanent.jks" -storepass "$TORRI_RELEASE_KEYSTORE_PASSWORD" -alias "$TORRI_RELEASE_KEY_ALIAS" 2>/dev/null | sed -n 's/^[[:space:]]*SHA256: //p' | head -1 | tr -d ':[:space:]' | tr '[:upper:]' '[:lower:]')"
+          expected="6b1ab58169e3a8dd4370860d5d03060b035476b43cceaf2bd8da7ca1fe37ab44"
+          if [[ "$actual" != "$expected" ]]; then
+            echo "::error::This key does not match Torri v1.0.0 signing certificate"
+            exit 1
+          fi
+          echo "PASS: original Torri permanent signing key and matching public certificate found in Build secrets."
+      - name: Test whether Build workflow can read private Torri repository
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh api repos/Tomex777/Torri --jq .full_name >/dev/null 2>&1; then
+            echo "PASS: Build's GitHub Actions token can access Torri source."
+          else
+            echo "::warning::Build's repository GitHub Actions token CANNOT read private Torri source. Production signing needs a secure cross-repo source handoff."
+          fi
