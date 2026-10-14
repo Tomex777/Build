@@ -92,6 +92,8 @@ jobs:
             sleep 2
             python3 EchoSpace/tools/emulator_probe.py assert text 'My Space'
             python3 EchoSpace/tools/emulator_probe.py tap text 'Night Shore'
+            adb shell input swipe 940 1680 70 1680 550
+            sleep 2
             python3 EchoSpace/tools/emulator_probe.py tap text 'My Space'
             python3 EchoSpace/tools/emulator_probe.py assert desc 'Mute Fire'
             sleep 2
