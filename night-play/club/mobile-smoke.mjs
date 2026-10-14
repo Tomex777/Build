@@ -55,6 +55,9 @@ try{
   assert.ok(await page.locator(".nj-dice-center.is-rolling").count(),"dice visibly tumble");
   await page.waitForTimeout(170);
   await page.screenshot({path:"night-play/visual-output/LUDO-THROW-FLIGHT.jpg",type:"jpeg",quality:85});
+  assert.equal(await page.locator('.nj-dice-center .nj-cube').first().evaluate(el=>getComputedStyle(el).filter),'none',"dice shadow must not flatten the 3D cube faces");
+  await page.waitForTimeout(130);
+  await page.screenshot({path:"night-play/visual-output/LUDO-THROW-TUMBLE.jpg",type:"jpeg",quality:85});
   await page.locator(".l-token.eligible").first().waitFor({timeout:5000});
   const shownDice=await page.locator(".nj-dice-controls .nj-die").evaluateAll(elements=>elements.map(el=>el.querySelectorAll(".nj-face-front .nj-pips i.lit").length));
   assert.deepEqual(shownDice,[6,2],"3D dice face graphics must precisely match the dice actually rolled");
