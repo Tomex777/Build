@@ -185,14 +185,14 @@ export async function stabilizeVideo(buffer) {
       await runFfmpeg(['-t','24','-i',input,'-vf',
         'scale=640:-2,vidstabdetect=shakiness=5:accuracy=8:result='+transform,
         '-an','-f','null','-'],{timeoutMs:40000})
-      await runFfmpeg([...common.slice(0,3),'-vf',
+      await runFfmpeg([...common.slice(0,4),'-vf',
         'scale=640:-2,vidstabtransform=input='+transform+':smoothing=18:optzoom=1',
-        ...common.slice(3),output],{timeoutMs:65000})
+        ...common.slice(4),output],{timeoutMs:65000})
     } catch {
       stabilizedWith='deshake'
-      await runFfmpeg([...common.slice(0,3),'-vf',
+      await runFfmpeg([...common.slice(0,4),'-vf',
         'scale=640:-2,deshake=rx=32:ry=32:edge=mirror',
-        ...common.slice(3),output],{timeoutMs:60000})
+        ...common.slice(4),output],{timeoutMs:60000})
     }
     return {buffer:await checkedOutput(output),method:stabilizedWith}
   })
