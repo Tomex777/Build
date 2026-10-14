@@ -80,7 +80,6 @@
     "@napi-rs/canvas": "^0.1.80",
     "gifenc": "^1.0.3",
     "webtorrent": "3.0.21",
-    "cheerio": "1.0.0-rc.12",
-    "puppeteer-core": "^24.0.0"
+    "cheerio": "1.0.0-rc.12"
   }
 }
