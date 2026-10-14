@@ -243,6 +243,7 @@ fun CortexServerApp(vm: ServerPanelViewModel = viewModel()) {
                             onRefresh = vm::refreshCloud,
                             onSave = vm::saveEnvironment,
                             onAutoAssign = vm::configureCloudVideoLayout,
+                            onVerify = vm::verifyCloudFolder,
                             onRestart = { vm.power(HostingPowerAction.RESTART) },
                         )
                         ServerTab.PAIRING -> CortexPairingScreen(

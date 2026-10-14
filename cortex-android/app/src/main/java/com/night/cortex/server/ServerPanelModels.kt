@@ -141,6 +141,7 @@ data class EnvironmentState(
 data class CloudMount(val nodeId: String, val label: String)
 
 data class CloudTarget(
+    val id: String,
     val label: String,
     val type: String,
     val detected: Boolean,
@@ -187,6 +188,8 @@ data class ServerPanelState(
     val pairing: PairingState? = null,
     val environment: EnvironmentState? = null,
     val cloudDashboard: CloudDashboard? = null,
+    val cloudConnectionFailed: Boolean = false,
+    val cloudVerificationMessage: String? = null,
     val cloudMounts: List<CloudMount> = emptyList(),
     val cloudMountsLoaded: Boolean = false,
     val revealedEnvironment: Map<String, String> = emptyMap(),

@@ -477,6 +477,7 @@ class CortexServerApi(
                     val arr = row.optJSONArray("mediaTypes") ?: JSONArray()
                     val types = buildList { for (j in 0 until arr.length()) add(arr.optString(j)) }
                     add(CloudTarget(
+                        id = row.optString("id"),
                         label = row.optString("label"),
                         type = row.optString("type"),
                         detected = row.optBoolean("detected"),
@@ -488,6 +489,12 @@ class CortexServerApi(
             }
         )
     }
+
+    fun verifyCloudFolder(targetId: String): JSONObject =
+        postJson(
+            "/api/cortex/host/cloud/verify",
+            JSONObject().put("targetId", targetId),
+        )
 
     fun cloudMounts(): List<CloudMount> {
         val json = getJson("/api/cortex/host/cloud/discover")

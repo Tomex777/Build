@@ -1795,13 +1795,13 @@ function presentAccountSlots(state) {
   };
 }
 
-async function msccControl(method, pathname, body = null) {
+async function msccControl(method, pathname, body = null, timeoutMs = 15_000) {
   try {
     const response = await fetch(MSCC_CONTROL_URL + pathname, {
       method,
       headers: body ? { 'content-type': 'application/json' } : undefined,
       body: body ? JSON.stringify(body) : undefined,
-      signal: AbortSignal.timeout(15_000),
+      signal: AbortSignal.timeout(Math.min(60_000, Math.max(1_000, timeoutMs))),
     });
     const text = await response.text();
     let payload = {};
@@ -1929,6 +1929,17 @@ async function handler(req, res) {
     }
     if (req.method === 'GET' && url.pathname === '/api/cortex/host/cloud') {
       return json(res, 200, await msccControl('GET', '/cloud'));
+    }
+    if (req.method === 'POST' && url.pathname === '/api/cortex/host/cloud/verify') {
+      const body = await readJson(req);
+      const targetId = String(body.targetId || '').trim().toLowerCase();
+      if (!/^[a-z][a-z0-9_-]{0,31}$/.test(targetId)) {
+        throw Object.assign(new Error('Invalid configured MEGA folder'), { statusCode:400 });
+      }
+      // The MSCC loopback endpoint enforces the exact server-side allowlist.
+      const result = await msccControl('POST', '/cloud/verify', { targetId }, 60_000);
+      await recordActivity('server:cloud.verify', { success: result.success === true });
+      return json(res, 200, result);
     }
     if (req.method === 'GET' && url.pathname === '/api/cortex/host/cloud/discover') {
       return json(res, 200, await msccControl('GET', '/cloud/discover'));
