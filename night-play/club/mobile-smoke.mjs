@@ -10,7 +10,7 @@ const dir=path.dirname(fileURLToPath(import.meta.url));
 const root=path.resolve(dir,"..");
 const server=createServer((req,res)=>{
   const pathname=new URL(req.url,"http://localhost").pathname;
-  const files={"/club/":"club/index.html","/club":"club/index.html","/club/index.html":"club/index.html","/club/style.css":"club/style.css","/club/games.js":"club/games.js","/club/naija-ludo.js":"club/naija-ludo.js","/games":"index.html","/index.html":"index.html"};
+  const files={"/club/":"club/index.html","/club":"club/index.html","/club/index.html":"club/index.html","/club/style.css":"club/style.css","/club/ludo-immersive.css":"club/ludo-immersive.css","/club/games.js":"club/games.js","/club/naija-ludo.js":"club/naija-ludo.js","/games":"index.html","/index.html":"index.html"};
   const rel=files[pathname];
   if(!rel){res.writeHead(404);res.end("Not found");return;}
   const kind=rel.endsWith(".css")?"text/css":rel.endsWith(".js")?"text/javascript":"text/html";
