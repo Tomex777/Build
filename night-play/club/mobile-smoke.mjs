@@ -157,9 +157,13 @@ try{
   });
   await page.reload();
   await page.locator('[data-piece="0-0"]').click();
-  await page.locator('.nj-motion-layer[data-motion="capture"]').waitFor();
-  assert.equal(await page.locator('.l-token.eligible').count(),0,'input stays locked during capture flight');
-  const roundCounter=await page.locator('.nj-motion-layer[data-motion="capture"] .nj-piece').first().boundingBox();
+  const captureFrame=await page.waitForFunction(()=>{
+    const el=document.querySelector('.nj-motion-layer[data-motion="capture"] .nj-piece');
+    if(!el)return false;const r=el.getBoundingClientRect();
+    return {width:r.width,height:r.height,eligible:document.querySelectorAll('.l-token.eligible').length};
+  });
+  const roundCounter=await captureFrame.jsonValue();
+  assert.equal(roundCounter.eligible,0,'input stays locked during capture flight');
   assert.ok(Math.abs(roundCounter.width-roundCounter.height)<1.5,'moving counters keep their circular shape');
   await page.screenshot({path:"night-play/visual-output/LUDO-CAPTURE-FLIGHT.jpg",type:"jpeg",quality:85});
   await page.waitForFunction(()=>!document.querySelector('.nj-motion-layer'));
