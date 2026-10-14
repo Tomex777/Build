@@ -223,10 +223,10 @@ try{
   // Switching games rolls back an unfinished move and cancels every old hop.
   await page.evaluate(()=>{
     const data=JSON.parse(localStorage.getItem('night-play-club-v1')),s=NightLudo.create(2,1);
-    s.players[0].tokens[0]=10;s.rolls=[{value:4,used:false}];s.last=[4];s.selectedDie=0;s.die=4;s.rolled=true;
+    s.options.speed='slow';s.players[0].tokens[0]=10;s.rolls=[{value:4,used:false}];s.last=[4];s.selectedDie=0;s.die=4;s.rolled=true;
     data.ludo=s;localStorage.setItem('night-play-club-v1',JSON.stringify(data));
   });
-  await page.reload();await page.locator('.nj-board [data-piece="0-0"]').click();
+  await page.reload();await page.waitForFunction(()=>NightLudo3D.ready);await page.locator('.nj-board [data-piece="0-0"]').click();
   await page.waitForFunction(()=>document.querySelector('.nj-board [data-piece="0-0"]')?.dataset.progress==='11');
   await page.evaluate(()=>document.querySelector('[data-pick="estate"]').click());
   await page.locator('[data-pick="ludo"]').click();
@@ -239,11 +239,11 @@ try{
   // A page reload during a hop also resumes the last complete transaction.
   await page.evaluate(()=>{
     const data=JSON.parse(localStorage.getItem('night-play-club-v1')),s=NightLudo.create(2,1);
-    s.players[0].tokens[0]=20;s.rolls=[{value:3,used:false}];s.last=[3];s.selectedDie=0;s.die=3;s.rolled=true;
+    s.options.speed='slow';s.players[0].tokens[0]=20;s.rolls=[{value:3,used:false}];s.last=[3];s.selectedDie=0;s.die=3;s.rolled=true;
     data.ludo=s;localStorage.setItem('night-play-club-v1',JSON.stringify(data));
   });
-  await page.reload();await page.locator('.nj-board [data-piece="0-0"]').click();
-  await page.waitForFunction(()=>document.querySelector('.nj-board [data-piece="0-0"]')?.dataset.progress==='21');
+  await page.reload();await page.waitForFunction(()=>NightLudo3D.ready);await page.locator('.nj-board [data-piece="0-0"]').click();
+  await page.waitForFunction(()=>{const pos=Number(document.querySelector('.nj-board [data-piece="0-0"]')?.dataset.progress);return pos>20&&pos<23;},null,{polling:20,timeout:6000}).catch(async()=>{throw Error('Interrupted reload did not reach an intermediate hop: '+JSON.stringify(await page.evaluate(()=>({progress:document.querySelector('.nj-board [data-piece="0-0"]')?.dataset.progress,status:document.getElementById('status').textContent,state:JSON.parse(localStorage.getItem('night-play-club-v1')).ludo}))));});
   await page.reload();assert.equal(await page.locator('.nj-board [data-piece="0-0"]').getAttribute('data-progress'),'20');
   await page.locator('.nj-board [data-piece="0-0"]').click();
   await page.waitForFunction(()=>JSON.parse(localStorage.getItem('night-play-club-v1')).ludo.players[0].tokens[0]===23);
