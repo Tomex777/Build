@@ -28,7 +28,7 @@ function handleOf(name = '') {
   // Mathematical/stylized Unicode letters often normalize to ordinary
   // letters. Keep non-Latin handles rather than dropping them outright.
   const stem = clean(name, 60).normalize('NFKD').toLowerCase()
-    .replace(/[^\\p{L}\\p{N}_]+/gu, '').slice(0, 22)
+    .replace(/[^\p{L}\p{N}_]+/gu, '').slice(0, 22)
   return '@' + (stem || 'nightuser')
 }
 
