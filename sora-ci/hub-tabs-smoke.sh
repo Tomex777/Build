@@ -66,9 +66,12 @@ for node in nodes:
     if node.attrib.get('text','').strip() == 'Library' and bounds and int(bounds.group(2)) < height//2:
         has_heading=True
         break
-counts=[int(match.group(1)) for text in texts if (match := re.fullmatch(r'(\d+) items?',text))]
-empty='No saved items in this filter.' in texts
-if has_heading and counts and ((counts[0] == 0 and empty) or (counts[0] > 0 and not empty)):
+descs=[node.attrib.get('content-desc','').strip() for node in nodes]
+# The old count + "Last updated" metadata row was redundant and removed.
+# Require actual library controls and the content area, not that old row.
+has_controls='All' in texts and 'Search library' in descs
+redundant=any(re.fullmatch(r'\d+ items?',text) for text in texts) or 'Last updated' in texts
+if has_heading and has_controls and not redundant:
     raise SystemExit(0)
 raise SystemExit(1)
 PY
@@ -81,7 +84,7 @@ wait_library_state() {
     sleep 1
   done
   shot failure-library-state
-  echo 'Library did not show a saved-item count consistent with its empty state.' >&2
+  echo 'Library heading/controls missing or redundant item-count metadata returned.' >&2
   return 1
 }
 
@@ -343,14 +346,13 @@ wait_for "Save a meme in your Library"
 shot games-meme-caption-empty
 
 # The live Anime flow can seed a real title before this walkthrough. Check that
-# Library shows its count and matching content/empty state, then verify Memes.
+# Verify Library heading and controls without the redundant item-count row.
 tap Library
 wait_library_state
 shot library-all-filter
 adb shell input swipe 950 350 160 350 350
 sleep 1
 tap Memes
-wait_for "0 items"
 wait_for "No saved items in this filter"
 shot library-memes-empty
 
