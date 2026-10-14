@@ -718,7 +718,13 @@ export async function renderPostCard({
 
   if (mode === 'facebook') {
     const width = 1000
-    const height = 760
+    const measure = createCanvas(width, 20).getContext('2d')
+    measure.font = `30px ${FONT}`
+    const lines = wrapSocialText(measure, String(text || '').slice(0, 1600), 900, 7).lines
+    const photoY = Math.max(196, 175 + lines.length * 44 + 20)
+    const photoH = imageBuffer ? 490 : 0
+    const statsY = imageBuffer ? photoY + photoH + 60 : 520
+    const height = Math.max(760, statsY + 240)
     const canvas = createCanvas(width, height)
     const ctx = canvas.getContext('2d')
 
@@ -749,40 +755,40 @@ export async function renderPostCard({
     ctx.fillStyle = '#050505'
     ctx.font = `30px ${FONT}`
     ctx.textAlign = 'left'
-    const lines = wrapLines(ctx, text, 900, 7)
     let y = 175
     for (const row of lines) {
       ctx.fillText(row, 44, y)
       y += 44
     }
-
-    const statsY = 520
+    if (imageBuffer) {
+      await drawSocialPhoto(ctx, imageBuffer, 44, photoY, 912, photoH, { radius:14 })
+    }
     drawFacebookReactions(ctx, 60, statsY)
     ctx.fillStyle = '#65676b'
     ctx.font = `20px ${FONT}`
     ctx.textAlign = 'left'
-    ctx.fillText('0', 120, statsY + 7)
+    ctx.fillText(compactCount(likeCount), 120, statsY + 7)
     ctx.textAlign = 'right'
-    ctx.fillText('0 comments   0 shares', 948, statsY + 7)
+    ctx.fillText(compactCount(commentCount) + ' comments   ' + compactCount(shareCount) + ' shares', 948, statsY + 7)
 
     ctx.strokeStyle = '#ced0d4'
     ctx.lineWidth = 1
     ctx.beginPath()
-    ctx.moveTo(40, 555)
-    ctx.lineTo(960, 555)
+    ctx.moveTo(40, statsY + 35)
+    ctx.lineTo(960, statsY + 35)
     ctx.stroke()
 
     ctx.fillStyle = '#65676b'
     ctx.font = `23px ${BOLD}`
     ctx.textAlign = 'center'
-    ctx.fillText('♡  Like', 205, 612)
-    ctx.fillText('○  Comment', 500, 612)
-    ctx.fillText('↗  Share', 795, 612)
+    ctx.fillText('♡  Like', 205, statsY + 92)
+    ctx.fillText('○  Comment', 500, statsY + 92)
+    ctx.fillText('↗  Share', 795, statsY + 92)
 
     ctx.strokeStyle = '#ced0d4'
     ctx.beginPath()
-    ctx.moveTo(40, 640)
-    ctx.lineTo(960, 640)
+    ctx.moveTo(40, statsY + 120)
+    ctx.lineTo(960, statsY + 120)
     ctx.stroke()
 
     drawWatermark(ctx, width, height, { light:false, fontSize:13, inset:15 })
