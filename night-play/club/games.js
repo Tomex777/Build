@@ -46,6 +46,8 @@ function renderLudo(){
   return '<div class="player'+(active?' turn':'')+'"><div class="playername">'+team.map(k=>'<span class="p-dot" style="--team:'+({red:"#e7493f",green:"#409e51",blue:"#2c82c8",yellow:"#ffcf23"}[k]||"#eee")+'"></span>').join('')+h(p.name)+'</div><div class="value">'+count+'<span class="ludo-hud-progress"> / '+p.tokens.length+'</span></div></div>';
  }).join('<div class="turnmid"><span>'+(s.winner!==null?'WINNER':s.rolling?'ROLLING':s.moving?'MOVING':'TURN')+'</span>'+(s.winner!==null?'🏆':s.rolls.length?s.rolls.filter(d=>!d.used).map(d=>d.value).join(' + '):'🎲')+'</div>');
  const details=controls.querySelector(".nj-settings");
+ const options=controls.querySelector(".nj-options");
+ if(details&&options)details.insertBefore(options,details.querySelector(".nj-switches"));
  if(details&&!details.querySelector(".nj-in-sheet-extra")){
   details.insertAdjacentHTML("beforeend",'<div class="nj-in-sheet-extra"><button type="button" class="secondary" data-action="ludo-new">↻ New match</button><button type="button" class="secondary" data-action="ludo-sound">'+(s.sound?'♫ Sound ON':'♪ Sound OFF')+'</button></div>');
  }
