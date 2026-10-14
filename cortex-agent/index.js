@@ -1209,7 +1209,15 @@ async function environmentSchema() {
   let entries = DEFAULT_ENVIRONMENT_SCHEMA;
   try {
     const custom = JSON.parse(await fs.readFile(ENVIRONMENT_SCHEMA_FILE, 'utf8'));
-    if (Array.isArray(custom?.entries)) entries = custom.entries;
+    if (Array.isArray(custom?.entries)) {
+      entries = [...custom.entries];
+      // Existing Azure installs may have an older persisted environment
+      // schema. Always expose newly allowlisted MEGA keys in Cortex.
+      const seen = new Set(entries.map(entry => String(entry?.key || '')));
+      for (const entry of DEFAULT_ENVIRONMENT_SCHEMA.filter(row => row.key.startsWith('MSCC_MEGA_'))) {
+        if (!seen.has(entry.key)) entries.push(entry);
+      }
+    }
   } catch (error) {
     if (error?.code !== 'ENOENT') throw error;
   }
