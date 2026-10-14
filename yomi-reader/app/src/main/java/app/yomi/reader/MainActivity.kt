@@ -325,18 +325,23 @@ class MainActivity : ComponentActivity() {
 
         var pageCount = 0
         var coverUri: String? = null
+        var coverAttempts = 0
         try {
             bindings.forEach { binding ->
                 val pages = binding.source.pages(binding.chapter)
                 pageCount += pages.size
-                if (coverUri == null) {
-                    val firstPage = pages.firstOrNull()
-                    if (firstPage != null) {
+                // As with CBZ covers, real image folders sometimes start with
+                // damaged front matter. Try a bounded number of later pages,
+                // even when the first chapter has no decodable cover.
+                if (coverUri == null && coverAttempts < 8) {
+                    for (page in pages.take(8 - coverAttempts)) {
+                        coverAttempts++
                         coverUri = createCoverThumbnail(
                             source = binding.source,
-                            page = firstPage,
+                            page = page,
                             bookId = bookId.value,
                         )
+                        if (coverUri != null) break
                     }
                 }
             }
