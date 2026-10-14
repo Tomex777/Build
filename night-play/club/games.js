@@ -17,7 +17,7 @@ function controlsHTML(markup){controls.innerHTML=markup;}
 function rules(title,desc){help.innerHTML="<h3>"+title+"</h3><p>"+desc+"</p>";}
 function scoreList(players,getScore){return '<div class="score-list">'+players.map((p,i)=>'<div class="score-row"><span><b style="color:'+h(p.color)+'">●</b> '+h(p.name)+'</span><b>'+h(getScore(p,i))+'</b></div>').join("")+"</div>";}
 function choosePlayers(id,selected,max){return '<label class="small">Players (local, sharing one phone)</label><select class="select" data-players="'+id+'">'+[2,3,4].filter(n=>n<=max).map(n=>'<option value="'+n+'"'+(n===selected?" selected":"")+'>'+n+' players</option>').join("")+"</select>";}
-function pick(id){if(!titles[id])id="ludo";active=id;const d=titles[id];$("gameTitle").textContent=d[0];$("gameSubtitle").textContent=d[1];$("gameCategory").textContent=d[2];[...picks.querySelectorAll("button")].forEach(x=>x.setAttribute("aria-current",String(x.dataset.pick===id)));const url=new URL(location.href);url.searchParams.set("game",id);history.replaceState(null,"",url.pathname+url.search);if(id!=="ludo")window.NightLudo.cancel();if(id==="ludo"&&state.ludo){state.ludo=window.NightLudo.normalize(state.ludo);state.ludo.rolling=false;state.ludo.moving=false;}if(!state[id])reset(id);else render();}
+function pick(id){if(!titles[id])id="ludo";active=id;document.body.classList.toggle("ludo-mode",id==="ludo");$("ludoTopbar").hidden=id!=="ludo";$("ludoHud").hidden=id!=="ludo";if(id!=="ludo")closeLudoSettings();const d=titles[id];$("gameTitle").textContent=d[0];$("gameSubtitle").textContent=d[1];$("gameCategory").textContent=d[2];[...picks.querySelectorAll("button")].forEach(x=>x.setAttribute("aria-current",String(x.dataset.pick===id)));const url=new URL(location.href);url.searchParams.set("game",id);history.replaceState(null,"",url.pathname+url.search);if(id!=="ludo")window.NightLudo.cancel();if(id==="ludo"&&state.ludo){state.ludo=window.NightLudo.normalize(state.ludo);state.ludo.rolling=false;state.ludo.moving=false;}if(!state[id])reset(id);else render();}
 function reset(id){
 if(id==="ludo"){window.NightLudo.cancel();state.ludo=window.NightLudo.create();}
 if(id==="estate"){state.estate={players:["red","blue"].map(k=>({name:k[0].toUpperCase()+k.slice(1),color:colors[k],cash:1500,pos:0,bankrupt:false})),owners:{},upgrades:{},turn:0,rolled:false,last:0,pending:null,rounds:0,winner:null,msg:"Roll the dice to start buying properties.",inspect:0};}
@@ -35,7 +35,29 @@ const safe=new Set([0,8,13,21,26,34,39,47]);
 const home={red:[[7,1],[7,2],[7,3],[7,4],[7,5],[7,7]],green:[[1,7],[2,7],[3,7],[4,7],[5,7],[7,7]],yellow:[[7,13],[7,12],[7,11],[7,10],[7,9],[7,7]],blue:[[13,7],[12,7],[11,7],[10,7],[9,7],[7,7]]};
 function pieceCell(player,pos){if(pos<0)return null;if(pos>=51)return home[player.key][pos-51];return track[(starts[player.key]+pos)%52];}
 function ludoValid(s,pi,ti){if(s.winner!==null||!s.rolled||s.turn!==pi)return false;const p=s.players[pi].tokens[ti];return p===-1?s.die===6:p<56&&p+s.die<=56;}
-function renderLudo(){const wasOpen=!!controls.querySelector(".nj-settings[open]");window.NightLudo.render(state.ludo,{board,controls,status,help,save,scoreList,choosePlayers,rules,draw:render});if(wasOpen){const d=controls.querySelector(".nj-settings");if(d)d.open=true;}}
+function renderLudo(){
+ const wasOpen=!!controls.querySelector(".nj-settings[open]");
+ window.NightLudo.render(state.ludo,{board,controls,status,help,save,scoreList,choosePlayers,rules,draw:render});
+ if(wasOpen){const d=controls.querySelector(".nj-settings");if(d)d.open=true;}
+ const s=state.ludo,players=s.players,turn=players[s.turn],hud=$("ludoHud");
+ const shown=[players[0],players[1]||players[0]];
+ hud.innerHTML=shown.map((p,idx)=>{
+  const count=p.tokens.filter(n=>n===56).length,active=idx===s.turn,team=p.houses||[p.key];
+  return '<div class="player'+(active?' turn':'')+'"><div class="playername">'+team.map(k=>'<span class="p-dot" style="--team:'+({red:"#e7493f",green:"#409e51",blue:"#2c82c8",yellow:"#ffcf23"}[k]||"#eee")+'"></span>').join('')+h(p.name)+'</div><div class="value">'+count+'<span class="ludo-hud-progress"> / '+p.tokens.length+'</span></div></div>';
+ }).join('<div class="turnmid"><span>'+(s.winner!==null?'WINNER':s.rolling?'ROLLING':s.moving?'MOVING':'TURN')+'</span>'+(s.winner!==null?'🏆':s.rolls.length?s.rolls.filter(d=>!d.used).map(d=>d.value).join(' + '):'🎲')+'</div>');
+ const details=controls.querySelector(".nj-settings");
+ if(details)details.addEventListener("toggle",()=>{const open=details.open;$("ludoSheetBack").hidden=!open;$("ludoSettingsBtn").setAttribute("aria-expanded",String(open));});
+ const options=controls.querySelector(".nj-options");
+ if(details&&options)details.insertBefore(options,details.querySelector(".nj-switches"));
+ if(details&&!details.querySelector(".nj-in-sheet-extra")){
+  details.insertAdjacentHTML("beforeend",'<div class="nj-in-sheet-extra"><button type="button" class="secondary" data-action="ludo-new">↻ New match</button><button type="button" class="secondary" data-action="ludo-sound">'+(s.sound?'♫ Sound ON':'♪ Sound OFF')+'</button></div>');
+ }
+ if(controls.querySelector(".nj-settings[open]")){$("ludoSheetBack").hidden=false;$("ludoSettingsBtn").setAttribute("aria-expanded","true");}
+}
+function closeLudoSettings(){const d=controls.querySelector(".nj-settings");if(d)d.open=false;$("ludoSheetBack").hidden=true;$("ludoSettingsBtn").setAttribute("aria-expanded","false");}
+$("ludoSettingsBtn").addEventListener("click",()=>{const d=controls.querySelector(".nj-settings");if(!d)return;d.open=!d.open;$("ludoSheetBack").hidden=!d.open;$("ludoSettingsBtn").setAttribute("aria-expanded",String(d.open));});
+$("ludoSheetBack").addEventListener("click",closeLudoSettings);
+document.addEventListener("keydown",e=>{if(e.key==="Escape")closeLudoSettings();});
 function ludoRoll(){window.NightLudo.roll(state.ludo,render);}
 function ludoMove(pi,ti){window.NightLudo.move(state.ludo,pi,ti,render);}
 
@@ -204,7 +226,7 @@ const dice=e.target.closest("[data-ludo-die]");if(dice&&active==="ludo"){window.
 const card=e.target.closest("[data-card]");if(card){if(Number(card.dataset.card)<0)return;cardPlay(active,Number(card.dataset.card));return;}
 const sq=e.target.closest("[data-estate-info]");if(sq&&active==="estate"){state.estate.inspect=Number(sq.dataset.estateInfo);render();return;}
 const action=e.target.closest("[data-action]");if(!action)return;
-switch(action.dataset.action){case"ludo-roll":ludoRoll();break;case"ludo-sound":state.ludo.sound=!state.ludo.sound;render();break;case"estate-roll":estateRoll();break;case"estate-buy":estateDecision(true);break;case"estate-pass":estateDecision(false);break;case"estate-end":estateEnd();break;case"card-draw":cardDraw(active);break;case"snakes-roll":snakesRoll();break;case"draw-ready":drawReady();break;case"draw-next":drawNext();break;case"draw-clear":if(drawCtx){drawCtx.clearRect(0,0,800,600);}break;case"draw-erase":setBrush("erase");break;case"checkers-reset":reset("checkers");break;}
+switch(action.dataset.action){case"ludo-roll":ludoRoll();break;case"ludo-new":if(confirm("Restart the Ludo match?")){closeLudoSettings();reset("ludo");}break;case"ludo-sound":state.ludo.sound=!state.ludo.sound;render();break;case"estate-roll":estateRoll();break;case"estate-buy":estateDecision(true);break;case"estate-pass":estateDecision(false);break;case"estate-end":estateEnd();break;case"card-draw":cardDraw(active);break;case"snakes-roll":snakesRoll();break;case"draw-ready":drawReady();break;case"draw-next":drawNext();break;case"draw-clear":if(drawCtx){drawCtx.clearRect(0,0,800,600);}break;case"draw-erase":setBrush("erase");break;case"checkers-reset":reset("checkers");break;}
 });
 function go(){pick(new URL(location.href).searchParams.get("game")||"ludo");}
 window.addEventListener("popstate",go);

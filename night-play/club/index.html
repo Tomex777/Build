@@ -3,10 +3,11 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#f7f7f4">
+<meta name="theme-color" content="#8b5839">
 <meta name="description" content="NIGHT Play Club: familiar tabletop games you can actually play on your phone.">
 <title>NIGHT Play · Games Club</title>
 <link rel="stylesheet" href="/club/style.css">
+<link rel="stylesheet" href="/club/ludo-immersive.css">
 </head>
 <body>
 <header class="top">
@@ -15,6 +16,8 @@
 <span class="loc-tag">GAME CLUB</span>
 </header>
 <main id="club">
+<section id="ludoTopbar" class="ludo-topbar" aria-label="Ludo controls" hidden><a href="/games" class="ludo-back" aria-label="Back to games">‹</a><div class="ludo-brand"><strong>NIGHT <span>LUDO</span></strong><small>NAIJA TABLETOP</small></div><button id="ludoSettingsBtn" type="button" class="ludo-tool" aria-label="Ludo game settings" aria-expanded="false">⚙</button></section>
+<div id="ludoHud" class="ludo-hud" hidden aria-label="Player score and active turn"></div>
 <div class="club-intro"><span class="label">THE NIGHT TABLETOP</span><h1>Bring the rivalry.</h1><p>Familiar games, real rules, no downloads. Start a local round and pass the phone. Online rooms are not available yet.</p></div>
 <nav class="game-picks" id="gamePicks" aria-label="Choose a game">
 <button type="button" data-pick="ludo">Ludo</button>
@@ -27,6 +30,7 @@
 </nav>
 <section class="play-layout"><div class="board-col"><div class="play-heading"><div><span class="label" id="gameCategory">BOARD GAME</span><h2 id="gameTitle">Ludo</h2><p id="gameSubtitle">The board you remember.</p></div><button class="utility" id="newRound" type="button">New game ↻</button></div><div id="board" class="board-area" aria-live="polite"></div></div><aside class="controls-col"><div class="panel info-panel"><div class="label">YOUR ROUND</div><div id="status" class="status" aria-live="polite">Choose a game to begin.</div><div id="controls"></div></div><div id="help" class="panel rules"></div><div class="fair-note">LOCAL PLAY · Scores and turns stay on this device. Friends on different phones can't join this version.</div></aside></section>
 </main>
+<button id="ludoSheetBack" class="ludo-sheet-backdrop" hidden aria-label="Close Ludo settings"></button>
 <footer><a href="/games">← Back to all NIGHT games</a><span>NIGHT Play · Original board artwork</span></footer>
 <script src="/club/naija-ludo.js" defer></script>
 <script src="/club/games.js" defer></script>

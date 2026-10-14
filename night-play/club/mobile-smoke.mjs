@@ -10,7 +10,7 @@ const dir=path.dirname(fileURLToPath(import.meta.url));
 const root=path.resolve(dir,"..");
 const server=createServer((req,res)=>{
   const pathname=new URL(req.url,"http://localhost").pathname;
-  const files={"/club/":"club/index.html","/club":"club/index.html","/club/index.html":"club/index.html","/club/style.css":"club/style.css","/club/games.js":"club/games.js","/club/naija-ludo.js":"club/naija-ludo.js","/games":"index.html","/index.html":"index.html"};
+  const files={"/club/":"club/index.html","/club":"club/index.html","/club/index.html":"club/index.html","/club/style.css":"club/style.css","/club/ludo-immersive.css":"club/ludo-immersive.css","/club/games.js":"club/games.js","/club/naija-ludo.js":"club/naija-ludo.js","/games":"index.html","/index.html":"index.html"};
   const rel=files[pathname];
   if(!rel){res.writeHead(404);res.end("Not found");return;}
   const kind=rel.endsWith(".css")?"text/css":rel.endsWith(".js")?"text/javascript":"text/html";
@@ -27,9 +27,20 @@ try{
   page.on("pageerror",e=>errors.push(String(e)));
   await page.goto(base+"/club/?game=ludo");
   await page.locator(".l-cell").first().waitFor();
-  assert.equal(await page.locator(".l-cell").count(),225,"traditional 15x15 board");
-  assert.equal(await page.locator(".l-base").count(),4,"four coloured homes");
   mkdirSync("night-play/visual-output",{recursive:true});
+  assert.equal(await page.locator(".l-cell").count(),225,"traditional 15x15 board");
+  assert.equal(await page.locator("body.ludo-mode").count(),1,"Ludo opens directly into immersive game screen");
+  assert.equal(await page.locator(".ludo-hud").isVisible(),true,"in-game player score HUD visible");
+  assert.equal(await page.locator(".club-intro").isVisible(),false,"no distracting website hero");
+  assert.equal(await page.locator(".game-picks").isVisible(),false,"no huge browser menu above Ludo board");
+  assert.equal(await page.locator(".nj-avatar").count(),4,"all four original tabletop portraits are drawn");
+  const width=await page.locator(".nj-board").boundingBox();
+  assert.ok(width.width>340&&width.width<391,"board fills almost entire 390px phone width");
+  const top=await page.locator(".nj-board").evaluate(el=>el.getBoundingClientRect().top);
+  assert.ok(top<220,"board loads in the first phone viewport");
+  await page.screenshot({path:"night-play/visual-output/NAIJA-LUDO-IMMERSIVE-MOBILE.png",fullPage:true});
+
+  assert.equal(await page.locator(".l-base").count(),4,"four coloured homes");
   await page.locator(".nj-board").screenshot({path:"night-play/visual-output/NAIJA-LUDO-BOARD.jpg",type:"jpeg",quality:85});
   assert.equal(await page.locator("[data-piece]").count(),16,"two Naija Ludo players each control two houses of four counters");
   assert.equal(await page.locator(".nj-dice-center .nj-die").count(),2,"two dice inside board");
@@ -53,6 +64,7 @@ try{
   await page.locator(".l-cell .l-token.eligible").first().click();
   await page.getByText(/Six! Roll again/).waitFor({timeout:4500});
   assert.equal(await page.locator('[data-dice-mode="ludo"]').isEnabled(),true,"settings unlock once both dice were used");
+  await page.locator("#ludoSettingsBtn").click();
   await page.locator("[data-players=ludo]").selectOption("4");
   assert.equal(await page.locator("[data-piece]").count(),16,"four players each have one house");
   await page.locator('[data-dice-mode="ludo"]').selectOption("1");
@@ -60,7 +72,13 @@ try{
   await page.locator('[data-dice-mode="ludo"]').selectOption("2");
   assert.equal(await page.locator(".nj-die-button").count(),2,"two-dice option restored");
   // The Nigerian gameplay settings are interactive and kept between renders.
-  await page.locator(".nj-settings summary").click();
+  await page.locator("#ludoSheetBack").click({position:{x:10,y:50}});
+  await page.locator("#ludoSettingsBtn").click();
+  assert.equal(await page.locator(".nj-settings").evaluate(el=>el.open),true,"top right settings opens native sheet");
+  assert.equal(await page.locator("#ludoSheetBack").isVisible(),true,"sheet has a backdrop");
+  await page.locator("#ludoSheetBack").click({position:{x:10,y:50}});
+  assert.equal(await page.locator(".nj-settings").evaluate(el=>el.open),false,"backdrop closes the sheet");
+  await page.locator("#ludoSettingsBtn").click();
   assert.ok(await page.locator(".nj-settings").evaluate(el=>el.open),"options can expand");
   await page.locator('[data-ludo-option="captureFinishes"]').uncheck();
   assert.equal(await page.locator('[data-ludo-option="captureFinishes"]').isChecked(),false,"optional attacker removal disabled");
@@ -106,10 +124,12 @@ try{
   await page.locator('[data-action="ludo-roll"]').first().click();
   await page.getByText(/Computer's turn/).waitFor({timeout:5000});
   await page.getByText(/Red & Yellow's turn/).waitFor({timeout:8500});
-  await page.locator(".nj-settings summary").click();
+  await page.locator("#ludoSettingsBtn").click();
   await page.locator('[data-ludo-opponent]').selectOption("local");
   await page.locator(".nj-settings summary").click();
-  await page.locator("[data-pick=estate]").click();
+  await page.locator(".ludo-back").click();
+  await page.waitForURL("**/games");
+  await page.goto(base+"/club/?game=estate");
   await page.locator(".estate-tile").first().waitFor();
   assert.equal(await page.locator(".estate-tile").count(),40,"original 40-space property game");
   await page.evaluate(()=>Math.random=()=>0.05);
@@ -117,17 +137,17 @@ try{
   assert.ok(await page.locator('[data-action="estate-buy"]').count(),"landing on unowned property offers purchase");
   await page.locator('[data-action="estate-buy"]').click();
   assert.ok((await page.locator(".score-list").innerText()).includes("₦"),"property economy visible");
-  await page.locator("[data-pick=whot]").click();
+  await page.goto(base+"/club/?game=whot");
   assert.ok(await page.locator(".playing-card").count()>=8,"shape cards dealt");
   if(await page.locator(".playing-card.playable").count())await page.locator(".playing-card.playable").first().click();
   else await page.locator('[data-action="card-draw"]').click();
   await page.waitForTimeout(560);
-  await page.locator("[data-pick=colors]").click();
+  await page.goto(base+"/club/?game=colors");
   assert.ok(await page.locator(".color-card").count()>=8,"colour-matching cards dealt");
   if(await page.locator(".color-card.playable").count())await page.locator(".color-card.playable").first().click();
   else await page.locator('[data-action="card-draw"]').click();
   await page.waitForTimeout(560);
-  await page.locator("[data-pick=draw]").click();
+  await page.goto(base+"/club/?game=draw");
   await page.locator('[data-action="draw-ready"]').click();
   assert.ok((await page.locator(".secret").innerText()).includes("Artist's word"),"artist sees word before game");
   await page.locator('[data-action="draw-ready"]').click();
@@ -137,11 +157,11 @@ try{
   await page.locator("#guessWord").fill("wrong answer");
   await page.locator('#guessForm button[type="submit"]').click();
   assert.ok(await page.locator("#guessLog li").count(),"wrong guesses produce feedback");
-  await page.locator("[data-pick=snakes]").click();
+  await page.goto(base+"/club/?game=snakes");
   assert.equal(await page.locator(".snakes-board .square").count(),100);
   await page.locator('[data-action="snakes-roll"]').click();
   assert.ok((await page.locator("#status").innerText()).length>10);
-  await page.locator("[data-pick=checkers]").click();
+  await page.goto(base+"/club/?game=checkers");
   assert.equal(await page.locator(".checker-square").count(),64);
   assert.equal(await page.locator(".checker-piece").count(),24);
   await page.locator('[data-checker="40"]').click();
