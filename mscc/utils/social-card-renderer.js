@@ -640,7 +640,7 @@ export async function renderPostCard({
     measure.font = `22px ${FONT}`
     const captionLines = wrapSocialText(measure, String(text || '').slice(0, 1200), 892, 6).lines
     const captionY = 971
-    const commentsY = Math.max(1020, captionY + Math.max(0, captionLines.length - 1) * 34 + 54)
+    const commentsY = Math.max(976, captionY + Math.max(0, captionLines.length - 1) * 34 + 34)
     const timeY = commentsY + 45
     const height = Math.max(1120, timeY + 70)
     const canvas = createCanvas(width, height)
