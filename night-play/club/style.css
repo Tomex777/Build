@@ -209,3 +209,10 @@
 @media(prefers-reduced-motion:reduce){
  .nj-die-button.is-tumbling .nj-cube,.nj-dice-center.is-rolling .nj-cube{animation:none!important}
 }
+
+
+/* Front face maps to the actual result; retain slight tilt so sides have depth. */
+.nj-cube.nj-value-1,.nj-cube.nj-value-2,.nj-cube.nj-value-3,.nj-cube.nj-value-4,.nj-cube.nj-value-5,.nj-cube.nj-value-6{transform:rotateX(-15deg) rotateY(-17deg)}
+.nj-cube{--cubeSize:calc(var(--dieSize) * .88);left:6%;top:6%}
+.nj-center-button .nj-die{--dieSize:clamp(27px,8.3vw,38px)}
+@media(max-width:540px){.nj-center-button .nj-die{--dieSize:clamp(27px,8.3vw,34px)}}
