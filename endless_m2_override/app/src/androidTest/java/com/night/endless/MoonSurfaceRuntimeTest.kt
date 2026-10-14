@@ -51,6 +51,9 @@ class MoonSurfaceRuntimeTest {
                 renderer.completedFrameCount() >= firstFrame + 3L
             }
 
+            assertTrue("Ground rendering requires at least 24 actual depth bits; got ${renderer.depthBufferBits()}",
+                renderer.depthBufferBits() >= 24)
+
             assertTrue(
                 "Overview control was not exposed",
                 device.wait(androidx.test.uiautomator.Until.hasObject(By.textContains("Overview")), 5_000)
