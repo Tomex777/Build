@@ -62,7 +62,7 @@ internal object SurfaceRockShadows {
             val baseZ = (maxZ + minZ) * .5
             val cx = baseX - lightX / lightY * height * 0.42
             val cz = baseZ - lightZ / lightY * height * 0.42
-            val rx = ((maxX - minX).toDouble() * 0.64).coerceAtLeast(0.000065) +
+            val rx = ((maxX - minX).toDouble() * 0.64).coerceAtLeast(0.000009) +
                 kotlin.math.abs(lightX / lightY) * height * .6
             val rz = ((maxZ - minZ).toDouble() * 0.64).coerceAtLeast(0.000065) +
                 kotlin.math.abs(lightZ / lightY) * height * .6
