@@ -8,7 +8,9 @@ const COLORS={red:"#df3439",green:"#2e9655",yellow:"#e8b327",blue:"#2d73ba"};
 const TRACK=[[6,1],[6,2],[6,3],[6,4],[6,5],[5,6],[4,6],[3,6],[2,6],[1,6],[0,6],[0,7],[0,8],[1,8],[2,8],[3,8],[4,8],[5,8],[6,9],[6,10],[6,11],[6,12],[6,13],[6,14],[7,14],[8,14],[8,13],[8,12],[8,11],[8,10],[8,9],[9,8],[10,8],[11,8],[12,8],[13,8],[14,8],[14,7],[14,6],[13,6],[12,6],[11,6],[10,6],[9,6],[8,5],[8,4],[8,3],[8,2],[8,1],[8,0],[7,0],[6,0]];
 const START={green:0,yellow:13,blue:26,red:39};
 const HOME={green:[[7,1],[7,2],[7,3],[7,4],[7,5]],yellow:[[1,7],[2,7],[3,7],[4,7],[5,7]],blue:[[7,13],[7,12],[7,11],[7,10],[7,9]],red:[[13,7],[12,7],[11,7],[10,7],[9,7]]};
-const SAFE=new Set([0,8,13,21,26,34,39,47]);
+const SAFE=new Set([8,21,34,47]);
+const DEFAULT_OPTIONS={barrier:true,safeHouse:true,captureFinishes:true,bonusOnCapture:false,directCount:false,visualHand:true,speed:"normal"};
+const makeOptions=()=>({...DEFAULT_OPTIONS});
 const PIPS={1:[4],2:[0,8],3:[0,4,8],4:[0,2,6,8],5:[0,2,4,6,8],6:[0,2,3,5,6,8]};
 const label=k=>k[0].toUpperCase()+k.slice(1);
 let ticker=null,moveTimer=null,life=0,audio=null;
@@ -40,13 +42,14 @@ function create(count=2,diceCount=2){
  return{
   version:2,players:groups.map((houses,i)=>({name:count===2?(i===0?"Red & Yellow":"Green & Blue"):label(houses[0]),color:COLORS[houses[0]],key:houses[0],houses,tokens:Array(houses.length*4).fill(-1)})),
   turn:0,rolls:[],selectedDie:null,die:null,rolled:false,last:[1,1],diceCount:diceCount===1?1:2,
-  rolling:false,moving:false,bonus:false,winner:null,turns:0,sound:true,
+  rolling:false,moving:false,bonus:false,winner:null,turns:0,sound:true,options:makeOptions(),
   msg:"Tap the dice to throw. Roll a six to bring a counter out."
  };
 }
 function normalize(s){
  if(!s||s.version!==2||!Array.isArray(s.players)||s.players.some(p=>!Array.isArray(p.houses)||p.tokens.length!==p.houses.length*4))return create();
  s.diceCount=s.diceCount===1?1:2;if(typeof s.rolling!=="boolean")s.rolling=false;if(typeof s.moving!=="boolean")s.moving=false;
+ s.options={...makeOptions(),...(s.options||{})};if(!["slow","normal","fast"].includes(s.options.speed))s.options.speed="normal";
  s.rolls=Array.isArray(s.rolls)?s.rolls.filter(d=>d&&d.value>=1&&d.value<=6).slice(0,2):[];
  if(s.selectedDie!==null&&(!Number.isInteger(s.selectedDie)||!s.rolls[s.selectedDie]||s.rolls[s.selectedDie].used))s.selectedDie=null;
  return s;
@@ -55,11 +58,27 @@ function cancel(){life++;if(ticker!==null){clearInterval(ticker);ticker=null;}if
 function tokenHouse(p,index){return p.houses[Math.floor(index/4)]}
 function cell(k,pos){if(pos<0)return null;if(pos>=56)return [7,7];if(pos>=51)return HOME[k][pos-51];return TRACK[(START[k]+pos)%52];}
 function currentIndex(k,pos){return(START[k]+pos)%52;}
+function isSafe(s,idx){return !!(s.options.safeHouse&&SAFE.has(idx));}
+function barrierAt(s,idx,pi){
+ if(!s.options.barrier)return false;
+ return Object.entries(START).some(([house,start])=>{
+  if(start!==idx)return false;
+  let rivals=0;
+  for(let j=0;j<s.players.length;j++)if(j!==pi){const op=s.players[j];op.tokens.forEach((n,k)=>{if(n>=0&&n<51&&currentIndex(tokenHouse(op,k),n)===idx&&tokenHouse(op,k)===house)rivals++;});}
+  return rivals>=2;
+ });
+}
+function blockedByBarrier(s,pi,ti,n){
+ const p=s.players[pi],pos=p.tokens[ti];if(!s.options.barrier||pos<0||n===6)return false;
+ const house=tokenHouse(p,ti);
+ for(let step=pos+1;step<=pos+n&&step<=50;step++)if(barrierAt(s,currentIndex(house,step),pi))return true;
+ return false;
+}
 function legal(s,pi,ti,di){
  if(s.winner!==null||s.rolling||s.moving||pi!==s.turn)return false;
  if(!Number.isInteger(di)||!s.rolls[di]||s.rolls[di].used)return false;
  const pos=s.players[pi].tokens[ti],n=s.rolls[di].value;
- return pos===-1?n===6:pos<56&&pos+n<=56;
+ return pos===-1?n===6:pos<56&&pos+n<=56&&!blockedByBarrier(s,pi,ti,n);
 }
 function canForDie(s,di){return s.players[s.turn].tokens.some((_,ti)=>legal(s,s.turn,ti,di));}
 function chooseAvailable(s){
@@ -99,7 +118,7 @@ function drawBoard(s){
   const classes=["l-cell"],pieces=map.get(key)||[];
   if(idx>=0)classes.push("track");
   if(idx>=0&&Object.values(START).includes(idx))classes.push(Object.keys(START).find(k=>START[k]===idx));
-  else if(idx>=0&&SAFE.has(idx))classes.push("nj-safe");
+  else if(idx>=0&&isSafe(s,idx))classes.push("nj-safe");
   if(r>=6&&r<=8&&c>=6&&c<=8)classes.push("nj-center-tile");
   for(const [k,a] of Object.entries(HOME))if(a.some(x=>x[0]===r&&x[1]===c))classes.push("nj-home-"+k);
   if(pieces.length>1)classes.push("nj-stacked");
@@ -107,15 +126,19 @@ function drawBoard(s){
    const available=legal(s,v.pi,v.ti,s.selectedDie);
    return '<button type="button" class="l-token nj-piece'+(available?" eligible":"")+'" data-piece="'+v.pi+'-'+v.ti+'" style="--token:'+COLORS[v.color]+'" aria-label="'+label(v.color)+' counter '+(v.ti%4+1)+'" '+(available?"":"disabled")+'><span class="nj-piece-core">'+(v.ti%4+1)+'</span></button>';
   }).join("");
-  if(!body&&SAFE.has(idx))body='<span class="star" aria-hidden="true">✦</span>';
-  if(!body&&idx>=0&&[3,16,29,42].includes(idx))body='<span class="nj-arrow" aria-hidden="true">'+(["↑","→","↓","←"][[3,16,29,42].indexOf(idx)])+'</span>';
+  if(!body&&isSafe(s,idx))body='<span class="star" aria-hidden="true">✦</span>';
+  if(!body&&idx>=0&&[2,5,8,11,15,18,21,24,28,31,34,37,41,44,47,50].includes(idx)){
+    const [y,x]=TRACK[idx], [nextY,nextX]=TRACK[(idx+1)%52],dir=nextY>y?"↓":nextY<y?"↑":nextX>x?"→":"←";
+    body='<span class="nj-arrow" aria-hidden="true">'+dir+'</span>';
+  }
+  if(idx>=0&&barrierAt(s,idx,s.turn))classes.push("nj-barrier");
   out+='<div class="'+classes.join(" ")+'" style="grid-row:'+(r+1)+';grid-column:'+(c+1)+'">'+body+'</div>';
  }
  const yards=[["green",1,1],["yellow",1,10],["red",10,1],["blue",10,10]];
  for(const [k,row,col] of yards){
   const info=activeHouses.get(k);
   out+='<div class="l-base nj-yard nj-yard-'+k+(info&&s.turn===info.pi?' is-turn':'')+'" style="--house:'+COLORS[k]+';grid-row:'+row+'/span 6;grid-column:'+col+'/span 6">';
-  out+='<div class="nj-yard-label">'+label(k).toUpperCase()+'</div><div class="yard">';
+  out+='<div class="nj-yard-label">'+label(k).toUpperCase()+'</div><span class="nj-sport-icon" aria-hidden="true"><svg viewBox="0 0 90 90" focusable="false"><circle cx="45" cy="22" r="15" fill="#ffffff67"/><path d="M19 78c0-20 10-31 26-31s26 11 26 31Z" fill="#ffffff46"/><path d="m29 56 16 12 16-12" stroke="#ffffff90" stroke-width="4" fill="none"/></svg></span><div class="yard">';
   for(let ti=0;ti<4;ti++){
    const index=info?info.hi*4+ti:-1,atHome=info&&info.p.tokens[index]===-1,available=atHome&&legal(s,info.pi,index,s.selectedDie);
    out+='<button type="button" '+(atHome?'data-piece="'+info.pi+'-'+index+'"':'')+' aria-label="'+label(k)+' yard position '+(ti+1)+'" '+(available?'':'disabled')+'>';
@@ -127,7 +150,7 @@ function drawBoard(s){
  const centerVals=s.rolling?(Array.isArray(s.preview)?s.preview:[1,2]):s.rolls.length?s.rolls.map(d=>d.value):s.last;
  out+='<div class="nj-dice-center'+(s.rolling?' is-rolling':'')+'" style="grid-row:7/span 3;grid-column:7/span 3" aria-label="Central dice tray"><div class="nj-dice-pair">';
  centerVals.slice(0,s.diceCount).forEach((n,i)=>{const action=s.rolls.length?'data-ludo-die="'+i+'"':'data-action="ludo-roll"';const enabled=!s.rolling&&!s.moving&&s.winner===null&&(!s.rolls.length||!!s.rolls[i]&&!s.rolls[i].used&&canForDie(s,i));out+='<button type="button" class="nj-center-button" '+action+' aria-label="'+(s.rolls.length?'Choose die '+(i+1):'Throw dice')+'" '+(enabled?'':'disabled')+'>'+diceFace(n,s.rolling?"is-tumbling":"", 'data-center-die="'+i+'"')+'</button>';});
- out+='</div></div></div>';
+ out+='</div></div>'+(s.options.visualHand&&!s.rolls.length&&!s.rolling&&!s.moving&&s.winner===null?'<span class="nj-hand-cue" aria-hidden="true">☝</span>':'')+'</div>';
  return out;
 }
 function render(s,ui){
