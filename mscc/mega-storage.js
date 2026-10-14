@@ -242,7 +242,7 @@ export async function megaVerifyFolder({ targetId }, options = {}) {
         throw new Error('Downloaded test data failed the integrity check.')
       }
       return { location:selected.label, success:true, donorVerified:false,
-        warning:'MSCC readback passed. Confirm the contributor can open the file in their own MEGA account.' }
+        warning:'MSCC readback passed. The probe is removed after this check. A contributor must still test a separate small upload in their own MEGA app.' }
     } finally {
       if (file && typeof file.delete === 'function') {
         try { await file.delete(true); cleanupOk = true } catch { /* leave test file for manual cleanup */ }
