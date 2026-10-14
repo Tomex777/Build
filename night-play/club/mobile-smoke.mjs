@@ -226,8 +226,9 @@ try{
     s.options.speed='slow';s.players[0].tokens[0]=10;s.rolls=[{value:4,used:false}];s.last=[4];s.selectedDie=0;s.die=4;s.rolled=true;
     data.ludo=s;localStorage.setItem('night-play-club-v1',JSON.stringify(data));
   });
-  await page.reload();await page.locator('.nj-board [data-piece="0-0"]').click({force:true});
-  assert.equal(await page.locator('.nj-motion-layer').count(),0,'early taps during board entrance must not move unchanged counters');
+  await page.reload();
+  const idleFlights=await page.evaluate(()=>{document.querySelector('.nj-board [data-piece="0-0"]').click();return document.querySelectorAll('.nj-motion-layer').length;});
+  assert.equal(idleFlights,0,'early taps during board entrance must not move unchanged counters');
   await page.waitForFunction(()=>document.querySelector('.nj-board [data-piece="0-0"]')?.dataset.progress==='11');
   await page.evaluate(()=>document.querySelector('[data-pick="estate"]').click());
   await page.locator('[data-pick="ludo"]').click();
