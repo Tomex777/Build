@@ -100,7 +100,6 @@ fun SoraArcadePage(selected: String, onSelect: (String) -> Unit, library: List<L
             IconButton(onClick = { onSelect("") }) { Icon(Icons.Rounded.ArrowBack, "All games") }
             Column(Modifier.weight(1f)) {
                 Text(game.title, fontSize = 23.sp, fontWeight = FontWeight.ExtraBold)
-                Text(game.subtitle, color = SoraMuted, fontSize = 11.sp)
             }
             Icon(painterResource(game.icon), null, tint = Color.Unspecified, modifier = Modifier.size(40.dp))
         }
