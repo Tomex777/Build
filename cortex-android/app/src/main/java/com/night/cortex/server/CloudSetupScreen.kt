@@ -12,6 +12,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -41,7 +43,7 @@ internal fun CloudSetupPage(
     state: ServerPanelState,
     onRefresh: () -> Unit,
     onSave: (String, String) -> Unit,
-    onAutoAssign: () -> Unit,
+    onAutoAssign: (Set<String>, String?) -> Unit,
     onRestart: () -> Unit,
 ) {
     val settings = state.environment?.entries.orEmpty().associateBy { it.key }
@@ -51,6 +53,8 @@ internal fun CloudSetupPage(
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var confirmAssign by remember { mutableStateOf(false) }
+    var selectedFolderIds by remember { mutableStateOf<Set<String>>(emptySet()) }
+    var imageFolderId by remember { mutableStateOf<String?>(null) }
     val mounts = state.cloudMounts.sortedBy { it.nodeId }
     val configured = emailSetting?.hasValue == true && passwordSetting?.hasValue == true
 
@@ -180,17 +184,58 @@ internal fun CloudSetupPage(
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Medium,
                 )
-                mounts.take(15).forEachIndexed { index, mount ->
-                    Text(
-                        "${index + 1}. ${mount.label}  ·  " +
-                            when (index) {
-                                0, 1, 2 -> "Video"
-                                3 -> "Images & stickers"
-                                else -> "Unassigned"
+                Text(
+                    "Select exactly four dedicated folders below. " +
+                        "Mark one as Images; the remaining three become Video archives. " +
+                        "No account passwords are required.",
+                    color = CortexMuted,
+                    fontSize = 11.sp,
+                )
+                mounts.take(20).forEach { mount ->
+                    val selected = mount.nodeId in selectedFolderIds
+                    Row(modifier = Modifier.fillMaxWidth()) {
+                        Checkbox(
+                            checked = selected,
+                            onCheckedChange = { checked ->
+                                selectedFolderIds = if (checked) {
+                                    selectedFolderIds + mount.nodeId
+                                } else {
+                                    selectedFolderIds - mount.nodeId
+                                }
+                                if (!checked && imageFolderId == mount.nodeId) imageFolderId = null
                             },
-                        fontSize = 12.sp,
-                    )
+                            enabled = !state.loading && (selected || selectedFolderIds.size < 4),
+                        )
+                        Column(Modifier.weight(1f)) {
+                            Text(mount.label, fontSize = 12.sp)
+                            Text(
+                                when {
+                                    !selected -> "Not selected"
+                                    imageFolderId == mount.nodeId -> "Images & Stickers"
+                                    else -> "Video"
+                                },
+                                color = CortexMuted,
+                                fontSize = 11.sp,
+                            )
+                        }
+                        if (selected) {
+                            RadioButton(
+                                selected = imageFolderId == mount.nodeId,
+                                onClick = { imageFolderId = mount.nodeId },
+                                enabled = !state.loading,
+                            )
+                            Text("Images", fontSize = 11.sp, modifier = Modifier.padding(top = 14.dp))
+                        }
+                    }
                 }
+                Text(
+                    "Selected: ${selectedFolderIds.size} / 4 · " +
+                        if (imageFolderId != null && imageFolderId in selectedFolderIds)
+                            "one image folder chosen"
+                        else "select which one stores images",
+                    color = CortexMuted,
+                    fontSize = 11.sp,
+                )
                 if (configured && state.cloudMountsLoaded && mounts.size < 4) {
                     Text(
                         "Four distinct writable folder invitations are needed. " +
@@ -209,7 +254,7 @@ internal fun CloudSetupPage(
                         color = CortexMuted,
                     )
                     Button(
-                        enabled = !state.loading && mounts.size >= 4 && sharesSetting != null,
+                        enabled = !state.loading && selectedFolderIds.size == 4 && imageFolderId in selectedFolderIds && sharesSetting != null,
                         onClick = { confirmAssign = true },
                     ) { Text("Assign 3 video folders + 1 images") }
                     Text(
@@ -237,16 +282,16 @@ internal fun CloudSetupPage(
             title = { Text("Apply Community Cloud layout?") },
             text = {
                 Text(
-                    "Cortex will assign the first three discovered folders to video and " +
-                        "the fourth to images/stickers. This replaces the prior folder map. " +
-                        "Verify the folder order and write permissions first."
+                    "Cortex will assign your chosen Images folder to images/stickers " +
+                        "and the remaining three selected folders to video. " +
+                        "This replaces the prior folder map. Confirm the donors granted write permission."
                 )
             },
             confirmButton = {
                 TextButton(
                     onClick = {
                         confirmAssign = false
-                        onAutoAssign()
+                        onAutoAssign(selectedFolderIds, imageFolderId)
                     }
                 ) { Text("Apply") }
             },
