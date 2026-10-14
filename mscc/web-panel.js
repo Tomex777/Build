@@ -75,7 +75,7 @@ function ip(req) {
   return req.socket.remoteAddress || 'unknown'
 }
 
-export function startWebPanel({ port, host = '127.0.0.1', password, sessionSecret, localControlPort = 8788, getState, getActivity = async () => [], getAccountDiagnostics = async () => null, pairAccount, reconnectAccount, disconnectAccount, removeAccount, repairAccount, createAccount, renameAccount, assignAccountProfile, setSetting, setDestination, reloadCommands, reloadModule }) {
+export function startWebPanel({ port, host = '127.0.0.1', password, sessionSecret, localControlPort = 8788, getState, getActivity = async () => [], getAccountDiagnostics = async () => null, pairAccount, reconnectAccount, disconnectAccount, removeAccount, repairAccount, createAccount, renameAccount, assignAccountProfile, setSetting, setDestination, reloadCommands, reloadModule, getCloudDashboard = async () => ({ provider:'MEGA', configured:false, targets:[] }) }) {
   const configured = Boolean(password && password !== 'change-this-password' && password !== 'change-me')
   const secret = createHash('sha256').update(`${sessionSecret || ''}\0${password || ''}\0mscc`).digest()
   const token = createHmac('sha256', secret).update('admin').digest('base64url')
@@ -123,6 +123,9 @@ export function startWebPanel({ port, host = '127.0.0.1', password, sessionSecre
       }
       if (req.method === 'GET' && url.pathname === '/api/state') {
         return sendJson(res, 200, await getState())
+      }
+      if (req.method === 'GET' && url.pathname === '/api/cloud') {
+        return sendJson(res, 200, await getCloudDashboard())
       }
       if (req.method === 'GET' && url.pathname === '/api/activity') {
         return sendJson(res, 200, { entries: await getActivity(url.searchParams.get('limit')) })
@@ -208,6 +211,9 @@ export function startWebPanel({ port, host = '127.0.0.1', password, sessionSecre
     try {
       if (req.method === 'GET' && url.pathname === '/state') {
         return sendJson(res, 200, await getState())
+      }
+      if (req.method === 'GET' && url.pathname === '/cloud') {
+        return sendJson(res, 200, await getCloudDashboard())
       }
       if (req.method === 'GET' && url.pathname === '/activity') {
         return sendJson(res, 200, { entries: await getActivity(url.searchParams.get('limit')) })
