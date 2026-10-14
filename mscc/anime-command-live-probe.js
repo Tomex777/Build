@@ -99,7 +99,7 @@ await runRow(providerRow)
 if (replySession?.kind !== 'number-selection') {
   const resultMenu = [...lists.slice(listCountBeforeSearch)].reverse().find(menu =>
     Array.isArray(menu.rows) && menu.rows.some(row => String(row.id).includes('~title ')))
-  assert.ok(resultMenu, source.name + ': search returned neither an episode prompt nor a title list')
+  assert.ok(resultMenu, source.name + ': search returned neither an episode prompt nor a title list; calls=' + JSON.stringify(sourceCalls.map(call => ({ source:call.explicitSource, action:call.payload.action, query:call.payload.query }))) + '; replies=' + replies.join(' | ') + '; lists=' + JSON.stringify(lists.map(menu => ({ title:menu.title, rows:(menu.rows || []).map(row => row.title) }))))
   const wanted = query.toLowerCase().split(/\s+/).filter(token => token.length > 2)
   const titleRow = resultMenu.rows.find(row => {
     const title = String(row.title || '').toLowerCase()
