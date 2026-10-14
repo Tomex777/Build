@@ -95,6 +95,26 @@ try {
  assert.equal(await page.locator('#gameDialog').getAttribute('data-skin'),'2048','Game-specific visual skin is applied')
 
  assert.equal(await page.locator('#board2048 .tile').count(),16)
+ // Re-rendering and swiping must not remount the grid or hide its cell surfaces.
+ const stable2048=await page.evaluate(()=>{
+  grid=[[0,0,0,2],[0,0,0,0],[0,0,0,0],[0,0,0,0]];tileScore=0;draw2048();
+  const board=document.getElementById('board2048'),before=[...board.querySelectorAll(':scope > .tile')];
+  move2048('left');
+  const after=[...board.querySelectorAll(':scope > .tile')];
+  return {sameNodes:before.every((node,i)=>node===after[i]),sliding:board.classList.contains('tile-sliding'),
+   visible:after.every(node=>getComputedStyle(node).visibility==='visible'),
+   opaque:after.every(node=>getComputedStyle(node).backgroundColor!=='rgba(0, 0, 0, 0)'),
+   movingTiles:board.querySelectorAll(':scope > .tile-layer .tile-ghost').length};
+ });
+ assert.equal(stable2048.sameNodes,true,'2048 must retain grid cell nodes on swipe');
+ assert.equal(stable2048.sliding,true,'2048 retains the sliding-tile animation');
+ assert.equal(stable2048.visible,true,'2048 grid cells remain visible during animation');
+ assert.equal(stable2048.opaque,true,'2048 grid cells have an opaque backing throughout animation');
+ assert.ok(stable2048.movingTiles>0,'2048 animated tiles are rendered above stable grid');
+ await page.evaluate(()=>{move2048('right');move2048('left')});
+ await page.waitForTimeout(230);
+ assert.equal(await page.locator('#board2048').evaluate(board=>board.classList.contains('tile-sliding')),false,'Rapid swipes must clean up the latest animation');
+ assert.equal(await page.locator('#board2048 .tile-layer').count(),0,'No stale 2048 animation overlay after rapid swipes');
  assert.ok(await page.locator('#board2048').evaluate(el=>el.getBoundingClientRect().width)>=376,'2048 arena occupies nearly full 390px viewport')
  const title2048=await page.locator('#gameTitle').boundingBox();
  assert.ok(title2048.y<130,'Game title is at the TOP, not alongside the board');
@@ -197,7 +217,11 @@ try {
  assert.equal(await page.locator('#gameFocus').getAttribute('aria-pressed'),'false')
 
  await page.locator('#tttboard button').first().click()
+ await page.evaluate(()=>{window.__nightTttXMark=document.querySelector('#tttboard .ttt-cell .ttt-mark')});
  await page.waitForFunction(()=>Array.from(document.querySelectorAll('#tttboard button')).some(b=>b.textContent==='O'),null,{timeout:10000})
+ assert.equal(await page.evaluate(()=>document.querySelector('#tttboard .ttt-cell .ttt-mark')===window.__nightTttXMark),true,'Existing X must retain its SVG after bot plays O');
+ await page.evaluate(()=>drawTtt());
+ assert.equal(await page.evaluate(()=>document.querySelector('#tttboard .ttt-cell .ttt-mark')===window.__nightTttXMark),true,'Unrelated Tic-Tac-Toe renders must never replay the X animation');
  await page.locator('[data-close-game]').first().click()
  await page.locator('.mobile-nav a[href="/dashboard"]').click()
  assert.match((await page.locator('#homeGreeting').textContent())||'',/^Good (morning|afternoon|evening|night), Alex\.$/)
