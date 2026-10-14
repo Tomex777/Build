@@ -512,24 +512,28 @@ class ServerPanelViewModel(application: Application) : AndroidViewModel(applicat
         }
     }
 
-    fun configureCloudVideoLayout() {
+    fun configureCloudVideoLayout(selectedIds: Set<String>, imageNodeId: String?) {
         if (!_state.value.configured) return
-        val mounts = _state.value.cloudMounts.sortedBy { it.nodeId }.take(4)
-        if (mounts.size != 4 || mounts.map { it.nodeId }.toSet().size != 4) {
-            _state.value = _state.value.copy(error = "Connect four separate shared MEGA folders first.")
+        val roles = try {
+            planCloudFolders(_state.value.cloudMounts, selectedIds, imageNodeId)
+        } catch (error: IllegalArgumentException) {
+            _state.value = _state.value.copy(
+                error = error.message ?: "Select three video folders and one image folder."
+            )
             return
         }
         viewModelScope.launch {
             busy {
-                val roles = mounts.mapIndexed { index, mount ->
-                    JSONObject().put("id", if (index < 3) "video_${index + 1}" else "images")
-                        .put("label", if (index < 3) "Video archive ${index + 1}" else "Images and stickers")
-                        .put("nodeId", mount.nodeId)
-                        .put("mediaTypes", JSONArray(if (index < 3) listOf("videos") else listOf("images", "stickers")))
+                val payload = JSONArray(roles.map { role ->
+                    JSONObject()
+                        .put("id", role.id)
+                        .put("label", role.label.take(60))
+                        .put("nodeId", role.nodeId)
+                        .put("mediaTypes", JSONArray(role.mediaTypes))
                         .put("uploadEnabled", true)
-                }
+                }).toString()
                 val environment = withContext(Dispatchers.IO) {
-                    api().setEnvironment("MSCC_MEGA_SHARED_FOLDERS", JSONArray(roles).toString())
+                    api().setEnvironment("MSCC_MEGA_SHARED_FOLDERS", payload)
                 }
                 _state.value = _state.value.copy(
                     environment = environment,
