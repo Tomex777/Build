@@ -1,7 +1,14 @@
 import { existsSync } from 'node:fs'
 import { createCanvas, GlobalFonts, loadImage } from '@napi-rs/canvas'
 
+// Skia needs a real font with the requested glyphs. Register Noto where it
+// exists, with DejaVu as a low-resource fallback; deploy installs the Noto
+// packages. Never flatten user text into ASCII to "fix" missing glyphs.
 for (const [file, family] of [
+  ['/usr/share/fonts/truetype/noto/NotoSans-Regular.ttf', 'Night Noto'],
+  ['/usr/share/fonts/truetype/noto/NotoSans-Bold.ttf', 'Night Noto Bold'],
+  ['/usr/share/fonts/truetype/noto/NotoSansSymbols2-Regular.ttf', 'Night Symbols'],
+  ['/usr/share/fonts/truetype/noto/NotoColorEmoji.ttf', 'Night Emoji'],
   ['/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf', 'Night Sans'],
   ['/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf', 'Night Sans Bold'],
 ]) {
@@ -10,8 +17,8 @@ for (const [file, family] of [
   } catch {}
 }
 
-const FONT = '"Night Sans", "DejaVu Sans", sans-serif'
-const BOLD = '"Night Sans Bold", "DejaVu Sans", sans-serif'
+const FONT = '"Night Noto", "Night Sans", "Night Symbols", "Night Emoji", sans-serif'
+const BOLD = '"Night Noto Bold", "Night Noto", "Night Sans Bold", "Night Emoji", sans-serif'
 
 function clean(value, max = 1000) {
   return String(value || '').replace(/\s+/g, ' ').trim().slice(0, max)
@@ -33,34 +40,67 @@ function roundedRect(ctx, x, y, width, height, radius) {
   ctx.closePath()
 }
 
-function wrapLines(ctx, text, maxWidth, maxLines = 12) {
-  const words = clean(text).split(/\s+/).filter(Boolean)
+// Wrap at whitespace, retain deliberate newlines, and split overlong words
+// only at Unicode grapheme boundaries (not inside emoji/ZWJ sequences).
+export function wrapSocialText(ctx, text, maxWidth, maxLines = 16) {
+  if (!String(text || '').length) return { lines:[], clipped:false }
   const lines = []
-  let line = ''
-  let consumed = 0
+  const segmenter = new Intl.Segmenter(undefined, { granularity:'grapheme' })
+  const segments = value => [...segmenter.segment(value)].map(part => part.segment)
+  const push = value => { if (lines.length <= maxLines) lines.push(value) }
 
-  for (const word of words) {
-    const test = line ? line + ' ' + word : word
-    if (ctx.measureText(test).width <= maxWidth || !line) {
-      line = test
-      consumed += 1
+  for (const paragraph of String(text).replace(/\r\n?/g, '\n').split('\n')) {
+    if (lines.length > maxLines) break
+    if (!paragraph.trim()) {
+      push('')
       continue
     }
-    lines.push(line)
-    line = word
-    consumed += 1
-    if (lines.length >= maxLines) break
+
+    let line = ''
+    for (const word of paragraph.trim().split(/[ \t]+/u)) {
+      const trial = line ? line + ' ' + word : word
+      if (ctx.measureText(trial).width <= maxWidth) {
+        line = trial
+        continue
+      }
+      if (line) {
+        push(line)
+        line = ''
+        if (lines.length > maxLines) break
+      }
+      if (ctx.measureText(word).width <= maxWidth) {
+        line = word
+        continue
+      }
+      // Even a very long unbroken sequence must never escape the canvas.
+      let chunk = ''
+      for (const glyph of segments(word)) {
+        if (chunk && ctx.measureText(chunk + glyph).width > maxWidth) {
+          push(chunk)
+          chunk = ''
+          if (lines.length > maxLines) break
+        }
+        chunk += glyph
+      }
+      line = chunk
+      if (lines.length > maxLines) break
+    }
+    if (lines.length > maxLines) break
+    push(line)
   }
 
-  if (line && lines.length < maxLines) lines.push(line)
-
-  if (consumed < words.length && lines.length) {
-    let last = lines.at(-1)
-    while (last.length > 1 && ctx.measureText(last + '…').width > maxWidth) last = last.slice(0, -1)
-    lines[lines.length - 1] = last.replace(/[\s.,;:!?-]+$/,'') + '…'
+  const clipped = lines.length > maxLines
+  const visible = lines.slice(0, maxLines)
+  if (clipped && visible.length) {
+    const glyphs = segments(visible.at(-1))
+    while (glyphs.length && ctx.measureText(glyphs.join('') + '…').width > maxWidth) glyphs.pop()
+    visible[visible.length - 1] = glyphs.join('').replace(/[ \t]+$/u, '') + '…'
   }
+  return { lines:visible, clipped }
+}
 
-  return lines
+function wrapLines(ctx, text, maxWidth, maxLines = 12) {
+  return wrapSocialText(ctx, text, maxWidth, maxLines).lines
 }
 
 function drawWatermark(ctx, width, height, {
