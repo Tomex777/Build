@@ -5,8 +5,9 @@ import hashlib
 import json
 import os
 from pathlib import Path
-import re
 import subprocess
+
+from verify_signing_identity import assert_expected_signer, signer_fingerprint
 
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--config', required=True, type=Path)
@@ -15,6 +16,8 @@ parser.add_argument('--output', required=True, type=Path)
 parser.add_argument('--apksigner', default='apksigner')
 args = parser.parse_args()
 config = json.loads(args.config.read_text())
+identity_file = Path(__file__).resolve().parents[2] / 'docs/mise/SIGNING_IDENTITY.json'
+expected_certificate = json.loads(identity_file.read_text())['signerCertificateSHA256']
 keystore = args.config.parent / config['keystore']
 assert keystore.is_file(), 'Permanent keystore is missing'
 args.output.mkdir(parents=True, exist_ok=True)
@@ -31,9 +34,8 @@ for abi in ('arm64', 'universal'):
     assert source.is_file(), f'Missing CI release input: {source.name}'
     subprocess.run([args.apksigner, 'sign', *common, '--out', str(target), str(source)], env=env, check=True)
     proof = subprocess.run([args.apksigner, 'verify', '--verbose', '--print-certs', str(target)], capture_output=True, text=True, check=True).stdout
-    certificate = re.search(r'Signer #1 certificate SHA-256 digest: (\S+)', proof)
-    assert certificate, 'Verified certificate identity was absent'
-    certificates.add(certificate.group(1))
+    assert_expected_signer(proof, expected_certificate)
+    certificates.add(signer_fingerprint(proof))
     (args.output / f'{abi.upper()}-PRODUCTION-SIGNATURE.txt').write_text(proof)
     outputs.append(target)
 assert len(certificates) == 1, 'APK signing identities differ'
