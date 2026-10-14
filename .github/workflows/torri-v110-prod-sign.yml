@@ -1,0 +1,121 @@
+name: Sign Torri 1.1.0 with permanent Android certificate
+on:
+  push:
+    branches:
+      - torri/v1-1-prod-sign
+    paths:
+      - signing-handoff/torri-v1.1.0/UNSIGNED-SHA256.txt
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  sign_release:
+    if: github.repository == 'Tomex777/Build'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - name: Checkout unsigned Torri signing handoff
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Reassemble and verify original unsigned release input
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          SRC="signing-handoff/torri-v1.1.0"
+          test -s "$SRC/part-000"
+          test -s "$SRC/UNSIGNED-SHA256.txt"
+          cat "$SRC"/part-* | base64 --decode > "$RUNNER_TEMP/torri-arm64-unsigned.apk"
+          actual="$(sha256sum "$RUNNER_TEMP/torri-arm64-unsigned.apk" | cut -d' ' -f1)"
+          expected="$(cat "$SRC/UNSIGNED-SHA256.txt")"
+          test "$actual" = "$expected" || { echo "::error::Unsigned source APK checksum mismatch"; exit 1; }
+          TOOL_DIR="$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -1)"
+          echo "$TOOL_DIR" > "$RUNNER_TEMP/android-build-tools.txt"
+          "$TOOL_DIR/aapt" dump badging "$RUNNER_TEMP/torri-arm64-unsigned.apk" | tee "$RUNNER_TEMP/torri-package.txt"
+          grep -Eq "^package: name='app.torri' versionCode='10001' versionName='1.1.0'" "$RUNNER_TEMP/torri-package.txt"
+          if "$TOOL_DIR/apksigner" verify "$RUNNER_TEMP/torri-arm64-unsigned.apk" >/dev/null 2>&1; then
+            echo "::error::Refusing input previously signed by an untrusted key."
+            exit 1
+          fi
+          echo "PASS: exact unsigned APK reconstructed and hash-matched."
+
+      - name: Sign with PRE-EXISTING Torri v1.0.0 permanent key
+        shell: bash
+        env:
+          TORRI_RELEASE_KEYSTORE_B64: ${{ secrets.TORRI_RELEASE_KEYSTORE_B64 }}
+          TORRI_RELEASE_KEY_ALIAS: ${{ secrets.TORRI_RELEASE_KEY_ALIAS }}
+          TORRI_RELEASE_KEYSTORE_PASSWORD: ${{ secrets.TORRI_RELEASE_KEYSTORE_PASSWORD }}
+          TORRI_RELEASE_KEY_PASSWORD: ${{ secrets.TORRI_RELEASE_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          for var in TORRI_RELEASE_KEYSTORE_B64 TORRI_RELEASE_KEY_ALIAS TORRI_RELEASE_KEYSTORE_PASSWORD TORRI_RELEASE_KEY_PASSWORD; do
+            test -n "${!var}" || { echo "::error::Torri original signing credential missing"; exit 1; }
+          done
+          umask 077
+          KEYSTORE="$RUNNER_TEMP/torri-existing-production.jks"
+          trap 'rm -f "$KEYSTORE"' EXIT
+          printf '%s' "$TORRI_RELEASE_KEYSTORE_B64" | base64 --decode > "$KEYSTORE"
+          TOOL_DIR="$(cat "$RUNNER_TEMP/android-build-tools.txt")"
+          "$TOOL_DIR/zipalign" -P 16 -f 4 "$RUNNER_TEMP/torri-arm64-unsigned.apk" "$RUNNER_TEMP/torri-arm64-aligned.apk"
+          "$TOOL_DIR/apksigner" sign \
+            --ks "$KEYSTORE" \
+            --ks-key-alias "$TORRI_RELEASE_KEY_ALIAS" \
+            --ks-pass env:TORRI_RELEASE_KEYSTORE_PASSWORD \
+            --key-pass env:TORRI_RELEASE_KEY_PASSWORD \
+            --out dist/Torri-1.1.0-arm64-v8a-release.apk \
+            "$RUNNER_TEMP/torri-arm64-aligned.apk"
+          "$TOOL_DIR/apksigner" verify --verbose --print-certs dist/Torri-1.1.0-arm64-v8a-release.apk | tee "$RUNNER_TEMP/signing-proof.txt"
+          actual="$(sed -n 's/^Signer #1 certificate SHA-256 digest: //p' "$RUNNER_TEMP/signing-proof.txt" | head -1 | tr -d ':[:space:]' | tr '[:upper:]' '[:lower:]')"
+          expected="6b1ab58169e3a8dd4370860d5d03060b035476b43cceaf2bd8da7ca1fe37ab44"
+          test "$actual" = "$expected" || { echo "::error::Certificate mismatch: refusing production release"; exit 1; }
+          "$TOOL_DIR/aapt" dump badging dist/Torri-1.1.0-arm64-v8a-release.apk | grep -E "^package: name='app.torri' versionCode='10001' versionName='1.1.0'"
+          sha256sum dist/*.apk > dist/SHA256SUMS.txt
+          echo "PASS: Production APK signed using the SAME certificate as Torri 1.0.0."
+
+      - name: Publish verified Torri upgrade APK to GitHub
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          TAG="torri-v1.1.0"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "::error::Release $TAG already exists, refusing to silently replace a signed APK."
+            exit 1
+          fi
+          cat > dist/RELEASE-NOTES.txt <<'EOF'
+          Torri by NIGHT 1.1.0 — based on Mihon 0.21.2
+
+          Production-signing certificate SHA-256:
+          6b1ab58169e3a8dd4370860d5d03060b035476b43cceaf2bd8da7ca1fe37ab44
+
+          Android package: app.torri
+          versionCode: 10001 (upgrades Torri 1.0.0 versionCode 10000)
+          Version name: 1.1.0
+
+          This ARM64 release APK is signed with the existing permanent Torri
+          production keystore stored securely in this repository's GitHub
+          Actions secrets, NOT an ephemeral GitHub Actions or Preview key.
+
+          Includes reader performance, offline downloads, library/database
+          and extension/Cloudflare handling improvements from Mihon 0.21.2.
+
+          IMPORTANT: Export and verify a complete Torri library backup before
+          installing. The new upstream database migration may irreversibly
+          merge duplicate library/chapter records. DO NOT uninstall Torri
+          to attempt to bypass Android package/signing checks.
+
+          This release is initially flagged as a prerelease because an
+          in-place upgrade of an old populated user library has not been
+          physically tested; Android signature/package/version checks passed.
+          EOF
+          gh release create "$TAG" \
+            --target "$GITHUB_SHA" \
+            --prerelease \
+            --title "Torri by NIGHT 1.1.0 — production-signed ARM64 upgrade" \
+            --notes-file dist/RELEASE-NOTES.txt \
+            dist/Torri-1.1.0-arm64-v8a-release.apk \
+            dist/SHA256SUMS.txt
+          gh release view "$TAG" --json url,assets,isDraft,isPrerelease
