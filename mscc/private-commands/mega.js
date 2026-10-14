@@ -50,6 +50,8 @@ export default {
           if (!data.configured) return ctx.reply('☁️ MEGA not connected. Set credentials in the secure server environment.')
           return ctx.reply([
             '☁️ MSCC Community Cloud',
+            `Video archives: ${data.targets.filter(t => t.mediaTypes?.includes('videos') || t.mediaTypes?.includes('all')).length} configured`,
+            `Video archives detected & enabled: ${data.targets.filter(t => (t.mediaTypes?.includes('videos') || t.mediaTypes?.includes('all')) && t.detected && t.uploadEnabled).length}`,
             `Primary account: ${bytesLabel(data.used)} / ${bytesLabel(data.total)}`,
             `Primary free: ${bytesLabel(Math.max(0, data.total - data.used))}`,
             `Contributor folders registered: ${data.targets.length - 1}`,
@@ -62,7 +64,8 @@ export default {
         return ctx.reply([
           '☁️ Cloud locations',
           ...data.targets.map(t => `• ${t.type === 'primary' ? 'Fallback' : mediaTypeLabel(t.mediaTypes || [])} — ${t.label} [${t.type === 'primary' ? (data.configured ? 'ready' : 'not connected') : !t.detected ? 'not mounted' : t.uploadEnabled ? 'ready' : 'uploads disabled'}]`),
-          'Media goes to the matching writable folder automatically. Unassigned types use the primary account.',
+          'Files are balanced by visible bytes across matching folders, NOT by MEGA account free quota.',
+          'Unassigned types use the primary account. Donor quotas are not readable from a folder share.',
         ].join('\n'))
       }
       if (action === 'discover') {
