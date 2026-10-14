@@ -5,6 +5,7 @@ on:
   push:
     branches: [cortex-android-live]
     paths:
+      - 'cortex-agent/**'
       - '.github/workflows/cortex-agent-azure-deploy.yml'
   pull_request:
     branches: [cortex-android-live]
@@ -36,6 +37,10 @@ jobs:
           bash -n cortex-agent/cortex-agent-control
           grep -Fq 'MSCC_MEGA_SHARED_FOLDERS' cortex-agent/cortex-agent-control
           grep -Fq "key: 'MSCC_MEGA_PASSWORD'" cortex-agent/index.js
+          grep -Fq "'/api/cortex/host/cloud'" cortex-agent/index.js
+          grep -Fq "'/api/cortex/host/cloud/discover'" cortex-agent/index.js
+          grep -Fq "'/api/cortex/host/cloud/verify'" cortex-agent/index.js
+          grep -Fq "'/api/cortex/host/environment'" cortex-agent/index.js
           grep -Fq 'function presentAccountSlots(state)' cortex-agent/index.js
           grep -Fq "mscc:account.profile-changed" cortex-agent/index.js
           sha256sum cortex-agent/index.js
@@ -151,6 +156,50 @@ jobs:
                 if (!Array.isArray(state.accounts)) process.exit(2);
                 console.log("Cortex Agent pairing readback OK (no private data logged)");
               });'
+          # Confirm the Cortex Cloud configuration API is actually reachable
+          # through the deployed Agent. Never print the response, which may
+          # include non-secret runtime metadata.
+          curl -fsS --max-time 10 \
+            -H "Authorization: Bearer $token" \
+            http://127.0.0.1:47831/api/cortex/host/environment \
+            | node -e '
+              let data = ""; process.stdin.on("data", chunk => data += chunk);
+              process.stdin.on("end", () => {
+                const result = JSON.parse(data);
+                const entries = Array.isArray(result.entries) ? result.entries : [];
+                const keys = new Set(entries.map(entry => entry.key));
+                for (const key of ["MSCC_MEGA_EMAIL", "MSCC_MEGA_PASSWORD", "MSCC_MEGA_SHARED_FOLDERS"]) {
+                  if (!keys.has(key)) process.exit(3);
+                }
+                const secret = entries.find(entry => entry.key === "MSCC_MEGA_PASSWORD");
+                if (secret?.secret !== true || secret?.value) process.exit(4);
+                console.log("Cortex MEGA environment API available (credentials not displayed).");
+              });'
+
+          # The Agent route should exist independently of whether the queued
+          # MSCC production deployment has shipped its own /cloud endpoint.
+          cloud_status="$(curl --silent --show-error --max-time 12 \
+            --output "$tmp/cloud-health.json" --write-out '%{http_code}' \
+            -H "Authorization: Bearer $token" \
+            http://127.0.0.1:47831/api/cortex/host/cloud)"
+          case "$cloud_status" in
+            200)
+              node -e '
+                const fs=require("node:fs");
+                const cloud=JSON.parse(fs.readFileSync(process.argv[1],"utf8"));
+                if (!cloud || typeof cloud !== "object") process.exit(3);
+                console.log("Cortex Agent -> MSCC Cloud API healthy.");
+              ' "$tmp/cloud-health.json"
+              ;;
+            502)
+              echo 'Cortex Agent Cloud route online, but MSCC Cloud upstream is not deployed/ready yet.'
+              ;;
+            *)
+              echo "Cortex Agent Cloud route unhealthy (HTTP $cloud_status)." >&2
+              exit 1
+              ;;
+          esac
+
           systemctl is-active --quiet mscc.service
           new_mscc_pid="$(systemctl show mscc.service --property MainPID --value)"
           [[ "$new_mscc_pid" == "$mscc_pid" ]] || {
