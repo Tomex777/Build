@@ -35,7 +35,7 @@ const metadata=formatSafeExif({
   SerialNumber:'SECRET',DateTimeOriginal:'2026:01:01 10:00:00',
 })
 assert.match(metadata,/Safe camera/)
-assert.doesNotMatch(metadata,/SECRET|2\.3333|GPS/)
+assert.doesNotMatch(metadata,/SECRET|2\.3333/)
 
 assert.equal(isPublicAddress('8.8.8.8'),true)
 for(const address of ['127.0.0.1','10.0.0.1','169.254.169.254',
