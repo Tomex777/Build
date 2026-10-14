@@ -30,9 +30,11 @@ internal object SurfaceDetailMesh {
     }
 
     private fun microRelief(x: Double, z: Double): Double {
-        // Eroded ripples and compact regolith; <= 0.16 m vertical relief.
-        return (0.000030 * sin(x * 6800.0 + sin(z * 1800.0) * 0.32) * cos(z * 5400.0)
-                + 0.000018 * sin(x * 14300.0 - z * 8700.0))
+        // Eroded regolith; <= 0.16 m vertical relief. Keep wavelengths
+        // above four vertex spacings so the 1.05m mesh does not alias
+        // sub-meter waves into diagonal bands at grazing lunar sunlight.
+        return (0.000030 * sin(x * 3100.0 + sin(z * 1800.0) * 0.32) * cos(z * 2700.0)
+                + 0.000018 * sin(x * 3500.0 - z * 2700.0))
     }
 
     /** Height at a mesh vertex before triangle interpolation. */
