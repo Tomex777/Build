@@ -112,7 +112,7 @@ class SharedWebtoonViewer(
             currentPage != null
         this.chapters = chapters
         adapter.setChapters(chapters)
-        if (retainScroll && currentPage in adapter.items) return
+        if (retainScroll && currentPage?.let { it in adapter.items } == true) return
         val pages = chapters.currChapter.pages.orEmpty()
         if (pages.isNotEmpty()) {
             val index = chapters.currChapter.requestedPage.coerceIn(0, pages.lastIndex)
