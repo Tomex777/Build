@@ -110,12 +110,12 @@ internal object SurfaceDetailMesh {
         val highZ = floor((centerZ + radius) / spacing).toInt()
         val data = ArrayList<Float>(27000)
         var stones = 0
-        fun triVertex(x: Double, y: Double, z: Double, nx: Double, ny: Double, nz: Double) {
+        fun triVertex(x: Double, y: Double, z: Double, nx: Double, ny: Double, nz: Double, rockTone: Float) {
             data.add(x.toFloat()); data.add(y.toFloat()); data.add(z.toFloat())
             data.add(nx.toFloat()); data.add(ny.toFloat()); data.add(nz.toFloat())
-            val grit = hash2((x * 193000.0).toInt(), (z * 171000.0).toInt())
-            val tone = (0.17 + grit * 0.54).toFloat()
-            data.add(tone); data.add(tone); data.add(tone)
+            // One stable reflectance per fragment, not a random tint at
+            // every triangle corner (which looked like faceted toy stones).
+            data.add(rockTone); data.add(rockTone); data.add(rockTone)
         }
         for (gz in lowZ..highZ) for (gx in lowX..highX) {
             // Real scree is clustered around eroded slopes and outcrops,
@@ -129,12 +129,13 @@ internal object SurfaceDetailMesh {
             val z = (gz + 0.15 + hash2(gx, gz + 23)) * spacing
             if (hypot(x - centerX, z - centerZ) > radius) continue
             val base = elevation(x, z)
+            val rockTone = (0.20 + 0.38 * hash2(gx - 57, gz + 91)).toFloat()
             // Heavy-tailed fragment sizes: mostly gravel, with occasional
             // large embedded meter-scale basalt blocks. Prior min radius
             // 25 cm created a cartoon field of repeated boulders.
             val grainSize = hash2(gx + 31, gz - 9)
-            val size = (0.000022 + grainSize * grainSize *
-                grainSize * grainSize * 0.00048)
+            val size = (0.000018 + grainSize * grainSize * grainSize *
+                grainSize * grainSize * grainSize * grainSize * 0.00043)
             val squish = 0.38 + hash2(gx - 7, gz + 45) * 0.45
              val offset = hash2(gx, gz - 27) * PI * 2.0
             val rockHeight = size * squish
@@ -165,9 +166,9 @@ internal object SurfaceDetailMesh {
                 var nz = ux * vy - uy * vx
                 val len = sqrt(nx * nx + ny * ny + nz * nz).coerceAtLeast(1e-12)
                 nx /= len; ny /= len; nz /= len
-                triVertex(a.x, a.y, a.z, nx, ny, nz)
-                triVertex(b.x, b.y, b.z, nx, ny, nz)
-                triVertex(c.x, c.y, c.z, nx, ny, nz)
+                triVertex(a.x, a.y, a.z, nx, ny, nz, rockTone)
+                triVertex(b.x, b.y, b.z, nx, ny, nz, rockTone)
+                triVertex(c.x, c.y, c.z, nx, ny, nz, rockTone)
             }
             val top = Point(tipX, base + rockHeight, tipZ)
             for (side in 0 until 8) {
