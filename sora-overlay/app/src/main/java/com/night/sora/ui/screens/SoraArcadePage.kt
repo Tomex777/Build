@@ -1,9 +1,12 @@
 package com.night.sora.ui.screens
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.ArrowBack
@@ -13,6 +16,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -40,25 +44,62 @@ private val arcadeEntries = listOf(
 @Composable
 fun SoraArcadePage(selected: String, onSelect: (String) -> Unit, library: List<LibraryEntry>, modifier: Modifier = Modifier) {
     if (selected.isEmpty()) {
-        LazyColumn(modifier.fillMaxSize(), contentPadding = PaddingValues(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            item {
-                Text("Games", fontSize = 30.sp, fontWeight = FontWeight.ExtraBold)
-                Text("Real playable games. The arcade works offline.", color = SoraMuted, fontSize = 12.sp)
-                Spacer(Modifier.height(8.dp))
+        // Cards are intentionally bigger than the original compact list:
+        // game SVGs are readable at 360dp and the entire card is touchable.
+        // A 2-column layout makes the full arcade discoverable without hiding
+        // eight games below a long sequence of identical-looking rows.
+        LazyVerticalGrid(
+            columns = GridCells.Fixed(2),
+            modifier = modifier.fillMaxSize(),
+            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 28.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            item(span = { GridItemSpan(maxLineSpan) }) {
+                Column(Modifier.fillMaxWidth().padding(bottom = 7.dp)) {
+                    Text("PLAY ANYWHERE", fontSize = 10.sp, color = SoraAccent,
+                        fontWeight = FontWeight.Black, letterSpacing = 1.3.sp)
+                    Text("Games", fontSize = 34.sp, fontWeight = FontWeight.ExtraBold)
+                    Text("11 playable games · Offline-friendly",
+                        color = SoraMuted, fontSize = 12.sp)
+                }
             }
             items(arcadeEntries, key = { it.key }) { game ->
-                Surface(modifier = Modifier.fillMaxWidth().clickable { onSelect(game.key) },
-                    color = SoraSurfaceHigh, shape = RoundedCornerShape(18.dp)) {
-                    Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Surface(shape = RoundedCornerShape(14.dp), color = SoraSurfaceRaised) {
-                            Icon(painter = painterResource(game.icon), contentDescription = null,
-                                tint = Color.Unspecified, modifier = Modifier.padding(10.dp).size(39.dp))
+                val accent = when (game.key) {
+                    "snake", "who", "memory" -> Color(0xFF70D8AB)
+                    "tiles", "daily", "meme" -> Color(0xFFFFC86A)
+                    "ttt", "quotes", "bible" -> Color(0xFF9CBBFF)
+                    else -> Color(0xFFF3A7BA)
+                }
+                Surface(
+                    modifier = Modifier.fillMaxWidth().clickable { onSelect(game.key) },
+                    color = SoraSurfaceHigh,
+                    shape = RoundedCornerShape(22.dp),
+                ) {
+                    Column(
+                        Modifier.fillMaxWidth().height(177.dp)
+                            .background(Brush.verticalGradient(listOf(accent.copy(alpha = .13f),
+                                SoraSurfaceHigh, SoraSurfaceHigh)))
+                            .padding(14.dp),
+                        verticalArrangement = Arrangement.SpaceBetween,
+                    ) {
+                        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top,
+                            horizontalArrangement = Arrangement.SpaceBetween) {
+                            Surface(shape = RoundedCornerShape(14.dp),
+                                color = accent.copy(alpha = .12f)) {
+                                Icon(painter = painterResource(game.icon), contentDescription = null,
+                                    tint = Color.Unspecified,
+                                    modifier = Modifier.padding(9.dp).size(46.dp))
+                            }
+                            Icon(Icons.Rounded.ChevronRight, contentDescription = null,
+                                tint = accent, modifier = Modifier.size(18.dp))
                         }
-                        Column(Modifier.weight(1f).padding(start = 13.dp)) {
-                            Text(game.title, fontSize = 17.sp, fontWeight = FontWeight.Bold)
-                            Text(game.subtitle, color = SoraMuted, fontSize = 11.sp)
+                        Column {
+                            Text(game.title, fontSize = 16.sp,
+                                fontWeight = FontWeight.ExtraBold, maxLines = 1)
+                            Text(game.subtitle, color = SoraMuted, fontSize = 10.sp,
+                                lineHeight = 13.sp, maxLines = 2)
                         }
-                        Icon(Icons.Rounded.ChevronRight, "Play", tint = SoraAccent)
                     }
                 }
             }
