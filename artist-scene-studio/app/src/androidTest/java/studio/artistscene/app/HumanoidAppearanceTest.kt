@@ -45,7 +45,6 @@ class HumanoidAppearanceTest {
             find("inspector", 45_000).click()
             find("close-context-sheet")
             find("context-sheet-content")
-            find("character-taller")
             device.waitForIdle()
         }
         fun visible(tag: String): UiObject2 {
@@ -115,8 +114,8 @@ class HumanoidAppearanceTest {
                 captureRenderedBody("before")
                 listOf("short", "afro", "bob").forEach { style ->
                     openInspector()
-                    find("hair-style-$style").click()
-                    find("hair-color-brown").click()
+                    visible("hair-style-$style").click()
+                    visible("hair-color-brown").click()
                     closeInspector()
                     captureRenderedBody("hair-$style", requireBrownHair = true)
                     val hairBitmap = requireNotNull(BitmapFactory.decodeFile(File(context.getExternalFilesDir(null), "humanoid-hair-$style.png").path))
@@ -131,7 +130,7 @@ class HumanoidAppearanceTest {
                     assertTrue("$style brown hair was not visible on the head", hairPixels > 30)
                 }
                 openInspector()
-                find("character-taller").click()
+                visible("character-taller").click()
                 listOf("body-fat", "muscularity", "pointed-ears", "ear-size").forEach { shape ->
                     repeat(4) { visible("appearance-increase-$shape").click(); device.waitForIdle() }
                 }
