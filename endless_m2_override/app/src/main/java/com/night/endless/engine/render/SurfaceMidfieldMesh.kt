@@ -23,15 +23,39 @@ internal object SurfaceMidfieldMesh {
     const val STRIDE = 9
     const val EXTENT = (SIDE - 1) * STEP / 2f
 
+    private fun hash2(x: Int, z: Int): Double {
+        // Geographically seeded, reproducible relief with no repeating
+        // trigonometric ridges running diagonally across crater slopes.
+        var h = (x * 374761393) xor (z * 668265263)
+        h = (h xor (h ushr 13)) * 1274126177
+        return ((h xor (h ushr 16)).toLong() and 0xffffffffL).toDouble() /
+            4294967296.0
+    }
+
+    private fun coherentNoise(x: Double, z: Double): Double {
+        val ix = kotlin.math.floor(x).toInt()
+        val iz = kotlin.math.floor(z).toInt()
+        val fx = x - ix
+        val fz = z - iz
+        val sx = fx * fx * (3.0 - 2.0 * fx)
+        val sz = fz * fz * (3.0 - 2.0 * fz)
+        val a = hash2(ix, iz) * (1.0 - sx) + hash2(ix + 1, iz) * sx
+        val b = hash2(ix, iz + 1) * (1.0 - sx) + hash2(ix + 1, iz + 1) * sx
+        return a * (1.0 - sz) + b * sz
+    }
+
     private fun fineAmplitude(x: Double, z: Double): Double {
-        // <1.7m detail relief, not claimed spacecraft measurement.
-        // The shortest meaningful wavelength stays above 110 metres:
-        // 21m vertices must not be fed sub-Nyquist 30m sine waves.
-        val ripples = sin(x * 138.0 + sin(z * 41.0) * .31) *
-            cos(z * 94.0 + sin(x * 38.0) * .7)
-        val low = sin(x * 49.0 + z * 21.0) *
-            cos(z * 67.0 - x * 16.0)
-        return 0.00023 * ripples + 0.00019 * low
+        // Two nonperiodic, band-limited geological scales (~250m and ~580m).
+        // 21m vertices must never sample 30m periodic waves: that caused
+        // repeating diagonal black/white stripes in actual Moon screenshots.
+        // This illustrative residual is bounded by 0.93 metres vertically.
+        val warpX = (coherentNoise(x * 5.4 + 19.4, z * 5.4 - 7.0) - .5) * .035
+        val warpZ = (coherentNoise(x * 5.4 - 35.0, z * 5.4 + 21.2) - .5) * .035
+        val broad = coherentNoise((x + warpX) * 5.2, (z + warpZ) * 5.2)
+        val eroded = coherentNoise(
+            (x + warpX) * 11.7 + 71.0, (z + warpZ) * 11.7 - 23.0
+        )
+        return (broad - .5) * .00032 + (eroded - .5) * .00030
     }
 
     fun build(
