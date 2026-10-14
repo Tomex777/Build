@@ -157,3 +157,55 @@
  .nj-settings summary span{font-size:9px}
 }
 @media(prefers-reduced-motion:reduce){.nj-hand-cue{animation:none}}
+
+
+/* True six-face perspective dice. The resting orientation corresponds to the
+   actual fair roll; the 3D tumble is visual feedback, not the random generator. */
+.nj-die{perspective:260px;background:transparent!important;border:none!important;box-shadow:none!important;overflow:visible!important;transform:none!important;}
+.nj-cube{
+ --cubeSize:calc(var(--dieSize) * .76);
+ position:absolute;display:block;left:12%;top:12%;width:var(--cubeSize);height:var(--cubeSize);
+ transform-style:preserve-3d;transition:transform .17s ease-out;
+ filter:drop-shadow(0 5px 3px #12251b50);
+}
+.nj-cube-face{
+ position:absolute;inset:0;display:block;backface-visibility:hidden;
+ border:1.5px solid #fd9587;border-radius:max(3px,calc(var(--cubeSize) * .16));
+ background:linear-gradient(145deg,#fb6864 0%,#e43743 35%,#b61329 100%);
+ box-shadow:inset 2px 2px 3px #ffffff7a,inset -3px -3px 4px #6c14225c;
+}
+.nj-cube-face .nj-pips{
+ width:77%;height:77%;position:absolute;inset:11.5% auto auto 11.5%;
+ display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(3,1fr);gap:3%;
+}
+.nj-cube-face .nj-pips i{margin:16%}
+.nj-cube-face .nj-pips i.lit{box-shadow:inset 1px 1px 2px #fff,0 1px 2px #51122766}
+.nj-face-front{transform:translateZ(calc(var(--cubeSize) / 2))}
+.nj-face-back{transform:rotateY(180deg) translateZ(calc(var(--cubeSize) / 2))}
+.nj-face-left{transform:rotateY(-90deg) translateZ(calc(var(--cubeSize) / 2))}
+.nj-face-right{transform:rotateY(90deg) translateZ(calc(var(--cubeSize) / 2))}
+.nj-face-top{transform:rotateX(90deg) translateZ(calc(var(--cubeSize) / 2))}
+.nj-face-bottom{transform:rotateX(-90deg) translateZ(calc(var(--cubeSize) / 2))}
+.nj-cube.nj-value-1{transform:rotateX(-15deg) rotateY(-17deg)}
+.nj-cube.nj-value-2{transform:rotateX(-73deg) rotateY(-14deg)}
+.nj-cube.nj-value-3{transform:rotateX(-14deg) rotateY(-72deg)}
+.nj-cube.nj-value-4{transform:rotateX(-14deg) rotateY(72deg)}
+.nj-cube.nj-value-5{transform:rotateX(73deg) rotateY(-13deg)}
+.nj-cube.nj-value-6{transform:rotateX(-14deg) rotateY(162deg)}
+.nj-die-button.is-tumbling .nj-die,.nj-dice-center.is-rolling .nj-die{animation:none!important}
+.nj-die-button.is-tumbling .nj-cube,.nj-dice-center.is-rolling .nj-cube{
+ transition:none;animation:njPhysicalThrow .76s cubic-bezier(.21,.59,.36,1) both;
+}
+@keyframes njPhysicalThrow{
+ 0%{transform:translate(1px,0) rotateX(20deg) rotateY(18deg) rotateZ(0deg)}
+ 18%{transform:translate(-4px,-14px) rotateX(167deg) rotateY(88deg) rotateZ(-16deg)}
+ 40%{transform:translate(3px,-28px) rotateX(333deg) rotateY(245deg) rotateZ(22deg)}
+ 65%{transform:translate(-4px,-10px) rotateX(506deg) rotateY(385deg) rotateZ(-15deg)}
+ 85%{transform:translate(3px,-5px) rotateX(624deg) rotateY(545deg) rotateZ(8deg)}
+ 100%{transform:translate(0,0) rotateX(705deg) rotateY(720deg) rotateZ(0deg)}
+}
+.nj-center-button .nj-cube-face{border-radius:4px;border-width:1px}
+.nj-dice-controls{perspective:400px}
+@media(prefers-reduced-motion:reduce){
+ .nj-die-button.is-tumbling .nj-cube,.nj-dice-center.is-rolling .nj-cube{animation:none!important}
+}
