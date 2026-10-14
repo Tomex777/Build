@@ -188,10 +188,10 @@ for node in root.iter('node'):
     if not m: continue
     x1,y1,x2,y2=map(int,m.groups())
     width=x2-x1; height=y2-y1
-    if 760 <= y1 <= 1550 and 320 <= width <= 650 and 80 <= height <= 260:
+    if 400 <= y1 <= 1700 and width >= 700 and 70 <= height <= 280:
         choices.append((y1,x1,x2,y2))
 if not choices:
-    raise SystemExit('No playable Music tile found')
+    raise SystemExit('No clickable Music search result found')
 y1,x1,x2,y2=sorted(choices)[0]
 subprocess.check_call(['adb','shell','input','tap',str((x1+x2)//2),str((y1+y2)//2)])
 PY
@@ -216,13 +216,18 @@ else
 fi
 tap_text Music
 
-# YouTube Music browse is network-backed; allow a little longer than the normal UI smoke.
-sleep 10
-dismiss_system_dialogs
-shot 01-youtube-music-home
+# The app no longer invents a personalized Music feed for a new account.
+# Search for a real-world track explicitly (rather than tapping a
+# location-dependent generic chart), just as a first-time user would.
+wait_for_node 'Make Music yours' 20
+shot 01-youtube-music-onboarding
+tap_text 'Search Music'
+tap_text 'Search Music…'
+adb shell input text 'Rick%sAstley%sNever%sGonna%sGive%sYou%sUp'
+wait_for_node 'Never Gonna Give You Up' 45
+shot 01b-youtube-music-search
 
-# Preserve the resolver window independently of uiautomator spam. This starts
-# immediately before the track tap and remains live until the smoke exits.
+# Preserve resolver traffic separately from slow accessibility polling.
 adb logcat -c || true
 adb logcat -v threadtime > "$OUT/resolver-live-logcat.txt" 2>&1 &
 LIVE_LOGCAT_PID=$!
