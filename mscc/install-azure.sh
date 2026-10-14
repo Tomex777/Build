@@ -112,11 +112,13 @@ bash "$RELEASE/tools/install-node-deps.sh" "$RELEASE" "$PREVIOUS_RELEASE"
 NEED_APT=0
 if ! command -v ffmpeg >/dev/null 2>&1; then NEED_APT=1; fi
 if ! command -v pdftotext >/dev/null 2>&1; then NEED_APT=1; fi
+if ! command -v pdftoppm >/dev/null 2>&1; then NEED_APT=1; fi
+if ! command -v gs >/dev/null 2>&1; then NEED_APT=1; fi
 if ! command -v fpcalc >/dev/null 2>&1; then NEED_APT=1; fi
 if [ "$NEED_APT" -eq 1 ]; then
   echo ">>> Installing media/document/fingerprint runtime dependencies..."
   sudo apt-get update -y
-  sudo apt-get install -y --no-install-recommends ffmpeg poppler-utils libchromaprint-tools
+  sudo apt-get install -y --no-install-recommends ffmpeg poppler-utils libchromaprint-tools ghostscript
 fi
 
 # Keep YouTube's optional maintained extractor in a private MSCC-only venv.
