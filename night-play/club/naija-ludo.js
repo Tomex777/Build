@@ -116,7 +116,7 @@ function diceFace(n,cls="",opts=""){
  4:{front:4,back:3,right:1,left:6,top:2,bottom:5}
  };
  const sides=Object.entries(layouts[n]||layouts[1]);
- return '<span class="nj-die '+cls+'" '+opts+'><span class="nj-cube nj-value-'+n+'" aria-hidden="true">'+sides.map(([face,val])=>'<span class="nj-cube-face nj-face-'+face+'"><span class="nj-pips">'+Array.from({length:9},(_,i)=>'<i class="'+(PIPS[val].includes(i)?"lit":"")+'"></i>').join("")+'</span></span>').join("")+'</span></span>';
+ return '<span class="nj-die '+cls+'" data-dice-value="'+n+'" '+opts+'><span class="nj-cube nj-value-'+n+'" aria-hidden="true">'+sides.map(([face,val])=>'<span class="nj-cube-face nj-face-'+face+'"><span class="nj-pips">'+Array.from({length:9},(_,i)=>'<i class="'+(PIPS[val].includes(i)?"lit":"")+'"></i>').join("")+'</span></span>').join("")+'</span></span>';
 }
 function avatarFor(house){
  // A small original football medallion keeps the Nigerian board character

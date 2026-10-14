@@ -10,7 +10,7 @@ const dir=path.dirname(fileURLToPath(import.meta.url));
 const root=path.resolve(dir,"..");
 const server=createServer((req,res)=>{
   const pathname=new URL(req.url,"http://localhost").pathname;
-  const files={"/club/":"club/index.html","/club":"club/index.html","/club/index.html":"club/index.html","/club/style.css":"club/style.css","/club/ludo-immersive.css":"club/ludo-immersive.css","/club/games.js":"club/games.js","/club/naija-ludo.js":"club/naija-ludo.js","/club/ludo-motion.js":"club/ludo-motion.js","/games":"index.html","/index.html":"index.html"};
+  const files={"/club/":"club/index.html","/club":"club/index.html","/club/index.html":"club/index.html","/club/style.css":"club/style.css","/club/ludo-immersive.css":"club/ludo-immersive.css","/club/games.js":"club/games.js","/club/naija-ludo.js":"club/naija-ludo.js","/club/ludo-motion.js":"club/ludo-motion.js","/club/ludo-dice-3d.js":"club/ludo-dice-3d.js","/games":"index.html","/index.html":"index.html"};
   const rel=files[pathname];
   if(!rel){res.writeHead(404);res.end("Not found");return;}
   const kind=rel.endsWith(".css")?"text/css":rel.endsWith(".js")?"text/javascript":"text/html";
@@ -27,6 +27,7 @@ try{
   page.on("pageerror",e=>errors.push(String(e)));
   await page.goto(base+"/club/?game=ludo");
   await page.locator(".l-cell").first().waitFor();
+  await page.waitForFunction(()=>window.NightLudo3D?.ready===true,{timeout:12000});
   mkdirSync("night-play/visual-output",{recursive:true});
   assert.equal(await page.locator(".l-cell").count(),225,"traditional 15x15 board");
   assert.equal(await page.locator("body.ludo-mode").count(),1,"Ludo opens directly into immersive game screen");
@@ -50,6 +51,7 @@ try{
   assert.equal(await page.locator("[data-piece]").count(),16,"two Naija Ludo players each control two houses of four counters");
   assert.equal(await page.locator(".nj-dice-center .nj-die").count(),2,"two dice inside board");
   assert.equal(await page.locator(".nj-die-button").count(),2,"two tappable large dice");
+  assert.equal(await page.locator(".nj-dice-center .nj-three-dice-layer").count(),1,"Ludo centre dice use the Three.js WebGL renderer");
   await page.evaluate(()=>window.NightLudo.setTestRolls([6,2]));
   await page.locator('[data-action="ludo-roll"]').first().click();
   assert.ok(await page.locator(".nj-dice-center.is-rolling").count(),"dice visibly tumble");
@@ -58,6 +60,7 @@ try{
   assert.equal(await page.locator('.nj-dice-center .nj-cube').first().evaluate(el=>getComputedStyle(el).filter),'none',"dice shadow must not flatten the 3D cube faces");
   await page.waitForTimeout(130);
   await page.screenshot({path:"night-play/visual-output/LUDO-THROW-TUMBLE.jpg",type:"jpeg",quality:85});
+  assert.ok(await page.locator(".nj-three-dice-layer").evaluate(el=>el.width>0&&el.height>0),"three-dimensional dice canvas has a live render size");
   await page.locator(".l-token.eligible").first().waitFor({timeout:5000});
   const shownDice=await page.locator(".nj-dice-controls .nj-die").evaluateAll(elements=>elements.map(el=>el.querySelectorAll(".nj-face-front .nj-pips i.lit").length));
   assert.deepEqual(shownDice,[6,2],"3D dice face graphics must precisely match the dice actually rolled");
