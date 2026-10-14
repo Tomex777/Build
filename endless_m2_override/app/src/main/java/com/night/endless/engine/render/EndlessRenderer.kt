@@ -609,7 +609,7 @@ class EndlessRenderer(
         GLES30.glClearColor(0.055f, 0.027f, 0.018f, 1f)
         GLES30.glClear(GLES30.GL_COLOR_BUFFER_BIT or GLES30.GL_DEPTH_BUFFER_BIT)
         drawMarsSky()
-        Matrix.perspectiveM(projection, 0, 67f, width.toFloat() / height, 0.000055f, 32f)
+        Matrix.perspectiveM(projection, 0, 67f, width.toFloat() / height, 0.0002f, 32f)
         val eyeY = MarsSurfaceTerrain.renderedHeightAt(marsSurfaceX, marsSurfaceZ) + 0.00078 // 2.34m eye level
         val lookX = sin(yaw) * cos(pitch)
         val lookY = sin(pitch)
@@ -643,7 +643,7 @@ class EndlessRenderer(
     private fun drawMoonSurfaceFrame() {
         GLES30.glClearColor(0.0015f, 0.0015f, 0.0025f, 1f)
         GLES30.glClear(GLES30.GL_COLOR_BUFFER_BIT or GLES30.GL_DEPTH_BUFFER_BIT)
-        Matrix.perspectiveM(projection, 0, 67f, width.toFloat() / height, 0.000055f, 36f)
+        Matrix.perspectiveM(projection, 0, 67f, width.toFloat() / height, 0.0002f, 36f)
         val eyeY = MoonSurfaceTerrain.renderedHeightAt(moonSurfaceX, moonSurfaceZ) + 0.00078 // 2.34m eye level
         val lookX = sin(yaw) * cos(pitch)
         val lookY = sin(pitch)
@@ -658,7 +658,7 @@ class EndlessRenderer(
         // exposure than stars. A camera exposing bright regolith shows an
         // almost black, STARLESS sky (Apollo photographs demonstrate this).
         // Stars remain visible when exploring from orbit.
-        Matrix.perspectiveM(projection, 0, 67f, width.toFloat() / height, 0.000055f, 36f)
+        Matrix.perspectiveM(projection, 0, 67f, width.toFloat() / height, 0.0002f, 36f)
         Matrix.multiplyMM(viewProjection, 0, projection, 0, view, 0)
         moonSurfaceTerrain?.draw(viewProjection, -moonSurfaceX.toFloat(), -moonSurfaceZ.toFloat())
     }
