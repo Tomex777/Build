@@ -118,3 +118,42 @@
 /* Game advice must not resemble a broken disabled action. */
 .nj-move-hint{background:#e4f3e7;border:1px solid #a6cbb0;border-radius:9px;min-height:50px;display:flex;align-items:center;justify-content:center;padding:10px;color:#255b38;font-size:13px;font-weight:850;line-height:1.35}
 .nj-board .nj-piece.eligible{outline:2px solid #ffe7a3;outline-offset:1px;box-shadow:0 0 0 2px #fff,0 0 0 4px #e7b43e,0 2px 5px #0004!important}
+
+
+/* Familiar tabletop finish, not copied from Tonielrosoft artwork. */
+.nj-board.ludo{background:#f9f6ec;border-color:#233a33;box-shadow:0 0 0 5px #6b4c32,0 7px 2px #452e24b3,0 11px 21px #142b2045}
+.nj-yard .nj-sport-icon{position:absolute;width:58%;left:21%;height:58%;top:21%;color:white;opacity:.78;pointer-events:none;z-index:0}
+.nj-sport-icon svg{width:100%;height:100%;display:block}
+.nj-board .nj-yard .yard{background:#fffdfaeb;position:relative;z-index:1}
+.nj-board .nj-yard-label{z-index:2}
+.nj-barrier::after{content:"";position:absolute;inset:2px;border:2px dashed #252b25;pointer-events:none;border-radius:2px}
+.nj-hand-cue{display:block;grid-row:5 / span 2;grid-column:8 / span 2;align-self:end;justify-self:end;font-size:clamp(23px,6vw,40px);z-index:9;transform:rotate(-23deg);text-shadow:0 2px 1px #171d1dbb;pointer-events:none;animation:njPoint 1.5s ease-in-out infinite}
+@keyframes njPoint{0%,100%{translate:0 0}50%{translate:0 5px}}
+.nj-settings{margin-top:14px;background:#f9fcf7;border:1px solid #cbd9cb;border-radius:10px;color:#2e4636;overflow:hidden}
+.nj-settings summary{cursor:pointer;display:flex;align-items:center;justify-content:space-between;list-style:none;font-size:13px;font-weight:850;min-height:49px;padding:10px 13px;touch-action:manipulation}
+.nj-settings summary::-webkit-details-marker{display:none}
+.nj-settings summary span{font-size:10px;color:#79897c;font-weight:650}
+.nj-settings summary:after{content:"▾";font-size:16px}
+.nj-settings[open] summary:after{content:"▴"}
+.nj-settings[open] summary{border-bottom:1px solid #d8e4d8}
+.nj-switches{padding:3px 13px 12px}
+.nj-switch,.nj-speed{display:flex;align-items:center;justify-content:space-between;gap:10px;border-bottom:1px solid #e2e8de;padding:11px 0;font-size:12px}
+.nj-switch>span,.nj-speed>span{display:flex;flex-direction:column;gap:3px}
+.nj-switch b,.nj-speed b{font-size:12px;color:#283e2e}
+.nj-switch small,.nj-speed small{font-size:10px;color:#7b887b;line-height:1.45}
+.nj-switch input[type="checkbox"]{appearance:none;width:42px;height:25px;border:1px solid #99a99e;background:#d8e0d6;border-radius:18px;position:relative;flex:0 0 42px;transition:background .12s}
+.nj-switch input:before{content:"";position:absolute;top:2px;left:3px;width:18px;height:18px;background:white;border-radius:50%;box-shadow:0 1px 3px #0003;transition:translate .12s}
+.nj-switch input:checked{background:#377d4a}
+.nj-switch input:checked:before{translate:16px}
+.nj-switch input:disabled{opacity:.4}
+.nj-speed .select{max-width:106px;font-size:13px}
+.nj-switch:last-child,.nj-speed:last-child{border:0}
+@media(max-width:540px){
+ .nj-board.ludo{border-width:3px;box-shadow:0 0 0 2px #6b4c32,0 6px 5px #343a3447}
+ .nj-hand-cue{font-size:27px}
+ .nj-board .l-cell{border-color:#acb5ae}
+ .nj-board .nj-yard .yard button{min-width:0}
+ .nj-board .nj-dice-center{z-index:8}
+ .nj-settings summary span{font-size:9px}
+}
+@media(prefers-reduced-motion:reduce){.nj-hand-cue{animation:none}}
