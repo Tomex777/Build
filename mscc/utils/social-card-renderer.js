@@ -800,6 +800,7 @@ export async function renderPostCard({
   const canvas = createCanvas(width, height)
   const ctx = canvas.getContext('2d')
   gradient(ctx, width, height, [[0,'#11141d'],[1,'#28213e']])
+  await drawSocialPhoto(ctx, imageBuffer, 0, 0, width, height, { shade:0.62 })
 
   await drawAvatar(ctx, 46, 40, 76, {
     avatarBuffer,
@@ -823,6 +824,16 @@ export async function renderPostCard({
     ctx.fillText(row, width / 2, y)
     y += 62
   }
+
+  ctx.font = `22px ${FONT}`
+  ctx.fillStyle = '#d9d8e5'
+  ctx.textAlign = 'center'
+  ctx.fillText(
+    '♥ ' + compactCount(likeCount) + ' likes     ·     ' +
+    compactCount(commentCount) + ' comments     ·     ' +
+    compactCount(shareCount) + ' shares',
+    width / 2, 674,
+  )
 
   drawWatermark(ctx, width, height, { light:true, fontSize:13, inset:15 })
   return canvas.toBuffer('image/png')
