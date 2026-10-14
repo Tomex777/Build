@@ -11,7 +11,7 @@ const env = {
   MSCC_MEGA_SHARED_FOLDERS:JSON.stringify([
     { id:'alex', label:'Alex donated folder', nodeId:'exampleS', uploadEnabled:true },
     { id:'riley', label:'Riley contributed folder', nodeId:'exampleT', uploadEnabled:false },
-    { id:'missing', label:'Unavailable', nodeId:'notthere' },
+    { id:'missing', label:'Unavailable', nodeId:'notthere', uploadEnabled:true },
   ]),
 }
 assert.equal(megaSharedFolders(env).length, 3)
