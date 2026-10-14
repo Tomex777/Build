@@ -201,8 +201,16 @@ wait_for_node 'Anime & Manga' 10
 tap_text 'Anime & Manga'
 wait_for_node Music 10
 tap_text Music
-wait_for_node 'Low Light' 20
-shot 01-music-demo-catalog
+# Music Home does not auto-populate a fake "For you" feed for new users.
+# Exercise deliberate search for the deterministic test track instead.
+wait_for_node 'Make Music yours' 12
+wait_for_node 'Search Music' 12
+tap_text 'Search Music'
+wait_for_node 'Search Music…' 12
+tap_text 'Search Music…'
+adb shell input text 'Low%sLight'
+wait_for_node 'Low Light' 30
+shot 01-music-demo-search
 
 tap_text 'Low Light'
 wait_for_node 'Mini player' 20
