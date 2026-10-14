@@ -17,6 +17,7 @@ import androidx.media3.common.Player
 import androidx.media3.datasource.DataSpec
 import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.datasource.DefaultHttpDataSource
+import androidx.media3.datasource.HttpDataSource
 import androidx.media3.datasource.ResolvingDataSource
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
@@ -81,6 +82,12 @@ class MusicPlaybackController(
             setHandleAudioBecomingNoisy(true)
             setWakeMode(C.WAKE_MODE_LOCAL)
         }
+    // A source can offer several CDN URLs for the same recording. Some YouTube
+    // clients return a successful metadata response but the CDN denies individual
+    // URLs with HTTP 403. Retry those URLs without leaving the current track or
+    // emitting a false listening event.
+    private var streamCandidates: List<PlaybackStream> = emptyList()
+    private var streamCandidateIndex = 0
     private var requestSerial = 0L
     private var listeningEventSerial = 0L
     private var startedEventTrackKey: String? = null
@@ -144,8 +151,31 @@ class MusicPlaybackController(
             }
 
             override fun onPlayerError(error: PlaybackException) {
+                val rejected = generateSequence(error as Throwable?) { it.cause }
+                    .filterIsInstance<HttpDataSource.InvalidResponseCodeException>()
+                    .firstOrNull()
+                if (rejected?.responseCode in listOf(401, 403) &&
+                    streamCandidateIndex + 1 < streamCandidates.size) {
+                    val track = currentTrack ?: return
+                    streamCandidateIndex++
+                    isLoading = true
+                    errorMessage = null
+                    playResolvedStream(track, streamCandidates[streamCandidateIndex])
+                    return
+                }
                 isLoading = false
-                errorMessage = error.message ?: "Playback failed"
+                errorMessage = if (rejected?.responseCode in listOf(401, 403)) {
+                    if (currentTrack?.sourceId == "youtube.music") {
+                        "YouTube refused this audio stream (HTTP ${rejected!!.responseCode}). " +
+                            "Open More → Extensions → Sora YouTube Music → Open YouTube Music, " +
+                            "sign in, then try again."
+                    } else {
+                        "${sourceName.ifBlank { "Music source" }} refused this track " +
+                            "(HTTP ${rejected!!.responseCode}). Try another source."
+                    }
+                } else {
+                    error.message ?: "Playback failed"
+                }
             }
         })
         scope.launch {
@@ -192,6 +222,8 @@ class MusicPlaybackController(
         player.stop()
         player.clearMediaItems()
         streamHeaders.clear()
+        streamCandidates = emptyList()
+        streamCandidateIndex = 0
         isPlaying = false
         isLoading = false
         lyricsLoading = false
@@ -323,27 +355,35 @@ class MusicPlaybackController(
                         ?: "${sourceName.ifBlank { "This source" }} returned no playable audio stream."
                     return@launch
                 }
-                streamLabel = stream.label
-                streamHeaders.clear()
-                if (stream.headers.isNotEmpty()) {
-                    streamHeaders[stream.url] = stream.headers
-                }
-                val metadata = MediaMetadata.Builder()
-                    .setTitle(track.title)
-                    .setArtist(track.artistName())
-                    .apply { track.artworkUrl?.takeIf(String::isNotBlank)?.let { setArtworkUri(Uri.parse(it)) } }
-                    .build()
-                val itemBuilder = MediaItem.Builder()
-                    .setUri(stream.url)
-                    .setMediaId(track.identityKey())
-                    .setMediaMetadata(metadata)
-                stream.mimeType?.let(itemBuilder::setMimeType)
-                player.setMediaItem(itemBuilder.build())
-                player.prepare()
-                player.playWhenReady = true
+                streamCandidates = streams.distinctBy { it.url }.take(8)
+                streamCandidateIndex = 0
+                playResolvedStream(track, streamCandidates.first())
                 loadLyrics(extension, track, requestId)
             }
         }
+    }
+
+    private fun playResolvedStream(track: ExtensionMediaSelection, stream: PlaybackStream) {
+        streamLabel = stream.label
+        streamHeaders.clear()
+        if (stream.headers.isNotEmpty()) streamHeaders[stream.url] = stream.headers
+        val metadata = MediaMetadata.Builder()
+            .setTitle(track.title)
+            .setArtist(track.artistName())
+            .apply {
+                track.artworkUrl?.takeIf(String::isNotBlank)
+                    ?.let { setArtworkUri(Uri.parse(it)) }
+            }
+            .build()
+        val item = MediaItem.Builder()
+            .setUri(stream.url)
+            .setMediaId(track.identityKey())
+            .setMediaMetadata(metadata)
+            .apply { stream.mimeType?.let(::setMimeType) }
+            .build()
+        player.setMediaItem(item)
+        player.prepare()
+        player.playWhenReady = true
     }
 
     private fun playLocal(track: ExtensionMediaSelection, file: File) {
