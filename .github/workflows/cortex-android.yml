@@ -210,7 +210,7 @@ jobs:
           "$aapt_bin" dump badging cortex-release-package/Cortex_ARM64_INSTALLABLE.apk > cortex-release-package/Cortex_ARM64_badging.txt
           "$aapt_bin" dump badging cortex-release-package/Cortex_X86_64_INSTALLABLE.apk > cortex-release-package/Cortex_X86_64_badging.txt
           for badging in cortex-release-package/Cortex_ARM64_badging.txt cortex-release-package/Cortex_X86_64_badging.txt; do
-            grep -q "package: name='com.night.cortex' versionCode='100' versionName='1.0.0'" "$badging"
+            grep -q "package: name='com.night.cortex' versionCode='101' versionName='1.0.1'" "$badging"
             grep -q "sdkVersion:'26'" "$badging"
             grep -q "targetSdkVersion:'36'" "$badging"
             grep -Eq "application: label='Cortex' icon='[^']+'" "$badging"
