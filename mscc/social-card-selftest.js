@@ -6,7 +6,7 @@ import { renderTweetCard, renderPostCard, wrapSocialText } from './utils/social-
 import { socialCardText, resolveSocialAuthor } from './utils/social-card-command.js'
 import { resolveCommandMedia } from './utils/media-conversion.js'
 import { dispatchCommand } from './command-registry.js'
-import { randomTweetEngagement } from './utils/tweet-engagement.js'
+import { randomTweetEngagement, randomPostEngagement } from './utils/tweet-engagement.js'
 
 // Each tweet is a mock card with fresh, nonzero engagement. The injected
 // random functions make every popularity tier testable without flaky seeds.
@@ -122,6 +122,56 @@ const realName = await resolveSocialAuthor({
 },['hello'])
 assert.equal(realName.authorName,'Real public WhatsApp name')
 
+
+// Every .post flavor uses mock metrics; views are for stories and the other
+// variants show likes/comments/shares instead of frozen zero counters.
+const postEngagement = randomPostEngagement()
+assert(postEngagement.likeCount > 0)
+assert(postEngagement.commentCount > 0)
+assert(postEngagement.shareCount > 0)
+assert(postEngagement.viewCount > postEngagement.likeCount)
+const lowestPost = randomPostEngagement((low) => low)
+assert.equal(lowestPost.likeCount,24)
+assert(lowestPost.viewCount > lowestPost.likeCount)
+
+for (const [mode,w,h] of [
+  ['generic',1000,760],
+  ['instagram',1000,1120],
+  ['facebook',1000,760],
+  ['story',1080,1920],
+]) {
+  const mock = await renderPostCard({
+    style:mode,text:'Line one 😎\nLine two 🎉',
+    authorName:'Actual WhatsApp Name',
+    imageBuffer:samplePhoto,
+    ...postEngagement,
+  })
+  const img = await loadImage(mock)
+  assert.equal(img.width,w)
+  assert(img.height >= h)
+  assert.equal(mock[0],0x89)
+}
+const instaLong = await renderPostCard({
+  style:'instagram',text:'one\ntwo\nthree\nfour\nfive\nsix',
+  ...postEngagement,
+})
+assert((await loadImage(instaLong)).height > 1120)
+const instagramZero = await renderPostCard({style:'instagram',text:'Hello!',likeCount:0,commentCount:0})
+const instagramEngaged = await renderPostCard({
+  style:'instagram',text:'Hello!',likeCount:12457,commentCount:700,
+})
+assert.notDeepEqual(instagramZero,instagramEngaged)
+const fbZero = await renderPostCard({style:'facebook',text:'Hello!'})
+const fbEngaged = await renderPostCard({
+  style:'facebook',text:'Hello!',likeCount:12457,commentCount:700,shareCount:100,
+})
+assert.notDeepEqual(fbZero,fbEngaged)
+const genericZero = await renderPostCard({style:'generic',text:'Hello!'})
+const genericEngaged = await renderPostCard({
+  style:'generic',text:'Hello!',likeCount:12457,commentCount:700,shareCount:100,
+})
+assert.notDeepEqual(genericZero,genericEngaged)
+
 for (const [style, width, height] of [
   ['generic',1000,760],
   ['instagram',1000,1120],
@@ -184,6 +234,6 @@ assert.equal(story.height, 1920)
 
 ctx.args = ['instagram']
 await postCommand.run(ctx)
-assert.equal(replies.at(-1), 'Use .post [instagram|facebook|story] [@user] <text>')
+assert.equal(replies.at(-1), 'Use .post [instagram|facebook|story] [@user] <text>, or reply to a photo with .post')
 
-console.log('PASS Night rich tweets, randomized engagement, line breaks, Unicode, photos, names and post cards')
+console.log('PASS Night tweet & post mock engagement, social-style metrics, pictures, line breaks, names & glyphs')
