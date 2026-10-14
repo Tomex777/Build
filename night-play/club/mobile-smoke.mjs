@@ -27,6 +27,7 @@ try{
   page.on("pageerror",e=>errors.push(String(e)));
   await page.goto(base+"/club/?game=ludo");
   await page.locator(".l-cell").first().waitFor();
+  mkdirSync("night-play/visual-output",{recursive:true});
   assert.equal(await page.locator(".l-cell").count(),225,"traditional 15x15 board");
   assert.equal(await page.locator("body.ludo-mode").count(),1,"Ludo opens directly into immersive game screen");
   assert.equal(await page.locator(".ludo-hud").isVisible(),true,"in-game player score HUD visible");
@@ -40,7 +41,6 @@ try{
   await page.screenshot({path:"night-play/visual-output/NAIJA-LUDO-IMMERSIVE-MOBILE.png",fullPage:true});
 
   assert.equal(await page.locator(".l-base").count(),4,"four coloured homes");
-  mkdirSync("night-play/visual-output",{recursive:true});
   await page.locator(".nj-board").screenshot({path:"night-play/visual-output/NAIJA-LUDO-BOARD.jpg",type:"jpeg",quality:85});
   assert.equal(await page.locator("[data-piece]").count(),16,"two Naija Ludo players each control two houses of four counters");
   assert.equal(await page.locator(".nj-dice-center .nj-die").count(),2,"two dice inside board");
