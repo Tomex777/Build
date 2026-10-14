@@ -11,7 +11,7 @@ import makeWASocket, {
 import pino from 'pino'
 import QRCode from 'qrcode'
 import { startWebPanel } from './web-panel.js'
-import { megaStorageDashboard, megaAvailableMounts } from './mega-storage.js'
+import { megaStorageDashboard, megaAvailableMounts, megaVerifyFolder } from './mega-storage.js'
 import { dispatchNamespacedCommand, loadCommands } from './command-registry.js'
 import { AccountRegistry, legacyAccountRecords } from './account-registry.js'
 import { selectCcDestination } from './cc-routing.js'
@@ -3341,6 +3341,7 @@ async function init() {
     getAccountDiagnostics,
     getCloudDashboard: () => megaStorageDashboard(),
     getCloudMounts: () => megaAvailableMounts(),
+    verifyCloudFolder: ({ targetId }) => megaVerifyFolder({ targetId }),
     pairAccount,
     reconnectAccount,
     disconnectAccount,
