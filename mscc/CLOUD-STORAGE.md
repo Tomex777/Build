@@ -37,7 +37,7 @@ Each supporter should keep their own login and recovery key.
    access and each exact node ID. If the folder does not appear, do **not**
    assume it is writable from the bot.
 4. Configure an explicit allowlist in the **secure** server environment:
-   `MSCC_MEGA_SHARED_FOLDERS=[{"id":"donor1","label":"Supporter One","nodeId":"abcdefgh","uploadEnabled":true}]`
+   `MSCC_MEGA_SHARED_FOLDERS=\'[{"id":"donor1","label":"Supporter One","nodeId":"abcdefgh","uploadEnabled":true}]\'`
    where `nodeId` is the actual value from `.cloud discover`.
 5. Verify `.cloud folders` shows the target as connected. Make a small
    test upload with `.cloud upload donor1`. Confirm on the donor's MEGA
