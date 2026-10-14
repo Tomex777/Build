@@ -187,6 +187,7 @@ data class ServerPanelState(
     val pairing: PairingState? = null,
     val environment: EnvironmentState? = null,
     val cloudDashboard: CloudDashboard? = null,
+    val cloudConnectionFailed: Boolean = false,
     val cloudMounts: List<CloudMount> = emptyList(),
     val cloudMountsLoaded: Boolean = false,
     val revealedEnvironment: Map<String, String> = emptyMap(),
