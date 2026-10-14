@@ -187,3 +187,50 @@ export async function sendProcessedAudio(ctx, bytes, { video = false, isVoice = 
     ...(caption && !isVoice ? { caption } : {}),
   }, { quoted: ctx.message })
 }
+
+
+const SILENCE_MODES = {
+  // Quiet talk and short breaths should survive. All modes detect levels, not speech.
+  gentle: { threshold: '-52dB', minimum: 1.4 },
+  normal: { threshold: '-42dB', minimum: 0.9 },
+  aggressive: { threshold: '-34dB', minimum: 0.6 },
+}
+export async function cutAudioSilence(bytes, { mode = 'normal' } = {}) {
+  const setting = SILENCE_MODES[mode]
+  if (!setting) throw new Error('Use .silencecut [gentle|normal|aggressive].')
+  return withMediaFiles('silencecut', async dir => {
+    const source = join(dir, 'source.bin')
+    const dest = join(dir, 'silence-shortened.ogg')
+    await writeFile(source, bytes)
+    const filter = [
+      'silenceremove',
+      'start_periods=1',
+      'start_threshold=' + setting.threshold,
+      'start_silence=0.16',
+      'stop_periods=-1',
+      'stop_duration=' + setting.minimum,
+      'stop_threshold=' + setting.threshold,
+      'stop_silence=0.18',
+      'detection=rms',
+      'window=0.04',
+    ].join(':')
+    await runFfmpeg([
+      '-t', '180', '-i', source, '-vn', '-af', filter,
+      '-ar', '48000', '-ac', '1', '-c:a', 'libopus', '-b:a', '64k', dest,
+    ], { timeoutMs: 90000 })
+    const output = await checkedOutput(dest)
+    if (output.length < 128) throw new Error('Nothing audible remains. Try .silencecut gentle.')
+    return output
+  })
+}
+
+export async function repliedAudioOrVideo(ctx) {
+  const source = await downloadCommandMedia(ctx, ['audio', 'video', 'document'])
+  if (!source) return null
+  const mime = String(source.found?.media?.mimetype || '').toLowerCase()
+  if (!['audio','video'].includes(source.kind) &&
+      !mime.startsWith('audio/') && !mime.startsWith('video/')) {
+    throw new Error('Reply to a voice note, audio file or video.')
+  }
+  return { bytes: validBuffer(source.buffer, 'Audio/video', 20 * 1024 * 1024) }
+}

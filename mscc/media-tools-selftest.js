@@ -5,13 +5,16 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { PDFDocument } from 'pdf-lib'
 import QRCode from 'qrcode'
-import { runMediaWorker, processAudio } from './utils/media-toolkit.js'
+import { runMediaWorker, processAudio, cutAudioSilence } from './utils/media-toolkit.js'
+import { makeLocalSubtitles } from './utils/subtitle-tools.js'
+import { writeFile, chmod } from 'node:fs/promises'
 import { loadCommands } from './command-registry.js'
 
 const commands = await loadCommands(new URL('./commands/', import.meta.url), { capabilityFromDirectory: true })
 for (const name of [
   'pdfmerge', 'pdfsplit', 'img2pdf', 'pdf2img', 'pdfcompress',
   'denoise', 'clearaudio', 'extractaudio', 'scanqr',
+  'stripmeta', 'silencecut', 'subtitles',
 ]) assert.ok(commands.commands.has(name), 'New command missing: ' + name)
 
 const doc = await PDFDocument.create()
@@ -34,6 +37,10 @@ const qrPng = await QRCode.toBuffer('https://example.org/night-qr-test', {
   width: 320, margin: 4, type: 'png',
 })
 assert.equal(await runMediaWorker('scanqr', { input: qrPng }), 'https://example.org/night-qr-test')
+const scrubbed = await runMediaWorker('stripmeta', { input: qrPng })
+assert.equal(scrubbed.length, 1)
+assert.ok(Buffer.from(scrubbed[0].bytes).length > 100)
+assert.equal(scrubbed[0].mime, 'image/png')
 const generated = await runMediaWorker('img2pdf', { inputs: [qrPng, qrPng] })
 assert.equal((await PDFDocument.load(generated[0].bytes)).getPageCount(), 2)
 
@@ -60,6 +67,31 @@ if (exists('ffmpeg')) {
       wav], { timeout: 12000 })
     assert.equal(process.status, 0, String(process.stderr))
     const audio = await readFile(wav)
+    assert.ok((await cutAudioSilence(audio, { mode: 'gentle' })).length > 1000)
+    assert.ok((await cutAudioSilence(audio, { mode: 'normal' })).length > 1000)
+    assert.ok((await cutAudioSilence(audio, { mode: 'aggressive' })).length > 1000)
+    const mockModel = join(dir, 'mock-model.bin')
+    const mockCli = join(dir, 'mock-whisper.sh')
+    await writeFile(mockModel, 'test-only')
+    await writeFile(mockCli, '#!/bin/sh\n' +
+      'while [ "$#" -gt 0 ]; do\n' +
+      '  if [ "$1" = "-of" ]; then shift; out="$1"; fi\n' +
+      '  shift\n' +
+      'done\n' +
+      'printf "1\\n00:00:00,000 --> 00:00:00,900\\nTest caption\\n" > "$out.srt"\n')
+    await chmod(mockCli, 0o700)
+    const priorBin = process.env.MSCC_WHISPER_BIN
+    const priorModel = process.env.MSCC_WHISPER_MODEL
+    try {
+      process.env.MSCC_WHISPER_BIN = mockCli
+      process.env.MSCC_WHISPER_MODEL = mockModel
+      assert.match(String(await makeLocalSubtitles(audio)), /Test caption/)
+    } finally {
+      if (priorBin === undefined) delete process.env.MSCC_WHISPER_BIN
+      else process.env.MSCC_WHISPER_BIN = priorBin
+      if (priorModel === undefined) delete process.env.MSCC_WHISPER_MODEL
+      else process.env.MSCC_WHISPER_MODEL = priorModel
+    }
     for (const mode of ['denoise', 'natural', 'auto', 'strong']) {
       assert.ok((await processAudio(audio, { mode })).length > 1000, 'Audio filter failed: ' + mode)
     }
@@ -72,4 +104,4 @@ if (exists('ffmpeg')) {
   } finally { await rm(dir, { recursive: true, force: true }) }
 } else console.log('SKIP audio integration: FFmpeg missing')
 
-console.log('PASS nine NIGHT document and audio commands end-to-end')
+console.log('PASS NIGHT document, voice, metadata and subtitle commands end-to-end')

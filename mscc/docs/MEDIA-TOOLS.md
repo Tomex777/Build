@@ -30,3 +30,12 @@ The audio commands use FFmpeg, not paid AI. They cannot reconstruct inaudible sp
 * Multi-file collection requires explicit `.add` on each quoted message because WhatsApp does not supply multiple earlier attachments in one command. Per-user/chat/account batches expire after 15 minutes and are never persisted or shared.
 * Input buffers are bounded (18 MB per batch, 36 MB across staged batches), as are document worker heap and process timeouts.
 * PDF and image parsing still consumes CPU/RAM; avoid enabling very large documents on a memory-constrained instance without monitoring resource usage.
+
+
+## Three additional commands (same unmerged feature branch)
+
+- \`.stripmeta\`: reply to an image; re-encodes pixels as JPEG/PNG to remove EXIF, GPS coordinates, XMP, software comments and similar embedded metadata. It cannot erase information visible in the pixels, nor private data already extracted by someone else. Depending on format, JPEG is lossy.
+- \`.silencecut\`: reply to audio; conservatively shortens low-amplitude gaps (normal mode), with \`.silencecut gentle\` (keeps more quiet speech) or \`.silencecut aggressive\` (cuts more, can remove quiet words). **No AI is involved.** FFmpeg measures audio loudness, not speech presence: loud traffic, music, fans or other noises may remain. Apply \`.denoise\` separately if needed. Voice notes remain WhatsApp voice notes.
+- \`.subtitles [auto|en|fr|es|...]\`: reply to audio/video; return an SRT document with Whisper's timestamped segments for up to the first 90 seconds. Nothing is automatically burned into the video. This uses **local** whisper.cpp speech recognition (an AI model running on the server, without a paid API). Optional runtime: \`whisper-cli\` (or custom \`MSCC_WHISPER_BIN\`) and an installed model path in \`MSCC_WHISPER_MODEL\`, e.g. \`/opt/mscc/tools/whisper/ggml-base.bin\`. The model is **not automatically downloaded** as part of the production deployment. If unavailable, the command reports the missing local model clearly. Recognition may be wrong when speech is quiet, overlaps, or background noise is strong. A small CPU model can take noticeable processing time.
+
+All three are run through the same bounded media queue; SRT is a companion subtitle file, not a modified video.

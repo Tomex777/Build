@@ -187,6 +187,27 @@ async function scanQr({ input }) {
   return String(decoded.data).slice(0, 2500)
 }
 
+
+async function stripImageMetadata({ input }) {
+  const bytes = asBytes(input)
+  if (!bytes.length || bytes.length > 8 * 1024 * 1024) throw new Error('Image must be smaller than 8 MB.')
+  // Rendering pixels into a fresh image discards embedded EXIF, GPS, XMP and comments.
+  const img = await loadImage(bytes)
+  if (!img.width || !img.height || img.width > 6000 || img.height > 6000 ||
+      img.width * img.height > 16000000) throw new Error('Image dimensions are too large to clean safely.')
+  const canvas = createCanvas(img.width, img.height)
+  const ctx = canvas.getContext('2d')
+  ctx.drawImage(img, 0, 0)
+  const isJpeg = bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff
+  const output = withinLimit(canvas.toBuffer(isJpeg ? 'image/jpeg' : 'image/png', isJpeg ? 95 : undefined))
+  return [{
+    bytes: output,
+    mime: isJpeg ? 'image/jpeg' : 'image/png',
+    name: isJpeg ? 'night-clean.jpg' : 'night-clean.png',
+    caption: '🔒 Image metadata stripped; visible pixels retained.',
+  }]
+}
+
 export async function runWorkerTask(task, payload) {
   switch (task) {
     case 'pdfmerge': return mergePdf(payload)
@@ -195,6 +216,7 @@ export async function runWorkerTask(task, payload) {
     case 'pdf2img': return pdfToImages(payload)
     case 'pdfcompress': return compressPdf(payload)
     case 'scanqr': return scanQr(payload)
+    case 'stripmeta': return stripImageMetadata(payload)
     default: throw new Error('Unknown document task.')
   }
 }
