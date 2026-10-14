@@ -125,12 +125,15 @@ void main() {
     // simply no orbital imagery for centimetre-scale normal bumps at
     // kilometer ranges: disable them outside the meter-level foreground.
     float nearDetail = uPatchType == 1
-        ? (1.0 - smoothstep(0.015, 0.065, vDistance))
-        : (uPatchType == 4
-           ? 0.12 * (1.0 - smoothstep(0.02, 0.12, vDistance))
-           : 0.0);
+        ? (1.0 - smoothstep(0.015, 0.065, vDistance)) : 0.0;
+    // Positions and derivative spans are in 3km world units. The old
+    // 0.018/0.025 strengths implied 54/75 METRES of material height,
+    // driving normals into black/white bands on grazing lunar slopes.
+    // Fine regolith relief is centimetre-scale and foreground-only;
+    // the 21m midfield mesh cannot resolve a fine-grain normal field.
+    float bumpHeightUnits = uWorld == 0 ? 0.000010 : 0.000012;
     vec3 microNormal = normalize(N + perturb *
-         (uWorld == 0 ? 0.018 : 0.025) * nearDetail / span);
+         bumpHeightUnits * nearDetail / span);
     // Keep relief normals in the actual upward-facing terrain hemisphere.
     if (dot(microNormal, N) < 0.14) microNormal = normalize(microNormal + N);
 

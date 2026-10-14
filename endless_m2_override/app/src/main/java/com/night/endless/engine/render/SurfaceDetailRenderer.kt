@@ -39,22 +39,36 @@ internal class SurfaceDetailRenderer(
     private var shadowVertices: FloatBuffer? = null
     private var shadowCount = 0
 
-    private fun floats(data: FloatArray): FloatBuffer =
-        ByteBuffer.allocateDirect(data.size * 4)
-            .order(ByteOrder.nativeOrder()).asFloatBuffer()
-            .apply { put(data); position(0) }
+    // Reuse native buffers on the GL thread instead of waiting for direct
+    // buffer cleaners after every ~3m walking-patch rebuild.
+    private fun floats(data: FloatArray, previous: FloatBuffer?): FloatBuffer {
+        val buffer = previous?.takeIf { it.capacity() >= data.size }
+            ?: ByteBuffer.allocateDirect(data.size * 4)
+                .order(ByteOrder.nativeOrder()).asFloatBuffer()
+        buffer.clear()
+        buffer.put(data)
+        buffer.limit(data.size)
+        buffer.position(0)
+        return buffer
+    }
 
-    private fun shorts(data: ShortArray): ShortBuffer =
-        ByteBuffer.allocateDirect(data.size * 2)
-            .order(ByteOrder.nativeOrder()).asShortBuffer()
-            .apply { put(data); position(0) }
+    private fun shorts(data: ShortArray, previous: ShortBuffer?): ShortBuffer {
+        val buffer = previous?.takeIf { it.capacity() >= data.size }
+            ?: ByteBuffer.allocateDirect(data.size * 2)
+                .order(ByteOrder.nativeOrder()).asShortBuffer()
+        buffer.clear()
+        buffer.put(data)
+        buffer.limit(data.size)
+        buffer.position(0)
+        return buffer
+    }
 
     fun prepare(centerX: Double, centerZ: Double) {
         if (!midAnchorX.isFinite() ||
             hypot(centerX - midAnchorX, centerZ - midAnchorZ) >= 0.028) {
             val mid = SurfaceMidfieldMesh.build(centerX, centerZ, elevation)
-            midVertices = floats(mid.vertices)
-            midIndices = shorts(mid.indices)
+            midVertices = floats(mid.vertices, midVertices)
+            midIndices = shorts(mid.indices, midIndices)
             midCount = mid.indices.size
             midAnchorX = centerX
             midAnchorZ = centerZ
@@ -71,15 +85,15 @@ internal class SurfaceDetailRenderer(
         // The rock bases and their shadows sample the identical ground
         // height field as the displayed mesh, not the unrefined DEM.
         val rocks = SurfaceDetailMesh.buildRocks(centerX, centerZ, actualSurface)
-        patchVertices = floats(patch.vertices)
-        patchIndices = shorts(patch.indices)
+        patchVertices = floats(patch.vertices, patchVertices)
+        patchIndices = shorts(patch.indices, patchIndices)
         patchCount = patch.indices.size
-        rockVertices = floats(rocks.vertices)
+        rockVertices = floats(rocks.vertices, rockVertices)
         rockCount = rocks.vertices.size / SurfaceDetailMesh.STRIDE
         val contact = SurfaceRockShadows.build(
             rocks, actualSurface, lightX, lightY, lightZ
         )
-        shadowVertices = floats(contact)
+        shadowVertices = floats(contact, shadowVertices)
         shadowCount = contact.size / SurfaceDetailMesh.STRIDE
         anchorX = centerX
         anchorZ = centerZ
@@ -91,13 +105,14 @@ internal class SurfaceDetailRenderer(
         val vertices = patchVertices ?: return
         val indices = patchIndices ?: return
         val patchLocation = GLES30.glGetUniformLocation(program, "uPatchType")
+        // Replacement meshes are clipped to disjoint regions in the shader.
+        // Keep their true depth: pulling terrain forward with polygon offset
+        // can hide the 1.2cm-raised contact shadows on grazing slopes.
         // The middle ring is grounded in the same measured DEM as the far
         // landscape and fades its synthetic subpixel geology at both joins.
         midVertices?.let { middle ->
             midIndices?.let { midIndex ->
                 GLES30.glUniform1i(patchLocation, 4)
-                GLES30.glEnable(GLES30.GL_POLYGON_OFFSET_FILL)
-                GLES30.glPolygonOffset(-1.0f, -1.0f)
                 bindAttributes(middle)
                 midIndex.position(0)
                 GLES30.glDrawElements(
@@ -105,19 +120,15 @@ internal class SurfaceDetailRenderer(
                     GLES30.GL_UNSIGNED_SHORT, midIndex
                 )
                 unbindAttributes()
-                GLES30.glDisable(GLES30.GL_POLYGON_OFFSET_FILL)
             }
         }
 
         GLES30.glUniform1i(patchLocation, 1)
-        GLES30.glEnable(GLES30.GL_POLYGON_OFFSET_FILL)
-        GLES30.glPolygonOffset(-1.0f, -1.0f)
         bindAttributes(vertices)
         indices.position(0)
         GLES30.glDrawElements(
             GLES30.GL_TRIANGLES, patchCount, GLES30.GL_UNSIGNED_SHORT, indices
         )
-        GLES30.glDisable(GLES30.GL_POLYGON_OFFSET_FILL)
         unbindAttributes()
 
         shadowVertices?.takeIf { shadowCount > 0 }?.let {
