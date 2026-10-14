@@ -4,7 +4,7 @@
 const $=id=>document.getElementById(id);
 const board=$("board"),controls=$("controls"),status=$("status"),help=$("help"),picks=$("gamePicks");
 const KEY="night-play-club-v1";
-const state={};let active="ludo",timer=null,drawCtx=null;
+const state={};let active="checkers",timer=null,drawCtx=null;
 const colors={red:"#df3439",green:"#328c4b",yellow:"#e8b32a",blue:"#2767bc"};
 const titles={ludo:["Nigerian Ludo","The board you remember.","BOARD GAME"],estate:["NIGHT Estates","Buy, trade and collect rent.","PROPERTY GAME"],whot:["Shape Cards","Traditional shape-matching card play.","CARD GAME"],colors:["Colour Clash","A quick colour-matching card battle.","CARD GAME"],draw:["Draw & Guess","One draws. Everyone else guesses.","PARTY GAME"],snakes:["Snakes & Ladders","Climb fast. Slide carefully.","BOARD GAME"],checkers:["Draughts","A proper tabletop strategy game.","BOARD GAME"]};
 function h(s){return String(s).replace(/[&<>"']/g,x=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[x]));}
@@ -17,7 +17,7 @@ function controlsHTML(markup){controls.innerHTML=markup;}
 function rules(title,desc){help.innerHTML="<h3>"+title+"</h3><p>"+desc+"</p>";}
 function scoreList(players,getScore){return '<div class="score-list">'+players.map((p,i)=>'<div class="score-row"><span><b style="color:'+h(p.color)+'">●</b> '+h(p.name)+'</span><b>'+h(getScore(p,i))+'</b></div>').join("")+"</div>";}
 function choosePlayers(id,selected,max){return '<label class="small">Players (local, sharing one phone)</label><select class="select" data-players="'+id+'">'+[2,3,4].filter(n=>n<=max).map(n=>'<option value="'+n+'"'+(n===selected?" selected":"")+'>'+n+' players</option>').join("")+"</select>";}
-function pick(id){if(!titles[id])id="ludo";active=id;if(id==="ludo")window.NightLudo3D?.warmup();document.body.classList.toggle("ludo-mode",id==="ludo");$("ludoTopbar").hidden=id!=="ludo";$("ludoHud").hidden=id!=="ludo";if(id!=="ludo")closeLudoSettings();const d=titles[id];$("gameTitle").textContent=d[0];$("gameSubtitle").textContent=d[1];$("gameCategory").textContent=d[2];[...picks.querySelectorAll("button")].forEach(x=>x.setAttribute("aria-current",String(x.dataset.pick===id)));const url=new URL(location.href);url.searchParams.set("game",id);history.replaceState(null,"",url.pathname+url.search);window.NightLudo.cancel();if(id==="ludo"&&state.ludo)state.ludo=window.NightLudo.resume(state.ludo);if(!state[id])reset(id);else render();}
+function pick(id){if(!titles[id])id="checkers";active=id;if(id==="ludo")window.NightLudo3D?.warmup();document.body.classList.toggle("ludo-mode",id==="ludo");$("ludoTopbar").hidden=id!=="ludo";$("ludoHud").hidden=id!=="ludo";if(id!=="ludo")closeLudoSettings();const d=titles[id];$("gameTitle").textContent=d[0];$("gameSubtitle").textContent=d[1];$("gameCategory").textContent=d[2];[...picks.querySelectorAll("button")].forEach(x=>x.setAttribute("aria-current",String(x.dataset.pick===id)));const url=new URL(location.href);url.searchParams.set("game",id);history.replaceState(null,"",url.pathname+url.search);window.NightLudo.cancel();if(id==="ludo"&&state.ludo)state.ludo=window.NightLudo.resume(state.ludo);if(!state[id])reset(id);else render();}
 function reset(id){
 if(id==="ludo"){window.NightLudo.cancel();state.ludo=window.NightLudo.create();}
 if(id==="estate"){state.estate={players:["red","blue"].map(k=>({name:k[0].toUpperCase()+k.slice(1),color:colors[k],cash:1500,pos:0,bankrupt:false})),owners:{},upgrades:{},turn:0,rolled:false,last:0,pending:null,rounds:0,winner:null,msg:"Roll the dice to start buying properties.",inspect:0};}
@@ -238,7 +238,7 @@ const sq=e.target.closest("[data-estate-info]");if(sq&&active==="estate"){state.
 const action=e.target.closest("[data-action]");if(!action)return;
 switch(action.dataset.action){case"ludo-roll":ludoRoll();break;case"ludo-new":if(confirm("Restart the Ludo match?")){closeLudoSettings();reset("ludo");}break;case"ludo-sound":state.ludo.sound=!state.ludo.sound;render();break;case"estate-roll":estateRoll();break;case"estate-buy":estateDecision(true);break;case"estate-pass":estateDecision(false);break;case"estate-end":estateEnd();break;case"card-draw":cardDraw(active);break;case"snakes-roll":snakesRoll();break;case"draw-ready":drawReady();break;case"draw-next":drawNext();break;case"draw-clear":if(drawCtx){drawCtx.clearRect(0,0,800,600);}break;case"draw-erase":setBrush("erase");break;case"checkers-reset":reset("checkers");break;}
 });
-function go(){pick(new URL(location.href).searchParams.get("game")||"ludo");}
+function go(){pick(new URL(location.href).searchParams.get("game")||"checkers");}
 window.addEventListener("popstate",go);
 go();
 })();
