@@ -3,6 +3,7 @@ import { loadCommands } from './command-registry.js'
 import { SONGS, ANIME, SPEED_LINES, NAMESPACE, isCorrectGuess, partyInputDestination, newRound,
   readRound, scoreText } from './utils/party-games.js'
 import { synthesizeMelody, noteFrequency, melodyAudio } from './utils/party-melodies.js'
+import { renderSpeedTypeChallenge } from './utils/speedtype-renderer.js'
 
 const registry=await loadCommands(new URL('./commands/', import.meta.url),{
   capabilityFromDirectory:true,
@@ -43,6 +44,8 @@ assert.equal(wav.toString('ascii',0,4),'RIFF')
 assert.ok(wav.length>20000)
 assert.ok((await melodyAudio(SONGS[0].id)).length>1000)
 
+const typingCard=renderSpeedTypeChallenge(SPEED_LINES[0])
+assert.ok(typingCard.subarray(0,8).equals(Buffer.from([137,80,78,71,13,10,26,10])))
 // A newly created song round sends audio and a clue, without publishing answer.
 await invoke('guesssong',ctxA)
 let song=readRound(ctxA,'guesssong')
@@ -81,6 +84,8 @@ assert.ok(scoreText(ctxA,'guessanime').includes('75 pts'))
 
 await invoke('speedtype',ctxA)
 let typing=readRound(ctxA,'speedtype')
+assert.ok(sent.at(-1).msg.image?.length>1000)
+assert.ok(!sent.at(-1).msg.caption.includes(typing.answer))
 assert.equal(partyInputDestination({shared,accountId:'a',chat:'room@g.us',text:'hello everyone'}),null)
 assert.equal(partyInputDestination({shared,accountId:'a',chat:'room@g.us',text:typing.answer}),'speedtype')
 await invoke('speedtype',ctxB,['~input'],typing.answer+' TYPO')

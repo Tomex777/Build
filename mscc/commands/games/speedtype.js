@@ -1,5 +1,6 @@
 import { newRound,readRound,scoreText,chatKey } from '../../utils/party-games.js'
 import { activeOtherChallenge,gameGuess,gameAdmin,gameRoundStatus } from '../../utils/party-game-command.js'
+import { renderSpeedTypeChallenge } from '../../utils/speedtype-renderer.js'
 
 export default {
   name:'speedtype',
@@ -29,16 +30,19 @@ export default {
       if(conflict)return ctx.reply('Finish the current '+conflict+' round first.')
       const {record,choice}=newRound(ctx,'speedtype')
       try {
-        return await ctx.reply([
-          '⚡ *SPEED TYPE!*',
-          '',
-          '📝 *'+choice.title+'*',
-          '',
-          '⏱️ 35 seconds — first correct response wins!',
-          '🥇 Faster answers earn more points.',
-          'Send the sentence as an ordinary message (do not quote it).',
-          '🏆 .speedtype score'
-        ].join('\n'))
+        const image=renderSpeedTypeChallenge(choice.title)
+        const chat=ctx.message?.key?.remoteJid
+        if(!chat||!ctx.account?.sock)throw new Error('WhatsApp connection unavailable.')
+        return await ctx.account.sock.sendMessage(chat,{
+          image,
+          caption:[
+            '⚡ *SPEED TYPE!*',
+            '⏱️ 35 seconds — first correct response wins!',
+            '🥇 Faster answers earn more points.',
+            'Type the sentence in the picture as an ordinary message.',
+            '🏆 .speedtype score',
+          ].join('\n')
+        },{quoted:ctx.message})
       } catch(error){ctx.shared?.delete('night-party-speedtype',chatKey(ctx));throw error}
     } catch(error){return ctx.reply(error?.message||'Speed Typing failed.')}
   }
