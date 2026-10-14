@@ -64,6 +64,7 @@ try{
   await page.locator(".l-cell .l-token.eligible").first().click();
   await page.getByText(/Six! Roll again/).waitFor({timeout:4500});
   assert.equal(await page.locator('[data-dice-mode="ludo"]').isEnabled(),true,"settings unlock once both dice were used");
+  await page.locator("#ludoSettingsBtn").click();
   await page.locator("[data-players=ludo]").selectOption("4");
   assert.equal(await page.locator("[data-piece]").count(),16,"four players each have one house");
   await page.locator('[data-dice-mode="ludo"]').selectOption("1");
@@ -71,12 +72,13 @@ try{
   await page.locator('[data-dice-mode="ludo"]').selectOption("2");
   assert.equal(await page.locator(".nj-die-button").count(),2,"two-dice option restored");
   // The Nigerian gameplay settings are interactive and kept between renders.
+  await page.locator("#ludoSheetBack").click({position:{x:10,y:50}});
   await page.locator("#ludoSettingsBtn").click();
   assert.equal(await page.locator(".nj-settings").evaluate(el=>el.open),true,"top right settings opens native sheet");
   assert.equal(await page.locator("#ludoSheetBack").isVisible(),true,"sheet has a backdrop");
   await page.locator("#ludoSheetBack").click({position:{x:10,y:50}});
   assert.equal(await page.locator(".nj-settings").evaluate(el=>el.open),false,"backdrop closes the sheet");
-  await page.locator(".nj-settings summary").click();
+  await page.locator("#ludoSettingsBtn").click();
   assert.ok(await page.locator(".nj-settings").evaluate(el=>el.open),"options can expand");
   await page.locator('[data-ludo-option="captureFinishes"]').uncheck();
   assert.equal(await page.locator('[data-ludo-option="captureFinishes"]').isChecked(),false,"optional attacker removal disabled");
