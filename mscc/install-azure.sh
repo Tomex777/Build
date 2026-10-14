@@ -115,7 +115,7 @@ if ! command -v pdftotext >/dev/null 2>&1; then NEED_APT=1; fi
 if ! command -v fpcalc >/dev/null 2>&1; then NEED_APT=1; fi
 # Social cards require real emoji/Unicode fonts on headless Azure Linux.
 for font_package in fonts-noto-core fonts-noto-color-emoji; do
-  if ! dpkg-query -W -f='\u0024{Status}' "$font_package" 2>/dev/null | grep -q 'install ok installed'; then
+  if ! dpkg-query -W -f='${Status}' "$font_package" 2>/dev/null | grep -q 'install ok installed'; then
     NEED_APT=1
   fi
 done
