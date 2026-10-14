@@ -130,7 +130,7 @@ assert(postEngagement.likeCount > 0)
 assert(postEngagement.commentCount > 0)
 assert(postEngagement.shareCount > 0)
 assert(postEngagement.viewCount > postEngagement.likeCount)
-const lowestPost = randomPostEngagement((low) => low)
+const lowestPost = randomPostEngagement((low, high) => high === undefined ? 0 : low)
 assert.equal(lowestPost.likeCount,24)
 assert(lowestPost.viewCount > lowestPost.likeCount)
 
