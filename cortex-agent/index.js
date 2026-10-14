@@ -55,6 +55,10 @@ const DEFAULT_ENVIRONMENT_SCHEMA = [
   { key: 'GROQ_MODEL', label: 'Groq model', description: 'Model used by the MSCC personality layer.', requiresRestart: true },
   { key: 'MSCC_AI_TIMEOUT_MS', label: 'AI timeout', description: 'Maximum time in milliseconds for one personality AI request.', type: 'integer', min: 250, max: 30000, requiresRestart: true },
   { key: 'MSCC_AI_MAX_ATTEMPTS', label: 'AI attempts', description: 'Maximum personality AI attempts before deterministic fallback.', type: 'integer', min: 1, max: 5, requiresRestart: true },
+  { key: 'MSCC_MEGA_EMAIL', label: 'MEGA primary email', description: 'Primary MEGA account, used to access donated shared folders.', requiresRestart: true },
+  { key: 'MSCC_MEGA_PASSWORD', label: 'MEGA primary password', description: 'Stored only in protected MSCC environment; never shared with contributors.', secret: true, requiresRestart: true },
+  { key: 'MSCC_MEGA_FOLDER', label: 'MEGA primary folder', description: 'Folder for music, books and any unassigned media.', requiresRestart: true },
+  { key: 'MSCC_MEGA_SHARED_FOLDERS', label: 'MEGA category folders', description: 'Cortex-managed shared-folder mapping. Three video buckets, one image bucket.', type: 'mega-folders', requiresRestart: true },
   { key: 'LOG_LEVEL', label: 'Log level', description: 'MSCC runtime log verbosity.', type: 'enum', values: ['silent', 'fatal', 'error', 'warn', 'info', 'debug', 'trace'], requiresRestart: true },
 ];
 const MODULES_DIR = path.resolve(process.env.CORTEX_MODULES_DIR || path.join(PROJECT_ROOT, 'modules'));
@@ -1232,9 +1236,10 @@ async function environmentSchema() {
 
 function unquoteEnvironmentValue(value) {
   const text = String(value || '').trim();
-  if (text.length >= 2 && ((text.startsWith('"') && text.endsWith('"')) || (text.startsWith("'") && text.endsWith("'")))) {
-    return text.slice(1, -1);
+  if (text.startsWith('"') && text.endsWith('"')) {
+    try { return JSON.parse(text); } catch { return text.slice(1,-1); }
   }
+  if (text.startsWith("'") && text.endsWith("'")) return text.slice(1,-1);
   return text;
 }
 
@@ -1258,6 +1263,29 @@ function validateEnvironmentValue(entry, input) {
   const value = String(input ?? '');
   if (value.length > 4096 || /[\u0000\r\n]/.test(value)) {
     throw Object.assign(new Error('Environment value is invalid'), { statusCode: 400 });
+  }
+  if (entry.type === 'mega-folders' && value !== '') {
+    let rows;
+    try { rows = JSON.parse(value); }
+    catch { throw Object.assign(new Error('Invalid MEGA folder JSON'), { statusCode: 400 }); }
+    if (!Array.isArray(rows) || rows.length > 20) {
+      throw Object.assign(new Error('MEGA folder mapping requires at most 20 entries'), { statusCode: 400 });
+    }
+    const ids = new Set(), nodes = new Set();
+    for (const row of rows) {
+      const id = String(row?.id || '');
+      const nodeId = String(row?.nodeId || '');
+      const types = row?.mediaTypes;
+      if (!/^[a-z][a-z0-9_-]{0,31}$/.test(id) || id === 'primary' || id === 'auto' ||
+          !/^[A-Za-z0-9_-]{6,48}$/.test(nodeId) || !Array.isArray(types) ||
+          !types.length || types.length > 6 || types.some(t => !['images','videos','audio','documents','archives','stickers','all'].includes(t)) ||
+          (types.includes('all') && types.length !== 1) || new Set(types).size !== types.length ||
+          ids.has(id) || nodes.has(nodeId) || typeof row.uploadEnabled !== 'boolean' ||
+          String(row.label || '').length > 60) {
+        throw Object.assign(new Error('Invalid or duplicate MEGA folder assignment'), { statusCode: 400 });
+      }
+      ids.add(id); nodes.add(nodeId);
+    }
   }
   if (entry.type === 'integer' && value !== '') {
     if (!/^-?\d+$/.test(value)) throw Object.assign(new Error('Environment value must be an integer'), { statusCode: 400 });
@@ -1358,12 +1386,15 @@ async function setEnvironmentValue(key, input) {
   const entry = schema.find((row) => row.key === key);
   if (!entry) throw Object.assign(new Error('Environment variable is not managed by Cortex'), { statusCode: 400 });
   const value = validateEnvironmentValue(entry, input);
+  // Encode MEGA credentials and JSON as a single systemd EnvironmentFile
+  // string. Quotes/backslashes are preserved without shell evaluation.
+  const fileValue = entry.key.startsWith('MSCC_MEGA_') ? JSON.stringify(value) : value;
 
   try {
-    await writeEnvironmentDirect(entry.key, value);
+    await writeEnvironmentDirect(entry.key, fileValue);
   } catch (error) {
     if (!['EACCES', 'EPERM', 'EROFS'].includes(error?.code)) throw error;
-    await writeEnvironmentViaHelper(entry.key, value);
+    await writeEnvironmentViaHelper(entry.key, fileValue);
   }
 
   await recordActivity('server:environment.update', {
@@ -1887,6 +1918,12 @@ async function handler(req, res) {
       const result = await msccControl('DELETE', '/accounts/' + id);
       await recordActivity('mscc:account.remove', { account: id, authPreserved: result?.authPreserved === true });
       return json(res, 200, result);
+    }
+    if (req.method === 'GET' && url.pathname === '/api/cortex/host/cloud') {
+      return json(res, 200, await msccControl('GET', '/cloud'));
+    }
+    if (req.method === 'GET' && url.pathname === '/api/cortex/host/cloud/discover') {
+      return json(res, 200, await msccControl('GET', '/cloud/discover'));
     }
     if (req.method === 'GET' && url.pathname === '/api/cortex/host/environment') {
       return json(res, 200, await environmentState(false));
