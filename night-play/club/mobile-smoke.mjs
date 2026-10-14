@@ -231,7 +231,7 @@ try{
   assert.equal(idleFlights,0,'early taps during board entrance must not move unchanged counters');
   await page.waitForFunction(()=>document.querySelector('.nj-board [data-piece="0-0"]')?.dataset.progress==='11');
   await page.evaluate(()=>document.querySelector('[data-pick="estate"]').click());
-  await page.locator('[data-pick="ludo"]').click();
+  await page.goto(base+'/club/?game=ludo');
   await page.waitForTimeout(250);
   const recovered=await page.evaluate(()=>JSON.parse(localStorage.getItem('night-play-club-v1')).ludo);
   assert.equal(recovered.players[0].tokens[0],10);assert.equal(recovered.rolls[0].used,false);assert.equal(recovered.moving,false);
@@ -287,6 +287,12 @@ try{
   await page.goto(base+"/club/?game=checkers");
   assert.equal(await page.locator(".checker-square").count(),64);
   assert.equal(await page.locator(".checker-piece").count(),24);
+  assert.equal(await page.locator(".checker-scoreline .checker-seat").count(),2,"Draughts shows both player/turn badges");
+  assert.equal(await page.locator(".checker-crown").count(),0,"Only kings display crowns");
+  assert.equal(await page.locator("body.checkers-mode").count(),1,"Draughts uses its dedicated tabletop styling");
+  const boardSize=await page.locator(".checkerboard").evaluate(el=>{const r=el.getBoundingClientRect();return {width:r.width,height:r.height}});
+  assert.ok(boardSize.width>=350&&Math.abs(boardSize.width-boardSize.height)<=2,"Draughts board must fill mobile width and remain square");
+  console.log("NIGHT_CHECKERS_VISUAL_JPEG_BASE64="+(await page.locator(".checker-stage").screenshot({type:"jpeg",quality:50})).toString("base64"));
   await page.locator('[data-checker="40"]').click();
   assert.ok(await page.locator(".checker-square.target").count(),"legal move highlighted");
   await page.locator(".checker-square.target").first().click();
@@ -298,9 +304,10 @@ try{
   }
   await page.goto(base+"/games");
   await page.locator("#view-games").waitFor({state:"visible"});
-  assert.equal(await page.locator("[data-club]").count(),7,"all seven accessible from existing game library");
-  await page.locator('[data-club="ludo"]').click();
-  await page.waitForURL("**/club/?game=ludo");
+  assert.equal(await page.locator("[data-club]").count(),6,"Six public Club games; Ludo is archived");
+  assert.equal(await page.locator('[data-club="ludo"]').count(),0,"Ludo has no public card");
+  assert.equal(await page.locator('[data-pick="ludo"]').count(),0,"Ludo has no Club picker tab");
+  await page.goto(base+'/club/?game=ludo');
   assert.equal(await page.locator("#gameTitle").innerText(),"Nigerian Ludo");
   assert.deepEqual(errors,[],"no uncaught browser errors");
   const fallback=await browser.newPage({viewport:{width:390,height:844},isMobile:true,hasTouch:true});
