@@ -5,6 +5,8 @@ import studio.artistscene.core.ActorKind
 import studio.artistscene.core.AssetReference
 import studio.artistscene.core.LightSettings
 import studio.artistscene.core.LightType
+import studio.artistscene.core.HairStyle
+import studio.artistscene.core.CharacterAppearanceSettings
 import studio.artistscene.core.SceneProject
 import studio.artistscene.core.SceneCamera
 import studio.artistscene.core.Transform
@@ -18,6 +20,35 @@ object PrototypeScene {
     const val RIGGED_FIGURE_ASSET_ID = "starter.khronos.rigged-figure"
     const val COLOR_CUBE_ASSET_ID = "starter.khronos.color-cube"
     const val HUMANOID_ASSET_ID = "starter.makehuman.humanoid"
+    const val HUMAN_STUDY_PROJECT_ID = "human-figure-study"
+
+    /** A welcoming artist-reference scene with real skinned humanoid meshes, not CI mannequins. */
+    fun createHumanoidStudy(): SceneProject {
+        val humanAsset = requireNotNull(starterAssets().first { it.asset?.assetId == HUMANOID_ASSET_ID }.asset)
+        val figures = listOf(
+            Actor(
+                id = "figure-study-a", name = "Figure A", kind = ActorKind.CHARACTER,
+                asset = humanAsset,
+                transform = Transform(position = Vec3(-0.78f, 0f, 0f)),
+                appearance = CharacterAppearanceSettings(hairStyle = HairStyle.BOB, hairColorHex = "#56372A"),
+            ),
+            Actor(
+                id = "figure-study-b", name = "Figure B", kind = ActorKind.CHARACTER,
+                asset = humanAsset,
+                transform = Transform(position = Vec3(0.78f, 0f, 0f)),
+                appearance = CharacterAppearanceSettings(hairStyle = HairStyle.AFRO, hairColorHex = "#18191C"),
+            ),
+        )
+        return SceneProject(
+            id = HUMAN_STUDY_PROJECT_ID,
+            name = "Human Figure Study",
+            actors = figures + create().actors.filter { it.kind == ActorKind.LIGHT },
+            cameras = listOf(SceneCamera(
+                id = "camera-main", name = "Figure Camera",
+                position = Vec3(0f, 1.22f, 5.6f), target = Vec3(0f, 0.92f, 0f),
+            )),
+        )
+    }
 
     fun starterAssets(): List<Actor> {
         val fixtureAssets = create().actors.filter {
