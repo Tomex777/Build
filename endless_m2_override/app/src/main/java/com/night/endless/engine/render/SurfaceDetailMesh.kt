@@ -145,14 +145,18 @@ internal object SurfaceDetailMesh {
         val highX = floor((centerX + radius) / spacing).toInt()
         val lowZ = floor((centerZ - radius) / spacing).toInt()
         val highZ = floor((centerZ + radius) / spacing).toInt()
-        val data = ArrayList<Float>(27000)
+        // Primitive storage avoids boxing hundreds of thousands of Floats
+        // whenever the walking patch moves, reducing GC stalls on phones.
+        var data = FloatArray(27000)
+        var cursor = 0
         var stones = 0
         fun triVertex(x: Double, y: Double, z: Double, nx: Double, ny: Double, nz: Double, rockTone: Float) {
-            data.add(x.toFloat()); data.add(y.toFloat()); data.add(z.toFloat())
-            data.add(nx.toFloat()); data.add(ny.toFloat()); data.add(nz.toFloat())
+            if (cursor + STRIDE > data.size) data = data.copyOf(data.size * 2)
+            data[cursor++] = x.toFloat(); data[cursor++] = y.toFloat(); data[cursor++] = z.toFloat()
+            data[cursor++] = nx.toFloat(); data[cursor++] = ny.toFloat(); data[cursor++] = nz.toFloat()
             // One stable reflectance per fragment, not a random tint at
             // every triangle corner (which looked like faceted toy stones).
-            data.add(rockTone); data.add(rockTone); data.add(rockTone)
+            data[cursor++] = rockTone; data[cursor++] = rockTone; data[cursor++] = rockTone
         }
         for (gz in lowZ..highZ) for (gx in lowX..highX) {
             // Real scree is clustered around eroded slopes and outcrops,
@@ -222,6 +226,6 @@ internal object SurfaceDetailMesh {
             }
             stones++
         }
-        return Rocks(data.toFloatArray(), stones)
+        return Rocks(data.copyOf(cursor), stones)
     }
 }
