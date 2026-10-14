@@ -100,7 +100,7 @@ function birdFrame(dt){
  ctx.fillStyle="#8cc670";ctx.fillRect(0,558,360,9);
  ctx.fillStyle="#d7d19a";for(let i=0;i<14;i++){const x=((i*31-s.distance*.7)%434+434)%434-35;ctx.fillRect(x,577,12,2);}
  wingBird(s);
- if(!s.started){ctx.fillStyle="#173c31b9";ctx.beginPath();ctx.roundRect(43,228,274,109,15);ctx.fill();drawText("TAP TO FLY",277,27);drawText("Dodge the pipes",309,13);}
+ if(!s.started){ctx.fillStyle="#173c31b9";ctx.beginPath();ctx.roundRect(43,354,274,104,15);ctx.fill();drawText("TAP TO FLY",399,27);drawText("Dodge the pipes",430,13);}
  if(finished){ctx.fillStyle="#163c31c5";ctx.beginPath();ctx.roundRect(25,225,310,130,15);ctx.fill();drawText("ROUND OVER",273,27);drawText("Your score: "+points,310,20);}
 }
 /* BLOCK DROP — seven-bag, wall kicks, lock, line scoring. */
