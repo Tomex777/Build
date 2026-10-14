@@ -103,8 +103,8 @@ function finishIfDone(s){
  s.selectedDie=null;finishTurn(s);
 }
 function diceFace(n,cls="",opts=""){
- const dots=PIPS[n]||PIPS[1];
- return '<span class="nj-die '+cls+'" '+opts+'><span class="nj-pips">'+Array.from({length:9},(_,i)=>'<i class="'+(dots.includes(i)?"lit":"")+'"></i>').join("")+'</span></span>';
+ const sides=[["front",1],["back",6],["right",3],["left",4],["top",2],["bottom",5]];
+ return '<span class="nj-die '+cls+'" '+opts+'><span class="nj-cube nj-value-'+n+'" aria-hidden="true">'+sides.map(([face,val])=>'<span class="nj-cube-face nj-face-'+face+'"><span class="nj-pips">'+Array.from({length:9},(_,i)=>'<i class="'+(PIPS[val].includes(i)?"lit":"")+'"></i>').join("")+'</span></span>').join("")+'</span></span>';
 }
 function drawBoard(s){
  const map=new Map();s.players.forEach((p,pi)=>p.tokens.forEach((pos,ti)=>{
@@ -184,10 +184,14 @@ function changeOption(s,key,value){if(s.rolling||s.moving||s.rolls.length||s.win
  s.options[key]=value;s.msg="Game settings updated.";return true;}
 function changeDice(s,n){if(s.rolling||s.moving||s.rolls.length)return false;s.diceCount=n===1?1:2;s.last=s.diceCount===1?[1]:[1,1];s.msg="Dice setting changed. Your next throw uses "+s.diceCount+(s.diceCount===1?" die.":" dice.");return true;}
 function selectDie(s,i,draw){if(s.rolling||s.moving||s.winner!==null||!s.rolls[i]||s.rolls[i].used)return;if(canForDie(s,i)){s.selectedDie=i;s.die=s.rolls[i].value;s.msg="Die "+(i+1)+" selected — move "+s.rolls[i].value+" spaces.";draw();}}
-function tickFaces(s){s.preview=Array.from({length:s.diceCount},()=>Math.floor(Math.random()*6)+1);
+function tickFaces(s){
+ s.preview=Array.from({length:s.diceCount},()=>Math.floor(Math.random()*6)+1);
  document.querySelectorAll(".nj-dice-controls .nj-die,.nj-dice-center .nj-die").forEach((el,j)=>{
- const n=s.preview[j%s.diceCount];const grid=el.querySelector(".nj-pips");if(grid)grid.innerHTML=Array.from({length:9},(_,i)=>'<i class="'+(PIPS[n].includes(i)?'lit':'')+'"></i>').join("");
- });}
+  const cube=el.querySelector(".nj-cube");if(!cube)return;
+  // Die is already rotating in 3D; the visual faces stay a valid physical cube.
+  const sampled=s.preview[j%s.diceCount];cube.dataset.preview=sampled;
+ });
+}
 function roll(s,draw){
  if(s.rolling||s.moving||s.rolls.length||s.winner!==null)return;
  cancel();const generation=life,actual=Array.from({length:s.diceCount},rand6);
