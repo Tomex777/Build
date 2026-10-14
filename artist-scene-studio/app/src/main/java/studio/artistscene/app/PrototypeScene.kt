@@ -117,11 +117,10 @@ object PrototypeScene {
         val fixtureAssets = create().actors.filter {
             it.asset != null && it.kind in setOf(ActorKind.CHARACTER, ActorKind.PROP)
         }
-        return (fixtureAssets + listOf(
+        return (listOf(animeActor("starter-anime", "Anime Figure", pose = false)) + fixtureAssets + listOf(
             originalActor("Bicycle", ActorKind.VEHICLE),
             originalActor("Car", ActorKind.VEHICLE),
             originalActor("Tree", ActorKind.ENVIRONMENT),
-            animeActor("starter-anime", "Anime Figure", pose = false),
             Actor(
                 id = "starter-mise-humanoid",
                 name = "Humanoid",
