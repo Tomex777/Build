@@ -10,7 +10,7 @@ const titles={ludo:["Nigerian Ludo","The board you remember.","BOARD GAME"],esta
 function h(s){return String(s).replace(/[&<>"']/g,x=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[x]));}
 function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
 function die(){return Math.floor(Math.random()*6)+1;}
-function save(){try{const copy={...state};delete copy.draw;localStorage.setItem(KEY,JSON.stringify(copy));}catch{}}
+function save(){if(active==='ludo'&&(state.ludo?.rolling||state.ludo?.moving))return;try{const copy={...state};delete copy.draw;localStorage.setItem(KEY,JSON.stringify(copy));}catch{}}
 function load(){try{const data=JSON.parse(localStorage.getItem(KEY)||"{}");for(const k of Object.keys(titles)){if(data[k]&&typeof data[k]==="object")state[k]=data[k];}}catch{}}
 function setStatus(t){status.textContent=t;}
 function controlsHTML(markup){controls.innerHTML=markup;}
@@ -40,11 +40,13 @@ function renderLudo(){
  window.NightLudo.render(state.ludo,{board,controls,status,help,save,scoreList,choosePlayers,rules,draw:render});
  if(wasOpen){const d=controls.querySelector(".nj-settings");if(d)d.open=true;}
  const s=state.ludo,players=s.players,turn=players[s.turn],hud=$("ludoHud");
- const shown=[players[0],players[1]||players[0]];
+ const shown=players;
+ hud.dataset.players=String(players.length);
  hud.innerHTML=shown.map((p,idx)=>{
   const count=p.tokens.filter(n=>n===56).length,active=idx===s.turn,team=p.houses||[p.key];
   return '<div class="player'+(active?' turn':'')+'"><div class="playername">'+team.map(k=>'<span class="p-dot" style="--team:'+({red:"#e7493f",green:"#409e51",blue:"#2c82c8",yellow:"#ffcf23"}[k]||"#eee")+'"></span>').join('')+h(p.name)+'</div><div class="value">'+count+'<span class="ludo-hud-progress"> / '+p.tokens.length+'</span></div></div>';
- }).join('<div class="turnmid"><span>'+(s.winner!==null?'WINNER':s.rolling?'ROLLING':s.moving?'MOVING':'TURN')+'</span>'+(s.winner!==null?'🏆':s.rolls.length?s.rolls.filter(d=>!d.used).map(d=>d.value).join(' + '):'🎲')+'</div>');
+ }).join('');
+ hud.insertAdjacentHTML('beforeend','<div class="turnmid"><span>'+(s.winner!==null?'WINNER':s.rolling?'ROLLING':s.moving?'MOVING':'TURN')+'</span>'+(s.winner!==null?'🏆':s.rolls.length?s.rolls.filter(d=>!d.used).map(d=>d.value).join(' + '):'🎲')+'</div>');
  const details=controls.querySelector(".nj-settings");
  if(details)details.addEventListener("toggle",()=>{const open=details.open;$("ludoSheetBack").hidden=!open;$("ludoSettingsBtn").setAttribute("aria-expanded",String(open));});
  const options=controls.querySelector(".nj-options");
@@ -58,8 +60,8 @@ function closeLudoSettings(){const d=controls.querySelector(".nj-settings");if(d
 $("ludoSettingsBtn").addEventListener("click",()=>{const d=controls.querySelector(".nj-settings");if(!d)return;d.open=!d.open;$("ludoSheetBack").hidden=!d.open;$("ludoSettingsBtn").setAttribute("aria-expanded",String(d.open));});
 $("ludoSheetBack").addEventListener("click",closeLudoSettings);
 document.addEventListener("keydown",e=>{if(e.key==="Escape")closeLudoSettings();});
-function ludoRoll(){window.NightLudo.roll(state.ludo,render);}
-function ludoMove(pi,ti){window.NightLudo.move(state.ludo,pi,ti,render);}
+function ludoRoll(){if(state.ludo.opponent==='computer'&&state.ludo.turn===1)return;window.NightLudo.roll(state.ludo,render);}
+function ludoMove(pi,ti){if(state.ludo.opponent==='computer'&&state.ludo.turn===1)return;window.NightLudo.move(state.ludo,pi,ti,render);}
 
 const places=["START","Eko Marina","Yaba","Community Fund","Surulere","Kaduna Road","Transit","Lekki","Sabo","Ikeja","VISIT","Ibadan","Bodija","Market Bonus","Akure","Warri","Coastal Rail","Benin","Asaba","Sapele","REST","Enugu","Nsukka","Electric Bill","Aba","Owerri","Metro Rail","Uyo","Calabar","Ikot Ekpene","HOLD","Jos","Bukuru","Lottery","Minna","Abuja Central","Capital Rail","Gwarinpa","Maitama","Luxury Tax"];
 const skipSpaces=new Set([0,3,6,10,13,16,20,23,26,30,33,36,39]);const groupColors=["#ac7c52","#8bc7d5","#e1a7b7","#e7a13e","#e64d46","#daca6f","#7cb875","#3980ba"];

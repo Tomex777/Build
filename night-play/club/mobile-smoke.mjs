@@ -61,12 +61,18 @@ try{
   assert.ok(await page.locator('[data-ludo-die="1"]').count(),"second die remains selectable");
   assert.equal(await page.locator('[data-dice-mode="ludo"]').isDisabled(),true,"dice configuration locked until remaining roll is played");
   assert.equal(await page.locator('[data-ludo-die="1"]').first().isEnabled(),true,"second die becomes playable after releasing a piece with six");
+  assert.equal(await page.locator('.nj-center-button.is-used').count(),1,"spent die is marked directly on the board");
+  assert.equal(await page.locator('.nj-center-button[aria-pressed="true"]').count(),1,"selected die is marked directly on the board");
+  assert.ok(await page.locator('.nj-destination').count()>0,"selected roll shows its possible landing squares");
   await page.locator(".l-cell .l-token.eligible").first().click();
+  await page.waitForTimeout(150);
+  assert.ok(await page.locator('.l-cell .nj-piece').evaluateAll(elements=>elements.some(el=>el.getAnimations().some(a=>a.playState==='running'))),"counter visibly animates between squares rather than teleporting");
   await page.getByText(/Six! Roll again/).waitFor({timeout:4500});
   assert.equal(await page.locator('[data-dice-mode="ludo"]').isEnabled(),true,"settings unlock once both dice were used");
   await page.locator("#ludoSettingsBtn").click();
   await page.locator("[data-players=ludo]").selectOption("4");
   assert.equal(await page.locator("[data-piece]").count(),16,"four players each have one house");
+  assert.equal(await page.locator('.ludo-hud .player').count(),4,"all four players appear in the scoreboard");
   await page.locator('[data-dice-mode="ludo"]').selectOption("1");
   assert.equal(await page.locator(".nj-die-button").count(),1,"one-die classic option works");
   await page.locator('[data-dice-mode="ludo"]').selectOption("2");

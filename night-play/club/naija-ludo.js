@@ -140,6 +140,12 @@ function drawBoard(s){
   if(!map.has(key))map.set(key,[]);map.get(key).push({pi,ti,color:tokenHouse(p,ti)});
  }));
  const activeHouses=new Map();s.players.forEach((p,pi)=>p.houses.forEach((house,hi)=>activeHouses.set(house,{p,pi,hi})));
+ const destinations=new Set();
+ s.players[s.turn].tokens.forEach((pos,ti)=>{
+  if(!legal(s,s.turn,ti,s.selectedDie))return;
+  const n=s.rolls[s.selectedDie].value,xy=cell(tokenHouse(s.players[s.turn],ti),pos<0?0:pos+n);
+  if(xy)destinations.add(xy.join(","));
+ });
  let out='<div class="ludo nj-board" role="group" aria-label="Classic fifteen-by-fifteen Nigerian Ludo board">';
  for(let r=0;r<15;r++)for(let c=0;c<15;c++){
   const key=r+","+c,idx=TRACK.findIndex(x=>x[0]===r&&x[1]===c);
@@ -150,6 +156,7 @@ function drawBoard(s){
   if(r>=6&&r<=8&&c>=6&&c<=8)classes.push("nj-center-tile");
   for(const [k,a] of Object.entries(HOME))if(a.some(x=>x[0]===r&&x[1]===c))classes.push("nj-home-"+k);
   if(pieces.length>1)classes.push("nj-stacked");
+  if(destinations.has(key))classes.push("nj-destination");
   let body=pieces.slice(0,4).map(v=>{
    const available=legal(s,v.pi,v.ti,s.selectedDie);
    return '<button type="button" class="l-token nj-piece'+(available?" eligible":"")+'" data-piece="'+v.pi+'-'+v.ti+'" style="--token:'+COLORS[v.color]+'" aria-label="'+label(v.color)+' counter '+(v.ti%4+1)+'" '+(available?"":"disabled")+'><span class="nj-piece-core">'+(v.ti%4+1)+'</span></button>';
@@ -177,13 +184,29 @@ function drawBoard(s){
  }
  const centerVals=s.rolling?(Array.isArray(s.preview)?s.preview:[1,2]):s.rolls.length?s.rolls.map(d=>d.value):s.last;
  out+='<div class="nj-dice-center'+(s.rolling?' is-rolling':'')+'" style="grid-row:7/span 3;grid-column:7/span 3" aria-label="Central dice tray"><div class="nj-dice-pair">';
- centerVals.slice(0,s.diceCount).forEach((n,i)=>{const action=s.rolls.length?'data-ludo-die="'+i+'"':'data-action="ludo-roll"';const enabled=!s.rolling&&!s.moving&&s.winner===null&&(!s.rolls.length||!!s.rolls[i]&&!s.rolls[i].used&&canForDie(s,i));out+='<button type="button" class="nj-center-button" '+action+' aria-label="'+(s.rolls.length?'Choose die '+(i+1):'Throw dice')+'" '+(enabled?'':'disabled')+'>'+diceFace(n,s.rolling?"is-tumbling":"", 'data-center-die="'+i+'"')+'</button>';});
+ centerVals.slice(0,s.diceCount).forEach((n,i)=>{const action=s.rolls.length?'data-ludo-die="'+i+'"':'data-action="ludo-roll"';const enabled=!s.rolling&&!s.moving&&s.winner===null&&(!s.rolls.length||!!s.rolls[i]&&!s.rolls[i].used&&canForDie(s,i));const selected=s.rolls.length&&i===s.selectedDie,used=!!s.rolls[i]?.used;out+='<button type="button" class="nj-center-button'+(selected?' is-selected':'')+(used?' is-used':'')+'" '+action+' aria-label="'+(s.rolls.length?'Die '+(i+1)+': '+n+(used?', used':selected?', selected':''):'Throw dice')+'" aria-pressed="'+!!selected+'" '+(enabled?'':'disabled')+'>'+diceFace(n,s.rolling?"is-tumbling":"", 'data-center-die="'+i+'"')+'</button>';});
  out+='</div></div>'+(s.options.visualHand&&!s.rolls.length&&!s.rolling&&!s.moving&&s.winner===null?'<span class="nj-hand-cue" aria-hidden="true">☝</span>':'')+'</div>';
  return out;
 }
 function render(s,ui){
  s=normalize(s);
+ const before=new Map();
+ if(!reduced())ui.board.querySelectorAll('[data-piece]').forEach(el=>{
+  const piece=el.matches('.nj-piece')?el:el.querySelector('.nj-piece');
+  if(piece)before.set(el.dataset.piece,piece.getBoundingClientRect());
+ });
  ui.board.innerHTML=drawBoard(s);
+ // Animate between real board coordinates; rebuilding a cell no longer causes
+ // counters to teleport. Respect reduced motion and the selected movement pace.
+ if(before.size)ui.board.querySelectorAll('[data-piece]').forEach(el=>{
+  const piece=el.matches('.nj-piece')?el:el.querySelector('.nj-piece');
+  const old=before.get(el.dataset.piece);if(!piece||!old||!piece.animate)return;
+  const now=piece.getBoundingClientRect(),dx=old.left-now.left,dy=old.top-now.top;
+  if(Math.abs(dx)+Math.abs(dy)<1||!now.width||!now.height)return;
+  const duration=s.moving?(s.options.speed==='slow'?210:s.options.speed==='fast'?55:100):260;
+  piece.animate([{transform:'translate('+dx+'px,'+dy+'px) scale('+old.width/now.width+','+old.height/now.height+')'},{transform:'translate(0,0) scale(1)'}],{duration,easing:'cubic-bezier(.22,.65,.35,1)'});
+  piece.style.zIndex='20';const parent=piece.closest('.l-cell');if(parent)parent.style.zIndex='10';
+ });
  const p=s.players[s.turn];
  const phase=s.winner!==null?s.players[s.winner].name+" wins!":s.rolling?"Dice tumbling…":s.moving?"Counters moving…":s.rolls.length?"Choose a highlighted counter":p.name+"'s turn";
  ui.status.textContent=phase+". "+s.msg;
