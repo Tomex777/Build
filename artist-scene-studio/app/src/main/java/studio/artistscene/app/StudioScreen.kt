@@ -130,6 +130,7 @@ import studio.artistscene.core.ActorKind
 import studio.artistscene.core.mechanicalParts
 import studio.artistscene.core.SceneEditorState
 import studio.artistscene.core.SceneProject
+import studio.artistscene.core.EnvironmentPreset
 import studio.artistscene.core.Interpolation
 import studio.artistscene.core.actorKeyTimes
 import studio.artistscene.core.previousActorKeyTime
@@ -2428,6 +2429,53 @@ private fun EditorContextSheet(
                             Text("Select a light above to edit it.", color = MutedText, fontSize = 12.sp)
                         }
                     }
+                    // A scene environment does not depend on the selected actor.
+                    // Persist it in the project, with normal undo/redo semantics.
+                    Text(
+                        "Environment · floor & sky",
+                        color = PrimaryText,
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 15.sp,
+                        modifier = Modifier.padding(top = 12.dp).testTag("environment-controls"),
+                    )
+                    Text(
+                        "Choose an atmosphere with a low-glare floor that keeps humanoid silhouettes easy to read.",
+                        color = MutedText, fontSize = 11.sp,
+                    )
+                    EnvironmentPreset.entries.chunked(2).forEach { rowPresets ->
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            rowPresets.forEach { preset ->
+                                FilterChip(
+                                    selected = editor.project.world.environmentPreset == preset,
+                                    onClick = {
+                                        onEditor(editor.setEnvironmentPreset(preset), "environment-preset")
+                                    },
+                                    label = { Text(preset.title, fontSize = 11.sp, maxLines = 1) },
+                                    modifier = Modifier.weight(1f).testTag("environment-${preset.name.lowercase()}"),
+                                )
+                            }
+                        }
+                    }
+                    FilterChip(
+                        selected = editor.project.world.groundEnabled,
+                        onClick = {
+                            onEditor(
+                                editor.setGroundVisible(!editor.project.world.groundEnabled),
+                                "environment-ground",
+                            )
+                        },
+                        label = {
+                            Text(if (editor.project.world.groundEnabled) "Ground visible" else "Ground hidden")
+                        },
+                        modifier = Modifier.testTag("environment-ground-toggle"),
+                    )
+                    Text(
+                        "Original offline sky gradients · PBR matte shadow receiver · saved with the scene.",
+                        color = MutedText, fontSize = 10.sp,
+                    )
                 }
                 else -> Unit
             }
