@@ -1,0 +1,87 @@
+name: EchoSpace Android emulator QA
+
+on:
+  push:
+    branches:
+      - feature/echospace-emulator-qa
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  emulator-qa:
+    runs-on: ubuntu-latest
+    timeout-minutes: 55
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.11.1'
+      - name: Extract EchoSpace native source
+        run: |
+          tar -xJf EchoSpace/source.tar.xz
+          test -f EchoSpace/app/src/main/java/com/nexa/echospace/MainActivity.kt
+      - name: Install Android build tools
+        run: sdkmanager 'platforms;android-35' 'build-tools;35.0.0'
+      - name: Compile and run Kotlin unit tests
+        working-directory: EchoSpace
+        run: gradle --no-daemon --stacktrace testDebugUnitTest assembleDebug
+      - name: Enable emulator acceleration
+        run: |
+          ls -la /dev/kvm || true
+          sudo chmod 666 /dev/kvm || true
+      - name: Boot emulator and inspect real Android app
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          arch: x86_64
+          target: google_apis
+          profile: pixel_6
+          cores: 2
+          ram-size: 2048M
+          disk-size: 4096M
+          disable-animations: true
+          emulator-options: -no-window -no-snapshot -noaudio -no-boot-anim -gpu swiftshader_indirect
+          script: |
+            mkdir -p qa
+            adb install -r EchoSpace/app/build/outputs/apk/debug/app-debug.apk
+            adb shell settings put system screen_off_timeout 600000
+            adb shell am start -W -n com.nexa.echospace/.MainActivity
+            sleep 12
+            adb shell screencap -p /sdcard/echospace-launch.png
+            adb pull /sdcard/echospace-launch.png qa/01-launch.png
+            adb shell uiautomator dump /sdcard/echospace-ui.xml
+            adb pull /sdcard/echospace-ui.xml qa/ui.xml
+            RES=$(adb shell wm size | tr -d '\r' | grep 'Physical size' | awk '{print $3}')
+            W=${RES%x*}; H=${RES#*x}
+            echo "Emulator size is ${W} x ${H}"
+            adb shell input tap $((W * 12 / 100)) $((H * 87 / 100))
+            sleep 5
+            adb shell screencap -p /sdcard/echospace-play.png
+            adb pull /sdcard/echospace-play.png qa/02-play.png
+            adb shell input tap $((W * 58 / 100)) $((H * 16 / 100))
+            sleep 4
+            adb shell screencap -p /sdcard/echospace-forest.png
+            adb pull /sdcard/echospace-forest.png qa/03-environment-switch.png
+            adb shell logcat -d -v brief -s AndroidRuntime:E > qa/android-crashes.log
+            if grep -q 'FATAL EXCEPTION' qa/android-crashes.log; then cat qa/android-crashes.log; exit 1; fi
+            adb shell pidof com.nexa.echospace
+            echo 'EMULATOR_QA_COMPLETE'
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: EchoSpace-emulator-screenshots
+          path: qa/
+          if-no-files-found: warn
+      - uses: actions/upload-artifact@v4
+        if: success()
+        with:
+          name: EchoSpace-debug-apk
+          path: EchoSpace/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
