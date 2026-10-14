@@ -1,7 +1,7 @@
 import { Readable } from 'node:stream'
 import { randomBytes, randomUUID, timingSafeEqual } from 'node:crypto'
 
-export const MEGA_UPLOAD_LIMIT_BYTES = 512 * 1024 * 1024
+export const MEGA_UPLOAD_LIMIT_BYTES = 2 * 1024 * 1024 * 1024
 const ID_PATTERN = /^[a-z][a-z0-9_-]{0,31}$/
 const NODE_PATTERN = /^[A-Za-z0-9_-]{6,48}$/
 export const MEGA_MEDIA_TYPES = Object.freeze(['images', 'videos', 'audio', 'documents', 'archives', 'stickers'])
@@ -88,7 +88,7 @@ export function validateMegaSize(size) {
   if (!Number.isSafeInteger(bytes) || bytes <= 0) {
     throw new Error('The media must have a known, nonzero size to upload to MEGA.')
   }
-  if (bytes > MEGA_UPLOAD_LIMIT_BYTES) throw new Error('That file exceeds the 512 MiB per-upload safety limit.')
+  if (bytes > MEGA_UPLOAD_LIMIT_BYTES) throw new Error('That file exceeds the 2 GiB streamed-upload safety limit.')
   return bytes
 }
 

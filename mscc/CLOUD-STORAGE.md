@@ -38,8 +38,10 @@ for writes, the upload is rejected explicitly rather than secretly going to
 an unrelated storage account. Errors after an upload starts do not trigger
 an automatic retry elsewhere, avoiding possible duplicate uploads.
 
-Files must have known nonzero sizes and be within a 512 MiB per-upload
-limit. Actual available capacity for *contributor-owned* accounts cannot be
+Files must have known nonzero sizes and be within a 2 GiB per-upload
+limit. Media is streamed directly from WhatsApp to MEGA: large movies do not
+need to be buffered onto the small Azure VM disk. Transfer/network quotas
+and the underlying WhatsApp media limit still apply. Actual available capacity for *contributor-owned* accounts cannot be
 reliably established from incoming folder shares, so the dashboard shows
 verified quota for the primary account only. Do not display hypothetical
 "100 GB available" as if that were confirmed.
