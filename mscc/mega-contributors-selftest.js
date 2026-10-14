@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict'
 import { Readable } from 'node:stream'
 import {
-  megaSharedFolders, megaStorageDashboard, megaRecentFiles, uploadMegaMedia,
+  megaSharedFolders, megaMediaType, routeMegaTarget, megaStorageDashboard,
+  megaRecentFiles, uploadMegaMedia,
 } from './mega-storage.js'
 
 const env = {
@@ -9,9 +10,9 @@ const env = {
   MSCC_MEGA_PASSWORD:'not-a-real-password',
   MSCC_MEGA_FOLDER:'Main Archive',
   MSCC_MEGA_SHARED_FOLDERS:JSON.stringify([
-    { id:'alex', label:'Alex donated folder', nodeId:'exampleS', uploadEnabled:true },
-    { id:'riley', label:'Riley contributed folder', nodeId:'exampleT', uploadEnabled:false },
-    { id:'missing', label:'Unavailable', nodeId:'notthere', uploadEnabled:true },
+    { id:'alex', label:'Photos bucket', nodeId:'exampleS', mediaTypes:['images', 'stickers'], uploadEnabled:true },
+    { id:'riley', label:'Documents bucket', nodeId:'exampleT', mediaTypes:['documents'], uploadEnabled:false },
+    { id:'missing', label:'Archives bucket', nodeId:'notthere', mediaTypes:['archives'], uploadEnabled:true },
   ]),
 }
 assert.equal(megaSharedFolders(env).length, 3)
@@ -19,6 +20,15 @@ assert.throws(() => megaSharedFolders({ MSCC_MEGA_SHARED_FOLDERS:'{broken' }), /
 assert.throws(() => megaSharedFolders({ MSCC_MEGA_SHARED_FOLDERS:'[{"id":"primary","nodeId":"ABCDEFGH"}]' }), /short identifiers/)
 assert.throws(() => megaSharedFolders({ MSCC_MEGA_SHARED_FOLDERS:'[{"id":"alex","nodeId":"ABCDEFGH"},{"id":"alex","nodeId":"XYZ01234"}]' }), /Duplicate/)
 assert.throws(() => megaSharedFolders({ MSCC_MEGA_SHARED_FOLDERS:'[{"id":"foo","nodeId":"bad/path"}]' }), /valid MEGA node ID/)
+assert.throws(() => megaSharedFolders({ MSCC_MEGA_SHARED_FOLDERS:'[{"id":"foo","nodeId":"ABCDEFGH","mediaTypes":["images","images"]}]' }), /duplicate MEGA mediaTypes/)
+assert.throws(() => megaSharedFolders({ MSCC_MEGA_SHARED_FOLDERS:'[{"id":"foo","nodeId":"ABCDEFGH","mediaTypes":["unknown"]}]' }), /Invalid/)
+
+assert.equal(megaMediaType({ kind:'sticker',mimeType:'image/webp' }), 'stickers')
+assert.equal(megaMediaType({ mimeType:'image/png' }), 'images')
+assert.equal(megaMediaType({ mimeType:'video/mp4' }), 'videos')
+assert.equal(megaMediaType({ name:'album.flac' }), 'audio')
+assert.equal(megaMediaType({ name:'archive.zip',mimeType:'application/zip' }), 'archives')
+assert.equal(megaMediaType({ name:'report.pdf' }), 'documents')
 
 let lastTarget = ''
 let streamCount = 0
@@ -33,15 +43,15 @@ const upload = name => ({
       let length = 0
       for await (const chunk of source) length += chunk.length
       assert.equal(length,size)
-      this.children.push({ name:fileName, size, timestamp:1 })
+      this.children.push({ name:fileName, size, timestamp:Date.now() })
       return { name:fileName, nodeId:'uploaded' }
     })() }
   },
 })
 const primary = upload('Main Archive')
-const alex = upload('Alex donated folder')
+const alex = upload('Photos bucket')
 alex.nodeId = 'exampleS'
-const riley = upload('Riley contributed folder')
+const riley = upload('Documents bucket')
 riley.nodeId = 'exampleT'
 const unrelated = upload('Unregistered folder')
 unrelated.nodeId = 'notRegistered'
@@ -66,22 +76,36 @@ const dashboard=await megaStorageDashboard(opts)
 assert.equal(dashboard.targets.length,4)
 assert.equal(dashboard.targets[0].type,'primary')
 assert.equal(dashboard.targets[1].detected,true)
+assert.deepEqual(dashboard.targets[1].mediaTypes,['images','stickers'])
 assert.equal(dashboard.targets[1].quotaBytes,null)
 assert.equal(dashboard.targets[2].uploadEnabled,false)
 assert.equal(dashboard.targets[3].detected,false)
 assert.equal(dashboard.total,10_000_000)
 assert.match(dashboard.note,/not summed/)
 
-const file = { name:'saved.txt', size:4, targetId:'alex', source: async () => { streamCount++; return Readable.from([Buffer.from('test')]) } }
-const result=await uploadMegaMedia(file,opts)
-assert.equal(result.targetId,'alex')
-assert.equal(lastTarget,'Alex donated folder')
-assert.equal((await megaRecentFiles({ targetId:'alex' },opts))[0].name,'saved.txt')
+const routes=megaSharedFolders(env)
+assert.equal(routeMegaTarget({ mediaType:'videos',shares:routes,mounts:[alex,riley] }).id,'primary')
+assert.equal(routeMegaTarget({ mediaType:'images',shares:routes,mounts:[alex,riley] }).id,'alex')
+assert.throws(() => routeMegaTarget({ mediaType:'documents',shares:routes,mounts:[alex,riley] }),/No connected writable/)
+assert.throws(() => routeMegaTarget({ mediaType:'archives',shares:routes,mounts:[alex,riley] }),/No connected writable/)
 
-await assert.rejects(() => uploadMegaMedia({ ...file,targetId:'riley' },opts),/not enabled/)
-await assert.rejects(() => uploadMegaMedia({ ...file,targetId:'missing' },opts),/not mounted/)
-await assert.rejects(() => uploadMegaMedia({ ...file,targetId:'unknown' },opts),/Unknown/)
-await assert.rejects(() => uploadMegaMedia({ ...file,size:20_000_000,targetId:'primary' },opts),/Not enough/)
-assert.equal(streamCount,1,'Rejected uploads never download source media')
+const stream = () => { streamCount++; return Readable.from([Buffer.from('test')]) }
+const photo=await uploadMegaMedia({ name:'saved.png',size:4,kind:'image',source:stream },opts)
+assert.equal(photo.targetId,'alex')
+assert.equal(photo.mediaType,'images')
+assert.equal(lastTarget,'Photos bucket')
+const sticker=await uploadMegaMedia({ name:'sticker.webp',size:4,kind:'sticker',source:stream },opts)
+assert.equal(sticker.targetId,'alex')
+const recent=await megaRecentFiles({},opts)
+assert.equal(recent.length,2)
+assert(recent.every(file=>file.location==='Photos bucket'))
+const video=await uploadMegaMedia({ name:'video.mp4', size:4,kind:'video',source:stream },opts)
+assert.equal(video.targetId,'primary')
+assert.equal(lastTarget,'Main Archive')
+
+await assert.rejects(() => uploadMegaMedia({ name:'report.pdf',size:4,kind:'document',source:stream },opts),/No connected writable/)
+await assert.rejects(() => uploadMegaMedia({ name:'backup.zip',size:4,kind:'document',source:stream },opts),/No connected writable/)
+await assert.rejects(() => uploadMegaMedia({ name:'video.mp4',size:20_000_000,kind:'video',source:stream },opts),/Not enough/)
+assert.equal(streamCount,3,'Rejected uploads never download source media')
 assert.equal(sessionCount,closeCount,'Every connection is closed')
-console.log('MEGA contributed folder self-test passed.')
+console.log('MEGA media-type auto routing and contributed folder self-test passed.')
