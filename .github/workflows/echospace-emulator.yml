@@ -87,6 +87,21 @@ jobs:
             python3 EchoSpace/tools/emulator_probe.py tap text Fire
             sleep 1
             python3 EchoSpace/tools/emulator_probe.py assert desc 'Mute Fire'
+            # Save the edited environment and verify that it survives switching.
+            python3 EchoSpace/tools/emulator_probe.py tap desc 'Save current soundscape'
+            sleep 2
+            python3 EchoSpace/tools/emulator_probe.py assert text 'My Space'
+            python3 EchoSpace/tools/emulator_probe.py tap text 'Night Shore'
+            python3 EchoSpace/tools/emulator_probe.py tap text 'My Space'
+            python3 EchoSpace/tools/emulator_probe.py assert desc 'Mute Fire'
+            sleep 2
+            adb shell am force-stop com.nexa.echospace
+            adb shell am start -W -n com.nexa.echospace/.MainActivity
+            sleep 4
+            python3 EchoSpace/tools/emulator_probe.py assert text 'My Space'
+            python3 EchoSpace/tools/emulator_probe.py assert desc 'Mute Fire'
+            adb shell screencap -p /sdcard/saved.png
+            adb pull /sdcard/saved.png qa/06-saved-restored.png
             adb shell screencap -p /sdcard/added.png
             adb pull /sdcard/added.png qa/05-added-source.png
             if cmp -s qa/01-launch.png qa/03-deep-forest.png; then echo 'Preset change invisible'; exit 1; fi
