@@ -562,6 +562,44 @@ body{background:var(--bg)}
 .ttt-win-line{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;overflow:visible;z-index:3}
 .ttt-win-line path{stroke:#deae60;stroke-width:8;stroke-linecap:round;fill:none;stroke-dasharray:400;animation:winStroke .45s ease .1s both}
 @keyframes winStroke{from{stroke-dashoffset:400}to{stroke-dashoffset:0}}
+
+/* A tie is celebrated in-place; the board clears itself after a brief result card. */
+.ttt-draw-overlay{position:absolute;inset:0;z-index:8;display:grid;place-items:center;
+ padding:clamp(12px,3vw,24px);background:#1c405c5c;border-radius:inherit;
+ backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);
+ animation:tttDrawVeil .3s ease both}
+.ttt-draw-card{width:min(100%,330px);border-radius:20px;border:1px solid #d9e8e8;
+ background:linear-gradient(160deg,#ffffff 0%,#eef7f4 100%);
+ box-shadow:0 20px 55px #152d4770,0 2px 0 #ffffff inset;
+ text-align:center;color:#214452;padding:clamp(18px,4vw,27px);
+ animation:tttDrawCardIn .38s cubic-bezier(.18,.85,.2,1.15) both}
+.ttt-draw-kicker{display:block;font-weight:900;color:#377d7c;font-size:10px;
+ letter-spacing:2px;margin:1px 0 8px}
+.ttt-draw-symbol{width:110px;height:63px;display:block;margin:1px auto 5px;
+ overflow:visible;filter:drop-shadow(0 4px 5px #3b84932a)}
+.ttt-draw-symbol .draw-x{stroke:#367d76;stroke-width:8;stroke-linecap:round}
+.ttt-draw-symbol .draw-o{stroke:#c07a64;stroke-width:8;fill:none}
+.ttt-draw-symbol .draw-equal{stroke:#8baeb2;stroke-width:4;stroke-linecap:round}
+.ttt-draw-card h3{font-size:clamp(25px,6vw,32px);letter-spacing:-1.2px;line-height:1.05;
+ font-weight:900;color:#25495b;margin:0 0 7px}
+.ttt-draw-card p{font-size:12px;line-height:1.5;font-weight:650;margin:0;color:#667e84}
+.ttt-draw-next{display:flex;align-items:center;justify-content:space-between;gap:8px;
+ font-size:11px;font-weight:850;color:#466f73;margin:18px 0 9px}
+.ttt-draw-seconds{min-width:25px;padding:4px 6px;border-radius:7px;
+ color:#296f6a;background:#d5eae6;font-variant-numeric:tabular-nums}
+.ttt-draw-track{height:6px;border-radius:99px;background:#d4e5e4;overflow:hidden}
+.ttt-draw-fill{height:100%;width:100%;border-radius:inherit;background:#428e86;
+ transform-origin:left center;animation:tttDrawCountdown 3s linear forwards}
+.ttt-draw-overlay.is-leaving{animation:tttDrawFadeOut .24s ease forwards;pointer-events:none}
+@keyframes tttDrawVeil{from{opacity:0}to{opacity:1}}
+@keyframes tttDrawCardIn{from{opacity:0;transform:translateY(16px) scale(.92)}
+ to{opacity:1;transform:translateY(0) scale(1)}}
+@keyframes tttDrawCountdown{from{transform:scaleX(1)}to{transform:scaleX(0)}}
+@keyframes tttDrawFadeOut{from{opacity:1}to{opacity:0}}
+@media(prefers-reduced-motion:reduce){
+ .ttt-draw-overlay,.ttt-draw-card,.ttt-draw-fill,.ttt-draw-overlay.is-leaving{
+ animation:none!important;transition:none!important}
+}
 .sr-only{position:absolute!important;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 .game-page .modal-actions{display:flex;justify-content:center;flex-wrap:wrap;gap:10px;margin:18px auto 0}
 .game-page .modal-actions .btn{padding:11px 16px;min-height:42px}
@@ -1019,6 +1057,8 @@ gameDialog.showModal=()=>{gameDialog.classList.add("active");gameDialog.setAttri
 gameDialog.close=()=>{gameDialog.classList.remove("active");gameDialog.setAttribute("aria-hidden","true");gameDialog.open=false;document.body.classList.remove("in-game");gameDialog.dispatchEvent(new Event("close"))};
 const root=document.getElementById("gameRoot"),title=document.getElementById("gameTitle"),help=document.getElementById("gameHelp");
 let tileAnimId=0,tileAnimTimer=null,undoStack2048=[];
+const TTT_DRAW_REVEAL_MS=300,TTT_DRAW_HOLD_MS=3000,TTT_DRAW_FADE_MS=240;
+let tttDrawRevealTimer=null,tttDrawResetTimer=null,tttDrawFadeTimer=null,tttDrawCountTimer=null,tttDrawSequence=0;
 let active="",snakeTimer=null,snake={},ttt=[],turn="X",mode="bot",tttFinished=false,grid=[],tileScore=0,gamePaused=false,boardRestore=null,gameOverRecorded=false;
 const scoreKey="night-play-v1-";
 function best(key){try{return Number(localStorage.getItem(scoreKey+key)||0)||0}catch{return 0}}
@@ -1315,7 +1355,7 @@ document.getElementById("announcementHistoryClose").addEventListener("click",()=
 document.getElementById("announcementDismiss").addEventListener("click",()=>{putSaved(ANNOUNCEMENT_KEY,"2026-10-13-preview-notice");toggleAnnouncement(false);document.getElementById("announcementMore").innerHTML='Announcements <svg class="ui-icon" viewBox="0 0 24 24" focusable="false" aria-hidden="true"><use href="#icon-chevron"></use></svg>';updateBell()});
 
 function pauseLabel(text){const button=document.getElementById("pauseGame");if(!button)return;button.innerHTML='<svg class="ui-icon" viewBox="0 0 24 24" focusable="false" aria-hidden="true"><use href="#icon-pause"></use></svg> '+text}
-function stop(){if(snakeTimer){clearInterval(snakeTimer);snakeTimer=null}active="";gamePaused=false;pauseLabel("Pause")}
+function stop(){if(snakeTimer){clearInterval(snakeTimer);snakeTimer=null}clearTttDrawResult();active="";gamePaused=false;pauseLabel("Pause")}
 document.addEventListener("click",e=>{
  const dialog=e.target.closest("[data-dialog]");if(dialog)modal(dialog.dataset.dialog);
  const arcade=e.target.closest("[data-arcade]");if(arcade){location.assign("/arcade/?game="+encodeURIComponent(arcade.dataset.arcade));return;}
@@ -1509,13 +1549,57 @@ function stepSnake(){
  drawSnake()
 }
 function initTtt(fresh=false){
+ clearTttDrawResult();
  let saved=null;try{saved=!fresh?JSON.parse(localStorage.getItem("night-play-save-ttt")||"null"):null}catch{}
  ttt=saved&&Array.isArray(saved.board)&&saved.board.length===9?saved.board:Array(9).fill("");
  turn=saved?.turn==="O"?"O":"X";tttFinished=Boolean(saved?.finished);mode=saved?.mode==="local"?"local":"bot";
  if(fresh)try{localStorage.removeItem("night-play-save-ttt")}catch{}
  root.innerHTML='<div class="scorebar scoreboard ttt-scorebar"><div><span class="score-label">ON THE BOARD</span><strong id="turnlabel" aria-live="polite">Your turn · X</strong></div><span class="right"><button class="mode-toggle" id="modeBtn" type="button">VS BOT</button></span></div><div class="tttboard" id="tttboard"></div>';
  document.getElementById("modeBtn").onclick=()=>{const next=mode==="bot"?"local":"bot";initTtt(true);mode=next;drawTtt()};
- drawTtt();if(mode==="bot"&&!tttFinished&&turn==="O")setTimeout(botMoveTtt,450)
+ drawTtt();
+ if(tttFinished&&!isWin(ttt,"X")&&!isWin(ttt,"O"))showTttDrawResult();
+ if(mode==="bot"&&!tttFinished&&turn==="O")setTimeout(botMoveTtt,450)
+}
+
+function clearTttDrawResult(){
+ // A late timeout must never clear a new match after leaving, restarting or switching modes.
+ tttDrawSequence++;
+ if(tttDrawRevealTimer!==null)clearTimeout(tttDrawRevealTimer);
+ if(tttDrawResetTimer!==null)clearTimeout(tttDrawResetTimer);
+ if(tttDrawFadeTimer!==null)clearTimeout(tttDrawFadeTimer);
+ if(tttDrawCountTimer!==null)clearInterval(tttDrawCountTimer);
+ tttDrawRevealTimer=tttDrawResetTimer=tttDrawFadeTimer=tttDrawCountTimer=null;
+ document.querySelector("#tttboard > .ttt-draw-overlay")?.remove();
+}
+function resetTttRound(){
+ // Stay on the SAME game screen, with the selected opponent, difficulty and controls intact.
+ ttt=Array(9).fill("");turn="X";tttFinished=false;
+ try{localStorage.setItem("night-play-save-ttt",JSON.stringify({board:ttt,turn,finished:false,mode,updatedAt:Date.now()}))}catch{}
+ drawTtt();
+}
+function showTttDrawResult(){
+ if(active!=="ttt"||!gameDialog.open||!tttFinished||isWin(ttt,"X")||isWin(ttt,"O"))return;
+ clearTttDrawResult();
+ const sequence=tttDrawSequence;
+ // Let the ninth mark finish drawing before the result card covers it.
+ tttDrawRevealTimer=setTimeout(()=>{
+  tttDrawRevealTimer=null;
+  if(sequence!==tttDrawSequence||active!=="ttt"||!tttFinished||!gameDialog.open)return;
+  const board=document.getElementById("tttboard");if(!board)return;
+  const notice=document.createElement("div");notice.className="ttt-draw-overlay";notice.setAttribute("role","status");notice.setAttribute("aria-label","It's a draw. Next round starts automatically.");
+  notice.innerHTML='<div class="ttt-draw-card"><span class="ttt-draw-kicker">ROUND COMPLETE</span><svg class="ttt-draw-symbol" viewBox="0 0 128 70" fill="none" aria-hidden="true"><path class="draw-x" d="M11 16 37 54M37 16 11 54"/><path class="draw-equal" d="M53 27h22M53 41h22"/><circle class="draw-o" cx="102" cy="35" r="21"/></svg><h3>It\'s a draw!</h3><p>Well played. Neither side wins this round.</p><div class="ttt-draw-next"><span>Next round starting</span><span class="ttt-draw-seconds" aria-hidden="true">3s</span></div><div class="ttt-draw-track" aria-hidden="true"><div class="ttt-draw-fill"></div></div></div>';
+  board.appendChild(notice);
+  let remaining=3;
+  tttDrawCountTimer=setInterval(()=>{if(sequence!==tttDrawSequence)return;remaining=Math.max(1,remaining-1);const countdown=notice.querySelector(".ttt-draw-seconds");if(countdown)countdown.textContent=remaining+"s"},1000);
+  tttDrawResetTimer=setTimeout(()=>{
+   tttDrawResetTimer=null;
+   if(sequence!==tttDrawSequence||active!=="ttt"||!gameDialog.open)return;
+   if(tttDrawCountTimer!==null){clearInterval(tttDrawCountTimer);tttDrawCountTimer=null}
+   resetTttRound();
+   notice.classList.add("is-leaving");
+   tttDrawFadeTimer=setTimeout(()=>{tttDrawFadeTimer=null;if(sequence===tttDrawSequence)notice.remove()},TTT_DRAW_FADE_MS);
+  },TTT_DRAW_HOLD_MS);
+ },TTT_DRAW_REVEAL_MS);
 }
 function isWin(b,m){return [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]].some(line=>line.every(i=>b[i]===m))}
 function drawTtt(){
@@ -1573,6 +1657,7 @@ function moveTtt(i){
  ttt[i]=turn;if(isWin(ttt,turn)||!ttt.includes(""))tttFinished=true;else turn=turn==="X"?"O":"X";
  try{localStorage.setItem("night-play-save-ttt",JSON.stringify({board:ttt,turn,finished:tttFinished,mode,updatedAt:Date.now()}))}catch{}
  drawTtt();
+ if(tttFinished&&!isWin(ttt,"X")&&!isWin(ttt,"O"))showTttDrawResult();
  if(mode==="bot"&&!tttFinished&&turn==="O")setTimeout(botMoveTtt,330)
 }
 function init2048(fresh=false){
