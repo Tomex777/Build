@@ -10,7 +10,7 @@ export async function makeLocalSubtitles(bytes, { language = 'auto' } = {}) {
   const model = String(process.env.MSCC_WHISPER_MODEL || '').trim()
   const binary = String(process.env.MSCC_WHISPER_BIN || 'whisper-cli').trim()
   if (!model || !isAbsolute(model)) {
-    throw new Error('Local subtitle model is not installed. Configure MSCC_WHISPER_MODEL with the absolute path to a whisper.cpp GGUF model.')
+    throw new Error('Local subtitle model is not installed. Configure MSCC_WHISPER_MODEL with the absolute path to a whisper.cpp GGML .bin model.')
   }
   if (!(await stat(model).catch(() => null))?.isFile()) {
     throw new Error('Local subtitle model file is missing. Check MSCC_WHISPER_MODEL.')
