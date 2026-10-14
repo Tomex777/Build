@@ -511,7 +511,7 @@ private fun SceneScope.ActorModelNode(
     ) {
         if (loaded != null) {
             val displayOrigin = remember(loaded, actor.kind) {
-                val bounds = if (asset.assetId == "starter.makehuman.humanoid") {
+                val bounds = if (asset.assetId in setOf(PrototypeScene.HUMANOID_ASSET_ID, PrototypeScene.ANIME_ASSET_ID)) {
                     loaded.asset.renderableEntities.firstOrNull { loaded.asset.getName(it) == "Body" }?.let {
                         engine.renderableManager.getAxisAlignedBoundingBox(engine.renderableManager.getInstance(it), null)
                     } ?: loaded.asset.boundingBox
