@@ -1,10 +1,13 @@
 package studio.artistscene.core
 
+import kotlinx.serialization.Serializable
+
 /**
  * Offline-first artist-reference backdrops. These contain color design data only:
  * no copied Magic Poser assets, internet dependency, or external texture licensing.
  * Use image-based lighting / CC0 HDRI as a separate renderer integration.
  */
+@Serializable
 enum class EnvironmentPreset(
     val title: String,
     val groundHex: String,
