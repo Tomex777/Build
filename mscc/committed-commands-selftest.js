@@ -13,6 +13,7 @@ const required = [
   'read','github','random','choose','timer','schedule',
   'pdfmerge','pdfsplit','img2pdf','pdf2img','pdfcompress','denoise','clearaudio','extractaudio','scanqr',
   'stripmeta','silencecut','aspectratio',
+  'guesssong','guessanime','speedtype',
 ]
 for (const name of required) {
   assert.ok(registry.commands.has(name), 'Missing committed Night command: ' + name)
