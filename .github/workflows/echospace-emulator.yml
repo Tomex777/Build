@@ -121,30 +121,19 @@ jobs:
             python3 EchoSpace/tools/emulator_probe.py tap desc 'Save current soundscape'
             sleep 2
             python3 EchoSpace/tools/emulator_probe.py assert text 'My Space'
-            # Saving a mix auto-focuses its rightmost card. Navigate back to the shore.
-            adb shell input swipe 125 1810 950 1810 650
-            sleep 2
-            python3 EchoSpace/tools/emulator_probe.py tap text 'Night Shore'
-            sleep 2
-            # Allow the environment transition to settle before dragging the carousel.
-            adb shell input swipe 950 1810 75 1810 650
-            sleep 1
-            adb shell input swipe 950 1810 75 1810 650
-            sleep 2
-            python3 EchoSpace/tools/emulator_probe.py tap text 'My Space'
+            # Verify saved source independently of which layer the mixer has selected.
             python3 EchoSpace/tools/emulator_probe.py assert desc 'Fire sound position. Drag to move.'
-            python3 EchoSpace/tools/emulator_probe.py tap desc 'Fire sound position. Drag to move.'
-            python3 EchoSpace/tools/emulator_probe.py assert desc 'Mute Fire'
-            sleep 2
+            adb shell screencap -p /sdcard/saved-before.png
+            adb pull /sdcard/saved-before.png qa/05-added-source.png
             adb shell am force-stop com.nexa.echospace
             adb shell am start -W -n com.nexa.echospace/.MainActivity
             sleep 4
             python3 EchoSpace/tools/emulator_probe.py assert text 'My Space'
             python3 EchoSpace/tools/emulator_probe.py assert desc 'Fire sound position. Drag to move.'
+            python3 EchoSpace/tools/emulator_probe.py tap desc 'Fire sound position. Drag to move.'
+            python3 EchoSpace/tools/emulator_probe.py assert desc 'Mute Fire'
             adb shell screencap -p /sdcard/saved.png
             adb pull /sdcard/saved.png qa/06-saved-restored.png
-            adb shell screencap -p /sdcard/added.png
-            adb pull /sdcard/added.png qa/05-added-source.png
             if cmp -s qa/01-launch.png qa/03-deep-forest.png; then echo 'Preset change invisible'; exit 1; fi
             adb shell logcat -d -v brief -s AndroidRuntime:E > qa/android-crashes.log
             if grep -q 'FATAL EXCEPTION' qa/android-crashes.log; then cat qa/android-crashes.log; exit 1; fi
@@ -164,7 +153,7 @@ jobs:
           path: qa/
           if-no-files-found: warn
       - uses: actions/upload-artifact@v4
-        if: success()
+        if: always()
         with:
           name: EchoSpace-debug-apk
           path: EchoSpace/app/build/outputs/apk/debug/app-debug.apk
