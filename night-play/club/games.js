@@ -37,6 +37,7 @@ function pieceCell(player,pos){if(pos<0)return null;if(pos>=51)return home[playe
 function ludoValid(s,pi,ti){if(s.winner!==null||!s.rolled||s.turn!==pi)return false;const p=s.players[pi].tokens[ti];return p===-1?s.die===6:p<56&&p+s.die<=56;}
 function renderLudo(){
  const wasOpen=!!controls.querySelector(".nj-settings[open]");
+ const oldHud=window.NightLudoMotion.captureHud($("ludoHud"));
  window.NightLudo.render(state.ludo,{board,controls,status,help,save,scoreList,choosePlayers,rules,draw:render});
  if(wasOpen){const d=controls.querySelector(".nj-settings");if(d)d.open=true;}
  const s=state.ludo,players=s.players,turn=players[s.turn],hud=$("ludoHud");
@@ -47,8 +48,12 @@ function renderLudo(){
   return '<div class="player'+(active?' turn':'')+'"><div class="playername">'+team.map(k=>'<span class="p-dot" style="--team:'+({red:"#e7493f",green:"#409e51",blue:"#2c82c8",yellow:"#ffcf23"}[k]||"#eee")+'"></span>').join('')+h(p.name)+'</div><div class="value">'+count+'<span class="ludo-hud-progress"> / '+p.tokens.length+'</span></div></div>';
  }).join('');
  hud.insertAdjacentHTML('beforeend','<div class="turnmid"><span>'+(s.winner!==null?'WINNER':s.rolling?'ROLLING':s.moving?'MOVING':'TURN')+'</span>'+(s.winner!==null?'🏆':s.rolls.length?s.rolls.filter(d=>!d.used).map(d=>d.value).join(' + '):'🎲')+'</div>');
+ window.NightLudoMotion.playHud(hud,oldHud,s);
  const details=controls.querySelector(".nj-settings");
- if(details)details.addEventListener("toggle",()=>{const open=details.open;$("ludoSheetBack").hidden=!open;$("ludoSettingsBtn").setAttribute("aria-expanded",String(open));});
+ if(details){
+  details.addEventListener("toggle",()=>{if(!details.isConnected||details.dataset.closing==='true')return;const open=details.open;$("ludoSheetBack").hidden=!open;$("ludoSettingsBtn").setAttribute("aria-expanded",String(open));});
+  details.querySelector('summary').addEventListener('click',e=>{e.preventDefault();toggleLudoSettings();});
+ }
  const options=controls.querySelector(".nj-options");
  if(details&&options)details.insertBefore(options,details.querySelector(".nj-switches"));
  if(details&&!details.querySelector(".nj-in-sheet-extra")){
@@ -56,8 +61,9 @@ function renderLudo(){
  }
  if(controls.querySelector(".nj-settings[open]")){$("ludoSheetBack").hidden=false;$("ludoSettingsBtn").setAttribute("aria-expanded","true");}
 }
-function closeLudoSettings(){const d=controls.querySelector(".nj-settings");if(d)d.open=false;$("ludoSheetBack").hidden=true;$("ludoSettingsBtn").setAttribute("aria-expanded","false");}
-$("ludoSettingsBtn").addEventListener("click",()=>{const d=controls.querySelector(".nj-settings");if(!d)return;d.open=!d.open;$("ludoSheetBack").hidden=!d.open;$("ludoSettingsBtn").setAttribute("aria-expanded",String(d.open));});
+function closeLudoSettings(){const d=controls.querySelector(".nj-settings");if(d?.open)window.NightLudoMotion.sheet(d,$("ludoSheetBack"),false);else $("ludoSheetBack").hidden=true;$("ludoSettingsBtn").setAttribute("aria-expanded","false");}
+function toggleLudoSettings(){const d=controls.querySelector('.nj-settings');if(!d)return;const open=!d.open||d.dataset.closing==='true';window.NightLudoMotion.sheet(d,$('ludoSheetBack'),open);$('ludoSettingsBtn').setAttribute('aria-expanded',String(open));}
+$("ludoSettingsBtn").addEventListener("click",toggleLudoSettings);
 $("ludoSheetBack").addEventListener("click",closeLudoSettings);
 document.addEventListener("keydown",e=>{if(e.key==="Escape")closeLudoSettings();});
 function ludoRoll(){if(state.ludo.opponent==='computer'&&state.ludo.turn===1)return;window.NightLudo.roll(state.ludo,render);}

@@ -56,7 +56,7 @@ function normalize(s){
  if(s.selectedDie!==null&&(!Number.isInteger(s.selectedDie)||!s.rolls[s.selectedDie]||s.rolls[s.selectedDie].used))s.selectedDie=null;
  return s;
 }
-function cancel(){life++;if(ticker!==null){clearInterval(ticker);ticker=null;}if(moveTimer!==null){clearTimeout(moveTimer);moveTimer=null;}if(aiTimer!==null){clearTimeout(aiTimer);aiTimer=null;}}
+function cancel(){window.NightLudoMotion?.cancel();life++;if(ticker!==null){clearInterval(ticker);ticker=null;}if(moveTimer!==null){clearTimeout(moveTimer);moveTimer=null;}if(aiTimer!==null){clearTimeout(aiTimer);aiTimer=null;}}
 function tokenHouse(p,index){return p.houses[Math.floor(index/4)]}
 function cell(k,pos){if(pos<0)return null;if(pos>=56)return [7,7];if(pos>=51)return HOME[k][pos-51];return TRACK[(START[k]+pos)%52];}
 function currentIndex(k,pos){return(START[k]+pos)%52;}
@@ -149,7 +149,7 @@ function drawBoard(s){
   if(destinations.has(key))classes.push("nj-destination");
   let body=pieces.slice(0,4).map(v=>{
    const available=legal(s,v.pi,v.ti,s.selectedDie);
-   return '<button type="button" class="l-token nj-piece'+(available?" eligible":"")+'" data-piece="'+v.pi+'-'+v.ti+'" style="--token:'+COLORS[v.color]+'" aria-label="'+label(v.color)+' counter '+(v.ti%4+1)+'" '+(available?"":"disabled")+'><span class="nj-piece-core">'+(v.ti%4+1)+'</span></button>';
+   return '<button type="button" class="l-token nj-piece'+(available?" eligible":"")+'" data-piece="'+v.pi+'-'+v.ti+'" data-progress="'+s.players[v.pi].tokens[v.ti]+'" style="--token:'+COLORS[v.color]+'" aria-label="'+label(v.color)+' counter '+(v.ti%4+1)+'" '+(available?"":"disabled")+'><span class="nj-piece-core">'+(v.ti%4+1)+'</span></button>';
   }).join("");
   if(!body&&isSafe(s,idx))body='<span class="star" aria-hidden="true">✦</span>';
   if(!body&&idx>=0&&[2,5,8,11,15,18,21,24,28,31,34,37,41,44,47,50].includes(idx)){
@@ -166,7 +166,7 @@ function drawBoard(s){
   out+='<div class="nj-yard-label">'+label(k).toUpperCase()+'</div><span class="nj-sport-icon" aria-hidden="true"><svg viewBox="0 0 90 90" focusable="false"><circle cx="45" cy="22" r="15" fill="#ffffff67"/><path d="M19 78c0-20 10-31 26-31s26 11 26 31Z" fill="#ffffff46"/><path d="m29 56 16 12 16-12" stroke="#ffffff90" stroke-width="4" fill="none"/></svg></span><div class="yard">';
   for(let ti=0;ti<4;ti++){
    const index=info?info.hi*4+ti:-1,atHome=info&&info.p.tokens[index]===-1,available=atHome&&legal(s,info.pi,index,s.selectedDie);
-   out+='<button type="button" '+(atHome?'data-piece="'+info.pi+'-'+index+'"':'')+' aria-label="'+label(k)+' yard position '+(ti+1)+'" '+(available?'':'disabled')+'>';
+   out+='<button type="button" '+(atHome?'data-piece="'+info.pi+'-'+index+'" data-progress="-1"':'')+' aria-label="'+label(k)+' yard position '+(ti+1)+'" '+(available?'':'disabled')+'>';
    if(atHome)out+='<span class="l-token nj-piece'+(available?' eligible':'')+'" style="--token:'+COLORS[k]+'"><span class="nj-piece-core">'+(ti+1)+'</span></span>';
    out+='</button>';
   }
@@ -180,23 +180,9 @@ function drawBoard(s){
 }
 function render(s,ui){
  s=normalize(s);
- const before=new Map();
- if(!reduced())ui.board.querySelectorAll('[data-piece]').forEach(el=>{
-  const piece=el.matches('.nj-piece')?el:el.querySelector('.nj-piece');
-  if(piece)before.set(el.dataset.piece,piece.getBoundingClientRect());
- });
+ const motion=window.NightLudoMotion;
+ const before=motion?motion.capture(ui.board):null;
  ui.board.innerHTML=drawBoard(s);
- // Animate between real board coordinates; rebuilding a cell no longer causes
- // counters to teleport. Respect reduced motion and the selected movement pace.
- if(before.size)ui.board.querySelectorAll('[data-piece]').forEach(el=>{
-  const piece=el.matches('.nj-piece')?el:el.querySelector('.nj-piece');
-  const old=before.get(el.dataset.piece);if(!piece||!old||!piece.animate)return;
-  const now=piece.getBoundingClientRect(),dx=old.left-now.left,dy=old.top-now.top;
-  if(Math.abs(dx)+Math.abs(dy)<1||!now.width||!now.height)return;
-  const duration=s.moving?(s.options.speed==='slow'?210:s.options.speed==='fast'?55:100):260;
-  piece.animate([{transform:'translate('+dx+'px,'+dy+'px) scale('+old.width/now.width+','+old.height/now.height+')'},{transform:'translate(0,0) scale(1)'}],{duration,easing:'cubic-bezier(.22,.65,.35,1)'});
-  piece.style.zIndex='20';const parent=piece.closest('.l-cell');if(parent)parent.style.zIndex='10';
- });
  const p=s.players[s.turn];
  const phase=s.winner!==null?s.players[s.winner].name+" wins!":s.rolling?"Dice tumbling…":s.moving?"Counters moving…":s.rolls.length?"Choose a highlighted counter":p.name+"'s turn";
  ui.status.textContent=phase+". "+s.msg;
@@ -215,8 +201,9 @@ function render(s,ui){
  const config='<div class="nj-options"><label>Dice <select class="select" data-dice-mode="ludo" '+optionDisabled+'><option value="2"'+(s.diceCount===2?' selected':'')+'>2 dice · Naija</option><option value="1"'+(s.diceCount===1?' selected':'')+'>1 die · Classic</option></select></label>'+'<div class="nj-player-config">'+ui.choosePlayers("ludo",s.players.length,4)+'</div></div>';
  const settings='<details class="nj-settings"><summary>⚙ Game options <span>· Play like Naija Ludo</span></summary><div class="nj-switches"><label class="nj-speed"><span><b>Opponent</b><small>Local friends or offline computer</small></span><select class="select" data-ludo-opponent '+optionDisabled+'><option value="local"'+(s.opponent==="local"?" selected":"")+'>Friend (local)</option><option value="computer"'+(s.opponent==="computer"?" selected":"")+'>Computer</option></select></label>'+(s.opponent==="computer"?'<label class="nj-speed"><span><b>Computer difficulty</b><small>Four levels of tactical play</small></span><select class="select" data-ludo-difficulty '+optionDisabled+'>'+["easy","normal","hard","advanced"].map(d=>'<option value="'+d+'" '+(d===s.difficulty?"selected":"")+'>'+d[0].toUpperCase()+d.slice(1)+'</option>').join("")+'</select></label>':"")+switches.map(([key,name,desc])=>'<label class="nj-switch"><span><b>'+name+'</b><small>'+desc+'</small></span><input type="checkbox" data-ludo-option="'+key+'" '+(s.options[key]?'checked':'')+' '+optionDisabled+'></label>').join('')+'<label class="nj-speed"><span><b>Counter movement</b><small>Adjust animation speed</small></span><select class="select" data-ludo-speed '+optionDisabled+'><option value="slow"'+(s.options.speed==="slow"?' selected':'')+'>Slow</option><option value="normal"'+(s.options.speed==="normal"?' selected':'')+'>Normal</option><option value="fast"'+(s.options.speed==="fast"?' selected':'')+'>Fast</option></select></label></div></details>';
  const btn=s.rolls.length||s.moving?'<div class="nj-move-hint" role="note">'+(s.moving?'Counter moving…':'Tap a glowing counter to move')+'</div>':'<button class="primary nj-roll-btn" type="button" data-action="ludo-roll" '+(canRoll?'':'disabled')+'>'+(s.rolling?'Rolling…':'Throw dice 🎲')+'</button>';
- ui.controls.innerHTML='<div class="nj-roll-station"><div class="nj-dice-caption">'+(s.rolls.length?'CHOOSE A DIE, THEN MOVE':'TAP THE DICE TO ROLL')+'</div>'+big+btn+pending+'</div>'+progress+config+soundToggle+settings;
+ ui.controls.innerHTML='<div class="nj-roll-station"><div class="nj-dice-caption">'+(s.rolls.length?'CHOOSE A DIE, THEN MOVE':'TAP THE DICE TO ROLL')+'</div>'+big+btn+pending+'</div>'+(s.winner!==null?'<div class="nj-win-banner" role="status">🏆 '+s.players[s.winner].name+' wins!</div>':'')+progress+config+soundToggle+settings;
  ui.rules("Naija Ludo house rules","Two dice, two houses each in a two-player match, <b>eight counters each</b>. Roll a 6 to release a counter; play the dice before throwing again. By default, capturing sends your counter to the finish and the rival back to their yard. A pair stacked on its opening square forms a barrier. Configure safe houses, capture rules, movement speed and direct count in Game options. <b>Local play only.</b>");
+ if(motion)motion.play(ui.board,before,s);
  ui.save();
  if(ui.draw)scheduleComputer(s,ui.draw);
 }
@@ -235,20 +222,12 @@ function changeOption(s,key,value){if(s.rolling||s.moving||s.rolls.length||s.win
  s.options[key]=value;s.msg="Game settings updated.";return true;}
 function changeDice(s,n){if(s.rolling||s.moving||s.rolls.length)return false;s.diceCount=n===1?1:2;s.last=s.diceCount===1?[1]:[1,1];s.msg="Dice setting changed. Your next throw uses "+s.diceCount+(s.diceCount===1?" die.":" dice.");return true;}
 function selectDie(s,i,draw){if(s.rolling||s.moving||s.winner!==null||!s.rolls[i]||s.rolls[i].used)return;if(canForDie(s,i)){s.selectedDie=i;s.die=s.rolls[i].value;s.msg="Die "+(i+1)+" selected — move "+s.rolls[i].value+" spaces.";draw();}}
-function tickFaces(s){
- s.preview=Array.from({length:s.diceCount},()=>Math.floor(Math.random()*6)+1);
- document.querySelectorAll(".nj-dice-controls .nj-die,.nj-dice-center .nj-die").forEach((el,j)=>{
-  const cube=el.querySelector(".nj-cube");if(!cube)return;
-  // Die is already rotating in 3D; the visual faces stay a valid physical cube.
-  const sampled=s.preview[j%s.diceCount];cube.dataset.preview=sampled;
- });
-}
 function roll(s,draw){
  if(s.rolling||s.moving||s.rolls.length||s.winner!==null)return;
  cancel();const generation=life,actual=Array.from({length:s.diceCount},rand6);
- s.rolling=true;s.preview=Array(s.diceCount).fill(1);s.msg="Shaking…";draw();
+ s.rolling=true;s.preview=actual;s.msg="Shaking…";draw();
  sound(s,310,.09,.08);
- let ticks=0;ticker=setInterval(()=>{if(life!==generation){clearInterval(ticker);ticker=null;return;}tickFaces(s);ticks++;if(ticks%3===0)sound(s,340+ticks*11,.04,.025);},74);
+ let ticks=0;ticker=setInterval(()=>{if(life!==generation){clearInterval(ticker);ticker=null;return;}ticks++;if(ticks%3===0)sound(s,340+ticks*11,.04,.025);},74);
  const ms=reduced()?105:760;
  moveTimer=setTimeout(()=>{
   if(life!==generation)return;
@@ -290,23 +269,31 @@ function move(s,pi,ti,draw){
  const remaining=before===-1?0:steps;
  const myLife=++life;
  s.moving=true;s.msg="Moving "+label(tokenHouse(me,ti))+" piece "+(ti%4+1)+"…";draw();
+ const t=window.NightLudoMotion?window.NightLudoMotion.timing(s):{hop:reduced()?20:150,release:reduced()?30:320,capture:reduced()?30:440};
  function complete(){
   if(myLife!==life)return;
-  s.moving=false;s.rolls[di].used=true;s.die=null;
-  const cap=capture(s,pi,ti);
-  const home=me.tokens[ti]===56;
-  if(home)sound(s,740,.18,.08);else sound(s,540,.07,.05);
+  s.rolls[di].used=true;s.die=null;
+  const cap=capture(s,pi,ti),home=me.tokens[ti]===56;
   s.msg=(home?"Piece reached home!":before<0?"Piece entered the track!":"Moved "+steps+" squares.")+cap.text;
-  if(me.tokens.every(x=>x===56)){s.winner=pi;s.rolls=[];s.selectedDie=null;s.msg="All pieces home. Champion!";draw();return;}
-  finishIfDone(s);draw();
+  function settle(){
+   if(myLife!==life)return;
+   s.moving=false;
+   sound(s,home?740:cap.hit?280:540,home?.18:.07,home?.08:.05);
+   if(me.tokens.every(x=>x===56)){s.winner=pi;s.rolls=[];s.selectedDie=null;s.msg="All pieces home. Champion!";draw();return;}
+   finishIfDone(s);draw();
+  }
+  if(cap.hit||home){draw();moveTimer=setTimeout(settle,t.capture+20);}else settle();
  }
- if(!remaining){moveTimer=setTimeout(complete,reduced()?30:130);return;}
- if(s.options.directCount){me.tokens[ti]+=remaining;draw();moveTimer=setTimeout(complete,reduced()?30:150);return;}
- let count=0;const delay=reduced()?20:s.options.directCount?30:s.options.speed==="slow"?240:s.options.speed==="fast"?65:115;
+ if(!remaining){moveTimer=setTimeout(complete,t.release+20);return;}
+ if(s.options.directCount){me.tokens[ti]+=remaining;draw();moveTimer=setTimeout(complete,t.release+20);return;}
+ let count=0;const delay=t.hop+20;
  function hop(){
   if(myLife!==life)return;
-  if(count<remaining){me.tokens[ti]++;count++;sound(s,370+count*22,.025,.019);draw();moveTimer=setTimeout(hop,delay);}
-  else complete();
+  if(count<remaining){
+   me.tokens[ti]++;count++;draw();
+   setTimeout(()=>{if(myLife===life)sound(s,370+count*22,.035,.025);},t.hop);
+   moveTimer=setTimeout(hop,delay);
+  }else complete();
  }
  moveTimer=setTimeout(hop,delay);
 }

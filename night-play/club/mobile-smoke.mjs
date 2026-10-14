@@ -10,7 +10,7 @@ const dir=path.dirname(fileURLToPath(import.meta.url));
 const root=path.resolve(dir,"..");
 const server=createServer((req,res)=>{
   const pathname=new URL(req.url,"http://localhost").pathname;
-  const files={"/club/":"club/index.html","/club":"club/index.html","/club/index.html":"club/index.html","/club/style.css":"club/style.css","/club/ludo-immersive.css":"club/ludo-immersive.css","/club/games.js":"club/games.js","/club/naija-ludo.js":"club/naija-ludo.js","/games":"index.html","/index.html":"index.html"};
+  const files={"/club/":"club/index.html","/club":"club/index.html","/club/index.html":"club/index.html","/club/style.css":"club/style.css","/club/ludo-immersive.css":"club/ludo-immersive.css","/club/games.js":"club/games.js","/club/naija-ludo.js":"club/naija-ludo.js","/club/ludo-motion.js":"club/ludo-motion.js","/games":"index.html","/index.html":"index.html"};
   const rel=files[pathname];
   if(!rel){res.writeHead(404);res.end("Not found");return;}
   const kind=rel.endsWith(".css")?"text/css":rel.endsWith(".js")?"text/javascript":"text/html";
@@ -67,7 +67,7 @@ try{
   await page.screenshot({path:"night-play/visual-output/NAIJA-LUDO-DICE-READY.jpg",type:"jpeg",quality:76,fullPage:true});
   assert.ok(await page.locator(".l-token.eligible").count()>=4,"six releases a piece from its house");
   await page.locator(".l-token.eligible").first().click();
-  await page.waitForTimeout(260);
+  await page.waitForFunction(()=>document.querySelector('.nj-center-button[data-ludo-die="1"]')?.disabled===false);
   assert.ok(await page.locator('[data-ludo-die="1"]').count(),"second die remains selectable");
   assert.equal(await page.locator('[data-dice-mode="ludo"]').isDisabled(),true,"dice configuration locked until remaining roll is played");
   assert.equal(await page.locator('[data-ludo-die="1"]').first().isEnabled(),true,"second die becomes playable after releasing a piece with six");
@@ -75,8 +75,9 @@ try{
   assert.equal(await page.locator('.nj-center-button[aria-pressed="true"]').count(),1,"selected die is marked directly on the board");
   assert.ok(await page.locator('.nj-destination').count()>0,"selected roll shows its possible landing squares");
   await page.locator(".l-cell .l-token.eligible").first().click();
-  await page.waitForTimeout(150);
-  assert.ok(await page.locator('.l-cell .nj-piece').evaluateAll(elements=>elements.some(el=>el.getAnimations().some(a=>a.playState==='running'))),"counter visibly animates between squares rather than teleporting");
+  await page.waitForTimeout(210);
+  assert.ok(await page.locator('.nj-motion-layer[data-motion="hop"] .nj-piece').evaluateAll(elements=>elements.some(el=>el.getAnimations().some(a=>a.playState==='running'))),"counter hop survives board redraws");
+  await page.screenshot({path:"night-play/visual-output/LUDO-HOP-MOTION.jpg",type:"jpeg",quality:85});
   await page.getByText(/Six! Roll again/).waitFor({timeout:4500});
   await page.screenshot({path:"night-play/visual-output/LUDO-COUNTER-ON-TRACK.jpg",type:"jpeg",quality:85});
   assert.equal(await page.locator('[data-dice-mode="ludo"]').isEnabled(),true,"settings unlock once both dice were used");
@@ -95,7 +96,8 @@ try{
   assert.equal(await page.locator(".nj-settings").evaluate(el=>el.open),true,"top right settings opens native sheet");
   assert.equal(await page.locator("#ludoSheetBack").isVisible(),true,"sheet has a backdrop");
   await page.locator("#ludoSheetBack").click({position:{x:10,y:50}});
-  assert.equal(await page.locator(".nj-settings").evaluate(el=>el.open),false,"backdrop closes the sheet");
+  await page.waitForFunction(()=>!document.querySelector('.nj-settings').open);
+  assert.equal(await page.locator(".nj-settings").evaluate(el=>el.open),false,"backdrop closes the sheet after its exit animation");
   await page.locator("#ludoSettingsBtn").click();
   assert.ok(await page.locator(".nj-settings").evaluate(el=>el.open),"options can expand");
   await page.locator('[data-ludo-option="captureFinishes"]').uncheck();
@@ -145,6 +147,33 @@ try{
   await page.locator("#ludoSettingsBtn").click();
   await page.locator('[data-ludo-opponent]').selectOption("local");
   await page.locator(".nj-settings summary").click();
+  await page.waitForFunction(()=>!document.querySelector('.nj-settings').open);
+  // Play an actual capture through the UI and inspect the return animation.
+  await page.evaluate(()=>{
+    const data=JSON.parse(localStorage.getItem('night-play-club-v1'));
+    const s=NightLudo.create(2,1);s.players[0].tokens[0]=14;s.players[1].tokens[0]=2;
+    s.rolls=[{value:1,used:false}];s.last=[1];s.selectedDie=0;s.die=1;s.rolled=true;
+    data.ludo=s;localStorage.setItem('night-play-club-v1',JSON.stringify(data));
+  });
+  await page.reload();
+  await page.locator('[data-piece="0-0"]').click();
+  await page.locator('.nj-motion-layer[data-motion="capture"]').waitFor();
+  assert.equal(await page.locator('.l-token.eligible').count(),0,'input stays locked during capture flight');
+  await page.screenshot({path:"night-play/visual-output/LUDO-CAPTURE-FLIGHT.jpg",type:"jpeg",quality:85});
+  await page.waitForFunction(()=>!document.querySelector('.nj-motion-layer'));
+  await page.waitForFunction(()=>JSON.parse(localStorage.getItem('night-play-club-v1')).ludo.players[0].tokens[0]===56);
+  assert.equal(await page.locator('.nj-yard [data-piece="1-0"]').count(),1,'captured counter settles back in its yard');
+  // Finish a match and confirm the final counter animation and victory state.
+  await page.evaluate(()=>{
+    const data=JSON.parse(localStorage.getItem('night-play-club-v1')),s=NightLudo.create(2,1);
+    s.players[0].tokens=Array(8).fill(56);s.players[0].tokens[0]=55;
+    s.rolls=[{value:1,used:false}];s.last=[1];s.selectedDie=0;s.die=1;s.rolled=true;
+    data.ludo=s;localStorage.setItem('night-play-club-v1',JSON.stringify(data));
+  });
+  await page.reload();await page.locator('[data-piece="0-0"]').click();
+  await page.locator('.nj-motion-layer[data-motion="finish"]').waitFor();
+  await page.locator('.nj-win-banner').waitFor({timeout:4500});
+  await page.screenshot({path:"night-play/visual-output/LUDO-VICTORY-MOTION.jpg",type:"jpeg",quality:85});
   await page.locator(".ludo-back").click();
   await page.waitForURL("**/games");
   await page.goto(base+"/club/?game=estate");
