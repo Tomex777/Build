@@ -28,12 +28,21 @@ class MechanicalActorsTest {
         val store = SceneProjectStore(context)
         val proof = requireNotNull(context.getExternalFilesDir(null))
         fun find(tag: String): androidx.test.uiautomator.UiObject2 {
-            val result = device.wait(Until.findObject(By.res(tag)), 30_000)
-            if (result == null) {
-                device.takeScreenshot(File(proof, "mechanical-$model-missing-$tag.png"))
-                device.dumpWindowHierarchy(File(proof, "mechanical-$model-missing-$tag.xml"))
+            device.wait(Until.findObject(By.res(tag)), 10_000)?.let { return it }
+            // The human-figure demo is now seeded on first launch. On short Android 8
+            // screens a test fixture can be lower in Recent Projects than the first row.
+            if (tag.startsWith("project-open-")) {
+                repeat(8) {
+                    val projects = device.findObject(By.res("project-list")) ?: return@repeat
+                    if (!projects.isScrollable) return@repeat
+                    projects.scroll(Direction.DOWN, 0.55f)
+                    device.waitForIdle()
+                    device.findObject(By.res(tag))?.let { return it }
+                }
             }
-            return requireNotNull(result) { "Missing $tag" }
+            device.takeScreenshot(File(proof, "mechanical-$model-missing-$tag.png"))
+            device.dumpWindowHierarchy(File(proof, "mechanical-$model-missing-$tag.xml"))
+            throw IllegalArgumentException("Missing $tag")
         }
         fun visible(tag: String): androidx.test.uiautomator.UiObject2 {
             repeat(10) {
