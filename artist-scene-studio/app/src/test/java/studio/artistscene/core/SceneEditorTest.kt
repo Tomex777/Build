@@ -1,0 +1,771 @@
+package studio.artistscene.core
+
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotEquals
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
+import org.junit.Test
+
+class SceneEditorTest {
+    private fun scene() = SceneProject(
+        id = "editor-test",
+        name = "Editor Test",
+        actors = listOf(
+            Actor("prop-a", "Prop A", ActorKind.PROP),
+            Actor("prop-b", "Prop B", ActorKind.PROP, transform = Transform(position = Vec3(1f, 0f, 0f))),
+        ),
+    )
+
+    @Test
+    fun fullTransformEditingIsUndoableAndRedoable() {
+        var state = SceneEditorState(scene()).selectActor("prop-a")
+        state = state
+            .translate(TransformAxis.X, 1f)
+            .translate(TransformAxis.Y, 2f)
+            .translate(TransformAxis.Z, -3f)
+            .rotate(TransformAxis.Y, 45f)
+            .setScale(TransformAxis.X, 1.5f)
+            .setScale(TransformAxis.Y, 2f)
+            .setScale(TransformAxis.Z, 0.5f)
+
+        val actor = requireNotNull(state.selectedActor)
+        assertEquals(Vec3(1f, 2f, -3f), actor.transform.position)
+        assertEquals(45f, actor.transform.rotationEulerDegrees.y)
+        assertEquals(Vec3(1.5f, 2f, 0.5f), actor.transform.scale)
+        assertTrue(state.canUndo)
+
+        val undone = state.undo()
+        assertEquals(1f, requireNotNull(undone.selectedActor).transform.scale.z)
+        assertTrue(undone.canRedo)
+
+        val redone = undone.redo()
+        assertEquals(0.5f, requireNotNull(redone.selectedActor).transform.scale.z)
+    }
+
+    @Test
+    fun viewportDragPreviewsLiveAndCreatesOneUndoStep() {
+        val initial = scene()
+        val start = SceneEditorState(initial).selectActor("prop-a")
+        val preview1 = start.previewSelectedTransform(
+            requireNotNull(start.selectedActor).transform.copy(position = Vec3(0.5f, 0f, 0f)),
+        )
+        val preview2 = preview1.previewSelectedTransform(
+            requireNotNull(preview1.selectedActor).transform.copy(position = Vec3(0.75f, 0f, 0f)),
+        )
+
+        assertEquals(0f, requireNotNull(start.selectedActor).transform.position.x)
+        assertEquals(0.75f, requireNotNull(preview2.selectedActor).transform.position.x)
+        assertFalse(preview2.canUndo)
+
+        val committed = preview2.commitTransformGesture(initial)
+        assertTrue(committed.canUndo)
+        assertEquals(0.75f, requireNotNull(committed.selectedActor).transform.position.x)
+        assertEquals(initial, committed.undo().project)
+        assertEquals(0f, requireNotNull(committed.undo().selectedActor).transform.position.x)
+    }
+
+    @Test
+    fun referenceImagesAreUndoableSceneObjects() {
+        val reference = ReferenceImage(
+            id = "reference-front",
+            name = "Front pose",
+            persistedUri = "content://mise/front",
+            opacity = 0.7f,
+            transform = Transform(position = Vec3(0f, 1f, -1f), scale = Vec3(2f, 2f, 2f)),
+        )
+        val added = SceneEditorState(scene()).addReferenceImage(reference)
+        assertEquals(reference, added.project.referenceImages.single())
+        assertTrue(added.canUndo)
+
+        val edited = added
+            .setReferenceOpacity(reference.id, 0.35f)
+            .translateReference(reference.id, TransformAxis.X, 0.5f)
+            .scaleReference(reference.id, 0.5f)
+            .toggleReferenceVisibility(reference.id)
+
+        val saved = edited.project.referenceImages.single()
+        assertEquals(0.35f, saved.opacity)
+        assertEquals(0.5f, saved.transform.position.x)
+        assertEquals(Vec3(2.5f, 2.5f, 2.5f), saved.transform.scale)
+        assertFalse(saved.visible)
+
+        val deleted = edited.deleteReferenceImage(reference.id)
+        assertTrue(deleted.project.referenceImages.isEmpty())
+        assertEquals(1, deleted.undo().project.referenceImages.size)
+    }
+
+    @Test
+    fun cameraProjectionLensAndActivationAreSceneOwned() {
+        val start = SceneEditorState(scene())
+        val second = SceneCamera("camera-ortho", "Ortho", projection = CameraProjection.ORTHOGRAPHIC)
+        val added = start.addCamera(second, activate = false)
+
+        val activated = added.activateCamera(second.id)
+            .setActiveCameraOrthographicHeight(7.5f)
+        assertEquals(second.id, activated.project.activeCameraId)
+        assertEquals(7.5f, activated.project.cameras.first { it.id == second.id }.orthographicHeightMeters)
+
+        val perspective = activated
+            .setActiveCameraProjection(CameraProjection.PERSPECTIVE)
+            .setActiveCameraVerticalFov(200f)
+        val active = perspective.project.cameras.first { it.id == second.id }
+        assertEquals(CameraProjection.PERSPECTIVE, active.projection)
+        assertEquals(120f, active.verticalFovDegrees)
+        assertTrue(perspective.canUndo)
+    }
+
+    @Test
+    fun cameraFramingAndAddedCameraAreProjectOwnedAndUndoable() {
+        val start = SceneEditorState(scene())
+        val camera = SceneCamera("camera-close", "Close-up")
+        val added = start.addCamera(camera)
+        assertEquals("camera-close", added.project.activeCameraId)
+        assertEquals(2, added.project.cameras.size)
+
+        val framed = added.updateActiveCamera(camera.copy(target = Vec3(1f, 2f, 3f)))
+        assertEquals(Vec3(1f, 2f, 3f), framed.project.cameras.last().target)
+        assertEquals(camera.target, added.project.cameras.last().target)
+        assertEquals(added.project, framed.undo().project)
+        assertEquals(start.project, added.undo().project)
+    }
+
+    @Test
+    fun duplicateDeleteVisibilityRenameAndResetAreSceneOwned() {
+        var state = SceneEditorState(scene()).selectActor("prop-a")
+        state = state.translate(TransformAxis.X, 3f).duplicateSelected()
+
+        val duplicate = requireNotNull(state.selectedActor)
+        assertNotEquals("prop-a", duplicate.id)
+        assertEquals(3, state.project.actors.size)
+        assertEquals(3.25f, duplicate.transform.position.x)
+
+        state = state.toggleSelectedVisibility()
+        assertFalse(requireNotNull(state.selectedActor).visible)
+
+        state = state.renameSelected("Reference Box")
+        assertEquals("Reference Box", requireNotNull(state.selectedActor).name)
+
+        state = state.resetTransform()
+        assertEquals(Transform(), requireNotNull(state.selectedActor).transform)
+
+        state = state.deleteSelected()
+        assertEquals(2, state.project.actors.size)
+        assertTrue(state.project.actors.none { it.name == "Reference Box" })
+    }
+
+    @Test
+    fun lockedActorsRejectDestructiveTransformAndDelete() {
+        val locked = scene().copy(
+            actors = scene().actors.map { if (it.id == "prop-a") it.copy(locked = true) else it },
+        )
+        val state = SceneEditorState(locked).selectActor("prop-a")
+        assertEquals(state, state.translate(TransformAxis.X, 2f))
+        assertEquals(state, state.deleteSelected())
+    }
+
+    @Test
+    fun reparentRejectsCyclesAndDeleteDetachesChildren() {
+        val nested = scene().copy(
+            actors = listOf(
+                Actor("parent", "Parent", ActorKind.PROP),
+                Actor("child", "Child", ActorKind.PROP, parentId = "parent"),
+            ),
+        )
+        var state = SceneEditorState(nested).selectActor("parent")
+        assertFalse(state.canReparentSelected("child"))
+        assertEquals(state, state.reparentSelected("child"))
+
+        state = state.selectActor("child")
+        assertTrue(state.canReparentSelected(null))
+        assertEquals("parent", state.selectedActor?.parentId)
+        state = state.reparentSelected(null)
+        assertNull(state.selectedActor?.parentId)
+        state = state.reparentSelected("parent")
+        assertEquals("parent", state.selectedActor?.parentId)
+
+        state = state.selectActor("parent").deleteSelected()
+        assertNull(state.project.actors.single().parentId)
+    }
+
+    @Test
+    fun jointEditsAreUndoableAndResetToImportedRestPose() {
+        val bone = RigBone(id = "root/right-arm/elbow", name = "Right Elbow", parentId = "root/right-arm")
+        val character = Actor(
+            id = "character-a",
+            name = "Character A",
+            kind = ActorKind.CHARACTER,
+            rigDefinition = RigDefinition(bones = listOf(bone)),
+        )
+        val neutral = SceneEditorState(SceneProject(id = "rig", name = "Rig", actors = listOf(character)))
+        val posed = neutral.setRigJointRotation(bone.id, Vec3(z = 25f))
+
+        assertEquals(Vec3(z = 25f), posed.selectedActor?.rig?.joints?.get(bone.id))
+        assertTrue(posed.canUndo)
+        assertNull(posed.undo().selectedActor?.rig)
+        assertEquals(Vec3(z = 25f), posed.undo().redo().selectedActor?.rig?.joints?.get(bone.id))
+        assertNull(posed.resetRigJoint(bone.id).selectedActor?.rig)
+    }
+
+    @Test
+    fun jointDragPreviewsWithoutHistoryAndCommitsOnce() {
+        val bone = RigBone("root/arm/elbow", "Elbow")
+        val character = Actor("pose-character", "Pose Character", ActorKind.CHARACTER, rigDefinition = RigDefinition(bones = listOf(bone)))
+        val start = SceneEditorState(SceneProject(id = "drag", name = "Drag", actors = listOf(character)))
+        val preview = start
+            .previewRigJointRotation(bone.id, Vec3(z = 5f))
+            .previewRigJointRotation(bone.id, Vec3(z = 12f))
+            .previewRigJointRotation(bone.id, Vec3(z = 24f))
+
+        assertFalse(preview.canUndo)
+        val committed = preview.commitRigGesture(start.project)
+        assertTrue(committed.canUndo)
+        assertEquals(start.project, committed.undo().project)
+        assertEquals(Vec3(z = 24f), committed.undo().redo().selectedActor?.rig?.joints?.get(bone.id))
+    }
+
+    @Test
+    fun ikPreviewUpdatesTwoJointsButCommitsOneUndoStep() {
+        val shoulder = RigBone("root/shoulder", "Shoulder")
+        val elbow = RigBone("root/shoulder/elbow", "Elbow", parentId = shoulder.id)
+        val wrist = RigBone("root/shoulder/elbow/wrist", "Wrist", parentId = elbow.id)
+        val character = Actor(
+            id = "ik-character",
+            name = "IK Character",
+            kind = ActorKind.CHARACTER,
+            rigDefinition = RigDefinition(bones = listOf(shoulder, elbow, wrist)),
+        )
+        val start = SceneEditorState(SceneProject(id = "ik", name = "IK", actors = listOf(character)))
+        val preview = start.previewRigJointRotations(
+            mapOf(
+                shoulder.id to Vec3(z = 18f),
+                elbow.id to Vec3(z = 42f),
+            ),
+        )
+
+        assertFalse(preview.canUndo)
+        assertEquals(Vec3(z = 18f), preview.selectedActor?.rig?.joints?.get(shoulder.id))
+        assertEquals(Vec3(z = 42f), preview.selectedActor?.rig?.joints?.get(elbow.id))
+
+        val committed = preview.commitRigGesture(start.project)
+        assertTrue(committed.canUndo)
+        assertNull(committed.undo().selectedActor?.rig)
+    }
+
+    @Test
+    fun discoveredAnimationsAreDurableAndDirectPoseStopsPlayback() {
+        val bone = RigBone("root/arm", "Arm")
+        val character = Actor(
+            id = "animated-character",
+            name = "Animated Character",
+            kind = ActorKind.CHARACTER,
+            rigDefinition = RigDefinition(bones = listOf(bone)),
+        )
+        val start = SceneEditorState(
+            SceneProject(id = "animation", name = "Animation", actors = listOf(character)),
+        )
+        val discovered = start.withDiscoveredAnimations(
+            "animated-character",
+            listOf(
+                AnimationClipDefinition("Idle", 2f),
+                AnimationClipDefinition("Walk", 1.25f),
+            ),
+        )
+
+        assertEquals(listOf("Idle", "Walk"), discovered.selectedActor?.animation?.clips?.map { it.name })
+        assertEquals("Idle", discovered.selectedActor?.animation?.selectedClip)
+        assertFalse(discovered.canUndo)
+
+        val playing = discovered
+            .selectAnimationClip("Walk")
+            .setSelectedAnimationSpeed(1.5f)
+            .setSelectedAnimationPlaying(true)
+        assertTrue(requireNotNull(playing.selectedActor).animation.playing)
+        assertEquals(1.5f, playing.selectedActor?.animation?.speed)
+
+        val posed = playing.setRigJointRotation(bone.id, Vec3(z = 20f))
+        assertFalse(requireNotNull(posed.selectedActor).animation.playing)
+        assertEquals(Vec3(z = 20f), posed.selectedActor?.rig?.joints?.get(bone.id))
+        assertTrue(posed.undo().selectedActor?.animation?.playing == true)
+    }
+
+    @Test
+    fun lightEditsAreSceneOwnedUndoableAndClamped() {
+        val light = Actor(
+            id = "key-light",
+            name = "Key Light",
+            kind = ActorKind.LIGHT,
+            light = LightSettings(
+                type = LightType.POINT,
+                intensity = 2_000f,
+                rangeMeters = 5f,
+            ),
+        )
+        var state = SceneEditorState(
+            SceneProject(id = "lights", name = "Lights", actors = listOf(light)),
+        ).selectActor("key-light")
+
+        state = state.setSelectedLightIntensity(3_500f)
+        state = state.setSelectedLightColorHex("#FFD8B0")
+        state = state.setSelectedLightRangeMeters(12f)
+        state = state.toggleSelectedLightShadows()
+
+        val edited = requireNotNull(state.selectedActor?.light)
+        assertEquals(3_500f, edited.intensity)
+        assertEquals("#FFD8B0", edited.colorHex)
+        assertEquals(12f, edited.rangeMeters)
+        assertFalse(edited.castsShadow)
+        assertTrue(state.canUndo)
+
+        val shadowsUndone = state.undo()
+        assertTrue(requireNotNull(shadowsUndone.selectedActor?.light).castsShadow)
+
+        val clamped = state
+            .setSelectedLightIntensity(Float.MAX_VALUE)
+            .setSelectedLightRangeMeters(0f)
+        assertEquals(500_000f, requireNotNull(clamped.selectedActor?.light).intensity)
+        assertEquals(0.1f, requireNotNull(clamped.selectedActor?.light).rangeMeters)
+        assertEquals(clamped, clamped.setSelectedLightColorHex("not-a-color"))
+    }
+
+    @Test
+    fun duplicateCharactersKeepIndependentBonePoses() {
+        val bone = RigBone(id = "skeleton/arm", name = "Arm")
+        val original = Actor(
+            id = "character-a",
+            name = "Character A",
+            kind = ActorKind.CHARACTER,
+            rigDefinition = RigDefinition(bones = listOf(bone)),
+        )
+        val state = SceneEditorState(SceneProject(id = "multi-rig", name = "Multi rig", actors = listOf(original)))
+            .setRigJointRotation(bone.id, Vec3(y = 30f))
+        val duplicated = state.duplicateSelected()
+        val duplicateId = duplicated.selectedActorId
+        val independentlyPosed = duplicated.setRigJointRotation(bone.id, Vec3(y = -40f))
+
+        assertEquals(Vec3(y = 30f), independentlyPosed.project.actors.first { it.id == original.id }.rig?.joints?.get(bone.id))
+        assertEquals(Vec3(y = -40f), independentlyPosed.project.actors.first { it.id == duplicateId }.rig?.joints?.get(bone.id))
+    }    @Test
+    fun spotLightDirectionAndConeAreArtistEditableAndClamped() {
+        val light = Actor(
+            id = "spot",
+            name = "Spot",
+            kind = ActorKind.LIGHT,
+            light = LightSettings(type = LightType.SPOT),
+        )
+        var state = SceneEditorState(scene().copy(actors = scene().actors + light)).selectActor("spot")
+        state = state
+            .setSelectedLightDirection(Vec3(1f, -1f, 0f))
+            .setSelectedSpotConeDegrees(88f, 30f)
+
+        val settings = requireNotNull(state.selectedActor?.light)
+        assertTrue(settings.direction.x > 0.7f)
+        assertTrue(settings.direction.y < -0.7f)
+        assertEquals(29f, settings.spotInnerConeDegrees, 0.0001f)
+        assertEquals(30f, settings.spotOuterConeDegrees, 0.0001f)
+
+        val unchanged = state.setSelectedLightDirection(Vec3())
+        assertEquals(state.project, unchanged.project)
+    }
+
+    @Test
+    fun morphWeightsAreDurableClampedUndoableAndStopClipPlayback() {
+        val smile = RigMorphTarget(id = "morph/face/smile", name = "Smile", meshName = "Face")
+        val character = Actor(
+            id = "morph-character",
+            name = "Morph Character",
+            kind = ActorKind.CHARACTER,
+            rigDefinition = RigDefinition(morphTargets = listOf(smile)),
+            animation = ActorAnimationState(
+                clips = listOf(AnimationClipDefinition("Idle", 1f)),
+                selectedClip = "Idle",
+                playing = true,
+            ),
+        )
+        val start = SceneEditorState(SceneProject(id = "morph", name = "Morph", actors = listOf(character)))
+        val shaped = start.setRigMorphWeight(smile.id, 1.4f)
+
+        assertEquals(1f, shaped.selectedActor?.rig?.morphWeights?.get(smile.id) ?: -1f, 0.0001f)
+        assertFalse(shaped.selectedActor?.animation?.playing ?: true)
+        assertTrue(shaped.canUndo)
+        assertNull(shaped.undo().selectedActor?.rig)
+        assertEquals(1f, shaped.undo().redo().selectedActor?.rig?.morphWeights?.get(smile.id) ?: -1f, 0.0001f)
+
+        val reset = shaped.resetRigMorph(smile.id)
+        assertNull(reset.selectedActor?.rig)
+        assertEquals(shaped, shaped.setRigMorphWeight("missing", 0.5f))
+    }
+
+
+    @Test
+    fun duplicateAnimatedCharacterOwnsPoseAndTransformTracksWithoutOverlappingOriginal() {
+        val arm = RigBone("arm", "Arm")
+        val character = Actor(
+            id = "animated",
+            name = "Animated",
+            kind = ActorKind.CHARACTER,
+            rigDefinition = RigDefinition(bones = listOf(arm)),
+        )
+        var state = SceneEditorState(
+            SceneProject(
+                id = "duplicate-animated",
+                name = "Duplicate animated",
+                actors = listOf(character),
+                timeline = TimelineSettings(durationSeconds = 4f, loop = false),
+            ),
+        )
+        state = state
+            .setPosition(TransformAxis.X, 1f)
+            .keySelectedTransform(0f)
+            .setPosition(TransformAxis.X, 3f)
+            .keySelectedTransform(4f)
+            .setRigJointRotation(arm.id, Vec3(z = 30f))
+            .keySelectedPose(4f)
+        val originalProject = state.project
+
+        val duplicated = state.duplicateSelected()
+        val copyId = requireNotNull(duplicated.selectedActorId)
+        val sourceTracks = originalProject.tracks
+        val copyTracks = duplicated.project.tracks.filter { it.targetActorId == copyId }
+        assertEquals(sourceTracks.size, copyTracks.size)
+        assertEquals(sourceTracks.size * 2, duplicated.project.tracks.size)
+        assertEquals(duplicated.project.tracks.size, duplicated.project.tracks.map { it.id }.toSet().size)
+        assertEquals(sourceTracks.map { it.propertyPath }, copyTracks.map { it.propertyPath })
+        assertTrue(copyTracks.all { it.targetActorId == copyId })
+        assertTrue(copyTracks.none { it.id in sourceTracks.map { source -> source.id } })
+
+        val mid = duplicated.project.evaluateTimeline(2f)
+        val sourceX = mid.actors.first { it.id == character.id }.transform.position.x
+        val duplicateX = mid.actors.first { it.id == copyId }.transform.position.x
+        assertEquals(0.25f, duplicateX - sourceX, 0.0001f)
+        val end = duplicated.project.evaluateTimeline(4f)
+        assertEquals(
+            Vec3(z = 30f),
+            end.actors.first { it.id == copyId }.rig?.joints?.get(arm.id),
+        )
+
+        val transformedCopy = duplicated.setPosition(TransformAxis.X, 7f)
+        val rekeyedCopy = transformedCopy.keySelectedTransform(4f)
+        assertEquals(sourceTracks, rekeyedCopy.project.tracks.filter { it.targetActorId == character.id })
+        assertEquals(transformedCopy.project, rekeyedCopy.undo().project)
+        assertEquals(duplicated.project, rekeyedCopy.undo().undo().project)
+    }
+
+    @Test
+    fun deletingAnActorRemovesOnlyItsTimelineTracksAndUndoRestoresThem() {
+        val original = scene().copy(
+            tracks = listOf(
+                AnimationTrack(
+                    "a-position",
+                    "prop-a",
+                    SceneTimelinePaths.POSITION,
+                    listOf(Keyframe(0f, AnimatedValue(vector = Vec3(x = 1f)))),
+                ),
+                AnimationTrack(
+                    "a-rotation",
+                    "prop-a",
+                    SceneTimelinePaths.ROTATION,
+                    listOf(Keyframe(0f, AnimatedValue(rotationEulerDegrees = Vec3(y = 30f)))),
+                ),
+                AnimationTrack(
+                    "b-position",
+                    "prop-b",
+                    SceneTimelinePaths.POSITION,
+                    listOf(Keyframe(0f, AnimatedValue(vector = Vec3(x = 2f)))),
+                ),
+            ),
+        )
+        val deleted = SceneEditorState(original).selectActor("prop-a").deleteSelected()
+        assertEquals(listOf("prop-b"), deleted.project.actors.map { it.id })
+        assertEquals(listOf("b-position"), deleted.project.tracks.map { it.id })
+        assertEquals(original, deleted.undo().project)
+        assertEquals(deleted.project, deleted.undo().redo().project)
+    }
+
+
+
+    @Test
+    fun invalidTransformNumbersDoNotEnterRendererOrUndoHistory() {
+        val start = SceneEditorState(scene()).selectActor("prop-a")
+        val invalid = listOf(
+            start.setPosition(TransformAxis.X, Float.NaN),
+            start.translate(TransformAxis.X, Float.POSITIVE_INFINITY),
+            start.setRotation(TransformAxis.Y, Float.NEGATIVE_INFINITY),
+            start.rotate(TransformAxis.Z, Float.NaN),
+            start.setScale(TransformAxis.Z, Float.NaN),
+            start.scale(TransformAxis.X, Float.POSITIVE_INFINITY),
+            start.scaleUniform(Float.NaN),
+            start.previewSelectedTransform(Transform(position = Vec3(x = Float.NaN))),
+            start.previewSelectedTransform(Transform(scale = Vec3(1f, 0f, 1f))),
+        )
+        invalid.forEach { assertEquals(start, it) }
+        assertFalse(start.canUndo)
+
+        val veryFar = start.setPosition(TransformAxis.X, Float.MAX_VALUE)
+        assertTrue(veryFar.canUndo)
+        assertEquals(veryFar, veryFar.translate(TransformAxis.X, Float.MAX_VALUE))
+        assertEquals(start.project, veryFar.undo().project)
+
+        val accepted = start.scaleUniform(0.5f)
+        assertEquals(Vec3(1.5f, 1.5f, 1.5f), accepted.selectedActor?.transform?.scale)
+        assertEquals(start.project, accepted.undo().project)
+    }
+
+    @Test
+    fun invalidNumericEditorValuesDoNotCorruptCameraLightsReferencesOrTimeline() {
+        val lamp = Actor("lamp", "Lamp", ActorKind.LIGHT, light = LightSettings(type = LightType.SPOT))
+        val ref = ReferenceImage("ref", "Reference", "content://mise/reference")
+        val start = SceneEditorState(scene().copy(actors = scene().actors + lamp)).addReferenceImage(ref)
+        val camera = start.project.cameras.first()
+
+        val invalid = listOf(
+            start.setReferenceOpacity(ref.id, Float.NaN),
+            start.translateReference(ref.id, TransformAxis.Y, Float.NEGATIVE_INFINITY),
+            start.scaleReference(ref.id, Float.NaN),
+            start.setTimelineDurationSeconds(Float.NaN),
+            start.setTimelinePlaybackSpeed(Float.POSITIVE_INFINITY),
+            start.setActiveCameraVerticalFov(Float.NaN),
+            start.setActiveCameraOrthographicHeight(Float.NaN),
+            start.updateActiveCamera(camera.copy(target = Vec3(x = Float.NaN))),
+            start.updateActiveCamera(camera.copy(nearMeters = 10f, farMeters = 5f)),
+        )
+        invalid.forEach { assertEquals(start, it) }
+
+        val light = start.selectActor("lamp")
+        listOf(
+            light.setSelectedLightIntensity(Float.NaN),
+            light.setSelectedLightRangeMeters(Float.POSITIVE_INFINITY),
+            light.setSelectedLightDirection(Vec3(x = Float.MAX_VALUE)),
+            light.setSelectedSpotConeDegrees(Float.NaN, 30f),
+        ).forEach { assertEquals(light, it) }
+
+        val accepted = light.setSelectedLightIntensity(800f)
+        assertEquals(800f, accepted.selectedActor?.light?.intensity)
+        assertEquals(light.project, accepted.undo().project)
+    }
+
+    @Test
+    fun invalidTimeAndMorphInputsCannotCreateUnserializableKeyframes() {
+        val bone = RigBone("arm", "Arm")
+        val morph = RigMorphTarget("smile", "Smile", "Face")
+        val character = Actor(
+            id = "actor",
+            name = "Animated",
+            kind = ActorKind.CHARACTER,
+            rigDefinition = RigDefinition(bones = listOf(bone), morphTargets = listOf(morph)),
+            animation = ActorAnimationState(
+                clips = listOf(AnimationClipDefinition("Idle", 2f)),
+                selectedClip = "Idle",
+            ),
+        )
+        val original = SceneEditorState(SceneProject(id = "numeric-animation", name = "Animation", actors = listOf(character)))
+        val keyed = original.keySelectedTransform(1f).keySelectedPose(1f)
+        assertTrue(keyed.project.tracks.isNotEmpty())
+        listOf(
+            keyed.keySelectedTransform(Float.NaN),
+            keyed.keySelectedPose(Float.POSITIVE_INFINITY),
+            keyed.removeSelectedTransformKeyframe(Float.NaN),
+            keyed.removeSelectedPoseKeyframe(Float.NEGATIVE_INFINITY),
+            keyed.setRigMorphWeight(morph.id, Float.NaN),
+            keyed.setSelectedAnimationSpeed(Float.NaN),
+        ).forEach { assertEquals(keyed, it) }
+        assertEquals(keyed.project, SceneProjectCodec.decode(SceneProjectCodec.encode(keyed.project)))
+    }
+
+
+
+    @Test
+    fun lockedCharacterCannotDeleteKeysResetPoseOrChangeEasing() {
+        val arm = RigBone("arm", "Arm")
+        val blink = RigMorphTarget("blink", "Blink", "Face")
+        val character = Actor(
+            id = "locked-character", name = "Locked Character", kind = ActorKind.CHARACTER,
+            rigDefinition = RigDefinition(bones = listOf(arm), morphTargets = listOf(blink)),
+        )
+        val beforeLock = SceneEditorState(
+            SceneProject(
+                id = "locked-key-test", name = "Locked key test", actors = listOf(character),
+            ),
+        )
+            .setRigJointRotation(arm.id, Vec3(z = 20f))
+            .setRigMorphWeight(blink.id, 0.5f)
+            .keySelectedTransform(0f)
+            .keySelectedPose(0f)
+        val locked = beforeLock.toggleSelectedLocked()
+        assertTrue(locked.selectedActor?.locked == true)
+        assertEquals(locked, locked.resetRigPose())
+        assertEquals(locked, locked.resetRigJoint(arm.id))
+        assertEquals(locked, locked.resetRigMorph(blink.id))
+        assertEquals(locked, locked.removeSelectedTransformKeyframe(0f))
+        assertEquals(locked, locked.removeSelectedPoseKeyframe(0f))
+        assertEquals(locked, locked.setSelectedTransformInterpolation(Interpolation.LINEAR))
+        assertEquals(locked, locked.setSelectedPoseInterpolation(Interpolation.STEP))
+        assertEquals(beforeLock.project, locked.undo().project)
+
+        val unlocked = locked.toggleSelectedLocked()
+        assertTrue(unlocked.removeSelectedPoseKeyframe(0f).project.tracks.size < unlocked.project.tracks.size)
+        assertTrue(unlocked.resetRigPose().selectedActor?.rig == null)
+    }
+
+
+    @Test
+    fun undoAndRedoPreserveFocusAcrossDuplicateDeleteAndAddOperations() {
+        val start = SceneEditorState(scene()).selectActor("prop-b")
+        val duplicated = start.duplicateSelected()
+        val copiedId = requireNotNull(duplicated.selectedActorId)
+        assertNotEquals("prop-b", copiedId)
+
+        val undoneDuplicate = duplicated.undo()
+        assertEquals(start.project, undoneDuplicate.project)
+        assertEquals("prop-b", undoneDuplicate.selectedActorId)
+        assertEquals(copiedId, undoneDuplicate.redo().selectedActorId)
+
+        val deleted = duplicated.deleteSelected()
+        assertEquals("prop-a", deleted.selectedActorId)
+        val undoDelete = deleted.undo()
+        assertEquals(duplicated.project, undoDelete.project)
+        assertEquals(copiedId, undoDelete.selectedActorId)
+        assertEquals(deleted.project, undoDelete.redo().project)
+        assertEquals("prop-a", undoDelete.redo().selectedActorId)
+
+        val inserted = start.addActor(Actor("new", "New", ActorKind.PROP))
+        assertEquals("new", inserted.selectedActorId)
+        val undoneAdd = inserted.undo()
+        assertEquals("prop-b", undoneAdd.selectedActorId)
+        assertEquals("new", undoneAdd.redo().selectedActorId)
+    }
+
+    @Test
+    fun newEditsClearRedoSelectionHistoryWhileGesturesPreserveIt() {
+        val start = SceneEditorState(scene()).selectActor("prop-b")
+        val first = start.setPosition(TransformAxis.X, 4f)
+        val undone = first.undo()
+        assertTrue(undone.canRedo)
+        assertEquals("prop-b", undone.selectedActorId)
+
+        val fresh = undone.setRotation(TransformAxis.Z, 20f)
+        assertFalse(fresh.canRedo)
+        assertTrue(fresh.redoSelections.isEmpty())
+
+        val preview = start.previewSelectedTransform(
+            requireNotNull(start.selectedActor).transform.copy(position = Vec3(x = 8f)),
+        )
+        val gestured = preview.commitTransformGesture(start.project)
+        assertEquals("prop-b", gestured.undo().selectedActorId)
+        assertEquals("prop-b", gestured.undo().redo().selectedActorId)
+
+        val replaced = fresh.replaceProject(scene())
+        assertFalse(replaced.canUndo)
+        assertFalse(replaced.canRedo)
+        assertTrue(replaced.undoSelections.isEmpty())
+        assertTrue(replaced.redoSelections.isEmpty())
+    }
+
+
+    @Test
+    fun duplicatingAnimatedParentClonesDescendantsAttachmentsAndIndependentTracks() {
+        val hand = RigBone("hand", "Hand")
+        val character = Actor(
+            id = "character",
+            name = "Character",
+            kind = ActorKind.CHARACTER,
+            transform = Transform(position = Vec3(x = 1f)),
+            rigDefinition = RigDefinition(bones = listOf(hand)),
+        )
+        val attached = Actor(
+            id = "sword",
+            name = "Sword",
+            kind = ActorKind.PROP,
+            parentId = character.id,
+            parentBoneId = hand.id,
+            transform = Transform(position = Vec3(x = 0.2f), scale = Vec3(0.3f, 0.3f, 0.3f)),
+        )
+        val grandchild = Actor(
+            id = "gem",
+            name = "Gem",
+            kind = ActorKind.PROP,
+            parentId = attached.id,
+            transform = Transform(position = Vec3(y = 0.4f)),
+        )
+        val unrelated = Actor("other", "Other", ActorKind.PROP)
+        val project = SceneProject(
+            id = "parent-copy", name = "Parent Copy",
+            actors = listOf(character, attached, grandchild, unrelated),
+            tracks = listOf(
+                AnimationTrack(
+                    "root-pos", character.id, SceneTimelinePaths.POSITION,
+                    listOf(Keyframe(0f, AnimatedValue(vector = Vec3(x = 1f)))),
+                ),
+                AnimationTrack(
+                    "root-joint", character.id, SceneTimelinePaths.rigJoint(hand.id),
+                    listOf(Keyframe(0f, AnimatedValue(rotationEulerDegrees = Vec3(z = 30f)))),
+                ),
+                AnimationTrack(
+                    "child-pos", attached.id, SceneTimelinePaths.POSITION,
+                    listOf(Keyframe(0f, AnimatedValue(vector = Vec3(x = 0.2f)))),
+                ),
+                AnimationTrack(
+                    "other-pos", unrelated.id, SceneTimelinePaths.POSITION,
+                    listOf(Keyframe(0f, AnimatedValue(vector = Vec3(x = 9f)))),
+                ),
+            ),
+        )
+        val start = SceneEditorState(project).selectActor(character.id)
+        val duplicate = start.duplicateSelected()
+        val copiedRoot = requireNotNull(duplicate.selectedActor)
+        val copiedSword = duplicate.project.actors.first { it.parentId == copiedRoot.id }
+        val copiedGem = duplicate.project.actors.first { it.parentId == copiedSword.id }
+
+        assertEquals(7, duplicate.project.actors.size)
+        assertEquals(7, duplicate.project.tracks.size)
+        assertEquals(copiedRoot.id, copiedSword.parentId)
+        assertEquals(hand.id, copiedSword.parentBoneId)
+        assertEquals(copiedSword.id, copiedGem.parentId)
+        assertEquals(1.25f, copiedRoot.transform.position.x)
+        assertEquals(attached.transform, copiedSword.transform)
+        assertEquals(grandchild.transform, copiedGem.transform)
+        assertEquals(project.tracks, duplicate.project.tracks.take(4))
+        assertEquals(7, duplicate.project.tracks.map { it.id }.toSet().size)
+        assertEquals(7, duplicate.project.actors.map { it.id }.toSet().size)
+
+        val snapshot = duplicate.project.evaluateTimeline(0f)
+        val rootX = snapshot.actors.first { it.id == character.id }.transform.position.x
+        val copiedRootX = snapshot.actors.first { it.id == copiedRoot.id }.transform.position.x
+        val copiedChildX = snapshot.actors.first { it.id == copiedSword.id }.transform.position.x
+        assertEquals(0.25f, copiedRootX - rootX, 0.0001f)
+        assertEquals(0.2f, copiedChildX, 0.0001f)
+        assertEquals(Vec3(z = 30f), snapshot.actors.first { it.id == copiedRoot.id }.rig?.joints?.get(hand.id))
+
+        assertEquals(project, duplicate.undo().project)
+        assertEquals(duplicate.project, duplicate.undo().redo().project)
+        assertEquals(duplicate.project, SceneProjectCodec.decode(SceneProjectCodec.encode(duplicate.project)))
+
+        val repeated = duplicate.duplicateSelected()
+        assertEquals(10, repeated.project.actors.size)
+        assertEquals(10, repeated.project.tracks.size)
+        assertEquals(10, repeated.project.actors.map { it.id }.toSet().size)
+        assertEquals(10, repeated.project.tracks.map { it.id }.toSet().size)
+    }
+
+    @Test
+    fun duplicatingChildKeepsExternalParentAndClonesOnlyItsSubtree() {
+        val scene = scene().copy(
+            actors = listOf(
+                Actor("parent", "Parent", ActorKind.PROP),
+                Actor(
+                    "child", "Child", ActorKind.PROP, parentId = "parent",
+                    transform = Transform(position = Vec3(x = 1f)),
+                ),
+                Actor("grandchild", "Grandchild", ActorKind.PROP, parentId = "child"),
+            ),
+        )
+        val copied = SceneEditorState(scene).selectActor("child").duplicateSelected()
+        val child = requireNotNull(copied.selectedActor)
+        assertEquals(5, copied.project.actors.size)
+        assertEquals("parent", child.parentId)
+        assertEquals(1.25f, child.transform.position.x)
+        assertEquals(child.id, copied.project.actors.last().parentId)
+        assertEquals(scene, copied.undo().project)
+    }
+
+}

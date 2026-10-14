@@ -1,0 +1,51 @@
+name: Mise Hair Asset Preparation
+on:
+  push:
+    branches: [artist-scene-studio-foundation]
+    paths: [".github/workflows/mise-hair-assets.yml"]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Retrieve official CC0 system hair assets
+        run: |
+          python3 - <<'PY'
+          import hashlib, json, urllib.request, zipfile
+          from pathlib import Path, PurePosixPath
+          url = "https://files2.makehumancommunity.org/asset_packs/makehuman_system_assets/makehuman_system_assets_cc0.zip"
+          urllib.request.urlretrieve(url, "/tmp/system-assets.zip")
+          out = Path("hair-source")
+          out.mkdir()
+          records = {}
+          with zipfile.ZipFile("/tmp/system-assets.zip") as archive:
+              for entry in archive.infolist():
+                  path = PurePosixPath(entry.filename)
+                  parts = path.parts
+                  if ".." in parts or path.is_absolute() or entry.is_dir():
+                      continue
+                  if "hair" not in parts:
+                      continue
+                  index = parts.index("hair")
+                  if len(parts) < index + 3 or parts[index + 1] not in {"short01", "bob01", "afro01"}:
+                      continue
+                  if path.suffix not in {".obj", ".mhclo", ".mhmat", ".png", ".thumb"}:
+                      continue
+                  relative = PurePosixPath(*parts[index + 1:])
+                  data = archive.read(entry)
+                  destination = out.joinpath(*relative.parts)
+                  destination.parent.mkdir(parents=True, exist_ok=True)
+                  destination.write_bytes(data)
+                  records[str(relative)] = {"sha256": hashlib.sha256(data).hexdigest(), "bytes": len(data)}
+          assert records, "Official hair assets were absent"
+          (out / "source.json").write_text(json.dumps({"url": url, "licensePage": "https://static.makehumancommunity.org/assets/assetpacks/makehuman_system_assets.html", "files": records}, indent=2))
+          print(json.dumps(records, indent=2))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mise-hair-source
+          path: hair-source/
+          if-no-files-found: error

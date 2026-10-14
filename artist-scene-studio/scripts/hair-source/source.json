@@ -1,0 +1,66 @@
+{
+  "url": "https://files2.makehumancommunity.org/asset_packs/makehuman_system_assets/makehuman_system_assets_cc0.zip",
+  "licensePage": "https://static.makehumancommunity.org/assets/assetpacks/makehuman_system_assets.html",
+  "files": {
+    "short01/short01.thumb": {
+      "sha256": "7e942d29322841a07a8a3feaf438fb9efb6b54f5b733909cecc51e79dcaca995",
+      "bytes": 35055
+    },
+    "short01/short01.mhclo": {
+      "sha256": "ae1ffaa98da5753b803b3a173bede4895d2215e6bb94763f3765a71f0e984f35",
+      "bytes": 201588
+    },
+    "short01/short01.mhmat": {
+      "sha256": "01e2e12ce3f3d3c859225456660acadcdd27d4f4b4d888bcbd6f11998cadd975",
+      "bytes": 1314
+    },
+    "short01/short01.obj": {
+      "sha256": "d998d8416f9b5d5591f1d756f4d292288d000a6951bc0f4d2e8e72727bbc44fa",
+      "bytes": 194450
+    },
+    "short01/short01_diffuse.png": {
+      "sha256": "f34a0957184e3d1e911ed59245f874f8d4843f61ee44ff49f43edb4be0196949",
+      "bytes": 2354146
+    },
+    "afro01/afro01.thumb": {
+      "sha256": "d371c511ce6b4c66ada60c5986d022a2f0113400088da20b532fc950fdf2845e",
+      "bytes": 47414
+    },
+    "afro01/afro01.mhclo": {
+      "sha256": "9977bd4507e2dd1408504b7a39a6f585ffa2d3ba3aa40ad4bdc2844884bbebb5",
+      "bytes": 149574
+    },
+    "afro01/afro01.mhmat": {
+      "sha256": "6da1c6778df2450b135009274ed0145dc2dffbc5d8e287fc1d4c69ba539b483c",
+      "bytes": 1030
+    },
+    "afro01/afro01.obj": {
+      "sha256": "8344fffef15120a05a89219f31184ca2958537223fa885c885137ad1e97edcb8",
+      "bytes": 130040
+    },
+    "afro01/afro_diffuse.png": {
+      "sha256": "dc0db7dd8a13802f02303ca7e49844b219e09db134471b7061538a8af8f7c7fb",
+      "bytes": 4817185
+    },
+    "bob01/bob01.thumb": {
+      "sha256": "f354364f4fbd0d83982ba77d1e8e63e15a3f73a04bd43538d076237602965336",
+      "bytes": 53628
+    },
+    "bob01/bob01.mhclo": {
+      "sha256": "a295b11ab6c7808afa1e01d0c79fb595bbbd7885f65252766486c9fcf6d158c5",
+      "bytes": 352019
+    },
+    "bob01/bob01.mhmat": {
+      "sha256": "9c3015044a832fb9a72a5d2f28218914ebfbdf6725cfd237cc53a3d95f054e3b",
+      "bytes": 1312
+    },
+    "bob01/bob01_diffuse.png": {
+      "sha256": "2b38bc7a028e06e8e633accb7fe2dd1b2bacbb9d32463df73f39f82e63ef9009",
+      "bytes": 4243598
+    },
+    "bob01/bob01.obj": {
+      "sha256": "d7fb73806f47ee37ba3c37bcfadff40a91ba99635d08c3e02d94b4acbf97c231",
+      "bytes": 396190
+    }
+  }
+}
