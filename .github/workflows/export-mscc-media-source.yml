@@ -79,10 +79,10 @@ jobs:
                   seeds.add(path)
 
           deps = (
-              re.compile(r"\\bfrom\\s*['\"](\\.[^'\"]+)['\"]"),
-              re.compile(r"\\bimport\\s*['\"](\\.[^'\"]+)['\"]"),
-              re.compile(r"\\b(?:import|require)\\s*\\(\\s*['\"](\\.[^'\"]+)['\"]"),
-              re.compile(r"\\bnew\\s+URL\\s*\\(\\s*['\"](\\.[^'\"]+)['\"]"),
+              re.compile(r"\bfrom\s*['\"](\.[^'\"]+)['\"]"),
+              re.compile(r"\bimport\s*['\"](\.[^'\"]+)['\"]"),
+              re.compile(r"\b(?:import|require)\s*\(\s*['\"](\.[^'\"]+)['\"]"),
+              re.compile(r"\bnew\s+URL\s*\(\s*['\"](\.[^'\"]+)['\"]"),
           )
           chosen = set()
           work = sorted(seeds)
