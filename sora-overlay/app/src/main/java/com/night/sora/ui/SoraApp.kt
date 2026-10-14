@@ -325,6 +325,7 @@ fun SoraApp() {
                 downloadAllowed = musicDownloads::canUseSource,
                 onDownload = musicDownloads::download,
                 onRemoveDownload = musicDownloads::remove,
+                onManageSources = { push(AppScreen.Extensions) },
                 onBack = ::pop,
             )
         }
