@@ -58,7 +58,7 @@ export default {
       if (action === 'discover') {
         const mounts = await megaAvailableMounts()
         return ctx.reply(mounts.length
-          ? '☁️ Available MEGA mounts (owner-only)\\n' + mounts.map(m => `• ${m.label} — nodeId: ${m.nodeId}`).join('\\n')
+          ? '☁️ Available MEGA mounts (owner-only)\n' + mounts.map(m => `• ${m.label} — nodeId: ${m.nodeId}`).join('\n')
           : 'No incoming MEGA folder mounts were detected. Contributors must invite the primary MSCC MEGA account and grant upload access.')
       }
       if (!megaConfig().configured) return ctx.reply('☁️ MEGA is not connected. Configure the primary MEGA account in the secure server environment.')
