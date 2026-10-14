@@ -56,6 +56,7 @@ fun NowPlayingScreen(
     downloadAllowed: (ExtensionMediaSelection) -> Boolean,
     onDownload: (ExtensionMediaSelection) -> Unit,
     onRemoveDownload: (ExtensionMediaSelection) -> Unit,
+    onManageSources: () -> Unit,
     onBack: () -> Unit,
 ) {
     val track = player.currentTrack
@@ -187,9 +188,25 @@ fun NowPlayingScreen(
                 shape = RoundedCornerShape(12.dp),
                 modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
             ) {
-                Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Rounded.ErrorOutline, null, tint = SoraMuted, modifier = Modifier.size(18.dp))
-                    Text(message, color = SoraMuted, fontSize = 11.sp, modifier = Modifier.padding(start = 9.dp))
+                Column(Modifier.padding(12.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Rounded.ErrorOutline, null, tint = SoraMuted,
+                            modifier = Modifier.size(18.dp))
+                        Text(message, color = SoraMuted, fontSize = 11.sp,
+                            modifier = Modifier.padding(start = 9.dp).weight(1f))
+                    }
+                    // Some public music endpoints explicitly require login or
+                    // anti-bot verification. Offer an actionable recovery path
+                    // instead of leaving users staring at a frozen play button.
+                    if (message.contains("signed-in session", ignoreCase = true)) {
+                        TextButton(onClick = onManageSources,
+                            modifier = Modifier.padding(top = 4.dp)) {
+                            Icon(Icons.Rounded.OpenInNew, contentDescription = null,
+                                modifier = Modifier.size(16.dp))
+                            Spacer(Modifier.width(6.dp))
+                            Text("Open music source settings", color = SoraAccent)
+                        }
+                    }
                 }
             }
         }
