@@ -28,6 +28,21 @@ jobs:
         run: |
           tar -xJf EchoSpace/source.tar.xz
           test -f EchoSpace/app/src/main/java/com/nexa/echospace/MainActivity.kt
+      - name: Bundle royalty-free offline scene artwork
+        run: |
+          set -euo pipefail
+          mkdir -p EchoSpace/app/src/main/res/drawable-nodpi
+          declare -A scenes=(
+            [rain]=photo-1751696924126-2697d62f6f49
+            [forest]=photo-1562627952-f52a76c3c823
+            [shore]=photo-1518837695005-2083093ee35b
+            [fire]=photo-1464808646948-8f732deb6e4b
+            [dream]=photo-1592666452220-529326e2588e
+          )
+          for name in "${!scenes[@]}"; do
+            curl -fsSL --retry 3 --connect-timeout 15 "https://images.unsplash.com/${scenes[$name]}?auto=format&fit=crop&crop=entropy&w=1080&h=1400&q=75&fm=jpg" -o "EchoSpace/app/src/main/res/drawable-nodpi/scene_${name}.jpg"
+            test $(wc -c < "EchoSpace/app/src/main/res/drawable-nodpi/scene_${name}.jpg") -gt 25000
+          done
       - name: Install Android build tools
         run: |
           SDKMANAGER=$(find "$ANDROID_HOME/cmdline-tools" -name sdkmanager -type f | head -n 1)
