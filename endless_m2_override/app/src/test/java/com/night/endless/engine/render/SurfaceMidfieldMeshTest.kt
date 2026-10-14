@@ -41,6 +41,29 @@ class SurfaceMidfieldMeshTest {
                 mesh.vertices[inland+2].toDouble())) < .00060)
     }
 
+
+    @Test fun nonPeriodicReliefIsContinuousAndBandLimitedFor21mMesh() {
+        val flat: (Double, Double) -> Double = { _, _ -> 0.0 }
+        val mesh = SurfaceMidfieldMesh.build(.32, -.22, flat)
+        val side = SurfaceMidfieldMesh.SIDE
+        fun h(x: Int, z: Int) = mesh.vertices[(z * side + x) * 9 + 1]
+        var minValue = Float.POSITIVE_INFINITY
+        var maxValue = Float.NEGATIVE_INFINITY
+        for (z in 25..135) for (x in 25..135) {
+            val sample = h(x, z)
+            minValue = minOf(minValue, sample)
+            maxValue = maxOf(maxValue, sample)
+            if (x < 135) assertTrue("Adjacent 21m relief must not spike by metres",
+                abs(sample - h(x + 1, z)) < 0.00025f)
+            if (z < 135) assertTrue("Adjacent 21m relief must be continuous",
+                abs(sample - h(x, z + 1)) < 0.00025f)
+        }
+        assertTrue("The field should not collapse to a single flat tone",
+            maxValue - minValue > 0.00001f)
+        assertTrue("Illustrative regolith stays within measured DEM accuracy",
+            maxValue - minValue < 0.0007f)
+    }
+
     @Test fun middayRingIsAlwaysDeterministic() {
         val b: (Double, Double) -> Double = { x, z -> 0.003 * sin(x+z) }
         val first = SurfaceMidfieldMesh.build(.22, -.34, b)
