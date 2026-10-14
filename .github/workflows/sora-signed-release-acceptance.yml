@@ -1,0 +1,170 @@
+name: Sora Signed Release Acceptance
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [sora-player-release-hardening-20261012]
+    paths:
+      - '.github/workflows/sora-signed-release-acceptance.yml'
+      - 'sora-overlay/**'
+
+concurrency:
+  group: sora-signed-acceptance-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  release-apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - name: Import pinned YouTube Music dependencies
+        run: bash sora-ci/import_spotui_innertube.sh
+
+      - name: Reconstruct complete Sora Android project
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/sora-release-src /tmp/sora-release.zip /tmp/sora-signed
+          cat sora-ci/chunks/part-*.txt | base64 -d > /tmp/sora-release.zip
+          unzip -q /tmp/sora-release.zip -d /tmp/sora-release-src
+          ROOT=/tmp/sora-release-src/Sora_Android_v0_1
+          test -f "$ROOT/settings.gradle.kts"
+          cp -R sora-overlay/. "$ROOT/"
+          python3 - "$ROOT/settings.gradle.kts" <<'PY'
+          from pathlib import Path
+          import sys
+          p=Path(sys.argv[1]); s=p.read_text()
+          start=s.find('dependencyResolutionManagement {')
+          if start < 0: raise SystemExit('dependencyResolutionManagement block missing')
+          tail=s[start:]
+          if 'maven("https://jitpack.io")' not in tail:
+              needle='        mavenCentral()\n'
+              pos=tail.find(needle)
+              if pos < 0: raise SystemExit('mavenCentral missing')
+              at=start+pos+len(needle)
+              s=s[:at]+'        maven("https://jitpack.io")\n'+s[at:]
+          for module in (':youtube-innertube', ':youtube-music-extension'):
+              if 'include("'+module+'")' not in s: s+='\ninclude("'+module+'")\n'
+          p.write_text(s)
+          PY
+          mkdir -p /tmp/sora-signed
+          echo "SORA_RELEASE_ROOT=$ROOT" >> "$GITHUB_ENV"
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+        with:
+          cmdline-tools-version: 12266719
+          packages: 'platform-tools platforms;android-36 build-tools;36.0.0'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '9.5.0'
+
+      - name: Select production signing or isolated QA signing
+        id: signing
+        env:
+          PROD_STORE: ${{ secrets.SORA_RELEASE_KEYSTORE_B64 }}
+          PROD_STORE_PASSWORD: ${{ secrets.SORA_RELEASE_STORE_PASSWORD }}
+          PROD_KEY_ALIAS: ${{ secrets.SORA_RELEASE_KEY_ALIAS }}
+          PROD_KEY_PASSWORD: ${{ secrets.SORA_RELEASE_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          STORE=/tmp/sora-signed/sora-signing.p12
+          COUNT=0
+          for value in "$PROD_STORE" "$PROD_STORE_PASSWORD" "$PROD_KEY_ALIAS" "$PROD_KEY_PASSWORD"; do
+            if [[ -n "$value" ]]; then COUNT=$((COUNT+1)); fi
+          done
+          if (( COUNT == 4 )); then
+            printf '%s' "$PROD_STORE" | base64 -d > "$STORE"
+            chmod 600 "$STORE"
+            PASSWORD="$PROD_STORE_PASSWORD"
+            ALIAS="$PROD_KEY_ALIAS"
+            KEY_PASSWORD="$PROD_KEY_PASSWORD"
+            MODE=production
+          elif (( COUNT == 0 )); then
+            # QA only: disposable per-run key. Not an upgrade-stable release
+            # identity; never distribute as the production signing certificate.
+            PASSWORD=$(openssl rand -hex 20)
+            KEY_PASSWORD="$PASSWORD"
+            ALIAS=sora-qa-ephemeral
+            keytool -genkeypair -noprompt -storetype PKCS12 \
+              -keystore "$STORE" -storepass "$PASSWORD" \
+              -alias "$ALIAS" -keypass "$KEY_PASSWORD" \
+              -keyalg RSA -keysize 3072 -validity 60 \
+              -dname 'CN=Sora Temporary QA, O=Sora, C=NG'
+            chmod 600 "$STORE"
+            MODE=qa-ephemeral
+            echo "::warning::No permanent Sora signing secrets found. This produces only a QA-signed release variant; users must uninstall it before installing another QA run."
+          else
+            echo "::error::Incomplete production signing configuration: all four SORA_RELEASE_* GitHub Actions secrets must be provided together."
+            exit 1
+          fi
+          echo "SORA_SIGNING_STORE=$STORE" >> "$GITHUB_ENV"
+          echo "SORA_SIGNING_PASSWORD=$PASSWORD" >> "$GITHUB_ENV"
+          echo "SORA_SIGNING_KEY_ALIAS=$ALIAS" >> "$GITHUB_ENV"
+          echo "SORA_SIGNING_KEY_PASSWORD=$KEY_PASSWORD" >> "$GITHUB_ENV"
+          echo "mode=$MODE" >> "$GITHUB_OUTPUT"
+
+      - name: Build signed release variants
+        working-directory: ${{ env.SORA_RELEASE_ROOT }}
+        run: |
+          set -euo pipefail
+          gradle --stacktrace \
+            -Pandroid.injected.signing.store.file="$SORA_SIGNING_STORE" \
+            -Pandroid.injected.signing.store.password="$SORA_SIGNING_PASSWORD" \
+            -Pandroid.injected.signing.key.alias="$SORA_SIGNING_KEY_ALIAS" \
+            -Pandroid.injected.signing.key.password="$SORA_SIGNING_KEY_PASSWORD" \
+            :app:assembleRelease :live-extension:assembleRelease \
+            :meme-extension:assembleRelease :youtube-music-extension:assembleRelease
+
+      - name: Verify APK signatures and package files
+        run: |
+          set -euo pipefail
+          OUT=/tmp/sora-signed
+          cp "$SORA_RELEASE_ROOT/app/build/outputs/apk/release/app-release.apk" "$OUT/Sora-Android-release.apk"
+          cp "$SORA_RELEASE_ROOT/live-extension/build/outputs/apk/release/live-extension-release.apk" "$OUT/Sora-Live-Sources-release.apk"
+          cp "$SORA_RELEASE_ROOT/meme-extension/build/outputs/apk/release/meme-extension-release.apk" "$OUT/Sora-Memes-release.apk"
+          cp "$SORA_RELEASE_ROOT/youtube-music-extension/build/outputs/apk/release/youtube-music-extension-release.apk" "$OUT/Sora-YouTube-Music-release.apk"
+          for apk in "$OUT"/*.apk; do
+            "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --verbose --print-certs "$apk" > "$apk.signature.txt"
+            grep -q 'Verified using v2 scheme (APK Signature Scheme v2): true' "$apk.signature.txt"
+          done
+          sha256sum "$OUT"/*.apk > "$OUT/SHA256SUMS"
+          echo "SIGNING_MODE=${{ steps.signing.outputs.mode }}" > "$OUT/BUILD_PROVENANCE.txt"
+          echo "SOURCE_SHA=$GITHUB_SHA" >> "$OUT/BUILD_PROVENANCE.txt"
+
+      - name: Verify signed release installs and launches on Android 16
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 36
+          target: google_apis
+          arch: x86_64
+          profile: pixel_7
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          script: |
+            set -euo pipefail
+            adb install -r /tmp/sora-signed/Sora-Android-release.apk
+            adb install -r /tmp/sora-signed/Sora-Live-Sources-release.apk
+            adb install -r /tmp/sora-signed/Sora-Memes-release.apk
+            adb install -r /tmp/sora-signed/Sora-YouTube-Music-release.apk
+            adb shell am start -W -n com.night.sora/.MainActivity
+            sleep 6
+            adb shell pm path com.night.sora | grep -q package:
+            adb exec-out screencap -p > /tmp/sora-signed/release-installed-android16.png
+            adb logcat -d -t 1200 | grep -E 'FATAL EXCEPTION.*com.night.sora' && exit 1 || true
+
+      - name: Upload verified signed APKs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sora-release-${{ steps.signing.outputs.mode || 'failed' }}
+          path: |
+            /tmp/sora-signed/*.apk
+            /tmp/sora-signed/*.signature.txt
+            /tmp/sora-signed/SHA256SUMS
+            /tmp/sora-signed/BUILD_PROVENANCE.txt
+            /tmp/sora-signed/release-installed-android16.png
+          if-no-files-found: warn
+          retention-days: 14
