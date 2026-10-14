@@ -2754,6 +2754,7 @@ private fun AddObjectSheet(
         contentScrollState.scrollTo(0)
     }
     ModalBottomSheet(onDismissRequest = onDismiss, modifier = Modifier.semantics { testTagsAsResourceId = true }, containerColor = PanelBackground) {
+        KeepDialogStatusBarHidden()
         Box(Modifier.fillMaxWidth().heightIn(max = 620.dp)) {
         Column(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 6.dp)
