@@ -159,6 +159,8 @@ try{
   await page.locator('[data-piece="0-0"]').click();
   await page.locator('.nj-motion-layer[data-motion="capture"]').waitFor();
   assert.equal(await page.locator('.l-token.eligible').count(),0,'input stays locked during capture flight');
+  const roundCounter=await page.locator('.nj-motion-layer[data-motion="capture"] .nj-piece').first().boundingBox();
+  assert.ok(Math.abs(roundCounter.width-roundCounter.height)<1.5,'moving counters keep their circular shape');
   await page.screenshot({path:"night-play/visual-output/LUDO-CAPTURE-FLIGHT.jpg",type:"jpeg",quality:85});
   await page.waitForFunction(()=>!document.querySelector('.nj-motion-layer'));
   await page.waitForFunction(()=>JSON.parse(localStorage.getItem('night-play-club-v1')).ludo.players[0].tokens[0]===56);
@@ -174,6 +176,21 @@ try{
   await page.locator('.nj-motion-layer[data-motion="finish"]').waitFor();
   await page.locator('.nj-win-banner').waitFor({timeout:4500});
   await page.screenshot({path:"night-play/visual-output/LUDO-VICTORY-MOTION.jpg",type:"jpeg",quality:85});
+  await page.emulateMedia({reducedMotion:'reduce'});
+  await page.locator('#ludoSettingsBtn').click();
+  await page.locator('.nj-settings summary').click();
+  assert.equal(await page.locator('.nj-settings').evaluate(el=>el.open),false,'reduced-motion sheets close immediately');
+  await page.evaluate(()=>{
+    const data=JSON.parse(localStorage.getItem('night-play-club-v1'));data.ludo=NightLudo.create(2,1);
+    localStorage.setItem('night-play-club-v1',JSON.stringify(data));
+  });
+  await page.reload();await page.evaluate(()=>NightLudo.setTestRolls([6]));
+  await page.locator('[data-action="ludo-roll"]').first().click();
+  await page.locator('[data-piece="0-0"]:enabled').waitFor();
+  await page.locator('[data-piece="0-0"]').click();
+  await page.waitForFunction(()=>JSON.parse(localStorage.getItem('night-play-club-v1')).ludo.players[0].tokens[0]===0);
+  assert.equal(await page.locator('.nj-motion-layer').count(),0,'reduced motion plays without animated flights');
+  await page.emulateMedia({reducedMotion:'no-preference'});
   await page.locator(".ludo-back").click();
   await page.waitForURL("**/games");
   await page.goto(base+"/club/?game=estate");

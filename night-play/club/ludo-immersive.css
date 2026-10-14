@@ -54,3 +54,5 @@ body.ludo-mode .nj-roll-btn:not(:disabled):active,body.ludo-mode .ludo-tool:acti
 body.ludo-mode .nj-switch input,body.ludo-mode .nj-switch input:before{transition:background .2s ease,translate .2s cubic-bezier(.2,.7,.3,1)}
 body.ludo-mode .nj-hand-cue{display:block;grid-row:6/span 1;grid-column:7/span 1;align-self:center;justify-self:center;font-size:19px;opacity:.8;transform:rotate(-15deg);animation:njPoint 1.8s ease-in-out infinite}
 @media(prefers-reduced-motion:reduce){.nj-win-banner{animation:none!important}.nj-roll-btn,.ludo-tool,.ludo-back{transition:none!important}}
+
+body.ludo-mode .nj-board .nj-piece,body.ludo-mode .nj-motion-counter{padding:0;min-width:0;min-height:0}

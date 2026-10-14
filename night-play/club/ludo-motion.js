@@ -25,11 +25,11 @@ function flight(old,target,piece,kind,duration){
  Object.assign(ghost.style,{position:'absolute',left:old.rect.left+'px',top:old.rect.top+'px',width:old.rect.width+'px',height:old.rect.height+'px',margin:'0',opacity:'1',visibility:'visible'});
  layer.dataset.motion=kind;layer.appendChild(ghost);document.body.appendChild(layer);
  if(piece)piece.style.visibility='hidden';
- const dx=target.left-old.rect.left,dy=target.top-old.rect.top,ratio=target.width/old.rect.width;
+ const dx=target.left-old.rect.left,dy=target.top-old.rect.top,ratio=target.width/old.rect.width,ratioY=(target.height||target.width)/old.rect.height;
  const lift=kind==='hop'?5:kind==='release'?28:kind==='capture'?40:18;
  const frames=[{transform:'translate(0,0) scale(1)',opacity:1},
-  {transform:`translate(${dx*.5}px,${dy*.5-lift}px) scale(${(1+ratio)*.52})`,opacity:1,offset:.5},
-  {transform:`translate(${dx}px,${dy}px) scale(${ratio})`,opacity:kind==='finish'?0:1}];
+  {transform:`translate(${dx*.5}px,${dy*.5-lift}px) scale(${(1+ratio)*.52},${(1+ratioY)*.52})`,opacity:1,offset:.5},
+  {transform:`translate(${dx}px,${dy}px) scale(${ratio},${ratioY})`,opacity:kind==='finish'?0:1}];
  const animation=ghost.animate(frames,{duration,easing:'cubic-bezier(.22,.6,.32,1)',fill:'forwards'});
  const cleanup=()=>{if(piece?.isConnected)piece.style.visibility='';layer.remove();flights.delete(animation);};
  flights.add(animation);animation.finished.then(cleanup,cleanup);
