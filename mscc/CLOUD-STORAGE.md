@@ -21,11 +21,16 @@ in API responses or in files committed to GitHub.
 Supported roles: `images`, `videos`, `audio`, `documents`, `archives`,
 `stickers`. A folder may cover several roles; `all` matches any role.
 
-For example, five contributor accounts may each share a dedicated folder for:
-Images & Stickers, Videos, Audio, Documents, and Archives. These roles can
-also overlap without asking users where to upload. If multiple writable,
-mounted folders match one type, MSCC picks the folder with the fewest visible
-files; this is **not** a measure of free MEGA quota.
+For five MEGA accounts total, use **three for videos**, one for images
+and stickers, and one primary account for music, books, documents and archives.
+That is up to ~60 GB of nominal video capacity if each video account really
+has 20 GB free. The five accounts remain separate; this is not one MEGA quota.
+Each video account shares a dedicated folder with the primary account.
+
+When three writable video folders are available, MSCC automatically chooses
+the one holding the fewest **visible bytes**, not the fewest files. One giant
+movie weighs more than hundreds of tiny clips. Visible bytes in the shared
+folder are **not** proof of donor account capacity or remaining quota.
 
 If a category is *unassigned*, MSCC uses its own primary MEGA account.
 If a category is assigned but the matching folder is missing or not approved
@@ -57,13 +62,13 @@ verified quota for the primary account only. Do not display hypothetical
    privately and obtain the actual exact folder node ID. If it does not
    appear, do not mark it as connected.
 4. Configure the opt-in role mapping in the **protected server environment**.
-   Example (replace `abcdefgh`, `ijklmnop` with discovered node IDs):
+   Example (replace every node ID with the value from `.cloud discover`):
 
    ```dotenv
-   MSCC_MEGA_SHARED_FOLDERS='[{"id":"photos","label":"Images and Stickers","nodeId":"abcdefgh","mediaTypes":["images","stickers"],"uploadEnabled":true},{"id":"films","label":"Videos","nodeId":"ijklmnop","mediaTypes":["videos"],"uploadEnabled":true}]'
+   MSCC_MEGA_SHARED_FOLDERS='[{"id":"video_a","label":"Video A","nodeId":"videoAAA","mediaTypes":["videos"],"uploadEnabled":true},{"id":"video_b","label":"Video B","nodeId":"videoBBB","mediaTypes":["videos"],"uploadEnabled":true},{"id":"video_c","label":"Video C","nodeId":"videoCCC","mediaTypes":["videos"],"uploadEnabled":true},{"id":"photos","label":"Images & Stickers","nodeId":"photoAAA","mediaTypes":["images","stickers"],"uploadEnabled":true}]'
    ```
 
-   The internal IDs above are only for secure configuration. Users never
+   Account 5 is the primary MSCC MEGA account for audio, books, documents and archives.\n   The internal IDs above are only for secure configuration. Users never
    supply them. `uploadEnabled:true` is an additional operator-approved
    check and does not override MEGA's own permission checks.
 5. Run `.cloud folders` to confirm the role mapping. Test each category
