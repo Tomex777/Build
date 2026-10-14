@@ -66,6 +66,7 @@ import studio.artistscene.core.ActorKind
 import studio.artistscene.core.AssetReference
 import studio.artistscene.core.AssetStorage
 import studio.artistscene.core.CameraProjection
+import studio.artistscene.core.EnvironmentPreset
 import studio.artistscene.core.ReferenceImage
 import studio.artistscene.core.RigDefinition
 import studio.artistscene.core.SceneCamera
@@ -103,7 +104,8 @@ fun SceneViewport(
     val materialLoader = rememberMaterialLoader(engine)
     val environmentLoader = rememberEnvironmentLoader(engine)
     val loadedEnvironment = rememberEnvironment(environmentLoader, isOpaque = false)
-    val skyTexture = remember(engine) { createOutdoorSky(engine) }
+    val preset = project.world.environmentPreset
+    val skyTexture = remember(engine, preset) { createOutdoorSky(engine, preset) }
     val studioSkybox = remember(engine, skyTexture) {
         Skybox.Builder().environment(skyTexture).build(engine)
     }
@@ -142,8 +144,11 @@ fun SceneViewport(
         ?: project.cameras.firstOrNull()
         ?: studio.artistscene.core.SceneCamera("camera-main", "Camera")
 
-    val floor = remember(materialLoader) {
-        materialLoader.createColorInstance(Color(0xFFAAAFA5), metallic = 0f, roughness = 0.95f)
+    // A low-chroma matte ground creates value separation from human skin and light clothing.
+    // Keep it as Filament PBR geometry so it receives real shadow maps/contact shadows.
+    val floor = remember(materialLoader, preset) {
+        val color = Color(android.graphics.Color.parseColor(preset.groundHex))
+        materialLoader.createColorInstance(color, metallic = 0f, roughness = preset.roughness)
     }
     val mainLightNode = rememberMainLightNode(engine)
     // Shadow maps are part of Filament's scene rendering, independent of the

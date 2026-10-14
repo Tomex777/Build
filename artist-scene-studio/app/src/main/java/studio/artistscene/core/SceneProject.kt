@@ -137,6 +137,8 @@ data class WorldSettings(
     val groundEnabled: Boolean = true,
     val gridEnabled: Boolean = true,
     val environmentAssetId: String? = null,
+    // Default for old scenes too; preset changes remain undoable and serialized.
+    val environmentPreset: EnvironmentPreset = EnvironmentPreset.DAYLIGHT,
 )
 
 @Serializable

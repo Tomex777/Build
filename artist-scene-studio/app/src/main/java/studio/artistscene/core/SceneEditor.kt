@@ -27,6 +27,13 @@ data class SceneEditorState(
     fun selectActor(actorId: String?): SceneEditorState =
         copy(selectedActorId = actorId?.takeIf { id -> project.actors.any { it.id == id } })
 
+    /** Backdrop and floor are project-level settings, included in undo/redo and scene saves. */
+    fun setEnvironmentPreset(preset: EnvironmentPreset): SceneEditorState =
+        commit(project.copy(world = project.world.copy(environmentPreset = preset)), selectedActorId)
+
+    fun setGroundVisible(visible: Boolean): SceneEditorState =
+        commit(project.copy(world = project.world.copy(groundEnabled = visible)), selectedActorId)
+
     fun useTool(tool: TransformTool): SceneEditorState = copy(activeTool = tool)
 
     fun translate(axis: TransformAxis, delta: Float): SceneEditorState =
