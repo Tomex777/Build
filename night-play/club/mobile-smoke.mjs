@@ -38,6 +38,11 @@ try{
   await page.locator('[data-action="ludo-roll"]').first().click();
   assert.ok(await page.locator(".nj-dice-center.is-rolling").count(),"dice visibly tumble");
   await page.locator(".l-token.eligible").first().waitFor({timeout:5000});
+  const shownDice=await page.locator(".nj-dice-controls .nj-die").evaluateAll(elements=>elements.map(el=>el.querySelectorAll(".nj-face-front .nj-pips i.lit").length));
+  assert.deepEqual(shownDice,[6,2],"3D dice face graphics must precisely match the dice actually rolled");
+  const centerDice=await page.locator(".nj-dice-center .nj-die").evaluateAll(elements=>elements.map(el=>el.querySelectorAll(".nj-face-front .nj-pips i.lit").length));
+  assert.deepEqual(centerDice,[6,2],"centre-table dice must show the same results");
+
   await page.screenshot({path:"night-play/visual-output/NAIJA-LUDO-DICE-READY.jpg",type:"jpeg",quality:76,fullPage:true});
   assert.ok(await page.locator(".l-token.eligible").count()>=4,"six releases a piece from its house");
   await page.locator(".l-token.eligible").first().click();
