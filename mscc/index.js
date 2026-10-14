@@ -73,6 +73,7 @@ import { chessRecordAcceptsInput } from './utils/chess-game.js'
 import { ticTacToeRecordAcceptsInput } from './utils/tictactoe-game.js'
 import { checkersRecordAcceptsInput } from './utils/checkers-game.js'
 import { ludoRecordAcceptsInput } from './utils/ludo-game.js'
+import { partyInputDestination } from './utils/party-games.js'
 import { createJosiahAssistant } from './josiah-assistant.js'
 import { createNamiAssistant } from './nami-assistant.js'
 import { createMiMiAssistant } from './mimi-assistant.js'
@@ -2408,12 +2409,21 @@ async function processInboundMessage(account, msg) {
         !consumeTicTacToeInput &&
         chessRecordAcceptsInput(chessRecord, authority.senderNumber, text)
       )
+      const consumePartyInput = !isExplicitCommand &&
+        !consumeLudoInput && !consumeCheckersInput &&
+        !consumeTicTacToeInput && !consumeChessInput &&
+        partyInputDestination({
+          shared: { get: (namespace, key) => sharedStorage?.sharedGet(namespace, key) },
+          accountId: account.id, chat, text,
+        })
+
       const consumePendingReply = Boolean(
         !isExplicitCommand &&
         !consumeLudoInput &&
         !consumeCheckersInput &&
         !consumeTicTacToeInput &&
         !consumeChessInput &&
+        !consumePartyInput &&
         pendingReply?.command &&
         (
           (pendingReply?.kind === 'number-selection' && looksLikeNumberSelection(text)) ||
@@ -2434,7 +2444,9 @@ async function processInboundMessage(account, msg) {
             ? `${publicPrefix}ttt ~input`
             : consumeChessInput
               ? `${publicPrefix}chess ~input`
-              : consumePendingReply
+              : consumePartyInput
+                ? `${publicPrefix}${consumePartyInput} ~input`
+                : consumePendingReply
                 ? pendingReply.kind === 'album-selection'
                   ? `${publicPrefix}${pendingReply.command} ~selection`
                   : pendingReply.kind === 'choice-selection'
@@ -2499,7 +2511,7 @@ async function processInboundMessage(account, msg) {
           settings,
           publicPrefix,
           rawCommandText:text,
-          commandReplyInput: (consumePendingReply || consumeLudoInput || consumeCheckersInput || consumeTicTacToeInput || consumeChessInput) ? String(text || '').trim() : '',
+          commandReplyInput: (consumePendingReply || consumeLudoInput || consumeCheckersInput || consumeTicTacToeInput || consumeChessInput || consumePartyInput) ? String(text || '').trim() : '',
           getCommandReplySession: () => readCommandReplySession(account, msg, authority),
           setCommandReplySession: session => writeCommandReplySession(account, msg, authority, session),
           clearCommandReplySession: () => writeCommandReplySession(account, msg, authority, null),
