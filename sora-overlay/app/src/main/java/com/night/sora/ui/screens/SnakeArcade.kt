@@ -92,23 +92,31 @@ fun SnakeArcade(modifier: Modifier = Modifier) {
             Text("BEST  " + best, fontWeight = FontWeight.Bold)
         }
         var gesture by remember { mutableStateOf(Offset.Zero) }
+        var steeredThisGesture by remember { mutableStateOf(false) }
         Canvas(
             Modifier.fillMaxWidth().aspectRatio(1f).clip(RoundedCornerShape(16.dp))
                 .background(SoraSurfaceHigh)
                 .pointerInput(Unit) {
                     detectDragGestures(
-                        onDragStart = { gesture = Offset.Zero },
-                        onDragEnd = {
-                            if (maxOf(abs(gesture.x),abs(gesture.y)) >= 13f) {
-                                val next = if (abs(gesture.x) > abs(gesture.y)) {
-                                    SnakePoint(if (gesture.x > 0) 1 else -1, 0)
-                                } else SnakePoint(0,if (gesture.y > 0) 1 else -1)
-                                if (!(next.x == -direction.x && next.y == -direction.y)) turn = next
+                        onDragStart = { gesture = Offset.Zero; steeredThisGesture = false },
+                        onDragEnd = { gesture = Offset.Zero; steeredThisGesture = false },
+                        onDragCancel = { gesture = Offset.Zero; steeredThisGesture = false },
+                        onDrag = { change, distance ->
+                            change.consume()
+                            // Apply a clear swipe as soon as the finger crosses
+                            // the threshold. Waiting for finger-up costs an
+                            // entire 85–180ms tick on slower Android devices.
+                            if (!steeredThisGesture) {
+                                gesture += distance
+                                if (maxOf(abs(gesture.x), abs(gesture.y)) >= 13f) {
+                                    val next = if (abs(gesture.x) > abs(gesture.y)) {
+                                        SnakePoint(if (gesture.x > 0) 1 else -1, 0)
+                                    } else SnakePoint(0, if (gesture.y > 0) 1 else -1)
+                                    if (!(next.x == -direction.x && next.y == -direction.y)) turn = next
+                                    steeredThisGesture = true
+                                }
                             }
-                            gesture = Offset.Zero
-                        },
-                        onDragCancel = { gesture = Offset.Zero },
-                        onDrag = { change, distance -> change.consume(); gesture += distance }
+                        }
                     )
                 }
         ) {
