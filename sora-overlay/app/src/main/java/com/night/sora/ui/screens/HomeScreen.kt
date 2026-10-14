@@ -77,7 +77,6 @@ fun HomeScreen(
                 .flatMap { cachedHomeType(mediaCache, it).take(4) }
         )
     }
-    var music by remember { mutableStateOf(cachedHomeType(mediaCache, ContentType.MUSIC).take(8)) }
     var memes by remember { mutableStateOf(cachedHomeType(mediaCache, ContentType.MEME).take(4)) }
 
     DisposableEffect(context) {
@@ -113,7 +112,6 @@ fun HomeScreen(
         loadHomeType(extensions, manager, mediaCache, ContentType.MOVIE, tmdbReadAccessToken = tmdbPreferences.getString("read_access_token", "").orEmpty()) { cards ->
             result.removeAll { it.type == ContentType.MOVIE }; result.addAll(cards.take(4)); recommendations = result.toList()
         }
-        loadHomeType(extensions, manager, mediaCache, ContentType.MUSIC) { cards -> music = cards.take(8) }
         loadHomeType(
             extensions, manager, mediaCache, ContentType.MEME,
             redditClientId = redditPreferences.getString("client_id", "").orEmpty(),
@@ -125,17 +123,6 @@ fun HomeScreen(
         .filter { it.progress < .999f }
         .sortedByDescending { it.updatedAt }
         .take(8)
-    val recentMusic = remember(music, listeningSignals) {
-        val artistOrder = listeningSignals
-            .filter { it.lastPlayedEpochMs > 0L }
-            .sortedByDescending { it.lastPlayedEpochMs }
-            .mapIndexed { index, signal -> signal.artistName.trim().lowercase() to index }
-            .toMap()
-        music
-            .filter { card -> card.subtitle.substringBefore(" · ").trim().lowercase() in artistOrder }
-            .sortedBy { card -> artistOrder[card.subtitle.substringBefore(" · ").trim().lowercase()] ?: Int.MAX_VALUE }
-            .take(8)
-    }
     Column(modifier.fillMaxSize()) {
         Row(
             Modifier.fillMaxWidth().height(54.dp).padding(horizontal = 18.dp),
@@ -176,17 +163,6 @@ fun HomeScreen(
                     LazyRow(contentPadding = PaddingValues(horizontal = 18.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                         items(recommendations.take(10), key = { "${it.extensionPackage}:${it.sourceId}:${it.id}" }) { card ->
                             HomePosterTile(card) { onOpenSelection(card.selection()) }
-                        }
-                    }
-                }
-            }
-
-            if (recentMusic.isNotEmpty()) {
-                item { HomeSectionHeader("Recently played") }
-                item {
-                    LazyRow(contentPadding = PaddingValues(horizontal = 18.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        items(recentMusic, key = { "music-${it.id}" }) { card ->
-                            HomeSquareTile(card) { onOpenSelection(card.selection()) }
                         }
                     }
                 }
