@@ -56,7 +56,8 @@ function play(root,before,s){
   const current=now.get(key);
   if(current){
    const box=current.piece.getBoundingClientRect();
-   if(old.progress===current.progress&&Math.abs(old.rect.left-box.left)+Math.abs(old.rect.top-box.top)<1)continue;
+   // Entrance transforms and stack reflow are layout changes, not game moves.
+   if(old.progress===current.progress)continue;
    const kind=current.progress===-1&&old.progress>=0?'capture':old.progress===-1?'release':'hop';
    flight(old,box,current.piece,kind,kind==='capture'?t.capture:kind==='release'||s.options.directCount?t.release:t.hop);
   }else if(old.progress>=0&&old.progress<56){
