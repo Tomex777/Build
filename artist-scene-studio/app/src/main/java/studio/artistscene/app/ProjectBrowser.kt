@@ -123,7 +123,7 @@ internal fun ProjectBrowser(
                 }
             } else {
                 LazyColumn(
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier.weight(1f).testTag("project-list"),
                     verticalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
                     items(projects, key = { it.id }) { project ->
