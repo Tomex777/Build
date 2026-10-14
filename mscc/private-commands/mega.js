@@ -2,8 +2,8 @@ import { downloadMediaMessage } from '@itsliaaa/baileys'
 import { resolveCommandMedia } from '../utils/media-conversion.js'
 import { extensionForMime } from '../utils/whatsapp/media.js'
 import {
-  megaAvailableMounts, megaConfig, megaRecentFiles, megaStorageDashboard,
-  safeMegaName, uploadMegaMedia, validateMegaSize,
+  megaAvailableMounts, megaConfig, megaRecentFiles, megaStorageDashboard, megaMediaType,
+  mediaTypeLabel, safeMegaName, uploadMegaMedia, validateMegaSize,
 } from '../mega-storage.js'
 
 function bytesLabel(bytes) {
@@ -20,18 +20,27 @@ function mediaName(media = {}) {
 }
 
 function foldersHelp(prefix) {
-  return `☁️ MSCC Community Cloud\n${prefix}cloud status — primary account quota\n${prefix}cloud folders — connected contributor folders\n${prefix}cloud list [target] — recent files\n${prefix}cloud upload [target] — reply to media and upload\n\nShared folders must be accepted by MSCC's MEGA account and opted in via secure server configuration. No contributor passwords are required.`
+  return [
+    '☁️ MSCC Community Cloud',
+    `${prefix}cloud status — storage usage`,
+    `${prefix}cloud folders — media types and available folders`,
+    `${prefix}cloud list — latest files across connected folders`,
+    `${prefix}cloud upload — reply to media and let the bot choose storage`,
+    `${prefix}cloud discover — owner-only onboarding for incoming shared folders`,
+    '',
+    'Storage is selected automatically by the media type. Never include contributor IDs in commands.',
+  ].join('\n')
 }
 
 export default {
   name:'mega',
   aliases:['cloud'],
   description:'Private MEGA cloud manager, including contributor-owned shared folders.',
-  usage:'.cloud [status|folders|list [target]|upload [target]] (reply to media for upload)',
+  usage:'.cloud [status|folders|list|upload|discover] (reply to media for upload)',
   async run(ctx) {
     const prefix = '.'
     const action = String(ctx.args?.[0] || 'status').trim().toLowerCase()
-    const target = String(ctx.args?.[1] || 'primary').trim().toLowerCase()
+    if (ctx.args?.length > 1) return ctx.reply('You no longer need to select a storage account. Use .cloud upload or .cloud list; the bot handles routing.')
     if (action === 'help') return ctx.reply(foldersHelp(prefix))
     if (!['status', 'folders', 'discover', 'list', 'upload'].includes(action)) return ctx.reply(foldersHelp(prefix))
     try {
@@ -45,14 +54,15 @@ export default {
             `Primary free: ${bytesLabel(Math.max(0, data.total - data.used))}`,
             `Contributor folders registered: ${data.targets.length - 1}`,
             `Contributor folders detected: ${data.targets.filter(t => t.type === 'contributed' && t.detected).length}`,
-            'Donor storage is separate and cannot be assumed or summed without verification.',
+            'Media-type routing: automatic for configured folders.',
+            'Other account quotas cannot be verified from shared folders.',
             `Details: ${prefix}cloud folders`,
           ].join('\n'))
         }
         return ctx.reply([
           '☁️ Cloud locations',
-          ...data.targets.map(t => `• ${t.id} — ${t.label} [${t.type === 'primary' ? (data.configured ? 'ready' : 'not connected') : !t.detected ? 'not mounted' : t.uploadEnabled ? 'upload enabled' : 'read-only'}]`),
-          'Uploads use the primary folder unless you explicitly select a registered target.',
+          ...data.targets.map(t => `• ${t.type === 'primary' ? 'Fallback' : mediaTypeLabel(t.mediaTypes || [])} — ${t.label} [${t.type === 'primary' ? (data.configured ? 'ready' : 'not connected') : !t.detected ? 'not mounted' : t.uploadEnabled ? 'ready' : 'uploads disabled'}]`),
+          'Media goes to the matching writable folder automatically. Unassigned types use the primary account.',
         ].join('\n'))
       }
       if (action === 'discover') {
@@ -63,13 +73,13 @@ export default {
       }
       if (!megaConfig().configured) return ctx.reply('☁️ MEGA is not connected. Configure the primary MEGA account in the secure server environment.')
       if (action === 'list') {
-        const files = await megaRecentFiles({ targetId:target })
+        const files = await megaRecentFiles()
         return ctx.reply(files.length
-          ? `☁️ ${target} — recent uploads\n` + files.map((f, i) => `${i + 1}. ${f.name} (${bytesLabel(f.size)})`).join('\n')
-          : `No files found in the ${target} folder.`)
+          ? '☁️ Recent cloud files\n' + files.map((f, i) => `${i + 1}. ${f.name} (${bytesLabel(f.size)}) · ${f.location}`).join('\n')
+          : 'No files found in connected cloud folders.')
       }
       const selected = resolveCommandMedia(ctx)
-      if (!selected) return ctx.reply(`Reply to a file, image, video, or audio message with ${prefix}cloud upload [target].`)
+      if (!selected) return ctx.reply(`Reply to a file, image, video, or audio message with ${prefix}cloud upload. MSCC will select the cloud automatically.`)
       const size = selected.found?.media?.fileLength
       const bytes = validateMegaSize(size?.toNumber?.() ?? size)
       const sock = ctx.account?.sock
@@ -80,13 +90,14 @@ export default {
       const result = await uploadMegaMedia({
         name:mediaName(selected.found.media),
         size:bytes,
-        targetId:target,
+        kind:selected.kind,
+        mimeType:selected.found.media?.mimetype,
         source:() => downloadMediaMessage(selected.target, 'stream', {}, retryContext),
       })
-      return ctx.reply(`✅ Saved to MEGA / ${result.label}\n${result.name} • ${bytesLabel(result.size)}\nPrivate archive; no public link created.`)
+      return ctx.reply(`✅ Saved ${result.mediaType} to MEGA / ${result.label}\n${result.name} • ${bytesLabel(result.size)}\nStorage selected automatically. No public link created.`)
     } catch (error) {
       const message = String(error?.message || '')
-      const allowed = /known, nonzero size|512 MiB|not enabled|Unknown MEGA storage target|not mounted|Not enough available space|not configured|MEGA folder could not be found/.test(message)
+      const allowed = /known, nonzero size|512 MiB|No connected writable MEGA folder|Not enough available space|not configured|MEGA folder could not be found/.test(message)
       return ctx.reply(`❌ Cloud ${action} failed. ${allowed ? message : 'Check cloud configuration, credentials, share permissions, quota and connectivity.'}`)
     }
   },
