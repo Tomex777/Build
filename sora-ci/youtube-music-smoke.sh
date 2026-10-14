@@ -229,7 +229,38 @@ LIVE_LOGCAT_PID=$!
 
 tap_first_music_tile
 wait_for_node 'Mini player' 20
-wait_for_node Pause 40
+
+# The public YouTube endpoint can challenge anonymous GitHub-hosted
+# emulators. Treat that as a distinct, actionable limitation rather than
+# spending several minutes reporting a misleading generic Pause timeout.
+playback_ok=0
+for attempt in $(seq 1 24); do
+  if node_exists Pause; then
+    playback_ok=1
+    break
+  fi
+  if adb logcat -d -t 3000 2>/dev/null | grep -Fq 'YouTube challenged playback; source browser sign-in required'; then
+    echo 'External YouTube session verification required on this CI network.'
+    if tap_text_once 'Mini player' >/dev/null 2>&1; then
+      sleep 2
+      if node_exists 'Open music source settings'; then
+        echo 'Verified actionable in-player sign-in recovery control.'
+      else
+        echo 'Playback blocked and source-settings recovery UI missing.' >&2
+      fi
+    fi
+    shot 02-youtube-music-auth-required
+    capture_logs
+    echo 'LIVE_YOUTUBE_AUTH_REQUIRED: playback remains unverified; a signed-in manual source session is required.' >&2
+    exit 1
+  fi
+  sleep 2
+done
+if (( playback_ok != 1 )); then
+  log_state 'No successful playback and no recognized authentication challenge'
+  shot 02-youtube-music-unresolved
+  exit 1
+fi
 shot 02-youtube-music-playing
 
 # Prove Core is playing through the shared Media3 session and survives being
