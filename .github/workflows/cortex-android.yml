@@ -63,6 +63,8 @@ jobs:
         run: |
           if [ -n "$CORTEX_RELEASE_KEYSTORE_B64" ] && [ -n "$CORTEX_RELEASE_STORE_PASSWORD_SECRET" ] && [ -n "$CORTEX_RELEASE_KEY_ALIAS_SECRET" ] && [ -n "$CORTEX_RELEASE_KEY_PASSWORD_SECRET" ]; then
             printf '%s' "$CORTEX_RELEASE_KEYSTORE_B64" | base64 --decode > "$RUNNER_TEMP/cortex-release.jks"
+            keytool -exportcert -keystore "$RUNNER_TEMP/cortex-release.jks" -alias "$CORTEX_RELEASE_KEY_ALIAS_SECRET" -storepass:env CORTEX_RELEASE_STORE_PASSWORD_SECRET > "$RUNNER_TEMP/cortex-cert.der"
+            test "$(sha256sum "$RUNNER_TEMP/cortex-cert.der" | cut -d' ' -f1)" = '47aaa57d156ec1d2812c2787e1e12ec4e05ac59694c576dc412ef3bae2d703e8'
             echo "::add-mask::$CORTEX_RELEASE_STORE_PASSWORD_SECRET"
             echo "::add-mask::$CORTEX_RELEASE_KEY_PASSWORD_SECRET"
             echo "CORTEX_RELEASE_KEYSTORE=$RUNNER_TEMP/cortex-release.jks" >> "$GITHUB_ENV"
@@ -71,7 +73,11 @@ jobs:
             echo "CORTEX_RELEASE_KEY_PASSWORD=$CORTEX_RELEASE_KEY_PASSWORD_SECRET" >> "$GITHUB_ENV"
             echo "Release signing configured."
           else
-            echo "Release signing secrets are not configured; CI will still validate the unsigned release build."
+            if [ "$GITHUB_EVENT_NAME" = 'push' ]; then
+              echo "Refusing to publish a Cortex update without its original production signing key." >&2
+              exit 1
+            fi
+            echo "Pull-request CI: no production secrets; use QA-signed emulator APKs only."
           fi
       - name: Build debug and production release artifacts
         shell: bash
@@ -142,6 +148,10 @@ jobs:
 
           if "$apksigner_bin" verify "$arm64_apk" >/dev/null 2>&1 &&
              "$apksigner_bin" verify "$x86_64_apk" >/dev/null 2>&1; then
+            for apk in "$arm64_apk" "$x86_64_apk"; do
+              "$apksigner_bin" verify --verbose --print-certs "$apk" > "$apk.signature.txt"
+              grep -q 'certificate SHA-256 digest: 47aaa57d156ec1d2812c2787e1e12ec4e05ac59694c576dc412ef3bae2d703e8' "$apk.signature.txt"
+            done
             signing_state='production release APKs were signed by the configured Cortex release signing key'
             cp "$arm64_apk" cortex-release-package/Cortex_ARM64_INSTALLABLE.apk
             cp "$x86_64_apk" cortex-release-package/Cortex_X86_64_INSTALLABLE.apk
