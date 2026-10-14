@@ -3,6 +3,7 @@ package com.night.cortex
 import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.captureToImage
+import androidx.compose.ui.test.ComposeTimeoutException
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
@@ -405,7 +406,23 @@ class CortexPairingScreenTest {
                 "Unable to capture Cortex pairing visual evidence"
             }
         } else {
-            node.captureToImage().asAndroidBitmap()
+            // API 36 software emulator occasionally misses a Compose redraw
+            // signal during frame capture even though semantics are correct.
+            // Retry ONLY that redraw timeout; assertions and content checks
+            // below remain mandatory and all other exceptions still fail.
+            var captured: android.graphics.Bitmap? = null
+            var lastTimeout: ComposeTimeoutException? = null
+            for (attempt in 1..3) {
+                try {
+                    captured = node.captureToImage().asAndroidBitmap()
+                    break
+                } catch (timeout: ComposeTimeoutException) {
+                    lastTimeout = timeout
+                    composeRule.mainClock.advanceTimeBy(300)
+                    composeRule.waitForIdle()
+                }
+            }
+            captured ?: throw AssertionError("Compose visual capture failed after 3 redraw attempts", lastTimeout)
         }
         val file = File(instrumentation.targetContext.cacheDir, name)
         FileOutputStream(file).use { stream ->
