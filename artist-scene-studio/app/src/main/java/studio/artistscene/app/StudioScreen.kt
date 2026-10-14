@@ -8,11 +8,13 @@ import android.os.Build
 import android.provider.DocumentsContract
 import android.provider.OpenableColumns
 import android.util.Log
+import android.view.WindowManager
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContract
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.gestures.detectDragGestures
@@ -21,12 +23,14 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.offset
@@ -38,6 +42,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -89,6 +94,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.runtime.getValue
@@ -103,20 +109,27 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.testTagsAsResourceId
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.window.DialogWindowProvider
 import androidx.compose.ui.unit.sp
 import java.util.Locale
 import kotlinx.coroutines.Dispatchers
@@ -1617,6 +1630,7 @@ private fun EditorContextSheet(
         modifier = Modifier.semantics { testTagsAsResourceId = true },
         containerColor = PanelBackground,
     ) {
+        KeepDialogStatusBarHidden()
         Box(Modifier.fillMaxWidth().heightIn(max = 560.dp)) {
         Column(
             modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState())
@@ -1774,22 +1788,35 @@ private fun EditorContextSheet(
                     }
                 }
                 "inspector" -> editor.selectedActor?.let { actor ->
-                    Text(
-                        listOfNotNull(
-                            actor.kind.name.lowercase().replaceFirstChar { it.uppercase() },
-                            actor.asset?.creator,
-                        ).joinToString(" · "),
-                        color = MutedText,
-                        fontSize = 12.sp,
-                    )
-                    SelectedActorActions(editor, actor, onEditor)
+                    InspectorSection("Selected object") {
+                        Text(actor.name, color = PrimaryText, fontSize = 17.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
+                        Text(
+                            listOfNotNull(
+                                actor.kind.name.lowercase().replaceFirstChar { it.uppercase() },
+                                actor.asset?.creator,
+                            ).joinToString(" · "),
+                            color = MutedText,
+                            fontSize = 11.sp,
+                            maxLines = 2,
+                        )
+                        SelectedActorActions(editor, actor, onEditor)
+                    }
+                    InspectorSection("Transform", "Adjust the active tool on each axis") {
+                        TransformInspector(editor, actor, onEditor, currentEditor)
+                    }
                     if (actor.kind == ActorKind.CHARACTER) {
-                        CharacterAppearance(editor, actor, onEditor)
+                        InspectorSection("Appearance", "Body, height and expression") {
+                            CharacterAppearance(editor, actor, onEditor, showHeading = false)
+                        }
                     }
                     if (actor.mechanicalParts().isNotEmpty()) {
-                        MechanicalPartsInspector(editor, actor, onEditor)
+                        InspectorSection("Movable parts", "Fine-tune articulated components") {
+                            MechanicalPartsInspector(editor, actor, onEditor, showHeading = false)
+                        }
                     }
-                    TransformInspector(editor, actor, onEditor, currentEditor)
+                    if (actor.locked) {
+                        Text("Unlock this object to edit its values.", color = MutedText, fontSize = 11.sp)
+                    }
                 } ?: Text("Select an object to inspect it.", color = MutedText)
                 "pose" -> {
                     Text("Joint posing is available in the viewport mode.", color = MutedText)
@@ -2521,9 +2548,12 @@ private fun MechanicalPartsInspector(
     editor: SceneEditorState,
     actor: Actor,
     onEditor: (SceneEditorState, String) -> Unit,
+    showHeading: Boolean = true,
 ) {
-    Text("Movable parts", color = PrimaryText, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
-    Text("Steer, turn the wheels, or open a door. Save these positions with your scene.", color = MutedText, fontSize = 12.sp)
+    if (showHeading) {
+        Text("Movable parts", color = PrimaryText, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+        Text("Steer, turn the wheels, or open a door. Save these positions with your scene.", color = MutedText, fontSize = 12.sp)
+    }
     if (actor.asset?.assetId == "starter.mise.bicycle") {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Text("Lean · ${actor.transform.rotationEulerDegrees.z.toInt()}°", color = PrimaryText, modifier = Modifier.weight(1f))
@@ -2564,8 +2594,9 @@ private fun CharacterAppearance(
     editor: SceneEditorState,
     actor: Actor,
     onEditor: (SceneEditorState, String) -> Unit,
+    showHeading: Boolean = true,
 ) {
-    Text("Appearance", color = PrimaryText, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+    if (showHeading) Text("Appearance", color = PrimaryText, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
     if (actor.asset?.assetId == "starter.makehuman.humanoid") {
         Text("Hair", color = MutedText, fontSize = 12.sp)
         Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -2626,15 +2657,28 @@ private fun TransformInspector(
     onEditor: (SceneEditorState, String) -> Unit,
     currentEditor: () -> SceneEditorState,
 ) {
-    Text("Transform", color = MutedText, fontSize = 10.sp, fontWeight = FontWeight.SemiBold)
-    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+    Row(
+        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp))
+            .background(Color(0xFF151C26)).padding(4.dp),
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
         TransformTool.entries.forEach { tool ->
-            FilterChip(
-                selected = editor.activeTool == tool,
-                onClick = { onEditor(editor.useTool(tool), "tool") },
-                label = { Text(tool.name.lowercase().replaceFirstChar { it.uppercase() }) },
-                modifier = Modifier.testTag("tool-${tool.name.lowercase()}"),
-            )
+            val selected = editor.activeTool == tool
+            Box(
+                modifier = Modifier.weight(1f).height(38.dp)
+                    .clip(RoundedCornerShape(9.dp))
+                    .background(if (selected) Color(0xFF435A79) else Color.Transparent)
+                    .clickable { onEditor(editor.useTool(tool), "tool") }
+                    .testTag("tool-${tool.name.lowercase()}"),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    tool.name.lowercase().replaceFirstChar { it.uppercase() },
+                    color = if (selected) PrimaryText else MutedText,
+                    fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
+                    fontSize = 12.sp,
+                )
+            }
         }
     }
 
@@ -3038,6 +3082,34 @@ private fun PoseControlsOverlay(
 }
 
 @Composable
+private fun InspectorSection(
+    title: String,
+    detail: String? = null,
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    Column(
+        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp))
+            .background(Color(0xFF2B3441)).padding(horizontal = 14.dp, vertical = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(9.dp),
+    ) {
+        Text(title, color = PrimaryText, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+        detail?.let { Text(it, color = MutedText, fontSize = 11.sp) }
+        content()
+    }
+}
+
+/** Modal sheets own a separate Android window and must inherit immersive status-bar policy. */
+@Composable
+private fun KeepDialogStatusBarHidden() {
+    val view = LocalView.current
+    DisposableEffect(view) {
+        val window = (view.parent as? DialogWindowProvider)?.window
+        window?.addFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN)
+        onDispose { window?.clearFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN) }
+    }
+}
+
+@Composable
 private fun NumericAxisEditor(
     inputKey: String,
     axis: TransformAxis,
@@ -3047,63 +3119,96 @@ private fun NumericAxisEditor(
     onDelta: (Float) -> Unit,
     onSet: (Float) -> Unit,
 ) {
-    var text by remember(inputKey) { mutableStateOf("%.2f".format(Locale.US, value)) }
-    var focused by remember(inputKey) { mutableStateOf(false) }
-    var dirty by remember(inputKey) { mutableStateOf(false) }
-    LaunchedEffect(value) {
+    val focusManager = LocalFocusManager.current
+    var text by remember(inputKey, axis) { mutableStateOf("%.2f".format(Locale.US, value)) }
+    var focused by remember(inputKey, axis) { mutableStateOf(false) }
+    var dirty by remember(inputKey, axis) { mutableStateOf(false) }
+    LaunchedEffect(value, inputKey, axis) {
         if (!dirty) text = "%.2f".format(Locale.US, value)
     }
     fun commitText() {
         if (!dirty) return
         dirty = false
-        text.toFloatOrNull()?.let(onSet)
+        val exact = text.toFloatOrNull()?.takeIf { it.isFinite() }
+        if (exact == null || !enabled) {
+            text = "%.2f".format(Locale.US, value)
+        } else {
+            onSet(exact)
+        }
     }
-
+    val axisTint = when (axis) {
+        TransformAxis.X -> Color(0xFFFC8F8A)
+        TransformAxis.Y -> Color(0xFF85CFA9)
+        TransformAxis.Z -> Color(0xFF8BABFF)
+    }
     Row(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(13.dp))
+            .background(Color(0xFF202A36)).padding(horizontal = 7.dp, vertical = 5.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(4.dp),
+        horizontalArrangement = Arrangement.spacedBy(5.dp),
     ) {
-        Text(axis.name, color = PrimaryText, fontSize = 12.sp, modifier = Modifier.width(14.dp))
+        Box(
+            modifier = Modifier.size(29.dp).clip(RoundedCornerShape(8.dp))
+                .background(axisTint.copy(alpha = 0.18f)),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(axis.name, color = axisTint, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+        }
         IconButton(
             onClick = { onDelta(-step) },
             enabled = enabled,
-            modifier = Modifier.size(34.dp),
+            modifier = Modifier.size(36.dp),
         ) {
-            Icon(Icons.Default.Remove, contentDescription = "Decrease ${axis.name}", tint = PrimaryText)
+            Icon(Icons.Default.Remove, contentDescription = "Decrease ${axis.name}", tint = if (enabled) PrimaryText else MutedText)
         }
-        OutlinedTextField(
+        BasicTextField(
             value = text,
-            onValueChange = { dirty = true; text = it.filter { ch -> ch.isDigit() || ch == '-' || ch == '.' }.take(12) },
+            onValueChange = { typed ->
+                dirty = true
+                text = typed.filter { it.isDigit() || it == '-' || it == '.' }.take(12)
+            },
             enabled = enabled,
             singleLine = true,
-            textStyle = MaterialTheme.typography.bodySmall,
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-            keyboardActions = KeyboardActions(onDone = { commitText() }),
-            modifier = Modifier
-                .width(88.dp)
-                .heightIn(min = 48.dp)
+            textStyle = TextStyle(
+                color = if (enabled) PrimaryText else MutedText,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Medium,
+                textAlign = TextAlign.Center,
+            ),
+            cursorBrush = SolidColor(Color(0xFF8BABFF)),
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal, imeAction = ImeAction.Done),
+            keyboardActions = KeyboardActions(onDone = {
+                commitText()
+                focusManager.clearFocus()
+            }),
+            modifier = Modifier.weight(1f).height(42.dp)
                 .onFocusChanged { focus ->
                     if (focused && !focus.isFocused) commitText()
                     focused = focus.isFocused
                 }
                 .testTag("numeric-${axis.name.lowercase()}"),
+            decorationBox = { field ->
+                Box(
+                    modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(10.dp))
+                        .background(Color(0xFF161D27))
+                        .border(1.dp, if (focused) Color(0xFF8BABFF) else Color(0xFF455268), RoundedCornerShape(10.dp)),
+                    contentAlignment = Alignment.Center,
+                ) { field() }
+            },
         )
         IconButton(
             onClick = { onDelta(step) },
             enabled = enabled,
-            modifier = Modifier.size(34.dp),
+            modifier = Modifier.size(36.dp),
         ) {
-            Icon(Icons.Default.Add, contentDescription = "Increase ${axis.name}", tint = PrimaryText)
+            Icon(Icons.Default.Add, contentDescription = "Increase ${axis.name}", tint = if (enabled) PrimaryText else MutedText)
         }
         Text(
-            when (step) {
-                15f -> "±15°"
-                else -> "±${"%.2f".format(Locale.US, step)}"
-            },
+            if (step == 15f) "15°" else String.format(Locale.US, "%.2f", step),
             color = MutedText,
             fontSize = 10.sp,
-            modifier = Modifier.alpha(if (enabled) 1f else 0.5f),
+            textAlign = TextAlign.End,
+            modifier = Modifier.width(28.dp).alpha(if (enabled) 1f else 0.4f),
         )
     }
 }
