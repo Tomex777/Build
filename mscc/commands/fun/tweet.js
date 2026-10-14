@@ -2,6 +2,7 @@ import { renderTweetCard } from '../../utils/social-card-renderer.js'
 import { resolveSocialAuthor, socialCardText } from '../../utils/social-card-command.js'
 import { downloadCommandMedia } from '../../utils/media-conversion.js'
 import { contextInfo, findViewOnceMedia } from '../../utils/whatsapp/messages.js'
+import { randomTweetEngagement } from '../../utils/tweet-engagement.js'
 
 const THEMES = new Set(['dark','light'])
 
@@ -46,6 +47,7 @@ export default {
         authorName:author.authorName,
         avatarBuffer:author.avatarBuffer,
         imageBuffer:media?.buffer || null,
+        ...randomTweetEngagement(),
       })
 
       const chat = ctx.message?.key?.remoteJid
