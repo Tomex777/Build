@@ -527,11 +527,40 @@ function drawFacebookReactions(ctx, x, y) {
   }
 }
 
+// Keep attached WhatsApp photos in the actual post composition, not as a
+// second message. Crop to fill while preserving aspect ratio.
+async function drawSocialPhoto(ctx, buffer, x, y, width, height, {
+  shade = 0, radius = 0,
+} = {}) {
+  if (!Buffer.isBuffer(buffer) || !buffer.length) return false
+  const image = await loadImage(buffer)
+  ctx.save()
+  if (radius > 0) {
+    roundedRect(ctx, x, y, width, height, radius)
+    ctx.clip()
+  }
+  const scale = Math.max(width / image.width, height / image.height)
+  const iw = image.width * scale
+  const ih = image.height * scale
+  ctx.drawImage(image, x + (width - iw) / 2, y + (height - ih) / 2, iw, ih)
+  if (shade > 0) {
+    ctx.fillStyle = `rgba(0,0,0,${shade})`
+    ctx.fillRect(x, y, width, height)
+  }
+  ctx.restore()
+  return true
+}
+
 export async function renderPostCard({
   text,
   style = 'generic',
   authorName = 'Night User',
   avatarBuffer = null,
+  imageBuffer = null,
+  likeCount = 0,
+  commentCount = 0,
+  shareCount = 0,
+  viewCount = 0,
 } = {}) {
   const mode = String(style || 'generic').toLowerCase()
 
@@ -542,6 +571,7 @@ export async function renderPostCard({
     const ctx = canvas.getContext('2d')
 
     gradient(ctx, width, height, [[0,'#1d1b3a'],[0.45,'#5d315e'],[1,'#d16f69']])
+    await drawSocialPhoto(ctx, imageBuffer, 0, 0, width, height, { shade:0.32 })
 
     const progressY = 30
     const gap = 8
@@ -568,19 +598,26 @@ export async function renderPostCard({
     ctx.fillStyle = 'rgba(255,255,255,0.78)'
     ctx.fillText('now', 128, 137)
 
-    ctx.fillStyle = 'rgba(0,0,0,0.38)'
-    roundedRect(ctx, 120, 690, 840, 360, 32)
-    ctx.fill()
+    if (String(text || '').trim()) {
+      ctx.fillStyle = 'rgba(0,0,0,0.38)'
+      roundedRect(ctx, 120, 690, 840, 360, 32)
+      ctx.fill()
 
-    ctx.fillStyle = '#ffffff'
-    ctx.font = `45px ${BOLD}`
-    ctx.textAlign = 'center'
-    const lines = wrapLines(ctx, text, 710, 6)
-    let y = 840 - ((lines.length - 1) * 31)
-    for (const line of lines) {
-      ctx.fillText(line, width / 2, y)
-      y += 64
+      ctx.fillStyle = '#ffffff'
+      ctx.font = `45px ${BOLD}`
+      ctx.textAlign = 'center'
+      const lines = wrapLines(ctx, text, 710, 6)
+      let y = 840 - ((lines.length - 1) * 31)
+      for (const line of lines) {
+        ctx.fillText(line, width / 2, y)
+        y += 64
+      }
     }
+
+    ctx.textAlign = 'left'
+    ctx.fillStyle = 'rgba(255,255,255,0.95)'
+    ctx.font = `21px ${FONT}`
+    ctx.fillText(compactCount(viewCount) + ' views · simulated', 58, 1717)
 
     ctx.strokeStyle = 'rgba(255,255,255,0.9)'
     ctx.lineWidth = 2
