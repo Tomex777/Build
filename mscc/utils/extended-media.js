@@ -119,6 +119,12 @@ export async function chooseBestFrames(files, count=1, {imageLoader=loadImage}={
     if (picked.every(other=>Math.abs(other.index-row.index)>=2)) picked.push(row)
     if (picked.length===count) break
   }
+  // If five images were requested, the 8-frame sample can supply five distinct
+  // timestamps even though strict temporal spacing only fits four.
+  if(picked.length<count) for(const row of scored) {
+    if(!picked.some(other=>other.index===row.index)) picked.push(row)
+    if(picked.length===count) break
+  }
   return picked.sort((a,b)=>a.seconds-b.seconds)
 }
 
