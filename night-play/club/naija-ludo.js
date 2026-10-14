@@ -13,7 +13,7 @@ const DEFAULT_OPTIONS={barrier:true,safeHouse:true,captureFinishes:true,bonusOnC
 const makeOptions=()=>({...DEFAULT_OPTIONS});
 const PIPS={1:[4],2:[0,8],3:[0,4,8],4:[0,2,6,8],5:[0,2,4,6,8],6:[0,2,3,5,6,8]};
 const label=k=>k[0].toUpperCase()+k.slice(1);
-let ticker=null,moveTimer=null,life=0,audio=null;
+let ticker=null,moveTimer=null,aiTimer=null,life=0,audio=null;
 let riggedForTest=null;
 const isTestHost=/^(localhost|127\.0\.0\.1)$/.test(location.hostname);
 const reduced=()=>window.matchMedia&&window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -42,7 +42,7 @@ function create(count=2,diceCount=2){
  return{
   version:2,players:groups.map((houses,i)=>({name:count===2?(i===0?"Red & Yellow":"Green & Blue"):label(houses[0]),color:COLORS[houses[0]],key:houses[0],houses,tokens:Array(houses.length*4).fill(-1)})),
   turn:0,rolls:[],selectedDie:null,die:null,rolled:false,last:[1,1],diceCount:diceCount===1?1:2,
-  rolling:false,moving:false,bonus:false,winner:null,turns:0,sound:true,options:makeOptions(),
+  rolling:false,moving:false,bonus:false,winner:null,turns:0,sound:true,options:makeOptions(),opponent:"local",difficulty:"normal",
   msg:"Tap the dice to throw. Roll a six to bring a counter out."
  };
 }
@@ -50,11 +50,13 @@ function normalize(s){
  if(!s||s.version!==2||!Array.isArray(s.players)||s.players.some(p=>!Array.isArray(p.houses)||p.tokens.length!==p.houses.length*4))return create();
  s.diceCount=s.diceCount===1?1:2;if(typeof s.rolling!=="boolean")s.rolling=false;if(typeof s.moving!=="boolean")s.moving=false;
  s.options={...makeOptions(),...(s.options||{})};if(!["slow","normal","fast"].includes(s.options.speed))s.options.speed="normal";
+ s.opponent=s.opponent==="computer"&&s.players.length===2?"computer":"local";
+ if(!["easy","normal","hard","advanced"].includes(s.difficulty))s.difficulty="normal";
  s.rolls=Array.isArray(s.rolls)?s.rolls.filter(d=>d&&d.value>=1&&d.value<=6).slice(0,2):[];
  if(s.selectedDie!==null&&(!Number.isInteger(s.selectedDie)||!s.rolls[s.selectedDie]||s.rolls[s.selectedDie].used))s.selectedDie=null;
  return s;
 }
-function cancel(){life++;if(ticker!==null){clearInterval(ticker);ticker=null;}if(moveTimer!==null){clearTimeout(moveTimer);moveTimer=null;}}
+function cancel(){life++;if(ticker!==null){clearInterval(ticker);ticker=null;}if(moveTimer!==null){clearTimeout(moveTimer);moveTimer=null;}if(aiTimer!==null){clearTimeout(aiTimer);aiTimer=null;}}
 function tokenHouse(p,index){return p.houses[Math.floor(index/4)]}
 function cell(k,pos){if(pos<0)return null;if(pos>=56)return [7,7];if(pos>=51)return HOME[k][pos-51];return TRACK[(START[k]+pos)%52];}
 function currentIndex(k,pos){return(START[k]+pos)%52;}
@@ -181,13 +183,22 @@ function render(s,ui){
  const switches=[["barrier","Barriers","Stacked counters block rivals unless a 6 is thrown"],["safeHouse","Safe houses","Protect the four marked squares"],["captureFinishes","Finish on capture","Your counter goes home after taking an opponent"],["bonusOnCapture","Roll again after capture","An extra throw when you capture"],["directCount","Direct count","Skip individual counter hops"],["visualHand","Show hand indicator","Finger points towards the dice"]];
  const optionDisabled=locked||s.rolls.length?'disabled':'';
  const config='<div class="nj-options"><label>Dice <select class="select" data-dice-mode="ludo" '+optionDisabled+'><option value="2"'+(s.diceCount===2?' selected':'')+'>2 dice · Naija</option><option value="1"'+(s.diceCount===1?' selected':'')+'>1 die · Classic</option></select></label>'+'<div class="nj-player-config">'+ui.choosePlayers("ludo",s.players.length,4)+'</div></div>';
- const settings='<details class="nj-settings"><summary>⚙ Game options <span>· Play like Naija Ludo</span></summary><div class="nj-switches">'+switches.map(([key,name,desc])=>'<label class="nj-switch"><span><b>'+name+'</b><small>'+desc+'</small></span><input type="checkbox" data-ludo-option="'+key+'" '+(s.options[key]?'checked':'')+' '+optionDisabled+'></label>').join('')+'<label class="nj-speed"><span><b>Counter movement</b><small>Adjust animation speed</small></span><select class="select" data-ludo-speed '+optionDisabled+'><option value="slow"'+(s.options.speed==="slow"?' selected':'')+'>Slow</option><option value="normal"'+(s.options.speed==="normal"?' selected':'')+'>Normal</option><option value="fast"'+(s.options.speed==="fast"?' selected':'')+'>Fast</option></select></label></div></details>';
+ const settings='<details class="nj-settings"><summary>⚙ Game options <span>· Play like Naija Ludo</span></summary><div class="nj-switches"><label class="nj-speed"><span><b>Opponent</b><small>Local friends or offline computer</small></span><select class="select" data-ludo-opponent '+optionDisabled+'><option value="local"'+(s.opponent==="local"?" selected":"")+'>Friend (local)</option><option value="computer"'+(s.opponent==="computer"?" selected":"")+'>Computer</option></select></label>'+(s.opponent==="computer"?'<label class="nj-speed"><span><b>Computer difficulty</b><small>Four levels of tactical play</small></span><select class="select" data-ludo-difficulty '+optionDisabled+'>'+["easy","normal","hard","advanced"].map(d=>'<option value="'+d+'" '+(d===s.difficulty?"selected":"")+'>'+d[0].toUpperCase()+d.slice(1)+'</option>').join("")+'</select></label>':"")+switches.map(([key,name,desc])=>'<label class="nj-switch"><span><b>'+name+'</b><small>'+desc+'</small></span><input type="checkbox" data-ludo-option="'+key+'" '+(s.options[key]?'checked':'')+' '+optionDisabled+'></label>').join('')+'<label class="nj-speed"><span><b>Counter movement</b><small>Adjust animation speed</small></span><select class="select" data-ludo-speed '+optionDisabled+'><option value="slow"'+(s.options.speed==="slow"?' selected':'')+'>Slow</option><option value="normal"'+(s.options.speed==="normal"?' selected':'')+'>Normal</option><option value="fast"'+(s.options.speed==="fast"?' selected':'')+'>Fast</option></select></label></div></details>';
  const btn=s.rolls.length||s.moving?'<div class="nj-move-hint" role="note">'+(s.moving?'Counter moving…':'↑ Tap a glowing counter on the board')+'</div>':'<button class="primary nj-roll-btn" type="button" data-action="ludo-roll" '+(canRoll?'':'disabled')+'>'+(s.rolling?'Rolling…':'Throw dice 🎲')+'</button>';
  ui.controls.innerHTML='<div class="nj-roll-station"><div class="nj-dice-caption">'+(s.rolls.length?'CHOOSE A DIE, THEN MOVE':'TAP THE DICE TO ROLL')+'</div>'+big+btn+pending+'</div>'+progress+config+soundToggle+settings;
  ui.rules("Naija Ludo house rules","Two dice, two houses each in a two-player match, <b>eight counters each</b>. Roll a 6 to release a counter; play the dice before throwing again. By default, capturing sends your counter to the finish and the rival back to their yard. A pair stacked on its opening square forms a barrier. Configure safe houses, capture rules, movement speed and direct count in Game options. <b>Local play only.</b>");
  ui.save();
+ if(ui.draw)scheduleComputer(s,ui.draw);
 }
 function changePlayers(s,n){cancel();const opts={...s.options};const fresh=create(n,s.diceCount);fresh.sound=s.sound;Object.assign(s,fresh);s.options=opts;return s;}
+function changeOpponent(s,mode){
+ if(s.rolling||s.moving||s.rolls.length)return false;
+ if(!["computer","local"].includes(mode))return false;
+ cancel();const opts={...s.options},soundOn=s.sound,difficulty=s.difficulty;
+ const fresh=create(2,s.diceCount);Object.assign(s,fresh);s.options=opts;s.sound=soundOn;s.opponent=mode;s.difficulty=difficulty;
+ if(mode==="computer")s.players[1].name="Computer";s.msg=mode==="computer"?"Playing against the computer. Red starts.":"Pass the phone to a friend. Red starts.";return true;
+}
+function changeDifficulty(s,difficulty){if(!["easy","normal","hard","advanced"].includes(difficulty))return false;s.difficulty=difficulty;s.msg="Computer difficulty changed.";return true;}
 function changeOption(s,key,value){if(s.rolling||s.moving||s.rolls.length||s.winner!==null)return false;
  if(key==="speed"){if(!["slow","normal","fast"].includes(value))return false;}
  else if(!(key in DEFAULT_OPTIONS)||key==="speed"||typeof value!=="boolean")return false;
@@ -269,7 +280,39 @@ function move(s,pi,ti,draw){
  }
  moveTimer=setTimeout(hop,delay);
 }
-const api={create,normalize,render,changePlayers,changeDice,changeOption,selectDie,roll,move,cancel};
+function chooseComputerMove(s){
+ const options=[];
+ s.rolls.forEach((die,di)=>{if(die.used)return;s.players[1].tokens.forEach((at,ti)=>{
+  if(!legal(s,1,ti,di))return;const house=tokenHouse(s.players[1],ti),destination=at<0?0:at+die.value;
+  let score=at<0?22:Math.min(60,at)+Math.random()*18;
+  if(destination>=51)score+=65;
+  if(destination<51){
+   const idx=currentIndex(house,destination);
+   if(isSafe(s,idx))score+=20;
+   const hit=s.players[0].tokens.some((n,j)=>n>=0&&n<51&&currentIndex(tokenHouse(s.players[0],j),n)===idx);
+   if(hit&&!isSafe(s,idx))score+=125;
+  }
+  if(s.difficulty==="easy")score=Math.random();
+  else if(s.difficulty==="normal")score=score*.65+Math.random()*33;
+  else if(s.difficulty==="advanced"){score+=destination>=51?35:0;score+=die.value===6?5:0;}
+  options.push({di,ti,score});
+ });});
+ return options.sort((a,b)=>b.score-a.score)[0]||null;
+}
+function scheduleComputer(s,draw){
+ if(s.opponent!=="computer"||s.turn!==1||s.winner!==null||s.rolling||s.moving||aiTimer!==null)return;
+ const generation=life;
+ aiTimer=setTimeout(()=>{
+  aiTimer=null;
+  if(generation!==life||s.opponent!=="computer"||s.turn!==1||s.winner!==null||s.rolling||s.moving)return;
+  if(!s.rolls.length){roll(s,draw);return;}
+  const choice=chooseComputerMove(s);
+  if(!choice){finishIfDone(s);draw();return;}
+  s.selectedDie=choice.di;s.die=s.rolls[choice.di].value;
+  move(s,1,choice.ti,draw);
+ },reduced()?100:s.options.speed==="fast"?230:500);
+}
+const api={create,normalize,render,changePlayers,changeDice,changeOption,changeOpponent,changeDifficulty,selectDie,roll,move,cancel};
 if(isTestHost){
  api.setTestRolls=values=>{if(!Array.isArray(values)||!values.every(x=>Number.isInteger(x)&&x>=1&&x<=6))throw Error("Invalid test dice");riggedForTest=[...values];};
  api.snapshot=s=>JSON.parse(JSON.stringify(s));
