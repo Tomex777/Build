@@ -2051,12 +2051,20 @@ async function publicUserProfile(account, msg, phoneNumber) {
           : 'Member'
 
       if (!displayName) {
+        // notify/pushName and previously received message pushNames are the
+        // WhatsApp identity, unlike an address-book contact alias.
+        const liveNames = [...new Set([jid, mentionJid, phone + '@s.whatsapp.net'])]
+          .map(candidate => sharedStorage?.latestConversationSpeaker(chat, candidate))
+          .filter(Boolean)
         displayName = String(
           participant?.notify ||
+          participant?.pushName ||
+          participant?.verifiedName ||
+          liveNames[0] ||
           participant?.displayName ||
           participant?.name ||
           ''
-        ).trim() || sharedStorage?.latestConversationSpeaker(chat, jid) || ''
+        ).trim()
       }
       break
     }
