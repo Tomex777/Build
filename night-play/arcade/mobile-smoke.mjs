@@ -14,6 +14,14 @@ const page=await browser.newPage({viewport:{width:390,height:844},isMobile:true,
 page.on("pageerror",e=>errors.push(String(e)));
 await page.goto(url+"/arcade/?game=bird");await page.locator("canvas").waitFor();
 assert.equal(await page.locator("#title").innerText(),"Wing Hop");
+assert.equal(await page.locator('[data-control="bird-skin"]').count(),1,"Wing Hop offers real bundled art skins");
+assert.equal(await page.evaluate(()=>window.__nightArcadeTest.snapshot().skin),'parrot',"Parrot Kenney sprite is the default");
+await page.locator('[data-control="bird-skin"]').click();
+assert.equal(await page.evaluate(()=>window.__nightArcadeTest.snapshot().skin),'chick',"Players can switch to Kenney chick artwork");
+await page.locator('[data-control="bird-skin"]').click();
+assert.equal(await page.evaluate(()=>window.__nightArcadeTest.snapshot().skin),'parrot',"Players can switch back to parrot artwork");
+await page.waitForTimeout(250);
+console.log("NIGHT_WINGHOP_VISUAL_JPEG_BASE64="+(await page.locator("canvas.mode-bird").screenshot({type:"jpeg",quality:56})).toString("base64"));
 await page.locator('button[data-control="flap"]').click();
 assert.equal(await page.evaluate(()=>window.__nightArcadeTest.snapshot().started),true,"flapping starts physics");
 await page.locator("#restart").click();
