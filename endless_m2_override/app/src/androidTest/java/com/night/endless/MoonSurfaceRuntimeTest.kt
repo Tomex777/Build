@@ -54,6 +54,29 @@ class MoonSurfaceRuntimeTest {
             assertTrue("Ground rendering requires at least 24 actual depth bits; got ${renderer.depthBufferBits()}",
                 renderer.depthBufferBits() >= 24)
 
+            // UI polling must remain a cached read even while a drawing or
+            // navigation operation owns the renderer monitor.
+            val held = CountDownLatch(1)
+            val release = CountDownLatch(1)
+            val monitorOwner = Thread {
+                synchronized(renderer) {
+                    held.countDown()
+                    release.await(3, TimeUnit.SECONDS)
+                }
+            }.apply { isDaemon = true; start() }
+            try {
+                assertTrue("Renderer monitor test could not start", held.await(5, TimeUnit.SECONDS))
+                val readStarted = SystemClock.elapsedRealtime()
+                val cached = renderer.uiFrameSnapshot()
+                val readMs = SystemClock.elapsedRealtime() - readStarted
+                assertTrue("A completed UI frame snapshot was not published", cached != null)
+                assertTrue("UI frame snapshot blocked behind drawing for $readMs ms", readMs < 500)
+            } finally {
+                release.countDown()
+                monitorOwner.join(5_000)
+            }
+
+
             assertTrue(
                 "Overview control was not exposed",
                 device.wait(androidx.test.uiautomator.Until.hasObject(By.textContains("Overview")), 5_000)
@@ -132,6 +155,9 @@ class MoonSurfaceRuntimeTest {
             }
             val after = renderer.surfaceCoordinates()
             assertNotEquals("Lunar movement did not change location", before, after)
+            assertEquals("Surface controls must follow a completed terrain frame", "moon", renderer.renderedSurfaceBodyId())
+            assertTrue("Repeated landing must not reset a walking session", !renderer.landOnMoon())
+            assertEquals("A repeated landing changed the walking position", after, renderer.surfaceCoordinates())
             capture(instrumentation, "moon-movement", glView)
 
             val lookBefore = renderer.surfaceOrientation()

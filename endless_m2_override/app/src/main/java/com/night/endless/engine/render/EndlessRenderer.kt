@@ -265,6 +265,30 @@ class EndlessRenderer(
         Matrix.perspectiveM(projection, 0, 48f, width.toFloat() / height, 0.03f, 300f)
     }
 
+    data class UiFrameSnapshot(
+        val timeMillis: Long,
+        val speedLabel: String,
+        val labels: List<BodyLabelSnapshot>,
+        val approach: ApproachSnapshot,
+        val navigation: ExplorationState,
+        val surfaceBody: String?
+    )
+
+    @Volatile private var completedUiFrame: UiFrameSnapshot? = null
+    fun uiFrameSnapshot(): UiFrameSnapshot? = completedUiFrame
+
+    private fun publishUiFrame() {
+        completedUiFrame = UiFrameSnapshot(
+            timeMillis = clock.currentTimeMillis(), speedLabel = clock.speedLabel(),
+            labels = latestLabels, approach = latestApproach,
+            navigation = snapshotState(), surfaceBody = completedSurfaceBody
+        )
+    }
+
+    @Volatile private var completedSurfaceBody: String? = null
+    /** Surface represented by the last completed GL frame, not requested mode. */
+    fun renderedSurfaceBodyId(): String? = completedSurfaceBody
+
     // UI navigation/camera mutators use this same monitor. A landing must
     // never change mode and yaw halfway through an orbital draw.
     @Synchronized
@@ -283,13 +307,17 @@ class EndlessRenderer(
 
         if (marsSurfaceMode) {
             drawMarsSurfaceFrame()
+            completedSurfaceBody = "mars"
             renderedDeepTimeAgeGa = deepTimeAgeGa
+            publishUiFrame()
             completedFrames++
             return
         }
         if (moonSurfaceMode) {
             drawMoonSurfaceFrame()
+            completedSurfaceBody = "moon"
             renderedDeepTimeAgeGa = deepTimeAgeGa
+            publishUiFrame()
             completedFrames++
             return
         }
@@ -328,7 +356,9 @@ class EndlessRenderer(
         }
 
         drawSaturnRing()
+        completedSurfaceBody = null
         renderedDeepTimeAgeGa = deepTimeAgeGa
+        publishUiFrame()
         completedFrames++
     }
 
@@ -514,6 +544,7 @@ class EndlessRenderer(
 
     @Synchronized
     fun landOnMars(): Boolean {
+        if (marsSurfaceMode || moonSurfaceMode) return false
         if (selectedId != "mars" || latestApproach.stage != "SURFACE SKIM") return false
         moonSurfaceMode = false
         marsSurfaceX = 0.0
@@ -528,6 +559,7 @@ class EndlessRenderer(
 
     @Synchronized
     fun landOnMoon(): Boolean {
+        if (marsSurfaceMode || moonSurfaceMode) return false
         if (selectedId != "moon" || latestApproach.stage != "SURFACE SKIM") return false
         marsSurfaceMode = false
         moonSurfaceX = 1.5

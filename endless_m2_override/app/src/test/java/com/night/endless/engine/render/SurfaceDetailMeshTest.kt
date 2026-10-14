@@ -6,6 +6,25 @@ import org.junit.Test
 import kotlin.math.abs
 
 class SurfaceDetailMeshTest {
+    @Test fun rockRimsAreEmbeddedOnBothSidesOfASlope() {
+        val slope: (Double, Double) -> Double = { x, z -> .2 + x * .21 - z * .17 }
+        val rocks = SurfaceDetailMesh.buildRocks(.03, -.04, slope)
+        val perRock = SurfaceDetailMesh.ROCK_SIDES * 5 * 3 * 9
+        for (rock in 0 until rocks.count) {
+            for (side in 0 until SurfaceDetailMesh.ROCK_SIDES) {
+                val first = rock * perRock + side * 5 * 3 * 9
+                for (offset in listOf(0, 18)) {
+                    val p = first + offset
+                    val ground = slope(rocks.vertices[p].toDouble(), rocks.vertices[p + 2].toDouble())
+                    assertTrue("A downhill rock rim must not hover above the ground",
+                        rocks.vertices[p + 1] <= ground + 1e-7)
+                    assertTrue("Rock embedding should remain shallow",
+                        ground - rocks.vertices[p + 1] < .0001)
+                }
+            }
+        }
+    }
+
     @Test fun weatheredRockNormalsStayFiniteAndUnitLength() {
         val rocks = SurfaceDetailMesh.buildRocks(1.5, -.5) { x, z -> .1 + x * .06 - z * .03 }
         assertTrue(rocks.count > 100)

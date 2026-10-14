@@ -313,19 +313,22 @@ private fun EndlessApp(
         val timeFormat = SimpleDateFormat("HH:mm:ss 'UTC'", Locale.US).apply { timeZone = TimeZone.getTimeZone("UTC") }
         while (true) {
             glView?.endlessRenderer?.let { renderer ->
-                val now = Date(renderer.currentTimeMillis())
+                // One immutable completed-frame snapshot keeps this 33ms
+                // Compose loop off the renderer's monitor while drawing.
+                val frame = renderer.uiFrameSnapshot() ?: return@let
+                val now = Date(frame.timeMillis)
                 dateText = dateFormat.format(now)
                 timeText = timeFormat.format(now)
-                snapshots = renderer.labelSnapshots()
-                approach = renderer.approachSnapshot()
-                landedBody = renderer.surfaceBodyId()
-                speedLabel = renderer.speedLabel()
+                snapshots = frame.labels
+                approach = frame.approach
+                landedBody = frame.surfaceBody
+                speedLabel = frame.speedLabel
 
                 // The renderer is the source of truth for navigation. A body can be
                 // selected directly on the GLSurfaceView while Compose is publishing
                 // a fresh projected-label frame, so reconcile the shell every frame
                 // instead of relying on a single cross-thread selection callback.
-                val navigation = renderer.snapshotState()
+                val navigation = frame.navigation
                 val rendererSelected = navigation.selectedId.takeUnless { navigation.overview }
                 if (overview != navigation.overview) overview = navigation.overview
                 if (selected != rendererSelected) selected = rendererSelected
@@ -546,9 +549,7 @@ private fun EndlessApp(
                             ControlButton("→") { glView?.endlessRenderer?.walkSurface(0f, 1f) }
                             DividerPill()
                             ControlButton("↗  Take off", active = true) {
-                                if (glView?.endlessRenderer?.takeOffSurface() == true) {
-                                    landedBody = null
-                                }
+                                glView?.endlessRenderer?.takeOffSurface()
                             }
                         } else {
                             Text(
@@ -579,7 +580,6 @@ private fun EndlessApp(
                                     "SURFACE SKIM" -> {
                                         ControlButton("◆  Land on Mars", active = true) {
                                             if (glView?.endlessRenderer?.landOnMars() == true) {
-                                                landedBody = "mars"
                                                 infoVisible = false
                                             }
                                         }
@@ -620,7 +620,6 @@ private fun EndlessApp(
                                     "SURFACE SKIM" -> {
                                         ControlButton("◆  Land on Moon", active = true) {
                                             if (glView?.endlessRenderer?.landOnMoon() == true) {
-                                                landedBody = "moon"
                                                 infoVisible = false
                                             }
                                         }

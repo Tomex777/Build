@@ -195,13 +195,16 @@ internal object SurfaceDetailMesh {
                     1 -> radius * (0.70 + 0.08 * random)
                     else -> radius * (0.25 + 0.07 * random)
                 }
+                val pointX = x + cos(angle) * diameter * aspectX
+                val pointZ = z + sin(angle) * diameter * aspectZ
                 val height = when (tier) {
-                    0 -> base + size * 0.018
+                    // A flat ring at the centre height hovers on downhill
+                    // edges. Embed the rim in the exact rendered surface.
+                    0 -> elevation(pointX, pointZ) - size * 0.05
                     1 -> base + rockHeight * (0.52 + 0.09 * random)
                     else -> base + rockHeight * (0.88 + 0.08 * random)
                 }
-                return Point(x + cos(angle) * diameter * aspectX, height,
-                    z + sin(angle) * diameter * aspectZ)
+                return Point(pointX, height, pointZ)
             }
             fun triangle(a: Point, b: Point, c: Point) {
                 val ux = b.x - a.x; val uy = b.y - a.y; val uz = b.z - a.z

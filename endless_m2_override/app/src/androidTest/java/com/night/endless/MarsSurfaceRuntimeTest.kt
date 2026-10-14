@@ -127,6 +127,9 @@ class MarsSurfaceRuntimeTest {
             }
             val after = renderer.surfaceCoordinates()
             assertNotEquals("Surface movement did not change location", before, after)
+            assertEquals("Surface controls must follow a completed terrain frame", "mars", renderer.renderedSurfaceBodyId())
+            assertTrue("Repeated landing must not reset a walking session", !renderer.landOnMars())
+            assertEquals("A repeated landing changed the walking position", after, renderer.surfaceCoordinates())
             capture(instrumentation, "mars-movement", checkNotNull(glRef.get()))
 
             val lookBefore = renderer.surfaceOrientation()
