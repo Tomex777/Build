@@ -53,6 +53,7 @@ try{
   assert.equal(await page.locator(".nj-die-button").count(),2,"two tappable large dice");
   const rendererState=await page.evaluate(()=>({ready:window.NightLudo3D.ready,center:!!document.querySelector('.nj-dice-center'),attached:!!document.querySelector('.nj-three-dice-layer')?.parentElement?.matches('.nj-dice-center'),rootReady:document.querySelector('.nj-dice-center')?.dataset.threeReady,canvas:!!document.querySelector('.nj-three-dice-layer')}));
   assert.equal(rendererState.canvas,true,"Ludo centre dice use the Three.js WebGL renderer: "+JSON.stringify(rendererState));
+  assert.equal(await page.locator(".nj-dice-controls .nj-three-controls-layer").count(),1,"large tappable dice use the matching Three.js renderer");
   await page.evaluate(()=>window.NightLudo.setTestRolls([6,2]));
   await page.locator('[data-action="ludo-roll"]').first().click();
   assert.ok(await page.locator(".nj-dice-center.is-rolling").count(),"dice visibly tumble");
