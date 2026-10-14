@@ -35,9 +35,8 @@ internal object SurfaceDetailMesh {
                 + 0.000018 * sin(x * 14300.0 - z * 8700.0))
     }
 
-    /** The exact same sub-meter surface used by the near mesh, rocks
-     * and rock contact-shadow decals. Sharing it prevents hovering stones. */
-    fun surfaceHeightAt(
+    /** Height at a mesh vertex before triangle interpolation. */
+    private fun vertexHeightAt(
         x: Double, z: Double,
         centerX: Double, centerZ: Double,
         elevation: (Double, Double) -> Double
@@ -49,6 +48,42 @@ internal object SurfaceDetailMesh {
         return elevation(x, z) + microRelief(x, z) * blend
     }
 
+    /**
+     * Sample the actual foreground triangles (a,c,b and b,c,d), including
+     * Float height quantization used by the vertex buffer. Sampling the
+     * analytic ripple between vertices made small stones hover or sink.
+     */
+    fun surfaceHeightAt(
+        x: Double, z: Double,
+        centerX: Double, centerZ: Double,
+        elevation: (Double, Double) -> Double
+    ): Double {
+        val half = (SIDE - 1) * 0.5
+        val gridX = (x - centerX) / STEP + half
+        val gridZ = (z - centerZ) / STEP + half
+        // Rocks extend past the moving detail square: preserve the existing
+        // continuous terrain fallback rather than extrapolating edge cells.
+        if (gridX < 0.0 || gridZ < 0.0 ||
+            gridX > SIDE - 1 || gridZ > SIDE - 1) return elevation(x, z)
+        val ix = floor(gridX).toInt().coerceAtMost(SIDE - 2)
+        val iz = floor(gridZ).toInt().coerceAtMost(SIDE - 2)
+        val fx = gridX - ix
+        val fz = gridZ - iz
+        fun height(gx: Int, gz: Int): Double = vertexHeightAt(
+            centerX + (gx - half) * STEP,
+            centerZ + (gz - half) * STEP,
+            centerX, centerZ, elevation
+        ).toFloat().toDouble()
+        val b = height(ix + 1, iz)
+        val cc = height(ix, iz + 1)
+        return if (fx + fz <= 1.0) {
+            height(ix, iz) * (1.0 - fx - fz) + b * fx + cc * fz
+        } else {
+            b * (1.0 - fz) + cc * (1.0 - fx) +
+                height(ix + 1, iz + 1) * (fx + fz - 1.0)
+        }
+    }
+
     fun buildPatch(centerX: Double, centerZ: Double, elevation: (Double, Double) -> Double): Mesh {
         val heights = FloatArray(SIDE * SIDE)
         val center = (SIDE - 1) * 0.5
@@ -57,7 +92,7 @@ internal object SurfaceDetailMesh {
             val dz = (z - center) * STEP
             val worldX = centerX + dx
             val worldZ = centerZ + dz
-            heights[z * SIDE + x] = surfaceHeightAt(
+            heights[z * SIDE + x] = vertexHeightAt(
                 worldX, worldZ, centerX, centerZ, elevation
             ).toFloat()
         }
