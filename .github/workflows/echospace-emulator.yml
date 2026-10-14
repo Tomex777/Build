@@ -43,6 +43,10 @@ jobs:
             curl -fsSL --retry 3 --connect-timeout 15 "https://images.unsplash.com/${scenes[$name]}?auto=format&fit=crop&crop=entropy&w=1080&h=1400&q=75&fm=jpg" -o "EchoSpace/app/src/main/res/drawable-nodpi/scene_${name}.jpg"
             test $(wc -c < "EchoSpace/app/src/main/res/drawable-nodpi/scene_${name}.jpg") -gt 25000
           done
+      - name: Install audio conversion tools
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -qq -y ffmpeg
       - name: Produce verified offline field recordings and measured HRTF
         run: |
           python3 EchoSpace/tools/prepare_audio.py
