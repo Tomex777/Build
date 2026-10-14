@@ -538,14 +538,15 @@ else
 fi
 tap "Movies & TV"
 tap Music
-wait_for_any 50 "For you" "Music sources could not load right now." "No Music items were returned by the installed source feed."
-if node_exists "Music sources could not load right now."; then
-  wait_for "Retry"
-  wait_for "Manage sources"
-  shot music-source-state
-else
-  shot music-live-source
+# New users no longer receive an unsolicited regional "top songs" feed
+# or a misleading personalized mix before choosing their artists.
+wait_for "Make Music yours"
+wait_for "Choose artists"
+if node_exists "For you"; then
+  echo 'Music Home displayed an unpersonalized For you feed' >&2
+  exit 1
 fi
+shot music-taste-onboarding
 tap Music
 tap Memes
 if wait_for_any 40 "Less like this" "installed-app client ID" "Memes sources could not load right now."; then
