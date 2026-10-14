@@ -51,4 +51,5 @@ fi
 printf '%s\n' "Verified CC0 color-cube prop starter: $color_cube_file"
 
 python3 "$project_dir/scripts/build-humanoid.py"
+python3 "$project_dir/scripts/build-humanoid.py" --anime --output "$asset_dir/mise_anime.glb"
 python3 "$project_dir/scripts/build-scene-actors.py"
