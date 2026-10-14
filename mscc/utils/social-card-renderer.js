@@ -636,7 +636,13 @@ export async function renderPostCard({
 
   if (mode === 'instagram') {
     const width = 1000
-    const height = 1120
+    const measure = createCanvas(width, 20).getContext('2d')
+    measure.font = `22px ${FONT}`
+    const captionLines = wrapSocialText(measure, String(text || '').slice(0, 1200), 892, 6).lines
+    const captionY = 971
+    const commentsY = Math.max(1020, captionY + Math.max(0, captionLines.length - 1) * 34 + 54)
+    const timeY = commentsY + 45
+    const height = Math.max(1120, timeY + 70)
     const canvas = createCanvas(width, height)
     const ctx = canvas.getContext('2d')
     ctx.fillStyle = '#ffffff'
@@ -666,19 +672,22 @@ export async function renderPostCard({
     const mediaY = 124
     const mediaH = 650
     gradient(ctx, width, mediaH, [[0,'#261f44'],[0.48,'#7a4569'],[1,'#dc8f74']], mediaX, mediaY)
-
-    ctx.fillStyle = 'rgba(0,0,0,0.25)'
-    roundedRect(ctx, 100, 330, 800, 220, 30)
-    ctx.fill()
-
-    ctx.fillStyle = '#ffffff'
-    ctx.font = `39px ${BOLD}`
-    ctx.textAlign = 'center'
-    const overlayLines = wrapLines(ctx, text, 670, 4)
-    let oy = 410 - ((overlayLines.length - 1) * 27)
-    for (const row of overlayLines) {
-      ctx.fillText(row, width / 2, oy)
-      oy += 56
+    const photoShown = await drawSocialPhoto(ctx, imageBuffer, mediaX, mediaY, width, mediaH)
+    // Text-only Instagram mockups preserve the existing gradient typography.
+    // With a photo, the caption belongs below the photograph.
+    if (!photoShown && String(text || '').trim()) {
+      ctx.fillStyle = 'rgba(0,0,0,0.25)'
+      roundedRect(ctx, 100, 330, 800, 220, 30)
+      ctx.fill()
+      ctx.fillStyle = '#ffffff'
+      ctx.font = `39px ${BOLD}`
+      ctx.textAlign = 'center'
+      const overlayLines = wrapLines(ctx, text, 670, 4)
+      let oy = 410 - ((overlayLines.length - 1) * 27)
+      for (const row of overlayLines) {
+        ctx.fillText(row, width / 2, oy)
+        oy += 56
+      }
     }
 
     drawInstagramActions(ctx, 806, '#111111')
@@ -686,20 +695,22 @@ export async function renderPostCard({
     ctx.fillStyle = '#111111'
     ctx.font = `23px ${BOLD}`
     ctx.textAlign = 'left'
-    ctx.fillText('0 likes', 44, 884)
+    ctx.fillText(compactCount(likeCount) + ' likes', 44, 884)
 
     const username = clean(authorName, 30)
     ctx.font = `22px ${BOLD}`
     ctx.fillText(username, 44, 932)
-    const nameW = ctx.measureText(username).width
+    ctx.fillStyle = '#101010'
     ctx.font = `22px ${FONT}`
-    ctx.fillText(' ' + clean(text, 105), 44 + nameW, 932)
+    for (let i = 0; i < captionLines.length; i += 1) {
+      ctx.fillText(captionLines[i], 44, captionY + i * 34)
+    }
 
     ctx.fillStyle = '#737373'
     ctx.font = `20px ${FONT}`
-    ctx.fillText('View all 0 comments', 44, 976)
+    ctx.fillText('View all ' + compactCount(commentCount) + ' comments', 44, commentsY)
     ctx.font = `17px ${FONT}`
-    ctx.fillText('JUST NOW', 44, 1020)
+    ctx.fillText('JUST NOW', 44, timeY)
 
     drawWatermark(ctx, width, height, { light:false, fontSize:13, inset:15 })
     return canvas.toBuffer('image/png')
