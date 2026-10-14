@@ -141,6 +141,40 @@ data class AccountDiagnostics(
     val events: List<AccountDiagnosticEvent>,
 )
 
+data class EnvironmentVariable(
+    val key: String,
+    val label: String,
+    val description: String = "",
+    val value: String = "",
+    val hasValue: Boolean = false,
+    val secret: Boolean = false,
+    val requiresRestart: Boolean = true,
+)
+
+data class EnvironmentState(
+    val entries: List<EnvironmentVariable> = emptyList(),
+    val restartRequired: Boolean = false,
+)
+
+data class CloudMount(val nodeId: String, val label: String)
+
+data class CloudTarget(
+    val id: String,
+    val label: String,
+    val type: String,
+    val detected: Boolean,
+    val uploadEnabled: Boolean,
+    val mediaTypes: List<String> = emptyList(),
+    val visibleBytes: Long? = null,
+)
+
+data class CloudDashboard(
+    val configured: Boolean = false,
+    val used: Long? = null,
+    val total: Long? = null,
+    val targets: List<CloudTarget> = emptyList(),
+)
+
 data class PendingDownload(
     val name: String,
     val cachePath: String,
@@ -171,6 +205,13 @@ data class ServerPanelState(
     val runtimeRegistry: RuntimeRegistry? = null,
     val pairing: PairingState? = null,
     val pairingFresh: Boolean = false,
+    val environment: EnvironmentState? = null,
+    val cloudDashboard: CloudDashboard? = null,
+    val cloudConnectionFailed: Boolean = false,
+    val cloudVerificationMessage: String? = null,
+    val cloudMounts: List<CloudMount> = emptyList(),
+    val cloudMountsLoaded: Boolean = false,
+    val revealedEnvironment: Map<String, String> = emptyMap(),
     val accountDiagnostics: AccountDiagnostics? = null,
     val diagnosticsAccountId: String? = null,
     val diagnosticsLoading: Boolean = false,

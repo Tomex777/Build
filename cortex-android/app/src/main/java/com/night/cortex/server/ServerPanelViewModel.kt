@@ -26,6 +26,8 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
+import org.json.JSONArray
+import org.json.JSONObject
 import java.io.OutputStream
 
 class ServerPanelViewModel(application: Application) : AndroidViewModel(application) {
@@ -301,6 +303,7 @@ class ServerPanelViewModel(application: Application) : AndroidViewModel(applicat
             val detail = runCatching {
                 when (tab) {
                     ServerTab.CONSOLE -> SilentUpdate(logs = client.logs())
+                    ServerTab.CLOUD -> SilentUpdate()
                     ServerTab.FILES -> SilentUpdate(files = client.listFiles(path))
                     ServerTab.BACKUPS -> SilentUpdate(backups = client.backups())
                     ServerTab.STARTUP -> SilentUpdate(startup = client.startup())
@@ -622,6 +625,125 @@ class ServerPanelViewModel(application: Application) : AndroidViewModel(applicat
             busy(if (enabled) "Start at boot enabled." else "Start at boot disabled.") {
                 val startup = withContext(Dispatchers.IO) { api().setStartupEnabled(enabled) }
                 _state.value = _state.value.copy(startup = startup)
+            }
+        }
+    }
+
+    fun refreshCloud() {
+        if (!_state.value.configured) return
+        viewModelScope.launch {
+            busy {
+                val result = withContext(Dispatchers.IO) {
+                    val client = api()
+                    val environment = client.environment()
+                    val cloudResult = runCatching { client.cloudDashboard() }
+                    val mounts = if (cloudResult.getOrNull()?.configured == true) {
+                        runCatching { client.cloudMounts() }.getOrNull()
+                    } else emptyList()
+                    Triple(environment, cloudResult, mounts)
+                }
+                _state.value = _state.value.copy(
+                    environment = result.first,
+                    cloudDashboard = result.second.getOrNull(),
+                    cloudConnectionFailed = result.second.isFailure,
+                    cloudMounts = result.third ?: emptyList(),
+                    cloudMountsLoaded = result.third != null,
+                )
+            }
+        }
+    }
+
+    fun verifyCloudFolder(id: String) {
+        if (!_state.value.configured) return
+        if (!Regex("[a-z][a-z0-9_-]{0,31}").matches(id)) return
+        viewModelScope.launch {
+            busy {
+                val result = withContext(Dispatchers.IO) { api().verifyCloudFolder(id) }
+                _state.value = _state.value.copy(
+                    cloudVerificationMessage = if (result.optBoolean("success")) {
+                        "MSCC readback succeeded for ${result.optString("location")}. " +
+                            "Contributor-side decryption still needs separate confirmation."
+                    } else {
+                        "Cloud integrity check failed. Do not archive files to this folder."
+                    },
+                )
+            }
+        }
+    }
+
+    fun configureCloudVideoLayout(selectedIds: Set<String>, imageNodeId: String?) {
+        if (!_state.value.configured) return
+        val roles = try {
+            planCloudFolders(_state.value.cloudMounts, selectedIds, imageNodeId)
+        } catch (error: IllegalArgumentException) {
+            _state.value = _state.value.copy(
+                error = error.message ?: "Select three video folders and one image folder."
+            )
+            return
+        }
+        viewModelScope.launch {
+            busy {
+                val payload = JSONArray(roles.map { role ->
+                    JSONObject()
+                        .put("id", role.id)
+                        .put("label", role.label.take(60))
+                        .put("nodeId", role.nodeId)
+                        .put("mediaTypes", JSONArray(role.mediaTypes))
+                        .put("uploadEnabled", true)
+                }).toString()
+                val environment = withContext(Dispatchers.IO) {
+                    api().setEnvironment("MSCC_MEGA_SHARED_FOLDERS", payload)
+                }
+                _state.value = _state.value.copy(
+                    environment = environment,
+                    message = "Three video folders and one image folder saved. Restart MSCC to apply.",
+                )
+            }
+        }
+    }
+
+    fun refreshEnvironment() {
+        if (!_state.value.configured) return
+        viewModelScope.launch {
+            busy {
+                val environment = withContext(Dispatchers.IO) { api().environment() }
+                _state.value = _state.value.copy(environment = environment)
+            }
+        }
+    }
+
+    fun revealEnvironment(key: String) {
+        if (!_state.value.configured) return
+        viewModelScope.launch {
+            busy {
+                val value = withContext(Dispatchers.IO) { api().revealEnvironment(key) }
+                _state.value = _state.value.copy(
+                    revealedEnvironment = _state.value.revealedEnvironment + (key to value),
+                )
+            }
+        }
+    }
+
+    fun hideEnvironment(key: String) {
+        _state.value = _state.value.copy(
+            revealedEnvironment = _state.value.revealedEnvironment - key,
+        )
+    }
+
+    fun saveEnvironment(key: String, value: String) {
+        if (!_state.value.configured) return
+        viewModelScope.launch {
+            busy {
+                val environment = withContext(Dispatchers.IO) { api().setEnvironment(key, value) }
+                _state.value = _state.value.copy(
+                    environment = environment,
+                    revealedEnvironment = _state.value.revealedEnvironment - key,
+                    message = if (environment.restartRequired) {
+                        "Saved. Restart MSCC to apply this environment change."
+                    } else {
+                        "Environment saved."
+                    },
+                )
             }
         }
     }

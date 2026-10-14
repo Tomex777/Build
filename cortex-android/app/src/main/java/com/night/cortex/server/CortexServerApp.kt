@@ -133,6 +133,7 @@ import kotlinx.coroutines.delay
 internal enum class ServerTab(val label: String) {
     CONSOLE("Console"),
     PAIRING("Accounts"),
+    CLOUD("Cloud"),
     FILES("Files"),
     BACKUPS("Backups"),
     STARTUP("Startup"),
@@ -160,7 +161,10 @@ fun CortexServerApp(vm: ServerPanelViewModel = viewModel()) {
     // Tab entry and periodic synchronization are silent: only the header's
     // refresh button initiates a visible full dashboard refresh.
     LaunchedEffect(tab, state.configured) {
-        if (state.configured) vm.onTabSelected(tab)
+        if (state.configured) {
+            vm.onTabSelected(tab)
+            if (tab == ServerTab.CLOUD) vm.refreshCloud()
+        }
     }
     var sheet by remember { mutableStateOf<SheetMode?>(null) }
     var selectedEntry by remember { mutableStateOf<HostingFileEntry?>(null) }
@@ -298,6 +302,14 @@ fun CortexServerApp(vm: ServerPanelViewModel = viewModel()) {
                             diagnosticsError = state.diagnosticsError,
                             onDiagnostics = vm::loadAccountDiagnostics,
                             onCloseDiagnostics = vm::closeAccountDiagnostics,
+                        )
+                        ServerTab.CLOUD -> CloudSetupPage(
+                            state = state,
+                            onRefresh = vm::refreshCloud,
+                            onSave = vm::saveEnvironment,
+                            onAutoAssign = vm::configureCloudVideoLayout,
+                            onVerify = vm::verifyCloudFolder,
+                            onRestart = { vm.power(HostingPowerAction.RESTART) },
                         )
                         ServerTab.FILES -> FilesPage(
                             state = state,

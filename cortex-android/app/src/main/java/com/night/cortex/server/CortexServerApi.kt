@@ -504,6 +504,93 @@ class CortexServerApi(
         )
     }
 
+    fun cloudDashboard(): CloudDashboard {
+        val json = getJson("/api/cortex/host/cloud")
+        val targets = json.optJSONArray("targets") ?: JSONArray()
+        return CloudDashboard(
+            configured = json.optBoolean("configured", false),
+            used = json.optLongOrNull("used"),
+            total = json.optLongOrNull("total"),
+            targets = buildList {
+                for (i in 0 until targets.length()) {
+                    val row = targets.optJSONObject(i) ?: continue
+                    val arr = row.optJSONArray("mediaTypes") ?: JSONArray()
+                    val types = buildList { for (j in 0 until arr.length()) add(arr.optString(j)) }
+                    add(CloudTarget(
+                        id = row.optString("id"),
+                        label = row.optString("label"),
+                        type = row.optString("type"),
+                        detected = row.optBoolean("detected"),
+                        uploadEnabled = row.optBoolean("uploadEnabled"),
+                        mediaTypes = types,
+                        visibleBytes = row.optLongOrNull("visibleBytes"),
+                    ))
+                }
+            }
+        )
+    }
+
+    fun verifyCloudFolder(targetId: String): JSONObject =
+        postJson(
+            "/api/cortex/host/cloud/verify",
+            JSONObject().put("targetId", targetId),
+        )
+
+    fun cloudMounts(): List<CloudMount> {
+        val json = getJson("/api/cortex/host/cloud/discover")
+        val mounts = json.optJSONArray("mounts") ?: JSONArray()
+        return buildList {
+            for (i in 0 until mounts.length()) {
+                val row = mounts.optJSONObject(i) ?: continue
+                val nodeId = row.optString("nodeId")
+                if (nodeId.matches(Regex("[A-Za-z0-9_-]{6,48}"))) {
+                    add(CloudMount(nodeId, row.optString("label")))
+                }
+            }
+        }
+    }
+
+    fun environment(): EnvironmentState =
+        parseEnvironment(getJson("/api/cortex/host/environment"))
+
+    fun revealEnvironment(key: String): String =
+        postJson(
+            "/api/cortex/host/environment/reveal",
+            JSONObject().put("key", key),
+        ).optString("value")
+
+    fun setEnvironment(key: String, value: String): EnvironmentState =
+        parseEnvironment(
+            postJson(
+                "/api/cortex/host/environment",
+                JSONObject().put("key", key).put("value", value),
+            )
+        )
+
+    private fun parseEnvironment(json: JSONObject): EnvironmentState {
+        val rows = json.optJSONArray("entries") ?: JSONArray()
+        val entries = buildList {
+            for (i in 0 until rows.length()) {
+                val row = rows.optJSONObject(i) ?: continue
+                add(
+                    EnvironmentVariable(
+                        key = row.optString("key"),
+                        label = row.optString("label", row.optString("key")),
+                        description = row.optString("description"),
+                        value = row.optString("value"),
+                        hasValue = row.optBoolean("hasValue", row.has("value") && row.optString("value").isNotBlank()),
+                        secret = row.optBoolean("secret", false),
+                        requiresRestart = row.optBoolean("requiresRestart", true),
+                    )
+                )
+            }
+        }
+        return EnvironmentState(
+            entries = entries,
+            restartRequired = json.optBoolean("restartRequired", false),
+        )
+    }
+
     fun createBackup(privateBackup: Boolean): BackupEntry {
         val row = postJson("/api/cortex/host/backups", JSONObject().put("private", privateBackup))
         return BackupEntry(
