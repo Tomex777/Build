@@ -121,6 +121,10 @@ class SharedPagerViewer(
 
     private fun setChaptersInternal(window: ViewerChapters) {
         val original = currentItem
+        // Adjacent page loads update the same chapter's window. Preserve the
+        // visible page in that case, but do NOT preserve a page in the old
+        // chapter when the user explicitly selects a different chapter.
+        val sameChapter = chapters?.currChapter == window.currChapter
         pager.removeOnPageChangeListener(pagerListener)
         changingChapterWindow = true
         try {
@@ -131,7 +135,7 @@ class SharedPagerViewer(
                 val requested = min(window.currChapter.requestedPage, pages.lastIndex)
                 // Keep the actually selected page when adjacent chapters finish
                 // loading; otherwise use the restored/chapter-requested position.
-                val target = original?.takeIf { it in adapter.items } ?: pages[requested]
+                val target = original?.takeIf { sameChapter && it in adapter.items } ?: pages[requested]
                 val position = adapter.items.indexOf(target)
                 if (position >= 0) pager.setCurrentItem(position, false)
             }
