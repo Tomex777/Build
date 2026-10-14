@@ -274,7 +274,7 @@ internal fun CloudSetupPage(
                         color = CortexMuted,
                     )
                     Button(
-                        enabled = !state.loading && selectedFolderIds.size == 4 && imageFolderId in selectedFolderIds && sharesSetting != null,
+                        enabled = !state.loading && selectedFolderIds.size == 4 && imageFolderId != null && selectedFolderIds.contains(imageFolderId) && sharesSetting != null,
                         onClick = { confirmAssign = true },
                     ) { Text("Assign 3 video folders + 1 images") }
                     Text(
