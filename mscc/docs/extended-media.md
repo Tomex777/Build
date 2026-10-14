@@ -26,7 +26,7 @@ For the optional native dependencies on the Azure VM:
 bash /opt/mscc/current/tools/install-extra-media-tools.sh
 ```
 
-This installs EXIFTool, a private `rembg` Python CPU virtual environment, and Chrome for Testing in `/opt/mscc/tools`. They are **not** installed automatically on all deployments because their downloads and disk usage can be substantial. Confirm disk space and resources first. First use of `.removebg` may download the small u2netp model.
+This installs EXIFTool, a private `rembg` Python CPU virtual environment, and an **isolated** Puppeteer-core browser driver plus Chrome for Testing in `/opt/mscc/tools`. The screenshot driver does not change Night's main `package.json` dependencies, allowing production upgrades to reuse the previously installed core modules. They are **not** installed automatically on all deployments because their downloads and disk usage can be substantial. Confirm disk space and resources first. First use of `.removebg` may download the small u2netp model.
 
 To install just one extra provider: `MSCC_INSTALL_REMBG=0` or `MSCC_INSTALL_BROWSER=0` when running the script. The installer does not restart Night, change WhatsApp sessions, or write private settings.
 

@@ -25,7 +25,12 @@ fi
 
 if [ "${MSCC_INSTALL_BROWSER:-1}" = '1' ]; then
   echo '>>> Installing isolated Chrome for Testing (can be a large download)'
-  mkdir -p "$TOOLS_HOME/browser-cache"
+  mkdir -p "$TOOLS_HOME/browser-cache" "$TOOLS_HOME/ssweb-driver"
+  # Isolated and optional: never change Night's own node_modules on a small VPS.
+  NODE_OPTIONS="${NODE_OPTIONS:---max-old-space-size=192}" \
+    npm install --prefix "$TOOLS_HOME/ssweb-driver" --no-save --no-package-lock \
+    --omit=dev --no-audit --no-fund --progress=false --fetch-retries=1 \
+    --fetch-timeout=30000 'puppeteer-core@^24.0.0'
   npx --yes @puppeteer/browsers@latest install chrome@stable --path "$TOOLS_HOME/browser-cache"
   CHROME="$(find "$TOOLS_HOME/browser-cache/chrome" -type f -path '*/chrome-linux64/chrome' | sort | tail -1)"
   if [ -z "$CHROME" ] || [ ! -x "$CHROME" ]; then
