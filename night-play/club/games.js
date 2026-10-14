@@ -35,7 +35,7 @@ const safe=new Set([0,8,13,21,26,34,39,47]);
 const home={red:[[7,1],[7,2],[7,3],[7,4],[7,5],[7,7]],green:[[1,7],[2,7],[3,7],[4,7],[5,7],[7,7]],yellow:[[7,13],[7,12],[7,11],[7,10],[7,9],[7,7]],blue:[[13,7],[12,7],[11,7],[10,7],[9,7],[7,7]]};
 function pieceCell(player,pos){if(pos<0)return null;if(pos>=51)return home[player.key][pos-51];return track[(starts[player.key]+pos)%52];}
 function ludoValid(s,pi,ti){if(s.winner!==null||!s.rolled||s.turn!==pi)return false;const p=s.players[pi].tokens[ti];return p===-1?s.die===6:p<56&&p+s.die<=56;}
-function renderLudo(){window.NightLudo.render(state.ludo,{board,controls,status,help,save,scoreList,choosePlayers,rules});}
+function renderLudo(){const wasOpen=!!controls.querySelector(".nj-settings[open]");window.NightLudo.render(state.ludo,{board,controls,status,help,save,scoreList,choosePlayers,rules});if(wasOpen){const d=controls.querySelector(".nj-settings");if(d)d.open=true;}}
 function ludoRoll(){window.NightLudo.roll(state.ludo,render);}
 function ludoMove(pi,ti){window.NightLudo.move(state.ludo,pi,ti,render);}
 
@@ -193,7 +193,10 @@ document.addEventListener("click",e=>{const tile=e.target.closest("[data-checker
 
 load();picks.addEventListener("click",e=>{const btn=e.target.closest("[data-pick]");if(btn)pick(btn.dataset.pick);});
 $("newRound").addEventListener("click",()=>{if(confirm("Start a new "+titles[active][0]+" match? Current progress will be cleared."))reset(active);});
-document.addEventListener("change",e=>{const dm=e.target.closest("[data-dice-mode]");if(dm&&active==="ludo"){window.NightLudo.changeDice(state.ludo,Number(dm.value));render();return;}const sel=e.target.closest("[data-players]");if(!sel)return;const id=sel.dataset.players,n=Math.max(2,Math.min(4,Number(sel.value)||2));if(id==="ludo"){window.NightLudo.changePlayers(state.ludo,n);}if(id==="estate"){const order=["red","blue","green","yellow"];reset("estate");state.estate.players=order.slice(0,n).map(k=>({name:k[0].toUpperCase()+k.slice(1),color:colors[k],cash:1500,pos:0,bankrupt:false}));}if(id==="snakes"){const order=["red","blue","green","yellow"];reset("snakes");state.snakes.players=order.slice(0,n).map(k=>({name:k[0].toUpperCase()+k.slice(1),color:colors[k],pos:1}));}render();});
+document.addEventListener("change",e=>{
+const opt=e.target.closest("[data-ludo-option]");if(opt&&active==="ludo"){window.NightLudo.changeOption(state.ludo,opt.dataset.ludoOption,opt.checked);render();return;}
+const speed=e.target.closest("[data-ludo-speed]");if(speed&&active==="ludo"){window.NightLudo.changeOption(state.ludo,"speed",speed.value);render();return;}
+const dm=e.target.closest("[data-dice-mode]");if(dm&&active==="ludo"){window.NightLudo.changeDice(state.ludo,Number(dm.value));render();return;}const sel=e.target.closest("[data-players]");if(!sel)return;const id=sel.dataset.players,n=Math.max(2,Math.min(4,Number(sel.value)||2));if(id==="ludo"){window.NightLudo.changePlayers(state.ludo,n);}if(id==="estate"){const order=["red","blue","green","yellow"];reset("estate");state.estate.players=order.slice(0,n).map(k=>({name:k[0].toUpperCase()+k.slice(1),color:colors[k],cash:1500,pos:0,bankrupt:false}));}if(id==="snakes"){const order=["red","blue","green","yellow"];reset("snakes");state.snakes.players=order.slice(0,n).map(k=>({name:k[0].toUpperCase()+k.slice(1),color:colors[k],pos:1}));}render();});
 document.addEventListener("click",e=>{
 const dice=e.target.closest("[data-ludo-die]");if(dice&&active==="ludo"){window.NightLudo.selectDie(state.ludo,Number(dice.dataset.ludoDie),render);return;}const piece=e.target.closest("[data-piece]");if(piece){const [pi,ti]=piece.dataset.piece.split("-").map(Number);ludoMove(pi,ti);return;}
 const card=e.target.closest("[data-card]");if(card){if(Number(card.dataset.card)<0)return;cardPlay(active,Number(card.dataset.card));return;}
