@@ -150,12 +150,17 @@ fun SoraApp() {
                 }
             },
             floatingActionButton = {
-                FloatingActionButton(
-                    onClick = { showAiQuick = true },
-                    containerColor = SoraAccent,
-                    contentColor = SoraAccentInk,
-                    shape = RoundedCornerShape(16.dp),
-                ) { Icon(Icons.Rounded.AutoAwesome, "Open Sora AI") }
+                // An always-on AI shortcut sits over the bottom-right of real
+                // game boards on narrow phones. Keep gameplay unobstructed;
+                // Sora AI remains available from the More tab.
+                if (tab != RootTab.GAMES) {
+                    FloatingActionButton(
+                        onClick = { showAiQuick = true },
+                        containerColor = SoraAccent,
+                        contentColor = SoraAccentInk,
+                        shape = RoundedCornerShape(16.dp),
+                    ) { Icon(Icons.Rounded.AutoAwesome, "Open Sora AI") }
+                }
             },
         ) { padding ->
             when (tab) {
