@@ -24,6 +24,8 @@ await page.waitForTimeout(250);
 console.log("NIGHT_WINGHOP_VISUAL_JPEG_BASE64="+(await page.locator("canvas.mode-bird").screenshot({type:"jpeg",quality:56})).toString("base64"));
 await page.locator('button[data-control="flap"]').click();
 assert.equal(await page.evaluate(()=>window.__nightArcadeTest.snapshot().started),true,"flapping starts physics");
+await page.waitForTimeout(720);
+console.log("NIGHT_WINGHOP_ACTION_JPEG_BASE64="+(await page.locator("canvas.mode-bird").screenshot({type:"jpeg",quality:54})).toString("base64"));
 await page.locator("#restart").click();
 assert.equal(await page.evaluate(()=>window.__nightArcadeTest.snapshot().started),false,"restart resets bird");
 await page.locator('[data-game="blocks"]').click();
