@@ -50,13 +50,13 @@ fun SoraArcadePage(selected: String, onSelect: (String) -> Unit, library: List<L
         LazyVerticalGrid(
             columns = GridCells.Fixed(2),
             modifier = modifier.fillMaxSize(),
-            contentPadding = PaddingValues(start = 18.dp, end = 18.dp, top = 22.dp, bottom = 28.dp),
+            contentPadding = PaddingValues(start = 18.dp, end = 18.dp, top = 4.dp, bottom = 28.dp),
             horizontalArrangement = Arrangement.spacedBy(11.dp),
             verticalArrangement = Arrangement.spacedBy(11.dp),
         ) {
             item(span = { GridItemSpan(maxLineSpan) }) {
                 Text("Games", fontSize = 24.sp, fontWeight = FontWeight.ExtraBold,
-                    modifier = Modifier.fillMaxWidth().padding(vertical = 13.dp))
+                    modifier = Modifier.fillMaxWidth())
             }
             items(arcadeEntries, key = { it.key }) { game ->
                 Surface(
