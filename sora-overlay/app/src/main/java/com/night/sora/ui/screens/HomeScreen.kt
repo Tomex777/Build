@@ -40,7 +40,6 @@ import com.night.sora.model.ListeningSignal
 import com.night.sora.ui.theme.*
 import org.json.JSONArray
 import org.json.JSONObject
-import java.time.LocalTime
 
 private data class HomeBrowseCard(
     val id: String,
@@ -137,15 +136,9 @@ fun HomeScreen(
             .sortedBy { card -> artistOrder[card.subtitle.substringBefore(" · ").trim().lowercase()] ?: Int.MAX_VALUE }
             .take(8)
     }
-    val greeting = when (LocalTime.now().hour) {
-        in 5..11 -> "Good morning"
-        in 12..16 -> "Good afternoon"
-        else -> "Good evening"
-    }
-
     Column(modifier.fillMaxSize()) {
         Row(
-            Modifier.fillMaxWidth().statusBarsPadding().height(54.dp).padding(horizontal = 18.dp),
+            Modifier.fillMaxWidth().height(54.dp).padding(horizontal = 18.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
@@ -160,23 +153,11 @@ fun HomeScreen(
             Modifier.fillMaxSize(),
             contentPadding = PaddingValues(bottom = 12.dp),
         ) {
-            item {
-                Text(
-                    greeting.uppercase(),
-                    color = SoraMuted,
-                    fontSize = 9.sp,
-                    fontWeight = FontWeight.Bold,
-                    letterSpacing = 1.2.sp,
-                    modifier = Modifier.padding(start = 18.dp, end = 18.dp, top = 8.dp, bottom = 2.dp),
-                )
-            }
-
-            item { HomeSectionHeader("Continue", "Pick up exactly where you stopped") }
-            item {
-                if (continueEntries.isEmpty()) {
-                    Text("Nothing in progress yet.", color = SoraMuted, fontSize = 12.sp, modifier = Modifier.padding(horizontal = 18.dp, vertical = 8.dp))
-                } else {
-                    LazyRow(contentPadding = PaddingValues(horizontal = 18.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            if (continueEntries.isNotEmpty()) {
+                item { HomeSectionHeader("Continue") }
+                item {
+                    LazyRow(contentPadding = PaddingValues(horizontal = 18.dp),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                         items(
                             continueEntries,
                             key = { "${it.extensionPackage}:${it.sourceId}:${it.mediaId}:${it.itemId}" },
@@ -187,7 +168,7 @@ fun HomeScreen(
                 }
             }
 
-            item { HomeSectionHeader("Explore", "Fresh picks from across Sora") }
+            item { HomeSectionHeader("Explore") }
             item {
                 if (recommendations.isEmpty()) {
                     Text("Fresh catalog picks will appear here when sources are available.", color = SoraMuted, fontSize = 12.sp, modifier = Modifier.padding(horizontal = 18.dp))
@@ -201,7 +182,7 @@ fun HomeScreen(
             }
 
             if (recentMusic.isNotEmpty()) {
-                item { HomeSectionHeader("Recently played", "From your actual listening history") }
+                item { HomeSectionHeader("Recently played") }
                 item {
                     LazyRow(contentPadding = PaddingValues(horizontal = 18.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                         items(recentMusic, key = { "music-${it.id}" }) { card ->
@@ -212,11 +193,11 @@ fun HomeScreen(
             }
 
             if (memes.isNotEmpty()) {
-                item { HomeSectionHeader("From your meme feed", "A fresh item from your active source") }
+                item { HomeSectionHeader("Memes") }
                 item { MemeStrip(memes.first()) { onOpenSelection(memes.first().selection()) } }
             }
 
-            item { HomeSectionHeader("Bible", "Featured passage", "Open", onSee = onOpenBible) }
+            item { HomeSectionHeader("Bible", see = "Open", onSee = onOpenBible) }
             item {
                 Surface(
                     color = Color(0xFF151513),
@@ -227,7 +208,6 @@ fun HomeScreen(
                     Column(Modifier.padding(18.dp)) {
                         Text("John 1:5", color = SoraAccent, fontSize = 10.sp, fontWeight = FontWeight.Black, letterSpacing = .7.sp)
                         Text("“The light shines in the darkness, and the darkness has not overcome it.”", fontSize = 19.sp, lineHeight = 27.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(top = 9.dp))
-                        Text("Open Bible to read in context", color = SoraMuted, fontSize = 10.sp, modifier = Modifier.padding(top = 12.dp))
                     }
                 }
             }
@@ -244,11 +224,11 @@ private fun SoraMark() {
 }
 
 @Composable
-private fun HomeSectionHeader(title: String, subtitle: String, see: String? = null, onSee: (() -> Unit)? = null) {
+private fun HomeSectionHeader(title: String, subtitle: String? = null, see: String? = null, onSee: (() -> Unit)? = null) {
     Row(Modifier.fillMaxWidth().padding(start = 18.dp, end = 12.dp, top = 24.dp, bottom = 10.dp), verticalAlignment = Alignment.Bottom) {
         Column(Modifier.weight(1f)) {
             Text(title, fontSize = 20.sp, fontWeight = FontWeight.Bold)
-            Text(subtitle, color = SoraMuted, fontSize = 12.sp, modifier = Modifier.padding(top = 3.dp))
+            if (!subtitle.isNullOrBlank()) Text(subtitle, color = SoraMuted, fontSize = 12.sp, modifier = Modifier.padding(top = 3.dp))
         }
         if (see != null && onSee != null) {
             TextButton(onClick = onSee, contentPadding = PaddingValues(horizontal = 6.dp, vertical = 2.dp)) { Text(see, color = SoraMuted, fontSize = 12.sp) }
