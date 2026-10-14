@@ -54,6 +54,45 @@ try{
   assert.equal(await page.locator(".nj-die-button").count(),1,"one-die classic option works");
   await page.locator('[data-dice-mode="ludo"]').selectOption("2");
   assert.equal(await page.locator(".nj-die-button").count(),2,"two-dice option restored");
+  // The Nigerian gameplay settings are interactive and kept between renders.
+  await page.locator(".nj-settings summary").click();
+  assert.ok(await page.locator(".nj-settings").evaluate(el=>el.open),"options can expand");
+  await page.locator('[data-ludo-option="captureFinishes"]').uncheck();
+  assert.equal(await page.locator('[data-ludo-option="captureFinishes"]').isChecked(),false,"optional attacker removal disabled");
+  assert.equal(await page.locator(".nj-settings").evaluate(el=>el.open),true,"options remain open after editing");
+  await page.locator('[data-ludo-option="captureFinishes"]').check();
+  await page.locator('[data-ludo-option="barrier"]').uncheck();
+  assert.equal(await page.locator('[data-ludo-option="barrier"]').isChecked(),false);
+  await page.locator('[data-ludo-option="barrier"]').check();
+  await page.locator('[data-ludo-speed]').selectOption("slow");
+  assert.equal(await page.locator('[data-ludo-speed]').inputValue(),"slow");
+  await page.locator('[data-ludo-option="directCount"]').check();
+  assert.equal(await page.locator('[data-ludo-option="directCount"]').isChecked(),true);
+  assert.ok(await page.locator(".nj-arrow").count()>=6,"painted direction arrows visible");
+
+  // Assert engine mechanics independently of animation and avoid random rolls.
+  const outcomes=await page.evaluate(()=>{
+    const a=window.NightLudo;
+    const capture=a.create(2);capture.players[0].tokens[0]=15;capture.players[1].tokens[0]=2;
+    const result=a.testCapture(capture,0,0);
+    const captured=result.hit&&capture.players[0].tokens[0]===56&&capture.players[1].tokens[0]===-1;
+    const custom=a.create(2);custom.options.captureFinishes=false;custom.players[0].tokens[0]=15;custom.players[1].tokens[0]=2;
+    a.testCapture(custom,0,0);
+    const optionalCapture=custom.players[0].tokens[0]===15&&custom.players[1].tokens[0]===-1;
+    const safe=a.create(2);safe.players[0].tokens[0]=21;safe.players[1].tokens[0]=8;
+    const safetyOn=!a.testCapture(safe,0,0).hit;
+    safe.options.safeHouse=false;const safetyOff=a.testCapture(safe,0,0).hit;
+    const barrier=a.create(2);barrier.players[0].tokens[0]=12;
+    barrier.players[1].tokens[0]=0;barrier.players[1].tokens[1]=0;
+    barrier.rolls=[{value:2,used:false}];barrier.selectedDie=0;
+    const blocked=!a.testLegal(barrier,0,0,0);
+    barrier.options.barrier=false;const open=a.testLegal(barrier,0,0,0);
+    barrier.options.barrier=true;barrier.rolls[0].value=6;
+    const sixPasses=a.testLegal(barrier,0,0,0);
+    return {captured,optionalCapture,safetyOn,safetyOff,blocked,open,sixPasses};
+  });
+  assert.deepEqual(outcomes,{captured:true,optionalCapture:true,safetyOn:true,safetyOff:true,blocked:true,open:true,sixPasses:true},"Naija Ludo captures, safety, barriers and six-exception");
+  await page.locator(".nj-settings summary").click();
   await page.locator("[data-pick=estate]").click();
   await page.locator(".estate-tile").first().waitFor();
   assert.equal(await page.locator(".estate-tile").count(),40,"original 40-space property game");
