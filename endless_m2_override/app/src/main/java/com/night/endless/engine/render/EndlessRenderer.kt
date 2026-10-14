@@ -220,7 +220,13 @@ class EndlessRenderer(
         cameraTarget = byId["earth"]?.position ?: Vec3d.ZERO
     }
 
+    @Volatile private var activeDepthBits = 0
+    fun depthBufferBits(): Int = activeDepthBits
+
     override fun onSurfaceCreated(gl: GL10?, config: EGLConfig?) {
+        val depth = IntArray(1)
+        GLES30.glGetIntegerv(GLES30.GL_DEPTH_BITS, depth, 0)
+        activeDepthBits = depth[0]
         GLES30.glClearColor(0.004f, 0.006f, 0.02f, 1f)
         GLES30.glEnable(GLES30.GL_DEPTH_TEST)
         GLES30.glEnable(GLES30.GL_CULL_FACE)
