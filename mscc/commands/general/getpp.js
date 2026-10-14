@@ -1,4 +1,5 @@
 import { downloadImageUrl } from '../../utils/remote-image.js'
+import { contextInfo } from '../../utils/whatsapp/messages.js'
 
 export default {
   name:'getpp',
@@ -19,7 +20,7 @@ export default {
       if(raw) return ctx.reply('I could not resolve that mention. Reply to their message instead.')
       // A quote without a resolvable sender must not accidentally return the
       // requesting user's picture.
-      if(resolved?.source==='reply') return ctx.reply('I could not identify the quoted user.')
+      if(contextInfo(ctx.message?.message)?.stanzaId) return ctx.reply('I could not identify the quoted user.')
       phone=String(ctx.userKey||'').trim()
     }
     if(!/^\d{7,15}$/.test(phone)) return ctx.reply('Could not resolve the WhatsApp profile.')
