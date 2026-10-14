@@ -46,6 +46,16 @@ class MainActivity : ComponentActivity() {
             preferences.edit().putBoolean(STARTER_SEEDED_KEY, true).apply()
         }
 
+        // Include an actual posed, anime-inspired 3D study for artists. Never overwrite
+        // an existing project, even after app upgrades or repeated launches.
+        if (!preferences.getBoolean(ANIME_STUDY_SEEDED_KEY, false)) {
+            if (!store.exists(PrototypeScene.ANIME_POSE_PROJECT_ID)) {
+                runCatching { store.save(PrototypeScene.createAnimePoseStudy()) }
+                    .onFailure { Log.w(RUNTIME_LOG_TAG, "anime-study-seed-failed", it) }
+            }
+            preferences.edit().putBoolean(ANIME_STUDY_SEEDED_KEY, true).apply()
+        }
+
         // Clean up presentation-only fixture labels from earlier development builds without
         // changing IDs, transforms, poses, assets, or any names the artist has already edited.
         if (store.exists(PrototypeScene.PROJECT_ID)) {
@@ -162,6 +172,7 @@ class MainActivity : ComponentActivity() {
 }
 
 private const val STARTER_SEEDED_KEY = "starter-scene-seeded-v1"
+private const val ANIME_STUDY_SEEDED_KEY = "anime-pose-study-seeded-v1"
 
 internal fun studio.artistscene.core.SceneProject.propX(): Float =
     actors.firstOrNull { it.id == PrototypeScene.PROP_ID }?.transform?.position?.x ?: 0f
