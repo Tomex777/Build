@@ -3,6 +3,26 @@ import { Readable } from 'node:stream'
 export const MEGA_UPLOAD_LIMIT_BYTES = 512 * 1024 * 1024
 const ID_PATTERN = /^[a-z][a-z0-9_-]{0,31}$/
 const NODE_PATTERN = /^[A-Za-z0-9_-]{6,48}$/
+export const MEGA_MEDIA_TYPES = Object.freeze(['images', 'videos', 'audio', 'documents', 'archives', 'stickers'])
+const MEDIA_TYPE_SET = new Set([...MEGA_MEDIA_TYPES, 'all'])
+
+export function megaMediaType({ kind = '', mimeType = '', name = '' } = {}) {
+  const type = String(kind || '').trim().toLowerCase()
+  const mime = String(mimeType || '').split(';')[0].trim().toLowerCase()
+  const ext = String(name || '').toLowerCase().split('.').pop()
+  if (type === 'sticker') return 'stickers'
+  if (type === 'archive' || ['zip', 'rar', '7z', 'tar', 'gz', 'bz2', 'xz', 'cbz', 'cbr'].includes(ext) ||
+      /^(application\/(zip|x-rar-compressed|x-7z-compressed|x-tar|gzip|x-gzip))$/.test(mime)) return 'archives'
+  if (type === 'video' || mime.startsWith('video/') || ['mp4', 'mkv', 'avi', 'webm', 'mov'].includes(ext)) return 'videos'
+  if (type === 'audio' || mime.startsWith('audio/') || ['mp3','flac','ogg','wav','m4a','opus'].includes(ext)) return 'audio'
+  if (type === 'image' || mime.startsWith('image/') || ['jpg','jpeg','png','webp','gif','heic'].includes(ext)) return 'images'
+  return 'documents'
+}
+
+export function mediaTypeLabel(types = []) {
+  return types.includes('all') ? 'All media' : types.length ? types.map(s => s[0].toUpperCase() + s.slice(1)).join(', ') : 'Unassigned'
+}
+
 
 export function safeMegaName(value, fallback = 'media.bin') {
   const text = String(value || '')
@@ -47,7 +67,18 @@ export function megaSharedFolders(env = process.env) {
     if (!label || ids.has(id) || nodes.has(nodeId)) throw new Error('Duplicate or invalid MEGA folder.')
     ids.add(id)
     nodes.add(nodeId)
-    return { id, nodeId, label, uploadEnabled:item.uploadEnabled === true }
+    const rawTypes = item.mediaTypes ?? []
+    if (!Array.isArray(rawTypes) || rawTypes.length > MEGA_MEDIA_TYPES.length + 1) {
+      throw new Error('Each shared folder requires a list of mediaTypes.')
+    }
+    const mediaTypes = rawTypes.map(value => String(value || '').trim().toLowerCase())
+    if (mediaTypes.some(value => !MEDIA_TYPE_SET.has(value)) || new Set(mediaTypes).size !== mediaTypes.length) {
+      throw new Error('Invalid or duplicate MEGA mediaTypes.')
+    }
+    if (mediaTypes.includes('all') && mediaTypes.length > 1) {
+      throw new Error('Use all alone, not together with other mediaTypes.')
+    }
+    return { id, nodeId, label, uploadEnabled:item.uploadEnabled === true, mediaTypes }
   })
 }
 
@@ -106,6 +137,29 @@ async function selectTarget(client, config, env, targetId, { forUpload = false, 
   return { folder, id:entry.id, label:entry.label, type:'contributed' }
 }
 
+/**
+ * Pure routing decision. An assigned media category must land in its configured
+ * and mounted writable folder, never be silently redirected to someone's other
+ * category or the primary account. A category without a share falls back to the
+ * primary account. Do not infer donor quota from folder contents.
+ */
+export function routeMegaTarget({ mediaType, shares, mounts = [] }) {
+  const category = MEGA_MEDIA_TYPES.includes(mediaType) ? mediaType : 'documents'
+  const assigned = shares.filter(s => s.mediaTypes.includes(category) || s.mediaTypes.includes('all'))
+  if (!assigned.length) return { id:'primary', type:'primary', mediaType:category }
+  const mountMap = new Map(mounts.filter(m => m?.directory).map(m => [m.nodeId, m]))
+  const eligible = assigned.filter(s => s.uploadEnabled && mountMap.has(s.nodeId))
+  if (!eligible.length) {
+    throw new Error(`No connected writable MEGA folder is available for ${category}. No upload was attempted.`)
+  }
+  // Deterministic balance among equivalent categories. File count is not quota.
+  eligible.sort((a,b) => {
+    const fileCount = entry => filesIn(mountMap.get(entry.nodeId)).length
+    return fileCount(a) - fileCount(b) || a.id.localeCompare(b.id)
+  })
+  return { id:eligible[0].id, type:'contributed', mediaType:category }
+}
+
 function filesIn(folder) {
   return (folder?.children || []).filter(item => !item.directory)
 }
@@ -119,7 +173,7 @@ export async function megaStorageDashboard(options = {}) {
     return {
       provider:'MEGA', configured:false, used:null, total:null,
       targets:[{ id:'primary', label:config.folder, type:'primary', detected:false, uploadEnabled:false },
-        ...shares.map(({ id, label, uploadEnabled }) => ({ id, label, type:'contributed', detected:false, uploadEnabled }))],
+        ...shares.map(({ id, label, uploadEnabled, mediaTypes }) => ({ id, label, type:'contributed', detected:false, uploadEnabled, mediaTypes }))],
       note:'Contributed folders require a MEGA invitation with permission; no quota is assumed.',
     }
   }
@@ -131,9 +185,9 @@ export async function megaStorageDashboard(options = {}) {
       used:Number(account.spaceUsed || 0), total:Number(account.spaceTotal || 0),
       targets:[
         { id:'primary', label:config.folder, type:'primary', detected:true, uploadEnabled:true, files:filesIn(folder).length },
-        ...shares.map(({ id, label, nodeId, uploadEnabled }) => {
+        ...shares.map(({ id, label, nodeId, uploadEnabled, mediaTypes }) => {
           const match = resolveMount(client, nodeId)
-          return { id, label, type:'contributed', detected:Boolean(match),
+          return { id, label, type:'contributed', detected:Boolean(match), mediaTypes,
             uploadEnabled:Boolean(match && uploadEnabled),
             files:match ? filesIn(match).length : null,
             quotaBytes:null /* MEGAJS does not expose donor-account quota. */ }
@@ -153,13 +207,15 @@ export async function megaAvailableMounts(options = {}) {
     .slice(0,40), options)
 }
 
-export async function uploadMegaMedia({ name, size, source, targetId = 'primary' }, options = {}) {
+export async function uploadMegaMedia({ name, size, source, kind = '', mimeType = '' }, options = {}) {
   const fileSize = validateMegaSize(size)
   const fileName = safeMegaName(name)
   if (typeof source !== 'function') throw new TypeError('source must be a stream factory.')
   const env = options.env || process.env
   return withMegaSession(async (client, config) => {
-    const selected = await selectTarget(client, config, env, targetId, { forUpload:true, createPrimary:true })
+    const mediaType = megaMediaType({ kind, mimeType, name:fileName })
+    const target = routeMegaTarget({ mediaType, shares:megaSharedFolders(env), mounts:client.mounts || [] })
+    const selected = await selectTarget(client, config, env, target.id, { forUpload:true, createPrimary:true })
     if (!selected.folder) throw new Error('MEGA folder could not be found.')
     if (selected.type === 'primary') {
       const quota = await client.getAccountInfo()
@@ -174,7 +230,7 @@ export async function uploadMegaMedia({ name, size, source, targetId = 'primary'
     }
     const transfer = selected.folder.upload({ name:fileName, size:fileSize }, data)
     const file = await transfer.complete
-    return { name:file.name || fileName, size:fileSize, nodeId:file.nodeId || '', targetId:selected.id, label:selected.label }
+    return { name:file.name || fileName, size:fileSize, nodeId:file.nodeId || '', targetId:selected.id, label:selected.label, mediaType }
   }, options)
 }
 
@@ -184,14 +240,19 @@ export async function megaStorageStatus(options = {}) {
   return { folder:status.targets[0].label, used:status.used, total:status.total, targets:status.targets }
 }
 
-export async function megaRecentFiles({ limit = 10, targetId = 'primary' } = {}, options = {}) {
+export async function megaRecentFiles({ limit = 10 } = {}, options = {}) {
   const capped = Math.min(20, Math.max(1, Math.floor(Number(limit) || 10)))
   const env = options.env || process.env
   return withMegaSession(async (client, config) => {
-    const selected = await selectTarget(client, config, env, targetId)
-    return filesIn(selected.folder)
-      .sort((a, b) => Number(b.timestamp || 0) - Number(a.timestamp || 0))
+    const locations = [await selectTarget(client, config, env, 'primary'), ...megaSharedFolders(env)
+      .map(item => ({ folder:resolveMount(client, item.nodeId), label:item.label, id:item.id }))
+      .filter(item => item.folder)]
+    return locations.flatMap(location => filesIn(location.folder).map(item => ({
+      name:String(item.name || 'Untitled'), size:Number(item.size || 0),
+      location:location.label, timestamp:Number(item.timestamp || 0),
+    })))
+      .sort((a, b) => b.timestamp - a.timestamp)
       .slice(0, capped)
-      .map(item => ({ name:String(item.name || 'Untitled'), size:Number(item.size || 0) }))
+      .map(({ timestamp, ...item }) => item)
   }, options)
 }
