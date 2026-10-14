@@ -100,7 +100,7 @@ export default {
       return ctx.reply(`✅ Saved ${result.mediaType} to MEGA / ${result.label}\n${result.name} • ${bytesLabel(result.size)}\nStorage selected automatically. No public link created.`)
     } catch (error) {
       const message = String(error?.message || '')
-      const allowed = /known, nonzero size|512 MiB|No connected writable MEGA folder|Not enough available space|not configured|MEGA folder could not be found/.test(message)
+      const allowed = /known, nonzero size|2 GiB|No connected writable MEGA folder|Not enough available space|not configured|MEGA folder could not be found/.test(message)
       return ctx.reply(`❌ Cloud ${action} failed. ${allowed ? message : 'Check cloud configuration, credentials, share permissions, quota and connectivity.'}`)
     }
   },
