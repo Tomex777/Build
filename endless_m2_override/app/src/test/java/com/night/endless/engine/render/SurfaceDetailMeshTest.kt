@@ -60,4 +60,41 @@ class SurfaceDetailMeshTest {
         assertTrue(peak > 0f)
         assertTrue("Tops should remain under roughly 1.5m high", peak < 0.0006f)
     }
+
+    @Test fun surfaceSamplingMatchesBothRenderedTriangleHalves() {
+        val cx = .0123
+        val cz = -.0147
+        val elevation: (Double, Double) -> Double = { x, z ->
+            .2 + x * .13 + z * .07
+        }
+        val mesh = SurfaceDetailMesh.buildPatch(cx, cz, elevation)
+        val ix = 53
+        val iz = 58
+        val half = (SurfaceDetailMesh.SIDE - 1) * .5
+        fun h(x: Int, z: Int) =
+            mesh.vertices[(z * SurfaceDetailMesh.SIDE + x) * 9 + 1].toDouble()
+        for ((fx, fz) in listOf(.2 to .3, .8 to .7, .5 to .5)) {
+            val expected = if (fx + fz <= 1.0) {
+                h(ix, iz) * (1.0 - fx - fz) +
+                    h(ix + 1, iz) * fx + h(ix, iz + 1) * fz
+            } else {
+                h(ix + 1, iz) * (1.0 - fz) +
+                    h(ix, iz + 1) * (1.0 - fx) +
+                    h(ix + 1, iz + 1) * (fx + fz - 1.0)
+            }
+            val actual = SurfaceDetailMesh.surfaceHeightAt(
+                cx + (ix + fx - half) * SurfaceDetailMesh.STEP,
+                cz + (iz + fz - half) * SurfaceDetailMesh.STEP,
+                cx, cz, elevation
+            )
+            assertEquals("Grounded details must follow the displayed triangle",
+                expected, actual, 1e-10)
+        }
+    }
+
+    @Test fun samplingOutsideForegroundUsesUnderlyingTerrain() {
+        val elevation: (Double, Double) -> Double = { x, z -> .1 + x + z }
+        assertEquals(elevation(.03, .01),
+            SurfaceDetailMesh.surfaceHeightAt(.03, .01, 0.0, 0.0, elevation), 1e-12)
+    }
 }
