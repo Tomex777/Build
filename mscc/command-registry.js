@@ -77,7 +77,9 @@ function parseCommand(rawText, prefix = '.') {
   const body = text.slice(normalizedPrefix.length).trim()
   if (!body) return null
   const [rawName, ...args] = body.split(/\s+/)
-  return { name: rawName.toLowerCase(), args }
+  // Keep exact whitespace/line breaks for rich-text commands like .tweet.
+  const rawArgs = body.slice(rawName.length).replace(/^\s+/u, '')
+  return { name: rawName.toLowerCase(), args, rawArgs }
 }
 
 function normalizeUsage(usage, prefix, commandName) {
@@ -111,6 +113,7 @@ async function runResolvedCommand(registry, parsed, context, { prefix = '.' } = 
     ...context,
     command,
     args: parsed.args,
+    rawArgs: parsed.rawArgs,
     name: parsed.name,
     capability: String(command.capability || 'general').trim().toLowerCase() || 'general',
     commandList: () => registry.canonical,
