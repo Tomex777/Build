@@ -66,6 +66,10 @@ class RendererLaunchTest {
             ) { "Position X value was not visible in the contextual inspector" }
             val movedX = positionX.text.replace(',', '.').toFloatOrNull()
             assertTrue("Viewport drag did not move X by a visible amount: ${positionX.text}", movedX != null && movedX >= 0.15f)
+            assertTrue(
+                "Could not save Inspector visual evidence",
+                device.takeScreenshot(File(context.getExternalFilesDir(null), "inspector-refined.png")),
+            )
             requireNotNull(device.wait(Until.findObject(By.res("close-context-sheet")), 10_000)) {
                 "Inspector close control was unavailable"
             }.click()
