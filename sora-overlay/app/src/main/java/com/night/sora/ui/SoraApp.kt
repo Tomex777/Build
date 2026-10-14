@@ -9,7 +9,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
@@ -23,7 +22,6 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -78,7 +76,6 @@ fun SoraApp() {
     val screenStack = remember { mutableStateListOf<AppScreen>() }
     var extensions by remember { mutableStateOf<List<InstalledExtension>>(emptyList()) }
     var extensionScanDone by remember { mutableStateOf(false) }
-    var showAiQuick by remember { mutableStateOf(false) }
     var mediaSelectedType by remember { mutableStateOf(ContentType.ANIME) }
 
     fun refreshExtensions() {
@@ -147,19 +144,6 @@ fun SoraApp() {
                             )
                         }
                     }
-                }
-            },
-            floatingActionButton = {
-                // An always-on AI shortcut sits over the bottom-right of real
-                // game boards on narrow phones. Keep gameplay unobstructed;
-                // Sora AI remains available from the More tab.
-                if (tab != RootTab.GAMES) {
-                    FloatingActionButton(
-                        onClick = { showAiQuick = true },
-                        containerColor = SoraAccent,
-                        contentColor = SoraAccentInk,
-                        shape = RoundedCornerShape(16.dp),
-                    ) { Icon(Icons.Rounded.AutoAwesome, "Open Sora AI") }
                 }
             },
         ) { padding ->
@@ -233,13 +217,6 @@ fun SoraApp() {
             }
         }
 
-        if (showAiQuick) {
-            AiQuickSheet(
-                onDismiss = { showAiQuick = false },
-                onSend = { repository.sendAiText(it) },
-                onExpand = { showAiQuick = false; push(AppScreen.Ai) },
-            )
-        }
     } else {
         when (current) {
             AppScreen.Ai -> AiScreen(
@@ -372,49 +349,5 @@ private fun MiniPlayer(player: MusicPlaybackController, onOpen: () -> Unit) {
                 }
             }
         }
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun AiQuickSheet(onDismiss: () -> Unit, onSend: (String) -> Unit, onExpand: () -> Unit) {
-    var draft by remember { mutableStateOf("") }
-    ModalBottomSheet(onDismissRequest = onDismiss, containerColor = Color(0xFF161614)) {
-        Column(Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 14.dp).padding(bottom = 14.dp)) {
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f)) { Text("Sora AI", fontSize = 18.sp, fontWeight = FontWeight.ExtraBold); Text("Local chat · AI provider not connected", color = SoraMuted, fontSize = 9.sp) }
-                TextButton(onClick = onExpand) { Text("Full chat") }
-                IconButton(onClick = onDismiss) { Icon(Icons.Rounded.Close, "Close") }
-            }
-            Row(Modifier.padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) { Box(Modifier.size(6.dp).background(SoraAccent, RoundedCornerShape(99.dp))); Text("Messages stay local until a provider is connected", color = SoraMuted, fontSize = 9.sp, modifier = Modifier.padding(start = 7.dp)) }
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(7.dp), verticalArrangement = Arrangement.spacedBy(7.dp), modifier = Modifier.padding(vertical = 7.dp)) {
-                QuickSuggestion("What should I continue tonight?") { draft = "What should I continue tonight?" }
-                QuickSuggestion("Find me another manga") { draft = "Find me a manga based on what I like." }
-                QuickSuggestion("Give me something funny") { draft = "Show me something funny." }
-                QuickSuggestion("Explain a Bible passage") { draft = "Explain this Bible passage for me." }
-            }
-            Surface(color = SoraSurface, border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = .08f)), shape = RoundedCornerShape(24.dp), modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
-                Row(Modifier.padding(horizontal = 7.dp, vertical = 7.dp), verticalAlignment = Alignment.Bottom) {
-                    Box(Modifier.weight(1f).padding(vertical = 9.dp)) {
-                        BasicTextField(
-                            value = draft, onValueChange = { draft = it }, minLines = 1, maxLines = 4,
-                            textStyle = TextStyle(color = SoraText, fontSize = 14.sp, lineHeight = 20.sp), modifier = Modifier.fillMaxWidth(),
-                            decorationBox = { inner -> if (draft.isEmpty()) Text("Ask Sora anything…", color = SoraMuted, fontSize = 14.sp); inner() },
-                        )
-                    }
-                    FilledIconButton(
-                        onClick = { val clean = draft.trim(); if (clean.isNotEmpty()) { onSend(clean); draft = ""; onExpand() } },
-                        modifier = Modifier.size(38.dp), colors = IconButtonDefaults.filledIconButtonColors(containerColor = SoraText, contentColor = Color.Black),
-                    ) { Icon(Icons.Rounded.ArrowUpward, "Send") }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun QuickSuggestion(text: String, onClick: () -> Unit) {
-    Surface(color = SoraSurfaceHigh, shape = RoundedCornerShape(999.dp), modifier = Modifier.clickable(onClick = onClick)) {
-        Text(text, fontSize = 9.sp, modifier = Modifier.padding(horizontal = 11.dp, vertical = 8.dp))
     }
 }
