@@ -43,6 +43,13 @@ jobs:
             curl -fsSL --retry 3 --connect-timeout 15 "https://images.unsplash.com/${scenes[$name]}?auto=format&fit=crop&crop=entropy&w=1080&h=1400&q=75&fm=jpg" -o "EchoSpace/app/src/main/res/drawable-nodpi/scene_${name}.jpg"
             test $(wc -c < "EchoSpace/app/src/main/res/drawable-nodpi/scene_${name}.jpg") -gt 25000
           done
+      - name: Produce verified offline field recordings and measured HRTF
+        run: |
+          python3 EchoSpace/tools/prepare_audio.py
+          for name in rain thunder ocean wind fire chimes birds night stream waterfall leaves owl frogs traffic drizzle sleet; do
+            test -s "EchoSpace/app/src/main/assets/audio/${name}.pcm"
+          done
+          test -s EchoSpace/app/src/main/assets/kemar_44100.hrir
       - name: Install Android build tools
         run: |
           SDKMANAGER=$(find "$ANDROID_HOME/cmdline-tools" -name sdkmanager -type f | head -n 1)
@@ -87,6 +94,10 @@ jobs:
             python3 EchoSpace/tools/emulator_probe.py tap text 'Deep Forest'
             sleep 4
             python3 EchoSpace/tools/emulator_probe.py assert text 'Deep Forest'
+            python3 EchoSpace/tools/emulator_probe.py assert desc 'Living sounds on'
+            python3 EchoSpace/tools/emulator_probe.py tap desc 'Living sounds on'
+            python3 EchoSpace/tools/emulator_probe.py assert desc 'Living sounds off'
+            python3 EchoSpace/tools/emulator_probe.py tap desc 'Living sounds off'
             python3 EchoSpace/tools/emulator_probe.py assert desc 'Mute Birdsong'
             adb shell screencap -p /sdcard/forest.png
             adb pull /sdcard/forest.png qa/03-deep-forest.png
@@ -135,6 +146,13 @@ jobs:
             if grep -q 'FATAL EXCEPTION' qa/android-crashes.log; then cat qa/android-crashes.log; exit 1; fi
             adb shell pidof com.nexa.echospace
             echo 'EMULATOR_QA_COMPLETE'
+      - name: Upload compiled audio provenance
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: EchoSpace-field-recording-credits
+          path: EchoSpace/app/src/main/assets/recording_credits.json
+          if-no-files-found: warn
       - uses: actions/upload-artifact@v4
         if: always()
         with:
