@@ -10,7 +10,7 @@ const sources = new Map([
 const sourceId = String(process.argv[2] || '').trim().toLowerCase()
 const source = sources.get(sourceId)
 if (!source) throw new Error('Usage: node anime-command-live-probe.js <animesogo|kayoanime>')
-const query = String(process.env.MSCC_LIVE_QUERY || 'Bleach').trim()
+const query = String(process.env.MSCC_LIVE_QUERY || 'Re:ZERO').trim()
 assert.ok(query, 'MSCC_LIVE_QUERY must be non-empty')
 
 const sourceChoices = [...sources.values()].map(row => ({
