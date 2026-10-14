@@ -5,6 +5,11 @@ import studio.artistscene.core.ActorKind
 import studio.artistscene.core.AssetReference
 import studio.artistscene.core.LightSettings
 import studio.artistscene.core.LightType
+import studio.artistscene.core.HairStyle
+import studio.artistscene.core.CharacterAppearanceSettings
+import studio.artistscene.core.RigPose
+import studio.artistscene.core.WorldSettings
+import studio.artistscene.core.EnvironmentPreset
 import studio.artistscene.core.SceneProject
 import studio.artistscene.core.SceneCamera
 import studio.artistscene.core.Transform
@@ -18,6 +23,73 @@ object PrototypeScene {
     const val RIGGED_FIGURE_ASSET_ID = "starter.khronos.rigged-figure"
     const val COLOR_CUBE_ASSET_ID = "starter.khronos.color-cube"
     const val HUMANOID_ASSET_ID = "starter.makehuman.humanoid"
+    const val ANIME_ASSET_ID = "starter.mise.anime-figure"
+    const val ANIME_POSE_PROJECT_ID = "anime-pose-study-v1"
+
+    /** Keep the tested Cesium starter intact. This independent scene leads with a posed character. */
+    fun createAnimePoseStudy(): SceneProject = SceneProject(
+        id = ANIME_POSE_PROJECT_ID,
+        name = "Anime Pose Study",
+        actors = listOf(
+            animeActor("anime-hero", "Anime · Dynamic pose", Vec3(), pose = true),
+        ) + create().actors.filter { it.kind == ActorKind.LIGHT },
+        cameras = listOf(
+            SceneCamera(
+                id = "camera-main", name = "Anime pose camera",
+                position = Vec3(2.15f, 1.65f, 4.45f),
+                target = Vec3(0f, .93f, 0f),
+            ),
+        ),
+        world = WorldSettings(environmentPreset = EnvironmentPreset.DAYLIGHT),
+    )
+
+    /** Original stylized mesh, still bound to all 163 CC0 MakeHuman bones. */
+    private fun animeActor(
+        id: String,
+        name: String,
+        position: Vec3 = Vec3(),
+        pose: Boolean = false,
+    ) = Actor(
+        id = id,
+        name = name,
+        kind = ActorKind.CHARACTER,
+        transform = Transform(position = position),
+        asset = AssetReference(
+            assetId = ANIME_ASSET_ID,
+            relativePath = "models/mise_anime.glb",
+            format = "glb",
+            source = "https://github.com/makehumancommunity/makehuman/tree/a8bc2d54ff0ac92e78ff71431b1023eda42bf482",
+            creator = "Mise · original anime styling of MakeHuman Community CC0 geometry",
+            license = "CC0-1.0",
+            licenseUrl = "https://creativecommons.org/publicdomain/zero/1.0/legalcode",
+            attribution = "Original Mise anime-styled rig, face, body and costume generated from pinned CC0 MakeHuman source.",
+            version = "1",
+        ),
+        appearance = CharacterAppearanceSettings(hairStyle = HairStyle.BOB, hairColorHex = "#25345A"),
+        rig = if (pose) dynamicAnimePose() else null,
+    )
+
+    /** Genuine local-joint rotations; the project loads posed and remains fully editable. */
+    private fun dynamicAnimePose(): RigPose {
+        val torso = "humanoid/root/spine05/spine04/spine03/spine02/spine01"
+        val leftArm = "$torso/clavicle-l/shoulder01-l/upperarm01-l"
+        val rightArm = "$torso/clavicle-r/shoulder01-r/upperarm01-r"
+        val leftLeg = "humanoid/root/pelvis-l/upperleg01-l"
+        val rightLeg = "humanoid/root/pelvis-r/upperleg01-r"
+        return RigPose(joints = mapOf(
+            "humanoid/root/spine05/spine04/spine03" to Vec3(y = 13f, z = -8f),
+            "$torso/neck01/neck02/neck03/head" to Vec3(y = -9f, z = 9f),
+            leftArm to Vec3(x = -20f, z = 54f),
+            "$leftArm/upperarm02-l/lowerarm01-l" to Vec3(x = -15f, z = 80f),
+            rightArm to Vec3(x = 16f, z = -45f),
+            "$rightArm/upperarm02-r/lowerarm01-r" to Vec3(x = 18f, z = -58f),
+            leftLeg to Vec3(x = -23f, z = 14f),
+            "$leftLeg/upperleg02-l/lowerleg01-l" to Vec3(x = 24f),
+            rightLeg to Vec3(x = 16f, z = -16f),
+            "$rightLeg/upperleg02-r/lowerleg01-r" to Vec3(x = 17f),
+        ))
+    }
+
 
     fun starterAssets(): List<Actor> {
         val fixtureAssets = create().actors.filter {
@@ -27,6 +99,7 @@ object PrototypeScene {
             originalActor("Bicycle", ActorKind.VEHICLE),
             originalActor("Car", ActorKind.VEHICLE),
             originalActor("Tree", ActorKind.ENVIRONMENT),
+            animeActor("starter-anime", "Anime Figure", pose = false),
             Actor(
                 id = "starter-mise-humanoid",
                 name = "Humanoid",
