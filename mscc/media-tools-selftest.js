@@ -62,10 +62,10 @@ if (exists('ffmpeg')) {
   const dir = await mkdtemp(join(tmpdir(), 'night-media-selftest-'))
   try {
     const wav = join(dir, 'input.wav'), mp4 = join(dir, 'input.mp4')
-    let process = spawnSync('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-y',
+    let job = spawnSync('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-y',
       '-f', 'lavfi', '-i', 'sine=frequency=440:duration=1',
       wav], { timeout: 12000 })
-    assert.equal(process.status, 0, String(process.stderr))
+    assert.equal(job.status, 0, String(job.stderr))
     const audio = await readFile(wav)
     assert.ok((await cutAudioSilence(audio, { mode: 'gentle' })).length > 1000)
     assert.ok((await cutAudioSilence(audio, { mode: 'normal' })).length > 1000)
@@ -95,11 +95,11 @@ if (exists('ffmpeg')) {
     for (const mode of ['denoise', 'natural', 'auto', 'strong']) {
       assert.ok((await processAudio(audio, { mode })).length > 1000, 'Audio filter failed: ' + mode)
     }
-    process = spawnSync('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-y',
+    job = spawnSync('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-y',
       '-f', 'lavfi', '-i', 'color=c=blue:s=160x120:r=10:d=1',
       '-f', 'lavfi', '-i', 'sine=frequency=440:duration=1',
       '-shortest', '-c:v', 'mpeg4', '-c:a', 'aac', mp4], { timeout: 12000 })
-    assert.equal(process.status, 0, String(process.stderr))
+    assert.equal(job.status, 0, String(job.stderr))
     assert.ok((await processAudio(await readFile(mp4), { video: true })).length > 1000)
   } finally { await rm(dir, { recursive: true, force: true }) }
 } else console.log('SKIP audio integration: FFmpeg missing')
