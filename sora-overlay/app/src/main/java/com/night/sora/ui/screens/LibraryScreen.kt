@@ -71,7 +71,7 @@ fun LibraryScreen(
 
     Column(modifier.fillMaxSize()) {
         Row(
-            Modifier.fillMaxWidth().statusBarsPadding().height(56.dp).padding(horizontal = 10.dp),
+            Modifier.fillMaxWidth().height(56.dp).padding(horizontal = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             if (searchOpen) {
@@ -110,11 +110,6 @@ fun LibraryScreen(
             }
         }
         HorizontalDivider(color = Color.White.copy(alpha = .045f))
-
-        Row(Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 13.dp), horizontalArrangement = Arrangement.SpaceBetween) {
-            Text("${visible.size} item${if (visible.size == 1) "" else "s"}", color = SoraMuted, fontSize = 9.sp)
-            Text(if (sortTitle) "Title A–Z" else "Last updated", color = SoraMuted, fontSize = 9.sp)
-        }
 
         if (visible.isEmpty()) {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
