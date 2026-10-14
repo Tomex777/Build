@@ -44,6 +44,7 @@ internal fun CloudSetupPage(
     onRefresh: () -> Unit,
     onSave: (String, String) -> Unit,
     onAutoAssign: (Set<String>, String?) -> Unit,
+    onVerify: (String) -> Unit,
     onRestart: () -> Unit,
 ) {
     val settings = state.environment?.entries.orEmpty().associateBy { it.key }
@@ -159,13 +160,31 @@ internal fun CloudSetupPage(
                         Text("Primary account: ${used / (1024 * 1024)} / ${total / (1024 * 1024)} MiB",
                             fontSize = 12.sp)
                     }
+                    OutlinedButton(onClick = { onVerify("primary") }, enabled = !state.loading) {
+                        Text("Test 64-byte primary upload")
+                    }
                     dashboard.targets.filter { it.type == "contributed" }.forEach { target ->
                         Text(
                             "${target.label} · ${target.mediaTypes.joinToString()} · " +
                                 if (target.detected && target.uploadEnabled) "ready" else "offline/not approved",
                             fontSize = 11.sp,
                         )
+                        if (target.detected && target.uploadEnabled) {
+                            OutlinedButton(
+                                onClick = { onVerify(target.id) },
+                                enabled = !state.loading && target.id.isNotBlank(),
+                            ) { Text("Test 64-byte readback") }
+                        }
                     }
+                    state.cloudVerificationMessage?.let { note ->
+                        Text(note, fontSize = 12.sp, fontWeight = FontWeight.Medium)
+                    }
+                    Text(
+                        "These tests prove only that MSCC can download its upload. " +
+                            "The contributor must separately confirm a normal test file opens in their own MEGA app.",
+                        color = CortexMuted,
+                        fontSize = 11.sp,
+                    )
                 }
             }
         }
