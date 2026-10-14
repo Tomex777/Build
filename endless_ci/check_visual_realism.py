@@ -67,4 +67,32 @@ def check(name, expect_sky):
 
 check("mars-surface-render", "mars")
 check("moon-surface-render", "moon")
+
+
+def check_lunar_stippling():
+    """Reject the known grazing-slope normal-map regression at the fixed
+    lunar runtime-test camera. This is an artifact check, not a realism score.
+    The reviewed broken Android frame has ~6% high-curvature pixels here;
+    terrain/rock edges in the corrected shader remain well below that.
+    """
+    img = open_frame("moon-surface-render").convert("L")
+    crop = img.crop((int(img.width * .15), int(img.height * .34),
+                     int(img.width * .95), int(img.height * .80)))
+    px = crop.load()
+    severe = total = 0
+    for y in range(1, crop.height - 1):
+        for x in range(1, crop.width - 1):
+            laplacian = abs(4 * px[x, y] - px[x-1, y] - px[x+1, y]
+                            - px[x, y-1] - px[x, y+1])
+            severe += laplacian > 12
+            total += 1
+    fraction = severe / max(1, total)
+    print(f"Moon grazing-slope high-curvature pixel fraction: {fraction:.4f}")
+    assert fraction < .045, (
+        "Moon slope has excessive high-frequency stippling; inspect normal "
+        "amplitude/world units and compare the actual Android screenshot"
+    )
+
+
+check_lunar_stippling()
 print("Android planetary landing visibility checks passed")
