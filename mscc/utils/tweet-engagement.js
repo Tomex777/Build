@@ -18,3 +18,16 @@ export function randomTweetEngagement(random = randomInt) {
   const repostCount = Math.max(1, Math.round(likeCount * random(25, 130) / 1000))
   return { likeCount, replyCount, repostCount }
 }
+
+// Social post layouts use the same weighted popularity curve as mock tweets,
+// but expose the labels appropriate to Instagram, Facebook, stories and Night.
+export function randomPostEngagement(random = randomInt) {
+  const { likeCount, replyCount, repostCount } = randomTweetEngagement(random)
+  const viewCount = Math.max(likeCount + 1, likeCount * random(3, 16))
+  return {
+    likeCount,
+    commentCount: replyCount,
+    shareCount: repostCount,
+    viewCount,
+  }
+}
