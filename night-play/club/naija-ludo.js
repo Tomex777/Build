@@ -168,13 +168,20 @@ function render(s,ui){
  const progress=ui.scoreList(s.players,x=>x.tokens.filter(pos=>pos===56).length+"/"+x.tokens.length+" home");
  const pending=s.rolls.length?'<div class="nj-active-rolls">Rolled: '+s.rolls.map((d,i)=>'<span class="nj-number'+(d.used?' is-used':'')+(i===s.selectedDie?' is-selected':'')+'">'+d.value+(d.used?' ✓':'')+'</span>').join("")+' <span class="small">Tap a die to choose which value to use.</span></div>':"";
  const soundToggle='<button type="button" class="nj-sound" data-action="ludo-sound" aria-pressed="'+s.sound+'">'+(s.sound?'♫ Sound on':'♪ Sound off')+'</button>';
- const config='<div class="nj-options"><label>Dice <select class="select" data-dice-mode="ludo" '+(locked||s.rolls.length?'disabled':'')+'><option value="2"'+(s.diceCount===2?' selected':'')+'>2 dice · Naija</option><option value="1"'+(s.diceCount===1?' selected':'')+'>1 die · Classic</option></select></label>'+'<div class="nj-player-config">'+ui.choosePlayers("ludo",s.players.length,4)+'</div></div>';
+ const switches=[["barrier","Barriers","Stacked counters block rivals unless a 6 is thrown"],["safeHouse","Safe houses","Protect the four marked squares"],["captureFinishes","Finish on capture","Your counter goes home after taking an opponent"],["bonusOnCapture","Roll again after capture","An extra throw when you capture"],["directCount","Direct count","Skip individual counter hops"],["visualHand","Show hand indicator","Finger points towards the dice"]];
+ const optionDisabled=locked||s.rolls.length?'disabled':'';
+ const config='<div class="nj-options"><label>Dice <select class="select" data-dice-mode="ludo" '+optionDisabled+'><option value="2"'+(s.diceCount===2?' selected':'')+'>2 dice · Naija</option><option value="1"'+(s.diceCount===1?' selected':'')+'>1 die · Classic</option></select></label>'+'<div class="nj-player-config">'+ui.choosePlayers("ludo",s.players.length,4)+'</div></div>';
+ const settings='<details class="nj-settings"><summary>⚙ Game options <span>· Play like Naija Ludo</span></summary><div class="nj-switches">'+switches.map(([key,name,desc])=>'<label class="nj-switch"><span><b>'+name+'</b><small>'+desc+'</small></span><input type="checkbox" data-ludo-option="'+key+'" '+(s.options[key]?'checked':'')+' '+optionDisabled+'></label>').join('')+'<label class="nj-speed"><span><b>Counter movement</b><small>Adjust animation speed</small></span><select class="select" data-ludo-speed '+optionDisabled+'><option value="slow"'+(s.options.speed==="slow"?' selected':'')+'>Slow</option><option value="normal"'+(s.options.speed==="normal"?' selected':'')+'>Normal</option><option value="fast"'+(s.options.speed==="fast"?' selected':'')+'>Fast</option></select></label></div></details>';
  const btn=s.rolls.length||s.moving?'<div class="nj-move-hint" role="note">'+(s.moving?'Counter moving…':'↑ Tap a glowing counter on the board')+'</div>':'<button class="primary nj-roll-btn" type="button" data-action="ludo-roll" '+(canRoll?'':'disabled')+'>'+(s.rolling?'Rolling…':'Throw dice 🎲')+'</button>';
- ui.controls.innerHTML='<div class="nj-roll-station"><div class="nj-dice-caption">'+(s.rolls.length?'CHOOSE A DIE, THEN MOVE':'TAP THE DICE TO ROLL')+'</div>'+big+btn+pending+'</div>'+progress+config+soundToggle;
- ui.rules("Play it like Naija Ludo","<b>Two real dice</b> by default. The dice tumble before settling; use each value separately and tap the counter you want to move. A 6 releases a piece and gives another throw after the current dice are played. The <b>2-player mode uses two houses per player (8 pieces)</b>, as in the familiar Nigerian game. Safe squares ✦ protect counters. Capture an opponent to send their piece back. Your chosen dice and moves must be completed before the next throw. House rules can vary; this is the default NIGHT version.");
+ ui.controls.innerHTML='<div class="nj-roll-station"><div class="nj-dice-caption">'+(s.rolls.length?'CHOOSE A DIE, THEN MOVE':'TAP THE DICE TO ROLL')+'</div>'+big+btn+pending+'</div>'+progress+config+soundToggle+settings;
+ ui.rules("Naija Ludo house rules","Two dice, two houses each in a two-player match, <b>eight counters each</b>. Roll a 6 to release a counter; play the dice before throwing again. By default, capturing sends your counter to the finish and the rival back to their yard. A pair stacked on its opening square forms a barrier. Configure safe houses, capture rules, movement speed and direct count in Game options. <b>Local play only.</b>");
  ui.save();
 }
-function changePlayers(s,n){cancel();const fresh=create(n,s.diceCount);fresh.sound=s.sound;Object.assign(s,fresh);return s;}
+function changePlayers(s,n){cancel();const opts={...s.options};const fresh=create(n,s.diceCount);fresh.sound=s.sound;Object.assign(s,fresh);s.options=opts;return s;}
+function changeOption(s,key,value){if(s.rolling||s.moving||s.rolls.length||s.winner!==null)return false;
+ if(key==="speed"){if(!["slow","normal","fast"].includes(value))return false;}
+ else if(!(key in DEFAULT_OPTIONS)||key==="speed"||typeof value!=="boolean")return false;
+ s.options[key]=value;s.msg="Game settings updated.";return true;}
 function changeDice(s,n){if(s.rolling||s.moving||s.rolls.length)return false;s.diceCount=n===1?1:2;s.last=s.diceCount===1?[1]:[1,1];s.msg="Dice setting changed. Your next throw uses "+s.diceCount+(s.diceCount===1?" die.":" dice.");return true;}
 function selectDie(s,i,draw){if(s.rolling||s.moving||s.winner!==null||!s.rolls[i]||s.rolls[i].used)return;if(canForDie(s,i)){s.selectedDie=i;s.die=s.rolls[i].value;s.msg="Die "+(i+1)+" selected — move "+s.rolls[i].value+" spaces.";draw();}}
 function tickFaces(s){s.preview=Array.from({length:s.diceCount},()=>Math.floor(Math.random()*6)+1);
@@ -199,13 +206,27 @@ function roll(s,draw){
   sound(s,590,.095,.06);draw();
  },ms);
 }
-function capture(s,pi,ti){const me=s.players[pi],pos=me.tokens[ti];if(pos<0||pos>=51)return "";
- const cellIndex=currentIndex(tokenHouse(me,ti),pos);if(SAFE.has(cellIndex))return "";
- let captured=[];
- s.players.forEach((op,oi)=>{if(oi===pi)return;op.tokens=op.tokens.map((v,j)=>{
-  if(v>=0&&v<51&&currentIndex(tokenHouse(op,j),v)===cellIndex){captured.push(op.name);return-1;}return v;
- });});
- return captured.length?" Captured "+[...new Set(captured)].join(", ")+"!":"";
+function capture(s,pi,ti){
+ const me=s.players[pi],pos=me.tokens[ti];
+ if(pos<0||pos>=51)return {text:"",hit:false};
+ const idx=currentIndex(tokenHouse(me,ti),pos);
+ if(isSafe(s,idx))return {text:"",hit:false};
+ let hit=false,victim="";
+ for(let oi=0;oi<s.players.length&&!hit;oi++){
+  if(oi===pi)continue;
+  const other=s.players[oi];
+  for(let j=0;j<other.tokens.length;j++){
+   const n=other.tokens[j];
+   if(n>=0&&n<51&&currentIndex(tokenHouse(other,j),n)===idx){
+    other.tokens[j]=-1;hit=true;victim=other.name;break;
+   }
+  }
+ }
+ if(hit){
+  if(s.options.captureFinishes)me.tokens[ti]=56;
+  if(s.options.bonusOnCapture)s.bonus=true;
+ }
+ return {text:hit?" Knocked "+victim+"'s counter home!"+(s.options.captureFinishes?" Attacker also finished!":""):"",hit};
 }
 function move(s,pi,ti,draw){
  if(!legal(s,pi,ti,s.selectedDie))return;
@@ -217,15 +238,16 @@ function move(s,pi,ti,draw){
  function complete(){
   if(myLife!==life)return;
   s.moving=false;s.rolls[di].used=true;s.die=null;
-  let cap=capture(s,pi,ti);
+  const cap=capture(s,pi,ti);
   const home=me.tokens[ti]===56;
   if(home)sound(s,740,.18,.08);else sound(s,540,.07,.05);
-  s.msg=(home?"Piece reached home!":before<0?"Piece entered the track!":"Moved "+steps+" squares.")+cap;
+  s.msg=(home?"Piece reached home!":before<0?"Piece entered the track!":"Moved "+steps+" squares.")+cap.text;
   if(me.tokens.every(x=>x===56)){s.winner=pi;s.rolls=[];s.selectedDie=null;s.msg="All pieces home. Champion!";draw();return;}
   finishIfDone(s);draw();
  }
  if(!remaining){moveTimer=setTimeout(complete,reduced()?30:130);return;}
- let count=0;const delay=reduced()?25:105;
+ if(s.options.directCount){me.tokens[ti]+=remaining;draw();moveTimer=setTimeout(complete,reduced()?30:150);return;}
+ let count=0;const delay=reduced()?20:s.options.directCount?30:s.options.speed==="slow"?240:s.options.speed==="fast"?65:115;
  function hop(){
   if(myLife!==life)return;
   if(count<remaining){me.tokens[ti]++;count++;sound(s,370+count*22,.025,.019);draw();moveTimer=setTimeout(hop,delay);}
@@ -233,7 +255,7 @@ function move(s,pi,ti,draw){
  }
  moveTimer=setTimeout(hop,delay);
 }
-const api={create,normalize,render,changePlayers,changeDice,selectDie,roll,move,cancel};
+const api={create,normalize,render,changePlayers,changeDice,changeOption,selectDie,roll,move,cancel};
 if(isTestHost){
  api.setTestRolls=values=>{if(!Array.isArray(values)||!values.every(x=>Number.isInteger(x)&&x>=1&&x<=6))throw Error("Invalid test dice");riggedForTest=[...values];};
  api.snapshot=s=>JSON.parse(JSON.stringify(s));
