@@ -428,7 +428,7 @@ jobs:
       fail-fast: false
       matrix:
         api: [26, 36]
-        suite: [editor, humanoid, bicycle, car, tree]
+        suite: [editor, humanoid, anime, bicycle, car, tree]
     steps:
       - uses: actions/checkout@v4
       - name: Fetch pinned starter assets
@@ -469,5 +469,6 @@ jobs:
             artist-scene-studio/artist-scene-studio-api*-instrumentation*.log
             artist-scene-studio/artist-scene-studio-api*-instrumented.png
             artist-scene-studio/artist-scene-studio-api*-humanoid-*.png
+            artist-scene-studio/artist-scene-studio-api*-anime-*.png
             artist-scene-studio/artist-scene-studio-api*-mechanical-*.png
             artist-scene-studio/artist-scene-studio-api*-instrumentation-device-files/
