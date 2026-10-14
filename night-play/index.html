@@ -619,7 +619,8 @@ body{background:var(--bg)}
 }
 @media(prefers-reduced-motion:reduce){.tile-fresh,.ttt-mark path,.ttt-mark circle,.ttt-win-line path{animation:none!important}}
 
-.board2048.tile-sliding>.tile{visibility:hidden}
+/* Keep a permanent grid surface beneath animated tiles so gaps do not flash on swipe. */
+.board2048.tile-sliding>.tile{background:#dbcbb5!important;color:transparent!important;box-shadow:none!important;animation:none!important}
 .tile-layer{position:absolute;inset:0;pointer-events:none;overflow:hidden;z-index:5}
 .tile-ghost{display:flex;align-items:center;justify-content:center;position:absolute;border-radius:8px;font-weight:850;letter-spacing:-1.6px;will-change:transform;transition:transform 165ms cubic-bezier(.25,.75,.25,1)}
 @media(prefers-reduced-motion:reduce){.tile-ghost{transition:none}}
@@ -1017,7 +1018,7 @@ gameDialog.open=false;
 gameDialog.showModal=()=>{gameDialog.classList.add("active");gameDialog.setAttribute("aria-hidden","false");gameDialog.open=true;document.body.classList.add("in-game")};
 gameDialog.close=()=>{gameDialog.classList.remove("active");gameDialog.setAttribute("aria-hidden","true");gameDialog.open=false;document.body.classList.remove("in-game");gameDialog.dispatchEvent(new Event("close"))};
 const root=document.getElementById("gameRoot"),title=document.getElementById("gameTitle"),help=document.getElementById("gameHelp");
-let tileAnimId=0,undoStack2048=[];
+let tileAnimId=0,tileAnimTimer=null,undoStack2048=[];
 let active="",snakeTimer=null,snake={},ttt=[],turn="X",mode="bot",tttFinished=false,grid=[],tileScore=0,gamePaused=false,boardRestore=null,gameOverRecorded=false;
 const scoreKey="night-play-v1-";
 function best(key){try{return Number(localStorage.getItem(scoreKey+key)||0)||0}catch{return 0}}
@@ -1521,20 +1522,33 @@ function drawTtt(){
  document.getElementById("modeBtn").textContent=mode==="bot"?"VS BOT":"2 PLAYERS";
  const label=document.getElementById("turnlabel");
  label.textContent=tttFinished?(isWin(ttt,"X")?"X wins!":isWin(ttt,"O")?"O wins!":"It's a draw!"):(turn==="X"?"X to play":mode==="bot"?"Bot thinking…":"O to play");
- const board=document.getElementById("tttboard");board.innerHTML="";
+ const board=document.getElementById("tttboard");
+ // Only the new X or O gets a fresh SVG; earlier marks keep their original DOM and animation state.
+ let cells=[...board.querySelectorAll(":scope > .ttt-cell")];
+ if(cells.length!==9){
+  board.replaceChildren();cells=[];
+  for(let i=0;i<9;i++){const b=document.createElement("button");b.type="button";b.className="ttt-cell";b.onclick=()=>moveTtt(i);board.appendChild(b);cells.push(b)}
+ }
  ttt.forEach((value,i)=>{
-  const b=document.createElement("button");b.className="ttt-cell";b.dataset.mark=value||"empty";
-  b.disabled=Boolean(value)||tttFinished||(mode==="bot"&&turn==="O");b.setAttribute("aria-label","cell "+(i+1)+(value?" "+value:""));
-  if(value){const path=value==="X"?'<path d="M22 22 78 78M78 22 22 78"/>':'<circle cx="50" cy="50" r="29"/>';b.innerHTML='<svg class="ttt-mark" viewBox="0 0 100 100" aria-hidden="true">'+path+'</svg><span class="sr-only">'+value+'</span>'}
-  b.onclick=()=>moveTtt(i);board.appendChild(b)
+  const b=cells[i],mark=value||"empty";
+  if(b.dataset.mark!==mark){
+   b.dataset.mark=mark;
+   if(value){const path=value==="X"?'<path d="M22 22 78 78M78 22 22 78"/>':'<circle cx="50" cy="50" r="29"/>';b.innerHTML='<svg class="ttt-mark" viewBox="0 0 100 100" aria-hidden="true">'+path+'</svg><span class="sr-only">'+value+'</span>'}
+   else b.replaceChildren();
+  }
+  b.disabled=Boolean(value)||tttFinished||(mode==="bot"&&turn==="O");
+  b.setAttribute("aria-label","cell "+(i+1)+(value?" "+value:""));
  });
  const winLines=[[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
  const line=winLines.find(a=>ttt[a[0]]&&a.every(i=>ttt[i]===ttt[a[0]]));
+ const existingLine=board.querySelector(":scope > .ttt-win-line");
  if(tttFinished&&line){
-  const pos=i=>({x:50+(i%3)*100,y:50+Math.floor(i/3)*100});
-  const start=pos(line[0]),end=pos(line[2]);
-  board.insertAdjacentHTML("beforeend",'<svg class="ttt-win-line" viewBox="0 0 300 300" preserveAspectRatio="none" aria-hidden="true"><path d="M'+start.x+' '+start.y+' L'+end.x+' '+end.y+'"/></svg>');
- }
+  if(!existingLine){
+   const pos=i=>({x:50+(i%3)*100,y:50+Math.floor(i/3)*100});
+   const start=pos(line[0]),end=pos(line[2]);
+   board.insertAdjacentHTML("beforeend",'<svg class="ttt-win-line" viewBox="0 0 300 300" preserveAspectRatio="none" aria-hidden="true"><path d="M'+start.x+' '+start.y+' L'+end.x+' '+end.y+'"/></svg>');
+  }
+ }else existingLine?.remove();
 }
 function minimaxTtt(state,turnMark,depth=0){
  if(isWin(state,"O"))return 10-depth;if(isWin(state,"X"))return depth-10;
@@ -1562,7 +1576,7 @@ function moveTtt(i){
  if(mode==="bot"&&!tttFinished&&turn==="O")setTimeout(botMoveTtt,330)
 }
 function init2048(fresh=false){
- gameOverRecorded=false;
+ stopTileAnimation();gameOverRecorded=false;
  undoStack2048=[];document.getElementById("undo2048").disabled=true;
  const configured=Number(getSetting("2048-size","4"));const size=[4,5,6].includes(configured)?configured:4;
  let saved=null;try{saved=!fresh?JSON.parse(localStorage.getItem("night-play-save-2048-"+size)||((size===4)?localStorage.getItem("night-play-save-2048"):"")||"null"):null}catch{}
@@ -1578,7 +1592,7 @@ function init2048(fresh=false){
 document.getElementById("undo2048").addEventListener("click",()=>{
  if(active!=="2048"||gamePaused||!undoStack2048.length)return;
  const snapshot=undoStack2048.pop();grid=snapshot.grid.map(row=>row.slice());tileScore=snapshot.score;
- tileAnimId++;gameOverRecorded=false;draw2048();
+ gameOverRecorded=false;draw2048();
  const size=grid.length;try{localStorage.setItem("night-play-save-2048-"+size,JSON.stringify({grid,size,score:tileScore,updatedAt:Date.now()}))}catch{}
  document.getElementById("undo2048").disabled=!undoStack2048.length;
 });
@@ -1621,6 +1635,12 @@ function tileMovePaths(before,dir){
  }
  return paths
 }
+function stopTileAnimation(){
+ tileAnimId++;
+ if(tileAnimTimer!==null){clearTimeout(tileAnimTimer);tileAnimTimer=null}
+ const board=document.getElementById("board2048");
+ if(board){board.classList.remove("tile-sliding");board.querySelectorAll(":scope > .tile-layer").forEach(el=>el.remove())}
+}
 function animateTileSlide(board,before,dir){
  if(window.matchMedia("(prefers-reduced-motion: reduce)").matches||!board.isConnected)return;
  const len=before.length,children=[...board.querySelectorAll(":scope > .tile")];
@@ -1643,22 +1663,29 @@ function animateTileSlide(board,before,dir){
  const token=++tileAnimId;
  board.appendChild(layer);board.classList.add("tile-sliding");
  requestAnimationFrame(()=>{if(token!==tileAnimId)return;ghosts.forEach(g=>g.item.style.transform="translate("+g.dx+"px,"+g.dy+"px)")});
- setTimeout(()=>{if(token!==tileAnimId)return;board.classList.remove("tile-sliding");layer.remove()},185)
+ tileAnimTimer=setTimeout(()=>{if(token!==tileAnimId)return;board.classList.remove("tile-sliding");layer.remove();tileAnimTimer=null},185)
 }
 function draw2048(before=null,dir=null){
  const score=document.getElementById("score"),bestEl=document.getElementById("best");
  if(!score||!bestEl)return;
  score.textContent=tileScore;bestEl.textContent=best(tileBestKey());
  const board=document.getElementById("board2048");if(!board)return;
- board.innerHTML="";board.dataset.size=String(grid.length);board.style.gridTemplateColumns="repeat("+grid.length+",minmax(0,1fr))";
- grid.forEach((row,r)=>row.forEach((v,c)=>{
-  const el=document.createElement("div");el.className="tile";el.dataset.v=String(v);el.textContent=v||"";
-  if(before&&v&&before[r]?.[c]!==v)el.classList.add("tile-fresh");
-  board.appendChild(el)
+ stopTileAnimation();
+ const len=grid.length,count=len*len;
+ board.dataset.size=String(len);board.style.gridTemplateColumns="repeat("+len+",minmax(0,1fr))";
+ // Preserve every tile element while swiping so neither grid geometry nor background flashes.
+ let cells=[...board.querySelectorAll(":scope > .tile")];
+ if(cells.length!==count){
+  board.replaceChildren();cells=[];
+  for(let i=0;i<count;i++){const el=document.createElement("div");el.className="tile";board.appendChild(el);cells.push(el)}
+ }
+ grid.forEach((row,r)=>row.forEach((v,col)=>{
+  const el=cells[r*len+col],value=String(v);
+  if(el.dataset.v!==value){el.dataset.v=value;el.textContent=v||""}
+  el.classList.toggle("tile-fresh",Boolean(before&&v&&before[r]?.[col]!==v));
  }));
  if(before&&dir)animateTileSlide(board,before,dir)
 }
-
 const SETTINGS_PREFIX="night-play-setting-";
 function getSetting(key,fallback){return getSaved(SETTINGS_PREFIX+key)||fallback}
 function setSetting(key,value){putSaved(SETTINGS_PREFIX+key,value)}
