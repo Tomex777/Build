@@ -54,40 +54,42 @@ jobs:
           disable-animations: true
           emulator-options: -no-window -no-snapshot -noaudio -no-boot-anim -gpu swiftshader_indirect
           script: |
+            set -e
             mkdir -p qa
             adb install -r EchoSpace/app/build/outputs/apk/debug/app-debug.apk
             adb shell pm grant com.nexa.echospace android.permission.POST_NOTIFICATIONS
             adb shell settings put system screen_off_timeout 600000
             adb shell am start -W -n com.nexa.echospace/.MainActivity
-            sleep 12
-            adb shell screencap -p /sdcard/echospace-launch.png
-            adb pull /sdcard/echospace-launch.png qa/01-launch.png
-            adb shell uiautomator dump /sdcard/echospace-ui.xml
-            adb pull /sdcard/echospace-ui.xml qa/ui.xml
-            adb shell wm size
-            adb shell input tap 150 2086
-            sleep 3
-            adb shell uiautomator dump /sdcard/echospace-playing.xml
-            adb pull /sdcard/echospace-playing.xml qa/playing.xml
-            grep -q 'text="Playing"' qa/playing.xml || { echo 'Play button failed'; exit 1; }
-            adb shell screencap -p /sdcard/echospace-play.png
-            adb pull /sdcard/echospace-play.png qa/02-play.png
-            adb shell input tap 680 472
+            sleep 8
+            python3 EchoSpace/tools/emulator_probe.py assert text EchoSpace
+            adb shell screencap -p /sdcard/launch.png
+            adb pull /sdcard/launch.png qa/01-launch.png
+            python3 EchoSpace/tools/emulator_probe.py tap desc Play
             sleep 4
-            adb shell screencap -p /sdcard/echospace-forest.png
-            adb pull /sdcard/echospace-forest.png qa/03-environment-switch.png
-            adb shell uiautomator dump /sdcard/echospace-forest.xml
-            adb pull /sdcard/echospace-forest.xml qa/forest.xml
-            grep -q 'text="Deep Forest"' qa/forest.xml || { echo 'Preset switch failed'; exit 1; }
-            adb shell input tap 968 687
+            python3 EchoSpace/tools/emulator_probe.py assert text Listening
+            adb shell screencap -p /sdcard/play.png
+            adb pull /sdcard/play.png qa/02-playing.png
+            python3 EchoSpace/tools/emulator_probe.py tap text 'Deep Forest'
+            sleep 4
+            python3 EchoSpace/tools/emulator_probe.py assert text 'Deep Forest'
+            python3 EchoSpace/tools/emulator_probe.py assert desc 'Mute Birdsong'
+            adb shell screencap -p /sdcard/forest.png
+            adb pull /sdcard/forest.png qa/03-deep-forest.png
+            python3 EchoSpace/tools/emulator_probe.py tap desc 'Mute Birdsong'
+            sleep 1
+            python3 EchoSpace/tools/emulator_probe.py assert text Muted
+            python3 EchoSpace/tools/emulator_probe.py tap desc 'Unmute Birdsong'
+            python3 EchoSpace/tools/emulator_probe.py tap desc 'Add a sound'
             sleep 2
-            adb shell uiautomator dump /sdcard/echospace-add.xml
-            adb pull /sdcard/echospace-add.xml qa/add.xml
-            grep -q 'text="Add a sound"' qa/add.xml || { echo 'Add sound sheet failed'; exit 1; }
-            adb shell screencap -p /sdcard/echospace-add.png
-            adb pull /sdcard/echospace-add.png qa/04-add-sheet.png
-            if cmp -s qa/01-launch.png qa/02-play.png; then echo 'Play had no visual effect'; exit 1; fi
-            if cmp -s qa/02-play.png qa/03-environment-switch.png; then echo 'Preset switch had no visual effect'; exit 1; fi
+            python3 EchoSpace/tools/emulator_probe.py assert text 'Add a sound'
+            adb shell screencap -p /sdcard/sheet.png
+            adb pull /sdcard/sheet.png qa/04-add-sound.png
+            python3 EchoSpace/tools/emulator_probe.py tap text Fire
+            sleep 1
+            python3 EchoSpace/tools/emulator_probe.py assert desc 'Mute Fire'
+            adb shell screencap -p /sdcard/added.png
+            adb pull /sdcard/added.png qa/05-added-source.png
+            if cmp -s qa/01-launch.png qa/03-deep-forest.png; then echo 'Preset change invisible'; exit 1; fi
             adb shell logcat -d -v brief -s AndroidRuntime:E > qa/android-crashes.log
             if grep -q 'FATAL EXCEPTION' qa/android-crashes.log; then cat qa/android-crashes.log; exit 1; fi
             adb shell pidof com.nexa.echospace
