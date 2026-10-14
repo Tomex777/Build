@@ -113,10 +113,17 @@ NEED_APT=0
 if ! command -v ffmpeg >/dev/null 2>&1; then NEED_APT=1; fi
 if ! command -v pdftotext >/dev/null 2>&1; then NEED_APT=1; fi
 if ! command -v fpcalc >/dev/null 2>&1; then NEED_APT=1; fi
+# Social cards require real emoji/Unicode fonts on headless Azure Linux.
+for font_package in fonts-noto-core fonts-noto-color-emoji; do
+  if ! dpkg-query -W -f='\u0024{Status}' "$font_package" 2>/dev/null | grep -q 'install ok installed'; then
+    NEED_APT=1
+  fi
+done
 if [ "$NEED_APT" -eq 1 ]; then
-  echo ">>> Installing media/document/fingerprint runtime dependencies..."
+  echo ">>> Installing media/document and Unicode font dependencies..."
   sudo apt-get update -y
-  sudo apt-get install -y --no-install-recommends ffmpeg poppler-utils libchromaprint-tools
+  sudo apt-get install -y --no-install-recommends ffmpeg poppler-utils libchromaprint-tools fontconfig fonts-noto-core fonts-noto-color-emoji
+  sudo fc-cache -f >/dev/null 2>&1 || true
 fi
 
 # Keep YouTube's optional maintained extractor in a private MSCC-only venv.
