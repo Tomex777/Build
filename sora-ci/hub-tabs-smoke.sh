@@ -146,14 +146,27 @@ PY
 }
 
 tap_scrolling() {
-  local label="$1"
+  local label="$1" width height geometry
+  # Android's wm override changes the screenshot viewport in the 360dp
+  # responsive pass. Fixed Pixel 7 coordinates (540,1850) start *outside*
+  # the 720x1600 window, so swipes never reached the arcade list.
+  geometry=$(adb shell wm size | sed -n 's/.*size: \([0-9]*\)x\([0-9]*\).*/\1 \2/p' | tail -n 1)
+  read -r width height <<<"$geometry"
+  if [[ ! "$width" =~ ^[0-9]+$ || ! "$height" =~ ^[0-9]+$ ]]; then
+    echo "Could not detect emulator viewport for '$label': $geometry" >&2
+    return 1
+  fi
+  local x=$((width / 2))
+  local from_y=$((height * 75 / 100))
+  local to_y=$((height * 30 / 100))
   for _ in $(seq 1 12); do
     dump_ui
     if node_exists "$label"; then tap "$label"; return 0; fi
-    adb shell input swipe 540 1850 540 650 350
+    adb shell input swipe "$x" "$from_y" "$x" "$to_y" 350
     sleep 1
   done
-  echo "Could not find '$label' while scrolling" >&2
+  shot "failure-scroll-${label//[^A-Za-z0-9]/_}"
+  echo "Could not find '$label' while scrolling (${width}x${height})" >&2
   return 1
 }
 
