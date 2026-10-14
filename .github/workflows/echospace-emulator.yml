@@ -56,6 +56,7 @@ jobs:
           script: |
             mkdir -p qa
             adb install -r EchoSpace/app/build/outputs/apk/debug/app-debug.apk
+            adb shell pm grant com.nexa.echospace android.permission.POST_NOTIFICATIONS
             adb shell settings put system screen_off_timeout 600000
             adb shell am start -W -n com.nexa.echospace/.MainActivity
             sleep 12
@@ -63,17 +64,30 @@ jobs:
             adb pull /sdcard/echospace-launch.png qa/01-launch.png
             adb shell uiautomator dump /sdcard/echospace-ui.xml
             adb pull /sdcard/echospace-ui.xml qa/ui.xml
-            RES=$(adb shell wm size | tr -d '\r' | grep 'Physical size' | awk '{print $3}')
-            W=${RES%x*}; H=${RES#*x}
-            echo "Emulator size is ${W} x ${H}"
-            adb shell input tap $((W * 12 / 100)) $((H * 87 / 100))
-            sleep 5
+            adb shell wm size
+            adb shell input tap 150 2086
+            sleep 3
+            adb shell uiautomator dump /sdcard/echospace-playing.xml
+            adb pull /sdcard/echospace-playing.xml qa/playing.xml
+            grep -q 'text="Playing"' qa/playing.xml || { echo 'Play button failed'; exit 1; }
             adb shell screencap -p /sdcard/echospace-play.png
             adb pull /sdcard/echospace-play.png qa/02-play.png
-            adb shell input tap $((W * 58 / 100)) $((H * 16 / 100))
+            adb shell input tap 680 472
             sleep 4
             adb shell screencap -p /sdcard/echospace-forest.png
             adb pull /sdcard/echospace-forest.png qa/03-environment-switch.png
+            adb shell uiautomator dump /sdcard/echospace-forest.xml
+            adb pull /sdcard/echospace-forest.xml qa/forest.xml
+            grep -q 'text="Deep Forest"' qa/forest.xml || { echo 'Preset switch failed'; exit 1; }
+            adb shell input tap 968 687
+            sleep 2
+            adb shell uiautomator dump /sdcard/echospace-add.xml
+            adb pull /sdcard/echospace-add.xml qa/add.xml
+            grep -q 'text="Add a sound"' qa/add.xml || { echo 'Add sound sheet failed'; exit 1; }
+            adb shell screencap -p /sdcard/echospace-add.png
+            adb pull /sdcard/echospace-add.png qa/04-add-sheet.png
+            if cmp -s qa/01-launch.png qa/02-play.png; then echo 'Play had no visual effect'; exit 1; fi
+            if cmp -s qa/02-play.png qa/03-environment-switch.png; then echo 'Preset switch had no visual effect'; exit 1; fi
             adb shell logcat -d -v brief -s AndroidRuntime:E > qa/android-crashes.log
             if grep -q 'FATAL EXCEPTION' qa/android-crashes.log; then cat qa/android-crashes.log; exit 1; fi
             adb shell pidof com.nexa.echospace
