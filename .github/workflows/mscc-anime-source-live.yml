@@ -6,6 +6,21 @@ on:
     branches: [mscc-azure]
     paths:
       - 'mscc/kayoanime-live-probe.js'
+      - 'mscc/anime-command-live-probe.js'
+      - 'mscc/anime-source-live-probe.js'
+      - 'mscc/sources/anime/_delivery.js'
+      - 'mscc/sources/anime/kayoanime.js'
+      - 'mscc/sources/anime/animepahe.js'
+      - 'mscc/sources/anime/animesogo.js'
+      - 'mscc/sources/anime/animeonsen.js'
+      - 'mscc/tools/install-flaresolverr-tor.sh'
+      - '.github/workflows/mscc-anime-source-live.yml'
+
+  pull_request:
+    branches: [mscc-azure]
+    paths:
+      - 'mscc/anime-command-live-probe.js'
+      - 'mscc/kayoanime-live-probe.js'
       - 'mscc/anime-source-live-probe.js'
       - 'mscc/sources/anime/_delivery.js'
       - 'mscc/sources/anime/kayoanime.js'
@@ -49,6 +64,10 @@ jobs:
         env:
           MSCC_FLARESOLVERR_URL: http://127.0.0.1:8191
         run: node kayoanime-live-probe.js
+      - name: Verify KayoAnime through the real .anime command flow
+        env:
+          MSCC_FLARESOLVERR_URL: http://127.0.0.1:8191
+        run: node anime-command-live-probe.js kayoanime
 
   source:
     name: ${{ matrix.source }}
@@ -75,3 +94,8 @@ jobs:
         env:
           MSCC_FLARESOLVERR_URL: http://127.0.0.1:8191
         run: node anime-source-live-probe.js ${{ matrix.source }}
+      - name: Verify AnimeSogo through the real .anime command flow
+        if: matrix.source == 'animesogo'
+        env:
+          MSCC_FLARESOLVERR_URL: http://127.0.0.1:8191
+        run: node anime-command-live-probe.js animesogo
