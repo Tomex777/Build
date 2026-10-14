@@ -33,7 +33,12 @@ try{
   assert.equal(await page.locator(".ludo-hud").isVisible(),true,"in-game player score HUD visible");
   assert.equal(await page.locator(".club-intro").isVisible(),false,"no distracting website hero");
   assert.equal(await page.locator(".game-picks").isVisible(),false,"no huge browser menu above Ludo board");
-  assert.equal(await page.locator(".nj-avatar").count(),4,"all four original tabletop portraits are drawn");
+  assert.equal(await page.locator(".nj-avatar").count(),4,"four original football medallions are drawn");
+  assert.equal(await page.locator('.nj-dice-controls').isVisible(),true,"large dice stay visible for touch selection");
+  const diceTouchBox=await page.locator('.nj-die-button').first().boundingBox();
+  assert.ok(diceTouchBox.width>=44&&diceTouchBox.height>=44,"dice have comfortable touch targets");
+  const screenBottom=await page.locator('.info-panel').boundingBox();
+  assert.ok(screenBottom.y+screenBottom.height<740,"the board and dice fit the first phone screen");
   const width=await page.locator(".nj-board").boundingBox();
   assert.ok(width.width>340&&width.width<391,"board fills almost entire 390px phone width");
   const top=await page.locator(".nj-board").evaluate(el=>el.getBoundingClientRect().top);
@@ -48,6 +53,8 @@ try{
   await page.evaluate(()=>window.NightLudo.setTestRolls([6,2]));
   await page.locator('[data-action="ludo-roll"]').first().click();
   assert.ok(await page.locator(".nj-dice-center.is-rolling").count(),"dice visibly tumble");
+  await page.waitForTimeout(170);
+  await page.screenshot({path:"night-play/visual-output/LUDO-THROW-FLIGHT.jpg",type:"jpeg",quality:85});
   await page.locator(".l-token.eligible").first().waitFor({timeout:5000});
   const shownDice=await page.locator(".nj-dice-controls .nj-die").evaluateAll(elements=>elements.map(el=>el.querySelectorAll(".nj-face-front .nj-pips i.lit").length));
   assert.deepEqual(shownDice,[6,2],"3D dice face graphics must precisely match the dice actually rolled");
@@ -68,11 +75,13 @@ try{
   await page.waitForTimeout(150);
   assert.ok(await page.locator('.l-cell .nj-piece').evaluateAll(elements=>elements.some(el=>el.getAnimations().some(a=>a.playState==='running'))),"counter visibly animates between squares rather than teleporting");
   await page.getByText(/Six! Roll again/).waitFor({timeout:4500});
+  await page.screenshot({path:"night-play/visual-output/LUDO-COUNTER-ON-TRACK.jpg",type:"jpeg",quality:85});
   assert.equal(await page.locator('[data-dice-mode="ludo"]').isEnabled(),true,"settings unlock once both dice were used");
   await page.locator("#ludoSettingsBtn").click();
   await page.locator("[data-players=ludo]").selectOption("4");
   assert.equal(await page.locator("[data-piece]").count(),16,"four players each have one house");
   assert.equal(await page.locator('.ludo-hud .player').count(),4,"all four players appear in the scoreboard");
+  await page.screenshot({path:"night-play/visual-output/LUDO-FOUR-PLAYERS.jpg",type:"jpeg",quality:85});
   await page.locator('[data-dice-mode="ludo"]').selectOption("1");
   assert.equal(await page.locator(".nj-die-button").count(),1,"one-die classic option works");
   await page.locator('[data-dice-mode="ludo"]').selectOption("2");

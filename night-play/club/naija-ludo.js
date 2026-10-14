@@ -119,20 +119,10 @@ function diceFace(n,cls="",opts=""){
  return '<span class="nj-die '+cls+'" '+opts+'><span class="nj-cube nj-value-'+n+'" aria-hidden="true">'+sides.map(([face,val])=>'<span class="nj-cube-face nj-face-'+face+'"><span class="nj-pips">'+Array.from({length:9},(_,i)=>'<i class="'+(PIPS[val].includes(i)?"lit":"")+'"></i>').join("")+'</span></span>').join("")+'</span></span>';
 }
 function avatarFor(house){
- // Simple original vector football fans: tiny inline SVG avoids media downloads.
- const skins={green:"#83513c",yellow:"#a96947",red:"#784b39",blue:"#9c6045"};
- const jerseys={green:"#d4efc4",yellow:"#fff6bf",red:"#ffe1c7",blue:"#d7f0ff"};
- const hair={green:"#221a19",yellow:"#36221a",red:"#13191e",blue:"#251813"};
- return '<span class="nj-avatar" aria-hidden="true"><svg viewBox="0 0 100 100" focusable="false">'+
- '<defs><radialGradient id="shade-'+house+'"><stop offset="0" stop-color="#fff0c2"/><stop offset="1" stop-color="#b5855d"/></radialGradient></defs>'+
- '<circle cx="50" cy="50" r="48" fill="url(#shade-'+house+')"/>'+
- '<path d="M6 101c0-27 17-40 44-40s44 13 44 40Z" fill="'+jerseys[house]+'"/>'+
- '<path d="M32 66l18 17 18-17" stroke="#fff8" stroke-width="5" fill="none"/>'+
- '<ellipse cx="50" cy="42" rx="28" ry="33" fill="'+skins[house]+'"/>'+
- '<path d="M23 43c-8-31 9-43 28-43 21 0 35 16 26 42-5-14-8-14-13-19-14 10-28 7-41 20Z" fill="'+hair[house]+'"/>'+
- '<ellipse cx="39" cy="46" rx="3.5" ry="2.7" fill="#1c1513"/><ellipse cx="62" cy="46" rx="3.5" ry="2.7" fill="#1c1513"/>'+
- '<path d="M42 61q8 7 16 0" stroke="#512a22" stroke-width="2.5" fill="none" stroke-linecap="round"/>'+
- '</svg></span>';
+ // A small original football medallion keeps the Nigerian board character
+ // without unfinished cartoon portraits or downloaded image assets.
+ const ink=COLORS[house];
+ return '<span class="nj-avatar" aria-hidden="true"><svg viewBox="0 0 100 100" focusable="false"><circle cx="50" cy="50" r="44" fill="none" stroke="'+ink+'" stroke-width="4"/><path d="m50 28 22 16-8 26H36l-8-26Z" fill="'+ink+'"/><path d="M50 28V6M72 44l20-7M64 70l12 17M36 70 24 87M28 44 8 37" fill="none" stroke="'+ink+'" stroke-width="4"/><path d="m18 18 10 26M82 18 72 44M91 65 64 70M50 94 36 70M9 65l19-21" fill="none" stroke="'+ink+'" stroke-width="2"/></svg></span>';
 }
 function drawBoard(s){
  const map=new Map();s.players.forEach((p,pi)=>p.tokens.forEach((pos,ti)=>{
@@ -214,7 +204,8 @@ function render(s,ui){
  const locked=s.rolling||s.moving||s.winner!==null,canRoll=!locked&&!s.rolls.length;
  const big='<div class="nj-dice-controls" aria-label="Physical style dice">'+faces.slice(0,s.diceCount).map((n,i)=>{
   const active=!!s.rolls.length&&!s.rolls[i]?.used,selectable=active&&canForDie(s,i),selected=i===s.selectedDie;
-  return '<button type="button" data-ludo-die="'+i+'" class="nj-die-button'+(selected?' is-selected':'')+(s.rolling?' is-tumbling':'')+(s.rolls[i]?.used?' is-used':'')+'" aria-label="Die '+(i+1)+', '+n+(selectable?', choose this die':'')+'" '+(!selectable||locked?'disabled':'')+'>'+diceFace(n)+'</button>';
+  const action=s.rolls.length?'data-ludo-die="'+i+'"':'data-action="ludo-roll"';
+  return '<button type="button" '+action+' class="nj-die-button'+(selected?' is-selected':'')+(s.rolling?' is-tumbling':'')+(s.rolls[i]?.used?' is-used':'')+'" aria-label="Die '+(i+1)+', '+n+(selectable?', choose this die':'')+'" '+((s.rolls.length?!selectable:!canRoll)||locked?'disabled':'')+'>'+diceFace(n)+'</button>';
  }).join("")+'</div>';
  const progress=ui.scoreList(s.players,x=>x.tokens.filter(pos=>pos===56).length+"/"+x.tokens.length+" home");
  const pending=s.rolls.length?'<div class="nj-active-rolls">Rolled: '+s.rolls.map((d,i)=>'<span class="nj-number'+(d.used?' is-used':'')+(i===s.selectedDie?' is-selected':'')+'">'+d.value+(d.used?' ✓':'')+'</span>').join("")+' <span class="small">Tap a die to choose which value to use.</span></div>':"";
@@ -223,7 +214,7 @@ function render(s,ui){
  const optionDisabled=locked||s.rolls.length?'disabled':'';
  const config='<div class="nj-options"><label>Dice <select class="select" data-dice-mode="ludo" '+optionDisabled+'><option value="2"'+(s.diceCount===2?' selected':'')+'>2 dice · Naija</option><option value="1"'+(s.diceCount===1?' selected':'')+'>1 die · Classic</option></select></label>'+'<div class="nj-player-config">'+ui.choosePlayers("ludo",s.players.length,4)+'</div></div>';
  const settings='<details class="nj-settings"><summary>⚙ Game options <span>· Play like Naija Ludo</span></summary><div class="nj-switches"><label class="nj-speed"><span><b>Opponent</b><small>Local friends or offline computer</small></span><select class="select" data-ludo-opponent '+optionDisabled+'><option value="local"'+(s.opponent==="local"?" selected":"")+'>Friend (local)</option><option value="computer"'+(s.opponent==="computer"?" selected":"")+'>Computer</option></select></label>'+(s.opponent==="computer"?'<label class="nj-speed"><span><b>Computer difficulty</b><small>Four levels of tactical play</small></span><select class="select" data-ludo-difficulty '+optionDisabled+'>'+["easy","normal","hard","advanced"].map(d=>'<option value="'+d+'" '+(d===s.difficulty?"selected":"")+'>'+d[0].toUpperCase()+d.slice(1)+'</option>').join("")+'</select></label>':"")+switches.map(([key,name,desc])=>'<label class="nj-switch"><span><b>'+name+'</b><small>'+desc+'</small></span><input type="checkbox" data-ludo-option="'+key+'" '+(s.options[key]?'checked':'')+' '+optionDisabled+'></label>').join('')+'<label class="nj-speed"><span><b>Counter movement</b><small>Adjust animation speed</small></span><select class="select" data-ludo-speed '+optionDisabled+'><option value="slow"'+(s.options.speed==="slow"?' selected':'')+'>Slow</option><option value="normal"'+(s.options.speed==="normal"?' selected':'')+'>Normal</option><option value="fast"'+(s.options.speed==="fast"?' selected':'')+'>Fast</option></select></label></div></details>';
- const btn=s.rolls.length||s.moving?'<div class="nj-move-hint" role="note">'+(s.moving?'Counter moving…':'↑ Tap a glowing counter on the board')+'</div>':'<button class="primary nj-roll-btn" type="button" data-action="ludo-roll" '+(canRoll?'':'disabled')+'>'+(s.rolling?'Rolling…':'Throw dice 🎲')+'</button>';
+ const btn=s.rolls.length||s.moving?'<div class="nj-move-hint" role="note">'+(s.moving?'Counter moving…':'Tap a glowing counter to move')+'</div>':'<button class="primary nj-roll-btn" type="button" data-action="ludo-roll" '+(canRoll?'':'disabled')+'>'+(s.rolling?'Rolling…':'Throw dice 🎲')+'</button>';
  ui.controls.innerHTML='<div class="nj-roll-station"><div class="nj-dice-caption">'+(s.rolls.length?'CHOOSE A DIE, THEN MOVE':'TAP THE DICE TO ROLL')+'</div>'+big+btn+pending+'</div>'+progress+config+soundToggle+settings;
  ui.rules("Naija Ludo house rules","Two dice, two houses each in a two-player match, <b>eight counters each</b>. Roll a 6 to release a counter; play the dice before throwing again. By default, capturing sends your counter to the finish and the rival back to their yard. A pair stacked on its opening square forms a barrier. Configure safe houses, capture rules, movement speed and direct count in Game options. <b>Local play only.</b>");
  ui.save();
