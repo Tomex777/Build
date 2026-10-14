@@ -29,7 +29,11 @@ jobs:
           tar -xJf EchoSpace/source.tar.xz
           test -f EchoSpace/app/src/main/java/com/nexa/echospace/MainActivity.kt
       - name: Install Android build tools
-        run: sdkmanager 'platforms;android-35' 'build-tools;35.0.0'
+        run: |
+          SDKMANAGER=$(find "$ANDROID_HOME/cmdline-tools" -name sdkmanager -type f | head -n 1)
+          test -n "$SDKMANAGER"
+          echo "$(dirname "$SDKMANAGER")" >> "$GITHUB_PATH"
+          "$SDKMANAGER" 'platforms;android-35' 'build-tools;35.0.0'
       - name: Compile and run Kotlin unit tests
         working-directory: EchoSpace
         run: gradle --no-daemon --stacktrace testDebugUnitTest assembleDebug
