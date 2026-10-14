@@ -166,6 +166,53 @@ jobs:
             adb exec-out screencap -p > /tmp/sora-signed/release-installed-android16.png
             adb logcat -d -t 1200 | grep -E 'FATAL EXCEPTION.*com.night.sora' && exit 1 || true
 
+      - name: Package smaller arm64-only Android APK
+        if: success()
+        run: |
+          set -euo pipefail
+          OUT=/tmp/sora-signed
+          # The universal QA APK must remain available for x86_64 emulator tests.
+          # Repackage its exact already-built code and resources, retaining only
+          # arm64 native libraries for modern Android phones. Re-sign the result
+          # using the same CI signing identity as the universal APK.
+          python3 - "$OUT/Sora-Android-release.apk" "$OUT/Sora-Android-arm64-unsigned.apk" <<'PY'
+          import sys, zipfile
+          src, dst = sys.argv[1:]
+          with zipfile.ZipFile(src) as incoming, zipfile.ZipFile(dst, 'w', allowZip64=True) as out:
+              names = incoming.namelist()
+              assert 'lib/arm64-v8a/libmpv.so' in names, 'missing arm64 native decoder'
+              for entry in incoming.infolist():
+                  if entry.filename.startswith('lib/') and not entry.filename.startswith('lib/arm64-v8a/'):
+                      continue
+                  out.writestr(entry, incoming.read(entry.filename))
+          PY
+          "$ANDROID_HOME/build-tools/36.0.0/zipalign" -P 16 -f 4 \
+            "$OUT/Sora-Android-arm64-unsigned.apk" "$OUT/Sora-Android-arm64-aligned.apk"
+          "$ANDROID_HOME/build-tools/36.0.0/apksigner" sign \
+            --ks "$SORA_SIGNING_STORE" --ks-type PKCS12 \
+            --ks-pass "env:SORA_SIGNING_PASSWORD" \
+            --ks-key-alias "$SORA_SIGNING_KEY_ALIAS" \
+            --key-pass "env:SORA_SIGNING_KEY_PASSWORD" \
+            --out "$OUT/Sora-Android-arm64-release.apk" \
+            "$OUT/Sora-Android-arm64-aligned.apk"
+          "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --verbose --print-certs \
+            "$OUT/Sora-Android-arm64-release.apk" \
+            > "$OUT/Sora-Android-arm64-release.apk.signature.txt"
+          grep -q 'Verified using v2 scheme (APK Signature Scheme v2): true' \
+            "$OUT/Sora-Android-arm64-release.apk.signature.txt"
+          "$ANDROID_HOME/build-tools/36.0.0/aapt" dump badging \
+            "$OUT/Sora-Android-arm64-release.apk" | grep -q "native-code: 'arm64-v8a'"
+          python3 - "$OUT" <<'PY'
+          import os,sys
+          root=sys.argv[1]
+          universal=os.path.getsize(root+'/Sora-Android-release.apk')
+          compact=os.path.getsize(root+'/Sora-Android-arm64-release.apk')
+          print(f'Arm64 APK: {compact//1048576} MiB (universal: {universal//1048576} MiB)')
+          assert compact < universal*0.70, 'ABI optimization did not remove enough bytes'
+          PY
+          rm "$OUT/Sora-Android-arm64-unsigned.apk" "$OUT/Sora-Android-arm64-aligned.apk"
+          sha256sum "$OUT"/*.apk > "$OUT/SHA256SUMS"
+
       - name: Upload verified signed APKs
         if: always()
         uses: actions/upload-artifact@v4
