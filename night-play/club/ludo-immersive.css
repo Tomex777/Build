@@ -57,3 +57,5 @@ body.ludo-mode .nj-hand-cue{display:block;grid-row:6/span 1;grid-column:7/span 1
 @media(prefers-reduced-motion:reduce){.nj-win-banner{animation:none!important}.nj-roll-btn,.ludo-tool,.ludo-back{transition:none!important}}
 
 body.ludo-mode .nj-board .nj-piece,body.ludo-mode .nj-motion-counter{padding:0;min-width:0;min-height:0}
+body.ludo-mode .nj-board .l-cell.nj-many .nj-piece{left:var(--stack-left)!important;top:var(--stack-top)!important;right:auto!important;bottom:auto!important;width:var(--stack-width);height:var(--stack-width)}
+.nj-counter-picker{margin-top:8px;color:#f4de9d;font-size:12px}.nj-counter-picker summary{padding:9px;cursor:pointer}.nj-counter-picker>div{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}.nj-counter-picker button{min-height:44px;padding:8px;border:1px solid #cdb97766;border-radius:7px;background:#102f27;color:#fff;font-size:12px}

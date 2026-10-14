@@ -58,12 +58,17 @@ try{
   await page.locator('[data-action="ludo-roll"]').first().click();
   assert.ok(await page.locator(".nj-dice-center.is-rolling").count(),"dice visibly tumble");
   await page.waitForTimeout(170);
+  const motionA=await page.evaluate(()=>NightLudo3D.inspect());
   await page.screenshot({path:"night-play/visual-output/LUDO-THROW-FLIGHT.jpg",type:"jpeg",quality:85});
   assert.equal(await page.locator('.nj-dice-center .nj-cube').first().evaluate(el=>getComputedStyle(el).filter),'none',"dice shadow must not flatten the 3D cube faces");
   await page.waitForTimeout(130);
+  const motionB=await page.evaluate(()=>NightLudo3D.inspect());
+  for(const display of ['center','controls'])assert.notDeepEqual(motionA[display][0].rotation,motionB[display][0].rotation,display+' dice must both animate during the same roll');
   await page.screenshot({path:"night-play/visual-output/LUDO-THROW-TUMBLE.jpg",type:"jpeg",quality:85});
   assert.ok(await page.locator(".nj-three-dice-layer").evaluate(el=>el.width>0&&el.height>0),"three-dimensional dice canvas has a live render size");
   await page.locator(".l-token.eligible").first().waitFor({timeout:5000});
+  const settled=await page.evaluate(()=>NightLudo3D.inspect());
+  for(const display of ['center','controls']){assert.deepEqual(settled[display].map(d=>d.value),[6,2]);assert.ok(settled[display].every(d=>!d.animating),'dice stop tumbling before gameplay unlocks');}
   const shownDice=await page.locator(".nj-dice-controls .nj-die").evaluateAll(elements=>elements.map(el=>el.querySelectorAll(".nj-face-front .nj-pips i.lit").length));
   assert.deepEqual(shownDice,[6,2],"3D dice face graphics must precisely match the dice actually rolled");
   const centerDice=await page.locator(".nj-dice-center .nj-die").evaluateAll(elements=>elements.map(el=>el.querySelectorAll(".nj-face-front .nj-pips i.lit").length));
@@ -93,6 +98,8 @@ try{
   await page.screenshot({path:"night-play/visual-output/LUDO-FOUR-PLAYERS.jpg",type:"jpeg",quality:85});
   await page.locator('[data-dice-mode="ludo"]').selectOption("1");
   assert.equal(await page.locator(".nj-die-button").count(),1,"one-die classic option works");
+  const single=await page.evaluate(()=>NightLudo3D.inspect());
+  for(const display of ['center','controls']){assert.equal(single[display][0].x,0,'single die is centered');assert.equal(single[display][1].visible,false,'second die disappears in classic mode');}
   await page.locator('[data-dice-mode="ludo"]').selectOption("2");
   assert.equal(await page.locator(".nj-die-button").count(),2,"two-dice option restored");
   // The Nigerian gameplay settings are interactive and kept between renders.
@@ -148,6 +155,7 @@ try{
   await page.evaluate(()=>window.NightLudo.setTestRolls([2,3,2,3]));
   await page.locator('[data-action="ludo-roll"]').first().click();
   await page.getByText(/Computer's turn/).waitFor({timeout:5000});
+  assert.equal(await page.locator('.nj-die-button:enabled').count(),0,'human dice controls stay locked during CPU turn');
   await page.getByText(/Red & Yellow's turn/).waitFor({timeout:8500});
   await page.locator("#ludoSettingsBtn").click();
   await page.locator('[data-ludo-opponent]').selectOption("local");
@@ -200,6 +208,46 @@ try{
   await page.waitForFunction(()=>JSON.parse(localStorage.getItem('night-play-club-v1')).ludo.players[0].tokens[0]===0);
   assert.equal(await page.locator('.nj-motion-layer').count(),0,'reduced motion plays without animated flights');
   await page.emulateMedia({reducedMotion:'no-preference'});
+  // Eight allied counters can occupy one physical square; none may vanish.
+  await page.evaluate(()=>{
+    const data=JSON.parse(localStorage.getItem('night-play-club-v1')),s=NightLudo.create(2,1);
+    s.players[0].tokens.fill(0,0,4);s.players[0].tokens.fill(26,4);
+    s.rolls=[{value:1,used:false}];s.last=[1];s.selectedDie=0;s.die=1;s.rolled=true;
+    data.ludo=s;localStorage.setItem('night-play-club-v1',JSON.stringify(data));
+  });
+  await page.reload();assert.equal(await page.locator('.nj-board [data-piece]').count(),16,'every stacked counter remains on the board');
+  await page.locator('.nj-counter-picker summary').click();
+  await page.screenshot({path:'night-play/visual-output/LUDO-STACK-CHOICES.jpg',type:'jpeg',quality:85});
+  await page.locator('.nj-counter-picker [data-piece="0-7"]').click();
+  await page.waitForFunction(()=>JSON.parse(localStorage.getItem('night-play-club-v1')).ludo.players[0].tokens[7]===27);
+  // Switching games rolls back an unfinished move and cancels every old hop.
+  await page.evaluate(()=>{
+    const data=JSON.parse(localStorage.getItem('night-play-club-v1')),s=NightLudo.create(2,1);
+    s.players[0].tokens[0]=10;s.rolls=[{value:4,used:false}];s.last=[4];s.selectedDie=0;s.die=4;s.rolled=true;
+    data.ludo=s;localStorage.setItem('night-play-club-v1',JSON.stringify(data));
+  });
+  await page.reload();await page.locator('.nj-board [data-piece="0-0"]').click();
+  await page.waitForFunction(()=>document.querySelector('.nj-board [data-piece="0-0"]')?.dataset.progress==='11');
+  await page.evaluate(()=>document.querySelector('[data-pick="estate"]').click());
+  await page.locator('[data-pick="ludo"]').click();
+  await page.waitForTimeout(250);
+  const recovered=await page.evaluate(()=>JSON.parse(localStorage.getItem('night-play-club-v1')).ludo);
+  assert.equal(recovered.players[0].tokens[0],10);assert.equal(recovered.rolls[0].used,false);assert.equal(recovered.moving,false);
+  await page.locator('.nj-board [data-piece="0-0"]').click();
+  await page.waitForFunction(()=>JSON.parse(localStorage.getItem('night-play-club-v1')).ludo.players[0].tokens[0]===14);
+  assert.equal(await page.evaluate(()=>JSON.parse(localStorage.getItem('night-play-club-v1')).ludo.turn),1,'resumed move spends its die exactly once');
+  // A page reload during a hop also resumes the last complete transaction.
+  await page.evaluate(()=>{
+    const data=JSON.parse(localStorage.getItem('night-play-club-v1')),s=NightLudo.create(2,1);
+    s.players[0].tokens[0]=20;s.rolls=[{value:3,used:false}];s.last=[3];s.selectedDie=0;s.die=3;s.rolled=true;
+    data.ludo=s;localStorage.setItem('night-play-club-v1',JSON.stringify(data));
+  });
+  await page.reload();await page.locator('.nj-board [data-piece="0-0"]').click();
+  await page.waitForFunction(()=>document.querySelector('.nj-board [data-piece="0-0"]')?.dataset.progress==='21');
+  await page.reload();assert.equal(await page.locator('.nj-board [data-piece="0-0"]').getAttribute('data-progress'),'20');
+  await page.locator('.nj-board [data-piece="0-0"]').click();
+  await page.waitForFunction(()=>JSON.parse(localStorage.getItem('night-play-club-v1')).ludo.players[0].tokens[0]===23);
+  await page.screenshot({path:'night-play/visual-output/LUDO-RECOVERED-TURN.jpg',type:'jpeg',quality:85});
   await page.locator(".ludo-back").click();
   await page.waitForURL("**/games");
   await page.goto(base+"/club/?game=estate");
@@ -253,5 +301,18 @@ try{
   await page.waitForURL("**/club/?game=ludo");
   assert.equal(await page.locator("#gameTitle").innerText(),"Nigerian Ludo");
   assert.deepEqual(errors,[],"no uncaught browser errors");
+  const fallback=await browser.newPage({viewport:{width:390,height:844},isMobile:true,hasTouch:true});
+  const fallbackErrors=[];fallback.on('pageerror',e=>fallbackErrors.push(String(e)));
+  await fallback.route('https://cdn.jsdelivr.net/**',route=>route.abort());
+  await fallback.goto(base+'/club/?game=ludo');
+  assert.equal(await fallback.evaluate(()=>NightLudo3D.warmup()),false,'missing 3D library uses the CSS fallback');
+  await fallback.evaluate(()=>NightLudo.setTestRolls([6,2]));await fallback.locator('[data-action="ludo-roll"]').first().click();
+  await fallback.locator('.nj-board [data-piece="0-0"]:enabled').waitFor();
+  assert.equal(await fallback.locator('.nj-dice-center .nj-cube').first().evaluate(el=>getComputedStyle(el).visibility),'visible');
+  await fallback.locator('.nj-board [data-piece="0-0"]').click();
+  await fallback.waitForFunction(()=>JSON.parse(localStorage.getItem('night-play-club-v1')).ludo.players[0].tokens[0]===0);
+  await fallback.locator('.nj-board [data-piece="0-0"]').click();
+  await fallback.waitForFunction(()=>JSON.parse(localStorage.getItem('night-play-club-v1')).ludo.players[0].tokens[0]===2);
+  assert.deepEqual(fallbackErrors,[],'fallback gameplay produces no browser errors');await fallback.close();
   console.log("PASS NIGHT Play Club: seven games, Ludo dice and counters, Estates purchase, card rules, drawing, checkers, touch-mobile routes");
 }finally{if(browser)await browser.close();await new Promise(ok=>server.close(ok));}

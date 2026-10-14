@@ -120,3 +120,5 @@ assert.ok(mazeSandbox.build('maze1',18).length>10)
 assert.ok(mazeSandbox.build('maze2',18).length>10)
 assert.ok(mazeSandbox.build('maze3',18).length>10)
 console.log('PASS NIGHT Play V9: identity, 11 SVG artworks, 2048 motion, immersive boards and unchanged gameplay rules')
+await import('./club/logic-test.mjs');
+

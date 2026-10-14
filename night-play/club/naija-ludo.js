@@ -13,8 +13,9 @@ const DEFAULT_OPTIONS={barrier:true,safeHouse:true,captureFinishes:true,bonusOnC
 const makeOptions=()=>({...DEFAULT_OPTIONS});
 const PIPS={1:[4],2:[0,8],3:[0,4,8],4:[0,2,6,8],5:[0,2,4,6,8],6:[0,2,3,5,6,8]};
 const label=k=>k[0].toUpperCase()+k.slice(1);
+const escapeText=s=>String(s).replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
 let ticker=null,moveTimer=null,aiTimer=null,life=0,audio=null;
-let riggedForTest=null;
+let riggedForTest=null,pendingAction=null;
 const isTestHost=/^(localhost|127\.0\.0\.1)$/.test(location.hostname);
 const reduced=()=>window.matchMedia&&window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 function rand6(){
@@ -38,25 +39,55 @@ function sound(s,f=530,d=.055,volume=.035){
  }catch{}
 }
 function create(count=2,diceCount=2){
+ count=[2,3,4].includes(count)?count:2;
  const groups=count===2?[["red","yellow"],["green","blue"]]:count===3?[["red"],["green"],["yellow"]]:[["red"],["green"],["yellow"],["blue"]];
  return{
   version:2,players:groups.map((houses,i)=>({name:count===2?(i===0?"Red & Yellow":"Green & Blue"):label(houses[0]),color:COLORS[houses[0]],key:houses[0],houses,tokens:Array(houses.length*4).fill(-1)})),
   turn:0,rolls:[],selectedDie:null,die:null,rolled:false,last:[1,1],diceCount:diceCount===1?1:2,
-  rolling:false,moving:false,bonus:false,winner:null,turns:0,sound:true,options:makeOptions(),opponent:"local",difficulty:"normal",
+  rolling:false,moving:false,bonus:false,bonusReason:null,winner:null,turns:0,sound:true,options:makeOptions(),opponent:"local",difficulty:"normal",
   msg:"Tap the dice to throw. Roll a six to bring a counter out."
  };
 }
 function normalize(s){
- if(!s||s.version!==2||!Array.isArray(s.players)||s.players.some(p=>!Array.isArray(p.houses)||p.tokens.length!==p.houses.length*4))return create();
- s.diceCount=s.diceCount===1?1:2;if(typeof s.rolling!=="boolean")s.rolling=false;if(typeof s.moving!=="boolean")s.moving=false;
- s.options={...makeOptions(),...(s.options||{})};if(!["slow","normal","fast"].includes(s.options.speed))s.options.speed="normal";
- s.opponent=s.opponent==="computer"&&s.players.length===2?"computer":"local";
+ const count=s?.players?.length;
+ if(!s||s.version!==2||!Array.isArray(s.players)||![2,3,4].includes(count))return create();
+ const expected=create(count,s.diceCount);
+ if(s.players.some((p,i)=>!p||!Array.isArray(p.houses)||JSON.stringify(p.houses)!==JSON.stringify(expected.players[i].houses)||!Array.isArray(p.tokens)||p.tokens.length!==expected.players[i].tokens.length||p.tokens.some(n=>!Number.isInteger(n)||n< -1||n>56)))return create(count,s.diceCount);
+ s.players.forEach((p,i)=>{p.key=expected.players[i].key;p.color=expected.players[i].color;p.name=typeof p.name==='string'&&p.name.trim()?p.name.slice(0,40):expected.players[i].name;});
+ s.turn=Number.isInteger(s.turn)&&s.turn>=0&&s.turn<count?s.turn:0;
+ s.diceCount=s.diceCount===1?1:2;s.rolling=s.rolling===true;s.moving=s.moving===true;
+ s.options={...makeOptions(),...(s.options||{})};for(const key of Object.keys(DEFAULT_OPTIONS))if(key!=='speed')s.options[key]=typeof s.options[key]==='boolean'?s.options[key]:DEFAULT_OPTIONS[key];
+ if(!['slow','normal','fast'].includes(s.options.speed))s.options.speed='normal';
+ s.opponent=s.opponent==='computer'&&count===2?'computer':'local';
  if(!["easy","normal","hard","advanced"].includes(s.difficulty))s.difficulty="normal";
- s.rolls=Array.isArray(s.rolls)?s.rolls.filter(d=>d&&d.value>=1&&d.value<=6).slice(0,2):[];
- if(s.selectedDie!==null&&(!Number.isInteger(s.selectedDie)||!s.rolls[s.selectedDie]||s.rolls[s.selectedDie].used))s.selectedDie=null;
+ s.rolls=Array.isArray(s.rolls)?s.rolls.filter(d=>d&&Number.isInteger(d.value)&&d.value>=1&&d.value<=6).slice(0,s.diceCount).map(d=>({value:d.value,used:d.used===true})):[];
+ s.last=Array.from({length:s.diceCount},(_,i)=>Number.isInteger(s.last?.[i])&&s.last[i]>=1&&s.last[i]<=6?s.last[i]:1);
+ if(!Number.isInteger(s.selectedDie)||!s.rolls[s.selectedDie]||s.rolls[s.selectedDie].used)s.selectedDie=null;
+ s.die=s.selectedDie===null?null:s.rolls[s.selectedDie].value;s.rolled=s.rolls.length>0;s.bonus=s.bonus===true;s.sound=s.sound!==false;
+ s.bonusReason=s.bonus?(['six','capture'].includes(s.bonusReason)?s.bonusReason:s.last.includes(6)?'six':'capture'):null;
+ s.turns=Number.isInteger(s.turns)&&s.turns>=0?s.turns:0;s.msg=typeof s.msg==='string'?s.msg:expected.msg;
+ const winner=s.players.findIndex(p=>p.tokens.every(n=>n===56));s.winner=winner<0||s.moving||s.rolling?null:winner;
  return s;
 }
-function cancel(){window.NightLudoMotion?.cancel();life++;if(ticker!==null){clearInterval(ticker);ticker=null;}if(moveTimer!==null){clearTimeout(moveTimer);moveTimer=null;}if(aiTimer!==null){clearTimeout(aiTimer);aiTimer=null;}}
+function resume(s){
+ s=normalize(s);
+ const interrupted=s.moving||s.rolling;
+ if(s.moving&&s.rolls[s.selectedDie])s.rolls[s.selectedDie].used=true;
+ s.rolling=false;s.moving=false;delete s.preview;
+ const winner=s.players.findIndex(p=>p.tokens.every(n=>n===56));s.winner=winner<0?null:winner;
+ if(s.winner!==null){s.rolls=[];s.selectedDie=null;s.die=null;s.rolled=false;s.bonus=false;s.bonusReason=null;s.msg="All pieces home. Champion!";}
+ else if(s.rolls.length)finishIfDone(s);
+ else{s.selectedDie=null;s.die=null;s.rolled=false;}
+ if(interrupted&&s.winner===null)s.msg="Interrupted action recovered. "+s.players[s.turn].name+"'s turn.";
+ return s;
+}
+function checkpoint(s){pendingAction={state:s,before:JSON.parse(JSON.stringify(s))};}
+function commitAction(){pendingAction=null;moveTimer=null;}
+function cancel(){
+ if(pendingAction){const {state,before}=pendingAction;Object.assign(state,before);delete state.preview;pendingAction=null;}
+ window.NightLudoMotion?.cancel();window.NightLudo3D?.cancel();life++;
+ if(ticker!==null){clearInterval(ticker);ticker=null;}if(moveTimer!==null){clearTimeout(moveTimer);moveTimer=null;}if(aiTimer!==null){clearTimeout(aiTimer);aiTimer=null;}
+}
 function tokenHouse(p,index){return p.houses[Math.floor(index/4)]}
 function cell(k,pos){if(pos<0)return null;if(pos>=56)return [7,7];if(pos>=51)return HOME[k][pos-51];return TRACK[(START[k]+pos)%52];}
 function currentIndex(k,pos){return(START[k]+pos)%52;}
@@ -77,7 +108,7 @@ function blockedByBarrier(s,pi,ti,n){
  return false;
 }
 function legal(s,pi,ti,di){
- if(s.winner!==null||s.rolling||s.moving||pi!==s.turn)return false;
+ if(s.winner!==null||s.rolling||s.moving||pi!==s.turn||!Number.isInteger(pi)||!Number.isInteger(ti)||!s.players[pi]||ti<0||ti>=s.players[pi].tokens.length)return false;
  if(!Number.isInteger(di)||!s.rolls[di]||s.rolls[di].used)return false;
  const pos=s.players[pi].tokens[ti],n=s.rolls[di].value;
  return pos===-1?n===6:pos<56&&pos+n<=56&&!blockedByBarrier(s,pi,ti,n);
@@ -91,8 +122,8 @@ function chooseAvailable(s){
 }
 function finishTurn(s){
  s.rolls=[];s.selectedDie=null;s.die=null;s.rolled=false;
- if(s.bonus&&s.winner===null){s.bonus=false;s.msg+=" Six! Roll again.";return;}
- s.bonus=false;s.turn=(s.turn+1)%s.players.length;s.turns++;
+ if(s.bonus&&s.winner===null){const reason=s.bonusReason;s.bonus=false;s.bonusReason=null;s.msg+=reason==='capture'?" Capture bonus! Roll again.":" Six! Roll again.";return;}
+ s.bonus=false;s.bonusReason=null;s.turn=(s.turn+1)%s.players.length;s.turns++;
  s.msg+=" Pass the phone to "+s.players[s.turn].name+".";
 }
 function finishIfDone(s){
@@ -145,11 +176,11 @@ function drawBoard(s){
   else if(idx>=0&&isSafe(s,idx))classes.push("nj-safe");
   if(r>=6&&r<=8&&c>=6&&c<=8)classes.push("nj-center-tile");
   for(const [k,a] of Object.entries(HOME))if(a.some(x=>x[0]===r&&x[1]===c))classes.push("nj-home-"+k);
-  if(pieces.length>1)classes.push("nj-stacked");
+  if(pieces.length>1)classes.push("nj-stacked");if(pieces.length>4)classes.push("nj-many");
   if(destinations.has(key))classes.push("nj-destination");
-  let body=pieces.slice(0,4).map(v=>{
-   const available=legal(s,v.pi,v.ti,s.selectedDie);
-   return '<button type="button" class="l-token nj-piece'+(available?" eligible":"")+'" data-piece="'+v.pi+'-'+v.ti+'" data-progress="'+s.players[v.pi].tokens[v.ti]+'" style="--token:'+COLORS[v.color]+'" aria-label="'+label(v.color)+' counter '+(v.ti%4+1)+'" '+(available?"":"disabled")+'><span class="nj-piece-core">'+(v.ti%4+1)+'</span></button>';
+  let body=pieces.map((v,vi)=>{
+   const available=!(s.opponent==="computer"&&s.turn===1)&&legal(s,v.pi,v.ti,s.selectedDie);
+   return '<button type="button" class="l-token nj-piece'+(available?" eligible":"")+'" data-piece="'+v.pi+'-'+v.ti+'" data-progress="'+s.players[v.pi].tokens[v.ti]+'" style="--token:'+COLORS[v.color]+';--stack-left:'+((vi%Math.ceil(Math.sqrt(pieces.length)))*100/Math.ceil(Math.sqrt(pieces.length)))+'%;--stack-top:'+(Math.floor(vi/Math.ceil(Math.sqrt(pieces.length)))*100/Math.ceil(Math.sqrt(pieces.length)))+'%;--stack-width:'+(100/Math.ceil(Math.sqrt(pieces.length)))+'%" aria-label="'+label(v.color)+' counter '+(v.ti%4+1)+'" '+(available?"":"disabled")+'><span class="nj-piece-core">'+(v.ti%4+1)+'</span></button>';
   }).join("");
   if(!body&&isSafe(s,idx))body='<span class="star" aria-hidden="true">✦</span>';
   if(!body&&idx>=0&&[2,5,8,11,15,18,21,24,28,31,34,37,41,44,47,50].includes(idx)){
@@ -165,7 +196,7 @@ function drawBoard(s){
   out+='<div class="l-base nj-yard nj-yard-'+k+(info&&s.turn===info.pi?' is-turn':'')+'" style="--house:'+COLORS[k]+';grid-row:'+row+'/span 6;grid-column:'+col+'/span 6">';
   out+='<div class="nj-yard-label">'+label(k).toUpperCase()+'</div><span class="nj-sport-icon" aria-hidden="true"><svg viewBox="0 0 90 90" focusable="false"><circle cx="45" cy="22" r="15" fill="#ffffff67"/><path d="M19 78c0-20 10-31 26-31s26 11 26 31Z" fill="#ffffff46"/><path d="m29 56 16 12 16-12" stroke="#ffffff90" stroke-width="4" fill="none"/></svg></span><div class="yard">';
   for(let ti=0;ti<4;ti++){
-   const index=info?info.hi*4+ti:-1,atHome=info&&info.p.tokens[index]===-1,available=atHome&&legal(s,info.pi,index,s.selectedDie);
+   const index=info?info.hi*4+ti:-1,atHome=info&&info.p.tokens[index]===-1,available=atHome&&!(s.opponent==="computer"&&s.turn===1)&&legal(s,info.pi,index,s.selectedDie);
    out+='<button type="button" '+(atHome?'data-piece="'+info.pi+'-'+index+'" data-progress="-1"':'')+' aria-label="'+label(k)+' yard position '+(ti+1)+'" '+(available?'':'disabled')+'>';
    if(atHome)out+='<span class="l-token nj-piece'+(available?' eligible':'')+'" style="--token:'+COLORS[k]+'"><span class="nj-piece-core">'+(ti+1)+'</span></span>';
    out+='</button>';
@@ -174,7 +205,7 @@ function drawBoard(s){
  }
  const centerVals=s.rolling?(Array.isArray(s.preview)?s.preview:[1,2]):s.rolls.length?s.rolls.map(d=>d.value):s.last;
  out+='<div class="nj-dice-center'+(s.rolling?' is-rolling':'')+'" style="grid-row:7/span 3;grid-column:7/span 3" aria-label="Central dice tray"><div class="nj-dice-pair">';
- centerVals.slice(0,s.diceCount).forEach((n,i)=>{const action=s.rolls.length?'data-ludo-die="'+i+'"':'data-action="ludo-roll"';const enabled=!s.rolling&&!s.moving&&s.winner===null&&(!s.rolls.length||!!s.rolls[i]&&!s.rolls[i].used&&canForDie(s,i));const selected=s.rolls.length&&i===s.selectedDie,used=!!s.rolls[i]?.used;out+='<button type="button" class="nj-center-button'+(selected?' is-selected':'')+(used?' is-used':'')+'" '+action+' aria-label="'+(s.rolls.length?'Die '+(i+1)+': '+n+(used?', used':selected?', selected':''):'Throw dice')+'" aria-pressed="'+!!selected+'" '+(enabled?'':'disabled')+'>'+diceFace(n,s.rolling?"is-tumbling":"", 'data-center-die="'+i+'"')+'</button>';});
+ centerVals.slice(0,s.diceCount).forEach((n,i)=>{const action=s.rolls.length?'data-ludo-die="'+i+'"':'data-action="ludo-roll"';const enabled=!(s.opponent==="computer"&&s.turn===1)&&!s.rolling&&!s.moving&&s.winner===null&&(!s.rolls.length||!!s.rolls[i]&&!s.rolls[i].used&&canForDie(s,i));const selected=s.rolls.length&&i===s.selectedDie,used=!!s.rolls[i]?.used;out+='<button type="button" class="nj-center-button'+(selected?' is-selected':'')+(used?' is-used':'')+'" '+action+' aria-label="'+(s.rolls.length?'Die '+(i+1)+': '+n+(used?', used':selected?', selected':''):'Throw dice')+'" aria-pressed="'+!!selected+'" '+(enabled?'':'disabled')+'>'+diceFace(n,s.rolling?"is-tumbling":"", 'data-center-die="'+i+'"')+'</button>';});
  out+='</div></div>'+(s.options.visualHand&&!s.rolls.length&&!s.rolling&&!s.moving&&s.winner===null?'<span class="nj-hand-cue" aria-hidden="true">☝</span>':'')+'</div>';
  return out;
 }
@@ -187,12 +218,14 @@ function render(s,ui){
  const phase=s.winner!==null?s.players[s.winner].name+" wins!":s.rolling?"Dice tumbling…":s.moving?"Counters moving…":s.rolls.length?"Choose a highlighted counter":p.name+"'s turn";
  ui.status.textContent=phase+". "+s.msg;
  const faces=s.rolling?s.preview:s.rolls.length?s.rolls.map(d=>d.value):s.last||[1,1];
- const locked=s.rolling||s.moving||s.winner!==null,canRoll=!locked&&!s.rolls.length;
+ const locked=s.rolling||s.moving||s.winner!==null||(s.opponent==="computer"&&s.turn===1),canRoll=!locked&&!s.rolls.length;
  const big='<div class="nj-dice-controls" aria-label="Physical style dice">'+faces.slice(0,s.diceCount).map((n,i)=>{
   const active=!!s.rolls.length&&!s.rolls[i]?.used,selectable=active&&canForDie(s,i),selected=i===s.selectedDie;
   const action=s.rolls.length?'data-ludo-die="'+i+'"':'data-action="ludo-roll"';
   return '<button type="button" '+action+' class="nj-die-button'+(selected?' is-selected':'')+(s.rolling?' is-tumbling':'')+(s.rolls[i]?.used?' is-used':'')+'" aria-label="Die '+(i+1)+', '+n+(selectable?', choose this die':'')+'" '+((s.rolls.length?!selectable:!canRoll)||locked?'disabled':'')+'>'+diceFace(n)+'</button>';
  }).join("")+'</div>';
+ const crowded=s.players[s.turn].tokens.some((pos,ti)=>legal(s,s.turn,ti,s.selectedDie)&&pos>=0&&s.players.flatMap(p=>p.tokens.map((n,j)=>n>=0&&n<56?cell(tokenHouse(p,j),n)?.join(','):null)).filter(x=>x===cell(tokenHouse(s.players[s.turn],ti),pos)?.join(',')).length>1);
+ const counterPicker=crowded&&!locked?'<details class="nj-counter-picker"><summary>Choose a counter in a stack</summary><div>'+s.players[s.turn].tokens.map((pos,ti)=>legal(s,s.turn,ti,s.selectedDie)?'<button type="button" data-piece="'+s.turn+'-'+ti+'">'+label(tokenHouse(s.players[s.turn],ti))+' '+(ti%4+1)+' · '+(pos<0?'Yard':'Square '+pos)+'</button>':'').join('')+'</div></details>':'';
  const progress=ui.scoreList(s.players,x=>x.tokens.filter(pos=>pos===56).length+"/"+x.tokens.length+" home");
  const pending=s.rolls.length?'<div class="nj-active-rolls">Rolled: '+s.rolls.map((d,i)=>'<span class="nj-number'+(d.used?' is-used':'')+(i===s.selectedDie?' is-selected':'')+'">'+d.value+(d.used?' ✓':'')+'</span>').join("")+' <span class="small">Tap a die to choose which value to use.</span></div>':"";
  const soundToggle='<button type="button" class="nj-sound" data-action="ludo-sound" aria-pressed="'+s.sound+'">'+(s.sound?'♫ Sound on':'♪ Sound off')+'</button>';
@@ -201,13 +234,13 @@ function render(s,ui){
  const config='<div class="nj-options"><label>Dice <select class="select" data-dice-mode="ludo" '+optionDisabled+'><option value="2"'+(s.diceCount===2?' selected':'')+'>2 dice · Naija</option><option value="1"'+(s.diceCount===1?' selected':'')+'>1 die · Classic</option></select></label>'+'<div class="nj-player-config">'+ui.choosePlayers("ludo",s.players.length,4)+'</div></div>';
  const settings='<details class="nj-settings"><summary>⚙ Game options <span>· Play like Naija Ludo</span></summary><div class="nj-switches"><label class="nj-speed"><span><b>Opponent</b><small>Local friends or offline computer</small></span><select class="select" data-ludo-opponent '+optionDisabled+'><option value="local"'+(s.opponent==="local"?" selected":"")+'>Friend (local)</option><option value="computer"'+(s.opponent==="computer"?" selected":"")+'>Computer</option></select></label>'+(s.opponent==="computer"?'<label class="nj-speed"><span><b>Computer difficulty</b><small>Four levels of tactical play</small></span><select class="select" data-ludo-difficulty '+optionDisabled+'>'+["easy","normal","hard","advanced"].map(d=>'<option value="'+d+'" '+(d===s.difficulty?"selected":"")+'>'+d[0].toUpperCase()+d.slice(1)+'</option>').join("")+'</select></label>':"")+switches.map(([key,name,desc])=>'<label class="nj-switch"><span><b>'+name+'</b><small>'+desc+'</small></span><input type="checkbox" data-ludo-option="'+key+'" '+(s.options[key]?'checked':'')+' '+optionDisabled+'></label>').join('')+'<label class="nj-speed"><span><b>Counter movement</b><small>Adjust animation speed</small></span><select class="select" data-ludo-speed '+optionDisabled+'><option value="slow"'+(s.options.speed==="slow"?' selected':'')+'>Slow</option><option value="normal"'+(s.options.speed==="normal"?' selected':'')+'>Normal</option><option value="fast"'+(s.options.speed==="fast"?' selected':'')+'>Fast</option></select></label></div></details>';
  const btn=s.rolls.length||s.moving?'<div class="nj-move-hint" role="note">'+(s.moving?'Counter moving…':'Tap a glowing counter to move')+'</div>':'<button class="primary nj-roll-btn" type="button" data-action="ludo-roll" '+(canRoll?'':'disabled')+'>'+(s.rolling?'Rolling…':'Throw dice 🎲')+'</button>';
- ui.controls.innerHTML='<div class="nj-roll-station"><div class="nj-dice-caption">'+(s.rolls.length?'CHOOSE A DIE, THEN MOVE':'TAP THE DICE TO ROLL')+'</div>'+big+btn+pending+'</div>'+(s.winner!==null?'<div class="nj-win-banner" role="status">🏆 '+s.players[s.winner].name+' wins!</div>':'')+progress+config+soundToggle+settings;
+ ui.controls.innerHTML='<div class="nj-roll-station"><div class="nj-dice-caption">'+(s.rolls.length?'CHOOSE A DIE, THEN MOVE':'TAP THE DICE TO ROLL')+'</div>'+big+btn+pending+'</div>'+counterPicker+(s.winner!==null?'<div class="nj-win-banner" role="status">🏆 '+escapeText(s.players[s.winner].name)+' wins!</div>':'')+progress+config+soundToggle+settings;
  ui.rules("Naija Ludo house rules","Two dice, two houses each in a two-player match, <b>eight counters each</b>. Roll a 6 to release a counter; play the dice before throwing again. By default, capturing sends your counter to the finish and the rival back to their yard. A pair stacked on its opening square forms a barrier. Configure safe houses, capture rules, movement speed and direct count in Game options. <b>Local play only.</b>");
  if(motion)motion.play(ui.board,before,s);
  ui.save();
  if(ui.draw)scheduleComputer(s,ui.draw);
 }
-function changePlayers(s,n){cancel();const opts={...s.options};const fresh=create(n,s.diceCount);fresh.sound=s.sound;Object.assign(s,fresh);s.options=opts;return s;}
+function changePlayers(s,n){if(s.rolling||s.moving||s.rolls.length||![2,3,4].includes(n))return false;cancel();const opts={...s.options};const fresh=create(n,s.diceCount);fresh.sound=s.sound;Object.assign(s,fresh);s.options=opts;return s;}
 function changeOpponent(s,mode){
  if(s.rolling||s.moving||s.rolls.length)return false;
  if(!["computer","local"].includes(mode))return false;
@@ -215,16 +248,16 @@ function changeOpponent(s,mode){
  const fresh=create(2,s.diceCount);Object.assign(s,fresh);s.options=opts;s.sound=soundOn;s.opponent=mode;s.difficulty=difficulty;
  if(mode==="computer")s.players[1].name="Computer";s.msg=mode==="computer"?"Playing against the computer. Red starts.":"Pass the phone to a friend. Red starts.";return true;
 }
-function changeDifficulty(s,difficulty){if(!["easy","normal","hard","advanced"].includes(difficulty))return false;s.difficulty=difficulty;s.msg="Computer difficulty changed.";return true;}
+function changeDifficulty(s,difficulty){if(s.rolling||s.moving||s.rolls.length)return false;if(!["easy","normal","hard","advanced"].includes(difficulty))return false;s.difficulty=difficulty;s.msg="Computer difficulty changed.";return true;}
 function changeOption(s,key,value){if(s.rolling||s.moving||s.rolls.length||s.winner!==null)return false;
  if(key==="speed"){if(!["slow","normal","fast"].includes(value))return false;}
  else if(!(key in DEFAULT_OPTIONS)||key==="speed"||typeof value!=="boolean")return false;
  s.options[key]=value;s.msg="Game settings updated.";return true;}
-function changeDice(s,n){if(s.rolling||s.moving||s.rolls.length)return false;s.diceCount=n===1?1:2;s.last=s.diceCount===1?[1]:[1,1];s.msg="Dice setting changed. Your next throw uses "+s.diceCount+(s.diceCount===1?" die.":" dice.");return true;}
+function changeDice(s,n){if(s.rolling||s.moving||s.rolls.length||s.winner!==null||![1,2].includes(n))return false;s.diceCount=n===1?1:2;s.last=s.diceCount===1?[1]:[1,1];s.msg="Dice setting changed. Your next throw uses "+s.diceCount+(s.diceCount===1?" die.":" dice.");return true;}
 function selectDie(s,i,draw){if(s.rolling||s.moving||s.winner!==null||!s.rolls[i]||s.rolls[i].used)return;if(canForDie(s,i)){s.selectedDie=i;s.die=s.rolls[i].value;s.msg="Die "+(i+1)+" selected — move "+s.rolls[i].value+" spaces.";draw();}}
 function roll(s,draw){
  if(s.rolling||s.moving||s.rolls.length||s.winner!==null)return;
- cancel();const generation=life,actual=Array.from({length:s.diceCount},rand6);
+ cancel();checkpoint(s);const generation=life,actual=Array.from({length:s.diceCount},rand6);
  s.rolling=true;s.preview=actual;s.msg="Shaking…";draw();
  sound(s,310,.09,.08);
  let ticks=0;ticker=setInterval(()=>{if(life!==generation){clearInterval(ticker);ticker=null;return;}ticks++;if(ticks%3===0)sound(s,340+ticks*11,.04,.025);},74);
@@ -233,11 +266,11 @@ function roll(s,draw){
   if(life!==generation)return;
   clearInterval(ticker);ticker=null;moveTimer=null;
   s.rolling=false;s.rolls=actual.map(value=>({value,used:false}));
-  s.last=actual;s.rolled=true;s.bonus=actual.some(n=>n===6);
+  s.last=actual;s.rolled=true;s.bonus=actual.some(n=>n===6);s.bonusReason=s.bonus?'six':null;
   s.msg="Dice: "+actual.join(" and ")+".";
   finishIfDone(s);
   if(!s.rolls.length&&!s.msg.includes("No moves"))s.msg="No legal moves this throw. "+s.msg;
-  sound(s,590,.095,.06);draw();
+  commitAction();sound(s,590,.095,.06);draw();
  },ms);
 }
 function capture(s,pi,ti){
@@ -258,13 +291,13 @@ function capture(s,pi,ti){
  }
  if(hit){
   if(s.options.captureFinishes)me.tokens[ti]=56;
-  if(s.options.bonusOnCapture)s.bonus=true;
+  if(s.options.bonusOnCapture){if(!s.bonus)s.bonusReason='capture';s.bonus=true;}
  }
  return {text:hit?" Knocked "+victim+"'s counter home!"+(s.options.captureFinishes?" Attacker also finished!":""):"",hit};
 }
 function move(s,pi,ti,draw){
  if(!legal(s,pi,ti,s.selectedDie))return;
- const di=s.selectedDie,steps=s.rolls[di].value,me=s.players[pi],before=me.tokens[ti];
+ checkpoint(s);const di=s.selectedDie,steps=s.rolls[di].value,me=s.players[pi],before=me.tokens[ti];
  if(before<0){me.tokens[ti]=0;}else me.tokens[ti]=before;
  const remaining=before===-1?0:steps;
  const myLife=++life;
@@ -277,9 +310,9 @@ function move(s,pi,ti,draw){
   s.msg=(home?"Piece reached home!":before<0?"Piece entered the track!":"Moved "+steps+" squares.")+cap.text;
   function settle(){
    if(myLife!==life)return;
-   s.moving=false;
+   s.moving=false;commitAction();
    sound(s,home?740:cap.hit?280:540,home?.18:.07,home?.08:.05);
-   if(me.tokens.every(x=>x===56)){s.winner=pi;s.rolls=[];s.selectedDie=null;s.msg="All pieces home. Champion!";draw();return;}
+   if(me.tokens.every(x=>x===56)){s.winner=pi;s.rolls=[];s.selectedDie=null;s.die=null;s.rolled=false;s.bonus=false;s.bonusReason=null;s.msg="All pieces home. Champion!";draw();return;}
    finishIfDone(s);draw();
   }
   if(cap.hit||home){draw();moveTimer=setTimeout(settle,t.capture+20);}else settle();
@@ -329,11 +362,11 @@ function scheduleComputer(s,draw){
   move(s,1,choice.ti,draw);
  },reduced()?100:s.options.speed==="fast"?230:500);
 }
-const api={create,normalize,render,changePlayers,changeDice,changeOption,changeOpponent,changeDifficulty,selectDie,roll,move,cancel};
+const api={create,normalize,resume,render,changePlayers,changeDice,changeOption,changeOpponent,changeDifficulty,selectDie,roll,move,cancel};
 if(isTestHost){
  api.setTestRolls=values=>{if(!Array.isArray(values)||!values.every(x=>Number.isInteger(x)&&x>=1&&x<=6))throw Error("Invalid test dice");riggedForTest=[...values];};
  api.snapshot=s=>JSON.parse(JSON.stringify(s));
- api.testCapture=capture;api.testLegal=legal;api.testBarrier=blockedByBarrier;
+ api.testCapture=capture;api.testLegal=legal;api.testBarrier=blockedByBarrier;api.testCell=cell;api.testScheduleComputer=scheduleComputer;
 }
 window.NightLudo=Object.freeze(api);
 })();

@@ -37,15 +37,15 @@ function animateDice(list,now){let active=false;for(const die of list){const a=d
   const hop=Math.sin(raw*Math.PI)*a.lift,arc=ease;die.position.set(a.fromX+(a.x-a.fromX)*arc,a.fromY+(a.y-a.fromY)*arc+hop,a.fromZ+(a.z-a.fromZ)*arc);die.scale.setScalar(1+Math.sin(raw*Math.PI)*.09);die.userData.shadow.material.opacity=.34-hop*.1;die.userData.shadow.scale.setScalar(1+hop*.45);
   if(raw>=1){die.rotation.set(...a.target);die.position.set(a.x,a.y,a.z);die.scale.setScalar(1);die.userData.shadow.material.opacity=.34;die.userData.shadow.scale.setScalar(1);die.userData.animation=null;}else active=true;
  }return active;}
-function tick(now){frame=0;if(!renderer&&!controlRenderer)return;const active=animateDice(dice,now)||animateDice(controlDice,now);render();if(active)startFrame();
+function tick(now){frame=0;if(!renderer&&!controlRenderer)return;const centerActive=animateDice(dice,now),controlsActive=animateDice(controlDice,now),active=centerActive||controlsActive;render();if(active)startFrame();
 }
 function moveDie(die,value,rolling,duration=680){
- const target=targetRotation(value),current=[die.rotation.x,die.rotation.y,die.rotation.z],index=die.userData.index;
+ const target=targetRotation(value),current=[die.rotation.x,die.rotation.y,die.rotation.z],index=die.userData.index,x=die.userData.centered?0:index?.64:-.64;
  die.userData.value=value;
- if(reduced()||!rolling){die.rotation.set(...target);die.position.set(index? .64:-.64,-.12,0);die.scale.setScalar(1);die.userData.animation=null;return;}
+ if(reduced()||!rolling){die.rotation.set(...target);die.position.set(x,-.12,0);die.userData.shadow.position.x=x;die.scale.setScalar(1);die.userData.animation=null;return;}
  const spins=index?[-1,2,-2]:[2,-2,2];
- die.userData.animation={start:performance.now(),duration,from:current,to:target.map((v,i)=>v+spins[i]*Math.PI*2),target,x:index? .64:-.64,y:-.12,z:0,fromX:index? .95:-.95,fromY:.25,fromZ:.28,lift:index?.95:1.18};
- die.position.set(index? .95:-.95,.25,.28);die.scale.setScalar(.82);startFrame();
+ die.userData.animation={start:performance.now(),duration,from:current,to:target.map((v,i)=>v+spins[i]*Math.PI*2),target,x,y:-.12,z:0,fromX:x*1.48,fromY:.25,fromZ:.28,lift:index?.95:1.18};
+ die.position.set(x*1.48,.25,.28);die.scale.setScalar(.82);startFrame();
 }
 function resize(){if(!renderer||!root)return;const box=root.getBoundingClientRect(),width=Math.max(1,box.width),height=Math.max(1,box.height);renderer.setPixelRatio(Math.min(devicePixelRatio||1,1.5));renderer.setSize(width,height,false);camera.aspect=width/height;camera.updateProjectionMatrix();render();}
 function resizeControls(){if(!controlRenderer||!controlRoot)return;const box=controlRoot.getBoundingClientRect(),width=Math.max(1,box.width),height=Math.max(1,box.height);controlRenderer.setPixelRatio(Math.min(devicePixelRatio||1,1.5));controlRenderer.setSize(width,height,false);controlCamera.aspect=width/height;controlCamera.updateProjectionMatrix();render();}
@@ -68,21 +68,24 @@ function setup(){
 function fallback(){ready=false;if(frame)cancelAnimationFrame(frame);frame=0;resizeObserver?.disconnect();controlResizeObserver?.disconnect();resizeObserver=controlResizeObserver=null;if(renderer){renderer.dispose();renderer.forceContextLoss();renderer=null;}if(controlRenderer){controlRenderer.dispose();controlRenderer.forceContextLoss();controlRenderer=null;}canvas?.remove();controlCanvas?.remove();canvas=controlCanvas=null;root?.removeAttribute('data-three-ready');controlRoot?.removeAttribute('data-three-ready');}
 function sync(){
  const next=pickRoot();if(root!==next){if(root)resizeObserver?.unobserve(root);root=next;if(root&&ready){root.appendChild(canvas);root.dataset.threeReady='true';resizeObserver?.observe(root);resize();}else if(canvas?.parentNode)canvas.remove();}
- if(!root||!ready)return;
+ if(!root){controlResizeObserver?.disconnect();controlCanvas?.remove();controlRoot=null;cancel();return;}if(!ready)return;
  if(canvas.parentNode!==root){root.appendChild(canvas);root.dataset.threeReady='true';resizeObserver?.observe(root);resize();}
- const vals=values(),rolling=root.classList.contains('is-rolling'),buttons=[...root.querySelectorAll('.nj-center-button')];dice.forEach((die,i)=>{die.visible=i<vals.length;die.userData.shadow.visible=i<vals.length;const used=buttons[i]?.classList.contains('is-used');die.traverse(node=>{if(node.material){node.material.transparent=!!used;node.material.opacity=used?.3:1;node.material.needsUpdate=true;}});});
+ const vals=values(),rolling=root.classList.contains('is-rolling'),buttons=[...root.querySelectorAll('.nj-center-button')];dice.forEach((die,i)=>{die.userData.centered=vals.length===1;die.visible=i<vals.length;die.userData.shadow.visible=i<vals.length;const used=buttons[i]?.classList.contains('is-used');die.traverse(node=>{if(node.material){node.material.transparent=!!used;node.material.opacity=used?.3:1;node.material.needsUpdate=true;}});});
  if(rolling&&!lastRolling){vals.forEach((v,i)=>{if(dice[i])moveDie(dice[i],v,true,680);});}
- else if(!rolling&&lastRolling){vals.forEach((v,i)=>{if(dice[i])moveDie(dice[i],v,true,250);});}
- else if(!rolling){vals.forEach((v,i)=>{if(dice[i]&&dice[i].userData.value!==v)moveDie(dice[i],v,false);});}
+ else if(!rolling&&lastRolling){vals.forEach((v,i)=>{if(dice[i])moveDie(dice[i],v,false);});}
+ else if(!rolling){vals.forEach((v,i)=>{if(dice[i]&&!dice[i].userData.animation)moveDie(dice[i],v,false);});}
  lastRolling=rolling;
  const nextControls=document.querySelector('.nj-dice-controls');if(controlRoot!==nextControls){if(controlRoot)controlResizeObserver?.unobserve(controlRoot);controlRoot=nextControls;if(controlRoot&&ready){controlRoot.appendChild(controlCanvas);controlRoot.dataset.threeReady='true';controlResizeObserver?.observe(controlRoot);resizeControls();}else if(controlCanvas?.parentNode)controlCanvas.remove();}
  if(controlRoot&&ready){if(controlCanvas.parentNode!==controlRoot){controlRoot.appendChild(controlCanvas);controlRoot.dataset.threeReady='true';controlResizeObserver?.observe(controlRoot);resizeControls();}
-  const controlVals=[...controlRoot.querySelectorAll('.nj-die-button .nj-die')].map(el=>Number(el.dataset.diceValue)||1),controlIsRolling=!!controlRoot.querySelector('.nj-die-button.is-tumbling'),controlButtons=[...controlRoot.querySelectorAll('.nj-die-button')];controlDice.forEach((die,i)=>{die.visible=i<controlVals.length;die.userData.shadow.visible=i<controlVals.length;const used=controlButtons[i]?.classList.contains('is-used');die.traverse(node=>{if(node.material){node.material.transparent=!!used;node.material.opacity=used?.3:1;node.material.needsUpdate=true;}});});
-  if(controlIsRolling&&!controlRolling)controlVals.forEach((v,i)=>{if(controlDice[i])moveDie(controlDice[i],v,true,680);});else if(!controlIsRolling&&controlRolling)controlVals.forEach((v,i)=>{if(controlDice[i])moveDie(controlDice[i],v,true,250);});else if(!controlIsRolling)controlVals.forEach((v,i)=>{if(controlDice[i]&&controlDice[i].userData.value!==v)moveDie(controlDice[i],v,false);});controlRolling=controlIsRolling;
+  const controlVals=[...controlRoot.querySelectorAll('.nj-die-button .nj-die')].map(el=>Number(el.dataset.diceValue)||1),controlIsRolling=!!controlRoot.querySelector('.nj-die-button.is-tumbling'),controlButtons=[...controlRoot.querySelectorAll('.nj-die-button')];controlDice.forEach((die,i)=>{die.userData.centered=controlVals.length===1;die.visible=i<controlVals.length;die.userData.shadow.visible=i<controlVals.length;const used=controlButtons[i]?.classList.contains('is-used');die.traverse(node=>{if(node.material){node.material.transparent=!!used;node.material.opacity=used?.3:1;node.material.needsUpdate=true;}});});
+  if(controlIsRolling&&!controlRolling)controlVals.forEach((v,i)=>{if(controlDice[i])moveDie(controlDice[i],v,true,680);});else if(!controlIsRolling&&controlRolling)controlVals.forEach((v,i)=>{if(controlDice[i])moveDie(controlDice[i],v,false);});else if(!controlIsRolling)controlVals.forEach((v,i)=>{if(controlDice[i]&&!controlDice[i].userData.animation)moveDie(controlDice[i],v,false);});controlRolling=controlIsRolling;
  }
  render();
 }
 const observer=new MutationObserver(sync);observer.observe(document.documentElement,{subtree:true,childList:true,attributes:true,attributeFilter:['class','data-dice-value']});
 async function warmup(){if(loading)return loading;loading=Promise.all([import('three'),import('three/addons/geometries/RoundedBoxGeometry.js')]).then(([three,rounded])=>{THREE=three;RoundedBoxGeometry=rounded.RoundedBoxGeometry;setup();return ready;}).catch(()=>false);return loading;}
-window.NightLudo3D=Object.freeze({warmup,get ready(){return ready;},sync});
+function cancel(){if(frame)cancelAnimationFrame(frame);frame=0;for(const die of [...dice,...controlDice])die.userData.animation=null;lastRolling=controlRolling=false;}
+const api={warmup,get ready(){return ready;},sync,cancel};
+if(/^(localhost|127\.0\.0\.1)$/.test(location.hostname))api.inspect=()=>({ready,center:dice.map(d=>({value:d.userData.value,rotation:[d.rotation.x,d.rotation.y,d.rotation.z],animating:!!d.userData.animation,visible:d.visible,x:d.position.x})),controls:controlDice.map(d=>({value:d.userData.value,rotation:[d.rotation.x,d.rotation.y,d.rotation.z],animating:!!d.userData.animation,visible:d.visible,x:d.position.x}))});
+window.NightLudo3D=Object.freeze(api);
 })();
