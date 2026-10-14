@@ -92,7 +92,11 @@ jobs:
             sleep 2
             python3 EchoSpace/tools/emulator_probe.py assert text 'My Space'
             python3 EchoSpace/tools/emulator_probe.py tap text 'Night Shore'
-            adb shell input swipe 940 1680 70 1680 550
+            sleep 2
+            # Allow the environment transition to settle before dragging the carousel.
+            adb shell input swipe 950 1600 75 1600 650
+            sleep 1
+            adb shell input swipe 950 1600 75 1600 650
             sleep 2
             python3 EchoSpace/tools/emulator_probe.py tap text 'My Space'
             python3 EchoSpace/tools/emulator_probe.py assert desc 'Fire sound position. Drag to move.'
