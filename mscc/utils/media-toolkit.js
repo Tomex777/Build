@@ -203,7 +203,6 @@ export async function cutAudioSilence(bytes, { mode = 'normal' } = {}) {
     const dest = join(dir, 'silence-shortened.ogg')
     await writeFile(source, bytes)
     const filter = [
-      'silenceremove',
       'start_periods=1',
       'start_threshold=' + setting.threshold,
       'start_silence=0.16',
@@ -215,7 +214,7 @@ export async function cutAudioSilence(bytes, { mode = 'normal' } = {}) {
       'window=0.04',
     ].join(':')
     await runFfmpeg([
-      '-t', '180', '-i', source, '-vn', '-af', filter,
+      '-t', '180', '-i', source, '-vn', '-af', 'silenceremove=' + filter,
       '-ar', '48000', '-ac', '1', '-c:a', 'libopus', '-b:a', '64k', dest,
     ], { timeoutMs: 90000 })
     const output = await checkedOutput(dest)
