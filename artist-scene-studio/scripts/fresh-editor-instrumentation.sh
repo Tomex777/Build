@@ -7,6 +7,7 @@ TEST_SUITE="${TEST_SUITE:-editor}"
 case "$TEST_SUITE" in
   editor) TEST_CLASSES="studio.artistscene.app.RendererLaunchTest"; EXPECTED_TESTS=1 ;;
   humanoid) TEST_CLASSES="studio.artistscene.app.HumanoidAppearanceTest"; EXPECTED_TESTS=1 ;;
+  anime) TEST_CLASSES="studio.artistscene.app.AnimePoseStudyInstrumentedTest"; EXPECTED_TESTS=1 ;;
   bicycle) TEST_CLASSES="studio.artistscene.app.MechanicalActorsTest#bicyclePartsPersist"; EXPECTED_TESTS=1 ;;
   car) TEST_CLASSES="studio.artistscene.app.MechanicalActorsTest#carPartsPersist"; EXPECTED_TESTS=1 ;;
   tree) TEST_CLASSES="studio.artistscene.app.MechanicalActorsTest#treeRenders"; EXPECTED_TESTS=1 ;;
@@ -62,7 +63,7 @@ pull_proof() {
   test -s "$target" || fail "Empty proof file: $filename"
 }
 timeout 30s adb get-state | grep -qx device || fail "Emulator disconnected after instrumentation"
-if [ "$TEST_SUITE" != editor ] && [ "$TEST_SUITE" != humanoid ]; then
+if [ "$TEST_SUITE" != editor ] && [ "$TEST_SUITE" != humanoid ] && [ "$TEST_SUITE" != anime ]; then
   if [ "$TEST_SUITE" = tree ]; then stages=tree; else stages="$TEST_SUITE-before $TEST_SUITE-after $TEST_SUITE-saved"; fi
   for stage in $stages; do
     pull_proof "mechanical-${stage}.png"
@@ -70,6 +71,15 @@ if [ "$TEST_SUITE" != editor ] && [ "$TEST_SUITE" != humanoid ]; then
     python3 scripts/check-viewport-pixels.py "artist-scene-studio-${API_TAG}-mechanical-${stage}.png" || fail "Mechanical $stage viewport was black"
   done
   echo "Fresh API $API_LEVEL mechanical actors passed with all screenshot proof"
+  exit 0
+fi
+if [ "$TEST_SUITE" = anime ]; then
+  for stage in posed neutral; do
+    pull_proof "anime-${stage}.png"
+    cp "$PROOF_DIR/anime-${stage}.png" "artist-scene-studio-${API_TAG}-anime-${stage}.png" || fail "Anime $stage screenshot was missing"
+    python3 scripts/check-viewport-pixels.py "artist-scene-studio-${API_TAG}-anime-${stage}.png" || fail "Anime $stage viewport was black"
+  done
+  echo "Fresh API $API_LEVEL anime rig pose and neutral deformation proved with screenshots"
   exit 0
 fi
 if [ "$TEST_SUITE" = editor ]; then
