@@ -6,6 +6,43 @@ import { renderTweetCard, renderPostCard, wrapSocialText } from './utils/social-
 import { socialCardText, resolveSocialAuthor } from './utils/social-card-command.js'
 import { resolveCommandMedia } from './utils/media-conversion.js'
 import { dispatchCommand } from './command-registry.js'
+import { randomTweetEngagement } from './utils/tweet-engagement.js'
+
+// Each tweet is a mock card with fresh, nonzero engagement. The injected
+// random functions make every popularity tier testable without flaky seeds.
+const engagementAt = (popularity, pickHigh = false) => {
+  let first = true
+  return randomTweetEngagement((low, high) => {
+    if (first) { first = false; return popularity }
+    return pickHigh ? high - 1 : low
+  })
+}
+for (const [bucket, lower, upper] of [
+  [0,24,550],[39,24,550],
+  [40,551,9900],[84,551,9900],
+  [85,9901,105000],[97,9901,105000],
+  [98,105001,800000],[99,105001,800000],
+]) {
+  const low = engagementAt(bucket)
+  const high = engagementAt(bucket,true)
+  assert.equal(low.likeCount,lower)
+  assert.equal(high.likeCount,upper)
+  for (const counts of [low,high]) {
+    assert(counts.likeCount > 0)
+    assert(counts.replyCount > 0)
+    assert(counts.repostCount > 0)
+    assert(counts.replyCount <= counts.likeCount)
+    assert(counts.repostCount <= counts.likeCount)
+  }
+}
+const randomSamples = Array.from({length:32}, () => randomTweetEngagement())
+assert(new Set(randomSamples.map(e => e.likeCount)).size > 1)
+assert(randomSamples.every(e => e.replyCount > 0 && e.repostCount > 0))
+const randomCountsImage = await loadImage(await renderTweetCard({
+  text:'Testing engagement!',authorName:'NIGHT',
+  ...engagementAt(40),
+}))
+assert.equal(randomCountsImage.width,1000)
 
 const tweetLight = await renderTweetCard({
   text:'Some days you just move different.',
@@ -149,4 +186,4 @@ ctx.args = ['instagram']
 await postCommand.run(ctx)
 assert.equal(replies.at(-1), 'Use .post [instagram|facebook|story] [@user] <text>')
 
-console.log('PASS Night rich tweet photos, line breaks, Unicode, push names, targeting and post cards')
+console.log('PASS Night rich tweets, randomized engagement, line breaks, Unicode, photos, names and post cards')
