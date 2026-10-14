@@ -1,6 +1,7 @@
 import { lookup } from 'node:dns/promises'
 import { isIP } from 'node:net'
 import { existsSync } from 'node:fs'
+import { createRequire } from 'node:module'
 
 const DEFAULT_TIMEOUT=16000
 
@@ -72,7 +73,18 @@ function browserExecutable() {
 export async function captureWebsite(raw,{allowedHosts,loadBrowser,resolveHost=validatePublicHost}={}) {
   const site=validateScreenshotUrl(raw,{allowedHosts})
   await resolveHost(new URL(site).hostname)
-  const puppeteer=loadBrowser ? await loadBrowser() : (await import('puppeteer-core')).default
+  // Browser support is optional; the driver is not part of MSCC runtime deps.
+  let puppeteer
+  if (loadBrowser) puppeteer=await loadBrowser()
+  else {
+    try {
+      const loadIsolated=createRequire('/opt/mscc/tools/ssweb-driver/runtime.cjs')
+      puppeteer=loadIsolated('puppeteer-core')
+    } catch (error) {
+      if (error?.code === 'MODULE_NOT_FOUND') throw new Error('Install the optional Puppeteer screenshot driver first.')
+      throw error
+    }
+  }
   const options={
     headless:true,
     executablePath:browserExecutable(),
