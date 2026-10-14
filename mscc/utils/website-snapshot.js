@@ -62,6 +62,7 @@ function browserExecutable() {
     '/usr/bin/chromium',
     '/usr/bin/google-chrome',
     '/opt/google/chrome/chrome',
+    '/opt/mscc/tools/chromium',
   ].filter(Boolean)
   const match=candidates.find(path=>existsSync(path))
   if(!match) throw new Error('Chromium is not installed. Configure SSWEB_CHROME_PATH on the Night server.')
