@@ -124,7 +124,7 @@ jobs:
 
           output = root / 'exports' / 'MSCC_Media_Commands_and_Sources.zip'
           output.parent.mkdir(parents=True, exist_ok=True)
-          source_sha = subprocess.check_output(['git', 'rev-parse', 'HEAD^'], text=True).strip()
+          source_sha = subprocess.check_output(['git', 'rev-parse', 'HEAD'], text=True).strip()
           manifest = {
               'repository': 'Tomex777/Build',
               'source_branch': 'mscc-azure',
