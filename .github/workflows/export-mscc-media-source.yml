@@ -1,0 +1,173 @@
+name: Export MSCC Media Commands and Sources
+
+on:
+  push:
+    branches:
+      - exports/mscc-media-sources-20261014
+    paths:
+      - .github/workflows/export-mscc-media-source.yml
+
+permissions:
+  contents: write
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out export snapshot
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+
+      - name: Build selective MSCC source archive
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          from datetime import datetime, timezone
+          import json, re, subprocess, zipfile
+
+          root = Path.cwd().resolve()
+          mscc = root / 'mscc'
+          groups = ('anime', 'manga', 'movies', 'tv', 'books', 'android')
+          seeds = set()
+          for kind in groups:
+              for subtree in ('commands', 'sources'):
+                  folder = mscc / subtree / kind
+                  if folder.is_dir():
+                      seeds.update(p for p in folder.rglob('*') if p.is_file())
+          providers = mscc / 'providers'
+          if providers.is_dir():
+              seeds.update(p for p in providers.rglob('*') if p.is_file())
+
+          # Shared command selectors, discovery, flows and relevant tests.
+          names = [
+              'commands/core/source.js', 'commands/core/sources.js',
+              'series-flow.js', 'manga-flow.js', 'movie-flow.js',
+              'tv-flow.js', 'book-flow.js', 'apk-flow.js',
+              'source-registry.js', 'source-flow.js', 'source-execution-context.js',
+              'anilist-resolver.js', 'tmdb-resolver.js', 'adaptation-resolver.js',
+              'media-library.js', 'media-relations.js', 'azure-media.js',
+              'package.json', '.env.example',
+              'series-flow-selftest.js', 'anime-sources-selftest.js',
+              'animeonsen-async-selftest.js', 'manga-flow-selftest.js',
+              'manga-sources-selftest.js', 'movie-flow-selftest.js',
+              'tv-flow-selftest.js', 'book-flow-selftest.js',
+              'books-sources-selftest.js', 'apk-flow-selftest.js',
+              'apk-sources-selftest.js', 'source-selftest.js',
+              'source-deadline-selftest.js', 'kayoanime-source-selftest.js',
+              'vixsrc-vaplayer-source-selftest.js',
+              'thenkiri-source-selftest.js', 'streamingunity-source-selftest.js',
+              'proven-screen-sources-selftest.js',
+              'docs/extended-media.md', 'anime-source-live-probe.js',
+              'manga-sources-live-probe.js', 'books-sources-live-probe.js',
+              'apk-sources-live-probe.js',
+          ]
+          for name in names:
+              path = mscc / name
+              if path.is_file():
+                  seeds.add(path)
+
+          workflows = (
+              'mscc-anime-source-live.yml', 'mscc-manga-source-live.yml',
+              'mscc-apk-source-live.yml', 'mscc-streamingunity-live.yml',
+              'mscc-vixsrc-vaplayer-live.yml',
+          )
+          for name in workflows:
+              path = root / '.github' / 'workflows' / name
+              if path.is_file():
+                  seeds.add(path)
+
+          deps = (
+              re.compile(r"\\bfrom\\s*['\"](\\.[^'\"]+)['\"]"),
+              re.compile(r"\\bimport\\s*['\"](\\.[^'\"]+)['\"]"),
+              re.compile(r"\\b(?:import|require)\\s*\\(\\s*['\"](\\.[^'\"]+)['\"]"),
+              re.compile(r"\\bnew\\s+URL\\s*\\(\\s*['\"](\\.[^'\"]+)['\"]"),
+          )
+          chosen = set()
+          work = sorted(seeds)
+          while work:
+              path = work.pop()
+              if not path.is_file() or path in chosen:
+                  continue
+              path = path.resolve()
+              if not path.is_relative_to(root):
+                  raise ValueError('Dependency escapes repository root')
+              chosen.add(path)
+              if path.suffix not in ('.js', '.mjs', '.cjs'):
+                  continue
+              content = path.read_text(encoding='utf-8')
+              for pattern in deps:
+                  for dep in pattern.findall(content):
+                      rel = (path.parent / dep)
+                      possibilities = [
+                          rel, Path(str(rel) + '.js'),
+                          Path(str(rel) + '.mjs'), Path(str(rel) + '.json'),
+                          rel / 'index.js',
+                      ]
+                      for candidate in possibilities:
+                          if candidate.is_file() and candidate.resolve().is_relative_to(root):
+                              if candidate.resolve() not in chosen:
+                                  work.append(candidate.resolve())
+                              break
+
+          # Exclude runtime state and credentials; source-only archive.
+          blocked = ('.env', '.pem', '.key', '.p12', '.sqlite', '.db')
+          files = []
+          for p in sorted(chosen):
+              rel = p.relative_to(root).as_posix()
+              if p.name == '.env' or any(rel.endswith(s) for s in blocked) or (
+                  '/sessions/' in '/' + rel or '/auth_state/' in '/' + rel
+              ):
+                  continue
+              files.append((rel, p))
+
+          output = root / 'exports' / 'MSCC_Media_Commands_and_Sources.zip'
+          output.parent.mkdir(parents=True, exist_ok=True)
+          source_sha = subprocess.check_output(['git', 'rev-parse', 'HEAD^'], text=True).strip()
+          manifest = {
+              'repository': 'Tomex777/Build',
+              'source_branch': 'mscc-azure',
+              'source_commit': source_sha,
+              'exported_at': datetime.now(timezone.utc).isoformat(),
+              'sections': list(groups),
+              'source_files': [name for name, _ in files],
+              'file_count': len(files),
+          }
+          note = (
+              '# MSCC Media Commands and Sources\n\n'
+              'This is a source-only selection from Tomex777/Build, branch mscc-azure.\n'
+              'It includes Anime, Manga, Movie, TV, Books and Android command handlers;\n'
+              'matching source adapters and providers; shared flow helpers; and source-related tests.\n\n'
+              'Import the mscc/ paths into an existing MSCC checkout if you want to reuse them.\n'
+              'These modules rely on MSCC command context, storage, WhatsApp transport,\n'
+              'Node.js dependencies and configuration. It is NOT a standalone bot.\n'
+              'No active session data, private keys, or production credentials are bundled.\n'
+              'See MANIFEST.json for exact source commit and file inventory.\n'
+          )
+          with zipfile.ZipFile(output, 'w', zipfile.ZIP_DEFLATED, compresslevel=9) as out:
+              out.writestr('README.md', note)
+              out.writestr('MANIFEST.json', json.dumps(manifest, indent=2) + '\n')
+              for rel, path in files:
+                  out.write(path, arcname=rel)
+          print('ZIP:', output)
+          print('Source commit:', source_sha)
+          print('Files:', len(files), 'Size:', output.stat().st_size)
+          PY
+
+      - name: Upload downloadable ZIP as workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: MSCC_Media_Commands_and_Sources
+          path: exports/MSCC_Media_Commands_and_Sources.zip
+          retention-days: 30
+          if-no-files-found: error
+
+      - name: Publish ZIP to export-only branch
+        shell: bash
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -f exports/MSCC_Media_Commands_and_Sources.zip
+          git diff --cached --quiet || git commit -m 'Add MSCC media commands and source export ZIP'
+          git push origin HEAD:exports/mscc-media-sources-20261014
