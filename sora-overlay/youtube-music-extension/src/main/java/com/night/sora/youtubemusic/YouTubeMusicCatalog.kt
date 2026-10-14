@@ -241,56 +241,66 @@ object YouTubeMusicCatalog {
         )
 
         val failures = mutableListOf<String>()
-        for (client in nativePlaybackClients) {
-            val identity = "${client.clientName}/${client.clientVersion}"
-            Log.i(TAG, "player start id=$id client=$identity")
-            val response = withTimeoutOrNull(PLAYER_ATTEMPT_TIMEOUT_MS) {
-                YouTube.player(
-                    videoId = id,
-                    client = client,
-                    signatureTimestamp = signatureTimestamp.takeIf { client.useSignatureTimestamp },
-                    authenticated = false,
-                ).getOrNull()
+        suspend fun tryNativeClients(): String? {
+            for (client in nativePlaybackClients) {
+                val identity = "${client.clientName}/${client.clientVersion}"
+                Log.i(TAG, "player start id=$id client=$identity")
+                val response = withTimeoutOrNull(PLAYER_ATTEMPT_TIMEOUT_MS) {
+                    YouTube.player(
+                        videoId = id,
+                        client = client,
+                        signatureTimestamp = signatureTimestamp.takeIf { client.useSignatureTimestamp },
+                        authenticated = false,
+                    ).getOrNull()
+                }
+
+                if (response == null) {
+                    Log.w(TAG, "player timeout-or-null id=$id client=$identity")
+                    failures += "$identity: timeout/network"
+                    continue
+                }
+
+                val status = response.playabilityStatus.status
+                val reason = response.playabilityStatus.reason.orEmpty()
+                val returnedVideoId = response.videoDetails?.videoId
+                val formats = response.streamingData?.adaptiveFormats.orEmpty()
+                Log.i(
+                    TAG,
+                    "player result id=$id client=$identity status=$status reason=$reason returned=$returnedVideoId adaptive=${formats.size}",
+                )
+
+                if (returnedVideoId != null && returnedVideoId != id) {
+                    Log.w(TAG, "wrong-video id=$id client=$identity returned=$returnedVideoId")
+                    failures += "$identity: wrong video"
+                    continue
+                }
+                if (status != "OK") {
+                    failures += "$identity: $status${reason.takeIf(String::isNotBlank)?.let { " ($it)" }.orEmpty()}"
+                    continue
+                }
+
+                val audio = directAudioFormats(formats)
+                Log.i(
+                    TAG,
+                    "direct audio id=$id client=$identity count=${audio.size} mime=${audio.firstOrNull()?.mimeType.orEmpty()}",
+                )
+                if (audio.isEmpty()) {
+                    failures += "$identity: no direct audio"
+                    continue
+                }
+
+                return streamsJson(audio, client, poToken = null).also {
+                    Log.i(TAG, "resolved id=$id client=$identity streams=${audio.size}")
+                }
             }
 
-            if (response == null) {
-                Log.w(TAG, "player timeout-or-null id=$id client=$identity")
-                failures += "$identity: timeout/network"
-                continue
-            }
+            return null
+        }
 
-            val status = response.playabilityStatus.status
-            val reason = response.playabilityStatus.reason.orEmpty()
-            val returnedVideoId = response.videoDetails?.videoId
-            val formats = response.streamingData?.adaptiveFormats.orEmpty()
-            Log.i(
-                TAG,
-                "player result id=$id client=$identity status=$status reason=$reason returned=$returnedVideoId adaptive=${formats.size}",
-            )
-
-            if (returnedVideoId != null && returnedVideoId != id) {
-                Log.w(TAG, "wrong-video id=$id client=$identity returned=$returnedVideoId")
-                failures += "$identity: wrong video"
-                continue
-            }
-            if (status != "OK") {
-                failures += "$identity: $status${reason.takeIf(String::isNotBlank)?.let { " ($it)" }.orEmpty()}"
-                continue
-            }
-
-            val audio = directAudioFormats(formats)
-            Log.i(
-                TAG,
-                "direct audio id=$id client=$identity count=${audio.size} mime=${audio.firstOrNull()?.mimeType.orEmpty()}",
-            )
-            if (audio.isEmpty()) {
-                failures += "$identity: no direct audio"
-                continue
-            }
-
-            return streamsJson(audio, client, poToken = null).also {
-                Log.i(TAG, "resolved id=$id client=$identity streams=${audio.size}")
-            }
+        // A stored session must get the first chance to resolve playback:
+        // anonymous visionOS URLs can say OK in metadata but return CDN 403.
+        if (!hasSignedInCookie(YouTube.cookie)) {
+            tryNativeClients()?.let { return it }
         }
 
         val visitorData = YouTube.visitorData?.takeIf(String::isNotBlank)
@@ -359,6 +369,13 @@ object YouTubeMusicCatalog {
                     }
                 }
             }
+        }
+
+        // Only if the authenticated web path could not provide a track, try
+        // native clients. In particular, do not let an anonymous visionOS
+        // response shadow an account-authenticated playback attempt.
+        if (hasSignedInCookie(YouTube.cookie)) {
+            tryNativeClients()?.let { return it }
         }
 
         // Keep the anonymous browser path for devices/IPs where BotGuard alone is
