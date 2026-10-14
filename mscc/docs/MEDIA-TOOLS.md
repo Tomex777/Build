@@ -32,10 +32,11 @@ The audio commands use FFmpeg, not paid AI. They cannot reconstruct inaudible sp
 * PDF and image parsing still consumes CPU/RAM; avoid enabling very large documents on a memory-constrained instance without monitoring resource usage.
 
 
-## Three additional commands (same unmerged feature branch)
 
-- `.stripmeta`: reply to an image; re-encodes pixels as JPEG/PNG to remove EXIF, GPS coordinates, XMP, software comments and similar embedded metadata. It cannot erase information visible in the pixels, nor private data already extracted by someone else. Depending on format, JPEG is lossy.
-- `.silencecut`: reply to audio; conservatively shortens low-amplitude gaps (normal mode), with `.silencecut gentle` (keeps more quiet speech) or `.silencecut aggressive` (cuts more, can remove quiet words). **No AI is involved.** FFmpeg measures audio loudness, not speech presence: loud traffic, music, fans or other noises may remain. Apply `.denoise` separately if needed. Voice notes remain WhatsApp voice notes.
-- `.subtitles [auto|en|fr|es|...]`: reply to audio/video; return an SRT document with Whisper's timestamped segments for up to the first 90 seconds. Nothing is automatically burned into the video. This uses **local** whisper.cpp speech recognition (an AI model running on the server, without a paid API). Optional runtime: `whisper-cli` (or custom `MSCC_WHISPER_BIN`) and an installed model path in `MSCC_WHISPER_MODEL`, e.g. `/opt/mscc/tools/whisper/ggml-base.bin`. The model is **not automatically downloaded** as part of the production deployment. If unavailable, the command reports the missing local model clearly. Recognition may be wrong when speech is quiet, overlaps, or background noise is strong. A small CPU model can take noticeable processing time.
+## Additional media commands (same unmerged feature branch)
 
-All three are run through the same bounded media queue; SRT is a companion subtitle file, not a modified video.
+- .stripmeta: strip EXIF, GPS and other embedded metadata by re-encoding JPEG/PNG pixels.
+- .silencecut [gentle|normal|aggressive]: shorten quiet gaps in voice notes/audio. Has INTERNAL background-noise reduction before silence detection; optional local RNNoise model via MSCC_RNNOISE_MODEL. Without the model, FFmpeg's mild spectral denoiser is used. Loud traffic, overlapping voices and music may remain; no separate .voiceisolate command exists.
+- .aspectratio <9:16|16:9|1:1|4:5> [blur|fit|crop]: reframe up to 45 seconds for status/reels. Default blurred-background fit; black padding or edge crop available. H.264/AAC MP4, 19MB maximum.
+- Deliberately excluded: .subtitles/.srt, .captionstyle, .videomute, .collage.
+- No paid AI key needed. RNNoise is optional and not automatically installed.

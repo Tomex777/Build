@@ -1,5 +1,5 @@
 import { Worker } from 'node:worker_threads'
-import { writeFile, readFile } from 'node:fs/promises'
+import { writeFile, readFile, stat } from 'node:fs/promises'
 import { join } from 'node:path'
 import { downloadCommandMedia } from './media-conversion.js'
 import { runFfmpeg } from './media-conversion.js'
@@ -195,6 +195,23 @@ const SILENCE_MODES = {
   normal: { threshold: '-42dB', minimum: 0.9 },
   aggressive: { threshold: '-34dB', minimum: 0.6 },
 }
+
+// Internal precleaning is integrated in silencecut, never a separate command.
+// Optional local RNNoise model improves voice/background isolation.
+// With no model, conservative FFmpeg spectral denoising is used instead.
+export async function silenceCutNoiseFilter({ environment = process.env } = {}) {
+  const model = String(environment.MSCC_RNNOISE_MODEL || '').trim()
+  if (!model) return 'highpass=f=65,afftdn=nr=7:nf=-30'
+  if (!model.startsWith('/') || !/^[/a-zA-Z0-9_.-]+$/.test(model)) {
+    throw new Error('MSCC_RNNOISE_MODEL must be a safe absolute local file path.')
+  }
+  const file = await stat(model).catch(() => null)
+  if (!file?.isFile() || file.size < 1000 || file.size > 150000000) {
+    throw new Error('Configured local RNNoise model is unavailable or invalid.')
+  }
+  return 'highpass=f=65,arnndn=m=' + model
+}
+
 export async function cutAudioSilence(bytes, { mode = 'normal' } = {}) {
   const setting = SILENCE_MODES[mode]
   if (!setting) throw new Error('Use .silencecut [gentle|normal|aggressive].')
@@ -213,8 +230,9 @@ export async function cutAudioSilence(bytes, { mode = 'normal' } = {}) {
       'detection=rms',
       'window=0.04',
     ].join(':')
+    const preclean = await silenceCutNoiseFilter()
     await runFfmpeg([
-      '-t', '180', '-i', source, '-vn', '-af', 'silenceremove=' + filter,
+      '-t', '180', '-i', source, '-vn', '-af', preclean + ',silenceremove=' + filter,
       '-ar', '48000', '-ac', '1', '-c:a', 'libopus', '-b:a', '64k', dest,
     ], { timeoutMs: 90000 })
     const output = await checkedOutput(dest)
@@ -223,13 +241,52 @@ export async function cutAudioSilence(bytes, { mode = 'normal' } = {}) {
   })
 }
 
-export async function repliedAudioOrVideo(ctx) {
-  const source = await downloadCommandMedia(ctx, ['audio', 'video', 'document'])
-  if (!source) return null
-  const mime = String(source.found?.media?.mimetype || '').toLowerCase()
-  if (!['audio','video'].includes(source.kind) &&
-      !mime.startsWith('audio/') && !mime.startsWith('video/')) {
-    throw new Error('Reply to a voice note, audio file or video.')
+const ASPECT_SIZES = Object.freeze({
+  '9:16': [540, 960],
+  '16:9': [960, 540],
+  '1:1': [720, 720],
+  '4:5': [640, 800],
+})
+export async function formatVideoAspectRatio(bytes, { ratio = '9:16', mode = 'blur' } = {}) {
+  if (!ASPECT_SIZES[ratio] || !['blur','fit','crop'].includes(mode)) {
+    throw new Error('Use .aspectratio 9:16 [blur|fit|crop]. Ratios: 9:16, 16:9, 1:1, 4:5.')
   }
-  return { bytes: validBuffer(source.buffer, 'Audio/video', 20 * 1024 * 1024) }
+  if (!Buffer.isBuffer(bytes) || bytes.length === 0 || bytes.length > 20 * 1024 * 1024) {
+    throw new Error('Reply to a video smaller than 20 MB.')
+  }
+  const [width, height] = ASPECT_SIZES[ratio]
+  return withMediaFiles('aspectratio', async dir => {
+    const source = join(dir, 'video.bin')
+    const dest = join(dir, 'night-' + ratio.replace(':','x') + '.mp4')
+    await writeFile(source, bytes)
+    let filters
+    let map
+    if (mode === 'blur') {
+      filters = [
+        '[0:v]split=2[bg][fg]',
+        '[bg]scale=' + width + ':' + height + ':force_original_aspect_ratio=increase:flags=lanczos,crop=' +
+          width + ':' + height + ',boxblur=20:4[back]',
+        '[fg]scale=' + width + ':' + height + ':force_original_aspect_ratio=decrease:flags=lanczos[front]',
+        '[back][front]overlay=(W-w)/2:(H-h)/2:shortest=1,setsar=1,format=yuv420p[out]',
+      ].join(';')
+      map = ['-filter_complex', filters, '-map', '[out]']
+    } else {
+      filters = mode === 'fit'
+        ? 'scale=' + width + ':' + height +
+          ':force_original_aspect_ratio=decrease:flags=lanczos,pad=' + width + ':' + height +
+          ':(ow-iw)/2:(oh-ih)/2:black,setsar=1,format=yuv420p'
+        : 'scale=' + width + ':' + height +
+          ':force_original_aspect_ratio=increase:flags=lanczos,crop=' + width + ':' + height +
+          ',setsar=1,format=yuv420p'
+      map = ['-vf', filters, '-map', '0:v:0']
+    }
+    await runFfmpeg([
+      '-t', '45', '-i', source, ...map, '-map', '0:a?',
+      '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '26',
+      '-r', '24', '-c:a', 'aac', '-b:a', '112k',
+      '-movflags', '+faststart', dest,
+    ], { timeoutMs: 100000 })
+    return checkedOutput(dest)
+  })
 }
+

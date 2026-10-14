@@ -3,7 +3,7 @@ import { repliedAudio, withMediaToolJob, cutAudioSilence, sendProcessedAudio } f
 export default {
   name: 'silencecut',
   aliases: ['cutsilence'],
-  description: 'Shorten genuinely quiet gaps using audio levels (no AI). Loud background noises are not silence.',
+  description: 'Shorten quiet audio gaps using built-in noise reduction and optional local speech-focused suppression.',
   usage: '.silencecut [gentle|normal|aggressive] (reply to audio)',
   async run(ctx) {
     const mode = String(ctx.args?.[0] || 'normal').toLowerCase()
@@ -15,7 +15,7 @@ export default {
       if (!source) return ctx.reply('Reply to audio or a voice note with .silencecut.')
       const result = await withMediaToolJob(() => cutAudioSilence(source.bytes, { mode }))
       return sendProcessedAudio(ctx, result, {
-        isVoice: source.isVoice, caption: '✂️ Quiet gaps shortened (' + mode + '). Loud noise may remain.',
+        isVoice: source.isVoice, caption: '✂️ Quiet gaps shortened (' + mode + '); noise reduction applied where possible.',
       })
     } catch (error) { return ctx.reply(error?.message || 'Silence cutting failed.') }
   },

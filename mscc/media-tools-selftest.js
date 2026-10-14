@@ -5,16 +5,14 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { PDFDocument } from 'pdf-lib'
 import QRCode from 'qrcode'
-import { runMediaWorker, processAudio, cutAudioSilence } from './utils/media-toolkit.js'
-import { makeLocalSubtitles } from './utils/subtitle-tools.js'
-import { writeFile, chmod } from 'node:fs/promises'
+import { runMediaWorker, processAudio, cutAudioSilence, silenceCutNoiseFilter, formatVideoAspectRatio } from './utils/media-toolkit.js'
 import { loadCommands } from './command-registry.js'
 
 const commands = await loadCommands(new URL('./commands/', import.meta.url), { capabilityFromDirectory: true })
 for (const name of [
   'pdfmerge', 'pdfsplit', 'img2pdf', 'pdf2img', 'pdfcompress',
   'denoise', 'clearaudio', 'extractaudio', 'scanqr',
-  'stripmeta', 'silencecut', 'subtitles',
+  'stripmeta', 'silencecut', 'aspectratio',
 ]) assert.ok(commands.commands.has(name), 'New command missing: ' + name)
 
 const doc = await PDFDocument.create()
@@ -70,28 +68,8 @@ if (exists('ffmpeg')) {
     assert.ok((await cutAudioSilence(audio, { mode: 'gentle' })).length > 1000)
     assert.ok((await cutAudioSilence(audio, { mode: 'normal' })).length > 1000)
     assert.ok((await cutAudioSilence(audio, { mode: 'aggressive' })).length > 1000)
-    const mockModel = join(dir, 'mock-model.bin')
-    const mockCli = join(dir, 'mock-whisper.sh')
-    await writeFile(mockModel, 'test-only')
-    await writeFile(mockCli, '#!/bin/sh\n' +
-      'while [ "$#" -gt 0 ]; do\n' +
-      '  if [ "$1" = "-of" ]; then shift; out="$1"; fi\n' +
-      '  shift\n' +
-      'done\n' +
-      'printf "1\\n00:00:00,000 --> 00:00:00,900\\nTest caption\\n" > "$out.srt"\n')
-    await chmod(mockCli, 0o700)
-    const priorBin = process.env.MSCC_WHISPER_BIN
-    const priorModel = process.env.MSCC_WHISPER_MODEL
-    try {
-      process.env.MSCC_WHISPER_BIN = mockCli
-      process.env.MSCC_WHISPER_MODEL = mockModel
-      assert.match(String(await makeLocalSubtitles(audio)), /Test caption/)
-    } finally {
-      if (priorBin === undefined) delete process.env.MSCC_WHISPER_BIN
-      else process.env.MSCC_WHISPER_BIN = priorBin
-      if (priorModel === undefined) delete process.env.MSCC_WHISPER_MODEL
-      else process.env.MSCC_WHISPER_MODEL = priorModel
-    }
+    assert.match(await silenceCutNoiseFilter({ environment: {} }), /afftdn/)
+    await assert.rejects(silenceCutNoiseFilter({environment:{MSCC_RNNOISE_MODEL:'relative-model.rnnn'}}))
     for (const mode of ['denoise', 'natural', 'auto', 'strong']) {
       assert.ok((await processAudio(audio, { mode })).length > 1000, 'Audio filter failed: ' + mode)
     }
@@ -100,8 +78,24 @@ if (exists('ffmpeg')) {
       '-f', 'lavfi', '-i', 'sine=frequency=440:duration=1',
       '-shortest', '-c:v', 'mpeg4', '-c:a', 'aac', mp4], { timeout: 12000 })
     assert.equal(job.status, 0, String(job.stderr))
-    assert.ok((await processAudio(await readFile(mp4), { video: true })).length > 1000)
+    const videoBytes = await readFile(mp4)
+    assert.ok((await processAudio(videoBytes, { video: true })).length > 1000)
+    for (const ratio of ['9:16','16:9','1:1','4:5']) {
+      const mode = ratio === '9:16' ? 'blur' : ratio === '16:9' ? 'crop' : 'fit'
+      const resized = await formatVideoAspectRatio(videoBytes, { ratio, mode })
+      assert.ok(resized.length > 1000, 'Aspect ratio output empty: ' + ratio)
+      if (exists('ffprobe')) {
+        const check = join(dir, 'ratio-' + ratio.replace(':','x') + '.mp4')
+        await import('node:fs/promises').then(fs => fs.writeFile(check, resized))
+        const info = spawnSync('ffprobe', [
+          '-v','error','-select_streams','v:0',
+          '-show_entries','stream=width,height','-of','csv=p=0',check
+        ], { timeout: 10000 })
+        const expected = { '9:16':'540,960', '16:9':'960,540', '1:1':'720,720', '4:5':'640,800' }[ratio]
+        assert.equal(String(info.stdout).trim(), expected)
+      }
+    }
   } finally { await rm(dir, { recursive: true, force: true }) }
 } else console.log('SKIP audio integration: FFmpeg missing')
 
-console.log('PASS NIGHT document, voice, metadata and subtitle commands end-to-end')
+console.log('PASS NIGHT document, voice, metadata and aspect-ratio commands end-to-end')
