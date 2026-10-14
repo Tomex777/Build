@@ -513,6 +513,24 @@ class ServerPanelViewModel(application: Application) : AndroidViewModel(applicat
         }
     }
 
+    fun verifyCloudFolder(id: String) {
+        if (!_state.value.configured) return
+        if (!Regex("[a-z][a-z0-9_-]{0,31}").matches(id)) return
+        viewModelScope.launch {
+            busy {
+                val result = withContext(Dispatchers.IO) { api().verifyCloudFolder(id) }
+                _state.value = _state.value.copy(
+                    cloudVerificationMessage = if (result.optBoolean("success")) {
+                        "MSCC readback succeeded for ${result.optString("location")}. " +
+                            "Contributor-side decryption still needs separate confirmation."
+                    } else {
+                        "Cloud integrity check failed. Do not archive files to this folder."
+                    },
+                )
+            }
+        }
+    }
+
     fun configureCloudVideoLayout(selectedIds: Set<String>, imageNodeId: String?) {
         if (!_state.value.configured) return
         val roles = try {
