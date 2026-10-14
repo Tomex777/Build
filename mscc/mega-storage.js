@@ -1,4 +1,5 @@
 import { Readable } from 'node:stream'
+import { randomBytes, randomUUID, timingSafeEqual } from 'node:crypto'
 
 export const MEGA_UPLOAD_LIMIT_BYTES = 512 * 1024 * 1024
 const ID_PATTERN = /^[a-z][a-z0-9_-]{0,31}$/
@@ -210,6 +211,51 @@ export async function megaStorageDashboard(options = {}) {
 }
 
 /** Read-only discovery for configuring exact allowlisted contributor mount IDs. */
+/**
+ * One explicitly requested small diagnostic upload to an allowlisted,
+ * approved destination. Tests ability to read the bytes back from MSCC's
+ * account, NOT whether the donor's MEGA client can decrypt the shared file.
+ * The caller must arrange donor-side verification separately.
+ */
+export async function megaVerifyFolder({ targetId }, options = {}) {
+  const env = options.env || process.env
+  const id = String(targetId || '').trim().toLowerCase()
+  if (!id || id === 'auto') throw new Error('Select a configured MEGA archive to test.')
+  if (id !== 'primary' && !megaSharedFolders(env).some(x => x.id === id && x.uploadEnabled)) {
+    throw new Error('This MEGA location is not approved for test uploads.')
+  }
+  return withMegaSession(async (client, config) => {
+    const selected = await selectTarget(client, config, env, id, { forUpload:true, createPrimary:id === 'primary' })
+    if (!selected.folder) throw new Error('The selected MEGA folder was not found.')
+    const bytes = randomBytes(64)
+    const name = 'mscc-probe-' + randomUUID() + '.bin'
+    let file
+    let cleanupOk = false
+    try {
+      file = await selected.folder.upload({ name, size:bytes.length }, Readable.from([bytes])).complete
+      if (!file || typeof file.downloadBuffer !== 'function') {
+        throw new Error('MEGA upload did not return a downloadable file.')
+      }
+      const downloaded = await file.downloadBuffer({ maxConnections:1 })
+      if (!Buffer.isBuffer(downloaded) || downloaded.length !== bytes.length ||
+        !timingSafeEqual(downloaded, bytes)) {
+        throw new Error('Downloaded test data failed the integrity check.')
+      }
+      return { location:selected.label, success:true, donorVerified:false,
+        warning:'MSCC readback passed. Confirm the contributor can open the file in their own MEGA account.' }
+    } finally {
+      if (file && typeof file.delete === 'function') {
+        try { await file.delete(true); cleanupOk = true } catch { /* leave test file for manual cleanup */ }
+      }
+      // Do not claim cleanup success in the response unless reported by API.
+      // A failed removal leaves only a 64-byte randomly named probe file.
+      if (!cleanupOk && file) {
+        process.emitWarning('MEGA readback test file could not be removed; manually check the configured folder.', 'MEGAProbeCleanup')
+      }
+    }
+  }, options)
+}
+
 export async function megaAvailableMounts(options = {}) {
   return withMegaSession(async client => (Array.isArray(client.mounts) ? client.mounts : [])
     .filter(node => node && node.directory && node.nodeId &&
