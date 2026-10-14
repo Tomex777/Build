@@ -144,6 +144,15 @@ export async function megaStorageDashboard(options = {}) {
   }, options)
 }
 
+/** Read-only discovery for configuring exact allowlisted contributor mount IDs. */
+export async function megaAvailableMounts(options = {}) {
+  return withMegaSession(async client => (Array.isArray(client.mounts) ? client.mounts : [])
+    .filter(node => node && node.directory && node.nodeId &&
+      node !== client.root && node !== client.trash && node !== client.inbox)
+    .map(node => ({ nodeId:String(node.nodeId), label:String(node.name || 'Shared folder').slice(0,60) }))
+    .slice(0,40), options)
+}
+
 export async function uploadMegaMedia({ name, size, source, targetId = 'primary' }, options = {}) {
   const fileSize = validateMegaSize(size)
   const fileName = safeMegaName(name)
