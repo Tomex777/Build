@@ -152,16 +152,26 @@ export function routeMegaTarget({ mediaType, shares, mounts = [] }) {
   if (!eligible.length) {
     throw new Error(`No connected writable MEGA folder is available for ${category}. No upload was attempted.`)
   }
-  // Deterministic balance among equivalent categories. File count is not quota.
+  // Balance by visible bytes rather than file count: one movie can be much
+  // larger than hundreds of photos. This is NOT donor-account free quota.
+  // Restrict accounting to children of the configured upload folder.
   eligible.sort((a,b) => {
-    const fileCount = entry => filesIn(mountMap.get(entry.nodeId)).length
-    return fileCount(a) - fileCount(b) || a.id.localeCompare(b.id)
+    const storedBytes = entry => folderVisibleBytes(mountMap.get(entry.nodeId))
+    return storedBytes(a) - storedBytes(b) || a.id.localeCompare(b.id)
   })
   return { id:eligible[0].id, type:'contributed', mediaType:category }
 }
 
 function filesIn(folder) {
   return (folder?.children || []).filter(item => !item.directory)
+}
+
+/** Byte total for visible immediate children, not account quota or free space. */
+function folderVisibleBytes(folder) {
+  return filesIn(folder).reduce((sum, item) => {
+    const bytes = Number(item.size)
+    return sum + (Number.isSafeInteger(bytes) && bytes > 0 ? bytes : 0)
+  }, 0)
 }
 
 /** Dashboard reports quota only for the authenticated account. Shares are not added to quota. */
@@ -184,12 +194,13 @@ export async function megaStorageDashboard(options = {}) {
       provider:'MEGA', configured:true,
       used:Number(account.spaceUsed || 0), total:Number(account.spaceTotal || 0),
       targets:[
-        { id:'primary', label:config.folder, type:'primary', detected:true, uploadEnabled:true, files:filesIn(folder).length },
+        { id:'primary', label:config.folder, type:'primary', detected:true, uploadEnabled:true, files:filesIn(folder).length, visibleBytes:folderVisibleBytes(folder) },
         ...shares.map(({ id, label, nodeId, uploadEnabled, mediaTypes }) => {
           const match = resolveMount(client, nodeId)
           return { id, label, type:'contributed', detected:Boolean(match), mediaTypes,
             uploadEnabled:Boolean(match && uploadEnabled),
             files:match ? filesIn(match).length : null,
+            visibleBytes:match ? folderVisibleBytes(match) : null,
             quotaBytes:null /* MEGAJS does not expose donor-account quota. */ }
         }),
       ],
