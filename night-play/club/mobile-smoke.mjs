@@ -124,7 +124,7 @@ try{
   await page.locator('[data-action="ludo-roll"]').first().click();
   await page.getByText(/Computer's turn/).waitFor({timeout:5000});
   await page.getByText(/Red & Yellow's turn/).waitFor({timeout:8500});
-  await page.locator(".nj-settings summary").click();
+  await page.locator("#ludoSettingsBtn").click();
   await page.locator('[data-ludo-opponent]').selectOption("local");
   await page.locator(".nj-settings summary").click();
   await page.locator(".ludo-back").click();
