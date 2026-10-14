@@ -3,7 +3,7 @@ import { reverseClip, withExtendedMediaJob } from '../../utils/extended-media.js
 
 export default {
   name:'reverse',
-  aliases:['reversem​edia'.replace('\u200b','')],
+  aliases:['reversemedia'],
   description:'Reverse the first 14 seconds of a video or first 40 seconds of audio.',
   usage:'.reverse (reply to audio or video)',
   async run(ctx) {
