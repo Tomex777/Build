@@ -308,7 +308,7 @@ jobs:
             -d '{"path":"scripts/cortex-runner-proof.js"}' \
             http://127.0.0.1:47831/api/cortex/host/startup/run >/tmp/runner-start.json
 
-          for i in {1..30}; do
+          for i in {1..100}; do
             STATE=$(curl -fsS -H "$AUTH" http://127.0.0.1:47831/api/cortex/host/startup)
             if echo "$STATE" | grep -Eq '"status":"(exited|failed)"'; then
               echo "$STATE" >/tmp/runner-finished.json
@@ -332,7 +332,17 @@ jobs:
           curl -fsS -H "$AUTH" -H 'Content-Type: application/json' \
             -d '{"path":"scripts/cortex-runner-stop.sh"}' \
             http://127.0.0.1:47831/api/cortex/host/startup/run >/tmp/runner-shell.json
-          sleep 0.4
+          # Don't race the startup event on loaded GitHub-hosted runners.
+          shell_ready=0
+          for i in {1..50}; do
+            current=$(curl -fsS -H "$AUTH" http://127.0.0.1:47831/api/cortex/host/startup)
+            if grep -q 'runner-shell-started' <<<"$current"; then
+              shell_ready=1
+              break
+            fi
+            sleep 0.2
+          done
+          test "$shell_ready" = 1
           curl -fsS -H "$AUTH" -H 'Content-Type: application/json' -d '{}' \
             http://127.0.0.1:47831/api/cortex/host/startup/stop >/tmp/runner-stop.json
           grep -q 'runner-shell-started' /tmp/runner-stop.json
