@@ -64,6 +64,7 @@ function fallback(){ready=false;if(frame)cancelAnimationFrame(frame);frame=0;res
 function sync(){
  const next=pickRoot();if(root!==next){if(root)resizeObserver?.unobserve(root);root=next;if(root&&ready){root.appendChild(canvas);root.dataset.threeReady='true';resizeObserver?.observe(root);resize();}else if(canvas?.parentNode)canvas.remove();}
  if(!root||!ready)return;
+ if(canvas.parentNode!==root){root.appendChild(canvas);root.dataset.threeReady='true';resizeObserver?.observe(root);resize();}
  const vals=values(),rolling=root.classList.contains('is-rolling'),buttons=[...root.querySelectorAll('.nj-center-button')];dice.forEach((die,i)=>{die.visible=i<vals.length;die.userData.shadow.visible=i<vals.length;const used=buttons[i]?.classList.contains('is-used');die.traverse(node=>{if(node.material){node.material.transparent=!!used;node.material.opacity=used?.3:1;node.material.needsUpdate=true;}});});
  if(rolling&&!lastRolling){vals.forEach((v,i)=>{if(dice[i])moveDie(dice[i],v,true,680);});}
  else if(!rolling&&lastRolling){vals.forEach((v,i)=>{if(dice[i])moveDie(dice[i],v,true,250);});}

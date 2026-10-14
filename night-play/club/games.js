@@ -60,6 +60,7 @@ function renderLudo(){
   details.insertAdjacentHTML("beforeend",'<div class="nj-in-sheet-extra"><button type="button" class="secondary" data-action="ludo-new">↻ New match</button><button type="button" class="secondary" data-action="ludo-sound">'+(s.sound?'♫ Sound ON':'♪ Sound OFF')+'</button></div>');
  }
  if(controls.querySelector(".nj-settings[open]")){$("ludoSheetBack").hidden=false;$("ludoSettingsBtn").setAttribute("aria-expanded","true");}
+ window.NightLudo3D?.sync();
 }
 function closeLudoSettings(){const d=controls.querySelector(".nj-settings");if(d?.open)window.NightLudoMotion.sheet(d,$("ludoSheetBack"),false);else $("ludoSheetBack").hidden=true;$("ludoSettingsBtn").setAttribute("aria-expanded","false");}
 function toggleLudoSettings(){const d=controls.querySelector('.nj-settings');if(!d)return;const open=!d.open||d.dataset.closing==='true';window.NightLudoMotion.sheet(d,$('ludoSheetBack'),open);$('ludoSettingsBtn').setAttribute('aria-expanded',String(open));}
