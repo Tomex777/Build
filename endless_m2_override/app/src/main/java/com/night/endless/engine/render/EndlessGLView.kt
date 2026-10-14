@@ -45,6 +45,10 @@ class EndlessGLView(
 
     init {
         setEGLContextClientVersion(3)
+        // GLSurfaceView's default chooser only requires 16 depth bits.
+        // Human-scale stones/shadows over kilometre terrain need 24 bits
+        // to avoid quantized depth stripes at grazing viewing angles.
+        setEGLConfigChooser(8, 8, 8, 0, 24, 0)
         setRenderer(endlessRenderer)
         renderMode = RENDERMODE_CONTINUOUSLY
         preserveEGLContextOnPause = true
