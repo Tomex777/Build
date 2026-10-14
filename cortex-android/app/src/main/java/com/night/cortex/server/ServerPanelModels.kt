@@ -138,6 +138,24 @@ data class EnvironmentState(
     val restartRequired: Boolean = false,
 )
 
+data class CloudMount(val nodeId: String, val label: String)
+
+data class CloudTarget(
+    val label: String,
+    val type: String,
+    val detected: Boolean,
+    val uploadEnabled: Boolean,
+    val mediaTypes: List<String> = emptyList(),
+    val visibleBytes: Long? = null,
+)
+
+data class CloudDashboard(
+    val configured: Boolean = false,
+    val used: Long? = null,
+    val total: Long? = null,
+    val targets: List<CloudTarget> = emptyList(),
+)
+
 data class PendingDownload(
     val name: String,
     val cachePath: String,
@@ -168,6 +186,9 @@ data class ServerPanelState(
     val runtimeRegistry: RuntimeRegistry? = null,
     val pairing: PairingState? = null,
     val environment: EnvironmentState? = null,
+    val cloudDashboard: CloudDashboard? = null,
+    val cloudMounts: List<CloudMount> = emptyList(),
+    val cloudMountsLoaded: Boolean = false,
     val revealedEnvironment: Map<String, String> = emptyMap(),
     val pendingDownload: PendingDownload? = null,
 )

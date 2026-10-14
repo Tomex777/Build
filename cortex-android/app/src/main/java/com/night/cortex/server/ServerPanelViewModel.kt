@@ -27,6 +27,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.OutputStream
+import org.json.JSONArray
+import org.json.JSONObject
 
 class ServerPanelViewModel(application: Application) : AndroidViewModel(application) {
     private companion object {
@@ -483,6 +485,56 @@ class ServerPanelViewModel(application: Application) : AndroidViewModel(applicat
                 }
                 _state.value = _state.value.copy(startup = startup, snapshot = snapshot)
                 syncStartupRunnerPolling(startup)
+            }
+        }
+    }
+
+    fun refreshCloud() {
+        if (!_state.value.configured) return
+        viewModelScope.launch {
+            busy {
+                val (env, dashboard, mounts) = withContext(Dispatchers.IO) {
+                    val client = api()
+                    val environment = client.environment()
+                    val cloud = runCatching { client.cloudDashboard() }.getOrNull()
+                    val folders = if (cloud?.configured == true) {
+                        runCatching { client.cloudMounts() }.getOrNull()
+                    } else emptyList()
+                    Triple(environment, cloud, folders)
+                }
+                _state.value = _state.value.copy(
+                    environment = env,
+                    cloudDashboard = dashboard,
+                    cloudMounts = mounts ?: emptyList(),
+                    cloudMountsLoaded = mounts != null,
+                )
+            }
+        }
+    }
+
+    fun configureCloudVideoLayout() {
+        if (!_state.value.configured) return
+        val mounts = _state.value.cloudMounts.sortedBy { it.nodeId }.take(4)
+        if (mounts.size != 4 || mounts.map { it.nodeId }.toSet().size != 4) {
+            _state.value = _state.value.copy(error = "Connect four separate shared MEGA folders first.")
+            return
+        }
+        viewModelScope.launch {
+            busy {
+                val roles = mounts.mapIndexed { index, mount ->
+                    JSONObject().put("id", if (index < 3) "video_${index + 1}" else "images")
+                        .put("label", if (index < 3) "Video archive ${index + 1}" else "Images and stickers")
+                        .put("nodeId", mount.nodeId)
+                        .put("mediaTypes", JSONArray(if (index < 3) listOf("videos") else listOf("images", "stickers")))
+                        .put("uploadEnabled", true)
+                }
+                val environment = withContext(Dispatchers.IO) {
+                    api().setEnvironment("MSCC_MEGA_SHARED_FOLDERS", JSONArray(roles).toString())
+                }
+                _state.value = _state.value.copy(
+                    environment = environment,
+                    message = "Three video folders and one image folder saved. Restart MSCC to apply.",
+                )
             }
         }
     }

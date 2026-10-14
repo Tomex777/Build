@@ -14,6 +14,11 @@ on:
       - '.github/scripts/cortex-api26-emulator.sh'
       - '.github/scripts/cortex-release-smoke.sh'
   workflow_dispatch:
+  pull_request:
+    branches: [cortex-android-live]
+    paths:
+      - 'cortex-android/**'
+      - '.github/workflows/cortex-android.yml'
 
 jobs:
   build:
@@ -44,6 +49,7 @@ jobs:
         with:
           gradle-version: '9.6.0'
       - name: Configure release signing when secrets are available
+        if: github.event_name != 'pull_request'
         shell: bash
         env:
           CORTEX_RELEASE_KEYSTORE_B64: ${{ secrets.CORTEX_RELEASE_KEYSTORE_B64 }}

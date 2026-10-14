@@ -33,6 +33,9 @@ jobs:
         run: |
           set -euo pipefail
           node --check cortex-agent/index.js
+          bash -n cortex-agent/cortex-agent-control
+          grep -Fq 'MSCC_MEGA_SHARED_FOLDERS' cortex-agent/cortex-agent-control
+          grep -Fq "key: 'MSCC_MEGA_PASSWORD'" cortex-agent/index.js
           grep -Fq 'function presentAccountSlots(state)' cortex-agent/index.js
           grep -Fq "mscc:account.profile-changed" cortex-agent/index.js
           sha256sum cortex-agent/index.js
@@ -66,6 +69,7 @@ jobs:
           PORT="${MSCC_SSH_PORT:-22}"
           [[ "$PORT" =~ ^[0-9]{1,5}$ ]] && ((10#$PORT >= 1 && 10#$PORT <= 65535))
           HASH="$(sha256sum cortex-agent/index.js | awk '{print $1}')"
+          HELPER_HASH="$(sha256sum cortex-agent/cortex-agent-control | awk '{print $1}')"
           umask 077
           tmp="$(mktemp -d)"
           trap 'rm -rf "$tmp"' EXIT
@@ -79,11 +83,12 @@ jobs:
             -o IdentitiesOnly=yes -o IdentityAgent=none \
             -o ConnectTimeout=20 -o ServerAliveInterval=15 -o ServerAliveCountMax=3 \
             -i "$tmp/key" -p "$PORT" "$MSCC_SSH_USER@$MSCC_SSH_HOST" \
-            "CORTEX_SOURCE_SHA=$GITHUB_SHA CORTEX_SOURCE_HASH=$HASH bash -se" <<'REMOTE'
+            "CORTEX_SOURCE_SHA=$GITHUB_SHA CORTEX_SOURCE_HASH=$HASH CORTEX_HELPER_HASH=$HELPER_HASH bash -se" <<'REMOTE'
           set -euo pipefail
           umask 077
           [[ "${CORTEX_SOURCE_SHA:-}" =~ ^[a-f0-9]{40}$ ]]
           [[ "${CORTEX_SOURCE_HASH:-}" =~ ^[a-f0-9]{64}$ ]]
+          [[ "${CORTEX_HELPER_HASH:-}" =~ ^[a-f0-9]{64}$ ]]
           [[ "$(id -u)" -ne 0 ]]
           sudo -n true
           command -v curl >/dev/null
@@ -93,6 +98,7 @@ jobs:
           mscc_pid="$(systemctl show mscc.service --property MainPID --value)"
           [[ "$mscc_pid" =~ ^[0-9]+$ ]] && ((mscc_pid > 1))
           [[ -f /opt/cortex-agent/index.js ]]
+          [[ -f /usr/local/libexec/cortex-agent-control ]]
           token="$(sudo -n sed -n 's/^CORTEX_AGENT_TOKEN=//p' /etc/cortex-agent.env | tail -n 1)"
           [[ -n "$token" ]]
           curl -fsS --max-time 10 -o /dev/null \
@@ -105,6 +111,7 @@ jobs:
             if ((result != 0)) && ((changed == 1)); then
               echo 'Cortex Agent health check failed; restoring previous Agent version' >&2
               sudo -n install -m 0644 "$tmp/previous.js" /opt/cortex-agent/index.js || true
+              sudo -n install -m 0755 "$tmp/previous-helper.sh" /usr/local/libexec/cortex-agent-control || true
               sudo -n systemctl restart cortex-agent.service || true
             fi
             rm -rf "$tmp"
@@ -116,10 +123,17 @@ jobs:
             --output "$tmp/new.js"
           printf '%s  %s\n' "$CORTEX_SOURCE_HASH" "$tmp/new.js" | sha256sum -c --status
           node --check "$tmp/new.js"
+          curl --fail --silent --show-error --location --retry 3 \
+            "https://raw.githubusercontent.com/Tomex777/Build/$CORTEX_SOURCE_SHA/cortex-agent/cortex-agent-control" \
+            --output "$tmp/new-helper.sh"
+          printf '%s  %s\n' "$CORTEX_HELPER_HASH" "$tmp/new-helper.sh" | sha256sum -c --status
+          bash -n "$tmp/new-helper.sh"
           cp /opt/cortex-agent/index.js "$tmp/previous.js"
+          sudo -n cat /usr/local/libexec/cortex-agent-control > "$tmp/previous-helper.sh"
           sudo -n install -m 0644 "$tmp/new.js" /opt/cortex-agent/index.js.next
           sudo -n mv /opt/cortex-agent/index.js.next /opt/cortex-agent/index.js
           changed=1
+          sudo -n install -m 0755 "$tmp/new-helper.sh" /usr/local/libexec/cortex-agent-control
           sudo -n systemctl restart cortex-agent.service
           for attempt in 1 2 3 4 5 6 7 8 9 10; do
             if curl -fsS --max-time 5 -o /dev/null \
