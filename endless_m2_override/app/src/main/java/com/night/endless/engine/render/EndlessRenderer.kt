@@ -271,8 +271,12 @@ class EndlessRenderer(
         val labels: List<BodyLabelSnapshot>,
         val approach: ApproachSnapshot,
         val navigation: ExplorationState,
+        val navigationRevision: Long,
         val surfaceBody: String?
     )
+
+    @Volatile private var navigationRevision = 0L
+    fun currentNavigationRevision(): Long = navigationRevision
 
     @Volatile private var completedUiFrame: UiFrameSnapshot? = null
     fun uiFrameSnapshot(): UiFrameSnapshot? = completedUiFrame
@@ -281,7 +285,8 @@ class EndlessRenderer(
         completedUiFrame = UiFrameSnapshot(
             timeMillis = clock.currentTimeMillis(), speedLabel = clock.speedLabel(),
             labels = latestLabels, approach = latestApproach,
-            navigation = snapshotState(), surfaceBody = completedSurfaceBody
+            navigation = snapshotState(), navigationRevision = navigationRevision,
+            surfaceBody = completedSurfaceBody
         )
     }
 
@@ -399,6 +404,7 @@ class EndlessRenderer(
 
     @Synchronized
     fun restoreState(state: ExplorationState) {
+        navigationRevision++
         clock.restore(state.clockState)
         updateBodyPositions(clock.seconds())
 
@@ -739,6 +745,7 @@ class EndlessRenderer(
 
     @Synchronized
     fun toggleOverview(): Boolean {
+        navigationRevision++
         pendingYaw = 0.0
         pendingPitch = 0.0
 
@@ -773,6 +780,7 @@ class EndlessRenderer(
     @Synchronized
     fun focus(id: String) {
         val body = bodies.firstOrNull { it.id == id } ?: return
+        navigationRevision++
         overview = false
         selectedId = id
 

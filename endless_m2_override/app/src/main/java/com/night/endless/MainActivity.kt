@@ -328,6 +328,9 @@ private fun EndlessApp(
                 // selected directly on the GLSurfaceView while Compose is publishing
                 // a fresh projected-label frame, so reconcile the shell every frame
                 // instead of relying on a single cross-thread selection callback.
+                // Ignore a completed frame from before the latest selection. It
+                // must not dismiss the information panel opened by that tap.
+                if (frame.navigationRevision != renderer.currentNavigationRevision()) return@let
                 val navigation = frame.navigation
                 val rendererSelected = navigation.selectedId.takeUnless { navigation.overview }
                 if (overview != navigation.overview) overview = navigation.overview
