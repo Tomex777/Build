@@ -158,7 +158,7 @@ jobs:
               "$OUT/Mise-1.0.0-universal-release-production-signed.apk" \
               | tee "$OUT/PRODUCTION-IDENTITY.txt"
 
-            jarsigner               -keystore "$KEYSTORE"               -storepass "$MISE_RELEASE_STORE_PASSWORD"               -keypass "$MISE_RELEASE_KEY_PASSWORD"               -signedjar "$OUT/Mise-1.0.0-release-production-signed.aab"               "$AAB_UNSIGNED"               "$MISE_RELEASE_KEY_ALIAS"
+            jarsigner               -keystore "$KEYSTORE"               -storepass:env MISE_RELEASE_STORE_PASSWORD               -keypass:env MISE_RELEASE_KEY_PASSWORD               -signedjar "$OUT/Mise-1.0.0-release-production-signed.aab"               "$AAB_UNSIGNED"               "$MISE_RELEASE_KEY_ALIAS"
             jarsigner -verify "$OUT/Mise-1.0.0-release-production-signed.aab"
             rm -f "$KEYSTORE"
             PRODUCTION_SIGNING="SIGNED"
