@@ -200,6 +200,10 @@ export function createSquidGame({ storage, accountFor, resolvePhoneJid = async (
   async function advance(game) {
     if (game.phase === 'REGISTERING') return begin(game)
     if (game.phase === 'GREEN') {
+      const meta = await metadata(game)
+      if ((game.mode === 'kick' && meta.announce) || (game.mode === 'cg' && !meta.announce)) {
+        return complete(game, '🛑 Squid Game cancelled because group messaging permissions changed.')
+      }
       game.phase = 'RED'
       game.boundaryAt = now()
       game.graceUntil = now() + GRACE_MS
@@ -233,7 +237,7 @@ export function createSquidGame({ storage, accountFor, resolvePhoneJid = async (
     return locked(group, async () => {
       if (load(group)) return ctx.reply('🦑 A Squid Game session is already open. Use .squidgame status.')
       const meta = await ctx.account.sock.groupMetadata(group)
-      if (mode === 'cg' && meta.announce) return ctx.reply('CG needs a group where members can react before the game begins.')
+      if (meta.announce) return ctx.reply('🦑 Open group messaging before Squid Game. Players must be able to talk during GREEN LIGHT.')
       const originalAdmins = meta.participants.filter(p => isAdmin({ participant:p })).flatMap(participantIds)
       const game = {
         group, accountId:ctx.account.id, mode, phase:'REGISTERING',
@@ -313,7 +317,7 @@ export function createSquidGame({ storage, accountFor, resolvePhoneJid = async (
     const group = jid(message?.key?.remoteJid)
     if (!group.endsWith('@g.us') || message?.key?.fromMe) return
     const contents = normalizedContent(message?.message)
-    if (!contents || contents.reactionMessage || contents.protocolMessage || contents.pollUpdateMessage) return
+    if (!contents || contents.reactionMessage || contents.protocolMessage || contents.pollUpdateMessage || message?.message?.editedMessage) return
     return locked(group, async () => {
       const game = load(group)
       if (!game || !['GREEN','RED'].includes(game.phase)) return
