@@ -229,11 +229,35 @@ $("settingsClose").addEventListener("click",()=>$("settingsDialog").close());
 $("restart").addEventListener("click",restart);
 document.addEventListener("click",e=>{const control=e.target.closest("[data-control]");if(control)action(control.dataset.control);});
 board.addEventListener("click",e=>{if(type==="mines"){const b=e.target.closest("[data-tile]");if(b){if(held){held=false;return;}mineTap(Number(b.dataset.tile));}}});
-board.addEventListener("contextmenu",e=>{if(type!=="mines")return;const b=e.target.closest("[data-tile]");if(!b)return;e.preventDefault();const s=state,i=Number(b.dataset.tile);if(!finished&&!s.open[i]){s.flags[i]=!s.flags[i];drawMines();}});
-let holdTimer=null,held=false;
-board.addEventListener("pointerdown",e=>{if(type!=="mines")return;const b=e.target.closest("[data-tile]");if(!b)return;held=false;const at=Number(b.dataset.tile);holdTimer=setTimeout(()=>{if(type==="mines"&&!finished&&!state.open[at]){state.flags[at]=!state.flags[at];drawMines();held=true;}},550);});
-board.addEventListener("pointerup",()=>{if(holdTimer!==null)clearTimeout(holdTimer);holdTimer=null;});
-board.addEventListener("pointercancel",()=>{if(holdTimer!==null)clearTimeout(holdTimer);holdTimer=null;});
+let holdTimer=null,held=false,longPressTile=-1,holdOrigin=null;
+function stopHold(){if(holdTimer!==null)clearTimeout(holdTimer);holdTimer=null;holdOrigin=null;}
+board.addEventListener("contextmenu",e=>{
+ if(type!=="mines")return;const b=e.target.closest("[data-tile]");if(!b)return;
+ e.preventDefault();stopHold();
+ const index=Number(b.dataset.tile);
+ // Android may send contextmenu immediately after a long-press flag event.
+ if(held&&longPressTile===index)return;
+ if(finished||state.open[index])return;
+ state.flags[index]=!state.flags[index];drawMines();
+ held=true;longPressTile=index;
+});
+board.addEventListener("pointerdown",e=>{
+ if(type!=="mines"||e.button!==0)return;
+ const b=e.target.closest("[data-tile]");if(!b)return;
+ stopHold();held=false;longPressTile=-1;
+ const at=Number(b.dataset.tile),cx=e.clientX,cy=e.clientY;
+ holdOrigin={x:cx,y:cy};
+ holdTimer=setTimeout(()=>{
+  holdTimer=null;if(type!=="mines"||finished||state.open[at])return;
+  state.flags[at]=!state.flags[at];drawMines();
+  held=true;longPressTile=at;
+ },550);
+});
+board.addEventListener("pointermove",e=>{
+ if(holdTimer!==null&&holdOrigin&&Math.hypot(e.clientX-holdOrigin.x,e.clientY-holdOrigin.y)>10)stopHold();
+});
+board.addEventListener("pointerup",stopHold);
+board.addEventListener("pointercancel",stopHold);
 c.addEventListener("pointerdown",e=>{if(type==="bird")flap();});
 let startTouch=null;
 c.addEventListener("touchstart",e=>{if(type==="maze"&&e.touches.length===1)startTouch=[e.touches[0].clientX,e.touches[0].clientY];},{passive:true});
