@@ -170,15 +170,13 @@ public final class MainActivity extends androidx.activity.ComponentActivity {
 
     list.addView(Ui.eyebrow(this, "THE ART OF ALWAYS ON"));
     list.addView(Ui.headline(this, "Make time yours."));
-    TextView intro = Ui.text(this, "An atmosphere for every moment.", 14, Ui.MUTED);
-    intro.setPadding(Ui.dp(this, 16), 0, Ui.dp(this, 16), Ui.dp(this, 14));
-    list.addView(intro);
+    // Keep the hero and the collection visible without scrolling on short phones.
 
     LinearLayout hero = Ui.column(this);
     hero.setBackground(Ui.bordered(this, Ui.PANEL, 20));
     hero.setClipToOutline(true);
     LinearLayout.LayoutParams heroParams = new LinearLayout.LayoutParams(-1, -2);
-    heroParams.setMargins(Ui.dp(this, 16), 0, Ui.dp(this, 16), Ui.dp(this, 22));
+    heroParams.setMargins(Ui.dp(this, 16), Ui.dp(this, 12), Ui.dp(this, 16), Ui.dp(this, 14));
     list.addView(hero, heroParams);
     LinearLayout heroHead = Ui.row(this);
     heroHead.setPadding(Ui.dp(this, 8), Ui.dp(this, 8), Ui.dp(this, 8), Ui.dp(this, 8));
@@ -189,7 +187,7 @@ public final class MainActivity extends androidx.activity.ComponentActivity {
     hero.addView(heroHead);
     TextView activeName = Ui.text(this, current.name, 19, Ui.TEXT);
     activeName.setTypeface(android.graphics.Typeface.DEFAULT, android.graphics.Typeface.BOLD);
-    activeName.setPadding(Ui.dp(this, 22), 0, Ui.dp(this, 16), Ui.dp(this, 12));
+    activeName.setPadding(Ui.dp(this, 22), 0, Ui.dp(this, 16), Ui.dp(this, 6));
     activeName.setSingleLine();
     activeName.setEllipsize(android.text.TextUtils.TruncateAt.END);
     hero.addView(activeName);
@@ -199,9 +197,9 @@ public final class MainActivity extends androidx.activity.ComponentActivity {
     featured.designThumbnail = true;
     featured.setContentDescription("Edit current design");
     featured.setOnClickListener(v -> studio(current));
-    hero.addView(featured, new LinearLayout.LayoutParams(-1, Ui.dp(this, 235)));
+    hero.addView(featured, new LinearLayout.LayoutParams(-1, Ui.dp(this, 158)));
     LinearLayout heroActions = Ui.row(this);
-    heroActions.setPadding(Ui.dp(this, 12), Ui.dp(this, 12), Ui.dp(this, 12), Ui.dp(this, 12));
+    heroActions.setPadding(Ui.dp(this, 12), Ui.dp(this, 8), Ui.dp(this, 12), Ui.dp(this, 8));
     heroActions.addView(Ui.primary(this, "Edit", () -> studio(current)), new LinearLayout.LayoutParams(0, Ui.dp(this, 48), 1));
     View gap = new View(this);
     heroActions.addView(gap, new LinearLayout.LayoutParams(Ui.dp(this, 8), 1));
