@@ -20,6 +20,12 @@ for required in sudo curl node git systemctl; do
   command -v "$required" >/dev/null || { echo "Required deployment executable unavailable: $required" >&2; exit 2; }
 done
 sudo -n true || { echo 'Noninteractive Azure sudo is required.' >&2; exit 2; }
+# Cortex is a separate optional service. Its absence must not revert a healthy
+# MSCC release. An *incomplete* existing Cortex installation still fails closed.
+if [[ ! -e "$AGENT_TARGET" && ! -e "$HELPER_TARGET" ]]; then
+  echo 'Optional Cortex Agent not installed; deferring Cloud Agent upgrade without blocking MSCC deployment.'
+  exit 0
+fi
 systemctl is-active --quiet cortex-agent.service || { echo 'Existing Cortex Agent service is not active.' >&2; exit 2; }
 systemctl is-active --quiet mscc.service || { echo 'MSCC is not active; declining Agent bootstrap.' >&2; exit 2; }
 [[ -f "$AGENT_TARGET" ]] && [[ -f "$HELPER_TARGET" ]] || {
