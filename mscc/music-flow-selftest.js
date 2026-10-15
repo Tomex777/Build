@@ -216,3 +216,57 @@ if (!recoverySearches.length || recoverySearches[0] !== '' ||
 }
 
 console.log('PASS full managed music download fallback chain')
+
+
+// A provider returning "ok" without actually delivering any bytes must be
+// treated as a failure. Users must get visible feedback and may retry 1.
+const missingDelivery = []
+const progressStatus = []
+let retrySession = null
+let canSend = false
+const retryCtx = {
+  publicPrefix:'.',
+  setCommandReplySession:value => { retrySession = value },
+  getCommandReplySession:() => retrySession,
+  clearCommandReplySession:() => { retrySession = null },
+  commandReplyInput:'1',
+  reply:async text => { missingDelivery.push(String(text)); return text },
+  progress:async text => {
+    progressStatus.push('begin:' + text)
+    return {
+      fail:async message => { progressStatus.push('failed:' + message) },
+      done:async message => { progressStatus.push('done:' + message) },
+    }
+  },
+  executeSource:async ({ pinnedSource, excludedSources = [], payload }) => {
+    if (payload.action === 'search' && !excludedSources.length) {
+      return {
+        status:'ok',
+        source:{ id:'primary', name:'YouTube' },
+        result:{ items:[{ id:'a', title:'abc', artist:'Artist' }] },
+      }
+    }
+    if (payload.action === 'search' && excludedSources.includes('primary')) {
+      return { status:'all-failed', error:new Error('no fallback'), sources:[] }
+    }
+    if (payload.action === 'download' && pinnedSource === 'primary') {
+      return { status:'ok', source:{ id:'primary', name:'YouTube' }, result:canSend ? { delivered:true } : undefined }
+    }
+    throw new Error('Unexpected music request in retry test')
+  },
+}
+await runSongCommand(retryCtx, { args:['abc'] })
+if (!retrySession) throw new Error('Music menu must set retry session')
+await runSongCommand(retryCtx, { args:['~numbers'] })
+if (!retrySession || !progressStatus.some(row => row.startsWith('failed:'))) {
+  throw new Error('Silent music delivery must report failure and preserve numeric selection')
+}
+if (progressStatus.some(row => row.startsWith('done:'))) {
+  throw new Error('Music source with no confirmation must not report delivered')
+}
+canSend = true
+await runSongCommand(retryCtx, { args:['~numbers'] })
+if (retrySession || !progressStatus.some(row => row.startsWith('done:'))) {
+  throw new Error('Successful retry must report delivery and clear numeric selection')
+}
+console.log('PASS silent-music failure reporting and selection retry')
