@@ -53,6 +53,7 @@ uniform int uPatchType; // 0 = coarse landscape; 1 = foreground; 2 = stones
 uniform vec2 uViewAnchor;
 uniform vec2 uMidAnchor;
 uniform sampler2D uLandingAlbedo;
+uniform sampler2D uMicroMaterial;
 uniform int uHasLandingAlbedo;
 out vec4 fragColor;
 
@@ -117,12 +118,27 @@ void main() {
     float grain = noiseFiltered(ground * 470.0);
     // 1cm and 6cm albedo grains are derivative-filtered and low contrast;
     // subpixel grit fades to its mean instead of crawling during walking.
-    float grit = noiseFiltered(ground * 300000.0) * .55 +
-                 noiseFiltered(ground * 50000.0 + 31.7) * .45;
+    // Two rotated samples of a seamless 256x256 RGBA micro-material provide
+    // centimetre-scale colour, grains and chipped stone inclusions at eye
+    // level. The atlas is generated at runtime (< 350 KiB with mipmaps),
+    // so the APK stays lean. Hardware mipmaps suppress walking shimmer.
+    // Do not project fictional cm-resolution detail onto orbital DEM hills.
+    float microWeight = (uPatchType == 1 || uPatchType == 2)
+        ? 1.0 - smoothstep(0.005, 0.056, vDistance) : 0.0;
+    vec4 micro = vec4(0.5, 0.5, 0.5, 0.85);
+    if (microWeight > 0.005) {
+        vec2 atlasUv = ground * 330.0;
+        vec2 rotatedUv = vec2(atlasUv.x * 0.52 - atlasUv.y * 0.85,
+                              atlasUv.x * 0.85 + atlasUv.y * 0.52);
+        vec4 grains = texture(uMicroMaterial, atlasUv);
+        vec4 fines = texture(uMicroMaterial, rotatedUv * 4.5 + vec2(7.3, 19.9));
+        micro = mix(grains, fines, 0.42);
+    }
+    float grit = mix(0.5, micro.g, microWeight);
 
     // Small-scale bump derived from the *same* geographic material pattern.
     // Prevent unstable sampling derivatives at orbital/surface extremes.
-    float detailHeight = (granules - 0.5);
+    float detailHeight = mix(granules - 0.5, micro.g - 0.5, microWeight);
     vec3 dX = dFdx(vPosition);
     vec3 dY = dFdy(vPosition);
     vec3 perturb = cross(dY, N) * dFdx(detailHeight)
@@ -211,6 +227,11 @@ void main() {
     }
 
     albedo *= 0.95 + 0.10 * grit;
+    // Keep photographed geography at mid/far range and show believable
+    // fines/inclusions only at ground level. Do not make metre-sized pixels.
+    float fineContrast = clamp(0.50 + 1.23 * micro.r, 0.67, 1.20);
+    float inclusions = smoothstep(0.40, 0.82, micro.b);
+    albedo *= mix(1.0, fineContrast * (1.0 - 0.075 * inclusions), microWeight);
     float direct = max(dot(microNormal, sun), 0.0);
     float halfLambert = smoothstep(0.0, 0.07, direct);
     // No invented lunar atmosphere. Moon's small fill is exposure/ambient
@@ -228,6 +249,18 @@ void main() {
         albedo *= (0.72 + vColor.r * 0.65) * (.92 + .16 * rockWeathering);
     }
     vec3 color = albedo * light * surfaceAo;
+    // Regolith is overwhelmingly diffuse. A restrained, rough reflection
+    // on exposed stone edges prevents flat-looking matte plastic boulders.
+    if (uPatchType == 2 && direct > 0.0) {
+        vec3 viewDirection = normalize(vec3(
+            uViewAnchor.x - vPosition.x, 0.0010,
+            uViewAnchor.y - vPosition.z
+        ));
+        float rough = clamp(micro.a, 0.68, 0.98);
+        vec3 halfway = normalize(sun + viewDirection);
+        float highlight = pow(max(dot(N, halfway), 0.0), mix(22.0, 7.0, rough));
+        color += vec3(0.007) * highlight * direct * microWeight;
+    }
 
     if (uWorld == 0) {
         // Warm atmospheric extinction and aerial perspective on Mars, with

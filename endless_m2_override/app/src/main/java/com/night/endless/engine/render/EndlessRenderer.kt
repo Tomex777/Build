@@ -2007,11 +2007,17 @@ out vec4 fragColor;
 void main() {
     float heightAboveHorizon = vUv.y - 0.46 + uPitch * 0.45;
     float t = smoothstep(-0.08, 0.85, heightAboveHorizon);
-    vec3 dustyHorizon = vec3(0.42, 0.235, 0.145);
-    vec3 thinZenith = vec3(0.125, 0.118, 0.132);
+    // Atmospheric dust optical depth falls toward the zenith. Colours are
+    // a low-cost approximation, not a full multiple-scattering atmosphere.
+    vec3 dustyHorizon = vec3(0.49, 0.295, 0.215);
+    vec3 thinZenith = vec3(0.145, 0.146, 0.164);
+    float dustColumn = exp(-3.4 * max(heightAboveHorizon, 0.0));
     vec3 sky = mix(dustyHorizon, thinZenith, t);
-    float haze = (1.0 - smoothstep(-0.02, 0.26, heightAboveHorizon)) * 0.07;
-    fragColor = vec4(sky + vec3(haze, haze * 0.45, haze * 0.23), 1.0);
+    sky += vec3(0.041, 0.021, 0.009) * dustColumn;
+    // 1/255 film-grain dithering prevents broad 8-bit sky bands on phones.
+    float dither = fract(sin(dot(gl_FragCoord.xy,
+        vec2(12.9898, 78.233))) * 43758.5453) - 0.5;
+    fragColor = vec4(sky + vec3(dither / 255.0), 1.0);
 }
 """
 

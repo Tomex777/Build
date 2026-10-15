@@ -173,11 +173,11 @@ internal object SurfaceDetailMesh {
             val base = elevation(x, z)
             val rockTone = (0.20 + 0.38 * hash2(gx - 57, gz + 91)).toFloat()
             // Heavy-tailed fragment sizes: mostly gravel, with occasional
-            // large embedded meter-scale basalt blocks. Prior min radius
-            // 25 cm created a cartoon field of repeated boulders.
+            // occasional partly buried basalt fragments. Rare large rocks
+            // now stay below ~75 cm radius, avoiding chunky toy scenery.
             val grainSize = hash2(gx + 31, gz - 9)
             val size = (0.000018 + grainSize * grainSize * grainSize *
-                grainSize * grainSize * grainSize * grainSize * 0.00043)
+                grainSize * grainSize * grainSize * grainSize * 0.00023)
             val squish = 0.38 + hash2(gx - 7, gz + 45) * 0.45
             val offset = hash2(gx, gz - 27) * PI * 2.0
             val rockHeight = size * squish
