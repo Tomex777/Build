@@ -44,3 +44,6 @@ footer span{display:none}
  .touchbar{gap:5px;flex-wrap:nowrap;max-width:390px}
  .touchbar button{min-width:0;flex:1;font-size:17px;min-height:47px}
 }
+
+/* Back navigation lives in the approved top bar, not twice on the page. */
+body>footer{display:none}
