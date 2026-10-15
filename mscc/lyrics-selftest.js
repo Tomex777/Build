@@ -157,6 +157,27 @@ try {
 assert.equal(instantSourceCalls, 0)
 assert.ok(instantReplies[0].includes('Instant lyric line'))
 
+// A failed search must not repeat the same LRCLIB requests (previously it did).
+const missingRequests = []
+const missingReplies = []
+globalThis.fetch = async urlValue => {
+  const url = new URL(String(urlValue))
+  assert.equal(url.pathname, '/api/search')
+  missingRequests.push(url.searchParams.get('q'))
+  return new Response('[]', { status:200, headers:{ 'content-type':'application/json' } })
+}
+try {
+  await runLyricsCommand({
+    publicPrefix:'.',
+    reply:async value => { missingReplies.push(String(value)); return value },
+    executeSource:async () => ({ status:'no-sources' }),
+  }, { args:['No', 'Such', 'Song'] })
+} finally {
+  globalThis.fetch = originalFetch
+}
+assert.deepEqual(missingRequests, ['No Such Song', 'NoSuchSong'])
+assert.match(missingReplies[0], /could not find lyrics/i)
+
 const registry = await loadCommands(new URL('./commands/', import.meta.url), {
   capabilityFromDirectory:true,
 })
