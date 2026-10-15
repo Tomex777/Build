@@ -406,3 +406,6 @@ body:not(.ludo-mode)>footer{display:none}
 .table-surface:has(.whot-card){background:radial-gradient(ellipse at 50% 35%,#44785d,#1b4d37 78%);border-color:#314b38}
 .table-surface:has(.whot-card) .card-back{background:#7f192b;border:5px double #f6eee0;box-shadow:inset 0 0 0 3px #8a293b,0 4px 8px #0005}
 .table-surface:has(.whot-card) .card-back:after{content:"NIGHT";color:#f7ddc7;border:1px solid #deb3ad;padding:9px 3px;font-size:13px;font-weight:950;letter-spacing:-.5px;transform:rotate(-25deg)}
+
+.whot-called{padding:7px 9px;background:#f9e5ba;color:#334d34;border-radius:7px;border:1px solid #e0c589;font-size:9px;font-weight:900;letter-spacing:.35px;text-align:center;max-width:125px;line-height:1.4}
+@media(max-width:540px){.table-surface:has(.whot-card) .card-pile{flex-wrap:wrap;gap:10px}.table-surface:has(.whot-card) .whot-called{width:100%;max-width:none}.whot-card .whot-corner b{font-size:13px}}
