@@ -137,7 +137,7 @@ if(finished){ctx.fillStyle="#0b1519c8";ctx.fillRect(0,0,300,600);drawText("GAME 
 function drawBlock(x,y,idx){const px=x*30,py=y*30;if(idx===null){ctx.strokeStyle="#233b38";ctx.lineWidth=.75;ctx.strokeRect(px,py,30,30);return;}ctx.fillStyle=pieceColors[idx];ctx.fillRect(px+1,py+1,28,28);ctx.fillStyle="#fff4";ctx.fillRect(px+3,py+3,24,4);ctx.fillStyle="#10202755";ctx.fillRect(px+3,py+24,24,3);}
 /* MINESWEEPER — generated safe on first opening. */
 const minesDir=[-1,0,1];
-function setupMines(){c.width=360;c.height=360;state={cells:Array(81).fill(0),open:Array(81).fill(false),flags:Array(81).fill(false),started:false,flagMode:false,mines:10,timer:0};setControls(button("⚑","flag","Switch flag mode")+button("✓","reveal","Switch reveal mode"));message("Reveal a square to begin.");drawMines();}
+function setupMines(){c.width=360;c.height=360;state={cells:Array(81).fill(0),open:Array(81).fill(false),flags:Array(81).fill(false),started:false,flagMode:false,mines:10,timer:0};setControls("");message("Reveal a square to begin.");drawMines();}
 function neighbours(i){const r=Math.floor(i/9),c=i%9,out=[];for(const dr of minesDir)for(const dc of minesDir){if(!dr&&!dc)continue;const rr=r+dr,cc=c+dc;if(rr>=0&&rr<9&&cc>=0&&cc<9)out.push(rr*9+cc);}return out;}
 function plant(first){const s=state,banned=new Set([first,...neighbours(first)]);const positions=Array.from({length:81},(_,i)=>i).filter(i=>!banned.has(i));for(let i=positions.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[positions[i],positions[j]]=[positions[j],positions[i]];}
 for(const at of positions.slice(0,s.mines))s.cells[at]=-1;for(let i=0;i<81;i++)if(s.cells[i]!==-1)s.cells[i]=neighbours(i).filter(j=>s.cells[j]===-1).length;s.started=true;gameStart=Date.now();}
