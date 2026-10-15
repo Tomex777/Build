@@ -166,8 +166,8 @@ let generation=0,timers=[],current='start',shown=0,finished=false;
 const reduced=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 function cancel(){generation++;for(const id of timers)clearTimeout(id);timers=[]}
 function after(fn,delay){const id=setTimeout(fn,delay);timers.push(id)}
-function appendBeat(beat){
-  const p=document.createElement('p');p.className='line'+(beat.tone?' '+beat.tone:'');
+function appendBeat(beat,immediate=false){
+  const p=document.createElement('p');p.className='line'+(beat.tone?' '+beat.tone:'');if(immediate){p.style.animation='none';p.style.opacity='1';p.style.transform='none'}
   p.textContent=beat.text;root.story.appendChild(p);shown++;
 }
 function showChoices(instant=false){
@@ -176,7 +176,7 @@ function showChoices(instant=false){
   for(let i=0;i<scenes[current].options.length;i++){
     const [text,destination]=scenes[current].options[i];
     const button=document.createElement('button');button.type='button';button.className='choice';
-    if(instant)button.style.animationDuration='0.01ms';
+    if(instant){button.style.animation='none';button.style.opacity='1';button.style.transform='none'}
     else button.style.animationDelay=(i*35)+'ms';
     const label=document.createElement('span');
     const number=document.createElement('span');number.className='number';number.textContent=String(i+1).padStart(2,'0');
@@ -186,12 +186,19 @@ function showChoices(instant=false){
     button.addEventListener('click',()=>play(destination));
     root.choices.appendChild(button);
   }
+  // On a narrow phone, guide the reader to freshly presented options instead of leaving them below the fold.
+  if(window.innerWidth<700){
+    const end=root.choices.getBoundingClientRect();
+    if(end.bottom>window.innerHeight-24){
+      requestAnimationFrame(()=>root.choices.scrollIntoView({behavior:reduced?'auto':'smooth',block:'end'}));
+    }
+  }
 }
 function revealAll(){
   if(finished)return;
   cancel();
   const beats=scenes[current].beats;
-  while(shown<beats.length)appendBeat(beats[shown]);
+  while(shown<beats.length)appendBeat(beats[shown],true);
   showChoices(true);
 }
 function play(sceneId){
