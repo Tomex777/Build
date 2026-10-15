@@ -65,6 +65,33 @@ try {
   })
   assert.equal(download.status, 'ok')
   assert.equal(transferSignal, false, 'media delivery must keep its own transfer deadlines')
+  // Music lookups must not hang indefinitely if YouTube or a fallback stalls.
+  let musicSignal = null
+  const musicRegistry = new SourceRegistry({
+    rootUrl:new URL('./sources/', import.meta.url),
+    storage:{ brandForCapability: () => 'NIGHT' },
+  })
+  musicRegistry.sources.set('music:youtube', {
+    id:'youtube', capability:'music', name:'YouTube', primary:true, fallbackOrder:0,
+    async run({ context }) {
+      musicSignal = context.signal
+      return new Promise(() => {})
+    },
+  })
+  musicRegistry.sources.set('music:backup', {
+    id:'backup', capability:'music', name:'Backup', primary:false, fallbackOrder:10,
+    async run() { throw new Error('Backup unavailable') },
+  })
+  const musicStart = performance.now()
+  const music = await musicRegistry.execute({
+    capability:'music', payload:{ action:'search', query:'test' },
+  })
+  assert.equal(music.status, 'all-failed')
+  assert.equal(music.error.code, 'source-lookup-timeout')
+  assert.ok(musicSignal?.aborted)
+  assert.ok(performance.now() - musicStart < 1800)
+  console.log('PASS music source deadline and bounded fallback')
+
   console.log('PASS anime source deadline and cancellation (no WhatsApp session touched)')
 } finally {
   if (before === undefined) delete process.env.MSCC_SOURCE_LOOKUP_TIMEOUT_MS
