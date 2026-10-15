@@ -2,6 +2,16 @@
 
 This is a **group-only, opt-in** soundboard and optional AI performance layer for MSCC. It integrates with the existing Baileys handler and **existing** Groq AI reply; there is no second AI request, no speech synthesis, and no Voicy API dependency.
 
+## Owner-only WhatsApp setup (recommended)
+
+NIGHT now supports importing a locally prepared **authorized** Ogg/Opus sound pack directly from a WhatsApp document, without logging in to the VM. Only the primary NIGHT owner may operate setup commands.
+
+- In a private DM with NIGHT, send the prepared ZIP as a document with caption `.sp import`, or reply to that document with `.sp import`. It validates filenames, size, and media signatures before writing to the configured private persistent directory.
+- In your chosen group, send `.sp on` to opt the group into manual and occasional automatic AI reactions. Use `.sp auto off` for manual-only reactions, `.sp auto on` to re-enable them, or `.sp off` to disable the group.
+- Verify functionality with `.sp list` and an explicit short reaction command.
+
+No downloaded media is checked into the repository. Use recordings for which you have appropriate rights.
+
 ## Production enablement (not automatically enabled on merge)
 
 1. Use audio you are authorized to use. This public repository deliberately contains **metadata and playback code only**. The user-supplied ZIP stays private. Do **not** commit downloaded TV-show recordings to this repo.
