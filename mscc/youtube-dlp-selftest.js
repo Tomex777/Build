@@ -67,7 +67,7 @@ if (args.includes('--dump-single-json')) {
   const audio = await downloadYouTubeAudioWithDlp(id, output, 2000)
   assert.equal(audio.extension, 'm4a')
   assert.equal(audio.size, 1024)
-  assert.match(audio.file, /audio\\.m4a$/)
+  assert(audio.file.endsWith('/audio.m4a'))
   await assert.rejects(downloadYouTubeAudioWithDlp(id, output, 500), /exceeds the MSCC download limit/)
   await assert.rejects(downloadYouTubeAudioWithDlp('bad', output, 2000), /Invalid YouTube video ID/)
   console.log('PASS isolated yt-dlp metadata, quality, download, cap and challenge handling')
