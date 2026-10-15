@@ -9,7 +9,7 @@ mines:["Minesweeper","One tap at a time, clear the field.","Reveal every safe sq
 maze:["Maze Chase","Collect every dot. Avoid the chasers.","Swipe on the maze, use the arrows, or press WASD. Eat the dots; dodge the red ghosts. Collect all dots to win."]
 };
 let type="bird",frame=0,raf=null,interval=null,life=null,state=null,finished=false,paused=false,points=0,last=0;
-let gameStart=0,blockDirty=true;
+let gameStart=0,blockDirty=true,blockPaintCount=0;
 function stop(){if(raf!==null){cancelAnimationFrame(raf);raf=null;}if(interval!==null){clearInterval(interval);interval=null;}}
 function best(id){try{return Math.max(0,Number(localStorage.getItem("night-play-v1-"+id))||0);}catch{return 0;}}
 function record(id,n){const score=Math.round(Math.max(0,n));try{const key="night-play-v1-"+id;if(score>best(id))localStorage.setItem(key,String(score));const histKey="night-play-history-v1-"+id;let arr=[];try{arr=JSON.parse(localStorage.getItem(histKey)||"[]");}catch{}if(!Array.isArray(arr))arr=[];arr.push(score);localStorage.setItem(histKey,JSON.stringify(arr.slice(-12)));const countKey="night-play-history-count-v1-"+id;const count=Math.max(0,Number(localStorage.getItem(countKey))||0);localStorage.setItem(countKey,String(count+1));}catch{}}
@@ -123,7 +123,7 @@ function lockBlock(s){for(const [x,y] of s.cur.cells){let xx=x+s.cur.x,yy=y+s.cu
 if(count){const n=[0,100,300,500,800][count]*s.level;s.lines+=count;s.level=1+Math.floor(s.lines/10);score(points+n);message("Cleared "+count+" line"+(count===1?"":"s")+"!");}
 nextPiece(s);}
 function blockFrame(dt){const s=state;if(!paused&&!finished){s.time+=dt;if(s.time>Math.max(115,640-(s.level-1)*44)){s.time=0;blockDirty=true;if(!collision(s,0,1))s.cur.y++;else lockBlock(s);}}
-if(!blockDirty)return;blockDirty=false;
+if(!blockDirty)return;blockDirty=false;blockPaintCount++;
 ctx.fillStyle="#172826";ctx.fillRect(0,0,300,600);for(let y=0;y<20;y++)for(let x=0;x<10;x++){drawBlock(x,y,s.grid[y][x]);}if(s.cur&&!finished)for(const [x,y] of s.cur.cells)drawBlock(x+s.cur.x,y+s.cur.y,s.cur.idx);
 ctx.strokeStyle="#596a5b";ctx.lineWidth=5;ctx.strokeRect(1,1,298,598);
 const info=extra;info.textContent="Lines: "+s.lines+" · Level: "+s.level;
@@ -209,6 +209,6 @@ document.addEventListener("keydown",e=>{if(e.ctrlKey||e.metaKey||e.altKey||e.tar
 document.addEventListener("visibilitychange",()=>{if(document.hidden&&type==="blocks"&&!finished){paused=true;message("Paused");}if(document.hidden&&type==="maze"&&!finished){paused=true;message("Paused");}});
 window.addEventListener("pagehide",stop);
 window.addEventListener("popstate",()=>pick(new URL(location.href).searchParams.get("game")||"bird"));
-if(location.hostname==="localhost"||location.hostname==="127.0.0.1")window.__nightArcadeTest=Object.freeze({snapshot:()=>JSON.parse(JSON.stringify(state)),flags:()=>({finished,paused,points})});
+if(location.hostname==="localhost"||location.hostname==="127.0.0.1")window.__nightArcadeTest=Object.freeze({snapshot:()=>JSON.parse(JSON.stringify(state)),flags:()=>({finished,paused,points}),perf:()=>({blockPaints:blockPaintCount})});
 pick(new URL(location.href).searchParams.get("game")||"bird");
 })();
