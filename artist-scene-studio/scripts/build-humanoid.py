@@ -249,50 +249,43 @@ def build(directory, output, anime=False):
         changed_normals = normals(changed, triangles)
         normal_delta = [[n[i]-b[i] for i in range(3)] for n, b in zip(changed_normals, base_normals)]
         shapes.append((label, {"POSITION": accessor(delta, 5126, "VEC3", True), "NORMAL": accessor(normal_delta, 5126, "VEC3")}))
-    # Real GLB materials turn the skinned mesh into an anime-style fitted outfit.
-    # Triangle-based region assignment preserves the exact skin weights and morph
-    # attributes; every region follows all 163 bones and all four body shapes.
+    # Keep ONE skinned body primitive, like the fully proven MakeHuman GLB. Some
+    # Android Filament drivers omit a skinned mesh whose morph targets share one
+    # vertex stream across four material primitives. Vertex colors preserve the
+    # costume design without splitting the skin or losing its 163 editable bones.
     if anime:
-        anime_materials = [
-            ("Warm porcelain skin", [.91, .71, .60, 1.]),
-            ("Sea glass top", [.18, .52, .58, 1.]),
-            ("Deep indigo outfit", [.10, .15, .31, 1.]),
-            ("Ivory cuffs and shoes", [.93, .91, .84, 1.]),
-        ]
-        materials = [{
-            "name": label,
-            "pbrMetallicRoughness": {
-                "baseColorFactor": color, "metallicFactor": 0., "roughnessFactor": .92,
-            },
-        } for label, color in anime_materials]
-        groups = [[] for _ in anime_materials]
-        for tri in triangles:
-            center = [sum(positions[j][i] for j in tri)/3 for i in range(3)]
-            x, y, z = center
-            # Built-in costume rather than a nude figure: dress body and legs while
-            # leaving the head and hands skin-toned for pose reference readability.
+        palette = (
+            [0.91, 0.71, 0.60, 1.],  # warm skin
+            [0.18, 0.52, 0.58, 1.],  # teal outfit
+            [0.10, 0.15, 0.31, 1.],  # navy leggings
+            [0.93, 0.91, 0.84, 1.],  # ivory shoes / cuffs
+        )
+        colors = []
+        for x, y, z in positions:
             if y < .13:
-                region = 3
+                swatch = 3
             elif y < .88:
-                region = 2
+                swatch = 2
             elif y < 1.40 and abs(x) < .36:
-                region = 1
+                swatch = 1
             elif y < 1.45 and abs(x) >= .36:
-                region = 3
+                swatch = 3
             else:
-                region = 0
-            groups[region].extend(tri)
-        primitives = [{
-            "attributes": attributes, "indices": accessor(group, 5125, "SCALAR"),
-            "material": material,
-            "targets": [shape[1] for shape in shapes],
-        } for material, group in enumerate(groups) if group]
+                swatch = 0
+            colors.append(palette[swatch])
+        attributes["COLOR_0"] = accessor(colors, 5126, "VEC4")
+        materials = [{"name": "Anime cel-shaded outfit",
+            "pbrMetallicRoughness": {
+                "baseColorFactor": [1., 1., 1., 1.],
+                "metallicFactor": 0., "roughnessFactor": .94,
+            },
+        }]
     else:
         materials = [{"name": "Neutral clay", "pbrMetallicRoughness": {
             "baseColorFactor": [.62, .65, .69, 1.], "metallicFactor": 0., "roughnessFactor": .85,
         }}]
-        primitives = [{"attributes": attributes, "indices": indices,
-                       "material": 0, "targets": [shape[1] for shape in shapes]}]
+    primitives = [{"attributes": attributes, "indices": indices,
+                   "material": 0, "targets": [shape[1] for shape in shapes]}]
 
     gltf = {"asset": {"version": "2.0", "generator": "Mise independent CC0 humanoid converter"},
             "scene": 0, "scenes": [{"nodes": [0]}], "nodes": nodes,
