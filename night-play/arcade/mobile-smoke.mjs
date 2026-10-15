@@ -24,6 +24,7 @@ await page.locator('#screen').evaluate(el=>{if(el.getBoundingClientRect().width<
 console.log('NIGHT_ARCADE_SHELL_JPEG_BASE64='+(await page.screenshot({type:'jpeg',quality:56,fullPage:true})).toString('base64'));
 assert.equal(await page.locator('[data-control="bird-skin"]').count(),1,"Wing Hop offers real bundled art skins");
 assert.equal(await page.evaluate(()=>window.__nightArcadeTest.snapshot().skin),'parrot',"Parrot Kenney sprite is the default");
+assert.equal(await page.evaluate(()=>window.__nightArcadeTest.perf().wingCached),true,"Wing Hop caches static background instead of painting sun and sky each frame");
 await page.locator('[data-control="bird-skin"]').click();
 assert.equal(await page.evaluate(()=>window.__nightArcadeTest.snapshot().skin),'chick',"Players can switch to Kenney chick artwork");
 await page.locator('[data-control="bird-skin"]').click();
@@ -63,6 +64,7 @@ assert.equal(await page.evaluate(()=>window.__mineStable===document.querySelecto
 await page.locator("#settingsButton").click();await page.locator('[data-game="maze"]').click();
 assert.equal(await page.locator("#title").innerText(),"Maze Chase");
 assert.equal(await page.evaluate(()=>window.__nightArcadeTest.snapshot().walls.length),21);
+assert.equal(await page.evaluate(()=>window.__nightArcadeTest.perf().mazeCached),true,"Maze Chase caches static walls and collectible dots");
 assert.ok(await page.evaluate(()=>window.__nightArcadeTest.snapshot().total)>100);
 await page.locator('[data-control="down"]').click();
 assert.deepEqual(await page.evaluate(()=>window.__nightArcadeTest.snapshot().p.dir),[0,1]);
