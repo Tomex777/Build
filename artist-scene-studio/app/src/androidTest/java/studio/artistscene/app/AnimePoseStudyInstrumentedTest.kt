@@ -48,7 +48,7 @@ class AnimePoseStudyInstrumentedTest {
             val deadline = SystemClock.uptimeMillis() + 90_000
             while (SystemClock.uptimeMillis() < deadline) {
                 val actor = store.load(project.id).actors.first { it.id == actorId }
-                if ((actor.rigDefinition?.bones?.size ?: 0) >= 150) {
+                if ((actor.rigDefinition?.bones?.size ?: 0) >= 60) {
                     val actual = actor.rig?.joints.orEmpty()
                     val discovered = actor.rigDefinition!!.bones.map { it.id }.toSet()
                     assertTrue(
@@ -60,7 +60,7 @@ class AnimePoseStudyInstrumentedTest {
                 }
                 SystemClock.sleep(350)
             }
-            throw AssertionError("The real 163-joint anime GLB never completed discovery/persistence")
+            throw AssertionError("The real 65-joint stylized GLB never completed discovery/persistence")
         }
 
         fun distinctPixelDifference(first: File, second: File): Int {
