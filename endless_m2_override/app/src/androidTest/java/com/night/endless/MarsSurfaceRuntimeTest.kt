@@ -107,8 +107,8 @@ class MarsSurfaceRuntimeTest {
             device.waitForIdle()
             await("Surface mode starts") { renderer.isSurfaceMode() }
             await("Surface controls are visible") {
-                device.findObject(By.text("↑")) != null &&
-                    device.findObject(By.textContains("Take off")) != null
+                device.findObject(By.textContains("Take off")) != null &&
+                    device.findObject(By.text("↑")) == null
             }
             // Rendering the first NASA-derived frame can take longer than
             // Compose's button transition on slower software emulators.

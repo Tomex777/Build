@@ -136,8 +136,8 @@ class MoonSurfaceRuntimeTest {
             device.waitForIdle()
             await("Lunar surface mode starts") { renderer.surfaceBodyId() == "moon" }
             await("Lunar movement controls are visible") {
-                device.findObject(By.text("↑")) != null &&
-                    device.findObject(By.textContains("Take off")) != null
+                device.findObject(By.textContains("Take off")) != null &&
+                    device.findObject(By.text("↑")) == null
             }
             await("Lunar exploration HUD collapses system panels") {
                 device.findObject(By.text("RADIUS")) == null &&
