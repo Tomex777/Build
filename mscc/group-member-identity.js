@@ -14,6 +14,12 @@ const phoneJid = value => {
 
 const isPhoneJid = jid => /^\d{7,15}@s\.whatsapp\.net$/.test(normalizeId(jid))
 
+// LIDs contain digits but are not phone numbers; only verified PN JIDs qualify.
+export function verifiedPhoneNumber(jid) {
+  const normalized = normalizeId(jid)
+  return isPhoneJid(normalized) ? normalized.split('@')[0] : ''
+}
+
 export function participantIds(participant) {
   if (typeof participant === 'string') return [normalizeId(participant)].filter(Boolean)
   if (!participant || typeof participant !== 'object') return []
