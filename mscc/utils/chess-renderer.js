@@ -9,13 +9,26 @@ import { normalizeChessTheme } from './game-themes.js'
 
 const { GIFEncoder, quantize, applyPalette } = gifenc
 
+// Use Nexia's FreeSerif chess glyphs, not fallback fonts. Without FreeSerif
+// the starting position renders as 32 empty rectangles on headless Linux.
+const FREE_SERIF_PATH = '/usr/share/fonts/truetype/freefont/FreeSerif.ttf'
 for (const [file, family] of [
   ['/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf', 'DejaVu Sans Bold'],
-  ['/usr/share/fonts/truetype/freefont/FreeSerif.ttf', 'FreeSerif'],
+  [FREE_SERIF_PATH, 'FreeSerif'],
 ]) {
   try {
     if (existsSync(file)) GlobalFonts.registerFromPath(file, family)
-  } catch {}
+  } catch (error) {
+    console.warn('NIGHT chess font loading failed:', family, error?.message || error)
+  }
+}
+
+export function assertChessPieceFont() {
+  // Azure installs fonts-freefont-ttf before starting the bot. Fail visibly
+  // in CI (and at runtime) instead of shipping unreadable rectangle pieces.
+  if (process.platform === 'linux' && !existsSync(FREE_SERIF_PATH)) {
+    throw new Error('Chess needs fonts-freefont-ttf (FreeSerif.ttf) installed.')
+  }
 }
 
 const CELL = 65
@@ -115,7 +128,7 @@ function drawHighlightSquares(ctx, squares, color) {
 
 function drawPieceAt(ctx, cx, cy, piece, theme) {
   const glyph = PIECES[piece.color + piece.type]
-  ctx.font = `${Math.floor(CELL * 0.78)}px FreeSerif, serif`
+  ctx.font = `${Math.floor(CELL * 0.78)}px FreeSerif`
   ctx.textAlign = 'center'
   ctx.textBaseline = 'middle'
   ctx.fillStyle = piece.color === 'w' ? theme.whitePiece : theme.blackPiece
@@ -140,15 +153,15 @@ function drawPreviewMarkers(ctx, boardMap, targets, theme) {
     const cx = x + CELL / 2
     const cy = y + CELL / 2
     if (boardMap[square]) {
-      ctx.strokeStyle = alpha(theme.capture, 0.58)
-      ctx.lineWidth = 3
+      ctx.strokeStyle = alpha(theme.capture, 0.85)
+      ctx.lineWidth = 4
       ctx.beginPath()
-      ctx.arc(cx, cy, CELL * 0.40, 0, Math.PI * 2)
+      ctx.arc(cx, cy, CELL * 0.42, 0, Math.PI * 2)
       ctx.stroke()
     } else {
-      ctx.fillStyle = alpha(theme.preview, 0.52)
+      ctx.fillStyle = alpha(theme.preview, 0.85)
       ctx.beginPath()
-      ctx.arc(cx, cy, CELL * 0.105, 0, Math.PI * 2)
+      ctx.arc(cx, cy, CELL * 0.12, 0, Math.PI * 2)
       ctx.fill()
     }
   }
@@ -159,17 +172,18 @@ export function renderChessBoard(game, {
   previewOrigin = '',
   theme:themeInput = {},
 } = {}) {
+  assertChessPieceFont()
   const theme = normalizeChessTheme(themeInput)
   const canvas = createCanvas(SIZE, SIZE)
   const ctx = canvas.getContext('2d')
   ctx.drawImage(getTemplate(theme), 0, 0)
 
   if (game.lastMove) {
-    drawHighlightSquares(ctx, [game.lastMove.from, game.lastMove.to], alpha(theme.lastMove, 0.12))
+    drawHighlightSquares(ctx, [game.lastMove.from, game.lastMove.to], alpha(theme.lastMove, 0.20))
   }
 
   const checked = game.checkedKingSquare?.()
-  if (checked) drawHighlightSquares(ctx, [checked], alpha(theme.check, 0.24))
+  if (checked) drawHighlightSquares(ctx, [checked], alpha(theme.check, 0.35))
 
   const boardMap = game.boardMap()
   for (const [square, piece] of Object.entries(boardMap)) drawPiece(ctx, square, piece, theme)
@@ -178,9 +192,9 @@ export function renderChessBoard(game, {
     drawPreviewMarkers(ctx, boardMap, previewTargets, theme)
     if (previewOrigin) {
       const { x, y } = algToXY(previewOrigin)
-      ctx.strokeStyle = alpha(theme.preview, 0.58)
-      ctx.lineWidth = 2
-      ctx.strokeRect(x + 3, y + 3, CELL - 6, CELL - 6)
+      ctx.strokeStyle = alpha(theme.preview, 0.85)
+      ctx.lineWidth = 3
+      ctx.strokeRect(x + 2, y + 2, CELL - 4, CELL - 4)
     }
   }
 
@@ -195,6 +209,7 @@ function buildMoveGif(game, {
 } = {}) {
   if (!game.lastMove) return null
 
+  assertChessPieceFont()
   const theme = normalizeChessTheme(themeInput)
   const { from, to } = game.lastMove
   const boardMap = game.boardMap()
@@ -212,8 +227,8 @@ function buildMoveGif(game, {
     const ctx = canvas.getContext('2d')
     ctx.drawImage(getTemplate(theme), 0, 0)
 
-    drawHighlightSquares(ctx, [from, to], alpha(theme.lastMove, 0.12))
-    if (checked) drawHighlightSquares(ctx, [checked], alpha(theme.check, 0.24))
+    drawHighlightSquares(ctx, [from, to], alpha(theme.lastMove, 0.20))
+    if (checked) drawHighlightSquares(ctx, [checked], alpha(theme.check, 0.35))
 
     for (const [square, piece] of Object.entries(boardMap)) {
       if (square === to) continue

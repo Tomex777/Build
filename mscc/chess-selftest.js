@@ -11,7 +11,7 @@ import {
   parseChessInput,
   pickChessBotMove,
 } from './utils/chess-game.js'
-import { CHESS_BOARD_SIZE, CHESS_CELL_SIZE, renderChessBoard } from './utils/chess-renderer.js'
+import { CHESS_BOARD_SIZE, CHESS_CELL_SIZE, assertChessPieceFont, renderChessBoard, renderChessMoveVideo } from './utils/chess-renderer.js'
 
 assert.equal(CHESS_LEVELS.length, 5)
 assert.equal(normalizeChessLevel('HARD'), 'hard')
@@ -44,6 +44,7 @@ const restored = new ChessGame(game.toRecord())
 assert.equal(restored.chess.fen(), game.chess.fen())
 assert.deepEqual(restored.lastMove, { from:'e2', to:'e4' })
 
+assert.doesNotThrow(() => assertChessPieceFont())
 const image = renderChessBoard(restored)
 assert.ok(Buffer.isBuffer(image))
 assert.equal(image[0], 0x89)
@@ -60,6 +61,13 @@ probeCtx.drawImage(decoded, 0, 0)
 const rgba = (x, y) => Array.from(probeCtx.getImageData(x, y, 1, 1).data)
 assert.deepEqual(rgba(35 + 5, 35 + 5).slice(0, 3), [22,22,22])
 assert.deepEqual(rgba(35 + 65 + 5, 35 + 5).slice(0, 3), [43,43,43])
+
+// Completed moves must produce a real MP4 container (WhatsApp GIF playback),
+// not a PNG fallback or raw GIF89a bytes in a video message.
+const animation = await renderChessMoveVideo(restored)
+assert.ok(Buffer.isBuffer(animation), 'Chess move video must be a Buffer')
+assert.ok(animation.length > 2000, 'Chess MP4 was empty')
+assert.equal(animation.subarray(4,8).toString('ascii'), 'ftyp', 'Chess animation must be MP4')
 
 const botGame = new ChessGame({
   playerWhite:'111',
@@ -128,9 +136,20 @@ assert.equal(stored.state, 'PLAYING')
 assert.equal(stored.mode, 'bot')
 assert.equal(stored.level, 'beginner')
 assert.deepEqual(new Set([stored.game.playerWhite, stored.game.playerBlack]), new Set(['111', CHESS_BOT_ID]))
+assert.equal(stored.game.playerWhite, '111', 'Nexia bot chess should start the human as White')
+assert.equal(stored.game.whiteName, 'Alice')
+assert.equal(stored.game.blackName, 'NIGHT Bot')
 assert.ok(['111', CHESS_BOT_ID].includes(stored.game.playerWhite))
 assert.ok(['111', CHESS_BOT_ID].includes(stored.game.playerBlack))
 assert.ok(sent.some(item => Buffer.isBuffer(item.payload?.image)))
+assert.ok(sent.some(item => item.payload?.caption?.includes('NIGHT Bot')), 'Public chess captions should use NIGHT Bot')
+assert.ok(sent.every(item => !String(item.payload?.caption || '').includes('MSCC Bot')))
+
+ctx.args = ['e2','e4']
+await chessCommand.run(ctx)
+assert.ok(sent.some(item => item.payload?.gifPlayback === true && item.payload?.mimetype === 'video/mp4'), 'Real chess moves must be animated')
+assert.ok(sent.every(item => item.payload?.video === undefined || item.payload.video.subarray(4,8).toString('ascii') === 'ftyp'))
+assert.ok(!replies.some(line => line.includes('animation is temporarily unavailable')), 'Chess animation unexpectedly fell back to a still')
 
 const registry = await loadCommands(new URL('./commands/', import.meta.url), {
   capabilityFromDirectory:true,

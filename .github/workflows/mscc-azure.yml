@@ -43,7 +43,7 @@ jobs:
       - name: Install Noto fonts for Unicode and emoji screenshot regression
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y -qq --no-install-recommends fonts-noto-core fonts-noto-color-emoji
+          sudo apt-get install -y -qq --no-install-recommends fonts-noto-core fonts-noto-color-emoji fonts-freefont-ttf
       - name: Check complete runtime and command regression suite
         working-directory: mscc
         run: npm run check

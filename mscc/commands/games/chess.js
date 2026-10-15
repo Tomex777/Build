@@ -64,7 +64,7 @@ function clearRecord(ctx) {
 }
 
 function labelFor(game, player) {
-  if (player === CHESS_BOT_ID) return 'MSCC Bot'
+  if (player === CHESS_BOT_ID) return 'NIGHT Bot'
   if (player === game.playerWhite) return game.whiteName || 'White'
   if (player === game.playerBlack) return game.blackName || 'Black'
   return 'Player'
@@ -82,7 +82,7 @@ function statusCaption(game, note = '') {
   }
 
   return [
-    '*Chess*',
+    '🎮 *Picture Chess*',
     note,
     status,
     '',
@@ -109,7 +109,7 @@ async function sendMoveAnimation(ctx, game, note = '', themeInput = {}) {
 
   try {
     const video = await renderChessMoveVideo(game, { theme:normalizeChessTheme(themeInput) })
-    if (!video) return sendBoard(ctx, game, note, null, themeInput)
+    if (!video) throw new Error('NIGHT chess move animation produced no video.')
     return ctx.account.sock.sendMessage(chat, {
       video,
       mimetype:'video/mp4',
@@ -117,8 +117,9 @@ async function sendMoveAnimation(ctx, game, note = '', themeInput = {}) {
       caption:statusCaption(game, note),
     }, { quoted:ctx.message })
   } catch (error) {
-    console.warn('MSCC chess move animation fallback:', error?.message || error)
-    return sendBoard(ctx, game, note, null, themeInput)
+    console.warn('NIGHT chess move animation failed:', error?.message || error)
+    await sendBoard(ctx, game, note, null, themeInput)
+    return ctx.reply('⚠️ NIGHT chess animation is temporarily unavailable. The board is up to date.')
   }
 }
 
@@ -197,7 +198,7 @@ async function createHumanChallenge(ctx, invitedUser = '') {
     text:`${playerName(ctx)} opened a chess game.\n\n${invitedLine}`,
     buttonText:'Chess',
     joinText:'♟️ Join game',
-    joinDescription:'White and Black are assigned randomly',
+    joinDescription:'Challenger plays White; joiner plays Black',
     joinId:`${prefix}chess ~join ${record.id}`,
     cancelText:'✕ Cancel challenge',
     cancelDescription:'Only the challenger can cancel',
@@ -222,7 +223,8 @@ async function joinHumanChallenge(ctx, id) {
   const challenger = String(record.createdBy || '')
   const challengerName = String(record.createdByName || 'Challenger')
   const joinerName = playerName(ctx)
-  const challengerIsWhite = Math.random() < 0.5
+  // Nexia parity: the person who opened the challenge plays White.
+  const challengerIsWhite = true
   const game = new ChessGame({
     playerWhite:challengerIsWhite ? challenger : user,
     playerBlack:challengerIsWhite ? user : challenger,
@@ -239,7 +241,7 @@ async function joinHumanChallenge(ctx, id) {
   await sendBoard(
     ctx,
     game,
-    `Sides randomized — ${game.whiteName} is White, ${game.blackName} is Black. White moves first.`,
+    `${game.whiteName} is White, ${game.blackName} is Black. White moves first.`,
     null,
     record.theme,
   )
@@ -266,24 +268,16 @@ async function startBotGame(ctx, level) {
 
   const user = String(ctx.userKey || '')
   const name = playerName(ctx)
-  const userIsWhite = Math.random() < 0.5
+  // Nexia chesspic starts the human as White, with the first turn.
   const game = new ChessGame({
-    playerWhite:userIsWhite ? user : CHESS_BOT_ID,
-    playerBlack:userIsWhite ? CHESS_BOT_ID : user,
-    whiteName:userIsWhite ? name : 'MSCC Bot',
-    blackName:userIsWhite ? 'MSCC Bot' : name,
+    playerWhite:user,
+    playerBlack:CHESS_BOT_ID,
+    whiteName:name,
+    blackName:'NIGHT Bot',
   })
   const theme = getChessTheme(ctx.shared, user)
 
-  let note = `Bot difficulty: ${level}. You are ${userIsWhite ? 'White' : 'Black'}.`
-  if (!userIsWhite) {
-    const botMove = pickChessBotMove(game.chess, level)
-    if (botMove) {
-      const result = game.move(CHESS_BOT_ID, botMove)
-      if (!result.ok) throw new Error(result.reason || 'Bot opening move failed.')
-      note += ` MSCC Bot is White and opened ${botMove.from}→${botMove.to}.`
-    }
-  }
+  const note = `Bot difficulty: ${level}. You are White.`
 
   saveRecord(ctx, {
     id:randomUUID(),
@@ -373,8 +367,8 @@ async function handleMoveInput(ctx, text) {
       ctx,
       game,
       botMove
-        ? `MSCC Bot played ${botMove.from}→${botMove.to}.`
-        : 'MSCC Bot has no legal move.',
+        ? `NIGHT Bot played ${botMove.from}→${botMove.to}.`
+        : 'NIGHT Bot has no legal move.',
       record.theme,
     )
     return true
