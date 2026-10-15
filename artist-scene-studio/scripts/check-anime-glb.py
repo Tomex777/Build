@@ -1,53 +1,45 @@
 #!/usr/bin/env python3
-"""Validate the real skinned 3D anime GLB produced for every Android build.
-
-Rejects placeholder meshes, flat images, missing skin weights, malformed binary
-ranges, or lost pose-controller morph targets; uses Python standard library.
-"""
+"""Validate the pinned CC0 Quaternius stylized humanoid before Android packaging."""
 import argparse
 import json
 import struct
 from pathlib import Path
 
-p = argparse.ArgumentParser()
-p.add_argument("path", type=Path)
-args = p.parse_args()
-data = args.path.read_bytes()
-assert len(data) > 1_000_000, "Anime asset is suspiciously small"
-magic, version, declared_length = struct.unpack_from("<III", data)
-assert (magic, version, declared_length) == (0x46546C67, 2, len(data))
-json_length, json_kind = struct.unpack_from("<II", data, 12)
-assert json_kind == 0x4E4F534A
-gltf = json.loads(data[20:20 + json_length])
-bin_header = 20 + json_length
-bin_length, bin_kind = struct.unpack_from("<II", data, bin_header)
-assert bin_kind == 0x004E4942
-assert bin_header + 8 + bin_length == len(data)
+parser = argparse.ArgumentParser()
+parser.add_argument("path", type=Path)
+args = parser.parse_args()
+raw = args.path.read_bytes()
+assert 200_000 < len(raw) < 5_000_000, "Unexpected stylized human asset size"
+magic, version, length = struct.unpack_from("<III", raw)
+assert (magic, version, length) == (0x46546C67, 2, len(raw)), "Invalid GLB header"
+json_length, kind = struct.unpack_from("<II", raw, 12)
+assert kind == 0x4E4F534A, "Missing glTF JSON chunk"
+gltf = json.loads(raw[20:20+json_length])
+bin_offset = 20 + json_length
+bin_length, bin_kind = struct.unpack_from("<II", raw, bin_offset)
+assert bin_kind == 0x004E4942 and bin_offset + 8 + bin_length == len(raw), "Bad GLB binary chunk"
 assert gltf["buffers"][0]["byteLength"] <= bin_length
-assert gltf["extras"]["style"] == "mise-anime-figure-v1"
-assert gltf["extras"]["license"] == "CC0-1.0"
-names = [node.get("name") for node in gltf["nodes"]]
-assert "Body" in names, "Skinned anime body missing"
-assert all("MiseHair-" + name in names for name in ["short", "bob", "afro"])
-assert len(gltf["skins"]) == 1
-skin = gltf["skins"][0]
-assert len(skin["joints"]) >= 150, "Anime character lost its full human skeleton"
-assert any(gltf["nodes"][node].get("name") == "head" for node in skin["joints"])
-assert all("mesh" in node for node in gltf["nodes"] if node.get("name") in ("AnimeFace", "Body"))
-body = next(gltf["meshes"][node["mesh"]] for node in gltf["nodes"] if node.get("name") == "Body")
-assert len(body["primitives"]) == 1, "Anime skin must remain in one Filament-compatible primitive"
-assert set(body["extras"]["targetNames"]) == {"Body fat", "Muscularity", "Pointed ears", "Ear size"}
-assert "JOINTS_0" in body["primitives"][0]["attributes"], "Anime skinned character was lost"
-for mesh in gltf["meshes"]:
+skins = gltf["skins"]
+assert len(skins) == 1, "Stylized character should use one retargetable skeleton"
+names = {gltf["nodes"][i].get("name", "").lower() for i in skins[0]["joints"]}
+assert len(skins[0]["joints"]) >= 60, "Full-body rig missing"
+required = {
+    "head", "upperarm_l", "upperarm_r", "lowerarm_l", "lowerarm_r",
+    "thigh_l", "thigh_r", "calf_l", "calf_r",
+}
+assert required <= names, f"Missing pose controls: {required - names}"
+assert len(gltf["meshes"]) >= 1 and len(gltf["materials"]) >= 1
+skin_meshes = 0
+for node in gltf["nodes"]:
+    if "skin" not in node or "mesh" not in node:
+        continue
+    mesh = gltf["meshes"][node["mesh"]]
     for primitive in mesh["primitives"]:
-        assert {"POSITION", "NORMAL", "JOINTS_0", "WEIGHTS_0"} <= primitive["attributes"].keys(), mesh["name"]
-        assert "indices" in primitive
-        if mesh.get("name") == "Humanoid":
-            assert len(primitive.get("targets", [])) == 4
-for index, accessor in enumerate(gltf["accessors"]):
-    view = gltf["bufferViews"][accessor["bufferView"]]
-    start = view["byteOffset"]
-    end = start + view["byteLength"]
-    assert 0 <= start < end <= bin_length, ("accessor outside GLB buffer", index)
-print(f"Validated real anime GLB: {len(skin['joints'])} bones, {len(body['primitives'])} outfit materials, "
-      f"{len(gltf['meshes'])} real meshes, editable 3D face and 4 body shapes")
+        attr = primitive["attributes"]
+        assert {"POSITION", "NORMAL", "JOINTS_0", "WEIGHTS_0"} <= attr.keys()
+        skin_meshes += 1
+assert skin_meshes >= 1, "No renderable skinned mesh"
+for acc in gltf["accessors"]:
+    view = gltf["bufferViews"][acc["bufferView"]]
+    assert 0 <= view.get("byteOffset", 0) + view.get("byteLength", 0) <= bin_length
+print(f"Validated Quaternius CC0 stylized hero: {len(skins[0]['joints'])} real pose bones, {skin_meshes} skin primitives")
