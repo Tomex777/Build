@@ -5,9 +5,9 @@
 set -euo pipefail
 umask 077
 
-readonly SOURCE_SHA=89c0eb714b3f55db64372c99e65648db38ca3817
+readonly SOURCE_SHA=ad54464910918a2d62a4c560db565a2faaa4c20b
 readonly AGENT_BLOB=b353643bf6978d71d76a066f84400aca100baecd
-readonly HELPER_BLOB=ba69279e230125cf0d9384da439805994d9b3e32
+readonly HELPER_BLOB=b590dd2b6174c273ef3beef62f2825d6089d0311
 readonly AGENT_TARGET=/opt/cortex-agent/index.js
 readonly HELPER_TARGET=/usr/local/libexec/cortex-agent-control
 readonly BOOTSTRAP_MARK=/var/lib/cortex/.mscc-mega-cloud-bootstrapped
