@@ -16,6 +16,59 @@ export function socialCardText(ctx, prefixTokens = 0) {
 }
 
 
+
+/**
+ * Parse optional mock engagement counters from the start of the card body.
+ * Text after these flags is preserved, including newlines and Unicode.
+ * The counters affect only the image; there are no real social interactions.
+ */
+export function parseSocialEngagementOptions(ctx, prefixTokens = 0, { type = 'tweet', style = 'generic' } = {}) {
+  const known = new Set(['likes', 'replies', 'reposts', 'comments', 'shares', 'views'])
+  const allowed = type === 'tweet'
+    ? { likes:'likeCount', replies:'replyCount', reposts:'repostCount' }
+    : style === 'story'
+      ? { views:'viewCount' }
+      : { likes:'likeCount', comments:'commentCount', replies:'commentCount', shares:'shareCount', reposts:'shareCount' }
+  const engagement = {}
+  let remaining = socialCardText(ctx, prefixTokens)
+
+  for (;;) {
+    remaining = remaining.replace(/^\s+/u, '')
+    const start = /^--([a-z]+)(?=[\s=]|$)/iu.exec(remaining)
+    if (!start || !known.has(start[1].toLowerCase())) break
+
+    const name = start[1].toLowerCase()
+    if (!Object.hasOwn(allowed, name)) {
+      return { text:'', engagement:{}, error:'--' + name + ' is not available for this card. Available: ' + Object.keys(allowed).map(v => '--' + v).join(', ') }
+    }
+    const match = /^--([a-z]+)(?:=([^\s]*)|[ \t]+([^\s]+))(?=\s|$)/iu.exec(remaining)
+    if (!match || !String(match[2] ?? match[3] ?? '').trim()) {
+      return { text:'', engagement:{}, error:'Provide a number for --' + name + ' (for example --' + name + '=1.2k).' }
+    }
+
+    const rawCount = match[2] ?? match[3]
+    const parts = /^(\d{1,3}(?:,\d{3})+|\d+)(?:\.(\d{1,2}))?([kmb])?$/iu.exec(rawCount)
+    const multiplier = { k:1_000, m:1_000_000, b:1_000_000_000 }
+    const number = parts
+      ? Number(parts[1].replace(/,/g, '') + (parts[2] ? '.' + parts[2] : '')) *
+        (multiplier[(parts[3] || '').toLowerCase()] || 1)
+      : NaN
+    if (!Number.isFinite(number) || !Number.isSafeInteger(Math.round(number)) ||
+        (!parts?.[3] && Boolean(parts?.[2])) || number < 0 || number > 999_999_999) {
+      return { text:'', engagement:{}, error:'Invalid --' + name + ' count. Use 0 to 999,999,999 (e.g. 1500, 1.5k or 2m).' }
+    }
+
+    const field = allowed[name]
+    if (Object.hasOwn(engagement, field)) {
+      return { text:'', engagement:{}, error:'You supplied the ' + name + ' count more than once.' }
+    }
+    engagement[field] = Math.round(number)
+    remaining = remaining.slice(match[0].length)
+  }
+
+  return { text:remaining.replace(/^\s+/u, '').trimEnd(), engagement, error:null }
+}
+
 /**
  * WhatsApp serializes @mentions as @<LID/PN digits>, while WhatsApp itself
  * paints the user's contact label over that raw token. Reproducing that raw

@@ -52,12 +52,14 @@ import {
   getAfk,
   messageMentionJids,
   quotedParticipantJid,
+  reconcileVerifiedAfk,
   setAfk,
 } from './afk-state.js'
 import {
   addWarning,
   clearWarnings,
   enforceGroupMessage,
+  reconcileVerifiedWarnings,
   groupPolicy,
   groupMessageNeedsModeration,
   renderGroupTemplate,
@@ -70,6 +72,11 @@ import { createInboundMessageGuard, matchesDisplayedChoice } from './inbound-mes
 import { createCommandTiming } from './command-performance.js'
 import { createMessageScheduler } from './command-scheduler.js'
 import { resolveIdentityWithDeadline } from './identity-resolution.js'
+import {
+  canonicalUserKey, hasConflictingLidMapping, isOpaqueLid, readAuthLidPhone,
+  recordVerifiedLidPhone, storedLidPhone, verifiedIdentityKeys,
+} from './user-identity.js'
+import { userForStoredGame } from './utils/game-session.js'
 import { chessRecordAcceptsInput } from './utils/chess-game.js'
 import { ticTacToeRecordAcceptsInput } from './utils/tictactoe-game.js'
 import { checkersRecordAcceptsInput } from './utils/checkers-game.js'
@@ -192,7 +199,7 @@ const makeAccount = record => ({
   sock: null, connected: false, registered: false, invalid: false,
   generation: 0, reconnectTimer: null, reconnectAttempts: 0, ambiguous500Attempts: 0, nextReconnectAt: 0,
   lastConnectedAt: 0, lastDisconnectedAt: 0, lastDisconnectCode: null, disconnectReason: '',
-  credSave: Promise.resolve(), authFlush: null,
+  credSave: Promise.resolve(), authFlush: null, authKeys: null,
   pairingMode: '', pairingCode: '', pairingQr: '', pairingError: '',
   lastQr: '', lastCodeAt: 0, pairingRequested: false,
   op: Promise.resolve()
@@ -884,7 +891,7 @@ async function resolveLibraryReleaseState(item = {}) {
 }
 
 async function sendLibraryReleaseDm(item, text) {
-  const phone = digits(item?.userKey)
+  const phone = String(item?.userKey || '')
   if (!/^\d{7,15}$/.test(phone) || !String(text || '').trim()) return false
   const jid = normalizeJid(phone + '@s.whatsapp.net')
 
@@ -915,7 +922,7 @@ function scheduledTaskAccountCandidates() {
 }
 
 async function sendScheduledTaskDm(task) {
-  const phone = digits(task?.userKey)
+  const phone = String(task?.userKey || '')
   if (!/^\d{7,15}$/.test(phone)) return false
   const jid = normalizeJid(phone + '@s.whatsapp.net')
   let text = ''
@@ -1132,35 +1139,46 @@ function runOp(account, fn) {
 async function resolvePhoneJid(account, jid) {
   const normalized = normalizeJid(jid)
   if (!normalized) return ''
-  if (normalized.endsWith('@s.whatsapp.net')) return normalized
+  if (verifiedPhoneNumber(normalized)) return normalized
+  if (!isOpaqueLid(normalized)) return normalized
+  if (hasConflictingLidMapping(sharedStorage, normalized)) return normalized
+
+  // Look up only verified Baileys mappings. LID digits are NOT phone numbers.
+  const saved = storedLidPhone(sharedStorage, normalized)
+  if (saved) return saved
+  const generation = account.generation
+  const rememberMapping = candidate => {
+    if (generation !== account.generation || !verifiedPhoneNumber(candidate)) return ''
+    return recordVerifiedLidPhone(sharedStorage, normalized, candidate)
+  }
+  const fromAuth = await readAuthLidPhone(account.authKeys, normalized)
+  if (fromAuth) return rememberMapping(fromAuth) || normalized
+
   const key = String(account?.id || '') + '|' + normalized
   const cached = senderResolutionCache.get(key)
   if (cached && Date.now() - cached.at < (cached.ttlMs || SENDER_CACHE_TTL_MS)) {
     return cached.phoneJid
   }
-  if (normalized.endsWith('@lid') || normalized.endsWith('@hosted.lid')) {
-    const generation = account.generation
-    const cacheIdentity = (phoneJid, ttlMs = SENDER_CACHE_TTL_MS) => {
-      // An old socket must not update sender identities after a reconnect.
-      if (generation !== account.generation) return
-      senderResolutionCache.set(key, { phoneJid, at:Date.now(), ttlMs })
-      while (senderResolutionCache.size > SENDER_CACHE_MAX) {
-        senderResolutionCache.delete(senderResolutionCache.keys().next().value)
-      }
-    }
-    const phoneJid = await resolveIdentityWithDeadline({
-      jid:normalized,
-      lookup: id => account.sock?.findUserId?.(id),
-      normalize:normalizeJid,
-      timeoutMs:LID_LOOKUP_TIMEOUT_MS,
-      onResolved:phone => cacheIdentity(phone),
+  const cacheIdentity = (candidate, ttlMs = SENDER_CACHE_TTL_MS) => {
+    if (generation !== account.generation) return
+    const verified = verifiedPhoneNumber(candidate) ? rememberMapping(candidate) : ''
+    senderResolutionCache.set(key, {
+      phoneJid:verified || normalized, at:Date.now(), ttlMs,
     })
-    // An unresolved LID never grants phone-number-based owner access.
-    // Briefly cache misses to avoid repeated 2.5s waits, but allow retries.
-    cacheIdentity(phoneJid, phoneJid === normalized ? 10000 : SENDER_CACHE_TTL_MS)
-    return phoneJid
+    while (senderResolutionCache.size > SENDER_CACHE_MAX) {
+      senderResolutionCache.delete(senderResolutionCache.keys().next().value)
+    }
   }
-  return normalized
+  const candidate = await resolveIdentityWithDeadline({
+    jid:normalized,
+    lookup: id => account.sock?.findUserId?.(id),
+    normalize:normalizeJid,
+    timeoutMs:LID_LOOKUP_TIMEOUT_MS,
+    onResolved:phone => cacheIdentity(phone),
+  })
+  const verified = verifiedPhoneNumber(candidate) ? rememberMapping(candidate) : ''
+  cacheIdentity(verified || normalized, verified ? SENDER_CACHE_TTL_MS : 10000)
+  return verified || normalized
 }
 
 async function resolveSender(account, msg) {
@@ -1203,7 +1221,7 @@ async function jidBelongsToAccount(account, jid) {
   if (!normalized) return false
   if (normalizeJid(account.sock?.user?.id) === normalized || normalizeJid(account.sock?.user?.lid) === normalized) return true
   const phoneJid = await resolvePhoneJid(account, normalized)
-  return Boolean(account.number && jidUser(phoneJid) === account.number)
+  return Boolean(account.number && verifiedPhoneNumber(phoneJid) === account.number)
 }
 
 function escapeAssistantRegExp(value) {
@@ -1343,7 +1361,7 @@ async function groupPersonalityPresence(account, chat) {
 }
 
 function senderPersonalityFromPresence(authority, presence = []) {
-  const sender = digits(authority?.senderNumber || jidUser(authority?.senderJid))
+  const sender = authority?.senderNumber || ''
   if (!sender) return ''
   const row = presence.find(item => digits(jidUser(item?.mentionJid)) === sender)
   return String(row?.profileId || '')
@@ -1528,12 +1546,16 @@ function setPublicSudoNumber(phoneNumber, enabled) {
 
 async function authorityContext(account, msg) {
   const senderJid = await resolveSender(account, msg)
-  const senderNumber = jidUser(senderJid)
-  const isSupremeOwner = controlNumbers.has(senderNumber)
+  const senderNumber = verifiedPhoneNumber(senderJid)
+  const senderKey = canonicalUserKey(sharedStorage, senderJid)
+  const senderIdentityKeys = verifiedIdentityKeys(sharedStorage, senderJid)
+  const isSupremeOwner = Boolean(senderNumber && controlNumbers.has(senderNumber))
   const isSudo = isPublicSudoNumber(senderNumber)
   return {
     senderJid,
     senderNumber,
+    senderKey,
+    senderIdentityKeys,
     isSupremeOwner,
     isSudo,
     isPublicOwner:isSupremeOwner || isSudo,
@@ -1611,8 +1633,8 @@ async function resolveDirectPeer(account, msg) {
 
 async function isPrivateControlContext(account, msg, authority = null) {
   const chat = normalizeJid(msg?.key?.remoteJid)
-  const sender = jidUser(authority?.senderJid || await resolveSender(account, msg))
-  const peer = jidUser(await resolveDirectPeer(account, msg))
+  const sender = verifiedPhoneNumber(authority?.senderJid || await resolveSender(account, msg))
+  const peer = verifiedPhoneNumber(await resolveDirectPeer(account, msg))
   return isPrivateOwnerDm({
     account,
     mainAccountId: destinationIdFor(),
@@ -1706,10 +1728,17 @@ async function resolveGroupParticipant(account, msg, raw = '') {
   const aliases = participantIds(participant)
   const verifiedPhoneJid = aliases.find(alias => alias.endsWith('@s.whatsapp.net'))
     || await resolvePhoneJid(account, jid)
-  const phoneNumber = verifiedPhoneJid.endsWith('@s.whatsapp.net')
-    ? jidUser(verifiedPhoneJid)
-    : ''
+  const phoneNumber = verifiedPhoneNumber(verifiedPhoneJid)
+  // A single group participant carrying both PN and LID is verified evidence.
+  if (phoneNumber) {
+    for (const alias of aliases.filter(isOpaqueLid)) {
+      recordVerifiedLidPhone(sharedStorage, alias, verifiedPhoneJid)
+    }
+  }
   const memberKey = memberIdentityKey(verifiedPhoneJid, jid)
+  const identityKeys = phoneNumber
+    ? verifiedIdentityKeys(sharedStorage, verifiedPhoneJid)
+    : [memberKey]
 
   // Push names are attached to messages, not necessarily to group metadata.
   // Use the current command sender's push name only when targeting that sender.
@@ -1732,6 +1761,7 @@ async function resolveGroupParticipant(account, msg, raw = '') {
   return {
     phoneNumber,
     memberKey,
+    identityKeys,
     jid,
     phoneJid:verifiedPhoneJid || '',
     participant,
@@ -1757,125 +1787,119 @@ function awayDuration(since) {
   return (diff / 86400000).toFixed(diff < 10 * 86400000 ? 1 : 0).replace('.0','') + 'd'
 }
 
-async function afkPhoneFromJid(account, jid) {
-  const normalized = normalizeJid(jid)
-  if (!normalized) return ''
-  if (normalized.endsWith('@s.whatsapp.net')) return jidUser(normalized)
-  try {
-    const phoneJid = await resolvePhoneJid(account, normalized)
-    return jidPhoneNumber(phoneJid) || jidUser(phoneJid)
-  } catch {
-    return ''
-  }
+async function afkIdentityFromJid(account, jid) {
+  const raw = normalizeJid(jid)
+  if (!raw) return { key:'', phone:'', jid:'' }
+  const resolved = await resolvePhoneJid(account, raw)
+  const key = canonicalUserKey(sharedStorage, resolved)
+  return { key, phone:verifiedPhoneNumber(resolved), jid:raw, resolved }
 }
 
-function afkNameFor(group, jid, phone = '') {
+function afkNameFor(group, jid, fallback = '') {
   return String(
     sharedStorage?.latestConversationSpeaker(group, normalizeJid(jid)) ||
-    phone ||
+    fallback ||
     jidUser(jid) ||
     'member'
   ).trim()
 }
 
-async function plainAfkMessage(account, group, message, text, protectedPhone = '') {
+async function plainAfkMessage(account, group, message, text, protectedKey = '') {
   let value = String(text || '').trim()
   for (const jid of messageMentionJids(message)) {
-    const phone = await afkPhoneFromJid(account, jid)
-    if (!phone || phone === protectedPhone) continue
-    const name = afkNameFor(group, jid, phone)
-    const escaped = [...phone].map(ch => '^$.*+?()[]{}|\\\\'.includes(ch) ? '\\\\' + ch : ch).join('')
-    value = value.replace(new RegExp('@' + escaped + '(?=\\b|\\s|$|[.,!?;:])', 'g'), name)
+    const target = await afkIdentityFromJid(account, jid)
+    if (!target.key || target.key === protectedKey) continue
+    const name = afkNameFor(group, jid, target.phone || 'member')
+    const token = jidUser(jid)
+    value = value.replace(new RegExp('@' + escapeAssistantRegExp(token) + '(?=\\b|\\s|$|[.,!?;:])', 'g'), name)
   }
   return value
 }
 
 async function handleAfkGroupMessage(account, msg, authority, text) {
   const group = normalizeJid(msg?.key?.remoteJid)
-  if (!sharedStorage || !isGroup(group) || msg?.key?.fromMe || !authority?.senderNumber) return false
+  if (!sharedStorage || !isGroup(group) || msg?.key?.fromMe || !authority?.senderKey) return false
 
+  const senderKey = authority.senderKey
   const senderPhone = authority.senderNumber
-  const senderAfk = getAfk(sharedStorage, group, senderPhone)
+  const rawSenderJid = normalizeJid(msg?.key?.participant || authority.senderJid)
+  reconcileVerifiedAfk(sharedStorage, group, senderKey, authority.senderIdentityKeys)
+  const senderAfk = getAfk(sharedStorage, group, senderKey)
   const prefix = settings.publicPrefix || DEFAULT_PUBLIC_PREFIX
   const isAfkCommand = String(text || '').trim().toLowerCase().startsWith((prefix + 'afk').toLowerCase())
 
   if (senderAfk && !isAfkCommand) {
-    const state = clearAfk(sharedStorage, group, senderPhone)
+    const state = clearAfk(sharedStorage, group, senderKey)
     const events = Array.isArray(state?.events) ? state.events : []
-    const senderJid = normalizeJid(await resolveSender(account, msg)) || normalizeJid(senderPhone + '@s.whatsapp.net')
-    const mentions = [senderJid]
+    const mentions = [rawSenderJid].filter(Boolean)
     const seen = new Set()
     const lines = []
 
     for (const event of events.slice(-12)) {
-      const phone = digits(event?.senderPhone)
-      if (!phone) continue
-      const jid = normalizeJid(phone + '@s.whatsapp.net')
-      if (!seen.has(phone)) {
-        mentions.push(jid)
-        seen.add(phone)
-      }
-      const label = '@' + phone
-      const body = String(event?.text || '').trim() || (event?.kind === 'reply' ? 'replied to one of your messages' : 'mentioned you')
+      const jid = normalizeJid(event?.senderJid)
+      if (jid && !seen.has(jid)) { mentions.push(jid); seen.add(jid) }
+      // Historical senderPhone was not always verified; never synthesize
+      // a mention or DM address by appending @s.whatsapp.net to it.
+      const label = jid ? '@' + jidUser(jid) : String(event?.senderName || 'Someone').slice(0,60)
+      const body = String(event?.text || '').trim() ||
+        (event?.kind === 'reply' ? 'replied to one of your messages' : 'mentioned you')
       lines.push('• ' + label + ': ' + body.slice(0,500))
     }
 
     const josia = preferredJosiaAccount(account)
     if (josia?.sock) {
+      const senderLabel = senderPhone ? '@' + senderPhone
+        : (String(msg?.pushName || '').trim() || 'You')
       const body = [
         '◇ *Josia*',
-        '@' + senderPhone + ', you’re back. You were away for *' + awayDuration(state?.since) + '*.',
+        senderLabel + ', you’re back. You were away for *' + awayDuration(state?.since) + '*.',
         events.length ? 'While you were away:' : 'Nobody called for you while you were away.',
         ...lines,
         events.length > 12 ? '• …and ' + (events.length - 12) + ' more.' : '',
       ].filter(Boolean).join('\n')
       await sendText(josia.sock, group, body, { mentions:[...new Set(mentions)] }).catch(() => {})
     }
-    await recordActivity('group.afk-returned', { group, phone:senderPhone, events:events.length })
+    await recordActivity('group.afk-returned', { group, events:events.length })
   }
 
   const targets = new Map()
-  for (const jid of messageMentionJids(msg.message)) {
-    const phone = await afkPhoneFromJid(account, jid)
-    if (phone && phone !== senderPhone && getAfk(sharedStorage, group, phone)) {
-      targets.set(phone, { jid:normalizeJid(jid), kind:'mention' })
+  async function recordTarget(jid,kind) {
+    const target = await afkIdentityFromJid(account,jid)
+    if (!target.key || target.key === senderKey) return
+    reconcileVerifiedAfk(sharedStorage, group, target.key,
+      verifiedIdentityKeys(sharedStorage, target.resolved))
+    if (getAfk(sharedStorage, group, target.key) && !targets.has(target.key)) {
+      targets.set(target.key, { ...target, kind })
     }
   }
-
+  for (const jid of messageMentionJids(msg.message)) await recordTarget(jid, 'mention')
   const quotedJid = quotedParticipantJid(msg.message)
-  if (quotedJid) {
-    const phone = await afkPhoneFromJid(account, quotedJid)
-    if (phone && phone !== senderPhone && getAfk(sharedStorage, group, phone) && !targets.has(phone)) {
-      targets.set(phone, { jid:quotedJid, kind:'reply' })
-    }
-  }
-
+  if (quotedJid) await recordTarget(quotedJid,'reply')
   if (!targets.size) return Boolean(senderAfk && !isAfkCommand)
 
-  const senderName = String(msg?.pushName || '').trim() || afkNameFor(group, await resolveSender(account,msg), senderPhone)
+  const senderName = String(msg?.pushName || '').trim() ||
+    afkNameFor(group, rawSenderJid, senderPhone || 'member')
   const josia = preferredJosiaAccount(account)
-  for (const [phone, target] of targets) {
-    const state = getAfk(sharedStorage, group, phone)
+  for (const [key, target] of targets) {
+    const state = getAfk(sharedStorage, group, key)
     if (!state) continue
-    const safeText = await plainAfkMessage(account, group, msg.message, text, phone)
-    addAfkEvent(sharedStorage, group, phone, {
-      senderPhone,
-      senderName,
-      text:safeText,
-      kind:target.kind,
+    const safeText = await plainAfkMessage(account, group, msg.message, text, key)
+    addAfkEvent(sharedStorage, group, key, {
+      senderPhone, senderJid:rawSenderJid, senderName,
+      text:safeText, kind:target.kind,
     })
 
     if (josia?.sock) {
-      const targetJid = normalizeJid(target.jid) || normalizeJid(phone + '@s.whatsapp.net')
+      const label = target.phone ? '@' + target.phone
+        : (String(state.displayName || '').trim() || '@' + jidUser(target.jid))
       const notice = [
         '◇ *Josia*',
-        '@' + phone + ' is away right now.',
+        label + ' is away right now.',
         state.reason ? 'Reason: ' + state.reason : '',
         'Away for: ' + awayDuration(state.since),
-        safeText ? '' : '',
         safeText ? 'Message: ' + safeText.slice(0,700) : '',
       ].filter(Boolean).join('\n')
-      await sendText(josia.sock, group, notice, { mentions:[targetJid] }).catch(() => {})
+      await sendText(josia.sock, group, notice, { mentions:[target.jid] }).catch(() => {})
     }
   }
   return false
@@ -1988,13 +2012,14 @@ async function enforceCurrentGroupPolicy(account, msg, authority) {
     storage:sharedStorage,
     msg,
     senderPhone:authority.senderNumber,
+    senderIdentity:authority.senderKey,
     senderIsAdmin:await isGroupAdminContext(account, msg),
     botIsAdmin:await isBotGroupAdminContext(account, msg),
     resolvePhoneJid:jid => resolvePhoneJid(account, jid),
     deleteMessage:target => deletePolicyMessage(account, target),
     resendQuoted:(text, mentions, quoted) => sendText(account.sock, chat, text, { quoted, mentions }),
     replyMessage:text => sendText(account.sock, chat, text, { quoted:msg }),
-    warnMember:trigger => addWarning(sharedStorage, chat, authority.senderNumber, 'Filter: ' + trigger, 'Night'),
+    warnMember:trigger => addWarning(sharedStorage, chat, authority.senderKey, 'Filter: ' + trigger, 'Night'),
     record:recordActivity,
   })
 }
@@ -2095,11 +2120,11 @@ async function handleGroupMemberPolicyEvent(account, update) {
 }
 
 async function publicUserProfile(account, msg, phoneNumber) {
-  const phone = digits(phoneNumber)
-  if (!phone) return null
+  const phone = String(phoneNumber || '').trim()
+  if (!/^[1-9]\d{6,14}$/.test(phone)) return null
 
   const chat = normalizeJid(msg?.key?.remoteJid)
-  const senderNumber = jidUser(await resolveSender(account, msg))
+  const senderNumber = verifiedPhoneNumber(await resolveSender(account, msg))
   let mentionJid = phone + '@s.whatsapp.net'
   let displayName = senderNumber === phone
     ? String(msg?.pushName || '').trim()
@@ -2278,9 +2303,8 @@ async function shouldExecutePublicCommand(account, msg, command) {
 function commandReplySessionKey(account, msg, authority = {}) {
   const chat = normalizeJid(msg?.key?.remoteJid)
   const user = String(
-    authority.senderNumber ||
-    jidUser(msg?.key?.participant) ||
-    jidUser(chat) ||
+    authority.senderKey ||
+    canonicalUserKey(sharedStorage, msg?.key?.participant || chat) ||
     'unknown'
   )
   return [account?.id || '', chat, user].join('|')
@@ -2487,20 +2511,20 @@ async function processInboundMessage(account, msg) {
       const ludoRecord = sharedStorage?.sharedGet('ludo-game', chat) || null
       const consumeLudoInput = Boolean(
         !isExplicitCommand &&
-        ludoRecordAcceptsInput(ludoRecord, authority.senderNumber, text)
+        ludoRecordAcceptsInput(ludoRecord, userForStoredGame({ userKey:authority.senderKey, identityKeys:authority.senderIdentityKeys }, ludoRecord), text)
       )
       const checkersRecord = sharedStorage?.sharedGet('checkers-game', chat) || null
       const consumeCheckersInput = Boolean(
         !isExplicitCommand &&
         !consumeLudoInput &&
-        checkersRecordAcceptsInput(checkersRecord, authority.senderNumber, text)
+        checkersRecordAcceptsInput(checkersRecord, userForStoredGame({ userKey:authority.senderKey, identityKeys:authority.senderIdentityKeys }, checkersRecord), text)
       )
       const ticTacToeRecord = sharedStorage?.sharedGet('tictactoe-game', chat) || null
       const consumeTicTacToeInput = Boolean(
         !isExplicitCommand &&
         !consumeLudoInput &&
         !consumeCheckersInput &&
-        ticTacToeRecordAcceptsInput(ticTacToeRecord, authority.senderNumber, text)
+        ticTacToeRecordAcceptsInput(ticTacToeRecord, userForStoredGame({ userKey:authority.senderKey, identityKeys:authority.senderIdentityKeys }, ticTacToeRecord), text)
       )
       const chessRecord = sharedStorage?.sharedGet('chess-game', chat) || null
       const consumeChessInput = Boolean(
@@ -2508,7 +2532,7 @@ async function processInboundMessage(account, msg) {
         !consumeLudoInput &&
         !consumeCheckersInput &&
         !consumeTicTacToeInput &&
-        chessRecordAcceptsInput(chessRecord, authority.senderNumber, text)
+        chessRecordAcceptsInput(chessRecord, userForStoredGame({ userKey:authority.senderKey, identityKeys:authority.senderIdentityKeys }, chessRecord), text)
       )
       const consumePartyInput = !isExplicitCommand &&
         !consumeLudoInput && !consumeCheckersInput &&
@@ -2581,30 +2605,34 @@ async function processInboundMessage(account, msg) {
           groupStatusSnapshot: () => groupStatusSnapshot(account, msg),
           groupPolicyGet: () => groupPolicy(sharedStorage, chat),
           groupPolicySet: patch => setGroupPolicy(sharedStorage, chat, patch),
-          afkSet: reason => setAfk(sharedStorage, chat, authority.senderNumber, {
+          afkSet: reason => setAfk(sharedStorage, chat, authority.senderKey, {
             reason,
             displayName:String(msg?.pushName || '').trim(),
           }),
-          afkGet: () => getAfk(sharedStorage, chat, authority.senderNumber),
-          afkClear: () => clearAfk(sharedStorage, chat, authority.senderNumber),
+          afkGet: () => getAfk(sharedStorage, chat, authority.senderKey),
+          afkClear: () => clearAfk(sharedStorage, chat, authority.senderKey),
           groupWarn: async (raw, reason = '') => {
             const target = await resolveGroupParticipant(account, msg, raw)
             if (!target) throw new Error('Mention somebody or reply to their message.')
-            return { target, state:addWarning(sharedStorage, chat, target.memberKey, reason, authority.senderNumber) }
+            reconcileVerifiedWarnings(sharedStorage, chat, target.memberKey, target.identityKeys)
+            return { target, state:addWarning(sharedStorage, chat, target.memberKey, reason, authority.senderKey) }
           },
           groupWarnClear: async raw => {
             const target = await resolveGroupParticipant(account, msg, raw)
             if (!target) throw new Error('Mention somebody or reply to their message.')
+            reconcileVerifiedWarnings(sharedStorage, chat, target.memberKey, target.identityKeys)
             return { target, cleared:clearWarnings(sharedStorage, chat, target.memberKey) }
           },
           groupWarningState: async raw => {
             const target = await resolveGroupParticipant(account, msg, raw)
             if (!target) throw new Error('Mention somebody or reply to their message.')
+            reconcileVerifiedWarnings(sharedStorage, chat, target.memberKey, target.identityKeys)
             return { target, state:warningState(sharedStorage, chat, target.memberKey) }
           },
           setMentionMute: async (raw, enabled) => {
             const target = await resolveGroupParticipant(account, msg, raw)
             if (!target) throw new Error('Mention somebody or reply to their message.')
+            if (!authority.senderNumber) throw new Error('WhatsApp has not verified your phone identity yet. Please retry.')
             if (target.phoneNumber === authority.senderNumber) throw new Error('Choose somebody else.')
             if (!target.phoneNumber) throw new Error('WhatsApp has not shared a phone identity for that member, so mention muting cannot be saved reliably.')
             setUserMentionMute(sharedStorage, chat, authority.senderNumber, target.phoneNumber, enabled)
@@ -2620,7 +2648,9 @@ async function processInboundMessage(account, msg) {
           clearCommandReplySession: () => writeCommandReplySession(account, msg, authority, null),
           publicCommandsEnabled: settings.publicCommandsEnabled !== false,
           botProfile: sharedStorage?.profileForAccount(account.id) || { id:'unassigned', displayName:'Unassigned', universal:false, basePriority:0 },
-          userKey: authority.senderNumber || '',
+          userKey: authority.senderKey || '',
+          userPhone: authority.senderNumber || '',
+          identityKeys: authority.senderIdentityKeys || [],
           groupKey: isGroup(chat) ? chat : '',
           activityUserKey:activitySenderKey(authority.senderJid),
           getGroupActivity:period => isGroup(chat)
@@ -2643,7 +2673,7 @@ async function processInboundMessage(account, msg) {
           replyInteractive: options => trackSend(() => ui.interactive(options)),
           progress: initial => startProgress(account.sock, chat, initial, { quoted:msg }),
           scheduleAdd: ({ kind = 'reminder', text = '', dueAt, meta = {} }) => addScheduledTask(sharedStorage, {
-            userKey:authority.senderNumber,
+            userKey:authority.senderNumber || (() => { throw new Error('Reminders require a verified WhatsApp phone identity.') })(),
             kind,
             text,
             dueAt,
@@ -2715,12 +2745,12 @@ async function processInboundMessage(account, msg) {
           storageStats: () => sharedStorage?.stats() || { messages:0, profiles:0, routes:0, sharedItems:0, sourceDefaults:0, deliveryDefaults:0 },
           listSources: capability => sourceRegistry?.list(capability) || [],
           sourceMode: capability => sourceRegistry?.mode(capability) || 'user-choice',
-          getSourceDefault: capability => sourceRegistry?.getDefault(authority.senderNumber, capability) || '',
-          setSourceDefault: (capability, sourceId) => sourceRegistry.setDefault(authority.senderNumber, capability, sourceId),
-          clearSourceDefault: capability => sourceRegistry?.clearDefault(authority.senderNumber, capability) || 0,
-          getDeliveryDefault: capability => sharedStorage?.getDeliveryDefault(authority.senderNumber, capability) || null,
-          setDeliveryDefault: (capability, quality, delivery) => sharedStorage.setDeliveryDefault(authority.senderNumber, capability, quality, delivery),
-          clearDeliveryDefault: capability => sharedStorage?.clearDeliveryDefault(authority.senderNumber, capability) || 0,
+          getSourceDefault: capability => sourceRegistry?.getDefault(authority.senderKey, capability) || '',
+          setSourceDefault: (capability, sourceId) => sourceRegistry.setDefault(authority.senderKey, capability, sourceId),
+          clearSourceDefault: capability => sourceRegistry?.clearDefault(authority.senderKey, capability) || 0,
+          getDeliveryDefault: capability => sharedStorage?.getDeliveryDefault(authority.senderKey, capability) || null,
+          setDeliveryDefault: (capability, quality, delivery) => sharedStorage.setDeliveryDefault(authority.senderKey, capability, quality, delivery),
+          clearDeliveryDefault: capability => sharedStorage?.clearDeliveryDefault(authority.senderKey, capability) || 0,
           sourceBrand: capability => sharedStorage?.brandForCapability(capability) || 'Main',
           appVersion:APP_VERSION,
           broadcastNight: text => broadcastNightGroups(account, text),
@@ -2737,12 +2767,12 @@ async function processInboundMessage(account, msg) {
             ).trim().slice(0, 64) || 'Owner'
             return { phoneNumber, displayName }
           },
-          libraryGet: itemKey => sharedStorage?.getLibraryItem(authority.senderNumber, itemKey) || null,
-          libraryBySlot: slot => sharedStorage?.libraryItemBySlot(authority.senderNumber, slot) || null,
-          libraryList: mediaType => sharedStorage?.listLibraryItems(authority.senderNumber, mediaType) || [],
-          libraryPut: item => sharedStorage?.putLibraryItem(authority.senderNumber, item) || null,
-          libraryRemove: itemKey => sharedStorage?.removeLibraryItem(authority.senderNumber, itemKey) || 0,
-          librarySetWatch: (itemKey, enabled) => sharedStorage?.setLibraryWatch(authority.senderNumber, itemKey, enabled) || null,
+          libraryGet: itemKey => sharedStorage?.getLibraryItem(authority.senderKey, itemKey) || null,
+          libraryBySlot: slot => sharedStorage?.libraryItemBySlot(authority.senderKey, slot) || null,
+          libraryList: mediaType => sharedStorage?.listLibraryItems(authority.senderKey, mediaType) || [],
+          libraryPut: item => sharedStorage?.putLibraryItem(authority.senderKey, item) || null,
+          libraryRemove: itemKey => sharedStorage?.removeLibraryItem(authority.senderKey, itemKey) || 0,
+          librarySetWatch: (itemKey, enabled) => sharedStorage?.setLibraryWatch(authority.senderKey, itemKey, enabled) || null,
           libraryPrimeWatch: item => releaseWatcher?.prime(item) || Promise.resolve({ ok:false, reason:'unavailable' }),
           resolveAnimeTitles: query => aniListResolver.resolve(query, 'ANIME'),
           resolveAniListTitles: (query, type = 'ANIME') => aniListResolver.resolve(query, type),
@@ -2756,15 +2786,15 @@ async function processInboundMessage(account, msg) {
           resolveScreenCounterparts: input => adaptationResolver.screenCounterparts(input),
           executeSource: ({ capability, explicitSource = '', pinnedSource = '', excludedSources = [], payload = {} }) => sourceRegistry.execute({
             capability,
-            userKey: authority.senderNumber,
-            explicitSource,
+            userKey: authority.senderKey,
+          explicitSource,
             pinnedSource,
             excludedSources,
             payload,
             context: {
               accountId: account.id,
               chat,
-              userKey: authority.senderNumber,
+              userKey: authority.senderKey,
               reply: value => sendCommandReply(account, msg, value),
               ui,
               replyList: options => trackSend(() => ui.singleSelect(options)),
@@ -2858,6 +2888,7 @@ async function closeAccount(a) {
   await a.credSave
   await a.authFlush?.()
   a.authFlush = null
+  a.authKeys = null
 }
 
 async function makePairOutput(account) {
@@ -2951,6 +2982,7 @@ async function startAccount(account) {
   if (generation !== account.generation || !account.enabled ||
       account.invalid || account.paused || account.sock) return
   account.authFlush = flush
+  account.authKeys = state.keys
   account.registered = Boolean(state.creds.registered)
   account.nextReconnectAt = 0
 

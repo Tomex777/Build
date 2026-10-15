@@ -1,10 +1,9 @@
 import { DisconnectReason } from '@itsliaaa/baileys'
 
 export function jidPhoneNumber(jid) {
-  const raw = String(jid || '').trim()
-  if (!raw) return ''
-  const local = raw.split('@')[0].split(':')[0]
-  return local.replace(/\D/g, '')
+  // Phone numbers must come from the PN namespace, never from an opaque LID.
+  const match = /^([1-9]\d{6,14})(?::\d+)?@s\.whatsapp\.net$/.exec(String(jid || '').trim())
+  return match?.[1] || ''
 }
 
 /**
