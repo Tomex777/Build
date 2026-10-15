@@ -28,6 +28,7 @@ try{
  assert.equal(await page.locator('#galleryGrid .gallery-card').count(),8,'Seven art themes and a private photo upload');
  assert.equal(await page.locator('#playScreen').isVisible(),false,'Puzzle gallery opens before choosing picture');
  await page.screenshot({path:path.join(root,'visual-output/JIGSAW-GALLERY-MOBILE.jpg'),type:'jpeg',quality:80,fullPage:true});
+ console.log('NIGHT_JIGSAW_GALLERY_JPEG_BASE64='+(await page.screenshot({type:'jpeg',quality:50,fullPage:true})).toString('base64'));
  await page.locator('[data-filter="anime"]').click();
  assert.equal(await page.locator('#galleryGrid .gallery-card:visible').count(),1,'Anime category is available');
  await page.locator('[data-theme="anime"]').click();
@@ -39,6 +40,7 @@ try{
  assert.equal(await page.locator('.game-topline .top-settings').count(),1,'Game settings stay in the header');
  assert.equal(await page.locator('.game-topline .wordmark .brand-logo use').getAttribute('href'),'#night-mark','Actual NIGHT brand mark');
  await page.screenshot({path:path.join(root,'visual-output/JIGSAW-PLAY-MOBILE.jpg'),type:'jpeg',quality:80,fullPage:true});
+ console.log('NIGHT_JIGSAW_PLAY_JPEG_BASE64='+(await page.screenshot({type:'jpeg',quality:60,fullPage:true})).toString('base64'));
  // Real Chromium touch should drag the topmost visible jigsaw piece into place.
  const cdp=await page.context().newCDPSession(page);
  const info=await page.evaluate(()=>{const s=window.__nightJigsawTest.snapshot(),p=s.pieces.at(-1);
@@ -102,6 +104,7 @@ try{
  assert.ok(dl.tray.x>dl.board.x+dl.board.w,'On desktop the tray sits alongside the board');
  assert.ok(await desktop.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+2));
  await desktop.screenshot({path:path.join(root,'visual-output/JIGSAW-PLAY-DESKTOP.jpg'),type:'jpeg',quality:75,fullPage:true});
+ console.log('NIGHT_JIGSAW_DESKTOP_JPEG_BASE64='+(await desktop.screenshot({type:'jpeg',quality:50,fullPage:true})).toString('base64'));
  assert.deepEqual(deskErrors,[]);
  await desktop.close();
  await page.goto(url+'/games');await page.locator('#view-games').waitFor({state:'visible'});
