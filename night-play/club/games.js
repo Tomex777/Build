@@ -6,7 +6,7 @@ const board=$("board"),controls=$("controls"),status=$("status"),help=$("help"),
 const KEY="night-play-club-v1";
 const state={};let active="checkers",timer=null,drawCtx=null;
 const colors={red:"#df3439",green:"#328c4b",yellow:"#e8b32a",blue:"#2767bc"};
-const titles={ludo:["Nigerian Ludo","The board you remember.","BOARD GAME"],estate:["NIGHT Estates","Buy, trade and collect rent.","PROPERTY GAME"],whot:["Shape Cards","Traditional shape-matching card play.","CARD GAME"],colors:["Colour Clash","A quick colour-matching card battle.","CARD GAME"],draw:["Draw & Guess","One draws. Everyone else guesses.","PARTY GAME"],snakes:["Snakes & Ladders","Climb fast. Slide carefully.","BOARD GAME"],checkers:["Draughts","A proper tabletop strategy game.","BOARD GAME"]};
+const titles={ludo:["Nigerian Ludo","The board you remember.","BOARD GAME"],estate:["NIGHT Estates","Buy, trade and collect rent.","PROPERTY GAME"],whot:["WHOT","Classic Nigerian shape-and-number card play.","CARD GAME"],colors:["Colour Clash","A quick colour-matching card battle.","CARD GAME"],draw:["Draw & Guess","One draws. Everyone else guesses.","PARTY GAME"],snakes:["Snakes & Ladders","Climb fast. Slide carefully.","BOARD GAME"],checkers:["Draughts","A proper tabletop strategy game.","BOARD GAME"]};
 function h(s){return String(s).replace(/[&<>"']/g,x=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[x]));}
 function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
 function die(){return Math.floor(Math.random()*6)+1;}
@@ -112,7 +112,26 @@ rules("NIGHT Estates rules","Roll two dice, buy unowned locations, collect rent 
 }
 
 const shapes=["Circle","Triangle","Cross","Square","Star"],icons=["●","▲","✚","■","★"];
-function newShapes(){let deck=[];shapes.forEach((shape,s)=>{for(let n=1;n<=14;n++)if(!(s===4&&n>8))deck.push({s,n});});for(let i=0;i<5;i++)deck.push({s:5,n:20});shuffle(deck);return {hands:[deck.splice(0,7),deck.splice(0,7)],deck,discard:[deck.shift()],turn:0,winner:null,called:null,msg:"Match the shape or number.",round:0};}
+// Traditional Nigerian WHOT has 49 shape cards plus five WHOT 20 wildcards.
+// Earlier Shape Cards incorrectly allowed non-existent values (e.g. Square 6).
+const whotNumbers=[
+ [1,2,3,4,5,7,8,10,11,12,13,14], // Circle
+ [1,2,3,4,5,7,8,10,11,12,13,14], // Triangle
+ [1,2,3,5,7,10,11,13,14],         // Cross
+ [1,2,3,5,7,10,11,13,14],         // Square
+ [1,2,3,4,5,7,8]                 // Star
+];
+function newShapes(){
+ const deck=whotNumbers.flatMap((values,s)=>values.map(n=>({s,n})));
+ for(let i=0;i<5;i++)deck.push({s:5,n:20});
+ shuffle(deck);
+ const hands=[deck.splice(0,5),deck.splice(0,5)];
+ // The opening card should be a numbered shape so a called suit is never
+ // undefined. The wild 20 card still remains inside the playable draw deck.
+ const first=deck.findIndex(c=>c.n!==20);
+ const initial=deck.splice(first,1)[0];
+ return {hands,deck,discard:[initial],turn:0,winner:null,called:null,msg:"Match a shape or number. Go to market if needed.",round:0};
+}
 function newColors(){let deck=[];for(let c=0;c<4;c++){for(let n=0;n<=9;n++)deck.push({c,n:String(n)});for(const n of ["SKIP","REV","+2"])for(let k=0;k<2;k++)deck.push({c,n});}for(let k=0;k<4;k++){deck.push({c:4,n:"WILD"},{c:4,n:"+4"});}shuffle(deck);return {hands:[deck.splice(0,7),deck.splice(0,7)],deck,discard:[deck.shift()],turn:0,winner:null,called:null,msg:"Match the colour or symbol.",round:0};}
 function topCard(s){return s.discard[s.discard.length-1];}
 function take(s,pi,n){for(let j=0;j<n;j++){if(!s.deck.length){if(s.discard.length<=1)break;const card=s.discard.pop();s.deck=shuffle(s.discard.splice(0));s.discard=[card];}if(s.deck.length)s.hands[pi].push(s.deck.pop());}}
@@ -129,7 +148,7 @@ if(card.n==="SKIP"||card.n==="REV")again=true;
 if(card.n==="+2")draw=2;if(card.n==="+4")draw=4;
 }
 if(draw){take(s,opp,draw);again=true;}
-s.msg=(pi===0?"You":"Computer")+" played "+(kind==="whot"?(card.n===20?"CHANGE":card.n+" "+shapes[card.s]):card.n)+ (draw?" · opponent draws "+draw:"")+(again?" · play again":"");
+s.msg=(pi===0?"You":"Computer")+" played "+(kind==="whot"?(card.n===20?"WHOT 20":card.n+" "+shapes[card.s]):card.n)+ (draw?" · opponent draws "+draw:"")+(again?" · play again":"");
 s.turn=again?pi:opp;
 }
 function cardPlay(kind,index){
@@ -143,7 +162,15 @@ const idx=s.hands[1].findIndex(card=>playable(kind,s,card));if(idx<0){take(s,1,1
 const card=s.hands[1].splice(idx,1)[0],option=kind==="whot"?Math.floor(Math.random()*5):Math.floor(Math.random()*4);nextCardTurn(kind,s,1,card,option);render();if(s.turn===1)queueCPU(kind);
 },470);}
 function cardMarkup(kind,card,index,enabled){
-if(kind==="whot"){const sym=card.n===20?"★":icons[card.s];return '<button class="playing-card'+(enabled?' playable':'')+'" data-card="'+index+'" type="button" '+(enabled?'':'disabled')+' aria-label="'+(card.n===20?'Change shape':card.n+" "+shapes[card.s])+'"><span class="rank">'+card.n+'</span><span class="symbol">'+sym+'</span><span class="shape-name">'+(card.n===20?"CHANGE":shapes[card.s].toUpperCase())+'</span></button>';}
+if(kind==="whot"){
+ const isWild=card.n===20,sym=isWild?"✦":icons[card.s];
+ return '<button class="playing-card whot-card'+(isWild?' whot-wild':'')+(enabled?' playable':'')+'" data-card="'+index+'" type="button" '+(enabled?'':'disabled')+
+ ' aria-label="'+(isWild?'20, call a shape':card.n+" "+shapes[card.s])+'">'+
+ '<span class="whot-corner whot-corner-top"><b>'+card.n+'</b><i>'+sym+'</i></span>'+
+ '<span class="whot-face">'+(isWild?'<span class="whot-wild-word">WHOT</span>':'<span class="whot-face-symbol">'+sym+'</span>')+'</span>'+
+ '<span class="whot-corner whot-corner-bottom"><b>'+card.n+'</b><i>'+sym+'</i></span>'+
+ '</button>';
+}
 const clr=["#d93739","#2e81c0","#2b8d61","#d7a925","#302d3a"][card.c];return '<button class="color-card'+(enabled?' playable':'')+'" style="--color:'+clr+'" data-card="'+index+'" '+(enabled?'':'disabled')+' aria-label="'+["Red","Blue","Green","Yellow","Wild"][card.c]+' '+h(card.n)+'"><span>'+h(card.n)+'</span></button>';
 }
 function renderCards(kind){
@@ -153,7 +180,9 @@ board.innerHTML='<div class="table-surface" aria-label="Card table"><h3>COMPUTER
 setStatus(s.winner!==null?s.msg:(s.turn===0?"Your turn. ":"Computer's turn. ")+s.msg);
 let shape=kind==="whot"?'<label class="small" for="wishShape">Shape to call (change card)</label><select id="wishShape" class="select">'+shapes.map((sh,i)=>'<option value="'+i+'">'+sh+'</option>').join("")+'</select>':'<label class="small" for="wishColor">Colour to call (wild)</label><select id="wishColor" class="select">'+["Red","Blue","Green","Yellow"].map((sh,i)=>'<option value="'+i+'">'+sh+'</option>').join("")+'</select>';
 controlsHTML('<div class="row"><button class="primary" type="button" data-action="card-draw" '+(s.turn!==0||s.winner!==null?"disabled":"")+'>Pick one card</button></div><p class="small">Cards left: you '+s.hands[0].length+' · computer '+s.hands[1].length+'</p>'+shape);
-rules(kind==="whot"?"Shape Cards rules":"Colour Clash rules",kind==="whot"?"Play a matching <b>shape</b> or <b>number</b>. 1 & 8: play again; 2: opponent picks two; 5: opponent picks three; 14: opponent picks one; 20: choose a shape. Pick a card if you cannot play. This is our house-rules variant.":"Play a matching <b>colour</b> or <b>number/action</b>. Skip / reverse skips the computer, +2 and +4 draw penalties, and WILD lets you choose a colour. The first player to empty their hand wins. Original artwork; no UNO trademarks.");
+rules(kind==="whot"?"Classic WHOT rules":"Colour Clash rules",kind==="whot"?
+ "An <b>unofficial</b> adaptation of Nigerian WHOT with the real 54-card distribution: circle, triangle, cross, square, star, and five 20 cards. Start with five cards. Match the <b>shape or number</b>. 1 is Hold On, 2 Pick Two, 5 Pick Three, 8 Suspension, 14 General Market and 20 calls a shape. A wild card can be played at any time. Players can pick from the market if they cannot match. Two-player versus computer; original NIGHT artwork, not affiliated with a commercial card publisher.":
+ "Play a matching <b>colour</b> or <b>number/action</b>. Skip / reverse skips the computer, +2 and +4 draw penalties, and WILD lets you choose a colour. The first player to empty their hand wins. Original artwork; no UNO trademarks.");
 }
 
 /* A recognizable numbered board with every square and slide displayed. */
