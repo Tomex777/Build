@@ -194,7 +194,7 @@ async function transcodeAudio(input, output) {
     child.stderr.on('data', chunk => { stderr = (stderr + String(chunk)).slice(-600) })
     child.once('error', reject)
     child.once('close', code => code === 0 ? resolve() : reject(
-      new Error('FFmpeg audio conversion failed (' + code + '): ' + stderr.replace(/https?:\\/\\/\\S+/g, '[URL]'))
+      new Error('FFmpeg audio conversion failed (' + code + '): ' + stderr.replace(/https?:\/\/\S+/g, '[URL]'))
     ))
   })
 }
@@ -233,7 +233,7 @@ async function stageDirectAudio(url, mime, dir, videoId) {
     throw new Error('YouTube audio exceeds the MSCC download limit.')
   }
   const type = response.headers.get('content-type') || mime
-  if (/text\\/html|application\\/json/i.test(type)) {
+  if (/text\/html|application\/json/i.test(type)) {
     await response.body.cancel().catch(() => {})
     throw new Error('YouTube audio CDN returned a non-audio response.')
   }
