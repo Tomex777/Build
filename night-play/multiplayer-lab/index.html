@@ -120,6 +120,58 @@ footer{padding:24px 0;border-top:1px solid var(--line);color:#84968a;text-align:
 #toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:30;max-width:min(450px,95vw);padding:12px 18px;border-radius:12px;background:#183d29;color:#fff;font-size:12px;font-weight:750;box-shadow:0 13px 25px #0002;text-align:center}
 @media(max-width:760px){.wrap{padding:0 14px}.nav{grid-template-columns:1fr auto 1fr}.back{font-size:0}.back svg{width:21px}.lab-chip{padding:7px 8px;font-size:8px;letter-spacing:.4px}header{height:59px}.brand{font-size:13px;gap:6px}.brand svg{width:27px;height:27px}main{padding-top:23px}h1{font-size:36px;letter-spacing:-1.8px}.intro{font-size:12px}.notice{margin:18px 0}.game-tabs{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}.game-tab{flex-direction:column;gap:6px;padding:10px 4px;min-width:0;font-size:10px;min-height:67px}.tab-icon{font-size:18px}.grid{grid-template-columns:1fr;gap:14px}.selector{padding:20px}.selector h2{font-size:25px}.arena{padding:15px}.board-wrap{min-height:0}.xoboard{max-width:310px}.table-board{max-width:300px}.sq{font-size:clamp(17px,6vw,30px)}}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
+
+/* UX lab v2 — game lobbies and resumable sessions. No changes to NIGHT Play production. */
+.activity-head{display:flex;align-items:center;justify-content:space-between;margin-top:19px;gap:12px}
+.activity-head h2{font-size:21px;letter-spacing:-.7px;margin:5px 0 0}
+.clear-demo{font-size:11px;font-weight:800;color:#648371;border:0;background:none;padding:9px}
+.match-rail{display:flex;gap:11px;overflow:auto;padding:12px 1px 7px;scroll-snap-type:x proximity}
+.match-card{flex:0 0 226px;min-height:122px;padding:14px;border-radius:15px;background:#fff;border:1px solid #dfebe0;box-shadow:0 6px 20px #203f2a07;text-align:left;display:flex;flex-direction:column;justify-content:space-between;scroll-snap-align:start}
+.match-card:hover{border-color:#88b698;background:#fafff9}
+.match-card .line{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.match-card .game-name{font-size:13px;font-weight:900}
+.match-card .stamp{font-size:9px;border-radius:60px;padding:5px 6px;background:#e8f3e9;color:#42704e;white-space:nowrap;font-weight:850}
+.match-card small{font-size:10px;color:#8a998d;margin:8px 0;line-height:1.45}
+.match-card .continue{font-size:11px;color:#286e46;font-weight:900}
+.empty-matches{background:#eff4ed;border:1px dashed #cbdcc8;border-radius:15px;padding:19px 16px;width:100%;display:flex;gap:13px;align-items:center}
+.empty-matches .spark{font-size:23px;background:#e5f0e3;padding:8px;border-radius:11px;color:#56866a}
+.empty-matches strong{font-size:12px;display:block;margin-bottom:3px}
+.empty-matches small{font-size:11px;color:#89998b}
+.lobby-highlight{background:linear-gradient(135deg,#e7f3e9,#f8fcf7);border:1px solid #d1e8d5;border-radius:16px;padding:17px;margin:12px 0 18px}
+.lobby-highlight .topline{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.lobby-highlight .topline b{font-size:14px}
+.lobby-highlight .status-tag{font-size:9px;font-weight:900;letter-spacing:.5px;background:white;color:#477958;border-radius:30px;padding:6px 8px}
+.lobby-highlight p{margin:8px 0 15px;font-size:11px;color:#788c7b;line-height:1.5}
+.lobby-highlight button{border:0;background:#225b40;color:white;font-weight:900;border-radius:11px;min-height:42px;width:100%;font-size:12px}
+.section-caption{margin:20px 0 11px;font-size:10px;font-weight:900;letter-spacing:1.3px;color:#879e8c}
+.hub-explainer{display:flex;gap:10px;align-items:flex-start;background:#f5f8f3;padding:12px;border-radius:11px;color:#758777;font-size:11px;line-height:1.5;margin-top:12px}
+.saved-box{padding:13px;background:#f8faf6;border:1px solid #e4eee2;border-radius:13px;margin:11px 0}
+.saved-box b{display:block;font-size:12px}
+.saved-box small{display:block;font-size:10px;color:#90a090;margin-top:5px}
+.three-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:11px}
+.three-actions button{flex:1 1 28%;min-width:90px;border:1px solid #dae8da;border-radius:10px;background:#f6faf5;color:#35694a;font-weight:850;font-size:11px;min-height:39px}
+.three-actions .danger{color:#a55246;background:#fbf5f4;border-color:#efdedb}
+.speed-modes{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin:10px 0 17px}
+.speed-modes button{border:1px solid #e0eade;border-radius:11px;padding:13px 10px;background:#f9fbf8;color:#526f5b;text-align:left}
+.speed-modes button[aria-pressed=true]{border-color:#3a8c60;background:#e8f4e9;color:#184a2e}
+.speed-modes b{display:block;font-size:12px}
+.speed-modes small{display:block;font-size:10px;margin-top:5px;color:#7d9783;line-height:1.35}
+.room-code{font-size:29px}
+.chip{font-weight:800;font-size:10px;color:#45795b;background:#e6f0e8;padding:6px 8px;border-radius:8px}
+.main-game-title{margin-bottom:3px}
+.game-subtitle{font-size:10px;color:#8fa291}
+.result-note{font-size:11px;color:#809080}
+#demoCursor{display:none!important}
+@media(max-width:760px){
+  .activity-head{margin-top:12px}.activity-head h2{font-size:19px}
+  .match-rail{margin-right:-14px;padding-right:14px}
+  .match-card{flex-basis:210px}
+  .grid{margin-top:14px}
+  .selector{padding:18px}
+  .options{gap:9px}
+  .option{padding:14px 13px}
+}
+
 </style>
 </head>
 <body>
@@ -131,11 +183,11 @@ footer{padding:24px 0;border-top:1px solid var(--line);color:#84968a;text-align:
   </div>
 </header>
 <main class="wrap">
-  <div class="eyebrow">MULTIPLAYER EXPERIENCE · CONCEPT 01</div>
-  <h1>Your game.<br><span>Your opponent.</span></h1>
-  <p class="intro">Choose who to play with, find someone new, or challenge a friend. Explore the flow before we add real online connections.</p>
-  <div class="notice"><b>PROTOTYPE ONLY</b> · These screens are interactive previews. No real players, matchmaking, remote invites, or shared sessions are connected.</div>
-  <div class="games-label">Choose a game</div>
+  <div class="eyebrow">MULTIPLAYER EXPERIENCE · CONCEPT 02</div>
+  <h1>Play now.<br><span>Pick up later.</span></h1>
+  <p class="intro">Open a game, leave, come back, and continue. Create new matches without losing the ones you already started.</p>
+  <div class="notice"><b>PROTOTYPE ONLY</b> · This demo saves sessions in this browser only. No real players, matchmaking, remote invites, or cross-device sync are connected.</div>
+  <div class="activity-head"><div><span class="eyebrow">SAVED MATCHES</span><h2>Your matches <span class="chip" id="activityCount"></span></h2></div><button type="button" class="clear-demo" data-action="clear-all">Clear demo history</button></div><div class="match-rail" id="matchRail" aria-label="Saved game sessions"></div><div class="games-label">Choose a game</div>
   <div class="game-tabs" role="group" aria-label="Select a game">
     <button type="button" class="game-tab" data-game="xo" aria-pressed="true"><span class="tab-icon">X/O</span> Tic-Tac-Toe</button>
     <button type="button" class="game-tab" data-game="chess" aria-pressed="false"><span class="tab-icon">♞</span> Chess</button>
@@ -158,164 +210,265 @@ footer{padding:24px 0;border-top:1px solid var(--line);color:#84968a;text-align:
 <div id="toast" role="status" aria-live="polite" hidden></div>
 <script>
 (function(){
-  "use strict";
-  const names={xo:"Tic-Tac-Toe",chess:"Chess",draughts:"Draughts",jigsaw:"Jigsaw"};
-  const palette=["#e0b787","#4e8569","#7ca9bf","#d9ab91","#8ea271","#ac91aa","#d3c67c","#83b0a5","#c8a68f"];
-  const state={game:"xo",step:"choose",mode:null,room:"",marks:Array(9).fill(""),turn:"X",winner:"",pieces:[],selected:null,helpTime:0};
-  const $=s=>document.querySelector(s);
-  const escapeHTML=s=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-  let toastTimer=null,oppTimer=null,cursorTimer=null;
-  function toast(message){const el=$("#toast");el.textContent=message;el.hidden=false;clearTimeout(toastTimer);toastTimer=setTimeout(()=>el.hidden=true,3200);}
-  function resetGame(){clearTimeout(oppTimer);clearInterval(cursorTimer);state.marks=Array(9).fill("");state.turn="X";state.winner="";state.pieces=[];state.selected=null;}
-  function makeCode(){const alphabet="ABCDEFGHJKLMNPQRSTUVWXYZ23456789";let s="";const a=new Uint32Array(6);if(crypto&&crypto.getRandomValues)crypto.getRandomValues(a);else for(let i=0;i<6;i++)a[i]=Math.random()*1000000;for(let i=0;i<6;i++)s+=alphabet[a[i]%alphabet.length];return s;}
-  function setStep(step,mode){clearTimeout(oppTimer);clearInterval(cursorTimer);state.step=step;if(mode!==undefined)state.mode=mode;if(step==="match")resetGame();render();}
-  function back(){if(state.step==="match"){setStep(state.mode==="bot"?"choose":state.mode==="solo"?"choose":"online",null);}else if(state.step==="friend"||state.step==="quick"){setStep("online",null);}else{setStep("choose",null);}}
-  const modeCard=(symbol,title,desc,action)=>'<button class="option" data-action="'+action+'"><span class="opt-ico">'+symbol+'</span><span><strong>'+title+'</strong><small>'+desc+'</small></span><span class="chev">›</span></button>';
-  function renderFlow(){
-    const isPuzzle=state.game==="jigsaw";
-    let head="",body="";
-    if(state.step==="choose"){
-      head='<span class="step-label">01 / OPPONENT</span><h2>How do you want to play?</h2><p class="sub">Your choice applies only to this game. Switch anytime before the next match.</p>';
-      body='<div class="options">'+modeCard(isPuzzle?"▧":"♟",isPuzzle?"Play Solo":"Play vs Bot",isPuzzle?"Take on the puzzle yourself.":"Play a computer opponent.","bot")+modeCard("↗",isPuzzle?"Play Together":"Play Online",isPuzzle?"Invite someone to solve one puzzle with you.":"Challenge anyone, anywhere — random or invited.","online")+'</div><p class="explain">No same-device pass-and-play mode in this design.</p>';
-    }else if(state.step==="online"){
-      head='<button class="tiny-back" data-action="back">← Who to play with</button><span class="step-label">02 / ONLINE</span><h2>'+(isPuzzle?"Solve it together.":"Find your next rival.")+'</h2><p class="sub">Choose how you want to connect to another player.</p>';
-      body='<div class="options">'+(isPuzzle?"":modeCard("↝","Quick Match","Match with a random online player.","quick"))+modeCard("✉",isPuzzle?"Invite a Partner":"Challenge a Friend","Private link or code for someone you choose.","friend")+'</div>';
-    }else if(state.step==="friend"){
-      head='<button class="tiny-back" data-action="back">← Online choices</button><span class="step-label">03 / PRIVATE MATCH</span><h2>Invite your friend.</h2><p class="sub">A private room would let the invited person join on another device.</p>';
-      body='<div class="room"><div class="room-cap">PREVIEW ROOM CODE</div><div class="room-code">'+escapeHTML(state.room)+'</div><div class="room-url">nightplay / '+escapeHTML(state.room.toLowerCase())+'</div><button type="button" class="wide secondary" data-action="copy">Copy sample invitation</button></div>'+
-      '<div class="members"><div class="member"><span class="avatar">YOU</span><span>You <small>Ready</small></span></div><div class="member"><span class="avatar other">?</span><span>Your friend <small>Invitation not connected in this prototype</small></span></div></div>'+
-      '<button class="wide" data-action="demo-match">'+(isPuzzle?"Preview a shared puzzle":"Preview an accepted challenge")+'</button><p class="explain">The room code is illustrative. It cannot connect two devices yet.</p>';
-    }else if(state.step==="quick"){
-      head='<button class="tiny-back" data-action="back">← Online choices</button><span class="step-label">03 / QUICK MATCH</span><h2>Finding an opponent.</h2><p class="sub">This is what a real search would feel like; no matchmaking request is being sent.</p>';
-      body='<div class="status-card"><div class="spinner" aria-hidden="true"></div><strong>Searching for a rival…</strong><small>UX simulation · no player connection</small></div><div class="actions"><button class="wide secondary" data-action="back">Cancel</button><button class="wide" data-action="demo-match">Preview match</button></div>';
-    }else if(state.step==="match"){
-      const bot=state.mode==="bot",solo=state.mode==="solo";
-      head='<button class="tiny-back" data-action="back">← Change opponent</button><span class="step-label">GAMEPLAY PREVIEW</span><h2>'+(bot?"Against the bot":solo?"Your puzzle. Your pace.":isPuzzle?"One puzzle. Two people.":"Two players. One match.")+'</h2><p class="sub">'+(bot?"Try a local X/O round or preview the game board.":solo?"Try placing the pieces to get a feel for the puzzle.":"A simulated partner shows how the shared game screen might feel.")+'</p>';
-      body='<div class="status-card"><strong>'+(state.winner?escapeHTML(state.winner):"Game in progress · preview")+'</strong><small>'+(bot?"Local bot mode":solo?"Local solo mode":"Simulated remote player — NOT a live match")+'</small></div>'+
-       '<div class="actions"><button class="wide secondary" data-action="reset">New round</button><button class="wide" data-action="back">Change mode</button></div>';
-      if(!bot&&!solo)body+='<p class="explain">The opponent and their actions are simulated. This is a UX prototype, not working online multiplayer.</p>';
-      else if(state.game!=="xo"&&state.game!=="jigsaw")body+='<p class="explain">This lab previews the mode selector and boards. Full Chess/Draughts rule engines are still in the original games.</p>';
+"use strict";
+const $=s=>document.querySelector(s);
+const gameNames={xo:"Tic-Tac-Toe",chess:"Chess",draughts:"Draughts",jigsaw:"Jigsaw"};
+const storeKey="nightplay:multiplayer-lab:v2";
+const colors=["#e0b787","#4e8569","#7ca9bf","#d9ab91","#8ea271","#ac91aa","#d3c67c","#83b0a5","#c8a68f"];
+let matches=[],activeId=null,game="xo",step="hub",preferredSpeed={chess:"live",draughts:"live"},lastGame="xo";
+let opponentTimer=null,toastTimer=null;
+const timeText=d=>{try{return new Date(d).toLocaleString(undefined,{month:"short",day:"numeric",hour:"numeric",minute:"2-digit"});}catch(e){return "Recently";}};
+const safe=s=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const makeId=()=>("m"+Date.now().toString(36)+Math.floor(Math.random()*100000).toString(36));
+const getMatch=()=>matches.find(m=>m.id===activeId)||null;
+const sessionLabel=m=>m.mode==="bot"?"vs NIGHT Bot":m.mode==="solo"?"Solo puzzle":m.mode==="friend"?"Private challenge":m.mode==="random"?"Random match":"Online";
+const stateLabel=m=>m.status==="waiting"?"Waiting for friend":m.status==="searching"?"Finding rival":m.status==="finished"?"Finished":m.game==="jigsaw"?"Puzzle in progress":"Game in progress";
+function persist(){
+  try{localStorage.setItem(storeKey,JSON.stringify({matches:matches.slice(0,40),game,lastGame,activeId,step,preferredSpeed}));}catch(e){}
+}
+function restore(){
+  try{
+    const data=JSON.parse(localStorage.getItem(storeKey)||"null");
+    if(!data||!Array.isArray(data.matches))return;
+    matches=data.matches.filter(m=>m&&gameNames[m.game]&&["active","waiting","searching","finished"].includes(m.status)).slice(0,40);
+    preferredSpeed=data.preferredSpeed||preferredSpeed;
+    lastGame=gameNames[data.lastGame]?data.lastGame:lastGame;
+    game=gameNames[data.game]?data.game:lastGame;
+    activeId=matches.some(m=>m.id===data.activeId)?data.activeId:null;
+    if(activeId&&data.step==="match"&&getMatch().status==="active")step="match";
+    else if(activeId&&data.step==="friend"&&getMatch().status==="waiting")step="friend";
+    else if(activeId&&data.step==="quick"&&getMatch().status==="searching")step="quick";
+    else step="hub";
+  }catch(e){}
+}
+function notify(msg){
+  const t=$("#toast");t.textContent=msg;t.hidden=false;
+  clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.hidden=true,2800);
+}
+function renderRail(){
+  const rail=$("#matchRail"), live=matches.filter(m=>m.status!=="finished").sort((a,b)=>b.updated-a.updated);
+  $("#activityCount").textContent=live.length?live.length+" ongoing":"";
+  if(!live.length){rail.innerHTML='<div class="empty-matches"><span class="spark">◇</span><div><strong>No games left waiting.</strong><small>Your online challenges and unfinished puzzles will appear here.</small></div></div>';return;}
+  rail.innerHTML=live.map(m=>'<button class="match-card" type="button" data-resume="'+safe(m.id)+'" aria-label="Resume '+safe(gameNames[m.game])+'"><span class="line"><span class="game-name">'+safe(gameNames[m.game])+'</span><span class="stamp">'+safe(m.status==="active"?"In progress":m.status==="searching"?"Searching":"Invited")+'</span></span><small>'+safe(sessionLabel(m))+' · '+safe(timeText(m.updated))+'</small><span class="continue">Continue →</span></button>').join("");
+}
+function option(icon,title,subtitle,action){
+  return '<button class="option" type="button" data-action="'+action+'"><span class="opt-ico">'+icon+'</span><span><strong>'+title+'</strong><small>'+subtitle+'</small></span><span class="chev">›</span></button>';
+}
+function stepBack(){clearTimeout(opponentTimer);activeId=null;step="hub";render();}
+function switchGame(g){
+  if(!gameNames[g])return;clearTimeout(opponentTimer);game=g;lastGame=g;
+  const live=matches.filter(m=>m.game===g&&m.status!=="finished").sort((a,b)=>b.updated-a.updated)[0];
+  if(live){openSession(live.id);return;}
+  activeId=null;step="hub";render();
+}
+function enterOnline(){step="online";activeId=null;render();}
+function begin(mode){
+  clearTimeout(opponentTimer);
+  const id=makeId();
+  const m={id,game,mode,status:mode==="friend"?"waiting":mode==="random"?"searching":"active",updated:Date.now(),created:Date.now(),timeMode:preferredSpeed[game]||"live",room:"",marks:Array(9).fill(""),turn:"X",winner:"",pieces:[],selected:null};
+  if(mode==="friend")m.room=makeCode();
+  matches.unshift(m);activeId=id;step=mode==="friend"?"friend":mode==="random"?"quick":"match";render();
+}
+function makeCode(){let s="";const chars="ABCDEFGHJKLMNPQRSTUVWXYZ23456789";const a=new Uint32Array(6);try{crypto.getRandomValues(a);}catch(e){for(let i=0;i<6;i++)a[i]=Math.random()*999999;}for(const n of a)s+=chars[n%chars.length];return s;}
+function openSession(id){
+  const m=matches.find(x=>x.id===id);if(!m)return;
+  clearTimeout(opponentTimer);game=m.game;activeId=id;step=m.status==="waiting"?"friend":m.status==="searching"?"quick":"match";render();
+}
+function previewAccepted(){
+  const m=getMatch();if(!m)return;
+  m.status="active";m.updated=Date.now();step="match";render();
+}
+function leaveGame(){
+  clearTimeout(opponentTimer);activeId=null;step="hub";render();
+}
+function endGame(){
+  const m=getMatch();if(!m)return;
+  if(!confirm("End this demo session? This is separate from simply leaving the game."))return;
+  m.status="finished";m.updated=Date.now();activeId=null;step="hub";render();
+}
+function renderFlow(){
+  let head="",body="",m=getMatch(),isPuzzle=game==="jigsaw";
+  if(step==="hub"){
+    const sessions=matches.filter(s=>s.game===game&&s.status!=="finished").sort((a,b)=>b.updated-a.updated);
+    head='<span class="step-label">GAME LOBBY</span><h2 class="main-game-title">'+safe(gameNames[game])+'</h2><p class="sub">Jump into a game or return to one already in progress.</p>';
+    if(sessions.length){
+      const latest=sessions[0];
+      body+='<div class="lobby-highlight"><div class="topline"><b>Pick up where you left off</b><span class="status-tag">'+safe(latest.status==="waiting"?"INVITED":latest.status==="searching"?"SEARCHING":"ACTIVE")+'</span></div><p>'+safe(sessionLabel(latest))+' · '+safe(timeText(latest.updated))+'</p><button type="button" data-resume="'+safe(latest.id)+'">Continue '+safe(gameNames[game])+' →</button></div>';
+      if(sessions.length>1)body+='<p class="explain">You have '+sessions.length+' open sessions for this game. Find them in <strong>Your matches</strong> above.</p>';
+      body+='<div class="section-caption">OR START ANOTHER MATCH</div>';
+    }else body+='<div class="section-caption">CHOOSE HOW TO PLAY</div>';
+    body+='<div class="options">'+option("↗",isPuzzle?"Play Together":"Play Online",isPuzzle?"Collaborate in a shared puzzle room.":"Challenge a friend or a random player.","online")+option(isPuzzle?"▧":"♟",isPuzzle?"Play Solo":"Play vs Bot",isPuzzle?"Solve at your own pace.":"Face the computer with no internet needed.","bot")+'</div>';
+    body+='<div class="hub-explainer"><span>↪</span><span><strong>Leaving is not quitting.</strong> Your sessions stay in Your Matches, and this lab remembers them even after a refresh.</span></div>';
+  }else if(step==="online"){
+    head='<button class="tiny-back" data-action="back">← '+safe(gameNames[game])+' lobby</button><span class="step-label">START AN ONLINE GAME</span><h2>'+(isPuzzle?"Bring someone in.":"Who are you playing?")+'</h2><p class="sub">You can choose your opponent. Matchmaking isn’t required to challenge a particular person.</p>';
+    if(["chess","draughts"].includes(game)){
+      body+='<div class="section-caption">PACE OF PLAY</div><div class="speed-modes"><button data-speed="live" aria-pressed="'+(preferredSpeed[game]==="live")+'"><b>Live match</b><small>Play together now. Timers continue if you leave.</small></button><button data-speed="turn" aria-pressed="'+(preferredSpeed[game]==="turn")+'"><b>Take turns</b><small>Play over time. Come back for your next move.</small></button></div>';
     }
-    $("#flow").innerHTML=head+body;
+    body+='<div class="options">'+(!isPuzzle?option("⚡","Find an opponent","Quick Match · play with someone random.","random"):"")+option("↗",isPuzzle?"Invite a Partner":"Challenge a Friend","Create a private invite and send it directly.","friend")+'</div>';
+    body+='<p class="explain">You don’t have to choose a match type each time you open the game. This screen appears only when you start a new online match.</p>';
+  }else if(step==="friend"&&m){
+    head='<button class="tiny-back" data-action="leave">← Leave safely</button><span class="step-label">PRIVATE INVITATION · SAVED</span><h2>Your room is ready.</h2><p class="sub">The invitation stays accessible in Your Matches while you navigate away.</p>';
+    body='<div class="room"><div class="room-cap">SAMPLE INVITATION CODE</div><div class="room-code">'+safe(m.room)+'</div><div class="room-url">Preview only · Not a valid multiplayer join link</div><button type="button" class="wide secondary" data-action="copy">Copy sample invitation</button></div>';
+    body+='<div class="members"><div class="member"><span class="avatar">YOU</span><span>You <small>Host · ready</small></span></div><div class="member"><span class="avatar other">?</span><span>Friend <small>Waiting for invitation (simulated)</small></span></div></div>';
+    body+='<button class="wide" data-action="demo-accept">Preview friend joining →</button><div class="three-actions"><button data-action="leave">Leave safely</button><button class="danger" data-action="end">Cancel invite</button></div><p class="explain">Real invitations and acceptance need the multiplayer backend. This lab simulates them.</p>';
+  }else if(step==="quick"&&m){
+    head='<button class="tiny-back" data-action="leave">← Leave safely</button><span class="step-label">QUICK MATCH · SAVED</span><h2>Finding your rival.</h2><p class="sub">This is a visual simulation of matchmaking; no one is actually being contacted.</p>';
+    body='<div class="status-card"><div class="spinner" aria-hidden="true"></div><strong>Searching…</strong><small>A real queue would match players by game, rules and region.</small></div><button class="wide" style="margin-top:12px" data-action="demo-accept">Preview opponent found →</button><div class="three-actions"><button data-action="leave">Leave safely</button><button class="danger" data-action="end">Cancel search</button></div>';
+  }else if(step==="match"&&m){
+    const bot=m.mode==="bot",solo=m.mode==="solo",played=m.status==="finished";
+    head='<button class="tiny-back" data-action="leave">← All '+safe(gameNames[game])+' games</button><span class="step-label">'+(bot?"BOT MATCH":solo?"SOLO PUZZLE":m.timeMode==="turn"?"TURN-BASED MATCH":"ONLINE GAME")+' · SAVED</span><h2>'+(isPuzzle?"Every piece counts.":"You're back in.")+'</h2><p class="sub">'+(played?"This demo game has ended.":bot?"Keep playing against the local computer.":solo?"Continue your puzzle right where you stopped.":"Your position and turn survive leaving and reloading the page.")+'</p>';
+    body='<div class="status-card"><strong>'+safe(m.winner||stateLabel(m))+'</strong><small>'+safe(sessionLabel(m))+' · Saved on this device</small></div>';
+    body+='<div class="three-actions"><button data-action="leave">Leave &amp; keep</button><button data-action="new">New match</button><button class="danger" data-action="end">End match</button></div>';
+    body+='<p class="explain">“Leave &amp; keep” only closes the game view. “End match” is a separate, confirmed action. Nothing disappears by accident.</p>';
+    if(!bot&&!solo)body+='<div class="saved-box"><b>Online gameplay simulation</b><small>Move synchronisation, reconnect and server recovery are not implemented in this UI lab.</small></div>';
   }
-  function makeXO(){
-    const preview=["X","","","O","X","","","O",""];
-    const arr=state.step==="match"?state.marks:preview;
-    let html='<div class="xoboard" role="grid" aria-label="Tic-Tac-Toe board">';
+  $("#flow").innerHTML=head+body;
+}
+function renderBoard(){
+  const m=getMatch(),isPuzzle=game==="jigsaw",playing=step==="match"&&m,online=!!(m&&["friend","random"].includes(m.mode));
+  $("#boardTitle").textContent=gameNames[game];
+  $("#boardBadge").textContent=playing?(online?"SIMULATED ONLINE":m.mode==="solo"?"SOLO":"VS BOT"):"BOARD PREVIEW";
+  $("#opponentName").textContent=playing?(m.mode==="bot"?"NIGHT Bot":m.mode==="solo"?"Your puzzle":"Demo opponent"):"No opponent yet";
+  $("#opponentLabel").textContent=playing?(online?"Not connected to a server":"Local preview"):"Select a game mode";
+  $("#opponentAvatar").textContent=playing?(m.mode==="bot"?"AI":m.mode==="solo"?"▧":"?"):"?";
+  $("#vsLabel").textContent=isPuzzle?"＋":"VS";
+  $("#youLabel").textContent=isPuzzle?"Puzzle host":"Player 1";
+  let markup="";
+  if(game==="xo"){
+    const arr=playing?m.marks:["X","","","O","X","","","O",""];
+    markup='<div class="xoboard" role="grid" aria-label="X and O board">';
     for(let i=0;i<9;i++){
-      const cell=arr[i];html+='<button type="button" role="gridcell" class="xocell" data-cell="'+i+'" data-mark="'+cell+'" aria-label="Row '+(Math.floor(i/3)+1)+' column '+(i%3+1)+(cell?", "+cell:"")+'" '+(cell||state.step!=="match"||state.winner||state.turn!=="X"?"disabled":"")+'>'+escapeHTML(cell)+'</button>';
+      const letter=arr[i]||"";
+      markup+='<button type="button" role="gridcell" class="xocell" data-cell="'+i+'" data-mark="'+letter+'" aria-label="Cell '+(i+1)+(letter?", "+letter:"")+'" '+(!playing||m.turn!=="X"||letter||m.winner||m.status!=="active"?"disabled":"")+'>'+letter+'</button>';
     }
-    return html+"</div>";
-  }
-  const chessRows=["♜♞♝♛♚♝♞♜","♟♟♟♟♟♟♟♟","        ","        ","        ","        ","♙♙♙♙♙♙♙♙","♖♘♗♕♔♗♘♖"];
-  function makeTable(){
-    let html='<div class="table-board" aria-label="'+(state.game==="chess"?"Chess":"Draughts")+' visual board preview">';
+    markup+='</div>';
+  }else if(game==="chess"||game==="draughts"){
+    const rows=["♜♞♝♛♚♝♞♜","♟♟♟♟♟♟♟♟","        ","        ","        ","        ","♙♙♙♙♙♙♙♙","♖♘♗♕♔♗♘♖"];
+    markup='<div class="table-board" aria-label="'+safe(gameNames[game])+' UI preview">';
     for(let r=0;r<8;r++)for(let c=0;c<8;c++){
-      const dark=(r+c)%2===1;
-      let item="";
-      if(state.game==="chess"){const ch=chessRows[r][c];item=ch&&ch!==" "?"<span>"+ch+"</span>":"";}
-      else if(dark&&(r<3||r>4))item='<span class="check-piece'+(r<3?' dark-piece':'')+'"></span>';
-      html+='<div class="sq '+(dark?"dark":"light")+'">'+item+"</div>";
+      const dark=(r+c)%2===1;let piece="";
+      if(game==="chess"&&rows[r][c]!==" ")piece="<span>"+rows[r][c]+"</span>";
+      if(game==="draughts"&&dark&&(r<3||r>4))piece='<span class="check-piece'+(r<3?" dark-piece":"")+'"></span>';
+      markup+='<div class="sq '+(dark?"dark":"light")+'">'+piece+'</div>';
     }
-    return html+"</div>";
-  }
-  function makeJigsaw(){
-    let placed=state.pieces;const isMatch=state.step==="match";
-    let html='<div class="j-board" aria-label="Interactive 3 by 3 puzzle preview">';
-    for(let i=0;i<9;i++)html+='<button type="button" class="j-slot '+(placed.includes(i)?"placed":"")+'" data-slot="'+i+'" '+(placed.includes(i)||!isMatch?"disabled":"")+' style="--piece-color:'+palette[i]+';--rot:'+(i*19)+'deg" aria-label="Puzzle slot '+(i+1)+(placed.includes(i)?", filled":"")+'"></button>';
-    html+='</div>';
-    if(isMatch){html+='<div class="j-tilebox" aria-label="Loose pieces, select then select matching board spot">';
-    for(const i of [7,3,1,8,4,0,6,2,5])if(!placed.includes(i))html+='<button class="j-tile" type="button" aria-pressed="'+(state.selected===i)+'" data-piece="'+i+'" style="--piece-color:'+palette[i]+';--rot:'+(i*19)+'deg"><strong>'+(i+1)+'</strong></button>';
-    html+='</div>';}
-    return html;
-  }
-  function renderBoard(){
-    const isPuzzle=state.game==="jigsaw",isMatch=state.step==="match",simulated=state.mode==="online"&&isMatch;
-    $("#boardTitle").textContent=names[state.game];
-    $("#boardBadge").textContent=!isMatch?"MODE PREVIEW":simulated?"SIMULATION":state.mode==="bot"?"VS BOT":"SOLO";
-    $("#youLabel").textContent=isPuzzle?"Puzzle host":"Player 1";
-    $("#vsLabel").textContent=isPuzzle?"＋":"VS";
-    $("#opponentName").textContent=state.mode==="bot"&&isMatch?"NIGHT Bot":simulated?(isPuzzle?"Demo partner":"Demo opponent"):isPuzzle?"Partner":"Choose opponent";
-    $("#opponentLabel").textContent=simulated?"Simulated on this device":state.mode==="bot"&&isMatch?"Local AI":"Not connected";
-    $("#opponentAvatar").textContent=simulated?"P":state.mode==="bot"&&isMatch?"AI":"?";
-    $("#board").innerHTML=state.game==="xo"?makeXO():isPuzzle?makeJigsaw():makeTable();
-    $("#boardFoot").textContent=!isMatch?"Choose how you want to play.":state.winner|| (state.game==="xo"?(state.turn==="X"?"Your turn":"Opponent's turn (demo)") :isPuzzle?"Select a loose piece, then its numbered position.":"Board preview — no chess/checkers engine inside this lab.");
-    $("#boardHint").textContent=isPuzzle?(isMatch?"Tap a numbered loose piece, then the same-number position on the board (positions count left-to-right).":"Jigsaw would have Solo and Play Together. A real shared puzzle would sync every piece and its movement.") :isMatch?"Gameplay is uninterrupted; change mode or start again from the match controls.":"Bot, random opponent, or a deliberate friend challenge — without hiding modes inside Settings.";
-    $("#demoCursor").classList.toggle("active",simulated&&isPuzzle);
-  }
-  function render(){
-    document.querySelectorAll("[data-game]").forEach(btn=>btn.setAttribute("aria-pressed",String(btn.dataset.game===state.game)));
-    renderFlow();renderBoard();
-    if(state.step==="match"&&state.mode==="online"&&state.game==="jigsaw"){
-      const el=$("#demoCursor");let index=0;const points=[[67,27],[39,51],[75,77],[29,35],[58,62]];
-      cursorTimer=setInterval(()=>{index=(index+1)%points.length;el.style.left=points[index][0]+"%";el.style.top=points[index][1]+"%";},1700);
+    markup+='</div>';
+  }else{
+    const placed=playing?m.pieces:[],selected=playing?m.selected:null;
+    markup='<div class="j-board" aria-label="Interactive 3 by 3 Jigsaw demo">';
+    for(let i=0;i<9;i++)markup+='<button type="button" class="j-slot '+(placed.includes(i)?"placed":"")+'" data-slot="'+i+'" style="--piece-color:'+colors[i]+';--rot:'+(i*19)+'deg" '+(!playing||placed.includes(i)||m.winner?"disabled":"")+' aria-label="Puzzle position '+(i+1)+'"></button>';
+    markup+='</div>';
+    if(playing){
+      markup+='<div class="j-tilebox" aria-label="Loose numbered demo pieces">';
+      for(const i of [7,3,1,8,4,0,6,2,5])if(!placed.includes(i))markup+='<button type="button" class="j-tile" aria-pressed="'+(i===selected)+'" data-piece="'+i+'" style="--piece-color:'+colors[i]+';--rot:'+(i*19)+'deg"><strong>'+(i+1)+'</strong></button>';
+      markup+='</div>';
     }
   }
-  function determineWinner(m){
-    const wins=[[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
-    for(const [a,b,c] of wins)if(m[a]&&m[a]===m[b]&&m[a]===m[c])return m[a];
-    return m.every(Boolean)?"DRAW":"";
-  }
-  function chooseBotCell(){
-    const free=state.marks.map((v,i)=>v=== ""?i:-1).filter(n=>n>=0);
-    for(const sign of ["O","X"])for(const i of free){const trial=[...state.marks];trial[i]=sign;if(determineWinner(trial)===sign)return i;}
-    if(free.includes(4))return 4;
-    return free[Math.floor(Math.random()*free.length)];
-  }
-  function xoMove(i){
-    if(state.step!=="match"||state.game!=="xo"||state.turn!=="X"||state.marks[i]||state.winner)return;
-    state.marks[i]="X";state.turn="O";const w=determineWinner(state.marks);
-    if(w){finishXO(w);return;}
-    renderBoard();
-    oppTimer=setTimeout(()=>{if(state.step!=="match"||state.game!=="xo"||state.winner)return;
-      const free=state.marks.map((v,k)=>v===""?k:-1).filter(k=>k>=0);
-      if(!free.length)return;
-      const choice=state.mode==="bot"?chooseBotCell():free[Math.floor(Math.random()*free.length)];
-      state.marks[choice]="O";
-      const result=determineWinner(state.marks);
-      if(result){finishXO(result);return;}
-      state.turn="X";renderBoard();
-    },state.mode==="bot"?450:800);
-  }
-  function finishXO(w){
-    state.winner=w==="DRAW"?"Draw round":w==="X"?"You win!":state.mode==="bot"?"Bot wins":"Demo opponent wins";render();
-  }
-  document.addEventListener("click",async function(ev){
-    const gameBtn=ev.target.closest("[data-game]");
-    if(gameBtn){state.game=gameBtn.dataset.game;state.mode=null;state.step="choose";resetGame();render();return;}
-    const act=ev.target.closest("[data-action]");
-    if(act){
-      const a=act.dataset.action;
-      if(a==="bot"){resetGame();setStep("match",state.game==="jigsaw"?"solo":"bot");}
-      else if(a==="online")setStep("online","online");
-      else if(a==="quick")setStep("quick","online");
-      else if(a==="friend"){state.room=makeCode();setStep("friend","online");}
-      else if(a==="back")back();
-      else if(a==="demo-match")setStep("match","online");
-      else if(a==="reset")setStep("match",state.mode);
-      else if(a==="copy"){
-        const sample="NIGHT Play multiplayer UX PROTOTYPE — sample room "+state.room+". This is only a design preview; joining from another device is not available yet.";
-        try{await navigator.clipboard.writeText(sample);toast("Sample invitation copied — preview only.");}
-        catch(_){toast("Clipboard unavailable; demo code: "+state.room);}
-      }
-      return;
-    }
-    const cell=ev.target.closest("[data-cell]");
-    if(cell){xoMove(Number(cell.dataset.cell));return;}
-    const piece=ev.target.closest("[data-piece]");
-    if(piece){state.selected=Number(piece.dataset.piece);renderBoard();return;}
-    const slot=ev.target.closest("[data-slot]");
-    if(slot&&state.step==="match"&&state.game==="jigsaw"){
-      const i=Number(slot.dataset.slot);
-      if(state.selected===null){toast("Select a loose piece below first.");return;}
-      if(i!==state.selected){toast("Try the matching position for piece "+(state.selected+1)+".");return;}
-      if(!state.pieces.includes(i))state.pieces.push(i);
-      state.selected=null;
-      if(state.pieces.length===9){state.winner="Puzzle complete!";toast("Puzzle completed — congratulations!");}
-      render();
-    }
-  });
+  $("#board").innerHTML=markup;
+  $("#boardFoot").textContent=playing?(m.winner|| (game==="xo"?(m.turn==="X"?"Your turn":"Opponent's turn · demo") :game==="jigsaw"?(m.pieces.length+" of 9 demo pieces placed"):"Visual board only · rules engine not connected")):"Start or resume a game.";
+  $("#boardHint").textContent=playing?game==="jigsaw"?"Tap a loose piece, then its matching position; progress saves after each placement.":game==="xo"?"Moves are persisted locally. Reopen or refresh to continue from the same board.":"This prototype tests multiplayer entry and recovery; full board rules remain in NIGHT Play.":"Select the game above. You can come back to an existing match without choosing your opponent again.";
+}
+function render(){
+  persist();
+  document.querySelectorAll("[data-game]").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.game===game)));
+  renderRail();renderFlow();renderBoard();
+  const m=getMatch();
+  if(m&&step==="match"&&game==="xo"&&m.turn==="O"&&!m.winner)queueOpponent();
+}
+function winnerFor(arr){
+  for(const [a,b,c] of [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]])if(arr[a]&&arr[a]===arr[b]&&arr[a]===arr[c])return arr[a];
+  return arr.every(Boolean)?"draw":"";
+}
+function botCell(m){
+  const spots=m.marks.map((v,i)=>!v?i:-1).filter(i=>i>=0);
+  for(const s of ["O","X"])for(const i of spots){const test=m.marks.slice();test[i]=s;if(winnerFor(test)===s)return i;}
+  if(spots.includes(4))return 4;
+  return spots[Math.floor(Math.random()*spots.length)];
+}
+function finishXO(m,w){
+  m.winner=w==="draw"?"It's a draw.":w==="X"?"You win!":m.mode==="bot"?"Bot wins.":"Demo opponent wins.";
+  m.status="finished";m.updated=Date.now();render();
+}
+function queueOpponent(){
+  clearTimeout(opponentTimer);
+  const m=getMatch();if(!m||m.turn!=="O"||m.status!=="active")return;
+  opponentTimer=setTimeout(()=>{
+    const curr=getMatch();
+    if(!curr||curr.id!==m.id||step!=="match"||curr.turn!=="O"||curr.status!=="active")return;
+    const remaining=curr.marks.map((v,i)=>v?-1:i).filter(i=>i>=0);
+    if(!remaining.length)return finishXO(curr,"draw");
+    const cell=curr.mode==="bot"?botCell(curr):remaining[Math.floor(Math.random()*remaining.length)];
+    curr.marks[cell]="O";curr.updated=Date.now();
+    const winner=winnerFor(curr.marks);
+    if(winner)return finishXO(curr,winner);
+    curr.turn="X";render();
+  },m.mode==="bot"?450:900);
+}
+function xoTap(i){
+  const m=getMatch();
+  if(!m||m.game!=="xo"||step!=="match"||m.status!=="active"||m.turn!=="X"||m.marks[i]||m.winner)return;
+  m.marks[i]="X";m.turn="O";m.updated=Date.now();
+  const winner=winnerFor(m.marks);
+  if(winner)return finishXO(m,winner);
   render();
+}
+function jigsawPiece(i){
+  const m=getMatch();if(!m||step!=="match"||m.game!=="jigsaw"||m.winner)return;
+  m.selected=i;m.updated=Date.now();render();
+}
+function jigsawSlot(i){
+  const m=getMatch();
+  if(!m||step!=="match"||m.game!=="jigsaw"||m.winner)return;
+  if(m.selected===null){notify("Select a loose piece first.");return;}
+  if(m.selected!==i){notify("Try position "+(m.selected+1)+" for that piece.");return;}
+  if(!m.pieces.includes(i))m.pieces.push(i);
+  m.selected=null;m.updated=Date.now();
+  if(m.pieces.length===9){m.winner="Puzzle complete!";m.status="finished";notify("Puzzle complete! Your progress is saved.");}
+  render();
+}
+document.addEventListener("click",async ev=>{
+  const tab=ev.target.closest("[data-game]");
+  if(tab){switchGame(tab.dataset.game);return;}
+  const item=ev.target.closest("[data-resume]");
+  if(item){openSession(item.dataset.resume);return;}
+  const speed=ev.target.closest("[data-speed]");
+  if(speed){preferredSpeed[game]=speed.dataset.speed;render();return;}
+  const action=ev.target.closest("[data-action]");
+  if(action){
+    switch(action.dataset.action){
+      case "back":stepBack();break;
+      case "leave":leaveGame();break;
+      case "online":enterOnline();break;
+      case "bot":begin(game==="jigsaw"?"solo":"bot");break;
+      case "friend":begin("friend");break;
+      case "random":begin("random");break;
+      case "demo-accept":previewAccepted();break;
+      case "new":activeId=null;step="hub";render();break;
+      case "end":endGame();break;
+      case "copy":{
+        const m=getMatch();if(!m)return;
+        const sample="NIGHT Play concept preview only. Room "+m.room+" cannot be joined remotely yet.";
+        try{await navigator.clipboard.writeText(sample);notify("Sample invite copied — not a live room.");}
+        catch(e){notify("Your example code: "+m.room);}
+        break;
+      }
+      case "clear-all":
+        if(confirm("Clear all locally saved prototype sessions? This won't affect your actual NIGHT Play games.")){
+          clearTimeout(opponentTimer);matches=[];activeId=null;step="hub";render();notify("Lab sessions cleared.");
+        }
+        break;
+    }return;
+  }
+  const c=ev.target.closest("[data-cell]");if(c){xoTap(Number(c.dataset.cell));return;}
+  const p=ev.target.closest("[data-piece]");if(p){jigsawPiece(Number(p.dataset.piece));return;}
+  const s=ev.target.closest("[data-slot]");if(s){jigsawSlot(Number(s.dataset.slot));return;}
+});
+document.addEventListener("visibilitychange",()=>{if(document.hidden)persist();});
+window.addEventListener("pagehide",persist);
+window.addEventListener("storage",ev=>{
+  if(ev.key!==storeKey||!ev.newValue)return;
+  /* Avoid overwriting local moves during an active turn. Recovery runs on reload. */
+});
+restore();render();
 })();
 </script>
 </body>
