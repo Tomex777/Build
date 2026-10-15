@@ -374,3 +374,7 @@ body:not(.ludo-mode) .info-panel .score-list{width:min(100%,460px)}
  body:not(.ludo-mode) .night-action-row{margin:11px auto}
  body:not(.ludo-mode) .night-sheet .game-picks{padding:0}
 }
+
+/* Draughts' in-board HUD already shows turn and remaining pieces; no duplicate panel. */
+body.checkers-mode .controls-col{display:none!important}
+body:not(.ludo-mode)>footer{display:none}
