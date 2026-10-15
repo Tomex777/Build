@@ -2,9 +2,13 @@
 // FIFO processing for interactive sessions, moderation and game choices.
 //
 // A queue is keyed by (account, chat). Two different chats/accounts never
-// depend on each other's command completion. Only explicitly stateless commands
-// bypass their own chat queue; numbered replies and stateful commands stay FIFO.
+// depend on each other's command completion. Explicitly independent requests
+// can bypass their own chat queue; numbered replies and stateful commands stay FIFO.
 const FAST_COMMANDS = new Set(['ping', 'alive', 'menu', 'nami', 'mimi', 'help', 'sources'])
+// These operate exclusively on the incoming message/quoted media (or a supplied
+// song query), never on per-chat selections. In particular, a stuck provider
+// must not delay a new lyrics request or a sticker requested in the same room.
+const INDEPENDENT_COMMANDS = new Set(['lyrics', 'lyric', 'sticker', 's'])
 const MAX_PENDING_PER_CHAT = 256
 
 export function isStatelessFastCommand(text, prefix = '.') {
@@ -14,6 +18,14 @@ export function isStatelessFastCommand(text, prefix = '.') {
   const body = clean.slice(prefix.length)
   const match = /^([a-zA-Z][a-zA-Z0-9_-]*)\s*$/u.exec(body)
   return Boolean(match && FAST_COMMANDS.has(match[1].toLowerCase()))
+}
+
+export function isIndependentCommand(text, prefix = '.') {
+  if (!prefix || typeof text !== 'string') return false
+  const clean = text.trim()
+  if (!clean.startsWith(prefix)) return false
+  const match = /^([a-zA-Z][a-zA-Z0-9_-]*)(?:\s|$)/u.exec(clean.slice(prefix.length))
+  return Boolean(match && INDEPENDENT_COMMANDS.has(match[1].toLowerCase()))
 }
 
 export function createMessageScheduler({
@@ -32,7 +44,8 @@ export function createMessageScheduler({
 
   function submit(account, msg) {
     const key = accountKey(account) + '|' + chatKey(msg)
-    const fast = isStatelessFastCommand(textOf(msg), prefix())
+    const incoming = textOf(msg)
+    const fast = isStatelessFastCommand(incoming, prefix()) || isIndependentCommand(incoming, prefix())
     const generation = account?.generation
     const safelyProcess = () => account?.generation === generation ? process(account, msg) : false
     if (fast) {
