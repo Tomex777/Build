@@ -1,4 +1,5 @@
 import { renderPostCard } from '../../utils/social-card-renderer.js'
+import { randomSocialCardTime } from '../../utils/social-card-time.js'
 import { resolveSocialAuthor, socialCardMentions, parseSocialEngagementOptions } from '../../utils/social-card-command.js'
 import { resolvePostEngagement } from '../../utils/tweet-engagement.js'
 import { downloadCommandMedia } from '../../utils/media-conversion.js'
@@ -46,6 +47,7 @@ export default {
       const image = await renderPostCard({
         text,
         style,
+        postedAt: randomSocialCardTime(style),
         authorName: author.authorName,
         avatarBuffer: author.avatarBuffer,
         imageBuffer: media?.buffer || null,
