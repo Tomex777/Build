@@ -9,7 +9,7 @@ export default {
     if (!ctx.groupKey) return ctx.reply('Activity recognition is available in groups only.')
     const stats = ctx.getGroupActivity?.(ctx.args?.[0])
     if (!stats) return ctx.reply('Group activity history is not available.')
-    const mine = stats.ranked.find(member => member.key === ctx.activityUserKey)
+    const mine = stats.ranked.find(member => member.key === ctx.activityUserKey || member.identityKeys?.includes(ctx.activityUserKey))
     const count = mine?.messages || 0
     const badges = activityBadges(count)
     const earned = badges.earned.length

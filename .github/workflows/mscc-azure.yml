@@ -24,9 +24,27 @@ concurrency:
 jobs:
   validate:
     runs-on: ubuntu-latest
+    outputs:
+      release_ready: ${{ steps.release_gate.outputs.release_ready }}
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v5
+        with:
+          fetch-depth: 2
+      # A regular PR merge validates but cannot queue yet another production
+      # approval. Only the explicitly staged release manifest triggers deploy.
+      - name: Detect bundled release
+        id: release_gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "release_ready=true" >> "$GITHUB_OUTPUT"
+          elif [ "${{ github.event_name }}" = "push" ] && git diff --name-only HEAD^ HEAD -- mscc/release-batch.json | grep -Fxq mscc/release-batch.json; then
+            echo "release_ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "release_ready=false" >> "$GITHUB_OUTPUT"
+          fi
       - uses: actions/setup-node@v5
         with:
           node-version: '24'
@@ -133,9 +151,11 @@ jobs:
   deploy:
     name: Deploy tested MSCC commit to Azure
     needs: validate
+    # Deploy only a validated release-batch manifest (or explicit manual dispatch).
+    # Older or ordinary feature pushes cannot accumulate pending approvals.
     # PRs never receive server credentials or deploy. Protected environment
     # approval (if configured) is required before accessing production secrets.
-    if: github.event_name == 'push' && github.ref == 'refs/heads/mscc-azure'
+    if: github.ref == 'refs/heads/mscc-azure' && needs.validate.outputs.release_ready == 'true' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
     runs-on: ubuntu-latest
     timeout-minutes: 55
     environment: mscc-production

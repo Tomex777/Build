@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { createMessageScheduler, isStatelessFastCommand } from './command-scheduler.js'
+import { createMessageScheduler, isIndependentCommand, isStatelessFastCommand } from './command-scheduler.js'
 
 for (const command of ['.ping', '.menu', '.nami', '.mimi', '.help', '.sources', '.alive']) {
   assert.equal(isStatelessFastCommand(command), true, command)
@@ -9,6 +9,14 @@ for (const input of ['1', '18kami', '.anime', '.manga', '.anime ~source animepah
   assert.equal(isStatelessFastCommand(input), false, input)
 }
 assert.equal(isStatelessFastCommand('!ping', '!'), true)
+for (const command of ['.lyrics N95 Kendrick Lamar', '.lyric N95', '.lyrics ~track abc', '.s', '.sticker', '.sticker hello']) {
+  assert.equal(isIndependentCommand(command), true, command)
+}
+for (const text of ['1', '.song hello', '.anime', '.manga', '.lyricsfake hello', '.stickered', '.ttt', '.delete']) {
+  assert.equal(isIndependentCommand(text), false, text)
+}
+assert.equal(isIndependentCommand('!lyrics song', '!'), true)
+
 
 const events = []
 const locks = new Map()
@@ -31,11 +39,15 @@ const wait = () => new Promise(resolve=>setImmediate(resolve))
 const a = scheduler.submitBatch(accountA, [
   make('room@g.us', '.anime'),
   make('room@g.us', '.ping'),
+  make('room@g.us', '.lyrics N95 Kendrick Lamar'),
+  make('room@g.us', '.sticker'),
   make('room@g.us', '1'),
 ])
 await wait()
 assert(events.includes('start:nami:.anime'))
 assert(events.includes('done:nami:.ping'), 'fast ping blocked by anime command')
+assert(events.includes('done:nami:.lyrics N95 Kendrick Lamar'), 'lyrics blocked behind slow anime command')
+assert(events.includes('done:nami:.sticker'), 'sticker blocked behind slow anime command')
 assert(!events.includes('start:nami:1'), 'stateful selection overtook anime')
 
 // The same slow anime must not obstruct Josia or a separate Nami chat.
@@ -79,4 +91,4 @@ unlock()
 await Promise.all([held, follow])
 assert.equal(warnings.length,1)
 assert.deepEqual(limited.stats(), { chats:0, queued:0 })
-console.log('PASS fast ping while anime stalls; independent bot/chat scheduling; FIFO choices; stale socket guard')
+console.log('PASS independent lyrics and stickers bypass slow chat commands; FIFO choices and stale socket guard')

@@ -23,23 +23,55 @@ export function effectiveSenderKey(row = {}) {
   return String(row.senderKey || '').trim() || activitySenderKey(row.participantJid)
 }
 
+// Link an unresolved LID to a phone identity only when the retained history
+// itself contains a verified resolution for that SAME participant JID.
+// Identical display names are never identity evidence: different people can
+// share a name, and an opaque LID must not be treated as a phone number.
+function verifiedActivityAliases(rows) {
+  const byParticipant = new Map()
+  for (const row of rows) {
+    if (row?.fromBot) continue
+    const key = effectiveSenderKey(row)
+    if (!/^\d{7,15}$/.test(key)) continue
+    const participant = activitySenderKey(row.participantJid)
+    if (!participant || participant === key) continue
+    if (!byParticipant.has(participant)) byParticipant.set(participant, new Set())
+    byParticipant.get(participant).add(key)
+  }
+  const verified = new Map()
+  for (const [participant, phoneKeys] of byParticipant) {
+    // Conflicting mappings are unsafe to infer from.
+    if (phoneKeys.size === 1) verified.set(participant, [...phoneKeys][0])
+  }
+  return verified
+}
+
 function freshMember(key) {
-  return { key, name:'Member', messages:0, text:0, photos:0, videos:0, stickers:0, audio:0, documents:0, otherMedia:0, media:0 }
+  return { key, identityKeys:[key], name:'Member', messages:0, text:0, photos:0, videos:0, stickers:0, audio:0, documents:0, otherMedia:0, media:0 }
 }
 
 export function aggregateActivity(rows = [], { nowMs = Date.now(), period = '7d' } = {}) {
   const window = activityPeriod(period)
   const cutoff = nowMs - window.hours * 3600000
+  const eligible = rows.filter(row => {
+    if (row?.fromBot) return false
+    const atMs = Number(row?.atMs || 0)
+    return atMs > 0 && atMs >= cutoff && atMs <= nowMs + 60000
+  })
+  const aliases = verifiedActivityAliases(eligible)
   const members = new Map()
   let total = 0
-  for (const row of rows) {
-    if (row?.fromBot) continue
-    const atMs = Number(row?.atMs || 0)
-    if (!atMs || atMs < cutoff || atMs > nowMs + 60000) continue
-    const key = effectiveSenderKey(row)
-    if (!key) continue
+  for (const row of eligible) {
+    const recordedKey = effectiveSenderKey(row)
+    if (!recordedKey) continue
+    const participantKey = activitySenderKey(row.participantJid)
+    const key = aliases.get(recordedKey) || aliases.get(participantKey) || recordedKey
     if (!members.has(key)) members.set(key, freshMember(key))
     const member = members.get(key)
+    for (const identity of [recordedKey, participantKey]) {
+      if (!identity || (identity !== key && aliases.get(identity) !== key)) continue
+      if (!member.identityKeys.includes(identity)) member.identityKeys.push(identity)
+    }
     const name = String(row.speaker || '').trim()
     if (name && !/^(?:unknown|whatsapp user)$/i.test(name) && member.name === 'Member') {
       member.name = name.slice(0, 50).replace(/[\r\n\t]+/g, ' ')

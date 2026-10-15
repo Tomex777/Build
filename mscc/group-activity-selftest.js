@@ -38,6 +38,31 @@ assert.equal(groups.ranked[0].messages,5)
 assert.equal(groups.ranked[0].rank,1)
 assert.deepEqual(activityBadges(75).earned.map(x => x.name), ['Contributor','Regular'])
 
+// A single participant may appear as an unresolved LID in old messages and as
+// a verified phone sender later. Reconcile ONLY via the matching participant
+// JID, not by speaker name or the numeric component of a LID.
+const normalizedAliases = aggregateActivity([
+  { messageId:'lid-old', atMs:now - 4000, participantJid:'90123@lid', senderKey:'jid:90123@lid', speaker:'Seven 7' },
+  { messageId:'phone-later', atMs:now - 3000, participantJid:'90123@lid', senderKey:'2348012345678', speaker:'Seven 7' },
+  { messageId:'phone-direct', atMs:now - 2000, participantJid:'2348012345678@s.whatsapp.net', senderKey:'2348012345678', speaker:'Seven 7' },
+  { messageId:'other-person', atMs:now - 1000, participantJid:'2349099999999@s.whatsapp.net', senderKey:'2349099999999', speaker:'Seven 7' },
+], { nowMs:now })
+assert.equal(normalizedAliases.total,4)
+assert.equal(normalizedAliases.uniqueMembers,2, 'never merge distinct WhatsApp users only because names match')
+assert.equal(normalizedAliases.ranked[0].messages,3)
+assert.equal(normalizedAliases.ranked[0].key,'2348012345678')
+assert(normalizedAliases.ranked[0].identityKeys.includes('jid:90123@lid'))
+
+// If the same opaque LID is linked to conflicting phones, no automatic merge
+// is justified.
+const ambiguousAliases = aggregateActivity([
+  { atMs:now - 3000, participantJid:'90124@lid', senderKey:'jid:90124@lid', speaker:'Shared name' },
+  { atMs:now - 2000, participantJid:'90124@lid', senderKey:'2348111111111', speaker:'Shared name' },
+  { atMs:now - 1000, participantJid:'90124@lid', senderKey:'2348222222222', speaker:'Shared name' },
+], { nowMs:now })
+assert.equal(ambiguousAliases.uniqueMembers,3)
+
+
 const dir = await mkdtemp(join(tmpdir(), 'mscc-group-activity-'))
 const file = join(dir,'shared.sqlite')
 try {
