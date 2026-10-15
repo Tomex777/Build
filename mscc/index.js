@@ -70,6 +70,10 @@ import { createInboundMessageGuard, matchesDisplayedChoice } from './inbound-mes
 import { createCommandTiming } from './command-performance.js'
 import { createMessageScheduler } from './command-scheduler.js'
 import { resolveIdentityWithDeadline } from './identity-resolution.js'
+import {
+  canonicalUserKey, isOpaqueLid, readAuthLidPhone,
+  recordVerifiedLidPhone, storedLidPhone, verifiedIdentityKeys,
+} from './user-identity.js'
 import { chessRecordAcceptsInput } from './utils/chess-game.js'
 import { ticTacToeRecordAcceptsInput } from './utils/tictactoe-game.js'
 import { checkersRecordAcceptsInput } from './utils/checkers-game.js'
@@ -192,7 +196,7 @@ const makeAccount = record => ({
   sock: null, connected: false, registered: false, invalid: false,
   generation: 0, reconnectTimer: null, reconnectAttempts: 0, ambiguous500Attempts: 0, nextReconnectAt: 0,
   lastConnectedAt: 0, lastDisconnectedAt: 0, lastDisconnectCode: null, disconnectReason: '',
-  credSave: Promise.resolve(), authFlush: null,
+  credSave: Promise.resolve(), authFlush: null, authKeys: null,
   pairingMode: '', pairingCode: '', pairingQr: '', pairingError: '',
   lastQr: '', lastCodeAt: 0, pairingRequested: false,
   op: Promise.resolve()
@@ -1132,35 +1136,45 @@ function runOp(account, fn) {
 async function resolvePhoneJid(account, jid) {
   const normalized = normalizeJid(jid)
   if (!normalized) return ''
-  if (normalized.endsWith('@s.whatsapp.net')) return normalized
+  if (verifiedPhoneNumber(normalized)) return normalized
+  if (!isOpaqueLid(normalized)) return normalized
+
+  // Look up only verified Baileys mappings. LID digits are NOT phone numbers.
+  const saved = storedLidPhone(sharedStorage, normalized)
+  if (saved) return saved
+  const generation = account.generation
+  const rememberMapping = candidate => {
+    if (generation !== account.generation || !verifiedPhoneNumber(candidate)) return ''
+    return recordVerifiedLidPhone(sharedStorage, normalized, candidate)
+  }
+  const fromAuth = await readAuthLidPhone(account.authKeys, normalized)
+  if (fromAuth) return rememberMapping(fromAuth) || normalized
+
   const key = String(account?.id || '') + '|' + normalized
   const cached = senderResolutionCache.get(key)
   if (cached && Date.now() - cached.at < (cached.ttlMs || SENDER_CACHE_TTL_MS)) {
     return cached.phoneJid
   }
-  if (normalized.endsWith('@lid') || normalized.endsWith('@hosted.lid')) {
-    const generation = account.generation
-    const cacheIdentity = (phoneJid, ttlMs = SENDER_CACHE_TTL_MS) => {
-      // An old socket must not update sender identities after a reconnect.
-      if (generation !== account.generation) return
-      senderResolutionCache.set(key, { phoneJid, at:Date.now(), ttlMs })
-      while (senderResolutionCache.size > SENDER_CACHE_MAX) {
-        senderResolutionCache.delete(senderResolutionCache.keys().next().value)
-      }
-    }
-    const phoneJid = await resolveIdentityWithDeadline({
-      jid:normalized,
-      lookup: id => account.sock?.findUserId?.(id),
-      normalize:normalizeJid,
-      timeoutMs:LID_LOOKUP_TIMEOUT_MS,
-      onResolved:phone => cacheIdentity(phone),
+  const cacheIdentity = (candidate, ttlMs = SENDER_CACHE_TTL_MS) => {
+    if (generation !== account.generation) return
+    const verified = verifiedPhoneNumber(candidate) ? rememberMapping(candidate) : ''
+    senderResolutionCache.set(key, {
+      phoneJid:verified || normalized, at:Date.now(), ttlMs,
     })
-    // An unresolved LID never grants phone-number-based owner access.
-    // Briefly cache misses to avoid repeated 2.5s waits, but allow retries.
-    cacheIdentity(phoneJid, phoneJid === normalized ? 10000 : SENDER_CACHE_TTL_MS)
-    return phoneJid
+    while (senderResolutionCache.size > SENDER_CACHE_MAX) {
+      senderResolutionCache.delete(senderResolutionCache.keys().next().value)
+    }
   }
-  return normalized
+  const candidate = await resolveIdentityWithDeadline({
+    jid:normalized,
+    lookup: id => account.sock?.findUserId?.(id),
+    normalize:normalizeJid,
+    timeoutMs:LID_LOOKUP_TIMEOUT_MS,
+    onResolved:phone => cacheIdentity(phone),
+  })
+  const verified = verifiedPhoneNumber(candidate) ? rememberMapping(candidate) : ''
+  cacheIdentity(verified || normalized, verified ? SENDER_CACHE_TTL_MS : 10000)
+  return verified || normalized
 }
 
 async function resolveSender(account, msg) {
@@ -1203,7 +1217,7 @@ async function jidBelongsToAccount(account, jid) {
   if (!normalized) return false
   if (normalizeJid(account.sock?.user?.id) === normalized || normalizeJid(account.sock?.user?.lid) === normalized) return true
   const phoneJid = await resolvePhoneJid(account, normalized)
-  return Boolean(account.number && jidUser(phoneJid) === account.number)
+  return Boolean(account.number && verifiedPhoneNumber(phoneJid) === account.number)
 }
 
 function escapeAssistantRegExp(value) {
@@ -1343,7 +1357,7 @@ async function groupPersonalityPresence(account, chat) {
 }
 
 function senderPersonalityFromPresence(authority, presence = []) {
-  const sender = digits(authority?.senderNumber || jidUser(authority?.senderJid))
+  const sender = authority?.senderNumber || ''
   if (!sender) return ''
   const row = presence.find(item => digits(jidUser(item?.mentionJid)) === sender)
   return String(row?.profileId || '')
@@ -1528,12 +1542,16 @@ function setPublicSudoNumber(phoneNumber, enabled) {
 
 async function authorityContext(account, msg) {
   const senderJid = await resolveSender(account, msg)
-  const senderNumber = jidUser(senderJid)
-  const isSupremeOwner = controlNumbers.has(senderNumber)
+  const senderNumber = verifiedPhoneNumber(senderJid)
+  const senderKey = canonicalUserKey(sharedStorage, senderJid)
+  const senderIdentityKeys = verifiedIdentityKeys(sharedStorage, senderJid)
+  const isSupremeOwner = Boolean(senderNumber && controlNumbers.has(senderNumber))
   const isSudo = isPublicSudoNumber(senderNumber)
   return {
     senderJid,
     senderNumber,
+    senderKey,
+    senderIdentityKeys,
     isSupremeOwner,
     isSudo,
     isPublicOwner:isSupremeOwner || isSudo,
@@ -1611,8 +1629,8 @@ async function resolveDirectPeer(account, msg) {
 
 async function isPrivateControlContext(account, msg, authority = null) {
   const chat = normalizeJid(msg?.key?.remoteJid)
-  const sender = jidUser(authority?.senderJid || await resolveSender(account, msg))
-  const peer = jidUser(await resolveDirectPeer(account, msg))
+  const sender = verifiedPhoneNumber(authority?.senderJid || await resolveSender(account, msg))
+  const peer = verifiedPhoneNumber(await resolveDirectPeer(account, msg))
   return isPrivateOwnerDm({
     account,
     mainAccountId: destinationIdFor(),
@@ -2278,9 +2296,8 @@ async function shouldExecutePublicCommand(account, msg, command) {
 function commandReplySessionKey(account, msg, authority = {}) {
   const chat = normalizeJid(msg?.key?.remoteJid)
   const user = String(
-    authority.senderNumber ||
-    jidUser(msg?.key?.participant) ||
-    jidUser(chat) ||
+    authority.senderKey ||
+    canonicalUserKey(sharedStorage, msg?.key?.participant || chat) ||
     'unknown'
   )
   return [account?.id || '', chat, user].join('|')
@@ -2858,6 +2875,7 @@ async function closeAccount(a) {
   await a.credSave
   await a.authFlush?.()
   a.authFlush = null
+  a.authKeys = null
 }
 
 async function makePairOutput(account) {
@@ -2951,6 +2969,7 @@ async function startAccount(account) {
   if (generation !== account.generation || !account.enabled ||
       account.invalid || account.paused || account.sock) return
   account.authFlush = flush
+  account.authKeys = state.keys
   account.registered = Boolean(state.creds.registered)
   account.nextReconnectAt = 0
 
