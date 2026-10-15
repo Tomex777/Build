@@ -35,9 +35,9 @@ assert len(skin["joints"]) >= 150, "Anime character lost its full human skeleton
 assert any(gltf["nodes"][node].get("name") == "head" for node in skin["joints"])
 assert all("mesh" in node for node in gltf["nodes"] if node.get("name") in ("AnimeFace", "Body"))
 body = next(gltf["meshes"][node["mesh"]] for node in gltf["nodes"] if node.get("name") == "Body")
-assert len(body["primitives"]) >= 3, "Anime figure outfit materials were lost"
+assert len(body["primitives"]) == 1, "Anime skin must remain in one Filament-compatible primitive"
 assert set(body["extras"]["targetNames"]) == {"Body fat", "Muscularity", "Pointed ears", "Ear size"}
-assert len(set(pr["material"] for pr in body["primitives"])) >= 3
+assert "COLOR_0" in body["primitives"][0]["attributes"], "Anime colored costume was lost"
 for mesh in gltf["meshes"]:
     for primitive in mesh["primitives"]:
         assert {"POSITION", "NORMAL", "JOINTS_0", "WEIGHTS_0"} <= primitive["attributes"].keys(), mesh["name"]
