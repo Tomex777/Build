@@ -70,6 +70,34 @@ systemctl is-active --quiet cortex-agent.service || {
 [[ -f "$AGENT_TARGET" && -f "$HELPER_TARGET" ]] || {
   echo 'Cortex Agent files still missing after first-time bootstrap.' >&2; exit 1;
 }
+# The Agent runs unprivileged with ProtectSystem=strict. Its narrowly
+# allowlisted root helper atomically writes /etc/mscc.env by creating a sibling
+# temp file in /etc. A writable-file exception alone cannot rename it; the
+# protected *directory* must be writable inside the service mount namespace.
+# UNIX root ownership and the strictly validated sudo helper remain in force:
+# unprivileged Agent code still cannot modify other /etc files.
+readonly ENV_WRITER_OVERRIDE=/etc/systemd/system/cortex-agent.service.d/managed-env-writes.conf
+if ! sudo -n grep -Fxq 'ReadWritePaths=/etc' "$ENV_WRITER_OVERRIDE" 2>/dev/null; then
+  sudo -n install -d -m 0755 /etc/systemd/system/cortex-agent.service.d
+  printf '[Service]\\nReadWritePaths=/etc\\n' \
+    | sudo -n tee "$ENV_WRITER_OVERRIDE" >/dev/null
+  sudo -n chmod 0644 "$ENV_WRITER_OVERRIDE"
+  sudo -n systemctl daemon-reload
+  sudo -n systemctl restart cortex-agent.service
+  agent_started=0
+  for attempt in {1..12}; do
+    if systemctl is-active --quiet cortex-agent.service; then
+      agent_started=1
+      break
+    fi
+    sleep 1
+  done
+  [[ "$agent_started" == 1 ]] || {
+    echo 'Cortex Agent did not recover after enabling protected environment updates.' >&2
+    exit 1
+  }
+fi
+
 # MSCC chmod(700) resets POSIX ACL masks on /var/lib/mscc/data.
 # The installed Agent may be healthy for /status while failing /environment.
 # Repair only the exact read/traversal privileges needed by the Cloud screen.
