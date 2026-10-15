@@ -1633,7 +1633,7 @@ tap_coords "Scene options" "$(tag_coords "project-menu-$NEW_PROJECT_ID")"
 dump_window_once || fail "Could not inspect Duplicate scene action"
 tap_coords "Duplicate scene" "$(tag_coords "duplicate-project-$NEW_PROJECT_ID")"
 sleep 1
-COPY_PROJECT_NAME="$(adb_bounded shell run-as "$APP_ID" ls files/projects | tr -d '\r' | python3 -c 'import sys; excluded=set(sys.argv[1:]); print(next(s.strip() for s in sys.stdin if s.strip().endswith(".scene.json") and s.strip() not in excluded))' feasibility-stage.scene.json "$NEW_PROJECT_NAME")" || fail "Duplicated scene file was missing"
+COPY_PROJECT_NAME="$(adb_bounded shell run-as "$APP_ID" ls files/projects | tr -d '\r' | python3 -c 'import sys; excluded=set(sys.argv[1:]); print(next(s.strip() for s in sys.stdin if s.strip().endswith(".scene.json") and s.strip() not in excluded))' feasibility-stage.scene.json human-figure-study.scene.json "$NEW_PROJECT_NAME")" || fail "Duplicated scene file was missing"
 COPY_PROJECT_ID="${COPY_PROJECT_NAME%.scene.json}"
 adb_bounded shell run-as "$APP_ID" cat "files/projects/$COPY_PROJECT_NAME" > artist-scene-studio-saf-duplicate.json
 python3 - <<'PYCOPY' || fail "Duplicated scene lost its rig or attachments"
