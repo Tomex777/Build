@@ -108,8 +108,27 @@ class AnimePoseStudyInstrumentedTest {
                 neutral = screenshot("neutral")
             }
             val changed = distinctPixelDifference(posed, neutral)
+            var knownVisibleHumanContrast = -1
+            if (changed < 65) {
+                // One-shot diagnostic: same project/camera/lights, proven MakeHuman GLB.
+                // If this renders and our anime does not, the generated GLB or its
+                // Filament visibility path is defective; never silently ship it.
+                val human = PrototypeScene.starterAssets().single {
+                    it.asset?.assetId == PrototypeScene.HUMANOID_ASSET_ID
+                }
+                store.save(store.load(project.id).copy(actors = store.load(project.id).actors.map { actor ->
+                    if (actor.id == actorId) actor.copy(asset = human.asset, rig = null) else actor
+                }))
+                val control: File
+                ActivityScenario.launch(MainActivity::class.java).use {
+                    openScene()
+                    control = screenshot("control-original-human")
+                }
+                knownVisibleHumanContrast = distinctPixelDifference(posed, control)
+            }
             assertTrue(
-                "The anime pose did not deform the rendered 3D character ($changed sampled pixels)",
+                "Anime pose invisible or static ($changed changed pixels); " +
+                    "same-camera normal humanoid contrast=$knownVisibleHumanContrast",
                 changed >= 65,
             )
         } finally {
