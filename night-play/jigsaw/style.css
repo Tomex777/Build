@@ -55,3 +55,12 @@ dialog{max-width:calc(100% - 24px);border:1px solid #dce6db;border-radius:21px;b
 .play-mat .drag-layer{position:absolute;inset:0;z-index:2;width:100%;height:100%;
  pointer-events:none;touch-action:none;user-select:none;-webkit-user-select:none;
  background:transparent;box-shadow:none}
+
+/* No gallery frame before saved-state check; clear continuation choice. */
+.jigsaw-entry{max-width:650px;margin:clamp(34px,8vh,90px) auto 24px;text-align:center;background:#fff;border:1px solid #dce6dc;border-radius:20px;box-shadow:0 10px 28px #2b4b3312;padding:clamp(23px,6vw,39px) 22px;color:#244333}
+.jigsaw-entry h2{font-size:clamp(24px,5vw,34px);line-height:1.15;letter-spacing:-1.1px;margin:10px 0}.jigsaw-entry p{color:#789084;font-size:13px;line-height:1.6;margin:10px auto}
+.entry-actions{display:flex;justify-content:center;align-items:center;flex-wrap:wrap;gap:10px;margin:22px 0 12px}.entry-actions .game-button{min-height:49px;font-size:13px;padding:12px 18px}
+.jigsaw-entry .entry-footnote{font-size:11px;color:#8b9a90}
+.resume-gallery-banner{display:flex;align-items:center;justify-content:space-between;gap:10px;background:#eaf3ea;border:1px solid #c6ddce;border-radius:12px;padding:10px 12px;margin-bottom:14px;font-size:11px;color:#315744;font-weight:820}
+.resume-gallery-banner button{border:0;background:#285f43;color:#fff;font-size:11px;font-weight:840;padding:9px 11px;border-radius:9px;min-height:37px}
+@media(max-width:650px){.jigsaw-entry{margin:35px 6px 17px;padding:24px 13px}.entry-actions .game-button{width:100%}.resume-gallery-banner{font-size:10px;padding:8px}}
