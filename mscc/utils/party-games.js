@@ -135,12 +135,39 @@ export function endRound(ctx,type) {
   ctx.shared?.delete(NAMESPACE(type),chatKey(ctx))
 }
 export function canManage(ctx,record) {
-  return Boolean(record && (record.host === String(ctx.userKey || '') ||
+  const user = String(ctx.userKey || '')
+  const aliases = Array.isArray(ctx.identityKeys) ? ctx.identityKeys : []
+  return Boolean(record && (record.host === user || aliases.includes(record.host) ||
     ctx.isPublicOwner === true || ctx.isSessionOwner === true || ctx.isSupremeOwner === true))
+}
+
+// Migrate ONLY proven PN/LID aliases. Identical names and bare LID digits
+// are never proof that two stored score entries belong to one person.
+export function verifiedScores(ctx,type) {
+  const key = chatKey(ctx)
+  const data = ctx.shared?.get(SCORE_NS(type),key) || {}
+  const user = String(ctx.userKey || '')
+  const aliases = [...new Set(Array.isArray(ctx.identityKeys) ? ctx.identityKeys : [])]
+  if (!user || !aliases.includes(user)) return data
+  let touched = false
+  for (const alias of aliases) {
+    if (alias === user || !data[alias]) continue
+    const prior = data[user] || { name:'Player', score:0, wins:0 }
+    const secondary = data[alias]
+    data[user] = {
+      name:String(prior.name === 'Player' ? secondary.name : prior.name || secondary.name).slice(0,45),
+      score:Number(prior.score || 0) + Number(secondary.score || 0),
+      wins:Number(prior.wins || 0) + Number(secondary.wins || 0),
+    }
+    delete data[alias]
+    touched = true
+  }
+  if (touched) ctx.shared?.set(SCORE_NS(type),key,data)
+  return data
 }
 export function addScore(ctx,type,user,name,points) {
   const key=chatKey(ctx)
-  const data=ctx.shared?.get(SCORE_NS(type),key) || {}
+  const data=verifiedScores(ctx,type)
   const prior=data[user] || {name:'Player',score:0,wins:0}
   data[user]={name:String(name || prior.name).slice(0,45),score:prior.score+points,wins:prior.wins+1}
   // Bound the retained scoreboard to prevent unlimited group state growth.
@@ -149,7 +176,7 @@ export function addScore(ctx,type,user,name,points) {
   return data[user]
 }
 export function scoreText(ctx,type) {
-  const data=ctx.shared?.get(SCORE_NS(type),chatKey(ctx)) || {}
+  const data=verifiedScores(ctx,type)
   const rows=Object.values(data).sort((a,b)=>b.score-a.score).slice(0,10)
   return rows.length
     ? '🏆 *'+GAME_LABELS[type]+' leaderboard*\n'+rows.map((row,i)=>
