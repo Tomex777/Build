@@ -153,10 +153,39 @@ function harness() {
   assert.ok(state.actions.includes('demote:' + PLAYER_B))
   assert.equal(engine.get(CHAT).phase,'RED')
   await talk(PLAYER_C,'WHOOPS AGAIN')
+  assert.equal(engine.get(CHAT).phase,'FINALIZING')
+  clock += 2600
+  await engine.tick()
   assert.equal(engine.get(CHAT),null)
   assert.equal(state.announce,false)
   assert.equal(state.participants.find(p=>p.id===ADMIN).admin,'superadmin')
   assert.ok(state.participants.every(p=>p.id===ADMIN || p.admin===null))
+}
+
+// The final pair can BOTH fail on RED; don't prematurely crown a winner.
+{
+  clock += 100000
+  const {state,engine,adminContext,react,talk} = harness()
+  await engine.start(adminContext,'kick')
+  await react(PLAYER_A)
+  await react(PLAYER_B)
+  clock += 60001
+  await engine.tick()
+  for (const player of [PLAYER_A,PLAYER_B]) {
+    await talk(player,'first')
+    await talk(player,'second')
+    await talk(player,'third')
+  }
+  clock += 23000
+  await engine.tick()
+  clock += 1900
+  await engine.tick()
+  await talk(PLAYER_A,'oops red')
+  assert.equal(engine.get(CHAT).phase,'FINALIZING')
+  await talk(PLAYER_B,'also oops')
+  assert.equal(engine.get(CHAT),null)
+  assert.match(state.sent.at(-1).text,/No winner/)
+  assert.ok(!state.sent.some(message => /CHAMPION/.test(message.text || '')))
 }
 
 // CG stop is restricted to original admins, not newly promoted players.
