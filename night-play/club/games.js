@@ -432,6 +432,10 @@ const sq=e.target.closest("[data-estate-info]");if(sq&&active==="estate"){state.
 const action=e.target.closest("[data-action]");if(!action)return;
 switch(action.dataset.action){case"ludo-roll":ludoRoll();break;case"ludo-new":if(confirm("Restart the Ludo match?")){closeLudoSettings();reset("ludo");}break;case"ludo-sound":state.ludo.sound=!state.ludo.sound;render();break;case"estate-roll":estateRoll();break;case"estate-buy":estateDecision(true);break;case"estate-pass":estateDecision(false);break;case"estate-end":estateEnd();break;case"card-draw":cardDraw(active);break;case"snakes-roll":snakesRoll();break;case"draw-ready":drawReady();break;case"draw-next":drawNext();break;case"draw-guess":drawReadyToGuess();break;case"draw-clear":if(drawCtx){drawCtx.clearRect(0,0,800,600);}break;case"draw-erase":setBrush("erase");break;case"checkers-reset":reset("checkers");break;}
 });
+// Read-only motion diagnostics for real Chromium touch and frame tests.
+window.__nightWhotMotion=()=>({...cardMotionMetrics,busy:cardMotionBusy,
+ visibleFlights:document.querySelectorAll('.whot-flight').length,
+ cardNodes:board.querySelectorAll('.hand .whot-card').length});
 function go(){pick(new URL(location.href).searchParams.get("game")||"checkers");}
 window.addEventListener("popstate",go);
 go();
