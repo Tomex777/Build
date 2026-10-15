@@ -184,7 +184,7 @@ public final class MainActivity extends androidx.activity.ComponentActivity {
     heroHead.setPadding(Ui.dp(this, 8), Ui.dp(this, 8), Ui.dp(this, 8), Ui.dp(this, 8));
     TextView activeLabel = Ui.eyebrow(this, rule == null ? "ACTIVE DESIGN" : "SCHEDULED DESIGN");
     heroHead.addView(activeLabel, new LinearLayout.LayoutParams(0, -2, 1));
-    TextView live = Ui.text(this, "●  LIVE", 11, Ui.ACCENT);
+    TextView live = Ui.text(this, "●  SELECTED", 11, Ui.ACCENT);
     heroHead.addView(live);
     hero.addView(heroHead);
     TextView activeName = Ui.text(this, current.name, 19, Ui.TEXT);
@@ -223,7 +223,7 @@ public final class MainActivity extends androidx.activity.ComponentActivity {
     int index = 0;
     LinearLayout galleryRow = null;
     for (Domain.Theme t : store.themes) {
-      if (t.clockPreset) continue;
+      if (t.clockPreset || t.id.equals(current.id)) continue;
       if (index++ % 2 == 0) {
         galleryRow = Ui.row(this);
         galleryRow.setGravity(Gravity.TOP);
@@ -255,7 +255,7 @@ public final class MainActivity extends androidx.activity.ComponentActivity {
     if (index % 2 == 1 && galleryRow != null)
       galleryRow.addView(new View(this), new LinearLayout.LayoutParams(0, 1, 1));
     if (index == 0) {
-      TextView empty = Ui.text(this, "Your creations will appear here. Start with the + button.", 14, Ui.MUTED);
+      TextView empty = Ui.text(this, "Your next design starts with +. Your selected design lives above.", 14, Ui.MUTED);
       empty.setPadding(Ui.dp(this, 18), Ui.dp(this, 18), Ui.dp(this, 18), Ui.dp(this, 26));
       list.addView(empty);
     }
@@ -403,7 +403,7 @@ public final class MainActivity extends androidx.activity.ComponentActivity {
       editorState.history = new Domain.History();
     }
     history = editorState.history;
-    shell(t.name, true);
+    shell("Studio", true);
     bar.addView(
         Ui.icon(
             this,
@@ -435,10 +435,16 @@ public final class MainActivity extends androidx.activity.ComponentActivity {
             persist();
           }
         };
+    TextView editingName = Ui.text(this, "EDITING  ·  " + t.name, 12, Ui.MUTED);
+    editingName.setSingleLine();
+    editingName.setEllipsize(android.text.TextUtils.TruncateAt.END);
+    editingName.setLetterSpacing(.05f);
+    editingName.setPadding(Ui.dp(this, 16), Ui.dp(this, 4), Ui.dp(this, 16), Ui.dp(this, 9));
+    root.addView(editingName);
     root.addView(canvas, new LinearLayout.LayoutParams(-1, 0, 1));
     LinearLayout tools=Ui.row(this);
-    tools.setPadding(Ui.dp(this,8),Ui.dp(this,6),Ui.dp(this,8),Ui.dp(this,6));
-    tools.addView(Ui.tool(this,"Wallpaper","Wallpaper",this::wallpaperControls),new LinearLayout.LayoutParams(0,Ui.dp(this,64),1));
+    tools.setPadding(Ui.dp(this, 8), Ui.dp(this, 8), Ui.dp(this, 8), Ui.dp(this, 8));
+    tools.addView(Ui.tool(this,"Wallpaper","Wallpaper",this::wallpaperControls),new LinearLayout.LayoutParams(0,Ui.dp(this,65),1));
     tools.addView(Ui.tool(this,"Clock","Clocks",this::clockDesigner),new LinearLayout.LayoutParams(0,Ui.dp(this,64),1));
     tools.addView(Ui.tool(this,"Add","Add",this::addMenu),new LinearLayout.LayoutParams(0,Ui.dp(this,64),1));
     tools.addView(Ui.tool(this,"Layers","Layers",this::layers),new LinearLayout.LayoutParams(0,Ui.dp(this,64),1));
