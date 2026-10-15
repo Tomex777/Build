@@ -73,16 +73,20 @@ try{
    y:info.fromY+(info.toY-info.fromY)*t,id:11
   }]});
  }
- await page.waitForFunction(n=>window.__nightJigsawTest.snapshot().dragPaints>=n,paintStart.dragPaints+3);
- const moving=await page.evaluate(()=>window.__nightJigsawTest.snapshot());
- assert.equal(moving.staticPaints,paintStart.staticPaints,'Jigsaw drag never redraws 24 static pieces');
- assert.ok(moving.dragPaints>paintStart.dragPaints+2,'Only the selected piece redraws with the finger');
  const touchEndX=info.fromX+(info.toX-info.fromX)*.9;
  const touchEndY=info.fromY+(info.toY-info.fromY)*.9;
  const fingerDelta=await page.evaluate(({x,y})=>{
   const board=document.getElementById('puzzleCanvas'),r=board.getBoundingClientRect();
   return {x:(x/r.width)*board.width,y:(y/r.height)*board.height}
  },{x:touchEndX-info.fromX,y:touchEndY-info.fromY});
+ // Chromium can combine move events; wait for the LAST move, not an earlier one.
+ await page.waitForFunction(({x,y})=>{
+  const s=window.__nightJigsawTest.snapshot();
+  return s.selected&&Math.abs(s.selected.x-x)<3&&Math.abs(s.selected.y-y)<3;
+ },{x:initialPiece.x+fingerDelta.x,y:initialPiece.y+fingerDelta.y},{timeout:3000});
+ const moving=await page.evaluate(()=>window.__nightJigsawTest.snapshot());
+ assert.equal(moving.staticPaints,paintStart.staticPaints,'Jigsaw drag never redraws 24 static pieces');
+ assert.ok(moving.dragPaints>paintStart.dragPaints+2,'Only the selected piece redraws with the finger');
  assert.ok(Math.abs(moving.selected.x-(initialPiece.x+fingerDelta.x))<3 &&
    Math.abs(moving.selected.y-(initialPiece.y+fingerDelta.y))<3,
    'Picked-up piece follows finger coordinates without visible offset or lag');
