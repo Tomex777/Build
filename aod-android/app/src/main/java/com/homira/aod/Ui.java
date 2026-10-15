@@ -132,7 +132,9 @@ public final class Ui {
   private static ImageView glyph(Context c, String name) {
     ImageView v = new ImageView(c);
     v.setImageResource(drawable(name));
-    v.setImageTintList(ColorStateList.valueOf(ACCENT));
+    v.setImageTintList(new ColorStateList(
+        new int[][] {new int[] {android.R.attr.state_enabled}, new int[] {}},
+        new int[] {ACCENT, MUTED}));
     v.setScaleType(ImageView.ScaleType.FIT_CENTER);
     v.setPadding(dp(c, 12), dp(c, 12), dp(c, 12), dp(c, 12));
     return v;
