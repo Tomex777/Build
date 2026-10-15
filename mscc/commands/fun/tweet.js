@@ -1,4 +1,5 @@
 import { renderTweetCard } from '../../utils/social-card-renderer.js'
+import { randomSocialCardTime } from '../../utils/social-card-time.js'
 import { resolveSocialAuthor, socialCardMentions, parseSocialEngagementOptions } from '../../utils/social-card-command.js'
 import { downloadCommandMedia } from '../../utils/media-conversion.js'
 import { contextInfo, findViewOnceMedia } from '../../utils/whatsapp/messages.js'
@@ -46,6 +47,7 @@ export default {
       const image = await renderTweetCard({
         text,
         theme,
+        timestamp: randomSocialCardTime('tweet'),
         authorName:author.authorName,
         avatarBuffer:author.avatarBuffer,
         imageBuffer:media?.buffer || null,
