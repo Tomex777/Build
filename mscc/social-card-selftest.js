@@ -3,10 +3,10 @@ import { createCanvas, loadImage } from '@napi-rs/canvas'
 import tweetCommand from './commands/fun/tweet.js'
 import postCommand from './commands/fun/post.js'
 import { renderTweetCard, renderPostCard, wrapSocialText } from './utils/social-card-renderer.js'
-import { socialCardText, socialCardMentions, resolveSocialAuthor } from './utils/social-card-command.js'
+import { socialCardText, socialCardMentions, resolveSocialAuthor, parseSocialEngagementOptions } from './utils/social-card-command.js'
 import { resolveCommandMedia } from './utils/media-conversion.js'
 import { dispatchCommand } from './command-registry.js'
-import { randomTweetEngagement, randomPostEngagement } from './utils/tweet-engagement.js'
+import { randomTweetEngagement, randomPostEngagement, resolveTweetEngagement, resolvePostEngagement } from './utils/tweet-engagement.js'
 
 // Each tweet is a mock card with fresh, nonzero engagement. The injected
 // random functions make every popularity tier testable without flaky seeds.
@@ -294,4 +294,69 @@ ctx.args = ['instagram']
 await postCommand.run(ctx)
 assert.equal(replies.at(-1), 'Use .post [instagram|facebook|story] [@user] <text>, or reply to a photo with .post')
 
-console.log('PASS Night tweet & post mock engagement, social-style metrics, pictures, line breaks, names & glyphs')
+
+// Custom fake engagement controls: exact numbers, suffixes, comma grouping,
+// zero, invalid/duplicate options, Unicode/newlines and actual command output.
+const customArgs = { rawArgs:'dark @friend --likes=1.2k --replies 35 --reposts=0 First line ✨\nSecond line', args:[] }
+assert.deepEqual(
+  parseSocialEngagementOptions(customArgs,2),
+  { text:'First line ✨\nSecond line', engagement:{likeCount:1200,replyCount:35,repostCount:0},error:null },
+)
+assert.deepEqual(parseSocialEngagementOptions({rawArgs:'--likes=2m Hello'}).engagement,{likeCount:2_000_000})
+assert.deepEqual(parseSocialEngagementOptions({rawArgs:'--likes=1,234 Hi'}).engagement,{likeCount:1234})
+assert.equal(parseSocialEngagementOptions({rawArgs:'The likes=200 are a joke'}).text,'The likes=200 are a joke')
+assert.match(parseSocialEngagementOptions({rawArgs:'--likes=hello Hi'}).error,/Invalid --likes/)
+assert.match(parseSocialEngagementOptions({rawArgs:'--likes  Hi'}).error,/Invalid --likes/)
+assert.match(parseSocialEngagementOptions({rawArgs:'--replies=5 --replies=7 Hi'}).error,/more than once/)
+assert.match(parseSocialEngagementOptions({rawArgs:'--likes=1000000000 Hi'}).error,/Invalid --likes/)
+assert.match(parseSocialEngagementOptions({rawArgs:'--likes=50 --comments=10 Hi'}).error,/not available/)
+assert.deepEqual(
+  parseSocialEngagementOptions({rawArgs:'instagram --likes=120 --replies 3 --shares=2 Picture'},1,{type:'post',style:'instagram'}),
+  {text:'Picture',engagement:{likeCount:120,commentCount:3,shareCount:2},error:null},
+)
+assert.match(parseSocialEngagementOptions({rawArgs:'story --likes=50 Hi'},1,{type:'post',style:'story'}).error,/not available/)
+assert.equal(parseSocialEngagementOptions({rawArgs:'story --views=20 Hello'},1,{type:'post',style:'story'}).engagement.viewCount,20)
+assert.deepEqual(resolveTweetEngagement({likeCount:0,replyCount:0,repostCount:0}),
+  {likeCount:0,replyCount:0,repostCount:0})
+assert.deepEqual(resolveTweetEngagement({likeCount:100,replyCount:5,repostCount:3}),
+  {likeCount:100,replyCount:5,repostCount:3})
+const autoTweet = resolveTweetEngagement({likeCount:100},(low,high)=>high===undefined?0:low)
+assert.equal(autoTweet.likeCount,100)
+assert(autoTweet.replyCount>0 && autoTweet.replyCount<100)
+assert(autoTweet.repostCount>0 && autoTweet.repostCount<100)
+assert.deepEqual(resolvePostEngagement({likeCount:0,commentCount:0,shareCount:0,viewCount:0}),
+  {likeCount:0,commentCount:0,shareCount:0,viewCount:0})
+const autoPost = resolvePostEngagement({likeCount:100},(low,high)=>high===undefined?0:low)
+assert.equal(autoPost.likeCount,100)
+assert(autoPost.viewCount>autoPost.likeCount)
+
+const customTweetCtx = {
+  ...ctx,
+  args:['dark','--likes=1.2k','--replies=35','--reposts=0','Hello','🌙'],
+  rawArgs:'dark --likes=1.2k --replies=35 --reposts=0 Hello 🌙',
+}
+await tweetCommand.run(customTweetCtx)
+assert.equal(sent.length,3)
+assert.deepEqual(sent.at(-1).payload.image,await renderTweetCard({
+  theme:'dark',text:'Hello 🌙',authorName:'Owner User',
+  likeCount:1200,replyCount:35,repostCount:0,
+}))
+
+const customPostCtx = {
+  ...ctx,
+  args:['instagram','--likes=400','--comments=12','--shares=5','Hello!'],
+  rawArgs:'instagram --likes=400 --comments=12 --shares=5 Hello!',
+}
+await postCommand.run(customPostCtx)
+assert.equal(sent.length,4)
+// The randomized internal view count is not displayed on an Instagram card.
+assert.deepEqual(sent.at(-1).payload.image,await renderPostCard({
+  style:'instagram',text:'Hello!',authorName:'Owner User',
+  likeCount:400,commentCount:12,shareCount:5,viewCount:401,
+}))
+
+await tweetCommand.run({...ctx,args:['--likes=oops','Hi'],rawArgs:'--likes=oops Hi'})
+assert.equal(sent.length,4)
+assert.match(replies.at(-1),/Invalid --likes/)
+
+console.log('PASS Night tweet & post custom engagement, images, paragraphs, names & glyphs')
