@@ -28,11 +28,12 @@ jobs:
       - name: Extract audited Poetry Android V8 source
         run: |
           set -euo pipefail
-          test -s source-bundle.tar.gz.base64
-          base64 --decode source-bundle.tar.gz.base64 > /tmp/poetry-source.tar.gz
-          echo '285dfea28dd523375844137d2f006ff1d435a491c4c3117256a3a56ba7a39738  /tmp/poetry-source.tar.gz' | sha256sum -c -
-          tar -tzf /tmp/poetry-source.tar.gz | sed -n '1,12p'
-          tar -xzf /tmp/poetry-source.tar.gz
+          if [ ! -s app/src/main/java/com/night/poetry/MainActivity.kt ]; then
+            test -s source-bundle.tar.gz.base64
+            base64 --decode source-bundle.tar.gz.base64 > /tmp/poetry-source.tar.gz
+            echo '285dfea28dd523375844137d2f006ff1d435a491c4c3117256a3a56ba7a39738  /tmp/poetry-source.tar.gz' | sha256sum -c -
+            tar -xzf /tmp/poetry-source.tar.gz
+          fi
           grep -Eq 'minSdk[[:space:]]*=[[:space:]]*26' app/build.gradle.kts
           test -s app/src/main/java/com/night/poetry/MainActivity.kt
       - name: Publish extracted project as readable source files
@@ -49,9 +50,11 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
-      - uses: android-actions/setup-android@v3
       - name: Install Android 35 build packages
-        run: sdkmanager 'platforms;android-35' 'build-tools;35.0.0'
+        run: |
+          yes | "${ANDROID_HOME:-/usr/local/lib/android/sdk}/cmdline-tools/latest/bin/sdkmanager" 'platforms;android-35' 'build-tools;35.0.0' || true
+          test -d "${ANDROID_HOME:-/usr/local/lib/android/sdk}/platforms/android-35"
+          test -d "${ANDROID_HOME:-/usr/local/lib/android/sdk}/build-tools/35.0.0"
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.9'
@@ -84,13 +87,14 @@ jobs:
       - name: Extract audited source (works if source commit could not push)
         run: |
           set -euo pipefail
-          base64 --decode source-bundle.tar.gz.base64 | tar -xz
+          if [ ! -s app/src/main/java/com/night/poetry/MainActivity.kt ]; then
+            base64 --decode source-bundle.tar.gz.base64 | tar -xz
+          fi
           grep -Eq 'minSdk[[:space:]]*=[[:space:]]*26' app/build.gradle.kts
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
-      - uses: android-actions/setup-android@v3
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.9'
