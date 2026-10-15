@@ -1,6 +1,6 @@
 import { renderPostCard } from '../../utils/social-card-renderer.js'
-import { resolveSocialAuthor, socialCardText, socialCardMentions } from '../../utils/social-card-command.js'
-import { randomPostEngagement } from '../../utils/tweet-engagement.js'
+import { resolveSocialAuthor, socialCardMentions, parseSocialEngagementOptions } from '../../utils/social-card-command.js'
+import { resolvePostEngagement } from '../../utils/tweet-engagement.js'
 import { downloadCommandMedia } from '../../utils/media-conversion.js'
 import { contextInfo, findViewOnceMedia } from '../../utils/whatsapp/messages.js'
 
@@ -9,8 +9,8 @@ const STYLES = new Set(['instagram','facebook','story'])
 export default {
   name:'post',
   description:'Create a Night, Instagram, Facebook or story mock card, with photos and simulated engagement.',
-  usage:'.post [instagram|facebook|story] [@user] <text> (or reply to a photo)',
-  help:'Post mockups generate random likes/comments/shares or story views. Photos, paragraphs and Unicode are supported. These are fictional counters, not live platform engagement.',
+  usage:'.post [instagram|facebook|story] [@user] [--likes=1500 --comments=20 --shares=10] <text>',
+  help:'Set simulated likes/comments/shares with --likes=1500 --comments=20 --shares=10 (aliases --replies and --reposts). Stories take --views=2k only. Omit flags for random counts. Photos, paragraphs and Unicode remain supported.',
   async run(ctx) {
     const args = [...(ctx.args || [])]
     let style = 'generic'
@@ -21,7 +21,9 @@ export default {
     }
 
     const author = await resolveSocialAuthor(ctx, args)
-    const text = await socialCardMentions(ctx, socialCardText(ctx, styleConsumed + Number(author.targetConsumed)))
+    const parsed = parseSocialEngagementOptions(ctx, styleConsumed + Number(author.targetConsumed), { type:'post', style })
+    if (parsed.error) return ctx.reply(parsed.error)
+    const text = await socialCardMentions(ctx, parsed.text)
 
     const quoted = contextInfo(ctx.message?.message)?.quotedMessage
     if (findViewOnceMedia(ctx.message?.message) || findViewOnceMedia(quoted)) {
@@ -47,7 +49,7 @@ export default {
         authorName: author.authorName,
         avatarBuffer: author.avatarBuffer,
         imageBuffer: media?.buffer || null,
-        ...randomPostEngagement(),
+        ...resolvePostEngagement(parsed.engagement),
       })
 
       const chat = ctx.message?.key?.remoteJid
