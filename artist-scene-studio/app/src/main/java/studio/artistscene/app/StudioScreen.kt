@@ -116,6 +116,8 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.testTag
@@ -3132,11 +3134,20 @@ private fun NumericAxisEditor(
     onSet: (Float) -> Unit,
 ) {
     val focusManager = LocalFocusManager.current
+    val keyboardController = LocalSoftwareKeyboardController.current
+    val numberRequester = remember(inputKey, axis) { FocusRequester() }
+    var editing by remember(inputKey, axis) { mutableStateOf(false) }
     var text by remember(inputKey, axis) { mutableStateOf("%.2f".format(Locale.US, value)) }
     var focused by remember(inputKey, axis) { mutableStateOf(false) }
     var dirty by remember(inputKey, axis) { mutableStateOf(false) }
     LaunchedEffect(value, inputKey, axis) {
         if (!dirty) text = "%.2f".format(Locale.US, value)
+    }
+    LaunchedEffect(editing) {
+        if (editing) {
+            withFrameNanos { }
+            numberRequester.requestFocus()
+        }
     }
     fun commitText() {
         if (!dirty) return
@@ -3173,41 +3184,70 @@ private fun NumericAxisEditor(
         ) {
             Icon(Icons.Default.Remove, contentDescription = "Decrease ${axis.name}", tint = if (enabled) PrimaryText else MutedText)
         }
-        BasicTextField(
-            value = text,
-            onValueChange = { typed ->
-                dirty = true
-                text = typed.filter { it.isDigit() || it == '-' || it == '.' }.take(12)
-            },
-            enabled = enabled,
-            singleLine = true,
-            textStyle = TextStyle(
-                color = if (enabled) PrimaryText else MutedText,
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Medium,
-                textAlign = TextAlign.Center,
-            ),
-            cursorBrush = SolidColor(Color(0xFF8BABFF)),
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal, imeAction = ImeAction.Done),
-            keyboardActions = KeyboardActions(onDone = {
-                commitText()
-                focusManager.clearFocus()
-            }),
-            modifier = Modifier.weight(1f).height(42.dp)
-                .onFocusChanged { focus ->
-                    if (focused && !focus.isFocused) commitText()
-                    focused = focus.isFocused
-                }
-                .testTag("numeric-${axis.name.lowercase()}"),
-            decorationBox = { field ->
-                Box(
-                    modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(10.dp))
-                        .background(Color(0xFF161D27))
-                        .border(1.dp, if (focused) Color(0xFF8BABFF) else Color(0xFF455268), RoundedCornerShape(10.dp)),
-                    contentAlignment = Alignment.Center,
-                ) { field() }
-            },
-        )
+        // Display mode is a normal tappable readout, NOT a permanently focused
+        // editable text box. Scrolling the Inspector must never open the IME.
+        // Editing starts only after a deliberate tap of the value.
+        if (!editing) {
+            Box(
+                modifier = Modifier.weight(1f).height(42.dp)
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(Color(0xFF161D27))
+                    .border(1.dp, Color(0xFF455268), RoundedCornerShape(10.dp))
+                    .clickable(enabled = enabled) { editing = true }
+                    .testTag("numeric-${axis.name.lowercase()}"),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    "%.2f".format(Locale.US, value),
+                    color = if (enabled) PrimaryText else MutedText,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Medium,
+                    textAlign = TextAlign.Center,
+                )
+            }
+        } else {
+            BasicTextField(
+                value = text,
+                onValueChange = { typed ->
+                    dirty = true
+                    text = typed.filter { it.isDigit() || it == '-' || it == '.' }.take(12)
+                },
+                enabled = enabled,
+                singleLine = true,
+                textStyle = TextStyle(
+                    color = if (enabled) PrimaryText else MutedText,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Medium,
+                    textAlign = TextAlign.Center,
+                ),
+                cursorBrush = SolidColor(Color(0xFF8BABFF)),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal, imeAction = ImeAction.Done),
+                keyboardActions = KeyboardActions(onDone = {
+                    commitText()
+                    focusManager.clearFocus(force = true)
+                    keyboardController?.hide()
+                    editing = false
+                }),
+                modifier = Modifier.weight(1f).height(42.dp)
+                    .focusRequester(numberRequester)
+                    .onFocusChanged { focus ->
+                        if (focused && !focus.isFocused) {
+                            commitText()
+                            editing = false
+                        }
+                        focused = focus.isFocused
+                    }
+                    .testTag("numeric-${axis.name.lowercase()}"),
+                decorationBox = { field ->
+                    Box(
+                        modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(10.dp))
+                            .background(Color(0xFF161D27))
+                            .border(1.dp, Color(0xFF8BABFF), RoundedCornerShape(10.dp)),
+                        contentAlignment = Alignment.Center,
+                    ) { field() }
+                },
+            )
+        }
         IconButton(
             onClick = { onDelta(step) },
             enabled = enabled,
