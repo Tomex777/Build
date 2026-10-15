@@ -269,6 +269,16 @@ if [ -z "$WEB_SESSION_VALUE" ]; then
 fi
 upsert_env MSCC_WEB_HOST "127.0.0.1"
 sudo chmod 600 "$ENV_FILE"
+# A chmod(600) resets the POSIX ACL mask on root-owned /etc/mscc.env,
+# revoking the existing Cortex Agent's explicit named-user read grant.
+# Reinstate only that one service identity. Other users remain denied.
+if id -u cortex-agent >/dev/null 2>&1; then
+  command -v setfacl >/dev/null || {
+    echo "setfacl unavailable; Cortex Agent cannot read protected cloud configuration" >&2
+    exit 1
+  }
+  sudo setfacl -m 'u:cortex-agent:r--' "$ENV_FILE"
+fi
 
 echo ">>> Installing systemd service..."
 sudo tee "$SERVICE" >/dev/null <<EOF
