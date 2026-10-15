@@ -3,6 +3,9 @@ on:
   push:
     branches: [aod-android-foundation]
     paths: ['aod-android/**', '.github/workflows/aod-android.yml', '.github/scripts/aod-*']
+  pull_request:
+    branches: [aod-android-foundation]
+    paths: ['aod-android/**', '.github/workflows/aod-android.yml', '.github/scripts/aod-*']
   workflow_dispatch:
 permissions:
   contents: read

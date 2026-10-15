@@ -93,6 +93,8 @@ public final class MainActivity extends androidx.activity.ComponentActivity {
   private void shell(String label, boolean back) {
     root = Ui.column(this);
     root.setBackgroundColor(Ui.BG);
+    getWindow().setStatusBarColor(Ui.BG);
+    getWindow().setNavigationBarColor(Ui.BG);
     root.setOnApplyWindowInsetsListener(
         (v, insets) -> {
           v.setPadding(
@@ -105,17 +107,19 @@ public final class MainActivity extends androidx.activity.ComponentActivity {
     setContentView(root);
     root.requestApplyInsets();
     bar = Ui.row(this);
+    bar.setPadding(Ui.dp(this, 8), Ui.dp(this, 5), Ui.dp(this, 8), Ui.dp(this, 5));
     if (back) bar.addView(Ui.icon(this, "Back", this::home));
-    title = Ui.text(this, label, 20, Ui.TEXT);
+    title = Ui.text(this, label, 18, Ui.TEXT);
     title.setSingleLine();
     title.setEllipsize(android.text.TextUtils.TruncateAt.END);
-    title.setTypeface(null, android.graphics.Typeface.BOLD);
-    bar.addView(title, new LinearLayout.LayoutParams(0, Ui.dp(this, 56), 1));
+    title.setTypeface(android.graphics.Typeface.create("sans-serif-medium", android.graphics.Typeface.BOLD));
+    title.setPadding(Ui.dp(this, 10), 0, 0, 0);
+    bar.addView(title, new LinearLayout.LayoutParams(0, Ui.dp(this, 50), 1));
     root.addView(bar);
     canvas = null;
   }
 
-  private void toast(String value) {
+    private void toast(String value) {
     Toast.makeText(this, value, Toast.LENGTH_SHORT).show();
   }
 
@@ -155,89 +159,123 @@ public final class MainActivity extends androidx.activity.ComponentActivity {
     bar.addView(Ui.icon(this, "Settings", this::settings));
     bar.addView(Ui.icon(this, "Add", this::newDesign));
     ScrollView scroll = new ScrollView(this);
+    scroll.setFillViewport(false);
     LinearLayout list = Ui.column(this);
     scroll.addView(list);
     root.addView(scroll, new LinearLayout.LayoutParams(-1, 0, 1));
+
     Domain.Theme current = store.current(isCharging());
     Domain.Rule rule =
         store.override ? null : Domain.resolve(store.rules, ZonedDateTime.now(), isCharging());
-    list.addView(
-        Ui.text(
-            this,
-            rule == null
-                ? (store.override ? "Manual · " : "Current · ") + current.name
-                : rule.name + " · " + current.name,
-            14,
-            Ui.ACCENT));
-    LinearLayout hero=Ui.column(this);
-    hero.setPadding(Ui.dp(this,16),Ui.dp(this,8),Ui.dp(this,16),Ui.dp(this,12));
-    Surface featured=new Surface(this,current);
-    featured.passive=true; featured.shift=false; featured.designThumbnail=true;
-    featured.setContentDescription("Edit current design"); featured.setOnClickListener(v -> studio(current));
-    hero.addView(featured,new LinearLayout.LayoutParams(-1,Ui.dp(this,250)));
-    LinearLayout start=Ui.row(this);
-    start.addView(Ui.button(this,"Edit",() -> studio(current)),new LinearLayout.LayoutParams(0,Ui.dp(this,48),1));
-    start.addView(Ui.button(this,"From wallpaper",() -> {
-      Domain.Theme t=new Domain.Theme(); t.name="Wallpaper "+(store.themes.size()+1);
-      Domain.Element clock=new Domain.Element(); clock.y=96; Domain.applyClockFamily(clock,"Thin");
-      t.elements.add(clock); store.put(t); studio(t); chooseImage("outline");
-    }),new LinearLayout.LayoutParams(0,Ui.dp(this,48),1));
-    hero.addView(start); list.addView(hero);
-    list.addView(Ui.text(this,"Your designs",18,Ui.TEXT));
-    LinearLayout galleryRow = null;
+
+    list.addView(Ui.eyebrow(this, "THE ART OF ALWAYS ON"));
+    list.addView(Ui.headline(this, "Make time yours."));
+    // Keep the hero and the collection visible without scrolling on short phones.
+
+    LinearLayout hero = Ui.column(this);
+    hero.setBackground(Ui.bordered(this, Ui.PANEL, 20));
+    hero.setClipToOutline(true);
+    LinearLayout.LayoutParams heroParams = new LinearLayout.LayoutParams(-1, -2);
+    heroParams.setMargins(Ui.dp(this, 16), Ui.dp(this, 12), Ui.dp(this, 16), Ui.dp(this, 14));
+    list.addView(hero, heroParams);
+    LinearLayout heroHead = Ui.row(this);
+    heroHead.setPadding(Ui.dp(this, 8), Ui.dp(this, 8), Ui.dp(this, 8), Ui.dp(this, 8));
+    TextView activeLabel = Ui.eyebrow(this, rule == null ? "ACTIVE DESIGN" : "SCHEDULED DESIGN");
+    heroHead.addView(activeLabel, new LinearLayout.LayoutParams(0, -2, 1));
+    TextView live = Ui.text(this, "●  SELECTED", 11, Ui.ACCENT);
+    heroHead.addView(live);
+    hero.addView(heroHead);
+    TextView activeName = Ui.text(this, current.name, 19, Ui.TEXT);
+    activeName.setTypeface(android.graphics.Typeface.DEFAULT, android.graphics.Typeface.BOLD);
+    activeName.setPadding(Ui.dp(this, 22), 0, Ui.dp(this, 16), Ui.dp(this, 6));
+    activeName.setSingleLine();
+    activeName.setEllipsize(android.text.TextUtils.TruncateAt.END);
+    hero.addView(activeName);
+    Surface featured = new Surface(this, current);
+    featured.passive = true;
+    featured.shift = false;
+    featured.designThumbnail = true;
+    featured.setContentDescription("Edit current design");
+    featured.setOnClickListener(v -> studio(current));
+    hero.addView(featured, new LinearLayout.LayoutParams(-1, Ui.dp(this, 158)));
+    LinearLayout heroActions = Ui.row(this);
+    heroActions.setPadding(Ui.dp(this, 12), Ui.dp(this, 8), Ui.dp(this, 12), Ui.dp(this, 8));
+    heroActions.addView(Ui.primary(this, "Edit", () -> studio(current)), new LinearLayout.LayoutParams(0, Ui.dp(this, 48), 1));
+    View gap = new View(this);
+    heroActions.addView(gap, new LinearLayout.LayoutParams(Ui.dp(this, 8), 1));
+    heroActions.addView(Ui.button(this, "From wallpaper", () -> {
+      Domain.Theme t = new Domain.Theme(); t.name = "Wallpaper " + (store.themes.size() + 1);
+      Domain.Element clock = new Domain.Element(); clock.y = 96; Domain.applyClockFamily(clock, "Thin");
+      t.elements.add(clock);
+      try { store.put(t); studio(t); chooseImage("outline"); } catch (Exception e) { error(e); }
+    }), new LinearLayout.LayoutParams(0, Ui.dp(this, 48), 1));
+    hero.addView(heroActions);
+
+    LinearLayout section = Ui.row(this);
+    TextView heading = Ui.text(this, "Your collection", 20, Ui.TEXT);
+    heading.setTypeface(android.graphics.Typeface.DEFAULT, android.graphics.Typeface.BOLD);
+    section.addView(heading, new LinearLayout.LayoutParams(0, -2, 1));
+    section.addView(Ui.button(this, "Import", this::importTheme), new LinearLayout.LayoutParams(Ui.dp(this, 92), Ui.dp(this, 44)));
+    section.setPadding(Ui.dp(this, 2), 0, Ui.dp(this, 16), Ui.dp(this, 6));
+    list.addView(section);
     int index = 0;
+    LinearLayout galleryRow = null;
     for (Domain.Theme t : store.themes) {
+      if (t.clockPreset || t.id.equals(current.id)) continue;
       if (index++ % 2 == 0) {
         galleryRow = Ui.row(this);
         galleryRow.setGravity(Gravity.TOP);
+        galleryRow.setPadding(Ui.dp(this, 8), 0, Ui.dp(this, 8), 0);
         list.addView(galleryRow);
       }
       LinearLayout card = Ui.column(this);
-      card.setBackground(Ui.rounded(Ui.PANEL, Ui.dp(this, 12)));
+      card.setBackground(Ui.bordered(this, Ui.PANEL, 16));
+      card.setClipToOutline(true);
       LinearLayout.LayoutParams cp = new LinearLayout.LayoutParams(0, -2, 1);
-      cp.setMargins(Ui.dp(this, 8), Ui.dp(this, 8), Ui.dp(this, 8), Ui.dp(this, 8));
+      cp.setMargins(Ui.dp(this, 7), Ui.dp(this, 6), Ui.dp(this, 7), Ui.dp(this, 7));
       galleryRow.addView(card, cp);
-      Surface preview = new Surface(this, t);
-      preview.shift = false;
-      preview.passive = true;
-      preview.setContentDescription("Edit " + t.name + " design");
-      card.addView(preview, new LinearLayout.LayoutParams(-1, Ui.dp(this, 195)));
-      preview.setOnClickListener(v -> studio(t));
-      TextView name = Ui.text(this, t.name, 15, Ui.TEXT);
+      Surface thumbnail = new Surface(this, t);
+      thumbnail.shift = false;
+      thumbnail.passive = true;
+      thumbnail.designThumbnail = true;
+      thumbnail.setContentDescription("Edit " + t.name + " design");
+      thumbnail.setOnClickListener(v -> studio(t));
+      card.addView(thumbnail, new LinearLayout.LayoutParams(-1, Ui.dp(this, 150)));
+      LinearLayout details = Ui.row(this);
+      TextView name = Ui.text(this, t.name, 14, Ui.TEXT);
       name.setSingleLine();
       name.setEllipsize(android.text.TextUtils.TruncateAt.END);
       name.setOnClickListener(v -> studio(t));
-      card.addView(name);
-      LinearLayout actions = Ui.row(this);
-      actions.addView(
-          Ui.button(this, "Edit", () -> studio(t)),
-          new LinearLayout.LayoutParams(0, Ui.dp(this, 48), 1));
-      actions.addView(Ui.icon(this, "Preview", () -> preview(t, "Preview")));
-      actions.addView(Ui.icon(this, "More", () -> designMenu(t)));
-      card.addView(actions);
+      details.addView(name, new LinearLayout.LayoutParams(0, Ui.dp(this, 52), 1));
+      details.addView(Ui.icon(this, "More", () -> designMenu(t)));
+      card.addView(details);
     }
-    if (index % 2 == 1) galleryRow.addView(new View(this), new LinearLayout.LayoutParams(0, 1, 1));
+    if (index % 2 == 1 && galleryRow != null)
+      galleryRow.addView(new View(this), new LinearLayout.LayoutParams(0, 1, 1));
+    if (index == 0) {
+      TextView empty = Ui.text(this, "Your next design starts with +. Your selected design lives above.", 14, Ui.MUTED);
+      empty.setPadding(Ui.dp(this, 18), Ui.dp(this, 18), Ui.dp(this, 18), Ui.dp(this, 26));
+      list.addView(empty);
+    }
+    list.addView(Ui.text(this, "Designed here. Saved on your device.", 12, Ui.MUTED));
+
     LinearLayout bottom = Ui.row(this);
-    bottom.addView(
-        Ui.primary(this, "Use display", this::modes), new LinearLayout.LayoutParams(0, -2, 1));
-    bottom.addView(
-        Ui.button(this, "Import theme", this::importTheme),
-        new LinearLayout.LayoutParams(0, -2, 1));
+    bottom.setPadding(Ui.dp(this, 16), Ui.dp(this, 10), Ui.dp(this, 16), Ui.dp(this, 12));
+    bottom.setBackgroundColor(Ui.BG);
+    bottom.addView(Ui.primary(this, "Use display", this::modes), new LinearLayout.LayoutParams(-1, Ui.dp(this, 50)));
     root.addView(bottom);
     if (!store.settings().getBoolean("welcomed", false)) {
       store.settings().edit().putBoolean("welcomed", true).commit();
       new AlertDialog.Builder(this)
           .setTitle("Make space for your time")
-          .setMessage(
-              "Edit a design, then choose Preview, bedside Charging or your device's Ambient"
-                  + " screensaver. Notification access is optional.")
+          .setMessage("Edit a design, then choose Preview, bedside Charging or your device's Ambient screensaver. Notification access is optional.")
           .setPositiveButton("Start designing", (d, w) -> studio(store.find(store.active)))
           .setNegativeButton("Explore", null)
           .show();
     }
   }
 
-  private boolean isCharging() {
+    private boolean isCharging() {
     Intent i = registerReceiver(null, new IntentFilter(Intent.ACTION_BATTERY_CHANGED));
     return i != null && i.getIntExtra(BatteryManager.EXTRA_PLUGGED, 0) != 0;
   }
@@ -363,7 +401,7 @@ public final class MainActivity extends androidx.activity.ComponentActivity {
       editorState.history = new Domain.History();
     }
     history = editorState.history;
-    shell(t.name, true);
+    shell("Studio", true);
     bar.addView(
         Ui.icon(
             this,
@@ -395,13 +433,26 @@ public final class MainActivity extends androidx.activity.ComponentActivity {
             persist();
           }
         };
+    TextView editingName = Ui.text(this, "EDITING  ·  " + t.name, 12, Ui.MUTED);
+    editingName.setSingleLine();
+    editingName.setEllipsize(android.text.TextUtils.TruncateAt.END);
+    editingName.setLetterSpacing(.05f);
+    editingName.setPadding(Ui.dp(this, 16), Ui.dp(this, 4), Ui.dp(this, 16), Ui.dp(this, 9));
+    root.addView(editingName);
     root.addView(canvas, new LinearLayout.LayoutParams(-1, 0, 1));
     LinearLayout tools=Ui.row(this);
-    tools.setPadding(Ui.dp(this,8),Ui.dp(this,6),Ui.dp(this,8),Ui.dp(this,6));
-    tools.addView(Ui.tool(this,"Wallpaper","Wallpaper",this::wallpaperControls),new LinearLayout.LayoutParams(0,Ui.dp(this,64),1));
-    tools.addView(Ui.tool(this,"Clock","Clocks",this::clockDesigner),new LinearLayout.LayoutParams(0,Ui.dp(this,64),1));
-    tools.addView(Ui.tool(this,"Add","Add",this::addMenu),new LinearLayout.LayoutParams(0,Ui.dp(this,64),1));
-    tools.addView(Ui.tool(this,"Layers","Layers",this::layers),new LinearLayout.LayoutParams(0,Ui.dp(this,64),1));
+    tools.setPadding(Ui.dp(this, 8), Ui.dp(this, 8), Ui.dp(this, 8), Ui.dp(this, 8));
+    View[] toolItems = new View[] {
+        Ui.tool(this, "Wallpaper", "Wallpaper", this::wallpaperControls),
+        Ui.tool(this, "Clock", "Clocks", this::clockDesigner),
+        Ui.tool(this, "Add", "Add", this::addMenu),
+        Ui.tool(this, "Layers", "Layers", this::layers)
+    };
+    for (View item : toolItems) {
+      LinearLayout.LayoutParams slot = new LinearLayout.LayoutParams(0, Ui.dp(this, 65), 1);
+      slot.setMargins(Ui.dp(this, 4), 0, Ui.dp(this, 4), 0);
+      tools.addView(item, slot);
+    }
     root.addView(tools);
     contextBar = Ui.row(this);
     contextBar.setPadding(Ui.dp(this,12),0,Ui.dp(this,12),Ui.dp(this,8));
@@ -553,35 +604,50 @@ public final class MainActivity extends androidx.activity.ComponentActivity {
     if (sheet != null) sheet.dismiss();
     sheet = new Dialog(this);
     LinearLayout layout = Ui.column(this);
-    layout.setBackground(Ui.rounded(Ui.PANEL, Ui.dp(this, 20)));
+    layout.setBackground(Ui.rounded(Ui.PANEL, Ui.dp(this, 24)));
     layout.setFocusableInTouchMode(true);
     layout.requestFocus();
+    LinearLayout handleRow = Ui.row(this);
+    handleRow.setGravity(Gravity.CENTER);
+    handleRow.setPadding(0, Ui.dp(this, 10), 0, Ui.dp(this, 2));
+    View handle = new View(this);
+    handle.setBackground(Ui.rounded(Ui.MUTED, Ui.dp(this, 3)));
+    handleRow.addView(handle, new LinearLayout.LayoutParams(Ui.dp(this, 36), Ui.dp(this, 4)));
+    layout.addView(handleRow);
     LinearLayout head = Ui.row(this);
-    head.addView(Ui.text(this, label, 18, Ui.TEXT), new LinearLayout.LayoutParams(0, -2, 1));
-    head.addView(Ui.button(this, "Done", () -> sheet.dismiss()));
+    head.setPadding(Ui.dp(this, 6), 0, Ui.dp(this, 12), Ui.dp(this, 6));
+    TextView heading = Ui.text(this, label, 19, Ui.TEXT);
+    heading.setTypeface(android.graphics.Typeface.DEFAULT, android.graphics.Typeface.BOLD);
+    head.addView(heading, new LinearLayout.LayoutParams(0, -2, 1));
+    head.addView(Ui.button(this, "Done", () -> sheet.dismiss()), new LinearLayout.LayoutParams(Ui.dp(this, 76), Ui.dp(this, 44)));
     layout.addView(head);
+    layout.addView(Ui.separator(this));
     ScrollView scroll = new ScrollView(this);
+    scroll.setFillViewport(false);
+    scroll.setVerticalScrollBarEnabled(false);
     LinearLayout content = Ui.column(this);
+    content.setPadding(Ui.dp(this, 10), Ui.dp(this, 12), Ui.dp(this, 10), Ui.dp(this, 22));
     scroll.addView(content);
     layout.addView(scroll, new LinearLayout.LayoutParams(-1, 0, 1));
     sheet.setContentView(layout);
     Window window = sheet.getWindow();
     window.setBackgroundDrawableResource(android.R.color.transparent);
     window.setGravity(Gravity.BOTTOM);
-    WindowManager.LayoutParams attrs=window.getAttributes(); attrs.dimAmount=.15f; window.setAttributes(attrs);
+    window.addFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND);
+    WindowManager.LayoutParams attrs = window.getAttributes();
+    attrs.dimAmount = .36f;
+    window.setAttributes(attrs);
     sheet.setOnDismissListener(d -> {
-      if(canvas!=null) { canvas.wallpaperPreview=false; canvas.invalidate(); }
+      if (canvas != null) { canvas.wallpaperPreview = false; canvas.invalidate(); }
     });
-    window.setLayout(-1, (int) (getResources().getDisplayMetrics().heightPixels * .46));
-    window.setSoftInputMode(
-        WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE
-            | WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN);
+    window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE
+        | WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN);
     sheet.show();
-    window.setLayout(-1, (int) (getResources().getDisplayMetrics().heightPixels * .42));
+    window.setLayout(-1, (int) (getResources().getDisplayMetrics().heightPixels * .54));
     return content;
   }
 
-  private void number(
+    private void number(
       LinearLayout parent, String name, float value, java.util.function.Consumer<Float> set) {
     LinearLayout r = Ui.row(this);
     r.addView(
@@ -619,17 +685,27 @@ public final class MainActivity extends androidx.activity.ComponentActivity {
 
   private void toggle(
       LinearLayout parent, String name, boolean value, java.util.function.Consumer<Boolean> set) {
-    Switch s = new Switch(this);
-    s.setText(name);
-    s.setTextColor(Ui.TEXT);
-    s.setPadding(Ui.dp(this, 16), 0, Ui.dp(this, 16), 0);
-    s.setMinHeight(Ui.dp(this, 48));
-    s.setChecked(value);
-    s.setOnCheckedChangeListener((b, v) -> set.accept(v));
-    parent.addView(s);
+    Switch control = new Switch(this);
+    control.setText(name);
+    control.setTextSize(14);
+    control.setTextColor(Ui.TEXT);
+    control.setPadding(Ui.dp(this, 16), Ui.dp(this, 8), Ui.dp(this, 16), Ui.dp(this, 8));
+    control.setMinHeight(Ui.dp(this, 54));
+    control.setBackground(Ui.bordered(this, Ui.PANEL, 12));
+    control.setThumbTintList(new android.content.res.ColorStateList(
+        new int[][] {new int[] {android.R.attr.state_checked}, new int[] {}},
+        new int[] {Ui.ACCENT, Ui.MUTED}));
+    control.setTrackTintList(new android.content.res.ColorStateList(
+        new int[][] {new int[] {android.R.attr.state_checked}, new int[] {}},
+        new int[] {0xff507e70, 0xff39464d}));
+    control.setChecked(value);
+    control.setOnCheckedChangeListener((b, v) -> set.accept(v));
+    LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(-1, -2);
+    params.setMargins(Ui.dp(this, 6), Ui.dp(this, 3), Ui.dp(this, 6), Ui.dp(this, 3));
+    parent.addView(control, params);
   }
 
-  private void choose(
+    private void choose(
       LinearLayout parent,
       String name,
       String value,
@@ -876,76 +952,116 @@ public final class MainActivity extends androidx.activity.ComponentActivity {
   }
 
   public void clockDesigner() {
-    Domain.Element selected=canvas.selection();
-    Domain.Element found=selected!=null && selected.type.equals("Clock")?selected:null;
-    if(found==null) for(Domain.Element e:canvas.theme.elements) if(e.type.equals("Clock")) { found=e; break; }
-    if(found!=null && found.locked) {
-      canvas.selected=found.id; canvas.invalidate(); contextControls(); inspector(); return;
+    Domain.Element selected = canvas.selection();
+    Domain.Element found = selected != null && selected.type.equals("Clock") ? selected : null;
+    if (found == null)
+      for (Domain.Element e : canvas.theme.elements)
+        if (e.type.equals("Clock")) { found = e; break; }
+    if (found != null && found.locked) {
+      canvas.selected = found.id; canvas.invalidate(); contextControls(); inspector(); return;
     }
-    Domain.Element target=found;
-    LinearLayout content=sheet("Clock studio");
-    content.addView(Ui.text(this,"Choose a style",16,Ui.TEXT));
-    LinearLayout row=null;
-    for(int i=0;i<8;i++) {
-      if(i%2==0) { row=Ui.row(this); content.addView(row); }
-      String family=Domain.CLOCKS[i];
-      Domain.Theme sample=new Domain.Theme(); Domain.Element example=new Domain.Element();
-      Domain.applyClockFamily(example,family); example.x=(360-example.w)/2; example.y=(720-example.h)/2;
+    Domain.Element target = found;
+    LinearLayout content = sheet("Clock studio");
+    content.addView(Ui.eyebrow(this, "CLOCK FACES"));
+    TextView explanation = Ui.text(this, "Choose a look, then fine-tune every detail.", 14, Ui.MUTED);
+    content.addView(explanation);
+    LinearLayout row = null;
+    int[] colors = {0xffeef6f2, 0xfff5e4c7, 0xffb6e9db, 0xfff2c8d7,
+        0xffc9d3fa, 0xfff1e6d3, 0xffa9d7f2, 0xffc9eacf};
+    for (int i = 0; i < 8; i++) {
+      if (i % 2 == 0) { row = Ui.row(this); row.setGravity(Gravity.TOP); content.addView(row); }
+      String family = Domain.CLOCKS[i];
+      Domain.Theme sample = new Domain.Theme();
+      Domain.Element example = new Domain.Element();
+      Domain.applyClockFamily(example, family);
+      example.x = (360 - example.w) / 2;
+      example.y = (720 - example.h) / 2;
+      example.color = colors[i];
+      example.accent = Ui.ACCENT;
       sample.elements.add(example);
-      LinearLayout tile=Ui.column(this); tile.setBackground(Ui.rounded(Ui.BG,Ui.dp(this,12)));
-      Surface thumbnail=new Surface(this,sample); thumbnail.passive=true; thumbnail.shift=false; thumbnail.clockThumbnail=true;
-      thumbnail.setContentDescription("Clock style "+family);
-      tile.addView(thumbnail,new LinearLayout.LayoutParams(-1,Ui.dp(this,104)));
-      TextView label=Ui.text(this,family,14,Ui.TEXT); label.setGravity(Gravity.CENTER); tile.addView(label);
-      Runnable select=() -> {
+      LinearLayout tile = Ui.column(this);
+      tile.setBackground(Ui.bordered(this, Ui.CARD, 16));
+      tile.setClipToOutline(true);
+      Surface thumbnail = new Surface(this, sample);
+      thumbnail.passive = true;
+      thumbnail.shift = false;
+      thumbnail.clockThumbnail = true;
+      thumbnail.setContentDescription("Clock style " + family);
+      tile.addView(thumbnail, new LinearLayout.LayoutParams(-1, Ui.dp(this, 112)));
+      LinearLayout labelRow = Ui.row(this);
+      TextView label = Ui.text(this, family, 13, Ui.TEXT);
+      label.setTypeface(android.graphics.Typeface.DEFAULT, android.graphics.Typeface.BOLD);
+      labelRow.addView(label, new LinearLayout.LayoutParams(0, Ui.dp(this, 46), 1));
+      if (target != null && family.equals(target.family))
+        labelRow.addView(Ui.text(this, "✓", 17, Ui.ACCENT));
+      tile.addView(labelRow);
+      Runnable select = () -> {
         change(() -> {
-          Domain.Element e=target;
-          if(e==null) { e=new Domain.Element(); canvas.theme.elements.add(e); }
-          Domain.applyClockFamily(e,family); canvas.selected=e.id;
+          Domain.Element e = target;
+          if (e == null) { e = new Domain.Element(); canvas.theme.elements.add(e); }
+          Domain.applyClockFamily(e, family);
+          canvas.selected = e.id;
         });
-        canvas.invalidate(); inspector();
+        canvas.invalidate();
+        inspector();
       };
-      thumbnail.setOnClickListener(v -> select.run()); label.setOnClickListener(v -> select.run());
-      LinearLayout.LayoutParams params=new LinearLayout.LayoutParams(0,-2,1);
-      params.setMargins(Ui.dp(this,6),Ui.dp(this,6),Ui.dp(this,6),Ui.dp(this,6)); row.addView(tile,params);
+      thumbnail.setOnClickListener(v -> select.run());
+      tile.setOnClickListener(v -> select.run());
+      LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(0, -2, 1);
+      params.setMargins(Ui.dp(this, 5), Ui.dp(this, 6), Ui.dp(this, 5), Ui.dp(this, 6));
+      row.addView(tile, params);
     }
-    content.addView(Ui.text(this,"Build your own",16,Ui.TEXT));
-    content.addView(Ui.button(this,"Start custom clock",() -> {
+    content.addView(Ui.eyebrow(this, "MAKE IT YOUR OWN"));
+    content.addView(Ui.text(this, "Mix individual clock parts or save your arrangement for later.", 14, Ui.MUTED));
+    content.addView(Ui.button(this, "Start custom clock", () -> {
       change(() -> {
-        Domain.Element base=new Domain.Element();
-        for(Domain.Element e:canvas.theme.elements) if(e.type.equals("Clock")) { base=e.copy(); break; }
+        Domain.Element base = new Domain.Element();
+        for (Domain.Element e : canvas.theme.elements)
+          if (e.type.equals("Clock")) { base = e.copy(); break; }
         canvas.theme.elements.removeIf(e -> e.type.equals("Clock"));
-        Domain.Element hours=base.copy(); hours.id=UUID.randomUUID().toString(); hours.family="Hours";
-        hours.x=48; hours.w=112; hours.h=110; hours.size=72; hours.locked=false;
+        Domain.Element hours = base.copy();
+        hours.id = UUID.randomUUID().toString();
+        hours.family = "Hours"; hours.x = 48; hours.w = 112; hours.h = 110; hours.size = 72;
+        hours.locked = false;
         Domain.bounds(hours);
-        Domain.Element minutes=hours.copy(); minutes.id=UUID.randomUUID().toString(); minutes.family="Minutes";
-        minutes.x=200; minutes.color=base.accent; Domain.bounds(minutes);
-        canvas.theme.elements.add(hours); canvas.theme.elements.add(minutes); canvas.selected=hours.id;
+        Domain.Element minutes = hours.copy();
+        minutes.id = UUID.randomUUID().toString();
+        minutes.family = "Minutes"; minutes.x = 200; minutes.color = base.accent;
+        Domain.bounds(minutes);
+        canvas.theme.elements.add(hours);
+        canvas.theme.elements.add(minutes);
+        canvas.selected = hours.id;
       });
       canvas.invalidate(); inspector();
     }));
-    content.addView(Ui.button(this,"Add clock part",() -> new AlertDialog.Builder(this).setTitle("Clock part")
-        .setItems(new String[]{"Hours","Minutes","Seconds","Date","Text","Shape"},(d,w) -> {
-          addClockPart(new String[]{"Hours","Minutes","Seconds","Date","Text","Shape"}[w]);
+    content.addView(Ui.button(this, "Add clock part", () -> new AlertDialog.Builder(this)
+        .setTitle("Clock part")
+        .setItems(new String[] {"Hours", "Minutes", "Seconds", "Date", "Text", "Shape"}, (d, w) -> {
+          addClockPart(new String[] {"Hours", "Minutes", "Seconds", "Date", "Text", "Shape"}[w]);
           inspector();
         }).show()));
-    content.addView(Ui.button(this,"Save clock preset",() -> input("Clock preset name","My clock",name -> {
-      Domain.Theme preset=new Domain.Theme(); preset.name=name.trim(); preset.clockPreset=true;
-      for(Domain.Element e:canvas.theme.elements)
-        if(e.type.equals("Clock") || e.type.equals("Date") || e.type.equals("Shape") || e.type.equals("Text")) preset.elements.add(e.copy());
-      if(preset.elements.isEmpty()) { toast("Add a clock first."); return; }
-      try { store.put(preset); toast("Clock preset saved"); } catch(Exception ex) { error(ex); }
+    content.addView(Ui.button(this, "Save clock preset", () -> input("Clock preset name", "My clock", name -> {
+      Domain.Theme preset = new Domain.Theme(); preset.name = name.trim(); preset.clockPreset = true;
+      for (Domain.Element e : canvas.theme.elements)
+        if (e.type.equals("Clock") || e.type.equals("Date") || e.type.equals("Shape") || e.type.equals("Text"))
+          preset.elements.add(e.copy());
+      if (preset.elements.isEmpty()) { toast("Add a clock first."); return; }
+      try { store.put(preset); toast("Clock preset saved"); } catch (Exception ex) { error(ex); }
     })));
-    content.addView(Ui.button(this,"Add saved clock",() -> {
-      List<Domain.Theme> presets=new ArrayList<>();
-      for(Domain.Theme t:store.themes) if(t.clockPreset && !t.id.equals(canvas.theme.id)) presets.add(t);
-      if(presets.isEmpty()) { toast("Save a clock preset first."); return; }
-      String[] names=new String[presets.size()]; for(int i=0;i<names.length;i++) names[i]=presets.get(i).name;
-      new AlertDialog.Builder(this).setTitle("Saved clocks").setItems(names,(d,w) -> {
+    content.addView(Ui.button(this, "Add saved clock", () -> {
+      List<Domain.Theme> presets = new ArrayList<>();
+      for (Domain.Theme t : store.themes)
+        if (t.clockPreset && !t.id.equals(canvas.theme.id)) presets.add(t);
+      if (presets.isEmpty()) { toast("Save a clock preset first."); return; }
+      String[] names = new String[presets.size()];
+      for (int i = 0; i < names.length; i++) names[i] = presets.get(i).name;
+      new AlertDialog.Builder(this).setTitle("Saved clocks").setItems(names, (d, w) -> {
         change(() -> {
-          if(canvas.theme.elements.size()+presets.get(w).elements.size()>100) throw new IllegalArgumentException("A design can contain up to 100 elements.");
-          for(Domain.Element original:presets.get(w).elements) {
-            Domain.Element e=original.copy(); e.id=UUID.randomUUID().toString(); canvas.theme.elements.add(e); canvas.selected=e.id;
+          if (canvas.theme.elements.size() + presets.get(w).elements.size() > 100)
+            throw new IllegalArgumentException("A design can contain up to 100 elements.");
+          for (Domain.Element original : presets.get(w).elements) {
+            Domain.Element e = original.copy(); e.id = UUID.randomUUID().toString();
+            canvas.theme.elements.add(e); canvas.selected = e.id;
           }
         });
         canvas.invalidate(); sheet.dismiss();
@@ -953,7 +1069,7 @@ public final class MainActivity extends androidx.activity.ComponentActivity {
     }));
   }
 
-  public void addClockPart(String part) {
+    public void addClockPart(String part) {
     change(() -> {
       boolean clock=part.equals("Hours") || part.equals("Minutes") || part.equals("Seconds");
       Domain.Element e=new Domain.Element(); e.type=clock?"Clock":part;
@@ -1072,49 +1188,59 @@ public final class MainActivity extends androidx.activity.ComponentActivity {
     screen = "Schedules";
     shell("Schedules", true);
     bar.addView(Ui.icon(this, "Add", () -> ruleEditor(null)));
-    toggle(
-        root,
-        "Manual design override",
-        store.override,
-        v -> {
-          store.override = v;
-          store.save();
-        });
-    Domain.Rule active =
-        store.override ? null : Domain.resolve(store.rules, ZonedDateTime.now(), isCharging());
-    root.addView(
-        Ui.text(
-            this,
-            active == null
-                ? "Current · " + store.find(store.active).name
-                : "Active · " + active.name + " / " + store.find(active.themeId).name,
-            14,
-            Ui.ACCENT));
+    root.addView(Ui.eyebrow(this, "AUTOMATIONS"));
+    root.addView(Ui.headline(this, "Right time. Right look."));
+    root.addView(Ui.text(this, "Switch designs at night, during the day, or while charging.", 14, Ui.MUTED));
+    toggle(root, "Manual design override", store.override, v -> {
+      store.override = v;
+      store.save();
+      schedules();
+    });
+    Domain.Rule active = store.override ? null : Domain.resolve(store.rules, ZonedDateTime.now(), isCharging());
+    TextView activeLabel = Ui.text(this,
+        active == null ? "NOW SHOWING  ·  " + store.find(store.active).name
+            : "NOW SHOWING  ·  " + active.name + " / " + store.find(active.themeId).name,
+        13, Ui.ACCENT);
+    activeLabel.setBackground(Ui.bordered(this, Ui.PANEL, 12));
+    LinearLayout.LayoutParams activeParams = new LinearLayout.LayoutParams(-1, -2);
+    activeParams.setMargins(Ui.dp(this, 16), Ui.dp(this, 12), Ui.dp(this, 16), Ui.dp(this, 12));
+    root.addView(activeLabel, activeParams);
     ScrollView scroll = new ScrollView(this);
     LinearLayout list = Ui.column(this);
+    list.setPadding(Ui.dp(this, 12), 0, Ui.dp(this, 12), Ui.dp(this, 12));
     scroll.addView(list);
     root.addView(scroll, new LinearLayout.LayoutParams(-1, 0, 1));
-    if (store.rules.isEmpty())
-      list.addView(Ui.text(this, "Create a day, night or charging schedule.", 15, Ui.MUTED));
-    for (Domain.Rule r : store.rules) {
-      list.addView(
-          Ui.button(
-              this,
-              r.name
-                  + " · "
-                  + time(r.start)
-                  + "–"
-                  + time(r.end)
-                  + " · "
-                  + store.find(r.themeId).name,
-              () -> ruleEditor(r)));
+    list.addView(Ui.eyebrow(this, "YOUR SCHEDULES"));
+    if (store.rules.isEmpty()) {
+      LinearLayout empty = Ui.column(this);
+      empty.setBackground(Ui.bordered(this, Ui.PANEL, 18));
+      empty.addView(Ui.text(this, "Nothing on the calendar yet", 19, Ui.TEXT));
+      empty.addView(Ui.text(this, "Create a rule to change your display automatically.", 14, Ui.MUTED));
+      Button create = Ui.primary(this, "Create schedule", () -> ruleEditor(null));
+      LinearLayout.LayoutParams createParams = new LinearLayout.LayoutParams(-1, Ui.dp(this, 50));
+      createParams.setMargins(Ui.dp(this, 14), Ui.dp(this, 14), Ui.dp(this, 14), Ui.dp(this, 16));
+      empty.addView(create, createParams);
+      list.addView(empty);
     }
-    root.addView(
-        Ui.text(
-            this, "Higher priority wins. Equal priorities use a stable rule order.", 12, Ui.MUTED));
+    for (Domain.Rule r : store.rules) {
+      LinearLayout item = Ui.column(this);
+      item.setBackground(Ui.bordered(this, Ui.PANEL, 16));
+      TextView ruleName = Ui.text(this, r.name, 17, Ui.TEXT);
+      ruleName.setTypeface(android.graphics.Typeface.DEFAULT, android.graphics.Typeface.BOLD);
+      item.addView(ruleName);
+      item.addView(Ui.text(this, time(r.start) + " – " + time(r.end) + "   •   " + store.find(r.themeId).name,
+          13, Ui.MUTED));
+      item.setOnClickListener(v -> ruleEditor(r));
+      item.setFocusable(true);
+      item.setContentDescription("Edit schedule " + r.name);
+      LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(-1, -2);
+      lp.setMargins(Ui.dp(this, 4), Ui.dp(this, 6), Ui.dp(this, 4), Ui.dp(this, 6));
+      list.addView(item, lp);
+    }
+    list.addView(Ui.text(this, "If rules overlap, the highest priority wins.", 12, Ui.MUTED));
   }
 
-  private String time(int value) {
+    private String time(int value) {
     return String.format(Locale.ROOT, "%02d:%02d", value / 60, value % 60);
   }
 
@@ -1209,112 +1335,94 @@ public final class MainActivity extends androidx.activity.ComponentActivity {
               }));
   }
 
+  private void settingHour(LinearLayout parent, String label,
+      android.content.SharedPreferences prefs, String key, int fallback) {
+    int initial = prefs.getInt(key, fallback);
+    Button picker = Ui.button(this, label + "  ·  " + time(initial * 60), () -> {});
+    picker.setOnClickListener(v -> {
+      NumberPicker hours = new NumberPicker(this);
+      hours.setMinValue(0);
+      hours.setMaxValue(23);
+      hours.setValue(prefs.getInt(key, fallback));
+      hours.setWrapSelectorWheel(true);
+      hours.setContentDescription(label + " hour");
+      new AlertDialog.Builder(this)
+          .setTitle(label)
+          .setView(hours)
+          .setPositiveButton("Save", (dialog, which) -> {
+            int selectedHour = hours.getValue();
+            prefs.edit().putInt(key, selectedHour).apply();
+            picker.setText(label + "  ·  " + time(selectedHour * 60));
+          })
+          .setNegativeButton("Cancel", null)
+          .show();
+    });
+    LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(-1, Ui.dp(this, 50));
+    lp.setMargins(Ui.dp(this, 6), Ui.dp(this, 4), Ui.dp(this, 6), Ui.dp(this, 4));
+    parent.addView(picker, lp);
+  }
+
   public void settings() {
     screen = "Settings";
     shell("Settings", true);
     ScrollView scroll = new ScrollView(this);
+    scroll.setVerticalScrollBarEnabled(false);
     LinearLayout c = Ui.column(this);
+    c.setPadding(Ui.dp(this, 10), 0, Ui.dp(this, 10), Ui.dp(this, 28));
     scroll.addView(c);
     root.addView(scroll, new LinearLayout.LayoutParams(-1, 0, 1));
     android.content.SharedPreferences p = store.settings();
-    c.addView(Ui.text(this, "Display", 16, Ui.ACCENT));
-    toggle(
-        c,
-        "Burn-in pixel shifting",
-        p.getBoolean("shift", true),
-        v -> p.edit().putBoolean("shift", v).commit());
-    toggle(
-        c,
-        "Use design background when charging",
-        p.getBoolean("chargingBackground", false),
-        v -> p.edit().putBoolean("chargingBackground", v).commit());
-    toggle(
-        c,
-        "Use device brightness",
-        p.getBoolean("deviceBrightness", false),
-        v -> p.edit().putBoolean("deviceBrightness", v).commit());
-    number(
-        c,
-        "Brightness (0–1)",
-        p.getFloat("brightness", .12f),
-        v -> p.edit().putFloat("brightness", Domain.clamp(v, .01f, 1)).commit());
-    toggle(
-        c,
-        "Dim at night",
-        p.getBoolean("night", true),
-        v -> p.edit().putBoolean("night", v).commit());
-    number(
-        c,
-        "Night brightness",
-        p.getFloat("nightBrightness", .02f),
-        v -> p.edit().putFloat("nightBrightness", Domain.clamp(v, .01f, .2f)).commit());
-    number(
-        c,
-        "Night start hour",
-        p.getInt("nightStart", 22),
-        v -> p.edit().putInt("nightStart", (int) Domain.clamp(v, 0, 23)).commit());
-    number(
-        c,
-        "Night end hour",
-        p.getInt("nightEnd", 7),
-        v -> p.edit().putInt("nightEnd", (int) Domain.clamp(v, 0, 23)).commit());
-    c.addView(Ui.text(this, "Privacy on ambient displays", 16, Ui.ACCENT));
-    toggle(
-        c,
-        "Show media titles",
-        p.getBoolean("media", false),
-        v -> p.edit().putBoolean("media", v).commit());
-    toggle(
-        c,
-        "Show calendar titles",
-        p.getBoolean("calendar", false),
-        v -> p.edit().putBoolean("calendar", v).commit());
-    toggle(
-        c,
-        "Show personal text",
-        p.getBoolean("personal", false),
-        v -> p.edit().putBoolean("personal", v).commit());
-    toggle(
-        c,
-        "Allow public notification previews",
-        p.getBoolean("notificationText", false),
-        v -> p.edit().putBoolean("notificationText", v).commit());
-    c.addView(
-        Ui.button(
-            this,
-            Notifications.granted(this) ? "Notification access · on" : "Notification access · off",
-            this::notificationAccess));
+    c.addView(Ui.eyebrow(this, "DISPLAY"));
+    c.addView(Ui.headline(this, "Your display, your rules."));
+    c.addView(Ui.text(this, "Keep the screen gentle on your eyes and your battery.", 14, Ui.MUTED));
+    toggle(c, "Burn-in pixel shifting", p.getBoolean("shift", true),
+        v -> p.edit().putBoolean("shift", v).apply());
+    toggle(c, "Use design background while charging", p.getBoolean("chargingBackground", false),
+        v -> p.edit().putBoolean("chargingBackground", v).apply());
+    toggle(c, "Match device brightness", p.getBoolean("deviceBrightness", false),
+        v -> p.edit().putBoolean("deviceBrightness", v).apply());
+    range(c, "Display brightness", p.getFloat("brightness", .12f), .01f, 1,
+        v -> p.edit().putFloat("brightness", Domain.clamp(v, .01f, 1)).apply());
+    c.addView(Ui.eyebrow(this, "AFTER DARK"));
+    toggle(c, "Dim automatically at night", p.getBoolean("night", true),
+        v -> p.edit().putBoolean("night", v).apply());
+    range(c, "Night brightness", p.getFloat("nightBrightness", .02f), .01f, .2f,
+        v -> p.edit().putFloat("nightBrightness", Domain.clamp(v, .01f, .2f)).apply());
+    settingHour(c, "Night begins", p, "nightStart", 22);
+    settingHour(c, "Day begins", p, "nightEnd", 7);
+    c.addView(Ui.eyebrow(this, "AMBIENT PRIVACY"));
+    c.addView(Ui.text(this, "Private content stays hidden unless you explicitly allow it.", 13, Ui.MUTED));
+    toggle(c, "Show media titles", p.getBoolean("media", false),
+        v -> p.edit().putBoolean("media", v).apply());
+    toggle(c, "Show calendar titles", p.getBoolean("calendar", false),
+        v -> p.edit().putBoolean("calendar", v).apply());
+    toggle(c, "Show personal text", p.getBoolean("personal", false),
+        v -> p.edit().putBoolean("personal", v).apply());
+    toggle(c, "Show public notification previews", p.getBoolean("notificationText", false),
+        v -> p.edit().putBoolean("notificationText", v).apply());
+    c.addView(Ui.eyebrow(this, "CONNECTED SERVICES"));
+    c.addView(Ui.button(this,
+        Notifications.granted(this) ? "Notification access · On" : "Notification access · Off",
+        this::notificationAccess));
     Set<String> packages = new TreeSet<>();
     synchronized (Notifications.items) {
       for (Notifications.Item i : Notifications.items.values()) packages.add(i.pkg);
     }
     for (String pkg : packages)
-      toggle(
-          c,
-          "Hide " + pkg,
-          p.getBoolean("hide." + pkg, false),
-          v -> p.edit().putBoolean("hide." + pkg, v).commit());
-    c.addView(
-        Ui.button(
-            this,
-            checkSelfPermission(android.Manifest.permission.READ_CALENDAR)
-                    == PackageManager.PERMISSION_GRANTED
-                ? "Calendar access · on"
-                : "Calendar access · off",
-            () ->
-                requestPermissions(new String[] {android.Manifest.permission.READ_CALENDAR}, 40)));
-    c.addView(Ui.button(this, "Configure Ambient", this::modes));
-    c.addView(
-        Ui.text(
-            this,
-            "AOD · local-first\n"
-                + "Themes stay on this device. Shared themes include your custom text and images;"
-                + " review them before export.",
-            12,
-            Ui.MUTED));
+      toggle(c, "Hide " + pkg, p.getBoolean("hide." + pkg, false),
+          v -> p.edit().putBoolean("hide." + pkg, v).apply());
+    c.addView(Ui.button(this,
+        checkSelfPermission(android.Manifest.permission.READ_CALENDAR) == PackageManager.PERMISSION_GRANTED
+            ? "Calendar access · On" : "Calendar access · Off",
+        () -> requestPermissions(new String[] {android.Manifest.permission.READ_CALENDAR}, 40)));
+    c.addView(Ui.button(this, "Set up Ambient screensaver", this::modes));
+    c.addView(Ui.eyebrow(this, "LOCAL BY DESIGN"));
+    c.addView(Ui.text(this,
+        "Your designs stay on this device. Exports may include personal text or images — review before sharing.",
+        12, Ui.MUTED));
   }
 
-  private void chooseImage(String id) {
+    private void chooseImage(String id) {
     pendingImage = id;
     if (sheet != null) sheet.dismiss();
     Intent i = new Intent(Intent.ACTION_OPEN_DOCUMENT);
