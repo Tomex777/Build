@@ -9,7 +9,7 @@ mines:["Minesweeper","One tap at a time, clear the field.","Reveal every safe sq
 maze:["Maze Chase","Collect every dot. Avoid the chasers.","Swipe on the maze, use the arrows, or press WASD. Eat the dots; dodge the red ghosts. Collect all dots to win."]
 };
 let type="bird",frame=0,raf=null,interval=null,life=null,state=null,finished=false,paused=false,points=0,last=0;
-let gameStart=0;
+let gameStart=0,blockDirty=true;
 function stop(){if(raf!==null){cancelAnimationFrame(raf);raf=null;}if(interval!==null){clearInterval(interval);interval=null;}}
 function best(id){try{return Math.max(0,Number(localStorage.getItem("night-play-v1-"+id))||0);}catch{return 0;}}
 function record(id,n){const score=Math.round(Math.max(0,n));try{const key="night-play-v1-"+id;if(score>best(id))localStorage.setItem(key,String(score));const histKey="night-play-history-v1-"+id;let arr=[];try{arr=JSON.parse(localStorage.getItem(histKey)||"[]");}catch{}if(!Array.isArray(arr))arr=[];arr.push(score);localStorage.setItem(histKey,JSON.stringify(arr.slice(-12)));const countKey="night-play-history-count-v1-"+id;const count=Math.max(0,Number(localStorage.getItem(countKey))||0);localStorage.setItem(countKey,String(count+1));}catch{}}
@@ -17,7 +17,7 @@ function score(n){points=Math.max(0,Math.floor(n));$("score").textContent=String
 function message(t){$("message").textContent=t;}
 function end(text){if(finished)return;finished=true;stop();record(type,points);message(text+" · Tap Restart to play again.");}
 function drawText(text,y,size=24){ctx.fillStyle="#fff";ctx.font="900 "+size+"px system-ui,Arial";ctx.textAlign="center";ctx.fillText(text,c.width/2,y);}
-function pick(id){if(!metadata[id])id="bird";type=id;const [title,sub,rules]=metadata[id];$("title").textContent=title;$("subtitle").textContent=sub;$("rules").textContent=rules;[...$("picks").querySelectorAll("button")].forEach(b=>b.setAttribute("aria-current",String(b.dataset.game===id)));const url=new URL(location.href);url.searchParams.set("game",id);history.replaceState({},"",url.pathname+url.search);restart();}
+function pick(id){if(!metadata[id])id="bird";type=id;const [title,sub,rules]=metadata[id];$("title").textContent=title;$("subtitle").textContent=sub;$("rules").textContent=rules;document.title=title+" · NIGHT Play";[...$("picks").querySelectorAll("button")].forEach(b=>b.setAttribute("aria-current",String(b.dataset.game===id)));const url=new URL(location.href);url.searchParams.set("game",id);history.replaceState({},"",url.pathname+url.search);if($("settingsDialog").open)$("settingsDialog").close();restart();}
 function restart(){stop();last=0;gameStart=Date.now();finished=false;paused=false;score(0);message("Ready to play.");extra.replaceChildren();board.hidden=type!=="mines";c.hidden=type==="mines";c.className="mode-"+type;
 if(type==="bird")setupBird();if(type==="blocks")setupBlocks();if(type==="mines")setupMines();if(type==="maze")setupMaze();}
 function button(label,action,aria=label){return '<button type="button" data-control="'+action+'" aria-label="'+aria+'">'+label+'</button>';}
@@ -116,13 +116,14 @@ const pieceColors=["#51bce4","#f8cb4d","#b47bdd","#e76d45","#4888d7","#55bb85","
 function pieces(){return [...Array(7).keys()].sort(()=>Math.random()-.5);}
 function nextPiece(s){if(!s.bag.length)s.bag=pieces();const idx=s.bag.pop();s.cur={idx,cells:shapes[idx].map(([x,y])=>[x,y]),x:3,y:0};if(collision(s,0,0)){end("No space left!");}s.canHold=true;}
 function collision(s,dx,dy,cells=s.cur.cells){return cells.some(([x,y])=>{const xx=x+s.cur.x+dx,yy=y+s.cur.y+dy;return xx<0||xx>=10||yy>=20||(yy>=0&&s.grid[yy][xx]!==null);});}
-function setupBlocks(){c.width=300;c.height=600;state={grid:Array.from({length:20},()=>Array(10).fill(null)),cur:null,bag:[],time:0,lines:0,level:1,canHold:true};nextPiece(state);setControls(button("◀","left","Move left")+button("⟳","rotate","Rotate piece")+button("▶","right","Move right")+button("▼","down","Soft drop")+button("⬇","drop","Hard drop")+button("Ⅱ","pause","Pause"));message("Clear complete rows to score.");frameLoop(blockFrame);}
+function setupBlocks(){c.width=300;c.height=600;blockDirty=true;state={grid:Array.from({length:20},()=>Array(10).fill(null)),cur:null,bag:[],time:0,lines:0,level:1,canHold:true};nextPiece(state);setControls(button("◀","left","Move left")+button("⟳","rotate","Rotate piece")+button("▶","right","Move right")+button("▼","down","Soft drop")+button("⬇","drop","Hard drop")+button("Ⅱ","pause","Pause"));message("Clear complete rows to score.");frameLoop(blockFrame);}
 function rotate(s){const old=s.cur.cells,turn=old.map(([x,y])=>[3-y,x]);for(const shift of [0,-1,1,-2,2])if(!collision(s,shift,0,turn)){s.cur.cells=turn;s.cur.x+=shift;return;}}
-function blockMove(move){const s=state;if(type!=="blocks"||finished)return;if(move==="pause"){paused=!paused;message(paused?"Paused":"Back in the game");return;}if(paused)return;if(move==="left"&&!collision(s,-1,0))s.cur.x--;if(move==="right"&&!collision(s,1,0))s.cur.x++;if(move==="rotate")rotate(s);if(move==="down"){if(!collision(s,0,1))s.cur.y++;else lockBlock(s);}if(move==="drop"){while(!collision(s,0,1))s.cur.y++;lockBlock(s);}}
+function blockMove(move){const s=state;if(type!=="blocks"||finished)return;if(move==="pause"){paused=!paused;blockDirty=true;message(paused?"Paused":"Back in the game");return;}if(paused)return;blockDirty=true;if(move==="left"&&!collision(s,-1,0))s.cur.x--;if(move==="right"&&!collision(s,1,0))s.cur.x++;if(move==="rotate")rotate(s);if(move==="down"){if(!collision(s,0,1))s.cur.y++;else lockBlock(s);}if(move==="drop"){while(!collision(s,0,1))s.cur.y++;lockBlock(s);}}
 function lockBlock(s){for(const [x,y] of s.cur.cells){let xx=x+s.cur.x,yy=y+s.cur.y;if(yy<0){end("Stack too high!");return;}if(yy<20)s.grid[yy][xx]=s.cur.idx;}let count=0;for(let y=19;y>=0;y--){if(s.grid[y].every(k=>k!==null)){s.grid.splice(y,1);s.grid.unshift(Array(10).fill(null));count++;y++;}}
 if(count){const n=[0,100,300,500,800][count]*s.level;s.lines+=count;s.level=1+Math.floor(s.lines/10);score(points+n);message("Cleared "+count+" line"+(count===1?"":"s")+"!");}
 nextPiece(s);}
-function blockFrame(dt){const s=state;if(!paused&&!finished){s.time+=dt;if(s.time>Math.max(115,640-(s.level-1)*44)){s.time=0;if(!collision(s,0,1))s.cur.y++;else lockBlock(s);}}
+function blockFrame(dt){const s=state;if(!paused&&!finished){s.time+=dt;if(s.time>Math.max(115,640-(s.level-1)*44)){s.time=0;blockDirty=true;if(!collision(s,0,1))s.cur.y++;else lockBlock(s);}}
+if(!blockDirty)return;blockDirty=false;
 ctx.fillStyle="#172826";ctx.fillRect(0,0,300,600);for(let y=0;y<20;y++)for(let x=0;x<10;x++){drawBlock(x,y,s.grid[y][x]);}if(s.cur&&!finished)for(const [x,y] of s.cur.cells)drawBlock(x+s.cur.x,y+s.cur.y,s.cur.idx);
 ctx.strokeStyle="#596a5b";ctx.lineWidth=5;ctx.strokeRect(1,1,298,598);
 const info=extra;info.textContent="Lines: "+s.lines+" · Level: "+s.level;
@@ -141,9 +142,33 @@ score(s.open.filter(Boolean).length);
 if(s.open.filter(Boolean).length===81-s.mines){end("You cleared the whole field!");}
 drawMines();}
 function mineTap(i){if(finished)return;const s=state;if(s.flagMode){if(!s.open[i])s.flags[i]=!s.flags[i];drawMines();return;}revealAt(i);}
-function drawMines(){const s=state;board.innerHTML="";const fragment=document.createDocumentFragment();for(let i=0;i<81;i++){const b=document.createElement("button");b.type="button";b.dataset.tile=String(i);b.setAttribute("aria-label","Square "+(i+1)+(s.flags[i]?", flagged":s.open[i]?", revealed":""));if(s.open[i]){b.className="revealed"+(s.cells[i]===-1?" mine":"");if(s.cells[i]===-1)b.textContent="✹";else if(s.cells[i]>0){b.textContent=s.cells[i];b.style.color=["","#2868b1","#328455","#bc4242","#663a8d","#b27026","#257a7d","#424a4b","#111"][s.cells[i]];}}
-else if(s.flags[i]){b.textContent="⚑";b.className="flag";}fragment.appendChild(b);}board.append(fragment);if(!finished)message(s.flagMode?"Flag mode — mark suspected mines.":"Tap a square to uncover it.");
-extra.innerHTML='<div class="flag-row"><button type="button" data-control="reveal" aria-pressed="'+!s.flagMode+'">Reveal</button><button type="button" data-control="flag" aria-pressed="'+s.flagMode+'">Flag ⚑</button></div><p>Flags: '+s.flags.filter(Boolean).length+'/'+s.mines+' · Safe squares: '+s.open.filter(Boolean).length+'/'+(81-s.mines)+'</p>';if(s.started&&!finished&&points)score(s.open.filter(Boolean).length);}
+function drawMines(){
+ const s=state;
+ // Keep the 81 buttons mounted across reveals and flags, no mass DOM rebuild.
+ if(board.children.length!==81){
+  const fragment=document.createDocumentFragment();
+  for(let i=0;i<81;i++){const b=document.createElement("button");b.type="button";b.dataset.tile=String(i);fragment.appendChild(b)}
+  board.replaceChildren(fragment);
+ }
+ for(let i=0;i<81;i++){
+  const b=board.children[i],open=s.open[i],flagged=s.flags[i];
+  const klass=open?"revealed"+(s.cells[i]===-1?" mine":""):flagged?"flag":"";
+  const label="Square "+(i+1)+(flagged?", flagged":open?", revealed":"");
+  const value=open?(s.cells[i]===-1?"✹":s.cells[i]>0?String(s.cells[i]):""):flagged?"⚑":"";
+  if(b.className!==klass)b.className=klass;
+  if(b.textContent!==value)b.textContent=value;
+  if(b.getAttribute("aria-label")!==label)b.setAttribute("aria-label",label);
+  const color=open&&s.cells[i]>0?["","#2868b1","#328455","#bc4242","#663a8d","#b27026","#257a7d","#424a4b","#111"][s.cells[i]]:"";
+  if(b.style.color!==color)b.style.color=color;
+ }
+ if(!finished)message(s.flagMode?"Flag mode — mark suspected mines.":"Tap a square to uncover it.");
+ if(!extra.querySelector(".flag-row"))extra.innerHTML='<div class="flag-row"><button type="button" data-control="reveal">Reveal</button><button type="button" data-control="flag">Flag ⚑</button></div><p></p>';
+ extra.querySelector('[data-control="reveal"]').setAttribute("aria-pressed",String(!s.flagMode));
+ extra.querySelector('[data-control="flag"]').setAttribute("aria-pressed",String(s.flagMode));
+ const line="Flags: "+s.flags.filter(Boolean).length+"/"+s.mines+" · Safe squares: "+s.open.filter(Boolean).length+"/"+(81-s.mines);
+ const p=extra.querySelector("p");if(p.textContent!==line)p.textContent=line;
+ if(s.started&&!finished&&points)score(s.open.filter(Boolean).length);
+}
 function flagMode(f){state.flagMode=f;drawMines();}
 /* MAZE CHASE — 19x21 authored corridors, collectible dots and pursuing ghosts. */
 function setupMaze(){c.width=456;c.height=504;const walls=[];for(let y=0;y<21;y++){const row=[];for(let x=0;x<19;x++){let w=x===0||x===18||y===0||y===20;
@@ -166,6 +191,8 @@ if(s.invincible%2===0){ctx.fillStyle="#f6d461";ctx.beginPath();ctx.arc(s.p.x*ts+
 extra.textContent="Lives: "+s.lives+" · Dots left: "+s.total+(paused?" · PAUSED":"");if(paused){ctx.fillStyle="#112329bc";ctx.fillRect(0,0,456,504);drawText("PAUSED",250,34);}if(finished){ctx.fillStyle="#112329bc";ctx.fillRect(0,0,456,504);drawText("GAME OVER",250,31);}}
 function action(control){if(type==="bird"&&control==="flap")flap();if(type==="bird"&&control==="bird-skin")switchBird();if(type==="blocks")blockMove(control);if(type==="maze"){if(control==="pause"){paused=!paused;message(paused?"Paused":"Back in the maze");drawMaze();}else{const dirs={left:[-1,0],right:[1,0],up:[0,-1],down:[0,1]};if(dirs[control])mazeMove(...dirs[control]);}}if(type==="mines"&&(control==="flag"||control==="reveal"))flagMode(control==="flag");}
 $("picks").addEventListener("click",e=>{const target=e.target.closest("[data-game]");if(target)pick(target.dataset.game);});
+$("settingsButton").addEventListener("click",()=>$("settingsDialog").showModal());
+$("settingsClose").addEventListener("click",()=>$("settingsDialog").close());
 $("restart").addEventListener("click",restart);
 document.addEventListener("click",e=>{const control=e.target.closest("[data-control]");if(control)action(control.dataset.control);});
 board.addEventListener("click",e=>{if(type==="mines"){const b=e.target.closest("[data-tile]");if(b){if(held){held=false;return;}mineTap(Number(b.dataset.tile));}}});
