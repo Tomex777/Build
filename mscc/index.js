@@ -71,9 +71,10 @@ import { createCommandTiming } from './command-performance.js'
 import { createMessageScheduler } from './command-scheduler.js'
 import { resolveIdentityWithDeadline } from './identity-resolution.js'
 import {
-  canonicalUserKey, isOpaqueLid, readAuthLidPhone,
+  canonicalUserKey, hasConflictingLidMapping, isOpaqueLid, readAuthLidPhone,
   recordVerifiedLidPhone, storedLidPhone, verifiedIdentityKeys,
 } from './user-identity.js'
+import { userForStoredGame } from './utils/game-session.js'
 import { chessRecordAcceptsInput } from './utils/chess-game.js'
 import { ticTacToeRecordAcceptsInput } from './utils/tictactoe-game.js'
 import { checkersRecordAcceptsInput } from './utils/checkers-game.js'
@@ -1138,6 +1139,7 @@ async function resolvePhoneJid(account, jid) {
   if (!normalized) return ''
   if (verifiedPhoneNumber(normalized)) return normalized
   if (!isOpaqueLid(normalized)) return normalized
+  if (hasConflictingLidMapping(sharedStorage, normalized)) return normalized
 
   // Look up only verified Baileys mappings. LID digits are NOT phone numbers.
   const saved = storedLidPhone(sharedStorage, normalized)
@@ -2504,20 +2506,20 @@ async function processInboundMessage(account, msg) {
       const ludoRecord = sharedStorage?.sharedGet('ludo-game', chat) || null
       const consumeLudoInput = Boolean(
         !isExplicitCommand &&
-        ludoRecordAcceptsInput(ludoRecord, authority.senderNumber, text)
+        ludoRecordAcceptsInput(ludoRecord, userForStoredGame({ userKey:authority.senderKey, identityKeys:authority.senderIdentityKeys }, ludoRecord), text)
       )
       const checkersRecord = sharedStorage?.sharedGet('checkers-game', chat) || null
       const consumeCheckersInput = Boolean(
         !isExplicitCommand &&
         !consumeLudoInput &&
-        checkersRecordAcceptsInput(checkersRecord, authority.senderNumber, text)
+        checkersRecordAcceptsInput(checkersRecord, userForStoredGame({ userKey:authority.senderKey, identityKeys:authority.senderIdentityKeys }, checkersRecord), text)
       )
       const ticTacToeRecord = sharedStorage?.sharedGet('tictactoe-game', chat) || null
       const consumeTicTacToeInput = Boolean(
         !isExplicitCommand &&
         !consumeLudoInput &&
         !consumeCheckersInput &&
-        ticTacToeRecordAcceptsInput(ticTacToeRecord, authority.senderNumber, text)
+        ticTacToeRecordAcceptsInput(ticTacToeRecord, userForStoredGame({ userKey:authority.senderKey, identityKeys:authority.senderIdentityKeys }, ticTacToeRecord), text)
       )
       const chessRecord = sharedStorage?.sharedGet('chess-game', chat) || null
       const consumeChessInput = Boolean(
@@ -2525,7 +2527,7 @@ async function processInboundMessage(account, msg) {
         !consumeLudoInput &&
         !consumeCheckersInput &&
         !consumeTicTacToeInput &&
-        chessRecordAcceptsInput(chessRecord, authority.senderNumber, text)
+        chessRecordAcceptsInput(chessRecord, userForStoredGame({ userKey:authority.senderKey, identityKeys:authority.senderIdentityKeys }, chessRecord), text)
       )
       const consumePartyInput = !isExplicitCommand &&
         !consumeLudoInput && !consumeCheckersInput &&
