@@ -173,13 +173,13 @@ verify_existing_source_stack() {
   for port in "$tor_port" "$flare_port"; do
     if ! [[ "$port" =~ ^[0-9]+$ ]] || (( port < 1 || port > 65535 )); then
       echo "Existing source stack port is invalid." >&2
-      return 1
+      return 2
     fi
   done
 
   echo ">>> Verifying existing Tor SOCKS proxy on 127.0.0.1:$tor_port..."
   local tor_probe
-  tor_probe="$(curl -fsS --connect-timeout 5 --max-time 35 \
+  tor_probe="$(curl -fsS --retry 2 --retry-delay 2 --retry-all-errors --connect-timeout 5 --max-time 25 \
     --proxy "socks5h://127.0.0.1:$tor_port" \
     https://check.torproject.org/api/ip)" || {
     echo "Existing Tor proxy did not respond. Leaving MSCC and source services untouched." >&2
@@ -193,8 +193,8 @@ verify_existing_source_stack() {
       catch { process.exitCode = 1; }
     });
   '; then
-    echo "Existing proxy was not confirmed as a Tor exit; refusing to reuse." >&2
-    return 1
+    echo "Existing proxy was not confirmed as a Tor exit; refusing unsafe source routing." >&2
+    return 3
   fi
 
   echo ">>> Verifying existing FlareSolverr on 127.0.0.1:$flare_port..."
@@ -207,7 +207,20 @@ verify_existing_source_stack() {
 }
 
 if [ "${MSCC_REUSE_EXISTING_SOURCE_STACK:-0}" = "1" ]; then
-  verify_existing_source_stack
+  if verify_existing_source_stack; then
+    : # Existing optional sources verified; do not modify their services.
+  else
+    source_stack_status=$?
+    if [ "$source_stack_status" -ne 1 ]; then
+      echo "Unsafe or invalid source stack configuration; aborting without changing services." >&2
+      exit "$source_stack_status"
+    fi
+    # A transient Tor-network outage must not prevent unrelated NIGHT features
+    # from shipping. We never restart or replace the existing source services;
+    # Tor-dependent providers remain degraded until the separate stack recovers.
+    echo "WARNING: Optional Tor/FlareSolverr source stack unavailable; continuing NIGHT core upgrade." >&2
+    echo "WARNING: Anime sources requiring Tor are NOT verified and may fail. No source-stack services were changed." >&2
+  fi
 elif [ "$CURRENT_SOURCE_STACK_VERSION" != "$SOURCE_STACK_VERSION" ]; then
   echo ">>> Installing/upgrading AnimePahe Tor + FlareSolverr source stack..."
   bash "$RELEASE/tools/install-flaresolverr-tor.sh"

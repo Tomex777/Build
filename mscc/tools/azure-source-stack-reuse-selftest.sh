@@ -61,11 +61,44 @@ if ( export MSCC_FLARE_PORT=65536; verify_existing_source_stack >/dev/null 2>&1 
 fi
 
 grep -Fq 'if [ "${MSCC_REUSE_EXISTING_SOURCE_STACK:-0}" = "1" ]; then' "$INSTALLER"
-grep -Fq '  verify_existing_source_stack' "$INSTALLER"
+grep -Fq '  if verify_existing_source_stack; then' "$INSTALLER"
 # The opt-in path must occur before Docker stack installation and before
 # switching the active release symlink or restarting mscc.service.
 awk '/^if \[ "\$\{MSCC_REUSE_EXISTING_SOURCE_STACK:-0\}" = "1" \]; then/{reuse=NR}
   /bash "\$RELEASE\/tools\/install-flaresolverr-tor.sh"/{stack=NR}
   /^switch_release "\$RELEASE"/{activate=NR}
   END{exit !(reuse>0 && reuse<stack && stack<activate)}' "$INSTALLER"
+# Test the real upgrade gate, not just the strict verification function.
+# Transient Tor failures must not block the core upgrade or trigger a replacement
+# of the source services. Explicitly non-Tor egress and invalid ports are fatal.
+awk '
+  index($0, "if [ \"${MSCC_REUSE_EXISTING_SOURCE_STACK:-0}\" = \"1\" ]; then") == 1 { inside=1 }
+  inside { print }
+  inside && /^fi$/ { exit }
+' "$INSTALLER" > "$TEST_ROOT/reuse-gate.sh"
+test -s "$TEST_ROOT/reuse-gate.sh"
+bash -n "$TEST_ROOT/reuse-gate.sh"
+
+( export MSCC_REUSE_EXISTING_SOURCE_STACK=1 TEST_TOR_DOWN=1
+  source "$TEST_ROOT/reuse-gate.sh" ) >"$TEST_ROOT/tor-down.log" 2>&1 ||
+  { echo 'ERROR: optional Tor outage blocked core release' >&2; exit 1; }
+grep -Fq 'continuing NIGHT core upgrade' "$TEST_ROOT/tor-down.log"
+grep -Fq 'NOT verified and may fail' "$TEST_ROOT/tor-down.log"
+
+( export MSCC_REUSE_EXISTING_SOURCE_STACK=1 TEST_FLARE_DOWN=1
+  source "$TEST_ROOT/reuse-gate.sh" ) >"$TEST_ROOT/flare-down.log" 2>&1 ||
+  { echo 'ERROR: optional FlareSolverr outage blocked core release' >&2; exit 1; }
+
+if ( export MSCC_REUSE_EXISTING_SOURCE_STACK=1 TEST_TOR_BAD_EXIT=1
+  source "$TEST_ROOT/reuse-gate.sh" ) >/dev/null 2>&1; then
+  echo 'ERROR: non-Tor proxy must fail closed' >&2
+  exit 1
+fi
+if ( export MSCC_REUSE_EXISTING_SOURCE_STACK=1 MSCC_TOR_PORT=bad
+  source "$TEST_ROOT/reuse-gate.sh" ) >/dev/null 2>&1; then
+  echo 'ERROR: invalid configured port must fail closed' >&2
+  exit 1
+fi
+
+echo 'PASS optional source outages do not block NIGHT deployment; non-Tor exit/invalid ports fail closed'
 echo 'PASS existing Tor/FlareSolverr reuse, outage guards, and no service replacement'
