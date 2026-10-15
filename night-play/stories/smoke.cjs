@@ -36,13 +36,16 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
    assert.equal(errors.length,0,'no JavaScript errors: '+errors.join('; '));
    await page.close();
   }
-  const page=await browser.newPage({viewport:{width:390,height:844}});
+  const videoContext=await browser.newContext({viewport:{width:390,height:844},recordVideo:{dir:output,size:{width:390,height:844}}});
+  const page=await videoContext.newPage();
   await page.goto(url);
   await page.waitForFunction(()=>document.querySelectorAll('.line').length===5,null,{timeout:15000});
   const t=Date.now();
   await page.waitForFunction(()=>document.querySelectorAll('.choice').length===2,null,{timeout:2000});
   assert.ok(Date.now()-t<900,'choices should not wait too long after final text');
+  await page.waitForTimeout(600);
   await page.close();
+  await videoContext.close();
   console.log('PASS: mobile + desktop line reveals, fast choices, tap skip, branching, restart, speed, error checks');
  }finally{await browser.close()}
 })().catch(e=>{console.error(e.stack||e);process.exitCode=1});
