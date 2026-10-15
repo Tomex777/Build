@@ -30,12 +30,12 @@ export async function socialCardMentions(ctx, value) {
   if (!Array.isArray(mentions) || !text.includes('@')) return text
 
   const resolved = new Map()
-  for (const rawJid of [...new Set(mentions.map(value => String(value || '').replace(/:\\d+(?=@)/, '').trim()))]) {
-    const match = /^(\\d{7,20})@(lid|hosted\\.lid|s\\.whatsapp\\.net)$/.exec(rawJid)
+  for (const rawJid of [...new Set(mentions.map(value => String(value || '').replace(/:\d+(?=@)/, '').trim()))]) {
+    const match = /^(\d{7,20})@(lid|hosted\.lid|s\.whatsapp\.net)$/.exec(rawJid)
     if (!match) continue
     const rawMention = '@' + match[1]
     // One mention can appear multiple times in a caption.
-    const token = new RegExp('(^|[^\\\\p{L}\\\\p{N}_])' + rawMention + '(?![\\\\p{L}\\\\p{N}_])', 'gu')
+    const token = new RegExp('(^|[^\\p{L}\\p{N}_])' + rawMention + '(?![\\p{L}\\p{N}_])', 'gu')
     if (!token.test(text)) continue
     let name = resolved.get(rawJid)
     if (name === undefined) {
@@ -47,8 +47,8 @@ export async function socialCardMentions(ctx, value) {
         name = ''
       }
       // Empty/generic/digit-only values are not identifiable names.
-      name = String(name || '').replace(/[\\r\\n\\t]+/g, ' ').trim().replace(/^@/, '').slice(0, 70)
-      if (/^(?:\\d+|whatsapp user|unknown(?: user)?|member|user)$/i.test(name)) name = ''
+      name = String(name || '').replace(/[\r\n\t]+/g, ' ').trim().replace(/^@/, '').slice(0, 70)
+      if (/^(?:\d+|whatsapp user|unknown(?: user)?|member|user)$/i.test(name)) name = ''
       resolved.set(rawJid, name)
     }
     token.lastIndex = 0
