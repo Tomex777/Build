@@ -65,7 +65,7 @@ for (const category of CATEGORIES) {
     if (!url || !new URL(url).hostname.endsWith('nekos.best')) throw new Error('Invalid media URL')
     const gif = await fetchLive(url)
     const entry = { category, ok:true, bytes:gif.length }
-    if (['hug','slap','smug','kick'].includes(category)) {
+    { // Verify actual animated-sticker output for EVERY source category, not only examples.
       const sticker = await mediaToSticker(gif, {animated:true,packName:'NIGHT GIF validation'})
       assert.equal(sticker.toString('ascii',0,4),'RIFF')
       assert.equal(sticker.toString('ascii',8,12),'WEBP')
