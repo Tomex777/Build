@@ -11,7 +11,7 @@ export class PuzzleBoard{
   this.rows=3;this.cols=4;this.totalPieces=12;this.pieces=[];this.selectedPiece=null;
   this.boardX=0;this.boardY=0;this.boardWidth=0;this.boardHeight=0;
   this.pieceWidth=0;this.pieceHeight=0;this.tray={x:0,y:0,w:0,h:0};
-  this.showGhost=true;this.placedCount=0;this.moveCount=0;
+  this.showGhost=false;this.placedCount=0;this.moveCount=0;
   this.sourceCanvas=document.createElement('canvas');this.sourceCtx=this.sourceCanvas.getContext('2d');
   this.sourceCanvas.width=800;this.sourceCanvas.height=600;
  }
@@ -37,15 +37,17 @@ export class PuzzleBoard{
  setupBoardLayout(){
   const cw=this.canvas.width,ch=this.canvas.height,mobile=cw<680;
   if(mobile){
-   this.boardWidth=Math.min(cw-20,(ch*.53)*4/3,620);this.boardHeight=this.boardWidth*.75;
-   this.boardX=(cw-this.boardWidth)/2;this.boardY=20;
-   const trayY=this.boardY+this.boardHeight+45;
-   this.tray={x:10,y:trayY,w:cw-20,h:Math.max(60,ch-trayY-13)};
+   // Keep the actual picture at almost the complete available phone width.
+   this.boardWidth=Math.min(cw-6,780);this.boardHeight=this.boardWidth*.75;
+   this.boardX=(cw-this.boardWidth)/2;this.boardY=5;
+   const looseY=this.boardY+this.boardHeight+22;
+   // Loose pieces share the canvas with the picture rather than occupying a framed box.
+   this.tray={x:5,y:looseY,w:cw-10,h:Math.max(80,ch-looseY-7)};
   }else{
-   this.boardWidth=Math.min(cw*.52,620,(ch-65)*4/3);this.boardHeight=this.boardWidth*.75;
-   this.boardX=18;this.boardY=(ch-this.boardHeight)/2;
-   const tx=this.boardX+this.boardWidth+30;
-   this.tray={x:tx,y:25,w:Math.max(100,cw-tx-14),h:ch-50};
+   this.boardWidth=Math.min(cw*.64,740,(ch-15)*4/3);this.boardHeight=this.boardWidth*.75;
+   this.boardX=7;this.boardY=(ch-this.boardHeight)/2;
+   const tx=this.boardX+this.boardWidth+16;
+   this.tray={x:tx,y:9,w:Math.max(100,cw-tx-9),h:ch-18};
   }
   this.pieceWidth=this.boardWidth/this.cols;this.pieceHeight=this.boardHeight/this.rows;
  }
@@ -53,12 +55,14 @@ export class PuzzleBoard{
   this.resize();this.setupBoardLayout();this.placedCount=0;this.moveCount=0;this.selectedPiece=null;
   const {hEdges,vEdges}=PieceCutter.generateEdgeMatrix(this.rows,this.cols);
   const count=this.totalPieces,t=this.tray;
-  let slotCols=Math.max(1,Math.min(this.cols,Math.floor(t.w/(this.pieceWidth*.87))));
+  const slotCols=Math.max(1,Math.min(this.cols,Math.floor(t.w/(this.pieceWidth*.97))));
   const slotRows=Math.ceil(count/slotCols);
   const slots=Array.from({length:count},(_,i)=>{
-   const col=i%slotCols,row=Math.floor(i/slotCols);
-   const sw=t.w/slotCols,sh=t.h/slotRows;
-   return {x:t.x+col*sw+Math.max(0,(sw-this.pieceWidth)/2),y:t.y+row*sh+Math.max(0,(sh-this.pieceHeight)/2)};
+   const col=i%slotCols,row=Math.floor(i/slotCols),sw=t.w/slotCols,sh=t.h/slotRows;
+   const stagger=(((i*7)%5)-2)*Math.min(5,Math.max(0,(sw-this.pieceWidth)/5));
+   const drift=(((i*11)%7)-3)*Math.min(3,Math.max(0,(sh-this.pieceHeight)/8));
+   return {x:Math.min(t.x+t.w-this.pieceWidth,Math.max(t.x,t.x+col*sw+(sw-this.pieceWidth)/2+stagger)),
+    y:Math.min(t.y+t.h-this.pieceHeight,Math.max(t.y,t.y+row*sh+(sh-this.pieceHeight)/2+drift))};
   });
   for(let i=count-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[slots[i],slots[j]]=[slots[j],slots[i]];}
   this.pieces=[];
@@ -122,21 +126,18 @@ export class PuzzleBoard{
  render(confetti=null){
   const ctx=this.ctx,w=this.canvas.width,h=this.canvas.height;
   ctx.clearRect(0,0,w,h);
-  ctx.fillStyle='#dce6da';ctx.fillRect(0,0,w,h);
-  ctx.save();ctx.fillStyle='#f5f7f1';ctx.fillRect(this.tray.x,this.tray.y,this.tray.w,this.tray.h);ctx.restore();
-  ctx.save();
-  ctx.fillStyle='#294c3b';ctx.shadowColor='#0b28184a';ctx.shadowBlur=17;ctx.shadowOffsetY=4;
-  ctx.beginPath();ctx.roundRect(this.boardX-5,this.boardY-5,this.boardWidth+10,this.boardHeight+10,8);ctx.fill();ctx.restore();
-  ctx.fillStyle='#19352a';ctx.fillRect(this.boardX,this.boardY,this.boardWidth,this.boardHeight);
+  ctx.fillStyle='#edf3ec';ctx.fillRect(0,0,w,h);
+  // One-pixel tabletop frame — never a thick bezel consuming puzzle space.
+  ctx.fillStyle='#f6f8f2';ctx.fillRect(this.boardX,this.boardY,this.boardWidth,this.boardHeight);
+  ctx.strokeStyle='#96b29e';ctx.lineWidth=1;
+  ctx.strokeRect(this.boardX+.5,this.boardY+.5,this.boardWidth-1,this.boardHeight-1);
   if(this.showGhost){
-   ctx.save();ctx.globalAlpha=.2;ctx.drawImage(this.sourceCanvas,this.boardX,this.boardY,this.boardWidth,this.boardHeight);ctx.restore();
-   ctx.strokeStyle='#ffffff25';ctx.lineWidth=.7;
-   for(let r=1;r<this.rows;r++){let y=this.boardY+r*this.pieceHeight;ctx.beginPath();ctx.moveTo(this.boardX,y);ctx.lineTo(this.boardX+this.boardWidth,y);ctx.stroke();}
-   for(let c=1;c<this.cols;c++){let x=this.boardX+c*this.pieceWidth;ctx.beginPath();ctx.moveTo(x,this.boardY);ctx.lineTo(x,this.boardY+this.boardHeight);ctx.stroke();}
+   // Optional, intentionally very faint guide. Even Relaxed mode is a puzzle.
+   ctx.save();ctx.globalAlpha=.075;ctx.drawImage(this.sourceCanvas,this.boardX,this.boardY,this.boardWidth,this.boardHeight);ctx.restore();
   }
   if(w<680){
-   ctx.fillStyle='#4c6657';ctx.textAlign='center';ctx.font='800 11px system-ui';
-   ctx.fillText('PIECE TRAY  ·  DRAG INTO THE FRAME',w/2,this.tray.y-16);
+   ctx.fillStyle='#6c8977';ctx.textAlign='center';ctx.font='750 10px system-ui';
+   ctx.fillText('LOOSE PIECES · DRAG TO THE PICTURE',w/2,this.tray.y-7);
   }
   for(const p of this.pieces)if(p.isPlaced){ctx.drawImage(p.offscreenCanvas,p.x-p.canvasMargin,p.y-p.canvasMargin);}
   for(const p of this.pieces)if(!p.isPlaced&&p!==this.selectedPiece){

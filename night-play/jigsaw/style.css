@@ -23,3 +23,29 @@ dialog{max-width:calc(100% - 24px);border:1px solid #dce6db;border-radius:21px;b
 }
 @media(max-width:340px){.gallery-grid{gap:6px}.match-strip{gap:3px}.match-stat{min-width:33px}.picture-switch{font-size:9px}}
 @media(prefers-reduced-motion:reduce){*,*:before,*:after{animation-duration:.01ms!important;transition-duration:.01ms!important;scroll-behavior:auto!important}}
+
+
+/* Version 2: no piece-tray box; picture is edge-to-edge and has a hairline frame. */
+.play-mat{height:min(81dvh,825px);min-height:595px;border:0;border-radius:0;background:transparent;box-shadow:none;overflow:hidden}
+.play-mat canvas{background:#f8f9f6}
+.play-mat.master-puzzle{height:995px}
+.mode-options{display:grid;grid-template-columns:1fr;gap:8px;margin:8px 0 18px}
+.mode-options button{display:flex;align-items:center;justify-content:space-between;text-align:left;gap:10px;padding:12px 15px;min-height:54px;border:1px solid #dce6dc;border-radius:11px;background:#f7faf6;color:#284433}
+.mode-options button strong{font-size:13px;font-weight:880}
+.mode-options button small{font-size:10px;font-weight:720;color:#728a78}
+.mode-options button.active{color:#fff;background:#285c43;border-color:#285c43}
+.mode-options button.active small{color:#c7e2cc}
+.mode-options button:focus-visible{outline-offset:2px}
+.difficulty-options button{font-size:18px;padding:12px 4px}
+.use-count{font-size:9px;font-weight:780;letter-spacing:0;border-radius:7px;padding:4px 5px;color:#44805e;background:#e9f2e9;white-space:nowrap}
+.game-button:disabled .use-count{opacity:.7}
+.game-button.primary{min-width:126px}
+@media(max-width:650px){
+ .play-mat{height:clamp(600px,80dvh,790px);min-height:0;border:0;border-radius:0;box-shadow:none;margin:0 auto}
+ .play-mat.master-puzzle{height:clamp(660px,90dvh,860px)}
+ .game-actions{gap:5px}
+ .game-button{padding:9px 5px;gap:4px}
+ .use-count{font-size:8px;padding:3px 4px}
+ .difficulty-options{gap:5px}
+ .difficulty-options button{font-size:18px;min-height:62px;padding:10px 2px}
+}

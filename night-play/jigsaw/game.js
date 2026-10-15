@@ -20,15 +20,47 @@ const choices=[
  {id:'anime',name:'Sakura Dawn',category:'anime'},
  {id:'abstract',name:'Chromatic Flow',category:'abstract'}
 ];
-const dimMap={6:[2,3],12:[3,4],24:[4,6],48:[6,8]};
+const dimMap={6:[2,3],12:[3,4],24:[4,6],48:[6,8],72:[8,9],96:[8,12],144:[12,12]};
+const modeRules={
+ relaxed:{hints:3,previews:3,peekMs:6000},
+ challenge:{hints:1,previews:1,peekMs:4000},
+ memory:{hints:0,previews:1,peekMs:5000}
+};
+let challengeMode='relaxed',usedHints=0,usedPreviews=0,previewTimeout=null;
 const canvas=$('puzzleCanvas'),wrapper=$('canvasWrapper'),board=new PuzzleBoard(canvas,wrapper);
 const sound=new SoundSynth(),confetti=new ConfettiSystem();
-let theme='nature',category='all',piecesCount=12,customData=null,elapsed=0,secondsTimer=null,won=false,activeRound=false;
+let theme='nature',category='all',piecesCount=24,customData=null,elapsed=0,secondsTimer=null,won=false,activeRound=false;
 let dragId=null,dragX=0,dragY=0,dragMoved=false,winAnimationId=null,winTimeout=null,toastTimeout=null;
 const timeText=s=>String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0');
 function safeRead(key){try{return localStorage.getItem(key)}catch{return null}}
 function safeWrite(key,value){try{localStorage.setItem(key,value);return true}catch{return false}}
 function showToast(message){const t=$('toast');clearTimeout(toastTimeout);t.textContent=message;t.hidden=false;toastTimeout=setTimeout(()=>t.hidden=true,2800)}
+function guideEnabled(){return challengeMode!=='memory'&&$('guideSwitch').checked;}
+function updateHelpUI(){
+ const rules=modeRules[challengeMode],hints=Math.max(0,rules.hints-usedHints),previews=Math.max(0,rules.previews-usedPreviews);
+ $('hintRemaining').textContent=hints+' left';$('previewRemaining').textContent=previews+' left';
+ $('hintButton').disabled=!activeRound||won||hints===0;
+ $('previewButton').disabled=!activeRound||won||previews===0;
+ $('guideSwitch').disabled=challengeMode==='memory';
+ for(const b of document.querySelectorAll('[data-mode]')){
+  const selected=b.dataset.mode===challengeMode;b.classList.toggle('active',selected);b.setAttribute('aria-pressed',String(selected));
+ }
+}
+function endPreview(){
+ if(previewTimeout!==null){clearTimeout(previewTimeout);previewTimeout=null}
+ if($('previewDialog').open)$('previewDialog').close();
+}
+function showReference({automatic=false}={}){
+ if(!activeRound||won)return;
+ const rules=modeRules[challengeMode];
+ if(usedPreviews>=rules.previews){if(!automatic)showToast('No picture peeks left this round');return}
+ usedPreviews++;updateHelpUI();saveGame();timerStop();
+ $('previewImage').src=board.sourceCanvas.toDataURL('image/jpeg',.86);
+ $('previewExplanation').textContent='Peek '+usedPreviews+' / '+rules.previews+' · Closes in '+Math.ceil(rules.peekMs/1000)+' seconds.';
+ if(!$('previewDialog').open)$('previewDialog').showModal();
+ if(previewTimeout!==null)clearTimeout(previewTimeout);
+ previewTimeout=setTimeout(()=>{previewTimeout=null;if($('previewDialog').open)$('previewDialog').close()},rules.peekMs);
+}
 function setTime(){ $('timer').textContent=timeText(elapsed);}
 function setStats(){
  $('moves').textContent=String(board.moveCount);
@@ -41,7 +73,7 @@ function timerStart(){if(secondsTimer!==null||won||!activeRound||document.hidden
  secondsTimer=setInterval(()=>{elapsed++;setTime();if(elapsed%5===0)saveGame()},1000);
 }
 function gameData(){
- return {version:1,theme,pieces:piecesCount,elapsed,won,customData:theme==='custom'?customData:null,
+ return {version:2,theme,pieces:piecesCount,elapsed,won,challengeMode,usedHints,usedPreviews,customData:theme==='custom'?customData:null,
   board:board.serialize(),updatedAt:Date.now()};
 }
 function saveGame(){
@@ -52,23 +84,28 @@ function resetEffects(){
  if(winTimeout!==null){clearTimeout(winTimeout);winTimeout=null;}
  if(winAnimationId!==null){cancelAnimationFrame(winAnimationId);winAnimationId=null;}
  confetti.particles=[];
+ endPreview();
  $('victoryDialog').close?.();
 }
 function resetBoard(fresh=true,saved=null){
  activeRound=true;won=false;elapsed=fresh?0:Math.max(0,Number(saved?.elapsed)||0);
+ if(fresh){usedHints=0;usedPreviews=0}
+ else{usedHints=Math.min(modeRules[challengeMode].hints,Math.max(0,Number(saved?.usedHints)||0));
+  usedPreviews=Math.min(modeRules[challengeMode].previews,Math.max(0,Number(saved?.usedPreviews)||0))}
  resetEffects();
- const dims=dimMap[piecesCount]||dimMap[12];
- board.setDimensions(...dims);board.showGhost=$('guideSwitch').checked;
+ const dims=dimMap[piecesCount]||dimMap[24];
+ board.setDimensions(...dims);board.showGhost=guideEnabled();
  $('galleryPanel').hidden=true;$('playScreen').hidden=false;
+ wrapper.classList.toggle('master-puzzle',piecesCount===144);
  board.resize();
  if(theme==='custom'&&customData){
   // Custom pictures are processed before resetBoard to guarantee a valid source image.
  }else renderThemeArt(board,theme);
  if(!fresh&&saved?.board&&!board.restore(saved.board))board.buildPieces();
  else if(fresh||!saved?.board)board.buildPieces();
- board.showGhost=$('guideSwitch').checked;
- setStats();board.render();timerStop();timerStart();
- if(fresh)saveGame();
+ board.showGhost=guideEnabled();
+ setStats();board.render();updateHelpUI();timerStop();timerStart();
+ if(fresh){saveGame();if(challengeMode==='memory')setTimeout(()=>{if(activeRound&&!won&&challengeMode==='memory'&&usedPreviews===0)showReference({automatic:true})},120)}
  window.scrollTo({top:0,behavior:'instant'});
 }
 function startImage(id){
@@ -104,12 +141,13 @@ function filterGallery(){
 }
 function showGallery(){
  timerStop();if(activeRound&&!won)saveGame();
- $('playScreen').hidden=true;$('galleryPanel').hidden=false;
+ endPreview();$('playScreen').hidden=true;$('galleryPanel').hidden=false;
  activeRound=false;category='all';filterGallery();window.scrollTo({top:0,behavior:'instant'});
 }
 function resumeSaved(saved){
  if(!saved||!dimMap[saved.pieces]||(!choices.some(c=>c.id===saved.theme)&&saved.theme!=='custom')||saved.won)return false;
  theme=saved.theme;piecesCount=saved.pieces;customData=saved.customData||null;
+ challengeMode=modeRules[saved.challengeMode]?saved.challengeMode:'relaxed';
  if(theme==='custom'){
   if(!customData)return false;
   const img=new Image();
@@ -121,6 +159,7 @@ function resumeSaved(saved){
 }
 function updateDifficultyButtons(){
  for(const b of document.querySelectorAll('[data-pieces]'))b.classList.toggle('active',Number(b.dataset.pieces)===piecesCount);
+ updateHelpUI();
 }
 function paintCustomSource(img){
  const ctx=board.sourceCtx,w=board.sourceCanvas.width,h=board.sourceCanvas.height;
@@ -154,7 +193,7 @@ function recordWin(){
  }catch{}
 }
 function celebrate(){
- if(won)return;won=true;timerStop();setStats();sound.playVictory();recordWin();
+ if(won)return;won=true;timerStop();setStats();sound.playVictory();recordWin();updateHelpUI();
  $('victoryTime').textContent=timeText(elapsed);
  $('victoryMoves').textContent=String(board.moveCount);
  $('victoryPieces').textContent=String(board.totalPieces);
@@ -204,9 +243,17 @@ canvas.addEventListener('pointerup',releaseDrag);
 canvas.addEventListener('pointercancel',releaseDrag);
 function dialog(id){$(id).showModal()}
 document.querySelectorAll('[data-close]').forEach(b=>b.addEventListener('click',()=>$(b.dataset.close).close()));
+$('previewDialog').addEventListener('close',()=>{if(previewTimeout!==null){clearTimeout(previewTimeout);previewTimeout=null}timerStart()});
 $('settingsButton').addEventListener('click',()=>{updateDifficultyButtons();dialog('settingsDialog')});
-$('guideSwitch').addEventListener('change',e=>{board.showGhost=e.target.checked;safeWrite('night-play-jigsaw-guide',String(e.target.checked));board.render();saveGame()});
+$('guideSwitch').addEventListener('change',e=>{board.showGhost=guideEnabled();safeWrite('night-play-jigsaw-guide',String(e.target.checked));board.render();saveGame()});
 $('soundSwitch').addEventListener('change',e=>{sound.enabled=e.target.checked;safeWrite('night-play-jigsaw-sound',String(e.target.checked))});
+document.querySelectorAll('[data-mode]').forEach(b=>b.addEventListener('click',()=>{
+ const next=b.dataset.mode;if(next===challengeMode||!modeRules[next])return;
+ challengeMode=next;safeWrite('night-play-jigsaw-mode',next);
+ $('settingsDialog').close();updateHelpUI();
+ if(activeRound&&!$('playScreen').hidden)resetBoard(true);
+ else showToast('Mode: '+next);
+}));
 document.querySelectorAll('[data-pieces]').forEach(b=>b.addEventListener('click',()=>{
  const next=Number(b.dataset.pieces);if(next===piecesCount)return;
  piecesCount=next;updateDifficultyButtons();safeWrite('night-play-jigsaw-pieces',String(next));
@@ -215,12 +262,12 @@ document.querySelectorAll('[data-pieces]').forEach(b=>b.addEventListener('click'
 }));
 $('categoryChips').addEventListener('click',e=>{const b=e.target.closest('[data-filter]');if(b){category=b.dataset.filter;filterGallery()}});
 $('pickPicture').addEventListener('click',showGallery);
-$('previewButton').addEventListener('click',()=>{
- $('previewImage').src=board.sourceCanvas.toDataURL('image/jpeg',.86);dialog('previewDialog');
-});
+$('previewButton').addEventListener('click',()=>showReference());
 $('hintButton').addEventListener('click',()=>{
- if(won)return;const p=board.hintRandomPiece();if(!p)return;
- sound.playSnap();setStats();board.render();saveGame();if(board.placedCount===board.totalPieces)celebrate();
+ if(won||usedHints>=modeRules[challengeMode].hints){showToast('No hints left in this round');return}
+ const p=board.hintRandomPiece();if(!p)return;
+ usedHints++;sound.playSnap();setStats();board.render();updateHelpUI();saveGame();
+ if(board.placedCount===board.totalPieces)celebrate();
 });
 $('restartButton').addEventListener('click',()=>{if(theme==='custom'&&!customData)return;resetBoard(true)});
 $('victoryNext').addEventListener('click',()=>{$('victoryDialog').close();showGallery()});
@@ -235,18 +282,19 @@ window.addEventListener('keydown',e=>{
 });
 // Construct gallery from the same procedural images as the playing board.
 renderGallery();
-$('guideSwitch').checked=safeRead('night-play-jigsaw-guide')!=='false';
+$('guideSwitch').checked=safeRead('night-play-jigsaw-guide')==='true';
+challengeMode=modeRules[safeRead('night-play-jigsaw-mode')]?safeRead('night-play-jigsaw-mode'):'relaxed';
 $('soundSwitch').checked=safeRead('night-play-jigsaw-sound')!=='false';
 sound.enabled=$('soundSwitch').checked;
-piecesCount=Number(safeRead('night-play-jigsaw-pieces'))||12;
-if(!dimMap[piecesCount])piecesCount=12;
+piecesCount=Number(safeRead('night-play-jigsaw-pieces'))||24;
+if(!dimMap[piecesCount])piecesCount=24;
 updateDifficultyButtons();
 let prior=null;try{prior=JSON.parse(safeRead(SAVE_KEY)||'null')}catch{}
 if(!resumeSaved(prior))showGallery();
 if(location.hostname==='localhost'||location.hostname==='127.0.0.1'){
  window.__nightJigsawTest=Object.freeze({
-  snapshot:()=>({theme,pieces:piecesCount,elapsed,won,activeRound,placed:board.placedCount,moves:board.moveCount,
-   board:{x:board.boardX,y:board.boardY,w:board.boardWidth,h:board.boardHeight},tray:{...board.tray},
+  snapshot:()=>({theme,pieces:piecesCount,elapsed,won,activeRound,challengeMode,usedHints,usedPreviews,guide:board.showGhost,placed:board.placedCount,moves:board.moveCount,
+   board:{x:board.boardX,y:board.boardY,w:board.boardWidth,h:board.boardHeight,rows:board.rows,cols:board.cols,pieceWidth:board.pieceWidth,pieceHeight:board.pieceHeight},tray:{...board.tray},
    pieces:board.pieces.map(p=>({id:p.id,x:p.x,y:p.y,correctX:p.correctX,correctY:p.correctY,placed:p.isPlaced}))}),
   place:(i)=>{const p=board.pieces[i];if(!p||p.isPlaced)return false;p.x=p.correctX;p.y=p.correctY;refreshAfterMove(p);return true}
  });
