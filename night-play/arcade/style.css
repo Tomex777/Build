@@ -14,3 +14,33 @@ body:has(canvas.mode-bird:not([hidden])) .touchbar button[data-control="flap"]{
 @media(max-width:540px){body:has(canvas.mode-bird:not([hidden])) main{padding-top:14px}
  body:has(canvas.mode-bird:not([hidden])) .intro p{margin-bottom:10px}
  body:has(canvas.mode-bird:not([hidden])) .touchbar{max-width:360px}}
+
+
+/* Dedicated game screens follow Jigsaw's approved immersive shell. */
+body{background:#f8f9f6}
+main{padding:15px 9px 18px;max-width:1040px;margin:auto}
+.layout{display:block;max-width:700px;margin:auto}
+.play{width:100%;margin:auto;display:flex;flex-direction:column;align-items:center}
+.canvas-shell{max-width:100%;width:100%;margin:auto;display:flex;align-items:center;justify-content:center}
+#screen{display:block;border:1px solid #a9c2b1;border-radius:9px;box-shadow:0 5px 19px #31554220;max-height:none}
+#screen.mode-bird{width:min(100%,400px);height:auto;max-height:none;aspect-ratio:3/5}
+#screen.mode-blocks{width:min(100%,360px);height:auto;max-height:none;aspect-ratio:1/2}
+#screen.mode-maze{width:min(100%,480px);height:auto;max-height:none;aspect-ratio:19/21}
+#mineboard{max-width:480px;width:100%;border:1px solid #a9bcb0;box-shadow:0 5px 17px #2b4e3631;border-radius:10px;padding:3px;gap:2px}
+.touchbar{max-width:540px;width:100%;margin:13px auto 0;gap:8px}
+.touchbar button{border-radius:11px;min-height:47px;border:1px solid #c0d2c4;box-shadow:0 2px 0 #d1ded1}
+#message{width:min(100%,600px);text-align:center;margin:5px auto 2px;font-size:12px;min-height:22px}
+.arcade-extras{width:min(100%,600px);text-align:center;margin:3px auto 5px;font-size:12px;line-height:1.7;color:#567563}
+.arcade-extras .flag-row{justify-content:center}
+.night-sheet-rule{font-size:12px;line-height:1.7;color:#53685b;margin:8px 0 20px}
+footer{max-width:760px;border-top:none;color:#829389;justify-content:center;padding:12px 15px 30px}
+footer span{display:none}
+@media(max-width:650px){
+ main{padding:14px 5px 18px}
+ #screen.mode-bird{width:min(100%,360px);max-height:none}
+ #screen.mode-blocks{width:min(100%,335px)}
+ #screen.mode-maze{width:100%;max-width:456px}
+ #mineboard{width:100%;max-width:440px}
+ .touchbar{gap:5px;flex-wrap:nowrap;max-width:390px}
+ .touchbar button{min-width:0;flex:1;font-size:17px;min-height:47px}
+}
