@@ -39,13 +39,13 @@
    <button class="picture-switch" id="pickPicture" type="button"><svg class="ico"><use href="#icon-gallery"/></svg><span>Pictures</span></button>
    <div class="match-stat"><span>TIME</span><strong id="timer">00:00</strong></div>
    <div class="match-stat"><span>MOVES</span><strong id="moves">0</strong></div>
-   <div class="match-stat"><span>PIECES</span><strong id="progress">0 / 12</strong></div>
+   <div class="match-stat"><span>PIECES</span><strong id="progress">0 / 24</strong></div>
   </div>
-  <div class="play-mat" id="canvasWrapper"><canvas id="puzzleCanvas" width="360" height="660" aria-label="Jigsaw board. Drag pieces from the tray below into their matching picture positions."></canvas></div>
+  <div class="play-mat" id="canvasWrapper"><canvas id="puzzleCanvas" width="360" height="660" aria-label="Jigsaw board. Drag loose pieces into their matching picture positions."></canvas></div>
   <div class="completion-track" aria-label="Jigsaw progress"><div id="progressBar"></div></div>
   <div class="game-actions">
-   <button type="button" id="previewButton" class="game-button"><svg class="ico"><use href="#icon-eye"/></svg> Preview</button>
-   <button type="button" id="hintButton" class="game-button"><svg class="ico"><use href="#icon-spark"/></svg> Hint</button>
+   <button type="button" id="previewButton" class="game-button"><svg class="ico"><use href="#icon-eye"/></svg> Preview <small id="previewRemaining" class="use-count">3 left</small></button>
+   <button type="button" id="hintButton" class="game-button"><svg class="ico"><use href="#icon-spark"/></svg> Hint <small id="hintRemaining" class="use-count">3 left</small></button>
    <button type="button" id="restartButton" class="game-button primary"><svg class="ico"><use href="#icon-restart"/></svg> New puzzle</button>
   </div>
   <p class="progress-footnote">Pieces snap into place automatically · Your round saves on this device</p>
@@ -53,16 +53,22 @@
 </main>
 <dialog id="settingsDialog" aria-labelledby="settingsHeading" class="sheet-dialog"><div class="sheet-head"><h2 id="settingsHeading">Jigsaw settings</h2><button class="close-sheet" data-close="settingsDialog" aria-label="Close settings">✕</button></div>
  <div class="sheet-content"><label class="setting-label">PIECES <span>Choose your challenge</span></label>
- <div class="difficulty-options" role="group" aria-label="Puzzle piece count"><button data-pieces="6">6<small>Easy</small></button><button data-pieces="12">12<small>Relaxed</small></button><button data-pieces="24">24<small>Classic</small></button><button data-pieces="48">48<small>Expert</small></button></div>
- <label class="setting-switch"><span><b>Picture guide</b><small>Show a faint image under pieces</small></span><input id="guideSwitch" type="checkbox" checked></label>
+ <div class="difficulty-options" role="group" aria-label="Puzzle piece count"><button data-pieces="6">6<small>Starter</small></button><button data-pieces="12">12<small>Easy</small></button><button data-pieces="24">24<small>Classic</small></button><button data-pieces="48">48<small>Hard</small></button><button data-pieces="72">72<small>Skilled</small></button><button data-pieces="96">96<small>Expert</small></button><button data-pieces="144">144<small>Master</small></button></div>
+ <label class="setting-label" id="modeLabel">CHALLENGE MODE <span>Even Relaxed has limited help</span></label>
+ <div class="mode-options" role="group" aria-labelledby="modeLabel">
+  <button data-mode="relaxed" type="button"><strong>Relaxed</strong><small>3 hints · 3 peeks (6s)</small></button>
+  <button data-mode="challenge" type="button"><strong>Challenge</strong><small>1 hint · 1 peek (4s)</small></button>
+  <button data-mode="memory" type="button"><strong>Memory</strong><small>0 hints · 1 first look (5s)</small></button>
+ </div>
+ <label class="setting-switch"><span><b>Picture guide</b><small>Optional 7% picture outline · OFF by default</small></span><input id="guideSwitch" type="checkbox"></label>
  <label class="setting-switch"><span><b>Game sounds</b><small>Pick-up, snapping and celebration</small></span><input id="soundSwitch" type="checkbox" checked></label>
- <p class="settings-note">Changing the number of pieces begins a fresh round. Other settings apply instantly.</p></div>
+ <p class="settings-note">Changing difficulty or mode begins a fresh round. Picture guide and sound apply immediately. Preview closes automatically.</p></div>
 </dialog>
-<dialog id="previewDialog" aria-label="Full puzzle reference" class="image-dialog"><div class="preview-head"><strong>YOUR PICTURE</strong><button class="close-sheet" data-close="previewDialog" aria-label="Close picture preview">✕</button></div><img id="previewImage" alt="Reference image for the jigsaw puzzle"><p>Drag each piece into the matching spot.</p></dialog>
+<dialog id="previewDialog" aria-label="Full puzzle reference" class="image-dialog"><div class="preview-head"><strong>YOUR PICTURE</strong><button class="close-sheet" data-close="previewDialog" aria-label="Close picture preview">✕</button></div><img id="previewImage" alt="Reference image for the jigsaw puzzle"><p id="previewExplanation">Study the picture. This peek closes automatically.</p></dialog>
 <dialog id="victoryDialog" aria-labelledby="victoryTitle" class="victory-dialog">
  <div class="victory-icon"><svg class="ico"><use href="#icon-check"/></svg></div>
  <span class="eyebrow">PUZZLE COMPLETE</span><h2 id="victoryTitle">Beautifully done!</h2><p>Every piece found its place.</p>
- <div class="victory-stats"><div><span>TIME</span><strong id="victoryTime">00:00</strong></div><div><span>MOVES</span><strong id="victoryMoves">0</strong></div><div><span>PIECES</span><strong id="victoryPieces">12</strong></div></div>
+ <div class="victory-stats"><div><span>TIME</span><strong id="victoryTime">00:00</strong></div><div><span>MOVES</span><strong id="victoryMoves">0</strong></div><div><span>PIECES</span><strong id="victoryPieces">24</strong></div></div>
  <button type="button" class="victory-primary" id="victoryNext">Choose another picture</button>
  <button type="button" class="victory-again" id="victoryReplay">Play this one again</button>
 </dialog>
