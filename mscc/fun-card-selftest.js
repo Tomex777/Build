@@ -64,7 +64,7 @@ assert.equal(joke, 'Setup?\n\nPunchline.')
 
 const meme = await randomMeme('anime', {
   fetchImpl:async url => {
-    assert.match(String(url), /meme-api\\.com\\/gimme\\/animemes\\/10/)
+    assert.ok(String(url).includes('meme-api.com/gimme/animemes/10'))
     return {
       ok:true,
       headers:{ get:() => 'application/json' },
@@ -102,7 +102,7 @@ const fallbackMeme = await randomMeme('wholesome', {
 })
 assert.equal(fallbackMeme.title, 'wholesome fallback')
 assert.equal(urls.length, 2)
-assert.match(urls[1], /reddit\\.com\\/r\\/wholesomememes/)
+assert.ok(urls[1].includes('reddit.com/r/wholesomememes'))
 
 // A blocked upstream should never reply with "Unexpected token '<'".
 await assert.rejects(
