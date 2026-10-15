@@ -35,7 +35,7 @@ try{
  await page.locator('#puzzleCanvas').waitFor({state:'visible'});
  const first=await page.evaluate(()=>window.__nightJigsawTest.snapshot());
  assert.equal(first.theme,'anime');
- assert.equal(first.pieces,12);assert.equal(first.placed,0);assert.equal(first.board.w>340,true,'Board nearly fills mobile width');
+ assert.equal(first.pieces.length,12);assert.equal(first.placed,0);assert.equal(first.board.w>340,true,'Board nearly fills mobile width');
  assert.equal(first.tray.y>first.board.y+first.board.h,true,'All loose pieces belong in the tray below');
  assert.equal(await page.locator('.game-topline .top-settings').count(),1,'Game settings stay in the header');
  assert.equal(await page.locator('.game-topline .wordmark .brand-logo use').getAttribute('href'),'#night-mark','Actual NIGHT brand mark');
@@ -64,7 +64,7 @@ try{
  // Customizes settings without leaving the full-screen game.
  await page.locator('#settingsButton').click();
  await page.locator('[data-pieces="24"]').click();
- assert.equal(await page.evaluate(()=>window.__nightJigsawTest.snapshot().pieces),24);
+ assert.equal(await page.evaluate(()=>window.__nightJigsawTest.snapshot().pieces.length),24);
  assert.equal(await page.locator('#progress').textContent(),'0 / 24','Difficulty starts a clean new round');
  await page.locator('#settingsButton').click();
  await page.locator('#guideSwitch').uncheck();
