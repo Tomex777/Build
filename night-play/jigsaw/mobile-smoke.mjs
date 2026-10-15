@@ -107,9 +107,53 @@ try{
  await page.screenshot({path:path.join(root,'visual-output/JIGSAW-WIN-MOBILE.jpg'),type:'jpeg',quality:80,fullPage:true});
  await page.locator('#victoryNext').click();assert.equal(await page.locator('#galleryPanel').isVisible(),true);
  assert.equal(await page.evaluate(()=>localStorage.getItem('night-play-jigsaw-v1')),null,'Finished puzzle is not resumed as unfinished');
+ // Help is scarce in every mode, including Relaxed.
+ await page.locator('[data-theme="cats"]').click();
+ assert.equal(await page.locator('#previewRemaining').textContent(),'3 left');
+ for(let i=0;i<3;i++){
+  await page.locator('#previewButton').click();
+  await page.locator('#previewDialog').waitFor({state:'visible'});
+  await page.locator('[data-close="previewDialog"]').click();
+  await page.locator('#previewDialog').waitFor({state:'hidden'});
+ }
+ assert.equal(await page.locator('#previewButton').isDisabled(),true,'Relaxed has max three preview peeks');
+ for(let i=0;i<3;i++)await page.locator('#hintButton').click();
+ assert.equal(await page.locator('#hintButton').isDisabled(),true,'Relaxed has max three hints');
+ await page.reload();await page.waitForFunction(()=>window.__nightJigsawTest?.snapshot().activeRound);
+ assert.equal(await page.locator('#hintButton').isDisabled(),true,'Reload cannot replenish hints');
+ assert.equal(await page.locator('#previewButton').isDisabled(),true,'Reload cannot replenish peeks');
+
+ await page.locator('#settingsButton').click();
+ await page.locator('[data-mode="challenge"]').click();
+ assert.equal(await page.evaluate(()=>window.__nightJigsawTest.snapshot().challengeMode),'challenge');
+ assert.equal(await page.locator('#hintRemaining').textContent(),'1 left');
+ assert.equal(await page.locator('#previewRemaining').textContent(),'1 left');
+ await page.locator('#hintButton').click();
+ assert.equal(await page.locator('#hintButton').isDisabled(),true,'Challenge grants one hint');
+ await page.locator('#previewButton').click();
+ await page.locator('[data-close="previewDialog"]').click();
+ assert.equal(await page.locator('#previewButton').isDisabled(),true,'Challenge grants one picture peek');
+ await page.locator('#settingsButton').click();
+ await page.locator('[data-mode="memory"]').click();
+ await page.locator('#previewDialog').waitFor({state:'visible',timeout:2500});
+ assert.equal(await page.locator('#guideSwitch').isDisabled(),true,'Memory disables even the faint guide');
+ assert.equal(await page.locator('#hintButton').isDisabled(),true,'Memory grants zero hints');
+ assert.equal(await page.evaluate(()=>window.__nightJigsawTest.snapshot().usedPreviews),1,'Memory automatically shows the only preview');
+ await page.locator('[data-close="previewDialog"]').click();
+ await page.locator('#previewDialog').waitFor({state:'hidden'});
+ assert.equal(await page.locator('#previewButton').isDisabled(),true,'Memory cannot peek twice');
+ await page.locator('#settingsButton').click();
+ await page.locator('[data-pieces="144"]').click();
+ await page.locator('#previewDialog').waitFor({state:'visible',timeout:2500});
+ await page.locator('[data-close="previewDialog"]').click();
+ assert.equal(await page.evaluate(()=>window.__nightJigsawTest.snapshot().pieces.length),144,'144 piece difficulty is playable');
+ assert.equal(await page.locator('#progress').textContent(),'0 / 144');
+ const huge=await page.evaluate(()=>window.__nightJigsawTest.snapshot());
+ assert.ok(huge.tray.h>200,'Master difficulty retains an accessible loose-piece workspace');
+ await page.locator('#pickPicture').click();
  assert.deepEqual(errors,[],'Jigsaw game must have no browser exceptions');
 
- // Desktop receives a side tray and no horizontal overflow.
+ // Desktop receives a side loose-piece space and no horizontal overflow.
  const desktop=await browser.newPage({viewport:{width:1280,height:850}});const deskErrors=[];
  desktop.on('pageerror',e=>deskErrors.push(String(e)));
  await desktop.goto(url+'/jigsaw/');await desktop.locator('[data-theme="nature"]').click();
