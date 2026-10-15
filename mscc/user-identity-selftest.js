@@ -5,6 +5,7 @@ import { canonicalUserKey, identityKeyForJid, readAuthLidPhone, recordVerifiedLi
 import { jidPhoneNumber } from './session-policy.js'
 import { userForStoredGame } from './utils/game-session.js'
 import { addScore, scoreText } from './utils/party-games.js'
+import { addAfkEvent, getAfk, reconcileVerifiedAfk, setAfk } from './afk-state.js'
 const PN='2348012345678@s.whatsapp.net', LID='112233445566@lid', PHONE='2348012345678'
 const storageData=new Map()
 const storage={
@@ -34,4 +35,13 @@ assert.match(scoreText(ctx,'guesssong'),/75 pts/)
 assert.equal(recordVerifiedLidPhone(storage,LID,'2348999999999@s.whatsapp.net'),'')
 assert.equal(hasConflictingLidMapping(storage,LID),true)
 assert.equal(storedLidPhone(storage,LID),'')
+storageData.clear()
+recordVerifiedLidPhone(storage,LID,PN)
+setAfk(storage,'group@g.us','jid:'+LID,{displayName:'Member'})
+addAfkEvent(storage,'group@g.us','jid:'+LID,{
+  senderJid:'2348999999999@s.whatsapp.net',senderName:'Friend',text:'Hello',
+})
+reconcileVerifiedAfk(storage,'group@g.us',PHONE,verifiedIdentityKeys(storage,PN))
+assert.equal(getAfk(storage,'group@g.us',PHONE).events.length,1)
+assert.equal(getAfk(storage,'group@g.us','jid:'+LID),null)
 console.log('PASS verified identity and alias continuity')
