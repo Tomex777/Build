@@ -49,3 +49,10 @@ footer span{display:none}
 body>footer{display:none}
 
 .touchbar:empty{display:none}
+
+/* Tetris-style Block Drop should occupy the width of the usable game viewport. */
+#screen.mode-blocks{width:min(100%,465px);max-width:465px;max-height:none;border-width:1px;border-radius:8px;box-shadow:0 8px 21px #1b44382b}
+@media(max-width:650px){
+ #screen.mode-blocks{width:100%;max-width:calc(100vw - 12px);max-height:none}
+ body:has(#screen.mode-blocks:not([hidden])) main{padding-left:5px;padding-right:5px}
+}

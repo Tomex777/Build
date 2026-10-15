@@ -39,6 +39,7 @@ await page.locator("#restart").click();
 assert.equal(await page.evaluate(()=>window.__nightArcadeTest.snapshot().started),false,"restart resets bird");
 await page.locator("#settingsButton").click();await page.locator('[data-game="blocks"]').click();
 assert.equal(await page.locator("#title").innerText(),"Block Drop");
+assert.ok(await page.locator('canvas.mode-blocks').evaluate(el=>el.getBoundingClientRect().width>=375),'Block Drop fills the phone instead of remaining a narrow strip');
 const initial=await page.evaluate(()=>{const s=window.__nightArcadeTest.snapshot();return [s.cur.x,s.cur.y];});
 await page.locator('[data-control="left"]').click();assert.equal(await page.evaluate(()=>window.__nightArcadeTest.snapshot().cur.x),initial[0]-1);
 const paintBefore=await page.evaluate(()=>window.__nightArcadeTest.perf().blockPaints);
@@ -61,6 +62,17 @@ const covered=await page.evaluate(()=>{const s=window.__nightArcadeTest.snapshot
 await page.locator('[data-tile="'+covered+'"]').click();
 assert.equal(await page.evaluate(i=>window.__nightArcadeTest.snapshot().flags[i],covered),true,"flag mode marks cell");
 assert.equal(await page.evaluate(()=>window.__mineStable===document.querySelector('#mineboard [data-tile="40"]')),true,'Minesweeper does not rebuild board after flagging');
+const longPressAt=await page.evaluate(()=>{
+ const s=window.__nightArcadeTest.snapshot();
+ return s.open.findIndex((v,i)=>!v&&!s.flags[i]);
+});
+const longPress=page.locator('[data-tile="'+longPressAt+'"]');
+await longPress.dispatchEvent('pointerdown',{button:0,clientX:18,clientY:18});
+await page.waitForTimeout(600);
+assert.equal(await page.evaluate(i=>window.__nightArcadeTest.snapshot().flags[i],longPressAt),true,'Long press flags exactly once');
+await longPress.dispatchEvent('contextmenu',{button:2});
+assert.equal(await page.evaluate(i=>window.__nightArcadeTest.snapshot().flags[i],longPressAt),true,'Follow-on Android context menu cannot silently unflag');
+await longPress.dispatchEvent('pointerup',{button:0});
 await page.locator("#settingsButton").click();await page.locator('[data-game="maze"]').click();
 assert.equal(await page.locator("#title").innerText(),"Maze Chase");
 assert.equal(await page.evaluate(()=>window.__nightArcadeTest.snapshot().walls.length),21);

@@ -277,6 +277,15 @@ try{
   await page.locator("#drawCanvas").waitFor();
   const cv=await page.locator("#drawCanvas").boundingBox();
   await page.mouse.move(cv.x+10,cv.y+10);await page.mouse.down();await page.mouse.move(cv.x+80,cv.y+80,{steps:3});await page.mouse.up();
+  const stroke=await page.locator("#drawCanvas").evaluate(el=>{
+    const p=el.getContext('2d').getImageData(40,40,1,1).data;
+    return p[3];
+  });
+  assert.ok(stroke>0,'Draw & Guess paints actual canvas pixels with touch pointer actions');
+  assert.equal(await page.locator("#guessWord").count(),0,'Artist draws before guessing; answer field stays hidden');
+  await page.locator('[data-action="draw-guess"]').click();
+  assert.equal(await page.locator('#guessWord').count(),1,'Handoff reveals the second player guess form');
+  assert.ok(await page.locator("#drawCanvas").evaluate(el=>el.getContext('2d').getImageData(40,40,1,1).data[3])>0,'Artwork survives player handoff');
   await page.locator("#guessWord").fill("wrong answer");
   await page.locator('#guessForm button[type="submit"]').click();
   assert.ok(await page.locator("#guessLog li").count(),"wrong guesses produce feedback");
