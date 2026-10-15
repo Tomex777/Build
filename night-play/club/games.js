@@ -11,7 +11,17 @@ function h(s){return String(s).replace(/[&<>"']/g,x=>({"&":"&amp;","<":"&lt;",">
 function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
 function die(){return Math.floor(Math.random()*6)+1;}
 function save(){if(active==='ludo'&&(state.ludo?.rolling||state.ludo?.moving))return;try{const copy={...state};delete copy.draw;localStorage.setItem(KEY,JSON.stringify(copy));}catch{}}
-function load(){try{const data=JSON.parse(localStorage.getItem(KEY)||"{}");for(const k of Object.keys(titles)){if(data[k]&&typeof data[k]==="object")state[k]=data[k];}}catch{}}
+function load(){try{
+ const data=JSON.parse(localStorage.getItem(KEY)||"{}");
+ for(const k of Object.keys(titles))if(data[k]&&typeof data[k]==="object")state[k]=data[k];
+ // Replace older Shape Cards saves (69-card fictional deck) with the true
+ // 54-card traditional WHOT deck, rather than continuing a corrupted match.
+ const old=state.whot;
+ if(old){
+  const cards=[...(old.hands?.[0]||[]),...(old.hands?.[1]||[]),...(old.deck||[]),...(old.discard||[])];
+  if(cards.length!==54||cards.some(card=>card.n!==20&&!whotNumbers[card.s]?.includes(card.n)))delete state.whot;
+ }
+}catch{}}
 function setStatus(t){status.textContent=t;}
 function controlsHTML(markup){if(controls.innerHTML!==markup)controls.innerHTML=markup;}
 function rules(title,desc){const markup="<h3>"+title+"</h3><p>"+desc+"</p>";if(help.innerHTML!==markup)help.innerHTML=markup;}
