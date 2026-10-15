@@ -123,8 +123,15 @@ void main() {
     // level. The atlas is generated at runtime (< 350 KiB with mipmaps),
     // so the APK stays lean. Hardware mipmaps suppress walking shimmer.
     // Do not project fictional cm-resolution detail onto orbital DEM hills.
+    // Fade the material before the actual 58.8 m square mesh boundary.
+    // A radial-only distance fade left conspicuous square albedo/normal
+    // discontinuities where 1 m terrain hands off to 21 m terrain.
+    float squareDistance = max(
+        abs(ground.x - uViewAnchor.x), abs(ground.y - uViewAnchor.y)
+    );
+    float patchEdgeFade = 1.0 - smoothstep(0.0120, 0.0194, squareDistance);
     float microWeight = (uPatchType == 1 || uPatchType == 2)
-        ? 1.0 - smoothstep(0.005, 0.056, vDistance) : 0.0;
+        ? patchEdgeFade * (1.0 - smoothstep(0.005, 0.056, vDistance)) : 0.0;
     vec4 micro = vec4(0.5, 0.5, 0.5, 0.85);
     if (microWeight > 0.005) {
         vec2 atlasUv = ground * 330.0;
@@ -149,7 +156,7 @@ void main() {
     // simply no orbital imagery for centimetre-scale normal bumps at
     // kilometer ranges: disable them outside the meter-level foreground.
     float nearDetail = uPatchType == 1
-        ? (1.0 - smoothstep(0.015, 0.065, vDistance)) : 0.0;
+        ? patchEdgeFade * (1.0 - smoothstep(0.015, 0.065, vDistance)) : 0.0;
     // Positions and derivative spans are in 3km world units. The old
     // 0.018/0.025 strengths implied 54/75 METRES of material height,
     // driving normals into black/white bands on grazing lunar slopes.
