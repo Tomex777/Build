@@ -51,11 +51,20 @@ try{
  console.log('NIGHT_JIGSAW_PLAY_JPEG_BASE64='+(await page.screenshot({type:'jpeg',quality:60,fullPage:true})).toString('base64'));
  // Real Chromium touch should drag the topmost visible jigsaw piece into place.
  const cdp=await page.context().newCDPSession(page);
- const info=await page.evaluate(()=>{const s=window.__nightJigsawTest.snapshot(),p=s.pieces.at(-1);
-  const board=document.getElementById('puzzleCanvas'),r=board.getBoundingClientRect();
+ const info=await page.evaluate(()=>{
+  const s=window.__nightJigsawTest.snapshot(),board=document.getElementById('puzzleCanvas'),r=board.getBoundingClientRect();
   const sx=r.width/board.width,sy=r.height/board.height;
+  // On small phones, later loose rows are BELOW the viewport. Start the
+  // browser gesture with a real visible puzzle piece instead of an offscreen one.
+  const visible=s.pieces.filter(p=>{
+   const y=r.top+(p.y+s.board.pieceHeight/2)*sy;
+   return !p.placed&&y>r.top&&y<innerHeight-30;
+  });
+  if(!visible.length)throw new Error('No loose piece reachable on mobile viewport');
+  const p=visible[visible.length-1];
   return {fromX:r.left+(p.x+s.board.pieceWidth/2)*sx,fromY:r.top+(p.y+s.board.pieceHeight/2)*sy,
-   toX:r.left+(p.correctX+s.board.pieceWidth/2)*sx,toY:r.top+(p.correctY+s.board.pieceHeight/2)*sy}});
+   toX:r.left+(p.correctX+s.board.pieceWidth/2)*sx,toY:r.top+(p.correctY+s.board.pieceHeight/2)*sy};
+ });
  assert.equal(await page.locator('#dragCanvas').count(),1,'Puzzle moves on an independent drawing layer');
  assert.equal(await page.locator('#dragCanvas').evaluate(el=>getComputedStyle(el).pointerEvents),'none','Drag layer never intercepts finger touches');
  await cdp.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x:info.fromX,y:info.fromY,id:11}]});
