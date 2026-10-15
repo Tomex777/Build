@@ -23,6 +23,7 @@ on:
       - ".ci/slumber_098_release/**"
       - ".ci/slumber_104_play_results/**"
       - ".ci/slumber_105_release_abi/**"
+      - ".ci/slumber_106_portrait_tiles/**"
   pull_request:
     branches: ["slumber-087-build"]
     paths:
@@ -45,6 +46,7 @@ on:
       - ".ci/slumber_098_release/**"
       - ".ci/slumber_104_play_results/**"
       - ".ci/slumber_105_release_abi/**"
+      - ".ci/slumber_106_portrait_tiles/**"
 
 permissions:
   actions: read
@@ -230,6 +232,25 @@ jobs:
             play.write_text(source)
           PY
           grep -q 'var newBest by remember' /tmp/slumber-088/app/src/main/java/com/night/pianohub/ui/screens/PlayScreen.kt
+
+      - name: Replace keyboard-based Play with portrait Piano Tiles
+        shell: bash
+        run: |
+          set -euo pipefail
+          OUT=/tmp/slumber-088
+          cat .ci/slumber_106_portrait_tiles/portrait-tiles.patch.gz.b64.part* | base64 --decode | gzip -dc > "$OUT/portrait-tiles.patch"
+          echo 'eef968b460d2ccd80af9862e2e90ac7bd82c7f46b91137f0c54675571e9036ff  /tmp/slumber-088/portrait-tiles.patch' | sha256sum -c -
+          patch -d "$OUT" -p1 < "$OUT/portrait-tiles.patch"
+          PLAY="$OUT/app/src/main/java/com/night/pianohub/ui/screens/PlayScreen.kt"
+          FIELD="$OUT/app/src/main/java/com/night/pianohub/ui/components/SlumberTilesField.kt"
+          CHART="$OUT/app/src/main/java/com/night/pianohub/music/SlumberTilesChart.kt"
+          grep -q 'SCREEN_ORIENTATION_SENSOR_PORTRAIT' "$PLAY"
+          grep -q 'SlumberTilesField(' "$PLAY"
+          grep -q 'LEAD_IN_MS' "$CHART"
+          grep -q 'awaitEachGesture' "$FIELD"
+          ! grep -q 'PianoKeyboard(' "$PLAY"
+          ! grep -q 'SENSOR_LANDSCAPE' "$PLAY"
+          grep -q 'minSdk = 26' "$OUT/app/build.gradle.kts"
 
       - uses: actions/setup-java@v4
         with:
