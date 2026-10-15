@@ -2384,7 +2384,14 @@ async function onDelete(account, updates) {
   }
 }
 
-const acceptInboundCommand = createInboundMessageGuard()
+const acceptInboundCommand = createInboundMessageGuard({
+  claim:(accountId, msg, now) => !sharedStorage || sharedStorage.claimInboundMessage({
+    accountId,
+    chatJid:msg.key.remoteJid,
+    messageId:msg.key.id,
+    now,
+  }),
+})
 
 const messageScheduler = createMessageScheduler({
   process:processInboundMessage,
@@ -2392,7 +2399,11 @@ const messageScheduler = createMessageScheduler({
   prefix:() => settings.publicPrefix || DEFAULT_PUBLIC_PREFIX,
 })
 
-async function onMessages(account, { messages }) {
+async function onMessages(account, { messages, type }) {
+  // Baileys 'append' events are chat-history/reconnect replay, not fresh
+  // commands. Processing them here can resend stickers or lyrics minutes
+  // after an earlier reply, particularly after a deployment restart.
+  if (type === 'append') return
   await messageScheduler.submitBatch(account, messages)
 }
 
@@ -3367,6 +3378,7 @@ async function init() {
     ttlMs: TTL_MS,
     maxMessagesPerAccount: MAX_CACHE,
   })
+  sharedStorage.pruneInboundReceipts()
   if (accounts.has('A')) sharedStorage.assignProfile('A', 'control')
   const profileUpgrade = sharedStorage.migrateLegacyAccountProfiles([...accounts.values()])
   if (profileUpgrade.migrated) {
