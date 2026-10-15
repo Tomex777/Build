@@ -1,9 +1,11 @@
 {
-  "releaseId": "night-2026-10-15-04",
+  "releaseId": "night-2026-10-15-05",
   "baseBranch": "mscc-azure",
-  "baseCommit": "bff557384174dd4c6b3aa5a3b6da44d3b73b9a08",
+  "baseCommit": "dd113cde30dce98c9062ec98081d75334dc713b9",
   "pullRequests": [
-    247
+    250,
+    252,
+    254
   ],
   "alreadyMerged": [
     215,
@@ -12,7 +14,8 @@
     241,
     243,
     245,
-    246
+    246,
+    256
   ],
-  "notes": "Supersede unapproved Batch #3 run 38791440414: include NIGHT .meme HTML-as-JSON fallback fix and prior Tor deployment recovery plus tweet and verified identity changes. One protected Azure production approval for entire release."
+  "notes": "One combined NIGHT production release: PR250 varied memes/darkmeme with fixed randomized-source regression, PR252 group Squid Game, PR254 60 anime reaction stickers. Includes already-merged PR256 YouTube music reliability from current base. One protected Azure approval for the entire batch."
 }

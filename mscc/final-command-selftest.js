@@ -9,7 +9,7 @@ const registry = await loadCommands(new URL('./commands/', import.meta.url), {
 })
 
 const expected = [
-  'about','meme','joke','quote','caption','wanted','jail','wasted','achievement',
+  'about','meme','darkmeme','joke','quote','caption','wanted','jail','wasted','achievement',
   'broadcast','setbotname','setbotpp','sudo',
 ]
 for (const name of expected) assert.ok(registry.commands.has(name), 'Missing command ' + name)

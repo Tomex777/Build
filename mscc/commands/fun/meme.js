@@ -2,8 +2,8 @@ import { randomMeme } from '../../fun-content.js'
 
 export default {
   name:'meme',
-  description:'Send a random meme.',
-  usage:'.meme [anime|wholesome|programming|dank]',
+  description:'Send a random meme from many communities, with themed pools.',
+  usage:'.meme [anime|wholesome|programming|dank|dark]',
   async run(ctx) {
     const category = String(ctx.args?.[0] || '').trim().toLowerCase()
     try {

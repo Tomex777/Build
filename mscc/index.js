@@ -71,6 +71,7 @@ import { looksLikeNumberSelection } from './number-selection.js'
 import { createInboundMessageGuard, matchesDisplayedChoice } from './inbound-message-guard.js'
 import { createCommandTiming } from './command-performance.js'
 import { createMessageScheduler } from './command-scheduler.js'
+import { createSquidGame } from './squid-game.js'
 import { resolveIdentityWithDeadline } from './identity-resolution.js'
 import {
   canonicalUserKey, hasConflictingLidMapping, isOpaqueLid, readAuthLidPhone,
@@ -187,6 +188,12 @@ const accountRegistry = new AccountRegistry({
 })
 
 const accounts = new Map()
+const squidGame = createSquidGame({
+  storage:() => sharedStorage,
+  accountFor:id => accounts.get(id),
+  resolvePhoneJid:(account, id) => resolvePhoneJid(account, id),
+})
+let squidGameTimer = null
 const makeAccount = record => ({
   id: record.id,
   number: record.phoneNumber,
@@ -2496,6 +2503,19 @@ async function processInboundMessage(account, msg) {
       rememberConversation(account, msg, authority)
       probe?.mark('storage')
 
+      // Squid Game uses ordinary WhatsApp messages and reaction registration,
+      // not the public command namespace. Consume player messages before AI,
+      // moderation replies or any other interactive game responds.
+      const incomingReaction = normalizedContent(msg.message)?.reactionMessage
+      if (incomingReaction) {
+        await squidGame.onReaction(account, {
+          key:incomingReaction.key,
+          reaction:{ ...incomingReaction, key:msg.key },
+        })
+        return
+      }
+      if (await squidGame.onMessage(account, msg)) return
+
       const publicPrefix = settings.publicPrefix || DEFAULT_PUBLIC_PREFIX
 
       const moderation = await enforceCurrentGroupPolicy(account, msg, authority)
@@ -2585,6 +2605,7 @@ async function processInboundMessage(account, msg) {
         rawText: dispatchText,
         context: {
           account,
+          squidGame,
           reactionSounds,
           message: msg,
           controller,
@@ -3006,6 +3027,13 @@ async function startAccount(account) {
       .catch(error => console.error(`[${account.id}] credential save:`, error?.message || error))
   })
   sock.ev.on('messages.upsert', upsert => { if (generation === account.generation) onMessages(account, upsert) })
+  sock.ev.on('messages.reaction', reactions => {
+    if (generation !== account.generation) return
+    for (const reaction of reactions || []) {
+      squidGame.onReaction(account, reaction).catch(error =>
+        console.error(`[${account.id}] Squid Game reaction:`, error?.message || error))
+    }
+  })
   sock.ev.on('messages.update', updates => { if (generation === account.generation) onDelete(account, updates) })
   sock.ev.on('groups.update', updates => {
     if (generation !== account.generation) return
@@ -3525,6 +3553,10 @@ async function init() {
   })
   startLibraryReleaseWatcher()
   startScheduledTaskRunner()
+  squidGameTimer = setInterval(() => {
+    squidGame.tick().catch(error => console.error('Squid Game:', error?.message || error))
+  }, 1000)
+  squidGameTimer.unref?.()
 }
 
 let shuttingDown = false
@@ -3540,6 +3572,8 @@ async function shutdown(signal, exitCode = 0) {
     releaseWatchTimer = null
     if (scheduledTaskTimer) clearInterval(scheduledTaskTimer)
     scheduledTaskTimer = null
+    if (squidGameTimer) clearInterval(squidGameTimer)
+    squidGameTimer = null
     await Promise.allSettled([...accounts.values()].map(account => closeAccount(account)))
     await Promise.allSettled([...accounts.values()].map(account => account.credSave))
     await writeState()
