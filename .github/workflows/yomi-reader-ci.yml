@@ -460,7 +460,7 @@ jobs:
             bash yomi-reader/scripts/capture_clean_screen.sh yomi-output/runtime-api26/gif-frame-3.png
             sleep 0.17
             bash yomi-reader/scripts/capture_clean_screen.sh yomi-output/runtime-api26/gif-frame-4.png
-            python3 yomi-reader/scripts/assert_gif_animation.py yomi-output/runtime-api26/gif-frame-{1,2,3,4}.png
+            python3 yomi-reader/scripts/assert_gif_animation.py yomi-output/runtime-api26/gif-frame-?.png
 
             # Prove the same universal production-like CI candidate installs at minSdk.
             i=0; until adb logcat -c; do i=$((i + 1)); [ "$i" -lt 6 ] || { echo 'Logcat clear failed before candidate APK check' >&2; exit 1; }; sleep 2; done
