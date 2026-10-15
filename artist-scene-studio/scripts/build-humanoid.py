@@ -254,30 +254,12 @@ def build(directory, output, anime=False):
     # vertex stream across four material primitives. Vertex colors preserve the
     # costume design without splitting the skin or losing its 163 editable bones.
     if anime:
-        palette = (
-            [0.91, 0.71, 0.60, 1.],  # warm skin
-            [0.18, 0.52, 0.58, 1.],  # teal outfit
-            [0.10, 0.15, 0.31, 1.],  # navy leggings
-            [0.93, 0.91, 0.84, 1.],  # ivory shoes / cuffs
-        )
-        colors = []
-        for x, y, z in positions:
-            if y < .13:
-                swatch = 3
-            elif y < .88:
-                swatch = 2
-            elif y < 1.40 and abs(x) < .36:
-                swatch = 1
-            elif y < 1.45 and abs(x) >= .36:
-                swatch = 3
-            else:
-                swatch = 0
-            colors.append(palette[swatch])
-        attributes["COLOR_0"] = accessor(colors, 5126, "VEC4")
-        materials = [{"name": "Anime cel-shaded outfit",
+        # Use the same proven Filament-friendly skinned body structure as MakeHuman.
+        # Hold optional extra meshes while diagnosing the visual black-out.
+        materials = [{"name": "Anime reference warm matte",
             "pbrMetallicRoughness": {
-                "baseColorFactor": [1., 1., 1., 1.],
-                "metallicFactor": 0., "roughnessFactor": .94,
+                "baseColorFactor": [.91, .75, .64, 1.],
+                "metallicFactor": 0., "roughnessFactor": .93,
             },
         }]
     else:
@@ -298,8 +280,7 @@ def build(directory, output, anime=False):
     from humanoid_hair import append_hair
     append_hair(gltf, binary, views, accessor, vertices, hair_shapes, names, normals, ROOT / "scripts/hair-source")
     if anime:
-        append_anime_face(gltf, accessor, positions, centers, names)
-        gltf["buffers"][0]["byteLength"] = len(binary)
+        # Additional face mesh paused until its native Android render path is verified.
         gltf["asset"]["generator"] = "Mise original anime study from pinned CC0 MakeHuman body"
         gltf["extras"]["style"] = "mise-anime-figure-v1"
     encoded = json.dumps(gltf, separators=(",", ":")).encode()
