@@ -52,6 +52,7 @@ import {
   getAfk,
   messageMentionJids,
   quotedParticipantJid,
+  reconcileVerifiedAfk,
   setAfk,
 } from './afk-state.js'
 import {
@@ -1786,125 +1787,119 @@ function awayDuration(since) {
   return (diff / 86400000).toFixed(diff < 10 * 86400000 ? 1 : 0).replace('.0','') + 'd'
 }
 
-async function afkPhoneFromJid(account, jid) {
-  const normalized = normalizeJid(jid)
-  if (!normalized) return ''
-  if (normalized.endsWith('@s.whatsapp.net')) return jidUser(normalized)
-  try {
-    const phoneJid = await resolvePhoneJid(account, normalized)
-    return jidPhoneNumber(phoneJid)
-  } catch {
-    return ''
-  }
+async function afkIdentityFromJid(account, jid) {
+  const raw = normalizeJid(jid)
+  if (!raw) return { key:'', phone:'', jid:'' }
+  const resolved = await resolvePhoneJid(account, raw)
+  const key = canonicalUserKey(sharedStorage, resolved)
+  return { key, phone:verifiedPhoneNumber(resolved), jid:raw, resolved }
 }
 
-function afkNameFor(group, jid, phone = '') {
+function afkNameFor(group, jid, fallback = '') {
   return String(
     sharedStorage?.latestConversationSpeaker(group, normalizeJid(jid)) ||
-    phone ||
+    fallback ||
     jidUser(jid) ||
     'member'
   ).trim()
 }
 
-async function plainAfkMessage(account, group, message, text, protectedPhone = '') {
+async function plainAfkMessage(account, group, message, text, protectedKey = '') {
   let value = String(text || '').trim()
   for (const jid of messageMentionJids(message)) {
-    const phone = await afkPhoneFromJid(account, jid)
-    if (!phone || phone === protectedPhone) continue
-    const name = afkNameFor(group, jid, phone)
-    const escaped = [...phone].map(ch => '^$.*+?()[]{}|\\\\'.includes(ch) ? '\\\\' + ch : ch).join('')
-    value = value.replace(new RegExp('@' + escaped + '(?=\\b|\\s|$|[.,!?;:])', 'g'), name)
+    const target = await afkIdentityFromJid(account, jid)
+    if (!target.key || target.key === protectedKey) continue
+    const name = afkNameFor(group, jid, target.phone || 'member')
+    const token = jidUser(jid)
+    value = value.replace(new RegExp('@' + escapeAssistantRegExp(token) + '(?=\\b|\\s|$|[.,!?;:])', 'g'), name)
   }
   return value
 }
 
 async function handleAfkGroupMessage(account, msg, authority, text) {
   const group = normalizeJid(msg?.key?.remoteJid)
-  if (!sharedStorage || !isGroup(group) || msg?.key?.fromMe || !authority?.senderNumber) return false
+  if (!sharedStorage || !isGroup(group) || msg?.key?.fromMe || !authority?.senderKey) return false
 
+  const senderKey = authority.senderKey
   const senderPhone = authority.senderNumber
-  const senderAfk = getAfk(sharedStorage, group, senderPhone)
+  const rawSenderJid = normalizeJid(msg?.key?.participant || authority.senderJid)
+  reconcileVerifiedAfk(sharedStorage, group, senderKey, authority.senderIdentityKeys)
+  const senderAfk = getAfk(sharedStorage, group, senderKey)
   const prefix = settings.publicPrefix || DEFAULT_PUBLIC_PREFIX
   const isAfkCommand = String(text || '').trim().toLowerCase().startsWith((prefix + 'afk').toLowerCase())
 
   if (senderAfk && !isAfkCommand) {
-    const state = clearAfk(sharedStorage, group, senderPhone)
+    const state = clearAfk(sharedStorage, group, senderKey)
     const events = Array.isArray(state?.events) ? state.events : []
-    const senderJid = normalizeJid(await resolveSender(account, msg)) || normalizeJid(senderPhone + '@s.whatsapp.net')
-    const mentions = [senderJid]
+    const mentions = [rawSenderJid].filter(Boolean)
     const seen = new Set()
     const lines = []
 
     for (const event of events.slice(-12)) {
-      const phone = digits(event?.senderPhone)
-      if (!phone) continue
-      const jid = normalizeJid(phone + '@s.whatsapp.net')
-      if (!seen.has(phone)) {
-        mentions.push(jid)
-        seen.add(phone)
-      }
-      const label = '@' + phone
-      const body = String(event?.text || '').trim() || (event?.kind === 'reply' ? 'replied to one of your messages' : 'mentioned you')
+      const jid = normalizeJid(event?.senderJid)
+      if (jid && !seen.has(jid)) { mentions.push(jid); seen.add(jid) }
+      // Historical senderPhone was not always verified; never synthesize
+      // a mention or DM address by appending @s.whatsapp.net to it.
+      const label = jid ? '@' + jidUser(jid) : String(event?.senderName || 'Someone').slice(0,60)
+      const body = String(event?.text || '').trim() ||
+        (event?.kind === 'reply' ? 'replied to one of your messages' : 'mentioned you')
       lines.push('• ' + label + ': ' + body.slice(0,500))
     }
 
     const josia = preferredJosiaAccount(account)
     if (josia?.sock) {
+      const senderLabel = senderPhone ? '@' + senderPhone
+        : (String(msg?.pushName || '').trim() || 'You')
       const body = [
         '◇ *Josia*',
-        '@' + senderPhone + ', you’re back. You were away for *' + awayDuration(state?.since) + '*.',
+        senderLabel + ', you’re back. You were away for *' + awayDuration(state?.since) + '*.',
         events.length ? 'While you were away:' : 'Nobody called for you while you were away.',
         ...lines,
         events.length > 12 ? '• …and ' + (events.length - 12) + ' more.' : '',
       ].filter(Boolean).join('\n')
       await sendText(josia.sock, group, body, { mentions:[...new Set(mentions)] }).catch(() => {})
     }
-    await recordActivity('group.afk-returned', { group, phone:senderPhone, events:events.length })
+    await recordActivity('group.afk-returned', { group, events:events.length })
   }
 
   const targets = new Map()
-  for (const jid of messageMentionJids(msg.message)) {
-    const phone = await afkPhoneFromJid(account, jid)
-    if (phone && phone !== senderPhone && getAfk(sharedStorage, group, phone)) {
-      targets.set(phone, { jid:normalizeJid(jid), kind:'mention' })
+  async function recordTarget(jid,kind) {
+    const target = await afkIdentityFromJid(account,jid)
+    if (!target.key || target.key === senderKey) return
+    reconcileVerifiedAfk(sharedStorage, group, target.key,
+      verifiedIdentityKeys(sharedStorage, target.resolved))
+    if (getAfk(sharedStorage, group, target.key) && !targets.has(target.key)) {
+      targets.set(target.key, { ...target, kind })
     }
   }
-
+  for (const jid of messageMentionJids(msg.message)) await recordTarget(jid, 'mention')
   const quotedJid = quotedParticipantJid(msg.message)
-  if (quotedJid) {
-    const phone = await afkPhoneFromJid(account, quotedJid)
-    if (phone && phone !== senderPhone && getAfk(sharedStorage, group, phone) && !targets.has(phone)) {
-      targets.set(phone, { jid:quotedJid, kind:'reply' })
-    }
-  }
-
+  if (quotedJid) await recordTarget(quotedJid,'reply')
   if (!targets.size) return Boolean(senderAfk && !isAfkCommand)
 
-  const senderName = String(msg?.pushName || '').trim() || afkNameFor(group, await resolveSender(account,msg), senderPhone)
+  const senderName = String(msg?.pushName || '').trim() ||
+    afkNameFor(group, rawSenderJid, senderPhone || 'member')
   const josia = preferredJosiaAccount(account)
-  for (const [phone, target] of targets) {
-    const state = getAfk(sharedStorage, group, phone)
+  for (const [key, target] of targets) {
+    const state = getAfk(sharedStorage, group, key)
     if (!state) continue
-    const safeText = await plainAfkMessage(account, group, msg.message, text, phone)
-    addAfkEvent(sharedStorage, group, phone, {
-      senderPhone,
-      senderName,
-      text:safeText,
-      kind:target.kind,
+    const safeText = await plainAfkMessage(account, group, msg.message, text, key)
+    addAfkEvent(sharedStorage, group, key, {
+      senderPhone, senderJid:rawSenderJid, senderName,
+      text:safeText, kind:target.kind,
     })
 
     if (josia?.sock) {
-      const targetJid = normalizeJid(target.jid) || normalizeJid(phone + '@s.whatsapp.net')
+      const label = target.phone ? '@' + target.phone
+        : (String(state.displayName || '').trim() || '@' + jidUser(target.jid))
       const notice = [
         '◇ *Josia*',
-        '@' + phone + ' is away right now.',
+        label + ' is away right now.',
         state.reason ? 'Reason: ' + state.reason : '',
         'Away for: ' + awayDuration(state.since),
-        safeText ? '' : '',
         safeText ? 'Message: ' + safeText.slice(0,700) : '',
       ].filter(Boolean).join('\n')
-      await sendText(josia.sock, group, notice, { mentions:[targetJid] }).catch(() => {})
+      await sendText(josia.sock, group, notice, { mentions:[target.jid] }).catch(() => {})
     }
   }
   return false
