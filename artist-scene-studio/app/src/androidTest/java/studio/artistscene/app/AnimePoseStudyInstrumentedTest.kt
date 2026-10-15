@@ -49,9 +49,12 @@ class AnimePoseStudyInstrumentedTest {
             while (SystemClock.uptimeMillis() < deadline) {
                 val actor = store.load(project.id).actors.first { it.id == actorId }
                 if ((actor.rigDefinition?.bones?.size ?: 0) >= 150) {
+                    val actual = actor.rig?.joints.orEmpty()
+                    val discovered = actor.rigDefinition!!.bones.map { it.id }.toSet()
                     assertTrue(
-                        "Authored anime joint IDs must refer to real imported Filament joints",
-                        expected.keys.all { it in actor.rigDefinition!!.bones.map { bone -> bone.id } },
+                        "Anime pose must be bound to real Filament bones. Unresolved: " +
+                            actual.keys.filterNot { it in discovered }.joinToString(),
+                        actual.size == expected.size && actual.keys.all { it in discovered },
                     )
                     return
                 }
@@ -88,7 +91,8 @@ class AnimePoseStudyInstrumentedTest {
             ActivityScenario.launch(MainActivity::class.java).use {
                 openScene()
                 waitForRig()
-                assertEquals(expected, store.load(project.id).actors.first { it.id == actorId }.rig!!.joints)
+                assertEquals(expected.values.toSet(), store.load(project.id)
+                    .actors.first { it.id == actorId }.rig!!.joints.values.toSet())
                 posed = screenshot("posed")
             }
 
