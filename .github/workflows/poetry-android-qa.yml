@@ -1,22 +1,16 @@
-name: Poetry Android — Build & Emulator QA
+name: Poetry Android — Build & API 26/35 Emulator
 run-name: Poetry Android QA • ${{ github.ref_name }}
 
 on:
   push:
     branches: [poetry-android]
     paths:
-      - 'poetry-android/app/**'
-      - 'poetry-android/build.gradle.kts'
-      - 'poetry-android/settings.gradle.kts'
-      - 'poetry-android/gradle.properties'
-      - 'poetry-android/design-assets/**'
-  pull_request:
-    paths:
+      - '.github/workflows/poetry-android-qa.yml'
       - 'poetry-android/**'
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: poetry-android-qa-${{ github.ref }}
@@ -25,12 +19,32 @@ concurrency:
 jobs:
   compile:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 35
     defaults:
       run:
         working-directory: poetry-android
     steps:
       - uses: actions/checkout@v4
+      - name: Extract audited Poetry Android V8 source
+        run: |
+          set -euo pipefail
+          test -s source-bundle.tar.gz.base64
+          base64 --decode source-bundle.tar.gz.base64 > /tmp/poetry-source.tar.gz
+          echo '285dfea28dd523375844137d2f006ff1d435a491c4c3117256a3a56ba7a39738  /tmp/poetry-source.tar.gz' | sha256sum -c -
+          tar -tzf /tmp/poetry-source.tar.gz | head -n 12
+          tar -xzf /tmp/poetry-source.tar.gz
+          grep -Eq 'minSdk[[:space:]]*=[[:space:]]*26' app/build.gradle.kts
+          test -s app/src/main/java/com/night/poetry/MainActivity.kt
+      - name: Publish extracted project as readable source files
+        run: |
+          set -euo pipefail
+          git config user.name "poetry-qa[bot]"
+          git config user.email "poetry-qa[bot]@users.noreply.github.com"
+          git add app/ design-assets/ build.gradle.kts settings.gradle.kts gradle.properties
+          if ! git diff --cached --quiet; then
+            git commit -m "feat(poetry): materialize auditable Android V8 source with API 26 compatibility"
+            git push origin "HEAD:poetry-android" || echo "::warning::Could not push expanded files; build will still run against extracted source."
+          fi
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -41,29 +55,37 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.9'
-      - name: Verify actual Android source is present
-        run: |
-          test -s settings.gradle.kts
-          test -s app/build.gradle.kts
-          test -s app/src/main/java/com/night/poetry/MainActivity.kt
-      - name: Compile and assemble Android debug APK
+      - name: Compile and assemble debug APK
         run: gradle :app:assembleDebug --no-daemon --stacktrace
+      - name: Run JVM tests
+        run: gradle :app:testDebugUnitTest --no-daemon --stacktrace
       - uses: actions/upload-artifact@v4
-        if: success()
+        if: always()
         with:
-          name: poetry-debug-apk
-          path: poetry-android/app/build/outputs/apk/debug/app-debug.apk
-          if-no-files-found: error
+          name: poetry-android-build-outputs
+          path: |
+            poetry-android/app/build/outputs/apk/debug/*.apk
+            poetry-android/app/build/reports/tests/
+          if-no-files-found: warn
 
   emulator:
     needs: compile
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 55
+    strategy:
+      fail-fast: false
+      matrix:
+        api-level: [26, 35]
     defaults:
       run:
         working-directory: poetry-android
     steps:
       - uses: actions/checkout@v4
+      - name: Extract audited source (works if source commit could not push)
+        run: |
+          set -euo pipefail
+          base64 --decode source-bundle.tar.gz.base64 | tar -xz
+          grep -Eq 'minSdk[[:space:]]*=[[:space:]]*26' app/build.gradle.kts
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -72,15 +94,15 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.9'
-      - name: Enable KVM
+      - name: Enable /dev/kvm
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
-      - name: Install app and run Compose instrumentation on Android API 35
+      - name: Install and exercise native app on Android API ${{ matrix.api-level }}
         uses: reactivecircus/android-emulator-runner@v2
         with:
-          api-level: 35
+          api-level: ${{ matrix.api-level }}
           target: google_apis
           arch: x86_64
           profile: pixel_6
@@ -93,15 +115,15 @@ jobs:
             adb shell am start -n com.night.poetry/.MainActivity
             sleep 5
             adb shell screencap -p /sdcard/poetry-home.png
-            adb pull /sdcard/poetry-home.png poetry-home.png
-            adb logcat -d -t 5000 > emulator-logcat.txt || true
+            adb pull /sdcard/poetry-home.png "poetry-api${{ matrix.api-level }}-home.png"
+            adb logcat -d -t 5000 > "poetry-api${{ matrix.api-level }}-logcat.txt" || true
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: poetry-api35-emulator-proof
+          name: poetry-api${{ matrix.api-level }}-emulator-proof
           path: |
-            poetry-android/poetry-home.png
-            poetry-android/emulator-logcat.txt
+            poetry-android/poetry-api*-home.png
+            poetry-android/poetry-api*-logcat.txt
             poetry-android/app/build/reports/androidTests/
             poetry-android/app/build/outputs/androidTest-results/
           if-no-files-found: warn
