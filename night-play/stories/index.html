@@ -26,14 +26,17 @@ h1{margin:0 0 15px;font-size:clamp(31px,6vw,54px);font-weight:400;letter-spacing
 .stage{border-left:1px solid #47434a;padding-left:clamp(18px,4vw,36px)}
 .scene-location{color:var(--dim);font:600 10px/1.5 system-ui,sans-serif;text-transform:uppercase;letter-spacing:.22em;margin-bottom:26px}
 .story{min-height:144px}
-.line{font-size:clamp(19px,3.6vw,25px);line-height:1.68;font-weight:400;letter-spacing:-.006em;white-space:pre-wrap;max-width:660px;margin:0 0 17px;opacity:0;transform:translateY(9px);animation:line-arrive 380ms cubic-bezier(.2,.65,.2,1) both}
-.line.emphasis{color:#e9d0aa;font-style:italic}
-.line.quiet{color:#adaeb8}
-@keyframes line-arrive{to{opacity:1;transform:none}}
-.choice-list{display:grid;gap:11px;margin:36px 0 0}
-.choice{display:flex;align-items:center;justify-content:space-between;gap:20px;text-align:left;width:100%;padding:16px 18px;border:1px solid #57545b;border-radius:5px;background:#1d2028;color:var(--ink);font:500 15px/1.5 system-ui,sans-serif;opacity:0;transform:translateY(5px);animation:choice-arrive 145ms ease-out both;transition:background-color .15s,border-color .15s}
-.choice:hover{background:#2a2d36;border-color:#9e978d}
-.choice .number{font-size:11px;color:#9d9b9c;margin-right:9px}
+.line{--word-target:#ece9e1;font-size:clamp(19px,3.6vw,25px);line-height:1.68;font-weight:400;letter-spacing:-.006em;white-space:pre-wrap;max-width:660px;margin:0 0 17px;color:var(--word-target)}
+.line.emphasis{--word-target:#e9d0aa;font-style:italic}
+.line.quiet{--word-target:#adaeb8}
+.ink-word{color:transparent}
+.line.inking .ink-word{animation:ink-arrive var(--ink-ms,900ms) cubic-bezier(.2,.65,.25,1) both}
+.line.settled .ink-word{color:var(--word-target);animation:none}
+@keyframes ink-arrive{0%{color:transparent}35%{color:#8ea9cd}100%{color:var(--word-target)}}
+.choice-list{display:grid;gap:0;margin:32px 0 0;border-top:1px solid #44444b}
+.choice{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:20px;text-align:left;width:100%;padding:17px 4px;border:0;border-bottom:1px solid #44444b;background:transparent;color:var(--ink);font:500 15px/1.55 system-ui,sans-serif;opacity:0;transform:translateY(4px);animation:choice-arrive 135ms ease-out both;transition:background-color .14s,border-color .14s}
+.choice:hover{background:#1e2228;border-color:#8d8f98}
+.choice .number{display:inline-block;min-width:29px;font-size:11px;color:#9d9b9c;margin-right:9px}
 .choice .arrow{color:var(--highlight);font-size:18px}
 @keyframes choice-arrive{to{opacity:1;transform:none}}
 .skiprow{display:flex;align-items:center;justify-content:space-between;gap:15px;margin:35px 0 0;font:500 12px/1.6 system-ui,sans-serif;color:var(--dim)}
@@ -59,7 +62,7 @@ h1{margin:0 0 15px;font-size:clamp(31px,6vw,54px);font-weight:400;letter-spacing
   <div class="label">Interactive fiction · Motion study 01</div>
   <div class="divider" aria-hidden="true"></div>
   <h1>The Last Call</h1>
-  <p class="deck">A short, original sample for reviewing NIGHT Play's suspenseful line-by-line reading animation. No third-party story is included.</p>
+  <p class="deck">An original scene showing HARK-inspired staged word-ink: each line appears through scattered blue-to-white word reveals. This is not a copy of the original HARK game. No third-party story is included.</p>
   <section class="stage" aria-label="Interactive story">
     <div class="scene-location" id="location">The corridor · 02:13 AM</div>
     <div class="story" id="story" aria-live="polite" aria-relevant="additions" aria-atomic="false"></div>
@@ -76,7 +79,7 @@ h1{margin:0 0 15px;font-size:clamp(31px,6vw,54px);font-weight:400;letter-spacing
       </div>
     </div>
   </section>
-  <p class="note">Narration reveals one line at a time, with pauses at dramatic beats. Choices enter almost immediately when the scene finishes. Tap “Reveal remaining lines” to skip narration delays. Reduced-motion preferences are respected.</p>
+  <p class="note">Narration advances in separate lines. Each word briefly passes through cool-blue ink, with staggered delays; choices appear in approximately 135 milliseconds when the final line becomes readable. Tap “Reveal remaining lines” to skip narration delays. Reduced-motion preferences are respected.</p>
 </main>
 <script>
 (()=>{
@@ -166,9 +169,41 @@ let generation=0,timers=[],current='start',shown=0,finished=false;
 const reduced=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 function cancel(){generation++;for(const id of timers)clearTimeout(id);timers=[]}
 function after(fn,delay){const id=setTimeout(fn,delay);timers.push(id)}
-function appendBeat(beat,immediate=false){
-  const p=document.createElement('p');p.className='line'+(beat.tone?' '+beat.tone:'');if(immediate){p.style.animation='none';p.style.opacity='1';p.style.transform='none'}
-  p.textContent=beat.text;root.story.appendChild(p);shown++;
+// Independent HARK-inspired renderer: words occupy final positions before an ink-like reveal.
+function appendBeat(beat, immediate=false){
+  const p=document.createElement('p');
+  p.className='line'+(beat.tone?' '+beat.tone:'');
+  p.setAttribute('aria-label',beat.text);
+  const parts=beat.text.split(/(\s+)/);
+  let words=0;
+  for(const part of parts){
+    if(!part)continue;
+    if(/^\s+$/.test(part)){p.appendChild(document.createTextNode(part));continue}
+    const word=document.createElement('span');
+    word.className='ink-word';word.textContent=part;word.setAttribute('aria-hidden','true');
+    p.appendChild(word);words++;
+  }
+  const quick=root.pace.value==='quick';
+  const factor=quick?.45:1;
+  const spread=Math.round(Math.min(900,Math.max(280,words*8))*factor);
+  const fade=Math.round(900*factor);
+  if(immediate){
+    p.classList.add('settled');
+  }else{
+    p.style.setProperty('--ink-ms',fade+'ms');
+    for(const word of p.querySelectorAll('.ink-word')){
+      word.style.animationDelay=Math.round(Math.random()*spread)+'ms';
+    }
+    p.classList.add('inking');
+  }
+  root.story.appendChild(p);shown++;
+  // Another beat starts when this sentence is readable, not only after its full fade.
+  return spread+Math.round(fade*.6);
+}
+function settleAllLines(){
+  for(const p of root.story.querySelectorAll('.line')){
+    p.classList.remove('inking');p.classList.add('settled');
+  }
 }
 function showChoices(instant=false){
   if(finished)return;
@@ -177,7 +212,7 @@ function showChoices(instant=false){
     const [text,destination]=scenes[current].options[i];
     const button=document.createElement('button');button.type='button';button.className='choice';
     if(instant){button.style.animation='none';button.style.opacity='1';button.style.transform='none'}
-    else button.style.animationDelay=(i*35)+'ms';
+    else button.style.animationDelay=(i*25)+'ms';
     const label=document.createElement('span');
     const number=document.createElement('span');number.className='number';number.textContent=String(i+1).padStart(2,'0');
     label.appendChild(number);label.appendChild(document.createTextNode(text));
@@ -186,7 +221,6 @@ function showChoices(instant=false){
     button.addEventListener('click',()=>play(destination));
     root.choices.appendChild(button);
   }
-  // On a narrow phone, guide the reader to freshly presented options instead of leaving them below the fold.
   if(window.innerWidth<700){
     const end=root.choices.getBoundingClientRect();
     if(end.bottom>window.innerHeight-24){
@@ -199,7 +233,7 @@ function revealAll(){
   cancel();
   const beats=scenes[current].beats;
   while(shown<beats.length)appendBeat(beats[shown],true);
-  for(const p of root.story.querySelectorAll('.line')){p.style.animation='none';p.style.opacity='1';p.style.transform='none'}
+  settleAllLines();
   showChoices(true);
 }
 function play(sceneId){
@@ -210,19 +244,20 @@ function play(sceneId){
   root.story.replaceChildren();root.choices.replaceChildren();
   root.reveal.disabled=false;
   if(root.pace.value==='instant'||reduced){revealAll();return}
-  const multiplier=root.pace.value==='quick'?.43:1;
+  const factor=root.pace.value==='quick'?.45:1;
   const epoch=generation;
   const revealAt=index=>{
     if(epoch!==generation)return;
-    appendBeat(scene.beats[index]);
+    const readability=appendBeat(scene.beats[index]);
+    const intendedPause=Math.round((scene.beats[index].gap||0)*factor);
+    const delay=Math.max(readability,intendedPause);
     if(index===scene.beats.length-1){
-      after(()=>{if(epoch===generation)showChoices(false)},150);
+      after(()=>{if(epoch===generation)showChoices(false)},delay);
     }else{
-      const delay=Math.round(scene.beats[index].gap*multiplier);
       after(()=>revealAt(index+1),delay);
     }
   };
-  after(()=>revealAt(0),160);
+  after(()=>revealAt(0),120);
 }
 root.reveal.addEventListener('click',revealAll);
 root.restart.addEventListener('click',()=>play('start'));
