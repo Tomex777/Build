@@ -98,7 +98,11 @@ try{
  await page.locator('#hintButton').click();
  assert.equal(await page.locator('#progress').innerText(),'2 / 24','Hint places one unsolved piece');
  const beforeReload=await page.evaluate(()=>window.__nightJigsawTest.snapshot());
- await page.reload();await page.waitForFunction(()=>window.__nightJigsawTest?.snapshot().activeRound);
+ await page.reload();
+ assert.equal(await page.locator('#resumePanel').isVisible(),true,'Resume choice shown without a gallery flash');
+ assert.equal(await page.locator('#galleryPanel').isVisible(),false,'Gallery stays hidden during resume prompt');
+ await page.locator('#resumePlaying').click();
+ await page.waitForFunction(()=>window.__nightJigsawTest?.snapshot().activeRound);
  const afterReload=await page.evaluate(()=>window.__nightJigsawTest.snapshot());
  assert.equal(afterReload.placed,beforeReload.placed,'Reload restores solved pieces');
  assert.equal(afterReload.theme,'anime','Reload preserves puzzle image');
@@ -119,7 +123,11 @@ try{
  assert.equal(await page.locator('#previewDialog').isVisible(),true,'Timed reference preview opens');
  assert.equal(await page.locator('#previewRemaining').textContent(),'2 left','Preview spends one peek');
  await page.locator('[data-close="previewDialog"]').click();
- await page.reload();await page.waitForFunction(()=>window.__nightJigsawTest?.snapshot().activeRound);
+ await page.reload();
+ assert.equal(await page.locator('#resumePanel').isVisible(),true,'Resume choice shown without a gallery flash');
+ assert.equal(await page.locator('#galleryPanel').isVisible(),false,'Gallery stays hidden during resume prompt');
+ await page.locator('#resumePlaying').click();
+ await page.waitForFunction(()=>window.__nightJigsawTest?.snapshot().activeRound);
  assert.equal(await page.locator('#guideSwitch').isChecked(),false,'Guide preference persists');
  assert.equal(await page.locator('#soundSwitch').isChecked(),false,'Audio preference persists');
  await page.locator('#pickPicture').click();
@@ -130,7 +138,10 @@ try{
  await page.locator('#imageFile').setInputFiles({name:'photo.png',mimeType:'image/png',buffer:tinyPng});
  await page.waitForFunction(()=>window.__nightJigsawTest?.snapshot().theme==='custom',null,{timeout:2500});
  assert.equal(await page.locator('#puzzleCanvas').isVisible(),true,'Uploaded image creates a puzzle');
- await page.reload();await page.waitForFunction(()=>window.__nightJigsawTest?.snapshot().theme==='custom',null,{timeout:2500});
+ await page.reload();
+ assert.equal(await page.locator('#resumePanel').isVisible(),true,'Private photo offers Continue or New');
+ await page.locator('#resumePlaying').click();
+ await page.waitForFunction(()=>window.__nightJigsawTest?.snapshot().theme==='custom'&&window.__nightJigsawTest?.snapshot().activeRound,null,{timeout:2500});
  await page.locator('#hintButton').click();
  assert.equal(await page.locator('#progress').textContent(),'1 / 48','Custom photo puzzle works after reload');
  for(let i=0;i<48;i++)await page.evaluate(i=>window.__nightJigsawTest.place(i),i);
@@ -152,7 +163,11 @@ try{
  assert.equal(await page.locator('#previewButton').isDisabled(),true,'Relaxed has max three preview peeks');
  for(let i=0;i<3;i++)await page.locator('#hintButton').click();
  assert.equal(await page.locator('#hintButton').isDisabled(),true,'Relaxed has max three hints');
- await page.reload();await page.waitForFunction(()=>window.__nightJigsawTest?.snapshot().activeRound);
+ await page.reload();
+ assert.equal(await page.locator('#resumePanel').isVisible(),true,'Resume choice shown without a gallery flash');
+ assert.equal(await page.locator('#galleryPanel').isVisible(),false,'Gallery stays hidden during resume prompt');
+ await page.locator('#resumePlaying').click();
+ await page.waitForFunction(()=>window.__nightJigsawTest?.snapshot().activeRound);
  assert.equal(await page.locator('#hintButton').isDisabled(),true,'Reload cannot replenish hints');
  assert.equal(await page.locator('#previewButton').isDisabled(),true,'Reload cannot replenish peeks');
 
@@ -200,6 +215,12 @@ try{
  await page.goto(url+'/games');await page.locator('#view-games').waitFor({state:'visible'});
  assert.equal(await page.locator('[data-jigsaw]').count(),1,'Jigsaw is present in main game library');
  await page.locator('[data-jigsaw]').click();await page.waitForURL('**/jigsaw/');
- assert.equal(await page.locator('#playScreen').isVisible(),true,'Library opens Jigsaw and restores the unfinished Master round');
+ assert.equal(await page.locator('#resumePanel').isVisible(),true,'Returning from the library offers Continue or New Picture');
+  assert.equal(await page.locator('#galleryPanel').isVisible(),false,'Unfinished puzzle never flashes the gallery');
+  await page.locator('#startFresh').click();
+  assert.equal(await page.locator('#galleryPanel').isVisible(),true,'New picture choice works without deleting progress');
+  assert.equal(await page.locator('#resumeGalleryBanner').isVisible(),true,'Saved game is still accessible from the gallery');
+  await page.locator('#resumeFromGallery').click();
+  assert.equal(await page.locator('#playScreen').isVisible(),true,'Continue restores the unfinished Master puzzle');
  console.log('PASS NIGHT Play Jigsaw: gallery, artwork, real touch drag, hints, save/reload, settings, upload, win and responsive desktop.');
 }finally{if(browser)await browser.close();await new Promise(ok=>server.close(ok))}
