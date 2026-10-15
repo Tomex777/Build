@@ -7,7 +7,7 @@ import { stickerPackNameForCommand } from './utils/sticker-metadata.js'
 
 export const REACTION_GROUPS = Object.freeze({
   'Affection': 'hug kiss cuddle pat peck blowkiss handhold lappillow kabedon carry',
-  'Action': 'slap punch shoot bonk yeet akick bite poke tickle tableflip baka',
+  'Action': 'slap punch shoot bonk yeet akick kill bite poke tickle tableflip baka',
   'Emotions': 'angry blush bored confused cry happy laugh pout shocked shrug smile smug stare facepalm bleh teehee think nope',
   'Social': 'clap feed handshake highfive salute shake thumbsup wave wink nod nom nya wag',
   'Everyday': 'dance run sleep sip spin lurk yawn',
@@ -58,6 +58,21 @@ export function reactionCatalog(prefix = '.') {
 }
 
 async function requestJson(category) {
+  if (category === 'kill') {
+    // The secondary source and its GIF->WebP conversion were live-verified.
+    const response = await fetch('https://animegifs-enkidu.koyeb.app/v3/api/?category=kill', {
+      headers: {'User-Agent':USER_AGENT,Accept:'application/json'},
+      signal:AbortSignal.timeout(12000),
+    })
+    if (!response.ok || !String(response.headers.get('content-type') || '').includes('json'))
+      throw new Error('Kill sticker source is unavailable')
+    const data = await response.json()
+    const url = new URL(String(data?.gif || ''))
+    const host = 'frqs54dqeajn.objectstorage.eu-frankfurt-1.oci.customer-oci.com'
+    if (url.protocol !== 'https:' || url.hostname !== host)
+      throw new Error('Kill sticker source returned an untrusted URL')
+    return [url.href]
+  }
   const response = await fetch(API_ROOT + encodeURIComponent(category) + '?amount=12', {
     headers: { 'User-Agent': USER_AGENT, Accept:'application/json' },
     signal: AbortSignal.timeout(12000),
