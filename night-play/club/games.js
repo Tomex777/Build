@@ -164,16 +164,103 @@ if(draw){take(s,opp,draw);again=true;}
 s.msg=(pi===0?"You":"Computer")+" played "+(kind==="whot"?(card.n===20?"WHOT 20":card.n+" "+shapes[card.s]):card.n)+ (draw?" · opponent draws "+draw:"")+(again?" · play again":"");
 s.turn=again?pi:opp;
 }
-function cardPlay(kind,index){
-const s=state[kind];if(s.turn!==0||s.winner!==null)return;const card=s.hands[0][index];if(!card||!playable(kind,s,card))return;
-let chosen=null;if(kind==="whot"&&card.n===20)chosen=Number($("wishShape").value);if(kind==="colors"&&card.c===4)chosen=Number($("wishColor").value);
-s.hands[0].splice(index,1);nextCardTurn(kind,s,0,card,chosen);render();if(s.turn===1)queueCPU(kind);
+/* GPU-composited, hardcoded card motion. No re-render on animation frames. */
+async function whotFly(origin,destination,{face=null,action="play"}={}){
+ if(!origin||!destination||matchMedia('(prefers-reduced-motion: reduce)').matches)return;
+ const a=origin.getBoundingClientRect(),b=destination.getBoundingClientRect();
+ if(!a.width||!b.width)return;
+ let ghost=origin.cloneNode(true);
+ if(face){const root=document.createElement('div');root.innerHTML=whotFace(face,-1,false);ghost=root.firstElementChild;}
+ ghost.classList.add('whot-flight');ghost.removeAttribute('data-card');
+ const oldVisibility=origin.style.visibility;
+ Object.assign(ghost.style,{position:'fixed',left:a.left+'px',top:a.top+'px',
+  width:a.width+'px',height:a.height+'px',margin:'0',zIndex:'9999',
+  visibility:'visible',pointerEvents:'none'});
+ document.body.appendChild(ghost);
+ if(action==='play')origin.style.visibility='hidden';
+ const dx=b.left+b.width/2-a.left-a.width/2,dy=b.top+b.height/2-a.top-a.height/2,scale=b.width/a.width;
+ cardMotionMetrics.activeFlights++;
+ const flip=action==='cpu'?' rotateY(65deg)':'';
+ try{
+  const effect=ghost.animate([
+   {transform:'translate3d(0,0,0) rotate(-4deg)'+flip,opacity:action==='deal'?.1:1},
+   {offset:.52,transform:'translate3d('+(dx*.52)+'px,'+(dy*.52-22)+'px,0) scale(1.09) rotate(-8deg)',opacity:1},
+   {transform:'translate3d('+dx+'px,'+dy+'px,0) scale('+scale+') rotate(0)',opacity:1}
+  ],{duration:action==='cpu'?520:action==='draw'?460:430,
+   easing:'cubic-bezier(.18,.72,.15,1)',fill:'forwards'});
+  await effect.finished.catch(()=>{});
+ }finally{origin.style.visibility=oldVisibility;ghost.remove();cardMotionMetrics.activeFlights--;}
 }
-function cardDraw(kind){const s=state[kind];if(s.turn!==0||s.winner!==null)return;take(s,0,1);s.turn=1;s.msg="You drew a card. Computer's turn.";render();queueCPU(kind);}
-function queueCPU(kind){setTimeout(()=>{if(active!==kind)return;const s=state[kind];if(!s||s.turn!==1||s.winner!==null)return;
-const idx=s.hands[1].findIndex(card=>playable(kind,s,card));if(idx<0){take(s,1,1);s.turn=0;s.msg="Computer picked up a card.";render();return;}
-const card=s.hands[1].splice(idx,1)[0],option=kind==="whot"?Math.floor(Math.random()*5):Math.floor(Math.random()*4);nextCardTurn(kind,s,1,card,option);render();if(s.turn===1)queueCPU(kind);
-},470);}
+function whotDeal(){
+ const deck=board.querySelector('.whot-deck');
+ if(!deck||!motionEnabled()||active!=='whot')return;
+ const a=deck.getBoundingClientRect();
+ [...board.querySelectorAll('.hand .whot-card')].forEach((card,index)=>{
+  const b=card.getBoundingClientRect(),dx=a.left+a.width/2-b.left-b.width/2,
+  dy=a.top+a.height/2-b.top-b.height/2;
+  cardMotionMetrics.deals++;
+  card.animate([
+   {transform:'translate3d('+dx+'px,'+dy+'px,0) scale(.58) rotate(-12deg)',opacity:.05},
+   {offset:.72,transform:'translate3d('+(dx*.12)+'px,'+(dy*.12-11)+'px,0) scale(1.06) rotate(3deg)',opacity:1},
+   {transform:'translate3d(0,0,0) scale(1) rotate(0)',opacity:1}
+  ],{delay:85+index*95,duration:560,easing:'cubic-bezier(.16,.8,.15,1)'});
+ });
+}
+function whotSettle(){
+ if(!motionEnabled())return;
+ const p=board.querySelector('.card-pile .whot-card');
+ p?.animate([{transform:'scale(1.13) rotate(3deg)'},{transform:'scale(1) rotate(0)'}],
+ {duration:240,easing:'ease-out'});
+}
+async function cardPlay(kind,index){
+ const s=state[kind];if(cardMotionBusy||s.turn!==0||s.winner!==null)return;
+ const card=s.hands[0][index];if(!card||!playable(kind,s,card))return;
+ const chosen=kind==='whot'&&card.n===20?Number($('wishShape').value):
+ kind==='colors'&&card.c===4?Number($('wishColor').value):null;
+ const epoch=cardMotionEpoch;cardMotionBusy=true;
+ try{
+  if(kind==='whot'){cardMotionMetrics.plays++;
+   await whotFly(board.querySelector('.hand [data-card="'+index+'"]'),
+    board.querySelector('.card-pile .whot-card'),{action:'play'});
+  }
+  if(epoch!==cardMotionEpoch||active!==kind||state[kind]!==s)return;
+  s.hands[0].splice(index,1);nextCardTurn(kind,s,0,card,chosen);
+  render();if(kind==='whot')whotSettle();if(s.turn===1)queueCPU(kind);
+ }finally{if(epoch===cardMotionEpoch)cardMotionBusy=false;}
+}
+async function cardDraw(kind){
+ const s=state[kind];if(cardMotionBusy||s.turn!==0||s.winner!==null)return;
+ const epoch=cardMotionEpoch;cardMotionBusy=true;
+ try{
+  if(kind==='whot'){cardMotionMetrics.draws++;
+   await whotFly(board.querySelector('.whot-deck'),board.querySelector('.hand .whot-card:last-child'),{action:'draw'});
+  }
+  if(epoch!==cardMotionEpoch||active!==kind||state[kind]!==s)return;
+  take(s,0,1);s.turn=1;s.msg="You drew a card. Computer's turn.";
+  render();queueCPU(kind);
+ }finally{if(epoch===cardMotionEpoch)cardMotionBusy=false;}
+}
+function queueCPU(kind){const round=state[kind],epoch=cardMotionEpoch;
+ setTimeout(async ()=>{
+  if(active!==kind||round!==state[kind]||cardMotionEpoch!==epoch||round.turn!==1||round.winner!==null)return;
+  const s=round,idx=s.hands[1].findIndex(card=>playable(kind,s,card));
+  if(idx<0){
+   if(kind==='whot'){cardMotionMetrics.draws++;
+    await whotFly(board.querySelector('.whot-deck'),board.querySelector('.card-back'),{action:'draw'});
+   }
+   if(active!==kind||state[kind]!==s||cardMotionEpoch!==epoch)return;
+   take(s,1,1);s.turn=0;s.msg="Computer picked up a card.";render();return;
+  }
+  const card=s.hands[1][idx];
+  if(kind==='whot'){cardMotionMetrics.cpuPlays++;
+   await whotFly(board.querySelector('.card-back'),board.querySelector('.card-pile .whot-card'),{face:card,action:'cpu'});
+  }
+  if(active!==kind||state[kind]!==s||cardMotionEpoch!==epoch)return;
+  s.hands[1].splice(idx,1);
+  nextCardTurn(kind,s,1,card,kind==='whot'?Math.floor(Math.random()*5):Math.floor(Math.random()*4));
+  render();if(kind==='whot')whotSettle();if(s.turn===1)queueCPU(kind);
+ },kind==='whot'?380:470);
+}
 function whotShapeSvg(s,n,mini=false){
  // Entirely original vector suits, drawn from geometric shapes; no third-party
  // logos or unlicensed game art. Intrinsic geometry scales crisply on Android.
@@ -213,7 +300,9 @@ if(s.called!==null)topSelected[kind==="whot"?"s":"c"]=s.called;
 const currentCall=s.called===null?'':kind==="whot"
  ?'<div class="whot-called" role="status">WHOT 20 · CALLED '+shapes[s.called].toUpperCase()+'</div>'
  :'<div class="whot-called" role="status">WILD · '+["RED","BLUE","GREEN","YELLOW"][s.called]+'</div>';
-board.innerHTML='<div class="table-surface" aria-label="Card table"><h3>COMPUTER · '+s.hands[1].length+' CARDS</h3><div class="card-row"><div class="playing-card card-back" aria-label="Computer cards hidden"></div><span class="cards-counter">× '+s.hands[1].length+'</span></div><div class="card-pile"><span class="cards-counter">DECK '+s.deck.length+'</span>'+cardMarkup(kind,t,-1,false)+currentCall+'</div><div class="hand"><div class="card-label">YOUR HAND · '+s.hands[0].length+' CARDS</div><div class="card-row">'+s.hands[0].map((card,i)=>cardMarkup(kind,card,i,s.turn===0&&s.winner===null&&playable(kind,s,card))).join("")+'</div></div></div>';
+board.innerHTML='<div class="table-surface" aria-label="Card table"><h3>COMPUTER · '+s.hands[1].length+' CARDS</h3><div class="card-row"><div class="playing-card card-back" aria-label="Computer cards hidden"></div><span class="cards-counter">× '+s.hands[1].length+'</span></div><div class="card-pile">'+(kind==='whot'?'<button type="button" class="whot-deck" data-action="card-draw" aria-label="Pick one card from the market"><span class="whot-deck-back">WHOT</span><span class="cards-counter">MARKET · '+s.deck.length+'</span></button>':'<span class="cards-counter">DECK '+s.deck.length+'</span>')+cardMarkup(kind,t,-1,false)+currentCall+'</div><div class="hand"><div class="card-label">YOUR HAND · '+s.hands[0].length+' CARDS</div><div class="card-row">'+s.hands[0].map((card,i)=>cardMarkup(kind,card,i,s.turn===0&&s.winner===null&&playable(kind,s,card))).join("")+'</div></div></div>';
+if(kind==='whot'&&pendingWhotDeal){pendingWhotDeal=false;const token=cardMotionEpoch;
+ requestAnimationFrame(()=>{if(token===cardMotionEpoch&&active==='whot')whotDeal()});}
 setStatus(s.winner!==null?s.msg:(s.turn===0?"Your turn. ":"Computer's turn. ")+s.msg);
 let shape=kind==="whot"?'<label class="small" for="wishShape">Shape to call (change card)</label><select id="wishShape" class="select">'+shapes.map((sh,i)=>'<option value="'+i+'">'+sh+'</option>').join("")+'</select>':'<label class="small" for="wishColor">Colour to call (wild)</label><select id="wishColor" class="select">'+["Red","Blue","Green","Yellow"].map((sh,i)=>'<option value="'+i+'">'+sh+'</option>').join("")+'</select>';
 controlsHTML('<div class="row"><button class="primary" type="button" data-action="card-draw" '+(s.turn!==0||s.winner!==null?"disabled":"")+'>Pick one card</button></div><p class="small">Cards left: you '+s.hands[0].length+' · computer '+s.hands[1].length+'</p>'+shape);
