@@ -7,7 +7,7 @@ export default {
     if (!ctx.groupKey) return ctx.reply('Use this command in a group to see your activity there.')
     const stats = ctx.getGroupActivity?.(ctx.args?.[0])
     if (!stats) return ctx.reply('Group activity history is not available.')
-    const mine = stats.ranked.find(member => member.key === ctx.activityUserKey)
+    const mine = stats.ranked.find(member => member.key === ctx.activityUserKey || member.identityKeys?.includes(ctx.activityUserKey))
     if (!mine) return ctx.reply('No activity recorded for you in ' + stats.period.label + ' yet.')
     const share = stats.total ? (100 * mine.messages / stats.total).toFixed(1) : '0.0'
     return ctx.reply([
