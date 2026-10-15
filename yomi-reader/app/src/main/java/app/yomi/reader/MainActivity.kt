@@ -140,14 +140,14 @@ class MainActivity : ComponentActivity() {
         libraryRevision.intValue += 1
     }
 
-    private fun persistSelection(uri: Uri, kind: String, pageCount: Int? = null): LibraryBook {
+    private fun persistSelection(uri: Uri, kind: String, pageCount: Int? = null, titleOverride: String? = null): LibraryBook {
         try {
             contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
         } catch (_: SecurityException) {
             // Some document providers grant durable access without accepting this explicit call.
         }
 
-        val title = if (kind == "folder") {
+        val title = titleOverride ?: if (kind == "folder") {
             uri.lastPathSegment?.substringAfterLast(':')?.substringAfterLast('/') ?: "Folder"
         } else {
             queryDisplayName(uri) ?: uri.lastPathSegment?.substringAfterLast('/') ?: "Book"
@@ -178,11 +178,13 @@ class MainActivity : ComponentActivity() {
             return@withContext uri
         }
 
+        // Persist the original grant when available, but still mirror the
+        // archive once to private storage. Stream-only content:// providers
+        // otherwise require decompressing preceding ZIP pages on every turn.
         if (uri.scheme == "content") {
-            val persisted = runCatching {
+            runCatching {
                 contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
-            }.isSuccess
-            if (persisted) return@withContext uri
+            }
         }
 
         val sourceName = runCatching { queryDisplayName(uri) }.getOrNull()
@@ -228,12 +230,12 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    private suspend fun importArchive(uri: Uri): LibraryBook {
+    private suspend fun importArchive(uri: Uri, titleOverride: String? = null): LibraryBook {
         val catalog = when (val scan = withContext(Dispatchers.IO) { inspectArchive(uri) }) {
             is ArchiveScanResult.Success -> scan.catalog
             is ArchiveScanResult.Rejected -> throw IllegalArgumentException("cbz:" + scan.reason)
         }
-        val book = persistSelection(uri, "archive", catalog.pages.size)
+        val book = persistSelection(uri, "archive", catalog.pages.size, titleOverride)
         // Real-world CBZs sometimes begin with an unsupported/corrupt front-matter
         // image. Find the first *decodable* page rather than silently dropping the
         // cover because only the first catalog entry was attempted.
@@ -495,8 +497,20 @@ class MainActivity : ComponentActivity() {
             importingArchive = true
             importError = null
             try {
-                val storedUri = if (fromExternalApp) retainExternalArchive(uri) else uri
-                val book = importArchive(storedUri)
+                val originalTitle = runCatching { queryDisplayName(uri) }.getOrNull()
+                    ?: uri.lastPathSegment?.substringAfterLast('/')
+                val storedUri = retainExternalArchive(uri)
+                if (storedUri != uri) {
+                    // Upgrade older picked CBZ entries in place. Keep their
+                    // bookmark/progress ID while switching to the faster
+                    // random-access app-private archive.
+                    val oldEntry = libraryStore.list().firstOrNull { it.locationUri == uri.toString() }
+                    val alreadyRetained = libraryStore.list().any { it.locationUri == storedUri.toString() }
+                    if (oldEntry != null && !alreadyRetained) {
+                        libraryStore.relink(oldEntry.id, storedUri, title = originalTitle)
+                    }
+                }
+                val book = importArchive(storedUri, originalTitle)
                 library = libraryStore.list()
                 Log.i(STARTUP_TAG, "archive-imported-and-opening title=${book.title}")
                 openReader(book)
