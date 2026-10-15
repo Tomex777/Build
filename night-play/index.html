@@ -918,6 +918,16 @@ body{background:var(--bg)}
 .library-card .thumb .premium-game-art,.club-card .thumb .premium-game-art{display:block;width:100%;height:100%;max-width:none;overflow:hidden;object-fit:cover}
 .club-card .thumb{background:#dce8df}
 .library-card[data-club="whot"] .thumb .tag{background:#f6e7d9;color:#5d2c32;border-color:#e0ccc5}
+
+/* Interactive fiction: an original NIGHT Play story thumbnail within the existing library. */
+.library-card.story-entry{display:block;color:inherit;min-width:0}
+.library-card.story-entry[hidden]{display:none!important}
+.library-card.story-entry .story-thumb{background:#19252a;position:relative;isolation:isolate}
+.library-card.story-entry .story-thumb .tag{background:#f2f0e7;color:#334a43;border:1px solid #d5dbd4}
+.story-illustration{display:block;width:100%;height:100%}
+.story-entry .cardrow p{line-height:1.4}
+.story-entry:focus-visible{outline:3px solid #456a58;outline-offset:3px}
+.story-entry .arrow{display:grid;place-items:center}
 </style>
 </head>
 <body>
@@ -991,9 +1001,35 @@ body{background:var(--bg)}
  </section>
 <section class="site-page" id="view-games" data-view="games" hidden>
  <div class="inner-page-head"><div><span class="eyebrow">THE NIGHT ARCADE</span><h1>One more <span class="muted">round?</span></h1><p>Pick an arcade classic, solve a puzzle, or find your next favorite.</p></div></div>
- <div class="library-toolbar"><div class="filter-buttons" role="group" aria-label="Filter games"><button class="filter-btn active" type="button" data-filter="all" aria-pressed="true">All games</button><button class="filter-btn" type="button" data-filter="arcade" aria-pressed="false">Arcade</button><button class="filter-btn" type="button" data-filter="puzzle" aria-pressed="false">Puzzle</button><button class="filter-btn" type="button" data-filter="board" aria-pressed="false">Board games</button></div><label class="searchbox"><svg class="ui-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><use href="#icon-search"></use></svg><input id="gameSearch" type="search" placeholder="Search games..." aria-label="Search games" autocomplete="off"></label></div>
+ <div class="library-toolbar"><div class="filter-buttons" role="group" aria-label="Filter games"><button class="filter-btn active" type="button" data-filter="all" aria-pressed="true">All games</button><button class="filter-btn" type="button" data-filter="arcade" aria-pressed="false">Arcade</button><button class="filter-btn" type="button" data-filter="puzzle" aria-pressed="false">Puzzle</button><button class="filter-btn" type="button" data-filter="board" aria-pressed="false">Board games</button><button class="filter-btn" type="button" data-filter="story" aria-pressed="false">Stories</button></div><label class="searchbox"><svg class="ui-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><use href="#icon-search"></use></svg><input id="gameSearch" type="search" placeholder="Search games..." aria-label="Search games" autocomplete="off"></label></div>
  <div class="library-counter" id="libraryCount" aria-live="polite">Browse 16 games · 14 playable</div>
  <div class="grid library-grid" id="libraryGrid">
+<a class="gamecard library-card story-entry" data-cat="story" data-name="interactive fiction stories the last call suspense narrative" data-live="true" href="/stories/" aria-label="Play The Last Call, an interactive suspense story animation preview">
+  <div class="thumb story-thumb">
+    <span class="tag">MOTION PREVIEW</span>
+    <svg class="story-illustration" role="img" aria-label="Midnight corridor with glowing door and scattered written lines" viewBox="0 0 320 216" preserveAspectRatio="xMidYMid slice">
+      <defs>
+        <linearGradient id="story-bg" x1="0" x2=".84" y1=".9" y2="0"><stop stop-color="#0c171c"/><stop offset=".57" stop-color="#24363b"/><stop offset="1" stop-color="#314b4d"/></linearGradient>
+        <linearGradient id="story-door" x1="0" x2="1"><stop stop-color="#6a8989"/><stop offset="1" stop-color="#eff0d5"/></linearGradient>
+        <radialGradient id="story-light"><stop stop-color="#d9dfc0" stop-opacity=".38"/><stop offset="1" stop-color="#d9dfc0" stop-opacity="0"/></radialGradient>
+      </defs>
+      <rect width="320" height="216" fill="url(#story-bg)"/>
+      <path d="M0 216L128 140H192L320 216Z" fill="#0d191e"/>
+      <path d="M0 0L128 46V140L0 216M320 0L192 46V140L320 216" fill="#1e2d31" stroke="#5d7471" stroke-opacity=".36"/>
+      <path d="M128 46H192V140H128Z" fill="#101c21" stroke="#698583" stroke-width="2"/>
+      <rect x="143" y="61" width="39" height="79" rx="2" fill="url(#story-door)" opacity=".8"/>
+      <path d="M145 64V138H180V64" fill="none" stroke="#dde3c8" stroke-width="1" opacity=".7"/>
+      <circle cx="177" cy="106" r="2.3" fill="#142726"/>
+      <ellipse cx="165" cy="135" rx="78" ry="72" fill="url(#story-light)"/>
+      <path d="M50 154H98M50 165H113M50 177H84" stroke="#a6c2b5" stroke-width="3" stroke-linecap="round" opacity=".75"/>
+      <path d="M220 64H275M220 76H260M220 88H282" stroke="#f2e8c9" stroke-width="3" stroke-linecap="round" opacity=".6"/>
+      <path d="M232 162V188M246 158V192" stroke="#96aeaa" stroke-width="1" opacity=".35"/>
+      <circle cx="245" cy="134" r="9" fill="#d8ddc8" opacity=".87"/>
+      <path d="M245 143V161" stroke="#c9d5c3" stroke-width="1.3" stroke-dasharray="2 4"/>
+    </svg>
+  </div>
+  <div class="cardrow"><div><h3>The Last Call</h3><p>Suspenseful interactive fiction · animation preview</p></div><span class="arrow" aria-hidden="true"><svg class="ui-icon" viewBox="0 0 24 24"><use href="#icon-arrow"></use></svg></span></div>
+</a>
   <article class="gamecard library-card" data-cat="arcade" data-name="snake" data-live="true" data-game="snake" tabindex="0" role="button" aria-label="Play Snake"><div class="thumb snake"><span class="tag">PLAYABLE NOW</span><svg class="game-art" viewBox="0 0 160 140" role="img" aria-label="snake illustration"><use href="#art-snake"></use></svg></div><div class="cardrow"><div><h3>Snake</h3><p>Survive and beat your best.</p></div><button class="arrow" aria-label="Play Snake" tabindex="-1"><svg class="ui-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><use href="#icon-arrow"></use></svg></button></div></article>
   <article class="gamecard library-card" data-cat="puzzle" data-name="2048" data-live="true" data-game="2048" tabindex="0" role="button" aria-label="Play 2048"><div class="thumb tiles"><span class="tag">PLAYABLE NOW</span><svg class="game-art" viewBox="0 0 160 140" role="img" aria-label="Number tile illustration"><use href="#art-tiles"></use></svg></div><div class="cardrow"><div><h3>2048</h3><p>Slide, merge, repeat.</p></div><button class="arrow" aria-label="Play 2048" tabindex="-1"><svg class="ui-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><use href="#icon-arrow"></use></svg></button></div></article>
   <article class="gamecard library-card" data-cat="board" data-name="tic tac toe ttt" data-live="true" data-game="ttt" tabindex="0" role="button" aria-label="Play Tic-Tac-Toe"><div class="thumb tictactoe"><span class="tag">BOT / LOCAL 2P</span><svg class="game-art" viewBox="0 0 160 140" role="img" aria-label="Tic-tac-toe illustration"><use href="#art-ttt"></use></svg></div><div class="cardrow"><div><h3>Tic-Tac-Toe</h3><p>Face the bot or a local friend.</p></div><button class="arrow" aria-label="Play Tic-Tac-Toe" tabindex="-1"><svg class="ui-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><use href="#icon-arrow"></use></svg></button></div></article>
