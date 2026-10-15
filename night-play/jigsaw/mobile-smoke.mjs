@@ -56,10 +56,39 @@ try{
   const sx=r.width/board.width,sy=r.height/board.height;
   return {fromX:r.left+(p.x+s.board.pieceWidth/2)*sx,fromY:r.top+(p.y+s.board.pieceHeight/2)*sy,
    toX:r.left+(p.correctX+s.board.pieceWidth/2)*sx,toY:r.top+(p.correctY+s.board.pieceHeight/2)*sy}});
+ assert.equal(await page.locator('#dragCanvas').count(),1,'Puzzle moves on an independent drawing layer');
+ assert.equal(await page.locator('#dragCanvas').evaluate(el=>getComputedStyle(el).pointerEvents),'none','Drag layer never intercepts finger touches');
  await cdp.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x:info.fromX,y:info.fromY,id:11}]});
- await cdp.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x:(info.fromX+info.toX)/2,y:(info.fromY+info.toY)/2,id:11}]});
+ await page.waitForFunction(()=>window.__nightJigsawTest.snapshot().selected!==null);
+ const paintStart=await page.evaluate(()=>window.__nightJigsawTest.snapshot());
+ const initialPiece=paintStart.selected;
+ assert.ok(paintStart.staticPaints>0,'Static board painted on initial pickup');
+ const dragMidX=(info.fromX+info.toX)/2,dragMidY=(info.fromY+info.toY)/2;
+ await cdp.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x:dragMidX,y:dragMidY,id:11}]});
+ // Repeated real Chromium touch movement must never repaint the full scene.
+ for(let step=1;step<=16;step++){
+  const t=.5+step*.025;
+  await cdp.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{
+   x:info.fromX+(info.toX-info.fromX)*t,
+   y:info.fromY+(info.toY-info.fromY)*t,id:11
+  }]});
+ }
+ await page.waitForFunction(n=>window.__nightJigsawTest.snapshot().dragPaints>=n,paintStart.dragPaints+3);
+ const moving=await page.evaluate(()=>window.__nightJigsawTest.snapshot());
+ assert.equal(moving.staticPaints,paintStart.staticPaints,'Jigsaw drag never redraws 24 static pieces');
+ assert.ok(moving.dragPaints>paintStart.dragPaints+2,'Only the selected piece redraws with the finger');
+ const touchEndX=info.fromX+(info.toX-info.fromX)*.9;
+ const touchEndY=info.fromY+(info.toY-info.fromY)*.9;
+ const fingerDelta=await page.evaluate(({x,y})=>{
+  const board=document.getElementById('puzzleCanvas'),r=board.getBoundingClientRect();
+  return {x:(x/r.width)*board.width,y:(y/r.height)*board.height}
+ },{x:touchEndX-info.fromX,y:touchEndY-info.fromY});
+ assert.ok(Math.abs(moving.selected.x-(initialPiece.x+fingerDelta.x))<3 &&
+   Math.abs(moving.selected.y-(initialPiece.y+fingerDelta.y))<3,
+   'Picked-up piece follows finger coordinates without visible offset or lag');
  await cdp.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x:info.toX,y:info.toY,id:11}]});
  await cdp.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
+ assert.ok((await page.evaluate(()=>window.__nightJigsawTest.snapshot())).staticPaints>paintStart.staticPaints,'Full scene only redraws on release');
  await page.waitForFunction(()=>window.__nightJigsawTest.snapshot().placed>=1,null,{timeout:1200});
  assert.equal(await page.locator('#progress').innerText(),'1 / 24','Touch drag moves piece into image');
  await page.locator('#hintButton').click();
