@@ -4,6 +4,7 @@ import {
   clearWarnings,
   enforceGroupMessage,
   groupPolicy,
+  reconcileVerifiedWarnings,
   setGroupPolicy,
   setUserMentionMute,
   userMentionMuted,
@@ -88,6 +89,18 @@ assert.equal(warningState(storage, group, '333').history.length, 2)
 assert.equal(clearWarnings(storage, group, '333'), 1)
 assert.equal(warningState(storage, group, '333').count, 0)
 
+const opaquePolicy = await enforceGroupMessage({
+  storage, msg:{...linkMsg,key:{...linkMsg.key,participant:'112233445566@lid'}},
+  senderIdentity:'jid:112233445566@lid', senderPhone:'',
+  botIsAdmin:true, senderIsAdmin:false,
+  deleteMessage:async()=>{deleted++},
+})
+assert.equal(opaquePolicy.handled,true)
+addWarning(storage,group,'jid:112233445566@lid','before','staff')
+addWarning(storage,group,'2348012345678','after','staff')
+reconcileVerifiedWarnings(storage,group,'2348012345678',
+  ['2348012345678','jid:112233445566@lid'])
+assert.equal(warningState(storage,group,'2348012345678').count,2)
 assert(_test.URL_RE.test('example.com'))
 assert(_test.GROUP_MENTION_RE.test('@everyone hello'))
 
