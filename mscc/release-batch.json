@@ -1,17 +1,16 @@
 {
-  "releaseId": "night-2026-10-15-02",
+  "releaseId": "night-2026-10-15-03",
   "baseBranch": "mscc-azure",
-  "baseCommit": "c15887eee0bd6252be38a11a56ef26e9f080fcf1",
-  "pullRequests": [
-    242,
-    244
-  ],
+  "baseCommit": "6f09555928405886f79f7223ddb441bec1052814",
+  "pullRequests": [],
   "alreadyMerged": [
     215,
     235,
     239,
     241,
-    243
+    243,
+    245
   ],
-  "notes": "Bundle #2: custom mock engagement/time presentation and unified verified LID/PN identity across NIGHT commands, games, moderation and profiles. Older PRs #191/#199/#202/#208 excluded as historical or needing separate review."
+  "hotfix": "Recover blocked Batch #2: optional Tor/FlareSolverr network outages cannot prevent NIGHT core code deployments; unsafe non-Tor proxy or invalid source ports remain hard errors; original source services are untouched.",
+  "retryOf": "38784652210"
 }
