@@ -51,6 +51,21 @@ fi
 printf '%s\n' "Verified CC0 color-cube prop starter: $color_cube_file"
 
 python3 "$project_dir/scripts/build-humanoid.py"
-python3 "$project_dir/scripts/build-humanoid.py" --anime --output "$asset_dir/mise_anime.glb"
-python3 "$project_dir/scripts/check-anime-glb.py" "$asset_dir/mise_anime.glb"
+# Rigged stylized CC0 character from Quaternius Universal Base Characters.
+# The reviewed 741KB glTF-to-GLB packaging is committed to programasweights/avatar.
+# Verify Git blob SHA1: fail closed if its upstream main branch ever changes.
+anime_file="$asset_dir/mise_anime.glb"
+anime_blob_sha1="b3fd79533fdb9fcedd077744f7e120920eb6cc97"
+anime_url="https://raw.githubusercontent.com/programasweights/avatar/main/public/assets/character.glb"
+if [ ! -f "$anime_file" ] || [ "$(git hash-object "$anime_file")" != "$anime_blob_sha1" ]; then
+  temp_anime="$anime_file.tmp"
+  trap 'rm -f "$temp_anime"' EXIT HUP INT TERM
+  curl --fail --location --retry 3 --output "$temp_anime" "$anime_url"
+  [ "$(git hash-object "$temp_anime")" = "$anime_blob_sha1" ] || {
+    echo "Quaternius CC0 stylized GLB checksum does not match pinned source" >&2
+    exit 1
+  }
+  mv "$temp_anime" "$anime_file"
+fi
+python3 "$project_dir/scripts/check-anime-glb.py" "$anime_file"
 python3 "$project_dir/scripts/build-scene-actors.py"
