@@ -1,4 +1,5 @@
 import { mkdir } from 'node:fs/promises'
+import { createHash } from 'node:crypto'
 import { dirname, resolve } from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
 
@@ -85,6 +86,15 @@ export class SharedStorage {
         ON message_index(account_id, message_id, at_ms DESC);
       CREATE INDEX IF NOT EXISTS idx_message_expiry
         ON message_index(at_ms);
+
+      -- Only store hashes of command delivery identities. These survive an
+      -- Azure restart and prevent Baileys from executing replayed commands.
+      CREATE TABLE IF NOT EXISTS inbound_message_receipts (
+        identity_hash TEXT PRIMARY KEY,
+        received_at_ms INTEGER NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS idx_inbound_receipt_expiry
+        ON inbound_message_receipts(received_at_ms);
 
       CREATE TABLE IF NOT EXISTS bot_profiles (
         profile_id TEXT PRIMARY KEY,
@@ -239,6 +249,39 @@ export class SharedStorage {
 
   checkpoint() {
     this.db.exec('PRAGMA wal_checkpoint(PASSIVE)')
+  }
+
+  /**
+   * Claim a WhatsApp message BEFORE running its side effects. Unlike the
+   * in-memory upsert guard, this survives systemctl restarts/reconnections.
+   * Message IDs are unique within a chat; the participant JID is intentionally
+   * excluded so a PN-to-LID identity change cannot create a second claim.
+   * Only a hash is stored; no message text, raw JIDs, or phone numbers.
+   *
+   * This is at-most-once processing. If the process stops after this insert
+   * but before sending a reply, the user needs to issue a new command.
+   */
+  claimInboundMessage({ accountId, chatJid, messageId, now = Date.now() } = {}) {
+    const account = String(accountId || '').trim()
+    const chat = String(chatJid || '').trim()
+    const id = String(messageId || '').trim()
+    if (!account || !chat || !id) return false
+    const digest = createHash('sha256')
+      .update(JSON.stringify([account, chat, id]))
+      .digest('hex')
+    const result = this.db.prepare(`
+      INSERT OR IGNORE INTO inbound_message_receipts(identity_hash, received_at_ms)
+      VALUES (?, ?)
+    `).run(digest, Number(now) || Date.now())
+    return result.changes === 1
+  }
+
+  pruneInboundReceipts({ now = Date.now(), retentionMs = 7 * 86400000 } = {}) {
+    const keep = Math.max(86400000, Number(retentionMs) || 7 * 86400000)
+    const result = this.db.prepare(
+      'DELETE FROM inbound_message_receipts WHERE received_at_ms < ?'
+    ).run((Number(now) || Date.now()) - keep)
+    return Number(result.changes || 0)
   }
 
   putMessage({ accountId, chatJid, messageId, participantJid = '', atMs = Date.now(), data }) {
@@ -399,6 +442,7 @@ export class SharedStorage {
   pruneMessages(accountIds = []) {
     const cutoff = Date.now() - this.ttlMs
     this.db.prepare('DELETE FROM message_index WHERE at_ms < ?').run(cutoff)
+    this.pruneInboundReceipts()
 
     const ids = [...new Set(accountIds.map(String).filter(Boolean))]
     for (const id of ids) {

@@ -1,0 +1,82 @@
+name: NIGHT Release Batch
+
+# Stage approved MSCC pull requests into ONE integration PR. Its merge is the
+# only push which updates the release manifest and requests production approval.
+on:
+  workflow_dispatch:
+    inputs:
+      pull_requests:
+        description: 'Comma-separated MSCC PR numbers to release together'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: night-release-batch-prepare
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: mscc-azure
+          fetch-depth: 0
+          persist-credentials: true
+      - name: Integrate approved changes into a single tested release PR
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBERS: ${{ inputs.pull_requests }}
+        run: |
+          set -euo pipefail
+          numbers="$(printf '%s' "$PR_NUMBERS" | tr -d '[:space:]')"
+          if [[ ! "$numbers" =~ ^[0-9]+(,[0-9]+)*$ ]]; then
+            echo 'Enter numeric PR IDs separated by commas.' >&2
+            exit 1
+          fi
+          IFS=',' read -r -a selected <<< "$numbers"
+          if (( ${#selected[@]} > 20 )); then
+            echo 'Keep each batch to 20 PRs or fewer.' >&2
+            exit 1
+          fi
+          git config user.name 'NIGHT Release Bot'
+          git config user.email 'actions@users.noreply.github.com'
+          base_commit="$(git rev-parse HEAD)"
+          branch="release/night-$(date -u +%Y%m%d%H%M%S)-${GITHUB_RUN_ID}"
+          git switch -c "$branch"
+          for number in "${selected[@]}"; do
+            details="$(gh pr view "$number" -R "$GITHUB_REPOSITORY" --json state,baseRefName,isDraft --jq '[.state,.baseRefName,.isDraft] | @tsv')"
+            if [[ "$details" != "$(printf 'OPEN\tmscc-azure\tfalse')" ]]; then
+              echo "PR #$number must be open, non-draft and target mscc-azure." >&2
+              exit 1
+            fi
+            git fetch --no-tags origin "pull/$number/head"
+            if ! git merge --no-ff --no-edit FETCH_HEAD; then
+              echo "Batch conflict at PR #$number. Resolve on an integration branch; production was not changed." >&2
+              exit 1
+            fi
+          done
+          export BATCH_BASE="$base_commit" BATCH_NUMBERS="$numbers"
+          node --input-type=module -e '
+            import { writeFileSync } from "node:fs"
+            writeFileSync("mscc/release-batch.json", JSON.stringify({
+              releaseId: process.env.GITHUB_RUN_ID,
+              baseBranch: "mscc-azure",
+              baseCommit: process.env.BATCH_BASE,
+              pullRequests: process.env.BATCH_NUMBERS.split(",").map(Number),
+              preparedAt: new Date().toISOString(),
+            }, null, 2) + "\n")
+          '
+          git add mscc/release-batch.json
+          git commit -m "Stage NIGHT batch: PRs $numbers"
+          git push -u origin "$branch"
+          gh pr create -R "$GITHUB_REPOSITORY" \
+            --base mscc-azure --head "$branch" \
+            --title "NIGHT production release batch: PRs $numbers" \
+            --body "This single release combines PRs $numbers on top of $base_commit. Review the combined CI checks before merging. Only merging this release PR triggers one protected MSCC Azure deployment approval. Do not merge the component PRs individually." 

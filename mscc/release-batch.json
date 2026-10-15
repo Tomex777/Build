@@ -1,0 +1,17 @@
+{
+  "releaseId": "night-2026-10-15-01",
+  "baseBranch": "mscc-azure",
+  "baseCommit": "d10b91f527ffbd5fb2d28bea446c467a604e0cc1",
+  "pullRequests": [
+    236,
+    237,
+    238,
+    240
+  ],
+  "alreadyMerged": [
+    215,
+    235,
+    239
+  ],
+  "notes": "Consolidated NIGHT bot fixes; one protected Azure deploy on batch merge. Existing Cortex/FFmpeg changes are inherited from production base."
+}

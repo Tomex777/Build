@@ -7,7 +7,7 @@
  * notify/append or after a reconnect). De-duplicate by account/chat/message ID
  * before any command or selection side effects.
  */
-export function createInboundMessageGuard({ maxEntries = 8192, ttlMs = 30 * 60_000 } = {}) {
+export function createInboundMessageGuard({ maxEntries = 8192, ttlMs = 30 * 60_000, claim = null } = {}) {
   const seen = new Map()
   const cap = Math.max(1, Number(maxEntries) || 8192)
   const ttl = Math.max(1000, Number(ttlMs) || 30 * 60_000)
@@ -17,9 +17,14 @@ export function createInboundMessageGuard({ maxEntries = 8192, ttlMs = 30 * 60_0
     if (!msg?.message || !key?.id || key.fromMe === true) return false
     const chat = String(key.remoteJid || '')
     if (!chat) return false
-    const identity = [accountId, chat, key.participant || '', key.id].join('|')
+    // Message IDs are scoped to their chat. Avoid duplicate dispatch when the
+    // same author is represented by a phone JID and later by a LID.
+    const identity = [accountId, chat, key.id].join('|')
     const existing = seen.get(identity)
     if (existing !== undefined && now - existing >= 0 && now - existing < ttl) return false
+    // An optional durable, atomic claim makes the guard survive deployment
+    // restarts. In-memory de-duplication alone is reset with the Node process.
+    if (typeof claim === 'function' && !claim(accountId, msg, now)) return false
     seen.delete(identity)
     seen.set(identity, now)
 
