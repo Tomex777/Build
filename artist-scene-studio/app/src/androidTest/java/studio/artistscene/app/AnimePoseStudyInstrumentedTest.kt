@@ -122,6 +122,7 @@ class AnimePoseStudyInstrumentedTest {
                 val control: File
                 ActivityScenario.launch(MainActivity::class.java).use {
                     openScene()
+                    SystemClock.sleep(8_000)
                     control = screenshot("control-original-human")
                 }
                 knownVisibleHumanContrast = distinctPixelDifference(posed, control)
