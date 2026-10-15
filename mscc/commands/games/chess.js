@@ -10,7 +10,7 @@ import {
 import { renderChessBoard, renderChessMoveVideo } from '../../utils/chess-renderer.js'
 import { getChessTheme, normalizeChessTheme } from '../../utils/game-themes.js'
 import { gameMenuArt } from '../../utils/game-menu-art.js'
-import { findOtherActiveGame, otherGameMessage } from '../../utils/game-session.js'
+import { findOtherActiveGame, otherGameMessage, userForStoredGame } from '../../utils/game-session.js'
 
 const NAMESPACE = 'chess-game'
 const WAITING_TTL = 15 * 60 * 1000
@@ -397,6 +397,7 @@ export default {
       const args = Array.isArray(ctx.args) ? ctx.args.map(String) : []
       const first = String(args[0] || '').toLowerCase()
       const existing = loadRecord(ctx)
+      if (existing) ctx = { ...ctx, userKey:userForStoredGame(ctx, existing) }
 
       if (first === '~input') {
         return handleMoveInput(ctx, String(ctx.commandReplyInput || args.slice(1).join(' ')))
