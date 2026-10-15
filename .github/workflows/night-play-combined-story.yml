@@ -1,0 +1,24 @@
+name: NIGHT Play combined interactive story smoke
+on:
+  pull_request:
+    paths:
+      - 'night-play/index.html'
+      - 'night-play/stories/**'
+      - '.github/workflows/night-play-combined-story.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Chromium smoke runner
+        run: |
+          npm install --prefix /tmp/storyintegration --no-save playwright@1.56.1
+          /tmp/storyintegration/node_modules/.bin/playwright install chromium --with-deps
+      - name: Verify combined library and interactive story navigation
+        env:
+          PLAYWRIGHT_MODULE: /tmp/storyintegration/node_modules/playwright
+        run: node night-play/stories/combined-smoke.cjs

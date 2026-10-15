@@ -1,0 +1,269 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#12141a">
+<meta name="description" content="NIGHT Play interactive fiction — cinematic line-by-line text reveal prototype.">
+<title>NIGHT Play — Interactive Fiction Preview</title>
+<style>
+:root{color-scheme:dark;--bg:#12141a;--ink:#ece9e1;--soft:#b6b5b3;--dim:#878a91;--edge:#343844;--highlight:#d3b98d}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:Georgia,"Times New Roman",serif;-webkit-font-smoothing:antialiased}
+button,select,a{font:inherit}button{cursor:pointer}a{color:inherit}
+button:focus-visible,select:focus-visible,a:focus-visible{outline:2px solid var(--highlight);outline-offset:4px}
+.header{font-family:Inter,system-ui,sans-serif;display:flex;align-items:center;justify-content:space-between;gap:16px;max-width:1080px;margin:0 auto;padding:28px 24px 0}
+.brand{font-size:12px;font-weight:800;letter-spacing:.21em;color:var(--ink);text-decoration:none}
+.brand b{font-weight:500;color:#9b9a9e}
+.header-actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:end}
+.header a.back,.header button{border:1px solid var(--edge);border-radius:999px;background:transparent;color:var(--soft);text-decoration:none;padding:10px 15px;font:500 12px/1.3 system-ui,sans-serif}
+.header button:hover,.header a.back:hover{border-color:#747681;color:var(--ink)}
+.shell{max-width:770px;margin:0 auto;padding:82px 25px 100px}
+.label{font:600 11px/1.5 system-ui,sans-serif;letter-spacing:.21em;text-transform:uppercase;color:#a7a29b}
+.divider{width:34px;height:1px;background:#918875;margin:23px 0 33px}
+h1{margin:0 0 15px;font-size:clamp(31px,6vw,54px);font-weight:400;letter-spacing:-.025em;line-height:1.1}
+.deck{font:400 13px/1.7 system-ui,sans-serif;color:var(--dim);max-width:570px;margin:0 0 60px}
+.stage{border-left:1px solid #47434a;padding-left:clamp(18px,4vw,36px)}
+.scene-location{color:var(--dim);font:600 10px/1.5 system-ui,sans-serif;text-transform:uppercase;letter-spacing:.22em;margin-bottom:26px}
+.story{min-height:144px}
+.line{--word-target:#ece9e1;font-size:clamp(19px,3.6vw,25px);line-height:1.68;font-weight:400;letter-spacing:-.006em;white-space:pre-wrap;max-width:660px;margin:0 0 17px;color:var(--word-target)}
+.line.emphasis{--word-target:#e9d0aa;font-style:italic}
+.line.quiet{--word-target:#adaeb8}
+.ink-word{color:transparent}
+.line.inking .ink-word{animation:ink-arrive var(--ink-ms,900ms) cubic-bezier(.2,.65,.25,1) both}
+.line.settled .ink-word{color:var(--word-target);animation:none}
+@keyframes ink-arrive{0%{color:transparent}35%{color:#8ea9cd}100%{color:var(--word-target)}}
+.choice-list{display:grid;gap:0;margin:32px 0 0;border-top:1px solid #44444b}
+.choice{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:20px;text-align:left;width:100%;padding:17px 4px;border:0;border-bottom:1px solid #44444b;background:transparent;color:var(--ink);font:500 15px/1.55 system-ui,sans-serif;opacity:0;transform:translateY(4px);animation:choice-arrive 135ms ease-out both;transition:background-color .14s,border-color .14s}
+.choice:hover{background:#1e2228;border-color:#8d8f98}
+.choice .number{display:inline-block;min-width:29px;font-size:11px;color:#9d9b9c;margin-right:9px}
+.choice .arrow{color:var(--highlight);font-size:18px}
+@keyframes choice-arrive{to{opacity:1;transform:none}}
+.skiprow{display:flex;align-items:center;justify-content:space-between;gap:15px;margin:35px 0 0;font:500 12px/1.6 system-ui,sans-serif;color:var(--dim)}
+.skiprow button{background:transparent;border:0;border-bottom:1px solid #87817d;color:#d0c7b8;padding:7px 0}
+.skiprow button[disabled]{opacity:.36;cursor:default}
+.settings{display:flex;align-items:center;gap:9px}
+.settings label{font:500 11px system-ui,sans-serif;color:var(--dim)}
+.settings select{background:#1c1e25;color:var(--ink);border:1px solid #4b4b52;border-radius:6px;padding:8px 9px;font:500 12px system-ui,sans-serif}
+.note{font:400 12px/1.75 system-ui,sans-serif;color:var(--dim);border-top:1px solid #34353c;margin-top:66px;padding-top:20px}
+@media(max-width:500px){.header{padding:17px 15px 0}.header a.back,.header button{padding:9px 11px}.shell{padding:63px 20px 60px}.deck{margin-bottom:42px}.stage{padding-left:18px}.line{margin-bottom:16px}.choice-list{margin-top:29px}.skiprow{flex-wrap:wrap}.story{min-height:200px}}
+@media(prefers-reduced-motion:reduce){*,*:before,*:after{animation-duration:.01ms!important;transition-duration:.01ms!important;scroll-behavior:auto!important}}
+</style>
+</head>
+<body>
+<header class="header">
+  <a class="brand" href="/games" aria-label="NIGHT Play games">NIGHT <b>PLAY</b></a>
+  <div class="header-actions">
+    <a class="back" href="/games">← Games</a>
+    <button type="button" id="restart">Restart</button>
+  </div>
+</header>
+<main class="shell">
+  <div class="label">Interactive fiction · Motion study 01</div>
+  <div class="divider" aria-hidden="true"></div>
+  <h1>The Last Call</h1>
+  <p class="deck">An original scene showing HARK-inspired staged word-ink: each line appears through scattered blue-to-white word reveals. This is not a copy of the original HARK game. No third-party story is included.</p>
+  <section class="stage" aria-label="Interactive story">
+    <div class="scene-location" id="location">The corridor · 02:13 AM</div>
+    <div class="story" id="story" aria-live="polite" aria-relevant="additions" aria-atomic="false"></div>
+    <div class="choice-list" id="choices" aria-label="Your choices"></div>
+    <div class="skiprow">
+      <button type="button" id="reveal">Reveal remaining lines ↘</button>
+      <div class="settings">
+        <label for="pace">Text pace</label>
+        <select id="pace" aria-label="Text animation pace">
+          <option value="cinematic">Cinematic</option>
+          <option value="quick">Quick</option>
+          <option value="instant">Instant</option>
+        </select>
+      </div>
+    </div>
+  </section>
+  <p class="note">Narration advances in separate lines. Each word briefly passes through cool-blue ink, with staggered delays; choices appear in approximately 135 milliseconds when the final line becomes readable. Tap “Reveal remaining lines” to skip narration delays. Reduced-motion preferences are respected.</p>
+</main>
+<script>
+(()=>{
+'use strict';
+const root={
+  location:document.getElementById('location'),
+  story:document.getElementById('story'),
+  choices:document.getElementById('choices'),
+  reveal:document.getElementById('reveal'),
+  restart:document.getElementById('restart'),
+  pace:document.getElementById('pace')
+};
+const scenes={
+  start:{
+    place:'The corridor · 02:13 AM',
+    beats:[
+      {text:'The hallway is empty.',gap:610},
+      {text:'At least, it was when you locked the door.',gap:950,tone:'quiet'},
+      {text:'Then your phone vibrates.',gap:740},
+      {text:'No caller ID.',gap:920,tone:'quiet'},
+      {text:'The call is dated tomorrow.',gap:250,tone:'emphasis'}
+    ],
+    options:[['Answer the call','answer'],['Turn the phone off','off']]
+  },
+  answer:{
+    place:'The corridor · 02:14 AM',
+    beats:[
+      {text:'You lift the phone to your ear.',gap:670},
+      {text:'Your own voice answers first.',gap:960,tone:'emphasis'},
+      {text:'“Whatever happens…”',gap:800},
+      {text:'“Do not open the door.”',gap:1100,tone:'emphasis'},
+      {text:'Three slow knocks break the silence.',gap:230}
+    ],
+    options:[['Look through the peephole','peephole'],['Stay where you are','still']]
+  },
+  off:{
+    place:'The corridor · 02:14 AM',
+    beats:[
+      {text:'You hold the power button.',gap:580},
+      {text:'The screen goes black.',gap:950},
+      {text:'For a moment, the building is perfectly quiet.',gap:1060,tone:'quiet'},
+      {text:'Then the phone begins to ring.',gap:240,tone:'emphasis'}
+    ],
+    options:[['Open the door','door'],['Hide the phone','hide']]
+  },
+  peephole:{
+    place:'The door · 02:15 AM',
+    beats:[
+      {text:'You lean close to the peephole.',gap:900},
+      {text:'Someone stands on the other side.',gap:900},
+      {text:'They are holding a phone to their ear.',gap:1000},
+      {text:'They have your face.',gap:240,tone:'emphasis'}
+    ],
+    options:[['Begin again','start']]
+  },
+  still:{
+    place:'The corridor · 02:15 AM',
+    beats:[
+      {text:'You do not move.',gap:850},
+      {text:'The knocking stops.',gap:1040},
+      {text:'From behind you, a familiar voice says:',gap:1150,tone:'quiet'},
+      {text:'“Good. Now keep your eyes closed.”',gap:200,tone:'emphasis'}
+    ],
+    options:[['Begin again','start']]
+  },
+  door:{
+    place:'The threshold · 02:15 AM',
+    beats:[
+      {text:'The door swings inward.',gap:820},
+      {text:'There is no hallway beyond it.',gap:1000},
+      {text:'Only a desk.',gap:780},
+      {text:'And a ringing phone.',gap:250,tone:'emphasis'}
+    ],
+    options:[['Begin again','start']]
+  },
+  hide:{
+    place:'The corridor · 02:15 AM',
+    beats:[
+      {text:'You push the phone beneath a cushion.',gap:850},
+      {text:'The ringing stops.',gap:990},
+      {text:'Then the cushion begins to vibrate.',gap:240,tone:'emphasis'}
+    ],
+    options:[['Begin again','start']]
+  }
+};
+let generation=0,timers=[],current='start',shown=0,finished=false;
+const reduced=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+function cancel(){generation++;for(const id of timers)clearTimeout(id);timers=[]}
+function after(fn,delay){const id=setTimeout(fn,delay);timers.push(id)}
+// Independent HARK-inspired renderer: words occupy final positions before an ink-like reveal.
+function appendBeat(beat, immediate=false){
+  const p=document.createElement('p');
+  p.className='line'+(beat.tone?' '+beat.tone:'');
+  p.setAttribute('aria-label',beat.text);
+  const parts=beat.text.split(/(\s+)/);
+  let words=0;
+  for(const part of parts){
+    if(!part)continue;
+    if(/^\s+$/.test(part)){p.appendChild(document.createTextNode(part));continue}
+    const word=document.createElement('span');
+    word.className='ink-word';word.textContent=part;word.setAttribute('aria-hidden','true');
+    p.appendChild(word);words++;
+  }
+  const quick=root.pace.value==='quick';
+  const factor=quick?.45:1;
+  const spread=Math.round(Math.min(900,Math.max(280,words*8))*factor);
+  const fade=Math.round(900*factor);
+  if(immediate){
+    p.classList.add('settled');
+  }else{
+    p.style.setProperty('--ink-ms',fade+'ms');
+    for(const word of p.querySelectorAll('.ink-word')){
+      word.style.animationDelay=Math.round(Math.random()*spread)+'ms';
+    }
+    p.classList.add('inking');
+  }
+  root.story.appendChild(p);shown++;
+  // Another beat starts when this sentence is readable, not only after its full fade.
+  return spread+Math.round(fade*.6);
+}
+function settleAllLines(){
+  for(const p of root.story.querySelectorAll('.line')){
+    p.classList.remove('inking');p.classList.add('settled');
+  }
+}
+function showChoices(instant=false){
+  if(finished)return;
+  finished=true;root.reveal.disabled=true;
+  for(let i=0;i<scenes[current].options.length;i++){
+    const [text,destination]=scenes[current].options[i];
+    const button=document.createElement('button');button.type='button';button.className='choice';
+    if(instant){button.style.animation='none';button.style.opacity='1';button.style.transform='none'}
+    else button.style.animationDelay=(i*25)+'ms';
+    const label=document.createElement('span');
+    const number=document.createElement('span');number.className='number';number.textContent=String(i+1).padStart(2,'0');
+    label.appendChild(number);label.appendChild(document.createTextNode(text));
+    const arrow=document.createElement('span');arrow.className='arrow';arrow.setAttribute('aria-hidden','true');arrow.textContent='↗';
+    button.appendChild(label);button.appendChild(arrow);
+    button.addEventListener('click',()=>play(destination));
+    root.choices.appendChild(button);
+  }
+  if(window.innerWidth<700){
+    const end=root.choices.getBoundingClientRect();
+    if(end.bottom>window.innerHeight-24){
+      requestAnimationFrame(()=>root.choices.scrollIntoView({behavior:reduced?'auto':'smooth',block:'end'}));
+    }
+  }
+}
+function revealAll(){
+  if(finished)return;
+  cancel();
+  const beats=scenes[current].beats;
+  while(shown<beats.length)appendBeat(beats[shown],true);
+  settleAllLines();
+  showChoices(true);
+}
+function play(sceneId){
+  if(!Object.prototype.hasOwnProperty.call(scenes,sceneId))return;
+  cancel();current=sceneId;shown=0;finished=false;
+  const scene=scenes[sceneId];
+  root.location.textContent=scene.place;
+  root.story.replaceChildren();root.choices.replaceChildren();
+  root.reveal.disabled=false;
+  if(root.pace.value==='instant'||reduced){revealAll();return}
+  const factor=root.pace.value==='quick'?.45:1;
+  const epoch=generation;
+  const revealAt=index=>{
+    if(epoch!==generation)return;
+    const readability=appendBeat(scene.beats[index]);
+    const intendedPause=Math.round((scene.beats[index].gap||0)*factor);
+    const delay=Math.max(readability,intendedPause);
+    if(index===scene.beats.length-1){
+      after(()=>{if(epoch===generation)showChoices(false)},delay);
+    }else{
+      after(()=>revealAt(index+1),delay);
+    }
+  };
+  after(()=>revealAt(0),120);
+}
+root.reveal.addEventListener('click',revealAll);
+root.restart.addEventListener('click',()=>play('start'));
+root.pace.addEventListener('change',()=>{if(!finished)play(current)});
+play('start');
+})();
+</script>
+</body>
+</html>
