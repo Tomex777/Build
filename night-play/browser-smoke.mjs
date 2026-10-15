@@ -80,6 +80,7 @@ try {
  assert.equal(await page.locator('#selectedGameTitle').textContent(),'Game activity')
  await page.locator('.mobile-nav a[href="/games"]').click()
  await page.locator('#view-games').waitFor({state:'visible'})
+ console.log('NIGHT_GAME_GALLERY_BASE64='+(await page.locator('#view-games').screenshot({type:'jpeg',quality:58})).toString('base64'));
  assert.equal(await page.locator('.brand-mark use').first().getAttribute('href'),'#icon-brand')
  assert.equal(await page.locator('.library-card .game-art').count(),10,'Other games retain custom SVG thumbnails')
  assert.equal(await page.locator('.library-card[data-name="wing hop flappy bird"] .wing-preview-bird').count(),1,'Wing Hop uses actual bundled character artwork')
