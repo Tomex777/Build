@@ -10,6 +10,17 @@ bash -n "$UPGRADE" "$INSTALL"
 grep -Fq 'readonly SOURCE_SHA=ad54464910918a2d62a4c560db565a2faaa4c20b' "$UPGRADE"
 grep -Fq 'readonly AGENT_BLOB=b353643bf6978d71d76a066f84400aca100baecd' "$UPGRADE"
 grep -Fq 'readonly HELPER_BLOB=b590dd2b6174c273ef3beef62f2825d6089d0311' "$UPGRADE"
+grep -Fq 'readonly INSTALL_BLOB=a058b3cf0e8fa09a117e816e5111ccb6bc8b58d0' "$UPGRADE"
+grep -Fq 'readonly PACKAGE_BLOB=c2032a0fddf20a85e0cb1e9201bfd28652c046ba' "$UPGRADE"
+grep -Fq 'readonly SERVICE_BLOB=82518da0a5a09d5148671aac1d8d3cfa3d7fb7fc' "$UPGRADE"
+grep -Fq 'performing pinned first-time installation' "$UPGRADE"
+grep -Fq 'sudo -n /usr/bin/bash "$setup_dir/install.sh"' "$UPGRADE"
+grep -Fq '> /dev/null 2>&1' "$UPGRADE"
+grep -Fq "trap 'rm -rf" "$UPGRADE"
+if grep -Eq 'install-private\.log|cat.*CORTEX_AGENT_TOKEN|echo.*\$TOKEN' "$UPGRADE"; then
+  echo 'Cortex installer must not persist or print the token.' >&2
+  exit 1
+fi
 grep -Fq 'git hash-object "$tmp/index.js"' "$UPGRADE"
 grep -Fq 'git hash-object "$tmp/cortex-agent-control"' "$UPGRADE"
 grep -Fq 'MSCC_MEGA_SHARED_FOLDERS' "$UPGRADE"

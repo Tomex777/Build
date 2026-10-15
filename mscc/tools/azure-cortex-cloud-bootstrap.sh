@@ -8,6 +8,9 @@ umask 077
 readonly SOURCE_SHA=ad54464910918a2d62a4c560db565a2faaa4c20b
 readonly AGENT_BLOB=b353643bf6978d71d76a066f84400aca100baecd
 readonly HELPER_BLOB=b590dd2b6174c273ef3beef62f2825d6089d0311
+readonly INSTALL_BLOB=a058b3cf0e8fa09a117e816e5111ccb6bc8b58d0
+readonly PACKAGE_BLOB=c2032a0fddf20a85e0cb1e9201bfd28652c046ba
+readonly SERVICE_BLOB=82518da0a5a09d5148671aac1d8d3cfa3d7fb7fc
 readonly AGENT_TARGET=/opt/cortex-agent/index.js
 readonly HELPER_TARGET=/usr/local/libexec/cortex-agent-control
 readonly BOOTSTRAP_MARK=/var/lib/cortex/.mscc-mega-cloud-bootstrapped
@@ -20,11 +23,52 @@ for required in sudo curl node git systemctl; do
   command -v "$required" >/dev/null || { echo "Required deployment executable unavailable: $required" >&2; exit 2; }
 done
 sudo -n true || { echo 'Noninteractive Azure sudo is required.' >&2; exit 2; }
-systemctl is-active --quiet cortex-agent.service || { echo 'Existing Cortex Agent service is not active.' >&2; exit 2; }
 systemctl is-active --quiet mscc.service || { echo 'MSCC is not active; declining Agent bootstrap.' >&2; exit 2; }
-[[ -f "$AGENT_TARGET" ]] && [[ -f "$HELPER_TARGET" ]] || {
-  echo 'Cortex Agent has not been installed; run its installer separately.' >&2
-  exit 2
+
+# Production investigation (15 Oct): the server is missing either the Agent
+# binary or privileged helper. Older rollouts assumed an existing install.
+# Never open the deliberately restricted GitHub SSH forced command to fix it.
+# Install the *pinned official Cortex package* through the authorized MSCC
+# deployment if the Agent is absent, incomplete, or inactive. Existing
+# /etc/cortex-agent.env (and its token) is preserved by the installer.
+if [[ ! -f "$AGENT_TARGET" || ! -f "$HELPER_TARGET" ]] ||
+    ! systemctl is-active --quiet cortex-agent.service; then
+  echo 'Existing Cortex Agent incomplete or inactive; performing pinned first-time installation.'
+  setup_dir="$(mktemp -d)"
+  trap 'rm -rf "$setup_dir"' EXIT
+  for row in index.js cortex-agent-control install.sh package.json cortex-agent.service; do
+    curl --fail --silent --show-error --location --retry 3 --max-time 50 \
+      "https://raw.githubusercontent.com/Tomex777/Build/$SOURCE_SHA/cortex-agent/$row" \
+      --output "$setup_dir/$row"
+  done
+  for expected in \
+    "$AGENT_BLOB index.js" "$HELPER_BLOB cortex-agent-control" \
+    "$INSTALL_BLOB install.sh" "$PACKAGE_BLOB package.json" \
+    "$SERVICE_BLOB cortex-agent.service"; do
+    read -r blob filename <<< "$expected"
+    [[ "$(git hash-object "$setup_dir/$filename")" == "$blob" ]] || {
+      echo 'Pinned Cortex installer integrity check failed.' >&2; exit 1;
+    }
+  done
+  node --check "$setup_dir/index.js"
+  bash -n "$setup_dir/install.sh"
+  bash -n "$setup_dir/cortex-agent-control"
+  # The upstream installer can print the freshly generated Agent token.
+  # Absolutely never stream its stdout/stderr to public CI logs.
+  if ! sudo -n /usr/bin/bash "$setup_dir/install.sh" \
+      > /dev/null 2>&1; then
+    echo 'Pinned Cortex first-time installer failed; inspect private host log only.' >&2
+    exit 1
+  fi
+  rm -rf "$setup_dir"
+  trap - EXIT
+  echo 'Pinned Cortex service installed; existing configuration retained.'
+fi
+systemctl is-active --quiet cortex-agent.service || {
+  echo 'Cortex Agent is not healthy after bootstrap.' >&2; exit 1;
+}
+[[ -f "$AGENT_TARGET" && -f "$HELPER_TARGET" ]] || {
+  echo 'Cortex Agent files still missing after first-time bootstrap.' >&2; exit 1;
 }
 # Never force an old pinned Agent over a subsequent, newer update.
 if sudo -n test -f "$BOOTSTRAP_MARK"; then
