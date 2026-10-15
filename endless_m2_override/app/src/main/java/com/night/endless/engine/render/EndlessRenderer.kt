@@ -122,6 +122,8 @@ class EndlessRenderer(
     private var moonSurfaceMode = false
     private var moonSurfaceX = 0.0
     private var moonSurfaceZ = 0.0
+    private var surfaceForwardInput = 0f
+    private var surfaceStrafeInput = 0f
     @Volatile private var deepTimeAgeGa = 0.0
     @Volatile private var renderedDeepTimeAgeGa = 0.0
     private var marsSurfaceTerrain: MarsSurfaceTerrain? = null
@@ -303,6 +305,7 @@ class EndlessRenderer(
         lastNanos = now
 
         applyControlDamping(dt)
+        updateSurfaceMovement(dt)
 
         val simSeconds = clock.advance(dt)
         updateBodyPositions(simSeconds)
@@ -451,6 +454,8 @@ class EndlessRenderer(
         moonSurfaceZ = (state.moonSurfaceZ.takeIf { it.isFinite() } ?: 0.0).coerceIn(-8.0, 8.0)
         pendingYaw = 0.0
         pendingPitch = 0.0
+        surfaceForwardInput = 0f
+        surfaceStrafeInput = 0f
 
         cameraTarget = selectedId?.let { byId[it]?.position } ?: Vec3d.ZERO
         val cp = cos(pitch)
@@ -556,6 +561,8 @@ class EndlessRenderer(
         marsSurfaceX = 0.0
         marsSurfaceZ = 0.0
         marsSurfaceMode = true
+        surfaceForwardInput = 0f
+        surfaceStrafeInput = 0f
         pendingYaw = 0.0
         pendingPitch = 0.0
         yaw = 1.05
@@ -571,6 +578,8 @@ class EndlessRenderer(
         moonSurfaceX = 1.5
         moonSurfaceZ = -0.5
         moonSurfaceMode = true
+        surfaceForwardInput = 0f
+        surfaceStrafeInput = 0f
         pendingYaw = 0.0
         pendingPitch = 0.0
         yaw = 0.72
@@ -580,17 +589,51 @@ class EndlessRenderer(
         return true
     }
 
+    /**
+     * GTA-style analog locomotion is driven at render-frame rate, so long
+     * presses are smooth rather than moving 2.34 metres per tap.
+     * Input is zeroed on release, cancellation, takeoff and pause.
+     */
+    @Synchronized
+    fun setSurfaceMovementInput(forward: Float, strafe: Float) {
+        if (!marsSurfaceMode && !moonSurfaceMode) {
+            surfaceForwardInput = 0f
+            surfaceStrafeInput = 0f
+            return
+        }
+        val length = if (forward.isFinite() && strafe.isFinite())
+            kotlin.math.hypot(forward, strafe) else 0f
+        val divisor = length.coerceAtLeast(1f)
+        surfaceForwardInput = if (length < 0.001f) 0f else forward / divisor
+        surfaceStrafeInput = if (length < 0.001f) 0f else strafe / divisor
+    }
+
+    private fun updateSurfaceMovement(dt: Double) {
+        if (!marsSurfaceMode && !moonSurfaceMode) return
+        val forward = surfaceForwardInput
+        val strafe = surfaceStrafeInput
+        val magnitude = kotlin.math.hypot(forward, strafe)
+        if (magnitude < 0.001f) return
+        val distance = SurfaceJoystickMath.travelWorldUnits(dt) *
+            magnitude.coerceAtMost(1f)
+        advanceSurfacePosition(forward / magnitude, strafe / magnitude, distance)
+    }
+
+    // Kept for saved gesture integrations/tests that request one discrete step.
     @Synchronized
     fun walkSurface(forward: Float, strafe: Float) {
-        if (!marsSurfaceMode && !moonSurfaceMode) return
-        val magnitude = sqrt(forward * forward + strafe * strafe).coerceAtLeast(1f)
-        val f = forward / magnitude
-        val s = strafe / magnitude
+        val len = kotlin.math.hypot(forward, strafe)
+        if (!len.isFinite() || len < 0.001f) return
+        advanceSurfacePosition(forward / len, strafe / len, 0.00078)
+    }
+
+    private fun advanceSurfacePosition(forward: Float, strafe: Float, step: Double) {
+        if ((!marsSurfaceMode && !moonSurfaceMode) || step <= 0.0) return
+        val f = forward.toDouble()
+        val s = strafe.toDouble()
         val sinHeading = sin(yaw)
         val cosHeading = cos(yaw)
-
         if (marsSurfaceMode) {
-            val step = 0.00078 // 2.34 meters per tap (1 unit = 3 km)
             val nextX = (marsSurfaceX + (sinHeading * f + cosHeading * s) * step).coerceIn(-8.0, 8.0)
             val nextZ = (marsSurfaceZ + (-cosHeading * f + sinHeading * s) * step).coerceIn(-8.0, 8.0)
             val rise = MarsSurfaceTerrain.renderedHeightAt(nextX, nextZ) -
@@ -601,8 +644,6 @@ class EndlessRenderer(
             }
             return
         }
-
-        val step = 0.00078 // 2.34 meters per tap
         val nextX = (moonSurfaceX + (sinHeading * f + cosHeading * s) * step).coerceIn(-8.0, 8.0)
         val nextZ = (moonSurfaceZ + (-cosHeading * f + sinHeading * s) * step).coerceIn(-8.0, 8.0)
         val rise = MoonSurfaceTerrain.renderedHeightAt(nextX, nextZ) -
@@ -627,6 +668,8 @@ class EndlessRenderer(
     fun takeOffMars(): Boolean {
         if (!marsSurfaceMode) return false
         marsSurfaceMode = false
+        surfaceForwardInput = 0f
+        surfaceStrafeInput = 0f
         val mars = byId["mars"] ?: return false
         targetDistance = mars.radius * 1.08
         previousCameraPosition = mars.position + Vec3d(0.0, 0.0, mars.radius * 1.08)
@@ -638,6 +681,8 @@ class EndlessRenderer(
     fun takeOffMoon(): Boolean {
         if (!moonSurfaceMode) return false
         moonSurfaceMode = false
+        surfaceForwardInput = 0f
+        surfaceStrafeInput = 0f
         val moon = byId["moon"] ?: return false
         targetDistance = moon.radius * 1.12
         previousCameraPosition = moon.position + Vec3d(0.0, 0.0, moon.radius * 1.12)

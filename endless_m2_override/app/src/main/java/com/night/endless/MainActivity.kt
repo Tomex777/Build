@@ -20,6 +20,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -88,6 +89,7 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onPause() {
+        activeGlView?.cancelSurfaceControls()
         activeGlView?.onPause()
         super.onPause()
     }
@@ -246,6 +248,7 @@ private fun EndlessApp(
         )
     }
     var glView by remember { mutableStateOf<EndlessGLView?>(null) }
+    var surfaceStick by remember { mutableStateOf(Offset.Zero) }
     var historyOpen by remember { mutableStateOf(initialHistoryOpen) }
     var historyAgeGa by remember { mutableFloatStateOf(initialHistoryAgeGa.toFloat().coerceIn(-7f, 4.6f)) }
     var historyDomain by remember { mutableStateOf(initialHistoryDomain.takeIf { it in DeepTimeHistory.domains } ?: "System") }
@@ -362,6 +365,9 @@ private fun EndlessApp(
                         }
                     }.also { view ->
                         initialState?.let(view.endlessRenderer::restoreState)
+                        view.onSurfaceStickChanged = { x, y ->
+                            surfaceStick = Offset(x, y)
+                        }
                         glView = view
                         onGlViewReady(view)
                     }
@@ -523,7 +529,38 @@ private fun EndlessApp(
                 )
             }
 
-            if (cosmicScale == CosmicScale.SOLAR_SYSTEM && (landedBody != null || ((selected == "mars" || selected == "moon" || selected == "venus" || selected == "ceres") && !overview))) {
+            if (cosmicScale == CosmicScale.SOLAR_SYSTEM && landedBody != null) {
+                SurfaceJoystickHud(
+                    offset = surfaceStick,
+                    modifier = Modifier.align(Alignment.BottomStart)
+                        .padding(start = 18.dp, bottom = 28.dp).size(148.dp)
+                )
+                Column(
+                    Modifier.align(Alignment.BottomEnd)
+                        .padding(end = 18.dp, bottom = 32.dp),
+                    horizontalAlignment = Alignment.End,
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text(
+                        "DRAG RIGHT SIDE TO LOOK",
+                        color = Color(0xB3EEF2FF), fontSize = 9.sp,
+                        letterSpacing = .55.sp
+                    )
+                    Surface(
+                        color = PanelStrong,
+                        shape = RoundedCornerShape(22.dp),
+                        border = BorderStroke(1.dp, Accent.copy(alpha = .38f))
+                    ) {
+                        ControlButton("↗  TAKE OFF", active = true) {
+                            glView?.cancelSurfaceControls()
+                            glView?.endlessRenderer?.takeOffSurface()
+                        }
+                    }
+                }
+            }
+
+            if (cosmicScale == CosmicScale.SOLAR_SYSTEM && landedBody == null &&
+                ((selected == "mars" || selected == "moon" || selected == "venus" || selected == "ceres") && !overview)) {
                 Surface(
                     modifier = Modifier.align(Alignment.BottomCenter)
                         .padding(bottom = if (landedBody != null) 18.dp else 68.dp),
@@ -537,24 +574,6 @@ private fun EndlessApp(
                         horizontalArrangement = Arrangement.spacedBy(2.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        if (landedBody != null) {
-                            Text(
-                                landedBody!!.uppercase(),
-                                color = Accent,
-                                fontSize = 8.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                modifier = Modifier.padding(horizontal = 7.dp)
-                            )
-                            DividerPill()
-                            ControlButton("↑") { glView?.endlessRenderer?.walkSurface(1f, 0f) }
-                            ControlButton("←") { glView?.endlessRenderer?.walkSurface(0f, -1f) }
-                            ControlButton("↓") { glView?.endlessRenderer?.walkSurface(-1f, 0f) }
-                            ControlButton("→") { glView?.endlessRenderer?.walkSurface(0f, 1f) }
-                            DividerPill()
-                            ControlButton("↗  Take off", active = true) {
-                                glView?.endlessRenderer?.takeOffSurface()
-                            }
-                        } else {
                             Text(
                                 approach.stage,
                                 color = Accent,
@@ -667,7 +686,6 @@ private fun EndlessApp(
                                     glView?.endlessRenderer?.pullBackSelected()
                                 }
                             }
-                        }
                     }
                 }
             }
@@ -1131,6 +1149,46 @@ private fun InfoCell(label: String, value: String, modifier: Modifier = Modifier
         Text(label, color = Color(0xFF7D89AA), fontSize = 8.sp, letterSpacing = .8.sp)
         Spacer(Modifier.height(3.dp))
         Text(value, color = Text, fontSize = 10.sp, fontFamily = FontFamily.Monospace)
+    }
+}
+
+@Composable
+private fun SurfaceJoystickHud(offset: Offset, modifier: Modifier = Modifier) {
+    // HUD is intentionally passive. The underlying GLSurfaceView receives
+    // both pointer IDs, allowing one thumb to walk while the other looks.
+    Canvas(modifier.semantics {
+        contentDescription = "Movement joystick. Drag to walk; swipe on the right to look."
+    }) {
+        val mid = Offset(size.width / 2f, size.height / 2f)
+        val unit = size.width / 148f
+        val outer = 65f * unit
+        val travel = 51f * unit
+        drawCircle(Color(0x72060916), outer, mid)
+        drawCircle(Accent.copy(alpha = .28f), outer - 3f * unit, mid,
+            style = Stroke(width = 1.35f * unit))
+        drawCircle(Color.White.copy(alpha = .10f), 51f * unit, mid,
+            style = Stroke(width = 1f * unit))
+        drawCircle(Color.White.copy(alpha = .035f), 39f * unit, mid)
+        for (n in 0..3) {
+            val angle = n * PI / 2.0
+            val x = kotlin.math.sin(angle).toFloat()
+            val y = -kotlin.math.cos(angle).toFloat()
+            drawLine(
+                Accent.copy(alpha = .58f),
+                Offset(mid.x + x * 47f * unit, mid.y + y * 47f * unit),
+                Offset(mid.x + x * 57f * unit, mid.y + y * 57f * unit),
+                strokeWidth = 2.2f * unit
+            )
+        }
+        val knobCenter = mid + Offset(
+            offset.x.coerceIn(-1f, 1f) * travel,
+            offset.y.coerceIn(-1f, 1f) * travel
+        )
+        drawCircle(Color(0x42080C1C), 28f * unit, knobCenter)
+        drawCircle(Accent.copy(alpha = .76f), 25f * unit, knobCenter,
+            style = Stroke(width = 1.8f * unit))
+        drawCircle(Color(0xC522344E), 21f * unit, knobCenter)
+        drawCircle(Color(0xDCECF7FF), 4f * unit, knobCenter)
     }
 }
 
