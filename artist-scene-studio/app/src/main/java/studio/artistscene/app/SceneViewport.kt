@@ -522,6 +522,14 @@ private fun SceneScope.ActorModelNode(
                 val unitScale = actor.initialDisplayDimensionMeters() / dimension.coerceAtLeast(0.00001f)
                 val allHalf = loaded.asset.boundingBox.halfExtent
                 val allDimension = maxOf(allHalf[0], allHalf[1], allHalf[2]) * 2f
+                if (asset.assetId == PrototypeScene.ANIME_ASSET_ID) {
+                    Log.i(
+                        VIEWPORT_LOG_TAG,
+                        "anime-mesh-bounds bodyCenter=${center.contentToString()} bodyHalf=${half.contentToString()} " +
+                            "assetHalf=${allHalf.contentToString()} scale=${unitScale} extent=${allDimension} " +
+                            "renderables=${loaded.asset.renderableEntities.size}",
+                    )
+                }
                 Pair(Position(-center[0] * unitScale, -(center[1] - half[1]) * unitScale, -center[2] * unitScale), allDimension * unitScale)
             }
             // SceneView switches clips reactively. Keying on animation settings destroys
