@@ -9,10 +9,17 @@ on:
         description: 'Comma-separated MSCC PR numbers to release together'
         required: true
         type: string
+  # When the one staged release is actually merged, clear ONLY older awaiting
+  # approval/queued deployments. Never interrupt an active server install.
+  push:
+    branches: [mscc-azure]
+    paths:
+      - 'mscc/release-batch.json'
 
 permissions:
   contents: write
   pull-requests: write
+  actions: write
 
 concurrency:
   group: night-release-batch-prepare
@@ -20,6 +27,7 @@ concurrency:
 
 jobs:
   prepare:
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -80,3 +88,31 @@ jobs:
             --base mscc-azure --head "$branch" \
             --title "NIGHT production release batch: PRs $numbers" \
             --body "This single release combines PRs $numbers on top of $base_commit. Review the combined CI checks before merging. Only merging this release PR triggers one protected MSCC Azure deployment approval. Do not merge the component PRs individually." 
+
+  cancel-superseded:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Retire older unapproved MSCC deploy runs without touching active installs
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          latest="$(gh api "repos/$GITHUB_REPOSITORY/branches/mscc-azure" --jq '.commit.sha')"
+          # A newer batch supersedes us; let that release perform cleanup.
+          if [[ "$latest" != "$GITHUB_SHA" ]]; then
+            echo 'A newer release is current; this cleanup will not cancel anything.'
+            exit 0
+          fi
+          gh api --paginate \
+            "repos/$GITHUB_REPOSITORY/actions/workflows/mscc-azure.yml/runs?branch=mscc-azure&per_page=100" \
+            --jq '.workflow_runs[] | select(.status == "waiting" or .status == "pending" or .status == "queued") | [.id, .head_sha, .status] | @tsv' |
+          while IFS=$'\t' read -r run_id head_sha status; do
+            [[ -n "$run_id" && "$head_sha" != "$GITHUB_SHA" ]] || continue
+            # A stale waiting approval is not an active SSH installer.
+            echo "Cancelling superseded $status MSCC run #$run_id"
+            gh api -X POST "repos/$GITHUB_REPOSITORY/actions/runs/$run_id/cancel" >/dev/null ||
+              echo "Could not cancel run #$run_id; inspect it manually." >&2
+          done
