@@ -104,20 +104,20 @@ function capture() {
 function pause_active_run() {
   # Emulator input can occasionally drop a single tap immediately after the
   # Ready overlay disappears. Retry only while the fresh semantic tree still
-  # exposes "Pause". Once "Paused"/"Resume" is visible we never tap again, so
+  # exposes "Pause game". Once "PAUSED"/"RESUME" is visible we never tap again, so
   # this cannot accidentally toggle a successful pause back to running.
   local attempt
   for attempt in 1 2 3; do
-    if ui_has "Paused"; then return 0; fi
-    if ui_has "Play again"; then
+    if ui_has "PAUSED"; then return 0; fi
+    if ui_has "PLAY AGAIN"; then
       echo "Pause proof run completed before pause input was accepted; restarting attempt $attempt" >&2
-      tap_until_visible "Play again" "Ready to play?" 8
-      if ui_has "Ready to play?"; then tap_ui "Start"; fi
+      tap_until_visible "PLAY AGAIN" "READY TO PLAY?" 8
+      if ui_has "READY TO PLAY?"; then tap_ui "START"; fi
     fi
-    wait_for "Pause" 25
-    tap_ui "Pause"
+    wait_for "Pause game" 25
+    tap_ui "Pause game"
     sleep 1.25
-    if ui_has "Paused"; then return 0; fi
+    if ui_has "PAUSED"; then return 0; fi
   done
   echo "Could not enter explicit Paused state after bounded pause attempts" >&2
   dump_ui pause-transition-failure
@@ -139,30 +139,30 @@ adb shell input text 'Jingle%sbells'
 adb shell input keyevent KEYCODE_ENTER
 wait_for "Jingle Bells" 12
 tap_ui "Play"
-wait_for "FALLING NOTES" 35
+wait_for "SLUMBER  /  TILES" 35
 wait_for "Jingle Bells" 10
-wait_for "Ready to play?" 15
-tap_until_visible "Start" "Pause" 8
+wait_for "READY TO PLAY?" 15
+tap_until_visible "START" "Pause game" 8
 pause_active_run
-wait_for "Paused" 5
-wait_for "Resume" 3
+wait_for "PAUSED" 5
+wait_for "RESUME" 3
 capture play-user-paused
 
 # The built-in warm-up normally completes within a few seconds with misses.
 # Hold longer than that and prove neither the playhead nor scoring completion
 # can finish invisibly while the user has explicitly paused the run.
 sleep 7
-wait_for "Paused" 5
-if ui_has "Play again"; then
+wait_for "PAUSED" 5
+if ui_has "PLAY AGAIN"; then
   echo "Play completed while explicitly paused" >&2
   exit 1
 fi
 capture play-user-paused-held
 
-tap_ui "Resume"
+tap_ui "RESUME"
 # Completion after the held paused state is the durable proof that the run
 # resumed. Do not race the transient HUD Pause button against completion.
-wait_for "Play again" 55
+wait_for "PLAY AGAIN" 55
 capture play-user-resumed-complete
 
 adb logcat -d -t 4000 > "$OUT/pause-resume-logcat.txt"
