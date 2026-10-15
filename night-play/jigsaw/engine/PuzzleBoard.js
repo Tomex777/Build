@@ -8,6 +8,9 @@ import {PieceCutter} from './PieceCutter.js';
 export class PuzzleBoard{
  constructor(canvas,wrapper){
   this.canvas=canvas;this.ctx=canvas.getContext('2d');this.wrapper=wrapper;
+  this.dragCanvas=wrapper.querySelector('#dragCanvas');
+  this.dragCtx=this.dragCanvas.getContext('2d',{alpha:true});
+  this.staticPaintCount=0;this.dragPaintCount=0;
   this.rows=3;this.cols=4;this.totalPieces=12;this.pieces=[];this.selectedPiece=null;
   this.boardX=0;this.boardY=0;this.boardWidth=0;this.boardHeight=0;
   this.pieceWidth=0;this.pieceHeight=0;this.tray={x:0,y:0,w:0,h:0};
@@ -19,7 +22,9 @@ export class PuzzleBoard{
   const rect=this.wrapper.getBoundingClientRect(),w=Math.max(300,Math.round(rect.width)),h=Math.max(460,Math.round(rect.height));
   if(this.canvas.width===w&&this.canvas.height===h)return;
   const old={w:this.canvas.width,h:this.canvas.height,x:this.boardX,y:this.boardY,pw:this.pieceWidth,ph:this.pieceHeight,tray:{...this.tray}};
-  this.canvas.width=w;this.canvas.height=h;this.setupBoardLayout();
+  this.canvas.width=w;this.canvas.height=h;
+  this.dragCanvas.width=w;this.dragCanvas.height=h;
+  this.setupBoardLayout();
   if(this.pieces.length){
    for(const p of this.pieces){
     if(p.isPlaced){p.x=this.boardX+p.col*this.pieceWidth;p.y=this.boardY+p.row*this.pieceHeight;}
@@ -124,6 +129,9 @@ export class PuzzleBoard{
   return true;
  }
  render(confetti=null){
+  // Costly full-scene painting only happens after a completed move, settings
+  // change or resize. Finger movement never calls this path.
+  this.staticPaintCount++;
   const ctx=this.ctx,w=this.canvas.width,h=this.canvas.height;
   ctx.clearRect(0,0,w,h);
   ctx.fillStyle='#edf3ec';ctx.fillRect(0,0,w,h);
@@ -144,7 +152,20 @@ export class PuzzleBoard{
    ctx.save();ctx.shadowColor='#183b295c';ctx.shadowBlur=4;ctx.shadowOffsetY=2;
    ctx.drawImage(p.offscreenCanvas,p.x-p.canvasMargin,p.y-p.canvasMargin);ctx.restore();
   }
-  if(this.selectedPiece){const p=this.selectedPiece;ctx.save();ctx.shadowColor='#0f452b88';ctx.shadowBlur=14;ctx.drawImage(p.offscreenCanvas,p.x-p.canvasMargin,p.y-p.canvasMargin);ctx.restore();}
   if(confetti)confetti.updateAndRender(ctx);
+  this.renderDrag();
+ }
+ renderDrag(){
+  // Clear only the transparent layer. The 24–144 other puzzle pieces and the
+  // background remain cached in the canvas underneath, even at 120Hz touch.
+  this.dragPaintCount++;
+  const ctx=this.dragCtx;
+  ctx.clearRect(0,0,this.dragCanvas.width,this.dragCanvas.height);
+  const p=this.selectedPiece;
+  if(!p)return;
+  ctx.save();
+  ctx.shadowColor='#0f452b55';ctx.shadowBlur=5;ctx.shadowOffsetY=2;
+  ctx.drawImage(p.offscreenCanvas,p.x-p.canvasMargin,p.y-p.canvasMargin);
+  ctx.restore();
  }
 }
