@@ -1,16 +1,18 @@
 {
-  "releaseId": "night-2026-10-15-03",
+  "releaseId": "night-2026-10-15-04",
   "baseBranch": "mscc-azure",
-  "baseCommit": "6f09555928405886f79f7223ddb441bec1052814",
-  "pullRequests": [],
+  "baseCommit": "bff557384174dd4c6b3aa5a3b6da44d3b73b9a08",
+  "pullRequests": [
+    247
+  ],
   "alreadyMerged": [
     215,
     235,
     239,
     241,
     243,
-    245
+    245,
+    246
   ],
-  "hotfix": "Recover blocked Batch #2: optional Tor/FlareSolverr network outages cannot prevent NIGHT core code deployments; unsafe non-Tor proxy or invalid source ports remain hard errors; original source services are untouched.",
-  "retryOf": "38784652210"
+  "notes": "Supersede unapproved Batch #3 run 38791440414: include NIGHT .meme HTML-as-JSON fallback fix and prior Tor deployment recovery plus tweet and verified identity changes. One protected Azure production approval for entire release."
 }

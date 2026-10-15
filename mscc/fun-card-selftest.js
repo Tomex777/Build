@@ -64,18 +64,62 @@ assert.equal(joke, 'Setup?\n\nPunchline.')
 
 const meme = await randomMeme('anime', {
   fetchImpl:async url => {
-    assert.match(String(url), /animemes/)
+    assert.ok(String(url).includes('meme-api.com/gimme/animemes/10'))
     return {
       ok:true,
+      headers:{ get:() => 'application/json' },
       async json() {
-        return { data:{ children:[
-          { data:{ title:'anime meme', url:'https://example.com/anime.png', subreddit:'animemes', over_18:false } },
-        ]}}
+        return { memes:[
+          { title:'anime meme', url:'https://example.com/anime.png', subreddit:'animemes', nsfw:false },
+          { title:'unsafe meme', url:'https://example.com/nsfw.png', subreddit:'animemes', nsfw:true },
+          { title:'video', url:'https://example.com/clip.mp4', subreddit:'animemes', nsfw:false },
+        ]}
       },
     }
   },
 })
 assert.equal(meme.title, 'anime meme')
 assert.equal(meme.subreddit, 'animemes')
+
+// Regression: Reddit/provider blocks return HTML, not JSON.
+const urls = []
+const fallbackMeme = await randomMeme('wholesome', {
+  fetchImpl:async url => {
+    urls.push(String(url))
+    if (String(url).includes('meme-api.com')) {
+      return { ok:true, headers:{ get:() => 'text/html' }, async json() { throw Error('HTML parsed as JSON') } }
+    }
+    return {
+      ok:true,
+      headers:{ get:() => 'application/json; charset=utf-8' },
+      async json() {
+        return { data:{ children:[{ data:{
+          title:'wholesome fallback', url:'https://example.com/wholesome.jpg', subreddit:'wholesomememes',
+        }}]}}
+      },
+    }
+  },
+})
+assert.equal(fallbackMeme.title, 'wholesome fallback')
+assert.equal(urls.length, 2)
+assert.ok(urls[1].includes('reddit.com/r/wholesomememes'))
+
+// A blocked upstream should never reply with "Unexpected token '<'".
+await assert.rejects(
+  randomMeme('', { fetchImpl:async () => ({
+    ok:true, headers:{ get:() => 'application/json' }, async json() { throw SyntaxError("Unexpected token '<'") },
+  }) }),
+  error => error.message === 'Meme feeds are temporarily unavailable. Try .meme again shortly.',
+)
+
+// An HTTP error from the primary provider must also use the fallback.
+const recovered = await randomMeme('programming', {
+  fetchImpl:async url => String(url).includes('meme-api.com')
+    ? { ok:false, status:503, headers:{ get:() => 'text/html' } }
+    : { ok:true, async json() {
+      return { data:{ children:[{ data:{ title:'programmer fallback', url:'https://example.com/programming.webp' } }]}}
+    }},
+})
+assert.equal(recovered.title, 'programmer fallback')
 
 console.log('PASS Night fun cards, meme parser, and joke fallback plumbing')
