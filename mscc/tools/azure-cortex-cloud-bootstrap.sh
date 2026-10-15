@@ -184,6 +184,60 @@ if (!cloud || typeof cloud !== 'object' || typeof cloud.configured !== 'boolean'
 }
 console.log('Cortex Agent -> MSCC Community Cloud endpoint verified.');
 VERIFY_CLOUD_RESPONSE
+# Local loopback /status and Cloud checks are not sufficient: the Android
+# app uses nginx HTTPS. Verify its authenticated HTTPS ingress independently
+# so a green Azure deploy cannot mask a broken phone-facing route. No token,
+# response body, public IP or credential is printed.
+readonly CORTEX_HTTPS_SITE=/etc/nginx/sites-enabled/cortex-agent
+if sudo -n test -f "$CORTEX_HTTPS_SITE"; then
+  proxy_ip="$(sudo -n sed -nE 's/^[[:space:]]*server_name[[:space:]]+([0-9]{1,3}(\.[0-9]{1,3}){3});[[:space:]]*$/\1/p' "$CORTEX_HTTPS_SITE" | head -n 1)"
+  if [[ ! "$proxy_ip" =~ ^([0-9]{1,3}\.){3}[0-9]{1,3}$ ]]; then
+    echo 'Cortex HTTPS site exists but its certified IPv4 server_name is not identifiable.' >&2
+    exit 1
+  fi
+  https_origin="https://${proxy_ip}"
+  https_resolution="${proxy_ip}:443:127.0.0.1"
+  anonymous_http="$(curl --silent --show-error --max-time 12 \
+    --resolve "$https_resolution" --output /dev/null --write-out '%{http_code}' \
+    "$https_origin/api/cortex/host/status")" || {
+      echo 'Cortex HTTPS ingress cannot be reached with valid TLS.' >&2
+      exit 1
+    }
+  [[ "$anonymous_http" == 401 ]] || {
+    echo "Cortex HTTPS ingress failed the unauthenticated 401 check (HTTP $anonymous_http)." >&2
+    exit 1
+  }
+  for route in environment cloud; do
+    https_code="$(curl --silent --show-error --max-time 12 \
+      --resolve "$https_resolution" \
+      --output "$cloud_probe_dir/https-$route.json" --write-out '%{http_code}' \
+      -H "Authorization: Bearer $CLOUD_TOKEN" \
+      "$https_origin/api/cortex/host/$route")" || {
+        echo "Cortex HTTPS $route endpoint is unreachable or its TLS certificate is invalid." >&2
+        exit 1
+      }
+    [[ "$https_code" == 200 ]] || {
+      echo "Cortex HTTPS $route endpoint returned HTTP $https_code." >&2
+      exit 1
+    }
+  done
+  node - "$cloud_probe_dir/https-environment.json" "$cloud_probe_dir/https-cloud.json" <<'VERIFY_HTTPS_CLOUD'
+const fs = require('node:fs');
+const env = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
+const entries = Array.isArray(env.entries) ? env.entries : [];
+for (const key of ['MSCC_MEGA_EMAIL', 'MSCC_MEGA_PASSWORD', 'MSCC_MEGA_SHARED_FOLDERS']) {
+  if (!entries.some(row => row.key === key)) throw new Error('Cortex HTTPS MEGA configuration is incomplete');
+}
+const password = entries.find(row => row.key === 'MSCC_MEGA_PASSWORD');
+if (!password.secret || password.value) throw new Error('Cortex HTTPS response revealed protected credential data');
+const cloud = JSON.parse(fs.readFileSync(process.argv[3], 'utf8'));
+if (typeof cloud.configured !== 'boolean') throw new Error('Cortex HTTPS Cloud response is invalid');
+console.log('Cortex nginx HTTPS ingress verified for authenticated Cloud and masked environment routes.');
+VERIFY_HTTPS_CLOUD
+else
+  echo 'Cortex standard nginx HTTPS site not found: local Cloud works, phone-facing HTTPS is UNVERIFIED.'
+fi
+
 rm -rf "$cloud_probe_dir"
 trap - EXIT
 

@@ -287,7 +287,9 @@ export async function renderChessMoveVideo(game, options = {}) {
       '-c:v', 'libx264',
       '-pix_fmt', 'yuv420p',
       '-movflags', '+faststart',
-      '-fps_mode', 'vfr',
+      // Azure Ubuntu 22.04 supplies FFmpeg 4.4, which does not support
+      // -fps_mode. The older VFR option is accepted by FFmpeg 4.4 and 7+.
+      '-vsync', 'vfr',
       output,
     ], { timeoutMs:45_000 })
 
