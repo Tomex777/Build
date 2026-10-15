@@ -10,7 +10,7 @@ const dir=path.dirname(fileURLToPath(import.meta.url));
 const root=path.resolve(dir,"..");
 const server=createServer((req,res)=>{
   const pathname=new URL(req.url,"http://localhost").pathname;
-  const files={"/club/":"club/index.html","/club":"club/index.html","/club/index.html":"club/index.html","/club/style.css":"club/style.css","/club/ludo-immersive.css":"club/ludo-immersive.css","/club/games.js":"club/games.js","/club/naija-ludo.js":"club/naija-ludo.js","/club/ludo-motion.js":"club/ludo-motion.js","/club/ludo-dice-3d.js":"club/ludo-dice-3d.js","/games":"index.html","/index.html":"index.html"};
+  const files={"/club/":"club/index.html","/club":"club/index.html","/club/index.html":"club/index.html","/club/style.css":"club/style.css","/game-shell.css":"game-shell.css","/club/ludo-immersive.css":"club/ludo-immersive.css","/club/games.js":"club/games.js","/club/naija-ludo.js":"club/naija-ludo.js","/club/ludo-motion.js":"club/ludo-motion.js","/club/ludo-dice-3d.js":"club/ludo-dice-3d.js","/games":"index.html","/index.html":"index.html"};
   const rel=files[pathname];
   if(!rel){res.writeHead(404);res.end("Not found");return;}
   const kind=rel.endsWith(".css")?"text/css":rel.endsWith(".js")?"text/javascript":"text/html";
@@ -287,6 +287,15 @@ try{
   await page.goto(base+"/club/?game=checkers");
   assert.equal(await page.locator(".checker-square").count(),64);
   assert.equal(await page.locator(".checker-piece").count(),24);
+  assert.equal(await page.locator('.night-brand-mark use').getAttribute('href'),'#night-mark','Every tabletop game shares Jigsaw NIGHT logo');
+  assert.equal(await page.locator('#settingsButton').isVisible(),true,'Draughts uses top-right settings');
+  assert.equal(await page.locator('#gamePicks').isVisible(),false,'Club game-selection menu is inside settings');
+  await page.locator('#settingsButton').click();
+  assert.equal(await page.locator('#settingsDialog').isVisible(),true,'Full rules and game picker are in settings');
+  assert.equal(await page.locator('#help').isVisible(),true,'Current game rules are available');
+  await page.locator('#settingsClose').click();
+  await page.evaluate(()=>window.__nightInitialCheckerSquare=document.querySelector('[data-checker="40"]'));
+  console.log('NIGHT_CLUB_SHELL_JPEG_BASE64='+(await page.screenshot({type:'jpeg',quality:55,fullPage:true})).toString('base64'));
   assert.equal(await page.locator(".checker-scoreline .checker-seat").count(),2,"Draughts shows both player/turn badges");
   assert.equal(await page.locator(".checker-crown").count(),0,"Only kings display crowns");
   assert.equal(await page.locator("body.checkers-mode").count(),1,"Draughts uses its dedicated tabletop styling");
@@ -294,6 +303,7 @@ try{
   assert.ok(boardSize.width>=350&&Math.abs(boardSize.width-boardSize.height)<=2,"Draughts board must fill mobile width and remain square");
   console.log("NIGHT_CHECKERS_VISUAL_JPEG_BASE64="+(await page.locator(".checker-stage").screenshot({type:"jpeg",quality:50})).toString("base64"));
   await page.locator('[data-checker="40"]').click();
+  assert.equal(await page.evaluate(()=>window.__nightInitialCheckerSquare===document.querySelector('[data-checker="40"]')),true,'Checkers keeps original square on selection');
   assert.ok(await page.locator(".checker-square.target").count(),"legal move highlighted");
   await page.locator(".checker-square.target").first().click();
   assert.equal(await page.locator(".checker-piece").count(),24);
@@ -301,6 +311,7 @@ try{
     await page.goto(base+"/club/?game="+name);
     assert.equal(await page.locator("#gameTitle").innerText(),({ludo:"Nigerian Ludo",estate:"NIGHT Estates",whot:"Shape Cards",colors:"Colour Clash",draw:"Draw & Guess",snakes:"Snakes & Ladders",checkers:"Draughts"})[name]);
     assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+2),"no sideways mobile scroll on "+name);
+    if(["estate","whot","colors","draw","snakes"].includes(name))console.log("NIGHT_CLUB_SCREEN_"+name.toUpperCase()+"_JPEG_BASE64="+(await page.screenshot({type:"jpeg",quality:50,fullPage:true})).toString("base64"));
   }
   await page.goto(base+"/games");
   await page.locator("#view-games").waitFor({state:"visible"});
