@@ -53,7 +53,7 @@ assert.equal((html.match(/class="game-art"/g)||[]).length,10,'other game thumbna
 assert.match(html,/class="wing-preview-bird"/,'Wing Hop presents real Kenney character artwork')
 assert.doesNotMatch(html,/data-club="ludo"/,'Ludo is not listed in the game library')
 assert.match(html,/data-jigsaw/,'Jigsaw is discoverable in the puzzle library')
-assert.equal((html.match(/<symbol id="art-/g)||[]).length,11,'all game SVG illustrations must be defined locally')
+assert.equal((html.match(/<symbol id="art-/g)||[]).length,12,'all game SVG illustrations must be defined locally')
 assert.ok((html.match(/<symbol id="icon-/g)||[]).length>=20,'navigation and actions use local SVG icons')
 assert.equal(/class="game-emoji"/.test(html),false,'game preview artwork must not rely on emoji fonts')
 assert.equal(/<div class="floating/.test(html),false,'remove generic floating overlay cards')
