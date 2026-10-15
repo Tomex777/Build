@@ -5,6 +5,9 @@ const $=id=>document.getElementById(id);
 const board=$("board"),controls=$("controls"),status=$("status"),help=$("help"),picks=$("gamePicks");
 const KEY="night-play-club-v1";
 const state={};let active="checkers",timer=null,drawCtx=null;
+let cardMotionBusy=false,cardMotionEpoch=0,pendingWhotDeal=false;
+const cardMotionMetrics={deals:0,plays:0,cpuPlays:0,draws:0,activeFlights:0};
+const motionEnabled=()=>!matchMedia("(prefers-reduced-motion: reduce)").matches;
 const colors={red:"#df3439",green:"#328c4b",yellow:"#e8b32a",blue:"#2767bc"};
 const titles={ludo:["Nigerian Ludo","The board you remember.","BOARD GAME"],estate:["NIGHT Estates","Buy, trade and collect rent.","PROPERTY GAME"],whot:["WHOT","Classic Nigerian shape-and-number card play.","CARD GAME"],colors:["Colour Clash","A quick colour-matching card battle.","CARD GAME"],draw:["Draw & Guess","One draws. Everyone else guesses.","PARTY GAME"],snakes:["Snakes & Ladders","Climb fast. Slide carefully.","BOARD GAME"],checkers:["Draughts","A proper tabletop strategy game.","BOARD GAME"]};
 function h(s){return String(s).replace(/[&<>"']/g,x=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[x]));}
@@ -27,11 +30,11 @@ function controlsHTML(markup){if(controls.innerHTML!==markup)controls.innerHTML=
 function rules(title,desc){const markup="<h3>"+title+"</h3><p>"+desc+"</p>";if(help.innerHTML!==markup)help.innerHTML=markup;}
 function scoreList(players,getScore){return '<div class="score-list">'+players.map((p,i)=>'<div class="score-row"><span><b style="color:'+h(p.color)+'">●</b> '+h(p.name)+'</span><b>'+h(getScore(p,i))+'</b></div>').join("")+"</div>";}
 function choosePlayers(id,selected,max){return '<label class="small">Players (local, sharing one phone)</label><select class="select" data-players="'+id+'">'+[2,3,4].filter(n=>n<=max).map(n=>'<option value="'+n+'"'+(n===selected?" selected":"")+'>'+n+' players</option>').join("")+"</select>";}
-function pick(id){if(!titles[id])id="checkers";active=id;if(id==="ludo")window.NightLudo3D?.warmup();document.body.classList.toggle("ludo-mode",id==="ludo");document.body.classList.toggle("checkers-mode",id==="checkers");$("ludoTopbar").hidden=id!=="ludo";$("ludoHud").hidden=id!=="ludo";if(id!=="ludo")closeLudoSettings();const d=titles[id];document.title=d[0]+" · NIGHT Play";if($("settingsDialog").open)$("settingsDialog").close();$("gameTitle").textContent=d[0];$("gameSubtitle").textContent=d[1];$("gameCategory").textContent=d[2];[...picks.querySelectorAll("button")].forEach(x=>x.setAttribute("aria-current",String(x.dataset.pick===id)));const url=new URL(location.href);url.searchParams.set("game",id);history.replaceState(null,"",url.pathname+url.search);window.NightLudo.cancel();if(id==="ludo"&&state.ludo)state.ludo=window.NightLudo.resume(state.ludo);if(!state[id])reset(id);else render();}
+function pick(id){if(!titles[id])id="checkers";cardMotionEpoch++;cardMotionBusy=false;active=id;if(id==="ludo")window.NightLudo3D?.warmup();document.body.classList.toggle("ludo-mode",id==="ludo");document.body.classList.toggle("checkers-mode",id==="checkers");$("ludoTopbar").hidden=id!=="ludo";$("ludoHud").hidden=id!=="ludo";if(id!=="ludo")closeLudoSettings();const d=titles[id];document.title=d[0]+" · NIGHT Play";if($("settingsDialog").open)$("settingsDialog").close();$("gameTitle").textContent=d[0];$("gameSubtitle").textContent=d[1];$("gameCategory").textContent=d[2];[...picks.querySelectorAll("button")].forEach(x=>x.setAttribute("aria-current",String(x.dataset.pick===id)));const url=new URL(location.href);url.searchParams.set("game",id);history.replaceState(null,"",url.pathname+url.search);window.NightLudo.cancel();if(id==="ludo"&&state.ludo)state.ludo=window.NightLudo.resume(state.ludo);if(!state[id])reset(id);else render();}
 function reset(id){
 if(id==="ludo"){window.NightLudo.cancel();state.ludo=window.NightLudo.create();}
 if(id==="estate"){state.estate={players:["red","blue"].map(k=>({name:k[0].toUpperCase()+k.slice(1),color:colors[k],cash:1500,pos:0,bankrupt:false})),owners:{},upgrades:{},turn:0,rolled:false,last:0,pending:null,rounds:0,winner:null,msg:"Roll the dice to start buying properties.",inspect:0};}
-if(id==="whot"){state.whot=newShapes();}
+if(id==="whot"){state.whot=newShapes();pendingWhotDeal=true;cardMotionEpoch++;cardMotionBusy=false;}
 if(id==="colors"){state.colors=newColors();}
 if(id==="draw"){state.draw={players:["Player 1","Player 2"],drawer:0,word:null,mode:"ready",points:[0,0],round:1,seconds:60,log:[]};}
 if(id==="snakes"){state.snakes={players:[{name:"Red",color:colors.red,pos:1},{name:"Blue",color:colors.blue,pos:1}],turn:0,last:0,msg:"Roll to start climbing.",winner:null};}
@@ -171,18 +174,39 @@ function queueCPU(kind){setTimeout(()=>{if(active!==kind)return;const s=state[ki
 const idx=s.hands[1].findIndex(card=>playable(kind,s,card));if(idx<0){take(s,1,1);s.turn=0;s.msg="Computer picked up a card.";render();return;}
 const card=s.hands[1].splice(idx,1)[0],option=kind==="whot"?Math.floor(Math.random()*5):Math.floor(Math.random()*4);nextCardTurn(kind,s,1,card,option);render();if(s.turn===1)queueCPU(kind);
 },470);}
+function whotShapeSvg(s,n,mini=false){
+ // Entirely original vector suits, drawn from geometric shapes; no third-party
+ // logos or unlicensed game art. Intrinsic geometry scales crisply on Android.
+ const tags=[
+  '<circle cx="50" cy="50" r="37"/>',
+  '<path d="M50 9 92 87H8Z"/>',
+  '<path d="M34 8h32v26h26v32H66v26H34V66H8V34h26Z"/>',
+  '<rect x="12" y="12" width="76" height="76"/>',
+  '<path d="M50 7 62.5 34 92 37.5 70 58.5 77 89 50 74 23 89 30 58.5 8 37.5 37.5 34Z"/>'
+ ];
+ if(s===5)return '';
+ return '<svg class="'+(mini?'whot-suit-small':'whot-suit-big')+'" viewBox="0 0 100 100" focusable="false" aria-hidden="true">'+tags[s]+
+ (s===4&&!mini&&n!==undefined?'<text x="50" y="57" fill="#fff9f0" font-size="18" font-weight="900" text-anchor="middle" font-family="Georgia,serif">'+(n*2)+'</text>':'')+'</svg>';
+}
+function whotFace(card,index,enabled){
+ const wild=card.n===20;
+ const cornerSymbol=wild?'<span class="whot-wild-mini">w</span>':whotShapeSvg(card.s,card.n,true);
+ const large=wild
+  ?'<span class="whot-twenty"><b>WHOT</b><i class="whot-swirl" aria-hidden="true">⌁</i><b class="whot-reversed">WHOT</b></span>'
+  :whotShapeSvg(card.s,card.n);
+ return '<button class="playing-card whot-card'+(wild?' whot-wild':'')+(enabled?' playable':'')+'" data-card="'+index+'" type="button" '+(enabled?'':'disabled')+
+ ' aria-label="'+(wild?'WHOT 20, call a shape':card.n+" "+shapes[card.s])+'">'+
+ '<span class="whot-corner whot-corner-top"><strong>'+card.n+'</strong>'+cornerSymbol+'</span>'+
+ '<span class="whot-face">'+large+'</span>'+
+ '<span class="whot-corner whot-corner-bottom"><strong>'+card.n+'</strong>'+cornerSymbol+'</span></button>';
+}
 function cardMarkup(kind,card,index,enabled){
-if(kind==="whot"){
- const isWild=card.n===20,sym=isWild?"✦":icons[card.s];
- return '<button class="playing-card whot-card'+(isWild?' whot-wild':'')+(enabled?' playable':'')+'" data-card="'+index+'" type="button" '+(enabled?'':'disabled')+
- ' aria-label="'+(isWild?'20, call a shape':card.n+" "+shapes[card.s])+'">'+
- '<span class="whot-corner whot-corner-top"><b>'+card.n+'</b><i>'+sym+'</i></span>'+
- '<span class="whot-face">'+(isWild?'<span class="whot-wild-word">WHOT</span>':'<span class="whot-face-symbol">'+sym+'</span>')+'</span>'+
- '<span class="whot-corner whot-corner-bottom"><b>'+card.n+'</b><i>'+sym+'</i></span>'+
- '</button>';
+ if(kind==="whot")return whotFace(card,index,enabled);
+ const clr=["#d93739","#2e81c0","#2b8d61","#d7a925","#302d3a"][card.c];
+ return '<button class="color-card'+(enabled?' playable':'')+'" style="--color:'+clr+'" data-card="'+index+'" '+(enabled?'':'disabled')+
+ ' aria-label="'+["Red","Blue","Green","Yellow","Wild"][card.c]+' '+h(card.n)+'"><span>'+h(card.n)+'</span></button>';
 }
-const clr=["#d93739","#2e81c0","#2b8d61","#d7a925","#302d3a"][card.c];return '<button class="color-card'+(enabled?' playable':'')+'" style="--color:'+clr+'" data-card="'+index+'" '+(enabled?'':'disabled')+' aria-label="'+["Red","Blue","Green","Yellow","Wild"][card.c]+' '+h(card.n)+'"><span>'+h(card.n)+'</span></button>';
-}
+
 function renderCards(kind){
 const s=state[kind],t=topCard(s),topSelected={...t};
 if(s.called!==null)topSelected[kind==="whot"?"s":"c"]=s.called;
