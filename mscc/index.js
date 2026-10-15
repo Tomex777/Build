@@ -1619,6 +1619,42 @@ async function groupMetadataCached(account, groupJid) {
   }
 }
 
+// The WhatsApp app paints contact labels over raw @LID tokens, but Baileys
+// receives the opaque mention JID and its literal numeric token. For rendered
+// screenshots look up a group member's observed/public name by JID, not LID digits.
+async function resolveSocialMentionName(account, msg, mentionedJid) {
+  const group = normalizeJid(msg?.key?.remoteJid)
+  if (!isGroup(group)) return ''
+
+  const jid = normalizeJid(mentionedJid)
+  if (!jid) return ''
+  const metadata = await groupMetadataCached(account, group)
+  const found = await findGroupParticipant(
+    metadata?.participants,
+    jid,
+    candidate => resolvePhoneJid(account, candidate),
+  )
+  const participant = found?.participant
+  const aliases = [...new Set([jid, ...(participant ? participantIds(participant) : [])])]
+  const sender = normalizeJid(msg?.key?.participant || msg?.participant)
+  const senderName = aliases.includes(sender) ? msg?.pushName : ''
+  const observedNames = aliases
+    .map(candidate => sharedStorage?.latestConversationSpeaker(group, candidate))
+    .filter(Boolean)
+
+  const candidates = [
+    senderName,
+    participant?.notify,
+    participant?.pushName,
+    participant?.verifiedName,
+    ...observedNames,
+    participant?.displayName,
+    participant?.name,
+  ]
+  return candidates.map(value => String(value || '').trim())
+    .find(value => value && !/^(?:@?\d+|whatsapp user|unknown(?: user)?|member|user)$/i.test(value)) || ''
+}
+
 async function resolveGroupParticipant(account, msg, raw = '') {
   const chat = normalizeJid(msg?.key?.remoteJid)
   if (!isGroup(chat)) return null
@@ -2603,6 +2639,7 @@ async function processInboundMessage(account, msg) {
             caption:String(caption || ''),
           }, { quoted:msg }),
           resolveCommandTarget: raw => resolveCommandTarget(account, msg, raw),
+          resolveSocialMentionName: jid => resolveSocialMentionName(account, msg, jid),
           getPublicUserProfile: phoneNumber => publicUserProfile(account, msg, phoneNumber),
           resolveAccountId,
           createAccount,
