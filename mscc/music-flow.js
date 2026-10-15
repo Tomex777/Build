@@ -137,6 +137,11 @@ async function broadenMusicSearch(ctx, query, firstOutcome) {
   collect(firstOutcome, query)
   const primary = firstOutcome?.source?.id || ''
 
+  // Avoid 3 extra YouTube lookups on an already-good search result.
+  if (candidates.length >= 3 && candidates.some(candidate => candidate.score >= 55)) {
+    return candidates.sort((a, b) => b.score - a.score)
+  }
+
   for (const variant of variants.slice(1, 4)) {
     if (variant === query) continue
     const outcome = await ctx.executeSource({
@@ -424,7 +429,7 @@ async function handleNumbers(ctx) {
       })
     }
     if (progress) {
-      try { await progress.fail(message); return false }
+      try { await progress.fail(message); return true }
       catch (error) { console.warn('MSCC music failure progress unavailable:', error?.code || error?.name || 'Error') }
     }
     return ctx.reply(message)
