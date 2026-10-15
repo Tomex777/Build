@@ -386,6 +386,13 @@ jobs:
             adb shell am start -n app.yomi.reader.dev/app.yomi.reader.YomiCiFixtureActivity --es kind archive --es mode LTR_PAGED --ez keepChrome true --ez openSettings true
             i=0; until adb logcat -d -v brief YomiReader:I '*:S' | grep -Fq 'reader-settings-opened'; do i=$((i + 1)); [ "$i" -lt 60 ] || { echo 'API 26 Mihon reader settings sheet did not open' >&2; adb logcat -d -v threadtime > yomi-output/runtime-api26/reader-settings-failure-logcat.txt || true; exit 1; }; sleep 2; done
             sleep 2
+            # A settings-opened LOG alone can be emitted before the dialog has
+            # actually composed. Require the visible accessibility tree to
+            # include Mihon's three settings tabs on the real device surface.
+            adb shell uiautomator dump /sdcard/yomi-reader-settings.xml
+            adb pull /sdcard/yomi-reader-settings.xml yomi-output/runtime-api26/reader-settings-hierarchy.xml
+            grep -Fq 'Reading mode' yomi-output/runtime-api26/reader-settings-hierarchy.xml
+            grep -Fq 'Color filter' yomi-output/runtime-api26/reader-settings-hierarchy.xml
             bash yomi-reader/scripts/capture_clean_screen.sh yomi-output/runtime-api26/yomi-mihon-reader-settings-sheet.png
             adb shell input keyevent KEYCODE_BACK
 
