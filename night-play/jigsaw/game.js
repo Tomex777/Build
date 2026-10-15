@@ -30,7 +30,7 @@ let challengeMode='relaxed',usedHints=0,usedPreviews=0,previewTimeout=null;
 const canvas=$('puzzleCanvas'),wrapper=$('canvasWrapper'),board=new PuzzleBoard(canvas,wrapper);
 const sound=new SoundSynth(),confetti=new ConfettiSystem();
 let theme='nature',category='all',piecesCount=24,customData=null,elapsed=0,secondsTimer=null,won=false,activeRound=false;
-let dragId=null,dragX=0,dragY=0,dragMoved=false,winAnimationId=null,winTimeout=null,toastTimeout=null;
+let dragId=null,dragX=0,dragY=0,dragMoved=false,dragRect=null,dragOriginX=0,dragOriginY=0,winAnimationId=null,winTimeout=null,toastTimeout=null;
 const timeText=s=>String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0');
 function safeRead(key){try{return localStorage.getItem(key)}catch{return null}}
 function safeWrite(key,value){try{localStorage.setItem(key,value);return true}catch{return false}}
@@ -210,14 +210,19 @@ function refreshAfterMove(p){
  if(snapped&&board.placedCount===board.totalPieces)celebrate();
 }
 function point(e){
- const r=canvas.getBoundingClientRect();
+ // Cache the bounding box for the entire gesture: layout reads on every touch
+ // move cause forced synchronization and visible drag latency on mobile.
+ const r=dragRect||canvas.getBoundingClientRect();
  return {x:(e.clientX-r.left)*canvas.width/r.width,y:(e.clientY-r.top)*canvas.height/r.height};
 }
 canvas.addEventListener('pointerdown',e=>{
  if(!activeRound||won||dragId!==null||e.button!==0)return;
- const pos=point(e),hit=board.getPieceAt(pos.x,pos.y);if(!hit)return;
+ dragRect=canvas.getBoundingClientRect();
+ const pos=point(e),hit=board.getPieceAt(pos.x,pos.y);
+ if(!hit){dragRect=null;return}
  const piece=board.bringToTop(hit.index);board.selectedPiece=piece;
- dragId=e.pointerId;dragX=pos.x-piece.x;dragY=pos.y-piece.y;dragMoved=false;
+ dragId=e.pointerId;dragX=pos.x-piece.x;dragY=pos.y-piece.y;
+ dragOriginX=piece.x;dragOriginY=piece.y;dragMoved=false;
  canvas.classList.add('dragging');canvas.setPointerCapture(e.pointerId);
  sound.playPickup();board.render();e.preventDefault();
 });
@@ -227,12 +232,16 @@ canvas.addEventListener('pointermove',e=>{
  const x=Math.max(-board.pieceWidth*.15,Math.min(canvas.width-board.pieceWidth*.85,pos.x-dragX));
  const y=Math.max(-board.pieceHeight*.15,Math.min(canvas.height-board.pieceHeight*.85,pos.y-dragY));
  if(Math.hypot(x-p.x,y-p.y)>2)dragMoved=true;
- p.x=x;p.y=y;board.render();e.preventDefault();
+ p.x=x;p.y=y;board.renderDrag();e.preventDefault();
 });
 function releaseDrag(e){
  if(e.pointerId!==dragId||!board.selectedPiece)return;
- const p=board.selectedPiece;board.selectedPiece=null;dragId=null;canvas.classList.remove('dragging');
+ const p=board.selectedPiece;board.selectedPiece=null;dragId=null;dragRect=null;
+ canvas.classList.remove('dragging');
  if(canvas.hasPointerCapture(e.pointerId))canvas.releasePointerCapture(e.pointerId);
+ if(e.type==='pointercancel'){
+  p.x=dragOriginX;p.y=dragOriginY;board.render();e.preventDefault();return;
+ }
  if(dragMoved||board.checkSnap(p)){ // snap only once, then count and complete
   if(p.isPlaced){board.placedCount--;p.isPlaced=false;}
   refreshAfterMove(p);
@@ -293,7 +302,10 @@ let prior=null;try{prior=JSON.parse(safeRead(SAVE_KEY)||'null')}catch{}
 if(!resumeSaved(prior))showGallery();
 if(location.hostname==='localhost'||location.hostname==='127.0.0.1'){
  window.__nightJigsawTest=Object.freeze({
-  snapshot:()=>({theme,pieces:piecesCount,elapsed,won,activeRound,challengeMode,usedHints,usedPreviews,guide:board.showGhost,placed:board.placedCount,moves:board.moveCount,
+  snapshot:()=>({theme,pieces:piecesCount,elapsed,won,activeRound,challengeMode,usedHints,usedPreviews,guide:board.showGhost,
+   activeDragId:dragId,staticPaints:board.staticPaintCount,dragPaints:board.dragPaintCount,
+   selected:board.selectedPiece?{id:board.selectedPiece.id,x:board.selectedPiece.x,y:board.selectedPiece.y}:null,
+   placed:board.placedCount,moves:board.moveCount,
    board:{x:board.boardX,y:board.boardY,w:board.boardWidth,h:board.boardHeight,rows:board.rows,cols:board.cols,pieceWidth:board.pieceWidth,pieceHeight:board.pieceHeight},tray:{...board.tray},
    pieces:board.pieces.map(p=>({id:p.id,x:p.x,y:p.y,correctX:p.correctX,correctY:p.correctY,placed:p.isPlaced}))}),
   place:(i)=>{const p=board.pieces[i];if(!p||p.isPlaced)return false;p.x=p.correctX;p.y=p.correctY;refreshAfterMove(p);return true}

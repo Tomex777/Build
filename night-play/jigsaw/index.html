@@ -41,7 +41,7 @@
    <div class="match-stat"><span>MOVES</span><strong id="moves">0</strong></div>
    <div class="match-stat"><span>PIECES</span><strong id="progress">0 / 24</strong></div>
   </div>
-  <div class="play-mat" id="canvasWrapper"><canvas id="puzzleCanvas" width="360" height="660" aria-label="Jigsaw board. Drag loose pieces into their matching picture positions."></canvas></div>
+  <div class="play-mat" id="canvasWrapper"><canvas id="puzzleCanvas" width="360" height="660" aria-label="Jigsaw board. Drag loose pieces into their matching picture positions."></canvas><canvas id="dragCanvas" class="drag-layer" width="360" height="660" aria-hidden="true"></canvas></div>
   <div class="completion-track" aria-label="Jigsaw progress"><div id="progressBar"></div></div>
   <div class="game-actions">
    <button type="button" id="previewButton" class="game-button"><svg class="ico"><use href="#icon-eye"/></svg> Preview <small id="previewRemaining" class="use-count">3 left</small></button>
