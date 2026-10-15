@@ -252,6 +252,7 @@ export function createProfileAssistant({
     isGroup = false,
     groupPersonalities = [],
     senderPersonality = '',
+    reactionSoundPolicy = '',
   } = {}) {
     const current = cleanText(text, 12000)
     if (!current) return { ok:false, text:'' }
@@ -311,7 +312,7 @@ export function createProfileAssistant({
     ].filter(Boolean).join('\n\n')
 
     const result = await ai.complete({
-      system:[String(systemPrompt || '').trim(), CHARACTER_RUNTIME_RULES].filter(Boolean).join(' '),
+      system:[String(systemPrompt || '').trim(), CHARACTER_RUNTIME_RULES, cleanText(reactionSoundPolicy, 2000)].filter(Boolean).join(' '),
       messages:[{ role:'user', content:prompt }],
       allowWeb:false,
       temperature:0.62,
