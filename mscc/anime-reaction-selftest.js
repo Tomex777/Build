@@ -9,7 +9,7 @@ import { REACTIONS, REACTION_NAMES, reactionCatalog } from './anime-reaction-sti
 
 const publicRegistry=await loadCommands(new URL('./commands/',import.meta.url),{capabilityFromDirectory:true})
 const privateRegistry=await loadCommands(new URL('./private-commands/',import.meta.url))
-assert.equal(REACTION_NAMES.length,59,'must register exactly 59 live-verified GIF categories')
+assert.equal(REACTION_NAMES.length,60,'59 live-verified primary GIF categories plus live-verified kill')
 assert.equal(new Set(REACTION_NAMES).size,59)
 for(const name of REACTION_NAMES){
   const command=publicRegistry.commands.get(name)
@@ -23,7 +23,7 @@ assert.equal(publicRegistry.commands.get('kick')?.adminOnly,true,'moderation mus
 assert.equal(publicRegistry.commands.get('tagall')?.name,'hidetag')
 assert.equal(publicRegistry.commands.get('tagall')?.adminOnly,true)
 assert.equal(publicRegistry.commands.get('smug')?.name,'smug')
-assert.ok(!publicRegistry.commands.has('kill'),'kill must wait for real live-verified source')
+assert.equal(publicRegistry.commands.get('kill')?.name,'kill','live-verified kill reaction must be registered')
 assert.ok(reactionCatalog('.').includes('.smug'))
 assert.ok(reactionCatalog('.').includes('.akick'))
 
@@ -100,7 +100,7 @@ try {
   assert.equal(sent.length,0)
   assert.match(replies.at(-1),/unavailable right now/i)
 
-  console.log('PASS 59 collision-free anime reaction commands, rounded sticker metadata, mention safety and failover')
+  console.log('PASS 60 collision-free anime reaction commands, rounded sticker metadata, mention safety and failover')
 } finally {
   globalThis.fetch=oldFetch
 }
