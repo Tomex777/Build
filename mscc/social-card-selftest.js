@@ -3,7 +3,7 @@ import { createCanvas, loadImage } from '@napi-rs/canvas'
 import tweetCommand from './commands/fun/tweet.js'
 import postCommand from './commands/fun/post.js'
 import { renderTweetCard, renderPostCard, wrapSocialText } from './utils/social-card-renderer.js'
-import { socialCardText, resolveSocialAuthor } from './utils/social-card-command.js'
+import { socialCardText, socialCardMentions, resolveSocialAuthor } from './utils/social-card-command.js'
 import { resolveCommandMedia } from './utils/media-conversion.js'
 import { dispatchCommand } from './command-registry.js'
 import { randomTweetEngagement, randomPostEngagement } from './utils/tweet-engagement.js'
@@ -77,6 +77,64 @@ assert.equal(rawCaptured,'first line✨\nsecond line\n\nthird line')
 
 const richText = 'First line — 🎉\nSecond line 👨‍👩‍👧‍👦\n\nThe last line #cool!'
 assert.equal(socialCardText({rawArgs:'dark @friend ' + richText},2),richText)
+// WhatsApp's UI renders @names, but Baileys often sends a raw @LID in the
+// message string. Only its matching contextInfo mention is rewritten.
+const lid = '25693048041628@lid'
+const anotherLid = '11993344771@hosted.lid'
+const quoted = { mentionedJid:[lid] }
+const mentionCtx = {
+  message:{
+    message:{
+      extendedTextMessage:{
+        text:'.tweet Hello @25693048041628 behavior',
+        contextInfo:{ mentionedJid:[lid,anotherLid] },
+      },
+    },
+  },
+  resolveSocialMentionName:async jid => jid === lid ? 'TOMEX' : '𝙉𝙞𝙜𝙝𝙩 ✨',
+}
+assert.equal(
+  await socialCardMentions(mentionCtx,'Hello @25693048041628 behavior'),
+  'Hello @TOMEX behavior',
+)
+assert.equal(
+  await socialCardMentions(mentionCtx,'@25693048041628 + @11993344771!\\n@25693048041628'),
+  '@TOMEX + @𝙉𝙞𝙜𝙝𝙩 ✨!\\n@TOMEX',
+)
+assert.equal(
+  await socialCardMentions(mentionCtx,'@25693048041628oops @998877665544 text'),
+  '@25693048041628oops @998877665544 text',
+)
+assert.equal(
+  await socialCardMentions({...mentionCtx,resolveSocialMentionName:async () => ''},
+    'LID @25693048041628 should not leak'),
+  'LID @member should not leak',
+)
+assert.equal(
+  await socialCardMentions({...mentionCtx,resolveSocialMentionName:async () => '25693048041628'},
+    'LID @25693048041628 should not leak'),
+  'LID @member should not leak',
+)
+assert.equal(
+  await socialCardMentions({...mentionCtx,resolveSocialMentionName:async () => {throw new Error('offline')}},
+    '@25693048041628'),
+  '@member',
+)
+assert.equal(
+  await socialCardMentions({message:{message:{extendedTextMessage:{contextInfo:{quotedMessage:{
+    extendedTextMessage:{contextInfo:quoted},
+  }}}}},resolveSocialMentionName:async () => 'TOMEX'},'@25693048041628'),
+  '@25693048041628',
+)
+const phoneMention = '2348012345678@s.whatsapp.net'
+assert.equal(
+  await socialCardMentions({
+    message:{message:{extendedTextMessage:{contextInfo:{mentionedJid:[phoneMention]}}}},
+    resolveSocialMentionName:async ()=>'Ayo',
+  },'@2348012345678'),
+  '@Ayo',
+)
+
 const measure = createCanvas(1000, 100).getContext('2d')
 measure.font = '35px sans-serif'
 const wrapped = wrapSocialText(measure, richText, 892, 18)
