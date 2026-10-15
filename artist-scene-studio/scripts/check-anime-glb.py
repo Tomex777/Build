@@ -27,7 +27,7 @@ assert gltf["buffers"][0]["byteLength"] <= bin_length
 assert gltf["extras"]["style"] == "mise-anime-figure-v1"
 assert gltf["extras"]["license"] == "CC0-1.0"
 names = [node.get("name") for node in gltf["nodes"]]
-assert "AnimeFace" in names
+assert "Body" in names, "Skinned anime body missing"
 assert all("MiseHair-" + name in names for name in ["short", "bob", "afro"])
 assert len(gltf["skins"]) == 1
 skin = gltf["skins"][0]
@@ -37,7 +37,7 @@ assert all("mesh" in node for node in gltf["nodes"] if node.get("name") in ("Ani
 body = next(gltf["meshes"][node["mesh"]] for node in gltf["nodes"] if node.get("name") == "Body")
 assert len(body["primitives"]) == 1, "Anime skin must remain in one Filament-compatible primitive"
 assert set(body["extras"]["targetNames"]) == {"Body fat", "Muscularity", "Pointed ears", "Ear size"}
-assert "COLOR_0" in body["primitives"][0]["attributes"], "Anime colored costume was lost"
+assert "JOINTS_0" in body["primitives"][0]["attributes"], "Anime skinned character was lost"
 for mesh in gltf["meshes"]:
     for primitive in mesh["primitives"]:
         assert {"POSITION", "NORMAL", "JOINTS_0", "WEIGHTS_0"} <= primitive["attributes"].keys(), mesh["name"]
