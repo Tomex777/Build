@@ -72,7 +72,7 @@ awk '/^if \[ "\$\{MSCC_REUSE_EXISTING_SOURCE_STACK:-0\}" = "1" \]; then/{reuse=N
 # Transient Tor failures must not block the core upgrade or trigger a replacement
 # of the source services. Explicitly non-Tor egress and invalid ports are fatal.
 awk '
-  /^if \\[ "\\$\\{MSCC_REUSE_EXISTING_SOURCE_STACK:-0\\}" = "1" \\]; then/ { inside=1 }
+  index($0, "if [ \"${MSCC_REUSE_EXISTING_SOURCE_STACK:-0}\" = \"1\" ]; then") == 1 { inside=1 }
   inside { print }
   inside && /^fi$/ { exit }
 ' "$INSTALLER" > "$TEST_ROOT/reuse-gate.sh"
