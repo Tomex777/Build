@@ -18,7 +18,6 @@ const forwarded = message => {
   const info = contextInfo(message?.message)
   return info?.isForwarded === true || Number(info?.forwardingScore || 0) > 0
 }
-const safeMessage = text => String(text || '').trim().slice(0, 150)
 
 export function createSquidGame({ storage, accountFor, resolvePhoneJid = async (_account, value) => value, now = () => Date.now(), randomDuration = rand } = {}) {
   const locks = new Map()
@@ -94,6 +93,13 @@ export function createSquidGame({ storage, accountFor, resolvePhoneJid = async (
       for (const player of Object.values(game.players)) {
         if (!player.pendingAction) continue
         try {
+          const row = await member(game, player.jid)
+          if (!row || isAdmin(row)) {
+            // A human promoted this player, so do NOT kick a new admin.
+            // Respect manual intervention and do not lock the group forever.
+            player.pendingAction = false
+            continue
+          }
           if (await changeParticipant(game, player, 'remove')) player.pendingAction = false
           else done = false
         } catch { done = false }
@@ -216,7 +222,9 @@ export function createSquidGame({ storage, accountFor, resolvePhoneJid = async (
     game.phase = 'GREEN'
     game.nextAt = now() + duration(game) * 1000
     save(game.group, game)
-    await send(game, '🟢 *GREEN LIGHT!*')
+    const taunts = ['👁️ The doll is watching.', '🎭 Nobody is safe.', '🩸 Still standing?', '🦑 Stay sharp.']
+    const flavor = game.round > 2 && Math.random() < 0.24 ? '\n' + taunts[rand(0, taunts.length - 1)] : ''
+    await send(game, '🟢 *GREEN LIGHT!*' + flavor)
   }
   async function start(ctx, mode = 'kick') {
     const group = ctx.groupKey
@@ -308,7 +316,13 @@ export function createSquidGame({ storage, accountFor, resolvePhoneJid = async (
     if (!contents || contents.reactionMessage || contents.protocolMessage || contents.pollUpdateMessage) return
     return locked(group, async () => {
       const game = load(group)
-      if (!game || game.accountId !== accountValue.id || !['GREEN','RED'].includes(game.phase)) return
+      if (!game || !['GREEN','RED'].includes(game.phase)) return
+      if (game.accountId !== accountValue.id) {
+        // In multi-account groups only the hosting NIGHT account adjudicates;
+        // the other NIGHT personalities stay silent during play.
+        const text = commandText(message.message).trim()
+        return !/^[.!/]((squidgame)|(sg))\s+(status|stop|cancel)\b/i.test(text)
+      }
       if (game.createdAt < BOOT) return // no eliminations for unobserved offline time
       // Hot path: resolve known participant aliases locally. WhatsApp groupMetadata
       // is a network call and must not run for every Green Light message.
