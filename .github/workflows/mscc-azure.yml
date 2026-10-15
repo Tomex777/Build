@@ -74,6 +74,8 @@ jobs:
           bash -n tools/deploy-azure-ssh.sh tools/deploy-azure-ssh-selftest.sh
           bash tools/deploy-azure-ssh-selftest.sh
           bash -n tools/mscc-github-deploy-wrapper.sh tools/mscc-github-deploy-wrapper-selftest.sh tools/azure-main-ssh-monitor.sh tools/azure-main-ssh-monitor-selftest.sh
+          bash -n tools/azure-cortex-cloud-bootstrap.sh tools/azure-cortex-cloud-bootstrap-selftest.sh
+          bash tools/azure-cortex-cloud-bootstrap-selftest.sh
           bash tools/azure-main-ssh-monitor-selftest.sh
           bash tools/azure-singleton-flock-selftest.sh
           bash tools/mscc-github-deploy-wrapper-selftest.sh
