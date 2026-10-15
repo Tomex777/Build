@@ -129,12 +129,22 @@ if(count){const n=[0,100,300,500,800][count]*s.level;s.lines+=count;s.level=1+Ma
 nextPiece(s);}
 function blockFrame(dt){const s=state;if(!paused&&!finished){s.time+=dt;if(s.time>Math.max(115,640-(s.level-1)*44)){s.time=0;blockDirty=true;if(!collision(s,0,1))s.cur.y++;else lockBlock(s);}}
 if(!blockDirty)return;blockDirty=false;blockPaintCount++;
-ctx.fillStyle="#172826";ctx.fillRect(0,0,300,600);for(let y=0;y<20;y++)for(let x=0;x<10;x++){drawBlock(x,y,s.grid[y][x]);}if(s.cur&&!finished)for(const [x,y] of s.cur.cells)drawBlock(x+s.cur.x,y+s.cur.y,s.cur.idx);
+ctx.fillStyle="#15252a";ctx.fillRect(0,0,300,600);for(let y=0;y<20;y++)for(let x=0;x<10;x++){drawBlock(x,y,s.grid[y][x]);}
+if(s.cur&&!finished){
+ // Soft landing projection makes the board more legible without extra frames.
+ let drop=0;while(!collision(s,0,drop+1))drop++;
+ if(drop){ctx.save();ctx.globalAlpha=.18;for(const [x,y] of s.cur.cells)drawBlock(x+s.cur.x,y+s.cur.y+drop,s.cur.idx);ctx.restore();}
+ for(const [x,y] of s.cur.cells)drawBlock(x+s.cur.x,y+s.cur.y,s.cur.idx);
+}
 ctx.strokeStyle="#596a5b";ctx.lineWidth=5;ctx.strokeRect(1,1,298,598);
 const info=extra;info.textContent="Lines: "+s.lines+" · Level: "+s.level;
 if(paused){ctx.fillStyle="#0b161bd6";ctx.fillRect(0,0,300,600);drawText("PAUSED",290);}
 if(finished){ctx.fillStyle="#0b1519c8";ctx.fillRect(0,0,300,600);drawText("GAME OVER",285);drawText("Score: "+points,318,19);}}
-function drawBlock(x,y,idx){const px=x*30,py=y*30;if(idx===null){ctx.strokeStyle="#233b38";ctx.lineWidth=.75;ctx.strokeRect(px,py,30,30);return;}ctx.fillStyle=pieceColors[idx];ctx.fillRect(px+1,py+1,28,28);ctx.fillStyle="#fff4";ctx.fillRect(px+3,py+3,24,4);ctx.fillStyle="#10202755";ctx.fillRect(px+3,py+24,24,3);}
+function drawBlock(x,y,idx){const px=x*30,py=y*30;if(idx===null){ctx.strokeStyle="#32474b";ctx.lineWidth=.55;ctx.strokeRect(px+.5,py+.5,29,29);return;}
+ ctx.fillStyle=pieceColors[idx];ctx.fillRect(px+1,py+1,28,28);
+ ctx.fillStyle="#ffffff5e";ctx.fillRect(px+2,py+2,26,3);ctx.fillRect(px+2,py+5,3,19);
+ ctx.fillStyle="#071a2c4c";ctx.fillRect(px+2,py+25,26,3);ctx.fillRect(px+25,py+4,3,21);
+}
 /* MINESWEEPER — generated safe on first opening. */
 const minesDir=[-1,0,1];
 function setupMines(){c.width=360;c.height=360;state={cells:Array(81).fill(0),open:Array(81).fill(false),flags:Array(81).fill(false),started:false,flagMode:false,mines:10,timer:0};setControls("");message("Reveal a square to begin.");drawMines();}
