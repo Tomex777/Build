@@ -1339,10 +1339,24 @@ public final class MainActivity extends androidx.activity.ComponentActivity {
       android.content.SharedPreferences prefs, String key, int fallback) {
     int initial = prefs.getInt(key, fallback);
     Button picker = Ui.button(this, label + "  ·  " + time(initial * 60), () -> {});
-    picker.setOnClickListener(v -> new TimePickerDialog(this, (dialog, hour, minute) -> {
-      prefs.edit().putInt(key, hour).apply();
-      picker.setText(label + "  ·  " + time(hour * 60));
-    }, prefs.getInt(key, fallback), 0, true).show());
+    picker.setOnClickListener(v -> {
+      NumberPicker hours = new NumberPicker(this);
+      hours.setMinValue(0);
+      hours.setMaxValue(23);
+      hours.setValue(prefs.getInt(key, fallback));
+      hours.setWrapSelectorWheel(true);
+      hours.setContentDescription(label + " hour");
+      new AlertDialog.Builder(this)
+          .setTitle(label)
+          .setView(hours)
+          .setPositiveButton("Save", (dialog, which) -> {
+            int selectedHour = hours.getValue();
+            prefs.edit().putInt(key, selectedHour).apply();
+            picker.setText(label + "  ·  " + time(selectedHour * 60));
+          })
+          .setNegativeButton("Cancel", null)
+          .show();
+    });
     LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(-1, Ui.dp(this, 50));
     lp.setMargins(Ui.dp(this, 6), Ui.dp(this, 4), Ui.dp(this, 6), Ui.dp(this, 4));
     parent.addView(picker, lp);
