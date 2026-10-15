@@ -30,7 +30,7 @@ function controlsHTML(markup){if(controls.innerHTML!==markup)controls.innerHTML=
 function rules(title,desc){const markup="<h3>"+title+"</h3><p>"+desc+"</p>";if(help.innerHTML!==markup)help.innerHTML=markup;}
 function scoreList(players,getScore){return '<div class="score-list">'+players.map((p,i)=>'<div class="score-row"><span><b style="color:'+h(p.color)+'">●</b> '+h(p.name)+'</span><b>'+h(getScore(p,i))+'</b></div>').join("")+"</div>";}
 function choosePlayers(id,selected,max){return '<label class="small">Players (local, sharing one phone)</label><select class="select" data-players="'+id+'">'+[2,3,4].filter(n=>n<=max).map(n=>'<option value="'+n+'"'+(n===selected?" selected":"")+'>'+n+' players</option>').join("")+"</select>";}
-function pick(id){if(!titles[id])id="checkers";cardMotionEpoch++;cardMotionBusy=false;active=id;if(id==="ludo")window.NightLudo3D?.warmup();document.body.classList.toggle("ludo-mode",id==="ludo");document.body.classList.toggle("checkers-mode",id==="checkers");$("ludoTopbar").hidden=id!=="ludo";$("ludoHud").hidden=id!=="ludo";if(id!=="ludo")closeLudoSettings();const d=titles[id];document.title=d[0]+" · NIGHT Play";if($("settingsDialog").open)$("settingsDialog").close();$("gameTitle").textContent=d[0];$("gameSubtitle").textContent=d[1];$("gameCategory").textContent=d[2];[...picks.querySelectorAll("button")].forEach(x=>x.setAttribute("aria-current",String(x.dataset.pick===id)));const url=new URL(location.href);url.searchParams.set("game",id);history.replaceState(null,"",url.pathname+url.search);window.NightLudo.cancel();if(id==="ludo"&&state.ludo)state.ludo=window.NightLudo.resume(state.ludo);if(!state[id])reset(id);else render();}
+function pick(id){if(!titles[id])id="checkers";cardMotionEpoch++;cardMotionBusy=false;active=id;if(id==="ludo")window.NightLudo3D?.warmup();document.body.classList.toggle("ludo-mode",id==="ludo");document.body.classList.toggle("checkers-mode",id==="checkers");document.body.classList.toggle("whot-mode",id==="whot");$("ludoTopbar").hidden=id!=="ludo";$("ludoHud").hidden=id!=="ludo";if(id!=="ludo")closeLudoSettings();const d=titles[id];document.title=d[0]+" · NIGHT Play";if($("settingsDialog").open)$("settingsDialog").close();$("gameTitle").textContent=d[0];$("gameSubtitle").textContent=d[1];$("gameCategory").textContent=d[2];[...picks.querySelectorAll("button")].forEach(x=>x.setAttribute("aria-current",String(x.dataset.pick===id)));const url=new URL(location.href);url.searchParams.set("game",id);history.replaceState(null,"",url.pathname+url.search);window.NightLudo.cancel();if(id==="ludo"&&state.ludo)state.ludo=window.NightLudo.resume(state.ludo);if(!state[id])reset(id);else render();}
 function reset(id){
 if(id==="ludo"){window.NightLudo.cancel();state.ludo=window.NightLudo.create();}
 if(id==="estate"){state.estate={players:["red","blue"].map(k=>({name:k[0].toUpperCase()+k.slice(1),color:colors[k],cash:1500,pos:0,bankrupt:false})),owners:{},upgrades:{},turn:0,rolled:false,last:0,pending:null,rounds:0,winner:null,msg:"Roll the dice to start buying properties.",inspect:0};}
@@ -282,7 +282,7 @@ function whotFace(card,index,enabled){
   ?'<span class="whot-twenty"><b>WHOT</b><i class="whot-swirl" aria-hidden="true">⌁</i><b class="whot-reversed">WHOT</b></span>'
   :whotShapeSvg(card.s,card.n);
  return '<button class="playing-card whot-card'+(wild?' whot-wild':'')+(enabled?' playable':'')+'" data-card="'+index+'" type="button" '+(enabled?'':'disabled')+
- ' aria-label="'+(wild?'WHOT 20, call a shape':card.n+" "+shapes[card.s])+'">'+
+ ' data-whot-key="'+card.s+'-'+card.n+'" aria-label="'+(wild?'WHOT 20, call a shape':card.n+" "+shapes[card.s])+'">'+
  '<span class="whot-corner whot-corner-top"><strong>'+card.n+'</strong>'+cornerSymbol+'</span>'+
  '<span class="whot-face">'+large+'</span>'+
  '<span class="whot-corner whot-corner-bottom"><strong>'+card.n+'</strong>'+cornerSymbol+'</span></button>';
@@ -294,13 +294,61 @@ function cardMarkup(kind,card,index,enabled){
  ' aria-label="'+["Red","Blue","Green","Yellow","Wild"][card.c]+' '+h(card.n)+'"><span>'+h(card.n)+'</span></button>';
 }
 
+// A centered player hand should *remain* centered at 5, 4, 3, 2 and 1
+// cards instead of becoming a left-justified strip. Only calculate layout
+// on state changes or viewport resize, never on animation frames.
+function whotHandPositions(){
+ const buckets=new Map();
+ const row=board.querySelector('.hand .card-row');
+ if(!row)return buckets;
+ for(const el of row.querySelectorAll('.whot-card')){
+  const key=el.dataset.whotKey,r=el.getBoundingClientRect();
+  if(!buckets.has(key))buckets.set(key,[]);
+  buckets.get(key).push({x:r.left,y:r.top});
+ }
+ return buckets;
+}
+function layoutWhotHand(before=null){
+ const row=board.querySelector('.hand .card-row');
+ if(!row||active!=="whot")return;
+ const cards=[...row.querySelectorAll('.whot-card')];
+ const count=cards.length;
+ if(!count){row.style.setProperty('--whot-overlap','0px');return;}
+ const width=cards[0].getBoundingClientRect().width;
+ const gap=parseFloat(getComputedStyle(row).columnGap)||0;
+ const available=Math.max(110,row.clientWidth-9);
+ // Cards keep their full size. Where needed, they overlap *symmetrically*
+ // so the group is always centered and no card flies offscreen.
+ const needed=count>1?Math.max(0,(count*width+(count-1)*gap-available)/(count-1)):0;
+ const overlap=Math.min(width-12,needed);
+ row.style.setProperty('--whot-overlap',overlap.toFixed(2)+'px');
+ if(!before||!motionEnabled())return;
+ // FLIP: after one card flies to the discard, remaining cards gently glide
+ // to new centered positions without re-rendering the table each frame.
+ for(const el of cards){
+  const key=el.dataset.whotKey,old=before.get(key)?.shift();
+  if(!old)continue;
+  const now=el.getBoundingClientRect(),dx=old.x-now.left,dy=old.y-now.top;
+  if(Math.abs(dx)<.75&&Math.abs(dy)<.75)continue;
+  el.animate([{transform:'translate3d('+dx+'px,'+dy+'px,0)'},
+              {transform:'translate3d(0,0,0)'}],
+   {duration:300,easing:'cubic-bezier(.18,.85,.16,1)'});
+ }
+}
+let whotResizeFrame=0;
+window.addEventListener('resize',()=>{
+ cancelAnimationFrame(whotResizeFrame);
+ whotResizeFrame=requestAnimationFrame(()=>layoutWhotHand());
+});
 function renderCards(kind){
+const previousHand=kind==="whot"?whotHandPositions():null;
 const s=state[kind],t=topCard(s),topSelected={...t};
 if(s.called!==null)topSelected[kind==="whot"?"s":"c"]=s.called;
 const currentCall=s.called===null?'':kind==="whot"
  ?'<div class="whot-called" role="status">WHOT 20 · CALLED '+shapes[s.called].toUpperCase()+'</div>'
  :'<div class="whot-called" role="status">WILD · '+["RED","BLUE","GREEN","YELLOW"][s.called]+'</div>';
 board.innerHTML='<div class="table-surface" aria-label="Card table"><h3>COMPUTER · '+s.hands[1].length+' CARDS</h3><div class="card-row"><div class="playing-card card-back" aria-label="Computer cards hidden"></div><span class="cards-counter">× '+s.hands[1].length+'</span></div><div class="card-pile">'+(kind==='whot'?'<button type="button" class="whot-deck" data-action="card-draw" aria-label="Pick one card from the market"><span class="whot-deck-back">WHOT</span><span class="cards-counter">MARKET · '+s.deck.length+'</span></button>':'<span class="cards-counter">DECK '+s.deck.length+'</span>')+cardMarkup(kind,t,-1,false)+currentCall+'</div><div class="hand"><div class="card-label">YOUR HAND · '+s.hands[0].length+' CARDS</div><div class="card-row">'+s.hands[0].map((card,i)=>cardMarkup(kind,card,i,s.turn===0&&s.winner===null&&playable(kind,s,card))).join("")+'</div></div></div>';
+if(kind==='whot')layoutWhotHand(previousHand);
 if(kind==='whot'&&pendingWhotDeal){pendingWhotDeal=false;const token=cardMotionEpoch;
  requestAnimationFrame(()=>{if(token===cardMotionEpoch&&active==='whot')whotDeal()});}
 setStatus(s.winner!==null?s.msg:(s.turn===0?"Your turn. ":"Computer's turn. ")+s.msg);
