@@ -257,6 +257,14 @@ canvas.addEventListener('pointerdown',e=>{
 });
 canvas.addEventListener('pointermove',e=>{
  if(e.pointerId!==dragId||!board.selectedPiece)return;
+ // With 24+ pieces, some pieces live below the visible phone screen.
+ // Autoscroll a little at viewport edges so players can reach the puzzle
+ // without dropping and re-grabbing. Normal movement avoids layout reads.
+ const edge=Math.min(84,window.innerHeight*.14);
+ let step=0;
+ if(e.clientY<edge&&window.scrollY>0)step=-Math.min(13,Math.ceil((edge-e.clientY)*.24));
+ else if(e.clientY>window.innerHeight-edge)step=Math.min(13,Math.ceil((e.clientY-(window.innerHeight-edge))*.24));
+ if(step){window.scrollBy(0,step);dragRect=canvas.getBoundingClientRect()}
  const pos=point(e),p=board.selectedPiece;
  const x=Math.max(-board.pieceWidth*.15,Math.min(canvas.width-board.pieceWidth*.85,pos.x-dragX));
  const y=Math.max(-board.pieceHeight*.15,Math.min(canvas.height-board.pieceHeight*.85,pos.y-dragY));
