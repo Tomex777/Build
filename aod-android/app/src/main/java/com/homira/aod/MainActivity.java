@@ -444,10 +444,17 @@ public final class MainActivity extends androidx.activity.ComponentActivity {
     root.addView(canvas, new LinearLayout.LayoutParams(-1, 0, 1));
     LinearLayout tools=Ui.row(this);
     tools.setPadding(Ui.dp(this, 8), Ui.dp(this, 8), Ui.dp(this, 8), Ui.dp(this, 8));
-    tools.addView(Ui.tool(this,"Wallpaper","Wallpaper",this::wallpaperControls),new LinearLayout.LayoutParams(0,Ui.dp(this,65),1));
-    tools.addView(Ui.tool(this,"Clock","Clocks",this::clockDesigner),new LinearLayout.LayoutParams(0,Ui.dp(this,64),1));
-    tools.addView(Ui.tool(this,"Add","Add",this::addMenu),new LinearLayout.LayoutParams(0,Ui.dp(this,64),1));
-    tools.addView(Ui.tool(this,"Layers","Layers",this::layers),new LinearLayout.LayoutParams(0,Ui.dp(this,64),1));
+    View[] toolItems = new View[] {
+        Ui.tool(this, "Wallpaper", "Wallpaper", this::wallpaperControls),
+        Ui.tool(this, "Clock", "Clocks", this::clockDesigner),
+        Ui.tool(this, "Add", "Add", this::addMenu),
+        Ui.tool(this, "Layers", "Layers", this::layers)
+    };
+    for (View item : toolItems) {
+      LinearLayout.LayoutParams slot = new LinearLayout.LayoutParams(0, Ui.dp(this, 65), 1);
+      slot.setMargins(Ui.dp(this, 4), 0, Ui.dp(this, 4), 0);
+      tools.addView(item, slot);
+    }
     root.addView(tools);
     contextBar = Ui.row(this);
     contextBar.setPadding(Ui.dp(this,12),0,Ui.dp(this,12),Ui.dp(this,8));
