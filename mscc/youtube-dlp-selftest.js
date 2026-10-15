@@ -7,6 +7,7 @@ import {
   youtubeChallengeMessage,
   resolveYouTubeWithDlp,
   downloadYouTubeWithDlp,
+  downloadYouTubeAudioWithDlp,
   directFormatsFromDlp,
 } from './youtube-dlp.js'
 
@@ -41,7 +42,8 @@ if (args.includes('--dump-single-json')) {
   ]}))
 } else {
   const pattern = args[args.indexOf('-o') + 1]
-  const path = resolve(pattern.replace('%(ext)s','mp4'))
+  const extension = args.includes('-f') && String(args[args.indexOf('-f') + 1]).includes('bestaudio') ? 'm4a' : 'mp4'
+  const path = resolve(pattern.replace('%(ext)s',extension))
   writeFileSync(path, Buffer.alloc(1024, 1))
   console.log(path)
 }
@@ -62,6 +64,12 @@ if (args.includes('--dump-single-json')) {
   assert.equal(downloaded.size, 1024)
   await assert.rejects(downloadYouTubeWithDlp(id, 720, output, 500), /exceeds the MSCC download limit/)
   await assert.rejects(downloadYouTubeWithDlp('bad', 720, output, 2000), /Invalid YouTube video ID/)
+  const audio = await downloadYouTubeAudioWithDlp(id, output, 2000)
+  assert.equal(audio.extension, 'm4a')
+  assert.equal(audio.size, 1024)
+  assert(audio.file.endsWith('/audio.m4a'))
+  await assert.rejects(downloadYouTubeAudioWithDlp(id, output, 500), /exceeds the MSCC download limit/)
+  await assert.rejects(downloadYouTubeAudioWithDlp('bad', output, 2000), /Invalid YouTube video ID/)
   console.log('PASS isolated yt-dlp metadata, quality, download, cap and challenge handling')
 } finally {
   delete process.env.MSCC_YOUTUBE_YTDLP_BIN

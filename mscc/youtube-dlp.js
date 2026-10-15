@@ -203,3 +203,39 @@ export async function downloadYouTubeWithDlp(videoId, height, outputDir, maxByte
   const ext = file.toLowerCase().split('.').at(-1)
   return { file, extension:ext === 'mp4' ? 'mp4' : ext === 'webm' ? 'webm' : 'mkv', size:info.size }
 }
+
+
+// Download audio through the same extractor transport that obtained the
+// signed stream URL. This also supports Tor when YouTube challenges Azure;
+// passing those URLs to Baileys for a second unauthenticated fetch does not.
+export async function downloadYouTubeAudioWithDlp(videoId, outputDir, maxBytes = 32 * 1024 * 1024) {
+  if (!ID_RE.test(String(videoId || ''))) throw new Error('Invalid YouTube video ID.')
+  const max = Math.max(1, Math.floor(Number(maxBytes) || 0))
+  const template = resolve(outputDir, 'audio.%(ext)s')
+  const { output } = await runYouTubeExtractor([
+    '--no-part',
+    '--max-filesize', String(max),
+    '--socket-timeout', '25',
+    '--retries', '2',
+    '--fragment-retries', '2',
+    '-f', 'bestaudio[ext=m4a]/bestaudio[ext=webm]/bestaudio/best',
+    '-o', template,
+    '--print', 'after_move:filepath',
+    BASE + videoId,
+  ], { timeoutMs:120000, maxOutput:16384 })
+  const candidate = output.trim().split(/\r?\n/).filter(Boolean).at(-1) || ''
+  const file = candidate ? resolve(candidate) : ''
+  const folder = resolve(outputDir) + sep
+  if (!file || !file.startsWith(folder) || basename(file).split('.')[0] !== 'audio') {
+    throw new Error('YouTube audio extractor returned an unexpected file location.')
+  }
+  const ext = file.toLowerCase().split('.').at(-1)
+  if (!['m4a','mp4','webm','opus','ogg','mp3'].includes(ext)) {
+    throw new Error('YouTube audio extractor returned an unsupported audio format.')
+  }
+  const info = await stat(file)
+  if (!info.isFile() || !info.size || info.size > max) {
+    throw new Error('YouTube audio exceeds the MSCC download limit.')
+  }
+  return { file, extension:ext, size:info.size }
+}

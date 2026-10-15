@@ -10,6 +10,11 @@ on:
     paths:
       - 'mscc/youtube-video.js'
       - 'mscc/youtube-dlp.js'
+      - 'mscc/sources/music/youtube.js'
+      - 'mscc/youtube-music-selftest.js'
+      - 'mscc/source-registry.js'
+      - 'mscc/source-deadline-selftest.js'
+      - 'mscc/music-flow.js'
       - 'mscc/youtube-dlp-selftest.js'
       - 'mscc/youtube-knight-providers.js'
       - 'mscc/youtube-knight-selftest.js'
@@ -32,6 +37,11 @@ on:
       - 'mscc/youtube-video.js'
       - 'mscc/youtube-flow.js'
       - 'mscc/youtube-dlp.js'
+      - 'mscc/sources/music/youtube.js'
+      - 'mscc/youtube-music-selftest.js'
+      - 'mscc/source-registry.js'
+      - 'mscc/source-deadline-selftest.js'
+      - 'mscc/music-flow.js'
       - 'mscc/youtube-dlp-selftest.js'
       - 'mscc/youtube-knight-providers.js'
       - 'mscc/youtube-knight-selftest.js'
@@ -66,6 +76,10 @@ jobs:
           node --check commands/media/youtube.js
           node youtube-video-selftest.js
           node youtube-dlp-selftest.js
+          node --check sources/music/youtube.js
+          node youtube-music-selftest.js
+          node music-flow-selftest.js
+          node source-deadline-selftest.js
           node youtube-knight-selftest.js
           node --check tools/azure-knight-diagnostics.mjs
           node --check youtube-knight-providers.js
