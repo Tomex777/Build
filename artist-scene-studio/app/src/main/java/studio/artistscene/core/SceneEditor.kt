@@ -95,7 +95,7 @@ data class SceneEditorState(
     fun setCharacterHair(style: HairStyle, colorHex: String? = null): SceneEditorState {
         val actor = selectedActor ?: return this
         if (actor.kind != ActorKind.CHARACTER || actor.locked ||
-            actor.asset?.assetId != "starter.makehuman.humanoid") return this
+            actor.asset?.assetId !in setOf("starter.makehuman.humanoid", "starter.mise.anime-figure")) return this
         val color = colorHex?.uppercase() ?: actor.appearance.hairColorHex
         if (!Regex("#[0-9A-F]{6}").matches(color)) return this
         val appearance = CharacterAppearanceSettings(style, color)
