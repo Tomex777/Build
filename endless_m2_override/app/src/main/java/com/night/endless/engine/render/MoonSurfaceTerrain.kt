@@ -25,7 +25,7 @@ class MoonSurfaceTerrain(private val context: Context) {
         indexCount = mesh.indices.size
         program = createProgram(SurfaceMaterialShaders.VERTEX, SurfaceMaterialShaders.FRAGMENT)
         landingPhotoTexture = LandingPhotoTexture.load(context, "moon")
-        microMaterialTexture = SurfaceMicroTexture.create()
+        microMaterialTexture = SurfaceMicroTexture.create(context, "moon")
         // Prepare the measured coarse-to-mid-to-near geometry while the GL
         // engine initializes, not on the user's first landing frame.
         detail.prepare(1.5, -0.5)

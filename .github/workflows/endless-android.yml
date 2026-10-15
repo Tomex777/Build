@@ -163,6 +163,14 @@ jobs:
             echo "::warning::NASA Trek WMTS unavailable; built-in MOLA/LOLA regolith fallback used."
           fi
 
+      - name: Bake tiny NASA rover/Apollo regolith reference (optional)
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m unittest discover -s endless_ci -p 'test_prepare_surface_grit_photos.py' -v
+          python3 endless_ci/prepare_surface_grit_photos.py \
+            --out "$ENDLESS_PROJECT/app/src/main/res/drawable-nodpi"
+
       - name: Set up JDK 17
         uses: actions/setup-java@v5
         with:
