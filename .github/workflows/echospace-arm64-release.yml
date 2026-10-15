@@ -119,9 +119,47 @@ jobs:
           assert all(abi == "arm64-v8a" for abi in abis), "Release contains other native ABIs"
           PY
           "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging release/EchoSpace-arm64-v8a-release-unsigned.apk | head -22
+      - name: Sign with a one-build disposable test key
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Temporary signing only: the key is generated on this runner and discarded.
+          umask 077
+          KEYSTORE="$RUNNER_TEMP/echospace-test-$GITHUB_RUN_ID.p12"
+          trap 'rm -f "$KEYSTORE"' EXIT
+          PASS="$(openssl rand -hex 24)"
+          keytool -genkeypair -noprompt \
+            -keystore "$KEYSTORE" -storetype PKCS12 \
+            -storepass "$PASS" -keypass "$PASS" -alias echospace-test \
+            -keyalg RSA -keysize 3072 -validity 365 \
+            -dname "CN=EchoSpace Temporary Test Build, OU=NIGHT, O=NIGHT, C=NG"
+          APKSIGNER="$ANDROID_HOME/build-tools/35.0.0/apksigner"
+          "$APKSIGNER" sign \
+            --ks "$KEYSTORE" --ks-type PKCS12 --ks-key-alias echospace-test \
+            --ks-pass "pass:$PASS" --key-pass "pass:$PASS" \
+            --min-sdk-version 26 \
+            --out release/EchoSpace-arm64-v8a-release-test-signed.apk \
+            release/EchoSpace-arm64-v8a-release-unsigned.apk
+          # Verify this is truly installable on Android 8+ and remains ARM64-only.
+          "$APKSIGNER" verify --verbose --print-certs --min-sdk-version 26 \
+            release/EchoSpace-arm64-v8a-release-test-signed.apk
+          python3 - <<'PY'
+          from pathlib import Path
+          from zipfile import ZipFile
+          p = Path('release/EchoSpace-arm64-v8a-release-test-signed.apk')
+          with ZipFile(p) as z:
+              abis = sorted({n.split('/')[1] for n in z.namelist()
+                             if n.startswith('lib/') and n.endswith('.so')})
+          assert abis == ['arm64-v8a'], f'Unexpected native ABIs: {abis}'
+          print('SIGNED_APK_BYTES', p.stat().st_size)
+          print('SIGNED_APK_MIB', round(p.stat().st_size / 1048576, 2))
+          print('SIGNED_ABI', ', '.join(abis))
+          PY
+          sha256sum release/EchoSpace-arm64-v8a-release-test-signed.apk
+          rm -f "$KEYSTORE"
       - uses: actions/upload-artifact@v4
         with:
-          name: EchoSpace-ARM64-release-unsigned-APK
-          path: release/EchoSpace-arm64-v8a-release-unsigned.apk
+          name: EchoSpace-ARM64-test-signed-installable-APK
+          path: release/EchoSpace-arm64-v8a-release-test-signed.apk
           if-no-files-found: error
           retention-days: 90
