@@ -167,6 +167,6 @@ try{
  await page.goto(url+'/games');await page.locator('#view-games').waitFor({state:'visible'});
  assert.equal(await page.locator('[data-jigsaw]').count(),1,'Jigsaw is present in main game library');
  await page.locator('[data-jigsaw]').click();await page.waitForURL('**/jigsaw/');
- assert.equal(await page.locator('#galleryPanel').isVisible(),true,'Library opens integrated jigsaw route');
+ assert.equal(await page.locator('#playScreen').isVisible(),true,'Library opens Jigsaw and restores the unfinished Master round');
  console.log('PASS NIGHT Play Jigsaw: gallery, artwork, real touch drag, hints, save/reload, settings, upload, win and responsive desktop.');
 }finally{if(browser)await browser.close();await new Promise(ok=>server.close(ok))}
