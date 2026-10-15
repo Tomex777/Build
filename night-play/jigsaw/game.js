@@ -30,6 +30,7 @@ let challengeMode='relaxed',usedHints=0,usedPreviews=0,previewTimeout=null;
 const canvas=$('puzzleCanvas'),wrapper=$('canvasWrapper'),board=new PuzzleBoard(canvas,wrapper);
 const sound=new SoundSynth(),confetti=new ConfettiSystem();
 let theme='nature',category='all',piecesCount=24,customData=null,elapsed=0,secondsTimer=null,won=false,activeRound=false;
+let galleryReady=false,resumeCandidate=null;
 let dragId=null,dragX=0,dragY=0,dragMoved=false,dragRect=null,dragOriginX=0,dragOriginY=0,winAnimationId=null,winTimeout=null,toastTimeout=null;
 const timeText=s=>String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0');
 function safeRead(key){try{return localStorage.getItem(key)}catch{return null}}
@@ -95,7 +96,7 @@ function resetBoard(fresh=true,saved=null){
  resetEffects();
  const dims=dimMap[piecesCount]||dimMap[24];
  board.setDimensions(...dims);board.showGhost=guideEnabled();
- $('galleryPanel').hidden=true;$('playScreen').hidden=false;
+ $('openingPanel').hidden=true;$('resumePanel').hidden=true;$('galleryPanel').hidden=true;$('playScreen').hidden=false;
  wrapper.classList.toggle('master-puzzle',piecesCount===144);
  board.resize();
  if(theme==='custom'&&customData){
@@ -112,6 +113,8 @@ function startImage(id){
  timerStop();customData=null;theme=id;resetBoard(true);showToast('Drag the pieces into the picture');
 }
 function renderGallery(){
+ if(galleryReady)return;
+ galleryReady=true;
  const root=$('galleryGrid');root.replaceChildren();
  // Preview thumbnails reuse exactly the art used as puzzle source.
  const source=document.createElement('canvas');source.width=800;source.height=600;
@@ -139,10 +142,36 @@ function filterGallery(){
  $('galleryCount').textContent=count+(count===1?' picture':' pictures');
  for(const b of $('categoryChips').querySelectorAll('button')){const yes=b.dataset.filter===category;b.classList.toggle('active',yes);b.setAttribute('aria-pressed',String(yes));}
 }
+function savedCandidate(){
+ try{
+  const saved=JSON.parse(safeRead(SAVE_KEY)||'null');
+  return saved&&!saved.won&&dimMap[saved.pieces]&&
+   (choices.some(x=>x.id===saved.theme)||(saved.theme==='custom'&&saved.customData))?saved:null;
+ }catch{return null}
+}
+function continuePuzzle(){
+ const saved=savedCandidate();
+ if(!saved){showGallery();return}
+ $('resumePanel').hidden=true;
+ $('openingPanel').hidden=true;
+ $('resumeGalleryBanner').hidden=true;
+ if(!resumeSaved(saved)){showGallery();showToast('Your saved puzzle could not be restored')}
+}
 function showGallery(){
  timerStop();if(activeRound&&!won)saveGame();
- endPreview();$('playScreen').hidden=true;$('galleryPanel').hidden=false;
- activeRound=false;category='all';filterGallery();window.scrollTo({top:0,behavior:'instant'});
+ endPreview();$('playScreen').hidden=true;$('resumePanel').hidden=true;$('openingPanel').hidden=true;
+ activeRound=false;category='all';
+ renderGallery();
+ $('galleryPanel').hidden=false;
+ $('resumeGalleryBanner').hidden=!savedCandidate();
+ filterGallery();window.scrollTo({top:0,behavior:'instant'});
+}
+function showWelcome(saved){
+ resumeCandidate=saved;
+ const item=choices.find(x=>x.id===saved.theme);
+ const label=item?.name||'Your photograph';
+ $('resumeSummary').textContent=label+' · '+saved.pieces+' pieces · '+Math.min(saved.pieces,saved.board?.placedCount||saved.board?.pieces?.filter(p=>p.isPlaced).length||0)+' completed. Pick up exactly where you stopped.';
+ $('openingPanel').hidden=true;$('playScreen').hidden=true;$('galleryPanel').hidden=true;$('resumePanel').hidden=false;
 }
 function resumeSaved(saved){
  if(!saved||!dimMap[saved.pieces]||(!choices.some(c=>c.id===saved.theme)&&saved.theme!=='custom')||saved.won)return false;
@@ -271,6 +300,9 @@ document.querySelectorAll('[data-pieces]').forEach(b=>b.addEventListener('click'
 }));
 $('categoryChips').addEventListener('click',e=>{const b=e.target.closest('[data-filter]');if(b){category=b.dataset.filter;filterGallery()}});
 $('pickPicture').addEventListener('click',showGallery);
+$('resumePlaying').addEventListener('click',continuePuzzle);
+$('resumeFromGallery').addEventListener('click',continuePuzzle);
+$('startFresh').addEventListener('click',showGallery);
 $('previewButton').addEventListener('click',()=>showReference());
 $('hintButton').addEventListener('click',()=>{
  if(won||usedHints>=modeRules[challengeMode].hints){showToast('No hints left in this round');return}
@@ -289,8 +321,8 @@ window.addEventListener('pagehide',()=>{timerStop();saveGame()});
 window.addEventListener('keydown',e=>{
  if(e.key==='Escape'&&$('playScreen').hidden===false&&!['settingsDialog','previewDialog','victoryDialog'].some(id=>$(id).open))showGallery();
 });
-// Construct gallery from the same procedural images as the playing board.
-renderGallery();
+// Gallery is intentionally NOT rendered on page load when a saved puzzle exists.
+ // This prevents an unfinished puzzle from flashing the full gallery before resuming.
 $('guideSwitch').checked=safeRead('night-play-jigsaw-guide')==='true';
 challengeMode=modeRules[safeRead('night-play-jigsaw-mode')]?safeRead('night-play-jigsaw-mode'):'relaxed';
 $('soundSwitch').checked=safeRead('night-play-jigsaw-sound')!=='false';
@@ -298,8 +330,9 @@ sound.enabled=$('soundSwitch').checked;
 piecesCount=Number(safeRead('night-play-jigsaw-pieces'))||24;
 if(!dimMap[piecesCount])piecesCount=24;
 updateDifficultyButtons();
-let prior=null;try{prior=JSON.parse(safeRead(SAVE_KEY)||'null')}catch{}
-if(!resumeSaved(prior))showGallery();
+const prior=savedCandidate();
+if(prior)showWelcome(prior);
+else showGallery();
 if(location.hostname==='localhost'||location.hostname==='127.0.0.1'){
  window.__nightJigsawTest=Object.freeze({
   snapshot:()=>({theme,pieces:piecesCount,elapsed,won,activeRound,challengeMode,usedHints,usedPreviews,guide:board.showGhost,
