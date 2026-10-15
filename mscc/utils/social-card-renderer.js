@@ -1,7 +1,14 @@
 import { existsSync } from 'node:fs'
 import { createCanvas, GlobalFonts, loadImage } from '@napi-rs/canvas'
 
+// Skia needs a real font with the requested glyphs. Register Noto where it
+// exists, with DejaVu as a low-resource fallback; deploy installs the Noto
+// packages. Never flatten user text into ASCII to "fix" missing glyphs.
 for (const [file, family] of [
+  ['/usr/share/fonts/truetype/noto/NotoSans-Regular.ttf', 'Night Noto'],
+  ['/usr/share/fonts/truetype/noto/NotoSans-Bold.ttf', 'Night Noto Bold'],
+  ['/usr/share/fonts/truetype/noto/NotoSansSymbols2-Regular.ttf', 'Night Symbols'],
+  ['/usr/share/fonts/truetype/noto/NotoColorEmoji.ttf', 'Night Emoji'],
   ['/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf', 'Night Sans'],
   ['/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf', 'Night Sans Bold'],
 ]) {
@@ -10,15 +17,18 @@ for (const [file, family] of [
   } catch {}
 }
 
-const FONT = '"Night Sans", "DejaVu Sans", sans-serif'
-const BOLD = '"Night Sans Bold", "DejaVu Sans", sans-serif'
+const FONT = '"Night Noto", "Night Sans", "Night Symbols", "Night Emoji", sans-serif'
+const BOLD = '"Night Noto Bold", "Night Noto", "Night Sans Bold", "Night Emoji", sans-serif'
 
 function clean(value, max = 1000) {
   return String(value || '').replace(/\s+/g, ' ').trim().slice(0, max)
 }
 
 function handleOf(name = '') {
-  const stem = clean(name, 60).toLowerCase().replace(/[^a-z0-9]+/g, '').slice(0, 22)
+  // Mathematical/stylized Unicode letters often normalize to ordinary
+  // letters. Keep non-Latin handles rather than dropping them outright.
+  const stem = clean(name, 60).normalize('NFKD').toLowerCase()
+    .replace(/[^\p{L}\p{N}_]+/gu, '').slice(0, 22)
   return '@' + (stem || 'nightuser')
 }
 
@@ -33,34 +43,67 @@ function roundedRect(ctx, x, y, width, height, radius) {
   ctx.closePath()
 }
 
-function wrapLines(ctx, text, maxWidth, maxLines = 12) {
-  const words = clean(text).split(/\s+/).filter(Boolean)
+// Wrap at whitespace, retain deliberate newlines, and split overlong words
+// only at Unicode grapheme boundaries (not inside emoji/ZWJ sequences).
+export function wrapSocialText(ctx, text, maxWidth, maxLines = 16) {
+  if (!String(text || '').length) return { lines:[], clipped:false }
   const lines = []
-  let line = ''
-  let consumed = 0
+  const segmenter = new Intl.Segmenter(undefined, { granularity:'grapheme' })
+  const segments = value => [...segmenter.segment(value)].map(part => part.segment)
+  const push = value => { if (lines.length <= maxLines) lines.push(value) }
 
-  for (const word of words) {
-    const test = line ? line + ' ' + word : word
-    if (ctx.measureText(test).width <= maxWidth || !line) {
-      line = test
-      consumed += 1
+  for (const paragraph of String(text).replace(/\r\n?/g, '\n').split('\n')) {
+    if (lines.length > maxLines) break
+    if (!paragraph.trim()) {
+      push('')
       continue
     }
-    lines.push(line)
-    line = word
-    consumed += 1
-    if (lines.length >= maxLines) break
+
+    let line = ''
+    for (const word of paragraph.trim().split(/[ \t]+/u)) {
+      const trial = line ? line + ' ' + word : word
+      if (ctx.measureText(trial).width <= maxWidth) {
+        line = trial
+        continue
+      }
+      if (line) {
+        push(line)
+        line = ''
+        if (lines.length > maxLines) break
+      }
+      if (ctx.measureText(word).width <= maxWidth) {
+        line = word
+        continue
+      }
+      // Even a very long unbroken sequence must never escape the canvas.
+      let chunk = ''
+      for (const glyph of segments(word)) {
+        if (chunk && ctx.measureText(chunk + glyph).width > maxWidth) {
+          push(chunk)
+          chunk = ''
+          if (lines.length > maxLines) break
+        }
+        chunk += glyph
+      }
+      line = chunk
+      if (lines.length > maxLines) break
+    }
+    if (lines.length > maxLines) break
+    push(line)
   }
 
-  if (line && lines.length < maxLines) lines.push(line)
-
-  if (consumed < words.length && lines.length) {
-    let last = lines.at(-1)
-    while (last.length > 1 && ctx.measureText(last + '…').width > maxWidth) last = last.slice(0, -1)
-    lines[lines.length - 1] = last.replace(/[\s.,;:!?-]+$/,'') + '…'
+  const clipped = lines.length > maxLines
+  const visible = lines.slice(0, maxLines)
+  if (clipped && visible.length) {
+    const glyphs = segments(visible.at(-1))
+    while (glyphs.length && ctx.measureText(glyphs.join('') + '…').width > maxWidth) glyphs.pop()
+    visible[visible.length - 1] = glyphs.join('').replace(/[ \t]+$/u, '') + '…'
   }
+  return { lines:visible, clipped }
+}
 
-  return lines
+function wrapLines(ctx, text, maxWidth, maxLines = 12) {
+  return wrapSocialText(ctx, text, maxWidth, maxLines).lines
 }
 
 function drawWatermark(ctx, width, height, {
@@ -269,12 +312,22 @@ function compactCount(value) {
   return String(Math.floor(n))
 }
 
+function truncateLabel(ctx, value, maxWidth) {
+  const text = String(value || '')
+  if (ctx.measureText(text).width <= maxWidth) return text
+  const pieces = [...new Intl.Segmenter(undefined, { granularity:'grapheme' }).segment(text)]
+    .map(part => part.segment)
+  while (pieces.length && ctx.measureText(pieces.join('') + '…').width > maxWidth) pieces.pop()
+  return pieces.join('') + '…'
+}
+
 export async function renderTweetCard({
   text,
   theme = 'light',
   authorName = 'Night User',
   handle = '',
   avatarBuffer = null,
+  imageBuffer = null,
   timestamp = 'Just now',
   verified = false,
   replyCount = 0,
@@ -285,7 +338,37 @@ export async function renderTweetCard({
 } = {}) {
   const dark = String(theme).toLowerCase() === 'dark'
   const width = 1000
-  const height = 650
+  const bodyX = 54
+  const bodyW = 892
+  const bodyFont = `35px ${FONT}`
+  const measure = createCanvas(width, 64).getContext('2d')
+  measure.font = bodyFont
+
+  // Cap the card instead of clipping text against a static 650px screenshot.
+  // An image-only tweet is valid; text can include explicit blank lines.
+  const body = String(text || '').slice(0, 2800)
+  const wrapped = wrapSocialText(measure, body, bodyW, 18)
+  const rows = wrapped.lines
+  const lineHeight = 52
+  const bodyY = 186
+  let picture = null
+  if (Buffer.isBuffer(imageBuffer) && imageBuffer.length) {
+    picture = await loadImage(imageBuffer)
+  }
+
+  const pictureY = rows.length ? bodyY + rows.length * lineHeight + 18 : 176
+  // Keep photos recognizable while respecting a tweet-style 16:9..4:5 window.
+  const pictureHeight = picture
+    ? Math.max(350, Math.min(860, Math.round(bodyW * picture.height / picture.width)))
+    : 0
+  const timestampY = picture
+    ? pictureY + pictureHeight + 48
+    : bodyY + Math.max(1, rows.length) * lineHeight + 28
+  const topRuleY = timestampY + 29
+  const statsY = topRuleY + 39
+  const lowerRuleY = statsY + 26
+  const iconY = lowerRuleY + 43
+  const height = Math.max(480, iconY + 76)
   const canvas = createCanvas(width, height)
   const ctx = canvas.getContext('2d')
 
@@ -309,14 +392,14 @@ export async function renderTweetCard({
   ctx.textBaseline = 'alphabetic'
   ctx.fillStyle = fg
   ctx.font = `30px ${BOLD}`
-  const name = clean(authorName, 48)
+  const name = truncateLabel(ctx, clean(authorName, 60), 700)
   ctx.fillText(name, 164, 76)
-  let nameEnd = 164 + ctx.measureText(name).width
-  if (verified && nameEnd < 840) drawVerifiedBadge(ctx, nameEnd + 10, 54, 21)
+  const nameEnd = 164 + ctx.measureText(name).width
+  if (verified && nameEnd < 855) drawVerifiedBadge(ctx, nameEnd + 10, 54, 21)
 
   ctx.fillStyle = muted
   ctx.font = `24px ${FONT}`
-  ctx.fillText(clean(handle || handleOf(authorName), 34), 164, 111)
+  ctx.fillText(truncateLabel(ctx, clean(handle || handleOf(authorName), 34), 680), 164, 111)
 
   ctx.fillStyle = muted
   ctx.font = `28px ${BOLD}`
@@ -324,56 +407,70 @@ export async function renderTweetCard({
   ctx.fillText('•••', 946, 76)
 
   ctx.textAlign = 'left'
-  const bodyFont = `35px ${FONT}`
-  ctx.font = bodyFont
-  const lines = wrapLines(ctx, text, 892, 6)
-  let y = 188
-  for (const row of lines) {
-    drawAccentLine(ctx, row, 54, y, { color:fg, accent, font:bodyFont })
-    y += 52
+  for (let i = 0; i < rows.length; i += 1) {
+    drawAccentLine(ctx, rows[i], bodyX, bodyY + i * lineHeight, {
+      color:fg, accent, font:bodyFont,
+    })
   }
 
-  const timestampY = 440
+  if (picture) {
+    ctx.save()
+    roundedRect(ctx, bodyX, pictureY, bodyW, pictureHeight, 24)
+    ctx.clip()
+    ctx.fillStyle = dark ? '#15181b' : '#f0f2f5'
+    ctx.fillRect(bodyX, pictureY, bodyW, pictureHeight)
+    const scale = Math.max(bodyW / picture.width, pictureHeight / picture.height)
+    const targetW = picture.width * scale
+    const targetH = picture.height * scale
+    ctx.drawImage(picture,
+      bodyX + (bodyW - targetW) / 2,
+      pictureY + (pictureHeight - targetH) / 2,
+      targetW, targetH)
+    ctx.restore()
+    roundedRect(ctx, bodyX, pictureY, bodyW, pictureHeight, 24)
+    ctx.strokeStyle = line
+    ctx.lineWidth = 2
+    ctx.stroke()
+  }
+
   ctx.fillStyle = muted
   ctx.font = `22px ${FONT}`
-  ctx.fillText(clean(timestamp, 80), 54, timestampY)
+  ctx.fillText(clean(timestamp, 80), bodyX, timestampY)
   if (Number(viewCount) > 0) {
     const stampWidth = ctx.measureText(clean(timestamp,80)).width
-    ctx.fillText(' · ' + compactCount(viewCount) + ' Views', 54 + stampWidth, timestampY)
+    ctx.fillText(' · ' + compactCount(viewCount) + ' Views', bodyX + stampWidth, timestampY)
   }
 
   ctx.strokeStyle = line
   ctx.lineWidth = 1
   ctx.beginPath()
-  ctx.moveTo(54, 472)
-  ctx.lineTo(946, 472)
+  ctx.moveTo(bodyX, topRuleY)
+  ctx.lineTo(946, topRuleY)
   ctx.stroke()
 
-  const stats = [
+  let sx = bodyX
+  for (const [count,label] of [
     [replyCount, 'Replies'],
     [repostCount, 'Reposts'],
     [likeCount, 'Likes'],
-  ]
-  let sx = 54
-  for (const [count,label] of stats) {
+  ]) {
     ctx.fillStyle = fg
     ctx.font = `22px ${BOLD}`
     const n = compactCount(count)
-    ctx.fillText(n, sx, 510)
+    ctx.fillText(n, sx, statsY)
     const nw = ctx.measureText(n).width
     ctx.fillStyle = muted
     ctx.font = `22px ${FONT}`
-    ctx.fillText(' ' + label, sx + nw, 510)
+    ctx.fillText(' ' + label, sx + nw, statsY)
     sx += nw + ctx.measureText(' ' + label).width + 38
   }
 
   ctx.strokeStyle = line
   ctx.beginPath()
-  ctx.moveTo(54, 535)
-  ctx.lineTo(946, 535)
+  ctx.moveTo(bodyX, lowerRuleY)
+  ctx.lineTo(946, lowerRuleY)
   ctx.stroke()
 
-  const iconY = 568
   const iconColor = muted
   const iconXs = [80, 288, 496, 704, 912]
   strokeIcon(ctx, iconReply, { x:iconXs[0]-14, y:iconY-14, size:28, color:iconColor })
@@ -383,7 +480,7 @@ export async function renderTweetCard({
   strokeIcon(ctx, iconShare, { x:iconXs[4]-14, y:iconY-14, size:28, color:iconColor })
 
   const counts = [replyCount,repostCount,likeCount,bookmarkCount]
-  for (let i=0;i<4;i+=1) {
+  for (let i = 0; i < 4; i += 1) {
     if (Number(counts[i]) <= 0) continue
     ctx.fillStyle = muted
     ctx.font = `18px ${FONT}`
@@ -430,11 +527,40 @@ function drawFacebookReactions(ctx, x, y) {
   }
 }
 
+// Keep attached WhatsApp photos in the actual post composition, not as a
+// second message. Crop to fill while preserving aspect ratio.
+async function drawSocialPhoto(ctx, buffer, x, y, width, height, {
+  shade = 0, radius = 0,
+} = {}) {
+  if (!Buffer.isBuffer(buffer) || !buffer.length) return false
+  const image = await loadImage(buffer)
+  ctx.save()
+  if (radius > 0) {
+    roundedRect(ctx, x, y, width, height, radius)
+    ctx.clip()
+  }
+  const scale = Math.max(width / image.width, height / image.height)
+  const iw = image.width * scale
+  const ih = image.height * scale
+  ctx.drawImage(image, x + (width - iw) / 2, y + (height - ih) / 2, iw, ih)
+  if (shade > 0) {
+    ctx.fillStyle = `rgba(0,0,0,${shade})`
+    ctx.fillRect(x, y, width, height)
+  }
+  ctx.restore()
+  return true
+}
+
 export async function renderPostCard({
   text,
   style = 'generic',
   authorName = 'Night User',
   avatarBuffer = null,
+  imageBuffer = null,
+  likeCount = 0,
+  commentCount = 0,
+  shareCount = 0,
+  viewCount = 0,
 } = {}) {
   const mode = String(style || 'generic').toLowerCase()
 
@@ -445,6 +571,7 @@ export async function renderPostCard({
     const ctx = canvas.getContext('2d')
 
     gradient(ctx, width, height, [[0,'#1d1b3a'],[0.45,'#5d315e'],[1,'#d16f69']])
+    await drawSocialPhoto(ctx, imageBuffer, 0, 0, width, height, { shade:0.32 })
 
     const progressY = 30
     const gap = 8
@@ -471,19 +598,26 @@ export async function renderPostCard({
     ctx.fillStyle = 'rgba(255,255,255,0.78)'
     ctx.fillText('now', 128, 137)
 
-    ctx.fillStyle = 'rgba(0,0,0,0.38)'
-    roundedRect(ctx, 120, 690, 840, 360, 32)
-    ctx.fill()
+    if (String(text || '').trim()) {
+      ctx.fillStyle = 'rgba(0,0,0,0.38)'
+      roundedRect(ctx, 120, 690, 840, 360, 32)
+      ctx.fill()
 
-    ctx.fillStyle = '#ffffff'
-    ctx.font = `45px ${BOLD}`
-    ctx.textAlign = 'center'
-    const lines = wrapLines(ctx, text, 710, 6)
-    let y = 840 - ((lines.length - 1) * 31)
-    for (const line of lines) {
-      ctx.fillText(line, width / 2, y)
-      y += 64
+      ctx.fillStyle = '#ffffff'
+      ctx.font = `45px ${BOLD}`
+      ctx.textAlign = 'center'
+      const lines = wrapLines(ctx, text, 710, 6)
+      let y = 840 - ((lines.length - 1) * 31)
+      for (const line of lines) {
+        ctx.fillText(line, width / 2, y)
+        y += 64
+      }
     }
+
+    ctx.textAlign = 'left'
+    ctx.fillStyle = 'rgba(255,255,255,0.95)'
+    ctx.font = `21px ${FONT}`
+    ctx.fillText(compactCount(viewCount) + ' views · simulated', 58, 1717)
 
     ctx.strokeStyle = 'rgba(255,255,255,0.9)'
     ctx.lineWidth = 2
@@ -502,7 +636,13 @@ export async function renderPostCard({
 
   if (mode === 'instagram') {
     const width = 1000
-    const height = 1120
+    const measure = createCanvas(width, 20).getContext('2d')
+    measure.font = `22px ${FONT}`
+    const captionLines = wrapSocialText(measure, String(text || '').slice(0, 1200), 892, 6).lines
+    const captionY = 971
+    const commentsY = Math.max(976, captionY + Math.max(0, captionLines.length - 1) * 34 + 34)
+    const timeY = commentsY + 45
+    const height = Math.max(1120, timeY + 70)
     const canvas = createCanvas(width, height)
     const ctx = canvas.getContext('2d')
     ctx.fillStyle = '#ffffff'
@@ -532,19 +672,22 @@ export async function renderPostCard({
     const mediaY = 124
     const mediaH = 650
     gradient(ctx, width, mediaH, [[0,'#261f44'],[0.48,'#7a4569'],[1,'#dc8f74']], mediaX, mediaY)
-
-    ctx.fillStyle = 'rgba(0,0,0,0.25)'
-    roundedRect(ctx, 100, 330, 800, 220, 30)
-    ctx.fill()
-
-    ctx.fillStyle = '#ffffff'
-    ctx.font = `39px ${BOLD}`
-    ctx.textAlign = 'center'
-    const overlayLines = wrapLines(ctx, text, 670, 4)
-    let oy = 410 - ((overlayLines.length - 1) * 27)
-    for (const row of overlayLines) {
-      ctx.fillText(row, width / 2, oy)
-      oy += 56
+    const photoShown = await drawSocialPhoto(ctx, imageBuffer, mediaX, mediaY, width, mediaH)
+    // Text-only Instagram mockups preserve the existing gradient typography.
+    // With a photo, the caption belongs below the photograph.
+    if (!photoShown && String(text || '').trim()) {
+      ctx.fillStyle = 'rgba(0,0,0,0.25)'
+      roundedRect(ctx, 100, 330, 800, 220, 30)
+      ctx.fill()
+      ctx.fillStyle = '#ffffff'
+      ctx.font = `39px ${BOLD}`
+      ctx.textAlign = 'center'
+      const overlayLines = wrapLines(ctx, text, 670, 4)
+      let oy = 410 - ((overlayLines.length - 1) * 27)
+      for (const row of overlayLines) {
+        ctx.fillText(row, width / 2, oy)
+        oy += 56
+      }
     }
 
     drawInstagramActions(ctx, 806, '#111111')
@@ -552,20 +695,22 @@ export async function renderPostCard({
     ctx.fillStyle = '#111111'
     ctx.font = `23px ${BOLD}`
     ctx.textAlign = 'left'
-    ctx.fillText('0 likes', 44, 884)
+    ctx.fillText(compactCount(likeCount) + ' likes', 44, 884)
 
     const username = clean(authorName, 30)
     ctx.font = `22px ${BOLD}`
     ctx.fillText(username, 44, 932)
-    const nameW = ctx.measureText(username).width
+    ctx.fillStyle = '#101010'
     ctx.font = `22px ${FONT}`
-    ctx.fillText(' ' + clean(text, 105), 44 + nameW, 932)
+    for (let i = 0; i < captionLines.length; i += 1) {
+      ctx.fillText(captionLines[i], 44, captionY + i * 34)
+    }
 
     ctx.fillStyle = '#737373'
     ctx.font = `20px ${FONT}`
-    ctx.fillText('View all 0 comments', 44, 976)
+    ctx.fillText('View all ' + compactCount(commentCount) + ' comments', 44, commentsY)
     ctx.font = `17px ${FONT}`
-    ctx.fillText('JUST NOW', 44, 1020)
+    ctx.fillText('JUST NOW', 44, timeY)
 
     drawWatermark(ctx, width, height, { light:false, fontSize:13, inset:15 })
     return canvas.toBuffer('image/png')
@@ -573,7 +718,13 @@ export async function renderPostCard({
 
   if (mode === 'facebook') {
     const width = 1000
-    const height = 760
+    const measure = createCanvas(width, 20).getContext('2d')
+    measure.font = `30px ${FONT}`
+    const lines = wrapSocialText(measure, String(text || '').slice(0, 1600), 900, 7).lines
+    const photoY = Math.max(196, 175 + lines.length * 44 + 20)
+    const photoH = imageBuffer ? 490 : 0
+    const statsY = imageBuffer ? photoY + photoH + 60 : 520
+    const height = Math.max(760, statsY + 240)
     const canvas = createCanvas(width, height)
     const ctx = canvas.getContext('2d')
 
@@ -604,40 +755,40 @@ export async function renderPostCard({
     ctx.fillStyle = '#050505'
     ctx.font = `30px ${FONT}`
     ctx.textAlign = 'left'
-    const lines = wrapLines(ctx, text, 900, 7)
     let y = 175
     for (const row of lines) {
       ctx.fillText(row, 44, y)
       y += 44
     }
-
-    const statsY = 520
+    if (imageBuffer) {
+      await drawSocialPhoto(ctx, imageBuffer, 44, photoY, 912, photoH, { radius:14 })
+    }
     drawFacebookReactions(ctx, 60, statsY)
     ctx.fillStyle = '#65676b'
     ctx.font = `20px ${FONT}`
     ctx.textAlign = 'left'
-    ctx.fillText('0', 120, statsY + 7)
+    ctx.fillText(compactCount(likeCount), 120, statsY + 7)
     ctx.textAlign = 'right'
-    ctx.fillText('0 comments   0 shares', 948, statsY + 7)
+    ctx.fillText(compactCount(commentCount) + ' comments   ' + compactCount(shareCount) + ' shares', 948, statsY + 7)
 
     ctx.strokeStyle = '#ced0d4'
     ctx.lineWidth = 1
     ctx.beginPath()
-    ctx.moveTo(40, 555)
-    ctx.lineTo(960, 555)
+    ctx.moveTo(40, statsY + 35)
+    ctx.lineTo(960, statsY + 35)
     ctx.stroke()
 
     ctx.fillStyle = '#65676b'
     ctx.font = `23px ${BOLD}`
     ctx.textAlign = 'center'
-    ctx.fillText('♡  Like', 205, 612)
-    ctx.fillText('○  Comment', 500, 612)
-    ctx.fillText('↗  Share', 795, 612)
+    ctx.fillText('♡  Like', 205, statsY + 92)
+    ctx.fillText('○  Comment', 500, statsY + 92)
+    ctx.fillText('↗  Share', 795, statsY + 92)
 
     ctx.strokeStyle = '#ced0d4'
     ctx.beginPath()
-    ctx.moveTo(40, 640)
-    ctx.lineTo(960, 640)
+    ctx.moveTo(40, statsY + 120)
+    ctx.lineTo(960, statsY + 120)
     ctx.stroke()
 
     drawWatermark(ctx, width, height, { light:false, fontSize:13, inset:15 })
@@ -649,6 +800,7 @@ export async function renderPostCard({
   const canvas = createCanvas(width, height)
   const ctx = canvas.getContext('2d')
   gradient(ctx, width, height, [[0,'#11141d'],[1,'#28213e']])
+  await drawSocialPhoto(ctx, imageBuffer, 0, 0, width, height, { shade:0.62 })
 
   await drawAvatar(ctx, 46, 40, 76, {
     avatarBuffer,
@@ -672,6 +824,16 @@ export async function renderPostCard({
     ctx.fillText(row, width / 2, y)
     y += 62
   }
+
+  ctx.font = `22px ${FONT}`
+  ctx.fillStyle = '#d9d8e5'
+  ctx.textAlign = 'center'
+  ctx.fillText(
+    '♥ ' + compactCount(likeCount) + ' likes     ·     ' +
+    compactCount(commentCount) + ' comments     ·     ' +
+    compactCount(shareCount) + ' shares',
+    width / 2, 674,
+  )
 
   drawWatermark(ctx, width, height, { light:true, fontSize:13, inset:15 })
   return canvas.toBuffer('image/png')

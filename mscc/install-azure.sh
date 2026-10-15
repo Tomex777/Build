@@ -115,10 +115,17 @@ if ! command -v pdftotext >/dev/null 2>&1; then NEED_APT=1; fi
 if ! command -v pdftoppm >/dev/null 2>&1; then NEED_APT=1; fi
 if ! command -v gs >/dev/null 2>&1; then NEED_APT=1; fi
 if ! command -v fpcalc >/dev/null 2>&1; then NEED_APT=1; fi
+# Unicode and emoji fonts are required for headless social-card rendering.
+for font_package in fonts-noto-core fonts-noto-color-emoji fontconfig; do
+  if ! dpkg-query -W -f='${Status}' "$font_package" 2>/dev/null | grep -q 'install ok installed'; then
+    NEED_APT=1
+  fi
+done
 if [ "$NEED_APT" -eq 1 ]; then
-  echo ">>> Installing media/document/fingerprint runtime dependencies..."
+  echo ">>> Installing media/document/fingerprint and Unicode font dependencies..."
   sudo apt-get update -y
-  sudo apt-get install -y --no-install-recommends ffmpeg poppler-utils libchromaprint-tools ghostscript
+  sudo apt-get install -y --no-install-recommends ffmpeg poppler-utils libchromaprint-tools ghostscript fontconfig fonts-noto-core fonts-noto-color-emoji
+  sudo fc-cache -f >/dev/null 2>&1 || true
 fi
 
 # Keep YouTube's optional maintained extractor in a private MSCC-only venv.
