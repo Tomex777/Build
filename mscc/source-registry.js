@@ -148,7 +148,7 @@ export class SourceRegistry {
         .filter(Boolean)
     )
     const available = this.list(cap).filter(source => !excluded.has(source.id))
-    const isLookup = ['anime', 'manga'].includes(cap) && LOOKUP_ACTIONS.has(String(payload?.action || ''))
+    const isLookup = ['anime', 'manga', 'music'].includes(cap) && LOOKUP_ACTIONS.has(String(payload?.action || ''))
     const controller = isLookup ? new AbortController() : null
     let timeoutHandle
     // The timer fires once for the complete selection/fallback attempt. It is
