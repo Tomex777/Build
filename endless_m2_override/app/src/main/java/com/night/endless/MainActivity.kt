@@ -551,7 +551,7 @@ private fun EndlessApp(
                         shape = RoundedCornerShape(22.dp),
                         border = BorderStroke(1.dp, Accent.copy(alpha = .38f))
                     ) {
-                        ControlButton("↗  TAKE OFF", active = true) {
+                        ControlButton("↗  Take off", active = true) {
                             glView?.cancelSurfaceControls()
                             glView?.endlessRenderer?.takeOffSurface()
                         }

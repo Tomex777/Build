@@ -119,12 +119,23 @@ class MarsSurfaceRuntimeTest {
             SystemClock.sleep(150)
             capture(instrumentation, "mars-surface", checkNotNull(glRef.get()))
 
+            // GTA-style touch control: hold/drag the left thumbstick.
+            // The old four ↑←↓→ tap buttons must not be present on the surface.
+            assertTrue("Legacy tap movement buttons must be absent",
+                device.findObject(By.text("↑")) == null)
             val before = renderer.surfaceCoordinates()
-            val forwardControl = checkNotNull(device.findObject(By.text("↑")))
-            repeat(8) {
-                forwardControl.click()
-                SystemClock.sleep(80)
-            }
+            val joystickScene = checkNotNull(glRef.get())
+            val joystickScreenOrigin = IntArray(2)
+            joystickScene.getLocationOnScreen(joystickScreenOrigin)
+            val density = joystickScene.resources.displayMetrics.density
+            val thumbX = joystickScreenOrigin[0] + (92f * density).toInt()
+            val thumbY = joystickScreenOrigin[1] + joystickScene.height -
+                (102f * density).toInt()
+            assertTrue("Could not drag the movement thumbstick",
+                device.swipe(
+                    thumbX, thumbY, thumbX,
+                    thumbY - (50f * density).toInt(), 45
+                ))
             val after = renderer.surfaceCoordinates()
             assertNotEquals("Surface movement did not change location", before, after)
             assertEquals("Surface controls must follow a completed terrain frame", "mars", renderer.renderedSurfaceBodyId())

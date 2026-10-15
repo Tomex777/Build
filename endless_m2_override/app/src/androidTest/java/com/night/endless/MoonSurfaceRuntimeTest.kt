@@ -147,12 +147,23 @@ class MoonSurfaceRuntimeTest {
             SystemClock.sleep(700)
             capture(instrumentation, "moon-surface", glView)
 
+            // GTA-style touch control: hold/drag the left thumbstick.
+            // The old four ↑←↓→ tap buttons must not be present on the surface.
+            assertTrue("Legacy tap movement buttons must be absent",
+                device.findObject(By.text("↑")) == null)
             val before = renderer.surfaceCoordinates()
-            val forward = checkNotNull(device.findObject(By.text("↑")))
-            repeat(7) {
-                forward.click()
-                SystemClock.sleep(70)
-            }
+            val joystickScene = checkNotNull(glRef.get())
+            val joystickScreenOrigin = IntArray(2)
+            joystickScene.getLocationOnScreen(joystickScreenOrigin)
+            val density = joystickScene.resources.displayMetrics.density
+            val thumbX = joystickScreenOrigin[0] + (92f * density).toInt()
+            val thumbY = joystickScreenOrigin[1] + joystickScene.height -
+                (102f * density).toInt()
+            assertTrue("Could not drag the movement thumbstick",
+                device.swipe(
+                    thumbX, thumbY, thumbX,
+                    thumbY - (50f * density).toInt(), 45
+                ))
             val after = renderer.surfaceCoordinates()
             assertNotEquals("Lunar movement did not change location", before, after)
             assertEquals("Surface controls must follow a completed terrain frame", "moon", renderer.renderedSurfaceBodyId())
