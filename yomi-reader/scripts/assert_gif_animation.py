@@ -108,12 +108,25 @@ def center_mean(path: str) -> tuple[float, float, float]:
     return tuple(total / samples for total in totals)
 
 
-if len(sys.argv) != 3:
-    raise SystemExit("usage: assert_gif_animation.py <first.png> <second.png>")
+if len(sys.argv) < 3:
+    raise SystemExit("usage: assert_gif_animation.py <frame1.png> <frame2.png> [frame3.png ...]")
 
-first = center_mean(sys.argv[1])
-second = center_mean(sys.argv[2])
-mean_difference = sum(abs(a - b) for a, b in zip(first, second)) / 3
-if mean_difference < 25:
-    raise SystemExit(f"GIF frame screenshots did not change enough (mean RGB delta {mean_difference:.1f})")
-print(f"Animated GIF frame change verified (mean RGB delta {mean_difference:.1f})")
+# The acceptance fixture alternates two solid-color frames at 450 ms each.
+# Emulator PNG captures themselves can take several seconds. Two snapshots
+# may accidentally hit exactly the same phase of a *running* GIF. Check
+# multiple snapshots against the first and require a real visible change.
+samples = [center_mean(path) for path in sys.argv[1:]]
+maximum_difference = max(
+    sum(abs(a - b) for a, b in zip(first, second)) / 3
+    for i, first in enumerate(samples)
+    for second in samples[i + 1:]
+)
+if maximum_difference < 25:
+    raise SystemExit(
+        f"GIF playback was not visually confirmed across {len(samples)} screenshots "
+        f"(maximum mean RGB delta {maximum_difference:.1f}); inspect decoder logs"
+    )
+print(
+    f"Animated GIF frame change verified across {len(samples)} screenshots "
+    f"(maximum mean RGB delta {maximum_difference:.1f})"
+)
