@@ -378,3 +378,34 @@ body:not(.ludo-mode) .info-panel .score-list{width:min(100%,460px)}
 /* Draughts' in-board HUD already shows turn and remaining pieces; no duplicate panel. */
 body.checkers-mode .controls-col{display:none!important}
 body:not(.ludo-mode)>footer{display:none}
+
+/* Classic WHOT: original implementation with the genuine white/deep-red,
+   numbered-corner, geometric-suit visual language. No publisher logos. */
+.playing-card.whot-card{
+ --whot-ink:#84172c;
+ position:relative;isolation:isolate;overflow:hidden;
+ background:#fffdfa;color:var(--whot-ink);
+ border:1px solid #f4e6df;border-radius:6px;
+ box-shadow:0 3px 9px #08090953,0 0 0 1px #d6d0c7;
+ padding:4px;transform:none;transition:transform .17s ease,box-shadow .17s ease;
+ font-family:Georgia,'Times New Roman',serif;
+}
+.whot-card.playable{border-color:#fff;outline:2px solid #e5be68;outline-offset:1px}
+.whot-card.playable:active{transform:translateY(-7px)}
+.whot-card:disabled{opacity:.72}
+.whot-corner{position:absolute;display:flex;flex-direction:column;align-items:center;line-height:.84;z-index:2;gap:1px;font-size:10px;font-style:normal}
+.whot-corner b{font-size:clamp(13px,3vw,18px);font-weight:900}
+.whot-corner i{font-size:clamp(9px,2.4vw,14px);font-style:normal}
+.whot-corner-top{left:5px;top:5px}
+.whot-corner-bottom{right:5px;bottom:5px;transform:rotate(180deg)}
+.whot-face{display:grid;place-items:center;width:100%;height:100%}
+.whot-face-symbol{line-height:1;font-family:Arial,sans-serif;font-size:clamp(30px,8vw,52px);color:var(--whot-ink)}
+.whot-wild-word{font-size:clamp(12px,2.7vw,17px);font-weight:900;letter-spacing:-1.5px;transform:rotate(-27deg);text-align:center}
+.whot-card.whot-wild .whot-face:before,.whot-card.whot-wild .whot-face:after{content:"~";position:absolute;left:50%;color:var(--whot-ink);font-family:Georgia,serif;font-size:13px;transform:translateX(-50%)}
+.whot-card.whot-wild .whot-face:before{top:16%}.whot-card.whot-wild .whot-face:after{bottom:16%}
+.table-surface:has(.whot-card){background:radial-gradient(ellipse at 50% 35%,#44785d,#1b4d37 78%);border-color:#314b38}
+.table-surface:has(.whot-card) .card-back{background:#7f192b;border:5px double #f6eee0;box-shadow:inset 0 0 0 3px #8a293b,0 4px 8px #0005}
+.table-surface:has(.whot-card) .card-back:after{content:"NIGHT";color:#f7ddc7;border:1px solid #deb3ad;padding:9px 3px;font-size:13px;font-weight:950;letter-spacing:-.5px;transform:rotate(-25deg)}
+
+.whot-called{padding:7px 9px;background:#f9e5ba;color:#334d34;border-radius:7px;border:1px solid #e0c589;font-size:9px;font-weight:900;letter-spacing:.35px;text-align:center;max-width:125px;line-height:1.4}
+@media(max-width:540px){.table-surface:has(.whot-card) .card-pile{flex-wrap:wrap;gap:10px}.table-surface:has(.whot-card) .whot-called{width:100%;max-width:none}.whot-card .whot-corner b{font-size:13px}}

@@ -261,7 +261,20 @@ try{
   await page.locator('[data-action="estate-buy"]').click();
   assert.ok((await page.locator(".score-list").innerText()).includes("₦"),"property economy visible");
   await page.goto(base+"/club/?game=whot");
-  assert.ok(await page.locator(".playing-card").count()>=8,"shape cards dealt");
+  assert.equal(await page.locator("#gameTitle").innerText(),"WHOT","Traditional Nigerian name replaces generic Shape Cards");
+  assert.ok(await page.locator(".playing-card").count()>=7,"Five-card WHOT hand, market and discard");
+  assert.equal(await page.locator(".playing-card.whot-card").count(),6,"Whot face cards use the recognizable numbered red shapes");
+  const whotDeck=await page.evaluate(()=>{
+    const w=JSON.parse(localStorage.getItem("night-play-club-v1")).whot;
+    return {cards:[...w.hands[0],...w.hands[1],...w.deck,...w.discard],player:w.hands[0].length,opponent:w.hands[1].length};
+  });
+  assert.equal(whotDeck.cards.length,54,"WHOT uses the real 54-card distribution");
+  assert.equal(whotDeck.player,5,"WHOT starts with five cards");
+  assert.equal(whotDeck.opponent,5);
+  const expected=[[1,2,3,4,5,7,8,10,11,12,13,14],[1,2,3,4,5,7,8,10,11,12,13,14],[1,2,3,5,7,10,11,13,14],[1,2,3,5,7,10,11,13,14],[1,2,3,4,5,7,8]];
+  for(let s=0;s<5;s++)assert.deepEqual(whotDeck.cards.filter(x=>x.s===s).map(x=>x.n).sort((a,b)=>a-b),expected[s],"WHOT suit "+s+" matches OG distribution");
+  assert.equal(whotDeck.cards.filter(x=>x.n===20).length,5);
+  console.log("NIGHT_WHOT_GAME_JPEG_BASE64="+(await page.screenshot({type:"jpeg",quality:57,fullPage:true})).toString("base64"));
   if(await page.locator(".playing-card.playable").count())await page.locator(".playing-card.playable").first().click();
   else await page.locator('[data-action="card-draw"]').click();
   await page.waitForTimeout(560);
@@ -318,7 +331,7 @@ try{
   assert.equal(await page.locator(".checker-piece").count(),24);
   for(const name of ["ludo","estate","whot","colors","draw","snakes","checkers"]){
     await page.goto(base+"/club/?game="+name);
-    assert.equal(await page.locator("#gameTitle").innerText(),({ludo:"Nigerian Ludo",estate:"NIGHT Estates",whot:"Shape Cards",colors:"Colour Clash",draw:"Draw & Guess",snakes:"Snakes & Ladders",checkers:"Draughts"})[name]);
+    assert.equal(await page.locator("#gameTitle").innerText(),({ludo:"Nigerian Ludo",estate:"NIGHT Estates",whot:"WHOT",colors:"Colour Clash",draw:"Draw & Guess",snakes:"Snakes & Ladders",checkers:"Draughts"})[name]);
     assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+2),"no sideways mobile scroll on "+name);
     if(["estate","whot","colors","draw","snakes"].includes(name))console.log("NIGHT_CLUB_SCREEN_"+name.toUpperCase()+"_JPEG_BASE64="+(await page.screenshot({type:"jpeg",quality:50,fullPage:true})).toString("base64"));
   }
