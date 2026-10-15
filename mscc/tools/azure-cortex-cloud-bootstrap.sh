@@ -35,8 +35,7 @@ if [[ ! -f "$AGENT_TARGET" || ! -f "$HELPER_TARGET" ]] ||
     ! systemctl is-active --quiet cortex-agent.service; then
   echo 'Existing Cortex Agent incomplete or inactive; performing pinned first-time installation.'
   setup_dir="$(mktemp -d)"
-  setup_cleanup() { rm -rf "$setup_dir"; }
-  trap setup_cleanup RETURN
+  trap 'rm -rf "$setup_dir"' EXIT
   for row in index.js cortex-agent-control install.sh package.json cortex-agent.service; do
     curl --fail --silent --show-error --location --retry 3 --max-time 50 \
       "https://raw.githubusercontent.com/Tomex777/Build/$SOURCE_SHA/cortex-agent/$row" \
@@ -52,16 +51,17 @@ if [[ ! -f "$AGENT_TARGET" || ! -f "$HELPER_TARGET" ]] ||
     }
   done
   node --check "$setup_dir/index.js"
-  bash -n "$setup_dir/install.sh" "$setup_dir/cortex-agent-control"
+  bash -n "$setup_dir/install.sh"
+  bash -n "$setup_dir/cortex-agent-control"
   # The upstream installer can print the freshly generated Agent token.
   # Absolutely never stream its stdout/stderr to public CI logs.
   if ! sudo -n /usr/bin/bash "$setup_dir/install.sh" \
-      > "$setup_dir/install-private.log" 2>&1; then
+      > /dev/null 2>&1; then
     echo 'Pinned Cortex first-time installer failed; inspect private host log only.' >&2
     exit 1
   fi
   rm -rf "$setup_dir"
-  trap - RETURN
+  trap - EXIT
   echo 'Pinned Cortex service installed; existing configuration retained.'
 fi
 systemctl is-active --quiet cortex-agent.service || {
