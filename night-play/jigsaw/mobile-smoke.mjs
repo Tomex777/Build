@@ -109,6 +109,7 @@ try{
  const beforeReload=await page.evaluate(()=>window.__nightJigsawTest.snapshot());
  await page.reload();
  assert.equal(await page.locator('#resumePanel').isVisible(),true,'Resume choice shown without a gallery flash');
+ if(beforeReload.theme==='anime')console.log('NIGHT_JIGSAW_RESUME_JPEG_BASE64='+(await page.screenshot({type:'jpeg',quality:55,fullPage:true})).toString('base64'));
  assert.equal(await page.locator('#galleryPanel').isVisible(),false,'Gallery stays hidden during resume prompt');
  await page.locator('#resumePlaying').click();
  await page.waitForFunction(()=>window.__nightJigsawTest?.snapshot().activeRound);
