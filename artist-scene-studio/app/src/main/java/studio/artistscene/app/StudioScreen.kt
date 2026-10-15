@@ -116,6 +116,7 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
@@ -1631,6 +1632,16 @@ private fun EditorContextSheet(
         containerColor = PanelBackground,
     ) {
         KeepDialogStatusBarHidden()
+        // A numeric field can retain its previous focus when the Inspector is
+        // reopened. Do not cover the lower tool sections with Android's IME
+        // until the user explicitly taps a number.
+        val sheetFocus = LocalFocusManager.current
+        val keyboard = LocalSoftwareKeyboardController.current
+        LaunchedEffect(sheet) {
+            withFrameNanos { }
+            sheetFocus.clearFocus(force = true)
+            keyboard?.hide()
+        }
         Box(Modifier.fillMaxWidth().heightIn(max = 560.dp)) {
         Column(
             modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState())
