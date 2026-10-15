@@ -100,6 +100,7 @@ import {
   messageMedia,
 } from './utils/whatsapp/messages.js'
 import { createWhatsAppUi } from './utils/whatsapp/ui.js'
+import { deleteQuotedGroupMessage } from './group-delete.js'
 import { sendText, sendImageDataUrl, startProgress } from './utils/whatsapp/replies.js'
 import { findGroupParticipant, groupMemberLabel, groupTargetJid, memberIdentityKey, participantIds, updateSucceeded } from './group-member-identity.js'
 
@@ -552,6 +553,37 @@ function suppressAntiDelete(chat, messageId) {
   for (const accountId of accounts.keys()) {
     handledDelete.set(`${accountId}|${chat}|${messageId}`, Date.now())
   }
+}
+
+async function deleteRepliedMessage(account, msg) {
+  const chat = normalizeJid(msg?.key?.remoteJid)
+  if (!chat || !isGroup(chat) || !account?.sock) {
+    return { deleted:0, error:'This one is for groups.' }
+  }
+
+  const quote = contextInfo(msg.message)
+  if (!quote?.stanzaId) {
+    return { deleted:0, error:'🗑️ Reply to a message or use .delete <count>.' }
+  }
+  if (!(await isBotGroupAdminContext(account, msg))) {
+    return { deleted:0, error:'Night needs to be a group admin to delete messages.' }
+  }
+
+  const cached = cachedMessageAcrossAccounts(account.id, quote.stanzaId, chat)
+  const result = await deleteQuotedGroupMessage({
+    chat,
+    commandKey:msg.key,
+    quote,
+    cached,
+    accountId:account.id,
+    isOwnParticipant:jid => jidBelongsToAccount(account, jid),
+    sendDelete:key => account.sock.sendMessage(chat, { delete:key }),
+    suppressDelete:suppressAntiDelete,
+  })
+  if (result.cause) {
+    console.warn('[delete] reply revoke:', result.cause?.message || result.cause)
+  }
+  return result
 }
 
 async function deleteRecentMessages(account, msg, requestedCount = 1) {
@@ -2493,6 +2525,7 @@ async function processInboundMessage(account, msg) {
           isGroupAdmin: () => isGroupAdminContext(account, msg),
           isBotGroupAdmin: () => isBotGroupAdminContext(account, msg),
           deleteRecentMessages: count => deleteRecentMessages(account, msg, count),
+          deleteRepliedMessage: () => deleteRepliedMessage(account, msg),
           groupParticipantAction: (raw, action) => groupParticipantAction(account, msg, raw, action),
           groupSetAnnouncement: closed => setGroupAnnouncement(account, msg, closed),
           groupScheduleStorage: sharedStorage,
