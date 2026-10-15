@@ -193,7 +193,7 @@ function recordWin(){
  }catch{}
 }
 function celebrate(){
- if(won)return;won=true;timerStop();setStats();sound.playVictory();recordWin();
+ if(won)return;won=true;timerStop();setStats();sound.playVictory();recordWin();updateHelpUI();
  $('victoryTime').textContent=timeText(elapsed);
  $('victoryMoves').textContent=String(board.moveCount);
  $('victoryPieces').textContent=String(board.totalPieces);
@@ -243,9 +243,17 @@ canvas.addEventListener('pointerup',releaseDrag);
 canvas.addEventListener('pointercancel',releaseDrag);
 function dialog(id){$(id).showModal()}
 document.querySelectorAll('[data-close]').forEach(b=>b.addEventListener('click',()=>$(b.dataset.close).close()));
+$('previewDialog').addEventListener('close',()=>{if(previewTimeout!==null){clearTimeout(previewTimeout);previewTimeout=null}timerStart()});
 $('settingsButton').addEventListener('click',()=>{updateDifficultyButtons();dialog('settingsDialog')});
-$('guideSwitch').addEventListener('change',e=>{board.showGhost=e.target.checked;safeWrite('night-play-jigsaw-guide',String(e.target.checked));board.render();saveGame()});
+$('guideSwitch').addEventListener('change',e=>{board.showGhost=guideEnabled();safeWrite('night-play-jigsaw-guide',String(e.target.checked));board.render();saveGame()});
 $('soundSwitch').addEventListener('change',e=>{sound.enabled=e.target.checked;safeWrite('night-play-jigsaw-sound',String(e.target.checked))});
+document.querySelectorAll('[data-mode]').forEach(b=>b.addEventListener('click',()=>{
+ const next=b.dataset.mode;if(next===challengeMode||!modeRules[next])return;
+ challengeMode=next;safeWrite('night-play-jigsaw-mode',next);
+ $('settingsDialog').close();updateHelpUI();
+ if(activeRound&&!$('playScreen').hidden)resetBoard(true);
+ else showToast('Mode: '+next);
+}));
 document.querySelectorAll('[data-pieces]').forEach(b=>b.addEventListener('click',()=>{
  const next=Number(b.dataset.pieces);if(next===piecesCount)return;
  piecesCount=next;updateDifficultyButtons();safeWrite('night-play-jigsaw-pieces',String(next));
@@ -254,12 +262,12 @@ document.querySelectorAll('[data-pieces]').forEach(b=>b.addEventListener('click'
 }));
 $('categoryChips').addEventListener('click',e=>{const b=e.target.closest('[data-filter]');if(b){category=b.dataset.filter;filterGallery()}});
 $('pickPicture').addEventListener('click',showGallery);
-$('previewButton').addEventListener('click',()=>{
- $('previewImage').src=board.sourceCanvas.toDataURL('image/jpeg',.86);dialog('previewDialog');
-});
+$('previewButton').addEventListener('click',()=>showReference());
 $('hintButton').addEventListener('click',()=>{
- if(won)return;const p=board.hintRandomPiece();if(!p)return;
- sound.playSnap();setStats();board.render();saveGame();if(board.placedCount===board.totalPieces)celebrate();
+ if(won||usedHints>=modeRules[challengeMode].hints){showToast('No hints left in this round');return}
+ const p=board.hintRandomPiece();if(!p)return;
+ usedHints++;sound.playSnap();setStats();board.render();updateHelpUI();saveGame();
+ if(board.placedCount===board.totalPieces)celebrate();
 });
 $('restartButton').addEventListener('click',()=>{if(theme==='custom'&&!customData)return;resetBoard(true)});
 $('victoryNext').addEventListener('click',()=>{$('victoryDialog').close();showGallery()});
@@ -274,17 +282,18 @@ window.addEventListener('keydown',e=>{
 });
 // Construct gallery from the same procedural images as the playing board.
 renderGallery();
-$('guideSwitch').checked=safeRead('night-play-jigsaw-guide')!=='false';
+$('guideSwitch').checked=safeRead('night-play-jigsaw-guide')==='true';
+challengeMode=modeRules[safeRead('night-play-jigsaw-mode')]?safeRead('night-play-jigsaw-mode'):'relaxed';
 $('soundSwitch').checked=safeRead('night-play-jigsaw-sound')!=='false';
 sound.enabled=$('soundSwitch').checked;
-piecesCount=Number(safeRead('night-play-jigsaw-pieces'))||12;
-if(!dimMap[piecesCount])piecesCount=12;
+piecesCount=Number(safeRead('night-play-jigsaw-pieces'))||24;
+if(!dimMap[piecesCount])piecesCount=24;
 updateDifficultyButtons();
 let prior=null;try{prior=JSON.parse(safeRead(SAVE_KEY)||'null')}catch{}
 if(!resumeSaved(prior))showGallery();
 if(location.hostname==='localhost'||location.hostname==='127.0.0.1'){
  window.__nightJigsawTest=Object.freeze({
-  snapshot:()=>({theme,pieces:piecesCount,elapsed,won,activeRound,placed:board.placedCount,moves:board.moveCount,
+  snapshot:()=>({theme,pieces:piecesCount,elapsed,won,activeRound,challengeMode,usedHints,usedPreviews,guide:board.showGhost,placed:board.placedCount,moves:board.moveCount,
    board:{x:board.boardX,y:board.boardY,w:board.boardWidth,h:board.boardHeight},tray:{...board.tray},
    pieces:board.pieces.map(p=>({id:p.id,x:p.x,y:p.y,correctX:p.correctX,correctY:p.correctY,placed:p.isPlaced}))}),
   place:(i)=>{const p=board.pieces[i];if(!p||p.isPlaced)return false;p.x=p.correctX;p.y=p.correctY;refreshAfterMove(p);return true}
