@@ -2120,11 +2120,11 @@ async function handleGroupMemberPolicyEvent(account, update) {
 }
 
 async function publicUserProfile(account, msg, phoneNumber) {
-  const phone = digits(phoneNumber)
-  if (!phone) return null
+  const phone = String(phoneNumber || '').trim()
+  if (!/^[1-9]\d{6,14}$/.test(phone)) return null
 
   const chat = normalizeJid(msg?.key?.remoteJid)
-  const senderNumber = jidUser(await resolveSender(account, msg))
+  const senderNumber = verifiedPhoneNumber(await resolveSender(account, msg))
   let mentionJid = phone + '@s.whatsapp.net'
   let displayName = senderNumber === phone
     ? String(msg?.pushName || '').trim()
@@ -2794,7 +2794,7 @@ async function processInboundMessage(account, msg) {
             context: {
               accountId: account.id,
               chat,
-              userKey: authority.senderNumber,
+              userKey: authority.senderKey,
               reply: value => sendCommandReply(account, msg, value),
               ui,
               replyList: options => trackSend(() => ui.singleSelect(options)),
