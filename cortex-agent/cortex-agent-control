@@ -57,6 +57,16 @@ if [ "$ACTION" = "env-set" ]; then
 
   chown --reference="$MSCC_ENV_FILE" "$TMP"
   chmod --reference="$MSCC_ENV_FILE" "$TMP"
+  # The write is atomic: replacing /etc/mscc.env loses the previous named
+  # ACL. Preserve the *only* extra reader needed by Cortex Cloud; do not
+  # relax root ownership or grant the transient job runner any access.
+  if id -u cortex-agent >/dev/null 2>&1; then
+    command -v setfacl >/dev/null || {
+      echo "Required ACL tool unavailable; refusing to remove Cortex environment access." >&2
+      exit 78
+    }
+    setfacl -m 'u:cortex-agent:r--' "$TMP"
+  fi
   mv -f "$TMP" "$MSCC_ENV_FILE"
   trap - EXIT
   exit 0
