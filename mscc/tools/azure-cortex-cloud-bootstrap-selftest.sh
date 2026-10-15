@@ -31,6 +31,13 @@ grep -Fq 'http://127.0.0.1:47831/api/cortex/host/environment' "$UPGRADE"
 grep -Fq 'http://127.0.0.1:47831/api/cortex/host/cloud' "$UPGRADE"
 grep -Fq "Cortex Cloud settings endpoint verified with protected credential masking." "$UPGRADE"
 grep -Fq "Cortex Agent -> MSCC Community Cloud endpoint verified." "$UPGRADE"
+# Agent's root helper writes a sibling env temp file under strict sandboxing.
+# UNIX permissions + sudo helper still protect private system files.
+grep -Fq 'readonly ENV_WRITER_OVERRIDE=' "$UPGRADE"
+grep -Fq 'ReadWritePaths=/etc' "$UPGRADE"
+grep -Fq 'systemctl daemon-reload' "$UPGRADE"
+grep -Fq 'systemctl restart cortex-agent.service' "$UPGRADE"
+
 grep -Fq "u:cortex-agent:r--" "$UPGRADE"
 grep -Fq 'getfacl -cp "$directory"' "$UPGRADE"
 grep -Fq 'if sudo -n test -f "$BOOTSTRAP_MARK"; then' "$UPGRADE"
