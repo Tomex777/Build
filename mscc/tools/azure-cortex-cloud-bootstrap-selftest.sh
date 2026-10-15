@@ -45,6 +45,17 @@ env_line="$(grep -nF 'http://127.0.0.1:47831/api/cortex/host/environment' "$UPGR
 mark_line="$(grep -nF 'if sudo -n test -f "$BOOTSTRAP_MARK"; then' "$UPGRADE" | head -n 1 | cut -d: -f1)"
 [[ "$env_line" -lt "$mark_line" ]] || { echo 'Bootstrap marker bypasses Cloud probe.' >&2; exit 1; }
 
+# Regression: Cloud can pass on loopback while Android HTTPS fails.
+grep -Fq 'readonly CORTEX_HTTPS_SITE=/etc/nginx/sites-enabled/cortex-agent' "$UPGRADE"
+grep -Fq 'https_origin="https://${proxy_ip}"' "$UPGRADE"
+grep -Fq 'https_resolution="${proxy_ip}:443:127.0.0.1"' "$UPGRADE"
+grep -Fq 'Cortex nginx HTTPS ingress verified for authenticated Cloud and masked environment routes.' "$UPGRADE"
+grep -Fq '"$https_origin/api/cortex/host/status"' "$UPGRADE"
+grep -Fq '"$https_origin/api/cortex/host/$route"' "$UPGRADE"
+grep -Fq '[[ "$anonymous_http" == 401 ]]' "$UPGRADE"
+https_line="$(grep -nF 'Cortex nginx HTTPS ingress verified for authenticated Cloud and masked environment routes.' "$UPGRADE" | head -n 1 | cut -d: -f1)"
+[[ "$https_line" -lt "$mark_line" ]] || { echo 'Bootstrap marker bypasses HTTPS verification.' >&2; exit 1; }
+
 grep -Fq 'Cortex Agent did not recover after upgrade.' "$UPGRADE"
 grep -Fq 'sudo -n install -m 0644 "$tmp/previous-index.js"' "$UPGRADE"
 grep -Fq 'sudo -n install -m 0755 "$tmp/previous-helper.sh"' "$UPGRADE"
