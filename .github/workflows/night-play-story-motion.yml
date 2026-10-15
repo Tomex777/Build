@@ -1,0 +1,29 @@
+name: NIGHT Play story motion QA
+on:
+  pull_request:
+    paths: ['night-play/stories/**', '.github/workflows/night-play-story-motion.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  chromium:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - name: Prepare browser
+        run: |
+          npm install --prefix /tmp/storyqa --no-save playwright@1.56.1
+          /tmp/storyqa/node_modules/.bin/playwright install chromium --with-deps
+      - name: Inspect motion in Chromium
+        env:
+          PLAYWRIGHT_MODULE: /tmp/storyqa/node_modules/playwright
+          STORY_QA_OUTPUT: story-screenshots
+        run: node night-play/stories/smoke.cjs
+      - name: Upload screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: night-play-story-motion-screenshots
+          path: story-screenshots/*.png
+          if-no-files-found: ignore
