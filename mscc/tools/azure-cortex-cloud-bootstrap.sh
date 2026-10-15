@@ -88,7 +88,7 @@ for directory in /var/lib/mscc /var/lib/mscc/data; do
     # Preserve the existing named-user ACL (including any intentional write
     # access used for Cortex settings) while recomputing the mask after chmod.
     current_acl="$(sudo -n getfacl -cp "$directory" 2>/dev/null \
-      | sed -n 's/^user:cortex-agent:\\([rwx-][rwx-][rwx-]\\).*$/\\1/p' | head -n 1)"
+      | sed -n 's/^user:cortex-agent:\([rwx-][rwx-][rwx-]\).*$/\1/p' | head -n 1)"
     if [[ -z "$current_acl" ]]; then current_acl='--x'; fi
     if [[ "$current_acl" != *x* ]]; then
       current_acl="${current_acl:0:2}x"
