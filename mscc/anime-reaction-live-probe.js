@@ -83,4 +83,23 @@ for (const category of CATEGORIES) {
 const passed = live.filter(item=>item.ok).map(item=>item.category)
 const failed = live.filter(item=>!item.ok)
 console.log('LIVE REACTION SUMMARY ' + JSON.stringify({tested:live.length,passedCount:passed.length,failedCount:failed.length,passed,failed}))
+// Secondary provider is untrusted until both its JSON and the linked media verify.
+// Never claim .kill operational merely because it appears in documentation.
+try {
+  const secondary = await fetch('https://animegifs-enkidu.koyeb.app/v3/api/?category=kill', {
+    headers:{'User-Agent':UA,'Accept':'application/json'}, signal:AbortSignal.timeout(12000),
+  })
+  const type = secondary.headers.get('content-type') || ''
+  if (!secondary.ok || !type.includes('json')) throw new Error('HTTP ' + secondary.status + ', type ' + type)
+  const payload = await secondary.json()
+  const link = new URL(String(payload.gif || ''))
+  if (link.protocol !== 'https:' || link.hostname === 'localhost' || link.hostname.endsWith('.local')) throw new Error('Untrusted GIF URL')
+  const media = await fetchLive(link.href)
+  const sticker = await mediaToSticker(media,{animated:true,packName:'NIGHT kill verification'})
+  assert.equal(sticker.toString('ascii',0,4),'RIFF')
+  console.log('SECONDARY KILL STICKER PASS '+ JSON.stringify({host:link.hostname,gifBytes:media.length,stickerBytes:sticker.length}))
+} catch (error) {
+  console.log('SECONDARY KILL STICKER UNVERIFIED '+String(error?.message || error))
+}
+
 if (!passed.length || !passed.includes('smug')) process.exitCode = 1
