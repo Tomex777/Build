@@ -10,7 +10,7 @@ import { REACTIONS, REACTION_NAMES, reactionCatalog } from './anime-reaction-sti
 const publicRegistry=await loadCommands(new URL('./commands/',import.meta.url),{capabilityFromDirectory:true})
 const privateRegistry=await loadCommands(new URL('./private-commands/',import.meta.url))
 assert.equal(REACTION_NAMES.length,60,'59 live-verified primary GIF categories plus live-verified kill')
-assert.equal(new Set(REACTION_NAMES).size,59)
+assert.equal(new Set(REACTION_NAMES).size,60)
 for(const name of REACTION_NAMES){
   const command=publicRegistry.commands.get(name)
   assert.equal(command?.name,name,'missing distinct reaction command '+name)
