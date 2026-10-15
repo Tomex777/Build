@@ -9,7 +9,7 @@ mines:["Minesweeper","One tap at a time, clear the field.","Reveal every safe sq
 maze:["Maze Chase","Collect every dot. Avoid the chasers.","Swipe on the maze, use the arrows, or press WASD. Eat the dots; dodge the red ghosts. Collect all dots to win."]
 };
 let type="bird",frame=0,raf=null,interval=null,life=null,state=null,finished=false,paused=false,points=0,last=0;
-let gameStart=0,blockDirty=true,blockPaintCount=0;
+let gameStart=0,blockDirty=true,blockPaintCount=0,wingBackdrop=null,mazeBackdrop=null,mazeDots=null,mazeDotsCtx=null;
 function stop(){if(raf!==null){cancelAnimationFrame(raf);raf=null;}if(interval!==null){clearInterval(interval);interval=null;}}
 function best(id){try{return Math.max(0,Number(localStorage.getItem("night-play-v1-"+id))||0);}catch{return 0;}}
 function record(id,n){const score=Math.round(Math.max(0,n));try{const key="night-play-v1-"+id;if(score>best(id))localStorage.setItem(key,String(score));const histKey="night-play-history-v1-"+id;let arr=[];try{arr=JSON.parse(localStorage.getItem(histKey)||"[]");}catch{}if(!Array.isArray(arr))arr=[];arr.push(score);localStorage.setItem(histKey,JSON.stringify(arr.slice(-12)));const countKey="night-play-history-count-v1-"+id;const count=Math.max(0,Number(localStorage.getItem(countKey))||0);localStorage.setItem(countKey,String(count+1));}catch{}}
@@ -31,10 +31,9 @@ const wingArtSources={"parrot":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAI
 for(const [name,src] of Object.entries(wingArtSources)){const img=new Image();img.src=src;wingArt[name]=img}
 function readyArt(name){const img=wingArt[name];return img&&img.complete&&img.naturalWidth>0?img:null}
 function drawWingBackground(s){
- const sky=ctx.createLinearGradient(0,0,0,560);sky.addColorStop(0,"#81c9d3");sky.addColorStop(.6,"#c5eeed");sky.addColorStop(1,"#e8f4ce");
- ctx.fillStyle=sky;ctx.fillRect(0,0,360,600);
- // Soft illuminated horizon, distant landscape and layered Kenney bush sprites.
- ctx.fillStyle="#fbf5cd7d";ctx.beginPath();ctx.arc(292,95,46,0,Math.PI*2);ctx.fill();
+ // Sky and sun never change: paint once when a round begins, not 60 times/s.
+ if(wingBackdrop)ctx.drawImage(wingBackdrop,0,0);
+ // Scrolling clouds and hills remain animated.
  for(let i=0;i<6;i++){
   const img=readyArt(i%2===0?"cloud1":"cloud3");
   const x=((i*141-s.distance*.14)%475+475)%475-95, y=48+(i%3)*92;
@@ -78,7 +77,13 @@ function wingBird(s){
  ctx.restore();
 }
 /* WING HOP — frame-rate independent motion, real bundled art and fast touch. */
-function setupBird(){c.width=360;c.height=600;let skin="parrot";try{skin=localStorage.getItem("night-play-wing-hop-skin")==="chick"?"chick":"parrot"}catch{}
+function setupBird(){c.width=360;c.height=600;
+ wingBackdrop=document.createElement("canvas");wingBackdrop.width=360;wingBackdrop.height=600;
+ const bg=wingBackdrop.getContext("2d");
+ const sky=bg.createLinearGradient(0,0,0,560);sky.addColorStop(0,"#81c9d3");sky.addColorStop(.6,"#c5eeed");sky.addColorStop(1,"#e8f4ce");
+ bg.fillStyle=sky;bg.fillRect(0,0,360,600);
+ bg.fillStyle="#fbf5cd7d";bg.beginPath();bg.arc(292,95,46,0,Math.PI*2);bg.fill();
+ let skin="parrot";try{skin=localStorage.getItem("night-play-wing-hop-skin")==="chick"?"chick":"parrot"}catch{}
  state={x:95,y:260,vy:0,gap:175,pipes:[],distance:0,started:false,dead:false,skin};
  setControls(button("SWITCH BIRD","bird-skin","Switch between parrot and chick")+button("FLAP ↥","flap","Flap wings"));
  message("Tap the bird arena or FLAP to begin.");frameLoop(birdFrame);}
@@ -177,15 +182,33 @@ if((x===4||x===9||x===14)&&y>1&&y<19&&y!==3&&y!==7&&y!==11&&y!==15&&y!==18)w=tru
 for(let y of [3,7,11,15,18])for(let x of [4,9,14])walls[y][x]=0;
 const pills=walls.map((row,y)=>row.map((cell,x)=>cell?0:1));pills[1][1]=0;pills[18][17]=0;
 state={walls,pills,p:{x:1,y:1,dir:[1,0]},ghosts:[{x:17,y:18,t:0},{x:17,y:1,t:0}],lives:3,total:pills.flat().reduce((a,b)=>a+b,0),elapsed:0,invincible:0};
+ // Draw the maze walls and pills once; only entities and removed dots change.
+ mazeBackdrop=document.createElement("canvas");mazeBackdrop.width=456;mazeBackdrop.height=504;
+ mazeDots=document.createElement("canvas");mazeDots.width=456;mazeDots.height=504;
+ mazeDotsCtx=mazeDots.getContext("2d");
+ const wallsCtx=mazeBackdrop.getContext("2d");
+ wallsCtx.fillStyle="#101f23";wallsCtx.fillRect(0,0,456,504);
+ for(let y=0;y<21;y++)for(let x=0;x<19;x++){
+  const px=x*24,py=y*24;
+  if(walls[y][x]){
+   wallsCtx.fillStyle="#31577a";wallsCtx.fillRect(px,py,24,24);
+   wallsCtx.fillStyle="#668eaa";wallsCtx.fillRect(px+3,py+3,18,3);
+  }else if(pills[y][x]){
+   mazeDotsCtx.fillStyle="#e8d0a0";mazeDotsCtx.beginPath();
+   mazeDotsCtx.arc(px+12,py+12,2.5,0,Math.PI*2);mazeDotsCtx.fill();
+  }
+ }
 setControls(button("◀","left","Left")+button("▲","up","Up")+button("▼","down","Down")+button("▶","right","Right")+button("Ⅱ","pause","Pause"));message("Collect the dots. Avoid the ghosts.");interval=setInterval(mazeTick,160);drawMaze();}
 function mazeMove(dx,dy){const s=state;if(type!=="maze"||finished)return;s.p.dir=[dx,dy];}
 function moveable(s,x,y){return y>=0&&y<21&&x>=0&&x<19&&s.walls[y][x]===0;}
 function ghostStep(g,s){const dirs=[[1,0],[-1,0],[0,1],[0,-1]].filter(([dx,dy])=>moveable(s,g.x+dx,g.y+dy));if(!dirs.length)return;let picks=dirs.map(([dx,dy])=>({x:g.x+dx,y:g.y+dy,cost:Math.abs(g.x+dx-s.p.x)+Math.abs(g.y+dy-s.p.y)+Math.random()*8}));picks.sort((a,b)=>a.cost-b.cost);const chosen=picks[0];g.x=chosen.x;g.y=chosen.y;}
-function mazeTick(){const s=state;if(paused||finished)return;s.elapsed++;if(s.invincible>0)s.invincible--;const [dx,dy]=s.p.dir;if(moveable(s,s.p.x+dx,s.p.y+dy)){s.p.x+=dx;s.p.y+=dy;}if(s.pills[s.p.y][s.p.x]){s.pills[s.p.y][s.p.x]=0;score(points+10);s.total--;}
+function mazeTick(){const s=state;if(paused||finished)return;s.elapsed++;if(s.invincible>0)s.invincible--;const [dx,dy]=s.p.dir;if(moveable(s,s.p.x+dx,s.p.y+dy)){s.p.x+=dx;s.p.y+=dy;}if(s.pills[s.p.y][s.p.x]){s.pills[s.p.y][s.p.x]=0;
+ if(mazeDotsCtx)mazeDotsCtx.clearRect(s.p.x*24+5,s.p.y*24+5,14,14);
+ score(points+10);s.total--;}
 if(s.elapsed%3===0)s.ghosts.forEach(g=>ghostStep(g,s));if(s.invincible===0&&s.ghosts.some(g=>g.x===s.p.x&&g.y===s.p.y)){s.lives--;s.invincible=8;s.p={x:1,y:1,dir:[1,0]};if(s.lives===0){end("The ghosts caught you!");}}
 if(s.total===0)end("You collected every dot!");drawMaze();}
-function drawMaze(){const s=state,ts=24;ctx.fillStyle="#101f23";ctx.fillRect(0,0,c.width,c.height);
-for(let y=0;y<21;y++)for(let x=0;x<19;x++){const px=x*ts,py=y*ts;if(s.walls[y][x]){ctx.fillStyle="#31577a";ctx.fillRect(px,py,24,24);ctx.fillStyle="#668eaa";ctx.fillRect(px+3,py+3,18,3);}else if(s.pills[y][x]){ctx.fillStyle="#e8d0a0";ctx.beginPath();ctx.arc(px+12,py+12,2.5,0,Math.PI*2);ctx.fill();}}
+function drawMaze(){const s=state,ts=24;
+ ctx.drawImage(mazeBackdrop,0,0);ctx.drawImage(mazeDots,0,0);
 s.ghosts.forEach((g,i)=>{const px=g.x*ts+12,py=g.y*ts+12;ctx.fillStyle=i===0?"#e85253":"#ec95aa";ctx.beginPath();ctx.arc(px,py,10,Math.PI,0);ctx.lineTo(px+10,py+9);ctx.lineTo(px-10,py+9);ctx.closePath();ctx.fill();ctx.fillStyle="#fff";ctx.fillRect(px-6,py-2,5,6);ctx.fillRect(px+2,py-2,5,6);ctx.fillStyle="#252525";ctx.fillRect(px-5,py,2,3);ctx.fillRect(px+3,py,2,3);});
 if(s.invincible%2===0){ctx.fillStyle="#f6d461";ctx.beginPath();ctx.arc(s.p.x*ts+12,s.p.y*ts+12,10,.22*Math.PI,1.78*Math.PI);ctx.lineTo(s.p.x*ts+12,s.p.y*ts+12);ctx.closePath();ctx.fill();}
 extra.textContent="Lives: "+s.lives+" · Dots left: "+s.total+(paused?" · PAUSED":"");if(paused){ctx.fillStyle="#112329bc";ctx.fillRect(0,0,456,504);drawText("PAUSED",250,34);}if(finished){ctx.fillStyle="#112329bc";ctx.fillRect(0,0,456,504);drawText("GAME OVER",250,31);}}
