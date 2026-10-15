@@ -155,19 +155,33 @@ export function renderThemeArt(board,theme) {
       ctx.fillRect(w * 0.28, h * 0.35, w * 0.08, h * 0.5);
       ctx.fillRect(w * 0.64, h * 0.35, w * 0.08, h * 0.5);
     } else if (theme === 'cats') {
-      const bg = ctx.createLinearGradient(0, 0, w, h);
-      bg.addColorStop(0, '#fef08a');
-      bg.addColorStop(1, '#fed7aa');
-      ctx.fillStyle = bg;
-      ctx.fillRect(0, 0, w, h);
-
-      ctx.fillStyle = '#ea580c';
-      ctx.beginPath();
-      ctx.ellipse(w * 0.5, h * 0.58, 120, 90, 0, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.beginPath();
-      ctx.arc(w * 0.5, h * 0.4, 75, 0, Math.PI * 2);
-      ctx.fill();
+      // A complete pastel kitten illustration with strong internal detail for puzzles.
+      const bg=ctx.createLinearGradient(0,0,0,h);bg.addColorStop(0,'#ffefb1');bg.addColorStop(1,'#e9b8b5');
+      ctx.fillStyle=bg;ctx.fillRect(0,0,w,h);
+      ctx.fillStyle='#eab899';ctx.beginPath();ctx.ellipse(w*.5,h*1.1,470,210,0,0,Math.PI*2);ctx.fill();
+      for(let i=0;i<21;i++){const x=((i*117)%w),y=((i*97)%h);
+        ctx.fillStyle=['#fff9e7','#f4d8ae','#f4b6a3'][i%3];ctx.beginPath();ctx.arc(x,y,6+(i%4)*5,0,Math.PI*2);ctx.fill();}
+      // Tail and torso sit behind the face.
+      ctx.strokeStyle='#b85b3d';ctx.lineWidth=37;ctx.lineCap='round';ctx.beginPath();ctx.moveTo(492,434);ctx.bezierCurveTo(678,475,730,330,632,286);ctx.stroke();
+      ctx.fillStyle='#dc824f';ctx.beginPath();ctx.ellipse(390,437,162,134,-.1,0,Math.PI*2);ctx.fill();
+      ctx.fillStyle='#ed9a60';ctx.beginPath();ctx.moveTo(263,205);ctx.lineTo(248,72);ctx.lineTo(364,152);
+      ctx.lineTo(475,150);ctx.lineTo(565,67);ctx.lineTo(548,208);ctx.closePath();ctx.fill();
+      ctx.fillStyle='#f4b5ac';ctx.beginPath();ctx.moveTo(284,173);ctx.lineTo(274,103);ctx.lineTo(337,160);
+      ctx.moveTo(492,156);ctx.lineTo(548,102);ctx.lineTo(526,186);ctx.fill();
+      ctx.fillStyle='#e89a66';ctx.beginPath();ctx.ellipse(409,270,185,154,0,0,Math.PI*2);ctx.fill();
+      ctx.fillStyle='#ffe2b5';ctx.beginPath();ctx.ellipse(408,326,105,77,0,0,Math.PI*2);ctx.fill();
+      // Large expressive eyes, eyelids, and tiny highlights.
+      for(const x of [340,475]){ctx.fillStyle='#fff8e6';ctx.beginPath();ctx.ellipse(x,255,34,47,0,0,Math.PI*2);ctx.fill();
+        ctx.fillStyle='#385549';ctx.beginPath();ctx.ellipse(x+5,261,16,30,0,0,Math.PI*2);ctx.fill();
+        ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(x+10,246,7,0,Math.PI*2);ctx.fill();}
+      ctx.fillStyle='#c46c72';ctx.beginPath();ctx.moveTo(391,315);ctx.lineTo(424,315);ctx.lineTo(408,330);ctx.closePath();ctx.fill();
+      ctx.strokeStyle='#925d50';ctx.lineWidth=4;ctx.beginPath();ctx.moveTo(408,330);ctx.lineTo(408,342);
+      ctx.quadraticCurveTo(389,360,375,342);ctx.moveTo(408,342);ctx.quadraticCurveTo(427,360,443,342);ctx.stroke();
+      for(const side of [-1,1])for(let i=0;i<3;i++){const x=408+side*42;ctx.beginPath();
+        ctx.moveTo(x,336+i*11);ctx.lineTo(x+side*94,324+i*23);ctx.stroke();}
+      ctx.fillStyle='#f8bb8e';for(const x of [330,487]){ctx.beginPath();ctx.ellipse(x,344,32,18,0,0,Math.PI*2);ctx.fill();}
+      ctx.fillStyle='#ffd4a4';for(const x of [316,497]){ctx.beginPath();ctx.ellipse(x,494,54,39,0,0,Math.PI*2);ctx.fill();}
+      ctx.strokeStyle='#f4e0b8';ctx.lineWidth=5;ctx.beginPath();ctx.moveTo(370,195);ctx.lineTo(389,176);ctx.moveTo(439,176);ctx.lineTo(455,196);ctx.stroke();
     } else if (theme === 'anime') {
       // Original cel-shaded Sakura Dawn; procedurally rendered, no remote artwork.
       const sky=ctx.createLinearGradient(0,0,0,h);
