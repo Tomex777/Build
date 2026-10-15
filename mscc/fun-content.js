@@ -58,20 +58,61 @@ export function parseRedditMemes(payload) {
     .filter(row => row.title && row.url)
 }
 
+export function parseMemeApi(payload) {
+  const entries = Array.isArray(payload?.memes) ? payload.memes : payload ? [payload] : []
+  return entries
+    .filter(row => row && row.nsfw !== true && row.spoiler !== true)
+    .map(row => ({
+      title:clean(row.title, 280),
+      url:imageUrl(row.url),
+      permalink:clean(row.postLink, 500),
+      subreddit:clean(row.subreddit, 80),
+      author:clean(row.author, 80),
+    }))
+    .filter(row => row.title && row.url)
+}
+
+// Providers sometimes return an HTML block/rate-limit page in place of JSON.
+// Never leak JSON parsing errors (or the HTML body) into WhatsApp replies.
+async function safeFeedJson(response) {
+  if (!response?.ok) return null
+  const contentType = String(response.headers?.get?.('content-type') || '').toLowerCase()
+  if (contentType && !contentType.includes('json')) return null
+  try {
+    return await response.json()
+  } catch {
+    return null
+  }
+}
+
 export async function randomMeme(category = '', { fetchImpl = globalThis.fetch } = {}) {
   if (typeof fetchImpl !== 'function') throw new Error('Meme service is unavailable.')
   const key = clean(category, 30).toLowerCase()
   const subreddit = MEME_SUBREDDITS[key] || 'memes'
-  const response = await fetchImpl(
-    'https://www.reddit.com/r/' + encodeURIComponent(subreddit) + '/hot.json?limit=60&raw_json=1',
+  const sources = [
     {
-      headers:{ accept:'application/json', 'user-agent':'Night/2.3 meme reader' },
-      signal:AbortSignal.timeout(15000),
+      url:'https://meme-api.com/gimme/' + encodeURIComponent(subreddit) + '/10',
+      parse:parseMemeApi,
     },
-  )
-  const payload = await response.json()
-  if (!response.ok) throw new Error('Meme feed returned HTTP ' + response.status + '.')
-  const rows = parseRedditMemes(payload)
-  if (!rows.length) throw new Error('No usable meme image was found right now.')
-  return rows[Math.floor(Math.random() * rows.length)]
+    {
+      url:'https://www.reddit.com/r/' + encodeURIComponent(subreddit) + '/hot.json?limit=60&raw_json=1',
+      parse:parseRedditMemes,
+    },
+  ]
+
+  for (const source of sources) {
+    try {
+      const response = await fetchImpl(source.url, {
+        headers:{ accept:'application/json', 'user-agent':'Night/2.3 meme reader' },
+        signal:AbortSignal.timeout(8500),
+      })
+      const payload = await safeFeedJson(response)
+      if (!payload) continue
+      const rows = source.parse(payload)
+      if (rows.length) return rows[Math.floor(Math.random() * rows.length)]
+    } catch {
+      // Try the next provider when this one is blocked, malformed, or offline.
+    }
+  }
+  throw new Error('Meme feeds are temporarily unavailable. Try .meme again shortly.')
 }
