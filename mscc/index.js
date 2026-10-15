@@ -25,6 +25,7 @@ import { activityReport, activitySenderKey } from './group-activity.js'
 import { chooseGroupExecutor, canExecuteDirect } from './bot-routing.js'
 import { SourceRegistry } from './source-registry.js'
 import { createSmartAI } from './smart-ai.js'
+import { createReactionSounds, parseReactionSoundDirective } from './reaction-sounds.js'
 import { createAniListResolver } from './anilist-resolver.js'
 import { createTmdbResolver } from './tmdb-resolver.js'
 import { createAdaptationResolver } from './adaptation-resolver.js'
@@ -73,6 +74,7 @@ import { chessRecordAcceptsInput } from './utils/chess-game.js'
 import { ticTacToeRecordAcceptsInput } from './utils/tictactoe-game.js'
 import { checkersRecordAcceptsInput } from './utils/checkers-game.js'
 import { ludoRecordAcceptsInput } from './utils/ludo-game.js'
+import { partyInputDestination } from './utils/party-games.js'
 import { createJosiahAssistant } from './josiah-assistant.js'
 import { createNamiAssistant } from './nami-assistant.js'
 import { createMiMiAssistant } from './mimi-assistant.js'
@@ -148,6 +150,11 @@ const logger = pino({ level: process.env.LOG_LEVEL || 'silent' })
 const startedAt = Date.now()
 const APP_VERSION = '2.3.1'
 const smartAI = createSmartAI()
+const reactionSounds = createReactionSounds({
+  // Shared group settings load lazily so they survive service restarts and do not
+  // depend on editing production environment variables or knowing group JIDs.
+  groupState: jid => sharedStorage?.sharedGet('reaction-sound-groups', jid) || null,
+})
 const aniListResolver = createAniListResolver()
 const tmdbResolver = createTmdbResolver()
 const adaptationResolver = createAdaptationResolver()
@@ -1439,13 +1446,21 @@ async function handleProfileAssistant(account, msg, authority, rawText) {
     isGroup:isGroup(chat),
     groupPersonalities:presence,
     senderPersonality,
+    // No extra model call: this is a small optional instruction in the existing reply.
+    reactionSoundPolicy:isGroup(chat) && !senderPersonality ? await reactionSounds.promptFor(chat) : '',
   })
   if (!result?.ok || !result.text) return false
+  const reaction = parseReactionSoundDirective(result.text)
+  if (!reaction.text) return false
 
-  await sendAssistantReply(account, msg, result.text, {
+  await sendAssistantReply(account, msg, reaction.text, {
     presence,
     allowPersonalityMentions:!senderPersonality,
   })
+  // Only one sound after the normal text, never on AI-to-AI replies.
+  if (reaction.id && isGroup(chat) && !senderPersonality) {
+    await reactionSounds.play(account.sock, chat, reaction.id, { automatic:true })
+  }
   await recordActivity('ai.responded', {
     account:account.id,
     profile:profile?.id || assistant.profileId || '',
@@ -2416,12 +2431,21 @@ async function processInboundMessage(account, msg) {
         !consumeTicTacToeInput &&
         chessRecordAcceptsInput(chessRecord, authority.senderNumber, text)
       )
+      const consumePartyInput = !isExplicitCommand &&
+        !consumeLudoInput && !consumeCheckersInput &&
+        !consumeTicTacToeInput && !consumeChessInput &&
+        partyInputDestination({
+          shared: { get: (namespace, key) => sharedStorage?.sharedGet(namespace, key) },
+          accountId: account.id, chat, text,
+        })
+
       const consumePendingReply = Boolean(
         !isExplicitCommand &&
         !consumeLudoInput &&
         !consumeCheckersInput &&
         !consumeTicTacToeInput &&
         !consumeChessInput &&
+        !consumePartyInput &&
         pendingReply?.command &&
         (
           (pendingReply?.kind === 'number-selection' && looksLikeNumberSelection(text)) ||
@@ -2442,7 +2466,9 @@ async function processInboundMessage(account, msg) {
             ? `${publicPrefix}ttt ~input`
             : consumeChessInput
               ? `${publicPrefix}chess ~input`
-              : consumePendingReply
+              : consumePartyInput
+                ? `${publicPrefix}${consumePartyInput} ~input`
+                : consumePendingReply
                 ? pendingReply.kind === 'album-selection'
                   ? `${publicPrefix}${pendingReply.command} ~selection`
                   : pendingReply.kind === 'choice-selection'
@@ -2456,6 +2482,7 @@ async function processInboundMessage(account, msg) {
         rawText: dispatchText,
         context: {
           account,
+          reactionSounds,
           message: msg,
           controller,
           privateControl,
@@ -2507,7 +2534,7 @@ async function processInboundMessage(account, msg) {
           settings,
           publicPrefix,
           rawCommandText:text,
-          commandReplyInput: (consumePendingReply || consumeLudoInput || consumeCheckersInput || consumeTicTacToeInput || consumeChessInput) ? String(text || '').trim() : '',
+          commandReplyInput: (consumePendingReply || consumeLudoInput || consumeCheckersInput || consumeTicTacToeInput || consumeChessInput || consumePartyInput) ? String(text || '').trim() : '',
           getCommandReplySession: () => readCommandReplySession(account, msg, authority),
           setCommandReplySession: session => writeCommandReplySession(account, msg, authority, session),
           clearCommandReplySession: () => writeCommandReplySession(account, msg, authority, null),
