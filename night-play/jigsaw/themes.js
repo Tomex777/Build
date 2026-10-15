@@ -197,6 +197,7 @@ export function renderThemeArt(board,theme) {
       }
       ctx.globalAlpha=1;ctx.strokeStyle='#ffffff70';ctx.lineWidth=5;
       for(let i=0;i<7;i++){ctx.beginPath();ctx.arc(180+i*79,180+i%3*140,32+i*9,0,Math.PI*1.35);ctx.stroke();}
+    }
 
     return board.sourceCanvas.toDataURL('image/jpeg',0.86);
   }
