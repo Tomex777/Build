@@ -501,3 +501,48 @@ body:not(.ludo-mode)>footer{display:none}
  .table-surface:has(.whot-card) .card-back::after{font-size:13px;padding:11px 3px}
 }
 @media(prefers-reduced-motion:reduce){.playing-card.whot-card{transition:none!important}}
+
+
+/* WHOT v4 — genuinely spacious, portrait-first playing surface.
+   Keep the original cards, dealing animation and tabletop identity. */
+body.whot-mode #club{max-width:1220px;padding-left:clamp(4px,1vw,14px);padding-right:clamp(4px,1vw,14px)}
+body.whot-mode .play-layout{gap:12px}
+body.whot-mode .board-col,
+body.whot-mode .board-area,
+body.whot-mode .controls-col{max-width:1140px;width:100%}
+body.whot-mode .table-surface{
+ width:100%;max-width:none;
+ min-height:clamp(675px,84dvh,960px);
+ border:2px solid #26523a;
+ border-radius:13px;
+ padding:clamp(13px,2.4vw,25px);
+ justify-content:space-between;
+ gap:clamp(20px,4vh,42px);
+}
+body.whot-mode .table-surface>.card-row{justify-content:center;gap:12px}
+body.whot-mode .table-surface .card-pile{min-height:185px;justify-content:center;align-content:center}
+body.whot-mode .table-surface .hand{
+ width:100%;padding:22px 0 5px;
+ border-top:1px solid #d5e8cf55;
+ display:flex;flex-direction:column;align-items:center;overflow:visible
+}
+body.whot-mode .table-surface .hand .card-label{margin-bottom:9px}
+body.whot-mode .table-surface .hand .card-row{
+ display:flex;align-items:center;justify-content:center;flex-wrap:nowrap;
+ gap:8px;width:100%;max-width:100%;min-width:0;overflow:visible;
+ padding:12px 1px 14px;scroll-snap-type:none;scrollbar-width:none;
+}
+body.whot-mode .hand .whot-card{flex:0 0 auto;scroll-snap-align:none}
+body.whot-mode .hand .whot-card:not(:first-child){margin-inline-start:calc(-1 * var(--whot-overlap, 0px))}
+@media(max-width:650px){
+ body.whot-mode #club{padding-left:4px;padding-right:4px}
+ body.whot-mode .board-area{width:100%}
+ body.whot-mode .table-surface{min-height:clamp(650px,84dvh,875px);padding:16px 10px 17px;border-width:1px}
+ body.whot-mode .table-surface .hand{padding-top:19px}
+ body.whot-mode .table-surface .hand .card-row{gap:7px;padding:10px 1px 14px}
+ body.whot-mode .table-surface .card-pile{min-height:165px}
+}
+@media(max-width:370px){
+ body.whot-mode .table-surface{padding-inline:7px}
+ body.whot-mode .table-surface .hand .card-row{gap:5px}
+}
