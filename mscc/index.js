@@ -888,7 +888,7 @@ async function resolveLibraryReleaseState(item = {}) {
 }
 
 async function sendLibraryReleaseDm(item, text) {
-  const phone = digits(item?.userKey)
+  const phone = String(item?.userKey || '')
   if (!/^\d{7,15}$/.test(phone) || !String(text || '').trim()) return false
   const jid = normalizeJid(phone + '@s.whatsapp.net')
 
@@ -919,7 +919,7 @@ function scheduledTaskAccountCandidates() {
 }
 
 async function sendScheduledTaskDm(task) {
-  const phone = digits(task?.userKey)
+  const phone = String(task?.userKey || '')
   if (!/^\d{7,15}$/.test(phone)) return false
   const jid = normalizeJid(phone + '@s.whatsapp.net')
   let text = ''
@@ -1781,7 +1781,7 @@ async function afkPhoneFromJid(account, jid) {
   if (normalized.endsWith('@s.whatsapp.net')) return jidUser(normalized)
   try {
     const phoneJid = await resolvePhoneJid(account, normalized)
-    return jidPhoneNumber(phoneJid) || jidUser(phoneJid)
+    return jidPhoneNumber(phoneJid)
   } catch {
     return ''
   }
@@ -2637,7 +2637,9 @@ async function processInboundMessage(account, msg) {
           clearCommandReplySession: () => writeCommandReplySession(account, msg, authority, null),
           publicCommandsEnabled: settings.publicCommandsEnabled !== false,
           botProfile: sharedStorage?.profileForAccount(account.id) || { id:'unassigned', displayName:'Unassigned', universal:false, basePriority:0 },
-          userKey: authority.senderNumber || '',
+          userKey: authority.senderKey || '',
+          userPhone: authority.senderNumber || '',
+          identityKeys: authority.senderIdentityKeys || [],
           groupKey: isGroup(chat) ? chat : '',
           activityUserKey:activitySenderKey(authority.senderJid),
           getGroupActivity:period => isGroup(chat)
@@ -2660,7 +2662,7 @@ async function processInboundMessage(account, msg) {
           replyInteractive: options => trackSend(() => ui.interactive(options)),
           progress: initial => startProgress(account.sock, chat, initial, { quoted:msg }),
           scheduleAdd: ({ kind = 'reminder', text = '', dueAt, meta = {} }) => addScheduledTask(sharedStorage, {
-            userKey:authority.senderNumber,
+            userKey:authority.senderNumber || (() => { throw new Error('Reminders require a verified WhatsApp phone identity.') })(),
             kind,
             text,
             dueAt,
@@ -2732,12 +2734,12 @@ async function processInboundMessage(account, msg) {
           storageStats: () => sharedStorage?.stats() || { messages:0, profiles:0, routes:0, sharedItems:0, sourceDefaults:0, deliveryDefaults:0 },
           listSources: capability => sourceRegistry?.list(capability) || [],
           sourceMode: capability => sourceRegistry?.mode(capability) || 'user-choice',
-          getSourceDefault: capability => sourceRegistry?.getDefault(authority.senderNumber, capability) || '',
-          setSourceDefault: (capability, sourceId) => sourceRegistry.setDefault(authority.senderNumber, capability, sourceId),
-          clearSourceDefault: capability => sourceRegistry?.clearDefault(authority.senderNumber, capability) || 0,
-          getDeliveryDefault: capability => sharedStorage?.getDeliveryDefault(authority.senderNumber, capability) || null,
-          setDeliveryDefault: (capability, quality, delivery) => sharedStorage.setDeliveryDefault(authority.senderNumber, capability, quality, delivery),
-          clearDeliveryDefault: capability => sharedStorage?.clearDeliveryDefault(authority.senderNumber, capability) || 0,
+          getSourceDefault: capability => sourceRegistry?.getDefault(authority.senderKey, capability) || '',
+          setSourceDefault: (capability, sourceId) => sourceRegistry.setDefault(authority.senderKey, capability, sourceId),
+          clearSourceDefault: capability => sourceRegistry?.clearDefault(authority.senderKey, capability) || 0,
+          getDeliveryDefault: capability => sharedStorage?.getDeliveryDefault(authority.senderKey, capability) || null,
+          setDeliveryDefault: (capability, quality, delivery) => sharedStorage.setDeliveryDefault(authority.senderKey, capability, quality, delivery),
+          clearDeliveryDefault: capability => sharedStorage?.clearDeliveryDefault(authority.senderKey, capability) || 0,
           sourceBrand: capability => sharedStorage?.brandForCapability(capability) || 'Main',
           appVersion:APP_VERSION,
           broadcastNight: text => broadcastNightGroups(account, text),
@@ -2754,12 +2756,12 @@ async function processInboundMessage(account, msg) {
             ).trim().slice(0, 64) || 'Owner'
             return { phoneNumber, displayName }
           },
-          libraryGet: itemKey => sharedStorage?.getLibraryItem(authority.senderNumber, itemKey) || null,
-          libraryBySlot: slot => sharedStorage?.libraryItemBySlot(authority.senderNumber, slot) || null,
-          libraryList: mediaType => sharedStorage?.listLibraryItems(authority.senderNumber, mediaType) || [],
-          libraryPut: item => sharedStorage?.putLibraryItem(authority.senderNumber, item) || null,
-          libraryRemove: itemKey => sharedStorage?.removeLibraryItem(authority.senderNumber, itemKey) || 0,
-          librarySetWatch: (itemKey, enabled) => sharedStorage?.setLibraryWatch(authority.senderNumber, itemKey, enabled) || null,
+          libraryGet: itemKey => sharedStorage?.getLibraryItem(authority.senderKey, itemKey) || null,
+          libraryBySlot: slot => sharedStorage?.libraryItemBySlot(authority.senderKey, slot) || null,
+          libraryList: mediaType => sharedStorage?.listLibraryItems(authority.senderKey, mediaType) || [],
+          libraryPut: item => sharedStorage?.putLibraryItem(authority.senderKey, item) || null,
+          libraryRemove: itemKey => sharedStorage?.removeLibraryItem(authority.senderKey, itemKey) || 0,
+          librarySetWatch: (itemKey, enabled) => sharedStorage?.setLibraryWatch(authority.senderKey, itemKey, enabled) || null,
           libraryPrimeWatch: item => releaseWatcher?.prime(item) || Promise.resolve({ ok:false, reason:'unavailable' }),
           resolveAnimeTitles: query => aniListResolver.resolve(query, 'ANIME'),
           resolveAniListTitles: (query, type = 'ANIME') => aniListResolver.resolve(query, type),
@@ -2773,8 +2775,8 @@ async function processInboundMessage(account, msg) {
           resolveScreenCounterparts: input => adaptationResolver.screenCounterparts(input),
           executeSource: ({ capability, explicitSource = '', pinnedSource = '', excludedSources = [], payload = {} }) => sourceRegistry.execute({
             capability,
-            userKey: authority.senderNumber,
-            explicitSource,
+            userKey: authority.senderKey,
+          explicitSource,
             pinnedSource,
             excludedSources,
             payload,
