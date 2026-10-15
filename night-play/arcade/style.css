@@ -47,3 +47,5 @@ footer span{display:none}
 
 /* Back navigation lives in the approved top bar, not twice on the page. */
 body>footer{display:none}
+
+.touchbar:empty{display:none}
