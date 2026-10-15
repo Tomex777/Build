@@ -3,16 +3,20 @@ package studio.artistscene.app
 import android.os.Bundle
 import android.os.Build
 import android.util.Log
+import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.Color
 import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import java.util.UUID
 import studio.artistscene.core.ProjectMetadata
 import studio.artistscene.core.SceneProject
@@ -44,6 +48,16 @@ class MainActivity : ComponentActivity() {
                     .onFailure { Log.w(RUNTIME_LOG_TAG, "starter-scene-create-failed", it) }
             }
             preferences.edit().putBoolean(STARTER_SEEDED_KEY, true).apply()
+        }
+
+        // Seed a separate real-human figure study on fresh installations and upgrades.
+        // The automated rig fixture remains unchanged, and existing user scenes are untouched.
+        if (!preferences.getBoolean(HUMAN_STUDY_SEEDED_KEY, false)) {
+            if (!store.exists(PrototypeScene.HUMAN_STUDY_PROJECT_ID)) {
+                runCatching { store.save(PrototypeScene.createHumanoidStudy()) }
+                    .onFailure { Log.w(RUNTIME_LOG_TAG, "human-study-create-failed", it) }
+            }
+            preferences.edit().putBoolean(HUMAN_STUDY_SEEDED_KEY, true).apply()
         }
 
         // Clean up presentation-only fixture labels from earlier development builds without
@@ -82,6 +96,27 @@ class MainActivity : ComponentActivity() {
                 var activeProject by remember { mutableStateOf<SceneProject?>(null) }
                 var openedFromDisk by remember { mutableStateOf(false) }
                 var browserMessage by remember { mutableStateOf<String?>(null) }
+
+                // The editor is truly immersive, including when a tool panel is open.
+                // The project browser deliberately retains Android's status bar.
+                val immersive = activeProject != null
+                DisposableEffect(immersive) {
+                    val bars = WindowCompat.getInsetsController(window, window.decorView)
+                    if (immersive) {
+                        window.addFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN)
+                        bars.hide(WindowInsetsCompat.Type.statusBars())
+                        bars.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+                    } else {
+                        window.clearFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN)
+                        bars.show(WindowInsetsCompat.Type.statusBars())
+                    }
+                    onDispose {
+                        if (immersive) {
+                            window.clearFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN)
+                            bars.show(WindowInsetsCompat.Type.statusBars())
+                        }
+                    }
+                }
 
                 val refreshProjects = { projects = runCatching { store.list() }.getOrDefault(emptyList()) }
                 val openProject: (String) -> Unit = { id ->
@@ -162,6 +197,7 @@ class MainActivity : ComponentActivity() {
 }
 
 private const val STARTER_SEEDED_KEY = "starter-scene-seeded-v1"
+private const val HUMAN_STUDY_SEEDED_KEY = "human-study-seeded-v1"
 
 internal fun studio.artistscene.core.SceneProject.propX(): Float =
     actors.firstOrNull { it.id == PrototypeScene.PROP_ID }?.transform?.position?.x ?: 0f

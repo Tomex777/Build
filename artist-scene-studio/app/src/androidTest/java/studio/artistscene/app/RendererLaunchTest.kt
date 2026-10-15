@@ -2,6 +2,7 @@ package studio.artistscene.app
 
 import android.graphics.BitmapFactory
 import android.graphics.Color
+import android.view.WindowManager
 import java.io.File
 import androidx.test.core.app.ActivityScenario
 import androidx.test.platform.app.InstrumentationRegistry
@@ -21,11 +22,18 @@ class RendererLaunchTest {
         // having opened the starter scene or on an empty project store.
         SceneProjectStore(context).save(PrototypeScene.create())
 
-        ActivityScenario.launch(MainActivity::class.java).use {
+        ActivityScenario.launch(MainActivity::class.java).use { scenario ->
             val openStarter = requireNotNull(
                 device.wait(Until.findObject(By.res("project-open-feasibility-stage")), 10_000),
             ) { "Starter scene was not available from the project browser" }
             openStarter.click()
+            // Real full-screen editor: the status bar must not consume viewport space.
+            scenario.onActivity { activity ->
+                assertTrue(
+                    "Studio editor must hide the Android status bar",
+                    activity.window.attributes.flags and WindowManager.LayoutParams.FLAG_FULLSCREEN != 0,
+                )
+            }
 
             val moveTool = requireNotNull(
                 device.wait(Until.findObject(By.res("tool-move")), 45_000),
@@ -47,11 +55,21 @@ class RendererLaunchTest {
                 device.wait(Until.findObject(By.res("inspector")), 10_000),
             ) { "Inspector was not available from the viewport tool strip" }
             inspector.click()
+            scenario.onActivity { activity ->
+                assertTrue(
+                    "The Inspector must not re-enable the status bar",
+                    activity.window.attributes.flags and WindowManager.LayoutParams.FLAG_FULLSCREEN != 0,
+                )
+            }
             val positionX = requireNotNull(
                 device.wait(Until.findObject(By.res("numeric-x")), 10_000),
             ) { "Position X value was not visible in the contextual inspector" }
             val movedX = positionX.text.replace(',', '.').toFloatOrNull()
             assertTrue("Viewport drag did not move X by a visible amount: ${positionX.text}", movedX != null && movedX >= 0.15f)
+            assertTrue(
+                "Could not save Inspector visual evidence",
+                device.takeScreenshot(File(context.getExternalFilesDir(null), "inspector-refined.png")),
+            )
             requireNotNull(device.wait(Until.findObject(By.res("close-context-sheet")), 10_000)) {
                 "Inspector close control was unavailable"
             }.click()

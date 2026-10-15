@@ -1429,7 +1429,7 @@ capture_screen "artist-scene-studio-${API_TAG}-empty-scene.png" || fail "Could n
 python3 scripts/check-viewport-pixels.py "artist-scene-studio-${API_TAG}-landscape.png" "artist-scene-studio-${API_TAG}-resumed.png" "artist-scene-studio-${API_TAG}-empty-scene.png" || fail "Responsive/resumed viewport was black"
 
 # Prove the entire posing loop with a character imported through Android SAF.
-NEW_PROJECT_NAME="$(adb_bounded shell run-as "$APP_ID" ls files/projects | tr -d '\r' | python3 -c 'import sys; print(next(s.strip() for s in sys.stdin if s.strip().endswith(".scene.json") and s.strip() != "feasibility-stage.scene.json"))')" || fail "New scene file was missing"
+NEW_PROJECT_NAME="$(adb_bounded shell run-as "$APP_ID" ls files/projects | tr -d '\r' | python3 -c 'import sys; print(next(s.strip() for s in sys.stdin if s.strip().endswith(".scene.json") and s.strip() not in ("feasibility-stage.scene.json", "human-figure-study.scene.json")))')" || fail "New scene file was missing"
 NEW_PROJECT_ID="${NEW_PROJECT_NAME%.scene.json}"
 NEW_PROJECT_FILE="files/projects/$NEW_PROJECT_NAME"
 dump_window_once || fail "Could not inspect empty scene Add control"
@@ -1633,7 +1633,7 @@ tap_coords "Scene options" "$(tag_coords "project-menu-$NEW_PROJECT_ID")"
 dump_window_once || fail "Could not inspect Duplicate scene action"
 tap_coords "Duplicate scene" "$(tag_coords "duplicate-project-$NEW_PROJECT_ID")"
 sleep 1
-COPY_PROJECT_NAME="$(adb_bounded shell run-as "$APP_ID" ls files/projects | tr -d '\r' | python3 -c 'import sys; excluded=set(sys.argv[1:]); print(next(s.strip() for s in sys.stdin if s.strip().endswith(".scene.json") and s.strip() not in excluded))' feasibility-stage.scene.json "$NEW_PROJECT_NAME")" || fail "Duplicated scene file was missing"
+COPY_PROJECT_NAME="$(adb_bounded shell run-as "$APP_ID" ls files/projects | tr -d '\r' | python3 -c 'import sys; excluded=set(sys.argv[1:]); print(next(s.strip() for s in sys.stdin if s.strip().endswith(".scene.json") and s.strip() not in excluded))' feasibility-stage.scene.json human-figure-study.scene.json "$NEW_PROJECT_NAME")" || fail "Duplicated scene file was missing"
 COPY_PROJECT_ID="${COPY_PROJECT_NAME%.scene.json}"
 adb_bounded shell run-as "$APP_ID" cat "files/projects/$COPY_PROJECT_NAME" > artist-scene-studio-saf-duplicate.json
 python3 - <<'PYCOPY' || fail "Duplicated scene lost its rig or attachments"
