@@ -157,6 +157,14 @@ export function createSquidGame({ storage, accountFor, resolvePhoneJid = async (
       : `💀 *${victims.length} PLAYERS ELIMINATED!*\n${names}\n🦑 ${others.length} remain.`
     try { await send(game, text + (failed.length ? '\n⚠️ Removal/demotion retry pending.' : ''), victims.map(p => p.jid)) } catch {}
     if (others.length <= 1) {
+      // Two almost-simultaneous RED violations must result in a draw, not
+      // a premature winner announcement based only on socket event order.
+      if (others.length === 1 && (game.phase === 'RED' || game.phase === 'FINALIZING')) {
+        game.phase = 'FINALIZING'
+        game.nextAt = now() + 2500
+        save(game.group, game)
+        return
+      }
       await complete(game, others.length
         ? `🏆 *SQUID GAME CHAMPION*\n👑 ${label(others[0].jid)}\n🦑 Last player standing after ${game.round} rounds!`
         : '🦑 *SQUID GAME OVER*\n💀 All remaining players were eliminated. No winner.')
@@ -320,7 +328,7 @@ export function createSquidGame({ storage, accountFor, resolvePhoneJid = async (
     if (!contents || contents.reactionMessage || contents.protocolMessage || contents.pollUpdateMessage || message?.message?.editedMessage) return
     return locked(group, async () => {
       const game = load(group)
-      if (!game || !['GREEN','RED'].includes(game.phase)) return
+      if (!game || !['GREEN','RED','FINALIZING'].includes(game.phase)) return
       if (game.accountId !== accountValue.id) {
         // In multi-account groups only the hosting NIGHT account adjudicates;
         // the other NIGHT personalities stay silent during play.
@@ -345,7 +353,7 @@ export function createSquidGame({ storage, accountFor, resolvePhoneJid = async (
       const rawTimestamp = Number(message.messageTimestamp)
       const sentAt = Number.isFinite(rawTimestamp) && rawTimestamp > 1000000000
         ? rawTimestamp * 1000 : receiptAt
-      if (game.phase === 'RED') {
+      if (game.phase === 'RED' || game.phase === 'FINALIZING') {
         // Avoid punishing a green-light send that arrived around the switch.
         if (receiptAt <= game.graceUntil) {
           if (sentAt <= game.boundaryAt && !forwarded(message)) {
@@ -386,6 +394,13 @@ export function createSquidGame({ storage, accountFor, resolvePhoneJid = async (
           }
           if (now() - (game.nextAt || now()) > 15000) {
             await complete(game, '🛑 Squid Game cancelled after a connection interruption.')
+            return
+          }
+          if (game.phase === 'FINALIZING' && now() >= game.nextAt) {
+            const survivor = livePlayers(game)[0]
+            await complete(game, survivor
+              ? `🏆 *SQUID GAME CHAMPION*\n👑 ${label(survivor.jid)}\n🦑 Last player standing after ${game.round} rounds!`
+              : '🦑 *SQUID GAME OVER*\n💀 No survivors. No winner.')
             return
           }
           if (game.phase === 'RED' && game.graceUntil && now() >= game.graceUntil) {
