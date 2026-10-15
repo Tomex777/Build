@@ -1,5 +1,5 @@
 import { renderTweetCard } from '../../utils/social-card-renderer.js'
-import { resolveSocialAuthor, socialCardText } from '../../utils/social-card-command.js'
+import { resolveSocialAuthor, socialCardText, socialCardMentions } from '../../utils/social-card-command.js'
 import { downloadCommandMedia } from '../../utils/media-conversion.js'
 import { contextInfo, findViewOnceMedia } from '../../utils/whatsapp/messages.js'
 import { randomTweetEngagement } from '../../utils/tweet-engagement.js'
@@ -21,7 +21,7 @@ export default {
     }
 
     const author = await resolveSocialAuthor(ctx, args)
-    const text = socialCardText(ctx, themeConsumed + Number(author.targetConsumed))
+    const text = await socialCardMentions(ctx, socialCardText(ctx, themeConsumed + Number(author.targetConsumed)))
 
     const quoted = contextInfo(ctx.message?.message)?.quotedMessage
     if (findViewOnceMedia(ctx.message?.message) || findViewOnceMedia(quoted)) {
