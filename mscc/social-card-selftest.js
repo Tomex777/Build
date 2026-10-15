@@ -7,6 +7,7 @@ import { socialCardText, socialCardMentions, resolveSocialAuthor, parseSocialEng
 import { resolveCommandMedia } from './utils/media-conversion.js'
 import { dispatchCommand } from './command-registry.js'
 import { randomTweetEngagement, randomPostEngagement, resolveTweetEngagement, resolvePostEngagement } from './utils/tweet-engagement.js'
+import { formatSocialCardTime, randomSocialCardTime } from './utils/social-card-time.js'
 
 // Each tweet is a mock card with fresh, nonzero engagement. The injected
 // random functions make every popularity tier testable without flaky seeds.
@@ -297,6 +298,23 @@ assert.equal(replies.at(-1), 'Use .post [instagram|facebook|story] [@user] <text
 
 // Custom fake engagement controls: exact numbers, suffixes, comma grouping,
 // zero, invalid/duplicate options, Unicode/newlines and actual command output.
+
+const fixedDate = new Date('2026-10-15T09:00:00Z')
+assert.equal(formatSocialCardTime('tweet',180,fixedDate), '6:00 AM · Oct 15, 2026')
+assert.equal(formatSocialCardTime('instagram',180,fixedDate), '3 HOURS AGO')
+assert.equal(formatSocialCardTime('facebook',180,fixedDate), '3h')
+assert.equal(formatSocialCardTime('story',180,fixedDate), '3h')
+assert.equal(formatSocialCardTime('generic',3000,fixedDate), '2 days ago')
+const lowRandom = (min,max) => max === undefined ? 0 : min
+const highRandom = (min,max) => max === undefined ? 99 : max - 1
+assert.equal(randomSocialCardTime('story',{now:fixedDate,random:lowRandom}), '1h')
+assert.equal(randomSocialCardTime('story',{now:fixedDate,random:highRandom}), '23h')
+for (const style of ['tweet','instagram','facebook','story','generic']) {
+  for (const random of [lowRandom,highRandom]) {
+    assert.doesNotMatch(randomSocialCardTime(style,{now:fixedDate,random}), /just now/i)
+  }
+}
+
 const customArgs = { rawArgs:'dark @friend --likes=1.2k --replies 35 --reposts=0 First line ✨\nSecond line', args:[] }
 assert.deepEqual(
   parseSocialEngagementOptions(customArgs,2),
@@ -337,9 +355,10 @@ const customTweetCtx = {
 }
 await tweetCommand.run(customTweetCtx)
 assert.equal(sent.length,3)
-assert.deepEqual(sent.at(-1).payload.image,await renderTweetCard({
+assert.ok(Buffer.isBuffer(sent.at(-1).payload.image))
+assert.notDeepEqual(sent.at(-1).payload.image,await renderTweetCard({
   theme:'dark',text:'Hello 🌙',authorName:'Owner User',
-  likeCount:1200,replyCount:35,repostCount:0,
+  timestamp:'Just now',likeCount:1200,replyCount:35,repostCount:0,
 }))
 
 const customPostCtx = {
@@ -350,13 +369,14 @@ const customPostCtx = {
 await postCommand.run(customPostCtx)
 assert.equal(sent.length,4)
 // The randomized internal view count is not displayed on an Instagram card.
-assert.deepEqual(sent.at(-1).payload.image,await renderPostCard({
+assert.ok(Buffer.isBuffer(sent.at(-1).payload.image))
+assert.notDeepEqual(sent.at(-1).payload.image,await renderPostCard({
   style:'instagram',text:'Hello!',authorName:'Owner User',
-  likeCount:400,commentCount:12,shareCount:5,viewCount:401,
+  postedAt:'JUST NOW',likeCount:400,commentCount:12,shareCount:5,viewCount:401,
 }))
 
 await tweetCommand.run({...ctx,args:['--likes=oops','Hi'],rawArgs:'--likes=oops Hi'})
 assert.equal(sent.length,4)
 assert.match(replies.at(-1),/Invalid --likes/)
 
-console.log('PASS Night tweet & post custom engagement, images, paragraphs, names & glyphs')
+console.log('PASS Night tweet & post custom engagement, natural timestamps, images, names & glyphs')
