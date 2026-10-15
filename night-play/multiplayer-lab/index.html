@@ -1,0 +1,322 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#f8f9f6">
+<title>NIGHT Play · Multiplayer UX Lab</title>
+<meta name="description" content="Separate, interactive NIGHT Play multiplayer user-interface experiment. No live opponent connections.">
+<style>
+:root{--bg:#f7f9f6;--paper:#fff;--ink:#193328;--ink2:#315646;--green:#245b42;--green2:#3c7d5f;--pale:#ecf4ed;--line:#dfebe0;--muted:#748579;--orange:#e9a35c;--shadow:0 15px 50px #183d2610}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);font-family:Inter,"DM Sans",Arial,system-ui,sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased}
+button,a{font:inherit;-webkit-tap-highlight-color:transparent}
+button{cursor:pointer}button:disabled{cursor:not-allowed;opacity:.55}
+a{text-decoration:none;color:inherit}
+button:focus-visible,a:focus-visible{outline:3px solid #82ab8c;outline-offset:3px}
+[hidden]{display:none!important}
+.wrap{max-width:1140px;margin:auto;padding:0 25px}
+header{height:70px;background:#fbfcf9;border-bottom:1px solid var(--line);display:flex;align-items:center}
+.nav{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:9px}
+.back{justify-self:start;display:inline-flex;gap:8px;align-items:center;color:var(--ink2);font-size:12px;font-weight:850}
+.back svg{width:17px}
+.brand{display:flex;align-items:center;gap:8px;white-space:nowrap;letter-spacing:-.7px;font-size:15px;font-weight:950}
+.brand svg{width:32px;height:32px;border-radius:6px}
+.brand em{font-size:12px;letter-spacing:.1px;font-style:normal;color:#93a39a}
+.lab-chip{justify-self:end;color:#3b6e52;background:#e7f1e8;border:1px solid #d4e5d6;border-radius:99px;padding:8px 11px;font-size:10px;font-weight:850;letter-spacing:1px}
+main{padding-top:40px;padding-bottom:55px}
+.eyebrow{font-size:10px;font-weight:950;color:#699179;letter-spacing:2px;text-transform:uppercase}
+h1{font-size:clamp(34px,6vw,57px);line-height:1.02;letter-spacing:-2.6px;margin:13px 0 12px;font-weight:950}
+h1 span{color:#7d9687}
+.intro{font-size:14px;line-height:1.7;color:var(--muted);margin:0;max-width:690px}
+.notice{margin:24px 0 24px;border-radius:12px;border:1px solid #e9e3c9;background:#fcfaef;display:flex;align-items:center;gap:10px;padding:11px 15px;color:#7e713f;font-weight:680;font-size:11px;line-height:1.5}
+.notice b{letter-spacing:.7px;color:#685b30;font-weight:950}
+.games-label{font-size:10px;letter-spacing:1.5px;color:#75907d;font-weight:950;text-transform:uppercase;margin:21px 0 10px}
+.game-tabs{display:flex;flex-wrap:wrap;gap:8px}
+.game-tab{display:inline-flex;gap:9px;align-items:center;border:1px solid var(--line);background:var(--paper);padding:12px 16px;border-radius:12px;font-size:12px;font-weight:830;color:var(--ink2);transition:background .18s,color .18s,transform .18s;min-height:48px}
+.game-tab:hover{transform:translateY(-2px)}
+.game-tab[aria-pressed=true]{background:var(--green);border-color:var(--green);color:white}
+.tab-icon{font-weight:950;font-size:16px;line-height:1}
+.grid{display:grid;grid-template-columns:minmax(310px,.86fr) minmax(0,1.14fr);gap:21px;margin-top:21px;align-items:start}
+.card{background:var(--paper);border:1px solid var(--line);border-radius:22px;box-shadow:var(--shadow);min-width:0}
+.selector{padding:24px}
+.step-label{font-size:10px;font-weight:900;letter-spacing:1.5px;color:#8ca097;text-transform:uppercase}
+.selector h2{font-size:27px;line-height:1.1;letter-spacing:-1px;margin:10px 0 9px;font-weight:950}
+.selector p.sub{font-size:12px;color:#7b8d82;line-height:1.7;margin:0 0 22px}
+.options{display:grid;gap:11px}
+.option{width:100%;border-radius:14px;display:flex;text-align:left;align-items:center;gap:13px;padding:17px 15px;background:#fbfcf9;border:1px solid #e1ebde;color:var(--ink);transition:border-color .2s,background .2s,transform .2s}
+.option:hover{background:#f2f8f0;border-color:#89b09a;transform:translateY(-1px)}
+.option .opt-ico{display:grid;place-items:center;background:#e7f3e9;border-radius:12px;width:47px;height:47px;flex:0 0 47px;color:#245b42;font-size:21px;font-weight:900}
+.option strong{display:block;font-size:14px;letter-spacing:-.25px;margin-bottom:5px}
+.option small{display:block;font-size:11px;line-height:1.5;color:#849489;font-weight:580}
+.option .chev{margin-left:auto;color:#759284;font-size:22px}
+.wide{width:100%;padding:14px 18px;border-radius:12px;background:var(--green);color:white;border:1px solid var(--green);font-size:13px;font-weight:900;min-height:48px}
+.wide.secondary{background:#f4f8f3;color:#326448;border-color:#d8e8db}
+.wide.ghost{background:transparent;color:#466a54;border-color:transparent}
+.wide:hover{filter:brightness(.96)}
+.actions{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:14px}
+.actions .wide{min-width:0;padding:12px 8px;font-size:12px}
+.section-divider{border:0;border-top:1px solid var(--line);margin:19px 0}
+.explain{font-size:11px!important;color:#8a9a90!important;margin:13px 0 0!important;line-height:1.65}
+.room{padding:15px;border:1px dashed #a3c6a9;background:#f6faf5;border-radius:15px;margin:13px 0}
+.room-code{font-size:31px;letter-spacing:5px;font-weight:950;text-align:center;margin:8px 0;color:#214b35;font-variant-numeric:tabular-nums}
+.room-cap{text-align:center;font-size:10px;letter-spacing:1.1px;font-weight:850;color:#83a18b}
+.room-url{text-align:center;font-size:11px;color:#758b7a;margin:0 0 12px;overflow-wrap:anywhere}
+.members{display:grid;gap:10px;margin:18px 0}
+.member{display:flex;align-items:center;gap:10px;font-size:12px;font-weight:850}
+.avatar{width:39px;height:39px;border-radius:50%;background:#e5f2e7;color:#2b6847;display:grid;place-items:center;font-weight:950;flex:none}
+.avatar.other{background:#f3e8d6;color:#8c6e3e}
+.member small{display:block;color:#96a498;margin-top:4px;font-weight:600}
+.spinner{margin:20px auto;border:5px solid #e2eee4;border-top-color:#2d7951;width:68px;height:68px;border-radius:50%;animation:spin 1s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.status-card{text-align:center;background:#f6f9f5;border:1px solid #e6ede4;border-radius:16px;padding:19px 12px}
+.status-card strong{display:block;margin-bottom:6px;font-size:14px}
+.status-card small{font-size:11px;color:#839386}
+.tiny-back{display:inline-flex;align-items:center;gap:5px;background:none;border:none;padding:0;color:#649073;font-size:12px;font-weight:800;margin-bottom:16px}
+.arena{padding:20px 20px 22px;position:relative;overflow:hidden}
+.arena-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:17px}
+.arena-head h3{font-size:17px;letter-spacing:-.5px;margin:2px 0 0}
+.arena-head small{color:#86a08f;font-size:10px;letter-spacing:1.1px;font-weight:900}
+.arena-badge{font-size:10px;border-radius:99px;background:#e8f3eb;color:#45805c;font-weight:850;padding:8px 11px;white-space:nowrap}
+.players{display:grid;grid-template-columns:1fr auto 1fr;gap:8px;align-items:center;margin-bottom:14px}
+.player{min-width:0;background:#f7faf6;padding:12px 11px;border-radius:12px;border:1px solid #e7eee5;display:flex;align-items:center;gap:8px}
+.player .avatar{width:31px;height:31px;font-size:10px}
+.player strong{font-size:11px;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.player small{display:block;font-size:9px;color:#8fa396;margin-top:4px}
+.vs{font-size:11px;color:#a5b6a7;font-weight:900}
+.board-wrap{display:grid;place-items:center;padding:18px 13px;background:radial-gradient(circle at 40% 25%,#edf5e8,#dfe9dc);border:1px solid #d9e6d5;border-radius:17px;min-height:308px;position:relative;overflow:hidden}
+.xoboard{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;width:min(100%,340px);aspect-ratio:1}
+.xocell{background:#fff;border:1px solid #d5e4d2;border-radius:13px;display:grid;place-items:center;aspect-ratio:1;font-size:clamp(32px,8vw,67px);font-weight:900;color:#296f4c;line-height:1;box-shadow:0 4px 8px #1d45240c}
+.xocell[data-mark=O]{color:#d2934b}
+.xocell:disabled{opacity:1}
+.board-foot{text-align:center;color:#7c9383;font-size:11px;margin:15px 0 0;min-height:16px}
+.mini-hint{background:#f5f8f3;border:1px solid #e9eee6;border-radius:11px;color:#7a927f;font-size:11px;margin-top:14px;padding:12px 13px;line-height:1.55}
+.table-board{width:min(100%,330px);aspect-ratio:1;display:grid;grid-template-columns:repeat(8,1fr);border:6px solid #446b4f;border-radius:7px;overflow:hidden;box-shadow:0 12px 22px #193d2d18}
+.sq{display:grid;place-items:center;min-width:0;font-size:clamp(18px,4.8vw,35px)}
+.sq.light{background:#f5f0d9}.sq.dark{background:#72987b}
+.sq span{filter:drop-shadow(0 2px 1px #234a2529);user-select:none}
+.check-piece{height:64%;width:64%;border-radius:50%;background:linear-gradient(135deg,#fbfcf8,#c1d0c1);border:3px solid #8aab95;box-shadow:0 3px 0 #8aab95,0 6px 6px #0002}
+.check-piece.dark-piece{background:linear-gradient(135deg,#6a443b,#302119);border-color:#2c221d;box-shadow:0 3px 0 #251b16,0 6px 6px #0002}
+.j-board{width:min(100%,340px);aspect-ratio:1;display:grid;grid-template-columns:repeat(3,1fr);gap:4px;background:#acc9af;border:5px solid #acc9af;border-radius:9px;position:relative;isolation:isolate}
+.j-slot{border:1px dashed #9bb9a0;background:#f0f5ea;display:grid;place-items:center;color:#b4c3ad;font-size:12px;min-width:0;min-height:0;position:relative}
+.j-slot.placed{border-style:solid}
+.j-slot.placed::before,.j-tile::before{content:"";position:absolute;inset:0;background:var(--piece-color);opacity:.92}
+.j-slot.placed::after,.j-tile::after{content:"";position:absolute;inset:10%;border-radius:55%;border:5px solid #fff7;transform:rotate(var(--rot,0deg))}
+.j-slot:not(.placed)::after{content:"+";font-size:21px;opacity:.35}
+.j-slot.placed::after{z-index:2}
+.j-tilebox{display:flex;gap:6px;flex-wrap:wrap;justify-content:center;max-width:370px;margin:12px auto 0}
+.j-tile{position:relative;display:grid;place-items:center;width:55px;height:55px;border:2px solid #c5dbc3;border-radius:9px;overflow:hidden;background:#fff}
+.j-tile[aria-pressed=true]{outline:3px solid #347854;transform:translateY(-4px)}
+.j-tile:before{inset:0}
+.j-tile:after{z-index:1}
+.j-tile strong{z-index:3;position:absolute;top:3px;left:5px;color:#193d27;font-size:10px;text-shadow:0 1px white}
+.demo-cursor{position:absolute;left:60%;top:45%;display:none;pointer-events:none;transition:left 1.2s ease,top 1.2s ease;z-index:5}
+.demo-cursor.active{display:flex;align-items:center;gap:4px}
+.demo-cursor span{background:#333f38;color:#fff;font-size:9px;padding:4px 7px;border-radius:6px;white-space:nowrap}
+.demo-cursor svg{width:19px;filter:drop-shadow(0 2px 1px #0005)}
+.mode-note{display:flex;align-items:center;gap:7px;font-size:10px;margin-top:12px;color:#809387}
+.mode-note:before{content:"";width:7px;height:7px;background:#e8a75d;border-radius:50%;flex:none}
+footer{padding:24px 0;border-top:1px solid var(--line);color:#84968a;text-align:center;font-size:11px;line-height:1.7}
+#toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:30;max-width:min(450px,95vw);padding:12px 18px;border-radius:12px;background:#183d29;color:#fff;font-size:12px;font-weight:750;box-shadow:0 13px 25px #0002;text-align:center}
+@media(max-width:760px){.wrap{padding:0 14px}.nav{grid-template-columns:1fr auto 1fr}.back{font-size:0}.back svg{width:21px}.lab-chip{padding:7px 8px;font-size:8px;letter-spacing:.4px}header{height:59px}.brand{font-size:13px;gap:6px}.brand svg{width:27px;height:27px}main{padding-top:23px}h1{font-size:36px;letter-spacing:-1.8px}.intro{font-size:12px}.notice{margin:18px 0}.game-tabs{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}.game-tab{flex-direction:column;gap:6px;padding:10px 4px;min-width:0;font-size:10px;min-height:67px}.tab-icon{font-size:18px}.grid{grid-template-columns:1fr;gap:14px}.selector{padding:20px}.selector h2{font-size:25px}.arena{padding:15px}.board-wrap{min-height:0}.xoboard{max-width:310px}.table-board{max-width:300px}.sq{font-size:clamp(17px,6vw,30px)}}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap nav" style="width:100%">
+    <a class="back" href="/games" aria-label="Back to NIGHT Play Games"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m14 5-7 7 7 7M8 12h12"/></svg> Games</a>
+    <a class="brand" href="/dashboard" aria-label="NIGHT Play home"><svg viewBox="0 0 108 108" aria-hidden="true"><path fill="#0B0F11" d="M0 0h108v108H0z"/><path fill="#F4F5F6" d="M24 54 C24 37.43 37.43 24 54 24 C70.57 24 84 37.43 84 54 L24 54 Z"/><path fill="#F4F5F6" d="M22 66h64v6H22z"/></svg><strong>NIGHT <em>PLAY</em></strong></a>
+    <div class="lab-chip">UX LAB · ISOLATED</div>
+  </div>
+</header>
+<main class="wrap">
+  <div class="eyebrow">MULTIPLAYER EXPERIENCE · CONCEPT 01</div>
+  <h1>Your game.<br><span>Your opponent.</span></h1>
+  <p class="intro">Choose who to play with, find someone new, or challenge a friend. Explore the flow before we add real online connections.</p>
+  <div class="notice"><b>PROTOTYPE ONLY</b> · These screens are interactive previews. No real players, matchmaking, remote invites, or shared sessions are connected.</div>
+  <div class="games-label">Choose a game</div>
+  <div class="game-tabs" role="group" aria-label="Select a game">
+    <button type="button" class="game-tab" data-game="xo" aria-pressed="true"><span class="tab-icon">X/O</span> Tic-Tac-Toe</button>
+    <button type="button" class="game-tab" data-game="chess" aria-pressed="false"><span class="tab-icon">♞</span> Chess</button>
+    <button type="button" class="game-tab" data-game="draughts" aria-pressed="false"><span class="tab-icon">⛀</span> Draughts</button>
+    <button type="button" class="game-tab" data-game="jigsaw" aria-pressed="false"><span class="tab-icon">▧</span> Jigsaw</button>
+  </div>
+  <div class="grid">
+    <section class="card selector" aria-label="Choose who to play with"><div id="flow" aria-live="polite"></div></section>
+    <section class="card arena" aria-label="Live visual game preview">
+      <div class="arena-head"><div><small>GAME PREVIEW</small><h3 id="boardTitle">Tic-Tac-Toe</h3></div><span class="arena-badge" id="boardBadge">READY TO PLAY</span></div>
+      <div class="players"><div class="player"><span class="avatar">YOU</span><span><strong>You</strong><small id="youLabel">Player X</small></span></div><span class="vs" id="vsLabel">VS</span><div class="player"><span class="avatar other" id="opponentAvatar">?</span><span><strong id="opponentName">Choose opponent</strong><small id="opponentLabel">Waiting</small></span></div></div>
+      <div class="board-wrap" id="boardWrap"><div id="board" style="width:100%;display:grid;place-items:center"></div><div class="demo-cursor" id="demoCursor" aria-hidden="true"><svg viewBox="0 0 24 24" fill="#f2cb84" stroke="#233b28" stroke-width="1.3"><path d="M3 2l2 17 5-5 5 6 3-2-5-6 7-2z"/></svg><span>Friend · demo</span></div></div>
+      <p class="board-foot" id="boardFoot">Choose a mode to start.</p>
+      <div class="mini-hint" id="boardHint">The board keeps the familiar NIGHT Play visual language. Multiplayer choices belong at the beginning of a match, not over your gameplay.</div>
+      <div class="mode-note">Online flows and the remote player cursor are simulations in this prototype.</div>
+    </section>
+  </div>
+</main>
+<footer><div class="wrap">NIGHT Play · Separate experimental branch and preview · The actively developed site is untouched.</div></footer>
+<div id="toast" role="status" aria-live="polite" hidden></div>
+<script>
+(function(){
+  "use strict";
+  const names={xo:"Tic-Tac-Toe",chess:"Chess",draughts:"Draughts",jigsaw:"Jigsaw"};
+  const palette=["#e0b787","#4e8569","#7ca9bf","#d9ab91","#8ea271","#ac91aa","#d3c67c","#83b0a5","#c8a68f"];
+  const state={game:"xo",step:"choose",mode:null,room:"",marks:Array(9).fill(""),turn:"X",winner:"",pieces:[],selected:null,helpTime:0};
+  const $=s=>document.querySelector(s);
+  const escapeHTML=s=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+  let toastTimer=null,oppTimer=null,cursorTimer=null;
+  function toast(message){const el=$("#toast");el.textContent=message;el.hidden=false;clearTimeout(toastTimer);toastTimer=setTimeout(()=>el.hidden=true,3200);}
+  function resetGame(){clearTimeout(oppTimer);clearInterval(cursorTimer);state.marks=Array(9).fill("");state.turn="X";state.winner="";state.pieces=[];state.selected=null;}
+  function makeCode(){const alphabet="ABCDEFGHJKLMNPQRSTUVWXYZ23456789";let s="";const a=new Uint32Array(6);if(crypto&&crypto.getRandomValues)crypto.getRandomValues(a);else for(let i=0;i<6;i++)a[i]=Math.random()*1000000;for(let i=0;i<6;i++)s+=alphabet[a[i]%alphabet.length];return s;}
+  function setStep(step,mode){clearTimeout(oppTimer);clearInterval(cursorTimer);state.step=step;if(mode!==undefined)state.mode=mode;if(step==="match")resetGame();render();}
+  function back(){if(state.step==="match"){setStep(state.mode==="bot"?"choose":state.mode==="solo"?"choose":"online",null);}else if(state.step==="friend"||state.step==="quick"){setStep("online",null);}else{setStep("choose",null);}}
+  const modeCard=(symbol,title,desc,action)=>'<button class="option" data-action="'+action+'"><span class="opt-ico">'+symbol+'</span><span><strong>'+title+'</strong><small>'+desc+'</small></span><span class="chev">›</span></button>';
+  function renderFlow(){
+    const isPuzzle=state.game==="jigsaw";
+    let head="",body="";
+    if(state.step==="choose"){
+      head='<span class="step-label">01 / OPPONENT</span><h2>How do you want to play?</h2><p class="sub">Your choice applies only to this game. Switch anytime before the next match.</p>';
+      body='<div class="options">'+modeCard(isPuzzle?"▧":"♟",isPuzzle?"Play Solo":"Play vs Bot",isPuzzle?"Take on the puzzle yourself.":"Play a computer opponent.","bot")+modeCard("↗",isPuzzle?"Play Together":"Play Online",isPuzzle?"Invite someone to solve one puzzle with you.":"Challenge anyone, anywhere — random or invited.","online")+'</div><p class="explain">No same-device pass-and-play mode in this design.</p>';
+    }else if(state.step==="online"){
+      head='<button class="tiny-back" data-action="back">← Who to play with</button><span class="step-label">02 / ONLINE</span><h2>'+(isPuzzle?"Solve it together.":"Find your next rival.")+'</h2><p class="sub">Choose how you want to connect to another player.</p>';
+      body='<div class="options">'+(isPuzzle?"":modeCard("↝","Quick Match","Match with a random online player.","quick"))+modeCard("✉",isPuzzle?"Invite a Partner":"Challenge a Friend","Private link or code for someone you choose.","friend")+'</div>';
+    }else if(state.step==="friend"){
+      head='<button class="tiny-back" data-action="back">← Online choices</button><span class="step-label">03 / PRIVATE MATCH</span><h2>Invite your friend.</h2><p class="sub">A private room would let the invited person join on another device.</p>';
+      body='<div class="room"><div class="room-cap">PREVIEW ROOM CODE</div><div class="room-code">'+escapeHTML(state.room)+'</div><div class="room-url">nightplay / '+escapeHTML(state.room.toLowerCase())+'</div><button type="button" class="wide secondary" data-action="copy">Copy sample invitation</button></div>'+
+      '<div class="members"><div class="member"><span class="avatar">YOU</span><span>You <small>Ready</small></span></div><div class="member"><span class="avatar other">?</span><span>Your friend <small>Invitation not connected in this prototype</small></span></div></div>'+
+      '<button class="wide" data-action="demo-match">'+(isPuzzle?"Preview a shared puzzle":"Preview an accepted challenge")+'</button><p class="explain">The room code is illustrative. It cannot connect two devices yet.</p>';
+    }else if(state.step==="quick"){
+      head='<button class="tiny-back" data-action="back">← Online choices</button><span class="step-label">03 / QUICK MATCH</span><h2>Finding an opponent.</h2><p class="sub">This is what a real search would feel like; no matchmaking request is being sent.</p>';
+      body='<div class="status-card"><div class="spinner" aria-hidden="true"></div><strong>Searching for a rival…</strong><small>UX simulation · no player connection</small></div><div class="actions"><button class="wide secondary" data-action="back">Cancel</button><button class="wide" data-action="demo-match">Preview match</button></div>';
+    }else if(state.step==="match"){
+      const bot=state.mode==="bot",solo=state.mode==="solo";
+      head='<button class="tiny-back" data-action="back">← Change opponent</button><span class="step-label">GAMEPLAY PREVIEW</span><h2>'+(bot?"Against the bot":solo?"Your puzzle. Your pace.":isPuzzle?"One puzzle. Two people.":"Two players. One match.")+'</h2><p class="sub">'+(bot?"Try a local X/O round or preview the game board.":solo?"Try placing the pieces to get a feel for the puzzle.":"A simulated partner shows how the shared game screen might feel.")+'</p>';
+      body='<div class="status-card"><strong>'+(state.winner?escapeHTML(state.winner):"Game in progress · preview")+'</strong><small>'+(bot?"Local bot mode":solo?"Local solo mode":"Simulated remote player — NOT a live match")+'</small></div>'+
+       '<div class="actions"><button class="wide secondary" data-action="reset">New round</button><button class="wide" data-action="back">Change mode</button></div>';
+      if(!bot&&!solo)body+='<p class="explain">The opponent and their actions are simulated. This is a UX prototype, not working online multiplayer.</p>';
+      else if(state.game!=="xo"&&state.game!=="jigsaw")body+='<p class="explain">This lab previews the mode selector and boards. Full Chess/Draughts rule engines are still in the original games.</p>';
+    }
+    $("#flow").innerHTML=head+body;
+  }
+  function makeXO(){
+    const preview=["X","","","O","X","","","O",""];
+    const arr=state.step==="match"?state.marks:preview;
+    let html='<div class="xoboard" role="grid" aria-label="Tic-Tac-Toe board">';
+    for(let i=0;i<9;i++){
+      const cell=arr[i];html+='<button type="button" role="gridcell" class="xocell" data-cell="'+i+'" data-mark="'+cell+'" aria-label="Row '+(Math.floor(i/3)+1)+' column '+(i%3+1)+(cell?", "+cell:"")+'" '+(cell||state.step!=="match"||state.winner||state.turn!=="X"?"disabled":"")+'>'+escapeHTML(cell)+'</button>';
+    }
+    return html+"</div>";
+  }
+  const chessRows=["♜♞♝♛♚♝♞♜","♟♟♟♟♟♟♟♟","        ","        ","        ","        ","♙♙♙♙♙♙♙♙","♖♘♗♕♔♗♘♖"];
+  function makeTable(){
+    let html='<div class="table-board" aria-label="'+(state.game==="chess"?"Chess":"Draughts")+' visual board preview">';
+    for(let r=0;r<8;r++)for(let c=0;c<8;c++){
+      const dark=(r+c)%2===1;
+      let item="";
+      if(state.game==="chess"){const ch=chessRows[r][c];item=ch&&ch!==" "?"<span>"+ch+"</span>":"";}
+      else if(dark&&(r<3||r>4))item='<span class="check-piece'+(r<3?' dark-piece':'')+'"></span>';
+      html+='<div class="sq '+(dark?"dark":"light")+'">'+item+"</div>";
+    }
+    return html+"</div>";
+  }
+  function makeJigsaw(){
+    let placed=state.pieces;const isMatch=state.step==="match";
+    let html='<div class="j-board" aria-label="Interactive 3 by 3 puzzle preview">';
+    for(let i=0;i<9;i++)html+='<button type="button" class="j-slot '+(placed.includes(i)?"placed":"")+'" data-slot="'+i+'" '+(placed.includes(i)||!isMatch?"disabled":"")+' style="--piece-color:'+palette[i]+';--rot:'+(i*19)+'deg" aria-label="Puzzle slot '+(i+1)+(placed.includes(i)?", filled":"")+'"></button>';
+    html+='</div>';
+    if(isMatch){html+='<div class="j-tilebox" aria-label="Loose pieces, select then select matching board spot">';
+    for(const i of [7,3,1,8,4,0,6,2,5])if(!placed.includes(i))html+='<button class="j-tile" type="button" aria-pressed="'+(state.selected===i)+'" data-piece="'+i+'" style="--piece-color:'+palette[i]+';--rot:'+(i*19)+'deg"><strong>'+(i+1)+'</strong></button>';
+    html+='</div>';}
+    return html;
+  }
+  function renderBoard(){
+    const isPuzzle=state.game==="jigsaw",isMatch=state.step==="match",simulated=state.mode==="online"&&isMatch;
+    $("#boardTitle").textContent=names[state.game];
+    $("#boardBadge").textContent=!isMatch?"MODE PREVIEW":simulated?"SIMULATION":state.mode==="bot"?"VS BOT":"SOLO";
+    $("#youLabel").textContent=isPuzzle?"Puzzle host":"Player 1";
+    $("#vsLabel").textContent=isPuzzle?"＋":"VS";
+    $("#opponentName").textContent=state.mode==="bot"&&isMatch?"NIGHT Bot":simulated?(isPuzzle?"Demo partner":"Demo opponent"):isPuzzle?"Partner":"Choose opponent";
+    $("#opponentLabel").textContent=simulated?"Simulated on this device":state.mode==="bot"&&isMatch?"Local AI":"Not connected";
+    $("#opponentAvatar").textContent=simulated?"P":state.mode==="bot"&&isMatch?"AI":"?";
+    $("#board").innerHTML=state.game==="xo"?makeXO():isPuzzle?makeJigsaw():makeTable();
+    $("#boardFoot").textContent=!isMatch?"Choose how you want to play.":state.winner|| (state.game==="xo"?(state.turn==="X"?"Your turn":"Opponent's turn (demo)") :isPuzzle?"Select a loose piece, then its numbered position.":"Board preview — no chess/checkers engine inside this lab.");
+    $("#boardHint").textContent=isPuzzle?(isMatch?"Tap a numbered loose piece, then the same-number position on the board (positions count left-to-right).":"Jigsaw would have Solo and Play Together. A real shared puzzle would sync every piece and its movement.") :isMatch?"Gameplay is uninterrupted; change mode or start again from the match controls.":"Bot, random opponent, or a deliberate friend challenge — without hiding modes inside Settings.";
+    $("#demoCursor").classList.toggle("active",simulated&&isPuzzle);
+  }
+  function render(){
+    document.querySelectorAll("[data-game]").forEach(btn=>btn.setAttribute("aria-pressed",String(btn.dataset.game===state.game)));
+    renderFlow();renderBoard();
+    if(state.step==="match"&&state.mode==="online"&&state.game==="jigsaw"){
+      const el=$("#demoCursor");let index=0;const points=[[67,27],[39,51],[75,77],[29,35],[58,62]];
+      cursorTimer=setInterval(()=>{index=(index+1)%points.length;el.style.left=points[index][0]+"%";el.style.top=points[index][1]+"%";},1700);
+    }
+  }
+  function determineWinner(m){
+    const wins=[[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
+    for(const [a,b,c] of wins)if(m[a]&&m[a]===m[b]&&m[a]===m[c])return m[a];
+    return m.every(Boolean)?"DRAW":"";
+  }
+  function chooseBotCell(){
+    const free=state.marks.map((v,i)=>v=== ""?i:-1).filter(n=>n>=0);
+    for(const sign of ["O","X"])for(const i of free){const trial=[...state.marks];trial[i]=sign;if(determineWinner(trial)===sign)return i;}
+    if(free.includes(4))return 4;
+    return free[Math.floor(Math.random()*free.length)];
+  }
+  function xoMove(i){
+    if(state.step!=="match"||state.game!=="xo"||state.turn!=="X"||state.marks[i]||state.winner)return;
+    state.marks[i]="X";state.turn="O";const w=determineWinner(state.marks);
+    if(w){finishXO(w);return;}
+    renderBoard();
+    oppTimer=setTimeout(()=>{if(state.step!=="match"||state.game!=="xo"||state.winner)return;
+      const free=state.marks.map((v,k)=>v===""?k:-1).filter(k=>k>=0);
+      if(!free.length)return;
+      const choice=state.mode==="bot"?chooseBotCell():free[Math.floor(Math.random()*free.length)];
+      state.marks[choice]="O";
+      const result=determineWinner(state.marks);
+      if(result){finishXO(result);return;}
+      state.turn="X";renderBoard();
+    },state.mode==="bot"?450:800);
+  }
+  function finishXO(w){
+    state.winner=w==="DRAW"?"Draw round":w==="X"?"You win!":state.mode==="bot"?"Bot wins":"Demo opponent wins";render();
+  }
+  document.addEventListener("click",async function(ev){
+    const gameBtn=ev.target.closest("[data-game]");
+    if(gameBtn){state.game=gameBtn.dataset.game;state.mode=null;state.step="choose";resetGame();render();return;}
+    const act=ev.target.closest("[data-action]");
+    if(act){
+      const a=act.dataset.action;
+      if(a==="bot"){resetGame();setStep("match",state.game==="jigsaw"?"solo":"bot");}
+      else if(a==="online")setStep("online","online");
+      else if(a==="quick")setStep("quick","online");
+      else if(a==="friend"){state.room=makeCode();setStep("friend","online");}
+      else if(a==="back")back();
+      else if(a==="demo-match")setStep("match","online");
+      else if(a==="reset")setStep("match",state.mode);
+      else if(a==="copy"){
+        const sample="NIGHT Play multiplayer UX PROTOTYPE — sample room "+state.room+". This is only a design preview; joining from another device is not available yet.";
+        try{await navigator.clipboard.writeText(sample);toast("Sample invitation copied — preview only.");}
+        catch(_){toast("Clipboard unavailable; demo code: "+state.room);}
+      }
+      return;
+    }
+    const cell=ev.target.closest("[data-cell]");
+    if(cell){xoMove(Number(cell.dataset.cell));return;}
+    const piece=ev.target.closest("[data-piece]");
+    if(piece){state.selected=Number(piece.dataset.piece);renderBoard();return;}
+    const slot=ev.target.closest("[data-slot]");
+    if(slot&&state.step==="match"&&state.game==="jigsaw"){
+      const i=Number(slot.dataset.slot);
+      if(state.selected===null){toast("Select a loose piece below first.");return;}
+      if(i!==state.selected){toast("Try the matching position for piece "+(state.selected+1)+".");return;}
+      if(!state.pieces.includes(i))state.pieces.push(i);
+      state.selected=null;
+      if(state.pieces.length===9){state.winner="Puzzle complete!";toast("Puzzle completed — congratulations!");}
+      render();
+    }
+  });
+  render();
+})();
+</script>
+</body>
+</html>
