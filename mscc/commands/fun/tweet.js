@@ -1,16 +1,17 @@
 import { renderTweetCard } from '../../utils/social-card-renderer.js'
-import { resolveSocialAuthor, socialCardText, socialCardMentions } from '../../utils/social-card-command.js'
+import { randomSocialCardTime } from '../../utils/social-card-time.js'
+import { resolveSocialAuthor, socialCardMentions, parseSocialEngagementOptions } from '../../utils/social-card-command.js'
 import { downloadCommandMedia } from '../../utils/media-conversion.js'
 import { contextInfo, findViewOnceMedia } from '../../utils/whatsapp/messages.js'
-import { randomTweetEngagement } from '../../utils/tweet-engagement.js'
+import { resolveTweetEngagement } from '../../utils/tweet-engagement.js'
 
 const THEMES = new Set(['dark','light'])
 
 export default {
   name:'tweet',
   description:'Create a tweet-like Night card with multiline text and optional photos.',
-  usage:'.tweet [dark|light] [@user] <text> (optionally reply to a photo or caption one)',
-  help:'Preserves line breaks, Unicode and emojis. Reply to a regular image with .tweet <text>, or send an image with .tweet <text> as the caption. Photo-only cards are supported; view-once media is not.',
+  usage:'.tweet [dark|light] [@user] [--likes=1500 --replies=40 --reposts=12] <text>',
+  help:'Set fictional engagement using --likes=1.5k --replies=40 --reposts=12 (or --likes 1500). Omitted counts stay random. Preserves photos, paragraphs, Unicode and mentions; mock card only, not real X engagement.',
   async run(ctx) {
     const args = [...(ctx.args || [])]
     let theme = 'light'
@@ -21,7 +22,9 @@ export default {
     }
 
     const author = await resolveSocialAuthor(ctx, args)
-    const text = await socialCardMentions(ctx, socialCardText(ctx, themeConsumed + Number(author.targetConsumed)))
+    const parsed = parseSocialEngagementOptions(ctx, themeConsumed + Number(author.targetConsumed))
+    if (parsed.error) return ctx.reply(parsed.error)
+    const text = await socialCardMentions(ctx, parsed.text)
 
     const quoted = contextInfo(ctx.message?.message)?.quotedMessage
     if (findViewOnceMedia(ctx.message?.message) || findViewOnceMedia(quoted)) {
@@ -44,10 +47,11 @@ export default {
       const image = await renderTweetCard({
         text,
         theme,
+        timestamp: randomSocialCardTime('tweet'),
         authorName:author.authorName,
         avatarBuffer:author.avatarBuffer,
         imageBuffer:media?.buffer || null,
-        ...randomTweetEngagement(),
+        ...resolveTweetEngagement(parsed.engagement),
       })
 
       const chat = ctx.message?.key?.remoteJid

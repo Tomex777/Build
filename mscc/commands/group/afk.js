@@ -12,11 +12,12 @@ export default {
     }
 
     const state = ctx.afkSet?.(reason)
-    const phone = String(ctx.userKey || '').replace(/\D/g,'')
+    const phone = String(ctx.userPhone || '')
     const jid = ctx.message?.key?.participant || (phone ? phone + '@s.whatsapp.net' : '')
+    const displayName = String(ctx.message?.pushName || '').trim().slice(0,60)
     const text = [
       '◇ *Josia*',
-      phone ? '@' + phone + ' is AFK now.' : 'You are AFK now.',
+      phone ? '@' + phone + ' is AFK now.' : (displayName || 'You') + ' is AFK now.',
       reason ? 'Reason: ' + reason : '',
       'I’ll keep track of people who mention you or reply to your messages.',
     ].filter(Boolean).join('\n')

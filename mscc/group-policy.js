@@ -1,5 +1,6 @@
 import { commandText, contextInfo } from './utils/whatsapp/messages.js'
 import { jidUser, normalizeJid } from './utils/whatsapp/jid.js'
+import { verifiedPhoneNumberFromJid } from './user-identity.js'
 
 const NS_POLICY = 'group-policy'
 const NS_MUTE = 'group-user-mute'
@@ -94,6 +95,24 @@ export function addWarning(storage, group, phone, reason = '', by = '') {
   }
   storage?.sharedSet?.(NS_WARN, itemKey, next)
   return next
+}
+
+// Move only proven aliases to the preferred key. Never merge by pushName.
+export function reconcileVerifiedWarnings(storage, group, preferred, identityKeys = []) {
+  if (!preferred || !storage?.sharedGet || !storage?.sharedSet || !storage?.sharedDelete) return
+  const alternate = [...new Set(identityKeys)].filter(id => id && id !== preferred)
+  const prior = storage.sharedGet(NS_WARN, warnKey(group, preferred))
+  const extras = alternate.map(id => ({ id, state:storage.sharedGet(NS_WARN, warnKey(group, id)) }))
+    .filter(row => row.state)
+  if (!extras.length) return
+  const records = [prior, ...extras.map(row => row.state)].filter(Boolean)
+  const history = records.flatMap(row => Array.isArray(row.history) ? row.history : [])
+    .sort((a,b) => Number(a.at || 0) - Number(b.at || 0)).slice(-20)
+  storage.sharedSet(NS_WARN, warnKey(group, preferred), {
+    count:records.reduce((sum,row) => sum + Number(row.count || 0), 0),
+    history, updatedAt:Math.max(...records.map(row => Number(row.updatedAt || 0))),
+  })
+  for (const { id } of extras) storage.sharedDelete(NS_WARN, warnKey(group, id))
 }
 
 export function clearWarnings(storage, group, phone) {
@@ -192,6 +211,7 @@ export async function enforceGroupMessage({
   storage,
   msg,
   senderPhone,
+  senderIdentity = senderPhone,
   senderIsAdmin = false,
   botIsAdmin = false,
   resolvePhoneJid,
@@ -202,20 +222,20 @@ export async function enforceGroupMessage({
   record = async () => {},
 } = {}) {
   const group = normalizeJid(msg?.key?.remoteJid)
-  if (!group?.endsWith('@g.us') || msg?.key?.fromMe || !senderPhone) return { handled:false }
+  if (!group?.endsWith('@g.us') || msg?.key?.fromMe || !senderIdentity) return { handled:false }
 
   const text = commandText(msg?.message)
   const mentions = mentionedJids(msg)
 
-  if (mentions.length && botIsAdmin) {
+  if (mentions.length && botIsAdmin && senderPhone) {
     const blocked = []
     const allowed = []
     const blockedPhones = []
 
     for (const jid of mentions) {
-      let phone = jid.endsWith('@s.whatsapp.net') ? jidUser(jid) : ''
+      let phone = verifiedPhoneNumberFromJid(jid)
       if (!phone && typeof resolvePhoneJid === 'function') {
-        try { phone = jidUser(await resolvePhoneJid(jid)) } catch {}
+        try { phone = verifiedPhoneNumberFromJid(await resolvePhoneJid(jid)) } catch {}
       }
       if (phone && userMentionMuted(storage, group, phone, senderPhone)) {
         blocked.push(jid)
@@ -246,7 +266,7 @@ export async function enforceGroupMessage({
   const policy = groupPolicy(storage, group)
 
   if (policy.antiSpam) {
-    const spam = spamViolation(group, senderPhone, text)
+    const spam = spamViolation(group, senderIdentity, text)
     if (spam && botIsAdmin) {
       await deleteMessage?.(msg)
       await record('group.antispam-delete', { group, sender:senderPhone, reason:spam })

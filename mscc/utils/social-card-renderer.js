@@ -1,5 +1,6 @@
 import { existsSync } from 'node:fs'
 import { createCanvas, GlobalFonts, loadImage } from '@napi-rs/canvas'
+import { formatSocialCardTime } from './social-card-time.js'
 
 // Skia needs a real font with the requested glyphs. Register Noto where it
 // exists, with DejaVu as a low-resource fallback; deploy installs the Noto
@@ -328,7 +329,7 @@ export async function renderTweetCard({
   handle = '',
   avatarBuffer = null,
   imageBuffer = null,
-  timestamp = 'Just now',
+  timestamp = null,
   verified = false,
   replyCount = 0,
   repostCount = 0,
@@ -337,6 +338,7 @@ export async function renderTweetCard({
   viewCount = 0,
 } = {}) {
   const dark = String(theme).toLowerCase() === 'dark'
+  const shownTime = timestamp || formatSocialCardTime('tweet', 180)
   const width = 1000
   const bodyX = 54
   const bodyW = 892
@@ -435,9 +437,9 @@ export async function renderTweetCard({
 
   ctx.fillStyle = muted
   ctx.font = `22px ${FONT}`
-  ctx.fillText(clean(timestamp, 80), bodyX, timestampY)
+  ctx.fillText(clean(shownTime, 80), bodyX, timestampY)
   if (Number(viewCount) > 0) {
-    const stampWidth = ctx.measureText(clean(timestamp,80)).width
+    const stampWidth = ctx.measureText(clean(shownTime,80)).width
     ctx.fillText(' · ' + compactCount(viewCount) + ' Views', bodyX + stampWidth, timestampY)
   }
 
@@ -561,8 +563,10 @@ export async function renderPostCard({
   commentCount = 0,
   shareCount = 0,
   viewCount = 0,
+  postedAt = null,
 } = {}) {
   const mode = String(style || 'generic').toLowerCase()
+  const shownPostTime = postedAt || formatSocialCardTime(mode, 180)
 
   if (mode === 'story') {
     const width = 1080
@@ -596,7 +600,7 @@ export async function renderPostCard({
     ctx.fillText(clean(authorName, 42), 128, 108)
     ctx.font = `20px ${FONT}`
     ctx.fillStyle = 'rgba(255,255,255,0.78)'
-    ctx.fillText('now', 128, 137)
+    ctx.fillText(shownPostTime, 128, 137)
 
     if (String(text || '').trim()) {
       ctx.fillStyle = 'rgba(0,0,0,0.38)'
@@ -617,7 +621,7 @@ export async function renderPostCard({
     ctx.textAlign = 'left'
     ctx.fillStyle = 'rgba(255,255,255,0.95)'
     ctx.font = `21px ${FONT}`
-    ctx.fillText(compactCount(viewCount) + ' views · simulated', 58, 1717)
+    ctx.fillText(compactCount(viewCount) + ' views', 58, 1717)
 
     ctx.strokeStyle = 'rgba(255,255,255,0.9)'
     ctx.lineWidth = 2
@@ -710,7 +714,7 @@ export async function renderPostCard({
     ctx.font = `20px ${FONT}`
     ctx.fillText('View all ' + compactCount(commentCount) + ' comments', 44, commentsY)
     ctx.font = `17px ${FONT}`
-    ctx.fillText('JUST NOW', 44, timeY)
+    ctx.fillText(shownPostTime, 44, timeY)
 
     drawWatermark(ctx, width, height, { light:false, fontSize:13, inset:15 })
     return canvas.toBuffer('image/png')
@@ -745,7 +749,7 @@ export async function renderPostCard({
 
     ctx.fillStyle = '#65676b'
     ctx.font = `20px ${FONT}`
-    ctx.fillText('Just now · 🌐', 136, 100)
+    ctx.fillText(shownPostTime + ' · 🌐', 136, 100)
 
     ctx.fillStyle = '#65676b'
     ctx.font = `32px ${BOLD}`
@@ -813,7 +817,7 @@ export async function renderPostCard({
   ctx.fillText(clean(authorName, 44), 140, 78)
   ctx.fillStyle = '#a8adba'
   ctx.font = `20px ${FONT}`
-  ctx.fillText('now', 140, 108)
+  ctx.fillText(shownPostTime, 140, 108)
 
   ctx.fillStyle = '#ffffff'
   ctx.font = `43px ${BOLD}`

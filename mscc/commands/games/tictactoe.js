@@ -9,7 +9,7 @@ import {
 } from '../../utils/tictactoe-game.js'
 import { renderTicTacToeBoard } from '../../utils/tictactoe-renderer.js'
 import { gameMenuArt } from '../../utils/game-menu-art.js'
-import { findOtherActiveGame, otherGameMessage } from '../../utils/game-session.js'
+import { findOtherActiveGame, otherGameMessage, userForStoredGame } from '../../utils/game-session.js'
 import { getTicTacToeTheme, normalizeTicTacToeTheme } from '../../utils/game-themes.js'
 
 const NAMESPACE = 'tictactoe-game'
@@ -330,6 +330,7 @@ export default {
       const args = Array.isArray(ctx.args) ? ctx.args.map(String) : []
       const first = String(args[0] || '').toLowerCase()
       const existing = loadRecord(ctx)
+      if (existing) ctx = { ...ctx, userKey:userForStoredGame(ctx, existing) }
 
       if (first === '~input') {
         return handleMoveInput(ctx, String(ctx.commandReplyInput || args.slice(1).join(' ')))

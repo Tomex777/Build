@@ -1,17 +1,17 @@
 {
-  "releaseId": "night-2026-10-15-01",
+  "releaseId": "night-2026-10-15-02",
   "baseBranch": "mscc-azure",
-  "baseCommit": "d10b91f527ffbd5fb2d28bea446c467a604e0cc1",
+  "baseCommit": "c15887eee0bd6252be38a11a56ef26e9f080fcf1",
   "pullRequests": [
-    236,
-    237,
-    238,
-    240
+    242,
+    244
   ],
   "alreadyMerged": [
     215,
     235,
-    239
+    239,
+    241,
+    243
   ],
-  "notes": "Consolidated NIGHT bot fixes; one protected Azure deploy on batch merge. Existing Cortex/FFmpeg changes are inherited from production base."
+  "notes": "Bundle #2: custom mock engagement/time presentation and unified verified LID/PN identity across NIGHT commands, games, moderation and profiles. Older PRs #191/#199/#202/#208 excluded as historical or needing separate review."
 }
