@@ -29,11 +29,22 @@ function normalizeTrack(item, index) {
   }
 }
 
+function musicFailureText(outcome) {
+  if (outcome?.status === 'no-sources') return 'No music sources are installed yet.'
+  if (outcome?.status === 'source-error') return `${outcome.source?.name || 'The music source'} could not deliver that track. Please try again.`
+  if (outcome?.status === 'all-failed') return 'Music download failed across all configured sources. Try another track or try again later.'
+  return 'Could not complete that music request. Please try again.'
+}
+
 function outcomeError(ctx, outcome) {
-  if (outcome?.status === 'no-sources') return ctx.reply('No music sources are installed yet.')
-  if (outcome?.status === 'source-error') return ctx.reply(`${outcome.source?.name || 'The music source'} could not complete that request.`)
-  if (outcome?.status === 'all-failed') return ctx.reply('All configured music sources failed for that request.')
-  return ctx.reply('Could not complete that music request.')
+  if (outcome?.error) {
+    console.warn('MSCC music request failed:', {
+      status:outcome.status,
+      source:outcome.source?.id || '',
+      reason:outcome.error?.code || outcome.error?.name || 'Error',
+    })
+  }
+  return ctx.reply(musicFailureText(outcome))
 }
 
 function searchTextVariants(query = '') {
@@ -130,7 +141,7 @@ async function broadenMusicSearch(ctx, query, firstOutcome) {
     if (variant === query) continue
     const outcome = await ctx.executeSource({
       capability:'music',
-      explicitSource:primary,
+      pinnedSource:primary,
       payload:{ action:'search', query:variant },
     })
     collect(outcome, variant)
@@ -243,13 +254,21 @@ async function search(ctx, query, { delivery = 'audio' } = {}) {
   return ctx.reply(text)
 }
 
-function downloadResponse(outcome, track) {
+function downloadResponse(outcome) {
   if (outcome.status !== 'ok') return { ok:false, outcome }
   const result = outcome.result
   if (result?.delivered === true) return { ok:true, silent:true }
-  if (typeof result === 'string') return { ok:true, text:result }
+  if (typeof result === 'string' && result.trim()) return { ok:true, text:result }
   if (result?.text) return { ok:true, text:String(result.text) }
-  return { ok:true, text:`Download started: ${track.title}.` }
+  // Do not claim a download started when the provider sent nothing.
+  return {
+    ok:false,
+    outcome:{
+      ...outcome,
+      status:'source-error',
+      error:new Error('Music source returned without confirming delivery.'),
+    },
+  }
 }
 
 async function downloadTrack(ctx, { sourceId, track, delivery = 'audio' }) {
@@ -266,16 +285,17 @@ async function downloadTrack(ctx, { sourceId, track, delivery = 'audio' }) {
     pinnedSource:sourceId,
     payload:firstPayload,
   })
-  if (first.status === 'ok') return downloadResponse(first, track)
+  const firstDelivery = downloadResponse(first)
+  if (firstDelivery.ok) return firstDelivery
 
   // A source can search successfully and still lose its media route before the
   // user selects a result. Walk the remaining managed chain until one source
   // both finds and delivers the same track.
   const query = [track.title, track.artist].filter(Boolean).join(' ').trim()
-  if (!query) return { ok:false, outcome:first }
+  if (!query) return firstDelivery
 
   const excluded = [sourceId]
-  let lastOutcome = first
+  let lastOutcome = firstDelivery.outcome
 
   while (true) {
     const recovery = await ctx.executeSource({
@@ -306,12 +326,11 @@ async function downloadTrack(ctx, { sourceId, track, delivery = 'audio' }) {
         delivery,
       },
     })
-    if (fallbackDownload.status === 'ok') {
-      return downloadResponse(fallbackDownload, fallbackTrack)
-    }
+    const delivered = downloadResponse(fallbackDownload)
+    if (delivered.ok) return delivered
 
     excluded.push(recovery.source.id)
-    lastOutcome = fallbackDownload
+    lastOutcome = delivered.outcome
   }
 }
 
@@ -369,8 +388,6 @@ async function handleNumbers(ctx) {
     return ctx.reply('I could not match those song numbers. Try: 1 or 1,3,5 or 1-4')
   }
 
-  ctx.clearCommandReplySession?.()
-
   if (parsed.selected.length === 1) {
     const chosen = parsed.selected[0]
     if (chosen?.cover && typeof ctx.sendImageUrl === 'function') {
@@ -380,29 +397,69 @@ async function handleNumbers(ctx) {
           chosen.artist ? `Artist: ${chosen.artist}` : '',
           chosen.album ? `Album: ${chosen.album}` : '',
         ].filter(Boolean).join('\n'))
-      } catch {}
+      } catch (error) {
+        console.warn('MSCC music cover failed:', error?.code || error?.name || 'Error')
+      }
     }
+  }
+
+  // Progress messages make slow extractor/provider calls visible in WhatsApp.
+  // One progress message is updated rather than sending per-source spam.
+  let progress = null
+  if (typeof ctx.progress === 'function') {
+    try {
+      progress = await ctx.progress(`🎵 Fetching ${parsed.selected.length === 1 ? parsed.selected[0].title : parsed.selected.length + ' songs'}…`)
+    } catch (error) {
+      console.warn('MSCC music progress failed:', error?.code || error?.name || 'Error')
+    }
+  }
+
+  const fail = async outcome => {
+    const message = musicFailureText(outcome)
+    if (outcome?.error) {
+      console.warn('MSCC music delivery failed:', {
+        source:outcome.source?.id || '',
+        status:outcome.status,
+        reason:outcome.error?.code || outcome.error?.name || 'Error',
+      })
+    }
+    if (progress) {
+      try { await progress.fail(message); return false }
+      catch (error) { console.warn('MSCC music failure progress unavailable:', error?.code || error?.name || 'Error') }
+    }
+    return ctx.reply(message)
   }
 
   const messages = []
   for (const track of parsed.selected) {
-    const result = await downloadTrack(ctx, {
-      sourceId:session.sourceId,
-      track,
-      delivery:session.delivery || 'audio',
-    })
-    if (!result.ok) return outcomeError(ctx, result.outcome)
+    let result
+    try {
+      result = await downloadTrack(ctx, {
+        sourceId:session.sourceId,
+        track,
+        delivery:session.delivery || 'audio',
+      })
+    } catch (error) {
+      return fail({ status:'source-error', source:{ id:session.sourceId, name:'Music' }, error })
+    }
+    if (!result.ok) return fail(result.outcome)
     if (result.text) messages.push(result.text)
+  }
+
+  // Keep the numeric selection available after failures so users can retry.
+  ctx.clearCommandReplySession?.()
+  if (progress) {
+    try { await progress.done(`✅ ${parsed.selected.length === 1 ? 'Song delivered.' : parsed.selected.length + ' songs delivered.'}`) }
+    catch (error) { console.warn('MSCC music success progress unavailable:', error?.code || error?.name || 'Error') }
   }
 
   if (messages.length === 1) return ctx.reply(messages[0])
   if (messages.length > 1) return ctx.reply(messages.join('\n'))
-  if (parsed.selected.length > 1) {
-    return ctx.reply(`Started ${parsed.selected.length} songs.`)
+  if (parsed.selected.length > 1 && !progress) {
+    return ctx.reply(`Sent ${parsed.selected.length} songs.`)
   }
   return true
 }
-
 export async function runSongCommand(ctx, { args = [] } = {}) {
   const first = String(args[0] || '')
   if (first === '~numbers') return handleNumbers(ctx)
