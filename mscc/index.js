@@ -58,6 +58,7 @@ import {
   addWarning,
   clearWarnings,
   enforceGroupMessage,
+  reconcileVerifiedWarnings,
   groupPolicy,
   groupMessageNeedsModeration,
   renderGroupTemplate,
@@ -1726,10 +1727,17 @@ async function resolveGroupParticipant(account, msg, raw = '') {
   const aliases = participantIds(participant)
   const verifiedPhoneJid = aliases.find(alias => alias.endsWith('@s.whatsapp.net'))
     || await resolvePhoneJid(account, jid)
-  const phoneNumber = verifiedPhoneJid.endsWith('@s.whatsapp.net')
-    ? jidUser(verifiedPhoneJid)
-    : ''
+  const phoneNumber = verifiedPhoneNumber(verifiedPhoneJid)
+  // A single group participant carrying both PN and LID is verified evidence.
+  if (phoneNumber) {
+    for (const alias of aliases.filter(isOpaqueLid)) {
+      recordVerifiedLidPhone(sharedStorage, alias, verifiedPhoneJid)
+    }
+  }
   const memberKey = memberIdentityKey(verifiedPhoneJid, jid)
+  const identityKeys = phoneNumber
+    ? verifiedIdentityKeys(sharedStorage, verifiedPhoneJid)
+    : [memberKey]
 
   // Push names are attached to messages, not necessarily to group metadata.
   // Use the current command sender's push name only when targeting that sender.
@@ -1752,6 +1760,7 @@ async function resolveGroupParticipant(account, msg, raw = '') {
   return {
     phoneNumber,
     memberKey,
+    identityKeys,
     jid,
     phoneJid:verifiedPhoneJid || '',
     participant,
@@ -2008,13 +2017,14 @@ async function enforceCurrentGroupPolicy(account, msg, authority) {
     storage:sharedStorage,
     msg,
     senderPhone:authority.senderNumber,
+    senderIdentity:authority.senderKey,
     senderIsAdmin:await isGroupAdminContext(account, msg),
     botIsAdmin:await isBotGroupAdminContext(account, msg),
     resolvePhoneJid:jid => resolvePhoneJid(account, jid),
     deleteMessage:target => deletePolicyMessage(account, target),
     resendQuoted:(text, mentions, quoted) => sendText(account.sock, chat, text, { quoted, mentions }),
     replyMessage:text => sendText(account.sock, chat, text, { quoted:msg }),
-    warnMember:trigger => addWarning(sharedStorage, chat, authority.senderNumber, 'Filter: ' + trigger, 'Night'),
+    warnMember:trigger => addWarning(sharedStorage, chat, authority.senderKey, 'Filter: ' + trigger, 'Night'),
     record:recordActivity,
   })
 }
@@ -2609,21 +2619,25 @@ async function processInboundMessage(account, msg) {
           groupWarn: async (raw, reason = '') => {
             const target = await resolveGroupParticipant(account, msg, raw)
             if (!target) throw new Error('Mention somebody or reply to their message.')
-            return { target, state:addWarning(sharedStorage, chat, target.memberKey, reason, authority.senderNumber) }
+            reconcileVerifiedWarnings(sharedStorage, chat, target.memberKey, target.identityKeys)
+            return { target, state:addWarning(sharedStorage, chat, target.memberKey, reason, authority.senderKey) }
           },
           groupWarnClear: async raw => {
             const target = await resolveGroupParticipant(account, msg, raw)
             if (!target) throw new Error('Mention somebody or reply to their message.')
+            reconcileVerifiedWarnings(sharedStorage, chat, target.memberKey, target.identityKeys)
             return { target, cleared:clearWarnings(sharedStorage, chat, target.memberKey) }
           },
           groupWarningState: async raw => {
             const target = await resolveGroupParticipant(account, msg, raw)
             if (!target) throw new Error('Mention somebody or reply to their message.')
+            reconcileVerifiedWarnings(sharedStorage, chat, target.memberKey, target.identityKeys)
             return { target, state:warningState(sharedStorage, chat, target.memberKey) }
           },
           setMentionMute: async (raw, enabled) => {
             const target = await resolveGroupParticipant(account, msg, raw)
             if (!target) throw new Error('Mention somebody or reply to their message.')
+            if (!authority.senderNumber) throw new Error('WhatsApp has not verified your phone identity yet. Please retry.')
             if (target.phoneNumber === authority.senderNumber) throw new Error('Choose somebody else.')
             if (!target.phoneNumber) throw new Error('WhatsApp has not shared a phone identity for that member, so mention muting cannot be saved reliably.')
             setUserMentionMute(sharedStorage, chat, authority.senderNumber, target.phoneNumber, enabled)
