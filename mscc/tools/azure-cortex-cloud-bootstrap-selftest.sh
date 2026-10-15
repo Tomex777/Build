@@ -25,6 +25,26 @@ grep -Fq 'git hash-object "$tmp/index.js"' "$UPGRADE"
 grep -Fq 'git hash-object "$tmp/cortex-agent-control"' "$UPGRADE"
 grep -Fq 'MSCC_MEGA_SHARED_FOLDERS' "$UPGRADE"
 grep -Fq 'MSCC_MEGA_PASSWORD' "$UPGRADE"
+# Regression for 2026-10-15 phone Cloud screenshot: /status healthy while
+# /environment fails. Marker must not bypass authenticated Cloud readback.
+grep -Fq 'http://127.0.0.1:47831/api/cortex/host/environment' "$UPGRADE"
+grep -Fq 'http://127.0.0.1:47831/api/cortex/host/cloud' "$UPGRADE"
+grep -Fq "Cortex Cloud settings endpoint verified with protected credential masking." "$UPGRADE"
+grep -Fq "Cortex Agent -> MSCC Community Cloud endpoint verified." "$UPGRADE"
+# Agent's root helper writes a sibling env temp file under strict sandboxing.
+# UNIX permissions + sudo helper still protect private system files.
+grep -Fq 'readonly ENV_WRITER_OVERRIDE=' "$UPGRADE"
+grep -Fq 'ReadWritePaths=/etc' "$UPGRADE"
+grep -Fq 'systemctl daemon-reload' "$UPGRADE"
+grep -Fq 'systemctl restart cortex-agent.service' "$UPGRADE"
+
+grep -Fq "u:cortex-agent:r--" "$UPGRADE"
+grep -Fq 'getfacl -cp "$directory"' "$UPGRADE"
+grep -Fq 'if sudo -n test -f "$BOOTSTRAP_MARK"; then' "$UPGRADE"
+env_line="$(grep -nF 'http://127.0.0.1:47831/api/cortex/host/environment' "$UPGRADE" | head -n 1 | cut -d: -f1)"
+mark_line="$(grep -nF 'if sudo -n test -f "$BOOTSTRAP_MARK"; then' "$UPGRADE" | head -n 1 | cut -d: -f1)"
+[[ "$env_line" -lt "$mark_line" ]] || { echo 'Bootstrap marker bypasses Cloud probe.' >&2; exit 1; }
+
 grep -Fq 'Cortex Agent did not recover after upgrade.' "$UPGRADE"
 grep -Fq 'sudo -n install -m 0644 "$tmp/previous-index.js"' "$UPGRADE"
 grep -Fq 'sudo -n install -m 0755 "$tmp/previous-helper.sh"' "$UPGRADE"
