@@ -159,7 +159,7 @@ export function createSquidGame({ storage, accountFor, resolvePhoneJid = async (
     if (others.length <= 1) {
       // Two almost-simultaneous RED violations must result in a draw, not
       // a premature winner announcement based only on socket event order.
-      if (others.length === 1 && (game.phase === 'RED' || game.phase === 'FINALIZING')) {
+      if (others.length === 1 && reason === 'Spoke during RED LIGHT.') {
         game.phase = 'FINALIZING'
         game.nextAt = now() + 2500
         save(game.group, game)
