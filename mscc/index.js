@@ -150,7 +150,11 @@ const logger = pino({ level: process.env.LOG_LEVEL || 'silent' })
 const startedAt = Date.now()
 const APP_VERSION = '2.3.1'
 const smartAI = createSmartAI()
-const reactionSounds = createReactionSounds()
+const reactionSounds = createReactionSounds({
+  // Shared group settings load lazily so they survive service restarts and do not
+  // depend on editing production environment variables or knowing group JIDs.
+  groupState: jid => sharedStorage?.sharedGet('reaction-sound-groups', jid) || null,
+})
 const aniListResolver = createAniListResolver()
 const tmdbResolver = createTmdbResolver()
 const adaptationResolver = createAdaptationResolver()

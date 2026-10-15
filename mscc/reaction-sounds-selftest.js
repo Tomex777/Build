@@ -66,4 +66,50 @@ assert.equal(await missing.promptFor(GROUP), '');
 const off = createReactionSounds({ env:{...env, MSCC_REACTION_SOUNDS_ENABLED:'false'} });
 assert.equal(off.enabled, false);
 assert.equal((await off.play(sock, GROUP, 'sp_cry')).ok, false);
+
+const {mkdtemp, readdir, readFile, rm} = await import('node:fs/promises');
+const {tmpdir} = await import('node:os');
+const {join} = await import('node:path');
+const {default:AdmZip} = await import('adm-zip');
+
+const temp = await mkdtemp(join(tmpdir(), 'night-sounds-test-'));
+try {
+  const settings = new Map();
+  const dynamic = createReactionSounds({
+    env:{
+      MSCC_REACTION_SOUNDS_ENABLED:'false',
+      MSCC_REACTION_SOUNDS_DIR:join(temp, 'clips'),
+    },
+    groupState:jid => settings.get(jid) || null,
+  });
+  assert.equal(dynamic.allowed(GROUP), false);
+  settings.set(GROUP, {enabled:true, auto:true});
+  assert.equal(dynamic.allowed(GROUP), true);
+  assert.equal(dynamic.allowed(OTHER_GROUP), false);
+  const zip = new AdmZip();
+  const fakeOgg = Buffer.concat([
+    Buffer.from('OggS'), Buffer.alloc(22), Buffer.from('OpusHead'), Buffer.alloc(30),
+  ]);
+  zip.addFile('NIGHT_SouthPark_Reactions_v2/audio/sp_cry.ogg', fakeOgg);
+  zip.addFile('NIGHT_SouthPark_Reactions_v2/audio/sp_laugh.ogg', fakeOgg);
+  zip.addFile('../not-allowed/private.env', Buffer.from('secret'));
+  const imported = await dynamic.importPack(zip.toBuffer());
+  assert.equal(imported.count, 2);
+  assert.deepEqual((await readdir(join(temp, 'clips'))).sort(), ['sp_cry.ogg','sp_laugh.ogg']);
+  assert.deepEqual(await readFile(join(temp,'clips','sp_cry.ogg')), fakeOgg);
+  assert.match(await dynamic.promptFor(GROUP), /sp_cry/);
+  const secondZip = new AdmZip();
+  secondZip.addFile('audio/sp_sorry.ogg', fakeOgg);
+  await dynamic.importPack(secondZip.toBuffer());
+  assert.deepEqual((await readdir(join(temp, 'clips'))).sort(),
+    ['sp_cry.ogg','sp_laugh.ogg','sp_sorry.ogg']);
+  settings.set(GROUP, {enabled:false, auto:false});
+  assert.equal(dynamic.allowed(GROUP), false);
+  const invalidZip = new AdmZip();
+  invalidZip.addFile('audio/sp_laugh.ogg', Buffer.from('not-an-ogg'));
+  await assert.rejects(dynamic.importPack(invalidZip.toBuffer()), /Ogg\/Opus/);
+  await assert.rejects(dynamic.importPack(Buffer.alloc(6 * 1024 * 1024)), /5 MB/);
+} finally {
+  await rm(temp, {recursive:true,force:true});
+}
 console.log('reaction-sounds-selftest: PASS');

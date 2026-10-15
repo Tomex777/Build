@@ -1,6 +1,7 @@
 // NIGHT private-group reaction soundboard. Metadata only: audio files are not distributed in the repository.
-import { access, readFile } from 'node:fs/promises';
-import { join } from 'node:path';
+import { access, readFile, mkdir, mkdtemp, lstat, rename, rm, writeFile } from 'node:fs/promises';
+import { dirname, join } from 'node:path';
+import AdmZip from 'adm-zip';
 
 const CLIPS = Object.freeze([
   { id:'sp_sorry', label:'Cartman apologizing', file:'sp_sorry.ogg', auto:true, when:'You are theatrically admitting YOUR OWN small mistake or backing down from a silly bluff.' },
@@ -50,7 +51,7 @@ export function parseReactionSoundDirective(response) {
 }
 
 export function createReactionSounds({
-  env = process.env, now = () => Date.now(), accessFile = access, read = readFile,
+  env = process.env, now = () => Date.now(), accessFile = access, read = readFile, groupState = () => null,
 } = {}) {
   const groups = new Set(String(env.MSCC_REACTION_SOUND_GROUPS || '').split(/[\s,;]+/)
     .filter(isGroup));
@@ -63,13 +64,19 @@ export function createReactionSounds({
   const lastAutoByGroup = new Map();
   const inFlight = new Set();
 
-  const allowed = jid => enabled && isGroup(jid) && groups.has(jid);
+  function runtime(jid) { try { return groupState(jid) || null; } catch { return null; } }
+  const allowed = jid => isGroup(jid) && (
+    typeof runtime(jid)?.enabled === 'boolean' ? runtime(jid).enabled : enabled && groups.has(jid)
+  );
+  const autoAllowed = jid => allowed(jid) && (
+    typeof runtime(jid)?.auto === 'boolean' ? runtime(jid).auto : autoEnabled
+  );
   const pathFor = clip => join(directory, clip.file);
   async function playable(clip) {
     try { await accessFile(pathFor(clip)); return true; } catch { return false; }
   }
   function canAuto(jid) {
-    return allowed(jid) && autoEnabled && !inFlight.has(jid)
+    return autoAllowed(jid) && !inFlight.has(jid)
       && now() - (lastAutoByGroup.get(jid) ?? -Infinity) >= cooldownMs;
   }
   async function promptFor(jid) {
@@ -110,6 +117,70 @@ export function createReactionSounds({
       inFlight.delete(jid);
     }
   }
+  async function importPack(buffer) {
+    const MAX_ZIP = 5 * 1024 * 1024;
+    if (!Buffer.isBuffer(buffer) || !buffer.length || buffer.length > MAX_ZIP)
+      throw new Error('Send the private NIGHT sound-pack ZIP (max 5 MB).');
+    let zip;
+    try { zip = new AdmZip(buffer); } catch { throw new Error('Invalid ZIP archive.'); }
+    const files = new Map();
+    const supported = new Set(CLIPS.map(clip => clip.file));
+    let total = 0;
+    const entries = zip.getEntries();
+    if (entries.length > 80) throw new Error('Too many archive entries.');
+    for (const entry of entries) {
+      if (entry.isDirectory) continue;
+      const entryPath = String(entry.entryName || '').replaceAll('\\', '/');
+      if (!/(^|\/)audio\/sp_[a-z0-9_]+\.ogg$/i.test(entryPath)) continue;
+      const name = entryPath.slice(entryPath.lastIndexOf('/') + 1);
+      if (!supported.has(name)) continue;
+      if (files.has(name)) throw new Error('Duplicate clip: ' + name);
+      const size = Number(entry.header?.size || 0);
+      total += size;
+      if (!size || size > 2 * 1024 * 1024 || total > 9 * 1024 * 1024)
+        throw new Error('Sound pack exceeds safe size limits.');
+      let bytes;
+      try { bytes = entry.getData(); } catch { throw new Error('Broken ZIP entry: ' + name); }
+      if (bytes.length !== size || bytes.toString('ascii', 0, 4) !== 'OggS' ||
+          !bytes.subarray(0, 120).includes(Buffer.from('OpusHead')))
+        throw new Error('Not an Ogg/Opus voice note: ' + name);
+      files.set(name, bytes);
+    }
+    if (!files.size) throw new Error('No supported NIGHT sound recordings found.');
+    const parent = dirname(directory);
+    await mkdir(parent, { recursive:true, mode:0o700 });
+    const staging = await mkdtemp(join(parent, '.night-sounds-stage-'));
+    let backup = '';
+    try {
+      try {
+        const state = await lstat(directory);
+        if (!state.isDirectory() || state.isSymbolicLink())
+          throw new Error('Existing sound path is not a normal directory.');
+        for (const name of supported) {
+          if (files.has(name)) continue;
+          try {
+            const bytes = await read(join(directory, name));
+            if (bytes?.length) await writeFile(join(staging, name), bytes, { mode:0o600 });
+          } catch (error) { if (error?.code !== 'ENOENT') throw error; }
+        }
+        backup = join(parent, '.night-sounds-backup-' + process.pid + '-' + Date.now());
+        await rename(directory, backup);
+      } catch (error) { if (error?.code !== 'ENOENT') throw error; }
+      try {
+        for (const [name, bytes] of files)
+          await writeFile(join(staging, name), bytes, { mode:0o600 });
+        await rename(staging, directory);
+      } catch (error) {
+        if (backup) await rename(backup, directory).catch(() => {});
+        throw error;
+      }
+      if (backup) await rm(backup, { recursive:true, force:true });
+      return { count:files.size, installed:[...files.keys()] };
+    } finally {
+      await rm(staging, { recursive:true, force:true }).catch(() => {});
+    }
+  }
+
   function manualList(jid, prefix = '.') {
     if (!allowed(jid)) return 'South Park reactions are not enabled in this group.';
     return [
@@ -119,5 +190,5 @@ export function createReactionSounds({
       'Audio is shared only where the group owner enables this private soundboard.',
     ].join('\n');
   }
-  return { enabled, autoEnabled, allowed, canAuto, promptFor, play, manualList };
+  return { enabled, autoEnabled, allowed, canAuto, promptFor, play, manualList, importPack };
 }
