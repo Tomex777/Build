@@ -14,7 +14,7 @@ from PIL import Image, ImageChops, ImageFilter, ImageOps
 
 SIDE = 256
 MARS_URL = "https://d2pn8kiwq2w21t.cloudfront.net/original_images/jpegPIA14533.jpg"
-MOON_URL = "https://commons.wikimedia.org/wiki/Special:FilePath/AS11-40-5876%20Undisturbed%20Lunar%20Soil.png?width=1024"
+MOON_URL = "https://commons.wikimedia.org/wiki/Special:FilePath/AS11-40-5876%20%2821039138933%29.jpg?width=1024"
 
 def texture_from_photo(image: Image.Image) -> Image.Image:
     # Exclude photo borders and colour/film processing; retain only grain.
