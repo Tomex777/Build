@@ -10,7 +10,8 @@ const rand = (min, max) => Math.floor(min + Math.random() * (max - min + 1))
 const jid = value => String(value || '').trim().replace(/:\d+(?=@)/, '')
 const label = value => '@' + jid(value).split('@')[0]
 const uniqueText = value => String(value || '').normalize('NFKC').toLowerCase()
-  .replace(/[\u200b-\u200d\ufeff]/gu, '').replace(/\s+/gu, ' ').trim()
+  .replace(/[\u200b-\u200d\ufeff]/gu, '').replace(/\p{P}+/gu, ' ')
+  .replace(/\s+/gu, ' ').trim()
 const livePlayers = game => Object.values(game.players || {}).filter(player => player.alive)
 const isAdmin = member => ['admin', 'superadmin'].includes(member?.participant?.admin)
 const forwarded = message => {
@@ -21,8 +22,7 @@ const safeMessage = text => String(text || '').trim().slice(0, 150)
 
 export function createSquidGame({ storage, accountFor, resolvePhoneJid = async (_account, value) => value, now = () => Date.now(), randomDuration = rand } = {}) {
   const locks = new Map()
-  const memory = new Set()
-  const db = () => storage?.()
+    const db = () => storage?.()
   const load = group => db()?.sharedGet(NS, group) || null
   const active = () => db()?.sharedGet(INDEX, 'groups') || []
   function save(group, state) {
@@ -86,10 +86,22 @@ export function createSquidGame({ storage, accountFor, resolvePhoneJid = async (
     if (status === true) return true
     const refreshed = await metadata(game)
     const check = await member(game, row.jid, refreshed)
-    return action === 'remove' ? !check : !isAdmin(check)
+    return action === 'remove' ? !check : action === 'promote' ? isAdmin(check) : !isAdmin(check)
   }
   async function restore(game) {
-    if (game.mode !== 'cg' || !game.settingsChanged) return true
+    if (game.mode === 'kick') {
+      let done = true
+      for (const player of Object.values(game.players)) {
+        if (!player.pendingAction) continue
+        try {
+          if (await changeParticipant(game, player, 'remove')) player.pendingAction = false
+          else done = false
+        } catch { done = false }
+      }
+      save(game.group, game)
+      return done
+    }
+    if (!game.settingsChanged) return true
     const socket = account(game)?.sock
     if (!socket || !account(game)?.connected) return false
     let done = true
@@ -111,7 +123,7 @@ export function createSquidGame({ storage, accountFor, resolvePhoneJid = async (
     game.nextAt = 0
     save(game.group, game)
     try { await send(game, title) } catch {}
-    if (await restore(game)) { save(game.group, null); memory.delete(game.group) }
+    if (await restore(game)) save(game.group, null)
     else save(game.group, game)
   }
   async function eliminate(game, eliminated, reason) {
@@ -241,7 +253,6 @@ export function createSquidGame({ storage, accountFor, resolvePhoneJid = async (
       if (!sent?.key?.id) throw new Error('WhatsApp did not confirm the registration message.')
       game.registrationId = sent.key.id
       save(group, game)
-      memory.add(group)
       return null
     })
   }
@@ -299,12 +310,18 @@ export function createSquidGame({ storage, accountFor, resolvePhoneJid = async (
       const game = load(group)
       if (!game || game.accountId !== accountValue.id || !['GREEN','RED'].includes(game.phase)) return
       if (game.createdAt < BOOT) return // no eliminations for unobserved offline time
-      let row
-      try { row = await member(game, message?.key?.participant) } catch { return }
-      const player = playerFor(game, row)
+      // Hot path: resolve known participant aliases locally. WhatsApp groupMetadata
+      // is a network call and must not run for every Green Light message.
+      const rawSender = jid(message?.key?.participant)
+      let player = Object.values(game.players).find(p => p.aliases.includes(rawSender))
+      if (!player) {
+        let row
+        try { row = await member(game, rawSender) } catch { return }
+        player = playerFor(game, row)
+      }
       if (!player?.alive) return
       const id = String(message?.key?.id || '')
-      if (!id || player.lastMessageId === id) return
+      if (!id || player.lastMessageId === id) return true
       player.lastMessageId = id
       const receiptAt = now()
       const rawTimestamp = Number(message.messageTimestamp)
@@ -321,16 +338,17 @@ export function createSquidGame({ storage, accountFor, resolvePhoneJid = async (
             }
           }
           save(group, game)
-          return
+          return true
         }
         await eliminate(game, [player], 'Spoke during RED LIGHT.')
-        return
+        return true
       }
       const value = uniqueText(commandText(message.message))
-      if (!value || forwarded(message) || player.seen.includes(value)) return
+      if (!value || forwarded(message) || player.seen.includes(value)) return true
       player.seen.push(value)
       player.roundTexts.push(value)
       save(group, game)
+      return true
     })
   }
   async function tick() {
@@ -341,7 +359,7 @@ export function createSquidGame({ storage, accountFor, resolvePhoneJid = async (
         if (!account(game)?.connected) return
         try {
           if (game.phase === 'CLEANUP') {
-            if (await restore(game)) { save(group, null); memory.delete(group) }
+            if (await restore(game)) save(group, null)
             return
           }
           if (game.createdAt < BOOT) {
