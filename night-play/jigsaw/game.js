@@ -98,7 +98,7 @@ function renderGallery(){
 function filterGallery(){
  const list=[...$('galleryGrid').children];
  for(const btn of list)btn.hidden=category!=='all'&&btn.dataset.category!==category;
- const count=list.filter(x=>!x.hidden).length;
+ const count=list.filter(x=>!x.hidden&&!x.classList.contains('upload-card')).length;
  $('galleryCount').textContent=count+(count===1?' picture':' pictures');
  for(const b of $('categoryChips').querySelectorAll('button')){const yes=b.dataset.filter===category;b.classList.toggle('active',yes);b.setAttribute('aria-pressed',String(yes));}
 }
