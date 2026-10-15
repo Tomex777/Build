@@ -291,6 +291,42 @@ try{
   await page.waitForFunction(()=>window.__nightWhotMotion().visibleFlights===0,null,{timeout:2500});
   if(canPlay)assert.equal(await page.evaluate(()=>document.querySelector('.card-pile .whot-card')===window.__whotPreviousPile),false,'Discard swaps only once the flight ends');
   assert.ok(await page.evaluate(()=>{const m=window.__nightWhotMotion();return m.plays+m.draws>0}),'Move increments hardcoded animation counters');
+  // A shrinking hand must stay centered: one card belongs in the middle,
+  // not pinned to the left as the old horizontal card scroller did.
+  await page.waitForTimeout(950);
+  for(const n of [5,4,3,2,1,8,12]){
+    await page.evaluate(count=>{
+      const stored=JSON.parse(localStorage.getItem("night-play-club-v1"));
+      const s=stored.whot;
+      const pool=[...s.hands[0],...s.deck];
+      if(pool.length<count)throw Error("Not enough cards for hand size test");
+      s.hands[0]=pool.slice(0,count);s.deck=pool.slice(count);
+      s.turn=0;s.winner=null;
+      localStorage.setItem("night-play-club-v1",JSON.stringify(stored));
+    },n);
+    await page.reload();
+    await page.locator('.hand .whot-card').first().waitFor();
+    await page.waitForTimeout(60);
+    const bounds=await page.evaluate(()=>{
+      const hand=document.querySelector(".hand .card-row");
+      const cards=[...hand.querySelectorAll(".whot-card")];
+      const positions=cards.map(el=>el.getBoundingClientRect());
+      const rect=hand.getBoundingClientRect();
+      const a=positions[0],b=positions.at(-1);
+      return {count:cards.length,width:rect.width,
+        center:(a.left+b.right)/2,goal:rect.left+rect.width/2,
+        first:a.left,last:b.right,viewport:innerWidth,overflow:document.documentElement.scrollWidth-innerWidth,
+        overlap:parseFloat(getComputedStyle(hand).getPropertyValue("--whot-overlap"))||0,
+        sceneHeight:document.querySelector(".table-surface").getBoundingClientRect().height
+      };
+    });
+    assert.equal(bounds.count,n,"Hand correctly mounts "+n+" cards");
+    assert.ok(Math.abs(bounds.center-bounds.goal)<3.2,"WHOT "+n+"-card hand stays centered (actual "+JSON.stringify(bounds)+")");
+    assert.ok(bounds.first>=-1&&bounds.last<=bounds.viewport+1,"WHOT "+n+"-card hand never runs off the phone");
+    assert.ok(bounds.overflow<=2,"WHOT "+n+"-card hand causes no sideways page scroll");
+    assert.ok(bounds.sceneHeight>=600,"WHOT playing surface is truly taller on mobile, not a narrow little box");
+    if([1,3,5,12].includes(n))console.log("NIGHT_WHOT_HAND_"+n+"_JPEG_BASE64="+(await page.screenshot({type:"jpeg",quality:52,fullPage:true})).toString("base64"));
+  }
   await page.goto(base+"/club/?game=colors");
   assert.ok(await page.locator(".color-card").count()>=8,"colour-matching cards dealt");
   if(await page.locator(".color-card.playable").count())await page.locator(".color-card.playable").first().click();
