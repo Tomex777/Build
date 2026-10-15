@@ -139,13 +139,14 @@ export async function runLyricsCommand(ctx, { args = [] } = {}) {
     return deliverLyrics(ctx, { query, track })
   }
 
-  // Fall back to LRCLIB search when the music source cannot identify the track.
+  // The first LRCLIB lookup is definitive for this query. Previously a miss
+  // (or provider failure) repeated the exact same sequential network requests,
+  // making an already slow lookup take twice as long before replying.
   try {
     const direct = await resolveLyrics({ query, track:null })
-    if (direct) return deliverLyricsResult(ctx, { query, track:null, lyrics:direct })
+    return deliverLyricsResult(ctx, { query, track:null, lyrics:direct })
   } catch (error) {
     console.warn('MSCC direct lyrics search failed:', error?.message || error)
+    return ctx.reply('I could not reach the lyrics source right now.')
   }
-
-  return deliverLyrics(ctx, { query, track:null })
 }
