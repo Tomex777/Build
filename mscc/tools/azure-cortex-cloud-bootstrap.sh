@@ -79,7 +79,7 @@ systemctl is-active --quiet cortex-agent.service || {
 readonly ENV_WRITER_OVERRIDE=/etc/systemd/system/cortex-agent.service.d/managed-env-writes.conf
 if ! sudo -n grep -Fxq 'ReadWritePaths=/etc' "$ENV_WRITER_OVERRIDE" 2>/dev/null; then
   sudo -n install -d -m 0755 /etc/systemd/system/cortex-agent.service.d
-  printf '[Service]\\nReadWritePaths=/etc\\n' \
+  printf '[Service]\nReadWritePaths=/etc\n' \
     | sudo -n tee "$ENV_WRITER_OVERRIDE" >/dev/null
   sudo -n chmod 0644 "$ENV_WRITER_OVERRIDE"
   sudo -n systemctl daemon-reload
