@@ -2,6 +2,9 @@ name: AOD Android CI
 on:
   push:
     branches: [aod-android-foundation]
+  pull_request:
+    branches: [aod-android-foundation]
+    paths: ['aod-android/**', '.github/workflows/aod-android.yml', '.github/scripts/aod-*']
     paths: ['aod-android/**', '.github/workflows/aod-android.yml', '.github/scripts/aod-*']
   workflow_dispatch:
 permissions:
