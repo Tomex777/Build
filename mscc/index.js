@@ -101,7 +101,7 @@ import {
 } from './utils/whatsapp/messages.js'
 import { createWhatsAppUi } from './utils/whatsapp/ui.js'
 import { sendText, sendImageDataUrl, startProgress } from './utils/whatsapp/replies.js'
-import { findGroupParticipant, groupMemberLabel, groupTargetJid, memberIdentityKey, participantIds, updateSucceeded } from './group-member-identity.js'
+import { findGroupParticipant, groupMemberLabel, groupTargetJid, memberIdentityKey, participantIds, updateSucceeded, verifiedPhoneNumber } from './group-member-identity.js'
 
 // Shared WhatsApp nativeFlow implementation lives in utils/whatsapp/native-flow.js.
 // The max-row invariant is enforced there (legacy CI marker: remaining = 1000).
@@ -1147,20 +1147,20 @@ async function resolveCommandTarget(account, msg, raw = '') {
 
   if (token.startsWith('@') && mentions.length) {
     const phoneJid = await resolvePhoneJid(account, mentions[0])
-    const phoneNumber = digits(jidUser(phoneJid))
+    const phoneNumber = verifiedPhoneNumber(phoneJid)
     if (phoneNumber) return { phoneNumber, source: 'mention' }
   }
 
   const quotedCandidate = info?.participant || (info?.remoteJid && !isGroup(info.remoteJid) ? info.remoteJid : '')
   if (info?.stanzaId && quotedCandidate) {
     const phoneJid = await resolvePhoneJid(account, quotedCandidate)
-    const phoneNumber = digits(jidUser(phoneJid))
+    const phoneNumber = verifiedPhoneNumber(phoneJid)
     if (phoneNumber) return { phoneNumber, source: 'reply' }
   }
 
   if (mentions.length) {
     const phoneJid = await resolvePhoneJid(account, mentions[0])
-    const phoneNumber = digits(jidUser(phoneJid))
+    const phoneNumber = verifiedPhoneNumber(phoneJid)
     if (phoneNumber) return { phoneNumber, source: 'mention' }
   }
   return { phoneNumber: '', source: '' }
