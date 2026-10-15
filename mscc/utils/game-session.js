@@ -34,3 +34,20 @@ export function otherGameMessage(conflict) {
     ? `There is already a ${conflict.label} game or challenge active in this chat. Finish or cancel it first.`
     : ''
 }
+
+
+// Keep an existing game/lobby attached to its original verified player key
+// when a participant transitions between LID and PN during the game.
+export function userForStoredGame(ctx = {}, record = null) {
+  const current = String(ctx.userKey || '')
+  if (!record || !current) return current
+  const known = new Set([current, ...(Array.isArray(ctx.identityKeys) ? ctx.identityKeys : [])])
+  const participants = [
+    record.createdBy,
+    record.game?.playerWhite, record.game?.playerBlack,
+    record.game?.playerX, record.game?.playerO, record.game?.playerRed,
+    ...(Array.isArray(record.game?.players) ? record.game.players.map(player => player?.id) : []),
+    ...(Array.isArray(record.players) ? record.players.map(player => player?.id) : []),
+  ].map(value => String(value || '')).filter(Boolean)
+  return participants.find(key => known.has(key)) || current
+}
