@@ -93,6 +93,8 @@ public final class MainActivity extends androidx.activity.ComponentActivity {
   private void shell(String label, boolean back) {
     root = Ui.column(this);
     root.setBackgroundColor(Ui.BG);
+    getWindow().setStatusBarColor(Ui.BG);
+    getWindow().setNavigationBarColor(Ui.BG);
     root.setOnApplyWindowInsetsListener(
         (v, insets) -> {
           v.setPadding(
@@ -105,17 +107,19 @@ public final class MainActivity extends androidx.activity.ComponentActivity {
     setContentView(root);
     root.requestApplyInsets();
     bar = Ui.row(this);
+    bar.setPadding(Ui.dp(this, 8), Ui.dp(this, 5), Ui.dp(this, 8), Ui.dp(this, 5));
     if (back) bar.addView(Ui.icon(this, "Back", this::home));
-    title = Ui.text(this, label, 20, Ui.TEXT);
+    title = Ui.text(this, label, 18, Ui.TEXT);
     title.setSingleLine();
     title.setEllipsize(android.text.TextUtils.TruncateAt.END);
-    title.setTypeface(null, android.graphics.Typeface.BOLD);
-    bar.addView(title, new LinearLayout.LayoutParams(0, Ui.dp(this, 56), 1));
+    title.setTypeface(android.graphics.Typeface.create("sans-serif-medium", android.graphics.Typeface.BOLD));
+    title.setPadding(Ui.dp(this, 10), 0, 0, 0);
+    bar.addView(title, new LinearLayout.LayoutParams(0, Ui.dp(this, 50), 1));
     root.addView(bar);
     canvas = null;
   }
 
-  private void toast(String value) {
+    private void toast(String value) {
     Toast.makeText(this, value, Toast.LENGTH_SHORT).show();
   }
 
@@ -155,89 +159,125 @@ public final class MainActivity extends androidx.activity.ComponentActivity {
     bar.addView(Ui.icon(this, "Settings", this::settings));
     bar.addView(Ui.icon(this, "Add", this::newDesign));
     ScrollView scroll = new ScrollView(this);
+    scroll.setFillViewport(false);
     LinearLayout list = Ui.column(this);
     scroll.addView(list);
     root.addView(scroll, new LinearLayout.LayoutParams(-1, 0, 1));
+
     Domain.Theme current = store.current(isCharging());
     Domain.Rule rule =
         store.override ? null : Domain.resolve(store.rules, ZonedDateTime.now(), isCharging());
-    list.addView(
-        Ui.text(
-            this,
-            rule == null
-                ? (store.override ? "Manual · " : "Current · ") + current.name
-                : rule.name + " · " + current.name,
-            14,
-            Ui.ACCENT));
-    LinearLayout hero=Ui.column(this);
-    hero.setPadding(Ui.dp(this,16),Ui.dp(this,8),Ui.dp(this,16),Ui.dp(this,12));
-    Surface featured=new Surface(this,current);
-    featured.passive=true; featured.shift=false; featured.designThumbnail=true;
-    featured.setContentDescription("Edit current design"); featured.setOnClickListener(v -> studio(current));
-    hero.addView(featured,new LinearLayout.LayoutParams(-1,Ui.dp(this,250)));
-    LinearLayout start=Ui.row(this);
-    start.addView(Ui.button(this,"Edit",() -> studio(current)),new LinearLayout.LayoutParams(0,Ui.dp(this,48),1));
-    start.addView(Ui.button(this,"From wallpaper",() -> {
-      Domain.Theme t=new Domain.Theme(); t.name="Wallpaper "+(store.themes.size()+1);
-      Domain.Element clock=new Domain.Element(); clock.y=96; Domain.applyClockFamily(clock,"Thin");
-      t.elements.add(clock); store.put(t); studio(t); chooseImage("outline");
-    }),new LinearLayout.LayoutParams(0,Ui.dp(this,48),1));
-    hero.addView(start); list.addView(hero);
-    list.addView(Ui.text(this,"Your designs",18,Ui.TEXT));
-    LinearLayout galleryRow = null;
+
+    list.addView(Ui.eyebrow(this, "THE ART OF ALWAYS ON"));
+    list.addView(Ui.headline(this, "Make time yours."));
+    TextView intro = Ui.text(this, "An atmosphere for every moment.", 14, Ui.MUTED);
+    intro.setPadding(Ui.dp(this, 16), 0, Ui.dp(this, 16), Ui.dp(this, 14));
+    list.addView(intro);
+
+    LinearLayout hero = Ui.column(this);
+    hero.setBackground(Ui.bordered(this, Ui.PANEL, 20));
+    hero.setClipToOutline(true);
+    LinearLayout.LayoutParams heroParams = new LinearLayout.LayoutParams(-1, -2);
+    heroParams.setMargins(Ui.dp(this, 16), 0, Ui.dp(this, 16), Ui.dp(this, 22));
+    list.addView(hero, heroParams);
+    LinearLayout heroHead = Ui.row(this);
+    heroHead.setPadding(Ui.dp(this, 8), Ui.dp(this, 8), Ui.dp(this, 8), Ui.dp(this, 8));
+    TextView activeLabel = Ui.eyebrow(this, rule == null ? "ACTIVE DESIGN" : "SCHEDULED DESIGN");
+    heroHead.addView(activeLabel, new LinearLayout.LayoutParams(0, -2, 1));
+    TextView live = Ui.text(this, "●  LIVE", 11, Ui.ACCENT);
+    heroHead.addView(live);
+    hero.addView(heroHead);
+    TextView activeName = Ui.text(this, current.name, 19, Ui.TEXT);
+    activeName.setTypeface(android.graphics.Typeface.DEFAULT, android.graphics.Typeface.BOLD);
+    activeName.setPadding(Ui.dp(this, 22), 0, Ui.dp(this, 16), Ui.dp(this, 12));
+    activeName.setSingleLine();
+    activeName.setEllipsize(android.text.TextUtils.TruncateAt.END);
+    hero.addView(activeName);
+    Surface featured = new Surface(this, current);
+    featured.passive = true;
+    featured.shift = false;
+    featured.designThumbnail = true;
+    featured.setContentDescription("Edit current design");
+    featured.setOnClickListener(v -> studio(current));
+    hero.addView(featured, new LinearLayout.LayoutParams(-1, Ui.dp(this, 235)));
+    LinearLayout heroActions = Ui.row(this);
+    heroActions.setPadding(Ui.dp(this, 12), Ui.dp(this, 12), Ui.dp(this, 12), Ui.dp(this, 12));
+    heroActions.addView(Ui.primary(this, "Edit", () -> studio(current)), new LinearLayout.LayoutParams(0, Ui.dp(this, 48), 1));
+    View gap = new View(this);
+    heroActions.addView(gap, new LinearLayout.LayoutParams(Ui.dp(this, 8), 1));
+    heroActions.addView(Ui.button(this, "From wallpaper", () -> {
+      Domain.Theme t = new Domain.Theme(); t.name = "Wallpaper " + (store.themes.size() + 1);
+      Domain.Element clock = new Domain.Element(); clock.y = 96; Domain.applyClockFamily(clock, "Thin");
+      t.elements.add(clock);
+      try { store.put(t); studio(t); chooseImage("outline"); } catch (Exception e) { error(e); }
+    }), new LinearLayout.LayoutParams(0, Ui.dp(this, 48), 1));
+    hero.addView(heroActions);
+
+    LinearLayout section = Ui.row(this);
+    TextView heading = Ui.text(this, "Your collection", 20, Ui.TEXT);
+    heading.setTypeface(android.graphics.Typeface.DEFAULT, android.graphics.Typeface.BOLD);
+    section.addView(heading, new LinearLayout.LayoutParams(0, -2, 1));
+    section.addView(Ui.button(this, "Import", this::importTheme), new LinearLayout.LayoutParams(Ui.dp(this, 92), Ui.dp(this, 44)));
+    section.setPadding(Ui.dp(this, 2), 0, Ui.dp(this, 16), Ui.dp(this, 6));
+    list.addView(section);
     int index = 0;
+    LinearLayout galleryRow = null;
     for (Domain.Theme t : store.themes) {
+      if (t.clockPreset) continue;
       if (index++ % 2 == 0) {
         galleryRow = Ui.row(this);
         galleryRow.setGravity(Gravity.TOP);
+        galleryRow.setPadding(Ui.dp(this, 8), 0, Ui.dp(this, 8), 0);
         list.addView(galleryRow);
       }
       LinearLayout card = Ui.column(this);
-      card.setBackground(Ui.rounded(Ui.PANEL, Ui.dp(this, 12)));
+      card.setBackground(Ui.bordered(this, Ui.PANEL, 16));
+      card.setClipToOutline(true);
       LinearLayout.LayoutParams cp = new LinearLayout.LayoutParams(0, -2, 1);
-      cp.setMargins(Ui.dp(this, 8), Ui.dp(this, 8), Ui.dp(this, 8), Ui.dp(this, 8));
+      cp.setMargins(Ui.dp(this, 7), Ui.dp(this, 6), Ui.dp(this, 7), Ui.dp(this, 7));
       galleryRow.addView(card, cp);
-      Surface preview = new Surface(this, t);
-      preview.shift = false;
-      preview.passive = true;
-      preview.setContentDescription("Edit " + t.name + " design");
-      card.addView(preview, new LinearLayout.LayoutParams(-1, Ui.dp(this, 195)));
-      preview.setOnClickListener(v -> studio(t));
-      TextView name = Ui.text(this, t.name, 15, Ui.TEXT);
+      Surface thumbnail = new Surface(this, t);
+      thumbnail.shift = false;
+      thumbnail.passive = true;
+      thumbnail.designThumbnail = true;
+      thumbnail.setContentDescription("Edit " + t.name + " design");
+      thumbnail.setOnClickListener(v -> studio(t));
+      card.addView(thumbnail, new LinearLayout.LayoutParams(-1, Ui.dp(this, 150)));
+      LinearLayout details = Ui.row(this);
+      TextView name = Ui.text(this, t.name, 14, Ui.TEXT);
       name.setSingleLine();
       name.setEllipsize(android.text.TextUtils.TruncateAt.END);
       name.setOnClickListener(v -> studio(t));
-      card.addView(name);
-      LinearLayout actions = Ui.row(this);
-      actions.addView(
-          Ui.button(this, "Edit", () -> studio(t)),
-          new LinearLayout.LayoutParams(0, Ui.dp(this, 48), 1));
-      actions.addView(Ui.icon(this, "Preview", () -> preview(t, "Preview")));
-      actions.addView(Ui.icon(this, "More", () -> designMenu(t)));
-      card.addView(actions);
+      details.addView(name, new LinearLayout.LayoutParams(0, Ui.dp(this, 52), 1));
+      details.addView(Ui.icon(this, "More", () -> designMenu(t)));
+      card.addView(details);
     }
-    if (index % 2 == 1) galleryRow.addView(new View(this), new LinearLayout.LayoutParams(0, 1, 1));
+    if (index % 2 == 1 && galleryRow != null)
+      galleryRow.addView(new View(this), new LinearLayout.LayoutParams(0, 1, 1));
+    if (index == 0) {
+      TextView empty = Ui.text(this, "Your creations will appear here. Start with the + button.", 14, Ui.MUTED);
+      empty.setPadding(Ui.dp(this, 18), Ui.dp(this, 18), Ui.dp(this, 18), Ui.dp(this, 26));
+      list.addView(empty);
+    }
+    list.addView(Ui.text(this, "Designed here. Saved on your device.", 12, Ui.MUTED));
+
     LinearLayout bottom = Ui.row(this);
-    bottom.addView(
-        Ui.primary(this, "Use display", this::modes), new LinearLayout.LayoutParams(0, -2, 1));
-    bottom.addView(
-        Ui.button(this, "Import theme", this::importTheme),
-        new LinearLayout.LayoutParams(0, -2, 1));
+    bottom.setPadding(Ui.dp(this, 16), Ui.dp(this, 10), Ui.dp(this, 16), Ui.dp(this, 12));
+    bottom.setBackgroundColor(Ui.BG);
+    bottom.addView(Ui.primary(this, "Use display", this::modes), new LinearLayout.LayoutParams(-1, Ui.dp(this, 50)));
     root.addView(bottom);
     if (!store.settings().getBoolean("welcomed", false)) {
       store.settings().edit().putBoolean("welcomed", true).commit();
       new AlertDialog.Builder(this)
           .setTitle("Make space for your time")
-          .setMessage(
-              "Edit a design, then choose Preview, bedside Charging or your device's Ambient"
-                  + " screensaver. Notification access is optional.")
+          .setMessage("Edit a design, then choose Preview, bedside Charging or your device's Ambient screensaver. Notification access is optional.")
           .setPositiveButton("Start designing", (d, w) -> studio(store.find(store.active)))
           .setNegativeButton("Explore", null)
           .show();
     }
   }
 
-  private boolean isCharging() {
+    private boolean isCharging() {
     Intent i = registerReceiver(null, new IntentFilter(Intent.ACTION_BATTERY_CHANGED));
     return i != null && i.getIntExtra(BatteryManager.EXTRA_PLUGGED, 0) != 0;
   }
@@ -553,35 +593,50 @@ public final class MainActivity extends androidx.activity.ComponentActivity {
     if (sheet != null) sheet.dismiss();
     sheet = new Dialog(this);
     LinearLayout layout = Ui.column(this);
-    layout.setBackground(Ui.rounded(Ui.PANEL, Ui.dp(this, 20)));
+    layout.setBackground(Ui.rounded(Ui.PANEL, Ui.dp(this, 24)));
     layout.setFocusableInTouchMode(true);
     layout.requestFocus();
+    LinearLayout handleRow = Ui.row(this);
+    handleRow.setGravity(Gravity.CENTER);
+    handleRow.setPadding(0, Ui.dp(this, 10), 0, Ui.dp(this, 2));
+    View handle = new View(this);
+    handle.setBackground(Ui.rounded(Ui.MUTED, Ui.dp(this, 3)));
+    handleRow.addView(handle, new LinearLayout.LayoutParams(Ui.dp(this, 36), Ui.dp(this, 4)));
+    layout.addView(handleRow);
     LinearLayout head = Ui.row(this);
-    head.addView(Ui.text(this, label, 18, Ui.TEXT), new LinearLayout.LayoutParams(0, -2, 1));
-    head.addView(Ui.button(this, "Done", () -> sheet.dismiss()));
+    head.setPadding(Ui.dp(this, 6), 0, Ui.dp(this, 12), Ui.dp(this, 6));
+    TextView heading = Ui.text(this, label, 19, Ui.TEXT);
+    heading.setTypeface(android.graphics.Typeface.DEFAULT, android.graphics.Typeface.BOLD);
+    head.addView(heading, new LinearLayout.LayoutParams(0, -2, 1));
+    head.addView(Ui.button(this, "Done", () -> sheet.dismiss()), new LinearLayout.LayoutParams(Ui.dp(this, 76), Ui.dp(this, 44)));
     layout.addView(head);
+    layout.addView(Ui.separator(this));
     ScrollView scroll = new ScrollView(this);
+    scroll.setFillViewport(false);
+    scroll.setVerticalScrollBarEnabled(false);
     LinearLayout content = Ui.column(this);
+    content.setPadding(Ui.dp(this, 10), Ui.dp(this, 12), Ui.dp(this, 10), Ui.dp(this, 22));
     scroll.addView(content);
     layout.addView(scroll, new LinearLayout.LayoutParams(-1, 0, 1));
     sheet.setContentView(layout);
     Window window = sheet.getWindow();
     window.setBackgroundDrawableResource(android.R.color.transparent);
     window.setGravity(Gravity.BOTTOM);
-    WindowManager.LayoutParams attrs=window.getAttributes(); attrs.dimAmount=.15f; window.setAttributes(attrs);
+    window.addFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND);
+    WindowManager.LayoutParams attrs = window.getAttributes();
+    attrs.dimAmount = .36f;
+    window.setAttributes(attrs);
     sheet.setOnDismissListener(d -> {
-      if(canvas!=null) { canvas.wallpaperPreview=false; canvas.invalidate(); }
+      if (canvas != null) { canvas.wallpaperPreview = false; canvas.invalidate(); }
     });
-    window.setLayout(-1, (int) (getResources().getDisplayMetrics().heightPixels * .46));
-    window.setSoftInputMode(
-        WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE
-            | WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN);
+    window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE
+        | WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN);
     sheet.show();
-    window.setLayout(-1, (int) (getResources().getDisplayMetrics().heightPixels * .42));
+    window.setLayout(-1, (int) (getResources().getDisplayMetrics().heightPixels * .54));
     return content;
   }
 
-  private void number(
+    private void number(
       LinearLayout parent, String name, float value, java.util.function.Consumer<Float> set) {
     LinearLayout r = Ui.row(this);
     r.addView(
