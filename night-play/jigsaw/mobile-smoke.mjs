@@ -37,7 +37,7 @@ try{
  assert.equal(first.theme,'anime');
  assert.equal(first.pieces.length,24,'New players begin with 24 jigsaw pieces');
  assert.equal(first.placed,0);
- assert.equal(first.board.w>375,true,'Puzzle board fills the phone almost edge-to-edge');
+ assert.equal(await page.evaluate(()=>{const s=window.__nightJigsawTest.snapshot();return s.board.w>=document.getElementById('puzzleCanvas').width-7}),true,'Puzzle board fills nearly the full canvas width');
  assert.equal(first.guide,false,'Picture guide must be off by default');
  assert.equal(await page.locator('#guideSwitch').isChecked(),false,'Guide switch starts unchecked');
  assert.equal(first.challengeMode,'relaxed');
