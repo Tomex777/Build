@@ -344,6 +344,15 @@ sudo install -o root -g root -m 0755 \
   "$RELEASE/tools/mscc-github-deploy-wrapper.sh" \
   /usr/local/sbin/mscc-github-deploy
 
+# The deployment SSH key is intentionally restricted to pinned MSCC releases.
+# Bootstrap the Cloud-capable Cortex Agent through this already approved
+# installer rather than bypassing or weakening the SSH forced-command policy.
+# The helper is pinned, checks hashes, verifies live private APIs, and rolls
+# back only Cortex on failure without restarting the MSCC process.
+echo
+echo ">>> Bootstrapping Cortex Cloud Agent (one-time)..."
+bash "$RELEASE/tools/azure-cortex-cloud-bootstrap.sh"
+
 ACTIVATED=0
 echo "=== MSCC INSTALL COMPLETE ==="
 echo "Release: $RELEASE"
