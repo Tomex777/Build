@@ -111,20 +111,7 @@ jobs:
           disable-animations: true
           working-directory: poetry-android
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -camera-back none
-          script: |
-            set -e
-            APP="$(find /tmp/poetry-build -type f -name 'app-debug.apk' -print -quit)"
-            TEST="$(find /tmp/poetry-build -type f -name '*androidTest*.apk' -print -quit)"
-            test -s "$APP" && test -s "$TEST"
-            adb install -r "$APP"
-            adb install -r "$TEST"
-            adb shell am instrument -w -r com.night.poetry.test/androidx.test.runner.AndroidJUnitRunner | tee "poetry-api${{ matrix.api-level }}-instrumentation.txt"
-            grep -Fq 'OK (1 test)' "poetry-api${{ matrix.api-level }}-instrumentation.txt"
-            adb shell am start -n com.night.poetry/.MainActivity
-            sleep 5
-            adb shell screencap -p /sdcard/poetry-home.png
-            adb pull /sdcard/poetry-home.png "poetry-api${{ matrix.api-level }}-home.png"
-            adb logcat -d -t 5000 > "poetry-api${{ matrix.api-level }}-logcat.txt" || true
+          script: bash scripts/emulator-smoke.sh ${{ matrix.api-level }}
       - uses: actions/upload-artifact@v4
         if: always()
         with:
