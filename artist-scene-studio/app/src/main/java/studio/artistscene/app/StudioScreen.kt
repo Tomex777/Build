@@ -2624,7 +2624,7 @@ private fun CharacterAppearance(
     onEditor: (SceneEditorState, String) -> Unit,
 ) {
     Text("Appearance", color = PrimaryText, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
-    if (actor.asset?.assetId in setOf("starter.makehuman.humanoid", "starter.mise.anime-figure")) {
+    if (actor.asset?.assetId == "starter.makehuman.humanoid") {
         Text("Hair", color = MutedText, fontSize = 12.sp)
         Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
             studio.artistscene.core.HairStyle.entries.forEach { style ->
