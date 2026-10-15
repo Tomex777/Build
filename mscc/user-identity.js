@@ -48,6 +48,12 @@ export async function readAuthLidPhone(authKeys, lidJid) {
   }
 }
 
+export function hasConflictingLidMapping(storage, lidJid) {
+  const lid = normalizedIdentityJid(lidJid)
+  return isOpaqueLid(lid) &&
+    storage?.sharedGet?.(NS, 'lid:' + lid)?.conflict === true
+}
+
 export function storedLidPhone(storage, lidJid) {
   const lid = normalizedIdentityJid(lidJid)
   if (!isOpaqueLid(lid)) return ''
