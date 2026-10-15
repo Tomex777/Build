@@ -21,7 +21,15 @@
 </header>
 <main>
  <section class="page-intro"><span class="eyebrow">THE PUZZLE ROOM</span><h1>Jigsaw <span>Puzzle</span></h1><p>One piece at a time. Watch the picture come together.</p></section>
- <section class="gallery" id="galleryPanel" aria-label="Choose a jigsaw puzzle">
+ <section id="openingPanel" class="jigsaw-entry" aria-label="Preparing puzzle"><span class="eyebrow">NIGHT PLAY · JIGSAW</span><p>Preparing your puzzles…</p></section>
+ <section id="resumePanel" class="jigsaw-entry" aria-label="Continue or start a jigsaw puzzle" hidden>
+  <span class="eyebrow">WELCOME BACK</span><h2>Your puzzle is waiting.</h2>
+  <p id="resumeSummary">Your saved picture is right where you left it.</p>
+  <div class="entry-actions"><button type="button" id="resumePlaying" class="game-button primary">▶ Continue playing</button><button type="button" id="startFresh" class="game-button">Choose another picture</button></div>
+  <p class="entry-footnote">Your unfinished progress stays saved until you begin a new picture.</p>
+ </section>
+ <section class="gallery" id="galleryPanel" aria-label="Choose a jigsaw puzzle" hidden>
+  <div id="resumeGalleryBanner" class="resume-gallery-banner" hidden><span>Want your unfinished puzzle back?</span><button id="resumeFromGallery" type="button">Continue playing →</button></div>
   <div class="panel-top"><div><span class="mini-label">YOUR NEXT PUZZLE</span><h2>Pick a picture</h2></div><span class="gallery-counter" id="galleryCount">7 pictures</span></div>
   <div id="categoryChips" class="filter-chips" role="group" aria-label="Artwork categories">
    <button class="active" type="button" data-filter="all" aria-pressed="true">All</button>
@@ -46,7 +54,7 @@
   <div class="game-actions">
    <button type="button" id="previewButton" class="game-button"><svg class="ico"><use href="#icon-eye"/></svg> Preview <small id="previewRemaining" class="use-count">3 left</small></button>
    <button type="button" id="hintButton" class="game-button"><svg class="ico"><use href="#icon-spark"/></svg> Hint <small id="hintRemaining" class="use-count">3 left</small></button>
-   <button type="button" id="restartButton" class="game-button primary"><svg class="ico"><use href="#icon-restart"/></svg> New puzzle</button>
+   <button type="button" id="restartButton" class="game-button primary"><svg class="ico"><use href="#icon-restart"/></svg> Restart picture</button>
   </div>
   <p class="progress-footnote">Pieces snap into place automatically · Your round saves on this device</p>
  </section>
