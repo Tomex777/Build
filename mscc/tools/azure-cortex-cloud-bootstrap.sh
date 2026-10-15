@@ -70,6 +70,87 @@ systemctl is-active --quiet cortex-agent.service || {
 [[ -f "$AGENT_TARGET" && -f "$HELPER_TARGET" ]] || {
   echo 'Cortex Agent files still missing after first-time bootstrap.' >&2; exit 1;
 }
+# MSCC chmod(700) resets POSIX ACL masks on /var/lib/mscc/data.
+# The installed Agent may be healthy for /status while failing /environment.
+# Repair only the exact read/traversal privileges needed by the Cloud screen.
+# Never grant the temporary job runner access or modify WhatsApp auth.
+if ! command -v setfacl >/dev/null; then
+  echo 'Cortex Cloud readiness requires POSIX ACL support.' >&2
+  exit 1
+fi
+if ! id -u cortex-agent >/dev/null 2>&1; then
+  echo 'Cortex service account unavailable after Agent bootstrap.' >&2
+  exit 1
+fi
+sudo -n setfacl -m 'u:cortex-agent:r--' /etc/mscc.env
+for directory in /var/lib/mscc /var/lib/mscc/data; do
+  if sudo -n test -d "$directory"; then
+    sudo -n setfacl -m 'u:cortex-agent:--x' "$directory"
+  fi
+done
+for schema in /var/lib/mscc/data/cortex-environment-schema.json /var/lib/mscc/data/cortex-settings-schema.json; do
+  if sudo -n test -f "$schema"; then
+    sudo -n setfacl -m 'u:cortex-agent:r--' "$schema"
+  fi
+done
+if ! sudo -n -u cortex-agent test -r /etc/mscc.env; then
+  echo 'Cortex process cannot read its protected MSCC environment.' >&2
+  exit 1
+fi
+
+# Validate the actual route used by the Android Cloud tab even on upgrades
+# already marked as bootstrapped. A healthy /status alone is insufficient.
+CLOUD_TOKEN="$(sudo -n sed -n 's/^CORTEX_AGENT_TOKEN=//p' /etc/cortex-agent.env | tail -n 1)"
+[[ -n "$CLOUD_TOKEN" ]] || { echo 'Agent token is missing on the VM.' >&2; exit 1; }
+cloud_probe_dir="$(mktemp -d)"
+probe_cleanup() { rm -rf "$cloud_probe_dir"; }
+trap probe_cleanup EXIT
+http_code="$(curl --silent --show-error --max-time 12 \
+  --output "$cloud_probe_dir/environment.json" --write-out '%{http_code}' \
+  -H "Authorization: Bearer $CLOUD_TOKEN" \
+  http://127.0.0.1:47831/api/cortex/host/environment)" || {
+    echo 'Local Cortex environment route is unreachable.' >&2
+    exit 1
+  }
+if [[ "$http_code" != 200 ]]; then
+  echo "Cortex Cloud environment route returned HTTP $http_code after permission repair." >&2
+  exit 1
+fi
+node - "$cloud_probe_dir/environment.json" <<'VERIFY_CLOUD_SCHEMA'
+const fs = require('node:fs');
+const schema = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
+const entries = Array.isArray(schema?.entries) ? schema.entries : [];
+for (const key of ['MSCC_MEGA_EMAIL', 'MSCC_MEGA_PASSWORD', 'MSCC_MEGA_SHARED_FOLDERS']) {
+  if (!entries.some(e => e.key === key)) {
+    throw new Error('Expected managed MEGA key absent: ' + key);
+  }
+}
+const password = entries.find(e => e.key === 'MSCC_MEGA_PASSWORD');
+if (!password.secret || password.value) throw new Error('Cortex MEGA password masking invariant failed');
+console.log('Cortex Cloud settings endpoint verified with protected credential masking.');
+VERIFY_CLOUD_SCHEMA
+cloud_http="$(curl --silent --show-error --max-time 12 \
+  --output "$cloud_probe_dir/cloud.json" --write-out '%{http_code}' \
+  -H "Authorization: Bearer $CLOUD_TOKEN" \
+  http://127.0.0.1:47831/api/cortex/host/cloud)" || {
+    echo 'Cortex Cloud route is unreachable.' >&2
+    exit 1
+  }
+if [[ "$cloud_http" != 200 ]]; then
+  echo "Cortex Cloud proxy route returned HTTP $cloud_http." >&2
+  exit 1
+fi
+node - "$cloud_probe_dir/cloud.json" <<'VERIFY_CLOUD_RESPONSE'
+const fs = require('node:fs');
+const cloud = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
+if (!cloud || typeof cloud !== 'object' || typeof cloud.configured !== 'boolean') {
+  throw new Error('Unexpected MSCC Cloud dashboard response.');
+}
+console.log('Cortex Agent -> MSCC Community Cloud endpoint verified.');
+VERIFY_CLOUD_RESPONSE
+rm -rf "$cloud_probe_dir"
+trap - EXIT
+
 # Never force an old pinned Agent over a subsequent, newer update.
 if sudo -n test -f "$BOOTSTRAP_MARK"; then
   echo 'Cortex Cloud bootstrap already completed; leaving later Agent updates untouched.'
