@@ -72,6 +72,7 @@ for(const name of ["bird","blocks","mines","maze"]){
   await page.goto(url+"/arcade/?game="+name);
   assert.equal(await page.locator("#picks [aria-current=true]").getAttribute("data-game"),name);
   assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+2),"no sideways scroll on phone: "+name);
+  if(name!=="bird")console.log("NIGHT_ARCADE_SCREEN_"+name.toUpperCase()+"_JPEG_BASE64="+(await page.screenshot({type:"jpeg",quality:50,fullPage:true})).toString("base64"));
 }
 await page.goto(url+"/games");await page.locator("#view-games").waitFor({state:"visible"});
 assert.equal(await page.locator("[data-arcade]").count(),4,"all four in current library");
