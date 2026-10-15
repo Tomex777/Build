@@ -2605,12 +2605,12 @@ async function processInboundMessage(account, msg) {
           groupStatusSnapshot: () => groupStatusSnapshot(account, msg),
           groupPolicyGet: () => groupPolicy(sharedStorage, chat),
           groupPolicySet: patch => setGroupPolicy(sharedStorage, chat, patch),
-          afkSet: reason => setAfk(sharedStorage, chat, authority.senderNumber, {
+          afkSet: reason => setAfk(sharedStorage, chat, authority.senderKey, {
             reason,
             displayName:String(msg?.pushName || '').trim(),
           }),
-          afkGet: () => getAfk(sharedStorage, chat, authority.senderNumber),
-          afkClear: () => clearAfk(sharedStorage, chat, authority.senderNumber),
+          afkGet: () => getAfk(sharedStorage, chat, authority.senderKey),
+          afkClear: () => clearAfk(sharedStorage, chat, authority.senderKey),
           groupWarn: async (raw, reason = '') => {
             const target = await resolveGroupParticipant(account, msg, raw)
             if (!target) throw new Error('Mention somebody or reply to their message.')
