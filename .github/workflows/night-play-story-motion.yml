@@ -25,5 +25,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: night-play-story-motion-screenshots
-          path: story-screenshots/*.png
+          path: story-screenshots/*
           if-no-files-found: ignore
