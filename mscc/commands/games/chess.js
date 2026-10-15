@@ -269,24 +269,15 @@ async function startBotGame(ctx, level) {
   const user = String(ctx.userKey || '')
   const name = playerName(ctx)
   // Nexia chesspic starts the human as White, with the first turn.
-  const userIsWhite = true
   const game = new ChessGame({
-    playerWhite:userIsWhite ? user : CHESS_BOT_ID,
-    playerBlack:userIsWhite ? CHESS_BOT_ID : user,
-    whiteName:userIsWhite ? name : 'NIGHT Bot',
-    blackName:userIsWhite ? 'NIGHT Bot' : name,
+    playerWhite:user,
+    playerBlack:CHESS_BOT_ID,
+    whiteName:name,
+    blackName:'NIGHT Bot',
   })
   const theme = getChessTheme(ctx.shared, user)
 
-  let note = `Bot difficulty: ${level}. You are ${userIsWhite ? 'White' : 'Black'}.`
-  if (!userIsWhite) {
-    const botMove = pickChessBotMove(game.chess, level)
-    if (botMove) {
-      const result = game.move(CHESS_BOT_ID, botMove)
-      if (!result.ok) throw new Error(result.reason || 'Bot opening move failed.')
-      note += ` NIGHT Bot is White and opened ${botMove.from}→${botMove.to}.`
-    }
-  }
+  const note = `Bot difficulty: ${level}. You are White.`
 
   saveRecord(ctx, {
     id:randomUUID(),

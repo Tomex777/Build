@@ -8,15 +8,15 @@ export const PIECE_NAMES = { k:'king', q:'queen', r:'rook', b:'bishop', n:'knigh
 const PIECE_LETTERS = { k:'K', q:'Q', r:'R', b:'B', n:'N', p:'' }
 
 export const CHESS_LEVELS = [
-  { id:'beginner', label:'🟢 Beginner', description:'Learning pace with frequent mistakes' },
-  { id:'easy', label:'🟡 Easy', description:'Gentle, but it still sees captures' },
-  { id:'medium', label:'🟠 Medium', description:'Balanced play with fewer mistakes' },
-  { id:'hard', label:'🔴 Hard', description:'Strong search and rare mistakes' },
-  { id:'expert', label:'⚫ Expert', description:'Strongest NIGHT chess setting' },
+  { id:'beginner', label:'🟢 Beginner', description:'Great for learning the rules' },
+  { id:'easy', label:'🟡 Easy', description:'A gentle challenge' },
+  { id:'medium', label:'🟠 Medium', description:'Balanced — makes real threats' },
+  { id:'hard', label:'🔴 Hard', description:'Strong play, rare mistakes' },
+  { id:'expert', label:'⚫ Expert', description:'Plays optimally — strongest NIGHT chess setting' },
 ]
 
 const DEPTH = { beginner:1, easy:1, medium:2, hard:3, expert:3 }
-const MISTAKE_CHANCE = { beginner:0.72, easy:0.42, medium:0.2, hard:0.06, expert:0 }
+const MISTAKE_CHANCE = { beginner:0.75, easy:0.45, medium:0.22, hard:0.08, expert:0 }
 const PIECE_VALUE = { p:100, n:320, b:330, r:500, q:900, k:0 }
 const CENTER_BONUS = {
   d4:10,d5:10,e4:10,e5:10,
