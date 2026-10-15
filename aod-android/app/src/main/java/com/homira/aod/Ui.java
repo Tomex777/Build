@@ -1,17 +1,28 @@
 package com.homira.aod;
 
-import android.content.*;
-import android.graphics.*;
+import android.content.Context;
+import android.content.res.ColorStateList;
+import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
-import android.view.*;
-import android.widget.*;
+import android.graphics.drawable.RippleDrawable;
+import android.util.TypedValue;
+import android.view.Gravity;
+import android.view.View;
+import android.widget.Button;
+import android.widget.ImageView;
+import android.widget.LinearLayout;
+import android.widget.TextView;
 
+/** Shared visual system for the editor. Ambient/charging rendering stays pure black. */
 public final class Ui {
-  public static final int BG = 0xff0b0d10,
-      PANEL = 0xff191d22,
-      TEXT = 0xffe9efed,
-      MUTED = 0xff89979e,
-      ACCENT = 0xffa8e9d1;
+  private Ui() {}
+  public static final int BG = 0xff0b1015;
+  public static final int PANEL = 0xff182128;
+  public static final int CARD = 0xff1d2931;
+  public static final int BORDER = 0xff304047;
+  public static final int TEXT = 0xfff0f7f3;
+  public static final int MUTED = 0xffa2b5b5;
+  public static final int ACCENT = 0xffa4ebd3;
 
   public static int dp(Context c, float n) {
     return Math.round(n * c.getResources().getDisplayMetrics().density);
@@ -20,10 +31,26 @@ public final class Ui {
   public static TextView text(Context c, String value, int size, int color) {
     TextView t = new TextView(c);
     t.setText(value);
-    t.setTextSize(size);
+    t.setTextSize(TypedValue.COMPLEX_UNIT_SP, size);
     t.setTextColor(color);
     t.setGravity(Gravity.CENTER_VERTICAL);
     t.setPadding(dp(c, 16), dp(c, 8), dp(c, 16), dp(c, 8));
+    return t;
+  }
+
+  public static TextView headline(Context c, String value) {
+    TextView t = text(c, value, 29, TEXT);
+    t.setTypeface(Typeface.create("sans-serif-medium", Typeface.BOLD));
+    t.setLetterSpacing(-.035f);
+    t.setPadding(dp(c, 16), 0, dp(c, 16), dp(c, 4));
+    return t;
+  }
+
+  public static TextView eyebrow(Context c, String value) {
+    TextView t = text(c, value, 11, ACCENT);
+    t.setLetterSpacing(.16f);
+    t.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
+    t.setPadding(dp(c, 16), dp(c, 12), dp(c, 16), dp(c, 6));
     return t;
   }
 
@@ -35,6 +62,7 @@ public final class Ui {
 
   public static LinearLayout row(Context c) {
     LinearLayout l = new LinearLayout(c);
+    l.setOrientation(LinearLayout.HORIZONTAL);
     l.setGravity(Gravity.CENTER_VERTICAL);
     return l;
   }
@@ -46,134 +74,98 @@ public final class Ui {
     return d;
   }
 
+  public static GradientDrawable bordered(Context c, int color, int radius) {
+    GradientDrawable d = rounded(color, dp(c, radius));
+    d.setStroke(dp(c, 1), BORDER);
+    return d;
+  }
+
+  public static View separator(Context c) {
+    View line = new View(c);
+    line.setBackgroundColor(BORDER);
+    line.setLayoutParams(new LinearLayout.LayoutParams(-1, dp(c, 1)));
+    return line;
+  }
+
   public static Button button(Context c, String label, Runnable action) {
     Button b = new Button(c);
-    b.setText(label);
     b.setAllCaps(false);
-    b.setTextSize(14);
-    b.setTextColor(ACCENT);
+    b.setText(label);
+    b.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13);
+    b.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
+    b.setTextColor(TEXT);
+    b.setMinWidth(0);
+    b.setMinimumWidth(0);
     b.setMinHeight(dp(c, 48));
-    b.setBackground(rounded(PANEL, dp(c, 12)));
+    b.setPadding(dp(c, 12), 0, dp(c, 12), 0);
+    b.setElevation(0);
+    b.setBackground(new RippleDrawable(ColorStateList.valueOf(0x338ddfbd),
+        bordered(c, PANEL, 13), rounded(0xffffffff, dp(c, 13))));
     b.setOnClickListener(v -> action.run());
     return b;
   }
 
   public static Button primary(Context c, String label, Runnable action) {
-    Button button=button(c,label,action);
-    button.setTextColor(BG);
-    button.setBackground(rounded(ACCENT,dp(c,12)));
-    return button;
+    Button b = button(c, label, action);
+    b.setTextColor(BG);
+    b.setBackground(new RippleDrawable(ColorStateList.valueOf(0x3388a88e),
+        rounded(ACCENT, dp(c, 13)), rounded(0xffffffff, dp(c, 13))));
+    return b;
+  }
+
+  private static int drawable(String name) {
+    switch (name) {
+      case "Back": return R.drawable.ic_back;
+      case "Add": return R.drawable.ic_add;
+      case "Undo": return R.drawable.ic_undo;
+      case "Redo": return R.drawable.ic_redo;
+      case "Preview": return R.drawable.ic_preview;
+      case "Layers": return R.drawable.ic_layers;
+      case "Settings": return R.drawable.ic_settings;
+      case "Wallpaper": return R.drawable.ic_wallpaper;
+      case "Clock":
+      case "Schedules": return R.drawable.ic_clock;
+      default: return R.drawable.ic_more;
+    }
+  }
+
+  private static ImageView glyph(Context c, String name) {
+    ImageView v = new ImageView(c);
+    v.setImageResource(drawable(name));
+    v.setImageTintList(ColorStateList.valueOf(ACCENT));
+    v.setScaleType(ImageView.ScaleType.FIT_CENTER);
+    v.setPadding(dp(c, 12), dp(c, 12), dp(c, 12), dp(c, 12));
+    return v;
   }
 
   public static View icon(Context c, String name, Runnable action) {
-    Icon i = new Icon(c, name);
-    i.setContentDescription(name);
-    i.setFocusable(true);
-    i.setOnClickListener(v -> action.run());
-    i.setLayoutParams(new LinearLayout.LayoutParams(dp(c, 48), dp(c, 48)));
-    return i;
+    ImageView v = glyph(c, name);
+    v.setContentDescription(name);
+    v.setFocusable(true);
+    v.setClickable(true);
+    TypedValue selectable = new TypedValue();
+    c.getTheme().resolveAttribute(android.R.attr.selectableItemBackgroundBorderless, selectable, true);
+    if (selectable.resourceId != 0) v.setBackgroundResource(selectable.resourceId);
+    v.setOnClickListener(w -> action.run());
+    v.setLayoutParams(new LinearLayout.LayoutParams(dp(c, 48), dp(c, 48)));
+    return v;
   }
 
   public static View tool(Context c, String name, String label, Runnable action) {
-    LinearLayout tool=column(c);
+    LinearLayout tool = column(c);
     tool.setGravity(Gravity.CENTER);
-    tool.addView(new Icon(c,name),new LinearLayout.LayoutParams(dp(c,32),dp(c,32)));
-    TextView caption=text(c,label,11,TEXT);
-    caption.setPadding(0,dp(c,3),0,0); caption.setGravity(Gravity.CENTER);
+    ImageView icon = glyph(c, name);
+    icon.setPadding(dp(c, 4), dp(c, 4), dp(c, 4), dp(c, 4));
+    tool.addView(icon, new LinearLayout.LayoutParams(dp(c, 29), dp(c, 29)));
+    TextView caption = text(c, label, 11, MUTED);
+    caption.setPadding(0, dp(c, 7), 0, 0);
+    caption.setGravity(Gravity.CENTER);
     tool.addView(caption);
-    tool.setContentDescription(name); tool.setFocusable(true);
+    tool.setContentDescription(name);
+    tool.setFocusable(true);
+    tool.setClickable(true);
+    tool.setBackground(rounded(PANEL, dp(c, 12)));
     tool.setOnClickListener(v -> action.run());
     return tool;
-  }
-
-  static final class Icon extends View {
-    final String name;
-    final Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
-
-    Icon(Context c, String n) {
-      super(c);
-      name = n;
-    }
-
-    @Override
-    public void onDraw(Canvas canvas) {
-      super.onDraw(canvas);
-      canvas.save();
-      canvas.translate(
-          getWidth() / 2f - 12 * getResources().getDisplayMetrics().density,
-          getHeight() / 2f - 12 * getResources().getDisplayMetrics().density);
-      canvas.scale(
-          getResources().getDisplayMetrics().density, getResources().getDisplayMetrics().density);
-      p.setColor(ACCENT);
-      p.setStrokeWidth(1.8f);
-      p.setStyle(Paint.Style.STROKE);
-      p.setStrokeCap(Paint.Cap.ROUND);
-      Path path = new Path();
-      switch (name) {
-        case "Back":
-          path.moveTo(15, 4);
-          path.lineTo(7, 12);
-          path.lineTo(15, 20);
-          break;
-        case "Add":
-          canvas.drawLine(12, 4, 12, 20, p);
-          canvas.drawLine(4, 12, 20, 12, p);
-          break;
-        case "Undo":
-        case "Redo":
-          canvas.drawArc(5, 7, 21, 21, name.equals("Undo") ? 190 : 330, 220, false, p);
-          path.moveTo(5, 4);
-          path.lineTo(5, 12);
-          path.lineTo(12, 12);
-          break;
-        case "Preview":
-          path.moveTo(8, 4);
-          path.lineTo(20, 12);
-          path.lineTo(8, 20);
-          path.close();
-          break;
-        case "Layers":
-          path.moveTo(3, 8);
-          path.lineTo(12, 3);
-          path.lineTo(21, 8);
-          path.lineTo(12, 13);
-          path.close();
-          canvas.drawLine(3, 13, 12, 18, p);
-          canvas.drawLine(12, 18, 21, 13, p);
-          canvas.drawLine(3, 18, 12, 23, p);
-          canvas.drawLine(12, 23, 21, 18, p);
-          break;
-        case "Settings":
-          canvas.drawCircle(12, 12, 7, p);
-          canvas.drawCircle(12, 12, 2, p);
-          for (int n = 0; n < 8; n++) {
-            double a = n * Math.PI / 4;
-            canvas.drawLine(
-                12 + (float) Math.sin(a) * 8,
-                12 + (float) Math.cos(a) * 8,
-                12 + (float) Math.sin(a) * 10,
-                12 + (float) Math.cos(a) * 10,
-                p);
-          }
-          break;
-        case "Wallpaper":
-          canvas.drawRoundRect(3,3,21,21,3,3,p); canvas.drawCircle(8,8,2,p);
-          path.moveTo(4,18); path.lineTo(10,12); path.lineTo(14,16); path.lineTo(18,11); path.lineTo(21,15);
-          break;
-        case "Clock":
-        case "Schedules":
-          canvas.drawCircle(12, 12, 9, p);
-          path.moveTo(12, 5);
-          path.lineTo(12, 12);
-          path.lineTo(17, 15);
-          break;
-        default:
-          canvas.drawCircle(5, 12, 1, p);
-          canvas.drawCircle(12, 12, 1, p);
-          canvas.drawCircle(19, 12, 1, p);
-      }
-      canvas.drawPath(path, p);
-      canvas.restore();
-    }
   }
 }
