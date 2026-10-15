@@ -6,13 +6,42 @@ const JOKE_FALLBACKS = [
   'I tried to make a belt out of watches. Total waist of time.',
 ]
 
-const MEME_SUBREDDITS = {
-  anime:'animemes',
-  wholesome:'wholesomememes',
-  programming:'ProgrammerHumor',
-  programmer:'ProgrammerHumor',
-  dank:'dankmemes',
-  memes:'memes',
+const MEME_POOLS = Object.freeze({
+  // A wide default mix: general, niche, anime, gaming, and tech humor.
+  general:[
+    'memes','me_irl','dankmemes','AdviceAnimals','funny','MemeEconomy',
+    'starterpacks','HistoryMemes','wholesomememes','PrequelMemes',
+    'lotrmemes','technicallythetruth','antimeme','comedyheaven',
+    'ProgrammerHumor','Animemes','bonehurtingjuice','surrealmemes',
+    'facepalm','MinecraftMemes','comedyhomicide','memes_of_the_dank',
+  ],
+  anime:['Animemes','anime_irl','goodanimemes','animememes','wholesomeanimemes'],
+  wholesome:['wholesomememes','wholesomeanimemes','MadeMeSmile','Eyebleach','AnimalsBeingBros'],
+  programming:['ProgrammerHumor','programmingmemes','linuxmemes','codingmemes','techhumor'],
+  dank:['dankmemes','memes_of_the_dank','shitposting','comedyheaven','surrealmemes','okbuddyretard'],
+  // Dark humor has its own source pool. NSFW/spoiler posts are still excluded.
+  dark:[
+    'darkmemes','darkhumor','DarkHumorMemes','cursedcomments','cursedmemes',
+    'cursedimages','HolUp','distressingmemes','ComedyNecrophilia',
+    'shitposting','darkhumorandmemes','offensivememes',
+  ],
+})
+
+const MEME_ALIASES = Object.freeze({
+  '':'general', memes:'general', meme:'general', general:'general',
+  programmer:'programming', coding:'programming', wholesome:'wholesome',
+  anime:'anime', programming:'programming', dank:'dank', dark:'dark',
+  darkmeme:'dark', darkmemes:'dark',
+})
+
+const RECENT_LIMIT = 150
+const SUBREDDITS_PER_BATCH = 3
+const MAX_SUBREDDITS_PER_REQUEST = 6
+const recentByMode = new Map()
+
+export function memeSubreddits(category = '') {
+  const key = clean(category, 30).toLowerCase()
+  return [...MEME_POOLS[MEME_ALIASES[key] || 'general']]
 }
 
 function clean(value, max = 500) {
@@ -47,7 +76,7 @@ export function parseRedditMemes(payload) {
   const rows = payload?.data?.children || []
   return rows
     .map(row => row?.data || {})
-    .filter(row => row && row.over_18 !== true && row.stickied !== true)
+    .filter(row => row && row.over_18 !== true && row.stickied !== true && row.spoiler !== true && row.is_video !== true)
     .map(row => ({
       title:clean(row.title, 280),
       url:imageUrl(row.url_overridden_by_dest || row.url),
@@ -85,34 +114,80 @@ async function safeFeedJson(response) {
   }
 }
 
-export async function randomMeme(category = '', { fetchImpl = globalThis.fetch } = {}) {
-  if (typeof fetchImpl !== 'function') throw new Error('Meme service is unavailable.')
-  const key = clean(category, 30).toLowerCase()
-  const subreddit = MEME_SUBREDDITS[key] || 'memes'
-  const sources = [
-    {
-      url:'https://meme-api.com/gimme/' + encodeURIComponent(subreddit) + '/10',
-      parse:parseMemeApi,
-    },
-    {
-      url:'https://www.reddit.com/r/' + encodeURIComponent(subreddit) + '/hot.json?limit=60&raw_json=1',
-      parse:parseRedditMemes,
-    },
-  ]
+function shuffledSubreddits(pool, random) {
+  const copy = [...pool]
+  for (let i = copy.length - 1; i > 0; i -= 1) {
+    const roll = Number(random())
+    const j = Math.min(i, Math.max(0, Math.floor((Number.isFinite(roll) ? roll : 0) * (i + 1))))
+    ;[copy[i], copy[j]] = [copy[j], copy[i]]
+  }
+  return copy.slice(0, MAX_SUBREDDITS_PER_REQUEST)
+}
 
-  for (const source of sources) {
+async function fetchMemes(subreddits, provider, fetchImpl) {
+  const results = await Promise.all(subreddits.map(async subreddit => {
+    const url = provider === 'api'
+      ? 'https://meme-api.com/gimme/' + encodeURIComponent(subreddit) + '/10'
+      : 'https://www.reddit.com/r/' + encodeURIComponent(subreddit) + '/hot.json?limit=75&raw_json=1'
     try {
-      const response = await fetchImpl(source.url, {
+      const response = await fetchImpl(url, {
         headers:{ accept:'application/json', 'user-agent':'Night/2.3 meme reader' },
-        signal:AbortSignal.timeout(8500),
+        signal:AbortSignal.timeout(5500),
       })
       const payload = await safeFeedJson(response)
-      if (!payload) continue
-      const rows = source.parse(payload)
-      if (rows.length) return rows[Math.floor(Math.random() * rows.length)]
+      if (!payload) return []
+      return provider === 'api' ? parseMemeApi(payload) : parseRedditMemes(payload)
     } catch {
-      // Try the next provider when this one is blocked, malformed, or offline.
+      // A blocked, rate-limited, malformed, or offline source must not break the command.
+      return []
+    }
+  }))
+  return results.flat()
+}
+
+function chooseMeme(rows, mode, random, { allowRecent = false } = {}) {
+  const recent = recentByMode.get(mode) || []
+  const seen = new Set(recent)
+  // Posts often appear in several communities; do not send duplicates in one batch.
+  const unique = [...new Map(rows.filter(row => row?.url).map(row => [row.url, row])).values()]
+  const candidates = allowRecent ? unique : unique.filter(row => !seen.has(row.url))
+  if (!candidates.length) return null
+  const roll = Number(random())
+  const position = Math.min(candidates.length - 1, Math.max(0, Math.floor((Number.isFinite(roll) ? roll : 0) * candidates.length)))
+  const result = candidates[position]
+  const next = recent.filter(url => url !== result.url)
+  next.push(result.url)
+  recentByMode.set(mode, next.slice(-RECENT_LIMIT))
+  return result
+}
+
+export async function randomMeme(category = '', { fetchImpl = globalThis.fetch, random = Math.random } = {}) {
+  if (typeof fetchImpl !== 'function') throw new Error('Meme service is unavailable.')
+  const key = clean(category, 30).toLowerCase()
+  const mode = MEME_ALIASES[key] === 'dark' ? 'dark' : 'regular'
+  const subredditPool = memeSubreddits(category)
+  const selected = shuffledSubreddits(subredditPool, random)
+  const repeated = []
+
+  // Each invocation mixes up to three different subreddits at a time.
+  // Try the API first, Reddit JSON second, then a different set of communities.
+  // The provider choice is never tied to one hard-coded subreddit.
+  for (let index = 0; index < selected.length; index += SUBREDDITS_PER_BATCH) {
+    const batch = selected.slice(index, index + SUBREDDITS_PER_BATCH)
+    for (const provider of ['api','reddit']) {
+      const rows = await fetchMemes(batch, provider, fetchImpl)
+      const fresh = chooseMeme(rows, mode, random)
+      if (fresh) return fresh
+      repeated.push(...rows)
     }
   }
-  throw new Error('Meme feeds are temporarily unavailable. Try .meme again shortly.')
+
+  // Prefer not to repeat, but a previously shown image beats total failure.
+  const fallback = chooseMeme(repeated, mode, random, { allowRecent:true })
+  if (fallback) return fallback
+  throw new Error('Meme feeds are temporarily unavailable. Please try again shortly.')
+}
+
+export function randomDarkMeme(options = {}) {
+  return randomMeme('dark', options)
 }
