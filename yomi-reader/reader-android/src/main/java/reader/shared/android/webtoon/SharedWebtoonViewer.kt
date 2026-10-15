@@ -12,8 +12,10 @@ import android.view.ViewGroup
 import android.widget.FrameLayout
 import android.widget.TextView
 import androidx.recyclerview.widget.DiffUtil
+import androidx.core.graphics.ColorUtils
 import androidx.recyclerview.widget.RecyclerView
 import androidx.recyclerview.widget.WebtoonLayoutManager
+import app.yomi.reader.core.loadOwnedResource
 import com.davemorrissey.labs.subscaleview.SubsamplingScaleImageView
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -21,7 +23,6 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import reader.shared.android.ReaderPageImageView
 import reader.shared.android.ReaderRenderConfig
 import reader.shared.android.ReaderViewerHost
@@ -43,6 +44,7 @@ class SharedWebtoonViewer(
     private val adapter = Adapter()
     private var chapters: ViewerChapters? = null
     private var currentPage: ViewerPage? = null
+    private var currentOffsetFraction = 0.0
 
     val recycler = WebtoonRecyclerView(host.context).apply {
         setItemViewCacheSize(RECYCLER_VIEW_CACHE_SIZE)
@@ -144,8 +146,9 @@ class SharedWebtoonViewer(
             (-child.top).toDouble().div(child.height.toDouble()).coerceIn(0.0, 1.0)
         }
 
-        if (page != currentPage || offset > 0.0) {
+        if (page != currentPage || offset != currentOffsetFraction) {
             currentPage = page
+            currentOffsetFraction = offset
             host.onPageSelected(page, offset)
         }
 
@@ -224,7 +227,9 @@ class SharedWebtoonViewer(
                 override fun areItemsTheSame(oldPosition: Int, newPosition: Int): Boolean =
                     oldItems[oldPosition] == newItems[newPosition]
                 override fun areContentsTheSame(oldPosition: Int, newPosition: Int): Boolean =
-                    oldItems[oldPosition] == newItems[newPosition]
+                    // Chapter pages are loaded in-place, so equal transition
+                    // models can still have a different loading indicator.
+                    oldItems[oldPosition] !is ChapterTransition && oldItems[oldPosition] == newItems[newPosition]
             })
             items = newItems
             diff.dispatchUpdatesTo(this)
@@ -302,16 +307,17 @@ class SharedWebtoonViewer(
             image.onImageLoadError = { error -> showPageError(page, error) }
             loadJob = scope.launch {
                 try {
-                    val stream = withContext(Dispatchers.IO) { page.open() }
-                    image.setImage(
-                        stream,
-                        ReaderPageImageView.Config(
-                            zoomDurationMillis = config.zoomDurationMillis,
-                            minimumScaleType = SubsamplingScaleImageView.SCALE_TYPE_FIT_WIDTH,
-                            cropBorders = config.cropBorders,
-                        ),
-                        isAnimated = page.isAnimated,
-                    )
+                    loadOwnedResource(open = { page.open() }) { stream ->
+                        image.setImage(
+                            stream,
+                            ReaderPageImageView.Config(
+                                zoomDurationMillis = config.zoomDurationMillis,
+                                minimumScaleType = SubsamplingScaleImageView.SCALE_TYPE_FIT_WIDTH,
+                                cropBorders = config.cropBorders,
+                            ),
+                            isAnimated = page.isAnimated,
+                        )
+                    }
                     image.bringChildToFront(spinner)
                 } catch (error: CancellationException) {
                     throw error
@@ -329,7 +335,7 @@ class SharedWebtoonViewer(
                 text = "Unable to display this page. Tap to retry."
                 textSize = 15f
                 gravity = Gravity.CENTER
-                setTextColor(0xFFFFFFFF.toInt())
+                setTextColor(if (ColorUtils.calculateLuminance(config.backgroundColor) > 0.5) 0xFF202124.toInt() else 0xFFFFFFFF.toInt())
                 setPadding(24, 24, 24, 24)
                 setOnClickListener { bind(page) }
             }

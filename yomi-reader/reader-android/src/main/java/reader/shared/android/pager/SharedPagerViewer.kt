@@ -14,14 +14,15 @@ import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import androidx.core.view.children
+import androidx.core.graphics.ColorUtils
 import androidx.viewpager.widget.ViewPager
+import app.yomi.reader.core.loadOwnedResource
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import reader.shared.android.ReaderPageImageView
 import reader.shared.android.ReaderRenderConfig
 import reader.shared.android.ReaderViewerHost
@@ -31,7 +32,6 @@ import reader.shared.android.model.ViewerChapter
 import reader.shared.android.model.ViewerChapters
 import reader.shared.android.model.ViewerPage
 import reader.shared.android.navigation.ViewerNavigation.NavigationRegion
-import kotlin.math.min
 
 enum class PagerDirection {
     LTR,
@@ -132,7 +132,7 @@ class SharedPagerViewer(
             adapter.setChapters(window)
             val pages = window.currChapter.pages.orEmpty()
             if (pages.isNotEmpty()) {
-                val requested = min(window.currChapter.requestedPage, pages.lastIndex)
+                val requested = window.currChapter.requestedPage.coerceIn(0, pages.lastIndex)
                 // Keep the actually selected page when adjacent chapters finish
                 // loading; otherwise use the restored/chapter-requested position.
                 val target = original?.takeIf { sameChapter && it in adapter.items } ?: pages[requested]
@@ -164,7 +164,12 @@ class SharedPagerViewer(
         when (item) {
             is ViewerPage -> {
                 val forward = when (old) {
-                    is ViewerPage -> item.number >= old.number
+                    is ViewerPage -> if (item.chapter == old.chapter) {
+                        item.number >= old.number
+                    } else {
+                        item.chapter.chapter.order > old.chapter.chapter.order
+                    }
+                    is ChapterTransition.Prev -> false
                     else -> true
                 }
                 host.onPageSelected(item, 0.0)
@@ -250,6 +255,8 @@ class SharedPagerViewer(
     }
 
     override fun destroy() {
+        pendingChapters = null
+        pager.removeOnPageChangeListener(pagerListener)
         scope.cancel()
         adapter.destroyAll()
     }
@@ -287,6 +294,9 @@ class SharedPagerViewer(
             }
 
         override fun getItemPosition(view: Any): Int {
+            if (view is TransitionHolder && view.loading != (view.transition.to?.pages == null && view.transition.to != null)) {
+                return POSITION_NONE
+            }
             val item = (view as? PositionableView)?.item ?: return POSITION_NONE
             val position = items.indexOf(item)
             return if (position >= 0) position else POSITION_NONE
@@ -305,6 +315,7 @@ class SharedPagerViewer(
         val transition: ChapterTransition,
     ) : FrameLayout(host.context), ViewPagerAdapter.PositionableView {
         override val item: Any get() = transition
+        val loading = transition.to?.pages == null && transition.to != null
 
         init {
             layoutParams = ViewGroup.LayoutParams(
@@ -323,11 +334,11 @@ class SharedPagerViewer(
                     ViewGroup.LayoutParams.WRAP_CONTENT,
                 ),
             )
-            if (transition.to?.pages == null && transition.to != null) {
+            if (loading) {
                 content.addView(ProgressBar(host.context).apply { isIndeterminate = true })
                 content.addView(TextView(host.context).apply {
                     text = "Loading chapter…"
-                    setTextColor(0xFFCFD8E5.toInt())
+                    setTextColor(if (ColorUtils.calculateLuminance(config.backgroundColor) > 0.5) 0xFF202124.toInt() else 0xFFCFD8E5.toInt())
                     gravity = Gravity.CENTER
                 })
             }
@@ -376,18 +387,19 @@ class SharedPagerViewer(
             loadJob?.cancel()
             loadJob = scope.launch {
                 try {
-                    val stream = withContext(Dispatchers.IO) { page.open() }
-                    setImage(
-                        stream,
-                        Config(
-                            zoomDurationMillis = config.zoomDurationMillis,
-                            minimumScaleType = config.minimumScaleType,
-                            cropBorders = config.cropBorders,
-                            zoomStartPosition = config.zoomStartPosition,
-                            landscapeZoom = config.landscapeZoom && direction != PagerDirection.VERTICAL,
-                        ),
-                        isAnimated = page.isAnimated,
-                    )
+                    loadOwnedResource(open = { page.open() }) { stream ->
+                        setImage(
+                            stream,
+                            Config(
+                                zoomDurationMillis = config.zoomDurationMillis,
+                                minimumScaleType = config.minimumScaleType,
+                                cropBorders = config.cropBorders,
+                                zoomStartPosition = config.zoomStartPosition,
+                                landscapeZoom = config.landscapeZoom && direction != PagerDirection.VERTICAL,
+                            ),
+                            isAnimated = page.isAnimated,
+                        )
+                    }
                 } catch (error: CancellationException) {
                     throw error
                 } catch (error: Exception) {
@@ -404,7 +416,7 @@ class SharedPagerViewer(
                 text = "Unable to display this page. Tap to retry."
                 textSize = 15f
                 gravity = Gravity.CENTER
-                setTextColor(0xFFFFFFFF.toInt())
+                setTextColor(if (ColorUtils.calculateLuminance(config.backgroundColor) > 0.5) 0xFF202124.toInt() else 0xFFFFFFFF.toInt())
                 setPadding(24, 24, 24, 24)
                 setOnClickListener { startPageLoad() }
             }

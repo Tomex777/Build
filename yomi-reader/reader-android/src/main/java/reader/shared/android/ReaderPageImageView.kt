@@ -42,6 +42,7 @@ open class ReaderPageImageView @JvmOverloads constructor(
     private var imageDisposable: Disposable? = null
     private var config: Config? = null
     private var selectedDirection: Boolean? = null
+    private var imageGeneration = 0L
 
     var onImageLoaded: (() -> Unit)? = null
     var onImageLoadError: ((Throwable?) -> Unit)? = null
@@ -52,6 +53,7 @@ open class ReaderPageImageView @JvmOverloads constructor(
         // Preserve the pending direction across the old image teardown.
         val pendingDirection = selectedDirection
         recycle()
+        val generation = imageGeneration
         selectedDirection = pendingDirection
         this.config = config
         // Some supported archives contain extensionless images. Mihon detects
@@ -80,6 +82,7 @@ open class ReaderPageImageView @JvmOverloads constructor(
             setOnStateChangedListener(
                 object : SubsamplingScaleImageView.OnStateChangedListener {
                     override fun onScaleChanged(newScale: Float, origin: Int) {
+                        if (generation != imageGeneration) return
                         this@ReaderPageImageView.onScaleChanged?.invoke(newScale)
                     }
 
@@ -89,6 +92,7 @@ open class ReaderPageImageView @JvmOverloads constructor(
             setOnImageEventListener(
                 object : SubsamplingScaleImageView.DefaultOnImageEventListener() {
                     override fun onReady() {
+                        if (generation != imageGeneration) return
                         maxScale = scale * MAX_ZOOM_SCALE
                         setDoubleTapZoomScale(scale * 2f)
                         // Follow Mihon's original zoom-start preference. This
@@ -106,6 +110,7 @@ open class ReaderPageImageView @JvmOverloads constructor(
                     }
 
                     override fun onImageLoadError(e: Exception) {
+                        if (generation != imageGeneration) return
                         this@ReaderPageImageView.onImageLoadError?.invoke(e)
                     }
                 },
@@ -120,6 +125,7 @@ open class ReaderPageImageView @JvmOverloads constructor(
 
     /** Animated pages use Mihon's PhotoView/Coil path; tiled pages retain SSIV. */
     private fun setAnimatedImage(stream: InputStream, config: Config) {
+        val generation = imageGeneration
         val view = if (isWebtoon) {
             AppCompatImageView(context)
         } else {
@@ -154,6 +160,7 @@ open class ReaderPageImageView @JvmOverloads constructor(
             .diskCachePolicy(CachePolicy.DISABLED)
             .target(
                 onSuccess = { result ->
+                    if (generation != imageGeneration) return@target
                     val drawable = result.asDrawable(context.resources)
                     view.setImageDrawable(drawable)
                     // GIF decoding must produce a running Animatable. A
@@ -178,7 +185,9 @@ open class ReaderPageImageView @JvmOverloads constructor(
                 },
             )
             .listener(
-                onError = { _, result -> onImageLoadError?.invoke(result.throwable) },
+                onError = { _, result ->
+                    if (generation == imageGeneration) onImageLoadError?.invoke(result.throwable)
+                },
             )
             .crossfade(false)
             .build()
@@ -244,11 +253,15 @@ open class ReaderPageImageView @JvmOverloads constructor(
     }
 
     fun recycle() {
+        // Decoder callbacks can already be queued when a Webtoon holder is
+        // rebound. Ignore callbacks belonging to its previous page.
+        imageGeneration++
         imageDisposable?.dispose()
         imageDisposable = null
         imageView?.recycle()
         imageView?.let(::removeView)
         imageView = null
+        (animatedView?.drawable as? Animatable)?.stop()
         animatedView?.setImageDrawable(null)
         animatedView?.let(::removeView)
         animatedView = null
