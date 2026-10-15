@@ -192,7 +192,7 @@ async function whotFly(origin,destination,{face=null,action="play"}={}){
  }finally{origin.style.visibility=oldVisibility;ghost.remove();cardMotionMetrics.activeFlights--;}
 }
 function whotDeal(){
- const deck=board.querySelector('.whot-deck');
+ const deck=board.querySelector('.whot-deck-back');
  if(!deck||!motionEnabled()||active!=='whot')return;
  const a=deck.getBoundingClientRect();
  [...board.querySelectorAll('.hand .whot-card')].forEach((card,index)=>{
@@ -233,7 +233,7 @@ async function cardDraw(kind){
  const epoch=cardMotionEpoch;cardMotionBusy=true;
  try{
   if(kind==='whot'){cardMotionMetrics.draws++;
-   await whotFly(board.querySelector('.whot-deck'),board.querySelector('.hand .whot-card:last-child'),{action:'draw'});
+   await whotFly(board.querySelector('.whot-deck-back'),board.querySelector('.hand .whot-card:last-child'),{action:'draw'});
   }
   if(epoch!==cardMotionEpoch||active!==kind||state[kind]!==s)return;
   take(s,0,1);s.turn=1;s.msg="You drew a card. Computer's turn.";
@@ -246,7 +246,7 @@ function queueCPU(kind){const round=state[kind],epoch=cardMotionEpoch;
   const s=round,idx=s.hands[1].findIndex(card=>playable(kind,s,card));
   if(idx<0){
    if(kind==='whot'){cardMotionMetrics.draws++;
-    await whotFly(board.querySelector('.whot-deck'),board.querySelector('.card-back'),{action:'draw'});
+    await whotFly(board.querySelector('.whot-deck-back'),board.querySelector('.card-back'),{action:'draw'});
    }
    if(active!==kind||state[kind]!==s||cardMotionEpoch!==epoch)return;
    take(s,1,1);s.turn=0;s.msg="Computer picked up a card.";render();return;
@@ -304,7 +304,7 @@ board.innerHTML='<div class="table-surface" aria-label="Card table"><h3>COMPUTER
 if(kind==='whot'&&pendingWhotDeal){pendingWhotDeal=false;const token=cardMotionEpoch;
  requestAnimationFrame(()=>{if(token===cardMotionEpoch&&active==='whot')whotDeal()});}
 setStatus(s.winner!==null?s.msg:(s.turn===0?"Your turn. ":"Computer's turn. ")+s.msg);
-let shape=kind==="whot"?'<label class="small" for="wishShape">Shape to call (change card)</label><select id="wishShape" class="select">'+shapes.map((sh,i)=>'<option value="'+i+'">'+sh+'</option>').join("")+'</select>':'<label class="small" for="wishColor">Colour to call (wild)</label><select id="wishColor" class="select">'+["Red","Blue","Green","Yellow"].map((sh,i)=>'<option value="'+i+'">'+sh+'</option>').join("")+'</select>';
+let shape=kind==="whot"?(s.hands[0].some(card=>card.n===20)?'<label class="small" for="wishShape">Choose a shape for your WHOT 20 card</label><select id="wishShape" class="select">'+shapes.map((sh,i)=>'<option value="'+i+'">'+sh+'</option>').join("")+'</select>':''):'<label class="small" for="wishColor">Colour to call (wild)</label><select id="wishColor" class="select">'+["Red","Blue","Green","Yellow"].map((sh,i)=>'<option value="'+i+'">'+sh+'</option>').join("")+'</select>';
 controlsHTML('<div class="row"><button class="primary" type="button" data-action="card-draw" '+(s.turn!==0||s.winner!==null?"disabled":"")+'>Pick one card</button></div><p class="small">Cards left: you '+s.hands[0].length+' · computer '+s.hands[1].length+'</p>'+shape);
 rules(kind==="whot"?"Classic WHOT rules":"Colour Clash rules",kind==="whot"?
  "An <b>unofficial</b> adaptation of Nigerian WHOT with the real 54-card distribution: circle, triangle, cross, square, star, and five 20 cards. Start with five cards. Match the <b>shape or number</b>. 1 is Hold On, 2 Pick Two, 5 Pick Three, 8 Suspension, 14 General Market and 20 calls a shape. A wild card can be played at any time. Players can pick from the market if they cannot match. Two-player versus computer; original NIGHT artwork, not affiliated with a commercial card publisher.":
