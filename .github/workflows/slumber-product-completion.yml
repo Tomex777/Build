@@ -24,6 +24,7 @@ on:
       - ".ci/slumber_104_play_results/**"
       - ".ci/slumber_105_release_abi/**"
       - ".ci/slumber_106_portrait_tiles/**"
+      - ".ci/slumber_107_tall_tiles/**"
   pull_request:
     branches: ["slumber-087-build"]
     paths:
@@ -47,6 +48,7 @@ on:
       - ".ci/slumber_104_play_results/**"
       - ".ci/slumber_105_release_abi/**"
       - ".ci/slumber_106_portrait_tiles/**"
+      - ".ci/slumber_107_tall_tiles/**"
 
 permissions:
   actions: read
@@ -251,6 +253,21 @@ jobs:
           ! grep -q 'PianoKeyboard(' "$PLAY"
           ! grep -q 'SENSOR_LANDSCAPE' "$PLAY"
           grep -q 'minSdk = 26' "$OUT/app/build.gradle.kts"
+
+      - name: Enlarge classic Piano Tiles and remove game overlays
+        shell: bash
+        run: |
+          set -euo pipefail
+          OUT=/tmp/slumber-088
+          base64 -d .ci/slumber_107_tall_tiles/tall-tiles.patch.gz.b64 | gzip -dc > "$OUT/tall-tiles.patch"
+          echo 'e2d38af9e8e7af2d4dc127d7a88a9d1ecd2be5cbaf444b0b14e2a9236ab737fd  /tmp/slumber-088/tall-tiles.patch' | sha256sum -c -
+          patch -d "$OUT" -p1 < "$OUT/tall-tiles.patch"
+          FIELD="$OUT/app/src/main/java/com/night/pianohub/ui/components/SlumberTilesField.kt"
+          PLAY="$OUT/app/src/main/java/com/night/pianohub/ui/screens/PlayScreen.kt"
+          grep -q 'laneWidth \* 1.90f' "$FIELD"
+          grep -q 'ready = !started' "$PLAY"
+          ! grep -q 'if (!started || userPaused' "$PLAY"
+          ! grep -q 'drawLine(Violet.copy(alpha = .65f)' "$FIELD"
 
       - uses: actions/setup-java@v4
         with:
