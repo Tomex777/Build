@@ -86,6 +86,22 @@ try {
   assert.equal(replies.length,0)
   assert.ok(requests>=2)
 
+  // Separately verify .kill's secondary API path and exact approved CDN hostname.
+  globalThis.fetch=async url=>{
+    requests++
+    if(String(url).includes('animegifs-enkidu.koyeb.app/v3/api/'))
+      return new Response(JSON.stringify({
+        gif:'https://frqs54dqeajn.objectstorage.eu-frankfurt-1.oci.customer-oci.com/sample.gif',
+      }),{status:200,headers:{'content-type':'application/json'}})
+    if(String(url).includes('objectstorage.eu-frankfurt-1.oci.customer-oci.com/'))
+      return new Response(gif,{status:200,headers:{'content-type':'image/gif'}})
+    throw new Error('Unexpected kill URL '+url)
+  }
+  const priorStickerCount=sent.length
+  await publicRegistry.commands.get('kill').run(ctx)
+  assert.equal(sent.length,priorStickerCount+1,'kill must send a second real sticker')
+  assert.equal(sent.at(-1).payload.sticker.toString('ascii',8,12),'WEBP')
+
   // The ordinary .reactions menu does not access external services.
   const before=requests
   await publicRegistry.commands.get('reactions').run(ctx)
