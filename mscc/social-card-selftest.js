@@ -98,8 +98,8 @@ assert.equal(
   'Hello @TOMEX behavior',
 )
 assert.equal(
-  await socialCardMentions(mentionCtx,'@25693048041628 + @11993344771!\\n@25693048041628'),
-  '@TOMEX + @𝙉𝙞𝙜𝙝𝙩 ✨!\\n@TOMEX',
+  await socialCardMentions(mentionCtx,'@25693048041628 + @11993344771!\n@25693048041628'),
+  '@TOMEX + @𝙉𝙞𝙜𝙝𝙩 ✨!\n@TOMEX',
 )
 assert.equal(
   await socialCardMentions(mentionCtx,'@25693048041628oops @998877665544 text'),
