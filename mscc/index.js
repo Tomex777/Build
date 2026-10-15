@@ -25,6 +25,7 @@ import { activityReport, activitySenderKey } from './group-activity.js'
 import { chooseGroupExecutor, canExecuteDirect } from './bot-routing.js'
 import { SourceRegistry } from './source-registry.js'
 import { createSmartAI } from './smart-ai.js'
+import { createReactionSounds, parseReactionSoundDirective } from './reaction-sounds.js'
 import { createAniListResolver } from './anilist-resolver.js'
 import { createTmdbResolver } from './tmdb-resolver.js'
 import { createAdaptationResolver } from './adaptation-resolver.js'
@@ -149,6 +150,7 @@ const logger = pino({ level: process.env.LOG_LEVEL || 'silent' })
 const startedAt = Date.now()
 const APP_VERSION = '2.3.1'
 const smartAI = createSmartAI()
+const reactionSounds = createReactionSounds()
 const aniListResolver = createAniListResolver()
 const tmdbResolver = createTmdbResolver()
 const adaptationResolver = createAdaptationResolver()
@@ -1440,13 +1442,21 @@ async function handleProfileAssistant(account, msg, authority, rawText) {
     isGroup:isGroup(chat),
     groupPersonalities:presence,
     senderPersonality,
+    // No extra model call: this is a small optional instruction in the existing reply.
+    reactionSoundPolicy:isGroup(chat) && !senderPersonality ? await reactionSounds.promptFor(chat) : '',
   })
   if (!result?.ok || !result.text) return false
+  const reaction = parseReactionSoundDirective(result.text)
+  if (!reaction.text) return false
 
-  await sendAssistantReply(account, msg, result.text, {
+  await sendAssistantReply(account, msg, reaction.text, {
     presence,
     allowPersonalityMentions:!senderPersonality,
   })
+  // Only one sound after the normal text, never on AI-to-AI replies.
+  if (reaction.id && isGroup(chat) && !senderPersonality) {
+    await reactionSounds.play(account.sock, chat, reaction.id, { automatic:true })
+  }
   await recordActivity('ai.responded', {
     account:account.id,
     profile:profile?.id || assistant.profileId || '',
@@ -2460,6 +2470,7 @@ async function processInboundMessage(account, msg) {
         rawText: dispatchText,
         context: {
           account,
+          reactionSounds,
           message: msg,
           controller,
           privateControl,
