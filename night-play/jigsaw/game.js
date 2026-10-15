@@ -72,7 +72,7 @@ function resetBoard(fresh=true,saved=null){
  window.scrollTo({top:0,behavior:'instant'});
 }
 function startImage(id){
- timerStop();customData=null;theme=id;resetBoard(true);showToast('Drag the pieces below into the picture');
+ timerStop();customData=null;theme=id;resetBoard(true);showToast('Drag the pieces into the picture');
 }
 function renderGallery(){
  const root=$('galleryGrid');root.replaceChildren();
