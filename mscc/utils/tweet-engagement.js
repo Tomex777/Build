@@ -31,3 +31,37 @@ export function randomPostEngagement(random = randomInt) {
     viewCount,
   }
 }
+
+
+// User-supplied numbers supersede fictional random metrics. Other metrics
+// remain randomized, and follow manually chosen likes when supplied.
+export function resolveTweetEngagement(overrides = {}, random = randomInt) {
+  const generated = randomTweetEngagement(random)
+  const likeCount = overrides.likeCount ?? generated.likeCount
+  return {
+    likeCount,
+    replyCount:overrides.replyCount ?? (overrides.likeCount === undefined
+      ? generated.replyCount
+      : (likeCount === 0 ? 0 : Math.max(1, Math.round(likeCount * random(15, 80) / 1000)))),
+    repostCount:overrides.repostCount ?? (overrides.likeCount === undefined
+      ? generated.repostCount
+      : (likeCount === 0 ? 0 : Math.max(1, Math.round(likeCount * random(25, 130) / 1000)))),
+  }
+}
+
+export function resolvePostEngagement(overrides = {}, random = randomInt) {
+  const generated = randomPostEngagement(random)
+  const likeCount = overrides.likeCount ?? generated.likeCount
+  return {
+    likeCount,
+    commentCount:overrides.commentCount ?? (overrides.likeCount === undefined
+      ? generated.commentCount
+      : (likeCount === 0 ? 0 : Math.max(1, Math.round(likeCount * random(15, 80) / 1000)))),
+    shareCount:overrides.shareCount ?? (overrides.likeCount === undefined
+      ? generated.shareCount
+      : (likeCount === 0 ? 0 : Math.max(1, Math.round(likeCount * random(25, 130) / 1000)))),
+    viewCount:overrides.viewCount ?? (overrides.likeCount === undefined
+      ? generated.viewCount
+      : Math.max(likeCount + 1, likeCount * random(3, 16))),
+  }
+}
