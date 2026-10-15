@@ -65,7 +65,7 @@ object PrototypeScene {
         return actor.copy(rig = pose.copy(joints = mapped))
     }
 
-    /** Original stylized mesh, still bound to all 163 CC0 MakeHuman bones. */
+    /** A real original CC0 65-bone Quaternius stylized character, not a generated screenshot. */
     private fun animeActor(
         id: String,
         name: String,
@@ -80,38 +80,34 @@ object PrototypeScene {
             assetId = ANIME_ASSET_ID,
             relativePath = "models/mise_anime.glb",
             format = "glb",
-            source = "https://github.com/makehumancommunity/makehuman/tree/a8bc2d54ff0ac92e78ff71431b1023eda42bf482",
-            creator = "Mise · original anime styling of MakeHuman Community CC0 geometry",
+            source = "https://quaternius.com/packs/universalbasecharacters.html",
+            creator = "Quaternius — Universal Base Characters",
             license = "CC0-1.0",
             licenseUrl = "https://creativecommons.org/publicdomain/zero/1.0/legalcode",
-            attribution = "Original Mise anime-styled rig, face, body and costume generated from pinned CC0 MakeHuman source.",
-            version = "1",
+            attribution = "Stylized Superhero Male from Quaternius CC0 Universal Base Characters, repackaged by programasweights/avatar; pose authored in Mise.",
+            version = "b3fd79533fdb9fcedd077744f7e120920eb6cc97",
         ),
-        appearance = CharacterAppearanceSettings(hairStyle = HairStyle.BOB, hairColorHex = "#25345A"),
+        appearance = CharacterAppearanceSettings(hairStyle = HairStyle.NONE),
         rig = if (pose) dynamicAnimePose() else null,
     )
 
     /** Genuine local-joint rotations; the project loads posed and remains fully editable. */
-    private fun dynamicAnimePose(): RigPose {
-        val torso = "humanoid/root/spine05/spine04/spine03/spine02/spine01"
-        val leftArm = "$torso/clavicle-l/shoulder01-l/upperarm01-l"
-        val rightArm = "$torso/clavicle-r/shoulder01-r/upperarm01-r"
-        val leftLeg = "humanoid/root/pelvis-l/upperleg01-l"
-        val rightLeg = "humanoid/root/pelvis-r/upperleg01-r"
-        return RigPose(joints = mapOf(
-            "humanoid/root/spine05/spine04/spine03" to Vec3(y = 13f, z = -8f),
-            "$torso/neck01/neck02/neck03/head" to Vec3(y = -9f, z = 9f),
-            leftArm to Vec3(x = -20f, z = 54f),
-            "$leftArm/upperarm02-l/lowerarm01-l" to Vec3(x = -15f, z = 80f),
-            rightArm to Vec3(x = 16f, z = -45f),
-            "$rightArm/upperarm02-r/lowerarm01-r" to Vec3(x = 18f, z = -58f),
-            leftLeg to Vec3(x = -23f, z = 14f),
-            "$leftLeg/upperleg02-l/lowerleg01-l" to Vec3(x = 24f),
-            rightLeg to Vec3(x = 16f, z = -16f),
-            "$rightLeg/upperleg02-r/lowerleg01-r" to Vec3(x = 17f),
-        ))
-    }
-
+    private fun dynamicAnimePose(): RigPose = RigPose(
+        joints = mapOf(
+            // Names are semantic placeholders until the GLB is loaded; resolveAnimePose
+            // maps each joint to Filament's discovered stable path before posing.
+            "figure/spine-02" to Vec3(y = 13f, z = -8f),
+            "figure/head" to Vec3(y = -9f, z = 9f),
+            "figure/upperarm-l" to Vec3(x = -20f, z = 54f),
+            "figure/lowerarm-l" to Vec3(x = -15f, z = 80f),
+            "figure/upperarm-r" to Vec3(x = 16f, z = -45f),
+            "figure/lowerarm-r" to Vec3(x = 18f, z = -58f),
+            "figure/thigh-l" to Vec3(x = -23f, z = 14f),
+            "figure/calf-l" to Vec3(x = 24f),
+            "figure/thigh-r" to Vec3(x = 16f, z = -16f),
+            "figure/calf-r" to Vec3(x = 17f),
+        ),
+    )
 
     fun starterAssets(): List<Actor> {
         val fixtureAssets = create().actors.filter {
