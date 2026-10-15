@@ -4,6 +4,7 @@ import android.content.Context
 import android.graphics.PointF
 import android.graphics.RectF
 import android.graphics.drawable.Animatable
+import android.util.Log
 import android.util.AttributeSet
 import android.view.GestureDetector
 import android.view.MotionEvent
@@ -155,9 +156,25 @@ open class ReaderPageImageView @JvmOverloads constructor(
                 onSuccess = { result ->
                     val drawable = result.asDrawable(context.resources)
                     view.setImageDrawable(drawable)
-                    (drawable as? Animatable)?.start()
-                    view.isVisible = true
-                    onImageLoaded?.invoke()
+                    // GIF decoding must produce a running Animatable. A
+                    // successful still first frame is NOT equivalent to a
+                    // working animated comic page, especially on API 26.
+                    val animated = drawable as? Animatable
+                    if (animated == null) {
+                        val error = IllegalStateException(
+                            "Animated reader page decoded as static drawable: ${drawable.javaClass.name}",
+                        )
+                        Log.e("YomiReader", "animated-page-static-drawable", error)
+                        onImageLoadError?.invoke(error)
+                    } else {
+                        animated.start()
+                        Log.i(
+                            "YomiReader",
+                            "animated-page-started drawable=${drawable.javaClass.simpleName} running=${animated.isRunning}",
+                        )
+                        view.isVisible = true
+                        onImageLoaded?.invoke()
+                    }
                 },
             )
             .listener(
