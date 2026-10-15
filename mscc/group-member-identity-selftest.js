@@ -6,6 +6,7 @@ import {
   memberIdentityKey,
   participantIds,
   updateSucceeded,
+  verifiedPhoneNumber,
 } from './group-member-identity.js'
 import promote from './commands/admin/promote.js'
 import demote from './commands/admin/demote.js'
@@ -20,6 +21,11 @@ const NAME = '𝙏𝞗𝞛𝞢𝞦⁩'
 const member = { id:LID, phoneNumber:PN, notify:NAME, admin:null }
 const participants = [member, { id:'220011@s.whatsapp.net', admin:'admin' }]
 
+assert.equal(verifiedPhoneNumber(PN),'2348012345678')
+assert.equal(verifiedPhoneNumber(LID),'')
+assert.equal(verifiedPhoneNumber('25693048041628@hosted.lid'),'')
+assert.equal(verifiedPhoneNumber('25693048041628@lid'),'')
+assert.equal(verifiedPhoneNumber('not-a-number@s.whatsapp.net'),'')
 assert.equal(groupTargetJid('@' + NAME, { mentionedJid:[LID] }), LID)
 assert.equal(groupTargetJid('', { participant:LID, stanzaId:'some-message' }), LID)
 assert.equal(groupTargetJid('+234 801 234 5678'), PN)

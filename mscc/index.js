@@ -101,7 +101,7 @@ import {
 } from './utils/whatsapp/messages.js'
 import { createWhatsAppUi } from './utils/whatsapp/ui.js'
 import { sendText, sendImageDataUrl, startProgress } from './utils/whatsapp/replies.js'
-import { findGroupParticipant, groupMemberLabel, groupTargetJid, memberIdentityKey, participantIds, updateSucceeded } from './group-member-identity.js'
+import { findGroupParticipant, groupMemberLabel, groupTargetJid, memberIdentityKey, participantIds, updateSucceeded, verifiedPhoneNumber } from './group-member-identity.js'
 
 // Shared WhatsApp nativeFlow implementation lives in utils/whatsapp/native-flow.js.
 // The max-row invariant is enforced there (legacy CI marker: remaining = 1000).
@@ -1147,20 +1147,20 @@ async function resolveCommandTarget(account, msg, raw = '') {
 
   if (token.startsWith('@') && mentions.length) {
     const phoneJid = await resolvePhoneJid(account, mentions[0])
-    const phoneNumber = digits(jidUser(phoneJid))
+    const phoneNumber = verifiedPhoneNumber(phoneJid)
     if (phoneNumber) return { phoneNumber, source: 'mention' }
   }
 
   const quotedCandidate = info?.participant || (info?.remoteJid && !isGroup(info.remoteJid) ? info.remoteJid : '')
   if (info?.stanzaId && quotedCandidate) {
     const phoneJid = await resolvePhoneJid(account, quotedCandidate)
-    const phoneNumber = digits(jidUser(phoneJid))
+    const phoneNumber = verifiedPhoneNumber(phoneJid)
     if (phoneNumber) return { phoneNumber, source: 'reply' }
   }
 
   if (mentions.length) {
     const phoneJid = await resolvePhoneJid(account, mentions[0])
-    const phoneNumber = digits(jidUser(phoneJid))
+    const phoneNumber = verifiedPhoneNumber(phoneJid)
     if (phoneNumber) return { phoneNumber, source: 'mention' }
   }
   return { phoneNumber: '', source: '' }
@@ -1617,6 +1617,42 @@ async function groupMetadataCached(account, groupJid) {
     groupMetaCache.delete(key)
     return null
   }
+}
+
+// The WhatsApp app paints contact labels over raw @LID tokens, but Baileys
+// receives the opaque mention JID and its literal numeric token. For rendered
+// screenshots look up a group member's observed/public name by JID, not LID digits.
+async function resolveSocialMentionName(account, msg, mentionedJid) {
+  const group = normalizeJid(msg?.key?.remoteJid)
+  if (!isGroup(group)) return ''
+
+  const jid = normalizeJid(mentionedJid)
+  if (!jid) return ''
+  const metadata = await groupMetadataCached(account, group)
+  const found = await findGroupParticipant(
+    metadata?.participants,
+    jid,
+    candidate => resolvePhoneJid(account, candidate),
+  )
+  const participant = found?.participant
+  const aliases = [...new Set([jid, ...(participant ? participantIds(participant) : [])])]
+  const sender = normalizeJid(msg?.key?.participant || msg?.participant)
+  const senderName = aliases.includes(sender) ? msg?.pushName : ''
+  const observedNames = aliases
+    .map(candidate => sharedStorage?.latestConversationSpeaker(group, candidate))
+    .filter(Boolean)
+
+  const candidates = [
+    senderName,
+    participant?.notify,
+    participant?.pushName,
+    participant?.verifiedName,
+    ...observedNames,
+    participant?.displayName,
+    participant?.name,
+  ]
+  return candidates.map(value => String(value || '').trim())
+    .find(value => value && !/^(?:@?\d+|whatsapp user|unknown(?: user)?|member|user)$/i.test(value)) || ''
 }
 
 async function resolveGroupParticipant(account, msg, raw = '') {
@@ -2603,6 +2639,7 @@ async function processInboundMessage(account, msg) {
             caption:String(caption || ''),
           }, { quoted:msg }),
           resolveCommandTarget: raw => resolveCommandTarget(account, msg, raw),
+          resolveSocialMentionName: jid => resolveSocialMentionName(account, msg, jid),
           getPublicUserProfile: phoneNumber => publicUserProfile(account, msg, phoneNumber),
           resolveAccountId,
           createAccount,
