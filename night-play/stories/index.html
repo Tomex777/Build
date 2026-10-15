@@ -199,6 +199,7 @@ function revealAll(){
   cancel();
   const beats=scenes[current].beats;
   while(shown<beats.length)appendBeat(beats[shown],true);
+  for(const p of root.story.querySelectorAll('.line')){p.style.animation='none';p.style.opacity='1';p.style.transform='none'}
   showChoices(true);
 }
 function play(sceneId){
