@@ -3,6 +3,7 @@
 import assert from 'node:assert/strict'
 import { mediaToSticker } from './utils/media-conversion.js'
 import { DEFAULT_STICKER_PUBLISHER } from './utils/sticker-metadata.js'
+import { loadCommands } from './command-registry.js'
 
 const CATEGORIES = 'angry baka bite bleh blowkiss blush bonk bored carry clap confused cry cuddle dance facepalm feed handhold handshake happy highfive hug kabedon kick kiss lappillow laugh lurk nod nom nope nya pat peck poke pout punch run salute shake shoot shocked shrug sip slap sleep smile smug spin stare tableflip teehee think thumbsup tickle wag wave wink yawn yeet'.split(' ')
 const BASE = 'https://nekos.best/api/v2/'
@@ -10,6 +11,10 @@ const UA = 'NIGHT-Anime-Stickers (https://github.com/Tomex777/Build)'
 const TIMEOUT = 15000
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms))
 const live = []
+const publicCommands = await loadCommands(new URL('./commands/', import.meta.url), {capabilityFromDirectory:true})
+const privateCommands = await loadCommands(new URL('./private-commands/', import.meta.url))
+const occupied = CATEGORIES.filter(key => publicCommands.commands.has(key) || privateCommands.commands.has(key))
+console.log('PRE-REGISTRATION COMMAND COLLISIONS ' + JSON.stringify(occupied))
 
 async function fetchLive(url, { json = false } = {}) {
   let error
