@@ -98,6 +98,9 @@ try {
  assert.equal(await page.locator('#gameDialog').getAttribute('data-skin'),'2048','Game-specific visual skin is applied')
 
  assert.equal(await page.locator('#board2048 .tile').count(),16)
+ assert.match(await page.locator('#gameSettings svg path').getAttribute('d'),/^M9\.671 /,'2048 has the approved gear icon');
+ const btn2048=await page.locator('#gameSettings').boundingBox();
+ assert.ok(btn2048.width>=37&&btn2048.width<=100,'2048 settings icon matches compact Jigsaw button');
  // Re-rendering and swiping must not remount the grid or hide its cell surfaces.
  const stable2048=await page.evaluate(()=>{
   grid=[[0,0,0,2],[0,0,0,0],[0,0,0,0],[0,0,0,0]];tileScore=0;draw2048();
@@ -152,6 +155,8 @@ try {
  assert.ok(await page.evaluate(()=>Boolean(localStorage.getItem('night-play-save-2048-5'))))
  await page.locator('[data-close-game]').first().click()
  await page.locator('.library-card[data-game="snake"]').click()
+ assert.match(await page.locator('#gameSettings svg path').getAttribute('d'),/^M9\.671 /,'Snake has the corrected settings icon');
+ console.log('NIGHT_SNAKE_SETTINGS_JPEG_BASE64='+(await page.screenshot({type:'jpeg',quality:48})).toString('base64'));
  assert.equal(await page.locator('.dpad').count(),0,'No Snake directional buttons exist')
  const tallArena=await page.locator('.snake-shell').evaluate(el=>{const r=el.getBoundingClientRect();return {width:r.width,height:r.height,ratio:r.height/r.width}});
  assert.ok(tallArena.width>=375,'Snake retains nearly full device width on tall phones');
@@ -204,6 +209,8 @@ try {
  await page.locator('#snakeOverlay').click()
  await page.locator('[data-close-game]').first().click()
  await page.locator('.library-card[data-game="ttt"]').click()
+ assert.match(await page.locator('#gameSettings svg path').getAttribute('d'),/^M9\.671 /,'Tic-Tac-Toe has the corrected settings icon');
+ console.log('NIGHT_TTT_SETTINGS_JPEG_BASE64='+(await page.screenshot({type:'jpeg',quality:48})).toString('base64'));
  await page.locator('#gameSettings').click()
  await page.getByRole('button',{name:'Hard'}).click()
  await page.locator('#closeSettings').click()
