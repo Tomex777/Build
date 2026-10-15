@@ -13,11 +13,11 @@ function die(){return Math.floor(Math.random()*6)+1;}
 function save(){if(active==='ludo'&&(state.ludo?.rolling||state.ludo?.moving))return;try{const copy={...state};delete copy.draw;localStorage.setItem(KEY,JSON.stringify(copy));}catch{}}
 function load(){try{const data=JSON.parse(localStorage.getItem(KEY)||"{}");for(const k of Object.keys(titles)){if(data[k]&&typeof data[k]==="object")state[k]=data[k];}}catch{}}
 function setStatus(t){status.textContent=t;}
-function controlsHTML(markup){controls.innerHTML=markup;}
-function rules(title,desc){help.innerHTML="<h3>"+title+"</h3><p>"+desc+"</p>";}
+function controlsHTML(markup){if(controls.innerHTML!==markup)controls.innerHTML=markup;}
+function rules(title,desc){const markup="<h3>"+title+"</h3><p>"+desc+"</p>";if(help.innerHTML!==markup)help.innerHTML=markup;}
 function scoreList(players,getScore){return '<div class="score-list">'+players.map((p,i)=>'<div class="score-row"><span><b style="color:'+h(p.color)+'">●</b> '+h(p.name)+'</span><b>'+h(getScore(p,i))+'</b></div>').join("")+"</div>";}
 function choosePlayers(id,selected,max){return '<label class="small">Players (local, sharing one phone)</label><select class="select" data-players="'+id+'">'+[2,3,4].filter(n=>n<=max).map(n=>'<option value="'+n+'"'+(n===selected?" selected":"")+'>'+n+' players</option>').join("")+"</select>";}
-function pick(id){if(!titles[id])id="checkers";active=id;if(id==="ludo")window.NightLudo3D?.warmup();document.body.classList.toggle("ludo-mode",id==="ludo");document.body.classList.toggle("checkers-mode",id==="checkers");$("ludoTopbar").hidden=id!=="ludo";$("ludoHud").hidden=id!=="ludo";if(id!=="ludo")closeLudoSettings();const d=titles[id];$("gameTitle").textContent=d[0];$("gameSubtitle").textContent=d[1];$("gameCategory").textContent=d[2];[...picks.querySelectorAll("button")].forEach(x=>x.setAttribute("aria-current",String(x.dataset.pick===id)));const url=new URL(location.href);url.searchParams.set("game",id);history.replaceState(null,"",url.pathname+url.search);window.NightLudo.cancel();if(id==="ludo"&&state.ludo)state.ludo=window.NightLudo.resume(state.ludo);if(!state[id])reset(id);else render();}
+function pick(id){if(!titles[id])id="checkers";active=id;if(id==="ludo")window.NightLudo3D?.warmup();document.body.classList.toggle("ludo-mode",id==="ludo");document.body.classList.toggle("checkers-mode",id==="checkers");$("ludoTopbar").hidden=id!=="ludo";$("ludoHud").hidden=id!=="ludo";if(id!=="ludo")closeLudoSettings();const d=titles[id];document.title=d[0]+" · NIGHT Play";if($("settingsDialog").open)$("settingsDialog").close();$("gameTitle").textContent=d[0];$("gameSubtitle").textContent=d[1];$("gameCategory").textContent=d[2];[...picks.querySelectorAll("button")].forEach(x=>x.setAttribute("aria-current",String(x.dataset.pick===id)));const url=new URL(location.href);url.searchParams.set("game",id);history.replaceState(null,"",url.pathname+url.search);window.NightLudo.cancel();if(id==="ludo"&&state.ludo)state.ludo=window.NightLudo.resume(state.ludo);if(!state[id])reset(id);else render();}
 function reset(id){
 if(id==="ludo"){window.NightLudo.cancel();state.ludo=window.NightLudo.create();}
 if(id==="estate"){state.estate={players:["red","blue"].map(k=>({name:k[0].toUpperCase()+k.slice(1),color:colors[k],cash:1500,pos:0,bankrupt:false})),owners:{},upgrades:{},turn:0,rolled:false,last:0,pending:null,rounds:0,winner:null,msg:"Roll the dice to start buying properties.",inspect:0};}
@@ -195,9 +195,25 @@ function renderCheckers(){
   const piece=p?'<span class="checker-piece '+(p.toLowerCase()==="w"?"white":"black")+(s.selected===i?" selected":"")+(isKing?" king":"")+'">'+(isKing?'<svg class="checker-crown" viewBox="0 0 40 40" aria-hidden="true"><path d="M7 27 4 11l11 9 5-13 6 13 11-9-4 16ZM8 31h24v4H8z"/></svg>':"")+'</span>':"";
   html+='<button type="button" data-checker="'+i+'" class="checker-square '+(dark?"dark":"light")+(isTarget?" target":"")+(from?" movable":"")+(s.selected===i?" origin":"")+'" aria-label="'+(p?(p.toLowerCase()==="w"?"White":"Black")+(isKing?" king":" piece"):"Empty")+' row '+(Math.floor(i/8)+1)+' column '+(i%8+1)+'"'+(!dark?' tabindex="-1"':'')+'>'+piece+'</button>';
  }
- board.innerHTML=html+'</div></div><p class="checker-instruction">Tap your piece, then choose a glowing square <span>•</span> Captures are mandatory</p></div>';
+ const markup=html+'</div></div><p class="checker-instruction">Tap your piece, then choose a glowing square <span>•</span> Captures are mandatory</p></div>';
+ const mounted=board.querySelector(".checker-stage"),oldCells=mounted?.querySelectorAll("[data-checker]");
+ if(oldCells?.length===64){
+  // Do not destroy/recreate the 64 counters whenever a player selects a square.
+  // Patch only changed counters/highlights and the small turn HUD.
+  const staging=document.createElement("div");staging.innerHTML=markup;
+  const next=staging.firstElementChild,nextCells=next.querySelectorAll("[data-checker]");
+  for(let i=0;i<64;i++){
+   const before=oldCells[i],after=nextCells[i];
+   if(before.className!==after.className)before.className=after.className;
+   if(before.getAttribute("aria-label")!==after.getAttribute("aria-label"))
+    before.setAttribute("aria-label",after.getAttribute("aria-label"));
+   if(before.innerHTML!==after.innerHTML)before.innerHTML=after.innerHTML;
+  }
+  const oldHud=mounted.querySelector(".checker-scoreline"),newHud=next.querySelector(".checker-scoreline");
+  if(oldHud.innerHTML!==newHud.innerHTML)oldHud.innerHTML=newHud.innerHTML;
+ }else board.innerHTML=markup;
  setStatus(s.winner!==null?label+"!":label+". "+s.msg);
- controlsHTML('<div class="checker-sidebar-head"><span class="badge">WHITE '+whites+'</span><span class="badge">BLACK '+blacks+'</span></div><p class="small">Two people, one device. Captures are compulsory; reach the far side to crown a king.</p><button class="secondary" data-action="checkers-reset">Restart draughts</button>');
+ controlsHTML('<div class="checker-sidebar-head"><span class="badge">WHITE '+whites+'</span><span class="badge">BLACK '+blacks+'</span></div>');
  rules("Draughts rules","<b>Captures are mandatory.</b> Move diagonally on dark squares; jump an opponent's piece to capture it. When a capture is available, other moves are disabled. Continue a capture chain with the same piece. Reach the opposite edge to crown a king. If the opponent has no moves, you win.");
 }
 function checkerClick(at){const s=state.checkers;if(s.winner!==null)return;const legal=allCheckerMoves(s);
@@ -234,6 +250,8 @@ document.addEventListener("submit",e=>{if(e.target.id!=="guessForm")return;e.pre
 document.addEventListener("click",e=>{const tile=e.target.closest("[data-checker]");if(tile&&active==="checkers")checkerClick(Number(tile.dataset.checker));});
 
 load();picks.addEventListener("click",e=>{const btn=e.target.closest("[data-pick]");if(btn)pick(btn.dataset.pick);});
+$("settingsButton").addEventListener("click",()=>$("settingsDialog").showModal());
+$("settingsClose").addEventListener("click",()=>$("settingsDialog").close());
 $("newRound").addEventListener("click",()=>{if(confirm("Start a new "+titles[active][0]+" match? Current progress will be cleared."))reset(active);});
 document.addEventListener("change",e=>{
 const opponent=e.target.closest("[data-ludo-opponent]");if(opponent&&active==="ludo"){window.NightLudo.changeOpponent(state.ludo,opponent.value);render();return;}
