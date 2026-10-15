@@ -12,7 +12,7 @@ export const CHESS_LEVELS = [
   { id:'easy', label:'🟡 Easy', description:'Gentle, but it still sees captures' },
   { id:'medium', label:'🟠 Medium', description:'Balanced play with fewer mistakes' },
   { id:'hard', label:'🔴 Hard', description:'Strong search and rare mistakes' },
-  { id:'expert', label:'⚫ Expert', description:'Strongest MSCC chess setting' },
+  { id:'expert', label:'⚫ Expert', description:'Strongest NIGHT chess setting' },
 ]
 
 const DEPTH = { beginner:1, easy:1, medium:2, hard:3, expert:3 }

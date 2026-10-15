@@ -116,7 +116,7 @@ if ! command -v pdftoppm >/dev/null 2>&1; then NEED_APT=1; fi
 if ! command -v gs >/dev/null 2>&1; then NEED_APT=1; fi
 if ! command -v fpcalc >/dev/null 2>&1; then NEED_APT=1; fi
 # Unicode and emoji fonts are required for headless social-card rendering.
-for font_package in fonts-noto-core fonts-noto-color-emoji fontconfig; do
+for font_package in fonts-noto-core fonts-noto-color-emoji fonts-freefont-ttf fontconfig; do
   if ! dpkg-query -W -f='${Status}' "$font_package" 2>/dev/null | grep -q 'install ok installed'; then
     NEED_APT=1
   fi
@@ -124,9 +124,11 @@ done
 if [ "$NEED_APT" -eq 1 ]; then
   echo ">>> Installing media/document/fingerprint and Unicode font dependencies..."
   sudo apt-get update -y
-  sudo apt-get install -y --no-install-recommends ffmpeg poppler-utils libchromaprint-tools ghostscript fontconfig fonts-noto-core fonts-noto-color-emoji
+  sudo apt-get install -y --no-install-recommends ffmpeg poppler-utils libchromaprint-tools ghostscript fontconfig fonts-noto-core fonts-noto-color-emoji fonts-freefont-ttf
   sudo fc-cache -f >/dev/null 2>&1 || true
 fi
+# Refuse to ship missing piece glyphs; Nexia's renderer depends on FreeSerif.
+test -f /usr/share/fonts/truetype/freefont/FreeSerif.ttf || { echo 'Chess font FreeSerif.ttf is missing.' >&2; exit 1; }
 
 # Keep YouTube's optional maintained extractor in a private MSCC-only venv.
 # Do not replace system Python, other services, or install into site-packages.
