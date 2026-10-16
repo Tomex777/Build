@@ -298,61 +298,58 @@ try{
   await page.waitForFunction(()=>window.__nightWhotMotion().visibleFlights===0,null,{timeout:2500});
   if(canPlay)assert.equal(await page.evaluate(()=>document.querySelector('.card-pile .whot-card')===window.__whotPreviousPile),false,'Discard swaps only once the flight ends');
   assert.ok(await page.evaluate(()=>{const m=window.__nightWhotMotion();return m.plays+m.draws>0}),'Move increments hardcoded animation counters');
-  // A shrinking hand must stay centered: one card belongs in the middle,
-  // not pinned to the left as the old horizontal card scroller did.
-  await page.waitForTimeout(950);
+  // Real Naija Whot dimensions: 80px cards, horizontal swipeable strip.
+  await page.waitForTimeout(650);
   for(const n of [5,4,3,2,1,8,12]){
     await page.evaluate(count=>{
-      const stored=JSON.parse(localStorage.getItem("night-play-club-v1"));
-      const s=stored.whot;
-      const pool=[...s.hands[0],...s.deck];
-      if(pool.length<count)throw Error("Not enough cards for hand size test");
+      const saved=JSON.parse(localStorage.getItem("night-play-club-v1"));
+      const s=saved.whot,pool=[...s.hands[0],...s.deck];
       s.hands[0]=pool.slice(0,count);s.deck=pool.slice(count);
-      s.turn=0;s.winner=null;
-      localStorage.setItem("night-play-club-v1",JSON.stringify(stored));
+      s.turn=0;s.winner=null;s.pendingWhot=null;
+      localStorage.setItem("night-play-club-v1",JSON.stringify(saved));
     },n);
     await page.reload();
     await page.locator('.hand .whot-card').first().waitFor();
-    await page.waitForTimeout(60);
-    const bounds=await page.evaluate(()=>{
-      const hand=document.querySelector(".hand .card-row");
-      const cards=[...hand.querySelectorAll(".whot-card")];
-      const positions=cards.map(el=>el.getBoundingClientRect());
-      const rect=hand.getBoundingClientRect();
-      const a=positions[0],b=positions.at(-1);
-      return {count:cards.length,width:rect.width,
-        center:(a.left+b.right)/2,goal:rect.left+rect.width/2,
-        first:a.left,last:b.right,viewport:innerWidth,overflow:document.documentElement.scrollWidth-innerWidth,
-        overlap:parseFloat(getComputedStyle(hand).getPropertyValue("--whot-overlap"))||0,
-        sceneHeight:document.querySelector(".table-surface").getBoundingClientRect().height
-      };
+    await page.waitForTimeout(75);
+    const info=await page.evaluate(()=>{
+      const row=document.querySelector('.hand .card-row'),cards=[...row.querySelectorAll('.whot-card')];
+      const a=cards[0].getBoundingClientRect(),b=cards.at(-1).getBoundingClientRect(),r=row.getBoundingClientRect();
+      return {count:cards.length,width:parseFloat(getComputedStyle(cards[0]).width),
+        center:(a.left+b.right)/2,goal:r.left+r.width/2,scroll:row.scrollWidth,client:row.clientWidth,
+        justify:getComputedStyle(row).justifyContent,wrap:getComputedStyle(row).flexWrap,
+        overflow:document.documentElement.scrollWidth-innerWidth,
+        height:document.querySelector('.table-surface').getBoundingClientRect().height};
     });
-    assert.equal(bounds.count,n,"Hand correctly mounts "+n+" cards");
-    if(n<=5)assert.ok(Math.abs(bounds.center-bounds.goal)<3.2,"WHOT "+n+"-card hand stays centered (actual "+JSON.stringify(bounds)+")");
-    else{
-      const rows=await page.locator('.hand .whot-card').evaluateAll(cards=>{
-       const byRow=new Map(),row=cards[0].closest('.card-row').getBoundingClientRect();
-       for(const card of cards){const r=card.getBoundingClientRect(),key=Math.round(r.top);if(!byRow.has(key))byRow.set(key,[]);byRow.get(key).push(r);}
-       return [...byRow.values()].map(rs=>({center:(rs[0].left+rs.at(-1).right)/2,target:row.left+row.width/2,length:rs.length}));
-      });
-      assert.ok(rows.length>=2,'WHOT '+n+'-card hand wraps rather than making cards unclickable');
-      assert.equal(await page.locator('.hand .card-row').evaluate(el=>getComputedStyle(el).justifyContent),'center','WHOT overflow rows align to table centre');
-      // Wrapped hands can extend below the mobile viewport. Bring each card
-      // into view before testing its center, just like a human swipe/scroll.
-      for(let index=0;index<n;index++){
-       const item=page.locator('.hand .whot-card').nth(index);
-       await item.scrollIntoViewIfNeeded();
-       const exposed=await item.evaluate(card=>{
-        const r=card.getBoundingClientRect(),point=document.elementFromPoint(r.left+r.width/2,r.top+r.height/2);
-        return point===card||card.contains(point);
-       });
-       assert.equal(exposed,true,'WHOT card '+index+' in '+n+'-card hand must be tappable at its centre');
-      }
+    assert.equal(info.count,n,'correct hand count');
+    assert.ok(Math.abs(info.width-80)<1,'reference 80px mobile cards');
+    assert.equal(info.wrap,'nowrap','never wrap a scrolling hand');
+    if(n<=3){
+      assert.equal(info.justify,'center','short hands centred');
+      assert.ok(Math.abs(info.center-info.goal)<2,'centre stable');
+    }else{
+      assert.equal(info.justify,'flex-start','large hand starts at first card');
+      assert.ok(info.scroll>info.client,'large hand can swipe');
     }
-    assert.ok(bounds.first>=-1&&bounds.last<=bounds.viewport+1,"WHOT "+n+"-card hand never runs off the phone");
-    assert.ok(bounds.overflow<=2,"WHOT "+n+"-card hand causes no sideways page scroll");
-    assert.ok(bounds.sceneHeight>=600,"WHOT playing surface is truly taller on mobile, not a narrow little box");
-    if([1,3,5,12].includes(n))console.log("NIGHT_WHOT_HAND_"+n+"_JPEG_BASE64="+(await page.screenshot({type:"jpeg",quality:52,fullPage:true})).toString("base64"));
+    for(let i=0;i<n;i++){
+      const card=page.locator('.hand .whot-card').nth(i);
+      await card.evaluate(el=>{
+        const row=el.closest('.card-row'),a=el.getBoundingClientRect(),b=row.getBoundingClientRect();
+        row.scrollLeft+=(a.left+a.width/2)-(b.left+b.width/2);
+      });
+      await page.waitForTimeout(25);
+      const exposed=await card.evaluate(el=>{const r=el.getBoundingClientRect(),p=document.elementFromPoint(r.left+r.width/2,r.top+r.height/2);return p===el||el.contains(p)});
+      if(!exposed){
+        const diag=await card.evaluate(el=>{
+          const r=el.getBoundingClientRect(),row=el.closest('.card-row'),p=document.elementFromPoint(r.left+r.width/2,r.top+r.height/2);
+          return {rect:{x:r.x,y:r.y,w:r.width,h:r.height},row:{left:row.scrollLeft,width:row.clientWidth,total:row.scrollWidth,rect:row.getBoundingClientRect().toJSON()},point:p?.outerHTML.slice(0,150),card:el.outerHTML.slice(0,180)}
+        });
+        console.log('WHOT_HAND_CARD_DIAGNOSTIC',n,i,JSON.stringify(diag));
+      }
+      assert.ok(exposed,'card '+i+' is tappable when scrolled into view');
+    }
+    assert.ok(info.overflow<=2,'hand does not stretch viewport');
+    assert.ok(info.height>=600,'portrait board is full height');
+    if([1,3,5,12].includes(n))console.log("NIGHT_WHOT_HAND_"+n+"_JPEG_BASE64="+(await page.screenshot({type:'jpeg',quality:52,fullPage:true})).toString('base64'));
   }
 
   // Card 20 must never auto-call Circle merely because a hidden select

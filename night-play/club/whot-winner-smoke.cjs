@@ -54,8 +54,25 @@ async function finish(page,winner){
    assert.equal(await page.locator('.hand .card-label').count(),0,'no duplicate hand count');
    assert.equal(await page.locator('.table-surface > .card-row .cards-counter').count(),0,'no duplicate CPU count');
    const look=await page.locator('.table-surface').evaluate(el=>({bg:getComputedStyle(el).backgroundImage,shadow:getComputedStyle(el).boxShadow,radius:getComputedStyle(el).borderRadius}));
-   assert.ok(look.bg.includes('repeating-linear-gradient'),'felt material has visible woven texture');
-   assert.ok(look.shadow.includes('inset'),'felt table includes raised wooden edge');
+   assert.ok(look.bg.includes('data:image/svg+xml'),'tabletop uses original NIGHT vector woodgrain');
+   assert.equal(look.shadow,'none','market is not inside a thick unrelated raised frame');
+   assert.equal(await page.locator('.whot-opponent-hand .card-back').count(),5,'show every CPU card rather than a single placeholder');
+   const geometry=await page.evaluate(()=>{
+     const rect=s=>{const e=document.querySelector(s),r=e.getBoundingClientRect();return {x:r.x,y:r.y,w:r.width,h:r.height}};
+     return {cpu:rect('.whot-opponent-hand'),market:rect('.whot-deck-back'),discard:rect('.card-pile>.whot-card'),hand:rect('.hand .card-row'),
+       cpuWidth:parseFloat(getComputedStyle(document.querySelector('.whot-opponent-hand .card-back')).width)};
+   });
+   const reference=width===390?
+     {cpu:{x:30,y:80,w:330},market:{x:72.5,y:222,w:80},discard:{x:237.5,y:222,w:80},hand:{x:30,y:357,w:330},cpuWidth:80}:
+     {cpu:{x:315,y:60,w:650},market:{x:465,y:263,w:100},discard:{x:715,y:263,w:100},hand:{x:315,y:451,w:650},cpuWidth:100};
+   const h=width===390?105:138;
+   for(const kind of ['cpu','market','discard','hand']){
+     for(const field of ['x','y','w'])assert.ok(Math.abs(geometry[kind][field]-reference[kind][field])<2.5,
+       kind+' '+field+' should match original reference: '+JSON.stringify(geometry));
+   }
+   assert.equal(geometry.cpuWidth,reference.cpuWidth);
+   assert.ok(Math.abs(geometry.market.h-h)<1.5,'market card has original full height');
+   console.log('WHOT_GEOMETRY',width,JSON.stringify(geometry));
    assert.equal(await page.locator('.whot-win-layer').count(),0,'no premature victory banner');
    assert.equal(await page.locator('.whot-deck-word').count(),2,'classic WHOT back contains exactly two readable labels');
    const deckLetters=await page.locator('.whot-deck-word').evaluateAll(els=>
@@ -66,7 +83,7 @@ async function finish(page,winner){
 
    // Match the high-quality classical WHOT face proportions we studied,
    // with NIGHT's original SVG art and without loading the other game.
-   const design=await page.locator('.hand .whot-card').first().evaluate(el=>{
+   const design=await page.locator('.hand .whot-card:not(.whot-wild)').first().evaluate(el=>{
      const r=el.getBoundingClientRect(),cs=getComputedStyle(el);
      const face=el.querySelector('.whot-suit-big'),small=el.querySelector('.whot-suit-small');
      const rank=el.querySelector('.whot-corner strong');
@@ -87,8 +104,8 @@ async function finish(page,winner){
    assert.equal(design.hasSmallSuit,true,'numbers have accompanying corner symbols');
    assert.ok(design.symbolWidth>25,'single central geometric suit is unmistakable');
    if(width===390){
-     assert.ok(design.width>=60&&design.width<=65,'five face cards fit the mobile hand');
-     assert.ok(design.height>=101&&design.height<=107,'mobile cards stay tall and easy to tap');
+     assert.ok(Math.abs(design.width-80)<1,'reference 80px mobile face');
+     assert.ok(Math.abs(design.height-105)<1,'reference 105px mobile face');
      assert.equal(design.cornerSize,'9px');
    }else{
      assert.ok(Math.abs(design.width-100)<1,'reference-proportioned desktop card width');
@@ -98,10 +115,10 @@ async function finish(page,winner){
    console.log('WHOT_CARD_DESIGN',width,JSON.stringify(design));
 
    const budget=await page.evaluate(()=>window.__nightWhotMotion().timings);
-   assert.ok(budget.player>=380&&budget.player<=450&&budget.cpu>=400&&budget.cpu<=460&&budget.draw>=380&&budget.draw<=440,'card motion should glide rather than snap or drag');
-   assert.ok(budget.cpuDelay>=150&&budget.cpuDelay<=220,'CPU should pause naturally without the old 380ms dead time');
-   assert.ok(budget.deal<=450&&budget.dealStagger<=70,'initial dealing should stay rhythmic and smooth');
-   assert.ok(budget.settle<=210&&budget.recenter>=220&&budget.recenter<=290,'centered hands should glide naturally into position');
+   assert.ok(budget.player>=440&&budget.player<=500&&budget.cpu>=460&&budget.cpu<=510&&budget.draw>=430&&budget.draw<=490,'smooth FLIP glide matches natural reference rhythm');
+   assert.ok(budget.cpuDelay>=180&&budget.cpuDelay<=290,'CPU has a deliberate but not sluggish beat');
+   assert.ok(budget.deal<=450&&budget.dealStagger<=70,'initial dealing stays rhythmic');
+   assert.ok(budget.settle<=210&&budget.recenter>=320&&budget.recenter<=390,'hands glide into their new position');
    const dealAnim=await page.locator('.hand .whot-card').last().evaluate(el=>{
      const active=el.getAnimations();return active.length?active[0].effect.getTiming():null
    });
@@ -169,12 +186,12 @@ async function finish(page,winner){
      transformStyle:getComputedStyle(el).transformStyle,
      backface:getComputedStyle(el.querySelector('.whot-flip-front')).backfaceVisibility
    }));
-   assert.ok(flipStyle.effect.includes(340),'3D flip shares the source-to-destination flight');
+   assert.ok(flipStyle.effect.includes(560),'3D card reveal shares the market flight');
    assert.equal(flipStyle.transformStyle,'preserve-3d');
    assert.equal(flipStyle.backface,'hidden','reverse side must stay hidden while rotating');
       const motion=await drawPage.evaluate(()=>window.__nightWhotMotion());
    assert.equal(motion.lastFlightAction,'draw','market draw uses true flight animation');
-   assert.equal(motion.lastFlightDuration,415,'market draw uses smooth 415ms card flight');
+   assert.equal(motion.lastFlightDuration,460,'market draw glides smoothly across original two-pile market');
    await drawPage.waitForFunction(()=>window.__nightWhotMotion().activeFlights===0,null,{timeout:1800});
    assert.notEqual(await newFace.evaluate(el=>el.style.visibility),'hidden','new face reveals when the drawn back reaches its real position');
    assert.equal(await drawPage.locator('.hand .whot-card').count(),6,'no extra second-card popup');

@@ -9,9 +9,9 @@ let cardMotionBusy=false,cardMotionEpoch=0,pendingWhotDeal=false;
 // Speed is intentionally unified: interaction should feel immediate,
 // while cards still lift, glide, land and settle.
 const whotMotion={
- player:420,cpu:440,draw:415,cpuDelay:185,
- deal:420,dealDelay:58,dealStagger:65,opponentDeal:420,
- settle:165,recenter:260,drawFlip:340
+ player:465,cpu:480,draw:460,cpuDelay:235,
+ deal:410,dealDelay:55,dealStagger:66,opponentDeal:440,
+ settle:180,recenter:360,drawFlip:560
 };
 const cardMotionMetrics={deals:0,plays:0,cpuPlays:0,draws:0,activeFlights:0,lastFlightDuration:0,lastFlightAction:null};
 const motionEnabled=()=>!matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -38,7 +38,7 @@ function controlsHTML(markup){if(controls.innerHTML!==markup)controls.innerHTML=
 function rules(title,desc){const markup="<h3>"+title+"</h3><p>"+desc+"</p>";if(help.innerHTML!==markup)help.innerHTML=markup;}
 function scoreList(players,getScore){return '<div class="score-list">'+players.map((p,i)=>'<div class="score-row"><span><b style="color:'+h(p.color)+'">●</b> '+h(p.name)+'</span><b>'+h(getScore(p,i))+'</b></div>').join("")+"</div>";}
 function choosePlayers(id,selected,max){return '<label class="small">Players (local, sharing one phone)</label><select class="select" data-players="'+id+'">'+[2,3,4].filter(n=>n<=max).map(n=>'<option value="'+n+'"'+(n===selected?" selected":"")+'>'+n+' players</option>').join("")+"</select>";}
-function pick(id){if(!titles[id])id="checkers";cardMotionEpoch++;cardMotionBusy=false;active=id;if(id==="ludo")window.NightLudo3D?.warmup();document.body.classList.toggle("ludo-mode",id==="ludo");document.body.classList.toggle("checkers-mode",id==="checkers");document.body.classList.toggle("whot-mode",id==="whot");$("ludoTopbar").hidden=id!=="ludo";$("ludoHud").hidden=id!=="ludo";if(id!=="ludo")closeLudoSettings();const d=titles[id];document.title=d[0]+" · NIGHT Play";if($("settingsDialog").open)$("settingsDialog").close();$("gameTitle").textContent=d[0];$("gameSubtitle").textContent=d[1];$("gameCategory").textContent=d[2];[...picks.querySelectorAll("button")].forEach(x=>x.setAttribute("aria-current",String(x.dataset.pick===id)));const url=new URL(location.href);url.searchParams.set("game",id);history.replaceState(null,"",url.pathname+url.search);window.NightLudo.cancel();if(id==="ludo"&&state.ludo)state.ludo=window.NightLudo.resume(state.ludo);if(!state[id])reset(id);else render();}
+function pick(id){if(!titles[id])id="checkers";cardMotionEpoch++;cardMotionBusy=false;active=id;if(id==="ludo")window.NightLudo3D?.warmup();document.body.classList.toggle("ludo-mode",id==="ludo");document.body.classList.toggle("checkers-mode",id==="checkers");document.body.classList.toggle("whot-mode",id==="whot");$("whotNewRoundMenu").hidden=id!=="whot";$("ludoTopbar").hidden=id!=="ludo";$("ludoHud").hidden=id!=="ludo";if(id!=="ludo")closeLudoSettings();const d=titles[id];document.title=d[0]+" · NIGHT Play";if($("settingsDialog").open)$("settingsDialog").close();$("gameTitle").textContent=d[0];$("gameSubtitle").textContent=d[1];$("gameCategory").textContent=d[2];[...picks.querySelectorAll("button")].forEach(x=>x.setAttribute("aria-current",String(x.dataset.pick===id)));const url=new URL(location.href);url.searchParams.set("game",id);history.replaceState(null,"",url.pathname+url.search);window.NightLudo.cancel();if(id==="ludo"&&state.ludo)state.ludo=window.NightLudo.resume(state.ludo);if(!state[id])reset(id);else render();}
 function reset(id){
 if(id==="ludo"){window.NightLudo.cancel();state.ludo=window.NightLudo.create();}
 if(id==="estate"){state.estate={players:["red","blue"].map(k=>({name:k[0].toUpperCase()+k.slice(1),color:colors[k],cash:1500,pos:0,bankrupt:false})),owners:{},upgrades:{},turn:0,rolled:false,last:0,pending:null,rounds:0,winner:null,msg:"Roll the dice to start buying properties.",inspect:0};}
@@ -218,24 +218,23 @@ async function whotFly(origin,destination,{face=null,action="play"}={}){
   // The card reacts immediately: a short lift, measured glide and cushioned
   // landing. No timeout is inserted between tapping and visual feedback.
   const flight=ghost.animate([
-   {offset:0,transform:'translate3d(0,0,0) scale(1) rotate(-2deg)',opacity:1},
-   {offset:.14,transform:'translate3d('+(dx*.085)+'px,'+(dy*.085-11)+'px,0) scale(1.045) rotate(-3deg)',opacity:1},
-   {offset:.48,transform:'translate3d('+(dx*.46)+'px,'+(dy*.46-23)+'px,0) scale('+(1.08+(scale-1)*.35)+') rotate('+(action==='cpu'?4:-4)+'deg)',opacity:1},
-   {offset:.85,transform:'translate3d('+(dx*.88)+'px,'+(dy*.88-5)+'px,0) scale('+(1.025+(scale-1)*.86)+') rotate(2deg)',opacity:1},
-   {offset:1,transform:'translate3d('+dx+'px,'+dy+'px,0) scale('+scale+') rotate(0deg)',opacity:1}
-  ],{duration,easing:'cubic-bezier(.23,.72,.24,1)',fill:'forwards'});
+   {offset:0,transform:'translate3d(0,0,0) scale(1)',opacity:1},
+   {offset:.16,transform:'translate3d('+(dx*.12)+'px,'+(dy*.12-6)+'px,0) scale(1.025)',opacity:1},
+   {offset:.72,transform:'translate3d('+(dx*.73)+'px,'+(dy*.73-4)+'px,0) scale('+(1.025+(scale-1)*.7)+')',opacity:1},
+   {offset:1,transform:'translate3d('+dx+'px,'+dy+'px,0) scale('+scale+')',opacity:1}
+  ],{duration,easing:'cubic-bezier(.22,.7,.19,1)',fill:'forwards'});
+  let flipEffect=null;
   if(flipCore){
-   // The front turns into view *during* the flight, not via a second
-   // post-flight animation. 3D depth and backface hiding make the reveal
-   // feel like a physical card rather than a flat sprite swap.
-   flipCore.animate([
+   // Keep the reference's measured, substantial 3D turn concurrent with
+   // position motion; never remove the moving card before its face settles.
+   flipEffect=flipCore.animate([
     {transform:'rotateY(0deg)'},
     {offset:.3,transform:'rotateY(27deg)'},
     {offset:1,transform:'rotateY(180deg)'}
    ],{delay:action==='draw'?52:25,duration:whotMotion.drawFlip,
      easing:'cubic-bezier(.31,.63,.19,1)',fill:'forwards'});
   }
-  await flight.finished.catch(()=>{});
+  await Promise.all([flight.finished.catch(()=>{}),flipEffect?flipEffect.finished.catch(()=>{}):Promise.resolve()]);
  }finally{
   origin.style.visibility=oldVisibility;
   if(action==='draw')destination.style.visibility=previousDestVisibility;
@@ -256,13 +255,13 @@ function whotDeal(){
    {transform:'translate3d(0,0,0) scale(1) rotate(0)',opacity:1}
   ],{delay:whotMotion.dealDelay+index*whotMotion.dealStagger,duration:whotMotion.deal,easing:'cubic-bezier(.23,.8,.2,1)'});
  });
- const opponent=board.querySelector('.table-surface > .card-row .card-back');
- if(opponent){const b=opponent.getBoundingClientRect();
+ [...board.querySelectorAll('.table-surface > .whot-opponent-hand .card-back')].forEach((opponent,index)=>{
+  const b=opponent.getBoundingClientRect();
   opponent.animate([
-   {transform:'translate3d('+(a.left+a.width/2-b.left-b.width/2)+'px,'+(a.top+a.height/2-b.top-b.height/2)+'px,0) scale(.7) rotate(9deg)',opacity:.2},
-   {transform:'translate3d(0,0,0) scale(1) rotate(0)',opacity:1}
-  ],{delay:whotMotion.dealDelay+30,duration:whotMotion.opponentDeal,easing:'cubic-bezier(.23,.8,.2,1)'});
- }
+   {transform:'translate3d('+(a.left+a.width/2-b.left-b.width/2)+'px,'+(a.top+a.height/2-b.top-b.height/2)+'px,0) scale(.7)',opacity:.1},
+   {transform:'translate3d(0,0,0) scale(1)',opacity:1}
+  ],{delay:whotMotion.dealDelay+index*whotMotion.dealStagger,duration:whotMotion.opponentDeal,easing:'cubic-bezier(.2,.72,.24,1)'});
+ });
 }
 function whotSettle(){
  if(!motionEnabled())return;
@@ -360,7 +359,7 @@ function whotShapeSvg(s,n,mini=false){
  ];
  if(s===5)return '';
  return '<svg class="'+(mini?'whot-suit-small':'whot-suit-big')+'" viewBox="0 0 100 100" focusable="false" aria-hidden="true">'+tags[s]+
- (s===4&&!mini&&n!==undefined?'<text x="50" y="57" fill="#fff9f0" font-size="18" font-weight="900" text-anchor="middle" font-family="Georgia,serif">'+(n*2)+'</text>':'')+'</svg>';
++'</svg>';
 }
 function whotFace(card,index,enabled){
  const wild=card.n===20;
@@ -397,33 +396,30 @@ function whotHandPositions(){
 }
 function layoutWhotHand(before=null){
  const row=board.querySelector('.hand .card-row');
- if(!row||active!=="whot")return;
+ if(!row||active!=='whot')return;
  const cards=[...row.querySelectorAll('.whot-card')];
- const count=cards.length;
- if(!count){row.style.setProperty('--whot-overlap','0px');return;}
- const width=cards[0].getBoundingClientRect().width;
- const gap=parseFloat(getComputedStyle(row).columnGap)||0;
- const available=Math.max(110,row.clientWidth-9);
- // If the hand no longer fits, show complete center-aligned rows instead
- // of an opaque fan where a disabled neighbouring card catches taps.
- // Every card must retain a comfortable, actually clickable touch target.
- const fits=Math.max(1,Math.floor((available+gap)/(width+gap)));
- const wrap=count>fits;
- row.classList.toggle('whot-wrap',wrap);
- const needed=wrap?0:count>1?Math.max(0,(count*width+(count-1)*gap-available)/(count-1)):0;
- const overlap=Math.min(width*.20,needed);
- row.style.setProperty('--whot-overlap',overlap.toFixed(2)+'px');
+ if(!cards.length)return;
+ // The original Naija Whot uses a horizontally scrolling card strip. It
+ // does NOT shrink every card to 60px or wrap a 5-card hand into rows.
+ const width=parseFloat(getComputedStyle(cards[0]).width)||cards[0].getBoundingClientRect().width;
+ const gap=parseFloat(getComputedStyle(row).columnGap)||20;
+ const available=row.clientWidth;
+ const fits=cards.length*width+Math.max(0,cards.length-1)*gap<=available+1;
+ row.classList.remove('whot-wrap');
+ row.style.setProperty('--whot-overlap','0px');
+ row.style.justifyContent=fits?'center':'flex-start';
+ if(fits)row.scrollLeft=0;
  if(!before||!motionEnabled())return;
- // FLIP: after one card flies to the discard, remaining cards gently glide
- // to new centered positions without re-rendering the table each frame.
+ // FLIP re-centres the surviving cards without changing their DOM identity.
  for(const el of cards){
-  const key=el.dataset.whotKey,old=before.get(key)?.shift();
+  const old=before.get(el.dataset.whotKey)?.shift();
   if(!old)continue;
   const now=el.getBoundingClientRect(),dx=old.x-now.left,dy=old.y-now.top;
-  if(Math.abs(dx)<.75&&Math.abs(dy)<.75)continue;
-  el.animate([{transform:'translate3d('+dx+'px,'+dy+'px,0)'},
-              {transform:'translate3d(0,0,0)'}],
-   {duration:whotMotion.recenter,easing:'cubic-bezier(.2,.8,.2,1)'});
+  if(Math.abs(dx)<.7&&Math.abs(dy)<.7)continue;
+  el.animate([
+   {transform:'translate3d('+dx+'px,'+dy+'px,0)'},
+   {transform:'translate3d(0,0,0)'}
+  ],{duration:whotMotion.recenter,easing:'cubic-bezier(.19,.73,.2,1)'});
  }
 }
 let whotResizeFrame=0;
@@ -449,6 +445,18 @@ function whotPatchTable(markup){
   if(!el||!fresh)continue;
   if(el.textContent!==fresh.textContent)el.textContent=fresh.textContent;
   if(el.className!==fresh.className)el.className=fresh.className;
+ }
+ const oldOpponent=table.querySelector('.whot-opponent-hand'),newOpponent=next.querySelector('.whot-opponent-hand');
+ if(oldOpponent&&newOpponent){
+  const oldBacks=[...oldOpponent.querySelectorAll('.card-back')];
+  const needed=newOpponent.querySelectorAll('.card-back').length;
+  if(needed<oldBacks.length){for(let i=oldBacks.length-1;i>=needed;i--)oldBacks[i].remove()}
+  else if(needed>oldBacks.length){
+   for(let i=oldBacks.length;i<needed;i++)oldOpponent.appendChild(newOpponent.children[i].cloneNode(true));
+  }
+  for(const [i,back] of [...oldOpponent.querySelectorAll('.card-back')].entries()){
+   back.setAttribute('aria-label','Computer card '+(i+1)+' of '+needed);
+  }
  }
  const oldDeck=oldPile.querySelector('.whot-deck'),newDeck=newPile.querySelector('.whot-deck');
  if(oldDeck&&newDeck){
@@ -511,7 +519,9 @@ const whotVictory=kind==='whot'&&s.winner!==null?
  '<p class="whot-win-count">'+(s.winner===0?'CPU':'YOU')+' · '+s.hands[1-s.winner].length+' CARDS LEFT</p>'+
  '<button type="button" class="whot-rematch" data-action="whot-rematch">Play again <span aria-hidden="true">↗</span></button></div></div>':'';
 const tableMarkup='<div class="table-surface'+(kind==='whot'&&s.winner!==null?' whot-finished':'')+'" aria-label="Card table">'+(kind==='whot'?whotHud:'<h3>COMPUTER · '+s.hands[1].length+' CARDS</h3>')+
- '<div class="card-row"><div class="playing-card card-back" aria-label="Computer cards hidden"></div>'+(kind==='whot'?'':'<span class="cards-counter">× '+s.hands[1].length+'</span>')+'</div>'+
+ '<div class="card-row whot-opponent-hand">'+(kind==='whot'
+ ?Array.from({length:s.hands[1].length},(_,i)=>'<div class="playing-card card-back" aria-label="Computer card '+(i+1)+' of '+s.hands[1].length+'"><span>WHOT</span><span>WHOT</span></div>').join('')
+ :'<div class="playing-card card-back" aria-label="Computer cards hidden"></div><span class="cards-counter">× '+s.hands[1].length+'</span>')+'</div>'+
  '<div class="card-pile">'+(kind==='whot'?'<button type="button" class="whot-deck" data-action="card-draw" '+(s.turn!==0||s.winner!==null||s.pendingWhot!=null?'disabled':'')+' aria-label="Pick one card from the market"><span class="whot-deck-back"><span class="whot-deck-word flip-top">WHOT</span><span class="whot-deck-word flip-bottom">WHOT</span></span><span class="cards-counter">MARKET · '+s.deck.length+'</span></button>':'<span class="cards-counter">DECK '+s.deck.length+'</span>')+
  cardMarkup(kind,t,-1,false)+currentCall+'</div>'+callPanel+
  '<div class="hand">'+(kind==='whot'?'':'<div class="card-label">YOUR HAND · '+s.hands[0].length+' CARDS</div>')+'<div class="card-row">'+s.hands[0].map((card,i)=>cardMarkup(kind,card,i,s.turn===0&&s.winner===null&&!(kind==='whot'&&s.pendingWhot!=null)&&playable(kind,s,card))).join('')+'</div></div>'+whotVictory+'</div>';
@@ -639,6 +649,7 @@ load();picks.addEventListener("click",e=>{const btn=e.target.closest("[data-pick
 $("settingsButton").addEventListener("click",()=>$("settingsDialog").showModal());
 $("settingsClose").addEventListener("click",()=>$("settingsDialog").close());
 $("newRound").addEventListener("click",()=>{if(confirm("Start a new "+titles[active][0]+" match? Current progress will be cleared."))reset(active);});
+$("whotNewRoundMenu").addEventListener("click",()=>{if(active==="whot"&&confirm("Start a new WHOT round?")){reset("whot");$("settingsDialog").close()}});
 document.addEventListener("change",e=>{
 const opponent=e.target.closest("[data-ludo-opponent]");if(opponent&&active==="ludo"){window.NightLudo.changeOpponent(state.ludo,opponent.value);render();return;}
 const difficulty=e.target.closest("[data-ludo-difficulty]");if(difficulty&&active==="ludo"){window.NightLudo.changeDifficulty(state.ludo,difficulty.value);render();return;}
