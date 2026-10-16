@@ -29,7 +29,7 @@ if [ "$instrument_result" -ne 0 ]; then
   echo "Instrumentation failed with code $instrument_result" >&2
   exit "$instrument_result"
 fi
-grep -Fq 'OK (4 tests)' "${OUT}-instrumentation.txt" || {
+grep -Fq 'OK (5 tests)' "${OUT}-instrumentation.txt" || {
   echo "Instrumentation did not report success" >&2
   cat "${OUT}-instrumentation.txt" >&2
   exit 1
