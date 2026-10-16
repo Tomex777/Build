@@ -206,6 +206,56 @@ class AnimePoseStudyInstrumentedTest {
             }
             assertTrue("Female anime model invisible on emulator",
                 distinctPixelDifference(femaleNeutral, empty) >= 150)
+            // Hair-specific acceptance: actual VRM HairJoint strands MUST deform
+            // under gravity/wind. A static textured female model is not enough.
+            fun withHair(gravity: Float, wind: Float) {
+                val current = store.load(project.id)
+                store.save(current.copy(actors = current.actors.map { actor ->
+                    if (actor.id == actorId) actor.copy(
+                        appearance = actor.appearance.copy(
+                            hairPhysicsEnabled = true,
+                            hairGravityStrength = gravity,
+                            hairWindStrength = wind,
+                        ),
+                    ) else actor
+                }))
+            }
+            withHair(gravity = 0f, wind = 0f)
+            val stillHair: File
+            ActivityScenario.launch(MainActivity::class.java).use {
+                openScene()
+                stillHair = screenshot("female-hair-still", empty)
+            }
+            withHair(gravity = 2f, wind = 2f)
+            val movingHair: File
+            ActivityScenario.launch(MainActivity::class.java).use {
+                openScene()
+                SystemClock.sleep(3_000)
+                movingHair = screenshot("female-hair-gravity", empty)
+            }
+            fun hairPixelsChanged(a: File, b: File): Int {
+                val before = requireNotNull(BitmapFactory.decodeFile(a.path))
+                val after = requireNotNull(BitmapFactory.decodeFile(b.path))
+                assertEquals(before.width, after.width)
+                assertEquals(before.height, after.height)
+                var delta = 0
+                for (y in before.height * 20 / 100 until before.height * 43 / 100) {
+                    for (x in before.width * 22 / 100 until before.width * 78 / 100) {
+                        val p = before.getPixel(x, y)
+                        val q = after.getPixel(x, y)
+                        if (kotlin.math.abs(Color.red(p) - Color.red(q)) +
+                            kotlin.math.abs(Color.green(p) - Color.green(q)) +
+                            kotlin.math.abs(Color.blue(p) - Color.blue(q)) >= 60) delta++
+                    }
+                }
+                before.recycle()
+                after.recycle()
+                return delta
+            }
+            assertTrue(
+                "VRoid hair remained static under 2× gravity and breeze; not acceptable",
+                hairPixelsChanged(stillHair, movingHair) >= 30,
+            )
 
         } finally {
             // Restore the user's sample project to the authored hero pose.
