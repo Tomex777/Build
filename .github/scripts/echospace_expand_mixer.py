@@ -136,21 +136,21 @@ replace_one(
 """,
 )
 replace_one(
-    """        Box(Modifier.offset {
-            IntOffset((midX + sound.x * radius - 27.dp.toPx()).roundToInt(),
-                (midY + sound.y * radius - 27.dp.toPx()).roundToInt())
-        }.size(54.dp).clip(CircleShape)
+    """            Box(Modifier.offset {
+                IntOffset((midX + sound.x * radius - 27.dp.toPx()).roundToInt(),
+                    (midY + sound.y * radius - 27.dp.toPx()).roundToInt())
+            }.size(54.dp).clip(CircleShape)
 """,
-    """        val nodeSize = if (expanded) 64.dp else 54.dp
-        Box(Modifier.offset {
-            IntOffset((midX + sound.x * radius - nodeSize.toPx() / 2f).roundToInt(),
-                (midY + sound.y * radius - nodeSize.toPx() / 2f).roundToInt())
-        }.size(nodeSize).clip(CircleShape)
+    """            val nodeSize = if (expanded) 64.dp else 54.dp
+            Box(Modifier.offset {
+                IntOffset((midX + sound.x * radius - nodeSize.toPx() / 2f).roundToInt(),
+                    (midY + sound.y * radius - nodeSize.toPx() / 2f).roundToInt())
+            }.size(nodeSize).clip(CircleShape)
 """,
 )
 replace_one(
     """private fun ThickGainControl(value: Float, tint: Color, onChange: (Float) -> Unit,
-    modifier: Modifier = Modifier) {
+                             modifier: Modifier = Modifier) {
     // A chunky, touch-friendly layer mixer — not a second device-volume control.
     Canvas(modifier.height(48.dp)
 """,
