@@ -470,6 +470,7 @@ class EndlessRenderer(
         )
         previousCameraPosition = cameraPosition
         lastNanos = System.nanoTime()
+        lastSurfaceMovementNanos = lastNanos
         latestLabels = emptyList()
         latestApproach = if (restoreSurfaceBody != null) {
             ApproachSnapshot(restoreSurfaceBody, 0.0, "SURFACE SKIM", true)
@@ -567,6 +568,7 @@ class EndlessRenderer(
         marsSurfaceMode = true
         surfaceForwardInput = 0f
         surfaceStrafeInput = 0f
+        lastSurfaceMovementNanos = System.nanoTime()
         pendingYaw = 0.0
         pendingPitch = 0.0
         yaw = 1.05
@@ -584,6 +586,7 @@ class EndlessRenderer(
         moonSurfaceMode = true
         surfaceForwardInput = 0f
         surfaceStrafeInput = 0f
+        lastSurfaceMovementNanos = System.nanoTime()
         pendingYaw = 0.0
         pendingPitch = 0.0
         yaw = 0.72
@@ -594,11 +597,10 @@ class EndlessRenderer(
     }
 
     /**
-     * GTA-style analog locomotion is driven at render-frame rate, so long
-     * presses are smooth rather than moving 2.34 metres per tap.
-     * Input is zeroed on release, cancellation, takeoff and pause.
+     * GTA-style analog movement follows a monotonic input clock, not the
+     * renderer's frame rate. Release commits the held gesture, while
+     * cancellation discards it, including during lifecycle transitions.
      */
-    @Synchronized
     @Synchronized
     fun setSurfaceMovementInput(forward: Float, strafe: Float) {
         // Apply motion up to this touch event before updating its direction.
