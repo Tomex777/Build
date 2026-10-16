@@ -546,3 +546,68 @@ body.whot-mode .hand .whot-card:not(:first-child){margin-inline-start:calc(-1 * 
  body.whot-mode .table-surface{padding-inline:7px}
  body.whot-mode .table-surface .hand .card-row{gap:5px}
 }
+
+
+/* WHOT 20: the shape choice belongs ON the felt table, not in an
+   offscreen Android-style select or in a second set of sidebar controls. */
+body.whot-mode .whot-call-panel{
+ width:min(100%,550px);align-self:center;flex-shrink:0;
+ background:linear-gradient(148deg,#fffdf4,#eee5d4);
+ border:1px solid #e4cda3;border-radius:14px;
+ box-shadow:0 15px 36px #03130b66,0 3px 0 #775a3d55;
+ padding:clamp(10px,2.3vw,17px);color:#2d392e;
+ animation:whotCallEnter .37s cubic-bezier(.16,.86,.17,1) both;
+}
+body.whot-mode .whot-call-head{display:flex;justify-content:space-between;align-items:center;gap:14px;margin-bottom:13px;text-align:left}
+body.whot-mode .whot-call-head small{font-size:10px;font-weight:950;letter-spacing:2px;color:#91273b}
+body.whot-mode .whot-call-head h3{font-size:clamp(17px,4vw,21px);margin:4px 0 0;color:#22392c;letter-spacing:-.5px}
+body.whot-mode .whot-call-cancel{border:1px solid #d8d2c4;border-radius:50%;width:34px;height:34px;background:#fff9ec;color:#465143;font-size:14px;font-weight:900}
+body.whot-mode .whot-call-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:clamp(4px,1.4vw,10px)}
+body.whot-mode .whot-call-choice{
+ display:flex;flex-direction:column;align-items:center;justify-content:center;
+ min-width:0;min-height:86px;gap:5px;padding:9px 2px 7px;
+ border:1px solid #d8c9b9;border-radius:9px;background:#fffefa;color:#862036;
+ box-shadow:0 3px 0 #d5c5ae;touch-action:manipulation;
+ transition:transform .18s cubic-bezier(.16,.81,.21,1),box-shadow .18s,border-color .18s;
+}
+body.whot-mode .whot-call-choice svg{display:block;width:29px;height:29px;fill:currentColor;flex:0 0 auto}
+body.whot-mode .whot-call-choice strong{font:900 clamp(9px,2.4vw,12px)/1.05 Inter,Arial,sans-serif;color:#293e2f;letter-spacing:-.2px}
+body.whot-mode .whot-call-choice small{font:700 clamp(8px,2vw,10px)/1 Inter,Arial,sans-serif;color:#857b6c}
+body.whot-mode .whot-call-choice:active{transform:translateY(2px) scale(.97);box-shadow:0 1px 0 #d5c5ae}
+body.whot-mode .whot-call-choice:focus-visible,body.whot-mode .whot-call-cancel:focus-visible{outline:3px solid #3c8856;outline-offset:3px}
+@media(hover:hover) and (pointer:fine){
+ body.whot-mode .whot-call-choice:hover{transform:translateY(-5px);box-shadow:0 8px 14px #253b2c36;border-color:#b29d85}
+}
+body.whot-mode .table-surface .hand .whot-card.whot-pending{
+ opacity:1;filter:none;transform:translateY(-11px) rotate(-2deg);
+ outline:3px solid #f6d97b;outline-offset:2px;box-shadow:0 11px 20px #0008;
+}
+body.whot-mode .table-surface .whot-called{animation:whotCallBadge .48s cubic-bezier(.2,.8,.2,1) both;white-space:nowrap}
+body.whot-mode .table-surface .whot-deck:disabled{opacity:.5;cursor:default}
+@keyframes whotCallEnter{
+ from{transform:translateY(18px) scale(.93);opacity:0}
+ 70%{transform:translateY(-3px) scale(1.015);opacity:1}
+ to{transform:translateY(0) scale(1);opacity:1}
+}
+@keyframes whotCallBadge{from{transform:translateY(-8px) scale(.92);opacity:0}to{transform:translateY(0) scale(1);opacity:1}}
+@media(max-width:370px){
+ body.whot-mode .whot-call-panel{padding:9px}
+ body.whot-mode .whot-call-grid{gap:3px}
+ body.whot-mode .whot-call-choice{min-height:82px;padding:8px 1px}
+ body.whot-mode .whot-call-choice svg{width:25px;height:25px}
+}
+@media(prefers-reduced-motion:reduce){
+ body.whot-mode .whot-call-panel,body.whot-mode .table-surface .whot-called{animation:none}
+ body.whot-mode .whot-call-choice{transition:none}
+}
+
+/* An overfull WHOT hand wraps into accessible centered rows. Do not fan
+   cards until a disabled neighbour covers a playable card's touch target. */
+body.whot-mode .table-surface .hand .card-row.whot-wrap{
+ flex-wrap:wrap!important;justify-content:center!important;
+ align-content:center;gap:clamp(6px,1.5vw,10px)!important;
+ overflow:visible!important;padding-bottom:clamp(12px,2.3vw,18px);
+}
+body.whot-mode .hand .card-row.whot-wrap .whot-card{
+ margin-inline-start:0!important;flex:0 0 auto;
+}

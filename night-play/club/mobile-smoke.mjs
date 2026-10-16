@@ -280,9 +280,9 @@ try{
   assert.equal(await page.locator('.hand .whot-card').count(),5,'The five-card hand is visible');
   assert.ok(await page.evaluate(()=>window.__nightWhotMotion().deals)>=5,'Initial cards deal with staggered animation');
   console.log("NIGHT_WHOT_GAME_JPEG_BASE64="+(await page.screenshot({type:"jpeg",quality:66,fullPage:true})).toString("base64"));
-  const canPlay=await page.locator('.hand .whot-card.playable').count()>0;
+  const canPlay=await page.locator('.hand .whot-card.playable:not(.whot-wild)').count()>0;
   await page.evaluate(()=>window.__whotPreviousPile=document.querySelector('.card-pile .whot-card'));
-  if(canPlay)await page.locator('.hand .whot-card.playable').first().click();
+  if(canPlay)await page.locator('.hand .whot-card.playable:not(.whot-wild)').first().click();
   else await page.locator('.whot-deck').click();
   await page.waitForFunction(()=>window.__nightWhotMotion().visibleFlights===1,null,{timeout:2000});
   assert.equal(await page.evaluate(()=>document.querySelector('.card-pile .whot-card')===window.__whotPreviousPile),true,'Existing board stays mounted during card flight');
@@ -321,12 +321,74 @@ try{
       };
     });
     assert.equal(bounds.count,n,"Hand correctly mounts "+n+" cards");
-    assert.ok(Math.abs(bounds.center-bounds.goal)<3.2,"WHOT "+n+"-card hand stays centered (actual "+JSON.stringify(bounds)+")");
+    if(n<=5)assert.ok(Math.abs(bounds.center-bounds.goal)<3.2,"WHOT "+n+"-card hand stays centered (actual "+JSON.stringify(bounds)+")");
+    else{
+      const rows=await page.locator('.hand .whot-card').evaluateAll(cards=>{
+       const byRow=new Map(),row=cards[0].closest('.card-row').getBoundingClientRect();
+       for(const card of cards){const r=card.getBoundingClientRect(),key=Math.round(r.top);if(!byRow.has(key))byRow.set(key,[]);byRow.get(key).push(r);}
+       return [...byRow.values()].map(rs=>({center:(rs[0].left+rs.at(-1).right)/2,target:row.left+row.width/2,length:rs.length}));
+      });
+      assert.ok(rows.length>=2,'WHOT '+n+'-card hand wraps rather than making cards unclickable');
+      assert.equal(await page.locator('.hand .card-row').evaluate(el=>getComputedStyle(el).justifyContent),'center','WHOT overflow rows align to table centre');
+      // Wrapped hands can extend below the mobile viewport. Bring each card
+      // into view before testing its center, just like a human swipe/scroll.
+      for(let index=0;index<n;index++){
+       const item=page.locator('.hand .whot-card').nth(index);
+       await item.scrollIntoViewIfNeeded();
+       const exposed=await item.evaluate(card=>{
+        const r=card.getBoundingClientRect(),point=document.elementFromPoint(r.left+r.width/2,r.top+r.height/2);
+        return point===card||card.contains(point);
+       });
+       assert.equal(exposed,true,'WHOT card '+index+' in '+n+'-card hand must be tappable at its centre');
+      }
+    }
     assert.ok(bounds.first>=-1&&bounds.last<=bounds.viewport+1,"WHOT "+n+"-card hand never runs off the phone");
     assert.ok(bounds.overflow<=2,"WHOT "+n+"-card hand causes no sideways page scroll");
     assert.ok(bounds.sceneHeight>=600,"WHOT playing surface is truly taller on mobile, not a narrow little box");
     if([1,3,5,12].includes(n))console.log("NIGHT_WHOT_HAND_"+n+"_JPEG_BASE64="+(await page.screenshot({type:"jpeg",quality:52,fullPage:true})).toString("base64"));
   }
+
+  // Card 20 must never auto-call Circle merely because a hidden select
+  // defaulted to the first option. A real in-table decision is required.
+  await page.evaluate(()=>{
+    const data=JSON.parse(localStorage.getItem('night-play-club-v1')),s=data.whot;
+    const groups=[s.hands[0],s.hands[1],s.deck,s.discard];
+    const area=groups.find(group=>group.some(card=>card.n===20));
+    assertWhot(area);
+    const idx=area.findIndex(card=>card.n===20);
+    [s.hands[0][0],area[idx]]=[area[idx],s.hands[0][0]];
+    s.turn=0;s.called=null;s.winner=null;s.pendingWhot=null;
+    localStorage.setItem('night-play-club-v1',JSON.stringify(data));
+    function assertWhot(value){if(!value)throw Error('Missing wildcard in saved 54-card deck');}
+  });
+  await page.reload();
+  const preCall=await page.evaluate(()=>JSON.parse(localStorage.getItem('night-play-club-v1')).whot);
+  assert.equal(preCall.hands[0][0].n,20,'test begins with WHOT 20 in hand');
+  await page.locator('.hand [data-card="0"]').click();
+  await page.locator('.whot-call-panel').waitFor();
+  assert.equal(await page.locator('.whot-call-choice').count(),5,'all five real shapes offered immediately on the table');
+  assert.equal(await page.locator('#wishShape').count(),0,'no offscreen/default Android select picker');
+  assert.equal(await page.locator('[data-action="card-draw"]').count(),1,'market pile is the only draw action');
+  const suspended=await page.evaluate(()=>JSON.parse(localStorage.getItem('night-play-club-v1')).whot);
+  assert.equal(suspended.pendingWhot,0,'waiting to call the shape survives a render');
+  assert.equal(suspended.turn,0,'playing 20 must not pass the turn before the call');
+  assert.equal(suspended.hands[0].length,preCall.hands[0].length,'20 stays in hand until a choice is made');
+  assert.equal(suspended.discard.length,preCall.discard.length,'pile remains untouched while choosing');
+  await page.reload();
+  assert.equal(await page.locator('.whot-call-choice').count(),5,'20 picker survives accidental page reload');
+  await page.locator('[data-action="whot-call-cancel"]').click();
+  assert.equal(await page.locator('.whot-call-choice').count(),0,'cancel returns to hand without spending 20');
+  assert.equal(await page.locator('.hand .whot-wild').count()>0,true,'cancel preserves the WHOT card');
+  await page.locator('.hand [data-card="0"]').click();
+  await page.screenshot({path:'night-play/visual-output/WHOT-20-SHAPE-PICKER.jpg',type:'jpeg',quality:86,fullPage:true});
+  await page.locator('[data-whot-call="4"]').click();
+  await page.waitForFunction(()=>window.__nightWhotMotion().activeFlights===1,{timeout:2500});
+  await page.waitForFunction(()=>JSON.parse(localStorage.getItem('night-play-club-v1')).whot.discard.at(-1).n===20,null,{timeout:4500});
+  const called=await page.evaluate(()=>JSON.parse(localStorage.getItem('night-play-club-v1')).whot);
+  assert.equal(called.called,4,'calling STAR records the exact player choice, not a default');
+  assert.equal(called.pendingWhot,null,'call clears after card lands');
+  assert.equal(called.hands[0].length,preCall.hands[0].length-1,'20 is consumed once');
+  assert.equal(await page.locator('.whot-called').count(),1,'opponent can see the called shape');
   await page.goto(base+"/club/?game=colors");
   assert.ok(await page.locator(".color-card").count()>=8,"colour-matching cards dealt");
   if(await page.locator(".color-card.playable").count())await page.locator(".color-card.playable").first().click();
