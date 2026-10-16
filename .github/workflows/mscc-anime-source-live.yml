@@ -71,6 +71,9 @@ jobs:
 
   source:
     name: ${{ matrix.source }}
+    # On PRs, gate this integration change on the supported AnimeSogo path; keep the
+    # experimental AnimePahe/AnimeOnsen live checks on manual runs and pushes.
+    if: github.event_name != 'pull_request' || matrix.source == 'animesogo'
     strategy:
       fail-fast: false
       matrix:
