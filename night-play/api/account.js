@@ -65,6 +65,7 @@ function createHandler({ env = process.env, fetcher = fetch, now = Date.now } = 
       })
       if (!response.ok && ![400,401,409,429].includes(response.status)) throw new Error('Backend unavailable')
       let result=await response.json()
+      if (!response.ok && (action==='health' || (response.status===401 && result?.error!=='Connect WhatsApp to continue.'))) throw new Error('Bridge not ready')
       if (action==='health' && response.ok) {
         if (result?.service!=='night-play' || result?.version!==1) throw new Error('Wrong backend')
         result={linked:false,profile:null}

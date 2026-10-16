@@ -42,5 +42,6 @@ async function request(method='GET',body,extra={},fn=handler){
   assert.equal((await request('GET',undefined,{},createHandler({env:{}}))).status,503)
   assert.equal((await request('GET',undefined,{},createHandler({env,fetcher:async()=>{throw Error('network')}}))).status,503)
   assert.equal((await request('GET',undefined,{},createHandler({env,fetcher:async()=>response(200,{ok:true,service:'cortex'})}))).status,503)
+  assert.equal((await request('GET',undefined,{},createHandler({env,fetcher:async()=>response(401,{error:'Authentication required'})}))).status,503)
   console.log('PASS NIGHT Play gateway: signed backend requests, secure cookie, origin/CSRF, input validation, trusted routing, logout and backend outages')
 })().catch(error=>{console.error(error);process.exitCode=1})
