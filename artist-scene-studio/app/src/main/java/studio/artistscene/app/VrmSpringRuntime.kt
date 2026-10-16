@@ -27,6 +27,8 @@ internal class VrmSpringRuntime private constructor(
         val instance: Int,
         val parentEntity: Int,
         val restMatrix: FloatArray,
+        val scratch: FloatArray,
+        val boundPoseId: String?,
         val restTip: Vec3,
         val motion: SpringMotion,
         val category: String,
@@ -90,15 +92,9 @@ internal class VrmSpringRuntime private constructor(
             )
             // Rebuild from bind pose every frame; NEVER compound the previous
             // frame's offset, which causes permanent distortion and skin drift.
-            val matrix = root.restMatrix.copyOf()
-            val authored = actor.rig?.joints?.entries?.firstOrNull {
-                // Actual pose keys are discovered rig paths ending with this name.
-                it.key.substringAfterLast('/').equals(
-                    model.asset.getName(root.entity).orEmpty()
-                        .lowercase().replace(Regex("[^a-z0-9]+"), "-").trim('-'),
-                    ignoreCase = true,
-                )
-            }?.value ?: Vec3()
+            val matrix = root.scratch
+            System.arraycopy(root.restMatrix, 0, matrix, 0, 16)
+            val authored = root.boundPoseId?.let { actor.rig?.joints?.get(it) } ?: Vec3()
             Matrix.rotateM(matrix, 0, authored.x + wobble.x, 1f, 0f, 0f)
             Matrix.rotateM(matrix, 0, authored.y, 0f, 1f, 0f)
             Matrix.rotateM(matrix, 0, authored.z + wobble.z, 0f, 0f, 1f)
@@ -121,7 +117,12 @@ internal class VrmSpringRuntime private constructor(
     }
 
     companion object {
-        fun fromAsset(context: Context, asset: studio.artistscene.core.AssetReference, model: ModelInstance): VrmSpringRuntime? {
+        fun fromAsset(
+            context: Context,
+            asset: studio.artistscene.core.AssetReference,
+            model: ModelInstance,
+            definition: studio.artistscene.core.RigDefinition?,
+        ): VrmSpringRuntime? {
             if (asset.storage != AssetStorage.BUNDLED) return null
             val path = when (asset.assetId) {
                 PrototypeScene.ANIME_ASSET_ID -> "models/mise_anime.spring.json"
@@ -156,7 +157,9 @@ internal class VrmSpringRuntime private constructor(
                         tip.getDouble(1).toFloat(), tip.getDouble(2).toFloat())
                     add(SpringRoot(
                         entity = entity, instance = instance, parentEntity = parent,
-                        restMatrix = rest, restTip = vec,
+                        restMatrix = rest, scratch = FloatArray(16),
+                        boundPoseId = definition?.bones?.firstOrNull { it.name == entry.getString("name") }?.id,
+                        restTip = vec,
                         motion = SpringMotion(
                             vec, entry.getDouble("stiffness").toFloat(),
                             entry.getDouble("drag").toFloat(),
