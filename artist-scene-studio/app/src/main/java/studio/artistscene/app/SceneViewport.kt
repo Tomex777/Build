@@ -568,15 +568,18 @@ private fun SceneScope.ActorModelNode(
                         isVisible = actor.visible && resolved,
                         apply = {
                             var lastGrip: Vec3? = null
+                            // Reuse matrices: this closure runs every rendered frame.
+                            val gripMatrix = FloatArray(16)
+                            val parentMatrix = FloatArray(16)
+                            val inverseParent = FloatArray(16)
+                            val gripLocal = FloatArray(16)
                             onFrame = {
-                                rigRuntime?.worldJointTransform(attachedBoneId)?.let { gripWorld ->
+                                rigRuntime?.worldJointTransform(attachedBoneId, gripMatrix)?.let { gripWorld ->
                                     val manager = engine.transformManager
                                     val parentWorld = manager.getWorldTransform(
-                                        manager.getInstance(attachmentParentEntity), FloatArray(16),
+                                        manager.getInstance(attachmentParentEntity), parentMatrix,
                                     )
-                                    val inverseParent = FloatArray(16)
                                     if (Matrix.invertM(inverseParent, 0, parentWorld, 0)) {
-                                        val gripLocal = FloatArray(16)
                                         Matrix.multiplyMM(gripLocal, 0, inverseParent, 0, gripWorld, 0)
                                         // Strip the imported skeleton's unit conversion; the prop
                                         // keeps its own authored size and inherits actor scale.
