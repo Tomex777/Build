@@ -318,6 +318,7 @@ try{
      overflow:document.documentElement.scrollWidth-innerWidth,
      cornerHits:cards.map(c=>{const r=c.getBoundingClientRect(),p=document.elementFromPoint(r.left+13,r.top+20);return p===c||c.contains(p)})};
    });
+   console.log('WHOT_HAND_METRICS',n,JSON.stringify(m));
    assert.equal(m.count,n,'hand contains '+n+' original cards');
    assert.equal(m.mode,n<=4?'spaced':n<=7?'fan':'double','correct hand mode '+n);
    assert.equal(m.display,'block','cards positioned without flex shrink');
