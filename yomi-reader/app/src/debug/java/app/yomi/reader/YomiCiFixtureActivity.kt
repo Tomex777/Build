@@ -10,6 +10,7 @@ import android.graphics.Paint
 import android.net.Uri
 import android.os.Bundle
 import android.provider.DocumentsContract
+import android.util.Log
 import app.yomi.reader.core.ReadingMode
 import app.yomi.reader.local.LibraryLocationType
 import app.yomi.reader.local.LocalLibraryStore
@@ -22,6 +23,15 @@ class YomiCiFixtureActivity : Activity() {
         super.onCreate(savedInstanceState)
 
         val kind = intent.getStringExtra(EXTRA_KIND) ?: KIND_ARCHIVE
+        if (kind == KIND_MUTATE_ARCHIVE) {
+            // The content provider keeps exactly the same document URI.
+            // Rewrite the underlying source so CI can prove Yomi refreshes
+            // an old private copy rather than displaying stale CBZ pages.
+            writeFixture(File(cacheDir, "yomi-ci-book.cbz"), updated = true)
+            Log.i("YomiReader", "ci-source-archive-updated")
+            finish()
+            return
+        }
         val requestedMode = intent.getStringExtra(EXTRA_MODE)
             ?.let { runCatching { ReadingMode.valueOf(it) }.getOrNull() }
             ?: ReadingMode.LTR_PAGED
@@ -110,10 +120,14 @@ class YomiCiFixtureActivity : Activity() {
         finish()
     }
 
-    private fun writeFixture(target: File) {
+    private fun writeFixture(target: File, updated: Boolean = false) {
         target.parentFile?.mkdirs()
         ZipOutputStream(target.outputStream().buffered()).use { zip ->
-            writePage(zip, "Chapter 1/1.png", Color.rgb(42, 56, 86))
+            writePage(
+                zip,
+                if (updated) "Chapter 1/1-revised.png" else "Chapter 1/1.png",
+                if (updated) Color.rgb(184, 44, 78) else Color.rgb(42, 56, 86),
+            )
             zip.putNextEntry(ZipEntry("Chapter 1/notes.txt"))
             zip.write("ignored by Yomi".encodeToByteArray())
             zip.closeEntry()
@@ -160,5 +174,6 @@ class YomiCiFixtureActivity : Activity() {
         const val KIND_IMPORTED = "imported"
         const val KIND_EXTENSIONLESS = "extensionless"
         const val KIND_ANIMATED_GIF = "animated-gif"
+        const val KIND_MUTATE_ARCHIVE = "mutate-archive"
     }
 }
