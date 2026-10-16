@@ -80,7 +80,7 @@ jobs:
         with:
           api-level: 35
           arch: x86_64
-          target: google_apis
+          target: default
           profile: pixel_6
           cores: 4
           ram-size: 4096M
@@ -102,7 +102,7 @@ jobs:
             adb shell screencap -p /sdcard/launch.png
             adb pull /sdcard/launch.png qa/01-launch.png
             python3 EchoSpace/tools/emulator_probe.py tap desc Play
-            sleep 4
+            sleep 5
             python3 EchoSpace/tools/emulator_probe.py assert text Listening
             adb shell screencap -p /sdcard/play.png
             adb pull /sdcard/play.png qa/02-playing.png
