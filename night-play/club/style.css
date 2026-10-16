@@ -611,3 +611,149 @@ body.whot-mode .table-surface .hand .card-row.whot-wrap{
 body.whot-mode .hand .card-row.whot-wrap .whot-card{
  margin-inline-start:0!important;flex:0 0 auto;
 }
+
+
+/* WHOT v5 — the felt is the entire match. Remove redundant sidebar and
+   redundant labels; the compact in-board HUD owns turn and card counts. */
+body.whot-mode .play-layout{grid-template-columns:minmax(0,1fr)!important;gap:0}
+body.whot-mode .controls-col{display:none!important}
+body.whot-mode .play-heading{padding:0 11px 9px;margin:0}
+body.whot-mode .night-game-intro .label,body.whot-mode #gameSubtitle{display:none!important}
+body.whot-mode .play-heading h2{font-size:clamp(22px,5.3vw,29px);font-weight:900;letter-spacing:-1.15px}
+body.whot-mode.whot-has-winner .night-action-row{display:none!important}
+body.whot-mode .table-surface{
+ position:relative;isolation:isolate;
+ background:
+  radial-gradient(ellipse at 51% 20%,#edffe512 0%,transparent 43%),
+  repeating-linear-gradient(121deg,#f0ffe303 0 2px,transparent 2px 5px),
+  repeating-linear-gradient(29deg,#0d24111a 0 1px,transparent 1px 5px),
+  radial-gradient(ellipse at 50% 42%,#356d4f 0%,#1d4e36 63%,#113723 100%);
+ border:7px solid #39271a;
+ border-radius:clamp(18px,3vw,30px);
+ box-shadow:
+  0 0 0 2px #997b4b,0 0 0 5px #33291e,
+  0 17px 28px #14271d38,0 38px 65px #09231825,
+  inset 0 0 0 2px #c8a46a, inset 0 0 0 5px #203321,
+  inset 0 0 56px #071d14ad;
+ padding:clamp(15px,3.1vw,30px);
+ gap:clamp(19px,4vh,42px);
+}
+body.whot-mode .table-surface::before{
+ content:"";position:absolute;inset:9px;border:1px dashed #e4ce9d30;
+ border-radius:clamp(9px,2.1vw,20px);pointer-events:none;z-index:0;
+}
+body.whot-mode .table-surface::after{
+ content:"";position:absolute;left:50%;top:49%;width:min(60%,400px);aspect-ratio:1;max-height:380px;
+ transform:translate(-50%,-50%) rotate(-20deg);border:2px solid #ecffeb0a;
+ border-radius:50%;box-shadow:0 0 0 13px #d4e4c804,0 0 0 26px #d4e4c804;
+ pointer-events:none;z-index:0;
+}
+body.whot-mode .table-surface>.whot-scoreboard,
+body.whot-mode .table-surface>.card-row,
+body.whot-mode .table-surface>.card-pile,
+body.whot-mode .table-surface>.whot-call-panel,
+body.whot-mode .table-surface>.hand{position:relative;z-index:1}
+body.whot-mode .whot-scoreboard{
+ width:100%;display:grid;grid-template-columns:minmax(73px,1fr) auto minmax(73px,1fr);
+ align-items:center;gap:clamp(6px,3vw,22px);
+ background:linear-gradient(180deg,#051b124d,#07190d22);
+ border:1px solid #d0d9b820;border-radius:13px;
+ padding:clamp(9px,2vw,15px) clamp(9px,2.6vw,24px);
+ box-shadow:inset 0 1px #d5dfce14,0 6px 22px #07190c26;
+ backdrop-filter:blur(3px);
+}
+body.whot-mode .whot-seat{
+ display:flex;align-items:baseline;gap:8px;white-space:nowrap;
+ color:#e3e9da;font:800 clamp(10px,2.3vw,12px)/1.3 Inter,system-ui,sans-serif;letter-spacing:1.2px;
+}
+body.whot-mode .whot-seat strong{font-size:clamp(20px,4.5vw,29px);line-height:1;color:#fff7df;font-variant-numeric:tabular-nums;letter-spacing:-1px}
+body.whot-mode .whot-seat-you{justify-content:flex-end}
+body.whot-mode .whot-seat-cpu{justify-content:flex-start}
+body.whot-mode .whot-turn-indicator{
+ display:flex;gap:7px;align-items:center;justify-content:center;white-space:nowrap;
+ font:850 clamp(9px,2vw,11px)/1.35 Inter,system-ui,sans-serif;
+ letter-spacing:1px;color:#e7dbb4;padding:9px 13px;border-radius:999px;
+ border:1px solid #d3ca9470;background:#132b1db8;
+ box-shadow:inset 0 1px #fff2c61c,0 2px 10px #071e123b;
+}
+body.whot-mode .whot-indicator-light{width:7px;height:7px;background:#e0c17d;border-radius:50%;box-shadow:0 0 9px #d7b66caa}
+body.whot-mode .whot-turn-indicator.player-turn .whot-indicator-light{background:#a1f1aa;box-shadow:0 0 13px #7eee8c99}
+body.whot-mode .table-surface>.card-row .card-back{transform:rotate(-5deg);filter:drop-shadow(0 8px 6px #06170c70)}
+body.whot-mode .table-surface .whot-deck-back{transform:rotate(-7deg);box-shadow:0 3px 0 #b55c59,0 6px 0 #f9e3d8,0 17px 22px #07170e96}
+body.whot-mode .table-surface .whot-deck:active .whot-deck-back{transform:rotate(-7deg) translateY(3px)}
+body.whot-mode .table-surface .card-pile>.whot-card{transform:rotate(4deg);box-shadow:0 5px 3px #00100850,0 14px 24px #071b0e98}
+body.whot-mode .table-surface .hand{border-top:1px solid #e4dfad3b;box-shadow:0 -12px 30px -24px #061a0be6}
+body.whot-mode .table-surface .hand .whot-card:not(:disabled){box-shadow:0 3px 8px #0010098a,0 11px 17px #071a0b4f}
+body.whot-mode .whot-deck .cards-counter{font-size:10px;letter-spacing:.7px;color:#e3e9d4}
+body.whot-mode .table-surface .whot-called{background:#f6e6ae;box-shadow:0 3px 0 #34261170}
+body.whot-mode .table-surface.whot-finished{overflow:hidden}
+body.whot-mode .whot-win-layer{
+ position:absolute;z-index:8;inset:0;display:grid;place-items:center;overflow:hidden;
+ padding:23px 16px;background:
+ radial-gradient(ellipse at 50% 42%,#244d3deb 0%,#0b291ce8 54%,#051911e9 100%);
+ backdrop-filter:blur(5px);
+ animation:whotResultBackdrop .55s cubic-bezier(.17,.8,.18,1) both;
+}
+body.whot-mode .whot-win-layer.computer-victory{
+ background:radial-gradient(ellipse at 50% 42%,#4c3b36ed,#221f1fea 62%,#111914ee);
+}
+body.whot-mode .whot-win-content{
+ position:relative;z-index:2;width:min(100%,440px);
+ text-align:center;padding:clamp(25px,5vw,46px) 12px;
+ display:flex;flex-direction:column;align-items:center;
+ animation:whotWinnerEnter .66s cubic-bezier(.12,.87,.21,1) both;
+}
+body.whot-mode .whot-win-medal{
+ display:grid;place-items:center;width:93px;height:93px;
+ background:radial-gradient(circle at 34% 22%,#f9e5b4,#b88d48 60%,#73502e);
+ border:3px solid #fff3c4;border-radius:50%;color:#302414;
+ box-shadow:0 0 0 7px #ffeeb01c,0 0 0 18px #f2d38f0b,0 11px 30px #02170eaa,
+ inset 0 2px 4px #fff9d3aa,inset 0 -5px 9px #5037208c;
+ margin-bottom:30px;animation:whotMedalBloom 1.2s ease-out both;
+}
+body.whot-mode .whot-win-medal svg{width:46px;height:46px;filter:drop-shadow(0 1px 1px #f9edbf)}
+body.whot-mode .computer-victory .whot-win-medal{filter:grayscale(.34);background:radial-gradient(circle at 34% 22%,#e8c0a7,#8a6258 67%,#45362e);color:#2b1a19}
+body.whot-mode .whot-win-eyebrow{margin:0;color:#d8c5a0;letter-spacing:3px;font:800 11px/1.6 Inter,system-ui,sans-serif}
+body.whot-mode .whot-win-content h2{
+ margin:6px 0 8px;color:#fff9de;font:950 clamp(42px,11vw,78px)/1.05 Inter,system-ui,sans-serif;
+ letter-spacing:-3px;text-shadow:0 4px 2px #071c0baa,0 0 34px #f6cd5f39;
+}
+body.whot-mode .whot-win-count{margin:0;color:#dce3d4;font:750 12px/1.6 Inter,system-ui,sans-serif;letter-spacing:1px}
+body.whot-mode .whot-rematch{
+ margin-top:35px;display:flex;align-items:center;justify-content:space-between;gap:26px;
+ min-height:52px;width:min(100%,225px);border:1px solid #f7eac6;border-radius:9px;
+ background:linear-gradient(180deg,#fff3d8,#d8be88);color:#243324;
+ padding:13px 18px;box-shadow:0 6px 0 #65502e,0 13px 24px #00170e88;
+ font:850 14px/1.2 Inter,system-ui,sans-serif;
+ transition:transform .18s ease,box-shadow .18s ease;touch-action:manipulation;
+}
+body.whot-mode .whot-rematch span{font-size:22px;font-weight:500;line-height:1}
+body.whot-mode .whot-rematch:active{transform:translateY(4px);box-shadow:0 2px 0 #65502e,0 5px 9px #00170e88}
+body.whot-mode .whot-rematch:hover{transform:translateY(-2px)}
+body.whot-mode .whot-win-particles{position:absolute;inset:0;pointer-events:none;overflow:hidden}
+body.whot-mode .whot-win-particles i{
+ position:absolute;left:calc(6% + var(--index)*5.2%);top:-10%;width:8px;height:15px;
+ background:hsl(calc(33 + var(--index)*13) 70% 66%);border-radius:2px;
+ box-shadow:0 1px 2px #07170c;
+ animation:whotFall calc(2.1s + var(--index)*.055s) linear calc(var(--index)*-.17s) 2 both;
+ opacity:0;transform:rotate(calc(var(--index)*13deg));
+}
+@keyframes whotResultBackdrop{from{opacity:0}to{opacity:1}}
+@keyframes whotWinnerEnter{from{opacity:0;transform:translateY(25px) scale(.9)}70%{opacity:1;transform:translateY(-3px) scale(1.015)}to{opacity:1;transform:none}}
+@keyframes whotMedalBloom{from{transform:scale(.65) rotate(-22deg);opacity:.4}70%{transform:scale(1.06) rotate(3deg);opacity:1}to{transform:none;opacity:1}}
+@keyframes whotFall{0%{opacity:0;transform:translate3d(0,-5vh,0) rotate(0deg)}10%{opacity:.95}88%{opacity:.88}100%{opacity:0;transform:translate3d(48px,93dvh,0) rotate(660deg)}}
+@media(max-width:650px){
+ body.whot-mode .play-heading{padding:4px 11px 13px}
+ body.whot-mode .table-surface{border-width:5px;padding:clamp(14px,4vw,19px) 10px 18px;min-height:clamp(650px,85dvh,880px)}
+ body.whot-mode .table-surface::before{inset:6px}
+ body.whot-mode .whot-scoreboard{grid-template-columns:minmax(58px,1fr) auto minmax(58px,1fr);padding:10px}
+ body.whot-mode .whot-seat{gap:5px;letter-spacing:.6px}
+ body.whot-mode .whot-turn-indicator{padding:8px 9px}
+ body.whot-mode .whot-win-medal{width:83px;height:83px}
+}
+@media(max-width:370px){body.whot-mode .whot-turn-indicator{letter-spacing:.35px;font-size:9px;padding:8px 6px}body.whot-mode .whot-seat{gap:4px}}
+@media(prefers-reduced-motion:reduce){
+ body.whot-mode .whot-win-layer,body.whot-mode .whot-win-content,body.whot-mode .whot-win-medal,body.whot-mode .whot-win-particles i{animation:none!important}
+ body.whot-mode .whot-rematch{transition:none!important}
+ body.whot-mode .whot-win-particles{display:none!important}
+}
