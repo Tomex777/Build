@@ -68,7 +68,7 @@ function render(restore=false){
  cancel();resolveBlankPages();for(const id of ['openCharacter','openJournal','openChapters'])$(id).disabled=false;ready=false;const epoch=generation,node=story.nodes[run.node],bs=E.beats(story,run);
  ui.menu.open=false;ui.recap.hidden=true;ui.choices.hidden=false;ui.story.setAttribute('aria-label','Chapter '+node.chapter+': '+node.title);
  $('chapterStatus').textContent=node.chapter?'Chapter '+node.chapter+' of '+story.chapters.length+' · '+node.title:node.title;
- document.documentElement.dataset.atmosphere=['c27','c28','c29'].some(x=>run.node.startsWith(x))?'threshold':node.chapter<4?'unease':'quiet';
+ document.documentElement.dataset.atmosphere=node.atmosphere||story.atmosphere||'quiet';
  lines=bs.map(makeLine);ui.story.replaceChildren(...lines);ui.choices.replaceChildren();ui.choices.classList.add('pending');
  const saved=restore?Math.min(run.reading.revealed||0,lines.length):0;
  lines.slice(0,saved).forEach(setLine);
@@ -107,7 +107,7 @@ function resourceDisplay(){
  const row=el('div',undefined,'resource-display');
  for(const [key,def] of Object.entries(story.rules?.resources||{})){
   const value=run.state.resources[key],item=el('div',undefined,'resource');
-  item.append(el('small',def.title));const marks=el('span',Array.from({length:def.max},(_,i)=>i<value?'♥':'♡').join(' '),'heart-marks');marks.setAttribute('aria-label',value+' of '+def.max+' '+def.title);item.append(marks);row.append(item);
+  item.append(el('small',def.title));const marks=el('span',def.icon==='heart'?Array.from({length:def.max},(_,i)=>i<value?'♥':'♡').join(' '):value+' / '+def.max,def.icon==='heart'?'heart-marks':'resource-value');marks.setAttribute('aria-label',value+' of '+def.max+' '+def.title);item.append(marks);row.append(item);
  }
  return row;
 }
@@ -144,9 +144,9 @@ function character(){openPanel(E.text('{{fullName}}',run),body=>{
  const abilities=Object.entries(run.state.abilities);
  if(abilities.length)body.append(el('h3','Abilities'));
  for(const [key,a] of abilities){const def=story.rules.abilities[key],row=el('div',undefined,'ability-row');row.append(el('strong',def.title+' · Level '+a.level),el('p',def.levels[a.level-1]),el('small',def.cost));body.append(row)}
- if(run.state.knowledge.includes('heritage'))body.append(el('h3','The sealed record'),el('p',E.text(story.knowledge.heritage.text,run)));
+ for(const section of story.sheetSections||[])if(E.matches(section.when,run.state))body.append(el('h3',E.text(section.title,run)),el('p',E.text(section.text,run)));
  for(const [key,rec] of Object.entries(story.characters||{})){if(!E.matches(rec.when,run.state))continue;if(key!=='protagonist')body.append(el('h3',E.text(rec.name,run)));body.append(el('p',E.text(rec.text,run)))}
- if(run.legacyHeritagePending)body.append(button('Read the newly opened envelope',()=>{run=E.interlude(story,run,story.migration.catchupNode);write();ui.dialog.close();render()}));
+ if(run.legacyHeritagePending)body.append(button(story.migration.interludeLabel||'Read new interlude',()=>{run=E.interlude(story,run,story.migration.catchupNode);write();ui.dialog.close();render()}));
 })}
 
 function saves(){openPanel('Your playthroughs',body=>{
@@ -156,7 +156,7 @@ function saves(){openPanel('Your playthroughs',body=>{
   const n=story.nodes[r.node];row.append(el('small',(r.ending?story.endings[r.ending]:'Chapter '+n.chapter+' · '+n.title)+' · '+new Date(r.updated).toLocaleString()));
   if(r.id!==run?.id)row.append(button(r.ending?'View ending':'Resume',()=>{snapshot();write();run=E.clone(book.playthroughs.find(x=>x.id===r.id));book.active=run.id;write();ui.dialog.close();render(true)}));body.append(row);
  }
- try{if(story.id==='the-last-call'&&storage.getItem('night-play-last-call-v2')){const p=el('p');const a=el('a','Resume your earlier short edition');a.href='/stories/short-edition.html';p.append(a);body.append(p)}}catch{}
+ try{if(story.shortEdition&&storage.getItem(story.shortEdition.saveKey)){const p=el('p');const a=el('a','Resume your earlier short edition');a.href=story.shortEdition.href;p.append(a);body.append(p)}}catch{}
  body.append(el('p','Playthroughs are saved in this browser. Starting another keeps the earlier one.'));
 })}
 function journal(){openPanel('Story journal',body=>{

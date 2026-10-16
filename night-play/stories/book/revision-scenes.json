@@ -1272,5 +1272,27 @@
         "detail": "The counter-ledger stripped repeated refusals out of the final load."
       }
     ]
+  },
+  "unwitnessed-stairs": {
+    "title": "The way without a transfer",
+    "chapter": "05",
+    "text": "Miso finds a narrow flight of concrete steps beyond the landing. Imani tests the handrail before trusting it. The cat has no such concern. He is already complaining about the pace.\n\n“Where does this go?” I ask.\n\n“The exchange entrance. Eventually.”\n\n“Eventually is a bad addition.”\n\n“Then keep walking while you object.”\n\nThe stairs follow the outside of the route we refused. Through a break in the concrete I see the streetcar pass below, its windows bright above black water. Anubis is still at the wheel. Miso gives me his name when I ask, then tells me to stop leaning over the gap.\n\nWe do not get back on. There is no transfer in my pocket, no office agreeing that it saw us enter willingly. The ordinary fare ticket is getting soft between my fingers. I put it away before I can tear it into pieces I will have to carry.\n\nAt the next landing a gate has fallen out of its upper hinge. Imani holds it level while I lift the latch clear. Neither of us could manage it alone. On the far side, my phone briefly finds the city network. Twenty-three minutes have passed. Leila has sent another message asking where we are.\n\nI give her the actual answer: a longer way to the exchange, with Imani, still moving. It is not enough information to reassure her. It is enough that she can ask the next question without first discovering I lied about the last one.\n\nMiso waits until the reply arrives. Then he points his nose towards a final, narrow stair.\n\nImani looks down at the river. “I don't want to find out what the shortcut would cost twice.”\n\nI hold the gate until she is through. We climb to the service landing together.",
+    "to": "c05",
+    "endEffects": [
+      {
+        "op": "learn",
+        "key": "anubis"
+      },
+      {
+        "op": "add",
+        "key": "independent_route",
+        "value": 1
+      },
+      {
+        "op": "event",
+        "key": "long_fare_route",
+        "detail": "We took the unwitnessed service stairs instead of returning to the streetcar."
+      }
+    ]
   }
 }

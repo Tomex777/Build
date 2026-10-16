@@ -7,6 +7,7 @@ B=pathlib.Path(__file__).parent
 def enhance(story):
  n=story['nodes'];story['legacyInitial']=dict(story['initial']);story['revision']=4
  story['identity']={'firstName':'Sam','surname':'Mansour'}
+ story['shortEdition']={'href':'/stories/short-edition.html','saveKey':'night-play-last-call-v2'}
  story['initial'].update({'knowledge_route':0,'underworld_route':0,'divine_route':0,'independent_route':0,'promised_boundary':False,'boundary_broken':False,'accepted_parent':False})
  attrs={'observation':('Observation','Clues, danger and evidence'),'nerve':('Nerve','Fear and supernatural pressure'),'speed':('Speed','Reaction, escape and agility'),'strength':('Strength','Force, endurance and carrying others'),'cunning':('Cunning','Persuasion, deception and improvisation'),'magic':('Magic','Learning and controlling spells')}
  abilities={
@@ -17,7 +18,7 @@ def enhance(story):
  story['rules']={'startingPoints':4,'attributes':{k:{'title':a,'description':b,'start':1,'max':5} for k,(a,b) in attrs.items()},'resources':{'hearts':{'title':'Return hearts','icon':'heart','start':3,'max':3,'failureNode':'last-return','lossText':'One heart lost','restoreText':'One heart restored','description':'Chances to survive a broken supernatural connection. Ordinary injuries do not spend them.'}},'abilityLimit':2,'abilities':{k:{'title':v[0],'discipline':v[1],'levels':v[2],'cost':v[3],'maxLevel':3,'thresholds':[2,4]} for k,v in abilities.items()}}
  story['interludes']=['heritage-late']
  story['mainEndings']=['release','sever','keeper'];story['endings']['lost']='The Line Goes Quiet';story['failureEndings']=['lost']
- story['migration']={'revisions':[3],'revelationNode':'c24','catchupNode':'heritage-late','abilities':[{'key':'seal','when':{'lore':'routes'}}]}
+ story['migration']={'revisions':[3],'revelationNode':'c24','catchupNode':'heritage-late','interludeLabel':'Read the newly opened envelope','abilities':[{'key':'seal','when':{'lore':'routes'}}]}
  story['knowledge'].update({
   'returns':{'title':'Three returns','text':'Mum knotted three return protections into my coat. A broken claim can spend one to bring me back. A cut or bruise cannot. The stitches are a working model, not three anatomical hearts.'},
   'birth_clue':{'title':'The missing second signature','text':'My birth-registration copy has a covered second signature. Leila thought it was a privacy measure. The ink continues under the covering.'},
@@ -29,6 +30,7 @@ def enhance(story):
   'heritage':{'title':'The sealed birth record','text':'Thoth is my divine father. Mum and he concealed his signature behind a witness seal to hide my return from the Exchange. Leila trusted the covered copy. His absence was a decision, not proof he could not help.'},
   'true_name':{'title':'The unwritten part of my name','text':'My ordinary name is {{fullName}}. Beneath it the register holds a private spoken cadence Mum used when I was small. I recognised it; I did not choose it in a menu. In this story, giving that complete cadence to an occupied line would expose its return. Egyptian ideas about ren inspired the rule; the register and its mechanics are fictional.'},
   'myth_note':{'title':'Notes in Mum’s margin','text':'Thoth’s writing, healing and recording offices and Egyptian traditions about names inform the work. The Toronto Exchange, demigod family, return hearts and spell disciplines are our story’s inventions. The people on the line are not specimens of one uniform ancient Egyptian belief.'}})
+ story['items'].update({'tested_torch':'A checked torch and spare batteries','ordinary_return':'Dennis’s numbered return agreement','office_notice':'A limited crossing-office undertaking','counterledger':'The separate counter-ledger of refusals'})
  def last(key):return max((k for k in n if k==key or k.startswith(key+'~')),key=lambda k:int(k.split('~')[1]) if '~' in k else 0)
  def redirect(key,destination):
   for c in n[last(key)]['choices']:c['to']=destination
@@ -57,6 +59,16 @@ def enhance(story):
    if i+1==len(pages) and scene.get('ending'):node['ending']=scene['ending'];node['choices']=[]
    n[ident]=node
  redirect('c03','three-returns');redirect('c06','first-lesson');redirect('c08','covered-signature')
+ # Refusing a fare leaves the tram. All original passage addresses remain; only the
+ # shared landing/payphone is read on the unwitnessed approach.
+ for key in ['b_fare-lie','b_fare-force','b_fare-refuse']:redirect(key,'unwitnessed-stairs')
+ reached_landing=False
+ for key,node in n.items():
+  if key=='c05' or key.startswith('c05~'):
+   for beat in node['beats']:
+    if beat['text'].startswith('At the top of the stairs I find'):reached_landing=True
+    if not reached_landing:beat['when']={'all':([beat['when']] if beat.get('when') else [])+[{'var':'no_transfer','eq':False}]}
+ n['c05']['beats'].insert(1,{'text':'The driver has put his cap on the dashboard. Above his seat, a brass card reads ANUBIS. I look back out at the water before deciding to ask another question.','when':{'var':'no_transfer','eq':False}})
  # Knowledge, spirits, patronage and independence are accumulated decisions, never a route-selection menu.
  redirect('c09a','archive-after-hours');redirect('c12a','water-aftermath');redirect('c16a','second-lesson');redirect('c24','heritage-record');redirect('c24a','field-return');n['c28~2']['choices'][0]['to']='mother-answer'
  # c16a has a real pack/leave decision: retain it, route each continuation through later training.
@@ -148,4 +160,6 @@ def enhance(story):
    if 'The letter from Mrs. Bell lies beside the cards.' in beat['text']:
     beat['when']={'not':{'lore':'acknowledgement'}}
     node['beats'].insert(node['beats'].index(beat)+1,{'text':'Celia Bell’s address is copied on the first card. I delivered her letter before the bell broke. I mark that promise complete and leave room for the ones we could not finish.','when':{'lore':'acknowledgement'}})
+ story['sheetSections']=[{'title':'The sealed record','text':story['knowledge']['heritage']['text'],'when':{'lore':'heritage'}}]
+ for node in n.values():node['atmosphere']='threshold' if 33<=node['chapter']<=35 else 'unease' if node['chapter']<4 else 'quiet'
  story['characters']={'protagonist':{'name':'{{fullName}}','text':'I live in Toronto. Before Friday, the biggest unfinished thing in my life was Mum’s disappearance.'},'Imani':{'name':'Imani','when':{'memory':'asked_first','character':'Imani'},'text':'Goalie. Third floor. Her own Saturday matters.'},'Wren':{'name':'Wren','when':{'lore':'wren'},'text':'She chose her name. She is not Eva.'}}
