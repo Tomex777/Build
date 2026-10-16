@@ -708,7 +708,7 @@ internal fun StudioScreen(
             if (!referenceMode) {
                 Surface(
                     modifier = Modifier.align(Alignment.TopCenter).fillMaxWidth().statusBarsPadding().padding(horizontal = 8.dp, vertical = 8.dp),
-                    color = Color(0xEE1D232B),
+                    color = Color(0xEE1B2931),
                     shape = RoundedCornerShape(16.dp),
                     tonalElevation = 0.dp,
                 ) {
@@ -742,7 +742,7 @@ internal fun StudioScreen(
                 }
                 Surface(
                     modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth().navigationBarsPadding().padding(horizontal = 8.dp, vertical = 8.dp),
-                    color = Color(0xEE1D232B),
+                    color = Color(0xEE1B2931),
                     shape = RoundedCornerShape(18.dp),
                     tonalElevation = 0.dp,
                 ) {
@@ -1578,17 +1578,17 @@ private fun MiseActionPill(
 private fun EditorTool(label: String, icon: androidx.compose.ui.graphics.vector.ImageVector, selected: Boolean, tag: String, onClick: () -> Unit) {
     Box(
         modifier = Modifier
-            .size(width = 48.dp, height = 50.dp)
+            .size(width = 44.dp, height = 50.dp)
             .clip(RoundedCornerShape(12.dp))
-            .background(if (selected) Color(0xFF8DA7FF) else Color(0xFF303844))
+            .background(if (selected) Color(0xFF87DBC9) else Color(0xFF293B42))
             .clickable(onClick = onClick)
             .testTag(tag)
             .padding(horizontal = 2.dp),
         contentAlignment = Alignment.Center,
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-            Icon(icon, contentDescription = label, modifier = Modifier.size(19.dp), tint = if (selected) Color(0xFF101624) else PrimaryText)
-            Text(label, maxLines = 1, fontSize = 9.sp, lineHeight = 10.sp, color = if (selected) Color(0xFF101624) else PrimaryText, fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium)
+            Icon(icon, contentDescription = label, modifier = Modifier.size(19.dp), tint = if (selected) Color(0xFF102822) else PrimaryText)
+            Text(label, maxLines = 1, fontSize = 9.sp, lineHeight = 10.sp, color = if (selected) Color(0xFF102822) else PrimaryText, fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium)
         }
     }
 }
