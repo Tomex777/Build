@@ -1,5 +1,7 @@
 import {
   browseTheNkiri,
+  listTheNkiriEpisodes,
+  listTheNkiriSeasons,
   resolveTheNkiriDownload,
   resolveTheNkiriRelease,
 } from './providers/thenkiri.js'
