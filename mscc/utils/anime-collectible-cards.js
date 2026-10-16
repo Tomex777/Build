@@ -1,8 +1,11 @@
 // Anime collectible test: preserve the archived Artist Editions SVG compositions.
 // Art is supplied by AniList's character catalogue or by the WhatsApp user.
 // Character portraits are not licensed for commercial collectible sales.
-import { readFile } from 'node:fs/promises'
+import { readFile, mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { createCanvas, loadImage } from '@napi-rs/canvas'
+import { Resvg } from '@resvg/resvg-js'
 import { renderCard } from './artist-edition-renderer.js'
 import { downloadImageUrl } from './remote-image.js'
 
@@ -174,18 +177,73 @@ export async function makeEditionSvg(character, edition, artwork, { side = 'fron
   return renderCard(card,{...artwork, fonts:config.fonts},{side, foil:1, light:[0.28,0.2], prefix:'night-'+edition+'-'})
 }
 
-// The original renderer is used without redrawing its geometry. Canvas only
-// rasterizes its finished SVG at 3000 x 4200 (not an upscale of an old PNG).
+// SVGs preview correctly in a browser but the old Skia loadImage(SVG) path
+// silently dropped inline <image href="data:image/..."> pixels. The WhatsApp
+// cards had perfectly drawn frames and no characters. Rasterize the original,
+// intact vector composition with resvg, which resolves embedded bitmap assets.
+// Feed its original embedded fonts explicitly because resvg does not apply
+// CSS data: @font-face; do not make the output depend on host font packages.
+const FONT_LABELS = Object.freeze({
+  display: 'Cormorant Garamond Light',
+  sans: 'DM Sans 9pt',
+  italic: 'Cormorant Garamond Light',
+})
+const FONT_FILES = ['display','sans','italic']
+
+function svgForRasterizer(svg) {
+  if (!svg.includes('<image href="data:image/')) {
+    throw new Error('Card source lacks embedded character artwork.')
+  }
+  // CSS inline TTF rules only worked inside the archived browser studio.
+  // Load the same font binaries using resvg's fontFiles option instead.
+  return svg
+    .replace(/@font-face\{font-family:Night(?:Display|Sans|Italic);src:url\('data:font\/ttf;base64,[A-Za-z0-9+/=]+'\) format\('truetype'\);font-weight:500\}/g,'')
+    .replaceAll('font-family:NightDisplay','font-family:"Cormorant Garamond Light"')
+    .replaceAll('font-family:NightSans','font-family:"DM Sans 9pt"')
+    .replaceAll('font-family:NightItalic','font-family:"Cormorant Garamond Light";font-style:italic')
+}
+
 async function svgToPng(svg, { width=OUTPUT_WIDTH }={}) {
-  const height = Math.round(width * OUTPUT_HEIGHT / OUTPUT_WIDTH)
-  // Match the SVG viewport to the target pixel size before decoding so
-  // the master vector layers stay sharp (no 1000px bitmap upscaling).
-  const scaledSvg = svg.replace(/(<svg\s[^>]*?)width="1000" height="1400"/, '$1width="' + width + '" height="' + height + '"')
-  if (scaledSvg === svg) throw new Error('Unexpected archived SVG master dimensions')
-  const image = await loadImage(Buffer.from(scaledSvg,'utf8'))
-  const canvas = createCanvas(width,height)
-  canvas.getContext('2d').drawImage(image,0,0,width,height)
-  return canvas.toBuffer('image/png')
+  if (!Number.isInteger(width) || width < 200 || width > OUTPUT_WIDTH) {
+    throw new Error('Invalid output image width.')
+  }
+  const config = await base()
+  const dir = await mkdtemp(join(tmpdir(),'night-anime-card-'))
+  try {
+    const files=[]
+    for (const fontName of FONT_FILES) {
+      const uri = config.fonts?.[fontName]
+      if (!/^data:font\/ttf;base64,[A-Za-z0-9+/=]+$/.test(uri||'')) {
+        throw new Error('Archived card font is invalid: ' + fontName)
+      }
+      const path = join(dir,fontName+'.ttf')
+      await writeFile(path,Buffer.from(uri.split(',')[1],'base64'),{mode:0o600})
+      files.push(path)
+    }
+    // fitTo renders *vectors and embedded imagery* at target size, not a
+    // low-res SVG screenshot enlarged later. Stay within WhatsApp/bot limits.
+    const rendering = new Resvg(svgForRasterizer(svg),{
+      fitTo:{mode:'width',value:width},
+      font:{
+        fontFiles:files,
+        loadSystemFonts:true,
+        defaultFontFamily:FONT_LABELS.sans,
+        serifFamily:FONT_LABELS.display,
+        sansSerifFamily:FONT_LABELS.sans,
+      },
+      imageRendering:0,
+      textRendering:2,
+      logLevel:'error',
+    })
+    const output = rendering.render()
+    const height = Math.round(width * OUTPUT_HEIGHT / OUTPUT_WIDTH)
+    if (output.width !== width || output.height !== height) {
+      throw new Error('Card renderer output dimensions did not match expected portrait ratio.')
+    }
+    return output.asPng()
+  } finally {
+    await rm(dir,{recursive:true,force:true})
+  }
 }
 
 export function renderEditionPng(character, edition, artwork, options={}) {
