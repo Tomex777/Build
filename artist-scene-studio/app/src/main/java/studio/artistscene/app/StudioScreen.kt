@@ -42,6 +42,7 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.AccountTree
 import androidx.compose.material.icons.filled.AccessibilityNew
 import androidx.compose.material.icons.filled.AspectRatio
@@ -146,6 +147,7 @@ import studio.artistscene.core.TransformTool
 import studio.artistscene.core.Vec3
 import studio.artistscene.core.RigSemantics
 import studio.artistscene.core.PosePreset
+import studio.artistscene.core.RigidGravity
 import studio.artistscene.core.FaceExpression
 import studio.artistscene.core.AnimeExpressions
 import studio.artistscene.core.CameraShot
@@ -230,6 +232,12 @@ internal fun StudioScreen(
     var rigMessages by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
     var timelineTime by remember(initialProject.id) { mutableStateOf(0f) }
     var timelinePlaying by remember(initialProject.id) { mutableStateOf(false) }
+    // Rigid-body simulation is opt-in. Hair spring dynamics run separately on
+    // Filament's render thread and do not depend on pressing Play here.
+    var gravityPlaying by remember(initialProject.id) { mutableStateOf(false) }
+    var gravityUndoStart by remember(initialProject.id) { mutableStateOf<SceneProject?>(null) }
+    val latestPhysicsEditor = rememberUpdatedState(editor)
+
 
     LaunchedEffect(editor.project.timeline.durationSeconds) {
         timelineTime = timelineTime.coerceIn(0f, editor.project.timeline.durationSeconds.coerceAtLeast(0f))
@@ -276,6 +284,28 @@ internal fun StudioScreen(
             )
         }
         Log.d(RUNTIME_LOG_TAG, "editor-change reason=$reason selected=${next.selectedActorId}")
+    }
+
+    LaunchedEffect(gravityPlaying, editor.project.world.gravityEnabled) {
+        if (!gravityPlaying || !editor.project.world.gravityEnabled) return@LaunchedEffect
+        val solver = RigidGravity(editor.project)
+        var previousFrame = withFrameNanos { it }
+        var accumulated = 0f
+        while (gravityPlaying) {
+            val frame = withFrameNanos { it }
+            accumulated += ((frame - previousFrame) / 1_000_000_000f).coerceIn(0f, .05f)
+            previousFrame = frame
+            // 30Hz capped transform preview avoids putting 60 geometry updates
+            // through Compose on low-powered mobile GPUs.
+            if (accumulated < (1f / 30f)) continue
+            val step = accumulated.coerceAtMost(.065f)
+            accumulated = 0f
+            val present = latestPhysicsEditor.value
+            val positions = solver.step(present.project, step)
+            if (positions.isNotEmpty()) {
+                applyEditor(present.previewGravityPositions(positions), "gravity-live-frame")
+            }
+        }
     }
 
     LaunchedEffect(editor.project) {
@@ -747,6 +777,7 @@ internal fun StudioScreen(
                                     activeSheet = "pose"
                                 }
                                 EditorTool("Animate", Icons.Default.PlayArrow, false, "motion-tools") { activeSheet = "motion" }
+                                EditorTool("Physics", Icons.Default.ArrowDownward, activeSheet == "physics", "physics-tools") { activeSheet = "physics" }
                                 EditorTool("Reference", Icons.Default.Image, false, "reference-tools") {
                                     if (selectedReferenceId == null) {
                                         selectedReferenceId = editor.project.referenceImages.firstOrNull()?.id
@@ -933,6 +964,19 @@ internal fun StudioScreen(
             selectedJointId = selectedJointId,
             selectedAxis = selectedPoseAxis,
             poseIkEnabled = poseIkEnabled,
+            gravityPlaying = gravityPlaying,
+            onGravityPlayingChange = { playing ->
+                if (playing && editor.project.world.gravityEnabled) {
+                    gravityUndoStart = editor.project
+                    gravityPlaying = true
+                } else {
+                    gravityPlaying = false
+                    gravityUndoStart?.let { previous ->
+                        applyEditor(editor.commitTransformGesture(previous), "gravity-commit")
+                    }
+                    gravityUndoStart = null
+                }
+            },
             selectedReferenceId = selectedReferenceId,
             onReferenceSelected = { selectedReferenceId = it },
             onReferenceImport = { referenceImageLauncher.launch(arrayOf("image/*")) },
@@ -1628,6 +1672,8 @@ private fun EditorContextSheet(
     selectedJointId: String?,
     selectedAxis: TransformAxis,
     poseIkEnabled: Boolean,
+    gravityPlaying: Boolean,
+    onGravityPlayingChange: (Boolean) -> Unit,
     selectedReferenceId: String?,
     onReferenceSelected: (String?) -> Unit,
     onReferenceImport: () -> Unit,
@@ -2265,6 +2311,99 @@ private fun EditorContextSheet(
                             fontSize = 11.sp,
                         )
                     }
+                }
+                "physics" -> {
+                    Text("Gravity · real scene objects", color = PrimaryText, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                    Text(
+                        "Rigid actors fall with acceleration, drag and floor bounce. Hair and fabric have their own per-strand springs.",
+                        color = MutedText, fontSize = 12.sp,
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        FilterChip(
+                            selected = editor.project.world.gravityEnabled,
+                            onClick = {
+                                if (gravityPlaying) onGravityPlayingChange(false)
+                                onEditor(editor.setGravityWorld(enabled = !editor.project.world.gravityEnabled), "gravity-world-toggle")
+                            },
+                            label = { Text(if (editor.project.world.gravityEnabled) "Gravity on" else "Gravity off") },
+                            modifier = Modifier.weight(1f).testTag("gravity-world-toggle"),
+                        )
+                        Button(
+                            enabled = editor.project.world.gravityEnabled &&
+                                editor.project.actors.any { it.physics.dynamic && !it.locked && it.visible },
+                            onClick = { onGravityPlayingChange(!gravityPlaying) },
+                            modifier = Modifier.weight(1f).testTag("gravity-play-pause"),
+                        ) { Text(if (gravityPlaying) "Pause & keep" else "Simulate") }
+                    }
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            "Acceleration · ${String.format(Locale.US, "%.2f", editor.project.world.gravityMetersPerSecondSquared)} m/s²",
+                            color = MutedText, fontSize = 12.sp, modifier = Modifier.weight(1f),
+                        )
+                        listOf(-1f, 1f).forEach { delta ->
+                            IconButton(
+                                onClick = {
+                                    if (gravityPlaying) onGravityPlayingChange(false)
+                                    onEditor(editor.setGravityWorld(metersPerSecondSquared =
+                                        editor.project.world.gravityMetersPerSecondSquared + delta), "gravity-acceleration")
+                                },
+                                modifier = Modifier.size(40.dp).testTag(if (delta < 0) "gravity-g-less" else "gravity-g-more"),
+                            ) {
+                                Icon(if (delta < 0) Icons.Default.Remove else Icons.Default.Add,
+                                    contentDescription = if (delta < 0) "Less gravity" else "More gravity",
+                                    tint = PrimaryText)
+                            }
+                        }
+                    }
+                    val physical = editor.selectedActor?.takeIf {
+                        it.kind != ActorKind.LIGHT && it.kind != ActorKind.CAMERA
+                    }
+                    if (physical != null) {
+                        Text("Selected · ${physical.name}", color = PrimaryText,
+                            fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            FilterChip(
+                                selected = physical.physics.dynamic,
+                                onClick = {
+                                    if (gravityPlaying) onGravityPlayingChange(false)
+                                    onEditor(editor.setSelectedRigidPhysics(dynamic = !physical.physics.dynamic), "gravity-body-toggle")
+                                },
+                                enabled = !physical.locked,
+                                modifier = Modifier.weight(1f).testTag("gravity-body-toggle"),
+                                label = { Text(if (physical.physics.dynamic) "Dynamic" else "Fixed") },
+                            )
+                            Text(
+                                "Raise using Move Y, then Simulate.",
+                                modifier = Modifier.weight(1f), color = MutedText, fontSize = 11.sp,
+                            )
+                        }
+                        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                            Text("Bounce · ${(physical.physics.bounciness * 100).toInt()}%",
+                                color = MutedText, fontSize = 12.sp, modifier = Modifier.weight(1f))
+                            listOf(-.1f, .1f).forEach { delta ->
+                                IconButton(
+                                    onClick = {
+                                        if (gravityPlaying) onGravityPlayingChange(false)
+                                        onEditor(editor.setSelectedRigidPhysics(bounciness =
+                                            physical.physics.bounciness + delta), "gravity-bounce")
+                                    },
+                                    modifier = Modifier.size(40.dp).testTag(if (delta < 0) "gravity-bounce-less" else "gravity-bounce-more"),
+                                    enabled = !physical.locked,
+                                ) { Icon(if (delta < 0) Icons.Default.Remove else Icons.Default.Add,
+                                    contentDescription = if (delta < 0) "Less bounce" else "More bounce", tint = PrimaryText) }
+                            }
+                        }
+                    } else {
+                        Text("Select a character or prop to make it dynamic.", color = MutedText, fontSize = 12.sp)
+                    }
+                    Text(
+                        "Preview collides with the floor only; object-to-object collisions are not implemented. Pause to commit one undo step.",
+                        color = MutedText, fontSize = 11.sp,
+                    )
                 }
                 "camera" -> {
                     val cameras = editor.project.cameras
