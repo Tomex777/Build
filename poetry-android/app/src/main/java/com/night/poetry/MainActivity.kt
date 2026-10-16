@@ -313,7 +313,7 @@ private fun templateAccents(decor: String, foreground: Int): List<TemplateAccent
 data class PoetryBackup(val poems: List<PoemDoc>, val backgrounds: List<SavedBackground>)
 
 /** Private offline JSON store; slides are persisted with their own styles and content overrides. */
-private class PoemStore(private val context: Context) {
+internal class PoemStore(private val context: Context) {
     private val file get() = context.getFileStreamPath("poetry-library.json")
     private val atomicFile get() = AtomicFile(file)
     private fun readCard(c: JSONObject): CardStyleData {
@@ -361,7 +361,7 @@ private class PoemStore(private val context: Context) {
     }
     private fun decode(content: String): List<PoemDoc> {
         val arr = JSONArray(content)
-        (0 until arr.length()).map { i ->
+        return (0 until arr.length()).map { i ->
             val d = arr.getJSONObject(i)
             val oldCard = readCard(d.optJSONObject("card") ?: JSONObject())
             val slidesJson = d.optJSONArray("slides")
@@ -2375,7 +2375,7 @@ private fun ExportDialog(slideCount: Int, busy: Boolean, dismiss: () -> Unit,
 
 /** Android MediaStore PNG rendering. Draw at logical 1080×1920, with the canvas scaled to
  *  the export bitmap. Vectors and text are rasterized at final resolution, not upscaled screenshots. */
-private object CardExporter {
+internal object CardExporter {
     private fun drawVector(context: Context, canvas: AndroidCanvas, assetId: String,
         x: Float, y: Float, px: Float, tint: Int, opacity: Float) {
         val drawable = context.getDrawable(elementResource(assetId))?.mutate() ?: return
