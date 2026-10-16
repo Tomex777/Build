@@ -425,6 +425,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 25
     strategy:
+      # Android emulator / ADB repeatedly disconnected with 12 simultaneous
+      # matrices. Keep all mandatory API 26 + 36 suites, but limit contention.
+      max-parallel: 4
       fail-fast: false
       matrix:
         api: [26, 36]
