@@ -29,6 +29,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.Image
@@ -80,6 +81,14 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.semantics.ProgressBarRangeInfo
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.progressBarRangeInfo
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.setProgress
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.input.pointer.pointerInput
@@ -1252,6 +1261,91 @@ private fun StudioScreen(
     }
 }
 
+
+/**
+ * ABR: sliders must never use unstyled Android/Material defaults.
+ * The native Compose control below draws a slim capsule rail, branded fill,
+ * a small circular knob and a readable value badge. The entire 44dp rail
+ * is touchable (tap/drag) and exposes SetProgress for accessibility.
+ */
+@Composable
+private fun PoetryRangeControl(
+    label: String,
+    value: Float,
+    valueRange: ClosedFloatingPointRange<Float>,
+    valueText: String,
+    onValueChange: (Float) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val accent = Rose
+    val ink = Ink
+    val quiet = Muted
+    val badge = SoftRose
+    val latestOnChange by rememberUpdatedState(onValueChange)
+    val safeValue = value.coerceIn(valueRange.start, valueRange.endInclusive)
+    val span = (valueRange.endInclusive - valueRange.start).coerceAtLeast(.0001f)
+
+    fun valueAt(x: Float, width: Float, inset: Float): Float {
+        val fraction = ((x - inset) / (width - inset * 2f).coerceAtLeast(1f)).coerceIn(0f, 1f)
+        return valueRange.start + fraction * span
+    }
+
+    Row(modifier.fillMaxWidth().heightIn(min = 44.dp),
+        verticalAlignment = Alignment.CenterVertically) {
+        Text(label, fontSize = 11.sp, fontWeight = FontWeight.Medium, color = quiet,
+            maxLines = 1, modifier = Modifier.width(76.dp))
+        Canvas(Modifier.weight(1f).height(44.dp)
+            .semantics {
+                contentDescription = "$label, $valueText"
+                progressBarRangeInfo = ProgressBarRangeInfo(safeValue, valueRange)
+                setProgress { requested ->
+                    latestOnChange(requested.coerceIn(valueRange.start, valueRange.endInclusive))
+                    true
+                }
+            }
+            .pointerInput(valueRange.start, valueRange.endInclusive) {
+                val inset = 12.dp.toPx()
+                detectTapGestures { touch ->
+                    latestOnChange(valueAt(touch.x, size.width.toFloat(), inset))
+                }
+            }
+            .pointerInput(valueRange.start, valueRange.endInclusive) {
+                val inset = 12.dp.toPx()
+                detectDragGestures(
+                    onDragStart = { start ->
+                        latestOnChange(valueAt(start.x, size.width.toFloat(), inset))
+                    }
+                ) { change, _ ->
+                    change.consume()
+                    latestOnChange(valueAt(change.position.x, size.width.toFloat(), inset))
+                }
+            }) {
+            val inset = 12.dp.toPx()
+            val railWidth = (size.width - 2f * inset).coerceAtLeast(1f)
+            val fraction = ((safeValue - valueRange.start) / span).coerceIn(0f, 1f)
+            val centerY = size.height / 2f
+            val railHeight = 5.dp.toPx()
+            val corner = CornerRadius(railHeight / 2f)
+            val start = Offset(inset, centerY - railHeight / 2f)
+            drawRoundRect(ink.copy(alpha = .13f), topLeft = start,
+                size = Size(railWidth, railHeight), cornerRadius = corner)
+            if (fraction > 0f) drawRoundRect(accent, topLeft = start,
+                size = Size(railWidth * fraction, railHeight), cornerRadius = corner)
+            val knob = Offset(inset + railWidth * fraction, centerY)
+            drawCircle(accent.copy(alpha = .12f), radius = 12.dp.toPx(), center = knob)
+            drawCircle(Color.White, radius = 9.dp.toPx(), center = knob)
+            drawCircle(accent, radius = 6.5.dp.toPx(), center = knob)
+            drawCircle(Color.White, radius = 2.dp.toPx(), center = knob)
+        }
+        Box(Modifier.padding(start = 7.dp).width(56.dp)
+            .clip(RoundedCornerShape(9.dp)).background(badge)
+            .padding(vertical = 6.dp), contentAlignment = Alignment.Center) {
+            Text(valueText, fontSize = 11.sp, fontWeight = FontWeight.SemiBold,
+                maxLines = 1, color = accent, textAlign = TextAlign.Center)
+        }
+    }
+}
+
 /** Contextual editing: only shown when an actual canvas element has been selected. */
 @Composable
 private fun ElementSelectionBar(element: Ornament, change: (Ornament) -> Unit,
@@ -1279,22 +1373,21 @@ private fun ElementSelectionBar(element: Ornament, change: (Ornament) -> Unit,
                     modifier = Modifier.size(19.dp))
             }
         }
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("Size", fontSize = 11.sp, color = Muted, modifier = Modifier.width(45.dp))
-            Slider(value = element.size, onValueChange = { change(element.copy(size = it)) },
-                valueRange = .5f..2.8f, modifier = Modifier.weight(1f))
-            Text("Opacity", fontSize = 11.sp, color = Muted, modifier = Modifier.padding(start = 8.dp, end = 5.dp))
-            Slider(value = element.opacity, onValueChange = { change(element.copy(opacity = it)) },
-                valueRange = .1f..1f, modifier = Modifier.width(96.dp))
-        }
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text("Rotate", color = Muted, fontSize = 11.sp)
-            Slider(element.rotation, { change(element.copy(rotation = it)) }, valueRange = -180f..180f,
-                modifier = Modifier.weight(1f))
-            Text(if (element.locked) "Unlock" else "Lock", color = Rose, fontSize = 11.sp,
-                modifier = Modifier.clickable { change(element.copy(locked = !element.locked)) }.padding(5.dp))
-            Text(if (element.hidden) "Show" else "Hide", color = Rose, fontSize = 11.sp,
-                modifier = Modifier.clickable { change(element.copy(hidden = !element.hidden)) }.padding(5.dp))
+        PoetryRangeControl("Size", element.size, .5f..2.8f,
+            "%.1f×".format(java.util.Locale.US, element.size)) { change(element.copy(size = it)) }
+        PoetryRangeControl("Opacity", element.opacity, .1f..1f,
+            "${(element.opacity * 100f).roundToInt()}%") { change(element.copy(opacity = it)) }
+        PoetryRangeControl("Rotate", element.rotation, -180f..180f,
+            "${element.rotation.roundToInt()}°") { change(element.copy(rotation = it)) }
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+            Text(if (element.locked) "Unlock" else "Lock", color = Rose, fontSize = 12.sp,
+                modifier = Modifier.clip(RoundedCornerShape(9.dp)).clickable {
+                    change(element.copy(locked = !element.locked))
+                }.padding(horizontal = 14.dp, vertical = 7.dp))
+            Text(if (element.hidden) "Show" else "Hide", color = Rose, fontSize = 12.sp,
+                modifier = Modifier.clip(RoundedCornerShape(9.dp)).clickable {
+                    change(element.copy(hidden = !element.hidden))
+                }.padding(horizontal = 14.dp, vertical = 7.dp))
         }
     }
 }
@@ -1732,24 +1825,18 @@ private fun TextPanel(doc: PoemDoc, update: (PoemDoc) -> Unit, onEdit: () -> Uni
             }
         }
         Spacer(Modifier.height(11.dp))
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("SIZE", fontSize = 10.sp, color = Muted, letterSpacing = 1.2.sp)
-            Slider(value = doc.card.fontSize, onValueChange = {
-                update(doc.copy(card = doc.card.copy(fontSize = it)))
-            }, valueRange = 12f..26f, modifier = Modifier.weight(1f).padding(horizontal = 11.dp))
-            Text("${doc.card.fontSize.roundToInt()}", fontSize = 12.sp, color = Ink)
+        PoetryRangeControl("Font size", doc.card.fontSize, 12f..26f,
+            "${doc.card.fontSize.roundToInt()} pt") {
+            update(doc.copy(card = doc.card.copy(fontSize = it)))
         }
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("LINE SPACING", fontSize = 10.sp, color = Muted)
-            Slider(doc.card.lineHeight, { update(doc.copy(card = doc.card.copy(lineHeight = it))) },
-                valueRange = 1.1f..2.4f, modifier = Modifier.weight(1f).padding(horizontal = 8.dp))
-            Text("${(doc.card.lineHeight * 100).roundToInt()}%", fontSize = 11.sp, color = Ink)
+        PoetryRangeControl("Line height", doc.card.lineHeight, 1.1f..2.4f,
+            "${(doc.card.lineHeight * 100).roundToInt()}%") {
+            update(doc.copy(card = doc.card.copy(lineHeight = it)))
         }
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("TEXT WIDTH", fontSize = 10.sp, color = Muted)
-            Slider(doc.card.textWidth, { update(doc.copy(card = doc.card.copy(textWidth = it,
-                poemX = doc.card.poemX.coerceAtMost(1f - it)))) },
-                valueRange = .35f.. .93f, modifier = Modifier.weight(1f).padding(horizontal = 8.dp))
+        PoetryRangeControl("Text width", doc.card.textWidth, .35f.. .93f,
+            "${(doc.card.textWidth * 100).roundToInt()}%") {
+            update(doc.copy(card = doc.card.copy(textWidth = it,
+                poemX = doc.card.poemX.coerceAtMost(1f - it))))
         }
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text("ALIGN", fontSize = 10.sp, color = Muted, letterSpacing = 1.2.sp)
@@ -1972,18 +2059,17 @@ private fun LayersPanel(doc: PoemDoc, update: (PoemDoc) -> Unit,
                         onSelect(null)
                     }.padding(6.dp))
             }
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("Size", fontSize = 11.sp, color = Muted)
-                Slider(selected.size, { n -> modify(selected.id) { it.copy(size = n) } },
-                    valueRange = .4f..3.5f, modifier = Modifier.weight(1f).padding(horizontal = 8.dp))
-                Text("Rotate", fontSize = 11.sp, color = Muted)
-                Slider(selected.rotation, { n -> modify(selected.id) { it.copy(rotation = n) } },
-                    valueRange = -180f..180f, modifier = Modifier.weight(1f).padding(start = 8.dp))
+            PoetryRangeControl("Size", selected.size, .4f..3.5f,
+                "%.1f×".format(java.util.Locale.US, selected.size)) { n ->
+                modify(selected.id) { it.copy(size = n) }
             }
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("Opacity", fontSize = 11.sp, color = Muted)
-                Slider(selected.opacity, { n -> modify(selected.id) { it.copy(opacity = n) } },
-                    valueRange = .1f..1f, modifier = Modifier.weight(1f).padding(start = 9.dp))
+            PoetryRangeControl("Rotate", selected.rotation, -180f..180f,
+                "${selected.rotation.roundToInt()}°") { n ->
+                modify(selected.id) { it.copy(rotation = n) }
+            }
+            PoetryRangeControl("Opacity", selected.opacity, .1f..1f,
+                "${(selected.opacity * 100).roundToInt()}%") { n ->
+                modify(selected.id) { it.copy(opacity = n) }
             }
             Row(verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(9.dp)) {
