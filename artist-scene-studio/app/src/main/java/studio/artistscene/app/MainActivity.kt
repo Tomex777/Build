@@ -88,12 +88,12 @@ class MainActivity : ComponentActivity() {
         setContent {
             MaterialTheme(
                 colorScheme = darkColorScheme(
-                    primary = Color(0xFF7C9BFF),
-                    onPrimary = Color(0xFF101624),
-                    secondary = Color(0xFF8AB8E8),
-                    background = Color(0xFF15191F),
-                    surface = Color(0xFF222832),
-                    onSurface = Color(0xFFF2F5F8),
+                    primary = Color(0xFF87DBC9),
+                    onPrimary = Color(0xFF102822),
+                    secondary = Color(0xFFB3B6FF),
+                    background = Color(0xFF10171C),
+                    surface = Color(0xFF1B2931),
+                    onSurface = Color(0xFFF3FAFA),
                 ),
             ) {
                 var projects by remember { mutableStateOf(runCatching { store.list() }.getOrDefault(emptyList())) }
