@@ -78,6 +78,23 @@ internal class FilamentRigRuntime private constructor(
         val color = runCatching { Color.parseColor(appearance.hairColorHex) }.getOrDefault(Color.rgb(48, 37, 32))
         model.asset.renderableEntities.forEach { entity ->
             val name = model.asset.getName(entity).orEmpty()
+            // Real VRoid hair is a textured, skinned mesh named Hair001.
+            // Dye tints the EXISTING hair material; it never changes skin,
+            // facial textures, hairstyle mesh or the source image bytes.
+            if (name == "Hair001") {
+                val tint = appearance.animeHairTintHex?.let {
+                    runCatching { Color.parseColor(it) }.getOrNull()
+                } ?: Color.WHITE
+                if (!manager.hasComponent(entity)) return@forEach
+                val instance = manager.getInstance(entity)
+                repeat(manager.getPrimitiveCount(instance)) { primitive ->
+                    manager.getMaterialInstanceAt(instance, primitive).setParameter(
+                        "baseColorFactor", Colors.RgbaType.SRGB,
+                        Color.red(tint) / 255f, Color.green(tint) / 255f, Color.blue(tint) / 255f, 1f,
+                    )
+                }
+                return@forEach
+            }
             if (!name.startsWith("MiseHair-")) return@forEach
             val instance = manager.getInstance(entity)
             val enabled = visible && name == "MiseHair-${appearance.hairStyle.name.lowercase()}"
