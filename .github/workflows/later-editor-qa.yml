@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - later-editor-qa
+  pull_request:
+    branches:
+      - later-editor-qa
 
 concurrency:
   group: later-editor-qa
@@ -101,6 +104,10 @@ jobs:
           grep -q 'org.videolan.libvlc.MediaPlayer' later/app/src/main/java/com/night/later/ui/media/LaterVlcStyleVideoSurface.kt
           grep -q 'VLCVideoLayout' later/app/src/main/java/com/night/later/ui/media/LaterVlcStyleVideoSurface.kt
           grep -q 'contentDescription = "Video seek bar"' later/app/src/main/java/com/night/later/ui/media/LaterVlcStyleVideoSurface.kt
+          grep -q 'progressBarRangeInfo = ProgressBarRangeInfo' later/app/src/main/java/com/night/later/ui/media/LaterVlcStyleVideoSurface.kt
+          grep -q 'setProgress { fraction ->' later/app/src/main/java/com/night/later/ui/media/LaterVlcStyleVideoSurface.kt
+          grep -q 'height(48.dp)' later/app/src/main/java/com/night/later/ui/media/LaterVlcStyleVideoSurface.kt
+          grep -q 'dialogWindow?.addFlags(android.view.WindowManager.LayoutParams.FLAG_FULLSCREEN)' later/app/src/main/java/com/night/later/ui/media/LaterMediaViewer.kt
           ! grep -q 'ExoPlayer' later/app/src/main/java/com/night/later/ui/media/LaterMediaViewer.kt
           ! grep -q 'PlayerView' later/app/src/main/java/com/night/later/ui/media/LaterMediaViewer.kt
           ! grep -Eq '(^|[^[:alnum:]_])(RangeSlider|Slider)[[:space:]]*[(]' later/app/src/main/java/com/night/later/ui/media/LaterVlcStyleVideoSurface.kt
@@ -270,6 +277,10 @@ jobs:
           grep -q 'org.videolan.libvlc.MediaPlayer' later-clean/app/src/main/java/com/night/later/ui/media/LaterVlcStyleVideoSurface.kt
           grep -q 'VLCVideoLayout' later-clean/app/src/main/java/com/night/later/ui/media/LaterVlcStyleVideoSurface.kt
           grep -q 'contentDescription = "Video seek bar"' later-clean/app/src/main/java/com/night/later/ui/media/LaterVlcStyleVideoSurface.kt
+          grep -q 'progressBarRangeInfo = ProgressBarRangeInfo' later-clean/app/src/main/java/com/night/later/ui/media/LaterVlcStyleVideoSurface.kt
+          grep -q 'setProgress { fraction ->' later-clean/app/src/main/java/com/night/later/ui/media/LaterVlcStyleVideoSurface.kt
+          grep -q 'height(48.dp)' later-clean/app/src/main/java/com/night/later/ui/media/LaterVlcStyleVideoSurface.kt
+          grep -q 'dialogWindow?.addFlags(android.view.WindowManager.LayoutParams.FLAG_FULLSCREEN)' later-clean/app/src/main/java/com/night/later/ui/media/LaterMediaViewer.kt
           ! grep -q 'ExoPlayer' later-clean/app/src/main/java/com/night/later/ui/media/LaterMediaViewer.kt
           ! grep -q 'PlayerView' later-clean/app/src/main/java/com/night/later/ui/media/LaterMediaViewer.kt
           ! grep -Eq '(^|[^[:alnum:]_])(RangeSlider|Slider)[[:space:]]*[(]' later-clean/app/src/main/java/com/night/later/ui/media/LaterVlcStyleVideoSurface.kt
