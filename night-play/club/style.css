@@ -600,3 +600,14 @@ body.whot-mode .table-surface .whot-deck:disabled{opacity:.5;cursor:default}
  body.whot-mode .whot-call-panel,body.whot-mode .table-surface .whot-called{animation:none}
  body.whot-mode .whot-call-choice{transition:none}
 }
+
+/* An overfull WHOT hand wraps into accessible centered rows. Do not fan
+   cards until a disabled neighbour covers a playable card's touch target. */
+body.whot-mode .table-surface .hand .card-row.whot-wrap{
+ flex-wrap:wrap!important;justify-content:center!important;
+ align-content:center;gap:clamp(6px,1.5vw,10px)!important;
+ overflow:visible!important;padding-bottom:clamp(12px,2.3vw,18px);
+}
+body.whot-mode .hand .card-row.whot-wrap .whot-card{
+ margin-inline-start:0!important;flex:0 0 auto;
+}
