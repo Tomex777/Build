@@ -36,42 +36,39 @@ class AnimePoseStudyInstrumentedTest {
             }
         }
 
-        // Confirm a genuine visible GREEN 3D model, not the green axis gizmo
-        // (the latter has far too few pixels). Sampling avoids decoding full frames
-        // repeatedly during slow Android 16 emulator shader compilation.
-        fun visibleStylizedMeshPixels(file: File): Int {
-            val bitmap = BitmapFactory.decodeFile(file.path) ?: return 0
-            var count = 0
-            for (y in bitmap.height * 30 / 100 until bitmap.height * 78 / 100 step 2) {
-                for (x in bitmap.width * 17 / 100 until bitmap.width * 83 / 100 step 2) {
-                    val pixel = bitmap.getPixel(x, y)
-                    val red = Color.red(pixel)
-                    val green = Color.green(pixel)
-                    val blue = Color.blue(pixel)
-                    if (green > 65 && green < 235 && green > red + 18 && green > blue + 9) count++
-                }
-            }
-            bitmap.recycle()
-            return count
-        }
-
-        fun screenshot(stage: String): File {
+        // ABR: compare actual on-device pixels with the SAME camera, floor and
+        // lighting but no character. Skin, hair, clothing and eye colors vary,
+        // so a green-pixel test is invalid for an actual textured anime avatar.
+        fun screenshot(stage: String, background: File? = null): File {
             val image = File(proof, "anime-$stage.png")
-            val isStylizedHero = stage == "posed" || stage == "neutral"
-            val deadline = SystemClock.uptimeMillis() + if (isStylizedHero) 35_000 else 3_500
-            var visiblePixels = 0
-            do {
-                SystemClock.sleep(if (isStylizedHero) 1_350 else 3_500)
-                assertTrue("Could not capture the $stage screenshot", device.takeScreenshot(image))
-                if (!isStylizedHero) return image
-                visiblePixels = visibleStylizedMeshPixels(image)
-                if (visiblePixels >= 350) return image
-            } while (SystemClock.uptimeMillis() < deadline)
-            throw AssertionError(
-                "Real $stage stylized mesh never became visible on API " +
-                    android.os.Build.VERSION.SDK_INT + " ($visiblePixels model-colored pixels). " +
-                    "Screenshot saved: ${image.name}",
-            )
+            val reference = background?.let { requireNotNull(BitmapFactory.decodeFile(it.path)) }
+            try {
+                val deadline = SystemClock.uptimeMillis() + if (background != null) 40_000 else 4_000
+                do {
+                    SystemClock.sleep(if (background != null) 1_600 else 3_500)
+                    assertTrue("Could not capture the $stage screenshot", device.takeScreenshot(image))
+                    if (reference == null) return image
+                    val current = requireNotNull(BitmapFactory.decodeFile(image.path))
+                    var changed = 0
+                    for (y in current.height * 24 / 100 until current.height * 78 / 100 step 3) {
+                        for (x in current.width * 22 / 100 until current.width * 78 / 100 step 3) {
+                            val a = current.getPixel(x, y)
+                            val b = reference.getPixel(x, y)
+                            if (kotlin.math.abs(Color.red(a) - Color.red(b)) +
+                                kotlin.math.abs(Color.green(a) - Color.green(b)) +
+                                kotlin.math.abs(Color.blue(a) - Color.blue(b)) >= 55) changed++
+                        }
+                    }
+                    current.recycle()
+                    if (changed >= 150) return image
+                } while (SystemClock.uptimeMillis() < deadline)
+                throw AssertionError(
+                    "Actual textured anime $stage mesh is invisible on Android " +
+                        android.os.Build.VERSION.SDK_INT + "; see ${image.name}",
+                )
+            } finally {
+                reference?.recycle()
+            }
         }
 
         fun waitForRig() {
@@ -90,7 +87,7 @@ class AnimePoseStudyInstrumentedTest {
                 }
                 SystemClock.sleep(350)
             }
-            throw AssertionError("The real 65-joint stylized GLB never completed discovery/persistence")
+            throw AssertionError("The real VRoid anime skeleton never completed discovery/persistence")
         }
 
         fun distinctPixelDifference(first: File, second: File): Int {
@@ -117,13 +114,22 @@ class AnimePoseStudyInstrumentedTest {
 
         store.save(project)
         try {
+            // Empty-scene reference must be captured BEFORE the skinned GLB loads:
+            // this removes color assumptions and prevents UI-only passes.
+            store.save(project.copy(actors = project.actors.filter { it.kind == ActorKind.LIGHT }))
+            val empty: File
+            ActivityScenario.launch(MainActivity::class.java).use {
+                openScene()
+                empty = screenshot("empty-background")
+            }
+            store.save(project)
             val posed: File
             ActivityScenario.launch(MainActivity::class.java).use {
                 openScene()
                 waitForRig()
                 assertEquals(expected.values.toSet(), store.load(project.id)
                     .actors.first { it.id == actorId }.rig!!.joints.values.toSet())
-                posed = screenshot("posed")
+                posed = screenshot("posed", empty)
             }
 
             // Same GLB, lights, sky, camera and material; only joint rotations change.
@@ -135,20 +141,11 @@ class AnimePoseStudyInstrumentedTest {
             val neutral: File
             ActivityScenario.launch(MainActivity::class.java).use {
                 openScene()
-                neutral = screenshot("neutral")
+                neutral = screenshot("neutral", empty)
             }
             // ABR: an invisible posed mesh must NOT pass just because neutral is visible.
             // Compare both shots to a true empty-model screenshot under identical
             // camera, lights and environment; do not accept a screenshot of the UI.
-            val lightsOnly = store.load(project.id).copy(
-                actors = store.load(project.id).actors.filter { it.kind == ActorKind.LIGHT },
-            )
-            store.save(lightsOnly)
-            val empty: File
-            ActivityScenario.launch(MainActivity::class.java).use {
-                openScene()
-                empty = screenshot("empty-background")
-            }
             val posedForeground = distinctPixelDifference(posed, empty)
             val neutralForeground = distinctPixelDifference(neutral, empty)
             assertTrue(
