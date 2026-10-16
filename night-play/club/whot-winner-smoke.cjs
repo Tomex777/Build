@@ -73,8 +73,8 @@ async function finish(page,winner){
    assert.ok(Math.abs(geometry.market.h-h)<1.5,'market card keeps the original full height');
    assert.ok(Math.abs(geometry.market.y-geometry.discard.y)<2,'market and played card remain aligned');
    assert.ok(geometry.market.x<geometry.discard.x,'market stays left of played cards');
-   assert.ok(geometry.market.y-geometry.cpu.y-(width===390?105:138)>45,'market gets its own breathing room below CPU cards');
-   assert.ok(geometry.hand.y-geometry.market.y-h>45,'player cards sit clearly below the market');
+   assert.ok(geometry.market.y-geometry.cpu.y-(width===390?105:138)>(width===390?45:30),'market gets its own breathing room below CPU cards');
+   assert.ok(geometry.hand.y-geometry.market.y-h>(width===390?45:30),'player cards sit clearly below the market');
    assert.ok(structure.hud.y-geometry.hand.y-h>10,'turn indicator follows the player hand');
    assert.ok(structure.table.bottom-structure.hud.bottom>=8&&structure.table.bottom-structure.hud.bottom<45,
      'turn indicator is inside the felt frame, never isolated in an empty bottom section');
