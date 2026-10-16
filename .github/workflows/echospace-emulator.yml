@@ -150,6 +150,9 @@ jobs:
             python3 EchoSpace/tools/emulator_probe.py assert text 'Add a sound'
             adb shell screencap -p /sdcard/sheet.png
             adb pull /sdcard/sheet.png qa/04-add-sound.png
+            # New sound list is taller: scroll the sheet so Fire is safely above the playback dock.
+            adb shell input swipe 490 2120 490 1350 500
+            sleep 1
             python3 EchoSpace/tools/emulator_probe.py tap text Fire
             sleep 1
             python3 EchoSpace/tools/emulator_probe.py assert desc 'Fire sound position. Drag to move.'
