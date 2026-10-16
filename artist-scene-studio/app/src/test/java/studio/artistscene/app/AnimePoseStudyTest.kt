@@ -83,6 +83,7 @@ class AnimePoseStudyTest {
         assertTrue(anime.kind == ActorKind.CHARACTER)
         assertTrue(anime.rig == null || anime.rig!!.joints.isEmpty())
         assertEquals(Vec3(), anime.transform.position)
+        assertEquals(180f, anime.transform.rotationEulerDegrees.y)
         assertTrue(PrototypeScene.starterAssets().any {
             it.asset?.assetId == PrototypeScene.HUMANOID_ASSET_ID
         })
