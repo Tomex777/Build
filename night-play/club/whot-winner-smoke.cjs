@@ -83,7 +83,7 @@ async function finish(page,winner){
 
    // Match the high-quality classical WHOT face proportions we studied,
    // with NIGHT's original SVG art and without loading the other game.
-   const design=await page.locator('.hand .whot-card').first().evaluate(el=>{
+   const design=await page.locator('.hand .whot-card:not(.whot-wild)').first().evaluate(el=>{
      const r=el.getBoundingClientRect(),cs=getComputedStyle(el);
      const face=el.querySelector('.whot-suit-big'),small=el.querySelector('.whot-suit-small');
      const rank=el.querySelector('.whot-corner strong');
