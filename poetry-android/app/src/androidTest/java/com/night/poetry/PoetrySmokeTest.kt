@@ -22,5 +22,11 @@ class PoetrySmokeTest {
         compose.onNodeWithText("Design a card", substring = true).performClick()
         compose.onNodeWithTag("poetry-card-stage").assertExists()
         compose.onNodeWithText("Export").assertExists()
+        // Element category chips must reflect the actual vector catalog rather than
+        // empty legacy categories (Love, Celestial, Shapes).
+        compose.onNodeWithText("Elements").performClick()
+        compose.onNodeWithText("Stars").performClick()
+        compose.onNodeWithText("Sparkle").assertExists()
+        compose.onNodeWithText("Love").assertDoesNotExist()
     }
 }
