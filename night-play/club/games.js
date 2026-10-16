@@ -142,6 +142,51 @@ const whotNumbers=[
  [1,2,3,5,7,10,11,13,14],         // Square
  [1,2,3,4,5,7,8]                 // Star
 ];
+// NIGHT-specific rule presets. Nigerian WHOT has regional house rules;
+// strict check-up and penalty-defence are explicit, configurable choices.
+const WHOT_OPTIONS_KEY="night-play-whot-options-v2",WHOT_CAREER_KEY="night-play-whot-career-v1";
+const whotRankNames=["Kindergarten","Primary","Secondary","Academy","Rookie","Soldier","Corporal","Sergeant","Captain","Major","General"];
+function whotRead(key,fallback){try{return {...fallback,...JSON.parse(localStorage.getItem(key)||"{}")}}catch{return {...fallback}}}
+const whotOptions=whotRead(WHOT_OPTIONS_KEY,{mode:"quick",strictFinish:true,defend:true,announce:false,difficulty:"normal"});
+const whotCareer=whotRead(WHOT_CAREER_KEY,{wins:0,losses:0,streak:0,bestStreak:0,tournamentWins:[0,0]});
+function whotStore(){try{localStorage.setItem(WHOT_OPTIONS_KEY,JSON.stringify(whotOptions));localStorage.setItem(WHOT_CAREER_KEY,JSON.stringify(whotCareer))}catch{}}
+function whotRank(){const level=Math.min(whotRankNames.length-1,Math.floor(whotCareer.wins/3));return {name:whotRankNames[level],level,next:level===whotRankNames.length-1?null:3-whotCareer.wins%3}}
+function whotAward(s,pi){
+ if(s.winner!==null)return;
+ s.winner=pi;s.msg=pi===0?"You win! Check up!":"Computer wins.";
+ if(whotOptions.mode==="career"){
+  if(pi===0){whotCareer.wins++;whotCareer.streak++;whotCareer.bestStreak=Math.max(whotCareer.bestStreak,whotCareer.streak)}
+  else{whotCareer.losses++;whotCareer.streak=0}
+ }else if(whotOptions.mode==="tournament"){
+  if(!Array.isArray(whotCareer.tournamentWins))whotCareer.tournamentWins=[0,0];
+  whotCareer.tournamentWins[pi]++;
+  const score=whotCareer.tournamentWins;
+  s.msg+=score[0]>=2?" You are the tournament champion!":score[1]>=2?" CPU takes the tournament!":" Tournament: "+score[0]+"–"+score[1]+".";
+ }
+ whotStore();
+}
+function whotNeedsFinishCard(card){return whotOptions.strictFinish&&[1,2,5,8,14,20].includes(card.n)}
+function whotPending(s){return s.pendingPenalty&&s.pendingPenalty.target===s.turn?s.pendingPenalty:null}
+function whotCanPlay(s,card){
+ const pending=whotPending(s);
+ if(pending)return whotOptions.defend&&card.n===pending.n;
+ const top=topCard(s);
+ return card.n===20||card.s===(s.called===null?top.s:s.called)||card.n===top.n;
+}
+function whotConfigUI(){
+ const root=$("whotModeConfig");if(!root)return;const rank=whotRank();
+ root.hidden=active!=="whot";
+ if(root.hidden)return;
+ for(const sel of root.querySelectorAll("[data-whot-option]")){
+  const key=sel.dataset.whotOption;if(sel.type==="checkbox")sel.checked=Boolean(whotOptions[key]);else sel.value=whotOptions[key];
+ }
+ const label=$("whotCareerProgress");if(label)label.textContent=
+  whotOptions.mode==="career"?"RANK "+(rank.level+1)+" · "+rank.name+" · "+whotCareer.wins+" wins"+(rank.next?" · "+rank.next+" to promotion":" · Max rank"):
+  whotOptions.mode==="tournament"?"FIRST TO TWO · YOU "+(whotCareer.tournamentWins?.[0]||0)+" – CPU "+(whotCareer.tournamentWins?.[1]||0):
+  "Classic one-round game against CPU.";
+ const pill=$("whotModeBadge");if(pill)pill.textContent=whotOptions.mode==="career"?rank.name.toUpperCase():whotOptions.mode==="tournament"?"TOURNAMENT":"VS CPU";
+}
+
 function newShapes(){
  const deck=whotNumbers.flatMap((values,s)=>values.map(n=>({s,n})));
  for(let i=0;i<5;i++)deck.push({s:5,n:20});
@@ -151,12 +196,12 @@ function newShapes(){
  // undefined. The wild 20 card still remains inside the playable draw deck.
  const first=deck.findIndex(c=>c.n!==20);
  const initial=deck.splice(first,1)[0];
- return {hands,deck,discard:[initial],turn:0,winner:null,called:null,pendingWhot:null,msg:"Match a shape or number. Go to market if needed.",round:0};
+ return {hands,deck,discard:[initial],turn:0,winner:null,called:null,pendingWhot:null,pendingPenalty:null,pendingFinish:null,calledLast:[false,false],msg:"Match the shape or number. Go to market if needed.",round:0};
 }
 function newColors(){let deck=[];for(let c=0;c<4;c++){for(let n=0;n<=9;n++)deck.push({c,n:String(n)});for(const n of ["SKIP","REV","+2"])for(let k=0;k<2;k++)deck.push({c,n});}for(let k=0;k<4;k++){deck.push({c:4,n:"WILD"},{c:4,n:"+4"});}shuffle(deck);return {hands:[deck.splice(0,7),deck.splice(0,7)],deck,discard:[deck.shift()],turn:0,winner:null,called:null,msg:"Match the colour or symbol.",round:0};}
 function topCard(s){return s.discard[s.discard.length-1];}
 function take(s,pi,n){for(let j=0;j<n;j++){if(!s.deck.length){if(s.discard.length<=1)break;const card=s.discard.pop();s.deck=shuffle(s.discard.splice(0));s.discard=[card];}if(s.deck.length)s.hands[pi].push(s.deck.pop());}}
-function playable(kind,s,card){const top=topCard(s);return kind==="whot"?(card.s===5||card.s===(s.called===null?top.s:s.called)||card.n===top.n):(card.c===4||card.c===(s.called===null?top.c:s.called)||card.n===top.n);}
+function playable(kind,s,card){const top=topCard(s);return kind==="whot"?whotCanPlay(s,card):(card.c===4||card.c===(s.called===null?top.c:s.called)||card.n===top.n);}
 function nextCardTurn(kind,s,pi,card,selected){s.called=null;s.pendingWhot=null;s.discard.push(card);s.round++;const hand=s.hands[pi];if(!hand.length){s.winner=pi;s.msg=(pi===0?"You win!":"Computer wins.");return;}
 let opp=1-pi,again=false,draw=0;
 if(kind==="whot"){
