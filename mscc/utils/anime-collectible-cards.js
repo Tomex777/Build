@@ -2,6 +2,7 @@
 // Art is supplied by AniList's character catalogue or by the WhatsApp user.
 // Character portraits are not licensed for commercial collectible sales.
 import { readFile, mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { createHash } from 'node:crypto'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { createCanvas, loadImage } from '@napi-rs/canvas'
@@ -12,6 +13,25 @@ import { downloadImageUrl } from './remote-image.js'
 export const EDITIONS = ['nocturne', 'tidelight', 'verdant']
 export const OUTPUT_WIDTH = 3000
 export const OUTPUT_HEIGHT = 4200
+
+// The original renderer's Naruto showcase uses a *transparent, action-pose*
+// scroll illustration, NOT AniList's small face-only character thumbnail.
+// Keep the artwork separate from the MIT renderer: it is SHUEISHA copyright
+// and may only be requested from the original publisher for preview/testing.
+// Its known hash and size are from the archived NIGHT-Naruto-Source.zip.
+// Do not silently replace this benchmark with a lower-quality portrait.
+export const NARUTO_ACTION_ART = Object.freeze({
+  characterId:17,
+  name:'Naruto',
+  imageUrl:'https://naruto-official.com/about/hero.webp',
+  sourceUrl:'https://naruto-official.com/en/about',
+  licenseUrl:'https://naruto-official.com/en/about',
+  sha256:'5e68586bc5e47ec4585961a1cce729f69b113e675be83608accae9a2ed550d4b',
+  width:1576,
+  height:1884,
+  artist:'Masashi Kishimoto',
+  license:'© SHUEISHA — all rights reserved; noncommercial test preview only',
+})
 const GRAPHQL = 'https://graphql.anilist.co'
 const LOOKUP_TTL = 15 * 60 * 1000
 const CHAR_QUERY = [
@@ -175,7 +195,10 @@ export async function editionDefinition(character, edition) {
   return {
     ...fields,
     id:'anime-' + edition,
-    name:charLabel(character.name,24),
+    // Reproduce the archived short title while preserving full-name lookup.
+    // Naruto Uzumaki was `Naruto` on the original red-scroll benchmark.
+    name:selectCharacterArtworkSource(character).archivedAction
+      ? NARUTO_ACTION_ART.name : charLabel(character.name,24),
     subtitle:charLabel(character.name.toUpperCase(),40),
     artwork:'anime-character-' + String(character.id || 'manual'),
     description:'NIGHT Artist Editions collectible preview of ' + character.name + '.',
@@ -275,7 +298,57 @@ export function renderEditionPng(character, edition, artwork, options={}) {
   return task
 }
 
+// Keep this a pure choice: deterministic tests must not need network access.
+// The author-approved Naruto red-scroll *action* reference has an explicit
+// precedence over AniList's avatar. Other characters still use AniList until
+// they have a properly vetted, character-specific source.
+export function selectCharacterArtworkSource(character) {
+  const fullName = stripped(character?.name)
+  if (Number(character?.id)===NARUTO_ACTION_ART.characterId || fullName==='naruto uzumaki') {
+    return {...NARUTO_ACTION_ART, archivedAction:true}
+  }
+  if (!character?.imageUrl) throw new Error('Character lookup returned no artwork URL.')
+  return {
+    imageUrl:character.imageUrl,
+    sourceUrl:character.sourceUrl || 'https://anilist.co/',
+    archivedAction:false,
+  }
+}
+
 export async function getArtworkForCharacter(character, { downloadImpl=downloadImageUrl }={}) {
-  const image = await downloadImpl(character.imageUrl)
-  return imageAsset(image.buffer,{sourceUrl:character.sourceUrl})
+  const source = selectCharacterArtworkSource(character)
+  let image
+  try {
+    image = await downloadImpl(source.imageUrl)
+  } catch (error) {
+    if (source.archivedAction) {
+      throw new Error('The original Naruto red-scroll artwork is temporarily unavailable from its official source. Reply to a high-resolution action-pose image with .card Naruto Uzumaki instead.')
+    }
+    throw error
+  }
+  if (source.archivedAction) {
+    // A server change must not silently downgrade the hero pose or crop.
+    const actualHash=createHash('sha256').update(image.buffer).digest('hex')
+    if (actualHash!==source.sha256) {
+      throw new Error('The original Naruto action illustration has changed on the publisher site. The quality-locked card will not substitute a different image; reply to your action artwork to preview it.')
+    }
+  }
+  const artwork=await imageAsset(image.buffer,{sourceUrl:source.sourceUrl})
+  if (source.archivedAction) {
+    if (artwork.artWidth!==source.width || artwork.artHeight!==source.height || artwork.opaque) {
+      throw new Error('The official red-scroll artwork no longer matches the transparent full-action original.')
+    }
+    // Without alpha, the Nocturne hero would be forcibly cropped to an
+    // ellipse; preserving transparency is essential to the scroll pop-out.
+    return {
+      ...artwork,
+      artist:source.artist,
+      license:source.license,
+      outputLicense:'© SHUEISHA — preview only, not licensed for resale',
+      licenseUrl:source.licenseUrl,
+      outputLicenseUrl:source.sourceUrl,
+      preferredComposition:'archive-action',
+    }
+  }
+  return artwork
 }

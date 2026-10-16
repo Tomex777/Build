@@ -1,10 +1,10 @@
 {
-  "releaseId": "night-2026-10-16-08",
+  "releaseId": "night-2026-10-16-09",
   "baseBranch": "mscc-azure",
-  "baseCommit": "41eabdf17efbfe4d68e163c4dd85386c5e36117f",
+  "baseCommit": "7c278f34347966b567c8eaab5a31675e9d555357",
   "pullRequests": [
-    291
+    293
   ],
-  "carriedForwardRelease": "night-2026-10-16-07",
-  "notes": "User explicitly requested shipping the card-artwork rendering fix to test real WhatsApp output. One focused release batch: PR #291 resolves missing anime character layer in all three .card editions with local resvg rasterization; preserves original SVG compositions, archived fonts and 3000x4200 export; adds actual pixel-level JPEG/PNG/nonblank artwork regression and three visual proof artifacts. No stale feature PRs included. Must pass combined exact-head CI, then merge this one release PR, obtain one protected mscc-production GitHub approval, and verify Azure rollback/health and real .card Naruto Uzumaki."
+  "carriedForwardRelease": "night-2026-10-16-08",
+  "notes": "User asked to push the red-scroll Naruto card restoration for immediate WhatsApp visual testing. Includes ONLY reviewed PR #293, source selection and verified SHA-256 original 1576x1884 transparent Naruto scroll pose, removes low-resolution AniList face-crop substitution, restores short 'Naruto' title; untouched archival Nocturne/Tidelight/Verdant SVG renderer. Requires passing combined exact-head CI, ONE protected mscc-production approval after merge, Azure health verification, and live .card Naruto Uzumaki --file visual comparison with original. Official Naruto artwork all rights reserved, testing only; no rights to resell."
 }
