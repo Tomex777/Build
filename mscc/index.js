@@ -11,6 +11,7 @@ import makeWASocket, {
 import pino from 'pino'
 import QRCode from 'qrcode'
 import { startWebPanel } from './web-panel.js'
+import { NightPlay, createNightPlayHandler } from './night-play.js'
 import { megaStorageDashboard, megaAvailableMounts, megaVerifyFolder } from './mega-storage.js'
 import { dispatchNamespacedCommand, loadCommands } from './command-registry.js'
 import { AccountRegistry, legacyAccountRecords } from './account-registry.js'
@@ -416,6 +417,7 @@ let destination = ''
 let waVersion = null
 let webServer = null
 let sharedStorage = null
+let nightPlay = null
 let sourceRegistry = null
 let josiahAssistant = null
 let namiAssistant = null
@@ -2683,6 +2685,9 @@ async function processInboundMessage(account, msg) {
           userKey: authority.senderKey || '',
           userPhone: authority.senderNumber || '',
           identityKeys: authority.senderIdentityKeys || [],
+          nightPlayLink: code => nightPlay.linkFromWhatsApp({ code, userKey:authority.senderKey, identityKeys:authority.senderIdentityKeys, displayName:msg.pushName }),
+          nightPlayProfile: () => nightPlay.linkedProfile({ userKey:authority.senderKey, identityKeys:authority.senderIdentityKeys }),
+          nightPlayUnlink: () => nightPlay.disconnectWhatsApp({ userKey:authority.senderKey, identityKeys:authority.senderIdentityKeys }),
           groupKey: isGroup(chat) ? chat : '',
           activityUserKey:activitySenderKey(authority.senderJid),
           getGroupActivity:period => isGroup(chat)
@@ -3483,6 +3488,7 @@ async function init() {
     maxMessagesPerAccount: MAX_CACHE,
   })
   sharedStorage.pruneInboundReceipts()
+  nightPlay = new NightPlay(sharedStorage.db)
   if (accounts.has('A')) sharedStorage.assignProfile('A', 'control')
   const profileUpgrade = sharedStorage.migrateLegacyAccountProfiles([...accounts.values()])
   if (profileUpgrade.migrated) {
@@ -3519,6 +3525,7 @@ async function init() {
   await writeRuntimeRegistry()
   startSettingsWatcher()
   webServer = startWebPanel({
+    nightPlayHandler: createNightPlayHandler(nightPlay),
     port: WEB_PORT,
     host: WEB_HOST,
     password: WEB_PASSWORD,
