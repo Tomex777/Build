@@ -158,10 +158,10 @@ import java.util.UUID
 import kotlin.math.sqrt
 import kotlin.math.tan
 
-private val StudioBackground = Color(0xFF15191F)
-private val PanelBackground = Color(0xFF222832)
-private val MutedText = Color(0xFFAAB4C2)
-private val PrimaryText = Color(0xFFF2F5F8)
+private val StudioBackground = Color(0xFF10171C)
+private val PanelBackground = Color(0xFF1B2931)
+private val MutedText = Color(0xFFA7BBC0)
+private val PrimaryText = Color(0xFFF3FAFA)
 
 private class OpenModelDocumentContract : ActivityResultContract<Unit, Uri?>() {
     override fun createIntent(context: Context, input: Unit): Intent =
