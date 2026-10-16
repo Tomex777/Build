@@ -6,7 +6,7 @@ Independent local-first Android design studio. Package `com.homira.aod`; API 26â
 
 Ambient uses the system screensaver configuration. Charging is a user-opened bedside Activity. Lock screen is explicitly user-opened and uses show-when-locked; there are no background activity launches, accessibility hacks, global brightness writes, or wake locks. Ambient always uses black and dims image treatment. Notification previews are opt-in and only public content is eligible. Calendar, media and personal text are hidden on ambient surfaces by default.
 
-Build/test authority: `.github/workflows/aod-android.yml`. No local Gradle acceptance is claimed. Release version is 0.3.0 (versionCode 3). A release is accepted only after the complete CI matrix passes.
+Build/test authority: `.github/workflows/aod-android.yml`. No local Gradle acceptance is claimed. Release version is 0.3.1 (versionCode 4). A release is accepted only after the complete CI matrix passes.
 
 Production signing consumes AOD_RELEASE_KEYSTORE_B64, AOD_RELEASE_STORE_PASSWORD, AOD_RELEASE_KEY_ALIAS and AOD_RELEASE_KEY_PASSWORD repository secrets. No private key is committed. Unsigned builds must not be represented as production installable releases. This implementation has no native libraries: the universal APK is ARM64-compatible without misleading empty ABI splits.
 
@@ -19,3 +19,7 @@ Studio includes a visual clock gallery, independent live hour/minute/second laye
 Studio UI uses semantic heading styles, consistent contrast and native Android VectorDrawable icons built from scalable SVG-compatible path data. The actual AOD renderer stays separate and black-first to protect battery life. The Home collection no longer duplicates the currently selected theme, Studio offers distinct clock face previews, and the schedule/settings pages have clearer grouping. Display, privacy, import/export, charging, scheduling, and custom clock editing features are preserved.
 
 The design review must include fresh screenshots and successful release-install/reinstall flows on API 26 and API 36. A green build alone is not visual sign-off.
+
+## 0.3.1 usability refinement
+
+The interface has one visible control per action in each context. The Home preview is a passive preview (the Edit button edits); the gallery card preview is the editing affordance. Empty Schedules has one Create action, switching to a toolbar Add action once schedules exist. All editable text and numeric fields use the AOD-styled input, with a visible focus border. Unnecessary headline, first-run promotional dialog and local-first slogans are removed, while export/share privacy warnings are kept at the relevant action. The screensaver setting opens the system settings directly. Regression UI tests protect these rules.
