@@ -78,6 +78,17 @@ async function main() {
     imageAsset(redCanvas.toBuffer('image/png'),{sourceUrl:found.sourceUrl}),
     imageAsset(blueCanvas.toBuffer('image/png'),{sourceUrl:found.sourceUrl}),
   ])
+  assert.equal(redArt.opaque,true,'catalogue portraits without alpha are opaque')
+  const noOpMask=await makeEditionSvg(found,'nocturne',redArt)
+  assert.match(noOpMask,/night-nocturne-portrait-crop/,'opaque portraits keep Nocturne halo visible')
+  const transparentCanvas=createCanvas(360,480)
+  const transparentCtx=transparentCanvas.getContext('2d')
+  transparentCtx.fillStyle='#fa4514'
+  transparentCtx.beginPath(); transparentCtx.arc(180,210,125,0,Math.PI*2); transparentCtx.fill()
+  const transparentArt=await imageAsset(transparentCanvas.toBuffer('image/png'),{sourceUrl:found.sourceUrl})
+  assert.equal(transparentArt.opaque,false,'transparent artwork must keep its full pop-out silhouette')
+  const floating=await makeEditionSvg(found,'nocturne',transparentArt)
+  assert.doesNotMatch(floating,/night-nocturne-portrait-crop/,'transparent cutouts must not be forcibly clipped')
   for (const edition of EDITIONS) {
     const redPng=await renderEditionPng(found,edition,redArt,{width:500})
     const bluePng=await renderEditionPng(found,edition,blueArt,{width:500})
