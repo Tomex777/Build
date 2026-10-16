@@ -54,18 +54,49 @@ object PrototypeScene {
         val pose = actor.rig ?: return actor
         val discoveredIds = definition.bones.map { it.id }.toSet()
         if (pose.joints.keys.all { it in discoveredIds }) return actor
+        // VRoid names joints J_Bip_L_UpperArm, J_Bip_R_LowerLeg, etc., while
+        // other rigged imports use upperarm_l or LeftUpperArm. Match semantics
+        // and left/right limbs, never depend on one vendor's skeleton prefix.
         fun slug(value: String) =
             value.lowercase().replace(Regex("[^a-z0-9]+"), "-").trim('-')
+        fun matches(name: String, target: String): Boolean {
+            val requested = target.substringAfterLast('/')
+            val side = requested.substringAfterLast('-', "")
+            val rawPart = requested.substringBeforeLast('-', requested)
+            val part = when (rawPart) {
+                "thigh" -> "upperleg"
+                "calf" -> "lowerleg"
+                else -> rawPart
+            }
+            val clean = slug(name)
+            val flat = clean.replace("-", "")
+            val needle = part.replace("-", "")
+            val isCorrectPart = flat.contains(needle) ||
+                (part == "upperleg" && flat.contains("thigh")) ||
+                (part == "lowerleg" && flat.contains("calf"))
+            if (!isCorrectPart) return false
+            if (side.isEmpty()) return true
+            val tokens = clean.split('-')
+            return if (side == "l") {
+                "l" in tokens || "left" in tokens || flat.startsWith("left") ||
+                    flat.endsWith("left") || flat.endsWith("l")
+            } else {
+                "r" in tokens || "right" in tokens || flat.startsWith("right") ||
+                    flat.endsWith("right") || flat.endsWith("r")
+            }
+        }
         val mapped = pose.joints.mapNotNull { (id, rotation) ->
-            val name = id.substringAfterLast('/')
-            definition.bones.firstOrNull { slug(it.name) == name }?.let { it.id to rotation }
+            val requested = id.substringAfterLast('/')
+            definition.bones.firstOrNull { bone ->
+                slug(bone.name) == requested || matches(bone.name, requested)
+            }?.let { it.id to rotation }
         }.toMap()
         // An incomplete mapping must never silently discard authored pose keys.
         if (mapped.size != pose.joints.size) return actor
         return actor.copy(rig = pose.copy(joints = mapped))
     }
 
-    /** A real original CC0 65-bone Quaternius stylized character, not a generated screenshot. */
+    /** Genuine CC0 VRoid anime avatar with a rendered face, hair, clothes and real skeleton. */
     private fun animeActor(
         id: String,
         name: String,
@@ -80,12 +111,12 @@ object PrototypeScene {
             assetId = ANIME_ASSET_ID,
             relativePath = "models/mise_anime.glb",
             format = "glb",
-            source = "https://quaternius.com/packs/universalbasecharacters.html",
-            creator = "Quaternius — Universal Base Characters",
+            source = "https://github.com/madjin/vrm-samples/tree/e16eb187100149a315ad92c3c9968f1d5baa6c7d/vroid/beta",
+            creator = "pixiv Inc. — VRoid Studio (beta HairSample_Male)",
             license = "CC0-1.0",
             licenseUrl = "https://creativecommons.org/publicdomain/zero/1.0/legalcode",
-            attribution = "Stylized Superhero Male from Quaternius CC0 Universal Base Characters, repackaged by programasweights/avatar; pose authored in Mise.",
-            version = "b3fd79533fdb9fcedd077744f7e120920eb6cc97",
+            attribution = "Unmodified pixiv VRoid Studio beta HairSample_Male, designated CC0 by pixiv. Authored pose by Mise.",
+            version = "46e8c583ce5df3b8ee167141b59ba3ad583a2687",
         ),
         appearance = CharacterAppearanceSettings(hairStyle = HairStyle.NONE),
         rig = if (pose) dynamicAnimePose() else null,
@@ -96,8 +127,7 @@ object PrototypeScene {
         joints = mapOf(
             // Names are semantic placeholders until the GLB is loaded; resolveAnimePose
             // maps each joint to Filament's discovered stable path before posing.
-            // Deliberately leave spine-02 at rest: changing its bind-frame in this GLB
-            // makes the entire skin disappear on Android emulator renderers.
+            // Avoid extreme spine rotation to keep an expressive, grounded pose.
             "figure/head" to Vec3(y = -9f, z = 9f),
             "figure/upperarm-l" to Vec3(x = -20f, z = 54f),
             "figure/lowerarm-l" to Vec3(x = -15f, z = 80f),
