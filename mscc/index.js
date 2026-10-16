@@ -2560,7 +2560,7 @@ async function processInboundMessage(account, msg) {
         !consumeTicTacToeInput && !consumeChessInput &&
         wordChainInputDestination({
           shared: { get: (namespace, key) => sharedStorage?.sharedGet(namespace, key) },
-          accountId: account.id, chat, text,
+          accountId: account.id, chat, text, userKey:authority.senderKey,
         })
       )
       const consumePartyInput = !isExplicitCommand && !consumeWordChainInput &&
