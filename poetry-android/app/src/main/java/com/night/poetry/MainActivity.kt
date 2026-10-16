@@ -979,8 +979,14 @@ private fun StudioScreen(
     var selectedElementId by remember(doc.id, index) { mutableStateOf<String?>(null) }
     var editTextOnCard by remember(doc.id, index) { mutableStateOf(false) }
     var showMoreMenu by remember { mutableStateOf(false) }
-    // Back while editing should dismiss the text editor, not leave Card Studio.
-    BackHandler(enabled = editTextOnCard) { editTextOnCard = false }
+    // Back dismisses the active editing mode before navigating away from Studio.
+    BackHandler(enabled = editTextOnCard || panel.isNotEmpty() || selectedElementId != null) {
+        when {
+            editTextOnCard -> editTextOnCard = false
+            panel.isNotEmpty() -> setPanel("")
+            else -> selectedElementId = null
+        }
+    }
     if (showExportDialog) {
         ExportDialog(slideCount = count, busy = exportBusy,
             dismiss = { showExportDialog = false },
