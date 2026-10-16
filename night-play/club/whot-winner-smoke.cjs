@@ -57,6 +57,23 @@ async function finish(page,winner){
    assert.ok(look.bg.includes('repeating-linear-gradient'),'felt material has visible woven texture');
    assert.ok(look.shadow.includes('inset'),'felt table includes raised wooden edge');
    assert.equal(await page.locator('.whot-win-layer').count(),0,'no premature victory banner');
+   const budget=await page.evaluate(()=>window.__nightWhotMotion().timings);
+   assert.ok(budget.player<=320&&budget.cpu<=350&&budget.draw<=300,'card flights must be responsive, not the previous 600-690ms');
+   assert.ok(budget.cpuDelay<=180,'CPU should not wait an extra 380ms between moves');
+   assert.ok(budget.deal<=400&&budget.dealStagger<=55,'dealing must not drag across the whole screen');
+   assert.ok(budget.settle<=200&&budget.recenter<=200,'landing/re-centering must finish quickly');
+   const dealAnim=await page.locator('.hand .whot-card').last().evaluate(el=>{
+     const active=el.getAnimations();return active.length?active[0].effect.getTiming():null
+   });
+   if(dealAnim){
+     assert.ok(dealAnim.duration<=400,'actual dealt-card animation must stay under 400ms');
+     assert.ok(dealAnim.delay<=300,'5-card dealing should be tightly staggered');
+   }
+   const liveSpeed=await page.evaluate(()=>{
+     const table=document.querySelector('.table-surface .whot-win-layer');
+     return {winner:!!table};
+   });
+   assert.equal(liveSpeed.winner,false,'no result animation during live gameplay');
    await page.waitForTimeout(1400);
    assert.equal(await page.locator('.hand .whot-card').count(),5,'all five dealt cards remain visible in the hand');
    await snap(page,'TABLE',width);
@@ -72,7 +89,9 @@ async function finish(page,winner){
    assert.ok(isInTable,'result is mounted inside the actual felt table');
    assert.ok(Math.abs(bounds.x-tableBounds.x)<12&&Math.abs(bounds.y-tableBounds.y)<12,
     'result overlays the playing table excluding only its raised wooden border');
-   await page.waitForTimeout(1150);
+   const resultMotion=await page.locator('.whot-win-content').evaluate(el=>getComputedStyle(el).animationDuration);
+   assert.equal(resultMotion,'0.4s','winner text should animate promptly');
+   await page.waitForTimeout(700);
    await snap(page,'WIN',width);
    await page.getByRole('button',{name:/Play again/}).click();
    assert.equal(await page.locator('.whot-win-layer').count(),0,'rematch removes result and starts a fresh hand');
@@ -83,7 +102,7 @@ async function finish(page,winner){
    assert.equal(await page.locator('.whot-win-content h2').innerText(),'CPU WINS');
    assert.equal(await page.locator('.whot-win-count').innerText(),'YOU · 5 CARDS LEFT');
    assert.equal(await page.locator('.whot-win-particles i').count(),0,'CPU win is distinguished from a player victory');
-   await page.waitForTimeout(950);
+   await page.waitForTimeout(620);
    await snap(page,'LOSE',width);
    const overflow=await page.evaluate(()=>document.documentElement.scrollWidth-innerWidth);
    assert.ok(overflow<=1,'no horizontal overflow at '+width+'px: '+overflow);
