@@ -1,0 +1,22 @@
+MISE — AUTHENTIC ANIME 3D CHARACTER LICENSE / PROVENANCE
+
+Character: HairSample_Male (VRoid Studio beta), © pixiv Inc. / VRoid Project
+Author and rights holder: pixiv Inc.
+Official license: CC0 1.0 (Creative Commons Zero / public domain dedication)
+Official FAQ expressly listing HairSample_Male as CC0:
+https://vroid.pixiv.help/hc/en-us/articles/4402614652569
+CC0 legal code: https://creativecommons.org/publicdomain/zero/1.0/legalcode
+
+Downloaded from the historical public mirror:
+https://github.com/madjin/vrm-samples/blob/e16eb187100149a315ad92c3c9968f1d5baa6c7d/vroid/beta/HairSample_Male.vrm
+Pinned Git blob hash (SHA-1): 46e8c583ce5df3b8ee167141b59ba3ad583a2687
+
+The original binary VRM 0.x is glTF 2.0/GLB format. Mise uses a deterministic
+loader-compatibility step that normalizes JSON-escaped MIME IDs from
+"image\\/png" to "image/png", preserving the decoded glTF JSON semantics.
+It preserves all binary meshes, texture images, skin weights, joint matrices,
+morph targets and model metadata byte-for-byte. It is NOT a static image.
+The full-body dynamic pose and Android editor/renderer integration are by Mise.
+
+The previous pale Quaternius Superhero Male was not visually an anime
+character and has been removed from Mise's bundled anime asset.
