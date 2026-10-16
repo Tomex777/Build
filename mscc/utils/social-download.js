@@ -1,0 +1,171 @@
+import { spawn } from 'node:child_process'
+import { mkdtemp, readdir, rm, stat } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+
+const BINARY = '/opt/mscc/tools/yt-dlp/bin/yt-dlp'
+export const SOCIAL_MAX_BYTES = 64 * 1024 * 1024
+const MAX_ALBUM_ITEMS = 6
+const MAX_TOTAL_BYTES = 128 * 1024 * 1024
+const MAX_RUNTIME_MS = 4 * 60 * 1000
+
+const PLATFORMS = Object.freeze([
+  { name:'TikTok', hosts:['tiktok.com','www.tiktok.com','m.tiktok.com','vm.tiktok.com','vt.tiktok.com'] },
+  { name:'Instagram', hosts:['instagram.com','www.instagram.com','m.instagram.com','instagr.am','www.instagr.am'] },
+  { name:'Facebook', hosts:['facebook.com','www.facebook.com','m.facebook.com','web.facebook.com','fb.watch','www.fb.watch'] },
+  { name:'X', hosts:['x.com','www.x.com','twitter.com','www.twitter.com','mobile.twitter.com'] },
+  { name:'Reddit', hosts:['reddit.com','www.reddit.com','old.reddit.com','v.redd.it','redd.it','www.redd.it'] },
+  { name:'Pinterest', hosts:['pinterest.com','www.pinterest.com','m.pinterest.com','pin.it','www.pin.it'] },
+  { name:'Threads', hosts:['threads.net','www.threads.net','threads.com','www.threads.com'] },
+  { name:'Vimeo', hosts:['vimeo.com','www.vimeo.com','player.vimeo.com'] },
+])
+
+const MIME = Object.freeze({
+  mp4:'video/mp4', mov:'video/quicktime', webm:'video/webm', mkv:'video/x-matroska',
+  jpg:'image/jpeg', jpeg:'image/jpeg', png:'image/png', webp:'image/webp',
+  gif:'image/gif', m4a:'audio/mp4', mp3:'audio/mpeg', opus:'audio/ogg',
+})
+
+export function parseSocialRequest(text = '') {
+  const raw = String(text || '').trim()
+  const match = raw.match(/https?:\/\/[^\s<>"'`]+/i)
+  if (!match) throw new Error('Send a public post link: .dl <TikTok / Instagram / Facebook / X / Reddit URL>.')
+  const candidate = match[0].replace(/[),.!?]+$/g, '')
+  if (candidate.length > 2048) throw new Error('That social-media URL is too long.')
+  let url
+  try { url = new URL(candidate) } catch { throw new Error('That is not a valid link.') }
+  if (!['https:','http:'].includes(url.protocol) || url.username || url.password || url.port) {
+    throw new Error('Only ordinary public HTTPS social-media links are supported.')
+  }
+  // Upgrade conventional HTTP share links; do not accept custom ports, credentials or non-social hosts.
+  url.protocol = 'https:'
+  const host = url.hostname.toLowerCase()
+  const platform = PLATFORMS.find(item => item.hosts.includes(host))
+  if (!platform) throw new Error('Supported links: TikTok, Instagram, Facebook, X/Twitter, Reddit, Pinterest, Threads and Vimeo.')
+  if (!url.pathname || url.pathname === '/') throw new Error('Send a link to one post or video, not a social-media homepage.')
+  if (platform.name === 'X' && !/^\/(?:[^/]+\/status|i\/status)\/\d+\/?$/i.test(url.pathname)) {
+    throw new Error('Send the X/Twitter post link ending in /status/<number>.')
+  }
+  if (platform.name === 'Instagram' && !/^\/(?:p|reel|reels|tv)\/[^/]+\/?$/i.test(url.pathname)) {
+    throw new Error('Send one Instagram post or Reel URL. Private stories and profiles are not supported.')
+  }
+  if (platform.name === 'Threads' && !/^\/(?:@[^/]+\/post|t)\/[^/]+\/?$/i.test(url.pathname)) {
+    throw new Error('Send a specific Threads post URL.')
+  }
+  const isAlbum = platform.name === 'Instagram' && /^\/p\//i.test(url.pathname)
+  return { url:url.href, displayUrl:url.origin + url.pathname, platform:platform.name, isAlbum }
+}
+
+function extractorError(stderr, status) {
+  if (/login|sign.in|private|not available|forbidden|403|cookies|age.restricted/i.test(stderr)) {
+    return new Error('That post is private, restricted or blocked by the platform. NIGHT only downloads publicly accessible media; no login or cookie bypass.')
+  }
+  if (/unsupported URL|no video formats|no video|not a valid url/i.test(stderr)) {
+    return new Error('This post has no downloadable media, or its format is not supported yet.')
+  }
+  if (/HTTP Error 429|rate.limit|too many requests/i.test(stderr)) {
+    return new Error('The social platform is rate-limiting NIGHT. Try again later.')
+  }
+  if (/larger than max|maximum filesize|does not pass filter/i.test(stderr)) {
+    return new Error('That post exceeds NIGHT’s 64 MB per-file download limit.')
+  }
+  return new Error(`NIGHT could not download this public post (extractor exit ${status}). The site may have changed or blocked server downloads.`)
+}
+
+export function socialExtractorArgs(request, dir, maxBytes = SOCIAL_MAX_BYTES) {
+  return [
+    '--ignore-config', '--no-warnings', '--no-exec', '--no-remote-components',
+    '--no-write-thumbnail', '--no-write-info-json', '--no-mtime', '--no-cache-dir',
+    '--restrict-filenames', '--no-part', '--socket-timeout', '20',
+    '--retries', '1', '--fragment-retries', '1', '--js-runtimes', 'node',
+    '--max-filesize', String(maxBytes),
+    ...(request.isAlbum ? ['--yes-playlist', '--playlist-items', `1:${MAX_ALBUM_ITEMS}`] : ['--no-playlist']),
+    '-f', 'bv*+ba/best', '--merge-output-format', 'mp4',
+    '-o', join(dir, 'night-%(playlist_index|0)s-%(id|media)s.%(ext)s'),
+    '--', request.url,
+  ]
+}
+
+async function diskUsage(dir) {
+  const entries = await readdir(dir, { withFileTypes:true })
+  let total = 0
+  for (const entry of entries) {
+    if (!entry.isFile()) continue
+    const file = await stat(join(dir,entry.name)).catch(() => null)
+    total += file?.size || 0
+  }
+  return total
+}
+
+async function executeExtractor(request, dir, { binary = process.env.MSCC_SOCIAL_YTDLP_BIN || process.env.MSCC_YOUTUBE_YTDLP_BIN || BINARY,
+  spawnProcess = spawn, maxBytes = SOCIAL_MAX_BYTES, timeoutMs = MAX_RUNTIME_MS } = {}) {
+  const args = socialExtractorArgs(request,dir,maxBytes)
+  await new Promise((resolve, reject) => {
+    const child = spawnProcess(binary,args,{ stdio:['ignore','ignore','pipe'],env:process.env })
+    let stderr = ''
+    let settled = false
+    let checking = false
+    let killedForSize = false
+    let killedForTimeout = false
+    const done = (error) => {
+      if (settled) return
+      settled = true
+      clearInterval(watcher)
+      clearTimeout(timer)
+      error ? reject(error) : resolve()
+    }
+    const timer = setTimeout(() => { killedForTimeout = true; child.kill('SIGKILL') },timeoutMs)
+    const watcher = setInterval(async () => {
+      if (checking || settled) return
+      checking = true
+      try {
+        if (await diskUsage(dir) > MAX_TOTAL_BYTES) {
+          killedForSize = true
+          child.kill('SIGKILL')
+        }
+      } catch { /* The final stat check still runs after extraction. */ }
+      finally { checking = false }
+    }, 300)
+    child.stderr?.on('data', data => { stderr = (stderr + String(data)).slice(-4000) })
+    child.once('error', error => {
+      done(error?.code === 'ENOENT'
+        ? new Error('Social downloads are unavailable: the NIGHT yt-dlp extractor is not installed.')
+        : new Error('Could not start the social-media downloader.'))
+    })
+    child.once('close', code => {
+      if (killedForSize) return done(new Error('That download exceeds NIGHT’s 128 MB total job limit.'))
+      if (killedForTimeout) return done(new Error('That social-media download timed out.'))
+      return done(code === 0 ? null : extractorError(stderr,code))
+    })
+  })
+}
+
+async function mediaFiles(dir, maxBytes = SOCIAL_MAX_BYTES) {
+  const entries = await readdir(dir, { withFileTypes:true })
+  const output = []
+  let total = 0
+  for (const entry of entries) {
+    if (!entry.isFile() || !/^night-[a-zA-Z0-9_.-]+\.[a-z0-9]+$/i.test(entry.name)) continue
+    const ext = entry.name.split('.').at(-1).toLowerCase()
+    if (!MIME[ext]) continue
+    const file = join(dir,entry.name)
+    const info = await stat(file)
+    if (!info.size || info.size > maxBytes) throw new Error('One social-media file exceeds NIGHT’s 64 MB limit.')
+    total += info.size
+    if (total > MAX_TOTAL_BYTES) throw new Error('That social-media post exceeds NIGHT’s total download limit.')
+    output.push({ file, size:info.size, mime:MIME[ext], ext, name:entry.name })
+  }
+  if (!output.length) throw new Error('No downloadable video or image was found in that public post.')
+  if (output.length > MAX_ALBUM_ITEMS) throw new Error('This post has too many media items. Try a single post.')
+  return output.sort((a,b) => a.name.localeCompare(b.name,undefined,{numeric:true}))
+}
+
+export async function prepareSocialDownload(rawUrl, options = {}) {
+  const request = typeof rawUrl === 'string' ? parseSocialRequest(rawUrl) : rawUrl
+  const dir = await mkdtemp(join(tmpdir(),'night-social-'))
+  const cleanup = async () => rm(dir,{ recursive:true,force:true }).catch(() => {})
+  try {
+    await executeExtractor(request,dir,options)
+    return { request, files:await mediaFiles(dir,options.maxBytes), cleanup }
+  } catch (error) { await cleanup(); throw error }
+}
