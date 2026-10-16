@@ -1,9 +1,10 @@
 import { spawn } from 'node:child_process'
-import { mkdtemp, readdir, rm, stat } from 'node:fs/promises'
+import { mkdir, mkdtemp, readdir, rm, stat } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 const BINARY = '/opt/mscc/tools/yt-dlp/bin/yt-dlp'
+const GALLERY_BINARY = '/opt/mscc/tools/yt-dlp/bin/gallery-dl'
 export const SOCIAL_MAX_BYTES = 64 * 1024 * 1024
 const MAX_ALBUM_ITEMS = 6
 const MAX_TOTAL_BYTES = 128 * 1024 * 1024
@@ -43,6 +44,22 @@ export function parseSocialRequest(text = '') {
   const platform = PLATFORMS.find(item => item.hosts.includes(host))
   if (!platform) throw new Error('Supported links: TikTok, Instagram, Facebook, X/Twitter, Reddit, Pinterest, Threads and Vimeo.')
   if (!url.pathname || url.pathname === '/') throw new Error('Send a link to one post or video, not a social-media homepage.')
+  if (platform.name === 'TikTok' && !['vm.tiktok.com','vt.tiktok.com'].includes(host) &&
+      !/^\/(?:@[\w.-]+\/(?:video|photo)\/\d+|t\/[A-Za-z0-9_-]+)\/?$/i.test(url.pathname)) {
+    throw new Error('Send a TikTok video/photo or share-link URL, not a profile or redirect.')
+  }
+  if (platform.name === 'Facebook' && !['fb.watch','www.fb.watch'].includes(host) &&
+      !(/^\/(?:reel\/\d+|[^/]+\/videos\/\d+|videos\/\d+|share\/(?:v|r|p)\/[^/]+)\/?$/i.test(url.pathname) ||
+        (url.pathname === '/watch/' || url.pathname === '/watch') && url.searchParams.has('v'))) {
+    throw new Error('Send a Facebook Reel, watch, share or video post URL.')
+  }
+  if (platform.name === 'Pinterest' && !['pin.it','www.pin.it'].includes(host) &&
+      !/^\/pin\/\d+\/?$/i.test(url.pathname)) {
+    throw new Error('Send one Pinterest Pin link.')
+  }
+  if (platform.name === 'Vimeo' && !/^\/(?:\d+|video\/\d+)\/?$/i.test(url.pathname)) {
+    throw new Error('Send a Vimeo video link.')
+  }
   if (platform.name === 'X' && !/^\/(?:[^/]+\/status|i\/status)\/\d+\/?$/i.test(url.pathname)) {
     throw new Error('Send the X/Twitter post link ending in /status/<number>.')
   }
@@ -86,6 +103,15 @@ export function socialExtractorArgs(request, dir, maxBytes = SOCIAL_MAX_BYTES) {
   ]
 }
 
+export function galleryExtractorArgs(request,dir,maxBytes = SOCIAL_MAX_BYTES) {
+  return [
+    '--config-ignore', '--no-postprocessors', '--no-part', '--no-mtime',
+    '--restrict-filenames', 'ascii', '--range', '1-6',
+    '--filesize-max', String(maxBytes), '-R', '1', '--http-timeout', '20',
+    '-D', dir, '-f', 'night-{filename}.{extension}', request.url,
+  ]
+}
+
 async function diskUsage(dir) {
   const entries = await readdir(dir, { withFileTypes:true })
   let total = 0
@@ -97,9 +123,11 @@ async function diskUsage(dir) {
   return total
 }
 
-async function executeExtractor(request, dir, { binary = process.env.MSCC_SOCIAL_YTDLP_BIN || process.env.MSCC_YOUTUBE_YTDLP_BIN || BINARY,
+async function executeExtractor(request, dir, { engine = 'video', binary = engine === 'gallery'
+  ? (process.env.MSCC_SOCIAL_GALLERY_BIN || GALLERY_BINARY)
+  : (process.env.MSCC_SOCIAL_YTDLP_BIN || process.env.MSCC_YOUTUBE_YTDLP_BIN || BINARY),
   spawnProcess = spawn, maxBytes = SOCIAL_MAX_BYTES, timeoutMs = MAX_RUNTIME_MS } = {}) {
-  const args = socialExtractorArgs(request,dir,maxBytes)
+  const args = engine === 'gallery' ? galleryExtractorArgs(request,dir,maxBytes) : socialExtractorArgs(request,dir,maxBytes)
   await new Promise((resolve, reject) => {
     const child = spawnProcess(binary,args,{ stdio:['ignore','ignore','pipe'],env:process.env })
     let stderr = ''
@@ -129,7 +157,7 @@ async function executeExtractor(request, dir, { binary = process.env.MSCC_SOCIAL
     child.stderr?.on('data', data => { stderr = (stderr + String(data)).slice(-4000) })
     child.once('error', error => {
       done(error?.code === 'ENOENT'
-        ? new Error('Social downloads are unavailable: the NIGHT yt-dlp extractor is not installed.')
+        ? new Error('Social downloads are unavailable: the NIGHT ' + (engine === 'gallery' ? 'gallery-dl' : 'yt-dlp') + ' extractor is not installed.')
         : new Error('Could not start the social-media downloader.'))
     })
     child.once('close', code => {
@@ -165,7 +193,22 @@ export async function prepareSocialDownload(rawUrl, options = {}) {
   const dir = await mkdtemp(join(tmpdir(),'night-social-'))
   const cleanup = async () => rm(dir,{ recursive:true,force:true }).catch(() => {})
   try {
-    await executeExtractor(request,dir,options)
-    return { request, files:await mediaFiles(dir,options.maxBytes), cleanup }
+    // yt-dlp is a video extractor. gallery-dl handles photo-only Instagram
+    // carousels and Pinterest pins, including multiple images in one post.
+    const galleryFirst = (request.platform === 'Instagram' && request.isAlbum) || request.platform === 'Pinterest'
+    const engines = galleryFirst ? ['gallery','video'] :
+      ['Instagram','TikTok'].includes(request.platform) ? ['video','gallery'] : ['video']
+    let lastError
+    for (const engine of engines) {
+      try {
+        await executeExtractor(request,dir,{ ...options,engine })
+        return { request, files:await mediaFiles(dir,options.maxBytes), cleanup }
+      } catch (error) {
+        lastError = error
+        await rm(dir,{ recursive:true,force:true })
+        await mkdir(dir,{ recursive:true })
+      }
+    }
+    throw lastError
   } catch (error) { await cleanup(); throw error }
 }
