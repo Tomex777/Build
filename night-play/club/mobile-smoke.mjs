@@ -334,6 +334,13 @@ try{
       const card=page.locator('.hand .whot-card').nth(i);
       await card.scrollIntoViewIfNeeded();
       const exposed=await card.evaluate(el=>{const r=el.getBoundingClientRect(),p=document.elementFromPoint(r.left+r.width/2,r.top+r.height/2);return p===el||el.contains(p)});
+      if(!exposed){
+        const diag=await card.evaluate(el=>{
+          const r=el.getBoundingClientRect(),row=el.closest('.card-row'),p=document.elementFromPoint(r.left+r.width/2,r.top+r.height/2);
+          return {rect:{x:r.x,y:r.y,w:r.width,h:r.height},row:{left:row.scrollLeft,width:row.clientWidth,total:row.scrollWidth,rect:row.getBoundingClientRect().toJSON()},point:p?.outerHTML.slice(0,150),card:el.outerHTML.slice(0,180)}
+        });
+        console.log('WHOT_HAND_CARD_DIAGNOSTIC',n,i,JSON.stringify(diag));
+      }
       assert.ok(exposed,'card '+i+' is tappable when scrolled into view');
     }
     assert.ok(info.overflow<=2,'hand does not stretch viewport');
