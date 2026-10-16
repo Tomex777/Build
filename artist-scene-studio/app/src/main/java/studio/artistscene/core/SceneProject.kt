@@ -60,6 +60,8 @@ enum class HairStyle { NONE, SHORT, BOB, AFRO }
 data class CharacterAppearanceSettings(
     val hairStyle: HairStyle = HairStyle.NONE,
     val hairColorHex: String = "#302520",
+    // Null preserves the VRoid creator's original textured hair material.
+    val animeHairTintHex: String? = null,
     // Spring simulation is preview-only; local pose and saved project remain pristine.
     val hairPhysicsEnabled: Boolean = true,
     val fabricPhysicsEnabled: Boolean = true,
