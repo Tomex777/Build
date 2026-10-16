@@ -4,112 +4,78 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="theme-color" content="#121211">
-<meta name="description" content="The Last Call. An interactive suspense story on NIGHT Play.">
+<meta name="description" content="NIGHT Play interactive fiction: The Last Call.">
 <title>The Last Call · NIGHT Play</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;6..72,500&display=swap" rel="stylesheet">
 <style>
-:root{color-scheme:dark;--bg:#121211;--ink:#e8e8e3;--muted:#92918a;--hair:#393a36;--tint:#7c9ccb;--gold:#dcc29d;--ease:cubic-bezier(.2,.65,.25,1)}
-*{box-sizing:border-box}
-html{scroll-behavior:smooth}
-body{margin:0;min-height:100dvh;background:var(--bg);color:var(--ink);font-family:Georgia,"Times New Roman",serif;-webkit-font-smoothing:antialiased}
-button,select,summary{font:inherit;cursor:pointer}
-a{color:inherit;text-decoration:none}
-button:focus-visible,select:focus-visible,a:focus-visible,summary:focus-visible{outline:2px solid var(--tint);outline-offset:4px}
-.site-head{position:sticky;top:0;z-index:10;background:#121211ed;backdrop-filter:blur(16px);border-bottom:1px solid var(--hair)}
-.head-wrap{max-width:1024px;padding:15px 24px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;gap:15px}
-.logo{font:800 12px/1.4 system-ui,sans-serif;letter-spacing:.22em;white-space:nowrap}
-.logo span{color:#969794;font-weight:500;letter-spacing:.15em}
-.head-actions{display:flex;align-items:center;gap:14px}
-.back{font:500 12px/1.5 system-ui,sans-serif;color:#bfc2be}
-.back:hover{color:#fff}
-.options{position:relative;font:500 13px/1.4 system-ui,sans-serif}
-.options summary{list-style:none;width:36px;height:36px;display:grid;place-items:center;border:1px solid #454742;border-radius:50%;transition:border-color .14s}
-.options summary::-webkit-details-marker{display:none}
-.options summary:hover,.options[open] summary{border-color:#8d9394}
-.options summary svg{width:19px;height:19px;fill:none;stroke:currentColor;stroke-width:1.65;stroke-linecap:round;stroke-linejoin:round}
-.options-pop{position:absolute;top:44px;right:0;width:230px;padding:15px;background:#1b1c1b;border:1px solid #454740;border-radius:9px;box-shadow:0 14px 35px #0008}
-.options-pop label{display:block;font:600 11px/1.5 system-ui,sans-serif;letter-spacing:.08em;color:#a6a9a3;margin:0 0 9px}
-.options-pop select{display:block;width:100%;border:1px solid #50524b;background:#242624;color:#f4f3ed;border-radius:6px;padding:12px;outline-offset:2px;font:500 14px system-ui,sans-serif;appearance:none;background-image:url('data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" stroke="%23aaa" stroke-width="2" viewBox="0 0 24 24"%3E%3Cpath d="m6 9 6 6 6-6"/%3E%3C/svg%3E');background-repeat:no-repeat;background-position:right 10px center}
-.options-pop button{margin:14px 0 0;padding:11px 0 1px;display:block;border:0;border-top:1px solid #44463f;width:100%;background:none;color:#d6d8d1;text-align:left;font:500 13px system-ui,sans-serif}
-.options-pop button[hidden]{display:none}
-.reader{max-width:628px;margin:0 auto;padding:clamp(46px,8vw,78px) 27px 90px}
-.story-name{font-size:clamp(29px,5vw,39px);font-weight:400;line-height:1.15;letter-spacing:-.025em;margin:0 0 28px}
-.story-location{font:600 10px/1.6 system-ui,sans-serif;letter-spacing:.2em;text-transform:uppercase;color:#92968e;margin:0 0 30px}
-.passage{display:grid;gap:20px;align-content:start}
-.passage p{--word-final:var(--ink);font-size:clamp(18.5px,2.4vw,21px);line-height:1.72;letter-spacing:-.01em;margin:0;text-wrap:pretty}
-.passage p.quiet{--word-final:#b8bbb7}
-.passage p.emphasis{--word-final:#e5cb9f;font-style:italic}
-.ink-word{color:transparent}
-.passage p.go .ink-word{animation:appear var(--fade,900ms) var(--ease) both}
-.passage p.settled .ink-word{animation:none!important;color:var(--word-final)!important}
-@keyframes appear{0%{color:transparent}35%{color:var(--tint)}100%{color:var(--word-final)}}
-.choices{display:grid;gap:0;margin-top:clamp(34px,7vw,58px);border-top:1px solid var(--hair)}
-.choices:empty{display:none}
-.choice{display:grid;grid-template-columns:2.05em minmax(0,1fr) 1.3em;align-items:baseline;gap:.35em;width:100%;padding:15px 1px 17px;border:0;border-bottom:1px solid var(--hair);background:none;color:var(--ink);text-align:left;font:400 clamp(15px,2.5vw,17px)/1.5 Georgia,"Times New Roman",serif;opacity:0;animation:choice-appear 125ms var(--ease) forwards;transition:color 120ms,background-color 120ms;cursor:pointer}
-.choice:hover,.choice:focus-visible{color:#bdd0f0;background:#1b1c1b}
-.choice:active{opacity:.7}
-.choice-number{font:400 11px/1.5 system-ui,sans-serif;color:#838984;font-variant-numeric:tabular-nums}
-.choice-arrow{font-size:19px;font-family:system-ui,sans-serif;color:#8b9aa8;text-align:right}
-@keyframes choice-appear{to{opacity:1}}
-.hint{min-height:16px;margin-top:22px;font:400 11px/1.45 system-ui,sans-serif;color:#7d837f;letter-spacing:.015em;transition:opacity 200ms}
-.hint[hidden]{display:none}
-.passage.revealing{cursor:pointer;-webkit-tap-highlight-color:transparent}
-@media(max-width:600px){
- .head-wrap{padding:10px 17px}
- .reader{padding:47px 24px 80px}
- .story-name{margin-bottom:25px}
- .story-location{margin-bottom:29px}
- .passage{gap:21px}
- .choices{margin-top:38px}
- .choice{padding-top:16px;padding-bottom:18px}
-}
-@media(prefers-reduced-motion:reduce){
- html{scroll-behavior:auto}
- *{animation-duration:.01ms!important;transition-duration:.01ms!important}
- .ink-word{animation:none!important}
-}
+:root{color-scheme:dark;--bg:#121211;--ink:#e8e8e3;--mute:#8e8e87;--hair:#3a3a36;--tint:#7c9ccb;--serif:"Newsreader",Georgia,"Times New Roman",serif;--size:1.09375rem;--lead:1.55;--measure:35rem;--gutter:clamp(1.25rem,5vw,2rem);--ease:cubic-bezier(.2,.65,.25,1);--fade:900ms;--line:calc(var(--size)*var(--lead))}
+@media(max-width:46rem){:root{--size:1.0625rem}}
+*,:before,:after{box-sizing:border-box}
+html{min-height:100%;background:var(--bg);-webkit-text-size-adjust:100%;text-size-adjust:100%;scroll-behavior:smooth}
+body{margin:0;min-height:100dvh;background:var(--bg);color:var(--ink);font:400 var(--size)/var(--lead) var(--serif);font-kerning:normal;font-variant-ligatures:common-ligatures;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+a{color:inherit;text-decoration:none}button,select,summary{font:inherit}
+button,summary{cursor:pointer}
+:focus-visible{outline:2px solid var(--tint);outline-offset:4px}
+.visually-hidden{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+.control-strip{position:absolute;top:0;left:0;right:0;z-index:4;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:13px clamp(1.25rem,5vw,2rem);font:500 11px/1.3 system-ui,sans-serif;letter-spacing:.035em;color:#8e8e87}
+.control-strip a:hover{color:var(--ink)}
+.reader-options{position:relative}
+.reader-options summary{list-style:none;display:grid;place-items:center;width:30px;height:30px;border:0;border-radius:50%;transition:background .13s,color .13s}
+.reader-options summary::-webkit-details-marker{display:none}
+.reader-options summary:hover,.reader-options[open] summary{color:var(--ink);background:#2c2c2a}
+.reader-options svg{height:17px;width:17px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.reader-panel{position:absolute;z-index:7;top:35px;right:0;width:218px;padding:14px;background:#20211f;border:1px solid #43443e;box-shadow:0 12px 38px #0009;border-radius:6px;font:500 13px/1.4 system-ui,sans-serif;letter-spacing:0}
+.reader-panel label{display:block;margin-bottom:7px;color:#bfc0b9;font-size:11px}
+.reader-panel select{display:block;width:100%;padding:10px 32px 10px 12px;background:#30312d;color:var(--ink);border:1px solid #5e615c;border-radius:5px;appearance:none;background-image:url('data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="%23d4d4cd" stroke-width="2"%3E%3Cpath d="m6 9 6 6 6-6"/%3E%3C/svg%3E');background-size:18px;background-position:right 9px center;background-repeat:no-repeat}
+.reader-panel button{display:block;margin-top:10px;padding:9px 0 0;border:0;border-top:1px solid #4b4b46;background:none;color:#d4d6cf;text-align:left;font:500 13px system-ui,sans-serif;width:100%}
+.reader-panel button[hidden]{display:none}
+.page{min-height:100%;padding:clamp(2.5rem,9vh,5rem) var(--gutter) 6rem}
+.col{width:100%;max-width:var(--measure);margin-inline:auto;display:grid;gap:calc(var(--line)*1.15)}
+.passage{display:grid;gap:calc(var(--line)*.5)}
+.passage p{margin:0;text-wrap:pretty}
+.word{color:transparent}
+.step.go .word{animation:word-ink var(--fade) var(--ease) both}
+.step.settled .word{animation:none!important;color:var(--ink)!important}
+@keyframes word-ink{0%{color:transparent}35%{color:var(--tint)}100%{color:var(--ink)}}
+.choices{display:grid;border-top:1px solid var(--hair);opacity:1;transition:opacity .14s var(--ease)}
+.choices.pending{opacity:0;pointer-events:none}
+.choice{appearance:none;background:transparent;border:0;border-bottom:1px solid var(--hair);margin:0;display:grid;grid-template-columns:1.75em minmax(0,1fr);align-items:baseline;width:100%;padding:.6em 0;text-align:left;cursor:pointer;color:var(--ink);transition:opacity .15s var(--ease),background-color .15s var(--ease);-webkit-tap-highlight-color:transparent}
+.choice-number{color:var(--mute);font-variant-numeric:tabular-nums}
+.choice-label{min-width:0;text-wrap:pretty;text-decoration-line:underline;text-decoration-color:transparent;text-decoration-thickness:1px;text-underline-offset:.22em;transition:text-decoration-color .15s var(--ease)}
+.choice:hover .choice-label,.choice:focus-visible .choice-label{text-decoration-color:var(--mute)}
+.choice:active{opacity:.6}
+.choices:has(>.choice:hover)>.choice:not(:hover){opacity:.38}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}.step.go .word{animation:none!important;color:var(--ink)!important}.choices{transition:none!important}}
 </style>
 </head>
 <body>
-<header class="site-head">
- <div class="head-wrap">
-  <a class="logo" href="/games" aria-label="NIGHT Play games">NIGHT <span>PLAY</span></a>
-  <nav class="head-actions" aria-label="Story navigation">
-   <a class="back" href="/games">← Games</a>
-   <details class="options" id="readingOptions">
-    <summary aria-label="Reading options" title="Reading options"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="2.3"/><path d="M12 2.8v2.2m0 14v2.2M2.8 12H5m14 0h2.2M5.5 5.5 7 7m10 10 1.5 1.5M18.5 5.5 17 7M7 17l-1.5 1.5"/></svg></summary>
-    <div class="options-pop">
-     <label for="pace">Text animation</label>
-     <select id="pace" aria-label="Text animation speed">
-      <option value="cinematic">Cinematic</option>
-      <option value="quick">Quick</option>
-      <option value="instant">Off</option>
-     </select>
-     <button type="button" id="restart" hidden>Restart story</button>
-    </div>
-   </details>
-  </nav>
- </div>
+<header class="control-strip">
+ <a href="/games" aria-label="Back to NIGHT Play games">← NIGHT PLAY</a>
+ <details class="reader-options" id="readerOptions">
+  <summary aria-label="Reading options" title="Reading options"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="2.2"/><path d="M12 2.5v2m0 15v2M2.5 12h2m15 0h2M5.4 5.4l1.5 1.5m10.2 10.2 1.5 1.5M18.6 5.4l-1.5 1.5M6.9 17.1l-1.5 1.5"/></svg></summary>
+  <div class="reader-panel">
+   <label for="pace">Text animation</label>
+   <select id="pace" aria-label="Text animation speed"><option value="cinematic">Cinematic</option><option value="quick">Quick</option><option value="instant">Off</option></select>
+   <button type="button" id="restart" hidden>Restart story</button>
+  </div>
+ </details>
 </header>
-<main class="reader">
- <h1 class="story-name">The Last Call</h1>
- <section aria-label="Interactive story">
-  <div class="story-location" id="location">The corridor · 02:13 AM</div>
-  <div class="passage" id="story" aria-live="off" aria-label="Story narration"></div>
-  <div class="hint" id="hint" aria-live="off" hidden>Tap the story to reveal all text.</div>
-  <div class="choices" id="choices" aria-label="Your choices"></div>
- </section>
+<main class="page">
+ <h1 class="visually-hidden">The Last Call</h1>
+ <div class="col">
+  <div class="passage" id="story" role="group" aria-label="Story text"></div>
+  <div class="choices pending" id="choices" role="group" aria-label="Choose what happens next"></div>
+ </div>
 </main>
-
-<script>(function(){
+<script>
+(function(){
 'use strict';
 const root={
- location:document.getElementById('location'),
- story:document.getElementById('story'),
- choices:document.getElementById('choices'),
- hint:document.getElementById('hint'),
- pace:document.getElementById('pace'),
- restart:document.getElementById('restart'),
- menu:document.getElementById('readingOptions')
+ story:document.getElementById('story'),choices:document.getElementById('choices'),
+ pace:document.getElementById('pace'),menu:document.getElementById('readerOptions'),
+ restart:document.getElementById('restart')
 };
 const scenes={
   start:{
@@ -185,109 +151,117 @@ const scenes={
   }
 };
 
+
 const reduced=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-const key='night-play-fiction-pace';
-try{const remembered=localStorage.getItem(key);if(['cinematic','quick','instant'].includes(remembered))root.pace.value=remembered}catch{}
-let current='start',epoch=0,timers=[],running=false,finished=false,steps=[];
-function stopTimers(){epoch++;for(const t of timers)clearTimeout(t);timers=[];running=false}
-function after(ms,fn){const id=setTimeout(fn,ms);timers.push(id)}
-function makeStep(beat){
- const line=document.createElement('p');
- line.className='pending'+(beat.tone?' '+beat.tone:'');
- line.setAttribute('aria-label',beat.text);
- const words=beat.text.split(/(\s+)/);
- for(const token of words){
-  if(!token)continue;
-  if(/^\s+$/.test(token)){line.appendChild(document.createTextNode(token));continue}
-  const span=document.createElement('span');
-  span.className='ink-word';span.textContent=token;span.setAttribute('aria-hidden','true');
-  line.appendChild(span)
- }
- return line;
+const storageKey='night-play-fiction-reading-speed';
+try{const saved=localStorage.getItem(storageKey);if(['cinematic','quick','instant'].includes(saved))root.pace.value=saved}catch{}
+let sceneId='start',run=0,timers=[],observers=[],steps=[],revealing=false,choicesReady=false;
+const stamp=()=>performance.now();
+const wait=(fn,ms)=>{const t=setTimeout(fn,Math.max(0,ms));timers.push(t)};
+function clearMotion(){
+ run++;revealing=false;
+ for(const t of timers)clearTimeout(t);timers=[];
+ for(const o of observers)o.disconnect();observers=[];
 }
-function settleAll(){
- for(const line of steps){line.classList.remove('pending','go');line.classList.add('settled')}
-}
-function showChoices(instant=false){
- if(finished)return;
- finished=true;running=false;root.hint.hidden=true;root.story.classList.remove('revealing');
- const options=scenes[current].options;
- options.forEach(([label,destination],i)=>{
-  const button=document.createElement('button');
-  button.className='choice';button.type='button';
-  if(instant){button.style.opacity='1';button.style.animation='none'}
-  else button.style.animationDelay=(i*20)+'ms';
-  const number=document.createElement('span');number.className='choice-number';number.textContent=String(i+1).padStart(2,'0');
-  const title=document.createElement('span');title.textContent=label;
-  const arrow=document.createElement('span');arrow.className='choice-arrow';arrow.textContent='↗';arrow.setAttribute('aria-hidden','true');
-  button.append(number,title,arrow);
-  button.addEventListener('click',()=>play(destination));
-  root.choices.appendChild(button)
- });
- if(window.innerWidth<700&&root.choices.getBoundingClientRect().bottom>innerHeight-18){
-  root.choices.scrollIntoView({block:'end',behavior:reduced?'instant':'smooth'})
- }
+function settle(line){line.classList.remove('pending','go');line.classList.add('settled')}
+function settleAll(){for(const line of steps)settle(line)}
+function showChoices(){
+ if(choicesReady)return;
+ choicesReady=true;revealing=false;
+ root.choices.classList.remove('pending');
 }
 function revealAll(){
- if(finished)return;
- stopTimers();settleAll();showChoices(true)
+ if(!revealing)return;
+ clearMotion();settleAll();showChoices()
 }
-function motionStep(line,factor){
- if(line.classList.contains('settled'))return 0;
- const wordSpans=[...line.querySelectorAll('.ink-word')];
- const fade=Math.round(900*factor);
- const spread=Math.round(Math.min(900,Math.max(280,wordSpans.length*8))*factor);
- line.style.setProperty('--fade',fade+'ms');
- for(const word of wordSpans){word.style.animationDelay=Math.round(Math.random()*spread)+'ms'}
- line.classList.remove('pending');line.classList.add('go');
- return spread+Math.round(fade*.65);
+function createLine(beat){
+ const p=document.createElement('p');p.className='step pending';p.setAttribute('aria-label',beat.text);
+ for(const part of beat.text.split(/(\s+)/)){
+  if(!part)continue;
+  if(/^\s+$/.test(part)){p.appendChild(document.createTextNode(part));continue}
+  const span=document.createElement('span');span.className='word';
+  span.textContent=part;span.setAttribute('aria-hidden','true');p.appendChild(span);
+ }
+ return p
 }
-function play(sceneId){
- if(!Object.prototype.hasOwnProperty.call(scenes,sceneId))return;
- stopTimers();
- current=sceneId;finished=false;
- const scene=scenes[sceneId];
- root.location.textContent=scene.place;
- root.story.replaceChildren();root.choices.replaceChildren();
- steps=scene.beats.map(makeStep);root.story.append(...steps);
- const terminal=scene.options.length===1&&scene.options[0][1]==='start';
- root.restart.hidden=terminal||sceneId==='start';
- root.menu.open=false;
- if(reduced||root.pace.value==='instant'){settleAll();showChoices(true);return}
- running=true;root.hint.hidden=false;root.story.classList.add('revealing');
- const factor=root.pace.value==='quick'?.47:1;
- const stamp=epoch;
- let delay=75,choiceAt=0;
- steps.forEach((line,i)=>{
-  if(i>0){
-   const previous=scene.beats[i-1];
-   delay+=Math.round(Math.min(175,Math.max(65,previous.gap*.14))*factor);
-   if(i===steps.length-1&&scene.beats[i].tone==='emphasis')delay+=Math.round(300*factor);
-  }
-  const spanCount=line.querySelectorAll('.ink-word').length;
-  const readable=Math.round((Math.min(900,Math.max(280,spanCount*8))+900*.65)*factor);
-  choiceAt=Math.max(choiceAt,delay+readable);
-  after(delay,()=>{if(stamp===epoch)motionStep(line,factor)});
+function buildChoices(options){
+ const frag=document.createDocumentFragment();
+ options.forEach(([label,dest],i)=>{
+  const b=document.createElement('button');b.type='button';b.className='choice';
+  const num=document.createElement('span');num.className='choice-number';num.textContent=String(i+1);
+  const text=document.createElement('span');text.className='choice-label';text.textContent=label;
+  b.append(num,text);b.addEventListener('click',()=>play(dest));frag.appendChild(b);
  });
- // Text begins quickly and settles naturally. Only choices await readability.
- after(choiceAt+Math.round(75*factor),()=>{if(stamp===epoch)showChoices()})
+ root.choices.replaceChildren(frag);root.choices.classList.add('pending')
 }
-root.story.addEventListener('click',()=>{if(running)revealAll()});
-document.addEventListener('keydown',e=>{
- if(!running||e.altKey||e.ctrlKey||e.metaKey||e.repeat)return;
- if((e.key===' '||e.key==='Enter')&&!/^(BUTTON|SELECT|INPUT|TEXTAREA)$/.test(document.activeElement?.tagName||'')){
-  e.preventDefault();revealAll()
+function scatter(line,speed){
+ const spans=line.querySelectorAll('.word');
+ const range=Math.min(900,Math.max(280,spans.length*8))*speed;
+ const fade=900*speed;
+ line.style.setProperty('--fade',Math.round(fade)+'ms');
+ for(const sp of spans)sp.style.animationDelay=Math.round(Math.random()*range)+'ms';
+ line.classList.remove('pending');line.classList.add('go');
+ wait(()=>settle(line),range+fade+60);
+ return stamp()+range+fade*.6
+}
+function visible(line){
+ const r=line.getBoundingClientRect(),h=window.innerHeight||document.documentElement.clientHeight;
+ return r.top<h*.94&&r.bottom>0
+}
+function whenVisible(line,current){
+ return new Promise(resolve=>{
+  if(current!==run||visible(line)||!('IntersectionObserver' in window)){resolve();return}
+  const io=new IntersectionObserver(entries=>{
+   if(current!==run||entries.some(e=>e.isIntersecting)){io.disconnect();resolve()}
+  },{rootMargin:'0px 0px -6% 0px'});
+  io.observe(line);observers.push(io)
+ });
+}
+function play(id){
+ if(!Object.prototype.hasOwnProperty.call(scenes,id))return;
+ clearMotion();sceneId=id;choicesReady=false;
+ const scene=scenes[id];
+ document.title='The Last Call · NIGHT Play';
+ steps=scene.beats.map(createLine);
+ root.story.replaceChildren(...steps);
+ buildChoices(scene.options);
+ root.menu.open=false;
+ root.restart.hidden=id==='start'||(scene.options.length===1&&scene.options[0][1]==='start');
+ if(reduced||root.pace.value==='instant'){settleAll();showChoices();return}
+ revealing=true;
+ const current=run;
+ const speed=root.pace.value==='quick'?.48:1;
+ let idx=0,readable=stamp();
+ function next(){
+  if(current!==run)return;
+  if(idx===steps.length){
+   wait(()=>{if(current===run)showChoices()},Math.max(0,readable-stamp()));
+   return
+  }
+  const line=steps[idx++];
+  whenVisible(line,current).then(()=>{
+   if(current!==run)return;
+   readable=Math.max(readable,scatter(line,speed));
+   next();
+  });
+ }
+ next()
+}
+root.story.addEventListener('pointerup',()=>{if(revealing)revealAll()});
+document.addEventListener('keydown',event=>{
+ if(!revealing||event.repeat||event.altKey||event.ctrlKey||event.metaKey)return;
+ if((event.key===' '||event.key==='Enter')&&!['BUTTON','INPUT','SELECT','TEXTAREA'].includes(document.activeElement?.tagName||'')){
+  event.preventDefault();revealAll()
  }
 });
-root.restart.addEventListener('click',()=>play('start'));
 root.pace.addEventListener('change',()=>{
- try{localStorage.setItem(key,root.pace.value)}catch{}
- play(current)
+ try{localStorage.setItem(storageKey,root.pace.value)}catch{}
+ play(sceneId)
 });
-document.addEventListener('click',e=>{
- if(root.menu.open&&!root.menu.contains(e.target))root.menu.open=false;
-});
-play('start');
-})();</script>
+root.restart.addEventListener('click',()=>play('start'));
+document.addEventListener('pointerdown',event=>{if(root.menu.open&&!root.menu.contains(event.target))root.menu.open=false});
+play('start')
+})();
+</script>
 </body>
 </html>
