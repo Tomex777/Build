@@ -128,6 +128,19 @@ async function waitUnblocked(page){await page.waitForFunction(()=>!window.__nigh
    await page.locator('.hand .whot-card').click();
    await page.waitForFunction(()=>JSON.parse(localStorage.getItem('night-play-club-v1')).whot.winner===0,null,{timeout:2900});
    assert.equal(await page.locator('.whot-win-layer.player-victory').count(),1,'declared last card legitimately wins');
+   await page.locator('#settingsButton').click();
+   await page.locator('[data-whot-option="mode"]').selectOption('tournament');
+   await page.locator('[data-whot-option="announce"]').uncheck();
+   await page.locator('#whotApplySettings').click();
+   assert.equal(await page.locator('#whotModeBadge').innerText(),'TOURNAMENT');
+   for(let round=1;round<=2;round++){
+     await hand(page,[{s:3,n:7}],[{s:0,n:3},{s:0,n:4},{s:0,n:8},{s:1,n:11},{s:2,n:10}],{s:3,n:3});
+     await page.locator('.hand .whot-card').click();
+     await page.waitForFunction(target=>JSON.parse(localStorage.getItem('night-play-whot-career-v1')).tournamentWins[0]===target,round,{timeout:2800});
+     assert.match(await page.locator('.whot-win-count').innerText(),new RegExp('SERIES '+round+'—0'),'visible tournament score after round '+round);
+   }
+   await page.locator('.whot-rematch').click();
+   assert.match(await page.locator('.whot-series-score').innerText(),/0 — 0/,'completed tournament starts a clean series on rematch');
    assert.deepEqual(errors,[],'no browser exceptions in gameplay & menu');
    console.log('WHOT_RULES_PASS',width,JSON.stringify({strict:true,penaltyStack:true,careerPromotion:true,nightSite:true}));
    if(width===390&&process.env.WHOT_RULES_IMAGE==='1'){
