@@ -49,6 +49,23 @@ class SurfaceJoystickMathTest {
         assertTrue(!SurfaceJoystickMath.isInLookZone(width * .38f, width))
     }
 
+    @Test fun movementTimeDoesNotDependOnRenderFrame() {
+        val start = 8_000_000_000L
+        // Typical software-emulator draw interruption: ~420ms held gesture.
+        assertEquals(.42, SurfaceJoystickMath.elapsedMovementSeconds(start, start + 420_000_000L), 1e-9)
+        assertEquals(0.0, SurfaceJoystickMath.elapsedMovementSeconds(start, start), 0.0)
+        assertEquals(0.0, SurfaceJoystickMath.elapsedMovementSeconds(start, start - 3), 0.0)
+        assertEquals(.45, SurfaceJoystickMath.elapsedMovementSeconds(start, start + 8_000_000_000L), 1e-9)
+        var seconds = .42
+        var traveled = 0.0
+        while (seconds > 1e-8) {
+            val dt = minOf(seconds, .05)
+            traveled += SurfaceJoystickMath.travelWorldUnits(dt)
+            seconds -= dt
+        }
+        assertEquals(.42 * 3.0 / 3000.0, traveled, 1e-10)
+    }
+
     @Test fun frameTimeControlsRealDistanceAndClampsAfterResume() {
         val oneSecondAt60Hz = (1..60).sumOf {
             SurfaceJoystickMath.travelWorldUnits(1.0 / 60)

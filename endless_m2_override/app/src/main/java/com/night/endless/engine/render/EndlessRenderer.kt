@@ -124,6 +124,10 @@ class EndlessRenderer(
     private var moonSurfaceZ = 0.0
     private var surfaceForwardInput = 0f
     private var surfaceStrafeInput = 0f
+    // Input lifetime uses monotonic wall time, not GL frame availability.
+    // Software GLES can stall while a player holds a thumb; without this clock,
+    // releasing between frames discards the entire movement gesture.
+    private var lastSurfaceMovementNanos = System.nanoTime()
     @Volatile private var deepTimeAgeGa = 0.0
     @Volatile private var renderedDeepTimeAgeGa = 0.0
     private var marsSurfaceTerrain: MarsSurfaceTerrain? = null
@@ -305,7 +309,7 @@ class EndlessRenderer(
         lastNanos = now
 
         applyControlDamping(dt)
-        updateSurfaceMovement(dt)
+        updateSurfaceMovement(now)
 
         val simSeconds = clock.advance(dt)
         updateBodyPositions(simSeconds)
@@ -595,7 +599,11 @@ class EndlessRenderer(
      * Input is zeroed on release, cancellation, takeoff and pause.
      */
     @Synchronized
+    @Synchronized
     fun setSurfaceMovementInput(forward: Float, strafe: Float) {
+        // Apply motion up to this touch event before updating its direction.
+        // Crucial when finger-down and finger-up occur between slow GL frames.
+        updateSurfaceMovement(System.nanoTime())
         if (!marsSurfaceMode && !moonSurfaceMode) {
             surfaceForwardInput = 0f
             surfaceStrafeInput = 0f
@@ -608,15 +616,34 @@ class EndlessRenderer(
         surfaceStrafeInput = if (length < 0.001f) 0f else strafe / divisor
     }
 
-    private fun updateSurfaceMovement(dt: Double) {
+    @Synchronized
+    fun cancelSurfaceMovementInput() {
+        // App pause/detach is different from a completed swipe: do not advance
+        // the astronaut during a background transition.
+        surfaceForwardInput = 0f
+        surfaceStrafeInput = 0f
+        lastSurfaceMovementNanos = System.nanoTime()
+    }
+
+    private fun updateSurfaceMovement(nowNanos: Long) {
+        val elapsed = SurfaceJoystickMath.elapsedMovementSeconds(lastSurfaceMovementNanos, nowNanos)
+        lastSurfaceMovementNanos = nowNanos
         if (!marsSurfaceMode && !moonSurfaceMode) return
         val forward = surfaceForwardInput
         val strafe = surfaceStrafeInput
         val magnitude = kotlin.math.hypot(forward, strafe)
-        if (magnitude < 0.001f) return
-        val distance = SurfaceJoystickMath.travelWorldUnits(dt) *
-            magnitude.coerceAtMost(1f)
-        advanceSurfacePosition(forward / magnitude, strafe / magnitude, distance)
+        if (magnitude < 0.001f || elapsed <= 0.0) return
+        // Limit each physics step to 50ms while consuming the whole bounded
+        // gesture interval. Avoid both frame-rate-dependent lost input and
+        // large collision jumps on slow renderers.
+        var remaining = elapsed
+        while (remaining > 1e-8) {
+            val dt = min(remaining, 0.05)
+            val distance = SurfaceJoystickMath.travelWorldUnits(dt) *
+                magnitude.coerceAtMost(1f)
+            advanceSurfacePosition(forward / magnitude, strafe / magnitude, distance)
+            remaining -= dt
+        }
     }
 
     // Kept for saved gesture integrations/tests that request one discrete step.

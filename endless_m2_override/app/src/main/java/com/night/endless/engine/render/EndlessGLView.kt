@@ -29,7 +29,11 @@ class EndlessGLView(
     }
 
     fun cancelSurfaceControls() {
-        resetSurfaceMovement()
+        // A lifecycle cancellation is not a finger-up event; don't advance
+        // held movement through a paused/detached app.
+        movePointerId = MotionEvent.INVALID_POINTER_ID
+        endlessRenderer.cancelSurfaceMovementInput()
+        onSurfaceStickChanged?.invoke(0f, 0f)
         lookPointerId = MotionEvent.INVALID_POINTER_ID
     }
 
@@ -98,7 +102,13 @@ class EndlessGLView(
                     }
                 }
             }
-            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> cancelSurfaceControls()
+            MotionEvent.ACTION_UP -> {
+                // The final thumb-up must commit held travel even if software
+                // OpenGL did not draw a frame during the gesture.
+                resetSurfaceMovement()
+                lookPointerId = MotionEvent.INVALID_POINTER_ID
+            }
+            MotionEvent.ACTION_CANCEL -> cancelSurfaceControls()
         }
         return true
     }

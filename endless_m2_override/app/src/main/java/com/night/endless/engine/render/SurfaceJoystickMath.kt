@@ -52,6 +52,17 @@ internal object SurfaceJoystickMath {
         return -dy / length * intensity to dx / length * intensity
     }
 
+    /**
+     * Use the real time between touch updates even when no GL frame completes.
+     * Bound long background or GPU stalls to 450ms to avoid teleporting.
+     * Per-step physics integration remains capped to 50ms below.
+     */
+    fun elapsedMovementSeconds(previousNanos: Long, nowNanos: Long): Double {
+        if (nowNanos <= previousNanos) return 0.0
+        return ((nowNanos - previousNanos).toDouble() / 1_000_000_000.0)
+            .coerceIn(0.0, 0.45)
+    }
+
     /** Engine units = 3000m. Delta is clamped to avoid jumps after resume. */
     fun travelWorldUnits(deltaSeconds: Double): Double =
         deltaSeconds.coerceIn(0.0, .05) * METERS_PER_SECOND / 3000.0

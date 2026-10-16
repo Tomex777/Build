@@ -206,8 +206,14 @@ class MarsSurfaceRuntimeTest {
                 true, jy, rx
             )
             injectTwoThumbs(MotionEvent.ACTION_MOVE, true, jy - 48f * d, rx + 75f * d)
+            // The emulator is often software-rendered: motion must survive
+            // a held input even if GL did not publish a frame during 420ms.
+            val dualStartFrame = renderer.completedFrameCount()
             SystemClock.sleep(420)
             injectTwoThumbs(MotionEvent.ACTION_MOVE, true, jy - 48f * d, rx + 110f * d)
+            val dualEndFrame = renderer.completedFrameCount()
+            android.util.Log.i("EndlessInputTest",
+                "Dual-thumb GL frames during hold: ${dualEndFrame - dualStartFrame}")
             injectTwoThumbs(
                 MotionEvent.ACTION_POINTER_UP or
                     (1 shl MotionEvent.ACTION_POINTER_INDEX_SHIFT),
