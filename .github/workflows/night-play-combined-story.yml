@@ -25,3 +25,11 @@ jobs:
         run: |
           node night-play/stories/story-contract.cjs
           node night-play/stories/combined-smoke.cjs
+
+      - name: Save reader screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: last-call-book-reader
+          path: night-play/stories/qa-output/*.png
+          if-no-files-found: ignore
