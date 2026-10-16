@@ -53,9 +53,9 @@ const server=http.createServer((req,res)=>{
     }
     await page.locator('.choice').first().click();
     assert.match(await page.locator('#location').textContent(),/02:14 AM/,'branch choice works');
-    await page.getByRole('button',{name:'Reading options'}).click();
+    await page.locator('#readingOptions summary').click();
     await page.getByRole('button',{name:'Restart story'}).click();
-    await page.getByRole('button',{name:'Reading options'}).click();
+    await page.locator('#readingOptions summary').click();
     await page.locator('#pace').selectOption('instant');
     assert.equal(await page.locator('#story p').count(),5,'reading speed instant works');
     const size=await page.evaluate(()=>({scroll:document.documentElement.scrollWidth,width:innerWidth}));
