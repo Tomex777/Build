@@ -98,6 +98,36 @@ async function waitUnblocked(page){await page.waitForFunction(()=>!window.__nigh
    await page.locator('.hand .whot-card').click();
    await page.waitForFunction(()=>JSON.parse(localStorage.getItem('night-play-whot-career-v1')).wins===3,null,{timeout:2800});
    assert.equal(await page.locator('#whotModeBadge').innerText(),'PRIMARY','promotion from Kindergarten after third career victory');
+   assert.match(await page.locator('.whot-win-count').innerText(),/PROMOTED TO PRIMARY/,'career graduation is celebrated on the actual result board');
+   // Standard quick-play variant remains possible when strict last-action
+   // finishing is turned off in real, persisted settings.
+   await page.locator('#settingsButton').click();
+   await page.locator('[data-whot-option="mode"]').selectOption('quick');
+   await page.locator('[data-whot-option="strictFinish"]').uncheck();
+   await page.locator('#whotApplySettings').click();
+   await hand(page,[{s:3,n:5}],[{s:0,n:3},{s:0,n:4},{s:0,n:7},{s:1,n:11},{s:2,n:10}],{s:3,n:3});
+   await page.locator('.hand .whot-card').click();
+   await page.waitForFunction(()=>JSON.parse(localStorage.getItem('night-play-club-v1')).whot.winner===0,null,{timeout:2900});
+   assert.equal(await page.locator('.whot-win-layer.player-victory').count(),1,'optional standard rules allow winning on final 5');
+   // The optional Last Card declaration must penalize missed Check Up,
+   // but allow a declared last card to finish.
+   await page.locator('#settingsButton').click();
+   await page.locator('[data-whot-option="strictFinish"]').check();
+   await page.locator('[data-whot-option="announce"]').check();
+   await page.locator('#whotApplySettings').click();
+   await hand(page,[{s:3,n:7}],[{s:0,n:3},{s:0,n:4},{s:0,n:8},{s:1,n:11},{s:2,n:10}],{s:3,n:3});
+   assert.equal(await page.locator('[data-action="whot-last-call"]').count(),1,'last-card call appears when only one card remains');
+   await page.locator('.hand .whot-card').click();
+   await page.waitForFunction(()=>{
+     const x=JSON.parse(localStorage.getItem('night-play-club-v1')).whot;
+     return x.hands[0].length===2&&x.winner===null;
+   },null,{timeout:3000});
+   await hand(page,[{s:3,n:7}],[{s:0,n:3},{s:0,n:4},{s:0,n:8},{s:1,n:11},{s:2,n:10}],{s:3,n:3});
+   await page.locator('[data-action="whot-last-call"]').click();
+   assert.match(await page.locator('[data-action="whot-last-call"]').innerText(),/LAST CARD/);
+   await page.locator('.hand .whot-card').click();
+   await page.waitForFunction(()=>JSON.parse(localStorage.getItem('night-play-club-v1')).whot.winner===0,null,{timeout:2900});
+   assert.equal(await page.locator('.whot-win-layer.player-victory').count(),1,'declared last card legitimately wins');
    assert.deepEqual(errors,[],'no browser exceptions in gameplay & menu');
    console.log('WHOT_RULES_PASS',width,JSON.stringify({strict:true,penaltyStack:true,careerPromotion:true,nightSite:true}));
    if(width===390&&process.env.WHOT_RULES_IMAGE==='1'){
