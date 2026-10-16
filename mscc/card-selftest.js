@@ -113,6 +113,19 @@ async function main() {
       await writeFile(join(process.env.CARD_PREVIEW_DIR,edition+'-verified-artwork.png'),redPng)
     }
   }
+  // AniList serves a mixture of PNG and JPEG portraits; real photos must
+  // survive the SVG artwork rasterizer as well as synthetic PNG cutouts.
+  const jpgArt=await imageAsset(redCanvas.toBuffer('image/jpeg'),{sourceUrl:found.sourceUrl})
+  assert.ok(jpgArt.art.startsWith('data:image/jpeg;base64,'))
+  assert.equal(jpgArt.opaque,true)
+  const jpgPng=await renderEditionPng(found,'nocturne',jpgArt,{width:500})
+  const jpgImg=await loadImage(jpgPng)
+  const jpgCanvas=createCanvas(500,700)
+  jpgCanvas.getContext('2d').drawImage(jpgImg,0,0)
+  const central=jpgCanvas.getContext('2d').getImageData(250,260,1,1).data
+  assert.ok(central[0]>130 && central[0]>central[2]+80,
+    'JPEG portrait was decoded but became invisible in the finished card')
+
   // Also verify the actual full-size production path, not only thumbnails.
   const full=await renderEditionPng(found,'tidelight',redArt)
   assert.equal(full.readUInt32BE(16),3000)
