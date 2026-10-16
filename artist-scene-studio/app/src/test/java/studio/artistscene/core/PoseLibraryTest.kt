@@ -106,6 +106,30 @@ class PoseLibraryTest {
         assertEquals(locked, locked.applyLightingLook(LightingLook.GOLDEN))
     }
 
+    @Test fun importedAnimeFaceMorphsCreateRealUndoableExpressionsWithoutChangingMuscles() {
+        val hero = character().copy(
+            rigDefinition = character().rigDefinition!!.copy(morphTargets = listOf(
+                RigMorphTarget("morph-smile", "Joy"),
+                RigMorphTarget("morph-sad", "Sorrow"),
+                RigMorphTarget("morph-blink", "Blink"),
+                RigMorphTarget("morph-body", "Muscle"),
+            )),
+            rig = RigPose(morphWeights = mapOf("morph-body" to .4f)),
+        )
+        val initial = state(hero)
+        val smiled = initial.applyFaceExpression(FaceExpression.SMILE)
+        assertEquals(1f, smiled.selectedActor!!.rig!!.morphWeights["morph-smile"])
+        assertEquals(.4f, smiled.selectedActor!!.rig!!.morphWeights["morph-body"])
+        assertEquals(initial.project, smiled.undo().project)
+        val saddened = smiled.applyFaceExpression(FaceExpression.SAD)
+        assertFalse("Previous smile must turn off", "morph-smile" in saddened.selectedActor!!.rig!!.morphWeights)
+        assertEquals(1f, saddened.selectedActor!!.rig!!.morphWeights["morph-sad"])
+        assertTrue(AnimeExpressions.canApply(hero, FaceExpression.BLINK))
+        assertEquals(null, AnimeExpressions.apply(hero, FaceExpression.SURPRISED))
+        val neutral = saddened.applyFaceExpression(FaceExpression.NEUTRAL)
+        assertEquals(mapOf("morph-body" to .4f), neutral.selectedActor!!.rig!!.morphWeights)
+    }
+
     @Test fun cameraShotsPreserveSourceAndFrameActualActor() {
         val hero = character(x = 2f)
         val camera = SceneCamera("camera-main", "Camera")
