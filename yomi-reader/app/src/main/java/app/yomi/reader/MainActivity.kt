@@ -19,6 +19,9 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -45,8 +48,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextField
-import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -60,12 +61,18 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -858,12 +865,13 @@ class MainActivity : ComponentActivity() {
             } else {
                 currentBook?.let { book -> item { ContinueReading(book, onOpen = { onOpen(book) }) } }
 
-                if (recent.isNotEmpty()) {
+                val uniqueRecent = recent.filterNot { it.id == currentBook?.id }
+                if (uniqueRecent.isNotEmpty()) {
                     item {
                         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                             SectionTitle("Recently opened")
                             LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                                items(recent.take(5), key = { "recent-${it.id.value}" }) { book ->
+                                items(uniqueRecent.take(5), key = { "recent-${it.id.value}" }) { book ->
                                     RecentBookCard(book, onOpen = { onOpen(book) })
                                 }
                             }
@@ -946,12 +954,15 @@ class MainActivity : ComponentActivity() {
             contentPadding = PaddingValues(horizontal = 20.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
-            if (query.isBlank()) {
-                item { Text("Search books and folders in your library.", color = MaterialTheme.colorScheme.onSurfaceVariant) }
-            } else if (books.isEmpty()) {
-                item { EmptyMessage("No matches", "Try another title or folder name.") }
+            if (books.isEmpty()) {
+                item {
+                    if (query.isBlank()) EmptyMessage("No books yet", "Add a book from Home.")
+                    else EmptyMessage("No matches", "Try a different title or folder name.")
+                }
             } else {
-                item { SectionTitle("${books.size} result${if (books.size == 1) "" else "s"}") }
+                if (query.isNotBlank()) {
+                    item { SectionTitle("${books.size} result${if (books.size == 1) "" else "s"}") }
+                }
                 items(books, key = { "search-${it.id.value}" }) { book ->
                     LibraryListItem(book, onOpen = { onOpen(book) }, onManage = { onManage(book) })
                 }
@@ -991,24 +1002,42 @@ class MainActivity : ComponentActivity() {
         onCloseSearch: () -> Unit,
         onAdd: () -> Unit,
     ) {
+        val focusRequester = remember { FocusRequester() }
+        val keyboardController = LocalSoftwareKeyboardController.current
+        LaunchedEffect(searchMode) {
+            if (searchMode) focusRequester.requestFocus()
+        }
         Row(
             modifier = Modifier.fillMaxWidth().padding(start = 18.dp, end = 8.dp, top = 8.dp, bottom = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             if (searchMode) {
-                TextField(
+                BasicTextField(
                     value = searchQuery,
                     onValueChange = onSearchQueryChange,
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier.weight(1f)
+                        .height(52.dp)
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(MaterialTheme.colorScheme.surfaceVariant)
+                        .focusRequester(focusRequester)
+                        .padding(horizontal = 16.dp, vertical = 14.dp),
                     singleLine = true,
-                    placeholder = { Text("Search books and folders") },
-                    shape = RoundedCornerShape(16.dp),
-                    colors = TextFieldDefaults.colors(
-                        focusedContainerColor = MaterialTheme.colorScheme.surface,
-                        unfocusedContainerColor = MaterialTheme.colorScheme.surface,
-                        focusedIndicatorColor = Color.Transparent,
-                        unfocusedIndicatorColor = Color.Transparent,
+                    textStyle = TextStyle(
+                        color = MaterialTheme.colorScheme.onSurface,
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Medium,
                     ),
+                    cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                    keyboardActions = KeyboardActions(onSearch = { keyboardController?.hide() }),
+                    decorationBox = { innerTextField ->
+                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.CenterStart) {
+                            if (searchQuery.isEmpty()) {
+                                Text("Search books and folders", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                            innerTextField()
+                        }
+                    },
                 )
                 IconAction(R.drawable.ic_yomi_close, "Close search", onCloseSearch)
             } else {
@@ -1068,7 +1097,12 @@ class MainActivity : ComponentActivity() {
                 modifier = Modifier.size(60.dp).background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(18.dp)),
                 contentAlignment = Alignment.Center,
             ) {
-                Text("Y", fontSize = 30.sp, fontWeight = FontWeight.Black, color = MaterialTheme.colorScheme.primary)
+                Icon(
+                    painter = painterResource(R.drawable.ic_yomi),
+                    contentDescription = null,
+                    modifier = Modifier.size(52.dp).clip(RoundedCornerShape(14.dp)),
+                    tint = Color.Unspecified,
+                )
             }
             Spacer(Modifier.height(2.dp))
             Text("Your library is empty", fontSize = 23.sp, fontWeight = FontWeight.Bold)
@@ -1081,7 +1115,6 @@ class MainActivity : ComponentActivity() {
     private fun EmptyFolders(onAddFolder: () -> Unit) {
         Column(verticalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.padding(top = 12.dp)) {
             Text("No folders yet", fontSize = 19.sp, fontWeight = FontWeight.Bold)
-            Text("Add an image folder to read it in Yomi.", color = MaterialTheme.colorScheme.onSurfaceVariant)
             Button(onClick = onAddFolder) { Text("Add a folder") }
         }
     }
