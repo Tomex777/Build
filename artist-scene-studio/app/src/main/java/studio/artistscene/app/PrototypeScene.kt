@@ -37,7 +37,9 @@ object PrototypeScene {
         cameras = listOf(
             SceneCamera(
                 id = "camera-main", name = "Anime pose camera",
-                position = Vec3(2.15f, 1.65f, 4.45f),
+                // Stand in front of the VRoid character (-Z), avoiding changes to the
+                // skinned root transform that broke emulator skin deformation.
+                position = Vec3(-2.15f, 1.65f, -4.45f),
                 target = Vec3(0f, .93f, 0f),
             ),
         ),
@@ -106,9 +108,7 @@ object PrototypeScene {
         id = id,
         name = name,
         kind = ActorKind.CHARACTER,
-        // VRoid's natural forward axis faces away from Mise's +Z studio camera.
-        // Turn the character toward the artist; users can freely edit rotation.
-        transform = Transform(position = position, rotationEulerDegrees = Vec3(y = 180f)),
+        transform = Transform(position = position),
         asset = AssetReference(
             assetId = ANIME_ASSET_ID,
             relativePath = "models/mise_anime.glb",
