@@ -344,6 +344,11 @@ try{
     const gallery=page.locator('.whot-hand-overlay');
     assert.equal(await gallery.locator('.whot-card').count(),n,'full hand gallery shows '+n);
     await gallery.locator('[data-whot-hand-sort]').selectOption('number');
+    const galleryDebug=await page.evaluate(()=>{
+      const st=JSON.parse(localStorage.getItem('night-play-club-v1')).whot;
+      return {hand:st.hands[0].length,ids:[...document.querySelectorAll('.whot-hand-gallery .whot-card')].map(c=>c.dataset.card)};
+    });
+    console.log('WHOT_GALLERY_DEBUG',n,JSON.stringify(galleryDebug));
     const nums=await page.evaluate(()=>{
      const s=JSON.parse(localStorage.getItem('night-play-club-v1')).whot;
      return [...document.querySelectorAll('.whot-hand-gallery .whot-card')].map(c=>s.hands[Number(c.dataset.card)].n);
