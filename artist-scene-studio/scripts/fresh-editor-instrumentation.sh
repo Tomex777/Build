@@ -74,7 +74,7 @@ if [ "$TEST_SUITE" != editor ] && [ "$TEST_SUITE" != humanoid ] && [ "$TEST_SUIT
   exit 0
 fi
 if [ "$TEST_SUITE" = anime ]; then
-  for stage in posed neutral; do
+  for stage in posed neutral female-neutral; do
     pull_proof "anime-${stage}.png"
     cp "$PROOF_DIR/anime-${stage}.png" "artist-scene-studio-${API_TAG}-anime-${stage}.png" || fail "Anime $stage screenshot was missing"
     python3 scripts/check-viewport-pixels.py "artist-scene-studio-${API_TAG}-anime-${stage}.png" || fail "Anime $stage viewport was black"
