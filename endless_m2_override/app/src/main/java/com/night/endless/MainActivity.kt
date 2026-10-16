@@ -394,8 +394,8 @@ private fun EndlessApp(
                 Text("ENDLESS", color = Text, fontSize = 17.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 1.7.sp)
                 Text(
                     when (landedBody) {
-                        "mars" -> "OLYMPUS MONS · MOLA TERRAIN"
-                        "moon" -> "TYCHO CRATER · LOLA TERRAIN"
+                        "mars" -> "OLYMPUS MONS · MARS"
+                        "moon" -> "TYCHO CRATER · MOON"
                         else -> when {
                             historyOpen -> "SPACE & TIME EXPLORER"
                             cosmicScale != CosmicScale.SOLAR_SYSTEM -> "COSMIC SCALE EXPLORER"
@@ -406,7 +406,7 @@ private fun EndlessApp(
                 )
             }
 
-            Surface(
+            if (landedBody == null) Surface(
                 modifier = Modifier.align(Alignment.TopStart).padding(start = 18.dp, top = 58.dp),
                 shape = CircleShape,
                 color = Panel,
@@ -480,7 +480,7 @@ private fun EndlessApp(
                 }
             }
 
-            if (cosmicScale == CosmicScale.SOLAR_SYSTEM) Column(
+            if (cosmicScale == CosmicScale.SOLAR_SYSTEM && landedBody == null) Column(
                 modifier = Modifier.align(Alignment.BottomStart).padding(start = 16.dp, bottom = 14.dp),
                 verticalArrangement = Arrangement.spacedBy(2.dp)
             ) {
@@ -533,7 +533,10 @@ private fun EndlessApp(
                 SurfaceJoystickHud(
                     offset = surfaceStick,
                     modifier = Modifier.align(Alignment.BottomStart)
-                        .padding(start = 18.dp, bottom = 28.dp).size(148.dp)
+                        .padding(
+                            start = com.night.endless.engine.render.SurfaceJoystickMath.PAD_START_DP.dp,
+                            bottom = com.night.endless.engine.render.SurfaceJoystickMath.PAD_BOTTOM_DP.dp
+                        ).size(com.night.endless.engine.render.SurfaceJoystickMath.PAD_SIZE_DP.dp)
                 )
                 Column(
                     Modifier.align(Alignment.BottomEnd)
@@ -541,11 +544,6 @@ private fun EndlessApp(
                     horizontalAlignment = Alignment.End,
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Text(
-                        "DRAG RIGHT SIDE TO LOOK",
-                        color = Color(0xB3EEF2FF), fontSize = 9.sp,
-                        letterSpacing = .55.sp
-                    )
                     Surface(
                         color = PanelStrong,
                         shape = RoundedCornerShape(22.dp),
@@ -713,7 +711,7 @@ private fun EndlessApp(
                         onPresent = { historyAgeGa = 0f; historyPlaying = false },
                         onClose = { historyOpen = false; historyPlaying = false }
                     )
-                } else Surface(
+                } else if (landedBody == null) Surface(
                     modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 12.dp)
                         .widthIn(max = maxWidth - 150.dp),
                 shape = CircleShape,
@@ -1154,41 +1152,25 @@ private fun InfoCell(label: String, value: String, modifier: Modifier = Modifier
 
 @Composable
 private fun SurfaceJoystickHud(offset: Offset, modifier: Modifier = Modifier) {
-    // HUD is intentionally passive. The underlying GLSurfaceView receives
-    // both pointer IDs, allowing one thumb to walk while the other looks.
+    // Deliberately passive: both thumbs must be delivered to the same
+    // GLSurfaceView for simultaneous movement and camera control.
     Canvas(modifier.semantics {
-        contentDescription = "Movement joystick. Drag to walk; swipe on the right to look."
+        contentDescription = "Movement joystick. Drag to walk, swipe right side to look."
     }) {
-        val mid = Offset(size.width / 2f, size.height / 2f)
-        val unit = size.width / 148f
-        val outer = 65f * unit
-        val travel = 51f * unit
-        drawCircle(Color(0x72060916), outer, mid)
-        drawCircle(Accent.copy(alpha = .28f), outer - 3f * unit, mid,
-            style = Stroke(width = 1.35f * unit))
-        drawCircle(Color.White.copy(alpha = .10f), 51f * unit, mid,
-            style = Stroke(width = 1f * unit))
-        drawCircle(Color.White.copy(alpha = .035f), 39f * unit, mid)
-        for (n in 0..3) {
-            val angle = n * PI / 2.0
-            val x = kotlin.math.sin(angle).toFloat()
-            val y = -kotlin.math.cos(angle).toFloat()
-            drawLine(
-                Accent.copy(alpha = .58f),
-                Offset(mid.x + x * 47f * unit, mid.y + y * 47f * unit),
-                Offset(mid.x + x * 57f * unit, mid.y + y * 57f * unit),
-                strokeWidth = 2.2f * unit
-            )
-        }
-        val knobCenter = mid + Offset(
-            offset.x.coerceIn(-1f, 1f) * travel,
-            offset.y.coerceIn(-1f, 1f) * travel
-        )
-        drawCircle(Color(0x42080C1C), 28f * unit, knobCenter)
-        drawCircle(Accent.copy(alpha = .76f), 25f * unit, knobCenter,
-            style = Stroke(width = 1.8f * unit))
-        drawCircle(Color(0xC522344E), 21f * unit, knobCenter)
-        drawCircle(Color(0xDCECF7FF), 4f * unit, knobCenter)
+        val center = Offset(size.width / 2f, size.height / 2f)
+        val unit = size.width / com.night.endless.engine.render.SurfaceJoystickMath.PAD_SIZE_DP
+        val travel = com.night.endless.engine.render.SurfaceJoystickMath.KNOB_TRAVEL_DP * unit
+        val thumb = center + Offset(offset.x * travel, offset.y * travel)
+        // Clear physical thumbstick, not an oversized translucent touchpad.
+        drawCircle(Color(0x94060913), 66f * unit, center)
+        drawCircle(Color.White.copy(alpha = .18f), 64f * unit, center,
+            style = Stroke(width = 1.25f * unit))
+        drawCircle(Color.White.copy(alpha = .07f), 45f * unit, center)
+        drawCircle(Color(0xAA0E1C2C), 27f * unit, thumb)
+        drawCircle(Accent.copy(alpha = .85f), 26f * unit, thumb,
+            style = Stroke(width = 2f * unit))
+        drawCircle(Color(0xDD1B3247), 21f * unit, thumb)
+        drawCircle(Color.White.copy(alpha = .8f), 4f * unit, thumb)
     }
 }
 

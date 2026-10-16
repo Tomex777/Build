@@ -121,7 +121,11 @@ class MarsSurfaceRuntimeTest {
             SystemClock.sleep(150)
             capture(instrumentation, "mars-surface", checkNotNull(glRef.get()))
 
-            // GTA-style touch control: hold/drag the left thumbstick.
+            assertTrue("Orbital Overview must disappear while walking",
+                device.findObject(By.textContains("Overview")) == null)
+            assertTrue("Orbital speed controls must disappear while walking",
+                device.findObject(By.text("▶▶")) == null)
+            // Physical thumbstick: hold and drag left, look with the other thumb.
             // The old four ↑←↓→ tap buttons must not be present on the surface.
             assertTrue("Legacy tap movement buttons must be absent",
                 device.findObject(By.text("↑")) == null)
