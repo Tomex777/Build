@@ -192,6 +192,8 @@ jobs:
             adb shell am start -n app.yomi.reader.dev/app.yomi.reader.YomiCiFixtureActivity --es kind archive --es mode LTR_PAGED --ez keepChrome true --ez openSettings true
             i=0; until adb logcat -d -v brief YomiStartup:I YomiReader:I '*:S' | grep -Fq 'reader-first-draw title=Yomi CI Book mode=LTR_PAGED'; do i=$((i + 1)); [ "$i" -lt 60 ] || { echo 'Timed out waiting for settings reader draw' >&2; exit 1; }; sleep 2; done
             i=0; until adb logcat -d -v brief YomiStartup:I YomiReader:I '*:S' | grep -Fq 'reader-settings-opened'; do i=$((i + 1)); [ "$i" -lt 60 ] || { echo 'Timed out waiting for reader settings sheet' >&2; exit 1; }; sleep 2; done
+            # Allow the sheet entry animation/content to settle before evidence capture.
+            sleep 4
             bash yomi-reader/scripts/capture_clean_screen.sh yomi-output/runtime/yomi-reader-settings-sheet.png
             adb shell input keyevent KEYCODE_BACK
 
@@ -449,16 +451,16 @@ jobs:
             i=0; until adb logcat -d -v brief YomiReader:I '*:S' | grep -Fq 'reader-first-draw title=Yomi CI Animated GIF mode=LTR_PAGED'; do i=$((i + 1)); [ "$i" -lt 60 ] || { echo 'Animated GIF reader did not draw' >&2; exit 1; }; sleep 2; done
             i=0; until adb logcat -d -v brief YomiReader:I '*:S' | grep -Fq 'page-image-ready name=1'; do i=$((i + 1)); [ "$i" -lt 60 ] || { echo 'Extensionless GIF did not decode' >&2; adb logcat -d -v threadtime > yomi-output/runtime-api26/gif-decode-failure-logcat.txt; exit 1; }; sleep 2; done
             i=0; until adb logcat -d -v brief YomiReader:I '*:S' | grep -Eq 'animated-page-started .*running=true'; do i=$((i + 1)); [ "$i" -lt 60 ] || { echo 'GIF decoder did not start an animated drawable' >&2; adb logcat -d -v threadtime > yomi-output/runtime-api26/gif-animation-start-failure-logcat.txt || true; exit 1; }; sleep 2; done
-            # Screenshot capture itself takes several seconds; comparing just two
-            # frames can alias the fixture's 900 ms animation cycle.
-            bash yomi-reader/scripts/capture_clean_screen.sh yomi-output/runtime-api26/gif-frame-1.png
-            sleep 0.23
-            bash yomi-reader/scripts/capture_clean_screen.sh yomi-output/runtime-api26/gif-frame-2.png
-            sleep 0.37
-            bash yomi-reader/scripts/capture_clean_screen.sh yomi-output/runtime-api26/gif-frame-3.png
-            sleep 0.17
-            bash yomi-reader/scripts/capture_clean_screen.sh yomi-output/runtime-api26/gif-frame-4.png
-            python3 yomi-reader/scripts/assert_gif_animation.py yomi-output/runtime-api26/gif-frame-?.png
+            # Guard the foreground/ANR state before and after the sequence, then
+            # sample the actual Android surface rapidly. Four slow guarded
+            # captures previously landed on identical GIF phases and falsely
+            # classified live animation as frozen.
+            bash yomi-reader/scripts/capture_clean_screen.sh yomi-output/runtime-api26/gif-frame-01.png
+            for n in 02 03 04 05 06 07 08 09 10 11; do sleep 0.19; adb exec-out screencap -p > "yomi-output/runtime-api26/gif-frame-$n.png"; test -s "yomi-output/runtime-api26/gif-frame-$n.png" || exit 1; done
+            bash yomi-reader/scripts/capture_clean_screen.sh yomi-output/runtime-api26/gif-frame-12.png
+            adb shell pidof app.yomi.reader.dev | tee yomi-output/runtime-api26/gif-after-pid.txt
+            test -s yomi-output/runtime-api26/gif-after-pid.txt
+            python3 yomi-reader/scripts/assert_gif_animation.py yomi-output/runtime-api26/gif-frame-*.png || { adb logcat -d -v threadtime > yomi-output/runtime-api26/gif-static-failure-logcat.txt; exit 1; }
 
             # Prove the same universal production-like CI candidate installs at minSdk.
             i=0; until adb logcat -c; do i=$((i + 1)); [ "$i" -lt 6 ] || { echo 'Logcat clear failed before candidate APK check' >&2; exit 1; }; sleep 2; done
