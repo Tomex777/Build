@@ -351,7 +351,7 @@ try{
     console.log('WHOT_GALLERY_DEBUG',n,JSON.stringify(galleryDebug));
     const nums=await page.evaluate(()=>{
      const s=JSON.parse(localStorage.getItem('night-play-club-v1')).whot;
-     return [...document.querySelectorAll('.whot-hand-gallery .whot-card')].map(c=>s.hands[Number(c.dataset.card)].n);
+     return [...document.querySelectorAll('.whot-hand-gallery .whot-card')].map(c=>s.hands[0][Number(c.dataset.card)].n);
     });
     assert.ok(nums.every((v,i)=>!i||v>=nums[i-1]),'sorting visually arranges by number');
     await gallery.locator('.whot-hand-close').click();
