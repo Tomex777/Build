@@ -22,7 +22,7 @@ set +e
 adb shell am instrument -w -r com.night.poetry.test/androidx.test.runner.AndroidJUnitRunner | tee "${OUT}-instrumentation.txt"
 instrument_result=${PIPESTATUS[0]}
 set -e
-for screen in home writer studio elements element-selected slider-adjusted; do
+for screen in home settings writer studio elements element-selected slider-adjusted; do
   adb pull "/sdcard/Android/data/com.night.poetry/files/poetry-${screen}.png" "${OUT}-${screen}.png" || true
 done
 if [ "$instrument_result" -ne 0 ]; then
