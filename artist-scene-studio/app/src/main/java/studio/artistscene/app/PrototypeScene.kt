@@ -25,6 +25,7 @@ object PrototypeScene {
     const val COLOR_CUBE_ASSET_ID = "starter.khronos.color-cube"
     const val HUMANOID_ASSET_ID = "starter.makehuman.humanoid"
     const val ANIME_ASSET_ID = "starter.mise.anime-figure"
+    const val ANIME_FEMALE_ASSET_ID = "starter.mise.anime-figure-female"
     const val ANIME_POSE_PROJECT_ID = "anime-pose-study-v1"
 
     /** Keep the tested Cesium starter intact. This independent scene leads with a posed character. */
@@ -117,11 +118,29 @@ object PrototypeScene {
             creator = "pixiv Inc. — VRoid Studio (beta HairSample_Male)",
             license = "CC0-1.0",
             licenseUrl = "https://creativecommons.org/publicdomain/zero/1.0/legalcode",
-            attribution = "Unmodified pixiv VRoid Studio beta HairSample_Male, designated CC0 by pixiv. Authored pose by Mise.",
+            attribution = "pixiv VRoid Studio beta HairSample_Male, designated CC0; MIME-normalized for Filament while preserving skinned mesh, textures and rig. Authored pose by Mise.",
             version = "46e8c583ce5df3b8ee167141b59ba3ad583a2687",
         ),
         appearance = CharacterAppearanceSettings(hairStyle = HairStyle.NONE),
         rig = if (pose) dynamicAnimePose() else null,
+    )
+
+    /** Distinct official VRoid CC0 female model, including sculpted hair, outfit and morphs. */
+    private fun femaleAnimeActor(id: String) = Actor(
+        id = id,
+        name = "Anime Figure · Female",
+        kind = ActorKind.CHARACTER,
+        asset = AssetReference(
+            assetId = ANIME_FEMALE_ASSET_ID,
+            relativePath = "models/mise_anime_female.glb",
+            format = "glb",
+            source = "https://github.com/madjin/vrm-samples/tree/e16eb187100149a315ad92c3c9968f1d5baa6c7d/vroid/beta",
+            creator = "pixiv Inc. — VRoid Studio (beta HairSample_Female)",
+            license = "CC0-1.0",
+            licenseUrl = "https://creativecommons.org/publicdomain/zero/1.0/legalcode",
+            attribution = "pixiv VRoid Studio beta HairSample_Female, designated CC0; converted losslessly to Filament-compatible glTF.",
+            version = "0e5235f9a7972fbcbceb74960479b208c27a8707",
+        ),
     )
 
     /** Genuine local-joint rotations; the project loads posed and remains fully editable. */
@@ -146,7 +165,10 @@ object PrototypeScene {
         val fixtureAssets = create().actors.filter {
             it.asset != null && it.kind in setOf(ActorKind.CHARACTER, ActorKind.PROP)
         }
-        return (listOf(animeActor("starter-anime", "Anime Figure", pose = false)) + fixtureAssets + listOf(
+        return (listOf(
+            animeActor("starter-anime", "Anime Figure · Male", pose = false),
+            femaleAnimeActor("starter-anime-female"),
+        ) + fixtureAssets + listOf(
             originalActor("Bicycle", ActorKind.VEHICLE),
             originalActor("Car", ActorKind.VEHICLE),
             originalActor("Tree", ActorKind.ENVIRONMENT),
