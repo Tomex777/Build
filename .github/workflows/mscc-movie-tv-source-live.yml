@@ -38,13 +38,17 @@ jobs:
 
   thenkiri-live:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
         with:
           node-version: '24'
-      - name: Qualify live TheNkiri movie and TV catalog/release links
+      - name: Install FFmpeg for non-downloading remote media verification
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq --no-install-recommends ffmpeg
+      - name: Qualify TheNkiri movie and TV catalogs, release resolution, and playable stream URLs
         working-directory: mscc
         run: node thenkiri-live-probe.js
 
