@@ -362,9 +362,7 @@ jobs:
           emulator-boot-timeout: 360
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -no-snapshot-save -no-metrics
-          script: |
-            bash .ci/slumber_089_final_polish/validate-final.sh /tmp/slumber-088/app/build/outputs/apk/debug/app-debug.apk
-            bash .ci/slumber_094_pause_completion/validate-pause.sh /tmp/slumber-088/app/build/outputs/apk/debug/app-debug.apk
+          script: bash .ci/slumber_108_abr/validate-abr.sh /tmp/slumber-088/app/build/outputs/apk/debug/app-debug.apk /tmp/slumber-product-proof full
 
       - uses: actions/upload-artifact@v4
         if: always()
@@ -385,7 +383,7 @@ jobs:
           emulator-boot-timeout: 360
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -no-snapshot-save -no-metrics
-          script: bash .ci/slumber_093_product_hardening/validate-api26.sh /tmp/slumber-088/app/build/outputs/apk/debug/app-debug.apk
+          script: bash .ci/slumber_108_abr/validate-abr.sh /tmp/slumber-088/app/build/outputs/apk/debug/app-debug.apk /tmp/slumber-api26-proof quick
 
       - uses: actions/upload-artifact@v4
         if: always()
@@ -480,7 +478,7 @@ jobs:
           emulator-boot-timeout: 360
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -no-snapshot-save -no-metrics
-          script: bash .ci/slumber_098_release/validate-release.sh /tmp/slumber-release-out/Slumber-0.8.8-universal-release-QA.apk
+          script: bash .ci/slumber_108_abr/validate-abr.sh /tmp/slumber-release-out/Slumber-0.8.8-universal-release-QA.apk /tmp/slumber-release-proof full
 
       - uses: actions/upload-artifact@v4
         if: always()
