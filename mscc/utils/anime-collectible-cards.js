@@ -140,10 +140,20 @@ export async function imageAsset(buffer, { sourceUrl, userSupplied = false } = {
     input = canvas.toBuffer('image/png')
     mime = 'image/png'
   }
+  // Most AniList portraits are opaque JPG/PNG rectangles. The archived
+  // Nocturne edition expects a transparent character cutout: clip opaque
+  // portraits to the orbital halo so they cannot hide the card design.
+  const probe=createCanvas(24,24)
+  probe.getContext('2d').drawImage(image,0,0,24,24)
+  const rgba=probe.getContext('2d').getImageData(0,0,24,24).data
+  let transparent=0
+  for(let i=3;i<rgba.length;i+=4) if(rgba[i]<240)transparent++
+  const opaque=transparent<6
   const validUrl = /^https:\/\/\S+/.test(sourceUrl || '') ? sourceUrl : 'https://anilist.co/'
   return {
     art:'data:' + mime + ';base64,' + input.toString('base64'),
     artWidth:image.width, artHeight:image.height,
+    opaque,
     artist:userSupplied ? 'Artwork supplied by user' : 'Anime character image via AniList',
     license:'Artwork rights unverified',
     outputLicense:'Artwork rights unverified',
@@ -174,7 +184,19 @@ export async function editionDefinition(character, edition) {
 
 export async function makeEditionSvg(character, edition, artwork, { side = 'front' } = {}) {
   const [card, config] = await Promise.all([editionDefinition(character,edition),base()])
-  return renderCard(card,{...artwork, fonts:config.fonts},{side, foil:1, light:[0.28,0.2], prefix:'night-'+edition+'-'})
+  let svg=renderCard(card,{...artwork, fonts:config.fonts},{side, foil:1, light:[0.28,0.2], prefix:'night-'+edition+'-'})
+  if(edition==='nocturne' && side==='front' && artwork.opaque){
+    // Retain the archive's portal/foil/engraving. Without this, ordinary
+    // opaque catalogue portraits stretch over and hide the orbital halo.
+    // An actual cutout PNG stays unmasked and may pop beyond the portal.
+    const image=/<image\s[^>]*filter="url\(#night-nocturne-shadow\)"\s*\/>/
+    if(!image.test(svg)) throw new Error('Archived Nocturne artwork anchor not found.')
+    const id='night-nocturne-portrait-crop'
+    svg=svg.replace(/(<svg\s[^>]*>)/,
+      '$1<defs><clipPath id="'+id+'"><ellipse cx="500" cy="565" rx="376" ry="418"/></clipPath></defs>')
+    svg=svg.replace(image,tag=>'<g clip-path="url(#'+id+')">'+tag+'</g>')
+  }
+  return svg
 }
 
 // SVGs preview correctly in a browser but the old Skia loadImage(SVG) path
