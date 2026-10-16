@@ -26,14 +26,15 @@ export function wordChainInputDestination({shared, accountId, chat, text, userKe
   if (!shared || !String(chat || '').endsWith('@g.us') || !userKey) return false
   const game = shared.get(WORD_CHAIN_NS, chainKey(accountId, chat))
   if (!game) return false
-  // Lobby participation is explicit: 'join' is accepted as an ordinary message.
-  if (game.state === 'WAITING') return now < game.expiresAt &&
-    String(text || '').trim().toLowerCase() === 'join' &&
-    !game.players?.some(player => player.id === userKey) &&
-    (game.players?.length || 0) < (game.mode === 'duel' ? 2 : MAX_PLAYERS)
+  // The first new player starts an open group game. Late arrivals can still join.
+  const joined = game.players?.some(player => player.id === userKey)
+  const isJoin = String(text || '').trim().toLowerCase() === 'join'
+  const roomAvailable = (game.players?.length || 0) < (game.mode === 'duel' ? 2 : MAX_PLAYERS)
+  if (game.state === 'WAITING') return now < game.expiresAt && isJoin && !joined && roomAvailable
   if (game.state !== 'PLAYING') return false
   if (game.timed && now >= Math.min(game.expiresAt, game.turnDeadline)) return false
-  if (!game.players?.some(player => player.id === userKey)) return false
+  if (isJoin && !joined && game.mode === 'open' && roomAvailable) return true
+  if (!joined) return false
   if (game.lastUser === userKey) return false
   if (game.mode === 'duel' && !game.lastUser && game.host !== userKey) return false
   return validWordInput(text)
@@ -205,8 +206,7 @@ function status(game, at = Date.now()) {
     game.mode === 'duel' ? '⚔️ *WORD CHAIN DUEL LOBBY*' : '🔗 *WORD CHAIN LOBBY*',
     `👥 ${count} joined · ${labelMode(game)}`,
     'Type *join* or .wordchain join to register.',
-    game.mode === 'duel' ? 'Starts automatically when the opponent joins.' :
-      count >= 2 ? 'Host: .wordchain start to begin.' : 'Waiting for another player.',
+    'Starts automatically when the first other player joins.',
     `Lobby closes in ${remaining(game.expiresAt - at)}s if not started.`,
   ].join('\n')
   return [
@@ -216,7 +216,7 @@ function status(game, at = Date.now()) {
     `👥 ${count} players · 🔗 ${game.words.length} words`,
     labelMode(game),
     ...(game.timed ? [`⏳ ${remaining(game.turnDeadline-at)}s left this turn · ${remaining(game.expiresAt-at)}s overall`] : []),
-    'Players must alternate. Only registered players may answer.',
+    'Players must alternate. Others may type join to enter mid-game.',
   ].join('\n')
 }
 export async function wordChainCommand(ctx, {verify = checkWord, now = () => Date.now()} = {}) {
@@ -238,8 +238,8 @@ export async function wordChainCommand(ctx, {verify = checkWord, now = () => Dat
       '.wordchain — Open a group lobby (untimed by default)',
       '.wordchain timed — Open a timed group lobby (20s per turn / 5min)',
       '.wordchain duel [timed] — Challenge one player',
-      'Type join or .wordchain join to enter the lobby.',
-      '.wordchain start — Host starts a group lobby with 2+ players',
+      'Type join or .wordchain join to enter. First join starts the game.',
+      'In a group match, more players can type join after it starts.',
       '.wordchain word <word> — Play a word manually',
       '.wordchain status / best / stop',
       '.wordchain names on|off — Verified names allowed (host only)',
@@ -257,31 +257,37 @@ export async function wordChainCommand(ctx, {verify = checkWord, now = () => Dat
     }
     if (action === 'status') return ctx.reply(game ? status(game,now()) : 'No Word Chain running. Type .wordchain to open a lobby.')
     if (action === 'join' || (action === '~input' && inbound.toLowerCase() === 'join')) {
-      if (!game) return ctx.reply('No lobby open. Use .wordchain to create one.')
-      if (game.state !== 'WAITING') return ctx.reply('This round already started. Wait for the next lobby.')
-      if (game.players.some(p => p.id === ctx.userKey)) return ctx.reply('✅ You already joined this Word Chain lobby.')
-      if (game.players.length >= (game.mode === 'duel' ? 2 : MAX_PLAYERS)) return ctx.reply('This Word Chain lobby is full.')
+      if (!game) return ctx.reply('No Word Chain game to join. Open one with .wordchain.')
+      if (game.players.some(p => p.id === ctx.userKey)) return ctx.reply('✅ You already joined Word Chain.')
+      if (game.state === 'PLAYING' && game.mode === 'duel')
+        return ctx.reply('This is a private two-player duel. Join the next group game.')
+      if (game.players.length >= (game.mode === 'duel' ? 2 : MAX_PLAYERS))
+        return ctx.reply('This Word Chain game is full.')
       game.players.push({id:String(ctx.userKey),name:playerName(ctx)})
-      if (game.mode === 'duel') {
+      if (game.state === 'WAITING') {
+        // The first joining player is the entire registration requirement.
+        // Start automatically in either group or duel mode, with no extra host command.
         begin(game,now());store(ctx,game);schedule(ctx,game)
-        return ctx.reply(`⚔️ *WORD CHAIN DUEL STARTED*\n${game.hostName} goes first.\n${labelMode(game)}\nNo repeat words; reply with the next word.`)
+        return ctx.reply([
+          game.mode === 'duel' ? '⚔️ *WORD CHAIN DUEL STARTED!*' : '🔗 *WORD CHAIN STARTED!*',
+          `✅ ${playerName(ctx)} joined · 👥 ${game.players.length} players`,
+          labelMode(game),
+          'Start with any English word. No repeats; alternate players.',
+          'More group members can type join to play along.',
+        ].join('\n'))
       }
+      // In the ongoing open game, a late join does not restart or clear any word/timer.
       store(ctx,game)
-      return ctx.reply(`✅ *${playerName(ctx)} joined Word Chain!*\n👥 ${game.players.length} players ready.\nHost: .wordchain start when everyone's in.`)
+      return ctx.reply([
+        `✅ *${playerName(ctx)} joined Word Chain!*`,
+        `👥 ${game.players.length} players · 🔗 ${game.words.length} words chained`,
+        game.lastWord ? `Next word starts with *${game.expected.toUpperCase()}*.` :
+          'Say any English word to play.',
+        'You can play from this turn onward.',
+      ].join('\n'))
     }
     if (action === 'start' || action === 'go') {
-      if (!game) return ctx.reply('Open a lobby with .wordchain first.')
-      if (game.state !== 'WAITING' || game.mode !== 'open') return ctx.reply('No group lobby is waiting to start.')
-      if (!canStop(ctx,game)) return ctx.reply('Only the host can start this lobby.')
-      if (game.players.length < 2) return ctx.reply('Need at least two players. Ask them to type join.')
-      begin(game,now());store(ctx,game);schedule(ctx,game)
-      return ctx.reply([
-        '🔗 *WORD CHAIN STARTED!*',
-        `👥 ${game.players.length} players · ${labelMode(game)}`,
-        'Any joined player: send an English word to begin.',
-        'Each new word must start with the previous word’s final letter.',
-        'No repeats. Alternate players. End with .wordchain stop.',
-      ].join('\n'))
+      return ctx.reply('No manual start needed! The game begins as soon as another player types join.')
     }
     if (action === 'names') {
       if (!game || game.state !== 'PLAYING') return ctx.reply('Start a Word Chain game first.')
@@ -298,8 +304,8 @@ export async function wordChainCommand(ctx, {verify = checkWord, now = () => Dat
       store(ctx,game);schedule(ctx,game)
       return ctx.reply(status(game,now()))
     }
-    if (!game || game.state !== 'PLAYING') return ctx.reply('Start a game using .wordchain, then ask players to join.')
-    if (!game.players.some(p => p.id === ctx.userKey)) return ctx.reply('Only joined players can play. Join the next lobby.')
+    if (!game || game.state !== 'PLAYING') return ctx.reply('Start with .wordchain; the first person to type join starts the game.')
+    if (!game.players.some(p => p.id === ctx.userKey)) return ctx.reply('Only registered players can answer. Type join to enter this group game.')
     const typed = action === '~input' ? inbound : action === 'word' ? args.slice(1).join(' ') : args.join(' ')
     const word = normalizeWord(typed)
     if (!word) return ctx.reply('Send one English word (2–24 letters).')
