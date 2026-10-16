@@ -202,20 +202,46 @@ function newColors(){let deck=[];for(let c=0;c<4;c++){for(let n=0;n<=9;n++)deck.
 function topCard(s){return s.discard[s.discard.length-1];}
 function take(s,pi,n){for(let j=0;j<n;j++){if(!s.deck.length){if(s.discard.length<=1)break;const card=s.discard.pop();s.deck=shuffle(s.discard.splice(0));s.discard=[card];}if(s.deck.length)s.hands[pi].push(s.deck.pop());}}
 function playable(kind,s,card){const top=topCard(s);return kind==="whot"?whotCanPlay(s,card):(card.c===4||card.c===(s.called===null?top.c:s.called)||card.n===top.n);}
-function nextCardTurn(kind,s,pi,card,selected){s.called=null;s.pendingWhot=null;s.discard.push(card);s.round++;const hand=s.hands[pi];if(!hand.length){s.winner=pi;s.msg=(pi===0?"You win!":"Computer wins.");return;}
-let opp=1-pi,again=false,draw=0;
-if(kind==="whot"){
-if(card.n===20)s.called=selected;
-if(card.n===1||card.n===8)again=true;
-if(card.n===2)draw=2;if(card.n===5)draw=3;if(card.n===14)draw=1;
-}else{
-if(card.c===4)s.called=selected;
-if(card.n==="SKIP"||card.n==="REV")again=true;
-if(card.n==="+2")draw=2;if(card.n==="+4")draw=4;
-}
-if(draw){take(s,opp,draw);again=true;}
-s.msg=(pi===0?"You":"Computer")+" played "+(kind==="whot"?(card.n===20?"WHOT 20 · called "+shapes[selected]:card.n+" "+shapes[card.s]):card.n)+ (draw?" · opponent draws "+draw:"")+(again?" · play again":"");
-s.turn=again?pi:opp;
+function nextCardTurn(kind,s,pi,card,selected){
+ s.called=null;s.pendingWhot=null;s.discard.push(card);s.round++;
+ const hand=s.hands[pi],opp=1-pi;
+ if(kind!=="whot"){
+  if(!hand.length){s.winner=pi;s.msg=pi===0?"You win!":"Computer wins.";return}
+  let again=false,draw=0;
+  if(card.c===4)s.called=selected;
+  if(card.n==="SKIP"||card.n==="REV")again=true;
+  if(card.n==="+2")draw=2;if(card.n==="+4")draw=4;
+  if(draw){take(s,opp,draw);again=true}
+  s.turn=again?pi:opp;s.msg=(pi===0?"You":"Computer")+" played "+card.n;return;
+ }
+ if(card.n===20)s.called=selected;
+ let again=card.n===1||card.n===8,draw=0;
+ if(card.n===14){take(s,opp,1);again=true;draw=1}
+ if(card.n===2||card.n===5){
+  const pending=s.pendingPenalty&&s.pendingPenalty.n===card.n?s.pendingPenalty.amount:0;
+  s.pendingPenalty={n:card.n,target:opp,amount:pending+(card.n===2?2:3)};
+ }else{s.pendingPenalty=null}
+ // Optional spoken 'Last card' / 'Check up' house rule. Don't penalize CPU
+ // unfairly: it announces its last card automatically.
+ if(hand.length===1&&pi===1){s.calledLast=[...(s.calledLast||[false,false])];s.calledLast[1]=true}
+ if(!hand.length){
+  if(whotNeedsFinishCard(card)){
+   // A final action card does not end strict-check-up rounds. The player
+   // must go to market before the round can end, including on a final 5.
+   s.pendingFinish=pi;s.turn=pi;
+   s.msg=(pi===0?"You":"CPU")+" played a final "+card.n+" — no check-up on action cards. "+(pi===0?"Pick from market to continue.":"CPU must pick from market.");
+   return;
+  }
+  if(pi===0&&whotOptions.announce&&!(s.calledLast?.[0])){
+   take(s,0,2);s.turn=opp;s.msg="Missing LAST CARD call: pick two penalty cards.";return;
+  }
+  whotAward(s,pi);return;
+ }
+ if(hand.length===1&&pi===0)s.calledLast=[false,(s.calledLast||[])[1]||false];
+ s.msg=(pi===0?"You":"CPU")+" played "+(card.n===20?"WHOT 20 · called "+shapes[selected]:card.n+" "+shapes[card.s])+
+  (draw?" · opponent picks "+draw:card.n===2||card.n===5?" · "+(card.n===2?"Pick Two":"Pick Three"):"")+
+  (again?" · play again":"")+(hand.length===1&&pi===0?" · LAST CARD!":"");
+ s.turn=again?pi:opp;
 }
 /* GPU-composited, hardcoded card motion. No re-render on animation frames. */
 // Independent implementation of the visual principles used by FLIP card UIs.
