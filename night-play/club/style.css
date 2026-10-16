@@ -1009,3 +1009,42 @@ body.whot-mode .table-surface .hand .whot-card.playable:active{
 @media(prefers-reduced-motion:reduce){
  body.whot-mode .table-surface .playing-card.whot-card{transition:none!important}
 }
+
+/* Traditional card-back lettering: one inverted WHOT and one upright WHOT.
+   Actual HTML elements replace layered pseudo-labels to avoid ghosted text. */
+body.whot-mode .whot-deck-back{
+ display:flex!important;flex-direction:column;align-items:center;
+ justify-content:space-around;padding:13px 0;
+ line-height:1;letter-spacing:-.03em;
+}
+body.whot-mode .whot-deck-back::before,
+body.whot-mode .whot-deck-back::after{content:none!important;display:none!important}
+body.whot-mode .whot-deck-word{
+ position:relative;display:block;text-align:center;
+ color:#f9fcfa;
+ font:900 16px/1 Inter,system-ui,sans-serif;
+}
+body.whot-mode .whot-deck-word.flip-top{transform:rotate(180deg)}
+body.whot-mode .table-surface>.card-row .card-back{
+ position:relative;display:block;
+}
+body.whot-mode .table-surface>.card-row .card-back::before,
+body.whot-mode .table-surface>.card-row .card-back::after{
+ position:absolute;left:50%;height:auto;right:auto;width:auto;
+ display:block;content:'WHOT';color:#f9fcfa;
+ border:0;padding:0;margin:0;
+ font:900 16px/1 Inter,system-ui,sans-serif;
+ letter-spacing:-.045em;text-align:center;
+}
+body.whot-mode .table-surface>.card-row .card-back::before{
+ top:23%;transform:translateX(-50%) rotate(180deg);
+}
+body.whot-mode .table-surface>.card-row .card-back::after{
+ bottom:23%;transform:translateX(-50%);
+}
+@media(max-width:650px){
+ body.whot-mode .whot-deck-back{padding:10px 0}
+ body.whot-mode .whot-deck-word,
+ body.whot-mode .table-surface>.card-row .card-back::before,
+ body.whot-mode .table-surface>.card-row .card-back::after{font-size:13px}
+}
