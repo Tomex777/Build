@@ -121,6 +121,8 @@ jobs:
             python3 EchoSpace/tools/emulator_probe.py tap desc 'Living sounds on'
             python3 EchoSpace/tools/emulator_probe.py assert desc 'Living sounds off'
             python3 EchoSpace/tools/emulator_probe.py tap desc 'Living sounds off'
+            adb shell input swipe 540 2070 540 1000 500
+            sleep 1
             python3 EchoSpace/tools/emulator_probe.py assert desc 'Mute Birdsong'
             python3 EchoSpace/tools/emulator_probe.py assert desc 'Birdsong level'
             python3 EchoSpace/tools/emulator_probe.py assert desc 'Move selected sound five degrees right'
@@ -153,6 +155,9 @@ jobs:
             python3 EchoSpace/tools/emulator_probe.py assert desc 'Fire sound position. Drag to move.'
             python3 EchoSpace/tools/emulator_probe.py tap desc 'Open full sound mixer'
             sleep 3
+            adb shell input swipe 540 2060 540 550 530
+            adb shell input swipe 540 2060 540 550 530
+            sleep 1
             python3 EchoSpace/tools/emulator_probe.py assert desc 'Mute Fire'
             # Save belongs to the focused mixer. The saved soundscape must survive restart.
             python3 EchoSpace/tools/emulator_probe.py tap desc 'Save current soundscape'
@@ -170,6 +175,9 @@ jobs:
             python3 EchoSpace/tools/emulator_probe.py tap desc 'Fire sound position. Drag to move.'
             python3 EchoSpace/tools/emulator_probe.py tap desc 'Open full sound mixer'
             sleep 3
+            adb shell input swipe 540 2060 540 550 530
+            adb shell input swipe 540 2060 540 550 530
+            sleep 1
             python3 EchoSpace/tools/emulator_probe.py assert desc 'Mute Fire'
             python3 EchoSpace/tools/emulator_probe.py tap desc 'Close mixer'
             adb shell screencap -p /sdcard/saved.png
