@@ -26,7 +26,8 @@ public final class AppRulesTest {
   }
 
   private int described(View view, String description) {
-    int count = description.contentEquals(view.getContentDescription()) ? 1 : 0;
+    int count = view.getContentDescription() != null
+        && description.contentEquals(view.getContentDescription()) ? 1 : 0;
     if (view instanceof ViewGroup) {
       ViewGroup group = (ViewGroup) view;
       for (int i = 0; i < group.getChildCount(); i++)
