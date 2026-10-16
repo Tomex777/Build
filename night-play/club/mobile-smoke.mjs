@@ -411,7 +411,7 @@ try{
   await page.reload();
   const preCall=await page.evaluate(()=>JSON.parse(localStorage.getItem('night-play-club-v1')).whot);
   assert.equal(preCall.hands[0][0].n,20,'test begins with WHOT 20 in hand');
-  await page.locator('.hand [data-card="0"]').click();
+  await page.locator('.hand [data-card="0"]').click({position:{x:13,y:20}});
   await page.locator('.whot-call-panel').waitFor();
   assert.equal(await page.locator('.whot-call-choice').count(),5,'all five real shapes offered immediately on the table');
   assert.equal(await page.locator('#wishShape').count(),0,'no offscreen/default Android select picker');
@@ -426,7 +426,7 @@ try{
   await page.locator('[data-action="whot-call-cancel"]').click();
   assert.equal(await page.locator('.whot-call-choice').count(),0,'cancel returns to hand without spending 20');
   assert.equal(await page.locator('.hand .whot-wild').count()>0,true,'cancel preserves the WHOT card');
-  await page.locator('.hand [data-card="0"]').click();
+  await page.locator('.hand [data-card="0"]').click({position:{x:13,y:20}});
   await page.screenshot({path:'night-play/visual-output/WHOT-20-SHAPE-PICKER.jpg',type:'jpeg',quality:86,fullPage:true});
   await page.locator('[data-whot-call="4"]').click();
   await page.waitForFunction(()=>window.__nightWhotMotion().activeFlights===1,{timeout:2500});
