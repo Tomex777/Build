@@ -208,6 +208,59 @@ data class SceneEditorState(
         ))
     }
 
+    /** One history entry for an editable full-body preset. Never rebuilds ModelNodes. */
+    fun applyPosePreset(preset: PosePreset): SceneEditorState {
+        val actor = selectedActor ?: return this
+        val nextPose = PoseLibrary.apply(actor, preset) ?: return this
+        return replaceSelected(actor.copy(
+            rig = nextPose,
+            animation = actor.animation.copy(playing = false),
+        ))
+    }
+
+    /** The artist mirrors the pose within its rig, not the whole actor or its skin. */
+    fun mirrorSelectedPose(): SceneEditorState {
+        val actor = selectedActor ?: return this
+        val nextPose = PoseLibrary.mirror(actor) ?: return this
+        return replaceSelected(actor.copy(
+            rig = nextPose,
+            animation = actor.animation.copy(playing = false),
+        ))
+    }
+
+    /** Positions a second independent actor alongside the active character and gives both
+     * a complementary pose. This is a staging shortcut, not a fake physical hand constraint.
+     * Both characters remain selectable, editable and independently persisted.
+     */
+    fun stageDuo(): SceneEditorState {
+        val first = selectedActor ?: return this
+        if (first.kind != ActorKind.CHARACTER || first.locked) return this
+        val second = project.actors.firstOrNull {
+            it.id != first.id && it.kind == ActorKind.CHARACTER && it.visible && !it.locked &&
+                it.parentId == null
+        } ?: return this
+        val poseA = PoseLibrary.apply(first, PosePreset.GUARD) ?: return this
+        val poseB = PoseLibrary.apply(second, PosePreset.HERO) ?: return this
+        val centerX = (first.transform.position.x + second.transform.position.x) / 2f
+        val z = (first.transform.position.z + second.transform.position.z) / 2f
+        val next = project.copy(actors = project.actors.map { actor ->
+            when (actor.id) {
+                first.id -> first.copy(
+                    transform = first.transform.copy(position = first.transform.position.copy(x = centerX - 0.8f, z = z)),
+                    rig = poseA,
+                    animation = first.animation.copy(playing = false),
+                )
+                second.id -> second.copy(
+                    transform = second.transform.copy(position = second.transform.position.copy(x = centerX + 0.8f, z = z)),
+                    rig = poseB,
+                    animation = second.animation.copy(playing = false),
+                )
+                else -> actor
+            }
+        })
+        return commit(next, first.id)
+    }
+
     fun resetRigPose(): SceneEditorState {
         val actor = selectedActor ?: return this
         if (actor.locked || actor.rig == null) return this
