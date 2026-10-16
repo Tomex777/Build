@@ -109,6 +109,18 @@ data class SceneEditorState(
         }), actor.id)
     }
 
+    /** Choose optional physical anime hair tint; null means original creator texture. */
+    fun setAnimeHairTint(hex: String?): SceneEditorState {
+        val actor = selectedActor ?: return this
+        if (actor.kind != ActorKind.CHARACTER || actor.locked ||
+            actor.asset?.assetId !in setOf("starter.mise.anime-figure", "starter.mise.anime-figure-female")
+        ) return this
+        val color = hex?.uppercase()
+        if (color != null && !Regex("#[0-9A-F]{6}").matches(color)) return this
+        if (actor.appearance.animeHairTintHex == color) return this
+        return replaceSelected(actor.copy(appearance = actor.appearance.copy(animeHairTintHex = color)))
+    }
+
     /** Changes genuine VRM spring hair settings. Other figures retain the same rig/mesh. */
     fun setAnimeHairPhysics(
         enabled: Boolean? = null,
