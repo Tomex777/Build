@@ -209,9 +209,16 @@ async function loadEpisodes(ctx, { capability, commandName, sourceId, series, no
     explicitSource:sourceId,
     payload:{ action:'episodes', itemId:resolvedSeries.id, item:resolvedSeries },
   })
-  if (outcome.status !== 'ok') return outcomeError(ctx, capability, outcome)
-  let result = outcome.result || {}
-  let episodes = (result.episodes || result.items || []).map(normalizeEpisode)
+  // Anime catalog providers can fail to load a title's episodes even when the
+  // earlier search succeeded. Treat that the same as an empty episode list and
+  // attempt alternate providers before reporting the primary source error.
+  if (outcome.status !== 'ok' && capability !== 'anime') {
+    return outcomeError(ctx, capability, outcome)
+  }
+  let result = outcome.status === 'ok' ? (outcome.result || {}) : {}
+  let episodes = outcome.status === 'ok'
+    ? (result.episodes || result.items || []).map(normalizeEpisode)
+    : []
   let activeSourceId = sourceId
   let activeSeries = { ...resolvedSeries, title:String(result.title || resolvedSeries.title) }
   let activeNote = note
@@ -274,6 +281,10 @@ async function loadEpisodes(ctx, { capability, commandName, sourceId, series, no
         }
       }
     }
+  }
+
+  if (!episodes.length && activeSourceId === sourceId && outcome.status !== 'ok') {
+    return outcomeError(ctx, capability, outcome)
   }
 
   return showEpisodes(ctx, {
