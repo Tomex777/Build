@@ -174,7 +174,7 @@ PY
 }
 
 seek_video_progress_semantically() {
-  local xml="$1" fraction="\${2:-0.35}"
+  local xml="$1" fraction="${2:-0.35}"
   python3 - "$xml" "$fraction" <<'PY'
 import re, subprocess, sys, xml.etree.ElementTree as ET
 path, fraction_raw = sys.argv[1], sys.argv[2]
