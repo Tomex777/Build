@@ -1,7 +1,7 @@
 {
-  "releaseId": "night-2026-10-15-05",
+  "releaseId": "night-2026-10-16-06",
   "baseBranch": "mscc-azure",
-  "baseCommit": "dd113cde30dce98c9062ec98081d75334dc713b9",
+  "baseCommit": "696e31c1a30c103963459d9c3494a850223e6db3",
   "pullRequests": [
     250,
     252,
@@ -17,5 +17,11 @@
     246,
     256
   ],
-  "notes": "One combined NIGHT production release: PR250 varied memes/darkmeme with fixed randomized-source regression, PR252 group Squid Game, PR254 60 anime reaction stickers. Includes already-merged PR256 YouTube music reliability from current base. One protected Azure approval for the entire batch."
+  "carriedForwardRelease": "night-2026-10-15-05",
+  "includedPostReleaseCommits": [
+    "c3defaba496b1c00aa9c81a4fb567ab69a860384",
+    "308fa72bbfd6f803a6f42046f4e34da2da6b105b",
+    "696e31c1a30c103963459d9c3494a850223e6db3"
+  ],
+  "notes": "Supersede UNAPPROVED NIGHT Batch #5 run 38808510511 (do not approve old run). One consolidated pre-approval release containing previously validated 60 anime sticker reactions, Squid Game, diverse/dark memes, YouTube Music repairs, plus latest merged anime episode-source fallback and TheNkiri movie/TV episode/range delivery fixes with reproducible FFprobe live proof. Older open PRs 191/199/202 already have their introduced command files incorporated into the current production source; do not remerge stale code. One protected mscc-production approval for this entire new tested batch."
 }
