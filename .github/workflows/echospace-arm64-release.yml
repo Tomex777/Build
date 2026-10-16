@@ -7,6 +7,8 @@ on:
       - .github/workflows/echospace-arm64-release.yml
       - .github/scripts/echospace_expand_mixer.py
       - .github/scripts/echospace_abr.py
+      - .github/scripts/echospace_mixer_precision.py
+      - .github/scripts/echospace_audio_upgrade.py
   workflow_dispatch:
 
 permissions:
@@ -35,6 +37,10 @@ jobs:
         run: python3 .github/scripts/echospace_expand_mixer.py
       - name: Apply ABR single-mixer design and vector sound controls
         run: python3 .github/scripts/echospace_abr.py
+      - name: Enlarge sound field and repair live gain control
+        run: python3 .github/scripts/echospace_mixer_precision.py
+      - name: Enhance binaural audio and add six sound types
+        run: python3 .github/scripts/echospace_audio_upgrade.py
       - name: Bundle offline environment artwork
         shell: bash
         run: |
