@@ -332,7 +332,11 @@ try{
     }
     for(let i=0;i<n;i++){
       const card=page.locator('.hand .whot-card').nth(i);
-      await card.scrollIntoViewIfNeeded();
+      await card.evaluate(el=>{
+        const row=el.closest('.card-row'),a=el.getBoundingClientRect(),b=row.getBoundingClientRect();
+        row.scrollLeft+=(a.left+a.width/2)-(b.left+b.width/2);
+      });
+      await page.waitForTimeout(25);
       const exposed=await card.evaluate(el=>{const r=el.getBoundingClientRect(),p=document.elementFromPoint(r.left+r.width/2,r.top+r.height/2);return p===el||el.contains(p)});
       if(!exposed){
         const diag=await card.evaluate(el=>{
