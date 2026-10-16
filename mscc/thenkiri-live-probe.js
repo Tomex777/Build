@@ -76,6 +76,15 @@ if (!movieRelease && !tvRelease) {
 // or store the full media in CI; FFprobe only inspects the remote stream.
 const moviePlayable = await provePlayableDownload(movies, { type:'movie' })
 const tvPlayable = await provePlayableDownload(tv, { type:'tv', season:1, episode:1 })
+if (!tvRelease?.item) throw new Error('No live TheNkiri TV release was selected for native episode-list verification')
+const nativeSeasons = await listTheNkiriSeasons({ item:tvRelease.item })
+const nativeEpisodes = await listTheNkiriEpisodes({ item:tvRelease.item, seasonNumber:1 })
+if (!nativeSeasons.some(row => Number(row.number) === 1)) {
+  throw new Error('TheNkiri TV source did not expose Season 1 from its release links')
+}
+if (!nativeEpisodes.some(row => Number(row.number) === 1)) {
+  throw new Error('TheNkiri TV source did not expose Episode 1 from its release links')
+}
 
 const summary = {
   movieCount:movies.length,
@@ -84,7 +93,12 @@ const summary = {
   tvRelease:tvRelease?.summary || null,
   moviePlayable,
   tvPlayable,
-  complete:Boolean(moviePlayable.video && tvPlayable.video),
+  nativeTvMetadata:{
+    seasons:nativeSeasons.map(row => ({ number:row.number, episodeCount:row.episodeCount })),
+    season1EpisodeNumbers:nativeEpisodes.map(row => Number(row.number)),
+    verified:true,
+  },
+  complete:Boolean(moviePlayable.video && tvPlayable.video && nativeSeasons.length && nativeEpisodes.length),
 }
 console.log(JSON.stringify(summary,null,2))
 if (!summary.complete) process.exitCode = 1
