@@ -55,7 +55,7 @@ async function finish(page,winner){
    assert.equal(await page.locator('.table-surface > .card-row .cards-counter').count(),0,'no duplicate CPU count');
    const look=await page.locator('.table-surface').evaluate(el=>({bg:getComputedStyle(el).backgroundImage,shadow:getComputedStyle(el).boxShadow,radius:getComputedStyle(el).borderRadius}));
    assert.ok(look.bg.includes('data:image/svg+xml'),'tabletop uses original NIGHT vector woodgrain');
-   assert.equal(look.shadow,'none','market is not inside a thick unrelated raised frame');
+   assert.ok(look.shadow.includes('inset'),'NIGHT-framed wooden table has subtle depth and separation');
    assert.equal(await page.locator('.whot-opponent-hand .card-back').count(),5,'show every CPU card rather than a single placeholder');
    const geometry=await page.evaluate(()=>{
      const rect=s=>{const e=document.querySelector(s),r=e.getBoundingClientRect();return {x:r.x,y:r.y,w:r.width,h:r.height}};
