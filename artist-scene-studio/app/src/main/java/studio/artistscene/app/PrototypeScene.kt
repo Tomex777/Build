@@ -106,7 +106,9 @@ object PrototypeScene {
         id = id,
         name = name,
         kind = ActorKind.CHARACTER,
-        transform = Transform(position = position),
+        // VRoid's natural forward axis faces away from Mise's +Z studio camera.
+        // Turn the character toward the artist; users can freely edit rotation.
+        transform = Transform(position = position, rotationEulerDegrees = Vec3(y = 180f)),
         asset = AssetReference(
             assetId = ANIME_ASSET_ID,
             relativePath = "models/mise_anime.glb",
