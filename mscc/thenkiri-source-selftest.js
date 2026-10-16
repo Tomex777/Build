@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict'
+import { readFile } from 'node:fs/promises'
 import { _test } from './providers/thenkiri.js'
 
 const movie = _test.normalizePost({
@@ -48,4 +49,15 @@ assert.equal(_test.hostKind('https://www.downloadwella.com/abc/file.mkv.html'), 
 assert.equal(_test.hostKind('https://wetafiles.com/abc/file.mkv.html'), 'wetafiles')
 assert.equal(_test.hostKind('https://example.com/file.mkv'), '')
 
-console.log('PASS TheNkiri catalog/release-link fixtures')
+// Offline regression guards for the adapter contracts; live host access is tested separately.
+const movieAdapter = await readFile(new URL('./sources/movies/thenkiri.js', import.meta.url), 'utf8')
+const tvAdapter = await readFile(new URL('./sources/tv/thenkiri.js', import.meta.url), 'utf8')
+assert.match(movieAdapter, /async run\(\{[^}]*context[^}]*\}\)/s)
+assert.match(movieAdapter, /materializeTheNkiriRelease/)
+assert.match(movieAdapter, /context\.send\(/)
+assert.match(tvAdapter, /materializeTheNkiriRelease/)
+assert.match(tvAdapter, /async function deliverEpisode/)
+assert.match(tvAdapter, /action === 'downloadRange'/)
+assert.doesNotMatch(tvAdapter, /Automated third-party file-host delivery is not enabled/)
+
+console.log('PASS TheNkiri catalog, release parsing and movie/TV adapter regression fixtures')
