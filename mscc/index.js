@@ -83,6 +83,7 @@ import { ticTacToeRecordAcceptsInput } from './utils/tictactoe-game.js'
 import { checkersRecordAcceptsInput } from './utils/checkers-game.js'
 import { ludoRecordAcceptsInput } from './utils/ludo-game.js'
 import { partyInputDestination } from './utils/party-games.js'
+import { wordChainInputDestination } from './utils/word-chain.js'
 import { createJosiahAssistant } from './josiah-assistant.js'
 import { createNamiAssistant } from './nami-assistant.js'
 import { createMiMiAssistant } from './mimi-assistant.js'
@@ -2554,7 +2555,15 @@ async function processInboundMessage(account, msg) {
         !consumeTicTacToeInput &&
         chessRecordAcceptsInput(chessRecord, userForStoredGame({ userKey:authority.senderKey, identityKeys:authority.senderIdentityKeys }, chessRecord), text)
       )
-      const consumePartyInput = !isExplicitCommand &&
+      const consumeWordChainInput = Boolean(
+        !isExplicitCommand && !consumeLudoInput && !consumeCheckersInput &&
+        !consumeTicTacToeInput && !consumeChessInput &&
+        wordChainInputDestination({
+          shared: { get: (namespace, key) => sharedStorage?.sharedGet(namespace, key) },
+          accountId: account.id, chat, text, userKey:authority.senderKey,
+        })
+      )
+      const consumePartyInput = !isExplicitCommand && !consumeWordChainInput &&
         !consumeLudoInput && !consumeCheckersInput &&
         !consumeTicTacToeInput && !consumeChessInput &&
         partyInputDestination({
@@ -2568,7 +2577,7 @@ async function processInboundMessage(account, msg) {
         !consumeCheckersInput &&
         !consumeTicTacToeInput &&
         !consumeChessInput &&
-        !consumePartyInput &&
+        !consumePartyInput && !consumeWordChainInput &&
         pendingReply?.command &&
         (
           (pendingReply?.kind === 'number-selection' && looksLikeNumberSelection(text)) ||
@@ -2589,6 +2598,8 @@ async function processInboundMessage(account, msg) {
             ? `${publicPrefix}ttt ~input`
             : consumeChessInput
               ? `${publicPrefix}chess ~input`
+              : consumeWordChainInput
+              ? `${publicPrefix}wordchain ~input`
               : consumePartyInput
                 ? `${publicPrefix}${consumePartyInput} ~input`
                 : consumePendingReply
@@ -2663,7 +2674,7 @@ async function processInboundMessage(account, msg) {
           settings,
           publicPrefix,
           rawCommandText:text,
-          commandReplyInput: (consumePendingReply || consumeLudoInput || consumeCheckersInput || consumeTicTacToeInput || consumeChessInput || consumePartyInput) ? String(text || '').trim() : '',
+          commandReplyInput: (consumePendingReply || consumeLudoInput || consumeCheckersInput || consumeTicTacToeInput || consumeChessInput || consumePartyInput || consumeWordChainInput) ? String(text || '').trim() : '',
           getCommandReplySession: () => readCommandReplySession(account, msg, authority),
           setCommandReplySession: session => writeCommandReplySession(account, msg, authority, session),
           clearCommandReplySession: () => writeCommandReplySession(account, msg, authority, null),

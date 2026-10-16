@@ -1,27 +1,12 @@
 {
-  "releaseId": "night-2026-10-16-06",
+  "releaseId": "night-2026-10-16-07",
   "baseBranch": "mscc-azure",
-  "baseCommit": "696e31c1a30c103963459d9c3494a850223e6db3",
+  "baseCommit": "533098d6e582202a961060d51247eb0aa49f9ac6",
   "pullRequests": [
-    250,
-    252,
-    254
+    285,
+    287,
+    288
   ],
-  "alreadyMerged": [
-    215,
-    235,
-    239,
-    241,
-    243,
-    245,
-    246,
-    256
-  ],
-  "carriedForwardRelease": "night-2026-10-15-05",
-  "includedPostReleaseCommits": [
-    "c3defaba496b1c00aa9c81a4fb567ab69a860384",
-    "308fa72bbfd6f803a6f42046f4e34da2da6b105b",
-    "696e31c1a30c103963459d9c3494a850223e6db3"
-  ],
-  "notes": "Supersede UNAPPROVED NIGHT Batch #5 run 38808510511 (do not approve old run). One consolidated pre-approval release containing previously validated 60 anime sticker reactions, Squid Game, diverse/dark memes, YouTube Music repairs, plus latest merged anime episode-source fallback and TheNkiri movie/TV episode/range delivery fixes with reproducible FFprobe live proof. Older open PRs 191/199/202 already have their introduced command files incorporated into the current production source; do not remerge stale code. One protected mscc-production approval for this entire new tested batch."
+  "carriedForwardRelease": "night-2026-10-16-06",
+  "notes": "Consolidated pending approved NIGHT features: Word Chain auto-start + SCP dossiers (#285), offline voice SFX effects preview (#287), and archived three Artist Editions anime card test with AniList + user artwork (#288). Older stale PRs #191/#199/#202 already represented in base, not remerged. Validation required on exact integration SHA. Only one protected Azure approval for this batch after merging this sole release PR; no independent feature PR merges. Follow-up live WhatsApp card delivery and subjective voice audio review remain necessary after production approval."
 }
