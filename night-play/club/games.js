@@ -343,7 +343,7 @@ function whotSettle(){
   {offset:1,transform:'scale(1) rotate(0)'}
  ],{duration:whotMotion.settle,easing:'cubic-bezier(.2,.82,.28,1)'});
 }
-async function cardPlay(kind,index,requestedShape=null){
+async function cardPlay(kind,index,requestedShape=null,visualOrigin=null){
  const s=state[kind];if(cardMotionBusy||s.turn!==0||s.winner!==null)return;
  const card=s.hands[0][index];if(kind==='whot'&&s.pendingFinish===0)return;if(!card||!playable(kind,s,card))return;
  if(kind==='whot'){
@@ -363,7 +363,7 @@ async function cardPlay(kind,index,requestedShape=null){
  const epoch=cardMotionEpoch;cardMotionBusy=true;
  try{
   if(kind==='whot'){cardMotionMetrics.plays++;
-   await whotFly(board.querySelector('.hand [data-card="'+index+'"]'),
+   await whotFly(visualOrigin||board.querySelector('.hand [data-card="'+index+'"]'),
     board.querySelector('.card-pile .whot-card'),{action:'play'});
   }
   if(epoch!==cardMotionEpoch||active!==kind||state[kind]!==s)return;
@@ -388,7 +388,8 @@ async function cardDraw(kind){
      penalty?"You picked "+count+" penalty cards.":"You picked a card. Computer's turn.";
    render();
    const newCard=board.querySelectorAll('.hand .whot-card')[before];
-   await whotFly(board.querySelector('.whot-deck-back'),newCard,{action:'draw'});
+   const landing=newCard&&getComputedStyle(newCard).display!=='none'?newCard:board.querySelector('.whot-view-hand:not([hidden])');
+   await whotFly(board.querySelector('.whot-deck-back'),landing,{action:'draw'});
    if(epoch!==cardMotionEpoch||active!==kind||state[kind]!==s)return;
    queueCPU(kind);
    return;
@@ -707,8 +708,9 @@ const tableMarkup='<div class="table-surface'+(kind==='whot'&&s.winner!==null?' 
  :'<div class="playing-card card-back" aria-label="Computer cards hidden"></div><span class="cards-counter">× '+s.hands[1].length+'</span>')+'</div>'+
  '<div class="card-pile">'+(kind==='whot'?'<button type="button" class="whot-deck" data-action="card-draw" '+(s.turn!==0||s.winner!==null||s.pendingWhot!=null?'disabled':'')+' aria-label="Pick one card from the market"><span class="whot-deck-back"><span class="whot-deck-word flip-top">WHOT</span><span class="whot-deck-word flip-bottom">WHOT</span></span><span class="cards-counter">MARKET · '+s.deck.length+'</span></button>':'<span class="cards-counter">DECK '+s.deck.length+'</span>')+
  cardMarkup(kind,t,-1,false)+currentCall+'</div>'+callPanel+
- '<div class="hand">'+(kind==='whot'?'':'<div class="card-label">YOUR HAND · '+s.hands[0].length+' CARDS</div>')+'<div class="card-row">'+s.hands[0].map((card,i)=>cardMarkup(kind,card,i,s.turn===0&&s.winner===null&&!(kind==='whot'&&s.pendingWhot!=null)&&playable(kind,s,card))).join('')+'</div></div>'+whotVictory+'</div>';
+ '<div class="hand">'+(kind==='whot'?'':'<div class="card-label">YOUR HAND · '+s.hands[0].length+' CARDS</div>')+'<div class="card-row">'+s.hands[0].map((card,i)=>cardMarkup(kind,card,i,s.turn===0&&s.winner===null&&!(kind==='whot'&&s.pendingWhot!=null)&&playable(kind,s,card))).join('')+'</div>'+(kind==='whot'?'<button type="button" class="whot-view-hand" data-action="whot-hand-open" hidden>View all '+s.hands[0].length+' cards</button>':'')+'</div>'+whotVictory+'</div>';
 if(kind!=='whot'||!whotPatchTable(tableMarkup))board.innerHTML=tableMarkup;
+if(kind==='whot')whotCloseExpanded();
 document.body.classList.toggle('whot-has-winner',kind==='whot'&&s.winner!==null);
 if(showCall)board.querySelector('.hand [data-card="'+s.pendingWhot+'"]')?.classList.add('whot-pending');
 if(kind==='whot')layoutWhotHand(previousHand);
@@ -850,11 +852,13 @@ $("whotResetCareer").addEventListener("click",()=>{
  whotStore();whotConfigUI();
 });
 document.addEventListener("change",e=>{
+const handSort=e.target.closest("[data-whot-hand-sort]");if(handSort&&active==='whot'){whotSortExpanded(handSort.value);return;}
 const opponent=e.target.closest("[data-ludo-opponent]");if(opponent&&active==="ludo"){window.NightLudo.changeOpponent(state.ludo,opponent.value);render();return;}
 const difficulty=e.target.closest("[data-ludo-difficulty]");if(difficulty&&active==="ludo"){window.NightLudo.changeDifficulty(state.ludo,difficulty.value);render();return;}
 const opt=e.target.closest("[data-ludo-option]");if(opt&&active==="ludo"){window.NightLudo.changeOption(state.ludo,opt.dataset.ludoOption,opt.checked);render();return;}
 const speed=e.target.closest("[data-ludo-speed]");if(speed&&active==="ludo"){window.NightLudo.changeOption(state.ludo,"speed",speed.value);render();return;}
 const dm=e.target.closest("[data-dice-mode]");if(dm&&active==="ludo"){window.NightLudo.changeDice(state.ludo,Number(dm.value));render();return;}const sel=e.target.closest("[data-players]");if(!sel)return;const id=sel.dataset.players,n=Math.max(2,Math.min(4,Number(sel.value)||2));if(id==="ludo"){window.NightLudo.changePlayers(state.ludo,n);}if(id==="estate"){const order=["red","blue","green","yellow"];reset("estate");state.estate.players=order.slice(0,n).map(k=>({name:k[0].toUpperCase()+k.slice(1),color:colors[k],cash:1500,pos:0,bankrupt:false}));}if(id==="snakes"){const order=["red","blue","green","yellow"];reset("snakes");state.snakes.players=order.slice(0,n).map(k=>({name:k[0].toUpperCase()+k.slice(1),color:colors[k],pos:1}));}render();});
+document.addEventListener("keydown",e=>{if(e.key==='Escape'&&board.querySelector('.whot-hand-overlay')){e.preventDefault();whotCloseExpanded();}});
 document.addEventListener("click",e=>{
 const dice=e.target.closest("[data-ludo-die]");if(dice&&active==="ludo"){if(state.ludo.opponent==='computer'&&state.ludo.turn===1)return;window.NightLudo.selectDie(state.ludo,Number(dice.dataset.ludoDie),render);return;}const piece=e.target.closest("[data-piece]");if(piece&&active==="ludo"){const [pi,ti]=piece.dataset.piece.split("-").map(Number);ludoMove(pi,ti);return;}
 const whotCall=e.target.closest("[data-whot-call]");if(whotCall&&active==='whot'){
@@ -864,16 +868,16 @@ const whotCall=e.target.closest("[data-whot-call]");if(whotCall&&active==='whot'
  }
  return;
 }
-const card=e.target.closest("[data-card]");if(card){if(Number(card.dataset.card)<0)return;cardPlay(active,Number(card.dataset.card));return;}
+const card=e.target.closest("[data-card]");if(card){if(Number(card.dataset.card)<0)return;cardPlay(active,Number(card.dataset.card),null,card.closest('.whot-hand-overlay')?card:null);return;}
 const sq=e.target.closest("[data-estate-info]");if(sq&&active==="estate"){state.estate.inspect=Number(sq.dataset.estateInfo);render();return;}
 const action=e.target.closest("[data-action]");if(!action)return;
-switch(action.dataset.action){case"ludo-roll":ludoRoll();break;case"ludo-new":if(confirm("Restart the Ludo match?")){closeLudoSettings();reset("ludo");}break;case"ludo-sound":state.ludo.sound=!state.ludo.sound;render();break;case"estate-roll":estateRoll();break;case"estate-buy":estateDecision(true);break;case"estate-pass":estateDecision(false);break;case"estate-end":estateEnd();break;case"card-draw":cardDraw(active);break;case"whot-rematch":if(active==="whot"&&state.whot.winner!==null){if(whotOptions.mode==="tournament"&&Math.max(...(whotCareer.tournamentWins||[0,0]))>=2){whotCareer.tournamentWins=[0,0];whotStore()}reset("whot")}break;
+switch(action.dataset.action){case"whot-hand-open":whotOpenExpanded();break;case"whot-hand-close":whotCloseExpanded();break;case"ludo-roll":ludoRoll();break;case"ludo-new":if(confirm("Restart the Ludo match?")){closeLudoSettings();reset("ludo");}break;case"ludo-sound":state.ludo.sound=!state.ludo.sound;render();break;case"estate-roll":estateRoll();break;case"estate-buy":estateDecision(true);break;case"estate-pass":estateDecision(false);break;case"estate-end":estateEnd();break;case"card-draw":cardDraw(active);break;case"whot-rematch":if(active==="whot"&&state.whot.winner!==null){if(whotOptions.mode==="tournament"&&Math.max(...(whotCareer.tournamentWins||[0,0]))>=2){whotCareer.tournamentWins=[0,0];whotStore()}reset("whot")}break;
 case"whot-last-call":if(active==="whot"&&state.whot.turn===0&&state.whot.hands[0].length===1){state.whot.calledLast=[true,Boolean(state.whot.calledLast?.[1])];state.whot.msg="Last card declared!";render()}break;case"whot-call-cancel":if(active==='whot'&&!cardMotionBusy){state.whot.pendingWhot=null;render();}break;case"snakes-roll":snakesRoll();break;case"draw-ready":drawReady();break;case"draw-next":drawNext();break;case"draw-guess":drawReadyToGuess();break;case"draw-clear":if(drawCtx){drawCtx.clearRect(0,0,800,600);}break;case"draw-erase":setBrush("erase");break;case"checkers-reset":reset("checkers");break;}
 });
 // Read-only motion diagnostics for real Chromium touch and frame tests.
 window.__nightWhotMotion=()=>({...cardMotionMetrics,timings:{...whotMotion},busy:cardMotionBusy,waitingForCall:state.whot?.pendingWhot!=null,
  visibleFlights:document.querySelectorAll('.whot-flight').length,
- cardNodes:board.querySelectorAll('.hand .whot-card').length});
+ cardNodes:board.querySelectorAll('.hand .whot-card').length,handLayout:board.querySelector('.hand')?.dataset.whotLayout||null,expandedAvailable:!!board.querySelector('.whot-view-hand:not([hidden])')});
 function go(){pick(new URL(location.href).searchParams.get("game")||"checkers");}
 window.addEventListener("popstate",go);
 go();
