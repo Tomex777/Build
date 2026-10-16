@@ -285,7 +285,14 @@ try{
   if(canPlay)await page.locator('.hand .whot-card.playable:not(.whot-wild)').first().click();
   else await page.locator('.whot-deck').click();
   await page.waitForFunction(()=>window.__nightWhotMotion().visibleFlights===1,null,{timeout:2000});
-  assert.equal(await page.evaluate(()=>document.querySelector('.card-pile .whot-card')===window.__whotPreviousPile),true,'Existing board stays mounted during card flight');
+  if(canPlay){
+    assert.equal(await page.evaluate(()=>document.querySelector('.card-pile .whot-card')===window.__whotPreviousPile),true,'Playing a card keeps the discard mounted until its flight lands');
+  }else{
+    // A market draw must lay out the new destination before beginning the
+    // flight. The single new card is intentionally hidden until arrival.
+    assert.equal(await page.locator('.hand .whot-card').count(),6,'Picking adds exactly one pending hand card');
+    assert.equal(await page.locator('.hand .whot-card').last().evaluate(el=>el.style.visibility),'hidden','New card face stays concealed under flying card back');
+  }
   assert.equal(await page.evaluate(()=>window.__nightWhotMotion().activeFlights),1,'One card animates without full repaint');
   console.log("NIGHT_WHOT_MOTION_JPEG_BASE64="+(await page.screenshot({type:"jpeg",quality:56,fullPage:true})).toString("base64"));
   await page.waitForFunction(()=>window.__nightWhotMotion().visibleFlights===0,null,{timeout:2500});

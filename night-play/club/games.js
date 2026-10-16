@@ -9,9 +9,9 @@ let cardMotionBusy=false,cardMotionEpoch=0,pendingWhotDeal=false;
 // Speed is intentionally unified: interaction should feel immediate,
 // while cards still lift, glide, land and settle.
 const whotMotion={
- player:300,cpu:330,draw:275,cpuDelay:150,
- deal:360,dealDelay:55,dealStagger:52,opponentDeal:385,
- settle:180,recenter:190,drawFlip:195
+ player:420,cpu:440,draw:415,cpuDelay:185,
+ deal:420,dealDelay:58,dealStagger:65,opponentDeal:420,
+ settle:165,recenter:260,drawFlip:340
 };
 const cardMotionMetrics={deals:0,plays:0,cpuPlays:0,draws:0,activeFlights:0,lastFlightDuration:0,lastFlightAction:null};
 const motionEnabled=()=>!matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -173,37 +173,74 @@ s.msg=(pi===0?"You":"Computer")+" played "+(kind==="whot"?(card.n===20?"WHOT 20 
 s.turn=again?pi:opp;
 }
 /* GPU-composited, hardcoded card motion. No re-render on animation frames. */
+// Independent implementation of the visual principles used by FLIP card UIs.
+// The referenced React Whot application has no published code license, so no
+// AkpetiTrust code or art is imported; NIGHT keeps its existing vanilla engine.
 async function whotFly(origin,destination,{face=null,action="play"}={}){
  if(!origin||!destination||matchMedia('(prefers-reduced-motion: reduce)').matches)return;
  const a=origin.getBoundingClientRect(),b=destination.getBoundingClientRect();
  if(!a.width||!b.width)return;
- let ghost=origin.cloneNode(true);
- if(face){const root=document.createElement('div');root.innerHTML=whotFace(face,-1,false);ghost=root.firstElementChild;}
- ghost.classList.add('whot-flight');ghost.removeAttribute('data-card');
- const oldVisibility=origin.style.visibility;
+ const flip=action==='draw'||action==='cpu';
+ let ghost;
+ let flipCore=null;
+ if(flip){
+  ghost=document.createElement('div');ghost.className='whot-flight whot-flight-flip';
+  flipCore=document.createElement('div');flipCore.className='whot-flip-core';
+  const back=document.createElement('div');back.className='whot-flip-side whot-flip-back';
+  back.appendChild(origin.cloneNode(true));
+  const front=document.createElement('div');front.className='whot-flip-side whot-flip-front';
+  const safe=document.createElement('div');
+  if(action==='cpu')safe.innerHTML=whotFace(face,-1,false);
+  else safe.appendChild(destination.cloneNode(true));
+  const card=safe.firstElementChild;if(card){
+   card.removeAttribute('data-card');card.disabled=true;
+   front.appendChild(card);
+  }
+  flipCore.append(back,front);ghost.appendChild(flipCore);
+ }else{
+  ghost=origin.cloneNode(true);ghost.classList.add('whot-flight');ghost.removeAttribute('data-card');
+ }
  Object.assign(ghost.style,{position:'fixed',left:a.left+'px',top:a.top+'px',
   width:a.width+'px',height:a.height+'px',margin:'0',zIndex:'9999',
   visibility:'visible',pointerEvents:'none'});
  document.body.appendChild(ghost);
+ const oldVisibility=origin.style.visibility;
  const previousDestVisibility=destination.style.visibility;
  if(action==='play')origin.style.visibility='hidden';
  if(action==='draw')destination.style.visibility='hidden';
- const dx=b.left+b.width/2-a.left-a.width/2,dy=b.top+b.height/2-a.top-a.height/2,scale=b.width/a.width;
- cardMotionMetrics.activeFlights++;
- const flightAngle=action==='cpu'?7:-5;
+ const dx=b.left+b.width/2-a.left-a.width/2;
+ const dy=b.top+b.height/2-a.top-a.height/2;
+ const scale=b.width/a.width;
  const duration=action==='cpu'?whotMotion.cpu:action==='draw'?whotMotion.draw:whotMotion.player;
- cardMotionMetrics.lastFlightDuration=duration;
- cardMotionMetrics.lastFlightAction=action;
+ cardMotionMetrics.lastFlightDuration=duration;cardMotionMetrics.lastFlightAction=action;
+ cardMotionMetrics.activeFlights++;
  try{
-  // Lift, arc and land: intentional readable motion, never layout animation.
-  const effect=ghost.animate([
-   {offset:0,transform:'translate3d(0,0,0) scale(1) rotate(-2deg) rotateY('+(action==='cpu'?35:0)+'deg)',opacity:1},
-   {offset:.26,transform:'translate3d('+(dx*.22)+'px,'+(dy*.22-17)+'px,0) scale(1.085) rotate('+flightAngle+'deg) rotateY(0)',opacity:1},
-   {offset:.77,transform:'translate3d('+(dx*.82)+'px,'+(dy*.82-12)+'px,0) scale('+(1.02+(scale-1)*.80)+') rotate(-2deg)',opacity:1},
-   {offset:1,transform:'translate3d('+dx+'px,'+dy+'px,0) scale('+scale+') rotate(0)',opacity:1}
-  ],{duration,easing:'cubic-bezier(.25,.73,.21,1)',fill:'forwards'});
-  await effect.finished.catch(()=>{});
- }finally{origin.style.visibility=oldVisibility;if(action==='draw')destination.style.visibility=previousDestVisibility;ghost.remove();cardMotionMetrics.activeFlights--;}
+  // The card reacts immediately: a short lift, measured glide and cushioned
+  // landing. No timeout is inserted between tapping and visual feedback.
+  const flight=ghost.animate([
+   {offset:0,transform:'translate3d(0,0,0) scale(1) rotate(-2deg)',opacity:1},
+   {offset:.14,transform:'translate3d('+(dx*.085)+'px,'+(dy*.085-11)+'px,0) scale(1.045) rotate(-3deg)',opacity:1},
+   {offset:.48,transform:'translate3d('+(dx*.46)+'px,'+(dy*.46-23)+'px,0) scale('+(1.08+(scale-1)*.35)+') rotate('+(action==='cpu'?4:-4)+'deg)',opacity:1},
+   {offset:.85,transform:'translate3d('+(dx*.88)+'px,'+(dy*.88-5)+'px,0) scale('+(1.025+(scale-1)*.86)+') rotate(2deg)',opacity:1},
+   {offset:1,transform:'translate3d('+dx+'px,'+dy+'px,0) scale('+scale+') rotate(0deg)',opacity:1}
+  ],{duration,easing:'cubic-bezier(.23,.72,.24,1)',fill:'forwards'});
+  if(flipCore){
+   // The front turns into view *during* the flight, not via a second
+   // post-flight animation. 3D depth and backface hiding make the reveal
+   // feel like a physical card rather than a flat sprite swap.
+   flipCore.animate([
+    {transform:'rotateY(0deg)'},
+    {offset:.3,transform:'rotateY(27deg)'},
+    {offset:1,transform:'rotateY(180deg)'}
+   ],{delay:action==='draw'?52:25,duration:whotMotion.drawFlip,
+     easing:'cubic-bezier(.31,.63,.19,1)',fill:'forwards'});
+  }
+  await flight.finished.catch(()=>{});
+ }finally{
+  origin.style.visibility=oldVisibility;
+  if(action==='draw')destination.style.visibility=previousDestVisibility;
+  ghost.remove();cardMotionMetrics.activeFlights--;
+ }
 }
 function whotDeal(){
  const deck=board.querySelector('.whot-deck-back');
