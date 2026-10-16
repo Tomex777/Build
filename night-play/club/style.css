@@ -1330,3 +1330,5 @@ body.whot-mode .night-action-row{display:none!important}
  border:1px solid #aa9879;border-radius:8px;
 }
 .whot-settings-newround:focus-visible{outline:3px solid #a6dbac;outline-offset:3px}
+
+body.whot-mode .whot-opponent-hand,body.whot-mode .table-surface .hand .card-row{scroll-snap-type:none!important}
