@@ -38,6 +38,45 @@ data class SceneEditorState(
     fun applyLightingLook(look: LightingLook): SceneEditorState =
         commit(lightingLookProject(project, look), selectedActorId)
 
+    fun setGravityWorld(enabled: Boolean? = null, metersPerSecondSquared: Float? = null): SceneEditorState {
+        if (metersPerSecondSquared?.isFinite() == false) return this
+        val current = project.world
+        val next = current.copy(
+            gravityEnabled = enabled ?: current.gravityEnabled,
+            gravityMetersPerSecondSquared =
+                metersPerSecondSquared?.coerceIn(0f, 25f) ?: current.gravityMetersPerSecondSquared,
+        )
+        return if (next == current) this else commit(project.copy(world = next), selectedActorId)
+    }
+
+    fun setSelectedRigidPhysics(dynamic: Boolean? = null, bounciness: Float? = null): SceneEditorState {
+        val actor = selectedActor ?: return this
+        if (actor.locked || actor.kind in setOf(ActorKind.LIGHT, ActorKind.CAMERA)) return this
+        if (bounciness?.isFinite() == false) return this
+        val next = actor.physics.copy(
+            dynamic = dynamic ?: actor.physics.dynamic,
+            bounciness = bounciness?.coerceIn(0f, .8f) ?: actor.physics.bounciness,
+        )
+        return if (next == actor.physics) this else replaceSelected(actor.copy(physics = next))
+    }
+
+    /** Live physics uses the same scene graph as manual transforms but commits one undo
+     * snapshot only when the artist presses Pause, not 60 snapshots per second.
+     */
+    fun previewGravityPositions(heights: Map<String, Float>): SceneEditorState {
+        if (heights.isEmpty()) return this
+        val next = project.actors.map { actor ->
+            val height = heights[actor.id]
+            if (height == null || !height.isFinite() || actor.locked || !actor.physics.dynamic) actor
+            else actor.copy(transform = actor.transform.copy(
+                position = actor.transform.position.copy(y = height.coerceAtLeast(
+                    if (project.world.groundEnabled) 0f else -100f,
+                )),
+            ))
+        }
+        return if (next == project.actors) this else copy(project = project.copy(actors = next))
+    }
+
     fun useTool(tool: TransformTool): SceneEditorState = copy(activeTool = tool)
 
     fun translate(axis: TransformAxis, delta: Float): SceneEditorState =
