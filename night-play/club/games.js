@@ -557,8 +557,8 @@ function layoutWhotHand(before=null){
  if(view){view.hidden=!large;view.textContent='View all '+n+' cards'}
  const firstRow=double?Math.ceil(shown/2):shown;
  cards.forEach((card,index)=>{
-  if(index>=shown){card.style.display='none';return}
-  card.style.display='';
+  if(index>=shown){card.style.setProperty('display','none','important');return}
+  card.style.removeProperty('display');
   const rowIndex=double&&index>=firstRow?1:0;
   const count=double?(rowIndex?shown-firstRow:firstRow):shown;
   const slot=double&&rowIndex?index-firstRow:index;
