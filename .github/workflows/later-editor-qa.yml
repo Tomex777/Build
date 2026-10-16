@@ -29,6 +29,9 @@ jobs:
       - name: Checkout QA branch
         uses: actions/checkout@v4
 
+      - name: Guard production UI cleanup from source corruption
+        run: python3 .github/scripts/test-later-cleanup.py
+
       - name: Restore verified Later source
         shell: bash
         run: |
