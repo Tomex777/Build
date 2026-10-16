@@ -1,0 +1,24 @@
+name: NIGHT WHOT Nigerian rules, modes and branding
+on:
+  pull_request:
+    paths:
+      - 'night-play/club/**'
+      - '.github/workflows/night-play-whot-rules.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 14
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Chromium
+        run: |
+          npm install --prefix /tmp/nightwhotrules --no-save playwright@1.56.1
+          /tmp/nightwhotrules/node_modules/.bin/playwright install chromium --with-deps
+      - name: Test forced market, stacked penalties, legal win, promotion and NIGHT website identity
+        env:
+          PLAYWRIGHT_MODULE: /tmp/nightwhotrules/node_modules/playwright
+          WHOT_RULES_IMAGE: '1'
+        run: node night-play/club/whot-rules-smoke.cjs

@@ -1593,3 +1593,164 @@ body.whot-mode .table-surface .whot-scoreboard{
  flex:0 0 auto!important;
  margin:0 auto!important;
 }
+
+
+/* NIGHT Play WHOT: restore the site's canonical ivory/charcoal identity.
+   Wood belongs to the tabletop, not the whole website. No green page chrome. */
+body.whot-mode{
+ --whot-site:#f7f7f7;--whot-ink:#1e242a;--whot-line:#e1e3e2;
+ background:var(--whot-site)!important;color:var(--whot-ink)!important;
+}
+body.whot-mode .top.night-shell-header{
+ background:#fff!important;color:#17191b!important;
+ border-bottom:1px solid #e1e3e2!important;
+ box-shadow:0 1px 5px #00000008!important;
+}
+body.whot-mode .top .night-brand{
+ color:#141719!important;background:none!important;
+}
+body.whot-mode .top .night-brand em{color:#92979b!important}
+body.whot-mode .top .night-brand svg{color:#151617!important}
+body.whot-mode .top .night-back,
+body.whot-mode .top .night-settings{
+ color:#20282d!important;background:#f6f7f7!important;
+ border-color:#e3e5e4!important;box-shadow:none!important;
+}
+body.whot-mode .top .night-back .night-ico{display:none!important}
+body.whot-mode .top .night-back .night-text{
+ display:block!important;font-size:12px!important;
+}
+body.whot-mode .top .night-back{
+ gap:8px!important;
+ min-width:82px!important;width:auto!important;
+ padding:0 12px!important;
+}
+.whot-grid-icon{display:none}
+body.whot-mode .whot-grid-icon{
+ display:grid;grid-template-columns:repeat(2,6px);grid-template-rows:repeat(2,6px);gap:3px;
+ width:15px;flex:none;
+}
+body.whot-mode .whot-grid-icon i{display:block;background:currentColor;border-radius:1.6px}
+body.whot-mode .play-heading.night-game-intro{
+ color:#1c2326!important;
+ min-height:63px!important;
+ width:min(calc(100% - 34px),840px)!important;
+}
+body.whot-mode .play-heading h2,
+body.whot-mode .play-heading.night-game-intro h2{
+ color:#111416!important;
+}
+body.whot-mode .play-heading::after{display:none!important;content:none!important}
+body.whot-mode .whot-mode-badge:not([hidden]){
+ display:inline-flex;align-items:center;justify-content:center;
+ padding:7px 11px;border:1px solid #d7d9d9;border-radius:20px;
+ background:#eeeef0;color:#4b5155;
+ font:800 10px/1.1 Inter,system-ui,sans-serif;
+ letter-spacing:.08em;white-space:nowrap;
+}
+body.whot-mode .table-surface{
+ border:1px solid #735a495c!important;
+ background-color:#302018!important;
+ box-shadow:0 12px 30px #00000021,inset 0 1px 0 #e9ceb024!important;
+}
+body.whot-mode .whot-scoreboard{
+ background:#16181fe8!important;
+ border:1px solid #f2f2f230!important;
+}
+body.whot-mode .whot-win-layer{background:radial-gradient(ellipse at center,#30201eeb,#1b1112eb 75%)!important}
+body.whot-mode .whot-rematch{justify-content:center!important}
+body.whot-mode .whot-last-call{
+ grid-column:1/-1;
+ display:inline-flex;align-items:center;justify-content:center;
+ min-height:34px;margin:2px auto 0!important;padding:7px 14px;
+ border:1px solid #e9cb8a;border-radius:7px;
+ color:#251b15;background:#f2dfaf;
+ font:850 11px/1 Inter,system-ui,sans-serif;letter-spacing:.7px;
+}
+body.whot-mode .whot-last-call:disabled{opacity:.76;color:#c0edd4;background:#233b31;border-color:#68967b}
+body.whot-mode .whot-scoreboard:has(.whot-last-call){
+ display:grid!important;grid-template-columns:1fr auto 1fr!important;row-gap:3px!important;
+}
+body.whot-mode footer{background:var(--whot-site)!important;color:#5b6165!important}
+body.whot-mode footer a{color:#454e54!important;text-decoration:none}
+body.whot-mode .night-sheet .night-sheet-label{color:#656c73}
+body.whot-mode .night-sheet{color:#22272a;background:#fff}
+body.whot-mode .night-sheet-switcher,
+body.whot-mode .night-sheet-body>.night-sheet-label:first-child,
+body.whot-mode #gamePicks{display:none!important}
+.whot-mode-config[hidden]{display:none!important}
+.whot-mode-config:not([hidden]){display:block}
+.whot-modes{display:grid;gap:7px;margin:11px 0 16px}
+.whot-modes label{font-size:12px;font-weight:800;color:#33383b}
+.whot-modes select{
+ appearance:none;
+ width:100%;min-height:45px;
+ border:1px solid #d6dadd;border-radius:11px;
+ background:#f7f8f7;
+ color:#181c20;
+ padding:11px 38px 11px 13px;
+ font:650 13px/1.4 system-ui,sans-serif;
+ background-image:url('data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="%23494c4e" stroke-width="2"%3E%3Cpath d="m6 9 6 6 6-6"/%3E%3C/svg%3E');
+ background-repeat:no-repeat;background-size:18px;background-position:right 12px center;
+}
+.whot-rank-progress{font-size:12px;line-height:1.5;margin:3px 0;color:#60666b}
+.whot-switch{
+ display:flex;align-items:center;justify-content:space-between;gap:10px;
+ padding:14px 1px;border-bottom:1px solid #edeef0;
+ cursor:pointer;
+}
+.whot-switch>span{display:grid;gap:5px}
+.whot-switch strong{font-size:13px;letter-spacing:-.01em;color:#252a2d}
+.whot-switch small{font-size:11px;line-height:1.5;color:#6a7174;max-width:290px}
+.whot-switch input[type="checkbox"]{
+ appearance:none;flex:0 0 auto;
+ width:43px;height:25px;border-radius:25px;
+ border:1px solid #c6cbd0;
+ background:#d7dcdd;position:relative;
+ transition:background .17s,border-color .17s;
+ cursor:pointer;
+}
+.whot-switch input[type="checkbox"]::after{
+ content:"";position:absolute;width:17px;height:17px;
+ border-radius:50%;background:#fff;top:3px;left:3px;
+ box-shadow:0 1px 4px #0003;transition:transform .17s ease-out;
+}
+.whot-switch input[type="checkbox"]:checked{
+ background:#252a30;border-color:#252a30;
+}
+.whot-switch input[type="checkbox"]:checked::after{transform:translateX(18px)}
+.whot-switch input:focus-visible,.whot-modes select:focus-visible{
+ outline:3px solid #849da9;outline-offset:2px;
+}
+.whot-settings-actions{display:grid;grid-template-columns:1fr;gap:9px;margin:17px 0}
+.whot-settings-actions button{
+ min-height:43px;padding:11px 15px;border-radius:11px;
+ border:1px solid #d4d9d9;background:#eeeef0;color:#1d2225;
+ font:850 12px/1.3 system-ui,sans-serif;text-align:center;
+}
+.whot-settings-actions button:first-child{background:#141719;color:#fff;border-color:#141719}
+.whot-settings-actions button:last-child{background:#fff;color:#75777b}
+body.whot-mode .night-sheet .whot-settings-newround{
+ background:#f7f8f8;color:#171a1c;border-color:#d2d5d4;
+ text-align:center;
+}
+@media(max-width:650px){
+ body.whot-mode .top .night-back{min-width:70px!important;padding:0 9px!important}
+ body.whot-mode .top .night-back .night-text{font-size:11px!important}
+ body.whot-mode .whot-mode-badge:not([hidden]){font-size:9px}
+ body.whot-mode .table-surface{height:clamp(570px,calc(100dvh - 175px),780px)!important;min-height:570px!important}
+ body.whot-mode .play-heading.night-game-intro{min-height:61px!important}
+}
+@media(prefers-reduced-motion:reduce){
+ .whot-switch input[type="checkbox"],.whot-switch input[type="checkbox"]::after{transition:none!important}
+}
+
+body.whot-mode .whot-scoreboard:has(.whot-series-score){
+ display:grid!important;grid-template-columns:1fr auto 1fr!important;
+ row-gap:5px!important;
+}
+body.whot-mode .whot-series-score{
+ grid-column:1/-1;display:block;margin:auto;
+ color:#d3d9d8;font:800 10px/1.2 Inter,system-ui,sans-serif;
+ letter-spacing:1px;text-align:center;
+}

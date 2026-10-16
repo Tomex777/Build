@@ -38,7 +38,7 @@ function controlsHTML(markup){if(controls.innerHTML!==markup)controls.innerHTML=
 function rules(title,desc){const markup="<h3>"+title+"</h3><p>"+desc+"</p>";if(help.innerHTML!==markup)help.innerHTML=markup;}
 function scoreList(players,getScore){return '<div class="score-list">'+players.map((p,i)=>'<div class="score-row"><span><b style="color:'+h(p.color)+'">●</b> '+h(p.name)+'</span><b>'+h(getScore(p,i))+'</b></div>').join("")+"</div>";}
 function choosePlayers(id,selected,max){return '<label class="small">Players (local, sharing one phone)</label><select class="select" data-players="'+id+'">'+[2,3,4].filter(n=>n<=max).map(n=>'<option value="'+n+'"'+(n===selected?" selected":"")+'>'+n+' players</option>').join("")+"</select>";}
-function pick(id){if(!titles[id])id="checkers";cardMotionEpoch++;cardMotionBusy=false;active=id;if(id==="ludo")window.NightLudo3D?.warmup();document.body.classList.toggle("ludo-mode",id==="ludo");document.body.classList.toggle("checkers-mode",id==="checkers");document.body.classList.toggle("whot-mode",id==="whot");$("whotNewRoundMenu").hidden=id!=="whot";$("ludoTopbar").hidden=id!=="ludo";$("ludoHud").hidden=id!=="ludo";if(id!=="ludo")closeLudoSettings();const d=titles[id];document.title=d[0]+" · NIGHT Play";if($("settingsDialog").open)$("settingsDialog").close();$("gameTitle").textContent=d[0];$("gameSubtitle").textContent=d[1];$("gameCategory").textContent=d[2];[...picks.querySelectorAll("button")].forEach(x=>x.setAttribute("aria-current",String(x.dataset.pick===id)));const url=new URL(location.href);url.searchParams.set("game",id);history.replaceState(null,"",url.pathname+url.search);window.NightLudo.cancel();if(id==="ludo"&&state.ludo)state.ludo=window.NightLudo.resume(state.ludo);if(!state[id])reset(id);else render();}
+function pick(id){if(!titles[id])id="checkers";cardMotionEpoch++;cardMotionBusy=false;active=id;if(id==="ludo")window.NightLudo3D?.warmup();document.body.classList.toggle("ludo-mode",id==="ludo");document.body.classList.toggle("checkers-mode",id==="checkers");document.body.classList.toggle("whot-mode",id==="whot");$("whotNewRoundMenu").hidden=id!=="whot";$("whotModeBadge").hidden=id!=="whot";$("ludoTopbar").hidden=id!=="ludo";$("ludoHud").hidden=id!=="ludo";if(id!=="ludo")closeLudoSettings();const d=titles[id];document.title=d[0]+" · NIGHT Play";if($("settingsDialog").open)$("settingsDialog").close();$("gameTitle").textContent=d[0];$("gameSubtitle").textContent=d[1];$("gameCategory").textContent=d[2];[...picks.querySelectorAll("button")].forEach(x=>x.setAttribute("aria-current",String(x.dataset.pick===id)));const url=new URL(location.href);url.searchParams.set("game",id);history.replaceState(null,"",url.pathname+url.search);window.NightLudo.cancel();if(id==="ludo"&&state.ludo)state.ludo=window.NightLudo.resume(state.ludo);if(!state[id])reset(id);else render();whotConfigUI();}
 function reset(id){
 if(id==="ludo"){window.NightLudo.cancel();state.ludo=window.NightLudo.create();}
 if(id==="estate"){state.estate={players:["red","blue"].map(k=>({name:k[0].toUpperCase()+k.slice(1),color:colors[k],cash:1500,pos:0,bankrupt:false})),owners:{},upgrades:{},turn:0,rolled:false,last:0,pending:null,rounds:0,winner:null,msg:"Roll the dice to start buying properties.",inspect:0};}
@@ -49,7 +49,7 @@ if(id==="snakes"){state.snakes={players:[{name:"Red",color:colors.red,pos:1},{na
 if(id==="checkers"){const cells=Array(64).fill(null);for(let r=0;r<8;r++)for(let c=0;c<8;c++)if((r+c)%2===1){if(r<3)cells[r*8+c]="b";if(r>4)cells[r*8+c]="w";}state.checkers={cells,turn:"w",selected:null,forced:null,winner:null,msg:"White moves first."};}
 save();render();
 }
-function render(){if(timer){clearInterval(timer);timer=null;}if(active==="ludo")renderLudo();if(active==="estate")renderEstate();if(active==="whot")renderCards("whot");if(active==="colors")renderCards("colors");if(active==="draw")renderDraw();if(active==="snakes")renderSnakes();if(active==="checkers")renderCheckers();save();}
+function render(){if(timer){clearInterval(timer);timer=null;}if(active==="ludo")renderLudo();if(active==="estate")renderEstate();if(active==="whot"){renderCards("whot");$("whotModeBadge").textContent=whotOptions.mode==="career"?whotRank().name.toUpperCase():whotOptions.mode==="tournament"?"TOURNAMENT":"VS CPU";}if(active==="colors")renderCards("colors");if(active==="draw")renderDraw();if(active==="snakes")renderSnakes();if(active==="checkers")renderCheckers();save();}
 const track=[[6,1],[6,2],[6,3],[6,4],[6,5],[5,6],[4,6],[3,6],[2,6],[1,6],[0,6],[0,7],[0,8],[1,8],[2,8],[3,8],[4,8],[5,8],[6,9],[6,10],[6,11],[6,12],[6,13],[6,14],[7,14],[8,14],[8,13],[8,12],[8,11],[8,10],[8,9],[9,8],[10,8],[11,8],[12,8],[13,8],[14,8],[14,7],[14,6],[13,6],[12,6],[11,6],[10,6],[9,6],[8,5],[8,4],[8,3],[8,2],[8,1],[8,0],[7,0],[6,0]];
 const starts={red:0,green:13,yellow:26,blue:39};
 const safe=new Set([0,8,13,21,26,34,39,47]);
@@ -142,6 +142,51 @@ const whotNumbers=[
  [1,2,3,5,7,10,11,13,14],         // Square
  [1,2,3,4,5,7,8]                 // Star
 ];
+// NIGHT-specific rule presets. Nigerian WHOT has regional house rules;
+// strict check-up and penalty-defence are explicit, configurable choices.
+const WHOT_OPTIONS_KEY="night-play-whot-options-v2",WHOT_CAREER_KEY="night-play-whot-career-v1";
+const whotRankNames=["Kindergarten","Primary","Secondary","Academy","Rookie","Soldier","Corporal","Sergeant","Captain","Major","General"];
+function whotRead(key,fallback){try{return {...fallback,...JSON.parse(localStorage.getItem(key)||"{}")}}catch{return {...fallback}}}
+const whotOptions=whotRead(WHOT_OPTIONS_KEY,{mode:"quick",strictFinish:true,defend:true,announce:false,difficulty:"normal"});
+const whotCareer=whotRead(WHOT_CAREER_KEY,{wins:0,losses:0,streak:0,bestStreak:0,tournamentWins:[0,0]});
+function whotStore(){try{localStorage.setItem(WHOT_OPTIONS_KEY,JSON.stringify(whotOptions));localStorage.setItem(WHOT_CAREER_KEY,JSON.stringify(whotCareer))}catch{}}
+function whotRank(){const level=Math.min(whotRankNames.length-1,Math.floor(whotCareer.wins/3));return {name:whotRankNames[level],level,next:level===whotRankNames.length-1?null:3-whotCareer.wins%3}}
+function whotAward(s,pi){
+ if(s.winner!==null)return;
+ s.winner=pi;s.msg=pi===0?"You win! Check up!":"Computer wins.";
+ if(whotOptions.mode==="career"){
+  if(pi===0){const oldRank=whotRank().level;whotCareer.wins++;whotCareer.streak++;whotCareer.bestStreak=Math.max(whotCareer.bestStreak,whotCareer.streak);const nowRank=whotRank();if(nowRank.level>oldRank)s.promotion=nowRank.name}
+  else{whotCareer.losses++;whotCareer.streak=0}
+ }else if(whotOptions.mode==="tournament"){
+  if(!Array.isArray(whotCareer.tournamentWins))whotCareer.tournamentWins=[0,0];
+  whotCareer.tournamentWins[pi]++;
+  const score=whotCareer.tournamentWins;
+  s.msg+=score[0]>=2?" You are the tournament champion!":score[1]>=2?" CPU takes the tournament!":" Tournament: "+score[0]+"–"+score[1]+".";
+ }
+ whotStore();
+}
+function whotNeedsFinishCard(card){return whotOptions.strictFinish&&[1,2,5,8,14,20].includes(card.n)}
+function whotPending(s){return s.pendingPenalty&&s.pendingPenalty.target===s.turn?s.pendingPenalty:null}
+function whotCanPlay(s,card){
+ const pending=whotPending(s);
+ if(pending)return whotOptions.defend&&card.n===pending.n;
+ const top=topCard(s);
+ return card.n===20||card.s===(s.called===null?top.s:s.called)||card.n===top.n;
+}
+function whotConfigUI(){
+ const root=$("whotModeConfig");if(!root)return;const rank=whotRank();
+ root.hidden=active!=="whot";
+ if(root.hidden)return;
+ for(const sel of root.querySelectorAll("[data-whot-option]")){
+  const key=sel.dataset.whotOption;if(sel.type==="checkbox")sel.checked=Boolean(whotOptions[key]);else sel.value=whotOptions[key];
+ }
+ const label=$("whotCareerProgress");if(label)label.textContent=
+  whotOptions.mode==="career"?"RANK "+(rank.level+1)+" · "+rank.name+" · "+whotCareer.wins+" wins"+(rank.next?" · "+rank.next+" to promotion":" · Max rank"):
+  whotOptions.mode==="tournament"?"FIRST TO TWO · YOU "+(whotCareer.tournamentWins?.[0]||0)+" – CPU "+(whotCareer.tournamentWins?.[1]||0):
+  "Classic one-round game against CPU.";
+ const pill=$("whotModeBadge");if(pill)pill.textContent=whotOptions.mode==="career"?rank.name.toUpperCase():whotOptions.mode==="tournament"?"TOURNAMENT":"VS CPU";
+}
+
 function newShapes(){
  const deck=whotNumbers.flatMap((values,s)=>values.map(n=>({s,n})));
  for(let i=0;i<5;i++)deck.push({s:5,n:20});
@@ -151,26 +196,52 @@ function newShapes(){
  // undefined. The wild 20 card still remains inside the playable draw deck.
  const first=deck.findIndex(c=>c.n!==20);
  const initial=deck.splice(first,1)[0];
- return {hands,deck,discard:[initial],turn:0,winner:null,called:null,pendingWhot:null,msg:"Match a shape or number. Go to market if needed.",round:0};
+ return {hands,deck,discard:[initial],turn:0,winner:null,called:null,pendingWhot:null,pendingPenalty:null,pendingFinish:null,calledLast:[false,false],msg:"Match the shape or number. Go to market if needed.",round:0};
 }
 function newColors(){let deck=[];for(let c=0;c<4;c++){for(let n=0;n<=9;n++)deck.push({c,n:String(n)});for(const n of ["SKIP","REV","+2"])for(let k=0;k<2;k++)deck.push({c,n});}for(let k=0;k<4;k++){deck.push({c:4,n:"WILD"},{c:4,n:"+4"});}shuffle(deck);return {hands:[deck.splice(0,7),deck.splice(0,7)],deck,discard:[deck.shift()],turn:0,winner:null,called:null,msg:"Match the colour or symbol.",round:0};}
 function topCard(s){return s.discard[s.discard.length-1];}
 function take(s,pi,n){for(let j=0;j<n;j++){if(!s.deck.length){if(s.discard.length<=1)break;const card=s.discard.pop();s.deck=shuffle(s.discard.splice(0));s.discard=[card];}if(s.deck.length)s.hands[pi].push(s.deck.pop());}}
-function playable(kind,s,card){const top=topCard(s);return kind==="whot"?(card.s===5||card.s===(s.called===null?top.s:s.called)||card.n===top.n):(card.c===4||card.c===(s.called===null?top.c:s.called)||card.n===top.n);}
-function nextCardTurn(kind,s,pi,card,selected){s.called=null;s.pendingWhot=null;s.discard.push(card);s.round++;const hand=s.hands[pi];if(!hand.length){s.winner=pi;s.msg=(pi===0?"You win!":"Computer wins.");return;}
-let opp=1-pi,again=false,draw=0;
-if(kind==="whot"){
-if(card.n===20)s.called=selected;
-if(card.n===1||card.n===8)again=true;
-if(card.n===2)draw=2;if(card.n===5)draw=3;if(card.n===14)draw=1;
-}else{
-if(card.c===4)s.called=selected;
-if(card.n==="SKIP"||card.n==="REV")again=true;
-if(card.n==="+2")draw=2;if(card.n==="+4")draw=4;
-}
-if(draw){take(s,opp,draw);again=true;}
-s.msg=(pi===0?"You":"Computer")+" played "+(kind==="whot"?(card.n===20?"WHOT 20 · called "+shapes[selected]:card.n+" "+shapes[card.s]):card.n)+ (draw?" · opponent draws "+draw:"")+(again?" · play again":"");
-s.turn=again?pi:opp;
+function playable(kind,s,card){const top=topCard(s);return kind==="whot"?whotCanPlay(s,card):(card.c===4||card.c===(s.called===null?top.c:s.called)||card.n===top.n);}
+function nextCardTurn(kind,s,pi,card,selected){
+ s.called=null;s.pendingWhot=null;s.discard.push(card);s.round++;
+ const hand=s.hands[pi],opp=1-pi;
+ if(kind!=="whot"){
+  if(!hand.length){s.winner=pi;s.msg=pi===0?"You win!":"Computer wins.";return}
+  let again=false,draw=0;
+  if(card.c===4)s.called=selected;
+  if(card.n==="SKIP"||card.n==="REV")again=true;
+  if(card.n==="+2")draw=2;if(card.n==="+4")draw=4;
+  if(draw){take(s,opp,draw);again=true}
+  s.turn=again?pi:opp;s.msg=(pi===0?"You":"Computer")+" played "+card.n;return;
+ }
+ if(card.n===20)s.called=selected;
+ let again=card.n===1||card.n===8,draw=0;
+ if(card.n===14){take(s,opp,1);again=true;draw=1}
+ if(card.n===2||card.n===5){
+  const pending=s.pendingPenalty&&s.pendingPenalty.n===card.n?s.pendingPenalty.amount:0;
+  s.pendingPenalty={n:card.n,target:opp,amount:pending+(card.n===2?2:3)};
+ }else{s.pendingPenalty=null}
+ // Optional spoken 'Last card' / 'Check up' house rule. Don't penalize CPU
+ // unfairly: it announces its last card automatically.
+ if(hand.length===1&&pi===1){s.calledLast=[...(s.calledLast||[false,false])];s.calledLast[1]=true}
+ if(!hand.length){
+  if(whotNeedsFinishCard(card)){
+   // A final action card does not end strict-check-up rounds. The player
+   // must go to market before the round can end, including on a final 5.
+   s.pendingFinish=pi;s.turn=pi;
+   s.msg=(pi===0?"You":"CPU")+" played a final "+card.n+" — no check-up on action cards. "+(pi===0?"Pick from market to continue.":"CPU must pick from market.");
+   return;
+  }
+  if(pi===0&&whotOptions.announce&&!(s.calledLast?.[0])){
+   take(s,0,2);s.turn=opp;s.msg="Missing LAST CARD call: pick two penalty cards.";return;
+  }
+  whotAward(s,pi);return;
+ }
+ if(hand.length===1&&pi===0)s.calledLast=[false,(s.calledLast||[])[1]||false];
+ s.msg=(pi===0?"You":"CPU")+" played "+(card.n===20?"WHOT 20 · called "+shapes[selected]:card.n+" "+shapes[card.s])+
+  (draw?" · opponent picks "+draw:card.n===2||card.n===5?" · "+(card.n===2?"Pick Two":"Pick Three"):"")+
+  (again?" · play again":"")+(hand.length===1&&pi===0?" · LAST CARD!":"");
+ s.turn=again?pi:opp;
 }
 /* GPU-composited, hardcoded card motion. No re-render on animation frames. */
 // Independent implementation of the visual principles used by FLIP card UIs.
@@ -274,7 +345,7 @@ function whotSettle(){
 }
 async function cardPlay(kind,index,requestedShape=null){
  const s=state[kind];if(cardMotionBusy||s.turn!==0||s.winner!==null)return;
- const card=s.hands[0][index];if(!card||!playable(kind,s,card))return;
+ const card=s.hands[0][index];if(kind==='whot'&&s.pendingFinish===0)return;if(!card||!playable(kind,s,card))return;
  if(kind==='whot'){
   if(s.pendingWhot!=null&&s.pendingWhot!==index)return;
   if(card.n===20&&requestedShape===null){
@@ -302,45 +373,81 @@ async function cardPlay(kind,index,requestedShape=null){
 }
 async function cardDraw(kind){
  const s=state[kind];if(cardMotionBusy||s.turn!==0||s.winner!==null||(kind==='whot'&&s.pendingWhot!=null))return;
- const oldCount=s.hands[0].length;
- const epoch=cardMotionEpoch;cardMotionBusy=true;
+ const oldCount=s.hands[0].length,epoch=cardMotionEpoch;cardMotionBusy=true;
  try{
   if(kind==='whot'){
-   // FLIP motion must end at the new card's real position, not the
-   // previous last card in the player's hand.
+   const wasFinish=s.pendingFinish===0,penalty=whotPending(s);
+   const count=wasFinish?1:penalty?penalty.amount:1;
+   const before=s.hands[0].length;
    cardMotionMetrics.draws++;
-   take(s,0,1);s.turn=1;s.msg="You drew a card. Computer's turn.";
+   take(s,0,count);
+   if(wasFinish)s.pendingFinish=null;
+   if(penalty)s.pendingPenalty=null;
+   s.turn=1;
+   s.msg=wasFinish?"No action-card check-up. Picked one — game continues.":
+     penalty?"You picked "+count+" penalty cards.":"You picked a card. Computer's turn.";
    render();
-   const newCard=board.querySelectorAll('.hand .whot-card')[oldCount];
+   const newCard=board.querySelectorAll('.hand .whot-card')[before];
    await whotFly(board.querySelector('.whot-deck-back'),newCard,{action:'draw'});
    if(epoch!==cardMotionEpoch||active!==kind||state[kind]!==s)return;
-   // The card back lands and reveals the real face in one motion.
-   // No lengthy second rotateY animation or post-flight popping.
    queueCPU(kind);
    return;
   }
   take(s,0,1);s.turn=1;s.msg="You drew a card. Computer's turn.";
   render();queueCPU(kind);
- }finally{if(epoch===cardMotionEpoch)cardMotionBusy=false;}
+ }finally{if(epoch===cardMotionEpoch)cardMotionBusy=false}
 }
-function queueCPU(kind){const round=state[kind],epoch=cardMotionEpoch;
+function whotChooseCPU(s){
+ const cards=s.hands[1],legal=cards.map((card,i)=>({card,i})).filter(x=>whotCanPlay(s,x.card));
+ if(!legal.length)return -1;
+ if(whotOptions.difficulty==="easy")return legal[Math.floor(Math.random()*legal.length)].i;
+ if(whotOptions.difficulty==="normal"&&(whotOptions.mode!=="career"||whotRank().level<2))return legal[0].i;
+ const danger=s.hands[0].length<=2;
+ legal.sort((a,b)=>{
+  const score=x=>{
+   const c=x.card;
+   return (danger&&[2,5,8,14].includes(c.n)?32:0)+
+    (c.n===20?(legal.length===1?12:-16):0)+
+    (c.n===2||c.n===5?9:0)+
+    cards.filter(v=>v.s===c.s).length*2+
+    (s.hands[1].length===1&&whotNeedsFinishCard(c)?-60:0);
+  };
+  return score(b)-score(a);
+ });
+ return legal[0].i;
+}
+function queueCPU(kind){
+ const round=state[kind],epoch=cardMotionEpoch;
  setTimeout(async ()=>{
   if(active!==kind||round!==state[kind]||cardMotionEpoch!==epoch||round.turn!==1||round.winner!==null)return;
-  const s=round,idx=s.hands[1].findIndex(card=>playable(kind,s,card));
+  const s=round;
+  if(kind==='whot'&&s.pendingFinish===1){
+   take(s,1,1);s.pendingFinish=null;
+   s.turn=0;
+   s.msg="Computer cannot check up on a final action card. CPU picks one.";
+   render();return;
+  }
+  const penalty=kind==='whot'?whotPending(s):null;
+  const idx=kind==='whot'?whotChooseCPU(s):s.hands[1].findIndex(card=>playable(kind,s,card));
   if(idx<0){
-   if(kind==='whot'){cardMotionMetrics.draws++;
+   if(kind==='whot'){
+    cardMotionMetrics.draws++;
     await whotFly(board.querySelector('.whot-deck-back'),board.querySelector('.card-back'),{action:'draw'});
    }
    if(active!==kind||state[kind]!==s||cardMotionEpoch!==epoch)return;
-   take(s,1,1);s.turn=0;s.msg="Computer picked up a card.";render();return;
+   const count=penalty?penalty.amount:1;
+   take(s,1,count);
+   if(penalty)s.pendingPenalty=null;
+   s.turn=0;s.msg=penalty?"Computer picks "+count+" penalty cards.":"Computer picks from market.";
+   render();return;
   }
   const card=s.hands[1][idx];
-  if(kind==='whot'){cardMotionMetrics.cpuPlays++;
+  if(kind==='whot'){
+   cardMotionMetrics.cpuPlays++;
    await whotFly(board.querySelector('.card-back'),board.querySelector('.card-pile .whot-card'),{face:card,action:'cpu'});
   }
   if(active!==kind||state[kind]!==s||cardMotionEpoch!==epoch)return;
   s.hands[1].splice(idx,1);
-  // A WHOT 20 call should actually suit the computer's remaining hand.
   const suitCounts=kind==='whot'?shapes.map((_,shape)=>s.hands[1].filter(c=>c.s===shape).length):[];
   const cpuCall=kind==='whot'?suitCounts.indexOf(Math.max(...suitCounts)):Math.floor(Math.random()*4);
   nextCardTurn(kind,s,1,card,cpuCall);
@@ -359,7 +466,8 @@ function whotShapeSvg(s,n,mini=false){
  ];
  if(s===5)return '';
  return '<svg class="'+(mini?'whot-suit-small':'whot-suit-big')+'" viewBox="0 0 100 100" focusable="false" aria-hidden="true">'+tags[s]+
-+'</svg>';
+ (s===4&&!mini?'<text x="50" y="58" fill="#fffdf8" font-size="23" font-weight="850" text-anchor="middle" font-family="Inter,system-ui,sans-serif">'+(n*2)+'</text>':'')+
+ '</svg>';
 }
 function whotFace(card,index,enabled){
  const wild=card.n===20;
@@ -446,6 +554,18 @@ function whotPatchTable(markup){
   if(el.textContent!==fresh.textContent)el.textContent=fresh.textContent;
   if(el.className!==fresh.className)el.className=fresh.className;
  }
+ // Reconcile optional mode score and Last Card control too. Previously
+ // these were omitted by the incremental renderer, leaving stale series
+ // scores and hiding the announcement button after the hand reached one.
+ for(const selector of ['.whot-series-score','.whot-last-call']){
+  const live=liveHud.querySelector(selector),fresh=newHud.querySelector(selector);
+  if(live&&!fresh)live.remove();
+  else if(fresh&&!live)liveHud.appendChild(fresh.cloneNode(true));
+  else if(live&&fresh){
+   if(live.textContent!==fresh.textContent)live.textContent=fresh.textContent;
+   if(live.disabled!==fresh.disabled)live.disabled=fresh.disabled;
+  }
+ }
  const oldOpponent=table.querySelector('.whot-opponent-hand'),newOpponent=next.querySelector('.whot-opponent-hand');
  if(oldOpponent&&newOpponent){
   const oldBacks=[...oldOpponent.querySelectorAll('.card-back')];
@@ -509,15 +629,18 @@ const callPanel=showCall?
 const whotHud=kind==='whot'?
  '<div class="whot-scoreboard" aria-label="Match status"><div class="whot-seat whot-seat-cpu"><span>CPU</span><strong>'+s.hands[1].length+'</strong></div>'+
  '<div class="whot-turn-indicator'+(s.turn===0&&s.winner===null?' player-turn':'')+'"><span class="whot-indicator-light"></span>'+
- (s.winner!==null?'MATCH OVER':showCall?'CALL A SHAPE':s.turn===0?'YOUR TURN':'CPU TURN')+'</div>'+
- '<div class="whot-seat whot-seat-you"><strong>'+s.hands[0].length+'</strong><span>YOU</span></div></div>':'';
+ (s.winner!==null?'MATCH OVER':s.pendingFinish===0?'PICK TO CONTINUE':whotPending(s)&&s.turn===0?'DEFEND / PICK '+whotPending(s).amount:showCall?'CALL A SHAPE':s.turn===0?'YOUR TURN':'CPU TURN')+'</div>'+
+ '<div class="whot-seat whot-seat-you"><strong>'+s.hands[0].length+'</strong><span>YOU</span></div>'+
+ (whotOptions.mode==="tournament"?'<span class="whot-series-score">SERIES · '+(whotCareer.tournamentWins?.[0]||0)+' — '+(whotCareer.tournamentWins?.[1]||0)+'</span>':'')+
+ (whotOptions.announce&&s.hands[0].length===1&&s.turn===0&&s.winner===null?
+ '<button type="button" class="whot-last-call" data-action="whot-last-call" '+(s.calledLast?.[0]?'disabled':'')+'>'+(s.calledLast?.[0]?'LAST CARD ✓':'DECLARE LAST CARD')+'</button>':'')+'</div>':'';
 const whotVictory=kind==='whot'&&s.winner!==null?
  '<div class="whot-win-layer '+(s.winner===0?'player-victory':'computer-victory')+'" role="status" aria-live="assertive">'+
  '<div class="whot-win-particles" aria-hidden="true">'+(s.winner===0?Array.from({length:18},(_,i)=>'<i style="--index:'+i+'"></i>').join(''):'')+'</div>'+
  '<div class="whot-win-content"><div class="whot-win-medal" aria-hidden="true"><svg viewBox="0 0 64 64" fill="none"><path d="M20 9h24v15c0 11-5 18-12 20-7-2-12-9-12-20V9Z" fill="currentColor" opacity=".9"/><path d="M20 13H8v8c0 10 6 13 15 13m21-21h12v8c0 10-6 13-15 13" stroke="currentColor" stroke-width="4" stroke-linejoin="round"/><path d="M32 45v9m-13 2h26" stroke="currentColor" stroke-width="5" stroke-linecap="round"/></svg></div>'+
- '<p class="whot-win-eyebrow">MATCH COMPLETE</p><h2>'+(s.winner===0?'YOU WIN':'CPU WINS')+'</h2>'+
- '<p class="whot-win-count">'+(s.winner===0?'CPU':'YOU')+' · '+s.hands[1-s.winner].length+' CARDS LEFT</p>'+
- '<button type="button" class="whot-rematch" data-action="whot-rematch">Play again <span aria-hidden="true">↗</span></button></div></div>':'';
+ '<p class="whot-win-eyebrow">'+(s.promotion?'RANK PROMOTION':whotOptions.mode==="tournament"?"TOURNAMENT ROUND":"MATCH COMPLETE")+'</p><h2>'+(s.winner===0?'YOU WIN':'CPU WINS')+'</h2>'+
+ '<p class="whot-win-count">'+(s.promotion?'PROMOTED TO '+s.promotion.toUpperCase()+' · ':whotOptions.mode==="career"?'CAREER · '+whotCareer.wins+' WINS · ':'')+(s.winner===0?'CPU':'YOU')+' · '+s.hands[1-s.winner].length+' CARDS LEFT'+(whotOptions.mode==="tournament"?' · SERIES '+whotCareer.tournamentWins[0]+'—'+whotCareer.tournamentWins[1]:'')+'</p>'+
+ '<button type="button" class="whot-rematch" data-action="whot-rematch">Play again</button></div></div>':'';
 const tableMarkup='<div class="table-surface'+(kind==='whot'&&s.winner!==null?' whot-finished':'')+'" aria-label="Card table">'+(kind==='whot'?whotHud:'<h3>COMPUTER · '+s.hands[1].length+' CARDS</h3>')+
  '<div class="card-row whot-opponent-hand">'+(kind==='whot'
  ?Array.from({length:s.hands[1].length},(_,i)=>'<div class="playing-card card-back" aria-label="Computer card '+(i+1)+' of '+s.hands[1].length+'"><span>WHOT</span><span>WHOT</span></div>').join('')
@@ -537,7 +660,7 @@ setStatus(s.winner!==null?s.msg:(s.turn===0?"Your turn. ":"Computer's turn. ")+s
 if(kind==='whot')controlsHTML('');
 else controlsHTML('<div class="row"><button class="primary" type="button" data-action="card-draw" '+(s.turn!==0||s.winner!==null?"disabled":"")+'>Pick one card</button></div><p class="small">Cards left: you '+s.hands[0].length+' · computer '+s.hands[1].length+'</p><label class="small" for="wishColor">Colour to call (wild)</label><select id="wishColor" class="select">'+["Red","Blue","Green","Yellow"].map((sh,i)=>'<option value="'+i+'">'+sh+'</option>').join("")+'</select>');
 rules(kind==="whot"?"Classic WHOT rules":"Colour Clash rules",kind==="whot"?
- "An <b>unofficial</b> adaptation of Nigerian WHOT with the real 54-card distribution: circle, triangle, cross, square, star, and five 20 cards. Start with five cards. Match the <b>shape or number</b>. 1 is Hold On, 2 Pick Two, 5 Pick Three, 8 Suspension, 14 General Market and 20 calls a shape. A wild card can be played at any time. Players can pick from the market if they cannot match. Two-player versus computer; original NIGHT artwork, not affiliated with a commercial card publisher.":
+ "Nigerian WHOT: match shape or number; otherwise pick from market. 1 Hold On, 2 Pick Two, 5 Pick Three, 8 Suspension, 14 General Market, 20 calls any shape. Strict Check Up means final action cards cannot win: pick one and continue. Defensive stacking (2 on 2 or 5 on 5), Last Card declaration, Career and Tournament are available from settings.":
  "Play a matching <b>colour</b> or <b>number/action</b>. Skip / reverse skips the computer, +2 and +4 draw penalties, and WILD lets you choose a colour. The first player to empty their hand wins. Original artwork; no UNO trademarks.");
 }
 
@@ -646,10 +769,26 @@ document.addEventListener("submit",e=>{if(e.target.id!=="guessForm")return;e.pre
 document.addEventListener("click",e=>{const tile=e.target.closest("[data-checker]");if(tile&&active==="checkers")checkerClick(Number(tile.dataset.checker));});
 
 load();picks.addEventListener("click",e=>{const btn=e.target.closest("[data-pick]");if(btn)pick(btn.dataset.pick);});
-$("settingsButton").addEventListener("click",()=>$("settingsDialog").showModal());
+$("settingsButton").addEventListener("click",()=>{whotConfigUI();$("settingsDialog").showModal()});
 $("settingsClose").addEventListener("click",()=>$("settingsDialog").close());
 $("newRound").addEventListener("click",()=>{if(confirm("Start a new "+titles[active][0]+" match? Current progress will be cleared."))reset(active);});
 $("whotNewRoundMenu").addEventListener("click",()=>{if(active==="whot"&&confirm("Start a new WHOT round?")){reset("whot");$("settingsDialog").close()}});
+
+$("whotApplySettings").addEventListener("click",()=>{
+ if(active!=="whot")return;
+ for(const el of $("whotModeConfig").querySelectorAll("[data-whot-option]")){
+  const name=el.dataset.whotOption;if(!["mode","strictFinish","defend","announce","difficulty"].includes(name))continue;
+  whotOptions[name]=el.type==="checkbox"?el.checked:el.value;
+ }
+ if(!["quick","career","tournament"].includes(whotOptions.mode))whotOptions.mode="quick";
+ if(!["easy","normal","hard"].includes(whotOptions.difficulty))whotOptions.difficulty="normal";
+ whotStore();$("settingsDialog").close();reset("whot");whotConfigUI();
+});
+$("whotResetCareer").addEventListener("click",()=>{
+ if(!confirm("Reset WHOT career and tournament records?"))return;
+ Object.assign(whotCareer,{wins:0,losses:0,streak:0,bestStreak:0,tournamentWins:[0,0]});
+ whotStore();whotConfigUI();
+});
 document.addEventListener("change",e=>{
 const opponent=e.target.closest("[data-ludo-opponent]");if(opponent&&active==="ludo"){window.NightLudo.changeOpponent(state.ludo,opponent.value);render();return;}
 const difficulty=e.target.closest("[data-ludo-difficulty]");if(difficulty&&active==="ludo"){window.NightLudo.changeDifficulty(state.ludo,difficulty.value);render();return;}
@@ -668,7 +807,8 @@ const whotCall=e.target.closest("[data-whot-call]");if(whotCall&&active==='whot'
 const card=e.target.closest("[data-card]");if(card){if(Number(card.dataset.card)<0)return;cardPlay(active,Number(card.dataset.card));return;}
 const sq=e.target.closest("[data-estate-info]");if(sq&&active==="estate"){state.estate.inspect=Number(sq.dataset.estateInfo);render();return;}
 const action=e.target.closest("[data-action]");if(!action)return;
-switch(action.dataset.action){case"ludo-roll":ludoRoll();break;case"ludo-new":if(confirm("Restart the Ludo match?")){closeLudoSettings();reset("ludo");}break;case"ludo-sound":state.ludo.sound=!state.ludo.sound;render();break;case"estate-roll":estateRoll();break;case"estate-buy":estateDecision(true);break;case"estate-pass":estateDecision(false);break;case"estate-end":estateEnd();break;case"card-draw":cardDraw(active);break;case"whot-rematch":if(active==="whot"&&state.whot.winner!==null)reset("whot");break;case"whot-call-cancel":if(active==='whot'&&!cardMotionBusy){state.whot.pendingWhot=null;render();}break;case"snakes-roll":snakesRoll();break;case"draw-ready":drawReady();break;case"draw-next":drawNext();break;case"draw-guess":drawReadyToGuess();break;case"draw-clear":if(drawCtx){drawCtx.clearRect(0,0,800,600);}break;case"draw-erase":setBrush("erase");break;case"checkers-reset":reset("checkers");break;}
+switch(action.dataset.action){case"ludo-roll":ludoRoll();break;case"ludo-new":if(confirm("Restart the Ludo match?")){closeLudoSettings();reset("ludo");}break;case"ludo-sound":state.ludo.sound=!state.ludo.sound;render();break;case"estate-roll":estateRoll();break;case"estate-buy":estateDecision(true);break;case"estate-pass":estateDecision(false);break;case"estate-end":estateEnd();break;case"card-draw":cardDraw(active);break;case"whot-rematch":if(active==="whot"&&state.whot.winner!==null){if(whotOptions.mode==="tournament"&&Math.max(...(whotCareer.tournamentWins||[0,0]))>=2){whotCareer.tournamentWins=[0,0];whotStore()}reset("whot")}break;
+case"whot-last-call":if(active==="whot"&&state.whot.turn===0&&state.whot.hands[0].length===1){state.whot.calledLast=[true,Boolean(state.whot.calledLast?.[1])];state.whot.msg="Last card declared!";render()}break;case"whot-call-cancel":if(active==='whot'&&!cardMotionBusy){state.whot.pendingWhot=null;render();}break;case"snakes-roll":snakesRoll();break;case"draw-ready":drawReady();break;case"draw-next":drawNext();break;case"draw-guess":drawReadyToGuess();break;case"draw-clear":if(drawCtx){drawCtx.clearRect(0,0,800,600);}break;case"draw-erase":setBrush("erase");break;case"checkers-reset":reset("checkers");break;}
 });
 // Read-only motion diagnostics for real Chromium touch and frame tests.
 window.__nightWhotMotion=()=>({...cardMotionMetrics,timings:{...whotMotion},busy:cardMotionBusy,waitingForCall:state.whot?.pendingWhot!=null,
