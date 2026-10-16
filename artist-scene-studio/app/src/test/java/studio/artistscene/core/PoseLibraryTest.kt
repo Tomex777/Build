@@ -75,6 +75,37 @@ class PoseLibraryTest {
         assertEquals(original.project, staged.undo().project)
     }
 
+    @Test fun artistsCanBookmarkApplyDeleteAndUndoNamedPoses() {
+        val hero = character()
+        val posed = state(hero).applyPosePreset(PosePreset.HERO)
+        val saved = posed.saveSelectedPose("My Hero")
+        assertEquals(1, saved.project.savedPoses.size)
+        assertEquals("My Hero", saved.project.savedPoses.single().name)
+        val reset = saved.resetRigPose()
+        val restored = reset.applySavedPose(saved.project.savedPoses.single().id)
+        assertEquals(posed.selectedActor!!.rig!!.joints, restored.selectedActor!!.rig!!.joints)
+        assertEquals(reset.project, restored.undo().project)
+        assertEquals(0, saved.deleteSavedPose(saved.project.savedPoses.single().id).project.savedPoses.size)
+        val serialized = SceneProjectCodec.decode(SceneProjectCodec.encode(saved.project))
+        assertEquals(saved.project.savedPoses, serialized.savedPoses)
+    }
+
+    @Test fun lightingChangesSkyAndSunInOneUndoStepWithoutEditingOtherActors() {
+        val sun = Actor("sun", "Sun", ActorKind.LIGHT, light = LightSettings(LightType.DIRECTIONAL))
+        val untouched = Actor("prop", "Fixture", ActorKind.PROP)
+        val initial = state(character(), sun, untouched)
+        val lit = initial.applyLightingLook(LightingLook.GOLDEN)
+        assertEquals(EnvironmentPreset.SUNSET, lit.project.world.environmentPreset)
+        assertEquals("#FFCC9B", lit.project.actors[1].light!!.colorHex)
+        assertEquals(38_000f, lit.project.actors[1].light!!.intensity)
+        assertEquals(untouched, lit.project.actors[2])
+        assertEquals(initial.project, lit.undo().project)
+        val locked = initial.copy(project = initial.project.copy(actors = initial.project.actors.map {
+            if (it.id == "sun") it.copy(locked = true) else it
+        }))
+        assertEquals(locked, locked.applyLightingLook(LightingLook.GOLDEN))
+    }
+
     @Test fun cameraShotsPreserveSourceAndFrameActualActor() {
         val hero = character(x = 2f)
         val camera = SceneCamera("camera-main", "Camera")
