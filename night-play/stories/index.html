@@ -3,94 +3,113 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="theme-color" content="#12141a">
-<meta name="description" content="NIGHT Play interactive fiction — cinematic line-by-line text reveal prototype.">
-<title>NIGHT Play — Interactive Fiction Preview</title>
+<meta name="theme-color" content="#121211">
+<meta name="description" content="The Last Call. An interactive suspense story on NIGHT Play.">
+<title>The Last Call · NIGHT Play</title>
 <style>
-:root{color-scheme:dark;--bg:#12141a;--ink:#ece9e1;--soft:#b6b5b3;--dim:#878a91;--edge:#343844;--highlight:#d3b98d}
+:root{color-scheme:dark;--bg:#121211;--ink:#e8e8e3;--muted:#92918a;--hair:#393a36;--tint:#7c9ccb;--gold:#dcc29d;--ease:cubic-bezier(.2,.65,.25,1)}
 *{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--ink);font-family:Georgia,"Times New Roman",serif;-webkit-font-smoothing:antialiased}
-button,select,a{font:inherit}button{cursor:pointer}a{color:inherit}
-button:focus-visible,select:focus-visible,a:focus-visible{outline:2px solid var(--highlight);outline-offset:4px}
-.header{font-family:Inter,system-ui,sans-serif;display:flex;align-items:center;justify-content:space-between;gap:16px;max-width:1080px;margin:0 auto;padding:28px 24px 0}
-.brand{font-size:12px;font-weight:800;letter-spacing:.21em;color:var(--ink);text-decoration:none}
-.brand b{font-weight:500;color:#9b9a9e}
-.header-actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:end}
-.header a.back,.header button{border:1px solid var(--edge);border-radius:999px;background:transparent;color:var(--soft);text-decoration:none;padding:10px 15px;font:500 12px/1.3 system-ui,sans-serif}
-.header button:hover,.header a.back:hover{border-color:#747681;color:var(--ink)}
-.shell{max-width:770px;margin:0 auto;padding:82px 25px 100px}
-.label{font:600 11px/1.5 system-ui,sans-serif;letter-spacing:.21em;text-transform:uppercase;color:#a7a29b}
-.divider{width:34px;height:1px;background:#918875;margin:23px 0 33px}
-h1{margin:0 0 15px;font-size:clamp(31px,6vw,54px);font-weight:400;letter-spacing:-.025em;line-height:1.1}
-.deck{font:400 13px/1.7 system-ui,sans-serif;color:var(--dim);max-width:570px;margin:0 0 60px}
-.stage{border-left:1px solid #47434a;padding-left:clamp(18px,4vw,36px)}
-.scene-location{color:var(--dim);font:600 10px/1.5 system-ui,sans-serif;text-transform:uppercase;letter-spacing:.22em;margin-bottom:26px}
-.story{min-height:144px}
-.line{--word-target:#ece9e1;font-size:clamp(19px,3.6vw,25px);line-height:1.68;font-weight:400;letter-spacing:-.006em;white-space:pre-wrap;max-width:660px;margin:0 0 17px;color:var(--word-target)}
-.line.emphasis{--word-target:#e9d0aa;font-style:italic}
-.line.quiet{--word-target:#adaeb8}
+html{scroll-behavior:smooth}
+body{margin:0;min-height:100dvh;background:var(--bg);color:var(--ink);font-family:Georgia,"Times New Roman",serif;-webkit-font-smoothing:antialiased}
+button,select,summary{font:inherit;cursor:pointer}
+a{color:inherit;text-decoration:none}
+button:focus-visible,select:focus-visible,a:focus-visible,summary:focus-visible{outline:2px solid var(--tint);outline-offset:4px}
+.site-head{position:sticky;top:0;z-index:10;background:#121211ed;backdrop-filter:blur(16px);border-bottom:1px solid var(--hair)}
+.head-wrap{max-width:1024px;padding:15px 24px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;gap:15px}
+.logo{font:800 12px/1.4 system-ui,sans-serif;letter-spacing:.22em;white-space:nowrap}
+.logo span{color:#969794;font-weight:500;letter-spacing:.15em}
+.head-actions{display:flex;align-items:center;gap:14px}
+.back{font:500 12px/1.5 system-ui,sans-serif;color:#bfc2be}
+.back:hover{color:#fff}
+.options{position:relative;font:500 13px/1.4 system-ui,sans-serif}
+.options summary{list-style:none;width:36px;height:36px;display:grid;place-items:center;border:1px solid #454742;border-radius:50%;transition:border-color .14s}
+.options summary::-webkit-details-marker{display:none}
+.options summary:hover,.options[open] summary{border-color:#8d9394}
+.options summary svg{width:19px;height:19px;fill:none;stroke:currentColor;stroke-width:1.65;stroke-linecap:round;stroke-linejoin:round}
+.options-pop{position:absolute;top:44px;right:0;width:230px;padding:15px;background:#1b1c1b;border:1px solid #454740;border-radius:9px;box-shadow:0 14px 35px #0008}
+.options-pop label{display:block;font:600 11px/1.5 system-ui,sans-serif;letter-spacing:.08em;color:#a6a9a3;margin:0 0 9px}
+.options-pop select{display:block;width:100%;border:1px solid #50524b;background:#242624;color:#f4f3ed;border-radius:6px;padding:12px;outline-offset:2px;font:500 14px system-ui,sans-serif;appearance:none;background-image:url('data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" stroke="%23aaa" stroke-width="2" viewBox="0 0 24 24"%3E%3Cpath d="m6 9 6 6 6-6"/%3E%3C/svg%3E');background-repeat:no-repeat;background-position:right 10px center}
+.options-pop button{margin:14px 0 0;padding:11px 0 1px;display:block;border:0;border-top:1px solid #44463f;width:100%;background:none;color:#d6d8d1;text-align:left;font:500 13px system-ui,sans-serif}
+.options-pop button[hidden]{display:none}
+.reader{max-width:628px;margin:0 auto;padding:clamp(46px,8vw,78px) 27px 90px}
+.story-name{font-size:clamp(29px,5vw,39px);font-weight:400;line-height:1.15;letter-spacing:-.025em;margin:0 0 28px}
+.story-location{font:600 10px/1.6 system-ui,sans-serif;letter-spacing:.2em;text-transform:uppercase;color:#92968e;margin:0 0 30px}
+.passage{display:grid;gap:20px;align-content:start}
+.passage p{--word-final:var(--ink);font-size:clamp(18.5px,2.4vw,21px);line-height:1.72;letter-spacing:-.01em;margin:0;text-wrap:pretty}
+.passage p.quiet{--word-final:#b8bbb7}
+.passage p.emphasis{--word-final:#e5cb9f;font-style:italic}
 .ink-word{color:transparent}
-.line.inking .ink-word{animation:ink-arrive var(--ink-ms,900ms) cubic-bezier(.2,.65,.25,1) both}
-.line.settled .ink-word{color:var(--word-target);animation:none}
-@keyframes ink-arrive{0%{color:transparent}35%{color:#8ea9cd}100%{color:var(--word-target)}}
-.choice-list{display:grid;gap:0;margin:32px 0 0;border-top:1px solid #44444b}
-.choice{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:20px;text-align:left;width:100%;padding:17px 4px;border:0;border-bottom:1px solid #44444b;background:transparent;color:var(--ink);font:500 15px/1.55 system-ui,sans-serif;opacity:0;transform:translateY(4px);animation:choice-arrive 135ms ease-out both;transition:background-color .14s,border-color .14s}
-.choice:hover{background:#1e2228;border-color:#8d8f98}
-.choice .number{display:inline-block;min-width:29px;font-size:11px;color:#9d9b9c;margin-right:9px}
-.choice .arrow{color:var(--highlight);font-size:18px}
-@keyframes choice-arrive{to{opacity:1;transform:none}}
-.skiprow{display:flex;align-items:center;justify-content:space-between;gap:15px;margin:35px 0 0;font:500 12px/1.6 system-ui,sans-serif;color:var(--dim)}
-.skiprow button{background:transparent;border:0;border-bottom:1px solid #87817d;color:#d0c7b8;padding:7px 0}
-.skiprow button[disabled]{opacity:.36;cursor:default}
-.settings{display:flex;align-items:center;gap:9px}
-.settings label{font:500 11px system-ui,sans-serif;color:var(--dim)}
-.settings select{background:#1c1e25;color:var(--ink);border:1px solid #4b4b52;border-radius:6px;padding:8px 9px;font:500 12px system-ui,sans-serif}
-.note{font:400 12px/1.75 system-ui,sans-serif;color:var(--dim);border-top:1px solid #34353c;margin-top:66px;padding-top:20px}
-@media(max-width:500px){.header{padding:17px 15px 0}.header a.back,.header button{padding:9px 11px}.shell{padding:63px 20px 60px}.deck{margin-bottom:42px}.stage{padding-left:18px}.line{margin-bottom:16px}.choice-list{margin-top:29px}.skiprow{flex-wrap:wrap}.story{min-height:200px}}
-@media(prefers-reduced-motion:reduce){*,*:before,*:after{animation-duration:.01ms!important;transition-duration:.01ms!important;scroll-behavior:auto!important}}
+.passage p.go .ink-word{animation:appear var(--fade,900ms) var(--ease) both}
+.passage p.settled .ink-word{animation:none!important;color:var(--word-final)!important}
+@keyframes appear{0%{color:transparent}35%{color:var(--tint)}100%{color:var(--word-final)}}
+.choices{display:grid;gap:0;margin-top:clamp(34px,7vw,58px);border-top:1px solid var(--hair)}
+.choices:empty{display:none}
+.choice{display:grid;grid-template-columns:2.05em minmax(0,1fr) 1.3em;align-items:baseline;gap:.35em;width:100%;padding:15px 1px 17px;border:0;border-bottom:1px solid var(--hair);background:none;color:var(--ink);text-align:left;font:400 clamp(15px,2.5vw,17px)/1.5 Georgia,"Times New Roman",serif;opacity:0;animation:choice-appear 125ms var(--ease) forwards;transition:color 120ms,background-color 120ms;cursor:pointer}
+.choice:hover,.choice:focus-visible{color:#bdd0f0;background:#1b1c1b}
+.choice:active{opacity:.7}
+.choice-number{font:400 11px/1.5 system-ui,sans-serif;color:#838984;font-variant-numeric:tabular-nums}
+.choice-arrow{font-size:19px;font-family:system-ui,sans-serif;color:#8b9aa8;text-align:right}
+@keyframes choice-appear{to{opacity:1}}
+.hint{min-height:16px;margin-top:22px;font:400 11px/1.45 system-ui,sans-serif;color:#7d837f;letter-spacing:.015em;transition:opacity 200ms}
+.hint[hidden]{display:none}
+.passage.revealing{cursor:pointer;-webkit-tap-highlight-color:transparent}
+@media(max-width:600px){
+ .head-wrap{padding:10px 17px}
+ .reader{padding:47px 24px 80px}
+ .story-name{margin-bottom:25px}
+ .story-location{margin-bottom:29px}
+ .passage{gap:21px}
+ .choices{margin-top:38px}
+ .choice{padding-top:16px;padding-bottom:18px}
+}
+@media(prefers-reduced-motion:reduce){
+ html{scroll-behavior:auto}
+ *{animation-duration:.01ms!important;transition-duration:.01ms!important}
+ .ink-word{animation:none!important}
+}
 </style>
 </head>
 <body>
-<header class="header">
-  <a class="brand" href="/games" aria-label="NIGHT Play games">NIGHT <b>PLAY</b></a>
-  <div class="header-actions">
-    <a class="back" href="/games">← Games</a>
-    <button type="button" id="restart">Restart</button>
-  </div>
-</header>
-<main class="shell">
-  <div class="label">Interactive fiction · Motion study 01</div>
-  <div class="divider" aria-hidden="true"></div>
-  <h1>The Last Call</h1>
-  <p class="deck">An original scene showing HARK-inspired staged word-ink: each line appears through scattered blue-to-white word reveals. This is not a copy of the original HARK game. No third-party story is included.</p>
-  <section class="stage" aria-label="Interactive story">
-    <div class="scene-location" id="location">The corridor · 02:13 AM</div>
-    <div class="story" id="story" aria-live="polite" aria-relevant="additions" aria-atomic="false"></div>
-    <div class="choice-list" id="choices" aria-label="Your choices"></div>
-    <div class="skiprow">
-      <button type="button" id="reveal">Reveal remaining lines ↘</button>
-      <div class="settings">
-        <label for="pace">Text pace</label>
-        <select id="pace" aria-label="Text animation pace">
-          <option value="cinematic">Cinematic</option>
-          <option value="quick">Quick</option>
-          <option value="instant">Instant</option>
-        </select>
-      </div>
+<header class="site-head">
+ <div class="head-wrap">
+  <a class="logo" href="/games" aria-label="NIGHT Play games">NIGHT <span>PLAY</span></a>
+  <nav class="head-actions" aria-label="Story navigation">
+   <a class="back" href="/games">← Games</a>
+   <details class="options" id="readingOptions">
+    <summary aria-label="Reading options" title="Reading options"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="2.3"/><path d="M12 2.8v2.2m0 14v2.2M2.8 12H5m14 0h2.2M5.5 5.5 7 7m10 10 1.5 1.5M18.5 5.5 17 7M7 17l-1.5 1.5"/></svg></summary>
+    <div class="options-pop">
+     <label for="pace">Text animation</label>
+     <select id="pace" aria-label="Text animation speed">
+      <option value="cinematic">Cinematic</option>
+      <option value="quick">Quick</option>
+      <option value="instant">Off</option>
+     </select>
+     <button type="button" id="restart" hidden>Restart story</button>
     </div>
-  </section>
-  <p class="note">Narration advances in separate lines. Each word briefly passes through cool-blue ink, with staggered delays; choices appear in approximately 135 milliseconds when the final line becomes readable. Tap “Reveal remaining lines” to skip narration delays. Reduced-motion preferences are respected.</p>
+   </details>
+  </nav>
+ </div>
+</header>
+<main class="reader">
+ <h1 class="story-name">The Last Call</h1>
+ <section aria-label="Interactive story">
+  <div class="story-location" id="location">The corridor · 02:13 AM</div>
+  <div class="passage" id="story" aria-live="off" aria-label="Story narration"></div>
+  <div class="hint" id="hint" aria-live="off" hidden>Tap the story to reveal all text.</div>
+  <div class="choices" id="choices" aria-label="Your choices"></div>
+ </section>
 </main>
-<script>
-(()=>{
+
+<script>(function(){
 'use strict';
 const root={
-  location:document.getElementById('location'),
-  story:document.getElementById('story'),
-  choices:document.getElementById('choices'),
-  reveal:document.getElementById('reveal'),
-  restart:document.getElementById('restart'),
-  pace:document.getElementById('pace')
+ location:document.getElementById('location'),
+ story:document.getElementById('story'),
+ choices:document.getElementById('choices'),
+ hint:document.getElementById('hint'),
+ pace:document.getElementById('pace'),
+ restart:document.getElementById('restart'),
+ menu:document.getElementById('readingOptions')
 };
 const scenes={
   start:{
@@ -165,105 +184,110 @@ const scenes={
     options:[['Begin again','start']]
   }
 };
-let generation=0,timers=[],current='start',shown=0,finished=false;
-const reduced=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-function cancel(){generation++;for(const id of timers)clearTimeout(id);timers=[]}
-function after(fn,delay){const id=setTimeout(fn,delay);timers.push(id)}
-// Independent HARK-inspired renderer: words occupy final positions before an ink-like reveal.
-function appendBeat(beat, immediate=false){
-  const p=document.createElement('p');
-  p.className='line'+(beat.tone?' '+beat.tone:'');
-  p.setAttribute('aria-label',beat.text);
-  const parts=beat.text.split(/(\s+)/);
-  let words=0;
-  for(const part of parts){
-    if(!part)continue;
-    if(/^\s+$/.test(part)){p.appendChild(document.createTextNode(part));continue}
-    const word=document.createElement('span');
-    word.className='ink-word';word.textContent=part;word.setAttribute('aria-hidden','true');
-    p.appendChild(word);words++;
-  }
-  const quick=root.pace.value==='quick';
-  const factor=quick?.45:1;
-  const spread=Math.round(Math.min(900,Math.max(280,words*8))*factor);
-  const fade=Math.round(900*factor);
-  if(immediate){
-    p.classList.add('settled');
-  }else{
-    p.style.setProperty('--ink-ms',fade+'ms');
-    for(const word of p.querySelectorAll('.ink-word')){
-      word.style.animationDelay=Math.round(Math.random()*spread)+'ms';
-    }
-    p.classList.add('inking');
-  }
-  root.story.appendChild(p);shown++;
-  // Another beat starts when this sentence is readable, not only after its full fade.
-  return spread+Math.round(fade*.6);
+
+const reduced=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+const key='night-play-fiction-pace';
+try{const remembered=localStorage.getItem(key);if(['cinematic','quick','instant'].includes(remembered))root.pace.value=remembered}catch{}
+let current='start',epoch=0,timers=[],running=false,finished=false,steps=[];
+function stopTimers(){epoch++;for(const t of timers)clearTimeout(t);timers=[];running=false}
+function after(ms,fn){const id=setTimeout(fn,ms);timers.push(id)}
+function makeStep(beat){
+ const line=document.createElement('p');
+ line.className='pending'+(beat.tone?' '+beat.tone:'');
+ line.setAttribute('aria-label',beat.text);
+ const words=beat.text.split(/(\s+)/);
+ for(const token of words){
+  if(!token)continue;
+  if(/^\s+$/.test(token)){line.appendChild(document.createTextNode(token));continue}
+  const span=document.createElement('span');
+  span.className='ink-word';span.textContent=token;span.setAttribute('aria-hidden','true');
+  line.appendChild(span)
+ }
+ return line;
 }
-function settleAllLines(){
-  for(const p of root.story.querySelectorAll('.line')){
-    p.classList.remove('inking');p.classList.add('settled');
-  }
+function settleAll(){
+ for(const line of steps){line.classList.remove('pending','go');line.classList.add('settled')}
 }
 function showChoices(instant=false){
-  if(finished)return;
-  finished=true;root.reveal.disabled=true;
-  for(let i=0;i<scenes[current].options.length;i++){
-    const [text,destination]=scenes[current].options[i];
-    const button=document.createElement('button');button.type='button';button.className='choice';
-    if(instant){button.style.animation='none';button.style.opacity='1';button.style.transform='none'}
-    else button.style.animationDelay=(i*25)+'ms';
-    const label=document.createElement('span');
-    const number=document.createElement('span');number.className='number';number.textContent=String(i+1).padStart(2,'0');
-    label.appendChild(number);label.appendChild(document.createTextNode(text));
-    const arrow=document.createElement('span');arrow.className='arrow';arrow.setAttribute('aria-hidden','true');arrow.textContent='↗';
-    button.appendChild(label);button.appendChild(arrow);
-    button.addEventListener('click',()=>play(destination));
-    root.choices.appendChild(button);
-  }
-  if(window.innerWidth<700){
-    const end=root.choices.getBoundingClientRect();
-    if(end.bottom>window.innerHeight-24){
-      requestAnimationFrame(()=>root.choices.scrollIntoView({behavior:reduced?'auto':'smooth',block:'end'}));
-    }
-  }
+ if(finished)return;
+ finished=true;running=false;root.hint.hidden=true;root.story.classList.remove('revealing');
+ const options=scenes[current].options;
+ options.forEach(([label,destination],i)=>{
+  const button=document.createElement('button');
+  button.className='choice';button.type='button';
+  if(instant){button.style.opacity='1';button.style.animation='none'}
+  else button.style.animationDelay=(i*20)+'ms';
+  const number=document.createElement('span');number.className='choice-number';number.textContent=String(i+1).padStart(2,'0');
+  const title=document.createElement('span');title.textContent=label;
+  const arrow=document.createElement('span');arrow.className='choice-arrow';arrow.textContent='↗';arrow.setAttribute('aria-hidden','true');
+  button.append(number,title,arrow);
+  button.addEventListener('click',()=>play(destination));
+  root.choices.appendChild(button)
+ });
+ if(window.innerWidth<700&&root.choices.getBoundingClientRect().bottom>innerHeight-18){
+  root.choices.scrollIntoView({block:'end',behavior:reduced?'instant':'smooth'})
+ }
 }
 function revealAll(){
-  if(finished)return;
-  cancel();
-  const beats=scenes[current].beats;
-  while(shown<beats.length)appendBeat(beats[shown],true);
-  settleAllLines();
-  showChoices(true);
+ if(finished)return;
+ stopTimers();settleAll();showChoices(true)
+}
+function motionStep(line,factor){
+ if(line.classList.contains('settled'))return 0;
+ const wordSpans=[...line.querySelectorAll('.ink-word')];
+ const fade=Math.round(900*factor);
+ const spread=Math.round(Math.min(900,Math.max(280,wordSpans.length*8))*factor);
+ line.style.setProperty('--fade',fade+'ms');
+ for(const word of wordSpans){word.style.animationDelay=Math.round(Math.random()*spread)+'ms'}
+ line.classList.remove('pending');line.classList.add('go');
+ return spread+Math.round(fade*.65);
 }
 function play(sceneId){
-  if(!Object.prototype.hasOwnProperty.call(scenes,sceneId))return;
-  cancel();current=sceneId;shown=0;finished=false;
-  const scene=scenes[sceneId];
-  root.location.textContent=scene.place;
-  root.story.replaceChildren();root.choices.replaceChildren();
-  root.reveal.disabled=false;
-  if(root.pace.value==='instant'||reduced){revealAll();return}
-  const factor=root.pace.value==='quick'?.45:1;
-  const epoch=generation;
-  const revealAt=index=>{
-    if(epoch!==generation)return;
-    const readability=appendBeat(scene.beats[index]);
-    const intendedPause=Math.round((scene.beats[index].gap||0)*factor);
-    const delay=Math.max(readability,intendedPause);
-    if(index===scene.beats.length-1){
-      after(()=>{if(epoch===generation)showChoices(false)},delay);
-    }else{
-      after(()=>revealAt(index+1),delay);
-    }
-  };
-  after(()=>revealAt(0),120);
+ if(!Object.prototype.hasOwnProperty.call(scenes,sceneId))return;
+ stopTimers();
+ current=sceneId;finished=false;
+ const scene=scenes[sceneId];
+ root.location.textContent=scene.place;
+ root.story.replaceChildren();root.choices.replaceChildren();
+ steps=scene.beats.map(makeStep);root.story.append(...steps);
+ const terminal=scene.options.length===1&&scene.options[0][1]==='start';
+ root.restart.hidden=terminal||sceneId==='start';
+ root.menu.open=false;
+ if(reduced||root.pace.value==='instant'){settleAll();showChoices(true);return}
+ running=true;root.hint.hidden=false;root.story.classList.add('revealing');
+ const factor=root.pace.value==='quick'?.47:1;
+ const stamp=epoch;
+ let delay=75,choiceAt=0;
+ steps.forEach((line,i)=>{
+  if(i>0){
+   const previous=scene.beats[i-1];
+   delay+=Math.round(Math.min(175,Math.max(65,previous.gap*.14))*factor);
+   if(i===steps.length-1&&scene.beats[i].tone==='emphasis')delay+=Math.round(300*factor);
+  }
+  const spanCount=line.querySelectorAll('.ink-word').length;
+  const readable=Math.round((Math.min(900,Math.max(280,spanCount*8))+900*.65)*factor);
+  choiceAt=Math.max(choiceAt,delay+readable);
+  after(delay,()=>{if(stamp===epoch)motionStep(line,factor)});
+ });
+ // Text begins quickly and settles naturally. Only choices await readability.
+ after(choiceAt+Math.round(75*factor),()=>{if(stamp===epoch)showChoices()})
 }
-root.reveal.addEventListener('click',revealAll);
+root.story.addEventListener('click',()=>{if(running)revealAll()});
+document.addEventListener('keydown',e=>{
+ if(!running||e.altKey||e.ctrlKey||e.metaKey||e.repeat)return;
+ if((e.key===' '||e.key==='Enter')&&!/^(BUTTON|SELECT|INPUT|TEXTAREA)$/.test(document.activeElement?.tagName||'')){
+  e.preventDefault();revealAll()
+ }
+});
 root.restart.addEventListener('click',()=>play('start'));
-root.pace.addEventListener('change',()=>{if(!finished)play(current)});
+root.pace.addEventListener('change',()=>{
+ try{localStorage.setItem(key,root.pace.value)}catch{}
+ play(current)
+});
+document.addEventListener('click',e=>{
+ if(root.menu.open&&!root.menu.contains(e.target))root.menu.open=false;
+});
 play('start');
-})();
-</script>
+})();</script>
 </body>
 </html>
