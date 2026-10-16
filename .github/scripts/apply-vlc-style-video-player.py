@@ -19,6 +19,28 @@ if dependency not in build:
     build = build.replace(marker, marker + "\n    " + dependency, 1)
 build_file.write_text(build)
 
+# LibVLC resolves Java wrappers by name inside its native JNI_OnLoad.
+# R8 sees no direct Kotlin reference to e.g. IMedia$Track and can strip it
+# from an optimized release APK, causing libvlcjni to exit the whole app.
+rules = root / "app/proguard-rules.pro"
+existing_rules = rules.read_text() if rules.exists() else ""
+vlc_keep_rules = (
+    "-keep class org.videolan.libvlc.** { *; }",
+    "-keep interface org.videolan.libvlc.** { *; }",
+)
+missing_rules = [rule for rule in vlc_keep_rules if rule not in existing_rules]
+if missing_rules:
+    rules.parent.mkdir(parents=True, exist_ok=True)
+    separator = "" if not existing_rules or existing_rules.endswith("\n") else "\n"
+    rules.write_text(
+        existing_rules
+        + separator
+        + "# JNI reflection requires these wrappers after R8 minification.\n"
+        + "\n".join(missing_rules)
+        + "\n"
+    )
+
+
 text = viewer.read_text()
 for imp in (
     "import androidx.media3.common.MediaItem\n",
