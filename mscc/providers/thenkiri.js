@@ -302,6 +302,68 @@ export async function browseTheNkiri(type) {
   return rows.filter(row => !type || row.type === type)
 }
 
+function sourcePostId(item) {
+  return Number(item?.sourcePostId || String(item?.id || '').replace(/^thenkiri:/i, '')) || 0
+}
+
+function seasonsFromRelease(item) {
+  const seasons = new Map()
+  const fallbackSeason = Number(item?.seasonNumber || 0)
+  for (const link of Array.isArray(item?.releaseLinks) ? item.releaseLinks : []) {
+    const season = Number(link?.season || fallbackSeason)
+    if (!Number.isInteger(season) || season <= 0) continue
+    if (!seasons.has(season)) seasons.set(season, new Set())
+    const episode = Number(link?.episode || 0)
+    if (Number.isInteger(episode) && episode > 0) seasons.get(season).add(episode)
+  }
+  if (!seasons.size && fallbackSeason > 0) seasons.set(fallbackSeason, new Set())
+  return [...seasons.entries()]
+    .sort(([a],[b]) => a - b)
+    .map(([number, episodes]) => ({
+      id:String(number),
+      number,
+      title:'Season ' + number,
+      episodeCount:episodes.size,
+    }))
+}
+
+function episodesFromRelease(item, seasonNumber) {
+  const season = Number(seasonNumber)
+  if (!Number.isInteger(season) || season <= 0) return []
+  const fallbackSeason = Number(item?.seasonNumber || 0)
+  const numbers = new Set()
+  for (const link of Array.isArray(item?.releaseLinks) ? item.releaseLinks : []) {
+    const linkSeason = Number(link?.season || fallbackSeason)
+    // Never assign an episode with unknown season identity to every season.
+    if (linkSeason !== season) continue
+    const episode = Number(link?.episode || 0)
+    if (Number.isInteger(episode) && episode > 0) numbers.add(episode)
+  }
+  return [...numbers].sort((a,b) => a - b).map(number => ({
+    id:String(number),
+    number:String(number),
+    seasonNumber:season,
+    title:'Episode ' + number,
+  }))
+}
+
+async function fullTvPost(item) {
+  const id = sourcePostId(item)
+  if (!id) return null
+  const post = await postById(id)
+  return post.type === 'tv' ? post : null
+}
+
+export async function listTheNkiriSeasons({ item } = {}) {
+  const post = await fullTvPost(item)
+  return post ? seasonsFromRelease(post) : []
+}
+
+export async function listTheNkiriEpisodes({ item, seasonNumber } = {}) {
+  const post = await fullTvPost(item)
+  return post ? episodesFromRelease(post, seasonNumber) : []
+}
+
 export async function resolveTheNkiriRelease({ item, title, type = '', season = 0, episode = 0 } = {}) {
   const expectedType = String(type || item?.type || '').toLowerCase()
   const directId = Number(item?.sourcePostId || String(item?.id || '').replace(/^thenkiri:/i, '')) || 0
@@ -386,6 +448,9 @@ export const _test = {
   mediaNumbers,
   extractReleaseLinks,
   matchingLinks,
+  seasonsFromRelease,
+  episodesFromRelease,
+  sourcePostId,
   downloadwellaForm,
   startDownloadUrl,
 }
