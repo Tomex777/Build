@@ -186,7 +186,7 @@ async function finish(page,winner){
      transformStyle:getComputedStyle(el).transformStyle,
      backface:getComputedStyle(el.querySelector('.whot-flip-front')).backfaceVisibility
    }));
-   assert.ok(flipStyle.effect.includes(440),'3D card reveal shares the market flight');
+   assert.ok(flipStyle.effect.includes(560),'3D card reveal shares the market flight');
    assert.equal(flipStyle.transformStyle,'preserve-3d');
    assert.equal(flipStyle.backface,'hidden','reverse side must stay hidden while rotating');
       const motion=await drawPage.evaluate(()=>window.__nightWhotMotion());
