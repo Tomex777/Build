@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { mkdtemp, writeFile, readFile, rm, chmod } from 'node:fs/promises'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
-import { parseSocialRequest, socialExtractorArgs, prepareSocialDownload } from './utils/social-download.js'
+import { parseSocialRequest, socialExtractorArgs, galleryExtractorArgs, prepareSocialDownload } from './utils/social-download.js'
 
 const samples = [
   ['https://vm.tiktok.com/ZMabc/', 'TikTok'],
@@ -29,6 +29,8 @@ for (const url of [
   'https://x.com/someone',
   'https://instagram.com/someone',
   'https://www.instagram.com/',
+  'https://www.facebook.com/l.php?u=http://127.0.0.1',
+  'https://www.tiktok.com/redirect/?target=http://127.0.0.1',
 ]) assert.throws(() => parseSocialRequest(url),url)
 
 const sample = parseSocialRequest('https://www.instagram.com/p/abC12/')
@@ -39,6 +41,8 @@ assert.ok(args.includes('1:6'))
 assert.ok(args.includes('--no-remote-components'))
 assert.deepEqual(args.slice(-2),['--',sample.url])
 assert.ok(!socialExtractorArgs(parseSocialRequest(samples[0][0]),'/tmp/night').includes('--yes-playlist'))
+assert.ok(galleryExtractorArgs(sample,'/tmp/night').includes('--config-ignore'))
+assert.ok(galleryExtractorArgs(sample,'/tmp/night').includes('1-6'))
 
 // A fake local downloader validates the complete child-process/file lifecycle, no network required.
 const dir = await mkdtemp(join(tmpdir(),'night-social-test-'))
@@ -48,6 +52,7 @@ const {writeFileSync}=require('node:fs');
 const args=process.argv.slice(2);
 const template=args[args.indexOf('-o')+1];
 if(process.env.NIGHT_DL_FAKE_FAIL==='1') {console.error('login required');process.exit(1)}
+if(args.includes('-D')) { const out=args[args.indexOf('-D')+1];writeFileSync(out+'/night-example.jpg',Buffer.from('TEST_JPEG'));process.exit(0) }
 const name=template.replace('%(playlist_index|0)s','0').replace('%(id|media)s','test').replace('%(ext)s','mp4');
 writeFileSync(name,Buffer.from('TEST_MP4'));
 `,{mode:0o755})
@@ -60,6 +65,10 @@ try {
   const file = result.files[0].file
   await result.cleanup()
   await assert.rejects(readFile(file))
+  const album = await prepareSocialDownload('https://www.instagram.com/p/ABC123/',{binary:fake})
+  assert.equal(album.files.length,1)
+  assert.equal(album.files[0].mime,'image/jpeg')
+  await album.cleanup()
   await assert.rejects(prepareSocialDownload('https://vm.tiktok.com/ZMabc/',{binary:'/not-a-real-dlp'}),/not installed/)
   const previous = process.env.NIGHT_DL_FAKE_FAIL
   process.env.NIGHT_DL_FAKE_FAIL = '1'
