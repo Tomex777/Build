@@ -23,9 +23,9 @@ const USER_AGENT = 'NIGHT-Anime-Stickers (https://github.com/Tomex777/Build)'
 const MAX_MEDIA_BYTES = 16 * 1024 * 1024
 const stickerCache = new Map()
 const CACHE_ENTRIES = 12
-function rememberSticker(category, sticker) {
-  stickerCache.delete(category)
-  stickerCache.set(category,sticker)
+function rememberSticker(cacheKey, sticker) {
+  stickerCache.delete(cacheKey)
+  stickerCache.set(cacheKey,sticker)
   while (stickerCache.size > CACHE_ENTRIES) stickerCache.delete(stickerCache.keys().next().value)
 }
 const groupTag = /(^|\s)@(?:all|everyone|here)(?=\s|$|\W)/iu
@@ -97,6 +97,9 @@ export async function sendReactionSticker(ctx, category) {
   let mentions
   try { mentions = mentionedTargets(ctx) }
   catch (error) { return ctx.reply(error.message) }
+  const packName = stickerPackNameForCommand(ctx)
+  // Do not use another sender's personalized sticker-pack metadata from cache.
+  const cacheKey = category + '|' + packName
   const failures = []
   // Each reaction remains an animated rounded WebP sticker. An upstream HTTP
   // failure, dead GIF or failed conversion must never disable every command
@@ -113,11 +116,11 @@ export async function sendReactionSticker(ctx, category) {
         const gif = await downloadGif(url)
         const sticker = await mediaToSticker(gif, {
           animated:true,
-          packName:stickerPackNameForCommand(ctx),
+          packName,
         })
         if (sticker.length > 900 * 1024) throw new Error('Converted sticker exceeds WhatsApp target size')
         const delivered = await sock.sendMessage(chat, { sticker, ...(mentions.length ? {mentions} : {}) }, {quoted:ctx.message})
-        rememberSticker(category,sticker)
+        rememberSticker(cacheKey,sticker)
         return delivered
       } catch (error) {
         failures.push(provider.name + ': ' + String(error?.message || error).slice(0,140))
@@ -126,7 +129,7 @@ export async function sendReactionSticker(ctx, category) {
   }
   // Last-known-good animated sticker is preferable to silently failing when
   // every provider is temporarily down. Cache is strictly bounded in RAM.
-  const cached = stickerCache.get(category)
+  const cached = stickerCache.get(cacheKey)
   if (cached) {
     try {
       return await sock.sendMessage(chat,{ sticker:cached, ...(mentions.length ? {mentions} : {}) },{quoted:ctx.message})
