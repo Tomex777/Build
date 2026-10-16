@@ -11,7 +11,7 @@ let cardMotionBusy=false,cardMotionEpoch=0,pendingWhotDeal=false;
 const whotMotion={
  player:465,cpu:480,draw:460,cpuDelay:235,
  deal:410,dealDelay:55,dealStagger:66,opponentDeal:440,
- settle:180,recenter:360,drawFlip:440
+ settle:180,recenter:360,drawFlip:560
 };
 const cardMotionMetrics={deals:0,plays:0,cpuPlays:0,draws:0,activeFlights:0,lastFlightDuration:0,lastFlightAction:null};
 const motionEnabled=()=>!matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -223,18 +223,18 @@ async function whotFly(origin,destination,{face=null,action="play"}={}){
    {offset:.72,transform:'translate3d('+(dx*.73)+'px,'+(dy*.73-4)+'px,0) scale('+(1.025+(scale-1)*.7)+')',opacity:1},
    {offset:1,transform:'translate3d('+dx+'px,'+dy+'px,0) scale('+scale+')',opacity:1}
   ],{duration,easing:'cubic-bezier(.22,.7,.19,1)',fill:'forwards'});
+  let flipEffect=null;
   if(flipCore){
-   // The front turns into view *during* the flight, not via a second
-   // post-flight animation. 3D depth and backface hiding make the reveal
-   // feel like a physical card rather than a flat sprite swap.
-   flipCore.animate([
+   // Keep the reference's measured, substantial 3D turn concurrent with
+   // position motion; never remove the moving card before its face settles.
+   flipEffect=flipCore.animate([
     {transform:'rotateY(0deg)'},
     {offset:.3,transform:'rotateY(27deg)'},
     {offset:1,transform:'rotateY(180deg)'}
    ],{delay:action==='draw'?52:25,duration:whotMotion.drawFlip,
      easing:'cubic-bezier(.31,.63,.19,1)',fill:'forwards'});
   }
-  await flight.finished.catch(()=>{});
+  await Promise.all([flight.finished.catch(()=>{}),flipEffect?flipEffect.finished.catch(()=>{}):Promise.resolve()]);
  }finally{
   origin.style.visibility=oldVisibility;
   if(action==='draw')destination.style.visibility=previousDestVisibility;
