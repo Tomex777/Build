@@ -102,11 +102,33 @@ data class SceneEditorState(
             actor.asset?.assetId != "starter.makehuman.humanoid") return this
         val color = colorHex?.uppercase() ?: actor.appearance.hairColorHex
         if (!Regex("#[0-9A-F]{6}").matches(color)) return this
-        val appearance = CharacterAppearanceSettings(style, color)
+        val appearance = actor.appearance.copy(hairStyle = style, hairColorHex = color)
         if (appearance == actor.appearance) return this
         return commit(project.copy(actors = project.actors.map {
             if (it.id == actor.id) it.copy(appearance = appearance) else it
         }), actor.id)
+    }
+
+    /** Changes genuine VRM spring hair settings. Other figures retain the same rig/mesh. */
+    fun setAnimeHairPhysics(
+        enabled: Boolean? = null,
+        fabricEnabled: Boolean? = null,
+        gravity: Float? = null,
+        wind: Float? = null,
+    ): SceneEditorState {
+        val actor = selectedActor ?: return this
+        if (actor.kind != ActorKind.CHARACTER || actor.locked ||
+            actor.asset?.assetId !in setOf("starter.mise.anime-figure", "starter.mise.anime-figure-female")
+        ) return this
+        if (gravity?.isFinite() == false || wind?.isFinite() == false) return this
+        val next = actor.appearance.copy(
+            hairPhysicsEnabled = enabled ?: actor.appearance.hairPhysicsEnabled,
+            fabricPhysicsEnabled = fabricEnabled ?: actor.appearance.fabricPhysicsEnabled,
+            hairGravityStrength = gravity?.coerceIn(0f, 2f) ?: actor.appearance.hairGravityStrength,
+            hairWindStrength = wind?.coerceIn(0f, 2f) ?: actor.appearance.hairWindStrength,
+        )
+        if (actor.appearance == next) return this
+        return replaceSelected(actor.copy(appearance = next))
     }
 
     /** Commits one joint rotation edit; values are local offsets from the imported rest pose. */
