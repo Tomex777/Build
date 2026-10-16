@@ -1098,6 +1098,12 @@ public final class MainActivity extends androidx.activity.ComponentActivity {
     startActivity(intent);
   }
 
+  private void openScreensaverSettings() {
+    Intent intent = new Intent(Settings.ACTION_DREAM_SETTINGS);
+    if (intent.resolveActivity(getPackageManager()) != null) startActivity(intent);
+    else toast("Screensaver settings aren't available on this device.");
+  }
+
   private void modes() {
     new AlertDialog.Builder(this)
         .setTitle("Use display")
@@ -1110,19 +1116,7 @@ public final class MainActivity extends androidx.activity.ComponentActivity {
             },
             (d, w) -> {
               if (w == 2) {
-                Intent i = new Intent(Settings.ACTION_DREAM_SETTINGS);
-                if (i.resolveActivity(getPackageManager()) == null) {
-                  toast("Ambient screensaver setup isn't available on this device.");
-                  return;
-                }
-                new AlertDialog.Builder(this)
-                    .setTitle("Enable Ambient")
-                    .setMessage(
-                        "Choose AOD in your device's screensaver settings and select when it runs."
-                            + " Availability depends on your device.")
-                    .setPositiveButton("Open settings", (q, k) -> startActivity(i))
-                    .setNegativeButton("Cancel", null)
-                    .show();
+                openScreensaverSettings();
               } else if (w == 3)
                 new AlertDialog.Builder(this)
                     .setTitle("Manual lock-screen display")
@@ -1309,25 +1303,35 @@ public final class MainActivity extends androidx.activity.ComponentActivity {
 
   private void settingHour(LinearLayout parent, String label,
       android.content.SharedPreferences prefs, String key, int fallback) {
-    int initial = prefs.getInt(key, fallback);
-    Button picker = Ui.button(this, label + "  ·  " + time(initial * 60), () -> {});
+    Button picker = Ui.button(this,
+        label + "  ·  " + time(prefs.getInt(key, fallback) * 60), () -> {});
     picker.setOnClickListener(v -> {
-      NumberPicker hours = new NumberPicker(this);
-      hours.setMinValue(0);
-      hours.setMaxValue(23);
-      hours.setValue(prefs.getInt(key, fallback));
-      hours.setWrapSelectorWheel(true);
-      hours.setContentDescription(label + " hour");
-      new AlertDialog.Builder(this)
-          .setTitle(label)
-          .setView(hours)
-          .setPositiveButton("Save", (dialog, which) -> {
-            int selectedHour = hours.getValue();
-            prefs.edit().putInt(key, selectedHour).apply();
-            picker.setText(label + "  ·  " + time(selectedHour * 60));
-          })
+      EditText edit = Ui.field(this, String.valueOf(prefs.getInt(key, fallback)), label);
+      edit.setInputType(android.text.InputType.TYPE_CLASS_NUMBER);
+      edit.setImeOptions(android.view.inputmethod.EditorInfo.IME_ACTION_DONE);
+      FrameLayout wrapper = new FrameLayout(this);
+      wrapper.setPadding(Ui.dp(this, 20), Ui.dp(this, 8),
+          Ui.dp(this, 20), Ui.dp(this, 8));
+      wrapper.addView(edit, new FrameLayout.LayoutParams(-1, Ui.dp(this, 52)));
+      AlertDialog dialog = new AlertDialog.Builder(this)
+          .setTitle(label + " (0–23)")
+          .setView(wrapper)
+          .setPositiveButton("Save", null)
           .setNegativeButton("Cancel", null)
-          .show();
+          .create();
+      dialog.setOnShowListener(ready ->
+          dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(save -> {
+            try {
+              int hour = Integer.parseInt(edit.getText().toString().trim());
+              if (hour < 0 || hour > 23) throw new NumberFormatException();
+              prefs.edit().putInt(key, hour).apply();
+              picker.setText(label + "  ·  " + time(hour * 60));
+              dialog.dismiss();
+            } catch (NumberFormatException invalid) {
+              edit.setError("Enter an hour from 0 to 23");
+            }
+          }));
+      dialog.show();
     });
     LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(-1, Ui.dp(this, 50));
     lp.setMargins(Ui.dp(this, 6), Ui.dp(this, 4), Ui.dp(this, 6), Ui.dp(this, 4));
@@ -1384,7 +1388,8 @@ public final class MainActivity extends androidx.activity.ComponentActivity {
         checkSelfPermission(android.Manifest.permission.READ_CALENDAR) == PackageManager.PERMISSION_GRANTED
             ? "Calendar access · On" : "Calendar access · Off",
         () -> requestPermissions(new String[] {android.Manifest.permission.READ_CALENDAR}, 40)));
-    c.addView(Ui.button(this, "Set up Ambient screensaver", this::modes));
+    c.addView(Ui.eyebrow(this, "SCREENSAVER"));
+    c.addView(Ui.button(this, "Configure screensaver", this::openScreensaverSettings));
   }
 
     private void chooseImage(String id) {
