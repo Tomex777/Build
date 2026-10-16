@@ -28,5 +28,7 @@ class PoetrySmokeTest {
         compose.onNodeWithText("Stars").performClick()
         compose.onNodeWithText("Sparkle").assertExists()
         compose.onNodeWithText("Love").assertDoesNotExist()
+        compose.onNodeWithText("Sparkle").performClick()
+        compose.onNodeWithText("Opacity").assertExists()
     }
 }
