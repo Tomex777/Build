@@ -49,9 +49,12 @@ if [ "$TEST_SUITE" = anime ]; then
       for stage in posed neutral female-neutral female-hair-still female-hair-gravity; do
         target="$PROOF_DIR/anime-$stage.png"
         if [ ! -s "$target" ]; then
-          timeout 12s adb pull "$REMOTE_DIR/anime-$stage.png" "$target" >/dev/null 2>&1 || {
-            rm -f "$target"
-          }
+          partial="$target.pending"
+          if timeout 12s adb pull "$REMOTE_DIR/anime-$stage.png" "$partial" >/dev/null 2>&1 && [ -s "$partial" ]; then
+            mv "$partial" "$target"
+          else
+            rm -f "$partial"
+          fi
         fi
       done
       sleep 6
@@ -96,11 +99,8 @@ if [ "$TEST_SUITE" != anime ]; then
 fi
 # Anime suite can pass despite a post-run device shutdown ONLY if every screenshot
 # was already fully copied to the host and passes pixel integrity checks.
-if [ -n "${proof_watch_pid:-}" ]; then
-  kill "$proof_watch_pid" >/dev/null 2>&1 || true
-  wait "$proof_watch_pid" >/dev/null 2>&1 || true
-  unset proof_watch_pid
-fi
+# The watcher is stopped by the EXIT trap, AFTER all screenshots are verified.
+# Terminating it here lost the last frame on Android 16 before the final pull.
 if [ "$TEST_SUITE" != editor ] && [ "$TEST_SUITE" != humanoid ] && [ "$TEST_SUITE" != anime ]; then
   if [ "$TEST_SUITE" = tree ]; then stages=tree; else stages="$TEST_SUITE-before $TEST_SUITE-after $TEST_SUITE-saved"; fi
   for stage in $stages; do
@@ -112,7 +112,12 @@ if [ "$TEST_SUITE" != editor ] && [ "$TEST_SUITE" != humanoid ] && [ "$TEST_SUIT
   exit 0
 fi
 if [ "$TEST_SUITE" = anime ]; then
-  for stage in posed neutral female-neutral; do
+  for stage in posed neutral female-neutral female-hair-still female-hair-gravity; do
+    # Allow the parallel capture helper to finish its atomic copy first.
+    for attempt in 1 2 3 4; do
+      [ -s "$PROOF_DIR/anime-${stage}.png" ] && break
+      sleep 2
+    done
     pull_proof "anime-${stage}.png"
     cp "$PROOF_DIR/anime-${stage}.png" "artist-scene-studio-${API_TAG}-anime-${stage}.png" || fail "Anime $stage screenshot was missing"
     python3 scripts/check-viewport-pixels.py "artist-scene-studio-${API_TAG}-anime-${stage}.png" || fail "Anime $stage viewport was black"
