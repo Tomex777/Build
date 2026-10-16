@@ -6,6 +6,7 @@ import { renderCard } from './utils/artist-edition-renderer.js'
 import {
   EDITIONS, parseCardRequest, lookupAnimeCharacter, imageAsset,
   editionDefinition, makeEditionSvg, renderEditionPng,
+  NARUTO_ACTION_ART, selectCharacterArtworkSource, getArtworkForCharacter,
 } from './utils/anime-collectible-cards.js'
 
 async function main() {
@@ -32,6 +33,19 @@ async function main() {
     }),
   })
   assert.equal(found.id,17,'full name outranks popularity for lookups')
+  // Regression: the original red-scroll hero must WIN over AniList's cropped
+  // face thumbnail for the same character, without committing any protected
+  // Naruto image into the source repository.
+  const hero=selectCharacterArtworkSource(found)
+  assert.equal(hero.archivedAction,true)
+  assert.equal(hero.imageUrl,'https://naruto-official.com/about/hero.webp')
+  assert.equal(hero.sha256,NARUTO_ACTION_ART.sha256)
+  assert.equal(hero.width,1576)
+  assert.equal(hero.height,1884)
+  assert.equal(selectCharacterArtworkSource({name:'Naruto Uzumaki',imageUrl:'https://anilist.co/avatar.jpg'}).archivedAction,true)
+  assert.deepEqual(selectCharacterArtworkSource({id:33,name:'Sakura Haruno',imageUrl:'https://anilist.co/sakura.png',sourceUrl:'https://anilist.co/character/33'}),{
+    imageUrl:'https://anilist.co/sakura.png',sourceUrl:'https://anilist.co/character/33',archivedAction:false,
+  })
   const baseImage = createCanvas(400,580)
   const painter = baseImage.getContext('2d')
   const grd = painter.createLinearGradient(0,0,400,580)
@@ -40,6 +54,23 @@ async function main() {
   painter.fillStyle = '#f0e1cd';painter.beginPath();painter.arc(200,245,115,0,Math.PI*2);painter.fill()
   painter.fillStyle = '#192132';painter.fillRect(80,390,240,190)
 
+  // Offline mock: selecting the official source must be observable by the
+  // downloader; if upstream bytes change, NEVER silently replace the hero
+  // with a low-resolution portrait.
+  let attemptedUrl=''
+  await assert.rejects(getArtworkForCharacter(found,{downloadImpl:async url=>{
+    attemptedUrl=url
+    return {buffer:baseImage.toBuffer('image/png')}
+  }}),/original Naruto action illustration has changed/)
+  assert.equal(attemptedUrl,NARUTO_ACTION_ART.imageUrl)
+  await assert.rejects(getArtworkForCharacter(found,{downloadImpl:async()=>{throw Error('offline')}}),/temporarily unavailable/)
+  const nonHero = await getArtworkForCharacter({id:33,name:'Sakura Haruno',imageUrl:'https://example.com/sakura.png',sourceUrl:'https://anilist.co/character/33'}, {
+    downloadImpl:async url=>{
+      assert.equal(url,'https://example.com/sakura.png')
+      return {buffer:baseImage.toBuffer('image/png')}
+    },
+  })
+  assert.equal(nonHero.artWidth,400)
   const artwork = await imageAsset(baseImage.toBuffer('image/png'),{sourceUrl:found.sourceUrl})
   assert.equal(artwork.artWidth,400)
   assert.equal(artwork.artHeight,580)
@@ -48,7 +79,7 @@ async function main() {
   for (const edition of EDITIONS) {
     const def = await editionDefinition(found,edition)
     assert.equal(def.edition.toLowerCase(),edition)
-    assert.equal(def.name,'Naruto Uzumaki')
+    assert.equal(def.name,'Naruto','original red-scroll edition has the short title, not a face-heavy nameplate')
     const svg = await makeEditionSvg(found,edition,artwork)
     assert.match(svg,/NIGHT Collectibles 1.1/)
     assert.match(svg,/Naruto Uzumaki/)
@@ -134,6 +165,6 @@ async function main() {
   const back = await makeEditionSvg(found,'nocturne',artwork,{side:'back'})
   assert.match(back,/Source artwork/)
   assert.throws(()=>renderCard({},artwork),/Missing/)
-  console.log('NIGHT collectible card tests passed: parse, mock lookup, archival templates, three rendered SVG/PNG cards, nonempty embedded artwork, reverse and dimensions.')
+  console.log('NIGHT collectible card tests passed: red-scroll archival source priority + hash guard, parser, mock lookup, all three preserved templates, rendered PNG artwork pixels, reverse and dimensions.')
 }
 main().catch(err=>{console.error(err);process.exitCode=1})
