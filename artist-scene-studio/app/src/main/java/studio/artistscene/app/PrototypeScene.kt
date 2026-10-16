@@ -96,7 +96,8 @@ object PrototypeScene {
         joints = mapOf(
             // Names are semantic placeholders until the GLB is loaded; resolveAnimePose
             // maps each joint to Filament's discovered stable path before posing.
-            "figure/spine-02" to Vec3(y = 13f, z = -8f),
+            // Deliberately leave spine-02 at rest: changing its bind-frame in this GLB
+            // makes the entire skin disappear on Android emulator renderers.
             "figure/head" to Vec3(y = -9f, z = 9f),
             "figure/upperarm-l" to Vec3(x = -20f, z = 54f),
             "figure/lowerarm-l" to Vec3(x = -15f, z = 80f),
