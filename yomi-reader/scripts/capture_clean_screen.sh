@@ -12,18 +12,36 @@ activity_postflight="$runtime_dir/$base-activity-postflight.txt"
 assert_yomi_foreground() {
     local phase=$1
     local dump=$2
-    adb shell dumpsys activity activities > "$dump"
-    if ! grep -Eq "mResumedActivity:.*app\\.yomi\\.reader(\\.dev)?/(app\\.yomi\\.reader\\.)?\\.?(MainActivity|ReaderActivity)|topResumedActivity=.*app\\.yomi\\.reader(\\.dev)?/(app\\.yomi\\.reader\\.)?\\.?(MainActivity|ReaderActivity)" "$dump"; then
+    local attempt=0
+    while :; do
+        adb shell dumpsys activity activities > "$dump" 2>&1 || true
+        if grep -Eq "mResumedActivity:.*app\\.yomi\\.reader(\\.dev)?/(app\\.yomi\\.reader\\.)?\\.?(MainActivity|ReaderActivity)|topResumedActivity=.*app\\.yomi\\.reader(\\.dev)?/(app\\.yomi\\.reader\\.)?\\.?(MainActivity|ReaderActivity)" "$dump"; then
+            return 0
+        fi
+
+        # Android 16's software emulator can briefly lose the activity
+        # service (DEAD_OBJECT) under screenshot load. Retry that transient
+        # system failure; a healthy service reporting another foreground
+        # app still fails immediately so a bad screenshot cannot pass.
+        if grep -Fq "Error with service 'activity'" "$dump" && grep -Fq 'DEAD_OBJECT' "$dump" && [ "$attempt" -lt 5 ]; then
+            attempt=$((attempt + 1))
+            sleep 3
+            continue
+        fi
+
         echo "Refusing $output: Yomi is not the resumed app during $phase" >&2
-        grep -E "mResumedActivity|topResumedActivity" "$dump" | tail -n 20 >&2 || true
+        grep -E "mResumedActivity|topResumedActivity|Error with service 'activity'" "$dump" | tail -n 20 >&2 || true
         exit 1
-    fi
+    done
 }
+
+# Use the same tested ANR classifier in both screenshots and CI preflight.
+source "$(dirname "${BASH_SOURCE[0]}")/anr_windows.sh"
 
 reject_anr() {
     local dump=$1
     local phase=$2
-    if grep -Fq 'Application Not Responding:' "$dump"; then
+    if visible_anr "$dump"; then
         rm -f "$output"
         adb logcat -d -v threadtime > "$runtime_dir/$base-$phase-anr-logcat.txt" || true
         echo "ANR window evidence during $phase:" >&2
@@ -41,7 +59,7 @@ refresh_windows() {
 clear_android_anr() {
     local dump=$1
     local attempt=0
-    while grep -Fq 'Application Not Responding:' "$dump" && [ "$attempt" -lt 15 ]; do
+    while visible_anr "$dump" && [ "$attempt" -lt 15 ]; do
         if grep -Eq 'Application Not Responding: app\.yomi\.reader(\.dev)?' "$dump"; then
             reject_anr "$dump" preflight
         fi
@@ -67,7 +85,7 @@ while :; do
     adb exec-out screencap -p > "$output"
     refresh_windows "$postflight"
     assert_yomi_foreground post-capture "$activity_postflight"
-    if ! grep -Fq 'Application Not Responding:' "$postflight"; then
+    if ! visible_anr "$postflight"; then
         break
     fi
 
@@ -78,7 +96,7 @@ while :; do
     clear_android_anr "$postflight"
     reject_anr "$postflight" postflight
     capture_attempt=$((capture_attempt + 1))
-    [ "$capture_attempt" -lt 3 ] || { echo "Refusing $output: Android repeatedly showed ANR dialogs during capture" >&2; exit 1; }
+    [ "$capture_attempt" -lt 6 ] || { echo "Refusing $output: Android repeatedly showed VISIBLE ANR dialogs during capture" >&2; exit 1; }
 done
 
 test -s "$output"

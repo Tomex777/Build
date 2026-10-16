@@ -1,14 +1,21 @@
 package reader.shared.android.webtoon
 
 import android.graphics.PointF
+import android.util.Log
+import android.view.Gravity
+import android.widget.ProgressBar
+import kotlinx.coroutines.CancellationException
 import android.view.KeyEvent
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import android.widget.FrameLayout
 import android.widget.TextView
+import androidx.recyclerview.widget.DiffUtil
+import androidx.core.graphics.ColorUtils
 import androidx.recyclerview.widget.RecyclerView
 import androidx.recyclerview.widget.WebtoonLayoutManager
+import app.yomi.reader.core.loadOwnedResource
 import com.davemorrissey.labs.subscaleview.SubsamplingScaleImageView
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -16,7 +23,6 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import reader.shared.android.ReaderPageImageView
 import reader.shared.android.ReaderRenderConfig
 import reader.shared.android.ReaderViewerHost
@@ -38,6 +44,7 @@ class SharedWebtoonViewer(
     private val adapter = Adapter()
     private var chapters: ViewerChapters? = null
     private var currentPage: ViewerPage? = null
+    private var currentOffsetFraction = 0.0
 
     val recycler = WebtoonRecyclerView(host.context).apply {
         setItemViewCacheSize(RECYCLER_VIEW_CACHE_SIZE)
@@ -99,8 +106,15 @@ class SharedWebtoonViewer(
     override fun getView(): View = frame
 
     override fun setChapters(chapters: ViewerChapters) {
+        // Mihon's DiffUtil keeps the RecyclerView's visible anchor when an
+        // adjacent chapter finishes loading. Do not immediately reset the
+        // scroll offset to requestedPage: doing so jumps readers backward.
+        // Only relocate when opening or explicitly switching chapters.
+        val retainScroll = this.chapters?.currChapter == chapters.currChapter &&
+            currentPage != null
         this.chapters = chapters
         adapter.setChapters(chapters)
+        if (retainScroll && currentPage?.let { it in adapter.items } == true) return
         val pages = chapters.currChapter.pages.orEmpty()
         if (pages.isNotEmpty()) {
             val index = chapters.currChapter.requestedPage.coerceIn(0, pages.lastIndex)
@@ -132,8 +146,9 @@ class SharedWebtoonViewer(
             (-child.top).toDouble().div(child.height.toDouble()).coerceIn(0.0, 1.0)
         }
 
-        if (page != currentPage || offset > 0.0) {
+        if (page != currentPage || offset != currentOffsetFraction) {
             currentPage = page
+            currentOffsetFraction = offset
             host.onPageSelected(page, offset)
         }
 
@@ -189,17 +204,35 @@ class SharedWebtoonViewer(
 
         fun setChapters(window: ViewerChapters) {
             val newItems = mutableListOf<Any>()
-            window.prevChapter?.pages?.let {
-                newItems.addAll(it)
-                newItems.add(ChapterTransition.Prev(window.currChapter, window.prevChapter))
+            val previous = window.prevChapter
+            val next = window.nextChapter
+            previous?.pages?.let(newItems::addAll)
+            // Match Mihon's transition rules: an unloaded/missing neighbor or
+            // the explicit preference presents a chapter-boundary page.
+            if (config.alwaysShowChapterTransition || previous?.pages == null) {
+                newItems.add(ChapterTransition.Prev(window.currChapter, previous))
             }
             newItems.addAll(window.currChapter.pages.orEmpty())
-            window.nextChapter?.let {
-                newItems.add(ChapterTransition.Next(window.currChapter, it))
-                newItems.addAll(it.pages.orEmpty())
+            if (config.alwaysShowChapterTransition || next?.pages == null) {
+                newItems.add(ChapterTransition.Next(window.currChapter, next))
             }
+            next?.pages?.let(newItems::addAll)
+
+            // Same delta-update model as Mihon's WebtoonAdapter; rebuilding
+            // every holder on a chapter preload used to reset scroll position.
+            val oldItems = items
+            val diff = DiffUtil.calculateDiff(object : DiffUtil.Callback() {
+                override fun getOldListSize(): Int = oldItems.size
+                override fun getNewListSize(): Int = newItems.size
+                override fun areItemsTheSame(oldPosition: Int, newPosition: Int): Boolean =
+                    oldItems[oldPosition] == newItems[newPosition]
+                override fun areContentsTheSame(oldPosition: Int, newPosition: Int): Boolean =
+                    // Chapter pages are loaded in-place, so equal transition
+                    // models can still have a different loading indicator.
+                    oldItems[oldPosition] !is ChapterTransition && oldItems[oldPosition] == newItems[newPosition]
+            })
             items = newItems
-            notifyDataSetChanged()
+            diff.dispatchUpdatesTo(this)
         }
 
         override fun getItemCount(): Int = items.size
@@ -234,6 +267,8 @@ class SharedWebtoonViewer(
     ) {
         private val image = itemView as ReaderPageImageView
         private var loadJob: Job? = null
+        private val spinner = ProgressBar(host.context).apply { isIndeterminate = true }
+        private var errorView: TextView? = null
 
         init {
             image.setBackgroundColor(config.backgroundColor)
@@ -242,32 +277,85 @@ class SharedWebtoonViewer(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT,
             )
+            image.addView(
+                spinner,
+                FrameLayout.LayoutParams(
+                    FrameLayout.LayoutParams.WRAP_CONTENT,
+                    FrameLayout.LayoutParams.WRAP_CONTENT,
+                    Gravity.CENTER,
+                ),
+            )
         }
 
         fun bind(page: ViewerPage) {
             recyclePage()
+            spinner.visibility = View.VISIBLE
+            // Without a placeholder a yet-undecoded Webtoon image can occupy
+            // zero height, leaving readers with a blank scrolling surface.
+            image.minimumHeight = host.context.resources.displayMetrics.widthPixels
             val sideMargin = (host.context.resources.displayMetrics.widthPixels * (config.webtoonSidePaddingPercent / 100f)).toInt()
             (image.layoutParams as RecyclerView.LayoutParams).apply {
                 marginStart = sideMargin
                 marginEnd = sideMargin
                 bottomMargin = if (isContinuous) 0 else (15 * host.context.resources.displayMetrics.density).toInt()
             }
-            loadJob = scope.launch {
-                val stream = withContext(Dispatchers.IO) { page.open() }
-                image.setImage(
-                    stream,
-                    ReaderPageImageView.Config(
-                        zoomDurationMillis = config.zoomDurationMillis,
-                        minimumScaleType = SubsamplingScaleImageView.SCALE_TYPE_FIT_WIDTH,
-                        cropBorders = config.cropBorders,
-                    ),
-                )
+            image.onImageLoaded = {
+                spinner.visibility = View.GONE
+                image.minimumHeight = 0
+                Log.i("YomiReader", "page-image-ready name=${page.displayName} mode=webtoon")
             }
+            image.onImageLoadError = { error -> showPageError(page, error) }
+            loadJob = scope.launch {
+                try {
+                    loadOwnedResource(open = { page.open() }) { stream ->
+                        image.setImage(
+                            stream,
+                            ReaderPageImageView.Config(
+                                zoomDurationMillis = config.zoomDurationMillis,
+                                minimumScaleType = SubsamplingScaleImageView.SCALE_TYPE_FIT_WIDTH,
+                                cropBorders = config.cropBorders,
+                            ),
+                            isAnimated = page.isAnimated,
+                        )
+                    }
+                    image.bringChildToFront(spinner)
+                } catch (error: CancellationException) {
+                    throw error
+                } catch (error: Exception) {
+                    showPageError(page, error)
+                }
+            }
+        }
+
+        private fun showPageError(page: ViewerPage, error: Throwable?) {
+            Log.e("YomiReader", "page-image-failed name=${page.displayName} mode=webtoon", error)
+            spinner.visibility = View.GONE
+            errorView?.let(image::removeView)
+            errorView = TextView(host.context).apply {
+                text = "Unable to display this page. Tap to retry."
+                textSize = 15f
+                gravity = Gravity.CENTER
+                setTextColor(if (ColorUtils.calculateLuminance(config.backgroundColor) > 0.5) 0xFF202124.toInt() else 0xFFFFFFFF.toInt())
+                setPadding(24, 24, 24, 24)
+                setOnClickListener { bind(page) }
+            }
+            image.addView(
+                errorView,
+                FrameLayout.LayoutParams(
+                    FrameLayout.LayoutParams.MATCH_PARENT,
+                    FrameLayout.LayoutParams.WRAP_CONTENT,
+                    Gravity.CENTER,
+                ),
+            )
         }
 
         fun recyclePage() {
             loadJob?.cancel()
             loadJob = null
+            errorView?.let(image::removeView)
+            errorView = null
+            image.onImageLoaded = null
+            image.onImageLoadError = null
             image.recycle()
         }
     }
@@ -284,16 +372,26 @@ class SharedWebtoonViewer(
         fun bind(transition: ChapterTransition) {
             val root = itemView as FrameLayout
             root.removeAllViews()
+            // Share the real Mihon Compose chapter-transition presentation
+            // between webtoon and paged viewers through the Yomi host adapter.
             root.addView(
-                TextView(host.context).apply {
-                    text = transition.to?.chapter?.title ?: "End"
-                    textSize = 13f
-                    setTextColor(0xFF9EA8B7.toInt())
-                    val v = (12 * resources.displayMetrics.density).toInt()
-                    val h = (20 * resources.displayMetrics.density).toInt()
-                    setPadding(h, v, h, v)
-                },
+                host.createChapterTransitionView(transition),
+                FrameLayout.LayoutParams(
+                    FrameLayout.LayoutParams.MATCH_PARENT,
+                    FrameLayout.LayoutParams.WRAP_CONTENT,
+                    Gravity.CENTER,
+                ),
             )
+            if (transition.to?.pages == null && transition.to != null) {
+                root.addView(
+                    ProgressBar(host.context).apply { isIndeterminate = true },
+                    FrameLayout.LayoutParams(
+                        FrameLayout.LayoutParams.WRAP_CONTENT,
+                        FrameLayout.LayoutParams.WRAP_CONTENT,
+                        Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL,
+                    ),
+                )
+            }
         }
     }
 }

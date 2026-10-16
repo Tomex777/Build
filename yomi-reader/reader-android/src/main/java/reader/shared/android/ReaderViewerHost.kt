@@ -4,6 +4,7 @@ import android.content.Context
 import android.view.KeyEvent
 import android.view.MotionEvent
 import android.view.View
+import reader.shared.android.model.ChapterTransition
 import reader.shared.android.model.ViewerChapter
 import reader.shared.android.model.ViewerChapters
 import reader.shared.android.model.ViewerPage
@@ -19,6 +20,7 @@ interface ReaderViewerHost {
     fun onPageSelected(page: ViewerPage, pageOffsetFraction: Double = 0.0)
     fun onPageLongTap(page: ViewerPage): Boolean = false
     fun requestPreloadChapter(chapter: ViewerChapter)
+    fun createChapterTransitionView(transition: ChapterTransition): View
 }
 
 interface Viewer {

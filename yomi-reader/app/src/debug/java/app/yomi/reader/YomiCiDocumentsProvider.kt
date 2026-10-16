@@ -60,6 +60,11 @@ class YomiCiDocumentsProvider : DocumentsProvider() {
         signal: CancellationSignal?,
     ): ParcelFileDescriptor {
         Log.i(TAG, "open-document id=$documentId")
+        if (documentId == ARCHIVE_ID) {
+            val archive = File(providerContext().cacheDir, "yomi-ci-book.cbz")
+            require(archive.isFile) { "CI CBZ fixture missing: $archive" }
+            return ParcelFileDescriptor.open(archive, ParcelFileDescriptor.MODE_READ_ONLY)
+        }
         require(documentId in IMAGE_IDS) { "Not an image document: $documentId" }
         val file = fixtureFile(documentId)
         if (!file.exists()) writeImage(file, documentId)
@@ -81,6 +86,7 @@ class YomiCiDocumentsProvider : DocumentsProvider() {
             ROOT_ID -> "Yomi CI Folder"
             CHAPTER_1 -> "Chapter 1"
             CHAPTER_2 -> "Chapter 2"
+            ARCHIVE_ID -> "Yomi CI Book.cbz"
             C1_PAGE_1, C2_PAGE_1 -> "1.png"
             C1_PAGE_2, C2_PAGE_2 -> "2.png"
             else -> id.substringAfterLast('/')
@@ -91,10 +97,17 @@ class YomiCiDocumentsProvider : DocumentsProvider() {
             put(
                 columns,
                 DocumentsContract.Document.COLUMN_MIME_TYPE,
-                if (directory) DocumentsContract.Document.MIME_TYPE_DIR else "image/png",
+                when {
+                    directory -> DocumentsContract.Document.MIME_TYPE_DIR
+                    id == ARCHIVE_ID -> "application/vnd.comicbook+zip"
+                    else -> "image/png"
+                },
             )
             put(columns, DocumentsContract.Document.COLUMN_FLAGS, 0)
-            if (!directory) put(columns, DocumentsContract.Document.COLUMN_SIZE, fixtureFile(id).length())
+            if (!directory) {
+                val file = if (id == ARCHIVE_ID) File(providerContext().cacheDir, "yomi-ci-book.cbz") else fixtureFile(id)
+                put(columns, DocumentsContract.Document.COLUMN_SIZE, file.length())
+            }
         }
     }
 
@@ -146,6 +159,7 @@ class YomiCiDocumentsProvider : DocumentsProvider() {
         private const val TAG = "YomiCiDocuments"
         const val AUTHORITY_SUFFIX = ".ci.documents"
         const val ROOT_ID = "root"
+        const val ARCHIVE_ID = "ci-archive.cbz"
         private const val CHAPTER_1 = "chapter-1"
         private const val CHAPTER_2 = "chapter-2"
         private const val C1_PAGE_1 = "chapter-1/1.png"
