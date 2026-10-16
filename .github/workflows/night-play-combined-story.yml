@@ -21,4 +21,5 @@ jobs:
       - name: Verify combined library and interactive story navigation
         env:
           PLAYWRIGHT_MODULE: /tmp/storyintegration/node_modules/playwright
+          NIGHT_STORY_VISUAL_QA: '1'
         run: node night-play/stories/combined-smoke.cjs
