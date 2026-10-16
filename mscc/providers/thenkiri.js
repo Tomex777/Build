@@ -334,7 +334,8 @@ function episodesFromRelease(item, seasonNumber) {
   const numbers = new Set()
   for (const link of Array.isArray(item?.releaseLinks) ? item.releaseLinks : []) {
     const linkSeason = Number(link?.season || fallbackSeason)
-    if (linkSeason && linkSeason !== season) continue
+    // Never assign an episode with unknown season identity to every season.
+    if (linkSeason !== season) continue
     const episode = Number(link?.episode || 0)
     if (Number.isInteger(episode) && episode > 0) numbers.add(episode)
   }
