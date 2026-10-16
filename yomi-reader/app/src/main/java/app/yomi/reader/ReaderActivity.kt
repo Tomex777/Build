@@ -5,6 +5,7 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.ContentResolver
 import android.content.Context
+import android.content.res.ColorStateList
 import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
@@ -13,8 +14,10 @@ import android.graphics.Color
 import android.graphics.ColorMatrix
 import android.graphics.ColorMatrixColorFilter
 import android.graphics.Paint
+import android.graphics.Typeface
 import android.graphics.drawable.ColorDrawable
 import android.graphics.drawable.GradientDrawable
+import android.graphics.drawable.RippleDrawable
 import android.net.Uri
 import android.os.Bundle
 import android.util.Log
@@ -25,7 +28,6 @@ import android.view.View
 import android.view.ViewGroup
 import android.view.ViewTreeObserver
 import android.view.WindowManager
-import android.widget.Button
 import android.widget.FrameLayout
 import android.widget.ImageButton
 import android.widget.LinearLayout
@@ -1386,16 +1388,15 @@ class ReaderActivity : ComponentActivity(), ReaderViewerHost {
                     },
                 )
                 addView(
-                    Button(this@ReaderActivity).apply {
-                        text = "Retry"
-                        setOnClickListener { recreate() }
-                    },
+                    errorAction("Retry", filled = true) { recreate() },
+                    LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.MATCH_PARENT,
+                        dp(52),
+                    ).apply { bottomMargin = dp(10) },
                 )
                 addView(
-                    Button(this@ReaderActivity).apply {
-                        text = "Back to library"
-                        setOnClickListener { finish() }
-                    },
+                    errorAction("Back to library", filled = false) { finish() },
+                    LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(52)),
                 )
             },
             FrameLayout.LayoutParams(
@@ -1403,6 +1404,31 @@ class ReaderActivity : ComponentActivity(), ReaderViewerHost {
                 FrameLayout.LayoutParams.MATCH_PARENT,
             ),
         )
+    }
+
+    // This is Yomi's file-opening error surface, outside the Mihon reader UI.
+    // Keep both recovery actions intentional and visually consistent, rather
+    // than falling back to Android's default unthemed widget buttons.
+    private fun errorAction(label: String, filled: Boolean, onClick: () -> Unit): TextView {
+        val shape = GradientDrawable().apply {
+            cornerRadius = dp(14).toFloat()
+            setColor(if (filled) 0xFFD4E4FF.toInt() else 0xFF1A2230.toInt())
+            if (!filled) setStroke(dp(1), 0xFF39465B.toInt())
+        }
+        return TextView(this).apply {
+            text = label
+            textSize = 16f
+            setTypeface(typeface, Typeface.BOLD)
+            setTextColor(if (filled) 0xFF15223A.toInt() else Color.WHITE)
+            gravity = Gravity.CENTER
+            background = RippleDrawable(
+                ColorStateList.valueOf(if (filled) 0x3315223A else 0x33D4E4FF),
+                shape,
+                null,
+            )
+            isFocusable = true
+            setOnClickListener { onClick() }
+        }
     }
 
     private fun dp(value: Int): Int = (value * resources.displayMetrics.density).toInt()
