@@ -39,6 +39,20 @@ assert.equal(tv.releaseLinks[0].episode, 1)
 assert.equal(tv.releaseLinks[1].host, 'wetafiles')
 assert.equal(tv.releaseLinks[1].episode, 2)
 
+const sourceSeasons = _test.seasonsFromRelease(tv)
+assert.deepEqual(sourceSeasons, [{
+  id:'1',
+  number:1,
+  title:'Season 1',
+  episodeCount:2,
+}])
+const sourceEpisodes = _test.episodesFromRelease(tv, 1)
+assert.deepEqual(sourceEpisodes, [
+  { id:'1', number:'1', seasonNumber:1, title:'Episode 1' },
+  { id:'2', number:'2', seasonNumber:1, title:'Episode 2' },
+])
+assert.deepEqual(_test.episodesFromRelease(tv, 2), [])
+
 const exactEpisode = _test.matchingLinks(tv.releaseLinks, { type:'tv', season:1, episode:2 })
 assert.equal(exactEpisode.length, 1)
 assert.equal(exactEpisode[0].host, 'wetafiles')
@@ -159,6 +173,8 @@ assert.match(movieAdapter, /return deliverMovie\(\{ item, context \}\)/)
 assert.match(tvAdapter, /materializeTheNkiriRelease/)
 assert.match(tvAdapter, /async function deliverEpisode/)
 assert.match(tvAdapter, /action === 'downloadRange'/)
+assert.match(tvAdapter, /listTheNkiriSeasons/)
+assert.match(tvAdapter, /listTheNkiriEpisodes/)
 assert.doesNotMatch(tvAdapter, /Automated third-party file-host delivery is not enabled/)
 
 console.log('PASS TheNkiri catalog, movie/TV delivery, cleanup and regression fixtures')
