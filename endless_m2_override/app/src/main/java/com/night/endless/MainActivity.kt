@@ -421,7 +421,8 @@ private fun EndlessApp(
                 }
             }
 
-            if (cosmicScale == CosmicScale.SOLAR_SYSTEM && labelsOn) {
+            // Never overlay cached orbital body labels over a landing scene.
+            if (cosmicScale == CosmicScale.SOLAR_SYSTEM && labelsOn && landedBody == null) {
                 snapshots.filter { it.visible && it.id != "sun" }.forEach { label ->
                     key(label.id) {
                     val xDp = with(density) { label.xPx.toDp() }

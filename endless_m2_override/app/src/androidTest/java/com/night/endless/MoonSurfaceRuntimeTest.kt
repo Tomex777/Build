@@ -144,6 +144,9 @@ class MoonSurfaceRuntimeTest {
                     device.findObject(By.textContains("Overview")) == null &&
                     device.findObject(By.textContains("JPL HORIZONS")) == null
             }
+            assertTrue("Orbital planet labels must not cover the lunar surface",
+                device.findObject(By.desc("Focus Mars")) == null &&
+                    device.findObject(By.desc("Focus Moon")) == null)
             SystemClock.sleep(700)
             capture(instrumentation, "moon-surface", glView)
 

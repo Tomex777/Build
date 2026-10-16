@@ -125,6 +125,9 @@ class MarsSurfaceRuntimeTest {
                 device.findObject(By.textContains("Overview")) == null)
             assertTrue("Orbital speed controls must disappear while walking",
                 device.findObject(By.text("▶▶")) == null)
+            assertTrue("Orbital body labels must disappear over Mars terrain",
+                device.findObject(By.desc("Focus Mars")) == null &&
+                    device.findObject(By.desc("Focus Moon")) == null)
             // Physical thumbstick: hold and drag left, look with the other thumb.
             // The old four ↑←↓→ tap buttons must not be present on the surface.
             assertTrue("Legacy tap movement buttons must be absent",

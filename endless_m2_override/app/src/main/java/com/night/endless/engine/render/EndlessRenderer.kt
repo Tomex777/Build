@@ -318,6 +318,7 @@ class EndlessRenderer(
         venusCloudRotation -= dt * .004
 
         if (marsSurfaceMode) {
+            latestLabels = emptyList()
             drawMarsSurfaceFrame()
             completedSurfaceBody = "mars"
             renderedDeepTimeAgeGa = deepTimeAgeGa
@@ -326,6 +327,7 @@ class EndlessRenderer(
             return
         }
         if (moonSurfaceMode) {
+            latestLabels = emptyList()
             drawMoonSurfaceFrame()
             completedSurfaceBody = "moon"
             renderedDeepTimeAgeGa = deepTimeAgeGa
