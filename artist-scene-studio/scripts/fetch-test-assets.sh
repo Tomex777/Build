@@ -72,4 +72,20 @@ curl --fail --location --retry 3 --output "$anime_source" "$anime_url"
 python3 "$project_dir/scripts/prepare-anime-glb.py" "$anime_source" "$anime_file"
 rm -f "$anime_source"
 python3 "$project_dir/scripts/check-anime-glb.py" "$anime_file"
+# A second *licensed* anime character base with distinct hair, face and outfit.
+# HairSample_Female is explicitly CC0 under the same official pixiv FAQ.
+female_file="$asset_dir/mise_anime_female.glb"
+female_url="https://raw.githubusercontent.com/madjin/vrm-samples/e16eb187100149a315ad92c3c9968f1d5baa6c7d/vroid/beta/HairSample_Female.vrm"
+female_blob_sha1="0e5235f9a7972fbcbceb74960479b208c27a8707"
+female_source="$(mktemp)"
+trap 'rm -f "$female_source"' EXIT HUP INT TERM
+curl --fail --location --retry 3 --output "$female_source" "$female_url"
+[ "$(git hash-object "$female_source")" = "$female_blob_sha1" ] || {
+  echo "VRoid female anime source checksum does not match pinned Git object" >&2
+  exit 1
+}
+python3 "$project_dir/scripts/prepare-anime-glb.py" "$female_source" "$female_file"
+rm -f "$female_source"
+python3 "$project_dir/scripts/check-anime-glb.py" "$female_file"
+
 python3 "$project_dir/scripts/build-scene-actors.py"
