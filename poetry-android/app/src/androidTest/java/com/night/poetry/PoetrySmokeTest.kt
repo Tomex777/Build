@@ -5,6 +5,9 @@ import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.performSemanticsAction
+import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
@@ -53,6 +56,13 @@ class PoetrySmokeTest {
         compose.onNodeWithText("Love").assertDoesNotExist()
         compose.onNodeWithText("Sparkle").performClick()
         compose.onNodeWithText("Opacity").assertExists()
+        compose.onNodeWithText("100%").assertExists()
         capture("element-selected")
+        // ABR: the bespoke control must support accessible value changes,
+        // not merely look like a styled progress bar.
+        compose.onNodeWithContentDescription("Opacity, 100%")
+            .performSemanticsAction(SemanticsActions.SetProgress) { it(.4f) }
+        compose.onNodeWithText("40%").assertExists()
+        capture("slider-adjusted")
     }
 }
