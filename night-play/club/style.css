@@ -1299,3 +1299,34 @@ body.whot-mode .top{position:absolute!important;top:0;left:0;right:0;z-index:12;
 body.whot-mode #club{margin-top:0!important}
 body.whot-mode .table-surface{padding-top:80px!important}
 @media(min-width:651px){body.whot-mode .table-surface{padding-top:60px!important}}
+
+
+body.whot-mode .table-surface{
+ background-color:#29190f!important;
+ background-image:linear-gradient(#09040323,#09040323),url('data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22390%22%20height%3D%22720%22%20viewBox%3D%220%200%20390%20720%22%3E%0A%3Cdefs%3E%0A%20%3ClinearGradient%20id%3D%22p%22%20x1%3D%220%22%20x2%3D%221%22%3E%3Cstop%20stop-color%3D%22%23251710%22%2F%3E%3Cstop%20offset%3D%22.09%22%20stop-color%3D%22%234c3226%22%2F%3E%3Cstop%20offset%3D%22.31%22%20stop-color%3D%22%233c251b%22%2F%3E%3Cstop%20offset%3D%22.53%22%20stop-color%3D%22%2320130e%22%2F%3E%3Cstop%20offset%3D%22.8%22%20stop-color%3D%22%234b3023%22%2F%3E%3Cstop%20offset%3D%22.98%22%20stop-color%3D%22%2323130f%22%2F%3E%3C%2FlinearGradient%3E%0A%20%3ClinearGradient%20id%3D%22q%22%20x1%3D%220%22%20x2%3D%221%22%3E%3Cstop%20stop-color%3D%22%2329180f%22%2F%3E%3Cstop%20offset%3D%22.25%22%20stop-color%3D%22%2354382b%22%2F%3E%3Cstop%20offset%3D%22.51%22%20stop-color%3D%22%23291813%22%2F%3E%3Cstop%20offset%3D%22.7%22%20stop-color%3D%22%233e291e%22%2F%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22%231b100c%22%2F%3E%3C%2FlinearGradient%3E%0A%20%3Cfilter%20id%3D%22gr%22%3E%3CfeTurbulence%20type%3D%22fractalNoise%22%20baseFrequency%3D%22.075%20.006%22%20numOctaves%3D%224%22%20seed%3D%228%22%20stitchTiles%3D%22stitch%22%2F%3E%3CfeColorMatrix%20type%3D%22saturate%22%20values%3D%220%22%2F%3E%3CfeComponentTransfer%3E%3CfeFuncA%20type%3D%22linear%22%20slope%3D%22.33%22%2F%3E%3C%2FfeComponentTransfer%3E%3C%2Ffilter%3E%0A%20%3Cfilter%20id%3D%22r%22%3E%3CfeTurbulence%20type%3D%22fractalNoise%22%20baseFrequency%3D%22.006%20.15%22%20numOctaves%3D%223%22%20seed%3D%2219%22%20stitchTiles%3D%22stitch%22%2F%3E%3CfeColorMatrix%20type%3D%22saturate%22%20values%3D%220%22%2F%3E%3CfeComponentTransfer%3E%3CfeFuncA%20type%3D%22linear%22%20slope%3D%22.15%22%2F%3E%3C%2FfeComponentTransfer%3E%3C%2Ffilter%3E%0A%3C%2Fdefs%3E%0A%3Crect%20width%3D%22390%22%20height%3D%22720%22%20fill%3D%22%23301d17%22%2F%3E%0A%3Cpath%20d%3D%22M0%200h98v720H0zM199%200h99v720h-99z%22%20fill%3D%22url(%23p)%22%2F%3E%0A%3Cpath%20d%3D%22M101%200h95v720h-95zM302%200h88v720h-88z%22%20fill%3D%22url(%23q)%22%2F%3E%0A%3Cg%20stroke%3D%22%23110b09%22%20fill%3D%22none%22%20stroke-width%3D%223%22%20opacity%3D%22.7%22%3E%3Cpath%20d%3D%22M98%200v720M198%200v720M298%200v720%22%2F%3E%3C%2Fg%3E%0A%3Cg%20stroke%3D%22%23a27b5a%22%20fill%3D%22none%22%20stroke-width%3D%221.5%22%20opacity%3D%22.17%22%3E%0A%3Cpath%20d%3D%22M8%200Q18%20150%2012%20220T20%20515T15%20720M33%200Q26%2090%2034%20210T37%20485T31%20720M64%200Q56%20185%2069%20350T67%20720M88%200Q79%20130%2088%20310T92%20720%22%2F%3E%0A%3Cpath%20d%3D%22M108%200Q115%20140%20107%20300T109%20720M134%200Q145%20230%20128%20345T139%20720M169%200Q160%20145%20169%20300T168%20720M188%200Q193%20260%20188%20390T190%20720%22%2F%3E%0A%3Cpath%20d%3D%22M213%200Q205%20190%20218%20333T212%20720M244%200Q235%20200%20247%20410T246%20720M274%200Q281%20180%20272%20370T276%20720M290%200Q284%20200%20291%20440T294%20720%22%2F%3E%0A%3Cpath%20d%3D%22M313%200Q307%20230%20317%20430T314%20720M344%200Q338%20160%20350%20330T342%20720M377%200Q368%20120%20373%20260T379%20720%22%2F%3E%0A%3C%2Fg%3E%0A%3Cg%20fill%3D%22none%22%20stroke%3D%22%23100a08%22%20stroke-width%3D%222%22%20opacity%3D%22.61%22%3E%0A%3Cellipse%20cx%3D%2266%22%20cy%3D%22247%22%20rx%3D%2210%22%20ry%3D%2231%22%2F%3E%3Cellipse%20cx%3D%2265%22%20cy%3D%22247%22%20rx%3D%225%22%20ry%3D%2214%22%2F%3E%0A%3Cellipse%20cx%3D%22155%22%20cy%3D%22552%22%20rx%3D%227%22%20ry%3D%2223%22%2F%3E%0A%3Cellipse%20cx%3D%22256%22%20cy%3D%22371%22%20rx%3D%229%22%20ry%3D%2229%22%2F%3E%3Cellipse%20cx%3D%22256%22%20cy%3D%22371%22%20rx%3D%224%22%20ry%3D%2216%22%2F%3E%0A%3Cellipse%20cx%3D%22351%22%20cy%3D%22144%22%20rx%3D%227%22%20ry%3D%2224%22%2F%3E%0A%3C%2Fg%3E%0A%3Crect%20width%3D%22390%22%20height%3D%22720%22%20filter%3D%22url(%23gr)%22%20opacity%3D%22.3%22%20style%3D%22mix-blend-mode%3Asoft-light%22%2F%3E%0A%3Crect%20width%3D%22390%22%20height%3D%22720%22%20filter%3D%22url(%23r)%22%20opacity%3D%22.22%22%20style%3D%22mix-blend-mode%3Amultiply%22%2F%3E%0A%3Cpath%20d%3D%22M0%20340h390M0%20674h390%22%20stroke%3D%22%230b0807%22%20stroke-width%3D%224%22%20opacity%3D%22.43%22%2F%3E%0A%3Cpath%20d%3D%22M0%20344h390M0%20679h390%22%20stroke%3D%22%23866049%22%20stroke-width%3D%222%22%20opacity%3D%22.17%22%2F%3E%0A%3C%2Fsvg%3E')!important;
+ background-size:100% 100%,390px 720px!important;
+ background-position:center top,center top!important;
+ background-repeat:repeat,repeat!important;
+}
+body.whot-mode .top .night-back,
+body.whot-mode .top .night-settings{
+ background:#20120ece!important;
+ border:1px solid #7355439c!important;
+ box-shadow:0 1px 4px #130b09a0!important;
+ color:#fff7ee!important;
+}
+body.whot-mode .top .night-brand{
+ background:#20120e99!important;
+ border-radius:7px!important;
+ color:#f9fcfa!important;
+ padding:3px 6px!important;
+}
+body.whot-mode .top .night-brand svg{color:#f9fcfa!important;fill:currentColor!important}
+body.whot-mode .night-action-row{display:none!important}
+.whot-settings-newround:not([hidden]){
+ display:block;width:100%;margin-top:12px;
+ padding:12px 16px;background:#f2ead9;color:#37251c;
+ font-weight:850;font-size:13px;text-align:left;
+ border:1px solid #aa9879;border-radius:8px;
+}
+.whot-settings-newround:focus-visible{outline:3px solid #a6dbac;outline-offset:3px}
