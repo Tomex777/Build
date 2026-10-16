@@ -203,21 +203,21 @@ class SharedPagerViewer(
     }
 
     private fun moveRight() {
-        if (pager.currentItem >= adapter.count - 1) return
         val holder = (currentItem as? ViewerPage)?.let(::pageHolder)
+        // A zoomed page remains pannable even at the last page of a book.
+        // Check pan room before clamping the page index.
         if (holder != null && holder.canPanRight()) {
             holder.panRight()
-        } else {
+        } else if (pager.currentItem < adapter.count - 1) {
             pager.setCurrentItem(pager.currentItem + 1, config.pageTransitions)
         }
     }
 
     private fun moveLeft() {
-        if (pager.currentItem <= 0) return
         val holder = (currentItem as? ViewerPage)?.let(::pageHolder)
         if (holder != null && holder.canPanLeft()) {
             holder.panLeft()
-        } else {
+        } else if (pager.currentItem > 0) {
             pager.setCurrentItem(pager.currentItem - 1, config.pageTransitions)
         }
     }
