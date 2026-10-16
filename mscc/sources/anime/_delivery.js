@@ -283,6 +283,29 @@ export async function deliverHls(context, {
         chooseVariant:variants => chooseVariant(variants, quality),
       })
 
+      if (validateOutput) {
+        // Sample a few initial segments first. This prevents downloading hundreds
+        // of megabytes from thumbnail/image playlists before discovering they are
+        // not a real episode video.
+        const sampleDirectory = join(directory, 'sample')
+        const sampleCount = Math.min(3, resolved.segments.length)
+        if (!sampleCount) throw invalidAnimeMedia('HLS playlist has no sample segments')
+        const sample = await downloadHlsSegments({
+          segments:resolved.segments.slice(0, sampleCount),
+          directory:sampleDirectory,
+          headers,
+          concurrency:Math.min(3, concurrency),
+          fetchBytes:byteLoader,
+        })
+        const sampleOutput = join(sampleDirectory, 'sample.mp4')
+        await remuxHlsSegments({
+          directory:sampleDirectory,
+          count:sample.total,
+          output:sampleOutput,
+        })
+        await validatePlayableMedia(sampleOutput, { minDurationSeconds:0 })
+      }
+
       const downloaded = await downloadHlsSegments({
         segments:resolved.segments,
         directory,
