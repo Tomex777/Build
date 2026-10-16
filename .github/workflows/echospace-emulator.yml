@@ -28,6 +28,8 @@ jobs:
         run: |
           tar -xJf EchoSpace/source.tar.xz
           test -f EchoSpace/app/src/main/java/com/nexa/echospace/MainActivity.kt
+      - name: Apply expanded sound mixer controls
+        run: python3 .github/scripts/echospace_expand_mixer.py
       - name: Bundle royalty-free offline scene artwork
         run: |
           set -euo pipefail
@@ -135,6 +137,15 @@ jobs:
             adb shell screencap -p /sdcard/saved.png
             adb pull /sdcard/saved.png qa/06-saved-restored.png
             if cmp -s qa/01-launch.png qa/03-deep-forest.png; then echo 'Preset change invisible'; exit 1; fi
+            # Expanded mixer is a real, dismissible control surface.
+            python3 EchoSpace/tools/emulator_probe.py tap desc 'Open full sound mixer'
+            sleep 2
+            python3 EchoSpace/tools/emulator_probe.py assert text 'Sound mixer'
+            adb shell screencap -p /sdcard/expanded-mixer.png
+            adb pull /sdcard/expanded-mixer.png qa/07-expanded-mixer.png
+            python3 EchoSpace/tools/emulator_probe.py tap desc 'Close mixer'
+            sleep 1
+            python3 EchoSpace/tools/emulator_probe.py assert text 'My Space'
             adb shell logcat -d -v brief -s AndroidRuntime:E > qa/android-crashes.log
             if grep -q 'FATAL EXCEPTION' qa/android-crashes.log; then cat qa/android-crashes.log; exit 1; fi
             adb shell pidof com.nexa.echospace
