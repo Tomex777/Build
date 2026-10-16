@@ -231,7 +231,7 @@ export async function wordChainCommand(ctx, {verify = checkWord, now = () => Dat
       game = startRound(ctx,'open',null,now());store(ctx,game);schedule(ctx,game)
       return ctx.reply('🔗 *WORD CHAIN STARTED!*\nSay any English word to begin.\n' +
         '⏱️ 20s per word • 5 minutes total\nNo repeats. Alternate players.\n' +
-        'Example: BOOK → KEEP → PATRICK.\n.stop? Use .wordchain stop to end.')
+        'Example: BOOK → KEEP → PATRICK.\nEnd the game with .wordchain stop.')
     }
     if (!game || game.state !== 'PLAYING') return ctx.reply('Start with .wordchain, or .wordchain duel.')
     const typed = action === '~input' ? String(ctx.commandReplyInput || '') :
