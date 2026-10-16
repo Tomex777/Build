@@ -70,7 +70,7 @@ async function finish(page,winner){
      const r=el.getBoundingClientRect(),cs=getComputedStyle(el);
      const face=el.querySelector('.whot-suit-big'),small=el.querySelector('.whot-suit-small');
      const rank=el.querySelector('.whot-corner strong');
-     return {width:r.width,height:r.height,bg:cs.backgroundColor,ink:getComputedStyle(face||el).color,
+     return {width:parseFloat(cs.width),height:parseFloat(cs.height),animatedWidth:r.width,animatedHeight:r.height,bg:cs.backgroundColor,ink:getComputedStyle(face||el).color,
        symbolFill:face?getComputedStyle(face).fill:null,
        symbolWidth:face?.getBoundingClientRect().width||0,
        cornerSize:rank?getComputedStyle(rank).fontSize:null,
@@ -78,6 +78,7 @@ async function finish(page,winner){
        hasSmallSuit:!!small,
        cssGradient:cs.backgroundImage};
    });
+
    console.log('WHOT_CARD_DESIGN',width,JSON.stringify(design));
    assert.equal(design.bg,'rgb(249, 252, 250)','clean off-white traditional card stock');
    assert.equal(design.cssGradient,'none','no glossy artificial paper gradient');
