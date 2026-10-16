@@ -52,6 +52,30 @@ class AnimePoseStudyTest {
         )))
     }
 
+    @Test fun authenticVRoidBipSkeletonResolvesAllAuthoredPoseJoints() {
+        val hero = PrototypeScene.createAnimePoseStudy().actors.single { it.id == "anime-hero" }
+        val names = mapOf(
+            "head" to "J_Bip_C_Head",
+            "upperarm-l" to "J_Bip_L_UpperArm",
+            "lowerarm-l" to "J_Bip_L_LowerArm",
+            "upperarm-r" to "J_Bip_R_UpperArm",
+            "lowerarm-r" to "J_Bip_R_LowerArm",
+            "thigh-l" to "J_Bip_L_UpperLeg",
+            "calf-l" to "J_Bip_L_LowerLeg",
+            "thigh-r" to "J_Bip_R_UpperLeg",
+            "calf-r" to "J_Bip_R_LowerLeg",
+        )
+        val rig = RigDefinition(
+            bones = hero.rig!!.joints.keys.mapIndexed { index, id ->
+                RigBone(id = "vroid-bones/$index", name = names.getValue(id.substringAfterLast('/')))
+            },
+        )
+        val resolved = PrototypeScene.resolveAnimePose(hero, rig).rig!!.joints
+        assertEquals(hero.rig.joints.size, resolved.size)
+        assertTrue(resolved.keys.all { it.startsWith("vroid-bones/") })
+        assertEquals(hero.rig.joints.values.toSet(), resolved.values.toSet())
+    }
+
     @Test fun characterCatalogStillKeepsNeutralAnimeForManualPoseEditing() {
         val anime = PrototypeScene.starterAssets().single {
             it.asset?.assetId == PrototypeScene.ANIME_ASSET_ID
