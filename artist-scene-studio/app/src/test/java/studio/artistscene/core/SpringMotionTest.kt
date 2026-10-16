@@ -76,6 +76,7 @@ class SpringMotionTest {
         assertTrue(edited.undo().canUndo)
         assertEquals(start, start.setAnimeHairTint("not-a-color"))
         assertEquals(start, start.setAnimeHairPhysics(gravity = Float.POSITIVE_INFINITY))
-        assertEquals(start, start.selectActor(null).setAnimeHairPhysics(enabled = false))
+        val noneSelected = start.selectActor(null)
+        assertEquals(noneSelected, noneSelected.setAnimeHairPhysics(enabled = false))
     }
 }
