@@ -269,7 +269,7 @@ async function loadEpisodes(ctx, { capability, commandName, sourceId, series, no
             anilistId:resolvedSeries.anilistId,
             title:String(candidateResult.title || titleOf(candidate)),
           }
-          activeNote = `⚠️ ${sourceName(sourceId, ctx)} had no playable episodes for that title; switched to ${alternative.name || alternative.id}.\\n\\n`
+          activeNote = `⚠️ ${sourceName(sourceId, ctx)} had no playable episodes for that title; switched to ${alternative.name || alternative.id}.\n\n`
           break fallbackSearch
         }
       }
