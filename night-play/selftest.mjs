@@ -81,7 +81,7 @@ assert.ok(html.includes('id="undo2048"'),'2048 must have working Undo control')
 assert.ok(html.includes('--board-size:min(calc(100vw - 10px)'),'V10 mobile near edge-to-edge sizing')
 assert.ok(html.includes('class="ttt-mark"'),'TTT mark SVG')
 assert.ok(html.includes('class="ttt-win-line"'),'TTT win line')
-assert.ok(html.includes('NIGHT Play · Updated 13 October 2026'))
+assert.ok(html.includes('NIGHT Play · Updated 16 October 2026'))
 assert.equal(/<span class="status-pill">PREVIEW<\/span>/.test(html),false)
 assert.equal(/class="gamecard library-card"[^>]+\bdisabled/.test(html),false)
 
