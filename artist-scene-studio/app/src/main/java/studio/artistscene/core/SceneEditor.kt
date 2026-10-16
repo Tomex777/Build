@@ -186,6 +186,15 @@ data class SceneEditorState(
         )
     }
 
+    /** Morph-based facial expression; respects imported target names and artist history. */
+    fun applyFaceExpression(expression: FaceExpression): SceneEditorState {
+        val actor = selectedActor ?: return this
+        val pose = AnimeExpressions.apply(actor, expression) ?: return this
+        return replaceSelected(actor.copy(
+            rig = pose, animation = actor.animation.copy(playing = false),
+        ))
+    }
+
     fun resetRigMorph(targetId: String): SceneEditorState {
         val actor = selectedActor ?: return this
         if (actor.locked) return this
