@@ -437,8 +437,8 @@ private fun SceneScope.ActorModelNode(
     val loaded = model
     val rigRuntime = remember(loaded) { loaded?.let(FilamentRigRuntime::discover) }
     // Actual VRM spring roots, with a private integrator per independently posed actor.
-    val springRuntime = remember(loaded, asset) {
-        loaded?.let { VrmSpringRuntime.fromAsset(context, asset, it) }
+    val springRuntime = remember(loaded, asset, rigRuntime) {
+        loaded?.let { VrmSpringRuntime.fromAsset(context, asset, it, rigRuntime?.definition) }
     }
     val hasBoundRestPose = remember(rigRuntime) { AtomicBoolean(false) }
     val animationClips = remember(loaded) {
