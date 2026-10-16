@@ -367,7 +367,7 @@ try{
     const picked=s.hands[0][idx];
     const top=s.deck.findIndex(c=>c.s===picked.s&&c.n!==20);
     if(idx<0||top<0)throw Error('Cannot stage matching full-gallery play');
-    s.discard[s.discard.length-1]=s.deck.splice(top,1)[0];
+    const previousTop=s.discard[s.discard.length-1];s.discard[s.discard.length-1]=s.deck.splice(top,1)[0];s.deck.push(previousTop);
     s.turn=0;s.winner=null;s.pendingWhot=null;s.pendingFinish=null;
     localStorage.setItem('night-play-club-v1',JSON.stringify(all));
     window.__galleryPlayableIndex=idx;
