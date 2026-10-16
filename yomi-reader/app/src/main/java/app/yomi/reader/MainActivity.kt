@@ -32,6 +32,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
@@ -71,6 +72,10 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -697,7 +702,7 @@ class MainActivity : ComponentActivity() {
         }
 
         Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-            Column(modifier = Modifier.fillMaxSize().safeDrawingPadding()) {
+            Column(modifier = Modifier.fillMaxSize().safeDrawingPadding().imePadding()) {
                 Header(
                     searchMode = destination == HomeDestination.SEARCH,
                     searchQuery = searchQuery,
@@ -1030,6 +1035,7 @@ class MainActivity : ComponentActivity() {
                         .clip(RoundedCornerShape(16.dp))
                         .background(MaterialTheme.colorScheme.surfaceVariant)
                         .focusRequester(focusRequester)
+                        .semantics { contentDescription = "Search books and folders" }
                         .padding(horizontal = 16.dp, vertical = 14.dp),
                     singleLine = true,
                     textStyle = TextStyle(
@@ -1085,7 +1091,9 @@ class MainActivity : ComponentActivity() {
     @Composable
     private fun NavigationItem(label: String, icon: Int, active: Boolean, onClick: () -> Unit) {
         Row(
-            modifier = Modifier.clip(RoundedCornerShape(14.dp)).clickable(onClick = onClick)
+            modifier = Modifier.clip(RoundedCornerShape(14.dp))
+                .clickable(role = Role.Tab, onClick = onClick)
+                .semantics { selected = active }
                 .background(if (active) MaterialTheme.colorScheme.surfaceVariant else Color.Transparent)
                 .padding(horizontal = 18.dp, vertical = 8.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
