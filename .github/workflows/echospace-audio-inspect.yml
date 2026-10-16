@@ -1,0 +1,22 @@
+name: EchoSpace audio source inspection
+on:
+  workflow_dispatch:
+  push:
+    branches: [feature/echospace-emulator-qa]
+    paths: [.github/workflows/echospace-audio-inspect.yml]
+permissions:
+  contents: read
+jobs:
+  sources:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Unpack and inspect sources
+        shell: bash
+        run: |
+          set -euo pipefail
+          tar -xJf EchoSpace/source.tar.xz
+          for f in EchoSpace/app/src/main/java/com/nexa/echospace/audio/{AudioEngine,SpatialSynth,RecordedSounds,MeasuredHrtf,SpatialAudioService}.kt EchoSpace/app/src/main/java/com/nexa/echospace/model/{Scene,SceneStore}.kt EchoSpace/tools/prepare_audio.py; do
+            echo "===== AUDIO SOURCE $f ====="
+            cat "$f"
+          done
