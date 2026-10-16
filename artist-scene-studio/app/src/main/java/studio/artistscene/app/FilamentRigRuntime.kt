@@ -102,10 +102,12 @@ internal class FilamentRigRuntime private constructor(
         }
     }
 
-    fun worldJointTransform(boneId: String): FloatArray? {
+    /** Callers on the render thread may reuse a 16-float buffer to avoid frame-time GC. */
+    fun worldJointTransform(boneId: String, into: FloatArray = FloatArray(16)): FloatArray? {
         val joint = joints.firstOrNull { it.bone.id == boneId } ?: return null
+        require(into.size >= 16)
         val manager = model.engine.transformManager
-        return manager.getWorldTransform(manager.getInstance(joint.entity), FloatArray(16))
+        return manager.getWorldTransform(manager.getInstance(joint.entity), into)
     }
 
     companion object {
