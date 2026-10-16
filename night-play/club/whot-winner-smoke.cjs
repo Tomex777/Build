@@ -62,17 +62,27 @@ async function finish(page,winner){
      return {cpu:rect('.whot-opponent-hand'),market:rect('.whot-deck-back'),discard:rect('.card-pile>.whot-card'),hand:rect('.hand .card-row'),
        cpuWidth:parseFloat(getComputedStyle(document.querySelector('.whot-opponent-hand .card-back')).width)};
    });
-   const reference=width===390?
-     {cpu:{x:30,y:80,w:330},market:{x:72.5,y:222,w:80},discard:{x:237.5,y:222,w:80},hand:{x:30,y:357,w:330},cpuWidth:80}:
-     {cpu:{x:315,y:60,w:650},market:{x:465,y:263,w:100},discard:{x:715,y:263,w:100},hand:{x:315,y:451,w:650},cpuWidth:100};
+   const structure=await page.evaluate(()=>{
+     const rect=selector=>{const el=document.querySelector(selector),r=el.getBoundingClientRect();return {x:r.left,y:r.top,w:r.width,h:r.height,bottom:r.bottom}};
+     return {siteHeader:rect('.top'),heading:rect('.play-heading'),table:rect('.table-surface'),hud:rect('.whot-scoreboard'),
+       visual:{body:getComputedStyle(document.body).backgroundColor,table:getComputedStyle(document.querySelector('.table-surface')).borderRadius,header:getComputedStyle(document.querySelector('.top')).backgroundColor}};
+   });
    const h=width===390?105:138;
-   for(const kind of ['cpu','market','discard','hand']){
-     for(const field of ['x','y','w'])assert.ok(Math.abs(geometry[kind][field]-reference[kind][field])<2.5,
-       kind+' '+field+' should match original reference: '+JSON.stringify(geometry));
-   }
-   assert.equal(geometry.cpuWidth,reference.cpuWidth);
-   assert.ok(Math.abs(geometry.market.h-h)<1.5,'market card has original full height');
-   console.log('WHOT_GEOMETRY',width,JSON.stringify(geometry));
+   assert.equal(geometry.cpuWidth,width===390?80:100,'keep traditional reference card dimensions');
+   assert.ok(Math.abs(geometry.market.h-h)<1.5,'market card keeps the original full height');
+   assert.ok(Math.abs(geometry.market.y-geometry.discard.y)<2,'market and played card remain aligned');
+   assert.ok(geometry.market.x<geometry.discard.x,'market stays left of played cards');
+   assert.ok(geometry.market.y-geometry.cpu.y-(width===390?105:138)>45,'market gets its own breathing room below CPU cards');
+   assert.ok(geometry.hand.y-geometry.market.y-h>45,'player cards sit clearly below the market');
+   assert.ok(structure.hud.y-geometry.hand.y-h>10,'turn indicator follows the player hand');
+   assert.ok(structure.table.bottom-structure.hud.bottom>=8&&structure.table.bottom-structure.hud.bottom<45,
+     'turn indicator is inside the felt frame, never isolated in an empty bottom section');
+   assert.ok(structure.table.y>structure.siteHeader.bottom+30,'show game heading and visible NIGHT website frame');
+   assert.ok(structure.table.w<width-10,'wood is bounded by website margins, not fullscreen');
+   assert.ok(structure.table.h>=600&&structure.table.h<=855,'framed tabletop scales to the viewport');
+   assert.ok(structure.visual.table!=='0px','wood table must have rounded card-game edges');
+   assert.ok(geometry.hand.y-geometry.cpu.y>(width===390?300:380),'vertical spacing spans the viewport rather than being packed at the top');
+   console.log('WHOT_GEOMETRY',width,JSON.stringify({geometry,structure}));
    assert.equal(await page.locator('.whot-win-layer').count(),0,'no premature victory banner');
    assert.equal(await page.locator('.whot-deck-word').count(),2,'classic WHOT back contains exactly two readable labels');
    const deckLetters=await page.locator('.whot-deck-word').evaluateAll(els=>
