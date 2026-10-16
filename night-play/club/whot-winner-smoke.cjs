@@ -72,6 +72,7 @@ async function finish(page,winner){
    assert.ok(isInTable,'result is mounted inside the actual felt table');
    assert.ok(Math.abs(bounds.x-tableBounds.x)<12&&Math.abs(bounds.y-tableBounds.y)<12,
     'result overlays the playing table excluding only its raised wooden border');
+   await page.waitForTimeout(1150);
    await snap(page,'WIN',width);
    await page.getByRole('button',{name:/Play again/}).click();
    assert.equal(await page.locator('.whot-win-layer').count(),0,'rematch removes result and starts a fresh hand');
@@ -82,6 +83,7 @@ async function finish(page,winner){
    assert.equal(await page.locator('.whot-win-content h2').innerText(),'CPU WINS');
    assert.equal(await page.locator('.whot-win-count').innerText(),'YOU · 5 CARDS LEFT');
    assert.equal(await page.locator('.whot-win-particles i').count(),0,'CPU win is distinguished from a player victory');
+   await page.waitForTimeout(950);
    await snap(page,'LOSE',width);
    const overflow=await page.evaluate(()=>document.documentElement.scrollWidth-innerWidth);
    assert.ok(overflow<=1,'no horizontal overflow at '+width+'px: '+overflow);
