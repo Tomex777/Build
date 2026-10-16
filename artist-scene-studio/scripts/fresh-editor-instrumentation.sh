@@ -22,6 +22,11 @@ adb_bounded() {
   timeout 150s adb "$@"
 }
 cleanup() {
+  # Stop only our dedicated proof watcher. Never stop a global ADB service.
+  if [ -n "${proof_watch_pid:-}" ]; then
+    kill "$proof_watch_pid" >/dev/null 2>&1 || true
+    wait "$proof_watch_pid" >/dev/null 2>&1 || true
+  fi
   # Retain the last rendered frames even when a later assertion fails.
   timeout 15s adb pull "/sdcard/Android/data/$APP_ID/files/" "artist-scene-studio-${API_TAG}-instrumentation-device-files" >/dev/null 2>&1 || true
   timeout 10s adb logcat -d -v threadtime > "artist-scene-studio-${API_TAG}-instrumentation-logcat.txt" || true
@@ -32,6 +37,28 @@ adb_bounded install -r -t app/build/outputs/apk/debug/app-debug.apk
 adb_bounded install -r -t app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
 adb_bounded shell pm clear "$APP_ID"
 INSTRUMENTATION_LOG="artist-scene-studio-${API_TAG}-instrumentation.txt"
+# The Android 16 emulator sometimes stops AFTER tests pass but BEFORE the final
+# adb pull. Preserve genuine device screenshots as soon as the test writes them.
+# These are raw UiAutomator captures; no mockups or generated images.
+PROOF_DIR="artist-scene-studio-${API_TAG}-instrumentation-device-files"
+REMOTE_DIR="/sdcard/Android/data/$APP_ID/files"
+if [ "$TEST_SUITE" = anime ]; then
+  mkdir -p "$PROOF_DIR"
+  (
+    while true; do
+      for stage in posed neutral female-neutral; do
+        target="$PROOF_DIR/anime-$stage.png"
+        if [ ! -s "$target" ]; then
+          timeout 12s adb pull "$REMOTE_DIR/anime-$stage.png" "$target" >/dev/null 2>&1 || {
+            rm -f "$target"
+          }
+        fi
+      done
+      sleep 6
+    done
+  ) &
+  proof_watch_pid=$!
+fi
 timeout 420s adb shell am instrument -w -r -e class "$TEST_CLASSES" \
   "$APP_ID.test/androidx.test.runner.AndroidJUnitRunner" >"$INSTRUMENTATION_LOG" 2>&1 || {
   cat "$INSTRUMENTATION_LOG" | tee -a "$TEST_LOG"
@@ -58,11 +85,22 @@ pull_proof() {
   local filename="$1"
   local target="$PROOF_DIR/$filename"
   echo "Retrieving acceptance proof: $filename"
-  timeout 120s adb pull "$REMOTE_DIR/$filename" "$target" ||
-    fail "Could not retrieve $filename from API $API_LEVEL emulator"
+  if [ ! -s "$target" ]; then
+    timeout 120s adb pull "$REMOTE_DIR/$filename" "$target" ||
+      fail "Could not retrieve $filename from API $API_LEVEL emulator"
+  fi
   test -s "$target" || fail "Empty proof file: $filename"
 }
-timeout 30s adb get-state | grep -qx device || fail "Emulator disconnected after instrumentation"
+if [ "$TEST_SUITE" != anime ]; then
+  timeout 30s adb get-state | grep -qx device || fail "Emulator disconnected after instrumentation"
+fi
+# Anime suite can pass despite a post-run device shutdown ONLY if every screenshot
+# was already fully copied to the host and passes pixel integrity checks.
+if [ -n "${proof_watch_pid:-}" ]; then
+  kill "$proof_watch_pid" >/dev/null 2>&1 || true
+  wait "$proof_watch_pid" >/dev/null 2>&1 || true
+  unset proof_watch_pid
+fi
 if [ "$TEST_SUITE" != editor ] && [ "$TEST_SUITE" != humanoid ] && [ "$TEST_SUITE" != anime ]; then
   if [ "$TEST_SUITE" = tree ]; then stages=tree; else stages="$TEST_SUITE-before $TEST_SUITE-after $TEST_SUITE-saved"; fi
   for stage in $stages; do
