@@ -1,12 +1,10 @@
 {
-  "releaseId": "night-2026-10-16-07",
+  "releaseId": "night-2026-10-16-08",
   "baseBranch": "mscc-azure",
-  "baseCommit": "533098d6e582202a961060d51247eb0aa49f9ac6",
+  "baseCommit": "41eabdf17efbfe4d68e163c4dd85386c5e36117f",
   "pullRequests": [
-    285,
-    287,
-    288
+    291
   ],
-  "carriedForwardRelease": "night-2026-10-16-06",
-  "notes": "Consolidated pending approved NIGHT features: Word Chain auto-start + SCP dossiers (#285), offline voice SFX effects preview (#287), and archived three Artist Editions anime card test with AniList + user artwork (#288). Older stale PRs #191/#199/#202 already represented in base, not remerged. Validation required on exact integration SHA. Only one protected Azure approval for this batch after merging this sole release PR; no independent feature PR merges. Follow-up live WhatsApp card delivery and subjective voice audio review remain necessary after production approval."
+  "carriedForwardRelease": "night-2026-10-16-07",
+  "notes": "User explicitly requested shipping the card-artwork rendering fix to test real WhatsApp output. One focused release batch: PR #291 resolves missing anime character layer in all three .card editions with local resvg rasterization; preserves original SVG compositions, archived fonts and 3000x4200 export; adds actual pixel-level JPEG/PNG/nonblank artwork regression and three visual proof artifacts. No stale feature PRs included. Must pass combined exact-head CI, then merge this one release PR, obtain one protected mscc-production GitHub approval, and verify Azure rollback/health and real .card Naruto Uzumaki."
 }
