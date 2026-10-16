@@ -148,6 +148,110 @@ function chooseVariant(variants, quality) {
     || ranked.at(-1)
 }
 
+const STILL_IMAGE_CODECS = new Set(['png','mjpeg','jpeg2000','jpegls','bmp','gif','webp','tiff','apng'])
+
+function invalidAnimeMedia(reason, details = {}) {
+  const error = new Error('Resolved stream is not a playable full anime episode: ' + reason)
+  error.code = 'invalid-anime-media'
+  error.details = details
+  return error
+}
+
+/**
+ * Inspect a local remuxed file or remote stream before attempting to send it.
+ * This specifically rejects thumbnail/image playlists that some embed servers
+ * expose under a .m3u8 URL. Merely having an FFmpeg-readable video stream is
+ * not enough to call that an episode.
+ */
+export async function validatePlayableMedia(target, {
+  headers = {},
+  minDurationSeconds = 180,
+  minWidth = 320,
+  minHeight = 180,
+  timeoutMs = 60000,
+} = {}) {
+  if (!target) throw invalidAnimeMedia('media target was empty')
+  const remote = /^https?:\/\//i.test(String(target))
+  const args = ['-v','error','-show_entries','format=format_name,duration,size:stream=index,codec_type,codec_name,width,height','-of','json']
+  if (remote) {
+    const ua = headers['user-agent'] || headers['User-Agent'] || ANIME_UA
+    const rest = Object.entries(headers)
+      .filter(([key, value]) => key.toLowerCase() !== 'user-agent' && value != null && String(value).trim())
+      .map(([key, value]) => key + ': ' + String(value).trim())
+      .join('\r\n')
+    args.push('-user_agent', String(ua))
+    if (rest) args.push('-headers', rest + '\r\n')
+  }
+  args.push(String(target))
+
+  const binary = String(process.env.FFPROBE_PATH || 'ffprobe').trim() || 'ffprobe'
+  const output = await new Promise((resolve, reject) => {
+    const child = spawn(binary, args, { stdio:['ignore','pipe','pipe'] })
+    let stdout = ''
+    let stderr = ''
+    let settled = false
+    const timer = setTimeout(() => {
+      child.kill('SIGKILL')
+      finish(invalidAnimeMedia('ffprobe timed out'))
+    }, timeoutMs)
+    timer.unref?.()
+    const finish = (error, value) => {
+      if (settled) return
+      settled = true
+      clearTimeout(timer)
+      if (error) reject(error)
+      else resolve(value)
+    }
+    child.stdout?.on('data', chunk => {
+      stdout += chunk.toString()
+      if (stdout.length > 1024 * 1024) stdout = stdout.slice(-1024 * 1024)
+    })
+    child.stderr?.on('data', chunk => {
+      stderr += chunk.toString()
+      if (stderr.length > 16000) stderr = stderr.slice(-16000)
+    })
+    child.once('error', error => {
+      finish(invalidAnimeMedia(error?.code === 'ENOENT' ? 'ffprobe is not installed' : error.message))
+    })
+    child.once('close', code => {
+      if (code !== 0) return finish(invalidAnimeMedia('ffprobe could not read candidate media', { stderr:stderr.trim().slice(-1500) }))
+      let json
+      try { json = JSON.parse(stdout) } catch {
+        return finish(invalidAnimeMedia('ffprobe returned invalid metadata'))
+      }
+      const streams = Array.isArray(json?.streams) ? json.streams : []
+      const video = streams.find(stream => stream?.codec_type === 'video')
+      if (!video) return finish(invalidAnimeMedia('no video stream was detected', { streams }))
+      const codec = String(video.codec_name || '').toLowerCase()
+      const width = Number(video.width || 0)
+      const height = Number(video.height || 0)
+      const durationSeconds = Number(json?.format?.duration || 0)
+      const sizeBytes = Number(json?.format?.size || 0)
+      if (STILL_IMAGE_CODECS.has(codec)) {
+        return finish(invalidAnimeMedia('server returned an image sequence, not episode video', { codec, width, height, durationSeconds }))
+      }
+      if (width < minWidth || height < minHeight) {
+        return finish(invalidAnimeMedia('video dimensions are only ' + width + 'x' + height, { codec, width, height, durationSeconds }))
+      }
+      if (!Number.isFinite(durationSeconds) || durationSeconds < minDurationSeconds) {
+        return finish(invalidAnimeMedia('duration is only ' + (Number.isFinite(durationSeconds) ? durationSeconds : 0) + ' seconds', { codec, width, height, durationSeconds }))
+      }
+      if (sizeBytes > 0 && sizeBytes < 1024 * 1024) {
+        return finish(invalidAnimeMedia('media is unexpectedly small for a complete episode', { codec, width, height, durationSeconds, sizeBytes }))
+      }
+      return finish(null, {
+        verified:true,
+        targetKind:remote ? 'remote-url' : 'local-file',
+        format:String(json?.format?.format_name || ''),
+        durationSeconds:Number(durationSeconds.toFixed(2)),
+        sizeBytes,
+        video:{ codec, width, height },
+      })
+    })
+  })
+  return output
+}
+
 export async function deliverHls(context, {
   url,
   headers = {},
