@@ -1579,3 +1579,17 @@ body.whot-mode .night-action-row{display:none!important}
 @media(prefers-reduced-motion:reduce){
  body.whot-mode .table-surface .hand .whot-card{transition:none!important}
 }
+
+
+/* Previous source-matching HUD was absolutely pinned over the wooden page.
+   It MUST now be a real flex row so player cards never collide with it. */
+body.whot-mode .table-surface .whot-scoreboard{
+ position:relative!important;
+ inset:auto!important;
+ left:auto!important;right:auto!important;
+ top:auto!important;bottom:auto!important;
+ order:4!important;
+ align-self:center!important;
+ flex:0 0 auto!important;
+ margin:0 auto!important;
+}
