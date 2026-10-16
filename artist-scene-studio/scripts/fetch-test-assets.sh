@@ -60,15 +60,16 @@ python3 "$project_dir/scripts/build-humanoid.py"
 anime_file="$asset_dir/mise_anime.glb"
 anime_blob_sha1="46e8c583ce5df3b8ee167141b59ba3ad583a2687"
 anime_url="https://raw.githubusercontent.com/madjin/vrm-samples/e16eb187100149a315ad92c3c9968f1d5baa6c7d/vroid/beta/HairSample_Male.vrm"
-if [ ! -f "$anime_file" ] || [ "$(git hash-object "$anime_file")" != "$anime_blob_sha1" ]; then
-  temp_anime="$anime_file.tmp"
-  trap 'rm -f "$temp_anime"' EXIT HUP INT TERM
-  curl --fail --location --retry 3 --output "$temp_anime" "$anime_url"
-  [ "$(git hash-object "$temp_anime")" = "$anime_blob_sha1" ] || {
-    echo "VRoid CC0 anime model checksum does not match pinned source" >&2
-    exit 1
-  }
-  mv "$temp_anime" "$anime_file"
-fi
+# Always checksum the original before modifying it for the Filament loader.
+# Source is kept in /tmp so the untransformed .vrm is NOT bundled in the APK.
+anime_source="$(mktemp)"
+trap 'rm -f "$anime_source"' EXIT HUP INT TERM
+curl --fail --location --retry 3 --output "$anime_source" "$anime_url"
+[ "$(git hash-object "$anime_source")" = "$anime_blob_sha1" ] || {
+  echo "VRoid CC0 anime source checksum does not match pinned Git object" >&2
+  exit 1
+}
+python3 "$project_dir/scripts/prepare-anime-glb.py" "$anime_source" "$anime_file"
+rm -f "$anime_source"
 python3 "$project_dir/scripts/check-anime-glb.py" "$anime_file"
 python3 "$project_dir/scripts/build-scene-actors.py"
