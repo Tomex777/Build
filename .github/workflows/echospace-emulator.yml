@@ -76,8 +76,8 @@ jobs:
           arch: x86_64
           target: google_apis
           profile: pixel_6
-          cores: 2
-          ram-size: 2048M
+          cores: 4
+          ram-size: 4096M
           disk-size: 4096M
           disable-animations: true
           emulator-options: -no-window -no-snapshot -noaudio -no-boot-anim -gpu swiftshader_indirect
@@ -88,8 +88,19 @@ jobs:
             adb shell pm grant com.nexa.echospace android.permission.POST_NOTIFICATIONS
             adb shell settings put system screen_off_timeout 600000
             adb shell am start -W -n com.nexa.echospace/.MainActivity
-            sleep 8
-            python3 EchoSpace/tools/emulator_probe.py assert text EchoSpace
+            # Cold boots sometimes show a Pixel Launcher ANR instead of our UI.
+            # Recover from that system dialog and require the actual app to appear.
+            launched=0
+            for attempt in $(seq 1 8); do
+              sleep 7
+              if python3 EchoSpace/tools/emulator_probe.py assert text EchoSpace; then
+                launched=1
+                break
+              fi
+              python3 EchoSpace/tools/emulator_probe.py tap text Wait || true
+              adb shell am start -n com.nexa.echospace/.MainActivity || true
+            done
+            test "$launched" -eq 1
             adb shell screencap -p /sdcard/launch.png
             adb pull /sdcard/launch.png qa/01-launch.png
             python3 EchoSpace/tools/emulator_probe.py tap desc Play
