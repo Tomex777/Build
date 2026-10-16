@@ -108,6 +108,27 @@ async function finish(page,winner){
    assert.ok(overflow<=1,'no horizontal overflow at '+width+'px: '+overflow);
    assert.deepEqual(errors,[],'no console page exceptions');
    await page.close();
+   // Independent game context: verify market draw reaches a newly created
+   // card slot rather than animating onto the previous final card.
+   const drawPage=await browser.newPage({viewport:{width,height:844},isMobile:width<=600,hasTouch:width<=600});
+   const drawErrors=[];drawPage.on('pageerror',e=>drawErrors.push(e.message));
+   await drawPage.route('https://cdn.jsdelivr.net/**',route=>route.abort());
+   await drawPage.goto(base+'/club/?game=whot');
+   await drawPage.locator('.hand .whot-card').first().waitFor();
+   assert.equal(await drawPage.locator('.hand .whot-card').count(),5,'five initial cards before picking');
+   await drawPage.locator('.whot-deck').click();
+   await drawPage.waitForFunction(()=>window.__nightWhotMotion().activeFlights===1,null,{timeout:1300});
+   assert.equal(await drawPage.locator('.hand .whot-card').count(),6,'new card is laid out before the flight');
+   const newFace=drawPage.locator('.hand .whot-card').last();
+   assert.equal(await newFace.evaluate(el=>el.style.visibility),'hidden','new face stays hidden while market back is flying');
+   const motion=await drawPage.evaluate(()=>window.__nightWhotMotion());
+   assert.equal(motion.lastFlightAction,'draw','market draw uses true flight animation');
+   assert.equal(motion.lastFlightDuration,275,'market draw retains fast 275ms duration');
+   await drawPage.waitForFunction(()=>window.__nightWhotMotion().activeFlights===0,null,{timeout:1800});
+   assert.notEqual(await newFace.evaluate(el=>el.style.visibility),'hidden','new face reveals when the drawn back reaches its real position');
+   assert.equal(await drawPage.locator('.hand .whot-card').count(),6,'no extra second-card popup');
+   assert.deepEqual(drawErrors,[],'market draw has no JavaScript exceptions');
+   await drawPage.close();
   }
   console.log('WHOT WINNER QA PASS: immersive table, one HUD, player/CPU result overlays, rematch, no redundant information, mobile/desktop');
  }finally{await browser.close()}
