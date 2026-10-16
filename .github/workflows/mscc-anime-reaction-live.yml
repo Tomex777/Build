@@ -4,7 +4,11 @@ on:
     branches: [mscc-azure]
     paths:
       - 'mscc/anime-reaction-live-probe.js'
-      - 'mscc/anime-reactions*'
+      - 'mscc/anime-reaction-stickers.js'
+      - 'mscc/anime-reaction-selftest.js'
+      - 'mscc/anime-reaction-failover-selftest.js'
+      - 'mscc/anime-reaction-provider-live-probe.js'
+      - 'mscc/utils/anime-reaction-providers.js'
       - 'mscc/commands/anime/**'
       - '.github/workflows/mscc-anime-reaction-live.yml'
   workflow_dispatch:
@@ -13,7 +17,7 @@ permissions:
 jobs:
   probe:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
@@ -27,6 +31,6 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y -qq ffmpeg
           ffmpeg -version | head -n 1
-      - name: Live-check all anime categories, download GIF bytes and test stickers
+      - name: Verify real source failover for representative reaction categories and animated WebP
         working-directory: mscc
-        run: node anime-reaction-live-probe.js
+        run: node anime-reaction-provider-live-probe.js
