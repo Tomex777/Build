@@ -40,7 +40,7 @@ button,summary{cursor:pointer}
 .step.settled .word{animation:none!important;color:var(--ink)!important}
 @keyframes word-ink{0%{color:transparent}35%{color:var(--tint)}100%{color:var(--ink)}}
 .choices{display:grid;border-top:1px solid var(--hair);opacity:1;transition:opacity .14s var(--ease)}
-.choices.pending{opacity:0;pointer-events:none}
+.choices[hidden]{display:none}.choices.pending{opacity:0;pointer-events:none}
 .choice{appearance:none;background:transparent;border:0;border-bottom:1px solid var(--hair);margin:0;display:grid;grid-template-columns:1.75em minmax(0,1fr);align-items:baseline;width:100%;padding:.6em 0;text-align:left;cursor:pointer;color:var(--ink);transition:opacity .15s var(--ease),background-color .15s var(--ease);-webkit-tap-highlight-color:transparent}
 .choice-number{color:var(--mute);font-variant-numeric:tabular-nums}
 .choice-label{min-width:0;text-wrap:pretty;text-decoration-line:underline;text-decoration-color:transparent;text-decoration-thickness:1px;text-underline-offset:.22em;transition:text-decoration-color .15s var(--ease)}
@@ -72,12 +72,12 @@ button,summary{cursor:pointer}
   <summary aria-label="Reading options" title="Reading options"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="2.2"/><path d="M12 2.5v2m0 15v2M2.5 12h2m15 0h2M5.4 5.4l1.5 1.5m10.2 10.2 1.5 1.5M18.6 5.4l-1.5 1.5M6.9 17.1l-1.5 1.5"/></svg></summary>
   <div class="reader-panel">
    <label for="pace">Text animation</label>
-   <select id="pace" aria-label="Text animation speed"><option value="cinematic">Cinematic</option><option value="quick">Quick</option><option value="instant">Off</option></select>
+   <select id="pace" disabled aria-label="Text animation speed"><option value="cinematic">Cinematic</option><option value="quick">Quick</option><option value="instant">Off</option></select>
    <p id="chapterStatus" class="chapter-status"></p>
-   <button type="button" id="openSaves">Playthroughs</button>
-   <button type="button" id="openJournal">Story journal</button>
-   <button type="button" id="openChapters">Chapters</button>
-   <label class="sound-option"><input type="checkbox" id="sound"> Atmospheric sound</label>
+   <button type="button" id="openSaves" disabled>Playthroughs</button>
+   <button type="button" id="openJournal" disabled>Story journal</button>
+   <button type="button" id="openChapters" disabled>Chapters</button>
+   <label class="sound-option"><input type="checkbox" id="sound" disabled> Atmospheric sound</label>
    <a class="library-link" href="/stories/library.html">Story library →</a>
   </div>
  </details>

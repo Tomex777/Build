@@ -9,7 +9,7 @@ const root=path.resolve(__dirname,'..');
 const output=path.join(__dirname,'qa-output');fs.mkdirSync(output,{recursive:true});
 const server=http.createServer((req,res)=>{
  const pathname=new URL(req.url,'http://local').pathname;
- const relative=pathname==='/stories/'?'stories/index.html':pathname==='/games'||pathname==='/'?'index.html':pathname.replace(/^\//,'');
+ const relative=pathname==='/stories/'?'stories/index.html':pathname==='/games'||pathname==='/dashboard'||pathname==='/'?'index.html':pathname.replace(/^\//,'');
  const target=path.resolve(root,relative);if(!target.startsWith(root+path.sep)||!fs.existsSync(target)||fs.statSync(target).isDirectory()){res.writeHead(404);res.end();return}
  res.writeHead(200,{'content-type':target.endsWith('.json')?'application/json':target.endsWith('.js')?'text/javascript':'text/html; charset=utf-8'});res.end(fs.readFileSync(target));
 });
@@ -38,8 +38,8 @@ function decisionRun(){let r=E.start(story,'Final decision');for(let i=0;i<500;i
    await page.locator('#readerOptions summary').click();await page.locator('#openSaves').click();await page.getByRole('button',{name:'Start a new playthrough',exact:true}).click();
    const two=await page.evaluate(()=>JSON.parse(localStorage.getItem('night-story:the-last-call:v3')));assert.equal(two.playthroughs.length,2);assert.equal(two.playthroughs[0].node,savedNode,'new run preserves original');
    await page.locator('#readerOptions summary').click();await page.locator('#openSaves').click();await page.getByRole('button',{name:'Resume',exact:true}).click();assert.equal(await page.evaluate(()=>JSON.parse(localStorage.getItem('night-story:the-last-call:v3')).active),two.playthroughs[0].id);
-   await page.goto(origin+'/stories/library.html');await page.waitForFunction(()=>document.querySelector('#read').textContent==='Continue reading');assert.ok((await page.locator('#progress').innerText()).includes('Chapter 1'));
-   await page.goto(origin+'/games');assert.equal(await page.locator('.story-entry h3').innerText(),'Continue Reading');
+   await page.goto(origin+'/stories/library.html');await page.screenshot({path:path.join(output,'library-'+width+'.png'),fullPage:true});await page.waitForFunction(()=>document.querySelector('#read').textContent==='Continue reading');assert.ok((await page.locator('#progress').innerText()).includes('Chapter 1'));
+   await page.goto(origin+'/games');assert.equal(await page.locator('.story-entry h3').innerText(),'Continue Reading');await page.goto(origin+'/dashboard');await page.locator('#storyResume').waitFor({state:'visible'});await page.screenshot({path:path.join(output,'home-continue-'+width+'.png'),fullPage:true});
    assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));assert.deepEqual(errors,[]);await page.close();
   }
   for(const ending of ['release','sever','keeper']){

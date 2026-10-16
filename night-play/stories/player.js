@@ -12,6 +12,7 @@ function later(fn,ms){const t=setTimeout(fn,ms);timers.push(t);return t}
 function cancel(){generation++;timers.forEach(clearTimeout);timers=[];revealing=false}
 function write(){
  if(!run)return;
+ run.updated=Date.now();
  book=E.storeRun(story,book,run);
  try{if(!persistBlocked)E.persist(story,book,storage)}catch{warn('Your latest reading is still open, but autosave could not be written. Free some browser storage before closing.');}
 }
@@ -71,11 +72,14 @@ function render(restore=false){
  }
  if(restore)requestAnimationFrame(()=>scrollTo({top:run.reading.scroll||0,behavior:'instant'}));else scrollTo({top:0,behavior:'instant'});
  if(reduced||ui.pace.value==='instant'||(restore&&run.reading.ready)){lines.forEach(setLine);showChoices();return}
- revealing=true;const factor=ui.pace.value==='quick'?.45:1;let end=0;
+ revealing=true;const factor=ui.pace.value==='quick'?.45:1;let end=0,cadence=0;
  bs.forEach((beat,index)=>{
   if(index<saved)return;
   const line=lines[index],words=line.querySelectorAll('.word');
-  const offset=run.node==='start'?0:Math.round((index-saved)*135*factor+(beat.pause||0)*factor);
+  cadence+=(index===saved?0:(run.node==='start'?0:135))+(beat.delayBefore||0)+(beat.pause||0);
+  const offset=Math.round(cadence*factor);
+  if(beat.tone==='unease')line.style.setProperty('--tint','#aaa4b6');
+  if(beat.tone==='quiet')line.style.setProperty('--tint','#8aa6a2');
   const spread=Math.round(Math.min(650,Math.max(220,words.length*7))*factor),fade=Math.round(900*factor);
   line.style.setProperty('--fade',fade+'ms');
   // Stable positions; stagger the ink, never characters or paragraph geometry.
@@ -96,18 +100,17 @@ function saves(){openPanel('Your playthroughs',body=>{
   const n=story.nodes[r.node];row.append(el('small',(r.ending?story.endings[r.ending]:'Chapter '+n.chapter+' · '+n.title)+' · '+new Date(r.updated).toLocaleString()));
   if(r.id!==run.id)row.append(button(r.ending?'View ending':'Resume',()=>{snapshot();write();run=E.clone(book.playthroughs.find(x=>x.id===r.id));book.active=run.id;write();ui.dialog.close();render(true)}));body.append(row);
  }
- try{if(storage.getItem('night-play-last-call-v2')){const p=el('p');const a=el('a','Resume your earlier short edition');a.href='/stories/short-edition.html';p.append(a);body.append(p)}}catch{}
+ try{if(story.id==='the-last-call'&&storage.getItem('night-play-last-call-v2')){const p=el('p');const a=el('a','Resume your earlier short edition');a.href='/stories/short-edition.html';p.append(a);body.append(p)}}catch{}
  body.append(el('p','Playthroughs are saved in this browser. Starting another keeps the earlier one.'));
 })}
 function journal(){openPanel('Story journal',body=>{
  const discovered=run.state.knowledge.map(k=>story.knowledge[k]).filter(Boolean);
- body.append(el('h3','Discovered knowledge'));
- if(!discovered.length)body.append(el('p','Discoveries appear here as you read.'));
+ if(discovered.length)body.append(el('h3','Discovered knowledge'));
  for(const k of discovered){const row=el('div',undefined,'journal-row');row.append(el('strong',k.title),el('p',k.text));body.append(row)}
- body.append(el('h3','What you carry'));const items=el('ul',undefined,'journal-list');run.state.inventory.forEach(k=>items.append(el('li',story.items[k]||k)));body.append(items);
- body.append(el('h3','What people remember'));
+ if(run.state.inventory.length)body.append(el('h3','What you carry'));const items=el('ul',undefined,'journal-list');run.state.inventory.forEach(k=>items.append(el('li',story.items[k]||k)));if(run.state.inventory.length)body.append(items);
+ if(Object.keys(run.state.memories).length)body.append(el('h3','What people remember'));
  for(const [name,memories] of Object.entries(run.state.memories)){body.append(el('strong',name));const ul=el('ul',undefined,'journal-list');memories.forEach(m=>ul.append(el('li',m.detail)));body.append(ul)}
- body.append(el('h3','Your decisions'));const ul=el('ul',undefined,'journal-list');run.history.forEach(h=>ul.append(el('li','Chapter '+h.chapter+' · '+h.label)));body.append(ul);
+ if(run.history.length)body.append(el('h3','Your decisions'));const ul=el('ul',undefined,'journal-list');run.history.forEach(h=>ul.append(el('li','Chapter '+h.chapter+' · '+h.label)));body.append(ul);
 })}
 function chapterRead(number){
  openPanel('Chapter '+number,body=>{body.className='chapter-read';const pages=run.pages.filter(p=>p.chapter===number);for(const p of pages)for(const t of p.text)body.append(el('p',t));});
@@ -134,9 +137,10 @@ addEventListener('scroll',()=>{if(!ui.dialog.open)snapshot()},{passive:true});
 addEventListener('pagehide',()=>{snapshot();clearTimeout(writeTimer);write();stopAmbient()});
 document.addEventListener('visibilitychange',()=>{if(document.hidden){snapshot();clearTimeout(writeTimer);write();stopAmbient()}else if(soundEnabled)addAmbient()});
 try{
- const response=await fetch('/stories/last-call.json');if(!response.ok)throw Error('Story file unavailable');story=await response.json();E.validateStory(story);
+ const contentKey=new URLSearchParams(location.search).get('story')||'last-call';if(!/^[a-z0-9-]+$/.test(contentKey))throw Error('Unknown story');
+ const response=await fetch('/stories/'+contentKey+'.json');if(!response.ok)throw Error('Story file unavailable');story=await response.json();E.validateStory(story);document.title=story.title+' · NIGHT Play';document.querySelector('h1').textContent=story.title;
  const pace=storage.getItem('night-play-fiction-reading-speed');if(['cinematic','quick','instant'].includes(pace))ui.pace.value=pace;
- book=E.load(story,storage);
+ book=E.load(story,storage);for(const id of ['openSaves','openJournal','openChapters','pace','sound'])$(id).disabled=false;
  if(book.recovery){try{const raw=storage.getItem('night-story:'+story.id+':v3');if(raw)storage.setItem('night-story:'+story.id+':recovery:'+Date.now(),raw)}catch{persistBlocked=true}warn(persistBlocked?'A save could not be safely archived. It remains untouched; this recovery session is not being written over it.':'A save could not be opened. Its original data has been retained; usable playthroughs remain available.');}
  run=book.playthroughs.find(r=>r.id===book.active)||E.start(story,'Playthrough 1');write();render(true);
 }catch(error){ui.story.replaceChildren(el('p','The story could not be opened. Your existing saves have not been changed.'));ui.choices.classList.remove('pending');ui.choices.append(button('Try again',()=>location.reload()));console.error(error)}
