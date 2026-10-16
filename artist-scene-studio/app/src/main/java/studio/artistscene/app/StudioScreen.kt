@@ -1733,6 +1733,7 @@ private fun EditorContextSheet(
                         "motion" -> "Animation"
                         "reference" -> "Reference"
                         "camera" -> "Camera"
+                        "physics" -> "Gravity & Physics"
                         else -> "Lighting"
                     },
                     modifier = Modifier.weight(1f),
