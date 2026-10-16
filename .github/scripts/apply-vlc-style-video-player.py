@@ -101,6 +101,14 @@ private fun FullscreenVideoDialog(
 ) {
     var playbackSpeed by remember(playback) { mutableFloatStateOf(1f) }
     var muted by remember(playback) { mutableStateOf(false) }
+    // These controls are scoped to fullscreen, not permanent playback preferences.
+    // Restore defaults when returning to the embedded player.
+    DisposableEffect(playback) {
+        onDispose {
+            runCatching { playback.player.setRate(1f) }
+            runCatching { playback.player.setVolume(100) }
+        }
+    }
     BackHandler(onBack = onDismiss)
     Dialog(
         onDismissRequest = onDismiss,
@@ -109,6 +117,17 @@ private fun FullscreenVideoDialog(
             decorFitsSystemWindows = false
         )
     ) {
+        // Dialogs have their own window: decorFitsSystemWindows=false alone
+        // does not hide the Android status bar on API 26+.
+        val dialogWindow =
+            (androidx.compose.ui.platform.LocalView.current.parent
+                as? androidx.compose.ui.window.DialogWindowProvider)?.window
+        DisposableEffect(dialogWindow) {
+            dialogWindow?.addFlags(android.view.WindowManager.LayoutParams.FLAG_FULLSCREEN)
+            onDispose {
+                dialogWindow?.clearFlags(android.view.WindowManager.LayoutParams.FLAG_FULLSCREEN)
+            }
+        }
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -149,7 +168,7 @@ private fun FullscreenVideoDialog(
             }
 
             Row(
-                modifier = Modifier.align(Alignment.TopEnd).padding(12.dp),
+                modifier = Modifier.align(Alignment.TopEnd).padding(top = 68.dp, end = 12.dp),
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -254,8 +273,12 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.semantics.ProgressBarRangeInfo
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.progressBarRangeInfo
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.setProgress
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -429,7 +452,7 @@ internal fun LaterVlcStyleVideoSurface(
                     if (onFullscreen != null) {
                         IconButton(
                             onClick = onFullscreen,
-                            modifier = Modifier.size(42.dp)
+                            modifier = Modifier.size(48.dp)
                         ) {
                             Icon(
                                 Icons.Rounded.Fullscreen,
@@ -470,7 +493,7 @@ private fun VlcTextControl(
     Surface(
         modifier =
             Modifier
-                .size(42.dp)
+                .size(48.dp)
                 .semantics { contentDescription = description }
                 .clickable(onClick = onClick),
         shape = CircleShape,
@@ -493,8 +516,10 @@ private fun LaterVideoSeekBar(
     val playedFraction =
         if (dragFraction >= 0f) {
             dragFraction
-        } else {
+        } else if (durationMs > 0L) {
             (positionMs.toFloat() / duration.toFloat()).coerceIn(0f, 1f)
+        } else {
+            0f
         }
     val accent = MaterialTheme.colorScheme.primary
 
@@ -502,11 +527,24 @@ private fun LaterVideoSeekBar(
         modifier =
             Modifier
                 .fillMaxWidth()
-                .height(30.dp)
-                .semantics { contentDescription = "Video seek bar" }
+                .height(48.dp)
+                .semantics {
+                    contentDescription = "Video seek bar"
+                    stateDescription =
+                        "${formatVideoClock((durationMs * playedFraction).toLong())} of ${formatVideoClock(durationMs)}"
+                    progressBarRangeInfo = ProgressBarRangeInfo(playedFraction, 0f..1f)
+                    setProgress { fraction ->
+                        if (durationMs <= 0L) {
+                            false
+                        } else {
+                            onSeek((durationMs * fraction.coerceIn(0f, 1f)).toLong())
+                            true
+                        }
+                    }
+                }
                 .pointerInput(durationMs) {
                     detectTapGestures { offset ->
-                        if (size.width > 0) {
+                        if (size.width > 0 && durationMs > 0L) {
                             val fraction =
                                 (offset.x / size.width.toFloat())
                                     .coerceIn(0f, 1f)
@@ -517,7 +555,7 @@ private fun LaterVideoSeekBar(
                 .pointerInput(durationMs) {
                     detectDragGestures(
                         onDragStart = { offset ->
-                            if (size.width > 0) {
+                            if (size.width > 0 && durationMs > 0L) {
                                 dragFraction =
                                     (offset.x / size.width.toFloat())
                                         .coerceIn(0f, 1f)
@@ -531,7 +569,7 @@ private fun LaterVideoSeekBar(
                         },
                         onDragCancel = { dragFraction = -1f },
                         onDrag = { change, _ ->
-                            if (size.width > 0) {
+                            if (size.width > 0 && durationMs > 0L) {
                                 dragFraction =
                                     (change.position.x / size.width.toFloat())
                                         .coerceIn(0f, 1f)
@@ -548,19 +586,19 @@ private fun LaterVideoSeekBar(
             color = Color.White.copy(alpha = 0.24f),
             start = trackStart,
             end = trackEnd,
-            strokeWidth = 4.dp.toPx(),
+            strokeWidth = 5.dp.toPx(),
             cap = StrokeCap.Round
         )
         drawLine(
             color = accent,
             start = trackStart,
             end = Offset(size.width * playedFraction, y),
-            strokeWidth = 4.dp.toPx(),
+            strokeWidth = 5.dp.toPx(),
             cap = StrokeCap.Round
         )
         drawCircle(
             color = accent,
-            radius = 6.dp.toPx(),
+            radius = 8.dp.toPx(),
             center = Offset(size.width * playedFraction, y)
         )
     }
