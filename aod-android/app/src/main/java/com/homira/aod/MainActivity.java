@@ -30,6 +30,11 @@ public final class MainActivity extends androidx.activity.ComponentActivity {
   private final ExecutorService io = Executors.newSingleThreadExecutor();
   private String pendingImage = "", pendingExport = "";
   private Dialog sheet;
+  private final List<Runnable> pendingNumericEdits = new ArrayList<>();
+
+  private void flushNumericEdits() {
+    for (Runnable save : new ArrayList<>(pendingNumericEdits)) save.run();
+  }
 
   @Override
   public void onCreate(Bundle state) {
@@ -599,7 +604,11 @@ public final class MainActivity extends androidx.activity.ComponentActivity {
   }
 
   private LinearLayout sheet(String label) {
-    if (sheet != null) sheet.dismiss();
+    if (sheet != null) {
+      flushNumericEdits();
+      sheet.dismiss();
+    }
+    pendingNumericEdits.clear();
     sheet = new Dialog(this);
     LinearLayout layout = Ui.column(this);
     layout.setBackground(Ui.rounded(Ui.PANEL, Ui.dp(this, 24)));
@@ -617,7 +626,10 @@ public final class MainActivity extends androidx.activity.ComponentActivity {
     TextView heading = Ui.text(this, label, 19, Ui.TEXT);
     heading.setTypeface(android.graphics.Typeface.DEFAULT, android.graphics.Typeface.BOLD);
     head.addView(heading, new LinearLayout.LayoutParams(0, -2, 1));
-    head.addView(Ui.button(this, "Done", () -> sheet.dismiss()), new LinearLayout.LayoutParams(Ui.dp(this, 76), Ui.dp(this, 44)));
+    head.addView(Ui.button(this, "Done", () -> {
+      flushNumericEdits();
+      sheet.dismiss();
+    }), new LinearLayout.LayoutParams(Ui.dp(this, 76), Ui.dp(this, 44)));
     layout.addView(head);
     layout.addView(Ui.separator(this));
     ScrollView scroll = new ScrollView(this);
@@ -636,6 +648,8 @@ public final class MainActivity extends androidx.activity.ComponentActivity {
     attrs.dimAmount = .36f;
     window.setAttributes(attrs);
     sheet.setOnDismissListener(d -> {
+      flushNumericEdits();
+      pendingNumericEdits.clear();
       if (canvas != null) { canvas.wallpaperPreview = false; canvas.invalidate(); }
     });
     window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE
@@ -674,6 +688,7 @@ public final class MainActivity extends androidx.activity.ComponentActivity {
         edit.setError("Enter a valid number");
       }
     };
+    pendingNumericEdits.add(save);
     edit.setOnFocusChangeListener((view, focused) -> {
       if (!focused) save.run();
     });
@@ -1295,6 +1310,7 @@ public final class MainActivity extends androidx.activity.ComponentActivity {
             this,
             "Save schedule",
             () -> {
+              flushNumericEdits();
               if (r.days == 0) {
                 toast("Choose at least one day.");
                 return;
