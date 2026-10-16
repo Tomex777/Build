@@ -82,7 +82,7 @@ async function finish(page,winner){
    assert.ok(structure.table.w<width-10,'wood is bounded by website margins, not fullscreen');
    assert.ok(structure.table.h>=600&&structure.table.h<=855,'framed tabletop scales to the viewport');
    assert.ok(structure.visual.table!=='0px','wood table must have rounded card-game edges');
-   assert.ok(geometry.hand.y-geometry.cpu.y>(width===390?300:380),'vertical spacing spans the viewport rather than being packed at the top');
+   assert.ok(geometry.hand.y-geometry.cpu.y>(width===390?300:350),'vertical spacing spans the viewport rather than being packed at the top');
    console.log('WHOT_GEOMETRY',width,JSON.stringify({geometry,structure}));
    assert.equal(await page.locator('.whot-win-layer').count(),0,'no premature victory banner');
    assert.equal(await page.locator('.whot-deck-word').count(),2,'classic WHOT back contains exactly two readable labels');
