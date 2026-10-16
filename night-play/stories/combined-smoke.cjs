@@ -26,16 +26,30 @@ const server=http.createServer((req,res)=>{
     const link=page.locator('.library-card.story-entry');
     await link.click();
     await page.waitForURL('**/stories/');
-    assert.match(await page.title(),/Interactive Fiction/i);
-    await page.locator('.line.inking .ink-word').first().waitFor({state:'attached'});
-    assert.ok(await page.locator('.line .ink-word').count()>=3,'scattered word animation is present');
-    await page.getByRole('button',{name:/Reveal remaining lines/}).click();
+    assert.match(await page.title(),/The Last Call/i);
+    assert.equal(await page.locator('#story p').count(),5,'all narration is pre-laid for zero page-shifting');
+    await page.locator('#story p.go .ink-word').first().waitFor({state:'attached'});
+    assert.ok(await page.locator('#story .ink-word').count()>=20,'individual word spans are present');
+    const motion=await page.locator('#story p.go .ink-word').first().evaluate(el=>{
+      const style=getComputedStyle(el);return {name:style.animationName,duration:style.animationDuration}
+    });
+    assert.equal(motion.name,'appear','words animate their ink rather than whole-line sliding');
+    assert.equal(motion.duration,'0.9s','default word transition follows 900ms source cadence');
+    const rectBefore=await page.locator('#story p').last().boundingBox();
+    await page.waitForTimeout(600);
+    const active=await page.locator('#story p.go').count();
+    assert.ok(active>=3,'multiple narration lines animate together instead of one-by-one serial waiting');
+    const rectAfter=await page.locator('#story p').last().boundingBox();
+    assert.ok(Math.abs(rectBefore.y-rectAfter.y)<1,'full pre-layout avoids jarring vertical shifts');
+    await page.locator('#story').click();
     assert.equal(await page.locator('.choice').count(),2,'choices appear immediately on tap');
     await page.locator('.choice').first().click();
     assert.match(await page.locator('#location').textContent(),/02:14 AM/,'branch choice works');
-    await page.locator('#restart').click();
+    await page.getByRole('button',{name:'Reading options'}).click();
+    await page.getByRole('button',{name:'Restart story'}).click();
+    await page.getByRole('button',{name:'Reading options'}).click();
     await page.locator('#pace').selectOption('instant');
-    assert.equal(await page.locator('.line').count(),5,'reading speed instant works');
+    assert.equal(await page.locator('#story p').count(),5,'reading speed instant works');
     const size=await page.evaluate(()=>({scroll:document.documentElement.scrollWidth,width:innerWidth}));
     assert.ok(size.scroll<=size.width+1,'story has no horizontal overflow');
     await page.getByRole('link',{name:/Games/}).first().click();
@@ -44,6 +58,6 @@ const server=http.createServer((req,res)=>{
     assert.equal(errors.length,0,'no page JavaScript exceptions: '+errors.join('; '));
     await page.close();
   }
-  console.log('PASS combined NIGHT Play Games → Stories → line motion → choices → Games on mobile & desktop');
+  console.log('PASS combined NIGHT Play Games → Stories → overlapping 900ms ink, zero layout shifts → tap skip, choice branching, options → Games on mobile & desktop');
  } finally {await browser.close()}
 })().catch(e=>{console.error(e.stack||e);process.exitCode=1}).finally(()=>server.close());
