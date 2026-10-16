@@ -37,6 +37,8 @@ import androidx.compose.material.icons.filled.NightsStay
 import androidx.compose.material.icons.filled.DirectionsCar
 import androidx.compose.material.icons.filled.AcUnit
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
 """
 one("import androidx.compose.material3.*\n", imports + "import androidx.compose.material3.*\n", "vector imports")
 
@@ -167,6 +169,37 @@ one(
     onGain: (Int, Float) -> Unit,
 """,
     "mixer signature",
+)
+
+# Keep each chosen layer reachable without reordering cards under the user's finger.
+one(
+    """    onClose: () -> Unit
+) {
+    Column(
+""",
+    """    onClose: () -> Unit
+) {
+    val focusedLayerRequester = remember { BringIntoViewRequester() }
+    LaunchedEffect(selectedId, sources.size) {
+        if (sources.any { it.id == selectedId }) {
+            delay(350)
+            focusedLayerRequester.bringIntoView()
+        }
+    }
+    Column(
+""",
+    "auto-focus selected mixer layer",
+)
+one(
+    """                    .clickable { onSelect(sound.id) }
+                    .padding(horizontal = 12.dp, vertical = 11.dp)
+""",
+    """                    .clickable { onSelect(sound.id) }
+                    .then(if (focused) Modifier.bringIntoViewRequester(focusedLayerRequester)
+                        else Modifier)
+                    .padding(horizontal = 12.dp, vertical = 11.dp)
+""",
+    "focused card location",
 )
 
 # Save and close are distinct: save persists a named soundscape; close just returns.
