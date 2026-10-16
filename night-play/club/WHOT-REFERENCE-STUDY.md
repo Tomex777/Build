@@ -25,3 +25,29 @@ This is a **source-level investigation**, not permission to import another game'
 ## Source method
 
 Read each repository's original gameplay/UI/CSS files; inspect release records before offering an APK. No examined Whot-specific repo above supplied a GitHub Release APK as of this study. Existing game-web-app source can be downloaded as a ZIP or cloned, but a source repository isn't automatically an installable Android APK. A separate GitHub Action clones a few small public sources in a throwaway runner, runs source checks, writes a summary to the workflow log and deletes the clones with the runner. No materials are copied into NIGHT Play's shipped files.
+
+## Visual-parity update (16 October)
+
+We built the upstream React app only in a temporary GitHub Actions runner and
+measured the *actual rendered gameplay* after its preloader finished.
+
+| Element | Source mobile 390×844 | Source desktop 1280×844 |
+| --- | --- | --- |
+| Opponent 5-card hand | x30 y80, 330px wide | x315 y60, 650px wide |
+| Market back | x72.5 y222, 80×105 | x465 y263, 100×138 |
+| Face-up played pile | x237.5 y222, 80×105 | x715 y263, 100×138 |
+| Player hand | x30 y357, 330px wide | x315 y451, 650px wide |
+| Card appearance | Flat ivory, solid wine shapes, black small ranks | Same at larger dimensions |
+| Hand scrolling | Horizontal, partially visible next card | Horizontal within 650px |
+
+NIGHT's combined-preview WHOT now renders these positions within 2.5 CSS
+pixels, including five actual face-down CPU cards, two independently aligned
+market/played cards, and a horizontal player hand. Small remaining hands center
+themselves as a NIGHT accessibility enhancement. The woodgrain is our own
+procedural SVG, rather than the upstream game's unlicensed photographic asset.
+The 3D turning-card and hand-recentering animations are independent, including
+more continuous shared-position FLIP movement and an overlapping 560ms turn.
+No original React game or artwork is embedded on NIGHT Play.
+
+The earlier comparison lab has been removed. The original runs only in temporary
+reference QA under `.github/workflows/night-play-whot-visual.yml`.
