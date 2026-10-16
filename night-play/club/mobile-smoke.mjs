@@ -298,58 +298,59 @@ try{
   await page.waitForFunction(()=>window.__nightWhotMotion().visibleFlights===0,null,{timeout:2500});
   if(canPlay)assert.equal(await page.evaluate(()=>document.querySelector('.card-pile .whot-card')===window.__whotPreviousPile),false,'Discard swaps only once the flight ends');
   assert.ok(await page.evaluate(()=>{const m=window.__nightWhotMotion();return m.plays+m.draws>0}),'Move increments hardcoded animation counters');
-  // Real Naija Whot dimensions: 80px cards, horizontal swipeable strip.
-  await page.waitForTimeout(650);
-  for(const n of [5,4,3,2,1,8,12]){
-    await page.evaluate(count=>{
-      const saved=JSON.parse(localStorage.getItem("night-play-club-v1"));
-      const s=saved.whot,pool=[...s.hands[0],...s.deck];
-      s.hands[0]=pool.slice(0,count);s.deck=pool.slice(count);
-      s.turn=0;s.winner=null;s.pendingWhot=null;
-      localStorage.setItem("night-play-club-v1",JSON.stringify(saved));
-    },n);
-    await page.reload();
-    await page.locator('.hand .whot-card').first().waitFor();
-    await page.waitForTimeout(75);
-    const info=await page.evaluate(()=>{
-      const row=document.querySelector('.hand .card-row'),cards=[...row.querySelectorAll('.whot-card')];
-      const a=cards[0].getBoundingClientRect(),b=cards.at(-1).getBoundingClientRect(),r=row.getBoundingClientRect();
-      return {count:cards.length,width:parseFloat(getComputedStyle(cards[0]).width),
-        center:(a.left+b.right)/2,goal:r.left+r.width/2,scroll:row.scrollWidth,client:row.clientWidth,
-        justify:getComputedStyle(row).justifyContent,wrap:getComputedStyle(row).flexWrap,
-        overflow:document.documentElement.scrollWidth-innerWidth,
-        height:document.querySelector('.table-surface').getBoundingClientRect().height};
+  // Intelligent WHOT hand replaces the old compulsory horizontal scrolling.
+  for(const n of [1,2,3,4,5,6,7,8,10,12,13,16,17,21]){
+   await page.evaluate(count=>{
+    const all=JSON.parse(localStorage.getItem('night-play-club-v1')),s=all.whot,pool=[...s.hands[0],...s.deck];
+    s.hands[0]=pool.slice(0,count);s.deck=pool.slice(count);s.turn=0;s.winner=null;s.pendingWhot=null;s.pendingFinish=null;
+    localStorage.setItem('night-play-club-v1',JSON.stringify(all));
+   },n);
+   await page.reload();await page.locator('.hand .whot-card').first().waitFor();
+   const m=await page.evaluate(()=>{
+    const row=document.querySelector('.hand .card-row'),hand=row.closest('.hand'),all=[...row.querySelectorAll('.whot-card')];
+    const cards=all.filter(x=>getComputedStyle(x).display!=='none'),rects=cards.map(x=>x.getBoundingClientRect());
+    const rowR=row.getBoundingClientRect(),tableR=document.querySelector('.table-surface').getBoundingClientRect();
+    return {count:all.length,visible:cards.length,mode:hand.dataset.whotLayout,
+     scroll:row.scrollWidth,client:row.clientWidth,display:getComputedStyle(row).display,
+     rects:rects.map(x=>({left:x.left,top:x.top,right:x.right,width:x.width})),
+     gallery:!hand.querySelector('.whot-view-hand').hidden,
+     handBottom:hand.getBoundingClientRect().bottom,tableBottom:tableR.bottom,
+     overflow:document.documentElement.scrollWidth-innerWidth,
+     cornerHits:cards.map(c=>{const r=c.getBoundingClientRect(),p=document.elementFromPoint(r.left+13,r.top+20);return p===c||c.contains(p)})};
+   });
+   assert.equal(m.count,n,'hand contains '+n+' original cards');
+   assert.equal(m.mode,n<=4?'spaced':n<=7?'fan':'double','correct hand mode '+n);
+   assert.equal(m.display,'block','cards positioned without flex shrink');
+   assert.equal(m.scroll,m.client,'no hand horizontal scroll');
+   assert.ok(m.overflow<=2,'never expands page width');
+   assert.ok(m.handBottom<=m.tableBottom+3,'hand contained by framed tabletop');
+   if(n<=4){
+    assert.equal(m.visible,n);
+    assert.ok(m.rects.every((x,i)=>!i||x.left>=m.rects[i-1].right-3),'small hands fully exposed');
+   }else if(n<=7){
+    assert.equal(m.visible,n);
+    const step=m.rects[1].left-m.rects[0].left;
+    assert.ok(step>=27&&step<m.rects[0].width,'fanned ranks exposed');
+    assert.ok(m.cornerHits.every(Boolean),'fan top-left corners clickable');
+   }else{
+    assert.ok(m.rects.some(r=>r.top-m.rects[0].top>85),'two rows of cards');
+    assert.ok(m.visible<=16,'ultra-large hand stays readable');
+    assert.equal(m.gallery,n>=13,'gallery control offered for large hands');
+    assert.ok(m.cornerHits.every(Boolean),'two-row corners accessible');
+   }
+   if(n>=13){
+    await page.locator('.whot-view-hand').click();
+    const gallery=page.locator('.whot-hand-overlay');
+    assert.equal(await gallery.locator('.whot-card').count(),n,'full hand gallery shows '+n);
+    await gallery.locator('[data-whot-hand-sort]').selectOption('number');
+    const nums=await page.evaluate(()=>{
+     const s=JSON.parse(localStorage.getItem('night-play-club-v1')).whot;
+     return [...document.querySelectorAll('.whot-hand-gallery .whot-card')].map(c=>s.hands[Number(c.dataset.card)].n);
     });
-    assert.equal(info.count,n,'correct hand count');
-    assert.ok(Math.abs(info.width-80)<1,'reference 80px mobile cards');
-    assert.equal(info.wrap,'nowrap','never wrap a scrolling hand');
-    if(n<=3){
-      assert.equal(info.justify,'center','short hands centred');
-      assert.ok(Math.abs(info.center-info.goal)<2,'centre stable');
-    }else{
-      assert.equal(info.justify,'flex-start','large hand starts at first card');
-      assert.ok(info.scroll>info.client,'large hand can swipe');
-    }
-    for(let i=0;i<n;i++){
-      const card=page.locator('.hand .whot-card').nth(i);
-      await card.evaluate(el=>{
-        const row=el.closest('.card-row'),a=el.getBoundingClientRect(),b=row.getBoundingClientRect();
-        row.scrollLeft+=(a.left+a.width/2)-(b.left+b.width/2);
-      });
-      await page.waitForTimeout(25);
-      const exposed=await card.evaluate(el=>{const r=el.getBoundingClientRect(),p=document.elementFromPoint(r.left+r.width/2,r.top+r.height/2);return p===el||el.contains(p)});
-      if(!exposed){
-        const diag=await card.evaluate(el=>{
-          const r=el.getBoundingClientRect(),row=el.closest('.card-row'),p=document.elementFromPoint(r.left+r.width/2,r.top+r.height/2);
-          return {rect:{x:r.x,y:r.y,w:r.width,h:r.height},row:{left:row.scrollLeft,width:row.clientWidth,total:row.scrollWidth,rect:row.getBoundingClientRect().toJSON()},point:p?.outerHTML.slice(0,150),card:el.outerHTML.slice(0,180)}
-        });
-        console.log('WHOT_HAND_CARD_DIAGNOSTIC',n,i,JSON.stringify(diag));
-      }
-      assert.ok(exposed,'card '+i+' is tappable when scrolled into view');
-    }
-    assert.ok(info.overflow<=2,'hand does not stretch viewport');
-    assert.ok(info.height>=600,'portrait board is full height');
-    if([1,3,5,12].includes(n))console.log("NIGHT_WHOT_HAND_"+n+"_JPEG_BASE64="+(await page.screenshot({type:'jpeg',quality:52,fullPage:true})).toString('base64'));
+    assert.ok(nums.every((v,i)=>!i||v>=nums[i-1]),'sorting visually arranges by number');
+    await gallery.locator('.whot-hand-close').click();
+   }
+   if([1,5,7,10,16,21].includes(n))console.log('NIGHT_WHOT_HAND_'+n+'_JPEG_BASE64='+(await page.screenshot({type:'jpeg',quality:50,fullPage:true})).toString('base64'));
   }
 
   // Card 20 must never auto-call Circle merely because a hidden select
