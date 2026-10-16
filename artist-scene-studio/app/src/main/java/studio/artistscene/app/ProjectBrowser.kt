@@ -55,10 +55,10 @@ import java.text.DateFormat
 import java.util.Date
 import studio.artistscene.core.SceneProjectSummary
 
-private val BrowserBackground = Color(0xFF15191F)
-private val BrowserCard = Color(0xFF222832)
-private val BrowserText = Color(0xFFF2F5F8)
-private val BrowserMuted = Color(0xFFAAB4C2)
+private val BrowserBackground = Color(0xFF10171C)
+private val BrowserCard = Color(0xFF1B2931)
+private val BrowserText = Color(0xFFF3FAFA)
+private val BrowserMuted = Color(0xFFA7BBC0)
 
 @Composable
 internal fun ProjectBrowser(
