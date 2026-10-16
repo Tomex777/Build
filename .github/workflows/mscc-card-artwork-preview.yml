@@ -1,0 +1,41 @@
+name: NIGHT Card Artwork Visual Proof
+on:
+  pull_request:
+    branches: [mscc-azure]
+    paths:
+      - 'mscc/utils/anime-collectible-cards.js'
+      - 'mscc/utils/artist-edition-renderer.js'
+      - 'mscc/assets/cards/artist-editions-base.json'
+      - 'mscc/card-selftest.js'
+      - 'mscc/package.json'
+      - '.github/workflows/mscc-card-artwork-preview.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  artwork-proof:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+      - name: Install MSCC dependencies
+        working-directory: mscc
+        run: npm install --no-audit --no-fund
+      - name: Rasterize three cards and prove actual bitmap artwork pixels
+        working-directory: mscc
+        env:
+          CARD_PREVIEW_DIR: artifacts/card-qa
+        run: npm run check:cards
+      - name: Upload visual proof for all three editions
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: night-card-artwork-visual-proof
+          path: mscc/artifacts/card-qa/*.png
+          if-no-files-found: warn
+          retention-days: 14
