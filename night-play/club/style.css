@@ -556,7 +556,7 @@ body.whot-mode .whot-call-panel{
  border:1px solid #e4cda3;border-radius:14px;
  box-shadow:0 15px 36px #03130b66,0 3px 0 #775a3d55;
  padding:clamp(10px,2.3vw,17px);color:#2d392e;
- animation:whotCallEnter .37s cubic-bezier(.16,.86,.17,1) both;
+ animation:whotCallEnter .22s cubic-bezier(.19,.8,.27,1) both;
 }
 body.whot-mode .whot-call-head{display:flex;justify-content:space-between;align-items:center;gap:14px;margin-bottom:13px;text-align:left}
 body.whot-mode .whot-call-head small{font-size:10px;font-weight:950;letter-spacing:2px;color:#91273b}
@@ -582,7 +582,7 @@ body.whot-mode .table-surface .hand .whot-card.whot-pending{
  opacity:1;filter:none;transform:translateY(-11px) rotate(-2deg);
  outline:3px solid #f6d97b;outline-offset:2px;box-shadow:0 11px 20px #0008;
 }
-body.whot-mode .table-surface .whot-called{animation:whotCallBadge .48s cubic-bezier(.2,.8,.2,1) both;white-space:nowrap}
+body.whot-mode .table-surface .whot-called{animation:whotCallBadge .24s cubic-bezier(.2,.8,.2,1) both;white-space:nowrap}
 body.whot-mode .table-surface .whot-deck:disabled{opacity:.5;cursor:default}
 @keyframes whotCallEnter{
  from{transform:translateY(18px) scale(.93);opacity:0}
@@ -691,8 +691,8 @@ body.whot-mode .whot-win-layer{
  position:absolute;z-index:8;inset:0;display:grid;place-items:center;overflow:hidden;
  padding:23px 16px;background:
  radial-gradient(ellipse at 50% 42%,#244d3deb 0%,#0b291ce8 54%,#051911e9 100%);
- backdrop-filter:blur(5px);
- animation:whotResultBackdrop .55s cubic-bezier(.17,.8,.18,1) both;
+ /* Avoid costly full-screen blur on Android: opaque layers already separate the outcome. */
+ animation:whotResultBackdrop .30s cubic-bezier(.2,.8,.24,1) both;
 }
 body.whot-mode .whot-win-layer.computer-victory{
  background:radial-gradient(ellipse at 50% 42%,#4c3b36ed,#221f1fea 62%,#111914ee);
@@ -701,7 +701,7 @@ body.whot-mode .whot-win-content{
  position:relative;z-index:2;width:min(100%,440px);
  text-align:center;padding:clamp(25px,5vw,46px) 12px;
  display:flex;flex-direction:column;align-items:center;
- animation:whotWinnerEnter .66s cubic-bezier(.12,.87,.21,1) both;
+ animation:whotWinnerEnter .40s cubic-bezier(.2,.8,.24,1) both;
 }
 body.whot-mode .whot-win-medal{
  display:grid;place-items:center;width:93px;height:93px;
@@ -709,7 +709,7 @@ body.whot-mode .whot-win-medal{
  border:3px solid #fff3c4;border-radius:50%;color:#302414;
  box-shadow:0 0 0 7px #ffeeb01c,0 0 0 18px #f2d38f0b,0 11px 30px #02170eaa,
  inset 0 2px 4px #fff9d3aa,inset 0 -5px 9px #5037208c;
- margin-bottom:30px;animation:whotMedalBloom 1.2s ease-out both;
+ margin-bottom:30px;animation:whotMedalBloom .52s cubic-bezier(.14,.85,.22,1) both;
 }
 body.whot-mode .whot-win-medal svg{width:46px;height:46px;filter:drop-shadow(0 1px 1px #f9edbf)}
 body.whot-mode .computer-victory .whot-win-medal{filter:grayscale(.34);background:radial-gradient(circle at 34% 22%,#e8c0a7,#8a6258 67%,#45362e);color:#2b1a19}
@@ -725,7 +725,7 @@ body.whot-mode .whot-rematch{
  background:linear-gradient(180deg,#fff3d8,#d8be88);color:#243324;
  padding:13px 18px;box-shadow:0 6px 0 #65502e,0 13px 24px #00170e88;
  font:850 14px/1.2 Inter,system-ui,sans-serif;
- transition:transform .18s ease,box-shadow .18s ease;touch-action:manipulation;
+ transition:transform .12s ease,box-shadow .12s ease;touch-action:manipulation;
 }
 body.whot-mode .whot-rematch span{font-size:22px;font-weight:500;line-height:1}
 body.whot-mode .whot-rematch:active{transform:translateY(4px);box-shadow:0 2px 0 #65502e,0 5px 9px #00170e88}
@@ -735,7 +735,7 @@ body.whot-mode .whot-win-particles i{
  position:absolute;left:calc(6% + var(--index)*5.2%);top:-10%;width:8px;height:15px;
  background:hsl(calc(33 + var(--index)*13) 70% 66%);border-radius:2px;
  box-shadow:0 1px 2px #07170c;
- animation:whotFall calc(2.1s + var(--index)*.055s) linear calc(var(--index)*-.17s) 2 both;
+ animation:whotFall calc(1.25s + var(--index)*.035s) linear calc(var(--index)*-.075s) 1 both;
  opacity:0;transform:rotate(calc(var(--index)*13deg));
 }
 @keyframes whotResultBackdrop{from{opacity:0}to{opacity:1}}
