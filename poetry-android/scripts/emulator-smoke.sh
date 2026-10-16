@@ -17,7 +17,18 @@ sleep 4
 adb shell screencap -p /sdcard/poetry-home.png
 adb pull /sdcard/poetry-home.png "${OUT}-home.png"
 
+# Capture every stage of the REAL app, even if a later smoke assertion fails.
+set +e
 adb shell am instrument -w -r com.night.poetry.test/androidx.test.runner.AndroidJUnitRunner | tee "${OUT}-instrumentation.txt"
+instrument_result=${PIPESTATUS[0]}
+set -e
+for screen in home writer studio elements element-selected; do
+  adb pull "/sdcard/Android/data/com.night.poetry/files/poetry-${screen}.png" "${OUT}-${screen}.png" || true
+done
+if [ "$instrument_result" -ne 0 ]; then
+  echo "Instrumentation failed with code $instrument_result" >&2
+  exit "$instrument_result"
+fi
 grep -Fq 'OK (1 test)' "${OUT}-instrumentation.txt" || {
   echo "Instrumentation did not report success" >&2
   cat "${OUT}-instrumentation.txt" >&2
