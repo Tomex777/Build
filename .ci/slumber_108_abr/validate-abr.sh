@@ -31,6 +31,11 @@ wait_seen() {
   local wanted="$1" timeout="${2:-25}"
   for ((i=0;i<timeout;i++)); do
     if seen "$wanted"; then return 0; fi
+    # Android 8 first-entry immersive education and Android 16 launcher dialogs
+    # are system-owned; close them before rechecking the real app UI.
+    for label in "Got it" "Wait"; do
+      if xy="$(coords "$label" 2>/dev/null)"; then adb shell input tap $xy || true; fi
+    done
     sleep 1
   done
   echo "Not visible: $wanted" >&2
