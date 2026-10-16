@@ -1,0 +1,1250 @@
+{
+  "three-returns": {
+    "title": "The underside of the patch",
+    "chapter": "03",
+    "text": "Before I can follow Miso, Leila catches the torn edge of my coat.\n\n“Turn this out.”\n\n“It's already having a difficult night.”\n\nShe doesn't smile. Under Mum's crooked bird patch are three little loops of red thread. I remember her sewing them while I complained about a maths project. One loop is slightly smaller than the others.\n\n“I thought those were bad stitching.”\n\n“They're not good stitching,” Leila says. “They still do the job.”\n\nShe puts a piece of string on the table and loops it round the handle of a mug. When she pulls the far end, the mug slides towards the edge. She catches it before it falls.\n\n“A connection can pull you somewhere your body can't follow. These are return protections. If that happens, one can break the claim and bring you back.”\n\nI look at the dressing she has just put on my elbow.\n\n“Does that count?”\n\n“No. A cut is a cut. Don't go jumping off anything to check.”\n\nThree protections. Mum found time to put them in a coat and never found a way to explain why I needed them. I run a finger under the smallest loop. The thread is warm where the rest of the lining is cold.\n\n“Can you make more?”\n\n“Not here. Not quickly. Nadia anchored these to a place where someone would receive you. We'd have to find that place, with its keeper's permission.”\n\n“What happens if the last one goes?”\n\nLeila stops fussing with the torn seam. “Then that road can't bring you back. You stop before the last one. Whatever anybody promises you.”\n\nThe cat watches the cupboard. For once he doesn't correct her.\n\nI close my coat carefully. The bruised elbow keeps hurting. There is something useful about that: a small injury is still a small injury. Everything hasn't become a test I can fail without knowing the rules.",
+    "to": "c04",
+    "effects": [
+      {
+        "op": "learn",
+        "key": "returns",
+        "announce": true
+      }
+    ]
+  },
+  "first-lesson": {
+    "title": "The notes beside the test",
+    "chapter": "06",
+    "text": "Julian folds the printed deadline and puts it under the recorder. His hands are steady until he has nothing left to move.\n\n“There are other exercises,” he says. “You have time for one. Getting good at one would be better than getting halfway through the contents page.”\n\nThe first sheet teaches a small seal. The second asks the reader to listen through a disconnected handset. On the third Mum has drawn a lamp, then written, in capitals, USE THE LAMP. She must have known what I would try.\n\n“Which one did you do?”\n\n“The seal. Badly. I can tell you which part hurts.”\n\nImani looks at the clock. “Or we check the equipment and eat something before the next emergency.”\n\nThat sounds less impressive than learning a spell. My stomach makes a persuasive argument for it.",
+    "choices": [
+      {
+        "id": "lesson:seal",
+        "label": "Work on the small seal with Julian",
+        "to": "lesson-seal",
+        "effects": [
+          {
+            "op": "add",
+            "key": "knowledge_route",
+            "value": 1
+          }
+        ],
+        "require": {
+          "attribute": "magic",
+          "gte": 2
+        },
+        "requirement": "Magic 2"
+      },
+      {
+        "id": "lesson:sight",
+        "label": "Listen through the disconnected handset",
+        "to": "lesson-sight",
+        "effects": [
+          {
+            "op": "add",
+            "key": "underworld_route",
+            "value": 1
+          }
+        ],
+        "require": {
+          "attribute": "observation",
+          "gte": 2
+        },
+        "requirement": "Observation 2"
+      },
+      {
+        "id": "lesson:sunward",
+        "label": "Try Mum’s exercise with the desk lamp",
+        "to": "lesson-sunward",
+        "effects": [],
+        "require": {
+          "attribute": "nerve",
+          "gte": 2
+        },
+        "requirement": "Nerve 2"
+      },
+      {
+        "id": "lesson:ordinary",
+        "label": "Check the kit and the exits; leave these exercises for later",
+        "to": "lesson-ordinary",
+        "effects": [
+          {
+            "op": "add",
+            "key": "independent_route",
+            "value": 1
+          }
+        ]
+      }
+    ]
+  },
+  "lesson-seal": {
+    "title": "A line I can keep",
+    "chapter": "06",
+    "text": "The first seal leaks at a point I can't see. The paper lifts, twists and slaps my wrist.\n\nJulian takes the chalk away before I can start again. “Tell me where you felt it.”\n\n“In my thumb.”\n\n“Not where it hurt. Where it went wrong.”\n\nI close my eyes, which feels ridiculous, then remember the sharp tug just before the paper moved. The missing part wasn't a shape. I had never decided which side was supposed to stay still.\n\nOn the second attempt I name the paper, the desk and the distance between them. The corner lifts half an inch and stays there. I can feel a little current going round the closed line. When I let go, the page falls flat.\n\n“That's yours,” Julian says. “Recognising the leak. I have to find it by looking.”\n\nHe sounds interested, then a little put out. I like him better for the second part.\n\nMy fingers are numb. I can't lift the recorder until the feeling comes back. I write that down beside the successful test, so a future version of me won't mistake the clean diagram for an easy afternoon.",
+    "to": "c07",
+    "endEffects": [
+      {
+        "op": "ability",
+        "key": "seal",
+        "once": "discover:seal"
+      }
+    ]
+  },
+  "lesson-sight": {
+    "title": "One end of a conversation",
+    "chapter": "06",
+    "text": "Nothing speaks through the handset. I can hear the room: Imani opening crisps, the radiator, Julian pretending not to watch me.\n\nI stop trying to hear a voice. There is a small pressure behind my left ear. When I turn towards it, the empty booth seems occupied for less than a blink.\n\nA woman in a brown coat has both hands round a parcel.\n\nThen she's gone. I put the handset down too quickly.\n\n“Did you see her?”\n\nJulian shakes his head. Miso has his ears turned towards the booth.\n\n“I saw someone who was waiting,” I say.\n\n“Then remember she's someone,” Miso says. “Don't start testing how many questions fit through her.”\n\nI take the handset again and say only that I heard the line. Something taps once against the booth glass. It could have been a pipe. I know it wasn't.\n\nFor the next minute I can hear the crisp packet after Imani has stopped touching it. Julian makes me put the handset away. Listening leaves an end open in both directions. I write that in Mum's margin, very carefully.",
+    "to": "c07",
+    "endEffects": [
+      {
+        "op": "ability",
+        "key": "sight",
+        "once": "discover:sight"
+      }
+    ]
+  },
+  "lesson-sunward": {
+    "title": "Use the lamp",
+    "chapter": "06",
+    "text": "I stare at the drawn sun until my eyes hurt. Nothing happens.\n\nImani reaches past me and switches on the lamp.\n\n“Your mum underlined it.”\n\nThe shade is dented. A bright oval lies across the instruction sheet. I move my hand into it and try to keep the light with me when I pull away. It slides off my fingers like light usually does.\n\nOn the fourth attempt the shadow under Julian's recorder goes thin. Beneath it I see a pencilled test number that someone painted over. I can hold it clear for three breaths. Then the room doubles at its edges and I have to sit down.\n\nJulian checks the number. “Right. That's real.”\n\nI want to do it again because he sounds surprised. Imani takes the lamp's plug out of the wall.\n\n“Prove it later. You're looking at the wrong chair.”\n\nShe puts water into my good hand. There is no fire in my palm, no sudden way to burn the thing wearing my face. There is an old number I couldn't see before, and a headache I am going to remember before trying for a fourth breath.",
+    "to": "c07",
+    "endEffects": [
+      {
+        "op": "ability",
+        "key": "sunward",
+        "once": "discover:sunward"
+      }
+    ]
+  },
+  "lesson-ordinary": {
+    "title": "The ordinary kit",
+    "chapter": "06",
+    "text": "I leave the exercises open on the desk. Choosing not to touch them feels uncomfortably like admitting I can't.\n\nThen I find that the spare torch has no batteries. The first-aid packet has been opened, and the map Julian gave me marks the door he couldn't get through on Wednesday as an exit.\n\nWe fix all three. Imani writes the new exit on the back of her receipt. Julian gives me the batteries from his radio without making a speech about it.\n\nMiso watches me put the torch away.\n\n“You'll need to learn something eventually.”\n\n“I learned the torch didn't work.”\n\nHe opens his mouth, considers the room, and shuts it.\n\nI eat half the crisps. When the phone rings again, I know which way out of the room still leads to the city. It doesn't make the ringing ordinary. It makes me less likely to follow it because I can't think of another thing to do.",
+    "to": "c07",
+    "effects": [
+      {
+        "op": "gain",
+        "key": "tested_torch"
+      }
+    ]
+  },
+  "covered-signature": {
+    "title": "A copy with something underneath",
+    "chapter": "08",
+    "text": "Before everyone goes back to the maps, I find a folder under the school forms. My birth-registration copy is inside. I know it by the tea stain on the envelope. Leila used it when she had to start signing everything.\n\nThere is a pale rectangle beside Mum's signature. I thought it was blank. Under the kitchen light I can see the end of a pen stroke continuing into it.\n\n“Was that always there?”\n\nLeila takes the copy, then gives it back before I have to ask.\n\n“A privacy seal. Nadia said not to lift it without her.”\n\n“Why does my birth certificate need a privacy seal?”\n\n“That's the research copy. Your ordinary papers don't have one.”\n\nI remember asking about my father when I was small. Mum said he travelled, that leaving had been his decision, and that it wasn't a test I had failed. I stopped asking when I learned to hear the change in her voice. The answer had seemed painful, but at least it had seemed human.\n\n“Is this in my family?” I ask. “What Mum does?”\n\n“Nadia learned it. She wasn't descended from a god. Neither are you.”\n\nLeila says it too quickly. Then she makes herself add, “That's what the copy I witnessed says. I haven't seen the original.”\n\nI look at the rectangle again. I want to believe her. I have spent tonight discovering that wanting a sensible explanation doesn't make it sensible.\n\nI put the copy beside the notebook instead of back under the school forms. When Mum comes home, I want it where I can find it.",
+    "to": "c09",
+    "effects": [
+      {
+        "op": "learn",
+        "key": "birth_clue",
+        "announce": true
+      }
+    ]
+  },
+  "archive-after-hours": {
+    "title": "The calls that reach the kitchen",
+    "chapter": "09a",
+    "text": "After Ella's household line goes dark, Julian finds an incoming reference that isn't on our map. It ends in three different rooms, depending on which way he turns the page.\n\n“Adrian's old routing book,” he says. “Could be useful. Could take us an hour we don't have.”\n\nThrough the service window I can see Dennis finishing his tea. He has written the number of every diverted call on the back of his crossword. Miso is watching the dead handset with his tail wrapped too tightly round his paws.\n\nWe cannot follow every reference. I used to think the difficult part of investigating would be finding a clue. Apparently it is leaving one alone while it is still a clue.",
+    "choices": [
+      {
+        "id": "archive:ledger",
+        "label": "Separate the repeated refusals in Julian’s index",
+        "to": "counter-ledger",
+        "effects": [
+          {
+            "op": "add",
+            "key": "knowledge_route",
+            "value": 1
+          }
+        ],
+        "require": {
+          "attribute": "observation",
+          "gte": 3
+        },
+        "requirement": "Observation 3"
+      },
+      {
+        "id": "archive:spirit",
+        "label": "Follow the pressure at the dead handset",
+        "to": "operator-stair",
+        "effects": [
+          {
+            "op": "add",
+            "key": "underworld_route",
+            "value": 1
+          }
+        ],
+        "require": {
+          "ability": "sight"
+        },
+        "requirement": "Spirit Sight"
+      },
+      {
+        "id": "archive:office",
+        "label": "Ask the crossing office for limited help",
+        "to": "patron-office",
+        "effects": [
+          {
+            "op": "add",
+            "key": "divine_route",
+            "value": 1
+          }
+        ],
+        "require": {
+          "item": "transfer"
+        },
+        "requirement": "A witnessed transfer"
+      },
+      {
+        "id": "archive:dennis",
+        "label": "Work with Dennis on an ordinary return line",
+        "to": "ordinary-return",
+        "effects": [
+          {
+            "op": "add",
+            "key": "independent_route",
+            "value": 1
+          },
+          {
+            "op": "event",
+            "key": "independent_return",
+            "detail": "I arranged a return that did not depend on a divine sponsor."
+          }
+        ]
+      }
+    ]
+  },
+  "counter-ledger": {
+    "title": "The second no",
+    "chapter": "09a",
+    "text": "The same refusal appears on two different dates. The second copy has been moved into a column called renewal.\n\nI cover the labels with a strip of scrap paper. Without them, the entries are plainly identical: the little correction beside one number, the pause Julian has marked in the recording, even a cough. Someone has copied a no and filed it as another chance to ask.\n\nJulian watches me draw a separate list.\n\n“We could change the column.”\n\n“And then what proves it was wrong?”\n\nHe stops reaching for the eraser.\n\nWe copy the references into a counter-ledger and leave the original where it is. It costs us forty minutes. By the time we finish, Leila has tried my phone twice and the tea beside Julian's hand has a film on it.\n\nHe gives me the clean copy. “Nadia would have liked this.”\n\nI almost say I know. I don't know. I tuck the page into the notebook because it is useful, and because I want to ask her myself.\n\nThe counter-ledger will let other households challenge their entries after ours is finished. It does not tell me where Mum is. I have spent part of her time helping people I will probably never meet. For a while I can't decide whether that makes me less afraid or more.",
+    "to": "c10",
+    "effects": [
+      {
+        "op": "gain",
+        "key": "counterledger"
+      },
+      {
+        "op": "remember",
+        "key": "kept_original",
+        "character": "Julian",
+        "detail": "I kept the evidence that made a later correction possible."
+      }
+    ],
+    "endEffects": [
+      {
+        "op": "learn",
+        "key": "counterledger",
+        "announce": true
+      }
+    ]
+  },
+  "operator-stair": {
+    "title": "The person below the third step",
+    "chapter": "09a",
+    "text": "The pressure leads down the service stair. On the third step I hear a woman say, “You took long enough.”\n\nShe is sitting below me in an operator's uniform with one missing cuff button. A cord hangs from her hand. It goes through the concrete.\n\n“I only just learned how to hear you.”\n\n“I wasn't waiting for you.”\n\nThat is a useful correction. I sit on the step above her and ask whether she wants me to leave.\n\nShe looks at the cord. “I want them to stop moving my socket.”\n\nHer name is Salma. She worked on an earlier line and has been trying to finish one call since the route was diverted. She tells me where Adrian concealed an unused receiving point: behind the blank plate at the lower reader, not the brass connector everyone reaches for first.\n\nI write it down. When I look up, she is studying me with uncomfortable concentration.\n\n“You're loud,” she says. “Not your voice. The way back.”\n\nCold moves under my coat. One of the red loops pulls tight, though it doesn't break.\n\nI put the handset on the stair between us. “You can't follow that.”\n\n“Then don't leave it hanging in my room.”\n\nMiso makes me close the listening mark before we leave. For the next block I hear Salma counting, trying to remember which socket used to be hers. I have information nobody else has. Someone I don't know very well has heard the shape of my return.",
+    "to": "c10",
+    "effects": [
+      {
+        "op": "practice",
+        "key": "sight",
+        "once": "salma-listening"
+      },
+      {
+        "op": "remember",
+        "key": "listened",
+        "character": "Salma",
+        "detail": "I asked whether she wanted me to stay before asking about the station."
+      }
+    ],
+    "endEffects": [
+      {
+        "op": "learn",
+        "key": "spirit_warning",
+        "announce": true
+      }
+    ]
+  },
+  "patron-office": {
+    "title": "The end date",
+    "chapter": "09a",
+    "text": "The transfer opens a little office behind the streetcar shelter. Anubis is washing a cup. He looks at our papers and reaches for a towel.\n\n“You have a road,” he says. “What are you asking me to add?”\n\n“Notice when someone changes it.”\n\n“That is work.”\n\n“I thought you might say that.”\n\nHe puts two blank notices on the desk. One offers a witness at the lower crossing. The other asks us to return the borrowed reader and file an account of the diverted passengers. Sunday evening is written beside both tasks.\n\nImani reads them twice. “Nothing about serving here after?”\n\n“No.”\n\n“And if the reader's destroyed?”\n\n“Report that. Don't steal another to make the first report look tidy.”\n\nI sign the limited undertaking. My surname looks oddly small beside his office stamp. He does not kneel, bless me, claim me or promise to rescue Mum. He puts our amended road into a box where somebody else will have to deal with it.\n\nAt the door he says, “I will expect the account even if you are angry with me by then.”\n\nThat seems probable. I keep my copy anyway.",
+    "to": "c10",
+    "effects": [
+      {
+        "op": "event",
+        "key": "patron_terms",
+        "detail": "I accepted a finite obligation to return the borrowed equipment and report the diversion."
+      },
+      {
+        "op": "gain",
+        "key": "office_notice"
+      },
+      {
+        "op": "remember",
+        "key": "finite_promise",
+        "character": "Anubis",
+        "detail": "I promised a report and the return of borrowed equipment by Sunday evening."
+      }
+    ]
+  },
+  "ordinary-return": {
+    "title": "Dennis’s list",
+    "chapter": "09a",
+    "text": "Dennis doesn't know how to hold a god to a promise. He does know how to stop a door from closing while someone is carrying something heavy.\n\n“That wedge stays there,” he says, putting a rubber doorstop beside the receiving handset. “You don't take it because a cat says another door is more important.”\n\nMiso looks towards the ceiling.\n\nWe write my return by number. No family names, no divine office, no permission beyond this one call. Dennis reads the instructions back in the annoyed voice he uses for deliveries. It makes the whole thing easier to trust.\n\nHis shift ends at eight. He phones the night officer and arranges to trade. I start to thank him, then realise the swap means he will miss something.\n\n“My grandson's match,” he says. “Don't make it a symbol. Give me the scores when you come back.”\n\nI promise. Then I make a second line on the card so he can close it if the receiving bell becomes unsafe. I don't get to keep him here because he said yes once.\n\nJulian checks the number. It will hold an ordinary return if the divine roads are withdrawn. It will not pull anyone out of an occupied connection. We still have to do that work ourselves.\n\nDennis puts his crossword away. “Right. Now tell me where you're actually going.”\n\nI do. It takes longer than the version I have been giving adults, and he needs to stop me twice to ask what a word means. When I'm done, he doesn't offer a better plan. He checks the wedge.",
+    "to": "c10",
+    "effects": [
+      {
+        "op": "gain",
+        "key": "ordinary_return"
+      },
+      {
+        "op": "remember",
+        "key": "told_plan",
+        "character": "Dennis",
+        "detail": "I told him the actual destination and gave him a way to end his part."
+      }
+    ],
+    "endEffects": [
+      {
+        "op": "learn",
+        "key": "self_terms",
+        "announce": true
+      }
+    ]
+  },
+  "water-aftermath": {
+    "title": "The thing in the blank route",
+    "chapter": "12a",
+    "text": "The green door has appeared, but something taps inside the route we closed. Three taps, then a pause. The papers on Julian's desk pull towards the stair.\n\n“Residual claim,” he says. “Leave it shut.”\n\nFor a second the tapping is exactly the rhythm Mum used when I took too long in the bathroom. I hate that it works on me. I hate that knowing why doesn't stop it.\n\nI can leave the empty route closed and go to her door. I can also risk reopening one edge to see what copied the rhythm. The red loops under my coat pull tight before I move.\n\nMiso sees my hand. “If you open it with your return still attached, it will take one of those knots. Knowing that is not protection against it.”",
+    "choices": [
+      {
+        "id": "water:close",
+        "label": "Leave the trap shut; go to Mum’s door",
+        "to": "c13"
+      },
+      {
+        "id": "water:seal",
+        "label": "Read the leak from outside the seal",
+        "to": "water-read",
+        "effects": [],
+        "require": {
+          "all": [
+            {
+              "ability": "seal"
+            },
+            {
+              "attribute": "magic",
+              "gte": 3
+            }
+          ]
+        },
+        "requirement": "Scribe Seal · Magic 3"
+      },
+      {
+        "id": "water:risk",
+        "label": "Open one edge — knowingly spend a return heart",
+        "to": "water-risk",
+        "effects": [
+          {
+            "op": "resource",
+            "key": "hearts",
+            "value": -1,
+            "once": "water-return",
+            "detail": "The copied rhythm takes one return knot before I can close it."
+          },
+          {
+            "op": "add",
+            "key": "underworld_route",
+            "value": 1
+          }
+        ],
+        "risk": "One return heart"
+      }
+    ]
+  },
+  "water-read": {
+    "title": "The edge that stays shut",
+    "chapter": "12a",
+    "text": "I keep the line closed. Julian holds the paper flat while I trace the pressure with the blunt end of the chalk.\n\nAt the place where the current catches, the tapping stops. I can feel two instructions laid over each other. One asks for a return. The other says the first answer still counts.\n\nI copy the second instruction without giving it a way onto the page. It takes several attempts; my little finger goes numb halfway through and Julian makes me change hands. When I finish, the copies remain inert.\n\n“It keeps using the same yes,” I say.\n\nJulian compares the strokes with Nadia's ledger entry. He doesn't need to answer.\n\nI go to the green door with a copy of the fault. My coat still has three warm loops. I cannot stop touching them until I see Mum through the glass.",
+    "to": "c13",
+    "endEffects": [
+      {
+        "op": "practice",
+        "key": "seal",
+        "once": "water-external"
+      },
+      {
+        "op": "learn",
+        "key": "counterledger",
+        "announce": true
+      }
+    ]
+  },
+  "water-risk": {
+    "title": "The knot that breaks",
+    "chapter": "12a",
+    "text": "I open one edge. The tapping comes through my teeth.\n\nFor one horrible second the room is on the far side of a thick pane. Imani's mouth moves. I can see her reaching for me, very slowly. Then there is a snap under my collarbone and I am on the floor, coughing into my sleeve.\n\nLeila's smallest red loop lies broken against the lining. The other two are warm. The thing on the stair has gone quiet.\n\nJulian makes me name the room, the day and the person beside me before he will touch the paper. I am furious at the questions until I realise I had to think about the day.\n\nWe have a copy of the repeated instruction. We have also spent something Mum put into a coat sixteen years of knowing me told her I would refuse to replace.\n\nImani sits back on her heels. “You heard him warn you.”\n\n“I know.”\n\n“Don't make me say that after the next one too.”\n\nI put the broken thread in the notebook. There isn't time to make myself feel better about the choice before going to the door.",
+    "to": "c13",
+    "effects": [
+      {
+        "op": "remember",
+        "key": "risked_return",
+        "character": "Imani",
+        "detail": "I opened the occupied route after being warned what it would cost."
+      }
+    ],
+    "endEffects": [
+      {
+        "op": "learn",
+        "key": "counterledger",
+        "announce": true
+      }
+    ]
+  },
+  "second-lesson": {
+    "title": "What I can practise before the workshop",
+    "chapter": "16a",
+    "text": "The kit is packed. Julian sets a mirror beside the practice handset. A dark line in the glass trails behind its reflection by half a second.\n\n“Broken return,” he says. “You can learn to split the false part. I wouldn't do it to an occupied line.”\n\nMiso gives him a sharp look. Julian rubs his bandaged wrist.\n\n“Or we practise something already tested,” I say.\n\n“Please.”\n\nThere is time for one more exercise. Time has become the unit everyone uses when they mean fear.",
+    "choices": [
+      {
+        "id": "training:seal",
+        "label": "Repeat the seal with Julian changing the load",
+        "to": "practice-seal",
+        "effects": [],
+        "require": {
+          "ability": "seal"
+        },
+        "requirement": "Scribe Seal"
+      },
+      {
+        "id": "training:sight",
+        "label": "Practise closing the listening end yourself",
+        "to": "practice-sight",
+        "effects": [],
+        "require": {
+          "ability": "sight"
+        },
+        "requirement": "Spirit Sight"
+      },
+      {
+        "id": "training:sunward",
+        "label": "Keep the reflected light off Imani’s eyes",
+        "to": "practice-sunward",
+        "effects": [],
+        "require": {
+          "ability": "sunward"
+        },
+        "requirement": "Sunward"
+      },
+      {
+        "id": "training:fracture",
+        "label": "Learn to split an empty reflection",
+        "to": "learn-fracture",
+        "effects": [],
+        "require": {
+          "all": [
+            {
+              "attribute": "cunning",
+              "gte": 2
+            },
+            {
+              "abilitySlots": 2
+            }
+          ]
+        },
+        "requirement": "Cunning 2 · a free discipline"
+      },
+      {
+        "id": "training:new-seal",
+        "label": "Begin the seal exercise I left earlier",
+        "to": "practice-new-seal",
+        "effects": [],
+        "require": {
+          "all": [
+            {
+              "attribute": "magic",
+              "gte": 2
+            },
+            {
+              "not": {
+                "ability": "seal"
+              }
+            },
+            {
+              "abilitySlots": 2
+            }
+          ]
+        },
+        "requirement": "Magic 2 · a free discipline"
+      },
+      {
+        "id": "training:leave",
+        "label": "Leave the unstable mirror; take the tested kit",
+        "to": "training-leave",
+        "effects": [
+          {
+            "op": "add",
+            "key": "independent_route",
+            "value": 1
+          }
+        ]
+      }
+    ]
+  },
+  "practice-seal": {
+    "title": "A changing load",
+    "chapter": "16a",
+    "text": "Julian adds a coin to the suspended page. The seal tips. I catch the weak point before the page falls, but he makes me explain the correction instead of trying it faster.\n\nThe trick is admitting that the original instruction no longer describes the weight. I open the outer line, change that one term, and close it while Imani holds the desk end.\n\nOn the fifth attempt the page remains level. I can't feel the last two fingers on my left hand. Julian writes five beside the test and puts the chalk away himself.\n\n“You don't get a sixth just because the fifth was good.”\n\nI want a sixth. I let him put it away.",
+    "to": "c17",
+    "endEffects": [
+      {
+        "op": "practice",
+        "key": "seal",
+        "once": "training-seal"
+      }
+    ]
+  },
+  "practice-new-seal": {
+    "title": "The first seal, later",
+    "chapter": "16a",
+    "text": "I begin with a page and the weight of one coin. Julian has to explain the subject twice. I have spent the weekend using prepared marks and started mistaking following a diagram for understanding it.\n\nWhen the line finally holds, the page lifts only a fraction. I can feel the weak point before I can see it. That is useful; it isn't mastery.\n\nJulian has me release it, check the instruction and begin again. By the time I can do it without his hand over mine, everyone else has finished packing. I go with them carrying a smaller skill than the version I had imagined, and one I can actually repeat.",
+    "to": "c17",
+    "endEffects": [
+      {
+        "op": "ability",
+        "key": "seal",
+        "once": "discover:seal"
+      }
+    ]
+  },
+  "practice-sight": {
+    "title": "Putting down the receiver",
+    "chapter": "16a",
+    "text": "I listen until I can distinguish the booth's waiting silence from the room's ordinary silence. Then I close the listening stroke before putting the receiver down.\n\nThe first time, I still hear someone folding a coat. The second, Miso catches me leaving one small hook open because I want to know who it is.\n\n“That's how they learn your route.”\n\nI close the hook. The coat sound stops.\n\nImani asks whether I can hear her thinking. I say no so quickly she laughs, then asks me to promise I won't try.\n\n“I won't.”\n\nShe believes the promise. It makes me more careful with the next stroke than any warning about spirits did.",
+    "to": "c17",
+    "effects": [
+      {
+        "op": "remember",
+        "key": "listening_promise",
+        "character": "Imani",
+        "detail": "I promised not to try to hear what she had not said."
+      }
+    ],
+    "endEffects": [
+      {
+        "op": "practice",
+        "key": "sight",
+        "once": "training-sight"
+      }
+    ]
+  },
+  "practice-sunward": {
+    "title": "A light someone can stand beside",
+    "chapter": "16a",
+    "text": "Imani holds the lamp while I move its light across the mirror. The first reflection reaches her face. She swears and turns away.\n\nI stop. We move the lamp, mark a boundary on the table and try with an empty chair where she was standing.\n\nIt takes longer to keep the light inside a defined strip than to make the whole mirror shine. That seems unfair until she points out that she would like to help without being blind.\n\nWhen she stands beside the chair again, the light stays where we put it. I can still see the old pencil mark through the backing. My headache returns at once, but she can read the page.\n\nWe write the position of the lamp on the diagram. I will need a source, an angle and somebody willing to tell me when I have got both wrong.",
+    "to": "c17",
+    "endEffects": [
+      {
+        "op": "practice",
+        "key": "sunward",
+        "once": "training-sunward"
+      }
+    ]
+  },
+  "learn-fracture": {
+    "title": "The second bad reflection",
+    "chapter": "16a",
+    "text": "The mirror gives me two hands. Neither moves quite when I do.\n\nJulian tells me to choose the one that is already false. I choose wrong. The glass drops my real reflection and I spend a few unpleasant seconds looking at the empty room where my face should be.\n\nMiso pushes my wrist away from the chalk. I come back into the mirror with my mouth open.\n\n“Again?” Julian asks, then hears himself. “No. Describe it first.”\n\nWe start with an empty handset reflected beside a drawn square. This time I give the faulty image somewhere smaller to repeat. It splits. One copy grows dim while the other pulls the little false signal away from the ordinary return.\n\nFor four seconds it works. Then both copies look straight at me.\n\nI close the mark before either can speak.\n\nThe original mirror keeps a thin crack I did not make with my hands. I wrap it in cloth. This is a way to distract a claim, not a way to make another person disposable. Imani asks me to write the difference on the wrapping.",
+    "to": "c17",
+    "effects": [
+      {
+        "op": "remember",
+        "key": "saw_fracture",
+        "character": "Imani",
+        "detail": "She watched the false reflection look back and asked me to record the limit."
+      }
+    ],
+    "endEffects": [
+      {
+        "op": "ability",
+        "key": "fracture",
+        "once": "discover:fracture"
+      }
+    ]
+  },
+  "training-leave": {
+    "title": "The things I put away",
+    "chapter": "16a",
+    "text": "I wrap the mirror without touching the line in the glass. Julian looks relieved enough to make me wonder why he offered it.\n\n“Because I want you to have something I didn't,” he says when I ask. “Knowing when the experiment ends.”\n\nI put a card on the wrapping: NOT TESTED FOR OCCUPIED LINES. Then I write his name beside the instruction so someone knows whom to ask.\n\nImani checks the bag against the list. She gives me the spare batteries. I can accept help without turning every useful thing into a new part of myself. I am still working out how often I forget that.",
+    "to": "c17"
+  },
+  "fare-cunning": {
+    "title": "Before the account",
+    "chapter": "04",
+    "text": "“Tell me what you keep,” I say. “Then I'll know which question I'm answering.”\n\nThe driver looks up properly. Behind him the rain climbs the windscreen.\n\nImani moves her fare away from the reader. “Both of us.”\n\nHe sets two unstamped transfers on the counter. They record a willing entrance, the right to ask for the same road back, and the account given for this crossing. Nothing about a continuing service. Nothing that names a relative as substitute.\n\nI read the return clause aloud. He waits through the part I stumble over.\n\nThen I tell him what I stopped taking out of Mum's cupboards. The telling still hurts. Understanding the price didn't make the answer cost less; it made it mine to give.\n\nHe stamps both papers. Imani reads hers before sitting down.\n\nMiso whispers that I could have been quicker. I ask whether he found a clause he didn't like. He studies the floor until the streetcar moves.",
+    "to": "c05"
+  },
+  "panel-brace": {
+    "title": "The weight of the panel",
+    "chapter": "13",
+    "text": "I wedge my shoulder under the panel instead of grabbing the socket. The metal bites through my coat. For a moment I think I have made an extremely confident mistake.\n\nThen the gap opens half an inch.\n\n“Julian. Your hand. Move it yourself.”\n\nHe looks at me as if he hasn't understood. I say it again. Imani braces the door with her damaged stick while he eases his grey fingers out one at a time.\n\nThe spare connector stays inside. I cannot hold the panel and reach it. I tell him that before he can try for it again.\n\n“Leave it,” he says.\n\nHis hand is still injured. It belongs to him again. I let the panel fall only after he is clear, and the crash leaves a ringing in one ear that follows me out of the room.",
+    "to": "c13_tail",
+    "effects": [
+      {
+        "op": "event",
+        "key": "panel_held",
+        "detail": "I held the panel without pretending that saved Julian’s hand from every consequence."
+      }
+    ]
+  },
+  "window-speed": {
+    "title": "An exit for two people",
+    "chapter": "20",
+    "text": "The cable lifts. I move before it has finished choosing the space between me and the window.\n\nFor once my body does something useful before my mouth can offer an opinion. I hit the catch with the heel of my hand and shove the window up. Cold air breaks across the room.\n\nI could climb out. The girl is watching the open space, not me.\n\n“It's there if you want it,” I tell her.\n\nImani reaches the sill. I get out of her way rather than calling her to hurry. Behind us Voss tries the workshop door.\n\nThe girl loosens her grip on the cable. She hasn't agreed to come. She has seen that leaving can be a thing somebody offers without first deciding what she is.\n\nI keep my hand under the window until she moves towards it. My wrist hurts by then. I don't remind her.",
+    "to": "c21"
+  },
+  "gate-nerve": {
+    "title": "The road behind me",
+    "chapter": "27",
+    "text": "The standard strikes the stone once. My knees want the floor. I keep them where they are and read Dennis's return number from the card in my palm.\n\nWepwawet looks at the card.\n\n“That is not my guarantee.”\n\n“I know.”\n\n“If the far end closes, mine will not replace it.”\n\n“I know that too.”\n\nBehind me Imani checks the number against the copy in her phone case. She is frightened. She does the check anyway.\n\nI ask for passage for everyone who chooses it, with no claim on the road after we have crossed. He can refuse. That is the part which makes holding my ground difficult: I have to keep listening instead of treating my fear as proof he owes me an answer.\n\nAt last he moves the standard. I do not receive his protection. I go through with a return maintained by people who can make mistakes, one of whom has already told me when his shift ends.\n\nI check the time before following the others.",
+    "to": "c28",
+    "effects": [
+      {
+        "op": "event",
+        "key": "independent_return",
+        "detail": "I relied on an ordinary receiving end rather than a divine guarantee."
+      }
+    ]
+  },
+  "heritage-record": {
+    "title": "The other signature",
+    "chapter": "24",
+    "choices": [
+      {
+        "id": "heritage:lesson",
+        "label": "Ask for one lesson later, under terms I choose",
+        "to": "heritage-lesson",
+        "effects": [
+          {
+            "op": "set",
+            "key": "accepted_parent",
+            "value": true
+          },
+          {
+            "op": "add",
+            "key": "divine_route",
+            "value": 1
+          }
+        ]
+      },
+      {
+        "id": "heritage:distance",
+        "label": "Keep the record; ask him to give me space",
+        "to": "heritage-distance",
+        "effects": [
+          {
+            "op": "add",
+            "key": "independent_route",
+            "value": 1
+          },
+          {
+            "op": "remember",
+            "key": "asked_distance",
+            "character": "Thoth",
+            "detail": "I asked for room to decide what his absence meant."
+          }
+        ]
+      },
+      {
+        "id": "heritage:question",
+        "label": "Ask what the private cadence would let the Exchange claim",
+        "to": "heritage-name",
+        "effects": [
+          {
+            "op": "add",
+            "key": "knowledge_route",
+            "value": 1
+          }
+        ]
+      }
+    ],
+    "beats": [
+      {
+        "text": "At the stair, Anubis asks me to wait. Wren keeps her card. I start to tell him he cannot take it back, then see that he is holding a different envelope."
+      },
+      {
+        "text": "“This one belongs to you.”",
+        "type": "dialogue",
+        "speaker": "Anubis",
+        "pause": 320
+      },
+      {
+        "text": "My name is written across the front: {{fullName}}. Under it is the tea stain from the folder in our kitchen, except here the stain stops at the edge of a seal I can feel without touching. Imani stays beside me. Wren goes with Julian to the landing; she has had enough of being examined today."
+      },
+      {
+        "text": "“My mother said not to lift it without her.”",
+        "type": "dialogue",
+        "speaker": "{{firstName}}",
+        "pause": 180
+      },
+      {
+        "text": "“She asked that it remain closed until it could no longer keep you safe. The Exchange has copied your return. It has reached that point.”",
+        "type": "dialogue",
+        "speaker": "Anubis",
+        "pause": 400
+      },
+      {
+        "text": "I want Leila. I want Mum to come round the corner and be annoyed that someone found the wrong paperwork. Instead I have an envelope, and a god asking me to open it where my mother cannot object."
+      },
+      {
+        "text": "“Then she gets to hear what happened. All of it.”",
+        "type": "dialogue",
+        "speaker": "{{firstName}}",
+        "pause": 180
+      },
+      {
+        "text": "“Yes.”",
+        "type": "dialogue",
+        "speaker": "Anubis",
+        "pause": 180
+      },
+      {
+        "text": "The seal lifts when I say my ordinary name. It does not ask me to pronounce something ancient. Inside are two signatures, the date I was born, and the receiving cadence Mum hummed when she thought I was asleep. I know the rhythm before I know what I am reading.",
+        "pageBreak": true
+      },
+      {
+        "text": "The second signature has the same narrow final stroke as the public routing card from the laundry basement. Beside it, a title has been written out in full. I read it twice, waiting for the letters to become an office Mum once worked for."
+      },
+      {
+        "text": "“Thoth.”",
+        "type": "dialogue",
+        "speaker": "{{firstName}}",
+        "pause": 700
+      },
+      {
+        "text": "Someone sets a pen down behind me. I turn. The man from the catalogue desk is standing at the open door, coat over one arm. No bird-headed shadow this time. I wish there were one. It would give me something simple to be frightened of."
+      },
+      {
+        "text": "“Nadia asked me to let her tell you. I should have come when she could not.”",
+        "type": "dialogue",
+        "speaker": "Thoth",
+        "pause": 460
+      },
+      {
+        "text": "“Tell me what?”",
+        "type": "dialogue",
+        "speaker": "{{firstName}}",
+        "pause": 180
+      },
+      {
+        "text": "“I am your father.”",
+        "type": "dialogue",
+        "speaker": "Thoth",
+        "pause": 900
+      },
+      {
+        "text": "I hear Imani take a breath. I wait for something to happen to me. A memory rearranging itself. A sudden explanation I can feel in my bones. The banister stays cold against my hand. My elbow still hurts."
+      },
+      {
+        "text": "“You watched me at that desk.”",
+        "type": "dialogue",
+        "speaker": "{{firstName}}",
+        "pause": 180
+      },
+      {
+        "text": "“Yes.”",
+        "type": "dialogue",
+        "speaker": "Thoth",
+        "pause": 180
+      },
+      {
+        "text": "“You asked whose permission I brought.”",
+        "type": "dialogue",
+        "speaker": "{{firstName}}",
+        "pause": 180
+      },
+      {
+        "text": "“Your own. It had to be your own.”",
+        "type": "dialogue",
+        "speaker": "Thoth",
+        "pause": 180
+      },
+      {
+        "text": "It is an answer to the smaller question. I am so angry he chose it that I have to look away.",
+        "pageBreak": true
+      },
+      {
+        "text": "“Why was he allowed to stand there and not know?”",
+        "type": "dialogue",
+        "speaker": "Imani",
+        "pause": 180
+      },
+      {
+        "text": "She says he the way she says a player behind the net, somebody whose position ought to have been obvious to everyone responsible for the game. I am grateful enough to feel sick."
+      },
+      {
+        "text": "“The seal hid my signature from an instrument which was learning to claim people through their families. Nadia and I thought an ordinary record would leave him outside its reach.”",
+        "type": "dialogue",
+        "speaker": "Thoth",
+        "pause": 180
+      },
+      {
+        "text": "“And before the instrument?”",
+        "type": "dialogue",
+        "speaker": "{{firstName}}",
+        "pause": 180
+      },
+      {
+        "text": "For the first time he has no ready correction."
+      },
+      {
+        "text": "“I kept leaving. I told myself returning would make a difficult life more difficult. It was also easier for me.”",
+        "type": "dialogue",
+        "speaker": "Thoth",
+        "pause": 540
+      },
+      {
+        "text": "Mum used almost those words, once, about missing a school meeting. She came to the next one with pastries she forgot to take out of her bag. I remember being embarrassed. I want that ordinary scale of apology back."
+      },
+      {
+        "text": "“Leila said we weren’t descended from gods.”",
+        "type": "dialogue",
+        "speaker": "{{firstName}}",
+        "pause": 180
+      },
+      {
+        "text": "“Nadia was not. Your aunt witnessed the covered copy. She took its silence for a complete answer. Nadia let her.”",
+        "type": "dialogue",
+        "speaker": "Thoth",
+        "pause": 180
+      },
+      {
+        "text": "I put my finger beside Mum’s signature. The paper is real. The dates match a hospital wristband in the drawer at home. The familiar ink has a little lift where she changed her grip. I can believe this and still want somebody else to check it."
+      },
+      {
+        "text": "“I want Leila to read it. Then Mum. You don’t get to turn up and become the only source.”",
+        "type": "dialogue",
+        "speaker": "{{firstName}}",
+        "pause": 180
+      },
+      {
+        "text": "“Keep the original.”",
+        "type": "dialogue",
+        "speaker": "Thoth",
+        "pause": 180
+      },
+      {
+        "text": "He steps back from it. I fold it myself.",
+        "pageBreak": true
+      },
+      {
+        "text": "“The chalk. The thing listening to my return. Is all of that you?”",
+        "type": "dialogue",
+        "speaker": "{{firstName}}",
+        "pause": 180
+      },
+      {
+        "text": "“Some of your aptitude comes from me. What you have learned is yours. Nadia’s work is not an inheritance you received without her.”",
+        "type": "dialogue",
+        "speaker": "Thoth",
+        "pause": 180
+      },
+      {
+        "text": "“Can you get her out?”",
+        "type": "dialogue",
+        "speaker": "Imani",
+        "pause": 180
+      },
+      {
+        "text": "A phone starts ringing behind the office door. Thoth looks towards it. I hate that I recognise the pause: an adult deciding how much of the difficult answer to give."
+      },
+      {
+        "text": "“The bypass names Nadia as its receiver. If I override her with my office, the office inherits everyone the line is holding. It does not release them. I can witness a changed instruction. I cannot pretend they consented to mine.”",
+        "type": "dialogue",
+        "speaker": "Thoth",
+        "pause": 180
+      },
+      {
+        "text": "“Then witness. Don’t make me ask three times.”",
+        "type": "dialogue",
+        "speaker": "{{firstName}}",
+        "pause": 180
+      },
+      {
+        "text": "He opens his empty hand. There is no weapon, no light pouring out of my skin, no lesson that will spare us the work already waiting at the station. I am someone’s child in a new and appalling way. I still have to go and find my mum."
+      },
+      {
+        "text": "I tuck the register inside the notebook, behind the page with the return knots. My ordinary name is still on the cover. I press it flat with my thumb before I can make myself move."
+      }
+    ],
+    "endEffects": [
+      {
+        "op": "learn",
+        "key": "heritage",
+        "announce": true
+      }
+    ]
+  },
+  "heritage-lesson": {
+    "title": "One ordinary exit",
+    "chapter": "24",
+    "text": "“When this is over,” I say, “one lesson. At the annex. Leila gets to be there.”\n\nThoth inclines his head.\n\n“And an ordinary door. Nobody changes the stairs halfway through.”\n\n“Yes.”\n\nI am surprised by how much I need that small promise. I am not offering to call him Dad. I am asking whether he can keep an appointment.\n\nAt the landing Wren is showing Julian the back of her card. She closes it when she sees my face.\n\n“Bad paper?” she asks.\n\n“Complicated paper.”\n\n“Most of it is.”\n\nI sit beside them for a minute before telling them what I choose to tell. Imani does not tell it for me. That is the first thing about the last ten minutes which feels entirely safe.",
+    "to": "c24a",
+    "effects": [
+      {
+        "op": "remember",
+        "key": "annex_lesson",
+        "character": "Thoth",
+        "detail": "He agreed to an appointment with Leila present and an ordinary exit."
+      }
+    ]
+  },
+  "heritage-distance": {
+    "title": "The place I am allowed to stand",
+    "chapter": "24",
+    "text": "“I don't want you to follow us,” I tell him.\n\nThoth takes the pen from his pocket, then puts it back. For a moment I think he is going to record my answer. He doesn't.\n\n“May I send the witness notice ahead?”\n\n“Yes. That. Nothing else unless I ask.”\n\nHe nods. I wish a nod were either enough or obviously useless. It isn't either.\n\nAt the landing I sit down beside Wren. She moves her card out of the way so I won't sit on it. I laugh once, badly, and then can't make my mouth do anything sensible.\n\nShe waits. Imani sits on my other side.\n\nI don't have to decide what kind of child a god deserves. I need to decide whether I can stand up yet. For a minute the second question takes all my attention.",
+    "to": "c24a"
+  },
+  "heritage-name": {
+    "title": "The part nobody records aloud",
+    "chapter": "24",
+    "text": "I show Thoth the notation under my ordinary name. I keep my finger over the last beat.\n\n“Mum used to hum this.”\n\n“She made a receiving cadence that would recognise you, not a title the office could assign. You already knew it before you could read.”\n\n“Is it my true name?”\n\n“It is part of your ren as this register can hold it. Not everything you are. Not permission for anyone to own you.”\n\nI think about Miso's collar. “Knowing a name did enough damage to him.”\n\n“Knowing where someone answers makes reaching them easier. A promise can make the reach a claim. The bypass confuses those things deliberately.”\n\nHe shows me where the ordinary name ends and the private cadence begins. The separation matters. Somebody shouting {{firstName}} across the rink has not acquired the means to pull me through a wall.\n\nI copy a box around the notation without copying the notation itself. I can protect a thing without putting it into another recorder.\n\n“No one gets this whole rhythm,” I say.\n\nThoth waits until I have closed the page before answering. “Then do not offer it to a line which is already listening.”\n\nI promise. The promise is mine; I want that written nowhere but my own memory.",
+    "to": "c24a",
+    "effects": [
+      {
+        "op": "learn",
+        "key": "true_name",
+        "announce": true
+      },
+      {
+        "op": "set",
+        "key": "promised_boundary",
+        "value": true
+      }
+    ]
+  },
+  "heritage-late": {
+    "title": "The envelope Nadia kept",
+    "chapter": "24",
+    "text": "Before I go back through the pages I already know, I find the sealed envelope Nadia left with the witness office. My ordinary name is on the front: {{fullName}}. Leila sits beside me while I open it.\n\nInside are my birth date, Mum's signature and a second signature I recognise from the laundry-basement desk. Thoth. Under it his relationship to me is written out, leaving no useful room for a metaphor: father.\n\nLeila reads the line twice. “I witnessed the covered copy,” she says. “Your mum told me it hid a private address. I let that become an answer to a different question.”\n\nI remember every time I was told magic was study, not special blood. Mum did study. She did make mistakes and correct them. Neither fact answered the question this piece of paper has been waiting to ask me.\n\nThere is a short note from Thoth. He and Nadia covered his signature when the Exchange began tracing families. Before that, he kept leaving because it was easier for him. He writes both statements separately. I am glad he did not try to make the first one excuse the second.\n\nI put the note down.\n\n“I want Mum to tell me,” I say.\n\n“She will,” Leila says. “And if you want me there, I'll stay.”\n\nI keep the original envelope. I don't suddenly know how to do anything new. I know which question I will ask the next time the story gives me a quiet room with my mother.",
+    "to": "c24a",
+    "endEffects": [
+      {
+        "op": "learn",
+        "key": "heritage",
+        "announce": true
+      }
+    ]
+  },
+  "field-return": {
+    "title": "The place that receives",
+    "chapter": "24a",
+    "to": "c25",
+    "beats": [
+      {
+        "text": "At the edge of the field, Anubis waits beside a low stone basin. The water is plain. A cup stands on the rim, chipped at the handle."
+      },
+      {
+        "text": "He points at my coat. “Nadia tied the returns here. The receiving place held its end.”"
+      },
+      {
+        "text": "I show him the lining. He does not touch it until I nod."
+      },
+      {
+        "text": "“I can rejoin one broken knot. Once, while this passage remains open. I cannot follow you into every mistake.”",
+        "type": "dialogue",
+        "speaker": "Anubis",
+        "pause": 400
+      },
+      {
+        "text": "He draws the thread through the basin water, then asks me to pull it myself. The two broken ends meet. Warmth settles under the bird patch, and for the first time since the stair I can breathe without feeling the empty place in the lining.",
+        "when": {
+          "event": "field_repair_due"
+        }
+      },
+      {
+        "text": "All three loops are warm. He leaves them alone. “Then you need no repair from me.” I close my coat before deciding to ask for something I have nowhere to keep.",
+        "when": {
+          "not": {
+            "event": "field_repair_due"
+          }
+        }
+      },
+      {
+        "text": "“Because of whose child I am?”",
+        "type": "dialogue",
+        "speaker": "{{firstName}}",
+        "pause": 180
+      },
+      {
+        "text": "“Because the agreement allows one repair, and its maker is still holding her end. Your mother wrote careful terms.”",
+        "type": "dialogue",
+        "speaker": "Anubis",
+        "pause": 180
+      },
+      {
+        "text": "I think of her notes, her crossed-out attempts, the captions I kept skipping. I check the repaired knot, or the three I have kept, before following Imani back towards the stair."
+      }
+    ],
+    "endEffects": [
+      {
+        "op": "resource",
+        "key": "hearts",
+        "value": 1,
+        "once": "field-repair",
+        "detail": "Nadia’s original receiving place honours its one repair."
+      }
+    ],
+    "effects": [
+      {
+        "op": "event",
+        "key": "field_repair_due",
+        "detail": "The original receiving place can repair one broken return.",
+        "when": {
+          "resource": "hearts",
+          "lte": 2
+        }
+      }
+    ]
+  },
+  "mother-answer": {
+    "title": "The question I bring with me",
+    "chapter": "28",
+    "text": "I take the register out before we begin moving the equipment. Mum sees the seal and sits down as far as the cable allows her.\n\n“I wanted to tell you.”\n\n“I wanted you to.”\n\nShe closes her eyes. When she opens them, she is looking at me, not at the page.\n\n“I met him through the work. I knew who he was. I thought knowing would keep me from letting him decide what mattered. I was wrong about parts of that.”\n\n“Did he know about me?”\n\n“Yes. He came when you were small. Then less. I told myself I could make an ordinary life without asking him for anything. When the Exchange started tracing families, hiding his signature looked like protection. I kept putting the other conversation after the next safe day.”\n\n“Leila told me none of us were descended from gods.”\n\n“She believed the copy. I knew she did.”\n\nThat costs her something to say. I am glad it does. I wish I could be kinder about being glad.\n\nI tell her about the desk, the papers, the fact that he stood there while I worried about a recorder's serial number. Mum listens without trying to make him sound lonely or complicated.\n\n“You don't have to make a place for him because I did,” she says.\n\n“Do I have to make one for you?”\n\nThe question comes out harder than I intend. Her free hand tightens against the table. For a moment I want to take it back and have the weekend where finding her alive solved everything.\n\n“No,” she says. “I hope you'll let me earn mine back.”\n\nI move close enough to put the register under her hand. She checks the date and the second signature. I watch her read it. The evidence still matters, even when I want to believe the person holding it.\n\n“You're coming home first,” I say. “Then we talk without everyone timing us.”\n\n“Yes.”\n\nI don't forgive eleven months in the time before the next relay clicks. I give her the notebook. She checks the release sequence we learned together without her, and asks me which part I want her to explain before we try.",
+    "to": "ren-boundary"
+  },
+  "ren-boundary": {
+    "title": "What the line asks for",
+    "chapter": "28",
+    "text": "The panel asks for a complete receiving identity. Beneath the box for my ordinary name is room for a cadence.\n\nI know what belongs there, or enough to know it is not just another spelling of {{firstName}}. The station has been listening to family connections all weekend. Giving it the whole private rhythm would let it recognise me without the notebook, the coat or anybody asking whether I wanted to answer.\n\nMum puts a blank card over the box.\n\n“We can use the witness sequence instead. Slower. Safer.”\n\nAt the far end of the table the old clock clicks into the next interval. I can offer a limited answer, use a skill I have actually learned, or make the dangerous request very easy for the line to understand.",
+    "choices": [
+      {
+        "id": "ren:ordinary",
+        "label": "Use my ordinary name and the witnessed sequence",
+        "to": "ren-safe",
+        "effects": [
+          {
+            "op": "event",
+            "key": "name_protected",
+            "detail": "I kept the private cadence off the occupied line."
+          }
+        ]
+      },
+      {
+        "id": "ren:seal",
+        "label": "Seal the cadence box without giving it an answer",
+        "to": "ren-seal",
+        "effects": [
+          {
+            "op": "event",
+            "key": "name_protected",
+            "detail": "I sealed the private cadence outside the receiving request."
+          }
+        ],
+        "require": {
+          "all": [
+            {
+              "ability": "seal",
+              "gte": 2
+            },
+            {
+              "attribute": "magic",
+              "gte": 3
+            }
+          ]
+        },
+        "requirement": "Scribe Seal 2 · Magic 3"
+      },
+      {
+        "id": "ren:fracture",
+        "label": "Give the empty box a false echo, then close it",
+        "to": "ren-fracture",
+        "effects": [
+          {
+            "op": "event",
+            "key": "false_echo",
+            "detail": "I used a decoy cadence; the Exchange will remember its echo."
+          }
+        ],
+        "require": {
+          "ability": "fracture",
+          "gte": 2
+        },
+        "requirement": "Broken Reflection 2"
+      },
+      {
+        "id": "ren:offer",
+        "label": "Speak the private cadence — spend one heart and expose my return",
+        "to": "ren-cost",
+        "effects": [
+          {
+            "op": "resource",
+            "key": "hearts",
+            "value": -1,
+            "once": "private-name-cost",
+            "detail": "The occupied line claims a return before I can withdraw the name."
+          },
+          {
+            "op": "set",
+            "key": "boundary_broken",
+            "value": true,
+            "when": {
+              "var": "promised_boundary",
+              "eq": true
+            }
+          },
+          {
+            "op": "remember",
+            "key": "heard_cadence",
+            "character": "Wren",
+            "detail": "I offered the private cadence after seeing what an owned receiving identity did to her."
+          },
+          {
+            "op": "event",
+            "key": "name_exposed",
+            "detail": "The station heard the complete private cadence."
+          }
+        ],
+        "risk": "One return heart · the Exchange learns my return"
+      }
+    ]
+  },
+  "ren-safe": {
+    "title": "The slower answer",
+    "chapter": "28",
+    "text": "I write {{fullName}} in the ordinary box and leave the second blank. Mum gives me the witness sequence one stroke at a time. We check each stroke against Leila's copy.\n\nThe panel refuses the first attempt. Then the second. I want to make it understand that we are running out of time. Instead I find the instruction which asks for a person where it should ask for a receiving point.\n\nWe change that term. The panel accepts the limited answer.\n\nNothing shines. My hand has cramped badly enough that I have to put the pen down with the other one. Wren studies the covered box, then uncurls her fingers from her own card.\n\nThe circuit is still a problem. It has not acquired another way to make me part of it.",
+    "to": "c28~3",
+    "effects": [
+      {
+        "op": "learn",
+        "key": "true_name",
+        "announce": true
+      }
+    ]
+  },
+  "ren-seal": {
+    "title": "The box stays empty",
+    "chapter": "28",
+    "text": "I put the seal around the cadence box, not around myself. Two different subjects. I have made that mistake often enough to feel my hand hesitate at the corner.\n\nMum holds the other end. The line presses against the empty space, searching for an answer I haven't given. I keep the boundary steady until the ordinary receiving point registers.\n\nWhen the pressure stops, I can't feel my thumb. Mum reaches for it. I let her check the colour, then take my hand back before the checking can become a way to avoid the conversation.\n\nThe box remains empty. Beside it I put the date, the limit and the name I normally use. {{fullName}}. That is enough for anyone here who needs to call me.",
+    "to": "c28~3",
+    "effects": [
+      {
+        "op": "learn",
+        "key": "true_name",
+        "announce": true
+      }
+    ],
+    "endEffects": [
+      {
+        "op": "practice",
+        "key": "seal",
+        "once": "protected-name"
+      }
+    ]
+  },
+  "ren-fracture": {
+    "title": "The echo I can leave behind",
+    "chapter": "28",
+    "text": "I split the request before it reaches the blank box. The false edge answers with a rhythm that resembles mine and ends one beat too soon.\n\nThe line follows it. For four seconds I have room to register the ordinary receiving point and close the original request.\n\nThen the decoy says my name in Imani's voice.\n\nShe goes white. I stop the mark before it can say anything else.\n\n“Warning,” she says. “You promised me a warning.”\n\nI tell her I thought it would be an empty echo. She waits until I hear how little that answers her. We record what happened on a separate card; Julian crosses out EMPTY in the exercise title.\n\nThe station has learned the decoy's rhythm. It cannot use it to claim my private return. It can use it to recognise this trick next time.",
+    "to": "c28~3",
+    "effects": [
+      {
+        "op": "learn",
+        "key": "true_name",
+        "announce": true
+      },
+      {
+        "op": "remember",
+        "key": "no_warning",
+        "character": "Imani",
+        "detail": "I let the decoy use her voice after she asked for a warning about the reflection trick."
+      }
+    ],
+    "endEffects": [
+      {
+        "op": "practice",
+        "key": "fracture",
+        "once": "false-name"
+      }
+    ]
+  },
+  "ren-cost": {
+    "title": "A name carried too far",
+    "chapter": "28",
+    "text": "I speak the whole cadence.\n\nMum lunges for the card, too late. The panel takes the last beat and holds it. My feet stay under the table while the rest of the room draws away.\n\nA red thread snaps. I hit the chair hard enough to bite the inside of my cheek. The line releases the immediate claim because the protection makes it, not because I have finally learned how to overpower it.\n\nWren is standing as far from the panel as the room allows.\n\n“I heard you say you understood,” she says.\n\nI don't tell her I did. I thought understanding a rule meant I could decide when it applied to me. That turns out to be a particularly expensive mistake.\n\nMum covers the cadence box and cuts its contact with a prepared release mark. We have gained a few seconds. The station has heard where I answer. Whatever ending we manage, that part of the journey will need work afterwards.",
+    "to": "c28~3",
+    "effects": [
+      {
+        "op": "learn",
+        "key": "true_name",
+        "announce": true
+      }
+    ]
+  },
+  "final-seal": {
+    "title": "Two readers, one defined load",
+    "chapter": "29",
+    "text": "I tell Wren where the shared seal will end before I ask her to hold it. She checks the diagram and changes one part: her card remains outside the circuit.\n\n“Yes,” I say. “Outside.”\n\nThe prepared surfaces take the first weight. My injured hand does not have to hold the whole connection. It has to keep one small correction moving while Julian watches the other end.\n\nThis is the exercise with the coin. It is also nothing like the exercise with the coin. When a voice catches between the readers I nearly reach for it as if it were a loose cable. Mum says my name once, and I return to the line I am actually responsible for.\n\nThe seal divides the load. It doesn't decide who must stay. Wren begins asking the waiting senders, one at a time, and we listen for the answers.",
+    "to": "c30-release"
+  },
+  "final-spirit": {
+    "title": "The senders speak for themselves",
+    "chapter": "29",
+    "text": "I ask for Salma. I do not call her by the return I overheard. I use the operator's socket she showed me and wait for her to choose it.\n\n“You found the right one,” she says.\n\nWren sets her independent card beside the reader. Between us we can distinguish a voice still speaking from the repeated copy of its first request. Salma calls the senders in the order they were waiting before Adrian changed the list.\n\nSome refuse. Some need the question repeated. One man asks whether somebody has fed his dog. We cannot promise him an answer we don't have. We can offer a receiving road which ends without claiming another person.\n\nThe first willing return separates from the braid. It hurts to keep listening. I close my own end for three breaths between each call, exactly as I practised. Salma notices and waits.\n\nNobody gets to turn my listening into permanent attendance either.",
+    "to": "c30-release"
+  },
+  "last-return": {
+    "title": "The Line Goes Quiet",
+    "chapter": "failure",
+    "text": "The last knot breaks without a sound.\n\nFor a moment I am still holding the notebook. Then my hand is on one side of a pane and the notebook is on the other. Imani reaches the place where I was. I can see her shouting. Nothing comes through.\n\nI try the return number. I try my ordinary name. The line knows both. There is no protection left to make it release its claim.\n\nThe room narrows to a waiting point with a chair and an unlit handset. I sit because my legs have started shaking. Somewhere beyond the pane, my friends are moving the equipment away from the broken contact. They have not vanished because my part went wrong. I watch them while there is still a window.\n\nMum presses her palm against the glass. I lift mine. We cannot touch. I wish I had listened to the warning without needing this last demonstration of what it meant.\n\nThen the pane goes dark.\n\nThis is where this version of my journey stops. The other choices remain in the chapters I reached. If I return to one of them, it will be another playthrough; the people here will not suddenly remember a different decision.",
+    "ending": "lost"
+  },
+  "workshop-light": {
+    "title": "The route under the paint",
+    "chapter": "20",
+    "text": "I set the ordinary torch on the bench and borrow its light. The bright strip catches the cupboard's false back, then the wall beside it. Beneath the newer paint is an older receiving route.\n\nThe girl turns towards it. For a moment I can see several sets of features trying to follow the same line.\n\n“Look at the window,” I tell her. “Not the light.”\n\nShe does. Imani reaches the catch while Julian copies the route. I keep the screen narrow enough to hide us from the false reflection in the drawer. It takes everything I learned about keeping the glare out of somebody else's eyes.\n\nWhen the girl asks whether the window leads somewhere cold, I answer her before dropping the light. A headache hits behind my eyes. Julian has an earlier route we can compare with Adrian's new one. The girl has seen me stop using a useful power because it was hurting her.",
+    "to": "c21",
+    "endEffects": [
+      {
+        "op": "practice",
+        "key": "sunward",
+        "once": "workshop-screen"
+      },
+      {
+        "op": "learn",
+        "key": "sun_trace",
+        "announce": true
+      },
+      {
+        "op": "remember",
+        "character": "Wren",
+        "key": "dimmed_light",
+        "detail": "I narrowed the light when it hurt her instead of using her confusion as an exit."
+      }
+    ]
+  },
+  "workshop-fracture": {
+    "title": "The decoy that looks back",
+    "chapter": "20",
+    "text": "I split the return reflected in the drawer. The empty test at the kitchen table had two dim images. This one has a person watching from the far end.\n\nThe first decoy turns in my direction. The second says my name.\n\nI send the louder echo towards the locked workshop door. The cables follow it. Imani gets the reader to the window, and for three seconds the way out is clear.\n\nThen something pulls through the copy. A red thread breaks under my coat. I come back against the bench, gasping. The mirror in my pocket has a second crack.\n\nThe girl is looking at the place where the decoy stood. “That one wasn't empty,” she says.\n\n“No.”\n\nI have opened a way out. I have also shown the Exchange a trick it will recognise, and spent a return doing something Julian explicitly warned me not to call an empty-line exercise. I tell Imani before asking her to help me through the window.",
+    "to": "c21",
+    "endEffects": [
+      {
+        "op": "practice",
+        "key": "fracture",
+        "once": "workshop-decoy"
+      },
+      {
+        "op": "remember",
+        "character": "Wren",
+        "key": "dangerous_echo",
+        "detail": "I split an occupied reflection and let another presence look back through it."
+      },
+      {
+        "op": "event",
+        "key": "chaos_trace",
+        "detail": "The Exchange recognised my decoy."
+      }
+    ]
+  }
+}
