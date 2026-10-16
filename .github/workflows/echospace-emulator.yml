@@ -30,6 +30,8 @@ jobs:
           test -f EchoSpace/app/src/main/java/com/nexa/echospace/MainActivity.kt
       - name: Apply expanded sound mixer controls
         run: python3 .github/scripts/echospace_expand_mixer.py
+      - name: Apply ABR single-mixer design and vector sound controls
+        run: python3 .github/scripts/echospace_abr.py
       - name: Bundle royalty-free offline scene artwork
         run: |
           set -euo pipefail
@@ -111,17 +113,29 @@ jobs:
             python3 EchoSpace/tools/emulator_probe.py tap text 'Deep Forest'
             sleep 4
             python3 EchoSpace/tools/emulator_probe.py assert text 'Deep Forest'
+            # Sound-edit controls live only inside the mixer, never duplicated on Home.
+            adb shell uiautomator dump /sdcard/abr-main.xml >/dev/null
+            if adb shell cat /sdcard/abr-main.xml | grep -q 'Mute Birdsong'; then echo 'Duplicate mute control on main screen'; exit 1; fi
+            adb shell screencap -p /sdcard/forest.png
+            adb pull /sdcard/forest.png qa/03-deep-forest.png
+            python3 EchoSpace/tools/emulator_probe.py tap desc 'Open full sound mixer'
+            sleep 1
+            python3 EchoSpace/tools/emulator_probe.py assert text 'Sound mixer'
             python3 EchoSpace/tools/emulator_probe.py assert desc 'Living sounds on'
             python3 EchoSpace/tools/emulator_probe.py tap desc 'Living sounds on'
             python3 EchoSpace/tools/emulator_probe.py assert desc 'Living sounds off'
             python3 EchoSpace/tools/emulator_probe.py tap desc 'Living sounds off'
             python3 EchoSpace/tools/emulator_probe.py assert desc 'Mute Birdsong'
-            adb shell screencap -p /sdcard/forest.png
-            adb pull /sdcard/forest.png qa/03-deep-forest.png
             python3 EchoSpace/tools/emulator_probe.py tap desc 'Mute Birdsong'
-            sleep 1
             python3 EchoSpace/tools/emulator_probe.py assert text Muted
             python3 EchoSpace/tools/emulator_probe.py tap desc 'Unmute Birdsong'
+            python3 EchoSpace/tools/emulator_probe.py assert desc 'Solo Birdsong'
+            python3 EchoSpace/tools/emulator_probe.py tap desc 'Solo Birdsong'
+            python3 EchoSpace/tools/emulator_probe.py assert desc 'Disable solo for Birdsong'
+            python3 EchoSpace/tools/emulator_probe.py tap desc 'Disable solo for Birdsong'
+            adb shell screencap -p /sdcard/mixer.png
+            adb pull /sdcard/mixer.png qa/07-expanded-mixer.png
+            python3 EchoSpace/tools/emulator_probe.py tap desc 'Close mixer'
             python3 EchoSpace/tools/emulator_probe.py tap desc 'Add a sound'
             sleep 2
             python3 EchoSpace/tools/emulator_probe.py assert text 'Add a sound'
@@ -129,8 +143,10 @@ jobs:
             adb pull /sdcard/sheet.png qa/04-add-sound.png
             python3 EchoSpace/tools/emulator_probe.py tap text Fire
             sleep 1
+            python3 EchoSpace/tools/emulator_probe.py assert desc 'Fire sound position. Drag to move.'
+            python3 EchoSpace/tools/emulator_probe.py tap desc 'Open full sound mixer'
             python3 EchoSpace/tools/emulator_probe.py assert desc 'Mute Fire'
-            # Save the edited environment and verify that it survives switching.
+            # Save belongs to the focused mixer. The saved soundscape must survive restart.
             python3 EchoSpace/tools/emulator_probe.py tap desc 'Save current soundscape'
             sleep 2
             python3 EchoSpace/tools/emulator_probe.py assert text 'My Space'
@@ -144,16 +160,21 @@ jobs:
             python3 EchoSpace/tools/emulator_probe.py assert text 'My Space'
             python3 EchoSpace/tools/emulator_probe.py assert desc 'Fire sound position. Drag to move.'
             python3 EchoSpace/tools/emulator_probe.py tap desc 'Fire sound position. Drag to move.'
+            python3 EchoSpace/tools/emulator_probe.py tap desc 'Open full sound mixer'
             python3 EchoSpace/tools/emulator_probe.py assert desc 'Mute Fire'
+            python3 EchoSpace/tools/emulator_probe.py tap desc 'Close mixer'
             adb shell screencap -p /sdcard/saved.png
             adb pull /sdcard/saved.png qa/06-saved-restored.png
             if cmp -s qa/01-launch.png qa/03-deep-forest.png; then echo 'Preset change invisible'; exit 1; fi
-            # Expanded mixer is a real, dismissible control surface.
+            # Mixer remains fully functional after saved state is restored.
             python3 EchoSpace/tools/emulator_probe.py tap desc 'Open full sound mixer'
             sleep 2
             python3 EchoSpace/tools/emulator_probe.py assert text 'Sound mixer'
+            python3 EchoSpace/tools/emulator_probe.py assert desc 'Add a sound'
+            python3 EchoSpace/tools/emulator_probe.py assert desc 'Save current soundscape'
+            python3 EchoSpace/tools/emulator_probe.py assert desc 'Rotate 30 degrees right'
             adb shell screencap -p /sdcard/expanded-mixer.png
-            adb pull /sdcard/expanded-mixer.png qa/07-expanded-mixer.png
+            adb pull /sdcard/expanded-mixer.png qa/08-abr-mixer.png
             python3 EchoSpace/tools/emulator_probe.py tap desc 'Close mixer'
             sleep 1
             python3 EchoSpace/tools/emulator_probe.py assert text 'My Space'
