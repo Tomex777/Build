@@ -44,6 +44,7 @@ public final class AppRulesTest {
         View content = a.findViewById(android.R.id.content);
         assertEquals("Do not duplicate edit actions", 1, named(content, "Edit"));
         assertEquals(1, named(content, "Use display"));
+        assertEquals(0, named(content, "From wallpaper")); // Offered only under +.
         assertEquals(0, named(content, "Make time yours."));
         assertEquals(0, named(content, "THE ART OF ALWAYS ON"));
         assertEquals(0, named(content, "Designed here. Saved on your device."));
