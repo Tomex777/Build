@@ -96,6 +96,34 @@ function uniqueQueries(values = []) {
   return out
 }
 
+function titleTokens(value) {
+  const stop = new Set(['the','and','for','with','part','season','tv','series','anime','dub','sub'])
+  return new Set(String(value || '')
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLocaleLowerCase()
+    .split(/[^a-z0-9]+/)
+    .filter(word => word.length > 1 && !stop.has(word)))
+}
+
+function titleMatchScore(candidate, targets) {
+  const candidateTokens = titleTokens(titleOf(candidate))
+  if (!candidateTokens.size) return 0
+  let best = 0
+  for (const target of targets) {
+    const targetTokens = titleTokens(target)
+    if (targetTokens.size < 2) continue
+    let common = 0
+    for (const token of candidateTokens) if (targetTokens.has(token)) common += 1
+    const union = new Set([...candidateTokens, ...targetTokens]).size
+    const jaccard = union ? common / union : 0
+    const targetCoverage = common / targetTokens.size
+    const candidateCoverage = common / candidateTokens.size
+    best = Math.max(best, jaccard, targetCoverage * 0.9, candidateCoverage * 0.65)
+  }
+  return best
+}
+
 async function retryAnimeAliases(ctx, {
   capability,
   query,
@@ -251,8 +279,13 @@ async function loadEpisodes(ctx, { capability, commandName, sourceId, series, no
         }
         if (searchOutcome?.status !== 'ok') continue
         const searchResult = searchOutcome.result || {}
+        const targets = uniqueQueries([resolvedSeries.title, ...(identity?.aliases || [])])
+          .filter(value => titleTokens(value).size >= 2)
         const candidates = (Array.isArray(searchResult.items) ? searchResult.items : searchResult.item ? [searchResult.item] : [])
+          .map((candidate, index) => ({ candidate, index, score:titleMatchScore(candidate, targets) }))
+          .sort((a, b) => b.score - a.score || a.index - b.index)
           .slice(0, 5)
+          .map(row => row.candidate)
         for (const candidate of candidates) {
           let episodeOutcome
           try {
