@@ -57,6 +57,46 @@ async function finish(page,winner){
    assert.ok(look.bg.includes('repeating-linear-gradient'),'felt material has visible woven texture');
    assert.ok(look.shadow.includes('inset'),'felt table includes raised wooden edge');
    assert.equal(await page.locator('.whot-win-layer').count(),0,'no premature victory banner');
+   assert.equal(await page.locator('.whot-deck-word').count(),2,'classic WHOT back contains exactly two readable labels');
+   const deckLetters=await page.locator('.whot-deck-word').evaluateAll(els=>
+     els.map(e=>({text:e.textContent,trans:getComputedStyle(e).transform})));
+   assert.deepEqual(deckLetters.map(x=>x.text),['WHOT','WHOT'],'no duplicate overlapping pseudo-lettering');
+   assert.notEqual(deckLetters[0].trans,'none','upper lettering is inverted on the physical back');
+   assert.equal(deckLetters[1].trans,'none','lower lettering stays upright');
+
+   // Match the high-quality classical WHOT face proportions we studied,
+   // with NIGHT's original SVG art and without loading the other game.
+   const design=await page.locator('.hand .whot-card').first().evaluate(el=>{
+     const r=el.getBoundingClientRect(),cs=getComputedStyle(el);
+     const face=el.querySelector('.whot-suit-big'),small=el.querySelector('.whot-suit-small');
+     const rank=el.querySelector('.whot-corner strong');
+     return {width:parseFloat(cs.width),height:parseFloat(cs.height),animatedWidth:r.width,animatedHeight:r.height,bg:cs.backgroundColor,ink:getComputedStyle(face||el).color,
+       symbolFill:face?getComputedStyle(face).fill:null,
+       symbolWidth:face?.getBoundingClientRect().width||0,
+       cornerSize:rank?getComputedStyle(rank).fontSize:null,
+       cornerInk:rank?getComputedStyle(rank).color:null,
+       hasSmallSuit:!!small,
+       cssGradient:cs.backgroundImage};
+   });
+
+   console.log('WHOT_CARD_DESIGN',width,JSON.stringify(design));
+   assert.equal(design.bg,'rgb(249, 252, 250)','clean off-white traditional card stock');
+   assert.equal(design.cssGradient,'none','no glossy artificial paper gradient');
+   assert.equal(design.symbolFill,'rgb(81, 27, 32)','deep burgundy solid geometric suits');
+   assert.equal(design.cornerInk,'rgb(30, 35, 32)','small dark numbers, not enlarged red labels');
+   assert.equal(design.hasSmallSuit,true,'numbers have accompanying corner symbols');
+   assert.ok(design.symbolWidth>25,'single central geometric suit is unmistakable');
+   if(width===390){
+     assert.ok(design.width>=60&&design.width<=65,'five face cards fit the mobile hand');
+     assert.ok(design.height>=101&&design.height<=107,'mobile cards stay tall and easy to tap');
+     assert.equal(design.cornerSize,'9px');
+   }else{
+     assert.ok(Math.abs(design.width-100)<1,'reference-proportioned desktop card width');
+     assert.ok(Math.abs(design.height-138)<1,'reference-proportioned desktop card height');
+     assert.equal(design.cornerSize,'12px');
+   }
+   console.log('WHOT_CARD_DESIGN',width,JSON.stringify(design));
+
    const budget=await page.evaluate(()=>window.__nightWhotMotion().timings);
    assert.ok(budget.player>=380&&budget.player<=450&&budget.cpu>=400&&budget.cpu<=460&&budget.draw>=380&&budget.draw<=440,'card motion should glide rather than snap or drag');
    assert.ok(budget.cpuDelay>=150&&budget.cpuDelay<=220,'CPU should pause naturally without the old 380ms dead time');
