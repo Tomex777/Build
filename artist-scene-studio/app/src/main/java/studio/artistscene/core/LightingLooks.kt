@@ -15,13 +15,14 @@ enum class LightingLook(
     LOW_KEY("Low key", EnvironmentPreset.REFERENCE, "#BFCBFF", 12_000f, Vec3(0.6f, -0.6f, 0.2f)),
 }
 
-fun SceneEditorState.applyLightingLook(look: LightingLook): SceneEditorState {
+/** Pure scene transformation; SceneEditorState commits it as ONE undo step. */
+fun lightingLookProject(project: SceneProject, look: LightingLook): SceneProject {
     val sunlight = project.actors.firstOrNull {
         it.kind == ActorKind.LIGHT && it.light?.type == LightType.DIRECTIONAL
-    } ?: return this
-    if (sunlight.locked) return this
-    val lighting = sunlight.light ?: return this
-    val next = project.copy(
+    } ?: return project
+    if (sunlight.locked) return project
+    val lighting = sunlight.light ?: return project
+    return project.copy(
         world = project.world.copy(environmentPreset = look.environment),
         actors = project.actors.map { actor ->
             if (actor.id == sunlight.id) actor.copy(
@@ -35,24 +36,4 @@ fun SceneEditorState.applyLightingLook(look: LightingLook): SceneEditorState {
             ) else actor
         },
     )
-    if (next == project) return this
-    // Existing editor primitive keeps this transformation atomic in project history.
-    return setEnvironmentPreset(look.environment)
-        .let { state ->
-            val active = state.project.actors.firstOrNull { it.id == sunlight.id } ?: return@let state
-            state.selectActor(active.id)
-                .setSelectedLightIntensity(look.lux)
-                .setSelectedLightColorHex(look.sunColor)
-                .let { edited ->
-                    // Single combined history operation: undo returns both sky and light at once.
-                    edited.copy(
-                        project = next,
-                        undoStack = (undoStack + project).takeLast(100),
-                        redoStack = emptyList(),
-                        undoSelections = (undoSelections + selectedActorId).takeLast(100),
-                        redoSelections = emptyList(),
-                        selectedActorId = selectedActorId,
-                    )
-                }
-        }
 }
