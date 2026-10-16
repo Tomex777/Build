@@ -3051,6 +3051,40 @@ private fun PoseControlsOverlay(
                             },
                         ) { Text("Stage two", maxLines = 1) }
                     }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text("My poses", color = MutedText, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+                        TextButton(
+                            onClick = {
+                                onEditor(editor.saveSelectedPose("My pose ${editor.project.savedPoses.size + 1}"), "pose-custom-save")
+                            },
+                            enabled = !actor.locked && actor.rig?.joints?.isNotEmpty() == true,
+                            modifier = Modifier.testTag("pose-custom-save"),
+                        ) { Text("Save current") }
+                    }
+                    if (editor.project.savedPoses.isNotEmpty()) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                            horizontalArrangement = Arrangement.spacedBy(5.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            editor.project.savedPoses.forEach { saved ->
+                                FilterChip(
+                                    selected = false,
+                                    onClick = { onEditor(editor.applySavedPose(saved.id), "pose-custom-apply") },
+                                    label = { Text(saved.name, maxLines = 1) },
+                                    modifier = Modifier.testTag("pose-custom-apply-${saved.id}"),
+                                )
+                                IconButton(
+                                    onClick = { onEditor(editor.deleteSavedPose(saved.id), "pose-custom-delete") },
+                                    modifier = Modifier.size(30.dp).testTag("pose-custom-delete-${saved.id}"),
+                                ) { Icon(Icons.Default.Close, contentDescription = "Delete ${saved.name}", tint = MutedText, modifier = Modifier.size(15.dp)) }
+                            }
+                        }
+                    }
                     if (!ikEnabled && fingerBones.isNotEmpty()) {
                         Text("Hands", color = MutedText, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
                         Row(
