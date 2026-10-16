@@ -82,7 +82,7 @@ async function main() {
     assert.equal(def.name,'Naruto','original red-scroll edition has the short title, not a face-heavy nameplate')
     const svg = await makeEditionSvg(found,edition,artwork)
     assert.match(svg,/NIGHT Collectibles 1.1/)
-    assert.match(svg,/NARUTO UZUMAKI/)
+    assert.match(svg,/Naruto Uzumaki/)
     assert.match(svg,/<svg[^>]*viewBox="0 0 1000 1400"/)
     assert.ok(svg.includes('data:image/png;base64,'))
     const png = await renderEditionPng(found,edition,artwork,{width:500})
