@@ -277,7 +277,7 @@ jobs:
           set -euo pipefail
           OUT=/tmp/slumber-088
           base64 -d .ci/slumber_108_abr/product-abr.patch.gz.b64 | gzip -dc > "$OUT/slumber-abr.patch"
-          echo '42e7d22eab28f2d9ed3a574f1bb714207139a8e2e92c470066770e7998888c82  /tmp/slumber-088/slumber-abr.patch' | sha256sum -c -
+          echo '9f702871d427e60631528ebe7a5e3f92264c2df81c092413b8e654a5447f7da2  /tmp/slumber-088/slumber-abr.patch' | sha256sum -c -
           patch -d "$OUT" -p1 < "$OUT/slumber-abr.patch"
           FIELD="$OUT/app/src/main/java/com/night/pianohub/ui/components/SlumberTextField.kt"
           PLAY="$OUT/app/src/main/java/com/night/pianohub/ui/screens/PlayScreen.kt"
