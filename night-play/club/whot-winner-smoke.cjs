@@ -104,8 +104,8 @@ async function finish(page,winner){
    assert.equal(design.hasSmallSuit,true,'numbers have accompanying corner symbols');
    assert.ok(design.symbolWidth>25,'single central geometric suit is unmistakable');
    if(width===390){
-     assert.ok(design.width>=60&&design.width<=65,'five face cards fit the mobile hand');
-     assert.ok(design.height>=101&&design.height<=107,'mobile cards stay tall and easy to tap');
+     assert.ok(Math.abs(design.width-80)<1,'reference 80px mobile face');
+     assert.ok(Math.abs(design.height-105)<1,'reference 105px mobile face');
      assert.equal(design.cornerSize,'9px');
    }else{
      assert.ok(Math.abs(design.width-100)<1,'reference-proportioned desktop card width');
@@ -117,7 +117,7 @@ async function finish(page,winner){
    const budget=await page.evaluate(()=>window.__nightWhotMotion().timings);
    assert.ok(budget.player>=440&&budget.player<=500&&budget.cpu>=460&&budget.cpu<=510&&budget.draw>=430&&budget.draw<=490,'smooth FLIP glide matches natural reference rhythm');
    assert.ok(budget.cpuDelay>=180&&budget.cpuDelay<=290,'CPU has a deliberate but not sluggish beat');
-   assert.ok(budget.deal<=450&&budget.dealStagger<=70,'initial dealing should stay rhythmic and smooth');
+   assert.ok(budget.deal<=450&&budget.dealStagger<=70,'initial dealing stays rhythmic');
    assert.ok(budget.settle<=210&&budget.recenter>=320&&budget.recenter<=390,'hands glide into their new position');
    const dealAnim=await page.locator('.hand .whot-card').last().evaluate(el=>{
      const active=el.getAnimations();return active.length?active[0].effect.getTiming():null
@@ -186,7 +186,7 @@ async function finish(page,winner){
      transformStyle:getComputedStyle(el).transformStyle,
      backface:getComputedStyle(el.querySelector('.whot-flip-front')).backfaceVisibility
    }));
-   assert.ok(flipStyle.effect.includes(340),'3D flip shares the source-to-destination flight');
+   assert.ok(flipStyle.effect.includes(440),'3D card reveal shares the market flight');
    assert.equal(flipStyle.transformStyle,'preserve-3d');
    assert.equal(flipStyle.backface,'hidden','reverse side must stay hidden while rotating');
       const motion=await drawPage.evaluate(()=>window.__nightWhotMotion());
