@@ -21,9 +21,11 @@ export const validWordInput = input => /^[a-zA-Z]{2,24}$/.test(String(input || '
 export const chainKey = (accountId, chat) => String(accountId || '') + '|' + String(chat || '')
 export const playerName = ctx => String(ctx.message?.pushName || 'Player').trim().slice(0,40) || 'Player'
 
-export function wordChainInputDestination({shared, accountId, chat, text, now = Date.now()} = {}) {
+export function wordChainInputDestination({shared, accountId, chat, text, userKey = '', now = Date.now()} = {}) {
   if (!shared || !String(chat).endsWith('@g.us') || !validWordInput(text)) return false
   const game = shared.get(WORD_CHAIN_NS, chainKey(accountId, chat))
+  if (game?.mode === 'duel' && userKey && ![game.host,game.opponent].includes(userKey)) return false
+  if (userKey && game?.lastUser === userKey) return false
   return Boolean(game?.state === 'PLAYING' && now < game.expiresAt && now < game.turnDeadline)
 }
 const remaining = ms => Math.max(0, Math.ceil(ms / 1000))
