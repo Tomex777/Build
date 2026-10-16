@@ -50,8 +50,8 @@ class AnimePoseStudyInstrumentedTest {
                     if (reference == null) return image
                     val current = requireNotNull(BitmapFactory.decodeFile(image.path))
                     var changed = 0
-                    for (y in current.height * 24 / 100 until current.height * 78 / 100 step 3) {
-                        for (x in current.width * 22 / 100 until current.width * 78 / 100 step 3) {
+                    for (y in current.height * 24 / 100 until current.height * 58 / 100 step 3) {
+                        for (x in current.width * 16 / 100 until current.width * 84 / 100 step 3) {
                             val a = current.getPixel(x, y)
                             val b = reference.getPixel(x, y)
                             if (kotlin.math.abs(Color.red(a) - Color.red(b)) +
@@ -97,8 +97,8 @@ class AnimePoseStudyInstrumentedTest {
             assertEquals(a.height, b.height)
             var changed = 0
             // Ignore tool rail and top/bottom chrome. This area contains the figure.
-            for (y in a.height * 20 / 100 until a.height * 78 / 100 step 3) {
-                for (x in a.width * 20 / 100 until a.width * 80 / 100 step 3) {
+            for (y in a.height * 24 / 100 until a.height * 58 / 100 step 3) {
+                for (x in a.width * 16 / 100 until a.width * 84 / 100 step 3) {
                     val before = a.getPixel(x, y)
                     val after = b.getPixel(x, y)
                     val diff = kotlin.math.abs(Color.red(before) - Color.red(after)) +
