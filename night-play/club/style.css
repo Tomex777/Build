@@ -1744,3 +1744,13 @@ body.whot-mode .night-sheet .whot-settings-newround{
 @media(prefers-reduced-motion:reduce){
  .whot-switch input[type="checkbox"],.whot-switch input[type="checkbox"]::after{transition:none!important}
 }
+
+body.whot-mode .whot-scoreboard:has(.whot-series-score){
+ display:grid!important;grid-template-columns:1fr auto 1fr!important;
+ row-gap:5px!important;
+}
+body.whot-mode .whot-series-score{
+ grid-column:1/-1;display:block;margin:auto;
+ color:#d3d9d8;font:800 10px/1.2 Inter,system-ui,sans-serif;
+ letter-spacing:1px;text-align:center;
+}
