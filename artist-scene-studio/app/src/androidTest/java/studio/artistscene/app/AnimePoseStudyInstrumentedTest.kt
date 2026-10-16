@@ -181,6 +181,32 @@ class AnimePoseStudyInstrumentedTest {
                     "same-camera normal humanoid contrast=$knownVisibleHumanContrast",
                 changed >= 65,
             )
+            // Real female VRoid base: independently load the OTHER textured skinned mesh.
+            // This proves the new character catalog is not a screenshot or a duplicate
+            // reference to the original male asset.
+            val female = PrototypeScene.starterAssets().single {
+                it.asset?.assetId == PrototypeScene.ANIME_FEMALE_ASSET_ID
+            }.copy(id = actorId, name = "Female anime proof")
+            store.save(project.copy(actors = project.actors.map { actor ->
+                if (actor.id == actorId) female else actor
+            }))
+            val femaleNeutral: File
+            ActivityScenario.launch(MainActivity::class.java).use {
+                openScene()
+                val deadline = SystemClock.uptimeMillis() + 70_000
+                while (SystemClock.uptimeMillis() < deadline &&
+                    (store.load(project.id).actors.first { it.id == actorId }
+                        .rigDefinition?.bones?.size ?: 0) < 60) {
+                    SystemClock.sleep(400)
+                }
+                val femaleActor = store.load(project.id).actors.first { it.id == actorId }
+                assertTrue("Real female anime rig never loaded",
+                    (femaleActor.rigDefinition?.bones?.size ?: 0) >= 60)
+                femaleNeutral = screenshot("female-neutral", empty)
+            }
+            assertTrue("Female anime model invisible on emulator",
+                distinctPixelDifference(femaleNeutral, empty) >= 150)
+
         } finally {
             // Restore the user's sample project to the authored hero pose.
             store.save(project)
