@@ -9,9 +9,9 @@ let cardMotionBusy=false,cardMotionEpoch=0,pendingWhotDeal=false;
 // Speed is intentionally unified: interaction should feel immediate,
 // while cards still lift, glide, land and settle.
 const whotMotion={
- player:420,cpu:440,draw:415,cpuDelay:185,
- deal:420,dealDelay:58,dealStagger:65,opponentDeal:420,
- settle:165,recenter:260,drawFlip:340
+ player:465,cpu:480,draw:460,cpuDelay:235,
+ deal:410,dealDelay:55,dealStagger:66,opponentDeal:440,
+ settle:180,recenter:360,drawFlip:440
 };
 const cardMotionMetrics={deals:0,plays:0,cpuPlays:0,draws:0,activeFlights:0,lastFlightDuration:0,lastFlightAction:null};
 const motionEnabled=()=>!matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -218,12 +218,11 @@ async function whotFly(origin,destination,{face=null,action="play"}={}){
   // The card reacts immediately: a short lift, measured glide and cushioned
   // landing. No timeout is inserted between tapping and visual feedback.
   const flight=ghost.animate([
-   {offset:0,transform:'translate3d(0,0,0) scale(1) rotate(-2deg)',opacity:1},
-   {offset:.14,transform:'translate3d('+(dx*.085)+'px,'+(dy*.085-11)+'px,0) scale(1.045) rotate(-3deg)',opacity:1},
-   {offset:.48,transform:'translate3d('+(dx*.46)+'px,'+(dy*.46-23)+'px,0) scale('+(1.08+(scale-1)*.35)+') rotate('+(action==='cpu'?4:-4)+'deg)',opacity:1},
-   {offset:.85,transform:'translate3d('+(dx*.88)+'px,'+(dy*.88-5)+'px,0) scale('+(1.025+(scale-1)*.86)+') rotate(2deg)',opacity:1},
-   {offset:1,transform:'translate3d('+dx+'px,'+dy+'px,0) scale('+scale+') rotate(0deg)',opacity:1}
-  ],{duration,easing:'cubic-bezier(.23,.72,.24,1)',fill:'forwards'});
+   {offset:0,transform:'translate3d(0,0,0) scale(1)',opacity:1},
+   {offset:.16,transform:'translate3d('+(dx*.12)+'px,'+(dy*.12-6)+'px,0) scale(1.025)',opacity:1},
+   {offset:.72,transform:'translate3d('+(dx*.73)+'px,'+(dy*.73-4)+'px,0) scale('+(1.025+(scale-1)*.7)+')',opacity:1},
+   {offset:1,transform:'translate3d('+dx+'px,'+dy+'px,0) scale('+scale+')',opacity:1}
+  ],{duration,easing:'cubic-bezier(.22,.7,.19,1)',fill:'forwards'});
   if(flipCore){
    // The front turns into view *during* the flight, not via a second
    // post-flight animation. 3D depth and backface hiding make the reveal
@@ -256,13 +255,13 @@ function whotDeal(){
    {transform:'translate3d(0,0,0) scale(1) rotate(0)',opacity:1}
   ],{delay:whotMotion.dealDelay+index*whotMotion.dealStagger,duration:whotMotion.deal,easing:'cubic-bezier(.23,.8,.2,1)'});
  });
- const opponent=board.querySelector('.table-surface > .card-row .card-back');
- if(opponent){const b=opponent.getBoundingClientRect();
+ [...board.querySelectorAll('.table-surface > .whot-opponent-hand .card-back')].forEach((opponent,index)=>{
+  const b=opponent.getBoundingClientRect();
   opponent.animate([
-   {transform:'translate3d('+(a.left+a.width/2-b.left-b.width/2)+'px,'+(a.top+a.height/2-b.top-b.height/2)+'px,0) scale(.7) rotate(9deg)',opacity:.2},
-   {transform:'translate3d(0,0,0) scale(1) rotate(0)',opacity:1}
-  ],{delay:whotMotion.dealDelay+30,duration:whotMotion.opponentDeal,easing:'cubic-bezier(.23,.8,.2,1)'});
- }
+   {transform:'translate3d('+(a.left+a.width/2-b.left-b.width/2)+'px,'+(a.top+a.height/2-b.top-b.height/2)+'px,0) scale(.7)',opacity:.1},
+   {transform:'translate3d(0,0,0) scale(1)',opacity:1}
+  ],{delay:whotMotion.dealDelay+index*whotMotion.dealStagger,duration:whotMotion.opponentDeal,easing:'cubic-bezier(.2,.72,.24,1)'});
+ });
 }
 function whotSettle(){
  if(!motionEnabled())return;
@@ -360,7 +359,7 @@ function whotShapeSvg(s,n,mini=false){
  ];
  if(s===5)return '';
  return '<svg class="'+(mini?'whot-suit-small':'whot-suit-big')+'" viewBox="0 0 100 100" focusable="false" aria-hidden="true">'+tags[s]+
- (s===4&&!mini&&n!==undefined?'<text x="50" y="57" fill="#fff9f0" font-size="18" font-weight="900" text-anchor="middle" font-family="Georgia,serif">'+(n*2)+'</text>':'')+'</svg>';
++'</svg>';
 }
 function whotFace(card,index,enabled){
  const wild=card.n===20;
@@ -450,6 +449,18 @@ function whotPatchTable(markup){
   if(el.textContent!==fresh.textContent)el.textContent=fresh.textContent;
   if(el.className!==fresh.className)el.className=fresh.className;
  }
+ const oldOpponent=table.querySelector('.whot-opponent-hand'),newOpponent=next.querySelector('.whot-opponent-hand');
+ if(oldOpponent&&newOpponent){
+  const oldBacks=[...oldOpponent.querySelectorAll('.card-back')];
+  const needed=newOpponent.querySelectorAll('.card-back').length;
+  if(needed<oldBacks.length){for(let i=oldBacks.length-1;i>=needed;i--)oldBacks[i].remove()}
+  else if(needed>oldBacks.length){
+   for(let i=oldBacks.length;i<needed;i++)oldOpponent.appendChild(newOpponent.children[i].cloneNode(true));
+  }
+  for(const [i,back] of [...oldOpponent.querySelectorAll('.card-back')].entries()){
+   back.setAttribute('aria-label','Computer card '+(i+1)+' of '+needed);
+  }
+ }
  const oldDeck=oldPile.querySelector('.whot-deck'),newDeck=newPile.querySelector('.whot-deck');
  if(oldDeck&&newDeck){
   oldDeck.disabled=newDeck.disabled;
@@ -511,7 +522,9 @@ const whotVictory=kind==='whot'&&s.winner!==null?
  '<p class="whot-win-count">'+(s.winner===0?'CPU':'YOU')+' · '+s.hands[1-s.winner].length+' CARDS LEFT</p>'+
  '<button type="button" class="whot-rematch" data-action="whot-rematch">Play again <span aria-hidden="true">↗</span></button></div></div>':'';
 const tableMarkup='<div class="table-surface'+(kind==='whot'&&s.winner!==null?' whot-finished':'')+'" aria-label="Card table">'+(kind==='whot'?whotHud:'<h3>COMPUTER · '+s.hands[1].length+' CARDS</h3>')+
- '<div class="card-row"><div class="playing-card card-back" aria-label="Computer cards hidden"></div>'+(kind==='whot'?'':'<span class="cards-counter">× '+s.hands[1].length+'</span>')+'</div>'+
+ '<div class="card-row whot-opponent-hand">'+(kind==='whot'
+ ?Array.from({length:s.hands[1].length},(_,i)=>'<div class="playing-card card-back" aria-label="Computer card '+(i+1)+' of '+s.hands[1].length+'"><span>WHOT</span><span>WHOT</span></div>').join('')
+ :'<div class="playing-card card-back" aria-label="Computer cards hidden"></div><span class="cards-counter">× '+s.hands[1].length+'</span>')+'</div>'+
  '<div class="card-pile">'+(kind==='whot'?'<button type="button" class="whot-deck" data-action="card-draw" '+(s.turn!==0||s.winner!==null||s.pendingWhot!=null?'disabled':'')+' aria-label="Pick one card from the market"><span class="whot-deck-back"><span class="whot-deck-word flip-top">WHOT</span><span class="whot-deck-word flip-bottom">WHOT</span></span><span class="cards-counter">MARKET · '+s.deck.length+'</span></button>':'<span class="cards-counter">DECK '+s.deck.length+'</span>')+
  cardMarkup(kind,t,-1,false)+currentCall+'</div>'+callPanel+
  '<div class="hand">'+(kind==='whot'?'':'<div class="card-label">YOUR HAND · '+s.hands[0].length+' CARDS</div>')+'<div class="card-row">'+s.hands[0].map((card,i)=>cardMarkup(kind,card,i,s.turn===0&&s.winner===null&&!(kind==='whot'&&s.pendingWhot!=null)&&playable(kind,s,card))).join('')+'</div></div>'+whotVictory+'</div>';
