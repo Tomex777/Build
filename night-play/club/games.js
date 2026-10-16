@@ -554,6 +554,18 @@ function whotPatchTable(markup){
   if(el.textContent!==fresh.textContent)el.textContent=fresh.textContent;
   if(el.className!==fresh.className)el.className=fresh.className;
  }
+ // Reconcile optional mode score and Last Card control too. Previously
+ // these were omitted by the incremental renderer, leaving stale series
+ // scores and hiding the announcement button after the hand reached one.
+ for(const selector of ['.whot-series-score','.whot-last-call']){
+  const live=liveHud.querySelector(selector),fresh=newHud.querySelector(selector);
+  if(live&&!fresh)live.remove();
+  else if(fresh&&!live)liveHud.appendChild(fresh.cloneNode(true));
+  else if(live&&fresh){
+   if(live.textContent!==fresh.textContent)live.textContent=fresh.textContent;
+   if(live.disabled!==fresh.disabled)live.disabled=fresh.disabled;
+  }
+ }
  const oldOpponent=table.querySelector('.whot-opponent-hand'),newOpponent=next.querySelector('.whot-opponent-hand');
  if(oldOpponent&&newOpponent){
   const oldBacks=[...oldOpponent.querySelectorAll('.card-back')];
