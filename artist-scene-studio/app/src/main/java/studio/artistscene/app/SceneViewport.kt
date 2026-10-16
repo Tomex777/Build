@@ -436,6 +436,10 @@ private fun SceneScope.ActorModelNode(
 
     val loaded = model
     val rigRuntime = remember(loaded) { loaded?.let(FilamentRigRuntime::discover) }
+    // Actual VRM spring roots, with a private integrator per independently posed actor.
+    val springRuntime = remember(loaded, asset) {
+        loaded?.let { VrmSpringRuntime.fromAsset(context, asset, it) }
+    }
     val hasBoundRestPose = remember(rigRuntime) { AtomicBoolean(false) }
     val animationClips = remember(loaded) {
         loaded?.animator?.let { animator ->
@@ -499,9 +503,13 @@ private fun SceneScope.ActorModelNode(
         isVisible = actor.visible,
         apply = {
             var lastPivot: Vec3? = null
+            val rootMatrix = FloatArray(16)
             onFrame = {
+                // Real gravitational hair and cloth deformation updates skinned
+                // joint transforms on the renderer's frame, never via UI bitmaps.
+                springRuntime?.advance(actor, System.nanoTime())
                 val manager = engine.transformManager
-                val world = manager.getWorldTransform(manager.getInstance(entity), FloatArray(16))
+                val world = manager.getWorldTransform(manager.getInstance(entity), rootMatrix)
                 val pivot = Vec3(world[12], world[13], world[14])
                 if (pivot != lastPivot) {
                     lastPivot = pivot
