@@ -29,6 +29,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
@@ -668,6 +669,11 @@ private fun PoetryApplication() {
                     edit = { openEditor(it) }, design = { openStudio(it) },
                     settings = { page = "settings" },
                     browseTemplates = { selectedId = null; templateReturn = "home"; page = "templates" },
+                    chooseTemplate = { preset ->
+                        val fresh = create()
+                        update(fresh.copy(slides = fresh.slides.map { it.copy(card = it.card.withPreset(preset)) }))
+                        openStudio(fresh.id)
+                    },
                     delete = { id -> poems.removeAll { it.id == id }; repository.write(poems) }
                 )
                 "write" -> WriterScreen(
@@ -786,7 +792,7 @@ private fun SoftButton(label: String, onClick: () -> Unit, filled: Boolean = tru
 private fun HomeScreen(
     poems: List<PoemDoc>, newPoem: () -> Unit, edit: (String) -> Unit,
     design: (String) -> Unit, settings: () -> Unit,
-    browseTemplates: () -> Unit, delete: (String) -> Unit
+    browseTemplates: () -> Unit, chooseTemplate: (ThemePreset) -> Unit, delete: (String) -> Unit
 ) {
     var pendingDelete by remember { mutableStateOf<String?>(null) }
     pendingDelete?.let { id ->
@@ -812,15 +818,11 @@ private fun HomeScreen(
             Spacer(Modifier.height(9.dp))
             Heading("Every feeling\nhas a story.", 38.sp)
             Spacer(Modifier.height(11.dp))
-            Text("Write poems. Design cards. Share your words.",
-                color = Muted, fontSize = 14.sp, lineHeight = 21.sp)
             Spacer(Modifier.height(24.dp))
             Box(Modifier.fillMaxWidth().height(220.dp).clip(RoundedCornerShape(25.dp))
                 .background(SoftRose).border(1.dp, Border, RoundedCornerShape(25.dp))) {
                 VectorOrnament("sparkle", Modifier.align(Alignment.CenterEnd).padding(end = 12.dp).size(128.dp), Rose.copy(alpha = .13f))
                 Column(Modifier.align(Alignment.CenterStart).padding(24.dp)) {
-                    Text("AN OPEN PAGE AWAITS", fontSize = 10.sp, color = Rose, letterSpacing = 1.5.sp)
-                    Spacer(Modifier.height(11.dp))
                     Text("A blank page.\nA thousand possibilities.", fontFamily = FontFamily.Serif, fontSize = 26.sp,
                         lineHeight = 30.sp, color = Ink)
                     Spacer(Modifier.height(16.dp))
@@ -845,7 +847,7 @@ private fun HomeScreen(
             Spacer(Modifier.height(12.dp))
             Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 presets.filter { it.name in listOf("Quiet paper", "Soft editorial", "Open page", "Midnight note", "December hush") }
-                    .forEach { preset -> TemplateTile(preset, false) { browseTemplates() } }
+                    .forEach { preset -> TemplateTile(preset, false) { chooseTemplate(preset) } }
             }
             Spacer(Modifier.height(28.dp))
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
@@ -903,14 +905,12 @@ private fun WriterScreen(doc: PoemDoc, update: (PoemDoc) -> Unit, back: () -> Un
             IconButton(onClick = back) { Icon(Icons.Default.ArrowBack, contentDescription = "Library") }
             Column(Modifier.weight(1f).padding(start = 9.dp)) {
                 Eyebrow("Writing desk")
-                Text("Offline draft", fontSize = 11.sp, color = Muted)
             }
         }
         HorizontalDivider(color = Border)
         Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(27.dp)) {
             Spacer(Modifier.height(31.dp))
-            Eyebrow("Your poem")
-            Spacer(Modifier.height(21.dp))
+            Spacer(Modifier.height(9.dp))
             BasicTextField(
                 value = doc.title, onValueChange = { update(doc.copy(title = it)) },
                 modifier = Modifier.fillMaxWidth().testTag("poem-title-input"), textStyle = TextStyle(color = Ink, fontFamily = FontFamily.Serif,
@@ -926,7 +926,7 @@ private fun WriterScreen(doc: PoemDoc, update: (PoemDoc) -> Unit, back: () -> Un
                 modifier = Modifier.fillMaxWidth().testTag("poem-body-input").defaultMinSize(minHeight = 260.dp),
                 textStyle = TextStyle(color = Ink, fontFamily = FontFamily.Serif, fontSize = 20.sp, lineHeight = 34.sp),
                 decorationBox = { inner -> Box {
-                    if (doc.body.isBlank()) Text("And now, the words…\n\nLet them arrive at their own pace.",
+                    if (doc.body.isBlank()) Text("Write your poem…",
                         fontFamily = FontFamily.Serif, fontSize = 20.sp, lineHeight = 34.sp, color = Muted.copy(alpha = .55f))
                     inner()
                 } }
@@ -969,7 +969,10 @@ private fun StudioScreen(
     exportBusy: Boolean, export: (Boolean, Boolean, Int) -> Unit
 ) {
     var showExportDialog by remember { mutableStateOf(false) }
+    // Artboard transforms are view-only: they never alter exported card geometry.
     var zoom by remember { mutableFloatStateOf(1f) }
+    var panX by remember { mutableFloatStateOf(0f) }
+    var panY by remember { mutableFloatStateOf(0f) }
     var snapEnabled by remember { mutableStateOf(true) }
     var guideVertical by remember { mutableStateOf<Float?>(null) }
     var guideHorizontal by remember { mutableStateOf<Float?>(null) }
@@ -1021,7 +1024,7 @@ private fun StudioScreen(
                         setPanel("Layers"); showMoreMenu = false
                     })
                     DropdownMenuItem(text = { Text("Zoom to fit") }, onClick = {
-                        zoom = 1f; showMoreMenu = false
+                        zoom = 1f; panX = 0f; panY = 0f; showMoreMenu = false
                     })
                 }
             }
@@ -1034,7 +1037,22 @@ private fun StudioScreen(
         }
         HorizontalDivider(color = Border)
         // The canvas is always the focus; tool drawers are closed by default.
-        Box(Modifier.fillMaxWidth().weight(1f).background(Color(0xFFE8EBED))) {
+        Box(Modifier.fillMaxWidth().weight(1f).background(Color(0xFFE8EBED))
+            .pointerInput(Unit) {
+                detectTransformGestures(panZoomLock = true) { _, pan, scale, _ ->
+                    val nextZoom = (zoom * scale).coerceIn(1f, 3f)
+                    if (nextZoom == 1f) {
+                        panX = 0f
+                        panY = 0f
+                    } else {
+                        val maxX = size.width * (nextZoom - 1f) / 2f
+                        val maxY = size.height * (nextZoom - 1f) / 2f
+                        panX = (panX + pan.x).coerceIn(-maxX, maxX)
+                        panY = (panY + pan.y).coerceIn(-maxY, maxY)
+                    }
+                    zoom = nextZoom
+                }
+            }) {
             Canvas(Modifier.matchParentSize()) {
                 // Subtle workspace grid; never included in the actual card export.
                 val pitch = 28.dp.toPx()
@@ -1052,7 +1070,10 @@ private fun StudioScreen(
             PortraitCard(doc, update,
                 Modifier.align(Alignment.Center).fillMaxHeight(.90f).aspectRatio(9f / 16f)
                     .testTag("poetry-card-stage")
-                    .graphicsLayer { scaleX = zoom; scaleY = zoom },
+                    .graphicsLayer {
+                         scaleX = zoom; scaleY = zoom
+                         translationX = panX; translationY = panY
+                     },
                 safeArea, selectedElementId = selectedElementId,
                 selectElement = { selectedElementId = it; if (it == "poem") setPanel("") },
                 editingText = editTextOnCard,
@@ -1641,7 +1662,7 @@ private fun ElementPanel(doc: PoemDoc, update: (PoemDoc) -> Unit) {
             } })
         Row(Modifier.horizontalScroll(rememberScrollState()).padding(top = 6.dp),
             horizontalArrangement = Arrangement.spacedBy(5.dp)) {
-            listOf("All", "Recent", "Favourites", "Love", "Botanical", "Celestial", "Shapes").forEach { item ->
+            (listOf("All", "Recent", "Favourites") + elementEntries.map { it.category }.distinct()).forEach { item ->
                 Text(item, fontSize = 10.sp, color = if (category == item) Color.White else Ink,
                     modifier = Modifier.clip(RoundedCornerShape(20.dp))
                         .background(if (category == item) Ink else Pale)
@@ -1662,12 +1683,12 @@ private fun ElementPanel(doc: PoemDoc, update: (PoemDoc) -> Unit) {
             horizontalArrangement = Arrangement.spacedBy(9.dp)) {
             matches.forEach { entry ->
                 Column(Modifier.width(68.dp).clip(RoundedCornerShape(12.dp))
-                    .background(LocalPoetryAppearance.current.white),
+                    .background(LocalPoetryAppearance.current.white)
+                    .clickable { add(entry) },
                     horizontalAlignment = Alignment.CenterHorizontally) {
-                    VectorOrnament(entry.id, Modifier.size(33.dp).clickable { add(entry) }
-                        .padding(top = 4.dp), Rose)
+                    VectorOrnament(entry.id, Modifier.size(33.dp).padding(top = 4.dp), Rose)
                     Text(entry.name, maxLines = 1, overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.clickable { add(entry) }, fontSize = 9.sp, color = Muted)
+                        fontSize = 9.sp, color = Muted)
                     IconButton(onClick = {
                         favorites = if (entry.id in favorites) favorites - entry.id else favorites + entry.id
                         preferences.edit().putString("favorites", favorites.joinToString(",")).apply()
@@ -1686,8 +1707,6 @@ private fun ElementPanel(doc: PoemDoc, update: (PoemDoc) -> Unit) {
 @Composable
 private fun TextPanel(doc: PoemDoc, update: (PoemDoc) -> Unit, onEdit: () -> Unit) {
     Column(Modifier.verticalScroll(rememberScrollState()).padding(horizontal = 17.dp, vertical = 11.dp)) {
-        Text("Edit the words directly on the canvas", color = Muted, fontSize = 12.sp)
-        Spacer(Modifier.height(8.dp))
         SoftButton("Edit poem", onClick = onEdit, filled = false)
         Spacer(Modifier.height(12.dp))
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -1908,14 +1927,18 @@ private fun LayersPanel(doc: PoemDoc, update: (PoemDoc) -> Unit,
                     Icon(Icons.Default.ArrowDownward, contentDescription = "Send layer backward", tint = Ink,
                         modifier = Modifier.size(25.dp).clickable { shift(item.id, -1) }.padding(4.dp))
                 }
-                var newName by remember(item.id) { mutableStateOf(item.name) }
-                BasicTextField(newName, { newName = it; modify(item.id) { e -> e.copy(name = it) } },
-                    singleLine = true, modifier = Modifier.fillMaxWidth().padding(start = 27.dp, bottom = 3.dp),
-                    textStyle = TextStyle(fontSize = 10.sp, color = Muted),
-                    decorationBox = { inner -> Box {
-                        if (newName.isBlank()) Text("Rename layer (optional)", fontSize = 10.sp, color = Muted)
-                        inner()
-                    } })
+                if (item.id == selectedElementId) {
+                    var newName by remember(item.id) { mutableStateOf(item.name) }
+                    BasicTextField(newName, { newName = it; modify(item.id) { e -> e.copy(name = it) } },
+                        singleLine = true, modifier = Modifier.fillMaxWidth().padding(start = 27.dp, bottom = 5.dp)
+                            .clip(RoundedCornerShape(9.dp)).background(Pale)
+                            .padding(horizontal = 11.dp, vertical = 8.dp),
+                        textStyle = TextStyle(fontSize = 12.sp, color = Ink),
+                        decorationBox = { inner -> Box {
+                            if (newName.isBlank()) Text("Layer name", fontSize = 12.sp, color = Muted)
+                            inner()
+                        } })
+                }
             }
         }
         val selected = doc.card.elements.firstOrNull { it.id == selectedElementId }
@@ -2138,7 +2161,7 @@ private object CardExporter {
                     accent.x * w, accent.y * h, accent.px, accent.color, accent.alpha)
             }
             write(doc.title, 1.18f, 46f)
-            write(doc.body.ifBlank { "Your words belong here.\n\nWrite something that stays." }, 1f, 49f)
+            write(doc.body, 1f, 49f)
             write(if (doc.author.isBlank()) "" else "— ${doc.author}", .60f, 0f)
             s.elements.filterNot { it.hidden }.forEach { el ->
                 val sizePx = 78f * el.size
