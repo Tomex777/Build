@@ -1,4 +1,6 @@
 import assert from 'node:assert/strict'
+import { mkdir, writeFile } from 'node:fs/promises'
+import { join } from 'node:path'
 import { createCanvas, loadImage } from '@napi-rs/canvas'
 import { renderCard } from './utils/artist-edition-renderer.js'
 import {
@@ -61,9 +63,53 @@ async function main() {
     p.push(png.toString('base64').slice(500,1500))
   }
   assert.equal(new Set(p).size,3,'the three preserved card editions must be visually different')
+
+  // Regression from a real WhatsApp screenshot: original SVGs contained
+  // base64 <image> tags, yet Skia rendered three beautifully EMPTY frames.
+  // SVG-string assertions and overall PNG size cannot catch this. Rendering
+  // the exact same card with RED vs BLUE character artwork must affect pixels
+  // *inside the character region* for every edition (not just borders/text).
+  const redCanvas=createCanvas(360,480), blueCanvas=createCanvas(360,480)
+  redCanvas.getContext('2d').fillStyle='#ed2819'
+  redCanvas.getContext('2d').fillRect(0,0,360,480)
+  blueCanvas.getContext('2d').fillStyle='#118dd8'
+  blueCanvas.getContext('2d').fillRect(0,0,360,480)
+  const [redArt,blueArt] = await Promise.all([
+    imageAsset(redCanvas.toBuffer('image/png'),{sourceUrl:found.sourceUrl}),
+    imageAsset(blueCanvas.toBuffer('image/png'),{sourceUrl:found.sourceUrl}),
+  ])
+  for (const edition of EDITIONS) {
+    const redPng=await renderEditionPng(found,edition,redArt,{width:500})
+    const bluePng=await renderEditionPng(found,edition,blueArt,{width:500})
+    const a=await loadImage(redPng), b=await loadImage(bluePng)
+    const first=createCanvas(500,700), second=createCanvas(500,700)
+    first.getContext('2d').drawImage(a,0,0)
+    second.getContext('2d').drawImage(b,0,0)
+    // Central artwork, far from the name, border and rarity typography.
+    const pixelsA=first.getContext('2d').getImageData(170,170,160,190).data
+    const pixelsB=second.getContext('2d').getImageData(170,170,160,190).data
+    let changed=0, vivid=0
+    for(let i=0;i<pixelsA.length;i+=4){
+      const difference=Math.abs(pixelsA[i]-pixelsB[i]) +
+        Math.abs(pixelsA[i+1]-pixelsB[i+1]) + Math.abs(pixelsA[i+2]-pixelsB[i+2])
+      if(difference>65)changed++
+      if(difference>170)vivid++
+    }
+    assert.ok(changed>1200 && vivid>250,
+      edition+' image disappeared beneath the SVG ornaments: '+changed+' changed pixels, '+vivid+' vivid pixels')
+    if (process.env.CARD_PREVIEW_DIR) {
+      await mkdir(process.env.CARD_PREVIEW_DIR,{recursive:true})
+      await writeFile(join(process.env.CARD_PREVIEW_DIR,edition+'-verified-artwork.png'),redPng)
+    }
+  }
+  // Also verify the actual full-size production path, not only thumbnails.
+  const full=await renderEditionPng(found,'tidelight',redArt)
+  assert.equal(full.readUInt32BE(16),3000)
+  assert.equal(full.readUInt32BE(20),4200)
+
   const back = await makeEditionSvg(found,'nocturne',artwork,{side:'back'})
   assert.match(back,/Source artwork/)
   assert.throws(()=>renderCard({},artwork),/Missing/)
-  console.log('NIGHT collectible card tests passed: parse, mock lookup, archival templates, three rendered SVG/PNG cards, reverse and dimensions.')
+  console.log('NIGHT collectible card tests passed: parse, mock lookup, archival templates, three rendered SVG/PNG cards, nonempty embedded artwork, reverse and dimensions.')
 }
 main().catch(err=>{console.error(err);process.exitCode=1})
