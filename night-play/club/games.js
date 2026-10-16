@@ -532,7 +532,7 @@ function whotSortExpanded(order){
  nodes.sort((a,b)=>{
   const i=Number(a.dataset.card),j=Number(b.dataset.card);
   if(order==='original')return i-j;
-  const x=state.whot.hands[i],y=state.whot.hands[j];
+  const x=state.whot.hands[0][i],y=state.whot.hands[0][j];
   return order==='number'?x.n-y.n||x.s-y.s||i-j:x.s-y.s||x.n-y.n||i-j;
  });
  gallery.replaceChildren(...nodes);
