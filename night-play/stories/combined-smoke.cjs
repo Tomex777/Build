@@ -53,15 +53,20 @@ const server=http.createServer((req,res)=>{
     assert.ok(Math.abs(rectBefore.y-rectAfter.y)<1,'full pre-layout avoids jarring vertical shifts');
     await page.locator('#story').click();
     assert.equal(await page.locator('.choice').count(),2,'choices appear immediately on tap');
+    await page.waitForFunction(()=>{
+      const el=document.querySelector('.choices');
+      return el&&!el.classList.contains('pending')&&parseFloat(getComputedStyle(el).opacity)>.95;
+    },null,{timeout:1500});
+    assert.equal(await page.locator('.choice:visible').count(),2,'choices are actually visible, not only present in the DOM');
     if(width===390&&process.env.NIGHT_STORY_VISUAL_QA==='1'){
       const shot=await page.screenshot({type:'jpeg',quality:46,fullPage:true});
       console.log('STORY_FULL_SCENE_JPEG_BASE64='+shot.toString('base64'));
     }
     await page.locator('.choice').first().click();
     assert.match(await page.locator('#story').innerText(),/You lift the phone to your ear/,'branch choice works');
-    await page.locator('#readingOptions summary').click();
+    await page.locator('#readerOptions summary').click();
     await page.getByRole('button',{name:'Restart story'}).click();
-    await page.locator('#readingOptions summary').click();
+    await page.locator('#readerOptions summary').click();
     await page.locator('#pace').selectOption('instant');
     assert.equal(await page.locator('#story p').count(),5,'reading speed instant works');
     const size=await page.evaluate(()=>({scroll:document.documentElement.scrollWidth,width:innerWidth}));
