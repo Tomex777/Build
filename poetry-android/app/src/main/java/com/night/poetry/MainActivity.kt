@@ -4,6 +4,10 @@ import android.content.ContentValues
 import android.content.Context
 import android.app.Activity
 import android.content.Intent
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.documentfile.provider.DocumentFile
 import android.graphics.Bitmap
 import android.graphics.Canvas as AndroidCanvas
 import android.graphics.LinearGradient
@@ -306,6 +310,8 @@ private fun templateAccents(decor: String, foreground: Int): List<TemplateAccent
         )
     }
 }
+data class PoetryBackup(val poems: List<PoemDoc>, val backgrounds: List<SavedBackground>)
+
 /** Private offline JSON store; slides are persisted with their own styles and content overrides. */
 private class PoemStore(private val context: Context) {
     private val file get() = context.getFileStreamPath("poetry-library.json")
@@ -353,9 +359,7 @@ private class PoemStore(private val context: Context) {
             })
         } })
     }
-    fun read(): List<PoemDoc> = try {
-        val content = try { atomicFile.openRead().bufferedReader().use { it.readText() } }
-        catch (_: java.io.FileNotFoundException) { "[]" }
+    private fun decode(content: String): List<PoemDoc> {
         val arr = JSONArray(content)
         (0 until arr.length()).map { i ->
             val d = arr.getJSONObject(i)
@@ -377,6 +381,11 @@ private class PoemStore(private val context: Context) {
                 title = d.optString("title"), body = d.optString("body"), author = d.optString("author"),
                 updated = d.optLong("updated", System.currentTimeMillis()), card = oldCard, slides = slides)
         }
+    }
+    fun read(): List<PoemDoc> = try {
+        val content = try { atomicFile.openRead().bufferedReader().use { it.readText() } }
+        catch (_: java.io.FileNotFoundException) { "[]" }
+        decode(content)
     } catch (failure: Exception) {
         // Never silently overwrite an unreadable poem library without preserving its bytes.
         // The recovered copy stays private in app storage for a future import/recovery screen.
@@ -392,7 +401,7 @@ private class PoemStore(private val context: Context) {
             Toast.LENGTH_LONG).show()
         emptyList()
     }
-    @Synchronized fun write(poems: List<PoemDoc>) {
+    private fun encode(poems: List<PoemDoc>): JSONArray {
         val arr = JSONArray()
         poems.forEach { p ->
             arr.put(JSONObject().apply {
@@ -408,9 +417,51 @@ private class PoemStore(private val context: Context) {
                 } })
             })
         }
+        return arr
+    }
+
+    /** Portable, offline backup: every poem, card, slide and saved background. */
+    fun backupBytes(poems: List<PoemDoc>, backgrounds: List<SavedBackground>): ByteArray =
+        JSONObject().apply {
+            put("format", "poetry-offline-backup")
+            put("version", 1)
+            put("poems", encode(poems))
+            put("backgrounds", JSONArray().also { array -> backgrounds.forEach { bg ->
+                array.put(JSONObject().apply {
+                    put("first", bg.first); put("second", bg.second); put("texture", bg.texture)
+                })
+            } })
+        }.toString(2).toByteArray(Charsets.UTF_8)
+
+    /** Validate before touching disk or UI state. A corrupt file never erases originals. */
+    fun parseBackup(bytes: ByteArray): PoetryBackup {
+        require(bytes.size in 2..(25 * 1024 * 1024)) { "Backup must be a valid file smaller than 25 MB" }
+        val json = JSONObject(bytes.toString(Charsets.UTF_8))
+        require(json.optString("format") == "poetry-offline-backup" && json.optInt("version") == 1) {
+            "Not a supported Poetry backup"
+        }
+        val items = json.getJSONArray("poems")
+        require(items.length() <= 10000) { "Backup contains too many poems" }
+        for (i in 0 until items.length()) {
+            val item = items.getJSONObject(i)
+            require(item.has("id") && item.has("title") && item.has("body") && item.has("slides")) {
+                "Backup contains an incomplete poem"
+            }
+        }
+        val backgrounds = json.optJSONArray("backgrounds") ?: JSONArray()
+        require(backgrounds.length() <= 500) { "Backup contains too many backgrounds" }
+        return PoetryBackup(decode(items.toString()), (0 until backgrounds.length()).map { i ->
+            val item = backgrounds.getJSONObject(i)
+            SavedBackground(item.getInt("first"), item.getInt("second"),
+                item.optString("texture", "None"))
+        })
+    }
+
+    @Synchronized fun write(poems: List<PoemDoc>) {
+        val bytes = encode(poems).toString().toByteArray(Charsets.UTF_8)
         val output = atomicFile.startWrite()
         try {
-            output.write(arr.toString().toByteArray(Charsets.UTF_8))
+            output.write(bytes)
             atomicFile.finishWrite(output)
         } catch (failure: Exception) {
             atomicFile.failWrite(output)
@@ -475,6 +526,89 @@ private fun PoetryApplication() {
     var templateReturn by remember { mutableStateOf("home") }
     var exporting by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
+    var pendingRestore by remember { mutableStateOf<PoetryBackup?>(null) }
+    var pendingFileSave by remember { mutableStateOf<Pair<PoemDoc, Int>?>(null) }
+    var pendingFolderSave by remember { mutableStateOf<Pair<List<PoemDoc>, Int>?>(null) }
+
+    val createBackup = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument("application/json")
+    ) { uri ->
+        if (uri != null) {
+            val snapshot = poems.toList()
+            val backgrounds = savedBackgrounds.toList()
+            scope.launch {
+                val result = withContext(Dispatchers.IO) { runCatching {
+                    val bytes = repository.backupBytes(snapshot, backgrounds)
+                    context.contentResolver.openOutputStream(uri, "w")?.use { it.write(bytes) }
+                        ?: error("Unable to write backup")
+                } }
+                Toast.makeText(context, if (result.isSuccess) "Backup saved to Files"
+                    else "Backup failed: ${result.exceptionOrNull()?.message}", Toast.LENGTH_LONG).show()
+            }
+        }
+    }
+    val openBackup = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        if (uri != null) scope.launch {
+            val result = withContext(Dispatchers.IO) { runCatching {
+                val bytes = context.contentResolver.openInputStream(uri)?.use { stream ->
+                    stream.readBytes()
+                } ?: error("Cannot read the selected file")
+                repository.parseBackup(bytes)
+            } }
+            result.onSuccess { pendingRestore = it }
+                .onFailure { Toast.makeText(context,
+                    "Cannot restore backup: ${it.message}", Toast.LENGTH_LONG).show() }
+        }
+    }
+
+    // Android 8–9 use the system file picker rather than hiding saved images
+    // inside private app storage. No storage permission or Internet is needed.
+    val saveSingleToFiles = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument("image/png")
+    ) { uri ->
+        val request = pendingFileSave
+        pendingFileSave = null
+        if (uri != null && request != null) scope.launch {
+            val result = withContext(Dispatchers.IO) { runCatching {
+                CardExporter.export(context, request.first, request.second, uri)
+            } }
+            Toast.makeText(context, if (result.isSuccess) "Card saved to your chosen folder"
+                else "Save failed: ${result.exceptionOrNull()?.message}", Toast.LENGTH_LONG).show()
+        }
+    }
+    val saveSlidesToFolder = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocumentTree()
+    ) { tree ->
+        val request = pendingFolderSave
+        pendingFolderSave = null
+        if (tree != null && request != null) scope.launch {
+            val result = withContext(Dispatchers.IO) { runCatching {
+                val directory = DocumentFile.fromTreeUri(context, tree)
+                    ?: error("Cannot open this folder")
+                val created = mutableListOf<DocumentFile>()
+                try {
+                    request.first.forEachIndexed { index, doc ->
+                        val filename = "poetry-${index + 1}-${System.currentTimeMillis()}.png"
+                        val file = directory.createFile("image/png", filename)
+                            ?: error("Cannot create an image in the selected folder")
+                        created += file
+                        CardExporter.export(context, doc, request.second, file.uri)
+                    }
+                } catch (failure: Exception) {
+                    created.forEach { runCatching { it.delete() } }
+                    throw failure
+                }
+                created.size
+            } }
+            Toast.makeText(context, result.fold(
+                onSuccess = { "Saved $it card(s) to your chosen folder" },
+                onFailure = { "Save failed: ${it.message}" }
+            ), Toast.LENGTH_LONG).show()
+        }
+    }
+
     val lifecycleOwner = LocalLifecycleOwner.current
     // A brief persistence debounce prevents a blocking disk write for each drag frame.
     // A lifecycle flush protects edits when the app moves into the background.
@@ -662,6 +796,31 @@ private fun PoetryApplication() {
         page = when (page) { "studio" -> "write"; "maker" -> "studio"; "templates" -> templateReturn; else -> "home" }
     }
 
+    pendingRestore?.let { backup ->
+        AlertDialog(
+            onDismissRequest = { pendingRestore = null },
+            title = { Text("Restore this Poetry backup?") },
+            text = { Text("Replace ${poems.size} poems on this device with ${backup.poems.size} backed-up poems? This cannot be undone. Saved custom backgrounds will also be restored.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    runCatching {
+                        repository.write(backup.poems)
+                        bgLibrary.write(backup.backgrounds)
+                    }.onSuccess {
+                        poems.clear(); poems.addAll(backup.poems)
+                        savedBackgrounds.clear(); savedBackgrounds.addAll(backup.backgrounds)
+                        selectedId = null; page = "home"; pendingRestore = null
+                        scheduledWrite[0]?.cancel()
+                        Toast.makeText(context, "Backup restored", Toast.LENGTH_SHORT).show()
+                    }.onFailure {
+                        Toast.makeText(context, "Restore failed: ${it.message}", Toast.LENGTH_LONG).show()
+                    }
+                }) { Text("Replace my library") }
+            },
+            dismissButton = { TextButton(onClick = { pendingRestore = null }) { Text("Cancel") } }
+        )
+    }
+
     CompositionLocalProvider(LocalPoetryAppearance provides appearance) {
         val scheme = if (appearance.dark) darkColorScheme(
             primary = appearance.accent, onPrimary = appearance.paper,
@@ -711,7 +870,6 @@ private fun PoetryApplication() {
                         exportBusy = exporting,
                         export = { share, all, pixels ->
                             if (!exporting) {
-                                exporting = true
                                 val original = active()
                                 val exportDocs = if (all) original.slides.map { sl -> original.copy(
                                     title = sl.titleOverride ?: original.title,
@@ -719,6 +877,16 @@ private fun PoetryApplication() {
                                     author = sl.authorOverride ?: original.author,
                                     card = sl.card
                                 ) } else listOf(displayDoc)
+                                if (!share && Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
+                                    if (all && exportDocs.size > 1) {
+                                        pendingFolderSave = exportDocs to pixels
+                                        saveSlidesToFolder.launch(null)
+                                    } else {
+                                        pendingFileSave = exportDocs.first() to pixels
+                                        saveSingleToFiles.launch("poetry-${System.currentTimeMillis()}.png")
+                                    }
+                                } else {
+                                exporting = true
                                 scope.launch {
                                     val result = withContext(Dispatchers.IO) {
                                         runCatching {
@@ -751,6 +919,7 @@ private fun PoetryApplication() {
                                         Toast.makeText(context, "Export failed: ${e.message}", Toast.LENGTH_LONG).show()
                                     }
                                 }
+                                }
                             }
                         }
                     )
@@ -765,7 +934,9 @@ private fun PoetryApplication() {
                 "settings" -> SettingsScreen(
                     back = { page = "home" }, count = poems.size,
                     currentTheme = appearanceId,
-                    onTheme = { id -> appearanceId = id; appearancePrefs.edit().putString("theme", id).apply() }
+                    onTheme = { id -> appearanceId = id; appearancePrefs.edit().putString("theme", id).apply() },
+                    backup = { createBackup.launch("poetry-backup-${System.currentTimeMillis()}.json") },
+                    restore = { openBackup.launch(arrayOf("application/json", "text/plain", "application/octet-stream")) }
                 )
             }
             }
@@ -2089,7 +2260,8 @@ private fun LayersPanel(doc: PoemDoc, update: (PoemDoc) -> Unit,
     }
 }
 @Composable
-private fun SettingsScreen(back: () -> Unit, count: Int, currentTheme: String, onTheme: (String) -> Unit) {
+private fun SettingsScreen(back: () -> Unit, count: Int, currentTheme: String, onTheme: (String) -> Unit,
+    backup: () -> Unit, restore: () -> Unit) {
     Column(Modifier.fillMaxSize()) {
         Row(Modifier.padding(18.dp), verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = back) { Icon(Icons.Default.ArrowBack, contentDescription = "Back") }
@@ -2140,6 +2312,19 @@ private fun SettingsScreen(back: () -> Unit, count: Int, currentTheme: String, o
                 fontSize = 13.sp, color = Muted, lineHeight = 20.sp)
             Spacer(Modifier.height(12.dp))
             Text("Offline writing · portrait PNG export", fontSize = 13.sp, color = Ink)
+            Spacer(Modifier.height(22.dp))
+            Heading("Keep your writing safe", 24.sp)
+            Spacer(Modifier.height(8.dp))
+            Text("Export a portable copy of your poems, designs, slides and saved backgrounds. Works entirely offline.",
+                fontSize = 13.sp, color = Muted, lineHeight = 19.sp)
+            Spacer(Modifier.height(12.dp))
+            SoftButton("Back up my library", onClick = backup, modifier = Modifier.fillMaxWidth())
+            Spacer(Modifier.height(9.dp))
+            SoftButton("Restore from backup", onClick = restore, filled = false,
+                modifier = Modifier.fillMaxWidth())
+            Spacer(Modifier.height(10.dp))
+            Text("Restoring asks for confirmation before replacing anything.", color = Muted,
+                fontSize = 11.sp)
         }
     }
 }
@@ -2201,7 +2386,8 @@ private object CardExporter {
         drawable.draw(canvas)
     }
 
-    fun export(context: Context, doc: PoemDoc, outputWidth: Int = 1080): android.net.Uri {
+    fun export(context: Context, doc: PoemDoc, outputWidth: Int = 1080,
+        destination: Uri? = null): Uri {
         require(outputWidth == 1080 || outputWidth == 2160) { "Unsupported export resolution" }
         val s = doc.card
         val w = 1080; val h = 1920
@@ -2267,6 +2453,13 @@ private object CardExporter {
                 drawVector(context, canvas, el.assetId,
                     el.x * w, el.y * h, sizePx, el.tint ?: s.textColor, el.opacity)
                 canvas.restore()
+            }
+            // A SAF-picked destination saves directly where the user chose, including API 26.
+            if (destination != null) {
+                context.contentResolver.openOutputStream(destination, "w")?.use { stream ->
+                    check(bmp.compress(Bitmap.CompressFormat.PNG, 100, stream)) { "PNG encoding failed" }
+                } ?: error("Cannot write to chosen destination")
+                return destination
             }
             val name = "poetry-${System.currentTimeMillis()}-${UUID.randomUUID().toString().take(7)}.png"
             // Android 10+ can save to Gallery without broad storage permissions.
