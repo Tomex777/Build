@@ -1274,8 +1274,8 @@ private fun PoetryRangeControl(
     value: Float,
     valueRange: ClosedFloatingPointRange<Float>,
     valueText: String,
-    onValueChange: (Float) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onValueChange: (Float) -> Unit
 ) {
     val accent = Rose
     val ink = Ink
