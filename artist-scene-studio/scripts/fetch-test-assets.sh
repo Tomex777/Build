@@ -51,18 +51,21 @@ fi
 printf '%s\n' "Verified CC0 color-cube prop starter: $color_cube_file"
 
 python3 "$project_dir/scripts/build-humanoid.py"
-# Rigged stylized CC0 character from Quaternius Universal Base Characters.
-# The reviewed 741KB glTF-to-GLB packaging is committed to programasweights/avatar.
-# Verify Git blob SHA1: fail closed if its upstream main branch ever changes.
+# GENUINE 3D anime avatar: official VRoid Studio beta HairSample_Male model.
+# The manufacturer (pixiv) designates this exact beta model CC0:
+# https://vroid.pixiv.help/hc/en-us/articles/4402614652569
+# Source is an unmodified VRM/glTF-binary at a pinned upstream Git commit.
+# VRM 0.0 is structurally a GLB, so Filament reads the geometry and rig as glTF.
+# No VRoid web service, account or payment required. Metadata is preserved.
 anime_file="$asset_dir/mise_anime.glb"
-anime_blob_sha1="b3fd79533fdb9fcedd077744f7e120920eb6cc97"
-anime_url="https://raw.githubusercontent.com/programasweights/avatar/main/public/assets/character.glb"
+anime_blob_sha1="46e8c583ce5df3b8ee167141b59ba3ad583a2687"
+anime_url="https://raw.githubusercontent.com/madjin/vrm-samples/e16eb187100149a315ad92c3c9968f1d5baa6c7d/vroid/beta/HairSample_Male.vrm"
 if [ ! -f "$anime_file" ] || [ "$(git hash-object "$anime_file")" != "$anime_blob_sha1" ]; then
   temp_anime="$anime_file.tmp"
   trap 'rm -f "$temp_anime"' EXIT HUP INT TERM
   curl --fail --location --retry 3 --output "$temp_anime" "$anime_url"
   [ "$(git hash-object "$temp_anime")" = "$anime_blob_sha1" ] || {
-    echo "Quaternius CC0 stylized GLB checksum does not match pinned source" >&2
+    echo "VRoid CC0 anime model checksum does not match pinned source" >&2
     exit 1
   }
   mv "$temp_anime" "$anime_file"
