@@ -23,6 +23,14 @@ internal const val RUNTIME_LOG_TAG = "MiseRuntime"
 class MainActivity : ComponentActivity() {
     private lateinit var store: SceneProjectStore
 
+    /** Android may reclaim the source-byte cache; native Filament resources follow the scene. */
+    override fun onTrimMemory(level: Int) {
+        super.onTrimMemory(level)
+        if (level >= android.content.ComponentCallbacks2.TRIM_MEMORY_RUNNING_LOW) {
+            MiseModelBytes.trim()
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         WindowCompat.setDecorFitsSystemWindows(window, false)
