@@ -117,7 +117,7 @@ jobs:
         with:
           name: poetry-api${{ matrix.api-level }}-emulator-proof
           path: |
-            poetry-android/poetry-api*-home.png
+            poetry-android/poetry-api*-*.png
             poetry-android/poetry-api*-logcat.txt
             poetry-android/poetry-api*-instrumentation.txt
             poetry-android/app/build/reports/androidTests/
