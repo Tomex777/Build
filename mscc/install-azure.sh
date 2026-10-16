@@ -395,6 +395,9 @@ echo
 echo ">>> Bootstrapping Cortex Cloud Agent (one-time)..."
 bash "$RELEASE/tools/azure-cortex-cloud-bootstrap.sh"
 
+echo ">>> Connecting NIGHT Play through the existing HTTPS ingress..."
+bash "$RELEASE/tools/install-night-play-ingress.sh"
+
 ACTIVATED=0
 echo "=== MSCC INSTALL COMPLETE ==="
 echo "Release: $RELEASE"

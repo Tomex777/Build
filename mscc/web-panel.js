@@ -75,7 +75,7 @@ function ip(req) {
   return req.socket.remoteAddress || 'unknown'
 }
 
-export function startWebPanel({ port, host = '127.0.0.1', password, sessionSecret, localControlPort = 8788, getState, getActivity = async () => [], getAccountDiagnostics = async () => null, pairAccount, reconnectAccount, disconnectAccount, removeAccount, repairAccount, createAccount, renameAccount, assignAccountProfile, setSetting, setDestination, reloadCommands, reloadModule, getCloudDashboard = async () => ({ provider:'MEGA', configured:false, targets:[] }), getCloudMounts = async () => [], verifyCloudFolder = async () => ({ success:false }) }) {
+export function startWebPanel({ port, host = '127.0.0.1', password, sessionSecret, localControlPort = 8788, nightPlayHandler = null, getState, getActivity = async () => [], getAccountDiagnostics = async () => null, pairAccount, reconnectAccount, disconnectAccount, removeAccount, repairAccount, createAccount, renameAccount, assignAccountProfile, setSetting, setDestination, reloadCommands, reloadModule, getCloudDashboard = async () => ({ provider:'MEGA', configured:false, targets:[] }), getCloudMounts = async () => [], verifyCloudFolder = async () => ({ success:false }) }) {
   const configured = Boolean(password && password !== 'change-this-password' && password !== 'change-me')
   const secret = createHash('sha256').update(`${sessionSecret || ''}\0${password || ''}\0mscc`).digest()
   const token = createHmac('sha256', secret).update('admin').digest('base64url')
@@ -93,6 +93,7 @@ export function startWebPanel({ port, host = '127.0.0.1', password, sessionSecre
   const server = createServer(async (req, res) => {
     const url = new URL(req.url || '/', 'http://mscc.local')
     try {
+      if (url.pathname === '/api/night-play/rpc' && nightPlayHandler) return await nightPlayHandler(req, res)
       if (req.method === 'GET' && url.pathname === '/health') {
         return sendJson(res, 200, { ok: true, service: 'mscc', panelConfigured: configured })
       }

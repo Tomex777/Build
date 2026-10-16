@@ -1,10 +1,10 @@
 {
-  "releaseId": "night-2026-10-16-10",
+  "releaseId": "night-2026-10-16-11",
   "baseBranch": "mscc-azure",
-  "baseCommit": "57e231de5c0ed746e9d73d10d085b365d08ba65a",
+  "baseCommit": "16a98339e0e0a423f840529ea42ec398091859a5",
   "pullRequests": [
-    295
+    297
   ],
-  "carriedForwardRelease": "night-2026-10-16-09",
-  "notes": "User requested to push NIGHT's public social post downloader for WhatsApp use. One reviewed social downloader PR #295 only. Includes .dl and aliases for TikTok, Instagram, Facebook, X, Reddit plus Pinterest, Threads and Vimeo; public posts only, optional --doc delivery, bounded media/download sizes, optional gallery-dl photo carousels and existing yt-dlp for video. No additional unrelated feature PRs included. Require exact-head integrated regression/validation, one mscc-production protected approval, actual Azure success + live WhatsApp download tests. Availability varies by platform due to bot blocking; fake-extractor tests do not establish live service availability."
+  "carriedForwardRelease": "night-2026-10-16-10",
+  "notes": "Connect the established NIGHT Play combined website to NIGHT/MSCC using private .minigames link CODE verification. Include only PR #297 on the current production source: persistent profiles, PN/LID sender identity mapping, hashed browser sessions, expiry/replay/throttle protections, signed Vercel requests and the existing Azure HTTPS ingress. Preserve existing WhatsApp accounts, games and device-local web game saves. Require exact integration-head CI, one mscc-production approval, Azure TLS/health smoke checks and final real private WhatsApp linking verification."
 }
