@@ -2,6 +2,7 @@ import { spawnSync } from 'node:child_process'
 import animePahe from './sources/anime/animepahe.js'
 import animeSogo from './sources/anime/animesogo.js'
 import animeOnsen from './sources/anime/animeonsen.js'
+import { validatePlayableMedia } from './sources/anime/_delivery.js'
 
 const SOURCES = {
   animepahe:animePahe,
@@ -54,40 +55,18 @@ async function verifyDeliveredMedia(payload) {
   must(target, `${source.name} runtime delivery returned no media target`)
   const headers = typeof media === 'object' && media?.headers ? media.headers : {}
   const remote = /^https?:\/\//i.test(String(target))
+  const proof = await validatePlayableMedia(String(target), { headers })
   const transportArgs = remote ? ffHeaders(headers) : []
-
-  const probe = run('ffprobe', [
-    '-v','error',
-    ...transportArgs,
-    '-show_entries','format=format_name,duration,bit_rate:stream=index,codec_type,codec_name,width,height',
-    '-of','json',
-    target,
-  ], 120000)
-  must(probe.ok, `${source.name} runtime ffprobe failed: ${probe.stderr}`)
-
-  let json = {}
-  try { json = JSON.parse(probe.stdout) } catch {}
-  must(
-    Array.isArray(json?.streams) && json.streams.some(row => row.codec_type === 'video'),
-    `${source.name} runtime delivery returned no video stream`,
-  )
-
   const decode = run('ffmpeg', [
     '-v','error',
     ...transportArgs,
-    '-i',target,
+    '-i',String(target),
     '-t','5',
     '-map','0:v:0',
     '-f','null','-',
   ], 120000)
   must(decode.ok, `${source.name} runtime delivery decode failed: ${decode.stderr}`)
-
-  return {
-    targetKind:remote ? 'remote' : 'local',
-    format:json.format || {},
-    streams:json.streams || [],
-    decodeSeconds:5,
-  }
+  return { ...proof, decodeSeconds:5 }
 }
 
 async function resolve(episode) {
@@ -137,7 +116,11 @@ const stream = await resolve(episode)
 must(stream?.url && /^https?:\/\//i.test(stream.url), `${source.name} returned no stream URL`)
 
 let probeJson = {}
-if (!stream.torBound) {
+// AnimeSogo may expose a broken/preview server before a playable server. Its
+// download action now qualifies each server in order, so don't prematurely fail
+// this integration run by probing only the first advertised URL.
+const runtimeQualifiedStream = Boolean(stream.torBound || id === 'animesogo')
+if (!runtimeQualifiedStream) {
   const probe = run('ffprobe', [
     '-v','error',
     ...ffHeaders(stream.headers || {}),
@@ -180,7 +163,7 @@ console.log(JSON.stringify({
   streamHost:new URL(stream.url).hostname,
   streamPath:new URL(stream.url).pathname,
   elapsedMs:Math.round(performance.now() - began),
-  ffprobe:stream.torBound ? {
+  ffprobe:runtimeQualifiedStream ? {
     transport:'runtime-local-after-tor',
     format:runtimeProof?.format || {},
     streams:runtimeProof?.streams || [],
