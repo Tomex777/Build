@@ -211,7 +211,9 @@ class MainActivity : ComponentActivity() {
             .joinToString("") { "%02x".format(it.toInt() and 0xff) }
         val directory = java.io.File(filesDir, "imported-books/$key").apply { mkdirs() }
         val stored = java.io.File(directory, safeName)
-        if (stored.isFile && stored.length() > 0L) return@withContext Uri.fromFile(stored)
+        // A picked document can keep the same content URI after its contents
+        // are replaced or repaired. Always refresh the private mirror on an
+        // explicit import/relink; a nonempty older copy may be stale or corrupt.
 
         val staging = java.io.File.createTempFile("yomi-import-", ".tmp", directory)
         try {
@@ -234,7 +236,15 @@ class MainActivity : ComponentActivity() {
                 }
             }
             if (!staging.renameTo(stored)) {
-                staging.copyTo(stored, overwrite = true)
+                // Same-directory rename normally replaces the old copy
+                // atomically. On providers/filesystems where rename fails,
+                // move the fully copied staging file with replacement instead
+                // of writing a partial archive over the previous good copy.
+                java.nio.file.Files.move(
+                    staging.toPath(),
+                    stored.toPath(),
+                    java.nio.file.StandardCopyOption.REPLACE_EXISTING,
+                )
             }
             Log.i(STARTUP_TAG, "external-archive-copied-to-private-library bytes=${stored.length()}")
             Uri.fromFile(stored)
@@ -593,37 +603,38 @@ class MainActivity : ComponentActivity() {
             pendingRelink = null
             if (uri != null && item != null) {
                 scope.launch {
-                    when (val scan = withContext(Dispatchers.IO) { inspectArchive(uri) }) {
-                        is ArchiveScanResult.Success -> {
-                            runCatching {
-                                contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                            }
-                            val title = queryDisplayName(uri) ?: item.title
-                            // Relink must be as resilient as a first import:
-                            // archives sometimes include a corrupt front page.
-                            val coverUri = withContext(Dispatchers.IO) {
-                                scan.catalog.pages.take(8).firstNotNullOfOrNull { page ->
-                                    createCoverThumbnail(uri, page.name, item.id.value)
+                    try {
+                        val title = runCatching { queryDisplayName(uri) }.getOrNull() ?: item.title
+                        // Repair must use the same durable, indexed archive
+                        // path as first import. Keeping the original content://
+                        // here previously lost the speed and lifetime guarantees.
+                        val storedUri = retainExternalArchive(uri)
+                        when (val scan = withContext(Dispatchers.IO) { inspectArchive(storedUri) }) {
+                            is ArchiveScanResult.Success -> {
+                                val coverUri = withContext(Dispatchers.IO) {
+                                    scan.catalog.pages.take(8).firstNotNullOfOrNull { page ->
+                                        createCoverThumbnail(storedUri, page.name, item.id.value)
+                                    }
                                 }
-                            }
-                            runCatching {
                                 libraryStore.relink(
                                     id = item.id,
-                                    uri = uri,
+                                    uri = storedUri,
                                     title = title,
                                     pageCount = scan.catalog.pages.size,
                                     coverUri = coverUri,
                                 )
-                            }.onSuccess {
                                 library = libraryStore.list()
                                 importError = null
-                            }.onFailure {
-                                importError = "Yomi couldn’t reconnect this book. Try choosing it again."
+                            }
+                            is ArchiveScanResult.Rejected -> {
+                                importError = "Choose the CBZ or ZIP file for this book."
                             }
                         }
-                        is ArchiveScanResult.Rejected -> {
-                            importError = "Choose the CBZ or ZIP file for this book."
-                        }
+                    } catch (error: CancellationException) {
+                        throw error
+                    } catch (error: Exception) {
+                        Log.e(STARTUP_TAG, "archive-relink-failed title=${item.title}", error)
+                        importError = "Yomi couldn’t reconnect this book. Try choosing it again."
                     }
                 }
             }
@@ -687,6 +698,10 @@ class MainActivity : ComponentActivity() {
         val folders = sortedLibrary.filter { it.locationType == LibraryLocationType.TREE }
         val currentBook = recent.firstOrNull { it.progress < 1.0 }
         val visibleLibrary = sortedLibrary.filter { it.title.contains(searchQuery.trim(), ignoreCase = true) }
+
+        LaunchedEffect(destination) {
+            Log.i(STARTUP_TAG, "home-destination=${destination.name}")
+        }
 
         BackHandler(enabled = destination == HomeDestination.SEARCH) {
             destination = previousDestination
