@@ -36,12 +36,42 @@ class AnimePoseStudyInstrumentedTest {
             }
         }
 
+        // Confirm a genuine visible GREEN 3D model, not the green axis gizmo
+        // (the latter has far too few pixels). Sampling avoids decoding full frames
+        // repeatedly during slow Android 16 emulator shader compilation.
+        fun visibleStylizedMeshPixels(file: File): Int {
+            val bitmap = BitmapFactory.decodeFile(file.path) ?: return 0
+            var count = 0
+            for (y in bitmap.height * 30 / 100 until bitmap.height * 78 / 100 step 2) {
+                for (x in bitmap.width * 17 / 100 until bitmap.width * 83 / 100 step 2) {
+                    val pixel = bitmap.getPixel(x, y)
+                    val red = Color.red(pixel)
+                    val green = Color.green(pixel)
+                    val blue = Color.blue(pixel)
+                    if (green > 65 && green < 235 && green > red + 18 && green > blue + 9) count++
+                }
+            }
+            bitmap.recycle()
+            return count
+        }
+
         fun screenshot(stage: String): File {
-            // After rig discovery, wait for a real surface frame, not just composed UI.
-            SystemClock.sleep(3_500)
             val image = File(proof, "anime-$stage.png")
-            assertTrue("Could not capture the $stage screenshot", device.takeScreenshot(image))
-            return image
+            val isStylizedHero = stage == "posed" || stage == "neutral"
+            val deadline = SystemClock.uptimeMillis() + if (isStylizedHero) 35_000 else 3_500
+            var visiblePixels = 0
+            do {
+                SystemClock.sleep(if (isStylizedHero) 1_350 else 3_500)
+                assertTrue("Could not capture the $stage screenshot", device.takeScreenshot(image))
+                if (!isStylizedHero) return image
+                visiblePixels = visibleStylizedMeshPixels(image)
+                if (visiblePixels >= 350) return image
+            } while (SystemClock.uptimeMillis() < deadline)
+            throw AssertionError(
+                "Real $stage stylized mesh never became visible on API " +
+                    android.os.Build.VERSION.SDK_INT + " ($visiblePixels model-colored pixels). " +
+                    "Screenshot saved: ${image.name}",
+            )
         }
 
         fun waitForRig() {
