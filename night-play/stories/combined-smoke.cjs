@@ -86,6 +86,44 @@ const server=http.createServer((req,res)=>{
     assert.equal(errors.length,0,'no page JavaScript exceptions: '+errors.join('; '));
     await page.close();
   }
+  const script=story.match(/<script>([\s\S]*?)<\/script>/)[1];
+  const scenes=JSON.parse(script.slice(script.indexOf('const scenes=')+13,script.indexOf(';\n\nconst reduced=')));
+  const common=['start','answer','still','notebook','imani'];
+  const routes=[
+    [...common,'trust','tram','honest','museum','leila','bell','research','plan','descent','exchange','mother','solution','appeal','scales','testimony','release','hold','help','dawn','warning','home'],
+    [...common,'alone','tram','lie','museum','bell','child','plan','descent','exchange','voss','mother','solution','fight','bell_route','break','severed'],
+    [...common,'alone','tram','honest','museum','leila','bell','research','plan','descent','exchange','mother','sacrifice_offer','solution','appeal','scales','burden','keeper']
+  ];
+  for(const route of routes){
+    const page=await browser.newPage({viewport:{width:390,height:844}});
+    const errors=[];page.on('pageerror',e=>errors.push(e.message));
+    await page.addInitScript(()=>localStorage.setItem('night-play-fiction-reading-speed','instant'));
+    await page.goto(origin+'/stories/');
+    let flags={};
+    for(let i=0;i<route.length-1;i++){
+      const current=route[i],next=route[i+1];
+      const option=scenes[current].options.find(o=>o[1]===next&&(!o[3]||flags[o[3]]));
+      assert.ok(option,'test route has an available choice '+current+' → '+next);
+      if(current==='hold'){
+        await page.reload();
+        assert.match(await page.locator('#story').innerText(),/You catch the bell/,'resume current scene');
+        assert.equal(await page.getByRole('button',{name:/Call for the help you accepted/}).count(),1,'ally choice survives reload');
+      }
+      await page.locator('.choice').filter({has:page.locator('.choice-label',{hasText:option[0]})}).click();
+      flags={...flags,...option[2]};
+      assert.ok((await page.locator('#story').innerText()).includes(scenes[next].beats[0].text),'scene loads: '+next);
+      assert.ok(await page.evaluate(()=>scrollY<2),'new scene starts at top');
+      if(next==='bell_route'&&!flags.ally)assert.equal(await page.getByRole('button',{name:/Call for the help/}).count(),0);
+    }
+    assert.match(await page.locator('#story').innerText(),/THE END/,'complete ending text');
+    await page.reload();
+    assert.match(await page.locator('#story').innerText(),/THE END/,'ending persists');
+    await page.getByRole('button',{name:/Read another path/}).click();
+    const progress=await page.evaluate(()=>JSON.parse(localStorage.getItem('night-play-last-call-v2')));
+    assert.equal(progress.scene,'start');assert.deepEqual(progress.flags,{},'new run clears consequences');
+    assert.equal(errors.length,0,errors.join('; '));
+    await page.close();
+  }
   console.log('PASS combined NIGHT Play Games → Stories → overlapping 900ms ink, zero layout shifts → tap skip, choice branching, options → Games on mobile & desktop');
  } finally {await browser.close()}
 })().catch(e=>{console.error(e.stack||e);process.exitCode=1}).finally(()=>server.close());

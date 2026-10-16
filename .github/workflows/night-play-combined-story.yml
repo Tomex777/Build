@@ -22,4 +22,6 @@ jobs:
         env:
           PLAYWRIGHT_MODULE: /tmp/storyintegration/node_modules/playwright
           NIGHT_STORY_VISUAL_QA: '1'
-        run: node night-play/stories/combined-smoke.cjs
+        run: |
+          node night-play/stories/story-contract.cjs
+          node night-play/stories/combined-smoke.cjs
