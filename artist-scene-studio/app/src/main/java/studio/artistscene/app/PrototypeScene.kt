@@ -40,7 +40,8 @@ object PrototypeScene {
                 id = "camera-main", name = "Anime pose camera",
                 // Stand in front of the VRoid character (-Z), avoiding changes to the
                 // skinned root transform that broke emulator skin deformation.
-                position = Vec3(-2.15f, 1.65f, -4.45f),
+                // Larger portrait-to-full-body framing keeps the face and feet legible.
+                position = Vec3(-1.3f, 1.52f, -3.35f),
                 target = Vec3(0f, .93f, 0f),
             ),
         ),
