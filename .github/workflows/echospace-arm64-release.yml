@@ -5,6 +5,7 @@ on:
     branches: [feature/echospace-emulator-qa]
     paths:
       - .github/workflows/echospace-arm64-release.yml
+      - .github/scripts/echospace_expand_mixer.py
   workflow_dispatch:
 
 permissions:
