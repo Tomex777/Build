@@ -436,6 +436,19 @@ jobs:
             i=0; until adb logcat -d -v brief YomiReader:I '*:S' | grep -Fq 'reader-first-draw title=Yomi CI Book.cbz mode=LTR_PAGED'; do i=$((i + 1)); [ "$i" -lt 60 ] || { echo 'Stored CBZ could not reopen after app restart' >&2; adb logcat -d -v threadtime > yomi-output/runtime-api26/retained-cbz-reopen-failure-logcat.txt; exit 1; }; sleep 2; done
             i=0; until adb logcat -d -v brief YomiReader:I '*:S' | grep -Fq 'page-image-ready name=1.png'; do i=$((i + 1)); [ "$i" -lt 60 ] || { echo 'Stored CBZ could not decode a page after app restart' >&2; exit 1; }; sleep 2; done
 
+            # Replacing a document without changing its provider URI must
+            # invalidate a previously imported private archive copy.
+            # The old reader silently reused nonempty old bytes forever.
+            i=0; until adb logcat -c; do i=$((i + 1)); [ "$i" -lt 6 ] || exit 1; sleep 2; done
+            adb shell am force-stop app.yomi.reader.dev
+            adb shell am start -n app.yomi.reader.dev/app.yomi.reader.YomiCiFixtureActivity --es kind mutate-archive
+            i=0; until adb logcat -d -v brief YomiReader:I '*:S' | grep -Fq 'ci-source-archive-updated'; do i=$((i + 1)); [ "$i" -lt 40 ] || { echo 'Could not replace source CBZ at its original content URI' >&2; exit 1; }; sleep 2; done
+            i=0; until adb logcat -c; do i=$((i + 1)); [ "$i" -lt 6 ] || exit 1; sleep 2; done
+            adb shell am force-stop app.yomi.reader.dev
+            adb shell am start -n app.yomi.reader.dev/app.yomi.reader.MainActivity -a android.intent.action.VIEW -d content://app.yomi.reader.dev.ci.documents/document/ci-archive.cbz -t application/vnd.comicbook+zip -f 0x1
+            i=0; until adb logcat -d -v brief YomiReader:I '*:S' | grep -Fq 'page-image-ready name=1-revised.png'; do i=$((i + 1)); [ "$i" -lt 60 ] || { echo 'Reimport displayed a stale private CBZ instead of the changed source page' >&2; adb logcat -d -v threadtime > yomi-output/runtime-api26/stale-cbz-reimport-failure.txt; exit 1; }; sleep 2; done
+            bash yomi-reader/scripts/capture_clean_screen.sh yomi-output/runtime-api26/yomi-reimported-updated-cbz.png
+
             # Mihon's ImageUtil accepts extensionless image content. Verify
             # Yomi's local CBZ adapter can actually decode it on Android 8.
             i=0; until adb logcat -c; do i=$((i + 1)); [ "$i" -lt 6 ] || { echo 'Logcat clear failed before extensionless CBZ acceptance' >&2; exit 1; }; sleep 2; done
