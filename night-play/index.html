@@ -929,7 +929,8 @@ body{background:var(--bg)}
 .story-entry:focus-visible{outline:3px solid #456a58;outline-offset:3px}
 .story-entry .arrow{display:grid;place-items:center}
 </style>
-<style>.story-resume{display:flex;justify-content:space-between;align-items:center;gap:20px;background:#20372e;color:#eef2e9;text-decoration:none;padding:22px 25px;border-radius:20px;margin:0 0 24px}.story-resume[hidden]{display:none}.story-resume span{font-size:11px;letter-spacing:.1em}.story-resume strong{display:block;font-size:25px;margin:8px 0}.story-resume small{font-size:12px;color:#bdcfbf}.story-resume>span{font-size:30px}.story-resume:focus-visible{outline:3px solid #90ad8c;outline-offset:4px}</style></head>
+<style>.story-resume{display:flex;justify-content:space-between;align-items:center;gap:20px;background:#20372e;color:#eef2e9;text-decoration:none;padding:22px 25px;border-radius:20px;margin:0 0 24px}.story-resume[hidden]{display:none}.story-resume span{font-size:11px;letter-spacing:.1em}.story-resume strong{display:block;font-size:25px;margin:8px 0}.story-resume small{font-size:12px;color:#bdcfbf}.story-resume>span{font-size:30px}.story-resume:focus-visible{outline:3px solid #90ad8c;outline-offset:4px}</style><style>.account-command{display:block;white-space:normal;overflow-wrap:anywhere;margin:20px 0;padding:18px;border:1px solid #d8ddd9;border-radius:12px;background:#f0f2ee;font-size:18px;line-height:1.6;user-select:all}.account-name{font-size:24px;font-weight:750}.account-expiry{font-size:12px;color:#69726c}#infoBody>.btn{margin:6px 8px 6px 0}</style>
+</head>
 <body>
 <!-- Locally authored, reusable vector icons and hand-drawn game artwork. No fonts, emoji or image dependencies. -->
 <svg class="vector-sprite" width="0" height="0" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg"><defs>
@@ -973,7 +974,7 @@ body{background:var(--bg)}
  <div id="announcementHistory" class="wrap announcement-history" hidden>
    <h3>Site announcements <span>Latest and previous notices</span></h3>
    <article><small>13 OCT · PLATFORM</small><strong>Welcome to NIGHT Play</strong><p>A separate Games Library, fullscreen play, and profile-linking plans.</p></article>
-   <article><small>COMING NEXT · ACCOUNT</small><strong>WhatsApp linking</strong><p>Account verification through <code>.minigames link CODE</code> is under development and is not yet available.</p></article>
+   <article><small>16 OCT · ACCOUNT</small><strong>Connect to NIGHT</strong><p>Connect WhatsApp with a temporary code sent privately to NIGHT.</p></article>
    <div class="announcement-bottom"><span>Official site-wide notices only. Personal invitations will be separate.</span><button type="button" id="announcementHistoryClose">Close <svg class="ui-icon" viewBox="0 0 24 24" focusable="false" aria-hidden="true"><use href="#icon-close"></use></svg></button></div>
  </div>
 </aside>
@@ -1084,7 +1085,7 @@ body{background:var(--bg)}
   <div class="profile-monogram" aria-hidden="true"><svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4.5 20c1.2-4.7 13.8-4.7 15 0"/></svg></div>
   <div class="player-card-name"><h2 id="playerDisplayName">Player</h2><span id="profileIdentityCaption">Your games. Your name. Your space.</span></div>
   <button id="editPlayerName" class="edit-name" type="button"><svg class="ui-icon" viewBox="0 0 24 24" focusable="false" aria-hidden="true"><use href="#icon-edit"></use></svg> Edit name</button>
- </div><form id="playerNameForm" class="player-name-form" hidden><label for="playerNameInput">Display name</label><div><input id="playerNameInput" name="playerName" maxlength="28" placeholder="What should we call you?" autocomplete="nickname"><button class="btn" type="submit">Save</button><button class="btn light" type="button" id="cancelPlayerName">Cancel</button></div><small>Saved on this device. Your name isn’t linked to WhatsApp.</small></form>
+ </div><form id="playerNameForm" class="player-name-form" hidden><label for="playerNameInput">Display name</label><div><input id="playerNameInput" name="playerName" maxlength="28" placeholder="What should we call you?" autocomplete="nickname"><button class="btn" type="submit">Save</button><button class="btn light" type="button" id="cancelPlayerName">Cancel</button></div><small>Saved on this device.</small></form>
 </div>
 
 <section class="night-profile-tool" aria-labelledby="nightToolHeading">
@@ -1119,19 +1120,19 @@ body{background:var(--bg)}
 </section>
 
 <section class="site-page legal-page" id="view-terms" data-view="terms" hidden>
- <div class="legal-content"><a href="/dashboard" class="legal-back" data-route><svg class="ui-icon" viewBox="0 0 24 24" focusable="false" aria-hidden="true"><use href="#icon-back"></use></svg> Back</a><h1>Terms of use</h1><p class="legal-asof">NIGHT Play · Updated 13 October 2026</p>
+ <div class="legal-content"><a href="/dashboard" class="legal-back" data-route><svg class="ui-icon" viewBox="0 0 24 24" focusable="false" aria-hidden="true"><use href="#icon-back"></use></svg> Back</a><h1>Terms of use</h1><p class="legal-asof">NIGHT Play · Updated 16 October 2026</p>
  <h2>Using NIGHT Play</h2><p>Games, scores, and features may change as NIGHT Play evolves. Service availability is not guaranteed.</p>
  <h2>Scores and fair play</h2><p>Scores saved on your device are not official rankings. Please avoid manipulating other players’ games, accounts, or matches. Competitive multiplayer is not currently available.</p>
- <h2>Your account</h2><p>WhatsApp account linking has not launched. Do not enter WhatsApp passwords, pairing codes, or private session credentials into this website. When accounts launch, the terms will be updated to describe the service.</p>
- <h2>Contact and changes</h2><p>These terms will be updated as additional services launch. An official contact address and final legal review must be added before the public account service launches.</p></div>
+ <h2>Your account</h2><p>Connect your account by sending the temporary website code privately to NIGHT on WhatsApp. Only use a code you generated yourself. The website does not request your WhatsApp password or pairing credentials. Disconnect this browser from the account menu, or send .minigames unlink privately to NIGHT to sign out all browsers.</p>
+ <h2>Contact and changes</h2><p>Contact NIGHT privately on WhatsApp for account help. These terms will be updated as additional services launch.</p></div>
 </section>
 <section class="site-page legal-page" id="view-privacy" data-view="privacy" hidden>
- <div class="legal-content"><a href="/dashboard" class="legal-back" data-route><svg class="ui-icon" viewBox="0 0 24 24" focusable="false" aria-hidden="true"><use href="#icon-back"></use></svg> Back</a><h1>Privacy</h1><p class="legal-asof">NIGHT Play · Updated 13 October 2026</p>
+ <div class="legal-content"><a href="/dashboard" class="legal-back" data-route><svg class="ui-icon" viewBox="0 0 24 24" focusable="false" aria-hidden="true"><use href="#icon-back"></use></svg> Back</a><h1>Privacy</h1><p class="legal-asof">NIGHT Play · Updated 16 October 2026</p>
  <h2>What this site saves</h2><p>The games use your browser’s local storage for settings, high scores, recent game results, and whether you dismissed an announcement. These records stay in that browser unless you clear its storage or the site’s implementation changes.</p>
- <h2>WhatsApp and identity</h2><p>WhatsApp account linking is not currently available. It does not currently receive your WhatsApp phone number, JID, LID, or credentials through a sign-in flow. Do not submit account secrets here.</p>
- <h2>Future services</h2><p>Before launching verified accounts, multiplayer, or hosted game statistics, NIGHT Play will need a revised policy covering server storage, identity linking, retention, and account removal.</p>
+ <h2>WhatsApp and identity</h2><p>When you connect, NIGHT verifies the WhatsApp sender and saves a website profile, your display name, a mapping to your verified WhatsApp identity, and hashed browser sessions in its Azure database. The browser receives a random NIGHT profile ID and display name; phone numbers, JIDs, LIDs and WhatsApp credentials are not sent to it. A secure HttpOnly cookie keeps this browser signed in for up to 30 days. Temporary link codes expire after five minutes.</p>
+ <h2>Disconnect and removal</h2><p>Disconnect signs this browser out. Send .minigames unlink to NIGHT privately to revoke all website sessions. Remove NIGHT Play account in the connection menu deletes your website profile, identity mapping and linked sessions. Game records and story saves remain on each device; account linking does not upload them or create a public leaderboard. NIGHT’s existing WhatsApp history and games are separate.</p>
  <h2>Third-party hosting</h2><p>The website is hosted through Vercel. Hosting infrastructure may process technical request information independently of the game records stored in your browser.</p>
- <h2>Updates</h2><p>This policy will be reviewed and updated when additional services become available. It must be reviewed and completed before live account registration is enabled.</p></div>
+ <h2>Updates</h2><p>This policy will be updated when additional services change how account or game data is handled.</p></div>
 </section>
 </main>
 <footer class="site-footer"><div class="wrap footer-inner"><span>© 2026 NIGHT Play</span><nav aria-label="Legal information"><a href="/terms" data-route>Terms</a><a href="/privacy" data-route>Privacy</a></nav></div></footer>
@@ -1156,8 +1157,9 @@ const scoreKey="night-play-v1-";
 function best(key){try{return Number(localStorage.getItem(scoreKey+key)||0)||0}catch{return 0}}
 function record(key,value){if(value>best(key)){try{localStorage.setItem(scoreKey+key,String(value))}catch{}}}
 function modal(kind){
+ if(kind==="connect"&&window.NightAccount){window.NightAccount.open();return}
  const content={
- connect:["Connect WhatsApp to NIGHT",'<p class="modalnote">Play as a guest today. Soon you will be able to connect your NIGHT profile without passwords or giving the website your WhatsApp number.</p><div class="notice"><b>Planned secure flow</b><br><b>1.</b> Tap Connect here. A linking code will be generated when connection is available.<br><b>2.</b> Copy the command <code>.minigames link CODE</code>.<br><b>3.</b> Send it to NIGHT privately on WhatsApp.<br><b>4.</b> NIGHT verifies the sender and automatically signs you in here.<br><br>Existing <code>.chess</code>, <code>.ludo</code>, <code>.checkers</code>, and <code>.ttt</code> remain unchanged.</div><p class="modalnote" style="margin-top:18px"><b>Not live yet:</b> there is no code to copy at this stage. Linking and online leaderboards require a backend; no phone number, JID or LID is being collected by this site.</p>'],
+ connect:["Connect WhatsApp",'<p class="modalnote">NIGHT connection is loading. Close this window and try again.</p>'],
  crossplay:["Web × WhatsApp cross-play",'<p class="modalnote">A Chess player on the website will be able to challenge someone playing through <b>.chess</b> in WhatsApp. The same match ID and server-validated turns keep the board synchronized.</p><div class="notice"><b>Planned modes</b><br>↗ Challenge a friend with an invite link<br>↗ Match with a random verified NIGHT player<br>↗ Play with the bot<br>↗ Cross-platform matches in turn-based games<br><br><b>Current status:</b> this is the design plan, not an active multiplayer connection. Existing WhatsApp games remain unchanged.</div>'],
  soon:["More games are coming",'<p class="modalnote">The web version is being built. Try Snake, 2048 or Tic-Tac-Toe. Other games will be added once their rules and score verification are ready.</p>']
  }[kind]||["NIGHT Play",""];
@@ -1170,12 +1172,12 @@ const READ_KEY="night-play-update-seen";
 const getSaved=(key)=>{try{return localStorage.getItem(key)}catch{return null}};
 const putSaved=(key,value)=>{try{localStorage.setItem(key,String(value))}catch{}};
 const PLAYER_NAME_KEY="night-play-player-name-v1";
-function playerName(){const value=(getSaved(PLAYER_NAME_KEY)||"").trim().slice(0,28);return value||"Player"}
+function playerName(){const value=(window.NightAccount?.profile?.displayName||getSaved(PLAYER_NAME_KEY)||"").trim().slice(0,28);return value||"Player"}
 function syncPlayerName(){const el=document.getElementById("playerDisplayName");if(el)el.textContent=playerName()}
 const nameForm=document.getElementById("playerNameForm");
-document.getElementById("editPlayerName").addEventListener("click",()=>{nameForm.hidden=false;const input=document.getElementById("playerNameInput");input.value=getSaved(PLAYER_NAME_KEY)||"";input.focus()});
+document.getElementById("editPlayerName").addEventListener("click",()=>{nameForm.hidden=false;const input=document.getElementById("playerNameInput");input.value=window.NightAccount?.profile?.displayName||getSaved(PLAYER_NAME_KEY)||"";input.focus()});
 document.getElementById("cancelPlayerName").addEventListener("click",()=>{nameForm.hidden=true});
-nameForm.addEventListener("submit",event=>{event.preventDefault();const next=document.getElementById("playerNameInput").value.trim().replace(/[<>]/g,"").slice(0,28);if(next)putSaved(PLAYER_NAME_KEY,next);else try{localStorage.removeItem(PLAYER_NAME_KEY)}catch{};nameForm.hidden=true;syncPlayerName();updateGreeting()});
+nameForm.addEventListener("submit",async event=>{event.preventDefault();const next=document.getElementById("playerNameInput").value.trim().replace(/[<>]/g,"").slice(0,28);const submit=nameForm.querySelector('[type="submit"]');submit.disabled=true;try{if(window.NightAccount?.profile){await window.NightAccount.saveName(next)}else if(next)putSaved(PLAYER_NAME_KEY,next);else try{localStorage.removeItem(PLAYER_NAME_KEY)}catch{};nameForm.hidden=true;syncPlayerName();updateGreeting()}catch(error){nameForm.querySelector('small').textContent=error.message}finally{submit.disabled=false}});
 const scoreHistoryKey="night-play-history-v1-";
 function scoreHistory(id){try{const a=JSON.parse(localStorage.getItem(scoreHistoryKey+id)||"[]");return Array.isArray(a)?a.filter(x=>Number.isFinite(x)&&x>=0).slice(-12):[]}catch{return []}}
 const scoreCountKey="night-play-history-count-v1-";
@@ -1954,4 +1956,5 @@ if(location.pathname.startsWith("/play/")){const id=location.pathname.split("/")
 <script>
 (function(){function updateStory(){try{const b=JSON.parse(localStorage.getItem('night-story:the-last-call:v3')||'null');if(!b)return;const active=b.playthroughs?.find(x=>x.id===b.active),r=active&&!active.ending?active:[...(b.playthroughs||[])].reverse().find(x=>!x.ending);if(!r)return;const card=document.querySelector('.story-entry'),home=document.getElementById('storyResume');const c=r.checkpoints?.at(-1)?.chapter||1;const resume=()=>{b.active=r.id;localStorage.setItem('night-story:the-last-call:v3',JSON.stringify(b))};if(card){card.setAttribute('aria-label','Continue reading The Last Call');card.querySelector('h3').textContent='Continue Reading';card.querySelector('.cardrow p').textContent='The Last Call · Chapter '+c+' of 38';card.style.outline='2px solid #9daf9a';card.style.outlineOffset='2px';card.onclick=resume}if(home){home.hidden=false;home.querySelector('small').textContent='Chapter '+c+' of 38';home.onclick=resume}}catch{}}updateStory();addEventListener('pageshow',updateStory);addEventListener('storage',updateStory);})();
 </script>
+<script src="/account-client.js" defer></script>
 </body></html>
