@@ -67,6 +67,7 @@ async function finish(page,winner){
      return {siteHeader:rect('.top'),heading:rect('.play-heading'),table:rect('.table-surface'),hud:rect('.whot-scoreboard'),
        visual:{body:getComputedStyle(document.body).backgroundColor,table:getComputedStyle(document.querySelector('.table-surface')).borderRadius,header:getComputedStyle(document.querySelector('.top')).backgroundColor}};
    });
+   console.log('WHOT_PRELAYOUT_DEBUG',width,JSON.stringify({geometry,structure}));
    const h=width===390?105:138;
    assert.equal(geometry.cpuWidth,width===390?80:100,'keep traditional reference card dimensions');
    assert.ok(Math.abs(geometry.market.h-h)<1.5,'market card keeps the original full height');
