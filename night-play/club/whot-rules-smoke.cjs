@@ -38,7 +38,7 @@ async function waitUnblocked(page){await page.waitForFunction(()=>!window.__nigh
     nav:getComputedStyle(document.querySelector('.top')).backgroundColor,
     grid:getComputedStyle(document.querySelector('.whot-grid-icon')).display,
     arrow:getComputedStyle(document.querySelector('.night-back .night-ico')).display,
-    settingsSwitcher:getComputedStyle(document.querySelector('.night-sheet-switcher')).display
+    settingsSwitcher:getComputedStyle(document.querySelector('#gamePicks')).display
    }));
    assert.equal(ui.page,'rgb(247, 247, 247)','restore original NIGHT light site');
    assert.equal(ui.nav,'rgb(255, 255, 255)','website header remains light, not green');
