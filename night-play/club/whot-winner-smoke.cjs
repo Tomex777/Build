@@ -57,6 +57,13 @@ async function finish(page,winner){
    assert.ok(look.bg.includes('repeating-linear-gradient'),'felt material has visible woven texture');
    assert.ok(look.shadow.includes('inset'),'felt table includes raised wooden edge');
    assert.equal(await page.locator('.whot-win-layer').count(),0,'no premature victory banner');
+   assert.equal(await page.locator('.whot-deck-word').count(),2,'classic WHOT back contains exactly two readable labels');
+   const deckLetters=await page.locator('.whot-deck-word').evaluateAll(els=>
+     els.map(e=>({text:e.textContent,trans:getComputedStyle(e).transform})));
+   assert.deepEqual(deckLetters.map(x=>x.text),['WHOT','WHOT'],'no duplicate overlapping pseudo-lettering');
+   assert.notEqual(deckLetters[0].trans,'none','upper lettering is inverted on the physical back');
+   assert.equal(deckLetters[1].trans,'none','lower lettering stays upright');
+
    // Match the high-quality classical WHOT face proportions we studied,
    // with NIGHT's original SVG art and without loading the other game.
    const design=await page.locator('.hand .whot-card').first().evaluate(el=>{
