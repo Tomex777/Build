@@ -502,32 +502,92 @@ function whotHandPositions(){
  }
  return buckets;
 }
+function whotHandMode(n){return n<=4?'spaced':n<=7?'fan':'double'}
+function whotCloseExpanded(){board.querySelector('.whot-hand-overlay')?.remove()}
+function whotOpenExpanded(){
+ if(active!=='whot'||board.querySelector('.whot-hand-overlay'))return;
+ const s=state.whot,table=board.querySelector('.table-surface');
+ if(!table)return;
+ const overlay=document.createElement('div');
+ overlay.className='whot-hand-overlay';
+ overlay.setAttribute('role','dialog');
+ overlay.setAttribute('aria-modal','true');
+ overlay.setAttribute('aria-label','All your WHOT cards');
+ overlay.innerHTML='<section class="whot-hand-sheet">'+
+ '<header class="whot-hand-sheet-header"><div><small>YOUR HAND</small><h3>All '+s.hands[0].length+' cards</h3></div>'+
+ '<button type="button" class="whot-hand-close" data-action="whot-hand-close" aria-label="Close full hand">✕</button></header>'+
+ '<div class="whot-hand-sheet-tools"><label for="whot-hand-sort">Arrange cards</label>'+
+ '<select id="whot-hand-sort" data-whot-hand-sort>'+
+ '<option value="original">Dealt order</option><option value="shape">By shape</option><option value="number">By number</option></select></div>'+
+ '<div class="whot-hand-gallery" aria-label="All cards, vertically scrollable">'+
+ s.hands[0].map((c,i)=>whotFace(c,i,s.turn===0&&s.winner===null&&s.pendingFinish!==0&&s.pendingWhot==null&&playable("whot",s,c))).join('')+
+ '</div><p class="whot-hand-help">Tap a playable card to place it on the table.</p></section>';
+ table.appendChild(overlay);
+ overlay.querySelector('.whot-hand-close').focus({preventScroll:true});
+}
+function whotSortExpanded(order){
+ const gallery=board.querySelector('.whot-hand-gallery');if(!gallery)return;
+ const nodes=[...gallery.querySelectorAll('.whot-card')];
+ nodes.sort((a,b)=>{
+  const i=Number(a.dataset.card),j=Number(b.dataset.card);
+  if(order==='original')return i-j;
+  const x=state.whot.hands[i],y=state.whot.hands[j];
+  return order==='number'?x.n-y.n||x.s-y.s||i-j:x.s-y.s||x.n-y.n||i-j;
+ });
+ gallery.replaceChildren(...nodes);
+}
 function layoutWhotHand(before=null){
- const row=board.querySelector('.hand .card-row');
+ const hand=board.querySelector('.table-surface>.hand'),row=hand?.querySelector('.card-row');
  if(!row||active!=='whot')return;
- const cards=[...row.querySelectorAll('.whot-card')];
- if(!cards.length)return;
- // The original Naija Whot uses a horizontally scrolling card strip. It
- // does NOT shrink every card to 60px or wrap a 5-card hand into rows.
- const width=parseFloat(getComputedStyle(cards[0]).width)||cards[0].getBoundingClientRect().width;
- const gap=parseFloat(getComputedStyle(row).columnGap)||20;
- const available=row.clientWidth;
- const fits=cards.length*width+Math.max(0,cards.length-1)*gap<=available+1;
- row.classList.remove('whot-wrap');
- row.style.setProperty('--whot-overlap','0px');
- row.style.justifyContent=fits?'center':'flex-start';
- if(fits)row.scrollLeft=0;
+ const cards=[...row.querySelectorAll('.whot-card')],n=cards.length;
+ const table=board.querySelector('.table-surface');
+ if(!n){table?.classList.remove('whot-double-hand');return}
+ const mode=whotHandMode(n),double=mode==='double',large=n>=13,shown=Math.min(n,16);
+ const available=row.clientWidth||row.getBoundingClientRect().width;
+ const cs=getComputedStyle(cards[0]),w=parseFloat(cs.width)||80,h=parseFloat(cs.height)||105;
+ const cardWidth=mode==='spaced'&&n>1&&n*w>available?Math.max(58,Math.floor(available/n)):w;
+ const rowGap=14,height=double?h*2+rowGap:h;
+ hand.dataset.whotLayout=mode;
+ table?.classList.toggle('whot-double-hand',double);
+ table?.classList.toggle('whot-large-hand',large);
+ hand.style.setProperty('--whot-hand-height',(height+(large?42:0))+'px');
+ row.style.setProperty('--whot-row-height',height+'px');
+ const view=hand.querySelector('.whot-view-hand');
+ if(view){view.hidden=!large;view.textContent='View all '+n+' cards'}
+ const firstRow=double?Math.ceil(shown/2):shown;
+ cards.forEach((card,index)=>{
+  if(index>=shown){card.style.display='none';return}
+  card.style.display='';
+  const rowIndex=double&&index>=firstRow?1:0;
+  const count=double?(rowIndex?shown-firstRow:firstRow):shown;
+  const slot=double&&rowIndex?index-firstRow:index;
+  const spacing=count>1?mode==='spaced'
+   ?Math.min(20,Math.max(0,(available-count*cardWidth)/(count-1)))
+   :Math.min(cardWidth+10,(available-cardWidth)/(count-1)):0;
+  const step=mode==='spaced'?cardWidth+spacing:spacing;
+  const groupWidth=cardWidth+(count-1)*step;
+  const left=Math.max(0,(available-groupWidth)/2)+slot*step;
+  const tilt=mode==='fan'?(slot-(count-1)/2)*1.05:0;
+  const y=rowIndex*(h+rowGap)+(mode==='fan'?Math.abs(slot-(count-1)/2)*2:0);
+  card.style.left=left.toFixed(2)+'px';
+  card.style.top=y.toFixed(2)+'px';
+  card.style.zIndex=String(10+index);
+  card.style.setProperty('--whot-hand-tilt',tilt.toFixed(2)+'deg');
+  if(cardWidth!==w)card.style.setProperty('--whot-card-width',cardWidth+'px');
+  else card.style.removeProperty('--whot-card-width');
+ });
  if(!before||!motionEnabled())return;
- // FLIP re-centres the surviving cards without changing their DOM identity.
- for(const el of cards){
-  const old=before.get(el.dataset.whotKey)?.shift();
-  if(!old)continue;
-  const now=el.getBoundingClientRect(),dx=old.x-now.left,dy=old.y-now.top;
+ for(const card of cards){
+  if(card.style.display==='none')continue;
+  const prior=before.get(card.dataset.whotKey)?.shift();
+  if(!prior)continue;
+  const current=card.getBoundingClientRect(),dx=prior.x-current.left,dy=prior.y-current.top;
   if(Math.abs(dx)<.7&&Math.abs(dy)<.7)continue;
-  el.animate([
-   {transform:'translate3d('+dx+'px,'+dy+'px,0)'},
-   {transform:'translate3d(0,0,0)'}
-  ],{duration:whotMotion.recenter,easing:'cubic-bezier(.19,.73,.2,1)'});
+  const tilt=card.style.getPropertyValue('--whot-hand-tilt')||'0deg';
+  card.animate([
+   {transform:'translate3d('+dx+'px,'+dy+'px,0) rotate('+tilt+')'},
+   {transform:'translate3d(0,0,0) rotate('+tilt+')'}
+  ],{duration:whotMotion.recenter,easing:'cubic-bezier(.19,.78,.22,1)'});
  }
 }
 let whotResizeFrame=0;
