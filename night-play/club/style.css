@@ -1754,3 +1754,235 @@ body.whot-mode .whot-series-score{
  color:#d3d9d8;font:800 10px/1.2 Inter,system-ui,sans-serif;
  letter-spacing:1px;text-align:center;
 }
+
+
+/* WHOT smart hand — dedicated table hand, no default horizontal scrolling.
+   Fully visible 1–4; rank-revealing fan 5–7; two accessible rows at 8+.
+   Keep original 80×105 phone / 100×138 desktop faces and NIGHT styling. */
+body.whot-mode .table-surface>.hand{
+ --whot-hand-height:112px;
+ position:relative!important;
+ display:block!important;
+ height:var(--whot-hand-height)!important;
+ min-height:var(--whot-hand-height)!important;
+ flex:0 0 var(--whot-hand-height)!important;
+ width:var(--whot-row-width)!important;
+ margin:0 auto!important;
+ padding:0!important;
+ overflow:visible!important;
+}
+body.whot-mode .table-surface>.hand .card-row{
+ --whot-row-height:105px;
+ position:relative!important;
+ display:block!important;
+ width:100%!important;
+ height:var(--whot-row-height)!important;
+ min-height:var(--whot-row-height)!important;
+ padding:0!important;
+ margin:0!important;
+ overflow:visible!important;
+ transform:none!important;
+ scroll-snap-type:none!important;
+}
+body.whot-mode .table-surface>.hand .card-row>.whot-card{
+ --whot-hand-tilt:0deg;
+ position:absolute!important;
+ top:0;left:0;
+ display:flex!important;
+ width:var(--whot-card-width,80px)!important;
+ min-width:0!important;
+ height:105px!important;
+ flex:none!important;
+ margin:0!important;
+ transform-origin:50% 88%!important;
+ transform:rotate(var(--whot-hand-tilt))!important;
+ transition:box-shadow .18s ease-out,filter .15s ease-out!important;
+ will-change:auto;
+ touch-action:manipulation;
+ -webkit-tap-highlight-color:transparent;
+}
+body.whot-mode .table-surface>.hand .card-row>.whot-card:focus-visible{
+ z-index:700!important;
+ outline:3px solid #fff2b7!important;
+ outline-offset:3px!important;
+ transform:translateY(-10px) rotate(var(--whot-hand-tilt))!important;
+}
+body.whot-mode .table-surface>.hand .card-row>.whot-card:active:not(:disabled){
+ z-index:700!important;
+ transform:translateY(-12px) scale(1.025) rotate(var(--whot-hand-tilt))!important;
+ box-shadow:0 18px 25px #100b0a88!important;
+ filter:brightness(1.04);
+}
+@media(hover:hover) and (pointer:fine){
+ body.whot-mode .table-surface>.hand .card-row>.whot-card:hover{
+  z-index:700!important;
+  transform:translateY(-12px) rotate(var(--whot-hand-tilt))!important;
+  box-shadow:0 18px 25px #100b0a88!important;
+ }
+}
+body.whot-mode .table-surface>.hand .card-row>.whot-card.playable{
+ cursor:pointer;
+ border-color:#f7eee2!important;
+ box-shadow:0 6px 14px #0906056c,0 0 0 1px #f5e9c15a!important;
+}
+body.whot-mode .table-surface>.hand .card-row>.whot-card:disabled{
+ opacity:1!important;
+ filter:none!important;
+}
+body.whot-mode .table-surface.whot-double-hand{
+ min-height:clamp(640px,calc(100dvh - 155px),900px)!important;
+ height:auto!important;
+}
+body.whot-mode .table-surface.whot-large-hand{
+ min-height:clamp(660px,calc(100dvh - 155px),930px)!important;
+ height:auto!important;
+}
+body.whot-mode .table-surface>.hand .whot-view-hand:not([hidden]){
+ display:flex!important;
+ align-items:center;justify-content:center;
+ width:min(100%,220px);
+ height:34px;min-height:34px;
+ margin:8px auto 0!important;
+ padding:7px 13px!important;
+ color:#fff9e4;background:#2d2420e8;
+ border:1px solid #f6dcaa88;
+ border-radius:8px;
+ box-shadow:0 3px 10px #12090444;
+ font:800 12px/1 Inter,system-ui,sans-serif;
+ letter-spacing:.02em;
+ touch-action:manipulation;cursor:pointer;
+}
+body.whot-mode .table-surface>.hand .whot-view-hand:focus-visible{
+ outline:3px solid #f5d29b;outline-offset:2px;
+}
+body.whot-mode .whot-hand-overlay{
+ position:absolute!important;
+ inset:0;
+ z-index:30!important;
+ display:flex;align-items:stretch;justify-content:center;
+ padding:clamp(10px,3vw,28px);
+ overflow:hidden;
+ background:#141010e9;
+ -webkit-backdrop-filter:none;
+ backdrop-filter:none;
+ border-radius:inherit;
+ animation:whotHandOverlayIn .22s ease-out both;
+}
+body.whot-mode .whot-hand-sheet{
+ display:flex;flex-direction:column;
+ gap:12px;
+ width:100%;max-width:650px;
+ max-height:100%;
+ padding:18px 13px 14px;
+ background:#f8f7f3;
+ border:1px solid #ddd5c4;
+ border-radius:17px;
+ color:#211e1b;
+ box-shadow:0 14px 40px #0005;
+ overflow:hidden;
+}
+body.whot-mode .whot-hand-sheet-header{
+ display:flex;justify-content:space-between;
+ align-items:center;gap:12px;
+ flex:0 0 auto;
+}
+body.whot-mode .whot-hand-sheet-header small{
+ display:block;
+ color:#777267;
+ font:800 10px/1.5 system-ui,sans-serif;
+ letter-spacing:2px;
+}
+body.whot-mode .whot-hand-sheet-header h3{
+ margin:4px 0 0;
+ color:#171717;font:900 23px/1.1 system-ui,sans-serif;
+ letter-spacing:-.05em;
+}
+body.whot-mode .whot-hand-close{
+ display:grid;place-items:center;
+ width:41px;height:41px;flex:none;
+ border:1px solid #d6d1c7;
+ border-radius:11px;background:#fff;
+ color:#2d2a26;
+ font-size:18px;
+}
+body.whot-mode .whot-hand-sheet-tools{
+ display:flex;justify-content:space-between;
+ align-items:center;gap:10px;
+ padding:9px 10px;
+ background:#ecebe7;border-radius:9px;
+ font-size:12px;font-weight:750;
+}
+body.whot-mode .whot-hand-sheet-tools select{
+ appearance:none;
+ min-width:145px;min-height:35px;
+ padding:7px 27px 7px 12px;
+ background:#fff;
+ border:1px solid #d4d2cb;border-radius:7px;
+ color:#242322;font:750 12px/1 system-ui,sans-serif;
+}
+body.whot-mode .whot-hand-gallery{
+ display:grid;
+ grid-template-columns:repeat(auto-fit,minmax(68px,1fr));
+ justify-items:center;
+ align-content:start;
+ gap:12px 8px;
+ flex:1 1 auto;
+ min-height:0;
+ padding:5px 3px 20px;
+ overflow-x:hidden;overflow-y:auto;
+ overscroll-behavior:contain;
+ scrollbar-width:thin;
+}
+body.whot-mode .whot-hand-gallery>.whot-card{
+ position:relative!important;
+ inset:auto!important;
+ display:flex!important;
+ width:min(100%,80px)!important;
+ min-width:0!important;
+ height:105px!important;
+ margin:0!important;
+ transform:none!important;
+ border:1px solid #e4e2dc!important;
+ border-radius:4px;
+ background:#f9fcfa!important;
+ box-shadow:0 4px 9px #0002!important;
+}
+body.whot-mode .whot-hand-gallery>.whot-card.playable{border-color:#664b42!important}
+body.whot-mode .whot-hand-gallery>.whot-card:focus-visible{
+ outline:3px solid #9c704b;outline-offset:2px;
+}
+body.whot-mode .whot-hand-help{
+ margin:0;flex:0 0 auto;
+ font-size:11px;line-height:1.4;color:#746c61;text-align:center;
+}
+@keyframes whotHandOverlayIn{
+ from{opacity:0;transform:translateY(8px)}
+ to{opacity:1;transform:translateY(0)}
+}
+@media(min-width:651px){
+ body.whot-mode .table-surface>.hand .card-row>.whot-card{
+  width:var(--whot-card-width,100px)!important;
+  height:138px!important;
+ }
+ body.whot-mode .table-surface>.hand .card-row{
+  --whot-row-height:138px;
+ }
+ body.whot-mode .whot-hand-gallery{
+  grid-template-columns:repeat(auto-fit,minmax(100px,1fr));
+  gap:14px;
+ }
+ body.whot-mode .whot-hand-gallery>.whot-card{width:100px!important;height:138px!important}
+}
+@media(max-width:360px){
+ body.whot-mode .table-surface>.hand .card-row>.whot-card .whot-suit-big{
+  width:clamp(26px,10vw,40px)!important;height:clamp(26px,10vw,40px)!important;
+ }
+ body.whot-mode .whot-hand-gallery{grid-template-columns:repeat(auto-fit,minmax(62px,1fr))}
+}
+@media(prefers-reduced-motion:reduce){
+ body.whot-mode .whot-hand-overlay,
+ body.whot-mode .table-surface>.hand .card-row>.whot-card{
+  animation:none!important;
+  transition:none!important;
+ }
+}
