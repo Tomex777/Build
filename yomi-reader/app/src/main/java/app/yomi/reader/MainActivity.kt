@@ -863,7 +863,8 @@ class MainActivity : ComponentActivity() {
                             if (removedUri.scheme == "file") {
                                 val importedRoot = java.io.File(filesDir, "imported-books").canonicalFile
                                 val retainedFile = removedUri.path?.let { java.io.File(it).canonicalFile }
-                                if (retainedFile?.parentFile?.parentFile == importedRoot &&
+                                if (retainedFile != null &&
+                                    retainedFile.parentFile?.parentFile == importedRoot &&
                                     libraryStore.list().none { it.locationUri == item.locationUri }
                                 ) {
                                     if (retainedFile.isFile) check(retainedFile.delete()) {
