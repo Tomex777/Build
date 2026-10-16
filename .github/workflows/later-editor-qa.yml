@@ -32,6 +32,18 @@ jobs:
       - name: Guard production UI cleanup from source corruption
         run: python3 .github/scripts/test-later-cleanup.py
 
+      - name: Validate emulator QA scripts
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash -n .github/scripts/later-media-qa.sh
+          bash -n .github/scripts/later-editor-qa.sh
+          grep -Fq 'fraction="${2:-0.35}"' .github/scripts/later-media-qa.sh
+          if grep -Fq 'fraction="\${2:-0.35}"' .github/scripts/later-media-qa.sh; then
+            echo "Emulator would pass a literal video seek fraction to Python" >&2
+            exit 1
+          fi
+
       - name: Restore verified Later source
         shell: bash
         run: |
