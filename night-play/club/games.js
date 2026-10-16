@@ -354,10 +354,14 @@ function layoutWhotHand(before=null){
  const width=cards[0].getBoundingClientRect().width;
  const gap=parseFloat(getComputedStyle(row).columnGap)||0;
  const available=Math.max(110,row.clientWidth-9);
- // Cards keep their full size. Where needed, they overlap *symmetrically*
- // so the group is always centered and no card flies offscreen.
- const needed=count>1?Math.max(0,(count*width+(count-1)*gap-available)/(count-1)):0;
- const overlap=Math.min(width-12,needed);
+ // If the hand no longer fits, show complete center-aligned rows instead
+ // of an opaque fan where a disabled neighbouring card catches taps.
+ // Every card must retain a comfortable, actually clickable touch target.
+ const fits=Math.max(1,Math.floor((available+gap)/(width+gap)));
+ const wrap=count>fits;
+ row.classList.toggle('whot-wrap',wrap);
+ const needed=wrap?0:count>1?Math.max(0,(count*width+(count-1)*gap-available)/(count-1)):0;
+ const overlap=Math.min(width*.20,needed);
  row.style.setProperty('--whot-overlap',overlap.toFixed(2)+'px');
  if(!before||!motionEnabled())return;
  // FLIP: after one card flies to the discard, remaining cards gently glide
@@ -390,7 +394,7 @@ const callPanel=showCall?
  '<section class="whot-call-panel" role="group" aria-labelledby="whot-call-title"><div class="whot-call-head"><div><small>20 · WHOT</small><h3 id="whot-call-title">Call your shape</h3></div><button type="button" class="whot-call-cancel" data-action="whot-call-cancel" aria-label="Cancel WHOT 20">✕</button></div>'+
  '<div class="whot-call-grid">'+shapes.map((shape,i)=>
  '<button type="button" class="whot-call-choice" data-whot-call="'+i+'" aria-label="Call '+shape+'">'+whotShapeSvg(i,1)+'<strong>'+shape+'</strong><small>'+naijaShapes[i]+'</small></button>').join('')+'</div></section>':'';
-board.innerHTML='<div class="table-surface" aria-label="Card table"><h3>COMPUTER · '+s.hands[1].length+' CARDS</h3><div class="card-row"><div class="playing-card card-back" aria-label="Computer cards hidden"></div><span class="cards-counter">× '+s.hands[1].length+'</span></div><div class="card-pile">'+(kind==='whot'?'<button type="button" class="whot-deck" data-action="card-draw" aria-label="Pick one card from the market"><span class="whot-deck-back">WHOT</span><span class="cards-counter">MARKET · '+s.deck.length+'</span></button>':'<span class="cards-counter">DECK '+s.deck.length+'</span>')+cardMarkup(kind,t,-1,false)+currentCall+'</div>'+callPanel+'<div class="hand"><div class="card-label">YOUR HAND · '+s.hands[0].length+' CARDS</div><div class="card-row">'+s.hands[0].map((card,i)=>cardMarkup(kind,card,i,s.turn===0&&s.winner===null&&!(kind==='whot'&&s.pendingWhot!=null)&&playable(kind,s,card))).join("")+'</div></div></div>';
+board.innerHTML='<div class="table-surface" aria-label="Card table"><h3>COMPUTER · '+s.hands[1].length+' CARDS</h3><div class="card-row"><div class="playing-card card-back" aria-label="Computer cards hidden"></div><span class="cards-counter">× '+s.hands[1].length+'</span></div><div class="card-pile">'+(kind==='whot'?'<button type="button" class="whot-deck" data-action="card-draw" '+(s.turn!==0||s.winner!==null||s.pendingWhot!=null?'disabled':'')+' aria-label="Pick one card from the market"><span class="whot-deck-back">WHOT</span><span class="cards-counter">MARKET · '+s.deck.length+'</span></button>':'<span class="cards-counter">DECK '+s.deck.length+'</span>')+cardMarkup(kind,t,-1,false)+currentCall+'</div>'+callPanel+'<div class="hand"><div class="card-label">YOUR HAND · '+s.hands[0].length+' CARDS</div><div class="card-row">'+s.hands[0].map((card,i)=>cardMarkup(kind,card,i,s.turn===0&&s.winner===null&&!(kind==='whot'&&s.pendingWhot!=null)&&playable(kind,s,card))).join("")+'</div></div></div>';
 if(showCall)board.querySelector('.hand [data-card="'+s.pendingWhot+'"]')?.classList.add('whot-pending');
 if(kind==='whot')layoutWhotHand(previousHand);
 if(kind==='whot'&&pendingWhotDeal){pendingWhotDeal=false;const token=cardMotionEpoch;
