@@ -855,6 +855,23 @@ class MainActivity : ComponentActivity() {
                             progressStore.clear(item.id)
                             identityStore.forget(item.id)
                             item.coverUri?.let { Uri.parse(it).path }?.let { java.io.File(it).delete() }
+                            // The original user-owned book must remain untouched,
+                            // but removing a privately mirrored CBZ should reclaim
+                            // its potentially large app-storage copy. Restrict this
+                            // cleanup to our exact imported-books/<hash>/<file> tree.
+                            val removedUri = Uri.parse(item.locationUri)
+                            if (removedUri.scheme == "file") {
+                                val importedRoot = java.io.File(filesDir, "imported-books").canonicalFile
+                                val retainedFile = removedUri.path?.let { java.io.File(it).canonicalFile }
+                                if (retainedFile?.parentFile?.parentFile == importedRoot &&
+                                    libraryStore.list().none { it.locationUri == item.locationUri }
+                                ) {
+                                    if (retainedFile.isFile) check(retainedFile.delete()) {
+                                        "Could not remove the private copy of this book"
+                                    }
+                                    retainedFile.parentFile?.delete()
+                                }
+                            }
                         }
                         library = libraryStore.list()
                         actionBook = null
