@@ -101,6 +101,9 @@ public class ProductTest {
     try (ActivityScenario<MainActivity> scenario = ActivityScenario.launch(MainActivity.class)) {
       capture("home");
       device.wait(Until.findObject(By.desc("Add")), 5000).click();
+      UiObject2 blank = device.wait(Until.findObject(By.text("Blank design")), 5000);
+      assertNotNull(blank);
+      blank.click();
       UiObject2 name = device.wait(Until.findObject(By.clazz("android.widget.EditText")), 5000);
       assertNotNull(name);
       name.setText("Acceptance design");

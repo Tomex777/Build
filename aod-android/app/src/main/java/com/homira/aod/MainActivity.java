@@ -30,6 +30,11 @@ public final class MainActivity extends androidx.activity.ComponentActivity {
   private final ExecutorService io = Executors.newSingleThreadExecutor();
   private String pendingImage = "", pendingExport = "";
   private Dialog sheet;
+  private final List<Runnable> pendingNumericEdits = new ArrayList<>();
+
+  private void flushNumericEdits() {
+    for (Runnable save : new ArrayList<>(pendingNumericEdits)) save.run();
+  }
 
   @Override
   public void onCreate(Bundle state) {
@@ -168,9 +173,6 @@ public final class MainActivity extends androidx.activity.ComponentActivity {
     Domain.Rule rule =
         store.override ? null : Domain.resolve(store.rules, ZonedDateTime.now(), isCharging());
 
-    list.addView(Ui.eyebrow(this, "THE ART OF ALWAYS ON"));
-    list.addView(Ui.headline(this, "Make time yours."));
-    // Keep the hero and the collection visible without scrolling on short phones.
 
     LinearLayout hero = Ui.column(this);
     hero.setBackground(Ui.bordered(this, Ui.PANEL, 20));
@@ -182,8 +184,6 @@ public final class MainActivity extends androidx.activity.ComponentActivity {
     heroHead.setPadding(Ui.dp(this, 8), Ui.dp(this, 8), Ui.dp(this, 8), Ui.dp(this, 8));
     TextView activeLabel = Ui.eyebrow(this, rule == null ? "ACTIVE DESIGN" : "SCHEDULED DESIGN");
     heroHead.addView(activeLabel, new LinearLayout.LayoutParams(0, -2, 1));
-    TextView live = Ui.text(this, "●  SELECTED", 11, Ui.ACCENT);
-    heroHead.addView(live);
     hero.addView(heroHead);
     TextView activeName = Ui.text(this, current.name, 19, Ui.TEXT);
     activeName.setTypeface(android.graphics.Typeface.DEFAULT, android.graphics.Typeface.BOLD);
@@ -195,21 +195,11 @@ public final class MainActivity extends androidx.activity.ComponentActivity {
     featured.passive = true;
     featured.shift = false;
     featured.designThumbnail = true;
-    featured.setContentDescription("Edit current design");
-    featured.setOnClickListener(v -> studio(current));
+    featured.setContentDescription("Current design preview");
     hero.addView(featured, new LinearLayout.LayoutParams(-1, Ui.dp(this, 158)));
-    LinearLayout heroActions = Ui.row(this);
-    heroActions.setPadding(Ui.dp(this, 12), Ui.dp(this, 8), Ui.dp(this, 12), Ui.dp(this, 8));
-    heroActions.addView(Ui.primary(this, "Edit", () -> studio(current)), new LinearLayout.LayoutParams(0, Ui.dp(this, 48), 1));
-    View gap = new View(this);
-    heroActions.addView(gap, new LinearLayout.LayoutParams(Ui.dp(this, 8), 1));
-    heroActions.addView(Ui.button(this, "From wallpaper", () -> {
-      Domain.Theme t = new Domain.Theme(); t.name = "Wallpaper " + (store.themes.size() + 1);
-      Domain.Element clock = new Domain.Element(); clock.y = 96; Domain.applyClockFamily(clock, "Thin");
-      t.elements.add(clock);
-      try { store.put(t); studio(t); chooseImage("outline"); } catch (Exception e) { error(e); }
-    }), new LinearLayout.LayoutParams(0, Ui.dp(this, 48), 1));
-    hero.addView(heroActions);
+    LinearLayout.LayoutParams editParams = new LinearLayout.LayoutParams(-1, Ui.dp(this, 50));
+    editParams.setMargins(Ui.dp(this, 12), Ui.dp(this, 8), Ui.dp(this, 12), Ui.dp(this, 10));
+    hero.addView(Ui.primary(this, "Edit", () -> studio(current)), editParams);
 
     LinearLayout section = Ui.row(this);
     TextView heading = Ui.text(this, "Your collection", 20, Ui.TEXT);
@@ -245,7 +235,6 @@ public final class MainActivity extends androidx.activity.ComponentActivity {
       TextView name = Ui.text(this, t.name, 14, Ui.TEXT);
       name.setSingleLine();
       name.setEllipsize(android.text.TextUtils.TruncateAt.END);
-      name.setOnClickListener(v -> studio(t));
       details.addView(name, new LinearLayout.LayoutParams(0, Ui.dp(this, 52), 1));
       details.addView(Ui.icon(this, "More", () -> designMenu(t)));
       card.addView(details);
@@ -253,26 +242,17 @@ public final class MainActivity extends androidx.activity.ComponentActivity {
     if (index % 2 == 1 && galleryRow != null)
       galleryRow.addView(new View(this), new LinearLayout.LayoutParams(0, 1, 1));
     if (index == 0) {
-      TextView empty = Ui.text(this, "Your next design starts with +. Your selected design lives above.", 14, Ui.MUTED);
+      TextView empty = Ui.text(this, "No other designs yet", 14, Ui.MUTED);
       empty.setPadding(Ui.dp(this, 18), Ui.dp(this, 18), Ui.dp(this, 18), Ui.dp(this, 26));
       list.addView(empty);
     }
-    list.addView(Ui.text(this, "Designed here. Saved on your device.", 12, Ui.MUTED));
 
     LinearLayout bottom = Ui.row(this);
     bottom.setPadding(Ui.dp(this, 16), Ui.dp(this, 10), Ui.dp(this, 16), Ui.dp(this, 12));
     bottom.setBackgroundColor(Ui.BG);
     bottom.addView(Ui.primary(this, "Use display", this::modes), new LinearLayout.LayoutParams(-1, Ui.dp(this, 50)));
     root.addView(bottom);
-    if (!store.settings().getBoolean("welcomed", false)) {
-      store.settings().edit().putBoolean("welcomed", true).commit();
-      new AlertDialog.Builder(this)
-          .setTitle("Make space for your time")
-          .setMessage("Edit a design, then choose Preview, bedside Charging or your device's Ambient screensaver. Notification access is optional.")
-          .setPositiveButton("Start designing", (d, w) -> studio(store.find(store.active)))
-          .setNegativeButton("Explore", null)
-          .show();
-    }
+
   }
 
     private boolean isCharging() {
@@ -348,7 +328,33 @@ public final class MainActivity extends androidx.activity.ComponentActivity {
         .show();
   }
 
+  private void fromWallpaper() {
+    Domain.Theme design = new Domain.Theme();
+    design.name = "Wallpaper " + (store.themes.size() + 1);
+    Domain.Element clock = new Domain.Element();
+    clock.y = 96;
+    Domain.applyClockFamily(clock, "Thin");
+    design.elements.add(clock);
+    try {
+      store.put(design);
+      studio(design);
+      chooseImage("outline");
+    } catch (Exception exception) {
+      error(exception);
+    }
+  }
+
   private void newDesign() {
+    new AlertDialog.Builder(this)
+        .setTitle("New design")
+        .setItems(new String[] {"Blank design", "From wallpaper"}, (dialog, selected) -> {
+          if (selected == 0) newBlankDesign();
+          else fromWallpaper();
+        })
+        .show();
+  }
+
+  private void newBlankDesign() {
     input(
         "Design name",
         "My AOD",
@@ -367,34 +373,31 @@ public final class MainActivity extends androidx.activity.ComponentActivity {
   }
 
   private void input(String label, String value, java.util.function.Consumer<String> done) {
-    EditText edit = new EditText(this);
-    edit.setText(value);
-    edit.setSingleLine();
-    edit.setSelectAllOnFocus(true);
-    AlertDialog dialog =
-        new AlertDialog.Builder(this)
-            .setTitle(label)
-            .setView(edit)
-            .setPositiveButton("Save", null)
-            .setNegativeButton("Cancel", null)
-            .create();
+    EditText edit = Ui.field(this, value, label);
+    edit.setImeOptions(android.view.inputmethod.EditorInfo.IME_ACTION_DONE);
+    FrameLayout inset = new FrameLayout(this);
+    inset.setPadding(Ui.dp(this, 20), Ui.dp(this, 10), Ui.dp(this, 20), Ui.dp(this, 8));
+    inset.addView(edit, new FrameLayout.LayoutParams(-1, Ui.dp(this, 52)));
+    AlertDialog dialog = new AlertDialog.Builder(this)
+        .setTitle(label)
+        .setView(inset)
+        .setPositiveButton("Save", null)
+        .setNegativeButton("Cancel", null)
+        .create();
     dialog.setOnShowListener(
-        v ->
-            dialog
-                .getButton(-1)
-                .setOnClickListener(
-                    b -> {
-                      if (edit.getText().toString().trim().isEmpty()) {
-                        edit.setError("Enter a value");
-                        return;
-                      }
-                      done.accept(edit.getText().toString());
-                      dialog.dismiss();
-                    }));
+        v -> dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(b -> {
+          String result = edit.getText().toString().trim();
+          if (result.isEmpty()) {
+            edit.setError("Enter a value");
+            return;
+          }
+          done.accept(result);
+          dialog.dismiss();
+        }));
     dialog.show();
   }
 
-  public void studio(Domain.Theme t) {
+    public void studio(Domain.Theme t) {
     screen = "Studio";
     if (!editorState.themeId.equals(t.id)) {
       editorState.themeId = t.id;
@@ -601,7 +604,11 @@ public final class MainActivity extends androidx.activity.ComponentActivity {
   }
 
   private LinearLayout sheet(String label) {
-    if (sheet != null) sheet.dismiss();
+    if (sheet != null) {
+      flushNumericEdits();
+      sheet.dismiss();
+    }
+    pendingNumericEdits.clear();
     sheet = new Dialog(this);
     LinearLayout layout = Ui.column(this);
     layout.setBackground(Ui.rounded(Ui.PANEL, Ui.dp(this, 24)));
@@ -619,7 +626,10 @@ public final class MainActivity extends androidx.activity.ComponentActivity {
     TextView heading = Ui.text(this, label, 19, Ui.TEXT);
     heading.setTypeface(android.graphics.Typeface.DEFAULT, android.graphics.Typeface.BOLD);
     head.addView(heading, new LinearLayout.LayoutParams(0, -2, 1));
-    head.addView(Ui.button(this, "Done", () -> sheet.dismiss()), new LinearLayout.LayoutParams(Ui.dp(this, 76), Ui.dp(this, 44)));
+    head.addView(Ui.button(this, "Done", () -> {
+      flushNumericEdits();
+      sheet.dismiss();
+    }), new LinearLayout.LayoutParams(Ui.dp(this, 76), Ui.dp(this, 44)));
     layout.addView(head);
     layout.addView(Ui.separator(this));
     ScrollView scroll = new ScrollView(this);
@@ -638,6 +648,8 @@ public final class MainActivity extends androidx.activity.ComponentActivity {
     attrs.dimAmount = .36f;
     window.setAttributes(attrs);
     sheet.setOnDismissListener(d -> {
+      flushNumericEdits();
+      pendingNumericEdits.clear();
       if (canvas != null) { canvas.wallpaperPreview = false; canvas.invalidate(); }
     });
     window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE
@@ -649,41 +661,51 @@ public final class MainActivity extends androidx.activity.ComponentActivity {
 
     private void number(
       LinearLayout parent, String name, float value, java.util.function.Consumer<Float> set) {
-    LinearLayout r = Ui.row(this);
-    r.addView(
-        Ui.text(this, name, 14, Ui.TEXT), new LinearLayout.LayoutParams(0, Ui.dp(this, 48), 1));
-    EditText input = new EditText(this);
-    input.setSingleLine();
-    input.setText(
-        new java.math.BigDecimal(Float.toString(value))
-            .setScale(3, java.math.RoundingMode.HALF_UP)
-            .stripTrailingZeros()
-            .toPlainString());
-    input.setTextColor(Ui.TEXT);
-    input.setTextSize(15);
-    input.setInputType(
-        android.text.InputType.TYPE_CLASS_NUMBER
-            | android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL
-            | android.text.InputType.TYPE_NUMBER_FLAG_SIGNED);
-    input.setContentDescription(name);
-    r.addView(input, new LinearLayout.LayoutParams(Ui.dp(this, 92), Ui.dp(this, 48)));
-    r.addView(
-        Ui.button(
-            this,
-            "Apply",
-            () -> {
-              try {
-                float v = Float.parseFloat(input.getText().toString());
-                if (!Float.isFinite(v)) throw new IllegalArgumentException();
-                set.accept(v);
-              } catch (Exception e) {
-                input.setError("Enter a valid number");
-              }
-            }));
-    parent.addView(r);
+    LinearLayout row = Ui.row(this);
+    row.setPadding(Ui.dp(this, 6), Ui.dp(this, 3), Ui.dp(this, 6), Ui.dp(this, 3));
+    row.addView(
+        Ui.text(this, name, 14, Ui.TEXT),
+        new LinearLayout.LayoutParams(0, Ui.dp(this, 52), 1));
+    String initial = new java.math.BigDecimal(Float.toString(value))
+        .setScale(3, java.math.RoundingMode.HALF_UP)
+        .stripTrailingZeros()
+        .toPlainString();
+    EditText edit = Ui.field(this, initial, name);
+    edit.setInputType(android.text.InputType.TYPE_CLASS_NUMBER
+        | android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL
+        | android.text.InputType.TYPE_NUMBER_FLAG_SIGNED);
+    edit.setImeOptions(android.view.inputmethod.EditorInfo.IME_ACTION_DONE);
+    String[] committed = {initial};
+    Runnable save = () -> {
+      String raw = edit.getText().toString().trim();
+      if (raw.equals(committed[0])) return;
+      try {
+        float entered = Float.parseFloat(raw);
+        if (!Float.isFinite(entered)) throw new NumberFormatException();
+        set.accept(entered);
+        committed[0] = raw;
+      } catch (NumberFormatException invalid) {
+        edit.setError("Enter a valid number");
+      }
+    };
+    pendingNumericEdits.add(save);
+    edit.setOnFocusChangeListener((view, focused) -> {
+      if (!focused) save.run();
+    });
+    edit.setOnEditorActionListener((view, action, event) -> {
+      if (action == android.view.inputmethod.EditorInfo.IME_ACTION_DONE
+          || (event != null && event.getKeyCode() == KeyEvent.KEYCODE_ENTER)) {
+        save.run();
+        edit.clearFocus();
+        return true;
+      }
+      return false;
+    });
+    row.addView(edit, new LinearLayout.LayoutParams(Ui.dp(this, 112), Ui.dp(this, 52)));
+    parent.addView(row);
   }
 
-  private void toggle(
+    private void toggle(
       LinearLayout parent, String name, boolean value, java.util.function.Consumer<Boolean> set) {
     Switch control = new Switch(this);
     control.setText(name);
@@ -793,16 +815,6 @@ public final class MainActivity extends androidx.activity.ComponentActivity {
         new String[] {"Left", "Center", "Right"},
         v -> change(() -> e.align = Arrays.asList("Left", "Center", "Right").indexOf(v)));
     if (e.type.equals("Clock")) {
-      choose(
-          content,
-          "Clock family",
-          e.family,
-          Domain.CLOCKS,
-          v ->
-              change(
-                  () -> {
-                    Domain.applyClockFamily(e, v);
-                  }));
       if(e.family.equals("Analog")) {
         toggle(content,"Dial ring",e.dialRing,v -> change(() -> e.dialRing=v));
         toggle(content,"Hour markers",e.dialMarkers,v -> change(() -> e.dialMarkers=v));
@@ -962,9 +974,6 @@ public final class MainActivity extends androidx.activity.ComponentActivity {
     }
     Domain.Element target = found;
     LinearLayout content = sheet("Clock studio");
-    content.addView(Ui.eyebrow(this, "CLOCK FACES"));
-    TextView explanation = Ui.text(this, "Choose a look, then fine-tune every detail.", 14, Ui.MUTED);
-    content.addView(explanation);
     LinearLayout row = null;
     int[] colors = {0xffeef6f2, 0xfff5e4c7, 0xffb6e9db, 0xfff2c8d7,
         0xffc9d3fa, 0xfff1e6d3, 0xffa9d7f2, 0xffc9eacf};
@@ -1011,8 +1020,7 @@ public final class MainActivity extends androidx.activity.ComponentActivity {
       params.setMargins(Ui.dp(this, 5), Ui.dp(this, 6), Ui.dp(this, 5), Ui.dp(this, 6));
       row.addView(tile, params);
     }
-    content.addView(Ui.eyebrow(this, "MAKE IT YOUR OWN"));
-    content.addView(Ui.text(this, "Mix individual clock parts or save your arrangement for later.", 14, Ui.MUTED));
+    content.addView(Ui.eyebrow(this, "CUSTOM CLOCKS"));
     content.addView(Ui.button(this, "Start custom clock", () -> {
       change(() -> {
         Domain.Element base = new Domain.Element();
@@ -1122,6 +1130,12 @@ public final class MainActivity extends androidx.activity.ComponentActivity {
     startActivity(intent);
   }
 
+  private void openScreensaverSettings() {
+    Intent intent = new Intent(Settings.ACTION_DREAM_SETTINGS);
+    if (intent.resolveActivity(getPackageManager()) != null) startActivity(intent);
+    else toast("Screensaver settings aren't available on this device.");
+  }
+
   private void modes() {
     new AlertDialog.Builder(this)
         .setTitle("Use display")
@@ -1134,19 +1148,7 @@ public final class MainActivity extends androidx.activity.ComponentActivity {
             },
             (d, w) -> {
               if (w == 2) {
-                Intent i = new Intent(Settings.ACTION_DREAM_SETTINGS);
-                if (i.resolveActivity(getPackageManager()) == null) {
-                  toast("Ambient screensaver setup isn't available on this device.");
-                  return;
-                }
-                new AlertDialog.Builder(this)
-                    .setTitle("Enable Ambient")
-                    .setMessage(
-                        "Choose AOD in your device's screensaver settings and select when it runs."
-                            + " Availability depends on your device.")
-                    .setPositiveButton("Open settings", (q, k) -> startActivity(i))
-                    .setNegativeButton("Cancel", null)
-                    .show();
+                openScreensaverSettings();
               } else if (w == 3)
                 new AlertDialog.Builder(this)
                     .setTitle("Manual lock-screen display")
@@ -1187,10 +1189,7 @@ public final class MainActivity extends androidx.activity.ComponentActivity {
   public void schedules() {
     screen = "Schedules";
     shell("Schedules", true);
-    bar.addView(Ui.icon(this, "Add", () -> ruleEditor(null)));
-    root.addView(Ui.eyebrow(this, "AUTOMATIONS"));
-    root.addView(Ui.headline(this, "Right time. Right look."));
-    root.addView(Ui.text(this, "Switch designs at night, during the day, or while charging.", 14, Ui.MUTED));
+    if (!store.rules.isEmpty()) bar.addView(Ui.icon(this, "Add", () -> ruleEditor(null)));
     toggle(root, "Manual design override", store.override, v -> {
       store.override = v;
       store.save();
@@ -1210,12 +1209,10 @@ public final class MainActivity extends androidx.activity.ComponentActivity {
     list.setPadding(Ui.dp(this, 12), 0, Ui.dp(this, 12), Ui.dp(this, 12));
     scroll.addView(list);
     root.addView(scroll, new LinearLayout.LayoutParams(-1, 0, 1));
-    list.addView(Ui.eyebrow(this, "YOUR SCHEDULES"));
     if (store.rules.isEmpty()) {
       LinearLayout empty = Ui.column(this);
       empty.setBackground(Ui.bordered(this, Ui.PANEL, 18));
-      empty.addView(Ui.text(this, "Nothing on the calendar yet", 19, Ui.TEXT));
-      empty.addView(Ui.text(this, "Create a rule to change your display automatically.", 14, Ui.MUTED));
+      empty.addView(Ui.text(this, "No schedules yet", 19, Ui.TEXT));
       Button create = Ui.primary(this, "Create schedule", () -> ruleEditor(null));
       LinearLayout.LayoutParams createParams = new LinearLayout.LayoutParams(-1, Ui.dp(this, 50));
       createParams.setMargins(Ui.dp(this, 14), Ui.dp(this, 14), Ui.dp(this, 14), Ui.dp(this, 16));
@@ -1237,7 +1234,8 @@ public final class MainActivity extends androidx.activity.ComponentActivity {
       lp.setMargins(Ui.dp(this, 4), Ui.dp(this, 6), Ui.dp(this, 4), Ui.dp(this, 6));
       list.addView(item, lp);
     }
-    list.addView(Ui.text(this, "If rules overlap, the highest priority wins.", 12, Ui.MUTED));
+    if (store.rules.size() > 1)
+      list.addView(Ui.text(this, "If schedules overlap, the highest priority wins.", 12, Ui.MUTED));
   }
 
     private String time(int value) {
@@ -1312,6 +1310,7 @@ public final class MainActivity extends androidx.activity.ComponentActivity {
             this,
             "Save schedule",
             () -> {
+              flushNumericEdits();
               if (r.days == 0) {
                 toast("Choose at least one day.");
                 return;
@@ -1337,25 +1336,35 @@ public final class MainActivity extends androidx.activity.ComponentActivity {
 
   private void settingHour(LinearLayout parent, String label,
       android.content.SharedPreferences prefs, String key, int fallback) {
-    int initial = prefs.getInt(key, fallback);
-    Button picker = Ui.button(this, label + "  ·  " + time(initial * 60), () -> {});
+    Button picker = Ui.button(this,
+        label + "  ·  " + time(prefs.getInt(key, fallback) * 60), () -> {});
     picker.setOnClickListener(v -> {
-      NumberPicker hours = new NumberPicker(this);
-      hours.setMinValue(0);
-      hours.setMaxValue(23);
-      hours.setValue(prefs.getInt(key, fallback));
-      hours.setWrapSelectorWheel(true);
-      hours.setContentDescription(label + " hour");
-      new AlertDialog.Builder(this)
-          .setTitle(label)
-          .setView(hours)
-          .setPositiveButton("Save", (dialog, which) -> {
-            int selectedHour = hours.getValue();
-            prefs.edit().putInt(key, selectedHour).apply();
-            picker.setText(label + "  ·  " + time(selectedHour * 60));
-          })
+      EditText edit = Ui.field(this, String.valueOf(prefs.getInt(key, fallback)), label);
+      edit.setInputType(android.text.InputType.TYPE_CLASS_NUMBER);
+      edit.setImeOptions(android.view.inputmethod.EditorInfo.IME_ACTION_DONE);
+      FrameLayout wrapper = new FrameLayout(this);
+      wrapper.setPadding(Ui.dp(this, 20), Ui.dp(this, 8),
+          Ui.dp(this, 20), Ui.dp(this, 8));
+      wrapper.addView(edit, new FrameLayout.LayoutParams(-1, Ui.dp(this, 52)));
+      AlertDialog dialog = new AlertDialog.Builder(this)
+          .setTitle(label + " (0–23)")
+          .setView(wrapper)
+          .setPositiveButton("Save", null)
           .setNegativeButton("Cancel", null)
-          .show();
+          .create();
+      dialog.setOnShowListener(ready ->
+          dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(save -> {
+            try {
+              int hour = Integer.parseInt(edit.getText().toString().trim());
+              if (hour < 0 || hour > 23) throw new NumberFormatException();
+              prefs.edit().putInt(key, hour).apply();
+              picker.setText(label + "  ·  " + time(hour * 60));
+              dialog.dismiss();
+            } catch (NumberFormatException invalid) {
+              edit.setError("Enter an hour from 0 to 23");
+            }
+          }));
+      dialog.show();
     });
     LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(-1, Ui.dp(this, 50));
     lp.setMargins(Ui.dp(this, 6), Ui.dp(this, 4), Ui.dp(this, 6), Ui.dp(this, 4));
@@ -1373,8 +1382,6 @@ public final class MainActivity extends androidx.activity.ComponentActivity {
     root.addView(scroll, new LinearLayout.LayoutParams(-1, 0, 1));
     android.content.SharedPreferences p = store.settings();
     c.addView(Ui.eyebrow(this, "DISPLAY"));
-    c.addView(Ui.headline(this, "Your display, your rules."));
-    c.addView(Ui.text(this, "Keep the screen gentle on your eyes and your battery.", 14, Ui.MUTED));
     toggle(c, "Burn-in pixel shifting", p.getBoolean("shift", true),
         v -> p.edit().putBoolean("shift", v).apply());
     toggle(c, "Use design background while charging", p.getBoolean("chargingBackground", false),
@@ -1391,7 +1398,6 @@ public final class MainActivity extends androidx.activity.ComponentActivity {
     settingHour(c, "Night begins", p, "nightStart", 22);
     settingHour(c, "Day begins", p, "nightEnd", 7);
     c.addView(Ui.eyebrow(this, "AMBIENT PRIVACY"));
-    c.addView(Ui.text(this, "Private content stays hidden unless you explicitly allow it.", 13, Ui.MUTED));
     toggle(c, "Show media titles", p.getBoolean("media", false),
         v -> p.edit().putBoolean("media", v).apply());
     toggle(c, "Show calendar titles", p.getBoolean("calendar", false),
@@ -1415,11 +1421,8 @@ public final class MainActivity extends androidx.activity.ComponentActivity {
         checkSelfPermission(android.Manifest.permission.READ_CALENDAR) == PackageManager.PERMISSION_GRANTED
             ? "Calendar access · On" : "Calendar access · Off",
         () -> requestPermissions(new String[] {android.Manifest.permission.READ_CALENDAR}, 40)));
-    c.addView(Ui.button(this, "Set up Ambient screensaver", this::modes));
-    c.addView(Ui.eyebrow(this, "LOCAL BY DESIGN"));
-    c.addView(Ui.text(this,
-        "Your designs stay on this device. Exports may include personal text or images — review before sharing.",
-        12, Ui.MUTED));
+    c.addView(Ui.eyebrow(this, "SCREENSAVER"));
+    c.addView(Ui.button(this, "Configure screensaver", this::openScreensaverSettings));
   }
 
     private void chooseImage(String id) {

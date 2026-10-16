@@ -5,10 +5,12 @@ import android.content.res.ColorStateList;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
 import android.graphics.drawable.RippleDrawable;
+import android.graphics.drawable.StateListDrawable;
 import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.View;
 import android.widget.Button;
+import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
@@ -85,6 +87,31 @@ public final class Ui {
     line.setBackgroundColor(BORDER);
     line.setLayoutParams(new LinearLayout.LayoutParams(-1, dp(c, 1)));
     return line;
+  }
+
+  /** Custom-styled text input: no platform underline, with a clear focus treatment. */
+  public static EditText field(Context c, String value, String label) {
+    EditText edit = new EditText(c);
+    edit.setText(value);
+    edit.setSingleLine(true);
+    edit.setTextSize(TypedValue.COMPLEX_UNIT_SP, 15);
+    edit.setTypeface(Typeface.create("sans-serif", Typeface.NORMAL));
+    edit.setTextColor(TEXT);
+    edit.setHintTextColor(MUTED);
+    edit.setSelectAllOnFocus(true);
+    edit.setSelection(edit.length());
+    edit.setContentDescription(label);
+    edit.setPadding(dp(c, 14), 0, dp(c, 14), 0);
+    edit.setMinHeight(dp(c, 52));
+    GradientDrawable normal = rounded(CARD, dp(c, 13));
+    normal.setStroke(dp(c, 1), BORDER);
+    GradientDrawable focused = rounded(CARD, dp(c, 13));
+    focused.setStroke(dp(c, 2), ACCENT);
+    StateListDrawable states = new StateListDrawable();
+    states.addState(new int[] {android.R.attr.state_focused}, focused);
+    states.addState(new int[] {}, normal);
+    edit.setBackground(states);
+    return edit;
   }
 
   public static Button button(Context c, String label, Runnable action) {
