@@ -6,7 +6,14 @@ const board=$("board"),controls=$("controls"),status=$("status"),help=$("help"),
 const KEY="night-play-club-v1";
 const state={};let active="checkers",timer=null,drawCtx=null;
 let cardMotionBusy=false,cardMotionEpoch=0,pendingWhotDeal=false;
-const cardMotionMetrics={deals:0,plays:0,cpuPlays:0,draws:0,activeFlights:0};
+// Speed is intentionally unified: interaction should feel immediate,
+// while cards still lift, glide, land and settle.
+const whotMotion={
+ player:300,cpu:330,draw:275,cpuDelay:150,
+ deal:360,dealDelay:55,dealStagger:52,opponentDeal:385,
+ settle:180,recenter:190,drawFlip:195
+};
+const cardMotionMetrics={deals:0,plays:0,cpuPlays:0,draws:0,activeFlights:0,lastFlightDuration:0,lastFlightAction:null};
 const motionEnabled=()=>!matchMedia("(prefers-reduced-motion: reduce)").matches;
 const colors={red:"#df3439",green:"#328c4b",yellow:"#e8b32a",blue:"#2767bc"};
 const titles={ludo:["Nigerian Ludo","The board you remember.","BOARD GAME"],estate:["NIGHT Estates","Buy, trade and collect rent.","PROPERTY GAME"],whot:["WHOT","Classic Nigerian shape-and-number card play.","CARD GAME"],colors:["Colour Clash","A quick colour-matching card battle.","CARD GAME"],draw:["Draw & Guess","One draws. Everyone else guesses.","PARTY GAME"],snakes:["Snakes & Ladders","Climb fast. Slide carefully.","BOARD GAME"],checkers:["Draughts","A proper tabletop strategy game.","BOARD GAME"]};
@@ -181,17 +188,18 @@ async function whotFly(origin,destination,{face=null,action="play"}={}){
  if(action==='play')origin.style.visibility='hidden';
  const dx=b.left+b.width/2-a.left-a.width/2,dy=b.top+b.height/2-a.top-a.height/2,scale=b.width/a.width;
  cardMotionMetrics.activeFlights++;
- const flightAngle=action==='cpu'?8:-7;
+ const flightAngle=action==='cpu'?7:-5;
+ const duration=action==='cpu'?whotMotion.cpu:action==='draw'?whotMotion.draw:whotMotion.player;
+ cardMotionMetrics.lastFlightDuration=duration;
+ cardMotionMetrics.lastFlightAction=action;
  try{
   // Lift, arc and land: intentional readable motion, never layout animation.
   const effect=ghost.animate([
-   {offset:0,transform:'translate3d(0,0,0) scale(1) rotate(-3deg) rotateY('+(action==='cpu'?75:0)+'deg)',opacity:1},
-   {offset:.20,transform:'translate3d('+(dx*.15)+'px,'+(dy*.15-29)+'px,0) scale(1.14) rotate('+flightAngle+'deg) rotateY(0)',opacity:1},
-   {offset:.72,transform:'translate3d('+(dx*.75)+'px,'+(dy*.75-25)+'px,0) scale('+(1.05+(scale-1)*.7)+') rotate(-4deg)',opacity:1},
-   {offset:.94,transform:'translate3d('+(dx*.96)+'px,'+(dy*.96-3)+'px,0) scale('+(scale*1.06)+') rotate(1deg)',opacity:1},
+   {offset:0,transform:'translate3d(0,0,0) scale(1) rotate(-2deg) rotateY('+(action==='cpu'?35:0)+'deg)',opacity:1},
+   {offset:.26,transform:'translate3d('+(dx*.22)+'px,'+(dy*.22-17)+'px,0) scale(1.085) rotate('+flightAngle+'deg) rotateY(0)',opacity:1},
+   {offset:.77,transform:'translate3d('+(dx*.82)+'px,'+(dy*.82-12)+'px,0) scale('+(1.02+(scale-1)*.80)+') rotate(-2deg)',opacity:1},
    {offset:1,transform:'translate3d('+dx+'px,'+dy+'px,0) scale('+scale+') rotate(0)',opacity:1}
-  ],{duration:action==='cpu'?680:action==='draw'?570:600,
-   easing:'cubic-bezier(.24,.67,.17,1)',fill:'forwards'});
+  ],{duration,easing:'cubic-bezier(.25,.73,.21,1)',fill:'forwards'});
   await effect.finished.catch(()=>{});
  }finally{origin.style.visibility=oldVisibility;ghost.remove();cardMotionMetrics.activeFlights--;}
 }
@@ -207,14 +215,14 @@ function whotDeal(){
    {transform:'translate3d('+dx+'px,'+dy+'px,0) scale(.58) rotate(-12deg)',opacity:.05},
    {offset:.72,transform:'translate3d('+(dx*.12)+'px,'+(dy*.12-11)+'px,0) scale(1.06) rotate(3deg)',opacity:1},
    {transform:'translate3d(0,0,0) scale(1) rotate(0)',opacity:1}
-  ],{delay:115+index*112,duration:660,easing:'cubic-bezier(.16,.8,.15,1)'});
+  ],{delay:whotMotion.dealDelay+index*whotMotion.dealStagger,duration:whotMotion.deal,easing:'cubic-bezier(.23,.8,.2,1)'});
  });
  const opponent=board.querySelector('.table-surface > .card-row .card-back');
  if(opponent){const b=opponent.getBoundingClientRect();
   opponent.animate([
    {transform:'translate3d('+(a.left+a.width/2-b.left-b.width/2)+'px,'+(a.top+a.height/2-b.top-b.height/2)+'px,0) scale(.7) rotate(9deg)',opacity:.2},
    {transform:'translate3d(0,0,0) scale(1) rotate(0)',opacity:1}
-  ],{delay:170,duration:690,easing:'cubic-bezier(.14,.78,.18,1)'});
+  ],{delay:whotMotion.dealDelay+30,duration:whotMotion.opponentDeal,easing:'cubic-bezier(.23,.8,.2,1)'});
  }
 }
 function whotSettle(){
@@ -224,7 +232,7 @@ function whotSettle(){
   {offset:0,transform:'scale(1.13) rotate(3deg)'},
   {offset:.55,transform:'scale(.975) rotate(-1deg)'},
   {offset:1,transform:'scale(1) rotate(0)'}
- ],{duration:340,easing:'cubic-bezier(.17,.8,.17,1)'});
+ ],{duration:whotMotion.settle,easing:'cubic-bezier(.2,.82,.28,1)'});
 }
 async function cardPlay(kind,index,requestedShape=null){
  const s=state[kind];if(cardMotionBusy||s.turn!==0||s.winner!==null)return;
@@ -269,7 +277,7 @@ async function cardDraw(kind){
    board.querySelectorAll('.hand .whot-card')[oldCount]?.animate([
     {transform:'translate3d(0,-20px,0) rotateY(75deg) scale(.88)',opacity:.3},
     {transform:'translate3d(0,0,0) rotateY(0) scale(1)',opacity:1}
-   ],{duration:340,easing:'cubic-bezier(.18,.8,.18,1)'});
+   ],{duration:whotMotion.drawFlip,easing:'cubic-bezier(.2,.8,.2,1)'});
   }
   queueCPU(kind);
  }finally{if(epoch===cardMotionEpoch)cardMotionBusy=false;}
@@ -296,7 +304,7 @@ function queueCPU(kind){const round=state[kind],epoch=cardMotionEpoch;
   const cpuCall=kind==='whot'?suitCounts.indexOf(Math.max(...suitCounts)):Math.floor(Math.random()*4);
   nextCardTurn(kind,s,1,card,cpuCall);
   render();if(kind==='whot')whotSettle();if(s.turn===1)queueCPU(kind);
- },kind==='whot'?380:470);
+ },kind==='whot'?whotMotion.cpuDelay:470);
 }
 function whotShapeSvg(s,n,mini=false){
  // Entirely original vector suits, drawn from geometric shapes; no third-party
@@ -373,7 +381,7 @@ function layoutWhotHand(before=null){
   if(Math.abs(dx)<.75&&Math.abs(dy)<.75)continue;
   el.animate([{transform:'translate3d('+dx+'px,'+dy+'px,0)'},
               {transform:'translate3d(0,0,0)'}],
-   {duration:300,easing:'cubic-bezier(.18,.85,.16,1)'});
+   {duration:whotMotion.recenter,easing:'cubic-bezier(.2,.8,.2,1)'});
  }
 }
 let whotResizeFrame=0;
@@ -555,7 +563,7 @@ const action=e.target.closest("[data-action]");if(!action)return;
 switch(action.dataset.action){case"ludo-roll":ludoRoll();break;case"ludo-new":if(confirm("Restart the Ludo match?")){closeLudoSettings();reset("ludo");}break;case"ludo-sound":state.ludo.sound=!state.ludo.sound;render();break;case"estate-roll":estateRoll();break;case"estate-buy":estateDecision(true);break;case"estate-pass":estateDecision(false);break;case"estate-end":estateEnd();break;case"card-draw":cardDraw(active);break;case"whot-rematch":if(active==="whot"&&state.whot.winner!==null)reset("whot");break;case"whot-call-cancel":if(active==='whot'&&!cardMotionBusy){state.whot.pendingWhot=null;render();}break;case"snakes-roll":snakesRoll();break;case"draw-ready":drawReady();break;case"draw-next":drawNext();break;case"draw-guess":drawReadyToGuess();break;case"draw-clear":if(drawCtx){drawCtx.clearRect(0,0,800,600);}break;case"draw-erase":setBrush("erase");break;case"checkers-reset":reset("checkers");break;}
 });
 // Read-only motion diagnostics for real Chromium touch and frame tests.
-window.__nightWhotMotion=()=>({...cardMotionMetrics,busy:cardMotionBusy,waitingForCall:state.whot?.pendingWhot!=null,
+window.__nightWhotMotion=()=>({...cardMotionMetrics,timings:{...whotMotion},busy:cardMotionBusy,waitingForCall:state.whot?.pendingWhot!=null,
  visibleFlights:document.querySelectorAll('.whot-flight').length,
  cardNodes:board.querySelectorAll('.hand .whot-card').length});
 function go(){pick(new URL(location.href).searchParams.get("game")||"checkers");}
