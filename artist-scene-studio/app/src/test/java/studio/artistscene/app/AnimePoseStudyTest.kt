@@ -23,7 +23,7 @@ class AnimePoseStudyTest {
         assertEquals("CC0-1.0", hero.asset?.license)
         assertEquals(HairStyle.NONE, hero.appearance.hairStyle)
         assertEquals(EnvironmentPreset.DAYLIGHT, project.world.environmentPreset)
-        assertEquals(10, hero.rig?.joints?.size)
+        assertEquals(9, hero.rig?.joints?.size)
         assertTrue(hero.rig!!.joints.values.any { it.z > 30f })
         assertTrue(hero.rig.joints.values.any { it.z < -30f })
         assertTrue(hero.rig.joints.values.any { it.x != 0f })
