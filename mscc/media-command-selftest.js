@@ -17,6 +17,17 @@ const expected = new Map([
   ['tovideo', 'tovideo'],
   ['tovid', 'tovideo'],
   ['sfx', 'sfx'],
+  ['dl', 'dl'],
+  ['social', 'dl'],
+  ['tt', 'dl'],
+  ['tiktok', 'dl'],
+  ['ig', 'dl'],
+  ['instagram', 'dl'],
+  ['fb', 'dl'],
+  ['facebook', 'dl'],
+  ['xdl', 'dl'],
+  ['twitterdl', 'dl'],
+  ['redditdl', 'dl'],
 ])
 
 for (const [key, canonical] of expected) {
@@ -26,7 +37,7 @@ for (const [key, canonical] of expected) {
   assert.equal(command.capability, 'media', `Media command ${key} escaped the media capability`)
 }
 
-for (const name of ['sticker', 'take', 'ps', 'toimg', 'togif', 'tovideo', 'sfx']) {
+for (const name of ['sticker', 'take', 'ps', 'toimg', 'togif', 'tovideo', 'sfx', 'dl']) {
   const command = registry.commands.get(name)
   assert.equal(command.ownerOnly === true, false, `${name} unexpectedly became owner-only`)
   assert.equal(command.adminOnly === true, false, `${name} unexpectedly became admin-only`)
@@ -36,3 +47,4 @@ console.log('media command registry self-test passed')
 
 // Reuse the ordinary media registry CI step for exhaustive SFX FFmpeg checks.
 await import('./sfx-selftest.js')
+await import('./social-download-selftest.js')

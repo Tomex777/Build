@@ -154,6 +154,16 @@ if [ ! -x "$YOUTUBE_VENV/bin/yt-dlp" ] || [ "${MSCC_YOUTUBE_UPDATE_YTDLP:-0}" = 
   fi
 fi
 
+# Optional photo-post extractor for NIGHT's .dl command. This shares the
+# existing isolated MSCC Python venv and never changes host/site-packages.
+# Failure must not prevent video downloads or a healthy bot deployment.
+if [ -x "$YOUTUBE_VENV/bin/python" ] && { [ ! -x "$YOUTUBE_VENV/bin/gallery-dl" ] || [ "${MSCC_SOCIAL_UPDATE_GALLERY_DL:-0}" = "1" ]; }; then
+  echo ">>> Installing optional NIGHT social photo extractor..."
+  if ! "$YOUTUBE_VENV/bin/python" -m pip install --disable-pip-version-check --quiet --upgrade gallery-dl; then
+    echo "Optional NIGHT photo extractor install failed; social video downloads remain available." >&2
+  fi
+fi
+
 npm run check
 
 SOURCE_STACK_DIR="${MSCC_SOURCE_STACK_DIR:-/opt/mscc-source-stack}"
