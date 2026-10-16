@@ -6,6 +6,7 @@ on:
     paths:
       - .github/workflows/echospace-arm64-release.yml
       - .github/scripts/echospace_expand_mixer.py
+      - .github/scripts/echospace_abr.py
   workflow_dispatch:
 
 permissions:
@@ -32,6 +33,8 @@ jobs:
           find EchoSpace/app -maxdepth 1 -name 'build.gradle*' -print
       - name: Apply expanded sound mixer controls
         run: python3 .github/scripts/echospace_expand_mixer.py
+      - name: Apply ABR single-mixer design and vector sound controls
+        run: python3 .github/scripts/echospace_abr.py
       - name: Bundle offline environment artwork
         shell: bash
         run: |
