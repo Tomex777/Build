@@ -34,6 +34,10 @@ data class SceneEditorState(
     fun setGroundVisible(visible: Boolean): SceneEditorState =
         commit(project.copy(world = project.world.copy(groundEnabled = visible)), selectedActorId)
 
+    /** Scene-wide sky and light change, committed as one atomic undoable action. */
+    fun applyLightingLook(look: LightingLook): SceneEditorState =
+        commit(lightingLookProject(project, look), selectedActorId)
+
     fun useTool(tool: TransformTool): SceneEditorState = copy(activeTool = tool)
 
     fun translate(axis: TransformAxis, delta: Float): SceneEditorState =
