@@ -9,6 +9,7 @@ import android.graphics.Paint
 import android.os.Build
 import android.net.Uri
 import android.util.Log
+import android.util.LruCache
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -653,7 +654,33 @@ private fun Actor.initialDisplayDimensionMeters(): Float = when (asset?.assetId)
     }
 }
 
-private fun readAssetBytes(context: Context, asset: AssetReference): ByteArray {
+/** Small bounded cache for immutable packaged models shared across scene actors.
+ * Filament instances are NEVER cached/shared: every actor still receives an independent
+ * animated ModelInstance. Cache only raw bytes, so duplicating VRoid avatars avoids
+ * repeated 18 MB disk reads without leaking native GPU assets.
+ */
+internal object MiseModelBytes {
+    private val cache = object : LruCache<String, ByteArray>(40 * 1024) {
+        override fun sizeOf(key: String, bytes: ByteArray): Int =
+            (bytes.size + 1023) / 1024
+    }
+
+    fun load(context: Context, asset: AssetReference, fetch: () -> ByteArray): ByteArray {
+        if (asset.storage != AssetStorage.BUNDLED) return fetch()
+        val fingerprint = listOf(asset.assetId, asset.relativePath, asset.version ?: "").joinToString("|")
+        cache.get(fingerprint)?.let { return it }
+        val bytes = fetch()
+        if (bytes.size <= 32 * 1024 * 1024) cache.put(fingerprint, bytes)
+        return bytes
+    }
+
+    fun trim() = cache.evictAll()
+}
+
+private fun readAssetBytes(context: Context, asset: AssetReference): ByteArray =
+    MiseModelBytes.load(context, asset) { readAssetBytesUncached(context, asset) }
+
+private fun readAssetBytesUncached(context: Context, asset: AssetReference): ByteArray {
     val stream = when (asset.storage) {
         AssetStorage.BUNDLED -> context.assets.open(asset.relativePath)
         AssetStorage.PROJECT_FILE -> File(context.filesDir, asset.relativePath).inputStream()
