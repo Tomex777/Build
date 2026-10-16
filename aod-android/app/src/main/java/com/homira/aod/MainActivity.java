@@ -192,18 +192,9 @@ public final class MainActivity extends androidx.activity.ComponentActivity {
     featured.designThumbnail = true;
     featured.setContentDescription("Current design preview");
     hero.addView(featured, new LinearLayout.LayoutParams(-1, Ui.dp(this, 158)));
-    LinearLayout heroActions = Ui.row(this);
-    heroActions.setPadding(Ui.dp(this, 12), Ui.dp(this, 8), Ui.dp(this, 12), Ui.dp(this, 8));
-    heroActions.addView(Ui.primary(this, "Edit", () -> studio(current)), new LinearLayout.LayoutParams(0, Ui.dp(this, 48), 1));
-    View gap = new View(this);
-    heroActions.addView(gap, new LinearLayout.LayoutParams(Ui.dp(this, 8), 1));
-    heroActions.addView(Ui.button(this, "From wallpaper", () -> {
-      Domain.Theme t = new Domain.Theme(); t.name = "Wallpaper " + (store.themes.size() + 1);
-      Domain.Element clock = new Domain.Element(); clock.y = 96; Domain.applyClockFamily(clock, "Thin");
-      t.elements.add(clock);
-      try { store.put(t); studio(t); chooseImage("outline"); } catch (Exception e) { error(e); }
-    }), new LinearLayout.LayoutParams(0, Ui.dp(this, 48), 1));
-    hero.addView(heroActions);
+    LinearLayout.LayoutParams editParams = new LinearLayout.LayoutParams(-1, Ui.dp(this, 50));
+    editParams.setMargins(Ui.dp(this, 12), Ui.dp(this, 8), Ui.dp(this, 12), Ui.dp(this, 10));
+    hero.addView(Ui.primary(this, "Edit", () -> studio(current)), editParams);
 
     LinearLayout section = Ui.row(this);
     TextView heading = Ui.text(this, "Your collection", 20, Ui.TEXT);
@@ -332,7 +323,33 @@ public final class MainActivity extends androidx.activity.ComponentActivity {
         .show();
   }
 
+  private void fromWallpaper() {
+    Domain.Theme design = new Domain.Theme();
+    design.name = "Wallpaper " + (store.themes.size() + 1);
+    Domain.Element clock = new Domain.Element();
+    clock.y = 96;
+    Domain.applyClockFamily(clock, "Thin");
+    design.elements.add(clock);
+    try {
+      store.put(design);
+      studio(design);
+      chooseImage("outline");
+    } catch (Exception exception) {
+      error(exception);
+    }
+  }
+
   private void newDesign() {
+    new AlertDialog.Builder(this)
+        .setTitle("New design")
+        .setItems(new String[] {"Blank design", "From wallpaper"}, (dialog, selected) -> {
+          if (selected == 0) newBlankDesign();
+          else fromWallpaper();
+        })
+        .show();
+  }
+
+  private void newBlankDesign() {
     input(
         "Design name",
         "My AOD",
