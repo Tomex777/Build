@@ -71,7 +71,7 @@ function serve(root,night){
    assert.equal(await lab.locator('iframe').count(),2,'comparison contains original and NIGHT game');
    assert.equal(await lab.locator('#nightFrame').getAttribute('src'),'/club/?game=whot');
    assert.equal(await lab.locator('#originalFrame').getAttribute('src'),'https://whot.trust-akpeti.com/play-computer');
-   assert.equal(await lab.getByRole('link',{name:/Open the original game/}).count(),1);
+   assert.equal(await lab.locator('.frame-overlay a[href="https://whot.trust-akpeti.com/play-computer"]').count(),1,'visible on reference tab and present as external fallback');
    if(width<800){
     assert.equal(await lab.locator('[data-panel="night"]').isVisible(),true);
     await lab.getByRole('button',{name:'AkpetiTrust original'}).click();
