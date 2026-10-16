@@ -1206,7 +1206,9 @@ private fun StudioScreen(
                             }
                         }
                     }
-                    "Elements" -> ElementPanel(doc, update)
+                    "Elements" -> ElementPanel(doc, update, onAdded = { id ->
+                        selectedElementId = id; setPanel("")
+                    })
                     "Text" -> TextPanel(doc, update, onEdit = { editTextOnCard = true })
                     "Slides" -> SlidesPanel(slides, index, changeSlide, addSlide, duplicateSlide,
                         removeSlide, moveSlide, splitPoem, applyStyleToAll, exportBusy)
@@ -1637,7 +1639,7 @@ private fun BackgroundPanel(doc: PoemDoc, update: (PoemDoc) -> Unit) {
 }
 
 @Composable
-private fun ElementPanel(doc: PoemDoc, update: (PoemDoc) -> Unit) {
+private fun ElementPanel(doc: PoemDoc, update: (PoemDoc) -> Unit, onAdded: (String) -> Unit) {
     val context = LocalContext.current
     val preferences = remember(context) { context.getSharedPreferences("poetry-elements", Context.MODE_PRIVATE) }
     var query by remember { mutableStateOf("") }
@@ -1647,7 +1649,9 @@ private fun ElementPanel(doc: PoemDoc, update: (PoemDoc) -> Unit) {
     var recents by remember { mutableStateOf(preferences.getString("recents", "")?.split(',')
         ?.filter { it.isNotBlank() } ?: emptyList()) }
     fun add(entry: ElementEntry) {
-        update(doc.copy(card = doc.card.copy(elements = doc.card.elements + Ornament(assetId = entry.id))))
+        val element = Ornament(assetId = entry.id)
+        update(doc.copy(card = doc.card.copy(elements = doc.card.elements + element)))
+        onAdded(element.id)
         recents = (listOf(entry.id) + recents.filterNot { it == entry.id }).take(12)
         preferences.edit().putString("recents", recents.joinToString(",")).apply()
     }
