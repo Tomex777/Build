@@ -321,7 +321,21 @@ try{
       };
     });
     assert.equal(bounds.count,n,"Hand correctly mounts "+n+" cards");
-    assert.ok(Math.abs(bounds.center-bounds.goal)<3.2,"WHOT "+n+"-card hand stays centered (actual "+JSON.stringify(bounds)+")");
+    if(n<=5)assert.ok(Math.abs(bounds.center-bounds.goal)<3.2,"WHOT "+n+"-card hand stays centered (actual "+JSON.stringify(bounds)+")");
+    else{
+      const rows=await page.locator('.hand .whot-card').evaluateAll(cards=>{
+       const byRow=new Map(),row=cards[0].closest('.card-row').getBoundingClientRect();
+       for(const card of cards){const r=card.getBoundingClientRect(),key=Math.round(r.top);if(!byRow.has(key))byRow.set(key,[]);byRow.get(key).push(r);}
+       return [...byRow.values()].map(rs=>({center:(rs[0].left+rs.at(-1).right)/2,target:row.left+row.width/2,length:rs.length}));
+      });
+      assert.ok(rows.length>=2,'WHOT '+n+'-card hand wraps rather than making cards unclickable');
+      for(const item of rows)assert.ok(Math.abs(item.center-item.target)<4,'Each WHOT row stays centered: '+JSON.stringify(item));
+      const exposed=await page.locator('.hand .whot-card').evaluateAll(cards=>cards.every(card=>{
+       const r=card.getBoundingClientRect(),point=document.elementFromPoint(r.left+r.width/2,r.top+r.height/2);
+       return point===card||card.contains(point);
+      }));
+      assert.equal(exposed,true,'Every WHOT card in a crowded hand is directly tappable at its center');
+    }
     assert.ok(bounds.first>=-1&&bounds.last<=bounds.viewport+1,"WHOT "+n+"-card hand never runs off the phone");
     assert.ok(bounds.overflow<=2,"WHOT "+n+"-card hand causes no sideways page scroll");
     assert.ok(bounds.sceneHeight>=600,"WHOT playing surface is truly taller on mobile, not a narrow little box");
