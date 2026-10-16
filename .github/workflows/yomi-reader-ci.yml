@@ -308,7 +308,7 @@ jobs:
             # tapped (+) a second time, reopened Add and took a misleading
             # "Folders" screenshot of the still-open Add sheet.
             adb logcat -c
-            adb shell input tap 800 2250
+            adb shell input tap 650 2250
             i=0; until adb logcat -d -v brief YomiStartup:I '*:S' | grep -Fq 'home-destination=FOLDERS'; do i=$((i + 1)); [ "$i" -lt 30 ] || { echo 'Folders tab never opened; refusing mislabeled screenshot' >&2; adb logcat -d -v threadtime > yomi-output/runtime/folders-navigation-failure.txt || true; exit 1; }; sleep 2; done
             bash yomi-reader/scripts/capture_clean_screen.sh yomi-output/runtime/yomi-folders.png
             test "$(wc -c < yomi-output/runtime/yomi-folders.png)" -gt 4096
