@@ -88,5 +88,9 @@ class AnimePoseStudyTest {
         assertTrue(PrototypeScene.starterAssets().any {
             it.asset?.assetId == PrototypeScene.HUMANOID_ASSET_ID
         })
+        assertTrue(PrototypeScene.starterAssets().any {
+            it.asset?.assetId == PrototypeScene.ANIME_FEMALE_ASSET_ID &&
+                it.asset?.license == "CC0-1.0" && it.asset.relativePath == "models/mise_anime_female.glb"
+        })
     }
 }
