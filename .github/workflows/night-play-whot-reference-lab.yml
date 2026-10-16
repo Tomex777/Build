@@ -1,0 +1,39 @@
+name: WHOT original vs NIGHT Play lab
+on:
+  pull_request:
+    paths:
+      - 'night-play/whot-lab/**'
+      - 'night-play/vercel.json'
+      - '.github/workflows/night-play-whot-reference-lab.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  original-vs-night:
+    runs-on: ubuntu-latest
+    timeout-minutes: 19
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Clone AkpetiTrust's actual open-source-labelled frontend (temporary runner only)
+        run: |
+          git clone --depth 1 --single-branch --branch main https://github.com/AkpetiTrust/whot.git /tmp/night-whot-reference
+          test -f /tmp/night-whot-reference/src/pages/PlayComputer/App.jsx
+          echo "Upstream React game source downloaded into a temporary runner; never packaged in NIGHT Play."
+      - name: Install/build original React game locally, without publishing its assets
+        run: |
+          cd /tmp/night-whot-reference
+          npm ci --legacy-peer-deps --no-audit --no-fund
+          CI=false NODE_OPTIONS=--openssl-legacy-provider npm run build
+          test -s build/index.html
+      - name: Install Chromium and Playwright
+        run: |
+          npm install --prefix /tmp/night-whot-playwright --no-save playwright@1.56.1
+          /tmp/night-whot-playwright/node_modules/.bin/playwright install chromium --with-deps
+      - name: Open original and NIGHT WHOT in Chromium; validate comparison lab
+        env:
+          PLAYWRIGHT_MODULE: /tmp/night-whot-playwright/node_modules/playwright
+          AKPETI_BUILD: /tmp/night-whot-reference/build
+        run: node night-play/whot-lab/reference-smoke.cjs
