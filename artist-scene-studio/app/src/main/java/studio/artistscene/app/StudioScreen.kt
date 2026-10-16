@@ -2728,6 +2728,110 @@ private fun CharacterAppearance(
         }
     }
 
+    if (actor.asset?.assetId in setOf(
+        PrototypeScene.ANIME_ASSET_ID, PrototypeScene.ANIME_FEMALE_ASSET_ID,
+    )) {
+        Text("VRoid hair · genuine 3D strands", color = PrimaryText, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+        Row(
+            modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            listOf(
+                "Original" to null,
+                "Ebony" to "#181B27",
+                "Chestnut" to "#784A35",
+                "Honey" to "#CDB279",
+                "Rose" to "#D87188",
+                "Lilac" to "#9F91D7",
+                "Ocean" to "#337DA5",
+                "Silver" to "#CFDBDE",
+            ).forEach { (label, hex) ->
+                MiseActionPill(
+                    title = label,
+                    tag = "anime-hair-dye-${label.lowercase()}",
+                    enabled = !actor.locked,
+                ) { onEditor(editor.setAnimeHairTint(hex), "anime-hair-dye") }
+            }
+        }
+        Text("Gravity & secondary motion", color = PrimaryText, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            FilterChip(
+                selected = actor.appearance.hairPhysicsEnabled,
+                onClick = {
+                    onEditor(editor.setAnimeHairPhysics(enabled = !actor.appearance.hairPhysicsEnabled), "anime-hair-spring-toggle")
+                },
+                enabled = !actor.locked,
+                label = { Text(if (actor.appearance.hairPhysicsEnabled) "Hair · Dynamic" else "Hair · Still") },
+                modifier = Modifier.weight(1f).testTag("anime-hair-physics"),
+            )
+            FilterChip(
+                selected = actor.appearance.fabricPhysicsEnabled,
+                onClick = {
+                    onEditor(editor.setAnimeHairPhysics(fabricEnabled = !actor.appearance.fabricPhysicsEnabled), "anime-fabric-spring-toggle")
+                },
+                enabled = !actor.locked,
+                label = { Text(if (actor.appearance.fabricPhysicsEnabled) "Cloth · Dynamic" else "Cloth · Still") },
+                modifier = Modifier.weight(1f).testTag("anime-fabric-physics"),
+            )
+        }
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                "Gravity · ${String.format(Locale.US, "%.2f", actor.appearance.hairGravityStrength)}×",
+                color = MutedText, fontSize = 12.sp, modifier = Modifier.weight(1f),
+            )
+            listOf(-.25f, .25f).forEach { delta ->
+                IconButton(
+                    onClick = {
+                        onEditor(
+                            editor.setAnimeHairPhysics(gravity = actor.appearance.hairGravityStrength + delta),
+                            "anime-hair-gravity",
+                        )
+                    },
+                    enabled = !actor.locked &&
+                        if (delta < 0) actor.appearance.hairGravityStrength > 0f
+                        else actor.appearance.hairGravityStrength < 2f,
+                    modifier = Modifier.size(40.dp).testTag(if (delta < 0) "anime-gravity-less" else "anime-gravity-more"),
+                ) {
+                    Icon(
+                        if (delta < 0) Icons.Default.Remove else Icons.Default.Add,
+                        contentDescription = if (delta < 0) "Less hair gravity" else "More hair gravity",
+                        tint = PrimaryText,
+                    )
+                }
+            }
+        }
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                "Breeze · ${String.format(Locale.US, "%.2f", actor.appearance.hairWindStrength)}×",
+                color = MutedText, fontSize = 12.sp, modifier = Modifier.weight(1f),
+            )
+            listOf(-.25f, .25f).forEach { delta ->
+                IconButton(
+                    onClick = {
+                        onEditor(
+                            editor.setAnimeHairPhysics(wind = actor.appearance.hairWindStrength + delta),
+                            "anime-hair-breeze",
+                        )
+                    },
+                    enabled = !actor.locked &&
+                        if (delta < 0) actor.appearance.hairWindStrength > 0f
+                        else actor.appearance.hairWindStrength < 2f,
+                    modifier = Modifier.size(40.dp).testTag(if (delta < 0) "anime-breeze-less" else "anime-breeze-more"),
+                ) {
+                    Icon(
+                        if (delta < 0) Icons.Default.Remove else Icons.Default.Add,
+                        contentDescription = if (delta < 0) "Less breeze" else "More breeze",
+                        tint = PrimaryText,
+                    )
+                }
+            }
+        }
+        Text(
+            "Hair and cloth follow gravity and character motion during preview. Your authored pose stays unchanged.",
+            color = MutedText, fontSize = 11.sp,
+        )
+    }
+
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         Text("Height · ${String.format(Locale.US, "%.0f", actor.transform.scale.y * 100)}%", modifier = Modifier.weight(1f), color = MutedText)
         OutlinedButton(
