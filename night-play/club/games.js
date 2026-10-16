@@ -619,6 +619,7 @@ const whotHud=kind==='whot'?
  '<div class="whot-turn-indicator'+(s.turn===0&&s.winner===null?' player-turn':'')+'"><span class="whot-indicator-light"></span>'+
  (s.winner!==null?'MATCH OVER':s.pendingFinish===0?'PICK TO CONTINUE':whotPending(s)&&s.turn===0?'DEFEND / PICK '+whotPending(s).amount:showCall?'CALL A SHAPE':s.turn===0?'YOUR TURN':'CPU TURN')+'</div>'+
  '<div class="whot-seat whot-seat-you"><strong>'+s.hands[0].length+'</strong><span>YOU</span></div>'+
+ (whotOptions.mode==="tournament"?'<span class="whot-series-score">SERIES · '+(whotCareer.tournamentWins?.[0]||0)+' — '+(whotCareer.tournamentWins?.[1]||0)+'</span>':'')+
  (whotOptions.announce&&s.hands[0].length===1&&s.turn===0&&s.winner===null?
  '<button type="button" class="whot-last-call" data-action="whot-last-call" '+(s.calledLast?.[0]?'disabled':'')+'>'+(s.calledLast?.[0]?'LAST CARD ✓':'DECLARE LAST CARD')+'</button>':'')+'</div>':'';
 const whotVictory=kind==='whot'&&s.winner!==null?
@@ -626,7 +627,7 @@ const whotVictory=kind==='whot'&&s.winner!==null?
  '<div class="whot-win-particles" aria-hidden="true">'+(s.winner===0?Array.from({length:18},(_,i)=>'<i style="--index:'+i+'"></i>').join(''):'')+'</div>'+
  '<div class="whot-win-content"><div class="whot-win-medal" aria-hidden="true"><svg viewBox="0 0 64 64" fill="none"><path d="M20 9h24v15c0 11-5 18-12 20-7-2-12-9-12-20V9Z" fill="currentColor" opacity=".9"/><path d="M20 13H8v8c0 10 6 13 15 13m21-21h12v8c0 10-6 13-15 13" stroke="currentColor" stroke-width="4" stroke-linejoin="round"/><path d="M32 45v9m-13 2h26" stroke="currentColor" stroke-width="5" stroke-linecap="round"/></svg></div>'+
  '<p class="whot-win-eyebrow">'+(s.promotion?'RANK PROMOTION':whotOptions.mode==="tournament"?"TOURNAMENT ROUND":"MATCH COMPLETE")+'</p><h2>'+(s.winner===0?'YOU WIN':'CPU WINS')+'</h2>'+
- '<p class="whot-win-count">'+(s.promotion?'PROMOTED TO '+s.promotion.toUpperCase()+' · ':whotOptions.mode==="career"?'CAREER · '+whotCareer.wins+' WINS · ':'')+(s.winner===0?'CPU':'YOU')+' · '+s.hands[1-s.winner].length+' CARDS LEFT</p>'+
+ '<p class="whot-win-count">'+(s.promotion?'PROMOTED TO '+s.promotion.toUpperCase()+' · ':whotOptions.mode==="career"?'CAREER · '+whotCareer.wins+' WINS · ':'')+(s.winner===0?'CPU':'YOU')+' · '+s.hands[1-s.winner].length+' CARDS LEFT'+(whotOptions.mode==="tournament"?' · SERIES '+whotCareer.tournamentWins[0]+'—'+whotCareer.tournamentWins[1]:'')+'</p>'+
  '<button type="button" class="whot-rematch" data-action="whot-rematch">Play again</button></div></div>':'';
 const tableMarkup='<div class="table-surface'+(kind==='whot'&&s.winner!==null?' whot-finished':'')+'" aria-label="Card table">'+(kind==='whot'?whotHud:'<h3>COMPUTER · '+s.hands[1].length+' CARDS</h3>')+
  '<div class="card-row whot-opponent-hand">'+(kind==='whot'
