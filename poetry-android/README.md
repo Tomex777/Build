@@ -21,7 +21,7 @@ under the `poetry-android/` directory.
 ## ABR acceptance criteria
 
 1. No duplicate actions or nonfunctional controls; avoid filler labels.
-2. Avoid default platform text-input visual styles.
+2. Avoid default platform text-input visual styles **and default Android sliders**. Every slider must use the bespoke branded rail, knob, accessible tap/drag handling, and a readable live value. See root `ABR.md`.
 3. Keep icons vector-based, with legible tap targets.
 4. **Never raise minSdk above 26.**
 5. Verify successful native compile, launch, UI interactions, and persistence.
