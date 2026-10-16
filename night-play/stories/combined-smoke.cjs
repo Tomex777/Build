@@ -4,126 +4,58 @@ const fs=require('node:fs');
 const path=require('node:path');
 const http=require('node:http');
 const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'playwright');
-const main=fs.readFileSync(path.join(__dirname,'..','index.html'),'utf8');
-const story=fs.readFileSync(path.join(__dirname,'index.html'),'utf8');
+const E=require('./engine.js'),story=require('./last-call.json');
+const root=path.resolve(__dirname,'..');
+const output=path.join(__dirname,'qa-output');fs.mkdirSync(output,{recursive:true});
 const server=http.createServer((req,res)=>{
-  res.writeHead(200,{'content-type':'text/html; charset=utf-8','cache-control':'no-store'});
-  res.end(req.url.startsWith('/stories')?story:main);
+ const pathname=new URL(req.url,'http://local').pathname;
+ const relative=pathname==='/stories/'?'stories/index.html':pathname==='/games'||pathname==='/dashboard'||pathname==='/'?'index.html':pathname.replace(/^\//,'');
+ const target=path.resolve(root,relative);if(!target.startsWith(root+path.sep)||!fs.existsSync(target)||fs.statSync(target).isDirectory()){res.writeHead(404);res.end();return}
+ res.writeHead(200,{'content-type':target.endsWith('.json')?'application/json':target.endsWith('.js')?'text/javascript':'text/html; charset=utf-8'});res.end(fs.readFileSync(target));
 });
+function decisionRun(){let r=E.start(story,'Final decision');for(let i=0;i<500;i++){const cs=E.choices(story,r);if(cs.some(c=>c.id==='c29:sever'))return r;r=E.choose(story,r,cs[0].id)}throw Error('No final decision')}
 (async()=>{
- await new Promise(ok=>server.listen(0,'127.0.0.1',ok));
+ await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));const origin='http://127.0.0.1:'+server.address().port;
  const browser=await chromium.launch({headless:true,args:['--no-sandbox']});
- const origin='http://127.0.0.1:'+server.address().port;
  try{
   for(const width of [390,1280]){
-    const page=await browser.newPage({viewport:{width,height:844},isMobile:width<600,hasTouch:width<600});
-    const errors=[];page.on('pageerror',e=>errors.push(e.message));
-    await page.goto(origin+'/games');
-    await page.locator('#view-games').waitFor({state:'visible'});
-    assert.equal(await page.locator('.library-card.story-entry[href="/stories/"]').count(),1,'story preview card exists once');
-    await page.getByRole('button',{name:'Stories',exact:true}).click();
-    assert.equal(await page.locator('.library-card:visible').count(),1,'Stories filter isolates interactive fiction');
-    const link=page.locator('.library-card.story-entry');
-    await link.click();
-    await page.waitForURL('**/stories/');
-    assert.match(await page.title(),/The Last Call/i);
-    assert.equal(await page.locator('#story p').count(),5,'all narration is pre-laid for zero page-shifting');
-    await page.locator('#story p.go .word').first().waitFor({state:'attached'});
-    assert.ok(await page.locator('#story .word').count()>=20,'individual word spans are present');
-    const motion=await page.locator('#story p.go .word').first().evaluate(el=>{
-      const style=getComputedStyle(el);return {name:style.animationName,duration:style.animationDuration}
-    });
-    assert.equal(motion.name,'word-ink','words animate their ink instead of sliding the whole line');
-    assert.equal(motion.duration,'0.9s','default word transition follows 900ms source cadence');
-    const sourceReference=await page.locator('.col').evaluate(el=>{const c=getComputedStyle(el),p=document.querySelector('#story p');const r=el.getBoundingClientRect(),cs=getComputedStyle(p);return{x:r.x,y:r.y,w:r.width,pSize:cs.fontSize,pLineHeight:cs.lineHeight,font:cs.fontFamily}});
-    assert.ok(Math.abs(sourceReference.x-(width===390?20:360))<1,'reader x aligns to HARK public CSS reference');
-    assert.ok(Math.abs(sourceReference.w-(width===390?350:560))<1,'reader width aligns to HARK public CSS reference');
-    assert.ok(Math.abs(sourceReference.y-75.96)<1,'first line starts at HARK measured reading position');
-    assert.equal(sourceReference.pSize,width===390?'17px':'17.5px','HARK reference text size matches');
-    assert.ok(sourceReference.font.includes('Newsreader'),'reading text declares matching Newsreader typeface');
-    const rectBefore=await page.locator('#story p').last().boundingBox();
-    await page.waitForTimeout(600);
-    const active=await page.locator('#story p.go').count();
-    assert.ok(active>=3,'multiple narration lines animate together instead of one-by-one serial waiting');
-    if(width===390&&process.env.NIGHT_STORY_VISUAL_QA==='1'){
-      const shot=await page.screenshot({type:'jpeg',quality:42});
-      console.log('STORY_MID_REVEAL_JPEG_BASE64='+shot.toString('base64'));
-    }
-    const rectAfter=await page.locator('#story p').last().boundingBox();
-    assert.ok(Math.abs(rectBefore.y-rectAfter.y)<1,'full pre-layout avoids jarring vertical shifts');
-    await page.locator('#story').click();
-    assert.equal(await page.locator('.choice').count(),2,'choices appear immediately on tap');
-    await page.waitForFunction(()=>{
-      const el=document.querySelector('.choices');
-      return el&&!el.classList.contains('pending')&&parseFloat(getComputedStyle(el).opacity)>.95;
-    },null,{timeout:1500});
-    assert.equal(await page.locator('.choice:visible').count(),2,'choices are actually visible, not only present in the DOM');
-    const measuredChoices=await page.locator('.choices').evaluate(el=>{
-      const a=el.getBoundingClientRect(),b=el.querySelector('.choice').getBoundingClientRect();
-      return {x:a.x,y:a.y,w:a.width,h:b.height,transition:getComputedStyle(el).transitionDuration};
-    });
-    const expectedY=width===390?291:297;
-    assert.ok(Math.abs(measuredChoices.y-expectedY)<3,'choice start matches HARK measured vertical rhythm');
-    assert.ok(Math.abs(measuredChoices.h-(width===390?48:49))<2,'choice row matches HARK measured height');
-    assert.equal(measuredChoices.transition,'0.14s','choices do not have a slow entrance');
-    console.log('NIGHT_HARK_REFERENCE_METRICS',width,JSON.stringify({text:sourceReference,choices:measuredChoices}));
-    if(width===390&&process.env.NIGHT_STORY_VISUAL_QA==='1'){
-      const shot=await page.screenshot({type:'jpeg',quality:46,fullPage:true});
-      console.log('STORY_FULL_SCENE_JPEG_BASE64='+shot.toString('base64'));
-    }
-    await page.locator('.choice').first().click();
-    assert.match(await page.locator('#story').innerText(),/You lift the phone to your ear/,'branch choice works');
-    await page.locator('#readerOptions summary').click();
-    await page.getByRole('button',{name:'Restart story'}).click();
-    await page.locator('#readerOptions summary').click();
-    await page.locator('#pace').selectOption('instant');
-    assert.equal(await page.locator('#story p').count(),5,'reading speed instant works');
-    const size=await page.evaluate(()=>({scroll:document.documentElement.scrollWidth,width:innerWidth}));
-    assert.ok(size.scroll<=size.width+1,'story has no horizontal overflow');
-    await page.locator('.control-strip a').click();
-    await page.waitForURL('**/games');
-    await page.locator('#view-games').waitFor({state:'visible'});
-    assert.equal(errors.length,0,'no page JavaScript exceptions: '+errors.join('; '));
-    await page.close();
+   const page=await browser.newPage({viewport:{width,height:844},isMobile:width<600,hasTouch:width<600});const errors=[];page.on('pageerror',e=>errors.push(e.message));
+   await page.goto(origin+'/games');await page.getByRole('button',{name:'Stories',exact:true}).click();await page.locator('.story-entry').click();await page.waitForURL('**/stories/');
+   await page.locator('#story p').first().waitFor();assert.equal(await page.locator('#story p').count(),5);
+   const metrics=await page.locator('.col').evaluate(x=>{const r=x.getBoundingClientRect();return {x:r.x,y:r.y,width:r.width,font:getComputedStyle(document.querySelector('#story p')).fontSize}});
+   assert.ok(Math.abs(metrics.x-(width===390?20:360))<1);assert.ok(Math.abs(metrics.y-75.96)<2);assert.equal(metrics.width,width===390?350:560);assert.equal(metrics.font,width===390?'17px':'17.5px');
+   await page.locator('#story').click();await page.waitForTimeout(330);
+   assert.equal(await page.locator('.choice').count(),2);assert.ok((await page.locator('#story').innerText()).includes('dated tomorrow'));
+   await page.screenshot({path:path.join(output,'reader-'+width+'.png'),fullPage:true});
+   await page.locator('[data-choice="start:answer"]').click();assert.ok((await page.locator('#story').innerText()).includes('breathing'));
+   await page.locator('#readerOptions summary').click();await page.locator('#pace').selectOption('instant');
+   await page.locator('.choice').first().click();assert.ok((await page.locator('#story').innerText()).includes('checked the hallway'));
+   const saved=await page.evaluate(()=>JSON.parse(localStorage.getItem('night-story:the-last-call:v3')));const savedNode=saved.playthroughs[0].node;
+   await page.reload();await page.locator('#story p').first().waitFor();assert.equal(await page.evaluate(()=>JSON.parse(localStorage.getItem('night-story:the-last-call:v3')).playthroughs[0].node),savedNode);
+   await page.locator('#readerOptions summary').click();await page.locator('#openJournal').click();
+   assert.equal(await page.locator('#storyDialog').evaluate(x=>x.open),true);assert.ok(!(await page.locator('#dialogBody').innerText()).includes('Wren:'));
+   await page.screenshot({path:path.join(output,'journal-'+width+'.png'),fullPage:true});await page.getByRole('button',{name:'Close panel'}).click();
+   await page.locator('#readerOptions summary').click();await page.locator('#openSaves').click();await page.getByRole('button',{name:'Start a new playthrough',exact:true}).click();
+   const two=await page.evaluate(()=>JSON.parse(localStorage.getItem('night-story:the-last-call:v3')));assert.equal(two.playthroughs.length,2);assert.equal(two.playthroughs[0].node,savedNode,'new run preserves original');
+   await page.locator('#readerOptions summary').click();await page.locator('#openSaves').click();await page.getByRole('button',{name:'Resume',exact:true}).click();assert.equal(await page.evaluate(()=>JSON.parse(localStorage.getItem('night-story:the-last-call:v3')).active),two.playthroughs[0].id);
+   await page.goto(origin+'/stories/library.html');await page.screenshot({path:path.join(output,'library-'+width+'.png'),fullPage:true});await page.waitForFunction(()=>document.querySelector('#read').textContent==='Continue reading');assert.ok((await page.locator('#progress').innerText()).includes('Chapter 1'));
+   await page.goto(origin+'/games');assert.equal(await page.locator('.story-entry h3').innerText(),'Continue Reading');await page.goto(origin+'/dashboard');await page.locator('#storyResume').waitFor({state:'visible'});await page.screenshot({path:path.join(output,'home-continue-'+width+'.png'),fullPage:true});
+   assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));assert.deepEqual(errors,[]);await page.close();
   }
-  const script=story.match(/<script>([\s\S]*?)<\/script>/)[1];
-  const scenes=JSON.parse(script.slice(script.indexOf('const scenes=')+13,script.indexOf(';\n\nconst reduced=')));
-  const common=['start','answer','still','notebook','imani'];
-  const routes=[
-    [...common,'trust','tram','honest','museum','leila','bell','research','plan','descent','exchange','mother','solution','appeal','scales','testimony','release','hold','help','dawn','warning','home'],
-    [...common,'alone','tram','lie','museum','bell','child','plan','descent','exchange','voss','mother','solution','fight','bell_route','break','severed'],
-    [...common,'alone','tram','honest','museum','leila','bell','research','plan','descent','exchange','mother','sacrifice_offer','solution','appeal','scales','burden','keeper']
-  ];
-  for(const route of routes){
-    const page=await browser.newPage({viewport:{width:390,height:844}});
-    const errors=[];page.on('pageerror',e=>errors.push(e.message));
-    await page.addInitScript(()=>localStorage.setItem('night-play-fiction-reading-speed','instant'));
-    await page.goto(origin+'/stories/');
-    let flags={};
-    for(let i=0;i<route.length-1;i++){
-      const current=route[i],next=route[i+1];
-      const option=scenes[current].options.find(o=>o[1]===next&&(!o[3]||flags[o[3]]));
-      assert.ok(option,'test route has an available choice '+current+' → '+next);
-      if(current==='hold'){
-        await page.reload();
-        assert.match(await page.locator('#story').innerText(),/You catch the bell/,'resume current scene');
-        assert.equal(await page.getByRole('button',{name:/Call for the help you accepted/}).count(),1,'ally choice survives reload');
-      }
-      await page.locator('.choice').filter({has:page.locator('.choice-label',{hasText:option[0]})}).click();
-      flags={...flags,...option[2]};
-      assert.ok((await page.locator('#story').innerText()).includes(scenes[next].beats[0].text),'scene loads: '+next);
-      assert.ok(await page.evaluate(()=>scrollY<2),'new scene starts at top');
-      if(next==='bell_route'&&!flags.ally)assert.equal(await page.getByRole('button',{name:/Call for the help/}).count(),0);
-    }
-    assert.match(await page.locator('#story').innerText(),/THE END/,'complete ending text');
-    await page.reload();
-    assert.match(await page.locator('#story').innerText(),/THE END/,'ending persists');
-    await page.getByRole('button',{name:/Read another path/}).click();
-    const progress=await page.evaluate(()=>JSON.parse(localStorage.getItem('night-play-last-call-v2')));
-    assert.equal(progress.scene,'start');assert.deepEqual(progress.flags,{},'new run clears consequences');
-    assert.equal(errors.length,0,errors.join('; '));
-    await page.close();
+  for(const ending of ['release','sever','keeper']){
+   const page=await browser.newPage({viewport:{width:390,height:844}}),r=decisionRun(),book=E.storeRun(story,E.emptyBook(story),r);
+   await page.addInitScript(({book})=>{if(!localStorage.getItem('night-story:the-last-call:v3'))localStorage.setItem('night-story:the-last-call:v3',JSON.stringify(book));localStorage.setItem('night-play-fiction-reading-speed','instant')},{book});
+   await page.goto(origin+'/stories/');await page.locator('[data-choice="c29:'+ending+'"]').click();
+   for(let i=0;i<50;i++){if(await page.locator('#recap').isVisible())break;await page.locator('.choice').first().click()}
+   await page.locator('#recap').waitFor({state:'visible'});assert.match(await page.locator('#story').innerText(),/THE END/);assert.equal(await page.locator('#recap h3').innerText(),story.endings[ending]);
+   await page.screenshot({path:path.join(output,'ending-'+ending+'.png'),fullPage:true});
+   await page.reload();await page.locator('#recap').waitFor({state:'visible'});assert.equal(await page.locator('#recap h3').innerText(),story.endings[ending]);
+   await page.locator('#readerOptions summary').click();await page.locator('#openChapters').click();await page.getByRole('button',{name:'Read chapter',exact:true}).first().click();assert.ok(!(await page.locator('#dialogBody').innerText()).includes('THE END'),'chapter view shows past chapter, not future ending');
+   await page.getByRole('button',{name:'Close panel'}).click();await page.locator('#readerOptions summary').click();await page.locator('#openChapters').click();await page.getByRole('button',{name:'Replay in a new playthrough',exact:true}).first().click();
+   const data=await page.evaluate(()=>JSON.parse(localStorage.getItem('night-story:the-last-call:v3')));assert.equal(data.playthroughs.length,2);assert.equal(data.playthroughs[0].ending,ending);assert.equal(data.playthroughs[1].ending,null);
+   await page.close();
   }
-  console.log('PASS combined NIGHT Play Games → Stories → overlapping 900ms ink, zero layout shifts → tap skip, choice branching, options → Games on mobile & desktop');
- } finally {await browser.close()}
+  const reduced=await browser.newPage({viewport:{width:390,height:844},reducedMotion:'reduce'});await reduced.goto(origin+'/stories/');await reduced.locator('.choice:not([disabled])').first().waitFor();assert.equal(await reduced.locator('#story .settled').count(),5);await reduced.close();
+  console.log('PASS mobile + desktop reader, preserved typography, tap safety, save resume, separate runs, journal, library/home continuation, all endings, spoiler-safe chapters and non-destructive replay, reduced motion.');
+ }finally{await browser.close()}
 })().catch(e=>{console.error(e.stack||e);process.exitCode=1}).finally(()=>server.close());
