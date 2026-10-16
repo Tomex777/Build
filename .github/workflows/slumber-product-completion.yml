@@ -25,6 +25,7 @@ on:
       - ".ci/slumber_105_release_abi/**"
       - ".ci/slumber_106_portrait_tiles/**"
       - ".ci/slumber_107_tall_tiles/**"
+      - ".ci/slumber_108_abr/**"
   pull_request:
     branches: ["slumber-087-build"]
     paths:
@@ -49,6 +50,7 @@ on:
       - ".ci/slumber_105_release_abi/**"
       - ".ci/slumber_106_portrait_tiles/**"
       - ".ci/slumber_107_tall_tiles/**"
+      - ".ci/slumber_108_abr/**"
 
 permissions:
   actions: read
@@ -268,6 +270,28 @@ jobs:
           grep -q 'ready = !started' "$PLAY"
           ! grep -q 'if (!started || userPaused' "$PLAY"
           ! grep -q 'drawLine(Violet.copy(alpha = .65f)' "$FIELD"
+
+      - name: Apply ABR app-wide quality pass
+        shell: bash
+        run: |
+          set -euo pipefail
+          OUT=/tmp/slumber-088
+          base64 -d .ci/slumber_108_abr/product-abr.patch.gz.b64 | gzip -dc > "$OUT/slumber-abr.patch"
+          echo '42e7d22eab28f2d9ed3a574f1bb714207139a8e2e92c470066770e7998888c82  /tmp/slumber-088/slumber-abr.patch' | sha256sum -c -
+          patch -d "$OUT" -p1 < "$OUT/slumber-abr.patch"
+          FIELD="$OUT/app/src/main/java/com/night/pianohub/ui/components/SlumberTextField.kt"
+          PLAY="$OUT/app/src/main/java/com/night/pianohub/ui/screens/PlayScreen.kt"
+          PRACTICE="$OUT/app/src/main/java/com/night/pianohub/ui/screens/PracticeScreen.kt"
+          test -s "$FIELD"
+          grep -q 'BasicTextField(' "$FIELD"
+          grep -q 'if (tile.hold) held = held + tile.id' "$PLAY"
+          grep -q 'delay(tile.durationMs.coerceIn' "$PLAY"
+          grep -q 'Text("Play tiles")' "$PRACTICE"
+          grep -q 'if (selected.id != PianoLessonCatalog.DEFAULT_ID)' "$PRACTICE"
+          grep -q 'minSdk = 26' "$OUT/app/build.gradle.kts"
+          ! grep -q 'OutlinedTextField' "$OUT/app/src/main/java/com/night/pianohub/ui/screens/SettingsScreen.kt"
+          ! grep -q 'OutlinedTextField' "$OUT/app/src/main/java/com/night/pianohub/ui/screens/SongsScreen.kt"
+          ! grep -q 'OutlinedTextField' "$OUT/app/src/main/java/com/night/pianohub/ui/screens/PianoScreen.kt"
 
       - uses: actions/setup-java@v4
         with:
