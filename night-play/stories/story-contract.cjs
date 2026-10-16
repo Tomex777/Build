@@ -64,6 +64,9 @@ const scribe=route({},'release',true).r;assert.ok(E.choices(story,scribe).some(c
 const spirit=route({a:'lesson:sight',b:'archive:spirit',c:'training:sight'},'release',true).r;assert.ok(E.choices(story,spirit).some(c=>c.id==='c29:spirit'));
 const independent=route({a:'archive:dennis',b:'lesson:ordinary',c:'c04:refuse',d:'c11:keep',e:'c27:nerve'},'release',true,{nerve:2,speed:2}).r;assert.ok(E.choices(story,independent).some(c=>c.id==='c29:independent'));
 const evidence=route({a:'archive:ledger'},'release',true,{observation:3,magic:1}).r;assert.ok(E.choices(story,evidence).some(c=>c.id==='c29:evidence'));
+for(const [start,id,variation] of [[scribe,'c29:seal','scribe_resolution'],[spirit,'c29:spirit','spirit_resolution'],[independent,'c29:independent','independent_resolution'],[evidence,'c29:evidence','evidence_resolution']]){
+ let r=E.choose(story,start,id);for(let i=0;i<100&&!r.ending;i++)r=E.choose(story,r,E.choices(story,r)[0].id);assert.equal(r.ending,'release','specialised resolution reaches the full ending: '+id);assert.ok(r.state.events.some(e=>e.id===variation));assert.ok(E.summary(story,r).length>0);
+}
 const solar=route({a:'lesson:sunward',b:'c20:light'},'sever',false,{nerve:2,observation:2},{light:true});assert.ok(solar.picked.has('c20:light'));assert.ok(solar.r.state.knowledge.includes('sun_trace'));
 const chaos=route({a:'lesson:ordinary',b:'training:fracture',c:'archive:dennis'},'sever',false,{cunning:2,nerve:2}).r;assert.ok(chaos.state.abilities.fracture);assert.ok(!chaos.state.abilities.seal);
 for(const r of [scribe,spirit,chaos]){assert.ok(Object.keys(r.state.abilities).length<=2);for(const a of Object.values(r.state.abilities))assert.ok(a.level<=3)}
