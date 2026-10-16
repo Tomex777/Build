@@ -261,6 +261,7 @@ export async function deliverHls(context, {
   concurrency = 8,
   fetchTextFn,
   fetchBytesFn,
+  validateOutput = false,
 }) {
   const directory = await mkdtemp(join(tmpdir(), 'mscc-anime-hls-'))
   const output = join(directory, safeName(title) + '.mp4')
@@ -272,26 +273,37 @@ export async function deliverHls(context, {
     : (target, requestHeaders) => fetchBytes(target, requestHeaders, 60000)
 
   try {
-    const resolved = await resolveM3u8({
-      url,
-      headers,
-      fetchText:textLoader,
-      chooseVariant:variants => chooseVariant(variants, quality),
-    })
+    // If requested by a provider, classify bad manifests/segments/remuxes as
+    // an invalid media candidate so that the provider can try another server.
+    try {
+      const resolved = await resolveM3u8({
+        url,
+        headers,
+        fetchText:textLoader,
+        chooseVariant:variants => chooseVariant(variants, quality),
+      })
 
-    const downloaded = await downloadHlsSegments({
-      segments:resolved.segments,
-      directory,
-      headers,
-      concurrency,
-      fetchBytes:byteLoader,
-    })
+      const downloaded = await downloadHlsSegments({
+        segments:resolved.segments,
+        directory,
+        headers,
+        concurrency,
+        fetchBytes:byteLoader,
+      })
 
-    await remuxHlsSegments({
-      directory,
-      count:downloaded.total,
-      output,
-    })
+      await remuxHlsSegments({
+        directory,
+        count:downloaded.total,
+        output,
+      })
+
+      if (validateOutput) await validatePlayableMedia(output)
+    } catch (error) {
+      if (validateOutput && error?.code !== 'invalid-anime-media') {
+        error.code = 'invalid-anime-media'
+      }
+      throw error
+    }
 
     if (delivery === 'video') {
       await context.send({
