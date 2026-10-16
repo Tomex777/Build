@@ -94,7 +94,7 @@ swap(M,
 
 S=AUDIO/"SpatialSynth.kt"
 swap(S,
-    """        var clipPhase = if (clip == null || clip.isEmpty()) 0.0 else
+    """        private var clipPhase = if (clip == null || clip.isEmpty()) 0.0 else
             (abs(seed % 31).toDouble() / 37.0) * (clip.size - 1)
 """,
     """        private var clipPhase = if (clip == null || clip.isEmpty()) 0.0 else
