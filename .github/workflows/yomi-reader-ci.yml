@@ -50,6 +50,7 @@ jobs:
           ! grep -R --line-number --include='*.kt' --include='*.kts' 'app\.torri\|Torri' yomi-reader/reader-core-contract yomi-reader/app
           bash yomi-reader/scripts/test_anr_windows.sh
           bash yomi-reader/scripts/test_crash_classifier.sh
+          bash yomi-reader/scripts/test_abr_contract.sh
 
       - name: Test Yomi reader contracts
         working-directory: yomi-reader
@@ -389,10 +390,7 @@ jobs:
             # A settings-opened LOG alone can be emitted before the dialog has
             # actually composed. Require the visible accessibility tree to
             # include Mihon's three settings tabs on the real device surface.
-            adb shell uiautomator dump /sdcard/yomi-reader-settings.xml
-            adb pull /sdcard/yomi-reader-settings.xml yomi-output/runtime-api26/reader-settings-hierarchy.xml
-            grep -Fq 'Reading mode' yomi-output/runtime-api26/reader-settings-hierarchy.xml
-            grep -Fq 'Color filter' yomi-output/runtime-api26/reader-settings-hierarchy.xml
+            bash yomi-reader/scripts/capture_settings_hierarchy.sh yomi-output/runtime-api26/reader-settings-hierarchy.xml
             bash yomi-reader/scripts/capture_clean_screen.sh yomi-output/runtime-api26/yomi-mihon-reader-settings-sheet.png
             adb shell input keyevent KEYCODE_BACK
 
