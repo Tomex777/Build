@@ -9,7 +9,9 @@ function cleanName(value) {
     .slice(0,120) || 'episode'
 }
 
-async function deliverEpisode({ context, item, seasonNumber, episodeNumber }) {
+async function deliverEpisode({
+  context, item, seasonNumber, episodeNumber, materialize = materializeTheNkiriRelease,
+}) {
   if (typeof context?.send !== 'function') {
     throw new Error('TheNkiri TV delivery requires a message context.')
   }
@@ -19,7 +21,7 @@ async function deliverEpisode({ context, item, seasonNumber, episodeNumber }) {
     throw new Error('TheNkiri TV episode identity is incomplete.')
   }
 
-  const media = await materializeTheNkiriRelease({
+  const media = await materialize({
     item,
     title:item?.title,
     type:'tv',
@@ -95,3 +97,5 @@ export default {
     throw new Error('Unsupported TheNkiri TV action: ' + action)
   },
 }
+
+export const _test = { cleanName, deliverEpisode }
