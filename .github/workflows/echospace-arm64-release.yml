@@ -29,6 +29,8 @@ jobs:
           tar -xJf EchoSpace/source.tar.xz
           test -f EchoSpace/app/src/main/java/com/nexa/echospace/MainActivity.kt
           find EchoSpace/app -maxdepth 1 -name 'build.gradle*' -print
+      - name: Apply expanded sound mixer controls
+        run: python3 .github/scripts/echospace_expand_mixer.py
       - name: Bundle offline environment artwork
         shell: bash
         run: |
