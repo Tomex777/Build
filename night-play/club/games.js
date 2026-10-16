@@ -396,33 +396,30 @@ function whotHandPositions(){
 }
 function layoutWhotHand(before=null){
  const row=board.querySelector('.hand .card-row');
- if(!row||active!=="whot")return;
+ if(!row||active!=='whot')return;
  const cards=[...row.querySelectorAll('.whot-card')];
- const count=cards.length;
- if(!count){row.style.setProperty('--whot-overlap','0px');return;}
- const width=cards[0].getBoundingClientRect().width;
- const gap=parseFloat(getComputedStyle(row).columnGap)||0;
- const available=Math.max(110,row.clientWidth-9);
- // If the hand no longer fits, show complete center-aligned rows instead
- // of an opaque fan where a disabled neighbouring card catches taps.
- // Every card must retain a comfortable, actually clickable touch target.
- const fits=Math.max(1,Math.floor((available+gap)/(width+gap)));
- const wrap=count>fits;
- row.classList.toggle('whot-wrap',wrap);
- const needed=wrap?0:count>1?Math.max(0,(count*width+(count-1)*gap-available)/(count-1)):0;
- const overlap=Math.min(width*.20,needed);
- row.style.setProperty('--whot-overlap',overlap.toFixed(2)+'px');
+ if(!cards.length)return;
+ // The original Naija Whot uses a horizontally scrolling card strip. It
+ // does NOT shrink every card to 60px or wrap a 5-card hand into rows.
+ const width=parseFloat(getComputedStyle(cards[0]).width)||cards[0].getBoundingClientRect().width;
+ const gap=parseFloat(getComputedStyle(row).columnGap)||20;
+ const available=row.clientWidth;
+ const fits=cards.length*width+Math.max(0,cards.length-1)*gap<=available+1;
+ row.classList.remove('whot-wrap');
+ row.style.setProperty('--whot-overlap','0px');
+ row.style.justifyContent=fits?'center':'flex-start';
+ if(fits)row.scrollLeft=0;
  if(!before||!motionEnabled())return;
- // FLIP: after one card flies to the discard, remaining cards gently glide
- // to new centered positions without re-rendering the table each frame.
+ // FLIP re-centres the surviving cards without changing their DOM identity.
  for(const el of cards){
-  const key=el.dataset.whotKey,old=before.get(key)?.shift();
+  const old=before.get(el.dataset.whotKey)?.shift();
   if(!old)continue;
   const now=el.getBoundingClientRect(),dx=old.x-now.left,dy=old.y-now.top;
-  if(Math.abs(dx)<.75&&Math.abs(dy)<.75)continue;
-  el.animate([{transform:'translate3d('+dx+'px,'+dy+'px,0)'},
-              {transform:'translate3d(0,0,0)'}],
-   {duration:whotMotion.recenter,easing:'cubic-bezier(.2,.8,.2,1)'});
+  if(Math.abs(dx)<.7&&Math.abs(dy)<.7)continue;
+  el.animate([
+   {transform:'translate3d('+dx+'px,'+dy+'px,0)'},
+   {transform:'translate3d(0,0,0)'}
+  ],{duration:whotMotion.recenter,easing:'cubic-bezier(.19,.73,.2,1)'});
  }
 }
 let whotResizeFrame=0;
