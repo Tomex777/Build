@@ -137,6 +137,7 @@ jobs:
             sleep 1
             python3 EchoSpace/tools/emulator_probe.py assert desc 'Fire sound position. Drag to move.'
             python3 EchoSpace/tools/emulator_probe.py tap desc 'Open full sound mixer'
+            sleep 3
             python3 EchoSpace/tools/emulator_probe.py assert desc 'Mute Fire'
             # Save belongs to the focused mixer. The saved soundscape must survive restart.
             python3 EchoSpace/tools/emulator_probe.py tap desc 'Save current soundscape'
@@ -153,6 +154,7 @@ jobs:
             python3 EchoSpace/tools/emulator_probe.py assert desc 'Fire sound position. Drag to move.'
             python3 EchoSpace/tools/emulator_probe.py tap desc 'Fire sound position. Drag to move.'
             python3 EchoSpace/tools/emulator_probe.py tap desc 'Open full sound mixer'
+            sleep 3
             python3 EchoSpace/tools/emulator_probe.py assert desc 'Mute Fire'
             python3 EchoSpace/tools/emulator_probe.py tap desc 'Close mixer'
             adb shell screencap -p /sdcard/saved.png
