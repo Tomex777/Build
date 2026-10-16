@@ -1,0 +1,87 @@
+name: MSCC Movie and TV Source Qualification
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - fix/mscc-movies-tv-reliability
+    paths:
+      - 'mscc/**'
+      - '.github/workflows/mscc-movie-tv-source-live.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  offline-regressions:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+      - name: Install MSCC dependencies
+        working-directory: mscc
+        run: npm install --no-audit --no-fund
+      - name: Run movie and TV command-flow regression tests
+        working-directory: mscc
+        run: |
+          npm run check:movie-flow
+          npm run check:tv-flow
+          npm run check:streamingunity
+          npm run check:vixsrc-vaplayer
+          npm run check:thenkiri
+          npm run check:screen-sources
+          node --check sources/movies/thenkiri.js
+          node --check sources/tv/thenkiri.js
+
+  thenkiri-live:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+      - name: Qualify live TheNkiri movie and TV catalog/release links
+        working-directory: mscc
+        run: node thenkiri-live-probe.js
+
+  streamingunity-live:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+      - name: Install FFmpeg
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq --no-install-recommends ffmpeg
+      - name: Install MSCC dependencies
+        working-directory: mscc
+        run: npm install --no-audit --no-fund
+      - name: Qualify actual movie and TV stream resolution and media output
+        working-directory: mscc
+        run: node streamingunity-source-live-probe.js
+
+  vixsrc-vaplayer-live:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+      - name: Install FFmpeg
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq --no-install-recommends ffmpeg
+      - name: Install MSCC dependencies
+        working-directory: mscc
+        run: npm install --no-audit --no-fund
+      - name: Qualify VixSrc and VaPlayer movie and TV media output
+        working-directory: mscc
+        run: node vixsrc-vaplayer-live-probe.js
