@@ -261,7 +261,7 @@ async function whotFly(origin,destination,{face=null,action="play"}={}){
   back.appendChild(origin.cloneNode(true));
   const front=document.createElement('div');front.className='whot-flip-side whot-flip-front';
   const safe=document.createElement('div');
-  if(action==='cpu')safe.innerHTML=whotFace(face,-1,false);
+  if(action==='cpu'||(action==='draw'&&face))safe.innerHTML=whotFace(face,-1,false);
   else safe.appendChild(destination.cloneNode(true));
   const card=safe.firstElementChild;if(card){
    card.removeAttribute('data-card');card.disabled=true;
@@ -343,7 +343,7 @@ function whotSettle(){
   {offset:1,transform:'scale(1) rotate(0)'}
  ],{duration:whotMotion.settle,easing:'cubic-bezier(.2,.82,.28,1)'});
 }
-async function cardPlay(kind,index,requestedShape=null){
+async function cardPlay(kind,index,requestedShape=null,visualOrigin=null){
  const s=state[kind];if(cardMotionBusy||s.turn!==0||s.winner!==null)return;
  const card=s.hands[0][index];if(kind==='whot'&&s.pendingFinish===0)return;if(!card||!playable(kind,s,card))return;
  if(kind==='whot'){
@@ -363,7 +363,7 @@ async function cardPlay(kind,index,requestedShape=null){
  const epoch=cardMotionEpoch;cardMotionBusy=true;
  try{
   if(kind==='whot'){cardMotionMetrics.plays++;
-   await whotFly(board.querySelector('.hand [data-card="'+index+'"]'),
+   await whotFly(visualOrigin||board.querySelector('.hand [data-card="'+index+'"]'),
     board.querySelector('.card-pile .whot-card'),{action:'play'});
   }
   if(epoch!==cardMotionEpoch||active!==kind||state[kind]!==s)return;
@@ -388,7 +388,8 @@ async function cardDraw(kind){
      penalty?"You picked "+count+" penalty cards.":"You picked a card. Computer's turn.";
    render();
    const newCard=board.querySelectorAll('.hand .whot-card')[before];
-   await whotFly(board.querySelector('.whot-deck-back'),newCard,{action:'draw'});
+   const landing=newCard&&getComputedStyle(newCard).display!=='none'?newCard:board.querySelector('.whot-view-hand:not([hidden])');
+   await whotFly(board.querySelector('.whot-deck-back'),landing,{face:s.hands[0][before],action:'draw'});
    if(epoch!==cardMotionEpoch||active!==kind||state[kind]!==s)return;
    queueCPU(kind);
    return;
@@ -502,32 +503,92 @@ function whotHandPositions(){
  }
  return buckets;
 }
+function whotHandMode(n){return n<=4?'spaced':n<=7?'fan':'double'}
+function whotCloseExpanded(){board.querySelector('.whot-hand-overlay')?.remove()}
+function whotOpenExpanded(){
+ if(active!=='whot'||board.querySelector('.whot-hand-overlay'))return;
+ const s=state.whot,table=board.querySelector('.table-surface');
+ if(!table)return;
+ const overlay=document.createElement('div');
+ overlay.className='whot-hand-overlay';
+ overlay.setAttribute('role','dialog');
+ overlay.setAttribute('aria-modal','true');
+ overlay.setAttribute('aria-label','All your WHOT cards');
+ overlay.innerHTML='<section class="whot-hand-sheet">'+
+ '<header class="whot-hand-sheet-header"><div><small>YOUR HAND</small><h3>All '+s.hands[0].length+' cards</h3></div>'+
+ '<button type="button" class="whot-hand-close" data-action="whot-hand-close" aria-label="Close full hand">✕</button></header>'+
+ '<div class="whot-hand-sheet-tools"><label for="whot-hand-sort">Arrange cards</label>'+
+ '<select id="whot-hand-sort" data-whot-hand-sort>'+
+ '<option value="original">Dealt order</option><option value="shape">By shape</option><option value="number">By number</option></select></div>'+
+ '<div class="whot-hand-gallery" aria-label="All cards, vertically scrollable">'+
+ s.hands[0].map((c,i)=>whotFace(c,i,s.turn===0&&s.winner===null&&s.pendingFinish!==0&&s.pendingWhot==null&&playable("whot",s,c))).join('')+
+ '</div><p class="whot-hand-help">Tap a playable card to place it on the table.</p></section>';
+ table.appendChild(overlay);
+ overlay.querySelector('.whot-hand-close').focus({preventScroll:true});
+}
+function whotSortExpanded(order){
+ const gallery=board.querySelector('.whot-hand-gallery');if(!gallery)return;
+ const nodes=[...gallery.querySelectorAll('.whot-card')];
+ nodes.sort((a,b)=>{
+  const i=Number(a.dataset.card),j=Number(b.dataset.card);
+  if(order==='original')return i-j;
+  const x=state.whot.hands[0][i],y=state.whot.hands[0][j];
+  return order==='number'?x.n-y.n||x.s-y.s||i-j:x.s-y.s||x.n-y.n||i-j;
+ });
+ gallery.replaceChildren(...nodes);
+}
 function layoutWhotHand(before=null){
- const row=board.querySelector('.hand .card-row');
+ const hand=board.querySelector('.table-surface>.hand'),row=hand?.querySelector('.card-row');
  if(!row||active!=='whot')return;
- const cards=[...row.querySelectorAll('.whot-card')];
- if(!cards.length)return;
- // The original Naija Whot uses a horizontally scrolling card strip. It
- // does NOT shrink every card to 60px or wrap a 5-card hand into rows.
- const width=parseFloat(getComputedStyle(cards[0]).width)||cards[0].getBoundingClientRect().width;
- const gap=parseFloat(getComputedStyle(row).columnGap)||20;
- const available=row.clientWidth;
- const fits=cards.length*width+Math.max(0,cards.length-1)*gap<=available+1;
- row.classList.remove('whot-wrap');
- row.style.setProperty('--whot-overlap','0px');
- row.style.justifyContent=fits?'center':'flex-start';
- if(fits)row.scrollLeft=0;
+ const cards=[...row.querySelectorAll('.whot-card')],n=cards.length;
+ const table=board.querySelector('.table-surface');
+ if(!n){table?.classList.remove('whot-double-hand');return}
+ const mode=whotHandMode(n),double=mode==='double',large=n>=13,shown=Math.min(n,16);
+ const available=row.clientWidth||row.getBoundingClientRect().width;
+ const cs=getComputedStyle(cards[0]),w=parseFloat(cs.width)||80,h=parseFloat(cs.height)||105;
+ const cardWidth=mode==='spaced'&&n>1&&n*w>available?Math.max(58,Math.floor(available/n)):w;
+ const rowGap=14,height=double?h*2+rowGap:h;
+ hand.dataset.whotLayout=mode;
+ table?.classList.toggle('whot-double-hand',double);
+ table?.classList.toggle('whot-large-hand',large);
+ hand.style.setProperty('--whot-hand-height',(height+(large?42:0))+'px');
+ row.style.setProperty('--whot-row-height',height+'px');
+ const view=hand.querySelector('.whot-view-hand');
+ if(view){view.hidden=!large;view.textContent='View all '+n+' cards'}
+ const firstRow=double?Math.ceil(shown/2):shown;
+ cards.forEach((card,index)=>{
+  if(index>=shown){card.style.setProperty('display','none','important');return}
+  card.style.removeProperty('display');
+  const rowIndex=double&&index>=firstRow?1:0;
+  const count=double?(rowIndex?shown-firstRow:firstRow):shown;
+  const slot=double&&rowIndex?index-firstRow:index;
+  const spacing=count>1?mode==='spaced'
+   ?Math.min(20,Math.max(0,(available-count*cardWidth)/(count-1)))
+   :Math.min(cardWidth+10,(available-cardWidth)/(count-1)):0;
+  const step=mode==='spaced'?cardWidth+spacing:spacing;
+  const groupWidth=cardWidth+(count-1)*step;
+  const left=Math.max(0,(available-groupWidth)/2)+slot*step;
+  const tilt=mode==='fan'?(slot-(count-1)/2)*1.05:0;
+  const y=rowIndex*(h+rowGap)+(mode==='fan'?Math.abs(slot-(count-1)/2)*2:0);
+  card.style.left=left.toFixed(2)+'px';
+  card.style.top=y.toFixed(2)+'px';
+  card.style.zIndex=String(10+index);
+  card.style.setProperty('--whot-hand-tilt',tilt.toFixed(2)+'deg');
+  if(cardWidth!==w)card.style.setProperty('--whot-card-width',cardWidth+'px');
+  else card.style.removeProperty('--whot-card-width');
+ });
  if(!before||!motionEnabled())return;
- // FLIP re-centres the surviving cards without changing their DOM identity.
- for(const el of cards){
-  const old=before.get(el.dataset.whotKey)?.shift();
-  if(!old)continue;
-  const now=el.getBoundingClientRect(),dx=old.x-now.left,dy=old.y-now.top;
+ for(const card of cards){
+  if(card.style.display==='none')continue;
+  const prior=before.get(card.dataset.whotKey)?.shift();
+  if(!prior)continue;
+  const current=card.getBoundingClientRect(),dx=prior.x-current.left,dy=prior.y-current.top;
   if(Math.abs(dx)<.7&&Math.abs(dy)<.7)continue;
-  el.animate([
-   {transform:'translate3d('+dx+'px,'+dy+'px,0)'},
-   {transform:'translate3d(0,0,0)'}
-  ],{duration:whotMotion.recenter,easing:'cubic-bezier(.19,.73,.2,1)'});
+  const tilt=card.style.getPropertyValue('--whot-hand-tilt')||'0deg';
+  card.animate([
+   {transform:'translate3d('+dx+'px,'+dy+'px,0) rotate('+tilt+')'},
+   {transform:'translate3d(0,0,0) rotate('+tilt+')'}
+  ],{duration:whotMotion.recenter,easing:'cubic-bezier(.19,.78,.22,1)'});
  }
 }
 let whotResizeFrame=0;
@@ -647,8 +708,9 @@ const tableMarkup='<div class="table-surface'+(kind==='whot'&&s.winner!==null?' 
  :'<div class="playing-card card-back" aria-label="Computer cards hidden"></div><span class="cards-counter">× '+s.hands[1].length+'</span>')+'</div>'+
  '<div class="card-pile">'+(kind==='whot'?'<button type="button" class="whot-deck" data-action="card-draw" '+(s.turn!==0||s.winner!==null||s.pendingWhot!=null?'disabled':'')+' aria-label="Pick one card from the market"><span class="whot-deck-back"><span class="whot-deck-word flip-top">WHOT</span><span class="whot-deck-word flip-bottom">WHOT</span></span><span class="cards-counter">MARKET · '+s.deck.length+'</span></button>':'<span class="cards-counter">DECK '+s.deck.length+'</span>')+
  cardMarkup(kind,t,-1,false)+currentCall+'</div>'+callPanel+
- '<div class="hand">'+(kind==='whot'?'':'<div class="card-label">YOUR HAND · '+s.hands[0].length+' CARDS</div>')+'<div class="card-row">'+s.hands[0].map((card,i)=>cardMarkup(kind,card,i,s.turn===0&&s.winner===null&&!(kind==='whot'&&s.pendingWhot!=null)&&playable(kind,s,card))).join('')+'</div></div>'+whotVictory+'</div>';
+ '<div class="hand">'+(kind==='whot'?'':'<div class="card-label">YOUR HAND · '+s.hands[0].length+' CARDS</div>')+'<div class="card-row">'+s.hands[0].map((card,i)=>cardMarkup(kind,card,i,s.turn===0&&s.winner===null&&!(kind==='whot'&&s.pendingWhot!=null)&&playable(kind,s,card))).join('')+'</div>'+(kind==='whot'?'<button type="button" class="whot-view-hand" data-action="whot-hand-open" hidden>View all '+s.hands[0].length+' cards</button>':'')+'</div>'+whotVictory+'</div>';
 if(kind!=='whot'||!whotPatchTable(tableMarkup))board.innerHTML=tableMarkup;
+if(kind==='whot')whotCloseExpanded();
 document.body.classList.toggle('whot-has-winner',kind==='whot'&&s.winner!==null);
 if(showCall)board.querySelector('.hand [data-card="'+s.pendingWhot+'"]')?.classList.add('whot-pending');
 if(kind==='whot')layoutWhotHand(previousHand);
@@ -790,11 +852,13 @@ $("whotResetCareer").addEventListener("click",()=>{
  whotStore();whotConfigUI();
 });
 document.addEventListener("change",e=>{
+const handSort=e.target.closest("[data-whot-hand-sort]");if(handSort&&active==='whot'){whotSortExpanded(handSort.value);return;}
 const opponent=e.target.closest("[data-ludo-opponent]");if(opponent&&active==="ludo"){window.NightLudo.changeOpponent(state.ludo,opponent.value);render();return;}
 const difficulty=e.target.closest("[data-ludo-difficulty]");if(difficulty&&active==="ludo"){window.NightLudo.changeDifficulty(state.ludo,difficulty.value);render();return;}
 const opt=e.target.closest("[data-ludo-option]");if(opt&&active==="ludo"){window.NightLudo.changeOption(state.ludo,opt.dataset.ludoOption,opt.checked);render();return;}
 const speed=e.target.closest("[data-ludo-speed]");if(speed&&active==="ludo"){window.NightLudo.changeOption(state.ludo,"speed",speed.value);render();return;}
 const dm=e.target.closest("[data-dice-mode]");if(dm&&active==="ludo"){window.NightLudo.changeDice(state.ludo,Number(dm.value));render();return;}const sel=e.target.closest("[data-players]");if(!sel)return;const id=sel.dataset.players,n=Math.max(2,Math.min(4,Number(sel.value)||2));if(id==="ludo"){window.NightLudo.changePlayers(state.ludo,n);}if(id==="estate"){const order=["red","blue","green","yellow"];reset("estate");state.estate.players=order.slice(0,n).map(k=>({name:k[0].toUpperCase()+k.slice(1),color:colors[k],cash:1500,pos:0,bankrupt:false}));}if(id==="snakes"){const order=["red","blue","green","yellow"];reset("snakes");state.snakes.players=order.slice(0,n).map(k=>({name:k[0].toUpperCase()+k.slice(1),color:colors[k],pos:1}));}render();});
+document.addEventListener("keydown",e=>{if(e.key==='Escape'&&board.querySelector('.whot-hand-overlay')){e.preventDefault();whotCloseExpanded();}});
 document.addEventListener("click",e=>{
 const dice=e.target.closest("[data-ludo-die]");if(dice&&active==="ludo"){if(state.ludo.opponent==='computer'&&state.ludo.turn===1)return;window.NightLudo.selectDie(state.ludo,Number(dice.dataset.ludoDie),render);return;}const piece=e.target.closest("[data-piece]");if(piece&&active==="ludo"){const [pi,ti]=piece.dataset.piece.split("-").map(Number);ludoMove(pi,ti);return;}
 const whotCall=e.target.closest("[data-whot-call]");if(whotCall&&active==='whot'){
@@ -804,16 +868,16 @@ const whotCall=e.target.closest("[data-whot-call]");if(whotCall&&active==='whot'
  }
  return;
 }
-const card=e.target.closest("[data-card]");if(card){if(Number(card.dataset.card)<0)return;cardPlay(active,Number(card.dataset.card));return;}
+const card=e.target.closest("[data-card]");if(card){if(Number(card.dataset.card)<0)return;cardPlay(active,Number(card.dataset.card),null,card.closest('.whot-hand-overlay')?card:null);return;}
 const sq=e.target.closest("[data-estate-info]");if(sq&&active==="estate"){state.estate.inspect=Number(sq.dataset.estateInfo);render();return;}
 const action=e.target.closest("[data-action]");if(!action)return;
-switch(action.dataset.action){case"ludo-roll":ludoRoll();break;case"ludo-new":if(confirm("Restart the Ludo match?")){closeLudoSettings();reset("ludo");}break;case"ludo-sound":state.ludo.sound=!state.ludo.sound;render();break;case"estate-roll":estateRoll();break;case"estate-buy":estateDecision(true);break;case"estate-pass":estateDecision(false);break;case"estate-end":estateEnd();break;case"card-draw":cardDraw(active);break;case"whot-rematch":if(active==="whot"&&state.whot.winner!==null){if(whotOptions.mode==="tournament"&&Math.max(...(whotCareer.tournamentWins||[0,0]))>=2){whotCareer.tournamentWins=[0,0];whotStore()}reset("whot")}break;
+switch(action.dataset.action){case"whot-hand-open":whotOpenExpanded();break;case"whot-hand-close":whotCloseExpanded();break;case"ludo-roll":ludoRoll();break;case"ludo-new":if(confirm("Restart the Ludo match?")){closeLudoSettings();reset("ludo");}break;case"ludo-sound":state.ludo.sound=!state.ludo.sound;render();break;case"estate-roll":estateRoll();break;case"estate-buy":estateDecision(true);break;case"estate-pass":estateDecision(false);break;case"estate-end":estateEnd();break;case"card-draw":cardDraw(active);break;case"whot-rematch":if(active==="whot"&&state.whot.winner!==null){if(whotOptions.mode==="tournament"&&Math.max(...(whotCareer.tournamentWins||[0,0]))>=2){whotCareer.tournamentWins=[0,0];whotStore()}reset("whot")}break;
 case"whot-last-call":if(active==="whot"&&state.whot.turn===0&&state.whot.hands[0].length===1){state.whot.calledLast=[true,Boolean(state.whot.calledLast?.[1])];state.whot.msg="Last card declared!";render()}break;case"whot-call-cancel":if(active==='whot'&&!cardMotionBusy){state.whot.pendingWhot=null;render();}break;case"snakes-roll":snakesRoll();break;case"draw-ready":drawReady();break;case"draw-next":drawNext();break;case"draw-guess":drawReadyToGuess();break;case"draw-clear":if(drawCtx){drawCtx.clearRect(0,0,800,600);}break;case"draw-erase":setBrush("erase");break;case"checkers-reset":reset("checkers");break;}
 });
 // Read-only motion diagnostics for real Chromium touch and frame tests.
 window.__nightWhotMotion=()=>({...cardMotionMetrics,timings:{...whotMotion},busy:cardMotionBusy,waitingForCall:state.whot?.pendingWhot!=null,
  visibleFlights:document.querySelectorAll('.whot-flight').length,
- cardNodes:board.querySelectorAll('.hand .whot-card').length});
+ cardNodes:board.querySelectorAll('.hand .whot-card').length,handLayout:board.querySelector('.hand')?.dataset.whotLayout||null,expandedAvailable:!!board.querySelector('.whot-view-hand:not([hidden])')});
 function go(){pick(new URL(location.href).searchParams.get("game")||"checkers");}
 window.addEventListener("popstate",go);
 go();
