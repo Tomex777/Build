@@ -112,7 +112,9 @@ try {
   replies=[]
   sent=[]
   globalThis.fetch=async()=>new Response('<body>oops</body>',{status:200,headers:{'content-type':'text/html'}})
-  await publicRegistry.commands.get('smug').run(ctx)
+  // .smug is now deliberately cached from its previous success; use a category
+  // with no last-known-good sticker to assert the all-providers-fail response.
+  await publicRegistry.commands.get('angry').run(ctx)
   assert.equal(sent.length,0)
   assert.match(replies.at(-1),/could not load.*right now/i)
 
