@@ -30,6 +30,7 @@ class AnimePoseStudyTest {
         assertTrue(hero.rig.joints.keys.any { it.contains("calf") })
         assertTrue(project.actors.any { it.kind == ActorKind.LIGHT })
         assertNotNull(project.cameras.firstOrNull())
+        assertTrue("VRoid camera should see the modeled anime face", project.cameras.first().position.z < 0f)
         assertEquals(project, SceneProjectCodec.decode(SceneProjectCodec.encode(project)))
     }
 
@@ -83,7 +84,7 @@ class AnimePoseStudyTest {
         assertTrue(anime.kind == ActorKind.CHARACTER)
         assertTrue(anime.rig == null || anime.rig!!.joints.isEmpty())
         assertEquals(Vec3(), anime.transform.position)
-        assertEquals(180f, anime.transform.rotationEulerDegrees.y)
+        assertEquals(Vec3(), anime.transform.rotationEulerDegrees)
         assertTrue(PrototypeScene.starterAssets().any {
             it.asset?.assetId == PrototypeScene.HUMANOID_ASSET_ID
         })
