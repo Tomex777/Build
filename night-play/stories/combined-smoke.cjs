@@ -58,6 +58,15 @@ const server=http.createServer((req,res)=>{
       return el&&!el.classList.contains('pending')&&parseFloat(getComputedStyle(el).opacity)>.95;
     },null,{timeout:1500});
     assert.equal(await page.locator('.choice:visible').count(),2,'choices are actually visible, not only present in the DOM');
+    const measuredChoices=await page.locator('.choices').evaluate(el=>{
+      const a=el.getBoundingClientRect(),b=el.querySelector('.choice').getBoundingClientRect();
+      return {x:a.x,y:a.y,w:a.width,h:b.height,transition:getComputedStyle(el).transitionDuration};
+    });
+    const expectedY=width===390?291:297;
+    assert.ok(Math.abs(measuredChoices.y-expectedY)<3,'choice start matches HARK measured vertical rhythm');
+    assert.ok(Math.abs(measuredChoices.h-(width===390?48:49))<2,'choice row matches HARK measured height');
+    assert.equal(measuredChoices.transition,'0.14s','choices do not have a slow entrance');
+    console.log('NIGHT_HARK_REFERENCE_METRICS',width,JSON.stringify({text:sourceReference,choices:measuredChoices}));
     if(width===390&&process.env.NIGHT_STORY_VISUAL_QA==='1'){
       const shot=await page.screenshot({type:'jpeg',quality:46,fullPage:true});
       console.log('STORY_FULL_SCENE_JPEG_BASE64='+shot.toString('base64'));
