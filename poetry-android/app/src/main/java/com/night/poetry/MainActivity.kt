@@ -125,7 +125,7 @@ import org.json.JSONObject
 import java.util.UUID
 import java.io.File
 import kotlin.math.roundToInt
-import kotlin.random.Random
+import java.util.concurrent.atomic.AtomicLong
 
 /** Interface appearance only; card backgrounds/exports are never recoloured. */
 private data class PoetryAppearance(
@@ -457,6 +457,15 @@ internal class PoemStore(private val context: Context) {
         })
     }
 
+    private var appliedVersion = 0L
+
+    /** Reject stale debounced snapshots that finish after a newer stop/restore write. */
+    @Synchronized fun writeIfCurrent(poems: List<PoemDoc>, version: Long) {
+        if (version < appliedVersion) return
+        write(poems)
+        appliedVersion = version
+    }
+
     @Synchronized fun write(poems: List<PoemDoc>) {
         val bytes = encode(poems).toString().toByteArray(Charsets.UTF_8)
         val output = atomicFile.startWrite()
@@ -613,19 +622,24 @@ private fun PoetryApplication() {
     // A brief persistence debounce prevents a blocking disk write for each drag frame.
     // A lifecycle flush protects edits when the app moves into the background.
     val scheduledWrite = remember { arrayOfNulls<Job>(1) }
+    val persistVersion = remember { AtomicLong(0L) }
+    fun persistNow() {
+        scheduledWrite[0]?.cancel()
+        repository.writeIfCurrent(poems.toList(), persistVersion.incrementAndGet())
+    }
     fun schedulePersist() {
         val snapshot = poems.toList()
+        val version = persistVersion.incrementAndGet()
         scheduledWrite[0]?.cancel()
         scheduledWrite[0] = scope.launch {
             delay(370L)
-            withContext(Dispatchers.IO) { repository.write(snapshot) }
+            withContext(Dispatchers.IO) { repository.writeIfCurrent(snapshot, version) }
         }
     }
     DisposableEffect(lifecycleOwner, repository) {
         val watcher = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_STOP) {
-                scheduledWrite[0]?.cancel()
-                repository.write(poems.toList())
+                persistNow()
             }
         }
         lifecycleOwner.lifecycle.addObserver(watcher)
@@ -659,7 +673,7 @@ private fun PoetryApplication() {
 
     fun create(): PoemDoc {
         val doc = PoemDoc()
-        poems.add(0, doc); repository.write(poems)
+        poems.add(0, doc); persistNow()
         selectedId = doc.id
         return doc
     }
@@ -804,7 +818,8 @@ private fun PoetryApplication() {
             confirmButton = {
                 TextButton(onClick = {
                     runCatching {
-                        repository.write(backup.poems)
+                        scheduledWrite[0]?.cancel()
+                        repository.writeIfCurrent(backup.poems, persistVersion.incrementAndGet())
                         bgLibrary.write(backup.backgrounds)
                     }.onSuccess {
                         poems.clear(); poems.addAll(backup.poems)
@@ -842,7 +857,7 @@ private fun PoetryApplication() {
                         update(fresh.copy(slides = fresh.slides.map { it.copy(card = it.card.withPreset(preset)) }))
                         openStudio(fresh.id)
                     },
-                    delete = { id -> poems.removeAll { it.id == id }; repository.write(poems) }
+                    delete = { id -> poems.removeAll { it.id == id }; persistNow() }
                 )
                 "write" -> WriterScreen(
                     doc = active(), update = ::update, back = { page = "home" },
@@ -1592,19 +1607,23 @@ private fun PortraitCard(doc: PoemDoc, update: (PoemDoc) -> Unit, modifier: Modi
         val titleLineSp = with(density) { (fontPx * 1.38f).toSp() }
         val gapDp = with(density) { (fontPx * .7f).toDp() }
         if (style.texture == "Grain") {
+            // Use the same seeded texture geometry/color as the full-resolution exporter.
             Canvas(Modifier.matchParentSize()) {
-                val random = Random(20)
-                repeat(240) {
-                    drawCircle(Color.White.copy(alpha = .055f),
-                        radius = random.nextInt(1, 3).toFloat(),
-                        center = androidx.compose.ui.geometry.Offset(random.nextFloat() * size.width, random.nextFloat() * size.height))
+                val random = java.util.Random(27L)
+                val sx = size.width / 1080f
+                val sy = size.height / 1920f
+                repeat(9500) {
+                    drawCircle(Color.White.copy(alpha = 22f / 255f),
+                        radius = 1.1f * sx,
+                        center = Offset(random.nextInt(1080) * sx, random.nextInt(1920) * sy))
                 }
             }
         } else if (style.texture == "Lines") {
             Canvas(Modifier.matchParentSize()) {
-                for (i in 1..15) drawLine(Color.White.copy(alpha = .06f),
-                    start = androidx.compose.ui.geometry.Offset(0f, i * size.height / 16),
-                    end = androidx.compose.ui.geometry.Offset(size.width, i * size.height / 16))
+                for (i in 1..35) drawLine(Color.White.copy(alpha = 18f / 255f),
+                    start = Offset(0f, i * size.height / 36f),
+                    end = Offset(size.width, i * size.height / 36f),
+                    strokeWidth = (2f * size.width / 1080f).coerceAtLeast(0.5f))
             }
         }
         DecorativeOverlay(style.decor, Color(style.textColor), wPx, hPx)
@@ -1682,7 +1701,8 @@ private fun PortraitCard(doc: PoemDoc, update: (PoemDoc) -> Unit, modifier: Modi
                 if (doc.author.isNotBlank()) {
                     Spacer(Modifier.height(gapDp))
                     Text("— ${doc.author}", color = Color(style.textColor).copy(alpha = .77f),
-                        fontFamily = resolveFont(style.fontName), fontSize = authorSp)
+                        fontFamily = resolveFont(style.fontName), fontSize = authorSp,
+                        textAlign = align, modifier = Modifier.fillMaxWidth())
                 }
             }
         }
@@ -2428,9 +2448,15 @@ internal object CardExporter {
                 if (str.isBlank()) return
                 val oldSize = text.textSize
                 text.textSize = oldSize * fontScale
+                val naturalLinePx = text.fontMetrics.let { it.descent - it.ascent }
+                val requestedLinePx = when (fontScale) {
+                    1.18f -> s.fontSize * 3.35f * 1.38f
+                    1f -> s.fontSize * 3.35f * s.lineHeight
+                    else -> naturalLinePx
+                }
                 val layout = StaticLayout.Builder.obtain(str, 0, str.length, text, areaWidth)
                     .setAlignment(alignment).setIncludePad(false)
-                    .setLineSpacing(0f, s.lineHeight / 1.3f).build()
+                    .setLineSpacing(requestedLinePx - naturalLinePx, 1f).build()
                 if (y + layout.height > h * .95f) {
                     throw IllegalArgumentException("Text overflows this card. Try Slides → Split poem or reduce font size.")
                 }
@@ -2442,8 +2468,9 @@ internal object CardExporter {
                 drawVector(context, canvas, accent.assetId,
                     accent.x * w, accent.y * h, accent.px, accent.color, accent.alpha)
             }
-            write(doc.title, 1.18f, 46f)
-            write(doc.body, 1f, 49f)
+            val editorGap = s.fontSize * 3.35f * .7f
+            write(doc.title, 1.18f, if (doc.title.isNotBlank()) editorGap else 0f)
+            write(doc.body, 1f, if (doc.author.isNotBlank()) editorGap else 0f)
             write(if (doc.author.isBlank()) "" else "— ${doc.author}", .60f, 0f)
             s.elements.filterNot { it.hidden }.forEach { el ->
                 val sizePx = 78f * el.size
