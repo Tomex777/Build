@@ -44,13 +44,14 @@ async function requestExists(url, signalMs = 2000) {
 export async function checkWord(raw, {allowNames = true, lookup = requestExists} = {}) {
   const word = normalizeWord(raw)
   if (!word) return {ok:false, reason:'Use one English word (2–24 letters).'}
-  const cached = wordCache.get(word)
+  const cacheKey = word + ':' + (allowNames ? 'names' : 'strict')
+  const cached = wordCache.get(cacheKey)
   if (cached && cached.expiresAt > Date.now()) return {ok:cached.ok, reason:cached.ok?'':'That word is not recognized.'}
   let dictionaryUnavailable = false
   try {
     const found = await lookup('https://api.dictionaryapi.dev/api/v2/entries/en/' + encodeURIComponent(word))
     if (Array.isArray(found) && found.some(item => Array.isArray(item?.meanings) && item.meanings.length)) {
-      wordCache.set(word, {ok:true, expiresAt:Date.now()+86_400_000})
+      wordCache.set(cacheKey, {ok:true, expiresAt:Date.now()+86_400_000})
       return {ok:true}
     }
   } catch { dictionaryUnavailable = true }
@@ -61,12 +62,15 @@ export async function checkWord(raw, {allowNames = true, lookup = requestExists}
       const found = await lookup('https://en.wikipedia.org/w/api.php?action=query&format=json&origin=*&titles=' +
         encodeURIComponent(String(raw).trim()))
       const pages = Object.values(found?.query?.pages || {})
-      if (pages.some(page => page && !('missing' in page))) return {ok:true}
+      if (pages.some(page => page && !('missing' in page))) {
+        wordCache.set(cacheKey,{ok:true,expiresAt:Date.now()+86_400_000})
+        return {ok:true}
+      }
     } catch { dictionaryUnavailable = true }
   }
   if (dictionaryUnavailable) return {ok:false, unavailable:true, reason:'Dictionary unavailable. Try your word again in a moment.'}
   if (wordCache.size > 3000) wordCache.clear()
-  wordCache.set(word, {ok:false, expiresAt:Date.now()+3_600_000})
+  wordCache.set(cacheKey, {ok:false, expiresAt:Date.now()+3_600_000})
   return {ok:false, reason:'That word is not recognized. Try another.'}
 }
 
@@ -264,6 +268,6 @@ export async function wordChainCommand(ctx, {verify = checkWord, now = () => Dat
     if (finished) return ctx.reply(await finish(ctx,game,'🏁 5-minute marathon finished!',{announce:false}))
     game.turnDeadline=Math.min(game.expiresAt, now()+TURN_MS)
     store(ctx,game);schedule(ctx,game)
-    return ctx.reply(`✅ *${word.toUpperCase()}* → *${game.expected.toUpperCase()}*\n🔗 ${game.words.length} words · ⏱️ ${remaining(game.turnDeadline - now())}s`)
+    return ctx.reply(`✅ *${word.toUpperCase()}* → *${game.expected.toUpperCase()}*\n🔗 ${game.words.length} word${game.words.length === 1 ? '' : 's'} · ⏱️ ${remaining(game.turnDeadline - now())}s`)
   })
 }
