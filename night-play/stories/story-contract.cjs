@@ -62,13 +62,16 @@ for(const [attr,id] of [['cunning',statGates[0]],['strength',statGates[1]],['spe
 }
 const scribe=route({},'release',true).r;assert.ok(E.choices(story,scribe).some(c=>c.id==='c29:seal'));assert.ok(!E.choices(story,opening).some(c=>c.id==='c29:seal'));
 const spirit=route({a:'lesson:sight',b:'archive:spirit',c:'training:sight'},'release',true).r;assert.ok(E.choices(story,spirit).some(c=>c.id==='c29:spirit'));
+const independent=route({a:'archive:dennis',b:'lesson:ordinary',c:'c04:refuse',d:'c11:keep',e:'c27:nerve'},'release',true,{nerve:2,speed:2}).r;assert.ok(E.choices(story,independent).some(c=>c.id==='c29:independent'));
+const evidence=route({a:'archive:ledger'},'release',true,{observation:3,magic:1}).r;assert.ok(E.choices(story,evidence).some(c=>c.id==='c29:evidence'));
+const solar=route({a:'lesson:sunward',b:'c20:light'},'sever',false,{nerve:2,observation:2},{light:true});assert.ok(solar.picked.has('c20:light'));assert.ok(solar.r.state.knowledge.includes('sun_trace'));
 const chaos=route({a:'lesson:ordinary',b:'training:fracture',c:'archive:dennis'},'sever',false,{cunning:2,nerve:2}).r;assert.ok(chaos.state.abilities.fracture);assert.ok(!chaos.state.abilities.seal);
 for(const r of [scribe,spirit,chaos]){assert.ok(Object.keys(r.state.abilities).length<=2);for(const a of Object.values(r.state.abilities))assert.ok(a.level<=3)}
 // Hearts are capped, persist, warn before spending, and pay once per authored opportunity.
 let heart=E.start(story);const effects=[{op:'resource',key:'hearts',value:-1,once:'critical'}];heart.state=E.apply(heart.state,effects,{story});assert.equal(heart.state.resources.hearts,2);heart.state=E.apply(heart.state,effects,{story});assert.equal(heart.state.resources.hearts,2);
 heart=E.enter(story,heart,'field-return~1'); // last page contains the once-only repair
 const fieldLast=Object.keys(story.nodes).filter(k=>k==='field-return'||k.startsWith('field-return~')).at(-1);heart=E.enter(story,heart,fieldLast);assert.equal(heart.state.resources.hearts,3);heart.state=E.apply(heart.state,[{op:'resource',key:'hearts',value:-1,once:'another'}],{story});heart=E.enter(story,heart,fieldLast);assert.equal(heart.state.resources.hearts,2,'cannot farm repair by re-entry');
-const doomed=route({a:'water:risk',b:'c27:force',c:'ren:offer'},'sever',false,defaultBuild).r;
+const doomed=route({a:'water:risk',b:'c27:force',c:'ren:offer',d:'lesson:ordinary',e:'training:fracture',f:'c20:fracture'},'sever',false,{cunning:2,nerve:2}).r;assert.equal(doomed.ending,'lost','a complete warned-risk route reaches the authored failure');
 // The field repair permits one more mistake; spending all returns is separately tested with one left.
 let one=E.clone(truth);one.state.resources.hearts=1;one=E.enter(story,one,'ren-boundary');one=E.choose(story,one,'ren:offer');assert.equal(one.node,'last-return');assert.equal(one.state.resources.hearts,0);assert.ok(E.beats(story,one).some(b=>b.text.includes('last knot')));while(!one.ending)one=E.choose(story,one,E.choices(story,one)[0].id);assert.equal(one.ending,'lost');
 for(const n of Object.values(story.nodes))for(const c of n.choices||[])if(c.effects?.some(e=>e.op==='resource'&&e.value<0))assert.ok(c.risk,'critical cost stated '+c.id);

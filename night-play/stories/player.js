@@ -145,7 +145,7 @@ function character(){openPanel(E.text('{{fullName}}',run),body=>{
  if(abilities.length)body.append(el('h3','Abilities'));
  for(const [key,a] of abilities){const def=story.rules.abilities[key],row=el('div',undefined,'ability-row');row.append(el('strong',def.title+' · Level '+a.level),el('p',def.levels[a.level-1]),el('small',def.cost));body.append(row)}
  if(run.state.knowledge.includes('heritage'))body.append(el('h3','The sealed record'),el('p',E.text(story.knowledge.heritage.text,run)));
- for(const rec of Object.values(story.characters||{})){if(!E.matches(rec.when,run.state))continue;body.append(el('h3',E.text(rec.name,run)),el('p',E.text(rec.text,run)))}
+ for(const [key,rec] of Object.entries(story.characters||{})){if(!E.matches(rec.when,run.state))continue;if(key!=='protagonist')body.append(el('h3',E.text(rec.name,run)));body.append(el('p',E.text(rec.text,run)))}
  if(run.legacyHeritagePending)body.append(button('Read the newly opened envelope',()=>{run=E.interlude(story,run,story.migration.catchupNode);write();ui.dialog.close();render()}));
 })}
 

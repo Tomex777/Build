@@ -21,6 +21,7 @@ def enhance(story):
  story['knowledge'].update({
   'returns':{'title':'Three returns','text':'Mum knotted three return protections into my coat. A broken claim can spend one to bring me back. A cut or bruise cannot. The stitches are a working model, not three anatomical hearts.'},
   'birth_clue':{'title':'The missing second signature','text':'My birth-registration copy has a covered second signature. Leila thought it was a privacy measure. The ink continues under the covering.'},
+  'repeated_refusal':{'title':'The copied agreement','text':'The same instruction treats an earlier answer as continuing agreement. I copied the fault without reopening its return.'},
   'counterledger':{'title':'The counter-ledger','text':'The station records some refusals twice, then treats the repetition as renewed agreement. A separate list can demonstrate the alteration.'},
   'spirit_warning':{'title':'The woman under the stair','text':'A waiting operator remembers a socket that Adrian hid. Listening let her recognise my return address too.'},
   'sun_trace':{'title':'The route under the paint','text':'Borrowed light made the workshop’s earlier route visible. The light revealed an alteration; it did not erase it.'},
@@ -73,6 +74,8 @@ def enhance(story):
  # Powerful magic supplements the established release requirements, rather than erasing consent.
  n[last('c29')]['choices'].insert(0,{'id':'c29:seal','label':'Share the release seal across two prepared readers','to':'final-seal','require':{'all':[{'ability':'seal','gte':3},{'attribute':'magic','gte':3},{'var':'wren','gte':1},{'lore':'release'},{'any':[{'item':'transfer'},{'item':'witness_receipt'}]}]},'requirement':'Scribe Seal 3 · Magic 3 · Wren’s cooperation · witnessed return','effects':[practice('seal','final-seal'),event('released_voices','I shared the release load across the two prepared readers.'),event('scribe_resolution','My trained seal carried the load my injured hand could not.')]})
  n[last('c29')]['choices'].insert(1,{'id':'c29:spirit','label':'Ask the consenting spirits to identify their own returns','to':'final-spirit','require':{'all':[{'ability':'sight','gte':3},{'lore':'spirit_warning'},{'var':'wren','gte':1},{'lore':'release'}]},'requirement':'Spirit Sight 3 · the operator’s warning · Wren’s cooperation','effects':[event('released_voices','I let the waiting senders identify their own returns.'),event('spirit_resolution','The waiting operator helped the senders choose their own roads.')]})
+ n[last('c29')]['choices'].insert(2,{'id':'c29:independent','label':'Use the ordinary return Dennis agreed to hold','to':'final-independent','require':{'all':[{'event':'independent_return'},{'item':'ordinary_return'},{'attribute':'nerve','gte':3},{'var':'wren','gte':1},{'var':'imani','gte':1},{'lore':'release'}]},'requirement':'Nerve 3 · an ordinary return · Imani and Wren’s cooperation','effects':[event('released_voices','We released the voices through our own witnessed return.')]})
+ n[last('c29')]['choices'].insert(3,{'id':'c29:evidence','label':'Use the counter-ledger to remove the copied refusals','to':'final-evidence','require':{'all':[{'item':'counterledger'},{'lore':'counterledger'},{'attribute':'observation','gte':4},{'var':'wren','gte':1},{'lore':'release'},{'any':[{'item':'transfer'},{'item':'witness_receipt'}]}]},'requirement':'Observation 4 · counter-ledger · Wren’s cooperation · witnessed return','effects':[event('released_voices','The original refusals reduced the final receiving load.')]})
  # Critical risks are explicit; ordinary cuts remain in the original injury variable.
  force=next(c for c in n[last('c27')]['choices'] if c['id']=='c27:force');force['label']='Force the opening — lose one heart and risk serious injury';force['risk']='One return heart';force.setdefault('effects',[]).append(effect('resource','hearts',value=-1,once='forced-gate',detail='The road takes one of the coat’s return knots.'))
  addfx('c12a',[point('water-practice')]);addfx('c16',[point('release-practice')]);addfx('mother-answer',[point('family-truth')])
@@ -99,6 +102,9 @@ def enhance(story):
   n['c32-'+end]['beats'].insert(-1,{'text':'Julian and I finish the crossing report before its end date. If I cannot leave the station, he takes my recorded account. The divine office gets the reader or a written account of why we still need it. Anubis sends back a receipt, not a new obligation.','when':{'event':'patron_terms'}})
   n['c32-'+end]['beats'].insert(-1,{'text':'The counter-ledger stays in the archive, available to families challenging the calls they refused. I do not get to decide which of them will use it.','when':{'lore':'counterledger'}})
   n['c32-'+end]['beats'].insert(-1,{'text':'Mum and I close every copy of my private cadence that the station could still reach. Wren listens only as long as she agrees to. I broke one promise about that name; repairing the damage does not make her pretend I kept it.','when':{'event':'name_exposed'}})
+ for end in story['mainEndings']:
+  n['c32-'+end]['beats'].insert(-1,{'text':'The return log has all our signatures, including Dennis’s. Nobody can renew the agreement by copying his yes. We file its completed end beside the beginning.','when':{'event':'independent_resolution'}})
+  n['c32-'+end]['beats'].insert(-1,{'text':'The counter-ledger comes back with scorch marks on its cover. The entries are intact. Julian catalogues the original and the copy separately, so nobody can mistake the correction for the thing it corrected.','when':{'event':'evidence_resolution'}})
  # Explain differing responses to the revelation in every completed ending.
  for end in story['mainEndings']:
   node=n['c31-'+end]
@@ -128,6 +134,10 @@ def enhance(story):
   for b in n[key]['beats']:
    if 'The voice says' in b['text'] or 'A voice from the black phone says' in b['text']:
     b.update(type='dialogue',speaker='???',pause=420)
+ for key in ['b_answer','b_silence']:
+  for beat in n[key]['beats']:
+   if beat.get('speaker')=='???':beat['text']='“{{firstName}}?”' if key=='b_answer' else '“{{firstName}}? Please. I know you can hear it.”'
+ story['recap'].extend([{'when':{'event':'independent_resolution'},'text':'We used an ordinary witnessed return; no god inherited our decisions.'},{'when':{'event':'evidence_resolution'},'text':'The counter-ledger changed the final load instead of becoming another item in my bag.'}])
  # The ordinary personal name is never the discovered supernatural cadence.
  # A delivered letter never reappears in the protagonist's inventory or epilogue.
  for node in n.values():

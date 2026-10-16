@@ -375,7 +375,7 @@
       },
       {
         "op": "learn",
-        "key": "counterledger",
+        "key": "repeated_refusal",
         "announce": true
       }
     ]
@@ -396,7 +396,7 @@
     "endEffects": [
       {
         "op": "learn",
-        "key": "counterledger",
+        "key": "repeated_refusal",
         "announce": true
       }
     ]
@@ -942,7 +942,7 @@
     "to": "c25",
     "beats": [
       {
-        "text": "At the edge of the field, Anubis waits beside a low stone basin. The water is plain. A cup stands on the rim, chipped at the handle."
+        "text": "At the top of the stair, a square of field light appears in the wall beside the trolley. A low stone basin stands just inside it. Anubis waits on the far side, still in the place he said he would not leave. A chipped cup rests on the rim."
       },
       {
         "text": "He points at my coat. “Nadia tied the returns here. The receiving place held its end.”"
@@ -983,7 +983,7 @@
         "pause": 180
       },
       {
-        "text": "I think of her notes, her crossed-out attempts, the captions I kept skipping. I check the repaired knot, or the three I have kept, before following Imani back towards the stair."
+        "text": "I check the lining before closing my coat. In the basin the field light fades. Imani holds the ordinary door while I follow the others back into the annex."
       }
     ],
     "endEffects": [
@@ -1244,6 +1244,32 @@
         "op": "event",
         "key": "chaos_trace",
         "detail": "The Exchange recognised my decoy."
+      }
+    ]
+  },
+  "final-independent": {
+    "title": "The return we keep ourselves",
+    "chapter": "29",
+    "text": "I call Dennis through the ordinary line and ask whether he still chooses to hold it. He makes me repeat the question. Not because he cannot hear; because he wants everyone at the table to hear the answer.\n\n“Yes. Until the people you named are clear. Then I close my end.”\n\nI give him the names one at a time. Wren says her own. Mum says hers. No divine office signs for us. Julian records the witnesses we actually have, including the person whose hand is already injured.\n\nImani braces the reader while I keep the outer contact steady. Strength or speed alone would only have got us to a closing door faster. This needs the people who agreed to remain on both sides, and enough nerve to let their agreement end.\n\nWe release the repeated claims through the ordinary receiving point. Dennis can refuse a new one. That makes the work slower; it also keeps another family from becoming the cost of ours.\n\nWhen the first voice separates, Wren checks its name herself. The road has no patron's guarantee. We have made a finite promise to one another and left each person a way to stop.",
+    "to": "c30-release",
+    "endEffects": [
+      {
+        "op": "event",
+        "key": "independent_resolution",
+        "detail": "Our witnessed ordinary return carried the release without a divine guarantee."
+      }
+    ]
+  },
+  "final-evidence": {
+    "title": "The answer already given",
+    "chapter": "29",
+    "text": "I put the counter-ledger beside the reader. Adrian reaches for it. I move it out of his way.\n\n“Read me the first refusal,” I say.\n\nHe says it would take too long. Julian reads it instead: a date, an ordinary number, a sentence ending with no. The reader lights as if someone has answered. The copy inside the bypass tries to register the same voice as agreement.\n\nI show Wren the two entries. “Which one is still speaking?”\n\nShe listens. Then she puts her finger beside the original.\n\nOne claim falls out of the braid.\n\nWe do the next, then a group whose entries were copied by the same instruction. Observation has not made me a better judge of what strangers ought to want. It has let me recognise where a machine ignored what they already said.\n\nBy the time the counter-ledger reaches the receiving cache, Adrian is reading the dates with Julian. He corrects one number. We check it against the original before using it. His useful correction does not give him the book back.\n\nThe count drops enough for the reader to begin separating the willing voices. I keep the original ledger out of the circuit. Other people will need it when this part is finished.",
+    "to": "c30-release",
+    "endEffects": [
+      {
+        "op": "event",
+        "key": "evidence_resolution",
+        "detail": "The counter-ledger stripped repeated refusals out of the final load."
       }
     ]
   }

@@ -67,7 +67,7 @@ function enter(story,run,nodeId,carry=[]){
  if(n.ending){r.ending=n.ending;if(n.chapter&&!r.chapters.includes(n.chapter))r.chapters.push(n.chapter)}return r;
 }
 function allocate(story,run,allocation){
- const r=clone(run),defs=story.rules?.attributes||{};let spent=0;
+ const r=clone(run),defs=story.rules?.attributes||{};r.presentation=[];let spent=0;
  for(const [key,n] of Object.entries(allocation)){if(!safe(key)||!own(defs,key)||!Number.isInteger(n)||n<0)throw Error('Invalid attribute allocation.');if(r.state.attributes[key]+n>defs[key].max)throw Error('Attribute limit reached.');spent+=n;}
  if(spent>r.state.points)throw Error('Not enough attribute points.');
  for(const [key,n] of Object.entries(allocation)){r.state.attributes[key]+=n;if(n)r.presentation.push({type:'notification',kind:'attribute',text:'Attribute improved',detail:defs[key].title+' · Level '+r.state.attributes[key],pause:240})}r.state.points-=spent;
