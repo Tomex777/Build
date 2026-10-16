@@ -1,4 +1,4 @@
-import { browseTheNkiri, materializeTheNkiriRelease, searchTheNkiri } from '../../providers/thenkiri.js'
+import { browseTheNkiri, listTheNkiriEpisodes, listTheNkiriSeasons, materializeTheNkiriRelease, searchTheNkiri } from '../../providers/thenkiri.js'
 import { episodeRows, seasonRows } from '../../providers/screen-source-metadata.js'
 
 function cleanName(value) {
@@ -55,9 +55,17 @@ export default {
   }) {
     if (action === 'search') return { items:await searchTheNkiri(query, 'tv') }
     if (action === 'browse') return { items:await browseTheNkiri('tv') }
-    if (action === 'seasons') return { seasons:await seasonRows(context, item) }
+    if (action === 'seasons') {
+      let available = []
+      try { available = await listTheNkiriSeasons({ item }) } catch {}
+      if (available.length) return { seasons:available }
+      return { seasons:await seasonRows(context, item) }
+    }
     if (action === 'episodes') {
       const number = Number(seasonNumber || season?.number || 1)
+      let available = []
+      try { available = await listTheNkiriEpisodes({ item, seasonNumber:number }) } catch {}
+      if (available.length) return { title:item?.title, seasonNumber:number, episodes:available }
       return { title:item?.title, seasonNumber:number, episodes:await episodeRows(context, item, number) }
     }
     if (action === 'options') {
@@ -78,7 +86,9 @@ export default {
       }
       const low = Math.min(start, end)
       const high = Math.max(start, end)
-      const rows = await episodeRows(context, item, s)
+      let rows = []
+      try { rows = await listTheNkiriEpisodes({ item, seasonNumber:s }) } catch {}
+      if (!rows.length) rows = await episodeRows(context, item, s)
       const chosen = rows.filter(row => {
         const number = Number(row?.number)
         return Number.isInteger(number) && number >= low && number <= high
