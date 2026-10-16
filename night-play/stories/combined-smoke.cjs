@@ -28,13 +28,19 @@ const server=http.createServer((req,res)=>{
     await page.waitForURL('**/stories/');
     assert.match(await page.title(),/The Last Call/i);
     assert.equal(await page.locator('#story p').count(),5,'all narration is pre-laid for zero page-shifting');
-    await page.locator('#story p.go .ink-word').first().waitFor({state:'attached'});
-    assert.ok(await page.locator('#story .ink-word').count()>=20,'individual word spans are present');
-    const motion=await page.locator('#story p.go .ink-word').first().evaluate(el=>{
+    await page.locator('#story p.go .word').first().waitFor({state:'attached'});
+    assert.ok(await page.locator('#story .word').count()>=20,'individual word spans are present');
+    const motion=await page.locator('#story p.go .word').first().evaluate(el=>{
       const style=getComputedStyle(el);return {name:style.animationName,duration:style.animationDuration}
     });
-    assert.equal(motion.name,'appear','words animate their ink rather than whole-line sliding');
+    assert.equal(motion.name,'word-ink','words animate their ink instead of sliding the whole line');
     assert.equal(motion.duration,'0.9s','default word transition follows 900ms source cadence');
+    const sourceReference=await page.locator('.col').evaluate(el=>{const c=getComputedStyle(el),p=document.querySelector('#story p');const r=el.getBoundingClientRect(),cs=getComputedStyle(p);return{x:r.x,y:r.y,w:r.width,pSize:cs.fontSize,pLineHeight:cs.lineHeight,font:cs.fontFamily}});
+    assert.ok(Math.abs(sourceReference.x-(width===390?20:360))<1,'reader x aligns to HARK public CSS reference');
+    assert.ok(Math.abs(sourceReference.w-(width===390?350:560))<1,'reader width aligns to HARK public CSS reference');
+    assert.ok(Math.abs(sourceReference.y-75.96)<1,'first line starts at HARK measured reading position');
+    assert.equal(sourceReference.pSize,width===390?'17px':'17.5px','HARK reference text size matches');
+    assert.ok(sourceReference.font.includes('Newsreader'),'reading text declares matching Newsreader typeface');
     const rectBefore=await page.locator('#story p').last().boundingBox();
     await page.waitForTimeout(600);
     const active=await page.locator('#story p.go').count();
@@ -47,20 +53,34 @@ const server=http.createServer((req,res)=>{
     assert.ok(Math.abs(rectBefore.y-rectAfter.y)<1,'full pre-layout avoids jarring vertical shifts');
     await page.locator('#story').click();
     assert.equal(await page.locator('.choice').count(),2,'choices appear immediately on tap');
+    await page.waitForFunction(()=>{
+      const el=document.querySelector('.choices');
+      return el&&!el.classList.contains('pending')&&parseFloat(getComputedStyle(el).opacity)>.95;
+    },null,{timeout:1500});
+    assert.equal(await page.locator('.choice:visible').count(),2,'choices are actually visible, not only present in the DOM');
+    const measuredChoices=await page.locator('.choices').evaluate(el=>{
+      const a=el.getBoundingClientRect(),b=el.querySelector('.choice').getBoundingClientRect();
+      return {x:a.x,y:a.y,w:a.width,h:b.height,transition:getComputedStyle(el).transitionDuration};
+    });
+    const expectedY=width===390?291:297;
+    assert.ok(Math.abs(measuredChoices.y-expectedY)<3,'choice start matches HARK measured vertical rhythm');
+    assert.ok(Math.abs(measuredChoices.h-(width===390?48:49))<2,'choice row matches HARK measured height');
+    assert.equal(measuredChoices.transition,'0.14s','choices do not have a slow entrance');
+    console.log('NIGHT_HARK_REFERENCE_METRICS',width,JSON.stringify({text:sourceReference,choices:measuredChoices}));
     if(width===390&&process.env.NIGHT_STORY_VISUAL_QA==='1'){
       const shot=await page.screenshot({type:'jpeg',quality:46,fullPage:true});
       console.log('STORY_FULL_SCENE_JPEG_BASE64='+shot.toString('base64'));
     }
     await page.locator('.choice').first().click();
-    assert.match(await page.locator('#location').textContent(),/02:14 AM/,'branch choice works');
-    await page.locator('#readingOptions summary').click();
+    assert.match(await page.locator('#story').innerText(),/You lift the phone to your ear/,'branch choice works');
+    await page.locator('#readerOptions summary').click();
     await page.getByRole('button',{name:'Restart story'}).click();
-    await page.locator('#readingOptions summary').click();
+    await page.locator('#readerOptions summary').click();
     await page.locator('#pace').selectOption('instant');
     assert.equal(await page.locator('#story p').count(),5,'reading speed instant works');
     const size=await page.evaluate(()=>({scroll:document.documentElement.scrollWidth,width:innerWidth}));
     assert.ok(size.scroll<=size.width+1,'story has no horizontal overflow');
-    await page.getByRole('link',{name:/Games/}).first().click();
+    await page.locator('.control-strip a').click();
     await page.waitForURL('**/games');
     await page.locator('#view-games').waitFor({state:'visible'});
     assert.equal(errors.length,0,'no page JavaScript exceptions: '+errors.join('; '));
