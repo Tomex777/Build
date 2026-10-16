@@ -261,7 +261,7 @@ async function whotFly(origin,destination,{face=null,action="play"}={}){
   back.appendChild(origin.cloneNode(true));
   const front=document.createElement('div');front.className='whot-flip-side whot-flip-front';
   const safe=document.createElement('div');
-  if(action==='cpu')safe.innerHTML=whotFace(face,-1,false);
+  if(action==='cpu'||(action==='draw'&&face))safe.innerHTML=whotFace(face,-1,false);
   else safe.appendChild(destination.cloneNode(true));
   const card=safe.firstElementChild;if(card){
    card.removeAttribute('data-card');card.disabled=true;
@@ -389,7 +389,7 @@ async function cardDraw(kind){
    render();
    const newCard=board.querySelectorAll('.hand .whot-card')[before];
    const landing=newCard&&getComputedStyle(newCard).display!=='none'?newCard:board.querySelector('.whot-view-hand:not([hidden])');
-   await whotFly(board.querySelector('.whot-deck-back'),landing,{action:'draw'});
+   await whotFly(board.querySelector('.whot-deck-back'),landing,{face:s.hands[0][before],action:'draw'});
    if(epoch!==cardMotionEpoch||active!==kind||state[kind]!==s)return;
    queueCPU(kind);
    return;
