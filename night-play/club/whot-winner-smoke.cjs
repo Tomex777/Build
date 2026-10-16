@@ -57,6 +57,8 @@ async function finish(page,winner){
    assert.ok(look.bg.includes('repeating-linear-gradient'),'felt material has visible woven texture');
    assert.ok(look.shadow.includes('inset'),'felt table includes raised wooden edge');
    assert.equal(await page.locator('.whot-win-layer').count(),0,'no premature victory banner');
+   await page.waitForTimeout(1400);
+   assert.equal(await page.locator('.hand .whot-card').count(),5,'all five dealt cards remain visible in the hand');
    await snap(page,'TABLE',width);
    await finish(page,0);
    assert.equal(await page.locator('.whot-win-layer.player-victory').count(),1,'winner rendered inside board');
@@ -66,7 +68,10 @@ async function finish(page,winner){
    assert.equal(await page.locator('.whot-win-particles i').count(),18,'small visual victory celebration');
    const bounds=await page.locator('.whot-win-layer').boundingBox();
    const tableBounds=await page.locator('.table-surface').boundingBox();
-   assert.ok(Math.abs(bounds.x-tableBounds.x)<2&&Math.abs(bounds.y-tableBounds.y)<2,'result is on table, not off-board or in a popup');
+   const isInTable=await page.locator('.whot-win-layer').evaluate(layer=>layer.parentElement?.matches('.table-surface.whot-finished'));
+   assert.ok(isInTable,'result is mounted inside the actual felt table');
+   assert.ok(Math.abs(bounds.x-tableBounds.x)<12&&Math.abs(bounds.y-tableBounds.y)<12,
+    'result overlays the playing table excluding only its raised wooden border');
    await snap(page,'WIN',width);
    await page.getByRole('button',{name:/Play again/}).click();
    assert.equal(await page.locator('.whot-win-layer').count(),0,'rematch removes result and starts a fresh hand');
