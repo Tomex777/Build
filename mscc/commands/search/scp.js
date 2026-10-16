@@ -9,6 +9,8 @@ export default {
     const input=String(args[0] || '').trim()
     if (!input || input.toLowerCase()==='help') return ctx.reply([
       '☢️ *SCP FOUNDATION ARCHIVE*',
+      'SCP stands for Secure, Contain, Protect — a fictional universe of anomalies maintained by the SCP Foundation community.',
+      'Use this command to explore source-linked SCP dossiers. It currently returns information, NOT collectible cards.',
       '.scp 682 — Read an SCP dossier',
       '.scp SCP-049 — Also supported',
       '.scp random — Discover a random file',
