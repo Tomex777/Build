@@ -359,6 +359,42 @@ try{
    if([1,5,7,10,16,21].includes(n))console.log('NIGHT_WHOT_HAND_'+n+'_JPEG_BASE64='+(await page.screenshot({type:'jpeg',quality:50,fullPage:true})).toString('base64'));
   }
 
+  // Extremely large hand: play the actual selected card from the
+  // expanded gallery, keeping the real index and performing its normal flight.
+  await page.evaluate(()=>{
+    const all=JSON.parse(localStorage.getItem('night-play-club-v1')),s=all.whot;
+    const idx=s.hands[0].findIndex(c=>c.n!==20);
+    const picked=s.hands[0][idx];
+    const top=s.deck.findIndex(c=>c.s===picked.s&&c.n!==20);
+    if(idx<0||top<0)throw Error('Cannot stage matching full-gallery play');
+    s.discard[s.discard.length-1]=s.deck.splice(top,1)[0];
+    s.turn=0;s.winner=null;s.pendingWhot=null;s.pendingFinish=null;
+    localStorage.setItem('night-play-club-v1',JSON.stringify(all));
+    window.__galleryPlayableIndex=idx;
+  });
+  await page.reload();
+  await page.locator('.whot-view-hand').click();
+  const selectable=await page.evaluate(()=>{
+    const s=JSON.parse(localStorage.getItem('night-play-club-v1')).whot;
+    return s.hands[0].findIndex(c=>c.n!==20);
+  });
+  await page.locator('.whot-hand-gallery .whot-card[data-card="'+selectable+'"]').click();
+  await page.waitForFunction(()=>JSON.parse(localStorage.getItem('night-play-club-v1')).whot.hands[0].length===20,null,{timeout:4000});
+  assert.equal(await page.locator('.whot-hand-overlay').count(),0,'viewer closes after playing its own indexed card');
+  assert.equal(await page.locator('.whot-win-layer').count(),0,'large hand moves do not trigger false victory');
+  // Market cards still land naturally in the new hand, even when the
+  // collapsed board displays only a legible 16-card preview.
+  await page.evaluate(()=>{
+    const all=JSON.parse(localStorage.getItem('night-play-club-v1'));all.whot.turn=0;
+    localStorage.setItem('night-play-club-v1',JSON.stringify(all));
+  });
+  await page.reload();
+  const priorCards=await page.locator('.hand .whot-card').count();
+  await page.locator('.whot-deck').click();
+  await page.waitForFunction(old=>JSON.parse(localStorage.getItem('night-play-club-v1')).whot.hands[0].length===old+1,priorCards,{timeout:1700});
+  await page.waitForFunction(()=>window.__nightWhotMotion().activeFlights===0,null,{timeout:1800});
+  assert.equal(await page.locator('.whot-view-hand').isVisible(),true,'large hand still exposes all cards through view control');
+
   // Card 20 must never auto-call Circle merely because a hidden select
   // defaulted to the first option. A real in-table decision is required.
   await page.evaluate(()=>{
