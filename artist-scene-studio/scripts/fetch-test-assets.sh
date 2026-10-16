@@ -85,6 +85,11 @@ curl --fail --location --retry 3 --output "$female_source" "$female_url"
   exit 1
 }
 python3 "$project_dir/scripts/prepare-anime-glb.py" "$female_source" "$female_file"
+# VRoid female uses 119 joints in each skin, which exceeds safe GPU
+# palette size on our tested low-feature-level Android 8 emulator.
+# Reduce each GPU palette to its actual vertex influences while preserving
+# editable full node hierarchy, all vertices/skin weights and texture images.
+python3 "$project_dir/scripts/compact-anime-skins.py" "$female_file" "$female_file"
 rm -f "$female_source"
 python3 "$project_dir/scripts/check-anime-glb.py" "$female_file"
 
