@@ -70,4 +70,14 @@ class PoetrySmokeTest {
         compose.onNodeWithText("40%").assertExists()
         capture("slider-adjusted")
     }
+
+    @Test fun writerEditsSurviveActivityRestart() {
+        compose.onNodeWithText("Write a poem").performClick()
+        compose.onNodeWithTag("poem-title-input").performTextInput("Restart safety check")
+        compose.onNodeWithTag("poem-body-input").performTextInput("Offline poems stay on disk.")
+        // Recreates MainActivity, including a lifecycle ON_STOP flush and fresh repository.
+        compose.activityRule.scenario.recreate()
+        compose.onNodeWithText("Restart safety check").assertExists()
+        compose.onNodeWithText("Offline poems stay on disk.").assertExists()
+    }
 }
