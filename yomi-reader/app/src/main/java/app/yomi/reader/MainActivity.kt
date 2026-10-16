@@ -9,6 +9,7 @@ import android.provider.OpenableColumns
 import android.util.Log
 import android.view.ViewTreeObserver
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -493,6 +494,7 @@ class MainActivity : ComponentActivity() {
         var pendingRelink by remember { mutableStateOf<LibraryBook?>(null) }
         var sortMode by remember { mutableStateOf(LibrarySort.RECENT) }
         var destination by remember { mutableStateOf(HomeDestination.HOME) }
+        var previousDestination by remember { mutableStateOf(HomeDestination.HOME) }
         var searchQuery by remember { mutableStateOf("") }
         var importError by remember { mutableStateOf<String?>(null) }
         val scope = rememberCoroutineScope()
@@ -681,6 +683,11 @@ class MainActivity : ComponentActivity() {
         val currentBook = recent.firstOrNull { it.progress < 1.0 }
         val visibleLibrary = sortedLibrary.filter { it.title.contains(searchQuery.trim(), ignoreCase = true) }
 
+        BackHandler(enabled = destination == HomeDestination.SEARCH) {
+            destination = previousDestination
+            searchQuery = ""
+        }
+
         val openOrRecover: (LibraryBook) -> Unit = { item ->
             if (item.availability == LibraryAvailability.AVAILABLE) {
                 openReader(item)
@@ -695,9 +702,12 @@ class MainActivity : ComponentActivity() {
                     searchMode = destination == HomeDestination.SEARCH,
                     searchQuery = searchQuery,
                     onSearchQueryChange = { searchQuery = it },
-                    onSearch = { destination = HomeDestination.SEARCH },
+                    onSearch = {
+                        previousDestination = destination
+                        destination = HomeDestination.SEARCH
+                    },
                     onCloseSearch = {
-                        destination = HomeDestination.HOME
+                        destination = previousDestination
                         searchQuery = ""
                     },
                     onAdd = { showAddSheet = true },
