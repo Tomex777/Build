@@ -218,6 +218,63 @@ data class SceneEditorState(
         ))
     }
 
+    /** Store a pose by human-readable bone name, rather than by glTF instance bone index. */
+    fun saveSelectedPose(name: String): SceneEditorState {
+        val actor = selectedActor ?: return this
+        if (actor.kind != ActorKind.CHARACTER || actor.locked) return this
+        val rig = actor.rigDefinition ?: return this
+        val pose = actor.rig ?: return this
+        if (pose.joints.isEmpty()) return this
+        val labels = rig.bones.associate { it.id to RigSemantics.label(it, rig.bones).lowercase() }
+        val joints = pose.joints.mapNotNull { (id, rotation) ->
+            labels[id]?.let { it to rotation }
+        }.toMap()
+        if (joints.isEmpty()) return this
+        val morphNames = rig.morphTargets.associate { it.id to it.name }
+        val expressions = pose.morphWeights.mapNotNull { (id, value) ->
+            morphNames[id]?.let { it to value }
+        }.toMap()
+        val title = name.trim().take(48).ifBlank { "My pose ${project.savedPoses.size + 1}" }
+        val snapshot = SavedPosePreset(
+            id = "custom-pose-" + java.util.UUID.randomUUID().toString(),
+            name = title,
+            jointsByLabel = joints,
+            expressionsByName = expressions,
+        )
+        return commit(project.copy(savedPoses = project.savedPoses + snapshot), selectedActorId)
+    }
+
+    fun applySavedPose(presetId: String): SceneEditorState {
+        val actor = selectedActor ?: return this
+        if (actor.kind != ActorKind.CHARACTER || actor.locked) return this
+        val snapshot = project.savedPoses.firstOrNull { it.id == presetId } ?: return this
+        val rig = actor.rigDefinition ?: return this
+        val jointsByLabel = rig.bones.associateBy { RigSemantics.label(it, rig.bones).lowercase() }
+        val restored = snapshot.jointsByLabel.mapNotNull { (name, rotation) ->
+            jointsByLabel[name]?.let { it.id to rotation }
+        }.toMap()
+        if (restored.size < 2) return this
+        val morphs = rig.morphTargets.associateBy { it.name }
+        val restoredExpressions = snapshot.expressionsByName.mapNotNull { (name, weight) ->
+            morphs[name]?.let { it.id to weight.coerceIn(0f, 1f) }
+        }.toMap()
+        val next = RigPose(
+            joints = restored,
+            morphWeights = actor.rig?.morphWeights.orEmpty() + restoredExpressions,
+        )
+        if (actor.rig == next) return this
+        return replaceSelected(actor.copy(
+            rig = next, animation = actor.animation.copy(playing = false),
+        ))
+    }
+
+    fun deleteSavedPose(presetId: String): SceneEditorState {
+        if (project.savedPoses.none { it.id == presetId }) return this
+        return commit(project.copy(
+            savedPoses = project.savedPoses.filterNot { it.id == presetId },
+        ), selectedActorId)
+    }
+
     /** The artist mirrors the pose within its rig, not the whole actor or its skin. */
     fun mirrorSelectedPose(): SceneEditorState {
         val actor = selectedActor ?: return this
