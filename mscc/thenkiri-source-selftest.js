@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 import { _test } from './providers/thenkiri.js'
+import movieSource, { _test as movieDeliveryTest } from './sources/movies/thenkiri.js'
+import tvSource, { _test as tvDeliveryTest } from './sources/tv/thenkiri.js'
 
 const movie = _test.normalizePost({
   id:123,
@@ -49,15 +51,114 @@ assert.equal(_test.hostKind('https://www.downloadwella.com/abc/file.mkv.html'), 
 assert.equal(_test.hostKind('https://wetafiles.com/abc/file.mkv.html'), 'wetafiles')
 assert.equal(_test.hostKind('https://example.com/file.mkv'), '')
 
-// Offline regression guards for the adapter contracts; live host access is tested separately.
+// Runtime tests: prove both adapters pass the right media identity, send the
+// resolved file through the WhatsApp context, and always clean temporary files.
+assert.equal(typeof movieSource.run, 'function')
+assert.equal(typeof tvSource.run, 'function')
+
+let movieSend
+let movieResolveArgs
+let movieCleanupCount = 0
+const movieResult = await movieDeliveryTest.deliverMovie({
+  item:{ id:'thenkiri:123', title:'Example: Movie' },
+  context:{ send:async payload => { movieSend = payload } },
+  materialize:async input => {
+    movieResolveArgs = input
+    return { path:'/tmp/mscc-test-movie.mkv', cleanup:async () => { movieCleanupCount += 1 } }
+  },
+})
+assert.deepEqual(movieResolveArgs, {
+  item:{ id:'thenkiri:123', title:'Example: Movie' },
+  title:'Example: Movie',
+  type:'movie',
+})
+assert.equal(movieSend.document.url, '/tmp/mscc-test-movie.mkv')
+assert.equal(movieSend.mimetype, 'video/x-matroska')
+assert.equal(movieSend.fileName, 'Example Movie.mkv')
+assert.equal(movieResult.delivered, true)
+assert.equal(movieCleanupCount, 1)
+
+let tvSend
+let tvResolveArgs
+let tvCleanupCount = 0
+const tvResult = await tvDeliveryTest.deliverEpisode({
+  item:{ id:'thenkiri:456', title:'Example Show' },
+  context:{ send:async payload => { tvSend = payload } },
+  seasonNumber:1,
+  episodeNumber:2,
+  materialize:async input => {
+    tvResolveArgs = input
+    return { path:'/tmp/mscc-test-tv.mkv', cleanup:async () => { tvCleanupCount += 1 } }
+  },
+})
+assert.deepEqual(tvResolveArgs, {
+  item:{ id:'thenkiri:456', title:'Example Show' },
+  title:'Example Show',
+  type:'tv',
+  season:1,
+  episode:2,
+})
+assert.equal(tvSend.document.url, '/tmp/mscc-test-tv.mkv')
+assert.equal(tvSend.mimetype, 'video/x-matroska')
+assert.equal(tvSend.fileName, 'Example Show.S01E02.mkv')
+assert.match(tvSend.caption, /S01E02/)
+assert.equal(tvResult.delivered, true)
+assert.equal(tvCleanupCount, 1)
+
+let failedMovieCleanup = 0
+await assert.rejects(movieDeliveryTest.deliverMovie({
+  item:{ title:'Broken send test' },
+  context:{ send:async () => { throw new Error('expected mock send failure') } },
+  materialize:async () => ({
+    path:'/tmp/mscc-test-failed-movie.mkv',
+    cleanup:async () => { failedMovieCleanup += 1 },
+  }),
+}), /expected mock send failure/)
+assert.equal(failedMovieCleanup, 1, 'movie temp media must be cleaned even when WhatsApp delivery fails')
+
+let failedTvCleanup = 0
+await assert.rejects(tvDeliveryTest.deliverEpisode({
+  item:{ title:'Broken TV send test' },
+  context:{ send:async () => { throw new Error('expected mock send failure') } },
+  seasonNumber:1,
+  episodeNumber:1,
+  materialize:async () => ({
+    path:'/tmp/mscc-test-failed-tv.mkv',
+    cleanup:async () => { failedTvCleanup += 1 },
+  }),
+}), /expected mock send failure/)
+assert.equal(failedTvCleanup, 1, 'TV temp media must be cleaned even when WhatsApp delivery fails')
+
+await assert.rejects(movieDeliveryTest.deliverMovie({
+  item:{ title:'No context' },
+  context:null,
+  materialize:async () => { throw new Error('materialize must not run without a send context') },
+}), /requires a message context/)
+await assert.rejects(tvDeliveryTest.deliverEpisode({
+  item:{ title:'No context' },
+  context:null,
+  seasonNumber:1,
+  episodeNumber:1,
+  materialize:async () => { throw new Error('materialize must not run without a send context') },
+}), /requires a message context/)
+await assert.rejects(tvDeliveryTest.deliverEpisode({
+  item:{ title:'Invalid episode' },
+  context:{ send:async () => {} },
+  seasonNumber:0,
+  episodeNumber:1,
+  materialize:async () => { throw new Error('materialize must not run for invalid episode') },
+}), /episode identity is incomplete/)
+
+// Keep a lightweight source-contract guard so these regression helpers remain
+// reachable from the adapter modules and range delivery does not regress back
+// to the previous "catalog-only" response.
 const movieAdapter = await readFile(new URL('./sources/movies/thenkiri.js', import.meta.url), 'utf8')
 const tvAdapter = await readFile(new URL('./sources/tv/thenkiri.js', import.meta.url), 'utf8')
 assert.match(movieAdapter, /async run\(\{[^}]*context[^}]*\}\)/s)
-assert.match(movieAdapter, /materializeTheNkiriRelease/)
-assert.match(movieAdapter, /context\.send\(/)
+assert.match(movieAdapter, /return deliverMovie\(\{ item, context \}\)/)
 assert.match(tvAdapter, /materializeTheNkiriRelease/)
 assert.match(tvAdapter, /async function deliverEpisode/)
 assert.match(tvAdapter, /action === 'downloadRange'/)
 assert.doesNotMatch(tvAdapter, /Automated third-party file-host delivery is not enabled/)
 
-console.log('PASS TheNkiri catalog, release parsing and movie/TV adapter regression fixtures')
+console.log('PASS TheNkiri catalog, movie/TV delivery, cleanup and regression fixtures')
