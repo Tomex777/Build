@@ -39,10 +39,18 @@ const server=http.createServer((req,res)=>{
     await page.waitForTimeout(600);
     const active=await page.locator('#story p.go').count();
     assert.ok(active>=3,'multiple narration lines animate together instead of one-by-one serial waiting');
+    if(width===390&&process.env.NIGHT_STORY_VISUAL_QA==='1'){
+      const shot=await page.screenshot({type:'jpeg',quality:42});
+      console.log('STORY_MID_REVEAL_JPEG_BASE64='+shot.toString('base64'));
+    }
     const rectAfter=await page.locator('#story p').last().boundingBox();
     assert.ok(Math.abs(rectBefore.y-rectAfter.y)<1,'full pre-layout avoids jarring vertical shifts');
     await page.locator('#story').click();
     assert.equal(await page.locator('.choice').count(),2,'choices appear immediately on tap');
+    if(width===390&&process.env.NIGHT_STORY_VISUAL_QA==='1'){
+      const shot=await page.screenshot({type:'jpeg',quality:46,fullPage:true});
+      console.log('STORY_FULL_SCENE_JPEG_BASE64='+shot.toString('base64'));
+    }
     await page.locator('.choice').first().click();
     assert.match(await page.locator('#location').textContent(),/02:14 AM/,'branch choice works');
     await page.getByRole('button',{name:'Reading options'}).click();
