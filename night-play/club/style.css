@@ -826,3 +826,8 @@ body.whot-mode .whot-flight,body.whot-mode .whot-flight-flip{
 }
 body.whot-mode .whot-flip-side>.whot-card{transition:none!important}
 body.whot-mode .whot-flip-core{backface-visibility:hidden}
+
+/* Developer reference link belongs in WHOT's existing settings, not on the board. */
+.whot-motion-lab-link:not([hidden]){display:flex;align-items:center;justify-content:space-between;gap:10px;margin:14px 0 8px;padding:12px 14px;background:#223f2b;border:1px solid #678c65;border-radius:10px;color:#e5f1da;text-decoration:none;font-weight:800;font-size:13px}
+.whot-motion-lab-link:hover{background:#2b5236}
+.whot-motion-lab-link:focus-visible{outline:3px solid #a3e9af;outline-offset:3px}
