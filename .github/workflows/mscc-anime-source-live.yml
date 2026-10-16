@@ -71,9 +71,6 @@ jobs:
 
   source:
     name: ${{ matrix.source }}
-    # On PRs, gate this integration change on the supported AnimeSogo path; keep the
-    # experimental AnimePahe/AnimeOnsen live checks on manual runs and pushes.
-    if: github.event_name != 'pull_request' || matrix.source == 'animesogo'
     strategy:
       fail-fast: false
       matrix:
@@ -89,11 +86,13 @@ jobs:
         with:
           node-version: 24
       - name: Install media and Tor-backed browser-verification tools
+        if: github.event_name != 'pull_request' || matrix.source == 'animesogo'
         run: |
           bash tools/install-flaresolverr-tor.sh
           ffprobe -version | head -n 1
           ffmpeg -version | head -n 1
       - name: Live search, episode resolution and decode probe
+        if: github.event_name != 'pull_request' || matrix.source == 'animesogo'
         env:
           MSCC_FLARESOLVERR_URL: http://127.0.0.1:8191
         run: node anime-source-live-probe.js ${{ matrix.source }}
