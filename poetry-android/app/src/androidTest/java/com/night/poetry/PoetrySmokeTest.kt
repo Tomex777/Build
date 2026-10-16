@@ -37,6 +37,11 @@ class PoetrySmokeTest {
 
     @Test fun writeThenDesign() {
         capture("home")
+        compose.onNodeWithContentDescription("Preferences").performClick()
+        compose.onNodeWithText("Back up my library").assertExists()
+        compose.onNodeWithText("Restore from backup").assertExists()
+        capture("settings")
+        compose.onNodeWithContentDescription("Back").performClick()
         compose.onNodeWithText("Write a poem").performClick()
         compose.onNodeWithTag("poem-title-input").performTextInput("Hardship")
         compose.onNodeWithTag("poem-body-input").performTextInput(
