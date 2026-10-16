@@ -32,6 +32,10 @@ jobs:
         run: python3 .github/scripts/echospace_expand_mixer.py
       - name: Apply ABR single-mixer design and vector sound controls
         run: python3 .github/scripts/echospace_abr.py
+      - name: Enlarge sound field and repair live gain control
+        run: python3 .github/scripts/echospace_mixer_precision.py
+      - name: Enhance binaural audio and add six sound types
+        run: python3 .github/scripts/echospace_audio_upgrade.py
       - name: Bundle royalty-free offline scene artwork
         run: |
           set -euo pipefail
@@ -118,6 +122,17 @@ jobs:
             python3 EchoSpace/tools/emulator_probe.py assert desc 'Living sounds off'
             python3 EchoSpace/tools/emulator_probe.py tap desc 'Living sounds off'
             python3 EchoSpace/tools/emulator_probe.py assert desc 'Mute Birdsong'
+            python3 EchoSpace/tools/emulator_probe.py assert desc 'Birdsong level'
+            python3 EchoSpace/tools/emulator_probe.py assert desc 'Move selected sound five degrees right'
+            # Test the *actual* gain gesture, not just that a slider renders.
+            adb shell uiautomator dump /sdcard/mixer-tree.xml
+            adb pull /sdcard/mixer-tree.xml qa/slider-before.xml
+            python3 -c 'import xml.etree.ElementTree as E,re,subprocess; n=next(x for x in E.parse("qa/slider-before.xml").iter("node") if x.attrib.get("content-desc")=="Birdsong level"); l,t,r,b=map(int,re.findall(r"\d+",n.attrib["bounds"])); y=(t+b)//2; subprocess.run(["adb","shell","input","swipe",str(l+int((r-l)*.88)),str(y),str(l+int((r-l)*.24)),str(y),"900"],check=True)'
+            sleep 1
+            python3 EchoSpace/tools/emulator_probe.py assert desc 'Birdsong level'
+            adb shell uiautomator dump /sdcard/mixer-after.xml
+            adb pull /sdcard/mixer-after.xml qa/slider-after.xml
+            python3 -c 'import xml.etree.ElementTree as E; a=[n.attrib.get("text") for n in E.parse("qa/slider-after.xml").iter("node")]; assert "88%" not in a, "Layer gain failed to respond to swipe: "+str(a); print("LAYER_GAIN_GESTURE_VERIFIED")'
             python3 EchoSpace/tools/emulator_probe.py tap desc 'Mute Birdsong'
             python3 EchoSpace/tools/emulator_probe.py assert text Muted
             python3 EchoSpace/tools/emulator_probe.py tap desc 'Unmute Birdsong'
@@ -167,6 +182,7 @@ jobs:
             python3 EchoSpace/tools/emulator_probe.py assert desc 'Add a sound'
             python3 EchoSpace/tools/emulator_probe.py assert desc 'Save current soundscape'
             python3 EchoSpace/tools/emulator_probe.py assert desc 'Rotate 30 degrees right'
+            python3 EchoSpace/tools/emulator_probe.py assert desc 'Move selected sound closer'
             adb shell screencap -p /sdcard/expanded-mixer.png
             adb pull /sdcard/expanded-mixer.png qa/08-abr-mixer.png
             python3 EchoSpace/tools/emulator_probe.py tap desc 'Close mixer'
