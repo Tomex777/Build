@@ -115,6 +115,8 @@ jobs:
           python3 .github/scripts/apply-media-config-lifecycle.py later
           python3 .github/scripts/apply-vlc-style-video-player.py later
           grep -q 'implementation("org.videolan.android:libvlc-all:3.7.6")' later/app/build.gradle.kts
+          grep -Fq -- '-keep class org.videolan.libvlc.** { *; }' later/app/proguard-rules.pro
+          grep -Fq -- '-keep interface org.videolan.libvlc.** { *; }' later/app/proguard-rules.pro
           grep -q 'LaterVlcPlayback' later/app/src/main/java/com/night/later/ui/media/LaterMediaViewer.kt
           grep -q 'org.videolan.libvlc.MediaPlayer' later/app/src/main/java/com/night/later/ui/media/LaterVlcStyleVideoSurface.kt
           grep -q 'VLCVideoLayout' later/app/src/main/java/com/night/later/ui/media/LaterVlcStyleVideoSurface.kt
@@ -288,6 +290,8 @@ jobs:
           python3 .github/scripts/apply-media-config-lifecycle.py later-clean
           python3 .github/scripts/apply-vlc-style-video-player.py later-clean
           grep -q 'implementation("org.videolan.android:libvlc-all:3.7.6")' later-clean/app/build.gradle.kts
+          grep -Fq -- '-keep class org.videolan.libvlc.** { *; }' later-clean/app/proguard-rules.pro
+          grep -Fq -- '-keep interface org.videolan.libvlc.** { *; }' later-clean/app/proguard-rules.pro
           grep -q 'LaterVlcPlayback' later-clean/app/src/main/java/com/night/later/ui/media/LaterMediaViewer.kt
           grep -q 'org.videolan.libvlc.MediaPlayer' later-clean/app/src/main/java/com/night/later/ui/media/LaterVlcStyleVideoSurface.kt
           grep -q 'VLCVideoLayout' later-clean/app/src/main/java/com/night/later/ui/media/LaterVlcStyleVideoSurface.kt
