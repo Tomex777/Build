@@ -757,3 +757,63 @@ body.whot-mode .whot-win-particles i{
  body.whot-mode .whot-rematch{transition:none!important}
  body.whot-mode .whot-win-particles{display:none!important}
 }
+
+
+/* Independent, FLIP-inspired tactile WHOT motion. The public AkpetiTrust
+   implementation is used as a behavioral reference only: no unlicensed code
+   or assets have been copied into NIGHT Play. */
+body.whot-mode .whot-flight-flip{
+ perspective:560px;transform-style:preserve-3d;
+ background:none!important;border:0!important;border-radius:5px;
+ box-shadow:0 12px 24px #02180b85!important;will-change:transform;
+}
+body.whot-mode .whot-flip-core{
+ width:100%;height:100%;position:relative;
+ transform-style:preserve-3d;will-change:transform;
+}
+body.whot-mode .whot-flip-side{
+ position:absolute;inset:0;display:block;width:100%;height:100%;
+ border-radius:6px;overflow:hidden;
+ -webkit-backface-visibility:hidden;backface-visibility:hidden;
+}
+body.whot-mode .whot-flip-front{transform:rotateY(180deg)}
+body.whot-mode .whot-flip-side>.whot-card,
+body.whot-mode .whot-flip-side>.card-back,
+body.whot-mode .whot-flip-side>.whot-deck-back{
+ display:flex!important;width:100%!important;height:100%!important;
+ max-width:none!important;max-height:none!important;
+ margin:0!important;transform:none!important;box-sizing:border-box;
+}
+body.whot-mode .whot-flip-side>.whot-deck-back{
+ display:grid!important;background:#78162a!important;
+ border:6px solid #f2dfd2!important;color:#fbe8d9!important;
+}
+body.whot-mode .whot-flip-side>.card-back{
+ background:#78162a!important;border:6px solid #f4ead9!important;
+ box-shadow:inset 0 0 0 2px #8a293b,0 4px 7px #07190c4f!important;
+}
+body.whot-mode .whot-flip-side>.card-back::after{
+ content:"WHOT";color:#f8dcca;border:1px solid #f6dec49b;
+ font:900 15px/1.2 Georgia,serif;letter-spacing:-1px;
+ padding:15px 4px;transform:rotate(-24deg);
+}
+body.whot-mode .whot-flip-front>.whot-card:disabled{opacity:1!important;filter:none!important}
+body.whot-mode .table-surface .hand .whot-card.playable{
+ transition:transform .13s cubic-bezier(.22,.74,.22,1),box-shadow .17s ease-out;
+ transform-origin:50% 90%;-webkit-tap-highlight-color:transparent;
+}
+body.whot-mode .table-surface .hand .whot-card.playable:active{
+ transform:translateY(-7px) scale(1.035) rotate(-1deg);
+ box-shadow:0 15px 23px #05190b9c;
+}
+@media(hover:hover) and (pointer:fine){
+ body.whot-mode .table-surface .hand .whot-card.playable:hover{
+  transform:translateY(-10px) scale(1.025) rotate(-1deg);
+  box-shadow:0 15px 23px #05190b99;
+ }
+}
+@media(prefers-reduced-motion:reduce){
+ body.whot-mode .whot-flip-core,
+ body.whot-mode .whot-flight{animation:none!important;will-change:auto}
+ body.whot-mode .table-surface .hand .whot-card.playable{transition:none!important}
+}
