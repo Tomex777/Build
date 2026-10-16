@@ -330,11 +330,17 @@ try{
       });
       assert.ok(rows.length>=2,'WHOT '+n+'-card hand wraps rather than making cards unclickable');
       assert.equal(await page.locator('.hand .card-row').evaluate(el=>getComputedStyle(el).justifyContent),'center','WHOT overflow rows align to table centre');
-      const exposed=await page.locator('.hand .whot-card').evaluateAll(cards=>cards.every(card=>{
-       const r=card.getBoundingClientRect(),point=document.elementFromPoint(r.left+r.width/2,r.top+r.height/2);
-       return point===card||card.contains(point);
-      }));
-      assert.equal(exposed,true,'Every WHOT card in a crowded hand is directly tappable at its center');
+      // Wrapped hands can extend below the mobile viewport. Bring each card
+      // into view before testing its center, just like a human swipe/scroll.
+      for(let index=0;index<n;index++){
+       const item=page.locator('.hand .whot-card').nth(index);
+       await item.scrollIntoViewIfNeeded();
+       const exposed=await item.evaluate(card=>{
+        const r=card.getBoundingClientRect(),point=document.elementFromPoint(r.left+r.width/2,r.top+r.height/2);
+        return point===card||card.contains(point);
+       });
+       assert.equal(exposed,true,'WHOT card '+index+' in '+n+'-card hand must be tappable at its centre');
+      }
     }
     assert.ok(bounds.first>=-1&&bounds.last<=bounds.viewport+1,"WHOT "+n+"-card hand never runs off the phone");
     assert.ok(bounds.overflow<=2,"WHOT "+n+"-card hand causes no sideways page scroll");
