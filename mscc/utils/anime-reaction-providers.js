@@ -8,6 +8,11 @@ const OCI_HOST = 'frqs54dqeajn.objectstorage.eu-frankfurt-1.oci.customer-oci.com
 const NEKOS_API = 'https://nekos.best/api/v2/'
 const WAIFU_API = 'https://api.waifu.pics/sfw/'
 const GIFUKAI_API = 'https://api.gifukai.com/v1/'
+const OTAKU_API = 'https://api.otakugifs.xyz/gif?reaction='
+const ANIBOX_MANIFEST = 'https://cdn-anibox.pages.dev/index.json'
+const ANIBOX_HOST = 'cdn-anibox.pages.dev'
+let aniboxCounts = null
+let aniboxCountsAt = 0
 const METADATA_TIMEOUT_MS = 9000
 
 // The Enkidu categories come from its published animegifs category list.
@@ -21,10 +26,20 @@ const ENKIDU = new Set((
 ).split(' '))
 const WAIFU = new Set((
   'bite yeet handhold slap hug kiss wink bonk smile poke highfive wave nom ' +
-  'smug cuddle dance kill blush pat happy cry'
+  'smug cuddle dance kick kill blush pat happy cry'
 ).split(' '))
 // Only use categories documented to exist on the Gifukai service.
 const GIFUKAI = new Set('pat hug kiss cry sleep'.split(' '))
+const OTAKU = new Set((
+  'bite bleh blush clap confused cry cuddle dance facepalm handhold happy hug ' +
+  'kiss laugh nom pat poke pout punch run shrug sip slap sleep smile smug stare ' +
+  'thumbsup tickle wave wink yawn'
+).split(' '))
+const ANIBOX = new Set((
+  'bite bleh clap confused cry cuddle dance facepalm handhold happy hug kiss ' +
+  'laugh nom pat poke pout punch shrug sip slap sleep smile stare thumbsup ' +
+  'tickle wave wink yawn'
+).split(' '))
 const recent = new Map()
 
 function secureGifUrl(value, source, category) {
@@ -42,6 +57,12 @@ function secureGifUrl(value, source, category) {
     if (url.hostname !== OCI_HOST) throw new Error('Enkidu returned an unapproved media host')
   } else if (source === 'waifu') {
     if (!['i.waifu.pics','waifu.pics'].includes(url.hostname)) throw new Error('Waifu returned an unapproved media host')
+  } else if (source === 'otaku') {
+    if (url.hostname !== 'cdn.otakugifs.xyz' ||
+        !url.pathname.startsWith('/gifs/' + category + '/')) throw new Error('Otaku returned media outside its approved category')
+  } else if (source === 'anibox') {
+    if (url.hostname !== ANIBOX_HOST ||
+        !url.pathname.startsWith('/' + category + '/')) throw new Error('Anibox returned media outside its approved category')
   } else if (source === 'gifukai') {
     if (url.hostname !== 'cdn.gifukai.com' || !url.pathname.startsWith('/' + category + '/')) {
       throw new Error('Gifukai returned media outside its approved category')
@@ -92,6 +113,31 @@ async function waifu(category) {
   return [secureGifUrl(data?.url,'waifu',category)]
 }
 
+async function otaku(category) {
+  const data = await json(OTAKU_API + encodeURIComponent(category) + '&format=gif','otaku')
+  return [secureGifUrl(data?.url,'otaku',category)]
+}
+
+async function anibox(category) {
+  if (!aniboxCounts || Date.now() - aniboxCountsAt > 30 * 60000) {
+    const payload = await json(ANIBOX_MANIFEST,'anibox')
+    const counts = payload?.categories || payload
+    if (!counts || typeof counts !== 'object' || Array.isArray(counts)) {
+      throw new Error('Anibox did not return a category index')
+    }
+    aniboxCounts = counts
+    aniboxCountsAt = Date.now()
+  }
+  const value = aniboxCounts[category]
+  const total = Number(typeof value === 'number' ? value : value?.count || value?.total || 0)
+  if (!Number.isInteger(total) || total < 1 || total > 10000) {
+    throw new Error('Anibox has no GIFs for ' + category)
+  }
+  const count = Math.min(total,10000)
+  const index = 1 + randomInt(count)
+  return [secureGifUrl('https://' + ANIBOX_HOST + '/' + category + '/' + index + '.gif','anibox',category)]
+}
+
 async function gifukai(category) {
   const data = await json(GIFUKAI_API + encodeURIComponent(category),'gifukai')
   if (data?.action && data.action !== category) throw new Error('Gifukai returned the wrong action')
@@ -106,12 +152,14 @@ export function reactionProviders(category) {
   const providers = []
   if (ENKIDU.has(category)) providers.push({name:'enkidu',resolve:() => enkidu(category)})
   if (category !== 'kill') providers.push({name:'nekos',resolve:() => nekos(category)})
+  if (OTAKU.has(category)) providers.push({name:'otaku',resolve:() => otaku(category)})
+  if (ANIBOX.has(category)) providers.push({name:'anibox',resolve:() => anibox(category)})
   if (WAIFU.has(category)) providers.push({name:'waifu',resolve:() => waifu(category)})
   if (GIFUKAI.has(category)) providers.push({name:'gifukai',resolve:() => gifukai(category)})
   return providers
 }
 
 export const APPROVED_REACTION_HOSTS = Object.freeze([
-  'nekos.best','www.nekos.best',OCI_HOST,'i.waifu.pics','waifu.pics','cdn.gifukai.com',
+  'nekos.best','www.nekos.best',OCI_HOST,'i.waifu.pics','waifu.pics','cdn.gifukai.com','cdn.otakugifs.xyz',ANIBOX_HOST,
 ])
 export { secureGifUrl }
