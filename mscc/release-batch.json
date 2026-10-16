@@ -1,10 +1,10 @@
 {
-  "releaseId": "night-2026-10-16-11",
+  "releaseId": "night-2026-10-16-12",
   "baseBranch": "mscc-azure",
-  "baseCommit": "16a98339e0e0a423f840529ea42ec398091859a5",
+  "baseCommit": "ab448eaa339457350c08f1255e2ae9389dec423a",
   "pullRequests": [
-    297
+    301
   ],
-  "carriedForwardRelease": "night-2026-10-16-10",
-  "notes": "Connect the established NIGHT Play combined website to NIGHT/MSCC using private .minigames link CODE verification. Include only PR #297 on the current production source: persistent profiles, PN/LID sender identity mapping, hashed browser sessions, expiry/replay/throttle protections, signed Vercel requests and the existing Azure HTTPS ingress. Preserve existing WhatsApp accounts, games and device-local web game saves. Require exact integration-head CI, one mscc-production approval, Azure TLS/health smoke checks and final real private WhatsApp linking verification."
+  "carriedForwardRelease": "night-2026-10-16-11",
+  "notes": "Recovery of NIGHT Play account linking after Azure release #11 failed ingress verification and rolled back. Includes only PR #301 atop release #11: signed-only nginx RPC isolation, separately verified MSCC loopback and TLS ingress, preserved Cortex authorization and safe root-owned backup cleanup. Requires exact combined-head CI and the user's protected mscc-production approval before another Azure deployment; then confirm live /api/account health and real private .minigames link CODE verification. No unrelated bot commands or WhatsApp account/session changes."
 }
