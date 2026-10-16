@@ -38,10 +38,10 @@ function stripped(s) {
 
 function candidateScore(c, name) {
   const a = stripped(c.name?.full), b = stripped(name)
-  if (a === b) return 100000 + Number(c.favourites || 0)
-  if (a.startsWith(b + ' ') || a.endsWith(' ' + b)) return 20000 + Number(c.favourites || 0)
-  if (a.includes(b)) return 5000 + Number(c.favourites || 0)
-  return Number(c.favourites || 0)
+  if (a === b) return 100000 + Math.min(999, Number(c.favourites || 0))
+  if (a.startsWith(b + ' ') || a.endsWith(' ' + b)) return 20000 + Math.min(999, Number(c.favourites || 0))
+  if (a.includes(b)) return 5000 + Math.min(999, Number(c.favourites || 0))
+  return Math.min(999, Number(c.favourites || 0))
 }
 
 export function parseCardRequest(args) {
@@ -51,7 +51,7 @@ export function parseCardRequest(args) {
   for (const value of tokens) {
     const key = value.toLowerCase()
     const style = key.replace(/^--/, '')
-    if (EDITIONS.includes(style) || style === 'all') {
+    if (key.startsWith('--') && (EDITIONS.includes(style) || style === 'all')) {
       if (edition !== 'all' && style !== edition && style !== 'all') throw new Error('Choose one edition at a time.')
       edition = style
     } else if (key === '--back') side = 'back'
@@ -178,7 +178,11 @@ export async function makeEditionSvg(character, edition, artwork, { side = 'fron
 // rasterizes its finished SVG at 3000 x 4200 (not an upscale of an old PNG).
 async function svgToPng(svg, { width=OUTPUT_WIDTH }={}) {
   const height = Math.round(width * OUTPUT_HEIGHT / OUTPUT_WIDTH)
-  const image = await loadImage(Buffer.from(svg,'utf8'))
+  // Match the SVG viewport to the target pixel size before decoding so
+  // the master vector layers stay sharp (no 1000px bitmap upscaling).
+  const scaledSvg = svg.replace(/(<svg\s[^>]*?)width="1000" height="1400"/, '$1width="' + width + '" height="' + height + '"')
+  if (scaledSvg === svg) throw new Error('Unexpected archived SVG master dimensions')
+  const image = await loadImage(Buffer.from(scaledSvg,'utf8'))
   const canvas = createCanvas(width,height)
   canvas.getContext('2d').drawImage(image,0,0,width,height)
   return canvas.toBuffer('image/png')
