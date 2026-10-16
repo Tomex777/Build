@@ -5,6 +5,7 @@ import android.graphics.Color
 import android.os.SystemClock
 import androidx.test.core.app.ActivityScenario
 import androidx.test.platform.app.InstrumentationRegistry
+import androidx.test.uiautomator.Direction
 import androidx.test.uiautomator.By
 import androidx.test.uiautomator.UiDevice
 import androidx.test.uiautomator.Until
@@ -221,16 +222,39 @@ class AnimePoseStudyInstrumentedTest {
                 }))
             }
             withHair(gravity = 0f, wind = 0f)
+            // Critically, capture both frames WITHIN ONE activity, camera, model
+            // instance, transform and daylight studio. Reopening the scene subtly
+            // reframes it, producing a fake hair pass from a shifted whole body.
             val stillHair: File
-            ActivityScenario.launch(MainActivity::class.java).use {
-                openScene()
-                stillHair = screenshot("female-hair-still", empty)
-            }
-            withHair(gravity = 2f, wind = 2f)
             val movingHair: File
             ActivityScenario.launch(MainActivity::class.java).use {
                 openScene()
-                SystemClock.sleep(3_000)
+                stillHair = screenshot("female-hair-still", empty)
+                requireNotNull(device.wait(Until.findObject(By.res("inspector")), 10_000)) {
+                    "Inspector inaccessible for VRoid gravity controls"
+                }.click()
+                val scroll = requireNotNull(
+                    device.wait(Until.findObject(By.res("context-sheet-content")), 10_000),
+                ) { "Inspector scroll panel not accessible" }
+                fun pressRepeated(tag: String, count: Int) {
+                    repeat(count) {
+                        var button = device.findObject(By.res(tag))
+                        var attempts = 0
+                        while (button == null && attempts++ < 8) {
+                            scroll.swipe(Direction.UP, .6f)
+                            SystemClock.sleep(180)
+                            button = device.findObject(By.res(tag))
+                        }
+                        requireNotNull(button) { "Hair physics control $tag cannot be reached" }.click()
+                    }
+                }
+                pressRepeated("anime-gravity-more", 8)
+                pressRepeated("anime-breeze-more", 8)
+                // Dismiss the modal without changing orbit position or actor scale.
+                device.pressBack()
+                assertTrue("Inspector modal still obscures hair after back",
+                    device.wait(Until.gone(By.res("context-sheet-content")), 10_000))
+                SystemClock.sleep(3_500)
                 movingHair = screenshot("female-hair-gravity", empty)
             }
             fun hairPixelsChanged(a: File, b: File): Int {
@@ -255,6 +279,29 @@ class AnimePoseStudyInstrumentedTest {
             assertTrue(
                 "VRoid hair remained static under 2× gravity and breeze; not acceptable",
                 hairPixelsChanged(stillHair, movingHair) >= 30,
+            )
+            // Verify there was no whole-avatar reframing/scaling or camera
+            // movement: lower skirt must be stationary between hair screenshots.
+            fun unchangedSkirt(a: File, b: File): Int {
+                val before = requireNotNull(BitmapFactory.decodeFile(a.path))
+                val after = requireNotNull(BitmapFactory.decodeFile(b.path))
+                var changed = 0
+                for (y in before.height * 51 / 100 until before.height * 60 / 100) {
+                    for (x in before.width * 32 / 100 until before.width * 68 / 100) {
+                        val p = before.getPixel(x, y)
+                        val q = after.getPixel(x, y)
+                        if (kotlin.math.abs(Color.red(p) - Color.red(q)) +
+                            kotlin.math.abs(Color.green(p) - Color.green(q)) +
+                            kotlin.math.abs(Color.blue(p) - Color.blue(q)) > 55) changed++
+                    }
+                }
+                before.recycle()
+                after.recycle()
+                return changed
+            }
+            assertTrue(
+                "Hair comparison shifted the whole model/camera; invalid proof",
+                unchangedSkirt(stillHair, movingHair) < 70,
             )
 
         } finally {
