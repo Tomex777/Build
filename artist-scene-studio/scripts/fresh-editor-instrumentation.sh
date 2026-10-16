@@ -46,7 +46,7 @@ if [ "$TEST_SUITE" = anime ]; then
   mkdir -p "$PROOF_DIR"
   (
     while true; do
-      for stage in posed neutral female-neutral; do
+      for stage in posed neutral female-neutral female-hair-still female-hair-gravity; do
         target="$PROOF_DIR/anime-$stage.png"
         if [ ! -s "$target" ]; then
           timeout 12s adb pull "$REMOTE_DIR/anime-$stage.png" "$target" >/dev/null 2>&1 || {
