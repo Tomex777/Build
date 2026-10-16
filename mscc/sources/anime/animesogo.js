@@ -305,12 +305,12 @@ async function resolveStreamCandidates(episode) {
     try {
       const embed = await embedUrl(server.id, episodeUrl)
       if (!embed) continue
-      if (/\\.m3u8(?:$|\\?)/i.test(embed)) {
+      if (/\.m3u8(?:$|\?)/i.test(embed)) {
         candidates.push({ stream:embed, referer:BASE + '/', server:server.name })
         continue
       }
 
-      if (/mewcdn\\.online\\/player\\/plyr\\.php/i.test(embed)) {
+      if (/mewcdn\.online\/player\/plyr\.php/i.test(embed)) {
         const loaded = await requestPage(embed, { referer:BASE + '/' })
         const stream = decodeMewcdn(embed, loaded.text)
         if (stream) {
@@ -319,7 +319,7 @@ async function resolveStreamCandidates(episode) {
         }
       }
 
-      if (/megaplay\\./i.test(embed) || /\\/stream\\//i.test(embed) || /hd-?\\d/i.test(server.name)) {
+      if (/megaplay\./i.test(embed) || /\/stream\//i.test(embed) || /hd-?\d/i.test(server.name)) {
         const resolved = await resolveMegaPlay(embed)
         candidates.push({ ...resolved, server:server.name })
       }
@@ -351,7 +351,7 @@ async function deliver(context, item, episode, quality, delivery) {
     const { stream, referer } = candidate
     const headers = { 'user-agent':ANIME_UA, referer, origin:new URL(referer).origin }
     try {
-      if (/\\.m3u8(?:$|\\?)/i.test(stream)) {
+      if (/\.m3u8(?:$|\?)/i.test(stream)) {
         return await deliverHls(context, {
           url:stream,
           headers,
@@ -362,7 +362,7 @@ async function deliver(context, item, episode, quality, delivery) {
         })
       }
 
-      const extension = /\\.(mp4|webm|mkv)(?:$|\\?)/i.exec(stream)?.[1]?.toLowerCase()
+      const extension = /\.(mp4|webm|mkv)(?:$|\?)/i.exec(stream)?.[1]?.toLowerCase()
       if (extension) {
         await validatePlayableMedia(stream, { headers })
         return await deliverRemote(context, {
