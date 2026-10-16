@@ -52,6 +52,10 @@ assert.deepEqual(sourceEpisodes, [
   { id:'2', number:'2', seasonNumber:1, title:'Episode 2' },
 ])
 assert.deepEqual(_test.episodesFromRelease(tv, 2), [])
+assert.deepEqual(_test.episodesFromRelease({
+  seasonNumber:0,
+  releaseLinks:[{ season:0, episode:1 }],
+}, 1), [], 'unknown-season releases must not be shown inside every season')
 
 const exactEpisode = _test.matchingLinks(tv.releaseLinks, { type:'tv', season:1, episode:2 })
 assert.equal(exactEpisode.length, 1)
