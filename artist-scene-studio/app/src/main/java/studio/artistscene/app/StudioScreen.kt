@@ -145,6 +145,9 @@ import studio.artistscene.core.Transform
 import studio.artistscene.core.TransformTool
 import studio.artistscene.core.Vec3
 import studio.artistscene.core.RigSemantics
+import studio.artistscene.core.PosePreset
+import studio.artistscene.core.CameraShot
+import studio.artistscene.core.StudioCameraShots
 import studio.artistscene.core.IkPoint
 import studio.artistscene.core.TwoBoneIk
 import studio.artistscene.core.evaluateTimeline
@@ -2246,6 +2249,32 @@ private fun EditorContextSheet(
                         }
                     }
                     camera?.let { active ->
+                        editor.selectedActor?.takeIf { it.kind == ActorKind.CHARACTER }?.let { character ->
+                            Text(
+                                "Artist camera angles",
+                                color = MutedText,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.SemiBold,
+                            )
+                            Row(
+                                modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            ) {
+                                CameraShot.entries.forEach { shot ->
+                                    FilterChip(
+                                        selected = false,
+                                        onClick = {
+                                            onEditor(
+                                                editor.updateActiveCamera(StudioCameraShots.frame(active, character, shot)),
+                                                "camera-shot-${shot.name.lowercase()}",
+                                            )
+                                        },
+                                        label = { Text(shot.title) },
+                                        modifier = Modifier.testTag("camera-shot-${shot.name.lowercase()}"),
+                                    )
+                                }
+                            }
+                        }
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(6.dp),
@@ -2955,8 +2984,8 @@ private fun PoseControlsOverlay(
                 .heightIn(
                     max = when {
                         morphTargets.isNotEmpty() -> 340.dp
-                        fingerBones.isNotEmpty() -> 285.dp
-                        else -> 180.dp
+                        fingerBones.isNotEmpty() -> 350.dp
+                        else -> 275.dp
                     },
                 ),
             color = PanelBackground,
@@ -2989,6 +3018,39 @@ private fun PoseControlsOverlay(
                     TextButton(onClick = onClose, modifier = Modifier.testTag("pose-done")) { Text("Done") }
                 }
                 if (actor?.kind == ActorKind.CHARACTER && bones.isNotEmpty()) {
+                    Text("Pose library · editable", color = MutedText, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                    Row(
+                        modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    ) {
+                        PosePreset.entries.forEach { preset ->
+                            FilterChip(
+                                selected = false,
+                                onClick = { onEditor(editor.applyPosePreset(preset), "pose-preset-${preset.name.lowercase()}") },
+                                label = { Text(preset.title, maxLines = 1) },
+                                modifier = Modifier.testTag("pose-preset-${preset.name.lowercase()}"),
+                            )
+                        }
+                    }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        OutlinedButton(
+                            onClick = { onEditor(editor.mirrorSelectedPose(), "pose-mirror") },
+                            modifier = Modifier.weight(1f).testTag("pose-mirror"),
+                            enabled = !actor.locked && actor.rig?.joints?.isNotEmpty() == true,
+                        ) { Text("Mirror left / right", maxLines = 1) }
+                        OutlinedButton(
+                            onClick = { onEditor(editor.stageDuo(), "pose-stage-duo") },
+                            modifier = Modifier.weight(1f).testTag("pose-stage-duo"),
+                            enabled = !actor.locked && editor.project.actors.any {
+                                it.id != actor.id && it.kind == ActorKind.CHARACTER &&
+                                    it.visible && !it.locked && it.parentId == null &&
+                                    it.rigDefinition?.bones?.isNotEmpty() == true
+                            },
+                        ) { Text("Stage two", maxLines = 1) }
+                    }
                     if (!ikEnabled && fingerBones.isNotEmpty()) {
                         Text("Hands", color = MutedText, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
                         Row(
