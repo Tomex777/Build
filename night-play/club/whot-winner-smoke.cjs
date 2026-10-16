@@ -140,6 +140,46 @@ async function finish(page,winner){
    assert.equal(await drawPage.locator('.hand .whot-card').count(),6,'no extra second-card popup');
    assert.deepEqual(drawErrors,[],'market draw has no JavaScript exceptions');
    await drawPage.close();
+   // DOM continuity is the performance fix: do not rebuild the entire felt
+   // board or replace cards that are still in the player's hand.
+   const carry=await browser.newPage({viewport:{width,height:844},isMobile:width<=600,hasTouch:width<=600});
+   const carryErrors=[];carry.on('pageerror',e=>carryErrors.push(e.message));
+   await carry.route('https://cdn.jsdelivr.net/**',route=>route.abort());
+   await carry.goto(base+'/club/?game=whot');
+   await carry.evaluate(()=>{
+     const key='night-play-club-v1',obj=JSON.parse(localStorage.getItem(key)),w=obj.whot;
+     w.discard[w.discard.length-1]={...w.hands[0][0]};
+     w.turn=0;w.winner=null;w.pendingWhot=null;w.called=null;
+     localStorage.setItem(key,JSON.stringify(obj));
+   });
+   await carry.reload();
+   await carry.locator('.hand .whot-card.playable').first().waitFor();
+   await carry.evaluate(()=>{
+     window.__tableNode=document.querySelector('.table-surface');
+     window.__deckNode=document.querySelector('.whot-deck');
+     window.__opponentNode=document.querySelector('.table-surface>.card-row .card-back');
+     window.__remainingNode=document.querySelectorAll('.hand .whot-card')[1];
+     window.__cardCountBefore=document.querySelectorAll('.hand .whot-card').length;
+   });
+   await carry.locator('.hand .whot-card[data-card="0"]').click();
+   await carry.waitForFunction(()=>window.__nightWhotMotion().activeFlights===1,null,{timeout:1200});
+   await carry.waitForFunction(()=>document.querySelectorAll('.hand .whot-card').length===window.__cardCountBefore-1,null,{timeout:2000});
+   const continuity=await carry.evaluate(()=>({
+     table:document.querySelector('.table-surface')===window.__tableNode,
+     market:document.querySelector('.whot-deck')===window.__deckNode,
+     opponent:document.querySelector('.table-surface>.card-row .card-back')===window.__opponentNode,
+     remaining:[...document.querySelectorAll('.hand .whot-card')].includes(window.__remainingNode),
+     cardCount:document.querySelectorAll('.hand .whot-card').length,
+     fancyBlur:getComputedStyle(document.querySelector('.whot-scoreboard')).backdropFilter
+   }));
+   assert.equal(continuity.table,true,'felt table remains mounted on every card move');
+   assert.equal(continuity.market,true,'market pile does not re-render on play');
+   assert.equal(continuity.opponent,true,'opponent deck stays mounted on play');
+   assert.equal(continuity.remaining,true,'recentered hand cards retain DOM identity');
+   assert.equal(continuity.cardCount,4,'playing a card takes exactly one card from the hand');
+   assert.equal(continuity.fancyBlur,'none','WHOT HUD avoids GPU-heavy live backdrop filtering');
+   assert.deepEqual(carryErrors,[],'incremental WHOT board update has no JS errors');
+   await carry.close();
    // Match the reference's physical reveal: CPU throws a card face-down,
    // rotating it over the flight while its new face comes into view.
    const cpuPage=await browser.newPage({viewport:{width,height:844},isMobile:width<=600,hasTouch:width<=600});

@@ -431,6 +431,60 @@ window.addEventListener('resize',()=>{
  cancelAnimationFrame(whotResizeFrame);
  whotResizeFrame=requestAnimationFrame(()=>layoutWhotHand());
 });
+// Keep the felt board and cards alive across turns. A full innerHTML reset
+// triggers a costly repaint of gradients, wooden borders and card faces.
+function whotPatchTable(markup){
+ const table=board.firstElementChild;
+ if(!table||!table.classList.contains('table-surface')||board.childElementCount!==1)return false;
+ const tpl=document.createElement('template');tpl.innerHTML=markup;
+ const next=tpl.content.firstElementChild;
+ if(!next||!next.classList.contains('table-surface'))return false;
+ const liveHud=table.querySelector('.whot-scoreboard'),newHud=next.querySelector('.whot-scoreboard');
+ const oldPile=table.querySelector('.card-pile'),newPile=next.querySelector('.card-pile');
+ const liveHand=table.querySelector('.hand .card-row'),newHand=next.querySelector('.hand .card-row');
+ if(!liveHud||!newHud||!oldPile||!newPile||!liveHand||!newHand)return false;
+ table.className=next.className;
+ for(const selector of ['.whot-seat-cpu strong','.whot-seat-you strong','.whot-turn-indicator']){
+  const el=liveHud.querySelector(selector),fresh=newHud.querySelector(selector);
+  if(!el||!fresh)continue;
+  if(el.textContent!==fresh.textContent)el.textContent=fresh.textContent;
+  if(el.className!==fresh.className)el.className=fresh.className;
+ }
+ const oldDeck=oldPile.querySelector('.whot-deck'),newDeck=newPile.querySelector('.whot-deck');
+ if(oldDeck&&newDeck){
+  oldDeck.disabled=newDeck.disabled;
+  const counter=oldDeck.querySelector('.cards-counter'),newCounter=newDeck.querySelector('.cards-counter');
+  if(counter&&newCounter&&counter.textContent!==newCounter.textContent)counter.textContent=newCounter.textContent;
+ }
+ const oldTop=oldPile.querySelector('.whot-card'),newTop=newPile.querySelector('.whot-card');
+ if(oldTop&&newTop&&oldTop.dataset.whotKey!==newTop.dataset.whotKey)oldTop.replaceWith(newTop);
+ const oldCalled=oldPile.querySelector('.whot-called'),newCalled=newPile.querySelector('.whot-called');
+ if(oldCalled&&!newCalled)oldCalled.remove();
+ else if(newCalled&&!oldCalled)oldPile.appendChild(newCalled);
+ else if(oldCalled&&newCalled&&oldCalled.textContent!==newCalled.textContent)oldCalled.textContent=newCalled.textContent;
+ const was=[...liveHand.querySelectorAll('.whot-card')],buckets=new Map();
+ for(const card of was){const k=card.dataset.whotKey;if(!buckets.has(k))buckets.set(k,[]);buckets.get(k).push(card)}
+ const cards=[...newHand.querySelectorAll('.whot-card')].map(fresh=>{
+  const reused=buckets.get(fresh.dataset.whotKey)?.shift()||fresh;
+  if(reused!==fresh){
+   if(reused.className!==fresh.className)reused.className=fresh.className;
+   reused.disabled=fresh.disabled;
+   reused.dataset.card=fresh.dataset.card;
+   reused.setAttribute('aria-label',fresh.getAttribute('aria-label'));
+  }
+  return reused;
+ });
+ if(was.length!==cards.length||was.some((node,i)=>node!==cards[i])){
+  liveHand.replaceChildren(...cards);
+ }
+ const oldPicker=table.querySelector('.whot-call-panel'),newPicker=next.querySelector('.whot-call-panel');
+ if(oldPicker&&!newPicker)oldPicker.remove();
+ else if(newPicker&&!oldPicker)table.insertBefore(newPicker,table.querySelector('.hand'));
+ const oldWin=table.querySelector('.whot-win-layer'),newWin=next.querySelector('.whot-win-layer');
+ if(oldWin&&!newWin)oldWin.remove();
+ else if(newWin&&!oldWin)table.appendChild(newWin);
+ return true;
+}
 function renderCards(kind){
 const previousHand=kind==="whot"?whotHandPositions():null;
 const s=state[kind],t=topCard(s),topSelected={...t};
@@ -456,11 +510,12 @@ const whotVictory=kind==='whot'&&s.winner!==null?
  '<p class="whot-win-eyebrow">MATCH COMPLETE</p><h2>'+(s.winner===0?'YOU WIN':'CPU WINS')+'</h2>'+
  '<p class="whot-win-count">'+(s.winner===0?'CPU':'YOU')+' · '+s.hands[1-s.winner].length+' CARDS LEFT</p>'+
  '<button type="button" class="whot-rematch" data-action="whot-rematch">Play again <span aria-hidden="true">↗</span></button></div></div>':'';
-board.innerHTML='<div class="table-surface'+(kind==='whot'&&s.winner!==null?' whot-finished':'')+'" aria-label="Card table">'+(kind==='whot'?whotHud:'<h3>COMPUTER · '+s.hands[1].length+' CARDS</h3>')+
+const tableMarkup='<div class="table-surface'+(kind==='whot'&&s.winner!==null?' whot-finished':'')+'" aria-label="Card table">'+(kind==='whot'?whotHud:'<h3>COMPUTER · '+s.hands[1].length+' CARDS</h3>')+
  '<div class="card-row"><div class="playing-card card-back" aria-label="Computer cards hidden"></div>'+(kind==='whot'?'':'<span class="cards-counter">× '+s.hands[1].length+'</span>')+'</div>'+
  '<div class="card-pile">'+(kind==='whot'?'<button type="button" class="whot-deck" data-action="card-draw" '+(s.turn!==0||s.winner!==null||s.pendingWhot!=null?'disabled':'')+' aria-label="Pick one card from the market"><span class="whot-deck-back">WHOT</span><span class="cards-counter">MARKET · '+s.deck.length+'</span></button>':'<span class="cards-counter">DECK '+s.deck.length+'</span>')+
  cardMarkup(kind,t,-1,false)+currentCall+'</div>'+callPanel+
  '<div class="hand">'+(kind==='whot'?'':'<div class="card-label">YOUR HAND · '+s.hands[0].length+' CARDS</div>')+'<div class="card-row">'+s.hands[0].map((card,i)=>cardMarkup(kind,card,i,s.turn===0&&s.winner===null&&!(kind==='whot'&&s.pendingWhot!=null)&&playable(kind,s,card))).join('')+'</div></div>'+whotVictory+'</div>';
+if(kind!=='whot'||!whotPatchTable(tableMarkup))board.innerHTML=tableMarkup;
 document.body.classList.toggle('whot-has-winner',kind==='whot'&&s.winner!==null);
 if(showCall)board.querySelector('.hand [data-card="'+s.pendingWhot+'"]')?.classList.add('whot-pending');
 if(kind==='whot')layoutWhotHand(previousHand);

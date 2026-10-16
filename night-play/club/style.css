@@ -403,25 +403,25 @@ body:not(.ludo-mode)>footer{display:none}
 .whot-wild-word{font-size:clamp(12px,2.7vw,17px);font-weight:900;letter-spacing:-1.5px;transform:rotate(-27deg);text-align:center}
 .whot-card.whot-wild .whot-face:before,.whot-card.whot-wild .whot-face:after{content:"~";position:absolute;left:50%;color:var(--whot-ink);font-family:Georgia,serif;font-size:13px;transform:translateX(-50%)}
 .whot-card.whot-wild .whot-face:before{top:16%}.whot-card.whot-wild .whot-face:after{bottom:16%}
-.table-surface:has(.whot-card){background:radial-gradient(ellipse at 50% 35%,#44785d,#1b4d37 78%);border-color:#314b38}
-.table-surface:has(.whot-card) .card-back{background:#7f192b;border:5px double #f6eee0;box-shadow:inset 0 0 0 3px #8a293b,0 4px 8px #0005}
-.table-surface:has(.whot-card) .card-back:after{content:"NIGHT";color:#f7ddc7;border:1px solid #deb3ad;padding:9px 3px;font-size:13px;font-weight:950;letter-spacing:-.5px;transform:rotate(-25deg)}
+body.whot-mode .table-surface{background:radial-gradient(ellipse at 50% 35%,#44785d,#1b4d37 78%);border-color:#314b38}
+body.whot-mode .table-surface .card-back{background:#7f192b;border:5px double #f6eee0;box-shadow:inset 0 0 0 3px #8a293b,0 4px 8px #0005}
+body.whot-mode .table-surface .card-back:after{content:"NIGHT";color:#f7ddc7;border:1px solid #deb3ad;padding:9px 3px;font-size:13px;font-weight:950;letter-spacing:-.5px;transform:rotate(-25deg)}
 
 .whot-called{padding:7px 9px;background:#f9e5ba;color:#334d34;border-radius:7px;border:1px solid #e0c589;font-size:9px;font-weight:900;letter-spacing:.35px;text-align:center;max-width:125px;line-height:1.4}
-@media(max-width:540px){.table-surface:has(.whot-card) .card-pile{flex-wrap:wrap;gap:10px}.table-surface:has(.whot-card) .whot-called{width:100%;max-width:none}.whot-card .whot-corner b{font-size:13px}}
+@media(max-width:540px){body.whot-mode .table-surface .card-pile{flex-wrap:wrap;gap:10px}body.whot-mode .table-surface .whot-called{width:100%;max-width:none}.whot-card .whot-corner b{font-size:13px}}
 
 /* WHOT deck v3: hand-crafted vector faces inspired by Nigerian playing-card
  * proportions, not an imported commercial card template. Every movement is
  * GPU composited via Web Animations; these rules never animate layout. */
-.table-surface:has(.whot-card){
+body.whot-mode .table-surface{
  background:radial-gradient(ellipse at 52% 24%,#32654a 0%,#25543c 55%,#163b2b 100%);
  border:3px solid #26523a;box-shadow:0 8px 26px #1737282b,inset 0 0 0 1px #ffffff22;
  padding:clamp(11px,2.6vw,22px);gap:20px;overflow:hidden;min-height:clamp(460px,66dvh,690px);
 }
-.table-surface:has(.whot-card)>h3{font-size:11px;letter-spacing:1.3px;font-weight:900;color:#e7ead6}
-.table-surface:has(.whot-card) .card-row{gap:8px;align-items:center}
-.table-surface:has(.whot-card) .hand{border-color:#ffffff38;width:100%;padding-top:20px}
-.table-surface:has(.whot-card) .hand .card-row{
+body.whot-mode .table-surface>h3{font-size:11px;letter-spacing:1.3px;font-weight:900;color:#e7ead6}
+body.whot-mode .table-surface .card-row{gap:8px;align-items:center}
+body.whot-mode .table-surface .hand{border-color:#ffffff38;width:100%;padding-top:20px}
+body.whot-mode .table-surface .hand .card-row{
  display:flex;flex-wrap:nowrap;justify-content:flex-start;gap:7px;
  width:100%;max-width:100%;overflow-x:auto;overflow-y:visible;
  padding:9px 3px 13px;scrollbar-width:thin;scrollbar-color:#89ae94 transparent;
@@ -441,13 +441,13 @@ body:not(.ludo-mode)>footer{display:none}
 }
 .playing-card.whot-card::before{content:'';position:absolute;inset:2.8px;
  border:1px solid #ede4dc;border-radius:3px;pointer-events:none;z-index:-1}
-.table-surface:has(.whot-card) .playing-card.whot-card:disabled{opacity:1;filter:none}
-.table-surface:has(.whot-card) .hand .playing-card.whot-card:disabled{opacity:.88;filter:grayscale(.12)}
-.table-surface:has(.whot-card) .hand .whot-card.playable{outline:2px solid #e6c16a;outline-offset:1px;border-color:#f1e0bc}
-.table-surface:has(.whot-card) .hand .whot-card.playable:focus-visible{outline:3px solid #fff;outline-offset:3px}
-.table-surface:has(.whot-card) .hand .whot-card.playable:active{transform:translateY(-8px) rotate(-1deg)}
+body.whot-mode .table-surface .playing-card.whot-card:disabled{opacity:1;filter:none}
+body.whot-mode .table-surface .hand .playing-card.whot-card:disabled{opacity:.88;filter:none}
+body.whot-mode .table-surface .hand .whot-card.playable{outline:2px solid #e6c16a;outline-offset:1px;border-color:#f1e0bc}
+body.whot-mode .table-surface .hand .whot-card.playable:focus-visible{outline:3px solid #fff;outline-offset:3px}
+body.whot-mode .table-surface .hand .whot-card.playable:active{transform:translateY(-8px) rotate(-1deg)}
 @media(hover:hover) and (pointer:fine){
- .table-surface:has(.whot-card) .hand .whot-card.playable:hover{transform:translateY(-12px) rotate(-2deg);box-shadow:0 15px 20px #08150e77}
+ body.whot-mode .table-surface .hand .whot-card.playable:hover{transform:translateY(-12px) rotate(-2deg);box-shadow:0 15px 20px #08150e77}
 }
 .whot-card .whot-corner{position:absolute;display:flex;flex-direction:column;align-items:center;gap:2px;
  color:var(--whot-ink);z-index:3;font-family:Georgia,'Times New Roman',serif}
@@ -464,7 +464,7 @@ body:not(.ludo-mode)>footer{display:none}
 .whot-card .whot-twenty b{font-size:clamp(12px,2.1vw,21px);font-weight:900;line-height:.85;letter-spacing:-1px}
 .whot-card .whot-twenty .whot-reversed{transform:rotate(180deg)}
 .whot-card .whot-swirl{font-size:clamp(18px,3.1vw,27px);font-style:normal;font-family:Georgia,serif;line-height:.7}
-.table-surface:has(.whot-card) .card-pile{display:flex;gap:clamp(12px,4vw,28px);min-height:160px;align-items:center;flex-wrap:wrap}
+body.whot-mode .table-surface .card-pile{display:flex;gap:clamp(12px,4vw,28px);min-height:160px;align-items:center;flex-wrap:wrap}
 .whot-deck{cursor:pointer;border:0;background:transparent;display:flex;align-items:center;
  flex-direction:column;gap:7px;color:#f0e9d8;min-height:151px;justify-content:center;font-weight:900;letter-spacing:.5px}
 .whot-deck-back{position:relative;display:grid;place-items:center;width:clamp(73px,9.4vw,94px);
@@ -477,28 +477,28 @@ body:not(.ludo-mode)>footer{display:none}
 .whot-deck .cards-counter{font-size:10px;color:#e6efdf;letter-spacing:1px}
 .whot-deck:active .whot-deck-back{transform:rotate(-3deg) translateY(3px)}
 .whot-deck:focus-visible{outline:2px solid #ffe5aa;outline-offset:4px;border-radius:8px}
-.table-surface:has(.whot-card) .card-back{background:#78162a!important;border:6px solid #f4ead9!important;
+body.whot-mode .table-surface .card-back{background:#78162a!important;border:6px solid #f4ead9!important;
  width:clamp(73px,9.4vw,94px);height:clamp(110px,14vw,142px);
  box-shadow:0 4px 11px #07190c7d;border-radius:6px}
-.table-surface:has(.whot-card) .card-back::after{content:'WHOT';color:#f8dcca;border:1px solid #f6dec49b;
+body.whot-mode .table-surface .card-back::after{content:'WHOT';color:#f8dcca;border:1px solid #f6dec49b;
  font:900 15px/1.2 Georgia,serif;letter-spacing:-1px;padding:15px 4px;transform:rotate(-24deg)}
-.table-surface:has(.whot-card) .card-label{color:#e9f1de;font-size:10px;letter-spacing:1.1px;font-weight:900}
-.table-surface:has(.whot-card) .cards-counter{font-size:11px;color:#e6efdf}
+body.whot-mode .table-surface .card-label{color:#e9f1de;font-size:10px;letter-spacing:1.1px;font-weight:900}
+body.whot-mode .table-surface .cards-counter{font-size:11px;color:#e6efdf}
 .whot-flight{pointer-events:none!important;touch-action:none!important;box-shadow:0 15px 26px #04140b8c!important}
-.table-surface:has(.whot-card) .whot-called{background:#f6e8c3;color:#2b563e;border:1px solid #dcca96}
+body.whot-mode .table-surface .whot-called{background:#f6e8c3;color:#2b563e;border:1px solid #dcca96}
 @media(max-width:540px){
- .table-surface:has(.whot-card){padding:12px 9px;gap:13px;min-height:470px}
+ body.whot-mode .table-surface{padding:12px 9px;gap:13px;min-height:470px}
  .playing-card.whot-card{width:clamp(59px,16vw,70px);height:clamp(98px,25vw,112px);border-radius:5px}
  .whot-card .whot-suit-big{width:clamp(38px,12vw,49px);height:clamp(38px,12vw,49px)}
  .whot-card .whot-corner strong{font-size:16px}
  .whot-card .whot-corner-top{left:4px;top:4px}
  .whot-card .whot-corner-bottom{right:4px;bottom:4px}
  .whot-card .whot-twenty b{font-size:15px}
- .table-surface:has(.whot-card) .hand .card-row{gap:6px;padding:9px 3px 12px}
- .table-surface:has(.whot-card) .card-pile{gap:13px;justify-content:center}
+ body.whot-mode .table-surface .hand .card-row{gap:6px;padding:9px 3px 12px}
+ body.whot-mode .table-surface .card-pile{gap:13px;justify-content:center}
  .whot-deck,.whot-deck-back{min-height:0}
- .whot-deck-back,.table-surface:has(.whot-card) .card-back{width:64px;height:99px}
- .table-surface:has(.whot-card) .card-back::after{font-size:13px;padding:11px 3px}
+ .whot-deck-back,body.whot-mode .table-surface .card-back{width:64px;height:99px}
+ body.whot-mode .table-surface .card-back::after{font-size:13px;padding:11px 3px}
 }
 @media(prefers-reduced-motion:reduce){.playing-card.whot-card{transition:none!important}}
 
@@ -660,7 +660,7 @@ body.whot-mode .whot-scoreboard{
  border:1px solid #d0d9b820;border-radius:13px;
  padding:clamp(9px,2vw,15px) clamp(9px,2.6vw,24px);
  box-shadow:inset 0 1px #d5dfce14,0 6px 22px #07190c26;
- backdrop-filter:blur(3px);
+ /* opaque scoreboard: no costly live backdrop blur */;
 }
 body.whot-mode .whot-seat{
  display:flex;align-items:baseline;gap:8px;white-space:nowrap;
@@ -678,7 +678,7 @@ body.whot-mode .whot-turn-indicator{
 }
 body.whot-mode .whot-indicator-light{width:7px;height:7px;background:#e0c17d;border-radius:50%;box-shadow:0 0 9px #d7b66caa}
 body.whot-mode .whot-turn-indicator.player-turn .whot-indicator-light{background:#a1f1aa;box-shadow:0 0 13px #7eee8c99}
-body.whot-mode .table-surface>.card-row .card-back{transform:rotate(-5deg);filter:drop-shadow(0 8px 6px #06170c70)}
+body.whot-mode .table-surface>.card-row .card-back{transform:rotate(-5deg);box-shadow:0 7px 12px #06170c65}
 body.whot-mode .table-surface .whot-deck-back{transform:rotate(-7deg);box-shadow:0 3px 0 #b55c59,0 6px 0 #f9e3d8,0 17px 22px #07170e96}
 body.whot-mode .table-surface .whot-deck:active .whot-deck-back{transform:rotate(-7deg) translateY(3px)}
 body.whot-mode .table-surface .card-pile>.whot-card{transform:rotate(4deg);box-shadow:0 5px 3px #00100850,0 14px 24px #071b0e98}
@@ -817,3 +817,12 @@ body.whot-mode .table-surface .hand .whot-card.playable:active{
  body.whot-mode .whot-flight{animation:none!important;will-change:auto}
  body.whot-mode .table-surface .hand .whot-card.playable{transition:none!important}
 }
+
+/* WHOT Android compositor budget: hold static felt and cards on lightweight
+   layers while flight sprites animate. Avoid continuous paint-bound filters. */
+body.whot-mode .table-surface{background-attachment:scroll}
+body.whot-mode .whot-flight,body.whot-mode .whot-flight-flip{
+ contain:layout style;will-change:transform,opacity;
+}
+body.whot-mode .whot-flip-side>.whot-card{transition:none!important}
+body.whot-mode .whot-flip-core{backface-visibility:hidden}
