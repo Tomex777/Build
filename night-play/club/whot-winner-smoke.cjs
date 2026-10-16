@@ -58,16 +58,16 @@ async function finish(page,winner){
    assert.ok(look.shadow.includes('inset'),'felt table includes raised wooden edge');
    assert.equal(await page.locator('.whot-win-layer').count(),0,'no premature victory banner');
    const budget=await page.evaluate(()=>window.__nightWhotMotion().timings);
-   assert.ok(budget.player<=320&&budget.cpu<=350&&budget.draw<=300,'card flights must be responsive, not the previous 600-690ms');
-   assert.ok(budget.cpuDelay<=180,'CPU should not wait an extra 380ms between moves');
-   assert.ok(budget.deal<=400&&budget.dealStagger<=55,'dealing must not drag across the whole screen');
-   assert.ok(budget.settle<=200&&budget.recenter<=200,'landing/re-centering must finish quickly');
+   assert.ok(budget.player>=380&&budget.player<=450&&budget.cpu>=400&&budget.cpu<=460&&budget.draw>=380&&budget.draw<=440,'card motion should glide rather than snap or drag');
+   assert.ok(budget.cpuDelay>=150&&budget.cpuDelay<=220,'CPU should pause naturally without the old 380ms dead time');
+   assert.ok(budget.deal<=450&&budget.dealStagger<=70,'initial dealing should stay rhythmic and smooth');
+   assert.ok(budget.settle<=210&&budget.recenter>=220&&budget.recenter<=290,'centered hands should glide naturally into position');
    const dealAnim=await page.locator('.hand .whot-card').last().evaluate(el=>{
      const active=el.getAnimations();return active.length?active[0].effect.getTiming():null
    });
    if(dealAnim){
-     assert.ok(dealAnim.duration<=400,'actual dealt-card animation must stay under 400ms');
-     assert.ok(dealAnim.delay<=300,'5-card dealing should be tightly staggered');
+     assert.ok(dealAnim.duration<=450,'actual dealt-card animation must stay under 450ms');
+     assert.ok(dealAnim.delay<=330,'5-card dealing should be evenly staggered');
    }
    const liveSpeed=await page.evaluate(()=>{
      const table=document.querySelector('.table-surface .whot-win-layer');
@@ -121,14 +121,48 @@ async function finish(page,winner){
    assert.equal(await drawPage.locator('.hand .whot-card').count(),6,'new card is laid out before the flight');
    const newFace=drawPage.locator('.hand .whot-card').last();
    assert.equal(await newFace.evaluate(el=>el.style.visibility),'hidden','new face stays hidden while market back is flying');
-   const motion=await drawPage.evaluate(()=>window.__nightWhotMotion());
+   // The incoming card is a genuine two-sided 3D flip during the same flight.
+   assert.equal(await drawPage.locator('.whot-flight-flip .whot-flip-core').count(),1,'draw animates an actual 3D card, not a flat sprite');
+   assert.equal(await drawPage.locator('.whot-flip-core .whot-flip-side').count(),2,'card has front and back faces');
+   const flipStyle=await drawPage.locator('.whot-flip-core').evaluate(el=>({
+     effect:el.getAnimations().map(a=>a.effect.getTiming().duration),
+     transformStyle:getComputedStyle(el).transformStyle,
+     backface:getComputedStyle(el.querySelector('.whot-flip-front')).backfaceVisibility
+   }));
+   assert.ok(flipStyle.effect.includes(340),'3D flip shares the source-to-destination flight');
+   assert.equal(flipStyle.transformStyle,'preserve-3d');
+   assert.equal(flipStyle.backface,'hidden','reverse side must stay hidden while rotating');
+      const motion=await drawPage.evaluate(()=>window.__nightWhotMotion());
    assert.equal(motion.lastFlightAction,'draw','market draw uses true flight animation');
-   assert.equal(motion.lastFlightDuration,275,'market draw retains fast 275ms duration');
+   assert.equal(motion.lastFlightDuration,415,'market draw uses smooth 415ms card flight');
    await drawPage.waitForFunction(()=>window.__nightWhotMotion().activeFlights===0,null,{timeout:1800});
    assert.notEqual(await newFace.evaluate(el=>el.style.visibility),'hidden','new face reveals when the drawn back reaches its real position');
    assert.equal(await drawPage.locator('.hand .whot-card').count(),6,'no extra second-card popup');
    assert.deepEqual(drawErrors,[],'market draw has no JavaScript exceptions');
    await drawPage.close();
+   // Match the reference's physical reveal: CPU throws a card face-down,
+   // rotating it over the flight while its new face comes into view.
+   const cpuPage=await browser.newPage({viewport:{width,height:844},isMobile:width<=600,hasTouch:width<=600});
+   const cpuErrors=[];cpuPage.on('pageerror',e=>cpuErrors.push(e.message));
+   await cpuPage.route('https://cdn.jsdelivr.net/**',route=>route.abort());
+   await cpuPage.goto(base+'/club/?game=whot');
+   await cpuPage.evaluate(()=>{
+     const key='night-play-club-v1',data=JSON.parse(localStorage.getItem(key)),s=data.whot;
+     const regular={s:0,n:3};
+     s.discard[s.discard.length-1]={...regular};
+     s.hands[0][0]={...regular};s.hands[1][0]={...regular};
+     s.turn=0;s.winner=null;s.pendingWhot=null;s.called=null;
+     localStorage.setItem(key,JSON.stringify(data));
+   });
+   await cpuPage.reload();
+   await cpuPage.locator('.hand .whot-card[data-card="0"]').click();
+   await cpuPage.waitForFunction(()=>window.__nightWhotMotion().lastFlightAction==='cpu'&&window.__nightWhotMotion().activeFlights===1,null,{timeout:3500});
+   assert.equal(await cpuPage.locator('.whot-flight-flip .whot-flip-core').count(),1,'CPU uses the 3D turning-card animation');
+   assert.ok(await cpuPage.locator('.whot-flip-front .whot-card').count()===1,'CPU reveals the correct card face mid-flight');
+   await cpuPage.waitForFunction(()=>window.__nightWhotMotion().activeFlights===0,null,{timeout:1500});
+   assert.equal(await cpuPage.locator('.whot-flight').count(),0,'CPU flight element is cleaned up');
+   assert.deepEqual(cpuErrors,[],'CPU 3D animation has no script errors');
+   await cpuPage.close();
   }
   console.log('WHOT WINNER QA PASS: immersive table, one HUD, player/CPU result overlays, rematch, no redundant information, mobile/desktop');
  }finally{await browser.close()}
