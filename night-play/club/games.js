@@ -23,6 +23,7 @@ function load(){try{
  if(old){
   const cards=[...(old.hands?.[0]||[]),...(old.hands?.[1]||[]),...(old.deck||[]),...(old.discard||[])];
   if(cards.length!==54||cards.some(card=>card.n!==20&&!whotNumbers[card.s]?.includes(card.n)))delete state.whot;
+  else if(!Number.isInteger(old.pendingWhot)||old.turn!==0||old.hands[0]?.[old.pendingWhot]?.n!==20)old.pendingWhot=null;
  }
 }catch{}}
 function setStatus(t){status.textContent=t;}
@@ -390,6 +391,7 @@ const callPanel=showCall?
  '<div class="whot-call-grid">'+shapes.map((shape,i)=>
  '<button type="button" class="whot-call-choice" data-whot-call="'+i+'" aria-label="Call '+shape+'">'+whotShapeSvg(i,1)+'<strong>'+shape+'</strong><small>'+naijaShapes[i]+'</small></button>').join('')+'</div></section>':'';
 board.innerHTML='<div class="table-surface" aria-label="Card table"><h3>COMPUTER · '+s.hands[1].length+' CARDS</h3><div class="card-row"><div class="playing-card card-back" aria-label="Computer cards hidden"></div><span class="cards-counter">× '+s.hands[1].length+'</span></div><div class="card-pile">'+(kind==='whot'?'<button type="button" class="whot-deck" data-action="card-draw" aria-label="Pick one card from the market"><span class="whot-deck-back">WHOT</span><span class="cards-counter">MARKET · '+s.deck.length+'</span></button>':'<span class="cards-counter">DECK '+s.deck.length+'</span>')+cardMarkup(kind,t,-1,false)+currentCall+'</div>'+callPanel+'<div class="hand"><div class="card-label">YOUR HAND · '+s.hands[0].length+' CARDS</div><div class="card-row">'+s.hands[0].map((card,i)=>cardMarkup(kind,card,i,s.turn===0&&s.winner===null&&!(kind==='whot'&&s.pendingWhot!=null)&&playable(kind,s,card))).join("")+'</div></div></div>';
+if(showCall)board.querySelector('.hand [data-card="'+s.pendingWhot+'"]')?.classList.add('whot-pending');
 if(kind==='whot')layoutWhotHand(previousHand);
 if(kind==='whot'&&pendingWhotDeal){pendingWhotDeal=false;const token=cardMotionEpoch;
  requestAnimationFrame(()=>{if(token===cardMotionEpoch&&active==='whot')whotDeal()});}
