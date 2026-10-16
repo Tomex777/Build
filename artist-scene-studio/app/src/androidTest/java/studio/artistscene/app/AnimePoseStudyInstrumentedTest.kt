@@ -96,6 +96,29 @@ class AnimePoseStudyInstrumentedTest {
                 posed = screenshot("posed")
             }
 
+            // Temporary emulator diagnostics: isolate the renderer disappearance to a bone subset.
+            // These captures use the SAME actual GLB, not illustrations.
+            val originalJoints = expected
+            val subsets = listOf(
+                "head-only" to setOf("head"),
+                "arm-only" to setOf("upperarm-l"),
+                "leg-only" to setOf("thigh-l"),
+                "no-spine" to setOf("head", "upperarm-l", "lowerarm-l", "upperarm-r", "lowerarm-r", "thigh-l", "calf-l", "thigh-r", "calf-r"),
+            )
+            subsets.forEach { (label, names) ->
+                val onePose = originalJoints.filterKeys { id ->
+                    id.substringAfterLast('/') in names
+                }
+                val current = store.load(project.id)
+                store.save(current.copy(actors = current.actors.map { actor ->
+                    if (actor.id == actorId) actor.copy(rig = studio.artistscene.core.RigPose(joints = onePose)) else actor
+                }))
+                ActivityScenario.launch(MainActivity::class.java).use {
+                    openScene()
+                    screenshot("diagnostic-$label")
+                }
+            }
+
             // Same GLB, lights, sky, camera and material; only joint rotations change.
             store.save(
                 store.load(project.id).copy(actors = store.load(project.id).actors.map { actor ->
