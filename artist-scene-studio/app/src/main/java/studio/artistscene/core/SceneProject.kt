@@ -16,6 +16,8 @@ data class SceneProject(
     val metadata: ProjectMetadata = ProjectMetadata(),
     val referenceImages: List<ReferenceImage> = emptyList(),
     val timeline: TimelineSettings = TimelineSettings(),
+    /** Named, editable artist poses stay in the project and survive force-stop/reopen. */
+    val savedPoses: List<SavedPosePreset> = emptyList(),
 ) {
     companion object { const val CURRENT_SCHEMA_VERSION = 6 }
 }
@@ -216,6 +218,15 @@ data class RigBone(
     val name: String,
     val parentId: String? = null,
     val restRotationEulerDegrees: Vec3 = Vec3(),
+)
+
+@Serializable
+data class SavedPosePreset(
+    val id: String,
+    val name: String,
+    /** Semantic labels, not model-specific glTF node indices. */
+    val jointsByLabel: Map<String, Vec3> = emptyMap(),
+    val expressionsByName: Map<String, Float> = emptyMap(),
 )
 
 @Serializable
