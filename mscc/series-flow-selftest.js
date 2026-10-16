@@ -214,7 +214,11 @@ saved = null
         }
       }
       if (explicitSource === 'kayoanime' && payload.action === 'episodes') {
-        return { status:'ok', source:{ id:'kayoanime', name:'KayoAnime' }, result:{ title:payload.item.title, episodes:[] } }
+        return {
+          status:'source-error',
+          source:{ id:'kayoanime', name:'KayoAnime' },
+          error:new Error('KayoAnime returned no episodes.'),
+        }
       }
       if (explicitSource === 'animesogo' && payload.action === 'search') {
         return {
