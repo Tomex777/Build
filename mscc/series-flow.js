@@ -96,6 +96,34 @@ function uniqueQueries(values = []) {
   return out
 }
 
+function titleTokens(value) {
+  const stop = new Set(['the','and','for','with','part','season','tv','series','anime','dub','sub'])
+  return new Set(String(value || '')
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLocaleLowerCase()
+    .split(/[^a-z0-9]+/)
+    .filter(word => word.length > 1 && !stop.has(word)))
+}
+
+function titleMatchScore(candidate, targets) {
+  const candidateTokens = titleTokens(titleOf(candidate))
+  if (!candidateTokens.size) return 0
+  let best = 0
+  for (const target of targets) {
+    const targetTokens = titleTokens(target)
+    if (targetTokens.size < 2) continue
+    let common = 0
+    for (const token of candidateTokens) if (targetTokens.has(token)) common += 1
+    const union = new Set([...candidateTokens, ...targetTokens]).size
+    const jaccard = union ? common / union : 0
+    const targetCoverage = common / targetTokens.size
+    const candidateCoverage = common / candidateTokens.size
+    best = Math.max(best, jaccard, targetCoverage * 0.9, candidateCoverage * 0.65)
+  }
+  return best
+}
+
 async function retryAnimeAliases(ctx, {
   capability,
   query,
@@ -197,10 +225,11 @@ async function executeSearch(ctx, { capability, commandName, query, sourceId = '
 
 async function loadEpisodes(ctx, { capability, commandName, sourceId, series, note = '' }) {
   let resolvedSeries = { ...series }
-  if (capability === 'anime' && !resolvedSeries.anilistId && typeof ctx.resolveAniListTitles === 'function') {
-    const identity = await ctx.resolveAniListTitles(resolvedSeries.title, 'ANIME')
+  let identity = null
+  if (capability === 'anime' && typeof ctx.resolveAniListTitles === 'function') {
+    identity = await ctx.resolveAniListTitles(resolvedSeries.title, 'ANIME').catch(() => null)
     const match = identity?.matches?.[0]
-    if (match?.id) resolvedSeries.anilistId = match.id
+    if (!resolvedSeries.anilistId && match?.id) resolvedSeries.anilistId = match.id
   }
 
   const outcome = await ctx.executeSource({
@@ -208,17 +237,102 @@ async function loadEpisodes(ctx, { capability, commandName, sourceId, series, no
     explicitSource:sourceId,
     payload:{ action:'episodes', itemId:resolvedSeries.id, item:resolvedSeries },
   })
-  if (outcome.status !== 'ok') return outcomeError(ctx, capability, outcome)
-  const result = outcome.result || {}
-  const episodes = (result.episodes || result.items || []).map(normalizeEpisode)
+  // Anime catalog providers can fail to load a title's episodes even when the
+  // earlier search succeeded. Treat that the same as an empty episode list and
+  // attempt alternate providers before reporting the primary source error.
+  if (outcome.status !== 'ok' && capability !== 'anime') {
+    return outcomeError(ctx, capability, outcome)
+  }
+  let result = outcome.status === 'ok' ? (outcome.result || {}) : {}
+  let episodes = outcome.status === 'ok'
+    ? (result.episodes || result.items || []).map(normalizeEpisode)
+    : []
+  let activeSourceId = sourceId
+  let activeSeries = { ...resolvedSeries, title:String(result.title || resolvedSeries.title) }
+  let activeNote = note
+
+  // Some catalog results are valid title pages but have no playable episode links.
+  // Don't strand the user on "No episodes found": search other installed anime
+  // providers using the selected title and AniList aliases, then verify that a
+  // candidate actually exposes episodes before switching the command session.
+  if (capability === 'anime' && episodes.length === 0) {
+    const queries = uniqueQueries([
+      resolvedSeries.title,
+      ...(identity?.aliases || []),
+    ]).slice(0, 3)
+    const alternatives = (typeof ctx.listSources === 'function' ? ctx.listSources('anime') : [])
+      .filter(source => source?.id && source.id !== sourceId)
+      .slice(0, 4)
+
+    fallbackSearch:
+    for (const alternative of alternatives) {
+      for (const query of queries) {
+        let searchOutcome
+        try {
+          searchOutcome = await ctx.executeSource({
+            capability:'anime',
+            explicitSource:alternative.id,
+            payload:{ action:'search', query, originalQuery:resolvedSeries.title },
+          })
+        } catch {
+          continue
+        }
+        if (searchOutcome?.status !== 'ok') continue
+        const searchResult = searchOutcome.result || {}
+        const targets = uniqueQueries([resolvedSeries.title, ...(identity?.aliases || [])])
+          .filter(value => titleTokens(value).size >= 2)
+        const candidates = (Array.isArray(searchResult.items) ? searchResult.items : searchResult.item ? [searchResult.item] : [])
+          .map((candidate, index) => ({ candidate, index, score:titleMatchScore(candidate, targets) }))
+          .sort((a, b) => b.score - a.score || a.index - b.index)
+          .slice(0, 5)
+          .map(row => row.candidate)
+        for (const candidate of candidates) {
+          let episodeOutcome
+          try {
+            episodeOutcome = await ctx.executeSource({
+              capability:'anime',
+              explicitSource:alternative.id,
+              payload:{ action:'episodes', itemId:idOf(candidate), item:candidate },
+            })
+          } catch {
+            continue
+          }
+          if (episodeOutcome?.status !== 'ok') continue
+          const candidateResult = episodeOutcome.result || {}
+          const candidateEpisodes = (candidateResult.episodes || candidateResult.items || []).map(normalizeEpisode)
+          if (!candidateEpisodes.length) continue
+          result = candidateResult
+          episodes = candidateEpisodes
+          activeSourceId = alternative.id
+          activeSeries = {
+            ...normalizeSeries(candidate),
+            anilistId:resolvedSeries.anilistId,
+            title:String(candidateResult.title || titleOf(candidate)),
+          }
+          activeNote = `⚠️ ${sourceName(sourceId, ctx)} had no playable episodes for that title; switched to ${alternative.name || alternative.id}.\n\n`
+          break fallbackSearch
+        }
+      }
+    }
+  }
+
+  if (!episodes.length && activeSourceId === sourceId && outcome.status !== 'ok') {
+    return outcomeError(ctx, capability, outcome)
+  }
+
   return showEpisodes(ctx, {
     capability,
     commandName,
-    sourceId,
-    series:{ ...resolvedSeries, title:String(result.title || resolvedSeries.title) },
+    sourceId:activeSourceId,
+    series:activeSeries,
     episodes,
-    note,
+    note:activeNote,
   })
+}
+
+function sourceName(sourceId, ctx) {
+  return (typeof ctx.listSources === 'function' ? ctx.listSources('anime') : [])
+    .find(source => source?.id === sourceId)?.name || sourceId || 'The selected source'
 }
 
 async function showEpisodes(ctx, { capability, commandName, sourceId, series, episodes, note = '' }) {

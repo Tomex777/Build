@@ -6,6 +6,7 @@ import {
   deliverRemote,
   fetchJson,
   fetchText,
+  validatePlayableMedia,
 } from './_delivery.js'
 
 const BASE = 'https://animesogo.to'
@@ -287,7 +288,7 @@ async function resolveMegaPlay(embed) {
   return { stream, referer:sourceUrl.origin + '/' }
 }
 
-async function resolveStream(episode) {
+async function resolveStreamCandidates(episode) {
   const decoded = decodeEpisode(episode?.id)
   if (!decoded?.serverIds) throw new Error('AnimeSogo episode reference is invalid.')
   const episodeUrl = BASE + '/watch/' + encodeURIComponent(decoded.slug) + '/ep-' + encodeURIComponent(decoded.number)
@@ -298,50 +299,92 @@ async function resolveStream(episode) {
   const servers = parseServerList(String(fragment || ''))
   if (!servers.length) throw new Error('AnimeSogo returned no video servers.')
 
+  const candidates = []
   let lastError
   for (const server of servers) {
     try {
       const embed = await embedUrl(server.id, episodeUrl)
       if (!embed) continue
-      if (/\.m3u8(?:$|\?)/i.test(embed)) return { stream:embed, referer:BASE + '/', server:server.name }
+      if (/\.m3u8(?:$|\?)/i.test(embed)) {
+        candidates.push({ stream:embed, referer:BASE + '/', server:server.name })
+        continue
+      }
 
       if (/mewcdn\.online\/player\/plyr\.php/i.test(embed)) {
         const loaded = await requestPage(embed, { referer:BASE + '/' })
         const stream = decodeMewcdn(embed, loaded.text)
-        if (stream) return { stream, referer:'https://mewcdn.online/', server:server.name }
+        if (stream) {
+          candidates.push({ stream, referer:'https://mewcdn.online/', server:server.name })
+          continue
+        }
       }
 
       if (/megaplay\./i.test(embed) || /\/stream\//i.test(embed) || /hd-?\d/i.test(server.name)) {
         const resolved = await resolveMegaPlay(embed)
-        return { ...resolved, server:server.name }
+        candidates.push({ ...resolved, server:server.name })
       }
     } catch (error) {
       lastError = error
     }
   }
-  throw lastError || new Error('AnimeSogo could not resolve a playable server.')
+
+  const unique = new Map()
+  for (const candidate of candidates) {
+    const key = String(candidate.stream || '')
+    if (key && !unique.has(key)) unique.set(key, candidate)
+  }
+  if (!unique.size) throw lastError || new Error('AnimeSogo could not resolve a playable server.')
+  return [...unique.values()]
+}
+
+async function resolveStream(episode) {
+  return (await resolveStreamCandidates(episode))[0]
 }
 
 async function deliver(context, item, episode, quality, delivery) {
-  const { stream, referer } = await resolveStream(episode)
   const decoded = decodeEpisode(episode?.id)
   const title = String(item?.title || 'AnimeSogo') + ' - Episode ' + String(episode?.number || decoded?.number || '')
-  const headers = { 'user-agent':ANIME_UA, referer, origin:new URL(referer).origin }
-  if (/\.m3u8(?:$|\?)/i.test(stream)) {
-    return deliverHls(context, { url:stream, headers, title, quality, delivery })
+  const candidates = await resolveStreamCandidates(episode)
+  let lastInvalid
+
+  for (const candidate of candidates) {
+    const { stream, referer } = candidate
+    const headers = { 'user-agent':ANIME_UA, referer, origin:new URL(referer).origin }
+    try {
+      if (/\.m3u8(?:$|\?)/i.test(stream)) {
+        return await deliverHls(context, {
+          url:stream,
+          headers,
+          title,
+          quality,
+          delivery,
+          validateOutput:true,
+        })
+      }
+
+      const extension = /\.(mp4|webm|mkv)(?:$|\?)/i.exec(stream)?.[1]?.toLowerCase()
+      if (extension) {
+        await validatePlayableMedia(stream, { headers })
+        return await deliverRemote(context, {
+          url:stream,
+          headers,
+          title,
+          extension,
+          mimetype:extension === 'mkv' ? 'video/x-matroska' : extension === 'webm' ? 'video/webm' : 'video/mp4',
+          delivery,
+        })
+      }
+
+      const error = new Error('AnimeSogo resolved an unsupported stream type.')
+      error.code = 'invalid-anime-media'
+      throw error
+    } catch (error) {
+      if (error?.code !== 'invalid-anime-media') throw error
+      lastInvalid = error
+    }
   }
-  const extension = /\.(mp4|webm|mkv)(?:$|\?)/i.exec(stream)?.[1]?.toLowerCase()
-  if (extension) {
-    return deliverRemote(context, {
-      url:stream,
-      headers,
-      title,
-      extension,
-      mimetype:extension === 'mkv' ? 'video/x-matroska' : extension === 'webm' ? 'video/webm' : 'video/mp4',
-      delivery,
-    })
-  }
-  throw new Error('AnimeSogo resolved an unsupported stream type.')
+
+  throw lastInvalid || new Error('AnimeSogo could not retrieve a playable episode.')
 }
 
 export default {

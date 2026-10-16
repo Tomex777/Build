@@ -179,4 +179,86 @@ saved = null
   }
 }
 
+
+{
+  const fallbackCalls = []
+  const fallbackReplies = []
+  const fallbackLists = []
+  let fallbackSession = null
+  const fallbackCtx = {
+    publicPrefix:'.',
+    botProfile:{ id:'nami', displayName:'Nami' },
+    listSources:() => [
+      { id:'kayoanime', name:'KayoAnime' },
+      { id:'animesogo', name:'AnimeSogo' },
+    ],
+    getSourceDefault:() => '',
+    getDeliveryDefault:() => null,
+    setCommandReplySession:value => { fallbackSession = value },
+    getCommandReplySession:() => fallbackSession,
+    clearCommandReplySession:() => { fallbackSession = null },
+    reply:async value => { fallbackReplies.push(String(value)); return value },
+    replyList:async value => { fallbackLists.push(value); return value },
+    resolveAniListTitles:async query => ({
+      query,
+      aliases:[query, 'Bleach: Thousand-Year Blood War'],
+      matches:[{ id:269, title:'Bleach: Thousand-Year Blood War' }],
+    }),
+    resolveAniListMedia:async () => null,
+    executeSource:async ({ explicitSource, payload }) => {
+      fallbackCalls.push({ explicitSource, payload })
+      if (explicitSource === 'kayoanime' && payload.action === 'search') {
+        return {
+          status:'ok', source:{ id:'kayoanime', name:'KayoAnime' },
+          result:{ items:[{ id:'kayo-bleach', title:'Bleach: Thousand-Year Blood War - The Calamity' }] },
+        }
+      }
+      if (explicitSource === 'kayoanime' && payload.action === 'episodes') {
+        return {
+          status:'source-error',
+          source:{ id:'kayoanime', name:'KayoAnime' },
+          error:new Error('KayoAnime returned no episodes.'),
+        }
+      }
+      if (explicitSource === 'animesogo' && payload.action === 'search') {
+        return {
+          status:'ok', source:{ id:'animesogo', name:'AnimeSogo' },
+          result:{ items:[{ id:'sogo-bleach', title:'Bleach: Thousand-Year Blood War' }] },
+        }
+      }
+      if (explicitSource === 'animesogo' && payload.action === 'episodes') {
+        return {
+          status:'ok', source:{ id:'animesogo', name:'AnimeSogo' },
+          result:{ title:'Bleach: Thousand-Year Blood War', episodes:[
+            { id:'sogo-e1', number:1, title:'Episode 1' },
+            { id:'sogo-e2', number:2, title:'Episode 2' },
+          ] },
+        }
+      }
+      throw new Error('Unexpected fallback action: ' + explicitSource + '/' + payload.action)
+    },
+  }
+
+  await runSeriesCommand(fallbackCtx, {
+    capability:'anime',
+    commandName:'anime',
+    args:['~source', 'kayoanime', Buffer.from(JSON.stringify('Bleach')).toString('base64url')],
+  })
+  if (fallbackSession?.kind !== 'number-selection') {
+    throw new Error('Anime command did not recover from a title with no episodes on the selected source')
+  }
+  if (fallbackSession.sourceId !== 'animesogo') {
+    throw new Error('Anime empty-episode recovery did not switch the session to the working provider')
+  }
+  if (fallbackSession.entries.length !== 2) {
+    throw new Error('Anime empty-episode recovery did not load the alternate provider episode list')
+  }
+  if (!fallbackReplies.some(value => value.includes('switched to AnimeSogo'))) {
+    throw new Error('Anime fallback did not explain the provider switch to the user')
+  }
+  if (!fallbackCalls.some(call => call.explicitSource === 'animesogo' && call.payload.action === 'episodes')) {
+    throw new Error('Anime fallback never verified episodes on the alternate provider')
+  }
+}
+
 console.log('PASS anime typed-number/range/alias flow')
