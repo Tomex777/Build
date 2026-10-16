@@ -1494,6 +1494,40 @@ private fun projectActorPivot(position: Vec3, camera: SceneCamera, width: androi
     )
 }
 
+/** Custom compact creative-tool pill, not the platform's default slider or giant button. */
+@Composable
+private fun MiseActionPill(
+    title: String,
+    tag: String,
+    enabled: Boolean = true,
+    onClick: () -> Unit,
+) {
+    val fill = if (enabled) Color(0xFF293B42) else Color(0xFF222C33)
+    Row(
+        modifier = Modifier
+            .clip(RoundedCornerShape(13.dp))
+            .background(fill)
+            .clickable(enabled = enabled, onClick = onClick)
+            .testTag(tag)
+            .padding(horizontal = 12.dp, vertical = 11.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Box(
+            Modifier.size(width = 3.dp, height = 14.dp).background(
+                if (enabled) Color(0xFF87DBC9) else MutedText.copy(alpha = .3f),
+                RoundedCornerShape(4.dp),
+            ),
+        )
+        Text(
+            title, fontSize = 12.sp,
+            color = if (enabled) PrimaryText else MutedText.copy(alpha = .5f),
+            fontWeight = FontWeight.SemiBold,
+            maxLines = 1,
+        )
+    }
+}
+
 @Composable
 private fun EditorTool(label: String, icon: androidx.compose.ui.graphics.vector.ImageVector, selected: Boolean, tag: String, onClick: () -> Unit) {
     Box(
@@ -2262,17 +2296,15 @@ private fun EditorContextSheet(
                                 horizontalArrangement = Arrangement.spacedBy(6.dp),
                             ) {
                                 CameraShot.entries.forEach { shot ->
-                                    FilterChip(
-                                        selected = false,
-                                        onClick = {
-                                            onEditor(
-                                                editor.updateActiveCamera(StudioCameraShots.frame(active, character, shot)),
-                                                "camera-shot-${shot.name.lowercase()}",
-                                            )
-                                        },
-                                        label = { Text(shot.title) },
-                                        modifier = Modifier.testTag("camera-shot-${shot.name.lowercase()}"),
-                                    )
+                                    MiseActionPill(
+                                        title = shot.title,
+                                        tag = "camera-shot-${shot.name.lowercase()}",
+                                    ) {
+                                        onEditor(
+                                            editor.updateActiveCamera(StudioCameraShots.frame(active, character, shot)),
+                                            "camera-shot-${shot.name.lowercase()}",
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -2331,13 +2363,11 @@ private fun EditorContextSheet(
                         horizontalArrangement = Arrangement.spacedBy(6.dp),
                     ) {
                         LightingLook.entries.forEach { look ->
-                            FilterChip(
-                                selected = false,
-                                onClick = { onEditor(editor.applyLightingLook(look), "lighting-look-${look.name.lowercase()}") },
-                                label = { Text(look.title) },
+                            MiseActionPill(
+                                title = look.title,
+                                tag = "lighting-look-${look.name.lowercase()}",
                                 enabled = lights.any { it.light?.type == LightType.DIRECTIONAL && !it.locked },
-                                modifier = Modifier.testTag("lighting-look-${look.name.lowercase()}"),
-                            )
+                            ) { onEditor(editor.applyLightingLook(look), "lighting-look-${look.name.lowercase()}") }
                         }
                     }
 
@@ -3041,12 +3071,11 @@ private fun PoseControlsOverlay(
                         horizontalArrangement = Arrangement.spacedBy(6.dp),
                     ) {
                         PosePreset.entries.forEach { preset ->
-                            FilterChip(
-                                selected = false,
-                                onClick = { onEditor(editor.applyPosePreset(preset), "pose-preset-${preset.name.lowercase()}") },
-                                label = { Text(preset.title, maxLines = 1) },
-                                modifier = Modifier.testTag("pose-preset-${preset.name.lowercase()}"),
-                            )
+                            MiseActionPill(
+                                title = preset.title,
+                                tag = "pose-preset-${preset.name.lowercase()}",
+                                enabled = !actor.locked,
+                            ) { onEditor(editor.applyPosePreset(preset), "pose-preset-${preset.name.lowercase()}") }
                         }
                     }
                     Row(
