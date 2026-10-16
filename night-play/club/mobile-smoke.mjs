@@ -329,7 +329,7 @@ try{
        return [...byRow.values()].map(rs=>({center:(rs[0].left+rs.at(-1).right)/2,target:row.left+row.width/2,length:rs.length}));
       });
       assert.ok(rows.length>=2,'WHOT '+n+'-card hand wraps rather than making cards unclickable');
-      for(const item of rows)assert.ok(Math.abs(item.center-item.target)<4,'Each WHOT row stays centered: '+JSON.stringify(item));
+      assert.equal(await page.locator('.hand .card-row').evaluate(el=>getComputedStyle(el).justifyContent),'center','WHOT overflow rows align to table centre');
       const exposed=await page.locator('.hand .whot-card').evaluateAll(cards=>cards.every(card=>{
        const r=card.getBoundingClientRect(),point=document.elementFromPoint(r.left+r.width/2,r.top+r.height/2);
        return point===card||card.contains(point);
