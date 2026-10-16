@@ -47,6 +47,7 @@ data class Actor(
     val rig: RigPose? = null,
     val appearance: CharacterAppearanceSettings = CharacterAppearanceSettings(),
     val animation: ActorAnimationState = ActorAnimationState(),
+    val physics: RigidPhysicsSettings = RigidPhysicsSettings(),
     val metadata: Map<String, String> = emptyMap(),
 )
 
@@ -148,6 +149,8 @@ data class WorldSettings(
     val environmentAssetId: String? = null,
     // Default for old scenes too; preset changes remain undoable and serialized.
     val environmentPreset: EnvironmentPreset = EnvironmentPreset.DAYLIGHT,
+    val gravityEnabled: Boolean = false,
+    val gravityMetersPerSecondSquared: Float = 9.81f,
 )
 
 @Serializable
