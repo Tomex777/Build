@@ -17,7 +17,7 @@ const server=http.createServer((req,res)=>{
   const page=await browser.newPage({viewport:{width,height:844},deviceScaleFactor:1});
   const errors=[];page.on('pageerror',e=>errors.push(e.message));
   await page.goto('http://127.0.0.1:'+server.address().port+'/play-computer');
-  await page.waitForTimeout(900);
+  await page.waitForTimeout(3300);
   const metrics=await page.evaluate(()=>{
    const el=x=>{const e=document.querySelector(x);if(!e)return null;const r=e.getBoundingClientRect(),c=getComputedStyle(e);return {x:r.x,y:r.y,width:r.width,height:r.height,gap:c.gap,font:c.fontSize,display:c.display}};
    return {app:el('.App'),rows:[...document.querySelectorAll('.scroll-container')].map(e=>{const r=e.getBoundingClientRect();return {x:r.x,y:r.y,w:r.width,h:r.height,cards:e.querySelectorAll('[class*="card"]').length}}),
