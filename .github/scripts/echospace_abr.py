@@ -348,9 +348,6 @@ one(
 )
 
 # Avoid unused composables and misleading non-interactive sound-level cards.
-one("    // A chunky, touch-friendly layer mixer — not a second device-volume control.\n",
-    "    // One gain slider per sound, and no duplicate master-volume slider.\n",
-    "one volume control")
 assert "private fun SelectedSound" not in s
 assert "private fun GlassPanel" not in s
 assert "directionOpen" not in s
