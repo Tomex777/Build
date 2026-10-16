@@ -55,6 +55,15 @@ export async function checkWord(raw, {allowNames = true, lookup = requestExists}
       return {ok:true}
     }
   } catch { dictionaryUnavailable = true }
+  // Independent, free fallback for words that the first dictionary misses.
+  // Accept exact matches only; near-spellings and suggestions cannot pass.
+  try {
+    const alternatives = await lookup('https://api.datamuse.com/words?sp=' + encodeURIComponent(word) + '&max=8')
+    if (Array.isArray(alternatives) && alternatives.some(row => String(row?.word || '').toLowerCase() === word)) {
+      wordCache.set(cacheKey, {ok:true, expiresAt:Date.now()+86_400_000})
+      return {ok:true}
+    }
+  } catch { dictionaryUnavailable = true }
   // Proper names, including "Patrick", are permitted when verified against Wikipedia.
   // A capital initial alone is not proof that an invented name exists.
   if (allowNames && /^[A-Z][a-z]{2,23}$/.test(String(raw).trim())) {
