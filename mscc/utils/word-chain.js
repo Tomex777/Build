@@ -272,8 +272,8 @@ export async function wordChainCommand(ctx, {verify = checkWord, now = () => Dat
           game.mode === 'duel' ? '⚔️ *WORD CHAIN DUEL STARTED!*' : '🔗 *WORD CHAIN STARTED!*',
           `✅ ${playerName(ctx)} joined · 👥 ${game.players.length} players`,
           labelMode(game),
-          'Start with any English word. No repeats; alternate players.',
-          'More group members can type join to play along.',
+          game.mode === 'duel' ? 'The challenger goes first. No repeats; alternate players.' : 'Any joined player can go first. No repeats; alternate players.',
+          ...(game.mode === 'open' ? ['More group members can type join to play along.'] : []),
         ].join('\n'))
       }
       // In the ongoing open game, a late join does not restart or clear any word/timer.
