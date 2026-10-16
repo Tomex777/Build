@@ -146,6 +146,8 @@ import studio.artistscene.core.TransformTool
 import studio.artistscene.core.Vec3
 import studio.artistscene.core.RigSemantics
 import studio.artistscene.core.PosePreset
+import studio.artistscene.core.FaceExpression
+import studio.artistscene.core.AnimeExpressions
 import studio.artistscene.core.CameraShot
 import studio.artistscene.core.StudioCameraShots
 import studio.artistscene.core.LightingLook
@@ -3198,6 +3200,20 @@ private fun PoseControlsOverlay(
                         }
                         if (morphTargets.isNotEmpty()) {
                             Text("Expressions & shape", color = MutedText, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                            Row(
+                                modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            ) {
+                                FaceExpression.entries.forEach { expression ->
+                                    if (AnimeExpressions.canApply(actor, expression)) {
+                                        MiseActionPill(
+                                            title = expression.title,
+                                            tag = "face-expression-${expression.name.lowercase()}",
+                                            enabled = !actor.locked,
+                                        ) { onEditor(editor.applyFaceExpression(expression), "face-expression-${expression.name.lowercase()}") }
+                                    }
+                                }
+                            }
                             morphTargets.forEach { target ->
                                 val weight = actor.rig?.morphWeights?.get(target.id) ?: 0f
                                 Row(
