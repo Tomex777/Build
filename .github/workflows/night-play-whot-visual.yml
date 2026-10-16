@@ -1,0 +1,33 @@
+name: WHOT original visual measurements
+on:
+  pull_request:
+    paths:
+      - 'night-play/club/**'
+      - '.github/workflows/night-play-whot-visual.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 17
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Build reference game temporarily
+        run: |
+          git clone --quiet --depth 1 https://github.com/AkpetiTrust/whot.git /tmp/akpeti-visual
+          cd /tmp/akpeti-visual
+          npm ci --legacy-peer-deps --no-audit --no-fund
+          CI=false NODE_OPTIONS=--openssl-legacy-provider npm run build
+      - name: Setup Chromium
+        run: |
+          npm install --prefix /tmp/whot-visual-browser --no-save playwright@1.56.1
+          /tmp/whot-visual-browser/node_modules/.bin/playwright install chromium --with-deps
+      - name: Measure original reference rendering on phone and desktop
+        env:
+          PLAYWRIGHT_MODULE: /tmp/whot-visual-browser/node_modules/playwright
+          REF_BUILD: /tmp/akpeti-visual/build
+        run: node night-play/club/whot-original-visual.cjs
