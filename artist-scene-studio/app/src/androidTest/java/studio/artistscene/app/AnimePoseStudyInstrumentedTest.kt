@@ -96,29 +96,6 @@ class AnimePoseStudyInstrumentedTest {
                 posed = screenshot("posed")
             }
 
-            // Temporary emulator diagnostics: isolate the renderer disappearance to a bone subset.
-            // These captures use the SAME actual GLB, not illustrations.
-            val originalJoints = expected
-            val subsets = listOf(
-                "head-only" to setOf("head"),
-                "arm-only" to setOf("upperarm-l"),
-                "leg-only" to setOf("thigh-l"),
-                "no-spine" to setOf("head", "upperarm-l", "lowerarm-l", "upperarm-r", "lowerarm-r", "thigh-l", "calf-l", "thigh-r", "calf-r"),
-            )
-            subsets.forEach { (label, names) ->
-                val onePose = originalJoints.filterKeys { id ->
-                    id.substringAfterLast('/') in names
-                }
-                val current = store.load(project.id)
-                store.save(current.copy(actors = current.actors.map { actor ->
-                    if (actor.id == actorId) actor.copy(rig = studio.artistscene.core.RigPose(joints = onePose)) else actor
-                }))
-                ActivityScenario.launch(MainActivity::class.java).use {
-                    openScene()
-                    screenshot("diagnostic-$label")
-                }
-            }
-
             // Same GLB, lights, sky, camera and material; only joint rotations change.
             store.save(
                 store.load(project.id).copy(actors = store.load(project.id).actors.map { actor ->
@@ -130,6 +107,28 @@ class AnimePoseStudyInstrumentedTest {
                 openScene()
                 neutral = screenshot("neutral")
             }
+            // ABR: an invisible posed mesh must NOT pass just because neutral is visible.
+            // Compare both shots to a true empty-model screenshot under identical
+            // camera, lights and environment; do not accept a screenshot of the UI.
+            val lightsOnly = store.load(project.id).copy(
+                actors = store.load(project.id).actors.filter { it.kind == ActorKind.LIGHT },
+            )
+            store.save(lightsOnly)
+            val empty: File
+            ActivityScenario.launch(MainActivity::class.java).use {
+                openScene()
+                empty = screenshot("empty-background")
+            }
+            val posedForeground = distinctPixelDifference(posed, empty)
+            val neutralForeground = distinctPixelDifference(neutral, empty)
+            assertTrue(
+                "The posed anime model is NOT visible ($posedForeground foreground pixels)",
+                posedForeground >= 150,
+            )
+            assertTrue(
+                "The neutral anime model is NOT visible ($neutralForeground foreground pixels)",
+                neutralForeground >= 150,
+            )
             val changed = distinctPixelDifference(posed, neutral)
             var knownVisibleHumanContrast = -1
             if (changed < 65) {
