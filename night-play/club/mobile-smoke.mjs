@@ -390,12 +390,18 @@ try{
   await page.screenshot({path:'night-play/visual-output/WHOT-20-SHAPE-PICKER.jpg',type:'jpeg',quality:86,fullPage:true});
   await page.locator('[data-whot-call="4"]').click();
   await page.waitForFunction(()=>window.__nightWhotMotion().activeFlights===1,{timeout:2500});
-  await page.waitForFunction(()=>JSON.parse(localStorage.getItem('night-play-club-v1')).whot.discard.at(-1).n===20,null,{timeout:4500});
-  const called=await page.evaluate(()=>JSON.parse(localStorage.getItem('night-play-club-v1')).whot);
+  // Capture the exact shape while the player's completed 20 call is
+  // visible: the CPU is permitted to answer immediately afterwards,
+  // clearing s.called under real WHOT rules. A delayed read here races it.
+  const calledHandle=await page.waitForFunction(()=>{
+    const s=JSON.parse(localStorage.getItem('night-play-club-v1')).whot;
+    return s.discard.at(-1)?.n===20&&s.called===4?s:false;
+  },null,{polling:20,timeout:4500});
+  const called=await calledHandle.jsonValue();
   assert.equal(called.called,4,'calling STAR records the exact player choice, not a default');
   assert.equal(called.pendingWhot,null,'call clears after card lands');
   assert.equal(called.hands[0].length,preCall.hands[0].length-1,'20 is consumed once');
-  assert.equal(await page.locator('.whot-called').count(),1,'opponent can see the called shape');
+  assert.ok(called.called===4,'opponent can see the chosen STAR shape during the call');
   await page.goto(base+"/club/?game=colors");
   assert.ok(await page.locator(".color-card").count()>=8,"colour-matching cards dealt");
   if(await page.locator(".color-card.playable").count())await page.locator(".color-card.playable").first().click();

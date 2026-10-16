@@ -22,6 +22,14 @@
       "destination": "/arcade/index.html"
     },
     {
+      "source": "/whot-lab",
+      "destination": "/whot-lab/index.html"
+    },
+    {
+      "source": "/whot-lab/",
+      "destination": "/whot-lab/index.html"
+    },
+    {
       "source": "/club",
       "destination": "/club/index.html"
     },
