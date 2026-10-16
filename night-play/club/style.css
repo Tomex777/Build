@@ -1676,7 +1676,8 @@ body.whot-mode footer a{color:#454e54!important;text-decoration:none}
 body.whot-mode .night-sheet .night-sheet-label{color:#656c73}
 body.whot-mode .night-sheet{color:#22272a;background:#fff}
 body.whot-mode .night-sheet-switcher,
-body.whot-mode .night-sheet-body>.night-sheet-label:first-child{display:none!important}
+body.whot-mode .night-sheet-body>.night-sheet-label:first-child,
+body.whot-mode #gamePicks{display:none!important}
 .whot-mode-config[hidden]{display:none!important}
 .whot-mode-config:not([hidden]){display:block}
 .whot-modes{display:grid;gap:7px;margin:11px 0 16px}
