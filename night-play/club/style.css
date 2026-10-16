@@ -1048,3 +1048,239 @@ body.whot-mode .table-surface>.card-row .card-back::after{
  body.whot-mode .table-surface>.card-row .card-back::before,
  body.whot-mode .table-surface>.card-row .card-back::after{font-size:13px}
 }
+
+
+/* WHOT v8 — visual structure measured against original AkpetiTrust gameplay
+   at 390×844 / 1280×844. The texture and SVG suits are newly authored
+   here. Only arrangement, graphic language and interaction are referenced.
+   Opponent 5-card strip -> twin market/played piles -> player card strip. */
+body.whot-mode{background:#291b16;color:#f9fcfa}
+body.whot-mode .top{
+ height:50px;background:#291b16;color:#f9fcfa;
+ border-bottom:1px solid #4f3830;
+}
+body.whot-mode .top .night-brand,body.whot-mode .top .night-settings,
+body.whot-mode .top .night-back{color:#f9fcfa}
+body.whot-mode #club{
+ width:100%;max-width:none;margin:0;padding:0;
+}
+body.whot-mode .play-layout{
+ display:block!important;width:100%;gap:0;
+}
+body.whot-mode .board-col,body.whot-mode .board-area{
+ width:100%;max-width:none!important;
+}
+body.whot-mode .board-area{min-height:0}
+body.whot-mode .play-heading{display:none!important}
+body.whot-mode .controls-col{display:none!important}
+body.whot-mode .table-surface{
+ position:relative;isolation:isolate;
+ display:block!important;
+ margin:0!important;
+ padding:30px 0 58px!important;
+ border:0!important;border-radius:0!important;
+ box-shadow:none!important;
+ width:100%!important;min-height:calc(100dvh - 50px)!important;
+ background-color:#31231d!important;
+ background-image:
+  linear-gradient(#0000001c,#0000001c),
+  repeating-linear-gradient(90deg,transparent 0 109px,#08060464 110px 113px,transparent 114px 212px,#ad78642a 214px 216px),
+  url('data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22390%22%20height%3D%22720%22%20viewBox%3D%220%200%20390%20720%22%3E%0A%3Crect%20width%3D%22390%22%20height%3D%22720%22%20fill%3D%22%2337251f%22%2F%3E%0A%3Cg%20fill%3D%22none%22%20stroke-linecap%3D%22round%22%3E%0A%3Cpath%20d%3D%22M0%200V720M112%200V720M214%200V720M322%200V720%22%20stroke%3D%22%230c0a08%22%20stroke-width%3D%224%22%20opacity%3D%22.65%22%2F%3E%0A%3Cpath%20d%3D%22M7%200V720M100%200V720M118%200V720M208%200V720M220%200V720M315%200V720M330%200V720%22%20stroke%3D%22%2385614b%22%20stroke-width%3D%223%22%20opacity%3D%22.25%22%2F%3E%0A%3Cpath%20d%3D%22M17%200Q27%2088%2014%20170T23%20345T19%20510T25%20720M34%200Q43%20150%2031%20225T40%20430T33%20720M54%200Q46%20110%2058%20255T52%20470T63%20720M85%200Q91%20160%2079%20280T84%20505T86%20720%22%20stroke%3D%22%23ad7f62%22%20stroke-width%3D%221.7%22%20opacity%3D%22.2%22%2F%3E%0A%3Cpath%20d%3D%22M132%200Q138%20110%20128%20250T138%20485T133%20720M150%200Q145%20175%20158%20360T154%20720M178%200Q170%20115%20183%20220T177%20485T184%20720M200%200Q193%20160%20204%20320T203%20720%22%20stroke%3D%22%2398715b%22%20stroke-width%3D%221.7%22%20opacity%3D%22.2%22%2F%3E%0A%3Cpath%20d%3D%22M238%200Q246%20110%20234%20215T245%20485T244%20720M266%200Q256%20150%20264%20340T268%20720M290%200Q282%20165%20293%20395T292%20720M308%200Q302%20160%20315%20380T310%20720%22%20stroke%3D%22%23b08365%22%20stroke-width%3D%221.8%22%20opacity%3D%22.21%22%2F%3E%0A%3Cpath%20d%3D%22M339%200Q346%2090%20338%20230T346%20490T345%20720M367%200Q358%20140%20369%20315T371%20720%22%20stroke%3D%22%23b38c6f%22%20stroke-width%3D%221.8%22%20opacity%3D%22.19%22%2F%3E%0A%3Cpath%20d%3D%22M70%20135C39%20120%2047%20190%2070%20189C99%20190%20105%20127%2070%20135ZM71%20149C58%20146%2058%20178%2070%20179C84%20180%2086%20146%2071%20149Z%20M278%20486C251%20476%20260%20529%20282%20527C307%20525%20310%20482%20278%20486Z%22%20stroke%3D%22%23120e0c%22%20stroke-width%3D%223%22%20opacity%3D%22.52%22%2F%3E%0A%3C%2Fg%3E%3Cg%20fill%3D%22%230b0707%22%20opacity%3D%22.13%22%3E%3Cpath%20d%3D%22M0%20338h390v9H0zM0%20655h390v7H0z%22%2F%3E%3C%2Fg%3E%0A%3C%2Fsvg%3E')!important;
+ background-size:cover,auto,390px 720px!important;
+ background-position:center,center,center top!important;
+ background-repeat:repeat!important;
+}
+body.whot-mode .table-surface::before,
+body.whot-mode .table-surface::after{content:none!important;display:none!important}
+body.whot-mode .whot-opponent-hand{
+ display:grid!important;grid-auto-flow:column!important;
+ grid-auto-columns:80px;gap:20px!important;
+ width:min(650px,calc(100% - 60px))!important;
+ height:112px;margin:0 auto!important;
+ padding:0 0 7px!important;
+ justify-content:initial!important;align-items:start!important;
+ overflow-x:auto;overflow-y:hidden;
+ scrollbar-width:none;scroll-snap-type:x proximity;
+ overscroll-behavior-inline:contain;
+}
+body.whot-mode .whot-opponent-hand::-webkit-scrollbar,
+body.whot-mode .table-surface .hand .card-row::-webkit-scrollbar{display:none}
+body.whot-mode .table-surface>.whot-opponent-hand .card-back{
+ display:flex!important;flex-direction:column;align-items:center;justify-content:center;
+ flex:0 0 auto;
+ width:80px!important;height:105px!important;
+ padding:6px 0!important;gap:5px;
+ color:#f9fcfa!important;background:#511b20!important;
+ border:none!important;border-radius:3px!important;
+ box-shadow:0 10px 15px #0003!important;
+ transform:none!important;
+ font:900 12px/1.2 Inter,system-ui,sans-serif;
+ scroll-snap-align:start;
+}
+body.whot-mode .table-surface>.whot-opponent-hand .card-back::before,
+body.whot-mode .table-surface>.whot-opponent-hand .card-back::after{display:none!important;content:none!important}
+body.whot-mode .table-surface>.whot-opponent-hand .card-back span:first-child{transform:rotate(180deg)}
+body.whot-mode .table-surface>.whot-opponent-hand .card-back span{display:block}
+body.whot-mode .table-surface .card-pile{
+ display:grid!important;
+ grid-template-columns:repeat(2,minmax(0,1fr))!important;
+ place-items:center;align-content:center;
+ gap:0!important;margin:30px auto 0!important;
+ padding:0!important;
+ width:min(500px,calc(100% - 60px))!important;
+ min-height:0!important;height:105px!important;
+ flex-wrap:nowrap!important;
+}
+body.whot-mode .table-surface .whot-deck{
+ grid-column:1;grid-row:1;
+ display:grid!important;place-items:center!important;
+ width:80px!important;height:105px!important;
+ margin:0!important;padding:0!important;
+ min-height:0!important;gap:0!important;
+ background:transparent;border:0;
+ box-shadow:none;transform:none!important;
+}
+body.whot-mode .table-surface .whot-deck-back{
+ display:flex!important;flex-direction:column;justify-content:center!important;
+ align-items:center!important;gap:5px!important;
+ width:80px!important;height:105px!important;
+ min-height:0!important;padding:0!important;
+ background:#511b20!important;border:0!important;
+ box-shadow:0 10px 15px #0003!important;
+ border-radius:3px!important;
+ font:900 12px/1.2 Inter,system-ui,sans-serif;
+ transform:none!important;
+}
+body.whot-mode .whot-deck-back::before,body.whot-mode .whot-deck-back::after{content:none!important;display:none!important}
+body.whot-mode .whot-deck-word{font:900 12px/1.2 Inter,system-ui,sans-serif}
+body.whot-mode .whot-deck .cards-counter{display:none!important}
+body.whot-mode .table-surface .card-pile>.playing-card.whot-card{
+ grid-column:2;grid-row:1;
+ display:flex!important;
+ width:80px!important;height:105px!important;
+ margin:0!important;transform:none!important;
+ box-shadow:0 10px 15px #0003!important;
+}
+body.whot-mode .table-surface .hand{
+ width:min(650px,calc(100% - 60px))!important;
+ margin:30px auto 0!important;padding:0!important;
+ border:0!important;box-shadow:none!important;
+ display:block!important;
+ background:none!important;overflow:visible!important;
+}
+body.whot-mode .table-surface .hand .card-row{
+ display:flex!important;align-items:flex-start!important;
+ justify-content:flex-start;
+ flex-wrap:nowrap!important;
+ gap:20px!important;
+ width:100%!important;height:112px!important;
+ overflow-x:auto!important;overflow-y:hidden!important;
+ scrollbar-width:none!important;scroll-snap-type:x proximity!important;
+ overscroll-behavior-x:contain;
+ padding:0 0 7px!important;
+ margin:0!important;
+}
+body.whot-mode .hand .whot-card:not(:first-child){margin-inline-start:0!important}
+body.whot-mode .table-surface .hand .whot-card{
+ display:flex!important;flex:0 0 80px!important;
+ width:80px!important;height:105px!important;
+ min-width:80px!important;
+ margin:0!important;padding:0!important;
+ border-radius:3px!important;
+ box-shadow:0 10px 15px #0003!important;
+ scroll-snap-align:start;
+}
+body.whot-mode .table-surface .hand .whot-card.playable{
+ box-shadow:0 10px 15px #0003!important;
+ outline:0!important;
+}
+body.whot-mode .table-surface .hand .whot-card:disabled{opacity:1!important}
+body.whot-mode .table-surface .playing-card.whot-card .whot-corner-top{top:7px;left:7px}
+body.whot-mode .table-surface .playing-card.whot-card .whot-corner-bottom{bottom:7px;right:7px}
+body.whot-mode .table-surface .playing-card.whot-card .whot-corner strong{
+ font:900 9px/1.1 Inter,system-ui,sans-serif;
+}
+body.whot-mode .table-surface .playing-card.whot-card .whot-suit-big{
+ width:40px;height:40px;
+}
+body.whot-mode .table-surface .playing-card.whot-card .whot-suit-small{
+ width:7px;height:7px;
+}
+body.whot-mode .table-surface .playing-card.whot-card.whot-wild .whot-twenty b{font-size:13px}
+body.whot-mode .table-surface .playing-card.whot-card .whot-face{
+ justify-content:center;align-content:center;
+}
+body.whot-mode .table-surface .playing-card.whot-card{
+ background:#f9fcfa!important;border:none!important;
+ box-shadow:0 10px 15px #0003!important;
+ color:#511b20!important;border-radius:3px!important;
+}
+body.whot-mode .table-surface .playing-card.whot-card::before{content:none!important;display:none!important}
+body.whot-mode .table-surface .whot-scoreboard{
+ position:absolute!important;top:auto!important;
+ left:auto!important;right:18px!important;bottom:14px!important;
+ width:auto!important;display:flex!important;
+ gap:10px;justify-content:center!important;
+ min-height:34px!important;
+ margin:0!important;padding:5px 10px!important;
+ background:#160e0de0!important;border:1px solid #c6a99329!important;
+ border-radius:7px;box-shadow:none!important;
+ backdrop-filter:none!important;
+ z-index:2;
+}
+body.whot-mode .whot-scoreboard .whot-seat{gap:3px!important;letter-spacing:.15px!important}
+body.whot-mode .whot-scoreboard .whot-seat strong{font-size:13px!important;color:#fff!important}
+body.whot-mode .whot-scoreboard .whot-turn-indicator{
+ padding:4px 5px!important;font-size:9px!important;background:none!important;
+ border:none!important;box-shadow:none!important;
+}
+body.whot-mode .table-surface .whot-called{
+ position:absolute;top:calc(100% + 8px);left:50%;transform:translateX(-50%);
+ width:max-content;max-width:min(300px,95vw)!important;
+ background:#f9fcfa!important;color:#511b20!important;
+ border-radius:4px;border:none!important;box-shadow:0 3px 6px #0003!important;
+ z-index:2;pointer-events:none;
+}
+body.whot-mode .whot-call-panel{
+ position:absolute;z-index:7;left:50%;top:52%;width:min(90%,480px);
+ transform:translate(-50%,-50%);margin:0!important;
+}
+body.whot-mode .whot-win-layer{
+ inset:0!important;z-index:9;
+ background:radial-gradient(ellipse at center,#241a18f2,#170c0aee 75%)!important;
+}
+body.whot-mode .night-action-row{
+ margin:0!important;position:absolute;top:56px;right:8px;z-index:3;
+}
+body.whot-mode #newRound{
+ background:#f9fcfae9;color:#392319;padding:7px 10px;min-height:32px;
+ border-radius:5px;font-size:10px;box-shadow:0 2px 5px #0004;
+}
+body.whot-mode.whot-has-winner .night-action-row{display:none!important}
+@media(min-width:651px){
+ body.whot-mode .table-surface{padding-top:10px!important;min-height:calc(100dvh - 50px)!important}
+ body.whot-mode .whot-opponent-hand{grid-auto-columns:100px!important;height:153px!important;gap:34px!important;padding-bottom:15px!important}
+ body.whot-mode .table-surface>.whot-opponent-hand .card-back{
+  width:100px!important;height:138px!important;font-size:16px!important
+ }
+ body.whot-mode .table-surface .card-pile{
+  margin-top:50px!important;height:138px!important;
+ }
+ body.whot-mode .table-surface .whot-deck,body.whot-mode .table-surface .whot-deck-back,
+ body.whot-mode .table-surface .card-pile>.playing-card.whot-card{
+  width:100px!important;height:138px!important;
+ }
+ body.whot-mode .table-surface .hand{margin-top:50px!important}
+ body.whot-mode .table-surface .hand .card-row{height:153px!important;gap:34px!important;padding-bottom:15px!important}
+ body.whot-mode .table-surface .hand .whot-card{
+  flex-basis:100px!important;width:100px!important;height:138px!important;min-width:100px!important
+ }
+ body.whot-mode .table-surface .playing-card.whot-card .whot-suit-big{width:50px;height:50px}
+ body.whot-mode .table-surface .playing-card.whot-card .whot-corner strong{font-size:12px}
+ body.whot-mode .whot-deck-word{font-size:16px}
+}
+@media(max-width:650px){
+ body.whot-mode .table-surface{padding-top:30px!important}
+ body.whot-mode .table-surface .card-pile{margin-top:30px!important}
+ body.whot-mode .table-surface .hand{margin-top:30px!important}
+}
