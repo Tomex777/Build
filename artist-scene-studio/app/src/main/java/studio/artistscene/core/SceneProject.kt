@@ -60,6 +60,11 @@ enum class HairStyle { NONE, SHORT, BOB, AFRO }
 data class CharacterAppearanceSettings(
     val hairStyle: HairStyle = HairStyle.NONE,
     val hairColorHex: String = "#302520",
+    // Spring simulation is preview-only; local pose and saved project remain pristine.
+    val hairPhysicsEnabled: Boolean = true,
+    val fabricPhysicsEnabled: Boolean = true,
+    val hairGravityStrength: Float = 1f,
+    val hairWindStrength: Float = 0f,
 )
 
 @Serializable
