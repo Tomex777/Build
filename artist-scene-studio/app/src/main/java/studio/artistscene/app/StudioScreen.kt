@@ -148,6 +148,7 @@ import studio.artistscene.core.RigSemantics
 import studio.artistscene.core.PosePreset
 import studio.artistscene.core.CameraShot
 import studio.artistscene.core.StudioCameraShots
+import studio.artistscene.core.LightingLook
 import studio.artistscene.core.IkPoint
 import studio.artistscene.core.TwoBoneIk
 import studio.artistscene.core.evaluateTimeline
@@ -2324,6 +2325,22 @@ private fun EditorContextSheet(
                 }
                 "light" -> {
                     val lights = editor.project.actors.filter { it.kind == ActorKind.LIGHT }
+                    Text("Lighting looks", color = MutedText, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                    Row(
+                        modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    ) {
+                        LightingLook.entries.forEach { look ->
+                            FilterChip(
+                                selected = false,
+                                onClick = { onEditor(editor.applyLightingLook(look), "lighting-look-${look.name.lowercase()}") },
+                                label = { Text(look.title) },
+                                enabled = lights.any { it.light?.type == LightType.DIRECTIONAL && !it.locked },
+                                modifier = Modifier.testTag("lighting-look-${look.name.lowercase()}"),
+                            )
+                        }
+                    }
+
                     if (lights.isEmpty()) {
                         Text("No scene lights yet. Add a point, spot, or sun light from Add.", color = MutedText, fontSize = 12.sp)
                     } else {
