@@ -185,7 +185,9 @@ async function whotFly(origin,destination,{face=null,action="play"}={}){
   width:a.width+'px',height:a.height+'px',margin:'0',zIndex:'9999',
   visibility:'visible',pointerEvents:'none'});
  document.body.appendChild(ghost);
+ const previousDestVisibility=destination.style.visibility;
  if(action==='play')origin.style.visibility='hidden';
+ if(action==='draw')destination.style.visibility='hidden';
  const dx=b.left+b.width/2-a.left-a.width/2,dy=b.top+b.height/2-a.top-a.height/2,scale=b.width/a.width;
  cardMotionMetrics.activeFlights++;
  const flightAngle=action==='cpu'?7:-5;
@@ -201,7 +203,7 @@ async function whotFly(origin,destination,{face=null,action="play"}={}){
    {offset:1,transform:'translate3d('+dx+'px,'+dy+'px,0) scale('+scale+') rotate(0)',opacity:1}
   ],{duration,easing:'cubic-bezier(.25,.73,.21,1)',fill:'forwards'});
   await effect.finished.catch(()=>{});
- }finally{origin.style.visibility=oldVisibility;ghost.remove();cardMotionMetrics.activeFlights--;}
+ }finally{origin.style.visibility=oldVisibility;if(action==='draw')destination.style.visibility=previousDestVisibility;ghost.remove();cardMotionMetrics.activeFlights--;}
 }
 function whotDeal(){
  const deck=board.querySelector('.whot-deck-back');
@@ -267,19 +269,22 @@ async function cardDraw(kind){
  const oldCount=s.hands[0].length;
  const epoch=cardMotionEpoch;cardMotionBusy=true;
  try{
-  if(kind==='whot'){cardMotionMetrics.draws++;
-   await whotFly(board.querySelector('.whot-deck-back'),board.querySelector('.hand .whot-card:last-child'),{action:'draw'});
+  if(kind==='whot'){
+   // FLIP motion must end at the new card's real position, not the
+   // previous last card in the player's hand.
+   cardMotionMetrics.draws++;
+   take(s,0,1);s.turn=1;s.msg="You drew a card. Computer's turn.";
+   render();
+   const newCard=board.querySelectorAll('.hand .whot-card')[oldCount];
+   await whotFly(board.querySelector('.whot-deck-back'),newCard,{action:'draw'});
+   if(epoch!==cardMotionEpoch||active!==kind||state[kind]!==s)return;
+   // The card back lands and reveals the real face in one motion.
+   // No lengthy second rotateY animation or post-flight popping.
+   queueCPU(kind);
+   return;
   }
-  if(epoch!==cardMotionEpoch||active!==kind||state[kind]!==s)return;
   take(s,0,1);s.turn=1;s.msg="You drew a card. Computer's turn.";
-  render();
-  if(kind==='whot'&&motionEnabled()&&s.hands[0].length>oldCount){
-   board.querySelectorAll('.hand .whot-card')[oldCount]?.animate([
-    {transform:'translate3d(0,-20px,0) rotateY(75deg) scale(.88)',opacity:.3},
-    {transform:'translate3d(0,0,0) rotateY(0) scale(1)',opacity:1}
-   ],{duration:whotMotion.drawFlip,easing:'cubic-bezier(.2,.8,.2,1)'});
-  }
-  queueCPU(kind);
+  render();queueCPU(kind);
  }finally{if(epoch===cardMotionEpoch)cardMotionBusy=false;}
 }
 function queueCPU(kind){const round=state[kind],epoch=cardMotionEpoch;
