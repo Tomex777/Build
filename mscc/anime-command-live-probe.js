@@ -3,6 +3,7 @@ import { spawnSync } from 'node:child_process'
 import animeCommand from './commands/anime/anime.js'
 import animeSogo from './sources/anime/animesogo.js'
 import kayoAnime from './sources/anime/kayoanime.js'
+import { validatePlayableMedia } from './sources/anime/_delivery.js'
 
 const sources = new Map([
   ['animesogo', animeSogo],
@@ -66,21 +67,10 @@ async function verifyDeliveredMedia(payload, providerName) {
   must(target, `${providerName} .anime returned no media target to send`)
   const headers = typeof media === 'object' && media?.headers ? media.headers : {}
   const remote = /^https?:\/\//i.test(String(target))
+  // Reject tiny image/slideshow manifests, truncated clips, and thumbnail streams.
+  // A passing result must describe a full-size video episode, not just decodable bytes.
+  const proof = await validatePlayableMedia(String(target), { headers })
   const transportArgs = remote ? ffHeaders(headers) : []
-  const probe = runTool('ffprobe', [
-    '-v','error',
-    ...transportArgs,
-    '-show_entries','format=format_name,duration,size:stream=index,codec_type,codec_name,width,height',
-    '-of','json',
-    String(target),
-  ])
-  must(probe.ok, `${providerName} .anime media ffprobe failed: ${probe.stderr}`)
-  let json = {}
-  try { json = JSON.parse(probe.stdout) } catch {}
-  must(Array.isArray(json?.streams) && json.streams.some(row => row.codec_type === 'video'),
-    `${providerName} .anime did not retrieve a file with a video stream`)
-  const duration = Number(json?.format?.duration || 0)
-  must(duration > 0, `${providerName} .anime media has no positive duration`)
   const decode = runTool('ffmpeg', [
     '-v','error',
     ...transportArgs,
@@ -90,19 +80,7 @@ async function verifyDeliveredMedia(payload, providerName) {
     '-f','null','-',
   ])
   must(decode.ok, `${providerName} .anime media decode failed: ${decode.stderr}`)
-  return {
-    verified:true,
-    targetKind:remote ? 'remote-url' : 'local-file',
-    format:json?.format?.format_name || '',
-    durationSeconds:Number(duration.toFixed(2)),
-    sizeBytes:Number(json?.format?.size || 0),
-    videoStreams:json.streams.filter(row => row.codec_type === 'video').map(row => ({
-      codec:row.codec_name || '',
-      width:Number(row.width || 0),
-      height:Number(row.height || 0),
-    })),
-    decodedSeconds:5,
-  }
+  return { ...proof, decodedSeconds:5 }
 }
 
 const ctx = {
@@ -285,6 +263,7 @@ console.log(JSON.stringify({
   episodeCount:episodeSession.entries.length,
   selectedEpisode:{ number:episode.number, title:episode.title },
   episodeProvider:episodeSession.sourceId,
+  selectedSeries:episodeSession.item?.title || '',
   options:optionRows.map(row => row.title),
   downloadDispatch:{
     source:dispatched.sourceId,
