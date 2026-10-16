@@ -78,6 +78,7 @@ async function finish(page,winner){
        hasSmallSuit:!!small,
        cssGradient:cs.backgroundImage};
    });
+   console.log('WHOT_CARD_DESIGN',width,JSON.stringify(design));
    assert.equal(design.bg,'rgb(249, 252, 250)','clean off-white traditional card stock');
    assert.equal(design.cssGradient,'none','no glossy artificial paper gradient');
    assert.equal(design.symbolFill,'rgb(81, 27, 32)','deep burgundy solid geometric suits');
