@@ -423,7 +423,7 @@ function queueCPU(kind){
   const s=round;
   if(kind==='whot'&&s.pendingFinish===1){
    take(s,1,1);s.pendingFinish=null;
-   s.turn=s.pendingPenalty?.target===0?0:0;
+   s.turn=0;
    s.msg="Computer cannot check up on a final action card. CPU picks one.";
    render();return;
   }
@@ -466,7 +466,8 @@ function whotShapeSvg(s,n,mini=false){
  ];
  if(s===5)return '';
  return '<svg class="'+(mini?'whot-suit-small':'whot-suit-big')+'" viewBox="0 0 100 100" focusable="false" aria-hidden="true">'+tags[s]+
-+'</svg>';
+ (s===4&&!mini?'<text x="50" y="58" fill="#fffdf8" font-size="23" font-weight="850" text-anchor="middle" font-family="Inter,system-ui,sans-serif">'+(n*2)+'</text>':'')+
+ '</svg>';
 }
 function whotFace(card,index,enabled){
  const wild=card.n===20;
