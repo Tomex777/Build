@@ -72,6 +72,7 @@ curl --fail --location --retry 3 --output "$anime_source" "$anime_url"
 python3 "$project_dir/scripts/prepare-anime-glb.py" "$anime_source" "$anime_file"
 rm -f "$anime_source"
 python3 "$project_dir/scripts/check-anime-glb.py" "$anime_file"
+python3 "$project_dir/scripts/extract-vrm-springs.py" "$anime_file" "$asset_dir/mise_anime.spring.json"
 # A second *licensed* anime character base with distinct hair, face and outfit.
 # HairSample_Female is explicitly CC0 under the same official pixiv FAQ.
 female_file="$asset_dir/mise_anime_female.glb"
@@ -92,5 +93,6 @@ python3 "$project_dir/scripts/prepare-anime-glb.py" "$female_source" "$female_fi
 python3 "$project_dir/scripts/compact-anime-skins.py" "$female_file" "$female_file"
 rm -f "$female_source"
 python3 "$project_dir/scripts/check-anime-glb.py" "$female_file"
+python3 "$project_dir/scripts/extract-vrm-springs.py" "$female_file" "$asset_dir/mise_anime_female.spring.json"
 
 python3 "$project_dir/scripts/build-scene-actors.py"
