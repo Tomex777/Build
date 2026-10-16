@@ -74,7 +74,7 @@ async function waitUnblocked(page){await page.waitForFunction(()=>!window.__nigh
    assert.equal(await page.locator('.whot-rematch').innerText(),'Play again','remove extra arrow from victory action');
    // Penalty defence: opponent can stack a 2, player must pick four.
    await page.locator('.whot-rematch').click();
-   await hand(page,[{s:3,n:2},{s:1,n:11}],[{s:0,n:2},{s:0,n:4},{s:1,n:7},{s:1,n:11},{s:2,n:10}],{s:3,n:3});
+   await hand(page,[{s:3,n:2},{s:1,n:10}],[{s:0,n:2},{s:0,n:4},{s:1,n:7},{s:1,n:11},{s:2,n:10}],{s:3,n:3});
    await page.locator('.hand .whot-card[data-card="0"]').click();
    await page.waitForFunction(()=>{
      const x=JSON.parse(localStorage.getItem('night-play-club-v1')).whot;
