@@ -216,7 +216,7 @@ async function finish(page,winner){
    await carry.goto(base+'/club/?game=whot');
    await carry.evaluate(()=>{
      const key='night-play-club-v1',obj=JSON.parse(localStorage.getItem(key)),w=obj.whot;
-     w.discard[w.discard.length-1]={...w.hands[0][0]};
+     w.hands[0][0]={s:0,n:3};w.discard[w.discard.length-1]={s:0,n:3}; // not a 20 picker
      w.turn=0;w.winner=null;w.pendingWhot=null;w.called=null;
      localStorage.setItem(key,JSON.stringify(obj));
    });
