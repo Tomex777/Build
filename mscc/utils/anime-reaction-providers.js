@@ -17,6 +17,13 @@ const METADATA_TIMEOUT_MS = 9000
 
 // The Enkidu categories come from its published animegifs category list.
 // Do not pretend its unrelated categories are interchangeable reactions.
+const NEKOS_CATEGORIES = new Set((
+  'angry baka bite bleh blowkiss blush bonk bored carry clap confused cry ' +
+  'cuddle dance facepalm feed handhold handshake happy highfive hug kabedon ' +
+  'kick kiss lappillow laugh lurk nod nom nope nya pat peck poke pout punch ' +
+  'run salute shake shoot shocked shrug sip slap sleep smile smug spin stare ' +
+  'tableflip teehee think thumbsup tickle wag wave wink yawn yeet'
+).split(' '))
 const ENKIDU = new Set((
   'attack bite bloodsuck blush bonk brofist cry cuddle dance disgust exploding ' +
   'facedesk facepalm flick flirt french_kiss handhold happy harass highfive hug ' +
@@ -149,6 +156,7 @@ async function gifukai(category) {
 // broken JSON, 403, a dead GIF, or FFmpeg rejects media, the command retries
 // the next *semantically matching* provider before failing.
 export function reactionProviders(category) {
+  if (category !== 'kill' && !NEKOS_CATEGORIES.has(category)) return []
   const providers = []
   if (ENKIDU.has(category)) providers.push({name:'enkidu',resolve:() => enkidu(category)})
   if (category !== 'kill') providers.push({name:'nekos',resolve:() => nekos(category)})
