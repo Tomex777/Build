@@ -25,6 +25,14 @@ node night-play/stories/story-contract.cjs
 
 The browser workflow runs `combined-smoke.cjs` in Chromium on mobile and desktop and uploads reader, journal and ending screenshots. It exercises real controls for reading, saves, chapter replay, discovery and the three endings. `book/EDITORIAL.md` records the craft and mythology sources, voice rules and continuity commitments.
 
+## Previous / Continue (permanent choices)
+
+Readers can use **Previous** and **Continue** to revisit already-read consecutive prose passages. A revisit displays the exact recorded text immediately and never invokes narrative choices or passage effects. The reader stores the live node, inventory, resource values, skill progression and irreversible decision ledger unchanged; reloading while viewing a prior page resumes the live frontier.
+
+The rewind limit is the passage **after** the most recently committed non-pagination decision. Before a decision is chosen, previous prose remains accessible; after choosing, its source passage and earlier pages are inaccessible through Previous. The decision itself is never re-offered. Existing chapter replay remains an explicitly **separate** fork, not a way to undo a current run.
+
+Pagination-only `continue: true` choices are represented by the same Continue button, not a duplicate choice row. At a real choice point Continue is absent; the choices remain the only way forward. Previous is absent where there is no safe recorded page. The shared engine supplies the read-only window, so other authored NIGHT Stories inherit the behavior without changing their manuscripts or saves.
+
 ## Revision 4: identity, progression and presentation
 
 The default setup has exactly two text inputs: `firstName` and `surname`. Names are normalised to NFC and whitespace is collapsed, with a 60-character limit per name. Ordinary Unicode letters/marks, spaces, periods, apostrophes and hyphens are supported. Markup/control characters are rejected. Templates `{{firstName}}`, `{{surname}}`, `{{fullName}}` and `|upper` resolve to strings; the UI only inserts text nodes. Identity belongs to `state`, so chapter checkpoints and forks preserve it automatically.

@@ -82,6 +82,23 @@ function interlude(story,run,node){if(!story.interludes?.includes(node))throw Er
 function fork(story,run,chapter,label){
  const c=run.checkpoints.find(x=>x.chapter===chapter);if(!c)throw Error('That chapter has not been reached.');let r=createRun(story,label||'From chapter '+chapter,run.state.identity);r.node=c.node;r.state=clone(c.state);r.history=clone(run.history.slice(0,c.historyLength));r.visited=clone(run.visited.slice(0,c.visitedLength));r.chapters=clone(c.chapters);r.pages=clone(run.pages.slice(0,c.pagesLength));r.pages.push({node:c.node,chapter:story.nodes[c.node].chapter,title:story.nodes[c.node].title,text:beats(story,r).map(b=>b.text)});r.checkpoints=clone(run.checkpoints.filter(x=>x.chapter<=chapter));r.parent=run.id;return r;
 }
+// Reading backwards is a read-only view of pages actually visited, never a state rollback.
+// The first passage after the latest committed decision is the hard rewind boundary.
+function readingWindow(story,run){
+  const pages=Array.isArray(run?.pages)?run.pages:[];
+  const current=pages.findLastIndex(p=>p.node===run.node);
+  if(current<0)return {indices:[],current:-1};
+  let floor=0;
+  const committed=new Set((run.history||[]).map(h=>h.node));
+  for(let i=0;i<current;i++){
+    const source=story.nodes[pages[i].node];
+    // The authored choice check also guards imported saves missing old decision records.
+    if(committed.has(pages[i].node)||(source?.choices||[]).some(c=>!c.continue))floor=i+1;
+  }
+  const indices=[];
+  for(let i=floor;i<=current;i++)if(Array.isArray(pages[i].text)&&pages[i].text.length)indices.push(i);
+  return {indices,current};
+}
 function validateStory(story){
  if(!story.id||!story.nodes||!story.nodes[story.start])throw Error('Story needs an id, nodes and a valid start.');const ids=new Set();
  for(const [id,n] of Object.entries(story.nodes)){if(!n.beats?.length)throw Error('Empty passage '+id);if(!n.ending&&!n.choices?.length)throw Error('Dead end '+id);if(n.ending&&!story.endings[n.ending])throw Error('Unknown ending '+id);for(const c of n.choices||[]){if(ids.has(c.id))throw Error('Repeated choice id '+c.id);ids.add(c.id);if(!story.nodes[c.to])throw Error('Broken choice '+c.id)}if(!n.ending&&!(n.choices||[]).some(c=>!c.when&&!c.require))throw Error('Passage needs an unconditional way forward: '+id);}
@@ -114,5 +131,5 @@ function load(story,storage){
 function persist(story,book,storage){const clean=clone(book);delete clean.recovery;storage.setItem('night-story:'+story.id+':v3',JSON.stringify(clean));return true}
 function storeRun(story,book,run){const b=clone(book),i=b.playthroughs.findIndex(r=>r.id===run.id);if(i<0)b.playthroughs.push(clone(run));else b.playthroughs[i]=clone(run);b.active=run.id;if(run.ending&&!(story.failureEndings||[]).includes(run.ending)&&!b.endings.includes(run.ending))b.endings.push(run.ending);return b}
 function summary(story,run){return (story.recap||[]).filter(x=>matches(x.when,run.state)).map(x=>text(x.text,run))}
-return {clone,matches,text,identity,initial,apply,choices,options,beats,start,enter,choose,fork,interlude,allocate,validateStory,load,persist,storeRun,summary,emptyBook};
+return {clone,matches,text,identity,initial,apply,choices,options,beats,start,enter,choose,fork,interlude,allocate,readingWindow,validateStory,load,persist,storeRun,summary,emptyBook};
 });

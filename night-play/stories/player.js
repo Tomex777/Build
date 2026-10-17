@@ -4,7 +4,7 @@ const E=window.NightStory,$=id=>document.getElementById(id);
 const ui={story:$('story'),choices:$('choices'),pace:$('pace'),menu:$('readerOptions'),dialog:$('storyDialog'),body:$('dialogBody'),title:$('dialogTitle'),warning:$('saveWarning'),recap:$('recap')};
 const el=(tag,text,className)=>{const n=document.createElement(tag);if(text!==undefined)n.textContent=text;if(className)n.className=className;return n};
 let storage;try{storage=window.localStorage;storage.getItem('night-story-check')}catch{const m=new Map();storage={getItem:k=>m.get(k)||null,setItem:(k,v)=>m.set(k,v)};warn('Browser storage is unavailable. This session cannot be resumed after closing.');}
-let story,book,run,timers=[],generation=0,lines=[],ready=false,revealing=false,revealGuard=0,writeTimer,soundContext,soundEnabled=false,ambient=[],persistBlocked=false;
+let story,book,run,timers=[],generation=0,lines=[],ready=false,revealing=false,revealGuard=0,writeTimer,soundContext,soundEnabled=false,ambient=[],persistBlocked=false,reviewIndex=null;
 const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
 function warn(text){ui.warning.textContent=text;ui.warning.hidden=false}
 function button(text,fn){const b=el('button',text);b.type='button';b.addEventListener('click',fn);return b}
@@ -17,7 +17,7 @@ function write(){
  try{if(!persistBlocked)E.persist(story,book,storage)}catch{warn('Your latest reading is still open, but autosave could not be written. Free some browser storage before closing.');}
 }
 function saveSoon(){clearTimeout(writeTimer);writeTimer=setTimeout(write,180)}
-function snapshot(){if(!run)return;run.reading.scroll=scrollY;run.reading.ready=ready;saveSoon()}
+function snapshot(){if(!run||reviewIndex!==null)return;run.reading.scroll=scrollY;run.reading.ready=ready;saveSoon()}
 function addAmbient(){
  stopAmbient();if(!soundEnabled||document.hidden)return;
  try{
@@ -47,7 +47,7 @@ function showChoices(){
  if(ready)return;ready=true;revealing=false;run.reading.ready=true;run.reading.revealed=lines.length;
  ui.choices.classList.remove('pending');for(const b of ui.choices.querySelectorAll('button'))b.disabled=b.dataset.locked==='true';
  if(run.ending){ui.choices.hidden=true;displayRecap();bell()}
- write();
+ updateNavigation();write();
 }
 function revealAll(){
  if(!revealing)return;
@@ -64,9 +64,66 @@ function makeLine(beat){
  return p;
 }
 function resolveBlankPages(){let guard=0;while(!E.beats(story,run).length&&guard++<500){const c=E.choices(story,run);if(c.length!==1||!c[0].continue)break;run=E.choose(story,run,c[0].id)}}
+// Review only recorded prose. No E.choose, E.enter, effects, history edits or save rewind.
+function updateNavigation(){
+ const window=E.readingWindow(story,run),index=reviewIndex===null?window.current:reviewIndex;
+ const position=window.indices.indexOf(index),previous=position>0;
+ const options=E.options(story,run);
+ const pagination=reviewIndex===null&&!run.ending&&options.length===1&&options[0].continue&&!options[0].locked;
+ const next=reviewIndex!==null||pagination;
+ $('readPrevious').hidden=!previous;$('readContinue').hidden=!next;
+ $('readingNav').hidden=!(previous||next);
+ $('readPrevious').disabled=!ready;$('readContinue').disabled=!ready;
+ ui.choices.hidden=reviewIndex!==null||pagination||Boolean(run.ending);
+}
+function reviewPage(){
+ cancel();ready=true;revealing=false;ui.menu.open=false;ui.recap.hidden=true;
+ const page=run.pages[reviewIndex];
+ if(!page){reviewIndex=null;render(true);return;}
+ $('chapterStatus').textContent=page.chapter?'Chapter '+page.chapter+' of '+story.chapters.length+' · '+page.title:page.title;
+ ui.story.setAttribute('aria-label','Previously read: '+page.title);
+ document.documentElement.dataset.atmosphere=story.nodes[page.node]?.atmosphere||story.atmosphere||'quiet';
+ // Recover speaker and cinematic formatting where the authored beat matches its saved text.
+ // The saved paragraph always wins when current conditions differ from the original visit.
+ const candidates=(story.nodes[page.node]?.beats||[]).map(beat=>({
+  ...beat,text:E.text(beat.text,run),speaker:beat.speaker?E.text(beat.speaker,run):undefined,
+  detail:E.text(beat.detail,run)
+ }));
+ const used=new Set();
+ const recorded=page.text.map(text=>{
+  const i=candidates.findIndex((beat,n)=>!used.has(n)&&(beat.speaker?beat.speaker+': '+beat.text:beat.text)===text);
+  if(i<0)return {text};
+  used.add(i);return candidates[i];
+ });
+ lines=recorded.map(makeLine);lines.forEach(setLine);
+ ui.story.replaceChildren(...lines);ui.choices.replaceChildren();
+ ui.choices.classList.remove('pending');updateNavigation();
+ scrollTo({top:0,behavior:'instant'});
+}
+function previousPage(){
+ if(!ready)return;
+ const window=E.readingWindow(story,run),index=reviewIndex===null?window.current:reviewIndex;
+ const position=window.indices.indexOf(index);if(position<=0)return;
+ if(reviewIndex===null)snapshot();
+ reviewIndex=window.indices[position-1];reviewPage();
+}
+function continuePage(){
+ if(!ready)return;
+ if(reviewIndex!==null){
+  const window=E.readingWindow(story,run),position=window.indices.indexOf(reviewIndex);
+  if(position<0||position>=window.indices.length-1)return;
+  const next=window.indices[position+1];
+  if(next===window.current){reviewIndex=null;render(true);}
+  else{reviewIndex=next;reviewPage();}
+  return;
+ }
+ const options=E.options(story,run);
+ if(run.ending||options.length!==1||!options[0].continue||options[0].locked)return;
+ run=E.choose(story,run,options[0].id);write();render();
+}
 function render(restore=false){
- cancel();resolveBlankPages();for(const id of ['openCharacter','openJournal','openChapters'])$(id).disabled=false;ready=false;const epoch=generation,node=story.nodes[run.node],bs=E.beats(story,run);
- ui.menu.open=false;ui.recap.hidden=true;ui.choices.hidden=false;ui.story.setAttribute('aria-label','Chapter '+node.chapter+': '+node.title);
+ reviewIndex=null;cancel();resolveBlankPages();for(const id of ['openCharacter','openJournal','openChapters'])$(id).disabled=false;ready=false;const epoch=generation,node=story.nodes[run.node],bs=E.beats(story,run);
+ ui.menu.open=false;ui.recap.hidden=true;ui.choices.hidden=false;$('readingNav').hidden=true;ui.story.setAttribute('aria-label','Chapter '+node.chapter+': '+node.title);
  $('chapterStatus').textContent=node.chapter?'Chapter '+node.chapter+' of '+story.chapters.length+' · '+node.title:node.title;
  document.documentElement.dataset.atmosphere=node.atmosphere||story.atmosphere||'quiet';
  lines=bs.map(makeLine);ui.story.replaceChildren(...lines);ui.choices.replaceChildren();ui.choices.classList.add('pending');
@@ -182,6 +239,7 @@ function chapters(){openPanel('Chapters',body=>{
   body.append(row);
  }
 })}
+$('readPrevious').addEventListener('click',previousPage);$('readContinue').addEventListener('click',continuePage);
 ui.story.addEventListener('pointerup',revealAll);
 document.addEventListener('keydown',e=>{if(ui.dialog.open||e.repeat||e.altKey||e.ctrlKey||e.metaKey)return;if(['BUTTON','INPUT','SELECT','TEXTAREA','SUMMARY'].includes(document.activeElement?.tagName))return;if(e.key===' '||e.key==='Enter'){if(revealing){e.preventDefault();revealAll()}}});
 ui.pace.addEventListener('change',()=>{try{storage.setItem('night-play-fiction-reading-speed',ui.pace.value)}catch{}if(run){snapshot();render(true)}});
@@ -199,7 +257,7 @@ try{
  book=E.load(story,storage);for(const id of ['openCharacter','openSaves','openJournal','openChapters','pace','sound'])$(id).disabled=false;
  if(book.recovery){try{const raw=storage.getItem('night-story:'+story.id+':v3');if(raw)storage.setItem('night-story:'+story.id+':recovery:'+Date.now(),raw)}catch{persistBlocked=true}warn(persistBlocked?'A save could not be safely archived. It remains untouched; this recovery session is not being written over it.':'A save could not be opened. Its original data has been retained; usable playthroughs remain available.');}
  run=book.playthroughs.find(r=>r.id===book.active);
- if(run){write();render(true)}else{ui.story.replaceChildren();for(const id of ['openCharacter','openJournal','openChapters'])$(id).disabled=true;ui.choices.hidden=true;setup(ui.story);$('chapterStatus').textContent='The Last Call';}
+ if(run){write();render(true)}else{$('readingNav').hidden=true;ui.story.replaceChildren();for(const id of ['openCharacter','openJournal','openChapters'])$(id).disabled=true;ui.choices.hidden=true;setup(ui.story);$('chapterStatus').textContent='The Last Call';}
 
 }catch(error){ui.story.replaceChildren(el('p','The story could not be opened. Your existing saves have not been changed.'));ui.choices.classList.remove('pending');ui.choices.append(button('Try again',()=>location.reload()));console.error(error)}
 })();
