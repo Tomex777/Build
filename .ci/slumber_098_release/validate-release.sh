@@ -185,36 +185,37 @@ adb_bounded 20 shell input text 'Jingle%sbells'
 adb_bounded 20 shell input keyevent KEYCODE_ENTER
 wait_exact "Jingle Bells" 20
 tap_ui "Play"
-wait_exact "FALLING NOTES" 40
-wait_exact "Ready to play?" 20
+wait_exact "SLUMBER  /  TILES" 40
+wait_exact "READY TO PLAY?" 20
 capture release-play-ready
-tap_ui "Start"
-wait_exact "Pause" 15
-tap_ui "Pause"
-wait_exact "Paused" 8
+tap_ui "START"
+wait_exact "Pause game" 15
+tap_ui "Pause game"
+wait_exact "PAUSED" 8
 capture release-play-paused
 sleep 4
-wait_exact "Paused" 5
-if ui_exact "Play again"; then
+wait_exact "PAUSED" 5
+if ui_exact "PLAY AGAIN"; then
   echo "Release Play completed while explicitly paused" >&2
   exit 1
 fi
-tap_ui "Resume"
-wait_exact "Play again" 70
+tap_ui "RESUME"
+wait_exact "PLAY AGAIN" 70
 capture release-play-resumed-complete
 
 # Return to Songs, explicitly select C major, then score its seven-note phrase.
-tap_ui "Back"
+tap_ui "Back to songs"
 wait_exact "Learn a song" 30
 focus_song_search
 adb_bounded 20 shell input text 'C%smajor'
 adb_bounded 20 shell input keyevent KEYCODE_ENTER
 wait_exact "C major warm-up" 20
 tap_ui "Play"
-wait_exact "FALLING NOTES" 40
-wait_exact "Ready to play?" 20
-# Resolve the rotated framebuffer before starting the short chart. Then
-# launch timed key events immediately after Start, matching debug acceptance.
+wait_exact "SLUMBER  /  TILES" 40
+wait_exact "READY TO PLAY?" 20
+# Portrait Piano Tiles scoring: tap the four-column chart on its actual beat timestamps.
+# Start the game and timed ADB inputs in one Python process to avoid a slow
+# UIAutomator round-trip consuming the 2.2-second lead-in.
 adb_bounded 30 exec-out screencap -p > "$OUT/release-size.png"
 read -r W H <<<"$(python3 - "$OUT/release-size.png" <<'PY'
 import struct,sys
@@ -222,40 +223,31 @@ b=open(sys.argv[1],'rb').read(24)
 print(*struct.unpack('>II',b[16:24]))
 PY
 )"
-tap_ui "Start"
-python3 - "$W" "$H" <<'PY' &
+START_COORDS="$(coords_for "START")"
+python3 - "$W" "$H" "$START_COORDS" <<'PY'
 import subprocess,sys,time
-w,h=map(int,sys.argv[1:3])
-white_pcs={0,2,4,5,7,9,11}
-whites=[m for m in range(21,109) if m%12 in white_pcs]
+w,h=int(sys.argv[1]),int(sys.argv[2])
+startx,starty=map(int,sys.argv[3].split())
+def tap(x,y):
+    subprocess.run(["adb","shell","input","tap",str(x),str(y)],check=True,
+                   stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
+tap(startx,starty)
+origin=time.monotonic()
 sequence=[60,64,67,69,67,64,60]
-positions=[whites.index(m) for m in sequence]
-center=(min(positions)+max(positions))/2.0
-start=int((center-22/2.0)+0.5)
-start=max(0,min(start,len(whites)-22))
-visible={m:whites.index(m)-start for m in set(sequence)}
-y=round(h*.95)
-beat=60.0/90.0
-origin=time.monotonic()-.12
-for index,midi in enumerate(sequence):
-    target=origin+index*beat
+for i,midi in enumerate(sequence):
+    # SlumberTilesChart: four columns and a 2200ms visual/audio lead-in.
+    target=origin+2.2+i*(60.0/90.0)-.12
     remaining=target-time.monotonic()
     if remaining>0: time.sleep(remaining)
-    x=round(w*(visible[midi]+.5)/22.0)
-    subprocess.run(
-        ["adb","shell","input","tap",str(x),str(y)],
-        check=True,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,
-    )
+    lane=(midi*7+i*13)%4
+    tap(round(w*(lane+.5)/4.0),round(h*.79))
 PY
-HIT_PID=$!
-sleep 0.35
 adb_bounded 30 exec-out screencap -p > "$OUT/release-play-active.png"
-wait "$HIT_PID"
-wait_exact "Play again" 18
+wait_exact "PLAY AGAIN" 18
 capture release-play-complete
 
 # Return, kill the process, relaunch, and prove a non-zero scored run survived.
-tap_ui "Back"
+tap_ui "Back to songs"
 wait_exact "Practice" 40
 launch_app
 wait_exact "Practice" 50
