@@ -6,45 +6,104 @@
 <meta name="theme-color" content="#f7f7f5">
 <title>Your Channels · NIGHT Play</title>
 <style>
-:root{--paper:#fff;--bg:#f7f7f5;--ink:#1c2328;--green:#285c46;--muted:#6e7871;--line:#dfe6de;--soft:#edf3ee}
-*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font-family:Inter,"Avenir Next","Segoe UI",Arial,sans-serif;-webkit-font-smoothing:antialiased}a{color:inherit;text-decoration:none}button,input{font:inherit}button{cursor:pointer}button:disabled{cursor:not-allowed;opacity:.6}button:focus-visible,a:focus-visible,input:focus-visible{outline:3px solid #80ad8d;outline-offset:3px}
-svg{display:block;flex:none}.symbol{width:20px;height:20px;stroke:currentColor;stroke-width:1.8;fill:none;stroke-linecap:round;stroke-linejoin:round}
-.shell{max-width:1100px;margin:0 auto;padding:0 32px}.top{height:76px;background:#fff;border-bottom:1px solid var(--line)}.top .shell{height:100%;display:flex;align-items:center;justify-content:space-between;gap:18px}.brand{display:flex;align-items:center;gap:11px;font-size:21px;letter-spacing:-1.2px;font-weight:900}.brand small{font-weight:700;font-size:12px;letter-spacing:-.1px;color:#78837b;margin-left:3px}.brand svg{width:38px;height:38px;border-radius:11px}.nav{display:flex;gap:20px;align-items:center}.nav a{font-size:12px;font-weight:750;color:#556359}.nav a:hover{color:var(--green)}
-main{padding-top:52px;padding-bottom:86px}.eyebrow{color:#5d7867;font-size:11px;font-weight:850;letter-spacing:1.8px;text-transform:uppercase}.page-head{display:flex;justify-content:space-between;gap:35px;align-items:end;padding-bottom:28px;border-bottom:1px solid var(--line)}h1{font-size:clamp(36px,5.2vw,61px);letter-spacing:-3.1px;line-height:1.06;margin:10px 0 13px;font-weight:800}.lead{font-size:14px;line-height:1.75;color:var(--muted);margin:0;max-width:510px}.button{display:inline-flex;align-items:center;justify-content:center;gap:9px;border-radius:11px;border:1px solid #cad8cf;background:#fff;color:var(--ink);padding:12px 18px;min-height:44px;font-size:12px;font-weight:800;transition:background-color .2s,border-color .2s}.button:hover{background:#edf2ee}.button.primary{background:var(--green);border-color:var(--green);color:white}.button.primary:hover{background:#397158}.button.danger{color:#96493d;border-color:#eed8d2}.button.danger:hover{background:#fff3ef}.button .symbol{width:17px;height:17px}
-.section-header{display:flex;align-items:baseline;justify-content:space-between;margin:35px 0 14px;gap:12px}.section-header h2{font-size:20px;letter-spacing:-.7px;margin:0;font-weight:800}.section-header .note{font-size:12px;color:var(--muted)}
-.channel-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:13px}.channel-card{background:var(--paper);border:1px solid var(--line);border-radius:18px;padding:22px;min-width:0}.card-top{display:flex;align-items:center;gap:13px}.avatar{width:51px;height:51px;border-radius:14px;background:#e7eee7;color:#335a40;display:grid;place-items:center;font-size:21px;letter-spacing:-1px;font-weight:850}.names{flex:1;min-width:0}.names h3{font-size:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin:0 0 5px;letter-spacing:-.4px}.pill{font-size:11px;display:inline-flex;align-items:center;gap:7px;color:#637067}.pill::before{content:"";width:7px;height:7px;border-radius:50%;background:#caa35f}.pill.ready{color:#246342}.pill.ready::before{background:#48956a}.details{font-size:12px;color:var(--muted);margin:17px 0;line-height:1.6}.card-actions{display:flex;flex-wrap:wrap;gap:8px}.proof{background:#f1f6f0;border:1px solid #dbe9d9;border-radius:12px;padding:12px 14px;margin:13px 0}.proof span{font-size:10px;font-weight:800;color:#547060;text-transform:uppercase;letter-spacing:.8px}.proof code{display:block;font:750 13px ui-monospace,Consolas,monospace;overflow-wrap:anywhere;line-height:1.6;margin-top:7px;color:#203e30}
-.empty{border:1px dashed #c9d8cb;border-radius:18px;padding:37px 28px;background:#fff;color:#66776c}.empty strong{color:var(--ink);font-size:17px;display:block;margin-bottom:9px}.empty p{margin:0;line-height:1.6;font-size:13px}
-.connect-guide{margin-top:28px;padding:19px 0 0;border-top:1px solid var(--line);max-width:730px}
-.connect-guide h2{font-size:20px;font-weight:800;letter-spacing:-.6px;margin:8px 0 10px}
-.connect-guide p{font-size:13px;line-height:1.65;margin:0 0 10px;color:var(--muted)}
-.connect-guide .connect-warning{font-size:12px;color:#41644e;margin-top:7px}
-.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);max-width:min(90vw,460px);padding:12px 18px;background:#1f4130;color:white;font-size:13px;border-radius:10px;box-shadow:0 10px 26px #142f2129;z-index:10}
+:root{--bg:#f7f7f5;--paper:#fff;--ink:#1c2328;--muted:#777e83;--line:#dbe1da;--green:#2e6b57}
+*{box-sizing:border-box}
+html{min-height:100%}
+body{margin:0;min-height:100dvh;background:var(--bg);color:var(--ink);font-family:Inter,"DM Sans",Arial,system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+button,a{-webkit-tap-highlight-color:transparent}button{font:inherit;cursor:pointer}a{text-decoration:none;color:inherit}
+button:focus-visible,a:focus-visible{outline:3px solid #73a68a;outline-offset:3px}
+svg{display:block}
+.ui-icon{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.85;stroke-linecap:round;stroke-linejoin:round}
+.channel-main{padding-top:43px;padding-bottom:90px}
+.channel-hero{margin:0 0 30px}
+.channel-hero h1{font-size:clamp(35px,4.8vw,58px);font-weight:850;letter-spacing:-2.4px;line-height:1.08;margin:0 0 11px;color:#161a18}
+.channel-hero p{font-size:13px;color:#737b76;line-height:1.65;max-width:570px;margin:0}
+.channel-content{max-width:900px}
+.channel-state{background:#fff;border:1px solid #e2e6e0;border-radius:17px;padding:21px 24px}
+.channel-state h2{font-size:18px;margin:0 0 7px;letter-spacing:-.5px}
+.channel-state p{margin:0;color:#707b74;font-size:13px;line-height:1.65;max-width:630px}
+.channel-state .btn{margin-top:18px}
+.btn{display:inline-flex;align-items:center;justify-content:center;min-height:42px;padding:10px 17px;border:1px solid #cbd6ce;border-radius:11px;background:#fff;color:#26382e;font-size:12px;font-weight:800}
+.btn:hover{background:#f1f5f1}
+.btn.primary{background:#285c46;color:#fff;border-color:#285c46}
+.btn.primary:hover{background:#377057}
+.btn.danger{color:#a05248;border-color:#e6d9d4;background:#fff}
+.btn.danger:hover{background:#fff4f1}
+.btn:disabled{opacity:.55;cursor:default}
+.channel-count{margin:0 0 13px;color:#68756e;font-size:11px;font-weight:750}
+.channel-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:13px}
+.channel-card{border:1px solid #e0e5df;border-radius:17px;background:#fff;padding:20px;min-width:0}
+.channel-card-top{display:flex;gap:12px;align-items:center}
+.channel-avatar{display:grid;place-items:center;width:46px;height:46px;flex:0 0 46px;border-radius:13px;background:#e7eee7;color:#2e5940;font-size:21px;font-weight:850}
+.channel-name{font-size:16px;font-weight:800;letter-spacing:-.35px;margin:0 0 5px;overflow-wrap:anywhere}
+.channel-pill{font-size:11px;color:#916a31;font-weight:650}
+.channel-pill.ready{color:#2e7854}
+.channel-pill::before{content:"";display:inline-block;width:6px;height:6px;margin-right:7px;border-radius:50%;background:#c59e61;vertical-align:1px}
+.channel-pill.ready::before{background:#50956b}
+.channel-summary{font-size:12px;color:#6f7b72;line-height:1.6;margin:15px 0 13px}
+.channel-proof{background:#f0f5ef;border:1px solid #dbe7db;padding:13px;border-radius:11px;margin-bottom:13px}
+.channel-proof span{display:block;text-transform:uppercase;font-size:9px;font-weight:800;letter-spacing:.9px;color:#6c7b70}
+.channel-proof code{font-size:12px;font-family:ui-monospace,Consolas,monospace;font-weight:750;color:#234332;display:block;overflow-wrap:anywhere;margin-top:7px;user-select:text}
+.channel-actions{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.channel-confirm{width:100%;background:#faf2ef;border:1px solid #ecdad4;padding:12px;border-radius:12px}
+.channel-confirm p{font-size:12px;line-height:1.6;margin:0 0 11px;color:#70483f}
+.channel-confirm .actions{display:flex;flex-wrap:wrap;gap:8px}
+.channel-guide{margin-top:22px;padding-top:20px;border-top:1px solid #dbe1da}
+.channel-guide h2{font-size:15px;letter-spacing:-.35px;margin:0 0 8px}
+.channel-guide p{font-size:12px;color:#66756c;line-height:1.75;margin:0;max-width:720px}
+.channel-guide strong{color:#285641}
+.channel-toast{position:fixed;z-index:80;bottom:100px;left:50%;transform:translateX(-50%);width:max-content;max-width:calc(100vw - 42px);border-radius:12px;background:#1e4030;color:#fff;padding:13px 17px;font-size:12px;line-height:1.5;box-shadow:0 9px 26px #142a2225}
 [hidden]{display:none!important}
-@media(max-width:730px){.shell{padding:0 20px}.top{height:67px}.brand{font-size:19px}.brand svg{width:34px;height:34px}.nav{gap:15px}.nav a{font-size:11px}main{padding-top:29px}.page-head{align-items:start;flex-direction:column;gap:18px}.page-head>.button{width:100%}.channel-list{grid-template-columns:1fr}h1{letter-spacing:-2px}.section-header{margin-top:28px}.channel-card{padding:18px}}
-@media(prefers-reduced-motion:reduce){.button{transition:none}}
+@media(max-width:900px){.channel-main{padding-top:35px}}
+@media(max-width:600px){
+ .channel-main{padding-top:30px;padding-bottom:110px}
+ .channel-hero{margin-bottom:24px}
+ .channel-hero h1{font-size:39px;letter-spacing:-1.8px}
+ .channel-hero p{font-size:12px;line-height:1.6}
+ .channel-grid{grid-template-columns:1fr;gap:10px}
+ .channel-state{padding:19px;border-radius:15px}
+ .channel-card{padding:16px;border-radius:15px}
+ .channel-avatar{width:44px;height:44px;flex-basis:44px}
+ .channel-guide{margin-top:20px;padding-top:17px}
+}
 </style>
+<link rel="stylesheet" href="/site-shell.css">
 </head>
-<body>
+<body data-view="channels">
 <svg aria-hidden="true" style="position:absolute;width:0;height:0;overflow:hidden" xmlns="http://www.w3.org/2000/svg">
-<symbol id="mark" viewBox="0 0 108 108"><path fill="#0b0f11" d="M0 0h108v108H0z"/><path fill="#fff" d="M24 54C24 37.43 37.43 24 54 24S84 37.43 84 54H24Z M22 66h64v6H22z"/></symbol>
+<symbol id="icon-brand" viewBox="0 0 108 108"><path fill="#0B0F11" d="M0 0h108v108H0z"/><path fill="#F4F5F6" d="M24 54 C24 37.43 37.43 24 54 24 C70.57 24 84 37.43 84 54 L24 54 Z"/><path fill="#F4F5F6" d="M22 66h64v6H22z"/></symbol>
+<symbol id="icon-home" viewBox="0 0 24 24"><path d="m3 10 9-7 9 7v10H3z"/><path d="M9 20v-7h6v7"/></symbol>
+<symbol id="icon-games" viewBox="0 0 24 24"><rect x="2" y="6" width="20" height="13" rx="5"/><path d="M6 12h6M9 9v6"/><circle cx="17" cy="11" r=".9"/><circle cx="19" cy="14" r=".9"/></symbol>
+<symbol id="icon-profile" viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.6"/><path d="M4.5 20c.8-6 14.2-6 15 0"/></symbol>
 </svg>
-<header class="top"><div class="shell">
-<a class="brand" href="/profile" aria-label="NIGHT Play profile"><svg aria-hidden="true"><use href="#mark"/></svg><span>NIGHT<small>PLAY</small></span></a>
-<nav class="nav" aria-label="Navigation"><a href="/games">Games</a><a href="/profile">Profile</a></nav>
+<header class="site-header"><div class="wrap nav">
+<a href="/dashboard" class="logo" aria-label="NIGHT Play home"><svg class="brand-mark" viewBox="0 0 108 108" aria-hidden="true"><use href="#icon-brand"></use></svg><span>NIGHT <span class="brand-sub">PLAY</span></span></a>
+<nav class="links" aria-label="Main navigation"><a href="/dashboard">Home</a><a href="/games">Games</a></nav>
+<div class="actions"><a class="profile-icon" href="/profile" aria-label="My profile" title="My profile"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4.5 20c1.2-4.7 13.8-4.7 15 0"/></svg></a></div>
 </div></header>
-<main class="shell">
-<div class="page-head"><div><div class="eyebrow">NIGHT PLAY / CHANNEL TOOLS</div><h1>Your Channels<span style="color:#3f7553">.</span></h1><p class="lead">Connect the WhatsApp Channels you administer. Your verified channels stay attached to your NIGHT Play account.</p></div><button id="reload" class="button" type="button">Refresh channels</button></div>
-<div class="section-header"><h2>Connected to NIGHT</h2><span class="note" id="count" aria-live="polite"></span></div>
-<div class="channel-list" id="channels" aria-live="polite"></div>
-<div id="empty" class="empty" hidden><strong id="emptyTitle">No channels yet</strong><p id="emptyMessage">Connect a channel through WhatsApp.</p><a id="connectWhatsApp" class="button primary" href="/profile" hidden>Connect WhatsApp</a></div>
-<section class="connect-guide" id="connect" aria-labelledby="connectTitle" hidden>
-<div class="eyebrow">ADD CHANNEL</div>
-<h2 id="connectTitle">Connect through WhatsApp</h2>
-<p>Send the channel link privately to NIGHT. Then send <strong>.joinchannel</strong> and choose <strong>Yes</strong> or <strong>No</strong>.</p>
-<p class="connect-warning"><strong>Admin permission is separate.</strong> After consenting, invite NIGHT as a WhatsApp Channel admin, then publish its one-time verification code to connect the channel here. NIGHT never follows without your approval.</p>
+<nav class="mobile-nav" aria-label="Bottom navigation">
+<a href="/dashboard"><svg class="ui-icon" aria-hidden="true" viewBox="0 0 24 24"><use href="#icon-home"></use></svg>Home</a>
+<a href="/games"><svg class="ui-icon" aria-hidden="true" viewBox="0 0 24 24"><use href="#icon-games"></use></svg>Games</a>
+<a href="/profile" aria-current="page"><svg class="ui-icon" aria-hidden="true" viewBox="0 0 24 24"><use href="#icon-profile"></use></svg>Profile</a>
+</nav>
+<main class="wrap channel-main">
+<div class="channel-content">
+<div class="channel-hero"><h1>Your channels</h1><p>WhatsApp Channels connected to your NIGHT Play account.</p></div>
+<section id="state" class="channel-state" role="status" aria-live="polite">
+<h2 id="stateTitle">Checking your channels…</h2>
+<p id="stateText">Checking your WhatsApp connection.</p>
+<a id="stateLink" class="btn primary" href="/profile" hidden>Connect WhatsApp</a>
+<button id="retry" class="btn" type="button" hidden>Try again</button>
 </section>
+<p id="count" class="channel-count" aria-live="polite" hidden></p>
+<div id="channels" class="channel-grid" aria-live="polite" hidden></div>
+<section id="connect" class="channel-guide" hidden aria-labelledby="connectTitle">
+<h2 id="connectTitle">Connect another channel</h2>
+<p>Send its link privately to NIGHT on WhatsApp, then type <strong>.joinchannel</strong>. Choose Yes or No. To publish, grant NIGHT channel-admin permission and complete the one-time verification.</p>
+</section>
+</div>
 </main>
-<div id="toast" class="toast" role="status" hidden></div>
+<div id="toast" class="channel-toast" role="status" hidden></div>
 <script>
 (function(){
 'use strict';
