@@ -44,7 +44,21 @@ function registrationWindow(parts, at = Date.now()) {
 }
 const rand = (min, max) => Math.floor(min + Math.random() * (max - min + 1))
 const jid = value => String(value || '').trim().replace(/:\d+(?=@)/, '')
-const label = value => '@' + jid(value).split('@')[0]
+// WhatsApp LID/PN identifiers are internal routing data, never public labels.
+const cleanPlayerName = value => {
+  const text = String(value || '').replace(/[\p{Cc}\p{Cf}]/gu, ' ')
+    .replace(/[*_~\x60]/g, '').replace(/^@+/, '').trim()
+    .replace(/\s+/g, ' ')
+  if (!text || /@(?:lid|s\.whatsapp\.net)\b/i.test(text)
+      || /\d{7,}/.test(text.normalize('NFKC'))
+      || /^(?:whatsapp user|unknown(?: user)?|member|user)$/i.test(text)) return ''
+  return [...text].slice(0, 48).join('')
+}
+const participantName = row => {
+  const p = row?.participant || {}
+  return [p.notify, p.pushName, p.verifiedName, p.displayName, p.name]
+    .map(cleanPlayerName).find(Boolean) || ''
+}
 const uniqueText = value => String(value || '').normalize('NFKC').toLowerCase()
   .replace(/[\u200b-\u200d\ufeff]/gu, '').replace(/\p{P}+/gu, ' ')
   .replace(/\s+/gu, ' ').trim()
@@ -55,7 +69,7 @@ const forwarded = message => {
   return info?.isForwarded === true || Number(info?.forwardingScore || 0) > 0
 }
 
-export function createSquidGame({ storage, accountFor, resolvePhoneJid = async (_account, value) => value, now = () => Date.now(), randomDuration = rand } = {}) {
+export function createSquidGame({ storage, accountFor, resolvePhoneJid = async (_account, value) => value, observedNameFor = () => '', now = () => Date.now(), randomDuration = rand } = {}) {
   const locks = new Map()
   const db = () => storage?.()
   const load = group => db()?.sharedGet(NS, group) || null
@@ -98,6 +112,23 @@ export function createSquidGame({ storage, accountFor, resolvePhoneJid = async (
     if (!row) return null
     const ids = participantIds(row.participant)
     return Object.values(game.players).find(p => p.aliases.some(alias => ids.includes(alias))) || null
+  }
+  function formatPlayer(game, player) {
+    const observed = [...new Set([player.jid, ...(player.aliases || [])])]
+      .map(alias => { try { return observedNameFor(game.group, alias) } catch { return '' } })
+      .map(cleanPlayerName).find(Boolean)
+    const name = cleanPlayerName(player.displayName) || observed
+    if (name) return { text:'@' + name, mentions:[player.jid] }
+    // Anonymous fallback must never interpolate digits from a phone JID or LID.
+    const index = Object.values(game.players || {}).findIndex(p => p.jid === player.jid)
+    return { text:'Player ' + (index < 0 ? '?' : index + 1), mentions:[] }
+  }
+  function winnerNotice(game, winner) {
+    const who = formatPlayer(game, winner)
+    return {
+      text:`🏆 *SQUID GAME CHAMPION*\n👑 ${who.text}\n🦑 Last player standing after ${game.round} ${game.round === 1 ? 'round' : 'rounds'}!`,
+      mentions:who.mentions,
+    }
   }
   function duration(game) {
     const left = livePlayers(game).length
@@ -159,12 +190,12 @@ export function createSquidGame({ storage, accountFor, resolvePhoneJid = async (
     } catch { done = false }
     return done
   }
-  async function complete(game, title) {
+  async function complete(game, title, mentions = []) {
     game.phase = 'CLEANUP'
     game.finishedText = title
     game.nextAt = 0
     save(game.group, game)
-    try { await send(game, title) } catch {}
+    try { await send(game, title, mentions) } catch {}
     if (await restore(game)) save(game.group, null)
     else save(game.group, game)
   }
@@ -189,11 +220,12 @@ export function createSquidGame({ storage, accountFor, resolvePhoneJid = async (
     }
     save(game.group, game)
     const others = livePlayers(game)
-    const names = victims.map(p => label(p.jid)).join(', ')
+    const victimsFormatted = victims.map(p => formatPlayer(game, p))
+    const names = victimsFormatted.map(p => p.text).join(', ')
     const text = victims.length === 1
       ? `💀 ${names} eliminated! ${reason}\n🦑 ${others.length} remain.`
       : `💀 *${victims.length} PLAYERS ELIMINATED!*\n${names}\n🦑 ${others.length} remain.`
-    try { await send(game, text + (failed.length ? '\n⚠️ Removal/demotion retry pending.' : ''), victims.map(p => p.jid)) } catch {}
+    try { await send(game, text + (failed.length ? '\n⚠️ Removal/demotion retry pending.' : ''), victimsFormatted.flatMap(p => p.mentions)) } catch {}
     if (others.length <= 1) {
       // Two almost-simultaneous RED violations must result in a draw, not
       // a premature winner announcement based only on socket event order.
@@ -203,9 +235,12 @@ export function createSquidGame({ storage, accountFor, resolvePhoneJid = async (
         save(game.group, game)
         return
       }
-      await complete(game, others.length
-        ? `🏆 *SQUID GAME CHAMPION*\n👑 ${label(others[0].jid)}\n🦑 Last player standing after ${game.round} rounds!`
-        : '🦑 *SQUID GAME OVER*\n💀 All remaining players were eliminated. No winner.')
+      if (others.length) {
+        const notice = winnerNotice(game, others[0])
+        await complete(game, notice.text, notice.mentions)
+      } else {
+        await complete(game, '🦑 *SQUID GAME OVER*\n💀 All remaining players were eliminated. No winner.')
+      }
     }
   }
   async function begin(game) {
@@ -215,7 +250,7 @@ export function createSquidGame({ storage, accountFor, resolvePhoneJid = async (
     for (const player of waiting) {
       const row = await member(game, player.jid, meta)
       if (!row) continue
-      game.players[row.jid] = { ...player, jid:row.jid, aliases:[...new Set([...player.aliases, ...participantIds(row.participant)])], alive:true, seen:[], roundTexts:[], promoted:false, pendingAction:false, protected:initialAdmin(game, row) }
+      game.players[row.jid] = { ...player, jid:row.jid, displayName:cleanPlayerName(player.displayName) || participantName(row), aliases:[...new Set([...player.aliases, ...participantIds(row.participant)])], alive:true, seen:[], roundTexts:[], promoted:false, pendingAction:false, protected:initialAdmin(game, row) }
     }
     if (livePlayers(game).length < 2) return complete(game, `🦑 Squid Game cancelled — ${livePlayers(game).length} of 2 required players registered and still in the group. Start a new session with a longer registration time.`)
     game.initialPlayers = livePlayers(game).length
@@ -389,7 +424,7 @@ export function createSquidGame({ storage, accountFor, resolvePhoneJid = async (
         const aliases = participantIds(row.participant)
         const existing = playerFor(game, row)
         if (existing && existing.jid !== id) delete game.players[existing.jid]
-        game.players[id] = { jid:id, aliases, alive:true }
+        game.players[id] = { jid:id, aliases, displayName:participantName(row) || existing?.displayName || '', alive:true }
       } else {
         // WhatsApp sends an empty reaction when someone unreacts.
         const existing = playerFor(game, row)
@@ -431,6 +466,8 @@ export function createSquidGame({ storage, accountFor, resolvePhoneJid = async (
         player = playerFor(game, row)
       }
       if (!player?.alive) return
+      const senderName = cleanPlayerName(message?.pushName)
+      if (senderName) player.displayName = senderName
       const id = String(message?.key?.id || '')
       if (!id || player.lastMessageId === id) return true
       player.lastMessageId = id
@@ -483,9 +520,12 @@ export function createSquidGame({ storage, accountFor, resolvePhoneJid = async (
           }
           if (game.phase === 'FINALIZING' && now() >= game.nextAt) {
             const survivor = livePlayers(game)[0]
-            await complete(game, survivor
-              ? `🏆 *SQUID GAME CHAMPION*\n👑 ${label(survivor.jid)}\n🦑 Last player standing after ${game.round} rounds!`
-              : '🦑 *SQUID GAME OVER*\n💀 No survivors. No winner.')
+            if (survivor) {
+              const notice = winnerNotice(game, survivor)
+              await complete(game, notice.text, notice.mentions)
+            } else {
+              await complete(game, '🦑 *SQUID GAME OVER*\n💀 No survivors. No winner.')
+            }
             return
           }
           if (game.phase === 'RED' && game.graceUntil && now() >= game.graceUntil) {
