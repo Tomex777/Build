@@ -1,10 +1,10 @@
 {
-  "releaseId": "night-2026-10-17-15-tiktok-download",
+  "releaseId": "night-2026-10-17-16-squid-registration",
   "baseBranch": "mscc-azure",
-  "baseCommit": "844e360ec4b80cb2b70320a54072d6ef63c534c4",
+  "baseCommit": "88008cd8338ae1e37dced80ae34975f6d5079085",
   "pullRequests": [
-    320
+    323
   ],
-  "carriedForwardRelease": "night-2026-10-17-14",
-  "notes": "Single-scope reviewed batch for PR #320: fix NIGHT .tiktok public-media downloader misclassifying HTTP 403/login/extractor failures as private posts. Preserve yt-dlp primary and add anonymous public Siputzx and TikWM fallback providers with bounded downloads, allowlisted HTTPS media URLs, basic signature verification and safe cleanup. Include social-download and TikTok fallback regressions in npm run check. Do not add unrelated open PRs. One protected mscc-production approval after full combined CI; then verify Azure deployed SHA, bot health, publicly accessible TikTok video/photo download using the reported vt.tiktok.com sample when still available, and accurate error messages on extraction failures. Do not touch session credentials, account bindings, Cortex ingress or existing media functions. Roll back if deployment or health checks fail."
+  "carriedForwardRelease": "night-2026-10-17-15-tiktok-download",
+  "notes": "Single-scope NIGHT Squid Game registration fix (#323). Correct 60-second timeout, missed reactions, allow admins to opt in without ever kicking/demoting original admins, support two-player minimum and configurable scheduled registration for both kick and CG modes. Previous TikTok fix #320 is already committed to mscc-azure and may still await protected production approval; ship this release only after combined CI, one protected mscc-production approval, and confirm deployed SHA / health / live WhatsApp reactions on Nami and non-bot test accounts. Supersede older unapproved Azure deploy runs as defined by NIGHT Release Batch. No session/account-binding changes."
 }
