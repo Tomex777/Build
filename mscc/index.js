@@ -2497,6 +2497,17 @@ async function processInboundMessage(account, msg) {
       // Replayed/duplicated Baileys upserts must not execute a choice twice.
       if (!acceptInboundCommand(account.id, msg)) return
 
+      // Handle reaction joins immediately, before any command/identity/network work.
+      // Some Baileys forks deliver them as upserts instead of messages.reaction.
+      const incomingReaction = normalizedContent(msg.message)?.reactionMessage
+      if (incomingReaction) {
+        await squidGame.onReaction(account, {
+          key:incomingReaction.key,
+          reaction:{ ...incomingReaction, key:msg.key },
+        })
+        return
+      }
+
       const chat = normalizeJid(msg.key.remoteJid)
       const text = commandText(msg.message)
       const authority = await authorityContext(account, msg)
@@ -2514,14 +2525,6 @@ async function processInboundMessage(account, msg) {
       // Squid Game uses ordinary WhatsApp messages and reaction registration,
       // not the public command namespace. Consume player messages before AI,
       // moderation replies or any other interactive game responds.
-      const incomingReaction = normalizedContent(msg.message)?.reactionMessage
-      if (incomingReaction) {
-        await squidGame.onReaction(account, {
-          key:incomingReaction.key,
-          reaction:{ ...incomingReaction, key:msg.key },
-        })
-        return
-      }
       if (await squidGame.onMessage(account, msg)) return
 
       const publicPrefix = settings.publicPrefix || DEFAULT_PUBLIC_PREFIX

@@ -5,7 +5,43 @@ const NS = 'night-squid-game'
 const INDEX = 'night-squid-active'
 const BOOT = Date.now()
 const GRACE_MS = 1800
-const REG_MS = 60000
+const REG_MS = 15 * 60 * 1000
+const MAX_REG_MS = 24 * 60 * 60 * 1000
+const WAT_OFFSET_MS = 60 * 60 * 1000
+const formatTime = ms => new Intl.DateTimeFormat('en-GB', {
+  timeZone:'Africa/Lagos', day:'2-digit', month:'short', hour:'2-digit',
+  minute:'2-digit', hour12:false,
+}).format(new Date(ms)) + ' WAT'
+const timeLeft = ms => {
+  const minutes = Math.ceil(Math.max(0, ms) / 60000)
+  return minutes >= 60 ? Math.floor(minutes / 60) + 'h ' + minutes % 60 + 'm' : minutes + 'm'
+}
+// Times without a UTC offset are always interpreted as WAT (Nigeria time).
+function registrationWindow(parts, at = Date.now()) {
+  const values = (Array.isArray(parts) ? parts : [parts]).map(v => String(v || '').trim().toLowerCase()).filter(Boolean)
+  if (!values.length) return { ms:REG_MS, description:'15 minutes' }
+  if (values[0] === 'in') return registrationWindow(values.slice(1), at)
+  if (values[0] === 'at') {
+    if (values.length !== 2 || !/^([01]?\d|2[0-3]):[0-5]\d$/.test(values[1])) {
+      throw new Error('Use .squidgame at HH:MM (24-hour WAT / Nigeria time).')
+    }
+    const [hours, minutes] = values[1].split(':').map(Number)
+    const watNow = at + WAT_OFFSET_MS
+    const date = new Date(watNow)
+    let deadline = Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate(), hours, minutes) - WAT_OFFSET_MS
+    if (deadline <= at) deadline += MAX_REG_MS
+    return { ms:deadline - at, description:'until ' + formatTime(deadline) }
+  }
+  if (values.length !== 1) throw new Error('Use 30m, 2h, or at 20:00 (WAT).')
+  const match = /^(\d+)(m|min|mins|h|hr|hrs)$/.exec(values[0])
+  if (!match) throw new Error('Use 30m, 2h, or at 20:00 (WAT).')
+  const amount = Number(match[1])
+  const ms = amount * (match[2].startsWith('h') ? 3600000 : 60000)
+  if (!Number.isSafeInteger(ms) || ms < 60000 || ms > MAX_REG_MS) {
+    throw new Error('Registration must last between 1 minute and 24 hours.')
+  }
+  return { ms, description:timeLeft(ms) }
+}
 const rand = (min, max) => Math.floor(min + Math.random() * (max - min + 1))
 const jid = value => String(value || '').trim().replace(/:\d+(?=@)/, '')
 const label = value => '@' + jid(value).split('@')[0]
@@ -21,7 +57,7 @@ const forwarded = message => {
 
 export function createSquidGame({ storage, accountFor, resolvePhoneJid = async (_account, value) => value, now = () => Date.now(), randomDuration = rand } = {}) {
   const locks = new Map()
-    const db = () => storage?.()
+  const db = () => storage?.()
   const load = group => db()?.sharedGet(NS, group) || null
   const active = () => db()?.sharedGet(INDEX, 'groups') || []
   function save(group, state) {
@@ -137,13 +173,15 @@ export function createSquidGame({ storage, accountFor, resolvePhoneJid = async (
     if (!victims.length) return
     for (const player of victims) {
       player.alive = false
-      player.pendingAction = true
+      // Original group admins may join, but can never be kicked or demoted.
+      player.pendingAction = !player.protected
     }
     game.lastEliminations = victims.length
     save(game.group, game)
     const verb = game.mode === 'cg' ? 'demote' : 'remove'
     const failed = []
     for (const player of victims) {
+      if (player.protected) continue
       try {
         if (await changeParticipant(game, player, verb)) player.pendingAction = false
         else failed.push(player)
@@ -176,10 +214,10 @@ export function createSquidGame({ storage, accountFor, resolvePhoneJid = async (
     game.players = {}
     for (const player of waiting) {
       const row = await member(game, player.jid, meta)
-      if (!row || initialAdmin(game, row)) continue
-      game.players[row.jid] = { ...player, jid:row.jid, aliases:[...new Set([...player.aliases, ...participantIds(row.participant)])], alive:true, seen:[], roundTexts:[], promoted:false, pendingAction:false }
+      if (!row) continue
+      game.players[row.jid] = { ...player, jid:row.jid, aliases:[...new Set([...player.aliases, ...participantIds(row.participant)])], alive:true, seen:[], roundTexts:[], promoted:false, pendingAction:false, protected:initialAdmin(game, row) }
     }
-    if (livePlayers(game).length < 2) return complete(game, '🦑 Squid Game cancelled — fewer than two eligible players registered.')
+    if (livePlayers(game).length < 2) return complete(game, `🦑 Squid Game cancelled — ${livePlayers(game).length} of 2 required players registered and still in the group. Start a new session with a longer registration time.`)
     game.initialPlayers = livePlayers(game).length
     if (game.mode === 'cg') {
       if (meta.announce === true) return complete(game, '🦑 CG cancelled — this group was already admin-only.')
@@ -189,6 +227,7 @@ export function createSquidGame({ storage, accountFor, resolvePhoneJid = async (
       try {
         await account(game).sock.groupSettingUpdate(game.group, 'announcement')
         for (const player of livePlayers(game)) {
+          if (player.protected) continue // Existing admins keep their original permissions.
           // Mark ahead of promotion: cleanup will never demote original admins.
           player.promoted = true
           save(game.group, game)
@@ -238,10 +277,11 @@ export function createSquidGame({ storage, accountFor, resolvePhoneJid = async (
     const flavor = game.round > 2 && Math.random() < 0.24 ? '\n' + taunts[rand(0, taunts.length - 1)] : ''
     await send(game, '🟢 *GREEN LIGHT!*' + flavor)
   }
-  async function start(ctx, mode = 'kick') {
+  async function start(ctx, mode = 'kick', timing = []) {
     const group = ctx.groupKey
     if (!group) return ctx.reply('Squid Game is only available in groups.')
     if (!await ctx.isBotGroupAdmin?.()) return ctx.reply('NIGHT must be an admin to run Squid Game.')
+    const window = registrationWindow(timing, now())
     return locked(group, async () => {
       if (load(group)) return ctx.reply('🦑 A Squid Game session is already open. Use .squidgame status.')
       const meta = await ctx.account.sock.groupMetadata(group)
@@ -249,7 +289,7 @@ export function createSquidGame({ storage, accountFor, resolvePhoneJid = async (
       const originalAdmins = meta.participants.filter(p => isAdmin({ participant:p })).flatMap(participantIds)
       const game = {
         group, accountId:ctx.account.id, mode, phase:'REGISTERING',
-        createdAt:now(), nextAt:now() + REG_MS, registrationId:'', players:{},
+        createdAt:now(), nextAt:now() + window.ms, registrationId:'', players:{},
         originalAdmins:[...new Set(originalAdmins)], originalAnnouncement:Boolean(meta.announce),
         settingsChanged:false, round:0, lastEliminations:0,
       }
@@ -259,14 +299,16 @@ export function createSquidGame({ storage, accountFor, resolvePhoneJid = async (
       const sent = await ctx.account.sock.sendMessage(group, { text:[
         '🦑 *NIGHT — SQUID GAME*',
         '',
-        'React ✅ to *this message* to enter. Registration closes in 60 seconds.',
+        `React ✅ to *this message* to enter. Closes *${formatTime(game.nextAt)}* (${timeLeft(window.ms)}).`,
+        '🕘 Admin can begin early with *.squidgame launch*.',
         '',
         '🟢 GREEN: Send at least *3 different, original messages* every round.',
         '🔴 RED: Send *nothing*. Any sent message eliminates you.',
         '❌ Repeated, reused and forwarded messages do not count.',
         '🎲 Light changes are unpredictable. Miss the green quota or talk during red = eliminated.',
         consequences,
-        '🛡️ Original group admins and NIGHT cannot be eliminated.',
+        '🛡️ Group admins may play, but cannot be kicked/demoted; elimination only removes them from this game. NIGHT cannot compete.',
+        '👥 At least *2 players* must react to begin. You may remove your reaction to withdraw.',
         '',
         'By reacting ✅ you agree to the elimination consequences above.',
       ].join('\n') }, { quoted:ctx.message })
@@ -280,8 +322,39 @@ export function createSquidGame({ storage, accountFor, resolvePhoneJid = async (
     const game = load(ctx.groupKey)
     if (!game) return ctx.reply('🦑 No active Squid Game.')
     return ctx.reply(game.phase === 'REGISTERING'
-      ? `🦑 Registration open: ${Object.keys(game.players).length} players. React ✅ to the announcement.`
-      : `🦑 ${game.phase} • Round ${game.round} • ${livePlayers(game).length} survivors.`)
+      ? '🦑 Registration: ' + Object.keys(game.players).length + ' of 2 minimum registered.'
+        + '\n🕘 Starts ' + formatTime(game.nextAt) + ' (' + timeLeft(game.nextAt - now()) + ' remaining).'
+        + '\nReact ✅ to the original announcement. Admin: .squidgame launch / extend 30m'
+      : '🦑 ' + game.phase + ' • Round ' + game.round + ' • ' + livePlayers(game).length + ' survivors.')
+  }
+  async function launch(ctx) {
+    const group = ctx.groupKey
+    return locked(group, async () => {
+      const game = load(group)
+      if (!game || game.phase !== 'REGISTERING') return ctx.reply('🦑 No registration to launch.')
+      if (game.accountId !== ctx.account?.id) return ctx.reply('🦑 Launch this game through the NIGHT account that opened registration.')
+      if (Object.keys(game.players).length < 2) return ctx.reply('🦑 Need at least 2 registered players. Currently ' + Object.keys(game.players).length + '.')
+      await begin(game)
+      return null
+    })
+  }
+  async function extend(ctx, values = []) {
+    const group = ctx.groupKey
+    const window = registrationWindow(values, now())
+    if (!values.length) return ctx.reply('🦑 Usage: .squidgame extend 30m (1m–24h).')
+    if (String(values[0]).toLowerCase() === 'at') return ctx.reply('🦑 Extend by a duration, e.g. .squidgame extend 30m.')
+    return locked(group, async () => {
+      const game = load(group)
+      if (!game || game.phase !== 'REGISTERING') return ctx.reply('🦑 No open registration to extend.')
+      if (game.accountId !== ctx.account?.id) return ctx.reply('🦑 Extend this game through the NIGHT account that opened registration.')
+      // Extending is relative to the current deadline, not from now, unless overdue.
+      const nextAt = Math.max(now(), game.nextAt) + window.ms
+      if (nextAt - now() > MAX_REG_MS) return ctx.reply('🦑 Registration cannot be scheduled more than 24 hours ahead.')
+      game.nextAt = nextAt
+      save(group, game)
+      return ctx.reply('🦑 Registration extended. Start: ' + formatTime(game.nextAt)
+        + '. ' + Object.keys(game.players).length + ' players registered.')
+    })
   }
   async function stop(ctx) {
     const group = ctx.groupKey
@@ -304,15 +377,19 @@ export function createSquidGame({ storage, accountFor, resolvePhoneJid = async (
     return locked(group, async () => {
       const game = load(group)
       if (!game || game.phase !== 'REGISTERING' || game.accountId !== accountValue.id || event?.key?.id !== game.registrationId) return
-      const from = jid(event?.reaction?.key?.participant)
-      if (!from || event?.reaction?.key?.fromMe) return
+      const reactionKey = event?.reaction?.key || {}
+      const from = jid(reactionKey.participant || reactionKey.participantAlt || event?.reaction?.participant || event?.reaction?.senderJid)
+      if (!from || reactionKey.fromMe) return
       let meta
       try { meta = await metadata(game) } catch { return }
       const row = await member(game, from, meta)
-      if (!row || initialAdmin(game, row)) return
+      if (!row) return
       const id = row.jid
       if (event.reaction.text === '✅') {
-        game.players[id] = { jid:id, aliases:participantIds(row.participant), alive:true }
+        const aliases = participantIds(row.participant)
+        const existing = playerFor(game, row)
+        if (existing && existing.jid !== id) delete game.players[existing.jid]
+        game.players[id] = { jid:id, aliases, alive:true }
       } else {
         // WhatsApp sends an empty reaction when someone unreacts.
         const existing = playerFor(game, row)
@@ -336,6 +413,14 @@ export function createSquidGame({ storage, accountFor, resolvePhoneJid = async (
         return !/^[.!/]((squidgame)|(sg))\s+(status|stop|cancel)\b/i.test(text)
       }
       if (game.createdAt < BOOT) return // no eliminations for unobserved offline time
+      // Original admins must retain access to safety/stop commands even if
+      // they opted in, including while RED. Ordinary player commands are
+      // still gameplay messages and can eliminate them during RED.
+      const command = commandText(message?.message).trim()
+      if (/^[.!/](?:squidgame|sg)\s+(?:status|stop|cancel|help)\b/i.test(command)) {
+        const row = await member(game, jid(message?.key?.participant)).catch(() => null)
+        if (row && initialAdmin(game, row)) return false
+      }
       // Hot path: resolve known participant aliases locally. WhatsApp groupMetadata
       // is a network call and must not run for every Green Light message.
       const rawSender = jid(message?.key?.participant)
@@ -388,11 +473,11 @@ export function createSquidGame({ storage, accountFor, resolvePhoneJid = async (
             if (await restore(game)) save(group, null)
             return
           }
-          if (game.createdAt < BOOT) {
+          if (game.createdAt < BOOT && game.phase !== 'REGISTERING') {
             await complete(game, '🛑 Squid Game cancelled after NIGHT restarted. Restoring original settings.')
             return
           }
-          if (now() - (game.nextAt || now()) > 15000) {
+          if (now() - (game.nextAt || now()) > (game.phase === 'REGISTERING' ? 120000 : 15000)) {
             await complete(game, '🛑 Squid Game cancelled after a connection interruption.')
             return
           }
@@ -417,5 +502,5 @@ export function createSquidGame({ storage, accountFor, resolvePhoneJid = async (
       })
     }
   }
-  return { start, status, stop, onReaction, onMessage, tick, get: load }
+  return { start, status, stop, launch, extend, onReaction, onMessage, tick, get: load }
 }
