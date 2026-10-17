@@ -3294,7 +3294,55 @@ private fun PoseControlsOverlay(
                 verticalArrangement = Arrangement.spacedBy(5.dp),
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(7.dp)) {
-                    if (actor?.kind == ActorKind.CHARACTER && bones.isNotEmpty()) {
+                    when {
+                    actor != null && actor.mechanicalParts().isNotEmpty() -> {
+                        MechanicalPartsInspector(editor, actor, onEditor)
+                    }
+                    actor?.kind != ActorKind.CHARACTER -> {
+                        Text("Select a character in Scene to work with its pose.", color = PrimaryText, fontSize = 12.sp)
+                    }
+                    bones.isEmpty() && morphTargets.isEmpty() -> {
+                        Text(rigMessage ?: "Reading the imported rig…", color = PrimaryText, fontSize = 12.sp, modifier = Modifier.testTag("pose-rig-loading"))
+                    }
+                    else -> {
+                        selectedBone?.let { bone ->
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    "${RigSemantics.label(bone, bones)} · ${rotation.axisDegrees(selectedAxis).toInt()}°",
+                                    color = PrimaryText,
+                                    fontSize = 12.sp,
+                                    modifier = Modifier.weight(1f).testTag("selected-joint"),
+                                )
+                                IconButton(
+                                    onClick = { onEditor(editor.setRigJointRotation(bone.id, rotation.withAxisDegrees(selectedAxis, rotation.axisDegrees(selectedAxis) - 10f)), "pose-joint") },
+                                    modifier = Modifier.size(36.dp).testTag("pose-joint-negative"),
+                                ) { Icon(Icons.Default.Remove, contentDescription = "Decrease joint rotation", tint = PrimaryText) }
+                                IconButton(
+                                    onClick = { onEditor(editor.setRigJointRotation(bone.id, rotation.withAxisDegrees(selectedAxis, rotation.axisDegrees(selectedAxis) + 10f)), "pose-joint") },
+                                    modifier = Modifier.size(36.dp).testTag("pose-joint-positive"),
+                                ) { Icon(Icons.Default.Add, contentDescription = "Increase joint rotation", tint = PrimaryText) }
+                            }
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                TransformAxis.values().forEach { axis ->
+                                    FilterChip(
+                                        selected = selectedAxis == axis,
+                                        onClick = { onAxisSelected(axis) },
+                                        label = { Text(axis.name) },
+                                        modifier = Modifier.testTag("pose-axis-${axis.name.lowercase()}"),
+                                    )
+                                }
+                                Spacer(Modifier.weight(1f))
+                                IconButton(
+                                    onClick = { onEditor(editor.resetRigJoint(bone.id), "pose-reset-joint") },
+                                    modifier = Modifier.size(40.dp).testTag("pose-reset-joint"),
+                                ) { Icon(Icons.Default.RestartAlt, contentDescription = "Reset joint", tint = PrimaryText) }
+                                IconButton(
+                                    onClick = { onEditor(editor.resetRigPose(), "pose-reset-all") },
+                                    modifier = Modifier.size(40.dp).testTag("pose-reset-all"),
+                                ) { Icon(Icons.Default.AccessibilityNew, contentDescription = "Reset pose", tint = PrimaryText) }
+                            }
+                        }
+                if (actor?.kind == ActorKind.CHARACTER && bones.isNotEmpty()) {
                         FilterChip(
                             selected = !ikEnabled,
                             onClick = { onIkEnabledChange(false) },
@@ -3397,54 +3445,6 @@ private fun PoseControlsOverlay(
                         }
                     }
                 }
-                when {
-                    actor != null && actor.mechanicalParts().isNotEmpty() -> {
-                        MechanicalPartsInspector(editor, actor, onEditor)
-                    }
-                    actor?.kind != ActorKind.CHARACTER -> {
-                        Text("Select a character in Scene to work with its pose.", color = PrimaryText, fontSize = 12.sp)
-                    }
-                    bones.isEmpty() && morphTargets.isEmpty() -> {
-                        Text(rigMessage ?: "Reading the imported rig…", color = PrimaryText, fontSize = 12.sp, modifier = Modifier.testTag("pose-rig-loading"))
-                    }
-                    else -> {
-                        selectedBone?.let { bone ->
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text(
-                                    "${RigSemantics.label(bone, bones)} · ${rotation.axisDegrees(selectedAxis).toInt()}°",
-                                    color = PrimaryText,
-                                    fontSize = 12.sp,
-                                    modifier = Modifier.weight(1f).testTag("selected-joint"),
-                                )
-                                IconButton(
-                                    onClick = { onEditor(editor.setRigJointRotation(bone.id, rotation.withAxisDegrees(selectedAxis, rotation.axisDegrees(selectedAxis) - 10f)), "pose-joint") },
-                                    modifier = Modifier.size(36.dp).testTag("pose-joint-negative"),
-                                ) { Icon(Icons.Default.Remove, contentDescription = "Decrease joint rotation", tint = PrimaryText) }
-                                IconButton(
-                                    onClick = { onEditor(editor.setRigJointRotation(bone.id, rotation.withAxisDegrees(selectedAxis, rotation.axisDegrees(selectedAxis) + 10f)), "pose-joint") },
-                                    modifier = Modifier.size(36.dp).testTag("pose-joint-positive"),
-                                ) { Icon(Icons.Default.Add, contentDescription = "Increase joint rotation", tint = PrimaryText) }
-                            }
-                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                                TransformAxis.values().forEach { axis ->
-                                    FilterChip(
-                                        selected = selectedAxis == axis,
-                                        onClick = { onAxisSelected(axis) },
-                                        label = { Text(axis.name) },
-                                        modifier = Modifier.testTag("pose-axis-${axis.name.lowercase()}"),
-                                    )
-                                }
-                                Spacer(Modifier.weight(1f))
-                                IconButton(
-                                    onClick = { onEditor(editor.resetRigJoint(bone.id), "pose-reset-joint") },
-                                    modifier = Modifier.size(40.dp).testTag("pose-reset-joint"),
-                                ) { Icon(Icons.Default.RestartAlt, contentDescription = "Reset joint", tint = PrimaryText) }
-                                IconButton(
-                                    onClick = { onEditor(editor.resetRigPose(), "pose-reset-all") },
-                                    modifier = Modifier.size(40.dp).testTag("pose-reset-all"),
-                                ) { Icon(Icons.Default.AccessibilityNew, contentDescription = "Reset pose", tint = PrimaryText) }
-                            }
-                        }
                         if (morphTargets.isNotEmpty()) {
                             Text("Expressions & shape", color = MutedText, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
                             Row(
