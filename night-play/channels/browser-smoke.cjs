@@ -17,6 +17,10 @@ const server=http.createServer(async(req,res)=>{
     if(action==='channel:remove'){deleted=true;return res.end(JSON.stringify({ok:true}))}
     res.statusCode=400;return res.end(JSON.stringify({error:'Unknown action.'}))
   }
+  if(route==='/site-shell.css'){
+    res.setHeader('Content-Type','text/css; charset=utf-8')
+    return res.end(fs.readFileSync(path.join(__dirname,'../site-shell.css')))
+  }
   if(route==='/channels/'||route==='/channels'){
     res.setHeader('Content-Type','text/html; charset=utf-8')
     return res.end(fs.readFileSync(path.join(__dirname,'index.html')))
