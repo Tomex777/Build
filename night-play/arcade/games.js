@@ -253,11 +253,18 @@ function blockTouchMove(e){
  const g=blockGesture;
  if(!g||g.id!==e.pointerId||type!=="blocks"||finished||paused||!state||g.piece!==state.cur)return;
  const dx=e.clientX-g.startX,dy=e.clientY-g.startY;
- // Keep only a short history so a quick flick still works after holding a
- // piece in place, but a slow drag or a stationary release never hard-drops.
- const sampledAt=performance.now();
- g.recent.push({y:e.clientY,t:sampledAt});
- while(g.recent.length>1&&sampledAt-g.recent[0].t>180)g.recent.shift();
+ // Track the *last moving segment*, not time since the finger first
+ // touched down. A flick can follow a stationary hold. A release at the
+ // same coordinates must not zero out the last actual movement velocity.
+ const sampledAt=performance.now(),deltaT=sampledAt-g.lastMoveAt;
+ const deltaY=e.clientY-g.lastY;
+ if(deltaY!==0||e.clientX!==g.lastX){
+  if(deltaY>6&&deltaT>0&&deltaT<170){
+   g.lastDownVelocity=deltaY/deltaT;
+   g.lastDownAt=sampledAt;
+  }else if(deltaY<=0){g.lastDownVelocity=0;g.lastDownAt=0;}
+  g.lastMoveAt=sampledAt;g.lastY=e.clientY;g.lastX=e.clientX;
+ }
  const bounds=c.getBoundingClientRect();
  const col=Math.max(12,bounds.width/10),row=Math.max(10,bounds.height/20);
  const threshold=Math.max(10,Math.min(15,col*.35));
@@ -288,7 +295,8 @@ c.addEventListener("pointerdown",e=>{
  blockPointers.add(e.pointerId);
  if(blockPointers.size!==1){blockGesture=null;return;} // reject multi-finger ambiguity
  blockGesture={id:e.pointerId,startX:e.clientX,startY:e.clientY,startAt:performance.now(),
-              piece:state.cur,axis:null,steps:0,recent:[{y:e.clientY,t:performance.now()}]};
+              piece:state.cur,axis:null,steps:0,lastY:e.clientY,lastX:e.clientX,
+              lastMoveAt:performance.now(),lastDownVelocity:0,lastDownAt:0};
  try{c.setPointerCapture(e.pointerId);}catch{}
  if(e.cancelable)e.preventDefault();
 });
@@ -305,8 +313,7 @@ c.addEventListener("pointerup",e=>{
  blockTouchMove(e);
  const dx=e.clientX-g.startX,dy=e.clientY-g.startY;
  const duration=Math.max(1,performance.now()-g.startAt);
- const recent=g.recent[0];
- const recentSpeed=g.recent.length>1?(e.clientY-recent.y)/Math.max(1,performance.now()-recent.t):0;
+ const recentSpeed=performance.now()-g.lastDownAt<140?g.lastDownVelocity:0;
  blockGesture=null;
  if(finished||paused||!state||g.piece!==state.cur)return;
  if(g.axis==="vertical"&&dy>Math.max(55,c.getBoundingClientRect().height/20*2.65)&&
