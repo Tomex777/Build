@@ -299,8 +299,8 @@ export function createSquidGame({ storage, accountFor, resolvePhoneJid = async (
       const sent = await ctx.account.sock.sendMessage(group, { text:[
         '🦑 *NIGHT — SQUID GAME*',
         '',
-        `React ✅ to *this message* to enter. Registration ${window.description}.`,
-        `🕘 Start: *${formatTime(game.nextAt)}*. Admin can use *.squidgame launch* to begin early (2+ players).`,
+        `React ✅ to *this message* to enter. Closes *${formatTime(game.nextAt)}* (${timeLeft(window.ms)}).`,
+        '🕘 Admin can begin early with *.squidgame launch*.',
         '',
         '🟢 GREEN: Send at least *3 different, original messages* every round.',
         '🔴 RED: Send *nothing*. Any sent message eliminates you.',
