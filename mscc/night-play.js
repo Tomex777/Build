@@ -29,6 +29,7 @@ export class NightPlay {
     db.exec(`
       CREATE TABLE IF NOT EXISTS play_users (id TEXT PRIMARY KEY, display_name TEXT NOT NULL, created_at INTEGER NOT NULL);
       CREATE TABLE IF NOT EXISTS play_identities (identity TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES play_users(id) ON DELETE CASCADE);
+      CREATE TABLE IF NOT EXISTS play_avatars (user_id TEXT PRIMARY KEY REFERENCES play_users(id) ON DELETE CASCADE, mime TEXT NOT NULL, image BLOB NOT NULL, updated_at INTEGER NOT NULL);
       CREATE TABLE IF NOT EXISTS play_sessions (id TEXT PRIMARY KEY, user_id TEXT REFERENCES play_users(id) ON DELETE CASCADE, expires_at INTEGER NOT NULL);
       CREATE TABLE IF NOT EXISTS play_challenges (code_hash TEXT PRIMARY KEY, session_id TEXT NOT NULL UNIQUE REFERENCES play_sessions(id) ON DELETE CASCADE, expires_at INTEGER NOT NULL);
       CREATE TABLE IF NOT EXISTS play_limits (id TEXT PRIMARY KEY, count INTEGER NOT NULL, expires_at INTEGER NOT NULL);
@@ -63,7 +64,25 @@ export class NightPlay {
   }
   profile(id) {
     const row = this.db.prepare('SELECT id, display_name FROM play_users WHERE id=?').get(id)
-    return row ? { id:row.id, displayName:row.display_name } : null
+    if (!row) return null
+    const image = this.db.prepare('SELECT mime, image FROM play_avatars WHERE user_id=?').get(id)
+    return { id:row.id, displayName:row.display_name, ...(image ? { avatarData:'data:' + image.mime + ';base64,' + image.image.toString('base64') } : {}) }
+  }
+  avatarCandidates(id) {
+    // Derived only from verified bot-side identities. Never sent to the browser.
+    return [...new Set(this.db.prepare('SELECT identity FROM play_identities WHERE user_id=?').all(id)
+      .flatMap(({ identity }) => /^\d{7,15}$/.test(identity) ? [identity + '@s.whatsapp.net'] :
+        /^jid:\d+@(?:lid|hosted\.lid)$/.test(identity) ? [identity.slice(4)] : []))]
+  }
+  saveAvatar(id, data) {
+    if (!Buffer.isBuffer(data) || !data.length || data.length > 196608) return false
+    const jpeg = data.length > 3 && data[0] === 0xff && data[1] === 0xd8 && data[2] === 0xff
+    const png = data.subarray(0, 8).equals(Buffer.from([137,80,78,71,13,10,26,10]))
+    if (!jpeg && !png) return false
+    if (!this.db.prepare('SELECT 1 FROM play_users WHERE id=?').get(id)) return false
+    this.db.prepare('INSERT INTO play_avatars VALUES (?,?,?,?) ON CONFLICT(user_id) DO UPDATE SET mime=excluded.mime, image=excluded.image, updated_at=excluded.updated_at')
+      .run(id, jpeg ? 'image/jpeg' : 'image/png', data, this.now())
+    return true
   }
   request({ action, session, client, displayName }) {
     this.cleanup()
@@ -106,6 +125,7 @@ export class NightPlay {
       return { linked:true, profile:this.profile(row.user_id) }
     }
     if (action === 'delete') {
+      this.db.prepare('DELETE FROM play_avatars WHERE user_id=?').run(row.user_id)
       this.db.prepare('DELETE FROM play_users WHERE id=?').run(row.user_id)
       return { ok:true }
     }
@@ -151,7 +171,7 @@ export class NightPlay {
   }
 }
 
-export function createNightPlayHandler(play, { publicKey = readFileSync(new URL('./night-play-public-key.pem', import.meta.url), 'utf8') } = {}) {
+export function createNightPlayHandler(play, { publicKey = readFileSync(new URL('./night-play-public-key.pem', import.meta.url), 'utf8'), refreshAvatar = null } = {}) {
   const key = createPublicKey(publicKey)
   return async (req, res) => {
     const reply = (status, body) => {
@@ -185,7 +205,13 @@ export function createNightPlayHandler(play, { publicKey = readFileSync(new URL(
       if (!body || Array.isArray(body) || typeof body !== 'object') return reply(400, { error:'Invalid request.' })
       play.limit('rpc-global', 1800)
       play.limit('rpc-client:' + String(body.client || 'unknown'), 180)
-      return reply(200, play.request(body))
+      const result = play.request(body)
+      // An already-linked browser can obtain its permitted WhatsApp photo
+      // without another QR/code. Background only: signed RPC stays responsive.
+      if (body.action === 'status' && result.linked && !result.profile?.avatarData && refreshAvatar) {
+        Promise.resolve().then(() => refreshAvatar(result.profile.id)).catch(() => {})
+      }
+      return reply(200, result)
     } catch (error) {
       return reply(error instanceof PlayError ? error.status : 500, { error:error instanceof PlayError ? error.message : 'NIGHT Play could not process the request.' })
     }
