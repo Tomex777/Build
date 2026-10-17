@@ -2,6 +2,7 @@ import { createHash, randomBytes, randomUUID, verify, createPublicKey } from 'no
 import { readFileSync } from 'node:fs'
 import { NightPlayMatches } from './night-play-matches.js'
 import { NightPlayChannels, ChannelError } from './night-play-channels.js'
+import { NightSessions, NightError } from './night-play-nights.js'
 
 export const PLAY_URL = 'https://night-play-combined-preview.vercel.app'
 export const PLAY_RPC_PATH = '/api/night-play/rpc'
@@ -40,6 +41,7 @@ export class NightPlay {
     this.nextCleanup = 0
     this.matches = new NightPlayMatches(db, { now })
     this.channels = new NightPlayChannels(this, { now })
+    this.nights = new NightSessions(this, { now })
   }
   transaction(fn) {
     this.db.exec('BEGIN IMMEDIATE')
@@ -145,6 +147,7 @@ export class NightPlay {
     if (action === 'delete') {
       this.matches.removeUser(row.user_id)
       this.channels.removeUser(row.user_id)
+      this.nights.removeUser(row.user_id)
       this.db.prepare('DELETE FROM play_avatars WHERE user_id=?').run(row.user_id)
       this.db.prepare('DELETE FROM play_users WHERE id=?').run(row.user_id)
       return { ok:true }
@@ -225,7 +228,7 @@ export function createNightPlayHandler(play, { publicKey = readFileSync(new URL(
       if (!body || Array.isArray(body) || typeof body !== 'object') return reply(400, { error:'Invalid request.' })
       play.limit('rpc-global', 1800)
       play.limit('rpc-client:' + String(body.client || 'unknown'), 180)
-      const result = body.action === 'channel:verify' ? await (async () => {
+      const result = String(body.action||'').startsWith('night:') ? await play.nights.request(body,accounts) : body.action === 'channel:verify' ? await (async () => {
         const userId = body.session ? play.session(body.session)?.user_id : null
         if (!userId) throw new PlayError(401,'Connect WhatsApp to continue.')
         if (body.channelId !== undefined && !/^\d{8,25}@newsletter$/.test(String(body.channelId))) throw new PlayError(400,'Invalid channel.')
@@ -238,7 +241,7 @@ export function createNightPlayHandler(play, { publicKey = readFileSync(new URL(
       }
       return reply(200, result)
     } catch (error) {
-      return reply((error instanceof PlayError || error instanceof ChannelError) ? error.status : 500, { error:(error instanceof PlayError || error instanceof ChannelError) ? error.message : 'NIGHT Play could not process the request.' })
+      return reply((error instanceof PlayError || error instanceof ChannelError || error instanceof NightError) ? error.status : 500, { error:(error instanceof PlayError || error instanceof ChannelError) ? error.message : 'NIGHT Play could not process the request.' })
     }
   }
 }

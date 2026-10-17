@@ -1,6 +1,7 @@
 import './night-play-avatar-selftest.js'
 import './night-play-matches-selftest.js'
 import './night-play-channels-selftest.js'
+import './night-play-nights-selftest.js'
 import assert from 'node:assert/strict'
 import { DatabaseSync } from 'node:sqlite'
 import { randomBytes, generateKeyPairSync, sign } from 'node:crypto'
