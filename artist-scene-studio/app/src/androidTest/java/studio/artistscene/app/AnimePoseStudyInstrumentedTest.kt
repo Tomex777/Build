@@ -236,6 +236,17 @@ class AnimePoseStudyInstrumentedTest {
                 val scroll = requireNotNull(
                     device.wait(Until.findObject(By.res("context-sheet-content")), 10_000),
                 ) { "Inspector scroll panel not accessible" }
+                val diagnosticScreenshot = File(proof, "anime-inspector-hair-controls.png")
+                assertTrue("Inspector could not be captured", device.takeScreenshot(diagnosticScreenshot))
+                val diagnosticHierarchy = File(proof, "anime-inspector-hair-controls.xml")
+                device.dumpWindowHierarchy(diagnosticHierarchy)
+                println("MISE_HAIR_INSPECTOR_DIAG " +
+                    diagnosticHierarchy.readText().split(">").filter {
+                        it.contains("anime-gravity") || it.contains("Gravity") ||
+                            it.contains("Hair") || it.contains("Appearance") ||
+                            it.contains("actor-")
+                    }.take(15).joinToString(" ") { it.takeLast(180) })
+
                 fun pressRepeated(tag: String, count: Int) {
                     repeat(count) {
                         var button = device.findObject(By.res(tag))
