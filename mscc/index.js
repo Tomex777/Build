@@ -196,6 +196,7 @@ const squidGame = createSquidGame({
   storage:() => sharedStorage,
   accountFor:id => accounts.get(id),
   resolvePhoneJid:(account, id) => resolvePhoneJid(account, id),
+  observedNameFor:(group, id) => sharedStorage?.latestConversationSpeaker(group, id) || '',
 })
 let squidGameTimer = null
 const makeAccount = record => ({
