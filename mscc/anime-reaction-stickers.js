@@ -2,6 +2,7 @@
 // GIFs are source material only; WhatsApp receives animated WebP stickers, never GIF messages.
 import { contextInfo } from './utils/whatsapp/messages.js'
 import { mediaToSticker } from './utils/media-conversion.js'
+import { applyStickerMetadata, DEFAULT_STICKER_PACK_NAME } from './utils/sticker-metadata.js'
 import { stickerPackNameForCommand } from './utils/sticker-metadata.js'
 import { reactionProviders } from './utils/anime-reaction-providers.js'
 
@@ -27,6 +28,7 @@ const MAX_MEDIA_BYTES = 16 * 1024 * 1024
 // exact reaction + sticker pack so users' pack credits never leak.
 const stickerCache = new Map()
 const foreground = new Map()
+const rawForeground = new Map()
 const MAX_CACHE_BYTES = 10 * 1024 * 1024
 const MAX_CACHE_KEYS = 24
 const MAX_VARIANTS = 2
@@ -74,7 +76,7 @@ function cachedSticker(cacheKey) {
   // A cache read updates LRU order, but never extends an expired source clip.
   stickerCache.delete(cacheKey)
   stickerCache.set(cacheKey,entry)
-  return {sticker:next.sticker, entry}
+  return {sticker:next.sticker, sourceId:next.sourceId, entry}
 }
 export function animeReactionCacheStats() {
   enforceCacheLimits()
@@ -147,9 +149,11 @@ async function downloadGif(url) {
   return content
 }
 
-// Download/FFmpeg is kept out of WhatsApp delivery so requests for the same
-// category + pack can share work, while each still gets its own reply/mentions.
-async function prepareReactionSticker(category, packName, cacheKey, { limited = false } = {}) {
+// The original GIF-to-WebP conversion does not depend on the caller. Cache a
+// *neutral* reaction WebP by category, then apply personalized pack metadata
+// cheaply without FFmpeg. Different senders share the expensive work without
+// accidentally receiving somebody else's pack name or publisher credits.
+async function buildRawReaction(category, {limited = false} = {}) {
   const failures = []
   let providers = reactionProviders(category)
   if (limited) providers = providers.slice(0,2)
@@ -164,17 +168,36 @@ async function prepareReactionSticker(category, packName, cacheKey, { limited = 
       try {
         const gif = await downloadGif(url)
         const sticker = await mediaToSticker(gif, {
-          animated:true, fastAnimated:true, packName,
+          animated:true, fastAnimated:true, packName:DEFAULT_STICKER_PACK_NAME,
         })
         if (sticker.length > MAX_VARIANT_BYTES) throw new Error('Converted sticker exceeds WhatsApp target size')
-        rememberSticker(cacheKey,sticker,url)
-        return sticker
+        rememberSticker('raw:'+category,sticker,url)
+        return {sticker,sourceId:url}
       } catch (error) {
         failures.push(provider.name + ': ' + String(error?.message || error).slice(0,140))
       }
     }
   }
   throw new Error(failures.join(' | ').slice(0,600) || 'No available GIF sources')
+}
+
+async function prepareReactionSticker(category, packName, cacheKey, {limited=false,force=false} = {}) {
+  let source = force ? null : cachedSticker('raw:'+category)
+  if (!source) {
+    let pending = rawForeground.get(category)
+    if (!pending) {
+      pending = buildRawReaction(category,{limited})
+      rawForeground.set(category,pending)
+      void pending.finally(() => {
+        if (rawForeground.get(category)===pending) rawForeground.delete(category)
+      }).catch(()=>{})
+    }
+    source = await pending
+  }
+  const sticker = await applyStickerMetadata(source.sticker,{packName})
+  if (sticker.length > MAX_VARIANT_BYTES) throw new Error('Sticker metadata exceeds WhatsApp target size')
+  rememberSticker(cacheKey,sticker,source.sourceId)
+  return sticker
 }
 
 // Keep two varied clips ready for popular reactions without adding latency to
@@ -187,7 +210,7 @@ function maybeRefresh(cacheKey, category, packName, entry) {
     if (backgroundBusy || foreground.size) return
     backgroundBusy = true
     try {
-      await prepareReactionSticker(category,packName,cacheKey,{limited:true})
+      await prepareReactionSticker(category,packName,cacheKey,{limited:true,force:true})
     } catch {
       // Keep the previously verified animation; network providers are optional.
     } finally { backgroundBusy = false }
