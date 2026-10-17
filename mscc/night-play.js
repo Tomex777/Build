@@ -66,7 +66,7 @@ export class NightPlay {
     const row = this.db.prepare('SELECT id, display_name FROM play_users WHERE id=?').get(id)
     if (!row) return null
     const image = this.db.prepare('SELECT mime, image FROM play_avatars WHERE user_id=?').get(id)
-    return { id:row.id, displayName:row.display_name, ...(image ? { avatarData:'data:' + image.mime + ';base64,' + image.image.toString('base64') } : {}) }
+    return { id:row.id, displayName:row.display_name, ...(image ? { avatarData:'data:' + image.mime + ';base64,' + Buffer.from(image.image).toString('base64') } : {}) }
   }
   avatarCandidates(id) {
     // Derived only from verified bot-side identities. Never sent to the browser.
