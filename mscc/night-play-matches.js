@@ -52,3 +52,61 @@ export class NightPlayMatches {
    return this.view(this.row(row.id),user)
   })
  }
+ random(user){
+  return this.atomic(()=>{
+   const mine=this.db.prepare("SELECT * FROM play_matches WHERE x=? AND visibility='public' AND status='waiting' ORDER BY created_at DESC LIMIT 1").get(user)
+   if(mine)return this.view(mine,user)
+   const row=this.db.prepare("SELECT * FROM play_matches WHERE x<>? AND status='waiting' AND visibility='public' AND created_at>? ORDER BY created_at LIMIT 1").get(user,this.now()-86400000)
+   if(!row)return this.create(user,'public')
+   this.db.prepare("UPDATE play_matches SET o=?,status='active',version=version+1,updated_at=? WHERE id=?").run(user,this.now(),row.id)
+   return this.view(this.row(row.id),user)
+  })
+ }
+ list(user){
+  const rows=this.db.prepare("SELECT * FROM play_matches WHERE x=? OR o=? ORDER BY CASE status WHEN 'active' THEN 0 WHEN 'waiting' THEN 1 ELSE 2 END,updated_at DESC LIMIT 16").all(user,user)
+  return {matches:rows.map(row=>this.view(row,user))}
+ }
+ move(user,id,cell){
+  if(!Number.isInteger(cell)||cell<0||cell>8)throw new PlayError(400,'Invalid square.')
+  return this.atomic(()=>{
+   const row=this.row(id)
+   this.view(row,user)
+   if(row.status!=='active')throw new PlayError(409,'This match is not active.')
+   const side=row.x===user?'X':'O'
+   if(row.turn!==side)throw new PlayError(409,'Wait for your turn.')
+   if(row.board[cell]!=='.')throw new PlayError(409,'Square already taken.')
+   const board=row.board.slice(0,cell)+side+row.board.slice(cell+1)
+   const won=WIN.some(line=>line.every(i=>board[i]===side))
+   const finished=won||!board.includes('.')
+   const winner=won?side:(finished?'D':null)
+   this.db.prepare('UPDATE play_matches SET board=?,turn=?,status=?,winner=?,version=version+1,updated_at=? WHERE id=?')
+    .run(board,finished?'-':side==='X'?'O':'X',finished?'finished':'active',winner,this.now(),id)
+   return this.view(this.row(id),user)
+  })
+ }
+ leave(user,id){
+  return this.atomic(()=>{
+   const row=this.row(id)
+   this.view(row,user)
+   if(row.status==='finished')return this.view(row,user)
+   if(row.status==='waiting'&&row.x===user){
+    this.db.prepare('DELETE FROM play_matches WHERE id=?').run(id)
+    return {left:true}
+   }
+   this.db.prepare("UPDATE play_matches SET status='finished',winner=?,turn='-',version=version+1,updated_at=? WHERE id=?")
+    .run(row.x===user?'O':'X',this.now(),id)
+   return this.view(this.row(id),user)
+  })
+ }
+ removeUser(user){this.db.prepare('DELETE FROM play_matches WHERE x=? OR o=?').run(user,user)}
+ request(action,user,{matchId,code,cell}={}){
+  if(action==='match:create')return this.create(user)
+  if(action==='match:random')return this.random(user)
+  if(action==='match:join')return this.join(user,code)
+  if(action==='match:list')return this.list(user)
+  if(action==='match:state')return this.view(this.row(matchId),user)
+  if(action==='match:move')return this.move(user,matchId,cell)
+  if(action==='match:leave')return this.leave(user,matchId)
+  throw new PlayError(400,'Unknown match action.')
+ }
+}
