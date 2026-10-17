@@ -2,6 +2,7 @@ import { spawn } from 'node:child_process'
 import { mkdir, mkdtemp, readdir, rm, stat } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { tryPublicTikTokFallback } from './tiktok-fallback.js'
 
 const BINARY = '/opt/mscc/tools/yt-dlp/bin/yt-dlp'
 const GALLERY_BINARY = '/opt/mscc/tools/yt-dlp/bin/gallery-dl'
@@ -74,8 +75,13 @@ export function parseSocialRequest(text = '') {
 }
 
 function extractorError(stderr, status) {
-  if (/login|sign.in|private|not available|forbidden|403|cookies|age.restricted/i.test(stderr)) {
-    return new Error('That post is private, restricted or blocked by the platform. NIGHT only downloads publicly accessible media; no login or cookie bypass.')
+  if (/\b(?:private video|video is private|private account|privacy settings|friends.only)\b/i.test(stderr)) {
+    return new Error('The platform reports this video is private or restricted. NIGHT can only fetch publicly available posts.')
+  }
+  // Login prompts and HTTP 403 frequently indicate extractor bot-blocking,
+  // even on public posts. Never tell the user their post is private on that basis.
+  if (/login|sign.in|not available|forbidden|403|cookies|age.restricted/i.test(stderr)) {
+    return new Error('The site blocked anonymous extraction. This does not mean the video is private.')
   }
   if (/unsupported URL|no video formats|no video|not a valid url/i.test(stderr)) {
     return new Error('This post has no downloadable media, or its format is not supported yet.')
@@ -197,7 +203,7 @@ export async function prepareSocialDownload(rawUrl, options = {}) {
     // carousels and Pinterest pins, including multiple images in one post.
     const galleryFirst = (request.platform === 'Instagram' && request.isAlbum) || request.platform === 'Pinterest'
     const engines = galleryFirst ? ['gallery','video'] :
-      ['Instagram','TikTok'].includes(request.platform) ? ['video','gallery'] : ['video']
+      request.platform === 'Instagram' ? ['video','gallery'] : ['video']
     let lastError
     for (const engine of engines) {
       try {
@@ -208,6 +214,13 @@ export async function prepareSocialDownload(rawUrl, options = {}) {
         await rm(dir,{ recursive:true,force:true })
         await mkdir(dir,{ recursive:true })
       }
+    }
+    if (request.platform === 'TikTok') {
+      // Nexia used yt-dlp then a public TikTok API. Restore this resilience:
+      // try the older Siputzx method, then an independent TikWM extractor.
+      // Neither public provider receives private credentials or cookies.
+      const files = await tryPublicTikTokFallback(request,dir,options)
+      return { request, files, cleanup }
     }
     throw lastError
   } catch (error) { await cleanup(); throw error }
