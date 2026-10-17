@@ -1,10 +1,10 @@
 {
-  "releaseId": "night-2026-10-17-14",
+  "releaseId": "night-2026-10-17-15-tiktok-download",
   "baseBranch": "mscc-azure",
-  "baseCommit": "d12dd807e69c89dceaa2f313e7be07712e380ad4",
+  "baseCommit": "844e360ec4b80cb2b70320a54072d6ef63c534c4",
   "pullRequests": [
-    309
+    320
   ],
-  "carriedForwardRelease": "night-2026-10-17-13",
-  "notes": "Deploy NIGHT Play account avatars and true online Tic-Tac-Toe from reviewed PR #309 (which incorporates the avatar implementation from #308). Preserve existing WhatsApp account credentials, bot session files, ingress, Cortex authentication and existing working NIGHT Play account-linking. SQLite: additive play_avatars and play_matches tables; match identity and move checks are server-side. Validate full Azure tests on exact release head and require protected mscc-production approval. After deployment verify unsigned RPC rejection, signed website account status, then two independent WhatsApp-linked users creating/joining a room, turn protection, disconnect/reconnect persistence, actual profile image privacy fallback and no regressions. Roll back on health failure. Only deploy the companion Vercel multiplayer site once backend passes live readiness."
+  "carriedForwardRelease": "night-2026-10-17-14",
+  "notes": "Single-scope reviewed batch for PR #320: fix NIGHT .tiktok public-media downloader misclassifying HTTP 403/login/extractor failures as private posts. Preserve yt-dlp primary and add anonymous public Siputzx and TikWM fallback providers with bounded downloads, allowlisted HTTPS media URLs, basic signature verification and safe cleanup. Include social-download and TikTok fallback regressions in npm run check. Do not add unrelated open PRs. One protected mscc-production approval after full combined CI; then verify Azure deployed SHA, bot health, publicly accessible TikTok video/photo download using the reported vt.tiktok.com sample when still available, and accurate error messages on extraction failures. Do not touch session credentials, account bindings, Cortex ingress or existing media functions. Roll back if deployment or health checks fail."
 }
