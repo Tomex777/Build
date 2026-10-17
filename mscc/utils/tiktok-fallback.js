@@ -39,9 +39,9 @@ export function extractTikTokMedia(provider, response) {
   return url ? [{ url, ext:'mp4', mime:'video/mp4' }] : []
 }
 
-async function fetchJson(fetchImpl, url) {
+async function fetchJson(fetchImpl, url, init = {}) {
   const response = await fetchImpl(url, {
-    redirect:'manual', headers:{ 'User-Agent':UA, Accept:'application/json' },
+    redirect:'manual', ...init, headers:{ 'User-Agent':UA, Accept:'application/json', ...(init.headers || {}) },
     signal:AbortSignal.timeout(PROVIDER_TIMEOUT_MS),
   })
   if (!response.ok || response.status >= 300) throw new Error(`provider HTTP ${response.status}`)
@@ -56,12 +56,26 @@ async function fetchJson(fetchImpl, url) {
   return JSON.parse(Buffer.concat(chunks).toString('utf8'))
 }
 
+async function getProviderData(fetchImpl, provider, endpoint, originalUrl) {
+  if (provider !== 'tikwm') return fetchJson(fetchImpl,endpoint)
+  // TikWM accepts URL-encoded POST, with GET as a compatibility fallback.
+  try {
+    return await fetchJson(fetchImpl,'https://www.tikwm.com/api/',{
+      method:'POST',
+      headers:{ 'Content-Type':'application/x-www-form-urlencoded' },
+      body:new URLSearchParams({ url:originalUrl, hd:'1' }).toString(),
+    })
+  } catch {
+    return fetchJson(fetchImpl,endpoint)
+  }
+}
+
 async function saveMedia(fetchImpl, url, file, mime, maxBytes) {
   let target = url
   let response
   for (let redirects = 0; redirects < 4; redirects++) {
     response = await fetchImpl(target, {
-      redirect:'manual', headers:{ 'User-Agent':UA, Accept:'video/mp4,image/*,*/*;q=0.8', Referer:'https://www.tiktok.com/' },
+      redirect:'manual', headers:{ 'User-Agent':UA, Accept:'video/mp4,image/*,*/*;q=0.8', Referer:new URL(target).hostname.endsWith('tikwm.com') ? 'https://www.tikwm.com/' : 'https://www.tiktok.com/' },
       signal:AbortSignal.timeout(MEDIA_TIMEOUT_MS),
     })
     if (![301,302,303,307,308].includes(response.status)) break
@@ -107,7 +121,7 @@ export async function tryPublicTikTokFallback(request, dir, { fetchImpl = global
   ]
   for (const [provider, endpoint] of providers) {
     try {
-      const parsed = extractTikTokMedia(provider,await fetchJson(fetchImpl,endpoint))
+      const parsed = extractTikTokMedia(provider,await getProviderData(fetchImpl,provider,endpoint,request.url))
       if (!parsed.length) throw new Error('no downloadable video or images')
       const files = []
       let total = 0
