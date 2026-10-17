@@ -7,6 +7,7 @@ on:
     paths:
       - 'sora-overlay/**'
       - 'sora-ci/hub-tabs-smoke.sh'
+      - 'sora-ci/arcade-saved-media-smoke.sh'
       - '.github/workflows/sora-arcade-android-acceptance.yml'
 
 concurrency:
@@ -64,11 +65,14 @@ jobs:
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
           script: |
             bash "$GITHUB_WORKSPACE/sora-ci/hub-tabs-smoke.sh"
+            bash "$GITHUB_WORKSPACE/sora-ci/arcade-saved-media-smoke.sh"
       - name: Upload real Android game screenshots and failure diagnostics
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: sora-arcade-api${{ matrix.api }}-screenshots
-          path: /tmp/sora-hub-tabs
+          path: |
+            /tmp/sora-hub-tabs
+            /tmp/sora-arcade-saved-media
           if-no-files-found: warn
           retention-days: 14
