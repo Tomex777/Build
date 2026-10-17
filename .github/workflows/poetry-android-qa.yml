@@ -58,10 +58,27 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.9'
-      - name: Compile and assemble debug APK
-        run: gradle :app:assembleDebug :app:assembleDebugAndroidTest --no-daemon --stacktrace
+      - name: Compile both tested and unsigned production variants
+        run: gradle :app:assembleDebug :app:assembleDebugAndroidTest :app:assembleRelease --no-daemon --stacktrace
       - name: Run JVM tests
         run: gradle :app:testDebugUnitTest --no-daemon --stacktrace
+      - name: Verify Android 8 compatibility and truly offline permissions
+        run: |
+          set -euo pipefail
+          APK=app/build/outputs/apk/debug/app-debug.apk
+          RELEASE=app/build/outputs/apk/release/app-release-unsigned.apk
+          test -s "$APK"
+          test -s "$RELEASE"
+          AAPT="${ANDROID_HOME:-/usr/local/lib/android/sdk}/build-tools/35.0.0/aapt"
+          "$AAPT" dump badging "$APK" | grep -F "sdkVersion:'26'"
+          "$AAPT" dump badging "$APK" | grep -F "versionName='1.0.0'"
+          "$AAPT" dump permissions "$APK" > /tmp/poetry-permissions.txt
+          if grep -Eq 'android.permission.INTERNET|android.permission.ACCESS_NETWORK_STATE' /tmp/poetry-permissions.txt; then
+            echo "::error::Offline Poetry must not request any network permissions."
+            exit 1
+          fi
+      - name: Android lint release gate
+        run: gradle :app:lintRelease --no-daemon --stacktrace
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -69,6 +86,8 @@ jobs:
           path: |
             poetry-android/app/build/outputs/apk/debug/*.apk
             poetry-android/app/build/outputs/apk/androidTest/debug/*.apk
+            poetry-android/app/build/outputs/apk/release/*.apk
+            poetry-android/app/build/reports/lint-results*
             poetry-android/app/build/reports/tests/
           if-no-files-found: warn
 
@@ -123,3 +142,29 @@ jobs:
             poetry-android/app/build/reports/androidTests/
             poetry-android/app/build/outputs/androidTest-results/
           if-no-files-found: warn
+
+  # The unsigned production APK is published ONLY when compile, lint,
+  # API 26 and API 35 real-emulator tests have all succeeded.
+  unsigned-release:
+    needs: [compile, emulator]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: poetry-android-build-outputs
+          path: /tmp/poetry-build
+      - name: Validate and prepare unsigned Poetry 1.0 APK
+        run: |
+          set -euo pipefail
+          RELEASE="$(find /tmp/poetry-build -name app-release-unsigned.apk -type f -print -quit)"
+          test -n "$RELEASE"
+          test -s "$RELEASE"
+          mkdir -p dist
+          cp "$RELEASE" dist/Poetry-1.0.0-unsigned-release.apk
+          (cd dist && sha256sum Poetry-1.0.0-unsigned-release.apk > SHA256SUMS.txt)
+          echo "Unsigned APK staged. Keep release-signing key OUT of CI and chat."
+      - uses: actions/upload-artifact@v4
+        with:
+          name: poetry-1.0.0-unsigned-release
+          path: dist/
+          if-no-files-found: error
