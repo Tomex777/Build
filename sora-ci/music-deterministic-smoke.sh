@@ -229,9 +229,11 @@ for node in root.iter('node'):
     if b:
         x1,y1,x2,y2=map(int,b.groups())
         matches.append(((y1+y2)//2,(x1+x2)//2))
-if len(matches) < 2:
-    raise SystemExit('Search input and playable result were not both found: '+str(matches))
+if not matches:
+    raise SystemExit('Playable result was not found: '+str(matches))
 y,x=max(matches)
+if y < 350:
+    raise SystemExit('Refusing to tap a search-field node: '+str(matches))
 print('Opening real Low Light search result', x, y, flush=True)
 subprocess.check_call(['adb','shell','input','tap',str(x),str(y)])
 PY
