@@ -451,7 +451,9 @@ adb shell input keyevent 4
 # Bible opens the real reader, and book -> chapter navigation is functional.
 bible_loaded=0
 tap Home
-tap_scrolling "Open Bible"
+# Home Bible tile is clickable in its entirety; the redundant Open link
+# was removed. Open the passage by tapping the visible card itself.
+tap_scrolling "John 1:5"
 wait_for "Books"
 wait_for "Go to reference"
 shot bible-hub
