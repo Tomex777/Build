@@ -125,8 +125,8 @@ fun HomeScreen(
         .take(8)
     Column(modifier.fillMaxSize()) {
         Row(
-            Modifier.fillMaxWidth().height(54.dp).padding(horizontal = 18.dp),
-            verticalAlignment = Alignment.CenterVertically,
+            Modifier.fillMaxWidth().height(48.dp).padding(horizontal = 18.dp),
+            verticalAlignment = Alignment.Top,
         ) {
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
                 SoraMark()
