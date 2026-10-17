@@ -19,7 +19,7 @@ function harness() {
       { id:PLAYER_B, admin:null },
       { id:PLAYER_C, admin:null },
     ],
-    sent:[], actions:[],
+    sent:[], actions:[], observedNames:new Map(),
   }
   const sock = {
     async sendMessage(group, payload) {
@@ -57,6 +57,7 @@ function harness() {
   const engine = createSquidGame({
     storage:() => storage, accountFor:() => account,
     now:() => clock, randomDuration:(min) => min,
+    observedNameFor:(group, id) => group === CHAT ? state.observedNames.get(id) || '' : '',
   })
   const adminContext = {
     account, groupKey:CHAT, args:[], message:{ key:{ remoteJid:CHAT, participant:ADMIN }},
@@ -73,13 +74,13 @@ function harness() {
       reaction:{ key:{ participant:user, fromMe:false }, text:emoji },
     })
   }
-  const talk = async (user,text,{ forward = false } = {}) => {
+  const talk = async (user,text,{ forward = false, pushName = '' } = {}) => {
     const content = forward
       ? { extendedTextMessage:{text, contextInfo:{isForwarded:true, forwardingScore:1}} }
       : { conversation:text }
     return engine.onMessage(account, {
       key:{remoteJid:CHAT, participant:user, fromMe:false, id:'incoming-' + ++counter},
-      messageTimestamp:Math.floor(clock / 1000),
+      messageTimestamp:Math.floor(clock / 1000), pushName,
       message:content,
     })
   }
@@ -308,6 +309,85 @@ function harness() {
   clock += 100000
   const {engine,adminContext} = harness()
   await assert.rejects(()=>engine.start(adminContext,'kick',['25h']),/between 1 minute and 24 hours/)
+  assert.equal(engine.get(CHAT),null)
+}
+
+// Player names must never fall back to WhatsApp's opaque LID or PN digits.
+// Keep the underlying JID in the mentions array for the real WhatsApp tag.
+{
+  clock += 100000
+  const {state,engine,adminContext,react,talk} = harness()
+  const opaqueLid = '25693048041628@lid'
+  state.participants[1] = {id:opaqueLid, admin:null}
+  state.participants[2] = {id:PLAYER_B, admin:null, notify:'Mimi'}
+  await engine.start(adminContext,'kick',['10m'])
+  await react(opaqueLid)
+  await react(PLAYER_B)
+  await engine.launch(adminContext)
+  for (const value of ['Phew', 'Hi', 'Hello']) {
+    await talk(opaqueLid,value,{pushName:'𝙏𝞗𝞛𝞢𝞦'})
+  }
+  clock += 23000
+  await engine.tick()
+  clock += 1900
+  await engine.tick()
+  const elimination = state.sent.find(row => /Mimi eliminated/.test(row.text))
+  assert.ok(elimination)
+  assert.match(elimination.text, /@Mimi/)
+  assert.deepEqual(elimination.mentions, [PLAYER_B])
+  const champion = state.sent.at(-1)
+  assert.match(champion.text, /👑 @𝙏𝞗𝞛𝞢𝞦/)
+  assert.deepEqual(champion.mentions, [opaqueLid])
+  assert.ok(!state.sent.some(row => (row.text || '').includes('25693048041628')))
+  assert.equal(engine.get(CHAT), null)
+}
+
+// In the absence of a usable name, use an anonymous player slot instead of
+// exposing a LID (including at the RED-light finalization path).
+{
+  clock += 100000
+  const {state,engine,adminContext,react,talk} = harness()
+  const anonLid = '94726913311337@lid'
+  state.participants[1] = {id:anonLid, admin:null, notify:'@94726913311337'}
+  state.participants[2] = {id:PLAYER_B, admin:null, notify:'Mimi'}
+  await engine.start(adminContext,'kick',['10m'])
+  await react(anonLid)
+  await react(PLAYER_B)
+  await engine.launch(adminContext)
+  for (const value of ['one', 'two', 'three']) await talk(anonLid,value)
+  for (const value of ['four', 'five', 'six']) await talk(PLAYER_B,value)
+  clock += 23000
+  await engine.tick()
+  clock += 1900
+  await engine.tick()
+  await talk(PLAYER_B, 'Oops, red')
+  assert.equal(engine.get(CHAT).phase,'FINALIZING')
+  clock += 2600
+  await engine.tick()
+  const winner = state.sent.at(-1)
+  assert.match(winner.text,/👑 Player 1/)
+  assert.deepEqual(winner.mentions, [])
+  assert.ok(!winner.text.includes('94726913311337'))
+}
+
+// Stored conversation names can identify a winner even without a GREEN message
+// pushName or group metadata name; reject observed values that look like IDs.
+{
+  clock += 100000
+  const {state,engine,adminContext,react,talk} = harness()
+  state.observedNames.set(PLAYER_A,'Remembered Name')
+  await engine.start(adminContext,'cg',['10m'])
+  await react(PLAYER_A)
+  await react(PLAYER_B)
+  await engine.launch(adminContext)
+  for (const value of ['a','b','c']) await talk(PLAYER_A,value)
+  clock += 23000
+  await engine.tick()
+  clock += 1900
+  await engine.tick()
+  const winner = state.sent.at(-1)
+  assert.match(winner.text,/👑 @Remembered Name/)
+  assert.deepEqual(winner.mentions,[PLAYER_A])
   assert.equal(engine.get(CHAT),null)
 }
 
