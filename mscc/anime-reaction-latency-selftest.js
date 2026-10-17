@@ -67,12 +67,14 @@ try {
   assert.ok(sent[3].payload.sticker.equals(sent[0].payload.sticker))
 
   // Sender-specific EXIF metadata must never leak across cache partitions.
-  globalThis.fetch=mockGif
+  // The expensive *neutral* WebP is reusable between senders; personalizing
+  // pack metadata must not require another GIF download or FFmpeg conversion.
   await sendReactionSticker(secondPerson,'kiss')
-  assert.equal(metadataCalls,2,'new sticker pack generates independently')
-  assert.equal(gifCalls,2)
+  assert.equal(metadataCalls,1,'another sender reuses the proven category media')
+  assert.equal(gifCalls,1)
   assert.ok(sent.at(-1).payload.sticker.includes(Buffer.from('Bravo')))
   assert.ok(!sent.at(-1).payload.sticker.includes(Buffer.from('Alpha')))
+  assert.ok(!sent[0].payload.sticker.equals(sent.at(-1).payload.sticker),'personalized EXIF remains separate')
 
   // A failed HTTP source must be observable, not leave a permanently rejected
   // Promise in the in-flight map for the next request.
@@ -101,5 +103,5 @@ try {
   assert.ok(metrics.keys<=24)
   assert.ok(metrics.variants<=metrics.keys*2)
   assert.ok(metrics.bytes<=metrics.maxBytes)
-  console.log('PASS reaction speed: concurrent single-flight, instant warm cache, separate EXIF packs, bounded RAM, and retry recovery')
+  console.log('PASS reaction speed: concurrent single-flight, cross-sender neutral WebP reuse, instant warm cache, separate EXIF packs, bounded RAM, and retry recovery')
 } finally {globalThis.fetch=previousFetch}
