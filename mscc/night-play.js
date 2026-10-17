@@ -189,7 +189,7 @@ export class NightPlay {
   }
 }
 
-export function createNightPlayHandler(play, { publicKey = readFileSync(new URL('./night-play-public-key.pem', import.meta.url), 'utf8'), refreshAvatar = null } = {}) {
+export function createNightPlayHandler(play, { publicKey = readFileSync(new URL('./night-play-public-key.pem', import.meta.url), 'utf8'), refreshAvatar = null, accounts = new Map() } = {}) {
   const key = createPublicKey(publicKey)
   return async (req, res) => {
     const reply = (status, body) => {
@@ -223,7 +223,12 @@ export function createNightPlayHandler(play, { publicKey = readFileSync(new URL(
       if (!body || Array.isArray(body) || typeof body !== 'object') return reply(400, { error:'Invalid request.' })
       play.limit('rpc-global', 1800)
       play.limit('rpc-client:' + String(body.client || 'unknown'), 180)
-      const result = play.request(body)
+      const result = body.action === 'channel:verify' ? await (async () => {
+        const userId = body.session ? play.session(body.session)?.user_id : null
+        if (!userId) throw new PlayError(401,'Connect WhatsApp to continue.')
+        if (body.channelId !== undefined && !/^\d{8,25}@newsletter$/.test(String(body.channelId))) throw new PlayError(400,'Invalid channel.')
+        return play.channels.verifyUser(userId, accounts, body.channelId)
+      })() : play.request(body)
       // An already-linked browser can obtain its permitted WhatsApp photo
       // without another QR/code. Background only: signed RPC stays responsive.
       if (body.action === 'status' && result.linked && !result.profile?.avatarData && refreshAvatar) {
