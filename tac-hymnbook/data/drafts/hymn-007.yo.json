@@ -1,0 +1,36 @@
+{
+  "number": 7,
+  "collection": "main",
+  "language": "yo",
+  "title": "Pẹ̀lú dùùrù wúrà, gbogbo wọn dúró",
+  "pages": [
+    3
+  ],
+  "status": "draft_photo_checked_online",
+  "online_comparison": "https://www.scribd.com/document/859543609/HYMN-NCGM",
+  "review_notes": "All five verses are visible in user photograph. Compare tone marks and spelling before marking verified.",
+  "verses": [
+    [
+      "Pẹ̀lú dùùrù wúrà, gbogbo wọn dúró",
+      "Wọ́n ń kọ orin tuntun níwájú Olúwa",
+      "Sí ẹni tí ó fẹ́ wa tó wẹ ẹ̀ṣẹ̀ wa nù",
+      "Òun ni ògo, ọlá, yẹ fún láéláé. Àmín."
+    ],
+    [
+      "Ẹlẹ́ṣẹ̀ ni wọ́n ti jẹ́ nígbà kan rí",
+      "Nísinsìnyí, a ti wọ wọ́n láṣọ funfun."
+    ],
+    [
+      "Ó sọ ọlọ̀tẹ̀ di àlùfáà àti ọba",
+      "Ó gba wa, Ó sì kọ́ wa lórin tuntun yìí."
+    ],
+    [
+      "Àwa tí kò ní ìrètí kan láyé",
+      "Ìbá ṣe pé kò gba wa, níbo la ó lọ?"
+    ],
+    [
+      "Ó yẹ ká gbé ohùn ìyìn wa sókè",
+      "K'awọn tó yí wa ká lè kọrin dídùn yìí."
+    ]
+  ]
+}
