@@ -77,6 +77,7 @@ python3 "$project_dir/scripts/compact-anime-skins.py" "$anime_file" "$anime_file
 rm -f "$anime_source"
 python3 "$project_dir/scripts/check-anime-glb.py" "$anime_file"
 python3 "$project_dir/scripts/extract-vrm-springs.py" "$anime_file" "$asset_dir/mise_anime.spring.json"
+python3 "$project_dir/scripts/extract-vrm-expressions.py" "$anime_file" "$asset_dir/mise_anime.expressions.json"
 # A second *licensed* anime character base with distinct hair, face and outfit.
 # HairSample_Female is explicitly CC0 under the same official pixiv FAQ.
 female_file="$asset_dir/mise_anime_female.glb"
@@ -98,5 +99,6 @@ python3 "$project_dir/scripts/compact-anime-skins.py" "$female_file" "$female_fi
 rm -f "$female_source"
 python3 "$project_dir/scripts/check-anime-glb.py" "$female_file"
 python3 "$project_dir/scripts/extract-vrm-springs.py" "$female_file" "$asset_dir/mise_anime_female.spring.json"
+python3 "$project_dir/scripts/extract-vrm-expressions.py" "$female_file" "$asset_dir/mise_anime_female.expressions.json"
 
 python3 "$project_dir/scripts/build-scene-actors.py"
