@@ -128,6 +128,10 @@ class MarsSurfaceRuntimeTest {
             assertTrue("Orbital body labels must disappear over Mars terrain",
                 device.findObject(By.desc("Focus Mars")) == null &&
                     device.findObject(By.desc("Focus Moon")) == null)
+            assertTrue("Take-off has a specific accessible action",
+                device.findObject(By.desc("Take off from Mars")) != null)
+            assertTrue("Old arrow-glyph launch control must not return",
+                device.findObject(By.textContains("↗  Take off")) == null)
             // Physical thumbstick: hold and drag left, look with the other thumb.
             // The old four ↑←↓→ tap buttons must not be present on the surface.
             assertTrue("Legacy tap movement buttons must be absent",

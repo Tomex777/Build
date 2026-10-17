@@ -4,8 +4,13 @@ import android.os.Bundle
 import android.view.View
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.border
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -22,15 +27,20 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.viewinterop.AndroidView
 import com.night.endless.engine.render.ApproachSnapshot
 import com.night.endless.engine.render.BodyLabelSnapshot
@@ -46,6 +56,7 @@ import java.util.TimeZone
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.sin
+import kotlin.math.hypot
 
 class MainActivity : ComponentActivity() {
     private var activeGlView: EndlessGLView? = null
@@ -539,22 +550,13 @@ private fun EndlessApp(
                             bottom = com.night.endless.engine.render.SurfaceJoystickMath.PAD_BOTTOM_DP.dp
                         ).size(com.night.endless.engine.render.SurfaceJoystickMath.PAD_SIZE_DP.dp)
                 )
-                Column(
-                    Modifier.align(Alignment.BottomEnd)
-                        .padding(end = 18.dp, bottom = 32.dp),
-                    horizontalAlignment = Alignment.End,
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                SurfaceTakeoffControl(
+                    body = landedBody ?: "surface",
+                    modifier = Modifier.align(Alignment.BottomEnd)
+                        .padding(end = 18.dp, bottom = 35.dp)
                 ) {
-                    Surface(
-                        color = PanelStrong,
-                        shape = RoundedCornerShape(22.dp),
-                        border = BorderStroke(1.dp, Accent.copy(alpha = .38f))
-                    ) {
-                        ControlButton("↗  Take off", active = true) {
-                            glView?.cancelSurfaceControls()
-                            glView?.endlessRenderer?.takeOffSurface()
-                        }
-                    }
+                    glView?.cancelSurfaceControls()
+                    glView?.endlessRenderer?.takeOffSurface()
                 }
             }
 
@@ -1151,27 +1153,178 @@ private fun InfoCell(label: String, value: String, modifier: Modifier = Modifier
     }
 }
 
+/**
+ * Surface control geometry is deliberately passive. Do NOT add a Compose
+ * clickable/pointerInput modifier: Android's GLSurfaceView must see BOTH
+ * thumbs to support locomotion and independent camera-look concurrently.
+ */
 @Composable
 private fun SurfaceJoystickHud(offset: Offset, modifier: Modifier = Modifier) {
-    // Deliberately passive: both thumbs must be delivered to the same
-    // GLSurfaceView for simultaneous movement and camera control.
+    val magnitude = hypot(offset.x, offset.y).coerceIn(0f, 1f)
+    val engaged by animateFloatAsState(
+        targetValue = magnitude,
+        animationSpec = tween(durationMillis = 95),
+        label = "Movement intensity"
+    )
     Canvas(modifier.semantics {
         contentDescription = "Movement joystick. Drag to walk, swipe right side to look."
     }) {
         val center = Offset(size.width / 2f, size.height / 2f)
-        val unit = size.width / com.night.endless.engine.render.SurfaceJoystickMath.PAD_SIZE_DP
+        val unit = size.minDimension /
+            com.night.endless.engine.render.SurfaceJoystickMath.PAD_SIZE_DP
         val travel = com.night.endless.engine.render.SurfaceJoystickMath.KNOB_TRAVEL_DP * unit
         val thumb = center + Offset(offset.x * travel, offset.y * travel)
-        // Clear physical thumbstick, not an oversized translucent touchpad.
-        drawCircle(Color(0x94060913), 66f * unit, center)
-        drawCircle(Color.White.copy(alpha = .18f), 64f * unit, center,
-            style = Stroke(width = 1.25f * unit))
-        drawCircle(Color.White.copy(alpha = .07f), 45f * unit, center)
-        drawCircle(Color(0xAA0E1C2C), 27f * unit, thumb)
-        drawCircle(Accent.copy(alpha = .85f), 26f * unit, thumb,
-            style = Stroke(width = 2f * unit))
-        drawCircle(Color(0xDD1B3247), 21f * unit, thumb)
-        drawCircle(Color.White.copy(alpha = .8f), 4f * unit, thumb)
+
+        // Low-profile layered physical thumbstick, not a generic Android
+        // slider or a full-screen floating touchpad. No fake interactive halo.
+        drawCircle(
+            brush = Brush.radialGradient(
+                listOf(Color(0xE80A1824), Color(0xD80B121D), Color(0xAF050A13)),
+                center = center, radius = 74f * unit
+            ),
+            radius = 71f * unit, center = center
+        )
+        drawCircle(
+            color = Color.White.copy(alpha = .13f),
+            radius = 69f * unit, center = center,
+            style = Stroke(width = 1f * unit)
+        )
+        drawCircle(
+            color = Color(0x302E5971),
+            radius = 55f * unit, center = center,
+            style = Stroke(width = 1f * unit)
+        )
+        // Graduated directional ticks and two asymmetric orbit arcs give
+        // feedback without inventing redundant movement buttons.
+        for (index in 0 until 8) {
+            val angle = index * kotlin.math.PI / 4.0
+            val dx = sin(angle).toFloat()
+            val dy = cos(angle).toFloat()
+            val cardinal = index % 2 == 0
+            val inner = if (cardinal) 61f else 63f
+            val outer = if (cardinal) 66f else 65f
+            drawLine(
+                color = Color.White.copy(alpha = if (cardinal) .45f else .18f),
+                start = center + Offset(dx * inner * unit, dy * inner * unit),
+                end = center + Offset(dx * outer * unit, dy * outer * unit),
+                strokeWidth = if (cardinal) 1.8f * unit else 1.1f * unit,
+                cap = StrokeCap.Round
+            )
+        }
+        drawArc(
+            color = Accent.copy(alpha = .48f + .40f * engaged),
+            startAngle = 203f, sweepAngle = 83f, useCenter = false,
+            topLeft = center - Offset(68f * unit, 68f * unit),
+            size = androidx.compose.ui.geometry.Size(136f * unit, 136f * unit),
+            style = Stroke(width = 2.3f * unit, cap = StrokeCap.Round)
+        )
+        drawArc(
+            color = Color.White.copy(alpha = .15f),
+            startAngle = 18f, sweepAngle = 40f, useCenter = false,
+            topLeft = center - Offset(68f * unit, 68f * unit),
+            size = androidx.compose.ui.geometry.Size(136f * unit, 136f * unit),
+            style = Stroke(width = 1.5f * unit, cap = StrokeCap.Round)
+        )
+        // Thumb appears slightly elevated with a crisp annular edge and
+        // physically tracks exactly the movement event's displacements.
+        drawCircle(Color(0xB000050D), 30f * unit, thumb + Offset(0f, 2.5f * unit))
+        drawCircle(
+            brush = Brush.radialGradient(
+                listOf(Color(0xFF2B4C64), Color(0xFF122534), Color(0xFF0B1825)),
+                center = thumb - Offset(9f * unit, 12f * unit),
+                radius = 46f * unit
+            ),
+            radius = 27f * unit, center = thumb
+        )
+        drawCircle(
+            Accent.copy(alpha = .68f + .26f * engaged),
+            radius = 26f * unit, center = thumb,
+            style = Stroke(width = 1.8f * unit)
+        )
+        drawCircle(
+            Color.White.copy(alpha = .13f), 18f * unit, thumb,
+            style = Stroke(width = 1f * unit)
+        )
+        drawCircle(Color(0xFFE0F5FF), 3.6f * unit, thumb)
+    }
+}
+
+/**
+ * One purpose-built return-to-orbit action. Uses a real vector drawable,
+ * a single semantic button, and a quiet tactile pressed state. Keep the
+ * Take off text literal for UI Automator and accessibility.
+ */
+@Composable
+private fun SurfaceTakeoffControl(
+    body: String,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val pressed by interactionSource.collectIsPressedAsState()
+    val scale by animateFloatAsState(
+        targetValue = if (pressed) .955f else 1f,
+        animationSpec = tween(durationMillis = 110),
+        label = "Take off pressed"
+    )
+    val shape = RoundedCornerShape(18.dp)
+    Row(
+        modifier = modifier
+            .graphicsLayer { scaleX = scale; scaleY = scale }
+            .shadow(if (pressed) 4.dp else 12.dp, shape)
+            .clip(shape)
+            .background(
+                Brush.horizontalGradient(
+                    if (pressed) listOf(Color(0xF3133045), Color(0xEE081722))
+                    else listOf(Color(0xF1132839), Color(0xEF091420))
+                )
+            )
+            .border(
+                width = 1.dp,
+                color = if (pressed) Accent.copy(alpha = .74f)
+                    else Accent.copy(alpha = .43f),
+                shape = shape
+            )
+            .clickable(
+                interactionSource = interactionSource,
+                indication = null,
+                role = Role.Button,
+                onClick = onClick
+            )
+            .semantics(mergeDescendants = true) {
+                contentDescription = "Take off from ${body.replaceFirstChar { it.uppercase() }}"
+            }
+            .height(56.dp)
+            .padding(start = 9.dp, end = 19.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        Box(
+            Modifier.size(38.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .background(Accent.copy(alpha = if (pressed) .23f else .13f))
+                .border(
+                    1.dp,
+                    Accent.copy(alpha = if (pressed) .54f else .24f),
+                    RoundedCornerShape(12.dp)
+                ),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                painter = painterResource(R.drawable.ic_endless_takeoff),
+                contentDescription = null,
+                modifier = Modifier.size(24.dp),
+                tint = Color(0xFFBCE9FF)
+            )
+        }
+        Text(
+            "Take off",
+            color = Color(0xFFF0F8FF),
+            fontSize = 13.sp,
+            fontWeight = FontWeight.SemiBold,
+            letterSpacing = .35.sp,
+            maxLines = 1
+        )
     }
 }
 

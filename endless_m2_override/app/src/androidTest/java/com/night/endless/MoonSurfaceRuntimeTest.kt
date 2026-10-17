@@ -147,6 +147,8 @@ class MoonSurfaceRuntimeTest {
             assertTrue("Orbital planet labels must not cover the lunar surface",
                 device.findObject(By.desc("Focus Mars")) == null &&
                     device.findObject(By.desc("Focus Moon")) == null)
+            assertTrue("Lunar take-off has a specific accessible action",
+                device.findObject(By.desc("Take off from Moon")) != null)
             SystemClock.sleep(700)
             capture(instrumentation, "moon-surface", glView)
 
