@@ -34,7 +34,8 @@ wait_ui() {
   for n in $(seq 1 20); do
     ui_dump
     if node "$text" >/dev/null; then return 0; fi
-    # Android 8 occasionally asks permission to enable the immersive screen.
+    # Handle Android emulator launcher ANRs without masking app crashes.
+    if node "Quickstep isn't responding" >/dev/null; then tap_ui "Wait" || true; sleep 2; fi
     if node "GOT IT" >/dev/null; then tap_ui "GOT IT" || true; fi
     sleep .5
   done
@@ -65,8 +66,14 @@ capture settings
 tap_ui "Practice"
 wait_ui "Endless tiles"
 tap_ui "Endless tiles"
+wait_ui "Choose a melody"
+wait_ui "Jingle Bells"
+capture tiles-library
+tap_ui "Jingle Bells"
 wait_ui "ENDLESS TILES"
 wait_ui "Tap the first tile to start in lane"
+HEADER=$(node "ENDLESS TILES"); read -r _ HEADER_TOP _ _ <<<"${HEADER%%|*}"
+if (( HEADER_TOP < 32 )); then echo "Status bar overlap: header top=$HEADER_TOP" >&2; exit 1; fi
 capture tiles-ready
 LANE=$(node 'Tap the first tile to start in lane' | sed -n 's/.*in lane \([1-4]\).*/\1/p')
 [[ "$LANE" =~ ^[1-4]$ ]] || { echo "Missing starting lane: $LANE" >&2; exit 1; }
