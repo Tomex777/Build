@@ -1,4 +1,4 @@
-name: Poetry Android — Build & API 26/35 Emulator
+name: Poetry Android — Release Gate API 26/35/36
 run-name: Poetry Android QA • ${{ github.ref_name }}
 
 on:
@@ -35,14 +35,14 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
-      - name: Install Android 35 build packages
+      - name: Install Android 16 build packages
         run: |
-          yes | "${ANDROID_HOME:-/usr/local/lib/android/sdk}/cmdline-tools/latest/bin/sdkmanager" 'platforms;android-35' 'build-tools;35.0.0' || true
-          test -d "${ANDROID_HOME:-/usr/local/lib/android/sdk}/platforms/android-35"
-          test -d "${ANDROID_HOME:-/usr/local/lib/android/sdk}/build-tools/35.0.0"
+          yes | "${ANDROID_HOME:-/usr/local/lib/android/sdk}/cmdline-tools/latest/bin/sdkmanager" 'platforms;android-36' 'build-tools;36.0.0' || true
+          test -d "${ANDROID_HOME:-/usr/local/lib/android/sdk}/platforms/android-36"
+          test -d "${ANDROID_HOME:-/usr/local/lib/android/sdk}/build-tools/36.0.0"
       - uses: gradle/actions/setup-gradle@v4
         with:
-          gradle-version: '8.9'
+          gradle-version: '8.11.1'
       - name: Compile both tested and unsigned production variants
         run: gradle :app:assembleDebug :app:assembleDebugAndroidTest :app:assembleRelease --no-daemon --stacktrace
       - name: Run JVM tests
@@ -54,9 +54,10 @@ jobs:
           RELEASE=app/build/outputs/apk/release/app-release-unsigned.apk
           test -s "$APK"
           test -s "$RELEASE"
-          AAPT="${ANDROID_HOME:-/usr/local/lib/android/sdk}/build-tools/35.0.0/aapt"
+          AAPT="${ANDROID_HOME:-/usr/local/lib/android/sdk}/build-tools/36.0.0/aapt"
           "$AAPT" dump badging "$APK" | grep -F "sdkVersion:'26'"
           "$AAPT" dump badging "$APK" | grep -F "versionName='1.0.0'"
+          "$AAPT" dump badging "$APK" | grep -F "targetSdkVersion:'36'"
           "$AAPT" dump permissions "$APK" > /tmp/poetry-permissions.txt
           if grep -Eq 'android.permission.INTERNET|android.permission.ACCESS_NETWORK_STATE' /tmp/poetry-permissions.txt; then
             echo "::error::Offline Poetry must not request any network permissions."
@@ -83,7 +84,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        api-level: [26, 35]
+        api-level: [26, 35, 36]
     defaults:
       run:
         working-directory: poetry-android
@@ -127,7 +128,7 @@ jobs:
           if-no-files-found: warn
 
   # The unsigned production APK is published ONLY when compile, lint,
-  # API 26 and API 35 real-emulator tests have all succeeded.
+  # API 26, 35 and 36 real-emulator tests have all succeeded.
   unsigned-release:
     needs: [compile, emulator]
     runs-on: ubuntu-latest
