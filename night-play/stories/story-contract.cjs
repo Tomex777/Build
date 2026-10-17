@@ -21,6 +21,24 @@ function route(overrides={},ending='release',stopAtDecision=false,build=defaultB
  assert.ok(r.ending,'route finishes '+r.node);return {r,words,picked};
 }
 const first={};for(const ending of story.mainEndings){const {r,words}=route({},ending);assert.equal(r.ending,ending);assert.ok(words>30000,'novel length on a full reading');first[ending]=r}
+// The reading window is a read-only index into visited pages, never a rewindable game state.
+let review=E.start(story,'Previous test',{firstName:'Zoë',surname:'Stone'},defaultBuild);
+assert.deepEqual(E.readingWindow(story,review).indices,[0],'cannot travel before the beginning');
+review=E.choose(story,review,'start:answer');
+assert.equal(E.readingWindow(story,review).indices.length,1,'a committed decision seals the earlier passage');
+const firstSafe=review.node;
+for(let i=0;i<3;i++){
+ const pagination=E.choices(story,review);
+ assert.equal(pagination.length,1);assert.equal(pagination[0].continue,true);
+ review=E.choose(story,review,pagination[0].id);
+}
+const window=E.readingWindow(story,review);
+assert.equal(window.indices.length,4,'all subsequent reading-only pages are navigable');
+assert.equal(review.pages[window.indices[0]].node,firstSafe,'rewind boundary begins AFTER the choice');
+assert.equal(window.current,window.indices.at(-1));
+const unchanged=JSON.stringify(review);
+for(const index of window.indices){assert.ok(review.pages[index].text.length,'reading history uses exact recorded text');}
+assert.equal(JSON.stringify(review),unchanged,'history browsing cannot affect resources, decisions or saves');
 const truth=route({},'release',true).r;
 const betrayed=route({a:'c10:hide',b:'c20:attack',c:'c22:press'},'release',true).r;
 assert.ok(!E.choices(story,betrayed).some(c=>c.id==='c29:release'));
