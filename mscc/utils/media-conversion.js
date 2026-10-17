@@ -233,19 +233,28 @@ function staticStickerArgs(input, output, quality) {
   ]
 }
 
-export async function mediaToSticker(buffer, { animated = false, packName, publisher, emojis } = {}) {
+export async function mediaToSticker(buffer, { animated = false, packName, publisher, emojis, fastAnimated = false } = {}) {
   return serializedConversion(() => withTempDir('sticker', async directory => {
     const input = join(directory, 'input.bin')
     const output = join(directory, 'sticker.webp')
     await writeFile(input, buffer)
 
     if (animated) {
-      const profiles = [
-        { seconds: 6, fps: 15, quality: 72 },
-        { seconds: 5, fps: 12, quality: 52 },
-        { seconds: 4, fps: 10, quality: 40 },
-        { seconds: 3, fps: 8, quality: 30 },
-      ]
+      // Reactions value speed: start from the proven 5s/12fps compromise so
+      // we avoid a costly 6s/15fps conversion that often exceeds 900 KB and
+      // needs re-encoding. All ordinary .sticker commands retain their profile.
+      const profiles = fastAnimated
+        ? [
+          { seconds: 5, fps: 12, quality: 52 },
+          { seconds: 4, fps: 10, quality: 40 },
+          { seconds: 3, fps: 8, quality: 30 },
+        ]
+        : [
+          { seconds: 6, fps: 15, quality: 72 },
+          { seconds: 5, fps: 12, quality: 52 },
+          { seconds: 4, fps: 10, quality: 40 },
+          { seconds: 3, fps: 8, quality: 30 },
+        ]
 
       for (const profile of profiles) {
         await runFfmpeg(animatedStickerArgs(input, output, profile))
