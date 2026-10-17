@@ -5,6 +5,7 @@ import {inside} from './catalogue.mjs';
 import {renderNoctisCard} from '../renderer/src/noctis.mjs';
 import {renderRestoredCard} from '../renderer/src/restored.mjs';
 import {characterCards} from '../renderer/src/characters.mjs';
+import {powerPresentation} from './power.mjs';
 
 export async function cardSvg(card,assets,design) {
   let subtitle=(card.formId==='featured'?card.name:card.name+' · '+card.form).toUpperCase();
@@ -25,6 +26,7 @@ export async function cardSvg(card,assets,design) {
     svg=svg.replace(/<image\b([^>]*?)\bx="([^"]+)"/g,(_,before,x)=>{count++;return `<image${before}x="${Number(x)+shift}"`;});
     if(count!==1)throw Error('Expected one source illustration');
   }
+  svg=powerPresentation(svg,card,design);
   return svg.replace('<svg ',`<svg data-catalogue-id="${card.id}" data-design="${design}" `);
 }
 
@@ -55,6 +57,10 @@ export async function createSession() {
           }
         }
         if(root.dataset.design==='nocturne'&&[...root.querySelectorAll('ellipse')].some(n=>!n.closest('defs')))throw Error('Nocturne circular backdrop returned');
+        const badge=root.querySelector('[data-layer="power-rank"]'),badgeText=badge?.querySelector('text');
+        if(!badgeText||!['F','E','D','C','B','A','S','SS','SSS','—'].includes(badgeText.textContent))throw Error('Missing or invalid power badge');
+        const badgeBox=badgeText.getBoundingClientRect(),lens=badge.querySelector('rect').getBoundingClientRect();
+        if(badgeBox.left<lens.left||badgeBox.right>lens.right||badgeBox.top<lens.top||badgeBox.bottom>lens.bottom)throw Error('Power grade overflows its glass badge');
         const image=root.querySelector('image'),use=[...root.querySelectorAll('use')].find(n=>n.getAttribute('href')==='#'+image?.id);
         if(!image||!use)throw Error('Missing embedded illustration');
         const decoded=new Image();decoded.src=image.getAttribute('href');await decoded.decode();
@@ -65,7 +71,7 @@ export async function createSession() {
         const matrix=own?use.getScreenCTM().multiply(own):use.getScreenCTM();
         const p=new DOMPoint(x,y).matrixTransform(matrix);
         if(p.x<75||p.x>925||p.y<100||p.y>1150)throw Error(`Subject focal point outside safe area: ${Math.round(p.x)},${Math.round(p.y)}`);
-        return {artworkDecoded:true,uniqueIDs:true,validReferences:true,nameInkWithinCard:true,circleAbsent:root.dataset.design==='nocturne'?true:null,focalPosition:[Math.round(p.x),Math.round(p.y)]};
+        return {artworkDecoded:true,uniqueIDs:true,validReferences:true,nameInkWithinCard:true,powerRank:badgeText.textContent,powerBadgeWithinBounds:true,nameScale:Number(names[0].dataset.titleScale),circleAbsent:root.dataset.design==='nocturne'?true:null,focalPosition:[Math.round(p.x),Math.round(p.y)]};
       },focal);
       const png=await page.locator('svg').screenshot({omitBackground:true,timeout:120000});
       const m=await sharp(png).metadata();if(m.width!==width||m.height!==width*1.6)throw Error('Incorrect export dimensions');
