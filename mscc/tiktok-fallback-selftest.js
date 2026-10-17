@@ -34,6 +34,29 @@ try {
   assert.equal(requestLog.filter(u=>u.includes('/api/')).length,2)
 } finally { await rm(dir,{force:true,recursive:true}) }
 
+const retryDir = await mkdtemp(join(tmpdir(),'night-tikwm-retry-'))
+try {
+  let triedPost = false
+  let triedGet = false
+  const retryFetch = async (url, init = {}) => {
+    const addr = String(url)
+    if (addr.includes('api.siputzx.my.id')) return new Response(JSON.stringify({status:false}))
+    if (addr.includes('tikwm.com/api/')) {
+      if (init.method === 'POST') {
+        triedPost = true
+        return new Response('blocked',{status:403})
+      }
+      triedGet = true
+      return new Response(JSON.stringify({code:0,data:{play:'/video/media/play/test.mp4'}}))
+    }
+    if (addr.includes('/video/media/play/test.mp4')) return new Response(mp4,{headers:{'content-type':'video/mp4'}})
+    throw Error('unexpected request')
+  }
+  const files = await tryPublicTikTokFallback(request,retryDir,{fetchImpl:retryFetch})
+  assert.equal(files.length,1)
+  assert.ok(triedPost && triedGet,'TikWM POST must degrade to GET')
+} finally { await rm(retryDir,{force:true,recursive:true}) }
+
 const badDir = await mkdtemp(join(tmpdir(),'night-tikwm-bad-'))
 try {
   const hostile = async url => {
