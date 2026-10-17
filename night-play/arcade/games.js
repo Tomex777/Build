@@ -4,7 +4,7 @@ const $=id=>document.getElementById(id);const c=$("screen"),ctx=c.getContext("2d
 const palette={dark:"#173e2c",light:"#dbe9ce",gold:"#e7b24c",danger:"#e6534b",blue:"#61a0bf"};
 const metadata={
 bird:["Wing Hop","Tap to fly, glide through the gaps.","Tap anywhere or press Space to flap. Pass through pipe gaps without touching the pipes or ground."],
-blocks:["Block Drop","Stack, clear lines, keep going.","Arrange the seven falling shapes. Rotate, move and drop to clear lines. Use on-screen controls or arrow keys; Space hard-drops."],
+blocks:["Block Drop","Stack, clear lines, keep going.","Tap the board to rotate. Drag sideways to move; drag down to soft drop; flick down quickly to hard drop. Or use the grouped buttons and arrow keys (Space hard-drops)."],
 mines:["Minesweeper","One tap at a time, clear the field.","Reveal every safe square. Numbers count the mines in neighbouring squares. Switch to Flag to mark suspected mines. Your first square and its neighbours are protected."],
 maze:["Maze Chase","Collect every dot. Avoid the chasers.","Swipe on the maze, use the arrows, or press WASD. Eat the dots; dodge the red ghosts. Collect all dots to win."]
 };
@@ -18,7 +18,7 @@ function message(t){$("message").textContent=t;}
 function end(text){if(finished)return;finished=true;stop();record(type,points);message(text+" · Tap Restart to play again.");}
 function drawText(text,y,size=24){ctx.fillStyle="#fff";ctx.font="900 "+size+"px system-ui,Arial";ctx.textAlign="center";ctx.fillText(text,c.width/2,y);}
 function pick(id){if(!metadata[id])id="bird";type=id;const [title,sub,rules]=metadata[id];$("title").textContent=title;$("subtitle").textContent=sub;$("rules").textContent=rules;document.title=title+" · NIGHT Play";[...$("picks").querySelectorAll("button")].forEach(b=>b.setAttribute("aria-current",String(b.dataset.game===id)));const url=new URL(location.href);url.searchParams.set("game",id);history.replaceState({},"",url.pathname+url.search);if($("settingsDialog").open)$("settingsDialog").close();restart();}
-function restart(){stop();last=0;gameStart=Date.now();finished=false;paused=false;score(0);message("Ready to play.");extra.replaceChildren();board.hidden=type!=="mines";c.hidden=type==="mines";c.className="mode-"+type;
+function restart(){stop();resetBlockInputs();$("blockPause").hidden=type!=="blocks";last=0;gameStart=Date.now();finished=false;paused=false;score(0);message("Ready to play.");extra.replaceChildren();board.hidden=type!=="mines";c.hidden=type==="mines";c.className="mode-"+type;
 if(type==="bird")setupBird();if(type==="blocks")setupBlocks();if(type==="mines")setupMines();if(type==="maze")setupMaze();}
 function button(label,action,aria=label){return '<button type="button" data-control="'+action+'" aria-label="'+aria+'">'+label+'</button>';}
 function setControls(html){touch.innerHTML=html;}
@@ -121,9 +121,16 @@ const pieceColors=["#51bce4","#f8cb4d","#b47bdd","#e76d45","#4888d7","#55bb85","
 function pieces(){return [...Array(7).keys()].sort(()=>Math.random()-.5);}
 function nextPiece(s){if(!s.bag.length)s.bag=pieces();const idx=s.bag.pop();s.cur={idx,cells:shapes[idx].map(([x,y])=>[x,y]),x:3,y:0};if(collision(s,0,0)){end("No space left!");}s.canHold=true;}
 function collision(s,dx,dy,cells=s.cur.cells){return cells.some(([x,y])=>{const xx=x+s.cur.x+dx,yy=y+s.cur.y+dy;return xx<0||xx>=10||yy>=20||(yy>=0&&s.grid[yy][xx]!==null);});}
-function setupBlocks(){c.width=300;c.height=600;blockDirty=true;state={grid:Array.from({length:20},()=>Array(10).fill(null)),cur:null,bag:[],time:0,lines:0,level:1,canHold:true};nextPiece(state);setControls(button("◀","left","Move left")+button("⟳","rotate","Rotate piece")+button("▶","right","Move right")+button("▼","down","Soft drop")+button("⬇","drop","Hard drop")+button("Ⅱ","pause","Pause"));message("Clear complete rows to score.");frameLoop(blockFrame);}
+function setupBlocks(){c.width=300;c.height=600;blockDirty=true;state={grid:Array.from({length:20},()=>Array(10).fill(null)),cur:null,bag:[],time:0,lines:0,level:1,canHold:true};nextPiece(state);
+ setControls('<div class="block-control-layout"><div class="block-move-group" role="group" aria-label="Move falling piece">'+
+  button("◀","left","Move left; hold to repeat")+button("▶","right","Move right; hold to repeat")+
+  '</div><div class="block-action-group" role="group" aria-label="Rotate and drop">'+
+  button("⟳","rotate","Rotate clockwise")+button("▼","down","Soft drop one row")+
+  '<button type="button" class="block-hard-drop" data-control="drop" aria-label="Hard drop piece instantly">⬇</button>'+
+  '</div></div>');
+ message("Tap to rotate · Drag to move · Flick down to drop");frameLoop(blockFrame);}
 function rotate(s){const old=s.cur.cells,turn=old.map(([x,y])=>[3-y,x]);for(const shift of [0,-1,1,-2,2])if(!collision(s,shift,0,turn)){s.cur.cells=turn;s.cur.x+=shift;return;}}
-function blockMove(move){const s=state;if(type!=="blocks"||finished)return;if(move==="pause"){paused=!paused;blockDirty=true;message(paused?"Paused":"Back in the game");return;}if(paused)return;blockDirty=true;if(move==="left"&&!collision(s,-1,0))s.cur.x--;if(move==="right"&&!collision(s,1,0))s.cur.x++;if(move==="rotate")rotate(s);if(move==="down"){if(!collision(s,0,1))s.cur.y++;else lockBlock(s);}if(move==="drop"){while(!collision(s,0,1))s.cur.y++;lockBlock(s);}}
+function blockMove(move){const s=state;if(type!=="blocks"||finished)return;if(move==="pause"){resetBlockInputs();paused=!paused;blockDirty=true;message(paused?"Paused":"Back in the game");return;}if(paused)return;blockDirty=true;if(move==="left"&&!collision(s,-1,0))s.cur.x--;if(move==="right"&&!collision(s,1,0))s.cur.x++;if(move==="rotate")rotate(s);if(move==="down"){if(!collision(s,0,1))s.cur.y++;else lockBlock(s);}if(move==="drop"){while(!collision(s,0,1))s.cur.y++;lockBlock(s);}}
 function lockBlock(s){for(const [x,y] of s.cur.cells){let xx=x+s.cur.x,yy=y+s.cur.y;if(yy<0){end("Stack too high!");return;}if(yy<20)s.grid[yy][xx]=s.cur.idx;}let count=0;for(let y=19;y>=0;y--){if(s.grid[y].every(k=>k!==null)){s.grid.splice(y,1);s.grid.unshift(Array(10).fill(null));count++;y++;}}
 if(count){const n=[0,100,300,500,800][count]*s.level;s.lines+=count;s.level=1+Math.floor(s.lines/10);score(points+n);message("Cleared "+count+" line"+(count===1?"":"s")+"!");}
 nextPiece(s);}
@@ -222,12 +229,126 @@ function drawMaze(){const s=state,ts=24;
 s.ghosts.forEach((g,i)=>{const px=g.x*ts+12,py=g.y*ts+12;ctx.fillStyle=i===0?"#e85253":"#ec95aa";ctx.beginPath();ctx.arc(px,py,10,Math.PI,0);ctx.lineTo(px+10,py+9);ctx.lineTo(px-10,py+9);ctx.closePath();ctx.fill();ctx.fillStyle="#fff";ctx.fillRect(px-6,py-2,5,6);ctx.fillRect(px+2,py-2,5,6);ctx.fillStyle="#252525";ctx.fillRect(px-5,py,2,3);ctx.fillRect(px+3,py,2,3);});
 if(s.invincible%2===0){ctx.fillStyle="#f6d461";ctx.beginPath();ctx.arc(s.p.x*ts+12,s.p.y*ts+12,10,.22*Math.PI,1.78*Math.PI);ctx.lineTo(s.p.x*ts+12,s.p.y*ts+12);ctx.closePath();ctx.fill();}
 extra.textContent="Lives: "+s.lives+" · Dots left: "+s.total+(paused?" · PAUSED":"");if(paused){ctx.fillStyle="#112329bc";ctx.fillRect(0,0,456,504);drawText("PAUSED",250,34);}if(finished){ctx.fillStyle="#112329bc";ctx.fillRect(0,0,456,504);drawText("GAME OVER",250,31);}}
+
+/* Block Drop touch controls. One pointer = one committed gesture.
+   Lock horizontal/vertical intent before moving; never rotate after a drag.
+   Work in rendered cell units, so full-width but vertically compressed boards
+   have the same predictable finger travel. Gestures don't affect other games. */
+let blockGesture=null;
+const blockPointers=new Set(),blockSuppressedClicks=new WeakSet();
+let blockHold=null;
+function endBlockHold(){
+ if(!blockHold)return;
+ clearTimeout(blockHold.timeout);clearInterval(blockHold.interval);
+ blockHold=null;
+}
+function resetBlockInputs(){blockGesture=null;blockPointers.clear();endBlockHold();}
+function blockTouchMove(e){
+ const g=blockGesture;
+ if(!g||g.id!==e.pointerId||type!=="blocks"||finished||paused||!state||g.piece!==state.cur)return;
+ const dx=e.clientX-g.startX,dy=e.clientY-g.startY;
+ const bounds=c.getBoundingClientRect();
+ const col=Math.max(12,bounds.width/10),row=Math.max(10,bounds.height/20);
+ const threshold=Math.max(10,Math.min(15,col*.35));
+ if(!g.axis){
+  if(Math.max(Math.abs(dx),Math.abs(dy))<threshold)return;
+  if(Math.abs(dx)>Math.abs(dy)*1.16)g.axis="horizontal";
+  else if(Math.abs(dy)>Math.abs(dx)*1.16)g.axis="vertical";
+  else return; // diagonal ambiguity: wait for a clear dominant direction
+ }
+ if(g.axis==="horizontal"){
+  const step=col*.76;
+  const target=Math.abs(dx)<threshold?0:Math.sign(dx)*(1+Math.floor(Math.max(0,Math.abs(dx)-threshold)/step));
+  const difference=target-g.steps;
+  for(let i=0;i<Math.min(16,Math.abs(difference));i++)blockMove(difference>0?"right":"left");
+  g.steps=target;
+ }else if(g.axis==="vertical"&&dy>threshold){
+  const target=1+Math.floor((dy-threshold)/row);
+  // Do not move the NEXT piece if this one touched the stack mid-drag.
+  for(let i=g.steps;i<Math.min(target,g.steps+20);i++){
+   if(g.piece!==state.cur)break;
+   blockMove("down");
+  }
+  g.steps=target;
+ }
+}
+c.addEventListener("pointerdown",e=>{
+ if(type!=="blocks"||paused||finished||e.button!==0)return;
+ blockPointers.add(e.pointerId);
+ if(blockPointers.size!==1){blockGesture=null;return;} // reject multi-finger ambiguity
+ blockGesture={id:e.pointerId,startX:e.clientX,startY:e.clientY,startAt:performance.now(),
+              piece:state.cur,axis:null,steps:0};
+ try{c.setPointerCapture(e.pointerId);}catch{}
+ if(e.cancelable)e.preventDefault();
+});
+c.addEventListener("pointermove",e=>{
+ if(type!=="blocks"||!blockGesture||blockGesture.id!==e.pointerId)return;
+ blockTouchMove(e);
+ if(e.cancelable)e.preventDefault();
+});
+c.addEventListener("pointerup",e=>{
+ if(type!=="blocks"||!blockPointers.has(e.pointerId))return;
+ blockPointers.delete(e.pointerId);
+ const g=blockGesture;
+ if(!g||g.id!==e.pointerId)return;
+ blockTouchMove(e);
+ const dx=e.clientX-g.startX,dy=e.clientY-g.startY;
+ const duration=Math.max(1,performance.now()-g.startAt);
+ blockGesture=null;
+ if(finished||paused||!state||g.piece!==state.cur)return;
+ if(g.axis==="vertical"&&dy>Math.max(37,c.getBoundingClientRect().height/20*2.5)&&
+    duration<285&&dy/duration>.65){
+  blockMove("drop"); // quick downward flick, not a slow drag
+ }else if(!g.axis&&Math.hypot(dx,dy)<13&&duration<500){
+  blockMove("rotate"); // a clean tap; never rotate at end of a swipe
+ }
+ if(e.cancelable)e.preventDefault();
+});
+c.addEventListener("pointercancel",e=>{
+ blockPointers.delete(e.pointerId);
+ if(blockGesture?.id===e.pointerId)blockGesture=null; // never rotate or drop on cancellation
+});
+c.addEventListener("lostpointercapture",e=>{
+ if(blockGesture?.id===e.pointerId){blockGesture=null;blockPointers.delete(e.pointerId);}
+});
+c.addEventListener("contextmenu",e=>{if(type==="blocks")e.preventDefault();});
+/* Direction keys act on finger down and repeat while held, but suppress the
+   follow-on click so short presses never move twice. Other controls stay taps. */
+touch.addEventListener("pointerdown",e=>{
+ if(type!=="blocks"||paused||finished||e.button!==0)return;
+ const b=e.target.closest('[data-control="left"],[data-control="right"]');
+ if(!b||!touch.contains(b))return;
+ endBlockHold();
+ const move=b.dataset.control;
+ blockSuppressedClicks.add(b);
+ blockMove(move);
+ const hold={id:e.pointerId,button:b,timeout:null,interval:null};
+ blockHold=hold;
+ hold.timeout=setTimeout(()=>{
+  if(blockHold!==hold||paused||finished||type!=="blocks")return;
+  blockMove(move);
+  hold.interval=setInterval(()=>{
+   if(blockHold!==hold||paused||finished||type!=="blocks"){endBlockHold();return;}
+   blockMove(move);
+  },74);
+ },225);
+ try{b.setPointerCapture(e.pointerId);}catch{}
+});
+for(const eventName of ["pointerup","pointercancel","lostpointercapture"])
+ touch.addEventListener(eventName,e=>{
+  if(!blockHold||blockHold.id!==e.pointerId)return;
+  const b=blockHold.button;
+  endBlockHold();
+  if(eventName==="pointercancel")blockSuppressedClicks.delete(b);
+  else setTimeout(()=>blockSuppressedClicks.delete(b),380);
+ });
 function action(control){if(type==="bird"&&control==="flap")flap();if(type==="bird"&&control==="bird-skin")switchBird();if(type==="blocks")blockMove(control);if(type==="maze"){if(control==="pause"){paused=!paused;message(paused?"Paused":"Back in the maze");drawMaze();}else{const dirs={left:[-1,0],right:[1,0],up:[0,-1],down:[0,1]};if(dirs[control])mazeMove(...dirs[control]);}}if(type==="mines"&&(control==="flag"||control==="reveal"))flagMode(control==="flag");}
 $("picks").addEventListener("click",e=>{const target=e.target.closest("[data-game]");if(target)pick(target.dataset.game);});
 $("settingsButton").addEventListener("click",()=>$("settingsDialog").showModal());
 $("settingsClose").addEventListener("click",()=>$("settingsDialog").close());
 $("restart").addEventListener("click",restart);
-document.addEventListener("click",e=>{const control=e.target.closest("[data-control]");if(control)action(control.dataset.control);});
+document.addEventListener("click",e=>{const control=e.target.closest("[data-control]");if(!control)return;if(type==="blocks"&&blockSuppressedClicks.has(control)){blockSuppressedClicks.delete(control);return;}action(control.dataset.control);});
+$("blockPause").addEventListener("click",()=>action("pause"));
 board.addEventListener("click",e=>{if(type==="mines"){const b=e.target.closest("[data-tile]");if(b){if(held){held=false;return;}mineTap(Number(b.dataset.tile));}}});
 let holdTimer=null,held=false,longPressTile=-1,holdOrigin=null;
 function stopHold(){if(holdTimer!==null)clearTimeout(holdTimer);holdTimer=null;holdOrigin=null;}
@@ -263,7 +384,7 @@ let startTouch=null;
 c.addEventListener("touchstart",e=>{if(type==="maze"&&e.touches.length===1)startTouch=[e.touches[0].clientX,e.touches[0].clientY];},{passive:true});
 c.addEventListener("touchend",e=>{if(type!=="maze"||!startTouch||!e.changedTouches.length)return;const dx=e.changedTouches[0].clientX-startTouch[0],dy=e.changedTouches[0].clientY-startTouch[1];if(Math.abs(dx)>18||Math.abs(dy)>18)mazeMove(...(Math.abs(dx)>Math.abs(dy)?[Math.sign(dx),0]:[0,Math.sign(dy)]));startTouch=null;},{passive:true});
 document.addEventListener("keydown",e=>{if(e.ctrlKey||e.metaKey||e.altKey||e.target.closest("input,textarea,select"))return;const k=e.key.toLowerCase();let cmd={arrowleft:"left",arrowright:"right",arrowup:"rotate",arrowdown:"down",w:"up",a:"left",s:"down",d:"right"," ":"drop",p:"pause"}[k];if(type==="bird"&&(k===" "||k==="arrowup")){e.preventDefault();flap();return;}if(type==="maze"){cmd={arrowleft:"left",arrowright:"right",arrowup:"up",arrowdown:"down",w:"up",a:"left",s:"down",d:"right",p:"pause"}[k];}if(cmd){e.preventDefault();action(cmd);}});
-document.addEventListener("visibilitychange",()=>{if(document.hidden&&type==="blocks"&&!finished){paused=true;message("Paused");}if(document.hidden&&type==="maze"&&!finished){paused=true;message("Paused");}});
+document.addEventListener("visibilitychange",()=>{if(document.hidden&&type==="blocks"&&!finished){resetBlockInputs();paused=true;blockDirty=true;message("Paused");}if(document.hidden&&type==="maze"&&!finished){paused=true;message("Paused");}});
 window.addEventListener("pagehide",stop);
 window.addEventListener("popstate",()=>pick(new URL(location.href).searchParams.get("game")||"bird"));
 if(location.hostname==="localhost"||location.hostname==="127.0.0.1")window.__nightArcadeTest=Object.freeze({snapshot:()=>JSON.parse(JSON.stringify(state)),flags:()=>({finished,paused,points}),perf:()=>({blockPaints:blockPaintCount,wingCached:Boolean(wingBackdrop),mazeCached:Boolean(mazeBackdrop&&mazeDots)})});
