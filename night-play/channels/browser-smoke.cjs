@@ -40,9 +40,9 @@ const server=http.createServer(async(req,res)=>{
     assert.match(await page.locator('.pill').textContent(),/Waiting for NIGHT admin/)
     const link='https://whatsapp.com/channel/0029VExampleTestingCode'
     await page.locator('#inviteUrl').fill(link)
-    await page.getByRole('button',{name:'Copy WhatsApp command'}).click()
-    assert.equal(await page.evaluate(()=>navigator.clipboard.readText()),'.joinchannel '+link)
-    assert.match(await page.locator('#feedback').textContent(),/Paste into NIGHT/)
+    await page.getByRole('button',{name:'Copy channel link'}).click()
+    assert.equal(await page.evaluate(()=>navigator.clipboard.readText()),link)
+    assert.match(await page.locator('#feedback').textContent(),/type .joinchannel/)
     assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,'No mobile overflow')
     await page.screenshot({path:path.join(__dirname,'../visual-output/channels-mobile.jpg'),fullPage:true})
     await page.getByRole('button',{name:'Copy proof'}).click()
