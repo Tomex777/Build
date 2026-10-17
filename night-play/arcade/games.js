@@ -18,7 +18,9 @@ function message(t){$("message").textContent=t;}
 function end(text){if(finished)return;finished=true;stop();record(type,points);message(text+" · Tap Restart to play again.");}
 function drawText(text,y,size=24){ctx.fillStyle="#fff";ctx.font="900 "+size+"px system-ui,Arial";ctx.textAlign="center";ctx.fillText(text,c.width/2,y);}
 function pick(id){if(!metadata[id])id="bird";type=id;const [title,sub,rules]=metadata[id];$("title").textContent=title;$("subtitle").textContent=sub;$("rules").textContent=rules;document.title=title+" · NIGHT Play";[...$("picks").querySelectorAll("button")].forEach(b=>b.setAttribute("aria-current",String(b.dataset.game===id)));const url=new URL(location.href);url.searchParams.set("game",id);history.replaceState({},"",url.pathname+url.search);if($("settingsDialog").open)$("settingsDialog").close();restart();}
-function restart(){stop();resetBlockInputs();$("blockPause").hidden=type!=="blocks";last=0;gameStart=Date.now();finished=false;paused=false;syncBlockPauseButton();score(0);message("Ready to play.");extra.replaceChildren();board.hidden=type!=="mines";c.hidden=type==="mines";c.className="mode-"+type;
+function restart(){stop();resetBlockInputs();$("blockPause").hidden=type!=="blocks";
+if(type!=="blocks"){c.style.removeProperty("--block-fit-height");c.style.removeProperty("--block-fit-width");}
+last=0;gameStart=Date.now();finished=false;paused=false;syncBlockPauseButton();score(0);message("Ready to play.");extra.replaceChildren();board.hidden=type!=="mines";c.hidden=type==="mines";c.className="mode-"+type;
 if(type==="bird")setupBird();if(type==="blocks")setupBlocks();if(type==="mines")setupMines();if(type==="maze")setupMaze();}
 function button(label,action,aria=label){return '<button type="button" data-control="'+action+'" aria-label="'+aria+'">'+label+'</button>';}
 function setControls(html){touch.innerHTML=html;}
@@ -128,7 +130,7 @@ function setupBlocks(){c.width=300;c.height=600;blockDirty=true;state={grid:Arra
   button("⟳","rotate","Rotate clockwise")+button("▼","down","Soft drop one row")+
   '<button type="button" class="block-hard-drop" data-control="drop" aria-label="Hard drop piece instantly">⬇</button>'+
   '</div></div>');
- message("Tap to rotate · Drag to move · Flick down to drop");frameLoop(blockFrame);}
+ message("Tap to rotate · Drag to move · Flick down to drop");scheduleBlockFit();frameLoop(blockFrame);}
 function rotate(s){const old=s.cur.cells,turn=old.map(([x,y])=>[3-y,x]);for(const shift of [0,-1,1,-2,2])if(!collision(s,shift,0,turn)){s.cur.cells=turn;s.cur.x+=shift;return;}}
 function blockMove(move){const s=state;if(type!=="blocks"||finished)return;if(move==="pause"){resetBlockInputs();paused=!paused;syncBlockPauseButton();blockDirty=true;message(paused?"Paused":"Back in the game");return;}if(paused)return;blockDirty=true;if(move==="left"&&!collision(s,-1,0))s.cur.x--;if(move==="right"&&!collision(s,1,0))s.cur.x++;if(move==="rotate")rotate(s);if(move==="down"){if(!collision(s,0,1))s.cur.y++;else lockBlock(s);}if(move==="drop"){while(!collision(s,0,1))s.cur.y++;lockBlock(s);}}
 function lockBlock(s){for(const [x,y] of s.cur.cells){let xx=x+s.cur.x,yy=y+s.cur.y;if(yy<0){end("Stack too high!");return;}if(yy<20)s.grid[yy][xx]=s.cur.idx;}let count=0;for(let y=19;y>=0;y--){if(s.grid[y].every(k=>k!==null)){s.grid.splice(y,1);s.grid.unshift(Array(10).fill(null));count++;y++;}}
@@ -240,15 +242,60 @@ function syncBlockPauseButton(){
  b.setAttribute("aria-label",paused?"Resume Block Drop":"Pause Block Drop");
  b.setAttribute("aria-pressed",String(paused));
 }
-let blockGesture=null;
+let blockFitFrame=0,blockHeight=0,blockWidth=0,blockGesture=null,blockSizeSignature="",blockInputResets=0;
 const blockPointers=new Set(),blockSuppressedClicks=new WeakSet();
+function fitBlockBoard(){
+ blockFitFrame=0;
+ if(type!=="blocks"||c.hidden)return;
+ const box=c.getBoundingClientRect(),shell=$("canvasShell").getBoundingClientRect(),
+       main=document.querySelector("main").getBoundingClientRect();
+ const viewport=window.visualViewport;
+ const visibleBottom=viewport?viewport.height+viewport.offsetTop:window.innerHeight;
+ const sideControls=window.matchMedia("(min-width:651px) and (max-height:610px)").matches;
+ // Below-board controls share the same column on portrait, but live beside
+ // the board on short landscape windows. main.bottom-board.bottom measures
+ // the actual UI below the canvas, avoiding magic viewport subtractions.
+ const below=sideControls?9:Math.max(8,main.bottom-box.bottom);
+ const available=visibleBottom-box.top-below-5;
+ const fullWidth=Math.max(1,Math.min(shell.width,465));
+ const target=Math.round(Math.max(90,Math.min(fullWidth*2,available)));
+ // Preserve the requested edge-to-edge board on normal portrait phones.
+ // When a window becomes very short, full width would squash tiles into
+ // paper-thin strips; trade some width for recognisable piece proportions.
+ const targetWidth=Math.round(Math.min(fullWidth,Math.max(180,target/1.15)));
+ const sizeSignature=[Math.round(window.innerWidth),Math.round(visibleBottom),
+                      Math.round(shell.width)].join("/");
+ // Only *real* viewport/container resizes cancel a gesture. The board's
+ // ResizeObserver can also report its own height updates, which must never
+ // silently cancel a finger already moving across the board.
+ if(blockSizeSignature&&blockSizeSignature!==sizeSignature)resetBlockInputs();
+ blockSizeSignature=sizeSignature;
+ if(Math.abs(target-blockHeight)<2&&Math.abs(box.height-target)<2&&
+    Math.abs(targetWidth-blockWidth)<2&&Math.abs(box.width-targetWidth)<2)return;
+ blockHeight=target;blockWidth=targetWidth;
+ c.style.setProperty("--block-fit-height",target+"px");
+ c.style.setProperty("--block-fit-width",targetWidth+"px");
+}
+function scheduleBlockFit(){
+ if(type!=="blocks"||blockFitFrame)return;
+ blockFitFrame=requestAnimationFrame(fitBlockBoard);
+}
+window.addEventListener("resize",scheduleBlockFit,{passive:true});
+window.visualViewport?.addEventListener("resize",scheduleBlockFit,{passive:true});
+window.visualViewport?.addEventListener("scroll",scheduleBlockFit,{passive:true});
+if(typeof ResizeObserver==="function"){
+ const blockLayoutObserver=new ResizeObserver(scheduleBlockFit);
+ blockLayoutObserver.observe($("canvasShell"));
+ blockLayoutObserver.observe($("touchbar"));
+}
+
 let blockHold=null;
 function endBlockHold(){
  if(!blockHold)return;
  clearTimeout(blockHold.timeout);clearInterval(blockHold.interval);
  blockHold=null;
 }
-function resetBlockInputs(){blockGesture=null;blockPointers.clear();endBlockHold();}
+function resetBlockInputs(){blockInputResets++;blockGesture=null;blockPointers.clear();endBlockHold();}
 function blockTouchMove(e){
  const g=blockGesture;
  if(!g||g.id!==e.pointerId||type!=="blocks"||finished||paused||!state||g.piece!==state.cur)return;
@@ -317,7 +364,7 @@ c.addEventListener("pointerup",e=>{
  const recentSpeed=performance.now()-g.lastDownAt<140?g.lastDownVelocity:0;
  blockGesture=null;
  if(finished||paused||!state||g.piece!==state.cur)return;
- if(g.axis==="vertical"&&dy>Math.max(55,c.getBoundingClientRect().height/20*2.65)&&
+ if(g.axis==="vertical"&&dy>Math.max(30,c.getBoundingClientRect().height/20*2.25)&&
     Math.abs(dx)<dy*.62&&recentSpeed>.44){
   blockMove("drop"); // quick downward flick, not a slow drag
  }else if(!g.axis&&Math.hypot(dx,dy)<13&&duration<500){
@@ -408,6 +455,6 @@ document.addEventListener("keydown",e=>{if(e.ctrlKey||e.metaKey||e.altKey||e.tar
 document.addEventListener("visibilitychange",()=>{if(document.hidden&&type==="blocks"&&!finished){resetBlockInputs();paused=true;syncBlockPauseButton();blockDirty=true;message("Paused");}if(document.hidden&&type==="maze"&&!finished){paused=true;message("Paused");}});
 window.addEventListener("pagehide",stop);
 window.addEventListener("popstate",()=>pick(new URL(location.href).searchParams.get("game")||"bird"));
-if(location.hostname==="localhost"||location.hostname==="127.0.0.1")window.__nightArcadeTest=Object.freeze({snapshot:()=>JSON.parse(JSON.stringify(state)),flags:()=>({finished,paused,points}),perf:()=>({blockPaints:blockPaintCount,wingCached:Boolean(wingBackdrop),mazeCached:Boolean(mazeBackdrop&&mazeDots)})});
+if(location.hostname==="localhost"||location.hostname==="127.0.0.1")window.__nightArcadeTest=Object.freeze({snapshot:()=>JSON.parse(JSON.stringify(state)),flags:()=>({finished,paused,points}),input:()=>({active:Boolean(blockGesture),gesture: blockGesture && {id:blockGesture.id,axis:blockGesture.axis,steps:blockGesture.steps},resets:blockInputResets,fit:blockHeight,width:blockWidth,signature:blockSizeSignature}),perf:()=>({blockPaints:blockPaintCount,wingCached:Boolean(wingBackdrop),mazeCached:Boolean(mazeBackdrop&&mazeDots)})});
 pick(new URL(location.href).searchParams.get("game")||"bird");
 })();
