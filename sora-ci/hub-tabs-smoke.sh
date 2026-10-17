@@ -345,6 +345,15 @@ tap_scrolling "Meme caption"
 wait_for "Save a meme in your Library"
 shot games-meme-caption-empty
 
+# The standalone arcade workflow verifies all eleven modes independently of
+# live AniList, Reddit, TMDB, and Bible service availability. This is also where
+# we capture the actual Android-rendered UI for visual review.
+if [[ "${SORA_ONLY_GAMES:-0}" == "1" ]]; then
+  echo 'Verified all 11 Sora arcade modes, touch controls, board transitions,'
+  echo 'score persistence, and navigation on Android.'
+  exit 0
+fi
+
 # The live Anime flow can seed a real title before this walkthrough. Check that
 # Verify Library heading and controls without the redundant item-count row.
 tap Library
