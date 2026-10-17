@@ -36,5 +36,5 @@ export async function acquireArtwork(card,{fetchImpl=fetch}={}) {
   const art=await sharp(data,{raw:info}).extend({top:0,left:0,right:0,bottom:pad,background:{r:0,g:0,b:0,alpha:0}}).png().toBuffer();
   const fonts={};
   for(const [key,name] of Object.entries({display:'Display',sans:'Sans',italic:'Italic',condensed:'BebasNeue',black:'ArchivoBlack'}))fonts[key]='data:font/ttf;base64,'+(await fs.readFile(inside(`renderer/assets/fonts/${name}.ttf`))).toString('base64');
-  return {art:'data:image/png;base64,'+art.toString('base64'),artWidth:width,artHeight:height+pad,croppedArtworkDimensions:[width,height],focal:[card.recipe.focal[0],card.recipe.focal[1]*height/(height+pad)],fonts,title:card.name+' — '+card.form,artist:s.artist,license:s.credit,rights:s.rights,sourceUrl:s.page,outputLicense:s.usage};
+  return {art:'data:image/png;base64,'+art.toString('base64'),artWidth:width,artHeight:height+pad,croppedArtworkDimensions:[width,height],focal:[card.recipe.focal[0],card.recipe.focal[1]*height/(height+pad)],fonts,title:card.name+' — '+card.form,artist:s.artist,license:s.credit,rights:s.rights,sourceUrl:s.page,licenseUrl:s.page,outputLicense:s.usage};
 }

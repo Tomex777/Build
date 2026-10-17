@@ -1,0 +1,1182 @@
+{
+  "provider": "bleach-anime",
+  "source": "https://bleach-anime.com/en/character/",
+  "candidates": [
+    {
+      "name": "Ichigo Kurosaki",
+      "sourceId": "01",
+      "page": "https://bleach-anime.com/en/character/?chara=01",
+      "image": "https://bleach-anime.com/assets/img/character/chara_01.png",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Orihime Inoue",
+      "sourceId": "03",
+      "page": "https://bleach-anime.com/en/character/?chara=03",
+      "image": "https://bleach-anime.com/assets/img/character/chara_03.png",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Yasutora Sado (Chad)",
+      "sourceId": "04",
+      "page": "https://bleach-anime.com/en/character/?chara=04",
+      "image": "https://bleach-anime.com/assets/img/character/chara_04.png",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Kisuke Urahara",
+      "sourceId": "05",
+      "page": "https://bleach-anime.com/en/character/?chara=05",
+      "image": "https://bleach-anime.com/assets/img/character/chara_05.png",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Yoruichi Shihoin",
+      "sourceId": "76",
+      "page": "https://bleach-anime.com/en/character/?chara=76",
+      "image": "https://bleach-anime.com/assets/img/character/chara_76.png",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Isshin Kurosaki",
+      "sourceId": "58",
+      "page": "https://bleach-anime.com/en/character/?chara=58",
+      "image": "https://bleach-anime.com/assets/img/character/chara_58.png",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Ryuken Ishida",
+      "sourceId": "49",
+      "page": "https://bleach-anime.com/en/character/?chara=49",
+      "image": "https://bleach-anime.com/assets/img/character/chara_49.png",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Masaki Kurosaki",
+      "sourceId": "59",
+      "page": "https://bleach-anime.com/en/character/?chara=59",
+      "image": "https://bleach-anime.com/assets/img/character/chara_59.png",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Kanae Katagiri",
+      "sourceId": "60",
+      "page": "https://bleach-anime.com/en/character/?chara=60",
+      "image": "https://bleach-anime.com/assets/img/character/chara_60.png",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Syunsui Kyoraku",
+      "sourceId": "14",
+      "page": "https://bleach-anime.com/en/character/?chara=14",
+      "image": "https://bleach-anime.com/assets/img/character/chara_14.png",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Nanao Ise",
+      "sourceId": "37",
+      "page": "https://bleach-anime.com/en/character/?chara=37",
+      "image": "https://bleach-anime.com/assets/img/character/chara_37.png",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Soi Fon",
+      "sourceId": "07",
+      "page": "https://bleach-anime.com/en/character/?chara=07",
+      "image": "https://bleach-anime.com/assets/img/character/chara_07.png",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Marechiyo Omaeda",
+      "sourceId": "68",
+      "page": "https://bleach-anime.com/en/character/?chara=68",
+      "image": "https://bleach-anime.com/assets/img/character/chara_68.png",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Rojuro Ohtoribashi",
+      "sourceId": "08",
+      "page": "https://bleach-anime.com/en/character/?chara=08",
+      "image": "https://bleach-anime.com/assets/img/character/chara_08.png",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Izuru Kira",
+      "sourceId": "36",
+      "page": "https://bleach-anime.com/en/character/?chara=36",
+      "image": "https://bleach-anime.com/assets/img/character/chara_36.png",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Isane Kotetsu",
+      "sourceId": "74",
+      "page": "https://bleach-anime.com/en/character/?chara=74",
+      "image": "https://bleach-anime.com/assets/img/character/chara_74.png",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Shinji Hirako",
+      "sourceId": "10",
+      "page": "https://bleach-anime.com/en/character/?chara=10",
+      "image": "https://bleach-anime.com/assets/img/character/chara_10.png",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Momo Hinamori",
+      "sourceId": "71",
+      "page": "https://bleach-anime.com/en/character/?chara=71",
+      "image": "https://bleach-anime.com/assets/img/character/chara_71.png",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Byakuya Kuchiki",
+      "sourceId": "11",
+      "page": "https://bleach-anime.com/en/character/?chara=11",
+      "image": "https://bleach-anime.com/assets/img/character/chara_11.png",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Renji Abarai",
+      "sourceId": "12",
+      "page": "https://bleach-anime.com/en/character/?chara=12",
+      "image": "https://bleach-anime.com/assets/img/character/chara_12.png",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Sajin Komamura",
+      "sourceId": "13",
+      "page": "https://bleach-anime.com/en/character/?chara=13",
+      "image": "https://bleach-anime.com/assets/img/character/chara_13.png",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Tetsuzaemon Iba",
+      "sourceId": "72",
+      "page": "https://bleach-anime.com/en/character/?chara=72",
+      "image": "https://bleach-anime.com/assets/img/character/chara_72.png",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Kensei Muguruma",
+      "sourceId": "15",
+      "page": "https://bleach-anime.com/en/character/?chara=15",
+      "image": "https://bleach-anime.com/assets/img/character/chara_15.png",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Shuhei Hisagi",
+      "sourceId": "38",
+      "page": "https://bleach-anime.com/en/character/?chara=38",
+      "image": "https://bleach-anime.com/assets/img/character/chara_38.png",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Toshiro Hitsugaya",
+      "sourceId": "16",
+      "page": "https://bleach-anime.com/en/character/?chara=16",
+      "image": "https://bleach-anime.com/assets/img/character/chara_16.png",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Rangiku Matsumoto",
+      "sourceId": "39",
+      "page": "https://bleach-anime.com/en/character/?chara=39",
+      "image": "https://bleach-anime.com/assets/img/character/chara_39.png",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Kenpachi Zaraki",
+      "sourceId": "17",
+      "page": "https://bleach-anime.com/en/character/?chara=17",
+      "image": "https://bleach-anime.com/assets/img/character/chara_17.png",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Yachiru Kusajishi",
+      "sourceId": "73",
+      "page": "https://bleach-anime.com/en/character/?chara=73",
+      "image": "https://bleach-anime.com/assets/img/character/chara_73.png",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Ikkaku Madarame",
+      "sourceId": "40",
+      "page": "https://bleach-anime.com/en/character/?chara=40",
+      "image": "https://bleach-anime.com/assets/img/character/chara_40.png",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Yumichika Ayasegawa",
+      "sourceId": "41",
+      "page": "https://bleach-anime.com/en/character/?chara=41",
+      "image": "https://bleach-anime.com/assets/img/character/chara_41.png",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Mayuri Kurotsuchi",
+      "sourceId": "18",
+      "page": "https://bleach-anime.com/en/character/?chara=18",
+      "image": "https://bleach-anime.com/assets/img/character/chara_18.png",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Nemu Kurotsuchi",
+      "sourceId": "69",
+      "page": "https://bleach-anime.com/en/character/?chara=69",
+      "image": "https://bleach-anime.com/assets/img/character/chara_69.png",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Akon",
+      "sourceId": "42",
+      "page": "https://bleach-anime.com/en/character/?chara=42",
+      "image": "https://bleach-anime.com/assets/img/character/chara_42.png",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Jushiro Ukitake",
+      "sourceId": "19",
+      "page": "https://bleach-anime.com/en/character/?chara=19",
+      "image": "https://bleach-anime.com/assets/img/character/chara_19.png",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Rukia Kuchiki",
+      "sourceId": "20",
+      "page": "https://bleach-anime.com/en/character/?chara=20",
+      "image": "https://bleach-anime.com/assets/img/character/chara_20.png",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Ryunosuke Yuki",
+      "sourceId": "21",
+      "page": "https://bleach-anime.com/en/character/?chara=21",
+      "image": "https://bleach-anime.com/assets/img/character/chara_21.png",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Shino Madarame",
+      "sourceId": "22",
+      "page": "https://bleach-anime.com/en/character/?chara=22",
+      "image": "https://bleach-anime.com/assets/img/character/chara_22.png",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Sosuke Aizen",
+      "sourceId": "50",
+      "page": "https://bleach-anime.com/en/character/?chara=50",
+      "image": "https://bleach-anime.com/assets/img/character/chara_50.png",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Ganju Shiba",
+      "sourceId": "81",
+      "page": "https://bleach-anime.com/en/character/?chara=81",
+      "image": "https://bleach-anime.com/assets/img/character/chara_81.png",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Yushiro Sakimune Shihoin",
+      "sourceId": "85",
+      "page": "https://bleach-anime.com/en/character/?chara=85",
+      "image": "https://bleach-anime.com/assets/img/character/chara_85.png",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Shigekuni Genryusai",
+      "sourceId": "06",
+      "page": "https://bleach-anime.com/en/character/?chara=06",
+      "image": "https://bleach-anime.com/assets/img/character/chara_06.png",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Chojiro Tadaoki Sasakibe",
+      "sourceId": "35",
+      "page": "https://bleach-anime.com/en/character/?chara=35",
+      "image": "https://bleach-anime.com/assets/img/character/chara_35.png",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Retsu Unohana",
+      "sourceId": "09",
+      "page": "https://bleach-anime.com/en/character/?chara=09",
+      "image": "https://bleach-anime.com/assets/img/character/chara_09.png",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Ichibe Hyosube",
+      "sourceId": "53",
+      "page": "https://bleach-anime.com/en/character/?chara=53",
+      "image": "https://bleach-anime.com/assets/img/character/chara_53.png",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Oh-Etsu Nimaiya",
+      "sourceId": "54",
+      "page": "https://bleach-anime.com/en/character/?chara=54",
+      "image": "https://bleach-anime.com/assets/img/character/chara_54.png",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Tenjiro Kirinji",
+      "sourceId": "55",
+      "page": "https://bleach-anime.com/en/character/?chara=55",
+      "image": "https://bleach-anime.com/assets/img/character/chara_55.png",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Senjumaru Shutara",
+      "sourceId": "56",
+      "page": "https://bleach-anime.com/en/character/?chara=56",
+      "image": "https://bleach-anime.com/assets/img/character/chara_56.png",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Kirio Hikifune",
+      "sourceId": "57",
+      "page": "https://bleach-anime.com/en/character/?chara=57",
+      "image": "https://bleach-anime.com/assets/img/character/chara_57.png",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Yhwach",
+      "sourceId": "23",
+      "page": "https://bleach-anime.com/en/character/?chara=23",
+      "image": "https://bleach-anime.com/assets/img/character/chara_23.png",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Uryu Ishida",
+      "sourceId": "02",
+      "page": "https://bleach-anime.com/en/character/?chara=02",
+      "image": "https://bleach-anime.com/assets/img/character/chara_02.png",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Jugram Haschwalth",
+      "sourceId": "24",
+      "page": "https://bleach-anime.com/en/character/?chara=24",
+      "image": "https://bleach-anime.com/assets/img/character/chara_24.png",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Pernida Parnkgjas",
+      "sourceId": "82",
+      "page": "https://bleach-anime.com/en/character/?chara=82",
+      "image": "https://bleach-anime.com/assets/img/character/chara_82.png",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Askin Nakk Le Vaar",
+      "sourceId": "25",
+      "page": "https://bleach-anime.com/en/character/?chara=25",
+      "image": "https://bleach-anime.com/assets/img/character/chara_25.png",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Bambietta Basterbine",
+      "sourceId": "26",
+      "page": "https://bleach-anime.com/en/character/?chara=26",
+      "image": "https://bleach-anime.com/assets/img/character/chara_26.png",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Äs Nödt",
+      "sourceId": "27",
+      "page": "https://bleach-anime.com/en/character/?chara=27",
+      "image": "https://bleach-anime.com/assets/img/character/chara_27.png",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Liltotto Lamperd",
+      "sourceId": "61",
+      "page": "https://bleach-anime.com/en/character/?chara=61",
+      "image": "https://bleach-anime.com/assets/img/character/chara_61.png",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Bazz-B",
+      "sourceId": "28",
+      "page": "https://bleach-anime.com/en/character/?chara=28",
+      "image": "https://bleach-anime.com/assets/img/character/chara_28.png",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Cang Du",
+      "sourceId": "51",
+      "page": "https://bleach-anime.com/en/character/?chara=51",
+      "image": "https://bleach-anime.com/assets/img/character/chara_51.png",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Quilge Opie",
+      "sourceId": "29",
+      "page": "https://bleach-anime.com/en/character/?chara=29",
+      "image": "https://bleach-anime.com/assets/img/character/chara_29.png",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "BG9",
+      "sourceId": "30",
+      "page": "https://bleach-anime.com/en/character/?chara=30",
+      "image": "https://bleach-anime.com/assets/img/character/chara_30.png",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "PePe Waccabrada",
+      "sourceId": "62",
+      "page": "https://bleach-anime.com/en/character/?chara=62",
+      "image": "https://bleach-anime.com/assets/img/character/chara_62.png",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Gerard Valkyrie",
+      "sourceId": "83",
+      "page": "https://bleach-anime.com/en/character/?chara=83",
+      "image": "https://bleach-anime.com/assets/img/character/chara_83.png",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Robert Accutrone",
+      "sourceId": "31",
+      "page": "https://bleach-anime.com/en/character/?chara=31",
+      "image": "https://bleach-anime.com/assets/img/character/chara_31.png",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Driscoll Berci",
+      "sourceId": "32",
+      "page": "https://bleach-anime.com/en/character/?chara=32",
+      "image": "https://bleach-anime.com/assets/img/character/chara_32.png",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Meninas McAllon",
+      "sourceId": "63",
+      "page": "https://bleach-anime.com/en/character/?chara=63",
+      "image": "https://bleach-anime.com/assets/img/character/chara_63.png",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Berenice Gabrielli",
+      "sourceId": "44",
+      "page": "https://bleach-anime.com/en/character/?chara=44",
+      "image": "https://bleach-anime.com/assets/img/character/chara_44.png",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Jerome Guizbatt",
+      "sourceId": "45",
+      "page": "https://bleach-anime.com/en/character/?chara=45",
+      "image": "https://bleach-anime.com/assets/img/character/chara_45.png",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Mask De Masculine",
+      "sourceId": "33",
+      "page": "https://bleach-anime.com/en/character/?chara=33",
+      "image": "https://bleach-anime.com/assets/img/character/chara_33.png",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "James",
+      "sourceId": "70",
+      "page": "https://bleach-anime.com/en/character/?chara=70",
+      "image": "https://bleach-anime.com/assets/img/character/chara_70.png",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Candice Catnipp",
+      "sourceId": "64",
+      "page": "https://bleach-anime.com/en/character/?chara=64",
+      "image": "https://bleach-anime.com/assets/img/character/chara_64.png",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "NaNaNa Najahkoop",
+      "sourceId": "34",
+      "page": "https://bleach-anime.com/en/character/?chara=34",
+      "image": "https://bleach-anime.com/assets/img/character/chara_34.png",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Gremmy Thoumeaux",
+      "sourceId": "65",
+      "page": "https://bleach-anime.com/en/character/?chara=65",
+      "image": "https://bleach-anime.com/assets/img/character/chara_65.png",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Gwenael Lee",
+      "sourceId": "75",
+      "page": "https://bleach-anime.com/en/character/?chara=75",
+      "image": "https://bleach-anime.com/assets/img/character/chara_75.png",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Nianzol Weizol",
+      "sourceId": "66",
+      "page": "https://bleach-anime.com/en/character/?chara=66",
+      "image": "https://bleach-anime.com/assets/img/character/chara_66.png",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Lille Barro",
+      "sourceId": "84",
+      "page": "https://bleach-anime.com/en/character/?chara=84",
+      "image": "https://bleach-anime.com/assets/img/character/chara_84.png",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Loyd Loyd/Royd Loyd",
+      "sourceId": "52",
+      "page": "https://bleach-anime.com/en/character/?chara=52",
+      "image": "https://bleach-anime.com/assets/img/character/chara_52.png",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Giselle Gewelle",
+      "sourceId": "67",
+      "page": "https://bleach-anime.com/en/character/?chara=67",
+      "image": "https://bleach-anime.com/assets/img/character/chara_67.png",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Asguiaro Ebern",
+      "sourceId": "46",
+      "page": "https://bleach-anime.com/en/character/?chara=46",
+      "image": "https://bleach-anime.com/assets/img/character/chara_46.png",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Lüdaas Friegen",
+      "sourceId": "47",
+      "page": "https://bleach-anime.com/en/character/?chara=47",
+      "image": "https://bleach-anime.com/assets/img/character/chara_47.png",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Nel Tu",
+      "sourceId": "48",
+      "page": "https://bleach-anime.com/en/character/?chara=48",
+      "image": "https://bleach-anime.com/assets/img/character/chara_48.png",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Dordoni Alessandro",
+      "sourceId": "77",
+      "page": "https://bleach-anime.com/en/character/?chara=77",
+      "image": "https://bleach-anime.com/assets/img/character/chara_77.png",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Cirucci Sanderwicci",
+      "sourceId": "78",
+      "page": "https://bleach-anime.com/en/character/?chara=78",
+      "image": "https://bleach-anime.com/assets/img/character/chara_78.png",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Charlotte Chuhlhourne",
+      "sourceId": "79",
+      "page": "https://bleach-anime.com/en/character/?chara=79",
+      "image": "https://bleach-anime.com/assets/img/character/chara_79.png",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Luppi Antenor",
+      "sourceId": "80",
+      "page": "https://bleach-anime.com/en/character/?chara=80",
+      "image": "https://bleach-anime.com/assets/img/character/chara_80.png",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    }
+  ]
+}

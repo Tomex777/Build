@@ -1,0 +1,1787 @@
+{
+  "provider": "brave-souls",
+  "source": "https://www.bleach-bravesouls.com/en/character/",
+  "candidates": [
+    {
+      "name": "Ichigo Kurosaki",
+      "slug": "ichigo",
+      "page": "https://www.bleach-bravesouls.com/en/character/ichigo.html",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Orihime Inoue",
+      "slug": "orihime",
+      "page": "https://www.bleach-bravesouls.com/en/character/orihime.html",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Uryu Ishida",
+      "slug": "uryu",
+      "page": "https://www.bleach-bravesouls.com/en/character/uryu.html",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Yasutora Sado (Chad)",
+      "slug": "sado",
+      "page": "https://www.bleach-bravesouls.com/en/character/sado.html",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Kon",
+      "slug": "kon",
+      "page": "https://www.bleach-bravesouls.com/en/character/kon.html",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Isshin Kurosaki",
+      "slug": "isshin",
+      "page": "https://www.bleach-bravesouls.com/en/character/isshin.html",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Kisuke Urahara",
+      "slug": "urahara",
+      "page": "https://www.bleach-bravesouls.com/en/character/urahara.html",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Yoruichi Shihoin",
+      "slug": "yoruichi",
+      "page": "https://www.bleach-bravesouls.com/en/character/yoruichi.html",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Jinta Hanakari",
+      "slug": "jinta",
+      "page": "https://www.bleach-bravesouls.com/en/character/jinta.html",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Ururu Tsumugiya",
+      "slug": "ururu",
+      "page": "https://www.bleach-bravesouls.com/en/character/ururu.html",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Tessai Tsukabishi",
+      "slug": "tessai",
+      "page": "https://www.bleach-bravesouls.com/en/character/tessai.html",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Ryuken Ishida",
+      "slug": "ryuken",
+      "page": "https://www.bleach-bravesouls.com/en/character/ryuken.html",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Don Kanonji",
+      "slug": "kanonji",
+      "page": "https://www.bleach-bravesouls.com/en/character/kanonji.html",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Ikumi Unagiya",
+      "slug": "ikumi",
+      "page": "https://www.bleach-bravesouls.com/en/character/ikumi.html",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Zangetsu",
+      "slug": "zangetsu",
+      "page": "https://www.bleach-bravesouls.com/en/character/zangetsu.html",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Tensa Zangetsu",
+      "slug": "tensa_zangetsu",
+      "page": "https://www.bleach-bravesouls.com/en/character/tensa_zangetsu.html",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Rukia Kuchiki",
+      "slug": "rukia",
+      "page": "https://www.bleach-bravesouls.com/en/character/rukia.html",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Byakuya Kuchiki",
+      "slug": "byakuya",
+      "page": "https://www.bleach-bravesouls.com/en/character/byakuya.html",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Renji Abarai",
+      "slug": "renji",
+      "page": "https://www.bleach-bravesouls.com/en/character/renji.html",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Kenpachi Zaraki",
+      "slug": "kenpachi",
+      "page": "https://www.bleach-bravesouls.com/en/character/kenpachi.html",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Toshiro Hitsugaya",
+      "slug": "hitsugaya",
+      "page": "https://www.bleach-bravesouls.com/en/character/hitsugaya.html",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Rangiku Matsumoto",
+      "slug": "rangiku",
+      "page": "https://www.bleach-bravesouls.com/en/character/rangiku.html",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Shigekuni Genryusai Yamamoto",
+      "slug": "yamamoto",
+      "page": "https://www.bleach-bravesouls.com/en/character/yamamoto.html",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Soi Fon",
+      "slug": "soifon",
+      "page": "https://www.bleach-bravesouls.com/en/character/soifon.html",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Marechiyo Omaeda",
+      "slug": "omaeda",
+      "page": "https://www.bleach-bravesouls.com/en/character/omaeda.html",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Izuru Kira",
+      "slug": "kira",
+      "page": "https://www.bleach-bravesouls.com/en/character/kira.html",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Retsu Unohana",
+      "slug": "unohana",
+      "page": "https://www.bleach-bravesouls.com/en/character/unohana.html",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Isane Kotetsu",
+      "slug": "isane",
+      "page": "https://www.bleach-bravesouls.com/en/character/isane.html",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Hanataro Yamada",
+      "slug": "hanataro",
+      "page": "https://www.bleach-bravesouls.com/en/character/hanataro.html",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Momo Hinamori",
+      "slug": "hinamori",
+      "page": "https://www.bleach-bravesouls.com/en/character/hinamori.html",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Sajin Komamura",
+      "slug": "komamura",
+      "page": "https://www.bleach-bravesouls.com/en/character/komamura.html",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Tetsuzaemon Iba",
+      "slug": "ibatetsu",
+      "page": "https://www.bleach-bravesouls.com/en/character/ibatetsu.html",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Shunsui Kyoraku",
+      "slug": "kyoraku",
+      "page": "https://www.bleach-bravesouls.com/en/character/kyoraku.html",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Nanao Ise",
+      "slug": "nanao",
+      "page": "https://www.bleach-bravesouls.com/en/character/nanao.html",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Shuhei Hisagi",
+      "slug": "hisagi",
+      "page": "https://www.bleach-bravesouls.com/en/character/hisagi.html",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Chojiro Sasakibe",
+      "slug": "sasakibe",
+      "page": "https://www.bleach-bravesouls.com/en/character/sasakibe.html",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Yachiru Kusajishi",
+      "slug": "yachiru",
+      "page": "https://www.bleach-bravesouls.com/en/character/yachiru.html",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Ikkaku Madarame",
+      "slug": "ikkaku",
+      "page": "https://www.bleach-bravesouls.com/en/character/ikkaku.html",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Yumichika Ayasegawa",
+      "slug": "yumichika",
+      "page": "https://www.bleach-bravesouls.com/en/character/yumichika.html",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Mayuri Kurotsuchi",
+      "slug": "mayuri",
+      "page": "https://www.bleach-bravesouls.com/en/character/mayuri.html",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Nemu Kurotsuchi",
+      "slug": "nemu",
+      "page": "https://www.bleach-bravesouls.com/en/character/nemu.html",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Akon",
+      "slug": "akon",
+      "page": "https://www.bleach-bravesouls.com/en/character/akon.html",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Jushiro Ukitake",
+      "slug": "ukitake",
+      "page": "https://www.bleach-bravesouls.com/en/character/ukitake.html",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Kaien Shiba",
+      "slug": "kaien",
+      "page": "https://www.bleach-bravesouls.com/en/character/kaien.html",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Sentaro Kotsubaki & Kiyone Kotetsu",
+      "slug": "kotsubaki_kiyone",
+      "page": "https://www.bleach-bravesouls.com/en/character/kotsubaki_kiyone.html",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Zennosuke Kurumadani",
+      "slug": "kurumadani",
+      "page": "https://www.bleach-bravesouls.com/en/character/kurumadani.html",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Kukaku Shiba",
+      "slug": "kukaku",
+      "page": "https://www.bleach-bravesouls.com/en/character/kukaku.html",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Ganju Shiba",
+      "slug": "ganju",
+      "page": "https://www.bleach-bravesouls.com/en/character/ganju.html",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Sosuke Aizen",
+      "slug": "aizen",
+      "page": "https://www.bleach-bravesouls.com/en/character/aizen.html",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Gin Ichimaru",
+      "slug": "gin",
+      "page": "https://www.bleach-bravesouls.com/en/character/gin.html",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Kaname Tosen",
+      "slug": "tosen",
+      "page": "https://www.bleach-bravesouls.com/en/character/tosen.html",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Nel Tu",
+      "slug": "nel",
+      "page": "https://www.bleach-bravesouls.com/en/character/nel.html",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Dondochakka",
+      "slug": "dondochakka",
+      "page": "https://www.bleach-bravesouls.com/en/character/dondochakka.html",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Pesche Gatiche",
+      "slug": "pesche",
+      "page": "https://www.bleach-bravesouls.com/en/character/pesche.html",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Lilinette Gingerback",
+      "slug": "lilinette",
+      "page": "https://www.bleach-bravesouls.com/en/character/lilinette.html",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Dordoni Alessandro Del Socaccio",
+      "slug": "dordoni",
+      "page": "https://www.bleach-bravesouls.com/en/character/dordoni.html",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Cirucci Sanderwicci",
+      "slug": "cirucci",
+      "page": "https://www.bleach-bravesouls.com/en/character/cirucci.html",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Gantenbainne Mosqueda",
+      "slug": "gantenbainne",
+      "page": "https://www.bleach-bravesouls.com/en/character/gantenbainne.html",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Tesla Lindocruz",
+      "slug": "tesla",
+      "page": "https://www.bleach-bravesouls.com/en/character/tesla.html",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Wonderweiss Margera",
+      "slug": "wonderweiss",
+      "page": "https://www.bleach-bravesouls.com/en/character/wonderweiss.html",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Loly Aivirrne",
+      "slug": "loly",
+      "page": "https://www.bleach-bravesouls.com/en/character/loly.html",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Emilou Apache",
+      "slug": "emilou",
+      "page": "https://www.bleach-bravesouls.com/en/character/emilou.html",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Franceska Mila Rose",
+      "slug": "franceska",
+      "page": "https://www.bleach-bravesouls.com/en/character/franceska.html",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Cyan Sun-Sun",
+      "slug": "cyan",
+      "page": "https://www.bleach-bravesouls.com/en/character/cyan.html",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Coyote Stark",
+      "slug": "stark",
+      "page": "https://www.bleach-bravesouls.com/en/character/stark.html",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Barragan Ruizenban",
+      "slug": "barragan",
+      "page": "https://www.bleach-bravesouls.com/en/character/barragan.html",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Tier Halibel",
+      "slug": "halibel",
+      "page": "https://www.bleach-bravesouls.com/en/character/halibel.html",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Nelliel Tu Odelschwanck",
+      "slug": "nelliel",
+      "page": "https://www.bleach-bravesouls.com/en/character/nelliel.html",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Ulquiorra Shifar",
+      "slug": "ulquiorra",
+      "page": "https://www.bleach-bravesouls.com/en/character/ulquiorra.html",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Nnoitora Gilga",
+      "slug": "nnoitora",
+      "page": "https://www.bleach-bravesouls.com/en/character/nnoitora.html",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Grimmjow Jeagerjaques",
+      "slug": "grimmjow",
+      "page": "https://www.bleach-bravesouls.com/en/character/grimmjow.html",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Luppi Antenor",
+      "slug": "luppi",
+      "page": "https://www.bleach-bravesouls.com/en/character/luppi.html",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Zommari Rureaux",
+      "slug": "zommari",
+      "page": "https://www.bleach-bravesouls.com/en/character/zommari.html",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Szayelaporro Grantz",
+      "slug": "szayelaporro",
+      "page": "https://www.bleach-bravesouls.com/en/character/szayelaporro.html",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Aaroniero Arruruerie",
+      "slug": "aaroniero",
+      "page": "https://www.bleach-bravesouls.com/en/character/aaroniero.html",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Yammy Llargo",
+      "slug": "yammy",
+      "page": "https://www.bleach-bravesouls.com/en/character/yammy.html",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Shinji Hirako",
+      "slug": "hirako",
+      "page": "https://www.bleach-bravesouls.com/en/character/hirako.html",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Hiyori Sarugaki",
+      "slug": "hiyori",
+      "page": "https://www.bleach-bravesouls.com/en/character/hiyori.html",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Love Aikawa",
+      "slug": "love",
+      "page": "https://www.bleach-bravesouls.com/en/character/love.html",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Rojuro Ohtoribashi",
+      "slug": "rojuro",
+      "page": "https://www.bleach-bravesouls.com/en/character/rojuro.html",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Lisa Yadomaru",
+      "slug": "lisa",
+      "page": "https://www.bleach-bravesouls.com/en/character/lisa.html",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Hachigen Ushoda",
+      "slug": "hachigen",
+      "page": "https://www.bleach-bravesouls.com/en/character/hachigen.html",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Kensei Muguruma",
+      "slug": "kensei",
+      "page": "https://www.bleach-bravesouls.com/en/character/kensei.html",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Mashiro Kuna",
+      "slug": "mashiro",
+      "page": "https://www.bleach-bravesouls.com/en/character/mashiro.html",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Kugo Ginjo",
+      "slug": "ginjo",
+      "page": "https://www.bleach-bravesouls.com/en/character/ginjo.html",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Riruka Dokugamine",
+      "slug": "riruka",
+      "page": "https://www.bleach-bravesouls.com/en/character/riruka.html",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Shukuro Tsukishima",
+      "slug": "tsukishima",
+      "page": "https://www.bleach-bravesouls.com/en/character/tsukishima.html",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Moeh Shishigawara",
+      "slug": "shishigawara",
+      "page": "https://www.bleach-bravesouls.com/en/character/shishigawara.html",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Jackie Tristan",
+      "slug": "jackie",
+      "page": "https://www.bleach-bravesouls.com/en/character/jackie.html",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Yukio Hans Vorarlberna",
+      "slug": "yukio",
+      "page": "https://www.bleach-bravesouls.com/en/character/yukio.html",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Giriko Kutsuzawa",
+      "slug": "giriko",
+      "page": "https://www.bleach-bravesouls.com/en/character/giriko.html",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Don Kanonji & Picaro",
+      "slug": "safwy_kanonji",
+      "page": "https://www.bleach-bravesouls.com/en/character/safwy_kanonji.html",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Uryu Ishida",
+      "slug": "safwy_ishida",
+      "page": "https://www.bleach-bravesouls.com/en/character/safwy_ishida.html",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Shigekuni Genryusai Yamamoto",
+      "slug": "safwy_yamamoto",
+      "page": "https://www.bleach-bravesouls.com/en/character/safwy_yamamoto.html",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Shunsui Kyoraku",
+      "slug": "safwy_kyoraku",
+      "page": "https://www.bleach-bravesouls.com/en/character/safwy_kyoraku.html",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Jushiro Ukitake",
+      "slug": "safwy_ukitake",
+      "page": "https://www.bleach-bravesouls.com/en/character/safwy_ukitake.html",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Kisuke Urahara",
+      "slug": "safwy_urahara",
+      "page": "https://www.bleach-bravesouls.com/en/character/safwy_urahara.html",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Shinji Hirako",
+      "slug": "safwy_hirako",
+      "page": "https://www.bleach-bravesouls.com/en/character/safwy_hirako.html",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Kenpachi Zaraki",
+      "slug": "safwy_kenpachi",
+      "page": "https://www.bleach-bravesouls.com/en/character/safwy_kenpachi.html",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Retsu Unohana",
+      "slug": "safwy_unohana",
+      "page": "https://www.bleach-bravesouls.com/en/character/safwy_unohana.html",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Yoruichi Shihoin",
+      "slug": "safwy_yoruichi",
+      "page": "https://www.bleach-bravesouls.com/en/character/safwy_yoruichi.html",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Soi Fon",
+      "slug": "safwy_soifon",
+      "page": "https://www.bleach-bravesouls.com/en/character/safwy_soifon.html",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Kenpachi Zaraki",
+      "slug": "safwy_kenpachi-2",
+      "page": "https://www.bleach-bravesouls.com/en/character/safwy_kenpachi-2.html",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Kenpachi Kuruyashiki",
+      "slug": "safwy_kuruyashiki",
+      "page": "https://www.bleach-bravesouls.com/en/character/safwy_kuruyashiki.html",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Kenpachi Azashiro",
+      "slug": "safwy_azashiro",
+      "page": "https://www.bleach-bravesouls.com/en/character/safwy_azashiro.html",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Cien Grantz",
+      "slug": "safwy_cien",
+      "page": "https://www.bleach-bravesouls.com/en/character/safwy_cien.html",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Roka Paramia",
+      "slug": "safwy_roka",
+      "page": "https://www.bleach-bravesouls.com/en/character/safwy_roka.html",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Shukuro Tsukishima",
+      "slug": "novel_tsukishima",
+      "page": "https://www.bleach-bravesouls.com/en/character/novel_tsukishima.html",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Kugo Ginjo",
+      "slug": "novel_ginjo",
+      "page": "https://www.bleach-bravesouls.com/en/character/novel_ginjo.html",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Mayuri Kurotsuchi",
+      "slug": "novel_mayuri",
+      "page": "https://www.bleach-bravesouls.com/en/character/novel_mayuri.html",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Dordoni Alessandro Del Socaccio",
+      "slug": "novel_dordoni",
+      "page": "https://www.bleach-bravesouls.com/en/character/novel_dordoni.html",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Cirucci Sanderwicci",
+      "slug": "novel_cirucci",
+      "page": "https://www.bleach-bravesouls.com/en/character/novel_cirucci.html",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Charlotte Chuhlhourne",
+      "slug": "novel_chuhlhourne",
+      "page": "https://www.bleach-bravesouls.com/en/character/novel_chuhlhourne.html",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Shuhei Hisagi",
+      "slug": "novel_hisagi",
+      "page": "https://www.bleach-bravesouls.com/en/character/novel_hisagi.html",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Hikone Ubuginu",
+      "slug": "novel_hikone2",
+      "page": "https://www.bleach-bravesouls.com/en/character/novel_hikone2.html",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Aura Michibane",
+      "slug": "novel_aura",
+      "page": "https://www.bleach-bravesouls.com/en/character/novel_aura.html",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Tokinada Tsunayashiro",
+      "slug": "novel_tokinada",
+      "page": "https://www.bleach-bravesouls.com/en/character/novel_tokinada.html",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Hikone Ubuginu",
+      "slug": "novel_hikone",
+      "page": "https://www.bleach-bravesouls.com/en/character/novel_hikone.html",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Tier Halibel",
+      "slug": "novel_halibel",
+      "page": "https://www.bleach-bravesouls.com/en/character/novel_halibel.html",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Barragan Ruizenban",
+      "slug": "novel_barragan",
+      "page": "https://www.bleach-bravesouls.com/en/character/novel_barragan.html",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Coyote Stark",
+      "slug": "novel_stark",
+      "page": "https://www.bleach-bravesouls.com/en/character/novel_stark.html",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Szayelaporro Grantz",
+      "slug": "novel_szayelaporro",
+      "page": "https://www.bleach-bravesouls.com/en/character/novel_szayelaporro.html",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Aaroniero Arruruerie",
+      "slug": "novel_aaroniero",
+      "page": "https://www.bleach-bravesouls.com/en/character/novel_aaroniero.html",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Nnoitora Gilga",
+      "slug": "novel_nnoitora",
+      "page": "https://www.bleach-bravesouls.com/en/character/novel_nnoitora.html",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Yammy Llargo",
+      "slug": "novel_yammy",
+      "page": "https://www.bleach-bravesouls.com/en/character/novel_yammy.html",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Zommari Rureaux",
+      "slug": "novel_zommari",
+      "page": "https://www.bleach-bravesouls.com/en/character/novel_zommari.html",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Grimmjow Jeagerjaques",
+      "slug": "novel_grimmjow",
+      "page": "https://www.bleach-bravesouls.com/en/character/novel_grimmjow.html",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Nelliel Tu Odelschwanck",
+      "slug": "novel_nelliel",
+      "page": "https://www.bleach-bravesouls.com/en/character/novel_nelliel.html",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Kisuke Urahara",
+      "slug": "novel_urahara",
+      "page": "https://www.bleach-bravesouls.com/en/character/novel_urahara.html",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Nelliel Tu Odelschwanck",
+      "slug": "novel_nelliel2",
+      "page": "https://www.bleach-bravesouls.com/en/character/novel_nelliel2.html",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Tier Halibel",
+      "slug": "novel_halibel2",
+      "page": "https://www.bleach-bravesouls.com/en/character/novel_halibel2.html",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Shinji Hirako",
+      "slug": "novel_hirako",
+      "page": "https://www.bleach-bravesouls.com/en/character/novel_hirako.html",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Grimmjow Jeagerjaques",
+      "slug": "novel_grimmjow2",
+      "page": "https://www.bleach-bravesouls.com/en/character/novel_grimmjow2.html",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Luppi Antenor",
+      "slug": "novel_luppi",
+      "page": "https://www.bleach-bravesouls.com/en/character/novel_luppi.html",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Kenpachi Zaraki",
+      "slug": "novel_kenpachi",
+      "page": "https://www.bleach-bravesouls.com/en/character/novel_kenpachi.html",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Seinosuke Yamada",
+      "slug": "novel_yamada",
+      "page": "https://www.bleach-bravesouls.com/en/character/novel_yamada.html",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    },
+    {
+      "name": "Shunsui Kyoraku",
+      "slug": "novel_kyoraku",
+      "page": "https://www.bleach-bravesouls.com/en/character/novel_kyoraku.html",
+      "status": "candidate",
+      "usage": "reference-only",
+      "requires": [
+        "identity and exact form",
+        "native resolution",
+        "recorded artwork rights",
+        "visual composition review"
+      ]
+    }
+  ]
+}

@@ -29,7 +29,7 @@ export async function cardSvg(card,assets,design) {
 }
 
 export async function createSession() {
-  const browser=await chromium.launch({headless:true,executablePath:process.env.NIGHT_BROWSER_PATH??'/tmp/night-browser/chrome-headless-shell-linux64/chrome-headless-shell',args:['--no-sandbox','--font-render-hinting=none']});
+  const browser=await chromium.launch({headless:true,executablePath:process.env.NIGHT_BROWSER_PATH??inside('.cache/browser/chrome-headless-shell-linux64/chrome-headless-shell'),args:['--no-sandbox','--font-render-hinting=none']});
   if(browser.version()!=='131.0.6778.204'){await browser.close();throw Error('Use pinned Chrome for Testing 131.0.6778.204 for reproducible exports');}
   return {close:()=>browser.close(),async render(svg,width,focal){
     if(!Number.isInteger(width)||width<320||width>4000)throw Error('Render width must be 320–4000 pixels');
