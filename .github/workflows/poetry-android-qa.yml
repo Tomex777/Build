@@ -10,7 +10,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: poetry-android-qa-${{ github.ref }}
@@ -25,27 +25,12 @@ jobs:
         working-directory: poetry-android
     steps:
       - uses: actions/checkout@v4
-      - name: Extract audited Poetry Android V8 source
+      - name: Verify checked-in source and Android 8 compatibility
         run: |
           set -euo pipefail
-          if [ ! -s app/src/main/java/com/night/poetry/MainActivity.kt ]; then
-            test -s source-bundle.tar.gz.base64
-            base64 --decode source-bundle.tar.gz.base64 > /tmp/poetry-source.tar.gz
-            echo '285dfea28dd523375844137d2f006ff1d435a491c4c3117256a3a56ba7a39738  /tmp/poetry-source.tar.gz' | sha256sum -c -
-            tar -xzf /tmp/poetry-source.tar.gz
-          fi
-          grep -Eq 'minSdk[[:space:]]*=[[:space:]]*26' app/build.gradle.kts
           test -s app/src/main/java/com/night/poetry/MainActivity.kt
-      - name: Publish extracted project as readable source files
-        run: |
-          set -euo pipefail
-          git config user.name "poetry-qa[bot]"
-          git config user.email "poetry-qa[bot]@users.noreply.github.com"
-          git add app/ design-assets/ build.gradle.kts settings.gradle.kts gradle.properties
-          if ! git diff --cached --quiet; then
-            git commit -m "feat(poetry): materialize auditable Android V8 source with API 26 compatibility"
-            git push origin "HEAD:poetry-android" || echo "::warning::Could not push expanded files; build will still run against extracted source."
-          fi
+          test -s app/src/main/AndroidManifest.xml
+          grep -Eq 'minSdk[[:space:]]*=[[:space:]]*26' app/build.gradle.kts
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -104,12 +89,10 @@ jobs:
         working-directory: poetry-android
     steps:
       - uses: actions/checkout@v4
-      - name: Extract audited source (works if source commit could not push)
+      - name: Verify checked-in source
         run: |
           set -euo pipefail
-          if [ ! -s app/src/main/java/com/night/poetry/MainActivity.kt ]; then
-            base64 --decode source-bundle.tar.gz.base64 | tar -xz
-          fi
+          test -s app/src/main/java/com/night/poetry/MainActivity.kt
           grep -Eq 'minSdk[[:space:]]*=[[:space:]]*26' app/build.gradle.kts
       - uses: actions/download-artifact@v4
         with:
