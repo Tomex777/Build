@@ -12,8 +12,9 @@ adb shell am start -W -n "$ACTIVITY" > "$OUT/start.txt"
 sleep 3
 
 ui_dump() {
-  adb shell uiautomator dump /sdcard/slumber-ui.xml >/dev/null 2>&1 || true
-  adb exec-out cat /sdcard/slumber-ui.xml > "$OUT/current.xml" || true
+  : > "$OUT/current.xml"
+  timeout 18s adb shell uiautomator dump /sdcard/slumber-ui.xml >/dev/null 2>&1 || true
+  timeout 12s adb exec-out cat /sdcard/slumber-ui.xml > "$OUT/current.xml" || true
 }
 node() {
   python3 - "$OUT/current.xml" "$1" <<'PY'
@@ -49,9 +50,9 @@ tap_ui() {
   b=$(node "$1") || return 1
   coords="${b%%|*}"
   read -r x0 y0 x1 y1 <<<"$coords"
-  adb shell input tap "$(((x0+x1)/2))" "$(((y0+y1)/2))"
+  timeout 15s adb shell input tap "$(((x0+x1)/2))" "$(((y0+y1)/2))"
 }
-capture() { adb exec-out screencap -p > "$OUT/$1.png"; }
+capture() { timeout 20s adb exec-out screencap -p > "$OUT/$1.png"; }
 wait_ui "Practice"
 capture practice
 # The old AI provider settings must be absent from installed builds.
