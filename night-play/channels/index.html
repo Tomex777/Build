@@ -41,10 +41,10 @@ main{padding-top:52px;padding-bottom:86px}.eyebrow{color:#5d7867;font-size:11px;
 <div class="channel-list" id="channels" aria-live="polite"></div>
 <div id="empty" class="empty" hidden><strong id="emptyTitle">No channels yet</strong><p id="emptyMessage">Connect one below to begin.</p></div>
 <section class="setup" id="connect" aria-labelledby="connectTitle">
-<div><div class="eyebrow">ADD CHANNEL</div><h2 id="connectTitle">Connect through WhatsApp.</h2><p>Send NIGHT a channel link privately. NIGHT will first show its name and ask you to choose <b>Yes</b> or <b>No</b>. Nothing is followed before you agree.</p><div class="consent"><strong>Admin access is separate.</strong> After confirming, you must invite the same NIGHT WhatsApp account as an administrator through WhatsApp. NIGHT will only enable channel management after a fresh admin-post verification.</div></div>
-<form id="linkForm"><label for="inviteUrl">WhatsApp Channel link</label><div class="url-wrap"><svg class="symbol" aria-hidden="true"><use href="#link"/></svg><input id="inviteUrl" name="inviteUrl" type="url" inputmode="url" spellcheck="false" autocomplete="off" placeholder="https://whatsapp.com/channel/…" required maxlength="170"></div><button class="button primary" type="submit"><svg class="symbol" aria-hidden="true"><use href="#copy"/></svg> Copy WhatsApp command</button><p class="help">Paste the command into the private chat with the NIGHT account linked to your profile.</p><p class="status-text" id="feedback" role="status" aria-live="polite"></p></form>
+<div><div class="eyebrow">ADD CHANNEL</div><h2 id="connectTitle">Connect through WhatsApp.</h2><p>Send NIGHT the channel link in a private chat. It will stay silent. Then type <b>.joinchannel</b> in that same chat to see the channel name and choose <b>Yes</b> or <b>No</b>. NIGHT never follows before you agree.</p><div class="consent"><strong>Admin access is separate.</strong> After confirming, you must invite the same NIGHT WhatsApp account as an administrator through WhatsApp. NIGHT will only enable channel management after a fresh admin-post verification.</div></div>
+<form id="linkForm"><label for="inviteUrl">WhatsApp Channel link</label><div class="url-wrap"><svg class="symbol" aria-hidden="true"><use href="#link"/></svg><input id="inviteUrl" name="inviteUrl" type="url" inputmode="url" spellcheck="false" autocomplete="off" placeholder="https://whatsapp.com/channel/…" required maxlength="170"></div><button class="button primary" type="submit"><svg class="symbol" aria-hidden="true"><use href="#copy"/></svg> Copy channel link</button><p class="help">Send the copied link to NIGHT privately, then type .joinchannel. NIGHT will ask Yes or No.</p><p class="status-text" id="feedback" role="status" aria-live="polite"></p></form>
 </section>
-<div class="how" aria-label="Connection steps"><article><b>01 · REQUEST</b><h3>Send the link</h3><p>NIGHT identifies the channel without automatically joining.</p></article><article><b>02 · CONSENT</b><h3>Approve in WhatsApp</h3><p>Reply <strong>.joinchannel yes</strong>, then make NIGHT an admin in the channel.</p></article><article><b>03 · VERIFY</b><h3>Prove admin access</h3><p>Publish NIGHT's private one-time code in that channel, then verify here.</p></article></div>
+<div class="how" aria-label="Connection steps"><article><b>01 · REQUEST</b><h3>Send the link</h3><p>NIGHT silently remembers the private link. Nothing is joined.</p></article><article><b>02 · CONSENT</b><h3>Approve in WhatsApp</h3><p>Send <strong>.joinchannel</strong>, choose Yes, then invite NIGHT as a channel admin.</p></article><article><b>03 · VERIFY</b><h3>Prove admin access</h3><p>Publish NIGHT's private one-time code in that channel, then verify here.</p></article></div>
 </main>
 <div id="toast" class="toast" role="status" hidden></div>
 <script>
@@ -127,9 +127,8 @@ $('linkForm').addEventListener('submit',async event=>{
   $('feedback').classList.remove('error');
   if(!profile){$('feedback').textContent='Connect your WhatsApp account in Profile first.';$('feedback').classList.add('error');return}
   if(!format.test(value)){$('feedback').textContent='Paste a valid WhatsApp Channel link.';$('feedback').classList.add('error');return}
-  const command='.joinchannel '+value;
-  if(await copy(command))$('feedback').textContent='Paste into NIGHT’s private chat. NIGHT will ask Yes or No before following.';
-  else{$('feedback').textContent=command;input.value=command;input.select();}
+  if(await copy(value))$('feedback').textContent='Send the link privately to NIGHT. Then type .joinchannel to start the Yes/No consent step.';
+  else{$('feedback').textContent='Select and copy the channel link, then send .joinchannel in NIGHT’s private chat.';input.select();}
 });
 $('reload').addEventListener('click',load);
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')load()});
