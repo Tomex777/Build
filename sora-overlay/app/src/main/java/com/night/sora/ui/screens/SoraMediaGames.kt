@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.Intent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -17,6 +18,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -230,7 +233,6 @@ fun MemeCaptionArcade(library: List<LibraryEntry>, modifier: Modifier = Modifier
                 color=SoraMuted,fontSize=16.sp,textAlign=TextAlign.Center,modifier=Modifier.padding(top=70.dp))
             return@Column
         }
-        Text("CAPTION STUDIO",color=SoraAccent,fontWeight=FontWeight.Bold,modifier=Modifier.padding(bottom=10.dp))
         Box(Modifier.fillMaxWidth().aspectRatio(1f).clip(RoundedCornerShape(16.dp)).background(SoraSurfaceHigh)) {
             AsyncImage(model=meme.artworkUrl,contentDescription=meme.label,
                 modifier=Modifier.fillMaxSize(),contentScale=ContentScale.Crop)
@@ -241,11 +243,27 @@ fun MemeCaptionArcade(library: List<LibraryEntry>, modifier: Modifier = Modifier
                         .background(Color.Black.copy(alpha=.72f)).padding(14.dp))
             }
         }
-        OutlinedTextField(value=caption,onValueChange={caption=it.take(180)},
-            label={Text("Your caption")},placeholder={Text("Make it your own…")},
-            modifier=Modifier.fillMaxWidth().padding(top=14.dp),minLines=2,maxLines=3)
+        Surface(color=SoraSurfaceHigh,shape=RoundedCornerShape(12.dp),
+            border=androidx.compose.foundation.BorderStroke(1.dp,Color.White.copy(alpha=.09f)),
+            modifier=Modifier.fillMaxWidth().padding(top=14.dp)) {
+            BasicTextField(value=caption,onValueChange={caption=it.take(180)},
+                textStyle=TextStyle(color=SoraText,fontSize=14.sp,lineHeight=20.sp),
+                cursorBrush=SolidColor(SoraAccent),
+                modifier=Modifier.fillMaxWidth().padding(14.dp),
+                minLines=2,maxLines=3,
+                decorationBox={ field ->
+                    Box {
+                        if(caption.isBlank()) Text("Write your caption…",
+                            color=SoraMuted,fontSize=14.sp)
+                        field()
+                    }
+                })
+        }
         Row(Modifier.fillMaxWidth().padding(top=9.dp),horizontalArrangement=Arrangement.spacedBy(8.dp)) {
-            OutlinedButton(onClick={at=(at+1)%memes.size},modifier=Modifier.weight(1f)) { Text("Next meme") }
+            if(memes.size>1) {
+                OutlinedButton(onClick={at=(at+1)%memes.size},
+                    modifier=Modifier.weight(1f)) { Text("Next meme") }
+            }
             Button(enabled=caption.isNotBlank(),onClick={
                 prefs.edit().putString(meme.id,caption).apply()
             },modifier=Modifier.weight(1f)) { Text("Save caption") }
@@ -293,7 +311,5 @@ fun MemeCaptionArcade(library: List<LibraryEntry>, modifier: Modifier = Modifier
             Text(exportError.orEmpty(), color=SoraDanger, fontSize=12.sp,
                 modifier=Modifier.padding(top=8.dp))
         }
-        Text("Captions are saved locally. AI caption judging is not connected.",
-            color=SoraMuted,fontSize=11.sp,textAlign=TextAlign.Center,modifier=Modifier.padding(top=14.dp))
     }
 }
