@@ -259,8 +259,9 @@ function blockTouchMove(e){
  const sampledAt=performance.now(),deltaT=sampledAt-g.lastMoveAt;
  const deltaY=e.clientY-g.lastY;
  if(deltaY!==0||e.clientX!==g.lastX){
-  if(deltaY>6&&deltaT>0&&deltaT<170){
-   g.lastDownVelocity=deltaY/deltaT;
+  if(deltaY>6&&deltaT>=0&&deltaT<170){
+   // Synthetic and very fast real pointer events can share one timer tick.
+   g.lastDownVelocity=deltaY/Math.max(1,deltaT);
    g.lastDownAt=sampledAt;
   }else if(deltaY<=0){g.lastDownVelocity=0;g.lastDownAt=0;}
   g.lastMoveAt=sampledAt;g.lastY=e.clientY;g.lastX=e.clientX;
