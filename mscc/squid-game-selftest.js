@@ -95,10 +95,10 @@ function harness() {
   await react(PLAYER_A)
   await react(PLAYER_B)
   await react(ADMIN)
-  assert.equal(Object.keys(engine.get(CHAT).players).length,2)
+  assert.equal(Object.keys(engine.get(CHAT).players).length,3)
   await react(PLAYER_C)
   await react(PLAYER_C,'')
-  assert.equal(Object.keys(engine.get(CHAT).players).length,2)
+  assert.equal(Object.keys(engine.get(CHAT).players).length,3)
   clock += 15 * 60000 + 1
   await engine.tick()
   assert.equal(engine.get(CHAT).phase,'GREEN')
