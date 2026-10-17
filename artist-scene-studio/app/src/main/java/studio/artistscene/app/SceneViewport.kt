@@ -435,7 +435,10 @@ private fun SceneScope.ActorModelNode(
     }
 
     val loaded = model
-    val rigRuntime = remember(loaded) { loaded?.let(FilamentRigRuntime::discover) }
+    val vrmFaceNames = remember(asset) { VrmExpressionMetadata.load(context, asset) }
+    val rigRuntime = remember(loaded, vrmFaceNames) {
+        loaded?.let { FilamentRigRuntime.discover(it, vrmFaceNames) }
+    }
     // Actual VRM spring roots, with a private integrator per independently posed actor.
     val springRuntime = remember(loaded, asset, rigRuntime) {
         loaded?.let { VrmSpringRuntime.fromAsset(context, asset, it, rigRuntime?.definition) }
