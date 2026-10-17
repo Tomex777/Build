@@ -1,11 +1,10 @@
 {
-  "releaseId": "night-2026-10-17-12",
+  "releaseId": "night-2026-10-17-13",
   "baseBranch": "mscc-azure",
-  "baseCommit": "ab448eaa339457350c08f1255e2ae9389dec423a",
+  "baseCommit": "6bdc55d15cfa31f5586cc683aefbcf2238187927",
   "pullRequests": [
-    301,
-    300
+    304
   ],
-  "carriedForwardRelease": "night-2026-10-16-11",
-  "notes": "One combined NIGHT production recovery and reaction fix release. Carries forward tested, previously staged NIGHT Play HTTPS ingress repair from PR #301 (supersedes still-open one-change release PR #302) and adds user-requested anime GIF reaction failover PR #300. No other open feature PRs. Preserve .kill and admin .kick behavior, all 60 registered reactions, rounded animated WebP, one-person mentions; add multi-provider exact-category media fallbacks and bounded cache. Require full combined exact-commit regression and real GIF conversion/source CI. One protected mscc-production approval after single release merge. On Azure verify release and rollback/ingress health; then test actual .hug .smug .slap .wave .cry .kill on WhatsApp and NIGHT Play connection. Do not claim production or every media source is operational from GitHub CI alone."
+  "carriedForwardRelease": "night-2026-10-17-12",
+  "notes": "Recover live NIGHT Play ↔ MSCC WhatsApp linking after merged batch #12 passed local health but failed its nginx HTTPS 401 challenge check and rolled back. Include only PR #304 on top of already merged #12 (which also carries anime reaction failover). Disable nginx error interception on only the signed RPC endpoint, require its route marker and exact unsigned JSON challenge after bounded worker-reload readiness retries, retain existing Cortex HTTPS auth and safe rollback. Verify CI on exact integration SHA, then require one authorized protected mscc-production approval. After deployment confirm Vercel /api/account returns 200 and demonstrate actual private WhatsApp .minigames link CODE flow. Do not claim production verified before deployment and end-to-end check."
 }

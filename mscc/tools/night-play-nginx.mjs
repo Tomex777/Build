@@ -10,6 +10,12 @@ export function patchNginx(source) {
         # inherited nginx auth gate. Keep every other location unchanged.
         auth_request off;
         auth_basic off;
+        # Preserve MSCC's precise 401 JSON body even when a global nginx
+        # error_page/proxy_intercept_errors policy is enabled elsewhere.
+        proxy_intercept_errors off;
+        # Lets the installer distinguish this exact location from Cortex's
+        # similarly unauthenticated 401 without exposing credentials.
+        add_header X-Night-Play-Route signed-v1 always;
         proxy_pass http://127.0.0.1:8787;
         proxy_http_version 1.1;
         proxy_set_header Host $host;
