@@ -70,7 +70,8 @@ try {
   assert.equal(album.files.length,1)
   assert.equal(album.files[0].mime,'image/jpeg')
   await album.cleanup()
-  await assert.rejects(prepareSocialDownload('https://vm.tiktok.com/ZMabc/',{binary:'/not-a-real-dlp'}),/not installed/)
+  await assert.rejects(prepareSocialDownload('https://www.reddit.com/r/cats/comments/abc/a/',{binary:'/not-a-real-dlp'}),/not installed/)
+  await assert.rejects(prepareSocialDownload('https://vm.tiktok.com/ZMabc/',{binary:'/not-a-real-dlp',fetchImpl:async () => { throw new Error('offline test') }}),/all public extractors/)
   const previous = process.env.NIGHT_DL_FAKE_FAIL
   process.env.NIGHT_DL_FAKE_FAIL = '1'
   try { await assert.rejects(prepareSocialDownload('https://vm.tiktok.com/ZMabc/',{binary:fake,fetchImpl:async () => { throw new Error('offline test') }}),/all public extractors/) }
