@@ -173,7 +173,7 @@ fun HomeScreen(
                 item { MemeStrip(memes.first()) { onOpenSelection(memes.first().selection()) } }
             }
 
-            item { HomeSectionHeader("Bible", see = "Open", onSee = onOpenBible) }
+            item { HomeSectionHeader("Bible") }
             item {
                 Surface(
                     color = Color(0xFF151513),
