@@ -893,6 +893,31 @@ body{background:var(--bg)}
 .night-tool-launch{background:#244c3a;color:#fff;white-space:nowrap;flex:0 0 auto}
 @media(max-width:700px){.night-profile-tool{padding:20px;gap:14px;flex-wrap:wrap}.night-tool-mark{width:44px;height:44px;flex-basis:44px;border-radius:12px}.night-tool-mark svg{width:21px;height:21px}.night-tool-copy{flex:1 1 calc(100% - 65px)}.night-tool-copy h2{font-size:21px}.night-tool-badges{display:none}.night-tool-launch{width:100%;justify-content:center}.mobile-nav a{min-width:0}}
 
+/* Compact profile: a verified name needs neither a second badge nor a connection caption. */
+.profile-identity .profile-monogram{position:relative;padding:0;overflow:hidden;display:grid;place-items:center;border-radius:50%}
+.profile-identity .profile-monogram img{width:100%;height:100%;object-fit:cover;display:block}
+.profile-identity .profile-monogram img[hidden],#profileAvatarFallback[hidden],.profile-account-menu[hidden],#profileIdentityCaption[hidden],header [data-dialog="connect"][hidden]{display:none!important}
+.profile-actions{display:flex;align-items:center;gap:8px;flex:none}
+.profile-account-menu{width:40px;height:40px;display:grid;place-items:center;border:1px solid #d5dad7;border-radius:11px;background:#fff;color:#285442;cursor:pointer}
+.profile-account-menu:hover{background:#e9eeea}
+.night-profile-tool{margin:14px 0 22px;padding:16px 18px;gap:14px;border-radius:17px;flex-wrap:nowrap}
+.night-tool-mark{width:44px;height:44px;flex-basis:44px;border-radius:12px}
+.night-tool-mark svg{width:21px;height:21px}
+.night-tool-copy h2{margin:0 0 3px;font-size:19px;letter-spacing:-.45px}
+.night-tool-copy p{font-size:12px;line-height:1.4;margin:0}
+.night-tool-launch{display:grid;place-items:center;flex:0 0 42px;width:42px;height:42px;margin-left:auto;background:#244c3a;color:#fff;border-radius:12px;text-decoration:none}
+.night-tool-launch:hover{background:#37644d}
+.night-tool-launch .ui-icon{width:20px;height:20px}
+@media(max-width:700px){
+ .night-profile-tool{padding:14px;gap:12px;flex-wrap:nowrap}
+ .night-tool-mark{width:42px;height:42px;flex-basis:42px}
+ .night-tool-copy{flex:1;min-width:0}
+ .night-tool-copy h2{font-size:17px}
+ .night-tool-launch{width:39px;height:39px;flex-basis:39px}
+ .profile-actions{gap:6px}
+ .profile-account-menu{width:35px;height:36px}
+}
+
 /* Wing Hop library art: actual CC0 Kenney sprite assets, no emoji thumbnail. */
 .thumb.wing-preview{position:relative;background:linear-gradient(180deg,#81cbd8,#cfebe8 76%,#7aae91);overflow:hidden;isolation:isolate}
 .wing-preview:before{content:"";position:absolute;inset:auto -20px 0;height:22%;background:linear-gradient(#76b38e,#387b64);z-index:0}
@@ -1082,18 +1107,16 @@ body{background:var(--bg)}
 <section class="site-page" id="view-profile" data-view="profile" hidden>
 <div class="profile-overview" aria-label="NIGHT Play profile card">
  <div class="profile-identity">
-  <div class="profile-monogram" aria-hidden="true"><svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4.5 20c1.2-4.7 13.8-4.7 15 0"/></svg></div>
-  <div class="player-card-name"><h2 id="playerDisplayName">Player</h2><span id="profileIdentityCaption">Your games. Your name. Your space.</span></div>
-  <button id="editPlayerName" class="edit-name" type="button"><svg class="ui-icon" viewBox="0 0 24 24" focusable="false" aria-hidden="true"><use href="#icon-edit"></use></svg> Edit name</button>
+  <div class="profile-monogram" aria-hidden="true"><img id="profileAvatar" alt="" hidden><svg id="profileAvatarFallback" viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4.5 20c1.2-4.7 13.8-4.7 15 0"/></svg></div>
+  <div class="player-card-name"><h2 id="playerDisplayName">Player</h2><span id="profileIdentityCaption" hidden></span></div>
+  <div class="profile-actions"><button id="editPlayerName" class="edit-name" type="button"><svg class="ui-icon" viewBox="0 0 24 24" focusable="false" aria-hidden="true"><use href="#icon-edit"></use></svg> Edit name</button><button id="profileAccountMenu" class="profile-account-menu" type="button" aria-label="Account settings" title="Account settings" hidden><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></svg></button></div>
  </div><form id="playerNameForm" class="player-name-form" hidden><label for="playerNameInput">Display name</label><div><input id="playerNameInput" name="playerName" maxlength="28" placeholder="What should we call you?" autocomplete="nickname"><button class="btn" type="submit">Save</button><button class="btn light" type="button" id="cancelPlayerName">Cancel</button></div><small>Saved on this device.</small></form>
 </div>
 
 <section class="night-profile-tool" aria-labelledby="nightToolHeading">
  <div class="night-tool-mark" aria-hidden="true"><svg class="ui-icon" viewBox="0 0 24 24"><use href="#icon-spark"></use></svg></div>
- <div class="night-tool-copy"><span class="eyebrow">CHANNEL TOOLS</span><h2 id="nightToolHeading">Anonymous Nights</h2>
- <p>Manage private confession sessions for a channel you administer. Only followers with your current session link can submit.</p>
- <div class="night-tool-badges"><span>One central NIGHT Bot</span><span>Invite-only links</span><span>Automatic close</span></div></div>
- <a class="btn night-tool-launch" href="/anonymous/" aria-label="Open Anonymous Nights administration">Manage nights <svg class="ui-icon" aria-hidden="true" viewBox="0 0 24 24"><use href="#icon-arrowright"></use></svg></a>
+ <div class="night-tool-copy"><h2 id="nightToolHeading">Anonymous Nights</h2><p>Channel confession sessions</p></div>
+ <a class="night-tool-launch" href="/anonymous/" aria-label="Manage Anonymous Nights" title="Manage Anonymous Nights"><svg class="ui-icon" aria-hidden="true" viewBox="0 0 24 24"><use href="#icon-arrowright"></use></svg></a>
 </section>
 <div class="records-heading"><h2>Game records</h2></div>
 <div class="analytics-panel">
@@ -1129,7 +1152,7 @@ body{background:var(--bg)}
 <section class="site-page legal-page" id="view-privacy" data-view="privacy" hidden>
  <div class="legal-content"><a href="/dashboard" class="legal-back" data-route><svg class="ui-icon" viewBox="0 0 24 24" focusable="false" aria-hidden="true"><use href="#icon-back"></use></svg> Back</a><h1>Privacy</h1><p class="legal-asof">NIGHT Play · Updated 16 October 2026</p>
  <h2>What this site saves</h2><p>The games use your browser’s local storage for settings, high scores, recent game results, and whether you dismissed an announcement. These records stay in that browser unless you clear its storage or the site’s implementation changes.</p>
- <h2>WhatsApp and identity</h2><p>When you connect, NIGHT verifies the WhatsApp sender and saves a website profile, your display name, a mapping to your verified WhatsApp identity, and hashed browser sessions in its Azure database. The browser receives a random NIGHT profile ID and display name; phone numbers, JIDs, LIDs and WhatsApp credentials are not sent to it. A secure HttpOnly cookie keeps this browser signed in for up to 30 days. Temporary link codes expire after five minutes.</p>
+ <h2>WhatsApp and identity</h2><p>When you connect, NIGHT verifies the WhatsApp sender and saves a website profile, your display name, a mapping to your verified WhatsApp identity, and hashed browser sessions in its Azure database. When WhatsApp allows access to your profile photo, NIGHT Play stores a bounded image copy with your account; deleting the account removes that photo. The browser receives a random NIGHT profile ID and display name; phone numbers, JIDs, LIDs and WhatsApp credentials are not sent to it. A secure HttpOnly cookie keeps this browser signed in for up to 30 days. Temporary link codes expire after five minutes.</p>
  <h2>Disconnect and removal</h2><p>Disconnect signs this browser out. Send .minigames unlink to NIGHT privately to revoke all website sessions. Remove NIGHT Play account in the connection menu deletes your website profile, identity mapping and linked sessions. Game records and story saves remain on each device; account linking does not upload them or create a public leaderboard. NIGHT’s existing WhatsApp history and games are separate.</p>
  <h2>Third-party hosting</h2><p>The website is hosted through Vercel. Hosting infrastructure may process technical request information independently of the game records stored in your browser.</p>
  <h2>Updates</h2><p>This policy will be updated when additional services change how account or game data is handled.</p></div>
