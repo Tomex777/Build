@@ -237,10 +237,12 @@ function harness() {
 {
   clock += 100000
   const {state,engine,adminContext,react} = harness()
-  await engine.start(adminContext,'kick',['at','20:00'])
+  const hour = (new Date(clock + 3600000).getUTCHours() + 1) % 24
+  const scheduled = String(hour).padStart(2,'0') + ':00'
+  await engine.start(adminContext,'kick',['at',scheduled])
   let game = engine.get(CHAT)
   const wat = new Date(game.nextAt + 3600000)
-  assert.equal(wat.getUTCHours(),20)
+  assert.equal(wat.getUTCHours(),hour)
   assert.equal(wat.getUTCMinutes(),0)
   assert.ok(game.nextAt > clock && game.nextAt <= clock + 86400000)
   await react(PLAYER_A)
