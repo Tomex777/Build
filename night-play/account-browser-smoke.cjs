@@ -88,4 +88,4 @@ const server=http.createServer(async(req,res)=>{
     console.log('PASS NIGHT Play account browser flow: phone/desktop layout, copy, automatic verification, shared name, disconnect, delete consent, outage/retry, expiry/renewal, dialog close and reload')
     await context.close()
   }finally{await browser.close();server.closeAllConnections();await new Promise(resolve=>server.close(resolve))}
-})().catch(error=>{console.error(error);server.closeAllConnections();server.close();process.exitCode=1})
+})().then(()=>require('./multiplayer/ttt/mobile-smoke.cjs')).catch(error=>{console.error(error);server.closeAllConnections();server.close();process.exitCode=1})
