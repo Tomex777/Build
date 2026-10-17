@@ -2,6 +2,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import {fileURLToPath} from 'node:url';
+import {loadPowerAssessments} from './power.mjs';
 
 export const ROOT = fileURLToPath(new URL('../', import.meta.url));
 export const DESIGNS = ['vanguard','ivory','voltage','crimson','emberglass','obsidian','tidelight','nocturne'];
@@ -40,6 +41,7 @@ export async function loadCatalogue(series='bleach') {
     if (![x,y,w,h].every(Number.isInteger) || x<0 || y<0 || w<1 || h<1 || x+w>s.width || y+h>s.height) throw Error(`Invalid artwork crop: ${card.id}`);
     if (!r.focal?.every(n=>Number.isFinite(n)&&n>=0&&n<=1)) throw Error(`Missing focal point: ${card.id}`);
   }
+  await loadPowerAssessments(series,catalogue.cards,catalogue.pendingForms);
   return catalogue;
 }
 export async function rendererDigest() {
@@ -52,9 +54,9 @@ export async function rendererDigest() {
   return digest(JSON.stringify(hashes));
 }
 export function reviewFingerprint(card,design,renderer,width=3000) {
-  return digest(JSON.stringify(stable({id:card.id,number:card.number,character:card.character,name:card.name,title:card.title,form:card.form,formId:card.formId,source:card.source,recipe:card.recipe,design,renderer,width})));
+  return digest(JSON.stringify(stable({id:card.id,number:card.number,character:card.character,name:card.name,title:card.title,form:card.form,formId:card.formId,source:card.source,recipe:card.recipe,power:card.power,design,renderer,width})));
 }
-export function findEntries(entries,query,{form,design}={}) {
+export function findEntries(entries,query,{form,design,rank}={}) {
   const q=normalise(query);
-  return entries.filter(c=>[c.id,c.name,c.title,c.character,...c.aliases??[]].some(v=>normalise(v)===q)&&(!form||[c.form,c.formId].some(v=>normalise(v)===normalise(form)))&&(!design||c.design===design));
+  return entries.filter(c=>[c.id,c.name,c.title,c.character,...c.aliases??[]].some(v=>normalise(v)===q)&&(!form||[c.form,c.formId].some(v=>normalise(v)===normalise(form)))&&(!design||c.design===design)&&(!rank||c.power?.rank===String(rank).toUpperCase()));
 }
