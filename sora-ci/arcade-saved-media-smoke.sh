@@ -30,7 +30,7 @@ PY
 # Use the absolute per-app credential-encrypted data path for all emulator APIs.
 PREFS=/data/data/com.night.sora/shared_prefs
 adb shell run-as com.night.sora mkdir -p "$PREFS"
-adb shell run-as com.night.sora sh -c "cat > $PREFS/sora_core.xml" < /tmp/sora-arcade-seed.xml
+adb shell run-as com.night.sora dd "of=$PREFS/sora_core.xml" < /tmp/sora-arcade-seed.xml
 adb shell run-as com.night.sora cat "$PREFS/sora_core.xml" | grep -q library_v1
 adb shell am start -W -n com.night.sora/.MainActivity >/dev/null
 sleep 4
