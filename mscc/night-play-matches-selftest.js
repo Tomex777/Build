@@ -1,0 +1,52 @@
+import assert from 'node:assert/strict'
+import { randomBytes } from 'node:crypto'
+import { DatabaseSync } from 'node:sqlite'
+import { NightPlay } from './night-play.js'
+const db=new DatabaseSync(':memory:')
+db.exec('PRAGMA foreign_keys=ON')
+const play=new NightPlay(db)
+const players=['Alice','Bob','Cara','Dan']
+const sessions=players.map(()=>randomBytes(32).toString('base64url'))
+for(let i=0;i<players.length;i++){
+ db.prepare('INSERT INTO play_users(id,display_name,created_at) VALUES(?,?,?)').run('NIGHT-'+i,players[i],Date.now())
+ db.prepare('INSERT INTO play_sessions(id,user_id,expires_at) VALUES(?,?,?)').run(
+  await import('node:crypto').then(m=>m.createHash('sha256').update(sessions[i]).digest('hex')),
+  'NIGHT-'+i,Date.now()+86400000)
+}
+const rpc=(i,action,extra={})=>play.request({action,session:sessions[i],client:'test-'+i,...extra})
+const invite=rpc(0,'match:create')
+assert.equal(invite.status,'waiting')
+assert.equal(invite.side,'X')
+assert.match(invite.code,/^[A-HJ-NP-Z2-9]{9}$/)
+assert.throws(()=>rpc(1,'match:state',{matchId:invite.matchId}),/not found/i)
+assert.throws(()=>rpc(0,'match:move',{matchId:invite.matchId,cell:0}),/not active/i)
+const joined=rpc(1,'match:join',{code:invite.code})
+assert.equal(joined.side,'O')
+assert.equal(joined.opponent,'Alice')
+assert.equal(rpc(0,'match:state',{matchId:invite.matchId}).opponent,'Bob')
+assert.throws(()=>rpc(2,'match:join',{code:invite.code}),/full/i)
+assert.throws(()=>rpc(1,'match:move',{matchId:invite.matchId,cell:0}),/turn/i)
+assert.equal(rpc(0,'match:move',{matchId:invite.matchId,cell:0}).board,'X........')
+assert.throws(()=>rpc(1,'match:move',{matchId:invite.matchId,cell:0}),/taken/i)
+rpc(1,'match:move',{matchId:invite.matchId,cell:3})
+rpc(0,'match:move',{matchId:invite.matchId,cell:1})
+rpc(1,'match:move',{matchId:invite.matchId,cell:4})
+const finished=rpc(0,'match:move',{matchId:invite.matchId,cell:2})
+assert.equal(finished.winner,'X')
+assert.equal(finished.status,'finished')
+assert.throws(()=>rpc(1,'match:move',{matchId:invite.matchId,cell:6}),/not active/i)
+assert.equal(rpc(0,'match:list').matches[0].matchId,invite.matchId)
+assert.equal(new NightPlay(db).request({action:'match:state',session:sessions[1],client:'test',matchId:invite.matchId}).winner,'X')
+const searching=rpc(2,'match:random')
+assert.equal(searching.mode,'public')
+assert.equal(searching.status,'waiting')
+assert.equal(rpc(2,'match:random').matchId,searching.matchId)
+const paired=rpc(3,'match:random')
+assert.equal(paired.matchId,searching.matchId)
+assert.equal(paired.status,'active')
+assert.equal(rpc(2,'match:leave',{matchId:paired.matchId}).winner,'O')
+assert.throws(()=>rpc(0,'match:move',{matchId:paired.matchId,cell:5}),/not found/i)
+assert.equal(rpc(0,'match:create').mode,'invite')
+assert.equal(rpc(2,'match:list').matches.length>=1,true)
+db.close()
+console.log('PASS NIGHT Play online TTT: trusted identities, private invites, random pairing, resume, authoritative turns, outcomes, rejection and persistence')
