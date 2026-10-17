@@ -24,8 +24,9 @@ async function advance(page){const next=page.locator('#readContinue');if(await n
    const metrics=await page.locator('.col').evaluate(x=>{const r=x.getBoundingClientRect();return {x:r.x,y:r.y,width:r.width,font:getComputedStyle(document.querySelector('#story p')).fontSize}});assert.ok(Math.abs(metrics.x-(width===390?20:360))<1);assert.ok(Math.abs(metrics.y-75.96)<2);assert.equal(metrics.width,width===390?350:560);assert.equal(metrics.font,width===390?'17px':'17.5px');
    await page.locator('#story').click();await page.waitForTimeout(330);assert.equal((await saved(page)).playthroughs[0].node,'start','reveal tap did not choose');assert.equal(await page.locator('.choice').count(),2);
    await page.screenshot({path:path.join(output,'reader-'+width+'.png'),fullPage:true});assert.equal(await page.locator('#readPrevious').isVisible(),false);
-    await page.locator('[data-choice="start:answer"]').click();assert.equal(await page.locator('#readPrevious').isVisible(),false,'cannot step back across a committed decision');
-    assert.equal(await page.locator('#readContinue').isVisible(),true);await page.locator('#story').click();await page.waitForTimeout(320);assert.equal(await page.locator('.speaker').innerText(),'???');await page.screenshot({path:path.join(output,'unknown-speaker-'+width+'.png'),fullPage:true});
+    await page.locator('[data-choice="start:answer"]').click();await page.locator('#story').click();await page.waitForTimeout(320);
+    assert.equal(await page.locator('#readPrevious').isVisible(),false,'cannot step back across a committed decision');
+    assert.equal(await page.locator('#readContinue').isVisible(),true);assert.equal(await page.locator('.speaker').innerText(),'???');await page.screenshot({path:path.join(output,'unknown-speaker-'+width+'.png'),fullPage:true});
    await page.locator('#readerOptions summary').click();await page.locator('#pace').selectOption('instant');
     const firstContinue=page.locator('#readContinue');await firstContinue.click();
     assert.equal(await page.locator('#readPrevious').isVisible(),true);
