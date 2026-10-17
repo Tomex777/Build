@@ -13,6 +13,7 @@ import QRCode from 'qrcode'
 import { startWebPanel } from './web-panel.js'
 import { NightPlay, createNightPlayHandler } from './night-play.js'
 import { createNightPlayAvatarSync } from './night-play-avatar.js'
+import { recordPendingChannelLink, pendingChannelLink } from './night-channel-links.js'
 import { megaStorageDashboard, megaAvailableMounts, megaVerifyFolder } from './mega-storage.js'
 import { dispatchNamespacedCommand, loadCommands } from './command-registry.js'
 import { AccountRegistry, legacyAccountRecords } from './account-registry.js'
@@ -2506,6 +2507,9 @@ async function processInboundMessage(account, msg) {
       remember(account, msg)
       rememberConversation(account, msg, authority)
       probe?.mark('storage')
+      // A channel link sent privately is intentionally silent. The sender
+      // must explicitly request .joinchannel and approve Yes before following.
+      if (recordPendingChannelLink(sharedStorage, account.id, authority.senderKey, chat, text)) return
 
       // Squid Game uses ordinary WhatsApp messages and reaction registration,
       // not the public command namespace. Consume player messages before AI,
@@ -2691,6 +2695,7 @@ async function processInboundMessage(account, msg) {
           nightPlayUnlink: () => nightPlay.disconnectWhatsApp({ userKey:authority.senderKey, identityKeys:authority.senderIdentityKeys }),
           // Channel onboarding is scoped to the WhatsApp sender's verified
           // NIGHT Play identity; no unverified channel is exposed to the site.
+          channelRecentLink: () => pendingChannelLink(sharedStorage, account.id, authority.senderKey),
           channelBegin: link => nightPlay.channels.begin({ userKey:authority.senderKey, identityKeys:authority.senderIdentityKeys }, account, link),
           channelAccept: () => nightPlay.channels.accept({ userKey:authority.senderKey, identityKeys:authority.senderIdentityKeys }, account),
           channelCancel: () => nightPlay.channels.cancel({ userKey:authority.senderKey, identityKeys:authority.senderIdentityKeys }),
