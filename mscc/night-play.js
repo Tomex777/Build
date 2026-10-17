@@ -1,5 +1,6 @@
 import { createHash, randomBytes, randomUUID, verify, createPublicKey } from 'node:crypto'
 import { readFileSync } from 'node:fs'
+import { NightPlayMatches } from './night-play-matches.js'
 
 export const PLAY_URL = 'https://night-play-combined-preview.vercel.app'
 export const PLAY_RPC_PATH = '/api/night-play/rpc'
@@ -36,6 +37,7 @@ export class NightPlay {
       CREATE TABLE IF NOT EXISTS play_nonces (id TEXT PRIMARY KEY, expires_at INTEGER NOT NULL);
     `)
     this.nextCleanup = 0
+    this.matches = new NightPlayMatches(db, { now })
   }
   transaction(fn) {
     this.db.exec('BEGIN IMMEDIATE')
@@ -84,7 +86,7 @@ export class NightPlay {
       .run(id, jpeg ? 'image/jpeg' : 'image/png', data, this.now())
     return true
   }
-  request({ action, session, client, displayName }) {
+  request({ action, session, client, displayName, matchId, code, cell }) {
     this.cleanup()
     if (action === 'health') return { ok:true, service:'night-play', version:1 }
     if (action === 'status') {
@@ -120,11 +122,16 @@ export class NightPlay {
       return { ok:true }
     }
     if (!row?.user_id) throw new PlayError(401, 'Connect WhatsApp to continue.')
+    if (typeof action === 'string' && action.startsWith('match:')) {
+      this.limit('match-client:' + String(client || 'unknown'), 120)
+      return this.matches.request(action, row.user_id, {matchId,code,cell})
+    }
     if (action === 'profile') {
       this.db.prepare('UPDATE play_users SET display_name=? WHERE id=?').run(cleanName(displayName), row.user_id)
       return { linked:true, profile:this.profile(row.user_id) }
     }
     if (action === 'delete') {
+      this.matches.removeUser(row.user_id)
       this.db.prepare('DELETE FROM play_avatars WHERE user_id=?').run(row.user_id)
       this.db.prepare('DELETE FROM play_users WHERE id=?').run(row.user_id)
       return { ok:true }
