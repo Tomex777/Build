@@ -279,6 +279,30 @@ function harness() {
   assert.equal(engine.get(CHAT).phase,'GREEN')
 }
 
+// Registered original admins can still stop the game, including during RED;
+// players do not receive an exemption for non-admin chatter.
+{
+  clock += 100000
+  const {state,engine,adminContext,react,account,talk} = harness()
+  await engine.start(adminContext,'kick',['10m'])
+  await react(ADMIN)
+  await react(PLAYER_A)
+  await engine.launch(adminContext)
+  clock += 23000
+  await engine.tick()
+  assert.equal(engine.get(CHAT).phase,'RED')
+  const stopMessage = {
+    key:{ remoteJid:CHAT, participant:ADMIN, fromMe:false, id:'admin-command-' + ++counter },
+    messageTimestamp:Math.floor(clock / 1000),
+    message:{conversation:'.squidgame stop'},
+  }
+  assert.equal(await engine.onMessage(account,stopMessage),false)
+  assert.equal(engine.get(CHAT).phase,'RED')
+  await engine.stop(adminContext)
+  assert.equal(engine.get(CHAT),null)
+  assert.ok(!state.actions.includes('remove:'+ADMIN))
+}
+
 // Invalid options fail without opening a session.
 {
   clock += 100000
