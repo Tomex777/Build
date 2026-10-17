@@ -31,13 +31,13 @@ trap finish EXIT
 # First prove the updated MSCC daemon is serving the signed-only route
 # directly. This distinguishes a missing backend handler from an nginx fault.
 assert_unsigned_rejected() {
-  local label="$1" url="$2" resolution="\${3:-}" max_attempts="\${4:-1}"
+  local label="$1" url="$2" resolution="${3:-}" max_attempts="${4:-1}"
   local attempt status='000' route_seen='no' response_valid='no' connection_error='no'
   local -a resolution_args=()
   if [[ -n "$resolution" ]]; then resolution_args=(--resolve "$resolution"); fi
   for ((attempt=1; attempt<=max_attempts; attempt++)); do
     if ! status="$(curl --silent --show-error --noproxy '*' --max-time 12 \
-      "\${resolution_args[@]}" --dump-header "$probe_headers" \
+      "${resolution_args[@]}" --dump-header "$probe_headers" \
       --output "$probe" --write-out '%{http_code}' -X POST "$url")"; then
       status='000'
       connection_error='yes'
