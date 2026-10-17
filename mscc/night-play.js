@@ -51,6 +51,8 @@ export class NightPlay {
     for (const table of ['play_challenges', 'play_sessions', 'play_limits', 'play_nonces']) {
       this.db.prepare(`DELETE FROM ${table} WHERE expires_at <= ?`).run(this.now())
     }
+    this.db.prepare('DELETE FROM play_channel_consent WHERE expires_at<=?').run(this.now())
+    this.db.prepare("DELETE FROM play_channel_claims WHERE state!='connected' AND expires_at<=?").run(this.now())
     this.nextCleanup = this.now() + 60_000
   }
   limit(key, maximum, window = 60_000) {
