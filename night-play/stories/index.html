@@ -39,6 +39,12 @@ button,summary{cursor:pointer}
 .step.go .word{animation:word-ink var(--fade) var(--ease) both}
 .step.settled .word{animation:none!important;color:var(--ink)!important}
 @keyframes word-ink{0%{color:transparent}35%{color:var(--tint)}100%{color:var(--ink)}}
+.reading-nav{display:flex;align-items:center;justify-content:space-between;gap:18px;padding:4px 0;font:500 13px/1.4 system-ui,sans-serif}
+.reading-nav[hidden],.reading-nav button[hidden]{display:none}
+.reading-nav button{appearance:none;border:0;background:transparent;color:#c6ccc4;min-height:44px;padding:8px 0;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.reading-nav button:last-child{margin-left:auto;color:var(--ink)}
+.reading-nav button:disabled{opacity:.45;cursor:default}
+.reading-nav button:focus-visible{outline:2px solid #a4b79e;outline-offset:4px}
 .choices{display:grid;border-top:1px solid var(--hair);opacity:1;transition:opacity .14s var(--ease)}
 .choices[hidden]{display:none}.choices.pending{opacity:0;pointer-events:none}
 .choice{appearance:none;background:transparent;border:0;border-bottom:1px solid var(--hair);margin:0;display:grid;grid-template-columns:1.75em minmax(0,1fr);align-items:baseline;width:100%;padding:.6em 0;text-align:left;cursor:pointer;color:var(--ink);transition:opacity .15s var(--ease),background-color .15s var(--ease);-webkit-tap-highlight-color:transparent}
@@ -114,7 +120,8 @@ button,input{font:inherit}
  <h1 class="visually-hidden">The Last Call</h1>
  <div class="col">
   <div class="passage" id="story" role="group" aria-label="Story text"></div>
-  <div class="choices pending" id="choices" role="group" aria-label="Choose what happens next"></div>
+  <nav class="reading-nav" id="readingNav" aria-label="Reading navigation" hidden><button type="button" id="readPrevious" hidden>← Previous</button><button type="button" id="readContinue" hidden>Continue →</button></nav>
+   <div class="choices pending" id="choices" role="group" aria-label="Choose what happens next"></div>
   <section id="recap" class="recap" hidden></section>
  </div>
 </main>
