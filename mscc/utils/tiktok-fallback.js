@@ -66,9 +66,8 @@ async function getProviderData(fetchImpl, provider, endpoint, originalUrl) {
       body:new URLSearchParams({ url:originalUrl, hd:'1' }).toString(),
     })
     if (post?.code === 0 && post?.data) return post
-  } catch {
-    return fetchJson(fetchImpl,endpoint)
-  }
+  } catch { /* Also retry if POST is blocked by the provider. */ }
+  return fetchJson(fetchImpl,endpoint)
 }
 
 async function saveMedia(fetchImpl, url, file, mime, maxBytes) {
