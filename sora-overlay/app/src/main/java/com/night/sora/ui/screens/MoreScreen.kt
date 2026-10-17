@@ -49,9 +49,8 @@ fun MoreScreen(
 ) {
     LazyColumn(modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 24.dp)) {
         item {
-            Column(Modifier.padding(start = 20.dp, top = 14.dp, end = 20.dp, bottom = 14.dp)) {
+            Column(Modifier.padding(start = 20.dp, top = 2.dp, end = 20.dp, bottom = 8.dp)) {
                 Text("More", fontSize = 30.sp, fontWeight = FontWeight.Bold)
-                Text("Sora settings and system tools", color = SoraMuted, fontSize = 12.sp, modifier = Modifier.padding(top = 2.dp))
             }
         }
 
