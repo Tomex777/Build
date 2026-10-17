@@ -172,6 +172,7 @@ await page.locator('canvas.mode-blocks').evaluate(el=>{
  window.__nightTouchTrace=[];
  for(const kind of ['pointerdown','pointermove','pointerup','pointercancel','lostpointercapture']){
   el.addEventListener(kind,e=>window.__nightTouchTrace.push({kind,x:e.clientX,y:e.clientY,id:e.pointerId,button:e.button,primary:e.isPrimary}),{capture:true});
+  el.addEventListener(kind,e=>window.__nightTouchTrace.push({kind:kind+'-after',gameX:window.__nightArcadeTest.snapshot().cur.x,controls:window.__nightArcadeTest.input()}));
  }
 });
 const touchRect=await page.locator('canvas.mode-blocks').boundingBox();
@@ -186,7 +187,7 @@ await cdps.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
 await cdps.detach();
 await page.waitForTimeout(64); // allow Chromium's synthesized PointerEvents to flush
 console.log('NIGHT_TOUCH_DIAGNOSTIC='+JSON.stringify(await page.evaluate(()=>({
- trace:window.__nightTouchTrace,game:window.__nightArcadeTest.snapshot().cur,
+ trace:window.__nightTouchTrace,input:window.__nightArcadeTest.input(),game:window.__nightArcadeTest.snapshot().cur,
  fit:document.querySelector('#screen').style.getPropertyValue('--block-fit-height'),
  viewport:[innerWidth,innerHeight,visualViewport?.height],
  board:document.querySelector('#screen').getBoundingClientRect().toJSON()
