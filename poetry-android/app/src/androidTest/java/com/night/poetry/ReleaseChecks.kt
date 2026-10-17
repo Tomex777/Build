@@ -2,6 +2,7 @@ package com.night.poetry
 
 import android.graphics.BitmapFactory
 import android.net.Uri
+import androidx.core.content.FileProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import org.junit.Assert.*
@@ -97,6 +98,71 @@ class ReleaseChecks {
                 }
             }
         } finally { files.forEach { it.delete() } }
+    }
+
+    @Test fun contentUriExportAndBackupWorkWithoutStoragePermissions() {
+        // FileProvider is a real content:// provider: exercises the same
+        // ContentResolver.openOutputStream path as Android's file picker.
+        val privateOutput = File(app.filesDir, "Poetry")
+        assertTrue(privateOutput.isDirectory || privateOutput.mkdirs())
+        val imageFile = File(privateOutput, "content-uri-test.png")
+        val backupFile = File(privateOutput, "backup-uri-test.json")
+        try {
+            val card = CardStyleData(color1 = 0xFF214056.toInt(),
+                color2 = 0xFF69869B.toInt(), texture = "Grain",
+                elements = listOf(Ornament(assetId = "sparkle", size = 1.3f, x = .65f, y = .12f)))
+            val doc = PoemDoc(title = "Kept offline", body = "These words stay mine.", card = card)
+            val imageUri = FileProvider.getUriForFile(
+                app, "${app.packageName}.fileprovider", imageFile)
+            assertEquals("content", imageUri.scheme)
+            CardExporter.export(app, doc, 1080, imageUri)
+            val bitmap = BitmapFactory.decodeFile(imageFile.absolutePath)
+            assertNotNull(bitmap)
+            assertEquals(1080, bitmap!!.width)
+            assertEquals(1920, bitmap.height)
+            bitmap.recycle()
+
+            val backupUri = FileProvider.getUriForFile(
+                app, "${app.packageName}.fileprovider", backupFile)
+            val originalBytes = PoemStore(app).backupBytes(listOf(doc), emptyList())
+            app.contentResolver.openOutputStream(backupUri, "w")!!.use { it.write(originalBytes) }
+            val restoredBytes = app.contentResolver.openInputStream(backupUri)!!.use { it.readBytes() }
+            assertArrayEquals(originalBytes, restoredBytes)
+            assertEquals(doc, PoemStore(app).parseBackup(restoredBytes).poems.single())
+
+            // Proof for reviewing the actual offline PNG renderer's textures,
+            // fonts and vectors against the card preview.
+            val proof = File(checkNotNull(app.getExternalFilesDir(null)), "poetry-export-card-1080.png")
+            imageFile.copyTo(proof, overwrite = true)
+        } finally {
+            imageFile.delete()
+            backupFile.delete()
+        }
+    }
+
+    @Test fun fullResolutionVisualProofHasCorrectDimensions() {
+        val style = CardStyleData(
+            background = "Custom", color1 = 0xFF162A38.toInt(),
+            color2 = 0xFF516A7B.toInt(), textColor = 0xFFFEF9F4.toInt(),
+            fontSize = 19f, decor = "Stars", texture = "Grain",
+            elements = listOf(
+                Ornament(assetId = "flower", x = .15f, y = .15f, size = 1.5f, opacity = .80f),
+                Ornament(assetId = "sparkle", x = .72f, y = .70f, size = 1.2f)
+            )
+        )
+        val doc = PoemDoc(
+            title = "Where the evening goes",
+            body = "A little light remains,\\n\\nEven when the day grows old.".replace("\\n", "\n"),
+            author = "Poetry", card = style
+        )
+        val proof = File(checkNotNull(app.getExternalFilesDir(null)), "poetry-export-card-4k.png")
+        val exported = CardExporter.export(app, doc, 2160, Uri.fromFile(proof))
+        assertEquals("file", exported.scheme)
+        val size = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        BitmapFactory.decodeFile(proof.absolutePath, size)
+        assertEquals(2160, size.outWidth)
+        assertEquals(3840, size.outHeight)
+        assertTrue(proof.length() > 100_000)
     }
 
     @Test fun overflowingVerseCannotBeSilentlyCropped() {
