@@ -212,7 +212,27 @@ adb shell input text 'Low%sLight'
 wait_for_node 'Low Light' 30
 shot 01-music-demo-search
 
-tap_text 'Low Light'
+# The search input and the playable result share the text "Low Light".
+# Tap the actual result row (below the query field), not the text field.
+dump_ui
+python3 <<'PY'
+import re, subprocess, xml.etree.ElementTree as ET
+root = ET.parse('/tmp/sora-music-window.xml').getroot()
+matches = []
+for node in root.iter('node'):
+    if node.attrib.get('text', '').strip() != 'Low Light':
+        continue
+    b = re.match(r'\[(\d+),(\d+)\]\[(\d+),(\d+)\]', node.attrib.get('bounds', ''))
+    if b:
+        x1,y1,x2,y2=map(int,b.groups())
+        matches.append(((y1+y2)//2,(x1+x2)//2))
+if len(matches) < 2:
+    raise SystemExit('Search input and playable result were not both found: '+str(matches))
+y,x=max(matches)
+print('Opening real Low Light search result', x, y, flush=True)
+subprocess.check_call(['adb','shell','input','tap',str(x),str(y)])
+PY
+adb shell input keyevent KEYCODE_BACK
 wait_for_node 'Mini player' 20
 wait_for_node Pause 20
 shot 02-playing
