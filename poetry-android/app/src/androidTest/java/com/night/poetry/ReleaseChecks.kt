@@ -103,13 +103,17 @@ class ReleaseChecks {
     @Test fun contentUriExportAndBackupWorkWithoutStoragePermissions() {
         // FileProvider is a real content:// provider: exercises the same
         // ContentResolver.openOutputStream path as Android's file picker.
+        assertEquals(0xFFF9F7F2.toInt(),
+            readableTextOn(0xFF214056.toInt(), 0xFF69869B.toInt(), 0xFF342E31.toInt()))
+        assertEquals(0xFF20272A.toInt(),
+            readableTextOn(0xFFFDF9F3.toInt(), 0xFFFFFFFF.toInt(), 0xFFFFFFFF.toInt()))
         val privateOutput = File(app.filesDir, "Poetry")
         assertTrue(privateOutput.isDirectory || privateOutput.mkdirs())
         val imageFile = File(privateOutput, "content-uri-test.png")
         val backupFile = File(privateOutput, "backup-uri-test.json")
         try {
             val card = CardStyleData(color1 = 0xFF214056.toInt(),
-                color2 = 0xFF69869B.toInt(), texture = "Grain",
+                color2 = 0xFF69869B.toInt(), textColor = 0xFFF9F7F2.toInt(), texture = "Grain",
                 elements = listOf(Ornament(assetId = "sparkle", size = 1.3f, x = .65f, y = .12f)))
             val doc = PoemDoc(title = "Kept offline", body = "These words stay mine.", card = card)
             val imageUri = FileProvider.getUriForFile(
