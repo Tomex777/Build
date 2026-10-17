@@ -954,6 +954,12 @@ body{background:var(--bg)}
 .story-entry .cardrow p{line-height:1.4}
 .story-entry:focus-visible{outline:3px solid #456a58;outline-offset:3px}
 .story-entry .arrow{display:grid;place-items:center}
+
+/* NIGHT design: card art + title already communicate the action. No generic
+   boxed arrow affordances competing with the approved artwork. */
+.gamecard .cardrow > .arrow,.story-entry .arrow{display:none!important}
+.night-profile-tool .night-tool-launch{width:auto;min-width:110px;height:42px;flex:0 0 auto;padding:0 16px;font-size:12px;font-weight:800;border-radius:11px}
+@media(max-width:700px){.night-profile-tool .night-tool-launch{min-width:0;width:auto;flex:0 0 auto;padding:0 12px}}
 </style>
 <style>.story-resume{display:flex;justify-content:space-between;align-items:center;gap:20px;background:#20372e;color:#eef2e9;text-decoration:none;padding:22px 25px;border-radius:20px;margin:0 0 24px}.story-resume[hidden]{display:none}.story-resume span{font-size:11px;letter-spacing:.1em}.story-resume strong{display:block;font-size:25px;margin:8px 0}.story-resume small{font-size:12px;color:#bdcfbf}.story-resume>span{font-size:30px}.story-resume:focus-visible{outline:3px solid #90ad8c;outline-offset:4px}</style><style>.account-command{display:block;white-space:normal;overflow-wrap:anywhere;margin:20px 0;padding:18px;border:1px solid #d8ddd9;border-radius:12px;background:#f0f2ee;font-size:18px;line-height:1.6;user-select:all}.account-name{font-size:24px;font-weight:750}.account-expiry{font-size:12px;color:#69726c}#infoBody>.btn{margin:6px 8px 6px 0}</style>
 </head>
@@ -1017,7 +1023,7 @@ body{background:var(--bg)}
 </section>
 <section class="site-page" id="view-dashboard" data-view="dashboard" hidden>
  <div class="inner-page-head"><div><span class="eyebrow">YOUR NIGHT SPACE</span><h1 id="homeGreeting" aria-live="polite">Welcome.</h1><p>What will you play today?</p></div><span class="welcome-stamp"><svg class="ui-icon" viewBox="0 0 24 24" focusable="false" aria-hidden="true"><use href="#icon-spark"></use></svg> LET’S PLAY</span></div>
- <a id="storyResume" class="story-resume" href="/stories/" hidden><div><span>CONTINUE READING</span><strong>The Last Call</strong><small></small></div><span aria-hidden="true">↗</span></a>
+ <a id="storyResume" class="story-resume" href="/stories/" hidden><div><span>CONTINUE READING</span><strong>The Last Call</strong><small></small></div></a>
  <div class="dash-layout">
   <article class="dash-hero-card"><div class="dash-label">READY WHEN YOU ARE</div><h2>Your next<br>game awaits.</h2><p>Pick up where you left off, or discover something new.</p><a class="btn" data-route href="/games">Explore games <svg class="ui-icon" viewBox="0 0 24 24" focusable="false" aria-hidden="true"><use href="#icon-arrowright"></use></svg></a><svg class="dash-illustration" viewBox="0 0 160 140" aria-hidden="true" focusable="false"><use href="#art-ttt"></use></svg></article>
   <div class="dash-side">
@@ -1117,7 +1123,7 @@ body{background:var(--bg)}
 <section class="night-profile-tool" aria-labelledby="nightToolHeading">
  <div class="night-tool-mark" aria-hidden="true"><svg class="ui-icon" viewBox="0 0 24 24"><use href="#icon-spark"></use></svg></div>
  <div class="night-tool-copy"><h2 id="nightToolHeading">Anonymous Nights</h2><p>Channel confession sessions</p></div>
- <a class="night-tool-launch" href="/anonymous/" aria-label="Manage Anonymous Nights" title="Manage Anonymous Nights"><svg class="ui-icon" aria-hidden="true" viewBox="0 0 24 24"><use href="#icon-arrowright"></use></svg></a>
+ <a class="night-tool-launch" href="/channels/" aria-label="Your WhatsApp Channels">Manage channels</a>
 </section>
 <div class="records-heading"><h2>Game records</h2></div>
 <div class="analytics-panel">
