@@ -70,6 +70,10 @@ curl --fail --location --retry 3 --output "$anime_source" "$anime_url"
   exit 1
 }
 python3 "$project_dir/scripts/prepare-anime-glb.py" "$anime_source" "$anime_file"
+# Android 16's OpenGL renderer cannot reliably display the 91-joint palette
+# while API 26 happens to support it. The male mesh uses at most 58 real bone
+# influences; compact GPU indices while keeping the full editable 91-bone rig.
+python3 "$project_dir/scripts/compact-anime-skins.py" "$anime_file" "$anime_file"
 rm -f "$anime_source"
 python3 "$project_dir/scripts/check-anime-glb.py" "$anime_file"
 python3 "$project_dir/scripts/extract-vrm-springs.py" "$anime_file" "$asset_dir/mise_anime.spring.json"
