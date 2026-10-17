@@ -13,13 +13,15 @@ def replace_once(old, new, description):
         raise RuntimeError(f"{description}: expected 1 occurrence, found {count}")
     s = s.replace(old, new, 1)
 
-replace_once(
-    "import kotlin.math.sin\n",
-    "import kotlin.math.sin\n"
-    "import androidx.compose.foundation.gestures.awaitEachGesture\n"
-    "import androidx.compose.foundation.gestures.awaitFirstDown\n",
-    "gesture imports"
-)
+# Kotlin math sin is imported twice in the existing app source; insert near one
+# match deliberately rather than treating an unrelated repeated import as an error.
+if "import androidx.compose.foundation.gestures.awaitEachGesture\n" not in s:
+    anchor = "import kotlin.math.sin\n"
+    if anchor not in s:
+        raise RuntimeError("Missing math import anchor for pointer gesture imports")
+    s = s.replace(anchor, anchor +
+        "import androidx.compose.foundation.gestures.awaitEachGesture\n"
+        "import androidx.compose.foundation.gestures.awaitFirstDown\n", 1)
 
 replace_once(
     """                Slider(
