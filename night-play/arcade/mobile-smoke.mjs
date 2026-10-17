@@ -51,8 +51,13 @@ for(const [width,height] of [[320,568],[360,740],[390,844],[412,915],[768,1024]]
  });
  assert.ok(bounds.width>=160,'Block Drop retains usable cell sizes at '+width+'×'+height);
  assert.ok(bounds.x>=0&&bounds.x+bounds.width<=bounds.screenWidth+1,'board stays inside screen width at '+width+'×'+height);
+ if(width<=650){
+  assert.ok(bounds.width>=width-18,'Block Drop fills the phone width with no wasted side gutters at '+width+'×'+height+': '+JSON.stringify(bounds));
+  assert.ok(bounds.height<=bounds.width*2+2,'all 20 rows fit without vertical expansion at '+width+'×'+height);
+ }else{
+  assert.ok(Math.abs(bounds.height/bounds.width-2)<.03,'desktop keeps square cell proportions at '+width+'×'+height);
+ }
  assert.ok(bounds.bottom<=bounds.screenHeight-4,'entire falling-block board is visible without vertical scrolling at '+width+'×'+height+': '+JSON.stringify(bounds));
- assert.ok(Math.abs(bounds.height/bounds.width-2)<.03,'10×20 board aspect ratio is preserved at '+width+'×'+height);
  assert.ok(bounds.controlsTop>=bounds.bottom-1,'game controls never overlap the board at '+width+'×'+height);
  assert.ok(bounds.pageWidth<=bounds.screenWidth+2,'no sideways viewport overflow at '+width+'×'+height);
 }

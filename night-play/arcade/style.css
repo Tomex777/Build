@@ -65,9 +65,15 @@ body>footer{display:none}
 @media(max-width:650px){
  /* Reserve actual screen space for the header, HUD and the touch controls.
     On unusually short screens the board itself fits; controls may scroll. */
+ /* Full playable width, not a narrow centred strip. On tall phones the
+    board keeps square cells; on short phones its rows compress vertically so
+    all 20 rows remain visible and the controls stay below the board. */
  #screen.mode-blocks{
-  width:min(100%,465px,max(175px,calc((100dvh - 320px - env(safe-area-inset-bottom,0px))/2)));
-  max-width:calc(100vw - 20px);
+  width:100%;
+  max-width:100%;
+  height:min(calc(200vw - 28px),max(220px,calc(100dvh - 296px - env(safe-area-inset-bottom,0px))));
+  max-height:none;
+  aspect-ratio:auto;
  }
  body:has(#screen.mode-blocks:not([hidden])) main{padding:7px 7px 8px}
  body:has(#screen.mode-blocks:not([hidden])) .night-game-intro{padding:0 0 6px}
