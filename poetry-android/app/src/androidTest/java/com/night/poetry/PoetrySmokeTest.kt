@@ -52,6 +52,9 @@ class PoetrySmokeTest {
         compose.onNodeWithTag("poetry-card-stage").assertExists()
         compose.onNodeWithText("Export").assertExists()
         capture("studio")
+        compose.onNodeWithText("Text").performClick()
+        compose.onNodeWithText("TEXT COLOUR").assertExists()
+        capture("text-tools")
 
         // Ensure search categories represent actual vector resources.
         compose.onNodeWithText("Elements").performClick()
