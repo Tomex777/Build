@@ -11,9 +11,10 @@ export default {
       return ctx.reply('For channel security, message NIGHT privately. Never post a channel verification code in a group.')
     }
     const action=String(ctx.args?.[0]||'').toLowerCase()
-    const usage='*NIGHT Play · Channels*\nUse .joinchannel <WhatsApp Channel link> in this chat to begin.\nYou will confirm Yes or No before NIGHT follows the channel. Connecting it to NIGHT Play also requires granting NIGHT admin rights in WhatsApp and proving you can publish to the channel.'
+    const usage='*NIGHT Play · Channels*\nSend the WhatsApp Channel link here first, then type .joinchannel. Alternatively, use .joinchannel <channel link>.\nYou will confirm Yes or No before NIGHT follows the channel. Connecting it to NIGHT Play also requires granting NIGHT admin rights in WhatsApp and proving you can publish to the channel.'
     try {
-      if(!action)return ctx.reply(usage)
+      const recent=!action?ctx.channelRecentLink?.():''
+      if(!action&&!recent)return ctx.reply(usage)
       if(action==='yes') {
         const result=await ctx.channelAccept()
         if(result.already)return ctx.reply('*Already connected*\n'+result.name+'\nManage it in NIGHT Play.')
@@ -34,7 +35,7 @@ export default {
         if(!result.channels.length)return ctx.reply('No channels linked yet. '+usage)
         return ctx.reply('*Your NIGHT Play channels*\n'+result.channels.map(r=>'• '+r.name+' — '+(r.status==='connected'?'Verified':r.status==='awaiting_admin'?'Waiting for NIGHT admin rights':'Waiting for your proof post')).join('\n')+'\n\nManage these on NIGHT Play.')
       }
-      const data=await ctx.channelBegin(ctx.args.join(' ').trim())
+      const data=await ctx.channelBegin(recent||ctx.args.join(' ').trim())
       const notice='*Connect '+data.name+'?*\n\nNIGHT will follow this WhatsApp Channel only if you agree. Following is not becoming an admin.\n\nTo let NIGHT publish approved Anonymous Nights cards later, you must separately invite this NIGHT account as a WhatsApp Channel administrator. You must also prove that you can publish to it.\n\nReply .joinchannel yes to agree or .joinchannel no to cancel. Confirmation expires in 15 minutes.'
       if(ctx.ui?.acceptDecline) {
         try {
