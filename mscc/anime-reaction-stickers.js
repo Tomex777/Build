@@ -78,6 +78,11 @@ function cachedSticker(cacheKey) {
   stickerCache.set(cacheKey,entry)
   return {sticker:next.sticker, sourceId:next.sourceId, entry}
 }
+// CI fixture isolation only; never called in the running WhatsApp service.
+export function resetAnimeReactionCacheForTests() {
+  if (foreground.size || rawForeground.size || backgroundBusy) throw new Error('Cannot reset an active reaction render')
+  stickerCache.clear()
+}
 export function animeReactionCacheStats() {
   enforceCacheLimits()
   return Object.freeze({
