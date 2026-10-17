@@ -60,8 +60,10 @@ for(const [width,height] of viewportCases){
  });
  assert.ok(bounds.width>=150,'Block Drop remains playable at '+width+'×'+height+': '+JSON.stringify(bounds));
  assert.ok(bounds.x>=0&&bounds.x+bounds.width<=bounds.screenWidth+1,'board within screen width at '+width+'×'+height);
- if(width<=465){
-  assert.ok(bounds.width>=width-18,'board almost full width on phone at '+width+'×'+height+': '+JSON.stringify(bounds));
+ if(width<=465&&height>=800){
+  assert.ok(bounds.width>=width-18,'board almost full width on normal phone at '+width+'×'+height+': '+JSON.stringify(bounds));
+ }else if(width<=465){
+  assert.ok(bounds.width>=180,'compressed short window keeps usable board cells at '+width+'×'+height);
  }
  assert.ok(bounds.height>=89&&bounds.height<=bounds.width*2+2,'board keeps 20 visible rows with bounded height at '+width+'×'+height);
  assert.ok(bounds.bottom<=bounds.screenHeight-3,'the whole board visible vertically at '+width+'×'+height+': '+JSON.stringify(bounds));
