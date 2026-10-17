@@ -528,8 +528,8 @@ private fun MediaTopBar(
     onQuery: (String) -> Unit,
 ) {
     Row(
-        Modifier.fillMaxWidth().height(58.dp).padding(horizontal = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
+        Modifier.fillMaxWidth().height(48.dp).padding(horizontal = 8.dp),
+        verticalAlignment = Alignment.Top,
     ) {
         if (searchOpen && searchEnabled) {
             IconButton(onClick = onCloseSearch) { Icon(Icons.Rounded.ArrowBack, "Close search") }
