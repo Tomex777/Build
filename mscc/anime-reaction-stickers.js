@@ -1,9 +1,9 @@
 // NIGHT anime reactions: use the EXISTING animated sticker converter, rounding and EXIF.
 // GIFs are source material only; WhatsApp receives animated WebP stickers, never GIF messages.
-import { randomInt } from 'node:crypto'
 import { contextInfo } from './utils/whatsapp/messages.js'
 import { mediaToSticker } from './utils/media-conversion.js'
 import { stickerPackNameForCommand } from './utils/sticker-metadata.js'
+import { reactionProviders } from './utils/anime-reaction-providers.js'
 
 export const REACTION_GROUPS = Object.freeze({
   'Affection': 'hug kiss cuddle pat peck blowkiss handhold lappillow kabedon carry',
@@ -19,10 +19,15 @@ export const REACTIONS = Object.freeze(Object.fromEntries(
   )
 ))
 export const REACTION_NAMES = Object.freeze(Object.keys(REACTIONS))
-const API_ROOT = 'https://nekos.best/api/v2/'
 const USER_AGENT = 'NIGHT-Anime-Stickers (https://github.com/Tomex777/Build)'
 const MAX_MEDIA_BYTES = 16 * 1024 * 1024
-const recent = new Map()
+const stickerCache = new Map()
+const CACHE_ENTRIES = 12
+function rememberSticker(cacheKey, sticker) {
+  stickerCache.delete(cacheKey)
+  stickerCache.set(cacheKey,sticker)
+  while (stickerCache.size > CACHE_ENTRIES) stickerCache.delete(stickerCache.keys().next().value)
+}
 const groupTag = /(^|\s)@(?:all|everyone|here)(?=\s|$|\W)/iu
 
 function mentionedTargets(ctx) {
@@ -57,53 +62,11 @@ export function reactionCatalog(prefix = '.') {
   return lines.join('\n')
 }
 
-async function requestJson(category) {
-  if (category === 'kill') {
-    // The secondary source and its GIF->WebP conversion were live-verified.
-    const response = await fetch('https://animegifs-enkidu.koyeb.app/v3/api/?category=kill', {
-      headers: {'User-Agent':USER_AGENT,Accept:'application/json'},
-      signal:AbortSignal.timeout(12000),
-    })
-    if (!response.ok || !String(response.headers.get('content-type') || '').includes('json'))
-      throw new Error('Kill sticker source is unavailable')
-    const data = await response.json()
-    const url = new URL(String(data?.gif || ''))
-    const host = 'frqs54dqeajn.objectstorage.eu-frankfurt-1.oci.customer-oci.com'
-    if (url.protocol !== 'https:' || url.hostname !== host)
-      throw new Error('Kill sticker source returned an untrusted URL')
-    return [url.href]
-  }
-  const response = await fetch(API_ROOT + encodeURIComponent(category) + '?amount=12', {
-    headers: { 'User-Agent': USER_AGENT, Accept:'application/json' },
-    signal: AbortSignal.timeout(12000),
-  })
-  const type = String(response.headers.get('content-type') || '')
-  if (!response.ok || !type.includes('json')) throw new Error('Anime sticker source unavailable')
-  const data = await response.json()
-  const urls = (data?.results || []).map(row => String(row?.url || ''))
-    .filter(url => {
-      try {
-        const parsed = new URL(url)
-        return parsed.protocol === 'https:' &&
-          (parsed.hostname === 'nekos.best' || parsed.hostname.endsWith('.nekos.best')) &&
-          parsed.pathname.startsWith('/api/v2/' + category + '/') &&
-          parsed.pathname.endsWith('.gif')
-      } catch { return false }
-    })
-  if (!urls.length) throw new Error('No safe anime sticker source returned')
-  const previous = recent.get(category) || []
-  const unused = urls.filter(url => !previous.includes(url))
-  const pool = unused.length ? unused : urls
-  // Advance before downloads so concurrent commands are less likely to repeat.
-  const selected = pool[randomInt(pool.length)]
-  recent.set(category, [selected, ...previous.filter(url => url !== selected)].slice(0, 30))
-  return [selected, ...urls.filter(url => url !== selected)].slice(0, 3)
-}
-
 async function downloadGif(url) {
   const response = await fetch(url, {
     headers: { 'User-Agent': USER_AGENT, Accept:'image/gif' },
-    signal: AbortSignal.timeout(16000),
+    signal: AbortSignal.timeout(12000),
+    redirect:'error',
   })
   if (!response.ok) throw new Error('Anime GIF download failed: HTTP ' + response.status)
   const type = String(response.headers.get('content-type') || '').toLowerCase()
@@ -134,25 +97,49 @@ export async function sendReactionSticker(ctx, category) {
   let mentions
   try { mentions = mentionedTargets(ctx) }
   catch (error) { return ctx.reply(error.message) }
-  try {
-    const candidates = await requestJson(category)
-    let lastError
+  const packName = stickerPackNameForCommand(ctx)
+  // Do not use another sender's personalized sticker-pack metadata from cache.
+  const cacheKey = category + '|' + packName
+  const failures = []
+  // Each reaction remains an animated rounded WebP sticker. An upstream HTTP
+  // failure, dead GIF or failed conversion must never disable every command
+  // except .kill. Retry independent sources for the SAME action.
+  for (const provider of reactionProviders(category)) {
+    let candidates
+    try { candidates = await provider.resolve() }
+    catch (error) {
+      failures.push(provider.name + ': ' + String(error?.message || error).slice(0,140))
+      continue
+    }
     for (const url of candidates) {
       try {
         const gif = await downloadGif(url)
         const sticker = await mediaToSticker(gif, {
           animated:true,
-          packName:stickerPackNameForCommand(ctx),
+          packName,
         })
         if (sticker.length > 900 * 1024) throw new Error('Converted sticker exceeds WhatsApp target size')
-        return sock.sendMessage(chat, { sticker, ...(mentions.length ? {mentions} : {}) }, {quoted:ctx.message})
-      } catch (error) { lastError = error }
+        const delivered = await sock.sendMessage(chat, { sticker, ...(mentions.length ? {mentions} : {}) }, {quoted:ctx.message})
+        rememberSticker(cacheKey,sticker)
+        return delivered
+      } catch (error) {
+        failures.push(provider.name + ': ' + String(error?.message || error).slice(0,140))
+      }
     }
-    throw lastError || new Error('All downloaded stickers failed conversion')
-  } catch (error) {
-    console.warn('NIGHT anime sticker failed (' + category + '):', error?.message || error)
-    return ctx.reply('That anime sticker is unavailable right now. Try again later.')
   }
+  // Last-known-good animated sticker is preferable to silently failing when
+  // every provider is temporarily down. Cache is strictly bounded in RAM.
+  const cached = stickerCache.get(cacheKey)
+  if (cached) {
+    try {
+      return await sock.sendMessage(chat,{ sticker:cached, ...(mentions.length ? {mentions} : {}) },{quoted:ctx.message})
+    } catch (error) {
+      failures.push('WhatsApp: ' + String(error?.message || error).slice(0,140))
+    }
+  }
+  console.warn('NIGHT anime reaction providers exhausted (' + category + '): ' + failures.join(' | ').slice(0,850))
+  return ctx.reply('NIGHT could not load that anime reaction from its available sticker sources right now. Try again shortly.')
+
 }
 
 export function makeReactionCommand(name, category = REACTIONS[name]) {
