@@ -841,17 +841,33 @@ private fun MusicHome(
             title = { Text("Choose your artists") },
             text = {
                 Column {
-                    Text("Add artist names, separated by commas.",
-                        color = SoraMuted, fontSize = 12.sp)
-                    OutlinedTextField(
-                        value = tasteDraft,
-                        onValueChange = { tasteDraft = it },
-                        label = { Text("Artists") },
-                        placeholder = { Text("Tems, Burna Boy, SZA") },
-                        singleLine = false,
-                    )
-                    Text("Saved only on this device.", color = SoraMuted,
-                        fontSize = 10.sp, modifier = Modifier.padding(top = 8.dp))
+                    Text("Separate artist names with commas.", color = SoraMuted,
+                        fontSize = 12.sp, modifier = Modifier.padding(bottom = 10.dp))
+                    Surface(
+                        color = SoraSurfaceHigh,
+                        shape = RoundedCornerShape(12.dp),
+                        border = androidx.compose.foundation.BorderStroke(
+                            1.dp, Color.White.copy(alpha = .10f)),
+                    ) {
+                        BasicTextField(
+                            value = tasteDraft,
+                            onValueChange = { tasteDraft = it },
+                            textStyle = TextStyle(color = SoraText, fontSize = 14.sp,
+                                lineHeight = 21.sp),
+                            cursorBrush = androidx.compose.ui.graphics.SolidColor(SoraAccent),
+                            minLines = 2, maxLines = 4,
+                            modifier = Modifier.fillMaxWidth().padding(14.dp),
+                            decorationBox = { field ->
+                                Box {
+                                    if (tasteDraft.isEmpty()) {
+                                        Text("Tems, Burna Boy, SZA",
+                                            color = SoraMuted, fontSize = 14.sp)
+                                    }
+                                    field()
+                                }
+                            },
+                        )
+                    }
                 }
             },
             confirmButton = {
