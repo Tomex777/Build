@@ -1013,7 +1013,6 @@ private fun SearchResultsSurface(
 ) {
     val musicQueue = remember(rows, type) { if (type == ContentType.MUSIC) rows.map { selection(it, type) } else emptyList() }
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 18.dp)) {
-        item { MediaSectionTitle("Search", "${type.label} · ${query.trim()}") }
         when {
             loading && rows.isEmpty() -> items(6) { SearchResultSkeleton(type) }
             error != null && rows.isEmpty() -> item { CatalogFailure(error, onRetry) }
