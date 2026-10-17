@@ -1,0 +1,191 @@
+{
+  "project": "TAC Hymnbook",
+  "version": 1,
+  "photo_page_range": [
+    1,
+    4
+  ],
+  "capture_method": "two-facing-pages-per-photo",
+  "description": "Seed catalogue transcribed from the user's book photos. Online sources are candidates, not approved/verified full-text imports. Original TAC numbering takes priority. Hymn 11 extends beyond supplied photos.",
+  "hymns": [
+    {
+      "number": 1,
+      "collection": "main",
+      "title_yo": "Ọlọrun ayé àti ọrun",
+      "title_en": "Lord of All Being, Throned Afar",
+      "source_pages": [
+        1
+      ],
+      "estimated_verses": 5,
+      "external_source_url": "https://www.scribd.com/document/859543609/HYMN-NCGM",
+      "source_status": "opening_and_verse_candidate",
+      "lyrics_yo": null,
+      "lyrics_en": null,
+      "photo_match": "opening_line_only",
+      "needs_final_text_review": true
+    },
+    {
+      "number": 2,
+      "collection": "main",
+      "title_yo": "Gbogbo ayé, gbé Jésù ga",
+      "title_en": "All Hail the Power of Jesus' Name",
+      "source_pages": [
+        1
+      ],
+      "estimated_verses": 6,
+      "external_source_url": "https://yorubahymns.blogspot.com/2015/09/gbogbo-aye-gbe-jesu-ga.html",
+      "source_status": "opening_and_verse_candidate",
+      "lyrics_yo": null,
+      "lyrics_en": null,
+      "photo_match": "opening_line_only",
+      "needs_final_text_review": true
+    },
+    {
+      "number": 3,
+      "collection": "main",
+      "title_yo": "Fí ìyìn fún Jésù Olùràpadà wa",
+      "title_en": "Praise Him! Praise Him!",
+      "source_pages": [
+        1,
+        2
+      ],
+      "estimated_verses": 4,
+      "external_source_url": "https://www.ferventxtian.com/yoruba-hymn-fiyin-fun-jesu-olurapada-wa-praise-him-praise-him/",
+      "source_status": "opening_and_verse_candidate",
+      "lyrics_yo": null,
+      "lyrics_en": null,
+      "photo_match": "opening_line_only",
+      "needs_final_text_review": true
+    },
+    {
+      "number": 4,
+      "collection": "main",
+      "title_yo": "Níwájú ìtẹ́ àánú",
+      "title_en": "We Worship and Adore Thee",
+      "source_pages": [
+        2
+      ],
+      "estimated_verses": 4,
+      "external_source_url": "https://gospelsongs.com.ng/niwaju-ite-anu-yoruba-hymn/",
+      "source_status": "opening_and_verse_candidate",
+      "lyrics_yo": null,
+      "lyrics_en": null,
+      "photo_match": "opening_line_only",
+      "needs_final_text_review": true
+    },
+    {
+      "number": 5,
+      "collection": "main",
+      "title_yo": "Ọkàn mi, yin Ọba ọ̀run",
+      "title_en": "Praise, My Soul, the King of Heaven",
+      "source_pages": [
+        2
+      ],
+      "estimated_verses": 5,
+      "external_source_url": "https://yorubabaptisthymns.com/hymn/301/",
+      "source_status": "opening_and_verse_candidate",
+      "lyrics_yo": null,
+      "lyrics_en": null,
+      "photo_match": "opening_line_only",
+      "needs_final_text_review": true
+    },
+    {
+      "number": 6,
+      "collection": "main",
+      "title_yo": "Yin Ọlọ́run Abraham",
+      "title_en": "The God of Abraham Praise",
+      "source_pages": [
+        2,
+        3
+      ],
+      "estimated_verses": 6,
+      "external_source_url": "https://yorubabaptisthymns.com/hymn/302/",
+      "source_status": "opening_and_verse_candidate",
+      "lyrics_yo": null,
+      "lyrics_en": null,
+      "photo_match": "opening_line_only",
+      "needs_final_text_review": true
+    },
+    {
+      "number": 7,
+      "collection": "main",
+      "title_yo": "Pẹ̀lú dùùrù wúrà, gbogbo wọn dúró",
+      "title_en": "With Harps and with Vials",
+      "source_pages": [
+        3
+      ],
+      "estimated_verses": 5,
+      "external_source_url": "https://www.scribd.com/document/859543609/HYMN-NCGM",
+      "source_status": "opening_and_verse_candidate",
+      "lyrics_yo": null,
+      "lyrics_en": null,
+      "photo_match": "opening_line_only",
+      "needs_final_text_review": true
+    },
+    {
+      "number": 8,
+      "collection": "main",
+      "title_yo": "Èmi bá ní ẹgbẹ̀rún ahọ́n",
+      "title_en": "O for a Thousand Tongues to Sing",
+      "source_pages": [
+        3,
+        4
+      ],
+      "estimated_verses": 6,
+      "external_source_url": "https://iom.webbuild.org.ng/hymns.php",
+      "source_status": "opening_and_verse_candidate",
+      "lyrics_yo": null,
+      "lyrics_en": null,
+      "photo_match": "opening_line_only",
+      "needs_final_text_review": true
+    },
+    {
+      "number": 9,
+      "collection": "main",
+      "title_yo": "Ránṣẹ́ Ọlọ́run, ẹ lọ kéde Rẹ",
+      "title_en": "Ye Servants of God, Your Master Proclaim",
+      "source_pages": [
+        4
+      ],
+      "estimated_verses": 4,
+      "external_source_url": "https://www.scribd.com/document/859543609/HYMN-NCGM",
+      "source_status": "opening_and_verse_candidate",
+      "lyrics_yo": null,
+      "lyrics_en": null,
+      "photo_match": "opening_line_only",
+      "needs_final_text_review": true
+    },
+    {
+      "number": 10,
+      "collection": "main",
+      "title_yo": "Ẹ wọlé f'Ọba, Ológo jùlọ",
+      "title_en": "O Worship the King, All Glorious Above",
+      "source_pages": [
+        4
+      ],
+      "estimated_verses": 6,
+      "external_source_url": "https://mycollectionofyorubahymns.blogspot.com/2014/01/e-wole-foba.html",
+      "source_status": "opening_and_verse_candidate",
+      "lyrics_yo": null,
+      "lyrics_en": null,
+      "photo_match": "opening_line_only",
+      "needs_final_text_review": true
+    },
+    {
+      "number": 11,
+      "collection": "main",
+      "title_yo": "Ọlọ́run àwámárìdì!",
+      "title_en": null,
+      "source_pages": [
+        4
+      ],
+      "estimated_verses": null,
+      "external_source_url": null,
+      "source_status": "photo_only_partial_hymn",
+      "lyrics_yo": null,
+      "lyrics_en": null,
+      "photo_match": "opening_line_only",
+      "needs_final_text_review": true
+    }
+  ]
+}
