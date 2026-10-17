@@ -99,7 +99,7 @@ fi
 capture tiles-gameover
 if [[ "$MODE" == 'full' ]]; then
   tap_ui 'PLAY AGAIN'
-  wait_ui 'Tap the first tile to start in lane' || wait_ui 'ENDLESS TILES'
+  wait_ui 'ENDLESS TILES'
   capture tiles-again
 fi
 adb shell am force-stop "$PKG"
