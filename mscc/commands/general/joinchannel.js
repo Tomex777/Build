@@ -35,7 +35,17 @@ export default {
         return ctx.reply('*Your NIGHT Play channels*\n'+result.channels.map(r=>'• '+r.name+' — '+(r.status==='connected'?'Verified':r.status==='awaiting_admin'?'Waiting for NIGHT admin rights':'Waiting for your proof post')).join('\n')+'\n\nManage these on NIGHT Play.')
       }
       const data=await ctx.channelBegin(ctx.args.join(' ').trim())
-      return ctx.reply('*Connect '+data.name+'?*\n\nNIGHT will follow this WhatsApp Channel only if you agree. Following is not becoming an admin.\n\nTo let NIGHT publish approved Anonymous Nights cards later, you must separately invite this NIGHT account as a WhatsApp Channel administrator. You will also verify that you can publish to the channel. Grant access only to the bot account you trust. You can disconnect the channel in NIGHT Play.\n\nReply * .joinchannel yes * to agree, or * .joinchannel no * to cancel.\n\nThis confirmation expires in 15 minutes.')
+      const notice='*Connect '+data.name+'?*\n\nNIGHT will follow this WhatsApp Channel only if you agree. Following is not becoming an admin.\n\nTo let NIGHT publish approved Anonymous Nights cards later, you must separately invite this NIGHT account as a WhatsApp Channel administrator. You must also prove that you can publish to it.\n\nReply .joinchannel yes to agree or .joinchannel no to cancel. Confirmation expires in 15 minutes.'
+      if(ctx.ui?.acceptDecline) {
+        try {
+          return await ctx.ui.acceptDecline({
+            title:'NIGHT Channels · Consent',text:notice,buttonText:'Yes or No',
+            acceptId:'.joinchannel yes',declineId:'.joinchannel no',
+            acceptText:'Yes, follow channel',declineText:'No, cancel',
+          })
+        } catch { /* Older WhatsApp clients still receive the text flow. */ }
+      }
+      return ctx.reply(notice)
     } catch(error) {
       return ctx.reply(error instanceof ChannelError ? error.message : 'WhatsApp could not complete channel onboarding. Please retry later.')
     }
