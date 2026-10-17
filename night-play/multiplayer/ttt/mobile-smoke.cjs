@@ -49,7 +49,7 @@ const server=http.createServer(async(req,res)=>{
   let body={}
   if(req.method==='POST'){let raw='';for await(const chunk of req)raw+=chunk;body=JSON.parse(raw)}
   const user=(req.headers.cookie||'').includes('night-user=bob')?'Bob':(req.headers.cookie||'').includes('night-user=dan')?'Dan':(req.headers.cookie||'').includes('night-user=cara')?'Cara':'Alice'
-  const data=handle(body.action||'status',user,body);res.statusCode=data.status||200
+  const data=handle(body.action||'status',user,body);res.statusCode=typeof data.status==='number'?data.status:200
   res.setHeader('content-type','application/json');res.end(JSON.stringify(data));return
  }
  const file=path.join(dir,u.pathname==='/multiplayer/ttt/'?'index.html':u.pathname==='/multiplayer/ttt/app.js'?'app.js':'invalid')
