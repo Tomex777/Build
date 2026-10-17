@@ -160,6 +160,10 @@ export class NightSessions {
       fail(502,'Publishing could not be confirmed. Check the WhatsApp Channel before retrying; NIGHT will not resend automatically.')
     }
   }
+  removeUser(userId){
+    this.db.prepare('DELETE FROM play_night_posts WHERE night_id IN (SELECT id FROM play_nights WHERE owner_id=?)').run(userId)
+    this.db.prepare('DELETE FROM play_nights WHERE owner_id=?').run(userId)
+  }
   async request(body,accounts){
     const action=String(body.action||'')
     if(action==='night:details')return this.details(body.token)
