@@ -39,7 +39,24 @@ await page.locator("#restart").click();
 assert.equal(await page.evaluate(()=>window.__nightArcadeTest.snapshot().started),false,"restart resets bird");
 await page.locator("#settingsButton").click();await page.locator('[data-game="blocks"]').click();
 assert.equal(await page.locator("#title").innerText(),"Block Drop");
-assert.ok(await page.locator('canvas.mode-blocks').evaluate(el=>el.getBoundingClientRect().width>=375),'Block Drop fills the phone instead of remaining a narrow strip');
+// Block Drop's 10 x 20 arena must fit vertically, not expand to 780px
+// on a 390px-wide phone. Check portrait sizes, a short phone and a tablet.
+for(const [width,height] of [[320,568],[360,740],[390,844],[412,915],[768,1024]]){
+ await page.setViewportSize({width,height});
+ const bounds=await page.locator('canvas.mode-blocks').evaluate(el=>{
+  const r=el.getBoundingClientRect();
+  return {x:r.x,y:r.y,width:r.width,height:r.height,bottom:r.bottom,
+   pageWidth:document.documentElement.scrollWidth,screenWidth:innerWidth,screenHeight:innerHeight,
+   controlsTop:document.querySelector('#touchbar').getBoundingClientRect().top};
+ });
+ assert.ok(bounds.width>=160,'Block Drop retains usable cell sizes at '+width+'×'+height);
+ assert.ok(bounds.x>=0&&bounds.x+bounds.width<=bounds.screenWidth+1,'board stays inside screen width at '+width+'×'+height);
+ assert.ok(bounds.bottom<=bounds.screenHeight-4,'entire falling-block board is visible without vertical scrolling at '+width+'×'+height+': '+JSON.stringify(bounds));
+ assert.ok(Math.abs(bounds.height/bounds.width-2)<.03,'10×20 board aspect ratio is preserved at '+width+'×'+height);
+ assert.ok(bounds.controlsTop>=bounds.bottom-1,'game controls never overlap the board at '+width+'×'+height);
+ assert.ok(bounds.pageWidth<=bounds.screenWidth+2,'no sideways viewport overflow at '+width+'×'+height);
+}
+await page.setViewportSize({width:390,height:844});
 const initial=await page.evaluate(()=>{const s=window.__nightArcadeTest.snapshot();return [s.cur.x,s.cur.y];});
 await page.locator('[data-control="left"]').click();assert.equal(await page.evaluate(()=>window.__nightArcadeTest.snapshot().cur.x),initial[0]-1);
 const paintBefore=await page.evaluate(()=>window.__nightArcadeTest.perf().blockPaints);
