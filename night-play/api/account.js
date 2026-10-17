@@ -1,7 +1,7 @@
 const { createHash, randomBytes, sign, createPrivateKey } = require('node:crypto')
 const COOKIE = '__Host-night_play'
 const ACTIONS = new Set(['status','link','cancel','logout','profile','delete',
-  'match:create','match:random','match:join','match:state','match:list','match:move','match:leave'])
+  'match:create','match:random','match:join','match:state','match:list','match:move','match:leave','channel:list','channel:remove'])
 const RPC_PATH = '/api/night-play/rpc'
 const hash = value => createHash('sha256').update(value).digest('hex')
 const message = (timestamp, nonce, body) => ['night-play-v1',timestamp,nonce,'POST',RPC_PATH,hash(body)].join('\n')
@@ -23,7 +23,7 @@ function createHandler({ env = process.env, fetcher = fetch, now = Date.now } = 
     if (req.method === 'POST' && (req.headers.origin !== origin || String(req.headers['sec-fetch-site'] || 'same-origin') === 'cross-site')) {
       return send(403,{error:'Open NIGHT Play directly to connect your account.'})
     }
-    let action = 'status', displayName, matchId, code, cell
+    let action = 'status', displayName, matchId, code, cell, channelId
     if (req.method === 'POST') {
       if (!String(req.headers['content-type'] || '').toLowerCase().startsWith('application/json')) return send(415,{error:'JSON request required.'})
       try {
@@ -46,11 +46,13 @@ function createHandler({ env = process.env, fetcher = fetch, now = Date.now } = 
         matchId=typeof body.matchId==='string'?body.matchId:undefined
         code=typeof body.code==='string'?body.code:undefined
         cell=body.cell
+        channelId=typeof body.channelId==='string'?body.channelId:undefined
       } catch { return send(400,{error:'Invalid request.'}) }
     }
     if (!ACTIONS.has(action) || (req.method==='POST' && action==='status')) return send(400,{error:'Unknown account action.'})
     if (matchId!==undefined && !/^[0-9a-f-]{36}$/i.test(matchId)) return send(400,{error:'Invalid match.'})
     if (code!==undefined && !/^[A-HJ-NP-Z2-9\s-]{1,24}$/i.test(code)) return send(400,{error:'Invalid invitation.'})
+    if (channelId!==undefined && !/^\d{8,25}@newsletter$/.test(channelId)) return send(400,{error:'Invalid channel.'})
     if (cell!==undefined && (!Number.isInteger(cell)||cell<0||cell>8)) return send(400,{error:'Invalid square.'})
     const match=String(req.headers.cookie || '').match(/(?:^|;\s*)__Host-night_play=([A-Za-z0-9_-]{43})(?:;|$)/)
     let session=match?.[1] || ''
@@ -63,7 +65,7 @@ function createHandler({ env = process.env, fetcher = fetch, now = Date.now } = 
       const backend = new URL(env.NIGHT_PLAY_MSCC_URL)
       if (backend.protocol!=='https:' || backend.pathname!=='/' || backend.username || backend.password || backend.search || backend.hash) throw new Error('Invalid backend configuration')
       const client = hash(String(req.headers['x-vercel-forwarded-for'] || req.headers['x-forwarded-for'] || req.socket?.remoteAddress || 'unknown').split(',')[0].trim())
-      const raw=JSON.stringify({action,session,client,displayName,matchId,code,cell})
+      const raw=JSON.stringify({action,session,client,displayName,matchId,code,cell,channelId})
       const timestamp=String(now()), nonce=randomBytes(24).toString('base64url')
       const signature=sign(null,Buffer.from(message(timestamp,nonce,raw)),createPrivateKey(env.NIGHT_PLAY_SIGNING_KEY)).toString('base64url')
       const response=await fetcher(new URL(RPC_PATH,backend),{
