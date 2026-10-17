@@ -57,6 +57,18 @@ if [ "$TEST_SUITE" = anime ]; then
           fi
         fi
       done
+      for filename in anime-inspector-hair-controls.png anime-inspector-hair-controls.xml; do
+        target="$PROOF_DIR/$filename"
+        if [ ! -s "$target" ]; then
+          pending="$target.pending"
+          if timeout 12s adb pull "$REMOTE_DIR/$filename" "$pending" >/dev/null 2>&1 &&
+              [ -s "$pending" ]; then
+            mv "$pending" "$target"
+          else
+            rm -f "$pending"
+          fi
+        fi
+      done
       sleep 6
     done
   ) &
