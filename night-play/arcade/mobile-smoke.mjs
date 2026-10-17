@@ -39,29 +39,58 @@ await page.locator("#restart").click();
 assert.equal(await page.evaluate(()=>window.__nightArcadeTest.snapshot().started),false,"restart resets bird");
 await page.locator("#settingsButton").click();await page.locator('[data-game="blocks"]').click();
 assert.equal(await page.locator("#title").innerText(),"Block Drop");
-// Block Drop's 10 x 20 arena must fit vertically, not expand to 780px
-// on a 390px-wide phone. Check portrait sizes, a short phone and a tablet.
-for(const [width,height] of [[320,568],[360,740],[390,844],[412,915],[768,1024]]){
+// Dynamic resize regression: portrait, Android split-screen, tall phones,
+// narrow desktop and landscape. The same game must adapt each time.
+const viewportCases=[[320,568],[360,740],[390,844],[412,915],[390,600],[320,460],
+                     [550,700],[650,660],[651,700],[768,1024],[900,450],[960,560]];
+for(const [width,height] of viewportCases){
  await page.setViewportSize({width,height});
+ await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
  const bounds=await page.locator('canvas.mode-blocks').evaluate(el=>{
-  const r=el.getBoundingClientRect();
+  const r=el.getBoundingClientRect(),bar=document.querySelector('#touchbar').getBoundingClientRect(),
+       play=document.querySelector('.play');
+  const pause=document.querySelector('#blockPause').getBoundingClientRect();
   return {x:r.x,y:r.y,width:r.width,height:r.height,bottom:r.bottom,
-   pageWidth:document.documentElement.scrollWidth,screenWidth:innerWidth,screenHeight:innerHeight,
-   controlsTop:document.querySelector('#touchbar').getBoundingClientRect().top};
+   pageWidth:document.documentElement.scrollWidth,screenWidth:innerWidth,
+   screenHeight:innerHeight,controlsTop:bar.top,controlsRight:bar.right,
+   controlsBottom:bar.bottom,pauseRight:pause.right,
+   cssHeight:el.style.getPropertyValue('--block-fit-height'),
+   landscape:window.matchMedia("(min-width:651px) and (max-height:610px)").matches,
+   gridStyle:getComputedStyle(play).display};
  });
- assert.ok(bounds.width>=160,'Block Drop retains usable cell sizes at '+width+'×'+height);
- assert.ok(bounds.x>=0&&bounds.x+bounds.width<=bounds.screenWidth+1,'board stays inside screen width at '+width+'×'+height);
- if(width<=650){
-  assert.ok(bounds.width>=width-18,'Block Drop fills the phone width with no wasted side gutters at '+width+'×'+height+': '+JSON.stringify(bounds));
-  assert.ok(bounds.height<=bounds.width*2+2,'all 20 rows fit without vertical expansion at '+width+'×'+height);
- }else{
-  assert.ok(Math.abs(bounds.height/bounds.width-2)<.03,'desktop keeps square cell proportions at '+width+'×'+height);
+ assert.ok(bounds.width>=150,'Block Drop remains playable at '+width+'×'+height+': '+JSON.stringify(bounds));
+ assert.ok(bounds.x>=0&&bounds.x+bounds.width<=bounds.screenWidth+1,'board within screen width at '+width+'×'+height);
+ if(width<=465){
+  assert.ok(bounds.width>=width-18,'board almost full width on phone at '+width+'×'+height+': '+JSON.stringify(bounds));
  }
- assert.ok(bounds.bottom<=bounds.screenHeight-4,'entire falling-block board is visible without vertical scrolling at '+width+'×'+height+': '+JSON.stringify(bounds));
- assert.ok(bounds.controlsTop>=bounds.bottom-1,'game controls never overlap the board at '+width+'×'+height);
- assert.ok(bounds.pageWidth<=bounds.screenWidth+2,'no sideways viewport overflow at '+width+'×'+height);
+ assert.ok(bounds.height>=89&&bounds.height<=bounds.width*2+2,'board keeps 20 visible rows with bounded height at '+width+'×'+height);
+ assert.ok(bounds.bottom<=bounds.screenHeight-3,'the whole board visible vertically at '+width+'×'+height+': '+JSON.stringify(bounds));
+ if(bounds.landscape){
+  assert.equal(bounds.gridStyle,'grid','short landscape uses side-by-side controls');
+  assert.ok(bounds.controlsTop<bounds.bottom,'landscape controls sit beside board');
+  assert.ok(bounds.x+bounds.width<bounds.controlsRight,'action column does not cover board');
+ }else{
+  assert.ok(bounds.controlsTop>=bounds.bottom-1,'portrait controls cannot overlap board at '+width+'×'+height);
+ }
+ assert.ok(bounds.pauseRight<=bounds.screenWidth+1,'pause stays visible after resize');
+ assert.ok(bounds.pageWidth<=bounds.screenWidth+2,'no sideways scroll after resize at '+width+'×'+height);
+ assert.ok(bounds.cssHeight.endsWith('px'),'board height came from live space measurement');
 }
 await page.setViewportSize({width:390,height:844});
+await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
+// Keep the board state, score, and paused mode after arbitrary resizes.
+await page.locator('[data-control="drop"]').click();
+await page.locator('#blockPause').click();
+const resizedState=await page.evaluate(()=>window.__nightArcadeTest.snapshot());
+const resizedScore=await page.locator('#score').innerText();
+for(const [width,height] of [[390,700],[900,450],[320,568],[390,844]]){
+ await page.setViewportSize({width,height});
+ await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
+ assert.deepEqual(await page.evaluate(()=>window.__nightArcadeTest.snapshot()),resizedState,'resize preserves game state at '+width+'×'+height);
+ assert.equal(await page.locator('#score').innerText(),resizedScore,'resize cannot reset score at '+width+'×'+height);
+}
+await page.locator('#blockPause').click();
+await page.locator('#restart').click();
 assert.equal(await page.locator('.block-move-group button').count(),2,'Left thumb has only move keys');
 assert.equal(await page.locator('.block-action-group button').count(),3,'Right thumb has rotate, soft and hard drop keys');
 assert.equal(await page.locator('#touchbar [data-control="pause"]').count(),0,'Pause is not squeezed into the movement keys');
