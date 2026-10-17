@@ -19,7 +19,7 @@ function end(text){if(finished)return;finished=true;stop();record(type,points);m
 function drawText(text,y,size=24){ctx.fillStyle="#fff";ctx.font="900 "+size+"px system-ui,Arial";ctx.textAlign="center";ctx.fillText(text,c.width/2,y);}
 function pick(id){if(!metadata[id])id="bird";type=id;const [title,sub,rules]=metadata[id];$("title").textContent=title;$("subtitle").textContent=sub;$("rules").textContent=rules;document.title=title+" · NIGHT Play";[...$("picks").querySelectorAll("button")].forEach(b=>b.setAttribute("aria-current",String(b.dataset.game===id)));const url=new URL(location.href);url.searchParams.set("game",id);history.replaceState({},"",url.pathname+url.search);if($("settingsDialog").open)$("settingsDialog").close();restart();}
 function restart(){stop();resetBlockInputs();$("blockPause").hidden=type!=="blocks";
-if(type!=="blocks")c.style.removeProperty("--block-fit-height");
+if(type!=="blocks"){c.style.removeProperty("--block-fit-height");c.style.removeProperty("--block-fit-width");}
 last=0;gameStart=Date.now();finished=false;paused=false;syncBlockPauseButton();score(0);message("Ready to play.");extra.replaceChildren();board.hidden=type!=="mines";c.hidden=type==="mines";c.className="mode-"+type;
 if(type==="bird")setupBird();if(type==="blocks")setupBlocks();if(type==="mines")setupMines();if(type==="maze")setupMaze();}
 function button(label,action,aria=label){return '<button type="button" data-control="'+action+'" aria-label="'+aria+'">'+label+'</button>';}
@@ -242,7 +242,7 @@ function syncBlockPauseButton(){
  b.setAttribute("aria-label",paused?"Resume Block Drop":"Pause Block Drop");
  b.setAttribute("aria-pressed",String(paused));
 }
-let blockFitFrame=0,blockHeight=0,blockGesture=null,blockSizeSignature="",blockInputResets=0;
+let blockFitFrame=0,blockHeight=0,blockWidth=0,blockGesture=null,blockSizeSignature="",blockInputResets=0;
 const blockPointers=new Set(),blockSuppressedClicks=new WeakSet();
 function fitBlockBoard(){
  blockFitFrame=0;
@@ -259,6 +259,10 @@ function fitBlockBoard(){
  const available=visibleBottom-box.top-below-5;
  const fullWidth=Math.max(1,Math.min(shell.width,465));
  const target=Math.round(Math.max(90,Math.min(fullWidth*2,available)));
+ // Preserve the requested edge-to-edge board on normal portrait phones.
+ // When a window becomes very short, full width would squash tiles into
+ // paper-thin strips; trade some width for recognisable piece proportions.
+ const targetWidth=Math.round(Math.min(fullWidth,Math.max(180,target/1.15)));
  const sizeSignature=[Math.round(window.innerWidth),Math.round(visibleBottom),
                       Math.round(shell.width)].join("/");
  // Only *real* viewport/container resizes cancel a gesture. The board's
@@ -266,9 +270,11 @@ function fitBlockBoard(){
  // silently cancel a finger already moving across the board.
  if(blockSizeSignature&&blockSizeSignature!==sizeSignature)resetBlockInputs();
  blockSizeSignature=sizeSignature;
- if(Math.abs(target-blockHeight)<2&&Math.abs(box.height-target)<2)return;
- blockHeight=target;
+ if(Math.abs(target-blockHeight)<2&&Math.abs(box.height-target)<2&&
+    Math.abs(targetWidth-blockWidth)<2&&Math.abs(box.width-targetWidth)<2)return;
+ blockHeight=target;blockWidth=targetWidth;
  c.style.setProperty("--block-fit-height",target+"px");
+ c.style.setProperty("--block-fit-width",targetWidth+"px");
 }
 function scheduleBlockFit(){
  if(type!=="blocks"||blockFitFrame)return;
@@ -449,6 +455,6 @@ document.addEventListener("keydown",e=>{if(e.ctrlKey||e.metaKey||e.altKey||e.tar
 document.addEventListener("visibilitychange",()=>{if(document.hidden&&type==="blocks"&&!finished){resetBlockInputs();paused=true;syncBlockPauseButton();blockDirty=true;message("Paused");}if(document.hidden&&type==="maze"&&!finished){paused=true;message("Paused");}});
 window.addEventListener("pagehide",stop);
 window.addEventListener("popstate",()=>pick(new URL(location.href).searchParams.get("game")||"bird"));
-if(location.hostname==="localhost"||location.hostname==="127.0.0.1")window.__nightArcadeTest=Object.freeze({snapshot:()=>JSON.parse(JSON.stringify(state)),flags:()=>({finished,paused,points}),input:()=>({active:Boolean(blockGesture),gesture: blockGesture && {id:blockGesture.id,axis:blockGesture.axis,steps:blockGesture.steps},resets:blockInputResets,fit:blockHeight,signature:blockSizeSignature}),perf:()=>({blockPaints:blockPaintCount,wingCached:Boolean(wingBackdrop),mazeCached:Boolean(mazeBackdrop&&mazeDots)})});
+if(location.hostname==="localhost"||location.hostname==="127.0.0.1")window.__nightArcadeTest=Object.freeze({snapshot:()=>JSON.parse(JSON.stringify(state)),flags:()=>({finished,paused,points}),input:()=>({active:Boolean(blockGesture),gesture: blockGesture && {id:blockGesture.id,axis:blockGesture.axis,steps:blockGesture.steps},resets:blockInputResets,fit:blockHeight,width:blockWidth,signature:blockSizeSignature}),perf:()=>({blockPaints:blockPaintCount,wingCached:Boolean(wingBackdrop),mazeCached:Boolean(mazeBackdrop&&mazeDots)})});
 pick(new URL(location.href).searchParams.get("game")||"bird");
 })();
