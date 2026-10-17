@@ -29,6 +29,7 @@ on:
       - ".ci/slumber_109_endless/**"
       - ".ci/slumber_110_visual_fixes/**"
       - ".ci/slumber_111_catalog/**"
+      - ".ci/slumber_112_system_bars/**"
   pull_request:
     branches: ["slumber-087-build"]
     paths:
@@ -57,6 +58,7 @@ on:
       - ".ci/slumber_109_endless/**"
       - ".ci/slumber_110_visual_fixes/**"
       - ".ci/slumber_111_catalog/**"
+      - ".ci/slumber_112_system_bars/**"
 
 permissions:
   actions: read
@@ -338,6 +340,14 @@ jobs:
           grep -q 'class TilesSong' "$OUT/app/src/main/java/com/night/pianohub/music/TilesSongCatalog.kt"
           grep -q 'song.melody' "$OUT/app/src/main/java/com/night/pianohub/music/EndlessTilesRun.kt"
           ! grep -q 'hide(WindowInsetsCompat.Type.systemBars())' "$OUT/app/src/main/java/com/night/pianohub/ui/screens/PlayScreen.kt"
+
+      - name: Correct Android 8 system navigation bar contrast
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo '0cbbe46296e547363bb84d41d0bf9256aa5463c0a24e0818d0658ca8232bb717  .ci/slumber_112_system_bars/navigation-bar.patch' | sha256sum -c -
+          patch -d /tmp/slumber-088 -p1 < .ci/slumber_112_system_bars/navigation-bar.patch
+          grep -q 'navigationBarColor = TilesNight.toArgb()' /tmp/slumber-088/app/src/main/java/com/night/pianohub/ui/screens/PlayScreen.kt
 
       - uses: actions/setup-java@v4
         with:
