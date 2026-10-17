@@ -60,11 +60,12 @@ async function getProviderData(fetchImpl, provider, endpoint, originalUrl) {
   if (provider !== 'tikwm') return fetchJson(fetchImpl,endpoint)
   // TikWM accepts URL-encoded POST, with GET as a compatibility fallback.
   try {
-    return await fetchJson(fetchImpl,'https://www.tikwm.com/api/',{
+    const post = await fetchJson(fetchImpl,'https://www.tikwm.com/api/',{
       method:'POST',
       headers:{ 'Content-Type':'application/x-www-form-urlencoded' },
       body:new URLSearchParams({ url:originalUrl, hd:'1' }).toString(),
     })
+    if (post?.code === 0 && post?.data) return post
   } catch {
     return fetchJson(fetchImpl,endpoint)
   }
