@@ -13,6 +13,6 @@ export async function openCardLibrary(folder) {
     if(path.basename(card.png)!==card.png)throw Error('Unsafe card path');
     const buffer=await fs.readFile(path.join(folder,card.png));
     if(digest(buffer)!==card.pngSHA256)throw Error('Card file integrity check failed');
-    return {buffer,mimetype:'image/png',filename:`NIGHT-${card.id}.png`,card,caption:`NIGHT · ${card.name}\n${card.formId==='featured'?card.design:card.form+' · '+card.design}`};
+    return {buffer,mimetype:'image/png',filename:`NIGHT-${card.id}.png`,card,caption:`NIGHT · ${card.name}\n${card.formId==='featured'?card.design:card.form+' · '+card.design}${card.power?.rank?' · '+card.power.rank:''}`};
   }};
 }
