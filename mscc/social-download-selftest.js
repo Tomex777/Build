@@ -6,6 +6,7 @@ import { parseSocialRequest, socialExtractorArgs, galleryExtractorArgs, prepareS
 
 const samples = [
   ['https://vm.tiktok.com/ZMabc/', 'TikTok'],
+  ['https://vt.tiktok.com/ZSg2yBaXt/', 'TikTok'],
   ['https://www.tiktok.com/@test/video/763000000000000', 'TikTok'],
   ['https://www.instagram.com/reel/ABC123/?igsh=hello', 'Instagram'],
   ['https://www.instagram.com/p/ABC123/', 'Instagram'],
@@ -72,7 +73,7 @@ try {
   await assert.rejects(prepareSocialDownload('https://vm.tiktok.com/ZMabc/',{binary:'/not-a-real-dlp'}),/not installed/)
   const previous = process.env.NIGHT_DL_FAKE_FAIL
   process.env.NIGHT_DL_FAKE_FAIL = '1'
-  try { await assert.rejects(prepareSocialDownload('https://vm.tiktok.com/ZMabc/',{binary:fake}),/private|restricted|blocked/) }
+  try { await assert.rejects(prepareSocialDownload('https://vm.tiktok.com/ZMabc/',{binary:fake,fetchImpl:async () => { throw new Error('offline test') }}),/all public extractors/) }
   finally { if (previous === undefined) delete process.env.NIGHT_DL_FAKE_FAIL; else process.env.NIGHT_DL_FAKE_FAIL = previous }
 } finally { await rm(dir,{ recursive:true,force:true }) }
 console.log('PASS NIGHT public social downloader parsing, safety and lifecycle')
