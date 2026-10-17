@@ -30,6 +30,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.compose.ui.text.TextStyle
@@ -1012,6 +1014,8 @@ private fun SearchResultsSurface(
     onRetry: () -> Unit,
 ) {
     val musicQueue = remember(rows, type) { if (type == ContentType.MUSIC) rows.map { selection(it, type) } else emptyList() }
+    val keyboard = LocalSoftwareKeyboardController.current
+    val focus = LocalFocusManager.current
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 18.dp)) {
         when {
             loading && rows.isEmpty() -> items(6) { SearchResultSkeleton(type) }
@@ -1023,7 +1027,16 @@ private fun SearchResultsSurface(
         items(rows, key = { "search-${type.name}-${it.id}" }) { card ->
             Row(
                 Modifier.fillMaxWidth().clickable {
-                    if (type == ContentType.MUSIC) onPlayMusic(selection(card, type), musicQueue) else onOpen(selection(card, type))
+                    if (type == ContentType.MUSIC) {
+                        // Otherwise the search keyboard covers Mini player and
+                        // prevents the user from opening controls or seeing
+                        // playback/authentication errors.
+                        focus.clearFocus(force = true)
+                        keyboard?.hide()
+                        onPlayMusic(selection(card, type), musicQueue)
+                    } else {
+                        onOpen(selection(card, type))
+                    }
                 }.padding(horizontal = 18.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
