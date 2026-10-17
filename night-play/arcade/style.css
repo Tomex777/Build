@@ -56,7 +56,7 @@ body>footer{display:none}
 #screen.mode-blocks{
   display:block;
   box-sizing:border-box;
-  width:min(100%,465px);
+  width:var(--block-fit-width, min(100%,465px));
   max-width:100%;
   height:var(--block-fit-height, min(65dvh, 600px));
   min-height:0;
@@ -69,7 +69,7 @@ body>footer{display:none}
 }
 body:has(#screen.mode-blocks:not([hidden])) .canvas-shell{min-width:0}
 @media(max-width:650px){
- #screen.mode-blocks{width:100%;max-width:100%}
+ #screen.mode-blocks{width:var(--block-fit-width,100%);max-width:100%}
  body:has(#screen.mode-blocks:not([hidden])) main{padding:7px 7px 8px}
  body:has(#screen.mode-blocks:not([hidden])) .night-game-intro{padding:0 0 6px}
  body:has(#screen.mode-blocks:not([hidden])) .night-game-intro .night-eyebrow,
@@ -101,7 +101,7 @@ body:has(#screen.mode-blocks:not([hidden])) .canvas-shell{min-width:0}
   width:100%;
  }
  body:has(#screen.mode-blocks:not([hidden])) .canvas-shell{grid-area:board;min-width:0}
- body:has(#screen.mode-blocks:not([hidden])) #screen.mode-blocks{width:100%;max-width:465px}
+ body:has(#screen.mode-blocks:not([hidden])) #screen.mode-blocks{width:var(--block-fit-width,100%);max-width:465px}
  body:has(#screen.mode-blocks:not([hidden])) .touchbar{grid-area:controls;margin:0;max-width:none}
  body:has(#screen.mode-blocks:not([hidden])) .night-action-row{grid-area:restart;margin:0;width:100%}
  body:has(#screen.mode-blocks:not([hidden])) #message{grid-area:message;margin:0;min-height:0;font-size:11px}
