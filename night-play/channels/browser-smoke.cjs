@@ -1,12 +1,13 @@
 const assert=require('node:assert/strict')
 const fs=require('node:fs'),path=require('node:path'),http=require('node:http')
 const {chromium}=require('playwright')
-let linked=false,verified=false,deleted=false
+let linked=false,verified=false,deleted=false,unavailable=false
 const channelId='120363282083849178@newsletter',proof='NIGHT-VERIFY-1234567890ABCDEF'
 const server=http.createServer(async(req,res)=>{
   const route=new URL(req.url,'http://localhost').pathname
   if(route==='/api/account'){
     res.setHeader('Content-Type','application/json');res.setHeader('Cache-Control','no-store')
+    if(unavailable){res.statusCode=503;return res.end(JSON.stringify({error:'NIGHT connection is being updated.'}))}
     if(req.method==='GET')return res.end(JSON.stringify({linked,profile:linked?{id:'NIGHT-test',displayName:'Pat'}:null}))
     let body='';for await (const part of req)body+=part
     const {action,channelId:requested}=JSON.parse(body)
@@ -15,6 +16,10 @@ const server=http.createServer(async(req,res)=>{
     if(action==='channel:verify'){verified=true;return res.end(JSON.stringify({connected:true,name:'After Hours Club'}))}
     if(action==='channel:remove'){deleted=true;return res.end(JSON.stringify({ok:true}))}
     res.statusCode=400;return res.end(JSON.stringify({error:'Unknown action.'}))
+  }
+  if(route==='/site-shell.css'){
+    res.setHeader('Content-Type','text/css; charset=utf-8')
+    return res.end(fs.readFileSync(path.join(__dirname,'../site-shell.css')))
   }
   if(route==='/channels/'||route==='/channels'){
     res.setHeader('Content-Type','text/html; charset=utf-8')
@@ -33,32 +38,49 @@ const server=http.createServer(async(req,res)=>{
     const page=await context.newPage(),errors=[]
     page.on('pageerror',e=>errors.push(String(e)))
     await page.goto(base+'/channels/')
-    await page.locator('#emptyTitle').getByText('Connect WhatsApp first').waitFor()
-    assert.equal(await page.locator('#connect').isVisible(),false,'Unauthenticated users do not see onboarding instructions')
-    assert.equal(await page.locator('#connectWhatsApp').isVisible(),true)
+    await page.getByRole('heading',{name:'Connect WhatsApp'}).waitFor()
+    assert.equal(await page.getByRole('link',{name:'Connect WhatsApp'}).isVisible(),true)
+    assert.equal(await page.locator('#connect').isVisible(),false,'Private setup is hidden until authenticated')
+    assert.equal(await page.locator('nav.mobile-nav').isVisible(),true,'Approved NIGHT Play bottom navigation exists')
+    assert.equal(await page.locator('.site-header .brand-mark').count(),1,'Uses official NIGHT Play logo')
+    assert.equal(await page.getByRole('button',{name:'Refresh channels'}).count(),0,'No redundant refresh button')
     linked=true
-    await page.getByRole('button',{name:'Refresh channels'}).click()
+    await page.reload()
     await page.getByRole('heading',{name:'After Hours Club'}).waitFor()
-    assert.match(await page.locator('.pill').textContent(),/Waiting for NIGHT admin/)
-    assert.equal(await page.locator('#inviteUrl,#linkForm,.url-wrap').count(),0,'No redundant website channel URL form')
-    assert.equal(await page.getByRole('button',{name:'Copy channel link'}).count(),0,'No redundant copy channel link button')
-    assert.equal(await page.locator('#connect').isVisible(),true,'Onboarding text for linked owners')
+    assert.match(await page.locator('.channel-pill').textContent(),/Waiting for admin/)
+    assert.equal(await page.locator('#inviteUrl,#linkForm,.url-wrap').count(),0)
+    assert.equal(await page.locator('#connect').isVisible(),true)
     assert.match(await page.locator('#connect').textContent(),/\.joinchannel/)
-    assert.match(await page.locator('#connect').textContent(),/Admin permission is separate/)
-    assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,'No mobile overflow')
+    assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,'No mobile horizontal overflow')
     await page.screenshot({path:path.join(__dirname,'../visual-output/channels-mobile.jpg'),fullPage:true})
     await page.getByRole('button',{name:'Copy proof'}).click()
     assert.equal(await page.evaluate(()=>navigator.clipboard.readText()),proof)
     await page.getByRole('button',{name:'Check access'}).click()
-    await page.locator('.pill.ready').waitFor()
-    assert.equal(await page.locator('.proof').count(),0)
-    page.once('dialog',dialog=>dialog.accept())
-    await page.getByRole('button',{name:'Disconnect'}).click()
-    await page.getByText('No channels linked yet').waitFor()
+    await page.locator('.channel-pill.ready').waitFor()
+    assert.equal(await page.locator('.channel-proof').count(),0)
+    await page.getByRole('button',{name:'Disconnect',exact:true}).click()
+    assert.match(await page.locator('.channel-confirm').textContent(),/Revoke that permission/)
+    await page.getByRole('button',{name:'Keep channel'}).click()
+    assert.equal(await page.locator('.channel-confirm').count(),0,'No confirmation dialog if user cancels')
+    await page.getByRole('button',{name:'Disconnect',exact:true}).click()
+    await page.getByRole('button',{name:'Disconnect channel'}).click()
+    await page.getByRole('heading',{name:'No channels connected'}).waitFor()
+    assert.equal(await page.getByRole('link',{name:'Connect WhatsApp'}).isVisible(),false)
+    unavailable=true
+    await page.reload()
+    await page.getByRole('heading',{name:'Channels unavailable'}).waitFor()
+    assert.equal(await page.getByRole('link',{name:'Connect WhatsApp'}).isVisible(),false,'Outages must not be misrepresented as logged-out users')
+    assert.equal(await page.getByRole('button',{name:'Try again'}).isVisible(),true)
+    assert.match(await page.locator('#stateText').textContent(),/does not mean/)
+    unavailable=false
+    await page.getByRole('button',{name:'Try again'}).click()
+    await page.getByRole('heading',{name:'No channels connected'}).waitFor()
     await page.setViewportSize({width:1280,height:900})
     await page.screenshot({path:path.join(__dirname,'../visual-output/channels-desktop.jpg'),fullPage:true})
+    assert.equal(await page.locator('nav.mobile-nav').isVisible(),false)
+    assert.equal(await page.locator('.site-header .links').isVisible(),true)
     assert.deepEqual(errors,[])
     await context.close()
-    console.log('PASS NIGHT Play Channels mobile/desktop: no redundant input or copy-link action, verified-channel guide, proof, disconnect and no overflow')
+    console.log('PASS NIGHT Play channels: unified NIGHT chrome, mobile nav, no duplicate reload/form, proof, guarded disconnect, proper offline state, two viewports')
   }finally{await browser.close();server.closeAllConnections();await new Promise(resolve=>server.close(resolve))}
 })().catch(error=>{console.error(error);server.closeAllConnections();server.close();process.exitCode=1})
