@@ -3295,6 +3295,11 @@ private fun PoseControlsOverlay(
         ?: bones.firstOrNull { it.name.contains("arm", ignoreCase = true) }
         ?: bones.firstOrNull()
     val rotation = selectedBone?.let { actor?.rig?.joints?.get(it.id) } ?: Vec3()
+    var showPoseAdvancedShapes by remember(actor?.id) { mutableStateOf(false) }
+    val unnamedPoseShapes = morphTargets.filter { it.name.matches(Regex("(?i)shape\\s*\\d+")) }
+    val poseShapesToShow = morphTargets.filter {
+        it !in unnamedPoseShapes || showPoseAdvancedShapes
+    }
 
     Box(Modifier.fillMaxSize().semantics { testTagsAsResourceId = true }) {
         Surface(
@@ -3484,7 +3489,15 @@ private fun PoseControlsOverlay(
                                     }
                                 }
                             }
-                            morphTargets.forEach { target ->
+                            if (unnamedPoseShapes.isNotEmpty()) {
+                                TextButton(
+                                    onClick = { showPoseAdvancedShapes = !showPoseAdvancedShapes },
+                                    modifier = Modifier.testTag("pose-advanced-shapes"),
+                                ) {
+                                    Text(if (showPoseAdvancedShapes) "Hide generic shapes" else "More shapes (${unnamedPoseShapes.size})")
+                                }
+                            }
+                            poseShapesToShow.forEach { target ->
                                 val weight = actor.rig?.morphWeights?.get(target.id) ?: 0f
                                 Row(
                                     modifier = Modifier.fillMaxWidth()
