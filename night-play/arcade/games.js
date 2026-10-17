@@ -242,7 +242,7 @@ function syncBlockPauseButton(){
  b.setAttribute("aria-label",paused?"Resume Block Drop":"Pause Block Drop");
  b.setAttribute("aria-pressed",String(paused));
 }
-let blockFitFrame=0,blockHeight=0,blockGesture=null;
+let blockFitFrame=0,blockHeight=0,blockGesture=null,blockSizeSignature="",blockInputResets=0;
 const blockPointers=new Set(),blockSuppressedClicks=new WeakSet();
 function fitBlockBoard(){
  blockFitFrame=0;
@@ -259,9 +259,14 @@ function fitBlockBoard(){
  const available=visibleBottom-box.top-below-5;
  const fullWidth=Math.max(1,Math.min(shell.width,465));
  const target=Math.round(Math.max(90,Math.min(fullWidth*2,available)));
+ const sizeSignature=[Math.round(window.innerWidth),Math.round(visibleBottom),
+                      Math.round(shell.width)].join("/");
+ // Only *real* viewport/container resizes cancel a gesture. The board's
+ // ResizeObserver can also report its own height updates, which must never
+ // silently cancel a finger already moving across the board.
+ if(blockSizeSignature&&blockSizeSignature!==sizeSignature)resetBlockInputs();
+ blockSizeSignature=sizeSignature;
  if(Math.abs(target-blockHeight)<2&&Math.abs(box.height-target)<2)return;
- // A resize during a touch gesture should NEVER finish it as a tap or flick.
- if(Math.abs(box.height-target)>3)resetBlockInputs();
  blockHeight=target;
  c.style.setProperty("--block-fit-height",target+"px");
 }
@@ -284,7 +289,7 @@ function endBlockHold(){
  clearTimeout(blockHold.timeout);clearInterval(blockHold.interval);
  blockHold=null;
 }
-function resetBlockInputs(){blockGesture=null;blockPointers.clear();endBlockHold();}
+function resetBlockInputs(){blockInputResets++;blockGesture=null;blockPointers.clear();endBlockHold();}
 function blockTouchMove(e){
  const g=blockGesture;
  if(!g||g.id!==e.pointerId||type!=="blocks"||finished||paused||!state||g.piece!==state.cur)return;
@@ -444,6 +449,6 @@ document.addEventListener("keydown",e=>{if(e.ctrlKey||e.metaKey||e.altKey||e.tar
 document.addEventListener("visibilitychange",()=>{if(document.hidden&&type==="blocks"&&!finished){resetBlockInputs();paused=true;syncBlockPauseButton();blockDirty=true;message("Paused");}if(document.hidden&&type==="maze"&&!finished){paused=true;message("Paused");}});
 window.addEventListener("pagehide",stop);
 window.addEventListener("popstate",()=>pick(new URL(location.href).searchParams.get("game")||"bird"));
-if(location.hostname==="localhost"||location.hostname==="127.0.0.1")window.__nightArcadeTest=Object.freeze({snapshot:()=>JSON.parse(JSON.stringify(state)),flags:()=>({finished,paused,points}),perf:()=>({blockPaints:blockPaintCount,wingCached:Boolean(wingBackdrop),mazeCached:Boolean(mazeBackdrop&&mazeDots)})});
+if(location.hostname==="localhost"||location.hostname==="127.0.0.1")window.__nightArcadeTest=Object.freeze({snapshot:()=>JSON.parse(JSON.stringify(state)),flags:()=>({finished,paused,points}),input:()=>({active:Boolean(blockGesture),gesture: blockGesture && {id:blockGesture.id,axis:blockGesture.axis,steps:blockGesture.steps},resets:blockInputResets,fit:blockHeight,signature:blockSizeSignature}),perf:()=>({blockPaints:blockPaintCount,wingCached:Boolean(wingBackdrop),mazeCached:Boolean(mazeBackdrop&&mazeDots)})});
 pick(new URL(location.href).searchParams.get("game")||"bird");
 })();
