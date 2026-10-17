@@ -90,7 +90,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          bash -n install-azure.sh tools/install-flaresolverr-tor.sh tools/test-animepahe-azure.sh
+          bash -n install-azure.sh tools/install-flaresolverr-tor.sh tools/test-animepahe-azure.sh tools/install-night-play-ingress.sh
           bash -n tools/install-node-deps.sh tools/install-node-deps-selftest.sh
           bash tools/install-node-deps-selftest.sh
           bash -n tools/deploy-azure-ssh.sh tools/deploy-azure-ssh-selftest.sh

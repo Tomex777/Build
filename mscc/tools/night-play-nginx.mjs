@@ -6,6 +6,10 @@ export function patchNginx(source) {
   const block=`${begin}
     location = /api/night-play/rpc {
         client_max_body_size 4k;
+        # Signature verification belongs to the exact MSCC RPC, not Cortex's
+        # inherited nginx auth gate. Keep every other location unchanged.
+        auth_request off;
+        auth_basic off;
         proxy_pass http://127.0.0.1:8787;
         proxy_http_version 1.1;
         proxy_set_header Host $host;

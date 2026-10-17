@@ -1,10 +1,11 @@
 {
-  "releaseId": "night-2026-10-16-11",
+  "releaseId": "night-2026-10-17-12",
   "baseBranch": "mscc-azure",
-  "baseCommit": "16a98339e0e0a423f840529ea42ec398091859a5",
+  "baseCommit": "ab448eaa339457350c08f1255e2ae9389dec423a",
   "pullRequests": [
-    297
+    301,
+    300
   ],
-  "carriedForwardRelease": "night-2026-10-16-10",
-  "notes": "Connect the established NIGHT Play combined website to NIGHT/MSCC using private .minigames link CODE verification. Include only PR #297 on the current production source: persistent profiles, PN/LID sender identity mapping, hashed browser sessions, expiry/replay/throttle protections, signed Vercel requests and the existing Azure HTTPS ingress. Preserve existing WhatsApp accounts, games and device-local web game saves. Require exact integration-head CI, one mscc-production approval, Azure TLS/health smoke checks and final real private WhatsApp linking verification."
+  "carriedForwardRelease": "night-2026-10-16-11",
+  "notes": "One combined NIGHT production recovery and reaction fix release. Carries forward tested, previously staged NIGHT Play HTTPS ingress repair from PR #301 (supersedes still-open one-change release PR #302) and adds user-requested anime GIF reaction failover PR #300. No other open feature PRs. Preserve .kill and admin .kick behavior, all 60 registered reactions, rounded animated WebP, one-person mentions; add multi-provider exact-category media fallbacks and bounded cache. Require full combined exact-commit regression and real GIF conversion/source CI. One protected mscc-production approval after single release merge. On Azure verify release and rollback/ingress health; then test actual .hug .smug .slap .wave .cry .kill on WhatsApp and NIGHT Play connection. Do not claim production or every media source is operational from GitHub CI alone."
 }
