@@ -62,6 +62,133 @@ for(const [width,height] of [[320,568],[360,740],[390,844],[412,915],[768,1024]]
  assert.ok(bounds.pageWidth<=bounds.screenWidth+2,'no sideways viewport overflow at '+width+'×'+height);
 }
 await page.setViewportSize({width:390,height:844});
+assert.equal(await page.locator('.block-move-group button').count(),2,'Left thumb has only move keys');
+assert.equal(await page.locator('.block-action-group button').count(),3,'Right thumb has rotate, soft and hard drop keys');
+assert.equal(await page.locator('#touchbar [data-control="pause"]').count(),0,'Pause is not squeezed into the movement keys');
+assert.equal(await page.locator('#blockPause').isVisible(),true,'Pause is a separate real control in the HUD');
+assert.equal(await page.locator('#touchbar [data-control="drop"]').getAttribute('aria-label'),'Hard drop piece instantly');
+const gameButtons=await page.locator('.block-control-layout button').evaluateAll(bs=>bs.map(b=>{
+ const r=b.getBoundingClientRect();return {x:r.x,right:r.right,y:r.y,bottom:r.bottom};
+}));
+assert.equal(gameButtons.length,5);
+assert.ok(gameButtons.every(b=>b.x>=0&&b.right<=390&&b.bottom<=844),'grouped game controls visible on mobile');
+assert.ok(gameButtons[1].right+5<gameButtons[2].x,'movement and action groups have separate thumb zones');
+// Exercise actual PointerEvents across the rendered canvas. Moves must use
+// rendered-cell thresholds even when the 10x20 playfield is compressed.
+async function gesture(points,terminal='pointerup'){
+ await page.locator('canvas.mode-blocks').evaluate((el,{points,terminal})=>{
+  const r=el.getBoundingClientRect();
+  points.forEach(([x,y],i)=>{
+   const event=i===0?'pointerdown':i===points.length-1?terminal:'pointermove';
+   el.dispatchEvent(new PointerEvent(event,{
+    bubbles:true,cancelable:true,pointerType:'touch',pointerId:1234,
+    isPrimary:true,button:0,buttons:i===points.length-1?0:1,
+    clientX:r.x+r.width*x,clientY:r.y+r.height*y
+   }));
+  });
+ },{points,terminal});
+}
+await page.locator('#restart').click();
+const beforeTap=await page.evaluate(()=>window.__nightArcadeTest.snapshot().cur.cells);
+await page.locator('canvas.mode-blocks').evaluate(el=>{
+ const r=el.getBoundingClientRect(),x=r.x+r.width*.5,y=r.y+r.height*.42;
+ el.dispatchEvent(new PointerEvent('pointerdown',{bubbles:true,pointerId:11,pointerType:'touch',clientX:x,clientY:y}));
+ el.dispatchEvent(new PointerEvent('pointerup',{bubbles:true,pointerId:11,pointerType:'touch',clientX:x,clientY:y}));
+});
+assert.notDeepEqual(await page.evaluate(()=>window.__nightArcadeTest.snapshot().cur.cells),beforeTap,'tap rotates the piece');
+await page.locator('#restart').click();
+const origin=await page.evaluate(()=>window.__nightArcadeTest.snapshot().cur.x);
+const beforeSwipeCells=await page.evaluate(()=>window.__nightArcadeTest.snapshot().cur.cells);
+await gesture([[.42,.26],[.67,.26],[.67,.26]]);
+const afterSwipe=await page.evaluate(()=>window.__nightArcadeTest.snapshot());
+assert.ok(afterSwipe.cur.x>=origin+2,'drag right follows finger across multiple columns');
+assert.deepEqual(afterSwipe.cur.cells,beforeSwipeCells,'drag never rotates the piece');
+assert.ok(afterSwipe.grid.flat().every(v=>v===null),'sideways drag cannot lock the piece');
+await page.locator('#restart').click();
+const beforeSlow=await page.evaluate(()=>window.__nightArcadeTest.snapshot().cur.y);
+await page.locator('canvas.mode-blocks').evaluate(el=>{
+ const r=el.getBoundingClientRect(),x=r.x+r.width*.5,y=r.y+r.height*.25;
+ el.dispatchEvent(new PointerEvent('pointerdown',{bubbles:true,pointerId:25,pointerType:'touch',clientX:x,clientY:y}));
+ el.dispatchEvent(new PointerEvent('pointermove',{bubbles:true,pointerId:25,pointerType:'touch',clientX:x,clientY:y+55}));
+});
+await page.waitForTimeout(320);
+await page.locator('canvas.mode-blocks').evaluate(el=>{
+ const r=el.getBoundingClientRect(),x=r.x+r.width*.5,y=r.y+r.height*.25+55;
+ el.dispatchEvent(new PointerEvent('pointerup',{bubbles:true,pointerId:25,pointerType:'touch',clientX:x,clientY:y}));
+});
+const slow=await page.evaluate(()=>window.__nightArcadeTest.snapshot());
+assert.ok(slow.cur.y>beforeSlow,'slow downward drag accelerates one piece');
+assert.ok(slow.grid.flat().every(v=>v===null),'slow drag never triggers hard drop');
+await page.locator('#restart').click();
+await gesture([[.5,.25],[.5,.44],[.5,.44]]);
+assert.ok(await page.evaluate(()=>window.__nightArcadeTest.snapshot().grid.flat().some(v=>v!==null)),'quick downward flick hard-drops immediately');
+await page.locator('#restart').click();
+const beforeCancel=await page.evaluate(()=>window.__nightArcadeTest.snapshot().cur.cells);
+await gesture([[.4,.22],[.4,.22]],'pointercancel');
+assert.deepEqual(await page.evaluate(()=>window.__nightArcadeTest.snapshot().cur.cells),beforeCancel,'pointer cancellation does not rotate');
+await page.locator('#blockPause').click();
+assert.equal(await page.evaluate(()=>window.__nightArcadeTest.flags().paused),true,'separate Pause works');
+assert.equal(await page.locator('#blockPause').getAttribute('aria-label'),'Resume Block Drop','Pause announces the correct resume action');
+assert.equal(await page.locator('#blockPause').getAttribute('aria-pressed'),'true','Pause reflects its active state');
+const pausedX=await page.evaluate(()=>window.__nightArcadeTest.snapshot().cur.x);
+await gesture([[.4,.22],[.65,.22],[.65,.22]]);
+assert.equal(await page.evaluate(()=>window.__nightArcadeTest.snapshot().cur.x),pausedX,'gestures cannot move pieces while paused');
+await page.locator('#blockPause').click();
+assert.equal(await page.evaluate(()=>window.__nightArcadeTest.flags().paused),false,'pause toggles back to play');
+assert.equal(await page.locator('#blockPause').getAttribute('aria-label'),'Pause Block Drop','Resume restores the pause action');
+await page.locator('#restart').click();
+// Verify actual Chromium touch input, not only constructed PointerEvents.
+const cdps=await page.context().newCDPSession(page);
+const touchRect=await page.locator('canvas.mode-blocks').boundingBox();
+const startTouchX=touchRect.x+touchRect.width*.39,finishTouchX=touchRect.x+touchRect.width*.59;
+const touchY=touchRect.y+touchRect.height*.35;
+const touchStartX=await page.evaluate(()=>window.__nightArcadeTest.snapshot().cur.x);
+await cdps.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x:startTouchX,y:touchY,id:1}]});
+await cdps.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x:finishTouchX,y:touchY,id:1}]});
+await cdps.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
+await cdps.detach();
+assert.ok(await page.evaluate(()=>window.__nightArcadeTest.snapshot().cur.x)>touchStartX,'real browser touch swipe moves the piece');
+await page.locator('#restart').click();
+// A long hold followed by a fast downward flick still qualifies as a flick.
+await page.locator('canvas.mode-blocks').evaluate(el=>{
+ const r=el.getBoundingClientRect(),x=r.x+r.width*.5,y=r.y+r.height*.2;
+ el.dispatchEvent(new PointerEvent('pointerdown',{bubbles:true,pointerId:78,pointerType:'touch',clientX:x,clientY:y}));
+});
+await page.waitForTimeout(340);
+await page.locator('canvas.mode-blocks').evaluate(el=>{
+ const r=el.getBoundingClientRect(),x=r.x+r.width*.5,y=r.y+r.height*.23;
+ el.dispatchEvent(new PointerEvent('pointermove',{bubbles:true,pointerId:78,pointerType:'touch',clientX:x,clientY:y}));
+});
+await page.waitForTimeout(24);
+await page.locator('canvas.mode-blocks').evaluate(el=>{
+ const r=el.getBoundingClientRect(),x=r.x+r.width*.5,y=r.y+r.height*.42;
+ el.dispatchEvent(new PointerEvent('pointermove',{bubbles:true,pointerId:78,pointerType:'touch',clientX:x,clientY:y}));
+ el.dispatchEvent(new PointerEvent('pointerup',{bubbles:true,pointerId:78,pointerType:'touch',clientX:x,clientY:y}));
+});
+assert.ok(await page.evaluate(()=>window.__nightArcadeTest.snapshot().grid.flat().some(v=>v!==null)),'flick after holding commits a hard drop');
+await page.locator('#restart').click();
+// Multi-touch must never be misread as tap, flick or rotation.
+const multiBefore=await page.evaluate(()=>window.__nightArcadeTest.snapshot().cur.cells);
+await page.locator('canvas.mode-blocks').evaluate(el=>{
+ const r=el.getBoundingClientRect(),x=r.x+r.width*.5,y=r.y+r.height*.3;
+ const dispatch=(type,id,offset=0)=>el.dispatchEvent(new PointerEvent(type,{
+  bubbles:true,pointerId:id,pointerType:'touch',clientX:x+offset,clientY:y
+ }));
+ dispatch('pointerdown',51);dispatch('pointerdown',52,20);dispatch('pointerup',52,20);dispatch('pointerup',51);
+});
+assert.deepEqual(await page.evaluate(()=>window.__nightArcadeTest.snapshot().cur.cells),multiBefore,'second finger cancels gesture instead of rotating');
+await page.locator('#restart').click();
+// Press-and-hold must repeat, not wait for an extra release click.
+const rightButton=page.locator('.block-move-group [data-control="right"]');
+const beforeHold=await page.evaluate(()=>window.__nightArcadeTest.snapshot().cur.x);
+await rightButton.dispatchEvent('pointerdown',{button:0,pointerId:44});
+await page.waitForTimeout(410);
+await rightButton.dispatchEvent('pointerup',{button:0,pointerId:44});
+const afterHold=await page.evaluate(()=>window.__nightArcadeTest.snapshot().cur.x);
+assert.ok(afterHold>=beforeHold+2,'holding a direction repeats movement');
+await rightButton.dispatchEvent('click',{bubbles:true});
+assert.equal(await page.evaluate(()=>window.__nightArcadeTest.snapshot().cur.x),afterHold,'pointer release click does not double-step');
+await page.locator('#restart').click();
 const initial=await page.evaluate(()=>{const s=window.__nightArcadeTest.snapshot();return [s.cur.x,s.cur.y];});
 await page.locator('[data-control="left"]').click();assert.equal(await page.evaluate(()=>window.__nightArcadeTest.snapshot().cur.x),initial[0]-1);
 const paintBefore=await page.evaluate(()=>window.__nightArcadeTest.perf().blockPaints);

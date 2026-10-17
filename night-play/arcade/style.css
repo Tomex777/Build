@@ -88,3 +88,54 @@ body>footer{display:none}
  body:has(#screen.mode-blocks:not([hidden])) #message{margin:1px auto}
  body:has(#screen.mode-blocks:not([hidden])) #extra{margin:1px auto;line-height:1.4}
 }
+
+
+/* Block Drop gamepad: movement under the left thumb, actions under the right.
+   Pause stays separate in the score panel. */
+.night-play-hud:has(#blockPause:not([hidden])){position:relative;padding-inline:45px}
+#blockPause{
+ position:absolute;right:7px;top:50%;transform:translateY(-50%);
+ display:grid;place-items:center;width:33px;height:33px;min-height:33px;
+ padding:0;border:1px solid #d0ddd3;border-radius:10px;background:#f4f8f4;
+ color:#294e3b;font-size:15px;font-weight:850;line-height:1;
+}
+#blockPause:active{background:#e0eae2}
+#touchbar:has(.block-control-layout){
+ display:block;width:100%;max-width:480px;min-height:0;
+ padding:0;margin:9px auto 0;
+}
+.block-control-layout{
+ display:grid;grid-template-columns:minmax(0,43fr) minmax(0,57fr);
+ gap:13px;width:100%;
+}
+.block-move-group,.block-action-group{display:grid;gap:6px;min-width:0}
+.block-move-group{grid-template-columns:repeat(2,minmax(0,1fr))}
+.block-action-group{grid-template-columns:repeat(3,minmax(0,1fr))}
+#touchbar .block-control-layout button{
+ width:100%;min-width:0;min-height:50px;line-height:1;
+ border:1px solid #c0d2c4;border-radius:12px;
+ font-size:22px;font-weight:850;letter-spacing:0;
+ color:#224f3b;background:#fff;
+ box-shadow:0 2px 0 #d1ded1;touch-action:none;
+ -webkit-user-select:none;user-select:none;
+}
+#touchbar .block-control-layout button:active{
+ background:#e4f0e7;box-shadow:0 1px 0 #c9d7c9;transform:translateY(1px);
+}
+#touchbar .block-control-layout .block-hard-drop{
+ background:#265740;color:#fff;border-color:#204933;
+ box-shadow:0 2px 0 #173c2c;
+}
+#touchbar .block-control-layout .block-hard-drop:active{background:#194b34}
+@media(max-width:650px){
+ #touchbar:has(.block-control-layout){max-width:100%;margin-top:7px}
+ .block-control-layout{gap:10px}
+ .block-move-group,.block-action-group{gap:5px}
+ body:has(#screen.mode-blocks:not([hidden])) .touchbar .block-control-layout button{
+  min-height:49px;font-size:21px;
+ }
+}
+@media(max-width:350px){
+ .block-control-layout{gap:7px}
+ .block-move-group,.block-action-group{gap:4px}
+}
