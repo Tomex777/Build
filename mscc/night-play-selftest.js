@@ -1,3 +1,4 @@
+import './night-play-avatar-selftest.js'
 import assert from 'node:assert/strict'
 import { DatabaseSync } from 'node:sqlite'
 import { randomBytes, generateKeyPairSync, sign } from 'node:crypto'
