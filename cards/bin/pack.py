@@ -9,7 +9,7 @@ for c in m['cards']:
 assert all(Path(f).name==f for f in files)
 output.parent.mkdir(parents=True,exist_ok=True);pending=Path(str(output)+'.pending')
 with zipfile.ZipFile(pending,'w',zipfile.ZIP_DEFLATED,compresslevel=3) as z:
- for f in sorted(files):z.write(folder/f,f)
+ for f in sorted(files):z.write(folder/f,f,compress_type=zipfile.ZIP_STORED if f.endswith('.png') else zipfile.ZIP_DEFLATED)
 with zipfile.ZipFile(pending) as z: assert z.testzip() is None
 pending.replace(output)
 checksum=hashlib.sha256(output.read_bytes()).hexdigest()

@@ -1,0 +1,114 @@
+name: NIGHT Cards Library
+on:
+  push:
+    branches: [cards]
+    paths: ['cards/**', '.github/workflows/cards-library.yml']
+  pull_request:
+    paths: ['cards/**', '.github/workflows/cards-library.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: night-cards-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  catalogue:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.parts.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v5
+      - id: parts
+        run: |
+          node --input-type=module <<'JS'
+          import fs from 'node:fs';
+          const cards=JSON.parse(fs.readFileSync('cards/catalog/bleach.json','utf8')).cards;
+          const size=Math.ceil(cards.length/4);
+          const include=Array.from({length:4},(_,i)=>({part:String(i+1).padStart(2,'0'),ids:cards.slice(i*size,(i+1)*size).map(c=>c.id).join(',')}));
+          fs.appendFileSync(process.env.GITHUB_OUTPUT,'matrix='+JSON.stringify({include})+'\n');
+          JS
+  render:
+    needs: catalogue
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.catalogue.outputs.matrix) }}
+    defaults:
+      run:
+        working-directory: cards
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: cards/package-lock.json
+      - run: npm ci
+      - run: npx playwright install-deps chromium
+      - name: Install pinned export browser
+        run: |
+          curl --fail --location --retry 3 https://storage.googleapis.com/chrome-for-testing-public/131.0.6778.204/linux64/chrome-headless-shell-linux64.zip -o "$RUNNER_TEMP/night-chrome.zip"
+          unzip -q "$RUNNER_TEMP/night-chrome.zip" -d "$RUNNER_TEMP/night-browser"
+          chmod +x "$RUNNER_TEMP/night-browser/chrome-headless-shell-linux64/chrome-headless-shell"
+          echo "NIGHT_BROWSER_PATH=$RUNNER_TEMP/night-browser/chrome-headless-shell-linux64/chrome-headless-shell" >> "$GITHUB_ENV"
+      - run: npm test
+      - name: Render catalogue part
+        env:
+          CARD_IDS: ${{ matrix.ids }}
+        run: npm run build -- --out dist/part --only "$CARD_IDS"
+      - name: Prepare complete part
+        run: |
+          mv dist/part/build.json dist/part/build-part-${{ matrix.part }}.json
+          rm -f dist/part/contact-*.png dist/part/index.html
+      - uses: actions/upload-artifact@v4
+        with:
+          name: NIGHT-Candidate-${{ matrix.part }}
+          path: cards/dist/part/*
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 14
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: NIGHT-Review-Failure-${{ matrix.part }}
+          path: |
+            cards/dist/part/build.json
+            cards/dist/part/contact-*.png
+          if-no-files-found: warn
+          retention-days: 14
+  publish:
+    needs: render
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: cards
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: cards/package-lock.json
+      - run: npm ci
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: NIGHT-Candidate-*
+          path: cards/dist/candidates
+          merge-multiple: true
+      - run: node bin/combine.mjs
+      - name: Enforce recorded visual reviews
+        run: npm run publish
+      - name: Read every approved card through bot loader
+        run: npm run verify
+      - run: npm run pack
+      - uses: actions/upload-artifact@v4
+        with:
+          name: NIGHT-Bleach-Card-Library
+          path: |
+            cards/dist/NIGHT-Bleach-Collection.zip
+            cards/dist/NIGHT-Bleach-Collection.zip.sha256
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 90
