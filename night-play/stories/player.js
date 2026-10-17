@@ -83,7 +83,19 @@ function reviewPage(){
  $('chapterStatus').textContent=page.chapter?'Chapter '+page.chapter+' of '+story.chapters.length+' · '+page.title:page.title;
  ui.story.setAttribute('aria-label','Previously read: '+page.title);
  document.documentElement.dataset.atmosphere=story.nodes[page.node]?.atmosphere||story.atmosphere||'quiet';
- lines=page.text.map(text=>makeLine({text}));lines.forEach(setLine);
+ // Recover speaker and cinematic formatting where the authored beat matches its saved text.
+ // The saved paragraph always wins when current conditions differ from the original visit.
+ const candidates=(story.nodes[page.node]?.beats||[]).map(beat=>({
+  ...beat,text:E.text(beat.text,run),speaker:beat.speaker?E.text(beat.speaker,run):undefined,
+  detail:E.text(beat.detail,run)
+ }));
+ const used=new Set();
+ const recorded=page.text.map(text=>{
+  const i=candidates.findIndex((beat,n)=>!used.has(n)&&(beat.speaker?beat.speaker+': '+beat.text:beat.text)===text);
+  if(i<0)return {text};
+  used.add(i);return candidates[i];
+ });
+ lines=recorded.map(makeLine);lines.forEach(setLine);
  ui.story.replaceChildren(...lines);ui.choices.replaceChildren();
  ui.choices.classList.remove('pending');updateNavigation();
  scrollTo({top:0,behavior:'instant'});
