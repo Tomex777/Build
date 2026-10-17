@@ -168,6 +168,12 @@ assert.equal(await page.locator('#blockPause').getAttribute('aria-label'),'Pause
 await page.locator('#restart').click();
 // Verify actual Chromium touch input, not only constructed PointerEvents.
 const cdps=await page.context().newCDPSession(page);
+await page.locator('canvas.mode-blocks').evaluate(el=>{
+ window.__nightTouchTrace=[];
+ for(const kind of ['pointerdown','pointermove','pointerup','pointercancel','lostpointercapture']){
+  el.addEventListener(kind,e=>window.__nightTouchTrace.push({kind,x:e.clientX,y:e.clientY,id:e.pointerId,button:e.button,primary:e.isPrimary}),{capture:true});
+ }
+});
 const touchRect=await page.locator('canvas.mode-blocks').boundingBox();
 const startTouchX=touchRect.x+touchRect.width*.39,finishTouchX=touchRect.x+touchRect.width*.59;
 const touchY=touchRect.y+touchRect.height*.35;
@@ -179,6 +185,12 @@ await page.waitForTimeout(32);
 await cdps.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
 await cdps.detach();
 await page.waitForTimeout(64); // allow Chromium's synthesized PointerEvents to flush
+console.log('NIGHT_TOUCH_DIAGNOSTIC='+JSON.stringify(await page.evaluate(()=>({
+ trace:window.__nightTouchTrace,game:window.__nightArcadeTest.snapshot().cur,
+ fit:document.querySelector('#screen').style.getPropertyValue('--block-fit-height'),
+ viewport:[innerWidth,innerHeight,visualViewport?.height],
+ board:document.querySelector('#screen').getBoundingClientRect().toJSON()
+}))));
 assert.ok(await page.evaluate(()=>window.__nightArcadeTest.snapshot().cur.x)>touchStartX,'real browser touch swipe moves the piece');
 await page.locator('#restart').click();
 // A long hold followed by a fast downward flick still qualifies as a flick.
