@@ -154,6 +154,29 @@ private val OnInk: Color @Composable get() = if (LocalPoetryAppearance.current.d
 
 private fun rgb(hex: Long) = hex.toInt()
 
+/** Choose a readable foreground when custom backgrounds change (no network/AI). */
+internal fun readableTextOn(first: Int, second: Int, current: Int): Int {
+    fun channel(color: Int, shift: Int): Double {
+        val v = ((color ushr shift) and 255) / 255.0
+        return if (v <= .04045) v / 12.92 else Math.pow((v + .055) / 1.055, 2.4)
+    }
+    fun luminance(color: Int): Double =
+        channel(color, 16) * .2126 + channel(color, 8) * .7152 + channel(color, 0) * .0722
+    fun contrast(foreground: Int, bg: Int): Double {
+        val a = luminance(foreground)
+        val b = luminance(bg)
+        return (maxOf(a, b) + .05) / (minOf(a, b) + .05)
+    }
+    fun minimumContrast(color: Int) = minOf(contrast(color, first), contrast(color, second))
+    if (minimumContrast(current) >= 4.5) return current
+    val light = 0xFFF9F7F2.toInt()
+    val dark = 0xFF20272A.toInt()
+    return if (minimumContrast(light) >= minimumContrast(dark)) light else dark
+}
+
+private fun CardStyleData.withReadableText() =
+    copy(textColor = readableTextOn(color1, color2, textColor))
+
 data class Ornament(
     val id: String = UUID.randomUUID().toString(),
     val assetId: String,
@@ -734,7 +757,7 @@ private fun PoetryApplication() {
         updateCurrent(shownDoc().copy(card = shownDoc().card.copy(
             background = "My background", color1 = background.first,
             color2 = background.second, texture = background.texture
-        )))
+        ).withReadableText()))
     }
     fun addSlide() {
         val original = active(); val source = original.slides[slideIndex]
@@ -1910,8 +1933,9 @@ private fun BackgroundPanel(doc: PoemDoc, update: (PoemDoc) -> Unit) {
             swatches.forEach { color ->
                 Box(Modifier.size(33.dp).clip(CircleShape).background(Color(color))
                     .border(1.dp, Border, CircleShape).clickable {
-                        update(doc.copy(card = if (editingSecond) doc.card.copy(color2 = color, background = "Custom")
-                            else doc.card.copy(color1 = color, background = "Custom")))
+                        val revised = if (editingSecond) doc.card.copy(color2 = color, background = "Custom")
+                            else doc.card.copy(color1 = color, background = "Custom")
+                        update(doc.copy(card = revised.withReadableText()))
                     })
             }
         }
@@ -2029,6 +2053,26 @@ private fun TextPanel(doc: PoemDoc, update: (PoemDoc) -> Unit, onEdit: () -> Uni
             update(doc.copy(card = doc.card.copy(textWidth = it,
                 poemX = doc.card.poemX.coerceAtMost(1f - it))))
         }
+        Spacer(Modifier.height(9.dp))
+        Text("TEXT COLOUR", fontSize = 10.sp, color = Muted, letterSpacing = 1.2.sp)
+        Spacer(Modifier.height(9.dp))
+        val inkColors = listOf(
+            0xFF20272A.toInt(), 0xFFF9F7F2.toInt(), 0xFF6D3B4B.toInt(),
+            0xFF556B87.toInt(), 0xFF2E6C55.toInt(), 0xFFB28A51.toInt(),
+            0xFF232B42.toInt(), 0xFFF4D5C3.toInt(), 0xFFAAA9AE.toInt()
+        )
+        Row(Modifier.horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+            inkColors.forEach { color ->
+                Box(Modifier.size(37.dp).clip(CircleShape)
+                    .background(Color(color))
+                    .border(if (doc.card.textColor == color) 2.dp else 1.dp,
+                        if (doc.card.textColor == color) Rose else Border, CircleShape)
+                    .clickable { update(doc.copy(card = doc.card.copy(textColor = color))) }
+                    .semantics { contentDescription = "Use text colour ${String.format("%08X", color)}" })
+            }
+        }
+        Spacer(Modifier.height(9.dp))
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text("ALIGN", fontSize = 10.sp, color = Muted, letterSpacing = 1.2.sp)
             Spacer(Modifier.width(16.dp))
@@ -2118,7 +2162,8 @@ private fun BackgroundMakerScreen(doc: PoemDoc, update: (PoemDoc) -> Unit, back:
             Spacer(Modifier.height(5.dp)); Heading("Choose your canvas", 26.sp)
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 FilterChip(selected = solid, onClick = {
-                    solid = true; update(doc.copy(card = doc.card.copy(color2 = doc.card.color1, background = "Custom")))
+                    solid = true; update(doc.copy(card = doc.card.copy(
+                        color2 = doc.card.color1, background = "Custom").withReadableText()))
                 }, label = { Text("Solid colour") })
                 FilterChip(selected = !solid, onClick = { solid = false }, label = { Text("Gradient") })
             }
@@ -2129,7 +2174,7 @@ private fun BackgroundMakerScreen(doc: PoemDoc, update: (PoemDoc) -> Unit, back:
                     .border(1.dp, Border, CircleShape).clickable {
                         update(doc.copy(card = doc.card.copy(color1 = color,
                             color2 = if (solid) color else doc.card.color2,
-                            background = "Custom")))
+                            background = "Custom").withReadableText()))
                     }) }
             }
             if (!solid) {
@@ -2138,7 +2183,8 @@ private fun BackgroundMakerScreen(doc: PoemDoc, update: (PoemDoc) -> Unit, back:
                 Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     swatches.forEach { color -> Box(Modifier.size(34.dp).clip(CircleShape).background(Color(color))
                         .border(1.dp, Border, CircleShape).clickable {
-                            update(doc.copy(card = doc.card.copy(color2 = color, background = "Custom")))
+                            update(doc.copy(card = doc.card.copy(
+                                color2 = color, background = "Custom").withReadableText()))
                         }) }
                 }
             }
