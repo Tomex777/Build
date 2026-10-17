@@ -1,0 +1,243 @@
+{
+  "status": "proposal-only",
+  "description": "Eight proposed collection tiers. No drop rates, pricing or live bot settings are changed. Forms are distinct catalogue identities.",
+  "tiers": [
+    {
+      "id": "common",
+      "label": "Common",
+      "design": "vanguard",
+      "rank": 1
+    },
+    {
+      "id": "rare",
+      "label": "Rare",
+      "design": "ivory",
+      "rank": 2
+    },
+    {
+      "id": "epic",
+      "label": "Epic",
+      "design": "voltage",
+      "rank": 3
+    },
+    {
+      "id": "legendary",
+      "label": "Legendary",
+      "design": "crimson",
+      "rank": 4
+    },
+    {
+      "id": "mythic",
+      "label": "Mythic",
+      "design": "emberglass",
+      "rank": 5
+    },
+    {
+      "id": "secret-rare",
+      "label": "Secret Rare",
+      "design": "obsidian",
+      "rank": 6
+    },
+    {
+      "id": "celestial",
+      "label": "Celestial",
+      "design": "tidelight",
+      "rank": 7
+    },
+    {
+      "id": "transcendent",
+      "label": "Transcendent",
+      "design": "nocturne",
+      "rank": 8
+    }
+  ],
+  "forms": [
+    {
+      "id": "ichigo/human",
+      "character": "ichigo",
+      "form": "human",
+      "displayName": "Human / everyday Ichigo",
+      "proposedTier": "common",
+      "design": "vanguard",
+      "continuity": "anime",
+      "artworkProfile": null,
+      "artworkStatus": "requires-form-matched-artwork"
+    },
+    {
+      "id": "ichigo/substitute-soul-reaper",
+      "character": "ichigo",
+      "form": "substitute-soul-reaper",
+      "displayName": "Early Substitute Soul Reaper",
+      "proposedTier": "common",
+      "design": "vanguard",
+      "continuity": "anime",
+      "artworkProfile": null,
+      "artworkStatus": "requires-form-matched-artwork"
+    },
+    {
+      "id": "ichigo/original-shikai",
+      "character": "ichigo",
+      "form": "original-shikai",
+      "displayName": "Original Shikai",
+      "proposedTier": "rare",
+      "design": "ivory",
+      "continuity": "anime",
+      "artworkProfile": "examples/characters/ichigo.json",
+      "artworkStatus": "available-existing-official-reference"
+    },
+    {
+      "id": "ichigo/fullbring",
+      "character": "ichigo",
+      "form": "fullbring",
+      "displayName": "Fullbring",
+      "proposedTier": "rare",
+      "design": "ivory",
+      "continuity": "anime",
+      "artworkProfile": null,
+      "artworkStatus": "requires-form-matched-artwork"
+    },
+    {
+      "id": "ichigo/original-bankai",
+      "character": "ichigo",
+      "form": "original-bankai",
+      "displayName": "Original Bankai \u2014 Tensa Zangetsu",
+      "proposedTier": "epic",
+      "design": "voltage",
+      "continuity": "anime",
+      "artworkProfile": null,
+      "artworkStatus": "requires-form-matched-artwork"
+    },
+    {
+      "id": "ichigo/hollow-mask",
+      "character": "ichigo",
+      "form": "hollow-mask",
+      "displayName": "Hollow-mask Ichigo",
+      "proposedTier": "epic",
+      "design": "voltage",
+      "continuity": "anime",
+      "artworkProfile": null,
+      "artworkStatus": "requires-form-matched-artwork"
+    },
+    {
+      "id": "ichigo/full-hollow",
+      "character": "ichigo",
+      "form": "full-hollow",
+      "displayName": "Full Hollow (commonly called Vasto Lorde)",
+      "proposedTier": "legendary",
+      "design": "crimson",
+      "continuity": "anime",
+      "artworkProfile": null,
+      "artworkStatus": "requires-form-matched-artwork"
+    },
+    {
+      "id": "ichigo/fullbring-bankai",
+      "character": "ichigo",
+      "form": "fullbring-bankai",
+      "displayName": "Fullbring-enhanced Bankai",
+      "proposedTier": "legendary",
+      "design": "crimson",
+      "continuity": "anime",
+      "artworkProfile": null,
+      "artworkStatus": "requires-form-matched-artwork"
+    },
+    {
+      "id": "ichigo/dangai",
+      "character": "ichigo",
+      "form": "dangai",
+      "displayName": "Dangai-trained Ichigo",
+      "proposedTier": "mythic",
+      "design": "emberglass",
+      "continuity": "anime",
+      "artworkProfile": null,
+      "artworkStatus": "requires-form-matched-artwork"
+    },
+    {
+      "id": "ichigo/true-shikai",
+      "character": "ichigo",
+      "form": "true-shikai",
+      "displayName": "True Shikai",
+      "proposedTier": "mythic",
+      "design": "emberglass",
+      "continuity": "anime",
+      "artworkProfile": null,
+      "artworkStatus": "requires-form-matched-artwork"
+    },
+    {
+      "id": "ichigo/mugetsu",
+      "character": "ichigo",
+      "form": "mugetsu",
+      "displayName": "Final Getsuga Tensho \u2014 Mugetsu",
+      "proposedTier": "secret-rare",
+      "design": "obsidian",
+      "continuity": "anime",
+      "artworkProfile": null,
+      "artworkStatus": "requires-form-matched-artwork"
+    },
+    {
+      "id": "ichigo/true-bankai",
+      "character": "ichigo",
+      "form": "true-bankai",
+      "displayName": "True Bankai",
+      "proposedTier": "secret-rare",
+      "design": "obsidian",
+      "continuity": "anime",
+      "artworkProfile": null,
+      "artworkStatus": "requires-form-matched-artwork"
+    },
+    {
+      "id": "ichigo/horn-of-salvation",
+      "character": "ichigo",
+      "form": "horn-of-salvation",
+      "displayName": "Horn of Salvation",
+      "proposedTier": "celestial",
+      "design": "tidelight",
+      "continuity": "anime",
+      "artworkProfile": null,
+      "artworkStatus": "requires-form-matched-artwork"
+    },
+    {
+      "id": "ichigo/hell-verse",
+      "character": "ichigo",
+      "form": "hell-verse",
+      "displayName": "Hell Verse empowered Ichigo",
+      "proposedTier": "celestial",
+      "design": "tidelight",
+      "continuity": "film-hell-verse",
+      "artworkProfile": null,
+      "artworkStatus": "requires-form-matched-artwork"
+    },
+    {
+      "id": "ichigo/blood-chains",
+      "character": "ichigo",
+      "form": "blood-chains",
+      "displayName": "Blood Chains Ichigo",
+      "proposedTier": "transcendent",
+      "design": "nocturne",
+      "continuity": "anime",
+      "artworkProfile": null,
+      "artworkStatus": "requires-form-matched-artwork"
+    }
+  ],
+  "notes": [
+    "Rarity is a collection placement, not an official power ranking.",
+    "Each form needs correctly matched artwork with recorded provenance and usage rights.",
+    "Do not reuse the Shikai illustration while relabelling it as another form.",
+    "Hell Verse is tracked as a separate film continuity.",
+    "Blood Chains is listed separately from True Bankai.",
+    "No separate Quincy transformation has been invented."
+  ],
+  "references": [
+    {
+      "title": "Official BLEACH anime terminology: \u8840\u9396\u306e\u4e00\u8b77 / Blood Chains Ichigo",
+      "url": "https://bleach-anime.com/keyword/"
+    },
+    {
+      "title": "Official Bandai Namco TYBW Ichigo character page",
+      "url": "https://bleach-ros.bn-ent.net/character/index.php?chara=ichigo-kurosaki_the_blood_warfare"
+    },
+    {
+      "title": "Official Bandai Namco Final Getsuga Tensho Ichigo character page",
+      "url": "https://bleach-ros.bn-ent.net/character/index.php?chara=ichigo-kurosaki-the_final_getsugatensho"
+    }
+  ]
+}

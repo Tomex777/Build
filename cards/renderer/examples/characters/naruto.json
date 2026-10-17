@@ -1,0 +1,24 @@
+{
+  "id": "naruto",
+  "name": "Naruto",
+  "subtitle": "NARUTO UZUMAKI",
+  "description": "Naruto Uzumaki, rendered in the original NIGHT Artist Editions.",
+  "artwork": {
+    "id": "naruto-official",
+    "title": "Naruto Uzumaki — official key illustration",
+    "artist": "Masashi Kishimoto",
+    "license": "© SHUEISHA",
+    "rights": "©1999 by Masashi Kishimoto / SHUEISHA Inc. All rights reserved. Character artwork is not covered by the renderer’s MIT license.",
+    "sourceUrl": "https://naruto-official.com/en/about",
+    "imageUrl": "https://naruto-official.com/about/hero.webp",
+    "licenseUrl": "https://legal.bandainamcoent.co.jp/terms/?lang=en",
+    "outputLicense": "Artwork rights reserved",
+    "outputLicenseUrl": "https://naruto-official.com/en/about",
+    "localPath": "assets/art/naruto-official.webp",
+    "sha256": "5e68586bc5e47ec4585961a1cce729f69b113e675be83608accae9a2ed550d4b",
+    "width": 1576,
+    "height": 1884,
+    "mime": "image/webp",
+    "acquisition": "Manual official-reference selection for the user-requested character preview. Excluded from the open-license discovery catalog."
+  }
+}

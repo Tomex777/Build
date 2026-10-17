@@ -1,0 +1,61 @@
+[
+  {
+    "id": "nocturne",
+    "name": "Kiki",
+    "edition": "NOCTURNE",
+    "number": "001",
+    "collection": "ARTIST EDITIONS",
+    "material": "SPECTRAL CHROME",
+    "theme": "nocturne",
+    "layout": "cutout",
+    "artwork": "kiki-cutout",
+    "seed": 77,
+    "subject": {
+      "x": 25,
+      "y": 60,
+      "width": 950,
+      "height": 1234
+    },
+    "description": "A cyber squirrel, suspended between brushstroke and orbit.",
+    "subtitle": "THE CYBER SQUIRREL",
+    "composition": "orbital"
+  },
+  {
+    "id": "tidelight",
+    "name": "Kiki",
+    "edition": "TIDELIGHT",
+    "number": "002",
+    "collection": "ARTIST EDITIONS",
+    "material": "PEARL FOIL",
+    "theme": "tidelight",
+    "layout": "fullart",
+    "artwork": "kiki-waves",
+    "seed": 93,
+    "focal": [
+      0.46,
+      0.5
+    ],
+    "description": "Sun on the water. A world waiting to be painted.",
+    "subtitle": "THE CYBER SQUIRREL",
+    "composition": "pearl"
+  },
+  {
+    "id": "verdant",
+    "name": "Kiki",
+    "edition": "VERDANT",
+    "number": "003",
+    "collection": "ARTIST EDITIONS",
+    "material": "CHAMPAGNE GOLD",
+    "theme": "verdant",
+    "layout": "fullart",
+    "artwork": "kiki-parasol",
+    "seed": 21,
+    "focal": [
+      0.285,
+      0.5
+    ],
+    "description": "A small shelter beneath a sky of impossible colour.",
+    "subtitle": "THE CYBER SQUIRREL",
+    "composition": "botanical"
+  }
+]

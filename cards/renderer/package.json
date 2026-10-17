@@ -1,0 +1,37 @@
+{
+  "name": "@night/collectibles",
+  "version": "2.0.0",
+  "description": "NIGHT Depth Editions: layered character collectibles, engraved metal and native 8K/16K SVG rasterization.",
+  "type": "module",
+  "license": "MIT",
+  "engines": {
+    "node": ">=20"
+  },
+  "exports": {
+    ".": "./src/depth.mjs",
+    "./discovery": "./src/discovery.mjs",
+    "./raster": "./src/raster.mjs",
+    "./node-assets": "./src/node-assets.mjs",
+    "./legacy": "./src/index.mjs",
+    "./tiled-raster": "./src/tiled-raster.mjs"
+  },
+  "scripts": {
+    "build": "node bin/build.mjs",
+    "render": "node bin/render.mjs",
+    "test": "node --test tests/*.test.mjs",
+    "verify": "node bin/verify.mjs",
+    "discover": "node bin/artwork.mjs search",
+    "serve": "node bin/serve.mjs",
+    "assets": "node bin/prepare-assets.mjs",
+    "depth:build": "node bin/depth-studio.mjs",
+    "depth:render": "node bin/depth-render.mjs",
+    "depth:8k": "node bin/depth-export.mjs examples/characters/naruto.json dist/depth 6000 png",
+    "depth:16k": "node bin/depth-export.mjs examples/characters/naruto.json dist/depth 12000 jpeg"
+  },
+  "dependencies": {
+    "sharp": "0.35.5"
+  },
+  "devDependencies": {
+    "playwright": "1.62.1"
+  }
+}

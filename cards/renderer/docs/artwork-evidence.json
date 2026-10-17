@@ -1,0 +1,25 @@
+{
+  "sourceUrl": "https://krita.org/en/about/mascot/",
+  "sourceHtmlSha256": "e66a3cc97e852a19a9a87ca489c41b0b045094afb58628aa4293451fccc01f83",
+  "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+  "declaration": "Kiki and Tyson Tan's artworks on this page are dual-licensed under GNU GPL and Creative Commons BY-SA.",
+  "verifiedAt": "2026-10-16",
+  "selection": "Tyson Tan splash-art gallery only; separately credited fan art excluded.",
+  "artworks": [
+    {
+      "id": "kiki-cutout",
+      "originalUrl": "https://krita.org/images/pages/electric_final_20240506A_kiki_03_fullbody.png",
+      "originalSha256": "1205ef304c07f744144ef904f8e5ed1dc973a6f3caa2b4f62f74129439342403"
+    },
+    {
+      "id": "kiki-waves",
+      "originalUrl": "https://krita.org/images/pages/electrichearts_20250824A_kiki_full.png",
+      "originalSha256": "d887a4104d9fa4b233132205488c2d48990a4543212d4ac6ab74f2d1ededf6b9"
+    },
+    {
+      "id": "kiki-parasol",
+      "originalUrl": "https://cdn.kde.org/krita/marketing/kiki/electrichearts_20201224A_kiki_c1.png",
+      "originalSha256": "5cbbfbdf72854d3503aa16768c4c1cb91c37f152a4e18e0e7f1e90ca42dd9414"
+    }
+  ]
+}

@@ -1,0 +1,46 @@
+{
+  "id": "ichigo",
+  "name": "Ichigo",
+  "subtitle": "ICHIGO KUROSAKI",
+  "description": "Ichigo Kurosaki in the unchanged NIGHT Depth Editions.",
+  "artwork": {
+    "id": "ichigo-official",
+    "title": "Ichigo Kurosaki (Shikai) — official BLEACH: Soul Resonance illustration",
+    "artist": "BLEACH: Soul Resonance",
+    "license": "© Tite Kubo / SHUEISHA",
+    "rights": "©Tite Kubo/Shueisha, TV TOKYO, dentsu, Pierrot. ©Nuverse Pte. Ltd. All rights reserved. Character artwork is not covered by the renderer MIT license.",
+    "sourceUrl": "https://www.bleach-soulresonance.com/",
+    "imageUrl": "https://p1.dailygn.com/obj/g-marketing-act-assets/2025_06_10_13_48_40/PCman_yihu_yihu_shijie_s851246.png",
+    "licenseUrl": "https://www.bleach-soulresonance.com/",
+    "outputLicense": "Artwork rights reserved",
+    "outputLicenseUrl": "https://www.bleach-soulresonance.com/",
+    "localPath": "assets/art/ichigo-official.png",
+    "sha256": "c8ad5d27bee98535b360ae867a143727be6aa7826ee5c1354935957ceca2a845",
+    "width": 1154,
+    "height": 1380,
+    "mime": "image/png",
+    "acquisition": "User-requested official character reference, manually verified. Excluded from the open-license discovery catalog. No AI generation or upscaling.",
+    "changes": "Original transparent canvas trimmed to alpha bounds, then transparent bottom padding added to fit the existing character rectangle. Artwork pixels are unresampled and unmodified.",
+    "originalDimensions": [
+      1920,
+      1080
+    ],
+    "alphaCrop": [
+      540,
+      0,
+      1694,
+      1080
+    ],
+    "originalSHA256": "1498936a73f8d281abf14e2b5b3b452bf5f73f9e4b05f17ea5756b1599cfa079",
+    "croppedArtworkDimensions": [
+      1154,
+      1080
+    ],
+    "canvasPadding": [
+      0,
+      0,
+      0,
+      300
+    ]
+  }
+}
