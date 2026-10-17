@@ -3294,7 +3294,26 @@ private fun PoseControlsOverlay(
                 verticalArrangement = Arrangement.spacedBy(5.dp),
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(7.dp)) {
-                    when {
+                    if (actor?.kind == ActorKind.CHARACTER && bones.isNotEmpty()) {
+                        FilterChip(
+                            selected = !ikEnabled,
+                            onClick = { onIkEnabledChange(false) },
+                            label = { Text("Joint") },
+                            modifier = Modifier.testTag("pose-mode-joint"),
+                        )
+                        FilterChip(
+                            selected = ikEnabled,
+                            onClick = { onIkEnabledChange(true) },
+                            label = { Text("IK") },
+                            modifier = Modifier.testTag("pose-mode-ik"),
+                        )
+                    } else {
+                        Text("Pose", color = PrimaryText, fontSize = 14.sp)
+                    }
+                    Spacer(Modifier.weight(1f))
+                    TextButton(onClick = onClose, modifier = Modifier.testTag("pose-done")) { Text("Done") }
+                }
+                when {
                     actor != null && actor.mechanicalParts().isNotEmpty() -> {
                         MechanicalPartsInspector(editor, actor, onEditor)
                     }
@@ -3342,25 +3361,6 @@ private fun PoseControlsOverlay(
                                 ) { Icon(Icons.Default.AccessibilityNew, contentDescription = "Reset pose", tint = PrimaryText) }
                             }
                         }
-                if (actor?.kind == ActorKind.CHARACTER && bones.isNotEmpty()) {
-                        FilterChip(
-                            selected = !ikEnabled,
-                            onClick = { onIkEnabledChange(false) },
-                            label = { Text("Joint") },
-                            modifier = Modifier.testTag("pose-mode-joint"),
-                        )
-                        FilterChip(
-                            selected = ikEnabled,
-                            onClick = { onIkEnabledChange(true) },
-                            label = { Text("IK") },
-                            modifier = Modifier.testTag("pose-mode-ik"),
-                        )
-                    } else {
-                        Text("Pose", color = PrimaryText, fontSize = 14.sp)
-                    }
-                    Spacer(Modifier.weight(1f))
-                    TextButton(onClick = onClose, modifier = Modifier.testTag("pose-done")) { Text("Done") }
-                }
                 if (actor?.kind == ActorKind.CHARACTER && bones.isNotEmpty()) {
                     Text("Pose library · editable", color = MutedText, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
                     Row(
