@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#f7f7f5">
+<title>Your Channels · NIGHT Play</title>
+<style>
+:root{--paper:#fff;--bg:#f7f7f5;--ink:#1c2328;--green:#285c46;--muted:#6e7871;--line:#dfe6de;--soft:#edf3ee}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font-family:Inter,"Avenir Next","Segoe UI",Arial,sans-serif;-webkit-font-smoothing:antialiased}a{color:inherit;text-decoration:none}button,input{font:inherit}button{cursor:pointer}button:disabled{cursor:not-allowed;opacity:.6}button:focus-visible,a:focus-visible,input:focus-visible{outline:3px solid #80ad8d;outline-offset:3px}
+svg{display:block;flex:none}.symbol{width:20px;height:20px;stroke:currentColor;stroke-width:1.8;fill:none;stroke-linecap:round;stroke-linejoin:round}
+.shell{max-width:1100px;margin:0 auto;padding:0 32px}.top{height:76px;background:#fff;border-bottom:1px solid var(--line)}.top .shell{height:100%;display:flex;align-items:center;justify-content:space-between;gap:18px}.brand{display:flex;align-items:center;gap:11px;font-size:21px;letter-spacing:-1.2px;font-weight:900}.brand small{font-weight:700;font-size:12px;letter-spacing:-.1px;color:#78837b;margin-left:3px}.brand svg{width:38px;height:38px;border-radius:11px}.nav{display:flex;gap:20px;align-items:center}.nav a{font-size:12px;font-weight:750;color:#556359}.nav a:hover{color:var(--green)}
+main{padding-top:52px;padding-bottom:86px}.eyebrow{color:#5d7867;font-size:11px;font-weight:850;letter-spacing:1.8px;text-transform:uppercase}.page-head{display:flex;justify-content:space-between;gap:35px;align-items:end;padding-bottom:28px;border-bottom:1px solid var(--line)}h1{font-size:clamp(36px,5.2vw,61px);letter-spacing:-3.1px;line-height:1.06;margin:10px 0 13px;font-weight:800}.lead{font-size:14px;line-height:1.75;color:var(--muted);margin:0;max-width:510px}.button{display:inline-flex;align-items:center;justify-content:center;gap:9px;border-radius:11px;border:1px solid #cad8cf;background:#fff;color:var(--ink);padding:12px 18px;min-height:44px;font-size:12px;font-weight:800;transition:background-color .2s,border-color .2s}.button:hover{background:#edf2ee}.button.primary{background:var(--green);border-color:var(--green);color:white}.button.primary:hover{background:#397158}.button.danger{color:#96493d;border-color:#eed8d2}.button.danger:hover{background:#fff3ef}.button .symbol{width:17px;height:17px}
+.section-header{display:flex;align-items:baseline;justify-content:space-between;margin:35px 0 14px;gap:12px}.section-header h2{font-size:20px;letter-spacing:-.7px;margin:0;font-weight:800}.section-header .note{font-size:12px;color:var(--muted)}
+.channel-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:13px}.channel-card{background:var(--paper);border:1px solid var(--line);border-radius:18px;padding:22px;min-width:0}.card-top{display:flex;align-items:center;gap:13px}.avatar{width:51px;height:51px;border-radius:14px;background:#e7eee7;color:#335a40;display:grid;place-items:center;font-size:21px;letter-spacing:-1px;font-weight:850}.names{flex:1;min-width:0}.names h3{font-size:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin:0 0 5px;letter-spacing:-.4px}.pill{font-size:11px;display:inline-flex;align-items:center;gap:7px;color:#637067}.pill::before{content:"";width:7px;height:7px;border-radius:50%;background:#caa35f}.pill.ready{color:#246342}.pill.ready::before{background:#48956a}.details{font-size:12px;color:var(--muted);margin:17px 0;line-height:1.6}.card-actions{display:flex;flex-wrap:wrap;gap:8px}.proof{background:#f1f6f0;border:1px solid #dbe9d9;border-radius:12px;padding:12px 14px;margin:13px 0}.proof span{font-size:10px;font-weight:800;color:#547060;text-transform:uppercase;letter-spacing:.8px}.proof code{display:block;font:750 13px ui-monospace,Consolas,monospace;overflow-wrap:anywhere;line-height:1.6;margin-top:7px;color:#203e30}
+.empty{border:1px dashed #c9d8cb;border-radius:18px;padding:37px 28px;background:#fff;color:#66776c}.empty strong{color:var(--ink);font-size:17px;display:block;margin-bottom:9px}.empty p{margin:0;line-height:1.6;font-size:13px}
+.setup{margin-top:32px;padding:27px;background:white;border:1px solid var(--line);border-radius:19px;display:grid;grid-template-columns:minmax(0,1fr) minmax(290px,420px);gap:40px}.setup h2{margin:8px 0 14px;font-size:23px;letter-spacing:-.85px}.setup p{margin:0 0 15px;color:var(--muted);font-size:13px;line-height:1.75}.consent{border-left:3px solid #5d9472;background:#f0f6f0;padding:13px 15px;color:#3a5d45;font-size:12px;line-height:1.65;margin-top:20px}.setup label{display:block;font-size:11px;font-weight:800;margin-bottom:9px}.url-wrap{background:#fafcf9;border:1px solid #cbd8ce;border-radius:12px;padding:5px;display:flex;align-items:center;min-height:52px;transition:border-color .2s,box-shadow .2s}.url-wrap:focus-within{border-color:#49875f;box-shadow:0 0 0 3px #dcf0df}.url-wrap .symbol{margin-left:12px;color:#64806d;width:18px;height:18px}.url-wrap input{width:100%;min-width:0;outline:0;border:0;background:transparent;padding:10px 11px;color:#202f25;font-size:13px;box-shadow:none}.setup form>.button{width:100%;margin-top:12px}.help{font-size:12px!important;margin-top:14px!important}.status-text{font-size:12px;color:#4f6e59;min-height:19px;margin-top:12px}.status-text.error{color:#a74c39}
+.how{margin-top:35px;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:15px}.how article{border-top:1px solid #c9d8ce;padding:17px 2px}.how b{font-size:11px;color:#5c7e69;letter-spacing:.7px}.how h3{font-size:14px;margin:9px 0 6px;letter-spacing:-.25px}.how p{margin:0;font-size:12px;line-height:1.6;color:var(--muted)}
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);max-width:min(90vw,460px);padding:12px 18px;background:#1f4130;color:white;font-size:13px;border-radius:10px;box-shadow:0 10px 26px #142f2129;z-index:10}
+[hidden]{display:none!important}
+@media(max-width:730px){.shell{padding:0 20px}.top{height:67px}.brand{font-size:19px}.brand svg{width:34px;height:34px}.nav{gap:15px}.nav a{font-size:11px}main{padding-top:29px}.page-head{align-items:start;flex-direction:column;gap:18px}.page-head>.button{width:100%}.channel-list{grid-template-columns:1fr}.setup{grid-template-columns:1fr;gap:17px;padding:21px}.how{grid-template-columns:1fr;gap:12px}.how article{padding:12px 0}h1{letter-spacing:-2px}.section-header{margin-top:28px}.channel-card{padding:18px}}
+@media(prefers-reduced-motion:reduce){.button,.url-wrap{transition:none}}
+</style>
+</head>
+<body>
+<svg aria-hidden="true" style="position:absolute;width:0;height:0;overflow:hidden" xmlns="http://www.w3.org/2000/svg">
+<symbol id="mark" viewBox="0 0 108 108"><path fill="#0b0f11" d="M0 0h108v108H0z"/><path fill="#fff" d="M24 54C24 37.43 37.43 24 54 24S84 37.43 84 54H24Z M22 66h64v6H22z"/></symbol>
+<symbol id="link" viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.1 0l3-3a5 5 0 0 0-7.1-7.1l-1.7 1.7M14 11a5 5 0 0 0-7.1 0l-3 3a5 5 0 0 0 7.1 7.1l1.7-1.7"/></symbol>
+<symbol id="copy" viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"/></symbol>
+<symbol id="check" viewBox="0 0 24 24"><path d="M4 13l5 5L20 6"/></symbol>
+<symbol id="shield" viewBox="0 0 24 24"><path d="M12 2 4 6v6c0 5.5 3.2 9 8 10 4.8-1 8-4.5 8-10V6l-8-4z"/><path d="m9 12 2 2 4-4"/></symbol>
+<symbol id="plus" viewBox="0 0 24 24"><path d="M12 4v16M4 12h16"/></symbol>
+</svg>
+<header class="top"><div class="shell">
+<a class="brand" href="/profile" aria-label="NIGHT Play profile"><svg aria-hidden="true"><use href="#mark"/></svg><span>NIGHT<small>PLAY</small></span></a>
+<nav class="nav" aria-label="Navigation"><a href="/games">Games</a><a href="/profile">Profile</a></nav>
+</div></header>
+<main class="shell">
+<div class="page-head"><div><div class="eyebrow">NIGHT PLAY / CHANNEL TOOLS</div><h1>Your Channels<span style="color:#3f7553">.</span></h1><p class="lead">Connect the WhatsApp Channels you administer. Your verified channels stay attached to your NIGHT Play account.</p></div><button id="reload" class="button" type="button">Refresh channels</button></div>
+<div class="section-header"><h2>Connected to NIGHT</h2><span class="note" id="count" aria-live="polite"></span></div>
+<div class="channel-list" id="channels" aria-live="polite"></div>
+<div id="empty" class="empty" hidden><strong id="emptyTitle">No channels yet</strong><p id="emptyMessage">Connect one below to begin.</p></div>
+<section class="setup" id="connect" aria-labelledby="connectTitle">
+<div><div class="eyebrow">ADD CHANNEL</div><h2 id="connectTitle">Connect through WhatsApp.</h2><p>Send NIGHT a channel link privately. NIGHT will first show its name and ask you to choose <b>Yes</b> or <b>No</b>. Nothing is followed before you agree.</p><div class="consent"><strong>Admin access is separate.</strong> After confirming, you must invite the same NIGHT WhatsApp account as an administrator through WhatsApp. NIGHT will only enable channel management after a fresh admin-post verification.</div></div>
+<form id="linkForm"><label for="inviteUrl">WhatsApp Channel link</label><div class="url-wrap"><svg class="symbol" aria-hidden="true"><use href="#link"/></svg><input id="inviteUrl" name="inviteUrl" type="url" inputmode="url" spellcheck="false" autocomplete="off" placeholder="https://whatsapp.com/channel/…" required maxlength="170"></div><button class="button primary" type="submit"><svg class="symbol" aria-hidden="true"><use href="#copy"/></svg> Copy WhatsApp command</button><p class="help">Paste the command into the private chat with the NIGHT account linked to your profile.</p><p class="status-text" id="feedback" role="status" aria-live="polite"></p></form>
+</section>
+<div class="how" aria-label="Connection steps"><article><b>01 · REQUEST</b><h3>Send the link</h3><p>NIGHT identifies the channel without automatically joining.</p></article><article><b>02 · CONSENT</b><h3>Approve in WhatsApp</h3><p>Reply <strong>.joinchannel yes</strong>, then make NIGHT an admin in the channel.</p></article><article><b>03 · VERIFY</b><h3>Prove admin access</h3><p>Publish NIGHT's private one-time code in that channel, then verify here.</p></article></div>
+</main>
+<div id="toast" class="toast" role="status" hidden></div>
+<script>
+(function(){
+'use strict';
+const $=id=>document.getElementById(id);
+let profile=null,channels=[],request=0;
+const make=(tag,cls,text)=>{const node=document.createElement(tag);if(cls)node.className=cls;if(text!==undefined)node.textContent=text;return node};
+const icon=name=>{const el=document.createElementNS('http://www.w3.org/2000/svg','svg');el.setAttribute('class','symbol');el.setAttribute('aria-hidden','true');const use=document.createElementNS('http://www.w3.org/2000/svg','use');use.setAttribute('href','#'+name);el.append(use);return el};
+const notify=message=>{const node=$('toast');node.textContent=message;node.hidden=false;clearTimeout(notify.timer);notify.timer=setTimeout(()=>node.hidden=true,3500)};
+async function api(action,values){
+  const method=action==='status'?'GET':'POST';
+  const response=await fetch('/api/account',{method,cache:'no-store',credentials:'same-origin',headers:method==='GET'?{}:{'content-type':'application/json'},body:method==='GET'?undefined:JSON.stringify(Object.assign({action},values||{})),signal:AbortSignal.timeout(14000)});
+  const data=await response.json();
+  if(!response.ok)throw Error(data.error||'NIGHT could not complete that request.');
+  return data;
+}
+async function copy(value) {
+  if(!navigator.clipboard||!window.isSecureContext){notify('Clipboard unavailable. Copy the command manually from the field.');return false}
+  try{await navigator.clipboard.writeText(value);notify('Copied to clipboard');return true}
+  catch{notify('Unable to copy. Check clipboard permission.');return false}
+}
+function action(label,fn,cls='button') {
+  const button=make('button',cls,label);button.type='button';button.addEventListener('click',async()=>{
+    button.disabled=true;
+    try{await fn()}catch(e){notify(e.message||'Something went wrong.')}
+    finally{button.disabled=false}
+  });return button;
+}
+function render() {
+  $('channels').replaceChildren();
+  $('channels').hidden=!channels.length;
+  $('count').textContent=profile?channels.length+' '+(channels.length===1?'channel':'channels'):'';
+  $('empty').hidden=channels.length>0;
+  $('emptyTitle').textContent=profile?'No channels linked yet':'Connect WhatsApp first';
+  $('emptyMessage').textContent=profile?'Use .joinchannel to connect a channel you administer.':'Connect your WhatsApp identity in Profile before managing channels.';
+  if(!profile)$('connectTitle').textContent='Connect your WhatsApp profile first.';
+  for(const c of channels){
+    const card=make('article','channel-card');
+    const top=make('div','card-top'),avatar=make('div','avatar',c.name.trim().slice(0,1).toUpperCase()||'N'),names=make('div','names');
+    const title=make('h3',null,c.name),status=make('span','pill'+(c.status==='connected'?' ready':''),
+      c.status==='connected'?'Verified channel':c.status==='awaiting_admin'?'Waiting for NIGHT admin rights':'Admin proof required');
+    names.append(title,status);top.append(avatar,names);card.append(top);
+    const desc=c.status==='connected'?'NIGHT has verified permission and a channel administrator completed the ownership check.':c.status==='awaiting_admin'?'Make the same NIGHT account an admin through WhatsApp. Following this channel alone is not enough.':'Publish your verification code as a new channel post, then check access.';
+    card.append(make('p','details',desc));
+    if(c.status!=='connected'){
+      const proof=make('div','proof'),label=make('span',null,'One-time verification post'),code=make('code',null,c.proof||'');
+      proof.append(label,code);card.append(proof);
+    }
+    const row=make('div','card-actions');
+    if(c.status!=='connected'){
+      row.append(action('Copy proof',()=>copy(c.proof)));
+      row.append(action('Check access',async()=>{const result=await api('channel:verify',{channelId:c.id});if(result.connected)notify('Channel verified');else if(result.reason==='admin')notify('NIGHT still needs channel admin permission.');else notify('Publish your code as a new channel post, then retry.');await load();},'button primary'));
+    }else {
+      row.append(make('span','details','Publishing controls are being connected to NIGHT.'));
+    }
+    row.append(action('Disconnect',async()=>{
+      if(!confirm('Disconnect '+c.name+' from your NIGHT Play account?'))return;
+      await api('channel:remove',{channelId:c.id});notify('Channel disconnected');await load();
+    },'button danger'));
+    card.append(row);$('channels').append(card);
+  }
+}
+async function load() {
+  const ticket=++request;
+  $('count').textContent='Loading…';
+  try{
+    const state=await api('status');
+    if(ticket!==request)return;
+    profile=state.profile||null;
+    if(profile){const data=await api('channel:list');if(ticket!==request)return;channels=Array.isArray(data.channels)?data.channels:[];}
+    else channels=[];
+    render();
+  }catch(e){if(ticket!==request)return;channels=[];render();$('count').textContent='Unavailable';notify(e.message)}
+}
+$('linkForm').addEventListener('submit',async event=>{
+  event.preventDefault();
+  const input=$('inviteUrl'),value=input.value.trim();
+  const format=/^https:\/\/(?:www\.)?whatsapp\.com\/channel\/[A-Za-z0-9]{10,64}\/?(?:\?[^#]*)?$/i;
+  $('feedback').classList.remove('error');
+  if(!profile){$('feedback').textContent='Connect your WhatsApp account in Profile first.';$('feedback').classList.add('error');return}
+  if(!format.test(value)){$('feedback').textContent='Paste a valid WhatsApp Channel link.';$('feedback').classList.add('error');return}
+  const command='.joinchannel '+value;
+  if(await copy(command))$('feedback').textContent='Paste into NIGHT’s private chat. NIGHT will ask Yes or No before following.';
+  else{$('feedback').textContent=command;input.value=command;input.select();}
+});
+$('reload').addEventListener('click',load);
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')load()});
+load();
+})();
+</script>
+</body>
+</html>
