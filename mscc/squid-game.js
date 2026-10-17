@@ -342,6 +342,7 @@ export function createSquidGame({ storage, accountFor, resolvePhoneJid = async (
     const group = ctx.groupKey
     const window = registrationWindow(values, now())
     if (!values.length) return ctx.reply('🦑 Usage: .squidgame extend 30m (1m–24h).')
+    if (String(values[0]).toLowerCase() === 'at') return ctx.reply('🦑 Extend by a duration, e.g. .squidgame extend 30m.')
     return locked(group, async () => {
       const game = load(group)
       if (!game || game.phase !== 'REGISTERING') return ctx.reply('🦑 No open registration to extend.')
@@ -412,6 +413,14 @@ export function createSquidGame({ storage, accountFor, resolvePhoneJid = async (
         return !/^[.!/]((squidgame)|(sg))\s+(status|stop|cancel)\b/i.test(text)
       }
       if (game.createdAt < BOOT) return // no eliminations for unobserved offline time
+      // Original admins must retain access to safety/stop commands even if
+      // they opted in, including while RED. Ordinary player commands are
+      // still gameplay messages and can eliminate them during RED.
+      const command = commandText(message?.message).trim()
+      if (/^[.!/](?:squidgame|sg)\s+(?:status|stop|cancel|help)\b/i.test(command)) {
+        const row = await member(game, jid(message?.key?.participant)).catch(() => null)
+        if (row && initialAdmin(game, row)) return false
+      }
       // Hot path: resolve known participant aliases locally. WhatsApp groupMetadata
       // is a network call and must not run for every Green Light message.
       const rawSender = jid(message?.key?.participant)
