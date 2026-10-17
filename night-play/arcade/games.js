@@ -18,7 +18,7 @@ function message(t){$("message").textContent=t;}
 function end(text){if(finished)return;finished=true;stop();record(type,points);message(text+" · Tap Restart to play again.");}
 function drawText(text,y,size=24){ctx.fillStyle="#fff";ctx.font="900 "+size+"px system-ui,Arial";ctx.textAlign="center";ctx.fillText(text,c.width/2,y);}
 function pick(id){if(!metadata[id])id="bird";type=id;const [title,sub,rules]=metadata[id];$("title").textContent=title;$("subtitle").textContent=sub;$("rules").textContent=rules;document.title=title+" · NIGHT Play";[...$("picks").querySelectorAll("button")].forEach(b=>b.setAttribute("aria-current",String(b.dataset.game===id)));const url=new URL(location.href);url.searchParams.set("game",id);history.replaceState({},"",url.pathname+url.search);if($("settingsDialog").open)$("settingsDialog").close();restart();}
-function restart(){stop();resetBlockInputs();$("blockPause").hidden=type!=="blocks";last=0;gameStart=Date.now();finished=false;paused=false;score(0);message("Ready to play.");extra.replaceChildren();board.hidden=type!=="mines";c.hidden=type==="mines";c.className="mode-"+type;
+function restart(){stop();resetBlockInputs();$("blockPause").hidden=type!=="blocks";last=0;gameStart=Date.now();finished=false;paused=false;syncBlockPauseButton();score(0);message("Ready to play.");extra.replaceChildren();board.hidden=type!=="mines";c.hidden=type==="mines";c.className="mode-"+type;
 if(type==="bird")setupBird();if(type==="blocks")setupBlocks();if(type==="mines")setupMines();if(type==="maze")setupMaze();}
 function button(label,action,aria=label){return '<button type="button" data-control="'+action+'" aria-label="'+aria+'">'+label+'</button>';}
 function setControls(html){touch.innerHTML=html;}
@@ -130,7 +130,7 @@ function setupBlocks(){c.width=300;c.height=600;blockDirty=true;state={grid:Arra
   '</div></div>');
  message("Tap to rotate · Drag to move · Flick down to drop");frameLoop(blockFrame);}
 function rotate(s){const old=s.cur.cells,turn=old.map(([x,y])=>[3-y,x]);for(const shift of [0,-1,1,-2,2])if(!collision(s,shift,0,turn)){s.cur.cells=turn;s.cur.x+=shift;return;}}
-function blockMove(move){const s=state;if(type!=="blocks"||finished)return;if(move==="pause"){resetBlockInputs();paused=!paused;blockDirty=true;message(paused?"Paused":"Back in the game");return;}if(paused)return;blockDirty=true;if(move==="left"&&!collision(s,-1,0))s.cur.x--;if(move==="right"&&!collision(s,1,0))s.cur.x++;if(move==="rotate")rotate(s);if(move==="down"){if(!collision(s,0,1))s.cur.y++;else lockBlock(s);}if(move==="drop"){while(!collision(s,0,1))s.cur.y++;lockBlock(s);}}
+function blockMove(move){const s=state;if(type!=="blocks"||finished)return;if(move==="pause"){resetBlockInputs();paused=!paused;syncBlockPauseButton();blockDirty=true;message(paused?"Paused":"Back in the game");return;}if(paused)return;blockDirty=true;if(move==="left"&&!collision(s,-1,0))s.cur.x--;if(move==="right"&&!collision(s,1,0))s.cur.x++;if(move==="rotate")rotate(s);if(move==="down"){if(!collision(s,0,1))s.cur.y++;else lockBlock(s);}if(move==="drop"){while(!collision(s,0,1))s.cur.y++;lockBlock(s);}}
 function lockBlock(s){for(const [x,y] of s.cur.cells){let xx=x+s.cur.x,yy=y+s.cur.y;if(yy<0){end("Stack too high!");return;}if(yy<20)s.grid[yy][xx]=s.cur.idx;}let count=0;for(let y=19;y>=0;y--){if(s.grid[y].every(k=>k!==null)){s.grid.splice(y,1);s.grid.unshift(Array(10).fill(null));count++;y++;}}
 if(count){const n=[0,100,300,500,800][count]*s.level;s.lines+=count;s.level=1+Math.floor(s.lines/10);score(points+n);message("Cleared "+count+" line"+(count===1?"":"s")+"!");}
 nextPiece(s);}
@@ -234,6 +234,12 @@ extra.textContent="Lives: "+s.lives+" · Dots left: "+s.total+(paused?" · PAUSE
    Lock horizontal/vertical intent before moving; never rotate after a drag.
    Work in rendered cell units, so full-width but vertically compressed boards
    have the same predictable finger travel. Gestures don't affect other games. */
+function syncBlockPauseButton(){
+ const b=$("blockPause");
+ b.textContent=paused?"▶":"Ⅱ";
+ b.setAttribute("aria-label",paused?"Resume Block Drop":"Pause Block Drop");
+ b.setAttribute("aria-pressed",String(paused));
+}
 let blockGesture=null;
 const blockPointers=new Set(),blockSuppressedClicks=new WeakSet();
 let blockHold=null;
@@ -247,6 +253,11 @@ function blockTouchMove(e){
  const g=blockGesture;
  if(!g||g.id!==e.pointerId||type!=="blocks"||finished||paused||!state||g.piece!==state.cur)return;
  const dx=e.clientX-g.startX,dy=e.clientY-g.startY;
+ // Keep only a short history so a quick flick still works after holding a
+ // piece in place, but a slow drag or a stationary release never hard-drops.
+ const sampledAt=performance.now();
+ g.recent.push({y:e.clientY,t:sampledAt});
+ while(g.recent.length>1&&sampledAt-g.recent[0].t>180)g.recent.shift();
  const bounds=c.getBoundingClientRect();
  const col=Math.max(12,bounds.width/10),row=Math.max(10,bounds.height/20);
  const threshold=Math.max(10,Math.min(15,col*.35));
@@ -277,7 +288,7 @@ c.addEventListener("pointerdown",e=>{
  blockPointers.add(e.pointerId);
  if(blockPointers.size!==1){blockGesture=null;return;} // reject multi-finger ambiguity
  blockGesture={id:e.pointerId,startX:e.clientX,startY:e.clientY,startAt:performance.now(),
-              piece:state.cur,axis:null,steps:0};
+              piece:state.cur,axis:null,steps:0,recent:[{y:e.clientY,t:performance.now()}]};
  try{c.setPointerCapture(e.pointerId);}catch{}
  if(e.cancelable)e.preventDefault();
 });
@@ -294,10 +305,12 @@ c.addEventListener("pointerup",e=>{
  blockTouchMove(e);
  const dx=e.clientX-g.startX,dy=e.clientY-g.startY;
  const duration=Math.max(1,performance.now()-g.startAt);
+ const recent=g.recent[0];
+ const recentSpeed=g.recent.length>1?(e.clientY-recent.y)/Math.max(1,performance.now()-recent.t):0;
  blockGesture=null;
  if(finished||paused||!state||g.piece!==state.cur)return;
- if(g.axis==="vertical"&&dy>Math.max(37,c.getBoundingClientRect().height/20*2.5)&&
-    duration<285&&dy/duration>.65){
+ if(g.axis==="vertical"&&dy>Math.max(55,c.getBoundingClientRect().height/20*2.65)&&
+    Math.abs(dx)<dy*.62&&recentSpeed>.44){
   blockMove("drop"); // quick downward flick, not a slow drag
  }else if(!g.axis&&Math.hypot(dx,dy)<13&&duration<500){
   blockMove("rotate"); // a clean tap; never rotate at end of a swipe
@@ -384,7 +397,7 @@ let startTouch=null;
 c.addEventListener("touchstart",e=>{if(type==="maze"&&e.touches.length===1)startTouch=[e.touches[0].clientX,e.touches[0].clientY];},{passive:true});
 c.addEventListener("touchend",e=>{if(type!=="maze"||!startTouch||!e.changedTouches.length)return;const dx=e.changedTouches[0].clientX-startTouch[0],dy=e.changedTouches[0].clientY-startTouch[1];if(Math.abs(dx)>18||Math.abs(dy)>18)mazeMove(...(Math.abs(dx)>Math.abs(dy)?[Math.sign(dx),0]:[0,Math.sign(dy)]));startTouch=null;},{passive:true});
 document.addEventListener("keydown",e=>{if(e.ctrlKey||e.metaKey||e.altKey||e.target.closest("input,textarea,select"))return;const k=e.key.toLowerCase();let cmd={arrowleft:"left",arrowright:"right",arrowup:"rotate",arrowdown:"down",w:"up",a:"left",s:"down",d:"right"," ":"drop",p:"pause"}[k];if(type==="bird"&&(k===" "||k==="arrowup")){e.preventDefault();flap();return;}if(type==="maze"){cmd={arrowleft:"left",arrowright:"right",arrowup:"up",arrowdown:"down",w:"up",a:"left",s:"down",d:"right",p:"pause"}[k];}if(cmd){e.preventDefault();action(cmd);}});
-document.addEventListener("visibilitychange",()=>{if(document.hidden&&type==="blocks"&&!finished){resetBlockInputs();paused=true;blockDirty=true;message("Paused");}if(document.hidden&&type==="maze"&&!finished){paused=true;message("Paused");}});
+document.addEventListener("visibilitychange",()=>{if(document.hidden&&type==="blocks"&&!finished){resetBlockInputs();paused=true;syncBlockPauseButton();blockDirty=true;message("Paused");}if(document.hidden&&type==="maze"&&!finished){paused=true;message("Paused");}});
 window.addEventListener("pagehide",stop);
 window.addEventListener("popstate",()=>pick(new URL(location.href).searchParams.get("game")||"bird"));
 if(location.hostname==="localhost"||location.hostname==="127.0.0.1")window.__nightArcadeTest=Object.freeze({snapshot:()=>JSON.parse(JSON.stringify(state)),flags:()=>({finished,paused,points}),perf:()=>({blockPaints:blockPaintCount,wingCached:Boolean(wingBackdrop),mazeCached:Boolean(mazeBackdrop&&mazeDots)})});
