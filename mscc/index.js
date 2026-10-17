@@ -3533,7 +3533,7 @@ async function init() {
   await writeRuntimeRegistry()
   startSettingsWatcher()
   webServer = startWebPanel({
-    nightPlayHandler: createNightPlayHandler(nightPlay, { refreshAvatar:createNightPlayAvatarSync(nightPlay, accounts) }),
+    nightPlayHandler: createNightPlayHandler(nightPlay, { refreshAvatar:createNightPlayAvatarSync(nightPlay, accounts), accounts }),
     port: WEB_PORT,
     host: WEB_HOST,
     password: WEB_PASSWORD,
