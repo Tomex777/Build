@@ -1,6 +1,7 @@
 import { createHash, randomBytes, randomUUID, verify, createPublicKey } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { NightPlayMatches } from './night-play-matches.js'
+import { NightPlayChannels, ChannelError } from './night-play-channels.js'
 
 export const PLAY_URL = 'https://night-play-combined-preview.vercel.app'
 export const PLAY_RPC_PATH = '/api/night-play/rpc'
@@ -38,6 +39,7 @@ export class NightPlay {
     `)
     this.nextCleanup = 0
     this.matches = new NightPlayMatches(db, { now })
+    this.channels = new NightPlayChannels(this, { now })
   }
   transaction(fn) {
     this.db.exec('BEGIN IMMEDIATE')
@@ -49,6 +51,8 @@ export class NightPlay {
     for (const table of ['play_challenges', 'play_sessions', 'play_limits', 'play_nonces']) {
       this.db.prepare(`DELETE FROM ${table} WHERE expires_at <= ?`).run(this.now())
     }
+    this.db.prepare('DELETE FROM play_channel_consent WHERE expires_at<=?').run(this.now())
+    this.db.prepare("DELETE FROM play_channel_claims WHERE state!='connected' AND expires_at<=?").run(this.now())
     this.nextCleanup = this.now() + 60_000
   }
   limit(key, maximum, window = 60_000) {
@@ -86,7 +90,7 @@ export class NightPlay {
       .run(id, jpeg ? 'image/jpeg' : 'image/png', data, this.now())
     return true
   }
-  request({ action, session, client, displayName, matchId, code, cell }) {
+  request({ action, session, client, displayName, matchId, code, cell, channelId }) {
     this.cleanup()
     if (action === 'health') return { ok:true, service:'night-play', version:1 }
     if (action === 'status') {
@@ -122,6 +126,14 @@ export class NightPlay {
       return { ok:true }
     }
     if (!row?.user_id) throw new PlayError(401, 'Connect WhatsApp to continue.')
+    if (action === 'channel:list') {
+      this.limit('channel-list:' + row.user_id, 30)
+      return this.channels.list(row.user_id)
+    }
+    if (action === 'channel:remove') {
+      this.limit('channel-remove:' + row.user_id, 10, 3600000)
+      return this.channels.remove(row.user_id, channelId)
+    }
     if (typeof action === 'string' && action.startsWith('match:')) {
       this.limit('match-client:' + String(client || 'unknown'), 120)
       return this.matches.request(action, row.user_id, {matchId,code,cell})
@@ -132,6 +144,7 @@ export class NightPlay {
     }
     if (action === 'delete') {
       this.matches.removeUser(row.user_id)
+      this.channels.removeUser(row.user_id)
       this.db.prepare('DELETE FROM play_avatars WHERE user_id=?').run(row.user_id)
       this.db.prepare('DELETE FROM play_users WHERE id=?').run(row.user_id)
       return { ok:true }
@@ -178,7 +191,7 @@ export class NightPlay {
   }
 }
 
-export function createNightPlayHandler(play, { publicKey = readFileSync(new URL('./night-play-public-key.pem', import.meta.url), 'utf8'), refreshAvatar = null } = {}) {
+export function createNightPlayHandler(play, { publicKey = readFileSync(new URL('./night-play-public-key.pem', import.meta.url), 'utf8'), refreshAvatar = null, accounts = new Map() } = {}) {
   const key = createPublicKey(publicKey)
   return async (req, res) => {
     const reply = (status, body) => {
@@ -212,7 +225,12 @@ export function createNightPlayHandler(play, { publicKey = readFileSync(new URL(
       if (!body || Array.isArray(body) || typeof body !== 'object') return reply(400, { error:'Invalid request.' })
       play.limit('rpc-global', 1800)
       play.limit('rpc-client:' + String(body.client || 'unknown'), 180)
-      const result = play.request(body)
+      const result = body.action === 'channel:verify' ? await (async () => {
+        const userId = body.session ? play.session(body.session)?.user_id : null
+        if (!userId) throw new PlayError(401,'Connect WhatsApp to continue.')
+        if (body.channelId !== undefined && !/^\d{8,25}@newsletter$/.test(String(body.channelId))) throw new PlayError(400,'Invalid channel.')
+        return play.channels.verifyUser(userId, accounts, body.channelId)
+      })() : play.request(body)
       // An already-linked browser can obtain its permitted WhatsApp photo
       // without another QR/code. Background only: signed RPC stays responsive.
       if (body.action === 'status' && result.linked && !result.profile?.avatarData && refreshAvatar) {
@@ -220,7 +238,7 @@ export function createNightPlayHandler(play, { publicKey = readFileSync(new URL(
       }
       return reply(200, result)
     } catch (error) {
-      return reply(error instanceof PlayError ? error.status : 500, { error:error instanceof PlayError ? error.message : 'NIGHT Play could not process the request.' })
+      return reply((error instanceof PlayError || error instanceof ChannelError) ? error.status : 500, { error:(error instanceof PlayError || error instanceof ChannelError) ? error.message : 'NIGHT Play could not process the request.' })
     }
   }
 }

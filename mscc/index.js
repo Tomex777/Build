@@ -2689,6 +2689,13 @@ async function processInboundMessage(account, msg) {
           nightPlayLink: code => nightPlay.linkFromWhatsApp({ code, userKey:authority.senderKey, identityKeys:authority.senderIdentityKeys, displayName:msg.pushName }),
           nightPlayProfile: () => nightPlay.linkedProfile({ userKey:authority.senderKey, identityKeys:authority.senderIdentityKeys }),
           nightPlayUnlink: () => nightPlay.disconnectWhatsApp({ userKey:authority.senderKey, identityKeys:authority.senderIdentityKeys }),
+          // Channel onboarding is scoped to the WhatsApp sender's verified
+          // NIGHT Play identity; no unverified channel is exposed to the site.
+          channelBegin: link => nightPlay.channels.begin({ userKey:authority.senderKey, identityKeys:authority.senderIdentityKeys }, account, link),
+          channelAccept: () => nightPlay.channels.accept({ userKey:authority.senderKey, identityKeys:authority.senderIdentityKeys }, account),
+          channelCancel: () => nightPlay.channels.cancel({ userKey:authority.senderKey, identityKeys:authority.senderIdentityKeys }),
+          channelVerify: () => nightPlay.channels.verify({ userKey:authority.senderKey, identityKeys:authority.senderIdentityKeys }, accounts),
+          channelList: () => nightPlay.channels.list(nightPlay.channels.owner({ userKey:authority.senderKey, identityKeys:authority.senderIdentityKeys })),
           groupKey: isGroup(chat) ? chat : '',
           activityUserKey:activitySenderKey(authority.senderJid),
           getGroupActivity:period => isGroup(chat)
@@ -3526,7 +3533,7 @@ async function init() {
   await writeRuntimeRegistry()
   startSettingsWatcher()
   webServer = startWebPanel({
-    nightPlayHandler: createNightPlayHandler(nightPlay, { refreshAvatar:createNightPlayAvatarSync(nightPlay, accounts) }),
+    nightPlayHandler: createNightPlayHandler(nightPlay, { refreshAvatar:createNightPlayAvatarSync(nightPlay, accounts), accounts }),
     port: WEB_PORT,
     host: WEB_HOST,
     password: WEB_PASSWORD,
