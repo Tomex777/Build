@@ -27,6 +27,7 @@ on:
       - ".ci/slumber_107_tall_tiles/**"
       - ".ci/slumber_108_abr/**"
       - ".ci/slumber_109_endless/**"
+      - ".ci/slumber_110_visual_fixes/**"
   pull_request:
     branches: ["slumber-087-build"]
     paths:
@@ -53,6 +54,7 @@ on:
       - ".ci/slumber_107_tall_tiles/**"
       - ".ci/slumber_108_abr/**"
       - ".ci/slumber_109_endless/**"
+      - ".ci/slumber_110_visual_fixes/**"
 
 permissions:
   actions: read
@@ -309,6 +311,17 @@ jobs:
           ! test -f "$OUT/app/src/main/java/com/night/pianohub/ai/AiProvider.kt"
           ! grep -RiEq 'AiTeacherGateway|aiConfig|AI Teacher|Teacher model' "$OUT/app/src/main/java"
           grep -q 'minSdk = 26' "$OUT/app/build.gradle.kts"
+
+      - name: Apply endless tile visual QA fixes
+        shell: bash
+        run: |
+          set -euo pipefail
+          OUT=/tmp/slumber-088
+          base64 -d .ci/slumber_110_visual_fixes/finishing.patch.gz.b64 | gzip -dc > "$OUT/endless-finish.patch"
+          echo '8482fd64bf9a31929353596f185862a0f4be5a1b83661899041c26ac9fe286f2  /tmp/slumber-088/endless-finish.patch' | sha256sum -c -
+          patch -d "$OUT" -p1 < "$OUT/endless-finish.patch"
+          grep -q 'modifier.clipToBounds().semantics' "$OUT/app/src/main/java/com/night/pianohub/ui/components/SlumberTilesField.kt"
+          grep -q 'else "GAME OVER"' "$OUT/app/src/main/java/com/night/pianohub/ui/screens/PlayScreen.kt"
 
       - uses: actions/setup-java@v4
         with:
