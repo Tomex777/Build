@@ -4,7 +4,9 @@ import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { runFfmpeg } from './utils/media-conversion.js'
 import { reactionProviders, secureGifUrl, APPROVED_REACTION_HOSTS } from './utils/anime-reaction-providers.js'
-import { REACTION_NAMES, REACTIONS, sendReactionSticker } from './anime-reaction-stickers.js'
+// Isolate this provider-failover fixture from the registry test's warmed .smug
+// cache: the production cache-first path correctly skips upstream providers.
+import { REACTION_NAMES, REACTIONS, sendReactionSticker } from './anime-reaction-stickers.js?failover-fixture'
 
 assert.equal(REACTION_NAMES.length,60)
 for (const key of REACTION_NAMES) {
