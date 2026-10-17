@@ -16,8 +16,19 @@
   const update=next => {
     profile=next||null
     window.NightAccount.profile=profile
-    for(const button of document.querySelectorAll('[data-dialog="connect"]'))button.lastChild.textContent=profile?' Connected':' Connect WhatsApp'
-    document.getElementById('profileIdentityCaption').textContent=profile?'Connected through NIGHT on WhatsApp':'Your games. Your name. Your space.'
+    // The authenticated profile itself shows connectivity; never repeat Connected in the header/card.
+    for(const button of document.querySelectorAll('[data-dialog="connect"]'))button.hidden=Boolean(profile)
+    const caption=document.getElementById('profileIdentityCaption')
+    caption.hidden=true
+    caption.textContent=''
+    document.getElementById('profileAccountMenu').hidden=!profile
+    const avatar=document.getElementById('profileAvatar')
+    const fallback=document.getElementById('profileAvatarFallback')
+    const source=typeof profile?.avatarData==='string' && /^data:image\/(?:jpeg|png);base64,[A-Za-z0-9+/=]+$/.test(profile.avatarData) && profile.avatarData.length<370000 ? profile.avatarData : ''
+    avatar.hidden=!source
+    fallback.hidden=Boolean(source)
+    if(source){avatar.onerror=()=>{avatar.hidden=true;fallback.hidden=false};avatar.src=source}
+    else avatar.removeAttribute('src')
     document.getElementById('playerNameForm').querySelector('small').textContent=profile?'Saved to your NIGHT Play profile.':'Saved on this device.'
     if(typeof syncPlayerName==='function')syncPlayerName()
     if(typeof updateGreeting==='function')updateGreeting()
@@ -69,7 +80,7 @@
         try{
           const state=await api()
           if(id!==requestId)return
-          if(state.linked){update(state.profile);const body=show('You’re connected');body.append(element('p',state.profile.displayName,'account-name'),element('p','NIGHT verified your WhatsApp account.','modalnote'),button('Continue',()=>dialog.close()));return}
+          if(state.linked){update(state.profile);if(!state.profile?.avatarData)setTimeout(()=>api().then(v=>{if(v.linked)update(v.profile)}).catch(()=>{}),3000);const body=show('You’re connected');body.append(element('p',state.profile.displayName,'account-name'),element('p','NIGHT verified your WhatsApp account.','modalnote'),button('Continue',()=>dialog.close()));return}
           pending.textContent='Waiting for NIGHT to verify…'
         }catch(error){if(id!==requestId)return;pending.textContent=error.message}
         if(id===requestId)timer=setTimeout(poll,4000)
@@ -85,6 +96,7 @@
     catch(error){if(id===requestId)errorView(error.message,()=>window.NightAccount.open())}
     finally{busy=false}
   },saveName:async displayName=>{const data=await api('profile',{displayName});update(data.profile)}}
+  document.getElementById('profileAccountMenu').addEventListener('click',()=>window.NightAccount.open())
   dialog.addEventListener('close',stop)
   document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&!dialog.open)api().then(data=>update(data.profile)).catch(()=>{})})
   api().then(data=>update(data.profile)).catch(()=>{})
