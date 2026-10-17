@@ -26,6 +26,7 @@ on:
       - ".ci/slumber_106_portrait_tiles/**"
       - ".ci/slumber_107_tall_tiles/**"
       - ".ci/slumber_108_abr/**"
+      - ".ci/slumber_109_endless/**"
   pull_request:
     branches: ["slumber-087-build"]
     paths:
@@ -51,6 +52,7 @@ on:
       - ".ci/slumber_106_portrait_tiles/**"
       - ".ci/slumber_107_tall_tiles/**"
       - ".ci/slumber_108_abr/**"
+      - ".ci/slumber_109_endless/**"
 
 permissions:
   actions: read
@@ -294,6 +296,20 @@ jobs:
           ! grep -q 'OutlinedTextField' "$OUT/app/src/main/java/com/night/pianohub/ui/screens/SongsScreen.kt"
           ! grep -q 'OutlinedTextField' "$OUT/app/src/main/java/com/night/pianohub/ui/screens/PianoScreen.kt"
 
+      - name: Apply endless Piano Tiles and remove all AI features
+        shell: bash
+        run: |
+          set -euo pipefail
+          OUT=/tmp/slumber-088
+          base64 -d .ci/slumber_109_endless/endless.patch.gz.b64 | gzip -dc > "$OUT/endless.patch"
+          echo 'f610479dcbb7d98899c0d13cb24daecf911426c41f0734e0e3ab3dfdccdc2cf5  /tmp/slumber-088/endless.patch' | sha256sum -c -
+          patch -d "$OUT" -p1 < "$OUT/endless.patch"
+          test -s "$OUT/app/src/main/java/com/night/pianohub/music/EndlessTilesRun.kt"
+          grep -q 'ENDLESS TILES' "$OUT/app/src/main/java/com/night/pianohub/ui/screens/PlayScreen.kt"
+          ! test -f "$OUT/app/src/main/java/com/night/pianohub/ai/AiProvider.kt"
+          ! grep -RiEq 'AiTeacherGateway|aiConfig|AI Teacher|Teacher model' "$OUT/app/src/main/java"
+          grep -q 'minSdk = 26' "$OUT/app/build.gradle.kts"
+
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -363,7 +379,7 @@ jobs:
           emulator-boot-timeout: 360
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -no-snapshot-save -no-metrics
-          script: bash .ci/slumber_108_abr/validate-abr.sh /tmp/slumber-088/app/build/outputs/apk/debug/app-debug.apk /tmp/slumber-product-proof full
+          script: bash .ci/slumber_109_endless/validate-endless.sh /tmp/slumber-088/app/build/outputs/apk/debug/app-debug.apk /tmp/slumber-product-proof full
 
       - uses: actions/upload-artifact@v4
         if: always()
@@ -384,7 +400,7 @@ jobs:
           emulator-boot-timeout: 360
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -no-snapshot-save -no-metrics
-          script: bash .ci/slumber_108_abr/validate-abr.sh /tmp/slumber-088/app/build/outputs/apk/debug/app-debug.apk /tmp/slumber-api26-proof quick
+          script: bash .ci/slumber_109_endless/validate-endless.sh /tmp/slumber-088/app/build/outputs/apk/debug/app-debug.apk /tmp/slumber-api26-proof quick
 
       - uses: actions/upload-artifact@v4
         if: always()
@@ -456,7 +472,7 @@ jobs:
           emulator-boot-timeout: 360
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -no-snapshot-save -no-metrics
-          script: bash .ci/slumber_098_release/validate-release-smoke.sh /tmp/slumber-release-out/Slumber-0.8.8-universal-release-QA.apk 26 /tmp/slumber-release-api26-proof
+          script: bash .ci/slumber_109_endless/validate-endless.sh /tmp/slumber-release-out/Slumber-0.8.8-universal-release-QA.apk /tmp/slumber-release-api26-proof quick
 
       - uses: actions/upload-artifact@v4
         if: always()
@@ -479,7 +495,7 @@ jobs:
           emulator-boot-timeout: 360
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -no-snapshot-save -no-metrics
-          script: bash .ci/slumber_108_abr/validate-abr.sh /tmp/slumber-release-out/Slumber-0.8.8-universal-release-QA.apk /tmp/slumber-release-proof full
+          script: bash .ci/slumber_109_endless/validate-endless.sh /tmp/slumber-release-out/Slumber-0.8.8-universal-release-QA.apk /tmp/slumber-release-proof full
 
       - uses: actions/upload-artifact@v4
         if: always()
