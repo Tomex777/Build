@@ -2,6 +2,7 @@
 // GIFs are source material only; WhatsApp receives animated WebP stickers, never GIF messages.
 import { contextInfo } from './utils/whatsapp/messages.js'
 import { mediaToSticker } from './utils/media-conversion.js'
+import { applyStickerMetadata, DEFAULT_STICKER_PACK_NAME } from './utils/sticker-metadata.js'
 import { stickerPackNameForCommand } from './utils/sticker-metadata.js'
 import { reactionProviders } from './utils/anime-reaction-providers.js'
 
@@ -21,12 +22,75 @@ export const REACTIONS = Object.freeze(Object.fromEntries(
 export const REACTION_NAMES = Object.freeze(Object.keys(REACTIONS))
 const USER_AGENT = 'NIGHT-Anime-Stickers (https://github.com/Tomex777/Build)'
 const MAX_MEDIA_BYTES = 16 * 1024 * 1024
+// Prepared animated WebP stickers are far cheaper to send than re-downloading
+// and re-encoding a GIF on *every* reaction. Keep the cache bounded on the
+// Azure worker (Node's heap limit is intentionally small), and scoped to the
+// exact reaction + sticker pack so users' pack credits never leak.
 const stickerCache = new Map()
-const CACHE_ENTRIES = 12
-function rememberSticker(cacheKey, sticker) {
+const foreground = new Map()
+const rawForeground = new Map()
+const MAX_CACHE_BYTES = 10 * 1024 * 1024
+const MAX_CACHE_KEYS = 24
+const MAX_VARIANTS = 2
+const MAX_VARIANT_BYTES = 900 * 1024
+const CACHE_TTL_MS = 30 * 60 * 1000
+const REFRESH_INTERVAL_MS = 90 * 1000
+let backgroundBusy = false
+
+function trimmed(entry, now = Date.now()) {
+  return entry.variants.filter(row => now - row.at < CACHE_TTL_MS)
+}
+function cacheBytes() {
+  let bytes = 0
+  for (const entry of stickerCache.values()) for (const row of entry.variants) bytes += row.sticker.length
+  return bytes
+}
+function enforceCacheLimits() {
+  const now = Date.now()
+  for (const [key, entry] of stickerCache) {
+    entry.variants = trimmed(entry, now)
+    if (!entry.variants.length) stickerCache.delete(key)
+  }
+  while (stickerCache.size > MAX_CACHE_KEYS || cacheBytes() > MAX_CACHE_BYTES) {
+    stickerCache.delete(stickerCache.keys().next().value)
+  }
+}
+function rememberSticker(cacheKey, sticker, sourceId) {
+  if (!Buffer.isBuffer(sticker) || !sticker.length || sticker.length > MAX_VARIANT_BYTES) return
+  let entry = stickerCache.get(cacheKey)
+  if (!entry) entry = { variants:[],hits:0,nextRefresh:Date.now()+REFRESH_INTERVAL_MS }
+  entry.variants = trimmed(entry).filter(item => item.sourceId !== sourceId)
+  entry.variants.push({ sticker, sourceId, at:Date.now() })
+  while (entry.variants.length > MAX_VARIANTS) entry.variants.shift()
+  entry.nextRefresh = Date.now()+REFRESH_INTERVAL_MS
   stickerCache.delete(cacheKey)
-  stickerCache.set(cacheKey,sticker)
-  while (stickerCache.size > CACHE_ENTRIES) stickerCache.delete(stickerCache.keys().next().value)
+  stickerCache.set(cacheKey,entry)
+  enforceCacheLimits()
+}
+function cachedSticker(cacheKey) {
+  const entry = stickerCache.get(cacheKey)
+  if (!entry) return null
+  entry.variants = trimmed(entry)
+  if (!entry.variants.length) { stickerCache.delete(cacheKey); return null }
+  const next = entry.variants[entry.hits++ % entry.variants.length]
+  // A cache read updates LRU order, but never extends an expired source clip.
+  stickerCache.delete(cacheKey)
+  stickerCache.set(cacheKey,entry)
+  return {sticker:next.sticker, sourceId:next.sourceId, entry}
+}
+// CI fixture isolation only; never called in the running WhatsApp service.
+export function resetAnimeReactionCacheForTests() {
+  if (foreground.size || rawForeground.size || backgroundBusy) throw new Error('Cannot reset an active reaction render')
+  stickerCache.clear()
+}
+export function animeReactionCacheStats() {
+  enforceCacheLimits()
+  return Object.freeze({
+    keys:stickerCache.size,
+    variants:[...stickerCache.values()].reduce((sum,entry)=>sum+entry.variants.length,0),
+    bytes:cacheBytes(),
+    maxBytes:MAX_CACHE_BYTES,
+  })
 }
 const groupTag = /(^|\s)@(?:all|everyone|here)(?=\s|$|\W)/iu
 
@@ -90,21 +154,15 @@ async function downloadGif(url) {
   return content
 }
 
-export async function sendReactionSticker(ctx, category) {
-  const chat = ctx.message?.key?.remoteJid
-  const sock = ctx.account?.sock
-  if (!sock || !chat) return ctx.reply('WhatsApp is unavailable.')
-  let mentions
-  try { mentions = mentionedTargets(ctx) }
-  catch (error) { return ctx.reply(error.message) }
-  const packName = stickerPackNameForCommand(ctx)
-  // Do not use another sender's personalized sticker-pack metadata from cache.
-  const cacheKey = category + '|' + packName
+// The original GIF-to-WebP conversion does not depend on the caller. Cache a
+// *neutral* reaction WebP by category, then apply personalized pack metadata
+// cheaply without FFmpeg. Different senders share the expensive work without
+// accidentally receiving somebody else's pack name or publisher credits.
+async function buildRawReaction(category, {limited = false} = {}) {
   const failures = []
-  // Each reaction remains an animated rounded WebP sticker. An upstream HTTP
-  // failure, dead GIF or failed conversion must never disable every command
-  // except .kill. Retry independent sources for the SAME action.
-  for (const provider of reactionProviders(category)) {
+  let providers = reactionProviders(category)
+  if (limited) providers = providers.slice(0,2)
+  for (const provider of providers) {
     let candidates
     try { candidates = await provider.resolve() }
     catch (error) {
@@ -115,31 +173,101 @@ export async function sendReactionSticker(ctx, category) {
       try {
         const gif = await downloadGif(url)
         const sticker = await mediaToSticker(gif, {
-          animated:true,
-          packName,
+          animated:true, fastAnimated:true, packName:DEFAULT_STICKER_PACK_NAME,
         })
-        if (sticker.length > 900 * 1024) throw new Error('Converted sticker exceeds WhatsApp target size')
-        const delivered = await sock.sendMessage(chat, { sticker, ...(mentions.length ? {mentions} : {}) }, {quoted:ctx.message})
-        rememberSticker(cacheKey,sticker)
-        return delivered
+        if (sticker.length > MAX_VARIANT_BYTES) throw new Error('Converted sticker exceeds WhatsApp target size')
+        rememberSticker('raw:'+category,sticker,url)
+        return {sticker,sourceId:url}
       } catch (error) {
         failures.push(provider.name + ': ' + String(error?.message || error).slice(0,140))
       }
     }
   }
-  // Last-known-good animated sticker is preferable to silently failing when
-  // every provider is temporarily down. Cache is strictly bounded in RAM.
-  const cached = stickerCache.get(cacheKey)
-  if (cached) {
+  throw new Error(failures.join(' | ').slice(0,600) || 'No available GIF sources')
+}
+
+async function prepareReactionSticker(category, packName, cacheKey, {limited=false,force=false} = {}) {
+  let source = force ? null : cachedSticker('raw:'+category)
+  if (!source) {
+    let pending = rawForeground.get(category)
+    if (!pending) {
+      pending = buildRawReaction(category,{limited})
+      rawForeground.set(category,pending)
+      void pending.finally(() => {
+        if (rawForeground.get(category)===pending) rawForeground.delete(category)
+      }).catch(()=>{})
+    }
+    source = await pending
+  }
+  const sticker = await applyStickerMetadata(source.sticker,{packName})
+  if (sticker.length > MAX_VARIANT_BYTES) throw new Error('Sticker metadata exceeds WhatsApp target size')
+  rememberSticker(cacheKey,sticker,source.sourceId)
+  return sticker
+}
+
+// Keep two varied clips ready for popular reactions without adding latency to
+// the message being sent. Refresh is opportunistic, one at a time, and never
+// performed during another foreground reaction conversion.
+function maybeRefresh(cacheKey, category, packName, entry) {
+  if (Date.now() < entry.nextRefresh || entry.hits < 2 || backgroundBusy) return
+  entry.nextRefresh = Date.now() + REFRESH_INTERVAL_MS
+  const timer = setTimeout(async () => {
+    if (backgroundBusy || foreground.size) return
+    backgroundBusy = true
     try {
-      return await sock.sendMessage(chat,{ sticker:cached, ...(mentions.length ? {mentions} : {}) },{quoted:ctx.message})
+      await prepareReactionSticker(category,packName,cacheKey,{limited:true,force:true})
+    } catch {
+      // Keep the previously verified animation; network providers are optional.
+    } finally { backgroundBusy = false }
+  }, 2500)
+  timer.unref?.()
+}
+
+export async function sendReactionSticker(ctx, category) {
+  const chat = ctx.message?.key?.remoteJid
+  const sock = ctx.account?.sock
+  if (!sock || !chat) return ctx.reply('WhatsApp is unavailable.')
+  let mentions
+  try { mentions = mentionedTargets(ctx) }
+  catch (error) { return ctx.reply(error.message) }
+  const packName = stickerPackNameForCommand(ctx)
+  const cacheKey = category + '|' + packName
+  const began = Date.now()
+  let sticker, cached = false
+  const ready = cachedSticker(cacheKey)
+  if (ready) {
+    sticker = ready.sticker
+    cached = true
+    maybeRefresh(cacheKey,category,packName,ready.entry)
+  } else {
+    let pending = foreground.get(cacheKey)
+    if (!pending) {
+      pending = prepareReactionSticker(category,packName,cacheKey)
+      foreground.set(cacheKey,pending)
+      // A failed provider must not strand all future requests for the same
+      // reaction; delete only after the original pending task settles.
+      void pending.finally(() => {
+        if (foreground.get(cacheKey) === pending) foreground.delete(cacheKey)
+      }).catch(()=>{})
+    }
+    try {
+      sticker = await pending
     } catch (error) {
-      failures.push('WhatsApp: ' + String(error?.message || error).slice(0,140))
+      console.warn('NIGHT anime reaction exhausted ('+category+'): '+String(error?.message||error).slice(0,650))
+      return ctx.reply('NIGHT could not load that anime reaction from its available sticker sources right now. Try again shortly.')
     }
   }
-  console.warn('NIGHT anime reaction providers exhausted (' + category + '): ' + failures.join(' | ').slice(0,850))
-  return ctx.reply('NIGHT could not load that anime reaction from its available sticker sources right now. Try again shortly.')
-
+  try {
+    const delivered = await sock.sendMessage(chat, {
+      sticker, ...(mentions.length ? {mentions} : {}),
+    }, {quoted:ctx.message})
+    const elapsed = Date.now()-began
+    if (elapsed >= 2500) console.info('NIGHT reaction latency: '+category+' '+elapsed+'ms '+(cached?'cached':'prepared'))
+    return delivered
+  } catch (error) {
+    console.warn('NIGHT reaction WhatsApp delivery failed ('+category+'): '+String(error?.message||error).slice(0,160))
+    return ctx.reply('NIGHT prepared that anime sticker but WhatsApp could not send it. Try again shortly.')
+  }
 }
 
 export function makeReactionCommand(name, category = REACTIONS[name]) {
