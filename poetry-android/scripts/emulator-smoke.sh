@@ -25,11 +25,15 @@ set -e
 for screen in home settings writer studio elements element-selected slider-adjusted; do
   adb pull "/sdcard/Android/data/com.night.poetry/files/poetry-${screen}.png" "${OUT}-${screen}.png" || true
 done
+# Real native bitmap exports produced by ReleaseChecks instrumentation.
+for proof in poetry-export-card-1080.png poetry-export-card-4k.png; do
+  adb pull "/sdcard/Android/data/com.night.poetry/files/${proof}" "${OUT}-${proof}" || true
+done
 if [ "$instrument_result" -ne 0 ]; then
   echo "Instrumentation failed with code $instrument_result" >&2
   exit "$instrument_result"
 fi
-grep -Fq 'OK (5 tests)' "${OUT}-instrumentation.txt" || {
+grep -Fq 'OK (7 tests)' "${OUT}-instrumentation.txt" || {
   echo "Instrumentation did not report success" >&2
   cat "${OUT}-instrumentation.txt" >&2
   exit 1
