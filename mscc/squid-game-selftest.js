@@ -95,11 +95,11 @@ function harness() {
   await react(PLAYER_A)
   await react(PLAYER_B)
   await react(ADMIN)
-  assert.equal(Object.keys(engine.get(CHAT).players).length,2)
+  assert.equal(Object.keys(engine.get(CHAT).players).length,3)
   await react(PLAYER_C)
   await react(PLAYER_C,'')
-  assert.equal(Object.keys(engine.get(CHAT).players).length,2)
-  clock += 60001
+  assert.equal(Object.keys(engine.get(CHAT).players).length,3)
+  clock += 15 * 60000 + 1
   await engine.tick()
   assert.equal(engine.get(CHAT).phase,'GREEN')
   assert.equal(await talk(PLAYER_A,'hi'),true)
@@ -131,7 +131,7 @@ function harness() {
   await react(PLAYER_A)
   await react(PLAYER_B)
   await react(PLAYER_C)
-  clock += 60001
+  clock += 15 * 60000 + 1
   await engine.tick()
   assert.equal(state.announce,true)
   assert.equal(state.participants.filter(p=>p.admin==='admin').length,3)
@@ -169,7 +169,7 @@ function harness() {
   await engine.start(adminContext,'kick')
   await react(PLAYER_A)
   await react(PLAYER_B)
-  clock += 60001
+  clock += 15 * 60000 + 1
   await engine.tick()
   for (const player of [PLAYER_A,PLAYER_B]) {
     await talk(player,'first')
@@ -195,13 +195,120 @@ function harness() {
   await engine.start(adminContext,'cg')
   await react(PLAYER_A)
   await react(PLAYER_B)
-  clock += 60001
+  clock += 15 * 60000 + 1
   await engine.tick()
   await engine.stop({...adminContext,message:{key:{remoteJid:CHAT,participant:PLAYER_A}}})
   assert.equal(engine.get(CHAT).phase,'GREEN')
   await engine.stop(adminContext)
   assert.equal(engine.get(CHAT),null)
   assert.equal(state.announce,false)
+}
+
+
+// Two players are enough, including an original group admin who explicitly
+// opted in. Admins can lose the game, but must never be kicked or demoted.
+{
+  clock += 100000
+  const {state,engine,adminContext,react,talk} = harness()
+  await engine.start(adminContext,'kick',['30m'])
+  assert.match(state.sent[0].text,/30m/)
+  assert.equal(engine.get(CHAT).nextAt - clock,30 * 60000)
+  await react(ADMIN)
+  await react(PLAYER_A)
+  assert.equal(Object.keys(engine.get(CHAT).players).length,2)
+  await engine.status(adminContext)
+  assert.match(state.sent.at(-1).text,/2 of 2 minimum/)
+  await engine.launch(adminContext)
+  assert.equal(engine.get(CHAT).phase,'GREEN')
+  assert.equal(engine.get(CHAT).players[ADMIN].protected,true)
+  assert.equal(engine.get(CHAT).players[PLAYER_A].protected,false)
+  for(const text of ['one','two','three']) await talk(PLAYER_A,text)
+  clock += 23000
+  await engine.tick()
+  clock += 1900
+  await engine.tick()
+  assert.equal(engine.get(CHAT),null)
+  assert.ok(!state.actions.some(action=>action==='remove:'+ADMIN))
+  assert.match(state.sent.at(-1).text,/CHAMPION/)
+}
+
+// Admin can schedule a WAT clock time (react immediately, start later);
+// registration can be extended and launched early, but cannot start with one.
+{
+  clock += 100000
+  const {state,engine,adminContext,react} = harness()
+  const hour = (new Date(clock + 3600000).getUTCHours() + 1) % 24
+  const scheduled = String(hour).padStart(2,'0') + ':00'
+  await engine.start(adminContext,'kick',['at',scheduled])
+  let game = engine.get(CHAT)
+  const wat = new Date(game.nextAt + 3600000)
+  assert.equal(wat.getUTCHours(),hour)
+  assert.equal(wat.getUTCMinutes(),0)
+  assert.ok(game.nextAt > clock && game.nextAt <= clock + 86400000)
+  await react(PLAYER_A)
+  await engine.launch(adminContext)
+  assert.equal(engine.get(CHAT).phase,'REGISTERING')
+  assert.match(state.sent.at(-1).text,/at least 2 registered/)
+  const initialDeadline = game.nextAt
+  await engine.extend(adminContext,['10m'])
+  game = engine.get(CHAT)
+  assert.equal(game.nextAt,initialDeadline + 600000)
+  await react(PLAYER_B)
+  await engine.launch(adminContext)
+  assert.equal(engine.get(CHAT).phase,'GREEN')
+}
+
+// Duplicate LID/PN reactions must count as one user; unsubscribing removes
+// that player; both Baileys reaction events and upsert-derived shapes work.
+{
+  clock += 100000
+  const {state,engine,adminContext,react,account} = harness()
+  state.participants[1].lid='lidtest111111@lid'
+  await engine.start(adminContext,'kick',['1h'])
+  await react(PLAYER_A)
+  await react('lidtest111111@lid')
+  assert.equal(Object.keys(engine.get(CHAT).players).length,1)
+  await engine.onReaction(account,{
+    key:{id:engine.get(CHAT).registrationId,remoteJid:CHAT},
+    reaction:{key:{participant:'lidtest111111@lid',fromMe:false},text:''},
+  })
+  assert.equal(Object.keys(engine.get(CHAT).players).length,0)
+  await react(PLAYER_A)
+  await react(PLAYER_B)
+  await engine.launch(adminContext)
+  assert.equal(engine.get(CHAT).phase,'GREEN')
+}
+
+// Registered original admins can still stop the game, including during RED;
+// players do not receive an exemption for non-admin chatter.
+{
+  clock += 100000
+  const {state,engine,adminContext,react,account,talk} = harness()
+  await engine.start(adminContext,'kick',['10m'])
+  await react(ADMIN)
+  await react(PLAYER_A)
+  await engine.launch(adminContext)
+  clock += 23000
+  await engine.tick()
+  assert.equal(engine.get(CHAT).phase,'RED')
+  const stopMessage = {
+    key:{ remoteJid:CHAT, participant:ADMIN, fromMe:false, id:'admin-command-' + ++counter },
+    messageTimestamp:Math.floor(clock / 1000),
+    message:{conversation:'.squidgame stop'},
+  }
+  assert.equal(await engine.onMessage(account,stopMessage),false)
+  assert.equal(engine.get(CHAT).phase,'RED')
+  await engine.stop(adminContext)
+  assert.equal(engine.get(CHAT),null)
+  assert.ok(!state.actions.includes('remove:'+ADMIN))
+}
+
+// Invalid options fail without opening a session.
+{
+  clock += 100000
+  const {engine,adminContext} = harness()
+  await assert.rejects(()=>engine.start(adminContext,'kick',['25h']),/between 1 minute and 24 hours/)
+  assert.equal(engine.get(CHAT),null)
 }
 
 console.log('Squid Game selftest passed')
