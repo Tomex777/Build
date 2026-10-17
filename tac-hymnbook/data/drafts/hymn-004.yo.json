@@ -1,0 +1,38 @@
+{
+  "number": 4,
+  "collection": "main",
+  "language": "yo",
+  "title": "Níwájú ìtẹ́ àánú",
+  "pages": [
+    2
+  ],
+  "status": "draft_photo_checked_online",
+  "online_comparison": "https://gospelsongs.com.ng/niwaju-ite-anu-yoruba-hymn/",
+  "review_notes": "All four verses visible in user photograph. Spellings and tone marks standardized provisionally; needs a final orthographic pass.",
+  "verses": [
+    [
+      "Níwájú ìtẹ́ àánú",
+      "Àwa wọlé fún Ọ",
+      "Àwa ń yin Ọ, Olúwa",
+      "Ó dùn láti mọ Ọ."
+    ],
+    [
+      "Àwa ń júbà Rẹ Jésù",
+      "Ẹni tí a pa fún wa",
+      "Ìwọ tó ń jọba lókè",
+      "Tó sì tún ń padà bọ̀."
+    ],
+    [
+      "Àwa ń júbà Rẹ Jésù",
+      "Fún ìràpadà wa",
+      "Ìwọ fẹ́ wa láìfẹ̀tàn",
+      "Àwa yóò máa yin Ọ."
+    ],
+    [
+      "Àwa ń júbà Rẹ Jésù",
+      "Ọpẹ́ ńlá ló yẹ Ọ",
+      "Títí la ó máa yin Ọ",
+      "A ó sì ṣe Ọ l'Ọba."
+    ]
+  ]
+}
