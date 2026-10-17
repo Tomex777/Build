@@ -2636,7 +2636,10 @@
         "focal": [
           0.5,
           0.3
-        ]
+        ],
+        "powerBadgeTone": {
+          "emberglass": "light"
+        }
       },
       "number": 57
     },
@@ -3613,8 +3616,6 @@
       "character": "ichigo",
       "form": "human",
       "displayName": "Human / everyday Ichigo",
-      "proposedTier": "common",
-      "design": "vanguard",
       "continuity": "anime",
       "artworkProfile": null,
       "artworkStatus": "requires-form-matched-artwork"
@@ -3624,8 +3625,6 @@
       "character": "ichigo",
       "form": "fullbring",
       "displayName": "Fullbring",
-      "proposedTier": "rare",
-      "design": "ivory",
       "continuity": "anime",
       "artworkProfile": null,
       "artworkStatus": "requires-form-matched-artwork"
@@ -3635,8 +3634,6 @@
       "character": "ichigo",
       "form": "hollow-mask",
       "displayName": "Hollow-mask Ichigo",
-      "proposedTier": "epic",
-      "design": "voltage",
       "continuity": "anime",
       "artworkProfile": null,
       "artworkStatus": "requires-form-matched-artwork"
@@ -3646,8 +3643,6 @@
       "character": "ichigo",
       "form": "full-hollow",
       "displayName": "Full Hollow (commonly called Vasto Lorde)",
-      "proposedTier": "legendary",
-      "design": "crimson",
       "continuity": "anime",
       "artworkProfile": null,
       "artworkStatus": "requires-form-matched-artwork"
@@ -3657,8 +3652,6 @@
       "character": "ichigo",
       "form": "fullbring-bankai",
       "displayName": "Fullbring-enhanced Bankai",
-      "proposedTier": "legendary",
-      "design": "crimson",
       "continuity": "anime",
       "artworkProfile": null,
       "artworkStatus": "requires-form-matched-artwork"
@@ -3668,8 +3661,6 @@
       "character": "ichigo",
       "form": "dangai",
       "displayName": "Dangai-trained Ichigo",
-      "proposedTier": "mythic",
-      "design": "emberglass",
       "continuity": "anime",
       "artworkProfile": null,
       "artworkStatus": "requires-form-matched-artwork"
@@ -3679,8 +3670,6 @@
       "character": "ichigo",
       "form": "true-shikai",
       "displayName": "True Shikai",
-      "proposedTier": "mythic",
-      "design": "emberglass",
       "continuity": "anime",
       "artworkProfile": null,
       "artworkStatus": "requires-form-matched-artwork"
@@ -3690,8 +3679,6 @@
       "character": "ichigo",
       "form": "mugetsu",
       "displayName": "Final Getsuga Tensho \u2014 Mugetsu",
-      "proposedTier": "secret-rare",
-      "design": "obsidian",
       "continuity": "anime",
       "artworkProfile": null,
       "artworkStatus": "requires-form-matched-artwork"
@@ -3701,8 +3688,6 @@
       "character": "ichigo",
       "form": "true-bankai",
       "displayName": "True Bankai",
-      "proposedTier": "secret-rare",
-      "design": "obsidian",
       "continuity": "anime",
       "artworkProfile": null,
       "artworkStatus": "requires-form-matched-artwork"
@@ -3712,8 +3697,6 @@
       "character": "ichigo",
       "form": "horn-of-salvation",
       "displayName": "Horn of Salvation",
-      "proposedTier": "celestial",
-      "design": "tidelight",
       "continuity": "anime",
       "artworkProfile": null,
       "artworkStatus": "requires-form-matched-artwork"
@@ -3723,8 +3706,6 @@
       "character": "ichigo",
       "form": "hell-verse",
       "displayName": "Hell Verse empowered Ichigo",
-      "proposedTier": "celestial",
-      "design": "tidelight",
       "continuity": "film-hell-verse",
       "artworkProfile": null,
       "artworkStatus": "requires-form-matched-artwork"
@@ -3734,8 +3715,6 @@
       "character": "ichigo",
       "form": "blood-chains",
       "displayName": "Blood Chains Ichigo",
-      "proposedTier": "transcendent",
-      "design": "nocturne",
       "continuity": "anime",
       "artworkProfile": null,
       "artworkStatus": "requires-form-matched-artwork"
