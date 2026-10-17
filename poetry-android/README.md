@@ -1,39 +1,53 @@
-# Poetry — native Android writing & card studio
+# Poetry — offline Android poetry and portrait card studio
 
-The Poetry app lives in `Tomex777/Build` on the **`poetry-android`** branch,
-under the `poetry-android/` directory.
+**Version:** 1.0.0 · **Minimum Android:** 8.0 (API 26)
 
-- Kotlin + Jetpack Compose, target/compile API 35, **minSdk 26 (Android 8.0)**.
-- Two distinct workflows: distraction-free poem writing and portrait-card design.
-- Cards: curated templates, home-template quick start, custom backgrounds,
-  searchable SVG-derived Android VectorDrawables, editable objects and layers,
-  and multi-page poem slides.
-- Offline draft persistence using Android AtomicFile, with an emergency recovery
-  copy for unreadable libraries.
-- PNG card export at 1080×1920 or 2160×3840; Android 10+ uses MediaStore,
-  Android 8–9 uses app-owned storage + FileProvider for sharing.
-- View-only pinch zoom and two-finger pan, with a single **Zoom to fit** reset.
-- Element browser categories are generated from real library entries. Only one
-  insertion action exists per element tile, with a separate favourite action.
-- Empty card export does not silently insert preview sample prose.
-- The editor uses custom-styled Compose inputs and Android vector imagery.
+Poetry is built under `poetry-android/` on the `poetry-android` branch of
+`Tomex777/Build`. It is Kotlin + Jetpack Compose, without accounts,
+network permissions, paid services, or AI models. It does not include
+drawing tools or MISE Studio.
 
-## ABR acceptance criteria
+## Complete launch scope
 
-1. No duplicate actions or nonfunctional controls; avoid filler labels.
-2. Avoid default platform text-input visual styles **and default Android sliders**. Every slider must use the bespoke branded rail, knob, accessible tap/drag handling, and a readable live value. See root `ABR.md`.
-3. Keep icons vector-based, with legible tap targets.
-4. **Never raise minSdk above 26.**
-5. Verify successful native compile, launch, UI interactions, and persistence.
-6. Exercise API 26 and API 35 emulator tests and capture screenshots/logcat.
-7. Treat **build passing** and **functional testing passing** as separate checks.
+- Private, offline poem library with editor, author field, draft recovery,
+  lifecycle saves and persistent card designs.
+- Distinct writing and Canva-like portrait card design experiences.
+- Built-in theme templates, saved custom backgrounds, vector elements,
+  favorite/recent elements, layered editing and accessible bespoke sliders.
+- Multi-page cards, stanza splitting, custom text and layout controls.
+- Portrait PNG rendering at 1080×1920 or 2160×3840, with full-resolution
+  text/vector rasterization and error handling when text cannot fit.
+- Android 10+: standard Pictures / Poetry save. Android 8–9: choose a document
+  or folder via the system file picker. Sharing works across supported versions.
+- Portable **JSON backup and restore**, including poem text, all slide
+  overrides, card designs, placed vector elements and custom backgrounds.
+  Import validates the archive and requests confirmation before replacement.
+- Appearance themes and vector launcher icon; `minSdk = 26` is locked.
 
-## GitHub Actions QA
+## Release acceptance / ABR
 
-`.github/workflows/poetry-android-qa.yml` assembles a debug APK and Android
-test APK, runs unit tests, and uses API 26/35 emulators for the write → design
-→ elements filtering smoke path. It uploads APKs, screenshot and logcat outputs.
-Check the latest GitHub Actions run before claiming testing has passed.
+Every default Android/Material slider has been replaced by a functioning
+custom control with a branded rail/thumb, live values and accessibility
+semantics. See [ABR](../ABR.md).
 
-HTML design previews are only review companions, not the production Android app.
-Drawing tools and MISE are intentionally excluded from Poetry.
+GitHub workflow: `.github/workflows/poetry-android-qa.yml`.
+
+Checks required before an **unsigned 1.0 release** appears as a GitHub artifact:
+1. Compiled debug APK, instrumentation APK and unsigned release APK.
+2. JVM tests and Android lint checks.
+3. Android 8 (API 26) and Android 15 (API 35) emulator tests for the writer,
+   selected controls, persistence, restart, JSON backup/restore, HD/4K export,
+   real `content://` output streams, multiple pages and overflow errors.
+4. Capture actual emulator screen images and 1080/4K native PNGs.
+5. Verify `minSdk 26` and ensure INTERNET/ACCESS_NETWORK_STATE are absent.
+
+**Signing:** The workflow deliberately does not request or store a production
+keystore. The production artifact remains unsigned until a permanent key is
+created and secured. A debug-signed artifact is available for direct installation
+and testing, but must not be confused with the production release APK.
+
+**Physical-device QA:** CI verifies two Android emulators, not every handset.
+Before distributing publicly, perform an install/upgrade and document-picker
+round-trip on a real Android 8–9 handset if available.
+
+No separate AI step is needed for offline app operation.
