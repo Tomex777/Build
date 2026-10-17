@@ -53,7 +53,7 @@ body>footer{display:none}
 /* Block Drop is 10 x 20 cells. Size by the SHORTER usable dimension,
    not by viewport width alone: a 390px wide board would be 780px tall. */
 #screen.mode-blocks{
- width:min(100%,465px,calc((100dvh - 260px - env(safe-area-inset-bottom,0px))/2));
+ width:min(100%,465px,calc((100dvh - 310px - env(safe-area-inset-bottom,0px))/2));
  max-width:calc(100vw - 20px);
  height:auto;
  max-height:none;
