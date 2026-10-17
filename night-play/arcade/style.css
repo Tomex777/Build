@@ -50,9 +50,35 @@ body>footer{display:none}
 
 .touchbar:empty{display:none}
 
-/* Tetris-style Block Drop should occupy the width of the usable game viewport. */
-#screen.mode-blocks{width:min(100%,465px);max-width:465px;max-height:none;border-width:1px;border-radius:8px;box-shadow:0 8px 21px #1b44382b}
+/* Block Drop is 10 x 20 cells. Size by the SHORTER usable dimension,
+   not by viewport width alone: a 390px wide board would be 780px tall. */
+#screen.mode-blocks{
+ width:min(100%,465px,calc((100dvh - 310px - env(safe-area-inset-bottom,0px))/2));
+ max-width:calc(100vw - 20px);
+ height:auto;
+ max-height:none;
+ aspect-ratio:1/2;
+ border-width:1px;
+ border-radius:8px;
+ box-shadow:0 8px 21px #1b44382b;
+}
 @media(max-width:650px){
- #screen.mode-blocks{width:100%;max-width:calc(100vw - 12px);max-height:none}
- body:has(#screen.mode-blocks:not([hidden])) main{padding-left:5px;padding-right:5px}
+ /* Reserve actual screen space for the header, HUD and the touch controls.
+    On unusually short screens the board itself fits; controls may scroll. */
+ #screen.mode-blocks{
+  width:min(100%,465px,max(175px,calc((100dvh - 320px - env(safe-area-inset-bottom,0px))/2)));
+  max-width:calc(100vw - 20px);
+ }
+ body:has(#screen.mode-blocks:not([hidden])) main{padding:7px 7px 8px}
+ body:has(#screen.mode-blocks:not([hidden])) .night-game-intro{padding:0 0 6px}
+ body:has(#screen.mode-blocks:not([hidden])) .night-game-intro .night-eyebrow,
+ body:has(#screen.mode-blocks:not([hidden])) .night-game-intro p{display:none}
+ body:has(#screen.mode-blocks:not([hidden])) .night-game-intro h1{font-size:24px;margin:0}
+ body:has(#screen.mode-blocks:not([hidden])) .night-play-hud{padding:5px 8px;margin-bottom:6px}
+ body:has(#screen.mode-blocks:not([hidden])) .touchbar{margin-top:8px;min-height:42px}
+ body:has(#screen.mode-blocks:not([hidden])) .touchbar button{min-height:42px}
+ body:has(#screen.mode-blocks:not([hidden])) .night-action-row{margin:8px auto}
+ body:has(#screen.mode-blocks:not([hidden])) .night-action-row button{min-height:38px}
+ body:has(#screen.mode-blocks:not([hidden])) #message{margin:1px auto}
+ body:has(#screen.mode-blocks:not([hidden])) #extra{margin:1px auto;line-height:1.4}
 }
