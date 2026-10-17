@@ -75,6 +75,11 @@ for(const [width,height] of viewportCases){
  assert.ok(bounds.pauseRight<=bounds.screenWidth+1,'pause stays visible after resize');
  assert.ok(bounds.pageWidth<=bounds.screenWidth+2,'no sideways scroll after resize at '+width+'×'+height);
  assert.ok(bounds.cssHeight.endsWith('px'),'board height came from live space measurement');
+ if((width===390&&height===600)||(width===900&&height===450)){
+  const sizeName=width+'X'+height;
+  console.log('NIGHT_BLOCK_RESIZE_'+sizeName+'_JPEG_BASE64='+
+    (await page.screenshot({type:'jpeg',quality:52,fullPage:true})).toString('base64'));
+ }
 }
 await page.setViewportSize({width:390,height:844});
 await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
@@ -186,12 +191,9 @@ await page.waitForTimeout(32);
 await cdps.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
 await cdps.detach();
 await page.waitForTimeout(64); // allow Chromium's synthesized PointerEvents to flush
-console.log('NIGHT_TOUCH_DIAGNOSTIC='+JSON.stringify(await page.evaluate(()=>({
- trace:window.__nightTouchTrace,input:window.__nightArcadeTest.input(),game:window.__nightArcadeTest.snapshot().cur,
- fit:document.querySelector('#screen').style.getPropertyValue('--block-fit-height'),
- viewport:[innerWidth,innerHeight,visualViewport?.height],
- board:document.querySelector('#screen').getBoundingClientRect().toJSON()
-}))));
+const inputAfterTouch=await page.evaluate(()=>window.__nightArcadeTest.input());
+assert.equal(inputAfterTouch.active,false,'a finished real touch releases the gesture');
+assert.equal(inputAfterTouch.signature,'390/844/376','touch input does not change viewport fit');
 assert.ok(await page.evaluate(()=>window.__nightArcadeTest.snapshot().cur.x)>touchStartX,'real browser touch swipe moves the piece');
 await page.locator('#restart').click();
 // A long hold followed by a fast downward flick still qualifies as a flick.
