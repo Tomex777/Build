@@ -12,6 +12,7 @@ import pino from 'pino'
 import QRCode from 'qrcode'
 import { startWebPanel } from './web-panel.js'
 import { NightPlay, createNightPlayHandler } from './night-play.js'
+import { createNightPlayAvatarSync } from './night-play-avatar.js'
 import { megaStorageDashboard, megaAvailableMounts, megaVerifyFolder } from './mega-storage.js'
 import { dispatchNamespacedCommand, loadCommands } from './command-registry.js'
 import { AccountRegistry, legacyAccountRecords } from './account-registry.js'
@@ -3525,7 +3526,7 @@ async function init() {
   await writeRuntimeRegistry()
   startSettingsWatcher()
   webServer = startWebPanel({
-    nightPlayHandler: createNightPlayHandler(nightPlay),
+    nightPlayHandler: createNightPlayHandler(nightPlay, { refreshAvatar:createNightPlayAvatarSync(nightPlay, accounts) }),
     port: WEB_PORT,
     host: WEB_HOST,
     password: WEB_PASSWORD,
