@@ -173,9 +173,12 @@ const startTouchX=touchRect.x+touchRect.width*.39,finishTouchX=touchRect.x+touch
 const touchY=touchRect.y+touchRect.height*.35;
 const touchStartX=await page.evaluate(()=>window.__nightArcadeTest.snapshot().cur.x);
 await cdps.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x:startTouchX,y:touchY,id:1}]});
+await page.waitForTimeout(32);
 await cdps.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x:finishTouchX,y:touchY,id:1}]});
+await page.waitForTimeout(32);
 await cdps.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
 await cdps.detach();
+await page.waitForTimeout(64); // allow Chromium's synthesized PointerEvents to flush
 assert.ok(await page.evaluate(()=>window.__nightArcadeTest.snapshot().cur.x)>touchStartX,'real browser touch swipe moves the piece');
 await page.locator('#restart').click();
 // A long hold followed by a fast downward flick still qualifies as a flick.
