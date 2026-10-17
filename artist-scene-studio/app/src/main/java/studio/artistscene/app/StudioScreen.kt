@@ -1880,10 +1880,12 @@ private fun EditorContextSheet(
                         color = MutedText,
                         fontSize = 12.sp,
                     )
-                    SelectedActorActions(editor, actor, onEditor)
+                    // The selected character's hair/gravity controls lead the
+                    // inspector instead of being buried beneath object actions.
                     if (actor.kind == ActorKind.CHARACTER) {
                         CharacterAppearance(editor, actor, onEditor)
                     }
+                    SelectedActorActions(editor, actor, onEditor)
                     if (actor.mechanicalParts().isNotEmpty()) {
                         MechanicalPartsInspector(editor, actor, onEditor)
                     }
@@ -2871,28 +2873,6 @@ private fun CharacterAppearance(
     if (actor.asset?.assetId in setOf(
         PrototypeScene.ANIME_ASSET_ID, PrototypeScene.ANIME_FEMALE_ASSET_ID,
     )) {
-        Text("VRoid hair · genuine 3D strands", color = PrimaryText, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
-        Row(
-            modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
-        ) {
-            listOf(
-                "Original" to null,
-                "Ebony" to "#181B27",
-                "Chestnut" to "#784A35",
-                "Honey" to "#CDB279",
-                "Rose" to "#D87188",
-                "Lilac" to "#9F91D7",
-                "Ocean" to "#337DA5",
-                "Silver" to "#CFDBDE",
-            ).forEach { (label, hex) ->
-                MiseActionPill(
-                    title = label,
-                    tag = "anime-hair-dye-${label.lowercase()}",
-                    enabled = !actor.locked,
-                ) { onEditor(editor.setAnimeHairTint(hex), "anime-hair-dye") }
-            }
-        }
         Text("Gravity & secondary motion", color = PrimaryText, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             FilterChip(
@@ -2970,6 +2950,29 @@ private fun CharacterAppearance(
             "Hair and cloth follow gravity and character motion during preview. Your authored pose stays unchanged.",
             color = MutedText, fontSize = 11.sp,
         )
+        Text("VRoid hair · genuine 3D strands", color = PrimaryText, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+        Row(
+            modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            listOf(
+                "Original" to null,
+                "Ebony" to "#181B27",
+                "Chestnut" to "#784A35",
+                "Honey" to "#CDB279",
+                "Rose" to "#D87188",
+                "Lilac" to "#9F91D7",
+                "Ocean" to "#337DA5",
+                "Silver" to "#CFDBDE",
+            ).forEach { (label, hex) ->
+                MiseActionPill(
+                    title = label,
+                    tag = "anime-hair-dye-${label.lowercase()}",
+                    enabled = !actor.locked,
+                ) { onEditor(editor.setAnimeHairTint(hex), "anime-hair-dye") }
+            }
+        }
+
     }
 
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
