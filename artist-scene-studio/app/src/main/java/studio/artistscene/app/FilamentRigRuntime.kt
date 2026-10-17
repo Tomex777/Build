@@ -128,7 +128,7 @@ internal class FilamentRigRuntime private constructor(
     }
 
     companion object {
-        fun discover(model: ModelInstance): FilamentRigRuntime? {
+        fun discover(model: ModelInstance, vrmFaceNames: Map<Int, String> = emptyMap()): FilamentRigRuntime? {
             val transformManager = model.engine.transformManager
             val jointEntities = if (model.skinCount == 0) {
                 emptyList()
@@ -193,8 +193,9 @@ internal class FilamentRigRuntime private constructor(
                         ?: "Mesh ${entityIndex + 1}"
                     if (meshName.startsWith("MiseHair-")) return@forEachIndexed
                     repeat(targetCount) { targetIndex ->
-                        val targetName = declaredNames.getOrNull(targetIndex)
-                            ?.takeUnless { it.isBlank() }
+                        val targetName = (if (meshName == "Face") vrmFaceNames[targetIndex] else null)
+                            ?: declaredNames.getOrNull(targetIndex)
+                                ?.takeUnless { it.isBlank() }
                             ?: "Shape ${targetIndex + 1}"
                         add(
                             MorphTarget(
