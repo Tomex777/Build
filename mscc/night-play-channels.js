@@ -77,7 +77,10 @@ export class NightPlayChannels {
     return {name:info.name,proof,state,channelId:info.id}
   }
   async verify(identity, accounts, channelId='') {
-    const userId=this.owner(identity)
+    return this.verifyUser(this.owner(identity),accounts,channelId)
+  }
+  async verifyUser(userId, accounts, channelId='') {
+    if(!userId)fail(401,'Connect WhatsApp to continue.')
     this.play.limit('channel-verify:'+userId,10,600000)
     const row=channelId?
       this.db.prepare('SELECT * FROM play_channel_claims WHERE user_id=? AND channel_id=?').get(userId,channelId):
