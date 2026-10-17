@@ -27,6 +27,56 @@ data class SceneEditorState(
     fun selectActor(actorId: String?): SceneEditorState =
         copy(selectedActorId = actorId?.takeIf { id -> project.actors.any { it.id == id } })
 
+    /** Backdrop and floor are project-level settings, included in undo/redo and scene saves. */
+    fun setEnvironmentPreset(preset: EnvironmentPreset): SceneEditorState =
+        commit(project.copy(world = project.world.copy(environmentPreset = preset)), selectedActorId)
+
+    fun setGroundVisible(visible: Boolean): SceneEditorState =
+        commit(project.copy(world = project.world.copy(groundEnabled = visible)), selectedActorId)
+
+    /** Scene-wide sky and light change, committed as one atomic undoable action. */
+    fun applyLightingLook(look: LightingLook): SceneEditorState =
+        commit(lightingLookProject(project, look), selectedActorId)
+
+    fun setGravityWorld(enabled: Boolean? = null, metersPerSecondSquared: Float? = null): SceneEditorState {
+        if (metersPerSecondSquared?.isFinite() == false) return this
+        val current = project.world
+        val next = current.copy(
+            gravityEnabled = enabled ?: current.gravityEnabled,
+            gravityMetersPerSecondSquared =
+                metersPerSecondSquared?.coerceIn(0f, 25f) ?: current.gravityMetersPerSecondSquared,
+        )
+        return if (next == current) this else commit(project.copy(world = next), selectedActorId)
+    }
+
+    fun setSelectedRigidPhysics(dynamic: Boolean? = null, bounciness: Float? = null): SceneEditorState {
+        val actor = selectedActor ?: return this
+        if (actor.locked || actor.kind in setOf(ActorKind.LIGHT, ActorKind.CAMERA)) return this
+        if (bounciness?.isFinite() == false) return this
+        val next = actor.physics.copy(
+            dynamic = dynamic ?: actor.physics.dynamic,
+            bounciness = bounciness?.coerceIn(0f, .8f) ?: actor.physics.bounciness,
+        )
+        return if (next == actor.physics) this else replaceSelected(actor.copy(physics = next))
+    }
+
+    /** Live physics uses the same scene graph as manual transforms but commits one undo
+     * snapshot only when the artist presses Pause, not 60 snapshots per second.
+     */
+    fun previewGravityPositions(heights: Map<String, Float>): SceneEditorState {
+        if (heights.isEmpty()) return this
+        val next = project.actors.map { actor ->
+            val height = heights[actor.id]
+            if (height == null || !height.isFinite() || actor.locked || !actor.physics.dynamic) actor
+            else actor.copy(transform = actor.transform.copy(
+                position = actor.transform.position.copy(y = height.coerceAtLeast(
+                    if (project.world.groundEnabled) 0f else -100f,
+                )),
+            ))
+        }
+        return if (next == project.actors) this else copy(project = project.copy(actors = next))
+    }
+
     fun useTool(tool: TransformTool): SceneEditorState = copy(activeTool = tool)
 
     fun translate(axis: TransformAxis, delta: Float): SceneEditorState =
@@ -91,11 +141,45 @@ data class SceneEditorState(
             actor.asset?.assetId != "starter.makehuman.humanoid") return this
         val color = colorHex?.uppercase() ?: actor.appearance.hairColorHex
         if (!Regex("#[0-9A-F]{6}").matches(color)) return this
-        val appearance = CharacterAppearanceSettings(style, color)
+        val appearance = actor.appearance.copy(hairStyle = style, hairColorHex = color)
         if (appearance == actor.appearance) return this
         return commit(project.copy(actors = project.actors.map {
             if (it.id == actor.id) it.copy(appearance = appearance) else it
         }), actor.id)
+    }
+
+    /** Choose optional physical anime hair tint; null means original creator texture. */
+    fun setAnimeHairTint(hex: String?): SceneEditorState {
+        val actor = selectedActor ?: return this
+        if (actor.kind != ActorKind.CHARACTER || actor.locked ||
+            actor.asset?.assetId !in setOf("starter.mise.anime-figure", "starter.mise.anime-figure-female")
+        ) return this
+        val color = hex?.uppercase()
+        if (color != null && !Regex("#[0-9A-F]{6}").matches(color)) return this
+        if (actor.appearance.animeHairTintHex == color) return this
+        return replaceSelected(actor.copy(appearance = actor.appearance.copy(animeHairTintHex = color)))
+    }
+
+    /** Changes genuine VRM spring hair settings. Other figures retain the same rig/mesh. */
+    fun setAnimeHairPhysics(
+        enabled: Boolean? = null,
+        fabricEnabled: Boolean? = null,
+        gravity: Float? = null,
+        wind: Float? = null,
+    ): SceneEditorState {
+        val actor = selectedActor ?: return this
+        if (actor.kind != ActorKind.CHARACTER || actor.locked ||
+            actor.asset?.assetId !in setOf("starter.mise.anime-figure", "starter.mise.anime-figure-female")
+        ) return this
+        if (gravity?.isFinite() == false || wind?.isFinite() == false) return this
+        val next = actor.appearance.copy(
+            hairPhysicsEnabled = enabled ?: actor.appearance.hairPhysicsEnabled,
+            fabricPhysicsEnabled = fabricEnabled ?: actor.appearance.fabricPhysicsEnabled,
+            hairGravityStrength = gravity?.coerceIn(0f, 2f) ?: actor.appearance.hairGravityStrength,
+            hairWindStrength = wind?.coerceIn(0f, 2f) ?: actor.appearance.hairWindStrength,
+        )
+        if (actor.appearance == next) return this
+        return replaceSelected(actor.copy(appearance = next))
     }
 
     /** Commits one joint rotation edit; values are local offsets from the imported rest pose. */
@@ -175,6 +259,15 @@ data class SceneEditorState(
         )
     }
 
+    /** Morph-based facial expression; respects imported target names and artist history. */
+    fun applyFaceExpression(expression: FaceExpression): SceneEditorState {
+        val actor = selectedActor ?: return this
+        val pose = AnimeExpressions.apply(actor, expression) ?: return this
+        return replaceSelected(actor.copy(
+            rig = pose, animation = actor.animation.copy(playing = false),
+        ))
+    }
+
     fun resetRigMorph(targetId: String): SceneEditorState {
         val actor = selectedActor ?: return this
         if (actor.locked) return this
@@ -199,6 +292,116 @@ data class SceneEditorState(
             rig = reset.takeUnless { it.joints.isEmpty() && it.morphWeights.isEmpty() },
             animation = actor.animation.copy(playing = false),
         ))
+    }
+
+    /** One history entry for an editable full-body preset. Never rebuilds ModelNodes. */
+    fun applyPosePreset(preset: PosePreset): SceneEditorState {
+        val actor = selectedActor ?: return this
+        val nextPose = PoseLibrary.apply(actor, preset) ?: return this
+        return replaceSelected(actor.copy(
+            rig = nextPose,
+            animation = actor.animation.copy(playing = false),
+        ))
+    }
+
+    /** Store a pose by human-readable bone name, rather than by glTF instance bone index. */
+    fun saveSelectedPose(name: String): SceneEditorState {
+        val actor = selectedActor ?: return this
+        if (actor.kind != ActorKind.CHARACTER || actor.locked) return this
+        val rig = actor.rigDefinition ?: return this
+        val pose = actor.rig ?: return this
+        if (pose.joints.isEmpty()) return this
+        val labels = rig.bones.associate { it.id to RigSemantics.label(it, rig.bones).lowercase() }
+        val joints = pose.joints.mapNotNull { (id, rotation) ->
+            labels[id]?.let { it to rotation }
+        }.toMap()
+        if (joints.isEmpty()) return this
+        val morphNames = rig.morphTargets.associate { it.id to it.name }
+        val expressions = pose.morphWeights.mapNotNull { (id, value) ->
+            morphNames[id]?.let { it to value }
+        }.toMap()
+        val title = name.trim().take(48).ifBlank { "My pose ${project.savedPoses.size + 1}" }
+        val snapshot = SavedPosePreset(
+            id = "custom-pose-" + java.util.UUID.randomUUID().toString(),
+            name = title,
+            jointsByLabel = joints,
+            expressionsByName = expressions,
+        )
+        return commit(project.copy(savedPoses = project.savedPoses + snapshot), selectedActorId)
+    }
+
+    fun applySavedPose(presetId: String): SceneEditorState {
+        val actor = selectedActor ?: return this
+        if (actor.kind != ActorKind.CHARACTER || actor.locked) return this
+        val snapshot = project.savedPoses.firstOrNull { it.id == presetId } ?: return this
+        val rig = actor.rigDefinition ?: return this
+        val jointsByLabel = rig.bones.associateBy { RigSemantics.label(it, rig.bones).lowercase() }
+        val restored = snapshot.jointsByLabel.mapNotNull { (name, rotation) ->
+            jointsByLabel[name]?.let { it.id to rotation }
+        }.toMap()
+        if (restored.size < 2) return this
+        val morphs = rig.morphTargets.associateBy { it.name }
+        val restoredExpressions = snapshot.expressionsByName.mapNotNull { (name, weight) ->
+            morphs[name]?.let { it.id to weight.coerceIn(0f, 1f) }
+        }.toMap()
+        val next = RigPose(
+            joints = restored,
+            morphWeights = actor.rig?.morphWeights.orEmpty() + restoredExpressions,
+        )
+        if (actor.rig == next) return this
+        return replaceSelected(actor.copy(
+            rig = next, animation = actor.animation.copy(playing = false),
+        ))
+    }
+
+    fun deleteSavedPose(presetId: String): SceneEditorState {
+        if (project.savedPoses.none { it.id == presetId }) return this
+        return commit(project.copy(
+            savedPoses = project.savedPoses.filterNot { it.id == presetId },
+        ), selectedActorId)
+    }
+
+    /** The artist mirrors the pose within its rig, not the whole actor or its skin. */
+    fun mirrorSelectedPose(): SceneEditorState {
+        val actor = selectedActor ?: return this
+        val nextPose = PoseLibrary.mirror(actor) ?: return this
+        return replaceSelected(actor.copy(
+            rig = nextPose,
+            animation = actor.animation.copy(playing = false),
+        ))
+    }
+
+    /** Positions a second independent actor alongside the active character and gives both
+     * a complementary pose. This is a staging shortcut, not a fake physical hand constraint.
+     * Both characters remain selectable, editable and independently persisted.
+     */
+    fun stageDuo(): SceneEditorState {
+        val first = selectedActor ?: return this
+        if (first.kind != ActorKind.CHARACTER || first.locked) return this
+        val second = project.actors.firstOrNull {
+            it.id != first.id && it.kind == ActorKind.CHARACTER && it.visible && !it.locked &&
+                it.parentId == null
+        } ?: return this
+        val poseA = PoseLibrary.apply(first, PosePreset.GUARD) ?: return this
+        val poseB = PoseLibrary.apply(second, PosePreset.HERO) ?: return this
+        val centerX = (first.transform.position.x + second.transform.position.x) / 2f
+        val z = (first.transform.position.z + second.transform.position.z) / 2f
+        val next = project.copy(actors = project.actors.map { actor ->
+            when (actor.id) {
+                first.id -> first.copy(
+                    transform = first.transform.copy(position = first.transform.position.copy(x = centerX - 0.8f, z = z)),
+                    rig = poseA,
+                    animation = first.animation.copy(playing = false),
+                )
+                second.id -> second.copy(
+                    transform = second.transform.copy(position = second.transform.position.copy(x = centerX + 0.8f, z = z)),
+                    rig = poseB,
+                    animation = second.animation.copy(playing = false),
+                )
+                else -> actor
+            }
+        })
+        return commit(next, first.id)
     }
 
     fun resetRigPose(): SceneEditorState {

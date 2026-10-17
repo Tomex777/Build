@@ -9,6 +9,7 @@ import android.graphics.Paint
 import android.os.Build
 import android.net.Uri
 import android.util.Log
+import android.util.LruCache
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -66,6 +67,7 @@ import studio.artistscene.core.ActorKind
 import studio.artistscene.core.AssetReference
 import studio.artistscene.core.AssetStorage
 import studio.artistscene.core.CameraProjection
+import studio.artistscene.core.EnvironmentPreset
 import studio.artistscene.core.ReferenceImage
 import studio.artistscene.core.RigDefinition
 import studio.artistscene.core.SceneCamera
@@ -103,7 +105,8 @@ fun SceneViewport(
     val materialLoader = rememberMaterialLoader(engine)
     val environmentLoader = rememberEnvironmentLoader(engine)
     val loadedEnvironment = rememberEnvironment(environmentLoader, isOpaque = false)
-    val skyTexture = remember(engine) { createOutdoorSky(engine) }
+    val preset = project.world.environmentPreset
+    val skyTexture = remember(engine, preset) { createOutdoorSky(engine, preset) }
     val studioSkybox = remember(engine, skyTexture) {
         Skybox.Builder().environment(skyTexture).build(engine)
     }
@@ -142,8 +145,11 @@ fun SceneViewport(
         ?: project.cameras.firstOrNull()
         ?: studio.artistscene.core.SceneCamera("camera-main", "Camera")
 
-    val floor = remember(materialLoader) {
-        materialLoader.createColorInstance(Color(0xFFAAAFA5), metallic = 0f, roughness = 0.95f)
+    // A low-chroma matte ground creates value separation from human skin and light clothing.
+    // Keep it as Filament PBR geometry so it receives real shadow maps/contact shadows.
+    val floor = remember(materialLoader, preset) {
+        val color = Color(android.graphics.Color.parseColor(preset.groundHex))
+        materialLoader.createColorInstance(color, metallic = 0f, roughness = preset.roughness)
     }
     val mainLightNode = rememberMainLightNode(engine)
     // Shadow maps are part of Filament's scene rendering, independent of the
@@ -429,7 +435,14 @@ private fun SceneScope.ActorModelNode(
     }
 
     val loaded = model
-    val rigRuntime = remember(loaded) { loaded?.let(FilamentRigRuntime::discover) }
+    val vrmFaceNames = remember(asset) { VrmExpressionMetadata.load(context, asset) }
+    val rigRuntime = remember(loaded, vrmFaceNames) {
+        loaded?.let { FilamentRigRuntime.discover(it, vrmFaceNames) }
+    }
+    // Actual VRM spring roots, with a private integrator per independently posed actor.
+    val springRuntime = remember(loaded, asset, rigRuntime) {
+        loaded?.let { VrmSpringRuntime.fromAsset(context, asset, it, rigRuntime?.definition) }
+    }
     val hasBoundRestPose = remember(rigRuntime) { AtomicBoolean(false) }
     val animationClips = remember(loaded) {
         loaded?.animator?.let { animator ->
@@ -493,9 +506,13 @@ private fun SceneScope.ActorModelNode(
         isVisible = actor.visible,
         apply = {
             var lastPivot: Vec3? = null
+            val rootMatrix = FloatArray(16)
             onFrame = {
+                // Real gravitational hair and cloth deformation updates skinned
+                // joint transforms on the renderer's frame, never via UI bitmaps.
+                springRuntime?.advance(actor, System.nanoTime())
                 val manager = engine.transformManager
-                val world = manager.getWorldTransform(manager.getInstance(entity), FloatArray(16))
+                val world = manager.getWorldTransform(manager.getInstance(entity), rootMatrix)
                 val pivot = Vec3(world[12], world[13], world[14])
                 if (pivot != lastPivot) {
                     lastPivot = pivot
@@ -506,7 +523,7 @@ private fun SceneScope.ActorModelNode(
     ) {
         if (loaded != null) {
             val displayOrigin = remember(loaded, actor.kind) {
-                val bounds = if (asset.assetId == "starter.makehuman.humanoid") {
+                val bounds = if (asset.assetId in setOf(PrototypeScene.HUMANOID_ASSET_ID, PrototypeScene.ANIME_ASSET_ID, PrototypeScene.ANIME_FEMALE_ASSET_ID)) {
                     loaded.asset.renderableEntities.firstOrNull { loaded.asset.getName(it) == "Body" }?.let {
                         engine.renderableManager.getAxisAlignedBoundingBox(engine.renderableManager.getInstance(it), null)
                     } ?: loaded.asset.boundingBox
@@ -517,6 +534,14 @@ private fun SceneScope.ActorModelNode(
                 val unitScale = actor.initialDisplayDimensionMeters() / dimension.coerceAtLeast(0.00001f)
                 val allHalf = loaded.asset.boundingBox.halfExtent
                 val allDimension = maxOf(allHalf[0], allHalf[1], allHalf[2]) * 2f
+                if (asset.assetId == PrototypeScene.ANIME_ASSET_ID) {
+                    Log.i(
+                        VIEWPORT_LOG_TAG,
+                        "anime-mesh-bounds bodyCenter=${center.contentToString()} bodyHalf=${half.contentToString()} " +
+                            "assetHalf=${allHalf.contentToString()} scale=${unitScale} extent=${allDimension} " +
+                            "renderables=${loaded.asset.renderableEntities.size}",
+                    )
+                }
                 Pair(Position(-center[0] * unitScale, -(center[1] - half[1]) * unitScale, -center[2] * unitScale), allDimension * unitScale)
             }
             // SceneView switches clips reactively. Keying on animation settings destroys
@@ -554,15 +579,18 @@ private fun SceneScope.ActorModelNode(
                         isVisible = actor.visible && resolved,
                         apply = {
                             var lastGrip: Vec3? = null
+                            // Reuse matrices: this closure runs every rendered frame.
+                            val gripMatrix = FloatArray(16)
+                            val parentMatrix = FloatArray(16)
+                            val inverseParent = FloatArray(16)
+                            val gripLocal = FloatArray(16)
                             onFrame = {
-                                rigRuntime?.worldJointTransform(attachedBoneId)?.let { gripWorld ->
+                                rigRuntime?.worldJointTransform(attachedBoneId, gripMatrix)?.let { gripWorld ->
                                     val manager = engine.transformManager
                                     val parentWorld = manager.getWorldTransform(
-                                        manager.getInstance(attachmentParentEntity), FloatArray(16),
+                                        manager.getInstance(attachmentParentEntity), parentMatrix,
                                     )
-                                    val inverseParent = FloatArray(16)
                                     if (Matrix.invertM(inverseParent, 0, parentWorld, 0)) {
-                                        val gripLocal = FloatArray(16)
                                         Matrix.multiplyMM(gripLocal, 0, inverseParent, 0, gripWorld, 0)
                                         // Strip the imported skeleton's unit conversion; the prop
                                         // keeps its own authored size and inherits actor scale.
@@ -640,7 +668,33 @@ private fun Actor.initialDisplayDimensionMeters(): Float = when (asset?.assetId)
     }
 }
 
-private fun readAssetBytes(context: Context, asset: AssetReference): ByteArray {
+/** Small bounded cache for immutable packaged models shared across scene actors.
+ * Filament instances are NEVER cached/shared: every actor still receives an independent
+ * animated ModelInstance. Cache only raw bytes, so duplicating VRoid avatars avoids
+ * repeated 18 MB disk reads without leaking native GPU assets.
+ */
+internal object MiseModelBytes {
+    private val cache = object : LruCache<String, ByteArray>(40 * 1024) {
+        override fun sizeOf(key: String, bytes: ByteArray): Int =
+            (bytes.size + 1023) / 1024
+    }
+
+    fun load(context: Context, asset: AssetReference, fetch: () -> ByteArray): ByteArray {
+        if (asset.storage != AssetStorage.BUNDLED) return fetch()
+        val fingerprint = listOf(asset.assetId, asset.relativePath, asset.version ?: "").joinToString("|")
+        cache.get(fingerprint)?.let { return it }
+        val bytes = fetch()
+        if (bytes.size <= 32 * 1024 * 1024) cache.put(fingerprint, bytes)
+        return bytes
+    }
+
+    fun trim() = cache.evictAll()
+}
+
+private fun readAssetBytes(context: Context, asset: AssetReference): ByteArray =
+    MiseModelBytes.load(context, asset) { readAssetBytesUncached(context, asset) }
+
+private fun readAssetBytesUncached(context: Context, asset: AssetReference): ByteArray {
     val stream = when (asset.storage) {
         AssetStorage.BUNDLED -> context.assets.open(asset.relativePath)
         AssetStorage.PROJECT_FILE -> File(context.filesDir, asset.relativePath).inputStream()

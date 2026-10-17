@@ -76,7 +76,90 @@ def normals(vertices, triangles):
     return [[v / (math.sqrt(sum(x*x for x in n)) or 1.) for v in n] for n in values]
 
 
-def build(directory, output):
+def anime_vertex(point):
+    """Original anime-inspired mannequin proportions, derived only from CC0 body geometry.
+
+    The exact same function is applied to skin, the bone head locations, hair-bound
+    source body, and morph target endpoints. This avoids torn skin or detached hair.
+    """
+    x, y, z = point
+    def ease(a, b):
+        t = max(0., min(1., (y - a) / (b - a)))
+        return t * t * (3. - 2. * t)
+    head = ease(1.34, 1.59)
+    waist = ease(.75, 1.08) * (1. - ease(1.13, 1.42))
+    # Slightly longer legs, a narrow torso, a larger round anime head.
+    x *= 1. - .12 * waist + .22 * head
+    z *= 1. - .10 * waist + .18 * head
+    y += .025 * ease(.1, .91) + .065 * ease(1.37, 1.80)
+    return [x, y, z]
+
+
+def append_anime_face(gltf, accessor, positions, centers, names):
+    """Facial features use the same real head bone as the skin and hair.
+
+    The shapes are 3D triangles, not screen-space stickers; they turn, pose and
+    persist with the character. Iris/catchlights create a recognizably stylized face.
+    """
+    if "eye.L" not in centers or "eye.R" not in centers or "head" not in names:
+        raise ValueError("CC0 MakeHuman default skeleton lacks anime face anchors")
+    head_joint = names.index("head")
+    eye_vertices, indices, palette = [], [], []
+    # The eye anchors are bone heads. Find the outer skin surface near each anchor,
+    # so facial marks cannot disappear inside the source MakeHuman mesh.
+    for name in ("eye.L", "eye.R"):
+        anchor = centers[name]
+        relevant = [p[2] for p in positions
+                    if abs(p[0] - anchor[0]) < .035 and abs(p[1] - anchor[1]) < .045]
+        front_z = max(relevant) + .009 if relevant else anchor[2] + .04
+        def ellipse(cx, cy, rx, ry, z, material, segments=12):
+            offset = len(eye_vertices)
+            eye_vertices.append((cx, cy, z))
+            for n in range(segments):
+                a = 2 * math.pi * n / segments
+                eye_vertices.append((cx + rx * math.cos(a), cy + ry * math.sin(a), z))
+            for n in range(segments):
+                palette.append(material)
+                indices.append((offset, offset + n + 1, offset + (n + 1) % segments + 1))
+        ellipse(anchor[0], anchor[1], .028, .031, front_z, 0)
+        ellipse(anchor[0], anchor[1] - .004, .019, .024, front_z + .002, 1)
+        ellipse(anchor[0] - .007, anchor[1] + .006, .005, .007, front_z + .004, 2)
+        ellipse(anchor[0], anchor[1] + .049, .028, .005, front_z + .001, 1)
+    attrs = {
+        "POSITION": accessor(eye_vertices, 5126, "VEC3", True),
+        "NORMAL": accessor([[0., 0., 1.] for _ in eye_vertices], 5126, "VEC3"),
+        "JOINTS_0": accessor([[head_joint, 0, 0, 0] for _ in eye_vertices], 5123, "VEC4"),
+        "WEIGHTS_0": accessor([[1., 0., 0., 0.] for _ in eye_vertices], 5126, "VEC4"),
+    }
+    # Share a single skinned vertex stream but use per-material triangle index sets.
+    mat_start = len(gltf["materials"])
+    for label, color in (
+        ("Eye white", [1., .985, .94, 1.]),
+        ("Ink iris", [.043, .070, .145, 1.]),
+        ("Eye glint", [1., 1., 1., 1.]),
+    ):
+        gltf["materials"].append({
+            "name": "Mise Anime " + label, "doubleSided": True,
+            "pbrMetallicRoughness": {
+                "baseColorFactor": color, "metallicFactor": 0., "roughnessFactor": .94,
+            },
+        })
+    primitives = []
+    for material in range(3):
+        triangles = [tri for tri, category in zip(indices, palette) if category == material]
+        primitives.append({
+            "attributes": attrs,
+            "indices": accessor([i for tri in triangles for i in tri], 5125, "SCALAR"),
+            "material": mat_start + material,
+        })
+    mesh_index = len(gltf["meshes"])
+    gltf["meshes"].append({"name": "AnimeFace", "primitives": primitives})
+    node_index = len(gltf["nodes"])
+    gltf["nodes"][0]["children"].append(node_index)
+    gltf["nodes"].append({"name": "AnimeFace", "mesh": mesh_index, "skin": 0})
+
+
+def build(directory, output, anime=False):
     manifest = sources(directory)
     source, faces = read_obj(directory / "base.obj")
     average = target(directory / "average.target", len(source))
@@ -85,6 +168,9 @@ def build(directory, output):
     floor = min(vertices[i][1] for i in used)
     for v in vertices:
         v[1] -= floor
+    undistorted = [p.copy() for p in vertices]
+    if anime:
+        vertices = [anime_vertex(p) for p in vertices]
     mapping = {old: new for new, old in enumerate(used)}
     triangles = [tuple(mapping[i] for i in face) for face in faces]
     positions = [vertices[i] for i in used]
@@ -152,22 +238,51 @@ def build(directory, output):
         ("Ear size", ["ears-left-size.target", "ears-right-size.target"], False),
     ]:
         targets = [target(directory / file, len(source)) for file in files]
-        delta = [[sum(t[j][i] for t in targets) - (average[j][i] if subtract_average else 0.) for i in range(3)] for j in used]
-        hair_shapes.append((label, [[vertices[j][i] + sum(t[j][i] for t in targets) - (average[j][i] if subtract_average else 0.) for i in range(3)] for j in range(len(vertices))]))
-        changed = [[p[i]+d[i] for i in range(3)] for p, d in zip(positions, delta)]
+        def altered(j):
+            before = [undistorted[j][i] +
+                sum(t[j][i] for t in targets) -
+                (average[j][i] if subtract_average else 0.) for i in range(3)]
+            return anime_vertex(before) if anime else before
+        hair_shapes.append((label, [altered(j) for j in range(len(vertices))]))
+        changed = [altered(j) for j in used]
+        delta = [[p[i] - positions[n][i] for i in range(3)] for n, p in enumerate(changed)]
         changed_normals = normals(changed, triangles)
         normal_delta = [[n[i]-b[i] for i in range(3)] for n, b in zip(changed_normals, base_normals)]
         shapes.append((label, {"POSITION": accessor(delta, 5126, "VEC3", True), "NORMAL": accessor(normal_delta, 5126, "VEC3")}))
+    # Keep ONE skinned body primitive, like the fully proven MakeHuman GLB. Some
+    # Android Filament drivers omit a skinned mesh whose morph targets share one
+    # vertex stream across four material primitives. Vertex colors preserve the
+    # costume design without splitting the skin or losing its 163 editable bones.
+    if anime:
+        # Use the same proven Filament-friendly skinned body structure as MakeHuman.
+        # Hold optional extra meshes while diagnosing the visual black-out.
+        materials = [{"name": "Anime reference warm matte",
+            "pbrMetallicRoughness": {
+                "baseColorFactor": [.91, .75, .64, 1.],
+                "metallicFactor": 0., "roughnessFactor": .93,
+            },
+        }]
+    else:
+        materials = [{"name": "Neutral clay", "pbrMetallicRoughness": {
+            "baseColorFactor": [.62, .65, .69, 1.], "metallicFactor": 0., "roughnessFactor": .85,
+        }}]
+    primitives = [{"attributes": attributes, "indices": indices,
+                   "material": 0, "targets": [shape[1] for shape in shapes]}]
+
     gltf = {"asset": {"version": "2.0", "generator": "Mise independent CC0 humanoid converter"},
             "scene": 0, "scenes": [{"nodes": [0]}], "nodes": nodes,
             "buffers": [{"byteLength": len(binary)}], "bufferViews": views, "accessors": accessors,
             "skins": [{"inverseBindMatrices": bind, "joints": list(range(2, len(nodes)))}],
-            "materials": [{"name": "Neutral clay", "pbrMetallicRoughness": {"baseColorFactor": [.62,.65,.69,1.], "metallicFactor": 0., "roughnessFactor": .85}}],
-            "meshes": [{"name": "Humanoid", "weights": [0.]*len(shapes), "extras": {"targetNames": [s[0] for s in shapes]},
-                        "primitives": [{"attributes": attributes, "indices": indices, "material": 0, "targets": [s[1] for s in shapes]}]}],
+            "materials": materials,
+            "meshes": [{"name": "Humanoid", "weights": [0.]*len(shapes), "extras": {"targetNames": [shape[0] for shape in shapes]},
+                        "primitives": primitives}],
             "extras": {"sourceRevision": manifest["revision"], "license": "CC0-1.0"}}
     from humanoid_hair import append_hair
     append_hair(gltf, binary, views, accessor, vertices, hair_shapes, names, normals, ROOT / "scripts/hair-source")
+    if anime:
+        # Additional face mesh paused until its native Android render path is verified.
+        gltf["asset"]["generator"] = "Mise original anime study from pinned CC0 MakeHuman body"
+        gltf["extras"]["style"] = "mise-anime-figure-v1"
     encoded = json.dumps(gltf, separators=(",", ":")).encode()
     encoded += b" "*((-len(encoded)) % 4)
     binary.extend(b"\0"*((-len(binary)) % 4))
@@ -186,6 +301,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--source-dir", type=Path, default=Path("/tmp/mise-humanoid-source"))
     parser.add_argument("--output", type=Path, default=ROOT / "app/src/main/assets/models/mise_humanoid.glb")
+    parser.add_argument("--anime", action="store_true", help="Create a stylized original anime 3D character GLB")
     args = parser.parse_args()
-    build(args.source_dir, args.output)
+    build(args.source_dir, args.output, anime=args.anime)
 

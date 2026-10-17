@@ -78,6 +78,23 @@ internal class FilamentRigRuntime private constructor(
         val color = runCatching { Color.parseColor(appearance.hairColorHex) }.getOrDefault(Color.rgb(48, 37, 32))
         model.asset.renderableEntities.forEach { entity ->
             val name = model.asset.getName(entity).orEmpty()
+            // Real VRoid hair is a textured, skinned mesh named Hair001.
+            // Dye tints the EXISTING hair material; it never changes skin,
+            // facial textures, hairstyle mesh or the source image bytes.
+            if (name == "Hair001") {
+                val tint = appearance.animeHairTintHex?.let {
+                    runCatching { Color.parseColor(it) }.getOrNull()
+                } ?: Color.WHITE
+                if (!manager.hasComponent(entity)) return@forEach
+                val instance = manager.getInstance(entity)
+                repeat(manager.getPrimitiveCount(instance)) { primitive ->
+                    manager.getMaterialInstanceAt(instance, primitive).setParameter(
+                        "baseColorFactor", Colors.RgbaType.SRGB,
+                        Color.red(tint) / 255f, Color.green(tint) / 255f, Color.blue(tint) / 255f, 1f,
+                    )
+                }
+                return@forEach
+            }
             if (!name.startsWith("MiseHair-")) return@forEach
             val instance = manager.getInstance(entity)
             val enabled = visible && name == "MiseHair-${appearance.hairStyle.name.lowercase()}"
@@ -102,14 +119,16 @@ internal class FilamentRigRuntime private constructor(
         }
     }
 
-    fun worldJointTransform(boneId: String): FloatArray? {
+    /** Callers on the render thread may reuse a 16-float buffer to avoid frame-time GC. */
+    fun worldJointTransform(boneId: String, into: FloatArray = FloatArray(16)): FloatArray? {
         val joint = joints.firstOrNull { it.bone.id == boneId } ?: return null
+        require(into.size >= 16)
         val manager = model.engine.transformManager
-        return manager.getWorldTransform(manager.getInstance(joint.entity), FloatArray(16))
+        return manager.getWorldTransform(manager.getInstance(joint.entity), into)
     }
 
     companion object {
-        fun discover(model: ModelInstance): FilamentRigRuntime? {
+        fun discover(model: ModelInstance, vrmFaceNames: Map<Int, String> = emptyMap()): FilamentRigRuntime? {
             val transformManager = model.engine.transformManager
             val jointEntities = if (model.skinCount == 0) {
                 emptyList()
@@ -174,8 +193,9 @@ internal class FilamentRigRuntime private constructor(
                         ?: "Mesh ${entityIndex + 1}"
                     if (meshName.startsWith("MiseHair-")) return@forEachIndexed
                     repeat(targetCount) { targetIndex ->
-                        val targetName = declaredNames.getOrNull(targetIndex)
-                            ?.takeUnless { it.isBlank() }
+                        val targetName = (if (meshName == "Face") vrmFaceNames[targetIndex] else null)
+                            ?: declaredNames.getOrNull(targetIndex)
+                                ?.takeUnless { it.isBlank() }
                             ?: "Shape ${targetIndex + 1}"
                         add(
                             MorphTarget(

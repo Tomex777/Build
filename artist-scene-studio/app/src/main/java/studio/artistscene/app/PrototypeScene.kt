@@ -5,6 +5,12 @@ import studio.artistscene.core.ActorKind
 import studio.artistscene.core.AssetReference
 import studio.artistscene.core.LightSettings
 import studio.artistscene.core.LightType
+import studio.artistscene.core.HairStyle
+import studio.artistscene.core.CharacterAppearanceSettings
+import studio.artistscene.core.RigPose
+import studio.artistscene.core.RigDefinition
+import studio.artistscene.core.WorldSettings
+import studio.artistscene.core.EnvironmentPreset
 import studio.artistscene.core.SceneProject
 import studio.artistscene.core.SceneCamera
 import studio.artistscene.core.Transform
@@ -18,12 +24,152 @@ object PrototypeScene {
     const val RIGGED_FIGURE_ASSET_ID = "starter.khronos.rigged-figure"
     const val COLOR_CUBE_ASSET_ID = "starter.khronos.color-cube"
     const val HUMANOID_ASSET_ID = "starter.makehuman.humanoid"
+    const val ANIME_ASSET_ID = "starter.mise.anime-figure"
+    const val ANIME_FEMALE_ASSET_ID = "starter.mise.anime-figure-female"
+    const val ANIME_POSE_PROJECT_ID = "anime-pose-study-v1"
+
+    /** Keep the tested Cesium starter intact. This independent scene leads with a posed character. */
+    fun createAnimePoseStudy(): SceneProject = SceneProject(
+        id = ANIME_POSE_PROJECT_ID,
+        name = "Anime Pose Study",
+        actors = listOf(
+            animeActor("anime-hero", "Anime · Dynamic pose", Vec3(), pose = true),
+        ) + create().actors.filter { it.kind == ActorKind.LIGHT },
+        cameras = listOf(
+            SceneCamera(
+                id = "camera-main", name = "Anime pose camera",
+                // Stand in front of the VRoid character (-Z), avoiding changes to the
+                // skinned root transform that broke emulator skin deformation.
+                // Larger portrait-to-full-body framing keeps the face and feet legible.
+                position = Vec3(-1.3f, 1.52f, -3.35f),
+                target = Vec3(0f, .93f, 0f),
+            ),
+        ),
+        world = WorldSettings(environmentPreset = EnvironmentPreset.DAYLIGHT),
+    )
+
+    /**
+     * Filament can prefix imported bone paths differently across SceneView releases.
+     * Bind the authored real-joint hero pose by *discovered* bone name when needed.
+     * Other characters, bones and user-authored poses remain untouched.
+     */
+    fun resolveAnimePose(actor: Actor, definition: RigDefinition): Actor {
+        if (actor.asset?.assetId != ANIME_ASSET_ID || actor.id != "anime-hero") return actor
+        val pose = actor.rig ?: return actor
+        val discoveredIds = definition.bones.map { it.id }.toSet()
+        if (pose.joints.keys.all { it in discoveredIds }) return actor
+        // VRoid names joints J_Bip_L_UpperArm, J_Bip_R_LowerLeg, etc., while
+        // other rigged imports use upperarm_l or LeftUpperArm. Match semantics
+        // and left/right limbs, never depend on one vendor's skeleton prefix.
+        fun slug(value: String) =
+            value.lowercase().replace(Regex("[^a-z0-9]+"), "-").trim('-')
+        fun matches(name: String, target: String): Boolean {
+            val requested = target.substringAfterLast('/')
+            val side = requested.substringAfterLast('-', "")
+            val rawPart = requested.substringBeforeLast('-', requested)
+            val part = when (rawPart) {
+                "thigh" -> "upperleg"
+                "calf" -> "lowerleg"
+                else -> rawPart
+            }
+            val clean = slug(name)
+            val flat = clean.replace("-", "")
+            val needle = part.replace("-", "")
+            val isCorrectPart = flat.contains(needle) ||
+                (part == "upperleg" && flat.contains("thigh")) ||
+                (part == "lowerleg" && flat.contains("calf"))
+            if (!isCorrectPart) return false
+            if (side.isEmpty()) return true
+            val tokens = clean.split('-')
+            return if (side == "l") {
+                "l" in tokens || "left" in tokens || flat.startsWith("left") ||
+                    flat.endsWith("left") || flat.endsWith("l")
+            } else {
+                "r" in tokens || "right" in tokens || flat.startsWith("right") ||
+                    flat.endsWith("right") || flat.endsWith("r")
+            }
+        }
+        val mapped = pose.joints.mapNotNull { (id, rotation) ->
+            val requested = id.substringAfterLast('/')
+            definition.bones.firstOrNull { bone ->
+                slug(bone.name) == requested || matches(bone.name, requested)
+            }?.let { it.id to rotation }
+        }.toMap()
+        // An incomplete mapping must never silently discard authored pose keys.
+        if (mapped.size != pose.joints.size) return actor
+        return actor.copy(rig = pose.copy(joints = mapped))
+    }
+
+    /** Genuine CC0 VRoid anime avatar with a rendered face, hair, clothes and real skeleton. */
+    private fun animeActor(
+        id: String,
+        name: String,
+        position: Vec3 = Vec3(),
+        pose: Boolean = false,
+    ) = Actor(
+        id = id,
+        name = name,
+        kind = ActorKind.CHARACTER,
+        transform = Transform(position = position),
+        asset = AssetReference(
+            assetId = ANIME_ASSET_ID,
+            relativePath = "models/mise_anime.glb",
+            format = "glb",
+            source = "https://github.com/madjin/vrm-samples/tree/e16eb187100149a315ad92c3c9968f1d5baa6c7d/vroid/beta",
+            creator = "pixiv Inc. — VRoid Studio (beta HairSample_Male)",
+            license = "CC0-1.0",
+            licenseUrl = "https://creativecommons.org/publicdomain/zero/1.0/legalcode",
+            attribution = "pixiv VRoid Studio beta HairSample_Male, designated CC0; MIME-normalized for Filament while preserving skinned mesh, textures and rig. Authored pose by Mise.",
+            version = "46e8c583ce5df3b8ee167141b59ba3ad583a2687",
+        ),
+        appearance = CharacterAppearanceSettings(hairStyle = HairStyle.NONE),
+        rig = if (pose) dynamicAnimePose() else null,
+    )
+
+    /** Distinct official VRoid CC0 female model, including sculpted hair, outfit and morphs. */
+    private fun femaleAnimeActor(id: String) = Actor(
+        id = id,
+        name = "Anime Figure · Female",
+        kind = ActorKind.CHARACTER,
+        asset = AssetReference(
+            assetId = ANIME_FEMALE_ASSET_ID,
+            relativePath = "models/mise_anime_female.glb",
+            format = "glb",
+            source = "https://github.com/madjin/vrm-samples/tree/e16eb187100149a315ad92c3c9968f1d5baa6c7d/vroid/beta",
+            creator = "pixiv Inc. — VRoid Studio (beta HairSample_Female)",
+            license = "CC0-1.0",
+            licenseUrl = "https://creativecommons.org/publicdomain/zero/1.0/legalcode",
+            attribution = "pixiv VRoid Studio beta HairSample_Female, designated CC0; converted losslessly to Filament-compatible glTF.",
+            version = "0e5235f9a7972fbcbceb74960479b208c27a8707",
+        ),
+    )
+
+    /** Genuine local-joint rotations; the project loads posed and remains fully editable. */
+    private fun dynamicAnimePose(): RigPose = RigPose(
+        joints = mapOf(
+            // Names are semantic placeholders until the GLB is loaded; resolveAnimePose
+            // maps each joint to Filament's discovered stable path before posing.
+            // Avoid extreme spine rotation to keep an expressive, grounded pose.
+            "figure/head" to Vec3(y = -9f, z = 9f),
+            "figure/upperarm-l" to Vec3(x = -20f, z = 54f),
+            "figure/lowerarm-l" to Vec3(x = -15f, z = 80f),
+            "figure/upperarm-r" to Vec3(x = 16f, z = -45f),
+            "figure/lowerarm-r" to Vec3(x = 18f, z = -58f),
+            "figure/thigh-l" to Vec3(x = -23f, z = 14f),
+            "figure/calf-l" to Vec3(x = 24f),
+            "figure/thigh-r" to Vec3(x = 16f, z = -16f),
+            "figure/calf-r" to Vec3(x = 17f),
+        ),
+    )
 
     fun starterAssets(): List<Actor> {
         val fixtureAssets = create().actors.filter {
             it.asset != null && it.kind in setOf(ActorKind.CHARACTER, ActorKind.PROP)
         }
-        return (fixtureAssets + listOf(
+        return (listOf(
+            animeActor("starter-anime", "Anime Figure · Male", pose = false),
+            femaleAnimeActor("starter-anime-female"),
+        ) + fixtureAssets + listOf(
             originalActor("Bicycle", ActorKind.VEHICLE),
             originalActor("Car", ActorKind.VEHICLE),
             originalActor("Tree", ActorKind.ENVIRONMENT),

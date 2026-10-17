@@ -23,6 +23,14 @@ internal const val RUNTIME_LOG_TAG = "MiseRuntime"
 class MainActivity : ComponentActivity() {
     private lateinit var store: SceneProjectStore
 
+    /** Android may reclaim the source-byte cache; native Filament resources follow the scene. */
+    override fun onTrimMemory(level: Int) {
+        super.onTrimMemory(level)
+        if (level >= android.content.ComponentCallbacks2.TRIM_MEMORY_RUNNING_LOW) {
+            MiseModelBytes.trim()
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         WindowCompat.setDecorFitsSystemWindows(window, false)
@@ -44,6 +52,16 @@ class MainActivity : ComponentActivity() {
                     .onFailure { Log.w(RUNTIME_LOG_TAG, "starter-scene-create-failed", it) }
             }
             preferences.edit().putBoolean(STARTER_SEEDED_KEY, true).apply()
+        }
+
+        // Include an actual posed, anime-inspired 3D study for artists. Never overwrite
+        // an existing project, even after app upgrades or repeated launches.
+        if (!preferences.getBoolean(ANIME_STUDY_SEEDED_KEY, false)) {
+            if (!store.exists(PrototypeScene.ANIME_POSE_PROJECT_ID)) {
+                runCatching { store.save(PrototypeScene.createAnimePoseStudy()) }
+                    .onFailure { Log.w(RUNTIME_LOG_TAG, "anime-study-seed-failed", it) }
+            }
+            preferences.edit().putBoolean(ANIME_STUDY_SEEDED_KEY, true).apply()
         }
 
         // Clean up presentation-only fixture labels from earlier development builds without
@@ -70,12 +88,12 @@ class MainActivity : ComponentActivity() {
         setContent {
             MaterialTheme(
                 colorScheme = darkColorScheme(
-                    primary = Color(0xFF7C9BFF),
-                    onPrimary = Color(0xFF101624),
-                    secondary = Color(0xFF8AB8E8),
-                    background = Color(0xFF15191F),
-                    surface = Color(0xFF222832),
-                    onSurface = Color(0xFFF2F5F8),
+                    primary = Color(0xFF87DBC9),
+                    onPrimary = Color(0xFF102822),
+                    secondary = Color(0xFFB3B6FF),
+                    background = Color(0xFF10171C),
+                    surface = Color(0xFF1B2931),
+                    onSurface = Color(0xFFF3FAFA),
                 ),
             ) {
                 var projects by remember { mutableStateOf(runCatching { store.list() }.getOrDefault(emptyList())) }
@@ -162,6 +180,7 @@ class MainActivity : ComponentActivity() {
 }
 
 private const val STARTER_SEEDED_KEY = "starter-scene-seeded-v1"
+private const val ANIME_STUDY_SEEDED_KEY = "anime-pose-study-seeded-v1"
 
 internal fun studio.artistscene.core.SceneProject.propX(): Float =
     actors.firstOrNull { it.id == PrototypeScene.PROP_ID }?.transform?.position?.x ?: 0f

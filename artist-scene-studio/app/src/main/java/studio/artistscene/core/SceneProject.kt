@@ -16,6 +16,8 @@ data class SceneProject(
     val metadata: ProjectMetadata = ProjectMetadata(),
     val referenceImages: List<ReferenceImage> = emptyList(),
     val timeline: TimelineSettings = TimelineSettings(),
+    /** Named, editable artist poses stay in the project and survive force-stop/reopen. */
+    val savedPoses: List<SavedPosePreset> = emptyList(),
 ) {
     companion object { const val CURRENT_SCHEMA_VERSION = 6 }
 }
@@ -45,6 +47,7 @@ data class Actor(
     val rig: RigPose? = null,
     val appearance: CharacterAppearanceSettings = CharacterAppearanceSettings(),
     val animation: ActorAnimationState = ActorAnimationState(),
+    val physics: RigidPhysicsSettings = RigidPhysicsSettings(),
     val metadata: Map<String, String> = emptyMap(),
 )
 
@@ -58,6 +61,13 @@ enum class HairStyle { NONE, SHORT, BOB, AFRO }
 data class CharacterAppearanceSettings(
     val hairStyle: HairStyle = HairStyle.NONE,
     val hairColorHex: String = "#302520",
+    // Null preserves the VRoid creator's original textured hair material.
+    val animeHairTintHex: String? = null,
+    // Spring simulation is preview-only; local pose and saved project remain pristine.
+    val hairPhysicsEnabled: Boolean = true,
+    val fabricPhysicsEnabled: Boolean = true,
+    val hairGravityStrength: Float = 1f,
+    val hairWindStrength: Float = 0f,
 )
 
 @Serializable
@@ -137,6 +147,10 @@ data class WorldSettings(
     val groundEnabled: Boolean = true,
     val gridEnabled: Boolean = true,
     val environmentAssetId: String? = null,
+    // Default for old scenes too; preset changes remain undoable and serialized.
+    val environmentPreset: EnvironmentPreset = EnvironmentPreset.DAYLIGHT,
+    val gravityEnabled: Boolean = false,
+    val gravityMetersPerSecondSquared: Float = 9.81f,
 )
 
 @Serializable
@@ -214,6 +228,15 @@ data class RigBone(
     val name: String,
     val parentId: String? = null,
     val restRotationEulerDegrees: Vec3 = Vec3(),
+)
+
+@Serializable
+data class SavedPosePreset(
+    val id: String,
+    val name: String,
+    /** Semantic labels, not model-specific glTF node indices. */
+    val jointsByLabel: Map<String, Vec3> = emptyMap(),
+    val expressionsByName: Map<String, Float> = emptyMap(),
 )
 
 @Serializable

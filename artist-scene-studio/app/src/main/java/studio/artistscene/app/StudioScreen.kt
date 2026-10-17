@@ -42,6 +42,7 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.AccountTree
 import androidx.compose.material.icons.filled.AccessibilityNew
 import androidx.compose.material.icons.filled.AspectRatio
@@ -108,6 +109,7 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -130,6 +132,7 @@ import studio.artistscene.core.ActorKind
 import studio.artistscene.core.mechanicalParts
 import studio.artistscene.core.SceneEditorState
 import studio.artistscene.core.SceneProject
+import studio.artistscene.core.EnvironmentPreset
 import studio.artistscene.core.Interpolation
 import studio.artistscene.core.actorKeyTimes
 import studio.artistscene.core.previousActorKeyTime
@@ -144,6 +147,13 @@ import studio.artistscene.core.Transform
 import studio.artistscene.core.TransformTool
 import studio.artistscene.core.Vec3
 import studio.artistscene.core.RigSemantics
+import studio.artistscene.core.PosePreset
+import studio.artistscene.core.RigidGravity
+import studio.artistscene.core.FaceExpression
+import studio.artistscene.core.AnimeExpressions
+import studio.artistscene.core.CameraShot
+import studio.artistscene.core.StudioCameraShots
+import studio.artistscene.core.LightingLook
 import studio.artistscene.core.IkPoint
 import studio.artistscene.core.TwoBoneIk
 import studio.artistscene.core.evaluateTimeline
@@ -153,10 +163,10 @@ import java.util.UUID
 import kotlin.math.sqrt
 import kotlin.math.tan
 
-private val StudioBackground = Color(0xFF15191F)
-private val PanelBackground = Color(0xFF222832)
-private val MutedText = Color(0xFFAAB4C2)
-private val PrimaryText = Color(0xFFF2F5F8)
+private val StudioBackground = Color(0xFF10171C)
+private val PanelBackground = Color(0xFF1B2931)
+private val MutedText = Color(0xFFA7BBC0)
+private val PrimaryText = Color(0xFFF3FAFA)
 
 private class OpenModelDocumentContract : ActivityResultContract<Unit, Uri?>() {
     override fun createIntent(context: Context, input: Unit): Intent =
@@ -223,6 +233,12 @@ internal fun StudioScreen(
     var rigMessages by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
     var timelineTime by remember(initialProject.id) { mutableStateOf(0f) }
     var timelinePlaying by remember(initialProject.id) { mutableStateOf(false) }
+    // Rigid-body simulation is opt-in. Hair spring dynamics run separately on
+    // Filament's render thread and do not depend on pressing Play here.
+    var gravityPlaying by remember(initialProject.id) { mutableStateOf(false) }
+    var gravityUndoStart by remember(initialProject.id) { mutableStateOf<SceneProject?>(null) }
+    val latestPhysicsEditor = rememberUpdatedState(editor)
+
 
     LaunchedEffect(editor.project.timeline.durationSeconds) {
         timelineTime = timelineTime.coerceIn(0f, editor.project.timeline.durationSeconds.coerceAtLeast(0f))
@@ -269,6 +285,28 @@ internal fun StudioScreen(
             )
         }
         Log.d(RUNTIME_LOG_TAG, "editor-change reason=$reason selected=${next.selectedActorId}")
+    }
+
+    LaunchedEffect(gravityPlaying, editor.project.world.gravityEnabled) {
+        if (!gravityPlaying || !editor.project.world.gravityEnabled) return@LaunchedEffect
+        val solver = RigidGravity(editor.project)
+        var previousFrame = withFrameNanos { it }
+        var accumulated = 0f
+        while (gravityPlaying) {
+            val frame = withFrameNanos { it }
+            accumulated += ((frame - previousFrame) / 1_000_000_000f).coerceIn(0f, .05f)
+            previousFrame = frame
+            // 30Hz capped transform preview avoids putting 60 geometry updates
+            // through Compose on low-powered mobile GPUs.
+            if (accumulated < (1f / 30f)) continue
+            val step = accumulated.coerceAtMost(.065f)
+            accumulated = 0f
+            val present = latestPhysicsEditor.value
+            val positions = solver.step(present.project, step)
+            if (positions.isNotEmpty()) {
+                applyEditor(present.previewGravityPositions(positions), "gravity-live-frame")
+            }
+        }
     }
 
     LaunchedEffect(editor.project) {
@@ -583,7 +621,17 @@ internal fun StudioScreen(
                 onAssetFailed = handleAssetFailed,
                 onRigDiscovered = { actorId, definition ->
                     rigMessages = rigMessages - actorId
-                    val next = editor.withDiscoveredRig(actorId, definition)
+                    val discovered = editor.withDiscoveredRig(actorId, definition)
+                    val posed = discovered.project.actors.firstOrNull { it.id == actorId }
+                        ?.let { PrototypeScene.resolveAnimePose(it, definition) }
+                    val next = if (posed != null &&
+                        discovered.project.actors.any { it.id == actorId && it != posed }) {
+                        discovered.copy(
+                            project = discovered.project.copy(
+                                actors = discovered.project.actors.map { if (it.id == actorId) posed else it },
+                            ),
+                        )
+                    } else discovered
                     applyEditor(next, "rig-discovered")
                     val compatibility = if (definition.bones.any { RigSemantics.label(it.name) != it.name }) {
                         RigCompatibility.POSEABLE
@@ -661,7 +709,7 @@ internal fun StudioScreen(
             if (!referenceMode) {
                 Surface(
                     modifier = Modifier.align(Alignment.TopCenter).fillMaxWidth().statusBarsPadding().padding(horizontal = 8.dp, vertical = 8.dp),
-                    color = Color(0xEE1D232B),
+                    color = Color(0xEE1B2931),
                     shape = RoundedCornerShape(16.dp),
                     tonalElevation = 0.dp,
                 ) {
@@ -695,7 +743,7 @@ internal fun StudioScreen(
                 }
                 Surface(
                     modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth().navigationBarsPadding().padding(horizontal = 8.dp, vertical = 8.dp),
-                    color = Color(0xEE1D232B),
+                    color = Color(0xEE1B2931),
                     shape = RoundedCornerShape(18.dp),
                     tonalElevation = 0.dp,
                 ) {
@@ -730,6 +778,7 @@ internal fun StudioScreen(
                                     activeSheet = "pose"
                                 }
                                 EditorTool("Animate", Icons.Default.PlayArrow, false, "motion-tools") { activeSheet = "motion" }
+                                EditorTool("Physics", Icons.Default.ArrowDownward, activeSheet == "physics", "physics-tools") { activeSheet = "physics" }
                                 EditorTool("Reference", Icons.Default.Image, false, "reference-tools") {
                                     if (selectedReferenceId == null) {
                                         selectedReferenceId = editor.project.referenceImages.firstOrNull()?.id
@@ -916,6 +965,19 @@ internal fun StudioScreen(
             selectedJointId = selectedJointId,
             selectedAxis = selectedPoseAxis,
             poseIkEnabled = poseIkEnabled,
+            gravityPlaying = gravityPlaying,
+            onGravityPlayingChange = { playing ->
+                if (playing && editor.project.world.gravityEnabled) {
+                    gravityUndoStart = editor.project
+                    gravityPlaying = true
+                } else {
+                    gravityPlaying = false
+                    gravityUndoStart?.let { previous ->
+                        applyEditor(editor.commitTransformGesture(previous), "gravity-commit")
+                    }
+                    gravityUndoStart = null
+                }
+            },
             selectedReferenceId = selectedReferenceId,
             onReferenceSelected = { selectedReferenceId = it },
             onReferenceImport = { referenceImageLauncher.launch(arrayOf("image/*")) },
@@ -1479,21 +1541,55 @@ private fun projectActorPivot(position: Vec3, camera: SceneCamera, width: androi
     )
 }
 
+/** Custom compact creative-tool pill, not the platform's default slider or giant button. */
+@Composable
+private fun MiseActionPill(
+    title: String,
+    tag: String,
+    enabled: Boolean = true,
+    onClick: () -> Unit,
+) {
+    val fill = if (enabled) Color(0xFF293B42) else Color(0xFF222C33)
+    Row(
+        modifier = Modifier
+            .clip(RoundedCornerShape(13.dp))
+            .background(fill)
+            .clickable(enabled = enabled, onClick = onClick)
+            .testTag(tag)
+            .padding(horizontal = 12.dp, vertical = 11.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Box(
+            Modifier.size(width = 3.dp, height = 14.dp).background(
+                if (enabled) Color(0xFF87DBC9) else MutedText.copy(alpha = .3f),
+                RoundedCornerShape(4.dp),
+            ),
+        )
+        Text(
+            title, fontSize = 12.sp,
+            color = if (enabled) PrimaryText else MutedText.copy(alpha = .5f),
+            fontWeight = FontWeight.SemiBold,
+            maxLines = 1,
+        )
+    }
+}
+
 @Composable
 private fun EditorTool(label: String, icon: androidx.compose.ui.graphics.vector.ImageVector, selected: Boolean, tag: String, onClick: () -> Unit) {
     Box(
         modifier = Modifier
-            .size(width = 48.dp, height = 50.dp)
+            .size(width = 44.dp, height = 50.dp)
             .clip(RoundedCornerShape(12.dp))
-            .background(if (selected) Color(0xFF8DA7FF) else Color(0xFF303844))
+            .background(if (selected) Color(0xFF87DBC9) else Color(0xFF293B42))
             .clickable(onClick = onClick)
             .testTag(tag)
             .padding(horizontal = 2.dp),
         contentAlignment = Alignment.Center,
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-            Icon(icon, contentDescription = label, modifier = Modifier.size(19.dp), tint = if (selected) Color(0xFF101624) else PrimaryText)
-            Text(label, maxLines = 1, fontSize = 9.sp, lineHeight = 10.sp, color = if (selected) Color(0xFF101624) else PrimaryText, fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium)
+            Icon(icon, contentDescription = label, modifier = Modifier.size(19.dp), tint = if (selected) Color(0xFF102822) else PrimaryText)
+            Text(label, maxLines = 1, fontSize = 9.sp, lineHeight = 10.sp, color = if (selected) Color(0xFF102822) else PrimaryText, fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium)
         }
     }
 }
@@ -1577,6 +1673,8 @@ private fun EditorContextSheet(
     selectedJointId: String?,
     selectedAxis: TransformAxis,
     poseIkEnabled: Boolean,
+    gravityPlaying: Boolean,
+    onGravityPlayingChange: (Boolean) -> Unit,
     selectedReferenceId: String?,
     onReferenceSelected: (String?) -> Unit,
     onReferenceImport: () -> Unit,
@@ -1595,6 +1693,19 @@ private fun EditorContextSheet(
     onTimelineStep: (Float) -> Unit,
     onTimelinePlayingChange: (Boolean) -> Unit,
 ) {
+    val sheetFocusManager = LocalFocusManager.current
+    val sheetScroll = rememberScrollState()
+    LaunchedEffect(sheet, editor.selectedActorId) {
+        // Android restores focus to NumericAxisEditor when a new ModalBottomSheet
+        // mounts, dragging a 42-morph Inspector to its bottom automatically.
+        // Keep actual character appearance/physics controls at the sheet entrance.
+        sheetFocusManager.clearFocus(force = true)
+        withFrameNanos { }
+        sheetFocusManager.clearFocus(force = true)
+        sheetScroll.scrollTo(0)
+        withFrameNanos { }
+        sheetScroll.scrollTo(0)
+    }
     if (sheet == "pose") {
         PoseControlsOverlay(
             editor = editor,
@@ -1619,7 +1730,7 @@ private fun EditorContextSheet(
     ) {
         Box(Modifier.fillMaxWidth().heightIn(max = 560.dp)) {
         Column(
-            modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState())
+            modifier = Modifier.fillMaxWidth().verticalScroll(sheetScroll)
                 .testTag("context-sheet-content").padding(horizontal = 20.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
@@ -1636,6 +1747,7 @@ private fun EditorContextSheet(
                         "motion" -> "Animation"
                         "reference" -> "Reference"
                         "camera" -> "Camera"
+                        "physics" -> "Gravity & Physics"
                         else -> "Lighting"
                     },
                     modifier = Modifier.weight(1f),
@@ -1782,10 +1894,12 @@ private fun EditorContextSheet(
                         color = MutedText,
                         fontSize = 12.sp,
                     )
-                    SelectedActorActions(editor, actor, onEditor)
+                    // The selected character's hair/gravity controls lead the
+                    // inspector instead of being buried beneath object actions.
                     if (actor.kind == ActorKind.CHARACTER) {
                         CharacterAppearance(editor, actor, onEditor)
                     }
+                    SelectedActorActions(editor, actor, onEditor)
                     if (actor.mechanicalParts().isNotEmpty()) {
                         MechanicalPartsInspector(editor, actor, onEditor)
                     }
@@ -2215,6 +2329,99 @@ private fun EditorContextSheet(
                         )
                     }
                 }
+                "physics" -> {
+                    Text("Gravity · real scene objects", color = PrimaryText, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                    Text(
+                        "Rigid actors fall with acceleration, drag and floor bounce. Hair and fabric have their own per-strand springs.",
+                        color = MutedText, fontSize = 12.sp,
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        FilterChip(
+                            selected = editor.project.world.gravityEnabled,
+                            onClick = {
+                                if (gravityPlaying) onGravityPlayingChange(false)
+                                onEditor(editor.setGravityWorld(enabled = !editor.project.world.gravityEnabled), "gravity-world-toggle")
+                            },
+                            label = { Text(if (editor.project.world.gravityEnabled) "Gravity on" else "Gravity off") },
+                            modifier = Modifier.weight(1f).testTag("gravity-world-toggle"),
+                        )
+                        Button(
+                            enabled = editor.project.world.gravityEnabled &&
+                                editor.project.actors.any { it.physics.dynamic && !it.locked && it.visible },
+                            onClick = { onGravityPlayingChange(!gravityPlaying) },
+                            modifier = Modifier.weight(1f).testTag("gravity-play-pause"),
+                        ) { Text(if (gravityPlaying) "Pause & keep" else "Simulate") }
+                    }
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            "Acceleration · ${String.format(Locale.US, "%.2f", editor.project.world.gravityMetersPerSecondSquared)} m/s²",
+                            color = MutedText, fontSize = 12.sp, modifier = Modifier.weight(1f),
+                        )
+                        listOf(-1f, 1f).forEach { delta ->
+                            IconButton(
+                                onClick = {
+                                    if (gravityPlaying) onGravityPlayingChange(false)
+                                    onEditor(editor.setGravityWorld(metersPerSecondSquared =
+                                        editor.project.world.gravityMetersPerSecondSquared + delta), "gravity-acceleration")
+                                },
+                                modifier = Modifier.size(40.dp).testTag(if (delta < 0) "gravity-g-less" else "gravity-g-more"),
+                            ) {
+                                Icon(if (delta < 0) Icons.Default.Remove else Icons.Default.Add,
+                                    contentDescription = if (delta < 0) "Less gravity" else "More gravity",
+                                    tint = PrimaryText)
+                            }
+                        }
+                    }
+                    val physical = editor.selectedActor?.takeIf {
+                        it.kind != ActorKind.LIGHT && it.kind != ActorKind.CAMERA
+                    }
+                    if (physical != null) {
+                        Text("Selected · ${physical.name}", color = PrimaryText,
+                            fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            FilterChip(
+                                selected = physical.physics.dynamic,
+                                onClick = {
+                                    if (gravityPlaying) onGravityPlayingChange(false)
+                                    onEditor(editor.setSelectedRigidPhysics(dynamic = !physical.physics.dynamic), "gravity-body-toggle")
+                                },
+                                enabled = !physical.locked,
+                                modifier = Modifier.weight(1f).testTag("gravity-body-toggle"),
+                                label = { Text(if (physical.physics.dynamic) "Dynamic" else "Fixed") },
+                            )
+                            Text(
+                                "Raise using Move Y, then Simulate.",
+                                modifier = Modifier.weight(1f), color = MutedText, fontSize = 11.sp,
+                            )
+                        }
+                        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                            Text("Bounce · ${(physical.physics.bounciness * 100).toInt()}%",
+                                color = MutedText, fontSize = 12.sp, modifier = Modifier.weight(1f))
+                            listOf(-.1f, .1f).forEach { delta ->
+                                IconButton(
+                                    onClick = {
+                                        if (gravityPlaying) onGravityPlayingChange(false)
+                                        onEditor(editor.setSelectedRigidPhysics(bounciness =
+                                            physical.physics.bounciness + delta), "gravity-bounce")
+                                    },
+                                    modifier = Modifier.size(40.dp).testTag(if (delta < 0) "gravity-bounce-less" else "gravity-bounce-more"),
+                                    enabled = !physical.locked,
+                                ) { Icon(if (delta < 0) Icons.Default.Remove else Icons.Default.Add,
+                                    contentDescription = if (delta < 0) "Less bounce" else "More bounce", tint = PrimaryText) }
+                            }
+                        }
+                    } else {
+                        Text("Select a character or prop to make it dynamic.", color = MutedText, fontSize = 12.sp)
+                    }
+                    Text(
+                        "Preview collides with the floor only; object-to-object collisions are not implemented. Pause to commit one undo step.",
+                        color = MutedText, fontSize = 11.sp,
+                    )
+                }
                 "camera" -> {
                     val cameras = editor.project.cameras
                     val camera = cameras.firstOrNull { it.id == editor.project.activeCameraId }
@@ -2235,6 +2442,30 @@ private fun EditorContextSheet(
                         }
                     }
                     camera?.let { active ->
+                        editor.selectedActor?.takeIf { it.kind == ActorKind.CHARACTER }?.let { character ->
+                            Text(
+                                "Artist camera angles",
+                                color = MutedText,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.SemiBold,
+                            )
+                            Row(
+                                modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            ) {
+                                CameraShot.entries.forEach { shot ->
+                                    MiseActionPill(
+                                        title = shot.title,
+                                        tag = "camera-shot-${shot.name.lowercase()}",
+                                    ) {
+                                        onEditor(
+                                            editor.updateActiveCamera(StudioCameraShots.frame(active, character, shot)),
+                                            "camera-shot-${shot.name.lowercase()}",
+                                        )
+                                    }
+                                }
+                            }
+                        }
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(6.dp),
@@ -2284,6 +2515,20 @@ private fun EditorContextSheet(
                 }
                 "light" -> {
                     val lights = editor.project.actors.filter { it.kind == ActorKind.LIGHT }
+                    Text("Lighting looks", color = MutedText, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                    Row(
+                        modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    ) {
+                        LightingLook.entries.forEach { look ->
+                            MiseActionPill(
+                                title = look.title,
+                                tag = "lighting-look-${look.name.lowercase()}",
+                                enabled = lights.any { it.light?.type == LightType.DIRECTIONAL && !it.locked },
+                            ) { onEditor(editor.applyLightingLook(look), "lighting-look-${look.name.lowercase()}") }
+                        }
+                    }
+
                     if (lights.isEmpty()) {
                         Text("No scene lights yet. Add a point, spot, or sun light from Add.", color = MutedText, fontSize = 12.sp)
                     } else {
@@ -2428,6 +2673,53 @@ private fun EditorContextSheet(
                             Text("Select a light above to edit it.", color = MutedText, fontSize = 12.sp)
                         }
                     }
+                    // A scene environment does not depend on the selected actor.
+                    // Persist it in the project, with normal undo/redo semantics.
+                    Text(
+                        "Environment · floor & sky",
+                        color = PrimaryText,
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 15.sp,
+                        modifier = Modifier.padding(top = 12.dp).testTag("environment-controls"),
+                    )
+                    Text(
+                        "Choose an atmosphere with a low-glare floor that keeps humanoid silhouettes easy to read.",
+                        color = MutedText, fontSize = 11.sp,
+                    )
+                    EnvironmentPreset.entries.chunked(2).forEach { rowPresets ->
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            rowPresets.forEach { preset ->
+                                FilterChip(
+                                    selected = editor.project.world.environmentPreset == preset,
+                                    onClick = {
+                                        onEditor(editor.setEnvironmentPreset(preset), "environment-preset")
+                                    },
+                                    label = { Text(preset.title, fontSize = 11.sp, maxLines = 1) },
+                                    modifier = Modifier.weight(1f).testTag("environment-${preset.name.lowercase()}"),
+                                )
+                            }
+                        }
+                    }
+                    FilterChip(
+                        selected = editor.project.world.groundEnabled,
+                        onClick = {
+                            onEditor(
+                                editor.setGroundVisible(!editor.project.world.groundEnabled),
+                                "environment-ground",
+                            )
+                        },
+                        label = {
+                            Text(if (editor.project.world.groundEnabled) "Ground visible" else "Ground hidden")
+                        },
+                        modifier = Modifier.testTag("environment-ground-toggle"),
+                    )
+                    Text(
+                        "Original offline sky gradients · PBR matte shadow receiver · saved with the scene.",
+                        color = MutedText, fontSize = 10.sp,
+                    )
                 }
                 else -> Unit
             }
@@ -2592,6 +2884,111 @@ private fun CharacterAppearance(
         }
     }
 
+    if (actor.asset?.assetId in setOf(
+        PrototypeScene.ANIME_ASSET_ID, PrototypeScene.ANIME_FEMALE_ASSET_ID,
+    )) {
+        Text("Gravity & secondary motion", color = PrimaryText, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            FilterChip(
+                selected = actor.appearance.hairPhysicsEnabled,
+                onClick = {
+                    onEditor(editor.setAnimeHairPhysics(enabled = !actor.appearance.hairPhysicsEnabled), "anime-hair-spring-toggle")
+                },
+                enabled = !actor.locked,
+                label = { Text(if (actor.appearance.hairPhysicsEnabled) "Hair · Dynamic" else "Hair · Still") },
+                modifier = Modifier.weight(1f).testTag("anime-hair-physics"),
+            )
+            FilterChip(
+                selected = actor.appearance.fabricPhysicsEnabled,
+                onClick = {
+                    onEditor(editor.setAnimeHairPhysics(fabricEnabled = !actor.appearance.fabricPhysicsEnabled), "anime-fabric-spring-toggle")
+                },
+                enabled = !actor.locked,
+                label = { Text(if (actor.appearance.fabricPhysicsEnabled) "Cloth · Dynamic" else "Cloth · Still") },
+                modifier = Modifier.weight(1f).testTag("anime-fabric-physics"),
+            )
+        }
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                "Gravity · ${String.format(Locale.US, "%.2f", actor.appearance.hairGravityStrength)}×",
+                color = MutedText, fontSize = 12.sp, modifier = Modifier.weight(1f),
+            )
+            listOf(-.25f, .25f).forEach { delta ->
+                IconButton(
+                    onClick = {
+                        onEditor(
+                            editor.setAnimeHairPhysics(gravity = actor.appearance.hairGravityStrength + delta),
+                            "anime-hair-gravity",
+                        )
+                    },
+                    enabled = !actor.locked &&
+                        if (delta < 0) actor.appearance.hairGravityStrength > 0f
+                        else actor.appearance.hairGravityStrength < 2f,
+                    modifier = Modifier.size(40.dp).testTag(if (delta < 0) "anime-gravity-less" else "anime-gravity-more"),
+                ) {
+                    Icon(
+                        if (delta < 0) Icons.Default.Remove else Icons.Default.Add,
+                        contentDescription = if (delta < 0) "Less hair gravity" else "More hair gravity",
+                        tint = PrimaryText,
+                    )
+                }
+            }
+        }
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                "Breeze · ${String.format(Locale.US, "%.2f", actor.appearance.hairWindStrength)}×",
+                color = MutedText, fontSize = 12.sp, modifier = Modifier.weight(1f),
+            )
+            listOf(-.25f, .25f).forEach { delta ->
+                IconButton(
+                    onClick = {
+                        onEditor(
+                            editor.setAnimeHairPhysics(wind = actor.appearance.hairWindStrength + delta),
+                            "anime-hair-breeze",
+                        )
+                    },
+                    enabled = !actor.locked &&
+                        if (delta < 0) actor.appearance.hairWindStrength > 0f
+                        else actor.appearance.hairWindStrength < 2f,
+                    modifier = Modifier.size(40.dp).testTag(if (delta < 0) "anime-breeze-less" else "anime-breeze-more"),
+                ) {
+                    Icon(
+                        if (delta < 0) Icons.Default.Remove else Icons.Default.Add,
+                        contentDescription = if (delta < 0) "Less breeze" else "More breeze",
+                        tint = PrimaryText,
+                    )
+                }
+            }
+        }
+        Text(
+            "Hair and cloth follow gravity and character motion during preview. Your authored pose stays unchanged.",
+            color = MutedText, fontSize = 11.sp,
+        )
+        Text("VRoid hair · genuine 3D strands", color = PrimaryText, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+        Row(
+            modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            listOf(
+                "Original" to null,
+                "Ebony" to "#181B27",
+                "Chestnut" to "#784A35",
+                "Honey" to "#CDB279",
+                "Rose" to "#D87188",
+                "Lilac" to "#9F91D7",
+                "Ocean" to "#337DA5",
+                "Silver" to "#CFDBDE",
+            ).forEach { (label, hex) ->
+                MiseActionPill(
+                    title = label,
+                    tag = "anime-hair-dye-${label.lowercase()}",
+                    enabled = !actor.locked,
+                ) { onEditor(editor.setAnimeHairTint(hex), "anime-hair-dye") }
+            }
+        }
+
+    }
+
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         Text("Height · ${String.format(Locale.US, "%.0f", actor.transform.scale.y * 100)}%", modifier = Modifier.weight(1f), color = MutedText)
         OutlinedButton(
@@ -2603,7 +3000,16 @@ private fun CharacterAppearance(
             enabled = !actor.locked, modifier = Modifier.testTag("character-taller"),
         ) { Text("+") }
     }
-    actor.rigDefinition?.morphTargets.orEmpty().forEach { target ->
+    val importedTargets = actor.rigDefinition?.morphTargets.orEmpty()
+    val genericTargets = importedTargets.filter { it.name.matches(Regex("(?i)shape\\s*\\d+")) }
+    var showUnlabelledTargets by remember(actor.id) { mutableStateOf(false) }
+    if (genericTargets.isNotEmpty()) {
+        TextButton(onClick = { showUnlabelledTargets = !showUnlabelledTargets },
+            modifier = Modifier.testTag("appearance-advanced-shapes")) {
+            Text(if (showUnlabelledTargets) "Hide imported shapes" else "Show ${genericTargets.size} imported shapes")
+        }
+    }
+    importedTargets.filter { it !in genericTargets || showUnlabelledTargets }.forEach { target ->
         val weight = actor.rig?.morphWeights?.get(target.id) ?: 0f
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Text("${target.name} · ${String.format(Locale.US, "%.0f", weight * 100)}%", modifier = Modifier.weight(1f), color = MutedText, fontSize = 12.sp)
@@ -2889,6 +3295,11 @@ private fun PoseControlsOverlay(
         ?: bones.firstOrNull { it.name.contains("arm", ignoreCase = true) }
         ?: bones.firstOrNull()
     val rotation = selectedBone?.let { actor?.rig?.joints?.get(it.id) } ?: Vec3()
+    var showPoseAdvancedShapes by remember(actor?.id) { mutableStateOf(false) }
+    val unnamedPoseShapes = morphTargets.filter { it.name.matches(Regex("(?i)shape\\s*\\d+")) }
+    val poseShapesToShow = morphTargets.filter {
+        it !in unnamedPoseShapes || showPoseAdvancedShapes
+    }
 
     Box(Modifier.fillMaxSize().semantics { testTagsAsResourceId = true }) {
         Surface(
@@ -2897,8 +3308,8 @@ private fun PoseControlsOverlay(
                 .heightIn(
                     max = when {
                         morphTargets.isNotEmpty() -> 340.dp
-                        fingerBones.isNotEmpty() -> 285.dp
-                        else -> 180.dp
+                        fingerBones.isNotEmpty() -> 350.dp
+                        else -> 275.dp
                     },
                 ),
             color = PanelBackground,
@@ -2929,24 +3340,6 @@ private fun PoseControlsOverlay(
                     }
                     Spacer(Modifier.weight(1f))
                     TextButton(onClick = onClose, modifier = Modifier.testTag("pose-done")) { Text("Done") }
-                }
-                if (actor?.kind == ActorKind.CHARACTER && bones.isNotEmpty()) {
-                    if (!ikEnabled && fingerBones.isNotEmpty()) {
-                        Text("Hands", color = MutedText, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
-                        Row(
-                            modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-                            horizontalArrangement = Arrangement.spacedBy(6.dp),
-                        ) {
-                            fingerBones.forEach { finger ->
-                                FilterChip(
-                                    selected = selectedBone?.id == finger.id,
-                                    onClick = { onJointSelected(finger.id) },
-                                    label = { Text(RigSemantics.label(finger, bones), maxLines = 1) },
-                                    modifier = Modifier.testTag("pose-finger-${RigSemantics.tag(finger.name)}"),
-                                )
-                            }
-                        }
-                    }
                 }
                 when {
                     actor != null && actor.mechanicalParts().isNotEmpty() -> {
@@ -2996,9 +3389,115 @@ private fun PoseControlsOverlay(
                                 ) { Icon(Icons.Default.AccessibilityNew, contentDescription = "Reset pose", tint = PrimaryText) }
                             }
                         }
+                if (actor?.kind == ActorKind.CHARACTER && bones.isNotEmpty()) {
+                    Text("Pose library · editable", color = MutedText, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                    Row(
+                        modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    ) {
+                        PosePreset.entries.forEach { preset ->
+                            MiseActionPill(
+                                title = preset.title,
+                                tag = "pose-preset-${preset.name.lowercase()}",
+                                enabled = !actor.locked,
+                            ) { onEditor(editor.applyPosePreset(preset), "pose-preset-${preset.name.lowercase()}") }
+                        }
+                    }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        OutlinedButton(
+                            onClick = { onEditor(editor.mirrorSelectedPose(), "pose-mirror") },
+                            modifier = Modifier.weight(1f).testTag("pose-mirror"),
+                            enabled = !actor.locked && actor.rig?.joints?.isNotEmpty() == true,
+                        ) { Text("Mirror left / right", maxLines = 1) }
+                        OutlinedButton(
+                            onClick = { onEditor(editor.stageDuo(), "pose-stage-duo") },
+                            modifier = Modifier.weight(1f).testTag("pose-stage-duo"),
+                            enabled = !actor.locked && editor.project.actors.any {
+                                it.id != actor.id && it.kind == ActorKind.CHARACTER &&
+                                    it.visible && !it.locked && it.parentId == null &&
+                                    it.rigDefinition?.bones?.isNotEmpty() == true
+                            },
+                        ) { Text("Stage two", maxLines = 1) }
+                    }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text("My poses", color = MutedText, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+                        TextButton(
+                            onClick = {
+                                onEditor(editor.saveSelectedPose("My pose ${editor.project.savedPoses.size + 1}"), "pose-custom-save")
+                            },
+                            enabled = !actor.locked && actor.rig?.joints?.isNotEmpty() == true,
+                            modifier = Modifier.testTag("pose-custom-save"),
+                        ) { Text("Save current") }
+                    }
+                    if (editor.project.savedPoses.isNotEmpty()) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                            horizontalArrangement = Arrangement.spacedBy(5.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            editor.project.savedPoses.forEach { saved ->
+                                FilterChip(
+                                    selected = false,
+                                    onClick = { onEditor(editor.applySavedPose(saved.id), "pose-custom-apply") },
+                                    label = { Text(saved.name, maxLines = 1) },
+                                    modifier = Modifier.testTag("pose-custom-apply-${saved.id}"),
+                                )
+                                IconButton(
+                                    onClick = { onEditor(editor.deleteSavedPose(saved.id), "pose-custom-delete") },
+                                    modifier = Modifier.size(30.dp).testTag("pose-custom-delete-${saved.id}"),
+                                ) { Icon(Icons.Default.Close, contentDescription = "Delete ${saved.name}", tint = MutedText, modifier = Modifier.size(15.dp)) }
+                            }
+                        }
+                    }
+                    if (!ikEnabled && fingerBones.isNotEmpty()) {
+                        Text("Hands", color = MutedText, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                        Row(
+                            modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        ) {
+                            fingerBones.forEach { finger ->
+                                FilterChip(
+                                    selected = selectedBone?.id == finger.id,
+                                    onClick = { onJointSelected(finger.id) },
+                                    label = { Text(RigSemantics.label(finger, bones), maxLines = 1) },
+                                    modifier = Modifier.testTag("pose-finger-${RigSemantics.tag(finger.name)}"),
+                                )
+                            }
+                        }
+                    }
+                }
                         if (morphTargets.isNotEmpty()) {
                             Text("Expressions & shape", color = MutedText, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
-                            morphTargets.forEach { target ->
+                            Row(
+                                modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            ) {
+                                FaceExpression.entries.forEach { expression ->
+                                    if (AnimeExpressions.canApply(actor, expression)) {
+                                        MiseActionPill(
+                                            title = expression.title,
+                                            tag = "face-expression-${expression.name.lowercase()}",
+                                            enabled = !actor.locked,
+                                        ) { onEditor(editor.applyFaceExpression(expression), "face-expression-${expression.name.lowercase()}") }
+                                    }
+                                }
+                            }
+                            if (unnamedPoseShapes.isNotEmpty()) {
+                                TextButton(
+                                    onClick = { showPoseAdvancedShapes = !showPoseAdvancedShapes },
+                                    modifier = Modifier.testTag("pose-advanced-shapes"),
+                                ) {
+                                    Text(if (showPoseAdvancedShapes) "Hide generic shapes" else "More shapes (${unnamedPoseShapes.size})")
+                                }
+                            }
+                            poseShapesToShow.forEach { target ->
                                 val weight = actor.rig?.morphWeights?.get(target.id) ?: 0f
                                 Row(
                                     modifier = Modifier.fillMaxWidth()
