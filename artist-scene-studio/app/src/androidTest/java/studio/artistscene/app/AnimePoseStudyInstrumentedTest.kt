@@ -42,14 +42,23 @@ class AnimePoseStudyInstrumentedTest {
         // so a green-pixel test is invalid for an actual textured anime avatar.
         fun screenshot(stage: String, background: File? = null): File {
             val image = File(proof, "anime-$stage.png")
+            // Expose only the FINAL accepted PNG to ADB's screenshot watcher.
+            // Previously, repeatedly writing anime-posed.png let the watcher
+            // capture the first EMPTY pre-render frame and keep it forever.
+            val candidate = File(proof, "anime-$stage-candidate.png")
+            fun publishAcceptedCapture(): File {
+                image.delete()
+                check(candidate.renameTo(image)) { "Could not publish accepted $stage screenshot" }
+                return image
+            }
             val reference = background?.let { requireNotNull(BitmapFactory.decodeFile(it.path)) }
             try {
                 val deadline = SystemClock.uptimeMillis() + if (background != null) 40_000 else 4_000
                 do {
                     SystemClock.sleep(if (background != null) 1_600 else 3_500)
-                    assertTrue("Could not capture the $stage screenshot", device.takeScreenshot(image))
-                    if (reference == null) return image
-                    val current = requireNotNull(BitmapFactory.decodeFile(image.path))
+                    assertTrue("Could not capture the $stage screenshot", device.takeScreenshot(candidate))
+                    if (reference == null) return publishAcceptedCapture()
+                    val current = requireNotNull(BitmapFactory.decodeFile(candidate.path))
                     var changed = 0
                     for (y in current.height * 24 / 100 until current.height * 58 / 100 step 3) {
                         for (x in current.width * 16 / 100 until current.width * 84 / 100 step 3) {
@@ -61,13 +70,14 @@ class AnimePoseStudyInstrumentedTest {
                         }
                     }
                     current.recycle()
-                    if (changed >= 150) return image
+                    if (changed >= 150) return publishAcceptedCapture()
                 } while (SystemClock.uptimeMillis() < deadline)
                 throw AssertionError(
                     "Actual textured anime $stage mesh is invisible on Android " +
                         android.os.Build.VERSION.SDK_INT + "; see ${image.name}",
                 )
             } finally {
+                candidate.delete()
                 reference?.recycle()
             }
         }
