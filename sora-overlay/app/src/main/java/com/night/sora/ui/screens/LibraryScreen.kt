@@ -71,8 +71,8 @@ fun LibraryScreen(
 
     Column(modifier.fillMaxSize()) {
         Row(
-            Modifier.fillMaxWidth().height(56.dp).padding(horizontal = 10.dp),
-            verticalAlignment = Alignment.CenterVertically,
+            Modifier.fillMaxWidth().height(48.dp).padding(horizontal = 10.dp),
+            verticalAlignment = Alignment.Top,
         ) {
             if (searchOpen) {
                 BasicTextField(
