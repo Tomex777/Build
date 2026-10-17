@@ -203,6 +203,10 @@ class AnimePoseStudyInstrumentedTest {
                 val femaleActor = store.load(project.id).actors.first { it.id == actorId }
                 assertTrue("Real female anime rig never loaded",
                     (femaleActor.rigDefinition?.bones?.size ?: 0) >= 60)
+                val faceNames = femaleActor.rigDefinition?.morphTargets.orEmpty().map { it.name }.toSet()
+                assertTrue("VRM authentic Joy/Blink/Angry/Sorrow expressions unavailable: $faceNames",
+                    setOf("Joy", "Blink", "Angry", "Sorrow").all { it in faceNames })
+
                 femaleNeutral = screenshot("female-neutral", empty)
             }
             assertTrue("Female anime model invisible on emulator",
