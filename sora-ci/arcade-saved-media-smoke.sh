@@ -26,9 +26,12 @@ root=ET.Element("map")
 ET.SubElement(root,"string",name="library_v1").text=json.dumps(items)
 ET.ElementTree(root).write("/tmp/sora-arcade-seed.xml",encoding="utf-8",xml_declaration=True)
 PY
-adb shell run-as com.night.sora mkdir -p shared_prefs
-adb shell run-as com.night.sora sh -c 'cat > shared_prefs/sora_core.xml' < /tmp/sora-arcade-seed.xml
-adb shell run-as com.night.sora cat shared_prefs/sora_core.xml | grep -q library_v1
+# run-as does not guarantee a current working directory inside package data.
+# Use the absolute per-app credential-encrypted data path for all emulator APIs.
+PREFS=/data/data/com.night.sora/shared_prefs
+adb shell run-as com.night.sora mkdir -p "$PREFS"
+adb shell run-as com.night.sora sh -c "cat > $PREFS/sora_core.xml" < /tmp/sora-arcade-seed.xml
+adb shell run-as com.night.sora cat "$PREFS/sora_core.xml" | grep -q library_v1
 adb shell am start -W -n com.night.sora/.MainActivity >/dev/null
 sleep 4
 
