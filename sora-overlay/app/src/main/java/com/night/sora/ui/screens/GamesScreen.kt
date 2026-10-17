@@ -95,9 +95,11 @@ fun GamesScreen(modifier: Modifier = Modifier, library: List<LibraryEntry>) {
                 IconButton(onClick = { selectedGame = "" }) { Icon(Icons.Rounded.ArrowBack, "All games") }
                 Text("Cover quiz", fontSize = 28.sp, fontWeight = FontWeight.ExtraBold)
             }
-            Text("A title quiz built from your saved collection.", color = SoraMuted, fontSize = 12.sp, modifier = Modifier.padding(top = 3.dp))
         }
-        item {
+        // The onboarding card is only for first launch. Keeping its large
+        // preamble visible during every round pushed answer buttons below the
+        // viewport, forcing users to scroll just to advance a short quiz.
+        if (questions.isEmpty()) item {
             Surface(color = Color(0xFF242118), shape = RoundedCornerShape(20.dp), modifier = Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(19.dp)) {
                     Text("TITLE MATCH", color = SoraAccent, fontSize = 9.sp, fontWeight = FontWeight.Black, letterSpacing = 1.2.sp)
