@@ -109,6 +109,7 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -1692,6 +1693,19 @@ private fun EditorContextSheet(
     onTimelineStep: (Float) -> Unit,
     onTimelinePlayingChange: (Boolean) -> Unit,
 ) {
+    val sheetFocusManager = LocalFocusManager.current
+    val sheetScroll = rememberScrollState()
+    LaunchedEffect(sheet, editor.selectedActorId) {
+        // Android restores focus to NumericAxisEditor when a new ModalBottomSheet
+        // mounts, dragging a 42-morph Inspector to its bottom automatically.
+        // Keep actual character appearance/physics controls at the sheet entrance.
+        sheetFocusManager.clearFocus(force = true)
+        withFrameNanos { }
+        sheetFocusManager.clearFocus(force = true)
+        sheetScroll.scrollTo(0)
+        withFrameNanos { }
+        sheetScroll.scrollTo(0)
+    }
     if (sheet == "pose") {
         PoseControlsOverlay(
             editor = editor,
@@ -1716,7 +1730,7 @@ private fun EditorContextSheet(
     ) {
         Box(Modifier.fillMaxWidth().heightIn(max = 560.dp)) {
         Column(
-            modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState())
+            modifier = Modifier.fillMaxWidth().verticalScroll(sheetScroll)
                 .testTag("context-sheet-content").padding(horizontal = 20.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
@@ -2986,7 +3000,16 @@ private fun CharacterAppearance(
             enabled = !actor.locked, modifier = Modifier.testTag("character-taller"),
         ) { Text("+") }
     }
-    actor.rigDefinition?.morphTargets.orEmpty().forEach { target ->
+    val importedTargets = actor.rigDefinition?.morphTargets.orEmpty()
+    val genericTargets = importedTargets.filter { it.name.matches(Regex("(?i)shape\\s*\\d+")) }
+    var showUnlabelledTargets by remember(actor.id) { mutableStateOf(false) }
+    if (genericTargets.isNotEmpty()) {
+        TextButton(onClick = { showUnlabelledTargets = !showUnlabelledTargets },
+            modifier = Modifier.testTag("appearance-advanced-shapes")) {
+            Text(if (showUnlabelledTargets) "Hide imported shapes" else "Show ${genericTargets.size} imported shapes")
+        }
+    }
+    importedTargets.filter { it !in genericTargets || showUnlabelledTargets }.forEach { target ->
         val weight = actor.rig?.morphWeights?.get(target.id) ?: 0f
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Text("${target.name} · ${String.format(Locale.US, "%.0f", weight * 100)}%", modifier = Modifier.weight(1f), color = MutedText, fontSize = 12.sp)
