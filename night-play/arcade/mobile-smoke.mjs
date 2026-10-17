@@ -156,6 +156,11 @@ await page.locator('canvas.mode-blocks').evaluate(el=>{
 });
 await page.waitForTimeout(340);
 await page.locator('canvas.mode-blocks').evaluate(el=>{
+ const r=el.getBoundingClientRect(),x=r.x+r.width*.5,y=r.y+r.height*.23;
+ el.dispatchEvent(new PointerEvent('pointermove',{bubbles:true,pointerId:78,pointerType:'touch',clientX:x,clientY:y}));
+});
+await page.waitForTimeout(24);
+await page.locator('canvas.mode-blocks').evaluate(el=>{
  const r=el.getBoundingClientRect(),x=r.x+r.width*.5,y=r.y+r.height*.42;
  el.dispatchEvent(new PointerEvent('pointermove',{bubbles:true,pointerId:78,pointerType:'touch',clientX:x,clientY:y}));
  el.dispatchEvent(new PointerEvent('pointerup',{bubbles:true,pointerId:78,pointerType:'touch',clientX:x,clientY:y}));
