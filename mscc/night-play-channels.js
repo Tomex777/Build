@@ -15,7 +15,7 @@ const isAdmin=role=>['ADMIN','OWNER','SUPERADMIN','SUPER_ADMIN','CREATOR'].inclu
 function infoOf(meta) {
   const id=str(meta?.id||meta?.jid)
   if(!JID.test(id)) fail(502,'WhatsApp could not identify this channel.')
-  return {id,name:clean(meta?.name||meta?.subject||'WhatsApp Channel'),role:roleOf(meta)}
+  return {id,name:clean((typeof meta?.name==='string'?meta.name:meta?.name?.text)||meta?.thread_metadata?.name?.text||meta?.subject||'WhatsApp Channel'),role:roleOf(meta)}
 }
 const view=r=>({id:r.channel_id,name:r.name,status:r.state,verifiedAt:r.verified_at||null,
   ...(r.state!=='connected'?{proof:r.proof,expiresAt:r.expires_at}:{} )})
@@ -65,8 +65,10 @@ export class NightPlayChannels {
     const info=infoOf(await account.sock.newsletterMetadata('jid',pending.channel_id))
     const occupied=this.db.prepare("SELECT user_id FROM play_channel_claims WHERE channel_id=? AND state='connected'").get(info.id)
     if(occupied&&occupied.user_id!==userId)fail(409,'Another administrator already connected this channel.')
-    try{await account.sock.newsletterFollow(info.id)}
-    catch{fail(502,'WhatsApp could not confirm the channel follow. No admin access was granted.')}
+    if(!isAdmin(info.role)) {
+      try{await account.sock.newsletterFollow(info.id)}
+      catch{fail(502,'WhatsApp could not confirm the channel follow. No admin access was granted.')}
+    }
     const current=this.db.prepare('SELECT * FROM play_channel_claims WHERE user_id=? AND channel_id=?').get(userId,info.id)
     this.db.prepare('DELETE FROM play_channel_consent WHERE user_id=?').run(userId)
     if(current?.state==='connected')return {name:current.name,already:true}
