@@ -208,8 +208,11 @@ wait_for_node 'Search Music' 12
 tap_text 'Search Music'
 wait_for_node 'Search Music…' 12
 tap_text 'Search Music…'
-adb shell input text 'Low%sLight'
+# A broad explicit query returns multiple real fixture items, allowing us to
+# verify Next/Previous and queue order without auto-seeding a home playlist.
+adb shell input text 'a'
 wait_for_node 'Low Light' 30
+wait_for_node 'Wake Slowly' 20
 shot 01-music-demo-search
 
 # The search input and the playable result share the text "Low Light".
