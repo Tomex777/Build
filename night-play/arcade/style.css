@@ -50,31 +50,26 @@ body>footer{display:none}
 
 .touchbar:empty{display:none}
 
-/* Block Drop is 10 x 20 cells. Size by the SHORTER usable dimension,
-   not by viewport width alone: a 390px wide board would be 780px tall. */
+/* Block Drop: the browser calculates board height from the *actual* game
+   shell and visible viewport. CSS remains the safe first-paint fallback. The
+   width fills the narrow screen; resized/split-screen windows recalculate. */
 #screen.mode-blocks{
- width:min(100%,465px,calc((100dvh - 310px - env(safe-area-inset-bottom,0px))/2));
- max-width:calc(100vw - 20px);
- height:auto;
- max-height:none;
- aspect-ratio:1/2;
- border-width:1px;
- border-radius:8px;
- box-shadow:0 8px 21px #1b44382b;
-}
-@media(max-width:650px){
- /* Reserve actual screen space for the header, HUD and the touch controls.
-    On unusually short screens the board itself fits; controls may scroll. */
- /* Full playable width, not a narrow centred strip. On tall phones the
-    board keeps square cells; on short phones its rows compress vertically so
-    all 20 rows remain visible and the controls stay below the board. */
- #screen.mode-blocks{
-  width:100%;
+  display:block;
+  box-sizing:border-box;
+  width:min(100%,465px);
   max-width:100%;
-  height:min(calc(200vw - 28px),max(220px,calc(100dvh - 296px - env(safe-area-inset-bottom,0px))));
+  height:var(--block-fit-height, min(65dvh, 600px));
+  min-height:0;
   max-height:none;
   aspect-ratio:auto;
- }
+  border:1px solid #a9c2b1;
+  border-radius:8px;
+  box-shadow:0 8px 21px #1b44382b;
+  touch-action:none;
+}
+body:has(#screen.mode-blocks:not([hidden])) .canvas-shell{min-width:0}
+@media(max-width:650px){
+ #screen.mode-blocks{width:100%;max-width:100%}
  body:has(#screen.mode-blocks:not([hidden])) main{padding:7px 7px 8px}
  body:has(#screen.mode-blocks:not([hidden])) .night-game-intro{padding:0 0 6px}
  body:has(#screen.mode-blocks:not([hidden])) .night-game-intro .night-eyebrow,
@@ -82,13 +77,40 @@ body>footer{display:none}
  body:has(#screen.mode-blocks:not([hidden])) .night-game-intro h1{font-size:24px;margin:0}
  body:has(#screen.mode-blocks:not([hidden])) .night-play-hud{padding:5px 8px;margin-bottom:6px}
  body:has(#screen.mode-blocks:not([hidden])) .touchbar{margin-top:8px;min-height:42px}
- body:has(#screen.mode-blocks:not([hidden])) .touchbar button{min-height:42px}
  body:has(#screen.mode-blocks:not([hidden])) .night-action-row{margin:8px auto}
  body:has(#screen.mode-blocks:not([hidden])) .night-action-row button{min-height:38px}
  body:has(#screen.mode-blocks:not([hidden])) #message{margin:1px auto}
  body:has(#screen.mode-blocks:not([hidden])) #extra{margin:1px auto;line-height:1.4}
 }
-
+/* Landscape and short desktop windows: real two-column gamepad instead of
+   pushing the controls under an already tall playfield. */
+@media(min-width:651px) and (max-height:610px){
+ body:has(#screen.mode-blocks:not([hidden])) .night-shell-header{height:48px!important}
+ body:has(#screen.mode-blocks:not([hidden])) main{padding:4px 9px 6px}
+ body:has(#screen.mode-blocks:not([hidden])) .night-game-intro{padding:0 0 3px}
+ body:has(#screen.mode-blocks:not([hidden])) .night-game-intro h1{font-size:22px;margin:0}
+ body:has(#screen.mode-blocks:not([hidden])) .night-game-intro .night-eyebrow,
+ body:has(#screen.mode-blocks:not([hidden])) .night-game-intro p{display:none}
+ body:has(#screen.mode-blocks:not([hidden])) .night-play-hud{padding:3px 8px;margin-bottom:5px;max-width:650px}
+ body:has(#screen.mode-blocks:not([hidden])) .layout{max-width:960px}
+ body:has(#screen.mode-blocks:not([hidden])) .play{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) minmax(195px,.7fr);
+  grid-template-areas:"board controls" "board restart" "board message" "board extra";
+  align-items:center;align-content:start;column-gap:13px;row-gap:4px;
+  width:100%;
+ }
+ body:has(#screen.mode-blocks:not([hidden])) .canvas-shell{grid-area:board;min-width:0}
+ body:has(#screen.mode-blocks:not([hidden])) #screen.mode-blocks{width:100%;max-width:465px}
+ body:has(#screen.mode-blocks:not([hidden])) .touchbar{grid-area:controls;margin:0;max-width:none}
+ body:has(#screen.mode-blocks:not([hidden])) .night-action-row{grid-area:restart;margin:0;width:100%}
+ body:has(#screen.mode-blocks:not([hidden])) #message{grid-area:message;margin:0;min-height:0;font-size:11px}
+ body:has(#screen.mode-blocks:not([hidden])) #extra{grid-area:extra;margin:0}
+ body:has(#screen.mode-blocks:not([hidden])) .block-control-layout{
+   grid-template-columns:minmax(0,1fr);gap:7px
+ }
+ body:has(#screen.mode-blocks:not([hidden])) .block-control-layout button{min-height:46px}
+}
 
 /* Block Drop gamepad: movement under the left thumb, actions under the right.
    Pause stays separate in the score panel. */
