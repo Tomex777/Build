@@ -1,7 +1,7 @@
 const { createHash, randomBytes, sign, createPrivateKey } = require('node:crypto')
 const COOKIE = '__Host-night_play'
 const ACTIONS = new Set(['status','link','cancel','logout','profile','delete',
-  'match:create','match:random','match:join','match:state','match:list','match:move','match:leave','channel:list','channel:remove'])
+  'match:create','match:random','match:join','match:state','match:list','match:move','match:leave','channel:list','channel:remove','channel:verify'])
 const RPC_PATH = '/api/night-play/rpc'
 const hash = value => createHash('sha256').update(value).digest('hex')
 const message = (timestamp, nonce, body) => ['night-play-v1',timestamp,nonce,'POST',RPC_PATH,hash(body)].join('\n')
