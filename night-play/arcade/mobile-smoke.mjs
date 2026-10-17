@@ -98,10 +98,11 @@ await page.locator('canvas.mode-blocks').evaluate(el=>{
 assert.notDeepEqual(await page.evaluate(()=>window.__nightArcadeTest.snapshot().cur.cells),beforeTap,'tap rotates the piece');
 await page.locator('#restart').click();
 const origin=await page.evaluate(()=>window.__nightArcadeTest.snapshot().cur.x);
+const beforeSwipeCells=await page.evaluate(()=>window.__nightArcadeTest.snapshot().cur.cells);
 await gesture([[.42,.26],[.67,.26],[.67,.26]]);
 const afterSwipe=await page.evaluate(()=>window.__nightArcadeTest.snapshot());
 assert.ok(afterSwipe.cur.x>=origin+2,'drag right follows finger across multiple columns');
-assert.deepEqual(afterSwipe.cur.cells,(await page.evaluate(()=>window.__nightArcadeTest.snapshot().cur.cells)),'drag does not accidentally rotate');
+assert.deepEqual(afterSwipe.cur.cells,beforeSwipeCells,'drag never rotates the piece');
 assert.ok(afterSwipe.grid.flat().every(v=>v===null),'sideways drag cannot lock the piece');
 await page.locator('#restart').click();
 const beforeSlow=await page.evaluate(()=>window.__nightArcadeTest.snapshot().cur.y);
@@ -127,11 +128,50 @@ await gesture([[.4,.22],[.4,.22]],'pointercancel');
 assert.deepEqual(await page.evaluate(()=>window.__nightArcadeTest.snapshot().cur.cells),beforeCancel,'pointer cancellation does not rotate');
 await page.locator('#blockPause').click();
 assert.equal(await page.evaluate(()=>window.__nightArcadeTest.flags().paused),true,'separate Pause works');
+assert.equal(await page.locator('#blockPause').getAttribute('aria-label'),'Resume Block Drop','Pause announces the correct resume action');
+assert.equal(await page.locator('#blockPause').getAttribute('aria-pressed'),'true','Pause reflects its active state');
 const pausedX=await page.evaluate(()=>window.__nightArcadeTest.snapshot().cur.x);
 await gesture([[.4,.22],[.65,.22],[.65,.22]]);
 assert.equal(await page.evaluate(()=>window.__nightArcadeTest.snapshot().cur.x),pausedX,'gestures cannot move pieces while paused');
 await page.locator('#blockPause').click();
 assert.equal(await page.evaluate(()=>window.__nightArcadeTest.flags().paused),false,'pause toggles back to play');
+assert.equal(await page.locator('#blockPause').getAttribute('aria-label'),'Pause Block Drop','Resume restores the pause action');
+await page.locator('#restart').click();
+// Verify actual Chromium touch input, not only constructed PointerEvents.
+const cdps=await page.context().newCDPSession(page);
+const touchRect=await page.locator('canvas.mode-blocks').boundingBox();
+const startTouchX=touchRect.x+touchRect.width*.39,finishTouchX=touchRect.x+touchRect.width*.59;
+const touchY=touchRect.y+touchRect.height*.35;
+const touchStartX=await page.evaluate(()=>window.__nightArcadeTest.snapshot().cur.x);
+await cdps.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x:startTouchX,y:touchY,id:1}]});
+await cdps.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x:finishTouchX,y:touchY,id:1}]});
+await cdps.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
+await cdps.detach();
+assert.ok(await page.evaluate(()=>window.__nightArcadeTest.snapshot().cur.x)>touchStartX,'real browser touch swipe moves the piece');
+await page.locator('#restart').click();
+// A long hold followed by a fast downward flick still qualifies as a flick.
+await page.locator('canvas.mode-blocks').evaluate(el=>{
+ const r=el.getBoundingClientRect(),x=r.x+r.width*.5,y=r.y+r.height*.2;
+ el.dispatchEvent(new PointerEvent('pointerdown',{bubbles:true,pointerId:78,pointerType:'touch',clientX:x,clientY:y}));
+});
+await page.waitForTimeout(340);
+await page.locator('canvas.mode-blocks').evaluate(el=>{
+ const r=el.getBoundingClientRect(),x=r.x+r.width*.5,y=r.y+r.height*.42;
+ el.dispatchEvent(new PointerEvent('pointermove',{bubbles:true,pointerId:78,pointerType:'touch',clientX:x,clientY:y}));
+ el.dispatchEvent(new PointerEvent('pointerup',{bubbles:true,pointerId:78,pointerType:'touch',clientX:x,clientY:y}));
+});
+assert.ok(await page.evaluate(()=>window.__nightArcadeTest.snapshot().grid.flat().some(v=>v!==null)),'flick after holding commits a hard drop');
+await page.locator('#restart').click();
+// Multi-touch must never be misread as tap, flick or rotation.
+const multiBefore=await page.evaluate(()=>window.__nightArcadeTest.snapshot().cur.cells);
+await page.locator('canvas.mode-blocks').evaluate(el=>{
+ const r=el.getBoundingClientRect(),x=r.x+r.width*.5,y=r.y+r.height*.3;
+ const dispatch=(type,id,offset=0)=>el.dispatchEvent(new PointerEvent(type,{
+  bubbles:true,pointerId:id,pointerType:'touch',clientX:x+offset,clientY:y
+ }));
+ dispatch('pointerdown',51);dispatch('pointerdown',52,20);dispatch('pointerup',52,20);dispatch('pointerup',51);
+});
+assert.deepEqual(await page.evaluate(()=>window.__nightArcadeTest.snapshot().cur.cells),multiBefore,'second finger cancels gesture instead of rotating');
 await page.locator('#restart').click();
 // Press-and-hold must repeat, not wait for an extra release click.
 const rightButton=page.locator('.block-move-group [data-control="right"]');
@@ -139,7 +179,10 @@ const beforeHold=await page.evaluate(()=>window.__nightArcadeTest.snapshot().cur
 await rightButton.dispatchEvent('pointerdown',{button:0,pointerId:44});
 await page.waitForTimeout(410);
 await rightButton.dispatchEvent('pointerup',{button:0,pointerId:44});
-assert.ok(await page.evaluate(()=>window.__nightArcadeTest.snapshot().cur.x)>=beforeHold+2,'holding a direction repeats movement');
+const afterHold=await page.evaluate(()=>window.__nightArcadeTest.snapshot().cur.x);
+assert.ok(afterHold>=beforeHold+2,'holding a direction repeats movement');
+await rightButton.dispatchEvent('click',{bubbles:true});
+assert.equal(await page.evaluate(()=>window.__nightArcadeTest.snapshot().cur.x),afterHold,'pointer release click does not double-step');
 await page.locator('#restart').click();
 const initial=await page.evaluate(()=>{const s=window.__nightArcadeTest.snapshot();return [s.cur.x,s.cur.y];});
 await page.locator('[data-control="left"]').click();assert.equal(await page.evaluate(()=>window.__nightArcadeTest.snapshot().cur.x),initial[0]-1);
