@@ -1,10 +1,10 @@
 {
-  "releaseId": "night-2026-10-17-16-squid-registration",
+  "releaseId": "night-2026-10-17-17-squid-safe-labels",
   "baseBranch": "mscc-azure",
-  "baseCommit": "88008cd8338ae1e37dced80ae34975f6d5079085",
+  "baseCommit": "3d25d9e4869777502186a5017ea5cfeac204329d",
   "pullRequests": [
-    323
+    328
   ],
-  "carriedForwardRelease": "night-2026-10-17-15-tiktok-download",
-  "notes": "Single-scope NIGHT Squid Game registration fix (#323). Correct 60-second timeout, missed reactions, allow admins to opt in without ever kicking/demoting original admins, support two-player minimum and configurable scheduled registration for both kick and CG modes. Previous TikTok fix #320 is already committed to mscc-azure and may still await protected production approval; ship this release only after combined CI, one protected mscc-production approval, and confirm deployed SHA / health / live WhatsApp reactions on Nami and non-bot test accounts. Supersede older unapproved Azure deploy runs as defined by NIGHT Release Batch. No session/account-binding changes."
+  "carriedForwardRelease": "night-2026-10-17-16-squid-registration",
+  "notes": "Single-scope production release for NIGHT Squid Game identifier exposure correction PR #328: stop rendering raw opaque WhatsApp LID and PN/JID digits as player or winner names; use safe observed push/group names and real WhatsApp mentions, anonymous player number fallback, unit coverage for winning, elimination, RED finalization and CG. No session secrets or account identity settings touched. Validate complete integrated CI, merge release once, protected mscc-production approval then verify Azure deployed SHA, service health and live WhatsApp labels; do not claim live confirmation before smoke/real check."
 }
