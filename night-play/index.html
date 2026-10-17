@@ -896,7 +896,7 @@ body{background:var(--bg)}
 /* Compact profile: a verified name needs neither a second badge nor a connection caption. */
 .profile-identity .profile-monogram{position:relative;padding:0;overflow:hidden;display:grid;place-items:center;border-radius:50%}
 .profile-identity .profile-monogram img{width:100%;height:100%;object-fit:cover;display:block}
-.profile-identity .profile-monogram img[hidden],.profile-account-menu[hidden],#profileIdentityCaption[hidden]{display:none!important}
+.profile-identity .profile-monogram img[hidden],#profileAvatarFallback[hidden],.profile-account-menu[hidden],#profileIdentityCaption[hidden],header [data-dialog="connect"][hidden]{display:none!important}
 .profile-actions{display:flex;align-items:center;gap:8px;flex:none}
 .profile-account-menu{width:40px;height:40px;display:grid;place-items:center;border:1px solid #d5dad7;border-radius:11px;background:#fff;color:#285442;cursor:pointer}
 .profile-account-menu:hover{background:#e9eeea}
