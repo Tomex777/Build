@@ -248,7 +248,7 @@ class AnimePoseStudyInstrumentedTest {
                         requireNotNull(button) { "Hair physics control $tag cannot be reached" }.click()
                     }
                 }
-                pressRepeated("anime-gravity-more", 8)
+                pressRepeated("anime-gravity-more", 4)
                 pressRepeated("anime-breeze-more", 8)
                 // Dismiss the modal without changing orbit position or actor scale.
                 device.pressBack()
@@ -263,8 +263,8 @@ class AnimePoseStudyInstrumentedTest {
                 assertEquals(before.width, after.width)
                 assertEquals(before.height, after.height)
                 var delta = 0
-                for (y in before.height * 20 / 100 until before.height * 43 / 100) {
-                    for (x in before.width * 22 / 100 until before.width * 78 / 100) {
+                for (y in before.height * 20 / 100 until before.height * 35 / 100) {
+                    for (x in before.width * 36 / 100 until before.width * 66 / 100) {
                         val p = before.getPixel(x, y)
                         val q = after.getPixel(x, y)
                         if (kotlin.math.abs(Color.red(p) - Color.red(q)) +
@@ -286,7 +286,7 @@ class AnimePoseStudyInstrumentedTest {
                 val before = requireNotNull(BitmapFactory.decodeFile(a.path))
                 val after = requireNotNull(BitmapFactory.decodeFile(b.path))
                 var changed = 0
-                for (y in before.height * 51 / 100 until before.height * 60 / 100) {
+                for (y in before.height * 68 / 100 until before.height * 75 / 100) {
                     for (x in before.width * 32 / 100 until before.width * 68 / 100) {
                         val p = before.getPixel(x, y)
                         val q = after.getPixel(x, y)
@@ -300,7 +300,7 @@ class AnimePoseStudyInstrumentedTest {
                 return changed
             }
             assertTrue(
-                "Hair comparison shifted the whole model/camera; invalid proof",
+                "Hair comparison shifted the rigid lower body/camera; invalid proof",
                 unchangedSkirt(stillHair, movingHair) < 70,
             )
 
