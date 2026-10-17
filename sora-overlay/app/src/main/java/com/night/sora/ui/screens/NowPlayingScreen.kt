@@ -198,9 +198,12 @@ fun NowPlayingScreen(
                     // Some public music endpoints explicitly require login or
                     // anti-bot verification. Offer an actionable recovery path
                     // instead of leaving users staring at a frozen play button.
-                    if (message.contains("signed-in session", ignoreCase = true) ||
-                        message.contains("HTTP 403", ignoreCase = true) ||
-                        message.contains("HTTP 401", ignoreCase = true)) {
+                    if (track.sourceId == "youtube.music" &&
+                        (message.contains("sign in", ignoreCase = true) ||
+                         message.contains("signed-in", ignoreCase = true) ||
+                         message.contains("login", ignoreCase = true) ||
+                         message.contains("403") || message.contains("401") ||
+                         message.contains("challenge", ignoreCase = true))) {
                         TextButton(onClick = onManageSources,
                             modifier = Modifier.padding(top = 4.dp)) {
                             Icon(Icons.Rounded.OpenInNew, contentDescription = null,
