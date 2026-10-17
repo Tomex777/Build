@@ -49,9 +49,8 @@ fun MoreScreen(
 ) {
     LazyColumn(modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 24.dp)) {
         item {
-            Column(Modifier.statusBarsPadding().padding(start = 20.dp, top = 22.dp, end = 20.dp, bottom = 14.dp)) {
+            Column(Modifier.padding(start = 20.dp, top = 2.dp, end = 20.dp, bottom = 8.dp)) {
                 Text("More", fontSize = 30.sp, fontWeight = FontWeight.Bold)
-                Text("Sora settings and system tools", color = SoraMuted, fontSize = 12.sp, modifier = Modifier.padding(top = 2.dp))
             }
         }
 
@@ -159,7 +158,7 @@ private fun MoreRow(
 fun DownloadsScreen(
     downloads: List<DownloadEntry>,
     onBack: () -> Unit,
-    onStatus: (String, DownloadStatus) -> Unit,
+    onRetry: (String) -> Unit,
     onRemove: (String) -> Unit,
     onClearCompleted: () -> Unit,
 ) {
@@ -180,12 +179,12 @@ fun DownloadsScreen(
         },
     ) { padding ->
         LazyColumn(Modifier.fillMaxSize().padding(padding), contentPadding = PaddingValues(bottom = 24.dp)) {
-            item { DownloadSectionTitle("Active transfers", if (active.isEmpty()) "Nothing downloading right now" else "${active.size} active") }
+            item { DownloadSectionTitle("Transfers & retries", if (active.isEmpty()) "Nothing downloading right now" else "${active.count { it.status == DownloadStatus.QUEUED || it.status == DownloadStatus.DOWNLOADING }} in progress · ${active.count { it.status == DownloadStatus.FAILED || it.status == DownloadStatus.PAUSED }} waiting") }
             if (active.isEmpty()) {
                 item { EmptyDownloadMessage("Downloads you start from a title will appear here while they are queued or transferring.") }
             } else {
                 items(active, key = { it.id }) { entry ->
-                    ActiveDownloadRow(entry, onStatus, onRemove)
+                    ActiveDownloadRow(entry, onRetry, onRemove)
                     MoreDivider()
                 }
             }
@@ -216,7 +215,7 @@ private fun EmptyDownloadMessage(text: String) {
 }
 
 @Composable
-private fun ActiveDownloadRow(entry: DownloadEntry, onStatus: (String, DownloadStatus) -> Unit, onRemove: (String) -> Unit) {
+private fun ActiveDownloadRow(entry: DownloadEntry, onRetry: (String) -> Unit, onRemove: (String) -> Unit) {
     val progress = if (entry.totalBytes > 0L) (entry.bytesDownloaded.toFloat() / entry.totalBytes.toFloat()).coerceIn(0f, 1f) else 0f
     Row(Modifier.fillMaxWidth().padding(start = 20.dp, top = 11.dp, end = 8.dp, bottom = 11.dp), verticalAlignment = Alignment.CenterVertically) {
         DownloadTypeIcon(entry.contentType)
@@ -239,10 +238,8 @@ private fun ActiveDownloadRow(entry: DownloadEntry, onStatus: (String, DownloadS
                 modifier = Modifier.padding(top = 5.dp),
             )
         }
-        when (entry.status) {
-            DownloadStatus.DOWNLOADING, DownloadStatus.QUEUED -> IconButton(onClick = { onStatus(entry.id, DownloadStatus.PAUSED) }) { Icon(Icons.Rounded.Pause, "Pause") }
-            DownloadStatus.PAUSED, DownloadStatus.FAILED -> IconButton(onClick = { onStatus(entry.id, DownloadStatus.QUEUED) }) { Icon(Icons.Rounded.PlayArrow, "Resume") }
-            DownloadStatus.COMPLETED -> Unit
+        if (entry.status == DownloadStatus.FAILED || entry.status == DownloadStatus.PAUSED) {
+            IconButton(onClick = { onRetry(entry.id) }) { Icon(Icons.Rounded.Refresh, "Retry download") }
         }
         IconButton(onClick = { onRemove(entry.id) }) { Icon(Icons.Rounded.Close, "Remove", tint = SoraMuted) }
     }

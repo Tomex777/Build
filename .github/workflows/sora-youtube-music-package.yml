@@ -6,6 +6,16 @@ on:
     paths:
       - 'sora-ci/youtube-music-package-trigger.txt'
   workflow_dispatch:
+  pull_request:
+    branches: [sora-media-ci]
+    paths:
+      - 'sora-overlay/**'
+      - 'sora-ci/import_spotui_innertube.sh'
+      - '.github/workflows/sora-youtube-music-package.yml'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 jobs:
   package:

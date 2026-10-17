@@ -188,10 +188,10 @@ for node in root.iter('node'):
     if not m: continue
     x1,y1,x2,y2=map(int,m.groups())
     width=x2-x1; height=y2-y1
-    if 760 <= y1 <= 1550 and 320 <= width <= 650 and 80 <= height <= 260:
+    if 400 <= y1 <= 1700 and width >= 700 and 70 <= height <= 280:
         choices.append((y1,x1,x2,y2))
 if not choices:
-    raise SystemExit('No playable Music tile found')
+    raise SystemExit('No clickable Music search result found')
 y1,x1,x2,y2=sorted(choices)[0]
 subprocess.check_call(['adb','shell','input','tap',str((x1+x2)//2),str((y1+y2)//2)])
 PY
@@ -216,20 +216,56 @@ else
 fi
 tap_text Music
 
-# YouTube Music browse is network-backed; allow a little longer than the normal UI smoke.
-sleep 10
-dismiss_system_dialogs
-shot 01-youtube-music-home
+# The app no longer invents a personalized Music feed for a new account.
+# Search for a real-world track explicitly (rather than tapping a
+# location-dependent generic chart), just as a first-time user would.
+wait_for_node 'Make Music yours' 20
+shot 01-youtube-music-onboarding
+tap_text 'Search Music'
+tap_text 'Search Music…'
+adb shell input text 'Rick%sAstley%sNever%sGonna%sGive%sYou%sUp'
+wait_for_node 'Never Gonna Give You Up' 45
+shot 01b-youtube-music-search
 
-# Preserve the resolver window independently of uiautomator spam. This starts
-# immediately before the track tap and remains live until the smoke exits.
+# Preserve resolver traffic separately from slow accessibility polling.
 adb logcat -c || true
 adb logcat -v threadtime > "$OUT/resolver-live-logcat.txt" 2>&1 &
 LIVE_LOGCAT_PID=$!
 
 tap_first_music_tile
 wait_for_node 'Mini player' 20
-wait_for_node Pause 40
+
+# The public YouTube endpoint can challenge anonymous GitHub-hosted
+# emulators. Treat that as a distinct, actionable limitation rather than
+# spending several minutes reporting a misleading generic Pause timeout.
+playback_ok=0
+for attempt in $(seq 1 24); do
+  if node_exists Pause; then
+    playback_ok=1
+    break
+  fi
+  if adb logcat -d -t 3000 2>/dev/null | grep -Fq 'YouTube challenged playback; source browser sign-in required'; then
+    echo 'External YouTube session verification required on this CI network.'
+    if tap_text_once 'Mini player' >/dev/null 2>&1; then
+      sleep 2
+      if node_exists 'Open music source settings'; then
+        echo 'Verified actionable in-player sign-in recovery control.'
+      else
+        echo 'Playback blocked and source-settings recovery UI missing.' >&2
+      fi
+    fi
+    shot 02-youtube-music-auth-required
+    capture_logs
+    echo 'LIVE_YOUTUBE_AUTH_REQUIRED: playback remains unverified; a signed-in manual source session is required.' >&2
+    exit 1
+  fi
+  sleep 2
+done
+if (( playback_ok != 1 )); then
+  log_state 'No successful playback and no recognized authentication challenge'
+  shot 02-youtube-music-unresolved
+  exit 1
+fi
 shot 02-youtube-music-playing
 
 # Prove Core is playing through the shared Media3 session and survives being
