@@ -96,6 +96,26 @@ for(const [width,height] of [[390,700],[900,450],[320,568],[390,844]]){
 }
 await page.locator('#blockPause').click();
 await page.locator('#restart').click();
+// Resize halfway through a touch: release must not rotate or hard-drop a
+// different piece, and gravity continues with the original board state.
+const pieceBeforeResizeTouch=await page.evaluate(()=>window.__nightArcadeTest.snapshot().cur.cells);
+await page.locator('canvas.mode-blocks').evaluate(el=>{
+ const r=el.getBoundingClientRect();
+ el.dispatchEvent(new PointerEvent('pointerdown',{bubbles:true,pointerId:990,pointerType:'touch',button:0,clientX:r.x+r.width*.55,clientY:r.y+r.height*.3}));
+});
+await page.setViewportSize({width:360,height:710});
+await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
+await page.locator('canvas.mode-blocks').evaluate(el=>{
+ const r=el.getBoundingClientRect();
+ el.dispatchEvent(new PointerEvent('pointerup',{bubbles:true,pointerId:990,pointerType:'touch',button:0,clientX:r.x+r.width*.55,clientY:r.y+r.height*.3}));
+});
+assert.deepEqual(await page.evaluate(()=>window.__nightArcadeTest.snapshot().cur.cells),pieceBeforeResizeTouch,
+ 'resizing halfway through a gesture cannot cause an accidental rotation');
+assert.ok(await page.evaluate(()=>window.__nightArcadeTest.snapshot().grid.flat().every(v=>v===null)),
+ 'resizing halfway through a gesture cannot hard drop the piece');
+await page.setViewportSize({width:390,height:844});
+await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
+await page.locator('#restart').click();
 assert.equal(await page.locator('.block-move-group button').count(),2,'Left thumb has only move keys');
 assert.equal(await page.locator('.block-action-group button').count(),3,'Right thumb has rotate, soft and hard drop keys');
 assert.equal(await page.locator('#touchbar [data-control="pause"]').count(),0,'Pause is not squeezed into the movement keys');
