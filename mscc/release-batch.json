@@ -1,10 +1,10 @@
 {
-  "releaseId": "night-2026-10-17-13",
+  "releaseId": "night-2026-10-17-14",
   "baseBranch": "mscc-azure",
-  "baseCommit": "6bdc55d15cfa31f5586cc683aefbcf2238187927",
+  "baseCommit": "d12dd807e69c89dceaa2f313e7be07712e380ad4",
   "pullRequests": [
-    304
+    309
   ],
-  "carriedForwardRelease": "night-2026-10-17-12",
-  "notes": "Recover live NIGHT Play ↔ MSCC WhatsApp linking after merged batch #12 passed local health but failed its nginx HTTPS 401 challenge check and rolled back. Include only PR #304 on top of already merged #12 (which also carries anime reaction failover). Disable nginx error interception on only the signed RPC endpoint, require its route marker and exact unsigned JSON challenge after bounded worker-reload readiness retries, retain existing Cortex HTTPS auth and safe rollback. Verify CI on exact integration SHA, then require one authorized protected mscc-production approval. After deployment confirm Vercel /api/account returns 200 and demonstrate actual private WhatsApp .minigames link CODE flow. Do not claim production verified before deployment and end-to-end check."
+  "carriedForwardRelease": "night-2026-10-17-13",
+  "notes": "Deploy NIGHT Play account avatars and true online Tic-Tac-Toe from reviewed PR #309 (which incorporates the avatar implementation from #308). Preserve existing WhatsApp account credentials, bot session files, ingress, Cortex authentication and existing working NIGHT Play account-linking. SQLite: additive play_avatars and play_matches tables; match identity and move checks are server-side. Validate full Azure tests on exact release head and require protected mscc-production approval. After deployment verify unsigned RPC rejection, signed website account status, then two independent WhatsApp-linked users creating/joining a room, turn protection, disconnect/reconnect persistence, actual profile image privacy fallback and no regressions. Roll back on health failure. Only deploy the companion Vercel multiplayer site once backend passes live readiness."
 }
