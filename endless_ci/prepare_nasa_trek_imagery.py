@@ -19,6 +19,18 @@ from pathlib import Path
 from PIL import Image
 
 SITE = {
+    # Real MESSENGER/Dawn georegistered *reflectance* only. Their first-person
+    # elevations are still illustrative -- do not claim measured 3D geometry.
+    "mercury": {
+        "lat": 30.5, "lon": 162.7, "radius": 2439.7,
+        "zoom": 6,
+        "id": "Mercury/EQ/Mercury_MESSENGER_MDIS_Basemap_EnhancedColor_Mosaic_Global_665m",
+    },
+    "ceres": {
+        "lat": 20.0, "lon": -121.0, "radius": 473.0,
+        "zoom": 6,
+        "id": "Ceres/EQ/Ceres_Dawn_FC_HAMO_ClrShade_DLR_Global_60ppd_Oct2016",
+    },
     "moon": {
         "lat": -43.31, "lon": -11.36, "radius": 1737.4,
         "zoom": 8, "id": "Moon/EQ/LRO_WAC_Mosaic_Global_303ppd_v02",
