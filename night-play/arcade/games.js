@@ -18,8 +18,9 @@ function message(t){$("message").textContent=t;}
 function end(text){if(finished)return;finished=true;stop();record(type,points);message(text+" · Tap Restart to play again.");}
 function drawText(text,y,size=24){ctx.fillStyle="#fff";ctx.font="900 "+size+"px system-ui,Arial";ctx.textAlign="center";ctx.fillText(text,c.width/2,y);}
 function pick(id){if(!metadata[id])id="bird";type=id;const [title,sub,rules]=metadata[id];$("title").textContent=title;$("subtitle").textContent=sub;$("rules").textContent=rules;document.title=title+" · NIGHT Play";[...$("picks").querySelectorAll("button")].forEach(b=>b.setAttribute("aria-current",String(b.dataset.game===id)));const url=new URL(location.href);url.searchParams.set("game",id);history.replaceState({},"",url.pathname+url.search);if($("settingsDialog").open)$("settingsDialog").close();restart();}
-function restart(){stop();resetBlockInputs();$("blockPause").hidden=type!=="blocks";
+function restart(){stop();resetBlockInputs();$("blockPause").hidden=type!=="blocks";$("wingSkin").hidden=type!=="bird";
 if(type!=="blocks"){c.style.removeProperty("--block-fit-height");c.style.removeProperty("--block-fit-width");}
+if(type!=="bird"){c.style.removeProperty("--wing-fit-height");c.style.removeProperty("--wing-fit-width");}
 last=0;gameStart=Date.now();finished=false;paused=false;syncBlockPauseButton();score(0);message("Ready to play.");extra.replaceChildren();board.hidden=type!=="mines";c.hidden=type==="mines";c.className="mode-"+type;
 if(type==="bird")setupBird();if(type==="blocks")setupBlocks();if(type==="mines")setupMines();if(type==="maze")setupMaze();}
 function button(label,action,aria=label){return '<button type="button" data-control="'+action+'" aria-label="'+aria+'">'+label+'</button>';}
@@ -33,38 +34,47 @@ const wingArtSources={"parrot":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAI
 for(const [name,src] of Object.entries(wingArtSources)){const img=new Image();img.src=src;wingArt[name]=img}
 function readyArt(name){const img=wingArt[name];return img&&img.complete&&img.naturalWidth>0?img:null}
 function drawWingBackground(s){
- // Sky and sun never change: paint once when a round begins, not 60 times/s.
+ const h=c.height,ground=h-42;
+ // Sky and sun are cached until the backing canvas changes size.
  if(wingBackdrop)ctx.drawImage(wingBackdrop,0,0);
- // Scrolling clouds and hills remain animated.
  for(let i=0;i<6;i++){
   const img=readyArt(i%2===0?"cloud1":"cloud3");
-  const x=((i*141-s.distance*.14)%475+475)%475-95, y=48+(i%3)*92;
+  const x=((i*141-s.distance*.14)%475+475)%475-95;
+  const y=34+(i%3)*Math.max(60,(ground-115)/5);
   if(img){ctx.globalAlpha=.9;ctx.drawImage(img,x,y,i%2?109:132,i%2?59:65);ctx.globalAlpha=1;}
  }
- ctx.fillStyle="#89bba4";ctx.beginPath();ctx.moveTo(0,529);for(let i=0;i<=360;i+=30)ctx.lineTo(i,489+Math.sin((i+s.distance*.18)/53)*19);ctx.lineTo(360,565);ctx.lineTo(0,565);ctx.fill();
- ctx.fillStyle="#539579";ctx.beginPath();ctx.moveTo(0,549);for(let i=0;i<=360;i+=25)ctx.lineTo(i,523+Math.sin((i+s.distance*.27)/34)*12);ctx.lineTo(360,565);ctx.lineTo(0,565);ctx.fill();
+ ctx.fillStyle="#89bba4";ctx.beginPath();ctx.moveTo(0,ground-29);
+ for(let i=0;i<=360;i+=30)ctx.lineTo(i,ground-69+Math.sin((i+s.distance*.18)/53)*19);
+ ctx.lineTo(360,ground+7);ctx.lineTo(0,ground+7);ctx.fill();
+ ctx.fillStyle="#539579";ctx.beginPath();ctx.moveTo(0,ground-9);
+ for(let i=0;i<=360;i+=25)ctx.lineTo(i,ground-35+Math.sin((i+s.distance*.27)/34)*12);
+ ctx.lineTo(360,ground+7);ctx.lineTo(0,ground+7);ctx.fill();
  const bush=readyArt("bush1"),bush2=readyArt("bush2");
  for(let i=0;i<7;i++){
   const x=((i*87-s.distance*.39)%520+520)%520-98;
   const sprite=i%2?bush:bush2;
-  if(sprite)ctx.drawImage(sprite,x,526+(i%3)*7,115,56);
+  if(sprite)ctx.drawImage(sprite,x,ground-32+(i%3)*7,115,56);
  }
 }
 function wingPipe(x,edge,isTop){
  const cap=18;
+ const ground=c.height-42;
  if(edge<=0)return;
- const start=isTop?0:edge, bottom=isTop?edge:558, h=Math.max(0,bottom-start);
+ const start=isTop?0:edge,bottom=isTop?edge:ground,h=Math.max(0,bottom-start);
  const grad=ctx.createLinearGradient(x,0,x+62,0);
  grad.addColorStop(0,"#174d44");grad.addColorStop(.18,"#397f68");grad.addColorStop(.38,"#7ac699");
  grad.addColorStop(.65,"#428e72");grad.addColorStop(1,"#205d50");
  ctx.fillStyle=grad;ctx.fillRect(x,start,62,h);
  ctx.strokeStyle="#244e44";ctx.lineWidth=3;ctx.strokeRect(x+1,start,60,h);
  const capY=isTop?Math.max(0,edge-cap):edge;
- const lip=ctx.createLinearGradient(x-5,0,x+67,0);lip.addColorStop(0,"#204b46");lip.addColorStop(.32,"#75c69a");lip.addColorStop(.64,"#3f916f");lip.addColorStop(1,"#1c5148");
+ const lip=ctx.createLinearGradient(x-5,0,x+67,0);
+ lip.addColorStop(0,"#204b46");lip.addColorStop(.32,"#75c69a");
+ lip.addColorStop(.64,"#3f916f");lip.addColorStop(1,"#1c5148");
  ctx.fillStyle=lip;
  ctx.beginPath();ctx.roundRect(x-6,capY,74,Math.min(cap,h),5);ctx.fill();
  ctx.strokeStyle="#244e44";ctx.lineWidth=3;ctx.stroke();
- ctx.fillStyle="#c0efc277";ctx.fillRect(x+9,start+(isTop?2:cap),5,Math.max(0,h-cap-3));
+ ctx.fillStyle="#c0efc277";
+ if(h>cap+3)ctx.fillRect(x+9,start+(isTop?2:cap),5,h-cap-3);
 }
 function wingBird(s){
  const sprite=readyArt(s.skin||"parrot");
@@ -79,36 +89,135 @@ function wingBird(s){
  ctx.restore();
 }
 /* WING HOP — frame-rate independent motion, real bundled art and fast touch. */
-function setupBird(){c.width=360;c.height=600;
- wingBackdrop=document.createElement("canvas");wingBackdrop.width=360;wingBackdrop.height=600;
+/* WING HOP — variable-height world keeps sprites and physics proportional.
+   Resize updates actual gameplay space without restarting or stretching art. */
+let wingFitFrame=0,wingCssWidth=0,wingCssHeight=0;
+function wingGap(height){return Math.max(122,Math.min(175,(height-42)*.33));}
+function wingPipeCenter(s){
+ const min=s.gap/2+34,max=c.height-42-s.gap/2-34;
+ return Math.max(min,min+Math.random()*Math.max(0,max-min));
+}
+function rebuildWingBackdrop(){
+ wingBackdrop=document.createElement("canvas");
+ wingBackdrop.width=360;wingBackdrop.height=c.height;
  const bg=wingBackdrop.getContext("2d");
- const sky=bg.createLinearGradient(0,0,0,560);sky.addColorStop(0,"#81c9d3");sky.addColorStop(.6,"#c5eeed");sky.addColorStop(1,"#e8f4ce");
- bg.fillStyle=sky;bg.fillRect(0,0,360,600);
- bg.fillStyle="#fbf5cd7d";bg.beginPath();bg.arc(292,95,46,0,Math.PI*2);bg.fill();
- let skin="parrot";try{skin=localStorage.getItem("night-play-wing-hop-skin")==="chick"?"chick":"parrot"}catch{}
- state={x:95,y:260,vy:0,gap:175,pipes:[],distance:0,started:false,dead:false,skin};
- setControls(button("SWITCH BIRD","bird-skin","Switch between parrot and chick")+button("FLAP ↥","flap","Flap wings"));
- message("Tap the bird arena or FLAP to begin.");frameLoop(birdFrame);}
-function flap(){if(type!=="bird"||finished)return;state.started=true;state.vy=-6.8;message("Keep flying!");}
-function switchBird(){if(type!=="bird")return;state.skin=state.skin==="parrot"?"chick":"parrot";try{localStorage.setItem("night-play-wing-hop-skin",state.skin)}catch{}
- message((state.skin==="parrot"?"Parrot":"Chick")+" selected.");}
+ const sky=bg.createLinearGradient(0,0,0,c.height-42);
+ sky.addColorStop(0,"#81c9d3");sky.addColorStop(.6,"#c5eeed");sky.addColorStop(1,"#e8f4ce");
+ bg.fillStyle=sky;bg.fillRect(0,0,360,c.height);
+ bg.fillStyle="#fbf5cd7d";bg.beginPath();bg.arc(292,Math.min(95,c.height*.17),46,0,Math.PI*2);bg.fill();
+}
+function fitWingBoard(){
+ wingFitFrame=0;
+ if(type!=="bird"||c.hidden||!state)return;
+ const box=c.getBoundingClientRect(),shell=$("canvasShell").getBoundingClientRect(),
+       main=document.querySelector("main").getBoundingClientRect();
+ const viewport=window.visualViewport;
+ const visibleBottom=viewport?viewport.height+viewport.offsetTop:window.innerHeight;
+ // Measure everything already below the game (including Restart), not a
+ // hardcoded phone height. The board owns the freed-up flap-button space.
+ const lower=Math.max(8,main.bottom-box.bottom);
+ const available=Math.max(215,visibleBottom-box.top-lower-8);
+ const fullWidth=Math.max(180,Math.min(shell.width,520));
+ const height=Math.round(Math.min(available,fullWidth*1.78));
+ // Portrait keeps the full phone width; extreme short windows trade a little
+ // width to keep the bird artwork recognisable instead of squashed.
+ const width=Math.round(Math.min(fullWidth,Math.max(180,height/1.2)));
+ if(Math.abs(width-wingCssWidth)<2&&Math.abs(height-wingCssHeight)<2&&
+    Math.abs(box.width-width)<2&&Math.abs(box.height-height)<2)return;
+ const old=c.height,newLogicalHeight=Math.max(300,Math.round(360*(height-6)/(width-6)));
+ wingCssWidth=width;wingCssHeight=height;
+ c.style.setProperty("--wing-fit-width",width+"px");
+ c.style.setProperty("--wing-fit-height",height+"px");
+ if(newLogicalHeight!==old){
+  // Remap by playable height. Keep pipes, progress, skin, and the living bird.
+  // Avoid spurious death when switching portrait/landscape mid-flight.
+  const oldPlay=Math.max(1,old-42),newPlay=newLogicalHeight-42;
+  state.y=Math.max(20,Math.min(newPlay-21,state.y/oldPlay*newPlay));
+  state.gap=wingGap(newLogicalHeight);
+  const min=state.gap/2+34,max=newPlay-state.gap/2-34;
+  for(const p of state.pipes)p.y=Math.max(min,Math.min(max,p.y/oldPlay*newPlay));
+  c.height=newLogicalHeight;rebuildWingBackdrop();
+ }
+}
+function scheduleWingFit(){
+ if(type!=="bird"||wingFitFrame)return;
+ wingFitFrame=requestAnimationFrame(fitWingBoard);
+}
+window.addEventListener("resize",scheduleWingFit,{passive:true});
+window.visualViewport?.addEventListener("resize",scheduleWingFit,{passive:true});
+window.visualViewport?.addEventListener("scroll",scheduleWingFit,{passive:true});
+if(typeof ResizeObserver==="function"){
+ const wingLayoutObserver=new ResizeObserver(scheduleWingFit);
+ wingLayoutObserver.observe($("canvasShell"));
+ wingLayoutObserver.observe($("restart"));
+}
+function setupBird(){
+ c.width=360;c.height=600;
+ rebuildWingBackdrop();
+ let skin="parrot";
+ try{skin=localStorage.getItem("night-play-wing-hop-skin")==="chick"?"chick":"parrot"}catch{}
+ state={x:95,y:260,vy:0,gap:wingGap(600),pipes:[],distance:0,started:false,dead:false,skin};
+ setControls("");
+ message("Tap anywhere inside the game to fly.");
+ scheduleWingFit();frameLoop(birdFrame);
+}
+function flap(){
+ if(type!=="bird"||finished)return;
+ state.started=true;state.vy=-6.8;
+ message("Keep flying!");
+}
+function switchBird(){
+ if(type!=="bird")return;
+ state.skin=state.skin==="parrot"?"chick":"parrot";
+ try{localStorage.setItem("night-play-wing-hop-skin",state.skin)}catch{}
+ message((state.skin==="parrot"?"Parrot":"Chick")+" selected.");
+}
 function birdFrame(dt){
- const s=state,step=dt/16.666;
- if(s.started){s.vy+=.33*step;s.y+=s.vy*step;s.distance+=2.4*step;
-  if(!s.pipes.length||s.pipes[s.pipes.length-1].x<165){const prev=s.pipes[s.pipes.length-1];if(!prev||prev.x<150)s.pipes.push({x:prev?prev.x+216:365,y:120+Math.random()*280,scored:false});}
-  for(const p of s.pipes){p.x-=2.4*step;if(!p.scored&&p.x+62<s.x){p.scored=true;score(points+1);}
-   if(s.x+16>p.x&&s.x-16<p.x+62&&(s.y-15<p.y-s.gap/2||s.y+15>p.y+s.gap/2)){end("You hit a pipe!");}}
-  s.pipes=s.pipes.filter(p=>p.x>-75);if(s.y<17||s.y>539)end("Bird down!");
+ const s=state,step=dt/16.666,ground=c.height-42;
+ if(s.started){
+  s.vy+=.33*step;s.y+=s.vy*step;s.distance+=2.4*step;
+  if(!s.pipes.length||s.pipes[s.pipes.length-1].x<165){
+   const prev=s.pipes[s.pipes.length-1];
+   if(!prev||prev.x<150)s.pipes.push({
+    x:prev?prev.x+216:365,y:wingPipeCenter(s),scored:false
+   });
+  }
+  for(const p of s.pipes){
+   p.x-=2.4*step;
+   if(!p.scored&&p.x+62<s.x){p.scored=true;score(points+1);}
+   if(s.x+16>p.x&&s.x-16<p.x+62&&
+      (s.y-15<p.y-s.gap/2||s.y+15>p.y+s.gap/2)){end("You hit a pipe!");}
+  }
+  s.pipes=s.pipes.filter(p=>p.x>-75);
+  if(s.y<17||s.y>ground-19)end("Bird down!");
  }
  drawWingBackground(s);
- for(const p of s.pipes){wingPipe(p.x,p.y-s.gap/2,true);wingPipe(p.x,p.y+s.gap/2,false);}
- // Foreground is kept on its own layer so the artwork scrolls independently.
- ctx.fillStyle="#236e5a";ctx.fillRect(0,558,360,42);
- ctx.fillStyle="#8cc670";ctx.fillRect(0,558,360,9);
- ctx.fillStyle="#d7d19a";for(let i=0;i<14;i++){const x=((i*31-s.distance*.7)%434+434)%434-35;ctx.fillRect(x,577,12,2);}
+ for(const p of s.pipes){
+  wingPipe(p.x,p.y-s.gap/2,true);
+  wingPipe(p.x,p.y+s.gap/2,false);
+ }
+ ctx.fillStyle="#236e5a";ctx.fillRect(0,ground,360,42);
+ ctx.fillStyle="#8cc670";ctx.fillRect(0,ground,360,9);
+ ctx.fillStyle="#d7d19a";
+ for(let i=0;i<14;i++){
+  const x=((i*31-s.distance*.7)%434+434)%434-35;
+  ctx.fillRect(x,ground+19,12,2);
+ }
  wingBird(s);
- if(!s.started){ctx.fillStyle="#173c31b9";ctx.beginPath();ctx.roundRect(43,354,274,104,15);ctx.fill();drawText("TAP TO FLY",399,27);drawText("Dodge the pipes",430,13);}
- if(finished){ctx.fillStyle="#163c31c5";ctx.beginPath();ctx.roundRect(25,225,310,130,15);ctx.fill();drawText("ROUND OVER",273,27);drawText("Your score: "+points,310,20);}
+ if(!s.started){
+  const top=Math.max(ground*.5-32,110);
+  ctx.fillStyle="#173c31b9";ctx.beginPath();
+  ctx.roundRect(43,top,274,99,15);ctx.fill();
+  drawText("TAP TO FLY",top+42,27);
+  drawText("Dodge the pipes",top+72,13);
+ }
+ if(finished){
+  const top=Math.max(45,ground*.5-65);
+  ctx.fillStyle="#163c31c5";ctx.beginPath();
+  ctx.roundRect(25,top,310,130,15);ctx.fill();
+  drawText("ROUND OVER",top+48,27);
+  drawText("Your score: "+points,top+85,20);
+ }
 }
 /* BLOCK DROP — seven-bag, wall kicks, lock, line scoring. */
 const shapes=[
@@ -447,7 +556,8 @@ board.addEventListener("pointermove",e=>{
 });
 board.addEventListener("pointerup",stopHold);
 board.addEventListener("pointercancel",stopHold);
-c.addEventListener("pointerdown",e=>{if(type==="bird")flap();});
+c.addEventListener("pointerdown",e=>{if(type==="bird"&&e.isPrimary&&e.button===0)flap();});
+$("wingSkin").addEventListener("click",switchBird);
 let startTouch=null;
 c.addEventListener("touchstart",e=>{if(type==="maze"&&e.touches.length===1)startTouch=[e.touches[0].clientX,e.touches[0].clientY];},{passive:true});
 c.addEventListener("touchend",e=>{if(type!=="maze"||!startTouch||!e.changedTouches.length)return;const dx=e.changedTouches[0].clientX-startTouch[0],dy=e.changedTouches[0].clientY-startTouch[1];if(Math.abs(dx)>18||Math.abs(dy)>18)mazeMove(...(Math.abs(dx)>Math.abs(dy)?[Math.sign(dx),0]:[0,Math.sign(dy)]));startTouch=null;},{passive:true});
