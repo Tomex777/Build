@@ -24,7 +24,16 @@ window.__nightAccountBoot=fetch('/api/account',{
 /* Hide the sign-in action until the authoritative HttpOnly session is checked.
    Display none also avoids header reflow for already linked players. */
 html[data-night-account="checking"] .site-header [data-dialog="connect"]{display:none!important}
-\n.night-newgame-thumb{position:relative;background:#dce6e0}.night-newgame-art{width:100%;height:100%;display:block}.night-newgame-thumb .tag{z-index:1}.night-newgame-thumb.memory-cover{background:#d8dfec}.night-newgame-thumb.connect-cover{background:#d7e4da}\n</style>
+\n.night-newgame-thumb{position:relative;background:#dce6e0}.night-newgame-art{width:100%;height:100%;display:block}.night-newgame-thumb .tag{z-index:1}.night-newgame-thumb.memory-cover{background:#d8dfec}.night-newgame-thumb.connect-cover{background:#d7e4da}\n
+.premium-memory-cover{background:linear-gradient(135deg,#b6c8bc,#7d9b8c)!important;overflow:hidden}
+.premium-memory-cover .memory-cover-stack{position:absolute;inset:12% 7% 0%;display:flex;align-items:end;justify-content:center;gap:0}
+.premium-memory-cover .memory-cover-tile{flex:none;display:block;position:relative;width:35%;height:84%;border:4px solid #fff;border-radius:11px;background:#e1e9e1;box-shadow:0 12px 20px #20392c44;overflow:hidden}
+.premium-memory-cover .memory-cover-tile img{width:100%;height:100%;object-fit:cover;display:block}
+.premium-memory-cover .memory-cover-tile.first{transform:rotate(-14deg) translateX(18%);z-index:1}
+.premium-memory-cover .memory-cover-tile.second{transform:translateY(-9%);z-index:3}
+.premium-memory-cover .memory-cover-tile.third{transform:rotate(14deg) translateX(-18%);z-index:2}
+.premium-memory-cover .tag{z-index:4}
+</style>
 <style>
 :root{--bg:#f7f7f7;--surface:#fff;--soft:#ededed;--ink:#1e242a;--dark:#080808;--muted:#777e83;--line:#e4e5e5;--radius:24px}
 *{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:var(--bg);color:var(--ink);font-family:Inter,"DM Sans",Arial,system-ui,sans-serif;-webkit-font-smoothing:antialiased}button,a{-webkit-tap-highlight-color:transparent}button{font:inherit;cursor:pointer}a{color:inherit;text-decoration:none}.wrap{max-width:1260px;padding:0 32px;margin:auto}
@@ -1159,20 +1168,14 @@ body{background:var(--bg)}
     </svg>
    </div><div class="cardrow"><div><h3>Sudoku</h3><p>Logic in every square.</p></div></div>
   </a>
-  <a class="gamecard library-card" data-cat="puzzle" data-name="memory match flip cards pairs concentration" data-live="true" href="/puzzles/?game=memory" aria-label="Play Memory Match">
-   <div class="thumb night-newgame-thumb memory-cover"><span class="tag">PLAYABLE · SOLO</span>
-    <svg class="night-newgame-art" viewBox="0 0 320 220" role="img" aria-label="A set of geometric matching cards" preserveAspectRatio="xMidYMid slice">
-     <rect width="320" height="220" fill="#d8dfec"/>
-     <g transform="translate(63 36)" stroke="#a6b6c5" stroke-width="1.4">
-      <rect width="88" height="132" rx="12" fill="#fefefe" transform="rotate(-9 44 66)"/><rect x="102" width="88" height="132" rx="12" fill="#fefefe" transform="rotate(9 146 66)"/>
-      <path d="M44 20 73 69 44 117 15 69Z" fill="#bb867d" stroke="none" opacity=".85"/>
-      <path d="M146 20 175 69 146 117 117 69Z" fill="#bb867d" stroke="none" opacity=".85"/>
-      <rect x="55" y="29" width="85" height="131" rx="11" fill="#375f78" stroke="#7f9dae" stroke-width="2"/>
-      <path d="M63 95 98 47 132 95 98 143Z" stroke="#98b7c5" fill="none" stroke-width="1.8"/>
-      <circle cx="98" cy="95" r="14" fill="#b4d1ce" stroke="none"/>
-     </g>
-    </svg>
-   </div><div class="cardrow"><div><h3>Memory Match</h3><p>Flip, remember, find pairs.</p></div></div>
+  <a class="gamecard library-card" data-cat="puzzle" data-name="memory match flip cards pairs wildlife cars food princess storybook characters shapes concentration" data-live="true" href="/puzzles/?game=memory" aria-label="Play Memory Match">
+   <div class="thumb night-newgame-thumb memory-cover premium-memory-cover"><span class="tag">5 THEMED DECKS</span>
+    <div class="memory-cover-stack" aria-hidden="true">
+      <span class="memory-cover-tile first"><img src="https://images.unsplash.com/photo-1517849845537-4d257902454a?auto=format&amp;fit=crop&amp;w=240&amp;h=330&amp;q=72" loading="lazy" alt=""></span>
+      <span class="memory-cover-tile second"><img src="https://images.unsplash.com/photo-1503376780353-7e6692767b70?auto=format&amp;fit=crop&amp;w=240&amp;h=330&amp;q=72" loading="lazy" alt=""></span>
+      <span class="memory-cover-tile third"><img src="https://images.unsplash.com/photo-1565958011703-44f9829ba187?auto=format&amp;fit=crop&amp;w=240&amp;h=330&amp;q=72" loading="lazy" alt=""></span>
+    </div>
+   </div><div class="cardrow"><div><h3>Memory Match</h3><p>Five worlds. Find every pair.</p></div></div>
   </a>
   <a class="gamecard library-card" data-cat="board" data-name="connect four 4 four in a row strategy versus computer" data-live="true" href="/puzzles/?game=connect" aria-label="Play Connect Four">
    <div class="thumb night-newgame-thumb connect-cover"><span class="tag">VS BOT · LOCAL</span>
