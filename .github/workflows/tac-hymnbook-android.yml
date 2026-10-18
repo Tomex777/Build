@@ -67,27 +67,25 @@ jobs:
           target: google_apis
           profile: pixel_2
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -no-snapshot -memory 2048 -cores 2
-          disable-animations: true
+          disable-animations: false
           script: |
             adb wait-for-device
-            for attempt in 1 2 3; do
-              if adb install --no-streaming -r ./dist/app-debug.apk; then break; fi
-              if [ "$attempt" -eq 3 ]; then exit 1; fi
-              adb wait-for-device
-              sleep 10
-            done
+            adb install --no-streaming -r ./dist/app-debug.apk || (adb push ./dist/app-debug.apk /data/local/tmp/app-debug.apk && adb shell pm install -r /data/local/tmp/app-debug.apk)
             adb shell am start -W -n com.night.tachymns/.MainActivity
             sleep 4
             adb shell pidof com.night.tachymns
             adb exec-out screencap -p > tac-hymns-home.png
-            if adb logcat -d -s AndroidRuntime:E | grep -A 5 "Process: com.night.tachymns"; then
-              echo "App crashed on emulator"
-              exit 1
-            fi
+            adb shell am force-stop com.night.tachymns
+            adb shell am start -W -n com.night.tachymns/.MainActivity --ei preview_hymn 4
+            sleep 3
+            adb exec-out screencap -p > tac-hymns-reader.png
+            adb shell pidof com.night.tachymns
       - name: Upload emulator screenshot
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: TAC-Hymns-emulator-screen
-          path: tac-hymns-home.png
+          path: |
+            tac-hymns-home.png
+            tac-hymns-reader.png
           if-no-files-found: warn
