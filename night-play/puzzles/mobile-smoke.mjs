@@ -6,7 +6,8 @@ import {fileURLToPath} from 'node:url';
 import {chromium} from 'playwright';
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const fileMap={'/puzzles/':'puzzles/index.html','/puzzles':'puzzles/index.html',
- '/puzzles/core.js':'puzzles/core.js','/puzzles/games.js':'puzzles/games.js',
+ '/puzzles/core.js':'puzzles/core.js','/puzzles/memory-art.js':'puzzles/memory-art.js',
+ '/puzzles/memory.js':'puzzles/memory.js','/puzzles/games.js':'puzzles/games.js',
  '/puzzles/style.css':'puzzles/style.css','/game-shell.css':'game-shell.css',
  '/games':'index.html'};
 const server=createServer((req,res)=>{
