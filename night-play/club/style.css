@@ -2147,3 +2147,17 @@ body.whot-mode .playing-card.whot-flight-face{
  }
  body.whot-mode .whot-twenty-divider{width:42px}
 }
+
+
+/* A legacy high-specificity .whot-flight-flip .whot-flip-front rule formerly
+   recoloured the revealed card to the OLD green-tinted stock despite the
+   unified face styles. Override at the same specificity after all versions. */
+body.whot-mode .whot-flight-flip .whot-flip-front>.playing-card.whot-flight-face{
+ background:var(--whot-master-paper)!important;
+ background-image:none!important;
+ color:var(--whot-master-wine)!important;
+ border:1px solid #e8e5dc!important;
+ border-radius:3px!important;
+ opacity:1!important;
+ filter:none!important;
+}
