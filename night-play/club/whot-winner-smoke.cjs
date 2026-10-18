@@ -56,7 +56,7 @@ async function finish(page,winner){
    const look=await page.locator('.table-surface').evaluate(el=>({bg:getComputedStyle(el).backgroundImage,shadow:getComputedStyle(el).boxShadow,radius:getComputedStyle(el).borderRadius}));
    assert.ok(look.bg.includes('data:image/svg+xml'),'tabletop uses original NIGHT vector woodgrain');
    assert.ok(look.shadow.includes('inset'),'NIGHT-framed wooden table has subtle depth and separation');
-   assert.equal(await page.locator('.whot-opponent-hand .card-back').count(),3,'computer hides its hand in one compact stack');
+   assert.equal(await page.locator('.whot-opponent-hand .card-back').count(),1,'computer hides its cards behind one layered back');
    const geometry=await page.evaluate(()=>{
      const rect=s=>{const e=document.querySelector(s),r=e.getBoundingClientRect();return {x:r.x,y:r.y,w:r.width,h:r.height}};
      return {cpu:rect('.whot-opponent-hand'),market:rect('.whot-deck-back'),discard:rect('.card-pile>.whot-card'),hand:rect('.hand .card-row'),
