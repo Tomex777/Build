@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#f7f7f5">
+<title>NIGHT Studio · Site management</title>
+<link rel="stylesheet" href="/site-shell.css">
+<style>
+:root{--ink:#1c2921;--muted:#728074;--border:#dbe4da;--forest:#285f46;--bg:#f7f8f5}
+*{box-sizing:border-box}body{background:var(--bg);color:var(--ink);font-family:Inter,"DM Sans",Arial,system-ui,sans-serif;min-height:100dvh;margin:0;-webkit-font-smoothing:antialiased}
+button,input,textarea{font:inherit}button{cursor:pointer}
+.admin-header{border-bottom:1px solid var(--border);background:#fff}
+.admin-shell{max-width:1020px;margin:auto;padding:0 24px}
+.admin-nav{height:76px;display:flex;justify-content:space-between;align-items:center;gap:15px}
+.admin-brand{display:flex;gap:12px;align-items:center;text-decoration:none;color:#222;font-size:18px;font-weight:850;letter-spacing:-.4px}
+.admin-brand svg{width:37px;height:37px}
+.admin-brand span span{font-size:12px;font-weight:650;color:#758176;margin-left:7px;letter-spacing:0}
+.admin-return{color:#245b41;border:1px solid var(--border);border-radius:10px;text-decoration:none;padding:11px 14px;font-weight:750;font-size:12px}
+.admin-body{padding:45px 24px 90px}
+.admin-topline{font-size:11px;color:#667b6d;font-weight:850;letter-spacing:1.35px;text-transform:uppercase}
+.admin-title{margin:9px 0 8px;font-size:clamp(31px,5vw,49px);letter-spacing:-1.85px;line-height:1.1;font-weight:850}
+.admin-intro{font-size:13px;line-height:1.7;color:#728074;max-width:530px;margin:0 0 28px}
+.admin-panel{background:#fff;border:1px solid var(--border);border-radius:17px;padding:25px;margin-top:17px}
+.admin-panel h2{font-size:20px;letter-spacing:-.5px;margin:0 0 10px}
+.admin-panel p{font-size:13px;line-height:1.75;color:#718076;margin:0}
+.admin-grid{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(220px,.8fr);gap:18px}
+.admin-field{display:block;margin:20px 0 0}
+.admin-field span{display:block;font-size:12px;font-weight:800;margin-bottom:8px;color:#354d3a}
+.admin-field input,.admin-field textarea{width:100%;border:1px solid #cfdcd1;background:#f8faf7;border-radius:11px;padding:13px 14px;min-height:45px;outline:none;color:#1b3022;font-size:13px}
+.admin-field textarea{resize:vertical;min-height:116px;line-height:1.6}
+.admin-field input:focus,.admin-field textarea:focus{border-color:#56896b;box-shadow:0 0 0 3px #7aaf8840}
+.admin-field small{display:block;text-align:right;color:#748377;font-size:10px;margin-top:5px}
+.admin-row{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-top:22px}
+.admin-row p{font-size:11px;margin-top:3px}
+.admin-toggle{display:flex;align-items:center;gap:10px;font-size:12px;font-weight:800;cursor:pointer}
+.admin-toggle input{accent-color:#286145;width:19px;height:19px}
+.admin-button{border:1px solid #285d45;border-radius:10px;color:#fff;background:#285d45;padding:12px 17px;min-height:44px;font-size:12px;font-weight:850}
+.admin-button:disabled{opacity:.55;cursor:default}
+.admin-message{margin-top:13px!important;font-size:12px!important;min-height:20px}
+.admin-message.error{color:#a74e40!important}
+.admin-message.ok{color:#2a744b!important}
+.admin-preview-label{font-weight:800;color:#5d6e62;text-transform:uppercase;font-size:10px;letter-spacing:.9px}
+.admin-live{border:1px solid #e0e6de;background:#f6f8f4;border-radius:11px;padding:16px;margin:14px 0}
+.admin-live strong{display:block;font-size:16px;letter-spacing:-.25px;overflow-wrap:anywhere}
+.admin-live p{font-size:12px;line-height:1.55;margin-top:7px;overflow-wrap:anywhere}
+.admin-status{font-size:11px;font-weight:800;color:#536c59}
+.admin-status.enabled{color:#286f49}
+[hidden]{display:none!important}
+@media(max-width:720px){.admin-nav{height:67px}.admin-shell{padding-left:17px;padding-right:17px}.admin-body{padding-top:32px}.admin-grid{grid-template-columns:1fr}.admin-panel{padding:20px}.admin-brand span span{display:block;margin:0}.admin-title{letter-spacing:-1.1px}.admin-return{font-size:11px}.admin-row{flex-wrap:wrap}.admin-button{width:100%}}
+</style>
+</head>
+<body>
+<header class="admin-header"><div class="admin-shell admin-nav">
+<a class="admin-brand" href="/dashboard" aria-label="NIGHT Play"><svg viewBox="0 0 108 108" aria-hidden="true"><path fill="#0B0F11" d="M0 0h108v108H0z"/><path fill="#F4F5F6" d="M24 54 C24 37.43 37.43 24 54 24 C70.57 24 84 37.43 84 54 L24 54 Z"/><path fill="#F4F5F6" d="M22 66h64v6H22z"/></svg><span>NIGHT <span>STUDIO</span></span></a>
+<a class="admin-return" href="/dashboard">View NIGHT Play</a></div></header>
+<main class="admin-shell admin-body">
+<span class="admin-topline">Site management</span>
+<h1 class="admin-title">NIGHT Studio.</h1>
+<p class="admin-intro">Private controls for the public NIGHT Play website.</p>
+<section class="admin-panel" id="studioGate" aria-live="polite">
+<h2 id="studioGateTitle">Checking access…</h2>
+<p id="studioGateText">Verifying your NIGHT Play session.</p>
+<a id="studioConnect" href="/profile" class="admin-return" style="display:inline-block;margin-top:16px" hidden>Open Profile</a>
+<button type="button" id="studioRetry" class="admin-button" style="margin-top:15px" hidden>Try again</button>
+</section>
+<div class="admin-grid" id="studioWorkspace" hidden>
+<section class="admin-panel" aria-labelledby="studioNoticeHeading">
+<h2 id="studioNoticeHeading">Site announcement</h2>
+<p>Publish a short notice in NIGHT Play's existing announcement bar.</p>
+<form id="studioNoticeForm">
+<label class="admin-field"><span>Heading</span><input id="studioTitle" type="text" maxlength="80" autocomplete="off" required><small><output id="studioTitleCount">0</output> / 80</small></label>
+<label class="admin-field"><span>Message</span><textarea id="studioMessage" maxlength="240" required></textarea><small><output id="studioMessageCount">0</output> / 240</small></label>
+<div class="admin-row"><div><label class="admin-toggle"><input id="studioEnabled" type="checkbox">Visible on public site</label><p>Turning it off hides the site announcement.</p></div><button type="submit" class="admin-button" id="studioSave">Save announcement</button></div>
+<p class="admin-message" id="studioFeedback" role="status" aria-live="polite"></p>
+</form>
+</section>
+<aside class="admin-panel"><h2>Current announcement</h2>
+<p>Most recently saved content.</p>
+<div class="admin-live"><span class="admin-preview-label">Website notice</span><strong id="studioCurrentTitle">None</strong><p id="studioCurrentMessage">No notice has been published.</p></div>
+<span class="admin-status" id="studioCurrentStatus">Not published</span>
+</aside>
+</div>
+</main>
+<script>
+(() => {
+'use strict'
+const $=id=>document.getElementById(id)
+let authorized=false
+const showGate=(title,message,{connect=false,retry=false}={})=>{
+ authorized=false
+ $('studioGate').hidden=false;$('studioWorkspace').hidden=true
+ $('studioGateTitle').textContent=title;$('studioGateText').textContent=message
+ $('studioConnect').hidden=!connect;$('studioRetry').hidden=!retry
+}
+const rpc=async(action,payload={})=>{
+ const response=await fetch('/api/account',{method:'POST',credentials:'same-origin',cache:'no-store',
+  headers:{'content-type':'application/json'},body:JSON.stringify({action,...payload}),signal:AbortSignal.timeout(14000)})
+ const data=await response.json().catch(()=>({error:'NIGHT is unavailable.'}))
+ if(!response.ok){const error=new Error(data.error||'Could not connect to NIGHT.');error.status=response.status;throw error}
+ return data
+}
+const count=()=>{
+ $('studioTitleCount').value=String($('studioTitle').value.length)
+ $('studioMessageCount').value=String($('studioMessage').value.length)
+}
+const preview=notice=>{
+ $('studioCurrentTitle').textContent=notice.title||'None'
+ $('studioCurrentMessage').textContent=notice.message||'No notice has been published.'
+ $('studioCurrentStatus').textContent=notice.enabled?'Published':'Not published'
+ $('studioCurrentStatus').classList.toggle('enabled',Boolean(notice.enabled))
+}
+const load=async()=>{
+ showGate('Checking access…','Verifying your NIGHT Play session.')
+ try{
+  const data=await rpc('admin:status')
+  if(!data.authorized)throw Object.assign(new Error('Owner verification required.'),{status:403})
+  authorized=true
+  const notice=data.notice||{}
+  $('studioTitle').value=notice.title||''
+  $('studioMessage').value=notice.message||''
+  $('studioEnabled').checked=Boolean(notice.enabled)
+  preview(notice);count()
+  $('studioGate').hidden=true;$('studioWorkspace').hidden=false
+ }catch(error){
+  if(error.status===401)showGate('Connect WhatsApp','Connect your NIGHT Play account before opening Studio.',{connect:true})
+  else if(error.status===403)showGate('Access restricted','Only the verified NIGHT Play operator can use these controls.')
+  else showGate('Studio unavailable','NIGHT could not verify the private Studio connection. Please try again.',{retry:true})
+ }
+}
+$('studioRetry').addEventListener('click',load)
+$('studioTitle').addEventListener('input',count)
+$('studioMessage').addEventListener('input',count)
+$('studioNoticeForm').addEventListener('submit',async event=>{
+ event.preventDefault();if(!authorized)return
+ const title=$('studioTitle').value.trim(),message=$('studioMessage').value.trim()
+ if(!title||!message)return
+ const button=$('studioSave'),feedback=$('studioFeedback')
+ button.disabled=true;feedback.textContent='Saving…';feedback.className='admin-message'
+ try{
+  const result=await rpc('admin:notice:save',{noticeTitle:title,noticeMessage:message,noticeEnabled:$('studioEnabled').checked})
+  preview(result.notice);feedback.textContent='Announcement saved.';feedback.classList.add('ok')
+ }catch(error){feedback.textContent=error.message;feedback.classList.add('error');if(error.status===403||error.status===401)load()}
+ finally{button.disabled=false}
+})
+load()
+})()
+</script>
+</body></html>
