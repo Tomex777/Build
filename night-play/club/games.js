@@ -274,7 +274,9 @@ async function whotFly(origin,destination,{face=null,action="play"}={}){
   }
   flipCore.append(back,front);ghost.appendChild(flipCore);
  }else{
-  ghost=origin.cloneNode(true);ghost.classList.add('whot-flight','whot-flight-face');ghost.removeAttribute('data-card');
+  ghost=origin.cloneNode(true);
+  ghost.classList.add('whot-flight',action==='cpu-draw'?'whot-flight-back':'whot-flight-face');
+  ghost.removeAttribute('data-card');
  }
  Object.assign(ghost.style,{position:'fixed',left:a.left+'px',top:a.top+'px',
   width:a.width+'px',height:a.height+'px',margin:'0',zIndex:'9999',
@@ -282,12 +284,12 @@ async function whotFly(origin,destination,{face=null,action="play"}={}){
  document.body.appendChild(ghost);
  const oldVisibility=origin.style.visibility;
  const previousDestVisibility=destination.style.visibility;
- if(action==='play')origin.style.visibility='hidden';
- if(action==='draw')destination.style.visibility='hidden';
+ if(action==='play'||action==='cpu')origin.style.visibility='hidden';
+ if(action==='draw'||action==='cpu-draw')destination.style.visibility='hidden';
  const dx=b.left+b.width/2-a.left-a.width/2;
  const dy=b.top+b.height/2-a.top-a.height/2;
  const scale=b.width/a.width;
- const duration=action==='cpu'?whotMotion.cpu:action==='draw'?whotMotion.draw:whotMotion.player;
+ const duration=action==='cpu'?whotMotion.cpu:action==='draw'||action==='cpu-draw'?whotMotion.draw:whotMotion.player;
  cardMotionMetrics.lastFlightDuration=duration;cardMotionMetrics.lastFlightAction=action;
  cardMotionMetrics.activeFlights++;
  try{
@@ -313,10 +315,63 @@ async function whotFly(origin,destination,{face=null,action="play"}={}){
   await Promise.all([flight.finished.catch(()=>{}),flipEffect?flipEffect.finished.catch(()=>{}):Promise.resolve()]);
  }finally{
   origin.style.visibility=oldVisibility;
-  if(action==='draw')destination.style.visibility=previousDestVisibility;
+  if(action==='draw'||action==='cpu-draw')destination.style.visibility=previousDestVisibility;
   ghost.remove();cardMotionMetrics.activeFlights--;
  }
 }
+// Preserve each new card's own arrival slot. Previously a Pick Three gave
+// three cards instantly and only animated a single card from the Market.
+async function whotAnimateDraws(s,player,from,epoch){
+ const count=s.hands[player].length-from;
+ if(count<=0)return;
+ const isPlayer=player===0;
+ const selector=isPlayer?'.hand .whot-card':'.whot-opponent-hand .card-back';
+ const cards=[...board.querySelectorAll(selector)].slice(from,from+count);
+ const market=board.querySelector('.whot-deck-back');
+ const viewAll=board.querySelector('.whot-view-hand:not([hidden])');
+ const valid=()=>active==='whot'&&state.whot===s&&cardMotionEpoch===epoch;
+ const entries=[];
+ for(let i=0;i<count;i++){
+  const target=cards[i];
+  if(!target)continue;
+  // Cards outside the 16-piece compact layout use the View All destination.
+  const destination=getComputedStyle(target).display==='none'?viewAll:target;
+  if(!destination)continue;
+  if(destination===target)target.style.visibility='hidden';
+  entries.push({target,destination,face:s.hands[player][from+i]});
+ }
+ if(!motionEnabled()||!market||!entries.length){
+  for(const {target} of entries)target.style.visibility='';
+  sfx('draw');return;
+ }
+ const animations=entries.map(({target,destination,face},i)=>new Promise(resolve=>{
+  setTimeout(async()=>{
+   if(valid()){
+    try{
+     await whotFly(market,destination,{action:isPlayer?'draw':'cpu-draw',face:isPlayer?face:null});
+    }catch{}finally{sfx('draw');}
+   }
+   target.style.visibility='';
+   resolve();
+  },i*135);
+ }));
+ await Promise.all(animations);
+}
+// Do not silently remove a player's chance to defend a Pick Two/Three.
+// If no matching defence card exists, automatically receive the full
+// penalty with an individual Market-to-hand animation for every card.
+function whotAutoReceivePenalty(s){
+ const penalty=whotPending(s);
+ if(!penalty||s.turn!==0||s.winner!==null)return;
+ if(whotOptions.defend&&s.hands[0].some(card=>card.n===penalty.n))return;
+ const epoch=cardMotionEpoch;
+ setTimeout(()=>{
+  if(active==='whot'&&state.whot===s&&cardMotionEpoch===epoch&&!cardMotionBusy&&whotPending(s)){
+   cardDraw('whot');
+  }
+ },210);
+}
+
 function whotDeal(){
  const deck=board.querySelector('.whot-deck-back');
  if(!deck||active!=='whot')return;
