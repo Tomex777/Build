@@ -31,6 +31,7 @@ on:
       - ".ci/slumber_111_catalog/**"
       - ".ci/slumber_112_system_bars/**"
       - ".ci/slumber_113_song_scores/**"
+      - ".ci/slumber_114_long_holds/**"
   pull_request:
     branches: ["slumber-087-build"]
     paths:
@@ -61,6 +62,7 @@ on:
       - ".ci/slumber_111_catalog/**"
       - ".ci/slumber_112_system_bars/**"
       - ".ci/slumber_113_song_scores/**"
+      - ".ci/slumber_114_long_holds/**"
 
 permissions:
   actions: read
@@ -362,6 +364,19 @@ jobs:
           grep -q 'tiles_best_by_song_v1' "$OUT/app/src/main/java/com/night/pianohub/storage/PianoHubLocalStore.kt"
           grep -q 'HIT_WINDOW_MS' "$OUT/app/src/main/java/com/night/pianohub/music/SlumberTilesChart.kt"
           grep -q 'state.bestTilesScore(song.id)' "$OUT/app/src/main/java/com/night/pianohub/ui/screens/PlayScreen.kt"
+
+      - name: Apply sustained long notes and lilac tiles palette
+        shell: bash
+        run: |
+          set -euo pipefail
+          OUT=/tmp/slumber-088
+          base64 -d .ci/slumber_114_long_holds/long-holds.patch.gz.b64 | gzip -dc > "$OUT/long-holds.patch"
+          echo 'd84344d8cce5a804024ad8969dcbf8a8e7a0ffa207c745d13efd535fd179506e  /tmp/slumber-088/long-holds.patch' | sha256sum -c -
+          patch --fuzz=0 -d "$OUT" -p1 < "$OUT/long-holds.patch"
+          grep -q 'val hold = created > 0' "$OUT/app/src/main/java/com/night/pianohub/music/EndlessTilesRun.kt"
+          grep -q 'fun release(tile: SlumberTile' "$OUT/app/src/main/java/com/night/pianohub/music/EndlessTilesRun.kt"
+          grep -q 'onUp = ::release' "$OUT/app/src/main/java/com/night/pianohub/ui/screens/PlayScreen.kt"
+          grep -q 'Color(0xFFDCE5FC)' "$OUT/app/src/main/java/com/night/pianohub/ui/components/SlumberTilesField.kt"
 
       - uses: actions/setup-java@v4
         with:
