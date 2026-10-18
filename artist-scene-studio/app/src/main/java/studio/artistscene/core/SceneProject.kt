@@ -141,12 +141,28 @@ data class LightSettings(
     val spotOuterConeDegrees: Float = 35f,
 )
 
+/** Actual offline PBR photograph choice; AUTO retains old scene appearance. */
+@Serializable
+enum class GroundSurface(val title: String, val photoAsset: String?, val source: String?) {
+    AUTO("Scene default", null, null),
+    GRASS("Grass", "leafy_grass_diff_1k.png", "https://polyhaven.com/a/leafy_grass"),
+    DIRT("Dirt", "dirt_diff_1k.png", "https://polyhaven.com/a/dirt"),
+    ROCK("Rock", "rock_ground_diff_1k.png", "https://polyhaven.com/a/rock_ground"),
+    CONCRETE("Concrete", "granular_concrete_diff_1k.png", "https://polyhaven.com/a/granular_concrete"),
+    ASPHALT("Asphalt", "asphalt_floor_diff_1k.png", "https://polyhaven.com/a/asphalt_floor"),
+}
+
 @Serializable
 data class WorldSettings(
     val backgroundHex: String = "#20242B",
     val groundEnabled: Boolean = true,
     val gridEnabled: Boolean = true,
     val environmentAssetId: String? = null,
+    val groundSurface: GroundSurface = GroundSurface.AUTO,
+    /** Texture repetition on the 36m outdoor plane, up to 24 natural repeats. */
+    val groundTileCount: Int = 8,
+    /** Matte by default. 1f is fully rough, no unwanted glassy sheen. */
+    val groundRoughness: Float = 1f,
     // Default for old scenes too; preset changes remain undoable and serialized.
     val environmentPreset: EnvironmentPreset = EnvironmentPreset.DAYLIGHT,
     val gravityEnabled: Boolean = false,
