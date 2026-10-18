@@ -203,6 +203,19 @@ async function finish(page,winner){
    // The incoming card is a genuine two-sided 3D flip during the same flight.
    assert.equal(await drawPage.locator('.whot-flight-flip .whot-flip-core').count(),1,'draw animates an actual 3D card, not a flat sprite');
    assert.equal(await drawPage.locator('.whot-flip-core .whot-flip-side').count(),2,'card has front and back faces');
+   const drawnFace=await drawPage.evaluate(()=>{
+     const e=document.querySelector('.whot-flip-front .whot-flight-face');
+     const dest=[...document.querySelectorAll('.hand .whot-card')].at(-1);
+     if(!e||!dest)return null;
+     const print=x=>({paper:getComputedStyle(x).backgroundColor,
+       ink:getComputedStyle(x.querySelector('.whot-suit-big')||x).fill,
+       rank:getComputedStyle(x.querySelector('.whot-corner strong')).fontSize});
+     return {key:e.dataset.whotKey,destKey:dest.dataset.whotKey,
+       print:print(e),destPrint:print(dest)};
+   });
+   assert.ok(drawnFace,'drawn face exists during flip');
+   assert.equal(drawnFace.key,drawnFace.destKey,'in-flight draw shows the real incoming card, not a placeholder');
+   assert.deepEqual(drawnFace.print,drawnFace.destPrint,'draw flip uses the same finalized art as the destination card');
    const flipStyle=await drawPage.locator('.whot-flip-core').evaluate(el=>({
      effect:el.getAnimations().map(a=>a.effect.getTiming().duration),
      transformStyle:getComputedStyle(el).transformStyle,
@@ -294,6 +307,14 @@ async function finish(page,winner){
    await cpuPage.waitForFunction(()=>window.__nightWhotMotion().lastFlightAction==='cpu'&&window.__nightWhotMotion().activeFlights===1,null,{timeout:3500});
    assert.equal(await cpuPage.locator('.whot-flight-flip .whot-flip-core').count(),1,'CPU uses the 3D turning-card animation');
    assert.ok(await cpuPage.locator('.whot-flip-front .whot-card').count()===1,'CPU reveals the correct card face mid-flight');
+   const cpuCardPrint=await cpuPage.locator('.whot-flip-front .whot-flight-face').evaluate(el=>({
+     paper:getComputedStyle(el).backgroundColor,
+     suit:getComputedStyle(el.querySelector('.whot-suit-big')||el).fill,
+     rank:getComputedStyle(el.querySelector('.whot-corner strong')).fontSize
+   }));
+   assert.equal(cpuCardPrint.paper,'rgb(255, 254, 251)','CPU flip never exposes the old card stock');
+   assert.equal(cpuCardPrint.suit,'rgb(84, 26, 39)','CPU flip uses the new deep-wine suit ink');
+   assert.equal(cpuCardPrint.rank,width===390?'10px':'12px','CPU flip keeps the same small rank size');
    await cpuPage.waitForFunction(()=>window.__nightWhotMotion().activeFlights===0,null,{timeout:1500});
    assert.equal(await cpuPage.locator('.whot-flight').count(),0,'CPU flight element is cleaned up');
    assert.deepEqual(cpuErrors,[],'CPU 3D animation has no script errors');
