@@ -12,15 +12,29 @@ class HymnDataTest(unittest.TestCase):
         self.assertEqual([h["number"] for h in hymns], list(range(1, 12)))
         self.assertEqual(len(hymns), 11)
 
-    def test_only_photo_backed_drafts_have_lyrics(self):
+    def test_all_photo_hymns_have_lyrics_in_both_languages(self):
         hymns = {h["number"]: h for h in compile_asset()["hymns"]}
-        self.assertEqual({n for n, h in hymns.items() if h["verses_yo"]}, {4, 7})
+        self.assertEqual({n for n, h in hymns.items() if h["verses_yo"]}, set(range(1, 12)))
+        self.assertEqual({n for n, h in hymns.items() if h["verses_en"]}, set(range(1, 12)))
         for h in hymns.values():
             if not h["verses_yo"]:
                 self.assertEqual(h["text_status"], "missing")
             else:
-                self.assertIn("draft", h["text_status"])
+                self.assertTrue("draft" in h["text_status"] or "partial" in h["text_status"])
                 self.assertTrue(h["source_pages"])
+
+    def test_verse_counts_and_partial_hymn(self):
+        hymns = compile_asset()["hymns"]
+        for hymn in hymns:
+            self.assertEqual(len(hymn["verses_yo"]), len(hymn["verses_en"]))
+            self.assertGreater(len(hymn["verses_yo"]), 0)
+            self.assertTrue(hymn["source_pages"])
+            self.assertEqual(hymn["source_pages"], sorted(hymn["source_pages"]))
+            for verse in hymn["verses_yo"] + hymn["verses_en"]:
+                for line in verse:
+                    self.assertNotIn(r"\\n", line)
+        self.assertEqual(hymns[-1]["text_status"], "partial_from_photo")
+        self.assertEqual(hymns[-1]["source_pages"], [4])
 
     def test_assets_are_committed_and_up_to_date(self):
         output = ROOT / "android/app/src/main/assets/hymns.json"
