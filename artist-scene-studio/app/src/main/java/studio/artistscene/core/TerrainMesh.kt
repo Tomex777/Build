@@ -39,7 +39,7 @@ object TerrainMesh {
             fun mound(cx: Float, cz: Float, width: Float, height: Float): Double {
                 val dx = (x - cx) / width
                 val dz = (z - cz) / width
-                return height * exp((-3.0 * (dx * dx + dz * dz)).toDouble())
+                return height.toDouble() * exp(-3.0 * (dx * dx + dz * dz).toDouble())
             }
             val h = when (shape) {
                 TerrainShape.FLAT -> 0.0
