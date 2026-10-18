@@ -4,6 +4,7 @@
 const $=id=>document.getElementById(id);
 const board=$("board"),controls=$("controls"),status=$("status"),help=$("help"),picks=$("gamePicks");
 const KEY="night-play-club-v1";
+const sfx=(name,detail)=>window.NightAudio?.play(name,detail);
 const state={};let active="checkers",timer=null,drawCtx=null;
 let cardMotionBusy=false,cardMotionEpoch=0,pendingWhotDeal=false;
 // Speed is intentionally unified: interaction should feel immediate,
@@ -89,7 +90,7 @@ function toggleLudoSettings(){const d=controls.querySelector('.nj-settings');if(
 $("ludoSettingsBtn").addEventListener("click",toggleLudoSettings);
 $("ludoSheetBack").addEventListener("click",closeLudoSettings);
 document.addEventListener("keydown",e=>{if(e.key==="Escape")closeLudoSettings();});
-function ludoRoll(){if(state.ludo.opponent==='computer'&&state.ludo.turn===1)return;window.NightLudo.roll(state.ludo,render);}
+function ludoRoll(){if(state.ludo.opponent==='computer'&&state.ludo.turn===1)return;sfx('dice');window.NightLudo.roll(state.ludo,render);}
 function ludoMove(pi,ti){if(state.ludo.opponent==='computer'&&state.ludo.turn===1)return;window.NightLudo.move(state.ludo,pi,ti,render);}
 
 const places=["START","Eko Marina","Yaba","Community Fund","Surulere","Kaduna Road","Transit","Lekki","Sabo","Ikeja","VISIT","Ibadan","Bodija","Market Bonus","Akure","Warri","Coastal Rail","Benin","Asaba","Sapele","REST","Enugu","Nsukka","Electric Bill","Aba","Owerri","Metro Rail","Uyo","Calabar","Ikot Ekpene","HOLD","Jos","Bukuru","Lottery","Minna","Abuja Central","Capital Rail","Gwarinpa","Maitama","Luxury Tax"];
@@ -153,7 +154,7 @@ function whotStore(){try{localStorage.setItem(WHOT_OPTIONS_KEY,JSON.stringify(wh
 function whotRank(){const level=Math.min(whotRankNames.length-1,Math.floor(whotCareer.wins/3));return {name:whotRankNames[level],level,next:level===whotRankNames.length-1?null:3-whotCareer.wins%3}}
 function whotAward(s,pi){
  if(s.winner!==null)return;
- s.winner=pi;s.msg=pi===0?"You win! Check up!":"Computer wins.";
+ s.winner=pi;s.msg=pi===0?"You win! Check up!":"Computer wins.";sfx(pi===0?"win":"lose");
  if(whotOptions.mode==="career"){
   if(pi===0){const oldRank=whotRank().level;whotCareer.wins++;whotCareer.streak++;whotCareer.bestStreak=Math.max(whotCareer.bestStreak,whotCareer.streak);const nowRank=whotRank();if(nowRank.level>oldRank)s.promotion=nowRank.name}
   else{whotCareer.losses++;whotCareer.streak=0}
@@ -314,7 +315,8 @@ async function whotFly(origin,destination,{face=null,action="play"}={}){
 }
 function whotDeal(){
  const deck=board.querySelector('.whot-deck-back');
- if(!deck||!motionEnabled()||active!=='whot')return;
+ if(!deck||active!=='whot')return;
+ sfx('deal');if(!motionEnabled())return;
  const a=deck.getBoundingClientRect();
  [...board.querySelectorAll('.hand .whot-card')].forEach((card,index)=>{
   const b=card.getBoundingClientRect(),dx=a.left+a.width/2-b.left-b.width/2,
@@ -368,6 +370,8 @@ async function cardPlay(kind,index,requestedShape=null,visualOrigin=null){
   }
   if(epoch!==cardMotionEpoch||active!==kind||state[kind]!==s)return;
   s.hands[0].splice(index,1);nextCardTurn(kind,s,0,card,chosen);
+  if(s.winner===null)sfx(kind==='whot'&&[1,2,5,8,14,20].includes(card.n)?'special':'card');
+  else if(kind==='colors')sfx('win');
   render();if(kind==='whot')whotSettle();if(s.turn===1)queueCPU(kind);
  }finally{if(epoch===cardMotionEpoch)cardMotionBusy=false;}
 }
@@ -390,11 +394,12 @@ async function cardDraw(kind){
    const newCard=board.querySelectorAll('.hand .whot-card')[before];
    const landing=newCard&&getComputedStyle(newCard).display!=='none'?newCard:board.querySelector('.whot-view-hand:not([hidden])');
    await whotFly(board.querySelector('.whot-deck-back'),landing,{face:s.hands[0][before],action:'draw'});
+   sfx('draw');
    if(epoch!==cardMotionEpoch||active!==kind||state[kind]!==s)return;
    queueCPU(kind);
    return;
   }
-  take(s,0,1);s.turn=1;s.msg="You drew a card. Computer's turn.";
+  take(s,0,1);sfx("draw");s.turn=1;s.msg="You drew a card. Computer's turn.";
   render();queueCPU(kind);
  }finally{if(epoch===cardMotionEpoch)cardMotionBusy=false}
 }
@@ -434,6 +439,7 @@ function queueCPU(kind){
    if(kind==='whot'){
     cardMotionMetrics.draws++;
     await whotFly(board.querySelector('.whot-deck-back'),board.querySelector('.card-back'),{action:'draw'});
+    sfx('draw');
    }
    if(active!==kind||state[kind]!==s||cardMotionEpoch!==epoch)return;
    const count=penalty?penalty.amount:1;
@@ -449,6 +455,7 @@ function queueCPU(kind){
   }
   if(active!==kind||state[kind]!==s||cardMotionEpoch!==epoch)return;
   s.hands[1].splice(idx,1);
+  sfx(kind==='whot'&&[1,2,5,8,14,20].includes(card.n)?'special':'card');
   const suitCounts=kind==='whot'?shapes.map((_,shape)=>s.hands[1].filter(c=>c.s===shape).length):[];
   const cpuCall=kind==='whot'?suitCounts.indexOf(Math.max(...suitCounts)):Math.floor(Math.random()*4);
   nextCardTurn(kind,s,1,card,cpuCall);
@@ -740,7 +747,7 @@ setStatus(s.winner!==null?s.players[s.winner].name+" won the race to 100!":s.pla
 controlsHTML('<div class="dice">'+("⚀⚁⚂⚃⚄⚅"[(s.last||1)-1])+'</div><button type="button" class="primary" data-action="snakes-roll" '+(s.winner!==null?"disabled":"")+'>Roll dice</button>'+scoreList(s.players,x=>"Square "+x.pos)+choosePlayers("snakes",s.players.length,4));
 rules("Snakes & Ladders","Roll one die to advance. <b>↗</b> means climb a ladder to a higher square; <b>↘</b> means slide down a snake to a lower square. You must land on exactly 100 to win. Players share the same phone.");
 }
-function snakesRoll(){const s=state.snakes;if(s.winner!==null)return;const p=s.players[s.turn],n=die();s.last=n;const old=p.pos;if(p.pos+n<=100)p.pos+=n;s.msg=(p.pos===old?"Exact roll needed. ":"Rolled "+n+". ");if(ups[p.pos]){s.msg+="Climbed to "+ups[p.pos]+"!";p.pos=ups[p.pos];}if(downs[p.pos]){s.msg+="Slid to "+downs[p.pos]+"!";p.pos=downs[p.pos];}if(p.pos===100)s.winner=s.turn;else s.turn=(s.turn+1)%s.players.length;render();}
+function snakesRoll(){const s=state.snakes;if(s.winner!==null)return;sfx("dice");const p=s.players[s.turn],n=die();s.last=n;const old=p.pos;if(p.pos+n<=100)p.pos+=n;s.msg=(p.pos===old?"Exact roll needed. ":"Rolled "+n+". ");if(ups[p.pos]){s.msg+="Climbed to "+ups[p.pos]+"!";sfx("ladder");p.pos=ups[p.pos];}if(downs[p.pos]){s.msg+="Slid to "+downs[p.pos]+"!";sfx("slide");p.pos=downs[p.pos];}if(p.pos===100){s.winner=s.turn;sfx("win");}else s.turn=(s.turn+1)%s.players.length;render();}
 
 /* Draughts: mandatory captures, chained jumps, kings and no-move loss. */
 function checkerOptions(s,at,captureOnly){
@@ -788,9 +795,11 @@ function renderCheckers(){
 }
 function checkerClick(at){const s=state.checkers;if(s.winner!==null)return;const legal=allCheckerMoves(s);
 if(s.selected!==null){const move=legal.find(m=>m.from===s.selected&&m.to===at);if(move){const piece=s.cells[move.from];s.cells[move.from]=null;s.cells[move.to]=piece;if(move.capture!==null)s.cells[move.capture]=null;
+sfx(move.capture!==null?"capture":"place");
 const row=Math.floor(move.to/8);if(row===0&&piece==="w")s.cells[move.to]="W";if(row===7&&piece==="b")s.cells[move.to]="B";
+if(s.cells[move.to]!==piece)sfx("king");
 if(move.capture!==null&&s.cells[move.to]===piece){const follow=checkerOptions(s,move.to,true).filter(m=>m.capture!==null);if(follow.length){s.forced=move.to;s.selected=move.to;s.msg="Capture again with the same piece.";render();return;}}
-s.selected=null;s.forced=null;s.turn=s.turn==="w"?"b":"w";s.msg=move.capture!==null?"Captured!":"Piece moved.";if(!allCheckerMoves(s).length)s.winner=s.turn==="w"?"b":"w";render();return;}}
+s.selected=null;s.forced=null;s.turn=s.turn==="w"?"b":"w";s.msg=move.capture!==null?"Captured!":"Piece moved.";if(!allCheckerMoves(s).length){s.winner=s.turn==="w"?"b":"w";sfx("win");}render();return;}}
 if(s.forced!==null)return;
 if(s.cells[at]&&s.cells[at].toLowerCase()===s.turn&&legal.some(m=>m.from===at)){s.selected=at;s.msg="Choose a highlighted destination.";render();}}
  
