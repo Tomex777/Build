@@ -59,5 +59,25 @@ try{
  writeFileSync(path.join(out,'JIGSAW-LIVE-PHOTO-DESKTOP.jpg'),ds);
  console.log('REAL_PHOTO_QA_DESKTOP='+JSON.stringify(desktop));
  console.log('LIVE_PHOTO_DESKTOP_BASE64='+ds.toString('base64'));
- if(!state.active||photos.some(photo=>photo.width<300)||state.imageVariance<15||!desktop.active||desktop.pieces!==24||desktop.board.x<80)process.exitCode=1;
+
+ // Verify photographic clarity and natural distribution, not just white fixtures,
+ // at the highest phone difficulty too.
+ await page.setViewportSize({width:390,height:844});await page.waitForTimeout(260);
+ await page.locator('#hudMenuButton').click();await page.locator('#hudSettingsButton').click();
+ await page.locator('[data-pieces="144"]').click();
+ const extreme=await page.evaluate(()=>{
+  const x=window.__nightJigsawTest.snapshot();
+  return {pieceCount:x.pieces.length,zoom:x.zoom,dimension:x.board,
+   pixelRatio:x.pixelRatio,viewport:x.viewport,backing:document.querySelector('#puzzleCanvas').width};
+ });
+ const high=await page.screenshot({type:'jpeg',quality:74});
+ writeFileSync(path.join(out,'JIGSAW-LIVE-PHOTO-144-OVERVIEW.jpg'),high);
+ console.log('LIVE_PHOTO_144_OVERVIEW_BASE64='+high.toString('base64'));
+ await page.locator('#hudMenuButton').click();await page.locator('#mobileZoomFit').click();
+ const focus=await page.screenshot({type:'jpeg',quality:72});
+ writeFileSync(path.join(out,'JIGSAW-LIVE-PHOTO-144-MAGNIFIED.jpg'),focus);
+ console.log('LIVE_PHOTO_144_FOCUS_BASE64='+focus.toString('base64'));
+ console.log('REAL_PHOTO_144='+JSON.stringify(extreme));
+ if(!state.active||photos.some(photo=>photo.width<300)||state.imageVariance<15||!desktop.active||desktop.pieces!==24||desktop.board.x<80||
+  extreme.pieceCount!==144||extreme.zoom!==1)process.exitCode=1;
  }finally{await browser?.close();await new Promise(ok=>server.close(ok));}
