@@ -133,12 +133,17 @@ object AtlasPresets {
             0 -> {
                 world.wind=.62f;world.rain=.9f
                 zone("Nave",10f,11f,52f,62f,4.2f,.19f)
-                rect(world,10f,11f,52f,62f,Material.STONE)
-                world.walls.removeAt(world.walls.lastIndex - 2) // south opening, a cathedral door
+                // Actual openings, not overlapping wall-and-glass segments.
+                // A 12-meter south door connects interior and exterior acoustics.
+                world.walls += Wall(V2(10f,11f),V2(62f,11f),Material.STONE)
+                world.walls += Wall(V2(10f,11f),V2(10f,31f),Material.STONE)
+                world.walls += Wall(V2(10f,31f),V2(10f,46f),Material.GLASS)
+                world.walls += Wall(V2(10f,46f),V2(10f,73f),Material.STONE)
+                world.walls += Wall(V2(62f,11f),V2(62f,31f),Material.STONE)
+                world.walls += Wall(V2(62f,31f),V2(62f,46f),Material.GLASS)
+                world.walls += Wall(V2(62f,46f),V2(62f,73f),Material.STONE)
                 world.walls += Wall(V2(10f,73f),V2(30f,73f),Material.STONE)
                 world.walls += Wall(V2(42f,73f),V2(62f,73f),Material.STONE)
-                world.walls += Wall(V2(11f,31f),V2(11f,46f),Material.GLASS)
-                world.walls += Wall(V2(61f,31f),V2(61f,46f),Material.GLASS)
                 add(SoundKind.RAIN,8f,42f,.86f);add(SoundKind.RAIN,65f,29f,.82f)
                 add(SoundKind.THUNDER,3f,13f,.84f,true); add(SoundKind.DRIP,44f,24f,.62f)
                 add(SoundKind.BELL,35f,13f,.41f); add(SoundKind.WIND,33f,82f,.48f)
