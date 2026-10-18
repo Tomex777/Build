@@ -395,6 +395,7 @@ async function finish(page,winner){
    await penaltyPage.waitForFunction(()=>window.__nightWhotMotion().activeFlights===0
       &&window.__nightWhotMotion().draws>=3,null,{timeout:3500});
    assert.equal(await penaltyPage.locator('.hand .whot-card').count(),7);
+   assert.ok(await penaltyPage.evaluate(()=>window.__nightWhotMotion().peakFlights<=1),'low-end mobile must never run three heavy 3D draw flights at once');
    assert.equal(await penaltyPage.locator('.hand .whot-card').evaluateAll(cards=>cards.filter(c=>getComputedStyle(c).visibility==='hidden').length),0,
      'all penalty cards reveal only after their arrival');
    assert.deepEqual(penaltyErrors,[],'CPU penalty flights have no browser JS errors');
