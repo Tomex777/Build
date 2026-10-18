@@ -239,6 +239,7 @@ function onPhoto(file){
  if(file.size>12*1024*1024)return showToast('Please choose an image smaller than 12 MB');
  const url=URL.createObjectURL(file),img=new Image();
  img.onload=()=>{
+  ++imageLoadVersion;
   URL.revokeObjectURL(url);
   paintCustomSource(img);
   customData=board.sourceCanvas.toDataURL('image/jpeg',.78);
