@@ -2716,6 +2716,19 @@ private fun EditorContextSheet(
                         },
                         modifier = Modifier.testTag("environment-ground-toggle"),
                     )
+                    FilterChip(
+                        selected = editor.project.world.gridEnabled,
+                        onClick = {
+                            onEditor(
+                                editor.setReferenceGridVisible(!editor.project.world.gridEnabled),
+                                "environment-reference-grid",
+                            )
+                        },
+                        label = {
+                            Text(if (editor.project.world.gridEnabled) "Reference grid on" else "Reference grid off")
+                        },
+                        modifier = Modifier.testTag("environment-grid-toggle"),
+                    )
                     Text(
                         "Original offline sky gradients · PBR matte shadow receiver · saved with the scene.",
                         color = MutedText, fontSize = 10.sp,
