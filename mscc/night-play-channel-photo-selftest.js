@@ -35,8 +35,11 @@ assert.equal(fetchCount,1,'no duplicate request during cooldown')
 offset+=12*3600000+1
 await sync(userId,[listed])
 assert.equal(lookups,2,'refresh after cooldown')
-const foreign=play.request({action:'link',session:randomBytes(32).toString('base64url'),client:'other'})
-assert.equal(foreign.code.length>0,true)
+const otherToken=randomBytes(32).toString('base64url')
+const foreign=play.request({action:'link',session:otherToken,client:'other'})
+play.linkFromWhatsApp({userKey:'2348000000002',code:foreign.code})
+assert.equal(play.request({action:'channel:list',session:otherToken}).channels.length,0,
+ 'another WhatsApp identity cannot read channel claims or private photos')
 assert.equal(play.channels.savePhoto('unknown',jid,png),false,'never write unverified owner image')
 assert.equal(play.channels.canUsePhoto('unknown',jid),false)
 const bad=createNightPlayChannelPhotoSync(play,new Map([['bot1',{connected:true,sock:{profilePictureUrl:async()=> 'https://notwhatsapp.example.org/internal'}}]]),
