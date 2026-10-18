@@ -103,6 +103,10 @@ try{
  const first=mem.deck[0],mate=mem.deck.findIndex((x,i)=>i>0&&x===first);
  await page.locator('[data-memory="0"]').click();
  await page.locator('[data-memory="'+mate+'"]').click();
+ await page.waitForTimeout(420);
+ console.log('NIGHT_MEMORY_FACES_IMAGE_BASE64='+(await page.screenshot({type:'jpeg',quality:59})).toString('base64'));
+ await page.screenshot({path:path.join(folder,'memory-photo-faces-mobile.jpg'),type:'jpeg',quality:76});
+ console.log('NIGHT_MEMORY_READY_PHOTOS='+await page.locator('.memory-card img.ready').count());
  mem=await page.evaluate(()=>JSON.parse(localStorage.getItem('night-play-memory-v2')));
  assert.equal(mem.matched.filter(Boolean).length,2);
  let unmatched=mem.deck.map((v,i)=>({v,i})).filter(x=>x.v!==first);
