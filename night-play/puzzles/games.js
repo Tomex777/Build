@@ -5,9 +5,10 @@ const core=window.NIGHTPuzzleCore;
 if(!core)throw new Error("Puzzle game rules did not load.");
 const $=id=>document.getElementById(id);
 const board=$("board"),tools=$("tools"),status=$("statusbar"),msg=$("message"),dialog=$("settingsDialog");
+const memory=window.NIGHTMemory.create({board,tools,status,message:msg,newButton:$("newGame")});
 const catalog={
  sudoku:{title:"Sudoku",sub:"Fill every row, column, and 3×3 box.",category:"NUMBER PUZZLE",rules:"Each row, column and 3×3 square must contain 1–9 once each. Tap a cell, then enter a number. Notes let you pencil possible numbers. Desktop: arrows, 1–9, Backspace, and N for Notes."},
- memory:{title:"Memory Match",sub:"Find the pairs. Remember what you saw.",category:"MEMORY GAME",rules:"Turn over two cards at a time. Matching shapes stay open; mismatched shapes turn back. Clear all pairs in as few turns as possible."},
+ memory:{title:"Memory Match",sub:"Pick a deck. Make every pair count.",category:"MEMORY GAME",rules:"Choose a photo or illustrated deck and a board size. Flip two cards to find a pair. Large boards extend down the page, not sideways. Progress saves automatically."},
  connect:{title:"Connect Four",sub:"Think ahead. Connect four to win.",category:"STRATEGY BOARD",rules:"Tap a column to drop a disc. Four discs of your colour in a horizontal, vertical, or diagonal line wins. Choose the computer or local two-player mode in Settings."}
 };
 const SAVE="night-play-puzzle-room-v1-";
@@ -16,7 +17,7 @@ let kind="sudoku",s=null,delay=null;
 function getSaved(id){try{return JSON.parse(localStorage.getItem(SAVE+id)||"null");}catch{return null;}}
 function putSaved(){if(!s)return;try{
  let data=JSON.parse(JSON.stringify(s));
- if(kind==="memory"){data.flipped=[];data.locked=false;}
+ if(kind==="memory")return;
  localStorage.setItem(SAVE+kind,JSON.stringify(data));
 }catch{}}
 function updateMessage(t){msg.textContent=t||"";}
@@ -27,7 +28,6 @@ function validSaved(id,data){
  if(!data||data.type!==id||typeof data.elapsed!=="number"||data.elapsed<0||data.elapsed>10000000)return false;
  const vec=(v,n,max=9)=>Array.isArray(v)&&v.length===n&&v.every(x=>Number.isInteger(x)&&x>=0&&x<=max);
  if(id==="sudoku")return ["easy","medium","hard"].includes(data.level)&&vec(data.givens,81)&&vec(data.board,81)&&core.validSudoku(data.solution)&&Array.isArray(data.notes)&&data.notes.length===81&&data.notes.every(x=>typeof x==="string"&&/^[1-9]*$/.test(x))&&data.givens.every((n,i)=>!n||n===data.solution[i])&&data.board.every((n,i)=>!data.givens[i]||n===data.givens[i])&&Number.isInteger(data.hints)&&data.hints>=0&&data.hints<=2;
- if(id==="memory")return ["easy","medium","hard"].includes(data.level)&&Array.isArray(data.deck)&&data.deck.length===({easy:16,medium:20,hard:24}[data.level])&&data.deck.every(v=>Number.isInteger(v)&&v>=0&&v<12)&&Array.isArray(data.matched)&&data.matched.length===data.deck.length&&data.matched.every(v=>typeof v==="boolean")&&Number.isInteger(data.tries)&&data.tries>=0;
  if(id==="connect")return ["cpu","local"].includes(data.mode)&&core.validConnectBoard(data.cells)&&[1,2].includes(data.turn)&&[0,1,2,3].includes(data.ended);
  return false;
 }
@@ -36,20 +36,21 @@ function newSession(id,setting){
   const level=["easy","medium","hard"].includes(setting)?setting:"easy";
   const made=core.createSudoku(level,Date.now()+(Math.random()*4294967295>>>0));
   s={type:id,level,givens:made.puzzle,solution:made.solution,board:made.puzzle.slice(),notes:Array(81).fill(""),selected:made.puzzle.indexOf(0),noteMode:false,mistakes:0,hints:2,elapsed:0,done:false};
- }else if(id==="memory"){
-  const level=["easy","medium","hard"].includes(setting)?setting:"easy";
-  const pairs={easy:8,medium:10,hard:12}[level],seed=(Date.now()^(Math.random()*4294967295))>>>0;
-  s={type:id,level,deck:core.memoryDeck(pairs,seed),matched:Array(pairs*2).fill(false),flipped:[],locked:false,tries:0,elapsed:0,done:false};
  }else{
   const mode=setting==="local"?"local":"cpu";
   s={type:id,mode,cells:core.createConnectBoard(),turn:1,ended:0,elapsed:0};
  }
  putSaved();
 }
-function cancelPending(){if(delay!==null){clearTimeout(delay);delay=null;}if(s&&s.type==="memory"){s.flipped=[];s.locked=false;}}
+function cancelPending(){if(delay!==null){clearTimeout(delay);delay=null;}}
 function switchGame(next){
  if(!catalog[next])next="sudoku";
- cancelPending();putSaved();kind=next;
+ cancelPending();putSaved();if(kind==="memory")memory.unmount();kind=next;
+ if(kind==="memory"){
+  s={type:"memory",done:true,elapsed:0};
+  const url=new URL(location.href);url.searchParams.set("game",kind);history.replaceState({},"",url.pathname+url.search);
+  setTitle();renderOptions();memory.mount();if(dialog.open)dialog.close();return;
+ }
  const previous=getSaved(next);
  if(validSaved(next,previous)){s=previous;if(next==="memory"){s.flipped=[];s.locked=false;}if(next==="sudoku"&&(!Number.isInteger(s.selected)||s.selected<0||s.selected>80))s.selected=s.board.findIndex(n=>n===0);}
  else newSession(next);
@@ -58,9 +59,9 @@ function switchGame(next){
  if(dialog.open)dialog.close();
  if(kind==="connect"&&s.mode==="cpu"&&s.turn===2&&!s.ended)queueBot();
 }
-function startOver(setting){cancelPending();newSession(kind,setting);renderOptions();render(true);updateMessage("A new round is ready.");if(dialog.open)dialog.close();}
+function startOver(setting){if(kind==="memory"){memory.restart();return;}cancelPending();newSession(kind,setting);renderOptions();render(true);updateMessage("A new round is ready.");if(dialog.open)dialog.close();}
 function renderOptions(){
- const x=$("gameOptions");x.replaceChildren();
+ const x=$("gameOptions");x.replaceChildren();if(kind==="memory")return;
  const label=document.createElement("span");label.className="puzzle-options-label";label.textContent=kind==="connect"?"PLAY MODE":"DIFFICULTY";x.append(label);
  const row=document.createElement("div");row.className="puzzle-options";
  const choices=kind==="connect"?[["cpu","Versus computer"],["local","2 players · same phone"]]:kind==="memory"?[["easy","4 × 4"],["medium","4 × 5"],["hard","6 × 4"]]:[["easy","Easy"],["medium","Medium"],["hard","Hard"]];
@@ -70,7 +71,7 @@ function renderOptions(){
 function render(clearBoard=false){
  if(clearBoard)board.replaceChildren();
  if(kind==="sudoku")renderSudoku();
- if(kind==="memory")renderMemory(clearBoard);
+ 
  if(kind==="connect")renderConnect();
 }
 function sudokuConflict(i){
@@ -126,50 +127,6 @@ function sudokuHint(){
  if(s.board.every((n,j)=>n===s.solution[j]))s.done=true;
  putSaved();renderSudoku();
 }
-const iconPaths=[
- '<circle cx="32" cy="32" r="23"/>','<path d="M32 5 59 32 32 59 5 32Z"/>','<path d="M32 7 61 56H3Z"/>','<path d="m32 4 7 19 20 0-16 13 6 21-17-12-17 12 6-21L5 23h20Z"/>',
- '<path d="M17 7h30l15 25-15 25H17L2 32Z"/>','<path d="M9 13h46v38H9Z"/>','<circle cx="32" cy="32" r="22"/><circle cx="32" cy="32" r="10" fill="white"/>','<path d="M4 24q14-27 28 0t28 0v16q-14 27-28 0T4 40Z"/>',
- '<path d="M32 3 59 20v25L32 61 5 45V20Z"/>','<path d="M9 5h46v54H9Zm14 14h18v26H23Z" fill-rule="evenodd"/>','<path d="M32 4c-12 0-21 10-21 21 0 16 21 35 21 35s21-19 21-35C53 14 44 4 32 4Z"/>','<path d="M10 13c3-9 13-12 22-5 9-7 19-4 22 5 6 16-7 27-22 42C17 40 4 29 10 13Z"/>'
-];
-const iconPalette=["#6a9e8e","#d48b6d","#d9b454","#779ab7","#a08fc1","#cb8f9c","#608b7f","#cf9b67","#859ab1","#ac806e","#89aa72","#cb7372"];
-function shapeSvg(id){return '<svg role="img" aria-hidden="true" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg"><g fill="'+iconPalette[id]+'" stroke="#24332e" stroke-opacity=".12" stroke-width="1.5">'+iconPaths[id]+'</g></svg>';}
-function renderMemory(){
- board.className="puzzle-board memory-grid"+(s.level==="hard"?" cols-6":"");
- if(board.children.length!==s.deck.length||board.firstElementChild?.dataset.memory===undefined){
-  const frag=document.createDocumentFragment();
-  s.deck.forEach((shape,i)=>{
-   const button=document.createElement("button");button.type="button";button.className="memory-card";button.dataset.memory=String(i);
-   const face=document.createElement("span");face.className="memory-shape";face.innerHTML=shapeSvg(shape);button.append(face);frag.append(button);
-  });board.replaceChildren(frag);
- }
- for(let i=0;i<s.deck.length;i++){
-  const b=board.children[i],opened=s.flipped.includes(i)||s.matched[i];
-  b.classList.toggle("flipped",s.flipped.includes(i));b.classList.toggle("matched",s.matched[i]);
-  b.disabled=s.done||s.matched[i]||s.locked;
-  b.setAttribute("aria-label","Card "+(i+1)+(s.matched[i]?", matched":opened?", revealed":", face down"));
- }
- tools.replaceChildren();
- status.replaceChildren();
- chip(s.level==="easy"?"8 PAIRS":s.level==="medium"?"10 PAIRS":"12 PAIRS");
- chip("Moves "+s.tries);chip("Matched "+(s.matched.filter(Boolean).length/2));
- chip(time(s.elapsed));
- if(s.done)updateMessage("All pairs found in "+s.tries+" moves!");
-}
-function flipMemory(i){
- if(s.done||s.locked||s.matched[i]||s.flipped.includes(i))return;
- s.flipped.push(i);renderMemory();
- if(s.flipped.length!==2)return;
- s.tries++;
- const [a,b]=s.flipped;
- if(s.deck[a]===s.deck[b]){
-  s.matched[a]=true;s.matched[b]=true;s.flipped=[];
-  if(s.matched.every(Boolean))s.done=true;
-  putSaved();renderMemory();return;
- }
- s.locked=true;renderMemory();
- delay=setTimeout(()=>{delay=null;if(kind!=="memory")return;s.flipped=[];s.locked=false;putSaved();renderMemory();},720);
- putSaved();
-}
 function renderConnect(){
  board.className="puzzle-board connect-board";
  const frag=document.createDocumentFragment();
@@ -208,8 +165,7 @@ function queueBot(){
 board.addEventListener("click",e=>{
  const sudoku=e.target.closest("[data-cell]");
  if(kind==="sudoku"&&sudoku){s.selected=Number(sudoku.dataset.cell);putSaved();renderSudoku();return;}
- const memory=e.target.closest("[data-memory]");
- if(kind==="memory"&&memory){flipMemory(Number(memory.dataset.memory));return;}
+
  const connect=e.target.closest("[data-column]");
  if(kind==="connect"&&connect){playConnect(Number(connect.dataset.column));}
 });
@@ -238,10 +194,10 @@ $("settingsClose").addEventListener("click",()=>dialog.close());
 dialog.addEventListener("click",e=>{if(e.target===dialog)dialog.close();});
 $("gameSwitch").addEventListener("click",e=>{const b=e.target.closest("[data-puzzle]");if(b)switchGame(b.dataset.puzzle);});
 $("gameOptions").addEventListener("click",e=>{const b=e.target.closest("[data-option]");if(!b)return;const selected=s.level||s.mode;if(selected!==b.dataset.option)startOver(b.dataset.option);});
-$("newGame").addEventListener("click",()=>startOver(s.level||s.mode));
+$("newGame").addEventListener("click",()=>{if(kind==="memory"){memory.restart();return;}startOver(s.level||s.mode);});
 document.addEventListener("visibilitychange",()=>{if(document.hidden){cancelPending();putSaved();}else if(kind==="connect"&&s.mode==="cpu"&&s.turn===2&&!s.ended)queueBot();});
 window.addEventListener("pagehide",putSaved);
-setInterval(()=>{if(!s||document.hidden||dialog.open||(s.type==="sudoku"&&s.done)||(s.type==="memory"&&s.done)||(s.type==="connect"&&s.ended))return;
+setInterval(()=>{if(!s||document.hidden||dialog.open||(s.type==="sudoku"&&s.done)||(s.type==="connect"&&s.ended))return;
  s.elapsed++;putSaved();
  const badges=status.querySelectorAll("span");const index=kind==="sudoku"?1:badges.length-1;if(badges[index])badges[index].textContent=time(s.elapsed);
 },1000);
