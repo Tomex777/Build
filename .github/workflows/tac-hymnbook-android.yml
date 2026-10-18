@@ -43,3 +43,45 @@ jobs:
           name: TAC-Hymns-debug-apk
           path: tac-hymnbook/android/app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
+
+  smoke:
+    name: Install and launch on Android emulator
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: actions/download-artifact@v4
+        with:
+          name: TAC-Hymns-debug-apk
+          path: ./dist
+      - name: Boot emulator and test app
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 30
+          arch: x86_64
+          target: google_apis
+          profile: pixel_5
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim
+          disable-animations: true
+          script: |
+            adb install -r ./dist/app-debug.apk
+            adb shell am start -W -n com.night.tachymns/.MainActivity
+            sleep 4
+            adb shell pidof com.night.tachymns
+            adb exec-out screencap -p > tac-hymns-home.png
+            if adb logcat -d -s AndroidRuntime:E | grep -A 5 "Process: com.night.tachymns"; then
+              echo "App crashed on emulator"
+              exit 1
+            fi
+      - name: Upload emulator screenshot
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: TAC-Hymns-emulator-screen
+          path: tac-hymns-home.png
+          if-no-files-found: warn
