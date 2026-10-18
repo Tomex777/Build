@@ -12,7 +12,8 @@ permissions:
   contents: read
 
 concurrency:
-  group: mise-under-tree-${{ github.ref }}
+  # New environment QA epoch; do not wait behind an obsolete cancelled run.
+  group: mise-terrain-v1-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
