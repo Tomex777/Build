@@ -387,6 +387,10 @@ $('edgesButton').addEventListener('click',()=>{
  $('edgesButton').setAttribute('aria-pressed',String(board.edgeOnly));
  sound.playPickup();board.render();saveGame();
 });
+$('sweepButton').addEventListener('click',()=>{
+ if(!activeRound||won)return;
+ board.sweepLoose();sound.playDrop();saveGame();
+});
 function dialog(id){$(id).showModal()}
 document.querySelectorAll('[data-close]').forEach(b=>b.addEventListener('click',()=>$(b.dataset.close).close()));
 $('previewDialog').addEventListener('close',()=>{if(previewTimeout!==null){clearTimeout(previewTimeout);previewTimeout=null}timerStart()});
