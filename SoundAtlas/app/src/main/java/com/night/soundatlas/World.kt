@@ -54,7 +54,7 @@ data class World(
     val zones: MutableList<Zone> = mutableListOf(),
     val sounds: MutableList<Emitter> = mutableListOf(),
     var wind: Float = 0.15f, var rain: Float = 0f,
-    var seed: Int = 1357
+    var seed: Int = 1357, var storm: Float = 0.45f
 ) {
     fun bound(pos: V2) = V2(pos.x.coerceIn(0f, width), pos.y.coerceIn(0f, height))
     fun newId() = (sounds.maxOfOrNull { it.id } ?: 0) + 1
@@ -266,7 +266,7 @@ object AtlasCodec {
         val root=JSONObject()
         root.put("v",VERSION).put("n",world.name).put("d",JSONArray().put(world.width).put(world.height))
         root.put("l",JSONArray().put(world.listener.x).put(world.listener.y).put(world.facing))
-        root.put("cl",JSONArray().put(world.wind).put(world.rain).put(world.seed))
+        root.put("cl",JSONArray().put(world.wind).put(world.rain).put(world.seed).put(world.storm))
         val walls=JSONArray()
         for (wall in world.walls) walls.put(JSONArray().put(wall.a.x).put(wall.a.y).put(wall.b.x)
             .put(wall.b.y).put(wall.material.ordinal))
@@ -300,6 +300,7 @@ object AtlasCodec {
         val climate=root.getJSONArray("cl")
         world.wind=climate.safe(0,0f,1f);world.rain=climate.safe(1,0f,1f)
         world.seed=climate.getInt(2)
+        world.storm=if(climate.length()>=4) climate.safe(3,0f,1f) else .45f
         val walls=root.getJSONArray("w")
         require(walls.length() <= 1000) { "Too many walls" }
         repeat(walls.length()) {
