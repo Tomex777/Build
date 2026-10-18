@@ -11,7 +11,7 @@ download_asset() {
         mv "$dest.tmp" "$dest"
     fi
     echo "Poly Haven CC0 source: $url"
-    printf '%s  %s\\n' "$expected_sha" "$dest" | sha256sum --check --status || {
+    echo "$expected_sha  $dest" | sha256sum --check --status || {
         rm -f "$dest"
         echo "Photo checksum mismatches the CC0 licensed source: $url" >&2
         exit 1
