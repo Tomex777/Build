@@ -46,6 +46,8 @@ jobs:
         run: node night-play/browser-smoke.mjs
       - name: Verify Jigsaw game mechanics and mobile experience
         run: node night-play/jigsaw/mobile-smoke.mjs
+      - name: Inspect the actual photographic gallery and first playable image
+        run: node night-play/jigsaw/real-photo-smoke.mjs
       - name: Verify mobile Ludo, property trading, card games, drawing, snakes and draughts
         run: node night-play/club/mobile-smoke.mjs
       - name: Verify four mobile arcade games
