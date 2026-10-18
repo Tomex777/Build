@@ -58,7 +58,7 @@ def compile_asset() -> dict:
             "number": n,
             "collection": entry["collection"],
             "title_yo": entry["title_yo"],
-            "title_en": entry["title_en"],
+            "title_en": draft.get("title_en", entry["title_en"]) if draft else entry["title_en"],
             "source_pages": entry["source_pages"],
             "verses_yo": draft["verses"] if draft else [],
             "verses_en": draft.get("verses_en", []) if draft else [],
@@ -67,7 +67,7 @@ def compile_asset() -> dict:
         })
     return {
         "schema": 1,
-        "description": "Offline TAC catalogue; only photo-backed Yoruba draft texts are shown; external URLs are research references.",
+        "description": "Offline photo-backed TAC hymn texts; review pending. Hymn 11 is partial: page 5 required.",
         "hymns": hymns,
     }
 
