@@ -97,6 +97,8 @@ html[data-anonymous-design="yes"] #anonymousHub{display:none!important}
 #anonymousHub .anon-channel{display:flex;align-items:center;gap:14px}
 #anonymousHub .anon-channel-icon{display:grid;place-items:center;flex:0 0 48px;width:48px;height:48px;border-radius:13px;background:#e7efe9;color:#37704e}
 #anonymousHub .anon-channel-icon svg{width:25px;height:25px;stroke:currentColor;stroke-width:1.8;fill:none;stroke-linecap:round;stroke-linejoin:round}
+#anonymousHub .anon-channel-icon{overflow:hidden}
+#anonymousHub .anon-channel-icon img{display:block;width:100%;height:100%;object-fit:cover}
 #anonymousHub .anon-channel small{display:block;color:#6b8974;letter-spacing:.8px;font-size:10px;font-weight:800}
 #anonymousHub .anon-channel h2{font-size:18px;letter-spacing:-.4px;margin:3px 0 5px;overflow-wrap:anywhere}
 #anonymousHub .anon-verified{font-size:11px;color:#327b52;font-weight:760}
@@ -253,6 +255,18 @@ html[data-anonymous-design="yes"] #anonymousHub{display:none!important}
  const requested=new URLSearchParams(location.search).get('channel');
  const showChannel=channel=>{
   $('anonChannelName').textContent=channel.name||'WhatsApp Channel';
+  const avatar=document.querySelector('#anonymousHub .anon-channel-icon');
+  avatar.replaceChildren();
+  const fallback=document.createElementNS('http://www.w3.org/2000/svg','svg');
+  fallback.setAttribute('viewBox','0 0 24 24');fallback.setAttribute('aria-hidden','true');
+  fallback.innerHTML='<rect x="3" y="4" width="18" height="16" rx="3"/><path d="M7 10h10M7 14h7"/>';
+  avatar.append(fallback);
+  if(typeof channel.photoData==='string'&&/^data:image\/(?:png|jpeg);base64,[A-Za-z0-9+/=]+$/.test(channel.photoData)){
+   const photo=document.createElement('img');
+   photo.alt='';photo.decoding='async';photo.src=channel.photoData;
+   photo.addEventListener('error',()=>photo.replaceWith(fallback));
+   avatar.replaceChildren(photo);
+  }
   $('anonStatus').hidden=true;$('anonWorkspace').hidden=false;
  };
  let pending=0;
