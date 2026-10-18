@@ -156,11 +156,28 @@ export class PuzzleBoard{
   this.render();
  }
  getPieceAt(x,y){
-  // Keep the selected piece on top while dragging; its large rectangular hit target
-  // makes touch acquisition more forgiving than pixel-perfect contour detection.
-  for(let i=this.pieces.length-1;i>=0;i--){const p=this.pieces[i];if(p.isPlaced)continue;
+  // At high counts, rectangular bounding boxes overlap constantly. Selecting
+  // by bounding box can grab an *invisible corner* of the topmost piece instead
+  // of the piece the user actually sees. Use the pre-rendered alpha silhouette.
+  const precise=this.totalPieces>=72;
+  for(let i=this.pieces.length-1;i>=0;i--){
+   const p=this.pieces[i];if(p.isPlaced)continue;
    const pad=Math.min(this.pieceWidth*.12,8);
-   if(x>=p.x-pad&&x<=p.x+this.pieceWidth+pad&&y>=p.y-pad&&y<=p.y+this.pieceHeight+pad)return{piece:p,index:i};
+   if(x<p.x-pad||x>p.x+this.pieceWidth+pad||
+      y<p.y-pad||y>p.y+this.pieceHeight+pad)continue;
+   if(precise){
+    const dx=(x-p.x+p.canvasMargin)*this.dpr,dy=(y-p.y+p.canvasMargin)*this.dpr;
+    const radius=Math.max(1,Math.round(this.dpr*2.5));
+    const ox=Math.max(0,Math.floor(dx-radius)),oy=Math.max(0,Math.floor(dy-radius));
+    const pw=Math.min(p.offscreenCanvas.width-ox,radius*2+1);
+    const ph=Math.min(p.offscreenCanvas.height-oy,radius*2+1);
+    if(pw<=0||ph<=0)continue;
+    const data=p.offscreenCanvas.getContext('2d').getImageData(ox,oy,pw,ph).data;
+    let visible=false;
+    for(let j=3;j<data.length;j+=4)if(data[j]>38){visible=true;break}
+    if(!visible)continue;
+   }
+   return {piece:p,index:i};
   }
   return null;
  }
