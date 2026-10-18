@@ -82,9 +82,11 @@ private val games = listOf(
     GameEntry("mines", "Minesweeper", "Puzzle", "Reveal safe cells"),
     GameEntry("blocks", "Block Drop", "Arcade", "Build lines, clear the board"),
     GameEntry("bird", "Wing Hop", "Arcade", "Navigate the moving gaps"),
-    GameEntry("maze", "Maze Chase", "Arcade", "Collect dots, dodge chasers")
+    GameEntry("maze", "Maze Chase", "Arcade", "Collect dots, dodge chasers"),
+    GameEntry("sudoku", "Sudoku", "Puzzle", "Complete the number grid"),
+    GameEntry("connect", "Connect Four", "Board", "Outsmart the computer")
 )
-private val categories = listOf("All", "Favourites", "Arcade", "Puzzle")
+private val categories = listOf("All", "Favourites", "Arcade", "Puzzle", "Board")
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -205,7 +207,11 @@ private fun OfflineHub() {
         } else {
             // A completely bundled, isolated version of the existing NIGHT Play arcade.
             // No INTERNET permission or remote script/assets are necessary.
-            OfflineArcadeWebView(gameId = selected!!, onExit = { selected = null })
+            OfflineBundledGameView(
+                gameId = selected!!,
+                directory = if (selected == "sudoku" || selected == "connect") "puzzles" else "arcade",
+                onExit = { selected = null }
+            )
         }
     }
 }
@@ -234,6 +240,8 @@ private fun GameRow(entry: GameEntry, favourite: Boolean, onOpen: () -> Unit, on
                             "blocks" -> Icons.Outlined.Apps
                             "bird" -> Icons.Outlined.Flight
                             "maze" -> Icons.Outlined.Extension
+                            "sudoku" -> Icons.Outlined.ViewModule
+                            "connect" -> Icons.Outlined.FilterNone
                             else -> Icons.Outlined.SportsEsports
                         }
                         Icon(icon, contentDescription = null, tint = accent, modifier = Modifier.size(27.dp))
@@ -258,7 +266,7 @@ private fun GameRow(entry: GameEntry, favourite: Boolean, onOpen: () -> Unit, on
 }
 
 @Composable
-private fun OfflineArcadeWebView(gameId: String, onExit: () -> Unit) {
+private fun OfflineBundledGameView(gameId: String, directory: String, onExit: () -> Unit) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val loader = remember(context) {
         WebViewAssetLoader.Builder()
@@ -285,12 +293,12 @@ private fun OfflineArcadeWebView(gameId: String, onExit: () -> Unit) {
                     override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
                         val uri = request.url
                         if (uri.host == "appassets.androidplatform.net" &&
-                            uri.path?.startsWith("/arcade/") == true) return false
+                            uri.path?.startsWith("/" + directory + "/") == true) return false
                         onExit()
                         return true
                     }
                 }
-                loadUrl("https://appassets.androidplatform.net/arcade/index.html?game=${gameId}")
+                loadUrl("https://appassets.androidplatform.net/" + directory + "/index.html?game=" + gameId)
             }
         },
         onRelease = { it.stopLoading(); it.destroy() }

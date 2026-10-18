@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#f8f9f6">
+<meta name="description" content="Sudoku, Memory Match, and Connect Four on Offline Games.">
+<title>Offline Games · Puzzle Room</title>
+<link rel="stylesheet" href="/game-shell.css">
+<link rel="stylesheet" href="/puzzles/style.css">
+<script src="/puzzles/core.js" defer></script>
+<script src="/puzzles/games.js" defer></script>
+<style>.night-shell-header{grid-template-columns:1fr auto!important}.night-brand{display:none!important}</style></head>
+<body>
+<svg class="night-svg-defs" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+ <symbol id="night-mark" viewBox="0 0 108 108"><path fill="#0B0F11" d="M0 0h108v108H0z"/><path fill="#F4F5F6" d="M24 54 C24 37.43 37.43 24 54 24 C70.57 24 84 37.43 84 54 L24 54 Z"/><path fill="#F4F5F6" d="M22 66h64v6H22z"/></symbol>
+ <symbol id="icon-back" viewBox="0 0 24 24"><path d="M15.5 5 8.5 12l7 7M9 12h12"/></symbol>
+ <symbol id="icon-settings" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M9.671 4.136a2.34 2.34 0 0 1 4.659 0 2.34 2.34 0 0 0 3.319 1.915 2.34 2.34 0 0 1 2.33 4.033 2.34 2.34 0 0 0 0 3.831 2.34 2.34 0 0 1-2.33 4.033 2.34 2.34 0 0 0-3.319 1.915 2.34 2.34 0 0 1-4.659 0 2.34 2.34 0 0 0-3.32-1.915 2.34 2.34 0 0 1-2.33-4.033 2.34 2.34 0 0 0 0-3.831A2.34 2.34 0 0 1 6.35 6.051a2.34 2.34 0 0 0 3.319-1.915"/></symbol>
+ <symbol id="icon-restart" viewBox="0 0 24 24"><path d="M20 11A8 8 0 1 1 17.9 5.6M20 3v7h-7"/></symbol>
+ <symbol id="icon-erase" viewBox="0 0 24 24"><path d="m20 20-8.4-8.4M9.7 19H20M3.2 12.2 12.9 2.5a2 2 0 0 1 2.8 0l5.8 5.8a2 2 0 0 1 0 2.8L13.5 19H9.3a2 2 0 0 1-1.4-.6l-4.7-4.7a1.9 1.9 0 0 1 0-1.5Z"/></symbol>
+</svg>
+<header class="night-shell-header">
+ <a class="night-back" href="/hub" aria-label="Back to Offline Games games"><svg class="night-ico" aria-hidden="true"><use href="#icon-back"></use></svg><span class="night-text">Games</span></a>
+ 
+ <button class="night-settings" type="button" id="settingsButton" aria-label="Game settings" aria-haspopup="dialog"><svg class="night-ico" aria-hidden="true"><use href="#icon-settings"></use></svg><span class="night-text">Settings</span></button>
+</header>
+<main class="puzzle-shell">
+ <section class="night-game-intro"><span class="night-eyebrow" id="eyebrow">THE PUZZLE ROOM</span><h1 id="title">Sudoku</h1><p id="subtitle">Fill each row, column, and 3×3 box.</p></section>
+ <div class="puzzle-status" id="statusbar" aria-live="polite"></div>
+ <section class="puzzle-workspace" aria-label="Game">
+  <div class="puzzle-board" id="board"></div>
+  <div class="puzzle-tools" id="tools"></div>
+  <p class="puzzle-message" id="message" role="status" aria-live="polite"></p>
+  <div class="night-action-row puzzle-action"><button type="button" class="primary" id="newGame"><svg class="night-ico" aria-hidden="true"><use href="#icon-restart"></use></svg> New game</button></div>
+ </section>
+</main>
+<dialog class="night-sheet" id="settingsDialog" aria-labelledby="settingsHeading">
+ <div class="night-sheet-head"><h2 id="settingsHeading">Game settings</h2><button class="night-sheet-close" type="button" id="settingsClose" aria-label="Close settings">✕</button></div>
+ <div class="night-sheet-body">
+  <span class="night-sheet-label">SWITCH GAME</span>
+  <nav class="night-sheet-switcher" id="gameSwitch" aria-label="Choose game">
+   <button type="button" data-puzzle="sudoku">Sudoku</button><button type="button" data-puzzle="connect">Connect Four</button>
+  </nav>
+  <div id="gameOptions"></div>
+  <span class="night-sheet-label">HOW TO PLAY</span>
+  <p id="rules" class="night-sheet-rule"></p>
+ </div>
+</dialog>
+</body>
+</html>
