@@ -398,7 +398,8 @@ canvas.addEventListener('pointermove',e=>{
  const pos=point(e),p=board.selectedPiece;
  const x=Math.max(-board.pieceWidth*.15,Math.min(board.viewportWidth-board.pieceWidth*.85,pos.x-dragX));
  const y=Math.max(-board.pieceHeight*.15,Math.min(board.viewportHeight-board.pieceHeight*.85,pos.y-dragY));
- if(Math.hypot(x-p.x,y-p.y)>2)dragMoved=true;
+ const start=dragOrigins?.get(p.id);
+ if(start&&Math.hypot(x-start.x,y-start.y)>2.5)dragMoved=true;
  board.moveSelectionTo(x,y);board.renderDrag();e.preventDefault();
 });
 function releaseDrag(e){
