@@ -6,18 +6,20 @@ import {renderNoctisCard} from '../renderer/src/noctis.mjs';
 import {renderRestoredCard} from '../renderer/src/restored.mjs';
 import {characterCards} from '../renderer/src/characters.mjs';
 import {powerPresentation} from './power.mjs';
+import {composeDepthLayers} from './depth-layers.mjs';
 
 export async function cardSvg(card,assets,design) {
   let subtitle=(card.formId==='featured'?card.name:card.name+' · '+card.form).toUpperCase();
   if(subtitle.length>40)subtitle=card.form.toUpperCase();
   const profile={id:card.character,name:card.title,subtitle,artwork:{id:card.id}};
+  const depth=assets.depthLayers?.[design];
   let svg;
   if(['nocturne','tidelight'].includes(design)){
     const templates=JSON.parse(await fs.readFile(inside('renderer/examples/cards.json'),'utf8'));
     const def=characterCards(templates,profile).find(x=>x.theme===design);
     def.edition=(card.formId==='featured'?card.name:card.form).toUpperCase();
     def.number=String(card.number).padStart(3,'0');
-    svg=renderRestoredCard(def,assets);
+    svg=renderRestoredCard(def,depth?{...assets,art:depth.foreground}:assets);
   }else svg=renderNoctisCard(profile,assets,{design,prefix:`library-${card.id}-${design}-`});
   const shift=card.recipe.horizontalShift?.[design];
   if(shift!==undefined){
@@ -26,6 +28,7 @@ export async function cardSvg(card,assets,design) {
     svg=svg.replace(/<image\b([^>]*?)\bx="([^"]+)"/g,(_,before,x)=>{count++;return `<image${before}x="${Number(x)+shift}"`;});
     if(count!==1)throw Error('Expected one source illustration');
   }
+  if(depth)svg=composeDepthLayers(svg,assets,depth,design);
   svg=powerPresentation(svg,card,design);
   return svg.replace('<svg ',`<svg data-catalogue-id="${card.id}" data-design="${design}" `);
 }

@@ -90,3 +90,5 @@ The rank is included in review fingerprints, export metadata, gallery filtering 
 This work does not set the bot's drop rates, pricing or trading economy, and does not deploy NIGHT/MSCC. Composition changes require new visual review; old approvals are intentionally not copied to changed cards.
 
 The phone proof is a 320px display check. It is not an actual WhatsApp transmission/compression test.
+
+Yoruichi's Nocturne recipe separates her silhouette from the baked-in aura. `recipe.depthLayers.nocturne` pins a vector mask to the original source checksum and exact crop. The isolated original character pixels receive the existing foreground shadow and overlap; the dimmed aura is clipped inside the rear architectural opening. `cropEdgeFade` feathers only the cut canvas boundaries. Other finishes retain their original artwork. Changing the mask checksum, opacity or recipe requires a new visual review.

@@ -2639,6 +2639,23 @@
         ],
         "powerBadgeTone": {
           "emberglass": "light"
+        },
+        "depthLayers": {
+          "nocturne": {
+            "mask": {
+              "localPath": "artwork/masks/yoruichi-character.svg",
+              "sha256": "01b5ca74b0d0560265d8a9496d549519f1677b4562797f65572ed8339a0cd371",
+              "sourceSHA256": "21d3775be7a29808702611641cb865ce294c8e4d16a294e9f0bccfa488e4644a",
+              "crop": [
+                0,
+                0,
+                750,
+                750
+              ]
+            },
+            "auraOpacity": 0.32,
+            "cropEdgeFade": 0.025
+          }
         }
       },
       "number": 57
