@@ -109,13 +109,13 @@ object UnderTreeScene {
                 // provides natural tree shade without harsh charcoal floor shadows.
                 Actor(
                     id = "schoolyard-sun",
-                    name = "Soft afternoon sun",
+                    name = "Afternoon sunlight",
                     kind = ActorKind.LIGHT,
                     light = LightSettings(
                         type = LightType.DIRECTIONAL,
                         intensity = 68_000f,
                         colorHex = "#FFFAF4",
-                        direction = Vec3(0f, -1f, 0f),
+                        direction = Vec3(-0.55f, -1f, -0.45f),
                         castsShadow = true,
                     ),
                 ),
@@ -160,6 +160,26 @@ object UnderTreeScene {
      * those edits must never be replaced. Artist-customized world settings
      * and lights are left exactly as they were.
      */
+    /** Keep the demo's earlier perpendicular stock sun from hiding its shadows.
+     * Customized lights stay untouched; pose/hair/scene edits are preserved.
+     */
+    fun refineStockLightAngle(scene: SceneProject): SceneProject {
+        if (scene.id != PROJECT_ID || scene.world.environmentPreset != EnvironmentPreset.PARK_SHADE)
+            return scene
+        val stockOld = LightSettings(
+            type = LightType.DIRECTIONAL,
+            intensity = 68_000f,
+            colorHex = "#FFFAF4",
+            direction = Vec3(0f, -1f, 0f),
+            castsShadow = true,
+        )
+        return scene.copy(actors = scene.actors.map { actor ->
+            if (actor.id in setOf("schoolyard-sun", "key-sun") && actor.light == stockOld)
+                actor.copy(light = stockOld.copy(direction = Vec3(-0.55f, -1f, -0.45f)))
+            else actor
+        })
+    }
+
     fun upgradeDefaultEnvironment(scene: SceneProject): SceneProject {
         if (scene.id != PROJECT_ID) return scene
         val legacyWorld = WorldSettings(
@@ -172,7 +192,7 @@ object UnderTreeScene {
         val oldFill = LightSettings(type = LightType.POINT, intensity = 2_200f, castsShadow = false)
         val newKey = LightSettings(
             type = LightType.DIRECTIONAL, intensity = 68_000f, colorHex = "#FFFAF4",
-            direction = Vec3(0f, -1f, 0f), castsShadow = true,
+            direction = Vec3(-0.55f, -1f, -0.45f), castsShadow = true,
         )
         val newFill = LightSettings(
             type = LightType.POINT, intensity = 1_900f, colorHex = "#E8F4FF",
