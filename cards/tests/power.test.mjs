@@ -47,10 +47,15 @@ test('every finish renders a smaller title with the form grade, while depth rema
       assert.ok(svg.includes('data-title-scale="0.84"'));
       assert.equal((svg.match(/data-layer="power-rank"/g)||[]).length,1);
       assert.ok(!svg.includes('>ARTIST EDITIONS</text>'));
-      assert.ok(svg.includes('feGaussianBlur'));
+      assert.ok(svg.includes('feDisplacementMap'));
+      assert.ok(svg.includes('data-power-material="glass-letters"'));
+      assert.ok(svg.includes('data-rank-ink="true"'));
+      const rankLayer=svg.slice(svg.indexOf('<g data-layer="power-rank"'));
+      assert.ok(!rankLayer.includes('<rect'), 'The rank must have no visible plate or pill');
       if (['nocturne','tidelight'].includes(design)) {
         assert.ok(svg.includes('data-depth="subject"'));
-        assert.ok(!/<g data-depth="front"[^>]*>[\s\S]*?opacity="\.9"\/>[\s\S]*?<\/g>/.test(svg));
+        const foreground=svg.match(/<g data-depth="front"[^>]*>([\s\S]*?)<\/g>/)?.[1]??'';
+        assert.ok(!foreground.includes('opacity=".9"'));
         // The subject is layered separately from the architecture rather than
         // clipped into an illustration window by the new presentation.
         assert.ok(svg.includes('data-depth="rear"'));
