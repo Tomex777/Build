@@ -52,6 +52,7 @@ for(const [width,height] of wingSizes){
  assert.ok(size.scrollWidth<=width+2,'No sideways scrolling at '+width+'x'+height);
  assert.ok(Math.abs(size.backingH/size.backingW-(size.height-6)/(size.width-6))<.025,'Sprites keep correct proportions after resize at '+width+'x'+height);
  if(width<=420&&height>=700)assert.ok(size.width>=width-18,'Wing Hop fills phone width at '+width+'x'+height);
+ if(width===900&&height===450)assert.ok(size.width>250,'Landscape game grows by moving scores beside the arena');
  if((width===390&&height===844)||(width===900&&height===450))
   console.log('NIGHT_WINGHOP_SCREEN_'+width+'X'+height+'_JPEG_BASE64='+
    (await page.screenshot({type:'jpeg',quality:55,fullPage:true})).toString('base64'));
