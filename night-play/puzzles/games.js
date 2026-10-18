@@ -51,7 +51,7 @@ function switchGame(next){
  if(!catalog[next])next="sudoku";
  cancelPending();putSaved();kind=next;
  const previous=getSaved(next);
- if(validSaved(next,previous)){s=previous;if(next==="memory"){s.flipped=[];s.locked=false;}}
+ if(validSaved(next,previous)){s=previous;if(next==="memory"){s.flipped=[];s.locked=false;}if(next==="sudoku"&&(!Number.isInteger(s.selected)||s.selected<0||s.selected>80))s.selected=s.board.findIndex(n=>n===0);}
  else newSession(next);
  const url=new URL(location.href);url.searchParams.set("game",kind);history.replaceState({},"",url.pathname+url.search);
  setTitle();renderOptions();render(true);updateMessage("");
@@ -243,7 +243,7 @@ document.addEventListener("visibilitychange",()=>{if(document.hidden){cancelPend
 window.addEventListener("pagehide",putSaved);
 setInterval(()=>{if(!s||document.hidden||dialog.open||(s.type==="sudoku"&&s.done)||(s.type==="memory"&&s.done)||(s.type==="connect"&&s.ended))return;
  s.elapsed++;putSaved();
- const badges=status.querySelectorAll("span");if(badges.length)badges[badges.length-1].textContent=time(s.elapsed);
+ const badges=status.querySelectorAll("span");const index=kind==="sudoku"?1:badges.length-1;if(badges[index])badges[index].textContent=time(s.elapsed);
 },1000);
 const query=new URLSearchParams(location.search).get("game");switchGame(allowed.includes(query)?query:"sudoku");
 })();
