@@ -52,7 +52,7 @@ class MainActivity : ComponentActivity() {
         val prefs = getSharedPreferences("reader", MODE_PRIVATE)
         setContent {
             var dark by remember { mutableStateOf(prefs.getBoolean("dark", false)) }
-            var selectedNumber by rememberSaveable { mutableStateOf<Int?>(null) }
+            var selectedNumber by rememberSaveable { mutableStateOf<Int?>(intent.getIntExtra("preview_hymn", -1).takeIf { it > 0 }) }
             var lastRead by remember { mutableIntStateOf(prefs.getInt("last", -1)) }
             var fontScale by remember { mutableFloatStateOf(prefs.getFloat("font_scale", 1f)) }
             val saved = remember {
