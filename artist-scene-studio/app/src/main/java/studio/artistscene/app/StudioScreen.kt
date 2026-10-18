@@ -1136,6 +1136,10 @@ private fun Actor.starterFrameDistance(): Float = when (asset?.assetId) {
 }
 
 private fun Actor.starterFocusHeight(): Float = when (asset?.assetId) {
+    "starter.cc0.two-storey-house" -> 4.5f
+    "starter.cc0.bungalow-house" -> 3f
+    "starter.cc0.sedan-car" -> 0.8f
+    "starter.cc0.oak-street-tree" -> 3f
     "starter.mise.car" -> .7f
     "starter.mise.bicycle" -> .55f
     "starter.mise.tree" -> 1.7f
