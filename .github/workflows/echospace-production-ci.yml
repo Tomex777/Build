@@ -1,0 +1,143 @@
+name: EchoSpace production-native ARM64 QA
+
+on:
+  push:
+    branches: [feature/echospace-production-hardening]
+    paths:
+      - 'EchoSpace/app/**'
+      - 'EchoSpace/tools/**'
+      - '.github/workflows/echospace-production-ci.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: echospace-production-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    timeout-minutes: 65
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.11.1'
+      - name: Check tracked native app exists
+        run: |
+          test -s EchoSpace/app/src/main/java/com/nexa/echospace/MainActivity.kt
+          test -s EchoSpace/app/src/main/java/com/nexa/echospace/audio/SpatialAudioService.kt
+          test -s EchoSpace/app/src/main/java/com/nexa/echospace/audio/MeasuredHrtf.kt
+          ! grep -R -E 'android.widget.SeekBar|Slider[[:space:]]*\(|<SeekBar' \
+            EchoSpace/app/src/main/java
+      - name: Android SDK
+        run: |
+          set -euo pipefail
+          SDKMANAGER=$(find "$ANDROID_HOME/cmdline-tools" -name sdkmanager -type f | head -1)
+          test -x "$SDKMANAGER"
+          "$SDKMANAGER" 'platforms;android-35' 'build-tools;35.0.0'
+      - uses: actions/cache@v4
+        id: sound-cache
+        with:
+          key: echospace-v08-approved-offline-assets-20261018
+          path: |
+            EchoSpace/app/src/main/assets
+            EchoSpace/app/src/main/res/drawable-nodpi
+      - name: Reconstitute attributed offline recordings and seven-direction measured HRTF
+        if: steps.sound-cache.outputs.cache-hit != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/echo-audio EchoSpace/app/src/main/assets
+          gh run download 39082348089 --repo "$GITHUB_REPOSITORY" \
+            --name EchoSpace-ARM64-test-signed-installable-APK --dir /tmp/echo-audio
+          APK=/tmp/echo-audio/EchoSpace-arm64-v8a-release-test-signed.apk
+          unzip -oq "$APK" 'assets/audio/*.pcm' 'assets/kemar_44100.hrir' \
+            'assets/recording_credits.json' -d /tmp/echo-audio/unpacked
+          cp -r /tmp/echo-audio/unpacked/assets/. EchoSpace/app/src/main/assets/
+      - name: Bundle five licensed offline artwork panels
+        if: steps.sound-cache.outputs.cache-hit != 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p EchoSpace/app/src/main/res/drawable-nodpi
+          declare -A scenes=(
+            [rain]=photo-1751696924126-2697d62f6f49
+            [forest]=photo-1562627952-f52a76c3c823
+            [shore]=photo-1518837695005-2083093ee35b
+            [fire]=photo-1464808646948-8f732deb6e4b
+            [dream]=photo-1592666452220-529326e2588e
+          )
+          for name in ""${!scenes[@]}""; do
+            curl -fsSL --retry 3 --connect-timeout 15 \
+              "https://images.unsplash.com/${scenes[$name]}?auto=format&fit=crop&crop=entropy&w=1080&h=1400&q=75&fm=jpg" \
+              -o "EchoSpace/app/src/main/res/drawable-nodpi/scene_${name}.jpg"
+          done
+      - name: Verify attributed audio, artwork and HRTF
+        run: |
+          set -euo pipefail
+          for kind in rain thunder ocean wind fire chimes birds night stream waterfall leaves owl frogs traffic drizzle sleet cafe train; do
+            test -s "EchoSpace/app/src/main/assets/audio/$kind.pcm"
+          done
+          for kind in rain forest shore fire dream; do
+            test -s "EchoSpace/app/src/main/res/drawable-nodpi/scene_$kind.jpg"
+          done
+          python3 - <<'PY'
+          from pathlib import Path
+          import json
+          root=Path("EchoSpace/app/src/main/assets")
+          data=(root/"kemar_44100.hrir").read_bytes()
+          assert data[:4]==b"EHR2" and len(data)==4+7*2*128*2
+          json.loads((root/"recording_credits.json").read_text())
+          print("VERIFIED: measured KEMAR HRTF, offline CC0 recordings and credits")
+          PY
+      - name: Native unit tests, ARM64 test build and release APK
+        working-directory: EchoSpace
+        run: gradle --no-daemon --stacktrace testDebugUnitTest assembleDebug assembleRelease
+      - name: ABI / minSDK / fullscreen / headphone safety gates
+        run: |
+          set -euo pipefail
+          APK=EchoSpace/app/build/outputs/apk/release/app-release-unsigned.apk
+          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging "$APK" | tee /tmp/echo-badging.txt
+          grep -q "sdkVersion:'26'" /tmp/echo-badging.txt
+          grep -q "package: name='com.nexa.echospace'" /tmp/echo-badging.txt
+          grep -q 'applyImmersiveBars' EchoSpace/app/src/main/java/com/nexa/echospace/MainActivity.kt
+          grep -q 'ACTION_AUDIO_BECOMING_NOISY' EchoSpace/app/src/main/java/com/nexa/echospace/audio/SpatialAudioService.kt
+      - name: Test-sign the ARM64 release APK, verify and upload
+        run: |
+          set -euo pipefail
+          mkdir -p release
+          KEYSTORE="$RUNNER_TEMP/echospace-ci-test.p12"
+          PASSWORD="$(openssl rand -hex 20)"
+          trap 'rm -f "$KEYSTORE"' EXIT
+          keytool -genkeypair -noprompt -keystore "$KEYSTORE" -storetype PKCS12 \
+            -storepass "$PASSWORD" -keypass "$PASSWORD" -alias echotest -keyalg RSA \
+            -keysize 3072 -validity 365 -dname "CN=EchoSpace Test, OU=NIGHT, O=NIGHT, C=NG"
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" sign --ks "$KEYSTORE" \
+            --ks-pass "pass:$PASSWORD" --key-pass "pass:$PASSWORD" \
+            --min-sdk-version 26 \
+            --out release/EchoSpace-production-hardening-test.apk \
+            EchoSpace/app/build/outputs/apk/release/app-release-unsigned.apk
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify \
+            --min-sdk-version 26 --print-certs release/EchoSpace-production-hardening-test.apk
+          sha256sum release/EchoSpace-production-hardening-test.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: EchoSpace-production-hardening-test-signed
+          path: release/EchoSpace-production-hardening-test.apk
+          if-no-files-found: error
+          retention-days: 90
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: EchoSpace-production-native-debug
+          path: EchoSpace/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: warn
