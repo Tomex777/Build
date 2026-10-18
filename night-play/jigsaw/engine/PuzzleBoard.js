@@ -78,11 +78,15 @@ export class PuzzleBoard{
   // Distribute across top/bottom on phones, left/right on wider screens.
   const occupied=[[],[]],slots=[];
   const count=this.totalPieces;
+  // At high counts, a max-distance blue-noise algorithm degenerates into
+  // tiny, regimented rows. Use uneven overlapping clusters instead: like
+  // loose cardboard pieces stacked on a real table, not an ordered grid.
+  const densitySamples=count<=24?24:count<=48?15:count<=72?8:count<=96?5:3;
   for(let i=0;i<count;i++){
    const zoneIndex=i%zones.length,z=zones[zoneIndex],previous=occupied[zoneIndex];
    const rangeX=Math.max(0,z.w-pw),rangeY=Math.max(0,z.h-ph);
    let best=null,bestScore=-Infinity;
-   for(let trial=0;trial<24;trial++){
+   for(let trial=0;trial<densitySamples;trial++){
     const x=z.x+Math.random()*rangeX,y=z.y+Math.random()*rangeY;
     let score=previous.length?Infinity:10;
     for(const old of previous){
