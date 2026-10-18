@@ -237,6 +237,7 @@ html[data-anonymous-design="yes"] #anonymousHub{display:none!important}
   $('anonStatusTitle').textContent=title;
   $('anonStatusText').textContent=description;
   $('anonStatusLink').hidden=!connect;$('anonRetry').hidden=!retry;
+  if(connect){$('anonStatusLink').href='/profile';$('anonStatusLink').textContent='Connect WhatsApp';}
  };
  const api=async(action='status')=>{
   const res=await fetch('/api/account',{
