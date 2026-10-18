@@ -11,11 +11,13 @@ if [[ "$(adb shell getprop ro.build.version.sdk | tr -d '\r')" -ge 35 ]]; then
 fi
 gradle :app:connectedDebugAndroidTest \
   -Pandroid.injected.androidTest.leaveApksInstalledAfterRun=true \
-  -Pandroid.testInstrumentationRunnerArguments.class=studio.artistscene.app.UnderTreeSceneInstrumentedTest \
+  -Pandroid.testInstrumentationRunnerArguments.class=studio.artistscene.app.UnderTreeSceneInstrumentedTest,studio.artistscene.app.MountainTerrainInstrumentedTest \
   --stacktrace 2>&1 | tee mise-under-tree-test.log
 result=${PIPESTATUS[0]}
 
 adb pull /sdcard/Android/data/studio.artistscene.app/files/under-tree-clean.png under-tree-proof/under-tree-clean.png || true
+adb pull /sdcard/Android/data/studio.artistscene.app/files/mountain-real-3d.png under-tree-proof/mountain-real-3d.png || true
+adb pull /sdcard/Android/data/studio.artistscene.app/files/mountain-empty.png under-tree-proof/mountain-empty.png || true
 adb pull /sdcard/Android/data/studio.artistscene.app/files/under-tree-empty.png under-tree-proof/under-tree-empty.png || true
 adb logcat -d -v time > under-tree-proof/logcat.txt || true
 echo "Mise scene test result: $result"
