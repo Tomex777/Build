@@ -48,11 +48,13 @@ button,summary{cursor:pointer}
 .choice:active{opacity:.6}
 .choices:has(>.choice:hover)>.choice:not(:hover){opacity:.38}
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}.step.go .word{animation:none!important;color:var(--ink)!important}.choices{transition:none!important}}
+
+.nav-ico{display:inline-block;width:16px;height:16px;vertical-align:middle;flex:none} .control-strip a:has(>.nav-ico),.library-link,.reading-nav button{display:inline-flex;align-items:center;gap:6px} .reading-nav button:last-child{justify-content:flex-end}
 </style>
 </head>
 <body>
 <header class="control-strip">
- <a href="/games" aria-label="Back to NIGHT Play games">← NIGHT PLAY</a>
+ <a href="/games" aria-label="Back to NIGHT Play games"><svg class="nav-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5m6-6-6 6 6 6"/></svg>NIGHT PLAY</a>
  <details class="reader-options" id="readerOptions">
   <summary aria-label="Reading options" title="Reading options"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="2.2"/><path d="M12 2.5v2m0 15v2M2.5 12h2m15 0h2M5.4 5.4l1.5 1.5m10.2 10.2 1.5 1.5M18.6 5.4l-1.5 1.5M6.9 17.1l-1.5 1.5"/></svg></summary>
   <div class="reader-panel">

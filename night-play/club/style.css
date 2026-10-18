@@ -1986,3 +1986,7 @@ body.whot-mode .whot-hand-help{
   transition:none!important;
  }
 }
+
+/* Shared path-based SVG controls and board-direction symbols. */
+.action-svg{display:inline-block;width:16px;height:16px;vertical-align:-3px;flex:none}
+.snakes-board .jump .direction-svg{display:block;width:clamp(12px,2.6vw,20px);height:clamp(12px,2.6vw,20px)}
