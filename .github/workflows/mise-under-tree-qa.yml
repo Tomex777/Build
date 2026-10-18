@@ -56,16 +56,7 @@ jobs:
           target: google_apis
           working-directory: artist-scene-studio
           emulator-options: -no-window -gpu lavapipe -no-snapshot -noaudio -no-boot-anim -camera-back none
-          script: |
-            set +e
-            gradle :app:connectedDebugAndroidTest -Pandroid.injected.androidTest.leaveApksInstalledAfterRun=true -Pandroid.testInstrumentationRunnerArguments.class=studio.artistscene.app.UnderTreeSceneInstrumentedTest --stacktrace > mise-under-tree-test.log 2>&1
-            result=$?
-            mkdir -p under-tree-proof
-            adb pull /sdcard/Android/data/studio.artistscene.app/files/under-tree-clean.png under-tree-proof/under-tree-clean.png || result=1
-            adb pull /sdcard/Android/data/studio.artistscene.app/files/under-tree-empty.png under-tree-proof/under-tree-empty.png || result=1
-            adb logcat -d -v time > under-tree-proof/logcat.txt
-            cat mise-under-tree-test.log
-            exit "$result"
+          script: bash scripts/mise-under-tree-smoke.sh
       - name: Upload unaltered Mise screenshots and installable debug APK
         if: always()
         uses: actions/upload-artifact@v4
