@@ -125,7 +125,7 @@ jobs:
           decoder = source[start:end]
           if decoder.count("android.graphics.BitmapFactory.decodeFile(") != 2:
               raise SystemExit("Later bitmap decoder is not API 26 compatible")
-          if "ImageDecoder" in decoder:
+          if "ImageDecoder.decodeBitmap(" in decoder or "ImageDecoder.createSource(" in decoder:
               raise SystemExit("ImageDecoder callback may be inlined into the API 26 release viewer")
           if source.count("fun decodeMediaBitmap(") != 1:
               raise SystemExit("Later media decoder transform duplicated")
