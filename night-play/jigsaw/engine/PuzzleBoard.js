@@ -298,7 +298,15 @@ export class PuzzleBoard{
  }
  paintScene(rect=null,confetti=null){
   const ctx=this.ctx,w=this.viewportWidth,h=this.viewportHeight;
-  const area=rect||{x:0,y:0,w,h};
+  // Fractional clip bounds create visible rectangular seams on DPR 2.5
+  // screens. Align damage exactly to physical backing pixels before clearing.
+  const area=rect?(()=>{
+   const x=Math.floor(rect.x*this.dpr-2)/this.dpr;
+   const y=Math.floor(rect.y*this.dpr-2)/this.dpr;
+   const right=Math.ceil((rect.x+rect.w)*this.dpr+2)/this.dpr;
+   const bottom=Math.ceil((rect.y+rect.h)*this.dpr+2)/this.dpr;
+   return {x,y,w:right-x,h:bottom-y};
+  })():{x:0,y:0,w,h};
   const intersects=(x,y,rw,rh)=>x<area.x+area.w&&x+rw>area.x&&y<area.y+area.h&&y+rh>area.y;
   ctx.save();
   if(rect){ctx.beginPath();ctx.rect(area.x,area.y,area.w,area.h);ctx.clip();}
