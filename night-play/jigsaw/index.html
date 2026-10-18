@@ -13,6 +13,9 @@
 <symbol id="icon-restart" viewBox="0 0 24 24"><path d="M20 11A8 8 0 1 1 17.9 5.6M20 3v7h-7"/></symbol>
 <symbol id="icon-upload" viewBox="0 0 24 24"><path d="M12 17V3m-5 5 5-5 5 5M4 16v4h16v-4"/></symbol>
 <symbol id="icon-arrow-forward" viewBox="0 0 24 24"><path d="M4 12h16m-6-6 6 6-6 6"/></symbol>
+<symbol id="icon-edge" viewBox="0 0 24 24"><path d="M4 4h16v16H4zM4 10h6V4m10 10h-6v6"/></symbol>
+<symbol id="icon-zoom-in" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="7"/><path d="M16 16l5 5M7 10.5h7m-3.5-3.5v7"/></symbol>
+<symbol id="icon-zoom-out" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="7"/><path d="M16 16l5 5M7 10.5h7"/></symbol>
 <symbol id="icon-check" viewBox="0 0 24 24"><path d="m4 12 5.5 5.5L20 7"/></symbol>
 </svg>
 <header class="game-topline">
@@ -50,14 +53,22 @@
    <div class="match-stat"><span>MOVES</span><strong id="moves">0</strong></div>
    <div class="match-stat"><span>PIECES</span><strong id="progress">0 / 24</strong></div>
   </div>
-  <div class="play-mat" id="canvasWrapper"><canvas id="puzzleCanvas" width="360" height="660" aria-label="Jigsaw board. Drag loose pieces into their matching picture positions."></canvas><canvas id="dragCanvas" class="drag-layer" width="360" height="660" aria-hidden="true"></canvas></div>
+  <div class="table-tools" role="group" aria-label="Puzzle workspace tools">
+   <button type="button" id="edgesButton" aria-pressed="false" title="Dim inner pieces to find edges"><svg class="ico" aria-hidden="true"><use href="#icon-edge"></use></svg><span>Edges</span></button>
+   <div class="zoom-tools" role="group" aria-label="Zoom and pan">
+    <button type="button" id="zoomOut" aria-label="Zoom out" title="Zoom out"><svg class="ico" aria-hidden="true"><use href="#icon-zoom-out"></use></svg></button>
+    <button type="button" id="zoomReset" aria-label="Reset zoom" title="Reset zoom">100%</button>
+    <button type="button" id="zoomIn" aria-label="Zoom in" title="Zoom in"><svg class="ico" aria-hidden="true"><use href="#icon-zoom-in"></use></svg></button>
+   </div>
+  </div>
+  <div class="play-mat" id="canvasWrapper" aria-label="Jigsaw tabletop; drag pieces, use zoom controls to inspect details"><canvas id="puzzleCanvas" width="360" height="660" aria-label="Jigsaw tabletop. Move puzzle pieces onto the board or connect them to neighbouring pieces."></canvas><canvas id="dragCanvas" class="drag-layer" width="360" height="660" aria-hidden="true"></canvas></div>
   <div class="completion-track" aria-label="Jigsaw progress"><div id="progressBar"></div></div>
   <div class="game-actions">
    <button type="button" id="previewButton" class="game-button"><svg class="ico"><use href="#icon-eye"/></svg> Preview <small id="previewRemaining" class="use-count">3 left</small></button>
    <button type="button" id="hintButton" class="game-button"><svg class="ico"><use href="#icon-spark"/></svg> Hint <small id="hintRemaining" class="use-count">3 left</small></button>
    <button type="button" id="restartButton" class="game-button primary"><svg class="ico"><use href="#icon-restart"/></svg> Restart picture</button>
   </div>
-  <p class="progress-footnote">Pieces snap into place automatically · Your round saves on this device</p>
+  <p class="progress-footnote">Drag and connect pieces · Your progress saves automatically</p>
  </section>
 </main>
 <dialog id="settingsDialog" aria-labelledby="settingsHeading" class="sheet-dialog"><div class="sheet-head"><h2 id="settingsHeading">Jigsaw settings</h2><button class="close-sheet" data-close="settingsDialog" aria-label="Close settings">✕</button></div>
@@ -70,7 +81,7 @@
   <button data-mode="memory" type="button"><strong>Memory</strong><small>0 hints · 1 first look (5s)</small></button>
  </div>
  <label class="setting-switch"><span><b>Picture guide</b><small>Optional 7% picture outline · OFF by default</small></span><input id="guideSwitch" type="checkbox"></label>
- <label class="setting-switch"><span><b>Game sounds</b><small>Pick-up, snapping and celebration</small></span><input id="soundSwitch" type="checkbox" checked></label>
+ <label class="setting-switch"><span><b>Game sounds</b><small>Soft tactile pick-up, placement and completion sounds</small></span><input id="soundSwitch" type="checkbox" checked></label>
  <p class="settings-note">Changing difficulty or mode begins a fresh round. Picture guide and sound apply immediately. Preview closes automatically.</p></div>
 </dialog>
 <dialog id="previewDialog" aria-label="Full puzzle reference" class="image-dialog"><div class="preview-head"><strong>YOUR PICTURE</strong><button class="close-sheet" data-close="previewDialog" aria-label="Close picture preview">✕</button></div><img id="previewImage" alt="Reference image for the jigsaw puzzle"><p id="previewExplanation">Study the picture. This peek closes automatically.</p></dialog>
