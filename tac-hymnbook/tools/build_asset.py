@@ -33,6 +33,17 @@ def compile_asset() -> dict:
             for v in entry["verses"]
         ):
             raise ValueError(f"Invalid verses for hymn {n}")
+        for language in ("verses", "verses_en"):
+            for verse in entry.get(language, []):
+                if not isinstance(verse, list) or not verse or not all(
+                    isinstance(line, str) and line.strip() for line in verse
+                ):
+                    raise ValueError(f"Invalid {language} stanza for hymn {n}")
+                for line in verse:
+                    if "\\\\n" in line or "\\\\r" in line:
+                        raise ValueError(f"Escaped newline in hymn {n}: {language}")
+        if entry.get("verses_en") and len(entry["verses_en"]) != len(entry["verses"]):
+            raise ValueError(f"English verse count differs from Yoruba for hymn {n}")
         drafts[n] = entry
     if not set(drafts).issubset(numbers):
         raise ValueError(f"Drafts have unknown hymn numbers: {set(drafts) - set(numbers)}")
@@ -50,8 +61,8 @@ def compile_asset() -> dict:
             "title_en": entry["title_en"],
             "source_pages": entry["source_pages"],
             "verses_yo": draft["verses"] if draft else [],
-            "verses_en": [],
-            "text_status": "draft_photo_checked" if draft else "missing",
+            "verses_en": draft.get("verses_en", []) if draft else [],
+            "text_status": draft.get("status", "draft_photo_checked") if draft else "missing",
             "source_url": entry["external_source_url"],
         })
     return {
