@@ -1,9 +1,9 @@
 {
-  "releaseId": "night-2026-10-18-command-audit",
+  "releaseId": "night-2026-10-18-live-whatsapp-tests",
   "baseBranch": "mscc-azure",
-  "baseCommit": "dd9e0df2a546c54d7b1383753d35b731f50efc5d",
+  "baseCommit": "15d6eecbe7941e941af68a814bcbcd6004165fdd",
   "pullRequests": [
-    344
+    349
   ],
-  "notes": "Single approved NIGHT feature: verified-owner .testall audit from WhatsApp; registry/help-route coverage for every command, safe local command smokes, bounded/queued offline selftests, paginated per-command reports, status/cancel, strict classification of unverified live functionality. No destructive/group/account commands executed. Requires release PR checks, merge, one protected mscc-production approval and Azure/WhatsApp smoke check; do not claim deployed before verification."
+  "notes": "User-approved NIGHT .testall live WhatsApp command-testing upgrade (PR #349). Verified supreme owner only; DM runs directly, groups require explicit confirm. Real PNG/PDF/QR/audio/video/static+animated sticker fixtures, actual registered command handlers (safe allowlist), menu flow for isolated Tic-Tac-Toe, external provider diagnostics, deterministic output decoding/FFprobe, WhatsApp send acceptance and report; failed-only retry, progress/cancel, no admin/account/group changes. Commands beyond live allowlist are explicitly NOT LIVE-TESTED. Requires green combined release checks, single protected mscc-production approval, Azure health and live WhatsApp verification. No live success is claimed before those steps."
 }

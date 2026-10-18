@@ -1,3 +1,4 @@
+import { liveCommandAudit, authorizeTest, isGroupTest } from './command-live-audit.js'
 import { readdir } from 'node:fs/promises'
 import { spawn } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
@@ -30,7 +31,10 @@ const SUITE_LINKS = {
   tweet:['social-card-selftest.js'], post:['social-card-selftest.js'],
   guesssong:['party-games-selftest.js'], guessanime:['party-games-selftest.js'],
   speedtype:['party-games-selftest.js'], removebg:['media-tools-selftest.js'],
-  bestframe:['media-tools-selftest.js'], denoise:['media-tools-selftest.js'],
+  bestframe:['extended-media-selftest.js'],
+  reverse:['extended-media-selftest.js'], stabilize:['extended-media-selftest.js'],
+  emojimix:['extended-media-selftest.js'], getexif:['extended-media-selftest.js'],
+  ssweb:['extended-media-selftest.js'], denoise:['media-tools-selftest.js'],
   extractaudio:['extended-media-selftest.js'],
   img2pdf:['extended-media-selftest.js'], pdf2img:['extended-media-selftest.js'],
   pdfmerge:['extended-media-selftest.js'], pdfsplit:['extended-media-selftest.js'],
@@ -279,19 +283,49 @@ export function createCommandAuditManager({
     })
     return true
   }
-  return {start,cancel,status}
+  return {start,cancel,status,busy:()=>Boolean(active)}
 }
 
 export const commandAudit=createCommandAuditManager()
 
 export async function executeTestAll(ctx) {
+  // Enforce owner identity in both the private-control and public route.
+  if (ctx?.isSupremeOwner !== true) {
+    return ctx.reply('Only the verified NIGHT supreme owner can run command audits.')
+  }
   const action=String(ctx.args?.[0]||'').trim().toLowerCase()
-  if (action==='status') return ctx.reply(commandAudit.status())
-  if (action==='cancel') return ctx.reply(commandAudit.cancel()
-    ? '🛑 Cancellation requested. NIGHT will stop unfinished checks.'
-    : 'No running NIGHT audit to cancel.')
-  if (action && action!=='run') return ctx.reply('Use .testall, .testall status, or .testall cancel.')
-  if (!commandAudit.start({send:text=>ctx.reply(text)}))
+  const confirm=String(ctx.args?.[1]||'').trim().toLowerCase()==='confirm'
+  if (action==='status') {
+    return ctx.reply(commandAudit.busy() ? commandAudit.status() :
+      liveCommandAudit.busy() ? liveCommandAudit.status() :
+      commandAudit.status()+' '+liveCommandAudit.status())
+  }
+  if (action==='cancel') {
+    const stopped=commandAudit.cancel() || liveCommandAudit.cancel()
+    return ctx.reply(stopped
+      ? '🛑 Cancellation requested. NIGHT will stop unfinished checks.'
+      : 'No running NIGHT audit to cancel.')
+  }
+  if (action==='live' || action==='failed') {
+    const auth=authorizeTest(ctx,'live',confirm)
+    if (auth) return ctx.reply(auth.replace('.testall live confirm',
+      action==='failed'?'.testall failed confirm':'.testall live confirm'))
+    if (liveCommandAudit.busy() || commandAudit.busy()) {
+      return ctx.reply('A NIGHT audit is already running. Use .testall status or .testall cancel.')
+    }
+    const started=liveCommandAudit.start(ctx,{failedOnly:action==='failed'})
+    if (started===null) return ctx.reply('No failed live tests to retry yet. Run .testall live first.')
+    return started ? undefined : ctx.reply('A live audit is already running.')
+  }
+  if (action && action!=='run') {
+    return ctx.reply('Use .testall, .testall live, .testall failed, .testall status, or .testall cancel.'+
+      (isGroupTest(ctx)?'\nIn groups, live and failed tests require the final word confirm.':''))
+  }
+  if (commandAudit.busy() || liveCommandAudit.busy()) {
+    return ctx.reply('A NIGHT audit is already running. Use .testall status or .testall cancel.')
+  }
+  if (!commandAudit.start({send:text=>ctx.reply(text)})) {
     return ctx.reply('An audit is already running. Use .testall status or .testall cancel.')
+  }
   return undefined
 }
