@@ -289,6 +289,32 @@ async function load(){
     if(current!==version)return
     channels=Array.isArray(data.channels)?data.channels:[]
     render()
+    // MSCC fetches missing WhatsApp pictures asynchronously so it never
+    // stalls this page. Check just once after initial display, updating image
+    // nodes in place rather than rerendering the cards and stealing focus.
+    if(channels.some(c=>c.status==='connected'&&!c.photoData)){
+      setTimeout(async()=>{
+        if(current!==version||document.hidden)return
+        try{
+          const refreshed=await api('channel:list')
+          if(current!==version||!Array.isArray(refreshed.channels))return
+          const cards=[...$('channels').children]
+          for(const [i,original] of channels.entries()){
+            const updated=refreshed.channels.find(c=>c.id===original.id)
+            if(!updated?.photoData||original.photoData)continue
+            if(!/^data:image\/(?:png|jpeg);base64,[A-Za-z0-9+/=]+$/.test(updated.photoData))continue
+            const avatar=cards[i]?.querySelector('.channel-avatar')
+            if(!avatar||avatar.querySelector('img'))continue
+            const fallback=avatar.firstElementChild
+            const img=make('img')
+            img.src=updated.photoData;img.alt='';img.decoding='async'
+            img.addEventListener('error',()=>img.replaceWith(fallback))
+            avatar.replaceChildren(img)
+            original.photoData=updated.photoData
+          }
+        }catch{ /* Keep the SVG if WhatsApp is temporarily unavailable. */ }
+      },3800)
+    }
   } catch (error) {
     if(current!==version)return
     channels=[]
