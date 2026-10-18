@@ -206,11 +206,12 @@ function birdFrame(dt){
  }
  wingBird(s);
  if(!s.started){
-  const top=Math.max(ground*.5-32,110);
+  // Keep instructions high and away from the bird's starting position.
+  // One compact in-world cue, not a large panel covering the character.
+  const top=Math.max(27,Math.min(ground*.14,88));
   ctx.fillStyle="#173c31b9";ctx.beginPath();
-  ctx.roundRect(43,top,274,99,15);ctx.fill();
-  drawText("TAP TO FLY",top+42,27);
-  drawText("Dodge the pipes",top+72,13);
+  ctx.roundRect(65,top,230,57,13);ctx.fill();
+  drawText("TAP TO FLY",top+36,23);
  }
  if(finished){
   const top=Math.max(45,ground*.5-65);
