@@ -1,0 +1,14 @@
+diff --git a/app/src/test/java/com/night/pianohub/music/TilesSongCatalogTest.kt b/app/src/test/java/com/night/pianohub/music/TilesSongCatalogTest.kt
+--- a/app/src/test/java/com/night/pianohub/music/TilesSongCatalogTest.kt
++++ b/app/src/test/java/com/night/pianohub/music/TilesSongCatalogTest.kt
+@@ -25,6 +25,10 @@ class TilesSongCatalogTest {
+             val tile = run.tiles.first()
+             assertEquals(firstSong.melody[i % firstSong.melody.size], tile.midi)
+             assertTrue(run.tap(tile, tile.onsetMs))
++            if (tile.hold) {
++                assertEquals(EndlessTilesRun.HoldRelease.COMPLETED,
++                    run.release(tile, tile.onsetMs + tile.durationMs))
++            }
+         }
+         assertFalse(run.ended)
+         assertTrue(run.level > 1)
