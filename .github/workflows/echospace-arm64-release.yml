@@ -10,6 +10,8 @@ on:
       - .github/scripts/echospace_mixer_precision.py
       - .github/scripts/echospace_custom_gain.py
       - .github/scripts/echospace_audio_upgrade.py
+      - .github/scripts/echospace_svg_icons.py
+      - EchoSpace/icons/echospace-icons.svg
   workflow_dispatch:
 
 permissions:
@@ -44,6 +46,8 @@ jobs:
         run: python3 .github/scripts/echospace_custom_gain.py
       - name: Enhance binaural audio and add six sound types
         run: python3 .github/scripts/echospace_audio_upgrade.py
+      - name: Generate Android vectors from original EchoSpace SVG icon library
+        run: python3 .github/scripts/echospace_svg_icons.py
       - name: Bundle offline environment artwork
         shell: bash
         run: |
