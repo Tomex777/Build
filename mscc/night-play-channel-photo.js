@@ -57,7 +57,7 @@ export function createNightPlayChannelPhotoSync(play,accounts,{fetcher=fetch,now
   if(!CHANNEL.test(channelId)||!play.channels.canUsePhoto(userId,channelId))return false
   const key=userId+'|'+channelId
   if(inflight.has(key))return inflight.get(key)
-  if(now()-(recent.get(key)||0)<cooldownMs)return false
+  if(recent.has(key)&&now()-recent.get(key)<cooldownMs)return false
   recent.set(key,now())
   const job=(async()=>{
    const accountId=play.channels.photoAccount(userId,channelId)
