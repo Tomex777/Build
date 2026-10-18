@@ -25,6 +25,7 @@ class AudioEngine(private val assets: AssetManager) {
     private val voices = mutableMapOf<Int, Voice>()
     private var fieldRecordings: Map<SoundKind, ShortArray> = emptyMap()
     private var measuredHrir: MeasuredHrir? = null
+    private val governor=AudioQualityGovernor()
     private val reverb = DiffuseReverb()
     private var worker: Thread? = null
     private var frameClock = 0L
@@ -63,8 +64,10 @@ class AudioEngine(private val assets: AssetManager) {
                 val buffer=ShortArray(FRAMES*2)
                 while(running.get() && generation.get()==session && !Thread.currentThread().isInterrupted) {
                     val world=scene.get()
+                    val renderStart=System.nanoTime()
                     if(world!=null) render(world,buffer)
                     else buffer.fill(0)
+                    governor.record(System.nanoTime()-renderStart)
                     val n=track.write(buffer,0,buffer.size,AudioTrack.WRITE_BLOCKING)
                     if(n<0) error("AudioTrack write failed: $n")
                 }
@@ -146,7 +149,8 @@ class AudioEngine(private val assets: AssetManager) {
         // Less audible sources use lightweight ITD/ILD; don't overload Android CPUs.
         val hrir=measuredHrir
         if(hrir!=null) {
-            layers.sortedByDescending{it.voice.targetGain}.take(4).forEach { layer ->
+            layers.sortedByDescending{it.voice.targetGain}
+                .take(governor.measuredVoices).forEach { layer ->
                 layer.measured=true
                 val p=layer.position
                 val bearing=atan2(p.x-world.listener.x,
