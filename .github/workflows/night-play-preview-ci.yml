@@ -42,6 +42,8 @@ jobs:
         run: node night-play/account-browser-smoke.cjs
       - name: Inspect channel onboarding and consent across mobile and desktop
         run: node night-play/channels/browser-smoke.cjs
+      - name: Verify shared game sound effects and mute persistence
+        run: node night-play/audio/sfx-smoke.cjs
       - name: Exercise mobile interactions
         run: node night-play/browser-smoke.mjs
       - name: Verify Jigsaw game mechanics and mobile experience
