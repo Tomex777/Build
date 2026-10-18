@@ -36,6 +36,7 @@
     document.getElementById('playerNameForm').querySelector('small').textContent=profile?'Saved to your NIGHT Play profile.':'Saved on this device.'
     if(typeof syncPlayerName==='function')syncPlayerName()
     if(typeof updateGreeting==='function')updateGreeting()
+    window.NightProfileHub?.render()
   }
   const show=title=>{stop();document.getElementById('infoTitle').textContent=title;const body=document.getElementById('infoBody');body.replaceChildren();if(!dialog.open)dialog.showModal();return body}
   const button=(label,fn,style='btn')=>{const el=element('button',label,style);el.type='button';el.addEventListener('click',fn);return el}

@@ -1,20 +1,27 @@
 const assert=require('node:assert/strict')
 const fs=require('node:fs'),path=require('node:path'),http=require('node:http')
 const {chromium}=require('playwright')
-let profile=null,expiresAt=Date.now()+300000,unavailable=false,links=0,slowStatusMs=0,statusGets=0
+let profile=null,expiresAt=Date.now()+300000,unavailable=false,links=0,slowStatusMs=0,statusGets=0,operatorAllowed=false
+let siteNotice={enabled:false,revision:0}
 const server=http.createServer(async(req,res)=>{
   const url=new URL(req.url,'http://localhost')
   if(url.pathname==='/api/account'){
+     if(url.searchParams.get('resource')==='notice'){res.setHeader('Content-Type','application/json');res.end(JSON.stringify({enabled:false,revision:0}));return}
     res.setHeader('Content-Type','application/json');res.setHeader('Cache-Control','no-store')
     if(unavailable){res.statusCode=503;res.end(JSON.stringify({error:'NIGHT connection is being updated. Please try again shortly.'}));return}
     if(req.method==='GET'){statusGets++;if(slowStatusMs){const delay=slowStatusMs;slowStatusMs=0;await new Promise(resolve=>setTimeout(resolve,delay))}}
     let body={};if(req.method==='POST'){let raw='';for await(const chunk of req)raw+=chunk;body=JSON.parse(raw)}
+    if(body.action==='admin:status'||body.action==='admin:notice:save'){
+      if(!profile||!operatorAllowed){res.statusCode=profile?403:401;res.end(JSON.stringify({error:'Operator access required.'}));return}
+      if(body.action==='admin:notice:save')siteNotice={title:body.noticeTitle,message:body.noticeMessage,enabled:body.noticeEnabled,revision:siteNotice.revision+1}
+      res.end(JSON.stringify(body.action==='admin:status'?{authorized:true,notice:siteNotice}:{saved:true,notice:siteNotice}));return
+    }
     if(body.action==='link'){links++;res.end(JSON.stringify({code:'ABCD-EFGH-JKLM',command:'.minigames link ABCD-EFGH-JKLM',expiresAt}));return}
     if(body.action==='logout'||body.action==='delete')profile=null
     if(body.action==='profile')profile={...profile,displayName:body.displayName}
     res.end(JSON.stringify({linked:Boolean(profile),profile}));return
   }
-  const relative=['/','/profile','/dashboard','/games','/terms','/privacy'].includes(url.pathname)?'index.html':url.pathname.slice(1)
+  const relative=url.pathname==='/admin/'||url.pathname==='/admin'?'admin/index.html':['/','/profile','/dashboard','/games','/terms','/privacy'].includes(url.pathname)?'index.html':url.pathname.slice(1)
   const file=path.join(__dirname,relative)
   if(!file.startsWith(__dirname+path.sep)||!fs.existsSync(file)||!fs.statSync(file).isFile()){res.statusCode=404;res.end();return}
   res.setHeader('Content-Type',relative.endsWith('.js')?'text/javascript':relative.endsWith('.css')?'text/css':'text/html')
@@ -77,14 +84,16 @@ const server=http.createServer(async(req,res)=>{
     assert.equal(await page.locator('header [data-dialog="connect"]').isVisible(),false)
     assert.equal(await page.locator('#profileIdentityCaption').isVisible(),false)
     assert.equal(await page.locator('#profileAvatar').isVisible(),true)
-    assert.equal(await page.locator('.night-profile-tool').evaluate(el=>el.getBoundingClientRect().height<110),true)
+    assert.equal(await page.locator('#accountAchievements .account-achievement').count(),4)
+    await page.locator('[data-profile-tab="games"]').click()
     assert.equal(await page.locator('#recordsPicker').isVisible(),true)
     await page.getByRole('button',{name:'Edit name',exact:true}).click()
     assert.equal(await page.locator('#playerNameInput').inputValue(),'Pat')
     await page.locator('#playerNameInput').fill('Alex')
     await page.locator('#playerNameForm [type="submit"]').click()
     await page.waitForFunction(()=>window.NightAccount.profile?.displayName==='Alex')
-    await page.getByRole('button',{name:'Account settings',exact:true}).click()
+    await page.locator('[data-profile-tab="settings"]').click()
+    await page.getByRole('button',{name:'Manage account',exact:true}).click()
     await page.getByRole('button',{name:'Disconnect this browser',exact:true}).waitFor()
     await page.screenshot({path:path.join(__dirname,'visual-output/account-connected-mobile.jpg')})
     await page.getByRole('button',{name:'Remove NIGHT Play account',exact:true}).click()
@@ -109,7 +118,8 @@ const server=http.createServer(async(req,res)=>{
     await page.reload()
     await page.waitForFunction(()=>window.NightAccount?.profile?.displayName==='Alex')
     await page.setViewportSize({width:1280,height:900})
-    await page.getByRole('button',{name:'Account settings',exact:true}).click()
+    await page.locator('[data-profile-tab="settings"]').click()
+    await page.getByRole('button',{name:'Manage account',exact:true}).click()
     await page.getByRole('button',{name:'Remove NIGHT Play account',exact:true}).click()
     await page.getByRole('button',{name:'Remove account',exact:true}).click()
     await page.waitForFunction(()=>!window.NightAccount.profile)
@@ -117,6 +127,33 @@ const server=http.createServer(async(req,res)=>{
     await page.locator('.account-command').waitFor()
     await page.screenshot({path:path.join(__dirname,'visual-output/account-link-desktop.jpg')})
     assert.deepEqual(errors,[])
+    const studio=await context.newPage(),studioErrors=[]
+    studio.on('pageerror',e=>studioErrors.push(String(e)))
+    await studio.goto(base+'/admin/')
+    await studio.getByText('Connect WhatsApp',{exact:true}).waitFor()
+    assert.equal(await studio.locator('#studioWorkspace').isVisible(),false,'guest cannot open private studio')
+    profile={id:'NIGHT-owner',displayName:'Owner'}
+    await studio.reload()
+    await studio.getByText('Access restricted',{exact:true}).waitFor()
+    assert.equal(await studio.locator('#studioWorkspace').isVisible(),false,'linked non-owner denied')
+    operatorAllowed=true
+    await studio.reload()
+    await studio.locator('#studioTitle').waitFor({state:'visible'})
+    await studio.locator('#studioTitle').fill('New games')
+    await studio.locator('#studioMessage').fill('Sudoku and Connect Four are now available.')
+    await studio.locator('#studioEnabled').check()
+    await studio.locator('#studioSave').click()
+    await studio.getByText('Announcement saved.',{exact:true}).waitFor()
+    assert.equal(siteNotice.title,'New games')
+    assert.equal(siteNotice.enabled,true)
+    await studio.screenshot({path:path.join(__dirname,'visual-output/night-studio-desktop.jpg')})
+    operatorAllowed=false
+    await studio.reload()
+    await studio.getByText('Access restricted',{exact:true}).waitFor()
+    assert.equal(await studio.locator('#studioWorkspace').isVisible(),false,'revoked operator access reflected immediately')
+    assert.deepEqual(studioErrors,[])
+    await studio.close()
+    console.log('PASS NIGHT Studio browser authorization, owner-only notice editor and access revocation')
     console.log('PASS NIGHT Play account browser flow: zero auth flash, one early HttpOnly status request, slow linked/guest hydration, phone/desktop layout, copy, automatic verification, name, disconnect, outage, expiry and reload')
     await context.close()
   }finally{await browser.close();server.closeAllConnections();await new Promise(resolve=>server.close(resolve))}

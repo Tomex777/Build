@@ -1,7 +1,7 @@
 const { createHash, randomBytes, sign, createPrivateKey } = require('node:crypto')
 const COOKIE = '__Host-night_play'
 const ACTIONS = new Set(['status','link','cancel','logout','profile','delete',
-  'match:create','match:random','match:join','match:state','match:list','match:move','match:leave','channel:list','channel:remove','channel:verify'])
+  'match:create','match:random','match:join','match:state','match:list','match:move','match:leave','channel:list','channel:remove','channel:verify','site:notice','admin:status','admin:notice:save'])
 const RPC_PATH = '/api/night-play/rpc'
 const hash = value => createHash('sha256').update(value).digest('hex')
 const message = (timestamp, nonce, body) => ['night-play-v1',timestamp,nonce,'POST',RPC_PATH,hash(body)].join('\n')
@@ -23,7 +23,8 @@ function createHandler({ env = process.env, fetcher = fetch, now = Date.now } = 
     if (req.method === 'POST' && (req.headers.origin !== origin || String(req.headers['sec-fetch-site'] || 'same-origin') === 'cross-site')) {
       return send(403,{error:'Open NIGHT Play directly to connect your account.'})
     }
-    let action = 'status', displayName, matchId, code, cell, channelId
+    let action = 'status', displayName, matchId, code, cell, channelId, noticeTitle, noticeMessage, noticeEnabled
+    if(req.method==='GET' && new URL(req.url,origin).searchParams.get('resource')==='notice')action='site:notice'
     if (req.method === 'POST') {
       if (!String(req.headers['content-type'] || '').toLowerCase().startsWith('application/json')) return send(415,{error:'JSON request required.'})
       try {
@@ -47,9 +48,12 @@ function createHandler({ env = process.env, fetcher = fetch, now = Date.now } = 
         code=typeof body.code==='string'?body.code:undefined
         cell=body.cell
         channelId=typeof body.channelId==='string'?body.channelId:undefined
+        noticeTitle=typeof body.noticeTitle==='string'?body.noticeTitle:undefined
+        noticeMessage=typeof body.noticeMessage==='string'?body.noticeMessage:undefined
+        noticeEnabled=typeof body.noticeEnabled==='boolean'?body.noticeEnabled:undefined
       } catch { return send(400,{error:'Invalid request.'}) }
     }
-    if (!ACTIONS.has(action) || (req.method==='POST' && action==='status')) return send(400,{error:'Unknown account action.'})
+    if (!ACTIONS.has(action) || (req.method==='POST' && ['status','site:notice'].includes(action))) return send(400,{error:'Unknown account action.'})
     if (matchId!==undefined && !/^[0-9a-f-]{36}$/i.test(matchId)) return send(400,{error:'Invalid match.'})
     if (code!==undefined && !/^[A-HJ-NP-Z2-9\s-]{1,24}$/i.test(code)) return send(400,{error:'Invalid invitation.'})
     if (channelId!==undefined && !/^\d{8,25}@newsletter$/.test(channelId)) return send(400,{error:'Invalid channel.'})
@@ -65,14 +69,14 @@ function createHandler({ env = process.env, fetcher = fetch, now = Date.now } = 
       const backend = new URL(env.NIGHT_PLAY_MSCC_URL)
       if (backend.protocol!=='https:' || backend.pathname!=='/' || backend.username || backend.password || backend.search || backend.hash) throw new Error('Invalid backend configuration')
       const client = hash(String(req.headers['x-vercel-forwarded-for'] || req.headers['x-forwarded-for'] || req.socket?.remoteAddress || 'unknown').split(',')[0].trim())
-      const raw=JSON.stringify({action,session,client,displayName,matchId,code,cell,channelId})
+      const raw=JSON.stringify({action,session,client,displayName,matchId,code,cell,channelId,noticeTitle,noticeMessage,noticeEnabled})
       const timestamp=String(now()), nonce=randomBytes(24).toString('base64url')
       const signature=sign(null,Buffer.from(message(timestamp,nonce,raw)),createPrivateKey(env.NIGHT_PLAY_SIGNING_KEY)).toString('base64url')
       const response=await fetcher(new URL(RPC_PATH,backend),{
         method:'POST',redirect:'error',signal:AbortSignal.timeout(12_000),
         headers:{'content-type':'application/json','x-night-timestamp':timestamp,'x-night-nonce':nonce,'x-night-signature':signature},body:raw,
       })
-      if (!response.ok && ![400,401,404,409,410,429].includes(response.status)) throw new Error('Backend unavailable')
+      if (!response.ok && ![400,401,403,404,409,410,429].includes(response.status)) throw new Error('Backend unavailable')
       let result=await response.json()
       if (!response.ok && (action==='health' || (response.status===401 && result?.error!=='Connect WhatsApp to continue.'))) throw new Error('Bridge not ready')
       if (action==='health' && response.ok) {
