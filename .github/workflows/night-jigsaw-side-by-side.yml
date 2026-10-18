@@ -1,0 +1,30 @@
+name: PlayJigsaw vs NIGHT hands-on comparison
+on:
+  push:
+    branches:
+      - research/jigsaw-real-vs-night-hands-on-20261018
+    paths:
+      - 'night-play/jigsaw/research/live-comparison.mjs'
+      - '.github/workflows/night-jigsaw-side-by-side.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  browser-playthroughs:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm install --no-save playwright@1.56.1
+      - name: Actually play both browser games on desktop and phone
+        run: node night-play/jigsaw/research/live-comparison.mjs
+      - name: Preserve per-step screenshots and metrics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playjigsaw-vs-night-side-by-side-screenshots
+          path: night-play/jigsaw/research/audit-output/
+          retention-days: 14
