@@ -491,158 +491,49 @@ old_decode = """    return runCatching {
     }.getOrNull()
 """
 new_decode = """    return runCatching {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-            ImageDecoder.decodeBitmap(
-                ImageDecoder.createSource(file)
-            ) { decoder, info, _ ->
-                decoder.setAllocator(ImageDecoder.ALLOCATOR_SOFTWARE)
-                val width = info.size.width
-                val height = info.size.height
-                val longest = maxOf(width, height)
-                if (longest > maxDimension && maxDimension > 0) {
-                    val scale = maxDimension.toFloat() / longest.toFloat()
-                    decoder.setTargetSize(
-                        (width * scale).toInt().coerceAtLeast(1),
-                        (height * scale).toInt().coerceAtLeast(1)
-                    )
-                }
+        // The API 26-safe decoder is used at every SDK level: R8 could inline
+        // ImageDecoder callbacks into the release method, making Android 8's
+        // verifier resolve an API 28-only listener even behind an SDK guard.
+        val bounds = android.graphics.BitmapFactory.Options().apply {
+            inJustDecodeBounds = true
+        }
+        android.graphics.BitmapFactory.decodeFile(file.absolutePath, bounds)
+        if (bounds.outWidth <= 0 || bounds.outHeight <= 0) {
+            return@runCatching null
+        }
+        var sampling = 1
+        if (maxDimension > 0) {
+            while (maxOf(
+                bounds.outWidth / (sampling * 2),
+                bounds.outHeight / (sampling * 2)
+            ) >= maxDimension) {
+                sampling *= 2
             }
+        }
+        val options = android.graphics.BitmapFactory.Options().apply {
+            inSampleSize = sampling
+            inPreferredConfig = Bitmap.Config.ARGB_8888
+        }
+        val decoded = android.graphics.BitmapFactory.decodeFile(
+            file.absolutePath,
+            options
+        ) ?: return@runCatching null
+        val longest = maxOf(decoded.width, decoded.height)
+        if (maxDimension <= 0 || longest <= maxDimension) {
+            decoded
         } else {
-            // Pre-API 28: bounds-first decode to avoid large bitmap allocations.
-            val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-            BitmapFactory.decodeFile(file.absolutePath, bounds)
-            if (bounds.outWidth <= 0 || bounds.outHeight <= 0) {
-                return@runCatching null
-            }
-            var sampling = 1
-            if (maxDimension > 0) {
-                while (maxOf(
-                    bounds.outWidth / (sampling * 2),
-                    bounds.outHeight / (sampling * 2)
-                ) >= maxDimension) {
-                    sampling *= 2
-                }
-            }
-            val options = BitmapFactory.Options().apply {
-                inSampleSize = sampling
-                inPreferredConfig = Bitmap.Config.ARGB_8888
-            }
-            val decoded = BitmapFactory.decodeFile(file.absolutePath, options)
-                ?: return@runCatching null
-            val longest = maxOf(decoded.width, decoded.height)
-            if (maxDimension <= 0 || longest <= maxDimension) {
-                decoded
-            } else {
-                val scale = maxDimension.toFloat() / longest.toFloat()
-                val resized = Bitmap.createScaledBitmap(
-                    decoded,
-                    (decoded.width * scale).toInt().coerceAtLeast(1),
-                    (decoded.height * scale).toInt().coerceAtLeast(1),
-                    true
-                )
-                if (resized !== decoded) decoded.recycle()
-                resized
-            }
+            val scale = maxDimension.toFloat() / longest.toFloat()
+            val resized = Bitmap.createScaledBitmap(
+                decoded,
+                (decoded.width * scale).toInt().coerceAtLeast(1),
+                (decoded.height * scale).toInt().coerceAtLeast(1),
+                true
+            )
+            if (resized !== decoded) decoded.recycle()
+            resized
         }
     }.getOrNull()
 """
 if viewer_text.count(old_decode) != 1:
     raise SystemExit("expected exactly one cached image decoder")
-# Keep the API 26 path independent of import ordering between transforms.
-new_decode = new_decode.replace("BitmapFactory.", "android.graphics.BitmapFactory.")
 viewer_path.write_text(viewer_text.replace(old_decode, new_decode, 1))
-
-# The full-screen image viewer/editor also decodes cached image files. Its
-# original decodeMediaBitmap() used ImageDecoder unconditionally, trapping
-# API 26-27 in an endless spinner (ImageDecoder exists only on API 28+).
-# Decode real files through BitmapFactory with two-pass sampling on old Android.
-viewer_path = root / "app/src/main/java/com/night/later/ui/media/LaterMediaViewer.kt"
-viewer_text = viewer_path.read_text()
-image_import = "import android.graphics.ImageDecoder\n"
-if viewer_text.count(image_import) != 1:
-    raise SystemExit("expected one ImageDecoder import in LaterMediaViewer")
-viewer_text = viewer_text.replace(
-    image_import,
-    "import android.graphics.BitmapFactory\n" + image_import,
-    1
-)
-bitmap_start = "fun decodeMediaBitmap(\n"
-bitmap_end = "\nprivate fun formatMediaDuration("
-if viewer_text.count(bitmap_start) != 1 or viewer_text.count(bitmap_end) != 1:
-    raise SystemExit("expected exactly one bitmap decoder and next duration helper")
-start = viewer_text.index(bitmap_start)
-end = viewer_text.index(bitmap_end, start)
-old_decoder = viewer_text[start:end]
-if "ImageDecoder.createSource(file)" not in old_decoder:
-    raise SystemExit("Later cached image decoder no longer matches expected source")
-compatible_decoder = """fun decodeMediaBitmap(
-    path: String,
-    maxDimension: Int = 1800
-): Bitmap? {
-    val file = File(path)
-    if (!file.isFile) return null
-
-    return runCatching {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-            ImageDecoder.decodeBitmap(
-                ImageDecoder.createSource(file)
-            ) { decoder, info, _ ->
-                decoder.setAllocator(ImageDecoder.ALLOCATOR_SOFTWARE)
-                val width = info.size.width
-                val height = info.size.height
-                val longest = maxOf(width, height)
-                if (longest > maxDimension && maxDimension > 0) {
-                    val scale = maxDimension.toFloat() / longest.toFloat()
-                    decoder.setTargetSize(
-                        (width * scale).toInt().coerceAtLeast(1),
-                        (height * scale).toInt().coerceAtLeast(1)
-                    )
-                }
-            }
-        } else {
-            // API 26-27: read bounds without allocating full-resolution pixels.
-            val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-            BitmapFactory.decodeFile(file.absolutePath, bounds)
-            if (bounds.outWidth <= 0 || bounds.outHeight <= 0) {
-                return@runCatching null
-            }
-
-            var sampleSize = 1
-            if (maxDimension > 0) {
-                while (
-                    maxOf(
-                        bounds.outWidth / (sampleSize * 2),
-                        bounds.outHeight / (sampleSize * 2)
-                    ) >= maxDimension
-                ) {
-                    sampleSize *= 2
-                }
-            }
-
-            val options = BitmapFactory.Options().apply {
-                inSampleSize = sampleSize
-                inPreferredConfig = Bitmap.Config.ARGB_8888
-            }
-            val decoded =
-                BitmapFactory.decodeFile(file.absolutePath, options)
-                    ?: return@runCatching null
-            val largest = maxOf(decoded.width, decoded.height)
-            if (maxDimension <= 0 || largest <= maxDimension) {
-                decoded
-            } else {
-                val scale = maxDimension.toFloat() / largest.toFloat()
-                val resized = Bitmap.createScaledBitmap(
-                    decoded,
-                    (decoded.width * scale).toInt().coerceAtLeast(1),
-                    (decoded.height * scale).toInt().coerceAtLeast(1),
-                    true
-                )
-                if (resized !== decoded) decoded.recycle()
-                resized
-            }
-        }
-    }.getOrNull()
-}
-"""
-viewer_text = viewer_text[:start] + compatible_decoder + viewer_text[end:]
-viewer_path.write_text(viewer_text)
