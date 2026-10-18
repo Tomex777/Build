@@ -1,25 +1,42 @@
 /**
  * NIGHT Play Jigsaw. Based on PlayJigsaw.net's MIT engine, with an original
  * NIGHT Play gallery, persistent saves, phone-first tray and pointer interaction.
- * The puzzle art is locally rendered; private image uploads never leave the browser.
+ * Curated real photos replace procedural art; legacy puzzles and custom uploads are supported.
  * See THIRD_PARTY_LICENSE.txt.
  */
 import {PuzzleBoard} from './engine/PuzzleBoard.js';
 import {SoundSynth} from './engine/SoundSynth.js';
 import {ConfettiSystem} from './engine/Confetti.js';
 import {renderThemeArt} from './themes.js';
+import {photos,getPhoto,photoUrl} from './photo-gallery.js';
 
 const $=id=>document.getElementById(id);
 const SAVE_KEY='night-play-jigsaw-v1';
-const choices=[
- {id:'nature',name:'Alpine Escape',category:'nature'},
- {id:'sunset',name:'Golden Hour',category:'nature'},
- {id:'aurora',name:'Northern Lights',category:'fantasy'},
- {id:'castle',name:'Enchanted Castle',category:'fantasy'},
- {id:'cats',name:'Playful Cat',category:'animals'},
- {id:'anime',name:'Sakura Dawn',category:'anime'},
- {id:'abstract',name:'Chromatic Flow',category:'abstract'}
-];
+const choices=photos;
+const legacyArtIds=new Set(['nature','sunset','aurora','castle','cats','anime','abstract']);
+const loadedPhotos=new Map(),inflightPhotos=new Map();
+let imageLoadVersion=0;
+function loadPhoto(id){
+ const photo=getPhoto(id);
+ if(!photo)return Promise.reject(new Error('Unknown picture'));
+ if(loadedPhotos.has(id))return Promise.resolve(loadedPhotos.get(id));
+ if(inflightPhotos.has(id))return inflightPhotos.get(id);
+ const request=new Promise((resolve,reject)=>{
+  const img=new Image();img.crossOrigin='anonymous';
+  img.onload=()=>img.naturalWidth&&img.naturalHeight?resolve(img):reject(new Error('Empty image'));
+  img.onerror=()=>reject(new Error('Image unavailable'));
+  img.src=photoUrl(photo);
+ });
+ inflightPhotos.set(id,request);
+ request.then(img=>{loadedPhotos.set(id,img);inflightPhotos.delete(id)},()=>inflightPhotos.delete(id));
+ return request;
+}
+function paintPhotoSource(img){
+ const ctx=board.sourceCtx,w=board.sourceCanvas.width,h=board.sourceCanvas.height;
+ const scale=Math.max(w/img.naturalWidth,h/img.naturalHeight),sw=w/scale,sh=h/scale;
+ ctx.clearRect(0,0,w,h);
+ ctx.drawImage(img,(img.naturalWidth-sw)/2,(img.naturalHeight-sh)/2,sw,sh,0,0,w,h);
+}
 const dimMap={6:[2,3],12:[3,4],24:[4,6],48:[6,8],72:[8,9],96:[8,12],144:[12,12]};
 const modeRules={
  relaxed:{hints:3,previews:3,peekMs:6000},
@@ -29,7 +46,7 @@ const modeRules={
 let challengeMode='relaxed',usedHints=0,usedPreviews=0,previewTimeout=null;
 const canvas=$('puzzleCanvas'),wrapper=$('canvasWrapper'),board=new PuzzleBoard(canvas,wrapper);
 const sound=new SoundSynth(),confetti=new ConfettiSystem();
-let theme='nature',category='all',piecesCount=24,customData=null,elapsed=0,secondsTimer=null,won=false,activeRound=false;
+let theme='photo-alpine-lake',category='all',piecesCount=24,customData=null,elapsed=0,secondsTimer=null,won=false,activeRound=false;
 let galleryReady=false,resumeCandidate=null;
 let dragId=null,dragX=0,dragY=0,dragMoved=false,dragRect=null,dragOriginX=0,dragOriginY=0,winAnimationId=null,winTimeout=null,toastTimeout=null;
 const timeText=s=>String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0');
@@ -101,6 +118,10 @@ function resetBoard(fresh=true,saved=null){
  board.resize();
  if(theme==='custom'&&customData){
   // Custom pictures are processed before resetBoard to guarantee a valid source image.
+  }else if(getPhoto(theme)){
+  const img=loadedPhotos.get(theme);
+  if(!img)throw new Error('Image not yet loaded');
+  paintPhotoSource(img);
  }else renderThemeArt(board,theme);
  if(!fresh&&saved?.board&&!board.restore(saved.board))board.buildPieces();
  else if(fresh||!saved?.board)board.buildPieces();
@@ -109,21 +130,31 @@ function resetBoard(fresh=true,saved=null){
  if(fresh){saveGame();if(challengeMode==='memory')setTimeout(()=>{if(activeRound&&!won&&challengeMode==='memory'&&usedPreviews===0)showReference({automatic:true})},120)}
  window.scrollTo({top:0,behavior:'instant'});
 }
-function startImage(id){
- timerStop();customData=null;theme=id;resetBoard(true);showToast('Drag the pieces into the picture');
+async function startImage(id){
+ if(!getPhoto(id))return;
+ const loadVersion=++imageLoadVersion;
+ const card=$('galleryGrid').querySelector('[data-theme="'+id+'"]');
+ card?.classList.add('is-loading');
+ try{
+  await loadPhoto(id);
+  if(loadVersion!==imageLoadVersion)return;
+  timerStop();customData=null;theme=id;resetBoard(true);
+  showToast('Drag the pieces into the picture');
+ }catch{
+  if(loadVersion===imageLoadVersion)showToast('Picture could not load. Check your connection and retry.');
+ }finally{card?.classList.remove('is-loading')}
 }
 function renderGallery(){
  if(galleryReady)return;
  galleryReady=true;
  const root=$('galleryGrid');root.replaceChildren();
- // Preview thumbnails reuse exactly the art used as puzzle source.
- const source=document.createElement('canvas');source.width=800;source.height=600;
- const previewBoard={sourceCanvas:source,sourceCtx:source.getContext('2d')};
+ // Lightweight thumbnails load lazily; full-resolution images load on selection.
  for(const item of choices){
   const btn=document.createElement('button');btn.className='gallery-card';btn.type='button';
   btn.dataset.category=item.category;btn.dataset.theme=item.id;
-  const img=new Image();img.loading='lazy';img.alt=item.name+' puzzle artwork';img.src=renderThemeArt(previewBoard,item.id);
+  const img=new Image();img.loading='lazy';img.decoding='async';img.alt=item.name+' photograph';img.src=photoUrl(item,true);
   const art=document.createElement('div');art.className='gallery-image';art.appendChild(img);
+  img.onerror=()=>{img.classList.add('is-broken');const fail=document.createElement('span');fail.className='image-error';fail.textContent='Image unavailable';art.appendChild(fail)};
   const info=document.createElement('div');info.className='gallery-info';
   const title=document.createElement('b');title.textContent=item.name;
   const tag=document.createElement('small');tag.textContent=item.category;
@@ -146,7 +177,7 @@ function savedCandidate(){
  try{
   const saved=JSON.parse(safeRead(SAVE_KEY)||'null');
   return saved&&!saved.won&&dimMap[saved.pieces]&&
-   (choices.some(x=>x.id===saved.theme)||(saved.theme==='custom'&&saved.customData))?saved:null;
+   (getPhoto(saved.theme)||legacyArtIds.has(saved.theme)||(saved.theme==='custom'&&saved.customData))?saved:null;
  }catch{return null}
 }
 function continuePuzzle(){
@@ -158,6 +189,7 @@ function continuePuzzle(){
  if(!resumeSaved(saved)){showGallery();showToast('Your saved puzzle could not be restored')}
 }
 function showGallery(){
+ imageLoadVersion++;
  timerStop();if(activeRound&&!won)saveGame();
  endPreview();$('playScreen').hidden=true;$('resumePanel').hidden=true;$('openingPanel').hidden=true;
  activeRound=false;category='all';
@@ -169,21 +201,28 @@ function showGallery(){
 function showWelcome(saved){
  resumeCandidate=saved;
  const item=choices.find(x=>x.id===saved.theme);
- const label=item?.name||'Your photograph';
+ const label=item?.name||(saved.theme==='custom'?'Your photograph':'Your saved picture');
  $('resumeSummary').textContent=label+' · '+saved.pieces+' pieces · '+Math.min(saved.pieces,saved.board?.placedCount||saved.board?.pieces?.filter(p=>p.isPlaced).length||0)+' completed. Pick up exactly where you stopped.';
  $('openingPanel').hidden=true;$('playScreen').hidden=true;$('galleryPanel').hidden=true;$('resumePanel').hidden=false;
 }
 function resumeSaved(saved){
- if(!saved||!dimMap[saved.pieces]||(!choices.some(c=>c.id===saved.theme)&&saved.theme!=='custom')||saved.won)return false;
+ if(!saved||!dimMap[saved.pieces]||(!getPhoto(saved.theme)&&!legacyArtIds.has(saved.theme)&&saved.theme!=='custom')||saved.won)return false;
+ const loadVersion=++imageLoadVersion;
  theme=saved.theme;piecesCount=saved.pieces;customData=saved.customData||null;
  challengeMode=modeRules[saved.challengeMode]?saved.challengeMode:'relaxed';
  if(theme==='custom'){
   if(!customData)return false;
   const img=new Image();
-  img.onload=()=>{paintCustomSource(img);resetBoard(false,saved);};
-  img.onerror=()=>{showGallery();showToast('Could not restore your picture');};
+  img.onload=()=>{if(loadVersion!==imageLoadVersion)return;paintCustomSource(img);resetBoard(false,saved)};
+  img.onerror=()=>{if(loadVersion===imageLoadVersion){showGallery();showToast('Could not restore your picture')}};
   img.src=customData;
- }else resetBoard(false,saved);
+ }else if(getPhoto(theme)){
+  loadPhoto(theme).then(()=>{
+   if(loadVersion===imageLoadVersion)resetBoard(false,saved);
+  }).catch(()=>{
+   if(loadVersion===imageLoadVersion){showGallery();showToast('Saved picture could not load. Check your connection.')}
+  });
+ }else resetBoard(false,saved); // Legacy artwork stays unchanged.
  updateDifficultyButtons();return true;
 }
 function updateDifficultyButtons(){
@@ -200,6 +239,7 @@ function onPhoto(file){
  if(file.size>12*1024*1024)return showToast('Please choose an image smaller than 12 MB');
  const url=URL.createObjectURL(file),img=new Image();
  img.onload=()=>{
+  ++imageLoadVersion;
   URL.revokeObjectURL(url);
   paintCustomSource(img);
   customData=board.sourceCanvas.toDataURL('image/jpeg',.78);

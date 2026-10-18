@@ -22,19 +22,28 @@ let browser;
 try{
  browser=await chromium.launch({headless:true,channel:'chrome',args:['--no-sandbox']});
  const page=await browser.newPage({viewport:{width:390,height:844},isMobile:true,hasTouch:true,deviceScaleFactor:1});
+ // Stub image responses so gameplay tests remain deterministic even if the CDN is offline.
+ // Production always requests real Unsplash photographs, never these fixtures.
+ const fakeImage=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9QjM8yAAAAAASUVORK5CYII=','base64');
+ const mockPhoto=route=>route.fulfill({status:200,contentType:'image/png',body:fakeImage,headers:{'access-control-allow-origin':'*'}});
+ await page.route('https://images.unsplash.com/**',mockPhoto);
  const errors=[];page.on('pageerror',e=>errors.push(String(e)));
  await page.goto(url+'/jigsaw/');
  await page.locator('#galleryGrid .gallery-card').first().waitFor();
- assert.equal(await page.locator('#galleryGrid .gallery-card').count(),8,'Seven art themes and a private photo upload');
+ assert.equal(await page.locator('#galleryGrid .gallery-card').count(),15,'Fourteen photographic puzzles and a private photo upload');
+ const photoSources=await page.locator('#galleryGrid .gallery-image img').evaluateAll(imgs=>imgs.map(x=>x.src));
+ assert.equal(photoSources.length,14,'Every gallery item has a photograph');
+ assert.equal(new Set(photoSources).size,14,'Photographs are distinct');
+ assert.ok(photoSources.every(src=>src.startsWith('https://images.unsplash.com/photo-')),'No generated-art gallery cards');
  assert.equal(await page.locator('#playScreen').isVisible(),false,'Puzzle gallery opens before choosing picture');
  await page.screenshot({path:path.join(root,'visual-output/JIGSAW-GALLERY-MOBILE.jpg'),type:'jpeg',quality:80,fullPage:true});
  console.log('NIGHT_JIGSAW_GALLERY_JPEG_BASE64='+(await page.screenshot({type:'jpeg',quality:50,fullPage:true})).toString('base64'));
- await page.locator('[data-filter="anime"]').click();
- assert.equal(await page.locator('#galleryGrid .gallery-card:visible').count(),1,'Anime category is available');
- await page.locator('[data-theme="anime"]').click();
+ await page.locator('[data-filter="flowers"]').click();
+ assert.equal(await page.locator('#galleryGrid .gallery-card:visible').count(),2,'Flower photographs are a category');
+ await page.locator('[data-theme="photo-pink-blooms"]').click();
  await page.locator('#puzzleCanvas').waitFor({state:'visible'});
  const first=await page.evaluate(()=>window.__nightJigsawTest.snapshot());
- assert.equal(first.theme,'anime');
+ assert.equal(first.theme,'photo-pink-blooms');
  assert.equal(first.pieces.length,24,'New players begin with 24 jigsaw pieces');
  assert.equal(first.placed,0);
  assert.equal(await page.evaluate(()=>{const s=window.__nightJigsawTest.snapshot();return s.board.w>=document.getElementById('puzzleCanvas').width-7}),true,'Puzzle board fills nearly the full canvas width');
@@ -109,13 +118,13 @@ try{
  const beforeReload=await page.evaluate(()=>window.__nightJigsawTest.snapshot());
  await page.reload();
  assert.equal(await page.locator('#resumePanel').isVisible(),true,'Resume choice shown without a gallery flash');
- if(beforeReload.theme==='anime')console.log('NIGHT_JIGSAW_RESUME_JPEG_BASE64='+(await page.screenshot({type:'jpeg',quality:55,fullPage:true})).toString('base64'));
+ if(beforeReload.theme==='photo-pink-blooms')console.log('NIGHT_JIGSAW_RESUME_JPEG_BASE64='+(await page.screenshot({type:'jpeg',quality:55,fullPage:true})).toString('base64'));
  assert.equal(await page.locator('#galleryPanel').isVisible(),false,'Gallery stays hidden during resume prompt');
  await page.locator('#resumePlaying').click();
  await page.waitForFunction(()=>window.__nightJigsawTest?.snapshot().activeRound);
  const afterReload=await page.evaluate(()=>window.__nightJigsawTest.snapshot());
  assert.equal(afterReload.placed,beforeReload.placed,'Reload restores solved pieces');
- assert.equal(afterReload.theme,'anime','Reload preserves puzzle image');
+ assert.equal(afterReload.theme,'photo-pink-blooms','Reload preserves puzzle image');
  assert.equal(afterReload.moves,beforeReload.moves,'Reload retains move count');
  assert.equal(afterReload.usedHints,1,'Reload must not refund a spent hint');
  // Customizes settings without leaving the full-screen game.
@@ -162,7 +171,7 @@ try{
  await page.locator('#victoryNext').click();assert.equal(await page.locator('#galleryPanel').isVisible(),true);
  assert.equal(await page.evaluate(()=>localStorage.getItem('night-play-jigsaw-v1')),null,'Finished puzzle is not resumed as unfinished');
  // Help is scarce in every mode, including Relaxed.
- await page.locator('[data-theme="cats"]').click();
+ await page.locator('[data-theme="photo-tabby-cat"]').click();
  assert.equal(await page.locator('#previewRemaining').textContent(),'3 left');
  for(let i=0;i<3;i++){
   await page.locator('#previewButton').click();
@@ -213,8 +222,10 @@ try{
 
  // Desktop receives a side loose-piece space and no horizontal overflow.
  const desktop=await browser.newPage({viewport:{width:1280,height:850}});const deskErrors=[];
+  await desktop.route('https://images.unsplash.com/**',mockPhoto);
  desktop.on('pageerror',e=>deskErrors.push(String(e)));
- await desktop.goto(url+'/jigsaw/');await desktop.locator('[data-theme="nature"]').click();
+ await desktop.goto(url+'/jigsaw/');await desktop.locator('[data-theme="photo-alpine-lake"]').click();
+  await desktop.waitForFunction(()=>window.__nightJigsawTest?.snapshot().activeRound);
  const dl=await desktop.evaluate(()=>window.__nightJigsawTest.snapshot());
  assert.ok(dl.tray.x>dl.board.x+dl.board.w,'On desktop the tray sits alongside the board');
  assert.ok(await desktop.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+2));
@@ -231,6 +242,7 @@ try{
   assert.equal(await page.locator('#galleryPanel').isVisible(),true,'New picture choice works without deleting progress');
   assert.equal(await page.locator('#resumeGalleryBanner').isVisible(),true,'Saved game is still accessible from the gallery');
   await page.locator('#resumeFromGallery').click();
+  await page.waitForFunction(()=>window.__nightJigsawTest?.snapshot().activeRound&&window.__nightJigsawTest.snapshot().pieces.length===144);
   assert.equal(await page.locator('#playScreen').isVisible(),true,'Continue restores the unfinished Master puzzle');
- console.log('PASS NIGHT Play Jigsaw: gallery, artwork, real touch drag, hints, save/reload, settings, upload, win and responsive desktop.');
+ console.log('PASS NIGHT Play Jigsaw: photographic gallery, real touch drag, hints, save/reload, settings, upload, win and responsive desktop.');
 }finally{if(browser)await browser.close();await new Promise(ok=>server.close(ok))}
