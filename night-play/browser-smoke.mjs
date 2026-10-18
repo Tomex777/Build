@@ -20,7 +20,7 @@ try {
    });
    return {display:getComputedStyle(nav).display,top:box.top,bottom:box.bottom,height:box.height,viewportHeight:innerHeight,
     headerProfile:document.querySelectorAll('header .profile-icon').length,
-    overflow:document.documentElement.scrollWidth-innerWidth,items};
+    overflow:document.documentElement.scrollWidth-innerWidth,viewportWidth:innerWidth,items};
   });
   assert.equal(metrics.display,'grid','bottom navigation is balanced in three equal tracks');
   assert.ok(Math.abs(metrics.bottom-metrics.viewportHeight)<=2,'bar anchors to bottom of visible viewport');
@@ -30,6 +30,7 @@ try {
   assert.equal(metrics.items.find(item=>item.current==='page').name,destination);
   assert.notEqual(metrics.items.find(item=>item.current==='page').background,'rgba(0, 0, 0, 0)','selected tab has a visible surface');
   assert.ok(metrics.overflow<=2,'mobile navigation never introduces horizontal scrolling');
+   assert.ok(Math.abs(metrics.viewportWidth-(await page.evaluate(()=>screen.width)))<=1,'mobile layout must not auto-zoom due to oversized header');
   console.log('NIGHT_NAV_METRICS '+JSON.stringify(metrics));
  }
 
