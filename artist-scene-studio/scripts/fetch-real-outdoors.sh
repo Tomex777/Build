@@ -73,3 +73,32 @@ echo "a02698ef246d8005110c291c510b8f7f397ae26e69414aa538cc4993b06256dd  $oak_ori
     --source "$oak_original" --output "$oak_file"
 rm -f "$oak_original"
 echo "Verified + losslessly batched CC0 oak tree: $oak_file"
+
+# Real-scale, textured architectural and car models. Avoid the low-poly city
+# and toy-car collections: these are independent unbranded CC0 mesh assets.
+# SHA256 will be pinned after CI fetches and inspects their actual bytes.
+fetch_mise_model() {
+    local slug="$1" path="$2"
+    local target="$root/app/src/main/assets/models/$path"
+    local url="https://www.innerscene.com/api/library/$slug/download"
+    if [ ! -s "$target" ]; then
+        curl --fail --location --retry 3 --max-time 180 -o "$target.tmp" "$url"
+        mv "$target.tmp" "$target"
+    fi
+    test "$(wc -c < "$target")" -gt 300000 || {
+        echo "Incomplete detailed scene asset: $slug" >&2
+        exit 1
+    }
+    # Prevent shipping truncated or unrelated downloaded HTTP content.
+    "$root/.skybake-env/bin/python" - "$target" <<'PY'
+import sys,struct
+with open(sys.argv[1],'rb') as f:
+    magic,version,nbytes=struct.unpack('<III',f.read(12))
+    assert magic==0x46546c67 and version==2, "Not a glTF 2 GLB"
+    assert nbytes==__import__('os').path.getsize(sys.argv[1]), "Truncated GLB"
+PY
+    echo "Innerscene CC0 model source: $url sha256 $(sha256sum "$target")"
+}
+fetch_mise_model "detached-two-storey-house-66774933" "mise_house_two_storey.glb"
+fetch_mise_model "bungalow-house-85d40048" "mise_house_bungalow.glb"
+fetch_mise_model "sedan-car-42109739" "mise_sedan.glb"
