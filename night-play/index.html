@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#f7f7f7">
 <meta name="description" content="NIGHT Play — a home for games, challenges, and friends.">
 <title>NIGHT Play — Play your way</title>
@@ -971,6 +971,18 @@ body{background:var(--bg)}
 .planned-modes{list-style:none;margin:9px 0 14px;padding:0;display:grid;gap:7px}
 .planned-modes li{display:flex;align-items:flex-start;gap:7px}
 .planned-modes .plan-arrow{margin-top:2px}
+
+/* Reserve a real document-space slot below the footer for the fixed
+   shared bottom bar. Without this, the last content sits behind its tabs. */
+@media(max-width:600px){
+ body:is([data-view="dashboard"],[data-view="games"],[data-view="profile"]){
+  padding-bottom:calc(var(--night-mobile-nav-height,74px) + env(safe-area-inset-bottom));
+ }
+ body:is([data-view="dashboard"],[data-view="games"],[data-view="profile"]) .site-footer{
+  padding-bottom:0!important;
+ }
+}
+
 </style>
 <style>.story-resume{display:flex;justify-content:space-between;align-items:center;gap:20px;background:#20372e;color:#eef2e9;text-decoration:none;padding:22px 25px;border-radius:20px;margin:0 0 24px}.story-resume[hidden]{display:none}.story-resume span{font-size:11px;letter-spacing:.1em}.story-resume strong{display:block;font-size:25px;margin:8px 0}.story-resume small{font-size:12px;color:#bdcfbf}.story-resume>span{font-size:30px}.story-resume:focus-visible{outline:3px solid #90ad8c;outline-offset:4px}</style><style>.account-command{display:block;white-space:normal;overflow-wrap:anywhere;margin:20px 0;padding:18px;border:1px solid #d8ddd9;border-radius:12px;background:#f0f2ee;font-size:18px;line-height:1.6;user-select:all}.account-name{font-size:24px;font-weight:750}.account-expiry{font-size:12px;color:#69726c}#infoBody>.btn{margin:6px 8px 6px 0}</style>
 <link rel="stylesheet" href="/site-shell.css">
@@ -1012,7 +1024,7 @@ body{background:var(--bg)}
 <symbol id="icon-arrowright" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h16m-6-6 6 6-6 6"/></symbol>
 </defs></svg>
 
-<header class="site-header"><div class="wrap nav"><a href="/welcome" data-route class="logo" aria-label="NIGHT Play welcome"><svg class="brand-mark" viewBox="0 0 108 108" aria-hidden="true"><use href="#icon-brand"></use></svg><span>NIGHT <span class="brand-sub">PLAY</span></span></a><nav class="links" aria-label="Main navigation"><a data-route href="/dashboard">Home</a><a data-route href="/games">Games</a></nav><div class="actions"><a class="profile-icon" data-route href="/profile" aria-label="My profile" title="My profile"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4.5 20c1.2-4.7 13.8-4.7 15 0"/></svg></a><button class="btn light" data-dialog="connect"> Connect WhatsApp</button><a class="btn landing-enter" data-route href="/dashboard">Enter NIGHT Play </a></div></div></header>
+<header class="site-header"><div class="wrap nav"><a href="/welcome" data-route class="logo" aria-label="NIGHT Play welcome"><svg class="brand-mark" viewBox="0 0 108 108" aria-hidden="true"><use href="#icon-brand"></use></svg><span>NIGHT <span class="brand-sub">PLAY</span></span></a><nav class="links" aria-label="Main navigation"><a data-route href="/dashboard">Home</a><a data-route href="/games">Games</a><a data-route href="/profile">Profile</a></nav><div class="actions"><button class="btn light" data-dialog="connect"> Connect WhatsApp</button><a class="btn landing-enter" data-route href="/dashboard">Enter NIGHT Play </a></div></div></header>
 <aside id="announcementBar" class="announcement-bar" role="region" aria-label="NIGHT site announcements">
  <div class="wrap announcement-content"><span class="announce-badge">NEW</span><div class="announce-copy"><strong>New things to play</strong><span>A more playful home for your favorite games.</span></div><button id="announcementMore" type="button" aria-controls="announcementHistory" aria-expanded="false">Past notices <svg class="ui-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><use href="#icon-chevron"></use></svg></button><button id="announcementDismiss" type="button" aria-label="Dismiss announcement"><svg class="ui-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><use href="#icon-close"></use></svg></button></div>
  <div id="announcementHistory" class="wrap announcement-history" hidden>
