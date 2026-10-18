@@ -2,6 +2,7 @@ import { createHash, randomBytes, randomUUID, verify, createPublicKey } from 'no
 import { readFileSync } from 'node:fs'
 import { NightPlayMatches } from './night-play-matches.js'
 import { NightPlayChannels, ChannelError } from './night-play-channels.js'
+import { NightPlayStudio, StudioAccessError } from './night-play-studio.js'
 
 export const PLAY_URL = 'https://night-play-combined-preview.vercel.app'
 export const PLAY_RPC_PATH = '/api/night-play/rpc'
@@ -40,6 +41,7 @@ export class NightPlay {
     this.nextCleanup = 0
     this.matches = new NightPlayMatches(db, { now })
     this.channels = new NightPlayChannels(this, { now })
+    this.studio = new NightPlayStudio(this)
   }
   transaction(fn) {
     this.db.exec('BEGIN IMMEDIATE')
@@ -90,9 +92,10 @@ export class NightPlay {
       .run(id, jpeg ? 'image/jpeg' : 'image/png', data, this.now())
     return true
   }
-  request({ action, session, client, displayName, matchId, code, cell, channelId }) {
+  request({ action, session, client, displayName, matchId, code, cell, channelId, noticeTitle, noticeMessage, noticeEnabled }) {
     this.cleanup()
     if (action === 'health') return { ok:true, service:'night-play', version:1 }
+    if (action === 'site:notice') return this.studio.publicNotice()
     if (action === 'status') {
       const row = session ? this.session(session) : null
       const profile = row?.user_id ? this.profile(row.user_id) : null
@@ -126,6 +129,8 @@ export class NightPlay {
       return { ok:true }
     }
     if (!row?.user_id) throw new PlayError(401, 'Connect WhatsApp to continue.')
+    if (action === 'admin:status') return this.studio.status(row.user_id)
+    if (action === 'admin:notice:save') return this.studio.save(row.user_id, {noticeTitle,noticeMessage,noticeEnabled})
     if (action === 'channel:list') {
       this.limit('channel-list:' + row.user_id, 30)
       return this.channels.list(row.user_id)
@@ -238,7 +243,7 @@ export function createNightPlayHandler(play, { publicKey = readFileSync(new URL(
       }
       return reply(200, result)
     } catch (error) {
-      return reply((error instanceof PlayError || error instanceof ChannelError) ? error.status : 500, { error:(error instanceof PlayError || error instanceof ChannelError) ? error.message : 'NIGHT Play could not process the request.' })
+      return reply((error instanceof PlayError || error instanceof ChannelError || error instanceof StudioAccessError) ? error.status : 500, { error:(error instanceof PlayError || error instanceof ChannelError || error instanceof StudioAccessError) ? error.message : 'NIGHT Play could not process the request.' })
     }
   }
 }
