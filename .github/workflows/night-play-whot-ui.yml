@@ -1,0 +1,24 @@
+name: NIGHT Play WHOT board and winner UI
+on:
+  pull_request:
+    paths:
+      - 'night-play/club/**'
+      - '.github/workflows/night-play-whot-ui.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  whot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install browser
+        run: |
+          npm install --prefix /tmp/whotqa --no-save playwright@1.56.1
+          /tmp/whotqa/node_modules/.bin/playwright install chromium --with-deps
+      - name: Validate WHOT table, player/CPU wins and rematch
+        env:
+          PLAYWRIGHT_MODULE: /tmp/whotqa/node_modules/playwright
+          WHOT_QA_IMAGE: '1'
+        run: node night-play/club/whot-winner-smoke.cjs

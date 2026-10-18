@@ -1,0 +1,43 @@
+name: Study open-source WHOT games (reference only)
+on:
+  pull_request:
+    paths:
+      - 'night-play/club/WHOT-REFERENCE-STUDY.md'
+      - '.github/workflows/night-play-whot-reference-study.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  sources:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download public Whot game repositories into temporary workspace
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/whot-study
+          git clone --quiet --depth 1 https://github.com/AkpetiTrust/whot.git /tmp/whot-study/akpeti
+          git clone --quiet --depth 1 https://github.com/aekimena/Naija-whot-game.git /tmp/whot-study/aekimena
+          git clone --quiet --depth 1 https://github.com/Victor-Abidoye/Whot.git /tmp/whot-study/victor
+          git clone --quiet --depth 1 https://github.com/Riocodex/whot.git /tmp/whot-study/riocodex
+          echo "Downloaded 4 public source repos; no APKs or unlicensed assets were added to NIGHT Play."
+      - name: Confirm actual source animation strategies
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f /tmp/whot-study/akpeti/src/components/CardComponent/CardComponent.jsx
+          test -f /tmp/whot-study/akpeti/src/pages/PlayComputer/App.jsx
+          grep -q 'react-flip-toolkit' /tmp/whot-study/akpeti/src/pages/PlayComputer/App.jsx
+          grep -q 'transition: transform 0.6s' /tmp/whot-study/akpeti/src/components/CardComponent/index.module.scss
+          grep -q 'rolling' /tmp/whot-study/victor/styles.scss
+          grep -q 'transition: transform 0.5s' /tmp/whot-study/aekimena/style.css
+          grep -q 'setTimeout(aiPlay, 1000)' /tmp/whot-study/riocodex/whot/main.js
+          echo "Verified: Akpeti FLIP/3D flip; Victor fan + flip; aekimena hand transition; Riocodex delayed CPU."
+          {
+            echo '### Downloaded Whot animation references'
+            echo 'The workflow cloned AkpetiTrust/whot, aekimena/Naija-whot-game, Victor-Abidoye/Whot, Riocodex/whot (temporary inspection only).'
+            echo 'Akpeti: React FLIP card positions and 600ms rotateY reveal; Victor: draggable/fanned cards; aekimena: sliding hand; Riocodex: sound + 1000ms CPU wait.'
+            echo 'The animation concepts may inform an independent NIGHT implementation; no original code or artwork is bundled.'
+          } >> "$GITHUB_STEP_SUMMARY"

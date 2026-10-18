@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#f7f8f4"><meta name="description" content="NIGHT Play Jigsaw — touch jigsaw puzzles featuring real photographs and your own pictures.">
+<title>NIGHT Play · Jigsaw Puzzle</title><link rel="stylesheet" href="/jigsaw/style.css"></head>
+<body>
+<svg class="symbol-library" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
+<symbol id="night-mark" viewBox="0 0 108 108"><path fill="#0B0F11" d="M0 0h108v108H0z"/><path fill="#F4F5F6" d="M24 54 C24 37.43 37.43 24 54 24 C70.57 24 84 37.43 84 54 L24 54 Z"/><path fill="#F4F5F6" d="M22 66h64v6H22z"/></symbol>
+<symbol id="icon-back" viewBox="0 0 24 24"><path d="M15.5 5 8.5 12l7 7M9 12h12"/></symbol>
+<symbol id="icon-settings" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M9.671 4.136a2.34 2.34 0 0 1 4.659 0 2.34 2.34 0 0 0 3.319 1.915 2.34 2.34 0 0 1 2.33 4.033 2.34 2.34 0 0 0 0 3.831 2.34 2.34 0 0 1-2.33 4.033 2.34 2.34 0 0 0-3.319 1.915 2.34 2.34 0 0 1-4.659 0 2.34 2.34 0 0 0-3.32-1.915 2.34 2.34 0 0 1-2.33-4.033 2.34 2.34 0 0 0 0-3.831A2.34 2.34 0 0 1 6.35 6.051a2.34 2.34 0 0 0 3.319-1.915"/></symbol>
+<symbol id="icon-gallery" viewBox="0 0 24 24"><rect x="2.8" y="4" width="18.4" height="16" rx="3"/><circle cx="8.2" cy="9.4" r="1.7"/><path d="m4.6 17 5.2-5 3.2 3 2.3-2.4 4.4 4.4"/></symbol>
+<symbol id="icon-eye" viewBox="0 0 24 24"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></symbol>
+<symbol id="icon-spark" viewBox="0 0 24 24"><path d="m12 2 1.9 7.4L21 12l-7.1 2.6L12 22l-2-7.4L3 12l7-2.6L12 2Z"/></symbol>
+<symbol id="icon-restart" viewBox="0 0 24 24"><path d="M20 11A8 8 0 1 1 17.9 5.6M20 3v7h-7"/></symbol>
+<symbol id="icon-upload" viewBox="0 0 24 24"><path d="M12 17V3m-5 5 5-5 5 5M4 16v4h16v-4"/></symbol>
+<symbol id="icon-check" viewBox="0 0 24 24"><path d="m4 12 5.5 5.5L20 7"/></symbol>
+</svg>
+<header class="game-topline">
+ <a class="back-link" href="/games" aria-label="Back to NIGHT Play games"><svg class="ico"><use href="#icon-back"/></svg><span>Games</span></a>
+ <a class="wordmark" href="/dashboard" aria-label="NIGHT Play home"><svg class="brand-logo"><use href="#night-mark"/></svg><strong>NIGHT <em>PLAY</em></strong></a>
+ <button class="top-settings" id="settingsButton" aria-label="Jigsaw settings" type="button"><svg class="ico"><use href="#icon-settings"/></svg><span>Settings</span></button>
+</header>
+<main>
+ <section class="page-intro"><span class="eyebrow">THE PUZZLE ROOM</span><h1>Jigsaw <span>Puzzle</span></h1><p>One piece at a time. Watch the picture come together.</p></section>
+ <section id="openingPanel" class="jigsaw-entry" aria-label="Preparing puzzle"><span class="eyebrow">NIGHT PLAY · JIGSAW</span><p>Preparing your puzzles…</p></section>
+ <section id="resumePanel" class="jigsaw-entry" aria-label="Continue or start a jigsaw puzzle" hidden>
+  <span class="eyebrow">WELCOME BACK</span><h2>Your puzzle is waiting.</h2>
+  <p id="resumeSummary">Your saved picture is right where you left it.</p>
+  <div class="entry-actions"><button type="button" id="resumePlaying" class="game-button primary">▶ Continue playing</button><button type="button" id="startFresh" class="game-button">Choose another picture</button></div>
+  <p class="entry-footnote">Your unfinished progress stays saved until you begin a new picture.</p>
+ </section>
+ <section class="gallery" id="galleryPanel" aria-label="Choose a jigsaw puzzle" hidden>
+  <div id="resumeGalleryBanner" class="resume-gallery-banner" hidden><span>Want your unfinished puzzle back?</span><button id="resumeFromGallery" type="button">Continue playing →</button></div>
+  <div class="panel-top"><div><span class="mini-label">YOUR NEXT PUZZLE</span><h2>Pick a picture</h2></div><span class="gallery-counter" id="galleryCount">14 pictures</span></div>
+  <div id="categoryChips" class="filter-chips" role="group" aria-label="Photo categories">
+   <button class="active" type="button" data-filter="all" aria-pressed="true">All</button>
+   <button type="button" data-filter="nature" aria-pressed="false">Nature</button>
+   <button type="button" data-filter="animals" aria-pressed="false">Animals</button>
+   <button type="button" data-filter="places" aria-pressed="false">Places</button>
+   <button type="button" data-filter="flowers" aria-pressed="false">Flowers</button>
+   <button type="button" data-filter="sky" aria-pressed="false">Sky</button>
+  </div>
+  <div class="gallery-grid" id="galleryGrid" aria-live="polite"></div>
+  <p class="gallery-footnote">Photos via <a href="https://unsplash.com/license" target="_blank" rel="noopener noreferrer">Unsplash</a> · Gallery photos require internet · Your uploads stay on this device</p>
+ </section>
+ <section class="play-screen" id="playScreen" aria-label="Jigsaw gameplay" hidden>
+  <div class="match-strip">
+   <button class="picture-switch" id="pickPicture" type="button"><svg class="ico"><use href="#icon-gallery"/></svg><span>Pictures</span></button>
+   <div class="match-stat"><span>TIME</span><strong id="timer">00:00</strong></div>
+   <div class="match-stat"><span>MOVES</span><strong id="moves">0</strong></div>
+   <div class="match-stat"><span>PIECES</span><strong id="progress">0 / 24</strong></div>
+  </div>
+  <div class="play-mat" id="canvasWrapper"><canvas id="puzzleCanvas" width="360" height="660" aria-label="Jigsaw board. Drag loose pieces into their matching picture positions."></canvas><canvas id="dragCanvas" class="drag-layer" width="360" height="660" aria-hidden="true"></canvas></div>
+  <div class="completion-track" aria-label="Jigsaw progress"><div id="progressBar"></div></div>
+  <div class="game-actions">
+   <button type="button" id="previewButton" class="game-button"><svg class="ico"><use href="#icon-eye"/></svg> Preview <small id="previewRemaining" class="use-count">3 left</small></button>
+   <button type="button" id="hintButton" class="game-button"><svg class="ico"><use href="#icon-spark"/></svg> Hint <small id="hintRemaining" class="use-count">3 left</small></button>
+   <button type="button" id="restartButton" class="game-button primary"><svg class="ico"><use href="#icon-restart"/></svg> Restart picture</button>
+  </div>
+  <p class="progress-footnote">Pieces snap into place automatically · Your round saves on this device</p>
+ </section>
+</main>
+<dialog id="settingsDialog" aria-labelledby="settingsHeading" class="sheet-dialog"><div class="sheet-head"><h2 id="settingsHeading">Jigsaw settings</h2><button class="close-sheet" data-close="settingsDialog" aria-label="Close settings">✕</button></div>
+ <div class="sheet-content"><label class="setting-label">PIECES <span>Choose your challenge</span></label>
+ <div class="difficulty-options" role="group" aria-label="Puzzle piece count"><button data-pieces="6">6<small>Starter</small></button><button data-pieces="12">12<small>Easy</small></button><button data-pieces="24">24<small>Classic</small></button><button data-pieces="48">48<small>Hard</small></button><button data-pieces="72">72<small>Skilled</small></button><button data-pieces="96">96<small>Expert</small></button><button data-pieces="144">144<small>Master</small></button></div>
+ <label class="setting-label" id="modeLabel">CHALLENGE MODE <span>Even Relaxed has limited help</span></label>
+ <div class="mode-options" role="group" aria-labelledby="modeLabel">
+  <button data-mode="relaxed" type="button"><strong>Relaxed</strong><small>3 hints · 3 peeks (6s)</small></button>
+  <button data-mode="challenge" type="button"><strong>Challenge</strong><small>1 hint · 1 peek (4s)</small></button>
+  <button data-mode="memory" type="button"><strong>Memory</strong><small>0 hints · 1 first look (5s)</small></button>
+ </div>
+ <label class="setting-switch"><span><b>Picture guide</b><small>Optional 7% picture outline · OFF by default</small></span><input id="guideSwitch" type="checkbox"></label>
+ <label class="setting-switch"><span><b>Game sounds</b><small>Pick-up, snapping and celebration</small></span><input id="soundSwitch" type="checkbox" checked></label>
+ <p class="settings-note">Changing difficulty or mode begins a fresh round. Picture guide and sound apply immediately. Preview closes automatically.</p></div>
+</dialog>
+<dialog id="previewDialog" aria-label="Full puzzle reference" class="image-dialog"><div class="preview-head"><strong>YOUR PICTURE</strong><button class="close-sheet" data-close="previewDialog" aria-label="Close picture preview">✕</button></div><img id="previewImage" alt="Reference image for the jigsaw puzzle"><p id="previewExplanation">Study the picture. This peek closes automatically.</p></dialog>
+<dialog id="victoryDialog" aria-labelledby="victoryTitle" class="victory-dialog">
+ <div class="victory-icon"><svg class="ico"><use href="#icon-check"/></svg></div>
+ <span class="eyebrow">PUZZLE COMPLETE</span><h2 id="victoryTitle">Beautifully done!</h2><p>Every piece found its place.</p>
+ <div class="victory-stats"><div><span>TIME</span><strong id="victoryTime">00:00</strong></div><div><span>MOVES</span><strong id="victoryMoves">0</strong></div><div><span>PIECES</span><strong id="victoryPieces">24</strong></div></div>
+ <button type="button" class="victory-primary" id="victoryNext">Choose another picture</button>
+ <button type="button" class="victory-again" id="victoryReplay">Play this one again</button>
+</dialog>
+<input type="file" id="imageFile" accept="image/*" hidden>
+<div id="toast" role="status" aria-live="polite" class="toast" hidden></div>
+<footer>Jigsaw engine adapted from <a href="https://github.com/playjigsaw/play-jigsaw-puzzles-online" target="_blank" rel="noopener noreferrer">PlayJigsaw.net's MIT project</a>. <a href="/jigsaw/THIRD_PARTY_LICENSE.txt">License</a></footer>
+<script type="module" src="/jigsaw/game.js"></script>
+</body></html>

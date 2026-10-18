@@ -3,35 +3,56 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#8b5839">
+<meta name="theme-color" content="#f7f7f7">
 <meta name="description" content="NIGHT Play Club: familiar tabletop games you can actually play on your phone.">
 <title>NIGHT Play · Games Club</title>
 <link rel="stylesheet" href="/club/style.css">
+<link rel="stylesheet" href="/game-shell.css">
 <link rel="stylesheet" href="/club/ludo-immersive.css">
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.186.1/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.186.1/examples/jsm/"}}</script>
 </head>
 <body>
-<header class="top">
-<a class="back" href="/games" aria-label="Back to the NIGHT Play game library">← <span>Games</span></a>
-<a class="wordmark" href="/dashboard"><span class="night-mark">◕</span> NIGHT <span class="play-word">PLAY</span></a>
-<span class="loc-tag">GAME CLUB</span>
-</header>
+<svg class="night-svg-defs" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><symbol id="night-mark" viewBox="0 0 108 108"><path fill="#0B0F11" d="M0 0h108v108H0z"/><path fill="#F4F5F6" d="M24 54 C24 37.43 37.43 24 54 24 C70.57 24 84 37.43 84 54 L24 54 Z"/><path fill="#F4F5F6" d="M22 66h64v6H22z"/></symbol><symbol id="icon-back" viewBox="0 0 24 24"><path d="M15.5 5 8.5 12l7 7M9 12h12"/></symbol><symbol id="icon-settings" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M9.671 4.136a2.34 2.34 0 0 1 4.659 0 2.34 2.34 0 0 0 3.319 1.915 2.34 2.34 0 0 1 2.33 4.033 2.34 2.34 0 0 0 0 3.831 2.34 2.34 0 0 1-2.33 4.033 2.34 2.34 0 0 0-3.319 1.915 2.34 2.34 0 0 1-4.659 0 2.34 2.34 0 0 0-3.32-1.915 2.34 2.34 0 0 1-2.33-4.033 2.34 2.34 0 0 0 0-3.831A2.34 2.34 0 0 1 6.35 6.051a2.34 2.34 0 0 0 3.319-1.915"/></symbol><symbol id="icon-restart" viewBox="0 0 24 24"><path d="M20 11A8 8 0 1 1 17.9 5.6M20 3v7h-7"/></symbol></svg>
+<header class="top night-shell-header"><a class="night-back" href="/games" aria-label="Back to NIGHT Play games"><svg class="night-ico"><use href="#icon-back"></use></svg><span class="whot-grid-icon" aria-hidden="true"><i></i><i></i><i></i><i></i></span><span class="night-text">Games</span></a><a class="night-brand" href="/dashboard" aria-label="NIGHT Play home"><svg class="night-brand-mark"><use href="#night-mark"></use></svg><strong>NIGHT <em>PLAY</em></strong></a><button type="button" class="night-settings" id="settingsButton" aria-label="Tabletop game settings"><svg class="night-ico"><use href="#icon-settings"></use></svg><span class="night-text">Settings</span></button></header>
 <main id="club">
 <section id="ludoTopbar" class="ludo-topbar" aria-label="Ludo controls" hidden><a href="/games" class="ludo-back" aria-label="Back to games">‹</a><div class="ludo-brand"><strong>NIGHT <span>LUDO</span></strong><small>NAIJA TABLETOP</small></div><button id="ludoSettingsBtn" type="button" class="ludo-tool" aria-label="Ludo game settings" aria-expanded="false">⚙</button></section>
 <div id="ludoHud" class="ludo-hud" hidden aria-label="Player score and active turn"></div>
-<div class="club-intro"><span class="label">THE NIGHT TABLETOP</span><h1>Bring the rivalry.</h1><p>Familiar games, real rules, no downloads. Start a local round and pass the phone. Online rooms are not available yet.</p></div>
-<nav class="game-picks" id="gamePicks" aria-label="Choose a game">
-<button type="button" data-pick="ludo">Ludo</button>
+<div class="club-intro" hidden><span class="label">THE NIGHT TABLETOP</span><h1>Bring the rivalry.</h1><p>Familiar games, real rules, no downloads. Start a local round and pass the phone. Online rooms are not available yet.</p></div>
+
+<section class="play-layout"><div class="board-col"><div class="play-heading night-game-intro"><div><span class="label night-eyebrow" id="gameCategory">BOARD GAME</span><h2 id="gameTitle">Draughts</h2><p id="gameSubtitle">A proper tabletop strategy game.</p></div><span id="whotModeBadge" hidden class="whot-mode-badge">VS CPU</span></div><div id="board" class="board-area" aria-live="polite"></div><div class="night-action-row"><button class="utility primary" id="newRound" type="button"><svg class="night-ico"><use href="#icon-restart"></use></svg> New game</button></div></div><aside class="controls-col"><div class="panel info-panel"><div class="label">YOUR ROUND</div><div id="status" class="status" aria-live="polite">Choose a game to begin.</div><div id="controls"></div></div><div class="fair-note">LOCAL PLAY · Scores and turns stay on this device. Friends on different phones can't join this version.</div></aside></section>
+</main>
+<dialog id="settingsDialog" class="night-sheet" aria-labelledby="settingsHeading"><div class="night-sheet-head"><h2 id="settingsHeading">Game settings</h2><button id="settingsClose" type="button" class="night-sheet-close" aria-label="Close settings">✕</button></div><div class="night-sheet-body"><span class="night-sheet-label">SWITCH GAME</span><nav class="game-picks" id="gamePicks" aria-label="Choose a game">
 <button type="button" data-pick="estate">Property Trading</button>
-<button type="button" data-pick="whot">Shape Cards</button>
+<button type="button" data-pick="whot">WHOT</button>
 <button type="button" data-pick="colors">Colour Clash</button>
 <button type="button" data-pick="draw">Draw &amp; Guess</button>
 <button type="button" data-pick="snakes">Snakes &amp; Ladders</button>
 <button type="button" data-pick="checkers">Draughts</button>
 </nav>
-<section class="play-layout"><div class="board-col"><div class="play-heading"><div><span class="label" id="gameCategory">BOARD GAME</span><h2 id="gameTitle">Ludo</h2><p id="gameSubtitle">The board you remember.</p></div><button class="utility" id="newRound" type="button">New game ↻</button></div><div id="board" class="board-area" aria-live="polite"></div></div><aside class="controls-col"><div class="panel info-panel"><div class="label">YOUR ROUND</div><div id="status" class="status" aria-live="polite">Choose a game to begin.</div><div id="controls"></div></div><div id="help" class="panel rules"></div><div class="fair-note">LOCAL PLAY · Scores and turns stay on this device. Friends on different phones can't join this version.</div></aside></section>
-</main>
+<section class="whot-mode-config" id="whotModeConfig" hidden aria-label="WHOT game options">
+ <span class="night-sheet-label">WHOT · PLAY YOUR WAY</span>
+ <div class="whot-modes" role="group" aria-label="Choose WHOT mode">
+  <label for="whotMode">Game mode</label>
+  <select id="whotMode" data-whot-option="mode">
+   <option value="quick">Quick Play · One match</option>
+   <option value="career">Career · Rank promotion</option>
+   <option value="tournament">Tournament · First to two</option>
+  </select>
+  <p class="whot-rank-progress" id="whotCareerProgress" role="status">Quick Play</p>
+ </div>
+ <span class="night-sheet-label">HOUSE RULES</span>
+ <label class="whot-switch"><span><strong>Strict Check Up</strong><small>No winning on 1, 2, 5, 8, 14 or WHOT 20. Pick from the market and continue.</small></span><input type="checkbox" data-whot-option="strictFinish"></label>
+ <label class="whot-switch"><span><strong>Defend Pick Two / Three</strong><small>Answer 2 with 2 or 5 with 5 to stack the penalty.</small></span><input type="checkbox" data-whot-option="defend"></label>
+ <label class="whot-switch"><span><strong>Last Card declaration</strong><small>Announce Last Card before checking up, or pick two penalty cards.</small></span><input type="checkbox" data-whot-option="announce"></label>
+ <div class="whot-modes"><label for="whotDifficulty">Computer</label><select id="whotDifficulty" data-whot-option="difficulty"><option value="easy">Easy</option><option value="normal">Normal</option><option value="hard">Hard</option></select></div>
+ <div class="whot-settings-actions"><button type="button" id="whotApplySettings">Save &amp; start new match</button><button type="button" id="whotResetCareer">Reset career progress</button></div>
+ <p class="night-sheet-note">Strict Check Up is a Nigerian house-rule option, not a universal rule. The career ranks are NIGHT Play's own progression system. Settings stay saved on this device.</p>
+</section>
+<span class="night-sheet-label">HOW TO PLAY</span><div id="help" class="panel rules"></div><button id="whotNewRoundMenu" type="button" hidden class="whot-settings-newround">New WHOT round</button><p class="night-sheet-note">Games in the Club are local or against CPU. Online rooms are not yet available.</p></div></dialog>
 <button id="ludoSheetBack" class="ludo-sheet-backdrop" hidden aria-label="Close Ludo settings"></button>
-<footer><a href="/games">← Back to all NIGHT games</a><span>NIGHT Play · Original board artwork</span></footer>
+<footer><a href="/games">All NIGHT games</a><span>NIGHT Play · Original board artwork</span></footer>
+<script src="/club/ludo-dice-3d.js" defer></script>
+<script src="/club/ludo-motion.js" defer></script>
 <script src="/club/naija-ludo.js" defer></script>
 <script src="/club/games.js" defer></script>
 </body></html>

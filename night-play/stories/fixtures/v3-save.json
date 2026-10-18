@@ -1,0 +1,2087 @@
+{
+  "schema": 3,
+  "story": "the-last-call",
+  "active": "a3dba41b-a81a-41a1-a2b0-584fd402fd4f",
+  "playthroughs": [
+    {
+      "id": "a3dba41b-a81a-41a1-a2b0-584fd402fd4f",
+      "label": "Test",
+      "revision": 3,
+      "node": "c16a",
+      "state": {
+        "vars": {
+          "imani": 3,
+          "julian": 1,
+          "wren": 0,
+          "injury": 0,
+          "heka": 2,
+          "suspicion": 0,
+          "divine_favour": 1,
+          "shared_imani": true,
+          "lied_imani": false,
+          "transfer": true,
+          "no_transfer": false,
+          "filed_evidence": true,
+          "kept_evidence": false,
+          "delivered_letter": true,
+          "left_rink": false
+        },
+        "inventory": [
+          "notebook",
+          "chalk",
+          "transfer",
+          "recorder",
+          "witness_receipt"
+        ],
+        "knowledge": [
+          "call",
+          "holding",
+          "anubis",
+          "deadline",
+          "acknowledgement",
+          "records",
+          "routes",
+          "release"
+        ],
+        "memories": {
+          "Imani": [
+            {
+              "id": "asked_first",
+              "detail": "You asked for help instead of giving orders.",
+              "at": "c02~5",
+              "choice": "c02:invite"
+            },
+            {
+              "id": "shared_voss",
+              "detail": "You shared Voss’s extra information before using it.",
+              "at": "c10~4",
+              "choice": "c10:share"
+            },
+            {
+              "id": "stayed_rink",
+              "detail": "You stayed to watch the session when the archive called.",
+              "at": "c15~2",
+              "choice": "c15:stay"
+            }
+          ],
+          "Julian": [
+            {
+              "id": "rescued",
+              "detail": "You chose him over a useful component.",
+              "at": "c13~4",
+              "choice": "c13:rescue"
+            }
+          ]
+        },
+        "events": [
+          {
+            "id": "answered_first",
+            "detail": "You answered the first call.",
+            "at": "start",
+            "choice": "start:answer"
+          },
+          {
+            "id": "honest_fare",
+            "detail": "You offered an honest fare at the crossing.",
+            "at": "c04~4",
+            "choice": "c04:truth"
+          },
+          {
+            "id": "letter_delivered",
+            "detail": "You delivered Celia Bell’s letter without reading it.",
+            "at": "c07~4",
+            "choice": "c07:deliver"
+          },
+          {
+            "id": "protected_ella",
+            "detail": "You helped Ella’s household refuse a diverted call.",
+            "at": "c09a~4",
+            "choice": ""
+          },
+          {
+            "id": "evidence_filed",
+            "detail": "You submitted evidence to challenge the false entry.",
+            "at": "c11~4",
+            "choice": "c11:submit"
+          },
+          {
+            "id": "saved_julian",
+            "detail": "You pulled Julian free at the first rescue.",
+            "at": "c13~4",
+            "choice": "c13:rescue"
+          },
+          {
+            "id": "rink_stayed",
+            "detail": "You made time for Imani’s life outside the rescue.",
+            "at": "c15~2",
+            "choice": "c15:stay"
+          }
+        ]
+      },
+      "history": [
+        {
+          "node": "start",
+          "choice": "start:answer",
+          "label": "Answer the call",
+          "chapter": 1
+        },
+        {
+          "node": "c01~6",
+          "choice": "c01:escape",
+          "label": "Follow the cat down the fire escape",
+          "chapter": 1
+        },
+        {
+          "node": "c02~5",
+          "choice": "c02:invite",
+          "label": "Ask Imani to come; share what you know",
+          "chapter": 2
+        },
+        {
+          "node": "c04~4",
+          "choice": "c04:truth",
+          "label": "Tell the driver what you really left behind",
+          "chapter": 4
+        },
+        {
+          "node": "c07~4",
+          "choice": "c07:deliver",
+          "label": "Keep the promise: take the letter to Martin",
+          "chapter": 7
+        },
+        {
+          "node": "c10~4",
+          "choice": "c10:share",
+          "label": "Show Imani the copied numbers now",
+          "chapter": 12
+        },
+        {
+          "node": "c11~4",
+          "choice": "c11:submit",
+          "label": "Submit the evidence; receive a witness seal",
+          "chapter": 13
+        },
+        {
+          "node": "c13~4",
+          "choice": "c13:rescue",
+          "label": "Pull Julian free; leave the spare connector",
+          "chapter": 16
+        },
+        {
+          "node": "c15~2",
+          "choice": "c15:stay",
+          "label": "Stay until Imani’s session ends",
+          "chapter": 18
+        }
+      ],
+      "pages": [
+        {
+          "node": "start",
+          "chapter": 1,
+          "title": "The Person Outside",
+          "text": [
+            "The hallway is empty.",
+            "At least, it was when you locked the door.",
+            "Then your phone vibrates.",
+            "No caller ID.",
+            "The call is dated tomorrow."
+          ]
+        },
+        {
+          "node": "c16a",
+          "chapter": 20,
+          "title": "The Little Workers",
+          "text": [
+            "Julian finds the box while searching for a spare socket. It sits behind two old lamps in a cupboard your mother told you contained nothing interesting.",
+            "Inside are six little clay figures, each about the length of your thumb. They have rough bodies, plain faces and a mark on the back. You take one out. It is surprisingly heavy.",
+            "“Shabti?” you ask.",
+            "“Modern practice models,” Julian says. “Nadia made them. Don't start thinking the museum lends out ancient funerary equipment.”",
+            "There are notes under the tissue. Mum has drawn a picture of a worker figure holding a basket, then written several pages about why telling a created thing to perform an endless task is a poor starting point for any safe experiment.",
+            "Her own models are supposed to carry a defined load from one point to another and stop when the task is complete.",
+            "Imani turns a figure over.",
+            "“So little delivery people.”",
+            "“Little load markers,” Julian says.",
+            "“That's less fun.”",
+            "You line them up on the table. The figures do not look particularly interested in either description."
+          ]
+        }
+      ],
+      "visited": [
+        "start",
+        "b_answer",
+        "c01",
+        "c01~1",
+        "c01~2",
+        "c01~3",
+        "c01~4",
+        "c01~5",
+        "c01~6",
+        "c02",
+        "c02~1",
+        "c02~2",
+        "c02~3",
+        "c02~4",
+        "c02~5",
+        "b_include",
+        "c03",
+        "c03~1",
+        "c03~2",
+        "c03~3",
+        "c03~4",
+        "c03~5",
+        "c03~6",
+        "c04",
+        "c04~1",
+        "c04~2",
+        "c04~3",
+        "c04~4",
+        "c04_honest",
+        "c04_honest~1",
+        "c05",
+        "c05~1",
+        "c05~2",
+        "c05~3",
+        "c05~4",
+        "c06",
+        "c06~1",
+        "c06~2",
+        "c06~3",
+        "c06~4",
+        "c06~5",
+        "c07",
+        "c07~1",
+        "c07~2",
+        "c07~3",
+        "c07~4",
+        "c07a",
+        "c07a~1",
+        "c07a~2",
+        "c07a~3",
+        "c07a~4",
+        "c07a~5",
+        "c08",
+        "c08~1",
+        "c08~2",
+        "c08~3",
+        "c08~4",
+        "c09",
+        "c09~1",
+        "c09~2",
+        "c09~3",
+        "c09~4",
+        "c09~5",
+        "c09a",
+        "c09a~1",
+        "c09a~2",
+        "c09a~3",
+        "c09a~4",
+        "c10",
+        "c10~1",
+        "c10~2",
+        "c10~3",
+        "c10~4",
+        "b_share",
+        "c11",
+        "c11~1",
+        "c11~2",
+        "c11~3",
+        "c11~4",
+        "b_submit",
+        "c12",
+        "c12~1",
+        "c12~2",
+        "c12~3",
+        "c12~4",
+        "c12~5",
+        "c12a",
+        "c12a~1",
+        "c12a~2",
+        "c12a~3",
+        "c12a~4",
+        "c13",
+        "c13~1",
+        "c13~2",
+        "c13~3",
+        "c13~4",
+        "b_save-julian",
+        "c13_tail",
+        "c14",
+        "c14~1",
+        "c14~2",
+        "c14~3",
+        "c14~4",
+        "c15",
+        "c15~1",
+        "c15~2",
+        "b_rink-stay",
+        "c15_tail",
+        "c15_tail~1",
+        "c16",
+        "c16~1",
+        "c16~2",
+        "c16~3",
+        "c16~4",
+        "c16a"
+      ],
+      "chapters": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19
+      ],
+      "checkpoints": [
+        {
+          "chapter": 1,
+          "node": "start",
+          "state": {
+            "vars": {
+              "imani": 0,
+              "julian": 0,
+              "wren": 0,
+              "injury": 0,
+              "heka": 0,
+              "suspicion": 0,
+              "divine_favour": 0,
+              "shared_imani": false,
+              "lied_imani": false,
+              "transfer": false,
+              "no_transfer": false,
+              "filed_evidence": false,
+              "kept_evidence": false,
+              "delivered_letter": false,
+              "left_rink": false
+            },
+            "inventory": [],
+            "knowledge": [],
+            "memories": {},
+            "events": []
+          },
+          "historyLength": 0,
+          "visitedLength": 1,
+          "pagesLength": 0,
+          "chapters": []
+        },
+        {
+          "chapter": 2,
+          "node": "c02",
+          "state": {
+            "vars": {
+              "imani": 0,
+              "julian": 0,
+              "wren": 0,
+              "injury": 0,
+              "heka": 0,
+              "suspicion": 0,
+              "divine_favour": 0,
+              "shared_imani": false,
+              "lied_imani": false,
+              "transfer": false,
+              "no_transfer": false,
+              "filed_evidence": false,
+              "kept_evidence": false,
+              "delivered_letter": false,
+              "left_rink": false
+            },
+            "inventory": [
+              "notebook",
+              "chalk"
+            ],
+            "knowledge": [
+              "call"
+            ],
+            "memories": {},
+            "events": [
+              {
+                "id": "answered_first",
+                "detail": "You answered the first call.",
+                "at": "start",
+                "choice": "start:answer"
+              }
+            ]
+          },
+          "historyLength": 2,
+          "visitedLength": 10,
+          "pagesLength": 9,
+          "chapters": [
+            1
+          ]
+        },
+        {
+          "chapter": 3,
+          "node": "c03",
+          "state": {
+            "vars": {
+              "imani": 1,
+              "julian": 0,
+              "wren": 0,
+              "injury": 0,
+              "heka": 0,
+              "suspicion": 0,
+              "divine_favour": 0,
+              "shared_imani": false,
+              "lied_imani": false,
+              "transfer": false,
+              "no_transfer": false,
+              "filed_evidence": false,
+              "kept_evidence": false,
+              "delivered_letter": false,
+              "left_rink": false
+            },
+            "inventory": [
+              "notebook",
+              "chalk"
+            ],
+            "knowledge": [
+              "call"
+            ],
+            "memories": {
+              "Imani": [
+                {
+                  "id": "asked_first",
+                  "detail": "You asked for help instead of giving orders.",
+                  "at": "c02~5",
+                  "choice": "c02:invite"
+                }
+              ]
+            },
+            "events": [
+              {
+                "id": "answered_first",
+                "detail": "You answered the first call.",
+                "at": "start",
+                "choice": "start:answer"
+              }
+            ]
+          },
+          "historyLength": 3,
+          "visitedLength": 17,
+          "pagesLength": 16,
+          "chapters": [
+            1,
+            2
+          ]
+        },
+        {
+          "chapter": 4,
+          "node": "c04",
+          "state": {
+            "vars": {
+              "imani": 1,
+              "julian": 0,
+              "wren": 0,
+              "injury": 0,
+              "heka": 0,
+              "suspicion": 0,
+              "divine_favour": 0,
+              "shared_imani": false,
+              "lied_imani": false,
+              "transfer": false,
+              "no_transfer": false,
+              "filed_evidence": false,
+              "kept_evidence": false,
+              "delivered_letter": false,
+              "left_rink": false
+            },
+            "inventory": [
+              "notebook",
+              "chalk"
+            ],
+            "knowledge": [
+              "call",
+              "holding"
+            ],
+            "memories": {
+              "Imani": [
+                {
+                  "id": "asked_first",
+                  "detail": "You asked for help instead of giving orders.",
+                  "at": "c02~5",
+                  "choice": "c02:invite"
+                }
+              ]
+            },
+            "events": [
+              {
+                "id": "answered_first",
+                "detail": "You answered the first call.",
+                "at": "start",
+                "choice": "start:answer"
+              }
+            ]
+          },
+          "historyLength": 3,
+          "visitedLength": 24,
+          "pagesLength": 23,
+          "chapters": [
+            1,
+            2,
+            3
+          ]
+        },
+        {
+          "chapter": 5,
+          "node": "c05",
+          "state": {
+            "vars": {
+              "imani": 1,
+              "julian": 0,
+              "wren": 0,
+              "injury": 0,
+              "heka": 0,
+              "suspicion": 0,
+              "divine_favour": 1,
+              "shared_imani": false,
+              "lied_imani": false,
+              "transfer": true,
+              "no_transfer": false,
+              "filed_evidence": false,
+              "kept_evidence": false,
+              "delivered_letter": false,
+              "left_rink": false
+            },
+            "inventory": [
+              "notebook",
+              "chalk",
+              "transfer"
+            ],
+            "knowledge": [
+              "call",
+              "holding",
+              "anubis"
+            ],
+            "memories": {
+              "Imani": [
+                {
+                  "id": "asked_first",
+                  "detail": "You asked for help instead of giving orders.",
+                  "at": "c02~5",
+                  "choice": "c02:invite"
+                }
+              ]
+            },
+            "events": [
+              {
+                "id": "answered_first",
+                "detail": "You answered the first call.",
+                "at": "start",
+                "choice": "start:answer"
+              },
+              {
+                "id": "honest_fare",
+                "detail": "You offered an honest fare at the crossing.",
+                "at": "c04~4",
+                "choice": "c04:truth"
+              }
+            ]
+          },
+          "historyLength": 4,
+          "visitedLength": 31,
+          "pagesLength": 30,
+          "chapters": [
+            1,
+            2,
+            3,
+            4
+          ]
+        },
+        {
+          "chapter": 6,
+          "node": "c06",
+          "state": {
+            "vars": {
+              "imani": 1,
+              "julian": 0,
+              "wren": 0,
+              "injury": 0,
+              "heka": 0,
+              "suspicion": 0,
+              "divine_favour": 1,
+              "shared_imani": false,
+              "lied_imani": false,
+              "transfer": true,
+              "no_transfer": false,
+              "filed_evidence": false,
+              "kept_evidence": false,
+              "delivered_letter": false,
+              "left_rink": false
+            },
+            "inventory": [
+              "notebook",
+              "chalk",
+              "transfer"
+            ],
+            "knowledge": [
+              "call",
+              "holding",
+              "anubis"
+            ],
+            "memories": {
+              "Imani": [
+                {
+                  "id": "asked_first",
+                  "detail": "You asked for help instead of giving orders.",
+                  "at": "c02~5",
+                  "choice": "c02:invite"
+                }
+              ]
+            },
+            "events": [
+              {
+                "id": "answered_first",
+                "detail": "You answered the first call.",
+                "at": "start",
+                "choice": "start:answer"
+              },
+              {
+                "id": "honest_fare",
+                "detail": "You offered an honest fare at the crossing.",
+                "at": "c04~4",
+                "choice": "c04:truth"
+              }
+            ]
+          },
+          "historyLength": 4,
+          "visitedLength": 36,
+          "pagesLength": 35,
+          "chapters": [
+            1,
+            2,
+            3,
+            4,
+            5
+          ]
+        },
+        {
+          "chapter": 7,
+          "node": "c07",
+          "state": {
+            "vars": {
+              "imani": 1,
+              "julian": 0,
+              "wren": 0,
+              "injury": 0,
+              "heka": 1,
+              "suspicion": 0,
+              "divine_favour": 1,
+              "shared_imani": false,
+              "lied_imani": false,
+              "transfer": true,
+              "no_transfer": false,
+              "filed_evidence": false,
+              "kept_evidence": false,
+              "delivered_letter": false,
+              "left_rink": false
+            },
+            "inventory": [
+              "notebook",
+              "chalk",
+              "transfer",
+              "recorder"
+            ],
+            "knowledge": [
+              "call",
+              "holding",
+              "anubis",
+              "deadline"
+            ],
+            "memories": {
+              "Imani": [
+                {
+                  "id": "asked_first",
+                  "detail": "You asked for help instead of giving orders.",
+                  "at": "c02~5",
+                  "choice": "c02:invite"
+                }
+              ]
+            },
+            "events": [
+              {
+                "id": "answered_first",
+                "detail": "You answered the first call.",
+                "at": "start",
+                "choice": "start:answer"
+              },
+              {
+                "id": "honest_fare",
+                "detail": "You offered an honest fare at the crossing.",
+                "at": "c04~4",
+                "choice": "c04:truth"
+              }
+            ]
+          },
+          "historyLength": 4,
+          "visitedLength": 42,
+          "pagesLength": 41,
+          "chapters": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6
+          ]
+        },
+        {
+          "chapter": 8,
+          "node": "c07a",
+          "state": {
+            "vars": {
+              "imani": 1,
+              "julian": 0,
+              "wren": 0,
+              "injury": 0,
+              "heka": 1,
+              "suspicion": 0,
+              "divine_favour": 1,
+              "shared_imani": false,
+              "lied_imani": false,
+              "transfer": true,
+              "no_transfer": false,
+              "filed_evidence": false,
+              "kept_evidence": false,
+              "delivered_letter": true,
+              "left_rink": false
+            },
+            "inventory": [
+              "notebook",
+              "chalk",
+              "transfer",
+              "recorder",
+              "letter"
+            ],
+            "knowledge": [
+              "call",
+              "holding",
+              "anubis",
+              "deadline"
+            ],
+            "memories": {
+              "Imani": [
+                {
+                  "id": "asked_first",
+                  "detail": "You asked for help instead of giving orders.",
+                  "at": "c02~5",
+                  "choice": "c02:invite"
+                }
+              ]
+            },
+            "events": [
+              {
+                "id": "answered_first",
+                "detail": "You answered the first call.",
+                "at": "start",
+                "choice": "start:answer"
+              },
+              {
+                "id": "honest_fare",
+                "detail": "You offered an honest fare at the crossing.",
+                "at": "c04~4",
+                "choice": "c04:truth"
+              },
+              {
+                "id": "letter_delivered",
+                "detail": "You delivered Celia Bell’s letter without reading it.",
+                "at": "c07~4",
+                "choice": "c07:deliver"
+              }
+            ]
+          },
+          "historyLength": 5,
+          "visitedLength": 47,
+          "pagesLength": 46,
+          "chapters": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7
+          ]
+        },
+        {
+          "chapter": 9,
+          "node": "c08",
+          "state": {
+            "vars": {
+              "imani": 1,
+              "julian": 0,
+              "wren": 0,
+              "injury": 0,
+              "heka": 1,
+              "suspicion": 0,
+              "divine_favour": 1,
+              "shared_imani": false,
+              "lied_imani": false,
+              "transfer": true,
+              "no_transfer": false,
+              "filed_evidence": false,
+              "kept_evidence": false,
+              "delivered_letter": true,
+              "left_rink": false
+            },
+            "inventory": [
+              "notebook",
+              "chalk",
+              "transfer",
+              "recorder"
+            ],
+            "knowledge": [
+              "call",
+              "holding",
+              "anubis",
+              "deadline",
+              "acknowledgement"
+            ],
+            "memories": {
+              "Imani": [
+                {
+                  "id": "asked_first",
+                  "detail": "You asked for help instead of giving orders.",
+                  "at": "c02~5",
+                  "choice": "c02:invite"
+                }
+              ]
+            },
+            "events": [
+              {
+                "id": "answered_first",
+                "detail": "You answered the first call.",
+                "at": "start",
+                "choice": "start:answer"
+              },
+              {
+                "id": "honest_fare",
+                "detail": "You offered an honest fare at the crossing.",
+                "at": "c04~4",
+                "choice": "c04:truth"
+              },
+              {
+                "id": "letter_delivered",
+                "detail": "You delivered Celia Bell’s letter without reading it.",
+                "at": "c07~4",
+                "choice": "c07:deliver"
+              }
+            ]
+          },
+          "historyLength": 5,
+          "visitedLength": 53,
+          "pagesLength": 52,
+          "chapters": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8
+          ]
+        },
+        {
+          "chapter": 10,
+          "node": "c09",
+          "state": {
+            "vars": {
+              "imani": 1,
+              "julian": 0,
+              "wren": 0,
+              "injury": 0,
+              "heka": 1,
+              "suspicion": 0,
+              "divine_favour": 1,
+              "shared_imani": false,
+              "lied_imani": false,
+              "transfer": true,
+              "no_transfer": false,
+              "filed_evidence": false,
+              "kept_evidence": false,
+              "delivered_letter": true,
+              "left_rink": false
+            },
+            "inventory": [
+              "notebook",
+              "chalk",
+              "transfer",
+              "recorder"
+            ],
+            "knowledge": [
+              "call",
+              "holding",
+              "anubis",
+              "deadline",
+              "acknowledgement"
+            ],
+            "memories": {
+              "Imani": [
+                {
+                  "id": "asked_first",
+                  "detail": "You asked for help instead of giving orders.",
+                  "at": "c02~5",
+                  "choice": "c02:invite"
+                }
+              ]
+            },
+            "events": [
+              {
+                "id": "answered_first",
+                "detail": "You answered the first call.",
+                "at": "start",
+                "choice": "start:answer"
+              },
+              {
+                "id": "honest_fare",
+                "detail": "You offered an honest fare at the crossing.",
+                "at": "c04~4",
+                "choice": "c04:truth"
+              },
+              {
+                "id": "letter_delivered",
+                "detail": "You delivered Celia Bell’s letter without reading it.",
+                "at": "c07~4",
+                "choice": "c07:deliver"
+              }
+            ]
+          },
+          "historyLength": 5,
+          "visitedLength": 58,
+          "pagesLength": 57,
+          "chapters": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9
+          ]
+        },
+        {
+          "chapter": 11,
+          "node": "c09a",
+          "state": {
+            "vars": {
+              "imani": 1,
+              "julian": 0,
+              "wren": 0,
+              "injury": 0,
+              "heka": 1,
+              "suspicion": 0,
+              "divine_favour": 1,
+              "shared_imani": false,
+              "lied_imani": false,
+              "transfer": true,
+              "no_transfer": false,
+              "filed_evidence": false,
+              "kept_evidence": false,
+              "delivered_letter": true,
+              "left_rink": false
+            },
+            "inventory": [
+              "notebook",
+              "chalk",
+              "transfer",
+              "recorder"
+            ],
+            "knowledge": [
+              "call",
+              "holding",
+              "anubis",
+              "deadline",
+              "acknowledgement"
+            ],
+            "memories": {
+              "Imani": [
+                {
+                  "id": "asked_first",
+                  "detail": "You asked for help instead of giving orders.",
+                  "at": "c02~5",
+                  "choice": "c02:invite"
+                }
+              ]
+            },
+            "events": [
+              {
+                "id": "answered_first",
+                "detail": "You answered the first call.",
+                "at": "start",
+                "choice": "start:answer"
+              },
+              {
+                "id": "honest_fare",
+                "detail": "You offered an honest fare at the crossing.",
+                "at": "c04~4",
+                "choice": "c04:truth"
+              },
+              {
+                "id": "letter_delivered",
+                "detail": "You delivered Celia Bell’s letter without reading it.",
+                "at": "c07~4",
+                "choice": "c07:deliver"
+              }
+            ]
+          },
+          "historyLength": 5,
+          "visitedLength": 64,
+          "pagesLength": 63,
+          "chapters": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10
+          ]
+        },
+        {
+          "chapter": 12,
+          "node": "c10",
+          "state": {
+            "vars": {
+              "imani": 1,
+              "julian": 0,
+              "wren": 0,
+              "injury": 0,
+              "heka": 1,
+              "suspicion": 0,
+              "divine_favour": 1,
+              "shared_imani": false,
+              "lied_imani": false,
+              "transfer": true,
+              "no_transfer": false,
+              "filed_evidence": false,
+              "kept_evidence": false,
+              "delivered_letter": true,
+              "left_rink": false
+            },
+            "inventory": [
+              "notebook",
+              "chalk",
+              "transfer",
+              "recorder"
+            ],
+            "knowledge": [
+              "call",
+              "holding",
+              "anubis",
+              "deadline",
+              "acknowledgement"
+            ],
+            "memories": {
+              "Imani": [
+                {
+                  "id": "asked_first",
+                  "detail": "You asked for help instead of giving orders.",
+                  "at": "c02~5",
+                  "choice": "c02:invite"
+                }
+              ]
+            },
+            "events": [
+              {
+                "id": "answered_first",
+                "detail": "You answered the first call.",
+                "at": "start",
+                "choice": "start:answer"
+              },
+              {
+                "id": "honest_fare",
+                "detail": "You offered an honest fare at the crossing.",
+                "at": "c04~4",
+                "choice": "c04:truth"
+              },
+              {
+                "id": "letter_delivered",
+                "detail": "You delivered Celia Bell’s letter without reading it.",
+                "at": "c07~4",
+                "choice": "c07:deliver"
+              },
+              {
+                "id": "protected_ella",
+                "detail": "You helped Ella’s household refuse a diverted call.",
+                "at": "c09a~4",
+                "choice": ""
+              }
+            ]
+          },
+          "historyLength": 5,
+          "visitedLength": 69,
+          "pagesLength": 68,
+          "chapters": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11
+          ]
+        },
+        {
+          "chapter": 13,
+          "node": "c11",
+          "state": {
+            "vars": {
+              "imani": 2,
+              "julian": 0,
+              "wren": 0,
+              "injury": 0,
+              "heka": 1,
+              "suspicion": 0,
+              "divine_favour": 1,
+              "shared_imani": true,
+              "lied_imani": false,
+              "transfer": true,
+              "no_transfer": false,
+              "filed_evidence": false,
+              "kept_evidence": false,
+              "delivered_letter": true,
+              "left_rink": false
+            },
+            "inventory": [
+              "notebook",
+              "chalk",
+              "transfer",
+              "recorder"
+            ],
+            "knowledge": [
+              "call",
+              "holding",
+              "anubis",
+              "deadline",
+              "acknowledgement"
+            ],
+            "memories": {
+              "Imani": [
+                {
+                  "id": "asked_first",
+                  "detail": "You asked for help instead of giving orders.",
+                  "at": "c02~5",
+                  "choice": "c02:invite"
+                },
+                {
+                  "id": "shared_voss",
+                  "detail": "You shared Voss’s extra information before using it.",
+                  "at": "c10~4",
+                  "choice": "c10:share"
+                }
+              ]
+            },
+            "events": [
+              {
+                "id": "answered_first",
+                "detail": "You answered the first call.",
+                "at": "start",
+                "choice": "start:answer"
+              },
+              {
+                "id": "honest_fare",
+                "detail": "You offered an honest fare at the crossing.",
+                "at": "c04~4",
+                "choice": "c04:truth"
+              },
+              {
+                "id": "letter_delivered",
+                "detail": "You delivered Celia Bell’s letter without reading it.",
+                "at": "c07~4",
+                "choice": "c07:deliver"
+              },
+              {
+                "id": "protected_ella",
+                "detail": "You helped Ella’s household refuse a diverted call.",
+                "at": "c09a~4",
+                "choice": ""
+              }
+            ]
+          },
+          "historyLength": 6,
+          "visitedLength": 75,
+          "pagesLength": 74,
+          "chapters": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12
+          ]
+        },
+        {
+          "chapter": 14,
+          "node": "c12",
+          "state": {
+            "vars": {
+              "imani": 2,
+              "julian": 0,
+              "wren": 0,
+              "injury": 0,
+              "heka": 1,
+              "suspicion": 0,
+              "divine_favour": 1,
+              "shared_imani": true,
+              "lied_imani": false,
+              "transfer": true,
+              "no_transfer": false,
+              "filed_evidence": true,
+              "kept_evidence": false,
+              "delivered_letter": true,
+              "left_rink": false
+            },
+            "inventory": [
+              "notebook",
+              "chalk",
+              "transfer",
+              "recorder",
+              "witness_receipt"
+            ],
+            "knowledge": [
+              "call",
+              "holding",
+              "anubis",
+              "deadline",
+              "acknowledgement",
+              "records"
+            ],
+            "memories": {
+              "Imani": [
+                {
+                  "id": "asked_first",
+                  "detail": "You asked for help instead of giving orders.",
+                  "at": "c02~5",
+                  "choice": "c02:invite"
+                },
+                {
+                  "id": "shared_voss",
+                  "detail": "You shared Voss’s extra information before using it.",
+                  "at": "c10~4",
+                  "choice": "c10:share"
+                }
+              ]
+            },
+            "events": [
+              {
+                "id": "answered_first",
+                "detail": "You answered the first call.",
+                "at": "start",
+                "choice": "start:answer"
+              },
+              {
+                "id": "honest_fare",
+                "detail": "You offered an honest fare at the crossing.",
+                "at": "c04~4",
+                "choice": "c04:truth"
+              },
+              {
+                "id": "letter_delivered",
+                "detail": "You delivered Celia Bell’s letter without reading it.",
+                "at": "c07~4",
+                "choice": "c07:deliver"
+              },
+              {
+                "id": "protected_ella",
+                "detail": "You helped Ella’s household refuse a diverted call.",
+                "at": "c09a~4",
+                "choice": ""
+              },
+              {
+                "id": "evidence_filed",
+                "detail": "You submitted evidence to challenge the false entry.",
+                "at": "c11~4",
+                "choice": "c11:submit"
+              }
+            ]
+          },
+          "historyLength": 7,
+          "visitedLength": 81,
+          "pagesLength": 80,
+          "chapters": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13
+          ]
+        },
+        {
+          "chapter": 15,
+          "node": "c12a",
+          "state": {
+            "vars": {
+              "imani": 2,
+              "julian": 0,
+              "wren": 0,
+              "injury": 0,
+              "heka": 1,
+              "suspicion": 0,
+              "divine_favour": 1,
+              "shared_imani": true,
+              "lied_imani": false,
+              "transfer": true,
+              "no_transfer": false,
+              "filed_evidence": true,
+              "kept_evidence": false,
+              "delivered_letter": true,
+              "left_rink": false
+            },
+            "inventory": [
+              "notebook",
+              "chalk",
+              "transfer",
+              "recorder",
+              "witness_receipt"
+            ],
+            "knowledge": [
+              "call",
+              "holding",
+              "anubis",
+              "deadline",
+              "acknowledgement",
+              "records"
+            ],
+            "memories": {
+              "Imani": [
+                {
+                  "id": "asked_first",
+                  "detail": "You asked for help instead of giving orders.",
+                  "at": "c02~5",
+                  "choice": "c02:invite"
+                },
+                {
+                  "id": "shared_voss",
+                  "detail": "You shared Voss’s extra information before using it.",
+                  "at": "c10~4",
+                  "choice": "c10:share"
+                }
+              ]
+            },
+            "events": [
+              {
+                "id": "answered_first",
+                "detail": "You answered the first call.",
+                "at": "start",
+                "choice": "start:answer"
+              },
+              {
+                "id": "honest_fare",
+                "detail": "You offered an honest fare at the crossing.",
+                "at": "c04~4",
+                "choice": "c04:truth"
+              },
+              {
+                "id": "letter_delivered",
+                "detail": "You delivered Celia Bell’s letter without reading it.",
+                "at": "c07~4",
+                "choice": "c07:deliver"
+              },
+              {
+                "id": "protected_ella",
+                "detail": "You helped Ella’s household refuse a diverted call.",
+                "at": "c09a~4",
+                "choice": ""
+              },
+              {
+                "id": "evidence_filed",
+                "detail": "You submitted evidence to challenge the false entry.",
+                "at": "c11~4",
+                "choice": "c11:submit"
+              }
+            ]
+          },
+          "historyLength": 7,
+          "visitedLength": 87,
+          "pagesLength": 86,
+          "chapters": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14
+          ]
+        },
+        {
+          "chapter": 16,
+          "node": "c13",
+          "state": {
+            "vars": {
+              "imani": 2,
+              "julian": 0,
+              "wren": 0,
+              "injury": 0,
+              "heka": 2,
+              "suspicion": 0,
+              "divine_favour": 1,
+              "shared_imani": true,
+              "lied_imani": false,
+              "transfer": true,
+              "no_transfer": false,
+              "filed_evidence": true,
+              "kept_evidence": false,
+              "delivered_letter": true,
+              "left_rink": false
+            },
+            "inventory": [
+              "notebook",
+              "chalk",
+              "transfer",
+              "recorder",
+              "witness_receipt"
+            ],
+            "knowledge": [
+              "call",
+              "holding",
+              "anubis",
+              "deadline",
+              "acknowledgement",
+              "records",
+              "routes"
+            ],
+            "memories": {
+              "Imani": [
+                {
+                  "id": "asked_first",
+                  "detail": "You asked for help instead of giving orders.",
+                  "at": "c02~5",
+                  "choice": "c02:invite"
+                },
+                {
+                  "id": "shared_voss",
+                  "detail": "You shared Voss’s extra information before using it.",
+                  "at": "c10~4",
+                  "choice": "c10:share"
+                }
+              ]
+            },
+            "events": [
+              {
+                "id": "answered_first",
+                "detail": "You answered the first call.",
+                "at": "start",
+                "choice": "start:answer"
+              },
+              {
+                "id": "honest_fare",
+                "detail": "You offered an honest fare at the crossing.",
+                "at": "c04~4",
+                "choice": "c04:truth"
+              },
+              {
+                "id": "letter_delivered",
+                "detail": "You delivered Celia Bell’s letter without reading it.",
+                "at": "c07~4",
+                "choice": "c07:deliver"
+              },
+              {
+                "id": "protected_ella",
+                "detail": "You helped Ella’s household refuse a diverted call.",
+                "at": "c09a~4",
+                "choice": ""
+              },
+              {
+                "id": "evidence_filed",
+                "detail": "You submitted evidence to challenge the false entry.",
+                "at": "c11~4",
+                "choice": "c11:submit"
+              }
+            ]
+          },
+          "historyLength": 7,
+          "visitedLength": 92,
+          "pagesLength": 91,
+          "chapters": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15
+          ]
+        },
+        {
+          "chapter": 17,
+          "node": "c14",
+          "state": {
+            "vars": {
+              "imani": 2,
+              "julian": 1,
+              "wren": 0,
+              "injury": 0,
+              "heka": 2,
+              "suspicion": 0,
+              "divine_favour": 1,
+              "shared_imani": true,
+              "lied_imani": false,
+              "transfer": true,
+              "no_transfer": false,
+              "filed_evidence": true,
+              "kept_evidence": false,
+              "delivered_letter": true,
+              "left_rink": false
+            },
+            "inventory": [
+              "notebook",
+              "chalk",
+              "transfer",
+              "recorder",
+              "witness_receipt"
+            ],
+            "knowledge": [
+              "call",
+              "holding",
+              "anubis",
+              "deadline",
+              "acknowledgement",
+              "records",
+              "routes"
+            ],
+            "memories": {
+              "Imani": [
+                {
+                  "id": "asked_first",
+                  "detail": "You asked for help instead of giving orders.",
+                  "at": "c02~5",
+                  "choice": "c02:invite"
+                },
+                {
+                  "id": "shared_voss",
+                  "detail": "You shared Voss’s extra information before using it.",
+                  "at": "c10~4",
+                  "choice": "c10:share"
+                }
+              ],
+              "Julian": [
+                {
+                  "id": "rescued",
+                  "detail": "You chose him over a useful component.",
+                  "at": "c13~4",
+                  "choice": "c13:rescue"
+                }
+              ]
+            },
+            "events": [
+              {
+                "id": "answered_first",
+                "detail": "You answered the first call.",
+                "at": "start",
+                "choice": "start:answer"
+              },
+              {
+                "id": "honest_fare",
+                "detail": "You offered an honest fare at the crossing.",
+                "at": "c04~4",
+                "choice": "c04:truth"
+              },
+              {
+                "id": "letter_delivered",
+                "detail": "You delivered Celia Bell’s letter without reading it.",
+                "at": "c07~4",
+                "choice": "c07:deliver"
+              },
+              {
+                "id": "protected_ella",
+                "detail": "You helped Ella’s household refuse a diverted call.",
+                "at": "c09a~4",
+                "choice": ""
+              },
+              {
+                "id": "evidence_filed",
+                "detail": "You submitted evidence to challenge the false entry.",
+                "at": "c11~4",
+                "choice": "c11:submit"
+              },
+              {
+                "id": "saved_julian",
+                "detail": "You pulled Julian free at the first rescue.",
+                "at": "c13~4",
+                "choice": "c13:rescue"
+              }
+            ]
+          },
+          "historyLength": 8,
+          "visitedLength": 99,
+          "pagesLength": 98,
+          "chapters": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16
+          ]
+        },
+        {
+          "chapter": 18,
+          "node": "c15",
+          "state": {
+            "vars": {
+              "imani": 2,
+              "julian": 1,
+              "wren": 0,
+              "injury": 0,
+              "heka": 2,
+              "suspicion": 0,
+              "divine_favour": 1,
+              "shared_imani": true,
+              "lied_imani": false,
+              "transfer": true,
+              "no_transfer": false,
+              "filed_evidence": true,
+              "kept_evidence": false,
+              "delivered_letter": true,
+              "left_rink": false
+            },
+            "inventory": [
+              "notebook",
+              "chalk",
+              "transfer",
+              "recorder",
+              "witness_receipt"
+            ],
+            "knowledge": [
+              "call",
+              "holding",
+              "anubis",
+              "deadline",
+              "acknowledgement",
+              "records",
+              "routes"
+            ],
+            "memories": {
+              "Imani": [
+                {
+                  "id": "asked_first",
+                  "detail": "You asked for help instead of giving orders.",
+                  "at": "c02~5",
+                  "choice": "c02:invite"
+                },
+                {
+                  "id": "shared_voss",
+                  "detail": "You shared Voss’s extra information before using it.",
+                  "at": "c10~4",
+                  "choice": "c10:share"
+                }
+              ],
+              "Julian": [
+                {
+                  "id": "rescued",
+                  "detail": "You chose him over a useful component.",
+                  "at": "c13~4",
+                  "choice": "c13:rescue"
+                }
+              ]
+            },
+            "events": [
+              {
+                "id": "answered_first",
+                "detail": "You answered the first call.",
+                "at": "start",
+                "choice": "start:answer"
+              },
+              {
+                "id": "honest_fare",
+                "detail": "You offered an honest fare at the crossing.",
+                "at": "c04~4",
+                "choice": "c04:truth"
+              },
+              {
+                "id": "letter_delivered",
+                "detail": "You delivered Celia Bell’s letter without reading it.",
+                "at": "c07~4",
+                "choice": "c07:deliver"
+              },
+              {
+                "id": "protected_ella",
+                "detail": "You helped Ella’s household refuse a diverted call.",
+                "at": "c09a~4",
+                "choice": ""
+              },
+              {
+                "id": "evidence_filed",
+                "detail": "You submitted evidence to challenge the false entry.",
+                "at": "c11~4",
+                "choice": "c11:submit"
+              },
+              {
+                "id": "saved_julian",
+                "detail": "You pulled Julian free at the first rescue.",
+                "at": "c13~4",
+                "choice": "c13:rescue"
+              }
+            ]
+          },
+          "historyLength": 8,
+          "visitedLength": 104,
+          "pagesLength": 103,
+          "chapters": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16,
+            17
+          ]
+        },
+        {
+          "chapter": 19,
+          "node": "c16",
+          "state": {
+            "vars": {
+              "imani": 3,
+              "julian": 1,
+              "wren": 0,
+              "injury": 0,
+              "heka": 2,
+              "suspicion": 0,
+              "divine_favour": 1,
+              "shared_imani": true,
+              "lied_imani": false,
+              "transfer": true,
+              "no_transfer": false,
+              "filed_evidence": true,
+              "kept_evidence": false,
+              "delivered_letter": true,
+              "left_rink": false
+            },
+            "inventory": [
+              "notebook",
+              "chalk",
+              "transfer",
+              "recorder",
+              "witness_receipt"
+            ],
+            "knowledge": [
+              "call",
+              "holding",
+              "anubis",
+              "deadline",
+              "acknowledgement",
+              "records",
+              "routes"
+            ],
+            "memories": {
+              "Imani": [
+                {
+                  "id": "asked_first",
+                  "detail": "You asked for help instead of giving orders.",
+                  "at": "c02~5",
+                  "choice": "c02:invite"
+                },
+                {
+                  "id": "shared_voss",
+                  "detail": "You shared Voss’s extra information before using it.",
+                  "at": "c10~4",
+                  "choice": "c10:share"
+                },
+                {
+                  "id": "stayed_rink",
+                  "detail": "You stayed to watch the session when the archive called.",
+                  "at": "c15~2",
+                  "choice": "c15:stay"
+                }
+              ],
+              "Julian": [
+                {
+                  "id": "rescued",
+                  "detail": "You chose him over a useful component.",
+                  "at": "c13~4",
+                  "choice": "c13:rescue"
+                }
+              ]
+            },
+            "events": [
+              {
+                "id": "answered_first",
+                "detail": "You answered the first call.",
+                "at": "start",
+                "choice": "start:answer"
+              },
+              {
+                "id": "honest_fare",
+                "detail": "You offered an honest fare at the crossing.",
+                "at": "c04~4",
+                "choice": "c04:truth"
+              },
+              {
+                "id": "letter_delivered",
+                "detail": "You delivered Celia Bell’s letter without reading it.",
+                "at": "c07~4",
+                "choice": "c07:deliver"
+              },
+              {
+                "id": "protected_ella",
+                "detail": "You helped Ella’s household refuse a diverted call.",
+                "at": "c09a~4",
+                "choice": ""
+              },
+              {
+                "id": "evidence_filed",
+                "detail": "You submitted evidence to challenge the false entry.",
+                "at": "c11~4",
+                "choice": "c11:submit"
+              },
+              {
+                "id": "saved_julian",
+                "detail": "You pulled Julian free at the first rescue.",
+                "at": "c13~4",
+                "choice": "c13:rescue"
+              },
+              {
+                "id": "rink_stayed",
+                "detail": "You made time for Imani’s life outside the rescue.",
+                "at": "c15~2",
+                "choice": "c15:stay"
+              }
+            ]
+          },
+          "historyLength": 9,
+          "visitedLength": 110,
+          "pagesLength": 109,
+          "chapters": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16,
+            17,
+            18
+          ]
+        },
+        {
+          "chapter": 20,
+          "node": "c16a",
+          "state": {
+            "vars": {
+              "imani": 3,
+              "julian": 1,
+              "wren": 0,
+              "injury": 0,
+              "heka": 2,
+              "suspicion": 0,
+              "divine_favour": 1,
+              "shared_imani": true,
+              "lied_imani": false,
+              "transfer": true,
+              "no_transfer": false,
+              "filed_evidence": true,
+              "kept_evidence": false,
+              "delivered_letter": true,
+              "left_rink": false
+            },
+            "inventory": [
+              "notebook",
+              "chalk",
+              "transfer",
+              "recorder",
+              "witness_receipt"
+            ],
+            "knowledge": [
+              "call",
+              "holding",
+              "anubis",
+              "deadline",
+              "acknowledgement",
+              "records",
+              "routes",
+              "release"
+            ],
+            "memories": {
+              "Imani": [
+                {
+                  "id": "asked_first",
+                  "detail": "You asked for help instead of giving orders.",
+                  "at": "c02~5",
+                  "choice": "c02:invite"
+                },
+                {
+                  "id": "shared_voss",
+                  "detail": "You shared Voss’s extra information before using it.",
+                  "at": "c10~4",
+                  "choice": "c10:share"
+                },
+                {
+                  "id": "stayed_rink",
+                  "detail": "You stayed to watch the session when the archive called.",
+                  "at": "c15~2",
+                  "choice": "c15:stay"
+                }
+              ],
+              "Julian": [
+                {
+                  "id": "rescued",
+                  "detail": "You chose him over a useful component.",
+                  "at": "c13~4",
+                  "choice": "c13:rescue"
+                }
+              ]
+            },
+            "events": [
+              {
+                "id": "answered_first",
+                "detail": "You answered the first call.",
+                "at": "start",
+                "choice": "start:answer"
+              },
+              {
+                "id": "honest_fare",
+                "detail": "You offered an honest fare at the crossing.",
+                "at": "c04~4",
+                "choice": "c04:truth"
+              },
+              {
+                "id": "letter_delivered",
+                "detail": "You delivered Celia Bell’s letter without reading it.",
+                "at": "c07~4",
+                "choice": "c07:deliver"
+              },
+              {
+                "id": "protected_ella",
+                "detail": "You helped Ella’s household refuse a diverted call.",
+                "at": "c09a~4",
+                "choice": ""
+              },
+              {
+                "id": "evidence_filed",
+                "detail": "You submitted evidence to challenge the false entry.",
+                "at": "c11~4",
+                "choice": "c11:submit"
+              },
+              {
+                "id": "saved_julian",
+                "detail": "You pulled Julian free at the first rescue.",
+                "at": "c13~4",
+                "choice": "c13:rescue"
+              },
+              {
+                "id": "rink_stayed",
+                "detail": "You made time for Imani’s life outside the rescue.",
+                "at": "c15~2",
+                "choice": "c15:stay"
+              }
+            ]
+          },
+          "historyLength": 9,
+          "visitedLength": 115,
+          "pagesLength": 114,
+          "chapters": [
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16,
+            17,
+            18,
+            19
+          ]
+        }
+      ],
+      "reading": {
+        "revealed": 1,
+        "ready": false,
+        "scroll": 70
+      },
+      "created": 1792134746061,
+      "updated": 1792134746493,
+      "ending": null
+    }
+  ],
+  "endings": []
+}

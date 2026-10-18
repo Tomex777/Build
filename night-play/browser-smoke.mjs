@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs'
 import { createServer } from 'node:http'
 import { chromium } from 'playwright'
 const html=readFileSync(new URL('./index.html',import.meta.url))
-const server=createServer((req,res)=>{res.writeHead(200,{'content-type':'text/html; charset=utf-8','cache-control':'no-store'});res.end(html)})
+const server=createServer((req,res)=>{if(req.url==='/account-client.js'){res.writeHead(200,{'content-type':'text/javascript'});res.end(readFileSync(new URL('./account-client.js',import.meta.url)));return}if(req.url==='/api/account'){res.writeHead(200,{'content-type':'application/json'});res.end(JSON.stringify({linked:false,profile:null}));return}res.writeHead(200,{'content-type':'text/html; charset=utf-8','cache-control':'no-store'});res.end(html)})
 await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve))
 let browser
 try {
@@ -80,8 +80,12 @@ try {
  assert.equal(await page.locator('#selectedGameTitle').textContent(),'Game activity')
  await page.locator('.mobile-nav a[href="/games"]').click()
  await page.locator('#view-games').waitFor({state:'visible'})
+ console.log('NIGHT_GAME_GALLERY_BASE64='+(await page.locator('#view-games').screenshot({type:'jpeg',quality:58})).toString('base64'));
  assert.equal(await page.locator('.brand-mark use').first().getAttribute('href'),'#icon-brand')
- assert.equal(await page.locator('.library-card .game-art').count(),11,'All game thumbnails render custom SVG')
+ assert.equal(await page.locator('.library-card .game-art').count(),10,'Other games retain custom SVG thumbnails')
+ assert.equal(await page.locator('.library-card[data-name="wing hop flappy bird"] .wing-preview-bird').count(),1,'Wing Hop uses actual bundled character artwork')
+ assert.equal(await page.locator('.library-card[data-club="ludo"]').count(),0,'Unfinished Ludo is hidden from the public game library')
+ assert.equal(await page.locator('.library-card[data-jigsaw]').count(),1,'Jigsaw is listed among puzzle games')
  assert.equal(await page.locator('.mobile-nav .ui-icon').count(),3,'All mobile tabs render SVG icons')
  assert.equal(await page.locator('.library-card .game-emoji').count(),0,'No emoji artwork')
  assert.ok(await page.locator('.library-card').first().evaluate(el=>getComputedStyle(el).borderTopWidth)==='1px','Cards have thin border')
@@ -95,6 +99,29 @@ try {
  assert.equal(await page.locator('#gameDialog').getAttribute('data-skin'),'2048','Game-specific visual skin is applied')
 
  assert.equal(await page.locator('#board2048 .tile').count(),16)
+ assert.match(await page.locator('#gameSettings svg path').getAttribute('d'),/^M9\.671 /,'2048 has the approved gear icon');
+ const btn2048=await page.locator('#gameSettings').boundingBox();
+ assert.ok(btn2048.width>=37&&btn2048.width<=100,'2048 settings icon matches compact Jigsaw button');
+ // Re-rendering and swiping must not remount the grid or hide its cell surfaces.
+ const stable2048=await page.evaluate(()=>{
+  grid=[[0,0,0,2],[0,0,0,0],[0,0,0,0],[0,0,0,0]];tileScore=0;draw2048();
+  const board=document.getElementById('board2048'),before=[...board.querySelectorAll(':scope > .tile')];
+  move2048('left');
+  const after=[...board.querySelectorAll(':scope > .tile')];
+  return {sameNodes:before.every((node,i)=>node===after[i]),sliding:board.classList.contains('tile-sliding'),
+   visible:after.every(node=>getComputedStyle(node).visibility==='visible'),
+   opaque:after.every(node=>getComputedStyle(node).backgroundColor!=='rgba(0, 0, 0, 0)'),
+   movingTiles:board.querySelectorAll(':scope > .tile-layer .tile-ghost').length};
+ });
+ assert.equal(stable2048.sameNodes,true,'2048 must retain grid cell nodes on swipe');
+ assert.equal(stable2048.sliding,true,'2048 retains the sliding-tile animation');
+ assert.equal(stable2048.visible,true,'2048 grid cells remain visible during animation');
+ assert.equal(stable2048.opaque,true,'2048 grid cells have an opaque backing throughout animation');
+ assert.ok(stable2048.movingTiles>0,'2048 animated tiles are rendered above stable grid');
+ await page.evaluate(()=>{move2048('right');move2048('left')});
+ await page.waitForTimeout(230);
+ assert.equal(await page.locator('#board2048').evaluate(board=>board.classList.contains('tile-sliding')),false,'Rapid swipes must clean up the latest animation');
+ assert.equal(await page.locator('#board2048 .tile-layer').count(),0,'No stale 2048 animation overlay after rapid swipes');
  assert.ok(await page.locator('#board2048').evaluate(el=>el.getBoundingClientRect().width)>=376,'2048 arena occupies nearly full 390px viewport')
  const title2048=await page.locator('#gameTitle').boundingBox();
  assert.ok(title2048.y<130,'Game title is at the TOP, not alongside the board');
@@ -129,6 +156,8 @@ try {
  assert.ok(await page.evaluate(()=>Boolean(localStorage.getItem('night-play-save-2048-5'))))
  await page.locator('[data-close-game]').first().click()
  await page.locator('.library-card[data-game="snake"]').click()
+ assert.match(await page.locator('#gameSettings svg path').getAttribute('d'),/^M9\.671 /,'Snake has the corrected settings icon');
+ console.log('NIGHT_SNAKE_SETTINGS_JPEG_BASE64='+(await page.screenshot({type:'jpeg',quality:48})).toString('base64'));
  assert.equal(await page.locator('.dpad').count(),0,'No Snake directional buttons exist')
  const tallArena=await page.locator('.snake-shell').evaluate(el=>{const r=el.getBoundingClientRect();return {width:r.width,height:r.height,ratio:r.height/r.width}});
  assert.ok(tallArena.width>=375,'Snake retains nearly full device width on tall phones');
@@ -181,6 +210,8 @@ try {
  await page.locator('#snakeOverlay').click()
  await page.locator('[data-close-game]').first().click()
  await page.locator('.library-card[data-game="ttt"]').click()
+ assert.match(await page.locator('#gameSettings svg path').getAttribute('d'),/^M9\.671 /,'Tic-Tac-Toe has the corrected settings icon');
+ console.log('NIGHT_TTT_SETTINGS_JPEG_BASE64='+(await page.screenshot({type:'jpeg',quality:48})).toString('base64'));
  await page.locator('#gameSettings').click()
  await page.getByRole('button',{name:'Hard'}).click()
  await page.locator('#closeSettings').click()
@@ -197,7 +228,39 @@ try {
  assert.equal(await page.locator('#gameFocus').getAttribute('aria-pressed'),'false')
 
  await page.locator('#tttboard button').first().click()
+ await page.evaluate(()=>{window.__nightTttXMark=document.querySelector('#tttboard .ttt-cell .ttt-mark')});
  await page.waitForFunction(()=>Array.from(document.querySelectorAll('#tttboard button')).some(b=>b.textContent==='O'),null,{timeout:10000})
+ assert.equal(await page.evaluate(()=>document.querySelector('#tttboard .ttt-cell .ttt-mark')===window.__nightTttXMark),true,'Existing X must retain its SVG after bot plays O');
+ await page.evaluate(()=>drawTtt());
+ assert.equal(await page.evaluate(()=>document.querySelector('#tttboard .ttt-cell .ttt-mark')===window.__nightTttXMark),true,'Unrelated Tic-Tac-Toe renders must never replay the X animation');
+ // A completely filled draw should show a centered result card for ~3s,
+ // then start the next local round on the very same game screen.
+ const tiedBoard=['X','O','X','X','O','O','O','X',''];
+ await page.evaluate(tie=>{
+  mode='local';ttt=[...tie];turn='X';tttFinished=false;gamePaused=false;
+  drawTtt();moveTtt(8);
+ },tiedBoard);
+ assert.equal(await page.locator('#tttboard .ttt-cell').count(),9);
+ await page.locator('#tttboard .ttt-draw-overlay').waitFor({state:'visible',timeout:2000});
+ assert.equal(await page.locator('.ttt-draw-card h3').textContent(),"It's a draw!",'A draw must display its animated result card');
+ assert.equal(await page.locator('.ttt-draw-seconds').textContent(),'3s','Draw card holds a 3-second countdown');
+ assert.equal(await page.evaluate(()=>ttt.every(Boolean)&&tttFinished),true,'Filled round stays on screen while result appears');
+ await page.waitForFunction(()=>!tttFinished&&ttt.every(mark=>mark===''),null,{timeout:5000});
+ await page.locator('#tttboard .ttt-draw-overlay').waitFor({state:'detached',timeout:2000});
+ assert.equal(await page.evaluate(()=>mode),'local','Automatic next round keeps 2-player mode');
+ assert.equal(await page.evaluate(()=>turn),'X','Automatic next round begins with X');
+ assert.equal(new URL(page.url()).pathname,'/play/ttt','Auto-start must not navigate to another page');
+ assert.deepEqual(await page.evaluate(()=>JSON.parse(localStorage.getItem('night-play-save-ttt')).board),Array(9).fill(''),'Next round is saved with blank cells');
+
+ // Restart cancels a pending result timer; it must never erase a newly played X.
+ await page.evaluate(tie=>{ttt=[...tie];turn='X';tttFinished=false;mode='local';drawTtt();moveTtt(8)},tiedBoard);
+ await page.locator('#tttboard .ttt-draw-overlay').waitFor({state:'visible',timeout:2000});
+ await page.locator('#restart').click();
+ assert.equal(await page.locator('#tttboard .ttt-draw-overlay').count(),0,'Restart dismisses draw overlay');
+ await page.evaluate(()=>{mode='local';drawTtt();moveTtt(0)});
+ await page.waitForTimeout(3400);
+ assert.equal(await page.evaluate(()=>ttt[0]),'X','Old result timeout cannot erase new-round moves');
+ assert.equal(await page.locator('#tttboard .ttt-draw-overlay').count(),0);
  await page.locator('[data-close-game]').first().click()
  await page.locator('.mobile-nav a[href="/dashboard"]').click()
  assert.match((await page.locator('#homeGreeting').textContent())||'',/^Good (morning|afternoon|evening|night), Alex\.$/)

@@ -9,6 +9,9 @@ This release prioritizes real visual playability and also changes Snake speed se
 - Every interactive icon is a genuine line-drawn SVG, not a font-dependent Unicode glyph. New game art should be authored as a reusable local `<symbol>`, with contrast and the original game palette. Avoid third-party image requests.
 - SVG art is flat, static and directly tied to gameplay: grid/trail for Snake, numeric tiles for 2048, game board for Tic-Tac-Toe, and similarly legible objects for upcoming titles.
 - Use cards only for self-contained activities that warrant a hit area. No needless nested cards. Type scale and focus states should carry hierarchy.
+- **Never restore generic boxed arrow buttons** to clickable game/story cards or the profile's channel row. The card itself is the hit area; labeled actions do not need decorative arrow glyphs. Use an SVG chevron only when it actually means expanding a menu or changing pages inside a control.
+- Channel onboarding must be consent-first: a privately shared WhatsApp Channel link remains silent until the user runs `.joinchannel`; Yes/No must be explicit, and following is not WhatsApp administrator permission. Never show other people's channels or fabricated connected-channel lists.
+- **LOCKED / Approved 17 Oct 2026:** The Channels page visual system is frozen at commit `13331aa68bd3bfb47380cd9c20d4eac353f72ebe`, with a preserved copy on `baseline/night-play-channels-approved-20261017`. Follow `night-play/channels/DESIGN-LOCK.md`. Do not introduce divergent navigation, generic arrows, channel-link fields, duplicate refresh controls or an oversized setup panel; preserve the established visual appearance unless the owner explicitly approves a redesign.
 - Animation is for feedback: gentle hover within the artwork (~200 ms), never constant floating. Respect `prefers-reduced-motion`.
 
 ## Per-game personality
