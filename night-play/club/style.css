@@ -2209,3 +2209,60 @@ body.whot-mode .whot-flight-back::after{
  body.whot-mode .whot-flight-flip .whot-flip-back>.card-back,
  body.whot-mode .whot-flight-back{font-size:16px!important}
 }
+
+
+/* WHOT mobile performance: a compact opponent deck, NOT one card per
+   hidden card in a scrolling 650px strip. The existing score HUD
+   communicates the real card count even when the CPU holds twenty. */
+body.whot-mode .table-surface>.whot-opponent-hand{
+ display:flex!important;
+ flex-direction:row!important;
+ justify-content:center!important;
+ align-items:flex-start!important;
+ gap:0!important;
+ width:min(188px,calc(100% - 64px))!important;
+ max-width:188px!important;
+ min-width:0!important;
+ padding:2px 6px 7px!important;
+ overflow:hidden!important;
+ margin:0 auto!important;
+ scroll-snap-type:none!important;
+ scrollbar-width:none!important;
+}
+body.whot-mode .table-surface>.whot-opponent-hand>.card-back{
+ flex:0 0 80px!important;
+ width:80px!important;
+ height:105px!important;
+ margin:0!important;
+ transform:none!important;
+ box-shadow:0 3px 8px #0a070a55!important;
+}
+body.whot-mode .table-surface>.whot-opponent-hand>.card-back + .card-back{
+ margin-left:-38px!important;
+}
+body.whot-mode .table-surface>.whot-opponent-hand>.card-back:nth-child(1){z-index:1}
+body.whot-mode .table-surface>.whot-opponent-hand>.card-back:nth-child(2){z-index:2}
+body.whot-mode .table-surface>.whot-opponent-hand>.card-back:nth-child(3){z-index:3}
+/* Avoid stacking long-running paint effects during very short flights. */
+body.whot-mode .whot-flight,
+body.whot-mode .whot-flight-flip{
+ will-change:transform!important;
+ filter:none!important;
+}
+body.whot-mode .whot-flight-flip .whot-flip-core{
+ will-change:transform!important;
+}
+@media(min-width:651px){
+ body.whot-mode .table-surface>.whot-opponent-hand{
+  width:230px!important;
+  max-width:230px!important;
+ }
+ body.whot-mode .table-surface>.whot-opponent-hand>.card-back{
+  flex-basis:100px!important;
+  width:100px!important;
+  height:138px!important;
+ }
+ body.whot-mode .table-surface>.whot-opponent-hand>.card-back + .card-back{
+  margin-left:-42px!important;
+ }
+}
