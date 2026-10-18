@@ -42,6 +42,7 @@ export class PuzzleBoard{
     p.correctX=this.boardX+p.col*this.pieceWidth;p.correctY=this.boardY+p.row*this.pieceHeight;
     PieceCutter.renderPieceToCanvas(p,this.sourceCanvas,this.pieceWidth,this.pieceHeight,this.rows,this.cols);
    }
+   if((old.w<680)!==(w<680))this.sweepLoose();
   }
  }
  setDimensions(rows,cols){this.rows=rows;this.cols=cols;this.totalPieces=rows*cols;}
@@ -107,6 +108,42 @@ export class PuzzleBoard{
    PieceCutter.renderPieceToCanvas(p,this.sourceCanvas,pw,ph,this.rows,this.cols);
    this.pieces.push(p);
   }
+ }
+ // Return all unsolved pieces to whichever free edges fit the current
+ // viewport; group geometry is kept intact so completed subassemblies survive.
+ sweepLoose(){
+  const groups=new Map();
+  for(const p of this.pieces)if(!p.isPlaced){
+   const key=p.group||p.id;if(!groups.has(key))groups.set(key,[]);
+   groups.get(key).push(p);
+  }
+  const all=[...groups.values()].sort((a,b)=>b.length-a.length);
+  const filled=[[],[]],zones=this.scatterZones;
+  for(let i=0;i<all.length;i++){
+   const group=all[i],zid=i%zones.length,z=zones[zid];
+   const minRow=Math.min(...group.map(p=>p.row)),minCol=Math.min(...group.map(p=>p.col));
+   const maxRow=Math.max(...group.map(p=>p.row)),maxCol=Math.max(...group.map(p=>p.col));
+   const gw=(maxCol-minCol+1)*this.pieceWidth,gh=(maxRow-minRow+1)*this.pieceHeight;
+   const xRange=Math.max(0,z.w-gw),yRange=Math.max(0,z.h-gh);
+   let best=null,bestDistance=-1;
+   for(let sample=0;sample<24;sample++){
+    let x=z.x+Math.random()*xRange,y=z.y+Math.random()*yRange;
+    if(gw>z.w)x=z.x-(gw-z.w)*.5;
+    if(gh>z.h)y=z.y-(gh-z.h)*.5;
+    x=Math.max(0,Math.min(this.canvas.width-gw,x));
+    y=Math.max(0,Math.min(this.canvas.height-gh,y));
+    let score=filled[zid].length?Infinity:10;
+    for(const rect of filled[zid]){
+     const nx=(x+gw/2-rect.x-rect.w/2)/Math.max(this.pieceWidth,Math.min(gw,rect.w));
+     const ny=(y+gh/2-rect.y-rect.h/2)/Math.max(this.pieceHeight,Math.min(gh,rect.h));
+     score=Math.min(score,Math.hypot(nx,ny));
+    }
+    if(score>bestDistance){bestDistance=score;best={x,y};}
+   }
+   filled[zid].push({...best,w:gw,h:gh});
+   for(const p of group){p.x=best.x+(p.col-minCol)*this.pieceWidth;p.y=best.y+(p.row-minRow)*this.pieceHeight;}
+  }
+  this.render();
  }
  getPieceAt(x,y){
   // Keep the selected piece on top while dragging; its large rectangular hit target
