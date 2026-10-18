@@ -1,12 +1,13 @@
 const assert=require('node:assert/strict')
 const fs=require('node:fs'),path=require('node:path'),http=require('node:http')
 const {chromium}=require('playwright')
-let profile=null,expiresAt=Date.now()+300000,unavailable=false,links=0
+let profile=null,expiresAt=Date.now()+300000,unavailable=false,links=0,slowStatusMs=0,statusGets=0
 const server=http.createServer(async(req,res)=>{
   const url=new URL(req.url,'http://localhost')
   if(url.pathname==='/api/account'){
     res.setHeader('Content-Type','application/json');res.setHeader('Cache-Control','no-store')
     if(unavailable){res.statusCode=503;res.end(JSON.stringify({error:'NIGHT connection is being updated. Please try again shortly.'}));return}
+    if(req.method==='GET'){statusGets++;if(slowStatusMs){const delay=slowStatusMs;slowStatusMs=0;await new Promise(resolve=>setTimeout(resolve,delay))}}
     let body={};if(req.method==='POST'){let raw='';for await(const chunk of req)raw+=chunk;body=JSON.parse(raw)}
     if(body.action==='link'){links++;res.end(JSON.stringify({code:'ABCD-EFGH-JKLM',command:'.minigames link ABCD-EFGH-JKLM',expiresAt}));return}
     if(body.action==='logout'||body.action==='delete')profile=null
@@ -27,6 +28,37 @@ const server=http.createServer(async(req,res)=>{
   try{
     const context=await browser.newContext({viewport:{width:390,height:844},isMobile:true,hasTouch:true})
     await context.grantPermissions(['clipboard-read','clipboard-write'],{origin:base})
+    // Simulate a known signed-in browser on a slow backend. The first paint
+    // must NEVER show the Connect WhatsApp prompt while the HttpOnly cookie is
+    // still being validated, and startup must produce only one GET /status.
+    profile={id:'NIGHT-warm',displayName:'Pat'}
+    slowStatusMs=1150
+    const warm=await context.newPage(),warmErrors=[]
+    warm.on('pageerror',error=>warmErrors.push(String(error)))
+    const initialGets=statusGets
+    await warm.goto(base+'/profile',{waitUntil:'domcontentloaded'})
+    await warm.waitForFunction(()=>Boolean(window.NightAccount))
+    assert.equal(await warm.locator('html').getAttribute('data-night-account'),'checking','pending verification is neither guest nor signed-in')
+    assert.equal(await warm.locator('header [data-dialog="connect"]').isVisible(),false,'no false disconnected flash while loading')
+    await warm.waitForFunction(()=>document.documentElement.dataset.nightAccount==='linked',{timeout:5000})
+    assert.equal(await warm.locator('header [data-dialog="connect"]').isVisible(),false,'linked session keeps sign-in action absent')
+    assert.equal(await warm.locator('#playerDisplayName').textContent(),'Pat')
+    assert.equal(statusGets-initialGets,1,'head prefetch and account client share one request')
+    const firstState=await warm.evaluate(()=>window.NightAccount.profile?.displayName)
+    assert.equal(firstState,'Pat')
+    // A guest sees the same neutral pending state, then exactly one CTA.
+    profile=null;slowStatusMs=1100
+    const guestGets=statusGets
+    await warm.reload({waitUntil:'domcontentloaded'})
+    await warm.waitForFunction(()=>Boolean(window.NightAccount))
+    assert.equal(await warm.locator('html').getAttribute('data-night-account'),'checking')
+    assert.equal(await warm.locator('header [data-dialog="connect"]').isVisible(),false)
+    await warm.waitForFunction(()=>document.documentElement.dataset.nightAccount==='guest',{timeout:5000})
+    assert.equal(await warm.locator('header [data-dialog="connect"]').isVisible(),true)
+    assert.equal(await warm.locator('header [data-dialog="connect"]').textContent(),'Connect WhatsApp')
+    assert.equal(statusGets-guestGets,1,'guest startup also avoids duplicate account status fetches')
+    assert.deepEqual(warmErrors,[])
+    await warm.close()
     const page=await context.newPage(),errors=[]
     page.on('pageerror',error=>errors.push(String(error)))
     await page.goto(base+'/profile')
@@ -85,7 +117,7 @@ const server=http.createServer(async(req,res)=>{
     await page.locator('.account-command').waitFor()
     await page.screenshot({path:path.join(__dirname,'visual-output/account-link-desktop.jpg')})
     assert.deepEqual(errors,[])
-    console.log('PASS NIGHT Play account browser flow: phone/desktop layout, copy, automatic verification, shared name, disconnect, delete consent, outage/retry, expiry/renewal, dialog close and reload')
+    console.log('PASS NIGHT Play account browser flow: zero auth flash, one early HttpOnly status request, slow linked/guest hydration, phone/desktop layout, copy, automatic verification, name, disconnect, outage, expiry and reload')
     await context.close()
   }finally{await browser.close();server.closeAllConnections();await new Promise(resolve=>server.close(resolve))}
 })().then(()=>require('./multiplayer/ttt/mobile-smoke.cjs')).catch(error=>{console.error(error);server.closeAllConnections();server.close();process.exitCode=1})
