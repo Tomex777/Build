@@ -698,6 +698,8 @@ private fun Actor.initialDisplayDimensionMeters(): Float = when (asset?.assetId)
     "starter.mise.bicycle" -> 1.81f
     "starter.mise.car" -> 3.88f
     "starter.mise.tree" -> 3.65f
+    // Species-scale tree; use genuine detailed leaf canopy at 5.8m height.
+    "starter.cc0.oak-street-tree" -> 5.8f
     else -> when (kind) {
     ActorKind.CHARACTER -> 1.7f
     ActorKind.VEHICLE -> 2.2f
