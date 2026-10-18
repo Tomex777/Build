@@ -46,7 +46,18 @@ with Image.open(sys.argv[1]) as im:
 with Image.open(sys.argv[1]) as im:
     assert im.width >= 512 and im.height >= 512, (im.width, im.height)
 PY
-    echo "Verified Poly Haven $material CC0 diffuse: $(sha256sum "$target")"
+    case "$material" in
+        dirt) hash="96b3eb441121c41806a4766f37eeeeb4667af73207ccd8bfb56bbd446a221d42" ;;
+        rock_ground) hash="550625077ba51480af4d0a08d072a03a0995f6910fb34693312e02ce5b73c6f3" ;;
+        granular_concrete) hash="a105afb64bf874f2d00b6601b98d4fe602e4624479b3f791fbf5a818f5d59a14" ;;
+        asphalt_floor) hash="a61a821ec9828cbc6b34fc6e1d40d6460b3966dfb85d1c376b93056d1668053a" ;;
+    esac
+    echo "$hash  $target" | sha256sum --check --status || {
+        rm -f "$target"
+        echo "Checksum mismatch for licensed Poly Haven ground: $material" >&2
+        exit 1
+    }
+    echo "Verified pinned Poly Haven CC0 photo: $material"
 done
 "$root/.skybake-env/bin/python" "$root/scripts/bake-photographic-sky.py" \
     --source "$world/original_kloofendal_sky.jpg" \
@@ -78,7 +89,7 @@ echo "Verified + losslessly batched CC0 oak tree: $oak_file"
 # and toy-car collections: these are independent unbranded CC0 mesh assets.
 # SHA256 will be pinned after CI fetches and inspects their actual bytes.
 fetch_mise_model() {
-    local slug="$1" path="$2"
+    local slug="$1" path="$2" hash="$3"
     local target="$root/app/src/main/assets/models/$path"
     local url="https://www.innerscene.com/api/library/$slug/download"
     if [ ! -s "$target" ]; then
@@ -97,8 +108,13 @@ with open(sys.argv[1],'rb') as f:
     assert magic==0x46546c67 and version==2, "Not a glTF 2 GLB"
     assert nbytes==__import__('os').path.getsize(sys.argv[1]), "Truncated GLB"
 PY
-    echo "Innerscene CC0 model source: $url sha256 $(sha256sum "$target")"
+    echo "$hash  $target" | sha256sum --check --status || {
+        rm -f "$target"
+        echo "Checksum mismatch for CC0 3D model: $slug" >&2
+        exit 1
+    }
+    echo "Verified pinned CC0 detailed 3D model: $slug"
 }
-fetch_mise_model "detached-two-storey-house-66774933" "mise_house_two_storey.glb"
-fetch_mise_model "bungalow-house-85d40048" "mise_house_bungalow.glb"
-fetch_mise_model "sedan-car-42109739" "mise_sedan.glb"
+fetch_mise_model "detached-two-storey-house-66774933" "mise_house_two_storey.glb" "55901983c4c2629e7bc548777c695e73b6d48fd1db9a904840a88a301e87e838"
+fetch_mise_model "bungalow-house-85d40048" "mise_house_bungalow.glb" "792372518d4739d21786361d1bd12d9e0eeb7d3a95aaf0a7d4bb8cf6c214cdad"
+fetch_mise_model "sedan-car-42109739" "mise_sedan.glb" "4cb896f740de4da871c1d87c4af2b734db3d1e8fac852e308f1fca03a63b25d3"
