@@ -27,6 +27,8 @@ class AudioEngine(private val assets: AssetManager) {
     private var measuredHrir: MeasuredHrir? = null
     private val governor=AudioQualityGovernor()
     private val reverb = DiffuseReverb()
+    private var cachedGeometryWorld: World? = null
+    private val staticReflections = mutableMapOf<Int,List<ReflectionTap>>()
     private var worker: Thread? = null
     private var frameClock = 0L
     @Volatile var error: String? = null
@@ -116,10 +118,18 @@ class AudioEngine(private val assets: AssetManager) {
     }
 
     private fun render(world: World, out: ShortArray) {
-        val active = world.sounds.filter { it.enabled && it.gain>0f }.take(400)
+        if(cachedGeometryWorld !== world){
+            cachedGeometryWorld=world
+            staticReflections.clear()
+        }
+        // Prioritize perceptually loud, close emitters under bounded mobile CPU load.
+        val active = world.sounds.asSequence()
+            .filter { it.enabled && it.gain>0f }
+            .sortedByDescending { it.gain/(1f+it.at.distance(world.listener)*.12f) }
+            .take(WorldLimits.MAX_SOURCES).toList()
         val valid = active.map { it.id }.toSet()
         voices.keys.retainAll(valid)
-        val layers = active.map { emitter ->
+        val layers = active.mapIndexed { sourceIndex, emitter ->
             val voice = voices.getOrPut(emitter.id) {
                 Voice(emitter.seed,fieldRecordings[emitter.kind])
             }
@@ -134,15 +144,23 @@ class AudioEngine(private val assets: AssetManager) {
                 .toFloat().coerceIn(.001f,1f)
             voice.targetPan=acoustic.pan
             voice.targetGain=(emitter.gain*acoustic.directGain).coerceAtMost(1.2f)
-            val reflections=EarlyReflections.solve(world,position).mapIndexed { index, reflection ->
-                val alpha=(1.0-exp(-2.0*PI*reflection.cutoffHz/SAMPLE_RATE)).toFloat()
-                    .coerceIn(.001f,1f)
-                val pan=reflection.pan
-                ReflectionTap(reflection.delayFrames,
-                    sqrt(((1f-pan)*.5f).coerceAtLeast(0f))*reflection.gain*emitter.gain,
-                    sqrt(((1f+pan)*.5f).coerceAtLeast(0f))*reflection.gain*emitter.gain,
-                    alpha,index)
+            // Only dominant emitters need geometrical early reflections.
+            // Static source geometry is cached between audio blocks; the editor
+            // atomically replaces its scene snapshot when a wall/listener moves.
+            val computeTaps = {
+                EarlyReflections.solve(world,position).mapIndexed { index, reflection ->
+                    val alpha=(1.0-exp(-2.0*PI*reflection.cutoffHz/SAMPLE_RATE)).toFloat()
+                        .coerceIn(.001f,1f)
+                    val pan=reflection.pan
+                    ReflectionTap(reflection.delayFrames,
+                        sqrt(((1f-pan)*.5f).coerceAtLeast(0f))*reflection.gain*emitter.gain,
+                        sqrt(((1f+pan)*.5f).coerceAtLeast(0f))*reflection.gain*emitter.gain,
+                        alpha,index)
+                }
             }
+            val reflections=if(sourceIndex>=4) emptyList() else
+                if(emitter.moving) computeTaps() else
+                    staticReflections.getOrPut(emitter.id,computeTaps)
             Layer(emitter,voice,reflections,position)
         }
         // Use measured binaural filters for the four most audible nearby layers.
