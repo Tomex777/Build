@@ -106,7 +106,11 @@ fun SceneViewport(
     val environmentLoader = rememberEnvironmentLoader(engine)
     val loadedEnvironment = rememberEnvironment(environmentLoader, isOpaque = false)
     val preset = project.world.environmentPreset
-    val skyTexture = remember(engine, preset) { createOutdoorSky(engine, preset) }
+    val skyTexture = remember(engine, preset) {
+        if (preset == EnvironmentPreset.PARK_SHADE) {
+            createPhotographicOutdoorSky(engine, context)
+        } else createOutdoorSky(engine, preset)
+    }
     val studioSkybox = remember(engine, skyTexture) {
         Skybox.Builder().environment(skyTexture).build(engine)
     }
@@ -147,9 +151,19 @@ fun SceneViewport(
 
     // A low-chroma matte ground creates value separation from human skin and light clothing.
     // Keep it as Filament PBR geometry so it receives real shadow maps/contact shadows.
-    val floor = remember(materialLoader, preset) {
-        val color = Color(android.graphics.Color.parseColor(preset.groundHex))
-        materialLoader.createColorInstance(color, metallic = 0f, roughness = preset.roughness)
+    val groundPhoto = remember(engine, preset) {
+        if (preset == EnvironmentPreset.PARK_SHADE) createPhotographicGround(engine, context) else null
+    }
+    DisposableEffect(groundPhoto) {
+        onDispose { groundPhoto?.let(engine::destroyTexture) }
+    }
+    val floor = remember(materialLoader, preset, groundPhoto) {
+        if (groundPhoto != null) {
+            materialLoader.createTextureInstance(groundPhoto, metallic = 0f, roughness = 1f)
+        } else {
+            val color = Color(android.graphics.Color.parseColor(preset.groundHex))
+            materialLoader.createColorInstance(color, metallic = 0f, roughness = preset.roughness)
+        }
     }
     // A genuine ground-plane reference grid, not a 2D UI overlay. It follows
     // perspective as the artist orbits and can be hidden for clean story scenes.
@@ -279,7 +293,11 @@ fun SceneViewport(
             PlaneNode(
                 // Plane geometry uses all three size components; normals alone do not
                 // orient vertices. Keep the XZ receiver flat, with a nonzero culling box.
-                size = Size(2000f, 0f, 2000f),
+                // A finite photo-textured ground reveals the actual sky horizon.
+                // Previously the 2000m plane filled EVERY camera ray below the tree,
+                // so we accidentally hid the sky and made floor/sky indistinguishable.
+                size = if (preset == EnvironmentPreset.PARK_SHADE)
+                    Size(36f, 0f, 36f) else Size(2000f, 0f, 2000f),
                 normal = Direction(0f, 1f, 0f),
                 position = Position(0f, -0.01f, 0f),
                 materialInstance = floor,
@@ -288,7 +306,8 @@ fun SceneViewport(
                     isShadowCaster = false
                     isShadowReceiver = true
                     setCulling(false)
-                    axisAlignedBoundingBox = Box(0f, 0f, 0f, 1000f, 0.01f, 1000f)
+                    val groundHalf = if (preset == EnvironmentPreset.PARK_SHADE) 18f else 1000f
+                    axisAlignedBoundingBox = Box(0f, 0f, 0f, groundHalf, 0.01f, groundHalf)
                 },
             )
         }
