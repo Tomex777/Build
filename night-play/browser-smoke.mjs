@@ -82,7 +82,8 @@ try {
  await page.locator('#view-games').waitFor({state:'visible'})
  console.log('NIGHT_GAME_GALLERY_BASE64='+(await page.locator('#view-games').screenshot({type:'jpeg',quality:58})).toString('base64'));
  assert.equal(await page.locator('.brand-mark use').first().getAttribute('href'),'#icon-brand')
- assert.equal(await page.locator('.library-card .game-art').count(),10,'Other games retain custom SVG thumbnails')
+ assert.equal(await page.locator('.library-card .game-art').count(),9,'Other games retain their SVG thumbnails')
+ assert.equal(await page.locator('.library-card[data-jigsaw] .jigsaw-cover-photo').count(),1,'Jigsaw no longer uses the old generated puzzle illustration')
  assert.equal(await page.locator('.library-card[data-name="wing hop flappy bird"] .wing-preview-bird').count(),1,'Wing Hop uses actual bundled character artwork')
  assert.equal(await page.locator('.library-card[data-club="ludo"]').count(),0,'Unfinished Ludo is hidden from the public game library')
  assert.equal(await page.locator('.library-card[data-jigsaw]').count(),1,'Jigsaw is listed among puzzle games')
