@@ -1,0 +1,39 @@
+/* NIGHT Play account hub: shared muted forest palette, responsive custom controls */
+#view-profile .profile-overview{margin:20px 0 0}
+.account-tabs{display:flex;gap:5px;overflow-x:auto;scrollbar-width:none;padding:7px 0 13px;margin:15px 0 19px;border-bottom:1px solid #dce4dc}
+.account-tabs::-webkit-scrollbar{display:none}
+.account-tabs button{appearance:none;border:0;border-bottom:2px solid transparent;border-radius:0;background:transparent;min-height:44px;padding:10px 16px 12px;font:inherit;font-size:13px;font-weight:800;color:#6b756b;white-space:nowrap;cursor:pointer}
+.account-tabs button[aria-selected=true]{border-bottom-color:#265742;color:#143c28}
+.account-tabs button:focus-visible,.account-action:focus-visible,.account-toggle input:focus-visible + .switch{outline:3px solid #85b499;outline-offset:2px}
+.profile-pane[hidden]{display:none!important}
+.profile-pane{animation:accountEnter .15s ease-out}@keyframes accountEnter{from{opacity:.7}to{opacity:1}}
+.account-heading{display:flex;justify-content:space-between;gap:12px;align-items:baseline;margin:9px 0 16px}
+.account-heading h2{font-size:24px;letter-spacing:-.7px;margin:0}.account-heading small{font-size:11px;color:#77847c}
+.account-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));background:#fff;border:1px solid #e1e7df;border-radius:15px;overflow:hidden;margin-bottom:28px}
+.account-stats div{padding:18px 21px;border-right:1px solid #e1e7df;min-width:0}.account-stats div:last-child{border:0}
+.account-stats strong{display:block;font-size:28px;color:#243f30;letter-spacing:-1px;font-variant-numeric:tabular-nums}
+.account-stats span{font-size:11px;color:#728175}
+.account-achievements{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:11px;margin-bottom:20px}
+.account-achievement{display:flex;align-items:center;gap:12px;min-width:0;background:#fff;padding:17px;border-radius:14px;border:1px solid #e1e7df}
+.account-achievement .mark{display:grid;place-items:center;flex:0 0 43px;width:43px;height:43px;border-radius:12px;background:#f0f2f0;color:#9daa9f}
+.account-achievement .mark svg{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.account-achievement.earned .mark{background:#e4f1e7;color:#276f46}
+.account-achievement strong{display:block;font-size:14px;margin-bottom:3px;color:#2c3c30}
+.account-achievement p{margin:0;font-size:11px;line-height:1.55;color:#79857a}
+.account-achievement small{font-size:10px;font-weight:800;color:#828d82}.account-achievement.earned small{color:#287143}
+.account-note{font-size:12px;line-height:1.7;color:#718074;margin:0 0 19px}
+.account-tile{display:flex;align-items:center;justify-content:space-between;gap:15px;padding:20px;background:#fff;border:1px solid #dfe5de;border-radius:15px;margin:11px 0}
+.account-tile h3{font-size:16px;letter-spacing:-.35px;margin:0 0 5px}.account-tile p{margin:0;color:#6d7a70;font-size:12px;line-height:1.55}
+.account-tile .btn{white-space:nowrap;text-decoration:none;flex:none}
+.account-settings{background:#fff;border:1px solid #dfe5de;border-radius:16px;overflow:hidden}
+.account-setting{padding:18px 20px;display:flex;align-items:center;justify-content:space-between;gap:16px;border-bottom:1px solid #e6eae5}
+.account-setting:last-child{border:0}.account-setting h3{font-size:14px;margin:0 0 5px}.account-setting p{font-size:11px;color:#768175;margin:0;line-height:1.6;max-width:550px}
+.account-toggle{display:inline-flex;flex:none;cursor:pointer;position:relative}
+.account-toggle input{position:absolute;inset:0;opacity:0;margin:0;width:100%;height:100%}
+.account-toggle .switch{display:block;width:44px;height:27px;background:#cdd7cd;border-radius:99px;position:relative;transition:background .15s}
+.account-toggle .switch:after{content:"";position:absolute;left:3px;top:3px;width:21px;height:21px;background:#fff;border-radius:50%;box-shadow:0 1px 3px #31473426;transition:transform .15s}
+.account-toggle input:checked + .switch{background:#2d664d}.account-toggle input:checked + .switch:after{transform:translateX(17px)}
+.account-action{display:inline-flex;justify-content:center;align-items:center;flex:none;border:1px solid #c6d7cb;border-radius:10px;background:#f0f5f0;color:#204b34;min-height:42px;padding:10px 15px;font:inherit;font-size:12px;font-weight:800;cursor:pointer}
+html[data-night-reduced-motion="true"] *,html[data-night-reduced-motion="true"] *::before,html[data-night-reduced-motion="true"] *::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;scroll-behavior:auto!important}
+@media(max-width:600px){.account-tabs button{font-size:12px;padding:10px 12px}.account-stats div{padding:15px 10px}.account-stats strong{font-size:23px}.account-heading h2{font-size:21px}.account-achievements{grid-template-columns:1fr}.account-tile{align-items:stretch;flex-direction:column;padding:17px}.account-tile .btn{width:100%}.account-setting{padding:16px}}
+@media(prefers-reduced-motion:reduce){.profile-pane{animation:none}}
