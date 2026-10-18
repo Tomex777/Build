@@ -3,6 +3,20 @@ import { readFileSync } from 'node:fs'
 import vm from 'node:vm'
 const html = readFileSync(new URL('./index.html', import.meta.url), 'utf8')
 const vercel = JSON.parse(readFileSync(new URL('./vercel.json', import.meta.url), 'utf8'))
+/* ABR: navigational arrows are SVG, not text characters or generated CSS labels. */
+for(const asset of [
+ './index.html','./jigsaw/index.html','./jigsaw/style.css','./club/games.js',
+ './arcade/index.html','./stories/index.html','./stories/library.html',
+ './stories/short-edition.html','./multiplayer/ttt/index.html'
+]){
+ const source=readFileSync(new URL(asset,import.meta.url),'utf8')
+ assert.doesNotMatch(source,/[\u2190-\u21ff\u2794-\u27bf]/u,asset+' must use real vector SVGs for arrow icons')
+}
+assert.ok(html.includes('class="jigsaw-cover-photo"'),'Jigsaw game tile should not use the old synthetic puzzle image')
+assert.ok(!html.includes('jthumb-sky'),'Remove original procedural library tile image')
+const jigsawCss=readFileSync(new URL('./jigsaw/style.css',import.meta.url),'utf8')
+assert.ok(!jigsawCss.includes('START PUZZLE'),'The gallery picture is the button: no redundant Start Puzzle badge')
+
 const scripts = [...html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/g)].map(x=>x[1])
 assert.ok(scripts.length >= 1)
 for (const script of scripts) new vm.Script(script, {filename:'night-play-inline.js'})
