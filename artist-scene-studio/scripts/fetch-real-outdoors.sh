@@ -47,4 +47,9 @@ test "$(wc -c < "$oak_file")" -gt 500000 || {
     echo "Downloaded oak tree is too small for the detailed GLB" >&2
     exit 1
 }
-echo "CC0 native leaf geometry oak sha256 $(sha256sum "$oak_file")"
+echo "a02698ef246d8005110c291c510b8f7f397ae26e69414aa538cc4993b06256dd  $oak_file" | sha256sum --check --status || {
+    rm -f "$oak_file"
+    echo "Source mismatch for original Innerscene CC0 oak GLB" >&2
+    exit 1
+}
+echo "Verified original CC0 oak tree source: $oak_file"
