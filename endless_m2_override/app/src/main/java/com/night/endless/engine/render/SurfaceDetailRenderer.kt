@@ -16,7 +16,10 @@ internal class SurfaceDetailRenderer(
     private val lightX: Double,
     private val lightY: Double,
     private val lightZ: Double,
-    private val elevation: (Double, Double) -> Double
+    private val elevation: (Double, Double) -> Double,
+    // Extended procedural worlds need the same analytic coarse-field
+    // normals at the LOD boundary; measured Mars/Moon use the default.
+    private val coarseNormalHeight: ((Double, Double) -> Double)? = null
 ) {
     private var midAnchorX = Double.NaN
     private var midAnchorZ = Double.NaN
@@ -66,7 +69,7 @@ internal class SurfaceDetailRenderer(
     fun prepare(centerX: Double, centerZ: Double) {
         if (!midAnchorX.isFinite() ||
             hypot(centerX - midAnchorX, centerZ - midAnchorZ) >= 0.028) {
-            val mid = SurfaceMidfieldMesh.build(centerX, centerZ, elevation)
+            val mid = SurfaceMidfieldMesh.build(centerX, centerZ, elevation, coarseNormalHeight)
             midVertices = floats(mid.vertices, midVertices)
             midIndices = shorts(mid.indices, midIndices)
             midCount = mid.indices.size

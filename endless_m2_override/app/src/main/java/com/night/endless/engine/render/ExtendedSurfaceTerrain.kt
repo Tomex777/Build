@@ -14,7 +14,13 @@ internal class ExtendedSurfaceTerrain(private val context: Context, private val 
     private val vertices: FloatBuffer
     private val indices: ShortBuffer
     private val indexCount: Int
-    private val detail = SurfaceDetailRenderer(-.74, .38, .31) { x, z -> ExtendedSurfaceMesh.renderedHeightAt(bodyId, x, z) }
+    private val detail = SurfaceDetailRenderer(
+        if (bodyId == "titan") -.32 else -.74,
+        if (bodyId == "titan") .58 else .38,
+        .31,
+        elevation = { x, z -> ExtendedSurfaceMesh.renderedHeightAt(bodyId, x, z) },
+        coarseNormalHeight = { x, z -> ExtendedSurfaceMesh.heightAt(bodyId, x, z) }
+    )
 
     init {
         val mesh = ExtendedSurfaceMesh.build(bodyId)

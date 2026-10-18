@@ -58,7 +58,8 @@ internal object SurfaceMidfieldMesh {
 
     fun build(
         centerX: Double, centerZ: Double,
-        coarse: (Double, Double) -> Double
+        coarse: (Double, Double) -> Double,
+        coarseNormalHeight: ((Double, Double) -> Double)? = null
     ): SurfaceDetailMesh.Mesh {
         val out = FloatArray(SIDE * SIDE * STRIDE)
         val heights = FloatArray(SIDE * SIDE)
@@ -88,10 +89,31 @@ internal object SurfaceMidfieldMesh {
             val x1 = (x + 1).coerceAtMost(SIDE - 1)
             val z0 = (z - 1).coerceAtLeast(0)
             val z1 = (z + 1).coerceAtMost(SIDE - 1)
-            val dx = (heights[z*SIDE+x1] - heights[z*SIDE+x0]) /
+            var dx = (heights[z*SIDE+x1] - heights[z*SIDE+x0]) /
                 ((x1-x0)*STEP).toDouble()
-            val dz = (heights[z1*SIDE+x] - heights[z0*SIDE+x]) /
+            var dz = (heights[z1*SIDE+x] - heights[z0*SIDE+x]) /
                 ((z1-z0)*STEP).toDouble()
+            // At the outer ~500m of the midfield tile, its analytic
+            // reference normals must converge toward the coarse mesh's
+            // normals. Otherwise the coarse-to-mid boundary draws a
+            // visible square light/dark cliff across icy Europa ridges.
+            // Positions and heights still use the triangulated coarse
+            // surface; only smoothly blended lighting normals change.
+            if (coarseNormalHeight != null) {
+                val r = max(kotlin.math.abs(wx-centerX),
+                            kotlin.math.abs(wz-centerZ))
+                val t = ((r - .38) / .18).coerceIn(0.0, 1.0)
+                if (t > 0.0) {
+                    val d = .015
+                    val desiredDx = (coarseNormalHeight(wx+d, wz) -
+                        coarseNormalHeight(wx-d, wz)) / (2*d)
+                    val desiredDz = (coarseNormalHeight(wx, wz+d) -
+                        coarseNormalHeight(wx, wz-d)) / (2*d)
+                    val smoothT = t * t * (3.0 - 2.0*t)
+                    dx += (desiredDx-dx)*smoothT
+                    dz += (desiredDz-dz)*smoothT
+                }
+            }
             val inv = 1.0 / sqrt(1.0 + dx*dx + dz*dz)
             out[i++] = wx.toFloat()
             out[i++] = heights[z*SIDE+x]
