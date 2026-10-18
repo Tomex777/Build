@@ -37,7 +37,7 @@ class UnderTreeSceneTest {
         assertTrue(b.rig!!.joints.isNotEmpty())
         assertTrue(a.appearance.hairPhysicsEnabled)
         assertTrue(b.appearance.hairPhysicsEnabled)
-        assertTrue(scene.cameras.single().position.z < a.transform.position.z)
+        assertTrue(scene.cameras.single().position.z > a.transform.position.z)
         assertEquals(scene, SceneProjectCodec.decode(SceneProjectCodec.encode(scene)))
     }
 
