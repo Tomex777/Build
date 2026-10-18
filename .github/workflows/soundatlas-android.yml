@@ -93,6 +93,46 @@ jobs:
           for kind in rain thunder wind stream birds leaves night chimes traffic; do
             test -s "SoundAtlas/app/src/main/assets/audio/$kind.pcm"
           done
+      - name: Include measured horizontal-plane KEMAR binaural responses
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p SoundAtlas/app/src/main/assets /tmp/atlas-kemar
+          if gh run download 39082348089 --repo "$GITHUB_REPOSITORY" \
+              --name EchoSpace-ARM64-test-signed-installable-APK \
+              --dir /tmp/atlas-kemar; then
+            unzip -p /tmp/atlas-kemar/EchoSpace-arm64-v8a-release-test-signed.apk \
+              assets/kemar_44100.hrir \
+              > SoundAtlas/app/src/main/assets/kemar_44100.hrir
+          else
+            # Reconstruct the same approved asset using EchoSpace source provenance.
+            tar -xJf EchoSpace/source.tar.xz
+            python3 - <<'PY'
+          from pathlib import Path
+          p=Path("EchoSpace/tools/prepare_audio.py")
+          s=p.read_text()
+          before="targets=['H0e000a.wav','H0e090a.wav','H0e180a.wav']"
+          after=("targets=['H0e000a.wav','H0e030a.wav','H0e060a.wav',"
+                 "'H0e090a.wav','H0e120a.wav','H0e150a.wav','H0e180a.wav']")
+          assert before in s
+          s=s.replace(before,after,1)
+          assert "output=bytearray(b'EHR1')" in s
+          s=s.replace("output=bytearray(b'EHR1')","output=bytearray(b'EHR2')",1)
+          p.write_text(s)
+          PY
+            python3 EchoSpace/tools/prepare_audio.py
+            cp EchoSpace/app/src/main/assets/kemar_44100.hrir \
+              SoundAtlas/app/src/main/assets/kemar_44100.hrir
+          fi
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path("SoundAtlas/app/src/main/assets/kemar_44100.hrir")
+          data=p.read_bytes()
+          assert data[:4]==b"EHR2" and len(data)==4+7*2*128*2, \
+              f"Unexpected HRTF format/length: {data[:4]} {len(data)}"
+          print("MEASURED_KEMAR_HRTF_VERIFIED",len(data))
+          PY
       - name: JVM geometry regressions and native Android builds
         working-directory: SoundAtlas
         run: gradle --no-daemon --stacktrace testDebugUnitTest assembleDebug assembleRelease
