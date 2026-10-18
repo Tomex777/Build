@@ -204,6 +204,7 @@ class MainActivity : Activity() {
             buttons.clear()
             meter=(min((ww-30)/world.width,(hh-210)/world.height).coerceAtLeast(.08f)*zoom)
             drawWorld(canvas)
+            drawSoundFieldReadout(canvas)
             drawChrome(canvas)
             if(sheet!=Sheet.NONE)drawSheet(canvas)
             canvas.restore()
@@ -327,6 +328,37 @@ class MainActivity : Activity() {
             }
             buttons += Hit(RectF(x,y,x+w,y+h),onClick)
         }
+        private fun drawSoundFieldReadout(c:Canvas) {
+            if (hh<530f || sheet!=Sheet.NONE) return
+            // Read-only acoustic status occupies the previously unused bottom area.
+            // It is deliberately NOT a second mixer or duplicate playback control.
+            val top=hh-313f
+            box(c,16f,top,ww-16f,hh-153f,0xED10242E.toInt(),16f)
+            label(c,"SOUND FIELD",29f,top+24f,12f,text,true)
+            val room=world.zones.lastOrNull{it.contains(world.listener)}
+            val place=(room?.name?:"Open air").take(20)
+            val suffix="   " + world.walls.size + " walls"
+            label(c,place+suffix,29f,top+42f,10f,teal)
+            val nearest=world.sounds.filter{it.enabled}.sortedBy{it.at.distance(world.listener)}.take(3)
+            if(nearest.isEmpty()) {
+                label(c,"No active sound sources",29f,top+82f,12f,subtle)
+                return
+            }
+            nearest.forEachIndexed { index,source ->
+                val y=top+71f+index*27f
+                val data=AcousticSolver.evaluate(world,source)
+                c.drawCircle(34f,y-4f,3.5f,paint(source.kind.color))
+                label(c,source.kind.title.take(17),45f,y,11f,text,true)
+                val status=if(data.occlusions>0) "MUFFLED" else
+                    if(data.pan<-.28f) "LEFT" else if(data.pan>.28f) "RIGHT" else "AHEAD"
+                val distance=data.distance.toInt().toString()+"m  "+status
+                paint(subtle);paint.textSize=10f
+                val width=paint.measureText(distance)
+                label(c,distance,ww-30f-width,y,10f,if(data.occlusions>0)
+                    0xFFD3B993.toInt() else subtle)
+            }
+        }
+
         private fun drawChrome(c:Canvas) {
             box(c,10f,12f,ww-10f,96f,0xEA101E29.toInt(),18f)
             label(c,"SOUND ATLAS",24f,38f,16f,text,true)
