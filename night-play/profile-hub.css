@@ -38,3 +38,6 @@
 html[data-night-reduced-motion="true"] *,html[data-night-reduced-motion="true"] *::before,html[data-night-reduced-motion="true"] *::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;scroll-behavior:auto!important}
 @media(max-width:600px){.account-tabs button{font-size:12px;padding:10px 12px}.account-stats div{padding:15px 10px}.account-stats strong{font-size:23px}.account-heading h2{font-size:21px}.account-achievements{grid-template-columns:1fr}.account-tile{align-items:stretch;flex-direction:column;padding:17px}.account-tile .btn{width:100%}.account-setting{padding:16px}}
 @media(prefers-reduced-motion:reduce){.profile-pane{animation:none}}
+
+/* Operator disables the banner without leaving a ghost sticky row. */
+#announcementBar[hidden]{display:none!important}
