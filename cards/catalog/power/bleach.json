@@ -9,190 +9,289 @@
     "Finishes do not grant rank. Every acquired form is explicitly assessed; unknown forms remain pending, never F by default.",
     "Human Ichigo is F. An adult, released, transformed or later-arc version never transfers its power to another form.",
     "Rank reflects combat capability, speed, defence, special abilities and their limits rather than popularity or rarity.",
-    "SSS is reserved for sufficiently evidenced world/reality-scale forms; no existing portrait is forced into that band."
+    "SSS is reserved for sufficiently evidenced world/reality-scale forms; no existing portrait is forced into that band.",
+    "2026-10-18: all acquired illustrations received explicit form scopes and exclusions; grades remain editorial proposals. Each finish now has distinct original artwork."
   ],
   "assessments": {
     "aizen-featured": {
       "scale": "night-power-v1",
       "status": "proposed",
       "rank": "S",
-      "formId": "featured",
+      "formId": "arrancar-unreleased",
       "artworkSHA256": "dadc1f94cb2366e60fa48ec6a803d78031b6fa619911a293050286771276c19f",
-      "scope": "Standard Arrancar-era Aizen",
+      "scope": "Sosuke Aizen - Arrancar era / unreleased",
       "basis": "Overwhelming spiritual combat and complete hypnosis; no Hogyoku evolution bonus.",
-      "limits": "Conservative editorial proposal for the depicted version; official profiles establish identity but do not certify this cross-series grade. A scene-by-scene feat audit can revise it.",
+      "limits": "No Hogyoku fusion, Muken restraints or later spiritual-pressure feats.",
       "references": [
         "https://www.bleach-bravesouls.com/en/character/aizen.html"
-      ]
+      ],
+      "review": {
+        "date": "2026-10-18",
+        "status": "source-and-form-reviewed",
+        "artworkSHA256": "dadc1f94cb2366e60fa48ec6a803d78031b6fa619911a293050286771276c19f",
+        "confidence": "medium",
+        "method": "Pinned illustration and official source profile checked. Transformed and later-arc capabilities explicitly bounded. The grade is NIGHT editorial judgment, not an official statistic or an exhaustive chapter-by-chapter feat audit."
+      }
     },
     "barragan-featured": {
       "scale": "night-power-v1",
       "status": "proposed",
-      "rank": "S",
-      "formId": "featured",
+      "rank": "A",
+      "formId": "unreleased",
       "artworkSHA256": "44d92e09e9bd2e7d8599fa1504cde375e08c0bc384a9fc2fa7c373cab5763a39",
-      "scope": "Depicted Barragan state",
-      "basis": "Age-based death effects are exceptionally dangerous; range and counters still apply.",
-      "limits": "Conservative editorial proposal for the depicted version; official profiles establish identity but do not certify this cross-series grade. A scene-by-scene feat audit can revise it.",
+      "scope": "Barragan Ruizenban - Unreleased / axe",
+      "basis": "Very high strength, durability and close-range axe combat in the unreleased body; released death effects are not counted.",
+      "limits": "Unreleased flesh-and-blood body. No Arrogante skeletal form, Respira death breath or released ageing field.",
       "references": [
         "https://www.bleach-bravesouls.com/en/character/barragan.html"
-      ]
+      ],
+      "review": {
+        "date": "2026-10-18",
+        "status": "source-and-form-reviewed",
+        "artworkSHA256": "44d92e09e9bd2e7d8599fa1504cde375e08c0bc384a9fc2fa7c373cab5763a39",
+        "confidence": "medium",
+        "method": "Pinned illustration and official source profile checked. Transformed and later-arc capabilities explicitly bounded. The grade is NIGHT editorial judgment, not an official statistic or an exhaustive chapter-by-chapter feat audit."
+      }
     },
     "byakuya-featured": {
       "scale": "night-power-v1",
       "status": "proposed",
       "rank": "A",
-      "formId": "featured",
+      "formId": "senbonzakura",
       "artworkSHA256": "a28be745ead9aa953cb2b971e987f1904508bb875f256b3e966e48ec1129b84d",
-      "scope": "Standard Byakuya shown in the source",
+      "scope": "Byakuya Kuchiki - Senbonzakura / captain uniform",
       "basis": "High-speed sword mastery and controlled multi-target attacks; no Royal Palace training bonus.",
-      "limits": "Conservative editorial proposal for the depicted version; official profiles establish identity but do not certify this cross-series grade. A scene-by-scene feat audit can revise it.",
+      "limits": "No Bankai, Senkei or Royal Palace training is inferred from this Shikai pose.",
       "references": [
         "https://www.bleach-bravesouls.com/en/character/byakuya.html"
-      ]
+      ],
+      "review": {
+        "date": "2026-10-18",
+        "status": "source-and-form-reviewed",
+        "artworkSHA256": "a28be745ead9aa953cb2b971e987f1904508bb875f256b3e966e48ec1129b84d",
+        "confidence": "medium",
+        "method": "Pinned illustration and official source profile checked. Transformed and later-arc capabilities explicitly bounded. The grade is NIGHT editorial judgment, not an official statistic or an exhaustive chapter-by-chapter feat audit."
+      }
     },
     "ganju-featured": {
       "scale": "night-power-v1",
       "status": "proposed",
       "rank": "D",
-      "formId": "featured",
+      "formId": "shiba-outfit",
       "artworkSHA256": "ecc9bfc105d50f30b0af08162d6f237513b64cd9c508d43750f8d739cc8c5d20",
-      "scope": "Standard Ganju",
+      "scope": "Ganju Shiba - Shiba outfit / explosives",
       "basis": "Sand conversion and explosives give limited supernatural combat reach.",
-      "limits": "Conservative editorial proposal for the depicted version; official profiles establish identity but do not certify this cross-series grade. A scene-by-scene feat audit can revise it.",
+      "limits": "Sand conversion and explosives require opportunity and materials; no captain-level durability.",
       "references": [
         "https://www.bleach-bravesouls.com/en/character/ganju.html"
-      ]
+      ],
+      "review": {
+        "date": "2026-10-18",
+        "status": "source-and-form-reviewed",
+        "artworkSHA256": "ecc9bfc105d50f30b0af08162d6f237513b64cd9c508d43750f8d739cc8c5d20",
+        "confidence": "medium",
+        "method": "Pinned illustration and official source profile checked. Transformed and later-arc capabilities explicitly bounded. The grade is NIGHT editorial judgment, not an official statistic or an exhaustive chapter-by-chapter feat audit."
+      }
     },
     "gin-featured": {
       "scale": "night-power-v1",
       "status": "proposed",
       "rank": "A",
-      "formId": "featured",
+      "formId": "shinso",
       "artworkSHA256": "2deddc3f41735328378bccd2970b49493e1d4d45c82db453c08105d5556da8c1",
-      "scope": "Standard Gin",
+      "scope": "Gin Ichimaru - Shinso / Arrancar era",
       "basis": "A highly dangerous extending blade and deceptive swordsmanship; no unlimited range assumption.",
-      "limits": "Conservative editorial proposal for the depicted version; official profiles establish identity but do not certify this cross-series grade. A scene-by-scene feat audit can revise it.",
+      "limits": "Shinso extension only. No Kamishini no Yari poison or later Bankai feats.",
       "references": [
         "https://www.bleach-bravesouls.com/en/character/gin.html"
-      ]
+      ],
+      "review": {
+        "date": "2026-10-18",
+        "status": "source-and-form-reviewed",
+        "artworkSHA256": "2deddc3f41735328378bccd2970b49493e1d4d45c82db453c08105d5556da8c1",
+        "confidence": "medium",
+        "method": "Pinned illustration and official source profile checked. Transformed and later-arc capabilities explicitly bounded. The grade is NIGHT editorial judgment, not an official statistic or an exhaustive chapter-by-chapter feat audit."
+      }
     },
     "ginjo-featured": {
       "scale": "night-power-v1",
       "status": "proposed",
-      "rank": "B",
-      "formId": "featured",
+      "rank": "A",
+      "formId": "enhanced-fullbring",
       "artworkSHA256": "fbf76c0bc9ce743fc92fd9fef94da8cf1d8eeba8fb88668c5a6301fb2c6c1401",
-      "scope": "Fullbringer Ginjo shown in the source",
-      "basis": "A developed Fullbring and experienced sword combat; no stolen-power transformation bonus.",
-      "limits": "Conservative editorial proposal for the depicted version; official profiles establish identity but do not certify this cross-series grade. A scene-by-scene feat audit can revise it.",
+      "scope": "Kugo Ginjo - Enhanced Fullbring",
+      "basis": "Enhanced Fullbring after stealing Ichigo's power, with armour, powerful sword strikes and spiritual attacks.",
+      "limits": "Bone armour identifies the enhanced state after stolen power. Bankai and later Soul Society feats are excluded.",
       "references": [
         "https://www.bleach-bravesouls.com/en/character/ginjo.html"
-      ]
+      ],
+      "review": {
+        "date": "2026-10-18",
+        "status": "source-and-form-reviewed",
+        "artworkSHA256": "fbf76c0bc9ce743fc92fd9fef94da8cf1d8eeba8fb88668c5a6301fb2c6c1401",
+        "confidence": "medium",
+        "method": "Pinned illustration and official source profile checked. Transformed and later-arc capabilities explicitly bounded. The grade is NIGHT editorial judgment, not an official statistic or an exhaustive chapter-by-chapter feat audit."
+      }
     },
     "grimmjow-featured": {
       "scale": "night-power-v1",
       "status": "proposed",
       "rank": "A",
-      "formId": "featured",
+      "formId": "unreleased",
       "artworkSHA256": "f62ff3b9128db7e2e4a85f963987ea884a1fbadd9fdae688623451e6a8038b27",
-      "scope": "Unreleased Grimmjow",
+      "scope": "Grimmjow Jeagerjaques - Unreleased / Arrancar",
       "basis": "Exceptional close combat and spiritual attacks; released Pantera is excluded.",
-      "limits": "Conservative editorial proposal for the depicted version; official profiles establish identity but do not certify this cross-series grade. A scene-by-scene feat audit can revise it.",
+      "limits": "No released Pantera, Desgarron or later-arc upgrades.",
       "references": [
         "https://www.bleach-bravesouls.com/en/character/grimmjow.html"
-      ]
+      ],
+      "review": {
+        "date": "2026-10-18",
+        "status": "source-and-form-reviewed",
+        "artworkSHA256": "f62ff3b9128db7e2e4a85f963987ea884a1fbadd9fdae688623451e6a8038b27",
+        "confidence": "medium",
+        "method": "Pinned illustration and official source profile checked. Transformed and later-arc capabilities explicitly bounded. The grade is NIGHT editorial judgment, not an official statistic or an exhaustive chapter-by-chapter feat audit."
+      }
     },
     "hachigen-featured": {
       "scale": "night-power-v1",
       "status": "proposed",
       "rank": "A",
-      "formId": "featured",
+      "formId": "visored-barriers",
       "artworkSHA256": "585afad8f56c2caa43585506211338e90e7efca77c885e1c82e24fb3a9a5803b",
-      "scope": "Standard Hachigen",
+      "scope": "Hachigen Ushoda - Visored / barriers",
       "basis": "Advanced barriers and binding techniques; specialised utility does not imply equal physical strength.",
-      "limits": "Conservative editorial proposal for the depicted version; official profiles establish identity but do not certify this cross-series grade. A scene-by-scene feat audit can revise it.",
+      "limits": "No active Hollow mask shown. Barrier setup, casting and opponent counters remain conditions.",
       "references": [
         "https://www.bleach-bravesouls.com/en/character/hachigen.html"
-      ]
+      ],
+      "review": {
+        "date": "2026-10-18",
+        "status": "source-and-form-reviewed",
+        "artworkSHA256": "585afad8f56c2caa43585506211338e90e7efca77c885e1c82e24fb3a9a5803b",
+        "confidence": "medium",
+        "method": "Pinned illustration and official source profile checked. Transformed and later-arc capabilities explicitly bounded. The grade is NIGHT editorial judgment, not an official statistic or an exhaustive chapter-by-chapter feat audit."
+      }
     },
     "halibel-featured": {
       "scale": "night-power-v1",
       "status": "proposed",
       "rank": "A",
-      "formId": "featured",
+      "formId": "unreleased",
       "artworkSHA256": "d3756403cb0c71596225c1389f43f6eec22801f07f188138e7ae10c5f733197e",
-      "scope": "Unreleased Halibel",
+      "scope": "Tier Halibel - Unreleased / Arrancar",
       "basis": "Elite spiritual combat capability; released water techniques are excluded.",
-      "limits": "Conservative editorial proposal for the depicted version; official profiles establish identity but do not certify this cross-series grade. A scene-by-scene feat audit can revise it.",
+      "limits": "No Tiburon release, water-control release techniques or later power assumption.",
       "references": [
         "https://www.bleach-bravesouls.com/en/character/halibel.html"
-      ]
+      ],
+      "review": {
+        "date": "2026-10-18",
+        "status": "source-and-form-reviewed",
+        "artworkSHA256": "d3756403cb0c71596225c1389f43f6eec22801f07f188138e7ae10c5f733197e",
+        "confidence": "medium",
+        "method": "Pinned illustration and official source profile checked. Transformed and later-arc capabilities explicitly bounded. The grade is NIGHT editorial judgment, not an official statistic or an exhaustive chapter-by-chapter feat audit."
+      }
     },
     "hinamori-featured": {
       "scale": "night-power-v1",
       "status": "proposed",
       "rank": "B",
-      "formId": "featured",
+      "formId": "tobiume",
       "artworkSHA256": "88ea146962b3a9bda3942bb2a4f588a083d60ed9e92fcbe99c6e7cde423e6e6b",
-      "scope": "Standard Momo Hinamori",
+      "scope": "Momo Hinamori - Tobiume / lieutenant",
       "basis": "Developed Kido and explosive ranged techniques, with limited durability.",
-      "limits": "Conservative editorial proposal for the depicted version; official profiles establish identity but do not certify this cross-series grade. A scene-by-scene feat audit can revise it.",
+      "limits": "Tobiume and Kido do not confer captain durability or unlimited area effects.",
       "references": [
         "https://www.bleach-bravesouls.com/en/character/hinamori.html"
-      ]
+      ],
+      "review": {
+        "date": "2026-10-18",
+        "status": "source-and-form-reviewed",
+        "artworkSHA256": "88ea146962b3a9bda3942bb2a4f588a083d60ed9e92fcbe99c6e7cde423e6e6b",
+        "confidence": "medium",
+        "method": "Pinned illustration and official source profile checked. Transformed and later-arc capabilities explicitly bounded. The grade is NIGHT editorial judgment, not an official statistic or an exhaustive chapter-by-chapter feat audit."
+      }
     },
     "hirako-featured": {
       "scale": "night-power-v1",
       "status": "proposed",
       "rank": "A",
-      "formId": "featured",
+      "formId": "sakanade",
       "artworkSHA256": "2afc8888f7813bab62b3f98a36ebcfd20f6ed797a595e5f78a238f96e8e08035",
-      "scope": "Standard Shinji",
+      "scope": "Shinji Hirako - Sakanade / Visored",
       "basis": "Sensory inversion and experienced sword combat; area Bankai is excluded.",
-      "limits": "Conservative editorial proposal for the depicted version; official profiles establish identity but do not certify this cross-series grade. A scene-by-scene feat audit can revise it.",
+      "limits": "Sakanade inversion has counters and adaptation limits. No Bankai or active Hollow mask.",
       "references": [
         "https://www.bleach-bravesouls.com/en/character/hirako.html"
-      ]
+      ],
+      "review": {
+        "date": "2026-10-18",
+        "status": "source-and-form-reviewed",
+        "artworkSHA256": "2afc8888f7813bab62b3f98a36ebcfd20f6ed797a595e5f78a238f96e8e08035",
+        "confidence": "medium",
+        "method": "Pinned illustration and official source profile checked. Transformed and later-arc capabilities explicitly bounded. The grade is NIGHT editorial judgment, not an official statistic or an exhaustive chapter-by-chapter feat audit."
+      }
     },
     "hisagi-featured": {
       "scale": "night-power-v1",
       "status": "proposed",
       "rank": "B",
-      "formId": "featured",
+      "formId": "kazeshini",
       "artworkSHA256": "2f6f069915022c0ab245b1779c8d0e7467ef4582ff15a792bef50c674faf5a86",
-      "scope": "Standard Shuhei Hisagi",
+      "scope": "Shuhei Hisagi - Kazeshini / lieutenant",
       "basis": "Experienced close combat with Kazeshini; novel-era Bankai is excluded.",
-      "limits": "Conservative editorial proposal for the depicted version; official profiles establish identity but do not certify this cross-series grade. A scene-by-scene feat audit can revise it.",
+      "limits": "Kazeshini Shikai only. No novel-era Bankai, immortality loop or later training.",
       "references": [
         "https://www.bleach-bravesouls.com/en/character/hisagi.html"
-      ]
+      ],
+      "review": {
+        "date": "2026-10-18",
+        "status": "source-and-form-reviewed",
+        "artworkSHA256": "2f6f069915022c0ab245b1779c8d0e7467ef4582ff15a792bef50c674faf5a86",
+        "confidence": "medium",
+        "method": "Pinned illustration and official source profile checked. Transformed and later-arc capabilities explicitly bounded. The grade is NIGHT editorial judgment, not an official statistic or an exhaustive chapter-by-chapter feat audit."
+      }
     },
     "hitsugaya-featured": {
       "scale": "night-power-v1",
       "status": "proposed",
       "rank": "A",
-      "formId": "featured",
+      "formId": "hyorinmaru-lost-agent",
       "artworkSHA256": "0fd8922583cd2062d1763dd0d4c07d85afce0c7300f4116c48e5b656f7243775",
-      "scope": "Depicted Toshiro",
+      "scope": "Toshiro Hitsugaya - Hyorinmaru / Lost Agent",
       "basis": "Advanced ice combat; adult completed Bankai is excluded.",
-      "limits": "Conservative editorial proposal for the depicted version; official profiles establish identity but do not certify this cross-series grade. A scene-by-scene feat audit can revise it.",
+      "limits": "Lost Agent portrait with Hyorinmaru; no completed adult Daiguren Hyorinmaru or later freezing feats.",
       "references": [
         "https://www.bleach-bravesouls.com/en/character/hitsugaya.html"
-      ]
+      ],
+      "review": {
+        "date": "2026-10-18",
+        "status": "source-and-form-reviewed",
+        "artworkSHA256": "0fd8922583cd2062d1763dd0d4c07d85afce0c7300f4116c48e5b656f7243775",
+        "confidence": "medium",
+        "method": "Pinned illustration and official source profile checked. Transformed and later-arc capabilities explicitly bounded. The grade is NIGHT editorial judgment, not an official statistic or an exhaustive chapter-by-chapter feat audit."
+      }
     },
     "hiyori-featured": {
       "scale": "night-power-v1",
       "status": "proposed",
       "rank": "B",
-      "formId": "featured",
+      "formId": "visored-unmasked",
       "artworkSHA256": "17d25e3c34f2cca383a4178d89fbf901400ece4789829eb93bc81f26d6ec92f0",
-      "scope": "Standard Hiyori",
-      "basis": "Trained sword combat and limited Hollow augmentation; no captain-level assumption from affiliation.",
-      "limits": "Conservative editorial proposal for the depicted version; official profiles establish identity but do not certify this cross-series grade. A scene-by-scene feat audit can revise it.",
+      "scope": "Hiyori Sarugaki - Visored / mask raised",
+      "basis": "Experienced Visored close combat in the unmasked state; affiliation alone grants no active transformation bonus.",
+      "limits": "The mask is lifted above her face, not active. No sustained mask bonus or assumed captain output.",
       "references": [
         "https://www.bleach-bravesouls.com/en/character/hiyori.html"
-      ]
+      ],
+      "review": {
+        "date": "2026-10-18",
+        "status": "source-and-form-reviewed",
+        "artworkSHA256": "17d25e3c34f2cca383a4178d89fbf901400ece4789829eb93bc81f26d6ec92f0",
+        "confidence": "medium",
+        "method": "Pinned illustration and official source profile checked. Transformed and later-arc capabilities explicitly bounded. The grade is NIGHT editorial judgment, not an official statistic or an exhaustive chapter-by-chapter feat audit."
+      }
     },
     "ichigo-original-bankai": {
       "scale": "night-power-v1",
@@ -206,7 +305,14 @@
       "references": [
         "https://www.bleach-soulresonance.com/",
         "https://bleach-anime.com/en/character/"
-      ]
+      ],
+      "review": {
+        "date": "2026-10-18",
+        "status": "source-and-form-reviewed",
+        "artworkSHA256": "ebe412483d41abab007584d83052f4362d9b88fa67e507e08bc75859b1c20b66",
+        "confidence": "medium",
+        "method": "Pinned illustration and official source profile checked. Transformed and later-arc capabilities explicitly bounded. The grade is NIGHT editorial judgment, not an official statistic or an exhaustive chapter-by-chapter feat audit."
+      }
     },
     "ichigo-original-shikai": {
       "scale": "night-power-v1",
@@ -220,7 +326,14 @@
       "references": [
         "https://www.bleach-soulresonance.com/",
         "https://bleach-anime.com/en/character/"
-      ]
+      ],
+      "review": {
+        "date": "2026-10-18",
+        "status": "source-and-form-reviewed",
+        "artworkSHA256": "1498936a73f8d281abf14e2b5b3b452bf5f73f9e4b05f17ea5756b1599cfa079",
+        "confidence": "medium",
+        "method": "Pinned illustration and official source profile checked. Transformed and later-arc capabilities explicitly bounded. The grade is NIGHT editorial judgment, not an official statistic or an exhaustive chapter-by-chapter feat audit."
+      }
     },
     "ichigo-substitute-soul-reaper": {
       "scale": "night-power-v1",
@@ -234,800 +347,1248 @@
       "references": [
         "https://www.bleach-soulresonance.com/",
         "https://bleach-anime.com/en/character/"
-      ]
+      ],
+      "review": {
+        "date": "2026-10-18",
+        "status": "source-and-form-reviewed",
+        "artworkSHA256": "946c5441f729654e0dbd4f230a3ada760720677a577c6eade090cba233633a71",
+        "confidence": "medium",
+        "method": "Pinned illustration and official source profile checked. Transformed and later-arc capabilities explicitly bounded. The grade is NIGHT editorial judgment, not an official statistic or an exhaustive chapter-by-chapter feat audit."
+      }
     },
     "ikkaku-featured": {
       "scale": "night-power-v1",
       "status": "proposed",
       "rank": "B",
-      "formId": "featured",
+      "formId": "bankai-ryumon-hozukimaru",
       "artworkSHA256": "decd80b04d20203b8bba9bc71716745f9340432b8b06a1a9a5cab1a2ba4c9f06",
-      "scope": "Depicted Ikkaku",
-      "basis": "Experienced close-combat specialist; Bankai is counted only if that release is depicted.",
-      "limits": "Conservative editorial proposal for the depicted version; official profiles establish identity but do not certify this cross-series grade. A scene-by-scene feat audit can revise it.",
+      "scope": "Ikkaku Madarame - Bankai / Ryumon Hozukimaru",
+      "basis": "Ryumon Hozukimaru offers powerful close-range Bankai strikes, balanced by charge-up and fragility.",
+      "limits": "The chained giant axe is Bankai. Its power needs ramp-up and the weapon is fragile; no repaired or later upgraded state.",
       "references": [
         "https://www.bleach-bravesouls.com/en/character/ikkaku.html"
-      ]
+      ],
+      "review": {
+        "date": "2026-10-18",
+        "status": "source-and-form-reviewed",
+        "artworkSHA256": "decd80b04d20203b8bba9bc71716745f9340432b8b06a1a9a5cab1a2ba4c9f06",
+        "confidence": "medium",
+        "method": "Pinned illustration and official source profile checked. Transformed and later-arc capabilities explicitly bounded. The grade is NIGHT editorial judgment, not an official statistic or an exhaustive chapter-by-chapter feat audit."
+      }
     },
     "isane-featured": {
       "scale": "night-power-v1",
       "status": "proposed",
       "rank": "C",
-      "formId": "featured",
+      "formId": "squad-four",
       "artworkSHA256": "24f3a1ed59a01e9b02b191b36fca176d9259e3dccad1784881c3e56ce0b51658",
-      "scope": "Standard Isane",
+      "scope": "Isane Kotetsu - Squad 4 / healing",
       "basis": "Spiritual combat training with healing and support specialisation.",
-      "limits": "Conservative editorial proposal for the depicted version; official profiles establish identity but do not certify this cross-series grade. A scene-by-scene feat audit can revise it.",
+      "limits": "Healing and trained support do not imply captain-grade offence; no unseen release effects.",
       "references": [
         "https://www.bleach-bravesouls.com/en/character/isane.html"
-      ]
+      ],
+      "review": {
+        "date": "2026-10-18",
+        "status": "source-and-form-reviewed",
+        "artworkSHA256": "24f3a1ed59a01e9b02b191b36fca176d9259e3dccad1784881c3e56ce0b51658",
+        "confidence": "medium",
+        "method": "Pinned illustration and official source profile checked. Transformed and later-arc capabilities explicitly bounded. The grade is NIGHT editorial judgment, not an official statistic or an exhaustive chapter-by-chapter feat audit."
+      }
     },
     "isshin-featured": {
       "scale": "night-power-v1",
       "status": "proposed",
       "rank": "A",
-      "formId": "featured",
+      "formId": "soul-reaper-unreleased",
       "artworkSHA256": "b8eff2a14e402f3d2eff5afacea1c9216ffd039a7210c1538a5e686cbbb62c65",
-      "scope": "Soul Reaper Isshin shown in the source",
+      "scope": "Isshin Kurosaki - Soul Reaper / unreleased",
       "basis": "Experienced spiritual sword combat; no unseen Bankai multiplier is assumed.",
-      "limits": "Conservative editorial proposal for the depicted version; official profiles establish identity but do not certify this cross-series grade. A scene-by-scene feat audit can revise it.",
+      "limits": "No unnamed Bankai, Final Getsuga or imported Ichigo abilities.",
       "references": [
         "https://www.bleach-bravesouls.com/en/character/isshin.html"
-      ]
+      ],
+      "review": {
+        "date": "2026-10-18",
+        "status": "source-and-form-reviewed",
+        "artworkSHA256": "b8eff2a14e402f3d2eff5afacea1c9216ffd039a7210c1538a5e686cbbb62c65",
+        "confidence": "medium",
+        "method": "Pinned illustration and official source profile checked. Transformed and later-arc capabilities explicitly bounded. The grade is NIGHT editorial judgment, not an official statistic or an exhaustive chapter-by-chapter feat audit."
+      }
     },
     "kaien-featured": {
       "scale": "night-power-v1",
       "status": "proposed",
       "rank": "B",
-      "formId": "featured",
+      "formId": "nejibana",
       "artworkSHA256": "f9cb9ca9b93ff513c37717dca907dc4f7d9929a543fe638a3c67ac58a9bb0e32",
-      "scope": "Standard Kaien",
+      "scope": "Kaien Shiba - Nejibana / lieutenant",
       "basis": "Experienced spiritual sword combat; no possessed or later composite form is included.",
-      "limits": "Conservative editorial proposal for the depicted version; official profiles establish identity but do not certify this cross-series grade. A scene-by-scene feat audit can revise it.",
+      "limits": "Nejibana Shikai only. Excludes Metastacia possession, Aaroniero and composite abilities.",
       "references": [
         "https://www.bleach-bravesouls.com/en/character/kaien.html"
-      ]
+      ],
+      "review": {
+        "date": "2026-10-18",
+        "status": "source-and-form-reviewed",
+        "artworkSHA256": "f9cb9ca9b93ff513c37717dca907dc4f7d9929a543fe638a3c67ac58a9bb0e32",
+        "confidence": "medium",
+        "method": "Pinned illustration and official source profile checked. Transformed and later-arc capabilities explicitly bounded. The grade is NIGHT editorial judgment, not an official statistic or an exhaustive chapter-by-chapter feat audit."
+      }
     },
     "kenpachi-featured": {
       "scale": "night-power-v1",
       "status": "proposed",
-      "rank": "S",
-      "formId": "featured",
+      "rank": "A",
+      "formId": "pre-tybw-sealed",
       "artworkSHA256": "965b8ca7b19600eb9e4c43d165347452eef468e1391e1309f0624c6b7b3662c0",
-      "scope": "Pre-TYBW Kenpachi shown in the source",
+      "scope": "Kenpachi Zaraki - Pre-TYBW / sealed sword",
       "basis": "Exceptional physical offence and endurance; Nozarashi and Bankai are excluded.",
-      "limits": "Conservative editorial proposal for the depicted version; official profiles establish identity but do not certify this cross-series grade. A scene-by-scene feat audit can revise it.",
+      "limits": "Eyepatched pre-TYBW state. No Unohana training release, Nozarashi, Bankai or limitless growth.",
       "references": [
-        "https://www.bleach-bravesouls.com/en/character/kenpachi.html"
-      ]
+        "https://www.bleach-bravesouls.com/en/character/kenpachi.html",
+        "https://bleach-anime.com/en/story/?id=10"
+      ],
+      "review": {
+        "date": "2026-10-18",
+        "status": "source-and-form-reviewed",
+        "artworkSHA256": "965b8ca7b19600eb9e4c43d165347452eef468e1391e1309f0624c6b7b3662c0",
+        "confidence": "medium",
+        "method": "Pinned illustration and official source profile checked. Transformed and later-arc capabilities explicitly bounded. The grade is NIGHT editorial judgment, not an official statistic or an exhaustive chapter-by-chapter feat audit."
+      }
     },
     "kensei-featured": {
       "scale": "night-power-v1",
       "status": "proposed",
       "rank": "A",
-      "formId": "featured",
+      "formId": "bankai-tekken-tachikaze",
       "artworkSHA256": "bfe74b7baa32497ea739416b3b2c34b2910952f3156408d64e5b3a29c0006e85",
-      "scope": "Depicted Kensei",
-      "basis": "Highly trained melee combat and concentrated impact attacks; no later upgrades are imported.",
-      "limits": "Conservative editorial proposal for the depicted version; official profiles establish identity but do not certify this cross-series grade. A scene-by-scene feat audit can revise it.",
+      "scope": "Kensei Muguruma - Bankai / Tekken Tachikaze",
+      "basis": "Tekken Tachikaze concentrates destructive impact through sustained close contact.",
+      "limits": "Tekken Tachikaze Bankai is visibly active. No Hollow mask or later unseen upgrade; close-contact conditions remain.",
       "references": [
         "https://www.bleach-bravesouls.com/en/character/kensei.html"
-      ]
+      ],
+      "review": {
+        "date": "2026-10-18",
+        "status": "source-and-form-reviewed",
+        "artworkSHA256": "bfe74b7baa32497ea739416b3b2c34b2910952f3156408d64e5b3a29c0006e85",
+        "confidence": "medium",
+        "method": "Pinned illustration and official source profile checked. Transformed and later-arc capabilities explicitly bounded. The grade is NIGHT editorial judgment, not an official statistic or an exhaustive chapter-by-chapter feat audit."
+      }
     },
     "kira-featured": {
       "scale": "night-power-v1",
       "status": "proposed",
       "rank": "B",
-      "formId": "featured",
+      "formId": "wabisuke",
       "artworkSHA256": "9e7a4ebce4bf4bcf7a2b46c7be1cbb055eb0ea764d438adf2a1f15e8c6e32df3",
-      "scope": "Standard Izuru Kira",
+      "scope": "Izuru Kira - Wabisuke / lieutenant",
       "basis": "Weight-changing sword effects create a dangerous constrained matchup.",
-      "limits": "Conservative editorial proposal for the depicted version; official profiles establish identity but do not certify this cross-series grade. A scene-by-scene feat audit can revise it.",
+      "limits": "Wabisuke must land strikes. No post-reconstruction body or later durability feats.",
       "references": [
         "https://www.bleach-bravesouls.com/en/character/kira.html"
-      ]
+      ],
+      "review": {
+        "date": "2026-10-18",
+        "status": "source-and-form-reviewed",
+        "artworkSHA256": "9e7a4ebce4bf4bcf7a2b46c7be1cbb055eb0ea764d438adf2a1f15e8c6e32df3",
+        "confidence": "medium",
+        "method": "Pinned illustration and official source profile checked. Transformed and later-arc capabilities explicitly bounded. The grade is NIGHT editorial judgment, not an official statistic or an exhaustive chapter-by-chapter feat audit."
+      }
     },
     "komamura-featured": {
       "scale": "night-power-v1",
       "status": "proposed",
       "rank": "A",
-      "formId": "featured",
+      "formId": "captain-unreleased",
       "artworkSHA256": "94da1f1ba45dbdd2e7801fb8d9fb05d18dad53568564c7b7665db876cfbcff5f",
-      "scope": "Depicted Komamura",
+      "scope": "Sajin Komamura - Captain / unreleased",
       "basis": "Exceptional physical and spiritual combat power; humanisation and immortality are excluded.",
-      "limits": "Conservative editorial proposal for the depicted version; official profiles establish identity but do not certify this cross-series grade. A scene-by-scene feat audit can revise it.",
+      "limits": "No giant Bankai avatar, humanisation or immortal Dangai Joe.",
       "references": [
         "https://www.bleach-bravesouls.com/en/character/komamura.html"
-      ]
+      ],
+      "review": {
+        "date": "2026-10-18",
+        "status": "source-and-form-reviewed",
+        "artworkSHA256": "94da1f1ba45dbdd2e7801fb8d9fb05d18dad53568564c7b7665db876cfbcff5f",
+        "confidence": "medium",
+        "method": "Pinned illustration and official source profile checked. Transformed and later-arc capabilities explicitly bounded. The grade is NIGHT editorial judgment, not an official statistic or an exhaustive chapter-by-chapter feat audit."
+      }
     },
     "kon-featured": {
       "scale": "night-power-v1",
       "status": "proposed",
       "rank": "E",
-      "formId": "featured",
+      "formId": "plush-body",
       "artworkSHA256": "1dd56bbe7fc18703e15d1c618282826d4dd0c66cdd833ba502620a62d1eb695c",
-      "scope": "Kon in the depicted body",
+      "scope": "Kon - Modified soul / plush body",
       "basis": "A modified soul with limited physical capability; no human-body feats are transferred to the plush body.",
-      "limits": "Conservative editorial proposal for the depicted version; official profiles establish identity but do not certify this cross-series grade. A scene-by-scene feat audit can revise it.",
+      "limits": "Plush body only; feats while inhabiting Ichigo are excluded.",
       "references": [
         "https://www.bleach-bravesouls.com/en/character/kon.html"
-      ]
+      ],
+      "review": {
+        "date": "2026-10-18",
+        "status": "source-and-form-reviewed",
+        "artworkSHA256": "1dd56bbe7fc18703e15d1c618282826d4dd0c66cdd833ba502620a62d1eb695c",
+        "confidence": "medium",
+        "method": "Pinned illustration and official source profile checked. Transformed and later-arc capabilities explicitly bounded. The grade is NIGHT editorial judgment, not an official statistic or an exhaustive chapter-by-chapter feat audit."
+      }
     },
     "kukaku-featured": {
       "scale": "night-power-v1",
       "status": "proposed",
       "rank": "C",
-      "formId": "featured",
+      "formId": "shiba-outfit",
       "artworkSHA256": "671b4e7bf3e0e804d25a8a646d64688ed185ff378786e70d74b92c18a747568a",
-      "scope": "Standard Kukaku",
+      "scope": "Kukaku Shiba - Shiba outfit / spiritual arts",
       "basis": "Developed spiritual techniques and explosives, with limited demonstrated direct combat.",
-      "limits": "Conservative editorial proposal for the depicted version; official profiles establish identity but do not certify this cross-series grade. A scene-by-scene feat audit can revise it.",
+      "limits": "Spiritual arts and cannon expertise require preparation; no unseen release or unlimited direct-combat output.",
       "references": [
         "https://www.bleach-bravesouls.com/en/character/kukaku.html"
-      ]
+      ],
+      "review": {
+        "date": "2026-10-18",
+        "status": "source-and-form-reviewed",
+        "artworkSHA256": "671b4e7bf3e0e804d25a8a646d64688ed185ff378786e70d74b92c18a747568a",
+        "confidence": "medium",
+        "method": "Pinned illustration and official source profile checked. Transformed and later-arc capabilities explicitly bounded. The grade is NIGHT editorial judgment, not an official statistic or an exhaustive chapter-by-chapter feat audit."
+      }
     },
     "kyoraku-featured": {
       "scale": "night-power-v1",
       "status": "proposed",
       "rank": "S",
-      "formId": "featured",
+      "formId": "shikai",
       "artworkSHA256": "a8b6a4e14980f1907e4db84041a0ec7e8acbf1cc885c7c2e9e2a3da025fab7f4",
-      "scope": "Standard Shunsui shown in the source",
+      "scope": "Shunsui Kyoraku - Shikai / Katen Kyokotsu",
       "basis": "Exceptional swordsmanship and rule-based combat; unseen Bankai stages are excluded.",
-      "limits": "Conservative editorial proposal for the depicted version; official profiles establish identity but do not certify this cross-series grade. A scene-by-scene feat audit can revise it.",
+      "limits": "Shikai game rules and mutual risk apply. All Bankai acts are excluded.",
       "references": [
         "https://www.bleach-bravesouls.com/en/character/kyoraku.html"
-      ]
+      ],
+      "review": {
+        "date": "2026-10-18",
+        "status": "source-and-form-reviewed",
+        "artworkSHA256": "a8b6a4e14980f1907e4db84041a0ec7e8acbf1cc885c7c2e9e2a3da025fab7f4",
+        "confidence": "medium",
+        "method": "Pinned illustration and official source profile checked. Transformed and later-arc capabilities explicitly bounded. The grade is NIGHT editorial judgment, not an official statistic or an exhaustive chapter-by-chapter feat audit."
+      }
     },
     "lisa-featured": {
       "scale": "night-power-v1",
       "status": "proposed",
       "rank": "B",
-      "formId": "featured",
+      "formId": "visored-polearm",
       "artworkSHA256": "e1b64cba03f74ff35c1424884f34decc0348728c38ad0bdf55b8f9aed29eeb09",
-      "scope": "Standard Visored Lisa",
-      "basis": "Experienced polearm combat and Hollow augmentation; later captain promotions do not add feats.",
-      "limits": "Conservative editorial proposal for the depicted version; official profiles establish identity but do not certify this cross-series grade. A scene-by-scene feat audit can revise it.",
+      "scope": "Lisa Yadomaru - Visored / polearm",
+      "basis": "Trained Visored polearm combat and physical mastery without an active Hollow mask.",
+      "limits": "Polearm Shikai only; no active mask or later captain Bankai is shown.",
       "references": [
         "https://www.bleach-bravesouls.com/en/character/lisa.html"
-      ]
+      ],
+      "review": {
+        "date": "2026-10-18",
+        "status": "source-and-form-reviewed",
+        "artworkSHA256": "e1b64cba03f74ff35c1424884f34decc0348728c38ad0bdf55b8f9aed29eeb09",
+        "confidence": "medium",
+        "method": "Pinned illustration and official source profile checked. Transformed and later-arc capabilities explicitly bounded. The grade is NIGHT editorial judgment, not an official statistic or an exhaustive chapter-by-chapter feat audit."
+      }
     },
     "mashiro-featured": {
       "scale": "night-power-v1",
       "status": "proposed",
       "rank": "B",
-      "formId": "featured",
+      "formId": "visored-unmasked",
       "artworkSHA256": "a6a117562f79512d057623636313d86b6128c18f535dabae2ed0edc8bbbdbcf7",
-      "scope": "Standard Mashiro",
-      "basis": "Sustained Hollow augmentation and powerful hand-to-hand combat.",
-      "limits": "Conservative editorial proposal for the depicted version; official profiles establish identity but do not certify this cross-series grade. A scene-by-scene feat audit can revise it.",
+      "scope": "Mashiro Kuna - Visored / unmasked",
+      "basis": "Experienced Visored close combat in the unmasked state; affiliation alone grants no active transformation bonus.",
+      "limits": "Unmasked pose. Do not credit a sustained active mask or later training automatically.",
       "references": [
         "https://www.bleach-bravesouls.com/en/character/mashiro.html"
-      ]
+      ],
+      "review": {
+        "date": "2026-10-18",
+        "status": "source-and-form-reviewed",
+        "artworkSHA256": "a6a117562f79512d057623636313d86b6128c18f535dabae2ed0edc8bbbdbcf7",
+        "confidence": "medium",
+        "method": "Pinned illustration and official source profile checked. Transformed and later-arc capabilities explicitly bounded. The grade is NIGHT editorial judgment, not an official statistic or an exhaustive chapter-by-chapter feat audit."
+      }
     },
     "mayuri-featured": {
       "scale": "night-power-v1",
       "status": "proposed",
       "rank": "A",
-      "formId": "featured",
+      "formId": "captain-unreleased",
       "artworkSHA256": "006592264851a28dae43ee3512772342130a262b49c57784376e1790ceeeee09",
-      "scope": "Standard Mayuri shown in the source",
+      "scope": "Mayuri Kurotsuchi - Captain / unreleased",
       "basis": "Poisons, modifications and tactical versatility; preparation is a condition rather than an automatic victory.",
-      "limits": "Conservative editorial proposal for the depicted version; official profiles establish identity but do not certify this cross-series grade. A scene-by-scene feat audit can revise it.",
+      "limits": "No Bankai creature, later altered Bankai, automatic perfect preparation or Nemu overdrive.",
       "references": [
         "https://www.bleach-bravesouls.com/en/character/mayuri.html"
-      ]
+      ],
+      "review": {
+        "date": "2026-10-18",
+        "status": "source-and-form-reviewed",
+        "artworkSHA256": "006592264851a28dae43ee3512772342130a262b49c57784376e1790ceeeee09",
+        "confidence": "medium",
+        "method": "Pinned illustration and official source profile checked. Transformed and later-arc capabilities explicitly bounded. The grade is NIGHT editorial judgment, not an official statistic or an exhaustive chapter-by-chapter feat audit."
+      }
     },
     "nanao-featured": {
       "scale": "night-power-v1",
       "status": "proposed",
       "rank": "C",
-      "formId": "featured",
+      "formId": "lieutenant-kido",
       "artworkSHA256": "3102788a236aee2e23e164632328fd256485fc0e09d110182b39ae261c94bc52",
-      "scope": "Standard Nanao",
+      "scope": "Nanao Ise - Lieutenant / Kido",
       "basis": "Advanced Kido and support skills; the later divine-reflection sword is excluded.",
-      "limits": "Conservative editorial proposal for the depicted version; official profiles establish identity but do not certify this cross-series grade. A scene-by-scene feat audit can revise it.",
+      "limits": "Kido and barrier support only; excludes Shinken Hakkyoken and divine-reflection performance.",
       "references": [
-        "https://www.bleach-bravesouls.com/en/character/nanao.html"
-      ]
+        "https://www.bleach-bravesouls.com/en/character/nanao.html",
+        "https://bleach-anime.com/en/story/?id=37"
+      ],
+      "review": {
+        "date": "2026-10-18",
+        "status": "source-and-form-reviewed",
+        "artworkSHA256": "3102788a236aee2e23e164632328fd256485fc0e09d110182b39ae261c94bc52",
+        "confidence": "medium",
+        "method": "Pinned illustration and official source profile checked. Transformed and later-arc capabilities explicitly bounded. The grade is NIGHT editorial judgment, not an official statistic or an exhaustive chapter-by-chapter feat audit."
+      }
     },
     "nel-featured": {
       "scale": "night-power-v1",
       "status": "proposed",
       "rank": "D",
-      "formId": "featured",
+      "formId": "child",
       "artworkSHA256": "09ebbce606b16482502d0edcc256fffb8303ce2b6b71a9d37acd52d385ba25b8",
-      "scope": "Child Nel",
+      "scope": "Nel Tu - Child form",
       "basis": "Limited child-form abilities; adult Nelliel and her released powers are excluded.",
-      "limits": "Conservative editorial proposal for the depicted version; official profiles establish identity but do not certify this cross-series grade. A scene-by-scene feat audit can revise it.",
+      "limits": "Child body and limited abilities only; no adult combat, Centauro or Gamuza.",
       "references": [
         "https://www.bleach-bravesouls.com/en/character/nel.html"
-      ]
+      ],
+      "review": {
+        "date": "2026-10-18",
+        "status": "source-and-form-reviewed",
+        "artworkSHA256": "09ebbce606b16482502d0edcc256fffb8303ce2b6b71a9d37acd52d385ba25b8",
+        "confidence": "medium",
+        "method": "Pinned illustration and official source profile checked. Transformed and later-arc capabilities explicitly bounded. The grade is NIGHT editorial judgment, not an official statistic or an exhaustive chapter-by-chapter feat audit."
+      }
     },
     "nelliel-featured": {
       "scale": "night-power-v1",
       "status": "proposed",
       "rank": "A",
-      "formId": "featured",
+      "formId": "adult-unreleased",
       "artworkSHA256": "fefc9fddbef1201ebfb1a005d6431edfff0c9408aa675f513e8bd92d4c35c401",
-      "scope": "Adult Nelliel",
+      "scope": "Nelliel Tu Odelschwanck - Adult / unreleased",
       "basis": "Elite adult Arrancar combat; child Nel is a separate assessment and released Centauro is excluded.",
-      "limits": "Conservative editorial proposal for the depicted version; official profiles establish identity but do not certify this cross-series grade. A scene-by-scene feat audit can revise it.",
+      "limits": "Adult body is separate from child Nel. No Gamuza release, Centauro or released lance.",
       "references": [
         "https://www.bleach-bravesouls.com/en/character/nelliel.html"
-      ]
+      ],
+      "review": {
+        "date": "2026-10-18",
+        "status": "source-and-form-reviewed",
+        "artworkSHA256": "fefc9fddbef1201ebfb1a005d6431edfff0c9408aa675f513e8bd92d4c35c401",
+        "confidence": "medium",
+        "method": "Pinned illustration and official source profile checked. Transformed and later-arc capabilities explicitly bounded. The grade is NIGHT editorial judgment, not an official statistic or an exhaustive chapter-by-chapter feat audit."
+      }
     },
     "nemu-featured": {
       "scale": "night-power-v1",
       "status": "proposed",
       "rank": "B",
-      "formId": "featured",
+      "formId": "standard-body",
       "artworkSHA256": "2df47d1526b76b5cf75ac7b5f5610ef4d1c9cd04902363a8505f551bd0719d76",
-      "scope": "Standard Nemu",
+      "scope": "Nemu Kurotsuchi - Lieutenant / standard body",
       "basis": "Enhanced-body combat and support; later self-sacrificing overdrive is excluded.",
-      "limits": "Conservative editorial proposal for the depicted version; official profiles establish identity but do not certify this cross-series grade. A scene-by-scene feat audit can revise it.",
+      "limits": "No later self-sacrificing cell-division acceleration or Pernida-fight overdrive.",
       "references": [
-        "https://www.bleach-bravesouls.com/en/character/nemu.html"
-      ]
+        "https://www.bleach-bravesouls.com/en/character/nemu.html",
+        "https://bleach-anime.com/en/story/?id=36"
+      ],
+      "review": {
+        "date": "2026-10-18",
+        "status": "source-and-form-reviewed",
+        "artworkSHA256": "2df47d1526b76b5cf75ac7b5f5610ef4d1c9cd04902363a8505f551bd0719d76",
+        "confidence": "medium",
+        "method": "Pinned illustration and official source profile checked. Transformed and later-arc capabilities explicitly bounded. The grade is NIGHT editorial judgment, not an official statistic or an exhaustive chapter-by-chapter feat audit."
+      }
     },
     "nnoitora-featured": {
       "scale": "night-power-v1",
       "status": "proposed",
       "rank": "A",
-      "formId": "featured",
+      "formId": "unreleased",
       "artworkSHA256": "bb30581c87c86741ef8030ad1ea6fddd50c1e7eea7493ca32a1fbd90e7655417",
-      "scope": "Depicted Nnoitora",
+      "scope": "Nnoitora Gilga - Unreleased / crescent blade",
       "basis": "Exceptional durability and close-range offence; unrevealed releases are excluded.",
-      "limits": "Conservative editorial proposal for the depicted version; official profiles establish identity but do not certify this cross-series grade. A scene-by-scene feat audit can revise it.",
+      "limits": "Unreleased crescent weapon only. No Santa Teresa multi-arm release.",
       "references": [
         "https://www.bleach-bravesouls.com/en/character/nnoitora.html"
-      ]
+      ],
+      "review": {
+        "date": "2026-10-18",
+        "status": "source-and-form-reviewed",
+        "artworkSHA256": "bb30581c87c86741ef8030ad1ea6fddd50c1e7eea7493ca32a1fbd90e7655417",
+        "confidence": "medium",
+        "method": "Pinned illustration and official source profile checked. Transformed and later-arc capabilities explicitly bounded. The grade is NIGHT editorial judgment, not an official statistic or an exhaustive chapter-by-chapter feat audit."
+      }
     },
     "orihime-featured": {
       "scale": "night-power-v1",
       "status": "proposed",
       "rank": "B",
-      "formId": "featured",
+      "formId": "lost-agent",
       "artworkSHA256": "dbeb309905a61de9a54e4d6df899b9186fd0b7e1876d2d616c543ddbe1b1bf52",
-      "scope": "Depicted pre-TYBW Orihime",
+      "scope": "Orihime Inoue - Lost Agent / Shun Shun Rikka",
       "basis": "Developed shields and restorative powers; support utility is assessed without equating it to attack output.",
-      "limits": "Conservative editorial proposal for the depicted version; official profiles establish identity but do not certify this cross-series grade. A scene-by-scene feat audit can revise it.",
+      "limits": "Pre-TYBW support version; no later palace/battlefield scaling or equating healing with attack output.",
       "references": [
         "https://www.bleach-bravesouls.com/en/character/orihime.html"
-      ]
+      ],
+      "review": {
+        "date": "2026-10-18",
+        "status": "source-and-form-reviewed",
+        "artworkSHA256": "dbeb309905a61de9a54e4d6df899b9186fd0b7e1876d2d616c543ddbe1b1bf52",
+        "confidence": "medium",
+        "method": "Pinned illustration and official source profile checked. Transformed and later-arc capabilities explicitly bounded. The grade is NIGHT editorial judgment, not an official statistic or an exhaustive chapter-by-chapter feat audit."
+      }
     },
     "rangiku-featured": {
       "scale": "night-power-v1",
       "status": "proposed",
       "rank": "B",
-      "formId": "featured",
+      "formId": "haineko",
       "artworkSHA256": "494e3a2948b7a465eb533a9ccac78ee8bd9ad1c2d73afac23760f0a0b05c74d5",
-      "scope": "Standard Rangiku",
+      "scope": "Rangiku Matsumoto - Haineko / lieutenant",
       "basis": "Trained spiritual combat and dispersed-blade attacks with clear limitations.",
-      "limits": "Conservative editorial proposal for the depicted version; official profiles establish identity but do not certify this cross-series grade. A scene-by-scene feat audit can revise it.",
+      "limits": "Haineko requires controlled dispersal and has limited stopping power; no unseen Bankai.",
       "references": [
         "https://www.bleach-bravesouls.com/en/character/rangiku.html"
-      ]
+      ],
+      "review": {
+        "date": "2026-10-18",
+        "status": "source-and-form-reviewed",
+        "artworkSHA256": "494e3a2948b7a465eb533a9ccac78ee8bd9ad1c2d73afac23760f0a0b05c74d5",
+        "confidence": "medium",
+        "method": "Pinned illustration and official source profile checked. Transformed and later-arc capabilities explicitly bounded. The grade is NIGHT editorial judgment, not an official statistic or an exhaustive chapter-by-chapter feat audit."
+      }
     },
     "renji-featured": {
       "scale": "night-power-v1",
       "status": "proposed",
       "rank": "B",
-      "formId": "featured",
+      "formId": "zabimaru-lost-agent",
       "artworkSHA256": "3232534811e56237dc2dcda96f993d178cb0c2b25889735b94bfbb56de1c7c07",
-      "scope": "Depicted pre-Royal Palace Renji",
+      "scope": "Renji Abarai - Zabimaru / Lost Agent",
       "basis": "Experienced spiritual sword combat; true Bankai and Royal Palace training are excluded.",
-      "limits": "Conservative editorial proposal for the depicted version; official profiles establish identity but do not certify this cross-series grade. A scene-by-scene feat audit can revise it.",
+      "limits": "Lost Agent Zabimaru Shikai. No Royal Palace training or So'o Zabimaru true Bankai.",
       "references": [
         "https://www.bleach-bravesouls.com/en/character/renji.html"
-      ]
+      ],
+      "review": {
+        "date": "2026-10-18",
+        "status": "source-and-form-reviewed",
+        "artworkSHA256": "3232534811e56237dc2dcda96f993d178cb0c2b25889735b94bfbb56de1c7c07",
+        "confidence": "medium",
+        "method": "Pinned illustration and official source profile checked. Transformed and later-arc capabilities explicitly bounded. The grade is NIGHT editorial judgment, not an official statistic or an exhaustive chapter-by-chapter feat audit."
+      }
     },
     "riruka-featured": {
       "scale": "night-power-v1",
       "status": "proposed",
       "rank": "C",
-      "formId": "featured",
+      "formId": "dollhouse",
       "artworkSHA256": "72d119f83d1ef23c730a2b833d8a84af0f0f0d1eb1cb20f0bf9297dff915bb8e",
-      "scope": "Standard Riruka",
+      "scope": "Riruka Dokugamine - Fullbring / Dollhouse",
       "basis": "Restricted object-based Fullbring with strong setup-dependent utility.",
-      "limits": "Conservative editorial proposal for the depicted version; official profiles establish identity but do not certify this cross-series grade. A scene-by-scene feat audit can revise it.",
+      "limits": "Dollhouse requires permitted objects and conditions; no unrestricted reality alteration.",
       "references": [
         "https://www.bleach-bravesouls.com/en/character/riruka.html"
-      ]
+      ],
+      "review": {
+        "date": "2026-10-18",
+        "status": "source-and-form-reviewed",
+        "artworkSHA256": "72d119f83d1ef23c730a2b833d8a84af0f0f0d1eb1cb20f0bf9297dff915bb8e",
+        "confidence": "medium",
+        "method": "Pinned illustration and official source profile checked. Transformed and later-arc capabilities explicitly bounded. The grade is NIGHT editorial judgment, not an official statistic or an exhaustive chapter-by-chapter feat audit."
+      }
     },
     "rojuro-featured": {
       "scale": "night-power-v1",
       "status": "proposed",
       "rank": "A",
-      "formId": "featured",
+      "formId": "kinshara",
       "artworkSHA256": "3bb7132aac9b33fa118b81c93e166a1f1d3002d9085fae9c33cd9f986041dee9",
-      "scope": "Standard Rose",
+      "scope": "Rojuro Ohtoribashi - Visored / Kinshara",
       "basis": "Experienced spiritual combat and specialised sound techniques; unseen Bankai use is excluded.",
-      "limits": "Conservative editorial proposal for the depicted version; official profiles establish identity but do not certify this cross-series grade. A scene-by-scene feat audit can revise it.",
+      "limits": "Kinshara and trained sword combat; no Kinshara Butodan Bankai illusions or active Hollow mask.",
       "references": [
         "https://www.bleach-bravesouls.com/en/character/rojuro.html"
-      ]
+      ],
+      "review": {
+        "date": "2026-10-18",
+        "status": "source-and-form-reviewed",
+        "artworkSHA256": "3bb7132aac9b33fa118b81c93e166a1f1d3002d9085fae9c33cd9f986041dee9",
+        "confidence": "medium",
+        "method": "Pinned illustration and official source profile checked. Transformed and later-arc capabilities explicitly bounded. The grade is NIGHT editorial judgment, not an official statistic or an exhaustive chapter-by-chapter feat audit."
+      }
     },
     "rukia-featured": {
       "scale": "night-power-v1",
       "status": "proposed",
       "rank": "B",
-      "formId": "featured",
+      "formId": "sode-no-shirayuki-lost-agent",
       "artworkSHA256": "a3fc224c4d45b3b01b113d084c6a3ab38b30dc435478b437e4f7f1aa45170550",
-      "scope": "Depicted pre-Royal Palace Rukia",
+      "scope": "Rukia Kuchiki - Sode no Shirayuki / Lost Agent",
       "basis": "Developed ice techniques; Hakka no Togame and later captain status are excluded.",
-      "limits": "Conservative editorial proposal for the depicted version; official profiles establish identity but do not certify this cross-series grade. A scene-by-scene feat audit can revise it.",
+      "limits": "Lost Agent lieutenant Shikai. No Royal Palace absolute-zero techniques, Hakka no Togame or captain-era feats.",
       "references": [
-        "https://www.bleach-bravesouls.com/en/character/rukia.html"
-      ]
+        "https://www.bleach-bravesouls.com/en/character/rukia.html",
+        "https://bleach-anime.com/en/story/?id=19"
+      ],
+      "review": {
+        "date": "2026-10-18",
+        "status": "source-and-form-reviewed",
+        "artworkSHA256": "a3fc224c4d45b3b01b113d084c6a3ab38b30dc435478b437e4f7f1aa45170550",
+        "confidence": "medium",
+        "method": "Pinned illustration and official source profile checked. Transformed and later-arc capabilities explicitly bounded. The grade is NIGHT editorial judgment, not an official statistic or an exhaustive chapter-by-chapter feat audit."
+      }
     },
     "sado-featured": {
       "scale": "night-power-v1",
       "status": "proposed",
       "rank": "B",
-      "formId": "featured",
+      "formId": "fullbring-two-arms",
       "artworkSHA256": "e0f4c9ab600aa7296c826409835203c7166aa6aff7ee044ca3f0f06e8794d648",
-      "scope": "Depicted Fullbringer Chad",
+      "scope": "Yasutora Sado (Chad) - Fullbring / two arms",
       "basis": "Developed enhanced-arm offence and defence; later versions are excluded.",
-      "limits": "Conservative editorial proposal for the depicted version; official profiles establish identity but do not certify this cross-series grade. A scene-by-scene feat audit can revise it.",
+      "limits": "Both developed arms shown. Their reach and durability are limited; no unseen later evolution.",
       "references": [
         "https://www.bleach-bravesouls.com/en/character/sado.html"
-      ]
+      ],
+      "review": {
+        "date": "2026-10-18",
+        "status": "source-and-form-reviewed",
+        "artworkSHA256": "e0f4c9ab600aa7296c826409835203c7166aa6aff7ee044ca3f0f06e8794d648",
+        "confidence": "medium",
+        "method": "Pinned illustration and official source profile checked. Transformed and later-arc capabilities explicitly bounded. The grade is NIGHT editorial judgment, not an official statistic or an exhaustive chapter-by-chapter feat audit."
+      }
     },
     "soifon-featured": {
       "scale": "night-power-v1",
       "status": "proposed",
       "rank": "A",
-      "formId": "featured",
+      "formId": "suzumebachi",
       "artworkSHA256": "9c292251191f1143fff885ba7c7a5da5aaca5e1cf98aadb1e80c7d4c8ddc016c",
-      "scope": "Standard Soi Fon",
+      "scope": "Soi Fon - Suzumebachi / Shikai",
       "basis": "Exceptional speed and a conditional lethal technique; conditions remain part of the grade.",
-      "limits": "Conservative editorial proposal for the depicted version; official profiles establish identity but do not certify this cross-series grade. A scene-by-scene feat audit can revise it.",
+      "limits": "Suzumebachi needs two strikes in the same spot and has power counters. No Jakuho Raikoben Bankai.",
       "references": [
         "https://www.bleach-bravesouls.com/en/character/soifon.html"
-      ]
+      ],
+      "review": {
+        "date": "2026-10-18",
+        "status": "source-and-form-reviewed",
+        "artworkSHA256": "9c292251191f1143fff885ba7c7a5da5aaca5e1cf98aadb1e80c7d4c8ddc016c",
+        "confidence": "medium",
+        "method": "Pinned illustration and official source profile checked. Transformed and later-arc capabilities explicitly bounded. The grade is NIGHT editorial judgment, not an official statistic or an exhaustive chapter-by-chapter feat audit."
+      }
     },
     "stark-featured": {
       "scale": "night-power-v1",
       "status": "proposed",
-      "rank": "S",
-      "formId": "featured",
+      "rank": "A",
+      "formId": "unreleased",
       "artworkSHA256": "4eb28a2504cc5769358d9e278a6e104181f8c57c0a7a0f9fb6ca620f4da7b0ed",
-      "scope": "Depicted Stark",
+      "scope": "Coyote Stark - Unreleased / Arrancar",
       "basis": "Exceptional spiritual pressure and combat awareness; no release is added unless depicted.",
-      "limits": "Conservative editorial proposal for the depicted version; official profiles establish identity but do not certify this cross-series grade. A scene-by-scene feat audit can revise it.",
+      "limits": "Unreleased body. No Los Lobos gunfire, Cero Metralleta or wolf-soul explosions.",
       "references": [
         "https://www.bleach-bravesouls.com/en/character/stark.html"
-      ]
+      ],
+      "review": {
+        "date": "2026-10-18",
+        "status": "source-and-form-reviewed",
+        "artworkSHA256": "4eb28a2504cc5769358d9e278a6e104181f8c57c0a7a0f9fb6ca620f4da7b0ed",
+        "confidence": "medium",
+        "method": "Pinned illustration and official source profile checked. Transformed and later-arc capabilities explicitly bounded. The grade is NIGHT editorial judgment, not an official statistic or an exhaustive chapter-by-chapter feat audit."
+      }
     },
     "szayelaporro-featured": {
       "scale": "night-power-v1",
       "status": "proposed",
       "rank": "A",
-      "formId": "featured",
+      "formId": "unreleased",
       "artworkSHA256": "7efa77bd58729a12c5eb606d3b573c15e02f849b26e9990f4a8b52e9f538d0c2",
-      "scope": "Depicted Szayelaporro",
-      "basis": "Specialised research-driven combat and opponent analysis; preparation and counterplay matter.",
-      "limits": "Conservative editorial proposal for the depicted version; official profiles establish identity but do not certify this cross-series grade. A scene-by-scene feat audit can revise it.",
+      "scope": "Szayelaporro Grantz - Unreleased / Arrancar",
+      "basis": "Analysis, specialised techniques and tactical preparation, bounded to the unreleased Arrancar body.",
+      "limits": "No Fornicaras release, Gabriel rebirth or automatic preparation against every target.",
       "references": [
         "https://www.bleach-bravesouls.com/en/character/szayelaporro.html"
-      ]
+      ],
+      "review": {
+        "date": "2026-10-18",
+        "status": "source-and-form-reviewed",
+        "artworkSHA256": "7efa77bd58729a12c5eb606d3b573c15e02f849b26e9990f4a8b52e9f538d0c2",
+        "confidence": "medium",
+        "method": "Pinned illustration and official source profile checked. Transformed and later-arc capabilities explicitly bounded. The grade is NIGHT editorial judgment, not an official statistic or an exhaustive chapter-by-chapter feat audit."
+      }
     },
     "tosen-featured": {
       "scale": "night-power-v1",
       "status": "proposed",
       "rank": "A",
-      "formId": "featured",
+      "formId": "soul-reaper-unreleased",
       "artworkSHA256": "96adbf17985d3b5a63667229ff6b4952ee88c9eb87884286dc2f75e5463bdbe1",
-      "scope": "Depicted Tosen",
-      "basis": "Sensory control and experienced spiritual combat; Hollow release is not imported automatically.",
-      "limits": "Conservative editorial proposal for the depicted version; official profiles establish identity but do not certify this cross-series grade. A scene-by-scene feat audit can revise it.",
+      "scope": "Kaname Tosen - Soul Reaper / unreleased",
+      "basis": "Experienced spiritual sword combat and Kido in the depicted unreleased Soul Reaper state.",
+      "limits": "No active Bankai sensory domain, Hollow mask or Grillar Grillo release.",
       "references": [
         "https://www.bleach-bravesouls.com/en/character/tosen.html"
-      ]
+      ],
+      "review": {
+        "date": "2026-10-18",
+        "status": "source-and-form-reviewed",
+        "artworkSHA256": "96adbf17985d3b5a63667229ff6b4952ee88c9eb87884286dc2f75e5463bdbe1",
+        "confidence": "medium",
+        "method": "Pinned illustration and official source profile checked. Transformed and later-arc capabilities explicitly bounded. The grade is NIGHT editorial judgment, not an official statistic or an exhaustive chapter-by-chapter feat audit."
+      }
     },
     "tsukishima-featured": {
       "scale": "night-power-v1",
       "status": "proposed",
       "rank": "A",
-      "formId": "featured",
+      "formId": "book-of-the-end",
       "artworkSHA256": "b77c4ff53478a3f088aedd4cf8d9939f1cd8c3f462fa7dae27cf3133b98fca09",
-      "scope": "Standard Tsukishima",
+      "scope": "Shukuro Tsukishima - Fullbring / Book of the End",
       "basis": "Conditional history insertion through his blade; not unrestricted reality control.",
-      "limits": "Conservative editorial proposal for the depicted version; official profiles establish identity but do not certify this cross-series grade. A scene-by-scene feat audit can revise it.",
+      "limits": "Book of the End needs blade contact and specific history insertion. It is not unrestricted cosmic control.",
       "references": [
         "https://www.bleach-bravesouls.com/en/character/tsukishima.html"
-      ]
+      ],
+      "review": {
+        "date": "2026-10-18",
+        "status": "source-and-form-reviewed",
+        "artworkSHA256": "b77c4ff53478a3f088aedd4cf8d9939f1cd8c3f462fa7dae27cf3133b98fca09",
+        "confidence": "medium",
+        "method": "Pinned illustration and official source profile checked. Transformed and later-arc capabilities explicitly bounded. The grade is NIGHT editorial judgment, not an official statistic or an exhaustive chapter-by-chapter feat audit."
+      }
     },
     "ukitake-featured": {
       "scale": "night-power-v1",
       "status": "proposed",
-      "rank": "S",
-      "formId": "featured",
+      "rank": "A",
+      "formId": "shikai",
       "artworkSHA256": "c22dfa701fc8dc0777c3fd3f7bc07ed2d03ff94ec47c048719443c2d74d5fde3",
-      "scope": "Standard Ukitake",
+      "scope": "Jushiro Ukitake - Shikai / Sogyo no Kotowari",
       "basis": "Exceptional spiritual combat and attack redirection, constrained by illness.",
-      "limits": "Conservative editorial proposal for the depicted version; official profiles establish identity but do not certify this cross-series grade. A scene-by-scene feat audit can revise it.",
+      "limits": "Paired Shikai redirection is constrained by the attack and his illness. No Mimihagi sacrifice or unseen Bankai.",
       "references": [
-        "https://www.bleach-bravesouls.com/en/character/ukitake.html"
-      ]
+        "https://www.bleach-bravesouls.com/en/character/ukitake.html",
+        "https://bleach-anime.com/en/story/?id=30"
+      ],
+      "review": {
+        "date": "2026-10-18",
+        "status": "source-and-form-reviewed",
+        "artworkSHA256": "c22dfa701fc8dc0777c3fd3f7bc07ed2d03ff94ec47c048719443c2d74d5fde3",
+        "confidence": "medium",
+        "method": "Pinned illustration and official source profile checked. Transformed and later-arc capabilities explicitly bounded. The grade is NIGHT editorial judgment, not an official statistic or an exhaustive chapter-by-chapter feat audit."
+      }
     },
     "ulquiorra-featured": {
       "scale": "night-power-v1",
       "status": "proposed",
       "rank": "A",
-      "formId": "featured",
+      "formId": "unreleased",
       "artworkSHA256": "5dcb2cd62bc8d92636debc5179300e2e5f03cc1609d45722ae2bf980bd4406b7",
-      "scope": "Depicted Ulquiorra",
-      "basis": "High-speed spiritual combat and limited regeneration; Segunda Etapa is excluded.",
-      "limits": "Conservative editorial proposal for the depicted version; official profiles establish identity but do not certify this cross-series grade. A scene-by-scene feat audit can revise it.",
+      "scope": "Ulquiorra Shifar - Unreleased / Arrancar",
+      "basis": "Exceptional speed, spiritual attacks and disciplined sword combat in the unreleased Arrancar state.",
+      "limits": "Unreleased state only. No Murcielago wings, Segunda Etapa, Lanza del Relampago or released regeneration assumptions.",
       "references": [
         "https://www.bleach-bravesouls.com/en/character/ulquiorra.html"
-      ]
+      ],
+      "review": {
+        "date": "2026-10-18",
+        "status": "source-and-form-reviewed",
+        "artworkSHA256": "5dcb2cd62bc8d92636debc5179300e2e5f03cc1609d45722ae2bf980bd4406b7",
+        "confidence": "medium",
+        "method": "Pinned illustration and official source profile checked. Transformed and later-arc capabilities explicitly bounded. The grade is NIGHT editorial judgment, not an official statistic or an exhaustive chapter-by-chapter feat audit."
+      }
     },
     "unohana-featured": {
       "scale": "night-power-v1",
       "status": "proposed",
       "rank": "S",
-      "formId": "featured",
+      "formId": "captain-healing",
       "artworkSHA256": "8f214436774eaafeef480aafb9f277f8224e0a071f0a1bf87f49786efa2cc836",
-      "scope": "Standard Unohana",
+      "scope": "Retsu Unohana - Captain / healing arts",
       "basis": "Exceptional sword and healing mastery; the assessment does not imply limitless regeneration.",
-      "limits": "Conservative editorial proposal for the depicted version; official profiles establish identity but do not certify this cross-series grade. A scene-by-scene feat audit can revise it.",
+      "limits": "Healing-uniform portrait and established sword mastery. No active Bankai blood domain or limitless regeneration.",
       "references": [
         "https://www.bleach-bravesouls.com/en/character/unohana.html"
-      ]
+      ],
+      "review": {
+        "date": "2026-10-18",
+        "status": "source-and-form-reviewed",
+        "artworkSHA256": "8f214436774eaafeef480aafb9f277f8224e0a071f0a1bf87f49786efa2cc836",
+        "confidence": "medium",
+        "method": "Pinned illustration and official source profile checked. Transformed and later-arc capabilities explicitly bounded. The grade is NIGHT editorial judgment, not an official statistic or an exhaustive chapter-by-chapter feat audit."
+      }
     },
     "urahara-featured": {
       "scale": "night-power-v1",
       "status": "proposed",
-      "rank": "S",
-      "formId": "featured",
+      "rank": "A",
+      "formId": "shikai",
       "artworkSHA256": "dad820240cd754c674dc0a3169506db5157a8ca9375c8b39b8a8168a13b59886",
-      "scope": "Standard Urahara",
+      "scope": "Kisuke Urahara - Shikai / Benihime",
       "basis": "Exceptional Kido and tactical versatility; unseen Bankai and unlimited preparation are excluded.",
-      "limits": "Conservative editorial proposal for the depicted version; official profiles establish identity but do not certify this cross-series grade. A scene-by-scene feat audit can revise it.",
+      "limits": "Benihime Shikai, Kido and shown tactical ability. No Kannonbiraki Benihime Aratame or unlimited preparation.",
       "references": [
         "https://www.bleach-bravesouls.com/en/character/urahara.html"
-      ]
+      ],
+      "review": {
+        "date": "2026-10-18",
+        "status": "source-and-form-reviewed",
+        "artworkSHA256": "dad820240cd754c674dc0a3169506db5157a8ca9375c8b39b8a8168a13b59886",
+        "confidence": "medium",
+        "method": "Pinned illustration and official source profile checked. Transformed and later-arc capabilities explicitly bounded. The grade is NIGHT editorial judgment, not an official statistic or an exhaustive chapter-by-chapter feat audit."
+      }
     },
     "uryu-featured": {
       "scale": "night-power-v1",
       "status": "proposed",
       "rank": "B",
-      "formId": "featured",
+      "formId": "lost-agent-bow",
       "artworkSHA256": "1b868459980bacc70bdc09a7dd6f201b02df2f6e13f2b3494e6ae9cefa2aa6c4",
-      "scope": "Depicted pre-TYBW Uryu",
+      "scope": "Uryu Ishida - Lost Agent / Quincy bow",
       "basis": "Developed Quincy archery; Letzt Stil and the later Antithesis are excluded.",
-      "limits": "Conservative editorial proposal for the depicted version; official profiles establish identity but do not certify this cross-series grade. A scene-by-scene feat audit can revise it.",
+      "limits": "Lost Agent bow. No Letzt Stil, Vollstandig, Schrift Antithesis or later Royal Guard scaling.",
       "references": [
         "https://www.bleach-bravesouls.com/en/character/uryu.html"
-      ]
+      ],
+      "review": {
+        "date": "2026-10-18",
+        "status": "source-and-form-reviewed",
+        "artworkSHA256": "1b868459980bacc70bdc09a7dd6f201b02df2f6e13f2b3494e6ae9cefa2aa6c4",
+        "confidence": "medium",
+        "method": "Pinned illustration and official source profile checked. Transformed and later-arc capabilities explicitly bounded. The grade is NIGHT editorial judgment, not an official statistic or an exhaustive chapter-by-chapter feat audit."
+      }
     },
     "yachiru-featured": {
       "scale": "night-power-v1",
       "status": "proposed",
       "rank": "C",
-      "formId": "featured",
+      "formId": "lieutenant-unreleased",
       "artworkSHA256": "1a0f25fadbf1375f25a687723a4b3d6d529921f64c239e544ca32348e5b6b9fc",
-      "scope": "Depicted Yachiru",
+      "scope": "Yachiru Kusajishi - Lieutenant / unreleased",
       "basis": "Spiritual awareness and constrained close combat; no transfer of Kenpachi's power.",
-      "limits": "Conservative editorial proposal for the depicted version; official profiles establish identity but do not certify this cross-series grade. A scene-by-scene feat audit can revise it.",
+      "limits": "Standard lieutenant with unreleased sword. No Sanpo Kenju unless that separate release is depicted, and no transfer of Zaraki power.",
       "references": [
-        "https://www.bleach-bravesouls.com/en/character/yachiru.html"
-      ]
+        "https://www.bleach-bravesouls.com/en/character/yachiru.html",
+        "https://bleach-anime.com/en/story/?id=20"
+      ],
+      "review": {
+        "date": "2026-10-18",
+        "status": "source-and-form-reviewed",
+        "artworkSHA256": "1a0f25fadbf1375f25a687723a4b3d6d529921f64c239e544ca32348e5b6b9fc",
+        "confidence": "medium",
+        "method": "Pinned illustration and official source profile checked. Transformed and later-arc capabilities explicitly bounded. The grade is NIGHT editorial judgment, not an official statistic or an exhaustive chapter-by-chapter feat audit."
+      }
     },
     "yamamoto-featured": {
       "scale": "night-power-v1",
       "status": "proposed",
       "rank": "S",
-      "formId": "featured",
+      "formId": "captain-sealed",
       "artworkSHA256": "593fa9236bceb029bdf32d93a6bd2dc9970e6430c735a2c37b04215baabd2dc1",
-      "scope": "Depicted Yamamoto",
-      "basis": "Exceptional fire-based spiritual combat; Zanka no Tachi is not imported into an unreleased portrait.",
-      "limits": "Conservative editorial proposal for the depicted version; official profiles establish identity but do not certify this cross-series grade. A scene-by-scene feat audit can revise it.",
+      "scope": "Shigekuni Genryusai Yamamoto - Captain / sealed sword",
+      "basis": "Exceptional established spiritual pressure, sword mastery and hand-to-hand combat even before sword release.",
+      "limits": "Sealed sword in captain uniform. No active Ryujin Jakka fire field, Zanka no Tachi or sacrificed-arm spell is treated as already active.",
       "references": [
         "https://www.bleach-bravesouls.com/en/character/yamamoto.html"
-      ]
+      ],
+      "review": {
+        "date": "2026-10-18",
+        "status": "source-and-form-reviewed",
+        "artworkSHA256": "593fa9236bceb029bdf32d93a6bd2dc9970e6430c735a2c37b04215baabd2dc1",
+        "confidence": "medium",
+        "method": "Pinned illustration and official source profile checked. Transformed and later-arc capabilities explicitly bounded. The grade is NIGHT editorial judgment, not an official statistic or an exhaustive chapter-by-chapter feat audit."
+      }
     },
     "yammy-featured": {
       "scale": "night-power-v1",
       "status": "proposed",
       "rank": "A",
-      "formId": "featured",
+      "formId": "unreleased",
       "artworkSHA256": "582e39ae426b6beaa1f776bc0558ecbd52e77038465b07bc963573ecb1954022",
-      "scope": "Depicted Yammy",
+      "scope": "Yammy Llargo - Unreleased / Arrancar",
       "basis": "Very high physical power; anger-driven release growth is not treated as unlimited.",
-      "limits": "Conservative editorial proposal for the depicted version; official profiles establish identity but do not certify this cross-series grade. A scene-by-scene feat audit can revise it.",
+      "limits": "Unreleased body. No Ira giant stages or unbounded anger growth.",
       "references": [
         "https://www.bleach-bravesouls.com/en/character/yammy.html"
-      ]
+      ],
+      "review": {
+        "date": "2026-10-18",
+        "status": "source-and-form-reviewed",
+        "artworkSHA256": "582e39ae426b6beaa1f776bc0558ecbd52e77038465b07bc963573ecb1954022",
+        "confidence": "medium",
+        "method": "Pinned illustration and official source profile checked. Transformed and later-arc capabilities explicitly bounded. The grade is NIGHT editorial judgment, not an official statistic or an exhaustive chapter-by-chapter feat audit."
+      }
     },
     "yoruichi-featured": {
       "scale": "night-power-v1",
       "status": "proposed",
       "rank": "A",
-      "formId": "featured",
+      "formId": "anti-hierro",
       "artworkSHA256": "21d3775be7a29808702611641cb865ce294c8e4d16a294e9f0bccfa488e4644a",
-      "scope": "Anti-Hierro armour Yoruichi",
+      "scope": "Yoruichi Shihoin - Anti-Hierro armour",
       "basis": "Exceptional speed and armoured hand-to-hand combat; later thunder transformations are excluded.",
-      "limits": "Conservative editorial proposal for the depicted version; official profiles establish identity but do not certify this cross-series grade. A scene-by-scene feat audit can revise it.",
+      "limits": "Depicted anti-Hierro arm/leg armour only. No thunder-beast transformation or later Shunko state.",
       "references": [
         "https://www.bleach-bravesouls.com/en/character/yoruichi.html"
-      ]
+      ],
+      "review": {
+        "date": "2026-10-18",
+        "status": "source-and-form-reviewed",
+        "artworkSHA256": "21d3775be7a29808702611641cb865ce294c8e4d16a294e9f0bccfa488e4644a",
+        "confidence": "medium",
+        "method": "Pinned illustration and official source profile checked. Transformed and later-arc capabilities explicitly bounded. The grade is NIGHT editorial judgment, not an official statistic or an exhaustive chapter-by-chapter feat audit."
+      }
     },
     "yumichika-featured": {
       "scale": "night-power-v1",
       "status": "proposed",
       "rank": "B",
-      "formId": "featured",
+      "formId": "ruriiro-kujaku",
       "artworkSHA256": "fb92de2941ae3596910c75a3519beb044f15283f60d2cb5a397a0b0f0d9e13f5",
-      "scope": "Standard Yumichika",
+      "scope": "Yumichika Ayasegawa - Ruri'iro Kujaku / Shikai",
       "basis": "Experienced spiritual combat with a conditional draining technique.",
-      "limits": "Conservative editorial proposal for the depicted version; official profiles establish identity but do not certify this cross-series grade. A scene-by-scene feat audit can revise it.",
+      "limits": "Conditional spiritual draining needs a successful release and contact. No unlimited absorption or unseen Bankai.",
       "references": [
         "https://www.bleach-bravesouls.com/en/character/yumichika.html"
-      ]
+      ],
+      "review": {
+        "date": "2026-10-18",
+        "status": "source-and-form-reviewed",
+        "artworkSHA256": "fb92de2941ae3596910c75a3519beb044f15283f60d2cb5a397a0b0f0d9e13f5",
+        "confidence": "medium",
+        "method": "Pinned illustration and official source profile checked. Transformed and later-arc capabilities explicitly bounded. The grade is NIGHT editorial judgment, not an official statistic or an exhaustive chapter-by-chapter feat audit."
+      }
     },
     "as-nodt-tybw": {
       "scale": "night-power-v1",
       "status": "proposed",
       "rank": "A",
-      "formId": "tybw",
+      "formId": "tybw-standard",
       "artworkSHA256": "513f4f0d81cc590a188340c47cf7bd2c038402042d47250cdb71ba1d25b03a27",
-      "scope": "TYBW standard As Nodt",
+      "scope": "Äs Nödt - TYBW / standard state",
       "basis": "Fear-based combat; the later transformed state is excluded.",
-      "limits": "Conservative editorial proposal for the depicted version; official profiles establish identity but do not certify this cross-series grade. A scene-by-scene feat audit can revise it.",
+      "limits": "No Tatarforas transformation or released-state amplification.",
       "references": [
         "https://bleach-anime.com/en/character/?chara=27"
-      ]
+      ],
+      "review": {
+        "date": "2026-10-18",
+        "status": "source-and-form-reviewed",
+        "artworkSHA256": "513f4f0d81cc590a188340c47cf7bd2c038402042d47250cdb71ba1d25b03a27",
+        "confidence": "medium",
+        "method": "Pinned illustration and official source profile checked. Transformed and later-arc capabilities explicitly bounded. The grade is NIGHT editorial judgment, not an official statistic or an exhaustive chapter-by-chapter feat audit."
+      }
     },
     "askin-nakk-le-vaar-tybw": {
       "scale": "night-power-v1",
       "status": "proposed",
       "rank": "S",
-      "formId": "tybw",
+      "formId": "tybw-standard",
       "artworkSHA256": "7ef2e51ec17cebbddcc02d502859712b980bb7ab5e59fa427a6a746bc045176e",
-      "scope": "TYBW standard Askin",
+      "scope": "Askin Nakk Le Vaar - TYBW / standard state",
       "basis": "Dose-based adaptation and tactical combat; Vollstandig amplification is excluded.",
-      "limits": "Conservative editorial proposal for the depicted version; official profiles establish identity but do not certify this cross-series grade. A scene-by-scene feat audit can revise it.",
+      "limits": "No Hasshein Vollstandig, Gift Ball Deluxe or transformed-state amplification; adaptation takes time.",
       "references": [
         "https://bleach-anime.com/en/character/?chara=25"
-      ]
+      ],
+      "review": {
+        "date": "2026-10-18",
+        "status": "source-and-form-reviewed",
+        "artworkSHA256": "7ef2e51ec17cebbddcc02d502859712b980bb7ab5e59fa427a6a746bc045176e",
+        "confidence": "medium",
+        "method": "Pinned illustration and official source profile checked. Transformed and later-arc capabilities explicitly bounded. The grade is NIGHT editorial judgment, not an official statistic or an exhaustive chapter-by-chapter feat audit."
+      }
     },
     "bambietta-basterbine-tybw": {
       "scale": "night-power-v1",
       "status": "proposed",
       "rank": "A",
-      "formId": "tybw",
+      "formId": "tybw-standard",
       "artworkSHA256": "46aa951d419e020726fba8dc647fb75a120919e445d86d7b50b12075c604be3c",
-      "scope": "TYBW standard Bambietta",
+      "scope": "Bambietta Basterbine - TYBW / standard state",
       "basis": "Explosive spiritual attacks; zombie and Vollstandig forms are excluded.",
-      "limits": "Conservative editorial proposal for the depicted version; official profiles establish identity but do not certify this cross-series grade. A scene-by-scene feat audit can revise it.",
+      "limits": "No Vollstandig amplification, zombie body or external healing bonus.",
       "references": [
         "https://bleach-anime.com/en/character/?chara=26"
-      ]
+      ],
+      "review": {
+        "date": "2026-10-18",
+        "status": "source-and-form-reviewed",
+        "artworkSHA256": "46aa951d419e020726fba8dc647fb75a120919e445d86d7b50b12075c604be3c",
+        "confidence": "medium",
+        "method": "Pinned illustration and official source profile checked. Transformed and later-arc capabilities explicitly bounded. The grade is NIGHT editorial judgment, not an official statistic or an exhaustive chapter-by-chapter feat audit."
+      }
     },
     "bazz-b-tybw": {
       "scale": "night-power-v1",
       "status": "proposed",
       "rank": "A",
-      "formId": "tybw",
+      "formId": "tybw-standard",
       "artworkSHA256": "1416bb4be2c5dbefd1e7239de3b764927c7956825274174f65be6942c84c7553",
-      "scope": "TYBW standard Bazz-B",
+      "scope": "Bazz-B - TYBW / standard state",
       "basis": "High-output heat attacks; no unlimited temperature extrapolation.",
-      "limits": "Conservative editorial proposal for the depicted version; official profiles establish identity but do not certify this cross-series grade. A scene-by-scene feat audit can revise it.",
+      "limits": "Burner Finger is bounded; no unshown infinite temperature or transformation bonus.",
       "references": [
         "https://bleach-anime.com/en/character/?chara=28"
-      ]
+      ],
+      "review": {
+        "date": "2026-10-18",
+        "status": "source-and-form-reviewed",
+        "artworkSHA256": "1416bb4be2c5dbefd1e7239de3b764927c7956825274174f65be6942c84c7553",
+        "confidence": "medium",
+        "method": "Pinned illustration and official source profile checked. Transformed and later-arc capabilities explicitly bounded. The grade is NIGHT editorial judgment, not an official statistic or an exhaustive chapter-by-chapter feat audit."
+      }
     },
     "candice-catnipp-tybw": {
       "scale": "night-power-v1",
       "status": "proposed",
       "rank": "A",
-      "formId": "tybw",
+      "formId": "tybw-standard",
       "artworkSHA256": "942e2b932ee53d9060d2ea1c418b676531f677cf23811f88922a34a1bae7e7c3",
-      "scope": "TYBW standard Candice",
+      "scope": "Candice Catnipp - TYBW / standard state",
       "basis": "Lightning-based combat; released-state amplification is excluded.",
-      "limits": "Conservative editorial proposal for the depicted version; official profiles establish identity but do not certify this cross-series grade. A scene-by-scene feat audit can revise it.",
+      "limits": "No Vollstandig amplification or unbounded lightning-energy extrapolation.",
       "references": [
         "https://bleach-anime.com/en/character/?chara=64"
-      ]
+      ],
+      "review": {
+        "date": "2026-10-18",
+        "status": "source-and-form-reviewed",
+        "artworkSHA256": "942e2b932ee53d9060d2ea1c418b676531f677cf23811f88922a34a1bae7e7c3",
+        "confidence": "medium",
+        "method": "Pinned illustration and official source profile checked. Transformed and later-arc capabilities explicitly bounded. The grade is NIGHT editorial judgment, not an official statistic or an exhaustive chapter-by-chapter feat audit."
+      }
     },
     "gerard-valkyrie-tybw": {
       "scale": "night-power-v1",
       "status": "proposed",
       "rank": "S",
-      "formId": "tybw",
+      "formId": "tybw-standard",
       "artworkSHA256": "65c80e0a7604c880fa1508c29cfeb1f6dfa52bd65b73775f4aa2e7f2de56e429",
-      "scope": "TYBW standard Gerard",
+      "scope": "Gerard Valkyrie - TYBW / standard state",
       "basis": "Exceptional physical capability; giant Miracle stages are excluded.",
-      "limits": "Conservative editorial proposal for the depicted version; official profiles establish identity but do not certify this cross-series grade. A scene-by-scene feat audit can revise it.",
+      "limits": "Normal-sized body only. No giant Miracle stages, regeneration escalation or unlimited damage conversion.",
       "references": [
         "https://bleach-anime.com/en/character/?chara=83"
-      ]
+      ],
+      "review": {
+        "date": "2026-10-18",
+        "status": "source-and-form-reviewed",
+        "artworkSHA256": "65c80e0a7604c880fa1508c29cfeb1f6dfa52bd65b73775f4aa2e7f2de56e429",
+        "confidence": "medium",
+        "method": "Pinned illustration and official source profile checked. Transformed and later-arc capabilities explicitly bounded. The grade is NIGHT editorial judgment, not an official statistic or an exhaustive chapter-by-chapter feat audit."
+      }
     },
     "giselle-gewelle-tybw": {
       "scale": "night-power-v1",
       "status": "proposed",
       "rank": "A",
-      "formId": "tybw",
+      "formId": "tybw-standard",
       "artworkSHA256": "63521a06b4a67d94601a7f29d20654853a6121dc775faea340b198ce9eb68e60",
-      "scope": "TYBW standard Giselle",
+      "scope": "Giselle Gewelle - TYBW / standard state",
       "basis": "Conditional blood-based control; army size and setup are not unlimited.",
-      "limits": "Conservative editorial proposal for the depicted version; official profiles establish identity but do not certify this cross-series grade. A scene-by-scene feat audit can revise it.",
+      "limits": "Blood contact, target state and control conditions matter. No unlimited prepared army or release bonus.",
       "references": [
         "https://bleach-anime.com/en/character/?chara=67"
-      ]
+      ],
+      "review": {
+        "date": "2026-10-18",
+        "status": "source-and-form-reviewed",
+        "artworkSHA256": "63521a06b4a67d94601a7f29d20654853a6121dc775faea340b198ce9eb68e60",
+        "confidence": "medium",
+        "method": "Pinned illustration and official source profile checked. Transformed and later-arc capabilities explicitly bounded. The grade is NIGHT editorial judgment, not an official statistic or an exhaustive chapter-by-chapter feat audit."
+      }
     },
     "gremmy-thoumeaux-tybw": {
       "scale": "night-power-v1",
       "status": "proposed",
-      "rank": "SS",
-      "formId": "tybw",
+      "rank": "S",
+      "formId": "tybw-standard",
       "artworkSHA256": "5251525e493dc6285caad335e9f0268bb020c1e910762d2999004efc48149b7a",
-      "scope": "TYBW Gremmy",
+      "scope": "Gremmy Thoumeaux - TYBW / standard state",
       "basis": "Imagination materialisation with focus, self-perception and capacity limits.",
-      "limits": "Conservative editorial proposal for the depicted version; official profiles establish identity but do not certify this cross-series grade. A scene-by-scene feat audit can revise it.",
+      "limits": "Visionary requires focus, imagination and viable self-perception. Demonstrated local materialisation is not unlimited world-scale rewriting.",
       "references": [
-        "https://bleach-anime.com/en/character/?chara=65"
-      ]
+        "https://bleach-anime.com/en/character/?chara=65",
+        "https://bleach-anime.com/en/story/?id=21"
+      ],
+      "review": {
+        "date": "2026-10-18",
+        "status": "source-and-form-reviewed",
+        "artworkSHA256": "5251525e493dc6285caad335e9f0268bb020c1e910762d2999004efc48149b7a",
+        "confidence": "medium",
+        "method": "Pinned illustration and official source profile checked. Transformed and later-arc capabilities explicitly bounded. The grade is NIGHT editorial judgment, not an official statistic or an exhaustive chapter-by-chapter feat audit."
+      }
     },
     "ichibe-hyosube-tybw": {
       "scale": "night-power-v1",
       "status": "proposed",
       "rank": "SS",
-      "formId": "tybw",
+      "formId": "tybw-standard",
       "artworkSHA256": "aae80ce1ace0f7704fe1c8455fb8638bfe1ec6b56a9a8f5e67a89fdff2126992",
-      "scope": "TYBW Ichibe",
+      "scope": "Ichibe Hyosube - TYBW / standard state",
       "basis": "Name and ink-based conceptual powers with demonstrated counterplay.",
-      "limits": "Conservative editorial proposal for the depicted version; official profiles establish identity but do not certify this cross-series grade. A scene-by-scene feat audit can revise it.",
+      "limits": "Ichimonji and name effects require their demonstrated ink/name conditions. Yhwach counters them; no omnipotence claim.",
       "references": [
-        "https://bleach-anime.com/en/character/?chara=53"
-      ]
+        "https://bleach-anime.com/en/character/?chara=53",
+        "https://bleach-anime.com/en/story/?id=27"
+      ],
+      "review": {
+        "date": "2026-10-18",
+        "status": "source-and-form-reviewed",
+        "artworkSHA256": "aae80ce1ace0f7704fe1c8455fb8638bfe1ec6b56a9a8f5e67a89fdff2126992",
+        "confidence": "medium",
+        "method": "Pinned illustration and official source profile checked. Transformed and later-arc capabilities explicitly bounded. The grade is NIGHT editorial judgment, not an official statistic or an exhaustive chapter-by-chapter feat audit."
+      }
     },
     "jugram-haschwalth-tybw": {
       "scale": "night-power-v1",
       "status": "proposed",
       "rank": "S",
-      "formId": "tybw",
+      "formId": "tybw-standard",
       "artworkSHA256": "958059832b3e9a078e4d43fe0c2c556d777fd3f00edeee883be8bd0f32fafd46",
-      "scope": "TYBW standard Haschwalth",
+      "scope": "Jugram Haschwalth - TYBW / standard state",
       "basis": "Exceptional combat and conditional fortune balancing; borrowed Almighty is excluded.",
-      "limits": "Conservative editorial proposal for the depicted version; official profiles establish identity but do not certify this cross-series grade. A scene-by-scene feat audit can revise it.",
+      "limits": "No temporarily borrowed Almighty or unrestricted future control. Balance requires its fortune/misfortune conditions.",
       "references": [
         "https://bleach-anime.com/en/character/?chara=24"
-      ]
+      ],
+      "review": {
+        "date": "2026-10-18",
+        "status": "source-and-form-reviewed",
+        "artworkSHA256": "958059832b3e9a078e4d43fe0c2c556d777fd3f00edeee883be8bd0f32fafd46",
+        "confidence": "medium",
+        "method": "Pinned illustration and official source profile checked. Transformed and later-arc capabilities explicitly bounded. The grade is NIGHT editorial judgment, not an official statistic or an exhaustive chapter-by-chapter feat audit."
+      }
     },
     "kirio-hikifune-tybw": {
       "scale": "night-power-v1",
       "status": "proposed",
       "rank": "S",
-      "formId": "tybw",
+      "formId": "tybw-standard",
       "artworkSHA256": "3686ab95e821b58ede0c8ca0e20b8938f6ad67ca18d4ceab0428cb6c9cb0774c",
-      "scope": "TYBW standard Hikifune",
+      "scope": "Kirio Hikifune - TYBW / standard state",
       "basis": "Exceptional spiritual support and containment; released power-seal removal is excluded.",
-      "limits": "Conservative editorial proposal for the depicted version; official profiles establish identity but do not certify this cross-series grade. A scene-by-scene feat audit can revise it.",
+      "limits": "Standard sealed Royal Guard state. No blood-oath seal release or sacrificed-comrade multiplier.",
       "references": [
-        "https://bleach-anime.com/en/character/?chara=57"
-      ]
+        "https://bleach-anime.com/en/character/?chara=57",
+        "https://bleach-anime.com/en/story/?id=27"
+      ],
+      "review": {
+        "date": "2026-10-18",
+        "status": "source-and-form-reviewed",
+        "artworkSHA256": "3686ab95e821b58ede0c8ca0e20b8938f6ad67ca18d4ceab0428cb6c9cb0774c",
+        "confidence": "medium",
+        "method": "Pinned illustration and official source profile checked. Transformed and later-arc capabilities explicitly bounded. The grade is NIGHT editorial judgment, not an official statistic or an exhaustive chapter-by-chapter feat audit."
+      }
     },
     "lille-barro-tybw": {
       "scale": "night-power-v1",
       "status": "proposed",
       "rank": "S",
-      "formId": "tybw",
+      "formId": "tybw-standard",
       "artworkSHA256": "49d6e4ac5240b885bd47d43779a8b30d1db9eee40665fe68cccf108cef9ff936",
-      "scope": "TYBW standard Lille",
+      "scope": "Lille Barro - TYBW / standard state",
       "basis": "Exceptional penetrating ranged attacks; later transformed states are excluded.",
-      "limits": "Conservative editorial proposal for the depicted version; official profiles establish identity but do not certify this cross-series grade. A scene-by-scene feat audit can revise it.",
+      "limits": "Standard rifle-bearing portrait. No Jilliel/Ziliel angelic form or later transformed-body intangibility.",
       "references": [
-        "https://bleach-anime.com/en/character/?chara=84"
-      ]
+        "https://bleach-anime.com/en/character/?chara=84",
+        "https://bleach-anime.com/en/story/?id=36"
+      ],
+      "review": {
+        "date": "2026-10-18",
+        "status": "source-and-form-reviewed",
+        "artworkSHA256": "49d6e4ac5240b885bd47d43779a8b30d1db9eee40665fe68cccf108cef9ff936",
+        "confidence": "medium",
+        "method": "Pinned illustration and official source profile checked. Transformed and later-arc capabilities explicitly bounded. The grade is NIGHT editorial judgment, not an official statistic or an exhaustive chapter-by-chapter feat audit."
+      }
     },
     "liltotto-lamperd-tybw": {
       "scale": "night-power-v1",
       "status": "proposed",
       "rank": "A",
-      "formId": "tybw",
+      "formId": "tybw-standard",
       "artworkSHA256": "59156b95cf939c96cb916a085214ea0fa9d0fabb1e8ad9924414d7eeeb4ca700",
-      "scope": "TYBW standard Liltotto",
+      "scope": "Liltotto Lamperd - TYBW / standard state",
       "basis": "Specialised supernatural combat; consumption is not treated as limitless power.",
-      "limits": "Conservative editorial proposal for the depicted version; official profiles establish identity but do not certify this cross-series grade. A scene-by-scene feat audit can revise it.",
+      "limits": "No Vollstandig, unlimited consumption or borrowed abilities without their conditions.",
       "references": [
         "https://bleach-anime.com/en/character/?chara=61"
-      ]
+      ],
+      "review": {
+        "date": "2026-10-18",
+        "status": "source-and-form-reviewed",
+        "artworkSHA256": "59156b95cf939c96cb916a085214ea0fa9d0fabb1e8ad9924414d7eeeb4ca700",
+        "confidence": "medium",
+        "method": "Pinned illustration and official source profile checked. Transformed and later-arc capabilities explicitly bounded. The grade is NIGHT editorial judgment, not an official statistic or an exhaustive chapter-by-chapter feat audit."
+      }
     },
     "meninas-mcallon-tybw": {
       "scale": "night-power-v1",
       "status": "proposed",
       "rank": "A",
-      "formId": "tybw",
+      "formId": "tybw-standard",
       "artworkSHA256": "a4175dd409277248b769b83fcd7f6e15b1fb3ea0aed16dc218d09d5c81750570",
-      "scope": "TYBW standard Meninas",
+      "scope": "Meninas McAllon - TYBW / standard state",
       "basis": "Exceptional physical power; no released-state multiplier is assumed.",
-      "limits": "Conservative editorial proposal for the depicted version; official profiles establish identity but do not certify this cross-series grade. A scene-by-scene feat audit can revise it.",
+      "limits": "No Vollstandig or inferred unlimited strength multiplier.",
       "references": [
         "https://bleach-anime.com/en/character/?chara=63"
-      ]
+      ],
+      "review": {
+        "date": "2026-10-18",
+        "status": "source-and-form-reviewed",
+        "artworkSHA256": "a4175dd409277248b769b83fcd7f6e15b1fb3ea0aed16dc218d09d5c81750570",
+        "confidence": "medium",
+        "method": "Pinned illustration and official source profile checked. Transformed and later-arc capabilities explicitly bounded. The grade is NIGHT editorial judgment, not an official statistic or an exhaustive chapter-by-chapter feat audit."
+      }
     },
     "oh-etsu-nimaiya-tybw": {
       "scale": "night-power-v1",
       "status": "proposed",
       "rank": "S",
-      "formId": "tybw",
+      "formId": "tybw-standard",
       "artworkSHA256": "7242a9734ba533498190408a19b6e01cc44774dfbd466736242bde5ea047facc",
-      "scope": "TYBW standard Nimaiya",
+      "scope": "Oh-Etsu Nimaiya - TYBW / standard state",
       "basis": "Exceptional swordsmanship and offensive reach; released power-seal removal is excluded.",
-      "limits": "Conservative editorial proposal for the depicted version; official profiles establish identity but do not certify this cross-series grade. A scene-by-scene feat audit can revise it.",
+      "limits": "Standard Royal Guard state. No blood-oath seal release; sword lethality is not unlimited range.",
       "references": [
-        "https://bleach-anime.com/en/character/?chara=54"
-      ]
+        "https://bleach-anime.com/en/character/?chara=54",
+        "https://bleach-anime.com/en/story/?id=27"
+      ],
+      "review": {
+        "date": "2026-10-18",
+        "status": "source-and-form-reviewed",
+        "artworkSHA256": "7242a9734ba533498190408a19b6e01cc44774dfbd466736242bde5ea047facc",
+        "confidence": "medium",
+        "method": "Pinned illustration and official source profile checked. Transformed and later-arc capabilities explicitly bounded. The grade is NIGHT editorial judgment, not an official statistic or an exhaustive chapter-by-chapter feat audit."
+      }
     },
     "pernida-parnkgjas-tybw": {
       "scale": "night-power-v1",
       "status": "proposed",
       "rank": "S",
-      "formId": "tybw",
+      "formId": "tybw-standard",
       "artworkSHA256": "80db6a0faa0ffab54582297ac9add745bc05f3494d29218efc826ee83340f06c",
-      "scope": "TYBW cloaked Pernida",
+      "scope": "Pernida Parnkgjas - TYBW / cloaked state",
       "basis": "Dangerous nerve-based control; later exposed-body evolution is excluded.",
-      "limits": "Conservative editorial proposal for the depicted version; official profiles establish identity but do not certify this cross-series grade. A scene-by-scene feat audit can revise it.",
+      "limits": "Cloaked state only. No later exposed hand growth, copied physiology or cumulative evolution bonus.",
       "references": [
-        "https://bleach-anime.com/en/character/?chara=82"
-      ]
+        "https://bleach-anime.com/en/character/?chara=82",
+        "https://bleach-anime.com/en/story/?id=34"
+      ],
+      "review": {
+        "date": "2026-10-18",
+        "status": "source-and-form-reviewed",
+        "artworkSHA256": "80db6a0faa0ffab54582297ac9add745bc05f3494d29218efc826ee83340f06c",
+        "confidence": "medium",
+        "method": "Pinned illustration and official source profile checked. Transformed and later-arc capabilities explicitly bounded. The grade is NIGHT editorial judgment, not an official statistic or an exhaustive chapter-by-chapter feat audit."
+      }
     },
     "quilge-opie-tybw": {
       "scale": "night-power-v1",
       "status": "proposed",
       "rank": "A",
-      "formId": "tybw",
+      "formId": "tybw-standard",
       "artworkSHA256": "08117c1efb846a338077bc33b6bd788c53c97751e61b634356def9a6dffd6dda",
-      "scope": "TYBW standard Quilge",
+      "scope": "Quilge Opie - TYBW / standard state",
       "basis": "Advanced Quincy combat and conditional imprisonment; absorbed forms are excluded.",
-      "limits": "Conservative editorial proposal for the depicted version; official profiles establish identity but do not certify this cross-series grade. A scene-by-scene feat audit can revise it.",
+      "limits": "No Piskiel Vollstandig, Ayon absorption or Sklaverei amplification; prison conditions and Quincy counter remain.",
       "references": [
         "https://bleach-anime.com/en/character/?chara=29"
-      ]
+      ],
+      "review": {
+        "date": "2026-10-18",
+        "status": "source-and-form-reviewed",
+        "artworkSHA256": "08117c1efb846a338077bc33b6bd788c53c97751e61b634356def9a6dffd6dda",
+        "confidence": "medium",
+        "method": "Pinned illustration and official source profile checked. Transformed and later-arc capabilities explicitly bounded. The grade is NIGHT editorial judgment, not an official statistic or an exhaustive chapter-by-chapter feat audit."
+      }
     },
     "senjumaru-shutara-tybw": {
       "scale": "night-power-v1",
       "status": "proposed",
       "rank": "S",
-      "formId": "tybw",
+      "formId": "tybw-standard",
       "artworkSHA256": "27223acfc7a8713e360f2cdc03308f8d701506310c4ac98f1e7897e1f0395c15",
-      "scope": "TYBW standard Senjumaru",
+      "scope": "Senjumaru Shutara - TYBW / standard state",
       "basis": "Exceptional spiritual control and constructed traps; released Bankai is excluded.",
-      "limits": "Conservative editorial proposal for the depicted version; official profiles establish identity but do not certify this cross-series grade. A scene-by-scene feat audit can revise it.",
+      "limits": "Standard sealed Royal Guard state. No Shatatsu Karagara Shigaraminotsuji Bankai or blood-oath seal release.",
       "references": [
-        "https://bleach-anime.com/en/character/?chara=56"
-      ]
+        "https://bleach-anime.com/en/character/?chara=56",
+        "https://bleach-anime.com/en/story/?id=27"
+      ],
+      "review": {
+        "date": "2026-10-18",
+        "status": "source-and-form-reviewed",
+        "artworkSHA256": "27223acfc7a8713e360f2cdc03308f8d701506310c4ac98f1e7897e1f0395c15",
+        "confidence": "medium",
+        "method": "Pinned illustration and official source profile checked. Transformed and later-arc capabilities explicitly bounded. The grade is NIGHT editorial judgment, not an official statistic or an exhaustive chapter-by-chapter feat audit."
+      }
     },
     "tenjiro-kirinji-tybw": {
       "scale": "night-power-v1",
       "status": "proposed",
       "rank": "S",
-      "formId": "tybw",
+      "formId": "tybw-standard",
       "artworkSHA256": "45cdad94e81b208dec8bd6c928c1e78734729ab1978c717345e76e527152967e",
-      "scope": "TYBW standard Kirinji",
+      "scope": "Tenjiro Kirinji - TYBW / standard state",
       "basis": "Exceptional movement and spiritual combat; released power-seal removal is excluded.",
-      "limits": "Conservative editorial proposal for the depicted version; official profiles establish identity but do not certify this cross-series grade. A scene-by-scene feat audit can revise it.",
+      "limits": "Standard Royal Guard state. No blood-oath seal release or unrestricted healing-water effects.",
       "references": [
-        "https://bleach-anime.com/en/character/?chara=55"
-      ]
+        "https://bleach-anime.com/en/character/?chara=55",
+        "https://bleach-anime.com/en/story/?id=27"
+      ],
+      "review": {
+        "date": "2026-10-18",
+        "status": "source-and-form-reviewed",
+        "artworkSHA256": "45cdad94e81b208dec8bd6c928c1e78734729ab1978c717345e76e527152967e",
+        "confidence": "medium",
+        "method": "Pinned illustration and official source profile checked. Transformed and later-arc capabilities explicitly bounded. The grade is NIGHT editorial judgment, not an official statistic or an exhaustive chapter-by-chapter feat audit."
+      }
     },
     "yhwach-tybw": {
       "scale": "night-power-v1",
       "status": "proposed",
-      "rank": "SS",
-      "formId": "tybw",
+      "rank": "S",
+      "formId": "tybw-standard",
       "artworkSHA256": "14a804a5db1ab4cb6a34d2e1075bfd9c896ce4151b9180d66b380269532867b9",
-      "scope": "TYBW emperor before Soul King absorption",
+      "scope": "Yhwach - TYBW / pre-Almighty",
       "basis": "Exceptional spiritual combat and power redistribution; Soul King absorption and final future rewriting are excluded.",
-      "limits": "Conservative editorial proposal for the depicted version; official profiles establish identity but do not certify this cross-series grade. A scene-by-scene feat audit can revise it.",
+      "limits": "Pre-Almighty cape portrait. Excludes awakened Almighty future rewriting, Soul King absorption and later composite powers.",
       "references": [
         "https://bleach-anime.com/en/character/?chara=23"
-      ]
+      ],
+      "review": {
+        "date": "2026-10-18",
+        "status": "source-and-form-reviewed",
+        "artworkSHA256": "14a804a5db1ab4cb6a34d2e1075bfd9c896ce4151b9180d66b380269532867b9",
+        "confidence": "medium",
+        "method": "Pinned illustration and official source profile checked. Transformed and later-arc capabilities explicitly bounded. The grade is NIGHT editorial judgment, not an official statistic or an exhaustive chapter-by-chapter feat audit."
+      }
     },
     "ichigo/human": {
       "scale": "night-power-v1",
@@ -1184,6 +1745,148 @@
       "references": [
         "https://bleach-anime.com/en/character/"
       ]
+    },
+    "aizen-muken": {
+      "scale": "night-power-v1",
+      "status": "proposed",
+      "rank": "S",
+      "formId": "muken",
+      "artworkSHA256": "6b94f0c44f78ccddc3361506f5db0e0d1ee3c67023e0d99f6bbb9100f626bb5f",
+      "scope": "Restrained Muken Aizen; sealed-chair uniform.",
+      "basis": "Enormous spiritual pressure and established mastery remain threatening under Muken restraints.",
+      "limits": "Restraints and restricted movement count. No free Hogyoku evolution or unlimited range; this is not the earlier Arrancar-era costume.",
+      "references": [
+        "https://bleach-anime.com/en/character/?chara=50"
+      ],
+      "review": {
+        "date": "2026-10-18",
+        "status": "source-and-form-reviewed",
+        "artworkSHA256": "6b94f0c44f78ccddc3361506f5db0e0d1ee3c67023e0d99f6bbb9100f626bb5f",
+        "confidence": "medium",
+        "method": "Pinned illustration and official source profile checked. Transformed and later-arc capabilities explicitly bounded. The grade is NIGHT editorial judgment, not an official statistic or an exhaustive chapter-by-chapter feat audit."
+      }
+    },
+    "byakuya-senbonzakura": {
+      "scale": "night-power-v1",
+      "status": "proposed",
+      "rank": "A",
+      "formId": "senbonzakura",
+      "artworkSHA256": "8b3cc980ecb0e667517cb8bb57e4392ea2677e7088bfffee7d3250b020817485",
+      "scope": "Senbonzakura in the depicted captain uniform.",
+      "basis": "High-speed sword mastery and controlled blade-petal attacks.",
+      "limits": "No Senbonzakura Kageyoshi, Senkei or Royal Palace training multiplier is inferred from decorative petals.",
+      "references": [
+        "https://www.bleach-soulresonance.com/"
+      ],
+      "review": {
+        "date": "2026-10-18",
+        "status": "source-and-form-reviewed",
+        "artworkSHA256": "8b3cc980ecb0e667517cb8bb57e4392ea2677e7088bfffee7d3250b020817485",
+        "confidence": "medium",
+        "method": "Pinned illustration and official source profile checked. Transformed and later-arc capabilities explicitly bounded. The grade is NIGHT editorial judgment, not an official statistic or an exhaustive chapter-by-chapter feat audit."
+      }
+    },
+    "kenpachi-tybw": {
+      "scale": "night-power-v1",
+      "status": "proposed",
+      "rank": "A",
+      "formId": "tybw-sealed",
+      "artworkSHA256": "4c46cb344fa5b210dfccab14b4e3eb55357ee4e82afad75247833a68b5bd22ef",
+      "scope": "TYBW eyepatched Kenpachi with a sealed sword.",
+      "basis": "Exceptional raw strength, endurance and instinctive sword combat.",
+      "limits": "The outfit does not date the portrait precisely relative to Unohana training. No post-training liberation, Nozarashi or Bankai is credited.",
+      "references": [
+        "https://bleach-anime.com/en/character/?chara=17",
+        "https://bleach-anime.com/en/story/?id=10"
+      ],
+      "review": {
+        "date": "2026-10-18",
+        "status": "source-and-form-reviewed",
+        "artworkSHA256": "4c46cb344fa5b210dfccab14b4e3eb55357ee4e82afad75247833a68b5bd22ef",
+        "confidence": "medium",
+        "method": "Pinned illustration and official source profile checked. Transformed and later-arc capabilities explicitly bounded. The grade is NIGHT editorial judgment, not an official statistic or an exhaustive chapter-by-chapter feat audit."
+      }
+    },
+    "rukia-tybw": {
+      "scale": "night-power-v1",
+      "status": "proposed",
+      "rank": "B",
+      "formId": "tybw-unreleased",
+      "artworkSHA256": "7715ac264ebf212e3cb2991c4184589a3efa52589506a166c6f22d6c5e12091b",
+      "scope": "TYBW lieutenant portrait with an unreleased sword.",
+      "basis": "Trained Soul Reaper sword combat and Kido.",
+      "limits": "Uniform alone does not establish Royal Palace training. Excludes absolute-zero Shikai performance, Hakka no Togame and later captain feats.",
+      "references": [
+        "https://bleach-anime.com/en/character/?chara=20",
+        "https://bleach-anime.com/en/story/?id=19"
+      ],
+      "review": {
+        "date": "2026-10-18",
+        "status": "source-and-form-reviewed",
+        "artworkSHA256": "7715ac264ebf212e3cb2991c4184589a3efa52589506a166c6f22d6c5e12091b",
+        "confidence": "medium",
+        "method": "Pinned illustration and official source profile checked. Transformed and later-arc capabilities explicitly bounded. The grade is NIGHT editorial judgment, not an official statistic or an exhaustive chapter-by-chapter feat audit."
+      }
+    },
+    "yoruichi-flash-step": {
+      "scale": "night-power-v1",
+      "status": "proposed",
+      "rank": "A",
+      "formId": "flash-step",
+      "artworkSHA256": "8e442d925c55435880dbe5e9a302fa4d1aad1ba94da9f4779612118096077caa",
+      "scope": "Yoruichi in her standard combat outfit.",
+      "basis": "Exceptional Flash Step and close-combat mastery.",
+      "limits": "No anti-Hierro armour, thunder transformation or later Shunko state is inferred from coloured lighting.",
+      "references": [
+        "https://www.bleach-soulresonance.com/"
+      ],
+      "review": {
+        "date": "2026-10-18",
+        "status": "source-and-form-reviewed",
+        "artworkSHA256": "8e442d925c55435880dbe5e9a302fa4d1aad1ba94da9f4779612118096077caa",
+        "confidence": "medium",
+        "method": "Pinned illustration and official source profile checked. Transformed and later-arc capabilities explicitly bounded. The grade is NIGHT editorial judgment, not an official statistic or an exhaustive chapter-by-chapter feat audit."
+      }
+    },
+    "ichigo-restored-shikai": {
+      "scale": "night-power-v1",
+      "status": "proposed",
+      "rank": "A",
+      "formId": "restored-shikai",
+      "artworkSHA256": "1b70c3af420dbcf67369d59b21ebff7f4b7fdb1ea1486df5df054bd6593b5d09",
+      "scope": "Restored Shikai after the Lost Agent power restoration.",
+      "basis": "Restored spiritual sword power, mobility and Getsuga attacks beyond the early original Shikai.",
+      "limits": "Single broad blade and red/white straps identify restored Shikai. No original or restored Bankai, dual-blade True Shikai, Hollow mask, Dangai or later forms.",
+      "references": [
+        "https://www.bleach-bravesouls.com/en/character/ichigo.html"
+      ],
+      "review": {
+        "date": "2026-10-18",
+        "status": "source-and-form-reviewed",
+        "artworkSHA256": "1b70c3af420dbcf67369d59b21ebff7f4b7fdb1ea1486df5df054bd6593b5d09",
+        "confidence": "medium",
+        "method": "Pinned illustration and official source profile checked. Transformed and later-arc capabilities explicitly bounded. The grade is NIGHT editorial judgment, not an official statistic or an exhaustive chapter-by-chapter feat audit."
+      }
+    },
+    "ichigo-restored-shikai-standing": {
+      "scale": "night-power-v1",
+      "status": "proposed",
+      "rank": "A",
+      "formId": "restored-shikai",
+      "artworkSHA256": "5ca2c3384b8dc6796ad3749abd987f9bb94252d149459e2237e095eba440d4b7",
+      "scope": "The same restored Shikai, in the TYBW opening uniform.",
+      "basis": "Same active form as the Lost Agent restored Shikai illustration; a different pose and finish grant no rank bonus.",
+      "limits": "Single broad blade and red strap, before dual-blade reforging. No Bankai, True Shikai, Royal Palace upgrades or later merged powers.",
+      "references": [
+        "https://bleach-anime.com/en/character/?chara=01"
+      ],
+      "review": {
+        "date": "2026-10-18",
+        "status": "source-and-form-reviewed",
+        "artworkSHA256": "5ca2c3384b8dc6796ad3749abd987f9bb94252d149459e2237e095eba440d4b7",
+        "confidence": "medium",
+        "method": "Pinned illustration and official source profile checked. Transformed and later-arc capabilities explicitly bounded. The grade is NIGHT editorial judgment, not an official statistic or an exhaustive chapter-by-chapter feat audit."
+      }
     }
   }
 }

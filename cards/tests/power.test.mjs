@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {loadCatalogue,reviewFingerprint,findEntries} from '../src/catalogue.mjs';
-import {POWER_SCALE,rankValue,validatePower,powerPresentation} from '../src/power.mjs';
+import {POWER_SCALE,rankValue,validatePower,powerPresentation,validateFormGrades} from '../src/power.mjs';
 import {acquireArtwork} from '../src/artwork.mjs';
 import {cardSvg} from '../src/render.mjs';
 
@@ -39,7 +39,7 @@ test('power changes invalidate approval and rank filters do not confuse a finish
 
 test('every finish renders a smaller title with the form grade, while depth remains outside the inner frame',async()=>{
   const catalogue=await loadCatalogue();
-  for (const id of ['ichigo-original-shikai','yoruichi-featured','aizen-featured','ichigo-original-bankai','ichigo-substitute-soul-reaper','kenpachi-featured']) {
+  for (const id of ['ichigo-original-shikai','yoruichi-featured','aizen-featured','ichigo-original-bankai','ichigo-substitute-soul-reaper','kenpachi-featured','aizen-muken','byakuya-senbonzakura','kenpachi-tybw','rukia-tybw','yoruichi-flash-step','ichigo-restored-shikai','ichigo-restored-shikai-standing']) {
     const card=catalogue.cards.find(c=>c.id===id),assets=await acquireArtwork(card);
     for (const design of card.designs) {
       const svg=await cardSvg(card,assets,design);
@@ -67,4 +67,11 @@ test('every finish renders a smaller title with the form grade, while depth rema
 test('presentation fails closed instead of silently styling an unknown renderer layout',async()=>{
   const c=(await loadCatalogue()).cards[0];
   assert.throws(()=>powerPresentation('<svg></svg>',c,'obsidian'),/title/);
+});
+
+test('distinct artwork poses of the same form retain one grade and source reviews cannot transfer',async()=>{
+  const cards=(await loadCatalogue()).cards.filter(c=>c.formId==='restored-shikai');
+  assert.equal(cards.length,2);assert.notEqual(cards[0].source.sha256,cards[1].source.sha256);assert.equal(cards[0].power.rank,cards[1].power.rank);
+  assert.throws(()=>validateFormGrades([cards[0],{...cards[1],power:{...cards[1].power,rank:'SSS'}}]),/Conflicting grade/);
+  assert.throws(()=>validatePower({...cards[0].power,review:{...cards[0].power.review,artworkSHA256:'0'.repeat(64)}},cards[0]),/Stale source/);
 });

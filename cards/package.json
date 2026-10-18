@@ -3,7 +3,9 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "engines": {"node": ">=22.12"},
+  "engines": {
+    "node": ">=22.12"
+  },
   "scripts": {
     "test": "node --test tests/*.test.mjs",
     "discover": "node bin/cards.mjs discover",
@@ -11,7 +13,11 @@
     "approve": "node bin/cards.mjs approve",
     "publish": "node bin/cards.mjs publish",
     "verify": "node bin/cards.mjs verify",
-    "pack": "node bin/cards.mjs pack"
+    "pack": "node bin/cards.mjs pack",
+    "gallery": "node bin/cards.mjs gallery"
   },
-  "dependencies": {"sharp": "0.35.5", "playwright": "1.62.1"}
+  "dependencies": {
+    "sharp": "0.35.5",
+    "playwright": "1.62.1"
+  }
 }

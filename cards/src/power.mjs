@@ -30,12 +30,23 @@ export function validatePower(power, card) {
     throw Error(`Invalid power grade: ${card.id}`);
   if (power.formId !== card.formId || power.artworkSHA256 !== card.source.sha256)
     throw Error(`Power assessment needs a form/artwork review: ${card.id}`);
+  if(power.review && (power.review.status!=='source-and-form-reviewed'||power.review.artworkSHA256!==card.source.sha256||!/^\d{4}-\d{2}-\d{2}$/.test(power.review.date)))
+    throw Error(`Stale source/form review: ${card.id}`);
   if (![power.scope, power.basis, power.limits].every(v => typeof v === 'string' && v.trim()))
     throw Error(`Incomplete power reasoning: ${card.id}`);
   if (!power.references?.length || power.references.some(url => {
     try { return new URL(url).protocol !== 'https:'; } catch { return true; }
   })) throw Error(`Missing power reference: ${card.id}`);
   return power;
+}
+
+export function validateFormGrades(cards) {
+  const forms=new Map();
+  for(const card of cards){
+    const key=card.character+'/'+card.formId,previous=forms.get(key);
+    if(previous && previous!==card.power.rank)throw Error(`Conflicting grade for the same form: ${key}`);
+    forms.set(key,card.power.rank);
+  }
 }
 
 export async function loadPowerAssessments(series, cards, pendingForms = []) {
@@ -46,6 +57,7 @@ export async function loadPowerAssessments(series, cards, pendingForms = []) {
   const expected = new Set([...cards.map(c => c.id), ...pendingForms.map(c => c.id)]);
   for (const id of Object.keys(data.assessments)) if (!expected.has(id)) throw Error(`Unknown power identity: ${id}`);
   for (const card of cards) card.power = validatePower(data.assessments[card.id], card);
+  validateFormGrades(cards);
   for (const form of pendingForms) {
     const power = data.assessments[form.id];
     if (!power || power.scale !== POWER_SCALE.id || power.formId !== form.form ||

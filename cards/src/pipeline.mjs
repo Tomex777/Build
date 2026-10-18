@@ -4,15 +4,14 @@ import sharp from 'sharp';
 import {ROOT,inside,atomic,digest,loadCatalogue,rendererDigest,reviewFingerprint} from './catalogue.mjs';
 import {acquireArtwork} from './artwork.mjs';
 import {cardSvg,createSession} from './render.mjs';
-import {POWER_SCALE,rankValue} from './power.mjs';
+import {rankValue} from './power.mjs';
+import {writeCollectionGallery} from './gallery.mjs';
 
 export async function readJson(file,fallback) {try{return JSON.parse(await fs.readFile(file,'utf8'));}catch(e){if(e.code==='ENOENT'&&fallback!==undefined)return fallback;throw e;}}
 const xml=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&apos;'}[c]));
 export async function presentation(report,out) {
   const entries=[...report.cards].sort((a,b)=>rankValue(b.power?.rank)-rankValue(a.power?.rank)||a.number-b.number||a.design.localeCompare(b.design));
-  const tiles=entries.map(c=>`<a href="${c.png}" data-rank="${c.power?.rank??''}" data-search="${xml((c.name+' '+c.form+' '+c.design+' '+(c.power?.rank??'')).toLowerCase())}" title="${xml(c.power?`${c.power.scope}. ${c.power.basis}`:c.name)}"><img src="${c.phone}" width="320" height="512" loading="lazy" alt="${xml(c.name+' · '+c.design+(c.power?.rank?' · Power '+c.power.rank:''))}"><span>${xml(c.name)}</span><small>${xml((c.formId==='featured'?'':c.form+' · ')+c.design+(c.power?.rank?' · '+c.power.rank:''))}</small></a>`).join('');
-  const html=`<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>NIGHT · BLEACH</title><style>*{box-sizing:border-box}body{margin:0;background:#10151a;color:#f3e8d3;font:16px system-ui;padding:32px clamp(16px,4vw,56px)}header{max-width:1680px;margin:auto}h1{font:500 42px Georgia;margin:0 0 10px}header p{color:#a9b3b8;margin:0 0 28px}input,select{border:1px solid #52606a;background:#1b252e;color:#fff;padding:14px 18px;border-radius:9px;font:inherit;outline-offset:4px;margin:0}input{width:min(100%,440px)}select{cursor:pointer;min-width:125px}.filters{display:flex;flex-wrap:wrap;gap:12px;margin-bottom:28px}.rank-note{font-size:12px;line-height:1.6}main{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:28px 22px;max-width:1680px;margin:auto}a{color:inherit;text-decoration:none}img{display:block;width:100%;height:auto;border-radius:13px}span,small{display:block;margin-top:10px}small{color:#a9b3b8;font-size:12px;margin-top:4px}a[hidden]{display:none}@media(max-width:600px){body{padding:24px 14px}main{grid-template-columns:repeat(2,minmax(0,1fr));gap:24px 12px}h1{font-size:34px}span{font-size:13px}small{font-size:10px}}</style><header><h1>NIGHT / BLEACH</h1><p>${entries.length} collectible editions</p><div class="filters"><input type="search" aria-label="Search cards" placeholder="Find a character or finish"><select aria-label="Power rank"><option value="">All ranks</option>${[...POWER_SCALE.ranks].reverse().filter(rank=>entries.some(c=>c.power?.rank===rank)).map(rank=>`<option value="${rank}">${rank}</option>`).join('')}</select></div><p class="rank-note">NIGHT power grades · strongest first · form-specific editorial proposals</p></header><main>${tiles}</main><script>const search=document.querySelector('input'),rank=document.querySelector('select');function filter(){const q=search.value.toLowerCase().trim();for(const a of document.querySelectorAll('main a'))a.hidden=!a.dataset.search.includes(q)||(rank.value&&a.dataset.rank!==rank.value)}search.addEventListener('input',filter);rank.addEventListener('change',filter)</script></html>`;
-  await atomic(path.join(out,'index.html'),html);
+  await writeCollectionGallery(report,out);
   report.boards=[];
   for(let start=0;start<entries.length;start+=10){
     const selected=entries.slice(start,start+10), layers=[];
@@ -86,7 +85,7 @@ export async function publish({series='bleach',out='dist/candidates',destination
   for(const entry of report.cards){
     const card=catalogue.cards.find(c=>entry.id===c.id+'--'+entry.design),review=reviews[entry.id];
     if(!card||entry.fingerprint!==reviewFingerprint(card,entry.design,renderer,3000)||review?.status!=='approved'||review.fingerprint!==entry.fingerprint)throw Error(`Visual review required: ${entry.id}`);
-    for(const [filename,hash] of [[entry.png,entry.pngSHA256],[entry.svg,entry.svgSHA256],[entry.phone,null]]){
+    for(const [filename,hash] of [[entry.png,entry.pngSHA256],[entry.svg,entry.svgSHA256],[entry.phone,null],[entry.preview,entry.previewSHA256]]){
       const bytes=await fs.readFile(path.join(folder,filename));if(hash&&digest(bytes)!==hash)throw Error('Changed output: '+filename);await fs.writeFile(path.join(stage,filename),bytes);
     }
     cards.push({...entry,approved:true,review});

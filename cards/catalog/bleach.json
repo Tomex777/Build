@@ -12,15 +12,14 @@
       "character": "aizen",
       "name": "Sosuke Aizen",
       "title": "Aizen",
-      "form": "Featured portrait",
-      "formId": "featured",
+      "form": "Arrancar era / unreleased",
+      "formId": "arrancar-unreleased",
       "aliases": [
         "Sosuke Aizen",
         "aizen",
         "Aizen"
       ],
       "designs": [
-        "obsidian",
         "nocturne"
       ],
       "status": "candidate",
@@ -32,10 +31,10 @@
         "sha256": "dadc1f94cb2366e60fa48ec6a803d78031b6fa619911a293050286771276c19f",
         "width": 750,
         "height": 1400,
-        "rights": "All rights reserved \u2014 character artwork is not licensed by the renderer MIT license.",
+        "rights": "All rights reserved — character artwork is not licensed by the renderer MIT license.",
         "usage": "reference-only",
         "artist": "BLEACH: Brave Souls",
-        "credit": "\u00a9 Tite Kubo / SHUEISHA"
+        "credit": "© Tite Kubo / SHUEISHA"
       },
       "recipe": {
         "crop": [
@@ -59,8 +58,8 @@
       "character": "barragan",
       "name": "Barragan Ruizenban",
       "title": "Barragan",
-      "form": "Featured portrait",
-      "formId": "featured",
+      "form": "Unreleased / axe",
+      "formId": "unreleased",
       "aliases": [
         "Barragan Ruizenban",
         "barragan",
@@ -78,10 +77,10 @@
         "sha256": "44d92e09e9bd2e7d8599fa1504cde375e08c0bc384a9fc2fa7c373cab5763a39",
         "width": 750,
         "height": 1400,
-        "rights": "All rights reserved \u2014 character artwork is not licensed by the renderer MIT license.",
+        "rights": "All rights reserved — character artwork is not licensed by the renderer MIT license.",
         "usage": "reference-only",
         "artist": "BLEACH: Brave Souls",
-        "credit": "\u00a9 Tite Kubo / SHUEISHA"
+        "credit": "© Tite Kubo / SHUEISHA"
       },
       "recipe": {
         "crop": [
@@ -105,16 +104,15 @@
       "character": "byakuya",
       "name": "Byakuya Kuchiki",
       "title": "Byakuya",
-      "form": "Featured portrait",
-      "formId": "featured",
+      "form": "Senbonzakura / captain uniform",
+      "formId": "senbonzakura",
       "aliases": [
         "Byakuya Kuchiki",
         "byakuya",
         "Byakuya"
       ],
       "designs": [
-        "ivory",
-        "nocturne"
+        "ivory"
       ],
       "status": "candidate",
       "source": {
@@ -125,10 +123,10 @@
         "sha256": "a28be745ead9aa953cb2b971e987f1904508bb875f256b3e966e48ec1129b84d",
         "width": 750,
         "height": 1400,
-        "rights": "All rights reserved \u2014 character artwork is not licensed by the renderer MIT license.",
+        "rights": "All rights reserved — character artwork is not licensed by the renderer MIT license.",
         "usage": "reference-only",
         "artist": "BLEACH: Brave Souls",
-        "credit": "\u00a9 Tite Kubo / SHUEISHA"
+        "credit": "© Tite Kubo / SHUEISHA"
       },
       "recipe": {
         "crop": [
@@ -155,8 +153,8 @@
       "character": "ganju",
       "name": "Ganju Shiba",
       "title": "Ganju",
-      "form": "Featured portrait",
-      "formId": "featured",
+      "form": "Shiba outfit / explosives",
+      "formId": "shiba-outfit",
       "aliases": [
         "Ganju Shiba",
         "ganju",
@@ -174,10 +172,10 @@
         "sha256": "ecc9bfc105d50f30b0af08162d6f237513b64cd9c508d43750f8d739cc8c5d20",
         "width": 750,
         "height": 1400,
-        "rights": "All rights reserved \u2014 character artwork is not licensed by the renderer MIT license.",
+        "rights": "All rights reserved — character artwork is not licensed by the renderer MIT license.",
         "usage": "reference-only",
         "artist": "BLEACH: Brave Souls",
-        "credit": "\u00a9 Tite Kubo / SHUEISHA"
+        "credit": "© Tite Kubo / SHUEISHA"
       },
       "recipe": {
         "crop": [
@@ -201,8 +199,8 @@
       "character": "gin",
       "name": "Gin Ichimaru",
       "title": "Gin",
-      "form": "Featured portrait",
-      "formId": "featured",
+      "form": "Shinso / Arrancar era",
+      "formId": "shinso",
       "aliases": [
         "Gin Ichimaru",
         "gin",
@@ -220,10 +218,10 @@
         "sha256": "2deddc3f41735328378bccd2970b49493e1d4d45c82db453c08105d5556da8c1",
         "width": 750,
         "height": 1400,
-        "rights": "All rights reserved \u2014 character artwork is not licensed by the renderer MIT license.",
+        "rights": "All rights reserved — character artwork is not licensed by the renderer MIT license.",
         "usage": "reference-only",
         "artist": "BLEACH: Brave Souls",
-        "credit": "\u00a9 Tite Kubo / SHUEISHA"
+        "credit": "© Tite Kubo / SHUEISHA"
       },
       "recipe": {
         "crop": [
@@ -238,7 +236,24 @@
         "focal": [
           0.5,
           0.3
-        ]
+        ],
+        "depthLayers": {
+          "nocturne": {
+            "mask": {
+              "localPath": "artwork/masks/gin-character.svg",
+              "sha256": "75c45f02ec40aeb19b1ac9ac09be6f2b63536a0e059db17c53f9f48ea2469e51",
+              "sourceSHA256": "2deddc3f41735328378bccd2970b49493e1d4d45c82db453c08105d5556da8c1",
+              "crop": [
+                0,
+                0,
+                750,
+                750
+              ]
+            },
+            "auraOpacity": 0.32,
+            "cropEdgeFade": 0.025
+          }
+        }
       },
       "number": 5
     },
@@ -247,8 +262,8 @@
       "character": "ginjo",
       "name": "Kugo Ginjo",
       "title": "Ginjo",
-      "form": "Featured portrait",
-      "formId": "featured",
+      "form": "Enhanced Fullbring",
+      "formId": "enhanced-fullbring",
       "aliases": [
         "Kugo Ginjo",
         "ginjo",
@@ -266,10 +281,10 @@
         "sha256": "fbf76c0bc9ce743fc92fd9fef94da8cf1d8eeba8fb88668c5a6301fb2c6c1401",
         "width": 750,
         "height": 1400,
-        "rights": "All rights reserved \u2014 character artwork is not licensed by the renderer MIT license.",
+        "rights": "All rights reserved — character artwork is not licensed by the renderer MIT license.",
         "usage": "reference-only",
         "artist": "BLEACH: Brave Souls",
-        "credit": "\u00a9 Tite Kubo / SHUEISHA"
+        "credit": "© Tite Kubo / SHUEISHA"
       },
       "recipe": {
         "crop": [
@@ -284,7 +299,24 @@
         "focal": [
           0.5,
           0.3
-        ]
+        ],
+        "depthLayers": {
+          "nocturne": {
+            "mask": {
+              "localPath": "artwork/masks/ginjo-character.svg",
+              "sha256": "43a9b08b17df24770d73e1096898ad7cc0e81b06a80f8546a167202ac202201d",
+              "sourceSHA256": "fbf76c0bc9ce743fc92fd9fef94da8cf1d8eeba8fb88668c5a6301fb2c6c1401",
+              "crop": [
+                0,
+                0,
+                750,
+                750
+              ]
+            },
+            "auraOpacity": 0.32,
+            "cropEdgeFade": 0.025
+          }
+        }
       },
       "number": 6
     },
@@ -293,8 +325,8 @@
       "character": "grimmjow",
       "name": "Grimmjow Jeagerjaques",
       "title": "Grimmjow",
-      "form": "Featured portrait",
-      "formId": "featured",
+      "form": "Unreleased / Arrancar",
+      "formId": "unreleased",
       "aliases": [
         "Grimmjow Jeagerjaques",
         "grimmjow",
@@ -312,10 +344,10 @@
         "sha256": "f62ff3b9128db7e2e4a85f963987ea884a1fbadd9fdae688623451e6a8038b27",
         "width": 750,
         "height": 1400,
-        "rights": "All rights reserved \u2014 character artwork is not licensed by the renderer MIT license.",
+        "rights": "All rights reserved — character artwork is not licensed by the renderer MIT license.",
         "usage": "reference-only",
         "artist": "BLEACH: Brave Souls",
-        "credit": "\u00a9 Tite Kubo / SHUEISHA"
+        "credit": "© Tite Kubo / SHUEISHA"
       },
       "recipe": {
         "crop": [
@@ -339,8 +371,8 @@
       "character": "hachigen",
       "name": "Hachigen Ushoda",
       "title": "Hachigen",
-      "form": "Featured portrait",
-      "formId": "featured",
+      "form": "Visored / barriers",
+      "formId": "visored-barriers",
       "aliases": [
         "Hachigen Ushoda",
         "hachigen",
@@ -358,10 +390,10 @@
         "sha256": "585afad8f56c2caa43585506211338e90e7efca77c885e1c82e24fb3a9a5803b",
         "width": 750,
         "height": 1400,
-        "rights": "All rights reserved \u2014 character artwork is not licensed by the renderer MIT license.",
+        "rights": "All rights reserved — character artwork is not licensed by the renderer MIT license.",
         "usage": "reference-only",
         "artist": "BLEACH: Brave Souls",
-        "credit": "\u00a9 Tite Kubo / SHUEISHA"
+        "credit": "© Tite Kubo / SHUEISHA"
       },
       "recipe": {
         "crop": [
@@ -385,8 +417,8 @@
       "character": "halibel",
       "name": "Tier Halibel",
       "title": "Harribel",
-      "form": "Featured portrait",
-      "formId": "featured",
+      "form": "Unreleased / Arrancar",
+      "formId": "unreleased",
       "aliases": [
         "Tier Halibel",
         "halibel",
@@ -404,10 +436,10 @@
         "sha256": "d3756403cb0c71596225c1389f43f6eec22801f07f188138e7ae10c5f733197e",
         "width": 750,
         "height": 1400,
-        "rights": "All rights reserved \u2014 character artwork is not licensed by the renderer MIT license.",
+        "rights": "All rights reserved — character artwork is not licensed by the renderer MIT license.",
         "usage": "reference-only",
         "artist": "BLEACH: Brave Souls",
-        "credit": "\u00a9 Tite Kubo / SHUEISHA"
+        "credit": "© Tite Kubo / SHUEISHA"
       },
       "recipe": {
         "crop": [
@@ -431,8 +463,8 @@
       "character": "hinamori",
       "name": "Momo Hinamori",
       "title": "Momo",
-      "form": "Featured portrait",
-      "formId": "featured",
+      "form": "Tobiume / lieutenant",
+      "formId": "tobiume",
       "aliases": [
         "Momo Hinamori",
         "hinamori",
@@ -450,10 +482,10 @@
         "sha256": "88ea146962b3a9bda3942bb2a4f588a083d60ed9e92fcbe99c6e7cde423e6e6b",
         "width": 750,
         "height": 1400,
-        "rights": "All rights reserved \u2014 character artwork is not licensed by the renderer MIT license.",
+        "rights": "All rights reserved — character artwork is not licensed by the renderer MIT license.",
         "usage": "reference-only",
         "artist": "BLEACH: Brave Souls",
-        "credit": "\u00a9 Tite Kubo / SHUEISHA"
+        "credit": "© Tite Kubo / SHUEISHA"
       },
       "recipe": {
         "crop": [
@@ -477,8 +509,8 @@
       "character": "hirako",
       "name": "Shinji Hirako",
       "title": "Shinji",
-      "form": "Featured portrait",
-      "formId": "featured",
+      "form": "Sakanade / Visored",
+      "formId": "sakanade",
       "aliases": [
         "Shinji Hirako",
         "hirako",
@@ -496,10 +528,10 @@
         "sha256": "2afc8888f7813bab62b3f98a36ebcfd20f6ed797a595e5f78a238f96e8e08035",
         "width": 750,
         "height": 1400,
-        "rights": "All rights reserved \u2014 character artwork is not licensed by the renderer MIT license.",
+        "rights": "All rights reserved — character artwork is not licensed by the renderer MIT license.",
         "usage": "reference-only",
         "artist": "BLEACH: Brave Souls",
-        "credit": "\u00a9 Tite Kubo / SHUEISHA"
+        "credit": "© Tite Kubo / SHUEISHA"
       },
       "recipe": {
         "crop": [
@@ -523,8 +555,8 @@
       "character": "hisagi",
       "name": "Shuhei Hisagi",
       "title": "Shuhei",
-      "form": "Featured portrait",
-      "formId": "featured",
+      "form": "Kazeshini / lieutenant",
+      "formId": "kazeshini",
       "aliases": [
         "Shuhei Hisagi",
         "hisagi",
@@ -542,10 +574,10 @@
         "sha256": "2f6f069915022c0ab245b1779c8d0e7467ef4582ff15a792bef50c674faf5a86",
         "width": 750,
         "height": 1400,
-        "rights": "All rights reserved \u2014 character artwork is not licensed by the renderer MIT license.",
+        "rights": "All rights reserved — character artwork is not licensed by the renderer MIT license.",
         "usage": "reference-only",
         "artist": "BLEACH: Brave Souls",
-        "credit": "\u00a9 Tite Kubo / SHUEISHA"
+        "credit": "© Tite Kubo / SHUEISHA"
       },
       "recipe": {
         "crop": [
@@ -560,7 +592,24 @@
         "focal": [
           0.5,
           0.3
-        ]
+        ],
+        "depthLayers": {
+          "nocturne": {
+            "mask": {
+              "localPath": "artwork/masks/hisagi-character.svg",
+              "sha256": "6cf395e6b2934aa27932f1998de059991ce809bafb31ed7aad83d2f440ac1d5e",
+              "sourceSHA256": "2f6f069915022c0ab245b1779c8d0e7467ef4582ff15a792bef50c674faf5a86",
+              "crop": [
+                0,
+                0,
+                750,
+                750
+              ]
+            },
+            "auraOpacity": 0.32,
+            "cropEdgeFade": 0.025
+          }
+        }
       },
       "number": 12
     },
@@ -569,8 +618,8 @@
       "character": "hitsugaya",
       "name": "Toshiro Hitsugaya",
       "title": "Toshiro",
-      "form": "Featured portrait",
-      "formId": "featured",
+      "form": "Hyorinmaru / Lost Agent",
+      "formId": "hyorinmaru-lost-agent",
       "aliases": [
         "Toshiro Hitsugaya",
         "hitsugaya",
@@ -588,10 +637,10 @@
         "sha256": "0fd8922583cd2062d1763dd0d4c07d85afce0c7300f4116c48e5b656f7243775",
         "width": 750,
         "height": 1400,
-        "rights": "All rights reserved \u2014 character artwork is not licensed by the renderer MIT license.",
+        "rights": "All rights reserved — character artwork is not licensed by the renderer MIT license.",
         "usage": "reference-only",
         "artist": "BLEACH: Brave Souls",
-        "credit": "\u00a9 Tite Kubo / SHUEISHA"
+        "credit": "© Tite Kubo / SHUEISHA"
       },
       "recipe": {
         "crop": [
@@ -615,8 +664,8 @@
       "character": "hiyori",
       "name": "Hiyori Sarugaki",
       "title": "Hiyori",
-      "form": "Featured portrait",
-      "formId": "featured",
+      "form": "Visored / mask raised",
+      "formId": "visored-unmasked",
       "aliases": [
         "Hiyori Sarugaki",
         "hiyori",
@@ -634,10 +683,10 @@
         "sha256": "17d25e3c34f2cca383a4178d89fbf901400ece4789829eb93bc81f26d6ec92f0",
         "width": 750,
         "height": 1400,
-        "rights": "All rights reserved \u2014 character artwork is not licensed by the renderer MIT license.",
+        "rights": "All rights reserved — character artwork is not licensed by the renderer MIT license.",
         "usage": "reference-only",
         "artist": "BLEACH: Brave Souls",
-        "credit": "\u00a9 Tite Kubo / SHUEISHA"
+        "credit": "© Tite Kubo / SHUEISHA"
       },
       "recipe": {
         "crop": [
@@ -680,10 +729,10 @@
         "sha256": "ebe412483d41abab007584d83052f4362d9b88fa67e507e08bc75859b1c20b66",
         "width": 1920,
         "height": 1080,
-        "rights": "All rights reserved \u2014 character artwork is not licensed by the renderer MIT license.",
+        "rights": "All rights reserved — character artwork is not licensed by the renderer MIT license.",
         "usage": "reference-only",
         "artist": "BLEACH: Soul Resonance",
-        "credit": "\u00a9 Tite Kubo / SHUEISHA"
+        "credit": "© Tite Kubo / SHUEISHA"
       },
       "recipe": {
         "crop": [
@@ -715,9 +764,7 @@
         "Kurosaki Ichigo"
       ],
       "designs": [
-        "ivory",
-        "nocturne",
-        "tidelight"
+        "nocturne"
       ],
       "status": "candidate",
       "source": {
@@ -728,10 +775,10 @@
         "sha256": "1498936a73f8d281abf14e2b5b3b452bf5f73f9e4b05f17ea5756b1599cfa079",
         "width": 1920,
         "height": 1080,
-        "rights": "All rights reserved \u2014 character artwork is not licensed by the renderer MIT license.",
+        "rights": "All rights reserved — character artwork is not licensed by the renderer MIT license.",
         "usage": "reference-only",
         "artist": "BLEACH: Soul Resonance",
-        "credit": "\u00a9 Tite Kubo / SHUEISHA"
+        "credit": "© Tite Kubo / SHUEISHA"
       },
       "recipe": {
         "crop": [
@@ -774,10 +821,10 @@
         "sha256": "946c5441f729654e0dbd4f230a3ada760720677a577c6eade090cba233633a71",
         "width": 1920,
         "height": 1080,
-        "rights": "All rights reserved \u2014 character artwork is not licensed by the renderer MIT license.",
+        "rights": "All rights reserved — character artwork is not licensed by the renderer MIT license.",
         "usage": "reference-only",
         "artist": "BLEACH: Soul Resonance",
-        "credit": "\u00a9 Tite Kubo / SHUEISHA"
+        "credit": "© Tite Kubo / SHUEISHA"
       },
       "recipe": {
         "crop": [
@@ -801,8 +848,8 @@
       "character": "ikkaku",
       "name": "Ikkaku Madarame",
       "title": "Ikkaku",
-      "form": "Featured portrait",
-      "formId": "featured",
+      "form": "Bankai / Ryumon Hozukimaru",
+      "formId": "bankai-ryumon-hozukimaru",
       "aliases": [
         "Ikkaku Madarame",
         "ikkaku",
@@ -820,10 +867,10 @@
         "sha256": "decd80b04d20203b8bba9bc71716745f9340432b8b06a1a9a5cab1a2ba4c9f06",
         "width": 750,
         "height": 1400,
-        "rights": "All rights reserved \u2014 character artwork is not licensed by the renderer MIT license.",
+        "rights": "All rights reserved — character artwork is not licensed by the renderer MIT license.",
         "usage": "reference-only",
         "artist": "BLEACH: Brave Souls",
-        "credit": "\u00a9 Tite Kubo / SHUEISHA"
+        "credit": "© Tite Kubo / SHUEISHA"
       },
       "recipe": {
         "crop": [
@@ -847,8 +894,8 @@
       "character": "isane",
       "name": "Isane Kotetsu",
       "title": "Isane",
-      "form": "Featured portrait",
-      "formId": "featured",
+      "form": "Squad 4 / healing",
+      "formId": "squad-four",
       "aliases": [
         "Isane Kotetsu",
         "isane",
@@ -866,10 +913,10 @@
         "sha256": "24f3a1ed59a01e9b02b191b36fca176d9259e3dccad1784881c3e56ce0b51658",
         "width": 750,
         "height": 1400,
-        "rights": "All rights reserved \u2014 character artwork is not licensed by the renderer MIT license.",
+        "rights": "All rights reserved — character artwork is not licensed by the renderer MIT license.",
         "usage": "reference-only",
         "artist": "BLEACH: Brave Souls",
-        "credit": "\u00a9 Tite Kubo / SHUEISHA"
+        "credit": "© Tite Kubo / SHUEISHA"
       },
       "recipe": {
         "crop": [
@@ -893,8 +940,8 @@
       "character": "isshin",
       "name": "Isshin Kurosaki",
       "title": "Isshin",
-      "form": "Featured portrait",
-      "formId": "featured",
+      "form": "Soul Reaper / unreleased",
+      "formId": "soul-reaper-unreleased",
       "aliases": [
         "Isshin Kurosaki",
         "isshin",
@@ -912,10 +959,10 @@
         "sha256": "b8eff2a14e402f3d2eff5afacea1c9216ffd039a7210c1538a5e686cbbb62c65",
         "width": 750,
         "height": 1400,
-        "rights": "All rights reserved \u2014 character artwork is not licensed by the renderer MIT license.",
+        "rights": "All rights reserved — character artwork is not licensed by the renderer MIT license.",
         "usage": "reference-only",
         "artist": "BLEACH: Brave Souls",
-        "credit": "\u00a9 Tite Kubo / SHUEISHA"
+        "credit": "© Tite Kubo / SHUEISHA"
       },
       "recipe": {
         "crop": [
@@ -939,8 +986,8 @@
       "character": "kaien",
       "name": "Kaien Shiba",
       "title": "Kaien",
-      "form": "Featured portrait",
-      "formId": "featured",
+      "form": "Nejibana / lieutenant",
+      "formId": "nejibana",
       "aliases": [
         "Kaien Shiba",
         "kaien",
@@ -958,10 +1005,10 @@
         "sha256": "f9cb9ca9b93ff513c37717dca907dc4f7d9929a543fe638a3c67ac58a9bb0e32",
         "width": 750,
         "height": 1400,
-        "rights": "All rights reserved \u2014 character artwork is not licensed by the renderer MIT license.",
+        "rights": "All rights reserved — character artwork is not licensed by the renderer MIT license.",
         "usage": "reference-only",
         "artist": "BLEACH: Brave Souls",
-        "credit": "\u00a9 Tite Kubo / SHUEISHA"
+        "credit": "© Tite Kubo / SHUEISHA"
       },
       "recipe": {
         "crop": [
@@ -976,7 +1023,24 @@
         "focal": [
           0.5,
           0.3
-        ]
+        ],
+        "depthLayers": {
+          "nocturne": {
+            "mask": {
+              "localPath": "artwork/masks/kaien-character.svg",
+              "sha256": "71ccfe532105c98715fb919023bf056ce100df689932b4bfd0f3a55e9e7b1a79",
+              "sourceSHA256": "f9cb9ca9b93ff513c37717dca907dc4f7d9929a543fe638a3c67ac58a9bb0e32",
+              "crop": [
+                0,
+                0,
+                750,
+                750
+              ]
+            },
+            "auraOpacity": 0.32,
+            "cropEdgeFade": 0.025
+          }
+        }
       },
       "number": 21
     },
@@ -985,16 +1049,15 @@
       "character": "kenpachi",
       "name": "Kenpachi Zaraki",
       "title": "Kenpachi",
-      "form": "Featured portrait",
-      "formId": "featured",
+      "form": "Pre-TYBW / sealed sword",
+      "formId": "pre-tybw-sealed",
       "aliases": [
         "Kenpachi Zaraki",
         "kenpachi",
         "Kenpachi"
       ],
       "designs": [
-        "crimson",
-        "nocturne"
+        "crimson"
       ],
       "status": "candidate",
       "source": {
@@ -1005,10 +1068,10 @@
         "sha256": "965b8ca7b19600eb9e4c43d165347452eef468e1391e1309f0624c6b7b3662c0",
         "width": 750,
         "height": 1400,
-        "rights": "All rights reserved \u2014 character artwork is not licensed by the renderer MIT license.",
+        "rights": "All rights reserved — character artwork is not licensed by the renderer MIT license.",
         "usage": "reference-only",
         "artist": "BLEACH: Brave Souls",
-        "credit": "\u00a9 Tite Kubo / SHUEISHA"
+        "credit": "© Tite Kubo / SHUEISHA"
       },
       "recipe": {
         "crop": [
@@ -1032,8 +1095,8 @@
       "character": "kensei",
       "name": "Kensei Muguruma",
       "title": "Kensei",
-      "form": "Featured portrait",
-      "formId": "featured",
+      "form": "Bankai / Tekken Tachikaze",
+      "formId": "bankai-tekken-tachikaze",
       "aliases": [
         "Kensei Muguruma",
         "kensei",
@@ -1051,10 +1114,10 @@
         "sha256": "bfe74b7baa32497ea739416b3b2c34b2910952f3156408d64e5b3a29c0006e85",
         "width": 750,
         "height": 1400,
-        "rights": "All rights reserved \u2014 character artwork is not licensed by the renderer MIT license.",
+        "rights": "All rights reserved — character artwork is not licensed by the renderer MIT license.",
         "usage": "reference-only",
         "artist": "BLEACH: Brave Souls",
-        "credit": "\u00a9 Tite Kubo / SHUEISHA"
+        "credit": "© Tite Kubo / SHUEISHA"
       },
       "recipe": {
         "crop": [
@@ -1069,7 +1132,24 @@
         "focal": [
           0.5,
           0.3
-        ]
+        ],
+        "depthLayers": {
+          "nocturne": {
+            "mask": {
+              "localPath": "artwork/masks/kensei-character.svg",
+              "sha256": "b43e5779e82d33e2efa7b918190ea54b2551868df9612fca68d94eb2c4cc4577",
+              "sourceSHA256": "bfe74b7baa32497ea739416b3b2c34b2910952f3156408d64e5b3a29c0006e85",
+              "crop": [
+                0,
+                0,
+                750,
+                750
+              ]
+            },
+            "auraOpacity": 0.32,
+            "cropEdgeFade": 0.025
+          }
+        }
       },
       "number": 23
     },
@@ -1078,8 +1158,8 @@
       "character": "kira",
       "name": "Izuru Kira",
       "title": "Izuru",
-      "form": "Featured portrait",
-      "formId": "featured",
+      "form": "Wabisuke / lieutenant",
+      "formId": "wabisuke",
       "aliases": [
         "Izuru Kira",
         "kira",
@@ -1097,10 +1177,10 @@
         "sha256": "9e7a4ebce4bf4bcf7a2b46c7be1cbb055eb0ea764d438adf2a1f15e8c6e32df3",
         "width": 750,
         "height": 1400,
-        "rights": "All rights reserved \u2014 character artwork is not licensed by the renderer MIT license.",
+        "rights": "All rights reserved — character artwork is not licensed by the renderer MIT license.",
         "usage": "reference-only",
         "artist": "BLEACH: Brave Souls",
-        "credit": "\u00a9 Tite Kubo / SHUEISHA"
+        "credit": "© Tite Kubo / SHUEISHA"
       },
       "recipe": {
         "crop": [
@@ -1124,8 +1204,8 @@
       "character": "komamura",
       "name": "Sajin Komamura",
       "title": "Sajin",
-      "form": "Featured portrait",
-      "formId": "featured",
+      "form": "Captain / unreleased",
+      "formId": "captain-unreleased",
       "aliases": [
         "Sajin Komamura",
         "komamura",
@@ -1143,10 +1223,10 @@
         "sha256": "94da1f1ba45dbdd2e7801fb8d9fb05d18dad53568564c7b7665db876cfbcff5f",
         "width": 750,
         "height": 1400,
-        "rights": "All rights reserved \u2014 character artwork is not licensed by the renderer MIT license.",
+        "rights": "All rights reserved — character artwork is not licensed by the renderer MIT license.",
         "usage": "reference-only",
         "artist": "BLEACH: Brave Souls",
-        "credit": "\u00a9 Tite Kubo / SHUEISHA"
+        "credit": "© Tite Kubo / SHUEISHA"
       },
       "recipe": {
         "crop": [
@@ -1170,8 +1250,8 @@
       "character": "kon",
       "name": "Kon",
       "title": "Kon",
-      "form": "Featured portrait",
-      "formId": "featured",
+      "form": "Modified soul / plush body",
+      "formId": "plush-body",
       "aliases": [
         "Kon",
         "kon",
@@ -1189,10 +1269,10 @@
         "sha256": "1dd56bbe7fc18703e15d1c618282826d4dd0c66cdd833ba502620a62d1eb695c",
         "width": 750,
         "height": 1400,
-        "rights": "All rights reserved \u2014 character artwork is not licensed by the renderer MIT license.",
+        "rights": "All rights reserved — character artwork is not licensed by the renderer MIT license.",
         "usage": "reference-only",
         "artist": "BLEACH: Brave Souls",
-        "credit": "\u00a9 Tite Kubo / SHUEISHA"
+        "credit": "© Tite Kubo / SHUEISHA"
       },
       "recipe": {
         "crop": [
@@ -1216,8 +1296,8 @@
       "character": "kukaku",
       "name": "Kukaku Shiba",
       "title": "Kukaku",
-      "form": "Featured portrait",
-      "formId": "featured",
+      "form": "Shiba outfit / spiritual arts",
+      "formId": "shiba-outfit",
       "aliases": [
         "Kukaku Shiba",
         "kukaku",
@@ -1235,10 +1315,10 @@
         "sha256": "671b4e7bf3e0e804d25a8a646d64688ed185ff378786e70d74b92c18a747568a",
         "width": 750,
         "height": 1400,
-        "rights": "All rights reserved \u2014 character artwork is not licensed by the renderer MIT license.",
+        "rights": "All rights reserved — character artwork is not licensed by the renderer MIT license.",
         "usage": "reference-only",
         "artist": "BLEACH: Brave Souls",
-        "credit": "\u00a9 Tite Kubo / SHUEISHA"
+        "credit": "© Tite Kubo / SHUEISHA"
       },
       "recipe": {
         "crop": [
@@ -1262,8 +1342,8 @@
       "character": "kyoraku",
       "name": "Shunsui Kyoraku",
       "title": "Shunsui",
-      "form": "Featured portrait",
-      "formId": "featured",
+      "form": "Shikai / Katen Kyokotsu",
+      "formId": "shikai",
       "aliases": [
         "Shunsui Kyoraku",
         "kyoraku",
@@ -1281,10 +1361,10 @@
         "sha256": "a8b6a4e14980f1907e4db84041a0ec7e8acbf1cc885c7c2e9e2a3da025fab7f4",
         "width": 750,
         "height": 1400,
-        "rights": "All rights reserved \u2014 character artwork is not licensed by the renderer MIT license.",
+        "rights": "All rights reserved — character artwork is not licensed by the renderer MIT license.",
         "usage": "reference-only",
         "artist": "BLEACH: Brave Souls",
-        "credit": "\u00a9 Tite Kubo / SHUEISHA"
+        "credit": "© Tite Kubo / SHUEISHA"
       },
       "recipe": {
         "crop": [
@@ -1308,8 +1388,8 @@
       "character": "lisa",
       "name": "Lisa Yadomaru",
       "title": "Lisa",
-      "form": "Featured portrait",
-      "formId": "featured",
+      "form": "Visored / polearm",
+      "formId": "visored-polearm",
       "aliases": [
         "Lisa Yadomaru",
         "lisa",
@@ -1327,10 +1407,10 @@
         "sha256": "e1b64cba03f74ff35c1424884f34decc0348728c38ad0bdf55b8f9aed29eeb09",
         "width": 750,
         "height": 1400,
-        "rights": "All rights reserved \u2014 character artwork is not licensed by the renderer MIT license.",
+        "rights": "All rights reserved — character artwork is not licensed by the renderer MIT license.",
         "usage": "reference-only",
         "artist": "BLEACH: Brave Souls",
-        "credit": "\u00a9 Tite Kubo / SHUEISHA"
+        "credit": "© Tite Kubo / SHUEISHA"
       },
       "recipe": {
         "crop": [
@@ -1354,8 +1434,8 @@
       "character": "mashiro",
       "name": "Mashiro Kuna",
       "title": "Mashiro",
-      "form": "Featured portrait",
-      "formId": "featured",
+      "form": "Visored / unmasked",
+      "formId": "visored-unmasked",
       "aliases": [
         "Mashiro Kuna",
         "mashiro",
@@ -1373,10 +1453,10 @@
         "sha256": "a6a117562f79512d057623636313d86b6128c18f535dabae2ed0edc8bbbdbcf7",
         "width": 750,
         "height": 1400,
-        "rights": "All rights reserved \u2014 character artwork is not licensed by the renderer MIT license.",
+        "rights": "All rights reserved — character artwork is not licensed by the renderer MIT license.",
         "usage": "reference-only",
         "artist": "BLEACH: Brave Souls",
-        "credit": "\u00a9 Tite Kubo / SHUEISHA"
+        "credit": "© Tite Kubo / SHUEISHA"
       },
       "recipe": {
         "crop": [
@@ -1391,7 +1471,24 @@
         "focal": [
           0.5,
           0.3
-        ]
+        ],
+        "depthLayers": {
+          "nocturne": {
+            "mask": {
+              "localPath": "artwork/masks/mashiro-character.svg",
+              "sha256": "3f38a8e1d89d45482dc4d9f555733e5e50e62fe9b13e4527e72cebf1b46715a2",
+              "sourceSHA256": "a6a117562f79512d057623636313d86b6128c18f535dabae2ed0edc8bbbdbcf7",
+              "crop": [
+                0,
+                0,
+                750,
+                750
+              ]
+            },
+            "auraOpacity": 0.32,
+            "cropEdgeFade": 0.025
+          }
+        }
       },
       "number": 30
     },
@@ -1400,8 +1497,8 @@
       "character": "mayuri",
       "name": "Mayuri Kurotsuchi",
       "title": "Mayuri",
-      "form": "Featured portrait",
-      "formId": "featured",
+      "form": "Captain / unreleased",
+      "formId": "captain-unreleased",
       "aliases": [
         "Mayuri Kurotsuchi",
         "mayuri",
@@ -1419,10 +1516,10 @@
         "sha256": "006592264851a28dae43ee3512772342130a262b49c57784376e1790ceeeee09",
         "width": 750,
         "height": 1400,
-        "rights": "All rights reserved \u2014 character artwork is not licensed by the renderer MIT license.",
+        "rights": "All rights reserved — character artwork is not licensed by the renderer MIT license.",
         "usage": "reference-only",
         "artist": "BLEACH: Brave Souls",
-        "credit": "\u00a9 Tite Kubo / SHUEISHA"
+        "credit": "© Tite Kubo / SHUEISHA"
       },
       "recipe": {
         "crop": [
@@ -1446,8 +1543,8 @@
       "character": "nanao",
       "name": "Nanao Ise",
       "title": "Nanao",
-      "form": "Featured portrait",
-      "formId": "featured",
+      "form": "Lieutenant / Kido",
+      "formId": "lieutenant-kido",
       "aliases": [
         "Nanao Ise",
         "nanao",
@@ -1465,10 +1562,10 @@
         "sha256": "3102788a236aee2e23e164632328fd256485fc0e09d110182b39ae261c94bc52",
         "width": 750,
         "height": 1400,
-        "rights": "All rights reserved \u2014 character artwork is not licensed by the renderer MIT license.",
+        "rights": "All rights reserved — character artwork is not licensed by the renderer MIT license.",
         "usage": "reference-only",
         "artist": "BLEACH: Brave Souls",
-        "credit": "\u00a9 Tite Kubo / SHUEISHA"
+        "credit": "© Tite Kubo / SHUEISHA"
       },
       "recipe": {
         "crop": [
@@ -1492,8 +1589,8 @@
       "character": "nel",
       "name": "Nel Tu",
       "title": "Nel",
-      "form": "Featured portrait",
-      "formId": "featured",
+      "form": "Child form",
+      "formId": "child",
       "aliases": [
         "Nel Tu",
         "nel",
@@ -1511,10 +1608,10 @@
         "sha256": "09ebbce606b16482502d0edcc256fffb8303ce2b6b71a9d37acd52d385ba25b8",
         "width": 750,
         "height": 1400,
-        "rights": "All rights reserved \u2014 character artwork is not licensed by the renderer MIT license.",
+        "rights": "All rights reserved — character artwork is not licensed by the renderer MIT license.",
         "usage": "reference-only",
         "artist": "BLEACH: Brave Souls",
-        "credit": "\u00a9 Tite Kubo / SHUEISHA"
+        "credit": "© Tite Kubo / SHUEISHA"
       },
       "recipe": {
         "crop": [
@@ -1538,8 +1635,8 @@
       "character": "nelliel",
       "name": "Nelliel Tu Odelschwanck",
       "title": "Nelliel",
-      "form": "Featured portrait",
-      "formId": "featured",
+      "form": "Adult / unreleased",
+      "formId": "adult-unreleased",
       "aliases": [
         "Nelliel Tu Odelschwanck",
         "nelliel",
@@ -1557,10 +1654,10 @@
         "sha256": "fefc9fddbef1201ebfb1a005d6431edfff0c9408aa675f513e8bd92d4c35c401",
         "width": 750,
         "height": 1400,
-        "rights": "All rights reserved \u2014 character artwork is not licensed by the renderer MIT license.",
+        "rights": "All rights reserved — character artwork is not licensed by the renderer MIT license.",
         "usage": "reference-only",
         "artist": "BLEACH: Brave Souls",
-        "credit": "\u00a9 Tite Kubo / SHUEISHA"
+        "credit": "© Tite Kubo / SHUEISHA"
       },
       "recipe": {
         "crop": [
@@ -1584,8 +1681,8 @@
       "character": "nemu",
       "name": "Nemu Kurotsuchi",
       "title": "Nemu",
-      "form": "Featured portrait",
-      "formId": "featured",
+      "form": "Lieutenant / standard body",
+      "formId": "standard-body",
       "aliases": [
         "Nemu Kurotsuchi",
         "nemu",
@@ -1603,10 +1700,10 @@
         "sha256": "2df47d1526b76b5cf75ac7b5f5610ef4d1c9cd04902363a8505f551bd0719d76",
         "width": 750,
         "height": 1400,
-        "rights": "All rights reserved \u2014 character artwork is not licensed by the renderer MIT license.",
+        "rights": "All rights reserved — character artwork is not licensed by the renderer MIT license.",
         "usage": "reference-only",
         "artist": "BLEACH: Brave Souls",
-        "credit": "\u00a9 Tite Kubo / SHUEISHA"
+        "credit": "© Tite Kubo / SHUEISHA"
       },
       "recipe": {
         "crop": [
@@ -1630,8 +1727,8 @@
       "character": "nnoitora",
       "name": "Nnoitora Gilga",
       "title": "Nnoitora",
-      "form": "Featured portrait",
-      "formId": "featured",
+      "form": "Unreleased / crescent blade",
+      "formId": "unreleased",
       "aliases": [
         "Nnoitora Gilga",
         "nnoitora",
@@ -1649,10 +1746,10 @@
         "sha256": "bb30581c87c86741ef8030ad1ea6fddd50c1e7eea7493ca32a1fbd90e7655417",
         "width": 750,
         "height": 1400,
-        "rights": "All rights reserved \u2014 character artwork is not licensed by the renderer MIT license.",
+        "rights": "All rights reserved — character artwork is not licensed by the renderer MIT license.",
         "usage": "reference-only",
         "artist": "BLEACH: Brave Souls",
-        "credit": "\u00a9 Tite Kubo / SHUEISHA"
+        "credit": "© Tite Kubo / SHUEISHA"
       },
       "recipe": {
         "crop": [
@@ -1676,8 +1773,8 @@
       "character": "orihime",
       "name": "Orihime Inoue",
       "title": "Orihime",
-      "form": "Featured portrait",
-      "formId": "featured",
+      "form": "Lost Agent / Shun Shun Rikka",
+      "formId": "lost-agent",
       "aliases": [
         "Orihime Inoue",
         "orihime",
@@ -1695,10 +1792,10 @@
         "sha256": "dbeb309905a61de9a54e4d6df899b9186fd0b7e1876d2d616c543ddbe1b1bf52",
         "width": 750,
         "height": 1400,
-        "rights": "All rights reserved \u2014 character artwork is not licensed by the renderer MIT license.",
+        "rights": "All rights reserved — character artwork is not licensed by the renderer MIT license.",
         "usage": "reference-only",
         "artist": "BLEACH: Brave Souls",
-        "credit": "\u00a9 Tite Kubo / SHUEISHA"
+        "credit": "© Tite Kubo / SHUEISHA"
       },
       "recipe": {
         "crop": [
@@ -1722,8 +1819,8 @@
       "character": "rangiku",
       "name": "Rangiku Matsumoto",
       "title": "Rangiku",
-      "form": "Featured portrait",
-      "formId": "featured",
+      "form": "Haineko / lieutenant",
+      "formId": "haineko",
       "aliases": [
         "Rangiku Matsumoto",
         "rangiku",
@@ -1741,10 +1838,10 @@
         "sha256": "494e3a2948b7a465eb533a9ccac78ee8bd9ad1c2d73afac23760f0a0b05c74d5",
         "width": 750,
         "height": 1400,
-        "rights": "All rights reserved \u2014 character artwork is not licensed by the renderer MIT license.",
+        "rights": "All rights reserved — character artwork is not licensed by the renderer MIT license.",
         "usage": "reference-only",
         "artist": "BLEACH: Brave Souls",
-        "credit": "\u00a9 Tite Kubo / SHUEISHA"
+        "credit": "© Tite Kubo / SHUEISHA"
       },
       "recipe": {
         "crop": [
@@ -1759,7 +1856,24 @@
         "focal": [
           0.5,
           0.3
-        ]
+        ],
+        "depthLayers": {
+          "nocturne": {
+            "mask": {
+              "localPath": "artwork/masks/rangiku-character.svg",
+              "sha256": "87c905136fe8445d1142f6393d7423457d5b1c385404f6515060aacd27a030a8",
+              "sourceSHA256": "494e3a2948b7a465eb533a9ccac78ee8bd9ad1c2d73afac23760f0a0b05c74d5",
+              "crop": [
+                0,
+                0,
+                750,
+                750
+              ]
+            },
+            "auraOpacity": 0.32,
+            "cropEdgeFade": 0.025
+          }
+        }
       },
       "number": 38
     },
@@ -1768,8 +1882,8 @@
       "character": "renji",
       "name": "Renji Abarai",
       "title": "Renji",
-      "form": "Featured portrait",
-      "formId": "featured",
+      "form": "Zabimaru / Lost Agent",
+      "formId": "zabimaru-lost-agent",
       "aliases": [
         "Renji Abarai",
         "renji",
@@ -1787,10 +1901,10 @@
         "sha256": "3232534811e56237dc2dcda96f993d178cb0c2b25889735b94bfbb56de1c7c07",
         "width": 750,
         "height": 1400,
-        "rights": "All rights reserved \u2014 character artwork is not licensed by the renderer MIT license.",
+        "rights": "All rights reserved — character artwork is not licensed by the renderer MIT license.",
         "usage": "reference-only",
         "artist": "BLEACH: Brave Souls",
-        "credit": "\u00a9 Tite Kubo / SHUEISHA"
+        "credit": "© Tite Kubo / SHUEISHA"
       },
       "recipe": {
         "crop": [
@@ -1814,8 +1928,8 @@
       "character": "riruka",
       "name": "Riruka Dokugamine",
       "title": "Riruka",
-      "form": "Featured portrait",
-      "formId": "featured",
+      "form": "Fullbring / Dollhouse",
+      "formId": "dollhouse",
       "aliases": [
         "Riruka Dokugamine",
         "riruka",
@@ -1833,10 +1947,10 @@
         "sha256": "72d119f83d1ef23c730a2b833d8a84af0f0f0d1eb1cb20f0bf9297dff915bb8e",
         "width": 750,
         "height": 1400,
-        "rights": "All rights reserved \u2014 character artwork is not licensed by the renderer MIT license.",
+        "rights": "All rights reserved — character artwork is not licensed by the renderer MIT license.",
         "usage": "reference-only",
         "artist": "BLEACH: Brave Souls",
-        "credit": "\u00a9 Tite Kubo / SHUEISHA"
+        "credit": "© Tite Kubo / SHUEISHA"
       },
       "recipe": {
         "crop": [
@@ -1860,8 +1974,8 @@
       "character": "rojuro",
       "name": "Rojuro Ohtoribashi",
       "title": "Rose",
-      "form": "Featured portrait",
-      "formId": "featured",
+      "form": "Visored / Kinshara",
+      "formId": "kinshara",
       "aliases": [
         "Rojuro Ohtoribashi",
         "rojuro",
@@ -1879,10 +1993,10 @@
         "sha256": "3bb7132aac9b33fa118b81c93e166a1f1d3002d9085fae9c33cd9f986041dee9",
         "width": 750,
         "height": 1400,
-        "rights": "All rights reserved \u2014 character artwork is not licensed by the renderer MIT license.",
+        "rights": "All rights reserved — character artwork is not licensed by the renderer MIT license.",
         "usage": "reference-only",
         "artist": "BLEACH: Brave Souls",
-        "credit": "\u00a9 Tite Kubo / SHUEISHA"
+        "credit": "© Tite Kubo / SHUEISHA"
       },
       "recipe": {
         "crop": [
@@ -1906,16 +2020,15 @@
       "character": "rukia",
       "name": "Rukia Kuchiki",
       "title": "Rukia",
-      "form": "Featured portrait",
-      "formId": "featured",
+      "form": "Sode no Shirayuki / Lost Agent",
+      "formId": "sode-no-shirayuki-lost-agent",
       "aliases": [
         "Rukia Kuchiki",
         "rukia",
         "Rukia"
       ],
       "designs": [
-        "tidelight",
-        "nocturne"
+        "tidelight"
       ],
       "status": "candidate",
       "source": {
@@ -1926,10 +2039,10 @@
         "sha256": "a3fc224c4d45b3b01b113d084c6a3ab38b30dc435478b437e4f7f1aa45170550",
         "width": 750,
         "height": 1400,
-        "rights": "All rights reserved \u2014 character artwork is not licensed by the renderer MIT license.",
+        "rights": "All rights reserved — character artwork is not licensed by the renderer MIT license.",
         "usage": "reference-only",
         "artist": "BLEACH: Brave Souls",
-        "credit": "\u00a9 Tite Kubo / SHUEISHA"
+        "credit": "© Tite Kubo / SHUEISHA"
       },
       "recipe": {
         "crop": [
@@ -1953,8 +2066,8 @@
       "character": "sado",
       "name": "Yasutora Sado (Chad)",
       "title": "Chad",
-      "form": "Featured portrait",
-      "formId": "featured",
+      "form": "Fullbring / two arms",
+      "formId": "fullbring-two-arms",
       "aliases": [
         "Yasutora Sado (Chad)",
         "sado",
@@ -1972,10 +2085,10 @@
         "sha256": "e0f4c9ab600aa7296c826409835203c7166aa6aff7ee044ca3f0f06e8794d648",
         "width": 750,
         "height": 1400,
-        "rights": "All rights reserved \u2014 character artwork is not licensed by the renderer MIT license.",
+        "rights": "All rights reserved — character artwork is not licensed by the renderer MIT license.",
         "usage": "reference-only",
         "artist": "BLEACH: Brave Souls",
-        "credit": "\u00a9 Tite Kubo / SHUEISHA"
+        "credit": "© Tite Kubo / SHUEISHA"
       },
       "recipe": {
         "crop": [
@@ -1990,7 +2103,24 @@
         "focal": [
           0.5,
           0.3
-        ]
+        ],
+        "depthLayers": {
+          "nocturne": {
+            "mask": {
+              "localPath": "artwork/masks/sado-character.svg",
+              "sha256": "5e5de7cd304ceada04b8941663c3ca88e2bf7c4272ec7402098e5ede3d982b8e",
+              "sourceSHA256": "e0f4c9ab600aa7296c826409835203c7166aa6aff7ee044ca3f0f06e8794d648",
+              "crop": [
+                0,
+                0,
+                750,
+                750
+              ]
+            },
+            "auraOpacity": 0.32,
+            "cropEdgeFade": 0.025
+          }
+        }
       },
       "number": 43
     },
@@ -1999,8 +2129,8 @@
       "character": "soifon",
       "name": "Soi Fon",
       "title": "Soi Fon",
-      "form": "Featured portrait",
-      "formId": "featured",
+      "form": "Suzumebachi / Shikai",
+      "formId": "suzumebachi",
       "aliases": [
         "Soi Fon",
         "soifon",
@@ -2018,10 +2148,10 @@
         "sha256": "9c292251191f1143fff885ba7c7a5da5aaca5e1cf98aadb1e80c7d4c8ddc016c",
         "width": 750,
         "height": 1400,
-        "rights": "All rights reserved \u2014 character artwork is not licensed by the renderer MIT license.",
+        "rights": "All rights reserved — character artwork is not licensed by the renderer MIT license.",
         "usage": "reference-only",
         "artist": "BLEACH: Brave Souls",
-        "credit": "\u00a9 Tite Kubo / SHUEISHA"
+        "credit": "© Tite Kubo / SHUEISHA"
       },
       "recipe": {
         "crop": [
@@ -2045,8 +2175,8 @@
       "character": "stark",
       "name": "Coyote Stark",
       "title": "Starrk",
-      "form": "Featured portrait",
-      "formId": "featured",
+      "form": "Unreleased / Arrancar",
+      "formId": "unreleased",
       "aliases": [
         "Coyote Stark",
         "stark",
@@ -2064,10 +2194,10 @@
         "sha256": "4eb28a2504cc5769358d9e278a6e104181f8c57c0a7a0f9fb6ca620f4da7b0ed",
         "width": 750,
         "height": 1400,
-        "rights": "All rights reserved \u2014 character artwork is not licensed by the renderer MIT license.",
+        "rights": "All rights reserved — character artwork is not licensed by the renderer MIT license.",
         "usage": "reference-only",
         "artist": "BLEACH: Brave Souls",
-        "credit": "\u00a9 Tite Kubo / SHUEISHA"
+        "credit": "© Tite Kubo / SHUEISHA"
       },
       "recipe": {
         "crop": [
@@ -2091,8 +2221,8 @@
       "character": "szayelaporro",
       "name": "Szayelaporro Grantz",
       "title": "Szayelaporro",
-      "form": "Featured portrait",
-      "formId": "featured",
+      "form": "Unreleased / Arrancar",
+      "formId": "unreleased",
       "aliases": [
         "Szayelaporro Grantz",
         "szayelaporro",
@@ -2110,10 +2240,10 @@
         "sha256": "7efa77bd58729a12c5eb606d3b573c15e02f849b26e9990f4a8b52e9f538d0c2",
         "width": 750,
         "height": 1400,
-        "rights": "All rights reserved \u2014 character artwork is not licensed by the renderer MIT license.",
+        "rights": "All rights reserved — character artwork is not licensed by the renderer MIT license.",
         "usage": "reference-only",
         "artist": "BLEACH: Brave Souls",
-        "credit": "\u00a9 Tite Kubo / SHUEISHA"
+        "credit": "© Tite Kubo / SHUEISHA"
       },
       "recipe": {
         "crop": [
@@ -2137,8 +2267,8 @@
       "character": "tosen",
       "name": "Kaname Tosen",
       "title": "Tosen",
-      "form": "Featured portrait",
-      "formId": "featured",
+      "form": "Soul Reaper / unreleased",
+      "formId": "soul-reaper-unreleased",
       "aliases": [
         "Kaname Tosen",
         "tosen",
@@ -2156,10 +2286,10 @@
         "sha256": "96adbf17985d3b5a63667229ff6b4952ee88c9eb87884286dc2f75e5463bdbe1",
         "width": 750,
         "height": 1400,
-        "rights": "All rights reserved \u2014 character artwork is not licensed by the renderer MIT license.",
+        "rights": "All rights reserved — character artwork is not licensed by the renderer MIT license.",
         "usage": "reference-only",
         "artist": "BLEACH: Brave Souls",
-        "credit": "\u00a9 Tite Kubo / SHUEISHA"
+        "credit": "© Tite Kubo / SHUEISHA"
       },
       "recipe": {
         "crop": [
@@ -2183,8 +2313,8 @@
       "character": "tsukishima",
       "name": "Shukuro Tsukishima",
       "title": "Tsukishima",
-      "form": "Featured portrait",
-      "formId": "featured",
+      "form": "Fullbring / Book of the End",
+      "formId": "book-of-the-end",
       "aliases": [
         "Shukuro Tsukishima",
         "tsukishima",
@@ -2202,10 +2332,10 @@
         "sha256": "b77c4ff53478a3f088aedd4cf8d9939f1cd8c3f462fa7dae27cf3133b98fca09",
         "width": 750,
         "height": 1400,
-        "rights": "All rights reserved \u2014 character artwork is not licensed by the renderer MIT license.",
+        "rights": "All rights reserved — character artwork is not licensed by the renderer MIT license.",
         "usage": "reference-only",
         "artist": "BLEACH: Brave Souls",
-        "credit": "\u00a9 Tite Kubo / SHUEISHA"
+        "credit": "© Tite Kubo / SHUEISHA"
       },
       "recipe": {
         "crop": [
@@ -2229,8 +2359,8 @@
       "character": "ukitake",
       "name": "Jushiro Ukitake",
       "title": "Jushiro",
-      "form": "Featured portrait",
-      "formId": "featured",
+      "form": "Shikai / Sogyo no Kotowari",
+      "formId": "shikai",
       "aliases": [
         "Jushiro Ukitake",
         "ukitake",
@@ -2248,10 +2378,10 @@
         "sha256": "c22dfa701fc8dc0777c3fd3f7bc07ed2d03ff94ec47c048719443c2d74d5fde3",
         "width": 750,
         "height": 1391,
-        "rights": "All rights reserved \u2014 character artwork is not licensed by the renderer MIT license.",
+        "rights": "All rights reserved — character artwork is not licensed by the renderer MIT license.",
         "usage": "reference-only",
         "artist": "BLEACH: Brave Souls",
-        "credit": "\u00a9 Tite Kubo / SHUEISHA"
+        "credit": "© Tite Kubo / SHUEISHA"
       },
       "recipe": {
         "crop": [
@@ -2275,16 +2405,15 @@
       "character": "ulquiorra",
       "name": "Ulquiorra Shifar",
       "title": "Ulquiorra",
-      "form": "Featured portrait",
-      "formId": "featured",
+      "form": "Unreleased / Arrancar",
+      "formId": "unreleased",
       "aliases": [
         "Ulquiorra Shifar",
         "ulquiorra",
         "Ulquiorra"
       ],
       "designs": [
-        "nocturne",
-        "tidelight"
+        "nocturne"
       ],
       "status": "candidate",
       "source": {
@@ -2295,10 +2424,10 @@
         "sha256": "5dcb2cd62bc8d92636debc5179300e2e5f03cc1609d45722ae2bf980bd4406b7",
         "width": 750,
         "height": 1400,
-        "rights": "All rights reserved \u2014 character artwork is not licensed by the renderer MIT license.",
+        "rights": "All rights reserved — character artwork is not licensed by the renderer MIT license.",
         "usage": "reference-only",
         "artist": "BLEACH: Brave Souls",
-        "credit": "\u00a9 Tite Kubo / SHUEISHA"
+        "credit": "© Tite Kubo / SHUEISHA"
       },
       "recipe": {
         "crop": [
@@ -2313,7 +2442,24 @@
         "focal": [
           0.5,
           0.3
-        ]
+        ],
+        "depthLayers": {
+          "nocturne": {
+            "mask": {
+              "localPath": "artwork/masks/ulquiorra-character.svg",
+              "sha256": "f370b062c93b1c16a0891ebe8eb53e9d78c4c3dcbecfc294a5276da2fec68271",
+              "sourceSHA256": "5dcb2cd62bc8d92636debc5179300e2e5f03cc1609d45722ae2bf980bd4406b7",
+              "crop": [
+                0,
+                0,
+                750,
+                750
+              ]
+            },
+            "auraOpacity": 0.32,
+            "cropEdgeFade": 0.025
+          }
+        }
       },
       "number": 50
     },
@@ -2322,8 +2468,8 @@
       "character": "unohana",
       "name": "Retsu Unohana",
       "title": "Unohana",
-      "form": "Featured portrait",
-      "formId": "featured",
+      "form": "Captain / healing arts",
+      "formId": "captain-healing",
       "aliases": [
         "Retsu Unohana",
         "unohana",
@@ -2341,10 +2487,10 @@
         "sha256": "8f214436774eaafeef480aafb9f277f8224e0a071f0a1bf87f49786efa2cc836",
         "width": 750,
         "height": 1400,
-        "rights": "All rights reserved \u2014 character artwork is not licensed by the renderer MIT license.",
+        "rights": "All rights reserved — character artwork is not licensed by the renderer MIT license.",
         "usage": "reference-only",
         "artist": "BLEACH: Brave Souls",
-        "credit": "\u00a9 Tite Kubo / SHUEISHA"
+        "credit": "© Tite Kubo / SHUEISHA"
       },
       "recipe": {
         "crop": [
@@ -2359,7 +2505,24 @@
         "focal": [
           0.5,
           0.3
-        ]
+        ],
+        "depthLayers": {
+          "nocturne": {
+            "mask": {
+              "localPath": "artwork/masks/unohana-character.svg",
+              "sha256": "ece68dad28782b18929c19c101d1a4c5ab8b394d80a4b3716a3c3b3083033065",
+              "sourceSHA256": "8f214436774eaafeef480aafb9f277f8224e0a071f0a1bf87f49786efa2cc836",
+              "crop": [
+                0,
+                31,
+                750,
+                750
+              ]
+            },
+            "auraOpacity": 0.32,
+            "cropEdgeFade": 0.025
+          }
+        }
       },
       "number": 51
     },
@@ -2368,8 +2531,8 @@
       "character": "urahara",
       "name": "Kisuke Urahara",
       "title": "Urahara",
-      "form": "Featured portrait",
-      "formId": "featured",
+      "form": "Shikai / Benihime",
+      "formId": "shikai",
       "aliases": [
         "Kisuke Urahara",
         "urahara",
@@ -2387,10 +2550,10 @@
         "sha256": "dad820240cd754c674dc0a3169506db5157a8ca9375c8b39b8a8168a13b59886",
         "width": 750,
         "height": 1400,
-        "rights": "All rights reserved \u2014 character artwork is not licensed by the renderer MIT license.",
+        "rights": "All rights reserved — character artwork is not licensed by the renderer MIT license.",
         "usage": "reference-only",
         "artist": "BLEACH: Brave Souls",
-        "credit": "\u00a9 Tite Kubo / SHUEISHA"
+        "credit": "© Tite Kubo / SHUEISHA"
       },
       "recipe": {
         "crop": [
@@ -2414,8 +2577,8 @@
       "character": "uryu",
       "name": "Uryu Ishida",
       "title": "Uryu",
-      "form": "Featured portrait",
-      "formId": "featured",
+      "form": "Lost Agent / Quincy bow",
+      "formId": "lost-agent-bow",
       "aliases": [
         "Uryu Ishida",
         "uryu",
@@ -2433,10 +2596,10 @@
         "sha256": "1b868459980bacc70bdc09a7dd6f201b02df2f6e13f2b3494e6ae9cefa2aa6c4",
         "width": 750,
         "height": 1400,
-        "rights": "All rights reserved \u2014 character artwork is not licensed by the renderer MIT license.",
+        "rights": "All rights reserved — character artwork is not licensed by the renderer MIT license.",
         "usage": "reference-only",
         "artist": "BLEACH: Brave Souls",
-        "credit": "\u00a9 Tite Kubo / SHUEISHA"
+        "credit": "© Tite Kubo / SHUEISHA"
       },
       "recipe": {
         "crop": [
@@ -2460,8 +2623,8 @@
       "character": "yachiru",
       "name": "Yachiru Kusajishi",
       "title": "Yachiru",
-      "form": "Featured portrait",
-      "formId": "featured",
+      "form": "Lieutenant / unreleased",
+      "formId": "lieutenant-unreleased",
       "aliases": [
         "Yachiru Kusajishi",
         "yachiru",
@@ -2479,10 +2642,10 @@
         "sha256": "1a0f25fadbf1375f25a687723a4b3d6d529921f64c239e544ca32348e5b6b9fc",
         "width": 750,
         "height": 1400,
-        "rights": "All rights reserved \u2014 character artwork is not licensed by the renderer MIT license.",
+        "rights": "All rights reserved — character artwork is not licensed by the renderer MIT license.",
         "usage": "reference-only",
         "artist": "BLEACH: Brave Souls",
-        "credit": "\u00a9 Tite Kubo / SHUEISHA"
+        "credit": "© Tite Kubo / SHUEISHA"
       },
       "recipe": {
         "crop": [
@@ -2506,8 +2669,8 @@
       "character": "yamamoto",
       "name": "Shigekuni Genryusai Yamamoto",
       "title": "Yamamoto",
-      "form": "Featured portrait",
-      "formId": "featured",
+      "form": "Captain / sealed sword",
+      "formId": "captain-sealed",
       "aliases": [
         "Shigekuni Genryusai Yamamoto",
         "yamamoto",
@@ -2525,10 +2688,10 @@
         "sha256": "593fa9236bceb029bdf32d93a6bd2dc9970e6430c735a2c37b04215baabd2dc1",
         "width": 750,
         "height": 1400,
-        "rights": "All rights reserved \u2014 character artwork is not licensed by the renderer MIT license.",
+        "rights": "All rights reserved — character artwork is not licensed by the renderer MIT license.",
         "usage": "reference-only",
         "artist": "BLEACH: Brave Souls",
-        "credit": "\u00a9 Tite Kubo / SHUEISHA"
+        "credit": "© Tite Kubo / SHUEISHA"
       },
       "recipe": {
         "crop": [
@@ -2552,8 +2715,8 @@
       "character": "yammy",
       "name": "Yammy Llargo",
       "title": "Yammy",
-      "form": "Featured portrait",
-      "formId": "featured",
+      "form": "Unreleased / Arrancar",
+      "formId": "unreleased",
       "aliases": [
         "Yammy Llargo",
         "yammy",
@@ -2571,10 +2734,10 @@
         "sha256": "582e39ae426b6beaa1f776bc0558ecbd52e77038465b07bc963573ecb1954022",
         "width": 750,
         "height": 1400,
-        "rights": "All rights reserved \u2014 character artwork is not licensed by the renderer MIT license.",
+        "rights": "All rights reserved — character artwork is not licensed by the renderer MIT license.",
         "usage": "reference-only",
         "artist": "BLEACH: Brave Souls",
-        "credit": "\u00a9 Tite Kubo / SHUEISHA"
+        "credit": "© Tite Kubo / SHUEISHA"
       },
       "recipe": {
         "crop": [
@@ -2598,15 +2761,14 @@
       "character": "yoruichi",
       "name": "Yoruichi Shihoin",
       "title": "Yoruichi",
-      "form": "Featured portrait",
-      "formId": "featured",
+      "form": "Anti-Hierro armour",
+      "formId": "anti-hierro",
       "aliases": [
         "Yoruichi Shihoin",
         "yoruichi",
         "Yoruichi"
       ],
       "designs": [
-        "emberglass",
         "nocturne"
       ],
       "status": "candidate",
@@ -2618,10 +2780,10 @@
         "sha256": "21d3775be7a29808702611641cb865ce294c8e4d16a294e9f0bccfa488e4644a",
         "width": 750,
         "height": 1400,
-        "rights": "All rights reserved \u2014 character artwork is not licensed by the renderer MIT license.",
+        "rights": "All rights reserved — character artwork is not licensed by the renderer MIT license.",
         "usage": "reference-only",
         "artist": "BLEACH: Brave Souls",
-        "credit": "\u00a9 Tite Kubo / SHUEISHA"
+        "credit": "© Tite Kubo / SHUEISHA"
       },
       "recipe": {
         "crop": [
@@ -2665,8 +2827,8 @@
       "character": "yumichika",
       "name": "Yumichika Ayasegawa",
       "title": "Yumichika",
-      "form": "Featured portrait",
-      "formId": "featured",
+      "form": "Ruri'iro Kujaku / Shikai",
+      "formId": "ruriiro-kujaku",
       "aliases": [
         "Yumichika Ayasegawa",
         "yumichika",
@@ -2684,10 +2846,10 @@
         "sha256": "fb92de2941ae3596910c75a3519beb044f15283f60d2cb5a397a0b0f0d9e13f5",
         "width": 750,
         "height": 1400,
-        "rights": "All rights reserved \u2014 character artwork is not licensed by the renderer MIT license.",
+        "rights": "All rights reserved — character artwork is not licensed by the renderer MIT license.",
         "usage": "reference-only",
         "artist": "BLEACH: Brave Souls",
-        "credit": "\u00a9 Tite Kubo / SHUEISHA"
+        "credit": "© Tite Kubo / SHUEISHA"
       },
       "recipe": {
         "crop": [
@@ -2709,12 +2871,12 @@
     {
       "id": "as-nodt-tybw",
       "character": "as-nodt",
-      "name": "\u00c4s N\u00f6dt",
-      "title": "\u00c4s N\u00f6dt",
-      "form": "Thousand-Year Blood War",
-      "formId": "tybw",
+      "name": "Äs Nödt",
+      "title": "Äs Nödt",
+      "form": "TYBW / standard state",
+      "formId": "tybw-standard",
       "aliases": [
-        "\u00c4s N\u00f6dt",
+        "Äs Nödt",
         "as nodt",
         "as-nodt"
       ],
@@ -2730,10 +2892,10 @@
         "sha256": "513f4f0d81cc590a188340c47cf7bd2c038402042d47250cdb71ba1d25b03a27",
         "width": 1050,
         "height": 1500,
-        "rights": "All rights reserved \u2014 character artwork is not licensed by the renderer MIT license.",
+        "rights": "All rights reserved — character artwork is not licensed by the renderer MIT license.",
         "usage": "reference-only",
         "artist": "BLEACH Official Anime",
-        "credit": "\u00a9 Tite Kubo / SHUEISHA"
+        "credit": "© Tite Kubo / SHUEISHA"
       },
       "recipe": {
         "crop": [
@@ -2757,8 +2919,8 @@
       "character": "askin-nakk-le-vaar",
       "name": "Askin Nakk Le Vaar",
       "title": "Askin",
-      "form": "Thousand-Year Blood War",
-      "formId": "tybw",
+      "form": "TYBW / standard state",
+      "formId": "tybw-standard",
       "aliases": [
         "Askin Nakk Le Vaar",
         "askin nakk le vaar",
@@ -2776,10 +2938,10 @@
         "sha256": "7ef2e51ec17cebbddcc02d502859712b980bb7ab5e59fa427a6a746bc045176e",
         "width": 1050,
         "height": 1500,
-        "rights": "All rights reserved \u2014 character artwork is not licensed by the renderer MIT license.",
+        "rights": "All rights reserved — character artwork is not licensed by the renderer MIT license.",
         "usage": "reference-only",
         "artist": "BLEACH Official Anime",
-        "credit": "\u00a9 Tite Kubo / SHUEISHA"
+        "credit": "© Tite Kubo / SHUEISHA"
       },
       "recipe": {
         "crop": [
@@ -2803,8 +2965,8 @@
       "character": "bambietta-basterbine",
       "name": "Bambietta Basterbine",
       "title": "Bambietta",
-      "form": "Thousand-Year Blood War",
-      "formId": "tybw",
+      "form": "TYBW / standard state",
+      "formId": "tybw-standard",
       "aliases": [
         "Bambietta Basterbine",
         "bambietta basterbine",
@@ -2822,10 +2984,10 @@
         "sha256": "46aa951d419e020726fba8dc647fb75a120919e445d86d7b50b12075c604be3c",
         "width": 1050,
         "height": 1500,
-        "rights": "All rights reserved \u2014 character artwork is not licensed by the renderer MIT license.",
+        "rights": "All rights reserved — character artwork is not licensed by the renderer MIT license.",
         "usage": "reference-only",
         "artist": "BLEACH Official Anime",
-        "credit": "\u00a9 Tite Kubo / SHUEISHA"
+        "credit": "© Tite Kubo / SHUEISHA"
       },
       "recipe": {
         "crop": [
@@ -2849,8 +3011,8 @@
       "character": "bazz-b",
       "name": "Bazz-B",
       "title": "Bazz-B",
-      "form": "Thousand-Year Blood War",
-      "formId": "tybw",
+      "form": "TYBW / standard state",
+      "formId": "tybw-standard",
       "aliases": [
         "Bazz-B",
         "bazz b",
@@ -2868,10 +3030,10 @@
         "sha256": "1416bb4be2c5dbefd1e7239de3b764927c7956825274174f65be6942c84c7553",
         "width": 1050,
         "height": 1500,
-        "rights": "All rights reserved \u2014 character artwork is not licensed by the renderer MIT license.",
+        "rights": "All rights reserved — character artwork is not licensed by the renderer MIT license.",
         "usage": "reference-only",
         "artist": "BLEACH Official Anime",
-        "credit": "\u00a9 Tite Kubo / SHUEISHA"
+        "credit": "© Tite Kubo / SHUEISHA"
       },
       "recipe": {
         "crop": [
@@ -2895,8 +3057,8 @@
       "character": "candice-catnipp",
       "name": "Candice Catnipp",
       "title": "Candice",
-      "form": "Thousand-Year Blood War",
-      "formId": "tybw",
+      "form": "TYBW / standard state",
+      "formId": "tybw-standard",
       "aliases": [
         "Candice Catnipp",
         "candice catnipp",
@@ -2914,10 +3076,10 @@
         "sha256": "942e2b932ee53d9060d2ea1c418b676531f677cf23811f88922a34a1bae7e7c3",
         "width": 1050,
         "height": 1500,
-        "rights": "All rights reserved \u2014 character artwork is not licensed by the renderer MIT license.",
+        "rights": "All rights reserved — character artwork is not licensed by the renderer MIT license.",
         "usage": "reference-only",
         "artist": "BLEACH Official Anime",
-        "credit": "\u00a9 Tite Kubo / SHUEISHA"
+        "credit": "© Tite Kubo / SHUEISHA"
       },
       "recipe": {
         "crop": [
@@ -2941,8 +3103,8 @@
       "character": "gerard-valkyrie",
       "name": "Gerard Valkyrie",
       "title": "Gerard",
-      "form": "Thousand-Year Blood War",
-      "formId": "tybw",
+      "form": "TYBW / standard state",
+      "formId": "tybw-standard",
       "aliases": [
         "Gerard Valkyrie",
         "gerard valkyrie",
@@ -2960,10 +3122,10 @@
         "sha256": "65c80e0a7604c880fa1508c29cfeb1f6dfa52bd65b73775f4aa2e7f2de56e429",
         "width": 1050,
         "height": 1500,
-        "rights": "All rights reserved \u2014 character artwork is not licensed by the renderer MIT license.",
+        "rights": "All rights reserved — character artwork is not licensed by the renderer MIT license.",
         "usage": "reference-only",
         "artist": "BLEACH Official Anime",
-        "credit": "\u00a9 Tite Kubo / SHUEISHA"
+        "credit": "© Tite Kubo / SHUEISHA"
       },
       "recipe": {
         "crop": [
@@ -2987,8 +3149,8 @@
       "character": "giselle-gewelle",
       "name": "Giselle Gewelle",
       "title": "Giselle",
-      "form": "Thousand-Year Blood War",
-      "formId": "tybw",
+      "form": "TYBW / standard state",
+      "formId": "tybw-standard",
       "aliases": [
         "Giselle Gewelle",
         "giselle gewelle",
@@ -3006,10 +3168,10 @@
         "sha256": "63521a06b4a67d94601a7f29d20654853a6121dc775faea340b198ce9eb68e60",
         "width": 1050,
         "height": 1500,
-        "rights": "All rights reserved \u2014 character artwork is not licensed by the renderer MIT license.",
+        "rights": "All rights reserved — character artwork is not licensed by the renderer MIT license.",
         "usage": "reference-only",
         "artist": "BLEACH Official Anime",
-        "credit": "\u00a9 Tite Kubo / SHUEISHA"
+        "credit": "© Tite Kubo / SHUEISHA"
       },
       "recipe": {
         "crop": [
@@ -3033,8 +3195,8 @@
       "character": "gremmy-thoumeaux",
       "name": "Gremmy Thoumeaux",
       "title": "Gremmy",
-      "form": "Thousand-Year Blood War",
-      "formId": "tybw",
+      "form": "TYBW / standard state",
+      "formId": "tybw-standard",
       "aliases": [
         "Gremmy Thoumeaux",
         "gremmy thoumeaux",
@@ -3052,10 +3214,10 @@
         "sha256": "5251525e493dc6285caad335e9f0268bb020c1e910762d2999004efc48149b7a",
         "width": 1050,
         "height": 1500,
-        "rights": "All rights reserved \u2014 character artwork is not licensed by the renderer MIT license.",
+        "rights": "All rights reserved — character artwork is not licensed by the renderer MIT license.",
         "usage": "reference-only",
         "artist": "BLEACH Official Anime",
-        "credit": "\u00a9 Tite Kubo / SHUEISHA"
+        "credit": "© Tite Kubo / SHUEISHA"
       },
       "recipe": {
         "crop": [
@@ -3079,8 +3241,8 @@
       "character": "ichibe-hyosube",
       "name": "Ichibe Hyosube",
       "title": "Ichibe",
-      "form": "Thousand-Year Blood War",
-      "formId": "tybw",
+      "form": "TYBW / standard state",
+      "formId": "tybw-standard",
       "aliases": [
         "Ichibe Hyosube",
         "ichibe hyosube",
@@ -3098,10 +3260,10 @@
         "sha256": "aae80ce1ace0f7704fe1c8455fb8638bfe1ec6b56a9a8f5e67a89fdff2126992",
         "width": 1050,
         "height": 1500,
-        "rights": "All rights reserved \u2014 character artwork is not licensed by the renderer MIT license.",
+        "rights": "All rights reserved — character artwork is not licensed by the renderer MIT license.",
         "usage": "reference-only",
         "artist": "BLEACH Official Anime",
-        "credit": "\u00a9 Tite Kubo / SHUEISHA"
+        "credit": "© Tite Kubo / SHUEISHA"
       },
       "recipe": {
         "crop": [
@@ -3125,8 +3287,8 @@
       "character": "jugram-haschwalth",
       "name": "Jugram Haschwalth",
       "title": "Jugram",
-      "form": "Thousand-Year Blood War",
-      "formId": "tybw",
+      "form": "TYBW / standard state",
+      "formId": "tybw-standard",
       "aliases": [
         "Jugram Haschwalth",
         "jugram haschwalth",
@@ -3144,10 +3306,10 @@
         "sha256": "958059832b3e9a078e4d43fe0c2c556d777fd3f00edeee883be8bd0f32fafd46",
         "width": 1050,
         "height": 1500,
-        "rights": "All rights reserved \u2014 character artwork is not licensed by the renderer MIT license.",
+        "rights": "All rights reserved — character artwork is not licensed by the renderer MIT license.",
         "usage": "reference-only",
         "artist": "BLEACH Official Anime",
-        "credit": "\u00a9 Tite Kubo / SHUEISHA"
+        "credit": "© Tite Kubo / SHUEISHA"
       },
       "recipe": {
         "crop": [
@@ -3171,8 +3333,8 @@
       "character": "kirio-hikifune",
       "name": "Kirio Hikifune",
       "title": "Kirio",
-      "form": "Thousand-Year Blood War",
-      "formId": "tybw",
+      "form": "TYBW / standard state",
+      "formId": "tybw-standard",
       "aliases": [
         "Kirio Hikifune",
         "kirio hikifune",
@@ -3190,10 +3352,10 @@
         "sha256": "3686ab95e821b58ede0c8ca0e20b8938f6ad67ca18d4ceab0428cb6c9cb0774c",
         "width": 1050,
         "height": 1500,
-        "rights": "All rights reserved \u2014 character artwork is not licensed by the renderer MIT license.",
+        "rights": "All rights reserved — character artwork is not licensed by the renderer MIT license.",
         "usage": "reference-only",
         "artist": "BLEACH Official Anime",
-        "credit": "\u00a9 Tite Kubo / SHUEISHA"
+        "credit": "© Tite Kubo / SHUEISHA"
       },
       "recipe": {
         "crop": [
@@ -3217,8 +3379,8 @@
       "character": "lille-barro",
       "name": "Lille Barro",
       "title": "Lille",
-      "form": "Thousand-Year Blood War",
-      "formId": "tybw",
+      "form": "TYBW / standard state",
+      "formId": "tybw-standard",
       "aliases": [
         "Lille Barro",
         "lille barro",
@@ -3236,10 +3398,10 @@
         "sha256": "49d6e4ac5240b885bd47d43779a8b30d1db9eee40665fe68cccf108cef9ff936",
         "width": 1050,
         "height": 1500,
-        "rights": "All rights reserved \u2014 character artwork is not licensed by the renderer MIT license.",
+        "rights": "All rights reserved — character artwork is not licensed by the renderer MIT license.",
         "usage": "reference-only",
         "artist": "BLEACH Official Anime",
-        "credit": "\u00a9 Tite Kubo / SHUEISHA"
+        "credit": "© Tite Kubo / SHUEISHA"
       },
       "recipe": {
         "crop": [
@@ -3263,8 +3425,8 @@
       "character": "liltotto-lamperd",
       "name": "Liltotto Lamperd",
       "title": "Liltotto",
-      "form": "Thousand-Year Blood War",
-      "formId": "tybw",
+      "form": "TYBW / standard state",
+      "formId": "tybw-standard",
       "aliases": [
         "Liltotto Lamperd",
         "liltotto lamperd",
@@ -3282,10 +3444,10 @@
         "sha256": "59156b95cf939c96cb916a085214ea0fa9d0fabb1e8ad9924414d7eeeb4ca700",
         "width": 1050,
         "height": 1500,
-        "rights": "All rights reserved \u2014 character artwork is not licensed by the renderer MIT license.",
+        "rights": "All rights reserved — character artwork is not licensed by the renderer MIT license.",
         "usage": "reference-only",
         "artist": "BLEACH Official Anime",
-        "credit": "\u00a9 Tite Kubo / SHUEISHA"
+        "credit": "© Tite Kubo / SHUEISHA"
       },
       "recipe": {
         "crop": [
@@ -3309,8 +3471,8 @@
       "character": "meninas-mcallon",
       "name": "Meninas McAllon",
       "title": "Meninas",
-      "form": "Thousand-Year Blood War",
-      "formId": "tybw",
+      "form": "TYBW / standard state",
+      "formId": "tybw-standard",
       "aliases": [
         "Meninas McAllon",
         "meninas mcallon",
@@ -3328,10 +3490,10 @@
         "sha256": "a4175dd409277248b769b83fcd7f6e15b1fb3ea0aed16dc218d09d5c81750570",
         "width": 1050,
         "height": 1500,
-        "rights": "All rights reserved \u2014 character artwork is not licensed by the renderer MIT license.",
+        "rights": "All rights reserved — character artwork is not licensed by the renderer MIT license.",
         "usage": "reference-only",
         "artist": "BLEACH Official Anime",
-        "credit": "\u00a9 Tite Kubo / SHUEISHA"
+        "credit": "© Tite Kubo / SHUEISHA"
       },
       "recipe": {
         "crop": [
@@ -3355,8 +3517,8 @@
       "character": "oh-etsu-nimaiya",
       "name": "Oh-Etsu Nimaiya",
       "title": "Oh-Etsu",
-      "form": "Thousand-Year Blood War",
-      "formId": "tybw",
+      "form": "TYBW / standard state",
+      "formId": "tybw-standard",
       "aliases": [
         "Oh-Etsu Nimaiya",
         "oh etsu nimaiya",
@@ -3374,10 +3536,10 @@
         "sha256": "7242a9734ba533498190408a19b6e01cc44774dfbd466736242bde5ea047facc",
         "width": 1050,
         "height": 1500,
-        "rights": "All rights reserved \u2014 character artwork is not licensed by the renderer MIT license.",
+        "rights": "All rights reserved — character artwork is not licensed by the renderer MIT license.",
         "usage": "reference-only",
         "artist": "BLEACH Official Anime",
-        "credit": "\u00a9 Tite Kubo / SHUEISHA"
+        "credit": "© Tite Kubo / SHUEISHA"
       },
       "recipe": {
         "crop": [
@@ -3401,8 +3563,8 @@
       "character": "pernida-parnkgjas",
       "name": "Pernida Parnkgjas",
       "title": "Pernida",
-      "form": "Thousand-Year Blood War",
-      "formId": "tybw",
+      "form": "TYBW / cloaked state",
+      "formId": "tybw-standard",
       "aliases": [
         "Pernida Parnkgjas",
         "pernida parnkgjas",
@@ -3420,10 +3582,10 @@
         "sha256": "80db6a0faa0ffab54582297ac9add745bc05f3494d29218efc826ee83340f06c",
         "width": 1050,
         "height": 1500,
-        "rights": "All rights reserved \u2014 character artwork is not licensed by the renderer MIT license.",
+        "rights": "All rights reserved — character artwork is not licensed by the renderer MIT license.",
         "usage": "reference-only",
         "artist": "BLEACH Official Anime",
-        "credit": "\u00a9 Tite Kubo / SHUEISHA"
+        "credit": "© Tite Kubo / SHUEISHA"
       },
       "recipe": {
         "crop": [
@@ -3447,8 +3609,8 @@
       "character": "quilge-opie",
       "name": "Quilge Opie",
       "title": "Quilge",
-      "form": "Thousand-Year Blood War",
-      "formId": "tybw",
+      "form": "TYBW / standard state",
+      "formId": "tybw-standard",
       "aliases": [
         "Quilge Opie",
         "quilge opie",
@@ -3466,10 +3628,10 @@
         "sha256": "08117c1efb846a338077bc33b6bd788c53c97751e61b634356def9a6dffd6dda",
         "width": 1050,
         "height": 1500,
-        "rights": "All rights reserved \u2014 character artwork is not licensed by the renderer MIT license.",
+        "rights": "All rights reserved — character artwork is not licensed by the renderer MIT license.",
         "usage": "reference-only",
         "artist": "BLEACH Official Anime",
-        "credit": "\u00a9 Tite Kubo / SHUEISHA"
+        "credit": "© Tite Kubo / SHUEISHA"
       },
       "recipe": {
         "crop": [
@@ -3493,8 +3655,8 @@
       "character": "senjumaru-shutara",
       "name": "Senjumaru Shutara",
       "title": "Senjumaru",
-      "form": "Thousand-Year Blood War",
-      "formId": "tybw",
+      "form": "TYBW / standard state",
+      "formId": "tybw-standard",
       "aliases": [
         "Senjumaru Shutara",
         "senjumaru shutara",
@@ -3512,10 +3674,10 @@
         "sha256": "27223acfc7a8713e360f2cdc03308f8d701506310c4ac98f1e7897e1f0395c15",
         "width": 1050,
         "height": 1500,
-        "rights": "All rights reserved \u2014 character artwork is not licensed by the renderer MIT license.",
+        "rights": "All rights reserved — character artwork is not licensed by the renderer MIT license.",
         "usage": "reference-only",
         "artist": "BLEACH Official Anime",
-        "credit": "\u00a9 Tite Kubo / SHUEISHA"
+        "credit": "© Tite Kubo / SHUEISHA"
       },
       "recipe": {
         "crop": [
@@ -3539,8 +3701,8 @@
       "character": "tenjiro-kirinji",
       "name": "Tenjiro Kirinji",
       "title": "Tenjiro",
-      "form": "Thousand-Year Blood War",
-      "formId": "tybw",
+      "form": "TYBW / standard state",
+      "formId": "tybw-standard",
       "aliases": [
         "Tenjiro Kirinji",
         "tenjiro kirinji",
@@ -3558,10 +3720,10 @@
         "sha256": "45cdad94e81b208dec8bd6c928c1e78734729ab1978c717345e76e527152967e",
         "width": 1050,
         "height": 1500,
-        "rights": "All rights reserved \u2014 character artwork is not licensed by the renderer MIT license.",
+        "rights": "All rights reserved — character artwork is not licensed by the renderer MIT license.",
         "usage": "reference-only",
         "artist": "BLEACH Official Anime",
-        "credit": "\u00a9 Tite Kubo / SHUEISHA"
+        "credit": "© Tite Kubo / SHUEISHA"
       },
       "recipe": {
         "crop": [
@@ -3585,8 +3747,8 @@
       "character": "yhwach",
       "name": "Yhwach",
       "title": "Yhwach",
-      "form": "Thousand-Year Blood War",
-      "formId": "tybw",
+      "form": "TYBW / pre-Almighty",
+      "formId": "tybw-standard",
       "aliases": [
         "Yhwach",
         "yhwach",
@@ -3604,10 +3766,10 @@
         "sha256": "14a804a5db1ab4cb6a34d2e1075bfd9c896ce4151b9180d66b380269532867b9",
         "width": 1050,
         "height": 1500,
-        "rights": "All rights reserved \u2014 character artwork is not licensed by the renderer MIT license.",
+        "rights": "All rights reserved — character artwork is not licensed by the renderer MIT license.",
         "usage": "reference-only",
         "artist": "BLEACH Official Anime",
-        "credit": "\u00a9 Tite Kubo / SHUEISHA"
+        "credit": "© Tite Kubo / SHUEISHA"
       },
       "recipe": {
         "crop": [
@@ -3625,6 +3787,345 @@
         ]
       },
       "number": 78
+    },
+    {
+      "id": "aizen-muken",
+      "character": "aizen",
+      "name": "Sosuke Aizen",
+      "title": "Aizen",
+      "form": "Muken restraints",
+      "formId": "muken",
+      "aliases": [
+        "Sosuke Aizen",
+        "aizen",
+        "Aizen"
+      ],
+      "designs": [
+        "obsidian"
+      ],
+      "status": "candidate",
+      "source": {
+        "provider": "bleach-anime",
+        "page": "https://bleach-anime.com/en/character/?chara=50",
+        "image": "https://bleach-anime.com/assets/img/character/chara_50.png",
+        "localPath": "artwork/bleach/aizen-muken.png",
+        "sha256": "6b94f0c44f78ccddc3361506f5db0e0d1ee3c67023e0d99f6bbb9100f626bb5f",
+        "width": 1050,
+        "height": 1500,
+        "rights": "All rights reserved — character artwork is not licensed by the renderer MIT license.",
+        "usage": "reference-only",
+        "artist": "BLEACH Official Anime",
+        "credit": "© Tite Kubo / SHUEISHA"
+      },
+      "recipe": {
+        "crop": [
+          295,
+          0,
+          449,
+          606
+        ],
+        "bottomPadding": 0.28,
+        "edgeFade": 0.025,
+        "bottomFade": 0.14,
+        "focal": [
+          0.5,
+          0.3
+        ],
+        "artworkPlacement": {
+          "obsidian": {
+            "x": 85,
+            "y": 155,
+            "width": 830
+          }
+        }
+      },
+      "number": 79
+    },
+    {
+      "id": "byakuya-senbonzakura",
+      "character": "byakuya",
+      "name": "Byakuya Kuchiki",
+      "title": "Byakuya",
+      "form": "Senbonzakura / captain uniform",
+      "formId": "senbonzakura",
+      "aliases": [
+        "Byakuya Kuchiki",
+        "byakuya",
+        "Byakuya"
+      ],
+      "designs": [
+        "nocturne"
+      ],
+      "status": "candidate",
+      "source": {
+        "provider": "soul-resonance",
+        "page": "https://www.bleach-soulresonance.com/",
+        "image": "https://p1.dailygn.com/obj/g-marketing-act-assets/2025_05_28_18_59_29/PCman_baizai_s842604.png",
+        "localPath": "artwork/bleach/byakuya-senbonzakura.png",
+        "sha256": "8b3cc980ecb0e667517cb8bb57e4392ea2677e7088bfffee7d3250b020817485",
+        "width": 1920,
+        "height": 1080,
+        "rights": "All rights reserved — character artwork is not licensed by the renderer MIT license.",
+        "usage": "reference-only",
+        "artist": "BLEACH: Soul Resonance",
+        "credit": "© Tite Kubo / SHUEISHA"
+      },
+      "recipe": {
+        "crop": [
+          700,
+          71,
+          1125,
+          1009
+        ],
+        "bottomPadding": 0.28,
+        "edgeFade": 0,
+        "bottomFade": 0.14,
+        "focal": [
+          0.5,
+          0.3
+        ]
+      },
+      "number": 80
+    },
+    {
+      "id": "kenpachi-tybw",
+      "character": "kenpachi",
+      "name": "Kenpachi Zaraki",
+      "title": "Kenpachi",
+      "form": "TYBW / sealed sword",
+      "formId": "tybw-sealed",
+      "aliases": [
+        "Kenpachi Zaraki",
+        "kenpachi",
+        "Kenpachi"
+      ],
+      "designs": [
+        "nocturne"
+      ],
+      "status": "candidate",
+      "source": {
+        "provider": "bleach-anime",
+        "page": "https://bleach-anime.com/en/character/?chara=17",
+        "image": "https://bleach-anime.com/assets/img/character/chara_17.png",
+        "localPath": "artwork/bleach/kenpachi-tybw.png",
+        "sha256": "4c46cb344fa5b210dfccab14b4e3eb55357ee4e82afad75247833a68b5bd22ef",
+        "width": 1050,
+        "height": 1500,
+        "rights": "All rights reserved — character artwork is not licensed by the renderer MIT license.",
+        "usage": "reference-only",
+        "artist": "BLEACH Official Anime",
+        "credit": "© Tite Kubo / SHUEISHA"
+      },
+      "recipe": {
+        "crop": [
+          0,
+          20,
+          1050,
+          1050
+        ],
+        "bottomPadding": 0.28,
+        "edgeFade": 0,
+        "bottomFade": 0.14,
+        "focal": [
+          0.5,
+          0.3
+        ]
+      },
+      "number": 81
+    },
+    {
+      "id": "rukia-tybw",
+      "character": "rukia",
+      "name": "Rukia Kuchiki",
+      "title": "Rukia",
+      "form": "TYBW / lieutenant uniform",
+      "formId": "tybw-unreleased",
+      "aliases": [
+        "Rukia Kuchiki",
+        "rukia",
+        "Rukia"
+      ],
+      "designs": [
+        "nocturne"
+      ],
+      "status": "candidate",
+      "source": {
+        "provider": "bleach-anime",
+        "page": "https://bleach-anime.com/en/character/?chara=20",
+        "image": "https://bleach-anime.com/assets/img/character/chara_20.png",
+        "localPath": "artwork/bleach/rukia-tybw.png",
+        "sha256": "7715ac264ebf212e3cb2991c4184589a3efa52589506a166c6f22d6c5e12091b",
+        "width": 1050,
+        "height": 1500,
+        "rights": "All rights reserved — character artwork is not licensed by the renderer MIT license.",
+        "usage": "reference-only",
+        "artist": "BLEACH Official Anime",
+        "credit": "© Tite Kubo / SHUEISHA"
+      },
+      "recipe": {
+        "crop": [
+          293,
+          132,
+          497,
+          540
+        ],
+        "bottomPadding": 0.28,
+        "edgeFade": 0,
+        "bottomFade": 0.14,
+        "focal": [
+          0.5,
+          0.3
+        ]
+      },
+      "number": 82
+    },
+    {
+      "id": "yoruichi-flash-step",
+      "character": "yoruichi",
+      "name": "Yoruichi Shihoin",
+      "title": "Yoruichi",
+      "form": "Flash Step / combat outfit",
+      "formId": "flash-step",
+      "aliases": [
+        "Yoruichi Shihoin",
+        "yoruichi",
+        "Yoruichi"
+      ],
+      "designs": [
+        "emberglass"
+      ],
+      "status": "candidate",
+      "source": {
+        "provider": "soul-resonance",
+        "page": "https://www.bleach-soulresonance.com/",
+        "image": "https://p1.dailygn.com/obj/g-marketing-act-assets/2025_05_28_19_09_53/PCman_yeyi_s833589.png",
+        "localPath": "artwork/bleach/yoruichi-flash-step.png",
+        "sha256": "8e442d925c55435880dbe5e9a302fa4d1aad1ba94da9f4779612118096077caa",
+        "width": 1920,
+        "height": 1080,
+        "rights": "All rights reserved — character artwork is not licensed by the renderer MIT license.",
+        "usage": "reference-only",
+        "artist": "BLEACH: Soul Resonance",
+        "credit": "© Tite Kubo / SHUEISHA"
+      },
+      "recipe": {
+        "crop": [
+          754,
+          77,
+          1091,
+          1003
+        ],
+        "bottomPadding": 0.28,
+        "edgeFade": 0,
+        "bottomFade": 0.14,
+        "focal": [
+          0.5,
+          0.3
+        ],
+        "powerBadgeTone": {
+          "emberglass": "dark"
+        }
+      },
+      "number": 83
+    },
+    {
+      "id": "ichigo-restored-shikai",
+      "character": "ichigo",
+      "name": "Ichigo Kurosaki",
+      "title": "Ichigo",
+      "form": "Restored Shikai / Lost Agent",
+      "formId": "restored-shikai",
+      "aliases": [
+        "Ichigo",
+        "Ichigo Kurosaki",
+        "Kurosaki Ichigo"
+      ],
+      "designs": [
+        "ivory"
+      ],
+      "status": "candidate",
+      "source": {
+        "provider": "brave-souls",
+        "page": "https://www.bleach-bravesouls.com/en/character/ichigo.html",
+        "image": "https://www.bleach-bravesouls.com/assets/img/character/appearance/01/character_ichigo_01.png",
+        "localPath": "artwork/bleach/ichigo-restored-shikai.png",
+        "sha256": "1b70c3af420dbcf67369d59b21ebff7f4b7fdb1ea1486df5df054bd6593b5d09",
+        "width": 750,
+        "height": 1400,
+        "rights": "All rights reserved — character artwork is not licensed by the renderer MIT license.",
+        "usage": "reference-only",
+        "artist": "BLEACH: Brave Souls",
+        "credit": "© Tite Kubo / SHUEISHA"
+      },
+      "recipe": {
+        "crop": [
+          0,
+          0,
+          750,
+          750
+        ],
+        "bottomPadding": 0.28,
+        "edgeFade": 0.08,
+        "bottomFade": 0.14,
+        "focal": [
+          0.5,
+          0.3
+        ],
+        "artworkPlacement": {
+          "ivory": {
+            "x": -570,
+            "y": 40,
+            "width": 1460
+          }
+        }
+      },
+      "number": 84
+    },
+    {
+      "id": "ichigo-restored-shikai-standing",
+      "character": "ichigo",
+      "name": "Ichigo Kurosaki",
+      "title": "Ichigo",
+      "form": "Restored Shikai / TYBW opening",
+      "formId": "restored-shikai",
+      "aliases": [
+        "Ichigo",
+        "Ichigo Kurosaki",
+        "Kurosaki Ichigo"
+      ],
+      "designs": [
+        "tidelight"
+      ],
+      "status": "candidate",
+      "source": {
+        "provider": "bleach-anime",
+        "page": "https://bleach-anime.com/en/character/?chara=01",
+        "image": "https://bleach-anime.com/assets/img/character/chara_01.png",
+        "localPath": "artwork/bleach/ichigo-restored-shikai-standing.png",
+        "sha256": "5ca2c3384b8dc6796ad3749abd987f9bb94252d149459e2237e095eba440d4b7",
+        "width": 1050,
+        "height": 1500,
+        "rights": "All rights reserved — character artwork is not licensed by the renderer MIT license.",
+        "usage": "reference-only",
+        "artist": "BLEACH Official Anime",
+        "credit": "© Tite Kubo / SHUEISHA"
+      },
+      "recipe": {
+        "crop": [
+          246,
+          43,
+          559,
+          615
+        ],
+        "bottomPadding": 0.28,
+        "edgeFade": 0,
+        "bottomFade": 0.14,
+        "focal": [
+          0.5,
+          0.3
+        ]
+      },
+      "number": 85
     }
   ],
   "pendingForms": [
@@ -3695,7 +4196,7 @@
       "id": "ichigo/mugetsu",
       "character": "ichigo",
       "form": "mugetsu",
-      "displayName": "Final Getsuga Tensho \u2014 Mugetsu",
+      "displayName": "Final Getsuga Tensho — Mugetsu",
       "continuity": "anime",
       "artworkProfile": null,
       "artworkStatus": "requires-form-matched-artwork"
@@ -3737,5 +4238,17 @@
       "artworkStatus": "requires-form-matched-artwork"
     }
   ],
-  "failures": []
+  "failures": [],
+  "artworkPolicy": {
+    "distinctPerEdition": true,
+    "notes": "Each active edition uses a distinct pinned original illustration. Matching form grades are independent of finish."
+  },
+  "pendingEditions": [
+    {
+      "id": "ulquiorra-featured--tidelight",
+      "character": "ulquiorra",
+      "design": "tidelight",
+      "reason": "Requires a distinct illustration matching the unreleased form; the duplicate source is not a separate collectible."
+    }
+  ]
 }

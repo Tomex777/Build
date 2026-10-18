@@ -5,7 +5,8 @@ assert m['cards'] and all(c.get('approved') and c.get('review',{}).get('status')
 files={'manifest.json','index.html',*m.get('boards',[])}
 for c in m['cards']:
  assert hashlib.sha256((folder/c['png']).read_bytes()).hexdigest()==c['pngSHA256']
- files.update([c['png'],c['svg'],c['phone']])
+ assert hashlib.sha256((folder/c['preview']).read_bytes()).hexdigest()==c['previewSHA256']
+ files.update([c['png'],c['svg'],c['phone'],c['preview']])
 assert all(Path(f).name==f for f in files)
 output.parent.mkdir(parents=True,exist_ok=True);pending=Path(str(output)+'.pending')
 with zipfile.ZipFile(pending,'w',zipfile.ZIP_DEFLATED,compresslevel=3) as z:

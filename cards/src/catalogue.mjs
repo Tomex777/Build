@@ -23,6 +23,15 @@ export async function atomic(file, bytes) {
   await fs.writeFile(file+'.pending', bytes);
   await fs.rename(file+'.pending', file);
 }
+export function validateCollectionArtwork(catalogue) {
+  if (!catalogue.artworkPolicy?.distinctPerEdition) return;
+  const used=new Map();
+  for(const card of catalogue.cards) for(const design of card.designs) {
+    const edition=card.id+'--'+design,previous=used.get(card.source.sha256);
+    if(previous) throw Error(`Repeated edition artwork: ${previous} and ${edition}`);
+    used.set(card.source.sha256,edition);
+  }
+}
 export async function loadCatalogue(series='bleach') {
   if (!/^[a-z][a-z0-9-]*$/.test(series)) throw Error('Invalid series');
   const catalogue = JSON.parse(await fs.readFile(inside(`catalog/${series}.json`),'utf8'));
@@ -41,6 +50,7 @@ export async function loadCatalogue(series='bleach') {
     if (![x,y,w,h].every(Number.isInteger) || x<0 || y<0 || w<1 || h<1 || x+w>s.width || y+h>s.height) throw Error(`Invalid artwork crop: ${card.id}`);
     if (!r.focal?.every(n=>Number.isFinite(n)&&n>=0&&n<=1)) throw Error(`Missing focal point: ${card.id}`);
   }
+  validateCollectionArtwork(catalogue);
   await loadPowerAssessments(series,catalogue.cards,catalogue.pendingForms);
   return catalogue;
 }

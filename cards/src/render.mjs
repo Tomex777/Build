@@ -17,7 +17,7 @@ export async function cardSvg(card,assets,design) {
   if(['nocturne','tidelight'].includes(design)){
     const templates=JSON.parse(await fs.readFile(inside('renderer/examples/cards.json'),'utf8'));
     const def=characterCards(templates,profile).find(x=>x.theme===design);
-    def.edition=(card.formId==='featured'?card.name:card.form).toUpperCase();
+    def.edition=(card.formId==='featured'?card.name:card.form.split(' / ')[0]).toUpperCase();
     def.number=String(card.number).padStart(3,'0');
     svg=renderRestoredCard(def,depth?{...assets,art:depth.foreground}:assets);
   }else svg=renderNoctisCard(profile,assets,{design,prefix:`library-${card.id}-${design}-`});
@@ -26,6 +26,14 @@ export async function cardSvg(card,assets,design) {
     if(!Number.isFinite(shift)||Math.abs(shift)>500)throw Error('Invalid horizontal artwork adjustment');
     let count=0;
     svg=svg.replace(/<image\b([^>]*?)\bx="([^"]+)"/g,(_,before,x)=>{count++;return `<image${before}x="${Number(x)+shift}"`;});
+    if(count!==1)throw Error('Expected one source illustration');
+  }
+  const placement=card.recipe.artworkPlacement?.[design];
+  if(placement){
+    const {x,y,width}=placement;
+    if(![x,y,width].every(Number.isFinite)||Math.abs(x)>1000||Math.abs(y)>1000||width<200||width>2400)throw Error('Invalid artwork placement');
+    let count=0;
+    svg=svg.replace(/<image\b[^>]*\/>/g,image=>{count++;return image.replace(/\bx="[^"]*"/,`x="${x}"`).replace(/\by="[^"]*"/,`y="${y}"`).replace(/\bwidth="[^"]*"/,`width="${width}"`).replace(/\bheight="[^"]*"/,`height="${width*assets.artHeight/assets.artWidth}"`);});
     if(count!==1)throw Error('Expected one source illustration');
   }
   if(depth)svg=composeDepthLayers(svg,assets,depth,design);

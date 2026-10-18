@@ -2,7 +2,7 @@
 
 The rank belongs to a specific character **in a specific form**. The same form keeps its grade across finishes. Nocturne, Tidelight, Emberglass and other finishes are visual compositions; their names never grant strength.
 
-These are proposed collection grades. The current BLEACH file is a conservative editorial first pass supported by official identity/profile references, **not a completed canonical feat audit**. The reference pages do not issue or certify these grades. The assignments need revision when more precise feat evidence or an incorrectly identified source version is found.
+These are proposed collection grades. The current BLEACH file is a source-and-form-reviewed editorial proposal supported by official identity/profile references, **not a completed canonical feat audit**. The reference pages do not issue or certify these grades. The assignments need revision when more precise feat evidence or an incorrectly identified source version is found.
 
 | Grade | Collection-independent benchmark |
 | --- | --- |
@@ -18,6 +18,8 @@ These are proposed collection grades. The current BLEACH file is a conservative 
 
 The scale applies across collections. These broad benchmarks are editorial bands, not numeric physics thresholds, guaranteed match outcomes or an official hierarchy. When assessing a form, record its offensive capability, movement, defence, special effects, conditions, counters and continuity. Compare those capabilities with the shared benchmark, rather than the strongest person in that character's own anime. Do not interpret a conditional illusion, history effect or small local reality alteration as unlimited cosmic power.
 
+The 2026-10-18 collection pass checks each pinned illustration, names its depicted form, and excludes unseen later releases. It does not replace a detailed canonical feat audit. See [the collection review](COLLECTION-REVIEW.md) for every form boundary.
+
 ## Current examples
 
 | Specific form | Proposed grade | Boundary |
@@ -26,6 +28,7 @@ The scale applies across collections. These broad benchmarks are editorial bands
 | Early Substitute Soul Reaper Ichigo | D | Early limited control; later training excluded |
 | Original Shikai Ichigo | B | Original Bankai and Hollow boosts excluded |
 | Original Bankai Ichigo | A | Hollow mask and subsequent transformations excluded |
+| Restored Shikai Ichigo, Lost Agent / TYBW opening | A | Same form grade across two distinct poses; True Shikai and Bankai excluded |
 | Child Nel | D | Adult abilities excluded |
 | Adult Nelliel | A | Child form is independent; released form excluded |
 | Yoruichi in the depicted anti-Hierro armour | A | Later thunder transformations excluded |

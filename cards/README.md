@@ -92,3 +92,9 @@ This work does not set the bot's drop rates, pricing or trading economy, and doe
 The phone proof is a 320px display check. It is not an actual WhatsApp transmission/compression test.
 
 Yoruichi's Nocturne recipe separates her silhouette from the baked-in aura. `recipe.depthLayers.nocturne` pins a vector mask to the original source checksum and exact crop. The isolated original character pixels receive the existing foreground shadow and overlap; the dimmed aura is clipped inside the rear architectural opening. `cropEdgeFade` feathers only the cut canvas boundaries. Other finishes retain their original artwork. Changing the mask checksum, opacity or recipe requires a new visual review.
+
+## Collection-wide review
+
+The active catalogue now has 85 editions and 85 distinct pinned original illustrations across 76 characters. Seven repeated-art slots have new illustrations, ten more Nocturne sources use separate foreground mattes, and every acquired form has explicit power boundaries. The extra Ulquiorra Tidelight edition is pending matching distinct artwork. See [the review](docs/COLLECTION-REVIEW.md) for changed grades, sources and per-form exclusions.
+
+Run `npm run gallery -- --out dist/collection-review-masters --file dist/Bleach-Collection.html` after a complete current build to create a self-contained searchable gallery. Exporting a gallery does not approve or publish the bot library.

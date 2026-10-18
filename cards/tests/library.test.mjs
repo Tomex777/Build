@@ -3,14 +3,14 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import {loadCatalogue,inside,digest,reviewFingerprint,findEntries} from '../src/catalogue.mjs';
+import {loadCatalogue,inside,digest,reviewFingerprint,findEntries,validateCollectionArtwork} from '../src/catalogue.mjs';
 import {openCardLibrary} from '../src/bot.mjs';
 import {publish,approve} from '../src/pipeline.mjs';
 import {discover} from '../src/discovery.mjs';
 
 test('catalogue keeps exact Ichigo forms and does not substitute unacquired forms',async()=>{
   const c=await loadCatalogue();const ichigo=c.cards.filter(c=>c.character==='ichigo');
-  assert.equal(ichigo.length,3);assert.equal(findEntries(ichigo,'Ichigo',{form:'original-bankai'}).length,1);
+  assert.equal(ichigo.length,5);assert.equal(findEntries(ichigo,'Ichigo',{form:'original-bankai'}).length,1);
   assert.equal(findEntries(ichigo,'Ichigo',{form:'blood-chains'}).length,0);
   assert.ok(JSON.stringify(c.pendingForms).includes('blood'));
   assert.ok(c.cards.length>=70);assert.equal(new Set(c.cards.map(c=>c.number)).size,c.cards.length);
@@ -47,4 +47,12 @@ test('discovery limits official candidates without inventing a license',async()=
   const r=await discover({fetchImpl:async()=>new Response(html)});
   assert.equal(r.candidates.length,1);assert.equal(r.candidates[0].slug,'aizen');assert.equal(r.candidates[0].usage,'reference-only');
   await assert.rejects(()=>discover({fetchImpl:async()=>new Response('<html>changed</html>')}),/structure changed/);
+});
+
+test('active collectible editions cannot reuse the same original illustration',async()=>{
+  const catalogue=await loadCatalogue();
+  assert.equal(catalogue.cards.length,85);assert.equal(new Set(catalogue.cards.map(c=>c.source.sha256)).size,85);
+  const card=catalogue.cards[0];
+  assert.throws(()=>validateCollectionArtwork({artworkPolicy:{distinctPerEdition:true},cards:[{...card,designs:['ivory','nocturne']}]}),/Repeated edition artwork/);
+  assert.throws(()=>validateCollectionArtwork({artworkPolicy:{distinctPerEdition:true},cards:[card,{...card,id:'other'}]}),/Repeated edition artwork/);
 });
