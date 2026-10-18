@@ -30,7 +30,7 @@
     const text=document.createElement('span'),title=document.createElement('strong'),sub=document.createElement('small'),arrow=document.createElement('b')
     title.textContent=match.opponent?'vs '+match.opponent:match.mode==='public'?'Finding opponent…':'Waiting for your friend'
     sub.textContent=match.status==='finished'?(match.winner==='D'?'Draw':match.winner===match.side?'You won':'Match ended'):(match.status==='waiting'?'Waiting':'Your side: '+match.side)
-    arrow.textContent='→';text.append(title,sub);item.append(text,arrow)
+    arrow.className='match-chevron';arrow.innerHTML='<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14m-6-6 6 6-6 6"/></svg>';text.append(title,sub);item.append(text,arrow)
     item.addEventListener('click',()=>openRoom(match));parent.append(item)
    }
   }catch(error){setMessage(error.message,true)}
@@ -99,8 +99,19 @@
  $('copyLink').addEventListener('click',async()=>{try{await navigator.clipboard.writeText(link());setMessage('Match link copied.')}catch{setMessage('Copy this code: '+room.code)}})
  $('shareLink').addEventListener('click',share)
  $('againBtn').addEventListener('click',()=>run('match:create'))
+ async function askToLeave(){
+  const dialog=$('leaveDialog')
+  dialog.returnValue='cancel'
+  $('leaveTitle').textContent=room?.status==='waiting'?'Cancel invitation?':'Forfeit this match?'
+  $('leaveDescription').textContent=room?.status==='waiting'
+    ?'Your invitation will close and the other person will no longer be able to join.'
+    :'Leaving forfeits this round for your opponent. This cannot be undone.'
+  dialog.showModal()
+  $('keepMatch').focus()
+  return new Promise(resolve=>dialog.addEventListener('close',()=>resolve(dialog.returnValue==='leave'),{once:true}))
+ }
  $('leaveBtn').addEventListener('click',async()=>{
-  if(!room||!confirm(room.status==='waiting'?'Cancel this invitation?':'Forfeit this match?'))return
+  if(!room||requesting||!await askToLeave())return
   try{await api('match:leave',{matchId:room.matchId});await lobby()}
   catch(error){setMessage(error.message,true)}
  })
