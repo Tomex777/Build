@@ -29,9 +29,51 @@ internal object ExtendedSurfaceMesh {
         return bowl + rim
     }
 
+    private fun hash2(x: Int, z: Int): Double {
+        var h = (x * 374761393) xor (z * 668265263)
+        h = (h xor (h ushr 13)) * 1274126177
+        return ((h xor (h ushr 16)).toLong() and 0xffffffffL).toDouble() / 4294967296.0
+    }
+    private fun valueNoise(x: Double, z: Double): Double {
+        val ix = kotlin.math.floor(x).toInt()
+        val iz = kotlin.math.floor(z).toInt()
+        val fx = x - kotlin.math.floor(x)
+        val fz = z - kotlin.math.floor(z)
+        val u = fx*fx*(3.0-2.0*fx)
+        val v = fz*fz*(3.0-2.0*fz)
+        return (1-v)*((1-u)*hash2(ix,iz)+u*hash2(ix+1,iz)) +
+               v*((1-u)*hash2(ix,iz+1)+u*hash2(ix+1,iz+1))
+    }
+    private fun fractal(x: Double, z: Double): Double =
+        (valueNoise(x,z)-.5)*.58 + (valueNoise(x*2.1+13.7,z*2.1-2.4)-.5)*.27 +
+        (valueNoise(x*4.23-11.6,z*4.23+6.4)-.5)*.15
+
+    /** Near-field features: modelled, not surveyed Galileo/Cassini geometry. */
+    fun nearReliefAt(id: String, x: Double, z: Double): Double {
+        return when(id) {
+            "europa" -> {
+                val warp = (valueNoise(x*55.0,z*55.0)-.5)*.018
+                val fault = kotlin.math.abs(sin((x+warp)*97.0+(z-warp)*30.0))
+                exp(-fault*fault/.006)*.000065 +
+                    fractal(x*200.0,z*200.0)*.000035
+            }
+            "titan" -> {
+                val warp=(valueNoise(x*85.0,z*85.0)-.5)*.004
+                .000008 * sin((x+warp)*520.0+z*135.0) +
+                    .000004 * fractal(x*500.0,z*500.0)
+            }
+            else -> .000018 * fractal(x*560.0,z*560.0)
+        }
+    }
+
     fun heightAt(id: String, x: Double, z: Double): Double {
         require(isSupported(id)) { "Unsupported solid-surface body: $id" }
-        val broad = .045 * sin(x*.47+sin(z*.15)*.2) * cos(z*.39)
+        val warpX = fractal(x*.25+17.3,z*.25-8.1)*.72
+        val warpZ = fractal(x*.31-6.2,z*.31+19.4)*.72
+        val xx=x+warpX
+        val zz=z+warpZ
+        val broad = .11 * fractal(xx*.26,zz*.26) +
+                    .043 * fractal(xx*.88,zz*.88)
         return when (id) {
             "mercury" -> broad +
                 crater(x,z,-2.9,1.8,2.0,.14) +
@@ -43,24 +85,20 @@ internal object ExtendedSurfaceMesh {
                 crater(x,z,-3.2,2.3,2.5,.19) +
                 crater(x,z,3.1,-2.2,1.0,.08) +
                 .025 * sin(x*1.3+z*.3) * cos(z*.9)
-            "europa" -> .38*broad +
-                // Multi-family tectonic ice ridges and shallow troughs.
-                // Hundreds-of-meters wide (mesh-resolvable) ridges are
-                // different from the centimeter-scale material relief.
-                // Pattern is illustrative, not Galileo DEM reconstruction.
-                .021 * cos(x*1.7+z*.49) +
-                .014 * cos(z*2.3-x*.32) +
-                .035 * exp(-sin(x*1.32+z*.39).let { it*it } / .065) -
-                .012 * exp(-sin(z*1.91-x*.34).let { it*it } / .034) +
+            "europa" -> .62*broad +
+                // Domain-warped cross-cutting kilometer-scale ice ridges.
+                // Synthetic and deliberately not a claimed Galileo DEM.
+                .035 * exp(-sin(xx*2.22+zz*.49).let { it*it } / .055) +
+                .018 * exp(-sin(zz*2.85-xx*.82).let { it*it } / .13) -
+                .019 * exp(-sin(xx*1.26+zz*.32).let { it*it } / .037) +
+                .025 * fractal(xx*3.1, zz*3.1) +
                 crater(x,z,2.4,-3.6,.65,.026)
-            else -> .16*broad +
-                // Titan's linear dunes are real, tens to >100 meters
-                // high; their precise shapes at this site are unknown.
-                // Subdued relief and haze keep dunes from looking like
-                // artificial steep mountains or a cratered airless moon.
-                .018 * sin(x*1.75+z*3.85+.43*sin(z*.21)) +
-                .009 * sin(x*3.2+z*7.4) +
-                .015 * sin(x*.75+z*.23)
+            else -> .45*broad +
+                // Titan's wind-aligned organic dunes, tens of metres
+                // tall; their placement is an illustrative approximation.
+                .016 * sin(xx*2.9+zz*5.9+.8*fractal(xx*.7,zz*.7)) +
+                .006 * sin(xx*5.9+zz*11.7+.8*fractal(xx*1.4,zz*1.4)) +
+                .016 * fractal(xx*.42,zz*.42)
         }
     }
 
