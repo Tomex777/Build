@@ -15,7 +15,7 @@ const whotMotion={
  deal:190,dealDelay:10,dealStagger:27,opponentDeal:195,
  settle:90,recenter:135,drawFlip:150
 };
-const cardMotionMetrics={deals:0,plays:0,cpuPlays:0,draws:0,activeFlights:0,lastFlightDuration:0,lastFlightAction:null};
+const cardMotionMetrics={deals:0,plays:0,cpuPlays:0,draws:0,activeFlights:0,peakFlights:0,lastFlightDuration:0,lastFlightAction:null};
 const motionEnabled=()=>!matchMedia("(prefers-reduced-motion: reduce)").matches;
 const colors={red:"#df3439",green:"#328c4b",yellow:"#e8b32a",blue:"#2767bc"};
 const titles={ludo:["Nigerian Ludo","The board you remember.","BOARD GAME"],estate:["NIGHT Estates","Buy, trade and collect rent.","PROPERTY GAME"],whot:["WHOT","Classic Nigerian shape-and-number card play.","CARD GAME"],colors:["Colour Clash","A quick colour-matching card battle.","CARD GAME"],draw:["Draw & Guess","One draws. Everyone else guesses.","PARTY GAME"],snakes:["Snakes & Ladders","Climb fast. Slide carefully.","BOARD GAME"],checkers:["Draughts","A proper tabletop strategy game.","BOARD GAME"]};
@@ -293,6 +293,7 @@ async function whotFly(origin,destination,{face=null,action="play"}={}){
  const duration=action==='cpu'?whotMotion.cpu:action==='draw'||action==='cpu-draw'?whotMotion.draw:whotMotion.player;
  cardMotionMetrics.lastFlightDuration=duration;cardMotionMetrics.lastFlightAction=action;
  cardMotionMetrics.activeFlights++;
+ cardMotionMetrics.peakFlights=Math.max(cardMotionMetrics.peakFlights,cardMotionMetrics.activeFlights);
  try{
   // The card reacts immediately: a short lift, measured glide and cushioned
   // landing. No timeout is inserted between tapping and visual feedback.
@@ -675,7 +676,9 @@ function layoutWhotHand(before=null){
   if(cardWidth!==w)card.style.setProperty('--whot-card-width',cardWidth+'px');
   else card.style.removeProperty('--whot-card-width');
  });
- if(!before||!motionEnabled())return;
+ // An expanded hand already has several moving slots. Recentring every
+ // card as its own GPU layer causes frame drops on entry-level phones.
+ if(!before||!motionEnabled()||n>5)return;
  for(const card of cards){
   if(card.style.display==='none')continue;
   const prior=before.get(card.dataset.whotKey)?.shift();
