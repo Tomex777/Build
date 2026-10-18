@@ -54,6 +54,31 @@ class UnderTreeSceneTest {
         assertTrue(catalog.any { it.kind == ActorKind.PROP })
     }
 
+    @Test fun stockEnvironmentUpgradePreservesPosesAndCustomWorlds() {
+        val latest = UnderTreeScene.create()
+        val original = latest.copy(
+            world = latest.world.copy(environmentPreset = studio.artistscene.core.EnvironmentPreset.DAYLIGHT),
+            actors = latest.actors.filterNot { it.kind == ActorKind.LIGHT } +
+                PrototypeScene.create().actors.filter { it.kind == ActorKind.LIGHT },
+        )
+        val posed = original.copy(actors = original.actors.map { actor ->
+            if (actor.id == UnderTreeScene.FIRST_STUDENT_ID)
+                actor.copy(transform = actor.transform.copy(position = studio.artistscene.core.Vec3(-2f, 0f, 1f)))
+            else actor
+        })
+        val upgraded = UnderTreeScene.upgradeDefaultEnvironment(posed)
+        assertEquals(studio.artistscene.core.EnvironmentPreset.PARK_SHADE, upgraded.world.environmentPreset)
+        assertEquals(
+            posed.actors.first { it.id == UnderTreeScene.FIRST_STUDENT_ID }.transform,
+            upgraded.actors.first { it.id == UnderTreeScene.FIRST_STUDENT_ID }.transform,
+        )
+        assertEquals(42_000f, upgraded.actors.first { it.id == "key-sun" }.light!!.intensity, 0.01f)
+        val custom = posed.copy(world = posed.world.copy(
+            environmentPreset = studio.artistscene.core.EnvironmentPreset.OVERCAST,
+        ))
+        assertEquals(custom, UnderTreeScene.upgradeDefaultEnvironment(custom))
+    }
+
     @Test fun studentsBindToTheirOwnDiscoveredSkinnedRigWithoutAffectingOtherScenes() {
         val scene = UnderTreeScene.create()
         val skeletonNames = mapOf(
