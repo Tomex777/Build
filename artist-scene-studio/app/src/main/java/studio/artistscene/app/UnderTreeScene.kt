@@ -113,9 +113,9 @@ object UnderTreeScene {
                     kind = ActorKind.LIGHT,
                     light = LightSettings(
                         type = LightType.DIRECTIONAL,
-                        intensity = 42_000f,
-                        colorHex = "#FFF4E9",
-                        direction = Vec3(-0.48f, -1f, -0.35f),
+                        intensity = 68_000f,
+                        colorHex = "#FFFAF4",
+                        direction = Vec3(0f, -1f, 0f),
                         castsShadow = true,
                     ),
                 ),
@@ -126,7 +126,7 @@ object UnderTreeScene {
                     transform = Transform(position = Vec3(1.5f, 2.8f, 2.4f)),
                     light = LightSettings(
                         type = LightType.POINT,
-                        intensity = 1_300f,
+                        intensity = 1_900f,
                         colorHex = "#E8F4FF",
                         rangeMeters = 8f,
                         castsShadow = false,
@@ -171,11 +171,11 @@ object UnderTreeScene {
         val oldKey = LightSettings(type = LightType.DIRECTIONAL, intensity = 72_000f, castsShadow = true)
         val oldFill = LightSettings(type = LightType.POINT, intensity = 2_200f, castsShadow = false)
         val newKey = LightSettings(
-            type = LightType.DIRECTIONAL, intensity = 42_000f, colorHex = "#FFF4E9",
-            direction = Vec3(-0.48f, -1f, -0.35f), castsShadow = true,
+            type = LightType.DIRECTIONAL, intensity = 68_000f, colorHex = "#FFFAF4",
+            direction = Vec3(0f, -1f, 0f), castsShadow = true,
         )
         val newFill = LightSettings(
-            type = LightType.POINT, intensity = 1_300f, colorHex = "#E8F4FF",
+            type = LightType.POINT, intensity = 1_900f, colorHex = "#E8F4FF",
             castsShadow = false, rangeMeters = 8f,
         )
         return scene.copy(
