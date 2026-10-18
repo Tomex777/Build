@@ -82,7 +82,11 @@
         <label class="menu-switch" for="soundSwitch"><span>Game sounds</span><input id="soundSwitch" type="checkbox" checked aria-label="Game sounds"></label>
       </div>
       <button type="button" id="restartMenuButton"><svg class="ico" aria-hidden="true"><use href="#icon-restart"/></svg>Restart picture</button>
-      <div class="menu-zoom" aria-label="Zoom controls">Pinch to zoom on mobile · drag empty space to pan</div>
+      <div class="mobile-zoom-tools" role="group" aria-label="Puzzle magnification">
+        <button type="button" id="mobileZoomOut" aria-label="Zoom out"><svg class="ico" aria-hidden="true"><use href="#icon-zoom-out"/></svg></button>
+        <button type="button" id="mobileZoomFit" aria-label="Fit entire puzzle on screen">Fit all</button>
+        <button type="button" id="mobileZoomIn" aria-label="Zoom in"><svg class="ico" aria-hidden="true"><use href="#icon-zoom-in"/></svg></button>
+      </div><div class="menu-zoom">Pinch to zoom · move two fingers to explore the tabletop</div>
     </div>
   </div>
   <div class="play-mat" id="canvasWrapper" aria-label="Jigsaw tabletop, drag pieces to assemble the picture">
