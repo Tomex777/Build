@@ -9,7 +9,7 @@ const photos={
  ["Giraffe","1547721064-da6cfb341d50"],["Deer","1484406566174-9da000fda645"],["Goat","1524024973431-2ad916746881"],["Cattle","1570042225831-d98fa7577f1e"],["Alpine deer","1472396961693-142e6e269027"],["Koala","1632104009230-4c927433490f"],["Lemur","1693740571898-47128f049166"],["Lioness","1769470683197-119f690c01ea"],["Eagle","1512988442538-a42600ac4634"],["Whiskers","1518791841217-8f162f1e1131"],["Tabby","1573865526739-10659fec78a5"],["Green parrot","1552728089-57bdde30beb3"],["Bookworm dog","1535930891776-0c2dfb7fda1a"],["Zebra","1709291083119-1840e0e59875"],["Otter","1705331061640-dc2eab910b74"],["Sea turtle","1437622368342-7a3d73a34c8f"],["Red panda","1729932203780-cc1b9a326be9"],["Rabbit","1713975192202-8144913ca3dc"],["King penguin","1551986782-d0169b3f8fa7"],["Desert giants","1513699227473-7ae8d4545d4e"]
  ],
  cars:[
- ["Porsche","1503376780353-7e6692767b70"],["Red sportscar","1552519507-da3b142c6e3d"],["Vintage coupe","1493238792000-8113da705763"],["Convertible","1507136566006-cfc505b114fc"],["Classic roadster","1489824904134-891ab64532f1"],["Sport sedan","1525609004556-c46c7d6cf023"],["Street car","1533473359331-0135ef1b58bf"],["Blue coupe","1556213313-fc5be959c4a9"],["Performance car","1492144534655-ae79c964c9d7"],["Retro Mustang","1544896478-d5b709d413c5"],
+ ["Black GT","1503376780353-7e6692767b70"],["Blue sportscar","1552519507-da3b142c6e3d"],["Red coupe","1493238792000-8113da705763"],["Red convertible","1507136566006-cfc505b114fc"],["Orange Beetle","1489824904134-891ab64532f1"],["Sport sedan","1525609004556-c46c7d6cf023"],["Street car","1533473359331-0135ef1b58bf"],["Blue coupe","1556213313-fc5be959c4a9"],["Performance car","1492144534655-ae79c964c9d7"],["Retro Mustang","1544896478-d5b709d413c5"],
  ["Blue classic","1520608760-eff2c44afa2b"],["Vintage touring","1741779456831-e2cd573a874d"],["Roadster","1709050939134-4bdf2875debf"],["Track machine","1549317661-bd32c8ce0db2"],["Grand tourer","1494905998402-395d579af36f"],["City classic","1486496572940-2bb2341fdbdf"],["Highway","1519641471654-76ce0107ad1b"],["American classic","1494976388531-d1058494cdd8"],["Vehicle","1565043666747-69f6646db940"],["Rally car","1523983388277-336a66bf9bcd"],["Coupe","1544829099-b9a0c07fad1a"],["Night drive","1597404294360-feeeda04612e"],["Classic","1571607388263-1044f9ea01dd"],["Supercar","1532581140115-3e355d1ed1de"],["Sport","1517524008697-84bbe3c3fd98"],["Red Ferrari","1583121274602-3e2820c69888"],["Turbo","1553440569-bcc63803a83d"],["Yellow coupe","1550355291-bbee04a92027"],["Car culture","1621007947382-bb3c3994e3fb"],["Blue racer","1646840779961-94868341a678"]
  ],
  food:[
@@ -104,7 +104,7 @@ function storybookArt(i){
  '<ellipse cx="50" cy="53" rx="24" ry="32" fill="url(#'+id+'-skin)"/>'+
  '<path d="M30 55Q28 36 38 30M70 55Q70 34 62 29" fill="none" stroke="#fbe2b9" stroke-opacity=".24" stroke-width="2"/>'+
  fringe+hairDetails+
- '<path d="M32 54q6-'+eyebrow+' -3 12 0M56 54q6-3 12 0" fill="none" stroke="#302b2a" stroke-width="1.8" stroke-linecap="round"/>'+
+ '<path d="M34 54q5 -'+(eyebrow+2)+' 10 0M56 54q5 -3 10 0" fill="none" stroke="#302b2a" stroke-width="1.7" stroke-linecap="round"/>'+
  '<path d="M34 60Q39 57 44 60M56 60Q61 57 66 60" stroke="#312726" stroke-width="1.8" stroke-linecap="round" fill="none"/>'+
  '<circle cx="40" cy="60" r="1.7" fill="#221c1b"/><circle cx="60" cy="60" r="1.7" fill="#221c1b"/>'+
  '<path d="M50 62 48 71 53 71" stroke="#955e4d" stroke-opacity=".7" stroke-width="1.3" stroke-linecap="round" fill="none"/>'+
