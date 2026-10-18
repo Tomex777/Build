@@ -43,18 +43,24 @@ internal object ExtendedSurfaceMesh {
                 crater(x,z,-3.2,2.3,2.5,.19) +
                 crater(x,z,3.1,-2.2,1.0,.08) +
                 .025 * sin(x*1.3+z*.3) * cos(z*.9)
-            "europa" -> .30*broad +
-                // Smooth crosscutting frozen ridges and narrow fractures;
-                // modeled from generic ice geology, not a surveyed lineament.
-                .017 * cos(x*1.7+z*.49) +
-                .011 * cos(z*2.3-x*.32) -
-                .022 * exp(-sin(x*2.1+z*.31).let { it*it } / .002) +
+            "europa" -> .38*broad +
+                // Multi-family tectonic ice ridges and shallow troughs.
+                // Hundreds-of-meters wide (mesh-resolvable) ridges are
+                // different from the centimeter-scale material relief.
+                // Pattern is illustrative, not Galileo DEM reconstruction.
+                .021 * cos(x*1.7+z*.49) +
+                .014 * cos(z*2.3-x*.32) +
+                .035 * exp(-sin(x*1.32+z*.39).let { it*it } / .065) -
+                .012 * exp(-sin(z*1.91-x*.34).let { it*it } / .034) +
                 crater(x,z,2.4,-3.6,.65,.026)
             else -> .16*broad +
-                // Titan's organic dune forms are broad and subdued by
-                // thick atmosphere, never lunar-style craters.
-                .006 * sin(x*6.1+z*.7) * cos(z*1.1) +
-                .017 * sin(x*.75+z*.23)
+                // Titan's linear dunes are real, tens to >100 meters
+                // high; their precise shapes at this site are unknown.
+                // Subdued relief and haze keep dunes from looking like
+                // artificial steep mountains or a cratered airless moon.
+                .018 * sin(x*1.75+z*3.85+.43*sin(z*.21)) +
+                .009 * sin(x*3.2+z*7.4) +
+                .015 * sin(x*.75+z*.23)
         }
     }
 
