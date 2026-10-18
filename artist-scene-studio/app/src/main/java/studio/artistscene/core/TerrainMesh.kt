@@ -148,14 +148,14 @@ object TerrainMesh {
             views.lastIndex
         } else null
         val viewJson = views.joinToString(",") { (v, target) ->
-            val extra = if (target == 0) "" else ",\\\"target\\\":$target"
-            "{\\\"buffer\\\":0,\\\"byteOffset\\\":${v.first},\\\"byteLength\\\":${v.second}$extra}"
+            val extra = if (target == 0) "" else ",\"target\":$target"
+            "{\"buffer\":0,\"byteOffset\":${v.first},\"byteLength\":${v.second}$extra}"
         }
         val minH = heights.minOrNull() ?: 0f
         val maxH = heights.maxOrNull() ?: 0f
         val material = if (photoView != null) {
-            "{\\\"pbrMetallicRoughness\\\":{\\\"baseColorTexture\\\":{\\\"index\\\":0},\\\"metallicFactor\\\":0,\\\"roughnessFactor\\\":1}}"
-        } else "{\\\"pbrMetallicRoughness\\\":{\\\"baseColorFactor\\\":[0.42,0.48,0.35,1],\\\"metallicFactor\\\":0,\\\"roughnessFactor\\\":1}}"
+            "{\"pbrMetallicRoughness\":{\"baseColorTexture\":{\"index\":0},\"metallicFactor\":0,\"roughnessFactor\":1}}"
+        } else "{\"pbrMetallicRoughness\":{\"baseColorFactor\":[0.42,0.48,0.35,1],\"metallicFactor\":0,\"roughnessFactor\":1}}"
         val textureFields = if (photoView != null) {
             """, "images":[{"bufferView":$photoView,"mimeType":"image/png"}],
                 "samplers":[{"wrapS":10497,"wrapT":10497}],
