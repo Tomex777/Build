@@ -44,12 +44,8 @@ def tap(value,attribute="content-desc"):
     y=(groups[1]+groups[3])//2
     adb("shell","input","tap",str(x),str(y))
     time.sleep(2)
-def screenshot(name):
-    ensure("EchoSpace")
-    image=adb("exec-out","screencap","-p",capture=False)
-    # Since stdout binary cannot use text mode, capture directly from a file.
 def capture(name):
-    ensure("EchoSpace")
+    hierarchy()  # Verify the actual application tree, never a system crash overlay.
     with (OUT/name).open("wb") as image:
         subprocess.run(["adb","exec-out","screencap","-p"],
                        stdout=image,check=True,timeout=28)
@@ -92,7 +88,6 @@ if __name__=="__main__":
     time.sleep(6)
     ensure("Deep Forest")
     capture("05-saved-scene-restored.png")
-    adb("shell","logcat","-d","-s","AndroidRuntime:E")
     log=adb("shell","logcat","-d","-s","AndroidRuntime:E").stdout
     (OUT/"android-errors.txt").write_text(log)
     if "FATAL EXCEPTION" in log:raise RuntimeError("Android fatal crash detected")
