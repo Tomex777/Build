@@ -32,3 +32,19 @@ fi
     --output "$world/real_daylight_sky.misesky" --size 512
 rm "$world/original_kloofendal_sky.jpg"
 # Photos credited in docs. Licensing: https://polyhaven.com/license (CC0).
+
+# A genuinely branched and leaf-meshed CC0 oak (9,450 individual mesh
+# leaves), not Mise's earlier five-sphere demo tree. Innerscene original
+# artist asset: https://www.innerscene.com/tools/library/3d-parts/oak-street-tree-detailed-leaves-a273fef9
+# ~5.9MB, native glTF geometry with no external textures/Blender processing.
+oak_file="$root/app/src/main/assets/models/mise_oak_tree.glb"
+oak_url="https://www.innerscene.com/api/library/oak-street-tree-detailed-leaves-a273fef9/download"
+if [ ! -s "$oak_file" ]; then
+    curl --fail --location --retry 3 --max-time 180 -o "$oak_file.tmp" "$oak_url"
+    mv "$oak_file.tmp" "$oak_file"
+fi
+test "$(wc -c < "$oak_file")" -gt 500000 || {
+    echo "Downloaded oak tree is too small for the detailed GLB" >&2
+    exit 1
+}
+echo "CC0 native leaf geometry oak sha256 $(sha256sum "$oak_file")"
