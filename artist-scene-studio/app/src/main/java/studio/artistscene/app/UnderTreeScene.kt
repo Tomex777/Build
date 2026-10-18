@@ -97,7 +97,9 @@ object UnderTreeScene {
             name = "Oak shade tree",
             transform = Transform(
                 position = Vec3(-0.34f, 0f, -1.55f),
-                scale = Vec3(1f, 1f, 1f),
+                // Landscape oak has a broad crown. A youthful four-metre
+                // canopy allows natural sky to remain visible behind actors.
+                scale = Vec3(0.70f, 0.70f, 0.70f),
             ),
         )
 
@@ -184,7 +186,7 @@ object UnderTreeScene {
                 asset = detailedTree.asset,
                 transform = actor.transform.copy(
                     position = Vec3(-0.34f, 0f, -1.55f),
-                    scale = Vec3(1f, 1f, 1f),
+                    scale = Vec3(0.70f, 0.70f, 0.70f),
                 ),
             ) else actor
         })
