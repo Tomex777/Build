@@ -114,6 +114,10 @@ jobs:
           python3 .github/scripts/apply-media-overlay-hoist.py later
           python3 .github/scripts/apply-media-config-lifecycle.py later
           python3 .github/scripts/apply-vlc-style-video-player.py later
+          # API 26 has no ImageDecoder: the thumbnail decoder must be safe too,
+          # not just the fullscreen viewer and draft preparation routines.
+          ! grep -q 'ImageDecoder' later/app/src/main/java/com/night/later/ui/editor/CapsuleEditorScreen.kt
+          grep -Fq 'BitmapFactory.decodeStream(' later/app/src/main/java/com/night/later/ui/editor/CapsuleEditorScreen.kt
           # Pre-28 cached-image decoding is mandatory for API 26 release media QA.
           # Catch accidental second transforms or verifier-unsafe R8 callbacks here.
           python3 - <<'PY'
@@ -305,6 +309,8 @@ jobs:
           python3 .github/scripts/apply-media-overlay-hoist.py later-clean
           python3 .github/scripts/apply-media-config-lifecycle.py later-clean
           python3 .github/scripts/apply-vlc-style-video-player.py later-clean
+          ! grep -q 'ImageDecoder' later-clean/app/src/main/java/com/night/later/ui/editor/CapsuleEditorScreen.kt
+          grep -Fq 'BitmapFactory.decodeStream(' later-clean/app/src/main/java/com/night/later/ui/editor/CapsuleEditorScreen.kt
           grep -q 'implementation("org.videolan.android:libvlc-all:3.7.6")' later-clean/app/build.gradle.kts
           grep -Fq -- '-keep class org.videolan.libvlc.** { *; }' later-clean/app/proguard-rules.pro
           grep -Fq -- '-keep interface org.videolan.libvlc.** { *; }' later-clean/app/proguard-rules.pro
