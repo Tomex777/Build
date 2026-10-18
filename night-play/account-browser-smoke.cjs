@@ -1,7 +1,8 @@
 const assert=require('node:assert/strict')
 const fs=require('node:fs'),path=require('node:path'),http=require('node:http')
 const {chromium}=require('playwright')
-let profile=null,expiresAt=Date.now()+300000,unavailable=false,links=0,slowStatusMs=0,statusGets=0
+let profile=null,expiresAt=Date.now()+300000,unavailable=false,links=0,slowStatusMs=0,statusGets=0,operatorAllowed=false
+let siteNotice={enabled:false,revision:0}
 const server=http.createServer(async(req,res)=>{
   const url=new URL(req.url,'http://localhost')
   if(url.pathname==='/api/account'){
@@ -10,6 +11,11 @@ const server=http.createServer(async(req,res)=>{
     if(unavailable){res.statusCode=503;res.end(JSON.stringify({error:'NIGHT connection is being updated. Please try again shortly.'}));return}
     if(req.method==='GET'){statusGets++;if(slowStatusMs){const delay=slowStatusMs;slowStatusMs=0;await new Promise(resolve=>setTimeout(resolve,delay))}}
     let body={};if(req.method==='POST'){let raw='';for await(const chunk of req)raw+=chunk;body=JSON.parse(raw)}
+    if(body.action==='admin:status'||body.action==='admin:notice:save'){
+      if(!profile||!operatorAllowed){res.statusCode=profile?403:401;res.end(JSON.stringify({error:'Operator access required.'}));return}
+      if(body.action==='admin:notice:save')siteNotice={title:body.noticeTitle,message:body.noticeMessage,enabled:body.noticeEnabled,revision:siteNotice.revision+1}
+      res.end(JSON.stringify(body.action==='admin:status'?{authorized:true,notice:siteNotice}:{saved:true,notice:siteNotice}));return
+    }
     if(body.action==='link'){links++;res.end(JSON.stringify({code:'ABCD-EFGH-JKLM',command:'.minigames link ABCD-EFGH-JKLM',expiresAt}));return}
     if(body.action==='logout'||body.action==='delete')profile=null
     if(body.action==='profile')profile={...profile,displayName:body.displayName}
@@ -121,6 +127,33 @@ const server=http.createServer(async(req,res)=>{
     await page.locator('.account-command').waitFor()
     await page.screenshot({path:path.join(__dirname,'visual-output/account-link-desktop.jpg')})
     assert.deepEqual(errors,[])
+    const studio=await context.newPage(),studioErrors=[]
+    studio.on('pageerror',e=>studioErrors.push(String(e)))
+    await studio.goto(base+'/admin/')
+    await studio.getByText('Connect WhatsApp',{exact:true}).waitFor()
+    assert.equal(await studio.locator('#studioWorkspace').isVisible(),false,'guest cannot open private studio')
+    profile={id:'NIGHT-owner',displayName:'Owner'}
+    await studio.reload()
+    await studio.getByText('Access restricted',{exact:true}).waitFor()
+    assert.equal(await studio.locator('#studioWorkspace').isVisible(),false,'linked non-owner denied')
+    operatorAllowed=true
+    await studio.reload()
+    await studio.locator('#studioTitle').waitFor({state:'visible'})
+    await studio.locator('#studioTitle').fill('New games')
+    await studio.locator('#studioMessage').fill('Sudoku and Connect Four are now available.')
+    await studio.locator('#studioEnabled').check()
+    await studio.locator('#studioSave').click()
+    await studio.getByText('Announcement saved.',{exact:true}).waitFor()
+    assert.equal(siteNotice.title,'New games')
+    assert.equal(siteNotice.enabled,true)
+    await studio.screenshot({path:path.join(__dirname,'visual-output/night-studio-desktop.jpg')})
+    operatorAllowed=false
+    await studio.reload()
+    await studio.getByText('Access restricted',{exact:true}).waitFor()
+    assert.equal(await studio.locator('#studioWorkspace').isVisible(),false,'revoked operator access reflected immediately')
+    assert.deepEqual(studioErrors,[])
+    await studio.close()
+    console.log('PASS NIGHT Studio browser authorization, owner-only notice editor and access revocation')
     console.log('PASS NIGHT Play account browser flow: zero auth flash, one early HttpOnly status request, slow linked/guest hydration, phone/desktop layout, copy, automatic verification, name, disconnect, outage, expiry and reload')
     await context.close()
   }finally{await browser.close();server.closeAllConnections();await new Promise(resolve=>server.close(resolve))}
