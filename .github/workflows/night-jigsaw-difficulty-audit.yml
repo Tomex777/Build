@@ -1,0 +1,30 @@
+name: NIGHT Jigsaw high-piece stress audit
+on:
+  push:
+    branches:
+      - fix/night-jigsaw-high-piece-density-and-hint-icon-20261018
+    paths:
+      - 'night-play/jigsaw/**'
+      - '.github/workflows/night-jigsaw-difficulty-audit.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm install --no-save playwright@1.56.1
+      - name: Play 15 combinations and original game
+        run: node night-play/jigsaw/difficulty-audit.mjs
+      - name: Save 15 screenshots and metrics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: NIGHT-jigsaw-density-and-reference
+          path: night-play/visual-output/difficulty-audit/
+          retention-days: 14

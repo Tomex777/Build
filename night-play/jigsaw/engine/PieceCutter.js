@@ -96,13 +96,15 @@ export class PieceCutter {
    * @param {number} totalCols 
    * @returns {HTMLCanvasElement}
    */
-  static renderPieceToCanvas(piece, sourceImage, pieceWidth, pieceHeight, totalRows, totalCols) {
+  static renderPieceToCanvas(piece, sourceImage, pieceWidth, pieceHeight, totalRows, totalCols, pixelRatio = 1) {
     const tabSize = Math.min(pieceWidth, pieceHeight) * 0.22;
     const margin = tabSize * 1.5;
     const pCanvas = document.createElement('canvas');
-    pCanvas.width = pieceWidth + margin * 2;
-    pCanvas.height = pieceHeight + margin * 2;
+    const logicalWidth=pieceWidth+margin*2,logicalHeight=pieceHeight+margin*2;
+    pCanvas.width = Math.ceil(logicalWidth * pixelRatio);
+    pCanvas.height = Math.ceil(logicalHeight * pixelRatio);
     const pCtx = pCanvas.getContext('2d');
+    pCtx.setTransform(pixelRatio,0,0,pixelRatio,0,0);
 
     const ox = margin;
     const oy = margin;
@@ -132,7 +134,7 @@ export class PieceCutter {
     pCtx.drawImage(
       sourceImage,
       sx - sMarginX, sy - sMarginY, sw + sMarginX * 2, sh + sMarginY * 2,
-      0, 0, pCanvas.width, pCanvas.height
+      0, 0, logicalWidth, logicalHeight
     );
 
     // Bevel edge lighting highlight
@@ -143,6 +145,8 @@ export class PieceCutter {
     pCtx.restore();
 
     piece.offscreenCanvas = pCanvas;
+    piece.renderWidth = logicalWidth;
+    piece.renderHeight = logicalHeight;
     piece.canvasMargin = margin;
     return pCanvas;
   }
