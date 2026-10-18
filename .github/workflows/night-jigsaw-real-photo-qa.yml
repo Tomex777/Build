@@ -1,0 +1,30 @@
+name: NIGHT Jigsaw live-photo visual QA
+on:
+  pull_request:
+    paths:
+      - 'night-play/jigsaw/**'
+      - '.github/workflows/night-jigsaw-real-photo-qa.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  live-image:
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: |
+          npm install --no-save playwright@1.56.1
+          npx playwright install --with-deps chromium
+      - name: Browse actual Unsplash photos without mock images
+        run: node night-play/jigsaw/real-photo-smoke.mjs
+      - name: Save live-image screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: night-jigsaw-real-photography-review
+          path: night-play/visual-output/JIGSAW-LIVE*.jpg
+          retention-days: 14
