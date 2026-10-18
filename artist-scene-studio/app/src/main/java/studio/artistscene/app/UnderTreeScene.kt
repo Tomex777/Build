@@ -41,7 +41,7 @@ object UnderTreeScene {
             name = "Classmate A",
             transform = Transform(
                 position = Vec3(-0.73f, 0f, -0.36f),
-                rotationEulerDegrees = Vec3(y = -16f),
+                rotationEulerDegrees = Vec3(y = 164f),
             ),
             appearance = CharacterAppearanceSettings(
                 hairStyle = HairStyle.NONE,
@@ -68,7 +68,7 @@ object UnderTreeScene {
             name = "Classmate B",
             transform = Transform(
                 position = Vec3(0.73f, 0f, -0.26f),
-                rotationEulerDegrees = Vec3(y = 18f),
+                rotationEulerDegrees = Vec3(y = 198f),
             ),
             appearance = CharacterAppearanceSettings(
                 hairStyle = HairStyle.NONE,
@@ -94,7 +94,7 @@ object UnderTreeScene {
             id = TREE_ID,
             name = "Shade tree",
             transform = Transform(
-                position = Vec3(0f, 0f, 0.95f),
+                position = Vec3(0f, 0f, -1.23f),
                 scale = Vec3(1.16f, 1.16f, 1.16f),
             ),
         )
@@ -108,8 +108,8 @@ object UnderTreeScene {
                 SceneCamera(
                     id = "camera-main",
                     name = "Under the tree",
-                    position = Vec3(0.14f, 1.82f, -6.0f),
-                    target = Vec3(0f, 1.60f, 0.55f),
+                    position = Vec3(0.14f, 1.82f, 6.0f),
+                    target = Vec3(0f, 1.60f, -0.35f),
                     verticalFovDegrees = 55f,
                 ),
             ),
