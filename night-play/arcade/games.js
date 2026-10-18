@@ -152,6 +152,7 @@ if(typeof ResizeObserver==="function"){
  wingLayoutObserver.observe($("restart"));
 }
 function setupBird(){
+ wingCssWidth=0;wingCssHeight=0;
  c.width=360;c.height=600;
  rebuildWingBackdrop();
  let skin="parrot";
