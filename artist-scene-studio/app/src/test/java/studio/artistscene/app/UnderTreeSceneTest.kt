@@ -25,7 +25,7 @@ class UnderTreeSceneTest {
         assertEquals(studio.artistscene.core.EnvironmentPreset.PARK_SHADE, scene.world.environmentPreset)
         assertTrue(scene.actors.any {
             it.kind == ActorKind.LIGHT && it.light?.type == studio.artistscene.core.LightType.DIRECTIONAL &&
-                it.light!!.intensity < 50_000f
+                it.light!!.intensity in 60_000f..80_000f
         })
 
         val a = scene.actors.single { it.id == UnderTreeScene.FIRST_STUDENT_ID }
@@ -72,7 +72,7 @@ class UnderTreeSceneTest {
             posed.actors.first { it.id == UnderTreeScene.FIRST_STUDENT_ID }.transform,
             upgraded.actors.first { it.id == UnderTreeScene.FIRST_STUDENT_ID }.transform,
         )
-        assertEquals(42_000f, upgraded.actors.first { it.id == "key-sun" }.light!!.intensity, 0.01f)
+        assertEquals(68_000f, upgraded.actors.first { it.id == "key-sun" }.light!!.intensity, 0.01f)
         val custom = posed.copy(world = posed.world.copy(
             environmentPreset = studio.artistscene.core.EnvironmentPreset.OVERCAST,
         ))
