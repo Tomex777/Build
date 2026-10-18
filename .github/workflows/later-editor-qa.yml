@@ -114,6 +114,22 @@ jobs:
           python3 .github/scripts/apply-media-overlay-hoist.py later
           python3 .github/scripts/apply-media-config-lifecycle.py later
           python3 .github/scripts/apply-vlc-style-video-player.py later
+          # Pre-28 cached-image decoding is mandatory for API 26 release media QA.
+          # Catch accidental second transforms or verifier-unsafe R8 callbacks here.
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path("later/app/src/main/java/com/night/later/ui/media/LaterMediaViewer.kt")
+          source = path.read_text()
+          start = source.index("fun decodeMediaBitmap(")
+          end = source.index("\nprivate fun formatMediaDuration(", start)
+          decoder = source[start:end]
+          if decoder.count("android.graphics.BitmapFactory.decodeFile(") != 2:
+              raise SystemExit("Later bitmap decoder is not API 26 compatible")
+          if "ImageDecoder" in decoder:
+              raise SystemExit("ImageDecoder callback may be inlined into the API 26 release viewer")
+          if source.count("fun decodeMediaBitmap(") != 1:
+              raise SystemExit("Later media decoder transform duplicated")
+          PY
           grep -q 'implementation("org.videolan.android:libvlc-all:3.7.6")' later/app/build.gradle.kts
           grep -Fq -- '-keep class org.videolan.libvlc.** { *; }' later/app/proguard-rules.pro
           grep -Fq -- '-keep interface org.videolan.libvlc.** { *; }' later/app/proguard-rules.pro
