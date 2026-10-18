@@ -86,6 +86,13 @@ function endPreview(){
  if(previewTick!==null){clearInterval(previewTick);previewTick=null}
  $('previewOverlay').hidden=true;
 }
+function positionPreview(){
+ const layer=$('previewOverlay');
+ layer.style.left=board.boardX/canvas.width*100+'%';
+ layer.style.top=board.boardY/canvas.height*100+'%';
+ layer.style.width=board.boardWidth/canvas.width*100+'%';
+ layer.style.height=board.boardHeight/canvas.height*100+'%';
+}
 function showReference({automatic=false}={}){
  if(!activeRound||won||paused)return;
  const rules=modeRules[challengeMode];
@@ -93,11 +100,7 @@ function showReference({automatic=false}={}){
  endPreview();usedPreviews++;updateHelpUI();saveGame();closeHudMenu();
  const layer=$('previewOverlay');
  $('previewImage').src=board.sourceCanvas.toDataURL('image/jpeg',.85);
- layer.style.left=(board.boardX/canvas.width*100)+'%';
- layer.style.top=(board.boardY/canvas.height*100)+'%';
- layer.style.width=(board.boardWidth/canvas.width*100)+'%';
- layer.style.height=(board.boardHeight/canvas.height*100)+'%';
- layer.hidden=false;applyZoom();
+ positionPreview();layer.hidden=false;applyZoom();
  const expiry=Date.now()+rules.peekMs;
  const tick=()=>{$('previewCountdown').textContent=Math.max(0,Math.ceil((expiry-Date.now())/1000))+'s'};
  tick();previewTick=setInterval(tick,250);
@@ -395,12 +398,13 @@ $('zoomIn').addEventListener('click',()=>setZoom(zoom*1.12));
 $('zoomOut').addEventListener('click',()=>setZoom(zoom/1.12));
 $('zoomReset').addEventListener('click',()=>setZoom(1));
 $('edgesButton').addEventListener('click',()=>{
+ if(paused)return;
  board.edgeOnly=!board.edgeOnly;
  $('edgesButton').setAttribute('aria-pressed',String(board.edgeOnly));
  sound.playPickup();board.render();saveGame();
 });
 $('sweepButton').addEventListener('click',()=>{
- if(!activeRound||won)return;
+ if(!activeRound||won||paused)return;
  board.sweepLoose();sound.playDrop();saveGame();
 });
 function dialog(id){$(id).showModal()}
@@ -476,10 +480,11 @@ function updateFullscreenButton(){
  fullscreenButton.querySelector('use').setAttribute('href',active?'#icon-contract':'#icon-expand');
  // Browser viewport resizes synchronously after fullscreen transitions.
  if(activeRound&&!$('playScreen').hidden)requestAnimationFrame(()=>{
-  board.resize();applyZoom();board.render();
+  board.resize();positionPreview();applyZoom();board.render();
  });
 }
 fullscreenButton.addEventListener('click',async()=>{
+ closeHudMenu();
  try{
   if(document.fullscreenElement)await document.exitFullscreen();
   else if(document.documentElement.requestFullscreen)await document.documentElement.requestFullscreen();
@@ -490,7 +495,7 @@ document.addEventListener('fullscreenchange',updateFullscreenButton);
 $('victoryNext').addEventListener('click',()=>{$('victoryDialog').close();showGallery()});
 $('victoryReplay').addEventListener('click',()=>{$('victoryDialog').close();resetBoard(true)});
 $('imageFile').addEventListener('change',e=>onPhoto(e.target.files?.[0]));
-const resize=new ResizeObserver(()=>{if(!activeRound||$('playScreen').hidden)return;board.resize();applyZoom();board.render();saveGame()});
+const resize=new ResizeObserver(()=>{if(!activeRound||$('playScreen').hidden)return;board.resize();positionPreview();applyZoom();board.render();saveGame()});
 resize.observe(wrapper);
 document.addEventListener('visibilitychange',()=>{if(document.hidden){timerStop();endPreview();saveGame()}else timerStart()});
 window.addEventListener('pagehide',()=>{timerStop();saveGame()});
