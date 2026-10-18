@@ -251,7 +251,7 @@ async function finish(page,winner){
        const face=getComputedStyle(el.querySelector('.whot-suit-big'));
        return {background:c.backgroundColor,gradient:c.backgroundImage,ink:c.color,
          rank:r.color,rankSize:r.fontSize,shapeFill:face.fill,
-         shapeWidth:el.querySelector('.whot-suit-big').getBoundingClientRect().width};
+         shapeWidth:getComputedStyle(el.querySelector('.whot-suit-big')).width};
      };
      return {source:details(a),flight:details(b)};
    });
