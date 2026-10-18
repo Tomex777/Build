@@ -1,6 +1,12 @@
 package com.night.soundatlas
 
 import android.app.Activity
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.IntentFilter
+import android.media.AudioAttributes
+import android.media.AudioFocusRequest
+import android.media.AudioManager
 import android.content.Intent
 import android.content.ClipData
 import android.graphics.Canvas
@@ -24,6 +30,76 @@ class MainActivity : Activity() {
     private val store by lazy { getSharedPreferences("atlas-worlds", MODE_PRIVATE) }
     private var world=AtlasPresets.create(0)
     private var pendingExport: String? = null
+    private val audioManager by lazy { getSystemService(Context.AUDIO_SERVICE) as AudioManager }
+    private var shouldResumeAfterTransientLoss=false
+    private var inForeground=false
+    private var noisyRegistered=false
+    private val focusListener=AudioManager.OnAudioFocusChangeListener { focus ->
+        when(focus) {
+            AudioManager.AUDIOFOCUS_GAIN -> {
+                if (shouldResumeAfterTransientLoss && inForeground) {
+                    shouldResumeAfterTransientLoss=false
+                    audio.start(world)
+                    surface.invalidate()
+                }
+            }
+            AudioManager.AUDIOFOCUS_LOSS_TRANSIENT,
+            AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> {
+                shouldResumeAfterTransientLoss=audio.isPlaying
+                audio.stop()
+                surface.invalidate()
+            }
+            AudioManager.AUDIOFOCUS_LOSS -> {
+                shouldResumeAfterTransientLoss=false
+                audio.stop()
+                surface.invalidate()
+            }
+        }
+    }
+    private val focusRequest by lazy {
+        AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
+            .setAudioAttributes(
+                AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_MEDIA)
+                    .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC).build())
+            .setOnAudioFocusChangeListener(focusListener)
+            .setAcceptsDelayedFocusGain(false)
+            .build()
+    }
+    private val noisyReceiver=object:BroadcastReceiver() {
+        override fun onReceive(context:Context?,intent:Intent?) {
+            if(intent?.action==AudioManager.ACTION_AUDIO_BECOMING_NOISY) stopPlayback()
+        }
+    }
+    private fun startPlayback() {
+        shouldResumeAfterTransientLoss=false
+        val outcome=audioManager.requestAudioFocus(focusRequest)
+        if(outcome!=AudioManager.AUDIOFOCUS_REQUEST_GRANTED){
+            Toast.makeText(this,"Audio output is being used by another app",Toast.LENGTH_SHORT).show()
+            return
+        }
+        audio.start(world)
+        surface.invalidate()
+    }
+    private fun stopPlayback() {
+        shouldResumeAfterTransientLoss=false
+        audio.stop()
+        audioManager.abandonAudioFocusRequest(focusRequest)
+        if(::surface.isInitialized)surface.invalidate()
+    }
+    override fun onResume() { super.onResume();inForeground=true }
+    override fun onStart() {
+        super.onStart()
+        if(!noisyRegistered){
+            androidx.core.content.ContextCompat.registerReceiver(this,noisyReceiver,
+                IntentFilter(AudioManager.ACTION_AUDIO_BECOMING_NOISY),
+                androidx.core.content.ContextCompat.RECEIVER_NOT_EXPORTED)
+            noisyRegistered=true
+        }
+    }
+    override fun onStop() {
+        if(noisyRegistered){unregisterReceiver(noisyReceiver);noisyRegistered=false}
+        super.onStop()
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -144,9 +220,9 @@ class MainActivity : Activity() {
     }
     override fun onPause() {
         store.edit().putString("last",AtlasCodec.encode(world)).apply()
+        inForeground=false
+        stopPlayback()
         super.onPause()
-        audio.stop()
-        surface.invalidate()
     }
     override fun onDestroy() { audio.close();super.onDestroy() }
     @Deprecated("Activity back handling on minSdk 26")
@@ -372,7 +448,7 @@ class MainActivity : Activity() {
             action(c,"share",first+80f,23f,topWidth,39f,"",onClick={ share() })
             action(c,if(audio.isPlaying)"pause" else "play",first+120f,23f,topWidth,39f,"",
                 active=audio.isPlaying,onClick={
-                    if(audio.isPlaying)audio.stop() else audio.start(world)
+                    if(audio.isPlaying)stopPlayback() else startPlayback()
                     invalidate()
                 })
             box(c,ww-159f,68f,ww-17f,90f,0xFF20403F.toInt(),9f)
@@ -400,7 +476,7 @@ class MainActivity : Activity() {
                             3->{sheet=Sheet.ZONES;mode=Mode.ADD_ZONE}
                             4->{
                                 sheet=Sheet.NONE;mode=if(mode==Mode.EXPLORE)Mode.EDIT else Mode.EXPLORE
-                                if(mode==Mode.EXPLORE && !audio.isPlaying)audio.start(world)
+                                if(mode==Mode.EXPLORE && !audio.isPlaying)startPlayback()
                             }
                         }
                         invalidate()
