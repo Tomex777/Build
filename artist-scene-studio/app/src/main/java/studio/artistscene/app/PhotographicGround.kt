@@ -46,6 +46,7 @@ internal fun createPhotographicGround(engine: Engine, context: Context): Texture
             .width(pixels).height(pixels).levels(12)
             .sampler(Texture.Sampler.SAMPLER_2D)
             .format(Texture.InternalFormat.SRGB8_A8)
+            .usage(Texture.Usage.DEFAULT or Texture.Usage.GEN_MIPMAPPABLE)
             .build(engine).also { texture ->
                 texture.setImage(engine, 0,
                     Texture.PixelBufferDescriptor(buffer, Texture.Format.RGBA, Texture.Type.UBYTE))
