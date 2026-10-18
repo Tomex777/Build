@@ -285,33 +285,64 @@ export class PuzzleBoard{
   for(const p of this.pieces)if(!this.pieces.some(x=>x.id===p.group))p.group=p.id;
   return true;
  }
- render(confetti=null){
-  // Costly full-scene painting only happens after a completed move, settings
-  // change or resize. Finger movement never calls this path.
-  this.staticPaintCount++;
+ // Damage tracking avoids a 144-piece + 144-shadow full repaint just to
+ // pick up a single piece. Include the edge and shadow bleed of every sprite.
+ damageForPieces(pieces){
+  const pad=19;
+  return pieces.map(p=>({
+   x:p.x-p.canvasMargin-pad,
+   y:p.y-p.canvasMargin-pad,
+   w:p.renderWidth+pad*2,
+   h:p.renderHeight+pad*2
+  }));
+ }
+ paintScene(rect=null,confetti=null){
   const ctx=this.ctx,w=this.viewportWidth,h=this.viewportHeight;
-  ctx.clearRect(0,0,w,h);
+  const area=rect||{x:0,y:0,w,h};
+  const intersects=(x,y,rw,rh)=>x<area.x+area.w&&x+rw>area.x&&y<area.y+area.h&&y+rh>area.y;
+  ctx.save();
+  if(rect){ctx.beginPath();ctx.rect(area.x,area.y,area.w,area.h);ctx.clip();}
+  ctx.clearRect(area.x,area.y,area.w,area.h);
   const matte=ctx.createLinearGradient(0,0,w,h);
   matte.addColorStop(0,'#e5dcd0');matte.addColorStop(.55,'#ddd3c6');matte.addColorStop(1,'#d8cfc2');
-  ctx.fillStyle=matte;ctx.fillRect(0,0,w,h);
-  // One-pixel tabletop frame — never a thick bezel consuming puzzle space.
-  ctx.save();ctx.shadowColor='#483d3140';ctx.shadowBlur=8;ctx.shadowOffsetY=3;
-  ctx.fillStyle='#837b6f';ctx.fillRect(this.boardX,this.boardY,this.boardWidth,this.boardHeight);ctx.restore();
-  ctx.strokeStyle='#71695e';ctx.lineWidth=1;
-  ctx.strokeRect(this.boardX+.5,this.boardY+.5,this.boardWidth-1,this.boardHeight-1);
-  if(this.showGhost){
-   // Optional, intentionally very faint guide. Even Relaxed mode is a puzzle.
-   ctx.save();ctx.globalAlpha=.17;ctx.drawImage(this.sourceCanvas,this.boardX,this.boardY,this.boardWidth,this.boardHeight);ctx.restore();
+  ctx.fillStyle=matte;ctx.fillRect(area.x,area.y,area.w,area.h);
+  if(intersects(this.boardX-12,this.boardY-12,this.boardWidth+24,this.boardHeight+24)){
+   ctx.save();ctx.shadowColor='#483d3140';ctx.shadowBlur=8;ctx.shadowOffsetY=3;
+   ctx.fillStyle='#837b6f';ctx.fillRect(this.boardX,this.boardY,this.boardWidth,this.boardHeight);ctx.restore();
+   ctx.strokeStyle='#71695e';ctx.lineWidth=1;
+   ctx.strokeRect(this.boardX+.5,this.boardY+.5,this.boardWidth-1,this.boardHeight-1);
+   if(this.showGhost){
+    ctx.save();ctx.globalAlpha=.17;
+    ctx.drawImage(this.sourceCanvas,this.boardX,this.boardY,this.boardWidth,this.boardHeight);
+    ctx.restore();
+   }
   }
-
-  for(const p of this.pieces)if(p.isPlaced){ctx.drawImage(p.offscreenCanvas,p.x-p.canvasMargin,p.y-p.canvasMargin,p.renderWidth,p.renderHeight);}
+  for(const p of this.pieces)if(p.isPlaced){
+   const px=p.x-p.canvasMargin,py=p.y-p.canvasMargin;
+   if(intersects(px,py,p.renderWidth,p.renderHeight))
+    ctx.drawImage(p.offscreenCanvas,px,py,p.renderWidth,p.renderHeight);
+  }
   for(const p of this.pieces)if(!p.isPlaced&&!this.selectedPieces.includes(p)){
+   const px=p.x-p.canvasMargin,py=p.y-p.canvasMargin;
+   if(!intersects(px-13,py-13,p.renderWidth+26,p.renderHeight+26))continue;
    ctx.save();
    if(this.edgeOnly&&p.row!==0&&p.col!==0&&p.row!==this.rows-1&&p.col!==this.cols-1)ctx.globalAlpha=.18;
    ctx.shadowColor='#34271c66';ctx.shadowBlur=7;ctx.shadowOffsetY=3;
-   ctx.drawImage(p.offscreenCanvas,p.x-p.canvasMargin,p.y-p.canvasMargin,p.renderWidth,p.renderHeight);ctx.restore();
+   ctx.drawImage(p.offscreenCanvas,px,py,p.renderWidth,p.renderHeight);ctx.restore();
   }
   if(confetti)confetti.updateAndRender(ctx);
+  ctx.restore();
+ }
+ render(confetti=null){
+  this.staticPaintCount++;
+  this.paintScene(null,confetti);
+  this.renderDrag();
+ }
+ renderDamage(rects){
+  // Restore only the vacated/picked up or dropped piece footprints; the
+  // board, gallery and all distant pieces remain in their previous pixels.
+  this.staticPaintCount++;
+  for(const rect of rects)this.paintScene(rect);
   this.renderDrag();
  }
  renderDrag(){
