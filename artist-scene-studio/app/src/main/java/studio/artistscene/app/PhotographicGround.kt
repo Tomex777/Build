@@ -9,6 +9,7 @@ import android.graphics.Paint
 import android.graphics.Rect
 import com.google.android.filament.Engine
 import com.google.android.filament.Texture
+import studio.artistscene.core.GroundSurface
 import java.nio.ByteBuffer
 
 /**
@@ -19,14 +20,18 @@ import java.nio.ByteBuffer
  * Dense baked UV tiles keep the 36-metre ground at natural photographic scale
  * with correct screen-space perspective and shadowing as the camera moves.
  */
-internal fun createPhotographicGround(engine: Engine, context: Context): Texture {
-    val source = context.assets.open("world/leafy_grass_diff_1k.png").use { stream ->
+internal fun createPhotographicGround(
+    engine: Engine, context: Context, surface: GroundSurface = GroundSurface.GRASS,
+    tileCount: Int = 8,
+): Texture {
+    val photoAsset = requireNotNull(surface.photoAsset) { "No photograph for $surface" }
+    val source = context.assets.open("world/$photoAsset").use { stream ->
         requireNotNull(BitmapFactory.decodeStream(stream)) { "Missing CC0 ground photo" }
     }
     val pixels = 2048
     // Fewer, higher-resolution tiles retain real leaf blades and fine soil
     // detail instead of averaging the photo into green noise at phone scale.
-    val tileCount = 8
+    val repeats = tileCount.coerceIn(2, 24)
     val tiled = Bitmap.createBitmap(pixels, pixels, Bitmap.Config.ARGB_8888)
     try {
         val canvas = Canvas(tiled)
@@ -41,13 +46,13 @@ internal fun createPhotographicGround(engine: Engine, context: Context): Texture
                 0f, 0f, 0f, 1f, 0f,
             ))
         }
-        for (row in 0 until tileCount) {
-            for (column in 0 until tileCount) {
+        for (row in 0 until repeats) {
+            for (column in 0 until repeats) {
                 val dest = Rect(
-                    pixels * column / tileCount,
-                    pixels * row / tileCount,
-                    pixels * (column + 1) / tileCount,
-                    pixels * (row + 1) / tileCount,
+                    pixels * column / repeats,
+                    pixels * row / repeats,
+                    pixels * (column + 1) / repeats,
+                    pixels * (row + 1) / repeats,
                 )
                 canvas.drawBitmap(source, null, dest, paint)
             }
@@ -80,9 +85,12 @@ internal fun createPhotographicGround(engine: Engine, context: Context): Texture
  * Native texture memory is reclaimed when the corresponding engine shuts down.
  */
 internal object PhotographicGroundCache {
-    private val byEngine = java.util.WeakHashMap<Engine, Texture>()
+    private val byEngine = java.util.WeakHashMap<Engine, MutableMap<Pair<GroundSurface, Int>, Texture>>()
 
     @Synchronized
-    fun obtain(engine: Engine, context: Context): Texture =
-        byEngine.getOrPut(engine) { createPhotographicGround(engine, context) }
+    fun obtain(engine: Engine, context: Context, surface: GroundSurface, tiles: Int): Texture =
+        byEngine.getOrPut(engine) { mutableMapOf() }
+            .getOrPut(surface to tiles.coerceIn(2, 24)) {
+                createPhotographicGround(engine, context, surface, tiles)
+            }
 }
