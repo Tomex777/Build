@@ -12,7 +12,7 @@ export class PuzzleBoard{
   this.dragCanvas=wrapper.querySelector('#dragCanvas');
   this.dragCtx=this.dragCanvas.getContext('2d',{alpha:true});
   this.staticPaintCount=0;this.dragPaintCount=0;
-  this.dragAnchorX=null;this.dragAnchorY=null;
+  this.dragAnchorX=null;this.dragAnchorY=null;this.dragBoundsX=0;this.dragBoundsY=0;
   this.rows=3;this.cols=4;this.totalPieces=12;this.pieces=[];this.selectedPiece=null;
   this.boardX=0;this.boardY=0;this.boardWidth=0;this.boardHeight=0;
   this.pieceWidth=0;this.pieceHeight=0;this.tray={x:0,y:0,w:0,h:0};
@@ -33,8 +33,10 @@ export class PuzzleBoard{
    anchors.set(p.group||p.id,{row:p.row,col:p.col,x:p.x,y:p.y});
   this.viewportWidth=w;this.viewportHeight=h;this.dpr=dpr;
   this.canvas.width=Math.round(w*dpr);this.canvas.height=Math.round(h*dpr);
-  this.dragCanvas.width=this.canvas.width;this.dragCanvas.height=this.canvas.height;
-  this.ctx.setTransform(dpr,0,0,dpr,0,0);this.dragCtx.setTransform(dpr,0,0,dpr,0,0);
+  // A small cropped group sprite replaces the full-screen drag backing.
+  this.dragCanvas.width=1;this.dragCanvas.height=1;
+  this.dragCanvas.style.width='1px';this.dragCanvas.style.height='1px';
+  this.ctx.setTransform(dpr,0,0,dpr,0,0);
   this.setupBoardLayout();
   if(this.pieces.length){
    for(const p of this.pieces){
@@ -283,47 +285,109 @@ export class PuzzleBoard{
   for(const p of this.pieces)if(!this.pieces.some(x=>x.id===p.group))p.group=p.id;
   return true;
  }
- render(confetti=null){
-  // Costly full-scene painting only happens after a completed move, settings
-  // change or resize. Finger movement never calls this path.
-  this.staticPaintCount++;
+ // Damage tracking avoids a 144-piece + 144-shadow full repaint just to
+ // pick up a single piece. Include the edge and shadow bleed of every sprite.
+ damageForPieces(pieces){
+  const pad=19;
+  return pieces.map(p=>({
+   x:p.x-p.canvasMargin-pad,
+   y:p.y-p.canvasMargin-pad,
+   w:p.renderWidth+pad*2,
+   h:p.renderHeight+pad*2
+  }));
+ }
+ paintScene(rect=null,confetti=null){
   const ctx=this.ctx,w=this.viewportWidth,h=this.viewportHeight;
-  ctx.clearRect(0,0,w,h);
+  // Fractional clip bounds create visible rectangular seams on DPR 2.5
+  // screens. Align damage exactly to physical backing pixels before clearing.
+  const area=rect?(()=>{
+   const x=Math.floor(rect.x*this.dpr-2)/this.dpr;
+   const y=Math.floor(rect.y*this.dpr-2)/this.dpr;
+   const right=Math.ceil((rect.x+rect.w)*this.dpr+2)/this.dpr;
+   const bottom=Math.ceil((rect.y+rect.h)*this.dpr+2)/this.dpr;
+   return {x,y,w:right-x,h:bottom-y};
+  })():{x:0,y:0,w,h};
+  const intersects=(x,y,rw,rh)=>x<area.x+area.w&&x+rw>area.x&&y<area.y+area.h&&y+rh>area.y;
+  ctx.save();
+  if(rect){ctx.beginPath();ctx.rect(area.x,area.y,area.w,area.h);ctx.clip();}
+  ctx.clearRect(area.x,area.y,area.w,area.h);
   const matte=ctx.createLinearGradient(0,0,w,h);
   matte.addColorStop(0,'#e5dcd0');matte.addColorStop(.55,'#ddd3c6');matte.addColorStop(1,'#d8cfc2');
-  ctx.fillStyle=matte;ctx.fillRect(0,0,w,h);
-  // One-pixel tabletop frame — never a thick bezel consuming puzzle space.
-  ctx.save();ctx.shadowColor='#483d3140';ctx.shadowBlur=8;ctx.shadowOffsetY=3;
-  ctx.fillStyle='#837b6f';ctx.fillRect(this.boardX,this.boardY,this.boardWidth,this.boardHeight);ctx.restore();
-  ctx.strokeStyle='#71695e';ctx.lineWidth=1;
-  ctx.strokeRect(this.boardX+.5,this.boardY+.5,this.boardWidth-1,this.boardHeight-1);
-  if(this.showGhost){
-   // Optional, intentionally very faint guide. Even Relaxed mode is a puzzle.
-   ctx.save();ctx.globalAlpha=.17;ctx.drawImage(this.sourceCanvas,this.boardX,this.boardY,this.boardWidth,this.boardHeight);ctx.restore();
+  ctx.fillStyle=matte;ctx.fillRect(area.x,area.y,area.w,area.h);
+  if(intersects(this.boardX-12,this.boardY-12,this.boardWidth+24,this.boardHeight+24)){
+   ctx.save();ctx.shadowColor='#483d3140';ctx.shadowBlur=8;ctx.shadowOffsetY=3;
+   ctx.fillStyle='#837b6f';ctx.fillRect(this.boardX,this.boardY,this.boardWidth,this.boardHeight);ctx.restore();
+   ctx.strokeStyle='#71695e';ctx.lineWidth=1;
+   ctx.strokeRect(this.boardX+.5,this.boardY+.5,this.boardWidth-1,this.boardHeight-1);
+   if(this.showGhost){
+    ctx.save();ctx.globalAlpha=.17;
+    ctx.drawImage(this.sourceCanvas,this.boardX,this.boardY,this.boardWidth,this.boardHeight);
+    ctx.restore();
+   }
   }
-
-  for(const p of this.pieces)if(p.isPlaced){ctx.drawImage(p.offscreenCanvas,p.x-p.canvasMargin,p.y-p.canvasMargin,p.renderWidth,p.renderHeight);}
+  for(const p of this.pieces)if(p.isPlaced){
+   const px=p.x-p.canvasMargin,py=p.y-p.canvasMargin;
+   if(intersects(px,py,p.renderWidth,p.renderHeight))
+    ctx.drawImage(p.offscreenCanvas,px,py,p.renderWidth,p.renderHeight);
+  }
   for(const p of this.pieces)if(!p.isPlaced&&!this.selectedPieces.includes(p)){
+   const px=p.x-p.canvasMargin,py=p.y-p.canvasMargin;
+   if(!intersects(px-13,py-13,p.renderWidth+26,p.renderHeight+26))continue;
    ctx.save();
    if(this.edgeOnly&&p.row!==0&&p.col!==0&&p.row!==this.rows-1&&p.col!==this.cols-1)ctx.globalAlpha=.18;
    ctx.shadowColor='#34271c66';ctx.shadowBlur=7;ctx.shadowOffsetY=3;
-   ctx.drawImage(p.offscreenCanvas,p.x-p.canvasMargin,p.y-p.canvasMargin,p.renderWidth,p.renderHeight);ctx.restore();
+   ctx.drawImage(p.offscreenCanvas,px,py,p.renderWidth,p.renderHeight);ctx.restore();
   }
   if(confetti)confetti.updateAndRender(ctx);
+  ctx.restore();
+ }
+ render(confetti=null){
+  this.staticPaintCount++;
+  this.paintScene(null,confetti);
+  this.renderDrag();
+ }
+ renderDamage(rects){
+  // Restore only the vacated/picked up or dropped piece footprints; the
+  // board, gallery and all distant pieces remain in their previous pixels.
+  this.staticPaintCount++;
+  for(const rect of rects)this.paintScene(rect);
   this.renderDrag();
  }
  renderDrag(){
-  // Rasterize the picked-up group once, on pickup or other scene changes.
-  // Pointer moves translate this prepainted layer with a compositor transform,
-  // never clearing a full-screen high-DPI canvas or repainting shadows per move.
+  // 390x786 at DPR 2.5 previously required a 975x1965 composited canvas
+  // for a 31x23 piece. Allocate only the selected group's visible pixels.
   this.dragPaintCount++;
-  const ctx=this.dragCtx;
-  ctx.clearRect(0,0,this.viewportWidth,this.viewportHeight);
-  if(!this.selectedPiece){this.dragAnchorX=null;this.dragAnchorY=null;return;}
+  if(!this.selectedPiece||!this.selectedPieces.length){
+   this.dragAnchorX=null;this.dragAnchorY=null;
+   this.dragBoundsX=0;this.dragBoundsY=0;
+   if(this.dragCanvas.width!==1||this.dragCanvas.height!==1){
+    this.dragCanvas.width=1;this.dragCanvas.height=1;
+    this.dragCanvas.style.width='1px';this.dragCanvas.style.height='1px';
+   }else this.dragCtx.clearRect(0,0,1,1);
+   return;
+  }
+  const pad=16;
+  const bounds=this.selectedPieces.map(p=>({
+   left:p.x-p.canvasMargin,top:p.y-p.canvasMargin,
+   right:p.x-p.canvasMargin+p.renderWidth,
+   bottom:p.y-p.canvasMargin+p.renderHeight
+  }));
+  const left=Math.min(...bounds.map(b=>b.left))-pad;
+  const top=Math.min(...bounds.map(b=>b.top))-pad;
+  const right=Math.max(...bounds.map(b=>b.right))+pad;
+  const bottom=Math.max(...bounds.map(b=>b.bottom))+pad;
+  const width=Math.ceil(right-left),height=Math.ceil(bottom-top);
+  this.dragBoundsX=left;this.dragBoundsY=top;
   this.dragAnchorX=this.selectedPiece.x;this.dragAnchorY=this.selectedPiece.y;
+  this.dragCanvas.width=Math.max(1,Math.ceil(width*this.dpr));
+  this.dragCanvas.height=Math.max(1,Math.ceil(height*this.dpr));
+  this.dragCanvas.style.width=width+'px';
+  this.dragCanvas.style.height=height+'px';
+  const ctx=this.dragCtx;
+  ctx.setTransform(this.dpr,0,0,this.dpr,0,0);
   for(const p of this.selectedPieces){
    ctx.save();ctx.shadowColor='#332a205e';ctx.shadowBlur=8;ctx.shadowOffsetY=3;
-   ctx.drawImage(p.offscreenCanvas,p.x-p.canvasMargin,p.y-p.canvasMargin,p.renderWidth,p.renderHeight);
+   ctx.drawImage(p.offscreenCanvas,p.x-p.canvasMargin-left,p.y-p.canvasMargin-top,p.renderWidth,p.renderHeight);
    ctx.restore();
   }
  }

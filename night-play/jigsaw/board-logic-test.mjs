@@ -9,7 +9,7 @@ const makeCtx=()=>new Proxy({}, {get:(obj,name)=>{
  if(name==='createLinearGradient')return ()=>({addColorStop:noOp});
  return obj[name]??noOp;
 },set:(obj,k,v)=>(obj[k]=v,true)});
-const makeCanvas=(w=360,h=660)=>({width:w,height:h,getContext:()=>makeCtx()});
+const makeCanvas=(w=360,h=660)=>({width:w,height:h,style:{},getContext:()=>makeCtx()});
 globalThis.document={createElement:tag=>{assert.equal(tag,'canvas');return makeCanvas()}};
 const canvas=makeCanvas(),drag=makeCanvas(),wrapper={
  width:390,height:844,
