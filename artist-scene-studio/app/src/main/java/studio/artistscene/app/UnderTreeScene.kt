@@ -143,7 +143,7 @@ object UnderTreeScene {
                 ),
             ),
             world = WorldSettings(
-                environmentPreset = EnvironmentPreset.DAYLIGHT,
+                environmentPreset = EnvironmentPreset.PARK_SHADE,
                 groundEnabled = true,
                 gridEnabled = false,
             ),
