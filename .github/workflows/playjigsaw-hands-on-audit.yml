@@ -1,0 +1,39 @@
+name: PlayJigsaw hands-on public-reference audit
+on:
+  push:
+    branches:
+      - research/playjigsaw-hands-on-browser-audit-20261018
+    paths:
+      - 'night-play/jigsaw/research/**'
+      - '.github/workflows/playjigsaw-hands-on-audit.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  experience-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install public reference and browser
+        run: |
+          git clone --depth=1 https://github.com/playjigsaw/play-jigsaw-puzzles-online.git /tmp/playjigsaw-public-engine
+          npm install --no-save playwright@1.56.1
+          npx playwright install --with-deps chromium
+      - name: Start public source demonstration
+        run: |
+          cd /tmp/playjigsaw-public-engine
+          nohup python3 -m http.server 8765 --bind 127.0.0.1 > /tmp/playjigsaw-server.log 2>&1 &
+          sleep 2
+      - name: Actually interact with production and public Github demo
+        run: node night-play/jigsaw/research/hands-on.mjs
+      - name: Preserve browser screenshots and observations
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playjigsaw-production-and-github-browser-study
+          path: night-play/jigsaw/research/screenshots/
+          retention-days: 14
