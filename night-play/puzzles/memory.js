@@ -95,7 +95,7 @@ function create({board,tools,status,message,newButton}){
   const fragment=document.createDocumentFragment();
   state.deck.forEach((id,i)=>{
    const b=document.createElement("button");b.type="button";b.dataset.memory=String(i);b.className="memory-card";
-   b.innerHTML='<span class="memory-flip-body"><span class="memory-card-back"><span class="memory-back-mark" aria-hidden="true"><svg viewBox="0 0 32 32"><path d="M10 23A13 13 0 0 1 23 10 12 12 0 0 0 10 23" fill="currentColor"/><path d="M12 25h12" stroke="currentColor" stroke-width="1.5"/></svg></span></span>'+
+   b.innerHTML='<span class="memory-flip-body"><span class="memory-card-back"><span class="memory-back-mark" aria-hidden="true"><svg viewBox="0 0 108 108"><path fill="currentColor" d="M24 54 C24 37.43 37.43 24 54 24 C70.57 24 84 37.43 84 54 L24 54 Z"/><path fill="currentColor" d="M22 66h64v6H22z"/></svg></span></span>'+
    '<span class="memory-card-front">'+cardArtwork(id)+'</span></span>';
    fragment.append(b);
   });
