@@ -9,8 +9,11 @@ Native, offline-first Yorùbá/English hymn reader for Android. The photographed
 - Hymn list, availability labels, reader, previous/next, bookmarks, continue reading, persistent text-size buttons, light/dark themes.
 - Genuine Android vector drawable icons (not Unicode symbols or emoji).
 - All data bundled locally in `android/app/src/main/assets/hymns.json`. No account, ads, network dependency, remote API, or redundant volume sliders.
-- Initial photographs cover pages **1–4**: local hymns **1–11** catalogued. **4** and **7** have Yorùbá transcription drafts pending orthographic verification. Others are indexed but no lyrics are displayed until accurately entered. English switch is implemented but appropriately disabled until an English text is added.
+- Initial photographs cover pages **1–4**: local hymns **1–11** catalogued. **1–10** have full Yorùbá and English working drafts matched with the photographed pages and historical bilingual hymn sources. **11** includes the opening visible on page 4 in both languages, and is expressly marked incomplete until later pages are supplied. Draft spelling and tone marks still require review.
 - Hymn 11 is incomplete in the photos; later pages or verified online equivalents can complete it.
+- Reader swipe left/right moves between numbered hymns; language choice persists while browsing. Literal `\\n` in legacy texts is normalized to real line breaks.
+- Dark mode uses warm charcoal, ivory and brass, rather than green-on-black.
+- Build version: 0.2.0 (versionCode 2).
 
 ## Build
 
