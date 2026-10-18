@@ -1,5 +1,9 @@
 name: NIGHT Jigsaw high-piece stress audit
 on:
+  pull_request:
+    paths:
+      - 'night-play/jigsaw/**'
+      - '.github/workflows/night-jigsaw-difficulty-audit.yml'
   push:
     branches:
       - fix/night-jigsaw-high-piece-density-and-hint-icon-20261018
