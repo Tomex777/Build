@@ -200,7 +200,8 @@ private fun HymnHub(
                 Text("Hymns", fontSize = 21.sp, fontWeight = FontWeight.SemiBold,
                     modifier = Modifier.weight(1f))
                 Text(hymns.size.toString() + " indexed · " +
-                    hymns.count { it.hasYoruba || it.hasEnglish } + " with lyrics",
+                    hymns.count { it.hasYoruba && !it.textStatus.contains("partial") } + " complete · " +
+                    hymns.count { it.textStatus.contains("partial") } + " partial",
                     color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
             }
             Spacer(Modifier.height(14.dp))
@@ -294,7 +295,9 @@ private fun HymnRow(hymn: Hymn, saved: Boolean, onClick: () -> Unit, onToggleSav
                         fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
                 Spacer(Modifier.height(5.dp))
-                Text(if (hymn.hasYoruba) "Yorùbá text available" else "Lyrics being added",
+                Text(when { hymn.textStatus.contains("partial") -> "Partial · more pages needed"
+                      hymn.hasYoruba -> "Yorùbá & English available"
+                      else -> "Lyrics being added" },
                     color = MaterialTheme.colorScheme.primary, fontSize = 11.sp)
             }
             IconButton(onClick = onToggleSaved, modifier = Modifier.size(44.dp)) {
