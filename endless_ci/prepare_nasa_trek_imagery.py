@@ -19,6 +19,14 @@ from pathlib import Path
 from PIL import Image
 
 SITE = {
+    # High-resolution optional NASA Trek Olympus Mons orthomosaic. The
+    # identifier is documented in the Mars Trek layer catalog, but this
+    # optional CI fetch is allowed to fail without contaminating the
+    # already verified Viking / MOLA landing.
+    "mars_detail": {
+        "lat": 18.65, "lon": -133.8, "radius": 3389.5,
+        "zoom": 8, "id": "Mars/EQ/olympus_mons.eq",
+    },
     # Real MESSENGER/Dawn georegistered *reflectance* only. Their first-person
     # elevations are still illustrative -- do not claim measured 3D geometry.
     "mercury": {
@@ -78,9 +86,21 @@ def fetch_tile(site, row, col):
     url = (f"https://trek.nasa.gov/tiles/{site['id']}/"
            f"1.0.0/default/default028mm/{z}/{row}/{col % (2**(z+1))}.jpg")
     req = urllib.request.Request(url, headers={"User-Agent": "Endless-NASA-Educational/1.0"})
-    with urllib.request.urlopen(req, timeout=25) as r:
-        data = r.read()
-    im = Image.open(io.BytesIO(data))
+    # Most NASA Trek imagery uses JPEG; some local research mosaics are
+    # exposed only as PNG. Never synthesize missing NASA pixels.
+    try:
+        with urllib.request.urlopen(req, timeout=25) as r:
+            data = r.read()
+        im = Image.open(io.BytesIO(data))
+    except Exception:
+        if site.get("id") != "Mars/EQ/olympus_mons.eq":
+            raise
+        png_url = url[:-4] + ".png"
+        with urllib.request.urlopen(urllib.request.Request(
+                png_url, headers={"User-Agent":"Endless-NASA-Educational/1.0"}),
+                timeout=25) as r:
+            data = r.read()
+        im = Image.open(io.BytesIO(data))
     im.load()
     if im.size != (256, 256):
         raise ValueError(f"Unexpected NASA tile size: {im.size} at {url}")

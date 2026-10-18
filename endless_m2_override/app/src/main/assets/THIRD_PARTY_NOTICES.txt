@@ -104,3 +104,12 @@ Expanded exploratory worlds:
 - NASA/JPL-Caltech, ASU and the mission instrument teams are credited for
   the photographic sources. If optional tile fetching fails, the new worlds
   remain navigable but show only explicitly illustrative materials.
+
+Optional NASA Olympus Mons local photographic detail:
+- NASA/JPL/USGS Mars Trek WMTS layer ID olympus_mons.eq, centered on
+  Olympus Mons (18.65 N, -133.8 E), used as a separate luminance
+  detail source IF a complete tile mosaic is available in CI.
+  https://trek.nasa.gov/tiles/apidoc/trekAPI.html?body=mars
+- The verified Viking MDIM 2.1 color is always the base orbital
+  reflectance. The local mosaic only modifies large-scale spatial
+  details; no claim of meter-scale rover photographs or a site DEM.

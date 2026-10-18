@@ -165,6 +165,16 @@ jobs:
           # The Mercury and Ceres maps add real mission photographic
           # reflectance to *illustrative* relief. Fetch independently:
           # these optional images must never regress the verified Mars/Moon.
+          # Local NASA Trek Olympus Mons photographic/orthomosaic detail:
+          # layered over Viking color albedo when obtainable; never allow
+          # partial missing tiles or a dead endpoint to block the APK.
+          if timeout 90 python3 endless_ci/prepare_nasa_trek_imagery.py --out "$OUT" --worlds mars_detail; then
+            file "$OUT/mars_detail_trek_landing.jpg"
+            echo "NASA Olympus Mons local orbital detail included."
+          else
+            rm -f "$OUT/mars_detail_trek_landing.jpg"
+            echo "::warning::Olympus detail unavailable; Viking color mosaic remains."
+          fi
           # Each mission tile service is independent. A dead Ceres layer
           # must not discard a complete Mercury image (or vice versa).
           for BODY in mercury ceres; do
