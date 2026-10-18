@@ -106,6 +106,13 @@ try{
    return found||null;
   });
   assert.ok(target,'There is at least one accessible high-count piece at magnification');
+  await p.evaluate(()=>{
+   window.__nightTouchEvents=[];
+   const c=document.getElementById('puzzleCanvas');
+   for(const type of ['pointerdown','pointermove','pointerup','pointercancel']){
+    c.addEventListener(type,e=>{if(type!=='pointermove')window.__nightTouchEvents.push({type,id:e.pointerId,button:e.button})},{capture:true});
+   }
+  });
   const touch=await p.context().newCDPSession(p);
   const send=(type,x,y)=>touch.send('Input.dispatchTouchEvent',{type,touchPoints:type==='touchEnd'?[]:[{id:33,x,y,radiusX:6,radiusY:6,force:.9}]});
   await send('touchStart',target.x,target.y);
@@ -120,8 +127,10 @@ try{
   assert.ok(Math.hypot(selectedEnd.x-selectedStart.x,selectedEnd.y-selectedStart.y)>7,
    'Android high-DPI loose piece follows finger while zoomed');
   await send('touchEnd',0,0);await touch.detach();
-  assert.ok((await p.evaluate(()=>window.__nightJigsawTest.snapshot())).moves>=1,
-   'High-piece drag commits a move after touch release');
+  await p.waitForTimeout(240);
+  const release=await p.evaluate(()=>({s:window.__nightJigsawTest.snapshot(),events:window.__nightTouchEvents}));
+  console.log('DPR_DRAG_RELEASE='+JSON.stringify({deviceScaleFactor,moves:release.s.moves,selected:release.s.selected,events:release.events}));
+  assert.ok(release.s.moves>=1,'High-piece drag commits a move after touch release');
   console.log('DPR_DRAG_PASS='+JSON.stringify({deviceScaleFactor,id:selectedStart.id,start:selectedStart,end:selectedEnd}));
   const shot=await p.screenshot({type:'jpeg',quality:63});
   writeFileSync(path.join(output,'ANDROID-DPR-'+deviceScaleFactor+'-144-ZOOM.jpg'),shot);
