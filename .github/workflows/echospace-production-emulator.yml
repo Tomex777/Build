@@ -1,0 +1,52 @@
+name: EchoSpace production emulator screenshots
+
+on:
+  push:
+    branches: [feature/echospace-production-hardening]
+    paths:
+      - '.github/workflows/echospace-production-emulator.yml'
+      - '.github/scripts/echospace_production_emulator.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  emulator-qa:
+    runs-on: ubuntu-latest
+    timeout-minutes: 55
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch independently built native APK
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p EchoSpace/app/build/outputs/apk/debug
+          gh run download 39166545228 --repo "$GITHUB_REPOSITORY" \
+            --name EchoSpace-production-native-debug \
+            --dir EchoSpace/app/build/outputs/apk/debug
+          test -s EchoSpace/app/build/outputs/apk/debug/app-debug.apk
+      - name: Install and verify real native Android UI
+        uses: reactivecircus/android-emulator-runner@v2
+        env:
+          ECHOSPACE_DEBUG_APK: EchoSpace/app/build/outputs/apk/debug/app-debug.apk
+        with:
+          api-level: 30
+          arch: x86_64
+          target: default
+          profile: pixel_4
+          cores: 4
+          ram-size: 4096M
+          disk-size: 4096M
+          disable-animations: true
+          emulator-options: -no-window -no-snapshot -noaudio -no-boot-anim -gpu swiftshader_indirect
+          script: ECHOSPACE_DEBUG_APK=EchoSpace/app/build/outputs/apk/debug/app-debug.apk python3 .github/scripts/echospace_production_emulator.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: EchoSpace-production-real-emulator-evidence
+          path: echospace-production-qa/
+          if-no-files-found: warn
+          retention-days: 60
