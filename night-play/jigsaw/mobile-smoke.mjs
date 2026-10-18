@@ -243,6 +243,15 @@ try{
  const dl=await desktop.evaluate(()=>window.__nightJigsawTest.snapshot());
  assert.ok(dl.board.x>90&&dl.board.x+dl.board.w<await desktop.evaluate(()=>document.getElementById('puzzleCanvas').width-90),'Desktop picture is centered between left and right scattering areas');
  assert.ok(await desktop.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+2));
+ const desktopFill=await desktop.evaluate(()=>{
+  const box=document.querySelector('#puzzleCanvas').getBoundingClientRect();
+  return {coverage:box.width*box.height/(innerWidth*innerHeight),
+   top:box.top,scrollHeight:document.documentElement.scrollHeight,
+   viewportHeight:innerHeight};
+ });
+ assert.ok(desktopFill.coverage>.88,'Desktop Jigsaw occupies >=88% viewport '+JSON.stringify(desktopFill));
+ assert.ok(desktopFill.top<=64&&desktopFill.scrollHeight<=desktopFill.viewportHeight+1,
+  'Desktop full-screen game does not require scrolling '+JSON.stringify(desktopFill));
  await desktop.screenshot({path:path.join(root,'visual-output/JIGSAW-PLAY-DESKTOP.jpg'),type:'jpeg',quality:75,fullPage:true});
  console.log('NIGHT_JIGSAW_DESKTOP_JPEG_BASE64='+(await desktop.screenshot({type:'jpeg',quality:50,fullPage:true})).toString('base64'));
  assert.deepEqual(deskErrors,[]);
@@ -275,6 +284,11 @@ try{
  assert.equal(hudState.overflow,false,'Puzzle has no horizontal overflow');
  assert.ok(hudState.toolbarBottom<=64,'Mobile puzzle toolbar fits in 64px');
  assert.ok(hudState.boardTop<=64,'Board begins immediately below the one gameplay rail');
+ const mobileFill=await hud.evaluate(()=>{
+  const b=document.querySelector('#puzzleCanvas').getBoundingClientRect();
+  return b.width*b.height/(innerWidth*innerHeight);
+ });
+ assert.ok(mobileFill>.88,'Mobile puzzle must fill at least 88% of the viewport: '+mobileFill);
  assert.ok(await hud.evaluate(()=>document.documentElement.scrollHeight<=innerHeight+1),'Mobile puzzle never scrolls');
  assert.ok(Object.values(hudState.rects).every(v=>v.visible),'All top tools visible without scrolling '+JSON.stringify(hudState));
  assert.ok(hudState.toolbarBottom<=hudState.boardTop+2,'Assistance controls belong above the puzzle');
