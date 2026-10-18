@@ -14,24 +14,30 @@ export class PuzzleBoard{
   this.rows=3;this.cols=4;this.totalPieces=12;this.pieces=[];this.selectedPiece=null;
   this.boardX=0;this.boardY=0;this.boardWidth=0;this.boardHeight=0;
   this.pieceWidth=0;this.pieceHeight=0;this.tray={x:0,y:0,w:0,h:0};
-  this.showGhost=false;this.placedCount=0;this.moveCount=0;
+  this.showGhost=false;this.edgeOnly=false;this.placedCount=0;this.moveCount=0;
+  this.selectedPieces=[];this.scatterZones=[];this.lastJoinCount=0;
   this.sourceCanvas=document.createElement('canvas');this.sourceCtx=this.sourceCanvas.getContext('2d');
   this.sourceCanvas.width=800;this.sourceCanvas.height=600;
  }
  resize(){
-  const rect=this.wrapper.getBoundingClientRect(),w=Math.max(300,Math.round(rect.width)),h=Math.max(460,Math.round(rect.height));
+  const rect=this.wrapper.getBoundingClientRect();
+  const w=Math.max(300,Math.round(rect.width)),h=Math.max(460,Math.round(rect.height));
   if(this.canvas.width===w&&this.canvas.height===h)return;
-  const old={w:this.canvas.width,h:this.canvas.height,x:this.boardX,y:this.boardY,pw:this.pieceWidth,ph:this.pieceHeight,tray:{...this.tray}};
-  this.canvas.width=w;this.canvas.height=h;
-  this.dragCanvas.width=w;this.dragCanvas.height=h;
+  const old={w:this.canvas.width,h:this.canvas.height,pw:this.pieceWidth,ph:this.pieceHeight};
+  const anchors=new Map();
+  for(const p of this.pieces)if(!p.isPlaced&&!anchors.has(p.group||p.id))
+   anchors.set(p.group||p.id,{row:p.row,col:p.col,x:p.x,y:p.y});
+  this.canvas.width=w;this.canvas.height=h;this.dragCanvas.width=w;this.dragCanvas.height=h;
   this.setupBoardLayout();
   if(this.pieces.length){
    for(const p of this.pieces){
     if(p.isPlaced){p.x=this.boardX+p.col*this.pieceWidth;p.y=this.boardY+p.row*this.pieceHeight;}
-    else if(old.w>0&&old.tray.w>0){
-     const nx=(p.x-old.tray.x+old.pw*.5)/old.tray.w,ny=(p.y-old.tray.y+old.ph*.5)/old.tray.h;
-     p.x=this.tray.x+nx*this.tray.w-this.pieceWidth*.5;
-     p.y=this.tray.y+ny*this.tray.h-this.pieceHeight*.5;
+    else{
+     const a=anchors.get(p.group||p.id);
+     p.x=Math.max(-this.pieceWidth*.15,Math.min(w-this.pieceWidth*.85,
+       (a?.x||0)/Math.max(1,old.w)*w+(p.col-a.col)*this.pieceWidth));
+     p.y=Math.max(-this.pieceHeight*.15,Math.min(h-this.pieceHeight*.85,
+       (a?.y||0)/Math.max(1,old.h)*h+(p.row-a.row)*this.pieceHeight));
     }
     p.correctX=this.boardX+p.col*this.pieceWidth;p.correctY=this.boardY+p.row*this.pieceHeight;
     PieceCutter.renderPieceToCanvas(p,this.sourceCanvas,this.pieceWidth,this.pieceHeight,this.rows,this.cols);
@@ -41,45 +47,64 @@ export class PuzzleBoard{
  setDimensions(rows,cols){this.rows=rows;this.cols=cols;this.totalPieces=rows*cols;}
  setupBoardLayout(){
   const cw=this.canvas.width,ch=this.canvas.height,mobile=cw<680;
+  this.boardWidth=mobile?Math.min(cw-20,780):Math.min(cw*.63,760,(ch-20)*4/3);
+  this.boardHeight=this.boardWidth*.75;
+  this.boardX=(cw-this.boardWidth)/2;
+  this.boardY=(ch-this.boardHeight)/2;
+  const gap=12;
   if(mobile){
-   // Keep the actual picture at almost the complete available phone width.
-   this.boardWidth=Math.min(cw-6,780);this.boardHeight=this.boardWidth*.75;
-   this.boardX=(cw-this.boardWidth)/2;this.boardY=5;
-   const looseY=this.boardY+this.boardHeight+22;
-   // Loose pieces share the canvas with the picture rather than occupying a framed box.
-   this.tray={x:5,y:looseY,w:cw-10,h:Math.max(80,ch-looseY-7)};
+   this.scatterZones=[
+    {x:4,y:5,w:cw-8,h:Math.max(20,this.boardY-gap-5)},
+    {x:4,y:this.boardY+this.boardHeight+gap,w:cw-8,h:Math.max(20,ch-this.boardY-this.boardHeight-gap-6)}
+   ];
   }else{
-   this.boardWidth=Math.min(cw*.64,740,(ch-15)*4/3);this.boardHeight=this.boardWidth*.75;
-   this.boardX=7;this.boardY=(ch-this.boardHeight)/2;
-   const tx=this.boardX+this.boardWidth+16;
-   this.tray={x:tx,y:9,w:Math.max(100,cw-tx-9),h:ch-18};
+   this.scatterZones=[
+    {x:5,y:5,w:Math.max(15,this.boardX-gap-5),h:ch-10},
+    {x:this.boardX+this.boardWidth+gap,y:5,w:Math.max(15,cw-this.boardX-this.boardWidth-gap-5),h:ch-10}
+   ];
   }
+  // Store free-piece positions as ratios of the whole tabletop, independent of
+  // its arrangement; saves survive portrait rotation and zoom adjustments.
+  this.tray={x:0,y:0,w:cw,h:ch};
   this.pieceWidth=this.boardWidth/this.cols;this.pieceHeight=this.boardHeight/this.rows;
  }
  buildPieces(){
-  this.resize();this.setupBoardLayout();this.placedCount=0;this.moveCount=0;this.selectedPiece=null;
+  this.resize();this.setupBoardLayout();
+  this.placedCount=0;this.moveCount=0;this.selectedPiece=null;this.selectedPieces=[];
   const {hEdges,vEdges}=PieceCutter.generateEdgeMatrix(this.rows,this.cols);
-  const count=this.totalPieces,t=this.tray;
-  const slotCols=Math.max(1,Math.min(this.cols,Math.floor(t.w/(this.pieceWidth*.97))));
-  const slotRows=Math.ceil(count/slotCols);
-  const slots=Array.from({length:count},(_,i)=>{
-   const col=i%slotCols,row=Math.floor(i/slotCols),sw=t.w/slotCols,sh=t.h/slotRows;
-   const stagger=(((i*7)%5)-2)*Math.min(5,Math.max(0,(sw-this.pieceWidth)/5));
-   const drift=(((i*11)%7)-3)*Math.min(3,Math.max(0,(sh-this.pieceHeight)/8));
-   return {x:Math.min(t.x+t.w-this.pieceWidth,Math.max(t.x,t.x+col*sw+(sw-this.pieceWidth)/2+stagger)),
-    y:Math.min(t.y+t.h-this.pieceHeight,Math.max(t.y,t.y+row*sh+(sh-this.pieceHeight)/2+drift))};
-  });
-  for(let i=count-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[slots[i],slots[j]]=[slots[j],slots[i]];}
+  const zones=this.scatterZones,pw=this.pieceWidth,ph=this.pieceHeight;
+  // Best-candidate scattering: no visible rows, no extra piece-tray box.
+  // Distribute across top/bottom on phones, left/right on wider screens.
+  const occupied=[[],[]],slots=[];
+  const count=this.totalPieces;
+  for(let i=0;i<count;i++){
+   const zoneIndex=i%zones.length,z=zones[zoneIndex],previous=occupied[zoneIndex];
+   const rangeX=Math.max(0,z.w-pw),rangeY=Math.max(0,z.h-ph);
+   let best=null,bestScore=-Infinity;
+   for(let trial=0;trial<24;trial++){
+    const x=z.x+Math.random()*rangeX,y=z.y+Math.random()*rangeY;
+    let score=previous.length?Infinity:10;
+    for(const old of previous){
+     const dist=Math.hypot((x-old.x)/(pw*.84||1),(y-old.y)/(ph*.84||1));
+     if(dist<score)score=dist;
+    }
+    score+=Math.random()*.085;
+    if(score>bestScore){best={x,y};bestScore=score;}
+   }
+   occupied[zoneIndex].push(best);slots.push(best);
+  }
+  // Shuffle which source image goes into each distributed location.
+  for(let i=slots.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[slots[i],slots[j]]=[slots[j],slots[i]];}
   this.pieces=[];
   for(let row=0;row<this.rows;row++)for(let col=0;col<this.cols;col++){
-   const i=row*this.cols+col,p={
-    id:row+'-'+col,row,col,x:slots[i].x,y:slots[i].y,
-    correctX:this.boardX+col*this.pieceWidth,correctY:this.boardY+row*this.pieceHeight,
+   const i=row*this.cols+col,position=slots[i],p={
+    id:row+'-'+col,row,col,x:position.x,y:position.y,group:row+'-'+col,
+    correctX:this.boardX+col*pw,correctY:this.boardY+row*ph,
     edges:{top:row===0?0:-hEdges[row-1][col],right:col===this.cols-1?0:vEdges[row][col],
      bottom:row===this.rows-1?0:hEdges[row][col],left:col===0?0:-vEdges[row][col-1]},
     isPlaced:false
    };
-   PieceCutter.renderPieceToCanvas(p,this.sourceCanvas,this.pieceWidth,this.pieceHeight,this.rows,this.cols);
+   PieceCutter.renderPieceToCanvas(p,this.sourceCanvas,pw,ph,this.rows,this.cols);
    this.pieces.push(p);
   }
  }
@@ -92,40 +117,105 @@ export class PuzzleBoard{
   }
   return null;
  }
- bringToTop(index){const p=this.pieces.splice(index,1)[0];this.pieces.push(p);return p;}
+ bringToTop(index){
+  const p=this.pieces[index],id=p.group||p.id;
+  const selected=this.pieces.filter(item=>(item.group||item.id)===id);
+  this.pieces=this.pieces.filter(item=>(item.group||item.id)!==id).concat(selected);
+  this.selectedPieces=selected;
+  return p;
+ }
+ moveSelectionTo(x,y){
+  const p=this.selectedPiece;if(!p)return;
+  const dx=x-p.x,dy=y-p.y;
+  for(const item of this.selectedPieces){item.x+=dx;item.y+=dy;}
+ }
+ groupPieces(id){return this.pieces.filter(p=>(p.group||p.id)===id&&!p.isPlaced);}
+ anchorGroup(id){
+  const group=this.groupPieces(id);
+  for(const p of group){p.x=p.correctX;p.y=p.correctY;p.isPlaced=true;this.placedCount++;}
+  return group.length;
+ }
  checkSnap(p){
-  const threshold=Math.max(16,Math.min(32,this.pieceWidth*.27));
-  if(Math.hypot(p.x-p.correctX,p.y-p.correctY)>threshold)return false;
-  p.x=p.correctX;p.y=p.correctY;p.isPlaced=true;this.placedCount++;return true;
+  this.lastJoinCount=0;if(!p||p.isPlaced)return false;
+  const threshold=Math.max(11,Math.min(27,Math.min(this.pieceWidth,this.pieceHeight)*.23));
+  let selected=this.groupPieces(p.group||p.id);
+  if(!selected.length)return false;
+  const positionFits=m=>Math.hypot(m.x-m.correctX,m.y-m.correctY)<threshold;
+  if(selected.some(positionFits)){this.anchorGroup(p.group||p.id);return true;}
+  const byId=new Map(this.pieces.map(x=>[x.id,x]));
+  // Join geometrically correct neighbours even if both pieces are outside the
+  // finished board. Connected sections can then be dragged as one.
+  let change=true,loops=0;
+  while(change&&loops++<this.totalPieces){
+   change=false;
+   const ids=new Set(selected.map(x=>x.id));
+   for(const member of selected){
+    const options=[[member.row-1,member.col],[member.row+1,member.col],[member.row,member.col-1],[member.row,member.col+1]];
+    for(const [r,c] of options){
+     const neighbour=byId.get(r+'-'+c);
+     if(!neighbour||ids.has(neighbour.id))continue;
+     const expectX=member.x+(c-member.col)*this.pieceWidth;
+     const expectY=member.y+(r-member.row)*this.pieceHeight;
+     const dx=neighbour.x-expectX,dy=neighbour.y-expectY;
+     if(Math.hypot(dx,dy)>threshold)continue;
+     const other=neighbour.isPlaced?[]:this.groupPieces(neighbour.group||neighbour.id);
+     if(neighbour.isPlaced){
+      // The free connected section has reached an already anchored section.
+      this.anchorGroup(p.group||p.id);return true;
+     }
+     if(!other.length)continue;
+     for(const item of selected){item.x+=dx;item.y+=dy;}
+     const groupId=p.group||p.id;
+     for(const item of other){item.group=groupId;ids.add(item.id);}
+     selected=this.groupPieces(groupId);
+     this.lastJoinCount++;change=true;break;
+    }
+    if(change)break;
+   }
+  }
+  if(selected.some(positionFits)){this.anchorGroup(p.group||p.id);return true;}
+  return false;
  }
  hintRandomPiece(){
   const loose=this.pieces.filter(p=>!p.isPlaced);if(!loose.length)return null;
   const p=loose[Math.floor(Math.random()*loose.length)];
-  p.x=p.correctX;p.y=p.correctY;p.isPlaced=true;this.placedCount++;this.moveCount++;return p;
+  this.anchorGroup(p.group||p.id);this.moveCount++;return p;
  }
  serialize(){
-  return {rows:this.rows,cols:this.cols,moves:this.moveCount,ghost:this.showGhost,
-   pieces:this.pieces.map(p=>({id:p.id,row:p.row,col:p.col,isPlaced:p.isPlaced,edges:p.edges,
-    // Relative to the tray, not absolute px, so the save survives portrait rotation.
-    nx:(p.x-this.tray.x+this.pieceWidth/2)/this.tray.w,
-    ny:(p.y-this.tray.y+this.pieceHeight/2)/this.tray.h}))};
+  return {layoutVersion:3,rows:this.rows,cols:this.cols,moves:this.moveCount,ghost:this.showGhost,
+   edgeOnly:this.edgeOnly,
+   pieces:this.pieces.map(p=>({id:p.id,row:p.row,col:p.col,group:p.group||p.id,isPlaced:p.isPlaced,edges:p.edges,
+    nx:(p.x+this.pieceWidth/2)/this.canvas.width,
+    ny:(p.y+this.pieceHeight/2)/this.canvas.height}))};
  }
  restore(saved){
   if(!saved||saved.rows!==this.rows||saved.cols!==this.cols||!Array.isArray(saved.pieces)||saved.pieces.length!==this.totalPieces)return false;
   const byId=new Map(saved.pieces.map(p=>[p.id,p]));
   if(byId.size!==this.totalPieces)return false;
-  this.pieces=[];this.placedCount=0;this.moveCount=Math.max(0,Number(saved.moves)||0);this.showGhost=saved.ghost!==false;
+  this.pieces=[];this.selectedPieces=[];this.placedCount=0;
+  this.moveCount=Math.max(0,Number(saved.moves)||0);
+  this.showGhost=saved.ghost===true;this.edgeOnly=saved.edgeOnly===true;
   for(let row=0;row<this.rows;row++)for(let col=0;col<this.cols;col++){
    const data=byId.get(row+'-'+col);
    if(!data||!data.edges||!Object.values(data.edges).every(v=>[-1,0,1].includes(v)))return false;
-   const p={...data,id:row+'-'+col,row,col,correctX:this.boardX+col*this.pieceWidth,
-    correctY:this.boardY+row*this.pieceHeight,isPlaced:Boolean(data.isPlaced)};
-   p.x=p.isPlaced?p.correctX:this.tray.x+(Math.max(-1,Math.min(2,Number(data.nx)||0)))*this.tray.w-this.pieceWidth/2;
-   p.y=p.isPlaced?p.correctY:this.tray.y+(Math.max(-1,Math.min(2,Number(data.ny)||0)))*this.tray.h-this.pieceHeight/2;
-   if(p.isPlaced)this.placedCount++;
+   const p={...data,id:row+'-'+col,row,col,group:data.group||row+'-'+col,
+    correctX:this.boardX+col*this.pieceWidth,correctY:this.boardY+row*this.pieceHeight,isPlaced:Boolean(data.isPlaced)};
+   if(p.isPlaced){p.x=p.correctX;p.y=p.correctY;this.placedCount++;}
+   else if(saved.layoutVersion===3){
+    p.x=Math.max(0,Math.min(this.canvas.width-this.pieceWidth,(Number(data.nx)||.5)*this.canvas.width-this.pieceWidth/2));
+    p.y=Math.max(0,Math.min(this.canvas.height-this.pieceHeight,(Number(data.ny)||.5)*this.canvas.height-this.pieceHeight/2));
+   }else{
+    // Old saves stored free-piece positions relative to the previous bottom/right tray.
+    // Respect placed pieces and migrate free positions into the corresponding region.
+    const zone=this.scatterZones[this.canvas.width<680?1:1];
+    p.x=zone.x+Math.max(0,Math.min(1,Number(data.nx)||.5))*Math.max(0,zone.w-this.pieceWidth);
+    p.y=zone.y+Math.max(0,Math.min(1,Number(data.ny)||.5))*Math.max(0,zone.h-this.pieceHeight);
+   }
    PieceCutter.renderPieceToCanvas(p,this.sourceCanvas,this.pieceWidth,this.pieceHeight,this.rows,this.cols);
    this.pieces.push(p);
   }
+  // Reject malformed group identities rather than joining unrelated pieces.
+  for(const p of this.pieces)if(!this.pieces.some(x=>x.id===p.group))p.group=p.id;
   return true;
  }
  render(confetti=null){
@@ -134,21 +224,19 @@ export class PuzzleBoard{
   this.staticPaintCount++;
   const ctx=this.ctx,w=this.canvas.width,h=this.canvas.height;
   ctx.clearRect(0,0,w,h);
-  ctx.fillStyle='#edf3ec';ctx.fillRect(0,0,w,h);
+  ctx.fillStyle='#ded8cd';ctx.fillRect(0,0,w,h);
   // One-pixel tabletop frame — never a thick bezel consuming puzzle space.
-  ctx.fillStyle='#f6f8f2';ctx.fillRect(this.boardX,this.boardY,this.boardWidth,this.boardHeight);
-  ctx.strokeStyle='#96b29e';ctx.lineWidth=1;
+  ctx.fillStyle='#8a8175';ctx.fillRect(this.boardX,this.boardY,this.boardWidth,this.boardHeight);
+  ctx.strokeStyle='#696459';ctx.lineWidth=1;
   ctx.strokeRect(this.boardX+.5,this.boardY+.5,this.boardWidth-1,this.boardHeight-1);
   if(this.showGhost){
    // Optional, intentionally very faint guide. Even Relaxed mode is a puzzle.
-   ctx.save();ctx.globalAlpha=.075;ctx.drawImage(this.sourceCanvas,this.boardX,this.boardY,this.boardWidth,this.boardHeight);ctx.restore();
+   ctx.save();ctx.globalAlpha=.17;ctx.drawImage(this.sourceCanvas,this.boardX,this.boardY,this.boardWidth,this.boardHeight);ctx.restore();
   }
-  if(w<680){
-   ctx.fillStyle='#6c8977';ctx.textAlign='center';ctx.font='750 10px system-ui';
-   ctx.fillText('LOOSE PIECES · DRAG TO THE PICTURE',w/2,this.tray.y-7);
-  }
+
   for(const p of this.pieces)if(p.isPlaced){ctx.drawImage(p.offscreenCanvas,p.x-p.canvasMargin,p.y-p.canvasMargin);}
-  for(const p of this.pieces)if(!p.isPlaced&&p!==this.selectedPiece){
+  for(const p of this.pieces)if(!p.isPlaced&&!this.selectedPieces.includes(p)){
+   if(this.edgeOnly&&p.row!==0&&p.col!==0&&p.row!==this.rows-1&&p.col!==this.cols-1)ctx.globalAlpha=.16;
    ctx.save();ctx.shadowColor='#183b295c';ctx.shadowBlur=4;ctx.shadowOffsetY=2;
    ctx.drawImage(p.offscreenCanvas,p.x-p.canvasMargin,p.y-p.canvasMargin);ctx.restore();
   }
@@ -161,11 +249,11 @@ export class PuzzleBoard{
   this.dragPaintCount++;
   const ctx=this.dragCtx;
   ctx.clearRect(0,0,this.dragCanvas.width,this.dragCanvas.height);
-  const p=this.selectedPiece;
-  if(!p)return;
-  ctx.save();
-  ctx.shadowColor='#0f452b55';ctx.shadowBlur=5;ctx.shadowOffsetY=2;
-  ctx.drawImage(p.offscreenCanvas,p.x-p.canvasMargin,p.y-p.canvasMargin);
-  ctx.restore();
+  if(!this.selectedPiece)return;
+  for(const p of this.selectedPieces){
+   ctx.save();ctx.shadowColor='#332a205e';ctx.shadowBlur=8;ctx.shadowOffsetY=3;
+   ctx.drawImage(p.offscreenCanvas,p.x-p.canvasMargin,p.y-p.canvasMargin);
+   ctx.restore();
+  }
  }
 }
