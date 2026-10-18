@@ -22,21 +22,62 @@ assert.equal(await page.locator('#settingsDialog').isVisible(),true);
 await page.locator('#settingsClose').click();
 await page.locator('#screen').evaluate(el=>{if(el.getBoundingClientRect().width<300)throw Error('Arcade board must fill available mobile width')});
 console.log('NIGHT_ARCADE_SHELL_JPEG_BASE64='+(await page.screenshot({type:'jpeg',quality:56,fullPage:true})).toString('base64'));
-assert.equal(await page.locator('[data-control="bird-skin"]').count(),1,"Wing Hop offers real bundled art skins");
+assert.equal(await page.locator('#wingSkin').isVisible(),true,"Wing Hop offers bird art switch in compact HUD");
+assert.equal(await page.locator('[data-control="flap"]').count(),0,"Tap-anywhere game avoids a redundant Flap button");
+assert.equal(await page.locator('#touchbar button').count(),0,"Wing Hop has no redundant toolbar beneath the board");
 assert.equal(await page.evaluate(()=>window.__nightArcadeTest.snapshot().skin),'parrot',"Parrot Kenney sprite is the default");
 assert.equal(await page.evaluate(()=>window.__nightArcadeTest.perf().wingCached),true,"Wing Hop caches static background instead of painting sun and sky each frame");
-await page.locator('[data-control="bird-skin"]').click();
+await page.locator('#wingSkin').click();
 assert.equal(await page.evaluate(()=>window.__nightArcadeTest.snapshot().skin),'chick',"Players can switch to Kenney chick artwork");
-await page.locator('[data-control="bird-skin"]').click();
+await page.locator('#wingSkin').click();
 assert.equal(await page.evaluate(()=>window.__nightArcadeTest.snapshot().skin),'parrot',"Players can switch back to parrot artwork");
-await page.waitForTimeout(250);
+// Larger phone gameplay must use almost all available width, reserve the
+// genuine Restart UI, and render bird/pipes without non-uniform stretching.
+const wingSizes=[[320,568],[360,740],[390,844],[412,915],[540,820],[768,1024],[900,450],[1024,768]];
+for(const [width,height] of wingSizes){
+ await page.setViewportSize({width,height});
+ await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
+ const size=await page.locator('canvas.mode-bird').evaluate(el=>{
+  const r=el.getBoundingClientRect(),restart=document.querySelector("#restart").getBoundingClientRect();
+  return {left:r.left,right:r.right,bottom:r.bottom,width:r.width,height:r.height,
+    backingW:el.width,backingH:el.height,
+    viewportW:innerWidth,viewportH:innerHeight,
+    scrollWidth:document.documentElement.scrollWidth,
+    restartTop:restart.top};
+ });
+ assert.ok(size.width>=180&&size.height>=210,'Wing Hop has a usable arena at '+width+'x'+height+': '+JSON.stringify(size));
+ assert.ok(size.left>=0&&size.right<=width+1,'Wing Hop never overflows screen width at '+width+'x'+height);
+ assert.ok(size.bottom<=height-3,'Wing Hop board fits vertically at '+width+'x'+height+': '+JSON.stringify(size));
+ assert.ok(size.restartTop>=size.bottom-1,'Restart remains below board after resize at '+width+'x'+height);
+ assert.ok(size.scrollWidth<=width+2,'No sideways scrolling at '+width+'x'+height);
+ assert.ok(Math.abs(size.backingH/size.backingW-(size.height-6)/(size.width-6))<.025,'Sprites keep correct proportions after resize at '+width+'x'+height);
+ if(width<=420&&height>=700)assert.ok(size.width>=width-18,'Wing Hop fills phone width at '+width+'x'+height);
+ if(width===900&&height===450)assert.ok(size.width>250,'Landscape game grows by moving scores beside the arena');
+ if((width===390&&height===844)||(width===900&&height===450))
+  console.log('NIGHT_WINGHOP_SCREEN_'+width+'X'+height+'_JPEG_BASE64='+
+   (await page.screenshot({type:'jpeg',quality:55,fullPage:true})).toString('base64'));
+}
+await page.setViewportSize({width:390,height:844});
+await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
+await page.waitForTimeout(90);
 console.log("NIGHT_WINGHOP_VISUAL_JPEG_BASE64="+(await page.locator("canvas.mode-bird").screenshot({type:"jpeg",quality:56})).toString("base64"));
-await page.locator('button[data-control="flap"]').click();
-assert.equal(await page.evaluate(()=>window.__nightArcadeTest.snapshot().started),true,"flapping starts physics");
-await page.waitForTimeout(720);
+await page.locator('canvas.mode-bird').tap();
+assert.equal(await page.evaluate(()=>window.__nightArcadeTest.snapshot().started),true,"touching the playfield starts flight");
+await page.waitForTimeout(75);
+const runningWing=await page.evaluate(()=>window.__nightArcadeTest.snapshot());
+await page.setViewportSize({width:360,height:740});
+await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
+const continuedWing=await page.evaluate(()=>window.__nightArcadeTest.snapshot());
+assert.equal(continuedWing.started,true,"resizing during a round does not restart flight");
+assert.equal(continuedWing.skin,runningWing.skin,"skin retained during resize");
+assert.ok(continuedWing.distance>=runningWing.distance,"scrolling world retains its distance after resize");
+assert.ok(continuedWing.y>=15&&continuedWing.y<500,"bird survives resizing the arena");
+await page.waitForTimeout(250);
 console.log("NIGHT_WINGHOP_ACTION_JPEG_BASE64="+(await page.locator("canvas.mode-bird").screenshot({type:"jpeg",quality:54})).toString("base64"));
 await page.locator("#restart").click();
 assert.equal(await page.evaluate(()=>window.__nightArcadeTest.snapshot().started),false,"restart resets bird");
+assert.equal(await page.evaluate(()=>window.__nightArcadeTest.snapshot().pipes.length),0,"restart removes old obstacles");
+assert.equal(await page.locator('#wingSkin').isVisible(),true,"Skin switch survives restart");
 await page.locator("#settingsButton").click();await page.locator('[data-game="blocks"]').click();
 assert.equal(await page.locator("#title").innerText(),"Block Drop");
 // Dynamic resize regression: portrait, Android split-screen, tall phones,
