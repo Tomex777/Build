@@ -43,7 +43,7 @@ const modeRules={
  challenge:{hints:1,previews:1,peekMs:4000},
  memory:{hints:0,previews:1,peekMs:5000}
 };
-let challengeMode='relaxed',usedHints=0,usedPreviews=0,previewTimeout=null;
+let challengeMode='relaxed',usedHints=0,usedPreviews=0,previewTimeout=null,previewTick=null,paused=false;
 const canvas=$('puzzleCanvas'),wrapper=$('canvasWrapper'),board=new PuzzleBoard(canvas,wrapper);
 const sound=new SoundSynth(),confetti=new ConfettiSystem();
 let theme='photo-alpine-lake',category='all',piecesCount=24,customData=null,elapsed=0,secondsTimer=null,won=false,activeRound=false;
@@ -55,7 +55,7 @@ function applyZoom(){
  const maxX=(zoom-1)*canvas.width*.5,maxY=(zoom-1)*canvas.height*.5;
  panX=Math.max(-maxX,Math.min(maxX,panX));panY=Math.max(-maxY,Math.min(maxY,panY));
  const transform='translate('+panX+'px,'+panY+'px) scale('+zoom+')';
- canvas.style.transform=transform;board.dragCanvas.style.transform=transform;
+ canvas.style.transform=transform;board.dragCanvas.style.transform=transform;$('previewOverlay').style.transform=transform;
  $('zoomReset').textContent=Math.round(zoom*100)+'%';
  $('zoomOut').disabled=zoom<=1.001;$('zoomIn').disabled=zoom>=2.2;
 }
@@ -71,7 +71,9 @@ function showToast(message){const t=$('toast');clearTimeout(toastTimeout);t.text
 function guideEnabled(){return challengeMode!=='memory'&&$('guideSwitch').checked;}
 function updateHelpUI(){
  const rules=modeRules[challengeMode],hints=Math.max(0,rules.hints-usedHints),previews=Math.max(0,rules.previews-usedPreviews);
- $('hintRemaining').textContent=hints+' left';$('previewRemaining').textContent=previews+' left';
+ $('hintRemaining').textContent=String(hints);$('previewRemaining').textContent=String(previews);
+ $('hintButton').setAttribute('aria-label','Use a hint, '+hints+' left');
+ $('previewButton').setAttribute('aria-label','Preview picture, '+previews+' left');
  $('hintButton').disabled=!activeRound||won||hints===0;
  $('previewButton').disabled=!activeRound||won||previews===0;
  $('guideSwitch').disabled=challengeMode==='memory';
@@ -81,18 +83,25 @@ function updateHelpUI(){
 }
 function endPreview(){
  if(previewTimeout!==null){clearTimeout(previewTimeout);previewTimeout=null}
- if($('previewDialog').open)$('previewDialog').close();
+ if(previewTick!==null){clearInterval(previewTick);previewTick=null}
+ $('previewOverlay').hidden=true;
 }
 function showReference({automatic=false}={}){
- if(!activeRound||won)return;
+ if(!activeRound||won||paused)return;
  const rules=modeRules[challengeMode];
  if(usedPreviews>=rules.previews){if(!automatic)showToast('No picture peeks left this round');return}
- usedPreviews++;updateHelpUI();saveGame();timerStop();
- $('previewImage').src=board.sourceCanvas.toDataURL('image/jpeg',.86);
- $('previewExplanation').textContent='Peek '+usedPreviews+' / '+rules.previews+' · Closes in '+Math.ceil(rules.peekMs/1000)+' seconds.';
- if(!$('previewDialog').open)$('previewDialog').showModal();
- if(previewTimeout!==null)clearTimeout(previewTimeout);
- previewTimeout=setTimeout(()=>{previewTimeout=null;if($('previewDialog').open)$('previewDialog').close()},rules.peekMs);
+ endPreview();usedPreviews++;updateHelpUI();saveGame();closeHudMenu();
+ const layer=$('previewOverlay');
+ $('previewImage').src=board.sourceCanvas.toDataURL('image/jpeg',.85);
+ layer.style.left=(board.boardX/canvas.width*100)+'%';
+ layer.style.top=(board.boardY/canvas.height*100)+'%';
+ layer.style.width=(board.boardWidth/canvas.width*100)+'%';
+ layer.style.height=(board.boardHeight/canvas.height*100)+'%';
+ layer.hidden=false;applyZoom();
+ const expiry=Date.now()+rules.peekMs;
+ const tick=()=>{$('previewCountdown').textContent=Math.max(0,Math.ceil((expiry-Date.now())/1000))+'s'};
+ tick();previewTick=setInterval(tick,250);
+ previewTimeout=setTimeout(endPreview,rules.peekMs);
 }
 function setTime(){ $('timer').textContent=timeText(elapsed);}
 function setStats(){
@@ -102,7 +111,7 @@ function setStats(){
  setTime();
 }
 function timerStop(){if(secondsTimer!==null){clearInterval(secondsTimer);secondsTimer=null}}
-function timerStart(){if(secondsTimer!==null||won||!activeRound||document.hidden||$('playScreen').hidden)return;
+function timerStart(){if(secondsTimer!==null||paused||won||!activeRound||document.hidden||$('playScreen').hidden)return;
  secondsTimer=setInterval(()=>{elapsed++;setTime();if(elapsed%5===0)saveGame()},1000);
 }
 function gameData(){
@@ -121,7 +130,8 @@ function resetEffects(){
  $('victoryDialog').close?.();
 }
 function resetBoard(fresh=true,saved=null){
- activeRound=true;won=false;elapsed=fresh?0:Math.max(0,Number(saved?.elapsed)||0);
+ activeRound=true;won=false;paused=false;$('pauseOverlay').hidden=true;updatePauseButton();closeHudMenu();
+ elapsed=fresh?0:Math.max(0,Number(saved?.elapsed)||0);
  if(fresh){usedHints=0;usedPreviews=0}
  else{usedHints=Math.min(modeRules[challengeMode].hints,Math.max(0,Number(saved?.usedHints)||0));
   usedPreviews=Math.min(modeRules[challengeMode].previews,Math.max(0,Number(saved?.usedPreviews)||0))}
@@ -207,7 +217,7 @@ function continuePuzzle(){
 }
 function showGallery(){
  if(document.fullscreenElement)document.exitFullscreen().catch(()=>{});
- imageLoadVersion++;
+ closeHudMenu();paused=false;$('pauseOverlay').hidden=true;imageLoadVersion++;
  timerStop();if(activeRound&&!won)saveGame();
  endPreview();$('playScreen').hidden=true;$('resumePanel').hidden=true;$('openingPanel').hidden=true;
  activeRound=false;category='all';
@@ -280,7 +290,7 @@ function recordWin(){
  }catch{}
 }
 function celebrate(){
- if(won)return;won=true;timerStop();setStats();sound.playVictory();recordWin();updateHelpUI();
+ if(won)return;paused=false;endPreview();won=true;timerStop();setStats();sound.playVictory();recordWin();updateHelpUI();
  $('victoryTime').textContent=timeText(elapsed);
  $('victoryMoves').textContent=String(board.moveCount);
  $('victoryPieces').textContent=String(board.totalPieces);
@@ -291,6 +301,7 @@ function celebrate(){
  winTimeout=setTimeout(()=>{winTimeout=null;if(won&&!$('victoryDialog').open)$('victoryDialog').showModal()},650);
 }
 function refreshAfterMove(p){
+ if(paused)return;
  board.moveCount++;const snapped=board.checkSnap(p),joined=board.lastJoinCount>0;
  board.selectedPieces=[];
  if(snapped||joined)sound.playSnap({joined});else sound.playDrop();
@@ -312,7 +323,7 @@ function cancelSelection(){
  canvas.classList.remove('dragging');board.render();
 }
 canvas.addEventListener('pointerdown',e=>{
- if(!activeRound||won||e.button!==0)return;
+ if(!activeRound||won||paused||e.button!==0)return;
  pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
  if(pointers.size===2){
   cancelSelection();panId=null;const points=[...pointers.values()];
@@ -394,8 +405,8 @@ $('sweepButton').addEventListener('click',()=>{
 });
 function dialog(id){$(id).showModal()}
 document.querySelectorAll('[data-close]').forEach(b=>b.addEventListener('click',()=>$(b.dataset.close).close()));
-$('previewDialog').addEventListener('close',()=>{if(previewTimeout!==null){clearTimeout(previewTimeout);previewTimeout=null}timerStart()});
-$('settingsButton').addEventListener('click',()=>{updateDifficultyButtons();dialog('settingsDialog')});
+
+$('settingsButton').addEventListener('click',()=>{closeHudMenu();updateDifficultyButtons();dialog('settingsDialog')});
 $('guideSwitch').addEventListener('change',e=>{board.showGhost=guideEnabled();safeWrite('night-play-jigsaw-guide',String(e.target.checked));board.render();saveGame()});
 $('soundSwitch').addEventListener('change',e=>{sound.enabled=e.target.checked;safeWrite('night-play-jigsaw-sound',String(e.target.checked))});
 document.querySelectorAll('[data-mode]').forEach(b=>b.addEventListener('click',()=>{
@@ -413,12 +424,39 @@ document.querySelectorAll('[data-pieces]').forEach(b=>b.addEventListener('click'
 }));
 $('categoryChips').addEventListener('click',e=>{const b=e.target.closest('[data-filter]');if(b){category=b.dataset.filter;filterGallery()}});
 $('pickPicture').addEventListener('click',showGallery);
+function closeHudMenu(){
+ $('hudMenu').hidden=true;$('hudMenuButton').setAttribute('aria-expanded','false');
+}
+$('hudMenuButton').addEventListener('click',e=>{
+ e.stopPropagation();const opened=$('hudMenu').hidden;
+ $('hudMenu').hidden=!opened;$('hudMenuButton').setAttribute('aria-expanded',String(opened));
+});
+$('hudMenu').addEventListener('click',e=>e.stopPropagation());
+document.addEventListener('pointerdown',e=>{
+ if(!$('hudMenu').hidden&&!$('hudMenu').contains(e.target)&&!$('hudMenuButton').contains(e.target))closeHudMenu();
+});
+$('hudSettingsButton').addEventListener('click',()=>$('settingsButton').click());
+$('restartMenuButton').addEventListener('click',()=>$('restartButton').click());
+function updatePauseButton(){
+ $('pauseButton').setAttribute('aria-pressed',String(paused));
+ $('pauseButton').setAttribute('aria-label',paused?'Resume puzzle':'Pause puzzle');
+ $('pauseButton').title=paused?'Resume':'Pause';
+ $('pauseButton').querySelector('use').setAttribute('href',paused?'#icon-play':'#icon-pause');
+ $('pauseOverlay').hidden=!paused;
+}
+function togglePause(){
+ if(!activeRound||won)return;
+ paused=!paused;endPreview();closeHudMenu();updatePauseButton();
+ if(paused){timerStop();saveGame()}else{timerStart();board.render()}
+}
+$('pauseButton').addEventListener('click',togglePause);
+$('resumeButton').addEventListener('click',togglePause);
 $('resumePlaying').addEventListener('click',continuePuzzle);
 $('resumeFromGallery').addEventListener('click',continuePuzzle);
 $('startFresh').addEventListener('click',showGallery);
 $('previewButton').addEventListener('click',()=>showReference());
 $('hintButton').addEventListener('click',()=>{
- if(won||usedHints>=modeRules[challengeMode].hints){showToast('No hints left in this round');return}
+ if(!activeRound||won||paused||usedHints>=modeRules[challengeMode].hints){showToast('No hints left in this round');return}
  const p=board.hintRandomPiece();if(!p)return;
  usedHints++;sound.playSnap();setStats();board.render();updateHelpUI();saveGame();
  if(board.placedCount===board.totalPieces)celebrate();
@@ -426,7 +464,7 @@ $('hintButton').addEventListener('click',()=>{
 $('restartButton').addEventListener('click',()=>{
  if(!activeRound||won)return;
  if(theme==='custom'&&!customData)return;
- $('settingsDialog').close();resetBoard(true);
+ closeHudMenu();if($('settingsDialog').open)$('settingsDialog').close();resetBoard(true);
 });
 const fullscreenButton=$('fullscreenButton');
 function updateFullscreenButton(){
@@ -434,6 +472,7 @@ function updateFullscreenButton(){
  fullscreenButton.setAttribute('aria-pressed',String(active));
  fullscreenButton.setAttribute('aria-label',active?'Exit full screen':'Enter full screen');
  fullscreenButton.title=active?'Exit full screen':'Full screen';
+ fullscreenButton.lastChild.textContent=active?'Exit fullscreen':'Fullscreen';
  fullscreenButton.querySelector('use').setAttribute('href',active?'#icon-contract':'#icon-expand');
  // Browser viewport resizes synchronously after fullscreen transitions.
  if(activeRound&&!$('playScreen').hidden)requestAnimationFrame(()=>{
@@ -453,10 +492,15 @@ $('victoryReplay').addEventListener('click',()=>{$('victoryDialog').close();rese
 $('imageFile').addEventListener('change',e=>onPhoto(e.target.files?.[0]));
 const resize=new ResizeObserver(()=>{if(!activeRound||$('playScreen').hidden)return;board.resize();applyZoom();board.render();saveGame()});
 resize.observe(wrapper);
-document.addEventListener('visibilitychange',()=>{if(document.hidden){timerStop();saveGame()}else timerStart()});
+document.addEventListener('visibilitychange',()=>{if(document.hidden){timerStop();endPreview();saveGame()}else timerStart()});
 window.addEventListener('pagehide',()=>{timerStop();saveGame()});
 window.addEventListener('keydown',e=>{
- if(e.key==='Escape'&&!document.fullscreenElement&&$('playScreen').hidden===false&&!['settingsDialog','previewDialog','victoryDialog'].some(id=>$(id).open))showGallery();
+ if(e.key==='Escape'){
+  if(!$('hudMenu').hidden){closeHudMenu();return}
+  if(!$('previewOverlay').hidden){endPreview();return}
+  if(!document.fullscreenElement&&!$('playScreen').hidden&&!['settingsDialog','victoryDialog'].some(id=>$(id).open)){e.preventDefault();togglePause()}
+ }
+ if((e.key===' '||e.key==='p'||e.key==='P')&&activeRound&&!$('playScreen').hidden&&!['INPUT','TEXTAREA','BUTTON'].includes(document.activeElement.tagName)){e.preventDefault();togglePause()}
 });
 // Gallery is intentionally NOT rendered on page load when a saved puzzle exists.
  // This prevents an unfinished puzzle from flashing the full gallery before resuming.
