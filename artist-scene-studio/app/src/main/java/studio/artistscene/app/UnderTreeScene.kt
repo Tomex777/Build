@@ -40,7 +40,7 @@ object UnderTreeScene {
             id = FIRST_STUDENT_ID,
             name = "Classmate A",
             transform = Transform(
-                position = Vec3(-0.73f, 0f, -0.36f),
+                position = Vec3(-0.73f, 0f, -0.13f),
                 rotationEulerDegrees = Vec3(y = 164f),
             ),
             appearance = CharacterAppearanceSettings(
@@ -50,14 +50,14 @@ object UnderTreeScene {
                 hairGravityStrength = 1f,
                 hairWindStrength = .10f,
             ),
-            // Head turned toward the other classmate, one arm lifted as if chatting.
+            // Shoulders lowered from the imported T-pose; one elbow loosely bent while chatting.
             rig = RigPose(joints = mapOf(
                 "figure/spine" to Vec3(z = -3f),
-                "figure/head" to Vec3(y = -12f, z = 4f),
-                "figure/upperarm-l" to Vec3(x = -8f, z = 28f),
-                "figure/lowerarm-l" to Vec3(x = -8f, z = 25f),
-                "figure/upperarm-r" to Vec3(x = 10f, z = -23f),
-                "figure/lowerarm-r" to Vec3(x = 12f, z = -38f),
+                "figure/head" to Vec3(y = -18f, z = 4f),
+                "figure/upperarm-l" to Vec3(x = -7f, z = 79f),
+                "figure/lowerarm-l" to Vec3(x = -8f, z = 10f),
+                "figure/upperarm-r" to Vec3(x = 10f, z = -58f),
+                "figure/lowerarm-r" to Vec3(x = 12f, z = -49f),
                 "figure/thigh-l" to Vec3(x = -3f),
                 "figure/thigh-r" to Vec3(x = 5f),
             )),
@@ -67,7 +67,7 @@ object UnderTreeScene {
             id = SECOND_STUDENT_ID,
             name = "Classmate B",
             transform = Transform(
-                position = Vec3(0.73f, 0f, -0.26f),
+                position = Vec3(0.70f, 0f, -0.09f),
                 rotationEulerDegrees = Vec3(y = 198f),
             ),
             appearance = CharacterAppearanceSettings(
@@ -77,14 +77,14 @@ object UnderTreeScene {
                 hairGravityStrength = 1f,
                 hairWindStrength = .05f,
             ),
-            // Listening posture: mild hip counterbalance, hands lowered, face turned.
+            // Natural listening posture: head turned, lowered arms and mild hip counterbalance.
             rig = RigPose(joints = mapOf(
                 "figure/spine" to Vec3(x = 3f, z = 2f),
-                "figure/head" to Vec3(y = 12f, z = -3f),
-                "figure/upperarm-l" to Vec3(x = 12f, z = 18f),
-                "figure/lowerarm-l" to Vec3(x = 6f, z = 22f),
-                "figure/upperarm-r" to Vec3(x = 10f, z = -25f),
-                "figure/lowerarm-r" to Vec3(x = -12f, z = -32f),
+                "figure/head" to Vec3(y = 18f, z = -3f),
+                "figure/upperarm-l" to Vec3(x = 12f, z = 73f),
+                "figure/lowerarm-l" to Vec3(x = 6f, z = 14f),
+                "figure/upperarm-r" to Vec3(x = 10f, z = -79f),
+                "figure/lowerarm-r" to Vec3(x = -12f, z = -17f),
                 "figure/thigh-l" to Vec3(x = 4f),
                 "figure/thigh-r" to Vec3(x = -4f),
             )),
@@ -94,7 +94,7 @@ object UnderTreeScene {
             id = TREE_ID,
             name = "Shade tree",
             transform = Transform(
-                position = Vec3(0f, 0f, -1.23f),
+                position = Vec3(-0.34f, 0f, -1.23f),
                 scale = Vec3(1.16f, 1.16f, 1.16f),
             ),
         )
