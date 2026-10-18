@@ -12,6 +12,7 @@ for(const asset of [
  const source=readFileSync(new URL(asset,import.meta.url),'utf8')
  assert.doesNotMatch(source,/[\u2190-\u21ff\u2794-\u27bf]/u,asset+' must use real vector SVGs for arrow icons')
 }
+new vm.Script(readFileSync(new URL('./club/games.js',import.meta.url),'utf8'),{filename:'night-play/club/games.js'})
 assert.ok(html.includes('class="jigsaw-cover-photo"'),'Jigsaw game tile should not use the old synthetic puzzle image')
 assert.ok(!html.includes('jthumb-sky'),'Remove original procedural library tile image')
 const jigsawCss=readFileSync(new URL('./jigsaw/style.css',import.meta.url),'utf8')
