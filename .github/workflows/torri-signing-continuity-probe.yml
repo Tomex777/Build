@@ -1,4 +1,5 @@
 name: Torri production signing continuity probe
+# Recheck original key continuity for 2026-10-18 authorized permanent signing.
 on:
   push:
     branches:
