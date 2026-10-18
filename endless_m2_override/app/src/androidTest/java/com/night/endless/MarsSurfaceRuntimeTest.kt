@@ -6,6 +6,8 @@ import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
 import android.view.PixelCopy
+import android.view.MotionEvent
+import android.view.InputDevice
 import android.view.View
 import android.view.ViewGroup
 import androidx.lifecycle.Lifecycle
@@ -105,20 +107,53 @@ class MarsSurfaceRuntimeTest {
             device.waitForIdle()
             await("Surface mode starts") { renderer.isSurfaceMode() }
             await("Surface controls are visible") {
-                device.findObject(By.text("↑")) != null &&
-                    device.findObject(By.textContains("Take off")) != null
+                device.findObject(By.textContains("Take off")) != null &&
+                    device.findObject(By.text("↑")) == null
             }
-            SystemClock.sleep(800)
+            // Rendering the first NASA-derived frame can take longer than
+            // Compose's button transition on slower software emulators.
+            // Verify actual GL progression before capturing the ground,
+            // not a stale sky-only buffer from the previous mode.
+            val landedFrame = renderer.completedFrameCount()
+            await("Initial Mars landscape reaches display", 15_000) {
+                renderer.completedFrameCount() >= landedFrame + 5L
+            }
+            SystemClock.sleep(150)
             capture(instrumentation, "mars-surface", checkNotNull(glRef.get()))
 
+            assertTrue("Orbital Overview must disappear while walking",
+                device.findObject(By.textContains("Overview")) == null)
+            assertTrue("Orbital speed controls must disappear while walking",
+                device.findObject(By.text("▶▶")) == null)
+            assertTrue("Orbital body labels must disappear over Mars terrain",
+                device.findObject(By.desc("Focus Mars")) == null &&
+                    device.findObject(By.desc("Focus Moon")) == null)
+            assertTrue("Take-off has a specific accessible action",
+                device.findObject(By.desc("Take off from Mars")) != null)
+            assertTrue("Old arrow-glyph launch control must not return",
+                device.findObject(By.textContains("↗  Take off")) == null)
+            // Physical thumbstick: hold and drag left, look with the other thumb.
+            // The old four ↑←↓→ tap buttons must not be present on the surface.
+            assertTrue("Legacy tap movement buttons must be absent",
+                device.findObject(By.text("↑")) == null)
             val before = renderer.surfaceCoordinates()
-            val forwardControl = checkNotNull(device.findObject(By.text("↑")))
-            repeat(8) {
-                forwardControl.click()
-                SystemClock.sleep(80)
-            }
+            val joystickScene = checkNotNull(glRef.get())
+            val joystickScreenOrigin = IntArray(2)
+            joystickScene.getLocationOnScreen(joystickScreenOrigin)
+            val density = joystickScene.resources.displayMetrics.density
+            val thumbX = joystickScreenOrigin[0] + (92f * density).toInt()
+            val thumbY = joystickScreenOrigin[1] + joystickScene.height -
+                (102f * density).toInt()
+            assertTrue("Could not drag the movement thumbstick",
+                device.swipe(
+                    thumbX, thumbY, thumbX,
+                    thumbY - (50f * density).toInt(), 45
+                ))
             val after = renderer.surfaceCoordinates()
             assertNotEquals("Surface movement did not change location", before, after)
+            assertEquals("Surface controls must follow a completed terrain frame", "mars", renderer.renderedSurfaceBodyId())
+            assertTrue("Repeated landing must not reset a walking session", !renderer.landOnMars())
+            assertEquals("A repeated landing changed the walking position", after, renderer.surfaceCoordinates())
             capture(instrumentation, "mars-movement", checkNotNull(glRef.get()))
 
             val lookBefore = renderer.surfaceOrientation()
@@ -134,6 +169,73 @@ class MarsSurfaceRuntimeTest {
                 renderer.surfaceOrientation() != lookBefore
             }
             capture(instrumentation, "mars-look", checkNotNull(glRef.get()))
+
+            // Two-thumb control must let the player walk and turn together.
+            // Inject both pointer IDs to one GLSurfaceView: a separate
+            // touch-consuming joystick overlay would fail this scenario.
+            val dualBeforeWalk = renderer.surfaceCoordinates()
+            val dualBeforeLook = renderer.surfaceOrientation()
+            val dual = checkNotNull(glRef.get())
+            val d = dual.resources.displayMetrics.density
+            val jx = 92f * d
+            val jy = dual.height - 102f * d
+            val rx = dual.width * .63f
+            val ry = dual.height * .48f
+            val beganAt = SystemClock.uptimeMillis()
+            fun injectTwoThumbs(action: Int, two: Boolean, stickY: Float, rightX: Float) {
+                instrumentation.runOnMainSync {
+                    val pp = Array(if (two) 2 else 1) { id ->
+                        MotionEvent.PointerProperties().apply {
+                            this.id = id
+                            toolType = MotionEvent.TOOL_TYPE_FINGER
+                        }
+                    }
+                    val pc = Array(if (two) 2 else 1) { id ->
+                        MotionEvent.PointerCoords().apply {
+                            x = if (id == 0) jx else rightX
+                            y = if (id == 0) stickY else ry
+                            pressure = 1f
+                            size = 1f
+                        }
+                    }
+                    val event = MotionEvent.obtain(
+                        beganAt, SystemClock.uptimeMillis(),
+                        action, pp.size, pp, pc, 0, 0,
+                        1f, 1f, 0, 0, InputDevice.SOURCE_TOUCHSCREEN, 0
+                    )
+                    try { dual.onTouchEvent(event) } finally { event.recycle() }
+                }
+            }
+            injectTwoThumbs(MotionEvent.ACTION_DOWN, false, jy, rx)
+            injectTwoThumbs(
+                MotionEvent.ACTION_POINTER_DOWN or
+                    (1 shl MotionEvent.ACTION_POINTER_INDEX_SHIFT),
+                true, jy, rx
+            )
+            injectTwoThumbs(MotionEvent.ACTION_MOVE, true, jy - 48f * d, rx + 75f * d)
+            // The emulator is often software-rendered: motion must survive
+            // a held input even if GL did not publish a frame during 420ms.
+            val dualStartFrame = renderer.completedFrameCount()
+            SystemClock.sleep(420)
+            injectTwoThumbs(MotionEvent.ACTION_MOVE, true, jy - 48f * d, rx + 110f * d)
+            val dualEndFrame = renderer.completedFrameCount()
+            android.util.Log.i("EndlessInputTest",
+                "Dual-thumb GL frames during hold: ${dualEndFrame - dualStartFrame}")
+            injectTwoThumbs(
+                MotionEvent.ACTION_POINTER_UP or
+                    (1 shl MotionEvent.ACTION_POINTER_INDEX_SHIFT),
+                true, jy - 48f * d, rx + 110f * d
+            )
+            injectTwoThumbs(MotionEvent.ACTION_UP, false, jy - 48f * d, rx)
+            assertNotEquals("Both fingers down: joystick did not advance", dualBeforeWalk,
+                renderer.surfaceCoordinates())
+            assertNotEquals("Both fingers down: second finger did not turn", dualBeforeLook,
+                renderer.surfaceOrientation())
+            val stoppedAt = renderer.surfaceCoordinates()
+            SystemClock.sleep(160)
+            assertEquals("Joystick must stop as soon as last finger lifts",
+                stoppedAt, renderer.surfaceCoordinates())
+            capture(instrumentation, "mars-dual-thumb", dual)
 
             val coordinatesBeforeRecreate = renderer.surfaceCoordinates()
             val orientationBeforeRecreate = renderer.surfaceOrientation()
@@ -300,6 +402,12 @@ class MarsSurfaceRuntimeTest {
         name: String,
         renderedScene: EndlessGLView? = null
     ) {
+        renderedScene?.let { scene ->
+            val baseline = scene.endlessRenderer.completedFrameCount()
+            await("Stable composed frame for $name", 20_000) {
+                scene.endlessRenderer.completedFrameCount() >= baseline + 3L
+            }
+        }
         val screenshot: Bitmap = checkNotNull(instrumentation.uiAutomation.takeScreenshot())
         val fullTarget = File(
             checkNotNull(instrumentation.targetContext.getExternalFilesDir(null)),

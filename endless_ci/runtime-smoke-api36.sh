@@ -92,8 +92,8 @@ echo "Instrumentation runner: $RUNNER"
 adb -s emulator-5554 logcat -c || true
 
 set +e
-timeout 8m adb -s emulator-5554 shell am instrument -w -r \
-    -e class com.night.endless.MarsSurfaceRuntimeTest,com.night.endless.MoonSurfaceRuntimeTest,com.night.endless.OrbitalNavigationRuntimeTest,com.night.endless.DeepTimeRuntimeTest,com.night.endless.CosmicScaleRuntimeTest \
+timeout 13m adb -s emulator-5554 shell am instrument -w -r \
+    -e class com.night.endless.MarsSurfaceRuntimeTest,com.night.endless.MoonSurfaceRuntimeTest,com.night.endless.ExtendedSurfaceRuntimeTest,com.night.endless.OrbitalNavigationRuntimeTest,com.night.endless.DeepTimeRuntimeTest,com.night.endless.CosmicScaleRuntimeTest \
     "$RUNNER" \
     | tee "$ARTIFACT_DIR/instrumentation.txt"
 instrument_status=${PIPESTATUS[0]}

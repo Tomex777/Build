@@ -12,6 +12,7 @@ import com.night.endless.engine.math.Vec3d
 import com.night.endless.engine.scene.AsteroidBeltModel
 import com.night.endless.engine.scene.CelestialBody
 import com.night.endless.engine.scene.DeepTimeHistory
+import com.night.endless.engine.scene.KeplerEphemeris
 import com.night.endless.engine.scene.UniverseClock
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
@@ -57,6 +58,7 @@ class EndlessRenderer(
     private var starProgram = 0
     private var lineProgram = 0
     private var ringProgram = 0
+    private var marsSkyProgram = 0
 
     private val textures = mutableMapOf<String, Int>()
     private var earthCloudsTexture = 0
@@ -120,6 +122,16 @@ class EndlessRenderer(
     private var moonSurfaceMode = false
     private var moonSurfaceX = 0.0
     private var moonSurfaceZ = 0.0
+    private var extendedSurfaceId: String? = null
+    private var extendedSurfaceX = 0.0
+    private var extendedSurfaceZ = 0.0
+    private val extendedTerrains = mutableMapOf<String, ExtendedSurfaceTerrain>()
+    private var surfaceForwardInput = 0f
+    private var surfaceStrafeInput = 0f
+    // Input lifetime uses monotonic wall time, not GL frame availability.
+    // Software GLES can stall while a player holds a thumb; without this clock,
+    // releasing between frames discards the entire movement gesture.
+    private var lastSurfaceMovementNanos = System.nanoTime()
     @Volatile private var deepTimeAgeGa = 0.0
     @Volatile private var renderedDeepTimeAgeGa = 0.0
     private var marsSurfaceTerrain: MarsSurfaceTerrain? = null
@@ -154,7 +166,10 @@ class EndlessRenderer(
         val moonSurfaceMode: Boolean,
         val moonSurfaceX: Double,
         val moonSurfaceZ: Double,
-        val clockState: UniverseClock.State
+        val clockState: UniverseClock.State,
+        val extendedSurfaceId: String? = null,
+        val extendedSurfaceX: Double = 0.0,
+        val extendedSurfaceZ: Double = 0.0
     )
 
     init {
@@ -203,6 +218,13 @@ class EndlessRenderer(
             floatArrayOf(.79f, .68f, .43f, 1f),
             phaseRad = 2.7, radiusKm = 58232.0, semiMajorAxisAu = 9.5371, axialTiltDeg = 26.73
         )
+        // Giant-planet moon orbits are schematic rather than JPL ephemerides.
+        bodies += CelestialBody("europa", "Europa", .19, 1.98, 3.55118, 85.23,
+            floatArrayOf(.67f,.69f,.63f,1f), parentId = "jupiter",
+            phaseRad = 1.6, radiusKm = 1560.8, axialTiltDeg = .1)
+        bodies += CelestialBody("titan", "Titan", .23, 1.93, 15.945, 382.68,
+            floatArrayOf(.73f,.45f,.19f,1f), parentId = "saturn",
+            phaseRad = .6, radiusKm = 2574.73, axialTiltDeg = .3)
         bodies += CelestialBody(
             "uranus", "Uranus", .72, 27.6, 30688.5, -17.24,
             floatArrayOf(.42f, .78f, .82f, 1f),
@@ -218,7 +240,13 @@ class EndlessRenderer(
         cameraTarget = byId["earth"]?.position ?: Vec3d.ZERO
     }
 
+    @Volatile private var activeDepthBits = 0
+    fun depthBufferBits(): Int = activeDepthBits
+
     override fun onSurfaceCreated(gl: GL10?, config: EGLConfig?) {
+        val depth = IntArray(1)
+        GLES30.glGetIntegerv(GLES30.GL_DEPTH_BITS, depth, 0)
+        activeDepthBits = depth[0]
         GLES30.glClearColor(0.004f, 0.006f, 0.02f, 1f)
         GLES30.glEnable(GLES30.GL_DEPTH_TEST)
         GLES30.glEnable(GLES30.GL_CULL_FACE)
@@ -230,6 +258,7 @@ class EndlessRenderer(
         starProgram = createProgram(STAR_VERTEX_SHADER, STAR_FRAGMENT_SHADER)
         lineProgram = createProgram(LINE_VERTEX_SHADER, LINE_FRAGMENT_SHADER)
         ringProgram = createProgram(RING_VERTEX_SHADER, RING_FRAGMENT_SHADER)
+        marsSkyProgram = createProgram(MARS_SKY_VERTEX_SHADER, MARS_SKY_FRAGMENT_SHADER)
 
         loadPlanetTextures()
         buildStars()
@@ -237,8 +266,16 @@ class EndlessRenderer(
         buildOrbitBuffers()
         buildFormationDiskBuffers()
         buildRingMesh()
-        marsSurfaceTerrain = MarsSurfaceTerrain()
-        moonSurfaceTerrain = MoonSurfaceTerrain()
+        // NASA DEM assets must be loaded BEFORE any coarse geometry or
+        // cached local LOD is constructed. Previous order silently built
+        // the Mars coarse surface using its procedural fallback while the
+        // walking camera sampled NASA MOLA -- producing wrong horizons.
+        MoonSurfaceMeshGenerator.elevationPatch =
+            MeasuredElevationPatch.load(context, "moon_lola_terrain.bin")
+        MarsSurfaceTerrain.elevationPatch =
+            MeasuredElevationPatch.load(context, "mars_mola_terrain.bin")
+        marsSurfaceTerrain = MarsSurfaceTerrain(context)
+        moonSurfaceTerrain = MoonSurfaceTerrain(context)
     }
 
     override fun onSurfaceChanged(gl: GL10?, w: Int, h: Int) {
@@ -248,12 +285,45 @@ class EndlessRenderer(
         Matrix.perspectiveM(projection, 0, 48f, width.toFloat() / height, 0.03f, 300f)
     }
 
+    data class UiFrameSnapshot(
+        val timeMillis: Long,
+        val speedLabel: String,
+        val labels: List<BodyLabelSnapshot>,
+        val approach: ApproachSnapshot,
+        val navigation: ExplorationState,
+        val navigationRevision: Long,
+        val surfaceBody: String?
+    )
+
+    @Volatile private var navigationRevision = 0L
+    fun currentNavigationRevision(): Long = navigationRevision
+
+    @Volatile private var completedUiFrame: UiFrameSnapshot? = null
+    fun uiFrameSnapshot(): UiFrameSnapshot? = completedUiFrame
+
+    private fun publishUiFrame() {
+        completedUiFrame = UiFrameSnapshot(
+            timeMillis = clock.currentTimeMillis(), speedLabel = clock.speedLabel(),
+            labels = latestLabels, approach = latestApproach,
+            navigation = snapshotState(), navigationRevision = navigationRevision,
+            surfaceBody = completedSurfaceBody
+        )
+    }
+
+    @Volatile private var completedSurfaceBody: String? = null
+    /** Surface represented by the last completed GL frame, not requested mode. */
+    fun renderedSurfaceBodyId(): String? = completedSurfaceBody
+
+    // UI navigation/camera mutators use this same monitor. A landing must
+    // never change mode and yaw halfway through an orbital draw.
+    @Synchronized
     override fun onDrawFrame(gl: GL10?) {
         val now = System.nanoTime()
         val dt = ((now - lastNanos) / 1_000_000_000.0).coerceIn(0.0, .05)
         lastNanos = now
 
         applyControlDamping(dt)
+        updateSurfaceMovement(now)
 
         val simSeconds = clock.advance(dt)
         updateBodyPositions(simSeconds)
@@ -262,14 +332,29 @@ class EndlessRenderer(
         venusCloudRotation -= dt * .004
 
         if (marsSurfaceMode) {
+            latestLabels = emptyList()
             drawMarsSurfaceFrame()
+            completedSurfaceBody = "mars"
             renderedDeepTimeAgeGa = deepTimeAgeGa
+            publishUiFrame()
             completedFrames++
             return
         }
         if (moonSurfaceMode) {
+            latestLabels = emptyList()
             drawMoonSurfaceFrame()
+            completedSurfaceBody = "moon"
             renderedDeepTimeAgeGa = deepTimeAgeGa
+            publishUiFrame()
+            completedFrames++
+            return
+        }
+        extendedSurfaceId?.let { id ->
+            latestLabels = emptyList()
+            drawExtendedSurfaceFrame(id)
+            completedSurfaceBody = id
+            renderedDeepTimeAgeGa = deepTimeAgeGa
+            publishUiFrame()
             completedFrames++
             return
         }
@@ -302,13 +387,15 @@ class EndlessRenderer(
                     )
                 }
             }
-            if (body.id == "mars") {
-                drawMarsAtmosphere(body)
+            if (body.id == "earth" || body.id == "venus" || body.id == "mars") {
+                drawPlanetAtmosphere(body)
             }
         }
 
         drawSaturnRing()
+        completedSurfaceBody = null
         renderedDeepTimeAgeGa = deepTimeAgeGa
+        publishUiFrame()
         completedFrames++
     }
 
@@ -344,17 +431,22 @@ class EndlessRenderer(
         moonSurfaceMode = moonSurfaceMode,
         moonSurfaceX = moonSurfaceX,
         moonSurfaceZ = moonSurfaceZ,
-        clockState = clock.snapshot()
+        clockState = clock.snapshot(),
+        extendedSurfaceId = extendedSurfaceId,
+        extendedSurfaceX = extendedSurfaceX,
+        extendedSurfaceZ = extendedSurfaceZ
     )
 
     @Synchronized
     fun restoreState(state: ExplorationState) {
+        navigationRevision++
         clock.restore(state.clockState)
         updateBodyPositions(clock.seconds())
 
         val restoreSurfaceBody = when {
             state.moonSurfaceMode -> "moon"
             state.marsSurfaceMode -> "mars"
+            state.extendedSurfaceId != null && ExtendedSurfaceMesh.isSupported(state.extendedSurfaceId) -> state.extendedSurfaceId
             else -> null
         }
         overview = if (restoreSurfaceBody != null) false else state.overview
@@ -393,8 +485,13 @@ class EndlessRenderer(
         moonSurfaceMode = restoreSurfaceBody == "moon"
         moonSurfaceX = (state.moonSurfaceX.takeIf { it.isFinite() } ?: 0.0).coerceIn(-8.0, 8.0)
         moonSurfaceZ = (state.moonSurfaceZ.takeIf { it.isFinite() } ?: 0.0).coerceIn(-8.0, 8.0)
+        extendedSurfaceId = restoreSurfaceBody?.takeIf { ExtendedSurfaceMesh.isSupported(it) }
+        extendedSurfaceX = (state.extendedSurfaceX.takeIf { it.isFinite() } ?: 0.0).coerceIn(-8.0, 8.0)
+        extendedSurfaceZ = (state.extendedSurfaceZ.takeIf { it.isFinite() } ?: 0.0).coerceIn(-8.0, 8.0)
         pendingYaw = 0.0
         pendingPitch = 0.0
+        surfaceForwardInput = 0f
+        surfaceStrafeInput = 0f
 
         cameraTarget = selectedId?.let { byId[it]?.position } ?: Vec3d.ZERO
         val cp = cos(pitch)
@@ -405,6 +502,7 @@ class EndlessRenderer(
         )
         previousCameraPosition = cameraPosition
         lastNanos = System.nanoTime()
+        lastSurfaceMovementNanos = lastNanos
         latestLabels = emptyList()
         latestApproach = if (restoreSurfaceBody != null) {
             ApproachSnapshot(restoreSurfaceBody, 0.0, "SURFACE SKIM", true)
@@ -418,7 +516,7 @@ class EndlessRenderer(
     @Synchronized
     fun orbitBy(dx: Float, dy: Float, viewportHeight: Int) {
         val h = max(1, viewportHeight)
-        if (marsSurfaceMode || moonSurfaceMode) {
+        if (isSurfaceMode()) {
             yaw += dx.coerceIn(-120f, 120f) * (2.0 * PI / h.toDouble()) * 0.22
             pitch = (pitch - dy.coerceIn(-120f, 120f) * (2.0 * PI / h.toDouble()) * 0.22).coerceIn(-0.42, 0.42)
             return
@@ -439,7 +537,7 @@ class EndlessRenderer(
 
     @Synchronized
     fun zoomBy(scaleFactor: Float) {
-        if (marsSurfaceMode || moonSurfaceMode || !scaleFactor.isFinite() || scaleFactor <= 0f) return
+        if (isSurfaceMode() || !scaleFactor.isFinite() || scaleFactor <= 0f) return
         val body = selectedId?.let { byId[it] }
         val minimum = if (body != null) body.radius * 1.003 else .35
         targetDistance = (targetDistance * scaleFactor).coerceIn(minimum, 95.0)
@@ -455,7 +553,10 @@ class EndlessRenderer(
             "mars" -> body.radius * 1.018
             "moon" -> body.radius * 1.18
             "venus" -> body.radius * 1.09
-            "ceres" -> body.radius * 1.90
+            "ceres" -> body.radius * 1.25
+            "mercury" -> body.radius * 1.025
+            "europa" -> body.radius * 1.035
+            "titan" -> body.radius * 1.095
             else -> return
         }
     }
@@ -472,6 +573,7 @@ class EndlessRenderer(
                 body.radius * 1.035
             }
             "venus" -> body.radius * 1.03
+            "mercury", "ceres", "europa", "titan" -> body.radius * 1.003
             else -> return
         }
     }
@@ -483,33 +585,47 @@ class EndlessRenderer(
     }
 
     @Synchronized
-    fun isSurfaceMode(): Boolean = marsSurfaceMode || moonSurfaceMode
+    fun isSurfaceMode(): Boolean = marsSurfaceMode || moonSurfaceMode || extendedSurfaceId != null
 
     @Synchronized
     fun surfaceBodyId(): String? = when {
         marsSurfaceMode -> "mars"
         moonSurfaceMode -> "moon"
-        else -> null
+        else -> extendedSurfaceId
     }
 
     @Synchronized
     fun landOnMars(): Boolean {
+        if (isSurfaceMode()) return false
         if (selectedId != "mars" || latestApproach.stage != "SURFACE SKIM") return false
         moonSurfaceMode = false
         marsSurfaceX = 0.0
         marsSurfaceZ = 0.0
         marsSurfaceMode = true
-        pitch = -0.04
+        surfaceForwardInput = 0f
+        surfaceStrafeInput = 0f
+        lastSurfaceMovementNanos = System.nanoTime()
+        pendingYaw = 0.0
+        pendingPitch = 0.0
+        yaw = 1.05
+        pitch = -0.07
         return true
     }
 
     @Synchronized
     fun landOnMoon(): Boolean {
+        if (isSurfaceMode()) return false
         if (selectedId != "moon" || latestApproach.stage != "SURFACE SKIM") return false
         marsSurfaceMode = false
         moonSurfaceX = 1.5
         moonSurfaceZ = -0.5
         moonSurfaceMode = true
+        surfaceForwardInput = 0f
+        surfaceStrafeInput = 0f
+        lastSurfaceMovementNanos = System.nanoTime()
+        pendingYaw = 0.0
+        pendingPitch = 0.0
+        yaw = 0.72
         // The first landed frame should show nearby relief without snapping the
         // user's heading away from the approach direction.
         pitch = -0.09
@@ -517,33 +633,118 @@ class EndlessRenderer(
     }
 
     @Synchronized
+    fun landOnExtendedBody(id: String): Boolean {
+        if (isSurfaceMode() || !ExtendedSurfaceMesh.isSupported(id)) return false
+        if (selectedId != id || latestApproach.stage != "SURFACE SKIM") return false
+        marsSurfaceMode = false
+        moonSurfaceMode = false
+        extendedSurfaceId = id
+        extendedSurfaceX = 0.0
+        extendedSurfaceZ = 0.0
+        surfaceForwardInput = 0f
+        surfaceStrafeInput = 0f
+        lastSurfaceMovementNanos = System.nanoTime()
+        pendingYaw = 0.0
+        pendingPitch = 0.0
+        yaw = if (id == "europa") 1.24 else .85
+        pitch = if (id == "titan") -.11 else -.08
+        return true
+    }
+
+    /**
+     * GTA-style analog movement follows a monotonic input clock, not the
+     * renderer's frame rate. Release commits the held gesture, while
+     * cancellation discards it, including during lifecycle transitions.
+     */
+    @Synchronized
+    fun setSurfaceMovementInput(forward: Float, strafe: Float) {
+        // Apply motion up to this touch event before updating its direction.
+        // Crucial when finger-down and finger-up occur between slow GL frames.
+        updateSurfaceMovement(System.nanoTime())
+        if (!isSurfaceMode()) {
+            surfaceForwardInput = 0f
+            surfaceStrafeInput = 0f
+            return
+        }
+        val length = if (forward.isFinite() && strafe.isFinite())
+            kotlin.math.hypot(forward, strafe) else 0f
+        val divisor = length.coerceAtLeast(1f)
+        surfaceForwardInput = if (length < 0.001f) 0f else forward / divisor
+        surfaceStrafeInput = if (length < 0.001f) 0f else strafe / divisor
+    }
+
+    @Synchronized
+    fun cancelSurfaceMovementInput() {
+        // App pause/detach is different from a completed swipe: do not advance
+        // the astronaut during a background transition.
+        surfaceForwardInput = 0f
+        surfaceStrafeInput = 0f
+        lastSurfaceMovementNanos = System.nanoTime()
+    }
+
+    private fun updateSurfaceMovement(nowNanos: Long) {
+        val elapsed = SurfaceJoystickMath.elapsedMovementSeconds(lastSurfaceMovementNanos, nowNanos)
+        lastSurfaceMovementNanos = nowNanos
+        if (!isSurfaceMode()) return
+        val forward = surfaceForwardInput
+        val strafe = surfaceStrafeInput
+        val magnitude = kotlin.math.hypot(forward, strafe)
+        if (magnitude < 0.001f || elapsed <= 0.0) return
+        // Limit each physics step to 50ms while consuming the whole bounded
+        // gesture interval. Avoid both frame-rate-dependent lost input and
+        // large collision jumps on slow renderers.
+        var remaining = elapsed
+        while (remaining > 1e-8) {
+            val dt = min(remaining, 0.05)
+            val distance = SurfaceJoystickMath.travelWorldUnits(dt) *
+                magnitude.coerceAtMost(1f)
+            advanceSurfacePosition(forward / magnitude, strafe / magnitude, distance)
+            remaining -= dt
+        }
+    }
+
+    // Kept for saved gesture integrations/tests that request one discrete step.
+    @Synchronized
     fun walkSurface(forward: Float, strafe: Float) {
-        if (!marsSurfaceMode && !moonSurfaceMode) return
-        val magnitude = sqrt(forward * forward + strafe * strafe).coerceAtLeast(1f)
-        val f = forward / magnitude
-        val s = strafe / magnitude
+        val len = kotlin.math.hypot(forward, strafe)
+        if (!len.isFinite() || len < 0.001f) return
+        advanceSurfacePosition(forward / len, strafe / len, 0.00078)
+    }
+
+    private fun advanceSurfacePosition(forward: Float, strafe: Float, step: Double) {
+        if (!isSurfaceMode() || step <= 0.0) return
+        val f = forward.toDouble()
+        val s = strafe.toDouble()
         val sinHeading = sin(yaw)
         val cosHeading = cos(yaw)
-
         if (marsSurfaceMode) {
-            val step = 0.20
             val nextX = (marsSurfaceX + (sinHeading * f + cosHeading * s) * step).coerceIn(-8.0, 8.0)
             val nextZ = (marsSurfaceZ + (-cosHeading * f + sinHeading * s) * step).coerceIn(-8.0, 8.0)
-            val rise = MarsSurfaceTerrain.heightAt(nextX, nextZ) -
-                MarsSurfaceTerrain.heightAt(marsSurfaceX, marsSurfaceZ)
-            if (rise <= 0.055 && rise >= -0.08) {
+            val rise = MarsSurfaceTerrain.renderedHeightAt(nextX, nextZ) -
+                MarsSurfaceTerrain.renderedHeightAt(marsSurfaceX, marsSurfaceZ)
+            if (rise <= 0.00024 && rise >= -0.00040) {
                 marsSurfaceX = nextX
                 marsSurfaceZ = nextZ
             }
             return
         }
-
-        val step = 0.27
+        val id = extendedSurfaceId
+        if (id != null) {
+            val nextX = (extendedSurfaceX + (sinHeading*f + cosHeading*s)*step).coerceIn(-8.0,8.0)
+            val nextZ = (extendedSurfaceZ + (-cosHeading*f + sinHeading*s)*step).coerceIn(-8.0,8.0)
+            val rise = ExtendedSurfaceMesh.renderedHeightAt(id,nextX,nextZ) -
+                ExtendedSurfaceMesh.renderedHeightAt(id,extendedSurfaceX,extendedSurfaceZ)
+            if (rise <= .00024 && rise >= -.00040) {
+                extendedSurfaceX = nextX
+                extendedSurfaceZ = nextZ
+            }
+            return
+        }
         val nextX = (moonSurfaceX + (sinHeading * f + cosHeading * s) * step).coerceIn(-8.0, 8.0)
         val nextZ = (moonSurfaceZ + (-cosHeading * f + sinHeading * s) * step).coerceIn(-8.0, 8.0)
-        val rise = MoonSurfaceTerrain.heightAt(nextX, nextZ) -
-            MoonSurfaceTerrain.heightAt(moonSurfaceX, moonSurfaceZ)
-        if (rise <= 0.075 && rise >= -0.10) {
+        val rise = MoonSurfaceTerrain.renderedHeightAt(nextX, nextZ) -
+            MoonSurfaceTerrain.renderedHeightAt(moonSurfaceX, moonSurfaceZ)
+        if (rise <= 0.00024 && rise >= -0.00040) {
             moonSurfaceX = nextX
             moonSurfaceZ = nextZ
         }
@@ -553,6 +754,7 @@ class EndlessRenderer(
     fun surfaceCoordinates(): Pair<Double, Double> = when {
         marsSurfaceMode -> marsSurfaceX to marsSurfaceZ
         moonSurfaceMode -> moonSurfaceX to moonSurfaceZ
+        extendedSurfaceId != null -> extendedSurfaceX to extendedSurfaceZ
         else -> 0.0 to 0.0
     }
 
@@ -563,6 +765,8 @@ class EndlessRenderer(
     fun takeOffMars(): Boolean {
         if (!marsSurfaceMode) return false
         marsSurfaceMode = false
+        surfaceForwardInput = 0f
+        surfaceStrafeInput = 0f
         val mars = byId["mars"] ?: return false
         targetDistance = mars.radius * 1.08
         previousCameraPosition = mars.position + Vec3d(0.0, 0.0, mars.radius * 1.08)
@@ -574,6 +778,8 @@ class EndlessRenderer(
     fun takeOffMoon(): Boolean {
         if (!moonSurfaceMode) return false
         moonSurfaceMode = false
+        surfaceForwardInput = 0f
+        surfaceStrafeInput = 0f
         val moon = byId["moon"] ?: return false
         targetDistance = moon.radius * 1.12
         previousCameraPosition = moon.position + Vec3d(0.0, 0.0, moon.radius * 1.12)
@@ -585,14 +791,30 @@ class EndlessRenderer(
     fun takeOffSurface(): Boolean = when {
         marsSurfaceMode -> takeOffMars()
         moonSurfaceMode -> takeOffMoon()
+        extendedSurfaceId != null -> {
+            val body = byId[extendedSurfaceId]
+            if (body == null) {
+                false
+            } else {
+                extendedSurfaceId = null
+                surfaceForwardInput = 0f
+                surfaceStrafeInput = 0f
+                lastSurfaceMovementNanos = System.nanoTime()
+                targetDistance = body.radius * 1.12
+                previousCameraPosition = body.position + Vec3d(0.0, 0.0, targetDistance)
+                cameraPosition = previousCameraPosition
+                true
+            }
+        }
         else -> false
     }
 
     private fun drawMarsSurfaceFrame() {
         GLES30.glClearColor(0.055f, 0.027f, 0.018f, 1f)
         GLES30.glClear(GLES30.GL_COLOR_BUFFER_BIT or GLES30.GL_DEPTH_BUFFER_BIT)
-        Matrix.perspectiveM(projection, 0, 70f, width.toFloat() / height, 0.04f, 40f)
-        val eyeY = MarsSurfaceTerrain.heightAt(marsSurfaceX, marsSurfaceZ) + 0.22
+        drawMarsSky()
+        Matrix.perspectiveM(projection, 0, 67f, width.toFloat() / height, 0.0002f, 32f)
+        val eyeY = MarsSurfaceTerrain.renderedHeightAt(marsSurfaceX, marsSurfaceZ) + 0.00078 // 2.34m eye level
         val lookX = sin(yaw) * cos(pitch)
         val lookY = sin(pitch)
         val lookZ = -cos(yaw) * cos(pitch)
@@ -606,11 +828,37 @@ class EndlessRenderer(
         marsSurfaceTerrain?.draw(viewProjection, -marsSurfaceX.toFloat(), -marsSurfaceZ.toFloat())
     }
 
+    private fun drawMarsSky() {
+        // Mars' thin dusty atmosphere is bright at the horizon and darker
+        // toward the zenith. Night, dust storms and solar angle remain future
+        // physically-based lighting work.
+        GLES30.glDisable(GLES30.GL_DEPTH_TEST)
+        GLES30.glDepthMask(false)
+        GLES30.glUseProgram(marsSkyProgram)
+        GLES30.glUniform1i(GLES30.glGetUniformLocation(marsSkyProgram, "uSkyWorld"), 0)
+        GLES30.glUniform1f(
+            GLES30.glGetUniformLocation(marsSkyProgram, "uPitch"),
+            pitch.toFloat()
+        )
+        GLES30.glDrawArrays(GLES30.GL_TRIANGLES, 0, 3)
+        GLES30.glDepthMask(true)
+        GLES30.glEnable(GLES30.GL_DEPTH_TEST)
+    }
+
+    private fun drawAtmosphereSky(world: Int) {
+        GLES30.glDisable(GLES30.GL_DEPTH_TEST); GLES30.glDepthMask(false)
+        GLES30.glUseProgram(marsSkyProgram)
+        GLES30.glUniform1i(GLES30.glGetUniformLocation(marsSkyProgram,"uSkyWorld"),world)
+        GLES30.glUniform1f(GLES30.glGetUniformLocation(marsSkyProgram,"uPitch"),pitch.toFloat())
+        GLES30.glDrawArrays(GLES30.GL_TRIANGLES,0,3)
+        GLES30.glDepthMask(true); GLES30.glEnable(GLES30.GL_DEPTH_TEST)
+    }
+
     private fun drawMoonSurfaceFrame() {
         GLES30.glClearColor(0.0015f, 0.0015f, 0.0025f, 1f)
         GLES30.glClear(GLES30.GL_COLOR_BUFFER_BIT or GLES30.GL_DEPTH_BUFFER_BIT)
-        Matrix.perspectiveM(projection, 0, 68f, width.toFloat() / height, 0.035f, 180f)
-        val eyeY = MoonSurfaceTerrain.heightAt(moonSurfaceX, moonSurfaceZ) + 0.19
+        Matrix.perspectiveM(projection, 0, 67f, width.toFloat() / height, 0.0002f, 36f)
+        val eyeY = MoonSurfaceTerrain.renderedHeightAt(moonSurfaceX, moonSurfaceZ) + 0.00078 // 2.34m eye level
         val lookX = sin(yaw) * cos(pitch)
         val lookY = sin(pitch)
         val lookZ = -cos(yaw) * cos(pitch)
@@ -620,9 +868,30 @@ class EndlessRenderer(
             lookX.toFloat(), (eyeY + lookY).toFloat(), lookZ.toFloat(),
             0f, 1f, 0f
         )
+        // Lunar daylight exposure: sunlit ground needs a much shorter
+        // exposure than stars. A camera exposing bright regolith shows an
+        // almost black, STARLESS sky (Apollo photographs demonstrate this).
+        // Stars remain visible when exploring from orbit.
+        Matrix.perspectiveM(projection, 0, 67f, width.toFloat() / height, 0.0002f, 36f)
         Matrix.multiplyMM(viewProjection, 0, projection, 0, view, 0)
-        drawStars()
         moonSurfaceTerrain?.draw(viewProjection, -moonSurfaceX.toFloat(), -moonSurfaceZ.toFloat())
+    }
+
+    private fun drawExtendedSurfaceFrame(id: String) {
+        val terrain = extendedTerrains.getOrPut(id) { ExtendedSurfaceTerrain(context,id) }
+        // Titan has an optically thick haze. Airless bodies are black;
+        // starless exposure follows illuminated Apollo-style photography.
+        if (id == "titan") GLES30.glClearColor(.28f,.175f,.09f,1f)
+        else GLES30.glClearColor(.0015f,.0015f,.0025f,1f)
+        GLES30.glClear(GLES30.GL_COLOR_BUFFER_BIT or GLES30.GL_DEPTH_BUFFER_BIT)
+        if (id == "titan") drawAtmosphereSky(1)
+        Matrix.perspectiveM(projection,0,67f,width.toFloat()/height,.0002f,36f)
+        val eyeY = ExtendedSurfaceMesh.renderedHeightAt(id,extendedSurfaceX,extendedSurfaceZ)+.00078
+        val lx=sin(yaw)*cos(pitch);val ly=sin(pitch);val lz=-cos(yaw)*cos(pitch)
+        Matrix.setLookAtM(view,0,0f,eyeY.toFloat(),0f,
+            lx.toFloat(),(eyeY+ly).toFloat(),lz.toFloat(),0f,1f,0f)
+        Matrix.multiplyMM(viewProjection,0,projection,0,view,0)
+        terrain.draw(viewProjection,-extendedSurfaceX.toFloat(),-extendedSurfaceZ.toFloat())
     }
 
     @Synchronized
@@ -660,6 +929,7 @@ class EndlessRenderer(
 
     @Synchronized
     fun toggleOverview(): Boolean {
+        navigationRevision++
         pendingYaw = 0.0
         pendingPitch = 0.0
 
@@ -694,6 +964,7 @@ class EndlessRenderer(
     @Synchronized
     fun focus(id: String) {
         val body = bodies.firstOrNull { it.id == id } ?: return
+        navigationRevision++
         overview = false
         selectedId = id
 
@@ -859,25 +1130,46 @@ class EndlessRenderer(
 
     private fun updateBodyPositions(simSeconds: Double) {
         val days = simSeconds / 86400.0
+        val utcMillis = clock.currentTimeMillis()
         val map = HashMap<String, CelestialBody>()
-
         for (body in bodies) {
-            if (body.id == "sun") {
-                body.position = Vec3d.ZERO
-            } else {
-                val angle = body.phaseRad + (2.0 * PI * days / body.orbitPeriodDays)
-                val local = Vec3d(
-                    cos(angle) * body.orbitRadius,
-                    0.0,
-                    sin(angle) * body.orbitRadius
-                )
-                body.position = body.parentId?.let { parent ->
-                    (map[parent]?.position ?: Vec3d.ZERO) + local
-                } ?: local
+            body.position = when {
+                body.id == "sun" -> Vec3d.ZERO
+                // Ceres is illustrative; the JPL eight-planet table excludes Ceres.
+                body.id == "ceres" -> {
+                    val angle = body.phaseRad + 2.0 * PI * days / body.orbitPeriodDays
+                    Vec3d(cos(angle) * body.orbitRadius, 0.0, sin(angle) * body.orbitRadius)
+                }
+                body.id == "europa" || body.id == "titan" -> {
+                    // Circular parent-relative moon orbits are illustrative.
+                    val angle = body.phaseRad + 2.0*PI*days/body.orbitPeriodDays
+                    (map[body.parentId]?.position ?: Vec3d.ZERO) +
+                        Vec3d(cos(angle)*body.orbitRadius,
+                            sin(angle*.47)*body.orbitRadius*.013,
+                            sin(angle)*body.orbitRadius)
+                }
+                body.id == "moon" -> {
+                    // Elliptical (e=0.0549), 5.145° inclined approximation.
+                    // This is NOT JPL's high-precision lunar ephemeris.
+                    val elapsedDays = (utcMillis - 946728000000L) / 86400000.0
+                    val mean = Math.toRadians(134.963) + 2.0 * PI * elapsedDays / 27.321661
+                    val eccentric = KeplerEphemeris.solveEccentricAnomaly(mean % (2.0 * PI), .0549)
+                    val x = body.orbitRadius * (cos(eccentric) - .0549)
+                    val z = body.orbitRadius * sqrt(1.0 - .0549 * .0549) * sin(eccentric)
+                    val tilt = Math.toRadians(5.145)
+                    val node = Math.toRadians(125.045 - .0529539 * elapsedDays)
+                    val local = Vec3d(
+                        x * cos(node) - z * sin(node) * cos(tilt),
+                        z * sin(tilt),
+                        x * sin(node) + z * cos(node) * cos(tilt)
+                    )
+                    (map["earth"]?.position ?: Vec3d.ZERO) + local
+                }
+                else -> KeplerEphemeris.position(body.id, utcMillis, body.orbitRadius)
+                    ?: Vec3d.ZERO
             }
             map[body.id] = body
         }
-
         collision.replaceSpheres(
             bodies.filter { isBodyFormed(it.id, deepTimeAgeGa) }
                 .map { SphereCollider(it.id, it.position, it.radius) }
@@ -1126,6 +1418,10 @@ class EndlessRenderer(
             GLES30.glGetUniformLocation(planetProgram, "uEmissive"),
             if (body.id == "sun") 1f else 0f
         )
+        GLES30.glUniform1i(
+            GLES30.glGetUniformLocation(planetProgram, "uPlanetKind"),
+            if (body.id == "earth") 1 else 0
+        )
     }
 
     private fun drawSphereGeometry() {
@@ -1156,19 +1452,22 @@ class EndlessRenderer(
     }
 
     private fun buildOrbitBuffers() {
+        orbitBuffers.clear()
+        orbitCounts.clear()
         for (body in bodies) {
             if (body.id == "sun") continue
-
-            val segments = if (body.id == "moon") 96 else 180
-            val values = FloatArray(segments * 3)
-
-            for (i in 0 until segments) {
-                val a = i.toDouble() / segments.toDouble() * PI * 2.0
-                values[i * 3] = (cos(a) * body.orbitRadius).toFloat()
-                values[i * 3 + 1] = 0f
-                values[i * 3 + 2] = (sin(a) * body.orbitRadius).toFloat()
+            val segments = if (body.parentId != null) 96 else 180
+            val jpl = KeplerEphemeris.orbitPoints(
+                body.id, clock.currentTimeMillis(), body.orbitRadius, segments
+            )
+            val values = jpl ?: FloatArray(segments * 3).also { out ->
+                for (i in 0 until segments) {
+                    val angle = i.toDouble() / segments * 2.0 * PI
+                    out[i * 3] = (cos(angle) * body.orbitRadius).toFloat()
+                    out[i * 3 + 1] = 0f
+                    out[i * 3 + 2] = (sin(angle) * body.orbitRadius).toFloat()
+                }
             }
-
             orbitBuffers[body.id] = floatBuffer(values)
             orbitCounts[body.id] = segments
         }
@@ -1446,6 +1745,12 @@ class EndlessRenderer(
                 altitudeKm > 25.0 -> "ATMOSPHERE"
                 else -> "SURFACE SKIM"
             }
+            "mercury", "ceres", "europa", "titan" -> when {
+                altitudeKm > (if(body.id=="titan") 1400.0 else 650.0) -> "ORBIT"
+                altitudeKm > (if(body.id=="ceres") 32.0 else 95.0) -> "CLOSE APPROACH"
+                altitudeKm > (if(body.id=="ceres") 3.0 else 18.0) -> "LOW ORBIT"
+                else -> "SURFACE SKIM"
+            }
             "moon" -> when {
                 altitudeKm > 900.0 -> "ORBIT"
                 altitudeKm > 120.0 -> "CLOSE APPROACH"
@@ -1468,31 +1773,36 @@ class EndlessRenderer(
                 "mars" -> altitudeKm < 2500.0
                 "moon" -> altitudeKm < 1500.0
                 "venus" -> altitudeKm < 2000.0
+                "mercury", "ceres", "europa", "titan" -> altitudeKm < 1500.0
                 else -> false
             }
         )
     }
 
-    private fun drawMarsAtmosphere(body: CelestialBody) {
-        if (latestApproach.bodyId != "mars") return
-
-        val altitude = latestApproach.altitudeKm
-        val opacity = when {
-            altitude > 2500.0 -> 0.08f
-            altitude > 300.0 -> 0.13f
-            altitude > 80.0 -> 0.20f
-            else -> 0.27f
+    private fun drawPlanetAtmosphere(body: CelestialBody) {
+        if (body.id !in setOf("earth", "venus", "mars")) return
+        val altitude = if (latestApproach.bodyId == body.id) latestApproach.altitudeKm else 1e6
+        val opacity = when (body.id) {
+            "earth" -> if (altitude < 150.0) 0.60f else 0.43f
+            "venus" -> 0.56f
+            else -> if (altitude < 300.0) 0.30f else 0.16f
         }
 
         GLES30.glDisable(GLES30.GL_CULL_FACE)
         GLES30.glDepthMask(false)
 
-        buildBodyModel(body, 1.022f, 0f)
+        buildBodyModel(body, when (body.id) {
+            "earth" -> 1.038f
+            "venus" -> 1.045f
+            else -> 1.022f
+        }, 0f)
         GLES30.glUseProgram(planetProgram)
         bindPlanetCommon(body)
         GLES30.glUniform4f(
             GLES30.glGetUniformLocation(planetProgram, "uColor"),
-            .92f, .38f, .18f, 1f
+            when (body.id) { "earth" -> .28f; "venus" -> .99f; else -> .92f },
+            when (body.id) { "earth" -> .57f; "venus" -> .73f; else -> .38f },
+            when (body.id) { "earth" -> 1.0f; "venus" -> .48f; else -> .18f }, 1f
         )
         bindTexture(0, 0)
         GLES30.glUniform1i(GLES30.glGetUniformLocation(planetProgram, "uTexture"), 0)
@@ -1513,6 +1823,7 @@ class EndlessRenderer(
 
     private fun loadPlanetTextures() {
         val ids = listOf(
+            "europa", "titan",
             "sun",
             "mercury",
             "venus",
@@ -1719,6 +2030,7 @@ uniform sampler2D uTexture;
 uniform sampler2D uNightTexture;
 uniform sampler2D uNormalTexture;
 uniform int uUseTexture;
+uniform int uPlanetKind;
 uniform int uUseNight;
 uniform int uUseNormal;
 uniform int uCloseMaterial;
@@ -1737,7 +2049,7 @@ out vec4 fragColor;
 
 void main() {
     vec4 texel = uUseTexture == 1
-        ? (uCloseMaterial > 0 ? textureLod(uTexture, vUv, 0.0) : texture(uTexture, vUv))
+        ? texture(uTexture, vUv)
         : uColor;
 
     if (uHistoryLava > 0.001) {
@@ -1789,7 +2101,9 @@ void main() {
     if (uMode == 1) {
         float cloud = dot(texel.rgb, vec3(0.333333));
         if (cloud < 0.025) discard;
-        fragColor = vec4(texel.rgb, cloud * uOpacity);
+        // Clouds should not emit full daylight brightness on the night side.
+        float sunlight = max(dot(normalize(vNormal), normalize(-vWorld)), 0.0);
+        fragColor = vec4(texel.rgb * (0.06 + 0.94 * sunlight), cloud * uOpacity);
         return;
     }
 
@@ -1798,21 +2112,30 @@ void main() {
     vec3 V = normalize(uCamera - vWorld);
 
     if (uMode == 3) {
-        float rim = pow(1.0 - max(dot(N, V), 0.0), 2.0);
-        float daylight = 0.32 + 0.68 * max(dot(N, L), 0.0);
-        float alpha = rim * uOpacity;
+        // Single-scattering-inspired limb glow, strongest toward the Sun.
+        // An approximation, not full atmospheric radiative transfer.
+        float mu = dot(N, L);
+        float limb = pow(1.0 - clamp(dot(N, V), 0.0, 1.0), 3.0);
+        float daylight = smoothstep(-0.42, 0.26, mu);
+        float horizon = pow(max(1.0 - abs(mu), 0.0), 3.0);
+        vec3 sunset = mix(uColor.rgb * vec3(1.0, 0.40, 0.12), uColor.rgb,
+            smoothstep(-0.12, 0.30, mu));
+        vec3 atmosphere = sunset * (0.12 + 0.88 * daylight);
+        float alpha = limb * (0.32 + 0.68 * daylight + 0.16 * horizon) * uOpacity;
         if (alpha < 0.003) discard;
-        fragColor = vec4(uColor.rgb * daylight, alpha);
+        fragColor = vec4(atmosphere, clamp(alpha, 0.0, 0.85));
         return;
     }
 
     if (uMode == 2) {
-        fragColor = vec4(texel.rgb, uOpacity);
+        // Venus' opaque upper cloud deck obeys the day/night terminator.
+        float sunlight = max(dot(N, L), 0.0);
+        fragColor = vec4(texel.rgb * (0.06 + 0.94 * sunlight), uOpacity);
         return;
     }
 
     if (uUseNormal == 1) {
-        vec3 mapped = textureLod(uNormalTexture, vUv, 0.0).xyz * 2.0 - 1.0;
+        vec3 mapped = texture(uNormalTexture, vUv).xyz * 2.0 - 1.0;
 
         // Both close maps are real elevation-derived normal material. Lunar
         // relief gets a slightly harder response because there is no
@@ -1849,6 +2172,13 @@ void main() {
     light = mix(light, 1.0, uEmissive);
 
     vec3 color = texel.rgb * light;
+    if (uPlanetKind == 1 && uUseTexture == 1) {
+        // A first-pass ocean mask using blue-dominant day-map pixels.
+        float ocean = smoothstep(0.015, 0.15, texel.b - texel.r) *
+            smoothstep(0.005, 0.095, texel.b - texel.g);
+        float reflection = pow(max(dot(reflect(-L, N), V), 0.0), 110.0);
+        color += vec3(0.84, 0.94, 1.0) * reflection * ocean * ndl * 0.85;
+    }
 
     if (uUseNight == 1 && uEmissive < 0.5) {
         vec3 night = texture(uNightTexture, vUv).rgb;
@@ -1858,6 +2188,41 @@ void main() {
 
     color += texel.rgb * rim * 0.08 * (1.0 - uEmissive);
     fragColor = vec4(color, texel.a * uColor.a);
+}
+"""
+
+        private const val MARS_SKY_VERTEX_SHADER = """#version 300 es
+out vec2 vUv;
+void main() {
+    vec2 p = vec2((gl_VertexID << 1) & 2, gl_VertexID & 2);
+    vUv = p;
+    gl_Position = vec4(p * 2.0 - 1.0, 1.0, 1.0);
+}
+"""
+        private const val MARS_SKY_FRAGMENT_SHADER = """#version 300 es
+precision mediump float;
+in vec2 vUv;
+uniform float uPitch;
+uniform int uSkyWorld;
+out vec4 fragColor;
+void main() {
+    float heightAboveHorizon = vUv.y - 0.46 + uPitch * 0.45;
+    float t = smoothstep(-0.08, 0.85, heightAboveHorizon);
+    // Atmospheric dust optical depth falls toward the zenith. Colours are
+    // a low-cost approximation, not a full multiple-scattering atmosphere.
+    vec3 dustyHorizon = vec3(0.49, 0.295, 0.215);
+    vec3 thinZenith = vec3(0.145, 0.146, 0.164);
+    float dustColumn = exp(-3.4 * max(heightAboveHorizon, 0.0));
+    vec3 sky = mix(dustyHorizon, thinZenith, t);
+    sky += vec3(0.041, 0.021, 0.009) * dustColumn;
+    if (uSkyWorld == 1) {
+        sky = mix(vec3(.55,.32,.14), vec3(.29,.18,.095),
+            smoothstep(-.06,.94,heightAboveHorizon));
+    }
+    // 1/255 film-grain dithering prevents broad 8-bit sky bands on phones.
+    float dither = fract(sin(dot(gl_FragCoord.xy,
+        vec2(12.9898, 78.233))) * 43758.5453) - 0.5;
+    fragColor = vec4(sky + vec3(dither / 255.0), 1.0);
 }
 """
 
