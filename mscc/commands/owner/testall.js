@@ -3,15 +3,14 @@ import { executeTestAll } from '../../command-audit.js'
 export default {
   name:'testall',
   aliases:['commandaudit'],
-  description:'Run a safe full command audit and send the results on WhatsApp.',
-  usage:'.testall [status|cancel]',
+  description:'Audit all NIGHT commands or safely execute selected real commands in this WhatsApp chat.',
+  usage:'.testall [live [confirm]|failed [confirm]|status|cancel]',
   ownerOnly:true,
   async run(ctx) {
-    // A sudo or session owner may have other owner-level public permissions;
-    // command audits are restricted to the verified supreme owner only.
-    if (ctx.isSupremeOwner !== true || ctx.groupKey ||
-        String(ctx.message?.key?.remoteJid || '').endsWith('@g.us')) {
-      return ctx.reply('NIGHT command audits are available only to the verified owner in a private DM.')
+    // Group access is explicit and requires "confirm" for media-intensive
+    // live tests. Supreme-owner identity, not group-admin/sudo, is required.
+    if (ctx.isSupremeOwner !== true) {
+      return ctx.reply('Only the verified NIGHT supreme owner can run command audits.')
     }
     return executeTestAll(ctx)
   },
