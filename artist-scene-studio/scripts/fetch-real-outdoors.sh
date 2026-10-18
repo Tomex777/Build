@@ -38,18 +38,17 @@ rm "$world/original_kloofendal_sky.jpg"
 # artist asset: https://www.innerscene.com/tools/library/3d-parts/oak-street-tree-detailed-leaves-a273fef9
 # ~5.9MB, native glTF geometry with no external textures/Blender processing.
 oak_file="$root/app/src/main/assets/models/mise_oak_tree.glb"
+oak_original="$world/source_original_oak.glb"
 oak_url="https://www.innerscene.com/api/library/oak-street-tree-detailed-leaves-a273fef9/download"
-if [ ! -s "$oak_file" ]; then
-    curl --fail --location --retry 3 --max-time 180 -o "$oak_file.tmp" "$oak_url"
-    mv "$oak_file.tmp" "$oak_file"
-fi
-test "$(wc -c < "$oak_file")" -gt 500000 || {
-    echo "Downloaded oak tree is too small for the detailed GLB" >&2
-    exit 1
-}
-echo "a02698ef246d8005110c291c510b8f7f397ae26e69414aa538cc4993b06256dd  $oak_file" | sha256sum --check --status || {
-    rm -f "$oak_file"
+curl --fail --location --retry 3 --max-time 180 -o "$oak_original.tmp" "$oak_url"
+mv "$oak_original.tmp" "$oak_original"
+echo "a02698ef246d8005110c291c510b8f7f397ae26e69414aa538cc4993b06256dd  $oak_original" | sha256sum --check --status || {
+    rm -f "$oak_original"
     echo "Source mismatch for original Innerscene CC0 oak GLB" >&2
     exit 1
 }
-echo "Verified original CC0 oak tree source: $oak_file"
+"$root/.skybake-env/bin/pip" -q install "trimesh==4.11.1"
+"$root/.skybake-env/bin/python" "$root/scripts/optimize-oak.py" \
+    --source "$oak_original" --output "$oak_file"
+rm -f "$oak_original"
+echo "Verified + losslessly batched CC0 oak tree: $oak_file"
