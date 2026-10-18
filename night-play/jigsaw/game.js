@@ -349,10 +349,12 @@ function celebrate(){
 }
 function refreshAfterMove(p){
  if(paused)return;
+ const damage=board.damageForPieces(board.selectedPieces);
  board.moveCount++;const snapped=board.checkSnap(p),joined=board.lastJoinCount>0;
  board.selectedPieces=[];
  if(snapped||joined)sound.playSnap({joined});else sound.playDrop();
- setStats();board.render();saveGame();
+ setStats();if(snapped||joined)board.render();else board.renderDamage(damage);
+ saveGame();
  if(board.placedCount===board.totalPieces)celebrate();
 }
 function point(e){
@@ -366,8 +368,9 @@ function cancelSelection(){
  for(const p of board.selectedPieces){
   const origin=dragOrigins?.get(p.id);if(origin){p.x=origin.x;p.y=origin.y;}
  }
+ const damage=board.damageForPieces(board.selectedPieces);
  board.selectedPiece=null;board.selectedPieces=[];dragId=null;dragRect=null;
- canvas.classList.remove('dragging');board.dragCanvas.style.willChange='';board.render();updateDragTransform();
+ canvas.classList.remove('dragging');board.dragCanvas.style.willChange='';board.renderDamage(damage);updateDragTransform();
 }
 canvas.addEventListener('pointerdown',e=>{
  if(!activeRound||won||paused||e.button!==0)return;
@@ -397,7 +400,7 @@ canvas.addEventListener('pointerdown',e=>{
  dragMoved=false;canvas.classList.add('dragging');
  board.dragCanvas.style.willChange='transform';
  canvas.setPointerCapture(e.pointerId);
- sound.playPickup();board.render();e.preventDefault();
+ sound.playPickup();board.renderDamage(board.damageForPieces(board.selectedPieces));e.preventDefault();
 });
 canvas.addEventListener('pointermove',e=>{
  if(pointers.has(e.pointerId))pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
@@ -442,10 +445,14 @@ function releaseDrag(e){
  if(canvas.hasPointerCapture(e.pointerId))canvas.releasePointerCapture(e.pointerId);
  if(e.type==='pointercancel'){
   for(const item of board.selectedPieces){const origin=dragOrigins?.get(item.id);if(origin){item.x=origin.x;item.y=origin.y;}}
-  board.selectedPieces=[];board.render();updateDragTransform();e.preventDefault();return;
+  const damage=board.damageForPieces(board.selectedPieces);
+   board.selectedPieces=[];board.renderDamage(damage);updateDragTransform();e.preventDefault();return;
  }
  if(dragMoved)refreshAfterMove(p);
- else{board.selectedPieces=[];board.render();}
+ else{
+  const damage=board.damageForPieces(board.selectedPieces);
+  board.selectedPieces=[];board.renderDamage(damage);
+ }
  updateDragTransform();e.preventDefault();
 }
 canvas.addEventListener('pointerup',releaseDrag);
