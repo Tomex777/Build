@@ -248,6 +248,124 @@ private fun LaterVideoPlayerSurface(
 '''
 
 text = text[:start] + replacement + text[end:]
+
+# ABR: image adjustments share Later's custom 48dp scrub interaction;
+# never ship the platform Material Slider simply because the video slider
+# was replaced. Accessibility exposes the real range and direct setProgress.
+for old, new in (
+    ("import androidx.compose.material3.Slider\n", ""),
+    ("import androidx.compose.foundation.Image\n",
+     "import androidx.compose.foundation.Image\nimport androidx.compose.foundation.Canvas as ComposeCanvas\n"),
+    ("import androidx.compose.ui.graphics.Color\n",
+     "import androidx.compose.ui.graphics.Color\nimport androidx.compose.ui.graphics.StrokeCap\n"),
+    ("import androidx.compose.ui.input.pointer.pointerInput\n",
+     "import androidx.compose.ui.input.pointer.pointerInput\n"
+     "import androidx.compose.ui.semantics.ProgressBarRangeInfo\n"
+     "import androidx.compose.ui.semantics.progressBarRangeInfo\n"
+     "import androidx.compose.ui.semantics.setProgress\n"
+     "import androidx.compose.ui.semantics.semantics\n"),
+):
+    if text.count(old) != 1:
+        raise SystemExit(f"image adjustments: expected one import {old!r}")
+    text = text.replace(old, new, 1)
+
+slider_start = "@Composable\nprivate fun ImageAdjustmentSlider("
+slider_end = "\n@Composable\nprivate fun TextButtonCompat("
+if text.count(slider_start) != 1 or text.count(slider_end) != 1:
+    raise SystemExit("image adjustment slider function changed")
+start_slider = text.index(slider_start)
+end_slider = text.index(slider_end, start_slider)
+text = text[:start_slider] + '''@Composable
+private fun ImageAdjustmentSlider(
+    label: String,
+    valueLabel: String,
+    value: Float,
+    valueRange: ClosedFloatingPointRange<Float>,
+    onValueChange: (Float) -> Unit
+) {
+    val accent = MaterialTheme.colorScheme.primary
+    val changeValue by rememberUpdatedState(onValueChange)
+    val span = (valueRange.endInclusive - valueRange.start).coerceAtLeast(0.0001f)
+    val fraction = ((value - valueRange.start) / span).coerceIn(0f, 1f)
+
+    fun moveTo(x: Float, width: Float) {
+        if (width <= 0f) return
+        val next = valueRange.start + (x / width).coerceIn(0f, 1f) * span
+        changeValue(next.coerceIn(valueRange.start, valueRange.endInclusive))
+    }
+
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        Text(
+            text = label,
+            color = Color.White,
+            fontSize = 11.sp,
+            modifier = Modifier.width(68.dp)
+        )
+        ComposeCanvas(
+            modifier = Modifier
+                .weight(1f)
+                .height(48.dp)
+                .semantics {
+                    contentDescription = "$label adjustment"
+                    stateDescription = valueLabel
+                    progressBarRangeInfo = ProgressBarRangeInfo(value, valueRange)
+                    setProgress { next ->
+                        changeValue(next.coerceIn(valueRange.start, valueRange.endInclusive))
+                        true
+                    }
+                }
+                .pointerInput(valueRange.start, valueRange.endInclusive) {
+                    detectTapGestures { point ->
+                        moveTo(point.x, size.width.toFloat())
+                    }
+                }
+                .pointerInput(valueRange.start, valueRange.endInclusive) {
+                    detectDragGestures(
+                        onDragStart = { point -> moveTo(point.x, size.width.toFloat()) },
+                        onDrag = { change, _ ->
+                            moveTo(change.position.x, size.width.toFloat())
+                            change.consume()
+                        }
+                    )
+                }
+        ) {
+            val y = size.height / 2f
+            drawLine(
+                color = Color.White.copy(alpha = 0.24f),
+                start = Offset(0f, y),
+                end = Offset(size.width, y),
+                strokeWidth = 4.dp.toPx(),
+                cap = StrokeCap.Round
+            )
+            drawLine(
+                color = accent,
+                start = Offset(0f, y),
+                end = Offset(size.width * fraction, y),
+                strokeWidth = 4.dp.toPx(),
+                cap = StrokeCap.Round
+            )
+            drawCircle(
+                color = accent,
+                radius = 7.dp.toPx(),
+                center = Offset(size.width * fraction, y)
+            )
+        }
+        Text(
+            text = valueLabel,
+            color = Color.White.copy(alpha = .72f),
+            fontSize = 10.sp,
+            modifier = Modifier.width(42.dp)
+        )
+    }
+}
+''' + text[end_slider:]
+if "import androidx.compose.material3.Slider" in text or "ImageAdjustmentSlider(" not in text:
+    raise SystemExit("default image slider leaked into final viewer")
+
 viewer.write_text(text)
 
 surface = media_dir / "LaterVlcStyleVideoSurface.kt"
