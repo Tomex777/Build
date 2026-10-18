@@ -5,7 +5,7 @@ import path from "node:path";
 import {fileURLToPath} from "node:url";
 import {chromium} from "playwright";
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),"..");
-const assets={"/arcade/":"arcade/index.html","/arcade":"arcade/index.html","/arcade/style.css":"arcade/style.css","/game-shell.css":"game-shell.css","/arcade/games.js":"arcade/games.js","/games":"index.html"};
+const assets={"/audio/sfx.js":"audio/sfx.js","/audio/sfx.css":"audio/sfx.css","/arcade/":"arcade/index.html","/arcade":"arcade/index.html","/arcade/style.css":"arcade/style.css","/game-shell.css":"game-shell.css","/arcade/games.js":"arcade/games.js","/games":"index.html"};
 const server=createServer((req,res)=>{const file=assets[new URL(req.url,"http://localhost").pathname];if(!file){res.writeHead(404);res.end();return;}const kind=file.endsWith(".js")?"text/javascript":file.endsWith(".css")?"text/css":"text/html";res.writeHead(200,{"content-type":kind});res.end(readFileSync(path.join(root,file)));});
 await new Promise(resolve=>server.listen(0,"127.0.0.1",resolve));const url="http://127.0.0.1:"+server.address().port;
 let browser;try{

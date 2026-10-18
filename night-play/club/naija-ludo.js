@@ -14,7 +14,7 @@ const makeOptions=()=>({...DEFAULT_OPTIONS});
 const PIPS={1:[4],2:[0,8],3:[0,4,8],4:[0,2,6,8],5:[0,2,4,6,8],6:[0,2,3,5,6,8]};
 const label=k=>k[0].toUpperCase()+k.slice(1);
 const escapeText=s=>String(s).replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
-let ticker=null,moveTimer=null,aiTimer=null,life=0,audio=null;
+let ticker=null,moveTimer=null,aiTimer=null,life=0;
 let riggedForTest=null,pendingAction=null;
 const isTestHost=/^(localhost|127\.0\.0\.1)$/.test(location.hostname);
 const reduced=()=>window.matchMedia&&window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -27,17 +27,7 @@ function rand6(){
  }
  return Math.floor(Math.random()*6)+1;
 }
-function sound(s,f=530,d=.055,volume=.035){
- if(!s.sound)return;
- try{
-  const Audio=window.AudioContext||window.webkitAudioContext;if(!Audio)return;
-  audio=audio||new Audio();if(audio.state==="suspended")audio.resume().catch(()=>{});
-  const osc=audio.createOscillator(),gain=audio.createGain(),t=audio.currentTime;
-  osc.type="triangle";osc.frequency.setValueAtTime(f,t);osc.frequency.exponentialRampToValueAtTime(f*.73,t+d);
-  gain.gain.setValueAtTime(volume,t);gain.gain.exponentialRampToValueAtTime(.0001,t+d);
-  osc.connect(gain);gain.connect(audio.destination);osc.start(t);osc.stop(t+d+.02);
- }catch{}
-}
+const sfx=name=>window.NightAudio?.play(name);
 function create(count=2,diceCount=2){
  count=[2,3,4].includes(count)?count:2;
  const groups=count===2?[["red","yellow"],["green","blue"]]:count===3?[["red"],["green"],["yellow"]]:[["red"],["green"],["yellow"],["blue"]];
@@ -228,13 +218,12 @@ function render(s,ui){
  const counterPicker=crowded&&!locked?'<details class="nj-counter-picker"><summary>Choose a counter in a stack</summary><div>'+s.players[s.turn].tokens.map((pos,ti)=>legal(s,s.turn,ti,s.selectedDie)?'<button type="button" data-piece="'+s.turn+'-'+ti+'">'+label(tokenHouse(s.players[s.turn],ti))+' '+(ti%4+1)+' · '+(pos<0?'Yard':pos>=51?'Home lane':'On board')+'</button>':'').join('')+'</div></details>':'';
  const progress=ui.scoreList(s.players,x=>x.tokens.filter(pos=>pos===56).length+"/"+x.tokens.length+" home");
  const pending=s.rolls.length?'<div class="nj-active-rolls">Rolled: '+s.rolls.map((d,i)=>'<span class="nj-number'+(d.used?' is-used':'')+(i===s.selectedDie?' is-selected':'')+'">'+d.value+(d.used?' ✓':'')+'</span>').join("")+' <span class="small">Tap a die to choose which value to use.</span></div>':"";
- const soundToggle='<button type="button" class="nj-sound" data-action="ludo-sound" aria-pressed="'+s.sound+'">'+(s.sound?'♫ Sound on':'♪ Sound off')+'</button>';
  const switches=[["barrier","Barriers","Stacked counters block rivals unless a 6 is thrown"],["safeHouse","Safe houses","Protect the four marked squares"],["captureFinishes","Finish on capture","Your counter goes home after taking an opponent"],["bonusOnCapture","Roll again after capture","An extra throw when you capture"],["directCount","Direct count","Skip individual counter hops"],["visualHand","Show hand indicator","Finger points towards the dice"]];
  const optionDisabled=locked||s.rolls.length?'disabled':'';
  const config='<div class="nj-options"><label>Dice <select class="select" data-dice-mode="ludo" '+optionDisabled+'><option value="2"'+(s.diceCount===2?' selected':'')+'>2 dice · Naija</option><option value="1"'+(s.diceCount===1?' selected':'')+'>1 die · Classic</option></select></label>'+'<div class="nj-player-config">'+ui.choosePlayers("ludo",s.players.length,4)+'</div></div>';
  const settings='<details class="nj-settings"><summary>⚙ Game options <span>· Play like Naija Ludo</span></summary><div class="nj-switches"><label class="nj-speed"><span><b>Opponent</b><small>Local friends or offline computer</small></span><select class="select" data-ludo-opponent '+optionDisabled+'><option value="local"'+(s.opponent==="local"?" selected":"")+'>Friend (local)</option><option value="computer"'+(s.opponent==="computer"?" selected":"")+'>Computer</option></select></label>'+(s.opponent==="computer"?'<label class="nj-speed"><span><b>Computer difficulty</b><small>Four levels of tactical play</small></span><select class="select" data-ludo-difficulty '+optionDisabled+'>'+["easy","normal","hard","advanced"].map(d=>'<option value="'+d+'" '+(d===s.difficulty?"selected":"")+'>'+d[0].toUpperCase()+d.slice(1)+'</option>').join("")+'</select></label>':"")+switches.map(([key,name,desc])=>'<label class="nj-switch"><span><b>'+name+'</b><small>'+desc+'</small></span><input type="checkbox" data-ludo-option="'+key+'" '+(s.options[key]?'checked':'')+' '+optionDisabled+'></label>').join('')+'<label class="nj-speed"><span><b>Counter movement</b><small>Adjust animation speed</small></span><select class="select" data-ludo-speed '+optionDisabled+'><option value="slow"'+(s.options.speed==="slow"?' selected':'')+'>Slow</option><option value="normal"'+(s.options.speed==="normal"?' selected':'')+'>Normal</option><option value="fast"'+(s.options.speed==="fast"?' selected':'')+'>Fast</option></select></label></div></details>';
  const btn=s.rolls.length||s.moving?'<div class="nj-move-hint" role="note">'+(s.moving?'Counter moving…':'Tap a glowing counter to move')+'</div>':'<button class="primary nj-roll-btn" type="button" data-action="ludo-roll" '+(canRoll?'':'disabled')+'>'+(s.rolling?'Rolling…':'Throw dice 🎲')+'</button>';
- ui.controls.innerHTML='<div class="nj-roll-station"><div class="nj-dice-caption">'+(s.rolls.length?'CHOOSE A DIE, THEN MOVE':'TAP THE DICE TO ROLL')+'</div>'+big+btn+pending+'</div>'+counterPicker+(s.winner!==null?'<div class="nj-win-banner" role="status">🏆 '+escapeText(s.players[s.winner].name)+' wins!</div>':'')+progress+config+soundToggle+settings;
+ ui.controls.innerHTML='<div class="nj-roll-station"><div class="nj-dice-caption">'+(s.rolls.length?'CHOOSE A DIE, THEN MOVE':'TAP THE DICE TO ROLL')+'</div>'+big+btn+pending+'</div>'+counterPicker+(s.winner!==null?'<div class="nj-win-banner" role="status">🏆 '+escapeText(s.players[s.winner].name)+' wins!</div>':'')+progress+config+settings;
  ui.rules("Naija Ludo house rules","Two dice, two houses each in a two-player match, <b>eight counters each</b>. Roll a 6 to release a counter; play the dice before throwing again. By default, capturing sends your counter to the finish and the rival back to their yard. A pair stacked on its opening square forms a barrier. Configure safe houses, capture rules, movement speed and direct count in Game options. <b>Local play only.</b>");
  if(motion)motion.play(ui.board,before,s);
  ui.save();
@@ -259,8 +248,7 @@ function roll(s,draw){
  if(s.rolling||s.moving||s.rolls.length||s.winner!==null)return;
  cancel();checkpoint(s);const generation=life,actual=Array.from({length:s.diceCount},rand6);
  s.rolling=true;s.preview=actual;s.msg="Shaking…";draw();
- sound(s,310,.09,.08);
- let ticks=0;ticker=setInterval(()=>{if(life!==generation){clearInterval(ticker);ticker=null;return;}ticks++;if(ticks%3===0)sound(s,340+ticks*11,.04,.025);},74);
+ sfx("dice");
  const ms=reduced()?105:760;
  moveTimer=setTimeout(()=>{
   if(life!==generation)return;
@@ -270,7 +258,7 @@ function roll(s,draw){
   s.msg="Dice: "+actual.join(" and ")+".";
   finishIfDone(s);
   if(!s.rolls.length&&!s.msg.includes("No moves"))s.msg="No legal moves this throw. "+s.msg;
-  commitAction();sound(s,590,.095,.06);draw();
+  commitAction();sfx("place");draw();
  },ms);
 }
 function capture(s,pi,ti){
@@ -311,8 +299,8 @@ function move(s,pi,ti,draw){
   function settle(){
    if(myLife!==life)return;
    s.moving=false;commitAction();
-   sound(s,home?740:cap.hit?280:540,home?.18:.07,home?.08:.05);
-   if(me.tokens.every(x=>x===56)){s.winner=pi;s.rolls=[];s.selectedDie=null;s.die=null;s.rolled=false;s.bonus=false;s.bonusReason=null;s.msg="All pieces home. Champion!";draw();return;}
+   sfx(home?"snap":cap.hit?"capture":"place");
+   if(me.tokens.every(x=>x===56)){s.winner=pi;s.rolls=[];s.selectedDie=null;s.die=null;s.rolled=false;s.bonus=false;s.bonusReason=null;s.msg="All pieces home. Champion!";sfx("win");draw();return;}
    finishIfDone(s);draw();
   }
   if(cap.hit||home){draw();moveTimer=setTimeout(settle,t.capture+20);}else settle();
@@ -324,7 +312,6 @@ function move(s,pi,ti,draw){
   if(myLife!==life)return;
   if(count<remaining){
    me.tokens[ti]++;count++;draw();
-   setTimeout(()=>{if(myLife===life)sound(s,370+count*22,.035,.025);},t.hop);
    moveTimer=setTimeout(hop,delay);
   }else complete();
  }

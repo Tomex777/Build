@@ -9,7 +9,7 @@ const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const mime=f=>f.endsWith('.js')?'text/javascript':f.endsWith('.css')?'text/css':f.endsWith('.txt')?'text/plain':'text/html';
 const server=createServer((req,res)=>{
  let p=new URL(req.url,'http://127.0.0.1').pathname;
- let file=p==='/games'?'index.html':p.startsWith('/jigsaw')?p.replace(/^\//,''):null;
+ let file=p==='/games'?'index.html':(p.startsWith('/jigsaw')||p.startsWith('/audio/'))?p.replace(/^\//,''):null;
  if(file?.endsWith('/'))file+='index.html';
  if(!file||file.includes('..')){res.writeHead(404);res.end('Not found');return;}
  try{const bytes=readFileSync(path.join(root,file));res.writeHead(200,{'content-type':mime(file),'cache-control':'no-store'});res.end(bytes)}

@@ -1,0 +1,11 @@
+/* NIGHT Play: shared, custom sound switch (no system-default slider). */
+.night-sfx-setting{display:flex;align-items:center;justify-content:space-between;gap:18px;padding:17px 0;border-top:1px solid rgba(114,129,120,.23);margin-top:12px}
+.night-sfx-label{font:600 14px/1.4 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;letter-spacing:0;color:inherit}
+.night-sfx-switch{display:inline-flex;align-items:center;gap:9px;background:transparent;border:0;padding:5px 0;cursor:pointer;min-height:42px;color:inherit;font:600 12px/1 system-ui,sans-serif}
+.night-sfx-track{position:relative;display:inline-block;width:45px;height:25px;border:1px solid #7a857e;border-radius:18px;background:#e6e9e5;transition:background .15s,border-color .15s}
+.night-sfx-knob{position:absolute;top:3px;left:3px;width:17px;height:17px;border-radius:50%;background:#64716c;transition:transform .15s,background .15s}
+.night-sfx-switch[aria-checked="true"] .night-sfx-track{background:#173d32;border-color:#173d32}
+.night-sfx-switch[aria-checked="true"] .night-sfx-knob{transform:translateX(19px);background:#fff}
+.night-sfx-state{min-width:19px;text-align:left;font-weight:600}
+.night-sfx-switch:focus-visible{outline:2px solid #42866a;outline-offset:4px;border-radius:5px}
+@media(prefers-reduced-motion:reduce){.night-sfx-track,.night-sfx-knob{transition:none}}

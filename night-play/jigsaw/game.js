@@ -5,7 +5,6 @@
  * See THIRD_PARTY_LICENSE.txt.
  */
 import {PuzzleBoard} from './engine/PuzzleBoard.js';
-import {SoundSynth} from './engine/SoundSynth.js';
 import {ConfettiSystem} from './engine/Confetti.js';
 import {renderThemeArt} from './themes.js';
 
@@ -28,7 +27,7 @@ const modeRules={
 };
 let challengeMode='relaxed',usedHints=0,usedPreviews=0,previewTimeout=null;
 const canvas=$('puzzleCanvas'),wrapper=$('canvasWrapper'),board=new PuzzleBoard(canvas,wrapper);
-const sound=new SoundSynth(),confetti=new ConfettiSystem();
+const sound={playPickup:()=>window.NightAudio?.play('pickup'),playSnap:()=>window.NightAudio?.play('snap'),playVictory:()=>window.NightAudio?.play('win')},confetti=new ConfettiSystem();
 let theme='nature',category='all',piecesCount=24,customData=null,elapsed=0,secondsTimer=null,won=false,activeRound=false;
 let galleryReady=false,resumeCandidate=null;
 let dragId=null,dragX=0,dragY=0,dragMoved=false,dragRect=null,dragOriginX=0,dragOriginY=0,winAnimationId=null,winTimeout=null,toastTimeout=null;
@@ -292,7 +291,8 @@ document.querySelectorAll('[data-close]').forEach(b=>b.addEventListener('click',
 $('previewDialog').addEventListener('close',()=>{if(previewTimeout!==null){clearTimeout(previewTimeout);previewTimeout=null}timerStart()});
 $('settingsButton').addEventListener('click',()=>{updateDifficultyButtons();dialog('settingsDialog')});
 $('guideSwitch').addEventListener('change',e=>{board.showGhost=guideEnabled();safeWrite('night-play-jigsaw-guide',String(e.target.checked));board.render();saveGame()});
-$('soundSwitch').addEventListener('change',e=>{sound.enabled=e.target.checked;safeWrite('night-play-jigsaw-sound',String(e.target.checked))});
+$('soundSwitch').addEventListener('change',e=>{window.NightAudio?.setEnabled(e.target.checked)});
+window.addEventListener('storage',e=>{if(e.key==='night-play-sfx-enabled')$('soundSwitch').checked=e.newValue!=='false'});
 document.querySelectorAll('[data-mode]').forEach(b=>b.addEventListener('click',()=>{
  const next=b.dataset.mode;if(next===challengeMode||!modeRules[next])return;
  challengeMode=next;safeWrite('night-play-jigsaw-mode',next);
@@ -333,8 +333,7 @@ window.addEventListener('keydown',e=>{
  // This prevents an unfinished puzzle from flashing the full gallery before resuming.
 $('guideSwitch').checked=safeRead('night-play-jigsaw-guide')==='true';
 challengeMode=modeRules[safeRead('night-play-jigsaw-mode')]?safeRead('night-play-jigsaw-mode'):'relaxed';
-$('soundSwitch').checked=safeRead('night-play-jigsaw-sound')!=='false';
-sound.enabled=$('soundSwitch').checked;
+$('soundSwitch').checked=window.NightAudio?.enabled??true;
 piecesCount=Number(safeRead('night-play-jigsaw-pieces'))||24;
 if(!dimMap[piecesCount])piecesCount=24;
 updateDifficultyButtons();

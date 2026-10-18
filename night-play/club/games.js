@@ -4,6 +4,7 @@
 const $=id=>document.getElementById(id);
 const board=$("board"),controls=$("controls"),status=$("status"),help=$("help"),picks=$("gamePicks");
 const KEY="night-play-club-v1";
+const sfx=(name,detail)=>window.NightAudio?.play(name,detail);
 const state={};let active="checkers",timer=null,drawCtx=null;
 let cardMotionBusy=false,cardMotionEpoch=0,pendingWhotDeal=false;
 // Speed is intentionally unified: interaction should feel immediate,
@@ -79,8 +80,9 @@ function renderLudo(){
  const options=controls.querySelector(".nj-options");
  if(details&&options)details.insertBefore(options,details.querySelector(".nj-switches"));
  if(details&&!details.querySelector(".nj-in-sheet-extra")){
-  details.insertAdjacentHTML("beforeend",'<div class="nj-in-sheet-extra"><button type="button" class="secondary" data-action="ludo-new">↻ New match</button><button type="button" class="secondary" data-action="ludo-sound">'+(s.sound?'♫ Sound ON':'♪ Sound OFF')+'</button></div>');
+  details.insertAdjacentHTML("beforeend",'<div class="nj-in-sheet-extra"><button type="button" class="secondary" data-action="ludo-new">↻ New match</button></div>');
  }
+ if(details)window.NightAudio?.attachToggle(details.querySelector(".nj-switches")||details);
  if(controls.querySelector(".nj-settings[open]")){$("ludoSheetBack").hidden=false;$("ludoSettingsBtn").setAttribute("aria-expanded","true");}
  window.NightLudo3D?.sync();
 }
@@ -153,7 +155,7 @@ function whotStore(){try{localStorage.setItem(WHOT_OPTIONS_KEY,JSON.stringify(wh
 function whotRank(){const level=Math.min(whotRankNames.length-1,Math.floor(whotCareer.wins/3));return {name:whotRankNames[level],level,next:level===whotRankNames.length-1?null:3-whotCareer.wins%3}}
 function whotAward(s,pi){
  if(s.winner!==null)return;
- s.winner=pi;s.msg=pi===0?"You win! Check up!":"Computer wins.";
+ s.winner=pi;s.msg=pi===0?"You win! Check up!":"Computer wins.";sfx(pi===0?"win":"lose");
  if(whotOptions.mode==="career"){
   if(pi===0){const oldRank=whotRank().level;whotCareer.wins++;whotCareer.streak++;whotCareer.bestStreak=Math.max(whotCareer.bestStreak,whotCareer.streak);const nowRank=whotRank();if(nowRank.level>oldRank)s.promotion=nowRank.name}
   else{whotCareer.losses++;whotCareer.streak=0}
@@ -314,7 +316,8 @@ async function whotFly(origin,destination,{face=null,action="play"}={}){
 }
 function whotDeal(){
  const deck=board.querySelector('.whot-deck-back');
- if(!deck||!motionEnabled()||active!=='whot')return;
+ if(!deck||active!=='whot')return;
+ sfx('deal');if(!motionEnabled())return;
  const a=deck.getBoundingClientRect();
  [...board.querySelectorAll('.hand .whot-card')].forEach((card,index)=>{
   const b=card.getBoundingClientRect(),dx=a.left+a.width/2-b.left-b.width/2,
@@ -368,6 +371,8 @@ async function cardPlay(kind,index,requestedShape=null,visualOrigin=null){
   }
   if(epoch!==cardMotionEpoch||active!==kind||state[kind]!==s)return;
   s.hands[0].splice(index,1);nextCardTurn(kind,s,0,card,chosen);
+  if(s.winner===null)sfx(kind==='whot'&&[1,2,5,8,14,20].includes(card.n)?'special':'card');
+  else if(kind==='colors')sfx('win');
   render();if(kind==='whot')whotSettle();if(s.turn===1)queueCPU(kind);
  }finally{if(epoch===cardMotionEpoch)cardMotionBusy=false;}
 }
@@ -390,11 +395,12 @@ async function cardDraw(kind){
    const newCard=board.querySelectorAll('.hand .whot-card')[before];
    const landing=newCard&&getComputedStyle(newCard).display!=='none'?newCard:board.querySelector('.whot-view-hand:not([hidden])');
    await whotFly(board.querySelector('.whot-deck-back'),landing,{face:s.hands[0][before],action:'draw'});
+   sfx('draw');
    if(epoch!==cardMotionEpoch||active!==kind||state[kind]!==s)return;
    queueCPU(kind);
    return;
   }
-  take(s,0,1);s.turn=1;s.msg="You drew a card. Computer's turn.";
+  take(s,0,1);sfx("draw");s.turn=1;s.msg="You drew a card. Computer's turn.";
   render();queueCPU(kind);
  }finally{if(epoch===cardMotionEpoch)cardMotionBusy=false}
 }
@@ -434,6 +440,7 @@ function queueCPU(kind){
    if(kind==='whot'){
     cardMotionMetrics.draws++;
     await whotFly(board.querySelector('.whot-deck-back'),board.querySelector('.card-back'),{action:'draw'});
+    sfx('draw');
    }
    if(active!==kind||state[kind]!==s||cardMotionEpoch!==epoch)return;
    const count=penalty?penalty.amount:1;
@@ -449,6 +456,7 @@ function queueCPU(kind){
   }
   if(active!==kind||state[kind]!==s||cardMotionEpoch!==epoch)return;
   s.hands[1].splice(idx,1);
+  sfx(kind==='whot'&&[1,2,5,8,14,20].includes(card.n)?'special':'card');
   const suitCounts=kind==='whot'?shapes.map((_,shape)=>s.hands[1].filter(c=>c.s===shape).length):[];
   const cpuCall=kind==='whot'?suitCounts.indexOf(Math.max(...suitCounts)):Math.floor(Math.random()*4);
   nextCardTurn(kind,s,1,card,cpuCall);
@@ -740,7 +748,7 @@ setStatus(s.winner!==null?s.players[s.winner].name+" won the race to 100!":s.pla
 controlsHTML('<div class="dice">'+("⚀⚁⚂⚃⚄⚅"[(s.last||1)-1])+'</div><button type="button" class="primary" data-action="snakes-roll" '+(s.winner!==null?"disabled":"")+'>Roll dice</button>'+scoreList(s.players,x=>"Square "+x.pos)+choosePlayers("snakes",s.players.length,4));
 rules("Snakes & Ladders","Roll one die to advance. <b>↗</b> means climb a ladder to a higher square; <b>↘</b> means slide down a snake to a lower square. You must land on exactly 100 to win. Players share the same phone.");
 }
-function snakesRoll(){const s=state.snakes;if(s.winner!==null)return;const p=s.players[s.turn],n=die();s.last=n;const old=p.pos;if(p.pos+n<=100)p.pos+=n;s.msg=(p.pos===old?"Exact roll needed. ":"Rolled "+n+". ");if(ups[p.pos]){s.msg+="Climbed to "+ups[p.pos]+"!";p.pos=ups[p.pos];}if(downs[p.pos]){s.msg+="Slid to "+downs[p.pos]+"!";p.pos=downs[p.pos];}if(p.pos===100)s.winner=s.turn;else s.turn=(s.turn+1)%s.players.length;render();}
+function snakesRoll(){const s=state.snakes;if(s.winner!==null)return;sfx("dice");const p=s.players[s.turn],n=die();s.last=n;const old=p.pos;if(p.pos+n<=100)p.pos+=n;s.msg=(p.pos===old?"Exact roll needed. ":"Rolled "+n+". ");if(ups[p.pos]){s.msg+="Climbed to "+ups[p.pos]+"!";sfx("ladder");p.pos=ups[p.pos];}if(downs[p.pos]){s.msg+="Slid to "+downs[p.pos]+"!";sfx("slide");p.pos=downs[p.pos];}if(p.pos===100){s.winner=s.turn;sfx("win");}else s.turn=(s.turn+1)%s.players.length;render();}
 
 /* Draughts: mandatory captures, chained jumps, kings and no-move loss. */
 function checkerOptions(s,at,captureOnly){
@@ -788,9 +796,11 @@ function renderCheckers(){
 }
 function checkerClick(at){const s=state.checkers;if(s.winner!==null)return;const legal=allCheckerMoves(s);
 if(s.selected!==null){const move=legal.find(m=>m.from===s.selected&&m.to===at);if(move){const piece=s.cells[move.from];s.cells[move.from]=null;s.cells[move.to]=piece;if(move.capture!==null)s.cells[move.capture]=null;
+sfx(move.capture!==null?"capture":"place");
 const row=Math.floor(move.to/8);if(row===0&&piece==="w")s.cells[move.to]="W";if(row===7&&piece==="b")s.cells[move.to]="B";
+if(s.cells[move.to]!==piece)sfx("king");
 if(move.capture!==null&&s.cells[move.to]===piece){const follow=checkerOptions(s,move.to,true).filter(m=>m.capture!==null);if(follow.length){s.forced=move.to;s.selected=move.to;s.msg="Capture again with the same piece.";render();return;}}
-s.selected=null;s.forced=null;s.turn=s.turn==="w"?"b":"w";s.msg=move.capture!==null?"Captured!":"Piece moved.";if(!allCheckerMoves(s).length)s.winner=s.turn==="w"?"b":"w";render();return;}}
+s.selected=null;s.forced=null;s.turn=s.turn==="w"?"b":"w";s.msg=move.capture!==null?"Captured!":"Piece moved.";if(!allCheckerMoves(s).length){s.winner=s.turn==="w"?"b":"w";sfx("win");}render();return;}}
 if(s.forced!==null)return;
 if(s.cells[at]&&s.cells[at].toLowerCase()===s.turn&&legal.some(m=>m.from===at)){s.selected=at;s.msg="Choose a highlighted destination.";render();}}
  
@@ -871,7 +881,7 @@ const whotCall=e.target.closest("[data-whot-call]");if(whotCall&&active==='whot'
 const card=e.target.closest("[data-card]");if(card){if(Number(card.dataset.card)<0)return;cardPlay(active,Number(card.dataset.card),null,card.closest('.whot-hand-overlay')?card:null);return;}
 const sq=e.target.closest("[data-estate-info]");if(sq&&active==="estate"){state.estate.inspect=Number(sq.dataset.estateInfo);render();return;}
 const action=e.target.closest("[data-action]");if(!action)return;
-switch(action.dataset.action){case"whot-hand-open":whotOpenExpanded();break;case"whot-hand-close":whotCloseExpanded();break;case"ludo-roll":ludoRoll();break;case"ludo-new":if(confirm("Restart the Ludo match?")){closeLudoSettings();reset("ludo");}break;case"ludo-sound":state.ludo.sound=!state.ludo.sound;render();break;case"estate-roll":estateRoll();break;case"estate-buy":estateDecision(true);break;case"estate-pass":estateDecision(false);break;case"estate-end":estateEnd();break;case"card-draw":cardDraw(active);break;case"whot-rematch":if(active==="whot"&&state.whot.winner!==null){if(whotOptions.mode==="tournament"&&Math.max(...(whotCareer.tournamentWins||[0,0]))>=2){whotCareer.tournamentWins=[0,0];whotStore()}reset("whot")}break;
+switch(action.dataset.action){case"whot-hand-open":whotOpenExpanded();break;case"whot-hand-close":whotCloseExpanded();break;case"ludo-roll":ludoRoll();break;case"ludo-new":if(confirm("Restart the Ludo match?")){closeLudoSettings();reset("ludo");}break;case"estate-roll":estateRoll();break;case"estate-buy":estateDecision(true);break;case"estate-pass":estateDecision(false);break;case"estate-end":estateEnd();break;case"card-draw":cardDraw(active);break;case"whot-rematch":if(active==="whot"&&state.whot.winner!==null){if(whotOptions.mode==="tournament"&&Math.max(...(whotCareer.tournamentWins||[0,0]))>=2){whotCareer.tournamentWins=[0,0];whotStore()}reset("whot")}break;
 case"whot-last-call":if(active==="whot"&&state.whot.turn===0&&state.whot.hands[0].length===1){state.whot.calledLast=[true,Boolean(state.whot.calledLast?.[1])];state.whot.msg="Last card declared!";render()}break;case"whot-call-cancel":if(active==='whot'&&!cardMotionBusy){state.whot.pendingWhot=null;render();}break;case"snakes-roll":snakesRoll();break;case"draw-ready":drawReady();break;case"draw-next":drawNext();break;case"draw-guess":drawReadyToGuess();break;case"draw-clear":if(drawCtx){drawCtx.clearRect(0,0,800,600);}break;case"draw-erase":setBrush("erase");break;case"checkers-reset":reset("checkers");break;}
 });
 // Read-only motion diagnostics for real Chromium touch and frame tests.

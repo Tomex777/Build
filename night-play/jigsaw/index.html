@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#f7f8f4"><meta name="description" content="NIGHT Play Jigsaw — offline-ready touch jigsaw puzzles, beautiful artwork and your own photographs.">
-<title>NIGHT Play · Jigsaw Puzzle</title><link rel="stylesheet" href="/jigsaw/style.css"></head>
+<title>NIGHT Play · Jigsaw Puzzle</title><link rel="stylesheet" href="/jigsaw/style.css"><link rel="stylesheet" href="/audio/sfx.css"></head>
 <body>
 <svg class="symbol-library" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
 <symbol id="night-mark" viewBox="0 0 108 108"><path fill="#0B0F11" d="M0 0h108v108H0z"/><path fill="#F4F5F6" d="M24 54 C24 37.43 37.43 24 54 24 C70.57 24 84 37.43 84 54 L24 54 Z"/><path fill="#F4F5F6" d="M22 66h64v6H22z"/></symbol>
@@ -83,5 +83,6 @@
 <input type="file" id="imageFile" accept="image/*" hidden>
 <div id="toast" role="status" aria-live="polite" class="toast" hidden></div>
 <footer>Jigsaw engine adapted from <a href="https://github.com/playjigsaw/play-jigsaw-puzzles-online" target="_blank" rel="noopener noreferrer">PlayJigsaw.net's MIT project</a>. <a href="/jigsaw/THIRD_PARTY_LICENSE.txt">License</a></footer>
+<script src="/audio/sfx.js" defer></script>
 <script type="module" src="/jigsaw/game.js"></script>
 </body></html>

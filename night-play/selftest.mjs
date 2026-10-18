@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs'
 import vm from 'node:vm'
 const html = readFileSync(new URL('./index.html', import.meta.url), 'utf8')
 const vercel = JSON.parse(readFileSync(new URL('./vercel.json', import.meta.url), 'utf8'))
-const scripts = [...html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/g)].map(x=>x[1])
+const scripts = [...html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/g)].map(x=>x[1]).filter(x=>x.trim().length>0)
 assert.ok(scripts.length >= 1)
 for (const script of scripts) new vm.Script(script, {filename:'night-play-inline.js'})
 for (const view of ['welcome','dashboard','games','profile','terms','privacy']) {
