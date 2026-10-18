@@ -1,0 +1,21 @@
+name: NIGHT Jigsaw visual play inspection
+on:
+  pull_request:
+    paths:
+      - 'night-play/jigsaw/**'
+      - '.github/workflows/night-jigsaw-visual-play.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  visual-play:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm install --no-save playwright@1.56.1
+      - name: Actually drag real 24 and 144 piece puzzles in Chromium
+        run: node night-play/jigsaw/visual-play-audit.mjs
