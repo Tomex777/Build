@@ -566,7 +566,14 @@ private fun EndlessApp(
                         .padding(end = 18.dp, bottom = 35.dp)
                 ) {
                     glView?.cancelSurfaceControls()
-                    glView?.endlessRenderer?.takeOffSurface()
+                    if (glView?.endlessRenderer?.takeOffSurface() == true) {
+                        // The OpenGL thread can stall after leaving a world.
+                        // Hide surface controls as soon as takeoff succeeds;
+                        // do not leave a ghost button for the next GL frame.
+                        landedBody = null
+                        surfaceStick = Offset.Zero
+                        infoVisible = false
+                    }
                 }
             }
 
