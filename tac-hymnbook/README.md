@@ -1,32 +1,41 @@
-# TAC Hymnbook — first photographed batch
+# TAC Hymnbook
 
-## Source of truth
+Native, offline-first Yorùbá/English hymn reader for Android. The photographed printed TAC hymnbook determines the local hymn numbering. This is an independent project and not an official church release.
 
-The user's physical Yorùbá TAC hymnbook; the first two photos cover *printed pages 1–4*. Each photo shows two facing pages. The local book numbering is **not** the number used by external hymn collections.
+## Current implementation
 
-## What is in this commit
+- Kotlin + Jetpack Compose, Android **minSdk 26** (Android 8+), targetSdk 34.
+- Custom-styled search input; lookup by number, title, English equivalent or any bundled lyric line. Yorùbá accent-insensitive search.
+- Hymn list, availability labels, reader, previous/next, bookmarks, continue reading, persistent text-size buttons, light/dark themes.
+- Genuine Android vector drawable icons (not Unicode symbols or emoji).
+- All data bundled locally in `android/app/src/main/assets/hymns.json`. No account, ads, network dependency, remote API, or redundant volume sliders.
+- Initial photographs cover pages **1–4**: local hymns **1–11** catalogued. **4** and **7** have Yorùbá transcription drafts pending orthographic verification. Others are indexed but no lyrics are displayed until accurately entered. English switch is implemented but appropriately disabled until an English text is added.
+- Hymn 11 is incomplete in the photos; later pages or verified online equivalents can complete it.
 
-`data/hymns-001-011.seed.json` indexes local hymns **1–11**. Each has its original TAC number, a title/opening line, photographed page references, a candidate English equivalent, a possible online source, and a review state.
+## Build
 
-External source presence means only **a candidate hymn was found**, not that we have verified every line or imported full lyrics. The photo of hymn 11 ends partway through the song; additional pages are required for a photo-exact edition.
+GitHub Actions: `.github/workflows/tac-hymnbook-android.yml` validates JSON, builds a debug APK and installs/launches it on an Android emulator. APK is uploaded as `TAC-Hymns-debug-apk`.
 
-## Matching policy
+Locally with Android SDK, JDK 17 and Gradle 8.9:
 
-1. Match by Yorùbá opening line and verse structure, not external hymnal number.
-2. Keep original TAC number and collection, including appendix identifiers, unchanged.
-3. Prefer words from photographed pages where legible. Consult online hymn sources for unclear words and variations, without silently replacing the TAC edition.
-4. If no exact version can be found, an alternate version is acceptable at the user's request, but mark it **alternate** in data and UI.
-5. Never claim a complete-lyrics match when only the opening line matches.
-6. Preserve Yorùbá diacritics; support diacritic-insensitive search.
-7. Track source and reproduction rights before importing or distributing text from third-party sites.
+```sh
+python3 -m unittest discover -s tac-hymnbook/tools -p 'test_*.py' -v
+cd tac-hymnbook/android
+gradle :app:assembleDebug
+```
 
-## Next tasks
+## Add photographed pages
 
-- Resolve every line for hymns 1–11, verify against photos and online sources.
-- Add hymn 11's continuation from page 5 or mark it incomplete if an alternate is used.
-- Create Android minSdk 26 offline hymn reader following ABR (custom controls, minimal UI, no redundancy).
-- Process subsequent photo spreads as user supplies them.
+1. Determine the original printed page numbers and the corresponding TAC hymn number(s). Do not use online hymnal numbering.
+2. Extend `data/hymns-001-011.seed.json` for new photographed pages (later move to per-batch seeds).
+3. For a hymn with complete checked photo-backed lyrics, create `data/drafts/hymn-NNN.yo.json`. Maintain the exact structure of hymn 4/7 drafts, including verse lists and source page references.
+4. Use outside online collections only to help identify/match wording. Missing songs may use an alternate online text by user preference, but must be tagged as an alternate and satisfy source/reuse checks.
+5. Run `python3 tac-hymnbook/tools/build_asset.py` to regenerate the bundled JSON, run tests, then build.
+6. Preserve Yorùbá diacritics, verses, metre and attribution when available. Do not silently invent uncertain words or claim a full text is verified based on an opening-line match.
 
-## Validation
+## Planned
 
-A seed is valid when hymn numbers are unique and contiguous, all have visible source pages, and none are marked as fully verified without lyrics.
+- Import pipeline for later photo batches with per-collection keys for Appendices 1 and 2.
+- Bilingual verified verses (only when a matching version is available).
+- Continue expanding the real text database; accessibility and device-specific UI tests.
+
