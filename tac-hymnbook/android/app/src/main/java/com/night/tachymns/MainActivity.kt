@@ -140,11 +140,7 @@ private fun HymnHub(
     onToggleDark: () -> Unit
 ) {
     val visible = hymns.filter { hymn ->
-        hymn.matches(query) && when (filter) {
-            1 -> hymn.hasYoruba || hymn.hasEnglish
-            2 -> hymn.number in saved
-            else -> true
-        }
+        hymn.matches(query) && (filter != 1 || hymn.number in saved)
     }
     val latest = hymns.firstOrNull { it.number == lastRead }
     LazyColumn(
@@ -196,17 +192,10 @@ private fun HymnHub(
             }
         }
         item {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("Hymns", fontSize = 21.sp, fontWeight = FontWeight.SemiBold,
-                    modifier = Modifier.weight(1f))
-                Text(hymns.size.toString() + " indexed · " +
-                    hymns.count { it.hasYoruba && !it.textStatus.contains("partial") } + " complete · " +
-                    hymns.count { it.textStatus.contains("partial") } + " partial",
-                    color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
-            }
+            Text("Hymns", fontSize = 21.sp, fontWeight = FontWeight.SemiBold)
             Spacer(Modifier.height(14.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                listOf("All", "With lyrics", "Saved").forEachIndexed { index, label ->
+                listOf("All", "Saved").forEachIndexed { index, label ->
                     val active = filter == index
                     Surface(
                         modifier = Modifier.clickable { onFilterChange(index) },
@@ -294,11 +283,7 @@ private fun HymnRow(hymn: Hymn, saved: Boolean, onClick: () -> Unit, onToggleSav
                     Text(it, color = MaterialTheme.colorScheme.onSurfaceVariant,
                         fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
-                Spacer(Modifier.height(5.dp))
-                Text(when { hymn.textStatus.contains("partial") -> "Partial · more pages needed"
-                      hymn.hasYoruba -> "Yorùbá & English available"
-                      else -> "Lyrics being added" },
-                    color = MaterialTheme.colorScheme.primary, fontSize = 11.sp)
+
             }
             IconButton(onClick = onToggleSaved, modifier = Modifier.size(44.dp)) {
                 Icon(painterResource(if (saved) R.drawable.ic_bookmark_filled else R.drawable.ic_bookmark),
@@ -425,20 +410,12 @@ private fun HymnReader(
                     }
                 }
             }
-            item {
-                Column {
-                    if (hymn.textStatus.contains("partial")) {
-                        Text("Incomplete hymn · further page required",
-                            color = MaterialTheme.colorScheme.error, fontSize = 12.sp)
-                        Spacer(Modifier.height(6.dp))
-                    }
-                    if (hymn.textStatus.contains("draft")) {
-                        Text("Transcription being checked",
-                            color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
-                        Spacer(Modifier.height(6.dp))
-                    }
-                    Text("Printed pages: " + hymn.sourcePages.joinToString(", "),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
+            if (hymn.textStatus.contains("partial")) {
+                item {
+                    // Only the captured portion of this hymn is available so far.
+                    // Keep this unobtrusive and never present the text as complete.
+                    Text("Continued in the printed hymnbook…",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp)
                 }
             }
         }
