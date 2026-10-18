@@ -24,7 +24,7 @@ object PcmLeveler {
         }
         val rms=sqrt(squares/samples.size)
         if(rms<0.000001 || peak==0.0)return samples
-        val requested=(targetRms/rms).coerceIn(.20,12.0)
+        val requested=(targetRms/rms).coerceIn(.02,12.0)
         val gain=min(requested,.95/peak)
         if(abs(gain-1.0)<0.001)return samples
         for(i in samples.indices) {
