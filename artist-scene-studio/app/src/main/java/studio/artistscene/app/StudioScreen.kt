@@ -1125,6 +1125,10 @@ internal fun StudioScreen(
 }
 
 private fun Actor.starterFrameDistance(): Float = when (asset?.assetId) {
+    "starter.cc0.two-storey-house" -> 28f
+    "starter.cc0.bungalow-house" -> 26f
+    "starter.cc0.sedan-car" -> 10f
+    "starter.cc0.oak-street-tree" -> 13f
     "starter.mise.car" -> 12f
     "starter.mise.bicycle" -> 4f
     "starter.mise.tree" -> 6f
