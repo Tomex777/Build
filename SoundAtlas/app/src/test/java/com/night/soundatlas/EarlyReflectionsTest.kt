@@ -32,7 +32,7 @@ class EarlyReflectionsTest {
     @Test fun otherWallBlocksSpecularRay() {
         val w=World("occlusion",80f,80f,V2(20f,20f))
         w.walls+=Wall(V2(0f,10f),V2(55f,10f),Material.STONE)
-        w.walls+=Wall(V2(25f,0f),V2(25f,60f),Material.STONE)
+        w.walls+=Wall(V2(28f,0f),V2(28f,60f),Material.STONE)
         val reflections=EarlyReflections.solve(w,V2(30f,20f))
         assertFalse(reflections.any{it.wallIndex==0})
     }
