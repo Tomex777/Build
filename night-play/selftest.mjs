@@ -118,7 +118,11 @@ const declared = new Set([...html.matchAll(/id="([^"]+)"/g)].map(x=>x[1]))
 for(const id of [...html.matchAll(/getElementById\("([^"]+)"\)/g)].map(x=>x[1])){
  assert.ok(declared.has(id)||dynamicIds.has(id), 'missing element '+id)
 }
-const engine = 'function minimaxTtt('+scripts[0].split('function minimaxTtt(')[1].split('function botMoveTtt()')[0]
+// Multiple independent inline scripts may run before the game engine (for
+// example an early cookie-session prefetch). Locate the engine by content.
+const gameScript=scripts.find(source=>source.includes('function minimaxTtt(')&&source.includes('function move2048'))
+assert.ok(gameScript,'missing primary arcade game script')
+const engine = 'function minimaxTtt('+gameScript.split('function minimaxTtt(')[1].split('function botMoveTtt()')[0]
 const sandbox={};vm.runInNewContext('const isWin = (b,m)=>'+
  '[[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]].some(line=>line.every(i=>b[i]===m));\n'+
  engine+'this.evalMove=(b,mark)=>minimaxTtt(b,mark);',sandbox)
@@ -126,11 +130,11 @@ assert.equal(sandbox.evalMove(['X','X','X','','','','','',''],'O'), -10)
 assert.equal(sandbox.evalMove(['O','O','O','','','','','',''],'X'), 10)
 const full=['X','O','X','X','O','O','O','X','X']
 assert.equal(sandbox.evalMove(full,'O'),0)
-const slideSrc='function slide'+scripts[0].split('function slide')[1].split('function move2048')[0]
+const slideSrc='function slide'+gameScript.split('function slide')[1].split('function move2048')[0]
 const smod={};vm.runInNewContext('let grid=Array(4).fill(0).map(()=>Array(4).fill(0));let tileScore=0;\n'+slideSrc+'this.evalSlide=(row,len)=>{grid=Array(len).fill(0).map(()=>Array(len).fill(0));tileScore=0;const out=slide(row);return {out,points:tileScore}};',smod)
 assert.equal(JSON.stringify(smod.evalSlide([2,2,4,0],4)),JSON.stringify({out:[4,4,0,0],points:4}))
 assert.equal(JSON.stringify(smod.evalSlide([2,2,4,4,2,2],6)),JSON.stringify({out:[4,8,4,0,0,0],points:16}))
-const mazeSource='function makeSnakeMaze('+scripts[0].split('function makeSnakeMaze(')[1].split('function snakeModeName(')[0]
+const mazeSource='function makeSnakeMaze('+gameScript.split('function makeSnakeMaze(')[1].split('function snakeModeName(')[0]
 const mazeSandbox={}
 vm.runInNewContext(mazeSource+'this.build=(mode,size)=>makeSnakeMaze(mode,size);',mazeSandbox)
 assert.equal(mazeSandbox.build('wrap',18).length,0)

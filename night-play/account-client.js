@@ -1,6 +1,6 @@
 (() => {
   const dialog=document.getElementById('infoDialog')
-  let profile=null, timer=null, expiryTimer=null, requestId=0, busy=false
+  let profile=null, timer=null, expiryTimer=null, requestId=0, busy=false, statusGeneration=0
   const api=async (action='status', extra={}) => {
     const response=await fetch('/api/account',{
       method:action==='status'?'GET':'POST',credentials:'same-origin',cache:'no-store',
@@ -16,8 +16,12 @@
   const update=next => {
     profile=next||null
     window.NightAccount.profile=profile
-    // The authenticated profile itself shows connectivity; never repeat Connected in the header/card.
-    for(const button of document.querySelectorAll('[data-dialog="connect"]'))button.hidden=Boolean(profile)
+    document.documentElement.dataset.nightAccount=profile?'linked':'guest'
+    // Never show 'Connect WhatsApp' until the authoritative status is known.
+    for(const button of document.querySelectorAll('[data-dialog="connect"]')){
+      button.textContent='Connect WhatsApp'
+      button.hidden=Boolean(profile)
+    }
     const caption=document.getElementById('profileIdentityCaption')
     caption.hidden=true
     caption.textContent=''
@@ -42,14 +46,14 @@
     const status=element('p','','modalnote');status.setAttribute('role','status')
     body.append(button('Disconnect this browser',async event=>{
       event.currentTarget.disabled=true
-      try{await api('logout');update(null);dialog.close()}catch(error){status.textContent=error.message;event.currentTarget.disabled=false}
+      try{await api('logout');statusGeneration++;update(null);dialog.close()}catch(error){status.textContent=error.message;event.currentTarget.disabled=false}
     }),button('Remove NIGHT Play account',()=>{
       const body=show('Remove NIGHT Play account?')
       body.append(element('p','This removes your website profile and signs out every linked browser. Game saves on this device remain available.','modalnote'))
       const result=element('p','','modalnote');result.setAttribute('role','status')
       body.append(button('Remove account',async event=>{
         event.currentTarget.disabled=true
-        try{await api('delete');update(null);dialog.close()}catch(error){result.textContent=error.message;event.currentTarget.disabled=false}
+        try{await api('delete');statusGeneration++;update(null);dialog.close()}catch(error){result.textContent=error.message;event.currentTarget.disabled=false}
       }),button('Keep account',connected,'btn light'),result)
     },'btn outline'),status)
   }
@@ -80,7 +84,7 @@
         try{
           const state=await api()
           if(id!==requestId)return
-          if(state.linked){update(state.profile);if(!state.profile?.avatarData)setTimeout(()=>api().then(v=>{if(v.linked)update(v.profile)}).catch(()=>{}),3000);const body=show('You’re connected');body.append(element('p',state.profile.displayName,'account-name'),element('p','NIGHT verified your WhatsApp account.','modalnote'),button('Continue',()=>dialog.close()));return}
+          if(state.linked){statusGeneration++;update(state.profile);if(!state.profile?.avatarData)setTimeout(()=>api().then(v=>{if(v.linked)update(v.profile)}).catch(()=>{}),3000);const body=show('You’re connected');body.append(element('p',state.profile.displayName,'account-name'),element('p','NIGHT verified your WhatsApp account.','modalnote'),button('Continue',()=>dialog.close()));return}
           pending.textContent='Waiting for NIGHT to verify…'
         }catch(error){if(id!==requestId)return;pending.textContent=error.message}
         if(id===requestId)timer=setTimeout(poll,4000)
@@ -88,16 +92,39 @@
       timer=setTimeout(poll,2000)
     }catch(error){if(id===requestId)errorView(error.message,begin)}
   }
+  const checkSession=async (useBoot=false)=>{
+    const version=++statusGeneration
+    try {
+      // Head started this same-origin fetch before the DOM finished parsing.
+      // Reuse it rather than issuing a second competing status request.
+      const result=useBoot&&window.__nightAccountBoot
+        ? await window.__nightAccountBoot
+        : {data:await api()}
+      if(version!==statusGeneration)return
+      if(result.error)throw new Error(result.error)
+      update(result.data?.linked?result.data.profile:null)
+    } catch(error) {
+      if(version!==statusGeneration)return
+      // A timeout or backend outage is NOT proof that the user signed out.
+      // Preserve the last confirmed profile and offer a neutral retry.
+      document.documentElement.dataset.nightAccount='unavailable'
+      if(!profile)for(const button of document.querySelectorAll('[data-dialog="connect"]')){
+        button.textContent='Check connection'
+        button.hidden=false
+      }
+    }
+  }
   window.NightAccount={profile:null,open:async()=>{
     if(busy)return;busy=true
     const body=show('Connect WhatsApp');body.append(element('p','Checking your connection…','modalnote'))
     const id=requestId
-    try{const state=await api();if(id!==requestId)return;update(state.profile);if(profile)connected();else await begin()}
+    try{const state=await api();if(id!==requestId)return;statusGeneration++;update(state.profile);if(profile)connected();else await begin()}
     catch(error){if(id===requestId)errorView(error.message,()=>window.NightAccount.open())}
     finally{busy=false}
-  },saveName:async displayName=>{const data=await api('profile',{displayName});update(data.profile)}}
+  },saveName:async displayName=>{const data=await api('profile',{displayName});statusGeneration++;update(data.profile)}}
   document.getElementById('profileAccountMenu').addEventListener('click',()=>window.NightAccount.open())
   dialog.addEventListener('close',stop)
-  document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&!dialog.open)api().then(data=>update(data.profile)).catch(()=>{})})
-  api().then(data=>update(data.profile)).catch(()=>{})
+  document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&!dialog.open)checkSession()})
+  window.addEventListener('pageshow',event=>{if(event.persisted&&!dialog.open)checkSession()})
+  checkSession(true)
 })()
