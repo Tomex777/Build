@@ -137,7 +137,7 @@ class MainActivity : Activity() {
         private var pinching=false
         private var pinchSpan=0f
         private var selectedZoneType=0
-        private var exploreTarget:V2?=null
+        private val exploreRoute=mutableListOf<V2>()
         private val buttons=mutableListOf<Hit>()
         private var tick=0L
 
@@ -232,9 +232,10 @@ class MainActivity : Activity() {
             line(c,head,target,teal,2f)
             c.drawCircle(target.x,target.y,2f,paint(teal))
             if(mode==Mode.EXPLORE){
-                exploreTarget?.let { targetPoint->
+                exploreRoute.lastOrNull()?.let { targetPoint->
                     val p=xy(targetPoint)
                     c.drawCircle(p.x,p.y,8f,paint(teal,Paint.Style.STROKE,1f))
+                    label(c,"DESTINATION",p.x+12f,p.y+4f,9f,teal,true)
                 }
             }
         }
@@ -364,7 +365,8 @@ class MainActivity : Activity() {
                         label(c,("%02d".format(i+1)),x+10,y+20,10f,teal,true)
                         label(c,name.take(19),x+10,y+45,12f,text,true)
                         buttons+=Hit(RectF(x,y,x+cell,y+69f)){
-                            replace(AtlasPresets.create(i));sheet=Sheet.NONE;invalidate()
+                            replace(AtlasPresets.create(i));exploreRoute.clear()
+                            sheet=Sheet.NONE;invalidate()
                         }
                     }
                     smallButton(c,"NEW EMPTY WORLD",20f,top+300f,ww*.48f-24f,39f){
@@ -509,12 +511,16 @@ class MainActivity : Activity() {
             return -2
         }
         private fun walkToTarget() {
-            val target=exploreTarget?:return
+            val target=exploreRoute.firstOrNull()?:return
             val dx=target.x-world.listener.x;val dy=target.y-world.listener.y
             val distance=hypot(dx,dy)
-            if(distance<.18f){exploreTarget=null;return}
+            if(distance<.18f){exploreRoute.removeAt(0);return}
             val amount=min(.24f,distance)
-            world.listener=world.bound(world.listener.moved(dx/distance*amount,dy/distance*amount))
+            val proposed=world.bound(world.listener.moved(dx/distance*amount,dy/distance*amount))
+            if(!AtlasNavigator.traversable(world,world.listener,proposed)){
+                exploreRoute.clear();return
+            }
+            world.listener=proposed
             world.facing=atan2(dx,-dy)
             camera=world.listener.copy()
             audio.update(world)
@@ -583,7 +589,12 @@ class MainActivity : Activity() {
                     if(sheet!=Sheet.NONE){dragTarget=null;return true}
                     if(pos.y<102f || pos.y>hh-150f){dragTarget=null;return true}
                     if(mode==Mode.EXPLORE) {
-                        exploreTarget=world.bound(unxy(pos));invalidate();return true
+                        val next=world.bound(unxy(pos))
+                        exploreRoute.clear()
+                        exploreRoute.addAll(AtlasNavigator.route(world,world.listener,next))
+                        if(exploreRoute.isEmpty())
+                            Toast.makeText(this@MainActivity,"No walkable route",Toast.LENGTH_SHORT).show()
+                        invalidate();return true
                     }
                     when(val target=dragTarget) {
                         -3 -> {
