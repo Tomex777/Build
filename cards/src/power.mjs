@@ -90,31 +90,53 @@ export function powerPresentation(svg, card, design, {nameScale = .84} = {}) {
       return open + cleaned + close;
     });
     if (fronts !== 1) throw Error('Expected one foreground depth layer');
+    svg = svg.replace('M78 125H190M814 125H923', 'M78 125H190');
   }
   const p = `power-${card.id}-${design}-`;
   const tone = card.recipe?.powerBadgeTone?.[design];
   if (tone !== undefined && !['light', 'dark'].includes(tone)) throw Error('Invalid power badge tone');
   const light = tone ? tone === 'light' : ['tidelight', 'ivory'].includes(design);
   const rank = card.power.rank ?? '—';
-  const ink = light ? '#173544' : '#f4f3e9';
   const x = 813, y = ['nocturne','tidelight'].includes(design) ? 78 : 44, w = 112, h = 72;
+  const size = rank.length > 2 ? 42 : rank.length > 1 ? 50 : 56;
+  const family = ['nocturne','tidelight'].includes(design) ? 'NightSans' : design === 'obsidian' ? 'AtelierSans' : 'NSans';
   const description = card.power.rank
     ? `NIGHT power rank ${rank}. ${card.power.scope}. ${card.power.basis}`
     : `Power rank awaiting form assessment. ${card.power.scope}`;
+  // Glass exists only inside the letter outlines. The copied artwork is
+  // refracted through the glyphs, with translucent faces and bevel highlights.
+  // The reserved area is layout metadata, never a visible plate or pill.
   const badge = `<defs>
-    <clipPath id="${p}lens"><rect x="${x}" y="${y}" width="${w}" height="${h}" rx="22"/></clipPath>
-    <filter id="${p}blur" filterUnits="userSpaceOnUse" x="${x-18}" y="${y-18}" width="${w+36}" height="${h+36}"><feGaussianBlur stdDeviation="5"/></filter>
-    <linearGradient id="${p}glass" x1="0" y1="0" x2=".8" y2="1"><stop stop-color="${light?'#fff':'#071c28'}" stop-opacity="${light?.46:.32}"/><stop offset=".55" stop-color="${light?'#fff':'#102b39'}" stop-opacity="${light?.22:.18}"/><stop offset="1" stop-color="${light?'#d9edef':'#b8dce0'}" stop-opacity=".12"/></linearGradient>
-    <linearGradient id="${p}edge" x1="0" y1="0" x2=".7" y2="1"><stop stop-color="${light?'#fff':'#e5f4ef'}" stop-opacity=".76"/><stop offset=".45" stop-color="${light?'#6f96a4':'#afd1d9'}" stop-opacity=".12"/><stop offset="1" stop-color="${light?'#fff':'#c8e4e7'}" stop-opacity=".4"/></linearGradient>
-  </defs><g data-layer="power-rank" data-power-rank="${rank}" role="img" aria-label="${xml(description)}">
+    <text id="${p}glyph" data-rank-source="true" x="${x+w/2}" y="${y+h/2+19}" text-anchor="middle" font-family="${family},Arial,sans-serif" font-size="${size}" font-weight="500" letter-spacing="1.8">${rank}</text>
+    <clipPath id="${p}letters"><use href="#${p}glyph"/></clipPath>
+    <filter id="${p}refract" filterUnits="userSpaceOnUse" x="${x-16}" y="${y-16}" width="${w+32}" height="${h+32}">
+      <feTurbulence type="fractalNoise" baseFrequency=".018 .024" numOctaves="1" seed="17" result="surface"/>
+      <feDisplacementMap in="SourceGraphic" in2="surface" scale="7" xChannelSelector="R" yChannelSelector="G"/>
+      <feGaussianBlur stdDeviation=".22"/>
+    </filter>
+    <filter id="${p}cast" x="-.2" y="-.2" width="1.4" height="1.6"><feDropShadow dx=".55" dy="1.2" stdDeviation=".65" flood-color="#03121c" flood-opacity="${light?.28:.58}"/></filter>
+    <linearGradient id="${p}face" x1="0" y1="0" x2=".5" y2="1">
+      <stop stop-color="${light?'#1d4b61':'#f1fbff'}" stop-opacity="${light?.48:.64}"/>
+      <stop offset=".32" stop-color="${light?'#44768c':'#d2eaf1'}" stop-opacity="${light?.20:.24}"/>
+      <stop offset=".48" stop-color="#f7ffff" stop-opacity=".65"/>
+      <stop offset=".52" stop-color="${light?'#153f56':'#b7d9e4'}" stop-opacity="${light?.38:.12}"/>
+      <stop offset="1" stop-color="${light?'#315c73':'#dff4fa'}" stop-opacity="${light?.48:.52}"/>
+    </linearGradient>
+    <linearGradient id="${p}edge" x1="0" y1="0" x2=".65" y2="1">
+      <stop stop-color="${light?'#234b60':'#f3ffff'}" stop-opacity=".9"/>
+      <stop offset=".38" stop-color="${light?'#769aab':'#b1d2df'}" stop-opacity=".35"/>
+      <stop offset=".56" stop-color="#fff" stop-opacity=".9"/>
+      <stop offset="1" stop-color="${light?'#1b4156':'#d3edf6'}" stop-opacity=".72"/>
+    </linearGradient>
+  </defs><g data-layer="power-rank" data-power-material="glass-letters" data-power-rank="${rank}" data-rank-x="${x}" data-rank-y="${y}" data-rank-width="${w}" data-rank-height="${h}" role="img" aria-label="${xml(description)}">
     <title>${xml(description)}</title>
-    <g clip-path="url(#${p}lens)"><use href="#${p}scene" filter="url(#${p}blur)"/><rect x="${x}" y="${y}" width="${w}" height="${h}" fill="url(#${p}glass)"/></g>
-    <rect x="${x+.6}" y="${y+.6}" width="${w-1.2}" height="${h-1.2}" rx="21.4" fill="none" stroke="url(#${p}edge)" stroke-width="1.2"/>
-    <path d="M${x+24} ${y+2}h${w-48}" fill="none" stroke="${light?'#fff':'#edf7f4'}" stroke-opacity=".45" stroke-width=".7"/>
-    <text x="${x+w/2}" y="${y+h/2+14}" text-anchor="middle" font-family="${['nocturne','tidelight'].includes(design)?'NightSans':design==='obsidian'?'AtelierSans':'NSans'},Arial,sans-serif" font-size="${rank.length>2?36:40}" font-weight="500" letter-spacing="1.2" fill="${ink}" stroke="${light?'#f1f7f3':'#06121b'}" stroke-opacity=".5" stroke-width=".6" paint-order="stroke fill">${rank}</text>
+    <g data-layer="rank-refraction" clip-path="url(#${p}letters)"><use href="#${p}scene" transform="translate(-3 -2)" filter="url(#${p}refract)"/></g>
+    <use href="#${p}glyph" fill="none" stroke="${light?'#0c2d40':'#020f18'}" stroke-width="1.8" stroke-opacity="${light?.22:.64}" filter="url(#${p}cast)"/>
+    <use data-rank-ink="true" href="#${p}glyph" fill="url(#${p}face)" stroke="url(#${p}edge)" stroke-width=".95" stroke-linejoin="round" paint-order="stroke fill"/>
+    <use href="#${p}glyph" transform="translate(-.35 -.5)" fill="none" stroke="#f4ffff" stroke-opacity="${light?.44:.66}" stroke-width=".45"/>
   </g>`;
-  // Keep the existing scene as the lens's backdrop. The badge is a sibling,
-  // never part of its own backdrop, so SVG use references cannot recurse.
+  // The glass lettering is a sibling of its backdrop, so use references
+  // cannot recurse. The original illustration and frame layers stay intact.
   const boundary = svg.indexOf('</defs>');
   if (boundary < 0 || !svg.endsWith('</svg>')) throw Error('Unexpected SVG root structure');
   svg = svg.slice(0, boundary + 7) + `<g id="${p}scene">` + svg.slice(boundary + 7, -6) + '</g>' + badge + '</svg>';
