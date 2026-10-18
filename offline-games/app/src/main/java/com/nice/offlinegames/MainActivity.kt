@@ -84,7 +84,7 @@ private val games = listOf(
     GameEntry("bird", "Wing Hop", "Arcade", "Navigate the moving gaps"),
     GameEntry("maze", "Maze Chase", "Arcade", "Collect dots, dodge chasers")
 )
-private val categories = listOf("All", "Arcade", "Puzzle")
+private val categories = listOf("All", "Favourites", "Arcade", "Puzzle")
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -162,7 +162,7 @@ private fun OfflineHub() {
                     }
                 }
                 val matched = games.filter {
-                    (filter == "All" || it.category == filter) &&
+                    (filter == "All" || (filter == "Favourites" && it.id in favourites) || it.category == filter) &&
                         (search.isBlank() || it.title.contains(search, ignoreCase = true) || it.category.contains(search, ignoreCase = true))
                 }
                 LazyColumn(
