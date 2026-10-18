@@ -101,3 +101,55 @@ body:has(#playScreen:not([hidden])) .progress-footnote{display:none}
  .game-actions{margin:8px 2px 1px}
  .completion-track{margin:5px auto}
 }
+
+/* Reference-inspired playable HUD. Preview / Hint belong above the picture.
+ * All game controls remain reachable in portrait and true Fullscreen API mode. */
+.play-hud{position:sticky;top:0;z-index:12;background:#f8f9f6;padding:3px 0 5px;isolation:isolate}
+.play-hud .match-strip{width:min(100%,700px);max-width:none}
+.play-hud .fullscreen-control{width:37px;height:37px;flex:none;display:grid;place-items:center;border:1px solid #d6e2d9;border-radius:10px;background:#fff;color:#315b43}
+.play-hud .fullscreen-control[aria-pressed="true"]{background:#e7f1e9}
+.play-hud .fullscreen-control .ico{width:18px;height:18px}
+.play-hud .table-tools{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);align-items:center;gap:8px;width:min(100%,1280px);min-height:44px}
+.workspace-tools,.assistance-tools{display:flex;align-items:center;gap:5px;min-width:0}
+.assistance-tools{justify-content:center}
+.play-hud .table-tools>.zoom-tools{justify-self:end}
+.play-hud .tool-help{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-width:0;min-height:36px;padding:4px 9px;border:1px solid #cbded1;border-radius:10px;background:#edf5ee;color:#285b40;font-size:11px;font-weight:850}
+.play-hud .tool-help:disabled{opacity:.42;cursor:not-allowed}
+.play-hud .tool-help .ico{width:17px;height:17px}
+.play-hud .tool-help .use-count{font-size:9px;padding:3px 5px;letter-spacing:0;color:#51715d;background:#dcecdf}
+.play-hud .tool-help:focus-visible,.play-hud .table-tools button:focus-visible{outline-offset:2px}
+.settings-restart{display:flex;align-items:center;justify-content:center;gap:9px;width:100%;min-height:43px;margin:16px 0 12px;background:#fff;border:1px solid #d4e0d5;border-radius:11px;color:#355a44;font-weight:830;font-size:12px}
+.settings-restart .ico{width:17px;height:17px}
+body:has(#playScreen:not([hidden])) .play-mat{height:clamp(370px,calc(100dvh - 194px),950px)}
+/* Fullscreen encloses both the game and the controls (including dialogs). */
+:root:fullscreen{background:#f8f9f6;overflow:auto}
+:root:fullscreen body{min-height:100dvh}
+:root:fullscreen .game-topline{height:54px}
+:root:fullscreen body:has(#playScreen:not([hidden])) main{padding:3px 4px 8px}
+:root:fullscreen body:has(#playScreen:not([hidden])) .play-mat{height:clamp(310px,calc(100dvh - 177px),1050px)}
+:root:fullscreen .play-hud{top:0;padding:1px 0 3px}
+@media(max-width:650px){
+ .play-hud{padding:2px 0 4px}
+ .play-hud .match-strip{margin:0 auto 3px;gap:5px;padding:5px 6px}
+ .play-hud .fullscreen-control{width:33px;height:33px;border-radius:8px}
+ .play-hud .table-tools{gap:3px;grid-template-columns:auto minmax(0,1fr) auto;padding:0 2px;min-height:44px}
+ .workspace-tools,.assistance-tools{gap:3px}
+ .workspace-tools button{width:31px;min-width:31px;padding:0!important}
+ .workspace-tools button span{display:none}
+ .play-hud .tool-help{min-height:42px;display:grid;grid-template-columns:14px auto;grid-template-rows:17px 12px;gap:0 3px;padding:3px 6px;font-size:10px;line-height:1}
+ .play-hud .tool-help .ico{grid-column:1;grid-row:1;align-self:center;width:14px;height:14px}
+ .play-hud .tool-help .help-label{grid-column:2;grid-row:1;align-self:center}
+ .play-hud .tool-help .use-count{grid-column:1 / -1;grid-row:2;justify-self:center;padding:0;background:transparent;font-size:9px}
+ .play-hud .zoom-tools{gap:1px;padding:2px}
+ .play-hud .zoom-tools button{min-width:27px!important;width:27px;height:31px;padding:0!important}
+ .play-hud .zoom-tools #zoomReset{min-width:38px!important;width:38px;font-size:10px}
+ body:has(#playScreen:not([hidden])) .play-mat{height:clamp(350px,calc(100dvh - 170px),950px)}
+ :root:fullscreen .game-topline{height:47px}
+ :root:fullscreen body:has(#playScreen:not([hidden])) .play-mat{height:clamp(320px,calc(100dvh - 146px),1050px)}
+}
+@media(max-width:355px){
+ .play-hud .tool-help{padding:3px 4px;font-size:9px}
+ .play-hud .zoom-tools #zoomReset{min-width:32px!important;width:32px;font-size:9px}
+ .workspace-tools button{width:29px;min-width:29px}
+ .play-hud .table-tools{gap:2px}
+}
