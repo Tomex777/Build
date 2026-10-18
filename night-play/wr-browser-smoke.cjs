@@ -66,17 +66,19 @@ const server=http.createServer((req,res)=>{
   await game.goto(base+'/multiplayer/ttt/');
   await game.locator('#inviteBtn').waitFor({state:'visible'});
   await game.locator('#inviteBtn').click();
-  await game.locator('#leaveBtn').waitFor({state:'visible'});
-  await game.locator('#leaveBtn').click();
+  await game.locator('#cancelWaiting').waitFor({state:'visible'});
+  assert.equal(await game.locator('#waitingPanel').isVisible(),true,'inviter remains in lobby');
+  assert.equal(await game.locator('#room').isVisible(),false,'unpaired match has no visible board');
+  await game.locator('#cancelWaiting').click();
   assert.equal(await game.locator('#leaveDialog').evaluate(el=>el.open),true,
    'leave is a custom accessible dialog');
   assert.equal(calls.includes('match:leave'),false,'no unconfirmed forfeit');
   await game.locator('#keepMatch').click();
   assert.equal(await game.locator('#leaveDialog').evaluate(el=>el.open),false);
   assert.equal(calls.includes('match:leave'),false,'cancel is non-destructive');
-  await game.locator('#leaveBtn').click();
+  await game.locator('#cancelWaiting').click();
   await game.locator('#confirmLeave').click();
-  await game.waitForFunction(()=>!document.querySelector('#lobby').hidden);
+  await game.waitForFunction(()=>!document.querySelector('#lobbyActions').hidden && document.querySelector('#waitingPanel').hidden);
   assert.equal(calls.filter(x=>x==='match:leave').length,1,'forfeit sent once after confirmation');
   assert.equal(await game.locator('.match-chevron').count(),0,
    'no fake previous matches');
