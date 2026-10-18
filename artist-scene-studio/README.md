@@ -16,6 +16,9 @@ Mise is a native Android scene-building and artist-reference studio. The 1.0 sco
 - Directional, point, and spot lights with color, intensity, range, cone, and supported shadows
 - Embedded model animation playback plus authored scene transform / pose timeline keyframes
 - 3D reference-image planes and clean PNG reference export
+- Photo-grounded outdoor environments: CC0 real-sky photographic cubemaps, outdoor grass/leaf PBR albedo, actual shadow-receiving perspective ground, finite horizon, optional reference grid
+- Both quick procedural props and a detailed independently licensed CC0 oak tree with native branch geometry and original leaf triangles, draw-call batched for Android
+- Immersive clean reference mode hides Android system bars; status/navigation return when editing
 - Autosave, explicit save, schema migration, and force-stop / reopen restoration
 - Portrait-first UI with landscape continuity and a dark launch surface
 
@@ -23,7 +26,7 @@ Mise is a native Android scene-building and artist-reference studio. The 1.0 sco
 
 The canonical acceptance gate is .github/workflows/artist-scene-studio-android-ci.yml. It runs unit tests, builds debug and ARM64 release artifacts, then launches the real app on Android API 26 and API 36. The renderer smoke covers a real PBR GLB frame, a user-selected GLB through Android's picker, direct transforms, real skin deformation, two-bone IK, two independent character poses, timeline authoring/playback, clean PNG export, persistence, force-stop, and fresh-process restoration.
 
-The smoke fixtures are pinned and license-tracked. scripts/fetch-test-assets.sh verifies their SHA-256 digests before a build; the app has no runtime download dependency.
+The smoke fixtures are pinned and license-tracked. scripts/fetch-test-assets.sh verifies their SHA-256 digests before a build; the app has no runtime download dependency. Photographic environment source images are CC0 from Poly Haven, and the geometric oak model is CC0 from Innerscene; only prepared images/GLBs enter the APK. The Magic Poser web application was consulted for visual comparison, not copied as code or binary assets.
 
 ## Build
 
