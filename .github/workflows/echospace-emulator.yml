@@ -38,6 +38,8 @@ jobs:
         run: python3 .github/scripts/echospace_custom_gain.py
       - name: Enhance binaural audio and add six sound types
         run: python3 .github/scripts/echospace_audio_upgrade.py
+      - name: Generate Android vectors from original EchoSpace SVG icon library
+        run: python3 .github/scripts/echospace_svg_icons.py
       - name: Bundle royalty-free offline scene artwork
         run: |
           set -euo pipefail
