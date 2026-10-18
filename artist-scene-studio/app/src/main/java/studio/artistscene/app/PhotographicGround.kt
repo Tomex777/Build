@@ -24,7 +24,9 @@ internal fun createPhotographicGround(engine: Engine, context: Context): Texture
         requireNotNull(BitmapFactory.decodeStream(stream)) { "Missing CC0 ground photo" }
     }
     val pixels = 2048
-    val tileCount = 12
+    // Fewer, higher-resolution tiles retain real leaf blades and fine soil
+    // detail instead of averaging the photo into green noise at phone scale.
+    val tileCount = 8
     val tiled = Bitmap.createBitmap(pixels, pixels, Bitmap.Config.ARGB_8888)
     try {
         val canvas = Canvas(tiled)
