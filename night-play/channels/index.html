@@ -223,7 +223,8 @@ function render() {
       photo.alt=''
       photo.loading='lazy'
       photo.decoding='async'
-      photo.addEventListener('error',()=>photo.replaceWith(document.createTextNode('')))
+      const fallback=avatar.firstElementChild
+      photo.addEventListener('error',()=>photo.replaceWith(fallback))
       avatar.replaceChildren(photo)
     }
     const nameGroup=make('div')
