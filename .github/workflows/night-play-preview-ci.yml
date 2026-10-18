@@ -44,6 +44,8 @@ jobs:
         run: node night-play/wr-browser-smoke.cjs
       - name: Inspect channel onboarding and consent across mobile and desktop
         run: node night-play/channels/browser-smoke.cjs
+      - name: Verify Anonymous Nights owner navigation and truthfulness
+        run: node night-play/anonymous/browser-smoke.cjs
       - name: Exercise mobile interactions
         run: node night-play/browser-smoke.mjs
       - name: Verify Jigsaw game mechanics and mobile experience
