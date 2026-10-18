@@ -1,6 +1,7 @@
 /* NIGHT Arcade: 4 original mobile-browser arcade games, local scores only. */
 (()=>{"use strict";
 const $=id=>document.getElementById(id);const c=$("screen"),ctx=c.getContext("2d");const board=$("mineboard"),touch=$("touchbar"),extra=$("extra");
+const sfx=(name,detail)=>window.NightAudio?.play(name,detail);
 const palette={dark:"#173e2c",light:"#dbe9ce",gold:"#e7b24c",danger:"#e6534b",blue:"#61a0bf"};
 const metadata={
 bird:["Wing Hop","Tap to fly, glide through the gaps.","Tap anywhere or press Space to flap. Pass through pipe gaps without touching the pipes or ground."],
@@ -15,7 +16,7 @@ function best(id){try{return Math.max(0,Number(localStorage.getItem("night-play-
 function record(id,n){const score=Math.round(Math.max(0,n));try{const key="night-play-v1-"+id;if(score>best(id))localStorage.setItem(key,String(score));const histKey="night-play-history-v1-"+id;let arr=[];try{arr=JSON.parse(localStorage.getItem(histKey)||"[]");}catch{}if(!Array.isArray(arr))arr=[];arr.push(score);localStorage.setItem(histKey,JSON.stringify(arr.slice(-12)));const countKey="night-play-history-count-v1-"+id;const count=Math.max(0,Number(localStorage.getItem(countKey))||0);localStorage.setItem(countKey,String(count+1));}catch{}}
 function score(n){points=Math.max(0,Math.floor(n));$("score").textContent=String(points);$("best").textContent=String(Math.max(best(type),points));}
 function message(t){$("message").textContent=t;}
-function end(text){if(finished)return;finished=true;stop();record(type,points);message(text+" · Tap Restart to play again.");}
+function end(text){if(finished)return;finished=true;stop();sfx(/mine/i.test(text)?"mine":/cleared|collected every/i.test(text)?"win":"lose");record(type,points);message(text+" · Tap Restart to play again.");}
 function drawText(text,y,size=24){ctx.fillStyle="#fff";ctx.font="900 "+size+"px system-ui,Arial";ctx.textAlign="center";ctx.fillText(text,c.width/2,y);}
 function pick(id){if(!metadata[id])id="bird";type=id;const [title,sub,rules]=metadata[id];$("title").textContent=title;$("subtitle").textContent=sub;$("rules").textContent=rules;document.title=title+" · NIGHT Play";[...$("picks").querySelectorAll("button")].forEach(b=>b.setAttribute("aria-current",String(b.dataset.game===id)));const url=new URL(location.href);url.searchParams.set("game",id);history.replaceState({},"",url.pathname+url.search);if($("settingsDialog").open)$("settingsDialog").close();restart();}
 function restart(){stop();resetBlockInputs();$("blockPause").hidden=type!=="blocks";
@@ -89,14 +90,14 @@ function setupBird(){c.width=360;c.height=600;
  state={x:95,y:260,vy:0,gap:175,pipes:[],distance:0,started:false,dead:false,skin};
  setControls(button("SWITCH BIRD","bird-skin","Switch between parrot and chick")+button("FLAP ↥","flap","Flap wings"));
  message("Tap the bird arena or FLAP to begin.");frameLoop(birdFrame);}
-function flap(){if(type!=="bird"||finished)return;state.started=true;state.vy=-6.8;message("Keep flying!");}
+function flap(){if(type!=="bird"||finished)return;state.started=true;state.vy=-6.8;sfx("flap");message("Keep flying!");}
 function switchBird(){if(type!=="bird")return;state.skin=state.skin==="parrot"?"chick":"parrot";try{localStorage.setItem("night-play-wing-hop-skin",state.skin)}catch{}
  message((state.skin==="parrot"?"Parrot":"Chick")+" selected.");}
 function birdFrame(dt){
  const s=state,step=dt/16.666;
  if(s.started){s.vy+=.33*step;s.y+=s.vy*step;s.distance+=2.4*step;
   if(!s.pipes.length||s.pipes[s.pipes.length-1].x<165){const prev=s.pipes[s.pipes.length-1];if(!prev||prev.x<150)s.pipes.push({x:prev?prev.x+216:365,y:120+Math.random()*280,scored:false});}
-  for(const p of s.pipes){p.x-=2.4*step;if(!p.scored&&p.x+62<s.x){p.scored=true;score(points+1);}
+  for(const p of s.pipes){p.x-=2.4*step;if(!p.scored&&p.x+62<s.x){p.scored=true;score(points+1);sfx("point");}
    if(s.x+16>p.x&&s.x-16<p.x+62&&(s.y-15<p.y-s.gap/2||s.y+15>p.y+s.gap/2)){end("You hit a pipe!");}}
   s.pipes=s.pipes.filter(p=>p.x>-75);if(s.y<17||s.y>539)end("Bird down!");
  }
@@ -131,10 +132,10 @@ function setupBlocks(){c.width=300;c.height=600;blockDirty=true;state={grid:Arra
   '<button type="button" class="block-hard-drop" data-control="drop" aria-label="Hard drop piece instantly">⬇</button>'+
   '</div></div>');
  message("Tap to rotate · Drag to move · Flick down to drop");scheduleBlockFit();frameLoop(blockFrame);}
-function rotate(s){const old=s.cur.cells,turn=old.map(([x,y])=>[3-y,x]);for(const shift of [0,-1,1,-2,2])if(!collision(s,shift,0,turn)){s.cur.cells=turn;s.cur.x+=shift;return;}}
-function blockMove(move){const s=state;if(type!=="blocks"||finished)return;if(move==="pause"){resetBlockInputs();paused=!paused;syncBlockPauseButton();blockDirty=true;message(paused?"Paused":"Back in the game");return;}if(paused)return;blockDirty=true;if(move==="left"&&!collision(s,-1,0))s.cur.x--;if(move==="right"&&!collision(s,1,0))s.cur.x++;if(move==="rotate")rotate(s);if(move==="down"){if(!collision(s,0,1))s.cur.y++;else lockBlock(s);}if(move==="drop"){while(!collision(s,0,1))s.cur.y++;lockBlock(s);}}
-function lockBlock(s){for(const [x,y] of s.cur.cells){let xx=x+s.cur.x,yy=y+s.cur.y;if(yy<0){end("Stack too high!");return;}if(yy<20)s.grid[yy][xx]=s.cur.idx;}let count=0;for(let y=19;y>=0;y--){if(s.grid[y].every(k=>k!==null)){s.grid.splice(y,1);s.grid.unshift(Array(10).fill(null));count++;y++;}}
-if(count){const n=[0,100,300,500,800][count]*s.level;s.lines+=count;s.level=1+Math.floor(s.lines/10);score(points+n);message("Cleared "+count+" line"+(count===1?"":"s")+"!");}
+function rotate(s){const old=s.cur.cells,turn=old.map(([x,y])=>[3-y,x]);for(const shift of [0,-1,1,-2,2])if(!collision(s,shift,0,turn)){s.cur.cells=turn;s.cur.x+=shift;sfx("rotate");return;}}
+function blockMove(move){const s=state;if(type!=="blocks"||finished)return;if(move==="pause"){resetBlockInputs();paused=!paused;syncBlockPauseButton();blockDirty=true;message(paused?"Paused":"Back in the game");return;}if(paused)return;blockDirty=true;if(move==="left"&&!collision(s,-1,0)){s.cur.x--;sfx("move");}if(move==="right"&&!collision(s,1,0)){s.cur.x++;sfx("move");}if(move==="rotate")rotate(s);if(move==="down"){if(!collision(s,0,1))s.cur.y++;else lockBlock(s);}if(move==="drop"){while(!collision(s,0,1))s.cur.y++;lockBlock(s,true);}}
+function lockBlock(s,hard=false){sfx(hard?"drop":"land");for(const [x,y] of s.cur.cells){let xx=x+s.cur.x,yy=y+s.cur.y;if(yy<0){end("Stack too high!");return;}if(yy<20)s.grid[yy][xx]=s.cur.idx;}let count=0;for(let y=19;y>=0;y--){if(s.grid[y].every(k=>k!==null)){s.grid.splice(y,1);s.grid.unshift(Array(10).fill(null));count++;y++;}}
+if(count){const n=[0,100,300,500,800][count]*s.level;s.lines+=count;s.level=1+Math.floor(s.lines/10);score(points+n);message("Cleared "+count+" line"+(count===1?"":"s")+"!");sfx("clear",count);}
 nextPiece(s);}
 function blockFrame(dt){const s=state;if(!paused&&!finished){s.time+=dt;if(s.time>Math.max(115,640-(s.level-1)*44)){s.time=0;blockDirty=true;if(!collision(s,0,1))s.cur.y++;else lockBlock(s);}}
 if(!blockDirty)return;blockDirty=false;blockPaintCount++;
@@ -161,11 +162,11 @@ function neighbours(i){const r=Math.floor(i/9),c=i%9,out=[];for(const dr of mine
 function plant(first){const s=state,banned=new Set([first,...neighbours(first)]);const positions=Array.from({length:81},(_,i)=>i).filter(i=>!banned.has(i));for(let i=positions.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[positions[i],positions[j]]=[positions[j],positions[i]];}
 for(const at of positions.slice(0,s.mines))s.cells[at]=-1;for(let i=0;i<81;i++)if(s.cells[i]!==-1)s.cells[i]=neighbours(i).filter(j=>s.cells[j]===-1).length;s.started=true;gameStart=Date.now();}
 function revealAt(start){const s=state;if(finished||s.flags[start]||s.open[start])return;if(!s.started)plant(start);if(s.cells[start]===-1){s.open[start]=true;drawMines();end("Boom! You hit a mine");drawMines();return;}
-const todo=[start];const seen=new Set();while(todo.length){const i=todo.pop();if(seen.has(i)||s.flags[i]||s.open[i])continue;seen.add(i);s.open[i]=true;if(s.cells[i]===0)todo.push(...neighbours(i));}
+sfx("reveal");const todo=[start];const seen=new Set();while(todo.length){const i=todo.pop();if(seen.has(i)||s.flags[i]||s.open[i])continue;seen.add(i);s.open[i]=true;if(s.cells[i]===0)todo.push(...neighbours(i));}
 score(s.open.filter(Boolean).length);
 if(s.open.filter(Boolean).length===81-s.mines){end("You cleared the whole field!");}
 drawMines();}
-function mineTap(i){if(finished)return;const s=state;if(s.flagMode){if(!s.open[i])s.flags[i]=!s.flags[i];drawMines();return;}revealAt(i);}
+function mineTap(i){if(finished)return;const s=state;if(s.flagMode){if(!s.open[i]){s.flags[i]=!s.flags[i];sfx("flag");}drawMines();return;}revealAt(i);}
 function drawMines(){
  const s=state;
  // Keep the 81 buttons mounted across reveals and flags, no mass DOM rebuild.
@@ -223,8 +224,8 @@ function moveable(s,x,y){return y>=0&&y<21&&x>=0&&x<19&&s.walls[y][x]===0;}
 function ghostStep(g,s){const dirs=[[1,0],[-1,0],[0,1],[0,-1]].filter(([dx,dy])=>moveable(s,g.x+dx,g.y+dy));if(!dirs.length)return;let picks=dirs.map(([dx,dy])=>({x:g.x+dx,y:g.y+dy,cost:Math.abs(g.x+dx-s.p.x)+Math.abs(g.y+dy-s.p.y)+Math.random()*8}));picks.sort((a,b)=>a.cost-b.cost);const chosen=picks[0];g.x=chosen.x;g.y=chosen.y;}
 function mazeTick(){const s=state;if(paused||finished)return;s.elapsed++;if(s.invincible>0)s.invincible--;const [dx,dy]=s.p.dir;if(moveable(s,s.p.x+dx,s.p.y+dy)){s.p.x+=dx;s.p.y+=dy;}if(s.pills[s.p.y][s.p.x]){s.pills[s.p.y][s.p.x]=0;
  if(mazeDotsCtx)mazeDotsCtx.clearRect(s.p.x*24+5,s.p.y*24+5,14,14);
- score(points+10);s.total--;}
-if(s.elapsed%3===0)s.ghosts.forEach(g=>ghostStep(g,s));if(s.invincible===0&&s.ghosts.some(g=>g.x===s.p.x&&g.y===s.p.y)){s.lives--;s.invincible=8;s.p={x:1,y:1,dir:[1,0]};if(s.lives===0){end("The ghosts caught you!");}}
+ score(points+10);s.total--;sfx("dot");}
+if(s.elapsed%3===0)s.ghosts.forEach(g=>ghostStep(g,s));if(s.invincible===0&&s.ghosts.some(g=>g.x===s.p.x&&g.y===s.p.y)){s.lives--;sfx("ghost");s.invincible=8;s.p={x:1,y:1,dir:[1,0]};if(s.lives===0){end("The ghosts caught you!");}}
 if(s.total===0)end("You collected every dot!");drawMaze();}
 function drawMaze(){const s=state,ts=24;
  ctx.drawImage(mazeBackdrop,0,0);ctx.drawImage(mazeDots,0,0);
