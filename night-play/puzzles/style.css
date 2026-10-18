@@ -184,3 +184,9 @@ button:focus-visible,a:focus-visible{outline:3px solid #488c72;outline-offset:3p
 .memory-theme-art{width:100%}
 .memory-choice-workspace .memory-size-option{border:1px solid #d9e1db!important}
 .memory-choice-workspace .memory-size-option.chosen{border:2px solid #3b7055!important}
+
+/* Keep game actions close to the board when there is no status message. */
+.memory-playing-board .memory-back-mark{width:58%}
+.puzzle-workspace:has(.memory-playing-board) .puzzle-tools:empty{display:none}
+.puzzle-workspace:has(.memory-playing-board) .puzzle-message:empty{display:none}
+.puzzle-workspace:has(.memory-playing-board) .puzzle-action{margin-top:13px}
