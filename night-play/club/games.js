@@ -9,9 +9,9 @@ let cardMotionBusy=false,cardMotionEpoch=0,pendingWhotDeal=false;
 // Speed is intentionally unified: interaction should feel immediate,
 // while cards still lift, glide, land and settle.
 const whotMotion={
- player:465,cpu:480,draw:460,cpuDelay:235,
- deal:410,dealDelay:55,dealStagger:66,opponentDeal:440,
- settle:180,recenter:360,drawFlip:560
+ player:235,cpu:255,draw:245,cpuDelay:105,
+ deal:260,dealDelay:35,dealStagger:36,opponentDeal:260,
+ settle:105,recenter:170,drawFlip:290
 };
 const cardMotionMetrics={deals:0,plays:0,cpuPlays:0,draws:0,activeFlights:0,lastFlightDuration:0,lastFlightAction:null};
 const motionEnabled=()=>!matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -516,7 +516,7 @@ function whotOpenExpanded(){
  overlay.setAttribute('aria-label','All your WHOT cards');
  overlay.innerHTML='<section class="whot-hand-sheet">'+
  '<header class="whot-hand-sheet-header"><div><small>YOUR HAND</small><h3>All '+s.hands[0].length+' cards</h3></div>'+
- '<button type="button" class="whot-hand-close" data-action="whot-hand-close" aria-label="Close full hand">✕</button></header>'+
+ '<button type="button" class="whot-hand-close" data-action="whot-hand-close" aria-label="Close full hand"><svg class="whot-x-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M5 5 19 19M19 5 5 19"/></svg></button></header>'+
  '<div class="whot-hand-sheet-tools"><label for="whot-hand-sort">Arrange cards</label>'+
  '<select id="whot-hand-sort" data-whot-hand-sort>'+
  '<option value="original">Dealt order</option><option value="shape">By shape</option><option value="number">By number</option></select></div>'+
@@ -543,7 +543,7 @@ function layoutWhotHand(before=null){
  const cards=[...row.querySelectorAll('.whot-card')],n=cards.length;
  const table=board.querySelector('.table-surface');
  if(!n){table?.classList.remove('whot-double-hand');return}
- const mode=whotHandMode(n),double=mode==='double',large=n>=13,shown=Math.min(n,16);
+ const mode=whotHandMode(n),double=mode==='double',large=n>=13,shown=Math.min(n,12);
  const available=row.clientWidth||row.getBoundingClientRect().width;
  const cs=getComputedStyle(cards[0]),w=parseFloat(cs.width)||80,h=parseFloat(cs.height)||105;
  const cardWidth=mode==='spaced'&&n>1&&n*w>available?Math.max(58,Math.floor(available/n)):w;
@@ -554,7 +554,7 @@ function layoutWhotHand(before=null){
  hand.style.setProperty('--whot-hand-height',(height+(large?42:0))+'px');
  row.style.setProperty('--whot-row-height',height+'px');
  const view=hand.querySelector('.whot-view-hand');
- if(view){view.hidden=!large;view.textContent='View all '+n+' cards'}
+ if(view){view.hidden=!large;view.textContent=large?(n-shown)+' more cards · View all '+n:'View all '+n+' cards'}
  const firstRow=double?Math.ceil(shown/2):shown;
  cards.forEach((card,index)=>{
   if(index>=shown){card.style.setProperty('display','none','important');return}
@@ -636,7 +636,8 @@ function whotPatchTable(markup){
    for(let i=oldBacks.length;i<needed;i++)oldOpponent.appendChild(newOpponent.children[i].cloneNode(true));
   }
   for(const [i,back] of [...oldOpponent.querySelectorAll('.card-back')].entries()){
-   back.setAttribute('aria-label','Computer card '+(i+1)+' of '+needed);
+   back.className=newOpponent.children[i].className;
+    back.setAttribute('aria-label',newOpponent.children[i].getAttribute('aria-label'));
   }
  }
  const oldDeck=oldPile.querySelector('.whot-deck'),newDeck=newPile.querySelector('.whot-deck');
@@ -684,7 +685,7 @@ const currentCall=s.called===null?'':kind==="whot"
 const showCall=kind==='whot'&&s.turn===0&&s.winner===null&&Number.isInteger(s.pendingWhot)&&s.hands[0][s.pendingWhot]?.n===20;
 const naijaShapes=["Ball","Angle","Cross","Carpet","Star"];
 const callPanel=showCall?
- '<section class="whot-call-panel" role="group" aria-labelledby="whot-call-title"><div class="whot-call-head"><div><small>20 · WHOT</small><h3 id="whot-call-title">Call your shape</h3></div><button type="button" class="whot-call-cancel" data-action="whot-call-cancel" aria-label="Cancel WHOT 20">✕</button></div>'+
+ '<section class="whot-call-panel" role="group" aria-labelledby="whot-call-title"><div class="whot-call-head"><div><small>20 · WHOT</small><h3 id="whot-call-title">Call your shape</h3></div><button type="button" class="whot-call-cancel" data-action="whot-call-cancel" aria-label="Cancel WHOT 20"><svg class="whot-x-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M5 5 19 19M19 5 5 19"/></svg></button></div>'+
  '<div class="whot-call-grid">'+shapes.map((shape,i)=>
  '<button type="button" class="whot-call-choice" data-whot-call="'+i+'" aria-label="Call '+shape+'">'+whotShapeSvg(i,1)+'<strong>'+shape+'</strong><small>'+naijaShapes[i]+'</small></button>').join('')+'</div></section>':'';
 const whotHud=kind==='whot'?
@@ -704,7 +705,7 @@ const whotVictory=kind==='whot'&&s.winner!==null?
  '<button type="button" class="whot-rematch" data-action="whot-rematch">Play again</button></div></div>':'';
 const tableMarkup='<div class="table-surface'+(kind==='whot'&&s.winner!==null?' whot-finished':'')+'" aria-label="Card table">'+(kind==='whot'?whotHud:'<h3>COMPUTER · '+s.hands[1].length+' CARDS</h3>')+
  '<div class="card-row whot-opponent-hand">'+(kind==='whot'
- ?Array.from({length:s.hands[1].length},(_,i)=>'<div class="playing-card card-back" aria-label="Computer card '+(i+1)+' of '+s.hands[1].length+'"><span>WHOT</span><span>WHOT</span></div>').join('')
+ ?Array.from({length:Math.min(1,s.hands[1].length)},(_,i)=>'<div class="playing-card card-back'+(s.hands[1].length>1?' card-stack':'')+'" aria-label="Computer stack · '+s.hands[1].length+' cards, back '+(i+1)+'"><span>WHOT</span><span>WHOT</span></div>').join('')
  :'<div class="playing-card card-back" aria-label="Computer cards hidden"></div><span class="cards-counter">× '+s.hands[1].length+'</span>')+'</div>'+
  '<div class="card-pile">'+(kind==='whot'?'<button type="button" class="whot-deck" data-action="card-draw" '+(s.turn!==0||s.winner!==null||s.pendingWhot!=null?'disabled':'')+' aria-label="Pick one card from the market"><span class="whot-deck-back"><span class="whot-deck-word flip-top">WHOT</span><span class="whot-deck-word flip-bottom">WHOT</span></span><span class="cards-counter">MARKET · '+s.deck.length+'</span></button>':'<span class="cards-counter">DECK '+s.deck.length+'</span>')+
  cardMarkup(kind,t,-1,false)+currentCall+'</div>'+callPanel+
@@ -800,7 +801,7 @@ let paintColor="#202f2c",painting=false,lastPoint=null,brushWidth=7;
 function renderDraw(){
 const s=state.draw;if(s.mode!=="playing"&&s.mode!=="guessing"){board.innerHTML='<div class="table-surface"><div class="secret">'+(s.mode==="reveal"?"Artist's word: "+h(s.word):"Ready for round "+s.round+"?")+'</div><p style="color:#f4f4eb;text-align:center;max-width:320px">The artist reads the secret word first. Everyone else should look away. Then hide the word and draw!</p></div>';}
 else{
-board.innerHTML='<div class="draw-board"><canvas id="drawCanvas" width="800" height="600" aria-label="Drawing canvas; draw with finger or mouse"></canvas></div><div class="toolbelt" id="brushes"><button type="button" data-brush="#202f2c" style="background:#202f2c" aria-label="Black ink" aria-pressed="true"></button><button type="button" data-brush="#e2343b" style="background:#e2343b" aria-label="Red ink"></button><button type="button" data-brush="#2876ca" style="background:#2876ca" aria-label="Blue ink"></button><button type="button" data-brush="#2a914e" style="background:#2a914e" aria-label="Green ink"></button><button type="button" data-brush="#e3b02a" style="background:#e3b02a" aria-label="Yellow ink"></button><button type="button" data-brush="#ffffff" aria-label="Eraser">⌫</button><button type="button" data-action="draw-clear">Clear drawing</button></div>';
+board.innerHTML='<div class="draw-board"><canvas id="drawCanvas" width="800" height="600" aria-label="Drawing canvas; draw with finger or mouse"></canvas></div><div class="toolbelt" id="brushes"><button type="button" data-brush="#202f2c" style="background:#202f2c" aria-label="Black ink" aria-pressed="true"></button><button type="button" data-brush="#e2343b" style="background:#e2343b" aria-label="Red ink"></button><button type="button" data-brush="#2876ca" style="background:#2876ca" aria-label="Blue ink"></button><button type="button" data-brush="#2a914e" style="background:#2a914e" aria-label="Green ink"></button><button type="button" data-brush="#e3b02a" style="background:#e3b02a" aria-label="Yellow ink"></button><button type="button" data-brush="#ffffff" aria-label="Eraser"><svg class="night-ico" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"><path d="M9 4H19a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H9L2 12 9 4Z"/><path d="m11 9 6 6m0-6-6 6"/></svg></button><button type="button" data-action="draw-clear">Clear drawing</button></div>';
 const c=$("drawCanvas");drawCtx=c.getContext("2d");drawCtx.lineCap="round";drawCtx.lineJoin="round";
 function pos(e){const box=c.getBoundingClientRect();return [Math.max(0,Math.min(800,(e.clientX-box.left)*800/box.width)),Math.max(0,Math.min(600,(e.clientY-box.top)*600/box.height))];}
 c.addEventListener("pointerdown",e=>{if(s.mode!=="playing")return;painting=true;c.setPointerCapture(e.pointerId);lastPoint=pos(e);drawCtx.fillStyle=paintColor;drawCtx.beginPath();drawCtx.arc(lastPoint[0],lastPoint[1],brushWidth/2,0,Math.PI*2);drawCtx.fill();});

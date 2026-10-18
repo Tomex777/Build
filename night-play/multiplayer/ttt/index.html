@@ -45,6 +45,16 @@ section{scroll-margin-top:22px}.panel{background:#fff;border:1px solid #e0e6e1;b
 @media(prefers-reduced-motion:no-preference){.cell{transition:background .12s}.action,.btn{transition:background .12s,border-color .12s}}
 
 .nav-ico{display:inline-block;width:16px;height:16px;vertical-align:middle;flex:none}.top a.back,.room-top #lobbyBtn{display:inline-flex;align-items:center;gap:6px}
+/* WR: accessible confirmation instead of native browser confirm(). */
+.leave-dialog{border:1px solid #d5ded6;border-radius:18px;width:min(380px,calc(100vw - 32px));padding:0;background:#fff;color:#1e2b24;box-shadow:0 24px 70px #05140b50}
+.leave-dialog::backdrop{background:#10241db3;backdrop-filter:blur(2px)}
+.leave-dialog form{padding:23px;display:grid;gap:13px}
+.leave-dialog h2{margin:0;font-size:21px;letter-spacing:-.5px}
+.leave-dialog p{margin:0;color:#607268;font-size:13px;line-height:1.55}
+.leave-actions{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:6px}
+.leave-actions button{min-height:45px;border-radius:10px;border:1px solid #ccd7ce;background:#f7f9f6;color:#233d2e;font-weight:800;cursor:pointer}
+.leave-actions button[value="leave"]{background:#853b3b;border-color:#853b3b;color:#fff}
+.leave-dialog button:focus-visible{outline:3px solid #4b8c69;outline-offset:2px}
 </style></head><body>
 <header class="top"><div class="top-inner"><a class="brand" href="/dashboard"><span class="brand-symbol"><svg viewBox="0 0 32 32" fill="none"><path fill="currentColor" d="M5 20a11 11 0 0 1 22 0v2H5zm0 4h22v2H5z"/></svg></span>NIGHT <span style="font-weight:500;color:#75837a;font-size:13px">PLAY</span></a><a class="back" href="/games"><svg class="nav-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5m6-6-6 6 6 6"/></svg>Games</a></div></header>
 <main><div class="kicker">ONLINE BOARD GAME</div><h1>Tic-Tac-Toe</h1><p class="subtitle">Two people. Two devices. One live board.</p>
@@ -65,4 +75,4 @@ section{scroll-margin-top:22px}.panel{background:#fff;border:1px solid #e0e6e1;b
  <div class="room-actions"><button class="btn ghost" type="button" id="leaveBtn">Leave match</button><button class="btn" type="button" id="againBtn" hidden>New match</button></div>
 </section>
 <p id="message" role="status" aria-live="polite"></p>
-</main><script src="/multiplayer/ttt/app.js" defer></script></body></html>
+</main><dialog id="leaveDialog" class="leave-dialog" aria-labelledby="leaveTitle" aria-describedby="leaveDescription"><form method="dialog"><h2 id="leaveTitle">Leave this match?</h2><p id="leaveDescription"></p><div class="leave-actions"><button type="submit" value="cancel" id="keepMatch">Keep playing</button><button type="submit" value="leave" id="confirmLeave">Leave match</button></div></form></dialog><script src="/multiplayer/ttt/app.js" defer></script></body></html>
