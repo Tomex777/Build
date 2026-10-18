@@ -1,8 +1,9 @@
 const assert=require('node:assert/strict')
 const fs=require('node:fs'),path=require('node:path'),http=require('node:http')
 const {chromium}=require('playwright')
-let linked=false,verified=false,deleted=false,unavailable=false
-const channelId='120363282083849178@newsletter',proof='NIGHT-VERIFY-1234567890ABCDEF',photo='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+i4VsAAAAASUVORK5CYII='
+let linked=false,verified=false,deleted=false,unavailable=false,allowStart=false,twoChannels=false
+const startCalls=[]
+const channelId='120363282083849178@newsletter',anotherId='120363282083849179@newsletter',proof='NIGHT-VERIFY-1234567890ABCDEF',photo='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+i4VsAAAAASUVORK5CYII='
 const server=http.createServer(async(req,res)=>{
   const route=new URL(req.url,'http://localhost').pathname
   if(route==='/api/account'){
@@ -11,13 +12,22 @@ const server=http.createServer(async(req,res)=>{
     if(req.method==='GET')return res.end(JSON.stringify({linked,profile:linked?{id:'NIGHT-test',displayName:'Pat'}:null}))
     let body='';for await (const part of req)body+=part
     const {action,channelId:requested}=JSON.parse(body)
-    if(action==='channel:list')return res.end(JSON.stringify({channels:deleted?[]:[{id:channelId,name:'After Hours Club',status:verified?'connected':'awaiting_admin',photoData:verified?photo:undefined,proof:verified?undefined:proof,expiresAt:Date.now()+3600000}]}))
+    if(action==='channel:list')return res.end(JSON.stringify({channels:deleted?[]:[
+     {id:channelId,name:'After Hours Club',status:verified?'connected':'awaiting_admin',anonymousStartEnabled:verified&&allowStart,photoData:verified?photo:undefined,proof:verified?undefined:proof,expiresAt:Date.now()+3600000},
+     ...(verified&&twoChannels?[{id:anotherId,name:'Second Channel',status:'connected',anonymousStartEnabled:allowStart}]:[])
+    ]}))
+    if(action==='anonymous:start'){
+      if(!verified||!allowStart||![channelId,anotherId].includes(requested)){res.statusCode=403;return res.end(JSON.stringify({error:'Not enabled'}))}
+      startCalls.push(requested)
+      return res.end(JSON.stringify({sessionId:'SESSION_'+(requested===channelId?'FIRST':'SECOND')+'_123456'}))
+    }
     if(requested!==channelId){res.statusCode=400;return res.end(JSON.stringify({error:'Invalid channel.'}))}
     if(action==='channel:verify'){verified=true;return res.end(JSON.stringify({connected:true,name:'After Hours Club'}))}
     if(action==='channel:remove'){deleted=true;return res.end(JSON.stringify({ok:true}))}
     res.statusCode=400;return res.end(JSON.stringify({error:'Unknown action.'}))
   }
-  if(route==='/site-shell.css'){
+  if(route==='/anonymous/'){res.setHeader('Content-Type','text/html');return res.end('<!doctype html><title>Anonymous owner session</title><p>Session management</p>')}
+   if(route==='/site-shell.css'){
     res.setHeader('Content-Type','text/css; charset=utf-8')
     return res.end(fs.readFileSync(path.join(__dirname,'../site-shell.css')))
   }
@@ -48,7 +58,7 @@ const server=http.createServer(async(req,res)=>{
     await page.reload()
     await page.getByRole('heading',{name:'After Hours Club'}).waitFor()
     assert.match(await page.locator('.channel-pill').textContent(),/Waiting for admin/)
-    assert.equal(await page.locator('.channel-anonymous').count(),0,'unverified channels do not get anonymous session entry')
+    assert.equal(await page.locator('.channel-start').count(),0,'unverified channels cannot start anonymous nights')
     assert.equal(await page.locator('#inviteUrl,#linkForm,.url-wrap').count(),0)
     assert.equal(await page.locator('#connect').isVisible(),true)
     assert.match(await page.locator('#connect').textContent(),/\.joinchannel/)
@@ -61,10 +71,39 @@ const server=http.createServer(async(req,res)=>{
     assert.equal(await page.locator('.channel-proof').count(),0)
     assert.equal(await page.locator('.channel-avatar img').count(),1,'verified channel picture is used')
     assert.equal(await page.locator('.channel-avatar img').getAttribute('src'),photo,'image is owned, cached and served as data URI')
-    const anon=page.getByRole('link',{name:'Open Anonymous Nights for After Hours Club'})
-    assert.equal(await anon.isVisible(),true,'verified channel has a prominent Anonymous Nights entry')
-    assert.equal(await anon.getAttribute('href'),'/anonymous/?channel='+encodeURIComponent(channelId))
+    const card=page.locator('article.channel-card').first()
+    const start=card.getByRole('button',{name:'Start Anonymous Night for After Hours Club'})
+    assert.equal(await start.isVisible(),true,'per-channel Start Anonymous Night is directly inside the connected channel card')
+    assert.equal(await start.isDisabled(),true,'disabled until NIGHT Bot reports start capability')
+    assert.equal(await page.locator('.channel-anonymous').count(),0,'no detached anonymous panel below the channel card')
+    assert.equal(startCalls.length,0,'inactive controls do not create fake sessions')
     await page.screenshot({path:path.join(__dirname,'../visual-output/channels-verified-anonymous-mobile.jpg'),fullPage:true})
+
+    // When MSCC enables real sessions, one tap starts the right verified channel.
+    allowStart=true;twoChannels=true
+    await page.reload()
+    await page.getByRole('heading',{name:'Second Channel'}).waitFor()
+    assert.equal(await page.locator('article.channel-card').count(),2)
+    assert.equal(await page.locator('.channel-start').count(),2)
+    const first=page.locator('article.channel-card').filter({hasText:'After Hours Club'})
+    const second=page.locator('article.channel-card').filter({hasText:'Second Channel'})
+    assert.equal(await first.getByRole('button',{name:'Start Anonymous Night for After Hours Club'}).isEnabled(),true)
+    assert.equal(await second.getByRole('button',{name:'Start Anonymous Night for Second Channel'}).isEnabled(),true)
+    assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true,'two channel cards do not overflow small phones')
+    await page.screenshot({path:path.join(__dirname,'../visual-output/channels-two-start-buttons-mobile.jpg'),fullPage:true})
+    await second.getByRole('button',{name:'Start Anonymous Night for Second Channel'}).click()
+    await page.waitForURL('**/anonymous/?channel=*&session=*')
+    assert.equal(new URL(page.url()).searchParams.get('channel'),anotherId)
+    assert.equal(new URL(page.url()).searchParams.get('session'),'SESSION_SECOND_123456')
+    assert.deepEqual(startCalls,[anotherId],'one click starts the selected second channel, not the first')
+    await page.goto(base+'/channels/')
+    await first.getByRole('button',{name:'Start Anonymous Night for After Hours Club'}).click()
+    await page.waitForURL('**/anonymous/?channel=*&session=*')
+    assert.equal(new URL(page.url()).searchParams.get('channel'),channelId)
+    assert.deepEqual(startCalls,[anotherId,channelId],'each verified channel routes to its own session without opening an intermediate page')
+    allowStart=false;twoChannels=false
+    await page.goto(base+'/channels/')
+    await page.getByRole('heading',{name:'After Hours Club'}).waitFor()
     await page.getByRole('button',{name:'Disconnect',exact:true}).click()
     assert.match(await page.locator('.channel-confirm').textContent(),/Revoke that permission/)
     await page.getByRole('button',{name:'Keep channel'}).click()
@@ -88,6 +127,6 @@ const server=http.createServer(async(req,res)=>{
     assert.equal(await page.locator('.site-header .links').isVisible(),true)
     assert.deepEqual(errors,[])
     await context.close()
-    console.log('PASS NIGHT Play channels: unified NIGHT chrome, mobile nav, no duplicate reload/form, proof, guarded disconnect, proper offline state, two viewports')
+    console.log('PASS NIGHT Play channels: embedded per-channel direct Anonymous start, multi-channel isolation, backend-guarded availability, unified chrome and responsive layouts')
   }finally{await browser.close();server.closeAllConnections();await new Promise(resolve=>server.close(resolve))}
 })().catch(error=>{console.error(error);server.closeAllConnections();server.close();process.exitCode=1})
