@@ -1,8 +1,8 @@
 // Owner-triggered, explicitly opt-in WhatsApp integration tests.
 // This is intentionally an ALLOWLIST: never run admin, account, moderation,
 // billing, broadcast or arbitrary commands against a real chat.
-import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
-import { join } from 'node:path'
+import { mkdtemp, readFile, rm, writeFile, realpath, stat } from 'node:fs/promises'
+import { join, sep } from 'node:path'
 import { tmpdir } from 'node:os'
 import { createCanvas, loadImage } from '@napi-rs/canvas'
 import { PDFDocument } from 'pdf-lib'
@@ -53,6 +53,7 @@ export const LIVE_CASES = Object.freeze({
   reactions:   { args:[], expected:'text' },
   emojimix:    { args:['😍','🔥'], expected:'sticker', provider:true },
   ssweb:       { args:['https://github.com'], expected:'image', provider:true },
+  youtube:     { args:['--download','jNQXAC9IVRw','best','video'], expected:'video', provider:true },
   linkinfo:    { args:['https://example.com'], expected:'text', provider:true },
 
   sticker:     { fixture:'image', expected:'sticker' },
@@ -134,6 +135,24 @@ export function validateMediaPayload(content) {
 
 // Verify the bytes actually decode before a command counts as successful.
 // Magic bytes alone are insufficient: truncated MP4/Opus/PDF would otherwise pass.
+// Several production media commands send {url:<temporary local file>}.
+// Read only a bounded file under the OS temp directory, not arbitrary paths or
+// remote URLs, then send the identical verified bytes to WhatsApp.
+export async function materializeLocalOutput(content) {
+  const kind=['image','video','audio','document','sticker'].find(k=>content?.[k])
+  const file=kind && content[kind]
+  if (!file || typeof file!=='object' || Buffer.isBuffer(file) || !file.url)
+    return content
+  if (typeof file.url!=='string' || !file.url.startsWith(tmpdir()+sep)) {
+    throw new Error('Live test refuses non-temporary media URL output')
+  }
+  const resolved=await realpath(file.url)
+  if(!resolved.startsWith(tmpdir()+sep)) throw new Error('Media output resolves outside the temporary directory')
+  const info=await stat(resolved)
+  if(!info.isFile() || !info.size || info.size>20*1024*1024) throw new Error('Media output exceeds live test limit')
+  return {...content,[kind]:await readFile(resolved)}
+}
+
 export async function decodeOutput(content) {
   const checked=validateMediaPayload(content)
   if (!checked.valid || checked.kind === 'text') return checked
@@ -293,12 +312,13 @@ export async function runLiveCase({ original, command, spec, fixtures, fixtureSe
   const safeSend = async (jid, payload, options) => {
     if (signal?.aborted || stopped.signal.aborted) throw new Error('Audit cancelled')
     if (jid !== chat) throw new Error('Test attempted to send outside the authorized chat')
-    const validation = await decodeOutput(payload)
+    const checkedPayload = await materializeLocalOutput(payload)
+    const validation = await decodeOutput(checkedPayload)
     if (!validation.valid) throw new Error(validation.reason || 'Empty or unrecognized WhatsApp output')
-    const answer = await socket.sendMessage(jid,payload,options)
+    const answer = await socket.sendMessage(jid,checkedPayload,options)
     if (!answer?.key?.id) throw new Error('WhatsApp did not acknowledge the message')
     sent.push({delivered:true,kind:validation.kind,valid:validation.valid,
-      text:String(payload?.text||'').slice(0,MAX_REPLY)})
+      text:String(checkedPayload?.text||'').slice(0,MAX_REPLY)})
     return answer
   }
   const account = {...original.account,sock:new Proxy(socket,{
