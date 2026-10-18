@@ -42,6 +42,24 @@ class HymnDataTest(unittest.TestCase):
         recorded = json.loads(output.read_text(encoding="utf-8"))
         self.assertEqual(recorded, compile_asset())
 
+    def test_page_437_index_catalogue(self):
+        index_file = ROOT / "data/index-page-437.json"
+        entries = json.loads(index_file.read_text(encoding="utf-8"))["entries"]
+        self.assertEqual(len(entries), 40)
+        numbers = [entry["printed_number"] for entry in entries]
+        self.assertEqual(len(numbers), len(set(numbers)))
+        self.assertIn(50, numbers)
+        self.assertIn(341, numbers)
+        self.assertIn(424, numbers)
+        self.assertIn(568, numbers)
+        by_number = {e["printed_number"]: e for e in entries}
+        self.assertIn("Rock of Ages", by_number[341]["redemption_english_title"])
+        self.assertIn("Mercy of God", by_number[424]["redemption_english_title"])
+        self.assertEqual(by_number[568]["redemption_english_title"], "To the Work")
+        self.assertIn("Thine Arm", by_number[733]["redemption_english_title"])
+        self.assertTrue(all(not e["full_lyrics_imported"] for e in entries))
+        self.assertEqual(set(numbers).intersection(range(1, 18)), set())
+
     def test_yoruba_is_stored_as_unicode(self):
         hymns = compile_asset()["hymns"]
         self.assertIn("Ọ", hymns[0]["title_yo"])
