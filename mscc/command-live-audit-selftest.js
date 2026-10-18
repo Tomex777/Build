@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import {
   LIVE_CASES, LIVE_NAMES, authorizeTest, attachFixture, sniffMedia,
   validateMediaPayload, verdictForOutputs, runLiveCase, createLiveAuditManager,
+  makeTestFixtures, decodeOutput, materializeLocalOutput,
 } from './command-live-audit.js'
 
 const dm={isSupremeOwner:true,message:{key:{remoteJid:'owner@s.whatsapp.net',id:'start'},message:{conversation:'.testall live'}},
@@ -79,5 +80,19 @@ assert.equal(manager.start({...dm,account:{sock:{sendMessage:async()=>({key:{id:
 assert.equal(manager.cancel(),true)
 for(let attempt=0;attempt<100 && manager.busy();attempt++)
   await new Promise(resolve=>setTimeout(resolve,30))
+
+// Exercise real deterministic fixtures and the decoder used by live sends.
+// Tests catch broken WebP metadata, damaged media containers and missing FFmpeg.
+const fx=await makeTestFixtures()
+try {
+  assert.equal((await decodeOutput({image:await fx.get('image')})).valid,true)
+  assert.equal((await decodeOutput({image:await fx.get('qr')})).valid,true)
+  assert.equal((await decodeOutput({document:await fx.get('pdf')})).valid,true)
+  assert.equal((await decodeOutput({audio:await fx.get('audio')})).valid,true)
+  assert.equal((await decodeOutput({video:await fx.get('video')})).valid,true)
+  assert.equal((await decodeOutput({sticker:await fx.get('sticker')})).valid,true)
+  assert.equal((await decodeOutput({sticker:await fx.get('animated-sticker')})).valid,true)
+} finally {await fx.close()}
+await assert.rejects(materializeLocalOutput({image:{url:'https://evil.example/secret'}}),/non-temporary/)
 
 console.log('PASS NIGHT owner-only opt-in group/DM real command tests, output verification, fixture quote and fail-only retry')
