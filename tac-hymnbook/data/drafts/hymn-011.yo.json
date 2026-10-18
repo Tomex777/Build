@@ -1,0 +1,48 @@
+{
+  "number": 11,
+  "collection": "main",
+  "language": "yo",
+  "title": "Ọlọ́run àwámárìdì!",
+  "title_en": "Unsearchable God",
+  "pages": [
+    4
+  ],
+  "status": "partial_from_photo",
+  "review_notes": "Only beginning visible on photographed page 4; hymn continues beyond supplied page. Do not label this hymn complete. English is a working translation of visible stanzas, not the historic hymn original.",
+  "online_comparison": null,
+  "english_source": "Original explanatory translation from visible Yoruba lines",
+  "verses": [
+    [
+      "Ọlọ́run àwámárìdì!",
+      "Ta ló yẹ ká f'ọkàn wa fún?",
+      "Ta ló yẹ ká tún fẹ́ràn?",
+      "Jésù, Olùfẹ́ ọkàn wa",
+      "Ta ló yẹ ká fi ọkàn wa",
+      "Àti agbára wa fẹ́ràn?"
+    ],
+    [
+      "Ògo ojú Olúwa ń dán",
+      "Ògo tí ẹ̀dá kò lè wò",
+      "Àwọn àńgẹ́lì ń bojú wọ̀",
+      "Síbẹ̀, oore Rẹ bí odò",
+      "Ń ṣàn sórí iṣẹ́ Rẹ gbogbo"
+    ]
+  ],
+  "verses_en": [
+    [
+      "O God beyond our searching!",
+      "To whom should we give our hearts?",
+      "Whom else should we love so dearly?",
+      "Jesus, beloved of our souls,",
+      "To whom should we give our hearts",
+      "And all our strength in love?"
+    ],
+    [
+      "The glory of the Lord shines bright,",
+      "A splendour no creature can behold;",
+      "Even the angels veil their faces,",
+      "Yet still His goodness flows like a river",
+      "Over all the works of His hands."
+    ]
+  ]
+}
