@@ -70,7 +70,7 @@ class MainActivity : Activity() {
         val intent=Intent(Intent.ACTION_SEND).apply {
             type="text/plain"
             putExtra(Intent.EXTRA_SUBJECT,"Sound Atlas: "+world.name)
-            putExtra(Intent.EXTRA_TEXT",AtlasCodec.encode(world))
+            putExtra(Intent.EXTRA_TEXT,AtlasCodec.encode(world))
         }
         startActivity(Intent.createChooser(intent,"Share acoustic world"))
     }
