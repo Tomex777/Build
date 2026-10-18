@@ -139,6 +139,7 @@ import studio.artistscene.core.SceneProject
 import studio.artistscene.core.EnvironmentPreset
 import studio.artistscene.core.GroundSurface
 import studio.artistscene.core.SunOrbit
+import studio.artistscene.core.TerrainShape
 import studio.artistscene.core.Interpolation
 import studio.artistscene.core.actorKeyTimes
 import studio.artistscene.core.previousActorKeyTime
@@ -396,6 +397,47 @@ internal fun StudioScreen(
     val starterAssets = remember {
         PrototypeScene.starterAssets()
     }
+    val terrainFactory = remember(context) { TerrainAssets(context) }
+
+    fun insertTerrain(actor: Actor) {
+        // One durable undo action: a true 36m mesh replaces the infinite flat
+        // floor, so there is no z-fighting and the real horizon remains visible.
+        var next = editor.addActor(actor)
+        next = next.copy(
+            project = next.project.copy(world = next.project.world.copy(groundEnabled = false)),
+        )
+        val camera = next.project.cameras.firstOrNull { it.id == next.project.activeCameraId }
+        if (camera != null) {
+            next = next.updateActiveCamera(camera.copy(
+                position = Vec3(17f, 15f, 36f),
+                target = Vec3(0f, 4f, 0f),
+                farMeters = maxOf(camera.farMeters, 400f),
+            ))
+        }
+        applyEditor(next, "terrain-add")
+        activeSheet = null
+        showAddSheet = false
+    }
+
+    val heightmapLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocument(),
+    ) { uri ->
+        if (uri != null) {
+            importStatus = "Creating terrain from heightmap…"
+            scope.launch {
+                runCatching {
+                    withContext(Dispatchers.IO) { terrainFactory.fromHeightmap(uri) }
+                }.onSuccess { actor ->
+                    insertTerrain(actor)
+                    importStatus = "Heightmap terrain added"
+                }.onFailure { error ->
+                    importStatus = "Heightmap: ${error.message ?: "could not read image"}"
+                    Log.w(RUNTIME_LOG_TAG, "heightmap-terrain-failed", error)
+                }
+            }
+        }
+    }
+
     val importLauncher = rememberLauncherForActivityResult(OpenModelDocumentContract()) { uri ->
         if (uri == null) {
             importStatus = "Import cancelled"
@@ -1011,6 +1053,21 @@ internal fun StudioScreen(
             onAxisSelected = { selectedPoseAxis = it },
             onPoseIkEnabledChange = { poseIkEnabled = it },
             onEditor = { next, reason -> applyEditor(next, reason) },
+            onAddTerrain = { shape ->
+                importStatus = "Building ${shape.title.lowercase()} terrain…"
+                scope.launch {
+                    runCatching {
+                        withContext(Dispatchers.IO) { terrainFactory.preset(shape) }
+                    }.onSuccess { actor ->
+                        insertTerrain(actor)
+                        importStatus = "${shape.title} terrain added"
+                    }.onFailure { error ->
+                        importStatus = "Terrain: ${error.message ?: "could not build mesh"}"
+                        Log.e(RUNTIME_LOG_TAG, "terrain-build-failed", error)
+                    }
+                }
+            },
+            onHeightmapImport = { heightmapLauncher.launch(arrayOf("image/*")) },
             onClose = { activeSheet = null },
             saveStatus = saveStatus,
             onFrameSelected = {
@@ -1708,6 +1765,8 @@ private fun EditorContextSheet(
     onAxisSelected: (TransformAxis) -> Unit,
     onPoseIkEnabledChange: (Boolean) -> Unit,
     onEditor: (SceneEditorState, String) -> Unit,
+    onAddTerrain: (TerrainShape) -> Unit,
+    onHeightmapImport: () -> Unit,
     onClose: () -> Unit,
     saveStatus: String,
     onFrameSelected: () -> Unit,
