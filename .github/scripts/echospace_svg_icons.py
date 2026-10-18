@@ -62,10 +62,10 @@ for symbol in symbols:
 
 s = kt.read_text()
 imports = "import androidx.compose.ui.res.painterResource\n"
-assert imports not in s
-assert "import androidx.compose.material3.*\n" in s
-s = s.replace("import androidx.compose.material3.*\n",
-              "import androidx.compose.material3.*\n" + imports, 1)
+if imports not in s:
+    assert "import androidx.compose.material3.*\n" in s
+    s = s.replace("import androidx.compose.material3.*\n",
+                  "import androidx.compose.material3.*\n" + imports, 1)
 
 # Replace free-form title heuristics with exhaustive compile-time enum mapping.
 match = re.search(
