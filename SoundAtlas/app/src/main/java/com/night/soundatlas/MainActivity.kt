@@ -107,6 +107,10 @@ class MainActivity : Activity() {
         super.onBackPressed()
     }
 
+    private enum class Sheet { NONE, LIBRARY, SOUNDS, MATERIALS, ZONES, INSPECT }
+    private enum class Mode { EDIT, DRAW_WALL, ADD_ZONE, EXPLORE }
+    private data class Hit(val rect: RectF, val action: () -> Unit)
+
     private inner class AtlasCanvas : View(this@MainActivity) {
         private val density=resources.displayMetrics.density
         private val paint=Paint(Paint.ANTI_ALIAS_FLAG)
@@ -137,9 +141,6 @@ class MainActivity : Activity() {
         private var exploreTarget:V2?=null
         private val buttons=mutableListOf<Hit>()
         private var tick=0L
-        private enum class Sheet { NONE, LIBRARY, SOUNDS, MATERIALS, ZONES, INSPECT }
-        private enum class Mode { EDIT, DRAW_WALL, ADD_ZONE, EXPLORE }
-        private data class Hit(val rect:RectF,val action:()->Unit)
 
         fun resetCamera() { camera=world.listener.copy();zoom=1f;sheet=Sheet.NONE;mode=Mode.EDIT;selectedId=null;selectedWall=-1;selectedZone=-1;invalidate() }
         fun closeSheetOrExitExplore():Boolean {
