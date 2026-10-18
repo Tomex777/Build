@@ -191,7 +191,7 @@ export class NightPlay {
   }
 }
 
-export function createNightPlayHandler(play, { publicKey = readFileSync(new URL('./night-play-public-key.pem', import.meta.url), 'utf8'), refreshAvatar = null, accounts = new Map() } = {}) {
+export function createNightPlayHandler(play, { publicKey = readFileSync(new URL('./night-play-public-key.pem', import.meta.url), 'utf8'), refreshAvatar = null, refreshChannelPhotos = null, accounts = new Map() } = {}) {
   const key = createPublicKey(publicKey)
   return async (req, res) => {
     const reply = (status, body) => {
@@ -231,6 +231,10 @@ export function createNightPlayHandler(play, { publicKey = readFileSync(new URL(
         if (body.channelId !== undefined && !/^\d{8,25}@newsletter$/.test(String(body.channelId))) throw new PlayError(400,'Invalid channel.')
         return play.channels.verifyUser(userId, accounts, body.channelId)
       })() : play.request(body)
+      if(body.action==='channel:list'&&refreshChannelPhotos&&Array.isArray(result.channels)){
+        const userId=body.session?play.session(body.session)?.user_id:null
+        if(userId)Promise.resolve().then(()=>refreshChannelPhotos(userId,result.channels)).catch(()=>{})
+      }
       // An already-linked browser can obtain its permitted WhatsApp photo
       // without another QR/code. Background only: signed RPC stays responsive.
       if (body.action === 'status' && result.linked && !result.profile?.avatarData && refreshAvatar) {
