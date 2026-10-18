@@ -107,6 +107,20 @@ class MainActivity : ComponentActivity() {
             }.onFailure { Log.w(RUNTIME_LOG_TAG, "under-tree-shadows-upgrade-failed", it) }
         }
 
+        // Upgrade the exact original demo tree, but never overwrite an artist's
+        // moved, replaced, scaled or renamed tree (or any other scene object).
+        if (!preferences.getBoolean(UNDER_TREE_REAL_OAK_KEY, false)) {
+            runCatching {
+                if (store.exists(UnderTreeScene.PROJECT_ID)) {
+                    val saved = store.load(UnderTreeScene.PROJECT_ID)
+                    val improved = UnderTreeScene.upgradeUntouchedDemoTree(saved)
+                    if (improved != saved) store.save(improved)
+                }
+            }.onSuccess {
+                preferences.edit().putBoolean(UNDER_TREE_REAL_OAK_KEY, true).apply()
+            }.onFailure { Log.w(RUNTIME_LOG_TAG, "under-tree-oak-upgrade-failed", it) }
+        }
+
         // Clean up presentation-only fixture labels from earlier development builds without
         // changing IDs, transforms, poses, assets, or any names the artist has already edited.
         if (store.exists(PrototypeScene.PROJECT_ID)) {
@@ -227,6 +241,7 @@ private const val ANIME_STUDY_SEEDED_KEY = "anime-pose-study-seeded-v1"
 private const val UNDER_TREE_SEEDED_KEY = "under-tree-scene-seeded-v1"
 private const val UNDER_TREE_ATMOSPHERE_KEY = "under-tree-atmosphere-softened-v2"
 private const val UNDER_TREE_SHADOWS_KEY = "under-tree-photographic-shadow-direction-v3"
+private const val UNDER_TREE_REAL_OAK_KEY = "under-tree-real-oak-model-v4"
 
 internal fun studio.artistscene.core.SceneProject.propX(): Float =
     actors.firstOrNull { it.id == PrototypeScene.PROP_ID }?.transform?.position?.x ?: 0f
