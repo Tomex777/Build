@@ -215,7 +215,9 @@ private val bodyInfo = mapOf(
     "jupiter" to BodyInfo("Jupiter", "Gas giant", "69,911 km", "5.2029 AU", "11.86 y", "9 h 55 m", "The largest planet, a gas giant with banded clouds and enormous storms."),
     "saturn" to BodyInfo("Saturn", "Gas giant", "58,232 km", "9.5371 AU", "29.45 y", "10 h 42 m", "A gas giant surrounded by its bright, complex ring system."),
     "uranus" to BodyInfo("Uranus", "Ice giant", "25,362 km", "19.191 AU", "84.0 y", "17 h 14 m retrograde", "An ice giant rotating on its side with a faint ring system."),
-    "neptune" to BodyInfo("Neptune", "Ice giant", "24,622 km", "30.07 AU", "164.8 y", "16 h 6 m", "A distant blue ice giant with some of the fastest winds in the Solar System.")
+    "neptune" to BodyInfo("Neptune", "Ice giant", "24,622 km", "30.07 AU", "164.8 y", "16 h 6 m", "A distant blue ice giant with some of the fastest winds in the Solar System."),
+    "europa" to BodyInfo("Europa", "Icy moon of Jupiter", "1,560.8 km", "671,100 km from Jupiter", "3.551 d", "3.551 d", "An ice-covered moon with fractured ridges above a possible subsurface ocean. Ground terrain is illustrative."),
+    "titan" to BodyInfo("Titan", "Moon of Saturn", "2,574.7 km", "1,221,870 km from Saturn", "15.945 d", "15.945 d", "A moon with orange nitrogen-methane haze, organic dunes, and hydrocarbon lakes. Ground terrain is illustrative.")
 )
 
 @Composable
@@ -238,7 +240,7 @@ private fun EndlessApp(
         )
     }
     var infoVisible by remember {
-        mutableStateOf(initialState?.marsSurfaceMode != true && initialState?.moonSurfaceMode != true)
+        mutableStateOf(initialState?.marsSurfaceMode != true && initialState?.moonSurfaceMode != true && initialState?.extendedSurfaceId == null)
     }
     var paused by remember { mutableStateOf(initialState?.clockState?.paused ?: false) }
     var overview by remember { mutableStateOf(initialState?.overview ?: false) }
@@ -254,6 +256,7 @@ private fun EndlessApp(
             when {
                 initialState?.moonSurfaceMode == true -> "moon"
                 initialState?.marsSurfaceMode == true -> "mars"
+                initialState?.extendedSurfaceId != null -> initialState.extendedSurfaceId
                 else -> null
             }
         )
@@ -407,6 +410,10 @@ private fun EndlessApp(
                     when (landedBody) {
                         "mars" -> "OLYMPUS MONS · MARS"
                         "moon" -> "TYCHO CRATER · MOON"
+                        "mercury" -> "MERCURY · SIMULATED SURFACE"
+                        "ceres" -> "CERES · SIMULATED SURFACE"
+                        "europa" -> "EUROPA · SIMULATED ICE"
+                        "titan" -> "TITAN · SIMULATED DUNES"
                         else -> when {
                             historyOpen -> "SPACE & TIME EXPLORER"
                             cosmicScale != CosmicScale.SOLAR_SYSTEM -> "COSMIC SCALE EXPLORER"
@@ -479,7 +486,10 @@ private fun EndlessApp(
                             "moon" -> "Explore Moon"
                             "mars" -> "Explore Mars"
                             "venus" -> "Explore Venus"
-                            "ceres" -> "Explore Belt"
+                            "ceres" -> "Explore Ceres"
+                            "mercury" -> "Explore Mercury"
+                            "europa" -> "Explore Europa"
+                            "titan" -> "Explore Titan"
                             else -> null
                         },
                         modifier = Modifier.align(Alignment.CenterEnd).padding(end = 16.dp),
@@ -561,7 +571,7 @@ private fun EndlessApp(
             }
 
             if (cosmicScale == CosmicScale.SOLAR_SYSTEM && landedBody == null &&
-                ((selected == "mars" || selected == "moon" || selected == "venus" || selected == "ceres") && !overview)) {
+                ((selected in setOf("mars", "moon", "venus", "ceres", "mercury", "europa", "titan")) && !overview)) {
                 Surface(
                     modifier = Modifier.align(Alignment.BottomCenter)
                         .padding(bottom = if (landedBody != null) 18.dp else 68.dp),
