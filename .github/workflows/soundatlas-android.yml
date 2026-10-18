@@ -112,34 +112,7 @@ jobs:
           disk-size: 3072M
           disable-animations: true
           emulator-options: -no-window -no-snapshot -noaudio -no-boot-anim -gpu off
-          script: |
-            set -eu
-            mkdir -p SoundAtlas/qa
-            adb install -r SoundAtlas/app/build/outputs/apk/debug/app-debug.apk
-            adb shell am start -W -n com.night.soundatlas/.MainActivity
-            sleep 12
-            adb shell pidof com.night.soundatlas
-            adb exec-out screencap -p > SoundAtlas/qa/01-cathedral.png
-            test $(wc -c < SoundAtlas/qa/01-cathedral.png) -gt 5000
-            # Use actual emulator display dimensions and density, not hardcoded Pixel 6 pixels.
-            W=$(adb shell wm size | sed -n 's/.*: \([0-9]*\)x[0-9]*/\1/p' | head -1)
-            H=$(adb shell wm size | sed -n 's/.*x\([0-9]*\)/\1/p' | head -1)
-            D=$(adb shell wm density | sed -n 's/.*: \([0-9]*\)/\1/p' | head -1)
-            test -n "$W"; test -n "$H"; test -n "$D"
-            adb shell input tap $((W / 10)) $((H - 70 * D / 160))
-            sleep 2
-            adb exec-out screencap -p > SoundAtlas/qa/02-world-library.png
-            test $(wc -c < SoundAtlas/qa/02-world-library.png) -gt 5000
-            # First row, right-side world card on the native library sheet.
-            adb shell input tap $((W * 3 / 4)) $((H - 275 * D / 160))
-            sleep 2
-            adb exec-out screencap -p > SoundAtlas/qa/03-scene.png
-            test $(wc -c < SoundAtlas/qa/03-scene.png) -gt 5000
-            adb shell pidof com.night.soundatlas
-            adb logcat -d -s AndroidRuntime:E > SoundAtlas/qa/crashes.txt
-            if grep -A 4 'FATAL EXCEPTION' SoundAtlas/qa/crashes.txt | grep -q 'com.night.soundatlas'; then
-              echo 'Fatal crash during UI interaction'; exit 1
-            fi
+          script: bash SoundAtlas/tools/emulator_qa.sh
       - uses: actions/upload-artifact@v4
         if: always()
         with:
