@@ -104,8 +104,35 @@ object UnderTreeScene {
         return SceneProject(
             id = PROJECT_ID,
             name = "Two classmates · Under the tree",
-            actors = listOf(tree, classmateA, classmateB) +
-                PrototypeScene.create().actors.filter { it.kind == ActorKind.LIGHT },
+            actors = listOf(tree, classmateA, classmateB,
+                // A softer key/fill ratio lets white clothes retain their shape and
+                // provides natural tree shade without harsh charcoal floor shadows.
+                Actor(
+                    id = "schoolyard-sun",
+                    name = "Soft afternoon sun",
+                    kind = ActorKind.LIGHT,
+                    light = LightSettings(
+                        type = LightType.DIRECTIONAL,
+                        intensity = 42_000f,
+                        colorHex = "#FFF4E9",
+                        direction = Vec3(-0.48f, -1f, -0.35f),
+                        castsShadow = true,
+                    ),
+                ),
+                Actor(
+                    id = "schoolyard-sky-fill",
+                    name = "Sky fill",
+                    kind = ActorKind.LIGHT,
+                    transform = Transform(position = Vec3(1.5f, 2.8f, 2.4f)),
+                    light = LightSettings(
+                        type = LightType.POINT,
+                        intensity = 1_300f,
+                        colorHex = "#E8F4FF",
+                        rangeMeters = 8f,
+                        castsShadow = false,
+                    ),
+                ),
+            ),
             cameras = listOf(
                 SceneCamera(
                     id = "camera-main",
