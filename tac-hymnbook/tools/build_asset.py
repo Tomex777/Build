@@ -10,13 +10,15 @@ import json
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-SEED_PATH = ROOT / "data/hymns-001-011.seed.json"
+SEED_DIR = ROOT / "data"
 DRAFTS = ROOT / "data/drafts"
 OUTPUT = ROOT / "android/app/src/main/assets/hymns.json"
 
 
 def compile_asset() -> dict:
-    seed = json.loads(SEED_PATH.read_text(encoding="utf-8"))["hymns"]
+    seed = []
+    for seed_path in sorted(SEED_DIR.glob("hymns-*.seed.json")):
+        seed.extend(json.loads(seed_path.read_text(encoding="utf-8"))["hymns"])
     numbers = [entry["number"] for entry in seed]
     if not numbers or len(set(numbers)) != len(numbers):
         raise ValueError("Hymn numbers missing or duplicated")
@@ -67,7 +69,7 @@ def compile_asset() -> dict:
         })
     return {
         "schema": 1,
-        "description": "Offline photo-backed TAC hymn texts; review pending. Hymn 11 is partial: page 5 required.",
+        "description": "Offline TAC hymns 1–17 transcribed against photographed pages 1–6 with matched historical texts; some lyrics still under review.",
         "hymns": hymns,
     }
 
