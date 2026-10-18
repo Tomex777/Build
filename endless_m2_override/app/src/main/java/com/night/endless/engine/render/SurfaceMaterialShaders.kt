@@ -48,7 +48,7 @@ in highp vec3 vNormal;
 in highp vec3 vColor;
 in highp float vDistance;
 uniform vec3 uLight;
-uniform int uWorld; // 0 = Mars; 1 = Moon
+uniform int uWorld; // 0 Mars, 1 Moon, 2 Mercury, 3 Ceres, 4 Europa, 5 Titan
 uniform int uPatchType; // 0 = coarse landscape; 1 = foreground; 2 = stones
 uniform vec2 uViewAnchor;
 uniform vec2 uMidAnchor;
@@ -188,7 +188,21 @@ void main() {
             areaNoise * 0.65 + steepness * 0.35);
         vec3 regolith = vec3(0.35, 0.345, 0.335);
         vec3 exposedRock = vec3(0.225, 0.222, 0.22);
-        albedo = mix(regolith, exposedRock, highlands * 0.77);
+        if (uWorld == 2) { // Mercury: charcoal-grey impact regolith
+            regolith = vec3(.28, .272, .266);
+            exposedRock = vec3(.135, .132, .13);
+        } else if (uWorld == 3) { // Ceres: hydrated dark carbonaceous material
+            regolith = vec3(.225, .225, .215);
+            exposedRock = vec3(.13, .132, .126);
+        } else if (uWorld == 4) { // Europa: ice crust and dark lineaments
+            regolith = vec3(.63, .67, .68);
+            exposedRock = vec3(.22, .20, .18);
+            highlands = smoothstep(.40, .68, areaNoise * .85 + steepness * .15);
+        } else if (uWorld == 5) { // Titan: orange atmospheric organic dune fines
+            regolith = vec3(.33, .215, .11);
+            exposedRock = vec3(.22, .14, .074);
+        }
+        albedo = mix(regolith, exposedRock, highlands * .77);
         albedo *= 0.78 + granules * 0.43;
         albedo *= 0.92 + grain * 0.13;
     }
@@ -245,7 +259,9 @@ void main() {
     // approximation; shadow retains significantly less light than day.
     float light = uWorld == 0
         ? 0.21 + 1.17 * direct * halfLambert
-        : 0.055 + 1.38 * direct * halfLambert;
+        : uWorld == 5
+            ? 0.33 + 0.69 * direct * halfLambert
+            : 0.055 + 1.38 * direct * halfLambert;
     float surfaceAo = mix(1.0, 0.78, pow(steepness, 0.7));
     // Geometrically modelled rocks are darker than surrounding loose dust.
     // Variation between buried basalt and dust-coated stones reduces
@@ -269,6 +285,11 @@ void main() {
         color += vec3(0.007) * highlight * direct * microWeight;
     }
 
+    if (uWorld == 5) {
+        // Titan's optically thick nitrogen/methane haze obscures distance.
+        float transmission = exp(-max(vDistance, 0.0) * 1.25);
+        color = mix(vec3(.48,.285,.125), color, transmission);
+    }
     if (uWorld == 0) {
         // Warm atmospheric extinction and aerial perspective on Mars, with
         // clear close foreground. The Moon intentionally has zero dust fog.

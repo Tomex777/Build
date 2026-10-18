@@ -8,7 +8,7 @@ import java.nio.ByteBuffer
 /** Mipmapped GPU micro-material: ~341 KiB total on device, zero APK image bytes. */
 internal object SurfaceMicroTexture {
     fun create(context: Context, planet: String): Int {
-        require(planet == "mars" || planet == "moon")
+        require(planet in setOf("mars", "moon", "mercury", "ceres", "europa", "titan"))
         val atlas = SurfaceMicroMaterial.pixels()
         val referenceId = context.resources.getIdentifier(
             planet + "_surface_grit", "drawable", context.packageName
