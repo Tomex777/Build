@@ -51,11 +51,20 @@ let galleryReady=false,resumeCandidate=null;
 let dragId=null,dragX=0,dragY=0,dragMoved=false,dragRect=null,dragOrigins=null,winAnimationId=null,winTimeout=null,toastTimeout=null;
 let zoom=1,panX=0,panY=0,panId=null,panStart=null,pinchDistance=0,pinchStartZoom=1,pinchAnchor=null;
 const pointers=new Map();
+// The selected group's pixels are painted once on pickup. At touch-event
+// frequency, only a compositor transform changes — no full-screen clear or
+// repeated blurred shadows, even on high-DPI Android screens.
+function updateDragTransform(){
+ const p=board.selectedPiece;
+ const dx=p&&board.dragAnchorX!==null?p.x-board.dragAnchorX:0;
+ const dy=p&&board.dragAnchorY!==null?p.y-board.dragAnchorY:0;
+ board.dragCanvas.style.transform='translate3d('+panX+'px,'+panY+'px,0) scale('+zoom+') translate3d('+dx+'px,'+dy+'px,0)';
+}
 function applyZoom(){
  const maxX=(zoom-1)*board.viewportWidth*.5,maxY=(zoom-1)*board.viewportHeight*.5;
  panX=Math.max(-maxX,Math.min(maxX,panX));panY=Math.max(-maxY,Math.min(maxY,panY));
  const transform='translate('+panX+'px,'+panY+'px) scale('+zoom+')';
- canvas.style.transform=transform;board.dragCanvas.style.transform=transform;$('previewOverlay').style.transform=transform;
+ canvas.style.transform=transform;updateDragTransform();$('previewOverlay').style.transform=transform;
  $('zoomReset').textContent=Math.round(zoom*100)+'%';
  $('zoomOut').disabled=zoom<=1.001;$('zoomIn').disabled=zoom>=2.2;
  $('mobileZoomOut').disabled=zoom<=1.001;$('mobileZoomIn').disabled=zoom>=2.2;
@@ -356,7 +365,7 @@ function cancelSelection(){
   const origin=dragOrigins?.get(p.id);if(origin){p.x=origin.x;p.y=origin.y;}
  }
  board.selectedPiece=null;board.selectedPieces=[];dragId=null;dragRect=null;
- canvas.classList.remove('dragging');board.render();
+ canvas.classList.remove('dragging');board.dragCanvas.style.willChange='';board.render();updateDragTransform();
 }
 canvas.addEventListener('pointerdown',e=>{
  if(!activeRound||won||paused||e.button!==0)return;
@@ -384,6 +393,7 @@ canvas.addEventListener('pointerdown',e=>{
  dragId=e.pointerId;dragX=pos.x-piece.x;dragY=pos.y-piece.y;
  dragOrigins=new Map(board.selectedPieces.map(p=>[p.id,{x:p.x,y:p.y}]));
  dragMoved=false;canvas.classList.add('dragging');
+ board.dragCanvas.style.willChange='transform';
  canvas.setPointerCapture(e.pointerId);
  sound.playPickup();board.render();e.preventDefault();
 });
@@ -413,7 +423,7 @@ canvas.addEventListener('pointermove',e=>{
  const y=Math.max(-board.pieceHeight*.15,Math.min(board.viewportHeight-board.pieceHeight*.85,pos.y-dragY));
  const start=dragOrigins?.get(p.id);
  if(start&&Math.hypot(x-start.x,y-start.y)>2.5)dragMoved=true;
- board.moveSelectionTo(x,y);board.renderDrag();e.preventDefault();
+ board.moveSelectionTo(x,y);updateDragTransform();e.preventDefault();
 });
 function releaseDrag(e){
  const wasPinching=pinchDistance>0&&pointers.size>=2;
@@ -426,15 +436,15 @@ function releaseDrag(e){
  if(e.pointerId!==dragId||!board.selectedPiece)return;
  const p=board.selectedPiece;
  board.selectedPiece=null;dragId=null;dragRect=null;
- canvas.classList.remove('dragging');
+ canvas.classList.remove('dragging');board.dragCanvas.style.willChange='';
  if(canvas.hasPointerCapture(e.pointerId))canvas.releasePointerCapture(e.pointerId);
  if(e.type==='pointercancel'){
   for(const item of board.selectedPieces){const origin=dragOrigins?.get(item.id);if(origin){item.x=origin.x;item.y=origin.y;}}
-  board.selectedPieces=[];board.render();e.preventDefault();return;
+  board.selectedPieces=[];board.render();updateDragTransform();e.preventDefault();return;
  }
  if(dragMoved)refreshAfterMove(p);
  else{board.selectedPieces=[];board.render();}
- e.preventDefault();
+ updateDragTransform();e.preventDefault();
 }
 canvas.addEventListener('pointerup',releaseDrag);
 canvas.addEventListener('pointercancel',releaseDrag);
