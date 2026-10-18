@@ -4,6 +4,14 @@ import org.json.JSONArray
 import org.json.JSONObject
 import kotlin.math.*
 
+object WorldLimits {
+    // Conservative CPU budget for the current Android realtime engine.
+    // Raise only after profiling reflection/Binaural DSP on low-memory handsets.
+    const val MAX_WALLS=192
+    const val MAX_ZONES=24
+    const val MAX_SOURCES=24
+}
+
 data class V2(var x: Float, var y: Float) {
     fun distance(other: V2): Float = hypot(x - other.x, y - other.y)
     fun moved(dx: Float, dy: Float) = V2(x + dx, y + dy)
@@ -311,7 +319,7 @@ object AtlasCodec {
         world.seed=climate.getInt(2)
         world.storm=if(climate.length()>=4) climate.safe(3,0f,1f) else .45f
         val walls=root.getJSONArray("w")
-        require(walls.length() <= 1000) { "Too many walls" }
+        require(walls.length() <= WorldLimits.MAX_WALLS) { "Too many walls" }
         repeat(walls.length()) {
             val a=walls.getJSONArray(it)
             val material=Material.entries.getOrNull(a.getInt(4)) ?: error("Unknown wall material")
@@ -319,7 +327,7 @@ object AtlasCodec {
                 V2(a.safe(2,0f,width),a.safe(3,0f,height)),material)
         }
         val zones=root.getJSONArray("z")
-        require(zones.length() <= 60) { "Too many zones" }
+        require(zones.length() <= WorldLimits.MAX_ZONES) { "Too many zones" }
         repeat(zones.length()) {
             val a=zones.getJSONArray(it)
             world.zones+=Zone(a.getString(0).take(60),a.safe(1,0f,width),
@@ -327,7 +335,7 @@ object AtlasCodec {
                 a.safe(5,0.1f,15f),a.safe(6,0f,1f))
         }
         val emitters=root.getJSONArray("e")
-        require(emitters.length() <= 400) { "Too many sounds" }
+        require(emitters.length() <= WorldLimits.MAX_SOURCES) { "Too many sounds" }
         val ids=mutableSetOf<Int>()
         repeat(emitters.length()) {
             val a=emitters.getJSONArray(it);val id=a.getInt(0)
