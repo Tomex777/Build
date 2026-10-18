@@ -30,6 +30,7 @@ on:
       - ".ci/slumber_110_visual_fixes/**"
       - ".ci/slumber_111_catalog/**"
       - ".ci/slumber_112_system_bars/**"
+      - ".ci/slumber_113_song_scores/**"
   pull_request:
     branches: ["slumber-087-build"]
     paths:
@@ -59,6 +60,7 @@ on:
       - ".ci/slumber_110_visual_fixes/**"
       - ".ci/slumber_111_catalog/**"
       - ".ci/slumber_112_system_bars/**"
+      - ".ci/slumber_113_song_scores/**"
 
 permissions:
   actions: read
@@ -348,6 +350,18 @@ jobs:
           echo '0cbbe46296e547363bb84d41d0bf9256aa5463c0a24e0818d0658ca8232bb717  .ci/slumber_112_system_bars/navigation-bar.patch' | sha256sum -c -
           patch -d /tmp/slumber-088 -p1 < .ci/slumber_112_system_bars/navigation-bar.patch
           grep -q 'navigationBarColor = TilesNight.toArgb()' /tmp/slumber-088/app/src/main/java/com/night/pianohub/ui/screens/PlayScreen.kt
+
+      - name: Apply per-song best records and tighten gameplay input
+        shell: bash
+        run: |
+          set -euo pipefail
+          OUT=/tmp/slumber-088
+          base64 -d .ci/slumber_113_song_scores/score-integrity.patch.gz.b64 | gzip -dc > "$OUT/score-integrity.patch"
+          echo '030c4510ab87c3f0523e996f2439c057c8f9961c83d6d0daf1425e3b535669d3  /tmp/slumber-088/score-integrity.patch' | sha256sum -c -
+          patch --fuzz=0 -d "$OUT" -p1 < "$OUT/score-integrity.patch"
+          grep -q 'tiles_best_by_song_v1' "$OUT/app/src/main/java/com/night/pianohub/storage/PianoHubLocalStore.kt"
+          grep -q 'HIT_WINDOW_MS' "$OUT/app/src/main/java/com/night/pianohub/music/SlumberTilesChart.kt"
+          grep -q 'state.bestTilesScore(song.id)' "$OUT/app/src/main/java/com/night/pianohub/ui/screens/PlayScreen.kt"
 
       - uses: actions/setup-java@v4
         with:
