@@ -35,7 +35,7 @@ class UnderTreeSceneTest {
         assertNotEquals(a.asset!!.relativePath, b.asset!!.relativePath)
         assertEquals(AssetStorage.BUNDLED, a.asset!!.storage)
         assertEquals(AssetStorage.BUNDLED, b.asset!!.storage)
-        assertEquals("models/mise_tree.glb",
+        assertEquals("models/mise_oak_tree.glb",
             scene.actors.single { it.id == UnderTreeScene.TREE_ID }.asset!!.relativePath)
         assertNotEquals(a.transform.position, b.transform.position)
         assertTrue(a.rig!!.joints.isNotEmpty())
@@ -44,6 +44,32 @@ class UnderTreeSceneTest {
         assertTrue(b.appearance.hairPhysicsEnabled)
         assertTrue(scene.cameras.single().position.z > a.transform.position.z)
         assertEquals(scene, SceneProjectCodec.decode(SceneProjectCodec.encode(scene)))
+    }
+
+    @Test fun detailedOakReplacesOnlyUntouchedOldDemoTree() {
+        val latest = UnderTreeScene.create()
+        val oldTree = PrototypeScene.starterAssets().first { it.asset?.assetId == "starter.mise.tree" }
+        val old = latest.copy(actors = latest.actors.map {
+            if (it.id == UnderTreeScene.TREE_ID) it.copy(
+                name = "Shade tree",
+                asset = oldTree.asset,
+                transform = it.transform.copy(
+                    position = studio.artistscene.core.Vec3(-0.34f, 0f, -1.23f),
+                    scale = studio.artistscene.core.Vec3(1.16f, 1.16f, 1.16f),
+                ),
+            ) else it
+        })
+        val upgraded = UnderTreeScene.upgradeUntouchedDemoTree(old)
+        assertEquals("starter.cc0.oak-street-tree",
+            upgraded.actors.single { it.id == UnderTreeScene.TREE_ID }.asset!!.assetId)
+        assertEquals(old.actors.filterNot { it.id == UnderTreeScene.TREE_ID },
+            upgraded.actors.filterNot { it.id == UnderTreeScene.TREE_ID })
+        val artistMoved = old.copy(actors = old.actors.map {
+            if (it.id == UnderTreeScene.TREE_ID)
+                it.copy(transform = it.transform.copy(position = studio.artistscene.core.Vec3(-2f, 0f, -1f)))
+            else it
+        })
+        assertEquals(artistMoved, UnderTreeScene.upgradeUntouchedDemoTree(artistMoved))
     }
 
     @Test fun adjustOnlyStockSunWithoutErasingArtistLightOrPose() {
