@@ -68,6 +68,7 @@ import studio.artistscene.core.AssetReference
 import studio.artistscene.core.AssetStorage
 import studio.artistscene.core.CameraProjection
 import studio.artistscene.core.EnvironmentPreset
+import studio.artistscene.core.GroundSurface
 import studio.artistscene.core.ReferenceImage
 import studio.artistscene.core.RigDefinition
 import studio.artistscene.core.SceneCamera
@@ -151,12 +152,20 @@ fun SceneViewport(
 
     // A low-chroma matte ground creates value separation from human skin and light clothing.
     // Keep it as Filament PBR geometry so it receives real shadow maps/contact shadows.
-    val groundPhoto = remember(engine, preset) {
-        if (preset == EnvironmentPreset.PARK_SHADE) PhotographicGroundCache.obtain(engine, context) else null
+    val chosenGround = project.world.groundSurface.let { selected ->
+        if (selected == GroundSurface.AUTO && preset == EnvironmentPreset.PARK_SHADE)
+            GroundSurface.GRASS else selected
     }
-    val floor = remember(materialLoader, preset, groundPhoto) {
+    val groundTiles = project.world.groundTileCount.coerceIn(2, 24)
+    val groundRoughness = project.world.groundRoughness.coerceIn(0.3f, 1f)
+    val groundPhoto = remember(engine, chosenGround, groundTiles) {
+        if (chosenGround != GroundSurface.AUTO)
+            PhotographicGroundCache.obtain(engine, context, chosenGround, groundTiles)
+        else null
+    }
+    val floor = remember(materialLoader, preset, groundPhoto, groundRoughness) {
         if (groundPhoto != null) {
-            materialLoader.createTextureInstance(groundPhoto, metallic = 0f, roughness = 1f)
+            materialLoader.createTextureInstance(groundPhoto, metallic = 0f, roughness = groundRoughness)
         } else {
             val color = Color(android.graphics.Color.parseColor(preset.groundHex))
             materialLoader.createColorInstance(color, metallic = 0f, roughness = preset.roughness)
@@ -293,7 +302,7 @@ fun SceneViewport(
                 // A finite photo-textured ground reveals the actual sky horizon.
                 // Previously the 2000m plane filled EVERY camera ray below the tree,
                 // so we accidentally hid the sky and made floor/sky indistinguishable.
-                size = if (preset == EnvironmentPreset.PARK_SHADE)
+                size = if (groundPhoto != null)
                     Size(36f, 0f, 36f) else Size(2000f, 0f, 2000f),
                 normal = Direction(0f, 1f, 0f),
                 position = Position(0f, -0.01f, 0f),
@@ -303,7 +312,7 @@ fun SceneViewport(
                     isShadowCaster = false
                     isShadowReceiver = true
                     setCulling(false)
-                    val groundHalf = if (preset == EnvironmentPreset.PARK_SHADE) 18f else 1000f
+                    val groundHalf = if (groundPhoto != null) 18f else 1000f
                     axisAlignedBoundingBox = Box(0f, 0f, 0f, groundHalf, 0.01f, groundHalf)
                 },
             )
