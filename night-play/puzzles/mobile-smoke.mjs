@@ -56,12 +56,15 @@ try{
  assert.equal((await saved('sudoku')).level,'hard');
  assert.equal(await page.locator('.sudoku-cell').count(),81);
  await page.screenshot({path:path.join(folder,'puzzle-sudoku-mobile.jpg'),type:'jpeg',quality:75});
- // Finish a nearly completed valid save by entering the final number on the real UI.
- sudoku=await saved('sudoku');index=sudoku.board.indexOf(0);
- await page.evaluate(i=>{const key='night-play-puzzle-room-v1-sudoku';const s=JSON.parse(localStorage.getItem(key));s.board=s.solution.slice();s.board[i]=0;s.givens=s.board.slice();s.done=false;localStorage.setItem(key,JSON.stringify(s));},index);
- await page.reload();
- await page.locator('[data-cell="'+index+'"]').click();
- await page.locator('[data-number="'+sudoku.solution[index]+'"]').click();
+ // Solve every remaining square through the actual on-screen cell and number handlers.
+ sudoku=await saved('sudoku');
+ await page.evaluate(solution=>{
+  for(let i=0;i<81;i++){
+   if(document.querySelector('[data-cell="'+i+'"]').classList.contains('given'))continue;
+   document.querySelector('[data-cell="'+i+'"]').click();
+   document.querySelector('[data-number="'+solution[i]+'"]').click();
+  }
+ },sudoku.solution);
  assert.equal((await saved('sudoku')).done,true);
  assert.match(await page.locator('#message').innerText(),/Puzzle complete/);
  await page.goto(url+'/puzzles/?game=memory');
