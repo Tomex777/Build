@@ -19,9 +19,20 @@ if adb shell cat /sdcard/atlas-hierarchy.xml 2>/dev/null | grep -q 'text="Got it
 fi
 capture() {
   local target="$1"
-  adb exec-out screencap -p > "SoundAtlas/qa/$target"
-  test "$(wc -c < "SoundAtlas/qa/$target")" -gt 5000
-  file "SoundAtlas/qa/$target"
+  local output="SoundAtlas/qa/$target"
+  for attempt in 1 2 3 4; do
+    adb exec-out screencap -p > "$output"
+    if test "$(wc -c < "$output")" -gt 5000 &&
+       python3 SoundAtlas/tools/png_modal_guard.py "$output"; then
+      echo "UI_VISIBLE_SCREENSHOT: $target"
+      return 0
+    fi
+    echo "System dialog blocking app: waiting and retrying $target ($attempt)"
+    adb shell input tap $((W * 39 / 100)) $((H * 54 / 100)) || true
+    sleep 5
+  done
+  echo "QA_FAIL: The real Sound Atlas screen stayed obscured by system UI"
+  return 1
 }
 adb shell pidof com.night.soundatlas
 capture 01-cathedral.png
