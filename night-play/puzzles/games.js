@@ -197,7 +197,7 @@ $("gameOptions").addEventListener("click",e=>{const b=e.target.closest("[data-op
 $("newGame").addEventListener("click",()=>{if(kind==="memory"){memory.restart();return;}startOver(s.level||s.mode);});
 document.addEventListener("visibilitychange",()=>{if(document.hidden){cancelPending();putSaved();}else if(kind==="connect"&&s.mode==="cpu"&&s.turn===2&&!s.ended)queueBot();});
 window.addEventListener("pagehide",putSaved);
-setInterval(()=>{if(!s||document.hidden||dialog.open||(s.type==="sudoku"&&s.done)||(s.type==="connect"&&s.ended))return;
+setInterval(()=>{if(kind==="memory"||!s||document.hidden||dialog.open||(s.type==="sudoku"&&s.done)||(s.type==="connect"&&s.ended))return;
  s.elapsed++;putSaved();
  const badges=status.querySelectorAll("span");const index=kind==="sudoku"?1:badges.length-1;if(badges[index])badges[index].textContent=time(s.elapsed);
 },1000);
