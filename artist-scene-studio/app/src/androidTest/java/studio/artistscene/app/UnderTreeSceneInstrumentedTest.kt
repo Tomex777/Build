@@ -69,6 +69,41 @@ class UnderTreeSceneInstrumentedTest {
             return changed
         }
 
+        // The empty frame may be black while its photographic environment is
+        // still uploading on Android 16's software GPU. A simple diff between
+        // black and an illuminated sky is NOT proof that the models rendered.
+        // Require real green oak foliage ABOVE the horizon and white avatar
+        // clothing BELOW it. These signatures were measured on genuine API26
+        // renderer screenshots; sky blue/clouds and photo grass cannot satisfy
+        // both independently.
+        fun rendered3dActors(file: File): Pair<Int, Int> {
+            val bitmap = requireNotNull(BitmapFactory.decodeFile(file.path))
+            var foliage = 0
+            var clothing = 0
+            for (y in bitmap.height * 8 / 100 until bitmap.height * 53 / 100 step 3) {
+                for (x in bitmap.width * 6 / 100 until bitmap.width * 94 / 100 step 3) {
+                    val c = bitmap.getPixel(x, y)
+                    val red = Color.red(c)
+                    val green = Color.green(c)
+                    val blue = Color.blue(c)
+                    if (green > red + 15 && green > blue + 9 && green > 35) foliage++
+                }
+            }
+            for (y in bitmap.height * 44 / 100 until bitmap.height * 84 / 100 step 3) {
+                for (x in bitmap.width * 5 / 100 until bitmap.width * 95 / 100 step 3) {
+                    val c = bitmap.getPixel(x, y)
+                    val red = Color.red(c)
+                    val green = Color.green(c)
+                    val blue = Color.blue(c)
+                    if (red > 192 && green > 187 && blue > 186 &&
+                        kotlin.math.abs(red - green) < 40 &&
+                        kotlin.math.abs(green - blue) < 50) clothing++
+                }
+            }
+            bitmap.recycle()
+            return foliage to clothing
+        }
+
         try {
             // Camera and world remain unchanged, only 3D actors are withheld.
             store.save(scene.copy(actors = scene.actors.filter { it.kind == ActorKind.LIGHT }))
@@ -114,19 +149,30 @@ class UnderTreeSceneInstrumentedTest {
                 // after the native skeleton has been discovered. Never accept a
                 // blank "proof" frame: retry real renderer captures until the
                 // three-dimensional scene is genuinely visible or time out.
-                val readyDeadline = SystemClock.uptimeMillis() + 48_000
+                val readyDeadline = SystemClock.uptimeMillis() + 115_000
                 var accepted = capture("clean")
                 var foreground = compare(empty, accepted, 19, 81)
-                while (foreground < 450 && SystemClock.uptimeMillis() < readyDeadline) {
-                    SystemClock.sleep(1_500)
+                var (foliage, clothing) = rendered3dActors(accepted)
+                while ((foreground < 450 || foliage < 150 || clothing < 150) &&
+                    SystemClock.uptimeMillis() < readyDeadline) {
+                    SystemClock.sleep(1_200)
                     accepted = capture("clean")
                     foreground = compare(empty, accepted, 19, 81)
+                    val coverage = rendered3dActors(accepted)
+                    foliage = coverage.first
+                    clothing = coverage.second
                 }
-                assertTrue("Mise loaded both VRoid rigs, but the actual Filament scene " +
-                    "remained invisible after waiting for textures/render registration",
-                    foreground >= 450)
+                assertTrue("Photographic sky/ground is visible but no genuine 3D oak " +
+                    "canopy pixels rendered; green=$foliage. Background alone is NOT proof.",
+                    foliage >= 150)
+                assertTrue("Photographic sky/ground is visible but two VRoid meshes " +
+                    "are missing; white-clothing pixels=$clothing.", clothing >= 150)
                 finished = accepted
             }
+
+            val coverage = rendered3dActors(finished)
+            assertTrue("Real oak and both white-clothed actors must render",
+                coverage.first >= 150 && coverage.second >= 150)
 
             // More than one major region must contain actual scene geometry.
             assertTrue("Live Mise render is empty or invisible",
