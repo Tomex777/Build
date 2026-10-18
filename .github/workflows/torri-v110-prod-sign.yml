@@ -41,10 +41,33 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: Tomex777/Torri
-          ref: 74d8b8f94d63320999c6805f3fd7442ad6dbe46b
+          ref: 3f88fc357c6732659e2127eb577b0259b1b5943c
           path: torri-src
           token: ${{ secrets.TORRI_SOURCE_READ_TOKEN }}
           persist-credentials: false
+
+      - name: Check original permanent Torri signing certificate before building
+        shell: bash
+        env:
+          TORRI_RELEASE_KEYSTORE_B64: ${{ secrets.TORRI_RELEASE_KEYSTORE_B64 }}
+          TORRI_RELEASE_KEY_ALIAS: ${{ secrets.TORRI_RELEASE_KEY_ALIAS }}
+          TORRI_RELEASE_KEYSTORE_PASSWORD: ${{ secrets.TORRI_RELEASE_KEYSTORE_PASSWORD }}
+          TORRI_RELEASE_KEY_PASSWORD: ${{ secrets.TORRI_RELEASE_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          for key in TORRI_RELEASE_KEYSTORE_B64 TORRI_RELEASE_KEY_ALIAS TORRI_RELEASE_KEYSTORE_PASSWORD TORRI_RELEASE_KEY_PASSWORD; do
+            test -n "${!key}" || { echo "::error::Required original Torri signing secret is missing"; exit 1; }
+          done
+          umask 077
+          keyfile="$RUNNER_TEMP/torri-key-validation.jks"
+          trap 'rm -f "$keyfile"' EXIT
+          printf '%s' "$TORRI_RELEASE_KEYSTORE_B64" | base64 --decode > "$keyfile"
+          actual="$(keytool -list -v -keystore "$keyfile" -storepass "$TORRI_RELEASE_KEYSTORE_PASSWORD" -alias "$TORRI_RELEASE_KEY_ALIAS" 2>/dev/null | sed -n 's/^[[:space:]]*SHA256: //p' | head -1 | tr -d ':[:space:]' | tr '[:upper:]' '[:lower:]')"
+          test "$actual" = "6b1ab58169e3a8dd4370860d5d03060b035476b43cceaf2bd8da7ca1fe37ab44" || {
+            echo "::error::Original Torri v1.0.0 signature mismatch"
+            exit 1
+          }
+          echo "PASS: secure, original Torri 1.0.0 signing identity is present."
 
       - name: Set up JDK
         uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
@@ -155,7 +178,7 @@ jobs:
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim
           script: bash .github/scripts/torri-v110-production-upgrade.sh
 
-      - name: Publish signed Torri upgrade binaries after passing all checks
+      - name: Stage signed Torri upgrade in GitHub DRAFT after passing all checks
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
@@ -178,6 +201,8 @@ jobs:
           Torri 1.0.0 APK and updates to 1.1.0 without uninstalling.
           Includes upstream Mihon 0.21.2 performance, reader, download,
           library, database, extension and Cloudflare improvements.
+          Also includes Torri Theme Gallery, custom Theme Studio, color picker,
+          six new palettes and compact Continue Reading shortcut.
 
           IMPORTANT: Back up your existing library before installing:
           the 0.21.x database migration can irreversibly merge duplicate
@@ -185,8 +210,8 @@ jobs:
           hence this release initially uses prerelease status.
           EOF
           gh release create "$TAG" \
-            --target "$GITHUB_SHA" --prerelease \
-            --title "Torri by NIGHT 1.1.0 — original-key Android upgrade" \
+            --target "$GITHUB_SHA" --draft --prerelease \
+            --title "Torri by NIGHT 1.1.0 — original-key Android upgrade (DRAFT)" \
             --notes-file dist/RELEASE-NOTES.txt \
             dist/Torri-1.1.0-arm64-v8a-release.apk \
             dist/Torri-1.1.0-universal-release.apk \
