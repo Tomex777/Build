@@ -3,7 +3,8 @@ const assert=require('node:assert/strict')
 const fs=require('node:fs'),http=require('node:http'),path=require('node:path')
 const {chromium}=require('playwright')
 const key='120363282083849178@newsletter'
-let linked=true,channels=[{id:key,name:'🎀 ChRio 🎀',status:'connected'}],down=false,statusHits=0
+const photo='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+i4VsAAAAASUVORK5CYII='
+let linked=true,channels=[{id:key,name:'🎀 ChRio 🎀',status:'connected',photoData:photo}],down=false,statusHits=0
 const root=path.join(__dirname)
 const server=http.createServer(async(req,res)=>{
  const pathname=new URL(req.url,'http://localhost').pathname
@@ -33,6 +34,7 @@ const server=http.createServer(async(req,res)=>{
   await page.locator('#anonWorkspace').waitFor({state:'visible'})
   assert.equal(await page.locator('#anonChannelName').textContent(),'🎀 ChRio 🎀')
   assert.equal(await page.locator('#anonStatus').isVisible(),false)
+  assert.equal(await page.locator('.anon-channel-icon img').count(),1,'verified channel photo appears on owner studio')
   assert.equal(await page.locator('#heroPrimary').isVisible(),false,'fake publish UI must remain hidden')
   assert.equal(await page.locator('#submitMessage').isVisible(),false,'fake submissions cannot be posted')
   assert.equal(await page.getByRole('button',{name:'Start anonymous night, not available yet'}).isDisabled(),true,'no live invitation until backend is ready')
