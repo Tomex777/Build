@@ -1,5 +1,6 @@
 package com.night.soundatlas
 
+import android.content.res.AssetManager
 import android.media.AudioAttributes
 import android.media.AudioFormat
 import android.media.AudioManager
@@ -15,11 +16,12 @@ import kotlin.math.*
  * Source types are procedural: sounds never repeat a fixed 20- or 30-second recording.
  * Material attenuation, ITD/ILD and a feedback-tail model are approximations.
  */
-class AudioEngine {
+class AudioEngine(private val assets: AssetManager) {
     companion object { const val SAMPLE_RATE = 44100; const val FRAMES = 768 }
     private val scene = AtomicReference<World?>(null)
     private val running = AtomicBoolean(false)
     private val voices = mutableMapOf<Int, Voice>()
+    private var fieldRecordings: Map<SoundKind, ShortArray> = emptyMap()
     private val reverb = DiffuseReverb()
     private var worker: Thread? = null
     private var frameClock = 0L
@@ -39,6 +41,7 @@ class AudioEngine {
                 val requested = AudioTrack.getMinBufferSize(SAMPLE_RATE,
                     AudioFormat.CHANNEL_OUT_STEREO,AudioFormat.ENCODING_PCM_16BIT)
                 require(requested>0) { "Stereo PCM output unavailable" }
+                fieldRecordings=readOfflineFieldRecordings()
                 track = AudioTrack(
                     AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_MEDIA)
                         .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC).build(),
@@ -73,12 +76,42 @@ class AudioEngine {
     }
     fun close() = stop()
 
+    /** PCM16 mono / 22.05kHz field recordings; provenance generated with the asset pack. */
+    private fun readOfflineFieldRecordings(): Map<SoundKind, ShortArray> {
+        val files=mapOf(
+            SoundKind.RAIN to "rain", SoundKind.THUNDER to "thunder",
+            SoundKind.WIND to "wind", SoundKind.WATER to "stream",
+            SoundKind.BIRDS to "birds", SoundKind.LEAVES to "leaves",
+            SoundKind.CRICKETS to "night", SoundKind.BELL to "chimes",
+            SoundKind.TRAFFIC to "traffic", SoundKind.CROWD to "cafe"
+        )
+        val result=mutableMapOf<SoundKind,ShortArray>()
+        files.forEach { (type,filename) ->
+            try {
+                val raw=assets.open("audio/"+filename+".pcm").use{it.readBytes()}
+                if(raw.size<44100 || raw.size>12_000_000 || raw.size%2!=0)return@forEach
+                val pcm=ShortArray(raw.size/2)
+                for(i in pcm.indices) {
+                    val lo=raw[i*2].toInt() and 255
+                    val hi=raw[i*2+1].toInt()
+                    pcm[i]=((hi shl 8) or lo).toShort()
+                }
+                result[type]=pcm
+            } catch(_:Exception) {
+                // A source may be absent in test-only builds; procedural fallback is available.
+            }
+        }
+        return result
+    }
+
     private fun render(world: World, out: ShortArray) {
         val active = world.sounds.filter { it.enabled && it.gain>0f }.take(400)
         val valid = active.map { it.id }.toSet()
         voices.keys.retainAll(valid)
         val layers = active.map { emitter ->
-            val voice = voices.getOrPut(emitter.id) { Voice(emitter.seed) }
+            val voice = voices.getOrPut(emitter.id) {
+                Voice(emitter.seed,fieldRecordings[emitter.kind])
+            }
             val t=frameClock.toDouble()/SAMPLE_RATE
             val position = if (emitter.moving) {
                 emitter.at.moved(
@@ -132,7 +165,7 @@ class AudioEngine {
 
     private data class Layer(val emitter:Emitter,val voice:Voice)
 
-    private class Voice(seed:Int) {
+    private class Voice(seed:Int, private val recording:ShortArray?) {
         private var rng=if(seed==0) 1234567 else seed
         private var low=0.0
         private var mid=0.0
@@ -144,6 +177,33 @@ class AudioEngine {
         private var nextEvent=.3+random01()*2
         private var eventAge=0.0
         private var pulse=0.0
+        private var clipPhase = if(recording==null) 0.0 else
+            (abs(seed%89)/97.0)*(recording.size-1)
+        private var clipNextStart = 0
+        private var clipRate = .490 + (abs(seed%31)/31.0)*.020
+        private fun fieldSample():Float {
+            val clip=recording?:return 0f
+            if(clip.size<44100)return 0f
+            val crossfade=(clip.size/10).coerceIn(4400,17500)
+            val start=clip.size-crossfade
+            val index=clipPhase.toInt().coerceIn(0,clip.size-2)
+            val fraction=clipPhase-index
+            var sample=clip[index]*(1.0-fraction)+clip[index+1]*fraction
+            if(clipPhase>=start) {
+                val mix=((clipPhase-start)/crossfade).coerceIn(0.0,1.0)
+                val next=(clipNextStart+clipPhase-start).coerceIn(0.0,(clip.size-2).toDouble())
+                val j=next.toInt();val f=next-j
+                val entering=clip[j]*(1.0-f)+clip[j+1]*f
+                sample=sample*cos(mix*PI*.5)+entering*sin(mix*PI*.5)
+            }
+            clipPhase+=clipRate
+            if(clipPhase>=clip.size) {
+                clipPhase=clipNextStart+crossfade+(clipPhase-clip.size)
+                clipNextStart=(random01()*(clip.size-crossfade-2)*.36).toInt()
+                clipRate=.491+random01()*.018
+            }
+            return (sample/32768.0).toFloat()
+        }
         var filterAlpha=.7f
         var lowpass=0f
         var gain=0f
@@ -246,7 +306,11 @@ class AudioEngine {
                     (low*1.35+mid*.27+osc(75.0)*.08)*(.25+pass*.7)
                 }
             }
-            return result.toFloat().coerceIn(-1f,1f)
+            // Variable-length recordings + irregular synthesized events sound richer
+            // while the procedural layer covers every sound without a bundled asset.
+            val real=fieldSample()
+            return if(recording==null) result.toFloat().coerceIn(-1f,1f)
+            else (result.toFloat()*.49f+real*.68f).coerceIn(-1f,1f)
         }
     }
 

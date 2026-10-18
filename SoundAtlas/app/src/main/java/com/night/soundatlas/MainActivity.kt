@@ -16,7 +16,7 @@ import kotlin.math.*
 
 class MainActivity : Activity() {
     private lateinit var surface: AtlasCanvas
-    private val audio=AudioEngine()
+    private val audio by lazy { AudioEngine(assets) }
     private val store by lazy { getSharedPreferences("atlas-worlds", MODE_PRIVATE) }
     private var world=AtlasPresets.create(0)
     private var pendingExport: String? = null
