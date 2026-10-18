@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "description": "Offline photo-backed TAC hymn texts; review pending. Hymn 11 is partial: page 5 required.",
+  "description": "Offline TAC hymns 1–17 transcribed against photographed pages 1–6 with matched historical texts; some lyrics still under review.",
   "hymns": [
     {
       "number": 1,
@@ -829,7 +829,8 @@
       "title_yo": "Ọlọ́run àwámárìdì!",
       "title_en": "Unsearchable God",
       "source_pages": [
-        4
+        4,
+        5
       ],
       "verses_yo": [
         [
@@ -846,6 +847,22 @@
           "Àwọn àńgẹ́lì ń bojú wọ̀",
           "Síbẹ̀, oore Rẹ bí odò",
           "Ń ṣàn sórí iṣẹ́ Rẹ gbogbo"
+        ],
+        [
+          "Ìwọ orísun ìbùkún",
+          "Kín l'ohun tí wọ ṣe àìní?",
+          "Kín la lè fi tẹ́ Ọ l'ọ́run?",
+          "Síbẹ̀síbẹ̀, Ìwọ ń bẹ̀rẹ̀",
+          "Pé kí n lè f'ọkàn mi fún Ọ",
+          "Èyí nìkan, niwọ ń bẹ̀rẹ̀"
+        ],
+        [
+          "Ìwọ tí ìtẹ́ Rẹ ń bẹ l'ókè",
+          "Ìjọba Rẹ kò nípẹ̀kun",
+          "Ó ń pàṣẹ lórí gbogbo wọn",
+          "Síbẹ̀síbẹ̀, Ó tọ mi wá",
+          "Láti máa ṣe amọ̀nà mi",
+          "Títí n ó fi bá Ọ jọba"
         ]
       ],
       "verses_en": [
@@ -863,10 +880,429 @@
           "Even the angels veil their faces,",
           "Yet still His goodness flows like a river",
           "Over all the works of His hands."
+        ],
+        [
+          "You are the fountain of all blessings",
+          "What could You ever need?",
+          "What gift could we lay before You?",
+          "Yet still, You ask for one thing:",
+          "That I might give my heart to You",
+          "It is all that You require"
+        ],
+        [
+          "Your throne is established above",
+          "Your kingdom shall never end",
+          "Your rule extends over all creation",
+          "Yet You have come to seek me",
+          "To guide my path continually",
+          "Until I reign with You at last"
         ]
       ],
-      "text_status": "partial_from_photo",
+      "text_status": "draft_photo_needs_review",
       "source_url": null
+    },
+    {
+      "number": 12,
+      "collection": "main",
+      "title_yo": "Ẹ sin Olúwa nínú ẹwà ìwà mímọ́",
+      "title_en": "O Worship the Lord in the Beauty of Holiness",
+      "source_pages": [
+        5
+      ],
+      "verses_yo": [
+        [
+          "Ẹ sin Olúwa nínú ẹwà ìwà mímọ́",
+          "Ẹ wọlé, kí ẹ sì kọrin ìyìn Rẹ",
+          "Wá sọ́dọ̀ Rẹ pẹ̀lú ìrẹ̀lẹ̀ àti ìgbọràn",
+          "Ẹ wọlé, kí ẹ sì júbà orúkọ Rẹ."
+        ],
+        [
+          "Ẹ kó gbogbo àníyàn ọkàn yín lé Ẹ lọ́wọ́",
+          "Yóò ru gbogbo rẹ̀, Ó ń ṣàníyàn yín",
+          "Yóò tù ọ nínú, yóò sì dáhùn àdúrà rẹ",
+          "Yóò ṣamọ́nà rẹ, yóò ṣe bó ti tọ́."
+        ],
+        [
+          "Má ṣe bẹ̀rù láti wọ inú ilé Olúwa",
+          "Ó ń pe tálákà, Ó ń pe ọlọ́rọ̀",
+          "Múra láti gba òtítọ́ àti ìfẹ́ Rẹ sọ́kàn rẹ",
+          "Èyí ni ọrẹ tó ṣe tẹ́wọ́gbà."
+        ],
+        [
+          "Ẹbọ Ọlọ́run ni ìròbànújẹ ọkàn",
+          "Irú ẹbọ yìí, Òun kò ní kẹ́gàn",
+          "Gbogbo ìbànújẹ wa, Òun ó sọ di ayọ̀",
+          "Yóò fún wa ní ìrètí àti ìgbàgbọ́."
+        ],
+        [
+          "Ẹ sin Olúwa nínú ẹwà ìwà mímọ́",
+          "Ẹ wọlé, kí ẹ sì kọrin ìyìn Rẹ",
+          "Wá sọ́dọ̀ Rẹ pẹ̀lú ìrẹ̀lẹ̀ àti ìgbọràn",
+          "Ẹ wọlé, kí ẹ sì júbà orúkọ Rẹ."
+        ]
+      ],
+      "verses_en": [
+        [
+          "O worship the Lord in the beauty of holiness!",
+          "Bow down before Him, His glory proclaim;",
+          "With gold of obedience and incense of lowliness,",
+          "Kneel and adore Him, the Lord is His name."
+        ],
+        [
+          "Low at His feet lay thy burden of carefulness,",
+          "High on His heart He will bear it for thee;",
+          "Comfort thy sorrows and answer thy prayerfulness,",
+          "Guiding thy steps as may best for thee be."
+        ],
+        [
+          "Fear not to enter His courts in the slenderness",
+          "Of the poor wealth thou wouldst reckon as thine;",
+          "Truth in its beauty and love in its tenderness,",
+          "These are the offerings to lay on His shrine."
+        ],
+        [
+          "These, though we bring them in trembling and fearfulness,",
+          "He will accept for the name that is dear;",
+          "Mornings of joy give for evenings of tearfulness,",
+          "Trust for our trembling and hope for our fear."
+        ],
+        [
+          "O worship the Lord in the beauty of holiness!",
+          "Bow down before Him, His glory proclaim;",
+          "With gold of obedience and incense of lowliness,",
+          "Kneel and adore Him, the Lord is His name."
+        ]
+      ],
+      "text_status": "draft_photo_online_matched",
+      "source_url": "https://www.scribd.com/document/859543609/HYMN-NCGM"
+    },
+    {
+      "number": 13,
+      "collection": "main",
+      "title_yo": "Jẹ́ ká jùmọ̀ kọrin ìyìn",
+      "title_en": "Come, Let Us Join Our Cheerful Songs",
+      "source_pages": [
+        5
+      ],
+      "verses_yo": [
+        [
+          "Jẹ́ ká jùmọ̀ kọrin ìyìn",
+          "Pẹ̀lú àwọn áńgẹ́lì",
+          "Ẹgbẹẹgbẹ̀rún tó yí ìtẹ́ ká",
+          "Ọ̀kan ni ayọ̀ wọn."
+        ],
+        [
+          "Ọ̀dọ̀-àgùntàn tí a pa",
+          "Ló yẹ láti gbé ga",
+          "Wọ́n ń kọrin kíkankíkan pé:",
+          "Òun ló yẹ láti yin."
+        ],
+        [
+          "Tirẹ̀ l'ògo àti agbára",
+          "Ìwọ l'ọlá yẹ fún",
+          "Ọpẹ́ t'ẹnu wa kò lè sọ",
+          "Tirẹ̀ ni, Olúwa."
+        ],
+        [
+          "Gbogbo ẹ̀dá, ilẹ̀ t'ókè",
+          "Àti l'ófurufú",
+          "Nínú òkun, lábẹ́ ilẹ̀",
+          "Wọ́n ń gbé Olúwa ga."
+        ],
+        [
+          "Ìjọ àkọ́bí t'ókè",
+          "Ìjọ tí ń jà l'ayé",
+          "Wọ́n ń kọrin ìyìn sí Ọba",
+          "Tó gúnwà lórí ìtẹ́."
+        ]
+      ],
+      "verses_en": [
+        [
+          "Come, let us join our cheerful songs",
+          "With angels round the throne;",
+          "Ten thousand thousand are their tongues,",
+          "But all their joys are one."
+        ],
+        [
+          "'Worthy the Lamb that died,' they cry,",
+          "'To be exalted thus!'",
+          "'Worthy the Lamb,' our lips reply,",
+          "'For He was slain for us.'"
+        ],
+        [
+          "Jesus is worthy to receive",
+          "Honour and power divine;",
+          "And blessings, more than we can give,",
+          "Be, Lord, forever Thine."
+        ],
+        [
+          "Let all that dwell above the sky,",
+          "And air, and earth, and seas,",
+          "Conspire to lift Thy glories high,",
+          "And speak Thine endless praise."
+        ],
+        [
+          "The whole creation joins in one",
+          "To bless the sacred name",
+          "Of Him that sits upon the throne,",
+          "And to adore the Lamb."
+        ]
+      ],
+      "text_status": "draft_photo_online_matched",
+      "source_url": "https://www.scribd.com/document/859543609/HYMN-NCGM"
+    },
+    {
+      "number": 14,
+      "collection": "main",
+      "title_yo": "Gbọ́ orin ìdásílẹ̀",
+      "title_en": "Hark! The Song of Jubilee",
+      "source_pages": [
+        5,
+        6
+      ],
+      "verses_yo": [
+        [
+          "Gbọ́ orin ìdásílẹ̀",
+          "Tí ń dún bí ohùn àrá",
+          "Bí ìró omi òkun",
+          "Gbàtí ìgbì rẹ̀ bá ń ru",
+          "Àlélúyà! Ọlọ́run",
+          "Olódùmarè ń jọba",
+          "Àlélúyà! Kí orin yìí",
+          "Dún yí gbogbo ayé ká."
+        ],
+        [
+          "Àlélúyà! Gbọ́ ìró",
+          "Láti ayé dé ọ̀run",
+          "Tí ń jí gbogbo ènìyàn",
+          "L'ókè àti ní ìsàlẹ̀",
+          "Olúwa gba ìṣẹ́gun",
+          "Ó ti tẹrí ọ̀tá ba",
+          "Gbogbo ìjọba ayé",
+          "Di ìjọba Ọmọ Rẹ."
+        ],
+        [
+          "Yóò jọba yí ayé ká",
+          "Pẹ̀lú agbára Rẹ ńlá",
+          "Yóò jọba gbàtí ọ̀run",
+          "Àt'ayé bá kọjá lọ",
+          "Gbà náà ni òpin yóò dé",
+          "A ó ṣẹ́gun gbogbo ọ̀tá",
+          "Àlélúyà! Ọlọ́run",
+          "Pẹ̀lú Krístì l'ohun gbogbo."
+        ]
+      ],
+      "verses_en": [
+        [
+          "Hark! the song of jubilee",
+          "Loud as mighty thunders roar,",
+          "Or the fullness of the sea",
+          "When it breaks upon the shore;",
+          "Hallelujah! for the Lord",
+          "God omnipotent shall reign;",
+          "Hallelujah! let the word",
+          "Echo round the earth and main."
+        ],
+        [
+          "Hallelujah! hark the sound",
+          "From the depths unto the skies,",
+          "Wakes above, beneath, around",
+          "All creation's harmonies;",
+          "See Jehovah's banner furled,",
+          "Sheathed His sword; He speaks: 'Tis done!",
+          "And the kingdoms of this world",
+          "Are the kingdom of His Son."
+        ],
+        [
+          "He shall reign from pole to pole",
+          "With illimitable sway;",
+          "He shall reign when like a scroll",
+          "Yonder heavens have passed away;",
+          "Then the end; beneath His rod",
+          "Man's last enemy shall fall;",
+          "Hallelujah! Christ in God,",
+          "God in Christ is all in all."
+        ]
+      ],
+      "text_status": "draft_photo_online_matched",
+      "source_url": "https://www.scribd.com/document/859543609/HYMN-NCGM"
+    },
+    {
+      "number": 15,
+      "collection": "main",
+      "title_yo": "Ìjìnlẹ̀ ni ìfẹ́ Jésù",
+      "title_en": "O the Deep, Deep Love of Jesus",
+      "source_pages": [
+        6
+      ],
+      "verses_yo": [
+        [
+          "Ìjìnlẹ̀ ni ìfẹ́ Jésù",
+          "Ó ga púpọ̀, ó fẹ̀ ńlá",
+          "Bí ìgbì omi òkun ńlá",
+          "Bẹ́ẹ̀ ni ìfẹ́ Rẹ sí mi",
+          "L'ọ́tun mi, l'ósì, níhìn-ín, l'ọ̀hún-ún",
+          "Ní mo ń rí ìfẹ́ Rẹ yìí",
+          "Ó ń lọ mí lọ l'ọ̀nà ìyè",
+          "Títí n ó dé ilé mi."
+        ],
+        [
+          "Ìjìnlẹ̀ ni ìfẹ́ Jésù",
+          "Kọ́ mi yin Rẹ káàkiri",
+          "Bí ìfẹ́ Rẹ ti tóbi lọ",
+          "Ìfẹ́ tí kò yí padà",
+          "Ó ń ṣọ́ àwọn tìrẹ",
+          "Tó ti ń fẹ́, tí kì í rẹ̀",
+          "Ó ń bẹ̀bẹ̀ fún wọn lórí ìtẹ́",
+          "Ó ń pa wọ́n mọ́ látòkè."
+        ]
+      ],
+      "verses_en": [
+        [
+          "O the deep, deep love of Jesus",
+          "Vast, unmeasured, boundless, free",
+          "Rolling as a mighty ocean",
+          "In its fullness over me",
+          "Underneath me, all around me",
+          "Is the current of Thy love",
+          "Leading onward, leading homeward",
+          "To Thy glorious rest above"
+        ],
+        [
+          "O the deep, deep love of Jesus",
+          "Spread His praise from shore to shore",
+          "How He loves us, ever loves us",
+          "Changes never, nevermore",
+          "How He watches over loved ones",
+          "Died to call them all His own",
+          "How for them He intercedes",
+          "Watching from His heavenly throne"
+        ]
+      ],
+      "text_status": "draft_photo_needs_review",
+      "source_url": "https://hymnary.org/hymn/LUYH2013/796"
+    },
+    {
+      "number": 16,
+      "collection": "main",
+      "title_yo": "Tàyọ̀tàyọ̀ làwa ó máa júbà Rẹ",
+      "title_en": "With Gladness We Worship, Rejoice as We Sing",
+      "source_pages": [
+        6
+      ],
+      "verses_yo": [
+        [
+          "Tàyọ̀tàyọ̀ làwa ó máa júbà Rẹ",
+          "Pẹ̀lú ọkàn ọpẹ́ làwa ó yin Ọ",
+          "Ìhìn orin ayọ̀ wa yóò gòkè lọ",
+          "S'ọdọ Ọlọ́run, Olùbùkún jùlọ"
+        ],
+        [
+          "Ọlá ló yẹ Ọ làwa ó fi fún Ọ",
+          "Ẹni tí ayé àti ọ̀run ń júbà",
+          "Ẹ̀dá ló wà nílẹ̀ tí ń múkún",
+          "Gbogbo wọn ń wọlé níwájú Ọba wọn"
+        ],
+        [
+          "Nípà Ẹ̀mí Rẹ ni Ìsọ wa d'ọ̀tun",
+          "Ìràpadà ló sọ wa di ọmọ Ọlọ́run",
+          "Títí la ó máa dúpẹ́ oore tó ṣe wa",
+          "Kọ wa, Baba, bí a ti ń yin Ọ l'ógo"
+        ],
+        [
+          "Pẹ̀lú àwọn áńgẹ́lì, àwa ń júbà Rẹ",
+          "Kí alélúyà wa dá pọ̀ mọ́ ti wọn",
+          "Bẹ́ẹ̀ ni ògo yẹ Ọ láyé àti ọ̀run",
+          "Ìwọ ló rà wá padà tí a sì ṣẹ́gun"
+        ]
+      ],
+      "verses_en": [
+        [
+          "With gladness we worship, rejoice as we sing",
+          "Free hearts and free voices, how blessed to bring",
+          "The old thankful story shall seek Thine abode",
+          "Thou King of all glory, most bountiful God"
+        ],
+        [
+          "Thy right would we give Thee, true homage Thy due",
+          "And honour eternal, the universe through",
+          "With all Thy creation, earth, heaven and sea",
+          "In one acclamation we glorify Thee"
+        ],
+        [
+          "Renewed by Thy Spirit, redeemed by Thy Son",
+          "Thy children would bless Thee for all Thou hast done",
+          "O Father, returning to love and to light",
+          "Our spirits are yearning to praise Thee aright"
+        ],
+        [
+          "We join with the angels, and so there is given",
+          "From earth alleluia, in answer to heaven",
+          "Amen! Be Thou glorious below and above",
+          "Redeeming, victorious and infinite Love"
+        ]
+      ],
+      "text_status": "draft_photo_needs_review",
+      "source_url": "https://hymnary.org/text/with_gladness_we_worship_rejoice_as_we_s"
+    },
+    {
+      "number": 17,
+      "collection": "main",
+      "title_yo": "Ìgbàlà! Ìró ayọ̀ ńlá",
+      "title_en": "Salvation! O the Joyful Sound!",
+      "source_pages": [
+        6
+      ],
+      "verses_yo": [
+        [
+          "Ìgbàlà! Ìró ayọ̀ ńlá",
+          "Adùn ni létí wa",
+          "Ìtùnú f'ọkàn tó gbọgbẹ́",
+          "Tó lè ẹ̀rù wa lọ",
+          "Ògo, ìyìn, ọpẹ́, ọlá",
+          "Ni f'Ọ̀dọ̀-àgùntàn títí láé",
+          "Jésù Krístì l'Olùdáǹdè wa",
+          "Àlélúyà! Àlélúyà! Àlélúyà! Yin Olúwa"
+        ],
+        [
+          "Ìgbàlà! Ìwọ l'ọpẹ́ yẹ",
+          "Ọ̀dọ̀-àgùntàn t'a pa",
+          "Ìgbàlà yóò m'ọkàn wa yọ̀",
+          "Yóò sì máa j'orin wa"
+        ],
+        [
+          "Ìgbàlà! Kéde rẹ̀ kiri",
+          "Jákèjádò ayé",
+          "Àwọn ogun ọ̀run yóò hó",
+          "Wọ́n ó bá wa gbé orin"
+        ]
+      ],
+      "verses_en": [
+        [
+          "Salvation! O the joyful sound!",
+          "What music to our ears!",
+          "A sovereign balm for every wound",
+          "A cordial for our fears",
+          "Glory, honour, praise and power",
+          "Be unto the Lamb for ever",
+          "Jesus Christ is our Redeemer",
+          "Hallelujah! Hallelujah! Hallelujah! Praise the Lord"
+        ],
+        [
+          "Salvation! O Thou blessed Lamb",
+          "To Thee the praise belongs",
+          "Salvation shall inspire our hearts",
+          "And dwell upon our tongues"
+        ],
+        [
+          "Salvation! let the echo fly",
+          "The spacious earth around",
+          "While all the armies of the sky",
+          "Conspire to raise the sound"
+        ]
+      ],
+      "text_status": "online_full_first_verse_photo_matched",
+      "source_url": "https://www.scribd.com/document/859543609/HYMN-NCGM"
     }
   ]
 }
