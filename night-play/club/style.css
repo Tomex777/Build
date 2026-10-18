@@ -2160,3 +2160,52 @@ body.whot-mode .whot-flight-flip .whot-flip-front>.playing-card.whot-flight-face
  opacity:1!important;
  filter:none!important;
 }
+
+
+/* The 3D CPU flight is mounted under <body>, not .table-surface.
+   The old global .card-back::after used to overlay a THIRD WHOT word,
+   making the obsolete card face briefly visible mid-turn. Match the two
+   genuine back labels and geometry from the opponent's live card. */
+body.whot-mode .whot-flight-flip .whot-flip-back>.card-back{
+ display:flex!important;flex-direction:column!important;
+ justify-content:center!important;align-items:center!important;
+ gap:5px!important;
+ padding:6px 0!important;
+ background:#511b20!important;color:#f9fcfa!important;
+ border:0!important;border-radius:3px!important;
+ font:900 12px/1.2 Arial,system-ui,sans-serif!important;
+ letter-spacing:normal!important;
+}
+body.whot-mode .whot-flight-flip .whot-flip-back>.card-back::before,
+body.whot-mode .whot-flight-flip .whot-flip-back>.card-back::after{
+ content:none!important;display:none!important;
+}
+body.whot-mode .whot-flight-flip .whot-flip-back>.card-back span{
+ display:block!important;
+ color:#f9fcfa!important;
+ line-height:1.2!important;
+}
+body.whot-mode .whot-flight-flip .whot-flip-back>.card-back span:first-child{
+ transform:rotate(180deg)!important;
+}
+body.whot-mode .whot-flight-back{
+ display:flex!important;
+ flex-direction:column!important;align-items:center!important;
+ justify-content:center!important;gap:5px!important;
+ width:80px;min-height:0!important;
+ background:#511b20!important;color:#f9fcfa!important;
+ border:0!important;border-radius:3px!important;
+ padding:0!important;
+ font:900 12px/1.2 Arial,system-ui,sans-serif!important;
+}
+body.whot-mode .whot-flight-back .whot-deck-word:first-child{
+ transform:rotate(180deg)!important;
+}
+body.whot-mode .whot-flight-back::before,
+body.whot-mode .whot-flight-back::after{
+ content:none!important;display:none!important;
+}
+@media(min-width:651px){
+ body.whot-mode .whot-flight-flip .whot-flip-back>.card-back,
+ body.whot-mode .whot-flight-back{font-size:16px!important}
+}
