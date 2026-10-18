@@ -10,6 +10,7 @@ on:
 
 permissions:
   contents: read
+  actions: read
 
 concurrency:
   group: sound-atlas-android-ci
@@ -35,7 +36,30 @@ jobs:
           SDKMANAGER=$(find "$ANDROID_HOME/cmdline-tools" -name sdkmanager -type f | head -1)
           test -n "$SDKMANAGER"
           "$SDKMANAGER" 'platforms;android-35' 'build-tools;35.0.0'
+      - uses: actions/cache@v4
+        id: sound-atlas-audio-cache
+        with:
+          path: SoundAtlas/app/src/main/assets/audio
+          key: sound-atlas-cc0-recordings-20261018-v1
+      - name: Restore verified CC0 recordings from previous signed release
+        id: reuse-sound-library
+        if: steps.sound-atlas-audio-cache.outputs.cache-hit != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p SoundAtlas/app/src/main/assets/audio /tmp/atlas-assets
+          if gh run download 39149555610 --repo "$GITHUB_REPOSITORY" \
+            --name SoundAtlas-test-signed-APK --dir /tmp/atlas-assets; then
+            unzip -o -q /tmp/atlas-assets/SoundAtlas-Android8-plus-test-signed.apk \
+              'assets/audio/*.pcm' -d /tmp/atlas-assets
+            cp /tmp/atlas-assets/assets/audio/*.pcm SoundAtlas/app/src/main/assets/audio/
+            echo "restored=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "Previous release unavailable; preparing original verified CC0 sources."
+          fi
       - name: Bundle verified CC0 field-recording library from EchoSpace assets pipeline
+        if: steps.sound-atlas-audio-cache.outputs.cache-hit != 'true' && steps.reuse-sound-library.outputs.restored != 'true'
         shell: bash
         run: |
           set -euo pipefail
@@ -63,6 +87,12 @@ jobs:
              -o -iname '*license*' -o -iname '*manifest*' | head -20
           echo "Audio source: EchoSpace verified CC0 offline preparation pipeline" \
              > SoundAtlas/app/src/main/assets/audio/SOURCES.txt
+      - name: Verify offline library before compilation
+        run: |
+          set -euo pipefail
+          for kind in rain thunder wind stream birds leaves night chimes traffic; do
+            test -s "SoundAtlas/app/src/main/assets/audio/$kind.pcm"
+          done
       - name: JVM geometry regressions and native Android builds
         working-directory: SoundAtlas
         run: gradle --no-daemon --stacktrace testDebugUnitTest assembleDebug assembleRelease
