@@ -11,6 +11,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: sound-atlas-android-ci
+  cancel-in-progress: true
+
 jobs:
   native-android:
     runs-on: ubuntu-latest
