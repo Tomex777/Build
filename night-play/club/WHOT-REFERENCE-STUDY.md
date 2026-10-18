@@ -51,3 +51,27 @@ No original React game or artwork is embedded on NIGHT Play.
 
 The earlier comparison lab has been removed. The original runs only in temporary
 reference QA under `.github/workflows/night-play-whot-visual.yml`.
+
+## Approved phone-performance direction — 18 October 2026 (supersedes visual row parity)
+
+The user explicitly rejected the old full-width CPU row and slow, choppy card
+animations. **Do not re-introduce those behaviors just to match the reference.**
+
+- Render at most **three** overlapping CPU card backs. Hide the two partially
+  covered backs' lettering so chopped-up words never appear. Keep the *real*
+  CPU card count in the existing match HUD; hands may be much larger.
+- Player cards remain individually identifiable. Only the CPU's concealed
+  cards are visually stacked.
+- Motion budget now targets **185ms player, 205ms CPU, 150ms market draw**,
+  85ms CPU reaction, and 150ms flipping, not the source's slow 560–600ms
+  turns. A short perceptible animation beats theatrical transitions.
+- Deal multi-card penalties one card at a time into actual hand slots.
+  Do not create three simultaneous 3D travelling card layers on mobile GPUs.
+  Avoid extra FLIP recenter layers when the player's hand exceeds five cards.
+- Keep custom NIGHT SVG card faces, original tabletop, strict Nigerian WHOT
+  rules, user preference for sound effects, and real CPU-play animation.
+- Automated regression checks test a large CPU hand's compact stack,
+  exact HUD count, no overflow, shortened duration caps and a maximum of
+  **one** simultaneously travelling card during Pick Three.
+- CI/mobile viewport tests validate correctness and synthetic performance
+  constraints. Real Android listening and frame-pacing review remains useful.
