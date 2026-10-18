@@ -8,6 +8,7 @@ import {PieceCutter} from './PieceCutter.js';
 export class PuzzleBoard{
  constructor(canvas,wrapper){
   this.canvas=canvas;this.ctx=canvas.getContext('2d');this.wrapper=wrapper;
+  this.viewportWidth=canvas.width;this.viewportHeight=canvas.height;this.dpr=1;
   this.dragCanvas=wrapper.querySelector('#dragCanvas');
   this.dragCtx=this.dragCanvas.getContext('2d',{alpha:true});
   this.staticPaintCount=0;this.dragPaintCount=0;
@@ -22,12 +23,17 @@ export class PuzzleBoard{
  resize(){
   const rect=this.wrapper.getBoundingClientRect();
   const w=Math.max(280,Math.round(rect.width)),h=Math.max(260,Math.round(rect.height));
-  if(this.canvas.width===w&&this.canvas.height===h)return;
-  const old={w:this.canvas.width,h:this.canvas.height,pw:this.pieceWidth,ph:this.pieceHeight};
+  const ratio=typeof window!=='undefined'?window.devicePixelRatio||1:1;
+  const dpr=Math.min(2.5,Math.max(1,ratio));
+  if(this.viewportWidth===w&&this.viewportHeight===h&&this.dpr===dpr)return;
+  const old={w:this.viewportWidth,h:this.viewportHeight,pw:this.pieceWidth,ph:this.pieceHeight};
   const anchors=new Map();
   for(const p of this.pieces)if(!p.isPlaced&&!anchors.has(p.group||p.id))
    anchors.set(p.group||p.id,{row:p.row,col:p.col,x:p.x,y:p.y});
-  this.canvas.width=w;this.canvas.height=h;this.dragCanvas.width=w;this.dragCanvas.height=h;
+  this.viewportWidth=w;this.viewportHeight=h;this.dpr=dpr;
+  this.canvas.width=Math.round(w*dpr);this.canvas.height=Math.round(h*dpr);
+  this.dragCanvas.width=this.canvas.width;this.dragCanvas.height=this.canvas.height;
+  this.ctx.setTransform(dpr,0,0,dpr,0,0);this.dragCtx.setTransform(dpr,0,0,dpr,0,0);
   this.setupBoardLayout();
   if(this.pieces.length){
    for(const p of this.pieces){
@@ -40,14 +46,14 @@ export class PuzzleBoard{
        (a?.y||0)/Math.max(1,old.h)*h+(p.row-a.row)*this.pieceHeight));
     }
     p.correctX=this.boardX+p.col*this.pieceWidth;p.correctY=this.boardY+p.row*this.pieceHeight;
-    PieceCutter.renderPieceToCanvas(p,this.sourceCanvas,this.pieceWidth,this.pieceHeight,this.rows,this.cols);
+    PieceCutter.renderPieceToCanvas(p,this.sourceCanvas,this.pieceWidth,this.pieceHeight,this.rows,this.cols,this.dpr);
    }
    if((old.w<680)!==(w<680))this.sweepLoose();
   }
  }
  setDimensions(rows,cols){this.rows=rows;this.cols=cols;this.totalPieces=rows*cols;}
  setupBoardLayout(){
-  const cw=this.canvas.width,ch=this.canvas.height,mobile=cw<680;
+  const cw=this.viewportWidth,ch=this.viewportHeight,mobile=cw<680;
   this.boardWidth=mobile?Math.min(cw-20,780):Math.min(cw*.68,935,(ch-24)*4/3);
   this.boardHeight=this.boardWidth*.75;
   this.boardX=(cw-this.boardWidth)/2;
@@ -109,7 +115,7 @@ export class PuzzleBoard{
      bottom:row===this.rows-1?0:hEdges[row][col],left:col===0?0:-vEdges[row][col-1]},
     isPlaced:false
    };
-   PieceCutter.renderPieceToCanvas(p,this.sourceCanvas,pw,ph,this.rows,this.cols);
+   PieceCutter.renderPieceToCanvas(p,this.sourceCanvas,pw,ph,this.rows,this.cols,this.dpr);
    this.pieces.push(p);
   }
  }
@@ -134,8 +140,8 @@ export class PuzzleBoard{
     let x=z.x+Math.random()*xRange,y=z.y+Math.random()*yRange;
     if(gw>z.w)x=z.x-(gw-z.w)*.5;
     if(gh>z.h)y=z.y-(gh-z.h)*.5;
-    x=Math.max(0,Math.min(this.canvas.width-gw,x));
-    y=Math.max(0,Math.min(this.canvas.height-gh,y));
+    x=Math.max(0,Math.min(this.viewportWidth-gw,x));
+    y=Math.max(0,Math.min(this.viewportHeight-gh,y));
     let score=filled[zid].length?Infinity:10;
     for(const rect of filled[zid]){
      const nx=(x+gw/2-rect.x-rect.w/2)/Math.max(this.pieceWidth,Math.min(gw,rect.w));
@@ -226,8 +232,8 @@ export class PuzzleBoard{
   return {layoutVersion:3,rows:this.rows,cols:this.cols,moves:this.moveCount,ghost:this.showGhost,
    edgeOnly:this.edgeOnly,
    pieces:this.pieces.map(p=>({id:p.id,row:p.row,col:p.col,group:p.group||p.id,isPlaced:p.isPlaced,edges:p.edges,
-    nx:(p.x+this.pieceWidth/2)/this.canvas.width,
-    ny:(p.y+this.pieceHeight/2)/this.canvas.height}))};
+    nx:(p.x+this.pieceWidth/2)/this.viewportWidth,
+    ny:(p.y+this.pieceHeight/2)/this.viewportHeight}))};
  }
  restore(saved){
   if(!saved||saved.rows!==this.rows||saved.cols!==this.cols||!Array.isArray(saved.pieces)||saved.pieces.length!==this.totalPieces)return false;
@@ -243,16 +249,16 @@ export class PuzzleBoard{
     correctX:this.boardX+col*this.pieceWidth,correctY:this.boardY+row*this.pieceHeight,isPlaced:Boolean(data.isPlaced)};
    if(p.isPlaced){p.x=p.correctX;p.y=p.correctY;this.placedCount++;}
    else if(saved.layoutVersion===3){
-    p.x=Math.max(0,Math.min(this.canvas.width-this.pieceWidth,(Number(data.nx)||.5)*this.canvas.width-this.pieceWidth/2));
-    p.y=Math.max(0,Math.min(this.canvas.height-this.pieceHeight,(Number(data.ny)||.5)*this.canvas.height-this.pieceHeight/2));
+    p.x=Math.max(0,Math.min(this.viewportWidth-this.pieceWidth,(Number(data.nx)||.5)*this.viewportWidth-this.pieceWidth/2));
+    p.y=Math.max(0,Math.min(this.viewportHeight-this.pieceHeight,(Number(data.ny)||.5)*this.viewportHeight-this.pieceHeight/2));
    }else{
     // Old saves stored free-piece positions relative to the previous bottom/right tray.
     // Respect placed pieces and migrate free positions into the corresponding region.
-    const zone=this.scatterZones[this.canvas.width<680?1:1];
+    const zone=this.scatterZones[this.viewportWidth<680?1:1];
     p.x=zone.x+Math.max(0,Math.min(1,Number(data.nx)||.5))*Math.max(0,zone.w-this.pieceWidth);
     p.y=zone.y+Math.max(0,Math.min(1,Number(data.ny)||.5))*Math.max(0,zone.h-this.pieceHeight);
    }
-   PieceCutter.renderPieceToCanvas(p,this.sourceCanvas,this.pieceWidth,this.pieceHeight,this.rows,this.cols);
+   PieceCutter.renderPieceToCanvas(p,this.sourceCanvas,this.pieceWidth,this.pieceHeight,this.rows,this.cols,this.dpr);
    this.pieces.push(p);
   }
   // Reject malformed group identities rather than joining unrelated pieces.
@@ -263,7 +269,7 @@ export class PuzzleBoard{
   // Costly full-scene painting only happens after a completed move, settings
   // change or resize. Finger movement never calls this path.
   this.staticPaintCount++;
-  const ctx=this.ctx,w=this.canvas.width,h=this.canvas.height;
+  const ctx=this.ctx,w=this.viewportWidth,h=this.viewportHeight;
   ctx.clearRect(0,0,w,h);
   const matte=ctx.createLinearGradient(0,0,w,h);
   matte.addColorStop(0,'#e5dcd0');matte.addColorStop(.55,'#ddd3c6');matte.addColorStop(1,'#d8cfc2');
@@ -278,12 +284,12 @@ export class PuzzleBoard{
    ctx.save();ctx.globalAlpha=.17;ctx.drawImage(this.sourceCanvas,this.boardX,this.boardY,this.boardWidth,this.boardHeight);ctx.restore();
   }
 
-  for(const p of this.pieces)if(p.isPlaced){ctx.drawImage(p.offscreenCanvas,p.x-p.canvasMargin,p.y-p.canvasMargin);}
+  for(const p of this.pieces)if(p.isPlaced){ctx.drawImage(p.offscreenCanvas,p.x-p.canvasMargin,p.y-p.canvasMargin,p.renderWidth,p.renderHeight);}
   for(const p of this.pieces)if(!p.isPlaced&&!this.selectedPieces.includes(p)){
    ctx.save();
    if(this.edgeOnly&&p.row!==0&&p.col!==0&&p.row!==this.rows-1&&p.col!==this.cols-1)ctx.globalAlpha=.18;
    ctx.shadowColor='#34271c66';ctx.shadowBlur=7;ctx.shadowOffsetY=3;
-   ctx.drawImage(p.offscreenCanvas,p.x-p.canvasMargin,p.y-p.canvasMargin);ctx.restore();
+   ctx.drawImage(p.offscreenCanvas,p.x-p.canvasMargin,p.y-p.canvasMargin,p.renderWidth,p.renderHeight);ctx.restore();
   }
   if(confetti)confetti.updateAndRender(ctx);
   this.renderDrag();
@@ -293,11 +299,11 @@ export class PuzzleBoard{
   // background remain cached in the canvas underneath, even at 120Hz touch.
   this.dragPaintCount++;
   const ctx=this.dragCtx;
-  ctx.clearRect(0,0,this.dragCanvas.width,this.dragCanvas.height);
+  ctx.clearRect(0,0,this.viewportWidth,this.viewportHeight);
   if(!this.selectedPiece)return;
   for(const p of this.selectedPieces){
    ctx.save();ctx.shadowColor='#332a205e';ctx.shadowBlur=8;ctx.shadowOffsetY=3;
-   ctx.drawImage(p.offscreenCanvas,p.x-p.canvasMargin,p.y-p.canvasMargin);
+   ctx.drawImage(p.offscreenCanvas,p.x-p.canvasMargin,p.y-p.canvasMargin,p.renderWidth,p.renderHeight);
    ctx.restore();
   }
  }
