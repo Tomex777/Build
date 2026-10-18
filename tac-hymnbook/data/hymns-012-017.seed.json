@@ -1,0 +1,91 @@
+{
+  "project": "TAC Hymnbook",
+  "version": 1,
+  "photo_page_range": [
+    5,
+    6
+  ],
+  "capture_method": "two-facing-pages-per-photo",
+  "notes": "Original TAC numbering confirmed by user's photograph. Hymn 17 starts on page 6 but finishes on a subsequent page; available online version can supplement it.",
+  "hymns": [
+    {
+      "number": 12,
+      "collection": "main",
+      "title_yo": "Ẹ sin Olúwa nínú ẹwà ìwà mímọ́",
+      "title_en": "O Worship the Lord in the Beauty of Holiness",
+      "source_pages": [
+        5
+      ],
+      "estimated_verses": 5,
+      "external_source_url": "https://www.scribd.com/document/859543609/HYMN-NCGM",
+      "source_status": "photo_full_hymn",
+      "needs_final_text_review": true
+    },
+    {
+      "number": 13,
+      "collection": "main",
+      "title_yo": "Jẹ́ ká jùmọ̀ kọrin ìyìn",
+      "title_en": "Come, Let Us Join Our Cheerful Songs",
+      "source_pages": [
+        5
+      ],
+      "estimated_verses": 5,
+      "external_source_url": "https://www.scribd.com/document/859543609/HYMN-NCGM",
+      "source_status": "photo_full_hymn",
+      "needs_final_text_review": true
+    },
+    {
+      "number": 14,
+      "collection": "main",
+      "title_yo": "Gbọ́ orin ìdásílẹ̀",
+      "title_en": "Hark! The Song of Jubilee",
+      "source_pages": [
+        5,
+        6
+      ],
+      "estimated_verses": 3,
+      "external_source_url": "https://www.scribd.com/document/859543609/HYMN-NCGM",
+      "source_status": "photo_full_hymn",
+      "needs_final_text_review": true
+    },
+    {
+      "number": 15,
+      "collection": "main",
+      "title_yo": "Ìjìnlẹ̀ ni ìfẹ́ Jésù",
+      "title_en": "O the Deep, Deep Love of Jesus",
+      "source_pages": [
+        6
+      ],
+      "estimated_verses": 2,
+      "external_source_url": "https://hymnary.org/hymn/LUYH2013/796",
+      "source_status": "photo_full_hymn",
+      "needs_final_text_review": true
+    },
+    {
+      "number": 16,
+      "collection": "main",
+      "title_yo": "Tàyọ̀tàyọ̀ làwa ó máa júbà Rẹ",
+      "title_en": "With Gladness We Worship, Rejoice as We Sing",
+      "source_pages": [
+        6
+      ],
+      "estimated_verses": 4,
+      "external_source_url": "https://hymnary.org/text/with_gladness_we_worship_rejoice_as_we_s",
+      "source_status": "photo_full_hymn",
+      "needs_final_text_review": true
+    },
+    {
+      "number": 17,
+      "collection": "main",
+      "title_yo": "Ìgbàlà! Ìró ayọ̀ ńlá",
+      "title_en": "Salvation! O the Joyful Sound!",
+      "source_pages": [
+        6
+      ],
+      "estimated_verses": 3,
+      "external_source_url": "https://www.scribd.com/document/859543609/HYMN-NCGM",
+      "source_status": "first_stanza_photo_online_completion",
+      "needs_final_text_review": true
+    }
+  ]
+}
