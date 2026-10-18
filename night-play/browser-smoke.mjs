@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs'
 import { createServer } from 'node:http'
 import { chromium } from 'playwright'
 const html=readFileSync(new URL('./index.html',import.meta.url))
-const server=createServer((req,res)=>{if(req.url==='/site-shell.css'){res.writeHead(200,{'content-type':'text/css'});res.end(readFileSync(new URL('./site-shell.css',import.meta.url)));return}if(req.url==='/account-client.js'){res.writeHead(200,{'content-type':'text/javascript'});res.end(readFileSync(new URL('./account-client.js',import.meta.url)));return}if(req.url==='/api/account'){res.writeHead(200,{'content-type':'application/json'});res.end(JSON.stringify({linked:false,profile:null}));return}res.writeHead(200,{'content-type':'text/html; charset=utf-8','cache-control':'no-store'});res.end(html)})
+const server=createServer((req,res)=>{if(req.url==='/site-shell.css'){res.writeHead(200,{'content-type':'text/css'});res.end(readFileSync(new URL('./site-shell.css',import.meta.url)));return}if(req.url==='/profile-hub.js'){res.writeHead(200,{'content-type':'text/javascript'});res.end(readFileSync(new URL('./profile-hub.js',import.meta.url)));return}if(req.url==='/profile-hub.css'){res.writeHead(200,{'content-type':'text/css'});res.end(readFileSync(new URL('./profile-hub.css',import.meta.url)));return}if(req.url==='/account-client.js'){res.writeHead(200,{'content-type':'text/javascript'});res.end(readFileSync(new URL('./account-client.js',import.meta.url)));return}if(req.url==='/api/account'){res.writeHead(200,{'content-type':'application/json'});res.end(JSON.stringify({linked:false,profile:null}));return}res.writeHead(200,{'content-type':'text/html; charset=utf-8','cache-control':'no-store'});res.end(html)})
 await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve))
 let browser
 try {
@@ -80,7 +80,12 @@ try {
  assert.equal(await page.locator('#view-profile').getByText('Not connected').count(),0,'No repeated disconnected status')
  assert.equal(await page.locator('#view-profile button[data-dialog="connect"]').count(),0,'Card must not duplicate the connection CTA')
  assert.equal(await page.locator('header button[data-dialog="connect"]').isVisible(),true,'Only global connect CTA')
- assert.equal(await page.locator('#selectedGameTitle').textContent(),'Game activity','Overview is default')
+ assert.equal(await page.locator('#accountBadges').textContent(),'1 / 4','Device records earn only the first achievement');
+  assert.equal(await page.locator('#accountRounds').textContent(),'243','Correct activity total');
+  assert.equal(await page.locator('[data-profile-tab="channels"]').textContent(),'My Channels');
+  assert.equal(await page.locator('#profilePaneChannels').isVisible(),false,'No unrelated management controls on the Profile tab');
+  await page.locator('[data-profile-tab="games"]').click();
+  assert.equal(await page.locator('#selectedGameTitle').textContent(),'Game activity','Overview is default')
  assert.equal(await page.locator('#analyticsBest').textContent(),'121','121 games with history in test')
  assert.equal(await page.locator('#analyticsLatest').textContent(),'243','Compare completed rounds instead of unlike scores')
  assert.ok(await page.locator('#analyticsGraph rect').count()>4,'Activity bars show per-game participation')
