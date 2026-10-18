@@ -56,6 +56,8 @@ class MainActivity : ComponentActivity() {
         setContent {
             var dark by remember { mutableStateOf(prefs.getBoolean("dark", false)) }
             var englishMode by rememberSaveable { mutableStateOf(false) }
+            var hubQuery by rememberSaveable { mutableStateOf("") }
+            var hubFilter by rememberSaveable { mutableIntStateOf(0) }
             var selectedNumber by rememberSaveable { mutableStateOf<Int?>(intent.getIntExtra("preview_hymn", -1).takeIf { it > 0 }) }
             var lastRead by remember { mutableIntStateOf(prefs.getInt("last", -1)) }
             var fontScale by remember { mutableFloatStateOf(prefs.getFloat("font_scale", 1f)) }
@@ -88,12 +90,17 @@ class MainActivity : ComponentActivity() {
                     if (selected == null) {
                         HymnHub(
                             hymns, saved, lastRead, dark, openHymn, toggleSaved,
+                            query = hubQuery,
+                            onQueryChange = { hubQuery = it },
+                            filter = hubFilter,
+                            onFilterChange = { hubFilter = it },
                             onToggleDark = {
                                 dark = !dark
                                 prefs.edit().putBoolean("dark", dark).apply()
                             }
                         )
                     } else {
+                        key(selected.number) {
                         HymnReader(
                             hymn = selected,
                             previous = hymns.lastOrNull { it.number < selected.number },
@@ -110,6 +117,7 @@ class MainActivity : ComponentActivity() {
                             onOpen = openHymn,
                             onToggleSaved = { toggleSaved(selected.number) }
                         )
+                        }
                     }
                 }
             }
@@ -125,10 +133,12 @@ private fun HymnHub(
     dark: Boolean,
     onOpen: (Int) -> Unit,
     onToggleSaved: (Int) -> Unit,
+    query: String,
+    onQueryChange: (String) -> Unit,
+    filter: Int,
+    onFilterChange: (Int) -> Unit,
     onToggleDark: () -> Unit
 ) {
-    var query by rememberSaveable { mutableStateOf("") }
-    var filter by rememberSaveable { mutableIntStateOf(0) }
     val visible = hymns.filter { hymn ->
         hymn.matches(query) && when (filter) {
             1 -> hymn.hasYoruba || hymn.hasEnglish
@@ -157,7 +167,7 @@ private fun HymnHub(
                 }
             }
             Spacer(Modifier.height(24.dp))
-            SearchInput(query) { query = it }
+            SearchInput(query, onQueryChange)
             Spacer(Modifier.height(10.dp))
         }
         if (query.isBlank() && latest != null) {
@@ -198,7 +208,7 @@ private fun HymnHub(
                 listOf("All", "With lyrics", "Saved").forEachIndexed { index, label ->
                     val active = filter == index
                     Surface(
-                        modifier = Modifier.clickable { filter = index },
+                        modifier = Modifier.clickable { onFilterChange(index) },
                         shape = RoundedCornerShape(30.dp),
                         color = if (active) MaterialTheme.colorScheme.primary
                                 else MaterialTheme.colorScheme.surface,
