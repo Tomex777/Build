@@ -48,7 +48,7 @@ export const LIVE_CASES = Object.freeze({
   getexif:     { fixture:'image', expected:'text' },
   upscale:     { fixture:'image', args:['2'], expected:'image' },
   removebg:    { fixture:'image', expected:'document' },
-  stt:         { fixture:'audio', expected:'text', provider:true },
+  stt:         { fixture:'speech', expected:'text', provider:true },
   vision:      { fixture:'image', args:['What is shown in this image?'], expected:'text', provider:true },
   tts:         { args:['NIGHT','WhatsApp','test'], expected:'audio', provider:true },
   tictactoe:   { expected:'image', menu:'tictactoe' },
@@ -179,7 +179,15 @@ export async function makeTestFixtures() {
       if (cache[kind]) return cache[kind]
       const file = join(dir,kind === 'video' ? 'source.mp4' : 'source.ogg')
       const common = [ '-hide_banner','-loglevel','error','-y' ]
-      if (kind === 'video') {
+      if (kind === 'speech') {
+        const { azureTextToSpeech } = await import('./azure-media.js')
+        const sample = await azureTextToSpeech('Hello. This is a NIGHT command transcription test.')
+        const source=join(dir,'source-speech.mp3')
+        await writeFile(source,sample.buffer)
+        await runMediaProcess(process.env.FFMPEG_PATH||'ffmpeg',
+          [...common,'-i',source,'-ar','48000','-ac','1','-c:a','libopus',file],
+          {timeoutMs:20000})
+      } else if (kind === 'video') {
         await runMediaProcess(process.env.FFMPEG_PATH||'ffmpeg',
           [...common,'-f','lavfi','-i','testsrc2=size=320x180:rate=12:duration=7',
             '-f','lavfi','-i','sine=frequency=440:duration=7','-t','7',
@@ -209,7 +217,7 @@ export function fixtureMessage(kind, bytes) {
   if (kind === 'image' || kind === 'qr')
     return {image:bytes,mimetype:'image/png',caption:label}
   if (kind === 'video') return {video:bytes,mimetype:'video/mp4',caption:label}
-  if (kind === 'audio') return {audio:bytes,mimetype:'audio/ogg; codecs=opus',ptt:true}
+  if (kind === 'audio' || kind === 'speech') return {audio:bytes,mimetype:'audio/ogg; codecs=opus',ptt:true}
   if (kind === 'pdf') return {document:bytes,mimetype:'application/pdf',fileName:'night-test.pdf',caption:label}
   if (kind === 'sticker' || kind === 'animated-sticker') return {sticker:bytes}
   throw new Error('Unexpected fixture kind')
