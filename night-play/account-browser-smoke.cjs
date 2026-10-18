@@ -21,7 +21,7 @@ const server=http.createServer(async(req,res)=>{
     if(body.action==='profile')profile={...profile,displayName:body.displayName}
     res.end(JSON.stringify({linked:Boolean(profile),profile}));return
   }
-  const relative=['/','/profile','/dashboard','/games','/terms','/privacy'].includes(url.pathname)?'index.html':url.pathname.slice(1)
+  const relative=url.pathname==='/admin/'||url.pathname==='/admin'?'admin/index.html':['/','/profile','/dashboard','/games','/terms','/privacy'].includes(url.pathname)?'index.html':url.pathname.slice(1)
   const file=path.join(__dirname,relative)
   if(!file.startsWith(__dirname+path.sep)||!fs.existsSync(file)||!fs.statSync(file).isFile()){res.statusCode=404;res.end();return}
   res.setHeader('Content-Type',relative.endsWith('.js')?'text/javascript':relative.endsWith('.css')?'text/css':'text/html')
