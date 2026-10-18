@@ -22,6 +22,11 @@ class UnderTreeSceneTest {
         assertTrue(scene.actors.any { it.kind == ActorKind.LIGHT })
         assertFalse(scene.world.gridEnabled)
         assertTrue(scene.world.groundEnabled)
+        assertEquals(studio.artistscene.core.EnvironmentPreset.PARK_SHADE, scene.world.environmentPreset)
+        assertTrue(scene.actors.any {
+            it.kind == ActorKind.LIGHT && it.light?.type == studio.artistscene.core.LightType.DIRECTIONAL &&
+                it.light!!.intensity < 50_000f
+        })
 
         val a = scene.actors.single { it.id == UnderTreeScene.FIRST_STUDENT_ID }
         val b = scene.actors.single { it.id == UnderTreeScene.SECOND_STUDENT_ID }
