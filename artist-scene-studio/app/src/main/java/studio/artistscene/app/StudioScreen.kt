@@ -2919,6 +2919,30 @@ private fun EditorContextSheet(
                                 modifier = Modifier.weight(1f).testTag("ground-rougher")) { Text("More matte") }
                         }
                     }
+                    Text("Terrain · actual 3D geometry", color = PrimaryText,
+                        fontWeight = FontWeight.SemiBold, fontSize = 14.sp,
+                        modifier = Modifier.testTag("terrain-controls"))
+                    Text(
+                        "Build real hills and mountains that cast shadows, or import your own grayscale heightmap.",
+                        color = MutedText, fontSize = 11.sp,
+                    )
+                    TerrainShape.entries.chunked(2).forEach { row ->
+                        Row(modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            row.forEach { shape ->
+                                Button(
+                                    onClick = { onAddTerrain(shape) },
+                                    modifier = Modifier.weight(1f).testTag(
+                                        "terrain-${shape.name.lowercase()}",
+                                    ),
+                                ) { Text(shape.title) }
+                            }
+                        }
+                    }
+                    Button(
+                        onClick = onHeightmapImport,
+                        modifier = Modifier.fillMaxWidth().testTag("terrain-import-heightmap"),
+                    ) { Text("Import my heightmap") }
                     Text(
                         "Real offline CC0 photography · PBR shadow receiver · saved with the scene.",
                         color = MutedText, fontSize = 10.sp,
