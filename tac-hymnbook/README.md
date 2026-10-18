@@ -9,8 +9,8 @@ Native, offline-first Yorùbá/English hymn reader for Android. The photographed
 - Hymn list, availability labels, reader, previous/next, bookmarks, continue reading, persistent text-size buttons, light/dark themes.
 - Genuine Android vector drawable icons (not Unicode symbols or emoji).
 - All data bundled locally in `android/app/src/main/assets/hymns.json`. No account, ads, network dependency, remote API, or redundant volume sliders.
-- Initial photographs cover pages **1–4**: local hymns **1–11** catalogued. **1–10** have full Yorùbá and English working drafts matched with the photographed pages and historical bilingual hymn sources. **11** includes the opening visible on page 4 in both languages, and is expressly marked incomplete until later pages are supplied. Draft spelling and tone marks still require review.
-- Hymn 11 is incomplete in the photos; later pages or verified online equivalents can complete it.
+- Photographed spreads now cover pages **1–6**: local hymns **1–17** catalogued. **1–16** have bilingual working drafts from photos and traditional sources. **11** continues onto page 5 and is now present through its fourth stanza. **17** has a photographed opening and an online-matched continuation, pending comparison with the following printed page. Draft spelling and tone marks still require review.
+- Hymn 17 continues beyond the current photo; its imported RH text is provisionally complete pending page 7.
 - Reader swipe left/right moves between numbered hymns; language choice persists while browsing. Literal `\\n` in legacy texts is normalized to real line breaks.
 - Dark mode uses warm charcoal, ivory and brass, rather than green-on-black.
 - Build version: 0.2.0 (versionCode 2).
@@ -42,3 +42,7 @@ gradle :app:assembleDebug
 - Bilingual verified verses (only when a matching version is available).
 - Continue expanding the real text database; accessibility and device-specific UI tests.
 
+
+## Batch 2 provenance (pages 5–6)
+
+Hymns 12–17 use the original TAC numbering and matching English Redemption Hymnal identities. Full Yoruba text for 12–16 is drawn from the user-supplied spread, with uncertain spelling still marked in source metadata. Hymn 17 uses the matching source for verses not yet photographed. Source status is retained in JSON but not shown as developer counters or badges in the public UI. No song is silently considered verified solely because a matching opening line was found.
