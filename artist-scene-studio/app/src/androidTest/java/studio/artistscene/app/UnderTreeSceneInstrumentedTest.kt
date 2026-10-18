@@ -110,7 +110,22 @@ class UnderTreeSceneInstrumentedTest {
                 // real render, not a Compose UI screenshot pretending to be art.
                 requireNotNull(device.wait(Until.findObject(By.res("reference-mode")), 10_000))
                     .click()
-                finished = capture("clean")
+                // GPU texture uploads and SceneView node registration can continue
+                // after the native skeleton has been discovered. Never accept a
+                // blank "proof" frame: retry real renderer captures until the
+                // three-dimensional scene is genuinely visible or time out.
+                val readyDeadline = SystemClock.uptimeMillis() + 48_000
+                var accepted = capture("clean")
+                var foreground = compare(empty, accepted, 19, 81)
+                while (foreground < 450 && SystemClock.uptimeMillis() < readyDeadline) {
+                    SystemClock.sleep(1_500)
+                    accepted = capture("clean")
+                    foreground = compare(empty, accepted, 19, 81)
+                }
+                assertTrue("Mise loaded both VRoid rigs, but the actual Filament scene " +
+                    "remained invisible after waiting for textures/render registration",
+                    foreground >= 450)
+                finished = accepted
             }
 
             // More than one major region must contain actual scene geometry.
