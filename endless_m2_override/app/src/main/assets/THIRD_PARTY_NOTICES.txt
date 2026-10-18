@@ -113,3 +113,10 @@ Optional NASA Olympus Mons local photographic detail:
 - The verified Viking MDIM 2.1 color is always the base orbital
   reflectance. The local mosaic only modifies large-scale spatial
   details; no claim of meter-scale rover photographs or a site DEM.
+
+- Optional `mars_detail_normal_trek_landing.png`: derived at build time
+  from the Olympus Mons 1024x1024 registered NASA optical mosaic.
+  Encodes low-amplitude photometric shading gradients as visual *bump*
+  normals at distances where source image resolution supports them.
+  It is NOT a measured topographic product; the independently measured
+  MOLA elevation DEM is unchanged and authoritative for collision.

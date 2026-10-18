@@ -16,7 +16,7 @@ import math
 import sys
 import urllib.request
 from pathlib import Path
-from PIL import Image
+from PIL import Image, ImageFilter
 
 SITE = {
     # High-resolution optional NASA Trek Olympus Mons orthomosaic. The
@@ -151,6 +151,24 @@ def reproject(site):
     return output
 
 
+def derive_photographic_normal(image):
+    """A purely illustrative bump-normal interpretation of NASA orbital
+    luminance gradients. NOT a measured DEM. 3x3 Sobel samples are
+    attenuated to avoid exaggerating shading baked into the source.
+    Real height continues to come from independently surveyed MOLA.
+    """
+    grey = image.convert("L")
+    normal_x = grey.filter(ImageFilter.Kernel(
+        (3, 3), [-1,0,1,-2,0,2,-1,0,1], scale=8, offset=128
+    ))
+    normal_y = grey.filter(ImageFilter.Kernel(
+        (3, 3), [-1,-2,-1,0,0,0,1,2,1], scale=8, offset=128
+    ))
+    return Image.merge("RGB",(
+        normal_x, normal_y, Image.new("L",image.size,255)
+    ))
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--out", type=Path, required=True)
@@ -164,6 +182,13 @@ def main():
         if target.stat().st_size < 60000:
             raise ValueError(f"NASA tile output is suspiciously small: {target}")
         print(f"{name}: NASA Trek site mosaic ({im.width}x{im.height}), {target.stat().st_size} bytes")
+        if name == "mars_detail":
+            derived = derive_photographic_normal(im)
+            normal_target = args.out / "mars_detail_normal_trek_landing.png"
+            derived.save(normal_target, optimize=True)
+            if normal_target.stat().st_size < 5000:
+                raise ValueError("Unexpectedly empty Olympus photometric bump normal")
+            print(f"Illustrative Olympus albedo-gradient normal baked: {normal_target.stat().st_size} bytes")
 
 
 if __name__ == "__main__":

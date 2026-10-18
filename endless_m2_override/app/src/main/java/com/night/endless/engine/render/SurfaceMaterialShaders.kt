@@ -55,6 +55,8 @@ uniform vec2 uMidAnchor;
 uniform sampler2D uLandingAlbedo;
 uniform sampler2D uOrbitalDetail;
 uniform int uHasOrbitalDetail;
+uniform sampler2D uOrbitalNormal;
+uniform int uHasOrbitalNormal;
 uniform sampler2D uMicroMaterial;
 uniform int uHasLandingAlbedo;
 out vec4 fragColor;
@@ -321,6 +323,21 @@ void main() {
         photoWeight *= 1.0 - smoothstep(12.2, 13.55, edgeDistance);
         albedo = mix(albedo, sourceAlbedo, photoWeight);
         albedo *= 0.90 + 0.17 * granules;
+    }
+
+    // Selected additional NASA Olympus photographs resolve ridges at a
+    // finer scale than MOLA; their 3x3 grayscale gradients can provide
+    // restrained, distance-filtered normal variation to the true MOLA
+    // mesh. This is an inferred optical bump, NOT measured elevations.
+    // At eye level the generated meter-resolution regolith takes over.
+    if (uWorld == 0 && uHasOrbitalNormal == 1 &&
+        abs(ground.x) <= 13.6 && abs(ground.y) <= 13.6) {
+        vec2 uv = vec2(.5+ground.x/27.2,.5-ground.y/27.2);
+        vec2 optical = texture(uOrbitalNormal,uv,1.25).rg*2.0-1.0;
+        float strength = smoothstep(.14,.66,vDistance);
+        float edge = 1.0-smoothstep(12.1,13.55,max(abs(ground.x),abs(ground.y)));
+        microNormal = normalize(microNormal +
+             vec3(-optical.x,0.0,optical.y)*1.1*strength*edge);
     }
 
     albedo *= 0.95 + 0.10 * grit;
