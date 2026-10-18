@@ -102,25 +102,62 @@ internal object ExtendedSurfaceMesh {
         }
     }
 
-    fun renderedHeightAt(id: String, x: Double, z: Double): Double =
-        SurfaceTerrainSampling.renderedHeight(x,z,SIDE,STEP.toDouble()) { px,pz ->
-            heightAt(id,px,pz)
+    // Immutable per-world coarse raster (~100 KiB each). Previously a
+    // collision/LOD sample recomputed four expensive FBM geologic heights
+    // EVERY call; midfield reanchoring could stall the entire GL thread.
+    // Geometry, collision and normals now share one cached Float raster.
+    private val coarse = java.util.concurrent.ConcurrentHashMap<String, FloatArray>()
+    private fun samples(id: String): FloatArray {
+        require(isSupported(id))
+        return coarse.computeIfAbsent(id) {
+            val heights = FloatArray(SIDE*SIDE)
+            val half=(SIDE-1)*.5
+            for (z in 0 until SIDE) for (x in 0 until SIDE) {
+                heights[z*SIDE+x] = heightAt(
+                    id,(x-half)*STEP.toDouble(),(z-half)*STEP.toDouble()
+                ).toFloat()
+            }
+            heights
         }
+    }
+
+    fun renderedHeightAt(id: String, x: Double, z: Double): Double {
+        val heights=samples(id)
+        val gx=x/STEP.toDouble()+(SIDE-1)*.5
+        val gz=z/STEP.toDouble()+(SIDE-1)*.5
+        if (!gx.isFinite() || !gz.isFinite() || gx<0 || gz<0 ||
+            gx>SIDE-1 || gz>SIDE-1) return heightAt(id,x,z)
+        val ix=kotlin.math.floor(gx).toInt().coerceIn(0,SIDE-2)
+        val iz=kotlin.math.floor(gz).toInt().coerceIn(0,SIDE-2)
+        val fx=(gx-ix).coerceIn(0.0,1.0)
+        val fz=(gz-iz).coerceIn(0.0,1.0)
+        val h00=heights[iz*SIDE+ix].toDouble()
+        val h10=heights[iz*SIDE+ix+1].toDouble()
+        val h01=heights[(iz+1)*SIDE+ix].toDouble()
+        val h11=heights[(iz+1)*SIDE+ix+1].toDouble()
+        return if(fx+fz<=1.0) h00*(1-fx-fz)+h10*fx+h01*fz
+          else h11*(fx+fz-1.0)+h10*(1-fz)+h01*(1-fx)
+    }
 
     fun build(id: String): MoonSurfaceMeshData {
         require(isSupported(id))
+        val heights = samples(id)
         val vertices = FloatArray(SIDE*SIDE*9)
         val indices = ShortArray((SIDE-1)*(SIDE-1)*6)
         val half = (SIDE-1)/2f
         var p=0
         for (zi in 0 until SIDE) for(xi in 0 until SIDE) {
             val x=(xi-half)*STEP; val z=(zi-half)*STEP
-            val h=heightAt(id,x.toDouble(),z.toDouble()).toFloat()
-            val delta=.015
-            val slopeX=(heightAt(id,x+delta,z.toDouble())-
-                heightAt(id,x-delta,z.toDouble())).toFloat()/(2*delta).toFloat()
-            val slopeZ=(heightAt(id,x.toDouble(),z+delta)-
-                heightAt(id,x.toDouble(),z-delta)).toFloat()/(2*delta).toFloat()
+            val h=heights[zi*SIDE+xi]
+            // The GPU actually renders coarse sampled triangles, not the
+            // analytic FBM between them. Match normals to the real mesh so
+            // the 21m/510m LOD handoff has coherent brightness and facets.
+            val x0=(xi-1).coerceAtLeast(0); val x1=(xi+1).coerceAtMost(SIDE-1)
+            val z0=(zi-1).coerceAtLeast(0); val z1=(zi+1).coerceAtMost(SIDE-1)
+            val slopeX=(heights[zi*SIDE+x1]-heights[zi*SIDE+x0])/
+                ((x1-x0)*STEP)
+            val slopeZ=(heights[z1*SIDE+xi]-heights[z0*SIDE+xi])/
+                ((z1-z0)*STEP)
             val norm=1f/sqrt(1f+slopeX*slopeX+slopeZ*slopeZ)
             vertices[p++]=x;vertices[p++]=h;vertices[p++]=z
             vertices[p++]=-slopeX*norm;vertices[p++]=norm;vertices[p++]=-slopeZ*norm
