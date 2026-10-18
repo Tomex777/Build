@@ -35,6 +35,7 @@ try {
  assert.equal(await page.locator('header').evaluate(el=>getComputedStyle(el).position),'sticky')
  assert.equal(await page.locator('#announcementBar').evaluate(el=>getComputedStyle(el).position),'sticky')
  assert.equal(await page.locator('#view-dashboard #dashSnakeBest').count(),0)
+ console.log('NIGHT_NAV_BEFORE_DASHBOARD='+(await page.screenshot({type:'jpeg',quality:68})).toString('base64'))
  await page.evaluate(()=>{
   localStorage.setItem('night-play-v1-snake','90');
   localStorage.setItem('night-play-history-v1-snake',JSON.stringify([12,35,90]));
@@ -43,6 +44,7 @@ try {
  await page.locator('.mobile-nav a[href="/profile"]').click()
  await page.locator('#view-profile').waitFor({state:'visible'})
  assert.equal(new URL(page.url()).pathname,'/profile')
+ console.log('NIGHT_NAV_BEFORE_PROFILE='+(await page.screenshot({type:'jpeg',quality:68})).toString('base64'))
  assert.equal(await page.locator('#view-profile .inner-page-head').count(),0,'Profile begins with player card, not a redundant heading')
  await page.locator('#editPlayerName').click()
  await page.locator('#playerNameInput').fill('Alex')
@@ -80,6 +82,7 @@ try {
  assert.equal(await page.locator('#selectedGameTitle').textContent(),'Game activity')
  await page.locator('.mobile-nav a[href="/games"]').click()
  await page.locator('#view-games').waitFor({state:'visible'})
+ console.log('NIGHT_NAV_BEFORE_GAMES='+(await page.screenshot({type:'jpeg',quality:68})).toString('base64'))
  console.log('NIGHT_GAME_GALLERY_BASE64='+(await page.locator('#view-games').screenshot({type:'jpeg',quality:58})).toString('base64'));
  assert.equal(await page.locator('.brand-mark use').first().getAttribute('href'),'#icon-brand')
  assert.equal(await page.locator('.library-card .game-art').count(),9,'Other games retain their SVG thumbnails')
