@@ -402,11 +402,12 @@ canvas.addEventListener('pointermove',e=>{
  board.moveSelectionTo(x,y);board.renderDrag();e.preventDefault();
 });
 function releaseDrag(e){
+ const wasPinching=pinchDistance>0&&pointers.size>=2;
  pointers.delete(e.pointerId);
- if(pointers.size<2){pinchDistance=0;pinchAnchor=null}
+ if(pointers.size<2){pinchDistance=0;pinchAnchor=null;if(wasPinching)saveGame()}
  if(e.pointerId===panId){
   panId=null;panStart=null;if(canvas.hasPointerCapture(e.pointerId))canvas.releasePointerCapture(e.pointerId);
-  e.preventDefault();return;
+  saveGame();e.preventDefault();return;
  }
  if(e.pointerId!==dragId||!board.selectedPiece)return;
  const p=board.selectedPiece;
