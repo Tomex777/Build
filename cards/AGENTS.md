@@ -3,6 +3,7 @@
 This is the reusable card library on the dedicated `cards` branch. Preserve the existing renderer and Obsidian archive. Implement new integration in `src/` rather than rewriting old designs.
 
 - Finished cards must be programmed SVG/raster exports. Do not use image generation.
+- Every framed composition must place the character's actual silhouette across the inner frame. Keep the aura behind the architecture. The accepted Byakuya, Rukia and Ichigo compositions are depth references.
 - Keep Nocturne's circular backdrop and the old bottom-right emblem absent.
 - Bind artwork to its actual character and form. Do not relabel another form's artwork. Unacquired forms stay pending.
 - Record the source, exact original bytes, SHA-256, native dimensions, rights and crop for every image. Official publication does not imply an open license.
