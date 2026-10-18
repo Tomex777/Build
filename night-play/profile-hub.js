@@ -52,7 +52,7 @@
    :'Connect your WhatsApp account from the site header to manage sessions.';
  }
  function render(){
-  const active=document.querySelector('[data-profile-tab][aria-selected="true"]')?.dataset.profileTab||read(TAB_KEY)||'profile';
+  const active=read(TAB_KEY)||'profile';
   selectTab(active);updateAccount();
  }
  const tabs=[...document.querySelectorAll('[data-profile-tab]')];
