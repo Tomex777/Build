@@ -561,7 +561,7 @@ else showGallery();
 if(location.hostname==='localhost'||location.hostname==='127.0.0.1'){
  window.__nightJigsawTest=Object.freeze({
   snapshot:()=>({theme,pieces:piecesCount,elapsed,won,activeRound,challengeMode,usedHints,usedPreviews,guide:board.showGhost,
-   activeDragId:dragId,staticPaints:board.staticPaintCount,dragPaints:board.dragPaintCount,zoom,panX,panY,edgeOnly:board.edgeOnly,groups:new Set(board.pieces.filter(p=>!p.isPlaced).map(p=>p.group)).size,
+   activeDragId:dragId,staticPaints:board.staticPaintCount,dragPaints:board.dragPaintCount,zoom,panX,panY,pixelRatio:board.dpr,viewport:{w:board.viewportWidth,h:board.viewportHeight},edgeOnly:board.edgeOnly,groups:new Set(board.pieces.filter(p=>!p.isPlaced).map(p=>p.group)).size,
    selected:board.selectedPiece?{id:board.selectedPiece.id,x:board.selectedPiece.x,y:board.selectedPiece.y}:null,
    placed:board.placedCount,moves:board.moveCount,
    board:{x:board.boardX,y:board.boardY,w:board.boardWidth,h:board.boardHeight,rows:board.rows,cols:board.cols,pieceWidth:board.pieceWidth,pieceHeight:board.pieceHeight},tray:{...board.tray},
