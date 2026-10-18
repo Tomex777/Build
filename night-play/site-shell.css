@@ -24,6 +24,7 @@
 @media(max-width:600px){
  :root{--night-mobile-nav-height:74px}
  .wrap{padding:0 18px}
+ .site-header .links{display:none}
  .site-header .brand-sub{display:none}
  .site-header .logo>.brand-mark,.site-header .brand-mark{width:33px;height:33px;flex-basis:33px}
  /* Bottom tabs already expose Profile: don't duplicate it in the header. */
