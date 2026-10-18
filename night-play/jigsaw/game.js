@@ -52,7 +52,7 @@ let dragId=null,dragX=0,dragY=0,dragMoved=false,dragRect=null,dragOrigins=null,w
 let zoom=1,panX=0,panY=0,panId=null,panStart=null,pinchDistance=0,pinchStartZoom=1,pinchAnchor=null;
 const pointers=new Map();
 function applyZoom(){
- const maxX=(zoom-1)*canvas.width*.5,maxY=(zoom-1)*canvas.height*.5;
+ const maxX=(zoom-1)*board.viewportWidth*.5,maxY=(zoom-1)*board.viewportHeight*.5;
  panX=Math.max(-maxX,Math.min(maxX,panX));panY=Math.max(-maxY,Math.min(maxY,panY));
  const transform='translate('+panX+'px,'+panY+'px) scale('+zoom+')';
  canvas.style.transform=transform;board.dragCanvas.style.transform=transform;$('previewOverlay').style.transform=transform;
@@ -70,15 +70,15 @@ function comfortableZoom(){
  // A 144-piece puzzle on a narrow phone otherwise produces 19–23px-high
  // cardboard slivers. Start magnified but leave "Fit all" one tap away.
  // The board is *not* rescaled independently of its pieces or snapped groups.
- if(canvas.width>720||piecesCount<=48)return 1;
+ if(board.viewportWidth>720||piecesCount<=48)return 1;
  const shortest=Math.min(board.pieceWidth,board.pieceHeight);
  return Math.min(2.2,Math.max(1,Math.ceil(42/Math.max(1,shortest)*100)/100));
 }
 function restoreCamera(saved){
  if(saved?.camera&&Number.isFinite(saved.camera.zoom)){
   zoom=Math.max(1,Math.min(2.2,saved.camera.zoom));
-  panX=(Number(saved.camera.x)||0)*canvas.width;
-  panY=(Number(saved.camera.y)||0)*canvas.height;
+  panX=(Number(saved.camera.x)||0)*board.viewportWidth;
+  panY=(Number(saved.camera.y)||0)*board.viewportHeight;
   applyZoom();
  }else setZoom(1);
 }
@@ -107,10 +107,10 @@ function endPreview(){
 }
 function positionPreview(){
  const layer=$('previewOverlay');
- layer.style.left=board.boardX/canvas.width*100+'%';
- layer.style.top=board.boardY/canvas.height*100+'%';
- layer.style.width=board.boardWidth/canvas.width*100+'%';
- layer.style.height=board.boardHeight/canvas.height*100+'%';
+ layer.style.left=board.boardX/board.viewportWidth*100+'%';
+ layer.style.top=board.boardY/board.viewportHeight*100+'%';
+ layer.style.width=board.boardWidth/board.viewportWidth*100+'%';
+ layer.style.height=board.boardHeight/board.viewportHeight*100+'%';
 }
 function showReference({automatic=false}={}){
  if(!activeRound||won||paused)return;
@@ -138,7 +138,7 @@ function timerStart(){if(secondsTimer!==null||paused||won||!activeRound||documen
 }
 function gameData(){
  return {version:2,theme,pieces:piecesCount,elapsed,won,challengeMode,usedHints,usedPreviews,customData:theme==='custom'?customData:null,
-  board:board.serialize(),camera:{zoom,x:panX/Math.max(1,canvas.width),y:panY/Math.max(1,canvas.height)},updatedAt:Date.now()};
+  board:board.serialize(),camera:{zoom,x:panX/Math.max(1,board.viewportWidth),y:panY/Math.max(1,board.viewportHeight)},updatedAt:Date.now()};
 }
 function saveGame(){
  if(!activeRound||won)return;
@@ -317,7 +317,7 @@ function celebrate(){
  $('victoryTime').textContent=timeText(elapsed);
  $('victoryMoves').textContent=String(board.moveCount);
  $('victoryPieces').textContent=String(board.totalPieces);
- confetti.explode(canvas.width/2,board.boardY+board.boardHeight/2,90);
+ confetti.explode(board.viewportWidth/2,board.boardY+board.boardHeight/2,90);
  const started=performance.now();
  function loop(now){board.render(confetti);if(now-started<1800)winAnimationId=requestAnimationFrame(loop);else{winAnimationId=null;board.render()}}
  winAnimationId=requestAnimationFrame(loop);
@@ -335,7 +335,7 @@ function point(e){
  // The CSS transform is applied equally to both canvases. The transformed
  // bounding box converts touch coordinates back into original tabletop units.
  const r=dragRect||canvas.getBoundingClientRect();
- return {x:(e.clientX-r.left)*canvas.width/r.width,y:(e.clientY-r.top)*canvas.height/r.height};
+ return {x:(e.clientX-r.left)*board.viewportWidth/r.width,y:(e.clientY-r.top)*board.viewportHeight/r.height};
 }
 function cancelSelection(){
  if(!board.selectedPiece)return;
@@ -355,8 +355,8 @@ canvas.addEventListener('pointerdown',e=>{
   const center={x:(points[0].x+points[1].x)*.5,y:(points[0].y+points[1].y)*.5};
   const bounds=wrapper.getBoundingClientRect();
   const ox=bounds.left+bounds.width*.5,oy=bounds.top+bounds.height*.5;
-  pinchAnchor={worldX:canvas.width*.5+(center.x-ox-panX)/zoom,
-               worldY:canvas.height*.5+(center.y-oy-panY)/zoom};
+  pinchAnchor={worldX:board.viewportWidth*.5+(center.x-ox-panX)/zoom,
+               worldY:board.viewportHeight*.5+(center.y-oy-panY)/zoom};
   canvas.setPointerCapture(e.pointerId);e.preventDefault();return;
  }
  if(pointers.size>2||dragId!==null)return;
@@ -384,8 +384,8 @@ canvas.addEventListener('pointermove',e=>{
   const ox=bounds.left+bounds.width*.5,oy=bounds.top+bounds.height*.5;
   zoom=Math.max(1,Math.min(2.2,pinchStartZoom*current/Math.max(1,pinchDistance)));
   if(pinchAnchor){
-   panX=center.x-ox-(pinchAnchor.worldX-canvas.width*.5)*zoom;
-   panY=center.y-oy-(pinchAnchor.worldY-canvas.height*.5)*zoom;
+   panX=center.x-ox-(pinchAnchor.worldX-board.viewportWidth*.5)*zoom;
+   panY=center.y-oy-(pinchAnchor.worldY-board.viewportHeight*.5)*zoom;
   }
   applyZoom();e.preventDefault();return;
  }
@@ -396,8 +396,8 @@ canvas.addEventListener('pointermove',e=>{
  }
  if(e.pointerId!==dragId||!board.selectedPiece)return;
  const pos=point(e),p=board.selectedPiece;
- const x=Math.max(-board.pieceWidth*.15,Math.min(canvas.width-board.pieceWidth*.85,pos.x-dragX));
- const y=Math.max(-board.pieceHeight*.15,Math.min(canvas.height-board.pieceHeight*.85,pos.y-dragY));
+ const x=Math.max(-board.pieceWidth*.15,Math.min(board.viewportWidth-board.pieceWidth*.85,pos.x-dragX));
+ const y=Math.max(-board.pieceHeight*.15,Math.min(board.viewportHeight-board.pieceHeight*.85,pos.y-dragY));
  if(Math.hypot(x-p.x,y-p.y)>2)dragMoved=true;
  board.moveSelectionTo(x,y);board.renderDrag();e.preventDefault();
 });
