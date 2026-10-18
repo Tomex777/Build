@@ -43,8 +43,10 @@ section{scroll-margin-top:22px}.panel{background:#fff;border:1px solid #e0e6e1;b
 .loading{text-align:center;padding:36px;color:#78877d}
 @media(max-width:560px){main{padding:27px 17px 85px}.top-inner{padding:16px 17px}.panel{padding:20px}.action{padding:17px;min-height:167px}.action svg{margin-bottom:15px}.join-form{display:flex;padding:12px;gap:8px}.join-form .btn{padding:11px}.room-top{margin-bottom:17px}.room-meta{padding:15px 13px}.board{border-width:5px;gap:5px;border-radius:11px}}
 @media(prefers-reduced-motion:no-preference){.cell{transition:background .12s}.action,.btn{transition:background .12s,border-color .12s}}
+
+.nav-ico{display:inline-block;width:16px;height:16px;vertical-align:middle;flex:none}.top a.back,.room-top #lobbyBtn{display:inline-flex;align-items:center;gap:6px}
 </style></head><body>
-<header class="top"><div class="top-inner"><a class="brand" href="/dashboard"><span class="brand-symbol"><svg viewBox="0 0 32 32" fill="none"><path fill="currentColor" d="M5 20a11 11 0 0 1 22 0v2H5zm0 4h22v2H5z"/></svg></span>NIGHT <span style="font-weight:500;color:#75837a;font-size:13px">PLAY</span></a><a class="back" href="/games">← Games</a></div></header>
+<header class="top"><div class="top-inner"><a class="brand" href="/dashboard"><span class="brand-symbol"><svg viewBox="0 0 32 32" fill="none"><path fill="currentColor" d="M5 20a11 11 0 0 1 22 0v2H5zm0 4h22v2H5z"/></svg></span>NIGHT <span style="font-weight:500;color:#75837a;font-size:13px">PLAY</span></a><a class="back" href="/games"><svg class="nav-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5m6-6-6 6 6 6"/></svg>Games</a></div></header>
 <main><div class="kicker">ONLINE BOARD GAME</div><h1>Tic-Tac-Toe</h1><p class="subtitle">Two people. Two devices. One live board.</p>
 <div id="loading" class="loading">Checking your account…</div>
 <section id="connect" class="panel" hidden><h2>Connect to play online</h2><p>Use your NIGHT Play WhatsApp account to play with another person. Solo and offline modes stay available.</p><a class="btn" href="/profile">Connect WhatsApp</a></section>
@@ -55,7 +57,7 @@ section{scroll-margin-top:22px}.panel{background:#fff;border:1px solid #e0e6e1;b
  <div class="resume"><h2>Continue playing</h2><div id="matchList"></div></div>
 </section>
 <section id="room" hidden>
- <div class="room-top"><div class="kicker">MATCH IN PROGRESS</div><button class="btn ghost" id="lobbyBtn" type="button">← Lobby</button></div>
+ <div class="room-top"><div class="kicker">MATCH IN PROGRESS</div><button class="btn ghost" id="lobbyBtn" type="button"><svg class="nav-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5m6-6-6 6 6 6"/></svg>Lobby</button></div>
  <div class="room-meta"><div><small>You</small><strong id="mySide">X</strong></div><div style="text-align:right"><small>Opponent</small><strong id="opponent">Waiting…</strong></div></div>
  <div class="room-status" aria-live="polite"><strong id="turnStatus">Waiting for opponent</strong><p id="matchDetails"></p></div>
  <div id="board" class="board" role="group" aria-label="Online Tic-Tac-Toe board"></div>
