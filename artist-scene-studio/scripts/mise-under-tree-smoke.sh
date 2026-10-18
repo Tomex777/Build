@@ -15,10 +15,12 @@ fi
 result=0
 for suite in UnderTreeSceneInstrumentedTest MountainTerrainInstrumentedTest; do
   echo "===== Mise Android QA suite: $suite =====" | tee -a mise-under-tree-test.log
+  # Invalidate only Android test outputs, not the compiled app.
+  rm -rf app/build/outputs/androidTest-results/connected
   timeout --signal=TERM --kill-after=10s 300s gradle :app:connectedDebugAndroidTest \
     -Pandroid.injected.androidTest.leaveApksInstalledAfterRun=true \
     "-Pandroid.testInstrumentationRunnerArguments.class=studio.artistscene.app.$suite" \
-    --rerun-tasks --stacktrace 2>&1 | tee -a mise-under-tree-test.log
+    --stacktrace 2>&1 | tee -a mise-under-tree-test.log
   outcome=${PIPESTATUS[0]}
   if [[ "$outcome" -ne 0 ]]; then
     echo "Mise suite FAILED: $suite (status $outcome)" | tee -a mise-under-tree-test.log
