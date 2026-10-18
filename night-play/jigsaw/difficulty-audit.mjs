@@ -94,6 +94,35 @@ try{
   await cdp.detach();
   const moved=await p.evaluate(()=>window.__nightJigsawTest.snapshot());
   assert.ok(Math.abs(moved.panY-after.panY)>5,'Two-finger pan moves camera even without a blank drag area: '+JSON.stringify({before:after.panY,after:moved.panY}));
+  // At 144 pieces the smallest Android hit targets must still track a real
+  // finger precisely after high-DPI rendering and camera zoom.
+  const target=await p.evaluate(()=>{
+   const s=window.__nightJigsawTest.snapshot(),r=document.getElementById('puzzleCanvas').getBoundingClientRect();
+   const mx=r.width/s.viewport.w,my=r.height/s.viewport.h;
+   const found=s.pieces.filter(a=>!a.placed).map(a=>({
+    x:r.left+(a.x+s.board.pieceWidth*.5)*mx,
+    y:r.top+(a.y+s.board.pieceHeight*.5)*my
+   })).find(a=>a.x>30&&a.x<innerWidth-30&&a.y>78&&a.y<innerHeight-54);
+   return found||null;
+  });
+  assert.ok(target,'There is at least one accessible high-count piece at magnification');
+  const touch=await p.context().newCDPSession(p);
+  const send=(type,x,y)=>touch.send('Input.dispatchTouchEvent',{type,touchPoints:type==='touchEnd'?[]:[{id:33,x,y,radiusX:6,radiusY:6,force:.9}]});
+  await send('touchStart',target.x,target.y);
+  await p.waitForFunction(()=>window.__nightJigsawTest.snapshot().selected!==null,null,{timeout:3500});
+  const selectedStart=await p.evaluate(()=>window.__nightJigsawTest.snapshot().selected);
+  const dx=target.x<320?20:-20,dy=target.y>690?-24:24;
+  for(let step=1;step<=12;step++){
+   await send('touchMove',target.x+dx*step/12,target.y+dy*step/12);
+   await new Promise(ok=>setTimeout(ok,14));
+  }
+  const selectedEnd=await p.evaluate(()=>window.__nightJigsawTest.snapshot().selected);
+  assert.ok(Math.hypot(selectedEnd.x-selectedStart.x,selectedEnd.y-selectedStart.y)>7,
+   'Android high-DPI loose piece follows finger while zoomed');
+  await send('touchEnd',0,0);await touch.detach();
+  assert.ok((await p.evaluate(()=>window.__nightJigsawTest.snapshot())).moves>=1,
+   'High-piece drag commits a move after touch release');
+  console.log('DPR_DRAG_PASS='+JSON.stringify({deviceScaleFactor,id:selectedStart.id,start:selectedStart,end:selectedEnd}));
   const shot=await p.screenshot({type:'jpeg',quality:63});
   writeFileSync(path.join(output,'ANDROID-DPR-'+deviceScaleFactor+'-144-ZOOM.jpg'),shot);
   console.log('DPR_SCREEN_'+deviceScaleFactor+'='+shot.toString('base64'));
