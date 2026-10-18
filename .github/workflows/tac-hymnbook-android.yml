@@ -62,14 +62,20 @@ jobs:
       - name: Boot emulator and test app
         uses: reactivecircus/android-emulator-runner@v2
         with:
-          api-level: 30
+          api-level: 29
           arch: x86_64
           target: google_apis
-          profile: pixel_5
-          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim
+          profile: pixel_2
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -no-snapshot -memory 2048 -cores 2
           disable-animations: true
           script: |
-            adb install -r ./dist/app-debug.apk
+            adb wait-for-device
+            for attempt in 1 2 3; do
+              if adb install --no-streaming -r ./dist/app-debug.apk; then break; fi
+              if [ "$attempt" -eq 3 ]; then exit 1; fi
+              adb wait-for-device
+              sleep 10
+            done
             adb shell am start -W -n com.night.tachymns/.MainActivity
             sleep 4
             adb shell pidof com.night.tachymns
