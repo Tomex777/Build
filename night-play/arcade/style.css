@@ -161,3 +161,64 @@ body:has(#screen.mode-blocks:not([hidden])) .canvas-shell{min-width:0}
  .block-control-layout{gap:7px}
  .block-move-group,.block-action-group{gap:4px}
 }
+
+/* Wing Hop: large immersive playfield with live viewport sizing. The game
+   itself is the flap target, so no duplicate on-screen flap control. */
+#wingSkin[hidden]{display:none!important}
+#wingSkin{
+ position:absolute;right:7px;top:50%;transform:translateY(-50%);
+ display:grid;place-items:center;
+ width:86px;min-height:35px;padding:0 6px;
+ font-size:10px;font-weight:900;letter-spacing:.1px;line-height:1;
+ border:1px solid #c9dbd0;border-radius:10px;background:#f1f7f1;color:#26543c;
+}
+#wingSkin:active{background:#dcebe0}
+body:has(#screen.mode-bird:not([hidden])) .night-play-hud{
+ position:relative;
+ padding-inline:90px;
+ margin-bottom:6px;
+}
+#screen.mode-bird{
+ box-sizing:border-box;
+ width:var(--wing-fit-width,min(100%,520px));
+ height:var(--wing-fit-height, min(68dvh,680px));
+ max-width:100%;
+ min-height:0;
+ max-height:none;
+ aspect-ratio:auto;
+ border:3px solid #2e695a;
+ border-radius:12px;
+ box-shadow:0 6px 0 #b4cac1,0 12px 24px #315f4a24;
+ touch-action:manipulation;
+}
+body:has(#screen.mode-bird:not([hidden])) .canvas-shell{min-width:0}
+body:has(#screen.mode-bird:not([hidden])) .touchbar{display:none}
+body:has(#screen.mode-bird:not([hidden])) #message,
+body:has(#screen.mode-bird:not([hidden])) #extra{display:none}
+body:has(#screen.mode-bird:not([hidden])) .night-action-row{
+ margin:9px auto 5px;
+}
+@media(max-width:650px){
+ body:has(#screen.mode-bird:not([hidden])) main{padding:6px 7px 8px}
+ body:has(#screen.mode-bird:not([hidden])) .night-game-intro{padding:0 0 6px}
+ body:has(#screen.mode-bird:not([hidden])) .night-game-intro h1{margin:0;font-size:25px}
+ body:has(#screen.mode-bird:not([hidden])) .night-game-intro .night-eyebrow,
+ body:has(#screen.mode-bird:not([hidden])) .night-game-intro p{display:none}
+ body:has(#screen.mode-bird:not([hidden])) .night-play-hud{
+  margin-bottom:6px;padding:5px 88px 5px 7px;min-height:43px
+ }
+ body:has(#screen.mode-bird:not([hidden])) .night-hud-value{min-width:63px}
+ body:has(#screen.mode-bird:not([hidden])) .night-action-row{margin:8px auto 5px}
+ body:has(#screen.mode-bird:not([hidden])) .night-action-row button{min-height:39px}
+ #screen.mode-bird{width:var(--wing-fit-width,100%);max-width:100%}
+}
+@media(min-width:651px) and (max-height:620px){
+ body:has(#screen.mode-bird:not([hidden])) .night-shell-header{height:48px!important}
+ body:has(#screen.mode-bird:not([hidden])) main{padding:4px 9px 6px}
+ body:has(#screen.mode-bird:not([hidden])) .night-game-intro{padding:0 0 4px}
+ body:has(#screen.mode-bird:not([hidden])) .night-game-intro h1{font-size:23px;margin:0}
+ body:has(#screen.mode-bird:not([hidden])) .night-game-intro .night-eyebrow,
+ body:has(#screen.mode-bird:not([hidden])) .night-game-intro p{display:none}
+ body:has(#screen.mode-bird:not([hidden])) .night-play-hud{margin-bottom:5px;padding-top:3px;padding-bottom:3px}
+ body:has(#screen.mode-bird:not([hidden])) .night-action-row{margin:4px auto}
+}
