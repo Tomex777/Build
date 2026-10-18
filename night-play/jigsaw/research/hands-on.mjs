@@ -71,12 +71,25 @@ async function openProduction(name,mobile=false){
   const candidates=page.locator('canvas:visible');const count=await candidates.count();entry.canvasCount=count;
   if(count){
    const canvas=candidates.first();
-   entry.drag=mobile?await dragTouch(page,canvas):await dragMouse(page,canvas);
-   await delay(450);entry.screenshotAfter=await shot(page,name+'-after-drag');
-   if(!mobile){const b=await canvas.boundingBox();if(b){await page.mouse.move(b.x+b.width*.5,b.y+b.height*.5);await page.mouse.wheel(0,-450);await delay(550);entry.screenshotZoom=await shot(page,name+'-after-wheel');}}
-   for(const rx of [/edge pieces/i,/^edges?$/i,/^edge filter$/i]){
-    let b=page.getByRole('button',{name:rx}).first();if(await b.count()&&await b.isVisible()){await b.click({timeout:3000});entry.edgeTool=rx.source;await delay(450);entry.screenshotEdge=await shot(page,name+'-edge-filter');break}
+   // Coordinates are chosen from first-run screenshots of actual visible pieces.
+   // Do not merely drag a blank board region and call it gameplay.
+   if(mobile){
+    const cdp=await page.context().newCDPSession(page),from={x:65,y:122},to={x:148,y:420};
+    const dispatch=(type,x,y)=>cdp.send('Input.dispatchTouchEvent',{type,touchPoints:type==='touchEnd'?[]:[{x,y,id:1,radiusX:6,radiusY:6,force:.8}]});
+    await dispatch('touchStart',from.x,from.y);
+    for(let i=1;i<=26;i++){let t=i/26;await dispatch('touchMove',Math.round(from.x+(to.x-from.x)*t),Math.round(from.y+(to.y-from.y)*t));await delay(18);}
+    await dispatch('touchEnd',to.x,to.y);await cdp.detach();entry.drag={from,to};
+   }else{
+    const from={x:106,y:174},to={x:344,y:288};await page.mouse.move(from.x,from.y);await page.mouse.down();
+    await page.mouse.move(to.x,to.y,{steps:35});await page.mouse.up();entry.drag={from,to};
    }
+   await delay(500);entry.screenshotAfter=await shot(page,name+'-after-drag');
+   const edge=page.locator('button[title="Show Edges & Corners Only"]');
+   if(await edge.count()&&await edge.first().isVisible()){await edge.first().click({timeout:3000});entry.edgeTool='clicked actual edges toggle';await delay(450);entry.screenshotEdge=await shot(page,name+'-edges-only');}
+   const ref=page.locator('button[title^="Reference Background:"]');
+   if(await ref.count()&&await ref.first().isVisible()){await ref.first().click({timeout:3000});entry.referenceTool='clicked actual reference guide';await delay(450);entry.screenshotReference=await shot(page,name+'-reference-overlay');}
+   const zoom=page.locator('button[title="Zoom In"]');
+   if(await zoom.count()&&await zoom.first().isVisible()){await zoom.first().click({timeout:3000});entry.zoomClicked=true;await delay(450);entry.screenshotZoom=await shot(page,name+'-zoom-in');}
   }
   entry.after=await describePage(page);
   if(!started)entry.errors.push('Could not identify Play button from rendered detail');
