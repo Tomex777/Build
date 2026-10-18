@@ -49,5 +49,15 @@ try{
  const gp=await page.screenshot({type:'jpeg',quality:65,fullPage:true});
  writeFileSync(path.join(out,'JIGSAW-LIVE-PHOTO-PLAY.jpg'),gp);
  console.log('LIVE_PHOTO_GAME_BASE64='+gp.toString('base64'));
- if(!state.active||photos.some(photo=>photo.width<300)||state.imageVariance<15)process.exitCode=1;
+ await page.setViewportSize({width:1280,height:850});
+ await page.waitForTimeout(320);
+ const desktop=await page.evaluate(()=>{
+  const b=window.__nightJigsawTest.snapshot(),w=document.getElementById('puzzleCanvas').width;
+  return {active:b.activeRound,pieces:b.pieces.length,board:b.board,canvasWidth:w,unsolved:b.pieces.filter(p=>!p.placed).length};
+ });
+ const ds=await page.screenshot({type:'jpeg',quality:68,fullPage:true});
+ writeFileSync(path.join(out,'JIGSAW-LIVE-PHOTO-DESKTOP.jpg'),ds);
+ console.log('REAL_PHOTO_QA_DESKTOP='+JSON.stringify(desktop));
+ console.log('LIVE_PHOTO_DESKTOP_BASE64='+ds.toString('base64'));
+ if(!state.active||photos.some(photo=>photo.width<300)||state.imageVariance<15||!desktop.active||desktop.pieces!==24||desktop.board.x<80)process.exitCode=1;
  }finally{await browser?.close();await new Promise(ok=>server.close(ok));}
