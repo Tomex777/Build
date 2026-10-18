@@ -1,0 +1,200 @@
+{
+  "schema": 1,
+  "description": "Offline TAC catalogue; only photo-backed Yoruba draft texts are shown; external URLs are research references.",
+  "hymns": [
+    {
+      "number": 1,
+      "collection": "main",
+      "title_yo": "Ọlọrun ayé àti ọrun",
+      "title_en": "Lord of All Being, Throned Afar",
+      "source_pages": [
+        1
+      ],
+      "verses_yo": [],
+      "verses_en": [],
+      "text_status": "missing",
+      "source_url": "https://www.scribd.com/document/859543609/HYMN-NCGM"
+    },
+    {
+      "number": 2,
+      "collection": "main",
+      "title_yo": "Gbogbo ayé, gbé Jésù ga",
+      "title_en": "All Hail the Power of Jesus' Name",
+      "source_pages": [
+        1
+      ],
+      "verses_yo": [],
+      "verses_en": [],
+      "text_status": "missing",
+      "source_url": "https://yorubahymns.blogspot.com/2015/09/gbogbo-aye-gbe-jesu-ga.html"
+    },
+    {
+      "number": 3,
+      "collection": "main",
+      "title_yo": "Fí ìyìn fún Jésù Olùràpadà wa",
+      "title_en": "Praise Him! Praise Him!",
+      "source_pages": [
+        1,
+        2
+      ],
+      "verses_yo": [],
+      "verses_en": [],
+      "text_status": "missing",
+      "source_url": "https://www.ferventxtian.com/yoruba-hymn-fiyin-fun-jesu-olurapada-wa-praise-him-praise-him/"
+    },
+    {
+      "number": 4,
+      "collection": "main",
+      "title_yo": "Níwájú ìtẹ́ àánú",
+      "title_en": "We Worship and Adore Thee",
+      "source_pages": [
+        2
+      ],
+      "verses_yo": [
+        [
+          "Níwájú ìtẹ́ àánú",
+          "Àwa wọlé fún Ọ",
+          "Àwa ń yin Ọ, Olúwa",
+          "Ó dùn láti mọ Ọ."
+        ],
+        [
+          "Àwa ń júbà Rẹ Jésù",
+          "Ẹni tí a pa fún wa",
+          "Ìwọ tó ń jọba lókè",
+          "Tó sì tún ń padà bọ̀."
+        ],
+        [
+          "Àwa ń júbà Rẹ Jésù",
+          "Fún ìràpadà wa",
+          "Ìwọ fẹ́ wa láìfẹ̀tàn",
+          "Àwa yóò máa yin Ọ."
+        ],
+        [
+          "Àwa ń júbà Rẹ Jésù",
+          "Ọpẹ́ ńlá ló yẹ Ọ",
+          "Títí la ó máa yin Ọ",
+          "A ó sì ṣe Ọ l'Ọba."
+        ]
+      ],
+      "verses_en": [],
+      "text_status": "draft_photo_checked",
+      "source_url": "https://gospelsongs.com.ng/niwaju-ite-anu-yoruba-hymn/"
+    },
+    {
+      "number": 5,
+      "collection": "main",
+      "title_yo": "Ọkàn mi, yin Ọba ọ̀run",
+      "title_en": "Praise, My Soul, the King of Heaven",
+      "source_pages": [
+        2
+      ],
+      "verses_yo": [],
+      "verses_en": [],
+      "text_status": "missing",
+      "source_url": "https://yorubabaptisthymns.com/hymn/301/"
+    },
+    {
+      "number": 6,
+      "collection": "main",
+      "title_yo": "Yin Ọlọ́run Abraham",
+      "title_en": "The God of Abraham Praise",
+      "source_pages": [
+        2,
+        3
+      ],
+      "verses_yo": [],
+      "verses_en": [],
+      "text_status": "missing",
+      "source_url": "https://yorubabaptisthymns.com/hymn/302/"
+    },
+    {
+      "number": 7,
+      "collection": "main",
+      "title_yo": "Pẹ̀lú dùùrù wúrà, gbogbo wọn dúró",
+      "title_en": "With Harps and with Vials",
+      "source_pages": [
+        3
+      ],
+      "verses_yo": [
+        [
+          "Pẹ̀lú dùùrù wúrà, gbogbo wọn dúró",
+          "Wọ́n ń kọ orin tuntun níwájú Olúwa",
+          "Sí ẹni tí ó fẹ́ wa tó wẹ ẹ̀ṣẹ̀ wa nù",
+          "Òun ni ògo, ọlá, yẹ fún láéláé. Àmín."
+        ],
+        [
+          "Ẹlẹ́ṣẹ̀ ni wọ́n ti jẹ́ nígbà kan rí",
+          "Nísinsìnyí, a ti wọ wọ́n láṣọ funfun."
+        ],
+        [
+          "Ó sọ ọlọ̀tẹ̀ di àlùfáà àti ọba",
+          "Ó gba wa, Ó sì kọ́ wa lórin tuntun yìí."
+        ],
+        [
+          "Àwa tí kò ní ìrètí kan láyé",
+          "Ìbá ṣe pé kò gba wa, níbo la ó lọ?"
+        ],
+        [
+          "Ó yẹ ká gbé ohùn ìyìn wa sókè",
+          "K'awọn tó yí wa ká lè kọrin dídùn yìí."
+        ]
+      ],
+      "verses_en": [],
+      "text_status": "draft_photo_checked",
+      "source_url": "https://www.scribd.com/document/859543609/HYMN-NCGM"
+    },
+    {
+      "number": 8,
+      "collection": "main",
+      "title_yo": "Èmi bá ní ẹgbẹ̀rún ahọ́n",
+      "title_en": "O for a Thousand Tongues to Sing",
+      "source_pages": [
+        3,
+        4
+      ],
+      "verses_yo": [],
+      "verses_en": [],
+      "text_status": "missing",
+      "source_url": "https://iom.webbuild.org.ng/hymns.php"
+    },
+    {
+      "number": 9,
+      "collection": "main",
+      "title_yo": "Ránṣẹ́ Ọlọ́run, ẹ lọ kéde Rẹ",
+      "title_en": "Ye Servants of God, Your Master Proclaim",
+      "source_pages": [
+        4
+      ],
+      "verses_yo": [],
+      "verses_en": [],
+      "text_status": "missing",
+      "source_url": "https://www.scribd.com/document/859543609/HYMN-NCGM"
+    },
+    {
+      "number": 10,
+      "collection": "main",
+      "title_yo": "Ẹ wọlé f'Ọba, Ológo jùlọ",
+      "title_en": "O Worship the King, All Glorious Above",
+      "source_pages": [
+        4
+      ],
+      "verses_yo": [],
+      "verses_en": [],
+      "text_status": "missing",
+      "source_url": "https://mycollectionofyorubahymns.blogspot.com/2014/01/e-wole-foba.html"
+    },
+    {
+      "number": 11,
+      "collection": "main",
+      "title_yo": "Ọlọ́run àwámárìdì!",
+      "title_en": null,
+      "source_pages": [
+        4
+      ],
+      "verses_yo": [],
+      "verses_en": [],
+      "text_status": "missing",
+      "source_url": null
+    }
+  ]
+}
