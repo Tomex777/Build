@@ -151,10 +151,10 @@ class AudioEngine(private val assets: AssetManager) {
                 voice.delayIndex=(voice.delayIndex+1)%voice.delay.size
             }
             // Bounded wet sends; shorter surfaces absorb more reverberant energy.
-            val wet=reverb.process(left,right)
+            reverb.process(left,right)
             val dryAttenuation=.72f
-            val l=softClip(left*dryAttenuation+wet.first)
-            val r=softClip(right*dryAttenuation+wet.second)
+            val l=softClip(left*dryAttenuation+reverb.wetLeft)
+            val r=softClip(right*dryAttenuation+reverb.wetRight)
             out[i*2]=(l*32767f).toInt().coerceIn(-32768,32767).toShort()
             out[i*2+1]=(r*32767f).toInt().coerceIn(-32768,32767).toShort()
             t+=timeStep
@@ -322,20 +322,25 @@ class AudioEngine(private val assets: AssetManager) {
             var i=0
             var dL=0f
             var dR=0f
-            fun process(x:Float,y:Float,feedback:Float,damp:Float):Pair<Float,Float> {
-                val outL=l[i];val outR=r[i]
-                dL=outL*(1f-damp)+dL*damp
-                dR=outR*(1f-damp)+dR*damp
+            var lastL=0f
+            var lastR=0f
+            fun process(x:Float,y:Float,feedback:Float,damp:Float) {
+                lastL=l[i];lastR=r[i]
+                dL=lastL*(1f-damp)+dL*damp
+                dR=lastR*(1f-damp)+dR*damp
                 l[i]=(x*.23f+dL*feedback).coerceIn(-4f,4f)
                 r[i]=(y*.23f+dR*feedback).coerceIn(-4f,4f)
                 i++;if(i>=size)i=0
-                return Pair(outL,outR)
             }
         }
         private val combs=arrayOf(Comb(1327),Comb(1613),Comb(1789),Comb(2099))
         private var feedbacks=FloatArray(combs.size)
         private var damp=.4f
         private var wet=.15f
+        var wetLeft=0f
+            private set
+        var wetRight=0f
+            private set
         fun configure(decay:Float,absorption:Float) {
             val seconds=decay.coerceIn(.12f,12f)
             for(i in combs.indices)
@@ -344,13 +349,15 @@ class AudioEngine(private val assets: AssetManager) {
             damp=(absorption*.58f).coerceIn(.02f,.7f)
             wet=(.07f+decay*.06f).coerceIn(.06f,.34f)
         }
-        fun process(left:Float,right:Float):Pair<Float,Float> {
+        fun process(left:Float,right:Float) {
             var outL=0f;var outR=0f
             for(i in combs.indices) {
-                val a=combs[i].process(left,right,feedbacks[i],damp)
-                outL+=a.first;outR+=a.second
+                val comb=combs[i]
+                comb.process(left,right,feedbacks[i],damp)
+                outL+=comb.lastL;outR+=comb.lastR
             }
-            return Pair(outL*wet*.38f,outR*wet*.38f)
+            wetLeft=outL*wet*.38f
+            wetRight=outR*wet*.38f
         }
     }
 }
