@@ -1505,7 +1505,7 @@ function pathView(){
 }
 const ANNOUNCEMENT_KEY="nightplay-announcement-v4";
 function updateBell(){
- const dismissed=getSaved(ANNOUNCEMENT_KEY)==="2026-10-13-preview-notice";
+ const dismissed=getSaved(ANNOUNCEMENT_KEY)===(window.nightActiveNoticeKey||"2026-10-13-preview-notice");
  document.getElementById("announcementBar").classList.toggle("dismissed",dismissed);
  if(dismissed)document.getElementById("announcementMore").innerHTML='Announcements <svg class="ui-icon" viewBox="0 0 24 24" focusable="false" aria-hidden="true"><use href="#icon-chevron"></use></svg>';
 }
@@ -1586,7 +1586,7 @@ document.addEventListener("keydown",e=>{
 document.getElementById("gameSearch").addEventListener("input",filterGames);
 document.getElementById("announcementMore").addEventListener("click",()=>toggleAnnouncement(document.getElementById("announcementHistory").hidden));
 document.getElementById("announcementHistoryClose").addEventListener("click",()=>toggleAnnouncement(false));
-document.getElementById("announcementDismiss").addEventListener("click",()=>{putSaved(ANNOUNCEMENT_KEY,"2026-10-13-preview-notice");toggleAnnouncement(false);document.getElementById("announcementMore").innerHTML='Announcements <svg class="ui-icon" viewBox="0 0 24 24" focusable="false" aria-hidden="true"><use href="#icon-chevron"></use></svg>';updateBell()});
+document.getElementById("announcementDismiss").addEventListener("click",()=>{putSaved(ANNOUNCEMENT_KEY,window.nightActiveNoticeKey||"2026-10-13-preview-notice");toggleAnnouncement(false);document.getElementById("announcementMore").innerHTML='Announcements <svg class="ui-icon" viewBox="0 0 24 24" focusable="false" aria-hidden="true"><use href="#icon-chevron"></use></svg>';updateBell()});
 
 function pauseLabel(text){const button=document.getElementById("pauseGame");if(!button)return;button.innerHTML='<svg class="ui-icon" viewBox="0 0 24 24" focusable="false" aria-hidden="true"><use href="#icon-pause"></use></svg> '+text}
 function stop(){if(snakeTimer){clearInterval(snakeTimer);snakeTimer=null}clearTttDrawResult();active="";gamePaused=false;pauseLabel("Pause")}
@@ -2098,4 +2098,5 @@ if(location.pathname.startsWith("/play/")){const id=location.pathname.split("/")
 </script>
 <script src="/account-client.js" defer></script>
 <script src="/profile-hub.js" defer></script>
+<script src="/site-notice.js" defer></script>
 </body></html>
