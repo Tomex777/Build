@@ -251,3 +251,14 @@ body:has(#playScreen:not([hidden])) .progress-footnote{display:none}
  .play-status .status-chip{padding:6px 8px}
  .play-status .save-indicator{padding:6px 7px}
 }
+
+/* Dense pieces: focus controls belong inside the same menu, never in a new HUD row. */
+.play-hud .mobile-zoom-tools{display:none;align-items:center;gap:6px;margin:6px 4px}
+.play-hud .mobile-zoom-tools button{display:flex;align-items:center;justify-content:center;flex:1;min-height:42px;
+ border:1px solid #dae5d9;border-radius:10px;background:#f2f6f0;color:#284d39;font-size:12px;font-weight:850}
+.play-hud .mobile-zoom-tools button .ico{width:19px;height:19px}
+.play-hud .mobile-zoom-tools button:disabled{opacity:.4}
+@media(max-width:720px){
+ .play-hud .mobile-zoom-tools{display:flex}
+ .play-hud .menu-zoom{padding:4px 12px 10px}
+}
