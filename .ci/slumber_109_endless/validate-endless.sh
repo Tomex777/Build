@@ -118,4 +118,13 @@ capture relaunch
 if ! node "Best" >/dev/null; then
   echo 'Endless best score was not persisted across relaunch' >&2; exit 1
 fi
-printf 'PASS: endless game start, pause, loss, persisted best, and AI-free settings\n' | tee "$OUT/PASS.txt"
+# The record must also be tied to the selected tune, not just a global total.
+tap_ui "Endless tiles"
+wait_ui "Piano Tiles"
+wait_ui "Best 103"
+capture tiles-song-record
+tap_ui "Happy Birthday"
+wait_ui "ENDLESS TILES"
+wait_ui "BEST 0"
+capture tiles-independent-song
+printf 'PASS: endless gameplay, per-song records, pause/loss, API insets and AI-free settings\n' | tee "$OUT/PASS.txt"
