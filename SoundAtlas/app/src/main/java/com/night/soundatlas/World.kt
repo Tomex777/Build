@@ -85,24 +85,33 @@ object AcousticSolver {
     fun evaluate(world: World, emitter: Emitter, at: V2 = emitter.at): AcousticCoefficients {
         val distance = at.distance(world.listener).coerceAtLeast(0.1f)
         var wallTransmission = 1f
+        var spectralLoss = 1f
         var occlusions = 0
         for (wall in world.walls) {
-            if (intersects(world.listener, at, wall.a, wall.b)) {
-                wallTransmission *= wall.material.transmission
-                if (wall.material != Material.OPEN) occlusions++
+            if (!intersects(world.listener, at, wall.a, wall.b) ||
+                wall.material == Material.OPEN) continue
+            wallTransmission *= wall.material.transmission
+            spectralLoss *= when(wall.material) {
+                Material.STONE -> .24f
+                Material.WOOD -> .43f
+                Material.GLASS -> .68f
+                Material.METAL -> .21f
+                Material.CURTAIN -> .38f
+                Material.OPEN -> 1f
             }
+            occlusions++
         }
         // Direction 0 looks north; angle uses world x,y. Position remains in meters.
         val azimuth = atan2(at.x - world.listener.x, -(at.y - world.listener.y)) - world.facing
         val pan = sin(azimuth).coerceIn(-1f, 1f)
         // Physically inspired, but intentionally approximate rather than a claim of measured simulation.
         val direct = (1f / (1f + 0.075f * distance + 0.009f * distance * distance)) *
-            wallTransmission.coerceAtLeast(0.002f)
+            wallTransmission.coerceAtLeast(.0001f)
         val zone = world.zones.lastOrNull { it.contains(world.listener) }
         return AcousticCoefficients(
             directGain = direct,
-            lowPassHz = (17000f / (1f + 0.024f * distance)) *
-                0.32f.pow(occlusions).coerceAtLeast(0.01f),
+            lowPassHz = ((17000f / (1f + 0.024f * distance)) *
+                spectralLoss).coerceIn(180f,18000f),
             reverbSeconds = zone?.decay ?: 0.30f,
             absorption = zone?.damping ?: 0.72f,
             pan = pan, distance = distance, occlusions = occlusions
