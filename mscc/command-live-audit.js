@@ -88,7 +88,7 @@ export const LIVE_CASES = Object.freeze({
 // The list is intentionally explicit. Even if a new command is registered,
 // it cannot inherit live permissions through a broad "safe-sounding" category.
 export const LIVE_NAMES = Object.freeze(Object.keys(LIVE_CASES))
-const BAD_RESPONSE = /^(?:use \.|reply to |could not|cannot |can't |failed|error\b|unknown |no (?:results|batch|audio|image|pdf)|not (?:available|found|configured)|sorry\b|unable to |something went wrong)/i
+const BAD_RESPONSE = /(?:\b(?:could not|cannot|can't|failed|error|unknown|unavailable|not configured|not found|unable to|no results|no images found|usage:)\b|^(?:use \.|reply to |no (?:batch|audio|image|pdf)))/i
 
 export function isTestOwner(ctx) { return ctx?.isSupremeOwner === true }
 export function isGroupTest(ctx) {
@@ -447,10 +447,19 @@ export function createLiveAuditManager({ load=()=>loadCommands(PUBLIC,{capabilit
           await send('🛑 NIGHT live audit stopped at '+job.done+'/'+job.total+'. Unfinished commands are NOT passed.')
         }
         const failed=[...results].filter(([,r])=>r.status==='FAILED').map(([name])=>name)
-        const passed=[...results].filter(([,r])=>r.status==='PASS').length
+        const omitted=registry.canonical.map(row=>row.name).filter(name=>!eligible.includes(name))
+      if (!failedOnly && omitted.length) {
+        // Full visibility: unexercised commands must not disappear from results.
+        const lines=omitted.map(name=>'⚪ .'+name)
+        for(let i=0;i<lines.length;i+=38) {
+          await send('*NOT LIVE-TESTED* ('+(i+1)+'–'+Math.min(i+38,lines.length)+' / '+lines.length+')\n'+
+            lines.slice(i,i+38).join('\n'))
+        }
+      }
+      const passed=[...results].filter(([,r])=>r.status==='PASS').length
         previous={failed,passed,skipped,results}
         await send('🌙 *NIGHT LIVE TEST REPORT*\n✅ '+passed+' WhatsApp operations passed\n'+
-          '❌ '+failed.length+' failed\n⚪ '+skipped+' public commands NOT live-tested\n'+
+          '❌ '+failed.length+' failed\n⚪ '+skipped+' public commands not executed in this run\n'+
           'Tests performed: '+job.done+'/'+job.total+
           '\nFailed: '+(failed.length?failed.map(n=>'.'+n).join(', '):'None detected')+
           '\nUse *.testall failed* to retry failed live tests.'+
