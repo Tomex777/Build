@@ -69,26 +69,91 @@ body[data-visitor-mode="true"] #page-studio,body[data-visitor-mode="true"] #page
 body[data-visitor-mode="true"] .topbar-inner{justify-content:center}
 @media(max-width:670px){.night-invite-panel{padding:15px}.night-invite-header{flex-wrap:wrap;gap:5px}.night-invite-bar{flex-direction:column}.night-invite-bar .button{width:100%}.night-invite-actions>span{margin-left:0;flex-basis:100%}.night-link-badge{padding:5px 8px}}
 
-/* Live sessions require signed, server-backed permissions, moderation and
-   revocation. Hide the local-only mock unless design review is explicit. */
-html[data-anonymous-design="no"] body>:not(#anonymousUnavailable){display:none!important}
-html[data-anonymous-design="yes"] #anonymousUnavailable{display:none!important}
-#anonymousUnavailable{min-height:100dvh;display:flex;flex-direction:column;padding:clamp(22px,4vw,52px);max-width:1060px;margin:auto}
-#anonymousUnavailable .anon-brand{display:flex;align-items:center;gap:12px;font-size:15px;font-weight:900;letter-spacing:-.5px}
-#anonymousUnavailable .anon-mark{width:35px;height:35px;border-radius:8px;background:#0b0f11;display:grid;place-items:center}
-#anonymousUnavailable .anon-mark svg{width:25px;height:25px}
-#anonymousUnavailable main{margin:auto 0;max-width:680px;padding:50px 0}
-#anonymousUnavailable h1{font-size:clamp(44px,8vw,88px);line-height:1.04;letter-spacing:-.065em;margin:0 0 23px;font-weight:900}
-#anonymousUnavailable p{color:#596a5f;font-size:clamp(15px,2vw,19px);line-height:1.7;max-width:520px;margin:0 0 29px}
-#anonymousUnavailable a.anon-back{display:inline-flex;align-items:center;min-height:46px;padding:12px 19px;background:#254c39;color:#fff;border-radius:11px;font-weight:850}
-#anonymousUnavailable a:focus-visible{outline:3px solid #518e68;outline-offset:4px}
+/* Real channel-owned Anonymous Nights entry. No simulated submissions are
+   shown in production. Session creation remains disabled until the bot has
+   server-side invitations, moderation and authorized publishing. */
+html[data-anonymous-design="no"] body>:not(#anonymousHub){display:none!important}
+html[data-anonymous-design="yes"] #anonymousHub{display:none!important}
+#anonymousHub{min-height:100dvh;background:#f7f8f6;color:#1b2920;font:400 14px/1.5 Inter,"Segoe UI",Arial,sans-serif}
+#anonymousHub *{box-sizing:border-box}
+#anonymousHub .anon-head{height:80px;border-bottom:1px solid #e2e7e0;background:#fbfcfa;display:flex;align-items:center;justify-content:space-between;padding:0 clamp(18px,5vw,55px);gap:16px}
+#anonymousHub .anon-brand{display:inline-flex;align-items:center;gap:11px;min-width:0;text-decoration:none;font-size:20px;letter-spacing:-.8px;font-weight:900;color:#17251d}
+#anonymousHub .anon-brand-mark{display:block;width:42px;height:42px;flex:none;border-radius:12px;overflow:hidden}
+#anonymousHub .anon-brand small{font-size:13px;font-weight:600;letter-spacing:0;color:#778479}
+#anonymousHub .anon-back{display:inline-flex;align-items:center;gap:7px;min-height:44px;white-space:nowrap;text-decoration:none;color:#35654c;font-size:12px;font-weight:800}
+#anonymousHub .anon-back svg{width:17px;height:17px;stroke:currentColor;stroke-width:1.8;fill:none;stroke-linecap:round;stroke-linejoin:round}
+#anonymousHub .anon-inner{max-width:900px;margin:0 auto;padding:clamp(31px,5vw,52px) 24px 110px}
+#anonymousHub .anon-eyebrow{color:#64836c;letter-spacing:1.7px;font-size:10px;font-weight:850}
+#anonymousHub h1{font-size:clamp(36px,6vw,57px);letter-spacing:-2.4px;line-height:1.07;margin:12px 0 13px;font-weight:880}
+#anonymousHub .anon-intro{color:#6a786e;max-width:625px;font-size:13px;line-height:1.75;margin:0 0 32px}
+#anonymousHub .anon-card{border:1px solid #dce5dc;border-radius:19px;background:#fff;padding:23px}
+#anonymousHub .anon-status h2{font-size:17px;letter-spacing:-.4px;margin:0 0 8px}
+#anonymousHub .anon-status p{font-size:12px;line-height:1.7;color:#6d7d72;margin:0 0 14px}
+#anonymousHub .anon-status [hidden]{display:none!important}
+#anonymousHub .anon-button{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:11px 17px;border:1px solid #c9d8cd;border-radius:11px;color:#2d5840;background:#fff;font-size:12px;font-weight:830;cursor:pointer;text-decoration:none}
+#anonymousHub .anon-button.primary{background:#265943;border-color:#265943;color:#fff}
+#anonymousHub .anon-button:disabled{background:#e4eae5;border-color:#e4eae5;color:#66776c;cursor:default}
+#anonymousHub .anon-button:focus-visible,#anonymousHub a:focus-visible,#anonymousHub select:focus-visible{outline:3px solid #6b9b7f;outline-offset:3px}
+#anonymousHub .anon-channel{display:flex;align-items:center;gap:14px}
+#anonymousHub .anon-channel-icon{display:grid;place-items:center;flex:0 0 48px;width:48px;height:48px;border-radius:13px;background:#e7efe9;color:#37704e}
+#anonymousHub .anon-channel-icon svg{width:25px;height:25px;stroke:currentColor;stroke-width:1.8;fill:none;stroke-linecap:round;stroke-linejoin:round}
+#anonymousHub .anon-channel small{display:block;color:#6b8974;letter-spacing:.8px;font-size:10px;font-weight:800}
+#anonymousHub .anon-channel h2{font-size:18px;letter-spacing:-.4px;margin:3px 0 5px;overflow-wrap:anywhere}
+#anonymousHub .anon-verified{font-size:11px;color:#327b52;font-weight:760}
+#anonymousHub .anon-verified:before{content:"";display:inline-block;width:7px;height:7px;margin-right:7px;border-radius:50%;background:#4a9b70}
+#anonymousHub .anon-feature{margin-top:17px}
+#anonymousHub .anon-feature-top{display:flex;gap:12px;justify-content:space-between;align-items:baseline;flex-wrap:wrap}
+#anonymousHub .anon-feature h2{margin:0;font-size:20px;letter-spacing:-.5px}
+#anonymousHub .anon-feature-state{font-size:11px;color:#8c6148;font-weight:800}
+#anonymousHub .anon-feature p{color:#69796e;font-size:13px;line-height:1.7;margin:12px 0 20px;max-width:630px}
+#anonymousHub .anon-chooser{display:block;font-weight:780;font-size:12px;color:#425e4d;margin:0 0 13px}
+#anonymousHub .anon-chooser select{margin-top:8px;width:100%;min-height:45px;border:1px solid #d6e2d9;border-radius:10px;padding:10px;background:#fff;color:#274333;outline:0}
+#anonymousHub [hidden]{display:none!important}
+@media(max-width:600px){
+ #anonymousHub .anon-head{height:72px;padding:0 19px}
+ #anonymousHub .anon-brand{font-size:17px}
+ #anonymousHub .anon-brand-mark{width:35px;height:35px;border-radius:10px}
+ #anonymousHub .anon-brand small{display:none}
+ #anonymousHub .anon-inner{padding:31px 24px 85px}
+ #anonymousHub .anon-intro{margin-bottom:26px}
+ #anonymousHub .anon-card{padding:19px;border-radius:16px}
+ #anonymousHub .anon-channel h2{font-size:16px}
+}
 </style>
 </head>
 <body>
-<section id="anonymousUnavailable" aria-labelledby="anonymousUnavailableHeading">
- <div class="anon-brand"><span class="anon-mark" aria-hidden="true"><svg viewBox="0 0 32 32"><path d="M5 19a11 11 0 0 1 22 0v2H5zm0 4h22v3H5z" fill="#fff"/></svg></span>NIGHT PLAY</div>
- <main><h1 id="anonymousUnavailableHeading">Anonymous Nights</h1><p>Submissions aren't open yet. Channel ownership, moderation and publishing must be verified on the server before a session can go live.</p><a href="/channels/" class="anon-back">Your channels</a></main>
+<section id="anonymousHub" aria-labelledby="anonymousHubHeading">
+ <header class="anon-head">
+  <a href="/dashboard" class="anon-brand" aria-label="NIGHT Play home"><svg class="anon-brand-mark" viewBox="0 0 108 108" role="img" aria-label="NIGHT"><path fill="#0B0F11" d="M0 0h108v108H0z"/><path fill="#F4F5F6" d="M24 54 C24 37.43 37.43 24 54 24 C70.57 24 84 37.43 84 54 L24 54 Z"/><path fill="#F4F5F6" d="M22 66h64v6H22z"/></svg>NIGHT <small>PLAY</small></a>
+  <a class="anon-back" href="/channels/"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 12H5m6-6-6 6 6 6"/></svg>Your channels</a>
+ </header>
+ <main class="anon-inner">
+  <span class="anon-eyebrow">CHANNEL TOOLS</span>
+  <h1 id="anonymousHubHeading">Anonymous Nights</h1>
+  <p class="anon-intro">Invite your channel followers to send anonymous messages, then review what gets published.</p>
+  <div class="anon-status anon-card" id="anonStatus" role="status" aria-live="polite">
+   <h2 id="anonStatusTitle">Checking channel access…</h2>
+   <p id="anonStatusText">Verifying your WhatsApp-linked channel.</p>
+   <a id="anonStatusLink" class="anon-button primary" href="/profile" hidden>Connect WhatsApp</a>
+   <button type="button" class="anon-button" id="anonRetry" hidden>Try again</button>
+  </div>
+  <section id="anonWorkspace" hidden aria-label="Anonymous Nights channel">
+   <label id="anonChooseLabel" class="anon-chooser" for="anonSelect" hidden>Channel
+    <select id="anonSelect" aria-label="Choose verified channel"></select>
+   </label>
+   <div class="anon-card anon-channel">
+    <span class="anon-channel-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="3"/><path d="M7 10h10M7 14h7"/></svg></span>
+    <div><small>YOUR CHANNEL</small><h2 id="anonChannelName"></h2><span class="anon-verified">Verified</span></div>
+   </div>
+   <section class="anon-card anon-feature" aria-label="Anonymous submissions">
+    <div class="anon-feature-top"><h2>Open an anonymous night</h2><span class="anon-feature-state">Not available yet</span></div>
+    <p>Channel access is verified, but anonymous invitations, moderation and publishing are not enabled on NIGHT Bot yet. No submissions or messages will be accepted until that service is ready.</p>
+    <button class="anon-button primary" type="button" disabled aria-label="Start anonymous night, not available yet">Start anonymous night</button>
+   </section>
+  </section>
+ </main>
 </section>
+
 <svg xmlns="http://www.w3.org/2000/svg" width="0" height="0" style="position:absolute;overflow:hidden" aria-hidden="true">
 <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12 4.2 4.2L19 6.7"/></symbol>
 <symbol id="i-eye" viewBox="0 0 24 24"><path d="M2.3 12S5.8 5.8 12 5.8 21.7 12 21.7 12 18.2 18.2 12 18.2 2.3 12 2.3 12Z"/><circle cx="12" cy="12" r="2.7"/></symbol>
@@ -161,7 +226,94 @@ html[data-anonymous-design="yes"] #anonymousUnavailable{display:none!important}
 <div class="backdrop" id="scheduleModal" role="presentation"><div class="modal" role="dialog" aria-modal="true" aria-labelledby="scheduleTitle"><div class="modal-head"><div><h2 id="scheduleTitle">Schedule an anonymous night</h2><p>Plan when your channel will open and close submissions.</p></div><button class="close-btn" data-close="scheduleModal" aria-label="Close dialog"><svg class="icon"><use href="#i-x"></use></svg></button></div><div class="modal-body"><div class="setting-block"><label class="input-label" for="scheduleStart">Starts at</label><input id="scheduleStart" class="text-input" type="datetime-local"></div><div class="setting-block"><label class="input-label" for="scheduleEnd">Ends at</label><input id="scheduleEnd" class="text-input" type="datetime-local"></div><div class="setting-desc">This demonstration updates the preview state. No real reminders or WhatsApp posts will be scheduled.</div></div><div class="modal-foot"><button class="button secondary" data-close="scheduleModal">Cancel</button><button class="button primary" id="confirmSchedule"><svg class="icon icon-sm"><use href="#i-calendar"></use></svg> Save schedule</button></div></div></div>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <script>
+/* Authenticated real channel lookup. The browser never assumes that possession
+   of a channel ID is permission to administer it; the signed-in backend lists
+   only channels the owner is entitled to see. */
+(()=> {
+ if(document.documentElement.dataset.anonymousDesign==='yes')return;
+ const $=id=>document.getElementById(id);
+ const state=(title,description,{connect=false,retry=false}={})=>{
+  $('anonStatus').hidden=false;$('anonWorkspace').hidden=true;
+  $('anonStatusTitle').textContent=title;
+  $('anonStatusText').textContent=description;
+  $('anonStatusLink').hidden=!connect;$('anonRetry').hidden=!retry;
+  if(connect){$('anonStatusLink').href='/profile';$('anonStatusLink').textContent='Connect WhatsApp';}
+ };
+ const api=async(action='status')=>{
+  const res=await fetch('/api/account',{
+   method:action==='status'?'GET':'POST',
+   headers:action==='status'?{}:{'content-type':'application/json'},
+   body:action==='status'?undefined:JSON.stringify({action}),
+   credentials:'same-origin',cache:'no-store',signal:AbortSignal.timeout(13000)
+  });
+  const data=await res.json();
+  if(!res.ok)throw new Error(data.error||'Channel verification is currently unavailable.');
+  return data;
+ };
+ const requested=new URLSearchParams(location.search).get('channel');
+ const showChannel=channel=>{
+  $('anonChannelName').textContent=channel.name||'WhatsApp Channel';
+  $('anonStatus').hidden=true;$('anonWorkspace').hidden=false;
+ };
+ let pending=0;
+ const load=async()=>{
+  const version=++pending;
+  if(location.pathname.startsWith('/anonymous/join/')){
+   state('This invitation is not active','Anonymous submissions are not open. Please ask the channel owner for an active invitation.');
+   return;
+  }
+  state('Checking channel access…','Verifying your WhatsApp-linked channel.');
+  try{
+   const session=await api();
+   if(version!==pending)return;
+   if(!session.linked){
+    state('Connect WhatsApp','Connect your NIGHT Play account to manage Anonymous Nights for a verified channel.',{connect:true});
+    return;
+   }
+   const result=await api('channel:list');
+   if(version!==pending)return;
+   const list=Array.isArray(result.channels)?result.channels.filter(c=>c.status==='connected'):[];
+   if(!list.length){
+    state('No verified channels','Connect and verify a WhatsApp Channel in Your channels before opening Anonymous Nights.');
+    $('anonStatusLink').href='/channels/';
+    $('anonStatusLink').textContent='Your channels';
+    $('anonStatusLink').hidden=false;
+    return;
+   }
+   const channel=requested?list.find(c=>c.id===requested):list[0];
+   if(!channel){
+    state('Channel not found','This channel is not verified on your NIGHT Play account. Open Your channels to choose a channel.');
+    $('anonStatusLink').href='/channels/';
+    $('anonStatusLink').textContent='Your channels';
+    $('anonStatusLink').hidden=false;
+    return;
+   }
+   if(list.length>1){
+    $('anonChooseLabel').hidden=false;
+    $('anonSelect').replaceChildren();
+    for(const item of list){
+     const option=document.createElement('option');
+     option.value=item.id;option.textContent=item.name||'WhatsApp Channel';
+     $('anonSelect').append(option);
+    }
+    $('anonSelect').value=channel.id;
+   }else $('anonChooseLabel').hidden=true;
+   showChannel(channel);
+  }catch(error){
+   if(version===pending)state('Channel unavailable','NIGHT could not verify your channel right now. Your WhatsApp account has not been disconnected.',{retry:true});
+  }
+ };
+ $('anonRetry').addEventListener('click',load);
+ $('anonSelect').addEventListener('change',()=>{
+  const channel=$('anonSelect').value;
+  location.href='/anonymous/?channel='+encodeURIComponent(channel);
+ });
+ load();
+})();
+</script>
+<script>
 (()=>{
+  if(document.documentElement.dataset.anonymousDesign!=='yes')return;
   const samplePosts=[
     {id:128,type:'confession',text:'I’ve been pretending I don’t miss my old friends. The truth is, I really do.',time:'2 min ago',status:'published'},
     {id:127,type:'opinion',text:'Being the quiet one doesn’t mean you have nothing to say.',time:'5 min ago',status:'published'},

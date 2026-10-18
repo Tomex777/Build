@@ -45,6 +45,14 @@ svg{display:block}
 .channel-proof span{display:block;text-transform:uppercase;font-size:9px;font-weight:800;letter-spacing:.9px;color:#6c7b70}
 .channel-proof code{font-size:12px;font-family:ui-monospace,Consolas,monospace;font-weight:750;color:#234332;display:block;overflow-wrap:anywhere;margin-top:7px;user-select:text}
 .channel-actions{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.channel-anonymous{display:flex;align-items:center;justify-content:space-between;gap:15px;flex-wrap:wrap;border-top:1px solid #e5e9e3;padding-top:17px;margin-top:15px}
+.channel-anonymous-copy{min-width:0;flex:1 1 160px}
+.channel-anonymous h3{margin:0 0 4px;color:#202b24;font-size:14px;font-weight:850;letter-spacing:-.25px}
+.channel-anonymous p{margin:0;font-size:11px;line-height:1.55;color:#738078}
+.channel-anonymous .btn{white-space:nowrap;gap:6px}
+.channel-anonymous .btn svg{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+@media(max-width:420px){.channel-anonymous .btn{width:100%}}
+
 .channel-confirm{width:100%;background:#faf2ef;border:1px solid #ecdad4;padding:12px;border-radius:12px}
 .channel-confirm p{font-size:12px;line-height:1.6;margin:0 0 11px;color:#70483f}
 .channel-confirm .actions{display:flex;flex-wrap:wrap;gap:8px}
@@ -204,7 +212,9 @@ function render() {
   for(const channel of channels){
     const card=make('article','channel-card')
     const header=make('div','channel-card-top')
-    const avatar=make('span','channel-avatar',(channel.name||'N').trim().slice(0,1).toUpperCase())
+    const avatar=make('span','channel-avatar')
+    // Avoid splitting surrogate pairs when a channel name begins with emoji.
+    avatar.innerHTML='<svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="3"/><path d="M6.5 10h11M6.5 14h7"/></svg>'
     const nameGroup=make('div')
     const name=make('h2','channel-name',channel.name||'WhatsApp Channel')
     const connected=channel.status==='connected'
@@ -212,7 +222,7 @@ function render() {
     nameGroup.append(name,pill)
     header.append(avatar,nameGroup)
     card.append(header)
-    const detail=connected?'You can manage this channel through NIGHT Play when channel publishing is enabled.':channel.status==='awaiting_admin'?'Make NIGHT an administrator in WhatsApp, then verify your channel.':'Publish the proof below as a new WhatsApp Channel post.'
+    const detail=connected?'Connected to your NIGHT Play account.':channel.status==='awaiting_admin'?'Make NIGHT an administrator in WhatsApp, then verify your channel.':'Publish the proof below as a new WhatsApp Channel post.'
     card.append(make('p','channel-summary',detail))
     let proof
     if(!connected){
@@ -234,6 +244,19 @@ function render() {
     }
     controls.append(action('Disconnect',()=>requestDisconnect(channel,card),'btn danger'))
     card.append(controls)
+    if(connected){
+      const destination='/anonymous/?channel='+encodeURIComponent(channel.id)
+      const panel=make('div','channel-anonymous')
+      const copy=make('div','channel-anonymous-copy')
+      copy.append(make('h3',null,'Anonymous Nights'),make('p',null,'Anonymous submissions and publishing for this channel.'))
+      const entry=make('a','btn primary')
+      entry.href=destination
+      entry.setAttribute('aria-label','Open Anonymous Nights for '+(channel.name||'this channel'))
+      entry.append(document.createTextNode('Open Anonymous Nights'))
+      entry.insertAdjacentHTML('beforeend','<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14m-6-6 6 6-6 6"/></svg>')
+      panel.append(copy,entry)
+      card.append(panel)
+    }
     $('channels').append(card)
   }
 }
