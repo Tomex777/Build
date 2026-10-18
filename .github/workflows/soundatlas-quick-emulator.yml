@@ -1,0 +1,58 @@
+name: Sound Atlas independent emulator smoke
+
+on:
+  push:
+    branches: [feature/sound-atlas-native-android]
+    paths:
+      - '.github/workflows/soundatlas-quick-emulator.yml'
+      - '.github/scripts/soundatlas_emulator_smoke.sh'
+  workflow_dispatch:
+    inputs:
+      release_run_id:
+        description: 'GitHub Action run containing signed Sound Atlas APK'
+        required: false
+        default: '39149555610'
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  actual-screen-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 55
+    steps:
+      - uses: actions/checkout@v4
+      - name: Obtain compiled and signed APK from successful build
+        env:
+          GH_TOKEN: ${{ github.token }}
+          APK_RUN_ID: ${{ inputs.release_run_id || '39149555610' }}
+        run: |
+          set -euo pipefail
+          mkdir -p SoundAtlas/app/build/outputs/apk/debug
+          gh run download "$APK_RUN_ID" --repo "$GITHUB_REPOSITORY" \
+            --name SoundAtlas-test-signed-APK \
+            --dir SoundAtlas/app/build/outputs/apk/debug
+          cp SoundAtlas/app/build/outputs/apk/debug/SoundAtlas-Android8-plus-test-signed.apk \
+             SoundAtlas/app/build/outputs/apk/debug/app-debug.apk
+          test -s SoundAtlas/app/build/outputs/apk/debug/app-debug.apk
+      - name: Boot Android, install APK and inspect seven actual screens
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 30
+          arch: x86_64
+          target: default
+          profile: pixel_4
+          cores: 4
+          ram-size: 4096M
+          disk-size: 4096M
+          disable-animations: true
+          emulator-options: -no-window -no-snapshot -noaudio -no-boot-anim -gpu swiftshader_indirect
+          script: bash .github/scripts/soundatlas_emulator_smoke.sh
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: SoundAtlas-real-emulator-visual-qa
+          path: SoundAtlas/qa-fast/
+          if-no-files-found: warn
+          retention-days: 60
