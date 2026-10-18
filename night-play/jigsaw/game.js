@@ -61,10 +61,22 @@ function applyZoom(){
  $('mobileZoomOut').disabled=zoom<=1.001;$('mobileZoomIn').disabled=zoom>=2.2;
  $('mobileZoomFit').textContent=zoom>1.02?'Fit all':'Magnify';
  $('mobileZoomFit').setAttribute('aria-label',zoom>1.02?'Fit entire puzzle on screen':'Magnify small puzzle pieces');
+ $('focusButton').setAttribute('aria-pressed',String(zoom>1.02));
+ $('focusButton').setAttribute('aria-label',zoom>1.02?'Fit the whole puzzle':'Magnify small pieces');
+ $('focusButton').title=zoom>1.02?'Fit the whole puzzle':'Magnify small pieces';
+ $('focusButton').querySelector('use').setAttribute('href',zoom>1.02?'#icon-zoom-out':'#icon-zoom-in');
 }
 function setZoom(value){
  zoom=Math.max(1,Math.min(2.2,Math.round(value*100)/100));
  if(zoom===1){panX=0;panY=0}applyZoom();
+}
+function updateDensityTools(){
+ const compact=window.matchMedia('(max-width:720px)').matches;
+ const dense=compact&&piecesCount>=72;
+ $('focusButton').hidden=!dense;
+ $('sweepButton').hidden=dense;
+ $('sweepMenuButton').hidden=!dense;
+ $('mobileZoomFit').hidden=dense;
 }
 function comfortableZoom(){
  // A 144-piece puzzle on a narrow phone otherwise produces 19–23px-high
@@ -174,6 +186,7 @@ function resetBoard(fresh=true,saved=null){
  if(!fresh&&saved?.board&&!board.restore(saved.board))board.buildPieces();
  else if(fresh||!saved?.board)board.buildPieces();
  board.showGhost=guideEnabled();
+ updateDensityTools();
  restoreCamera(fresh?null:saved);
  $('edgesButton').setAttribute('aria-pressed',String(board.edgeOnly));
  setStats();board.render();updateHelpUI();timerStop();timerStart();
@@ -447,6 +460,12 @@ $('sweepButton').addEventListener('click',()=>{
  if(!activeRound||won||paused)return;
  board.sweepLoose();sound.playDrop();saveGame();
 });
+$('sweepMenuButton').addEventListener('click',()=>{closeHudMenu();$('sweepButton').click()});
+$('focusButton').addEventListener('click',()=>{
+ if(!activeRound||won||paused)return;
+ setZoom(zoom>1.02?1:Math.max(1.4,comfortableZoom()));
+ saveGame();
+});
 function dialog(id){$(id).showModal()}
 document.querySelectorAll('[data-close]').forEach(b=>b.addEventListener('click',()=>$(b.dataset.close).close()));
 
@@ -535,7 +554,7 @@ document.addEventListener('fullscreenchange',updateFullscreenButton);
 $('victoryNext').addEventListener('click',()=>{$('victoryDialog').close();showGallery()});
 $('victoryReplay').addEventListener('click',()=>{$('victoryDialog').close();resetBoard(true)});
 $('imageFile').addEventListener('change',e=>onPhoto(e.target.files?.[0]));
-const resize=new ResizeObserver(()=>{if(!activeRound||$('playScreen').hidden)return;board.resize();positionPreview();applyZoom();board.render();saveGame()});
+const resize=new ResizeObserver(()=>{if(!activeRound||$('playScreen').hidden)return;board.resize();updateDensityTools();positionPreview();applyZoom();board.render();saveGame()});
 resize.observe(wrapper);
 document.addEventListener('visibilitychange',()=>{if(document.hidden){timerStop();endPreview();saveGame()}else timerStart()});
 window.addEventListener('pagehide',()=>{timerStop();saveGame()});
