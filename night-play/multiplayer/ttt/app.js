@@ -65,6 +65,7 @@
     :'Looking for another real NIGHT player. The board opens once you are matched.'
    $('invitePanel').hidden=!friend
    $('cancelWaiting').textContent=friend?'Cancel invitation':'Stop searching'
+   $('waitingBack').hidden=false;$('cancelWaiting').hidden=false
    if(friend&&room.code)$('code').textContent=room.code.match(/.{1,3}/g).join(' ')
    return
   }
@@ -156,8 +157,16 @@
   return new Promise(resolve=>dialog.addEventListener('close',()=>resolve(dialog.returnValue==='leave'),{once:true}))
  }
  async function leaveMatch(){
-  if(!room||requesting||!await askToLeave())return
-  const id=room.matchId;requesting=true
+  if(!room||requesting)return
+  const id=room.matchId,originalStatus=room.status
+  if(!await askToLeave())return
+  // A friend can join while a confirmation dialog is open. Never interpret
+  // 'cancel invitation' as permission to forfeit a newly active match.
+  if(room?.matchId!==id||room.status!==originalStatus){
+   setMessage('Your match has changed. Review it before leaving.',true)
+   return
+  }
+  requesting=true
   try{await api('match:leave',{matchId:id});if(room?.matchId===id)await lobby()}
   catch(error){setMessage(error.message,true)}
   finally{requesting=false}
