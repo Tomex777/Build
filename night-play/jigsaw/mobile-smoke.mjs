@@ -48,14 +48,24 @@ try{
  assert.equal(first.theme,'photo-pink-blooms');
  assert.equal(first.pieces.length,24,'New players begin with 24 jigsaw pieces');
  assert.equal(first.placed,0);
- assert.equal(await page.evaluate(()=>{const s=window.__nightJigsawTest.snapshot();return s.board.w>=document.getElementById('puzzleCanvas').width-7}),true,'Puzzle board fills nearly the full canvas width');
+ assert.equal(await page.evaluate(()=>{const s=window.__nightJigsawTest.snapshot();return s.board.w>=document.getElementById('puzzleCanvas').width-24}),true,'Puzzle board fills nearly the full canvas width');
  assert.equal(first.guide,false,'Picture guide must be off by default');
  assert.equal(await page.locator('#guideSwitch').isChecked(),false,'Guide switch starts unchecked');
  assert.equal(first.challengeMode,'relaxed');
  assert.equal(await page.locator('#previewRemaining').textContent(),'3 left');
  assert.equal(await page.locator('#hintRemaining').textContent(),'3 left');
  assert.equal(await page.locator('#canvasWrapper').evaluate(el=>getComputedStyle(el).borderTopWidth),'0px','No boxed tray frame');
- assert.equal(first.tray.y>first.board.y+first.board.h,true,'All loose pieces belong in the tray below');
+ assert.ok(first.board.y>20&&first.board.y+first.board.h<await page.evaluate(()=>document.getElementById('puzzleCanvas').height-20),'Puzzle is centered between two loose-piece areas on mobile');
+ assert.equal(await page.locator('#edgesButton').count(),1,'Edge-piece filtering is available');
+ assert.equal(await page.locator('#zoomIn').count(),1,'Zoom control is available');
+ assert.equal(first.zoom,1,'Tabletop starts at natural 100% size');
+ await page.locator('#zoomIn').click();
+ assert.ok((await page.evaluate(()=>window.__nightJigsawTest.snapshot())).zoom>1,'Zoom control enlarges tabletop');
+ await page.locator('#zoomReset').click();
+ assert.equal((await page.evaluate(()=>window.__nightJigsawTest.snapshot())).zoom,1,'Zoom reset restores natural size');
+ await page.locator('#edgesButton').click();
+ assert.equal((await page.evaluate(()=>window.__nightJigsawTest.snapshot())).edgeOnly,true,'Edges filter dims interior pieces');
+ await page.locator('#edgesButton').click();
  assert.equal(await page.locator('.game-topline .top-settings').count(),1,'Game settings stay in the header');
  assert.equal(await page.locator('.game-topline .wordmark .brand-logo use').getAttribute('href'),'#night-mark','Actual NIGHT brand mark');
  await page.screenshot({path:path.join(root,'visual-output/JIGSAW-PLAY-MOBILE.jpg'),type:'jpeg',quality:80,fullPage:true});
@@ -117,6 +127,7 @@ try{
  assert.equal(await page.locator('#progress').innerText(),'1 / 24','Touch drag moves piece into image');
  await page.locator('#hintButton').click();
  assert.equal(await page.locator('#progress').innerText(),'2 / 24','Hint places one unsolved piece');
+ assert.equal((await page.evaluate(()=>window.__nightJigsawTest.snapshot())).placed,2,'Touch drag and hint both count placed pieces');
  const beforeReload=await page.evaluate(()=>window.__nightJigsawTest.snapshot());
  await page.reload();
  assert.equal(await page.locator('#resumePanel').isVisible(),true,'Resume choice shown without a gallery flash');
@@ -218,7 +229,7 @@ try{
  assert.equal(await page.evaluate(()=>window.__nightJigsawTest.snapshot().pieces.length),144,'144 piece difficulty is playable');
  assert.equal(await page.locator('#progress').textContent(),'0 / 144');
  const huge=await page.evaluate(()=>window.__nightJigsawTest.snapshot());
- assert.ok(huge.tray.h>200,'Master difficulty retains an accessible loose-piece workspace');
+ assert.ok(huge.board.y>90,'Master difficulty still reserves space for loose pieces above the board');
  await page.locator('#pickPicture').click();
  assert.deepEqual(errors,[],'Jigsaw game must have no browser exceptions');
 
@@ -229,7 +240,7 @@ try{
  await desktop.goto(url+'/jigsaw/');await desktop.locator('[data-theme="photo-alpine-lake"]').click();
   await desktop.waitForFunction(()=>window.__nightJigsawTest?.snapshot().activeRound);
  const dl=await desktop.evaluate(()=>window.__nightJigsawTest.snapshot());
- assert.ok(dl.tray.x>dl.board.x+dl.board.w,'On desktop the tray sits alongside the board');
+ assert.ok(dl.board.x>90&&dl.board.x+dl.board.w<await desktop.evaluate(()=>document.getElementById('puzzleCanvas').width-90),'Desktop picture is centered between left and right scattering areas');
  assert.ok(await desktop.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+2));
  await desktop.screenshot({path:path.join(root,'visual-output/JIGSAW-PLAY-DESKTOP.jpg'),type:'jpeg',quality:75,fullPage:true});
  console.log('NIGHT_JIGSAW_DESKTOP_JPEG_BASE64='+(await desktop.screenshot({type:'jpeg',quality:50,fullPage:true})).toString('base64'));

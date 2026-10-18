@@ -48,7 +48,22 @@ const canvas=$('puzzleCanvas'),wrapper=$('canvasWrapper'),board=new PuzzleBoard(
 const sound=new SoundSynth(),confetti=new ConfettiSystem();
 let theme='photo-alpine-lake',category='all',piecesCount=24,customData=null,elapsed=0,secondsTimer=null,won=false,activeRound=false;
 let galleryReady=false,resumeCandidate=null;
-let dragId=null,dragX=0,dragY=0,dragMoved=false,dragRect=null,dragOriginX=0,dragOriginY=0,winAnimationId=null,winTimeout=null,toastTimeout=null;
+let dragId=null,dragX=0,dragY=0,dragMoved=false,dragRect=null,dragOrigins=null,winAnimationId=null,winTimeout=null,toastTimeout=null;
+let zoom=1,panX=0,panY=0,panId=null,panStart=null,pinchDistance=0,pinchStartZoom=1;
+const pointers=new Map();
+function applyZoom(){
+ const maxX=(zoom-1)*canvas.width*.5,maxY=(zoom-1)*canvas.height*.5;
+ panX=Math.max(-maxX,Math.min(maxX,panX));panY=Math.max(-maxY,Math.min(maxY,panY));
+ const transform='translate('+panX+'px,'+panY+'px) scale('+zoom+')';
+ canvas.style.transform=transform;board.dragCanvas.style.transform=transform;
+ $('zoomReset').textContent=Math.round(zoom*100)+'%';
+ $('zoomOut').disabled=zoom<=1.001;$('zoomIn').disabled=zoom>=2.2;
+}
+function setZoom(value){
+ zoom=Math.max(1,Math.min(2.2,Math.round(value*100)/100));
+ if(zoom===1){panX=0;panY=0}applyZoom();
+}
+
 const timeText=s=>String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0');
 function safeRead(key){try{return localStorage.getItem(key)}catch{return null}}
 function safeWrite(key,value){try{localStorage.setItem(key,value);return true}catch{return false}}
@@ -113,6 +128,7 @@ function resetBoard(fresh=true,saved=null){
  resetEffects();
  const dims=dimMap[piecesCount]||dimMap[24];
  board.setDimensions(...dims);board.showGhost=guideEnabled();
+ setZoom(1);board.edgeOnly=false;$('edgesButton').setAttribute('aria-pressed','false');
  $('openingPanel').hidden=true;$('resumePanel').hidden=true;$('galleryPanel').hidden=true;$('playScreen').hidden=false;
  wrapper.classList.toggle('master-puzzle',piecesCount===144);
  board.resize();
@@ -126,6 +142,7 @@ function resetBoard(fresh=true,saved=null){
  if(!fresh&&saved?.board&&!board.restore(saved.board))board.buildPieces();
  else if(fresh||!saved?.board)board.buildPieces();
  board.showGhost=guideEnabled();
+ $('edgesButton').setAttribute('aria-pressed',String(board.edgeOnly));
  setStats();board.render();updateHelpUI();timerStop();timerStart();
  if(fresh){saveGame();if(challengeMode==='memory')setTimeout(()=>{if(activeRound&&!won&&challengeMode==='memory'&&usedPreviews===0)showReference({automatic:true})},120)}
  window.scrollTo({top:0,behavior:'instant'});
@@ -139,7 +156,7 @@ async function startImage(id){
   await loadPhoto(id);
   if(loadVersion!==imageLoadVersion)return;
   timerStop();customData=null;theme=id;resetBoard(true);
-  showToast('Drag the pieces into the picture');
+  // Let the image and its pieces speak for themselves; no startup toast.
  }catch{
   if(loadVersion===imageLoadVersion)showToast('Picture could not load. Check your connection and retry.');
  }finally{card?.classList.remove('is-loading')}
@@ -273,60 +290,107 @@ function celebrate(){
  winTimeout=setTimeout(()=>{winTimeout=null;if(won&&!$('victoryDialog').open)$('victoryDialog').showModal()},650);
 }
 function refreshAfterMove(p){
- board.moveCount++;const snapped=board.checkSnap(p);
- if(snapped)sound.playSnap();
+ board.moveCount++;const snapped=board.checkSnap(p),joined=board.lastJoinCount>0;
+ board.selectedPieces=[];
+ if(snapped||joined)sound.playSnap({joined});else sound.playDrop();
  setStats();board.render();saveGame();
- if(snapped&&board.placedCount===board.totalPieces)celebrate();
+ if(board.placedCount===board.totalPieces)celebrate();
 }
 function point(e){
- // Cache the bounding box for the entire gesture: layout reads on every touch
- // move cause forced synchronization and visible drag latency on mobile.
+ // The CSS transform is applied equally to both canvases. The transformed
+ // bounding box converts touch coordinates back into original tabletop units.
  const r=dragRect||canvas.getBoundingClientRect();
  return {x:(e.clientX-r.left)*canvas.width/r.width,y:(e.clientY-r.top)*canvas.height/r.height};
 }
+function cancelSelection(){
+ if(!board.selectedPiece)return;
+ for(const p of board.selectedPieces){
+  const origin=dragOrigins?.get(p.id);if(origin){p.x=origin.x;p.y=origin.y;}
+ }
+ board.selectedPiece=null;board.selectedPieces=[];dragId=null;dragRect=null;
+ canvas.classList.remove('dragging');board.render();
+}
 canvas.addEventListener('pointerdown',e=>{
- if(!activeRound||won||dragId!==null||e.button!==0)return;
+ if(!activeRound||won||e.button!==0)return;
+ pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
+ if(pointers.size===2){
+  cancelSelection();panId=null;const points=[...pointers.values()];
+  pinchDistance=Math.hypot(points[0].x-points[1].x,points[0].y-points[1].y);
+  pinchStartZoom=zoom;
+  canvas.setPointerCapture(e.pointerId);e.preventDefault();return;
+ }
+ if(pointers.size>2||dragId!==null)return;
  dragRect=canvas.getBoundingClientRect();
  const pos=point(e),hit=board.getPieceAt(pos.x,pos.y);
- if(!hit){dragRect=null;return}
+ if(!hit){
+  dragRect=null;
+  if(zoom>1){panId=e.pointerId;panStart={clientX:e.clientX,clientY:e.clientY,x:panX,y:panY};canvas.setPointerCapture(e.pointerId);e.preventDefault();}
+  return;
+ }
  const piece=board.bringToTop(hit.index);board.selectedPiece=piece;
  dragId=e.pointerId;dragX=pos.x-piece.x;dragY=pos.y-piece.y;
- dragOriginX=piece.x;dragOriginY=piece.y;dragMoved=false;
- canvas.classList.add('dragging');canvas.setPointerCapture(e.pointerId);
+ dragOrigins=new Map(board.selectedPieces.map(p=>[p.id,{x:p.x,y:p.y}]));
+ dragMoved=false;canvas.classList.add('dragging');
+ canvas.setPointerCapture(e.pointerId);
  sound.playPickup();board.render();e.preventDefault();
 });
 canvas.addEventListener('pointermove',e=>{
+ if(pointers.has(e.pointerId))pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
+ if(pointers.size>=2&&pinchDistance>0){
+  const points=[...pointers.values()];
+  const current=Math.hypot(points[0].x-points[1].x,points[0].y-points[1].y);
+  setZoom(pinchStartZoom*current/Math.max(1,pinchDistance));e.preventDefault();return;
+ }
+ if(e.pointerId===panId&&panStart){
+  panX=panStart.x+(e.clientX-panStart.clientX);
+  panY=panStart.y+(e.clientY-panStart.clientY);
+  applyZoom();e.preventDefault();return;
+ }
  if(e.pointerId!==dragId||!board.selectedPiece)return;
- // With 24+ pieces, some pieces live below the visible phone screen.
- // Autoscroll a little at viewport edges so players can reach the puzzle
- // without dropping and re-grabbing. Normal movement avoids layout reads.
- const edge=Math.min(84,window.innerHeight*.14);
- let step=0;
- if(e.clientY<edge&&window.scrollY>0)step=-Math.min(13,Math.ceil((edge-e.clientY)*.24));
- else if(e.clientY>window.innerHeight-edge)step=Math.min(13,Math.ceil((e.clientY-(window.innerHeight-edge))*.24));
- if(step){window.scrollBy(0,step);dragRect=canvas.getBoundingClientRect()}
  const pos=point(e),p=board.selectedPiece;
  const x=Math.max(-board.pieceWidth*.15,Math.min(canvas.width-board.pieceWidth*.85,pos.x-dragX));
  const y=Math.max(-board.pieceHeight*.15,Math.min(canvas.height-board.pieceHeight*.85,pos.y-dragY));
  if(Math.hypot(x-p.x,y-p.y)>2)dragMoved=true;
- p.x=x;p.y=y;board.renderDrag();e.preventDefault();
+ board.moveSelectionTo(x,y);board.renderDrag();e.preventDefault();
 });
 function releaseDrag(e){
+ pointers.delete(e.pointerId);
+ if(pointers.size<2)pinchDistance=0;
+ if(e.pointerId===panId){
+  panId=null;panStart=null;if(canvas.hasPointerCapture(e.pointerId))canvas.releasePointerCapture(e.pointerId);
+  e.preventDefault();return;
+ }
  if(e.pointerId!==dragId||!board.selectedPiece)return;
- const p=board.selectedPiece;board.selectedPiece=null;dragId=null;dragRect=null;
+ const p=board.selectedPiece;
+ board.selectedPiece=null;dragId=null;dragRect=null;
  canvas.classList.remove('dragging');
  if(canvas.hasPointerCapture(e.pointerId))canvas.releasePointerCapture(e.pointerId);
  if(e.type==='pointercancel'){
-  p.x=dragOriginX;p.y=dragOriginY;board.render();e.preventDefault();return;
+  for(const item of board.selectedPieces){const origin=dragOrigins?.get(item.id);if(origin){item.x=origin.x;item.y=origin.y;}}
+  board.selectedPieces=[];board.render();e.preventDefault();return;
  }
- if(dragMoved||board.checkSnap(p)){ // snap only once, then count and complete
-  if(p.isPlaced){board.placedCount--;p.isPlaced=false;}
-  refreshAfterMove(p);
- }else{board.render();}
+ if(dragMoved)refreshAfterMove(p);
+ else{board.selectedPieces=[];board.render();}
  e.preventDefault();
 }
 canvas.addEventListener('pointerup',releaseDrag);
 canvas.addEventListener('pointercancel',releaseDrag);
+canvas.addEventListener('wheel',e=>{
+ if(!activeRound||won||(!e.ctrlKey&&!e.metaKey))return;
+ setZoom(zoom*(e.deltaY<0?1.1:1/1.1));e.preventDefault();
+},{passive:false});
+$('zoomIn').addEventListener('click',()=>setZoom(zoom*1.12));
+$('zoomOut').addEventListener('click',()=>setZoom(zoom/1.12));
+$('zoomReset').addEventListener('click',()=>setZoom(1));
+$('edgesButton').addEventListener('click',()=>{
+ board.edgeOnly=!board.edgeOnly;
+ $('edgesButton').setAttribute('aria-pressed',String(board.edgeOnly));
+ sound.playPickup();board.render();saveGame();
+});
+$('sweepButton').addEventListener('click',()=>{
+ if(!activeRound||won)return;
+ board.sweepLoose();sound.playDrop();saveGame();
+});
 function dialog(id){$(id).showModal()}
 document.querySelectorAll('[data-close]').forEach(b=>b.addEventListener('click',()=>$(b.dataset.close).close()));
 $('previewDialog').addEventListener('close',()=>{if(previewTimeout!==null){clearTimeout(previewTimeout);previewTimeout=null}timerStart()});
@@ -362,7 +426,7 @@ $('restartButton').addEventListener('click',()=>{if(theme==='custom'&&!customDat
 $('victoryNext').addEventListener('click',()=>{$('victoryDialog').close();showGallery()});
 $('victoryReplay').addEventListener('click',()=>{$('victoryDialog').close();resetBoard(true)});
 $('imageFile').addEventListener('change',e=>onPhoto(e.target.files?.[0]));
-const resize=new ResizeObserver(()=>{if(!activeRound||$('playScreen').hidden)return;board.resize();board.render();saveGame()});
+const resize=new ResizeObserver(()=>{if(!activeRound||$('playScreen').hidden)return;board.resize();applyZoom();board.render();saveGame()});
 resize.observe(wrapper);
 document.addEventListener('visibilitychange',()=>{if(document.hidden){timerStop();saveGame()}else timerStart()});
 window.addEventListener('pagehide',()=>{timerStop();saveGame()});
@@ -372,6 +436,7 @@ window.addEventListener('keydown',e=>{
 // Gallery is intentionally NOT rendered on page load when a saved puzzle exists.
  // This prevents an unfinished puzzle from flashing the full gallery before resuming.
 $('guideSwitch').checked=safeRead('night-play-jigsaw-guide')==='true';
+applyZoom();
 challengeMode=modeRules[safeRead('night-play-jigsaw-mode')]?safeRead('night-play-jigsaw-mode'):'relaxed';
 $('soundSwitch').checked=safeRead('night-play-jigsaw-sound')!=='false';
 sound.enabled=$('soundSwitch').checked;
@@ -384,11 +449,11 @@ else showGallery();
 if(location.hostname==='localhost'||location.hostname==='127.0.0.1'){
  window.__nightJigsawTest=Object.freeze({
   snapshot:()=>({theme,pieces:piecesCount,elapsed,won,activeRound,challengeMode,usedHints,usedPreviews,guide:board.showGhost,
-   activeDragId:dragId,staticPaints:board.staticPaintCount,dragPaints:board.dragPaintCount,
+   activeDragId:dragId,staticPaints:board.staticPaintCount,dragPaints:board.dragPaintCount,zoom,edgeOnly:board.edgeOnly,groups:new Set(board.pieces.filter(p=>!p.isPlaced).map(p=>p.group)).size,
    selected:board.selectedPiece?{id:board.selectedPiece.id,x:board.selectedPiece.x,y:board.selectedPiece.y}:null,
    placed:board.placedCount,moves:board.moveCount,
    board:{x:board.boardX,y:board.boardY,w:board.boardWidth,h:board.boardHeight,rows:board.rows,cols:board.cols,pieceWidth:board.pieceWidth,pieceHeight:board.pieceHeight},tray:{...board.tray},
-   pieces:board.pieces.map(p=>({id:p.id,x:p.x,y:p.y,correctX:p.correctX,correctY:p.correctY,placed:p.isPlaced}))}),
+   pieces:board.pieces.map(p=>({id:p.id,x:p.x,y:p.y,group:p.group,correctX:p.correctX,correctY:p.correctY,placed:p.isPlaced}))}),
   place:(i)=>{const p=board.pieces[i];if(!p||p.isPlaced)return false;p.x=p.correctX;p.y=p.correctY;refreshAfterMove(p);return true}
  });
 }
