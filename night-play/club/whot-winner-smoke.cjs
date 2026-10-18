@@ -56,7 +56,7 @@ async function finish(page,winner){
    const look=await page.locator('.table-surface').evaluate(el=>({bg:getComputedStyle(el).backgroundImage,shadow:getComputedStyle(el).boxShadow,radius:getComputedStyle(el).borderRadius}));
    assert.ok(look.bg.includes('data:image/svg+xml'),'tabletop uses original NIGHT vector woodgrain');
    assert.ok(look.shadow.includes('inset'),'NIGHT-framed wooden table has subtle depth and separation');
-   assert.equal(await page.locator('.whot-opponent-hand .card-back').count(),5,'show every CPU card rather than a single placeholder');
+   assert.equal(await page.locator('.whot-opponent-hand .card-back').count(),3,'computer hides its hand in one compact stack');
    const geometry=await page.evaluate(()=>{
      const rect=s=>{const e=document.querySelector(s),r=e.getBoundingClientRect();return {x:r.x,y:r.y,w:r.width,h:r.height}};
      return {cpu:rect('.whot-opponent-hand'),market:rect('.whot-deck-back'),discard:rect('.card-pile>.whot-card'),hand:rect('.hand .card-row'),
@@ -126,10 +126,10 @@ async function finish(page,winner){
    console.log('WHOT_CARD_DESIGN',width,JSON.stringify(design));
 
    const budget=await page.evaluate(()=>window.__nightWhotMotion().timings);
-   assert.ok(budget.player>=440&&budget.player<=500&&budget.cpu>=460&&budget.cpu<=510&&budget.draw>=430&&budget.draw<=490,'smooth FLIP glide matches natural reference rhythm');
-   assert.ok(budget.cpuDelay>=180&&budget.cpuDelay<=290,'CPU has a deliberate but not sluggish beat');
+   assert.ok(budget.player<=260&&budget.cpu<=280&&budget.draw<=260,'snappy GPU card flights stay below 280ms');
+   assert.ok(budget.cpuDelay>=80&&budget.cpuDelay<=135,'CPU answers promptly without an artificial delay');
    assert.ok(budget.deal<=450&&budget.dealStagger<=70,'initial dealing stays rhythmic');
-   assert.ok(budget.settle<=210&&budget.recenter>=320&&budget.recenter<=390,'hands glide into their new position');
+   assert.ok(budget.settle<=120&&budget.recenter>=140&&budget.recenter<=190,'hand settles promptly');
    const dealAnim=await page.locator('.hand .whot-card').last().evaluate(el=>{
      const active=el.getAnimations();return active.length?active[0].effect.getTiming():null
    });
@@ -197,12 +197,12 @@ async function finish(page,winner){
      transformStyle:getComputedStyle(el).transformStyle,
      backface:getComputedStyle(el.querySelector('.whot-flip-front')).backfaceVisibility
    }));
-   assert.ok(flipStyle.effect.includes(560),'3D card reveal shares the market flight');
+   assert.ok(flipStyle.effect.includes(290),'short 3D card reveal shares the market flight');
    assert.equal(flipStyle.transformStyle,'preserve-3d');
    assert.equal(flipStyle.backface,'hidden','reverse side must stay hidden while rotating');
       const motion=await drawPage.evaluate(()=>window.__nightWhotMotion());
    assert.equal(motion.lastFlightAction,'draw','market draw uses true flight animation');
-   assert.equal(motion.lastFlightDuration,460,'market draw glides smoothly across original two-pile market');
+   assert.equal(motion.lastFlightDuration,245,'market draw lands without delaying the player');
    await drawPage.waitForFunction(()=>window.__nightWhotMotion().activeFlights===0,null,{timeout:1800});
    assert.notEqual(await newFace.evaluate(el=>el.style.visibility),'hidden','new face reveals when the drawn back reaches its real position');
    assert.equal(await drawPage.locator('.hand .whot-card').count(),6,'no extra second-card popup');
