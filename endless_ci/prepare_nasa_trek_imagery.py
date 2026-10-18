@@ -28,7 +28,7 @@ SITE = {
     },
     "ceres": {
         "lat": 20.0, "lon": -121.0, "radius": 473.0,
-        "zoom": 6,
+        "zoom": 5,
         "id": "Ceres/EQ/Ceres_Dawn_FC_HAMO_ClrShade_DLR_Global_60ppd_Oct2016",
     },
     "moon": {

@@ -274,6 +274,9 @@ class EndlessRenderer(
             MeasuredElevationPatch.load(context, "moon_lola_terrain.bin")
         MarsSurfaceTerrain.elevationPatch =
             MeasuredElevationPatch.load(context, "mars_mola_terrain.bin")
+        // GL handles must be recreated after context loss: never retain
+        // shader IDs or buffers belonging to an old EGL context.
+        extendedTerrains.clear()
         marsSurfaceTerrain = MarsSurfaceTerrain(context)
         moonSurfaceTerrain = MoonSurfaceTerrain(context)
     }

@@ -12,7 +12,7 @@ import android.opengl.GLUtils
  */
 internal object LandingPhotoTexture {
     fun load(context: Context, body: String): Int {
-        require(body == "mars" || body == "moon")
+        require(body in setOf("mars", "moon", "mercury", "ceres", "europa", "titan"))
         val id = context.resources.getIdentifier(
             "${body}_trek_landing", "drawable", context.packageName
         )
