@@ -151,6 +151,14 @@ fun SceneViewport(
         val color = Color(android.graphics.Color.parseColor(preset.groundHex))
         materialLoader.createColorInstance(color, metallic = 0f, roughness = preset.roughness)
     }
+    // A genuine ground-plane reference grid, not a 2D UI overlay. It follows
+    // perspective as the artist orbits and can be hidden for clean story scenes.
+    val gridBitmap = remember(project.world.gridEnabled) {
+        if (project.world.gridEnabled) createReferenceGridBitmap() else null
+    }
+    DisposableEffect(gridBitmap) {
+        onDispose { gridBitmap?.recycle() }
+    }
     val mainLightNode = rememberMainLightNode(engine)
     // Shadow maps are part of Filament's scene rendering, independent of the
     // post-processing workaround above. Android 8 devices still need studio shadows.
@@ -281,6 +289,20 @@ fun SceneViewport(
                     isShadowReceiver = true
                     setCulling(false)
                     axisAlignedBoundingBox = Box(0f, 0f, 0f, 1000f, 0.01f, 1000f)
+                },
+            )
+        }
+
+        if (project.world.groundEnabled && project.world.gridEnabled && gridBitmap != null) {
+            ImageNode(
+                bitmap = gridBitmap,
+                size = Size(24f, 0f, 24f),
+                normal = Direction(0f, 1f, 0f),
+                position = Position(0f, 0.007f, 0f),
+                apply = {
+                    isTouchable = false
+                    isShadowCaster = false
+                    isShadowReceiver = false
                 },
             )
         }
@@ -869,3 +891,24 @@ private fun decodeReferenceBitmap(
 }.onFailure {
     Log.w(VIEWPORT_LOG_TAG, "reference-image-load-failed uri=${uri.scheme}", it)
 }.getOrNull()
+
+/** Thin alpha grid lines; PBR floor beneath still receives the scene's shadows. */
+private fun createReferenceGridBitmap(): Bitmap {
+    val size = 1024
+    val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+    val canvas = Canvas(bitmap)
+    val stroke = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = android.graphics.Color.argb(46, 51, 68, 76)
+        strokeWidth = 1.2f
+    }
+    for (index in 0..48) {
+        val at = size * index / 48f
+        canvas.drawLine(at, 0f, at, size.toFloat(), stroke)
+        canvas.drawLine(0f, at, size.toFloat(), at, stroke)
+    }
+    stroke.color = android.graphics.Color.argb(68, 57, 76, 80)
+    stroke.strokeWidth = 1.7f
+    canvas.drawLine(size / 2f, 0f, size / 2f, size.toFloat(), stroke)
+    canvas.drawLine(0f, size / 2f, size.toFloat(), size / 2f, stroke)
+    return bitmap
+}
