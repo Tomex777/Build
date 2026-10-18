@@ -341,7 +341,7 @@ export async function runLiveCase({ original, command, spec, fixtures, fixtureSe
     if (spec.fixture) media=await sourceFor(spec.fixture)
     fakeMessage = media
       ? attachFixture(original.message,media,chat,'.'+command.name+' '+(spec.args||[]).join(' '))
-      : original.message
+      : {...original.message,message:{conversation:'.'+command.name+' '+(spec.args||[]).join(' ')}}
     const run = async(args,message=fakeMessage) =>
       command.run({...base,args,rawArgs:args.join(' '),message})
     if (spec.multi === 'merge') {
