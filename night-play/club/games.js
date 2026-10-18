@@ -636,7 +636,8 @@ function whotPatchTable(markup){
    for(let i=oldBacks.length;i<needed;i++)oldOpponent.appendChild(newOpponent.children[i].cloneNode(true));
   }
   for(const [i,back] of [...oldOpponent.querySelectorAll('.card-back')].entries()){
-   back.setAttribute('aria-label',newOpponent.children[i].getAttribute('aria-label'));
+   back.className=newOpponent.children[i].className;
+    back.setAttribute('aria-label',newOpponent.children[i].getAttribute('aria-label'));
   }
  }
  const oldDeck=oldPile.querySelector('.whot-deck'),newDeck=newPile.querySelector('.whot-deck');
@@ -704,7 +705,7 @@ const whotVictory=kind==='whot'&&s.winner!==null?
  '<button type="button" class="whot-rematch" data-action="whot-rematch">Play again</button></div></div>':'';
 const tableMarkup='<div class="table-surface'+(kind==='whot'&&s.winner!==null?' whot-finished':'')+'" aria-label="Card table">'+(kind==='whot'?whotHud:'<h3>COMPUTER · '+s.hands[1].length+' CARDS</h3>')+
  '<div class="card-row whot-opponent-hand">'+(kind==='whot'
- ?Array.from({length:Math.min(3,s.hands[1].length)},(_,i)=>'<div class="playing-card card-back" aria-label="Computer stack · '+s.hands[1].length+' cards, back '+(i+1)+'"><span>WHOT</span><span>WHOT</span></div>').join('')
+ ?Array.from({length:Math.min(1,s.hands[1].length)},(_,i)=>'<div class="playing-card card-back'+(s.hands[1].length>1?' card-stack':'')+'" aria-label="Computer stack · '+s.hands[1].length+' cards, back '+(i+1)+'"><span>WHOT</span><span>WHOT</span></div>').join('')
  :'<div class="playing-card card-back" aria-label="Computer cards hidden"></div><span class="cards-counter">× '+s.hands[1].length+'</span>')+'</div>'+
  '<div class="card-pile">'+(kind==='whot'?'<button type="button" class="whot-deck" data-action="card-draw" '+(s.turn!==0||s.winner!==null||s.pendingWhot!=null?'disabled':'')+' aria-label="Pick one card from the market"><span class="whot-deck-back"><span class="whot-deck-word flip-top">WHOT</span><span class="whot-deck-word flip-bottom">WHOT</span></span><span class="cards-counter">MARKET · '+s.deck.length+'</span></button>':'<span class="cards-counter">DECK '+s.deck.length+'</span>')+
  cardMarkup(kind,t,-1,false)+currentCall+'</div>'+callPanel+
