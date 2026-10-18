@@ -121,12 +121,17 @@ jobs:
             adb shell pidof com.night.soundatlas
             adb exec-out screencap -p > SoundAtlas/qa/01-cathedral.png
             test $(wc -c < SoundAtlas/qa/01-cathedral.png) -gt 5000
-            # Touch the world library button; screen is 1080x2400 Pixel 6.
-            adb shell input tap 105 2220
+            # Use actual emulator display dimensions and density, not hardcoded Pixel 6 pixels.
+            W=$(adb shell wm size | sed -n 's/.*: \([0-9]*\)x[0-9]*/\1/p' | head -1)
+            H=$(adb shell wm size | sed -n 's/.*x\([0-9]*\)/\1/p' | head -1)
+            D=$(adb shell wm density | sed -n 's/.*: \([0-9]*\)/\1/p' | head -1)
+            test -n "$W"; test -n "$H"; test -n "$D"
+            adb shell input tap $((W / 10)) $((H - 70 * D / 160))
             sleep 2
             adb exec-out screencap -p > SoundAtlas/qa/02-world-library.png
             test $(wc -c < SoundAtlas/qa/02-world-library.png) -gt 5000
-            adb shell input tap 730 1850
+            # First row, right-side world card on the native library sheet.
+            adb shell input tap $((W * 3 / 4)) $((H - 275 * D / 160))
             sleep 2
             adb exec-out screencap -p > SoundAtlas/qa/03-scene.png
             test $(wc -c < SoundAtlas/qa/03-scene.png) -gt 5000
