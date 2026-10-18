@@ -5,6 +5,7 @@ let profile=null,expiresAt=Date.now()+300000,unavailable=false,links=0,slowStatu
 const server=http.createServer(async(req,res)=>{
   const url=new URL(req.url,'http://localhost')
   if(url.pathname==='/api/account'){
+     if(url.searchParams.get('resource')==='notice'){res.setHeader('Content-Type','application/json');res.end(JSON.stringify({enabled:false,revision:0}));return}
     res.setHeader('Content-Type','application/json');res.setHeader('Cache-Control','no-store')
     if(unavailable){res.statusCode=503;res.end(JSON.stringify({error:'NIGHT connection is being updated. Please try again shortly.'}));return}
     if(req.method==='GET'){statusGets++;if(slowStatusMs){const delay=slowStatusMs;slowStatusMs=0;await new Promise(resolve=>setTimeout(resolve,delay))}}
