@@ -73,7 +73,7 @@ try{
  const high=await page.screenshot({type:'jpeg',quality:74});
  writeFileSync(path.join(out,'JIGSAW-LIVE-PHOTO-144-OVERVIEW.jpg'),high);
  console.log('LIVE_PHOTO_144_OVERVIEW_BASE64='+high.toString('base64'));
- await page.locator('#hudMenuButton').click();await page.locator('#mobileZoomFit').click();
+ await page.locator('#focusButton').click();
  const focus=await page.screenshot({type:'jpeg',quality:72});
  writeFileSync(path.join(out,'JIGSAW-LIVE-PHOTO-144-MAGNIFIED.jpg'),focus);
  console.log('LIVE_PHOTO_144_FOCUS_BASE64='+focus.toString('base64'));
