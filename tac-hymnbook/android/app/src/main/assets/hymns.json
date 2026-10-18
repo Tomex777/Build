@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "description": "Offline TAC catalogue; only photo-backed Yoruba draft texts are shown; external URLs are research references.",
+  "description": "Offline photo-backed TAC hymn texts; review pending. Hymn 11 is partial: page 5 required.",
   "hymns": [
     {
       "number": 1,
@@ -10,9 +10,71 @@
       "source_pages": [
         1
       ],
-      "verses_yo": [],
-      "verses_en": [],
-      "text_status": "missing",
+      "verses_yo": [
+        [
+          "Ọlọ́run ayé àti ọ̀run",
+          "Tó dá ọ̀run àti ìràwọ̀",
+          "Ìyè Rẹ ni gbogbo wa ń gbà",
+          "'Wọ ló ń ru ìfẹ́ wa sókè."
+        ],
+        [
+          "Ìwọ l'òòrùn òdodo wa",
+          "Láti ṣ'amọ̀nà wa l'ọ́sàn-án",
+          "Ìwọ n'ìmọ́lẹ̀ wa l'órú",
+          "Ìràwọ̀ tí ń tàn yí wa ká."
+        ],
+        [
+          "Bí 'Wọ bá kúrò lọ́dọ̀ wa",
+          "Òkùnkùn yóò bò wá mọ́lẹ̀",
+          "Àánú Rẹ nikan la rọ̀ mọ́",
+          "Láti ṣẹ́gun gbogbo ẹ̀ṣẹ̀."
+        ],
+        [
+          "Ìwọ ń jọba lókè nílẹ̀",
+          "Òtítọ́ ni ìmọ́lẹ̀ Rẹ",
+          "Ògo Rẹ làwa ń ṣàfẹ́rí",
+          "A kò fẹ́ ògo tara wa."
+        ],
+        [
+          "F'òtítọ́ ọ̀rọ̀ Rẹ hàn wá",
+          "Láti sọ wá d'òmìnira",
+          "Mú k'ọkàn wa gbóná lónìí",
+          "Ká fi ara wa rúbọ fún Ọ."
+        ]
+      ],
+      "verses_en": [
+        [
+          "Lord of all being, throned afar,",
+          "Thy glory flames from sun and star;",
+          "Centre and soul of every sphere,",
+          "Yet to each loving heart how near!"
+        ],
+        [
+          "Sun of our life, Thy quickening ray",
+          "Sheds on our path the glow of day;",
+          "Star of our hope, Thy softened light",
+          "Cheers the long watches of the night."
+        ],
+        [
+          "Our midnight is Thy smile withdrawn;",
+          "Our noontide is Thy gracious dawn;",
+          "Our rainbows arch Thy mercy's sign;",
+          "All, save the clouds of sin, are Thine!"
+        ],
+        [
+          "Lord of all life, below, above,",
+          "Whose light is truth, whose warmth is love,",
+          "Before Thy ever-blazing throne",
+          "We ask no lustre of our own."
+        ],
+        [
+          "Grant us Thy truth to make us free,",
+          "And kindling hearts that burn for Thee;",
+          "Till all Thy living altars claim",
+          "One holy light, one heavenly flame."
+        ]
+      ],
+      "text_status": "draft_photo_matched",
       "source_url": "https://www.scribd.com/document/859543609/HYMN-NCGM"
     },
     {
@@ -23,9 +85,83 @@
       "source_pages": [
         1
       ],
-      "verses_yo": [],
-      "verses_en": [],
-      "text_status": "missing",
+      "verses_yo": [
+        [
+          "Gbogbo ayé, gbé Jésù ga",
+          "Àńgẹ́lì, ẹ wọ̀lẹ̀ fún Un",
+          "Ẹ mú adé Ọba Rẹ wá",
+          "Ṣe É l'Ọba àwọn ọba."
+        ],
+        [
+          "Ẹ ṣe l'Ọba, ẹ̀yin mártírì",
+          "Tí ń pè ní pẹpẹ Rẹ",
+          "Gbé gbòǹgbò igi Jésè ga",
+          "Ṣe É l'Ọba àwọn ọba."
+        ],
+        [
+          "Ẹ̀yin irú-ọmọ Ísírẹ́lì",
+          "Tí a ti rà padà",
+          "Ẹ kí Ẹni tó gbà yín là",
+          "Ṣe É l'Ọba àwọn ọba."
+        ],
+        [
+          "Gbogbo ènìyàn ẹlẹ́ṣẹ̀",
+          "Rántí ìbànújẹ yín",
+          "Ẹ tẹ́ k'ogun yín s'ẹsẹ̀ Rẹ",
+          "Ṣe É l'Ọba àwọn ọba."
+        ],
+        [
+          "Kí gbogbo orílẹ̀-èdè",
+          "Ní gbogbo àgbáyé",
+          "Kí wọ́n ké Kábíyèsílẹ̀",
+          "Ṣe É l'Ọba àwọn ọba."
+        ],
+        [
+          "À bá lè pẹ̀lú àwọn t'ọrun",
+          "Láti máa júbà Rẹ",
+          "Ká bá lè jọ̀ jùmọ̀ kọrin",
+          "Ṣe É l'Ọba àwọn ọba."
+        ]
+      ],
+      "verses_en": [
+        [
+          "All hail the power of Jesus' name!",
+          "Let angels prostrate fall;",
+          "Bring forth the royal diadem,",
+          "And crown Him Lord of all."
+        ],
+        [
+          "Crown Him, ye martyrs of our God,",
+          "Who from His altar call;",
+          "Extol the stem of Jesse's rod,",
+          "And crown Him Lord of all."
+        ],
+        [
+          "Ye chosen seed of Israel's race,",
+          "Ye ransomed from the fall,",
+          "Hail Him who saves you by His grace,",
+          "And crown Him Lord of all."
+        ],
+        [
+          "Ye Gentile sinners, ne'er forget",
+          "The wormwood and the gall;",
+          "Go, spread your trophies at His feet,",
+          "And crown Him Lord of all."
+        ],
+        [
+          "Let every kindred, every tribe,",
+          "On this terrestrial ball,",
+          "To Him all majesty ascribe,",
+          "And crown Him Lord of all."
+        ],
+        [
+          "O that with yonder sacred throng",
+          "We at His feet may fall,",
+          "We'll join the everlasting song,",
+          "And crown Him Lord of all."
+        ]
+      ],
+      "text_status": "draft_photo_matched",
       "source_url": "https://yorubahymns.blogspot.com/2015/09/gbogbo-aye-gbe-jesu-ga.html"
     },
     {
@@ -37,9 +173,71 @@
         1,
         2
       ],
-      "verses_yo": [],
-      "verses_en": [],
-      "text_status": "missing",
+      "verses_yo": [
+        [
+          "Fi ìyìn fún Jésù Olùràpadà wa",
+          "Kí ayé kọ́kí ìfẹ́ Rẹ ńlá",
+          "Fi ìyìn fún Un, ẹ̀yin Àńgẹ́lì ológo",
+          "F'ọlá àti ògo fún orúkọ Rẹ",
+          "B'Olùṣọ́-àgùntàn, Jésù yóò tọ́ ọmọ Rẹ",
+          "Apá Rẹ ló ń gbé wọn l'ọ́jọ́ọjọ́",
+          "Ẹ̀yin ènìyàn mímọ́ tí ń gbé òkè Síónì",
+          "Fi ìyìn fún Un pẹ̀lú orin ayọ̀."
+        ],
+        [
+          "Fi ìyìn fún Jésù Olùràpadà wa",
+          "Fún wa, Ó ta ẹ̀jẹ̀ Rẹ sílẹ̀, Ó kú",
+          "Òun ni àpáta àti ìrètí ìgbàlà wa",
+          "Yin Jésù tí a kàn mọ́ agbelebu",
+          "Olùgbàlà tó fara da ìrora ńlá",
+          "Tí a fi adé ẹ̀gún dé lórí",
+          "Ẹni tí a pa nítorí àwa ẹ̀dá",
+          "Ọba ògo ń jọba títí láé."
+        ],
+        [
+          "Fi ìyìn fún Jésù Olùràpadà wa",
+          "Kí ariwo ìyìn gba ọ̀run kan",
+          "Jésù Olúwa ń jọba láéláé",
+          "Ṣe É l'Ọba gbogbo ẹ̀yin alágbára",
+          "Aṣẹ́gun ikú, fi ayọ̀ ròhìn náà ká",
+          "Ìṣẹ́gun rẹ ha dà, isà òkú?",
+          "Jésù yè, kò tún sí wàhálà fún wa mọ́",
+          "Torí Ó lágbára láti gbàlà."
+        ]
+      ],
+      "verses_en": [
+        [
+          "Praise Him! Praise Him! Jesus, our blessed Redeemer!",
+          "Sing, O earth, His wonderful love proclaim!",
+          "Hail Him! Hail Him! highest archangels in glory,",
+          "Strength and honour give to His holy name!",
+          "Like a shepherd, Jesus will guard His children;",
+          "In His arms He carries them all day long;",
+          "Ye saints that dwell on the mountain of Zion,",
+          "Praise Him! Praise Him! ever in joyful song!"
+        ],
+        [
+          "Praise Him! Praise Him! Jesus, our blessed Redeemer!",
+          "For our sins He suffered and bled and died;",
+          "He our Rock, our hope of eternal salvation;",
+          "Hail Him! Hail Him! Jesus the Crucified.",
+          "Sound His praises, Jesus who bore our sorrows;",
+          "Love unbounded, wonderful, deep and strong;",
+          "Praise Him! Praise Him! tell of His excellent greatness;",
+          "Praise Him! Praise Him! ever in joyful song!"
+        ],
+        [
+          "Praise Him! Praise Him! Jesus, our blessed Redeemer!",
+          "Heavenly portals loud with hosannas ring!",
+          "Jesus, Saviour, reigneth forever and ever;",
+          "Crown Him! Crown Him! Prophet and Priest and King!",
+          "Christ is coming, over the world victorious;",
+          "Power and glory unto the Lord belong;",
+          "Praise Him! Praise Him! tell of His excellent greatness;",
+          "Praise Him! Praise Him! ever in joyful song!"
+        ]
+      ],
+      "text_status": "draft_photo_matched",
       "source_url": "https://www.ferventxtian.com/yoruba-hymn-fiyin-fun-jesu-olurapada-wa-praise-him-praise-him/"
     },
     {
@@ -76,8 +274,33 @@
           "A ó sì ṣe Ọ l'Ọba."
         ]
       ],
-      "verses_en": [],
-      "text_status": "draft_photo_checked",
+      "verses_en": [
+        [
+          "We worship and adore Thee",
+          "Before the mercy seat;",
+          "We give Thee praise and glory,",
+          "Dear Lord, it is so sweet."
+        ],
+        [
+          "We worship and adore Thee",
+          "Who once for us was slain;",
+          "Thou livest and reignest in glory,",
+          "Thou soon wilt come again."
+        ],
+        [
+          "We worship and adore Thee",
+          "For Thy redeeming grace;",
+          "Thou set Thy love upon us,",
+          "To Thee be all the praise."
+        ],
+        [
+          "We worship and adore Thee,",
+          "A tribute, Lord, we bring,",
+          "Of praise and glad thanksgiving,",
+          "And crown Thee King of kings."
+        ]
+      ],
+      "text_status": "draft_photo_checked_online",
       "source_url": "https://gospelsongs.com.ng/niwaju-ite-anu-yoruba-hymn/"
     },
     {
@@ -88,9 +311,91 @@
       "source_pages": [
         2
       ],
-      "verses_yo": [],
-      "verses_en": [],
-      "text_status": "missing",
+      "verses_yo": [
+        [
+          "Ọkàn mi, yin Ọba ọ̀run",
+          "Mú ọrẹ wá s'ọ̀dọ̀ Rẹ",
+          "'Wọ t'a wòsàn, t'a dáríjì",
+          "Ta l'à bá ha yin bí Rẹ?",
+          "Yin Olúwa, yin Olúwa",
+          "Yin Ọba àìnípẹ̀kun."
+        ],
+        [
+          "Yin fún àánú t'Ó ti fihàn",
+          "F'àwọn baba nínú pọnjú",
+          "Yin Ì lọ́kàn náà ní títí",
+          "Ó lọ́ra láti bínú",
+          "Yin Olúwa, yin Olúwa",
+          "Ológo nínú òtítọ́."
+        ],
+        [
+          "Bí baba ni Ó ń tọ́jú wa",
+          "Ó sì mọ ailera wa",
+          "Jẹ́jẹ́ l'Ó ń gbé wa l'apá Rẹ",
+          "Ó gba wa lọ́wọ́ ọ̀tá",
+          "Yin Olúwa, yin Olúwa",
+          "Àánú Rẹ yí ayé ká."
+        ],
+        [
+          "À ngbà bí ìtànná ewéko",
+          "T'afẹ́fẹ́ ń fẹ́, tó sì ń rọ̀",
+          "Gba t'a ń wà tí a sì ń kú",
+          "Ọlọ́run wa bákan náà",
+          "Yin Olúwa, yin Olúwa",
+          "Ọba àìnípẹ̀kun."
+        ],
+        [
+          "Àńgẹ́lì, ẹ jùmọ̀ bá wa bọ̀",
+          "Ẹ̀yin ń rí lójúkojú",
+          "Òòrùn, òṣùpá, ẹ wọ̀lẹ̀",
+          "Àti gbogbo àgbáyé",
+          "Ẹ bá wa yin, ẹ bá wa yin",
+          "Ọlọ́run olóòótọ́."
+        ]
+      ],
+      "verses_en": [
+        [
+          "Praise, my soul, the King of heaven;",
+          "To His feet thy tribute bring;",
+          "Ransomed, healed, restored, forgiven,",
+          "Who like thee His praise should sing?",
+          "Praise Him! Praise Him!",
+          "Praise the everlasting King!"
+        ],
+        [
+          "Praise Him for His grace and favour",
+          "To our fathers in distress;",
+          "Praise Him, still the same for ever,",
+          "Slow to chide, and swift to bless;",
+          "Praise Him! Praise Him!",
+          "Glorious in His faithfulness."
+        ],
+        [
+          "Father-like He tends and spares us;",
+          "Well our feeble frame He knows;",
+          "In His hands He gently bears us,",
+          "Rescues us from all our foes;",
+          "Praise Him! Praise Him!",
+          "Widely as His mercy flows."
+        ],
+        [
+          "Frail as summer's flower we flourish;",
+          "Blows the wind and it is gone;",
+          "But while mortals rise and perish,",
+          "God endures unchanging on;",
+          "Praise Him! Praise Him!",
+          "Praise the High Eternal One!"
+        ],
+        [
+          "Angels, help us to adore Him;",
+          "Ye behold Him face to face;",
+          "Sun and moon, bow down before Him,",
+          "Dwellers all in time and space;",
+          "Praise Him! Praise Him!",
+          "Praise with us the God of grace!"
+        ]
+      ],
+      "text_status": "draft_photo_matched",
       "source_url": "https://yorubabaptisthymns.com/hymn/301/"
     },
     {
@@ -102,9 +407,123 @@
         2,
         3
       ],
-      "verses_yo": [],
-      "verses_en": [],
-      "text_status": "missing",
+      "verses_yo": [
+        [
+          "Yin Ọlọ́run Ábúráhámù",
+          "Tí Ó ń jọba lókè",
+          "Ẹni tí ó ti wà títí láé, Ọlọ́run ìfẹ́",
+          "Jèhófà ńlá, èmi",
+          "Gbogbo ẹ̀dá jẹ́wọ́",
+          "Mo fi ìbùkún f'orúkọ Rẹ títí láé."
+        ],
+        [
+          "Yin Ọlọ́run Ábúráhámù",
+          "Nípàṣẹ Ẹni tí",
+          "Mo dìde, mo sì wá ìtùnú lọ́wọ́ ọ̀tún Rẹ",
+          "Mo kọ ayé sílẹ̀",
+          "Ọgbọ́n àti ọlá Rẹ",
+          "Òun nikan sì ni ìpín mi àti àsà mi."
+        ],
+        [
+          "Òun náà ti ṣe ìlérí",
+          "Mo gbẹ́kẹ̀lé èyí",
+          "N ó fi ìyẹ́ ìdí gòkè",
+          "Lọ sí ọ̀run",
+          "N ó máa wo ojú Rẹ",
+          "N ó sì yin ipa Rẹ",
+          "N ó kọrin ìyanu t'ore-ọ̀fẹ́",
+          "Títí láé."
+        ],
+        [
+          "B'agbára ẹ̀dá pin",
+          "T'ayé àti Èṣù ń dẹ̀",
+          "N ó dojú kọ ọ̀nà Kénáánì",
+          "Nípàṣẹ Rẹ",
+          "N ó rẹ odò kọjá",
+          "Bí Jésù wà lọ́kàn",
+          "N ó kọjá nínú ìgbó dídì",
+          "Lọ s'ọ̀nà mi."
+        ],
+        [
+          "Ọba òkè ọ̀run",
+          "Olórí àńgẹ́lì ń ké",
+          "Wí pé Mímọ́, Mímọ́, Mímọ́, Ọba títí",
+          "Ẹni tí kì í padà",
+          "Tí yóò sì wà láéláé",
+          "Jèhófà, Baba, a yin Ọ."
+        ],
+        [
+          "Gbogbo ẹgbẹ́ aṣẹ́gun",
+          "Ń yin Ọlọ́run lókè",
+          "Baba, Ọmọ àti Ẹ̀mí ni wọ́n ń ké títí",
+          "Yin Ọlọ́run Ábúráhámù",
+          "N ó bá wọn kọrin náà",
+          "Tirẹ ni agbára àti ọlá pẹ̀lú ìyìn."
+        ]
+      ],
+      "verses_en": [
+        [
+          "The God of Abraham praise,",
+          "Who reigns enthroned above;",
+          "Ancient of everlasting days,",
+          "And God of love;",
+          "Jehovah, Great I AM!",
+          "By earth and heaven confessed;",
+          "I bow and bless the sacred name",
+          "Forever blessed."
+        ],
+        [
+          "The God of Abraham praise,",
+          "At whose supreme command",
+          "From earth I rise, and seek the joys",
+          "At His right hand;",
+          "I all on earth forsake,",
+          "Its wisdom, fame, and power;",
+          "And Him my only portion make,",
+          "My shield and tower."
+        ],
+        [
+          "He by Himself hath sworn,",
+          "I on His oath depend;",
+          "I shall, on eagle's wings upborne,",
+          "To heaven ascend;",
+          "I shall behold His face,",
+          "I shall His power adore;",
+          "And sing the wonders of His grace",
+          "Forevermore."
+        ],
+        [
+          "Though nature's strength decay,",
+          "And earth and hell withstand,",
+          "To Canaan's bounds I urge my way",
+          "At His command;",
+          "The watery deep I pass,",
+          "With Jesus in my view;",
+          "And through the howling wilderness",
+          "My way pursue."
+        ],
+        [
+          "The God who reigns on high",
+          "The great archangels sing,",
+          "And Holy, holy, holy cry,",
+          "Almighty King!",
+          "Who was and is the same,",
+          "And evermore shall be;",
+          "Jehovah, Father, Great I AM,",
+          "We worship Thee."
+        ],
+        [
+          "The whole triumphant host",
+          "Give thanks to God on high;",
+          "Hail Father, Son and Holy Ghost,",
+          "They ever cry;",
+          "Hail Abraham's God and mine!",
+          "I join the heavenly lays;",
+          "All might and majesty are Thine,",
+          "And endless praise."
+        ]
+      ],
+      "text_status": "draft_photo_matched",
       "source_url": "https://yorubabaptisthymns.com/hymn/302/"
     },
     {
@@ -139,8 +558,31 @@
           "K'awọn tó yí wa ká lè kọrin dídùn yìí."
         ]
       ],
-      "verses_en": [],
-      "text_status": "draft_photo_checked",
+      "verses_en": [
+        [
+          "With harps and with vials there stands a great throng,",
+          "In the presence of Jesus and sing this new song;",
+          "Unto Him who hath loved us and washed us from sin,",
+          "Unto Him be the glory forever! Amen!"
+        ],
+        [
+          "All these once were sinners, defiled in His sight,",
+          "Now arrayed in pure garments in praise they unite."
+        ],
+        [
+          "He maketh the rebel a priest and a king,",
+          "He hath bought us and taught us this new song to sing."
+        ],
+        [
+          "How helpless and hopeless we sinners had been,",
+          "If He never had loved us till cleansed from our sin!"
+        ],
+        [
+          "Aloud in His praises our voices shall ring,",
+          "So that others believing this new song shall sing."
+        ]
+      ],
+      "text_status": "draft_photo_checked_online",
       "source_url": "https://www.scribd.com/document/859543609/HYMN-NCGM"
     },
     {
@@ -152,9 +594,83 @@
         3,
         4
       ],
-      "verses_yo": [],
-      "verses_en": [],
-      "text_status": "missing",
+      "verses_yo": [
+        [
+          "Èmi bá ní ẹgbẹ̀rún ahọ́n",
+          "Fún ìyìn Olùgbàlà",
+          "Ògo Ọlọ́run Ọba mi",
+          "Ìṣẹ́gun oore Rẹ."
+        ],
+        [
+          "Jésù tó ṣe ẹ̀rù wa d'ayọ̀",
+          "Tó mú ìbànújẹ tán",
+          "Orin ni l'étí ẹlẹ́ṣẹ̀",
+          "Ìyè àti ìlera."
+        ],
+        [
+          "Ó ṣẹ́gun agbára ẹ̀ṣẹ̀",
+          "Ó dá òǹdè sílẹ̀",
+          "Ẹ̀jẹ̀ Rẹ lè wẹ ẹlẹ́rí mọ́",
+          "Ẹ̀jẹ̀ Rẹ ṣeun fún mi."
+        ],
+        [
+          "Ó sọ̀rọ̀, òkú gbọ́ ohùn Rẹ",
+          "Ó gba ẹ̀mí tuntun",
+          "Oníròbìnújẹ y'ayọ̀",
+          "Òtòṣì sì gbàgbọ́."
+        ],
+        [
+          "Òdì, ẹ kọrin ìyìn Rẹ",
+          "Adití, gbọ́ ohùn Rẹ",
+          "Afọ́jú, Olùgbàlà dé",
+          "Àrọ, fò fún ayọ̀."
+        ],
+        [
+          "Baba mi àti Ọlọ́run mi",
+          "Fún mi ní ìrànwọ́ Rẹ",
+          "Kí n lè rò ká gbogbo ayé",
+          "Ọlá Orúkọ Rẹ."
+        ]
+      ],
+      "verses_en": [
+        [
+          "O for a thousand tongues to sing",
+          "My great Redeemer's praise,",
+          "The glories of my God and King,",
+          "The triumphs of His grace!"
+        ],
+        [
+          "Jesus! the name that charms our fears,",
+          "That bids our sorrows cease;",
+          "'Tis music in the sinner's ears,",
+          "'Tis life, and health, and peace."
+        ],
+        [
+          "He breaks the power of cancelled sin,",
+          "He sets the prisoner free;",
+          "His blood can make the foulest clean,",
+          "His blood availed for me."
+        ],
+        [
+          "He speaks, and listening to His voice,",
+          "New life the dead receive;",
+          "The mournful, broken hearts rejoice,",
+          "The humble poor believe."
+        ],
+        [
+          "Hear Him, ye deaf; His praise, ye dumb,",
+          "Your loosened tongues employ;",
+          "Ye blind, behold your Saviour come;",
+          "And leap, ye lame, for joy."
+        ],
+        [
+          "My gracious Master and my God,",
+          "Assist me to proclaim,",
+          "To spread through all the earth abroad",
+          "The honours of Thy name."
+        ]
+      ],
+      "text_status": "draft_photo_matched",
       "source_url": "https://iom.webbuild.org.ng/hymns.php"
     },
     {
@@ -165,9 +681,59 @@
       "source_pages": [
         4
       ],
-      "verses_yo": [],
-      "verses_en": [],
-      "text_status": "missing",
+      "verses_yo": [
+        [
+          "Ránṣẹ́ Ọlọ́run, ẹ lọ kéde Rẹ",
+          "Sọ ti ìyanu Orúkọ ńlá Rẹ",
+          "Gb'Orúkọ Jésù ga, Ajagunṣẹ́gun",
+          "Ògo ìjọba Rẹ ń tàn l'ayé àti ọ̀run."
+        ],
+        [
+          "Ó ń jọba lókè, Ó ń gbàlà l'ayé",
+          "Ó sì sún mọ́ wa, Ó ń gbé inú wa",
+          "Ìjọ ńlá tó ṣẹ́gun kò lè ṣàì kọrin",
+          "Sí Jésù Ọba wa, tó rà wá padà."
+        ],
+        [
+          "Òun l'ọpẹ́ yẹ fún, Ẹni tí ń gbàlà",
+          "Kọrin ìyìn sókè sí Ọlọ́run wa",
+          "Ìyìn Rẹ l'àwọn àńgẹ́lì ń kọ lókè",
+          "Wọ́n ń júbà, wọ́n ń wọ̀lẹ̀ fún Ọ̀dọ́-Àgùntàn."
+        ],
+        [
+          "Jẹ́k'á d'ohùn pọ̀ láti jùmọ̀ yin",
+          "Tirẹ ni ògo àti agbára",
+          "Òun ni ọgbọ́n, ọpẹ́ àti ọlá yẹ fún",
+          "Òun ló yẹ ká fẹ́ràn láéláé."
+        ]
+      ],
+      "verses_en": [
+        [
+          "Ye servants of God, your Master proclaim,",
+          "And publish abroad His wonderful name;",
+          "The name all-victorious of Jesus extol,",
+          "His kingdom is glorious and rules over all."
+        ],
+        [
+          "God ruleth on high, almighty to save,",
+          "And still He is nigh, His presence we have;",
+          "The great congregation His triumph shall sing,",
+          "Ascribing salvation to Jesus our King."
+        ],
+        [
+          "Salvation to God who sits on the throne!",
+          "Let all cry aloud, and honour the Son;",
+          "The praises of Jesus the angels proclaim,",
+          "Fall down on their faces and worship the Lamb."
+        ],
+        [
+          "Then let us adore, and give Him His right,",
+          "All glory and power, all wisdom and might;",
+          "All honour and blessing, with angels above,",
+          "And thanks never-ceasing and infinite love."
+        ]
+      ],
+      "text_status": "draft_photo_matched",
       "source_url": "https://www.scribd.com/document/859543609/HYMN-NCGM"
     },
     {
@@ -178,22 +744,128 @@
       "source_pages": [
         4
       ],
-      "verses_yo": [],
-      "verses_en": [],
-      "text_status": "missing",
+      "verses_yo": [
+        [
+          "Ẹ wọ̀lẹ̀ f'Ọba Ológo jùlọ",
+          "Ẹ kọrin ipa àti ìfẹ́ Rẹ",
+          "Aláàbò wa ni àti Ẹni ìgbàni",
+          "Ó ń gbé inú ògo, Ẹlẹ́rù ni ìyìn."
+        ],
+        [
+          "Ẹ sọ t'ipa Rẹ, ẹ sọ t'oore Rẹ",
+          "Mọ́lẹ̀ làṣọ Rẹ; òrun",
+          "Àrà tí ń sán ni kẹ́kẹ́ bínú Rẹ jẹ́",
+          "Ìpa ọ̀nà Rẹ ni a kò lè mọ̀."
+        ],
+        [
+          "Ayé yìí pẹ̀lú ẹ̀kún ìyanu Rẹ",
+          "Ọlọ́run, agbára Rẹ ló dá wọn",
+          "Ó fi ìdí rẹ̀ múlẹ̀, kò sì lè yí",
+          "Ó sì f'òkun ṣe aṣọ ìgúnwà Rẹ."
+        ],
+        [
+          "Ẹnu ha lè sọ t'ìtọ́jú Rẹ?",
+          "Nínú afẹ́fẹ́, nínú ìmọ́lẹ̀",
+          "Ìtọ́jú Rẹ wà nínú odò tí ń ṣàn",
+          "Ó sì wà nínú ìrì àti òjò."
+        ],
+        [
+          "Àwa erùpẹ̀, àwa aláìlera",
+          "'Wọ là gbẹ́kẹ̀lé, o kì í dání",
+          "Àánú Rẹ rọ̀rùn, kò sì lè d'opin",
+          "Ẹlẹ́dàá, Aláàbò, Olùgbàlà wa."
+        ],
+        [
+          "'Wọ alágbára onífẹ̀ẹ́ jùlọ",
+          "B'àwọn àńgẹ́lì tí ń yin Ọ lókè",
+          "Bẹ́ẹ̀ làwa ẹ̀dá Rẹ níwọ̀n t'a lè ṣe",
+          "A ó máa júbà Rẹ, a ó máa yin Ọ."
+        ]
+      ],
+      "verses_en": [
+        [
+          "O worship the King, all glorious above,",
+          "O gratefully sing His power and His love;",
+          "Our Shield and Defender, the Ancient of Days,",
+          "Pavilioned in splendour and girded with praise."
+        ],
+        [
+          "O tell of His might, O sing of His grace,",
+          "Whose robe is the light, whose canopy space;",
+          "His chariots of wrath the deep thunderclouds form,",
+          "And dark is His path on the wings of the storm."
+        ],
+        [
+          "The earth with its store of wonders untold,",
+          "Almighty, Thy power hath founded of old;",
+          "Hath stablished it fast by a changeless decree,",
+          "And round it hath cast, like a mantle, the sea."
+        ],
+        [
+          "Thy bountiful care what tongue can recite?",
+          "It breathes in the air, it shines in the light,",
+          "It streams from the hills, it descends to the plain,",
+          "And sweetly distils in the dew and the rain."
+        ],
+        [
+          "Frail children of dust, and feeble as frail,",
+          "In Thee do we trust, nor find Thee to fail;",
+          "Thy mercies how tender, how firm to the end,",
+          "Our Maker, Defender, Redeemer, and Friend."
+        ],
+        [
+          "O measureless Might, ineffable Love,",
+          "While angels delight to hymn Thee above,",
+          "Thy humbler creation, though feeble their lays,",
+          "With true adoration shall sing to Thy praise."
+        ]
+      ],
+      "text_status": "draft_photo_matched",
       "source_url": "https://mycollectionofyorubahymns.blogspot.com/2014/01/e-wole-foba.html"
     },
     {
       "number": 11,
       "collection": "main",
       "title_yo": "Ọlọ́run àwámárìdì!",
-      "title_en": null,
+      "title_en": "Unsearchable God",
       "source_pages": [
         4
       ],
-      "verses_yo": [],
-      "verses_en": [],
-      "text_status": "missing",
+      "verses_yo": [
+        [
+          "Ọlọ́run àwámárìdì!",
+          "Ta ló yẹ ká f'ọkàn wa fún?",
+          "Ta ló yẹ ká tún fẹ́ràn?",
+          "Jésù, Olùfẹ́ ọkàn wa",
+          "Ta ló yẹ ká fi ọkàn wa",
+          "Àti agbára wa fẹ́ràn?"
+        ],
+        [
+          "Ògo ojú Olúwa ń dán",
+          "Ògo tí ẹ̀dá kò lè wò",
+          "Àwọn àńgẹ́lì ń bojú wọ̀",
+          "Síbẹ̀, oore Rẹ bí odò",
+          "Ń ṣàn sórí iṣẹ́ Rẹ gbogbo"
+        ]
+      ],
+      "verses_en": [
+        [
+          "O God beyond our searching!",
+          "To whom should we give our hearts?",
+          "Whom else should we love so dearly?",
+          "Jesus, beloved of our souls,",
+          "To whom should we give our hearts",
+          "And all our strength in love?"
+        ],
+        [
+          "The glory of the Lord shines bright,",
+          "A splendour no creature can behold;",
+          "Even the angels veil their faces,",
+          "Yet still His goodness flows like a river",
+          "Over all the works of His hands."
+        ]
+      ],
+      "text_status": "partial_from_photo",
       "source_url": null
     }
   ]
