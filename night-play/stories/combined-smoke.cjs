@@ -7,7 +7,16 @@ const fixtures=JSON.parse(fs.readFileSync('/tmp/night-story-test-runs.json'));
 const server=http.createServer((req,res)=>{const pathname=new URL(req.url,'http://local').pathname,relative=pathname==='/stories/'?'stories/index.html':['/games','/dashboard','/'].includes(pathname)?'index.html':pathname.replace(/^\//,''),target=path.resolve(root,relative);if(!target.startsWith(root+path.sep)||!fs.existsSync(target)||fs.statSync(target).isDirectory()){res.writeHead(404);res.end();return}res.writeHead(200,{'content-type':target.endsWith('.json')?'application/json':target.endsWith('.js')?'text/javascript':'text/html; charset=utf-8'});res.end(fs.readFileSync(target));});
 function until(node,plan=[],build={observation:2,magic:2}){let r=E.start(story,'Cinematic test',{firstName:'Zoë Ana',surname:'O’Neill-MacLeod'},build);for(let i=0;i<600;i++){if(r.node===node)return r;const cs=E.choices(story,r),c=cs.find(c=>plan.includes(c.id))||cs[0];if(!c||r.ending)throw Error('Unreachable test passage '+node+' from '+r.node);r=E.choose(story,r,c.id)}throw Error('No test passage '+node)}
 async function seed(page,run,pace='instant'){const book=E.storeRun(story,E.emptyBook(story),run);await page.addInitScript(({book,pace})=>{if(!localStorage.getItem('night-story:the-last-call:v3'))localStorage.setItem('night-story:the-last-call:v3',JSON.stringify(book));localStorage.setItem('night-play-fiction-reading-speed',pace)},{book,pace})}
-async function menu(page,id){await page.locator('#readerOptions summary').click();await page.locator('#'+id).click()}
+async function menu(page,id){
+ if(id==='openCharacter'||id==='openJournal'){
+  assert.equal(await page.locator('#readerOptions').evaluate(el=>el.open),false,'direct reader shortcut requires no options menu');
+  await page.locator('#'+id).click();
+  assert.equal(await page.locator('#readerOptions').evaluate(el=>el.open),false,'direct shortcut does not reveal menu');
+  return;
+ }
+ await page.locator('#readerOptions summary').click();
+ await page.locator('#'+id).click();
+}
 async function allocate(page,key,times){for(let i=0;i<times;i++)await page.getByRole('button',{name:'Increase '+key,exact:true}).click()}
 async function saved(page){return page.evaluate(()=>JSON.parse(localStorage.getItem('night-story:the-last-call:v3')))}
 async function advance(page){const next=page.locator('#readContinue');if(await next.isVisible())await next.click();else await page.locator('.choice:not([disabled])').first().click()}
