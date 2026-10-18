@@ -137,6 +137,8 @@ import studio.artistscene.core.mechanicalParts
 import studio.artistscene.core.SceneEditorState
 import studio.artistscene.core.SceneProject
 import studio.artistscene.core.EnvironmentPreset
+import studio.artistscene.core.GroundSurface
+import studio.artistscene.core.SunOrbit
 import studio.artistscene.core.Interpolation
 import studio.artistscene.core.actorKeyTimes
 import studio.artistscene.core.previousActorKeyTime
@@ -2633,7 +2635,71 @@ private fun EditorContextSheet(
                                     ) { Text("Longer") }
                                 }
                             }
-                            if (settings.type != LightType.POINT) {
+                            if (settings.type == LightType.DIRECTIONAL) {
+                                // Move the *actual Filament directional light*, not merely
+                                // adjust a graphical fake. Terrain, trees and buildings cast
+                                // shadows in the new direction immediately.
+                                val angles = SunOrbit.angles(settings.direction)
+                                Text(
+                                    "Sun · height ${angles.elevationDegrees.toInt()}° · direction ${angles.azimuthDegrees.toInt()}°",
+                                    color = PrimaryText, fontSize = 12.sp,
+                                    modifier = Modifier.testTag("sun-angles"),
+                                )
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                ) {
+                                    listOf(
+                                        "Lower" to (0f to -5f),
+                                        "Raise" to (0f to 5f),
+                                        "←" to (-15f to 0f),
+                                        "→" to (15f to 0f),
+                                    ).forEach { (label, step) ->
+                                        Button(
+                                            onClick = {
+                                                onEditor(
+                                                    editor.setSelectedLightDirection(
+                                                        SunOrbit.move(settings.direction, step.first, step.second),
+                                                    ),
+                                                    "sun-move",
+                                                )
+                                            },
+                                            modifier = Modifier.weight(1f).testTag(
+                                                when (label) {
+                                                    "Lower" -> "sun-lower"
+                                                    "Raise" -> "sun-raise"
+                                                    "←" -> "sun-turn-left"
+                                                    else -> "sun-turn-right"
+                                                },
+                                            ),
+                                        ) { Text(label, maxLines = 1) }
+                                    }
+                                }
+                                Row(
+                                    modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                ) {
+                                    listOf(
+                                        "Sunrise" to (90f to 9f),
+                                        "Noon" to (180f to 78f),
+                                        "Sunset" to (270f to 9f),
+                                    ).forEach { (label, angle) ->
+                                        FilterChip(
+                                            selected = kotlin.math.abs(angles.azimuthDegrees - angle.first) < 1f &&
+                                                kotlin.math.abs(angles.elevationDegrees - angle.second) < 1f,
+                                            onClick = {
+                                                onEditor(
+                                                    editor.setSelectedLightDirection(SunOrbit.direction(angle.first, angle.second)),
+                                                    "sun-time",
+                                                )
+                                            },
+                                            label = { Text(label) },
+                                            modifier = Modifier.testTag("sun-${label.lowercase()}"),
+                                        )
+                                    }
+                                }
+                            }
+                            if (settings.type == LightType.SPOT) {
                                 Text("Aim", color = MutedText, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
                                 Row(
                                     modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
@@ -2753,8 +2819,49 @@ private fun EditorContextSheet(
                         },
                         modifier = Modifier.testTag("environment-grid-toggle"),
                     )
+                    Text("Ground material", color = PrimaryText, fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold)
+                    GroundSurface.entries.chunked(3).forEach { row ->
+                        Row(modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            row.forEach { surface ->
+                                FilterChip(
+                                    selected = editor.project.world.groundSurface == surface,
+                                    onClick = { onEditor(editor.setGroundSurface(surface), "ground-material") },
+                                    label = { Text(surface.title, maxLines = 1, fontSize = 10.sp) },
+                                    modifier = Modifier.weight(1f).testTag("ground-${surface.name.lowercase()}"),
+                                )
+                            }
+                            repeat(3-row.size) { Spacer(modifier = Modifier.weight(1f)) }
+                        }
+                    }
+                    if (editor.project.world.groundSurface != GroundSurface.AUTO ||
+                        editor.project.world.environmentPreset == EnvironmentPreset.PARK_SHADE) {
+                        val tiles = editor.project.world.groundTileCount.coerceIn(2,24)
+                        Text("Texture detail · ${tiles} repeats", color = MutedText, fontSize = 11.sp)
+                        Row(modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Button(onClick = {
+                                onEditor(editor.setGroundTiling(tiles-2), "ground-tiling")
+                            }, modifier = Modifier.weight(1f).testTag("ground-detail-less")) { Text("Larger pattern") }
+                            Button(onClick = {
+                                onEditor(editor.setGroundTiling(tiles+2), "ground-tiling")
+                            }, modifier = Modifier.weight(1f).testTag("ground-detail-more")) { Text("Finer pattern") }
+                        }
+                        Text("Surface roughness · ${(editor.project.world.groundRoughness*100).toInt()}%",
+                            color = MutedText, fontSize = 11.sp)
+                        Row(modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Button(onClick = { onEditor(editor.setGroundRoughness(
+                                editor.project.world.groundRoughness - 0.10f), "ground-roughness") },
+                                modifier = Modifier.weight(1f).testTag("ground-smoother")) { Text("Smoother") }
+                            Button(onClick = { onEditor(editor.setGroundRoughness(
+                                editor.project.world.groundRoughness + 0.10f), "ground-roughness") },
+                                modifier = Modifier.weight(1f).testTag("ground-rougher")) { Text("More matte") }
+                        }
+                    }
                     Text(
-                        "Original offline sky gradients · PBR matte shadow receiver · saved with the scene.",
+                        "Real offline CC0 photography · PBR shadow receiver · saved with the scene.",
                         color = MutedText, fontSize = 10.sp,
                     )
                 }
