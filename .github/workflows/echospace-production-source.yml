@@ -1,0 +1,34 @@
+name: EchoSpace inspect production source
+
+on:
+  push:
+    branches: [feature/echospace-production-hardening]
+    paths:
+      - '.github/workflows/echospace-production-source.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  materialize:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - name: Materialize verified EchoSpace Android source and ABR upgrades
+        shell: bash
+        run: |
+          set -euo pipefail
+          tar -xJf EchoSpace/source.tar.xz
+          for patch in             echospace_expand_mixer.py             echospace_abr.py             echospace_mixer_precision.py             echospace_custom_gain.py             echospace_audio_upgrade.py             echospace_svg_icons.py; do
+            python3 ".github/scripts/$patch"
+          done
+          test -f EchoSpace/app/src/main/java/com/nexa/echospace/MainActivity.kt
+          tar -czf /tmp/echospace-patched-native-source.tar.gz             EchoSpace/app/src/main/java             EchoSpace/app/src/main/AndroidManifest.xml             EchoSpace/app/build.gradle.kts             EchoSpace/tools/prepare_audio.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: EchoSpace-expanded-native-source-for-review
+          path: /tmp/echospace-patched-native-source.tar.gz
+          if-no-files-found: error
+          retention-days: 14
