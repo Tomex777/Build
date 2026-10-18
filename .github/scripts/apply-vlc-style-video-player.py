@@ -261,6 +261,7 @@ for old, new in (
     ("import androidx.compose.ui.input.pointer.pointerInput\n",
      "import androidx.compose.ui.input.pointer.pointerInput\n"
      "import androidx.compose.ui.semantics.ProgressBarRangeInfo\n"
+     "import androidx.compose.ui.semantics.contentDescription\n"
      "import androidx.compose.ui.semantics.progressBarRangeInfo\n"
      "import androidx.compose.ui.semantics.setProgress\n"
      "import androidx.compose.ui.semantics.stateDescription\n"
