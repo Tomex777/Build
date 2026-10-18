@@ -351,6 +351,7 @@ async function finish(page,winner){
    assert.equal(cpuAnimation.backWords,2,'CPU travelling back has both authentic WHOT words');
    assert.equal(cpuAnimation.extraLabel,'none','no obsolete third WHOT word on moving back');
    assert.equal(cpuAnimation.front,true,'CPU turn reveals the real card face');
+   await snap(penaltyPage,'CPU-FLIP',width);
    await penaltyPage.waitForFunction(()=>window.__nightWhotMotion().lastFlightAction==='draw'
       &&window.__nightWhotMotion().activeFlights>=1,null,{timeout:3800});
    const staged=await penaltyPage.locator('.hand .whot-card').evaluateAll(cards=>({
@@ -358,6 +359,7 @@ async function finish(page,winner){
    }));
    assert.equal(staged.count,7,'after CPU Pick Three, the player receives three real cards');
    assert.ok(staged.hidden>=1,'new penalty cards remain hidden until their own flight finishes');
+   await snap(penaltyPage,'PICK-THREE',width);
    await penaltyPage.waitForFunction(()=>window.__nightWhotMotion().activeFlights===0
       &&window.__nightWhotMotion().draws>=3,null,{timeout:3500});
    assert.equal(await penaltyPage.locator('.hand .whot-card').count(),7);
