@@ -1,0 +1,23 @@
+{
+  "project": "TAC Hymnbook",
+  "version": 1,
+  "photo_page_range": [
+    437,
+    437
+  ],
+  "hymns": [
+    {
+      "number": 50,
+      "collection": "main",
+      "title_yo": "A f'ọpẹ́ f'Ọlọ́run",
+      "title_en": "Now Thank We All Our God",
+      "source_pages": [
+        437
+      ],
+      "estimated_verses": 3,
+      "external_source_url": "https://worshipandpraisesongs.blogspot.com/2017/11/",
+      "source_status": "index_plus_online_user_confirmed_first_verse",
+      "needs_final_text_review": true
+    }
+  ]
+}
