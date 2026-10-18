@@ -46,6 +46,14 @@ class UnderTreeSceneTest {
         assertEquals(scene, SceneProjectCodec.decode(SceneProjectCodec.encode(scene)))
     }
 
+    @Test fun starterLibraryContainsRealBicycleCarTreeAndProps() {
+        val catalog = PrototypeScene.starterAssets()
+        assertTrue(catalog.any { it.kind == ActorKind.VEHICLE && it.asset?.assetId == "starter.mise.bicycle" })
+        assertTrue(catalog.any { it.kind == ActorKind.VEHICLE && it.asset?.assetId == "starter.mise.car" })
+        assertTrue(catalog.any { it.kind == ActorKind.ENVIRONMENT && it.asset?.assetId == "starter.mise.tree" })
+        assertTrue(catalog.any { it.kind == ActorKind.PROP })
+    }
+
     @Test fun studentsBindToTheirOwnDiscoveredSkinnedRigWithoutAffectingOtherScenes() {
         val scene = UnderTreeScene.create()
         val skeletonNames = mapOf(
