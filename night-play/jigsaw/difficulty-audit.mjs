@@ -1,3 +1,4 @@
+import assert from 'node:assert/strict';
 import {chromium} from 'playwright';
 import {createServer} from 'node:http';
 import {readFileSync,mkdirSync,writeFileSync} from 'node:fs';
@@ -58,7 +59,55 @@ try{
    await page.close();
   }
  }
- const page=await browser.newPage({viewport:{width:390,height:844},isMobile:true,hasTouch:true});
+ // Additional real Android-density and touch tests. Logical geometry must not
+ // triple just because the physical display has a high pixel density.
+ for(const deviceScaleFactor of [2,3]){
+  const p=await browser.newPage({viewport:{width:390,height:844},deviceScaleFactor,isMobile:true,hasTouch:true});
+  const errs=[];p.on('pageerror',e=>errs.push(String(e)));
+  const fake=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9QjM8yAAAAAASUVORK5CYII=','base64');
+  await p.route('https://images.unsplash.com/**',r=>r.fulfill({status:200,contentType:'image/png',body:fake,headers:{'access-control-allow-origin':'*'}}));
+  await p.goto(site);await p.locator('[data-theme="photo-alpine-lake"]').click();
+  await p.waitForFunction(()=>window.__nightJigsawTest?.snapshot().activeRound);
+  await p.locator('#hudMenuButton').click();await p.locator('#hudSettingsButton').click();
+  await p.locator('[data-pieces="144"]').click();
+  const pre=await p.evaluate(()=>{
+   const s=window.__nightJigsawTest.snapshot(),c=document.getElementById('puzzleCanvas'),r=c.getBoundingClientRect();
+   return {s,rw:r.width,rh:r.height,canvasWidth:c.width,canvasHeight:c.height};
+  });
+  assert.equal(pre.s.pieces.length,144);
+  assert.equal(pre.s.zoom,1,'Full-table overview remains default even for 144 pieces');
+  assert.ok(pre.s.pixelRatio>=2,'Android retina devices need higher-resolution backing');
+  assert.ok(pre.canvasWidth>=pre.rw*2,'Backing has enough pixels for crisp piece contours');
+  assert.ok(pre.s.board.w<pre.rw,'Puzzle layout uses logical rather than physical pixel dimensions');
+  await p.locator('#hudMenuButton').click();await p.locator('#mobileZoomFit').click();
+  let after=await p.evaluate(()=>window.__nightJigsawTest.snapshot());
+  assert.ok(after.zoom>=1.7&&after.zoom<=2.2,'Magnify focuses dense pieces with one tap');
+  // Two-finger translation is possible even in a densely stacked workspace.
+  const cdp=await p.context().newCDPSession(p);
+  const touches=(x,y)=>[{id:12,x,y,radiusX:6,radiusY:6},{id:13,x:x+90,y:y+10,radiusX:6,radiusY:6}];
+  await cdp.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:touches(95,398)});
+  for(let i=1;i<=14;i++){
+   await cdp.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:touches(95+i*2.5,398-i*5)});
+   await new Promise(ok=>setTimeout(ok,12));
+  }
+  await cdp.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
+  await cdp.detach();
+  const moved=await p.evaluate(()=>window.__nightJigsawTest.snapshot());
+  assert.ok(Math.abs(moved.panY-after.panY)>5,'Two-finger pan moves camera even without a blank drag area: '+JSON.stringify({before:after.panY,after:moved.panY}));
+  const shot=await p.screenshot({type:'jpeg',quality:63});
+  writeFileSync(path.join(output,'ANDROID-DPR-'+deviceScaleFactor+'-144-ZOOM.jpg'),shot);
+  console.log('DPR_SCREEN_'+deviceScaleFactor+'='+shot.toString('base64'));
+  await p.reload();
+  await p.locator('#resumePlaying').click();
+  await p.waitForFunction(()=>window.__nightJigsawTest?.snapshot().activeRound);
+  after=await p.evaluate(()=>window.__nightJigsawTest.snapshot());
+  assert.ok(after.zoom>=1.7,'Zoom persists after full reload');
+  assert.ok(Math.abs(after.panY-moved.panY)<=4,'Pan survives resume');
+  assert.deepEqual(errs,[],'Android-density controls have no exceptions');
+  console.log('ANDROID_DPR_STRESS_PASS='+JSON.stringify({deviceScaleFactor,pixelRatio:pre.s.pixelRatio,backing:[pre.canvasWidth,pre.canvasHeight],zoom:after.zoom,panY:after.panY}));
+  await p.close();
+ }
+  const page=await browser.newPage({viewport:{width:390,height:844},isMobile:true,hasTouch:true});
  try{
   await page.goto('https://playjigsaw.net/puzzles/puz-orchard-goat-sheltered-edge-7894e43b',{waitUntil:'domcontentloaded',timeout:45000});
   await page.waitForTimeout(1200);
