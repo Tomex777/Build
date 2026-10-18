@@ -28,8 +28,8 @@ const server=http.createServer((req,res)=>{
   const page=await browser.newPage({viewport:{width:390,height:844},isMobile:true,hasTouch:true});
   const errors=[];page.on('pageerror',error=>errors.push(error.message));
   await page.goto(base+'/anonymous/');
-  assert.equal(await page.locator('#anonymousUnavailableHeading').isVisible(),true,
-   'Anonymous Nights publicly shows the verified-unavailable state');
+  assert.equal(await page.locator('#anonymousHubHeading').isVisible(),true,
+   'Anonymous Nights has a real channel-aware owner hub');
   assert.equal(await page.locator('#heroPrimary').isVisible(),false,
    'mock session opening must not be publicly clickable');
   assert.equal(await page.locator('#submitMessage').isVisible(),false,
@@ -39,7 +39,7 @@ const server=http.createServer((req,res)=>{
   // This fixture route is intentionally absent; production rewrites to the
   // same gated page, checked separately in the deployed vercel.json contract.
   await page.goto(base+'/anonymous/?design=1');
-  assert.equal(await page.locator('#anonymousUnavailable').isVisible(),false);
+  assert.equal(await page.locator('#anonymousHub').isVisible(),false);
   assert.equal(await page.locator('#heroPrimary').isVisible(),true,
    'explicit design review preserves the approved private mock');
   assert.deepEqual(errors,[],'anonymous route has no runtime JS errors');
