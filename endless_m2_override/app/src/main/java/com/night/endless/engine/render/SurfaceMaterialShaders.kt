@@ -207,6 +207,45 @@ void main() {
         albedo *= 0.92 + grain * 0.13;
     }
 
+    // World-specific macro-albedo stays anchored in ground coordinates,
+    // matching all LOD meshes without flickering across camera motion.
+    if (uWorld == 4) {
+        // Europa: pale water ice crisscrossed by narrow oxidized/reddish
+        // lineaments. This is interpretive geology, NOT Galileo image data.
+        // Avoid bright blue "frozen lake" fantasy coloring.
+        vec2 ridge = ground * 2.6;
+        float warp = (noiseFiltered(ground * 7.0) - 0.5) * 0.24;
+        float crackA = abs(sin(ridge.x * 0.78 + ridge.y * 0.26 + warp));
+        float crackB = abs(sin(ridge.y * 0.92 - ridge.x * 0.16 - warp * 0.5));
+        float darkBand = 1.0 - smoothstep(0.025, 0.155, min(crackA, crackB));
+        float smaller = 1.0 - smoothstep(0.018, 0.07,
+            abs(sin(ridge.x * 2.8 - ridge.y * 1.43 + warp)));
+        float weathering = noiseFiltered(ground * 3.1);
+        vec3 cleanIce = vec3(.74, .77, .755);
+        vec3 hydratedBrown = vec3(.34, .267, .235);
+        albedo = mix(cleanIce * (.85 + .20 * weathering),
+            hydratedBrown, clamp(darkBand * .57 + smaller * .09, 0.0, .63));
+        albedo *= .96 + .10 * granules;
+    } else if (uWorld == 5) {
+        // Titan: fine organic dunes with broad alternating low albedo
+        // streaks. Dunes have no sharp artificial polygon outlines.
+        float windWarp = (noiseFiltered(ground * 1.7) - .5) * .34;
+        float ripple = sin((ground.x * .67 + ground.y * 3.5 + windWarp) * 7.0);
+        float duneDark = smoothstep(-.38, .76, ripple);
+        float veneer = noiseFiltered(ground * 5.3);
+        vec3 fines = vec3(.37,.242,.118);
+        vec3 organics = vec3(.19,.127,.075);
+        albedo = mix(fines, organics, .48 * duneDark);
+        albedo *= .83 + .32 * veneer;
+    } else if (uWorld == 3) {
+        // Ceres: much darker carbonaceous surface, rare pale hydrated salt
+        // outcrops. Avoid coating the entire dwarf planet in white.
+        float bright = smoothstep(.82, .96,
+            noiseFiltered(ground * 2.4) * .64 +
+            noiseFiltered(ground * 7.5) * .36);
+        albedo = mix(albedo, vec3(.63,.60,.53), bright * .38);
+    }
+
     // NASA Trek site's 81.6-km equirectangular orbital-photo mosaic
     // is registered to MOLA / LOLA's coordinate frame. +X points east,
     // +Z points north. Values outside the site remain procedural.
