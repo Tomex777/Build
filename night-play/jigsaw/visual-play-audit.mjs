@@ -51,6 +51,8 @@ try{
    await page.locator('#hudSettingsButton').click();
    await page.locator('[data-pieces="144"]').click();
    await page.waitForFunction(()=>window.__nightJigsawTest.snapshot().pieces.length===144);
+   await page.locator('#focusButton').click();
+   await shot('READY_144_ZOOMED');
   }
   const layout=await page.evaluate(()=>{
    const state=window.__nightJigsawTest.snapshot(),r=document.getElementById('puzzleCanvas').getBoundingClientRect();
@@ -96,6 +98,10 @@ try{
        frameIntervals:a,slowFrames:a.filter(t=>t>25).length,
        p95:a.slice().sort((x,y)=>x-y)[Math.floor(a.length*.95)]||null};
   });
+  assert.ok(mid.backing[0]*mid.backing[1]<975*1965*.12,
+   'Moving piece must use a cropped GPU layer instead of a full-screen high-DPI canvas');
+  assert.equal(mid.staticPaints,before.staticPaints,'Finger movement never repaints static scene');
+  assert.equal(mid.dragPaints,before.dragPaints,'Finger movement never repaints drag sprite');
   console.log('JIGSAW_VISUAL_METRICS_'+pieces+'='+JSON.stringify({
    start:before.selected,staticPaintDelta:mid.staticPaints-before.staticPaints,
    dragPaintDelta:mid.dragPaints-before.dragPaints,slowFrames:mid.slowFrames,
