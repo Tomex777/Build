@@ -371,7 +371,7 @@ async function finish(page,winner){
    await defendPage.goto(base+'/club/?game=whot');
    await defendPage.evaluate(()=>{
      const key='night-play-club-v1',data=JSON.parse(localStorage.getItem(key)),s=data.whot;
-     s.hands[0][0]={s:0,n:3};s.hands[0][1]={s:2,n:5};
+     s.hands[0]=s.hands[0].map((c,i)=>i===0?{s:0,n:3}:i===1?{s:2,n:5}:c.n===5?{s:0,n:7}:c);
      s.hands[1][0]={s:0,n:5};s.discard[s.discard.length-1]={s:0,n:3};
      s.turn=0;s.winner=null;s.pendingPenalty=null;s.pendingFinish=null;
      s.pendingWhot=null;s.called=null;
