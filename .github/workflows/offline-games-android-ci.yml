@@ -1,0 +1,61 @@
+name: Offline Games Android CI
+
+on:
+  push:
+    branches: [feature/offline-100-games-android-foundation]
+    paths:
+      - "offline-games/**"
+      - ".github/workflows/offline-games-android-ci.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "offline-games/**"
+      - ".github/workflows/offline-games-android-ci.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: "platform-tools platforms;android-36 build-tools;36.0.0"
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.13"
+      - name: Test native gameplay
+        working-directory: offline-games
+        run: gradle --no-daemon :app:testDebugUnitTest
+      - name: Build installable debug APK
+        working-directory: offline-games
+        run: gradle --no-daemon :app:assembleDebug
+      - name: Confirm package, minSdk and offline arcade assets
+        run: |
+          set -euo pipefail
+          APK=offline-games/app/build/outputs/apk/debug/app-debug.apk
+          test -s "$APK"
+          "$ANDROID_HOME/build-tools/36.0.0/aapt" dump badging "$APK" | tee /tmp/offline-badging.txt
+          grep -q "package: name='com.nice.offlinegames'" /tmp/offline-badging.txt
+          grep -q "sdkVersion:'26'" /tmp/offline-badging.txt
+          unzip -Z1 "$APK" | grep -q "assets/arcade/games.js"
+          unzip -Z1 "$APK" | grep -q "assets/arcade/style.css"
+          unzip -Z1 "$APK" | grep -q "assets/arcade/index.html"
+          unzip -Z1 "$APK" | grep -q "assets/game-shell.css"
+          if "$ANDROID_HOME/build-tools/36.0.0/aapt" dump permissions "$APK" | grep -q "android.permission.INTERNET"; then
+            echo "Offline-only release unexpectedly requests internet permission" >&2
+            exit 1
+          fi
+      - uses: actions/upload-artifact@v4
+        if: success()
+        with:
+          name: offline-games-foundation-debug-apk
+          path: offline-games/app/build/outputs/apk/debug/app-debug.apk
+          retention-days: 14
