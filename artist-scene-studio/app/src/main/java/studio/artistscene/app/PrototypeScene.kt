@@ -177,6 +177,22 @@ object PrototypeScene {
             originalActor("Car", ActorKind.VEHICLE),
             originalActor("Tree", ActorKind.ENVIRONMENT),
             Actor(
+                id = "starter-oak-tree",
+                name = "Oak Tree · Detailed Leaves",
+                kind = ActorKind.ENVIRONMENT,
+                asset = AssetReference(
+                    assetId = "starter.cc0.oak-street-tree",
+                    relativePath = "models/mise_oak_tree.glb",
+                    format = "glb",
+                    creator = "Innerscene",
+                    source = "https://www.innerscene.com/tools/library/3d-parts/oak-street-tree-detailed-leaves-a273fef9",
+                    license = "CC0-1.0",
+                    licenseUrl = "https://creativecommons.org/publicdomain/zero/1.0/legalcode",
+                    attribution = "Original Innerscene CC0 oak model. 9,450 native geometric leaves.",
+                    version = "2026-10-05",
+                ),
+            ),
+            Actor(
                 id = "starter-mise-humanoid",
                 name = "Humanoid",
                 kind = ActorKind.CHARACTER,
