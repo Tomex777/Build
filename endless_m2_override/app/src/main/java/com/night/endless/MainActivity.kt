@@ -688,15 +688,37 @@ private fun EndlessApp(
                                         }
                                     }
                                 }
-                            } else if (selected == "ceres") {
-                                ControlButton("↓  Approach Ceres", active = true) {
-                                    infoVisible = false
-                                    glView?.endlessRenderer?.approachSelected()
+                            } else if (selected in setOf("mercury", "ceres", "europa", "titan")) {
+                                val id = selected!!
+                                val name = bodyInfo[id]?.name ?: id
+                                when (approach.stage) {
+                                    "ORBIT" -> {
+                                        ControlButton("Approach $name", active = true) {
+                                            infoVisible = false
+                                            glView?.endlessRenderer?.approachSelected()
+                                        }
+                                    }
+                                    "CLOSE APPROACH", "LOW ORBIT" -> {
+                                        ControlButton("Descend", active = true) {
+                                            glView?.endlessRenderer?.descendSelected()
+                                        }
+                                        ControlButton("Pull back") {
+                                            glView?.endlessRenderer?.pullBackSelected()
+                                        }
+                                    }
+                                    "SURFACE SKIM" -> {
+                                        ControlButton("Land on $name", active = true) {
+                                            if (glView?.endlessRenderer?.landOnExtendedBody(id) == true)
+                                                infoVisible = false
+                                        }
+                                        ControlButton("Pull back") {
+                                            glView?.endlessRenderer?.pullBackSelected()
+                                        }
+                                    }
+                                    else -> ControlButton("Pull back") {
+                                        glView?.endlessRenderer?.pullBackSelected()
+                                    }
                                 }
-                                ControlButton("↑  Pull back") {
-                                    glView?.endlessRenderer?.pullBackSelected()
-                                }
-                            }
                     }
                 }
             }
