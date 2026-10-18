@@ -46,3 +46,12 @@ gradle :app:assembleDebug
 ## Batch 2 provenance (pages 5–6)
 
 Hymns 12–17 use the original TAC numbering and matching English Redemption Hymnal identities. Full Yoruba text for 12–16 is drawn from the user-supplied spread, with uncertain spelling still marked in source metadata. Hymn 17 uses the matching source for verses not yet photographed. Source status is retained in JSON but not shown as developer counters or badges in the public UI. No song is silently considered verified solely because a matching opening line was found.
+
+
+## Index-first pilot: photographed page 437
+
+- `data/index-page-437.json` captures **40 original printed hymn numbers** and visible Yorùbá opening lines from the alphabetical index; 21 have English hymn identities cross-checked against the same-number Redemption Hymnal entry, with remaining entries queued for matching.
+- Original index readings that are shadowed, blurry, or uncertain stay tagged `needs_review`. Never invent Yorùbá diacritics as though verified.
+- Hymn **50** is the **first index-only bilingual lyrics import**, via `data/hymns-050.seed.json` and `data/drafts/hymn-050.yo.json`: a prior user check confirmed the online Yorùbá opening verse against the physical book. Further verses/redistribution status remain working-draft rather than asserted exact TAC text.
+- Previous speculative matches were corrected: **Rock of Ages = 341 (not 733)**; **To the Work = 568 (not 424)**; **The Mercy of God Is an Ocean Divine = 424**; **733 = Thine Arm, O Lord, in Days of Old**. Treat pairings by number **and** meaning.
+- Only entries with actual bilingual verses belong in the public hymn reader. Unfilled index entries remain in internal research data, not broken user-facing hymn pages.
