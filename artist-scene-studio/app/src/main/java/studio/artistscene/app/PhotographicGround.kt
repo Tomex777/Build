@@ -33,9 +33,9 @@ internal fun createPhotographicGround(engine: Engine, context: Context): Texture
         // leaf detail to pale yellow and the real shadow receiver reads flat.
         val paint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG).apply {
             colorFilter = ColorMatrixColorFilter(floatArrayOf(
-                0.60f, 0f, 0f, 0f, 0f,
-                0f, 0.66f, 0f, 0f, 0f,
-                0f, 0f, 0.58f, 0f, 0f,
+                0.72f, 0f, 0f, 0f, 0f,
+                0f, 0.79f, 0f, 0f, 0f,
+                0f, 0f, 0.70f, 0f, 0f,
                 0f, 0f, 0f, 1f, 0f,
             ))
         }
