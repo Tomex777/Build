@@ -210,37 +210,55 @@ void main() {
     // World-specific macro-albedo stays anchored in ground coordinates,
     // matching all LOD meshes without flickering across camera motion.
     if (uWorld == 4) {
-        // Europa: pale water ice crisscrossed by narrow oxidized/reddish
-        // lineaments. This is interpretive geology, NOT Galileo image data.
-        // Avoid bright blue "frozen lake" fantasy coloring.
-        vec2 ridge = ground * 2.6;
-        float warp = (noiseFiltered(ground * 7.0) - 0.5) * 0.24;
-        float crackA = abs(sin(ridge.x * 0.78 + ridge.y * 0.26 + warp));
-        float crackB = abs(sin(ridge.y * 0.92 - ridge.x * 0.16 - warp * 0.5));
-        float darkBand = 1.0 - smoothstep(0.025, 0.155, min(crackA, crackB));
-        float smaller = 1.0 - smoothstep(0.018, 0.07,
-            abs(sin(ridge.x * 2.8 - ridge.y * 1.43 + warp)));
-        float weathering = noiseFiltered(ground * 3.1);
-        // Europa's measured ice-dominated crust is high-albedo and
-        // spatially variable; dark red-brown material sits mostly along
-        // fractures rather than covering the whole plain uniformly.
-        vec3 cleanIce = vec3(.78, .81, .795);
-        vec3 hydratedBrown = vec3(.33, .245, .21);
-        float deposit = clamp(darkBand * .66 + smaller * .11, 0.0, .70);
-        albedo = mix(cleanIce * (.91 + .14 * weathering),
-            hydratedBrown, deposit);
-        albedo *= .98 + .065 * granules;
+        // Europa: real ice crusts have bright cleaner plates broken by
+        // brown-red non-ice deposits in double ridges and crosscutting
+        // lineaments. Source geology is NASA Galileo-inspired. The
+        // geometry/positions here are fictional until registered DEMs.
+        // Domain warping prevents perfect sinusoidal painted stripes.
+        float noiseA = noiseFiltered(ground * 16.7 + vec2(13.3,-5.1)) - .5;
+        float noiseB = noiseFiltered(ground * 33.7 + vec2(-23.9,41.7)) - .5;
+        vec2 faultPosition = ground + vec2(noiseA,noiseB) * .024;
+        float alpha = dot(faultPosition, vec2(21.5, 7.9)) + noiseA * 1.3;
+        float beta = dot(faultPosition, vec2(-6.3, 31.1)) + noiseB * .96;
+        float primary = abs(sin(alpha));
+        float secondary = abs(sin(beta));
+        // Deposits lie in a narrow trough between bright ridge lips.
+        float darkRift = exp(-primary*primary/.017) * .72 +
+                         exp(-secondary*secondary/.024) * .43;
+        float ridgeLip = exp(-pow(primary-.19,2.0)/.005) +
+                         exp(-pow(secondary-.23,2.0)/.008);
+        float grainIce = noiseFiltered(ground * 124.0);
+        float brokenPlates = noiseFiltered(ground * 7.9 + vec2(11.0,-3.0));
+        // Tiny branch fractures (<10m) show at eye level only, never
+        // alias into artificial zebra marks in the distant landscape.
+        float tiny = abs(sin(dot(ground,vec2(480.0,177.0))+noiseA*2.5));
+        float branch = (1.0-smoothstep(.014,.065,tiny)) *
+            (1.0-smoothstep(.008,.12,vDistance));
+        vec3 cleanIce = vec3(.865,.875,.847);
+        vec3 youngIce = vec3(.952,.949,.914);
+        vec3 stainedIce = vec3(.36,.244,.192);
+        float plateValue = smoothstep(.30,.72,brokenPlates);
+        albedo = mix(cleanIce, youngIce, plateValue*.55);
+        float deposited = clamp(darkRift*.72+branch*.14,0.0,.82);
+        albedo = mix(albedo,stainedIce,deposited);
+        albedo = mix(albedo,youngIce,ridgeLip*.045);
+        albedo *= .965 + .06*grainIce;
     } else if (uWorld == 5) {
-        // Titan: fine organic dunes with broad alternating low albedo
-        // streaks. Dunes have no sharp artificial polygon outlines.
-        float windWarp = (noiseFiltered(ground * 1.7) - .5) * .34;
-        float ripple = sin((ground.x * .67 + ground.y * 3.5 + windWarp) * 7.0);
-        float duneDark = smoothstep(-.38, .76, ripple);
-        float veneer = noiseFiltered(ground * 5.3);
-        vec3 fines = vec3(.37,.242,.118);
-        vec3 organics = vec3(.19,.127,.075);
-        albedo = mix(fines, organics, .48 * duneDark);
-        albedo *= .83 + .32 * veneer;
+        // Titan: broad wind-lain longitudinal dunes plus fine ripple
+        // streaks with direction-coherent albedo. The visible wave period
+        // is consistent with their new modelled dune-height geometry.
+        float windWarp = (noiseFiltered(ground * 3.7) - .5) * .25;
+        float crestPhase = (ground.x * 2.9 + ground.y * 5.9 + windWarp)*1.18;
+        float crest = sin(crestPhase);
+        float leeSide = smoothstep(-.55,.72,crest);
+        float ripple = sin((ground.x * 92.0 + ground.y * 29.0 +
+                          windWarp*22.0));
+        float rippleShade = .5+.5*ripple;
+        float veneer = noiseFiltered(ground * 8.3);
+        vec3 fines = vec3(.40,.258,.129);
+        vec3 organics = vec3(.20,.132,.072);
+        albedo = mix(fines,organics,leeSide*.43);
+        albedo *= .85 + .22*veneer + .04*rippleShade;
     } else if (uWorld == 3) {
         // Ceres: much darker carbonaceous surface, rare pale hydrated salt
         // outcrops. Avoid coating the entire dwarf planet in white.
@@ -347,7 +365,24 @@ void main() {
         color = mix(dust, color, transmittance);
     }
 
-    // Filmic highlight compression only; do not artificially add emissive glow.
+    // Individual camera exposure: Europa is illuminated at 5AU and
+    // almost monochromatic, but a camera automatically exposes its
+    // reflective ice brighter than lunar-grey stone. Exposure is NOT
+    // fictitious additional sunlight. Keep Mars/Moon exactly calibrated.
+    if (uWorld == 4) {
+        color *= 1.86;
+        // Broad waxy ice reflection, restrained by microfacet roughness
+        // and only visible where the surface actually faces the Sun.
+        vec3 viewDirection = normalize(vec3(
+            uViewAnchor.x - vPosition.x, .00078,
+            uViewAnchor.y - vPosition.z));
+        float glossy = max(dot(microNormal, normalize(sun+viewDirection)),0.0);
+        float glint = pow(glossy, 48.0) * direct;
+        color += vec3(.08,.092,.096)*glint;
+    } else if (uWorld == 5) {
+        color *= 1.13;
+    }
+    // Filmic highlight compression, not flat ambient emissive haze.
     color = color / (vec3(1.0) + color * 0.48);
     fragColor = vec4(pow(max(color, vec3(0.0)), vec3(0.88)), 1.0);
 }
