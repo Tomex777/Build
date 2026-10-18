@@ -9,12 +9,12 @@ from build_asset import ROOT, compile_asset
 class HymnDataTest(unittest.TestCase):
     def test_catalogue_is_unique_and_contiguous(self):
         hymns = compile_asset()["hymns"]
-        self.assertEqual([h["number"] for h in hymns], list(range(1, 18)))
-        self.assertEqual(len(hymns), 17)
+        self.assertEqual([h["number"] for h in hymns], [*range(1, 18), 50])
+        self.assertEqual(len(hymns), 18)
 
     def test_all_photo_hymns_have_lyrics_in_both_languages(self):
         hymns = {h["number"]: h for h in compile_asset()["hymns"]}
-        self.assertEqual({n for n, h in hymns.items() if h["verses_yo"]}, set(range(1, 18)))
+        self.assertEqual({n for n, h in hymns.items() if h["verses_yo"]}, set([*range(1, 18), 50]))
         self.assertEqual({n for n, h in hymns.items() if h["verses_en"]}, set(range(1, 18)))
         for h in hymns.values():
             if not h["verses_yo"]:
@@ -34,8 +34,9 @@ class HymnDataTest(unittest.TestCase):
                 for line in verse:
                     self.assertNotIn(r"\\n", line)
         self.assertEqual(hymns[10]["source_pages"], [4, 5])
-        self.assertEqual(hymns[-1]["source_pages"], [6])
-        self.assertEqual(hymns[-1]["number"], 17)
+        self.assertEqual(hymns[16]["source_pages"], [6])
+        self.assertEqual(hymns[16]["number"], 17)
+        self.assertEqual(hymns[-1]["number"], 50)
 
     def test_assets_are_committed_and_up_to_date(self):
         output = ROOT / "android/app/src/main/assets/hymns.json"
@@ -57,7 +58,7 @@ class HymnDataTest(unittest.TestCase):
         self.assertIn("Mercy of God", by_number[424]["redemption_english_title"])
         self.assertEqual(by_number[568]["redemption_english_title"], "To the Work")
         self.assertIn("Thine Arm", by_number[733]["redemption_english_title"])
-        self.assertTrue(all(not e["full_lyrics_imported"] for e in entries))
+        self.assertEqual({e["printed_number"] for e in entries if e["full_lyrics_imported"]}, {50})
         self.assertEqual(set(numbers).intersection(range(1, 18)), set())
 
     def test_yoruba_is_stored_as_unicode(self):
