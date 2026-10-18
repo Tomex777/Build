@@ -14,7 +14,7 @@ const server=createServer((req,res)=>{
  if(p==='jigsaw/'||p==='jigsaw')p='jigsaw/index.html';
  if(!p||p.includes('..')){res.writeHead(404);res.end();return;}
  const types={'.js':'text/javascript','.css':'text/css','.html':'text/html','.png':'image/png','.svg':'image/svg+xml'};
- try{res.writeHead(200,{'content-type':types[path.extname(p)]||'text/plain'});res.end(readFileSync(path.join(root,p)));}
+ try{const bytes=readFileSync(path.join(root,p));res.writeHead(200,{'content-type':types[path.extname(p)]||'text/plain'});res.end(bytes);}
  catch{res.writeHead(404);res.end('Missing '+p);}
 });
 await new Promise(ok=>server.listen(0,'127.0.0.1',ok));
