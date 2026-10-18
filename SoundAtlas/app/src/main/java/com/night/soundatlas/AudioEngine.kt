@@ -7,6 +7,7 @@ import android.media.AudioManager
 import android.media.AudioTrack
 import android.os.Process
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.concurrent.thread
 import kotlin.math.*
@@ -20,6 +21,7 @@ class AudioEngine(private val assets: AssetManager) {
     companion object { const val SAMPLE_RATE = 44100; const val FRAMES = 768 }
     private val scene = AtomicReference<World?>(null)
     private val running = AtomicBoolean(false)
+    private val generation = AtomicInteger(0)
     private val voices = mutableMapOf<Int, Voice>()
     private var fieldRecordings: Map<SoundKind, ShortArray> = emptyMap()
     private val reverb = DiffuseReverb()
@@ -34,6 +36,7 @@ class AudioEngine(private val assets: AssetManager) {
         update(world)
         if (!running.compareAndSet(false,true)) return
         error = null
+        val session = generation.incrementAndGet()
         worker = thread(name="SoundAtlasAudio",isDaemon=true) {
             Process.setThreadPriority(Process.THREAD_PRIORITY_AUDIO)
             var track: AudioTrack? = null
@@ -54,7 +57,7 @@ class AudioEngine(private val assets: AssetManager) {
                 check(track.state==AudioTrack.STATE_INITIALIZED) { "AudioTrack init failed" }
                 track.play()
                 val buffer=ShortArray(FRAMES*2)
-                while(running.get() && !Thread.currentThread().isInterrupted) {
+                while(running.get() && generation.get()==session && !Thread.currentThread().isInterrupted) {
                     val world=scene.get()
                     if(world!=null) render(world,buffer)
                     else buffer.fill(0)
@@ -65,12 +68,13 @@ class AudioEngine(private val assets: AssetManager) {
                 error=e.message ?: e.javaClass.simpleName
             } finally {
                 try { track?.pause(); track?.flush(); track?.release() } catch (_: Exception) {}
-                running.set(false)
+                if(generation.get()==session) running.set(false)
             }
         }
     }
     fun stop() {
         running.set(false)
+        generation.incrementAndGet()
         worker?.interrupt()
         worker=null
     }
@@ -135,7 +139,7 @@ class AudioEngine(private val assets: AssetManager) {
             var left=0f;var right=0f
             for(layer in layers) {
                 val voice=layer.voice
-                val sound=voice.next(layer.emitter.kind,world.wind,world.rain,t)
+                val sound=voice.next(layer.emitter.kind,world.wind,world.rain,world.storm,t)
                 voice.lowpass += (sound-voice.lowpass)*voice.filterAlpha
                 val filtered=voice.lowpass*voice.gain
                 // Equal-power pan and time-delay for the shadowed ear. Headphone-centric.
@@ -220,7 +224,7 @@ class AudioEngine(private val assets: AssetManager) {
             if(phase>=2*PI)phase-=2*PI
             return sin(phase)
         }
-        fun next(kind:SoundKind, wind:Float, rain:Float, t:Double):Float {
+        fun next(kind:SoundKind, wind:Float, rain:Float, storm:Float, t:Double):Float {
             val white=noise()
             low += (white-low)*.003
             mid += (white-mid)*.06
@@ -237,7 +241,7 @@ class AudioEngine(private val assets: AssetManager) {
                 }
                 eventFreq=200+random01()*1800
                 nextEvent=when(kind) {
-                    SoundKind.THUNDER -> 8.0+random01()*27.0
+                    SoundKind.THUNDER -> (8.0+random01()*27.0)*(1.4-storm.coerceIn(0f,1f)*.9)
                     SoundKind.DRIP -> .3+random01()*2.3
                     SoundKind.BIRDS -> .4+random01()*3.8
                     SoundKind.BELL -> 5.0+random01()*17.0
@@ -261,7 +265,7 @@ class AudioEngine(private val assets: AssetManager) {
                 }
                 SoundKind.THUNDER -> {
                     // Subsonic-like crack + lengthy rolling envelope; no downloaded clip.
-                    (low*3.1+mid*.5+white*.12)*active*(.65+rain*.35)
+                    (low*3.1+mid*.5+white*.12)*active*(.45+storm*.65+rain*.22)
                 }
                 SoundKind.WIND -> (low*2.0+mid*.19)*(0.5+wind*.7)*
                     (.68+.32*sin(t*.2+eventFreq))
