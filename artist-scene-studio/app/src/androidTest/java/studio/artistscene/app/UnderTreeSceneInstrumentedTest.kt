@@ -75,6 +75,8 @@ class UnderTreeSceneInstrumentedTest {
             val empty: File
             ActivityScenario.launch(MainActivity::class.java).use {
                 open()
+                requireNotNull(device.wait(Until.findObject(By.res("reference-mode")), 10_000))
+                    .click()
                 empty = capture("empty")
             }
             store.save(scene)
@@ -98,8 +100,8 @@ class UnderTreeSceneInstrumentedTest {
                 val students = store.load(scene.id).actors.filter { it.kind == ActorKind.CHARACTER }
                 assertEquals(2, students.size)
                 assertTrue("Both REAL VRoid skins must bind their individual pose bones",
-                    students.all { it.rigDefinition?.bones?.size ?: 0 >= 60 &&
-                        it.rig?.joints?.size ?: 0 >= 8 &&
+                    students.all { (it.rigDefinition?.bones?.size ?: 0) >= 60 &&
+                        (it.rig?.joints?.size ?: 0) >= 8 &&
                         it.rig!!.joints.keys.all { key ->
                             key in it.rigDefinition!!.bones.map { bone -> bone.id }
                         }
