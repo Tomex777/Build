@@ -61,15 +61,22 @@ async function original(mobile){
   await pause(1500);e.detail=await metrics(page);
   await capture(page,label+'-selection',e);
   // Ask for a 36-piece round if available. Confirm the resulting URL after clicking play.
-  const easy=page.getByRole('button',{name:/36 pieces/i}).first();
-  if(await easy.count()){await easy.click({timeout:7500});e.selection='36 requested'}
-  const start=page.getByRole('button',{name:/play with/i}).first();
-  if(await start.count()){e.startText=await start.innerText();await start.click({timeout:9000});}
-  else{
-   const alternative=page.getByRole('button',{name:/^play now$|^start puzzle$|^play$/i}).first();
-   if(await alternative.count())await alternative.click({timeout:9000});
-   else e.errors.push('No playable start action found');
+  const easy=page.locator('button[aria-label*="36 pieces"],button:has-text("36 pcs")').first();
+  if(await easy.count()&&await easy.isVisible()){await easy.click({timeout:7500});e.selection='36 requested'}
+  const startCandidates=[
+   page.getByRole('link',{name:/play with/i}).first(),
+   page.locator('a:has-text("Play with")').first(),
+   page.getByRole('button',{name:/play with/i}).first(),
+   page.getByRole('button',{name:/^play now$|^start puzzle$|^play$/i}).first()
+  ];
+  let played=false;
+  for(const start of startCandidates){
+   if(await start.count()&&await start.isVisible()){
+    e.startText=await start.innerText();await start.click({timeout:12000});
+    played=true;break;
+   }
   }
+  if(!played)e.errors.push('No playable start action found');
   await pause(2200);e.initial=await metrics(page);await capture(page,label+'-play',e);
   // Drag from independently observed actual pieces in reference screenshots.
   const points=mobile?
