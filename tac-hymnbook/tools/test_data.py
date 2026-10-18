@@ -9,18 +9,18 @@ from build_asset import ROOT, compile_asset
 class HymnDataTest(unittest.TestCase):
     def test_catalogue_is_unique_and_contiguous(self):
         hymns = compile_asset()["hymns"]
-        self.assertEqual([h["number"] for h in hymns], list(range(1, 12)))
-        self.assertEqual(len(hymns), 11)
+        self.assertEqual([h["number"] for h in hymns], list(range(1, 18)))
+        self.assertEqual(len(hymns), 17)
 
     def test_all_photo_hymns_have_lyrics_in_both_languages(self):
         hymns = {h["number"]: h for h in compile_asset()["hymns"]}
-        self.assertEqual({n for n, h in hymns.items() if h["verses_yo"]}, set(range(1, 12)))
-        self.assertEqual({n for n, h in hymns.items() if h["verses_en"]}, set(range(1, 12)))
+        self.assertEqual({n for n, h in hymns.items() if h["verses_yo"]}, set(range(1, 18)))
+        self.assertEqual({n for n, h in hymns.items() if h["verses_en"]}, set(range(1, 18)))
         for h in hymns.values():
             if not h["verses_yo"]:
                 self.assertEqual(h["text_status"], "missing")
             else:
-                self.assertTrue("draft" in h["text_status"] or "partial" in h["text_status"])
+                self.assertTrue("draft" in h["text_status"] or "partial" in h["text_status"] or "online" in h["text_status"])
                 self.assertTrue(h["source_pages"])
 
     def test_verse_counts_and_partial_hymn(self):
@@ -33,8 +33,9 @@ class HymnDataTest(unittest.TestCase):
             for verse in hymn["verses_yo"] + hymn["verses_en"]:
                 for line in verse:
                     self.assertNotIn(r"\\n", line)
-        self.assertEqual(hymns[-1]["text_status"], "partial_from_photo")
-        self.assertEqual(hymns[-1]["source_pages"], [4])
+        self.assertEqual(hymns[10]["source_pages"], [4, 5])
+        self.assertEqual(hymns[-1]["source_pages"], [6])
+        self.assertEqual(hymns[-1]["number"], 17)
 
     def test_assets_are_committed_and_up_to_date(self):
         output = ROOT / "android/app/src/main/assets/hymns.json"
