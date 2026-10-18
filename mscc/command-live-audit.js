@@ -210,7 +210,7 @@ export async function runLiveCase({ original, command, spec, fixtures, fixtureSe
   if (!chat || !socket?.sendMessage) return {status:'FAILED',detail:'WhatsApp socket unavailable'}
   const share = memoryStore()
   const safeSend = async (jid, payload, options) => {
-    if (signal?.aborted) throw new Error('Audit cancelled')
+    if (signal?.aborted || stopped.signal.aborted) throw new Error('Audit cancelled')
     if (jid !== chat) throw new Error('Test attempted to send outside the authorized chat')
     const validation = validateMediaPayload(payload)
     if (!validation.valid) throw new Error(validation.reason || 'Empty or unrecognized WhatsApp output')
@@ -287,6 +287,7 @@ export async function runLiveCase({ original, command, spec, fixtures, fixtureSe
   })
   const cancelPromise=new Promise((_,reject)=>{
     stopped.signal.addEventListener('abort',()=>reject(new Error(timedOut?'test timeout':'audit cancelled')),{once:true})
+    if (stopped.signal.aborted) reject(new Error('audit cancelled'))
   })
   try {
     const result=await Promise.race([execPromise,timeoutPromise,cancelPromise])
@@ -338,7 +339,7 @@ export function createLiveAuditManager({ load=()=>loadCommands(PUBLIC,{capabilit
         job.total=eligible.length
         await send('🌙 *NIGHT LIVE COMMAND TEST*\n'+eligible.length+
           ' real command handlers queued • '+skipped+
-          ' other registered public commands not included in live allowlist.\n'+
+          ' other registered public commands not scheduled for this live run.\n'+
           'Fixtures and results are sent to THIS chat. No moderation or account mutations. Use .testall cancel to stop.')
         fixtures=await makeFixtures()
         const fixtureSends=new Map()
