@@ -8,7 +8,7 @@ const root=path.resolve(__dirname,'..');
 const fileTypes={'.css':'text/css','.js':'application/javascript','.html':'text/html'};
 const server=http.createServer((req,res)=>{
  const src=new URL(req.url,'http://localhost').pathname;
- const paths={'/club/':'club/index.html','/club':'club/index.html','/club/style.css':'club/style.css','/game-shell.css':'game-shell.css','/club/ludo-immersive.css':'club/ludo-immersive.css','/club/games.js':'club/games.js','/club/naija-ludo.js':'club/naija-ludo.js','/club/ludo-motion.js':'club/ludo-motion.js','/club/ludo-dice-3d.js':'club/ludo-dice-3d.js'};
+ const paths={'/audio/sfx.js':'audio/sfx.js','/audio/sfx.css':'audio/sfx.css','/club/':'club/index.html','/club':'club/index.html','/club/style.css':'club/style.css','/game-shell.css':'game-shell.css','/club/ludo-immersive.css':'club/ludo-immersive.css','/club/games.js':'club/games.js','/club/naija-ludo.js':'club/naija-ludo.js','/club/ludo-motion.js':'club/ludo-motion.js','/club/ludo-dice-3d.js':'club/ludo-dice-3d.js'};
  const rel=paths[src];
  if(!rel){res.writeHead(404);res.end('Not found');return}
  res.writeHead(200,{'content-type':fileTypes[path.extname(rel)]||'text/plain','cache-control':'no-store'});
@@ -108,16 +108,16 @@ async function finish(page,winner){
    });
 
    console.log('WHOT_CARD_DESIGN',width,JSON.stringify(design));
-   assert.equal(design.bg,'rgb(249, 252, 250)','clean off-white traditional card stock');
+   assert.equal(design.bg,'rgb(255, 254, 251)','original, clean ivory playing-card stock');
    assert.equal(design.cssGradient,'none','no glossy artificial paper gradient');
-   assert.equal(design.symbolFill,'rgb(81, 27, 32)','deep burgundy solid geometric suits');
-   assert.equal(design.cornerInk,'rgb(30, 35, 32)','small dark numbers, not enlarged red labels');
+   assert.equal(design.symbolFill,'rgb(84, 26, 39)','solid burgundy geometric suits across all contexts');
+   assert.equal(design.cornerInk,'rgb(27, 32, 34)','small charcoal indices rather than decorative large ranks');
    assert.equal(design.hasSmallSuit,true,'numbers have accompanying corner symbols');
    assert.ok(design.symbolWidth>25,'single central geometric suit is unmistakable');
    if(width===390){
      assert.ok(Math.abs(design.width-80)<1,'reference 80px mobile face');
      assert.ok(Math.abs(design.height-105)<1,'reference 105px mobile face');
-     assert.equal(design.cornerSize,'9px');
+     assert.equal(design.cornerSize,'10px');
    }else{
      assert.ok(Math.abs(design.width-100)<1,'reference-proportioned desktop card width');
      assert.ok(Math.abs(design.height-138)<1,'reference-proportioned desktop card height');
@@ -144,6 +144,17 @@ async function finish(page,winner){
    assert.equal(liveSpeed.winner,false,'no result animation during live gameplay');
    await page.waitForTimeout(1400);
    assert.equal(await page.locator('.hand .whot-card').count(),5,'all five dealt cards remain visible in the hand');
+   const upright=await page.locator('.hand .whot-card').evaluateAll(nodes=>nodes.every(el=>{
+     const m=getComputedStyle(el).transform;
+     const r=el.getBoundingClientRect();
+     return (m==='none'||m==='matrix(1, 0, 0, 1, 0, 0)')&&Math.abs(r.width-parseFloat(getComputedStyle(el).width))<.8;
+   }));
+   assert.equal(upright,true,'hand cards remain straight and readable instead of an uneven fan');
+   const visible=await page.locator('.hand .whot-card').evaluateAll(nodes=>nodes.every(el=>{
+     const parent=el.closest('.card-row').getBoundingClientRect(),r=el.getBoundingClientRect();
+     return r.left>=parent.left-.8&&r.right<=parent.right+1;
+   }));
+   assert.equal(visible,true,'the entire five-card starting hand fits without horizontal scrolling');
    await snap(page,'TABLE',width);
    await finish(page,0);
    assert.equal(await page.locator('.whot-win-layer.player-victory').count(),1,'winner rendered inside board');
@@ -226,11 +237,27 @@ async function finish(page,winner){
      window.__tableNode=document.querySelector('.table-surface');
      window.__deckNode=document.querySelector('.whot-deck');
      window.__opponentNode=document.querySelector('.table-surface>.card-row .card-back');
+     window.__flightParityOrigin=document.querySelector('.hand .whot-card[data-card="0"]');
      window.__remainingNode=document.querySelectorAll('.hand .whot-card')[1];
      window.__cardCountBefore=document.querySelectorAll('.hand .whot-card').length;
    });
    await carry.locator('.hand .whot-card[data-card="0"]').click();
    await carry.waitForFunction(()=>window.__nightWhotMotion().activeFlights===1,null,{timeout:1200});
+   const parity=await carry.evaluate(()=>{
+     const a=window.__flightParityOrigin,b=document.querySelector('.whot-flight-face');
+     if(!a||!b)return null;
+     const details=el=>{
+       const c=getComputedStyle(el),r=getComputedStyle(el.querySelector('.whot-corner strong'));
+       const face=getComputedStyle(el.querySelector('.whot-suit-big'));
+       return {background:c.backgroundColor,gradient:c.backgroundImage,ink:c.color,
+         rank:r.color,rankSize:r.fontSize,shapeFill:face.fill,
+         shapeWidth:el.querySelector('.whot-suit-big').getBoundingClientRect().width};
+     };
+     return {source:details(a),flight:details(b)};
+   });
+   assert.ok(parity,'flight sprite exists during play, not only after it ends');
+   assert.deepEqual(parity.flight,parity.source,'the flight must never flash an obsolete card face, including ranks and symbols');
+   await snap(carry,'FLIGHT',width);
    await carry.waitForFunction(()=>document.querySelectorAll('.hand .whot-card').length===window.__cardCountBefore-1,null,{timeout:2000});
    const continuity=await carry.evaluate(()=>({
      table:document.querySelector('.table-surface')===window.__tableNode,
