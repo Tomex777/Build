@@ -56,7 +56,15 @@ async function finish(page,winner){
    const look=await page.locator('.table-surface').evaluate(el=>({bg:getComputedStyle(el).backgroundImage,shadow:getComputedStyle(el).boxShadow,radius:getComputedStyle(el).borderRadius}));
    assert.ok(look.bg.includes('data:image/svg+xml'),'tabletop uses original NIGHT vector woodgrain');
    assert.ok(look.shadow.includes('inset'),'NIGHT-framed wooden table has subtle depth and separation');
-   assert.equal(await page.locator('.whot-opponent-hand .card-back').count(),5,'show every CPU card rather than a single placeholder');
+   assert.equal(await page.locator('.whot-opponent-hand .card-back').count(),3,'CPU card backs are deliberately capped at three');
+   const compact=await page.evaluate(()=>{const row=document.querySelector('.whot-opponent-hand');const cards=[...row.querySelectorAll('.card-back')];const a=row.getBoundingClientRect(),c=cards.map(el=>el.getBoundingClientRect());return {width:a.width,inside:c.every(r=>r.left>=a.left-1&&r.right<=a.right+1),overlap:c[1]?.left<c[0]?.right&&c[2]?.left<c[1]?.right,scrollWidth:row.scrollWidth,clientWidth:row.clientWidth}});
+   assert.equal(compact.inside,true,'CPU card stack stays entirely within its row');
+   assert.equal(compact.overlap,true,'opponent cards form a compact physical stack');
+   assert.ok(compact.width<(width<=600?205:245),'opponent backs never span the whole felt');
+   assert.ok(compact.scrollWidth<=compact.clientWidth+1,'CPU stack never creates horizontal scroll');
+   const labels=await page.locator('.whot-opponent-hand .card-back').evaluateAll(cards=>
+     cards.map(c=>[...c.querySelectorAll('span')].some(x=>getComputedStyle(x).visibility==='visible')));
+   assert.deepEqual(labels,[false,false,true],'only the visible front CPU back has complete WHOT lettering');
    const geometry=await page.evaluate(()=>{
      const rect=s=>{const e=document.querySelector(s),r=e.getBoundingClientRect();return {x:r.x,y:r.y,w:r.width,h:r.height}};
      return {cpu:rect('.whot-opponent-hand'),market:rect('.whot-deck-back'),discard:rect('.card-pile>.whot-card'),hand:rect('.hand .card-row'),
@@ -126,16 +134,16 @@ async function finish(page,winner){
    console.log('WHOT_CARD_DESIGN',width,JSON.stringify(design));
 
    const budget=await page.evaluate(()=>window.__nightWhotMotion().timings);
-   assert.ok(budget.player>=440&&budget.player<=500&&budget.cpu>=460&&budget.cpu<=510&&budget.draw>=430&&budget.draw<=490,'smooth FLIP glide matches natural reference rhythm');
-   assert.ok(budget.cpuDelay>=180&&budget.cpuDelay<=290,'CPU has a deliberate but not sluggish beat');
-   assert.ok(budget.deal<=450&&budget.dealStagger<=70,'initial dealing stays rhythmic');
-   assert.ok(budget.settle<=210&&budget.recenter>=320&&budget.recenter<=390,'hands glide into their new position');
+   assert.ok(budget.player>=155&&budget.player<=235&&budget.cpu>=170&&budget.cpu<=250&&budget.draw>=125&&budget.draw<=195,'fast tap-driven movement must not stall on slow 500ms+ flights');
+   assert.ok(budget.cpuDelay>=40&&budget.cpuDelay<=125,'CPU starts promptly instead of pausing a quarter-second');
+   assert.ok(budget.deal<=250&&budget.dealStagger<=40,'initial deal finishes quickly');
+   assert.ok(budget.settle<=120&&budget.recenter<=170,'no lengthy follow-on card settle or recenter');
    const dealAnim=await page.locator('.hand .whot-card').last().evaluate(el=>{
      const active=el.getAnimations();return active.length?active[0].effect.getTiming():null
    });
    if(dealAnim){
-     assert.ok(dealAnim.duration<=450,'actual dealt-card animation must stay under 450ms');
-     assert.ok(dealAnim.delay<=330,'5-card dealing should be evenly staggered');
+     assert.ok(dealAnim.duration<=250,'actual dealt-card animation must stay under 250ms');
+     assert.ok(dealAnim.delay<=160,'5-card dealing must be fast and rhythmic');
    }
    const liveSpeed=await page.evaluate(()=>{
      const table=document.querySelector('.table-surface .whot-win-layer');
@@ -187,6 +195,30 @@ async function finish(page,winner){
    assert.ok(overflow<=1,'no horizontal overflow at '+width+'px: '+overflow);
    assert.deepEqual(errors,[],'no console page exceptions');
    await page.close();
+   // CPU can accumulate a huge hand after chained penalties. Its compact
+   // visual stays three backs while the existing HUD remains truthful.
+   const fatCpu=await browser.newPage({viewport:{width,height:844},isMobile:width<=600,hasTouch:width<=600});
+   await fatCpu.goto(base+'/club/?game=whot');
+   await fatCpu.evaluate(()=>{
+     const key='night-play-club-v1',obj=JSON.parse(localStorage.getItem(key)),s=obj.whot;
+     s.hands[1].push(...s.deck.splice(0,Math.min(15,s.deck.length)));
+     localStorage.setItem(key,JSON.stringify(obj));
+   });
+   await fatCpu.reload();
+   await fatCpu.locator('.whot-seat-cpu strong').waitFor();
+   const tall=await fatCpu.evaluate(()=>{
+     const cpu=JSON.parse(localStorage.getItem('night-play-club-v1')).whot.hands[1].length;
+     const backs=[...document.querySelectorAll('.whot-opponent-hand .card-back')];
+     const zone=document.querySelector('.whot-opponent-hand').getBoundingClientRect();
+     const last=backs.at(-1).getBoundingClientRect();
+     return {cpu,backs:backs.length,shown:Number(document.querySelector('.whot-seat-cpu strong').textContent),
+       visibleInside:last.right<=zone.right+1,scroll:document.querySelector('.whot-opponent-hand').scrollWidth};
+   });
+   assert.ok(tall.cpu>=15,'fixture actually adds cards to the CPU hand');
+   assert.equal(tall.shown,tall.cpu,'HUD shows the REAL number of cards');
+   assert.equal(tall.backs,3,'large opponent hands never render more than three decorative card backs');
+   assert.equal(tall.visibleInside,true,'stack stays on the board with fifteen-plus CPU cards');
+   await fatCpu.close();
    // Independent game context: verify market draw reaches a newly created
    // card slot rather than animating onto the previous final card.
    const drawPage=await browser.newPage({viewport:{width,height:844},isMobile:width<=600,hasTouch:width<=600});
@@ -221,12 +253,12 @@ async function finish(page,winner){
      transformStyle:getComputedStyle(el).transformStyle,
      backface:getComputedStyle(el.querySelector('.whot-flip-front')).backfaceVisibility
    }));
-   assert.ok(flipStyle.effect.includes(560),'3D card reveal shares the market flight');
+   assert.ok(flipStyle.effect.includes(150),'fast 3D card reveal ends within the flight');
    assert.equal(flipStyle.transformStyle,'preserve-3d');
    assert.equal(flipStyle.backface,'hidden','reverse side must stay hidden while rotating');
       const motion=await drawPage.evaluate(()=>window.__nightWhotMotion());
    assert.equal(motion.lastFlightAction,'draw','market draw uses true flight animation');
-   assert.equal(motion.lastFlightDuration,460,'market draw glides smoothly across original two-pile market');
+   assert.equal(motion.lastFlightDuration,150,'market draw takes 150ms, not half a second');
    await drawPage.waitForFunction(()=>window.__nightWhotMotion().activeFlights===0,null,{timeout:1800});
    assert.notEqual(await newFace.evaluate(el=>el.style.visibility),'hidden','new face reveals when the drawn back reaches its real position');
    assert.equal(await drawPage.locator('.hand .whot-card').count(),6,'no extra second-card popup');
@@ -363,6 +395,7 @@ async function finish(page,winner){
    await penaltyPage.waitForFunction(()=>window.__nightWhotMotion().activeFlights===0
       &&window.__nightWhotMotion().draws>=3,null,{timeout:3500});
    assert.equal(await penaltyPage.locator('.hand .whot-card').count(),7);
+   assert.ok(await penaltyPage.evaluate(()=>window.__nightWhotMotion().peakFlights<=1),'low-end mobile must never run three heavy 3D draw flights at once');
    assert.equal(await penaltyPage.locator('.hand .whot-card').evaluateAll(cards=>cards.filter(c=>getComputedStyle(c).visibility==='hidden').length),0,
      'all penalty cards reveal only after their arrival');
    assert.deepEqual(penaltyErrors,[],'CPU penalty flights have no browser JS errors');

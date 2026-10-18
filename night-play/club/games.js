@@ -9,12 +9,13 @@ const state={};let active="checkers",timer=null,drawCtx=null;
 let cardMotionBusy=false,cardMotionEpoch=0,pendingWhotDeal=false;
 // Speed is intentionally unified: interaction should feel immediate,
 // while cards still lift, glide, land and settle.
+// Android-first timings: short, one-flight-at-a-time market dealing.
 const whotMotion={
- player:465,cpu:480,draw:460,cpuDelay:235,
- deal:410,dealDelay:55,dealStagger:66,opponentDeal:440,
- settle:180,recenter:360,drawFlip:560
+ player:185,cpu:205,draw:150,cpuDelay:85,
+ deal:190,dealDelay:10,dealStagger:27,opponentDeal:195,
+ settle:90,recenter:135,drawFlip:150
 };
-const cardMotionMetrics={deals:0,plays:0,cpuPlays:0,draws:0,activeFlights:0,lastFlightDuration:0,lastFlightAction:null};
+const cardMotionMetrics={deals:0,plays:0,cpuPlays:0,draws:0,activeFlights:0,peakFlights:0,lastFlightDuration:0,lastFlightAction:null};
 const motionEnabled=()=>!matchMedia("(prefers-reduced-motion: reduce)").matches;
 const colors={red:"#df3439",green:"#328c4b",yellow:"#e8b32a",blue:"#2767bc"};
 const titles={ludo:["Nigerian Ludo","The board you remember.","BOARD GAME"],estate:["NIGHT Estates","Buy, trade and collect rent.","PROPERTY GAME"],whot:["WHOT","Classic Nigerian shape-and-number card play.","CARD GAME"],colors:["Colour Clash","A quick colour-matching card battle.","CARD GAME"],draw:["Draw & Guess","One draws. Everyone else guesses.","PARTY GAME"],snakes:["Snakes & Ladders","Climb fast. Slide carefully.","BOARD GAME"],checkers:["Draughts","A proper tabletop strategy game.","BOARD GAME"]};
@@ -285,20 +286,21 @@ async function whotFly(origin,destination,{face=null,action="play"}={}){
  const oldVisibility=origin.style.visibility;
  const previousDestVisibility=destination.style.visibility;
  if(action==='play'||action==='cpu')origin.style.visibility='hidden';
- if(action==='draw'||action==='cpu-draw')destination.style.visibility='hidden';
+ if(action==='draw')destination.style.visibility='hidden';
  const dx=b.left+b.width/2-a.left-a.width/2;
  const dy=b.top+b.height/2-a.top-a.height/2;
  const scale=b.width/a.width;
  const duration=action==='cpu'?whotMotion.cpu:action==='draw'||action==='cpu-draw'?whotMotion.draw:whotMotion.player;
  cardMotionMetrics.lastFlightDuration=duration;cardMotionMetrics.lastFlightAction=action;
  cardMotionMetrics.activeFlights++;
+ cardMotionMetrics.peakFlights=Math.max(cardMotionMetrics.peakFlights,cardMotionMetrics.activeFlights);
  try{
   // The card reacts immediately: a short lift, measured glide and cushioned
   // landing. No timeout is inserted between tapping and visual feedback.
   const flight=ghost.animate([
    {offset:0,transform:'translate3d(0,0,0) scale(1)',opacity:1},
-   {offset:.16,transform:'translate3d('+(dx*.12)+'px,'+(dy*.12-6)+'px,0) scale(1.025)',opacity:1},
-   {offset:.72,transform:'translate3d('+(dx*.73)+'px,'+(dy*.73-4)+'px,0) scale('+(1.025+(scale-1)*.7)+')',opacity:1},
+   {offset:.36,transform:'translate3d('+(dx*.32)+'px,'+(dy*.32-4)+'px,0) scale(1.012)',opacity:1},
+   {offset:.78,transform:'translate3d('+(dx*.8)+'px,'+(dy*.8-2)+'px,0) scale('+(1.012+(scale-1)*.8)+')',opacity:1},
    {offset:1,transform:'translate3d('+dx+'px,'+dy+'px,0) scale('+scale+')',opacity:1}
   ],{duration,easing:'cubic-bezier(.22,.7,.19,1)',fill:'forwards'});
   let flipEffect=null;
@@ -307,15 +309,15 @@ async function whotFly(origin,destination,{face=null,action="play"}={}){
    // position motion; never remove the moving card before its face settles.
    flipEffect=flipCore.animate([
     {transform:'rotateY(0deg)'},
-    {offset:.3,transform:'rotateY(27deg)'},
+    {offset:.45,transform:'rotateY(65deg)'},
     {offset:1,transform:'rotateY(180deg)'}
-   ],{delay:action==='draw'?52:25,duration:whotMotion.drawFlip,
-     easing:'cubic-bezier(.31,.63,.19,1)',fill:'forwards'});
+   ],{duration:Math.min(duration,whotMotion.drawFlip),delay:0,
+     easing:'cubic-bezier(.22,.72,.22,1)',fill:'forwards'});
   }
   await Promise.all([flight.finished.catch(()=>{}),flipEffect?flipEffect.finished.catch(()=>{}):Promise.resolve()]);
  }finally{
   origin.style.visibility=oldVisibility;
-  if(action==='draw'||action==='cpu-draw')destination.style.visibility=previousDestVisibility;
+  if(action==='draw')destination.style.visibility=previousDestVisibility;
   ghost.remove();cardMotionMetrics.activeFlights--;
  }
 }
@@ -325,37 +327,37 @@ async function whotAnimateDraws(s,player,from,epoch){
  const count=s.hands[player].length-from;
  if(count<=0)return;
  const isPlayer=player===0;
- const selector=isPlayer?'.hand .whot-card':'.whot-opponent-hand .card-back';
- const cards=[...board.querySelectorAll(selector)].slice(from,from+count);
+ const cards=isPlayer?[...board.querySelectorAll('.hand .whot-card')].slice(from,from+count):[];
+ const cpuStack=board.querySelector('.whot-opponent-hand .card-back:last-child');
  const market=board.querySelector('.whot-deck-back');
  const viewAll=board.querySelector('.whot-view-hand:not([hidden])');
  const valid=()=>active==='whot'&&state.whot===s&&cardMotionEpoch===epoch;
  const entries=[];
  for(let i=0;i<count;i++){
-  const target=cards[i];
+  const target=isPlayer?cards[i]:cpuStack;
   if(!target)continue;
-  // Cards outside the 16-piece compact layout use the View All destination.
-  const destination=getComputedStyle(target).display==='none'?viewAll:target;
+  // Hidden overflow cards still arrive at the visible View All affordance.
+  const destination=isPlayer&&getComputedStyle(target).display==='none'?viewAll:target;
   if(!destination)continue;
-  if(destination===target)target.style.visibility='hidden';
+  if(isPlayer&&destination===target)target.style.visibility='hidden';
   entries.push({target,destination,face:s.hands[player][from+i]});
  }
  if(!motionEnabled()||!market||!entries.length){
-  for(const {target} of entries)target.style.visibility='';
-  sfx('draw');return;
+  for(const {target} of entries)if(isPlayer)target.style.visibility='';
+  if(entries.length)sfx('draw');return;
  }
- const animations=entries.map(({target,destination,face},i)=>new Promise(resolve=>{
-  setTimeout(async()=>{
-   if(valid()){
-    try{
-     await whotFly(market,destination,{action:isPlayer?'draw':'cpu-draw',face:isPlayer?face:null});
-    }catch{}finally{sfx('draw');}
-   }
-   target.style.visibility='';
-   resolve();
-  },i*135);
- }));
- await Promise.all(animations);
+ // One travelling card at a time: no three simultaneous 3D surfaces,
+ // no expensive stagger timers, and each arrival stays perceptible.
+ for(const {target,destination,face} of entries){
+  if(!valid())break;
+  try{
+   await whotFly(market,destination,{action:isPlayer?'draw':'cpu-draw',face:isPlayer?face:null});
+  }catch{}
+  finally{
+   if(isPlayer)target.style.visibility='';
+   sfx('draw');
+  }
+ }
 }
 // Do not silently remove a player's chance to defend a Pick Two/Three.
 // If no matching defence card exists, automatically receive the full
@@ -369,7 +371,7 @@ function whotAutoReceivePenalty(s){
   if(active==='whot'&&state.whot===s&&cardMotionEpoch===epoch&&!cardMotionBusy&&whotPending(s)){
    cardDraw('whot');
   }
- },210);
+ },75);
 }
 
 function whotDeal(){
@@ -674,7 +676,9 @@ function layoutWhotHand(before=null){
   if(cardWidth!==w)card.style.setProperty('--whot-card-width',cardWidth+'px');
   else card.style.removeProperty('--whot-card-width');
  });
- if(!before||!motionEnabled())return;
+ // An expanded hand already has several moving slots. Recentring every
+ // card as its own GPU layer causes frame drops on entry-level phones.
+ if(!before||!motionEnabled()||n>5)return;
  for(const card of cards){
   if(card.style.display==='none')continue;
   const prior=before.get(card.dataset.whotKey)?.shift();
@@ -733,7 +737,7 @@ function whotPatchTable(markup){
    for(let i=oldBacks.length;i<needed;i++)oldOpponent.appendChild(newOpponent.children[i].cloneNode(true));
   }
   for(const [i,back] of [...oldOpponent.querySelectorAll('.card-back')].entries()){
-   back.setAttribute('aria-label','Computer card '+(i+1)+' of '+needed);
+   back.setAttribute('aria-hidden','true');
   }
  }
  const oldDeck=oldPile.querySelector('.whot-deck'),newDeck=newPile.querySelector('.whot-deck');
@@ -801,7 +805,7 @@ const whotVictory=kind==='whot'&&s.winner!==null?
  '<button type="button" class="whot-rematch" data-action="whot-rematch">Play again</button></div></div>':'';
 const tableMarkup='<div class="table-surface'+(kind==='whot'&&s.winner!==null?' whot-finished':'')+'" aria-label="Card table">'+(kind==='whot'?whotHud:'<h3>COMPUTER · '+s.hands[1].length+' CARDS</h3>')+
  '<div class="card-row whot-opponent-hand">'+(kind==='whot'
- ?Array.from({length:s.hands[1].length},(_,i)=>'<div class="playing-card card-back" aria-label="Computer card '+(i+1)+' of '+s.hands[1].length+'"><span>WHOT</span><span>WHOT</span></div>').join('')
+ ?Array.from({length:Math.min(3,s.hands[1].length)},(_,i)=>'<div class="playing-card card-back" aria-hidden="true"><span>WHOT</span><span>WHOT</span></div>').join('')
  :'<div class="playing-card card-back" aria-label="Computer cards hidden"></div><span class="cards-counter">× '+s.hands[1].length+'</span>')+'</div>'+
  '<div class="card-pile">'+(kind==='whot'?'<button type="button" class="whot-deck" data-action="card-draw" '+(s.turn!==0||s.winner!==null||s.pendingWhot!=null?'disabled':'')+' aria-label="Pick one card from the market"><span class="whot-deck-back"><span class="whot-deck-word flip-top">WHOT</span><span class="whot-deck-word flip-bottom">WHOT</span></span><span class="cards-counter">MARKET · '+s.deck.length+'</span></button>':'<span class="cards-counter">DECK '+s.deck.length+'</span>')+
  cardMarkup(kind,t,-1,false)+currentCall+'</div>'+callPanel+
