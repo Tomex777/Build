@@ -190,5 +190,32 @@ try{
   }
  }
  assert.deepEqual(errors,[],'no browser exceptions');
+ // Visual asset audit: build a readable contact sheet of EVERY unique face,
+ // not merely the first three preview cards. This catches bad photographic
+ // subjects, duplicate-looking cards and fallback art at a glance.
+ await page.setViewportSize({width:1060,height:960});
+ for(const theme of ['wildlife','cars','food','storybook','shapes']){
+  await page.goto(url+'/puzzles/?game=memory');
+  await page.evaluate(name=>{
+   const art=window.NIGHTMemoryArt;
+   const items=Array.from({length:30},(_,i)=>({id:i,label:art.photos[name]?.[i]?.[0]||art.figureNames[i]||'Shape '+(i+1)}));
+   document.body.innerHTML='<main class="audit-wrap"><h1>'+name.toUpperCase()+'</h1><div id="auditGrid"></div></main>';
+   const style=document.createElement('style');
+   style.textContent='.audit-wrap{padding:14px 20px;max-width:none;margin:auto;background:#f2f4f1;min-height:100vh}.audit-wrap h1{font:700 22px Arial;margin:7px 0 12px}.audit-grid{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:9px}.audit-item{background:#fff;padding:3px;border-radius:9px;border:1px solid #ccd8ce;overflow:hidden}.audit-image{position:relative;height:148px;overflow:hidden;background:#edf0e9;border-radius:7px}.audit-image svg,.audit-image .memory-face-svg{width:100%;height:100%}.audit-image .memory-photo-layer{height:100%;display:block;position:relative}.audit-image img{width:100%;height:100%;object-fit:cover;position:absolute;inset:0;opacity:1}.audit-name{font:600 11px Arial;color:#21362a;margin:3px 4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}';
+   document.head.append(style);
+   const grid=document.getElementById('auditGrid');grid.className='audit-grid';
+   for(const item of items){
+    const el=document.createElement('div');el.className='audit-item';
+    el.innerHTML='<div class="audit-image">'+art.face(name,item.id,true)+'</div><div class="audit-name">'+item.id+'. '+item.label+'</div>';
+    grid.append(el);
+   }
+   for(const img of grid.querySelectorAll('img'))img.addEventListener('error',()=>img.remove());
+  },theme);
+  await page.waitForTimeout(1600);
+  const metrics=await page.evaluate(()=>({loaded:[...document.querySelectorAll('.audit-image img')].filter(img=>img.complete&&img.naturalWidth>0).length,displayed:document.querySelectorAll('.audit-item').length}));
+  console.log('NIGHT_MEMORY_AUDIT_'+theme.toUpperCase()+'='+JSON.stringify(metrics));
+  console.log('NIGHT_MEMORY_AUDIT_'+theme.toUpperCase()+'_BASE64='+(await page.screenshot({type:'jpeg',quality:52,fullPage:true})).toString('base64'));
+ }
+
  console.log('Puzzle room Chromium smoke passed: Sudoku, memory, CPU and local four-in-a-row, persistence, 320–768 widths.');
 }finally{if(browser)await browser.close();await new Promise(resolve=>server.close(resolve));}
