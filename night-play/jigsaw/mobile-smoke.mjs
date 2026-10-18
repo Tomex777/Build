@@ -31,6 +31,8 @@ try{
  await page.goto(url+'/jigsaw/');
  await page.locator('#galleryGrid .gallery-card').first().waitFor();
  assert.equal(await page.locator('#galleryGrid .gallery-card').count(),15,'Fourteen photographic puzzles and a private photo upload');
+ const label=await page.locator('#galleryGrid .gallery-image').first().evaluate(el=>getComputedStyle(el,'::after').content);
+ assert.ok(label==='none'||label==='normal','Jigsaw gallery pictures must not show Start Puzzle arrow or badge');
  const photoSources=await page.locator('#galleryGrid .gallery-image img').evaluateAll(imgs=>imgs.map(x=>x.src));
  assert.equal(photoSources.length,14,'Every gallery item has a photograph');
  assert.equal(new Set(photoSources).size,14,'Photographs are distinct');
