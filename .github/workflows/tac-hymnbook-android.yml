@@ -1,0 +1,45 @@
+name: TAC Hymnbook Android
+
+on:
+  push:
+    branches:
+      - feature/tac-hymnbook-foundation
+    paths:
+      - 'tac-hymnbook/**'
+      - '.github/workflows/tac-hymnbook-android.yml'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Verify hymn data
+        run: python3 -m unittest discover -s tac-hymnbook/tools -p 'test_*.py' -v
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+
+      - name: Build Android APK
+        run: gradle -p tac-hymnbook/android :app:assembleDebug --no-daemon --stacktrace
+
+      - name: Upload installable APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: TAC-Hymns-debug-apk
+          path: tac-hymnbook/android/app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
