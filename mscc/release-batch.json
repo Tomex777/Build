@@ -1,10 +1,9 @@
 {
-  "releaseId": "night-2026-10-17-17-squid-safe-labels",
+  "releaseId": "night-2026-10-18-command-audit",
   "baseBranch": "mscc-azure",
-  "baseCommit": "3d25d9e4869777502186a5017ea5cfeac204329d",
+  "baseCommit": "dd9e0df2a546c54d7b1383753d35b731f50efc5d",
   "pullRequests": [
-    328
+    344
   ],
-  "carriedForwardRelease": "night-2026-10-17-16-squid-registration",
-  "notes": "Single-scope production release for NIGHT Squid Game identifier exposure correction PR #328: stop rendering raw opaque WhatsApp LID and PN/JID digits as player or winner names; use safe observed push/group names and real WhatsApp mentions, anonymous player number fallback, unit coverage for winning, elimination, RED finalization and CG. No session secrets or account identity settings touched. Validate complete integrated CI, merge release once, protected mscc-production approval then verify Azure deployed SHA, service health and live WhatsApp labels; do not claim live confirmation before smoke/real check."
+  "notes": "Single approved NIGHT feature: verified-owner .testall audit from WhatsApp; registry/help-route coverage for every command, safe local command smokes, bounded/queued offline selftests, paginated per-command reports, status/cancel, strict classification of unverified live functionality. No destructive/group/account commands executed. Requires release PR checks, merge, one protected mscc-production approval and Azure/WhatsApp smoke check; do not claim deployed before verification."
 }
