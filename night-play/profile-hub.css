@@ -33,6 +33,7 @@
 .account-toggle .switch{display:block;width:44px;height:27px;background:#cdd7cd;border-radius:99px;position:relative;transition:background .15s}
 .account-toggle .switch:after{content:"";position:absolute;left:3px;top:3px;width:21px;height:21px;background:#fff;border-radius:50%;box-shadow:0 1px 3px #31473426;transition:transform .15s}
 .account-toggle input:checked + .switch{background:#2d664d}.account-toggle input:checked + .switch:after{transform:translateX(17px)}
+.account-action[hidden]{display:none!important}
 .account-action{display:inline-flex;justify-content:center;align-items:center;flex:none;border:1px solid #c6d7cb;border-radius:10px;background:#f0f5f0;color:#204b34;min-height:42px;padding:10px 15px;font:inherit;font-size:12px;font-weight:800;cursor:pointer}
 html[data-night-reduced-motion="true"] *,html[data-night-reduced-motion="true"] *::before,html[data-night-reduced-motion="true"] *::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;scroll-behavior:auto!important}
 @media(max-width:600px){.account-tabs button{font-size:12px;padding:10px 12px}.account-stats div{padding:15px 10px}.account-stats strong{font-size:23px}.account-heading h2{font-size:21px}.account-achievements{grid-template-columns:1fr}.account-tile{align-items:stretch;flex-direction:column;padding:17px}.account-tile .btn{width:100%}.account-setting{padding:16px}}
