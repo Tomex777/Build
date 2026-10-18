@@ -2007,3 +2007,9 @@ body.whot-mode .table-surface>.whot-opponent-hand>.card-back:nth-child(2){top:4p
 body.whot-mode .table-surface>.whot-opponent-hand>.card-back:nth-child(3){top:8px}
 @media(min-width:651px){body.whot-mode .table-surface>.whot-opponent-hand>.card-back:not(:first-child){margin-left:-71px!important}}
 .whot-x-svg{width:19px;height:19px;display:block;flex:none}
+
+/* A single real card back with subtly offset card-stock edges; avoids
+   overlapping inverted WHOT lettering when the CPU holds many cards. */
+body.whot-mode .table-surface>.whot-opponent-hand>.card-back.card-stack{
+ box-shadow:3px 3px 0 #5b2529,6px 6px 0 #3c171d,0 14px 18px #0005!important;
+}
