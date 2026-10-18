@@ -113,7 +113,8 @@ object AcousticSolver {
 object AtlasPresets {
     val titles = listOf(
         "Storm Cathedral", "Ancient Forest", "Abandoned Hospital",
-        "Underwater Station", "Old Railway Tunnel", "Rain Garden"
+        "Underwater Station", "Old Railway Tunnel", "Rain Garden",
+        "Village at Dawn", "Starship Meridian", "Ocean Cavern", "Desert Temple"
     )
     private fun rect(world: World, x: Float, y: Float, w: Float, h: Float, m: Material) {
         world.walls += Wall(V2(x,y),V2(x+w,y),m)
@@ -183,7 +184,7 @@ object AtlasPresets {
                 add(SoundKind.METAL,53f,44f,.58f);add(SoundKind.WIND,6f,39f,.55f)
                 world.listener=V2(19f,44f)
             }
-            else -> {
+            5 -> {
                 zone("Garden",0f,0f,72f,84f,.75f,.7f)
                 world.rain=.24f;world.wind=.15f
                 rect(world,7f,22f,18f,18f,Material.WOOD)
@@ -193,6 +194,66 @@ object AtlasPresets {
                 add(SoundKind.LEAVES,13f,53f,.65f)
                 add(SoundKind.RAIN,64f,72f,.3f);add(SoundKind.BELL,22f,28f,.27f)
                 world.listener=V2(31f,42f)
+            }
+            6 -> {
+                zone("Village square",0f,0f,72f,84f,.55f,.66f)
+                zone("Blacksmith's forge",5f,10f,24f,23f,1.3f,.4f)
+                // The southern forge entrance remains open to the square.
+                world.walls+=Wall(V2(5f,10f),V2(29f,10f),Material.STONE)
+                world.walls+=Wall(V2(5f,10f),V2(5f,33f),Material.STONE)
+                world.walls+=Wall(V2(29f,10f),V2(29f,33f),Material.STONE)
+                world.walls+=Wall(V2(5f,33f),V2(15f,33f),Material.WOOD)
+                world.walls+=Wall(V2(22f,33f),V2(29f,33f),Material.WOOD)
+                add(SoundKind.METAL,16f,20f,.77f)
+                add(SoundKind.BELL,58f,11f,.66f)
+                add(SoundKind.CROWD,50f,41f,.54f)
+                add(SoundKind.STEPS,41f,59f,.52f,true)
+                add(SoundKind.BIRDS,62f,72f,.62f,true)
+                add(SoundKind.WIND,9f,67f,.30f)
+                world.listener=V2(37f,46f)
+            }
+            7 -> {
+                zone("Command deck",9f,11f,54f,61f,1.1f,.32f)
+                zone("Engine bay",10f,49f,24f,22f,1.7f,.17f)
+                rect(world,9f,11f,54f,61f,Material.METAL)
+                // Structural bulkhead includes a six-meter passage.
+                world.walls+=Wall(V2(34f,11f),V2(34f,35f),Material.METAL)
+                world.walls+=Wall(V2(34f,41f),V2(34f,72f),Material.METAL)
+                add(SoundKind.HUM,17f,60f,.83f)
+                add(SoundKind.METAL,57f,29f,.57f)
+                add(SoundKind.WIND,25f,31f,.46f)
+                add(SoundKind.BELL,54f,16f,.23f)
+                add(SoundKind.STEPS,41f,59f,.27f,true)
+                world.listener=V2(47f,44f)
+            }
+            8 -> {
+                zone("Sea cavern",5f,8f,61f,66f,4.8f,.16f)
+                // Jagged stone ledge with clear opening into the lagoon.
+                world.walls+=Wall(V2(7f,14f),V2(11f,61f),Material.STONE)
+                world.walls+=Wall(V2(11f,61f),V2(26f,72f),Material.STONE)
+                world.walls+=Wall(V2(38f,72f),V2(64f,65f),Material.STONE)
+                world.walls+=Wall(V2(64f,65f),V2(61f,13f),Material.STONE)
+                add(SoundKind.WATER,35f,75f,.94f)
+                add(SoundKind.DRIP,18f,28f,.78f)
+                add(SoundKind.DRIP,59f,46f,.6f)
+                add(SoundKind.WIND,52f,67f,.53f)
+                add(SoundKind.THUNDER,6f,5f,.24f,true)
+                world.listener=V2(35f,33f)
+            }
+            else -> {
+                zone("Ancient chamber",12f,15f,48f,51f,5.4f,.10f)
+                world.walls+=Wall(V2(12f,15f),V2(60f,15f),Material.STONE)
+                world.walls+=Wall(V2(12f,15f),V2(12f,66f),Material.STONE)
+                world.walls+=Wall(V2(60f,15f),V2(60f,66f),Material.STONE)
+                world.walls+=Wall(V2(12f,66f),V2(31f,66f),Material.STONE)
+                world.walls+=Wall(V2(40f,66f),V2(60f,66f),Material.STONE)
+                add(SoundKind.WIND,32f,80f,.85f)
+                add(SoundKind.BELL,36f,19f,.33f)
+                add(SoundKind.METAL,19f,44f,.25f)
+                add(SoundKind.DRIP,55f,27f,.35f)
+                add(SoundKind.STEPS,36f,51f,.3f,true)
+                world.listener=V2(36f,58f)
+                world.wind=.83f
             }
         }
         return world
