@@ -831,31 +831,42 @@ class EndlessRenderer(
         marsSurfaceTerrain?.draw(viewProjection, -marsSurfaceX.toFloat(), -marsSurfaceZ.toFloat())
     }
 
-    private fun drawMarsSky() {
-        // Mars' thin dusty atmosphere is bright at the horizon and darker
-        // toward the zenith. Night, dust storms and solar angle remain future
-        // physically-based lighting work.
+    private fun drawMarsSky() = drawSurfaceSky(0)
+
+    /**
+     * Draw a directionally consistent sky behind the terrain.
+     *
+     * No stars in daylight surface exposure, or through Titan's opaque haze.
+     * Europa's Jupiter disk uses the actual loaded Jovian orbital texture,
+     * with the real 11.9-degree apparent diameter at Europa's mean distance.
+     * The landing patch's fixed sub-Jovian camera orientation is illustrative,
+     * not a surveyed geographic location or a real-time sky ephemeris.
+     *
+     * Full-screen GLES3 triangle: no framebuffer allocation, no draw
+     * textures beyond the shared 2K planetary atlas.
+     */
+    private fun drawSurfaceSky(skyWorld: Int) {
         GLES30.glDisable(GLES30.GL_DEPTH_TEST)
         GLES30.glDepthMask(false)
         GLES30.glUseProgram(marsSkyProgram)
-        GLES30.glUniform1i(GLES30.glGetUniformLocation(marsSkyProgram, "uSkyWorld"), 0)
-        GLES30.glUniform1f(
-            GLES30.glGetUniformLocation(marsSkyProgram, "uPitch"),
-            pitch.toFloat()
-        )
+        GLES30.glUniform1i(GLES30.glGetUniformLocation(marsSkyProgram, "uSkyWorld"), skyWorld)
+        GLES30.glUniform1f(GLES30.glGetUniformLocation(marsSkyProgram, "uPitch"), pitch.toFloat())
+        GLES30.glUniform1f(GLES30.glGetUniformLocation(marsSkyProgram, "uYaw"), yaw.toFloat())
+        GLES30.glUniform1f(GLES30.glGetUniformLocation(marsSkyProgram, "uAspect"), width.toFloat() / height)
+        val parent = if (skyWorld == 2) textures["jupiter"] ?: 0 else 0
+        GLES30.glActiveTexture(GLES30.GL_TEXTURE3)
+        GLES30.glBindTexture(GLES30.GL_TEXTURE_2D, parent)
+        GLES30.glUniform1i(GLES30.glGetUniformLocation(marsSkyProgram, "uJupiterTexture"), 3)
+        GLES30.glUniform1i(GLES30.glGetUniformLocation(marsSkyProgram, "uHasJupiterTexture"), if (parent == 0) 0 else 1)
         GLES30.glDrawArrays(GLES30.GL_TRIANGLES, 0, 3)
+        GLES30.glActiveTexture(GLES30.GL_TEXTURE3)
+        GLES30.glBindTexture(GLES30.GL_TEXTURE_2D, 0)
+        GLES30.glActiveTexture(GLES30.GL_TEXTURE0)
         GLES30.glDepthMask(true)
         GLES30.glEnable(GLES30.GL_DEPTH_TEST)
     }
 
-    private fun drawAtmosphereSky(world: Int) {
-        GLES30.glDisable(GLES30.GL_DEPTH_TEST); GLES30.glDepthMask(false)
-        GLES30.glUseProgram(marsSkyProgram)
-        GLES30.glUniform1i(GLES30.glGetUniformLocation(marsSkyProgram,"uSkyWorld"),world)
-        GLES30.glUniform1f(GLES30.glGetUniformLocation(marsSkyProgram,"uPitch"),pitch.toFloat())
-        GLES30.glDrawArrays(GLES30.GL_TRIANGLES,0,3)
-        GLES30.glDepthMask(true); GLES30.glEnable(GLES30.GL_DEPTH_TEST)
-    }
+    private fun drawAtmosphereSky(skyWorld: Int) = drawSurfaceSky(skyWorld)
 
     private fun drawMoonSurfaceFrame() {
         GLES30.glClearColor(0.0015f, 0.0015f, 0.0025f, 1f)
@@ -888,6 +899,7 @@ class EndlessRenderer(
         else GLES30.glClearColor(.0015f,.0015f,.0025f,1f)
         GLES30.glClear(GLES30.GL_COLOR_BUFFER_BIT or GLES30.GL_DEPTH_BUFFER_BIT)
         if (id == "titan") drawAtmosphereSky(1)
+        else if (id == "europa") drawAtmosphereSky(2)
         Matrix.perspectiveM(projection,0,67f,width.toFloat()/height,.0002f,36f)
         val eyeY = ExtendedSurfaceMesh.renderedHeightAt(id,extendedSurfaceX,extendedSurfaceZ)+.00078
         val lx=sin(yaw)*cos(pitch);val ly=sin(pitch);val lz=-cos(yaw)*cos(pitch)
@@ -2203,29 +2215,91 @@ void main() {
 }
 """
         private const val MARS_SKY_FRAGMENT_SHADER = """#version 300 es
-precision mediump float;
+precision highp float;
 in vec2 vUv;
 uniform float uPitch;
-uniform int uSkyWorld;
+uniform float uYaw;
+uniform float uAspect;
+uniform int uSkyWorld; // 0 = Mars, 1 = Titan, 2 = Europa
+uniform sampler2D uJupiterTexture;
+uniform int uHasJupiterTexture;
 out vec4 fragColor;
+
+const float TAN_HALF_FOV = 0.6619; // tan(67 deg / 2)
+const float JUPITER_ANGULAR_RADIUS = 0.1038; // atan(69911 / 671100)
+
+vec3 viewRay(vec2 uv) {
+    vec2 ndc = uv * 2.0 - 1.0;
+    vec3 forward = vec3(sin(uYaw)*cos(uPitch), sin(uPitch), -cos(uYaw)*cos(uPitch));
+    vec3 right = vec3(cos(uYaw), 0.0, sin(uYaw));
+    vec3 up = vec3(-sin(uYaw)*sin(uPitch), cos(uPitch), cos(uYaw)*sin(uPitch));
+    return normalize(forward + right * ndc.x * uAspect * TAN_HALF_FOV +
+                     up * ndc.y * TAN_HALF_FOV);
+}
+
 void main() {
-    float heightAboveHorizon = vUv.y - 0.46 + uPitch * 0.45;
-    float t = smoothstep(-0.08, 0.85, heightAboveHorizon);
-    // Atmospheric dust optical depth falls toward the zenith. Colours are
-    // a low-cost approximation, not a full multiple-scattering atmosphere.
-    vec3 dustyHorizon = vec3(0.49, 0.295, 0.215);
-    vec3 thinZenith = vec3(0.145, 0.146, 0.164);
-    float dustColumn = exp(-3.4 * max(heightAboveHorizon, 0.0));
-    vec3 sky = mix(dustyHorizon, thinZenith, t);
-    sky += vec3(0.041, 0.021, 0.009) * dustColumn;
-    if (uSkyWorld == 1) {
-        sky = mix(vec3(.55,.32,.14), vec3(.29,.18,.095),
-            smoothstep(-.06,.94,heightAboveHorizon));
+    vec3 ray = viewRay(vUv);
+    float elev = max(-0.1, ray.y);
+    vec3 sky = vec3(0.002, 0.002, 0.003);
+
+    if (uSkyWorld == 0) {
+        // Mars: scattering-enhanced, dust-rich horizon and violet-grey
+        // optically thin zenith. This remains an atmosphere approximation;
+        // no fabricated terrestrial blue sky or painted clouds.
+        float path = exp(-6.4 * max(elev, 0.0));
+        float zenith = smoothstep(-0.025, 0.70, elev);
+        sky = mix(vec3(0.51, 0.32, 0.235),
+                  vec3(0.164, 0.165, 0.187), zenith);
+        sky += vec3(.042, .020, .007) * path;
+        // Sun scattering is coherent with the terrain's directional light.
+        // Martian sun angular radius (~0.175 deg) is smaller than Earth's.
+        vec3 sunDirection = normalize(vec3(-.45, .85, .35));
+        float cosTheta = clamp(dot(ray, sunDirection), 0.0, 1.0);
+        float aureole = pow(cosTheta, 130.0) * .16;
+        float nearSun = pow(cosTheta, 3000.0);
+        sky += vec3(1.0, .72, .42) * aureole;
+        sky += vec3(1.0, .88, .68) * nearSun * .45;
+    } else if (uSkyWorld == 1) {
+        // Titan's thick nitrogen/organic aerosol atmosphere: muted, no
+        // crisp Sun and no visible stars. Horizon radiance transitions
+        // smoothly into foreground aerial extinction in surface shader.
+        float airMass = exp(-3.6 * max(elev, 0.0));
+        sky = mix(vec3(.275, .158, .077), vec3(.48, .285, .125), airMass);
+        float solarGlow = pow(max(dot(ray, normalize(vec3(-.32,.58,.31))), 0.0), 30.0);
+        sky += vec3(.065, .037, .016) * solarGlow * (1.0 - airMass * .27);
+    } else if (uSkyWorld == 2 && uHasJupiterTexture == 1 && ray.y > 0.0) {
+        // Europa is essentially airless. At a near-sub-Jovian site the
+        // parent planet spans 11.9 degrees of sky; its direction relative
+        // to this *illustrative* landing patch is held fixed.
+        vec3 towardJupiter = normalize(vec3(.88, .36, -.30));
+        vec3 diskRight = normalize(cross(vec3(0.0, 1.0, 0.0), towardJupiter));
+        vec3 diskUp = normalize(cross(towardJupiter, diskRight));
+        float cosSeparation = dot(ray, towardJupiter);
+        if (cosSeparation > cos(JUPITER_ANGULAR_RADIUS)) {
+            // Angular perspective projection of the visible hemisphere.
+            vec2 p = vec2(dot(ray, diskRight), dot(ray, diskUp)) /
+                sin(JUPITER_ANGULAR_RADIUS);
+            float rr = dot(p, p);
+            if (rr < 1.0) {
+                vec3 hemisphere = vec3(p, sqrt(max(1.0 - rr, 0.0)));
+                float longitude = atan(hemisphere.x, hemisphere.z);
+                float latitude = asin(clamp(hemisphere.y, -1.0, 1.0));
+                vec2 uv = vec2(fract(.50 + longitude / 6.2831853),
+                               .50 - latitude / 3.14159265);
+                vec3 jovianColor = texture(uJupiterTexture, uv).rgb;
+                // Mild limb shading preserves the photograph's banding;
+                // never turn the sky disk into a uniformly colored orb.
+                float limb = .60 + .40 * sqrt(max(1.0 - rr, 0.0));
+                float alpha = 1.0 - smoothstep(.975, 1.0, sqrt(rr));
+                sky = mix(sky, jovianColor * limb * .90, alpha);
+            }
+        }
     }
-    // 1/255 film-grain dithering prevents broad 8-bit sky bands on phones.
-    float dither = fract(sin(dot(gl_FragCoord.xy,
-        vec2(12.9898, 78.233))) * 43758.5453) - 0.5;
-    fragColor = vec4(sky + vec3(dither / 255.0), 1.0);
+
+    // Low-amplitude stable ordered-noise dither for 8-bit Android panels.
+    float noise = fract(sin(dot(gl_FragCoord.xy, vec2(12.9898, 78.233))) *
+        43758.5453) - .5;
+    fragColor = vec4(clamp(sky + vec3(noise / 255.0), 0.0, 1.0), 1.0);
 }
 """
 
