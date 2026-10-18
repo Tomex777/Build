@@ -24,6 +24,7 @@ class AudioEngine(private val assets: AssetManager) {
     private val generation = AtomicInteger(0)
     private val voices = mutableMapOf<Int, Voice>()
     private var fieldRecordings: Map<SoundKind, ShortArray> = emptyMap()
+    private var measuredHrir: MeasuredHrir? = null
     private val reverb = DiffuseReverb()
     private var worker: Thread? = null
     private var frameClock = 0L
@@ -45,6 +46,9 @@ class AudioEngine(private val assets: AssetManager) {
                     AudioFormat.CHANNEL_OUT_STEREO,AudioFormat.ENCODING_PCM_16BIT)
                 require(requested>0) { "Stereo PCM output unavailable" }
                 fieldRecordings=readOfflineFieldRecordings()
+                measuredHrir=try {
+                    MeasuredHrir.read(assets.open("kemar_44100.hrir"))
+                } catch(_:Exception) { null }
                 track = AudioTrack(
                     AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_MEDIA)
                         .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC).build(),
@@ -136,7 +140,26 @@ class AudioEngine(private val assets: AssetManager) {
                     sqrt(((1f+pan)*.5f).coerceAtLeast(0f))*reflection.gain*emitter.gain,
                     alpha,index)
             }
-            Layer(emitter,voice,reflections)
+            Layer(emitter,voice,reflections,position)
+        }
+        // Use measured binaural filters for the four most audible nearby layers.
+        // Less audible sources use lightweight ITD/ILD; don't overload Android CPUs.
+        val hrir=measuredHrir
+        if(hrir!=null) {
+            layers.sortedByDescending{it.voice.targetGain}.take(4).forEach { layer ->
+                layer.measured=true
+                val p=layer.position
+                val bearing=atan2(p.x-world.listener.x,
+                    -(p.y-world.listener.y))-world.facing
+                hrir.kernels(bearing,layer.voice.desiredHrirLeft,layer.voice.desiredHrirRight)
+                // Smooth filter-coefficient changes across buffers, preventing clicks.
+                for(tap in 0 until 96){
+                    layer.voice.hrirLeft[tap]+=(layer.voice.desiredHrirLeft[tap]-
+                        layer.voice.hrirLeft[tap])*.32f
+                    layer.voice.hrirRight[tap]+=(layer.voice.desiredHrirRight[tap]-
+                        layer.voice.hrirRight[tap])*.32f
+                }
+            }
         }
         val room=world.zones.lastOrNull { it.contains(world.listener) }
         val decay=room?.decay ?: .28f
@@ -155,6 +178,8 @@ class AudioEngine(private val assets: AssetManager) {
                 voice.filterAlpha += (voice.targetAlpha-voice.filterAlpha)*.00045f
                 voice.lowpass += (sound-voice.lowpass)*voice.filterAlpha
                 val filtered=voice.lowpass*voice.gain
+                voice.hrirMix += ((if(layer.measured)1f else 0f)-
+                    voice.hrirMix)*.00065f
                 // Direct sound follows ear-shadow + fractional horizon direction.
                 val side=voice.pan
                 val lGain=sqrt(((1f-side)*.5f).coerceAtLeast(0f))
@@ -163,8 +188,26 @@ class AudioEngine(private val assets: AssetManager) {
                 val itd=(abs(side)*27f).toInt().coerceIn(0,27)
                 val old=(voice.delayIndex-itd+voice.delay.size)%voice.delay.size
                 val shadow=voice.delay[old]
-                left += (if(side>0f) shadow else filtered)*lGain
-                right += (if(side<0f) shadow else filtered)*rGain
+                var directLeft=(if(side>0f) shadow else filtered)*lGain
+                var directRight=(if(side<0f) shadow else filtered)*rGain
+                val history=voice.hrirHistory
+                history[voice.hrirIndex]=filtered
+                if(voice.hrirMix>.0005f) {
+                    var convolvedL=0f;var convolvedR=0f
+                    var cursor=voice.hrirIndex
+                    for(tap in 0 until 96) {
+                        val sample=history[cursor]
+                        convolvedL+=sample*voice.hrirLeft[tap]
+                        convolvedR+=sample*voice.hrirRight[tap]
+                        cursor=if(cursor==0)127 else cursor-1
+                    }
+                    val mix=voice.hrirMix
+                    directLeft=directLeft*(1f-mix)+convolvedL*(1.6f*mix)
+                    directRight=directRight*(1f-mix)+convolvedR*(1.6f*mix)
+                }
+                voice.hrirIndex=(voice.hrirIndex+1) and 127
+                left+=directLeft
+                right+=directRight
                 voice.delayIndex=(voice.delayIndex+1)%voice.delay.size
 
                 // Specular early reflections travel to actual wall hit points.
@@ -199,7 +242,7 @@ class AudioEngine(private val assets: AssetManager) {
     private data class ReflectionTap(val delay:Int,val left:Float,val right:Float,
         val alpha:Float,val slot:Int)
     private data class Layer(val emitter:Emitter,val voice:Voice,
-        val reflections:List<ReflectionTap>)
+        val reflections:List<ReflectionTap>,val position:V2,var measured:Boolean=false)
 
     private class Voice(seed:Int, private val recording:ShortArray?) {
         private var rng=if(seed==0) 1234567 else seed
@@ -252,6 +295,13 @@ class AudioEngine(private val assets: AssetManager) {
         val echoLine=FloatArray(16384)
         var echoIndex=0
         val reflectionFilters=FloatArray(4)
+        val hrirHistory=FloatArray(128)
+        var hrirIndex=0
+        var hrirMix=0f
+        val hrirLeft=FloatArray(96)
+        val hrirRight=FloatArray(96)
+        val desiredHrirLeft=FloatArray(128)
+        val desiredHrirRight=FloatArray(128)
         private fun random01():Double {
             rng = rng * 1664525 + 1013904223
             return ((rng ushr 8) and 0xFFFFFF).toDouble()/0x1000000
