@@ -54,7 +54,10 @@ object PrototypeScene {
      * Other characters, bones and user-authored poses remain untouched.
      */
     fun resolveAnimePose(actor: Actor, definition: RigDefinition): Actor {
-        if (actor.asset?.assetId != ANIME_ASSET_ID || actor.id != "anime-hero") return actor
+        val isHero = actor.asset?.assetId == ANIME_ASSET_ID && actor.id == "anime-hero"
+        val isUnderTreeStudent = actor.metadata["misePose"] == UnderTreeScene.POSE_TAG &&
+            actor.asset?.assetId in setOf(ANIME_ASSET_ID, ANIME_FEMALE_ASSET_ID)
+        if (!isHero && !isUnderTreeStudent) return actor
         val pose = actor.rig ?: return actor
         val discoveredIds = definition.bones.map { it.id }.toSet()
         if (pose.joints.keys.all { it in discoveredIds }) return actor
@@ -173,6 +176,70 @@ object PrototypeScene {
             originalActor("Bicycle", ActorKind.VEHICLE),
             originalActor("Car", ActorKind.VEHICLE),
             originalActor("Tree", ActorKind.ENVIRONMENT),
+            Actor(
+                id = "starter-two-storey-house",
+                name = "Two-storey House · Detailed",
+                kind = ActorKind.ENVIRONMENT,
+                asset = AssetReference(
+                    assetId = "starter.cc0.two-storey-house",
+                    relativePath = "models/mise_house_two_storey.glb",
+                    source = "https://www.innerscene.com/tools/library/3d-parts/detached-two-storey-house-66774933",
+                    creator = "Innerscene",
+                    license = "CC0-1.0",
+                    licenseUrl = "https://creativecommons.org/publicdomain/zero/1.0/legalcode",
+                    attribution = "Original unbranded Innerscene two-storey detailed house; CC0.",
+                    version = "2026-10-08",
+                ),
+                metadata = mapOf("assetCategory" to "Architecture"),
+            ),
+            Actor(
+                id = "starter-bungalow-house",
+                name = "Bungalow · Detailed",
+                kind = ActorKind.ENVIRONMENT,
+                asset = AssetReference(
+                    assetId = "starter.cc0.bungalow-house",
+                    relativePath = "models/mise_house_bungalow.glb",
+                    source = "https://www.innerscene.com/tools/library/3d-parts/bungalow-house-85d40048",
+                    creator = "Innerscene",
+                    license = "CC0-1.0",
+                    licenseUrl = "https://creativecommons.org/publicdomain/zero/1.0/legalcode",
+                    attribution = "Original real-scale textured Innerscene bungalow house; CC0.",
+                    version = "2026-10-08",
+                ),
+                metadata = mapOf("assetCategory" to "Architecture"),
+            ),
+            Actor(
+                id = "starter-detailed-sedan",
+                name = "Sedan · Real Scale",
+                kind = ActorKind.VEHICLE,
+                asset = AssetReference(
+                    assetId = "starter.cc0.sedan-car",
+                    relativePath = "models/mise_sedan.glb",
+                    source = "https://www.innerscene.com/tools/library/3d-parts/sedan-car-42109739",
+                    creator = "Innerscene",
+                    license = "CC0-1.0",
+                    licenseUrl = "https://creativecommons.org/publicdomain/zero/1.0/legalcode",
+                    attribution = "Original CC0 unbranded exterior geometry with glazing, doors, wheels and trim.",
+                    version = "2026-10-05",
+                ),
+                metadata = mapOf("assetCategory" to "Vehicles"),
+            ),
+            Actor(
+                id = "starter-oak-tree",
+                name = "Oak Tree · Detailed Leaves",
+                kind = ActorKind.ENVIRONMENT,
+                asset = AssetReference(
+                    assetId = "starter.cc0.oak-street-tree",
+                    relativePath = "models/mise_oak_tree.glb",
+                    format = "glb",
+                    creator = "Innerscene",
+                    source = "https://www.innerscene.com/tools/library/3d-parts/oak-street-tree-detailed-leaves-a273fef9",
+                    license = "CC0-1.0",
+                    licenseUrl = "https://creativecommons.org/publicdomain/zero/1.0/legalcode",
+                    attribution = "Original Innerscene CC0 oak model. 9,450 native geometric leaves.",
+                    version = "2026-10-05",
+                ),
+            ),
             Actor(
                 id = "starter-mise-humanoid",
                 name = "Humanoid",

@@ -34,6 +34,22 @@ data class SceneEditorState(
     fun setGroundVisible(visible: Boolean): SceneEditorState =
         commit(project.copy(world = project.world.copy(groundEnabled = visible)), selectedActorId)
 
+    fun setGroundSurface(surface: GroundSurface): SceneEditorState =
+        commit(project.copy(world = project.world.copy(groundSurface = surface)), selectedActorId)
+
+    fun setGroundTiling(tiles: Int): SceneEditorState =
+        commit(project.copy(world = project.world.copy(groundTileCount = tiles.coerceIn(2, 24))), selectedActorId)
+
+    fun setGroundRoughness(roughness: Float): SceneEditorState {
+        if (!roughness.isFinite()) return this
+        return commit(project.copy(world = project.world.copy(
+            groundRoughness = roughness.coerceIn(0.3f, 1f),
+        )), selectedActorId)
+    }
+
+    fun setReferenceGridVisible(visible: Boolean): SceneEditorState =
+        commit(project.copy(world = project.world.copy(gridEnabled = visible)), selectedActorId)
+
     /** Scene-wide sky and light change, committed as one atomic undoable action. */
     fun applyLightingLook(look: LightingLook): SceneEditorState =
         commit(lightingLookProject(project, look), selectedActorId)

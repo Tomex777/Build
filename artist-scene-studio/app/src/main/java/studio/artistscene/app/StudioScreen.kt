@@ -9,6 +9,9 @@ import android.provider.DocumentsContract
 import android.provider.OpenableColumns
 import android.util.Log
 import androidx.activity.compose.BackHandler
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContract
 import androidx.activity.result.contract.ActivityResultContracts
@@ -90,6 +93,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.runtime.getValue
@@ -133,6 +137,9 @@ import studio.artistscene.core.mechanicalParts
 import studio.artistscene.core.SceneEditorState
 import studio.artistscene.core.SceneProject
 import studio.artistscene.core.EnvironmentPreset
+import studio.artistscene.core.GroundSurface
+import studio.artistscene.core.SunOrbit
+import studio.artistscene.core.TerrainShape
 import studio.artistscene.core.Interpolation
 import studio.artistscene.core.actorKeyTimes
 import studio.artistscene.core.previousActorKeyTime
@@ -224,6 +231,26 @@ internal fun StudioScreen(
     }
     var showingMoreTools by remember { mutableStateOf(false) }
     var referenceMode by remember { mutableStateOf(false) }
+    // ABR fullscreen: keep scene pixels visible behind the system bars.
+    // Restore bars whenever the user returns to the editor (or leaves this screen).
+    val referenceActivity = context.findActivity()
+    DisposableEffect(referenceMode, referenceActivity) {
+        if (referenceMode && referenceActivity != null) {
+            val bars = WindowCompat.getInsetsController(
+                referenceActivity.window, referenceActivity.window.decorView,
+            )
+            bars.systemBarsBehavior =
+                WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+            bars.hide(WindowInsetsCompat.Type.systemBars())
+        }
+        onDispose {
+            if (referenceMode && referenceActivity != null) {
+                WindowCompat.getInsetsController(
+                    referenceActivity.window, referenceActivity.window.decorView,
+                ).show(WindowInsetsCompat.Type.systemBars())
+            }
+        }
+    }
     var importKind by remember { mutableStateOf(ActorKind.PROP) }
     var importStatus by remember { mutableStateOf("") }
     var saveInProgress by remember { mutableStateOf(false) }
@@ -370,6 +397,47 @@ internal fun StudioScreen(
     val starterAssets = remember {
         PrototypeScene.starterAssets()
     }
+    val terrainFactory = remember(context) { TerrainAssets(context) }
+
+    fun insertTerrain(actor: Actor) {
+        // One durable undo action: a true 36m mesh replaces the infinite flat
+        // floor, so there is no z-fighting and the real horizon remains visible.
+        var next = editor.addActor(actor)
+        next = next.copy(
+            project = next.project.copy(world = next.project.world.copy(groundEnabled = false)),
+        )
+        val camera = next.project.cameras.firstOrNull { it.id == next.project.activeCameraId }
+        if (camera != null) {
+            next = next.updateActiveCamera(camera.copy(
+                position = Vec3(17f, 15f, 36f),
+                target = Vec3(0f, 4f, 0f),
+                farMeters = maxOf(camera.farMeters, 400f),
+            ))
+        }
+        applyEditor(next, "terrain-add")
+        activeSheet = null
+        showAddSheet = false
+    }
+
+    val heightmapLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocument(),
+    ) { uri ->
+        if (uri != null) {
+            importStatus = "Creating terrain from heightmap…"
+            scope.launch {
+                runCatching {
+                    withContext(Dispatchers.IO) { terrainFactory.fromHeightmap(uri) }
+                }.onSuccess { actor ->
+                    insertTerrain(actor)
+                    importStatus = "Heightmap terrain added"
+                }.onFailure { error ->
+                    importStatus = "Heightmap: ${error.message ?: "could not read image"}"
+                    Log.w(RUNTIME_LOG_TAG, "heightmap-terrain-failed", error)
+                }
+            }
+        }
+    }
+
     val importLauncher = rememberLauncherForActivityResult(OpenModelDocumentContract()) { uri ->
         if (uri == null) {
             importStatus = "Import cancelled"
@@ -836,13 +904,13 @@ internal fun StudioScreen(
                 }
             } else if (!exportInProgress) {
                 Surface(
-                    modifier = Modifier.align(Alignment.TopEnd).statusBarsPadding().padding(12.dp),
-                    color = PanelBackground,
-                    shape = RoundedCornerShape(18.dp),
+                    modifier = Modifier.align(Alignment.TopEnd).padding(8.dp),
+                    color = PanelBackground.copy(alpha = 0.78f),
+                    shape = RoundedCornerShape(15.dp),
                 ) {
                     Row(
-                        modifier = Modifier.padding(4.dp),
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        modifier = Modifier.padding(2.dp),
+                        horizontalArrangement = Arrangement.spacedBy(2.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         IconButton(
@@ -850,14 +918,14 @@ internal fun StudioScreen(
                                 exportStatus = ""
                                 exportLauncher.launch(scenePngFilename(editor.project.name))
                             },
-                            modifier = Modifier.size(44.dp).testTag("export-scene-png"),
+                            modifier = Modifier.size(40.dp).testTag("export-scene-png"),
                         ) { Icon(Icons.Default.FileDownload, "Export PNG", tint = PrimaryText) }
                         IconButton(
                             onClick = {
                                 exportStatus = ""
                                 referenceMode = false
                             },
-                            modifier = Modifier.size(44.dp).testTag("exit-reference-mode"),
+                            modifier = Modifier.size(40.dp).testTag("exit-reference-mode"),
                         ) { Icon(Icons.Default.FullscreenExit, "Edit scene", tint = PrimaryText) }
                     }
                 }
@@ -985,6 +1053,21 @@ internal fun StudioScreen(
             onAxisSelected = { selectedPoseAxis = it },
             onPoseIkEnabledChange = { poseIkEnabled = it },
             onEditor = { next, reason -> applyEditor(next, reason) },
+            onAddTerrain = { shape ->
+                importStatus = "Building ${shape.title.lowercase()} terrain…"
+                scope.launch {
+                    runCatching {
+                        withContext(Dispatchers.IO) { terrainFactory.preset(shape) }
+                    }.onSuccess { actor ->
+                        insertTerrain(actor)
+                        importStatus = "${shape.title} terrain added"
+                    }.onFailure { error ->
+                        importStatus = "Terrain: ${error.message ?: "could not build mesh"}"
+                        Log.e(RUNTIME_LOG_TAG, "terrain-build-failed", error)
+                    }
+                }
+            },
+            onHeightmapImport = { heightmapLauncher.launch(arrayOf("image/*")) },
             onClose = { activeSheet = null },
             saveStatus = saveStatus,
             onFrameSelected = {
@@ -1042,6 +1125,10 @@ internal fun StudioScreen(
 }
 
 private fun Actor.starterFrameDistance(): Float = when (asset?.assetId) {
+    "starter.cc0.two-storey-house" -> 28f
+    "starter.cc0.bungalow-house" -> 26f
+    "starter.cc0.sedan-car" -> 10f
+    "starter.cc0.oak-street-tree" -> 13f
     "starter.mise.car" -> 12f
     "starter.mise.bicycle" -> 4f
     "starter.mise.tree" -> 6f
@@ -1049,6 +1136,10 @@ private fun Actor.starterFrameDistance(): Float = when (asset?.assetId) {
 }
 
 private fun Actor.starterFocusHeight(): Float = when (asset?.assetId) {
+    "starter.cc0.two-storey-house" -> 4.5f
+    "starter.cc0.bungalow-house" -> 3f
+    "starter.cc0.sedan-car" -> 0.8f
+    "starter.cc0.oak-street-tree" -> 3f
     "starter.mise.car" -> .7f
     "starter.mise.bicycle" -> .55f
     "starter.mise.tree" -> 1.7f
@@ -1682,6 +1773,8 @@ private fun EditorContextSheet(
     onAxisSelected: (TransformAxis) -> Unit,
     onPoseIkEnabledChange: (Boolean) -> Unit,
     onEditor: (SceneEditorState, String) -> Unit,
+    onAddTerrain: (TerrainShape) -> Unit,
+    onHeightmapImport: () -> Unit,
     onClose: () -> Unit,
     saveStatus: String,
     onFrameSelected: () -> Unit,
@@ -2609,7 +2702,71 @@ private fun EditorContextSheet(
                                     ) { Text("Longer") }
                                 }
                             }
-                            if (settings.type != LightType.POINT) {
+                            if (settings.type == LightType.DIRECTIONAL) {
+                                // Move the *actual Filament directional light*, not merely
+                                // adjust a graphical fake. Terrain, trees and buildings cast
+                                // shadows in the new direction immediately.
+                                val angles = SunOrbit.angles(settings.direction)
+                                Text(
+                                    "Sun · height ${angles.elevationDegrees.toInt()}° · direction ${angles.azimuthDegrees.toInt()}°",
+                                    color = PrimaryText, fontSize = 12.sp,
+                                    modifier = Modifier.testTag("sun-angles"),
+                                )
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                ) {
+                                    listOf(
+                                        "Lower" to (0f to -5f),
+                                        "Raise" to (0f to 5f),
+                                        "←" to (-15f to 0f),
+                                        "→" to (15f to 0f),
+                                    ).forEach { (label, step) ->
+                                        Button(
+                                            onClick = {
+                                                onEditor(
+                                                    editor.setSelectedLightDirection(
+                                                        SunOrbit.move(settings.direction, step.first, step.second),
+                                                    ),
+                                                    "sun-move",
+                                                )
+                                            },
+                                            modifier = Modifier.weight(1f).testTag(
+                                                when (label) {
+                                                    "Lower" -> "sun-lower"
+                                                    "Raise" -> "sun-raise"
+                                                    "←" -> "sun-turn-left"
+                                                    else -> "sun-turn-right"
+                                                },
+                                            ),
+                                        ) { Text(label, maxLines = 1) }
+                                    }
+                                }
+                                Row(
+                                    modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                ) {
+                                    listOf(
+                                        "Sunrise" to (90f to 9f),
+                                        "Noon" to (180f to 78f),
+                                        "Sunset" to (270f to 9f),
+                                    ).forEach { (label, angle) ->
+                                        FilterChip(
+                                            selected = kotlin.math.abs(angles.azimuthDegrees - angle.first) < 1f &&
+                                                kotlin.math.abs(angles.elevationDegrees - angle.second) < 1f,
+                                            onClick = {
+                                                onEditor(
+                                                    editor.setSelectedLightDirection(SunOrbit.direction(angle.first, angle.second)),
+                                                    "sun-time",
+                                                )
+                                            },
+                                            label = { Text(label) },
+                                            modifier = Modifier.testTag("sun-${label.lowercase()}"),
+                                        )
+                                    }
+                                }
+                            }
+                            if (settings.type == LightType.SPOT) {
                                 Text("Aim", color = MutedText, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
                                 Row(
                                     modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
@@ -2716,8 +2873,86 @@ private fun EditorContextSheet(
                         },
                         modifier = Modifier.testTag("environment-ground-toggle"),
                     )
+                    FilterChip(
+                        selected = editor.project.world.gridEnabled,
+                        onClick = {
+                            onEditor(
+                                editor.setReferenceGridVisible(!editor.project.world.gridEnabled),
+                                "environment-reference-grid",
+                            )
+                        },
+                        label = {
+                            Text(if (editor.project.world.gridEnabled) "Reference grid on" else "Reference grid off")
+                        },
+                        modifier = Modifier.testTag("environment-grid-toggle"),
+                    )
+                    Text("Ground material", color = PrimaryText, fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold)
+                    GroundSurface.entries.chunked(3).forEach { row ->
+                        Row(modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            row.forEach { surface ->
+                                FilterChip(
+                                    selected = editor.project.world.groundSurface == surface,
+                                    onClick = { onEditor(editor.setGroundSurface(surface), "ground-material") },
+                                    label = { Text(surface.title, maxLines = 1, fontSize = 10.sp) },
+                                    modifier = Modifier.weight(1f).testTag("ground-${surface.name.lowercase()}"),
+                                )
+                            }
+                            repeat(3-row.size) { Spacer(modifier = Modifier.weight(1f)) }
+                        }
+                    }
+                    if (editor.project.world.groundSurface != GroundSurface.AUTO ||
+                        editor.project.world.environmentPreset == EnvironmentPreset.PARK_SHADE) {
+                        val tiles = editor.project.world.groundTileCount.coerceIn(2,24)
+                        Text("Texture detail · ${tiles} repeats", color = MutedText, fontSize = 11.sp)
+                        Row(modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Button(onClick = {
+                                onEditor(editor.setGroundTiling(tiles-2), "ground-tiling")
+                            }, modifier = Modifier.weight(1f).testTag("ground-detail-less")) { Text("Larger pattern") }
+                            Button(onClick = {
+                                onEditor(editor.setGroundTiling(tiles+2), "ground-tiling")
+                            }, modifier = Modifier.weight(1f).testTag("ground-detail-more")) { Text("Finer pattern") }
+                        }
+                        Text("Surface roughness · ${(editor.project.world.groundRoughness*100).toInt()}%",
+                            color = MutedText, fontSize = 11.sp)
+                        Row(modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Button(onClick = { onEditor(editor.setGroundRoughness(
+                                editor.project.world.groundRoughness - 0.10f), "ground-roughness") },
+                                modifier = Modifier.weight(1f).testTag("ground-smoother")) { Text("Smoother") }
+                            Button(onClick = { onEditor(editor.setGroundRoughness(
+                                editor.project.world.groundRoughness + 0.10f), "ground-roughness") },
+                                modifier = Modifier.weight(1f).testTag("ground-rougher")) { Text("More matte") }
+                        }
+                    }
+                    Text("Terrain · actual 3D geometry", color = PrimaryText,
+                        fontWeight = FontWeight.SemiBold, fontSize = 14.sp,
+                        modifier = Modifier.testTag("terrain-controls"))
                     Text(
-                        "Original offline sky gradients · PBR matte shadow receiver · saved with the scene.",
+                        "Build real hills and mountains that cast shadows, or import your own grayscale heightmap.",
+                        color = MutedText, fontSize = 11.sp,
+                    )
+                    TerrainShape.entries.chunked(2).forEach { row ->
+                        Row(modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            row.forEach { shape ->
+                                Button(
+                                    onClick = { onAddTerrain(shape) },
+                                    modifier = Modifier.weight(1f).testTag(
+                                        "terrain-${shape.name.lowercase()}",
+                                    ),
+                                ) { Text(shape.title) }
+                            }
+                        }
+                    }
+                    Button(
+                        onClick = onHeightmapImport,
+                        modifier = Modifier.fillMaxWidth().testTag("terrain-import-heightmap"),
+                    ) { Text("Import my heightmap") }
+                    Text(
+                        "Real offline CC0 photography · PBR shadow receiver · saved with the scene.",
                         color = MutedText, fontSize = 10.sp,
                     )
                 }

@@ -68,6 +68,7 @@ import studio.artistscene.core.AssetReference
 import studio.artistscene.core.AssetStorage
 import studio.artistscene.core.CameraProjection
 import studio.artistscene.core.EnvironmentPreset
+import studio.artistscene.core.GroundSurface
 import studio.artistscene.core.ReferenceImage
 import studio.artistscene.core.RigDefinition
 import studio.artistscene.core.SceneCamera
@@ -106,7 +107,11 @@ fun SceneViewport(
     val environmentLoader = rememberEnvironmentLoader(engine)
     val loadedEnvironment = rememberEnvironment(environmentLoader, isOpaque = false)
     val preset = project.world.environmentPreset
-    val skyTexture = remember(engine, preset) { createOutdoorSky(engine, preset) }
+    val skyTexture = remember(engine, preset) {
+        if (preset == EnvironmentPreset.PARK_SHADE) {
+            createPhotographicOutdoorSky(engine, context)
+        } else createOutdoorSky(engine, preset)
+    }
     val studioSkybox = remember(engine, skyTexture) {
         Skybox.Builder().environment(skyTexture).build(engine)
     }
@@ -147,9 +152,32 @@ fun SceneViewport(
 
     // A low-chroma matte ground creates value separation from human skin and light clothing.
     // Keep it as Filament PBR geometry so it receives real shadow maps/contact shadows.
-    val floor = remember(materialLoader, preset) {
-        val color = Color(android.graphics.Color.parseColor(preset.groundHex))
-        materialLoader.createColorInstance(color, metallic = 0f, roughness = preset.roughness)
+    val chosenGround = project.world.groundSurface.let { selected ->
+        if (selected == GroundSurface.AUTO && preset == EnvironmentPreset.PARK_SHADE)
+            GroundSurface.GRASS else selected
+    }
+    val groundTiles = project.world.groundTileCount.coerceIn(2, 24)
+    val groundRoughness = project.world.groundRoughness.coerceIn(0.3f, 1f)
+    val groundPhoto = remember(engine, chosenGround, groundTiles) {
+        if (chosenGround != GroundSurface.AUTO)
+            PhotographicGroundCache.obtain(engine, context, chosenGround, groundTiles)
+        else null
+    }
+    val floor = remember(materialLoader, preset, groundPhoto, groundRoughness) {
+        if (groundPhoto != null) {
+            materialLoader.createTextureInstance(groundPhoto, metallic = 0f, roughness = groundRoughness)
+        } else {
+            val color = Color(android.graphics.Color.parseColor(preset.groundHex))
+            materialLoader.createColorInstance(color, metallic = 0f, roughness = preset.roughness)
+        }
+    }
+    // A genuine ground-plane reference grid, not a 2D UI overlay. It follows
+    // perspective as the artist orbits and can be hidden for clean story scenes.
+    val gridBitmap = remember(project.world.gridEnabled) {
+        if (project.world.gridEnabled) createReferenceGridBitmap() else null
+    }
+    DisposableEffect(gridBitmap) {
+        onDispose { gridBitmap?.recycle() }
     }
     val mainLightNode = rememberMainLightNode(engine)
     // Shadow maps are part of Filament's scene rendering, independent of the
@@ -271,7 +299,11 @@ fun SceneViewport(
             PlaneNode(
                 // Plane geometry uses all three size components; normals alone do not
                 // orient vertices. Keep the XZ receiver flat, with a nonzero culling box.
-                size = Size(2000f, 0f, 2000f),
+                // A finite photo-textured ground reveals the actual sky horizon.
+                // Previously the 2000m plane filled EVERY camera ray below the tree,
+                // so we accidentally hid the sky and made floor/sky indistinguishable.
+                size = if (groundPhoto != null)
+                    Size(36f, 0f, 36f) else Size(2000f, 0f, 2000f),
                 normal = Direction(0f, 1f, 0f),
                 position = Position(0f, -0.01f, 0f),
                 materialInstance = floor,
@@ -280,7 +312,22 @@ fun SceneViewport(
                     isShadowCaster = false
                     isShadowReceiver = true
                     setCulling(false)
-                    axisAlignedBoundingBox = Box(0f, 0f, 0f, 1000f, 0.01f, 1000f)
+                    val groundHalf = if (groundPhoto != null) 18f else 1000f
+                    axisAlignedBoundingBox = Box(0f, 0f, 0f, groundHalf, 0.01f, groundHalf)
+                },
+            )
+        }
+
+        if (project.world.groundEnabled && project.world.gridEnabled && gridBitmap != null) {
+            ImageNode(
+                bitmap = gridBitmap,
+                size = Size(24f, 0f, 24f),
+                normal = Direction(0f, 1f, 0f),
+                position = Position(0f, 0.007f, 0f),
+                apply = {
+                    isTouchable = false
+                    isShadowCaster = false
+                    isShadowReceiver = false
                 },
             )
         }
@@ -656,10 +703,17 @@ private fun SceneScope.ActorModelNode(
  * Keep a newly imported asset readable before the artist edits its transform. SceneView applies
  * this only while instantiating the model; the authored SceneProject transform remains untouched.
  */
-private fun Actor.initialDisplayDimensionMeters(): Float = when (asset?.assetId) {
+private fun Actor.initialDisplayDimensionMeters(): Float =
+    if (asset?.assetId?.startsWith("terrain.generated.") == true) 36f
+    else when (asset?.assetId) {
     "starter.mise.bicycle" -> 1.81f
     "starter.mise.car" -> 3.88f
     "starter.mise.tree" -> 3.65f
+    // Species-scale tree; use genuine detailed leaf canopy at 5.8m height.
+    "starter.cc0.oak-street-tree" -> 5.8f
+    "starter.cc0.two-storey-house" -> 14.7f
+    "starter.cc0.bungalow-house" -> 12.9f
+    "starter.cc0.sedan-car" -> 4.7f
     else -> when (kind) {
     ActorKind.CHARACTER -> 1.7f
     ActorKind.VEHICLE -> 2.2f
@@ -869,3 +923,24 @@ private fun decodeReferenceBitmap(
 }.onFailure {
     Log.w(VIEWPORT_LOG_TAG, "reference-image-load-failed uri=${uri.scheme}", it)
 }.getOrNull()
+
+/** Thin alpha grid lines; PBR floor beneath still receives the scene's shadows. */
+private fun createReferenceGridBitmap(): Bitmap {
+    val size = 1024
+    val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+    val canvas = Canvas(bitmap)
+    val stroke = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = android.graphics.Color.argb(46, 51, 68, 76)
+        strokeWidth = 1.2f
+    }
+    for (index in 0..48) {
+        val at = size * index / 48f
+        canvas.drawLine(at, 0f, at, size.toFloat(), stroke)
+        canvas.drawLine(0f, at, size.toFloat(), at, stroke)
+    }
+    stroke.color = android.graphics.Color.argb(68, 57, 76, 80)
+    stroke.strokeWidth = 1.7f
+    canvas.drawLine(size / 2f, 0f, size / 2f, size.toFloat(), stroke)
+    canvas.drawLine(0f, size / 2f, size.toFloat(), size / 2f, stroke)
+    return bitmap
+}

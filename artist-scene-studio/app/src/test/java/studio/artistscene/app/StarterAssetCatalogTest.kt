@@ -17,9 +17,13 @@ class StarterAssetCatalogTest {
         assertTrue(props.mapNotNull { it.asset?.assetId }.distinct().size >= 2)
         assertNotNull(starters.first { it.name == "Rigged Figure" }.asset?.attribution)
         assertTrue(starters.all { !it.asset?.source.isNullOrBlank() && !it.asset?.license.isNullOrBlank() })
-        assertEquals(10, starters.mapNotNull { it.asset?.assetId }.distinct().size)
+        assertEquals(14, starters.mapNotNull { it.asset?.assetId }.distinct().size)
         assertTrue(starters.any { it.asset?.assetId == PrototypeScene.ANIME_ASSET_ID && it.kind == ActorKind.CHARACTER })
-        assertEquals(setOf("Bicycle", "Car"), starters.filter { it.kind == ActorKind.VEHICLE }.map { it.name }.toSet())
-        assertEquals("Tree", starters.single { it.kind == ActorKind.ENVIRONMENT }.name)
+        assertEquals(setOf("Bicycle", "Car", "Sedan · Real Scale"), starters.filter {
+            it.kind == ActorKind.VEHICLE
+        }.map { it.name }.toSet())
+        assertEquals(setOf("Tree", "Oak Tree · Detailed Leaves",
+            "Two-storey House · Detailed", "Bungalow · Detailed"),
+            starters.filter { it.kind == ActorKind.ENVIRONMENT }.map { it.name }.toSet())
     }
 }

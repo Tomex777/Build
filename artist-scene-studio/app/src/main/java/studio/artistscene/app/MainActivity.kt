@@ -64,6 +64,63 @@ class MainActivity : ComponentActivity() {
             preferences.edit().putBoolean(ANIME_STUDY_SEEDED_KEY, true).apply()
         }
 
+        // Preserve any artist edits or deliberate deletion after the first seed.
+        // A failed save is retried on the next launch, never silently marked complete.
+        if (!preferences.getBoolean(UNDER_TREE_SEEDED_KEY, false)) {
+            if (store.exists(UnderTreeScene.PROJECT_ID)) {
+                preferences.edit().putBoolean(UNDER_TREE_SEEDED_KEY, true).apply()
+            } else {
+                runCatching { store.save(UnderTreeScene.create()) }
+                    .onSuccess {
+                        preferences.edit().putBoolean(UNDER_TREE_SEEDED_KEY, true).apply()
+                    }
+                    .onFailure { Log.w(RUNTIME_LOG_TAG, "under-tree-scene-seed-failed", it) }
+            }
+        }
+
+        // Refresh the original sample's stock atmosphere once, without touching
+        // altered worlds, custom light settings, rig poses, or artist transforms.
+        if (!preferences.getBoolean(UNDER_TREE_ATMOSPHERE_KEY, false)) {
+            runCatching {
+                if (store.exists(UnderTreeScene.PROJECT_ID)) {
+                    val saved = store.load(UnderTreeScene.PROJECT_ID)
+                    val refreshed = UnderTreeScene.upgradeDefaultEnvironment(saved)
+                    if (refreshed != saved) store.save(refreshed)
+                }
+            }.onSuccess {
+                preferences.edit().putBoolean(UNDER_TREE_ATMOSPHERE_KEY, true).apply()
+            }.onFailure { Log.w(RUNTIME_LOG_TAG, "under-tree-atmosphere-upgrade-failed", it) }
+        }
+
+        // The original photographic preset used overhead sunlight, hiding the
+        // otherwise correct cast shadows. Only correct the exact stock light:
+        // never change artist-edited angles, actors or world settings.
+        if (!preferences.getBoolean(UNDER_TREE_SHADOWS_KEY, false)) {
+            runCatching {
+                if (store.exists(UnderTreeScene.PROJECT_ID)) {
+                    val saved = store.load(UnderTreeScene.PROJECT_ID)
+                    val refined = UnderTreeScene.refineStockLightAngle(saved)
+                    if (refined != saved) store.save(refined)
+                }
+            }.onSuccess {
+                preferences.edit().putBoolean(UNDER_TREE_SHADOWS_KEY, true).apply()
+            }.onFailure { Log.w(RUNTIME_LOG_TAG, "under-tree-shadows-upgrade-failed", it) }
+        }
+
+        // Upgrade the exact original demo tree, but never overwrite an artist's
+        // moved, replaced, scaled or renamed tree (or any other scene object).
+        if (!preferences.getBoolean(UNDER_TREE_REAL_OAK_KEY, false)) {
+            runCatching {
+                if (store.exists(UnderTreeScene.PROJECT_ID)) {
+                    val saved = store.load(UnderTreeScene.PROJECT_ID)
+                    val improved = UnderTreeScene.upgradeUntouchedDemoTree(saved)
+                    if (improved != saved) store.save(improved)
+                }
+            }.onSuccess {
+                preferences.edit().putBoolean(UNDER_TREE_REAL_OAK_KEY, true).apply()
+            }.onFailure { Log.w(RUNTIME_LOG_TAG, "under-tree-oak-upgrade-failed", it) }
+        }
+
         // Clean up presentation-only fixture labels from earlier development builds without
         // changing IDs, transforms, poses, assets, or any names the artist has already edited.
         if (store.exists(PrototypeScene.PROJECT_ID)) {
@@ -181,6 +238,10 @@ class MainActivity : ComponentActivity() {
 
 private const val STARTER_SEEDED_KEY = "starter-scene-seeded-v1"
 private const val ANIME_STUDY_SEEDED_KEY = "anime-pose-study-seeded-v1"
+private const val UNDER_TREE_SEEDED_KEY = "under-tree-scene-seeded-v1"
+private const val UNDER_TREE_ATMOSPHERE_KEY = "under-tree-atmosphere-softened-v2"
+private const val UNDER_TREE_SHADOWS_KEY = "under-tree-photographic-shadow-direction-v3"
+private const val UNDER_TREE_REAL_OAK_KEY = "under-tree-real-oak-model-v4"
 
 internal fun studio.artistscene.core.SceneProject.propX(): Float =
     actors.firstOrNull { it.id == PrototypeScene.PROP_ID }?.transform?.position?.x ?: 0f

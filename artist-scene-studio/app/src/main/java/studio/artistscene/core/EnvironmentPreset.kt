@@ -20,6 +20,10 @@ enum class EnvironmentPreset(
 ) {
     STUDIO_GREY("Photo Studio", "#65717E", 0.93f, 0x939FAC, 0xC6CBD1, 0x848D98, 0f, 0f),
     DAYLIGHT("Outdoor Daylight", "#65717B", 0.86f, 0x377CB8, 0xC2D9E9, 0xA9B7BD, 0.33f, 0.75f),
+    // Real photographer-sourced CC0 sky and leaf/grass terrain are loaded by
+    // SceneViewport for this preset; these fallback palette values remain only
+    // as a readable persisted identity and emergency color reference.
+    PARK_SHADE("Photo outdoors", "#98A59B", 0.98f, 0x8FBEDA, 0xD1E0E5, 0xB5C7C5, 0.27f, 0.70f),
     SUNSET("Warm Sunset", "#626876", 0.91f, 0x4F5A93, 0xF4C49A, 0x968079, 0.21f, 0.95f),
     OVERCAST("Soft Overcast", "#68737C", 0.98f, 0x7E98AA, 0xC4D0D7, 0xA2ADB6, 0.52f, 0.12f),
     CYC("Cyclorama", "#67747F", 0.94f, 0xB2BEC8, 0xC8D0D5, 0xA1AEB9, 0f, 0f),

@@ -1,0 +1,96 @@
+package studio.artistscene.app
+
+import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.graphics.Canvas
+import android.graphics.ColorMatrixColorFilter
+import android.graphics.Paint
+import android.graphics.Rect
+import com.google.android.filament.Engine
+import com.google.android.filament.Texture
+import studio.artistscene.core.GroundSurface
+import java.nio.ByteBuffer
+
+/**
+ * A genuine photo-textured, PBR-lit ground receiver. The base photo is CC0
+ * Leafy Grass by Charlotte Baglioni at Poly Haven (NOT generated geometry).
+ *
+ * Do not use ImageNode (unlit): the real 3D surface needs to accept shadows.
+ * Dense baked UV tiles keep the 36-metre ground at natural photographic scale
+ * with correct screen-space perspective and shadowing as the camera moves.
+ */
+internal fun createPhotographicGround(
+    engine: Engine, context: Context, surface: GroundSurface = GroundSurface.GRASS,
+    tileCount: Int = 8,
+): Texture {
+    val photoAsset = requireNotNull(surface.photoAsset) { "No photograph for $surface" }
+    val source = context.assets.open("world/$photoAsset").use { stream ->
+        requireNotNull(BitmapFactory.decodeStream(stream)) { "Missing CC0 ground photo" }
+    }
+    val pixels = 2048
+    // Fewer, higher-resolution tiles retain real leaf blades and fine soil
+    // detail instead of averaging the photo into green noise at phone scale.
+    val repeats = tileCount.coerceIn(2, 24)
+    val tiled = Bitmap.createBitmap(pixels, pixels, Bitmap.Config.ARGB_8888)
+    try {
+        val canvas = Canvas(tiled)
+        // Calibrate photographic albedo for the physically bright sun in the
+        // viewport. Without this, Filament's tone mapping clips brown/green
+        // leaf detail to pale yellow and the real shadow receiver reads flat.
+        val paint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG).apply {
+            colorFilter = ColorMatrixColorFilter(floatArrayOf(
+                0.72f, 0f, 0f, 0f, 0f,
+                0f, 0.79f, 0f, 0f, 0f,
+                0f, 0f, 0.70f, 0f, 0f,
+                0f, 0f, 0f, 1f, 0f,
+            ))
+        }
+        for (row in 0 until repeats) {
+            for (column in 0 until repeats) {
+                val dest = Rect(
+                    pixels * column / repeats,
+                    pixels * row / repeats,
+                    pixels * (column + 1) / repeats,
+                    pixels * (row + 1) / repeats,
+                )
+                canvas.drawBitmap(source, null, dest, paint)
+            }
+        }
+        val buffer = ByteBuffer.allocateDirect(pixels * pixels * 4)
+        tiled.copyPixelsToBuffer(buffer)
+        buffer.flip()
+        return Texture.Builder()
+            .width(pixels).height(pixels).levels(12)
+            .sampler(Texture.Sampler.SAMPLER_2D)
+            .format(Texture.InternalFormat.SRGB8_A8)
+            .usage(Texture.Usage.DEFAULT or Texture.Usage.GEN_MIPMAPPABLE)
+            .build(engine).also { texture ->
+                texture.setImage(engine, 0,
+                    Texture.PixelBufferDescriptor(buffer, Texture.Format.RGBA, Texture.Type.UBYTE))
+                texture.generateMipmaps(engine)
+            }
+    } finally {
+        tiled.recycle()
+        source.recycle()
+    }
+}
+
+/**
+ * Keep PBR textures alive as long as their Filament Engine. SceneView retains
+ * its textured MaterialInstances during Activity transitions; disposing a
+ * texture in an early Compose onDispose callback would abort the Filament
+ * backend because it is still bound to its material. A single cached ground
+ * texture per engine avoids repeated allocations and premature destruction.
+ * Native texture memory is reclaimed when the corresponding engine shuts down.
+ */
+internal object PhotographicGroundCache {
+    private val byEngine = java.util.WeakHashMap<Engine, MutableMap<Pair<GroundSurface, Int>, Texture>>()
+
+    @Synchronized
+    fun obtain(engine: Engine, context: Context, surface: GroundSurface, tiles: Int): Texture =
+        byEngine.getOrPut(engine) { mutableMapOf() }
+            .getOrPut(surface to tiles.coerceIn(2, 24)) {
+                createPhotographicGround(engine, context, surface, tiles)
+            }
+}
