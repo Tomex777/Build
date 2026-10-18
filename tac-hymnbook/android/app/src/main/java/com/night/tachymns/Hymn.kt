@@ -78,6 +78,6 @@ object HymnRepository {
     private fun JSONArray.verseList(): List<List<String>> =
         (0 until length()).map { i ->
             val lines = getJSONArray(i)
-            (0 until lines.length()).map { j -> lines.getString(j) }
+            (0 until lines.length()).map { j -> lines.getString(j).replace("\\n", "\n") }
         }
 }
