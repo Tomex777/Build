@@ -1,0 +1,92 @@
+name: EchoSpace actual SVG interface screenshots
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [feature/echospace-emulator-qa]
+    paths:
+      - .github/workflows/echospace-real-screenshots.yml
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  actual-emulator-screenshots:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download latest debug APK with authored SVG vector assets
+        uses: actions/download-artifact@v4
+        with:
+          name: EchoSpace-debug-apk
+          run-id: 39082348075
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: actual-apk
+      - name: Unpack test tools only
+        run: |
+          tar -xJf EchoSpace/source.tar.xz
+          test -s actual-apk/app-debug.apk
+          ls -lh actual-apk/app-debug.apk
+      - name: Enable KVM
+        run: |
+          sudo chmod 666 /dev/kvm
+      - name: Capture actual app UI at Android 11
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 30
+          target: default
+          arch: x86_64
+          profile: pixel_2
+          cores: 2
+          ram-size: 3072M
+          disk-size: 4096M
+          disable-animations: true
+          emulator-options: -no-window -no-snapshot -noaudio -no-boot-anim -gpu swiftshader_indirect
+          script: |
+            mkdir -p qa
+            adb install -r actual-apk/app-debug.apk
+            adb shell settings put system screen_off_timeout 600000
+            adb shell am start -W -n com.nexa.echospace/.MainActivity
+            for attempt in 1 2 3 4 5 6; do sleep 4; if python3 EchoSpace/tools/emulator_probe.py assert text EchoSpace; then break; fi; python3 EchoSpace/tools/emulator_probe.py tap text Wait || true; adb shell am start -n com.nexa.echospace/.MainActivity || true; done
+            python3 EchoSpace/tools/emulator_probe.py assert text EchoSpace
+            adb exec-out screencap -p > qa/01-real-rain-chamber.png
+            # Keep Rain Chamber: Explore cards sit below the fold on short displays.
+            # The Sound Mixer is reachable without scrolling the home feed.
+            python3 EchoSpace/tools/emulator_probe.py tap desc 'Open full sound mixer'
+            sleep 2
+            python3 EchoSpace/tools/emulator_probe.py assert text 'Sound mixer'
+            adb exec-out screencap -p > qa/03-real-spatial-mixer-expanded.png
+            adb shell input swipe 500 1360 500 600 650
+            adb shell input swipe 500 1360 500 750 420
+            sleep 2
+            adb exec-out screencap -p > qa/04-real-custom-volume-controls.png
+            python3 EchoSpace/tools/emulator_probe.py assert desc 'Rain level'
+            adb shell uiautomator dump /sdcard/echospace-actual-ui.xml
+            adb pull /sdcard/echospace-actual-ui.xml qa/05-gain-before.xml
+            python3 -c 'import xml.etree.ElementTree as E,re,subprocess; n=next(x for x in E.parse("qa/05-gain-before.xml").iter("node") if x.attrib.get("content-desc")=="Rain level"); l,t,r,b=map(int,re.findall(r"\d+",n.attrib["bounds"])); y=(t+b)//2; subprocess.run(["adb","shell","input","swipe",str(l+int((r-l)*.85)),str(y),str(l+int((r-l)*.19)),str(y),"800"],check=True)'
+            sleep 2
+            adb exec-out screencap -p > qa/06-real-custom-volume-after-drag.png
+            adb shell uiautomator dump /sdcard/echospace-gain-after.xml
+            adb pull /sdcard/echospace-gain-after.xml qa/07-gain-after.xml
+            python3 -c 'import xml.etree.ElementTree as E; a=[n.attrib.get("text") for n in E.parse("qa/07-gain-after.xml").iter("node")]; assert "90%" not in a, "Gain value did not move: "+str(a); print("CUSTOM_GAIN_DRAG_VERIFIED")'
+            adb shell logcat -d -v brief -s AndroidRuntime:E > qa/08-crashes.txt
+            if grep -q 'FATAL EXCEPTION' qa/08-crashes.txt; then cat qa/08-crashes.txt; exit 1; fi
+            python3 EchoSpace/tools/emulator_probe.py tap desc 'Close mixer'
+            sleep 1
+            python3 EchoSpace/tools/emulator_probe.py tap desc 'Add a sound'
+            sleep 2
+            adb exec-out screencap -p > qa/09-real-sound-library-with-SVG.png
+            adb shell input swipe 500 1500 500 650 450
+            sleep 2
+            adb exec-out screencap -p > qa/10-more-custom-sound-icons.png
+            echo 'ECHOSPACE_REAL_SVG_SCREENSHOTS_CAPTURED'
+      - name: Publish genuine emulator screenshots
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: EchoSpace-ABR-real-emulator-images
+          path: qa/
+          if-no-files-found: warn
+          retention-days: 90

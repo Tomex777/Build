@@ -1,0 +1,25 @@
+name: EchoSpace CC0 Audio Pack
+on:
+  push:
+    branches: [feature/echospace-emulator-qa]
+    paths: [.github/workflows/echospace-audio-assets.yml]
+  workflow_dispatch:
+permissions: { contents: read }
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    timeout-minutes: 22
+    steps:
+      - uses: actions/checkout@v4
+      - name: Unpack app
+        run: tar -xJf EchoSpace/source.tar.xz
+      - name: Download verified public domain audio and measured HRTF
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -qq -y ffmpeg
+          python3 EchoSpace/tools/prepare_audio.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: EchoSpace-CC0-audio-assets
+          path: EchoSpace/app/src/main/assets
+          if-no-files-found: error

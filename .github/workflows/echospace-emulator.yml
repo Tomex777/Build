@@ -1,0 +1,229 @@
+name: EchoSpace Android emulator QA
+
+on:
+  push:
+    branches:
+      - feature/echospace-emulator-qa
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  emulator-qa:
+    runs-on: ubuntu-latest
+    timeout-minutes: 55
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      # The GitHub Ubuntu runner already provides Android SDK and sdkmanager.
+      # setup-android@v3 currently fails by requesting removed legacy 'tools'.
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.11.1'
+      - name: Extract EchoSpace native source
+        run: |
+          tar -xJf EchoSpace/source.tar.xz
+          test -f EchoSpace/app/src/main/java/com/nexa/echospace/MainActivity.kt
+      - name: Apply expanded sound mixer controls
+        run: python3 .github/scripts/echospace_expand_mixer.py
+      - name: Apply ABR single-mixer design and vector sound controls
+        run: python3 .github/scripts/echospace_abr.py
+      - name: Enlarge sound field and repair live gain control
+        run: python3 .github/scripts/echospace_mixer_precision.py
+      - name: Enforce ABR custom gain controls and test no default sliders
+        run: python3 .github/scripts/echospace_custom_gain.py
+      - name: Enhance binaural audio and add six sound types
+        run: python3 .github/scripts/echospace_audio_upgrade.py
+      - name: Generate Android vectors from original EchoSpace SVG icon library
+        run: python3 .github/scripts/echospace_svg_icons.py
+      - name: Bundle royalty-free offline scene artwork
+        run: |
+          set -euo pipefail
+          mkdir -p EchoSpace/app/src/main/res/drawable-nodpi
+          declare -A scenes=(
+            [rain]=photo-1751696924126-2697d62f6f49
+            [forest]=photo-1562627952-f52a76c3c823
+            [shore]=photo-1518837695005-2083093ee35b
+            [fire]=photo-1464808646948-8f732deb6e4b
+            [dream]=photo-1592666452220-529326e2588e
+          )
+          for name in "${!scenes[@]}"; do
+            curl -fsSL --retry 3 --connect-timeout 15 "https://images.unsplash.com/${scenes[$name]}?auto=format&fit=crop&crop=entropy&w=1080&h=1400&q=75&fm=jpg" -o "EchoSpace/app/src/main/res/drawable-nodpi/scene_${name}.jpg"
+            test $(wc -c < "EchoSpace/app/src/main/res/drawable-nodpi/scene_${name}.jpg") -gt 25000
+          done
+      - name: Install audio conversion tools
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -qq -y ffmpeg
+      - name: Produce verified offline field recordings and measured HRTF
+        run: |
+          python3 EchoSpace/tools/prepare_audio.py
+          for name in rain thunder ocean wind fire chimes birds night stream waterfall leaves owl frogs traffic drizzle sleet; do
+            test -s "EchoSpace/app/src/main/assets/audio/${name}.pcm"
+          done
+          test -s EchoSpace/app/src/main/assets/kemar_44100.hrir
+      - name: Install Android build tools
+        run: |
+          SDKMANAGER=$(find "$ANDROID_HOME/cmdline-tools" -name sdkmanager -type f | head -n 1)
+          test -n "$SDKMANAGER"
+          echo "$(dirname "$SDKMANAGER")" >> "$GITHUB_PATH"
+          "$SDKMANAGER" 'platforms;android-35' 'build-tools;35.0.0'
+      - name: Compile and run Kotlin unit tests
+        working-directory: EchoSpace
+        run: gradle --no-daemon --stacktrace testDebugUnitTest assembleDebug
+      - name: Enable emulator acceleration
+        run: |
+          ls -la /dev/kvm || true
+          sudo chmod 666 /dev/kvm || true
+      - name: Boot emulator and inspect real Android app
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          arch: x86_64
+          target: default
+          profile: pixel_6
+          cores: 4
+          ram-size: 4096M
+          disk-size: 4096M
+          disable-animations: true
+          emulator-options: -no-window -no-snapshot -noaudio -no-boot-anim -gpu swiftshader_indirect
+          script: |
+            set -e
+            mkdir -p qa
+            adb install -r EchoSpace/app/build/outputs/apk/debug/app-debug.apk
+            adb shell pm grant com.nexa.echospace android.permission.POST_NOTIFICATIONS
+            adb shell settings put system screen_off_timeout 600000
+            adb shell am start -W -n com.nexa.echospace/.MainActivity
+            # Cold boots sometimes show a Pixel Launcher ANR instead of our UI.
+            # Recover from that system dialog and require the actual app to appear.
+            # Emulator runner invokes individual script lines via /bin/sh, so loops must be on one line.
+            for attempt in 1 2 3 4 5 6 7 8; do sleep 7; if python3 EchoSpace/tools/emulator_probe.py assert text EchoSpace; then break; fi; python3 EchoSpace/tools/emulator_probe.py tap text Wait || true; adb shell am start -n com.nexa.echospace/.MainActivity || true; done
+            python3 EchoSpace/tools/emulator_probe.py assert text EchoSpace
+            adb shell screencap -p /sdcard/launch.png
+            adb pull /sdcard/launch.png qa/01-launch.png
+            python3 EchoSpace/tools/emulator_probe.py tap desc Play
+            # Android 15 Quickstep occasionally shows a launcher ANR on shared KVM runners.
+            for attempt in 1 2 3 4 5; do sleep 5; if python3 EchoSpace/tools/emulator_probe.py assert text Listening; then break; fi; python3 EchoSpace/tools/emulator_probe.py tap text Wait || true; adb shell am start -n com.nexa.echospace/.MainActivity || true; done
+            python3 EchoSpace/tools/emulator_probe.py assert text Listening
+            adb shell screencap -p /sdcard/play.png
+            adb pull /sdcard/play.png qa/02-playing.png
+            python3 EchoSpace/tools/emulator_probe.py tap text 'Deep Forest'
+            sleep 4
+            python3 EchoSpace/tools/emulator_probe.py assert text 'Deep Forest'
+            # Sound-edit controls live only inside the mixer, never duplicated on Home.
+            adb shell uiautomator dump /sdcard/abr-main.xml >/dev/null
+            if adb shell cat /sdcard/abr-main.xml | grep -q 'Mute Birdsong'; then echo 'Duplicate mute control on main screen'; exit 1; fi
+            adb shell screencap -p /sdcard/forest.png
+            adb pull /sdcard/forest.png qa/03-deep-forest.png
+            python3 EchoSpace/tools/emulator_probe.py tap desc 'Open full sound mixer'
+            sleep 1
+            python3 EchoSpace/tools/emulator_probe.py assert text 'Sound mixer'
+            python3 EchoSpace/tools/emulator_probe.py assert desc 'Living sounds on'
+            python3 EchoSpace/tools/emulator_probe.py tap desc 'Living sounds on'
+            python3 EchoSpace/tools/emulator_probe.py assert desc 'Living sounds off'
+            python3 EchoSpace/tools/emulator_probe.py tap desc 'Living sounds off'
+            adb shell input swipe 540 2070 540 1000 500
+            sleep 1
+            python3 EchoSpace/tools/emulator_probe.py assert desc 'Mute Birdsong'
+            python3 EchoSpace/tools/emulator_probe.py assert desc 'Birdsong level'
+            python3 EchoSpace/tools/emulator_probe.py assert desc 'Move selected sound five degrees right'
+            # Test the *actual* gain gesture, not just that a slider renders.
+            adb shell uiautomator dump /sdcard/mixer-tree.xml
+            adb pull /sdcard/mixer-tree.xml qa/slider-before.xml
+            python3 -c 'import xml.etree.ElementTree as E,re,subprocess; n=next(x for x in E.parse("qa/slider-before.xml").iter("node") if x.attrib.get("content-desc")=="Birdsong level"); l,t,r,b=map(int,re.findall(r"\d+",n.attrib["bounds"])); y=(t+b)//2; subprocess.run(["adb","shell","input","swipe",str(l+int((r-l)*.88)),str(y),str(l+int((r-l)*.24)),str(y),"900"],check=True)'
+            sleep 1
+            python3 EchoSpace/tools/emulator_probe.py assert desc 'Birdsong level'
+            adb shell uiautomator dump /sdcard/mixer-after.xml
+            adb pull /sdcard/mixer-after.xml qa/slider-after.xml
+            python3 -c 'import xml.etree.ElementTree as E; a=[n.attrib.get("text") for n in E.parse("qa/slider-after.xml").iter("node")]; assert "88%" not in a, "Layer gain failed to respond to swipe: "+str(a); print("LAYER_GAIN_GESTURE_VERIFIED")'
+            python3 EchoSpace/tools/emulator_probe.py tap desc 'Mute Birdsong'
+            python3 EchoSpace/tools/emulator_probe.py assert text Muted
+            python3 EchoSpace/tools/emulator_probe.py tap desc 'Unmute Birdsong'
+            python3 EchoSpace/tools/emulator_probe.py assert desc 'Solo Birdsong'
+            python3 EchoSpace/tools/emulator_probe.py tap desc 'Solo Birdsong'
+            python3 EchoSpace/tools/emulator_probe.py assert desc 'Disable solo for Birdsong'
+            python3 EchoSpace/tools/emulator_probe.py tap desc 'Disable solo for Birdsong'
+            adb shell screencap -p /sdcard/mixer.png
+            adb pull /sdcard/mixer.png qa/07-expanded-mixer.png
+            python3 EchoSpace/tools/emulator_probe.py tap desc 'Close mixer'
+            python3 EchoSpace/tools/emulator_probe.py tap desc 'Add a sound'
+            sleep 2
+            python3 EchoSpace/tools/emulator_probe.py assert text 'Add a sound'
+            adb shell screencap -p /sdcard/sheet.png
+            adb pull /sdcard/sheet.png qa/04-add-sound.png
+            # New sound list is taller: scroll the sheet so Fire is safely above the playback dock.
+            adb shell input swipe 490 2120 490 1350 500
+            sleep 1
+            python3 EchoSpace/tools/emulator_probe.py tap text Fire
+            sleep 1
+            python3 EchoSpace/tools/emulator_probe.py assert desc 'Fire sound position. Drag to move.'
+            python3 EchoSpace/tools/emulator_probe.py tap desc 'Open full sound mixer'
+            sleep 3
+            adb shell input swipe 540 2060 540 550 530
+            adb shell input swipe 540 2060 540 550 530
+            sleep 1
+            python3 EchoSpace/tools/emulator_probe.py assert desc 'Mute Fire'
+            # Save belongs to the focused mixer. The saved soundscape must survive restart.
+            python3 EchoSpace/tools/emulator_probe.py tap desc 'Save current soundscape'
+            sleep 2
+            python3 EchoSpace/tools/emulator_probe.py assert text 'My Space'
+            # Verify saved source independently of which layer the mixer has selected.
+            python3 EchoSpace/tools/emulator_probe.py assert desc 'Fire sound position. Drag to move.'
+            adb shell screencap -p /sdcard/saved-before.png
+            adb pull /sdcard/saved-before.png qa/05-added-source.png
+            adb shell am force-stop com.nexa.echospace
+            adb shell am start -W -n com.nexa.echospace/.MainActivity
+            sleep 4
+            python3 EchoSpace/tools/emulator_probe.py assert text 'My Space'
+            python3 EchoSpace/tools/emulator_probe.py assert desc 'Fire sound position. Drag to move.'
+            python3 EchoSpace/tools/emulator_probe.py tap desc 'Fire sound position. Drag to move.'
+            python3 EchoSpace/tools/emulator_probe.py tap desc 'Open full sound mixer'
+            sleep 3
+            adb shell input swipe 540 2060 540 550 530
+            adb shell input swipe 540 2060 540 550 530
+            sleep 1
+            python3 EchoSpace/tools/emulator_probe.py assert desc 'Mute Fire'
+            python3 EchoSpace/tools/emulator_probe.py tap desc 'Close mixer'
+            adb shell screencap -p /sdcard/saved.png
+            adb pull /sdcard/saved.png qa/06-saved-restored.png
+            if cmp -s qa/01-launch.png qa/03-deep-forest.png; then echo 'Preset change invisible'; exit 1; fi
+            # Mixer remains fully functional after saved state is restored.
+            python3 EchoSpace/tools/emulator_probe.py tap desc 'Open full sound mixer'
+            sleep 2
+            python3 EchoSpace/tools/emulator_probe.py assert text 'Sound mixer'
+            python3 EchoSpace/tools/emulator_probe.py assert desc 'Add a sound'
+            python3 EchoSpace/tools/emulator_probe.py assert desc 'Save current soundscape'
+            python3 EchoSpace/tools/emulator_probe.py assert desc 'Rotate 30 degrees right'
+            python3 EchoSpace/tools/emulator_probe.py assert desc 'Move selected sound closer'
+            adb shell screencap -p /sdcard/expanded-mixer.png
+            adb pull /sdcard/expanded-mixer.png qa/08-abr-mixer.png
+            python3 EchoSpace/tools/emulator_probe.py tap desc 'Close mixer'
+            sleep 1
+            python3 EchoSpace/tools/emulator_probe.py assert text 'My Space'
+            adb shell logcat -d -v brief -s AndroidRuntime:E > qa/android-crashes.log
+            if grep -q 'FATAL EXCEPTION' qa/android-crashes.log; then cat qa/android-crashes.log; exit 1; fi
+            adb shell pidof com.nexa.echospace
+            echo 'EMULATOR_QA_COMPLETE'
+      - name: Upload compiled audio provenance
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: EchoSpace-field-recording-credits
+          path: EchoSpace/app/src/main/assets/recording_credits.json
+          if-no-files-found: warn
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: EchoSpace-emulator-screenshots
+          path: qa/
+          if-no-files-found: warn
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: EchoSpace-debug-apk
+          path: EchoSpace/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error

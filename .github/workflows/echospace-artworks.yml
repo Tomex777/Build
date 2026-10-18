@@ -1,0 +1,35 @@
+name: EchoSpace licensed environment photography
+on:
+  push:
+    branches: [feature/echospace-emulator-qa]
+    paths: [.github/workflows/echospace-artworks.yml]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  gather:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fetch five hand-selected Unsplash environment photographs
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p scene-art
+          declare -A photos=(
+            [rain]="photo-1751696924126-2697d62f6f49"
+            [forest]="photo-1562627952-f52a76c3c823"
+            [shore]="photo-1518837695005-2083093ee35b"
+            [fire]="photo-1464808646948-8f732deb6e4b"
+            [dream]="photo-1592666452220-529326e2588e"
+          )
+          for name in "${!photos[@]}"; do
+            url="https://images.unsplash.com/${photos[$name]}?auto=format&fit=crop&crop=entropy&w=1080&h=1400&q=75&fm=jpg"
+            curl --fail --location --retry 3 --connect-timeout 20 --max-time 70 "$url" -o "scene-art/scene_${name}.jpg"
+            file "scene-art/scene_${name}.jpg"
+            test $(wc -c < "scene-art/scene_${name}.jpg") -gt 25000
+          done
+      - uses: actions/upload-artifact@v4
+        with:
+          name: echospace-licensed-scene-art
+          path: scene-art/
+          if-no-files-found: error
