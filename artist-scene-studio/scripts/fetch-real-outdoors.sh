@@ -27,6 +27,27 @@ if [ ! -d "$root/.skybake-env" ]; then
     python3 -m venv "$root/.skybake-env"
     "$root/.skybake-env/bin/pip" -q install Pillow==11.3.0
 fi
+
+# All are real photographer-sourced CC0 PBR diffuse albedos, not procedural noise.
+# Paths follow Poly Haven's published material files and are bundled offline.
+for material in dirt rock_ground granular_concrete asphalt_floor; do
+    target="$world/${material}_diff_1k.png"
+    url="https://dl.polyhaven.org/file/ph-assets/Textures/png/1k/${material}/${material}_diff_1k.png"
+    if [ ! -s "$target" ]; then
+        curl --fail --location --retry 3 --max-time 180 -o "$target.tmp" "$url"
+        mv "$target.tmp" "$target"
+    fi
+    # Prevent success with HTML or truncated downloads.
+    "$root/.skybake-env/bin/python" - "$target" <<'PY'
+from PIL import Image
+import sys
+with Image.open(sys.argv[1]) as im:
+    im.verify()
+with Image.open(sys.argv[1]) as im:
+    assert im.width >= 512 and im.height >= 512, (im.width, im.height)
+PY
+    echo "Verified Poly Haven $material CC0 diffuse: $(sha256sum "$target")"
+done
 "$root/.skybake-env/bin/python" "$root/scripts/bake-photographic-sky.py" \
     --source "$world/original_kloofendal_sky.jpg" \
     --output "$world/real_daylight_sky.misesky" --size 512
