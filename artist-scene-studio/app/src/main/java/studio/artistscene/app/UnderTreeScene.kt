@@ -92,12 +92,12 @@ object UnderTreeScene {
             )),
             metadata = mapOf("misePose" to POSE_TAG, "sceneRole" to "student"),
         )
-        val tree = bundled("starter.mise.tree").copy(
+        val tree = bundled("starter.cc0.oak-street-tree").copy(
             id = TREE_ID,
-            name = "Shade tree",
+            name = "Oak shade tree",
             transform = Transform(
-                position = Vec3(-0.34f, 0f, -1.23f),
-                scale = Vec3(1.16f, 1.16f, 1.16f),
+                position = Vec3(-0.34f, 0f, -1.55f),
+                scale = Vec3(1f, 1f, 1f),
             ),
         )
 
@@ -160,6 +160,36 @@ object UnderTreeScene {
      * those edits must never be replaced. Artist-customized world settings
      * and lights are left exactly as they were.
      */
+    /**
+     * Upgrade the specific earlier five-sphere sample tree only if the artist
+     * has not moved/renamed/rescaled it. Artists' edited and imported trees
+     * are sacred: never silently replace one of their scene assets.
+     */
+    fun upgradeUntouchedDemoTree(scene: SceneProject): SceneProject {
+        if (scene.id != PROJECT_ID) return scene
+        val detailedTree = PrototypeScene.starterAssets().firstOrNull {
+            it.asset?.assetId == "starter.cc0.oak-street-tree"
+        } ?: return scene
+        val oldPosition = Vec3(-0.34f, 0f, -1.23f)
+        val oldScale = Vec3(1.16f, 1.16f, 1.16f)
+        val original = scene.actors.firstOrNull { it.id == TREE_ID }
+        if (original?.name != "Shade tree" ||
+            original.asset?.assetId != "starter.mise.tree" ||
+            original.transform.position != oldPosition ||
+            original.transform.scale != oldScale
+        ) return scene
+        return scene.copy(actors = scene.actors.map { actor ->
+            if (actor.id == TREE_ID) actor.copy(
+                name = "Oak shade tree",
+                asset = detailedTree.asset,
+                transform = actor.transform.copy(
+                    position = Vec3(-0.34f, 0f, -1.55f),
+                    scale = Vec3(1f, 1f, 1f),
+                ),
+            ) else actor
+        })
+    }
+
     /** Keep the demo's earlier perpendicular stock sun from hiding its shadows.
      * Customized lights stay untouched; pose/hair/scene edits are preserved.
      */
