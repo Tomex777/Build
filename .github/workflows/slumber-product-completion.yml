@@ -32,6 +32,7 @@ on:
       - ".ci/slumber_112_system_bars/**"
       - ".ci/slumber_113_song_scores/**"
       - ".ci/slumber_114_long_holds/**"
+      - ".ci/slumber_115_hold_regression/**"
   pull_request:
     branches: ["slumber-087-build"]
     paths:
@@ -63,6 +64,7 @@ on:
       - ".ci/slumber_112_system_bars/**"
       - ".ci/slumber_113_song_scores/**"
       - ".ci/slumber_114_long_holds/**"
+      - ".ci/slumber_115_hold_regression/**"
 
 permissions:
   actions: read
@@ -377,6 +379,13 @@ jobs:
           grep -q 'fun release(tile: SlumberTile' "$OUT/app/src/main/java/com/night/pianohub/music/EndlessTilesRun.kt"
           grep -q 'onUp = ::release' "$OUT/app/src/main/java/com/night/pianohub/ui/screens/PlayScreen.kt"
           grep -q 'Color(0xFFDCE5FC)' "$OUT/app/src/main/java/com/night/pianohub/ui/components/SlumberTilesField.kt"
+
+      - name: Update full melody loop regression for hold notes
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo '62f4b9393a6a9b0210acb650d63f8f86c1f36b65e5103660fb750aba7fedb319  .ci/slumber_115_hold_regression/hold-catalog-test.patch' | sha256sum -c -
+          patch --fuzz=0 -d /tmp/slumber-088 -p1 < .ci/slumber_115_hold_regression/hold-catalog-test.patch
 
       - uses: actions/setup-java@v4
         with:
