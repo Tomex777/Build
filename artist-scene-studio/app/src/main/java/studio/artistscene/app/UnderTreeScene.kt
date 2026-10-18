@@ -153,4 +153,42 @@ object UnderTreeScene {
             ),
         )
     }
+
+    /**
+     * Upgrade only the unmodified old daylight preset in already-saved sample
+     * projects. Runtime rig discovery may have changed student metadata/poses;
+     * those edits must never be replaced. Artist-customized world settings
+     * and lights are left exactly as they were.
+     */
+    fun upgradeDefaultEnvironment(scene: SceneProject): SceneProject {
+        if (scene.id != PROJECT_ID) return scene
+        val legacyWorld = WorldSettings(
+            environmentPreset = EnvironmentPreset.DAYLIGHT,
+            groundEnabled = true,
+            gridEnabled = false,
+        )
+        if (scene.world != legacyWorld) return scene
+        val oldKey = LightSettings(type = LightType.DIRECTIONAL, intensity = 72_000f, castsShadow = true)
+        val oldFill = LightSettings(type = LightType.POINT, intensity = 2_200f, castsShadow = false)
+        val newKey = LightSettings(
+            type = LightType.DIRECTIONAL, intensity = 42_000f, colorHex = "#FFF4E9",
+            direction = Vec3(-0.48f, -1f, -0.35f), castsShadow = true,
+        )
+        val newFill = LightSettings(
+            type = LightType.POINT, intensity = 1_300f, colorHex = "#E8F4FF",
+            castsShadow = false, rangeMeters = 8f,
+        )
+        return scene.copy(
+            world = scene.world.copy(environmentPreset = EnvironmentPreset.PARK_SHADE),
+            actors = scene.actors.map { actor ->
+                when {
+                    actor.id == "key-sun" && actor.light == oldKey ->
+                        actor.copy(light = newKey)
+                    actor.id == "fill-light" && actor.light == oldFill ->
+                        actor.copy(light = newFill)
+                    else -> actor
+                }
+            },
+        )
+    }
 }
