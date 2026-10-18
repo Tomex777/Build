@@ -9,6 +9,9 @@ import android.provider.DocumentsContract
 import android.provider.OpenableColumns
 import android.util.Log
 import androidx.activity.compose.BackHandler
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContract
 import androidx.activity.result.contract.ActivityResultContracts
@@ -90,6 +93,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.runtime.getValue
@@ -224,6 +228,26 @@ internal fun StudioScreen(
     }
     var showingMoreTools by remember { mutableStateOf(false) }
     var referenceMode by remember { mutableStateOf(false) }
+    // ABR fullscreen: keep scene pixels visible behind the system bars.
+    // Restore bars whenever the user returns to the editor (or leaves this screen).
+    val referenceActivity = context.findActivity()
+    DisposableEffect(referenceMode, referenceActivity) {
+        if (referenceMode && referenceActivity != null) {
+            val bars = WindowCompat.getInsetsController(
+                referenceActivity.window, referenceActivity.window.decorView,
+            )
+            bars.systemBarsBehavior =
+                WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+            bars.hide(WindowInsetsCompat.Type.systemBars())
+        }
+        onDispose {
+            if (referenceMode && referenceActivity != null) {
+                WindowCompat.getInsetsController(
+                    referenceActivity.window, referenceActivity.window.decorView,
+                ).show(WindowInsetsCompat.Type.systemBars())
+            }
+        }
+    }
     var importKind by remember { mutableStateOf(ActorKind.PROP) }
     var importStatus by remember { mutableStateOf("") }
     var saveInProgress by remember { mutableStateOf(false) }
@@ -836,13 +860,13 @@ internal fun StudioScreen(
                 }
             } else if (!exportInProgress) {
                 Surface(
-                    modifier = Modifier.align(Alignment.TopEnd).statusBarsPadding().padding(12.dp),
-                    color = PanelBackground,
-                    shape = RoundedCornerShape(18.dp),
+                    modifier = Modifier.align(Alignment.TopEnd).padding(8.dp),
+                    color = PanelBackground.copy(alpha = 0.78f),
+                    shape = RoundedCornerShape(15.dp),
                 ) {
                     Row(
-                        modifier = Modifier.padding(4.dp),
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        modifier = Modifier.padding(2.dp),
+                        horizontalArrangement = Arrangement.spacedBy(2.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         IconButton(
@@ -850,14 +874,14 @@ internal fun StudioScreen(
                                 exportStatus = ""
                                 exportLauncher.launch(scenePngFilename(editor.project.name))
                             },
-                            modifier = Modifier.size(44.dp).testTag("export-scene-png"),
+                            modifier = Modifier.size(40.dp).testTag("export-scene-png"),
                         ) { Icon(Icons.Default.FileDownload, "Export PNG", tint = PrimaryText) }
                         IconButton(
                             onClick = {
                                 exportStatus = ""
                                 referenceMode = false
                             },
-                            modifier = Modifier.size(44.dp).testTag("exit-reference-mode"),
+                            modifier = Modifier.size(40.dp).testTag("exit-reference-mode"),
                         ) { Icon(Icons.Default.FullscreenExit, "Edit scene", tint = PrimaryText) }
                     }
                 }
