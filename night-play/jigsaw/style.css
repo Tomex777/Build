@@ -71,3 +71,33 @@ dialog{max-width:calc(100% - 24px);border:1px solid #dce6db;border-radius:21px;b
 .gallery-card.is-loading{pointer-events:none;opacity:.82}
 
 .gallery-footnote a{color:#356951;text-decoration:underline;text-underline-offset:2px}
+
+/* Table-first jigsaw experience. The header remains, while the decorative
+ * introductory copy and footnote do not consume active play space. */
+body:has(#playScreen:not([hidden])) .page-intro{display:none}
+body:has(#playScreen:not([hidden])) main{max-width:100%;padding:10px clamp(6px,1.1vw,17px) 16px}
+body:has(#playScreen:not([hidden])) footer{display:none}
+.play-screen{max-width:1540px}
+.match-strip{margin-bottom:6px}
+.table-tools{display:flex;align-items:center;justify-content:space-between;gap:8px;width:min(100%,1280px);margin:0 auto 7px;min-height:39px}
+.table-tools button{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:36px;padding:0 11px;background:#fff;border:1px solid #d5ded5;border-radius:10px;color:#344e3d;font-size:11px;font-weight:840;white-space:nowrap}
+.table-tools .ico{width:16px;height:16px}
+.table-tools button[aria-pressed="true"]{background:#235b42;color:#fff;border-color:#235b42}
+.table-tools .zoom-tools{display:inline-flex;align-items:center;gap:3px;padding:3px;background:#e8ece5;border-radius:11px}
+.table-tools .zoom-tools button{min-width:37px;padding:0 8px;height:32px;background:#fff;border:0;border-radius:8px}
+.table-tools #zoomReset{min-width:55px;font-variant-numeric:tabular-nums}
+.play-mat{width:min(100%,1280px);height:clamp(560px,calc(100dvh - 189px),870px);min-height:0;background:#ded8cd;overflow:hidden}
+.play-mat.master-puzzle{height:clamp(630px,calc(100dvh - 189px),1050px)}
+.play-mat canvas{background:transparent;transform-origin:center center}
+.play-mat .drag-layer{transform-origin:center center}
+body:has(#playScreen:not([hidden])) .progress-footnote{display:none}
+@media(max-width:650px){
+ body:has(#playScreen:not([hidden])) main{padding:6px 4px 9px}
+ .table-tools{margin:0 auto 5px;padding:0 2px;min-height:34px}
+ .table-tools button{height:32px;padding:0 8px}
+ .table-tools .zoom-tools button{height:29px;min-width:32px}
+ .play-mat,.play-mat.master-puzzle{height:clamp(555px,calc(100dvh - 196px),900px);margin:0;border-radius:3px}
+ .match-strip{max-width:100%;margin-bottom:5px}
+ .game-actions{margin:8px 2px 1px}
+ .completion-track{margin:5px auto}
+}
