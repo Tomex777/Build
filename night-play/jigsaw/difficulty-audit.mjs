@@ -79,7 +79,9 @@ try{
   assert.ok(pre.s.pixelRatio>=2,'Android retina devices need higher-resolution backing');
   assert.ok(pre.canvasWidth>=pre.rw*2,'Backing has enough pixels for crisp piece contours');
   assert.ok(pre.s.board.w<pre.rw,'Puzzle layout uses logical rather than physical pixel dimensions');
-  await p.locator('#hudMenuButton').click();await p.locator('#mobileZoomFit').click();
+  assert.equal(await p.locator('#focusButton').isVisible(),true,'Magnify appears in top rail at 144');
+  assert.equal(await p.locator('#sweepButton').isVisible(),false,'No redundant Sweep and Focus in same rail');
+  await p.locator('#focusButton').click();
   let after=await p.evaluate(()=>window.__nightJigsawTest.snapshot());
   assert.ok(after.zoom>=1.7&&after.zoom<=2.2,'Magnify focuses dense pieces with one tap');
   // Two-finger translation is possible even in a densely stacked workspace.
