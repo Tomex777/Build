@@ -5,7 +5,6 @@ import android.content.Intent
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
-import android.graphics.Path
 import android.graphics.RectF
 import android.net.Uri
 import android.os.Bundle
@@ -240,68 +239,29 @@ class MainActivity : Activity() {
             }
         }
 
+        private val vectorIcons by lazy {
+            mapOf(
+                "play" to R.drawable.atlas_ic_play,
+                "pause" to R.drawable.atlas_ic_pause,
+                "save" to R.drawable.atlas_ic_save,
+                "load" to R.drawable.atlas_ic_load,
+                "share" to R.drawable.atlas_ic_share,
+                "library" to R.drawable.atlas_ic_library,
+                "sounds" to R.drawable.atlas_ic_sounds,
+                "wall" to R.drawable.atlas_ic_wall,
+                "zones" to R.drawable.atlas_ic_zones,
+                "walk" to R.drawable.atlas_ic_walk,
+                "close" to R.drawable.atlas_ic_close,
+                "plus" to R.drawable.atlas_ic_plus,
+                "minus" to R.drawable.atlas_ic_minus
+            ).mapValues { resources.getDrawable(it.value,theme).mutate() }
+        }
         private fun icon(c:Canvas,name:String,cx:Float,cy:Float,color:Int) {
-            val p=paint(color,Paint.Style.STROKE,1.7f)
-            when(name) {
-                "play" -> {
-                    val path=Path().apply {
-                        moveTo(cx-5,cy-8);lineTo(cx+7,cy);lineTo(cx-5,cy+8);close()
-                    }
-                    c.drawPath(path,paint(color))
-                }
-                "pause" -> {c.drawRoundRect(cx-6,cy-8,cx-2,cy+8,1f,1f,paint(color))
-                    c.drawRoundRect(cx+2,cy-8,cx+6,cy+8,1f,1f,paint(color))}
-                "save" -> {
-                    c.drawRoundRect(cx-8,cy-8,cx+8,cy+8,2f,2f,p)
-                    c.drawRect(cx-4,cy-8,cx+4,cy-2,p)
-                    c.drawLine(cx-4,cy+3,cx+4,cy+3,p)
-                }
-                "load" -> {
-                    c.drawLine(cx-9,cy+7,cx+9,cy+7,p)
-                    c.drawLine(cx,cy-8,cx,cy+3,p)
-                    c.drawLine(cx-5,cy-2,cx,cy+3,p);c.drawLine(cx+5,cy-2,cx,cy+3,p)
-                }
-                "share" -> {
-                    c.drawCircle(cx-7,cy,2.8f,p);c.drawCircle(cx+7,cy-7,2.8f,p)
-                    c.drawCircle(cx+7,cy+7,2.8f,p)
-                    c.drawLine(cx-4,cy-2,cx+4,cy-6,p);c.drawLine(cx-4,cy+2,cx+4,cy+6,p)
-                }
-                "library" -> {
-                    c.drawRoundRect(cx-9,cy-9,cx-2,cy+9,1f,1f,p)
-                    c.drawRoundRect(cx+2,cy-6,cx+9,cy+9,1f,1f,p)
-                }
-                "sounds" -> {
-                    for(i in 0..3){
-                        val xx=cx-8f+i*5.3f;val height=listOf(8f,14f,18f,10f)[i]
-                        c.drawLine(xx,cy-height/2,xx,cy+height/2,p)
-                    }
-                }
-                "wall" -> {
-                    c.drawRect(cx-10,cy-6,cx+10,cy+7,p)
-                    c.drawLine(cx,cy-6,cx,cy+7,p);c.drawLine(cx-10,cy,cx+10,cy,p)
-                }
-                "zones" -> {
-                    c.drawRoundRect(cx-10,cy-8,cx+10,cy+8,3f,3f,p)
-                    c.drawLine(cx+1,cy-8,cx+1,cy+8,p)
-                }
-                "walk" -> {
-                    c.drawCircle(cx+1,cy-7,3f,p)
-                    c.drawLine(cx,cy-3,cx-4,cy+5,p)
-                    c.drawLine(cx-4,cy+5,cx-9,cy+11,p)
-                    c.drawLine(cx-4,cy+5,cx+5,cy+11,p)
-                    c.drawLine(cx-1,cy,cx+8,cy+4,p)
-                }
-                "close" -> {
-                    c.drawLine(cx-6,cy-6,cx+6,cy+6,p)
-                    c.drawLine(cx-6,cy+6,cx+6,cy-6,p)
-                }
-                "plus" -> {
-                    c.drawLine(cx-6,cy,cx+6,cy,p)
-                    c.drawLine(cx,cy-6,cx,cy+6,p)
-                }
-                "minus" -> c.drawLine(cx-6,cy,cx+6,cy,p)
-                else -> c.drawCircle(cx,cy,5f,p)
-            }
+            val drawable=vectorIcons[name] ?: return
+            drawable.setTint(color)
+            drawable.setBounds((cx-11f).toInt(),(cy-11f).toInt(),
+                (cx+11f).toInt(),(cy+11f).toInt())
+            drawable.draw(c)
         }
         private fun action(c:Canvas,name:String,x:Float,y:Float,w:Float,h:Float,
                            caption:String,active:Boolean=false,onClick:()->Unit) {
