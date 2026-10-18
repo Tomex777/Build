@@ -39,6 +39,11 @@ class UnderTreeSceneInstrumentedTest {
         }
 
         fun capture(stage: String): File {
+            // Android 16's first immersive launch shows an OS-owned educational
+            // overlay: "Viewing full screen" / "Got it". A dimmed dialog is NOT
+            // an app render, so dismiss it before using screenshots as evidence.
+            // The user normally acknowledges this once. API 26 may show nothing.
+            device.wait(Until.findObject(By.text("Got it")), 2_000)?.click()
             val candidate = File(proof, "under-tree-${stage}-pending.png")
             val image = File(proof, "under-tree-${stage}.png")
             SystemClock.sleep(4_000)
