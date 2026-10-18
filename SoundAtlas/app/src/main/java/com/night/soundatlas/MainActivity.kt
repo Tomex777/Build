@@ -98,7 +98,12 @@ class MainActivity : Activity() {
             Toast.makeText(this,"Scene error: "+(e.message?:"Invalid document"),Toast.LENGTH_LONG).show()
         }
     }
-    override fun onPause() { super.onPause();audio.stop();surface.invalidate() }
+    override fun onPause() {
+        store.edit().putString("last",AtlasCodec.encode(world)).apply()
+        super.onPause()
+        audio.stop()
+        surface.invalidate()
+    }
     override fun onDestroy() { audio.close();super.onDestroy() }
     @Deprecated("Activity back handling on minSdk 26")
     override fun onBackPressed() {
@@ -106,7 +111,7 @@ class MainActivity : Activity() {
         super.onBackPressed()
     }
 
-    private enum class Sheet { NONE, LIBRARY, SOUNDS, MATERIALS, ZONES, INSPECT }
+    private enum class Sheet { NONE, LIBRARY, SOUNDS, MATERIALS, ZONES, ATMOSPHERE, INSPECT }
     private enum class Mode { EDIT, DRAW_WALL, ADD_ZONE, EXPLORE }
     private data class Hit(val rect: RectF, val action: () -> Unit)
 
@@ -254,7 +259,8 @@ class MainActivity : Activity() {
                 "walk" to R.drawable.atlas_ic_walk,
                 "close" to R.drawable.atlas_ic_close,
                 "plus" to R.drawable.atlas_ic_plus,
-                "minus" to R.drawable.atlas_ic_minus
+                "minus" to R.drawable.atlas_ic_minus,
+                "weather" to R.drawable.atlas_ic_weather
             ).mapValues { resources.getDrawable(it.value,theme).mutate() }
         }
         private fun icon(c:Canvas,name:String,cx:Float,cy:Float,color:Int) {
@@ -293,6 +299,12 @@ class MainActivity : Activity() {
                     if(audio.isPlaying)audio.stop() else audio.start(world)
                     invalidate()
                 })
+            box(c,ww-159f,68f,ww-17f,90f,0xFF20403F.toInt(),9f)
+            icon(c,"weather",ww-142f,79f,teal)
+            label(c,"ATMOSPHERE",ww-125f,83f,10f,teal,true)
+            buttons+=Hit(RectF(ww-159f,68f,ww-17f,90f)){
+                sheet=Sheet.ATMOSPHERE;invalidate()
+            }
             if(sheet==Sheet.NONE) {
                 box(c,10f,hh-102f,ww-10f,hh-12f,0xF0101E29.toInt(),19f)
                 val names=listOf("library","sounds","wall","zones","walk")
@@ -342,7 +354,8 @@ class MainActivity : Activity() {
         }
         private fun drawSheet(c:Canvas) {
             val height=when(sheet){Sheet.SOUNDS->min(500f,hh*.75f);Sheet.INSPECT->290f
-                Sheet.LIBRARY->370f;Sheet.MATERIALS->340f;Sheet.ZONES->320f
+                Sheet.LIBRARY->min(530f,hh*.77f);Sheet.MATERIALS->340f
+                Sheet.ZONES->320f;Sheet.ATMOSPHERE->354f
                 else->0f}
             val top=hh-height
             box(c,6f,top,ww-6f,hh+25f,0xFF122430.toInt(),23f)
@@ -350,6 +363,7 @@ class MainActivity : Activity() {
             val title=when(sheet){
                 Sheet.LIBRARY->"WORLDS";Sheet.SOUNDS->"SOUND LIBRARY"
                 Sheet.MATERIALS->"WALL MATERIAL";Sheet.ZONES->"ACOUSTIC ZONES"
+                Sheet.ATMOSPHERE->"ENVIRONMENT"
                 Sheet.INSPECT->if(selectedId!=null)"SOUND SOURCE"
                     else if(selectedWall>=0)"WALL" else "ROOM"
                 else->""
@@ -369,10 +383,10 @@ class MainActivity : Activity() {
                             sheet=Sheet.NONE;invalidate()
                         }
                     }
-                    smallButton(c,"NEW EMPTY WORLD",20f,top+300f,ww*.48f-24f,39f){
+                    smallButton(c,"NEW EMPTY WORLD",20f,top+455f,ww*.48f-24f,39f){
                         replace(World("Untitled Atlas",72f,84f,V2(36f,42f)))
                     }
-                    smallButton(c,"EXPORT .SATLAS",ww*.52f,top+300f,ww*.48f-20f,39f){
+                    smallButton(c,"EXPORT .SATLAS",ww*.52f,top+455f,ww*.48f-20f,39f){
                         sheet=Sheet.NONE;exportScene();invalidate()
                     }
                 }
@@ -421,6 +435,7 @@ class MainActivity : Activity() {
                         }
                     }
                 }
+                Sheet.ATMOSPHERE->drawAtmosphere(c,top)
                 Sheet.INSPECT->drawInspector(c,top)
                 else -> {}
             }
@@ -429,6 +444,33 @@ class MainActivity : Activity() {
             box(c,x,y,x+w,y+h,0xFF24514B.toInt(),11f)
             label(c,title,x+11f,y+h*.63f,11f,text,true)
             buttons+=Hit(RectF(x,y,x+w,y+h),click)
+        }
+        private fun drawAtmosphere(c:Canvas,top:Float) {
+            label(c,"Changes are audible while you explore.",22f,top+65f,11f,subtle)
+            val climate=listOf(Triple("RAIN DENSITY",world.rain,"Rain texture and intensity"),
+                Triple("WIND STRENGTH",world.wind,"Air movement and foliage"),
+                Triple("STORM ACTIVITY",world.storm,"Frequency and depth of thunder"))
+            climate.forEachIndexed { index,option->
+                val row=top+82f+index*78f
+                box(c,19f,row,ww-19f,row+70f,0xFF1B3440.toInt(),12f)
+                label(c,option.first,31f,row+22f,12f,text,true)
+                label(c,option.third,31f,row+42f,10f,subtle)
+                label(c,((option.second*100).roundToInt()).toString()+"%",31f,row+60f,11f,teal,true)
+                action(c,"minus",ww-116f,row+16f,37f,37f,"",onClick={
+                    when(index) {
+                        0->world.rain=(world.rain-.1f).coerceIn(0f,1f)
+                        1->world.wind=(world.wind-.1f).coerceIn(0f,1f)
+                        else->world.storm=(world.storm-.1f).coerceIn(0f,1f)
+                    };changed()
+                })
+                action(c,"plus",ww-67f,row+16f,37f,37f,"",onClick={
+                    when(index) {
+                        0->world.rain=(world.rain+.1f).coerceIn(0f,1f)
+                        1->world.wind=(world.wind+.1f).coerceIn(0f,1f)
+                        else->world.storm=(world.storm+.1f).coerceIn(0f,1f)
+                    };changed()
+                })
+            }
         }
         private fun drawInspector(c:Canvas,top:Float) {
             if(selectedId!=null) {
