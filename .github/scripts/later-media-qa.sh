@@ -652,19 +652,20 @@ paused_progress="$(video_progress_seconds qa-evidence/video-viewer-paused.xml)"
   exit 1
 }
 
-# Exercise Later's custom VLC seek bar. At 35% of a 20-second fixture the
-# semantic position should settle near seven seconds.
-seek_video_progress_semantically qa-evidence/video-viewer-paused.xml
+# Exercise Later's custom VLC seek bar with a deliberately distant target.
+# A 35% tap can coincide with the current 6-7s playback position, giving a
+# false failure even when the player is seekable. A 75% tap targets ~15s.
+seek_video_progress_semantically qa-evidence/video-viewer-paused.xml 0.75
 sleep 0.5
 dump video-viewer-seeked; shot video-viewer-seeked
 assert_label qa-evidence/video-viewer-seeked.xml 'Play'
 video_progress_after_seek="$(video_progress_seconds qa-evidence/video-viewer-seeked.xml)"
-[ "$video_progress_after_seek" -ne "$paused_progress" ] || {
-  echo "libVLC seek did not change position: $video_progress_after_seek" >&2
+if [ "$video_progress_after_seek" -lt 13 ] || [ "$video_progress_after_seek" -gt 17 ]; then
+  echo "libVLC seek landed outside expected 75% target window: $video_progress_after_seek" >&2
   exit 1
-}
-if [ "$video_progress_after_seek" -lt 5 ] || [ "$video_progress_after_seek" -gt 9 ]; then
-  echo "libVLC seek landed outside expected 35% target window: $video_progress_after_seek" >&2
+fi
+if [ "$video_progress_after_seek" -eq "$paused_progress" ]; then
+  echo "libVLC seek did not change position: $video_progress_after_seek" >&2
   exit 1
 fi
 click_label qa-evidence/video-viewer-seeked.xml 'Edit'; sleep 4
