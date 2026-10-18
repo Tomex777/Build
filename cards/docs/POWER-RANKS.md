@@ -34,9 +34,9 @@ Every acquired portrait has an explicit proposal. Standard TYBW portraits do not
 
 ## Presentation and review
 
-- A 112×72 SVG-unit translucent badge sits inside the top-right corner. Its backdrop is a blurred copy of the real scene; no opaque rank panel or sparkle emblem is added.
+- Translucent glass lettering floats at the top-right corner, without a box, pill or background plate. The artwork refracts only inside the glyph outlines; the faces and bevel highlights are translucent. A 112×72 SVG-unit area reserves placement without drawing any container.
 - Main name size is 84% of the preserved composition, keeping position, font family and character artwork intact.
-- The renderer asserts title bounds, grade bounds, unique references, image decoding and focal safety. Publication still requires manual review of actual 3000×4800 masters, native-pixel details and 320×512 phone proofs.
+- The renderer asserts title bounds, glyph bounds, unique references, image decoding and focal safety. Publication still requires manual review of actual 3000×4800 masters, native-pixel details and 320×512 phone proofs.
 - The human baseline is recorded as data only until the correct human illustration is acquired. No fake human card is produced.
 - Rank, evidence, form and artwork identity are part of the visual approval fingerprint. A changed rank cannot inherit an old approved master.
 
