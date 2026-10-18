@@ -792,16 +792,19 @@ class EndlessRenderer(
         marsSurfaceMode -> takeOffMars()
         moonSurfaceMode -> takeOffMoon()
         extendedSurfaceId != null -> {
-            val id = extendedSurfaceId ?: return false
-            val body = byId[id] ?: return false
-            extendedSurfaceId = null
-            surfaceForwardInput = 0f
-            surfaceStrafeInput = 0f
-            lastSurfaceMovementNanos = System.nanoTime()
-            targetDistance = body.radius * 1.12
-            previousCameraPosition = body.position + Vec3d(0.0, 0.0, targetDistance)
-            cameraPosition = previousCameraPosition
-            true
+            val body = byId[extendedSurfaceId]
+            if (body == null) {
+                false
+            } else {
+                extendedSurfaceId = null
+                surfaceForwardInput = 0f
+                surfaceStrafeInput = 0f
+                lastSurfaceMovementNanos = System.nanoTime()
+                targetDistance = body.radius * 1.12
+                previousCameraPosition = body.position + Vec3d(0.0, 0.0, targetDistance)
+                cameraPosition = previousCameraPosition
+                true
+            }
         }
         else -> false
     }
