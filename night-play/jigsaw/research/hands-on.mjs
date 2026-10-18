@@ -60,7 +60,7 @@ async function openProduction(name,mobile=false){
   await page.goto('https://playjigsaw.net/puzzles/puz-orchard-goat-sheltered-edge-7894e43b',{waitUntil:'domcontentloaded',timeout:55000});
   await delay(1800);entry.detail=await describePage(page);await shot(page,name+'-detail');
   // Try the 36-piece puzzle for enough space to see individual loose pieces.
-  let selector=page.getByRole('button',{name:/36\\s*(?:pieces|pcs)?/i}).first();
+  let selector=page.getByRole('button',{name:/36\s*(?:pieces|pcs)?/i}).first();
   if(await selector.count()&&await selector.isVisible()) {await selector.click({timeout:5000});entry.pieceChoice='36 selected'}else entry.pieceChoice='36 button not found';
   const playButtons=[page.getByRole('button',{name:/play with/i}).first(),page.getByRole('button',{name:/^play now$|^play puzzle$|^start puzzle$|^play$/i}).first(),page.getByRole('link',{name:/play with/i}).first()];
   let started=false;
