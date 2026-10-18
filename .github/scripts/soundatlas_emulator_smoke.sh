@@ -27,10 +27,20 @@ recover_modal() {
 }
 capture() {
   local target="$1"
-  recover_modal
-  adb exec-out screencap -p > "SoundAtlas/qa-fast/$target"
-  test "$(wc -c < "SoundAtlas/qa-fast/$target")" -gt 30000
-  file "SoundAtlas/qa-fast/$target"
+  local output="SoundAtlas/qa-fast/$target"
+  for attempt in 1 2 3 4; do
+    adb exec-out screencap -p > "$output"
+    if test "$(wc -c < "$output")" -gt 5000 &&
+       python3 SoundAtlas/tools/png_modal_guard.py "$output"; then
+      echo "UI_VISIBLE_SCREENSHOT: $target"
+      return 0
+    fi
+    echo "System dialog blocking app: waiting and retrying $target ($attempt)"
+    adb shell input tap $((W * 39 / 100)) $((H * 54 / 100)) || true
+    sleep 5
+  done
+  echo "QA_FAIL: The real Sound Atlas screen stayed obscured by system UI"
+  return 1
 }
 tap_dp() {
   adb shell input tap "$(( $1 * W / 100 ))" "$(( H - $2 * D / 160 ))"
