@@ -1,10 +1,10 @@
 // Owner-triggered, explicitly opt-in WhatsApp integration tests.
 // This is intentionally an ALLOWLIST: never run admin, account, moderation,
 // billing, broadcast or arbitrary commands against a real chat.
-import { mkdtemp, readFile, rm } from 'node:fs/promises'
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
-import { createCanvas } from '@napi-rs/canvas'
+import { createCanvas, loadImage } from '@napi-rs/canvas'
 import { PDFDocument } from 'pdf-lib'
 import QRCode from 'qrcode'
 import { loadCommands } from './command-registry.js'
@@ -99,6 +99,46 @@ export function validateMediaPayload(content) {
   }
   return {kind,valid:raw.length>128 && allowed[kind].includes(magic),magic,size:raw.length,
     reason:allowed[kind].includes(magic)?'':'invalid '+kind+' signature ('+magic+')'}
+}
+
+// Verify the bytes actually decode before a command counts as successful.
+// Magic bytes alone are insufficient: truncated MP4/Opus/PDF would otherwise pass.
+export async function decodeOutput(content) {
+  const checked=validateMediaPayload(content)
+  if (!checked.valid || checked.kind === 'text') return checked
+  const bytes=content[checked.kind]
+  try {
+    if (checked.magic === 'pdf') {
+      const pdf=await PDFDocument.load(bytes)
+      if (pdf.getPageCount()<1) throw new Error('PDF contains no pages')
+    } else if (['png','jpeg','webp','gif'].includes(checked.magic)) {
+      const img=await loadImage(bytes)
+      if (img.width<16 || img.height<16) throw new Error('Decoded image has invalid dimensions')
+      if (checked.kind==='sticker' && (img.width!==512 || img.height!==512))
+        throw new Error('Sticker is not 512×512')
+    } else if (['mp4','ogg','mp3'].includes(checked.magic)) {
+      const dir=await mkdtemp(join(tmpdir(),'night-testall-probe-'))
+      try {
+        const ext=checked.magic==='mp4'?'mp4':checked.magic==='ogg'?'ogg':'mp3'
+        const file=join(dir,'inspect.'+ext)
+        await writeFile(file,bytes)
+        const out=await runMediaProcess(process.env.FFPROBE_PATH||'ffprobe',
+          ['-v','error','-show_entries','format=duration:stream=codec_type,width,height',
+            '-of','json',file],{timeoutMs:14000})
+        const probe=JSON.parse(out)
+        const need=checked.kind==='video'?'video':'audio'
+        if (!probe.streams?.some(stream=>stream.codec_type===need) && !(checked.kind==='document' &&
+            probe.streams?.some(stream=>['audio','video'].includes(stream.codec_type)))) {
+          throw new Error('No decodable '+need+' stream')
+        }
+        const duration=Number(probe.format?.duration||0)
+        if (!(duration>0 && duration<360)) throw new Error('Invalid media duration')
+      } finally {await rm(dir,{recursive:true,force:true})}
+    }
+  } catch(error) {
+    return {...checked,valid:false,reason:'Decode failure: '+String(error?.message||error).slice(0,150)}
+  }
+  return checked
 }
 
 export function verdictForOutputs(outputs, expected, contains='') {
@@ -212,7 +252,7 @@ export async function runLiveCase({ original, command, spec, fixtures, fixtureSe
   const safeSend = async (jid, payload, options) => {
     if (signal?.aborted || stopped.signal.aborted) throw new Error('Audit cancelled')
     if (jid !== chat) throw new Error('Test attempted to send outside the authorized chat')
-    const validation = validateMediaPayload(payload)
+    const validation = await decodeOutput(payload)
     if (!validation.valid) throw new Error(validation.reason || 'Empty or unrecognized WhatsApp output')
     const answer = await socket.sendMessage(jid,payload,options)
     if (!answer?.key?.id) throw new Error('WhatsApp did not acknowledge the message')
