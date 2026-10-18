@@ -60,7 +60,9 @@ class MarsSurfaceTerrain(private val context: Context) {
         microMaterialTexture = SurfaceMicroTexture.create(context, "mars")
         // Prepare the measured coarse-to-mid-to-near geometry while the GL
         // engine initializes, not on the user's first landing frame.
-        detail.prepare(0.0, 0.0)
+        // Prewarm the measured caldera-wall landing region so the first
+        // landed frame doesn't pay the 1m/21m mesh allocation cost.
+        detail.prepare(3.5, -4.0)
     }
 
     fun draw(vp: FloatArray, offsetX: Float, offsetZ: Float) {

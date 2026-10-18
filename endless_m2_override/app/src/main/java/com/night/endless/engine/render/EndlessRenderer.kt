@@ -602,16 +602,21 @@ class EndlessRenderer(
         if (isSurfaceMode()) return false
         if (selectedId != "mars" || latestApproach.stage != "SURFACE SKIM") return false
         moonSurfaceMode = false
-        marsSurfaceX = 0.0
-        marsSurfaceZ = 0.0
+        // The original default landed directly on the smooth caldera lip
+        // facing *down* an invisible basin: the ground looked flat despite
+        // having real MOLA slopes. Spawn 10.5km east and 12km south of the
+        // same registered NASA center, on the actual lower caldera floor.
+        // Facing the measured rim reveals genuine 1-2km wall relief.
+        marsSurfaceX = 3.5
+        marsSurfaceZ = -4.0
         marsSurfaceMode = true
         surfaceForwardInput = 0f
         surfaceStrafeInput = 0f
         lastSurfaceMovementNanos = System.nanoTime()
         pendingYaw = 0.0
         pendingPitch = 0.0
-        yaw = 1.05
-        pitch = -0.07
+        yaw = -1.40
+        pitch = 0.04
         return true
     }
 
