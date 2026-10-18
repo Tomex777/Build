@@ -59,6 +59,8 @@ function applyZoom(){
  $('zoomReset').textContent=Math.round(zoom*100)+'%';
  $('zoomOut').disabled=zoom<=1.001;$('zoomIn').disabled=zoom>=2.2;
  $('mobileZoomOut').disabled=zoom<=1.001;$('mobileZoomIn').disabled=zoom>=2.2;
+ $('mobileZoomFit').textContent=zoom>1.02?'Fit all':'Magnify';
+ $('mobileZoomFit').setAttribute('aria-label',zoom>1.02?'Fit entire puzzle on screen':'Magnify small puzzle pieces');
 }
 function setZoom(value){
  zoom=Math.max(1,Math.min(2.2,Math.round(value*100)/100));
@@ -78,7 +80,7 @@ function restoreCamera(saved){
   panX=(Number(saved.camera.x)||0)*canvas.width;
   panY=(Number(saved.camera.y)||0)*canvas.height;
   applyZoom();
- }else setZoom(comfortableZoom());
+ }else setZoom(1);
 }
 
 const timeText=s=>String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0');
@@ -428,9 +430,11 @@ canvas.addEventListener('wheel',e=>{
 $('zoomIn').addEventListener('click',()=>setZoom(zoom*1.12));
 $('zoomOut').addEventListener('click',()=>setZoom(zoom/1.12));
 $('zoomReset').addEventListener('click',()=>setZoom(1));
-$('mobileZoomIn').addEventListener('click',()=>{setZoom(zoom*1.2);closeHudMenu()});
-$('mobileZoomOut').addEventListener('click',()=>{setZoom(zoom/1.2);closeHudMenu()});
-$('mobileZoomFit').addEventListener('click',()=>{setZoom(1);closeHudMenu()});
+$('mobileZoomIn').addEventListener('click',()=>{setZoom(zoom*1.2);saveGame();closeHudMenu()});
+$('mobileZoomOut').addEventListener('click',()=>{setZoom(zoom/1.2);saveGame();closeHudMenu()});
+$('mobileZoomFit').addEventListener('click',()=>{
+ setZoom(zoom>1.02?1:Math.max(1.4,comfortableZoom()));saveGame();closeHudMenu()
+});
 $('edgesButton').addEventListener('click',()=>{
  if(paused)return;
  board.edgeOnly=!board.edgeOnly;
