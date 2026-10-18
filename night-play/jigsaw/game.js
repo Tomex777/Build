@@ -49,7 +49,7 @@ const sound=new SoundSynth(),confetti=new ConfettiSystem();
 let theme='photo-alpine-lake',category='all',piecesCount=24,customData=null,elapsed=0,secondsTimer=null,won=false,activeRound=false;
 let galleryReady=false,resumeCandidate=null;
 let dragId=null,dragX=0,dragY=0,dragMoved=false,dragRect=null,dragOrigins=null,winAnimationId=null,winTimeout=null,toastTimeout=null;
-let zoom=1,panX=0,panY=0,panId=null,panStart=null,pinchDistance=0,pinchStartZoom=1;
+let zoom=1,panX=0,panY=0,panId=null,panStart=null,pinchDistance=0,pinchStartZoom=1,pinchAnchor=null;
 const pointers=new Map();
 function applyZoom(){
  const maxX=(zoom-1)*canvas.width*.5,maxY=(zoom-1)*canvas.height*.5;
@@ -58,10 +58,27 @@ function applyZoom(){
  canvas.style.transform=transform;board.dragCanvas.style.transform=transform;$('previewOverlay').style.transform=transform;
  $('zoomReset').textContent=Math.round(zoom*100)+'%';
  $('zoomOut').disabled=zoom<=1.001;$('zoomIn').disabled=zoom>=2.2;
+ $('mobileZoomOut').disabled=zoom<=1.001;$('mobileZoomIn').disabled=zoom>=2.2;
 }
 function setZoom(value){
  zoom=Math.max(1,Math.min(2.2,Math.round(value*100)/100));
  if(zoom===1){panX=0;panY=0}applyZoom();
+}
+function comfortableZoom(){
+ // A 144-piece puzzle on a narrow phone otherwise produces 19–23px-high
+ // cardboard slivers. Start magnified but leave "Fit all" one tap away.
+ // The board is *not* rescaled independently of its pieces or snapped groups.
+ if(canvas.width>720||piecesCount<=48)return 1;
+ const shortest=Math.min(board.pieceWidth,board.pieceHeight);
+ return Math.min(2.2,Math.max(1,Math.ceil(42/Math.max(1,shortest)*100)/100));
+}
+function restoreCamera(saved){
+ if(saved?.camera&&Number.isFinite(saved.camera.zoom)){
+  zoom=Math.max(1,Math.min(2.2,saved.camera.zoom));
+  panX=(Number(saved.camera.x)||0)*canvas.width;
+  panY=(Number(saved.camera.y)||0)*canvas.height;
+  applyZoom();
+ }else setZoom(comfortableZoom());
 }
 
 const timeText=s=>String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0');
@@ -119,7 +136,7 @@ function timerStart(){if(secondsTimer!==null||paused||won||!activeRound||documen
 }
 function gameData(){
  return {version:2,theme,pieces:piecesCount,elapsed,won,challengeMode,usedHints,usedPreviews,customData:theme==='custom'?customData:null,
-  board:board.serialize(),updatedAt:Date.now()};
+  board:board.serialize(),camera:{zoom,x:panX/Math.max(1,canvas.width),y:panY/Math.max(1,canvas.height)},updatedAt:Date.now()};
 }
 function saveGame(){
  if(!activeRound||won)return;
@@ -155,6 +172,7 @@ function resetBoard(fresh=true,saved=null){
  if(!fresh&&saved?.board&&!board.restore(saved.board))board.buildPieces();
  else if(fresh||!saved?.board)board.buildPieces();
  board.showGhost=guideEnabled();
+ restoreCamera(fresh?null:saved);
  $('edgesButton').setAttribute('aria-pressed',String(board.edgeOnly));
  setStats();board.render();updateHelpUI();timerStop();timerStart();
  if(fresh){saveGame();if(challengeMode==='memory')setTimeout(()=>{if(activeRound&&!won&&challengeMode==='memory'&&usedPreviews===0)showReference({automatic:true})},120)}
@@ -332,6 +350,11 @@ canvas.addEventListener('pointerdown',e=>{
   cancelSelection();panId=null;const points=[...pointers.values()];
   pinchDistance=Math.hypot(points[0].x-points[1].x,points[0].y-points[1].y);
   pinchStartZoom=zoom;
+  const center={x:(points[0].x+points[1].x)*.5,y:(points[0].y+points[1].y)*.5};
+  const bounds=wrapper.getBoundingClientRect();
+  const ox=bounds.left+bounds.width*.5,oy=bounds.top+bounds.height*.5;
+  pinchAnchor={worldX:canvas.width*.5+(center.x-ox-panX)/zoom,
+               worldY:canvas.height*.5+(center.y-oy-panY)/zoom};
   canvas.setPointerCapture(e.pointerId);e.preventDefault();return;
  }
  if(pointers.size>2||dragId!==null)return;
@@ -354,7 +377,15 @@ canvas.addEventListener('pointermove',e=>{
  if(pointers.size>=2&&pinchDistance>0){
   const points=[...pointers.values()];
   const current=Math.hypot(points[0].x-points[1].x,points[0].y-points[1].y);
-  setZoom(pinchStartZoom*current/Math.max(1,pinchDistance));e.preventDefault();return;
+  const center={x:(points[0].x+points[1].x)*.5,y:(points[0].y+points[1].y)*.5};
+  const bounds=wrapper.getBoundingClientRect();
+  const ox=bounds.left+bounds.width*.5,oy=bounds.top+bounds.height*.5;
+  zoom=Math.max(1,Math.min(2.2,pinchStartZoom*current/Math.max(1,pinchDistance)));
+  if(pinchAnchor){
+   panX=center.x-ox-(pinchAnchor.worldX-canvas.width*.5)*zoom;
+   panY=center.y-oy-(pinchAnchor.worldY-canvas.height*.5)*zoom;
+  }
+  applyZoom();e.preventDefault();return;
  }
  if(e.pointerId===panId&&panStart){
   panX=panStart.x+(e.clientX-panStart.clientX);
@@ -370,7 +401,7 @@ canvas.addEventListener('pointermove',e=>{
 });
 function releaseDrag(e){
  pointers.delete(e.pointerId);
- if(pointers.size<2)pinchDistance=0;
+ if(pointers.size<2){pinchDistance=0;pinchAnchor=null}
  if(e.pointerId===panId){
   panId=null;panStart=null;if(canvas.hasPointerCapture(e.pointerId))canvas.releasePointerCapture(e.pointerId);
   e.preventDefault();return;
@@ -397,6 +428,9 @@ canvas.addEventListener('wheel',e=>{
 $('zoomIn').addEventListener('click',()=>setZoom(zoom*1.12));
 $('zoomOut').addEventListener('click',()=>setZoom(zoom/1.12));
 $('zoomReset').addEventListener('click',()=>setZoom(1));
+$('mobileZoomIn').addEventListener('click',()=>{setZoom(zoom*1.2);closeHudMenu()});
+$('mobileZoomOut').addEventListener('click',()=>{setZoom(zoom/1.2);closeHudMenu()});
+$('mobileZoomFit').addEventListener('click',()=>{setZoom(1);closeHudMenu()});
 $('edgesButton').addEventListener('click',()=>{
  if(paused)return;
  board.edgeOnly=!board.edgeOnly;
@@ -523,7 +557,7 @@ else showGallery();
 if(location.hostname==='localhost'||location.hostname==='127.0.0.1'){
  window.__nightJigsawTest=Object.freeze({
   snapshot:()=>({theme,pieces:piecesCount,elapsed,won,activeRound,challengeMode,usedHints,usedPreviews,guide:board.showGhost,
-   activeDragId:dragId,staticPaints:board.staticPaintCount,dragPaints:board.dragPaintCount,zoom,edgeOnly:board.edgeOnly,groups:new Set(board.pieces.filter(p=>!p.isPlaced).map(p=>p.group)).size,
+   activeDragId:dragId,staticPaints:board.staticPaintCount,dragPaints:board.dragPaintCount,zoom,panX,panY,edgeOnly:board.edgeOnly,groups:new Set(board.pieces.filter(p=>!p.isPlaced).map(p=>p.group)).size,
    selected:board.selectedPiece?{id:board.selectedPiece.id,x:board.selectedPiece.x,y:board.selectedPiece.y}:null,
    placed:board.placedCount,moves:board.moveCount,
    board:{x:board.boardX,y:board.boardY,w:board.boardWidth,h:board.boardHeight,rows:board.rows,cols:board.cols,pieceWidth:board.pieceWidth,pieceHeight:board.pieceHeight},tray:{...board.tray},
