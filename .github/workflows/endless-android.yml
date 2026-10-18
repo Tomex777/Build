@@ -155,12 +155,22 @@ jobs:
           # time and package georeferenced photos for fully offline viewing.
           # If the service is temporarily unavailable, keep the measured
           # DEM + illustrated material rather than substitute unrelated art.
-          if timeout 120 python3 endless_ci/prepare_nasa_trek_imagery.py --out "$OUT"; then
+          if timeout 120 python3 endless_ci/prepare_nasa_trek_imagery.py --out "$OUT" --worlds moon mars; then
             file "$OUT/mars_trek_landing.jpg" "$OUT/moon_trek_landing.jpg"
             echo "NASA Trek photo landscapes included in APK."
           else
             rm -f "$OUT/mars_trek_landing.jpg" "$OUT/moon_trek_landing.jpg"
             echo "::warning::NASA Trek WMTS unavailable; built-in MOLA/LOLA regolith fallback used."
+          fi
+          # The Mercury and Ceres maps add real mission photographic
+          # reflectance to *illustrative* relief. Fetch independently:
+          # these optional images must never regress the verified Mars/Moon.
+          if timeout 115 python3 endless_ci/prepare_nasa_trek_imagery.py --out "$OUT" --worlds mercury ceres; then
+            file "$OUT/mercury_trek_landing.jpg" "$OUT/ceres_trek_landing.jpg"
+            echo "NASA MESSENGER Mercury and Dawn Ceres orbital albedo included."
+          else
+            rm -f "$OUT/mercury_trek_landing.jpg" "$OUT/ceres_trek_landing.jpg"
+            echo "::warning::Mercury/Ceres Trek unavailable: retaining clearly illustrative material."
           fi
 
       - name: Bake tiny NASA rover/Apollo regolith reference (optional)
