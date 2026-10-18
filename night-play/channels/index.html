@@ -34,7 +34,8 @@ svg{display:block}
 .channel-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:13px}
 .channel-card{border:1px solid #e0e5df;border-radius:17px;background:#fff;padding:20px;min-width:0}
 .channel-card-top{display:flex;gap:12px;align-items:center}
-.channel-avatar{display:grid;place-items:center;width:46px;height:46px;flex:0 0 46px;border-radius:13px;background:#e7eee7;color:#2e5940;font-size:21px;font-weight:850}
+.channel-avatar{display:grid;place-items:center;width:46px;height:46px;flex:0 0 46px;border-radius:13px;background:#e7eee7;color:#2e5940;font-size:21px;font-weight:850;overflow:hidden}
+.channel-avatar img{width:100%;height:100%;display:block;object-fit:cover}
 .channel-name{font-size:16px;font-weight:800;letter-spacing:-.35px;margin:0 0 5px;overflow-wrap:anywhere}
 .channel-pill{font-size:11px;color:#916a31;font-weight:650}
 .channel-pill.ready{color:#2e7854}
@@ -215,6 +216,16 @@ function render() {
     const avatar=make('span','channel-avatar')
     // Avoid splitting surrogate pairs when a channel name begins with emoji.
     avatar.innerHTML='<svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="3"/><path d="M6.5 10h11M6.5 14h7"/></svg>'
+    const image=channel.photoData
+    if(typeof image==='string'&&/^data:image\/(?:png|jpeg);base64,[A-Za-z0-9+/=]+$/.test(image)){
+      const photo=make('img')
+      photo.src=image
+      photo.alt=''
+      photo.loading='lazy'
+      photo.decoding='async'
+      photo.addEventListener('error',()=>photo.replaceWith(document.createTextNode('')))
+      avatar.replaceChildren(photo)
+    }
     const nameGroup=make('div')
     const name=make('h2','channel-name',channel.name||'WhatsApp Channel')
     const connected=channel.status==='connected'
