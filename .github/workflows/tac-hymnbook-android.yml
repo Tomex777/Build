@@ -81,4 +81,6 @@ jobs:
           path: |
             tac-hymns-home.png
             tac-hymns-reader.png
+            tac-hymns-dark-home.png
+            tac-hymns-dark-reader.png
           if-no-files-found: warn
