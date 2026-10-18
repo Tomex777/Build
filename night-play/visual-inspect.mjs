@@ -3,7 +3,7 @@ import {mkdir,writeFile} from 'node:fs/promises';
 import { createServer } from 'node:http';
 import { chromium } from 'playwright';
 const html=readFileSync(new URL('./index.html',import.meta.url));
-const server=createServer((req,res)=>{if(req.url==='/account-client.js'){res.writeHead(200,{'content-type':'text/javascript'});res.end(readFileSync(new URL('./account-client.js',import.meta.url)));return}if(req.url==='/api/account'){res.writeHead(200,{'content-type':'application/json'});res.end(JSON.stringify({linked:false,profile:null}));return}res.writeHead(200,{'content-type':'text/html; charset=utf-8'});res.end(html)});
+const server=createServer((req,res)=>{if(req.url?.startsWith('/audio/')){const css=req.url.endsWith('.css');res.writeHead(200,{'content-type':css?'text/css':'text/javascript'});res.end(readFileSync(new URL('.'+req.url,import.meta.url)));return}if(req.url==='/account-client.js'){res.writeHead(200,{'content-type':'text/javascript'});res.end(readFileSync(new URL('./account-client.js',import.meta.url)));return}if(req.url==='/api/account'){res.writeHead(200,{'content-type':'application/json'});res.end(JSON.stringify({linked:false,profile:null}));return}res.writeHead(200,{'content-type':'text/html; charset=utf-8'});res.end(html)});
 await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
 const b=await chromium.launch({headless:true,channel:'chrome',args:['--no-sandbox']});
 try{
