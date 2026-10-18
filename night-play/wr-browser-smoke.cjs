@@ -78,7 +78,7 @@ const server=http.createServer((req,res)=>{
   assert.equal(calls.includes('match:leave'),false,'cancel is non-destructive');
   await game.locator('#cancelWaiting').click();
   await game.locator('#confirmLeave').click();
-  await game.waitForFunction(()=>!document.querySelector('#lobby').hidden);
+  await game.waitForFunction(()=>!document.querySelector('#lobbyActions').hidden && document.querySelector('#waitingPanel').hidden);
   assert.equal(calls.filter(x=>x==='match:leave').length,1,'forfeit sent once after confirmation');
   assert.equal(await game.locator('.match-chevron').count(),0,
    'no fake previous matches');
