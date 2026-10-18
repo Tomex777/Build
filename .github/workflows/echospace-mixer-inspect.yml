@@ -1,0 +1,29 @@
+name: EchoSpace mixer source inspection
+
+on:
+  push:
+    branches: [feature/echospace-emulator-qa]
+    paths: [.github/workflows/echospace-mixer-inspect.yml]
+  workflow_dispatch:
+
+permissions: {contents: read}
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Inspect mixer UI and Android config
+        shell: bash
+        run: |
+          set -euo pipefail
+          tar -xJf EchoSpace/source.tar.xz
+          echo '=== ECHOSPACE SOURCE FILE LIST ==='
+          find EchoSpace -type f -not -name '*.tar.xz' -not -path '*/build/*' | sort | head -140
+          echo '=== MAIN ACTIVITY START ==='
+          sed -n '1,320p' EchoSpace/app/src/main/java/com/nexa/echospace/MainActivity.kt
+          echo '=== MAIN ACTIVITY CONTINUATION ==='
+          sed -n '321,640p' EchoSpace/app/src/main/java/com/nexa/echospace/MainActivity.kt
+          echo '=== MAIN ACTIVITY FINAL ==='
+          sed -n '641,1100p' EchoSpace/app/src/main/java/com/nexa/echospace/MainActivity.kt
+          echo '=== GRADLE ==='
+          cat EchoSpace/app/build.gradle.kts 2>/dev/null || cat EchoSpace/app/build.gradle

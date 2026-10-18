@@ -1,0 +1,184 @@
+name: EchoSpace ARM64 release APK
+
+on:
+  push:
+    branches: [feature/echospace-emulator-qa]
+    paths:
+      - .github/workflows/echospace-arm64-release.yml
+      - .github/scripts/echospace_expand_mixer.py
+      - .github/scripts/echospace_abr.py
+      - .github/scripts/echospace_mixer_precision.py
+      - .github/scripts/echospace_custom_gain.py
+      - .github/scripts/echospace_audio_upgrade.py
+      - .github/scripts/echospace_svg_icons.py
+      - EchoSpace/icons/echospace-icons.svg
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  arm64-release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 55
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.11.1'
+      - name: Extract real EchoSpace Android app
+        run: |
+          set -euo pipefail
+          tar -xJf EchoSpace/source.tar.xz
+          test -f EchoSpace/app/src/main/java/com/nexa/echospace/MainActivity.kt
+          find EchoSpace/app -maxdepth 1 -name 'build.gradle*' -print
+      - name: Apply expanded sound mixer controls
+        run: python3 .github/scripts/echospace_expand_mixer.py
+      - name: Apply ABR single-mixer design and vector sound controls
+        run: python3 .github/scripts/echospace_abr.py
+      - name: Enlarge sound field and repair live gain control
+        run: python3 .github/scripts/echospace_mixer_precision.py
+      - name: Enforce ABR custom gain controls and test no default sliders
+        run: python3 .github/scripts/echospace_custom_gain.py
+      - name: Enhance binaural audio and add six sound types
+        run: python3 .github/scripts/echospace_audio_upgrade.py
+      - name: Generate Android vectors from original EchoSpace SVG icon library
+        run: python3 .github/scripts/echospace_svg_icons.py
+      - name: Bundle offline environment artwork
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p EchoSpace/app/src/main/res/drawable-nodpi
+          declare -A scenes=(
+            [rain]=photo-1751696924126-2697d62f6f49
+            [forest]=photo-1562627952-f52a76c3c823
+            [shore]=photo-1518837695005-2083093ee35b
+            [fire]=photo-1464808646948-8f732deb6e4b
+            [dream]=photo-1592666452220-529326e2588e
+          )
+          for name in "${!scenes[@]}"; do
+            curl -fsSL --retry 3 --connect-timeout 15 "https://images.unsplash.com/${scenes[$name]}?auto=format&fit=crop&crop=entropy&w=1080&h=1400&q=75&fm=jpg" -o "EchoSpace/app/src/main/res/drawable-nodpi/scene_${name}.jpg"
+            test $(wc -c < "EchoSpace/app/src/main/res/drawable-nodpi/scene_${name}.jpg") -gt 25000
+          done
+      - name: Install required audio converters
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -qq -y ffmpeg
+      - name: Produce offline CC0 recordings and measured binaural HRTFs
+        run: |
+          python3 EchoSpace/tools/prepare_audio.py
+          test -s EchoSpace/app/src/main/assets/kemar_44100.hrir
+          test -s EchoSpace/app/src/main/assets/audio/rain.pcm
+      - name: Configure ARM64-v8a release targeting
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          root = Path("EchoSpace/app")
+          f = next((p for p in [root/"build.gradle.kts", root/"build.gradle"] if p.exists()), None)
+          if f is None:
+              raise SystemExit("Could not find Android app Gradle build file")
+          if f.suffix == ".kts":
+              extra = """
+          // EchoSpace ARM64-only native ABI packaging for this release build.
+          android {
+              defaultConfig {
+                  ndk {
+                      abiFilters.clear()
+                      abiFilters.add("arm64-v8a")
+                  }
+              }
+          }
+          """
+          else:
+              extra = """
+          // EchoSpace ARM64-only native ABI packaging for this release build.
+          android {
+              defaultConfig {
+                  ndk {
+                      abiFilters.clear()
+                      abiFilters.add("arm64-v8a")
+                  }
+              }
+          }
+          """
+          f.write_text(f.read_text() + "\n" + extra)
+          print("Targeted ARM64 Android build:", f)
+          PY
+      - name: Install Android 35 build tools
+        run: |
+          SDKMANAGER=$(find "$ANDROID_HOME/cmdline-tools" -name sdkmanager -type f | head -n 1)
+          test -n "$SDKMANAGER"
+          "$SDKMANAGER" 'platforms;android-35' 'build-tools;35.0.0'
+      - name: Run tests and compile unsigned ARM64 release
+        working-directory: EchoSpace
+        run: |
+          gradle --no-daemon --stacktrace testDebugUnitTest assembleRelease
+      - name: Verify unsigned release and export APK
+        run: |
+          set -euo pipefail
+          mkdir -p release
+          find EchoSpace/app/build/outputs/apk/release -maxdepth 2 -type f -print
+          APK=$(find EchoSpace/app/build/outputs/apk/release -maxdepth 1 -type f -name '*.apk' | head -1)
+          test -n "$APK"
+          cp "$APK" release/EchoSpace-arm64-v8a-release-unsigned.apk
+          python3 - <<'PY'
+          from pathlib import Path
+          from zipfile import ZipFile
+          p=Path("release/EchoSpace-arm64-v8a-release-unsigned.apk")
+          with ZipFile(p) as z:
+              so = [s for s in z.namelist() if s.startswith("lib/") and s.endswith(".so")]
+              abis = sorted({s.split("/")[1] for s in so})
+          print("APK bytes:", p.stat().st_size)
+          print("APK MiB:", round(p.stat().st_size / 1048576, 2))
+          print("Packaged native ABIs:", abis if abis else "No native .so files; this Kotlin APK also works across ABIs")
+          assert all(abi == "arm64-v8a" for abi in abis), "Release contains other native ABIs"
+          PY
+          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging release/EchoSpace-arm64-v8a-release-unsigned.apk | head -22
+      - name: Sign with a one-build disposable test key
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Temporary signing only: the key is generated on this runner and discarded.
+          umask 077
+          KEYSTORE="$RUNNER_TEMP/echospace-test-$GITHUB_RUN_ID.p12"
+          trap 'rm -f "$KEYSTORE"' EXIT
+          PASS="$(openssl rand -hex 24)"
+          keytool -genkeypair -noprompt \
+            -keystore "$KEYSTORE" -storetype PKCS12 \
+            -storepass "$PASS" -keypass "$PASS" -alias echospace-test \
+            -keyalg RSA -keysize 3072 -validity 365 \
+            -dname "CN=EchoSpace Temporary Test Build, OU=NIGHT, O=NIGHT, C=NG"
+          APKSIGNER="$ANDROID_HOME/build-tools/35.0.0/apksigner"
+          "$APKSIGNER" sign \
+            --ks "$KEYSTORE" --ks-type PKCS12 --ks-key-alias echospace-test \
+            --ks-pass "pass:$PASS" --key-pass "pass:$PASS" \
+            --min-sdk-version 26 \
+            --out release/EchoSpace-arm64-v8a-release-test-signed.apk \
+            release/EchoSpace-arm64-v8a-release-unsigned.apk
+          # Verify this is truly installable on Android 8+ and remains ARM64-only.
+          "$APKSIGNER" verify --verbose --print-certs --min-sdk-version 26 \
+            release/EchoSpace-arm64-v8a-release-test-signed.apk
+          python3 - <<'PY'
+          from pathlib import Path
+          from zipfile import ZipFile
+          p = Path('release/EchoSpace-arm64-v8a-release-test-signed.apk')
+          with ZipFile(p) as z:
+              abis = sorted({n.split('/')[1] for n in z.namelist()
+                             if n.startswith('lib/') and n.endswith('.so')})
+          assert abis == ['arm64-v8a'], f'Unexpected native ABIs: {abis}'
+          print('SIGNED_APK_BYTES', p.stat().st_size)
+          print('SIGNED_APK_MIB', round(p.stat().st_size / 1048576, 2))
+          print('SIGNED_ABI', ', '.join(abis))
+          PY
+          sha256sum release/EchoSpace-arm64-v8a-release-test-signed.apk
+          rm -f "$KEYSTORE"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: EchoSpace-ARM64-test-signed-installable-APK
+          path: release/EchoSpace-arm64-v8a-release-test-signed.apk
+          if-no-files-found: error
+          retention-days: 90

@@ -1,0 +1,26 @@
+name: EchoSpace field audio research
+on:
+  push:
+    branches: [feature/echospace-emulator-qa]
+    paths: [.github/workflows/echospace-audio-research.yml]
+  workflow_dispatch:
+permissions: {contents: read}
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Find public CC0 sound preview URL and MIT HRTF source
+        run: |
+          python3 - <<'PY'
+          import requests,re,html,json
+          url='https://freesound.org/people/colorsCrimsonTears/sounds/532681/'
+          r=requests.get(url, timeout=25,headers={'User-Agent':'Mozilla/5.0'})
+          print('FREESOUND_STATUS', r.status_code,len(r.content))
+          data=html.unescape(r.text)
+          pattern=r'.{0,120}(?:previews/|_hq\\.mp3|mp3|audio_url|sound-preview).{0,200}'
+          hits=re.findall(pattern,data,re.I)
+          print('MATCHES',json.dumps(hits[:20]))
+          for z in ['https://raw.githubusercontent.com/jhonmark/mit-hrtf-lib/master/source/normal/mit_hrtf_normal_44100.h','https://raw.githubusercontent.com/ValveSoftware/steam-audio/master/LICENSE']:
+            r=requests.get(z,timeout=20)
+            print('REPOSITORY',r.status_code,len(r.content),z,'samples',len(re.findall('H0e',r.text)))
+          PY
