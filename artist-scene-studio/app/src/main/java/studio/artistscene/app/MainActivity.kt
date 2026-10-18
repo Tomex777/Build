@@ -92,6 +92,21 @@ class MainActivity : ComponentActivity() {
             }.onFailure { Log.w(RUNTIME_LOG_TAG, "under-tree-atmosphere-upgrade-failed", it) }
         }
 
+        // The original photographic preset used overhead sunlight, hiding the
+        // otherwise correct cast shadows. Only correct the exact stock light:
+        // never change artist-edited angles, actors or world settings.
+        if (!preferences.getBoolean(UNDER_TREE_SHADOWS_KEY, false)) {
+            runCatching {
+                if (store.exists(UnderTreeScene.PROJECT_ID)) {
+                    val saved = store.load(UnderTreeScene.PROJECT_ID)
+                    val refined = UnderTreeScene.refineStockLightAngle(saved)
+                    if (refined != saved) store.save(refined)
+                }
+            }.onSuccess {
+                preferences.edit().putBoolean(UNDER_TREE_SHADOWS_KEY, true).apply()
+            }.onFailure { Log.w(RUNTIME_LOG_TAG, "under-tree-shadows-upgrade-failed", it) }
+        }
+
         // Clean up presentation-only fixture labels from earlier development builds without
         // changing IDs, transforms, poses, assets, or any names the artist has already edited.
         if (store.exists(PrototypeScene.PROJECT_ID)) {
@@ -211,6 +226,7 @@ private const val STARTER_SEEDED_KEY = "starter-scene-seeded-v1"
 private const val ANIME_STUDY_SEEDED_KEY = "anime-pose-study-seeded-v1"
 private const val UNDER_TREE_SEEDED_KEY = "under-tree-scene-seeded-v1"
 private const val UNDER_TREE_ATMOSPHERE_KEY = "under-tree-atmosphere-softened-v2"
+private const val UNDER_TREE_SHADOWS_KEY = "under-tree-photographic-shadow-direction-v3"
 
 internal fun studio.artistscene.core.SceneProject.propX(): Float =
     actors.firstOrNull { it.id == PrototypeScene.PROP_ID }?.transform?.position?.x ?: 0f
