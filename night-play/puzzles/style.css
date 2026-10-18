@@ -84,3 +84,109 @@ button:focus-visible,a:focus-visible{outline:3px solid #488c72;outline-offset:3p
  .sudoku-actions button{min-height:44px;font-size:11px}
 }
 @media(prefers-reduced-motion:reduce){.sudoku-cell,.memory-card .memory-shape{transition:none!important}}
+
+
+/* MEMORY MATCH V2 — tall boards use genuine page height, never shrink to fit. */
+#board.memory-choice-workspace{width:min(100%,730px);max-width:none;user-select:auto;-webkit-user-select:auto}
+.memory-choice-workspace .memory-setup-top{text-align:center;margin:6px auto 28px}
+.memory-setup-overline{font-size:10px;font-weight:900;letter-spacing:2px;color:#8a9a90}
+.memory-setup-top h2{font-size:clamp(29px,5vw,38px);line-height:1.12;margin:7px auto 9px;letter-spacing:-1.2px;color:#1d2d26}
+.memory-setup-top p{font-size:13px;color:#748078;margin:0}
+.memory-section-label{font-size:11px;font-weight:900;letter-spacing:1.4px;color:#5c6c60;margin:0 0 12px}
+.memory-theme-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:11px}
+.memory-theme-option{border:1px solid #dfe5dc;background:#fff;min-width:0;border-radius:18px;padding:0 0 15px!important;overflow:hidden;text-align:left;transition:border-color .15s,box-shadow .15s,transform .15s}
+.memory-theme-option.chosen{border:2px solid #3b6f54;box-shadow:0 0 0 2px #d5e9dc}
+.memory-theme-art{display:block;position:relative;min-width:0;height:139px;background:linear-gradient(155deg,#edf2ed,#d5e2da);overflow:hidden;margin:0 0 12px}
+.memory-theme-fan{position:absolute;display:block;width:31%;height:92%;border:3px solid #fff;background:#e6efeb;border-radius:9px;overflow:hidden;box-shadow:0 6px 15px #213b3140;top:14%}
+.memory-theme-fan.fan-0{left:11%;transform:rotate(-15deg)}
+.memory-theme-fan.fan-1{left:37%;transform:rotate(4deg);top:8%}
+.memory-theme-fan.fan-2{left:63%;transform:rotate(16deg);top:14%}
+.memory-theme-info{display:flex;flex-direction:column;padding:0 13px;min-width:0}
+.memory-theme-info strong{font-size:15px;font-weight:850;letter-spacing:-.3px}
+.memory-theme-info small{font-size:11px;color:#7d8a80;margin-top:3px;line-height:1.4}
+.memory-size-heading{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin:26px 0 11px}
+.memory-size-heading .memory-section-label{margin:0}
+.memory-size-heading span{font-size:11px;color:#819088}
+.memory-size-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px}
+.memory-size-option{background:#fff;border:1px solid #d9e1db;border-radius:12px;padding:13px 4px!important;display:flex!important;min-height:69px!important;flex-direction:column;gap:3px;align-items:center;justify-content:center}
+.memory-size-option strong{font-size:16px;white-space:nowrap;letter-spacing:-.25px;font-weight:850}
+.memory-size-option small{font-size:10px;color:#7e8b83}
+.memory-size-option.chosen{border:2px solid #3b7055;background:#e8f2e9;color:#1e4e34}
+.memory-layout-note,.memory-layout-credit{font-size:11px;color:#879289;line-height:1.65;text-align:center;max-width:410px;margin:15px auto 15px}
+.memory-layout-credit{margin:20px auto 2px}
+.memory-start{width:min(100%,440px);margin:18px auto 0;min-height:55px!important;display:flex!important;align-items:center;justify-content:center;gap:9px;background:#19382c;color:#fff;border:none;border-radius:14px;font-size:15px;font-weight:850;letter-spacing:-.1px}
+.memory-start:active{transform:translateY(1px)}
+.memory-return{display:block!important;border:0;background:transparent;color:#39624a;min-height:44px!important;text-decoration:underline;margin:8px auto 0;font-size:13px;font-weight:750}
+#board.memory-playing-board{width:min(100%,560px);max-width:none;display:grid;grid-template-columns:repeat(var(--memory-columns,6),minmax(0,1fr));gap:clamp(3px,.9vw,7px);padding:1px 1px 9px;contain:layout style}
+.memory-playing-board .memory-card{display:block;position:relative;min-width:0;min-height:0;width:100%;aspect-ratio:.80;border:0!important;border-radius:10px;overflow:visible;background:transparent!important;box-shadow:none;perspective:650px;isolation:isolate;touch-action:manipulation}
+.memory-playing-board .memory-card:before,.memory-playing-board .memory-card:after{content:none!important;display:none!important}
+.memory-flip-body{position:absolute;inset:0;display:block;transform-style:preserve-3d;transform:rotateY(0);transition:transform 290ms cubic-bezier(.22,.74,.25,1.04)}
+.memory-card.flipped .memory-flip-body,.memory-card.matched .memory-flip-body{transform:rotateY(180deg)}
+.memory-card-back,.memory-card-front{position:absolute;inset:0;overflow:hidden;display:flex;justify-content:center;align-items:center;border-radius:9px;backface-visibility:hidden;-webkit-backface-visibility:hidden}
+.memory-card-back{background:linear-gradient(143deg,#324e40,#20382e);border:1px solid #7da08b;box-shadow:0 3px 6px #1a38251c,inset 0 0 0 3px #294738}
+.memory-card-back:before{content:"";position:absolute;inset:7px;border:1px solid #b7c9b857;border-radius:6px}
+.memory-card-back:after{content:"";position:absolute;width:72%;aspect-ratio:1;border:1px solid #d8e8cb15;transform:rotate(45deg)}
+.memory-back-mark{width:37%;aspect-ratio:1;color:#c4d3be;z-index:1;opacity:.8}
+.memory-back-mark svg{width:100%;height:100%}
+.memory-card-front{background:#f2f4ee;transform:rotateY(180deg);border:1px solid #d4e1d5;box-shadow:0 2px 5px #172f2717}
+.memory-card.matched .memory-card-front{border:2px solid #79ac88;box-shadow:0 0 0 1px #e7f2e4}
+.memory-card.matched .memory-card-front:after{content:"";position:absolute;right:3px;top:3px;width:12px;height:12px;border-radius:100%;background:#3f8559;box-shadow:0 0 0 1px #e9f5eb}
+.memory-face-svg{display:block;width:100%;height:100%;object-fit:cover}
+.memory-photo-layer{display:block;position:relative;width:100%;height:100%;overflow:hidden}
+.memory-photo-layer .memory-face-svg{position:absolute;inset:0}
+.memory-photo-layer img{width:100%;height:100%;display:block;object-fit:cover;position:absolute;inset:0;opacity:0;transition:opacity .12s ease;background:#e2e9e0}
+.memory-photo-layer img.ready{opacity:1}
+#statusbar.memory-toolbar{width:min(100%,560px);max-width:560px;position:sticky;top:64px;z-index:5;display:grid;grid-template-columns:repeat(3,minmax(0,1fr)) auto;gap:5px;padding:6px;margin:4px auto 9px;background:#f7f9f5f5;backdrop-filter:blur(8px);border:1px solid #e5eae4;border-radius:13px}
+.memory-toolbar .memory-stat{min-width:0;background:transparent;border-right:1px solid #dce5de;border-radius:0;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:0;padding:2px 4px}
+.memory-stat strong{font-size:16px;color:#1d3b2b;font-weight:850;letter-spacing:-.6px;line-height:1.18;white-space:nowrap}
+.memory-stat small{font-size:9px;font-weight:750;color:#849286;letter-spacing:.5px;text-transform:uppercase}
+.memory-deck-btn{min-height:43px;min-width:70px!important;padding:6px 8px!important;border:1px solid #cddbd1!important;background:#eaf0e9;border-radius:9px;color:#315a42;font-size:11px;font-weight:800;line-height:1.2}
+.memory-deck-btn:active{background:#dceadd}
+.memory-playing-board button:focus-visible,.memory-theme-option:focus-visible,.memory-size-option:focus-visible{outline:3px solid #4b936c;outline-offset:2px}
+@media (max-width:650px){
+ .memory-theme-art{height:115px}
+ .memory-theme-info strong{font-size:14px}
+ .memory-size-grid{grid-template-columns:repeat(4,minmax(0,1fr))}
+ #statusbar.memory-toolbar{top:60px}
+}
+@media (max-width:480px){
+ .memory-theme-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+ .memory-theme-option{border-radius:14px;padding-bottom:12px!important}
+ .memory-theme-art{height:111px;margin-bottom:9px}
+ .memory-theme-info{padding:0 10px}
+ .memory-theme-info strong{font-size:13.5px}
+ .memory-theme-info small{font-size:10px}
+ .memory-size-grid{gap:6px}
+ .memory-size-option{min-height:61px!important;padding:9px 2px!important}
+ .memory-size-option strong{font-size:14px}
+ #board.memory-playing-board{gap:4px;width:100%}
+ .memory-playing-board .memory-card{border-radius:7px}
+ .memory-card-back,.memory-card-front{border-radius:7px}
+ .memory-card-back:before{inset:5px;border-radius:4px}
+ .memory-card-back{box-shadow:0 1px 3px #1a38251c,inset 0 0 0 2px #294738}
+ .memory-toolbar .memory-stat{padding:2px 1px}
+ #statusbar.memory-toolbar{margin:1px auto 7px;padding:5px 3px;gap:3px}
+ .memory-deck-btn{min-width:67px!important;font-size:10px}
+ .memory-stat strong{font-size:15px}
+}
+@media (max-width:350px){
+ .memory-size-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
+ #board.memory-playing-board{gap:3px}
+ .memory-card-back:before{inset:3px}
+}
+@media(prefers-reduced-motion:reduce){
+ .memory-flip-body,.memory-photo-layer img,.memory-theme-option{transition:none!important}
+}
+
+/* The shared board button base is grid-centered; deck cards need a full-width art stage. */
+.memory-choice-workspace .memory-theme-option{display:block!important;text-align:left!important;border:1px solid #dfe5dc!important;width:100%;min-height:0;place-items:normal!important}
+.memory-choice-workspace .memory-theme-option.chosen{border:2px solid #3b6f54!important}
+.memory-theme-art{width:100%}
+.memory-choice-workspace .memory-size-option{border:1px solid #d9e1db!important}
+.memory-choice-workspace .memory-size-option.chosen{border:2px solid #3b7055!important}
+
+/* Keep game actions close to the board when there is no status message. */
+.memory-playing-board .memory-back-mark{width:58%}
+.puzzle-workspace:has(.memory-playing-board) .puzzle-tools:empty{display:none}
+.puzzle-workspace:has(.memory-playing-board) .puzzle-message:empty{display:none}
+.puzzle-workspace:has(.memory-playing-board) .puzzle-action{margin-top:13px}

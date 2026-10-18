@@ -12,6 +12,37 @@ for(const level of ['easy','medium','hard']){
   assert.ok(puzzle.every((x,i)=>!x||x===solution[i]));
  }
 }
+
+// Memory collection invariants: thirty real pairs per pack and a fixed max width
+// while the board expands downward to ten rows.
+require('./memory-art.js');
+require('./memory.js');
+const art=globalThis.NIGHTMemoryArt;
+const memory=globalThis.NIGHTMemory;
+assert.equal(art.themes.length,5);
+for(const theme of art.themes){
+ if(theme.type==='photo'){
+  assert.equal(art.photos[theme.id].length,30,theme.id+' needs 30 distinct art sources');
+  assert.equal(new Set(art.photos[theme.id].map(e=>e[1])).size,30,'no repeated photograph in '+theme.id);
+  for(let i=0;i<30;i++){
+   assert.match(art.photoUrl(theme.id,i),/^https:\/\/images\.unsplash\.com\/photo-/);
+   assert.ok(art.face(theme.id,i,true).includes('<img'));
+  }
+ }else{
+  for(let i=0;i<30;i++)assert.match(art.face(theme.id,i,true),/<svg/);
+ }
+}
+assert.equal(memory.SIZES.length,10);
+assert.ok(memory.SIZES.some(([cols,rows])=>cols===6&&rows===5));
+assert.ok(memory.SIZES.some(([cols,rows])=>cols===6&&rows===10));
+for(const [cols,rows] of memory.SIZES){
+ assert.ok(cols<=6&&rows>=4&&(cols*rows)%2===0);
+ const deck=c.memoryDeck(cols*rows/2,20261018);
+ assert.equal(deck.length,cols*rows);
+ assert.equal(new Set(deck).size,cols*rows/2);
+ for(const key of new Set(deck))assert.equal(deck.filter(v=>v===key).length,2);
+}
+
 assert.equal(c.countSolutions(Array(81).fill(1),2),0,'reject duplicate clues');
 assert.equal(c.countSolutions(Array(81).fill(-1),2),0,'reject invalid grid');
 for(const pairs of [8,10,12]){

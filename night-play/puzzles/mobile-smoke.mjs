@@ -6,7 +6,8 @@ import {fileURLToPath} from 'node:url';
 import {chromium} from 'playwright';
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const fileMap={'/puzzles/':'puzzles/index.html','/puzzles':'puzzles/index.html',
- '/puzzles/core.js':'puzzles/core.js','/puzzles/games.js':'puzzles/games.js',
+ '/puzzles/core.js':'puzzles/core.js','/puzzles/memory-art.js':'puzzles/memory-art.js',
+ '/puzzles/memory.js':'puzzles/memory.js','/puzzles/games.js':'puzzles/games.js',
  '/puzzles/style.css':'puzzles/style.css','/game-shell.css':'game-shell.css',
  '/games':'index.html'};
 const server=createServer((req,res)=>{
@@ -68,30 +69,98 @@ try{
  assert.equal((await saved('sudoku')).done,true);
  assert.match(await page.locator('#message').innerText(),/Puzzle complete/);
  await page.goto(url+'/puzzles/?game=memory');
- assert.equal(await page.locator('.memory-card').count(),16);
+ assert.equal(await page.locator('#title').innerText(),'Memory Match');
+ assert.equal(await page.locator('.memory-theme-option').count(),5,'five original themed collections');
+ assert.equal(await page.locator('.memory-size-option').count(),10,'sizes grow downward to 6 × 10');
+ assert.equal(await page.locator('.memory-card').count(),0,'pick cards before a fresh game');
+ assert.equal(await page.locator('.memory-start').count(),1);
+ await checkMobile();
+ await page.waitForTimeout(700);
+ await page.screenshot({path:path.join(folder,'memory-setup-mobile.jpg'),type:'jpeg',quality:70,fullPage:true});
+ console.log('NIGHT_MEMORY_SETUP_IMAGE_BASE64='+(await page.screenshot({type:'jpeg',quality:48})).toString('base64'));
+ // A 6×5 board: 6 columns across, 5 rows down. The entire board should fit a normal phone.
+ await page.locator('[data-memory-size="6x5"]').click();
+ await page.locator('[data-memory-theme="wildlife"]').click();
+ await page.locator('[data-memory-action="start"]').click();
  let mem=await saved('memory');
+ // The v2 Memory engine owns a separate persistence key, not the older puzzle-room namespace.
+ assert.equal(await page.locator('.memory-card').count(),30);
+ assert.equal(await page.locator('.memory-playing-board').evaluate(el=>getComputedStyle(el).gridTemplateColumns.split(' ').length),6);
+ const fit=await page.evaluate(()=>{
+  const board=document.getElementById('board').getBoundingClientRect();
+  const action=document.getElementById('newGame').getBoundingClientRect();
+  return {boardWidth:board.width,boardHeight:board.height,left:board.left,right:board.right,bottom:board.bottom,actionTop:action.top,screenWidth:innerWidth,screenHeight:innerHeight};
+ });
+ assert.ok(fit.boardWidth>=370,'6×5 takes the phone width: '+JSON.stringify(fit));
+ assert.ok(fit.bottom<=fit.screenHeight+2,'6×5 full board fits phone without shrinking cards: '+JSON.stringify(fit));
+ assert.ok(fit.actionTop>=fit.bottom-1,'restart sits below the board');
+ await page.waitForTimeout(1000);
+ console.log('NIGHT_MEMORY_PLAY_6x5_IMAGE_BASE64='+(await page.screenshot({type:'jpeg',quality:54})).toString('base64'));
+ await page.screenshot({path:path.join(folder,'memory-play-6x5-mobile.jpg'),type:'jpeg',quality:72,fullPage:true});
+ mem=await page.evaluate(()=>JSON.parse(localStorage.getItem('night-play-memory-v2')));
+ assert.equal(mem.theme,'wildlife');
+ assert.equal(mem.cols,6);assert.equal(mem.rows,5);
  const first=mem.deck[0],mate=mem.deck.findIndex((x,i)=>i>0&&x===first);
  await page.locator('[data-memory="0"]').click();
  await page.locator('[data-memory="'+mate+'"]').click();
- assert.equal((await saved('memory')).matched.filter(Boolean).length,2);
- const unmatched=mem.deck.map((v,i)=>({v,i})).filter(x=>x.v!==first);
+ await page.waitForTimeout(420);
+ console.log('NIGHT_MEMORY_FACES_IMAGE_BASE64='+(await page.screenshot({type:'jpeg',quality:59})).toString('base64'));
+ await page.screenshot({path:path.join(folder,'memory-photo-faces-mobile.jpg'),type:'jpeg',quality:76});
+ console.log('NIGHT_MEMORY_READY_PHOTOS='+await page.locator('.memory-card img.ready').count());
+ mem=await page.evaluate(()=>JSON.parse(localStorage.getItem('night-play-memory-v2')));
+ assert.equal(mem.matched.filter(Boolean).length,2);
+ let unmatched=mem.deck.map((v,i)=>({v,i})).filter(x=>x.v!==first);
  const x=unmatched[0],y=unmatched.find(p=>p.v!==x.v);
- await page.locator('[data-memory="'+x.i+'"]').click();await page.locator('[data-memory="'+y.i+'"]').click();
+ await page.locator('[data-memory="'+x.i+'"]').click();
+ await page.locator('[data-memory="'+y.i+'"]').click();
  assert.equal(await page.locator('.memory-card.flipped').count(),2);
- await page.waitForTimeout(780);
- assert.equal(await page.locator('.memory-card.flipped').count(),0,'mismatches flip back');
+ await page.waitForTimeout(950);
+ assert.equal(await page.locator('.memory-card.flipped').count(),0,'mismatches flip back smoothly');
  await page.reload();
- assert.equal((await saved('memory')).matched.filter(Boolean).length,2,'matched cards survive reload');
- mem=await saved('memory');
+ assert.equal((await page.evaluate(()=>JSON.parse(localStorage.getItem('night-play-memory-v2')))).matched.filter(Boolean).length,2,'matched cards survive reload');
+ mem=await page.evaluate(()=>JSON.parse(localStorage.getItem('night-play-memory-v2')));
  for(const id of new Set(mem.deck)){
-  const indices=mem.deck.map((value,i)=>value===id?i:-1).filter(i=>i>=0);
+  const indices=mem.deck.map((v,i)=>v===id?i:-1).filter(i=>i>=0);
   if(mem.matched[indices[0]])continue;
   await page.locator('[data-memory="'+indices[0]+'"]').click();
   await page.locator('[data-memory="'+indices[1]+'"]').click();
  }
- assert.equal((await saved('memory')).done,true,'all eight pairs can be completed');
- assert.match(await page.locator('#message').innerText(),/All pairs found/);
- await page.screenshot({path:path.join(folder,'puzzle-memory-mobile.jpg'),type:'jpeg',quality:75});
+ assert.equal((await page.evaluate(()=>JSON.parse(localStorage.getItem('night-play-memory-v2')))).done,true,'all 15 pairs can be completed');
+ assert.match(await page.locator('#message').innerText(),/All 15 pairs found/);
+ // Changing a deck should not erase an in-progress game until Start is pressed.
+ await page.locator('.memory-deck-btn').click();
+ assert.equal(await page.locator('.memory-theme-option').count(),5);
+ await page.locator('[data-memory-theme="storybook"]').click();
+ await page.locator('[data-memory-size="6x10"]').click();
+ await page.locator('[data-memory-action="start"]').click();
+ mem=await page.evaluate(()=>JSON.parse(localStorage.getItem('night-play-memory-v2')));
+ assert.equal(mem.theme,'storybook');
+ assert.equal(mem.deck.length,60,'six columns and TEN rows (60 cards)');
+ assert.equal(new Set(mem.deck).size,30,'30 distinct original storybook characters');
+ for(const [width,height] of [[320,568],[390,844],[412,915],[540,760],[768,1024]]){
+  await page.setViewportSize({width,height});
+  const m=await page.locator('#board').evaluate(el=>{
+   const r=el.getBoundingClientRect(),cards=[...el.querySelectorAll('.memory-card')].map(c=>c.getBoundingClientRect());
+   return {left:r.left,right:r.right,width:r.width,height:r.height,pageWidth:document.documentElement.scrollWidth,viewport:innerWidth,rows:new Set(cards.map(c=>Math.round(c.top))).size,
+    cardWidth:cards[0].width,cardHeight:cards[0].height};
+  });
+  assert.ok(m.left>=0&&m.right<=width+1&&m.pageWidth<=width+2,'no side overflow at '+width+'×'+height+': '+JSON.stringify(m));
+  assert.equal(m.rows,10,'10 actual rows at '+width+'×'+height);
+  assert.ok(m.cardWidth>=42,'even 320px supports readable faces at '+width+'×'+height+': '+JSON.stringify(m));
+  assert.ok(m.height>=m.cardHeight*10,'tall boards scroll vertically, not shrink');
+ }
+ await page.setViewportSize({width:390,height:844});
+ await page.screenshot({path:path.join(folder,'memory-play-6x10-mobile.jpg'),type:'jpeg',quality:72,fullPage:true});
+ console.log('NIGHT_MEMORY_PLAY_6x10_IMAGE_BASE64='+(await page.screenshot({type:'jpeg',quality:54})).toString('base64'));
+ await page.locator('.memory-deck-btn').click();
+ assert.equal(await page.locator('[data-memory-action="resume"]').count(),0,'no resume action before any turns');
+ // A brief touch to the larger board persists independently of its vertical scroll.
+ await page.locator('[data-memory-action="start"]').click();
+ await page.locator('[data-memory="59"]').click();
+ const savedCards=await page.evaluate(()=>JSON.parse(localStorage.getItem('night-play-memory-v2')));
+ assert.equal(savedCards.deck.length,60);
+ await page.reload();
+ assert.equal(await page.locator('.memory-card').count(),60,'large board resumes after reload');
  await page.goto(url+'/puzzles/?game=connect');
  assert.equal(await page.locator('.connect-col').count(),7);
  assert.equal((await saved('connect')).mode,'cpu');
@@ -121,5 +190,32 @@ try{
   }
  }
  assert.deepEqual(errors,[],'no browser exceptions');
+ // Visual asset audit: build a readable contact sheet of EVERY unique face,
+ // not merely the first three preview cards. This catches bad photographic
+ // subjects, duplicate-looking cards and fallback art at a glance.
+ await page.setViewportSize({width:1060,height:960});
+ for(const theme of ['wildlife','cars','food','storybook','shapes']){
+  await page.goto(url+'/puzzles/?game=memory');
+  await page.evaluate(name=>{
+   const art=window.NIGHTMemoryArt;
+   const items=Array.from({length:30},(_,i)=>({id:i,label:art.photos[name]?.[i]?.[0]||art.figureNames[i]||'Shape '+(i+1)}));
+   document.body.innerHTML='<main class="audit-wrap"><h1>'+name.toUpperCase()+'</h1><div id="auditGrid"></div></main>';
+   const style=document.createElement('style');
+   style.textContent='.audit-wrap{padding:14px 20px;max-width:none;margin:auto;background:#f2f4f1;min-height:100vh}.audit-wrap h1{font:700 22px Arial;margin:7px 0 12px}.audit-grid{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:9px}.audit-item{background:#fff;padding:3px;border-radius:9px;border:1px solid #ccd8ce;overflow:hidden}.audit-image{position:relative;height:148px;overflow:hidden;background:#edf0e9;border-radius:7px}.audit-image svg,.audit-image .memory-face-svg{width:100%;height:100%}.audit-image .memory-photo-layer{height:100%;display:block;position:relative}.audit-image img{width:100%;height:100%;object-fit:cover;position:absolute;inset:0;opacity:1}.audit-name{font:600 11px Arial;color:#21362a;margin:3px 4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}';
+   document.head.append(style);
+   const grid=document.getElementById('auditGrid');grid.className='audit-grid';
+   for(const item of items){
+    const el=document.createElement('div');el.className='audit-item';
+    el.innerHTML='<div class="audit-image">'+art.face(name,item.id,true)+'</div><div class="audit-name">'+item.id+'. '+item.label+'</div>';
+    grid.append(el);
+   }
+   for(const img of grid.querySelectorAll('img'))img.addEventListener('error',()=>img.remove());
+  },theme);
+  await page.waitForTimeout(1600);
+  const metrics=await page.evaluate(()=>({loaded:[...document.querySelectorAll('.audit-image img')].filter(img=>img.complete&&img.naturalWidth>0).length,displayed:document.querySelectorAll('.audit-item').length}));
+  console.log('NIGHT_MEMORY_AUDIT_'+theme.toUpperCase()+'='+JSON.stringify(metrics));
+  console.log('NIGHT_MEMORY_AUDIT_'+theme.toUpperCase()+'_BASE64='+(await page.screenshot({type:'jpeg',quality:52,fullPage:true})).toString('base64'));
+ }
+
  console.log('Puzzle room Chromium smoke passed: Sudoku, memory, CPU and local four-in-a-row, persistence, 320–768 widths.');
 }finally{if(browser)await browser.close();await new Promise(resolve=>server.close(resolve));}
