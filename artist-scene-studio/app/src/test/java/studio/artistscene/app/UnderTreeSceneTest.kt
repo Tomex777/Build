@@ -46,6 +46,26 @@ class UnderTreeSceneTest {
         assertEquals(scene, SceneProjectCodec.decode(SceneProjectCodec.encode(scene)))
     }
 
+    @Test fun adjustOnlyStockSunWithoutErasingArtistLightOrPose() {
+        val origin = UnderTreeScene.create()
+        val oldStock = origin.copy(actors = origin.actors.map { actor ->
+            if (actor.id == "schoolyard-sun")
+                actor.copy(light = actor.light!!.copy(direction = studio.artistscene.core.Vec3(0f, -1f, 0f)))
+            else actor
+        })
+        val updated = UnderTreeScene.refineStockLightAngle(oldStock)
+        assertEquals(studio.artistscene.core.Vec3(-0.55f, -1f, -0.45f),
+            updated.actors.first { it.id == "schoolyard-sun" }.light!!.direction)
+        assertEquals(oldStock.actors.filterNot { it.id == "schoolyard-sun" },
+            updated.actors.filterNot { it.id == "schoolyard-sun" })
+        val customized = oldStock.copy(actors = oldStock.actors.map { actor ->
+            if (actor.id == "schoolyard-sun")
+                actor.copy(light = actor.light!!.copy(direction = studio.artistscene.core.Vec3(0.3f, -1f, 0.3f)))
+            else actor
+        })
+        assertEquals(customized, UnderTreeScene.refineStockLightAngle(customized))
+    }
+
     @Test fun starterLibraryContainsRealBicycleCarTreeAndProps() {
         val catalog = PrototypeScene.starterAssets()
         assertTrue(catalog.any { it.kind == ActorKind.VEHICLE && it.asset?.assetId == "starter.mise.bicycle" })
