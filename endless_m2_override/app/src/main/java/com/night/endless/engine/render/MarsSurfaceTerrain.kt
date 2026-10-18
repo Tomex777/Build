@@ -14,6 +14,7 @@ import kotlin.math.sqrt
 class MarsSurfaceTerrain(private val context: Context) {
     private val program: Int
     private val landingPhotoTexture: Int
+    private val detailedOrbitalPhoto: Int
     private val microMaterialTexture: Int
     private val vertices: FloatBuffer
     private val indices: ShortBuffer
@@ -53,6 +54,7 @@ class MarsSurfaceTerrain(private val context: Context) {
         indexCount = indexData.size
         program = createProgram(SurfaceMaterialShaders.VERTEX, SurfaceMaterialShaders.FRAGMENT)
         landingPhotoTexture = LandingPhotoTexture.load(context, "mars")
+        detailedOrbitalPhoto = LandingPhotoTexture.load(context, "mars_detail")
         microMaterialTexture = SurfaceMicroTexture.create(context, "mars")
         // Prepare the measured coarse-to-mid-to-near geometry while the GL
         // engine initializes, not on the user's first landing frame.
@@ -66,6 +68,7 @@ class MarsSurfaceTerrain(private val context: Context) {
         GLES30.glUniform1f(GLES30.glGetUniformLocation(program, "uPlanetRadiusUnits"), 3389.5f / 3.0f)
         GLES30.glUniform1i(GLES30.glGetUniformLocation(program, "uWorld"), 0)
         LandingPhotoTexture.bind(program, landingPhotoTexture)
+        LandingPhotoTexture.bindDetail(program, detailedOrbitalPhoto)
         SurfaceMicroTexture.bind(program, microMaterialTexture)
         // Initialize/reanchor midfield LOD *before* drawing the coarse
         // mesh, so its masked region always matches the actual replacement.

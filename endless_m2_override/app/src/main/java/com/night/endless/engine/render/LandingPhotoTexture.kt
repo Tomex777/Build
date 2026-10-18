@@ -12,7 +12,7 @@ import android.opengl.GLUtils
  */
 internal object LandingPhotoTexture {
     fun load(context: Context, body: String): Int {
-        require(body in setOf("mars", "moon", "mercury", "ceres", "europa", "titan"))
+        require(body in setOf("mars", "moon", "mercury", "ceres", "europa", "titan", "mars_detail"))
         val id = context.resources.getIdentifier(
             "${body}_trek_landing", "drawable", context.packageName
         )
@@ -41,6 +41,19 @@ internal object LandingPhotoTexture {
         GLES30.glBindTexture(GLES30.GL_TEXTURE_2D, 0)
         bitmap.recycle()
         return texture
+    }
+
+    fun bindDetail(program: Int, texture: Int) {
+        GLES30.glUniform1i(
+            GLES30.glGetUniformLocation(program, "uHasOrbitalDetail"),
+            if (texture != 0) 1 else 0
+        )
+        GLES30.glUniform1i(
+            GLES30.glGetUniformLocation(program, "uOrbitalDetail"), 4
+        )
+        GLES30.glActiveTexture(GLES30.GL_TEXTURE4)
+        GLES30.glBindTexture(GLES30.GL_TEXTURE_2D, texture)
+        GLES30.glActiveTexture(GLES30.GL_TEXTURE0)
     }
 
     fun bind(program: Int, texture: Int) {

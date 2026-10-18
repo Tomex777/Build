@@ -53,6 +53,8 @@ uniform int uPatchType; // 0 = coarse landscape; 1 = foreground; 2 = stones
 uniform vec2 uViewAnchor;
 uniform vec2 uMidAnchor;
 uniform sampler2D uLandingAlbedo;
+uniform sampler2D uOrbitalDetail;
+uniform int uHasOrbitalDetail;
 uniform sampler2D uMicroMaterial;
 uniform int uHasLandingAlbedo;
 out vec4 fragColor;
@@ -290,6 +292,19 @@ void main() {
         vec3 sourceAlbedo = uWorld == 0
             ? photo * vec3(0.97, 0.94, 0.90)
             : photo * vec3(0.94, 0.94, 0.95);
+        if (uWorld == 0 && uHasOrbitalDetail == 1) {
+            // The optional high-resolution Olympus product contributes
+            // *detail*, not a new fake orange global color. High-pass
+            // its luminance against its own low mip so photographed
+            // kilometer-scale albedo remains registered to Viking.
+            // Both datasets cover the same 81.6km ground coordinates.
+            vec3 fine = texture(uOrbitalDetail,photoUv,1.25).rgb;
+            vec3 smoothSource = texture(uOrbitalDetail,photoUv,4.0).rgb;
+            float detail = dot(fine-smoothSource,vec3(.299,.587,.114));
+            detail = clamp(detail*1.65,-.16,.16);
+            float farWeight = smoothstep(.12,.46,vDistance);
+            sourceAlbedo *= 1.0+detail*farWeight;
+        }
         // 1024px/81km orbital photos resolve ~80m, not individual pebbles.
         // Do not enlarge those texels into artificial stripes at eye level.
         // Preserve measured albedo for distant ridges and geological context.
