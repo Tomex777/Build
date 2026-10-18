@@ -319,6 +319,72 @@ async function finish(page,winner){
    assert.equal(await cpuPage.locator('.whot-flight').count(),0,'CPU flight element is cleaned up');
    assert.deepEqual(cpuErrors,[],'CPU 3D animation has no script errors');
    await cpuPage.close();
+   // Regression: CPU Pick Three must deal exactly THREE cards to the
+   // player's own animated slots. The old implementation showed all 3
+   // instantly and then animated just one Market card.
+   const penaltyPage=await browser.newPage({viewport:{width,height:844},isMobile:width<=600,hasTouch:width<=600});
+   const penaltyErrors=[];penaltyPage.on('pageerror',e=>penaltyErrors.push(e.message));
+   await penaltyPage.route('https://cdn.jsdelivr.net/**',route=>route.abort());
+   await penaltyPage.goto(base+'/club/?game=whot');
+   await penaltyPage.evaluate(()=>{
+     const key='night-play-club-v1',data=JSON.parse(localStorage.getItem(key)),s=data.whot;
+     s.hands[0]=s.hands[0].map((c,i)=>i===0?{s:0,n:3}:c.n===5?{s:0,n:7}:c);
+     s.hands[1][0]={s:0,n:5};
+     s.discard[s.discard.length-1]={s:0,n:3};
+     s.turn=0;s.winner=null;s.pendingPenalty=null;s.pendingFinish=null;
+     s.pendingWhot=null;s.called=null;
+     localStorage.setItem(key,JSON.stringify(data));
+   });
+   await penaltyPage.reload();
+   await penaltyPage.locator('.hand [data-card="0"]').click();
+   await penaltyPage.waitForFunction(()=>window.__nightWhotMotion().lastFlightAction==='cpu'
+     &&window.__nightWhotMotion().activeFlights===1,null,{timeout:4800});
+   const cpuAnimation=await penaltyPage.evaluate(()=>{
+     const e=document.querySelector('.whot-flip-back .card-back');
+     const face=document.querySelector('.whot-flip-front .whot-card');
+     return {faces:document.querySelectorAll('.whot-flight-flip').length,
+       backWords:e?.querySelectorAll('span').length,
+       extraLabel:e?getComputedStyle(e,'::after').content:null,
+       front:face?.querySelector('.whot-suit-big')!=null};
+   });
+   assert.equal(cpuAnimation.faces,1,'CPU actually throws one animated card');
+   assert.equal(cpuAnimation.backWords,2,'CPU travelling back has both authentic WHOT words');
+   assert.equal(cpuAnimation.extraLabel,'none','no obsolete third WHOT word on moving back');
+   assert.equal(cpuAnimation.front,true,'CPU turn reveals the real card face');
+   await penaltyPage.waitForFunction(()=>window.__nightWhotMotion().lastFlightAction==='draw'
+      &&window.__nightWhotMotion().activeFlights>=1,null,{timeout:3800});
+   const staged=await penaltyPage.locator('.hand .whot-card').evaluateAll(cards=>({
+     count:cards.length,hidden:cards.filter(c=>getComputedStyle(c).visibility==='hidden').length
+   }));
+   assert.equal(staged.count,7,'after CPU Pick Three, the player receives three real cards');
+   assert.ok(staged.hidden>=1,'new penalty cards remain hidden until their own flight finishes');
+   await penaltyPage.waitForFunction(()=>window.__nightWhotMotion().activeFlights===0
+      &&window.__nightWhotMotion().draws>=3,null,{timeout:3500});
+   assert.equal(await penaltyPage.locator('.hand .whot-card').count(),7);
+   assert.equal(await penaltyPage.locator('.hand .whot-card').evaluateAll(cards=>cards.filter(c=>getComputedStyle(c).visibility==='hidden').length),0,
+     'all penalty cards reveal only after their arrival');
+   assert.deepEqual(penaltyErrors,[],'CPU penalty flights have no browser JS errors');
+   await penaltyPage.close();
+   // Defence must remain a player's decision. Do not automatically draw
+   // when a matching 5 is available to return the Pick Three.
+   const defendPage=await browser.newPage({viewport:{width,height:844},isMobile:width<=600,hasTouch:width<=600});
+   await defendPage.goto(base+'/club/?game=whot');
+   await defendPage.evaluate(()=>{
+     const key='night-play-club-v1',data=JSON.parse(localStorage.getItem(key)),s=data.whot;
+     s.hands[0][0]={s:0,n:3};s.hands[0][1]={s:2,n:5};
+     s.hands[1][0]={s:0,n:5};s.discard[s.discard.length-1]={s:0,n:3};
+     s.turn=0;s.winner=null;s.pendingPenalty=null;s.pendingFinish=null;
+     s.pendingWhot=null;s.called=null;
+     localStorage.setItem(key,JSON.stringify(data));
+   });
+   await defendPage.reload();
+   await defendPage.locator('.hand [data-card="0"]').click();
+   await defendPage.waitForFunction(()=>document.querySelector('.whot-turn-indicator')?.textContent.includes('DEFEND / PICK 3'),
+     null,{timeout:4500});
+   await defendPage.waitForTimeout(340);
+   assert.equal(await defendPage.locator('.hand .whot-card').count(),4,'do not force penalty draw when 5 defence exists');
+   assert.equal(await defendPage.locator('.hand .whot-card.playable').count(),1,'only the matching 5 can defend');
+   await defendPage.close();
   }
   console.log('WHOT WINNER QA PASS: immersive table, one HUD, player/CPU result overlays, rematch, no redundant information, mobile/desktop');
  }finally{await browser.close()}
