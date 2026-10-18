@@ -2,7 +2,7 @@
 
 A reusable, programmed collectible-card library. The renderer is preserved in `renderer/`, including the original Obsidian PNG, SVG and source in `renderer/preserved/obsidian-v1/`. The restored Nocturne has no circular backdrop; Nocturne and its pearl counterpart Tidelight omit the old emblem.
 
-Each character/form has pinned original artwork and a composition recipe. Batch builds export 3000×4800 PNG masters, embedded SVGs, 320×512 phone proofs, contact sheets, an offline searchable gallery and a machine-readable manifest. Cards now show a compact translucent power grade at the top right, with the main name reduced to 84% of its previous size. The preserved renderers and original Obsidian archive remain reproducible.
+Each character/form has pinned original artwork and a composition recipe. Batch builds export 3000×4800 PNG masters, embedded SVGs, 320×512 phone proofs, contact sheets, an offline searchable gallery and a machine-readable manifest. Cards now show compact translucent glass rank letters at the top right, with the main name reduced to 84% of its previous size. The preserved renderers and original Obsidian archive remain reproducible.
 
 ## Run
 
@@ -85,7 +85,7 @@ The eight finishes remain available: Vanguard, Ivory, Voltage, Crimson, Embergla
 
 `catalog/power/bleach.json` holds explicit, **proposed NIGHT editorial assessments**, not official power levels or a completed scene-by-scene feat audit. Every existing entry has a separate assessment bound to its form ID and artwork checksum. Human Ichigo has the lowest grade, F, but stays pending until matching artwork is acquired. Other unassessed future forms keep a null rank; the system never silently assigns them F or imports a later transformation's power.
 
-The rank is included in review fingerprints, export metadata, gallery filtering and bot lookup (`{rank:'A'}`). Changing a form, source or grade invalidates its approval. The gallery starts with the strongest proposed grades and combines search with a rank filter. The glass treatment samples and blurs the actual SVG scene behind the badge; the letter remains crisp. The two decorative four-point sparkle icons are omitted from new Nocturne/Tidelight exports. Character depth layers remain intact.
+The rank is included in review fingerprints, export metadata, gallery filtering and bot lookup (`{rank:'A'}`). Changing a form, source or grade invalidates its approval. The gallery starts with the strongest proposed grades and combines search with a rank filter. The rank glyphs themselves refract the actual scene and use translucent faces with fine bevel highlights. They float over the artwork without a box, pill, border or background plate. The two decorative four-point sparkle icons are omitted from new Nocturne/Tidelight exports. Character depth layers remain intact.
 
 This work does not set the bot's drop rates, pricing or trading economy, and does not deploy NIGHT/MSCC. Composition changes require new visual review; old approvals are intentionally not copied to changed cards.
 
