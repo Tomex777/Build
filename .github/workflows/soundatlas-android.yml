@@ -44,6 +44,34 @@ jobs:
           "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging SoundAtlas/app/build/outputs/apk/debug/app-debug.apk | tee /tmp/soundatlas-badging.txt
           grep -q "sdkVersion:'26'" /tmp/soundatlas-badging.txt
           grep -q "package: name='com.night.soundatlas'" /tmp/soundatlas-badging.txt
+      - name: Create and verify installable temporary-test-signed APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p SoundAtlas/release
+          umask 077
+          KEYSTORE="$RUNNER_TEMP/soundatlas-$GITHUB_RUN_ID.p12"
+          PASS="$(openssl rand -hex 24)"
+          trap 'rm -f "$KEYSTORE"' EXIT
+          keytool -genkeypair -noprompt -keystore "$KEYSTORE" -storetype PKCS12 \
+            -storepass "$PASS" -keypass "$PASS" -alias night-test -keyalg RSA \
+            -keysize 3072 -validity 365 \
+            -dname "CN=Sound Atlas Temporary Test, OU=NIGHT, O=NIGHT, C=NG"
+          APKSIGNER="$ANDROID_HOME/build-tools/35.0.0/apksigner"
+          "$APKSIGNER" sign --ks "$KEYSTORE" --ks-type PKCS12 \
+            --ks-key-alias night-test --ks-pass "pass:$PASS" --key-pass "pass:$PASS" \
+            --min-sdk-version 26 \
+            --out SoundAtlas/release/SoundAtlas-Android8-plus-test-signed.apk \
+            SoundAtlas/app/build/outputs/apk/release/app-release-unsigned.apk
+          "$APKSIGNER" verify --min-sdk-version 26 --print-certs \
+            SoundAtlas/release/SoundAtlas-Android8-plus-test-signed.apk
+          sha256sum SoundAtlas/release/SoundAtlas-Android8-plus-test-signed.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: SoundAtlas-test-signed-APK
+          path: SoundAtlas/release/SoundAtlas-Android8-plus-test-signed.apk
+          if-no-files-found: error
+          retention-days: 90
       - name: Android emulator install and real screenshot
         uses: reactivecircus/android-emulator-runner@v2
         with:
@@ -79,28 +107,6 @@ jobs:
             if grep -A 4 'FATAL EXCEPTION' SoundAtlas/qa/crashes.txt | grep -q 'com.night.soundatlas'; then
               echo 'Fatal crash during UI interaction'; exit 1
             fi
-      - name: Create and verify installable temporary-test-signed APK
-        shell: bash
-        run: |
-          set -euo pipefail
-          mkdir -p SoundAtlas/release
-          umask 077
-          KEYSTORE="$RUNNER_TEMP/soundatlas-$GITHUB_RUN_ID.p12"
-          PASS="$(openssl rand -hex 24)"
-          trap 'rm -f "$KEYSTORE"' EXIT
-          keytool -genkeypair -noprompt -keystore "$KEYSTORE" -storetype PKCS12 \
-            -storepass "$PASS" -keypass "$PASS" -alias night-test -keyalg RSA \
-            -keysize 3072 -validity 365 \
-            -dname "CN=Sound Atlas Temporary Test, OU=NIGHT, O=NIGHT, C=NG"
-          APKSIGNER="$ANDROID_HOME/build-tools/35.0.0/apksigner"
-          "$APKSIGNER" sign --ks "$KEYSTORE" --ks-type PKCS12 \
-            --ks-key-alias night-test --ks-pass "pass:$PASS" --key-pass "pass:$PASS" \
-            --min-sdk-version 26 \
-            --out SoundAtlas/release/SoundAtlas-Android8-plus-test-signed.apk \
-            SoundAtlas/app/build/outputs/apk/release/app-release-unsigned.apk
-          "$APKSIGNER" verify --min-sdk-version 26 --print-certs \
-            SoundAtlas/release/SoundAtlas-Android8-plus-test-signed.apk
-          sha256sum SoundAtlas/release/SoundAtlas-Android8-plus-test-signed.apk
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -108,9 +114,3 @@ jobs:
           path: SoundAtlas/qa/
           if-no-files-found: warn
           retention-days: 60
-      - uses: actions/upload-artifact@v4
-        with:
-          name: SoundAtlas-test-signed-APK
-          path: SoundAtlas/release/SoundAtlas-Android8-plus-test-signed.apk
-          if-no-files-found: error
-          retention-days: 90
