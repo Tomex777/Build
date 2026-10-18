@@ -3,10 +3,10 @@
   "version": 1,
   "photo_page_range": [
     1,
-    4
+    5
   ],
   "capture_method": "two-facing-pages-per-photo",
-  "description": "Seed catalogue transcribed from the user's book photos. Online sources are candidates, not approved/verified full-text imports. Original TAC numbering takes priority. Hymn 11 extends beyond supplied photos.",
+  "description": "First 11 TAC hymns, from photographed pages 1–5. Hymn 11 concludes on page 5.",
   "hymns": [
     {
       "number": 1,
@@ -175,13 +175,14 @@
       "number": 11,
       "collection": "main",
       "title_yo": "Ọlọ́run àwámárìdì!",
-      "title_en": null,
+      "title_en": "Unsearchable God",
       "source_pages": [
-        4
+        4,
+        5
       ],
-      "estimated_verses": null,
+      "estimated_verses": 4,
       "external_source_url": null,
-      "source_status": "photo_only_partial_hymn",
+      "source_status": "photo_completed_needs_text_review",
       "lyrics_yo": null,
       "lyrics_en": null,
       "photo_match": "opening_line_only",
