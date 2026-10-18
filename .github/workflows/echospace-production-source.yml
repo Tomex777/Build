@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   materialize:
@@ -24,8 +24,24 @@ jobs:
           for patch in             echospace_expand_mixer.py             echospace_abr.py             echospace_mixer_precision.py             echospace_custom_gain.py             echospace_audio_upgrade.py             echospace_svg_icons.py; do
             python3 ".github/scripts/$patch"
           done
+          python3 .github/scripts/echospace_production_hardening.py
           test -f EchoSpace/app/src/main/java/com/nexa/echospace/MainActivity.kt
           tar -czf /tmp/echospace-patched-native-source.tar.gz             EchoSpace/app/src/main/java             EchoSpace/app/src/main/AndroidManifest.xml             EchoSpace/app/build.gradle.kts             EchoSpace/tools/prepare_audio.py
+      - name: Commit materialized native Kotlin/Compose source
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -f EchoSpace/app/src EchoSpace/app/build.gradle.kts
+          for src in EchoSpace/settings.gradle.kts EchoSpace/build.gradle.kts EchoSpace/gradle.properties EchoSpace/tools/prepare_audio.py; do
+            if [ -f "$src" ]; then git add -f "$src"; fi
+          done
+          git diff --cached --stat
+          if ! git diff --cached --quiet; then
+            git commit -m "EchoSpace: track real native Kotlin sources with production hardening"
+            git push origin HEAD:feature/echospace-production-hardening
+          fi
       - uses: actions/upload-artifact@v4
         with:
           name: EchoSpace-expanded-native-source-for-review
