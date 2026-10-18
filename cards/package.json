@@ -14,7 +14,8 @@
     "publish": "node bin/cards.mjs publish",
     "verify": "node bin/cards.mjs verify",
     "pack": "node bin/cards.mjs pack",
-    "gallery": "node bin/cards.mjs gallery"
+    "gallery": "node bin/cards.mjs gallery",
+    "test:gallery": "node bin/verify-gallery.mjs"
   },
   "dependencies": {
     "sharp": "0.35.5",

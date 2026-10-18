@@ -2,7 +2,7 @@ import path from 'node:path';
 import {spawnSync} from 'node:child_process';
 import {build,approve,publish,readJson} from '../src/pipeline.mjs';
 import {inside,loadCatalogue,rendererDigest,reviewFingerprint} from '../src/catalogue.mjs';
-import {writeStandaloneGallery} from '../src/gallery.mjs';
+import {exportGallery} from './export-gallery.mjs';
 import {openCardLibrary} from '../src/bot.mjs';
 import {discover} from '../src/discovery.mjs';
 const [command,...args]=process.argv.slice(2), options={};
@@ -19,7 +19,7 @@ else if(command==='gallery'){
   const expected=catalogue.cards.flatMap(c=>c.designs.map(d=>c.id+'--'+d));
   if(report.failures.length||report.renderer!==renderer||report.cards.length!==expected.length||new Set(report.cards.map(c=>c.id)).size!==expected.length||expected.some(id=>!report.cards.some(c=>c.id===id)))throw Error('Use a complete current collection build');
   for(const entry of report.cards){const card=catalogue.cards.find(c=>entry.id===c.id+'--'+entry.design);if(!card||reviewFingerprint(card,entry.design,renderer,report.width)!==entry.fingerprint)throw Error('Stale gallery card: '+entry.id);}
-  const destination=inside(options.file??'dist/Bleach-Collection.html');await writeStandaloneGallery(report,folder,destination);console.log('Saved',destination);
+  const destination=inside(options.file??'dist/Bleach-Collection.html');await exportGallery(report,folder,destination);console.log('Saved',destination);
 }
 else if(command==='discover')console.log(JSON.stringify(await discover({provider:options.provider??'brave-souls',query:options.query??'',limit:Number(options.limit??150)}),null,2));
 else throw Error('Commands: discover, build, approve, publish, verify, pack, gallery');

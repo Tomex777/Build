@@ -98,3 +98,5 @@ Yoruichi's Nocturne recipe separates her silhouette from the baked-in aura. `rec
 The active catalogue now has 85 editions and 85 distinct pinned original illustrations across 76 characters. Seven repeated-art slots have new illustrations, ten more Nocturne sources use separate foreground mattes, and every acquired form has explicit power boundaries. The extra Ulquiorra Tidelight edition is pending matching distinct artwork. See [the review](docs/COLLECTION-REVIEW.md) for changed grades, sources and per-form exclusions.
 
 Run `npm run gallery -- --out dist/collection-review-masters --file dist/Bleach-Collection.html` after a complete current build to create a self-contained searchable gallery. Exporting a gallery does not approve or publish the bot library.
+
+Create the PDF review book after a full build with `python3 bin/review-book.py dist/collection-review-masters output/pdf/Bleach-Collection.pdf` (ReportLab required). The HTML export uses compressed embedded copies for offline viewing; lossless phone proofs and 3000px masters stay in the build folder.

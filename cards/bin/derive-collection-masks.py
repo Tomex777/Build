@@ -5,7 +5,7 @@ from pathlib import Path
 sys.path.insert(0,str(Path('.cache/mask-tools').resolve()))
 import cv2,numpy as np
 from PIL import Image,ImageDraw
-root=Path('.cache/collection-research');catpath=Path('catalog/bleach.json');cat=json.loads(catpath.read_text());guides=json.loads(Path('artwork/masks/collection-guides.json').read_text())
+root=Path('.cache/collection-research');root.mkdir(parents=True,exist_ok=True);catpath=Path('catalog/bleach.json');cat=json.loads(catpath.read_text());guides=json.loads(Path('artwork/masks/collection-guides.json').read_text())
 for name,polys in guides.items():
  card=next(c for c in cat['cards'] if c['id']==name+'-featured');x,y,w,h=card['recipe']['crop'];orig=np.array(Image.open(card['source']['localPath']).convert('RGBA').crop((x,y,x+w,y+h)))
  guide=np.zeros((h,w),np.uint8)
