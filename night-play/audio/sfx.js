@@ -5,7 +5,7 @@
   const KEY="night-play-sfx-enabled";
   const Context=window.AudioContext||window.webkitAudioContext;
   let enabled=true,ctx=null,master=null,noiseBuffer=null,unlocked=false;
-  const last=new Map();
+  const last=new Map();let total=0,lastCue=null;
   try{enabled=localStorage.getItem(KEY)!=="false";}catch{}
   function unlock(){
     unlocked=true;
@@ -102,6 +102,7 @@
         case "lose":tone(400,280,.15,.065,"triangle");tone(235,165,.19,.056,"triangle",.11);break;
         default:return false;
       }
+      total++;lastCue=name;
       return true;
     }catch{return false;}
   }
@@ -128,7 +129,7 @@
   }
   addEventListener("storage",e=>{if(e.key===KEY){enabled=e.newValue!=="false";sync();}});
   addEventListener("pagehide",()=>{if(ctx&&ctx.state==="running")ctx.suspend().catch(()=>{});});
-  window.NightAudio=Object.freeze({play,attachToggle,setEnabled,get enabled(){return enabled;}});
+  window.NightAudio=Object.freeze({play,attachToggle,setEnabled,get enabled(){return enabled;},snapshot:()=>({enabled,unlocked,ready:ctx?.state==='running',total,lastCue})});
   // Tabletop/arcade settings have persistent DOM; main game's sheet is rebuilt
   // when opened, so its caller mounts the toggle after its settings controls.
   document.addEventListener("DOMContentLoaded",()=>{
