@@ -57,12 +57,19 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p /tmp/echo-audio EchoSpace/app/src/main/assets
-          gh run download 39082348089 --repo "$GITHUB_REPOSITORY" \
-            --name EchoSpace-ARM64-test-signed-installable-APK --dir /tmp/echo-audio
-          APK=/tmp/echo-audio/EchoSpace-arm64-v8a-release-test-signed.apk
-          unzip -oq "$APK" 'assets/audio/*.pcm' 'assets/kemar_44100.hrir' \
-            'assets/recording_credits.json' -d /tmp/echo-audio/unpacked
-          cp -r /tmp/echo-audio/unpacked/assets/. EchoSpace/app/src/main/assets/
+          if gh run download 39082348089 --repo "$GITHUB_REPOSITORY" \
+              --name EchoSpace-ARM64-test-signed-installable-APK --dir /tmp/echo-audio; then
+            APK=/tmp/echo-audio/EchoSpace-arm64-v8a-release-test-signed.apk
+            unzip -oq "$APK" 'assets/audio/*.pcm' 'assets/kemar_44100.hrir' \
+              'assets/recording_credits.json' -d /tmp/echo-audio/unpacked
+            cp -r /tmp/echo-audio/unpacked/assets/. EchoSpace/app/src/main/assets/
+          else
+            # The prior CI artifact expires; reproducibly generate from
+            # tracked CC0 recording/source IDs and MIT KEMAR provenance.
+            sudo apt-get update -qq
+            sudo apt-get install -qq -y ffmpeg
+            python3 EchoSpace/tools/prepare_audio.py
+          fi
       - name: Bundle five licensed offline artwork panels
         if: steps.sound-cache.outputs.cache-hit != 'true'
         shell: bash
