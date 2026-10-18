@@ -34,7 +34,7 @@ tap_dp() {
 tap_dp 10 65
 capture 02-world-library.png
 # First-row right card, within world-library sheet (370dp tall).
-tap_dp 75 275
+tap_dp 75 435
 capture 03-selected-world.png
 tap_dp 30 65
 capture 04-sound-library.png
@@ -45,6 +45,11 @@ capture 05-sound-inspector.png
 tap_dp 91 263
 tap_dp 90 65
 capture 06-explore.png
+# Enter atmospheric editor from the header after returning to edit.
+tap_dp 90 65
+adb shell input tap $(( W - 95 * D / 160 )) $(( 79 * D / 160 ))
+sleep 2
+capture 07-atmosphere.png
 adb shell pidof com.night.soundatlas
 adb logcat -d -s AndroidRuntime:E > SoundAtlas/qa/crashes.txt
 if grep -A 8 'FATAL EXCEPTION' SoundAtlas/qa/crashes.txt | grep -q 'com.night.soundatlas'; then
