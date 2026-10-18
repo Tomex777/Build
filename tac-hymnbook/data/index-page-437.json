@@ -43,7 +43,8 @@
       "redemption_english_title": "Now Thank We All Our God",
       "english_match_status": "number_and_meaning_checked",
       "reference_url": "https://hymnary.org/hymn/RH2006/50",
-      "full_lyrics_imported": false
+      "full_lyrics_imported": true,
+      "full_lyrics_status": "bilingual_working_draft_first_verse_user_confirmed"
     },
     {
       "printed_number": 648,
