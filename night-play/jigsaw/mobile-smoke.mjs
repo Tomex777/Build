@@ -242,6 +242,7 @@ try{
   assert.equal(await page.locator('#galleryPanel').isVisible(),true,'New picture choice works without deleting progress');
   assert.equal(await page.locator('#resumeGalleryBanner').isVisible(),true,'Saved game is still accessible from the gallery');
   await page.locator('#resumeFromGallery').click();
+  await page.waitForFunction(()=>window.__nightJigsawTest?.snapshot().activeRound&&window.__nightJigsawTest.snapshot().pieces.length===144);
   assert.equal(await page.locator('#playScreen').isVisible(),true,'Continue restores the unfinished Master puzzle');
  console.log('PASS NIGHT Play Jigsaw: photographic gallery, real touch drag, hints, save/reload, settings, upload, win and responsive desktop.');
 }finally{if(browser)await browser.close();await new Promise(ok=>server.close(ok))}
