@@ -3,12 +3,12 @@
     <application
         android:allowBackup="true"
         android:label="TAC Hymns"
+        android:icon="@drawable/ic_launcher"
         android:supportsRtl="true"
         android:theme="@style/Theme.TACHymns">
         <activity
             android:name=".MainActivity"
-            android:exported="true"
-            android:configChanges="keyboardHidden|orientation|screenSize">
+            android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
