@@ -80,8 +80,9 @@ function renderLudo(){
  const options=controls.querySelector(".nj-options");
  if(details&&options)details.insertBefore(options,details.querySelector(".nj-switches"));
  if(details&&!details.querySelector(".nj-in-sheet-extra")){
-  details.insertAdjacentHTML("beforeend",'<div class="nj-in-sheet-extra"><button type="button" class="secondary" data-action="ludo-new">↻ New match</button><button type="button" class="secondary" data-action="ludo-sound">'+(s.sound?'♫ Sound ON':'♪ Sound OFF')+'</button></div>');
+  details.insertAdjacentHTML("beforeend",'<div class="nj-in-sheet-extra"><button type="button" class="secondary" data-action="ludo-new">↻ New match</button></div>');
  }
+ if(details)window.NightAudio?.attachToggle(details.querySelector(".nj-switches")||details);
  if(controls.querySelector(".nj-settings[open]")){$("ludoSheetBack").hidden=false;$("ludoSettingsBtn").setAttribute("aria-expanded","true");}
  window.NightLudo3D?.sync();
 }
@@ -90,7 +91,7 @@ function toggleLudoSettings(){const d=controls.querySelector('.nj-settings');if(
 $("ludoSettingsBtn").addEventListener("click",toggleLudoSettings);
 $("ludoSheetBack").addEventListener("click",closeLudoSettings);
 document.addEventListener("keydown",e=>{if(e.key==="Escape")closeLudoSettings();});
-function ludoRoll(){if(state.ludo.opponent==='computer'&&state.ludo.turn===1)return;sfx('dice');window.NightLudo.roll(state.ludo,render);}
+function ludoRoll(){if(state.ludo.opponent==='computer'&&state.ludo.turn===1)return;window.NightLudo.roll(state.ludo,render);}
 function ludoMove(pi,ti){if(state.ludo.opponent==='computer'&&state.ludo.turn===1)return;window.NightLudo.move(state.ludo,pi,ti,render);}
 
 const places=["START","Eko Marina","Yaba","Community Fund","Surulere","Kaduna Road","Transit","Lekki","Sabo","Ikeja","VISIT","Ibadan","Bodija","Market Bonus","Akure","Warri","Coastal Rail","Benin","Asaba","Sapele","REST","Enugu","Nsukka","Electric Bill","Aba","Owerri","Metro Rail","Uyo","Calabar","Ikot Ekpene","HOLD","Jos","Bukuru","Lottery","Minna","Abuja Central","Capital Rail","Gwarinpa","Maitama","Luxury Tax"];
@@ -880,7 +881,7 @@ const whotCall=e.target.closest("[data-whot-call]");if(whotCall&&active==='whot'
 const card=e.target.closest("[data-card]");if(card){if(Number(card.dataset.card)<0)return;cardPlay(active,Number(card.dataset.card),null,card.closest('.whot-hand-overlay')?card:null);return;}
 const sq=e.target.closest("[data-estate-info]");if(sq&&active==="estate"){state.estate.inspect=Number(sq.dataset.estateInfo);render();return;}
 const action=e.target.closest("[data-action]");if(!action)return;
-switch(action.dataset.action){case"whot-hand-open":whotOpenExpanded();break;case"whot-hand-close":whotCloseExpanded();break;case"ludo-roll":ludoRoll();break;case"ludo-new":if(confirm("Restart the Ludo match?")){closeLudoSettings();reset("ludo");}break;case"ludo-sound":state.ludo.sound=!state.ludo.sound;render();break;case"estate-roll":estateRoll();break;case"estate-buy":estateDecision(true);break;case"estate-pass":estateDecision(false);break;case"estate-end":estateEnd();break;case"card-draw":cardDraw(active);break;case"whot-rematch":if(active==="whot"&&state.whot.winner!==null){if(whotOptions.mode==="tournament"&&Math.max(...(whotCareer.tournamentWins||[0,0]))>=2){whotCareer.tournamentWins=[0,0];whotStore()}reset("whot")}break;
+switch(action.dataset.action){case"whot-hand-open":whotOpenExpanded();break;case"whot-hand-close":whotCloseExpanded();break;case"ludo-roll":ludoRoll();break;case"ludo-new":if(confirm("Restart the Ludo match?")){closeLudoSettings();reset("ludo");}break;case"estate-roll":estateRoll();break;case"estate-buy":estateDecision(true);break;case"estate-pass":estateDecision(false);break;case"estate-end":estateEnd();break;case"card-draw":cardDraw(active);break;case"whot-rematch":if(active==="whot"&&state.whot.winner!==null){if(whotOptions.mode==="tournament"&&Math.max(...(whotCareer.tournamentWins||[0,0]))>=2){whotCareer.tournamentWins=[0,0];whotStore()}reset("whot")}break;
 case"whot-last-call":if(active==="whot"&&state.whot.turn===0&&state.whot.hands[0].length===1){state.whot.calledLast=[true,Boolean(state.whot.calledLast?.[1])];state.whot.msg="Last card declared!";render()}break;case"whot-call-cancel":if(active==='whot'&&!cardMotionBusy){state.whot.pendingWhot=null;render();}break;case"snakes-roll":snakesRoll();break;case"draw-ready":drawReady();break;case"draw-next":drawNext();break;case"draw-guess":drawReadyToGuess();break;case"draw-clear":if(drawCtx){drawCtx.clearRect(0,0,800,600);}break;case"draw-erase":setBrush("erase");break;case"checkers-reset":reset("checkers");break;}
 });
 // Read-only motion diagnostics for real Chromium touch and frame tests.
