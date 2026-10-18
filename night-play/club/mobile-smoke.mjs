@@ -271,6 +271,8 @@ try{
   assert.equal(whotDeck.cards.length,54,"WHOT uses the real 54-card distribution");
   assert.equal(whotDeck.player,5,"WHOT starts with five cards");
   assert.equal(whotDeck.opponent,5);
+  assert.equal(await page.locator('.whot-opponent-hand .card-back').count(),3,'CPU cards use compact stack');
+  assert.equal((await page.locator('.whot-seat-cpu strong').textContent()).trim(),'5','CPU count remains visible');
   const expected=[[1,2,3,4,5,7,8,10,11,12,13,14],[1,2,3,4,5,7,8,10,11,12,13,14],[1,2,3,5,7,10,11,13,14],[1,2,3,5,7,10,11,13,14],[1,2,3,4,5,7,8]];
   for(let s=0;s<5;s++)assert.deepEqual(whotDeck.cards.filter(x=>x.s===s).map(x=>x.n).sort((a,b)=>a-b),expected[s],"WHOT suit "+s+" matches OG distribution");
   assert.equal(whotDeck.cards.filter(x=>x.n===20).length,5);
@@ -335,7 +337,7 @@ try{
     assert.ok(m.cornerHits.every(Boolean),'fan top-left corners clickable');
    }else{
     assert.ok(m.rects.some(r=>r.top-m.rects[0].top>85),'two rows of cards');
-    assert.ok(m.visible<=16,'ultra-large hand stays readable');
+    assert.ok(m.visible<=12,'ultra-large hand stays readable');
     assert.equal(m.gallery,n>=13,'gallery control offered for large hands');
     assert.ok(m.cornerHits.every(Boolean),'two-row corners accessible');
    }
