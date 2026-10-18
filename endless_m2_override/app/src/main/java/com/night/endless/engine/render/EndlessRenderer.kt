@@ -2244,30 +2244,40 @@ void main() {
     vec3 sky = vec3(0.002, 0.002, 0.003);
 
     if (uSkyWorld == 0) {
-        // Mars: scattering-enhanced, dust-rich horizon and violet-grey
-        // optically thin zenith. This remains an atmosphere approximation;
-        // no fabricated terrestrial blue sky or painted clouds.
-        float path = exp(-6.4 * max(elev, 0.0));
-        float zenith = smoothstep(-0.025, 0.70, elev);
-        sky = mix(vec3(0.51, 0.32, 0.235),
-                  vec3(0.164, 0.165, 0.187), zenith);
-        sky += vec3(.042, .020, .007) * path;
-        // Sun scattering is coherent with the terrain's directional light.
-        // Martian sun angular radius (~0.175 deg) is smaller than Earth's.
+        // A computationally cheap single-scattering approximation, built
+        // from coherent horizon optical depth and a forward Mie aerosol
+        // phase function. Its anisotropic halo tracks actual camera yaw.
+        // No decorative cloud bands or terrestrial blue horizon.
         vec3 sunDirection = normalize(vec3(-.45, .85, .35));
-        float cosTheta = clamp(dot(ray, sunDirection), 0.0, 1.0);
-        float aureole = pow(cosTheta, 130.0) * .16;
-        float nearSun = pow(cosTheta, 3000.0);
-        sky += vec3(1.0, .72, .42) * aureole;
-        sky += vec3(1.0, .88, .68) * nearSun * .45;
+        float cosTheta = clamp(dot(ray,sunDirection),-1.0,1.0);
+        float g = .72;
+        float mie = (1.0-g*g) /
+            pow(max(1.0+g*g-2.0*g*cosTheta,.0025),1.5);
+        float airMass = exp(-5.5*max(elev,0.0));
+        float zenith = smoothstep(-.035,.75,elev);
+        vec3 horizon = vec3(.465,.282,.199);
+        vec3 upperSky = vec3(.164,.164,.186);
+        sky = mix(horizon,upperSky,zenith);
+        sky += vec3(.035,.019,.010)*airMass;
+        sky += vec3(.94,.64,.40)*min(mie*.007, .40);
+        // Even a small 0.18-degree Martian Sun should not be a
+        // screen-space white bloom pasted into a brown gradient.
+        float sunDisk = smoothstep(.999984,.999996,cosTheta);
+        sky += vec3(.90,.82,.68)*sunDisk*.44;
     } else if (uSkyWorld == 1) {
-        // Titan's thick nitrogen/organic aerosol atmosphere: muted, no
-        // crisp Sun and no visible stars. Horizon radiance transitions
-        // smoothly into foreground aerial extinction in surface shader.
-        float airMass = exp(-3.6 * max(elev, 0.0));
-        sky = mix(vec3(.275, .158, .077), vec3(.48, .285, .125), airMass);
-        float solarGlow = pow(max(dot(ray, normalize(vec3(-.32,.58,.31))), 0.0), 30.0);
-        sky += vec3(.065, .037, .016) * solarGlow * (1.0 - airMass * .27);
+        // The Titan Huygens atmosphere is optically thick. Aerosol Mie
+        // scattering is strongly forward-peaked, but the direct solar
+        // disk is largely hidden at the surface. No stars or Saturn.
+        vec3 sunDirection = normalize(vec3(-.32,.58,.31));
+        float cosTheta = clamp(dot(ray,sunDirection),-1.0,1.0);
+        float g = .83;
+        float mie = (1.0-g*g) /
+            pow(max(1.0+g*g-2.0*g*cosTheta,.008),1.5);
+        float airMass = exp(-2.8*max(elev,0.0));
+        vec3 upperHaze = vec3(.278,.170,.086);
+        vec3 horizonHaze = vec3(.48,.285,.125);
+        sky = mix(upperHaze,horizonHaze,airMass);
+        sky += vec3(.065,.045,.023)*min(mie*.009,.27);
     } else if (uSkyWorld == 2 && uHasJupiterTexture == 1 && ray.y > 0.0) {
         // Europa's near-side Jupiter view: physically small, oblate and
         // directly illuminated by the same Sun used on the ice terrain.
