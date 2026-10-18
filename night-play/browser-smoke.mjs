@@ -79,6 +79,9 @@ try {
 
  assert.equal(await page.locator('#view-profile').getByText('Not connected').count(),0,'No repeated disconnected status')
  assert.equal(await page.locator('#view-profile button[data-dialog="connect"]').count(),0,'Card must not duplicate the connection CTA')
+  assert.equal(await page.locator('#profilePaneChannels .account-tile').count(),1,'One Manage channels entry on Profile, no redundant Anonymous card');
+  assert.equal(await page.locator('#profilePaneChannels a[href="/channels/"]').count(),1,'Manage channels is the only entry');
+  assert.equal(await page.locator('#profilePaneChannels a[href="/anonymous/"]').count(),0,'Anonymous Nights lives inside Manage channels');
  assert.equal(await page.locator('header button[data-dialog="connect"]').isVisible(),true,'Only global connect CTA')
  assert.equal(await page.locator('#accountBadges').textContent(),'4 / 4','Device records unlock all four thresholds when met');
   assert.equal(await page.locator('#accountRounds').textContent(),'243','Correct activity total');
