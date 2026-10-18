@@ -57,10 +57,14 @@ export async function createSession() {
           }
         }
         if(root.dataset.design==='nocturne'&&[...root.querySelectorAll('ellipse')].some(n=>!n.closest('defs')))throw Error('Nocturne circular backdrop returned');
-        const badge=root.querySelector('[data-layer="power-rank"]'),badgeText=badge?.querySelector('text');
-        if(!badgeText||!['F','E','D','C','B','A','S','SS','SSS','—'].includes(badgeText.textContent))throw Error('Missing or invalid power badge');
-        const badgeBox=badgeText.getBoundingClientRect(),lens=badge.querySelector('rect').getBoundingClientRect();
-        if(badgeBox.left<lens.left||badgeBox.right>lens.right||badgeBox.top<lens.top||badgeBox.bottom>lens.bottom)throw Error('Power grade overflows its glass badge');
+        const rankLayer=root.querySelector('[data-layer="power-rank"]'),rankText=root.querySelector('[data-rank-source]'),rankInk=rankLayer?.querySelector('[data-rank-ink]');
+        if(!rankInk||!['F','E','D','C','B','A','S','SS','SSS','—'].includes(rankText?.textContent))throw Error('Missing or invalid glass rank lettering');
+        if(rankLayer.querySelector('rect')||rankLayer.dataset.powerMaterial!=='glass-letters')throw Error('Rank lettering must have no background plate');
+        const rankStyle=getComputedStyle(rankText);ctx.font=`${rankStyle.fontStyle} ${rankStyle.fontWeight} ${rankStyle.fontSize} ${rankStyle.fontFamily}`;
+        const rankMetrics=ctx.measureText(rankText.textContent),rankStart=rankText.getStartPositionOfChar(0),rankSpacing=parseFloat(rankStyle.letterSpacing)||0;
+        const gradeBox={left:rankStart.x-rankMetrics.actualBoundingBoxLeft,right:rankStart.x+rankMetrics.actualBoundingBoxRight+Math.max(0,rankText.textContent.length-1)*rankSpacing,top:rankStart.y-rankMetrics.actualBoundingBoxAscent,bottom:rankStart.y+rankMetrics.actualBoundingBoxDescent};
+        const area={x:Number(rankLayer.dataset.rankX),y:Number(rankLayer.dataset.rankY),w:Number(rankLayer.dataset.rankWidth),h:Number(rankLayer.dataset.rankHeight)};
+        if(gradeBox.left<area.x||gradeBox.right>area.x+area.w||gradeBox.top<area.y||gradeBox.bottom>area.y+area.h)throw Error('Glass rank lettering overflows its reserved corner');
         const image=root.querySelector('image'),use=[...root.querySelectorAll('use')].find(n=>n.getAttribute('href')==='#'+image?.id);
         if(!image||!use)throw Error('Missing embedded illustration');
         const decoded=new Image();decoded.src=image.getAttribute('href');await decoded.decode();
@@ -71,7 +75,7 @@ export async function createSession() {
         const matrix=own?use.getScreenCTM().multiply(own):use.getScreenCTM();
         const p=new DOMPoint(x,y).matrixTransform(matrix);
         if(p.x<75||p.x>925||p.y<100||p.y>1150)throw Error(`Subject focal point outside safe area: ${Math.round(p.x)},${Math.round(p.y)}`);
-        return {artworkDecoded:true,uniqueIDs:true,validReferences:true,nameInkWithinCard:true,powerRank:badgeText.textContent,powerBadgeWithinBounds:true,nameScale:Number(names[0].dataset.titleScale),circleAbsent:root.dataset.design==='nocturne'?true:null,focalPosition:[Math.round(p.x),Math.round(p.y)]};
+        return {artworkDecoded:true,uniqueIDs:true,validReferences:true,nameInkWithinCard:true,powerRank:rankText.textContent,powerGlyphWithinBounds:true,powerBackgroundAbsent:true,nameScale:Number(names[0].dataset.titleScale),circleAbsent:root.dataset.design==='nocturne'?true:null,focalPosition:[Math.round(p.x),Math.round(p.y)]};
       },focal);
       const png=await page.locator('svg').screenshot({omitBackground:true,timeout:120000});
       const m=await sharp(png).metadata();if(m.width!==width||m.height!==width*1.6)throw Error('Incorrect export dimensions');
