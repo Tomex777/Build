@@ -2266,3 +2266,21 @@ body.whot-mode .whot-flight-flip .whot-flip-core{
   margin-left:-42px!important;
  }
 }
+
+
+/* A physical pile reveals only the edges of the two cards underneath.
+   Never expose chopped-up 'WHOT' lettering on half-covered card backs. */
+body.whot-mode .table-surface>.whot-opponent-hand>.card-back + .card-back{
+ margin-left:-64px!important;
+}
+body.whot-mode .table-surface>.whot-opponent-hand>.card-back:not(:last-child)>span{
+ visibility:hidden!important;
+}
+body.whot-mode .table-surface>.whot-opponent-hand>.card-back:not(:last-child){
+ border-left:2px solid #ffe9e022!important;
+}
+@media(min-width:651px){
+ body.whot-mode .table-surface>.whot-opponent-hand>.card-back + .card-back{
+  margin-left:-80px!important;
+ }
+}
