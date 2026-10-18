@@ -323,6 +323,13 @@ ensure_media_visible() {
     sleep 0.7
   done
   cat "qa-evidence/${name}.xml"
+  # Diagnose the actual import failure rather than treating a permanent
+  # thumbnail spinner as a slow emulator. This is captured in CI even for
+  # non-debuggable release APKs, without weakening app storage isolation.
+  echo "Media block $name never resolved; Android media/import diagnostics:" >&2
+  adb logcat -d -v brief 2>/dev/null |
+    grep -E -A 12 'LaterMediaImport|LaterMediaPicker|AndroidRuntime|FATAL EXCEPTION|BitmapFactory|SecurityException|Unable to decode|MediaDraftPreparer|com\\.night\\.later' |
+    tail -n 160 >&2 || true
   echo "Could not resolve a ready $kind media block in the editor viewport" >&2
   exit 1
 }
