@@ -1,0 +1,40 @@
+{
+  "number": 16,
+  "collection": "main",
+  "language": "yo",
+  "title": "Tàyọ̀tàyọ̀ làwa ó máa júbà Rẹ",
+  "title_en": "With Gladness We Worship, Rejoice as We Sing",
+  "pages": [
+    6
+  ],
+  "status": "draft_photo_needs_review",
+  "review_notes": "All four Yoruba verses visible on page 6; English original has same four verses but order 1,3,2,4 in this local book.",
+  "online_comparison": "https://hymnary.org/text/with_gladness_we_worship_rejoice_as_we_s",
+  "verses": [
+    [
+      "Tàyọ̀tàyọ̀ làwa ó máa júbà Rẹ",
+      "Pẹ̀lú ọkàn ọpẹ́ làwa ó yin Ọ",
+      "Ìhìn orin ayọ̀ wa yóò gòkè lọ",
+      "S'ọdọ Ọlọ́run, Olùbùkún jùlọ"
+    ],
+    [
+      "Ọlá ló yẹ Ọ làwa ó fi fún Ọ",
+      "Ẹni tí ayé àti ọ̀run ń júbà",
+      "Ẹ̀dá ló wà nílẹ̀ tí ń múkún",
+      "Gbogbo wọn ń wọlé níwájú Ọba wọn"
+    ],
+    [
+      "Nípà Ẹ̀mí Rẹ ni Ìsọ wa d'ọ̀tun",
+      "Ìràpadà ló sọ wa di ọmọ Ọlọ́run",
+      "Títí la ó máa dúpẹ́ oore tó ṣe wa",
+      "Kọ wa, Baba, bí a ti ń yin Ọ l'ógo"
+    ],
+    [
+      "Pẹ̀lú àwọn áńgẹ́lì, àwa ń júbà Rẹ",
+      "Kí alélúyà wa dá pọ̀ mọ́ ti wọn",
+      "Bẹ́ẹ̀ ni ògo yẹ Ọ láyé àti ọ̀run",
+      "Ìwọ ló rà wá padà tí a sì ṣẹ́gun"
+    ]
+  ],
+  "verses_en": []
+}
