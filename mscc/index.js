@@ -13,6 +13,7 @@ import QRCode from 'qrcode'
 import { startWebPanel } from './web-panel.js'
 import { NightPlay, createNightPlayHandler } from './night-play.js'
 import { createNightPlayAvatarSync } from './night-play-avatar.js'
+import { createNightPlayChannelPhotoSync } from './night-play-channel-photo.js'
 import { recordPendingChannelLink, pendingChannelLink } from './night-channel-links.js'
 import { megaStorageDashboard, megaAvailableMounts, megaVerifyFolder } from './mega-storage.js'
 import { dispatchNamespacedCommand, loadCommands } from './command-registry.js'
@@ -3542,7 +3543,7 @@ async function init() {
   await writeRuntimeRegistry()
   startSettingsWatcher()
   webServer = startWebPanel({
-    nightPlayHandler: createNightPlayHandler(nightPlay, { refreshAvatar:createNightPlayAvatarSync(nightPlay, accounts), accounts }),
+    nightPlayHandler: createNightPlayHandler(nightPlay, { refreshAvatar:createNightPlayAvatarSync(nightPlay, accounts), refreshChannelPhotos:createNightPlayChannelPhotoSync(nightPlay, accounts), accounts }),
     port: WEB_PORT,
     host: WEB_HOST,
     password: WEB_PASSWORD,
