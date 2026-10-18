@@ -20,7 +20,9 @@ import studio.artistscene.core.EnvironmentPreset
  * Filament's standard directional / indirect lighting and contact shadows.
  */
 internal fun createOutdoorSky(engine: Engine, preset: EnvironmentPreset = EnvironmentPreset.DAYLIGHT): Texture {
-    val size = 128
+    // A 128px cubemap is sufficient for low-end Android 8 devices; on modern
+    // phones use 256px faces so subtle cloud/horizon gradients survive HD exports.
+    val size = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) 256 else 128
     val faceBytes = size * size * 4
     val pixels = ByteBuffer.allocateDirect(faceBytes * 6)
     val zenith = colorChannels(preset.zenithRgb)
