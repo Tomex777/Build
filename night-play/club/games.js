@@ -428,10 +428,16 @@ async function cardPlay(kind,index,requestedShape=null,visualOrigin=null){
     board.querySelector('.card-pile .whot-card'),{action:'play'});
   }
   if(epoch!==cardMotionEpoch||active!==kind||state[kind]!==s)return;
+  const cpuBefore=kind==='whot'?s.hands[1].length:0;
   s.hands[0].splice(index,1);nextCardTurn(kind,s,0,card,chosen);
   if(s.winner===null)sfx(kind==='whot'&&[1,2,5,8,14,20].includes(card.n)?'special':'card');
   else if(kind==='colors')sfx('win');
-  render();if(kind==='whot')whotSettle();if(s.turn===1)queueCPU(kind);
+  render();if(kind==='whot')whotSettle();
+  if(kind==='whot'&&s.hands[1].length>cpuBefore){
+   await whotAnimateDraws(s,1,cpuBefore,epoch);
+  }
+  if(epoch!==cardMotionEpoch||active!==kind||state[kind]!==s)return;
+  if(s.turn===1)queueCPU(kind);
  }finally{if(epoch===cardMotionEpoch)cardMotionBusy=false;}
 }
 async function cardDraw(kind){
@@ -442,18 +448,16 @@ async function cardDraw(kind){
    const wasFinish=s.pendingFinish===0,penalty=whotPending(s);
    const count=wasFinish?1:penalty?penalty.amount:1;
    const before=s.hands[0].length;
-   cardMotionMetrics.draws++;
    take(s,0,count);
+   const actual=s.hands[0].length-before;
+   cardMotionMetrics.draws+=actual;
    if(wasFinish)s.pendingFinish=null;
    if(penalty)s.pendingPenalty=null;
    s.turn=1;
    s.msg=wasFinish?"No action-card check-up. Picked one — game continues.":
-     penalty?"You picked "+count+" penalty cards.":"You picked a card. Computer's turn.";
+     penalty?"You picked "+actual+" penalty card"+(actual===1?"":"s")+".":"You picked a card. Computer's turn.";
    render();
-   const newCard=board.querySelectorAll('.hand .whot-card')[before];
-   const landing=newCard&&getComputedStyle(newCard).display!=='none'?newCard:board.querySelector('.whot-view-hand:not([hidden])');
-   await whotFly(board.querySelector('.whot-deck-back'),landing,{face:s.hands[0][before],action:'draw'});
-   sfx('draw');
+   await whotAnimateDraws(s,0,before,epoch);
    if(epoch!==cardMotionEpoch||active!==kind||state[kind]!==s)return;
    queueCPU(kind);
    return;
@@ -483,42 +487,69 @@ function whotChooseCPU(s){
 }
 function queueCPU(kind){
  const round=state[kind],epoch=cardMotionEpoch;
- setTimeout(async ()=>{
-  if(active!==kind||round!==state[kind]||cardMotionEpoch!==epoch||round.turn!==1||round.winner!==null)return;
-  const s=round;
-  if(kind==='whot'&&s.pendingFinish===1){
-   take(s,1,1);s.pendingFinish=null;
-   s.turn=0;
-   s.msg="Computer cannot check up on a final action card. CPU picks one.";
-   render();return;
-  }
-  const penalty=kind==='whot'?whotPending(s):null;
-  const idx=kind==='whot'?whotChooseCPU(s):s.hands[1].findIndex(card=>playable(kind,s,card));
-  if(idx<0){
-   if(kind==='whot'){
-    cardMotionMetrics.draws++;
-    await whotFly(board.querySelector('.whot-deck-back'),board.querySelector('.card-back'),{action:'draw'});
-    sfx('draw');
+ setTimeout(async()=>{
+  if(active!==kind||round!==state[kind]||cardMotionEpoch!==epoch||round.turn!==1||round.winner!==null||cardMotionBusy)return;
+  const s=round;cardMotionBusy=true;
+  let anotherTurn=false;
+  let autoPenalty=false;
+  try{
+   if(kind==='whot'&&s.pendingFinish===1){
+    const before=s.hands[1].length;
+    take(s,1,1);s.pendingFinish=null;s.turn=0;
+    s.msg="CPU cannot check up on a final action card. CPU picks one.";
+    render();
+    await whotAnimateDraws(s,1,before,epoch);
+    autoPenalty=true;
+   }else{
+    const penalty=kind==='whot'?whotPending(s):null;
+    const idx=kind==='whot'?whotChooseCPU(s):s.hands[1].findIndex(card=>playable(kind,s,card));
+    if(idx<0){
+     const before=s.hands[1].length;
+     const amount=penalty?penalty.amount:1;
+     take(s,1,amount);
+     if(penalty)s.pendingPenalty=null;
+     s.turn=0;
+     const actual=s.hands[1].length-before;
+     s.msg=penalty?"Computer picks "+actual+" penalty cards.":"Computer picks from market.";
+     if(kind==='whot'){
+      cardMotionMetrics.draws+=actual;
+      render();
+      await whotAnimateDraws(s,1,before,epoch);
+     }else render();
+    }else{
+     const card=s.hands[1][idx];
+     if(kind==='whot'){
+      cardMotionMetrics.cpuPlays++;
+      // The exact card-back that leaves the opponent's hand is animated
+      // across the tabletop and reveals the face in a full 3D flip.
+      const backs=board.querySelectorAll('.whot-opponent-hand .card-back');
+      const origin=backs[Math.min(idx,backs.length-1)]||backs[backs.length-1];
+      await whotFly(origin,board.querySelector('.card-pile .whot-card'),{face:card,action:'cpu'});
+     }
+     if(active!==kind||state[kind]!==s||cardMotionEpoch!==epoch)return;
+     const playerBefore=kind==='whot'?s.hands[0].length:0;
+     s.hands[1].splice(idx,1);
+     sfx(kind==='whot'&&[1,2,5,8,14,20].includes(card.n)?'special':'card');
+     const suitCounts=kind==='whot'?shapes.map((_,shape)=>s.hands[1].filter(c=>c.s===shape).length):[];
+     const cpuCall=kind==='whot'?suitCounts.indexOf(Math.max(...suitCounts)):Math.floor(Math.random()*4);
+     nextCardTurn(kind,s,1,card,cpuCall);
+     render();if(kind==='whot')whotSettle();
+     if(kind==='whot'&&s.hands[0].length>playerBefore){
+      await whotAnimateDraws(s,0,playerBefore,epoch);
+     }
+     anotherTurn=s.turn===1;
+     autoPenalty=kind==='whot'&&s.turn===0;
+    }
    }
-   if(active!==kind||state[kind]!==s||cardMotionEpoch!==epoch)return;
-   const count=penalty?penalty.amount:1;
-   take(s,1,count);
-   if(penalty)s.pendingPenalty=null;
-   s.turn=0;s.msg=penalty?"Computer picks "+count+" penalty cards.":"Computer picks from market.";
-   render();return;
+  }finally{
+   if(cardMotionEpoch===epoch){
+    cardMotionBusy=false;
+    if(active===kind&&state[kind]===s){
+     if(anotherTurn)queueCPU(kind);
+     else if(autoPenalty)whotAutoReceivePenalty(s);
+    }
+   }
   }
-  const card=s.hands[1][idx];
-  if(kind==='whot'){
-   cardMotionMetrics.cpuPlays++;
-   await whotFly(board.querySelector('.card-back'),board.querySelector('.card-pile .whot-card'),{face:card,action:'cpu'});
-  }
-  if(active!==kind||state[kind]!==s||cardMotionEpoch!==epoch)return;
-  s.hands[1].splice(idx,1);
-  sfx(kind==='whot'&&[1,2,5,8,14,20].includes(card.n)?'special':'card');
-  const suitCounts=kind==='whot'?shapes.map((_,shape)=>s.hands[1].filter(c=>c.s===shape).length):[];
-  const cpuCall=kind==='whot'?suitCounts.indexOf(Math.max(...suitCounts)):Math.floor(Math.random()*4);
-  nextCardTurn(kind,s,1,card,cpuCall);
-  render();if(kind==='whot')whotSettle();if(s.turn===1)queueCPU(kind);
  },kind==='whot'?whotMotion.cpuDelay:470);
 }
 function whotShapeSvg(s,n,mini=false){
