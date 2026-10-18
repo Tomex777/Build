@@ -143,7 +143,10 @@ try{
   const selectedEnd=await p.evaluate(()=>window.__nightJigsawTest.snapshot().selected);
   const paintingEnd=await p.evaluate(()=>window.__nightJigsawTest.snapshot());
   assert.equal(paintingStart.staticPaints,paintingEnd.staticPaints,'144-piece finger tracking must not redraw full board');
-  assert.ok(paintingEnd.dragPaints>=paintingStart.dragPaints+5,'High-count drag layer redraws piece independently');
+  assert.equal(paintingEnd.dragPaints,paintingStart.dragPaints,
+   '144-piece DPR 2–3 drags must composite without repainting the high-DPI drag canvas');
+  assert.match(await p.locator('#dragCanvas').evaluate(el=>el.style.transform),
+   /translate3d\(/,'High-density zoomed drag has an active compositor transform');
   assert.ok(Math.hypot(selectedEnd.x-selectedStart.x,selectedEnd.y-selectedStart.y)>7,
    'Android high-DPI loose piece follows finger while zoomed');
   await send('touchEnd',0,0);await touch.detach();

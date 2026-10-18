@@ -116,13 +116,18 @@ try{
  },{x:initialPiece.x+fingerDelta.x,y:initialPiece.y+fingerDelta.y},{timeout:3000});
  const moving=await page.evaluate(()=>window.__nightJigsawTest.snapshot());
  assert.equal(moving.staticPaints,paintStart.staticPaints,'Jigsaw drag never redraws 24 static pieces');
- assert.ok(moving.dragPaints>paintStart.dragPaints+2,'Only the selected piece redraws with the finger');
+ assert.equal(moving.dragPaints,paintStart.dragPaints,
+   'Fast flicks must composite the cached piece without repainting the full-size drag canvas');
+ const movingTransform=await page.locator('#dragCanvas').evaluate(el=>el.style.transform);
+ assert.match(movingTransform,/translate3d\(/,'Dragged piece is translated by the GPU compositor');
  assert.ok(Math.abs(moving.selected.x-(initialPiece.x+fingerDelta.x))<3 &&
    Math.abs(moving.selected.y-(initialPiece.y+fingerDelta.y))<3,
    'Picked-up piece follows finger coordinates without visible offset or lag');
  await cdp.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x:info.toX,y:info.toY,id:11}]});
  await cdp.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
  assert.ok((await page.evaluate(()=>window.__nightJigsawTest.snapshot())).staticPaints>paintStart.staticPaints,'Full scene only redraws on release');
+ assert.equal(await page.locator('#dragCanvas').evaluate(el=>el.style.willChange),'',
+  'Release returns compositor layer to idle to avoid retaining mobile GPU memory');
  await page.waitForFunction(()=>window.__nightJigsawTest.snapshot().placed>=1,null,{timeout:1200});
  assert.equal(await page.locator('#progress').innerText(),'1 / 24','Touch drag moves piece into image');
  await page.locator('#hintButton').click();

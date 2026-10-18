@@ -12,6 +12,7 @@ export class PuzzleBoard{
   this.dragCanvas=wrapper.querySelector('#dragCanvas');
   this.dragCtx=this.dragCanvas.getContext('2d',{alpha:true});
   this.staticPaintCount=0;this.dragPaintCount=0;
+  this.dragAnchorX=null;this.dragAnchorY=null;
   this.rows=3;this.cols=4;this.totalPieces=12;this.pieces=[];this.selectedPiece=null;
   this.boardX=0;this.boardY=0;this.boardWidth=0;this.boardHeight=0;
   this.pieceWidth=0;this.pieceHeight=0;this.tray={x:0,y:0,w:0,h:0};
@@ -312,12 +313,14 @@ export class PuzzleBoard{
   this.renderDrag();
  }
  renderDrag(){
-  // Clear only the transparent layer. The 24–144 other puzzle pieces and the
-  // background remain cached in the canvas underneath, even at 120Hz touch.
+  // Rasterize the picked-up group once, on pickup or other scene changes.
+  // Pointer moves translate this prepainted layer with a compositor transform,
+  // never clearing a full-screen high-DPI canvas or repainting shadows per move.
   this.dragPaintCount++;
   const ctx=this.dragCtx;
   ctx.clearRect(0,0,this.viewportWidth,this.viewportHeight);
-  if(!this.selectedPiece)return;
+  if(!this.selectedPiece){this.dragAnchorX=null;this.dragAnchorY=null;return;}
+  this.dragAnchorX=this.selectedPiece.x;this.dragAnchorY=this.selectedPiece.y;
   for(const p of this.selectedPieces){
    ctx.save();ctx.shadowColor='#332a205e';ctx.shadowBlur=8;ctx.shadowOffsetY=3;
    ctx.drawImage(p.offscreenCanvas,p.x-p.canvasMargin,p.y-p.canvasMargin,p.renderWidth,p.renderHeight);
