@@ -552,6 +552,12 @@ class MainActivity : Activity() {
                         c.drawCircle(x+15f,y+ch/2,5f,paint(kind.color))
                         label(c,kind.title,x+28f,y+ch/2+4f,11f,text,true)
                         buttons+=Hit(RectF(x,y,x+cell,y+ch)){
+                            if(world.sounds.size>=WorldLimits.MAX_SOURCES){
+                                Toast.makeText(this@MainActivity,
+                                    "Maximum ${WorldLimits.MAX_SOURCES} layers for reliable audio",
+                                    Toast.LENGTH_SHORT).show()
+                                return@Hit
+                            }
                             val id=world.newId()
                             val offset=world.sounds.size%8
                             val pos=world.bound(world.listener.moved(
@@ -794,7 +800,10 @@ class MainActivity : Activity() {
                         -3 -> {
                             val a=drawingWall;val b=drawingEnd?:world.bound(unxy(pos))
                             if(a!=null && a.distance(b)>1f){
-                                world.walls+=Wall(a,b,wallMaterial);changed()
+                                if(world.walls.size>=WorldLimits.MAX_WALLS){
+                                    Toast.makeText(this@MainActivity,
+                                        "Wall limit reached for smooth playback",Toast.LENGTH_SHORT).show()
+                                }else{world.walls+=Wall(a,b,wallMaterial);changed()}
                             }
                         }
                         -4 -> {
@@ -805,8 +814,13 @@ class MainActivity : Activity() {
                                 Triple("Damped studio",.22f,.92f))[selectedZoneType]
                             val x=(p.x-12f).coerceIn(0f,(world.width-24f).coerceAtLeast(0f))
                             val y=(p.y-10f).coerceIn(0f,(world.height-20f).coerceAtLeast(0f))
-                            world.zones+=Zone(props.first,x,y,24f,20f,props.second,props.third)
-                            mode=Mode.EDIT;changed()
+                            if(world.zones.size>=WorldLimits.MAX_ZONES){
+                                Toast.makeText(this@MainActivity,
+                                    "Room limit reached for smooth playback",Toast.LENGTH_SHORT).show()
+                            }else{
+                                world.zones+=Zone(props.first,x,y,24f,20f,props.second,props.third)
+                                mode=Mode.EDIT;changed()
+                            }
                         }
                         -1 -> if(!moved) {
                             selectedId=null;selectedWall=-1;selectedZone=-1;invalidate()
