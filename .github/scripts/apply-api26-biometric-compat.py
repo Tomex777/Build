@@ -463,6 +463,97 @@ editor_text = (
 )
 editor.write_text(editor_text)
 
+# The cached image viewer/editor must also support API 26 and API 27.
+# Android ImageDecoder is API 28+, and a missing OnHeaderDecodedListener
+# prevented cached thumbnails from ever leaving their loading spinner.
+viewer_path = root / "app/src/main/java/com/night/later/ui/media/LaterMediaViewer.kt"
+viewer_text = viewer_path.read_text()
+import_anchor = "import android.graphics.ImageDecoder\n"
+if viewer_text.count(import_anchor) != 1:
+    raise SystemExit("expected single ImageDecoder import in LaterMediaViewer")
+viewer_text = viewer_text.replace(
+    import_anchor,
+    "import android.graphics.BitmapFactory\n" + import_anchor,
+    1
+)
+old_decode = """    return runCatching {
+        ImageDecoder.decodeBitmap(
+            ImageDecoder.createSource(file)
+        ) { decoder, info, _ ->
+            decoder.setAllocator(ImageDecoder.ALLOCATOR_SOFTWARE)
+            val width = info.size.width
+            val height = info.size.height
+            val longest = maxOf(width, height)
+            if (longest > maxDimension && maxDimension > 0) {
+                val scale = maxDimension.toFloat() / longest.toFloat()
+                decoder.setTargetSize(
+                    (width * scale).toInt().coerceAtLeast(1),
+                    (height * scale).toInt().coerceAtLeast(1)
+                )
+            }
+        }
+    }.getOrNull()
+"""
+new_decode = """    return runCatching {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            ImageDecoder.decodeBitmap(
+                ImageDecoder.createSource(file)
+            ) { decoder, info, _ ->
+                decoder.setAllocator(ImageDecoder.ALLOCATOR_SOFTWARE)
+                val width = info.size.width
+                val height = info.size.height
+                val longest = maxOf(width, height)
+                if (longest > maxDimension && maxDimension > 0) {
+                    val scale = maxDimension.toFloat() / longest.toFloat()
+                    decoder.setTargetSize(
+                        (width * scale).toInt().coerceAtLeast(1),
+                        (height * scale).toInt().coerceAtLeast(1)
+                    )
+                }
+            }
+        } else {
+            // Pre-API 28: bounds-first decode to avoid large bitmap allocations.
+            val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+            BitmapFactory.decodeFile(file.absolutePath, bounds)
+            if (bounds.outWidth <= 0 || bounds.outHeight <= 0) {
+                return@runCatching null
+            }
+            var sampling = 1
+            if (maxDimension > 0) {
+                while (maxOf(
+                    bounds.outWidth / (sampling * 2),
+                    bounds.outHeight / (sampling * 2)
+                ) >= maxDimension) {
+                    sampling *= 2
+                }
+            }
+            val options = BitmapFactory.Options().apply {
+                inSampleSize = sampling
+                inPreferredConfig = Bitmap.Config.ARGB_8888
+            }
+            val decoded = BitmapFactory.decodeFile(file.absolutePath, options)
+                ?: return@runCatching null
+            val longest = maxOf(decoded.width, decoded.height)
+            if (maxDimension <= 0 || longest <= maxDimension) {
+                decoded
+            } else {
+                val scale = maxDimension.toFloat() / longest.toFloat()
+                val resized = Bitmap.createScaledBitmap(
+                    decoded,
+                    (decoded.width * scale).toInt().coerceAtLeast(1),
+                    (decoded.height * scale).toInt().coerceAtLeast(1),
+                    true
+                )
+                if (resized !== decoded) decoded.recycle()
+                resized
+            }
+        }
+    }.getOrNull()
+"""
+if viewer_text.count(old_decode) != 1:
+    raise SystemExit("expected exactly one cached image decoder")
+viewer_path.write_text(viewer_text.replace(old_decode, new_decode, 1))
+
 # The full-screen image viewer/editor also decodes cached image files. Its
 # original decodeMediaBitmap() used ImageDecoder unconditionally, trapping
 # API 26-27 in an endless spinner (ImageDecoder exists only on API 28+).
