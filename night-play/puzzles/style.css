@@ -177,3 +177,10 @@ button:focus-visible,a:focus-visible{outline:3px solid #488c72;outline-offset:3p
 @media(prefers-reduced-motion:reduce){
  .memory-flip-body,.memory-photo-layer img,.memory-theme-option{transition:none!important}
 }
+
+/* The shared board button base is grid-centered; deck cards need a full-width art stage. */
+.memory-choice-workspace .memory-theme-option{display:block!important;text-align:left!important;border:1px solid #dfe5dc!important;width:100%;min-height:0;place-items:normal!important}
+.memory-choice-workspace .memory-theme-option.chosen{border:2px solid #3b6f54!important}
+.memory-theme-art{width:100%}
+.memory-choice-workspace .memory-size-option{border:1px solid #d9e1db!important}
+.memory-choice-workspace .memory-size-option.chosen{border:2px solid #3b7055!important}
