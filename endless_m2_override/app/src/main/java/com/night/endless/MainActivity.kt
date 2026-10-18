@@ -719,6 +719,7 @@ private fun EndlessApp(
                                         glView?.endlessRenderer?.pullBackSelected()
                                     }
                                 }
+                            }
                     }
                 }
             }
