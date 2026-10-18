@@ -1381,7 +1381,7 @@ private fun DividerPill() {
 
 
 private const val STATE_VERSION_KEY = "endless.state.version"
-private const val STATE_VERSION = 2
+private const val STATE_VERSION = 3
 
 private fun Bundle.writeExplorationState(state: EndlessRenderer.ExplorationState) {
     putInt(STATE_VERSION_KEY, STATE_VERSION)
@@ -1398,6 +1398,9 @@ private fun Bundle.writeExplorationState(state: EndlessRenderer.ExplorationState
     putBoolean("endless.state.moonSurface", state.moonSurfaceMode)
     putDouble("endless.state.moonSurfaceX", state.moonSurfaceX)
     putDouble("endless.state.moonSurfaceZ", state.moonSurfaceZ)
+    putString("endless.state.extendedSurfaceId", state.extendedSurfaceId)
+    putDouble("endless.state.extendedSurfaceX", state.extendedSurfaceX)
+    putDouble("endless.state.extendedSurfaceZ", state.extendedSurfaceZ)
 
     state.savedFocus?.let { focus ->
         putBoolean("endless.state.savedFocus.present", true)
@@ -1445,6 +1448,9 @@ private fun Bundle.readExplorationState(): EndlessRenderer.ExplorationState? {
         moonSurfaceMode = stateVersion >= 2 && getBoolean("endless.state.moonSurface"),
         moonSurfaceX = if (stateVersion >= 2) getDouble("endless.state.moonSurfaceX") else 0.0,
         moonSurfaceZ = if (stateVersion >= 2) getDouble("endless.state.moonSurfaceZ") else 0.0,
+        extendedSurfaceId = if (stateVersion >= 3) getString("endless.state.extendedSurfaceId") else null,
+        extendedSurfaceX = if (stateVersion >= 3) getDouble("endless.state.extendedSurfaceX") else 0.0,
+        extendedSurfaceZ = if (stateVersion >= 3) getDouble("endless.state.extendedSurfaceZ") else 0.0,
         clockState = UniverseClock.State(
             simulationSeconds = getDouble("endless.state.clock.seconds"),
             anchorMillis = getLong("endless.state.clock.anchorMillis"),
