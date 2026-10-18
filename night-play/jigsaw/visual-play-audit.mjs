@@ -7,7 +7,7 @@ import {fileURLToPath} from 'node:url';
 
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const server=createServer((req,res)=>{
- let p=new URL(req.url,'http://localhost').pathname.replace(/^\\//,'');
+ let p=new URL(req.url,'http://localhost').pathname.replace(/^[/]/,'');
  if(p==='jigsaw'||p==='jigsaw/')p='jigsaw/index.html';
  try{
   const file=readFileSync(path.join(root,p));
