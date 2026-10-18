@@ -79,7 +79,7 @@ function renderLudo(){
  const options=controls.querySelector(".nj-options");
  if(details&&options)details.insertBefore(options,details.querySelector(".nj-switches"));
  if(details&&!details.querySelector(".nj-in-sheet-extra")){
-  details.insertAdjacentHTML("beforeend",'<div class="nj-in-sheet-extra"><button type="button" class="secondary" data-action="ludo-new">↻ New match</button><button type="button" class="secondary" data-action="ludo-sound">'+(s.sound?'♫ Sound ON':'♪ Sound OFF')+'</button></div>');
+  details.insertAdjacentHTML("beforeend",'<div class="nj-in-sheet-extra"><button type="button" class="secondary" data-action="ludo-new"><svg class="action-svg" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11a9 9 0 1 0 3-6.7L3 7m0-5v5h5"/></svg> New match</button><button type="button" class="secondary" data-action="ludo-sound">'+(s.sound?'♫ Sound ON':'♪ Sound OFF')+'</button></div>');
  }
  if(controls.querySelector(".nj-settings[open]")){$("ludoSheetBack").hidden=false;$("ludoSettingsBtn").setAttribute("aria-expanded","true");}
  window.NightLudo3D?.sync();
@@ -733,12 +733,12 @@ function renderSnakes(){
 const s=state.snakes;let html='<div class="snakes-board" role="grid" aria-label="100 square snakes and ladders board">';
 for(let row=0;row<10;row++)for(let c=0;c<10;c++){const base=(9-row)*10+1,num=(9-row)%2===0?base+c:base+(9-c);
 let tokens=s.players.map((p,i)=>p.pos===num?'<span style="color:'+p.color+'" title="'+p.name+'">●</span>':"").join("");
-let jump=ups[num]?"<span class='jump' aria-label='Ladder to "+ups[num]+"'>↗</span>":downs[num]?"<span class='jump' aria-label='Snake to "+downs[num]+"'>↘</span>":"";
+let jump=ups[num]?"<span class='jump' aria-label='Ladder to "+ups[num]+"'><svg class="direction-svg" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M5 19 19 5M9 5h10v10"/></svg></span>":downs[num]?"<span class='jump' aria-label='Snake to "+downs[num]+"'><svg class="direction-svg" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="m5 5 14 14M19 9v10H9"/></svg></span>":"";
 html+='<div class="square" role="gridcell" aria-label="Square '+num+'" style="grid-row:'+(row+1)+';grid-column:'+(c+1)+'">'+num+jump+'<span class="marker">'+tokens+'</span></div>';
 }board.innerHTML=html+"</div>";
 setStatus(s.winner!==null?s.players[s.winner].name+" won the race to 100!":s.players[s.turn].name+"'s turn. "+s.msg);
 controlsHTML('<div class="dice">'+("⚀⚁⚂⚃⚄⚅"[(s.last||1)-1])+'</div><button type="button" class="primary" data-action="snakes-roll" '+(s.winner!==null?"disabled":"")+'>Roll dice</button>'+scoreList(s.players,x=>"Square "+x.pos)+choosePlayers("snakes",s.players.length,4));
-rules("Snakes & Ladders","Roll one die to advance. <b>↗</b> means climb a ladder to a higher square; <b>↘</b> means slide down a snake to a lower square. You must land on exactly 100 to win. Players share the same phone.");
+rules("Snakes & Ladders","Roll one die to advance. Ladders take you up to higher squares; snakes send you down to lower squares. You must land on exactly 100 to win. Players share the same phone.");
 }
 function snakesRoll(){const s=state.snakes;if(s.winner!==null)return;const p=s.players[s.turn],n=die();s.last=n;const old=p.pos;if(p.pos+n<=100)p.pos+=n;s.msg=(p.pos===old?"Exact roll needed. ":"Rolled "+n+". ");if(ups[p.pos]){s.msg+="Climbed to "+ups[p.pos]+"!";p.pos=ups[p.pos];}if(downs[p.pos]){s.msg+="Slid to "+downs[p.pos]+"!";p.pos=downs[p.pos];}if(p.pos===100)s.winner=s.turn;else s.turn=(s.turn+1)%s.players.length;render();}
 
@@ -811,9 +811,9 @@ $("brushes").addEventListener("click",e=>{const b=e.target.closest("[data-brush]
 const artist=s.players[s.drawer],sc='Player 1 '+s.points[0]+' · Player 2 '+s.points[1];setStatus(s.mode==="playing"?artist+" is drawing. "+s.seconds+" seconds left.":artist+"'s turn to draw.");
 const actions=s.mode==="ready"?'<p class="small">Pass the phone to the artist; the guesser should look away.</p><button class="primary" data-action="draw-ready">Reveal my word</button>'
  :s.mode==="reveal"?'<p class="small">Memorize the word before hiding it.</p><button class="primary" data-action="draw-ready">Hide word & start drawing</button>'
- :s.mode==="playing"?'<p class="small">Draw with your finger. When ready, hand the phone to the guesser.</p><button class="primary" data-action="draw-guess">Done drawing · Let them guess →</button><div class="small" id="drawTimer">Time left: '+s.seconds+'s</div>'
+ :s.mode==="playing"?'<p class="small">Draw with your finger. When ready, hand the phone to the guesser.</p><button class="primary" data-action="draw-guess">Done drawing · Let them guess <svg class="action-svg" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h16m-6-6 6 6-6 6"/></svg></button><div class="small" id="drawTimer">Time left: '+s.seconds+'s</div>'
  :'<p class="small">The drawing is locked. The other player guesses now.</p><form id="guessForm"><label class="small" for="guessWord">What does the picture show?</label><input class="guess-input" id="guessWord" maxlength="40" autocomplete="off" placeholder="Your answer"><button class="primary" type="submit">Check guess</button></form><div class="small" id="drawTimer">Time left: '+s.seconds+'s</div><ul class="guess-log" id="guessLog"></ul>';
-controlsHTML('<p class="badge">'+sc+'</p>'+actions+'<p><button class="secondary" data-action="draw-next">Skip / next artist ↻</button></p>');
+controlsHTML('<p class="badge">'+sc+'</p>'+actions+'<p><button class="secondary" data-action="draw-next">Skip / next artist <svg class="action-svg" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11a9 9 0 1 0 3-6.7L3 7m0-5v5h5"/></svg></button></p>');
 if(s.mode==="playing"||s.mode==="guessing"){timer=setInterval(()=>{s.seconds=Math.max(0,s.seconds-1);const el=$("drawTimer");if(el)el.textContent="Time left: "+s.seconds+"s";if(s.seconds===0){clearInterval(timer);timer=null;s.mode="ready";s.drawer=1-s.drawer;s.round++;s.word=null;render();}},1000);}
 rules("Draw & Guess","The artist sees a secret word and draws it with a finger. Tap <b>Done drawing</b> and hand the phone over so the second person can guess. Correct guesses earn points. Players swap after every round. <b>Two people sharing one device</b> — no online room yet.");
 }
@@ -823,7 +823,7 @@ function drawReadyToGuess(){
  s.mode="guessing";painting=false;lastPoint=null;
  const sc='Player 1 '+s.points[0]+' · Player 2 '+s.points[1];
  setStatus('Drawing finished. Pass the phone to the other player.');
- controlsHTML('<p class="badge">'+sc+'</p><p class="small">The drawing is locked. Try to guess what the artist drew.</p><form id="guessForm"><label class="small" for="guessWord">Your answer</label><input class="guess-input" id="guessWord" maxlength="40" autocomplete="off" placeholder="Type a guess"><button class="primary" type="submit">Check guess</button></form><div class="small" id="drawTimer">Time left: '+s.seconds+'s</div><ul class="guess-log" id="guessLog"></ul><p><button class="secondary" data-action="draw-next">Skip / next artist ↻</button></p>');
+ controlsHTML('<p class="badge">'+sc+'</p><p class="small">The drawing is locked. Try to guess what the artist drew.</p><form id="guessForm"><label class="small" for="guessWord">Your answer</label><input class="guess-input" id="guessWord" maxlength="40" autocomplete="off" placeholder="Type a guess"><button class="primary" type="submit">Check guess</button></form><div class="small" id="drawTimer">Time left: '+s.seconds+'s</div><ul class="guess-log" id="guessLog"></ul><p><button class="secondary" data-action="draw-next">Skip / next artist <svg class="action-svg" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11a9 9 0 1 0 3-6.7L3 7m0-5v5h5"/></svg></button></p>');
 }
 function drawNext(){const s=state.draw;s.mode="ready";s.word=null;s.drawer=1-s.drawer;s.round++;render();}
 function setBrush(color){paintColor=color;brushWidth=color==="#ffffff"?24:7;}
