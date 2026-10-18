@@ -2,6 +2,7 @@ package com.night.soundatlas
 
 import android.app.Activity
 import android.content.Intent
+import android.content.ClipData
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
@@ -12,6 +13,9 @@ import android.view.MotionEvent
 import android.view.View
 import android.view.WindowManager
 import android.widget.Toast
+import androidx.core.content.FileProvider
+import java.io.ByteArrayOutputStream
+import java.io.File
 import kotlin.math.*
 
 class MainActivity : Activity() {
@@ -34,6 +38,39 @@ class MainActivity : Activity() {
         surface=AtlasCanvas()
         setContentView(surface)
         audio.update(world)
+        if(intent?.action==Intent.ACTION_VIEW) importIncomingScene(intent.data)
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        if(intent.action==Intent.ACTION_VIEW) importIncomingScene(intent.data)
+    }
+
+    private fun readCompactScene(uri:Uri): World {
+        val input=contentResolver.openInputStream(uri) ?: error("Cannot open scene")
+        val bytes=input.use{ stream->
+            val out=ByteArrayOutputStream()
+            val chunk=ByteArray(8192)
+            while(true){
+                val n=stream.read(chunk)
+                if(n<0)break
+                require(out.size()+n<=250_000){"Scene exceeds 250 KB"}
+                out.write(chunk,0,n)
+            }
+            out.toByteArray()
+        }
+        return AtlasCodec.decode(bytes.toString(Charsets.UTF_8))
+    }
+    private fun importIncomingScene(uri:Uri?) {
+        if(uri==null)return
+        try {
+            replace(readCompactScene(uri))
+            save()
+            Toast.makeText(this,"Sound Atlas world imported",Toast.LENGTH_SHORT).show()
+        } catch(e:Exception) {
+            Toast.makeText(this,"Could not open world: "+e.message,Toast.LENGTH_LONG).show()
+        }
     }
 
     private fun changed() {
@@ -66,10 +103,20 @@ class MainActivity : Activity() {
         startActivityForResult(intent,72)
     }
     private fun share() {
+        // Share the tiny *scene file*, never enormous rendered audio.
+        val directory=File(cacheDir,"share")
+        if(!directory.exists())directory.mkdirs()
+        val name=world.name.replace(Regex("[^a-zA-Z0-9_-]"),"-").take(48)
+        val file=File(directory,(name.ifBlank{"sound-atlas"})+".satlas.json")
+        file.writeText(AtlasCodec.encode(world),Charsets.UTF_8)
+        val uri=FileProvider.getUriForFile(this,
+            packageName+".files",file)
         val intent=Intent(Intent.ACTION_SEND).apply {
-            type="text/plain"
+            type="application/json"
             putExtra(Intent.EXTRA_SUBJECT,"Sound Atlas: "+world.name)
-            putExtra(Intent.EXTRA_TEXT,AtlasCodec.encode(world))
+            putExtra(Intent.EXTRA_STREAM,uri)
+            clipData=ClipData.newUri(contentResolver,"Sound Atlas world",uri)
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }
         startActivity(Intent.createChooser(intent,"Share acoustic world"))
     }
@@ -80,10 +127,7 @@ class MainActivity : Activity() {
         try {
             when(requestCode) {
                 71 -> {
-                    val input=contentResolver.openInputStream(data.data!!) ?: error("Unable to open scene")
-                    val bytes=input.use{it.readBytes()}
-                    require(bytes.size<250_000){"Scene exceeds size limit"}
-                    replace(AtlasCodec.decode(bytes.toString(Charsets.UTF_8)))
+                    replace(readCompactScene(data.data!!))
                     save()
                     Toast.makeText(this,"World imported",Toast.LENGTH_SHORT).show()
                 }
