@@ -18,8 +18,11 @@ internal class ExtendedSurfaceTerrain(private val context: Context, private val 
         if (bodyId == "titan") -.32 else -.74,
         if (bodyId == "titan") .58 else .38,
         .31,
-        elevation = { x, z -> ExtendedSurfaceMesh.renderedHeightAt(bodyId, x, z) },
-        coarseNormalHeight = { x, z -> ExtendedSurfaceMesh.heightAt(bodyId, x, z) }
+        coarseNormalHeight = { x, z -> ExtendedSurfaceMesh.heightAt(bodyId, x, z) },
+        coarseElevation = { x, z -> ExtendedSurfaceMesh.renderedHeightAt(bodyId, x, z) },
+        geologyRelief = { x,z -> ExtendedSurfaceMesh.nearReliefAt(bodyId,x,z) },
+        drawStones = bodyId == "mercury" || bodyId == "ceres",
+        elevation = { x, z -> ExtendedSurfaceMesh.heightAt(bodyId, x, z) }
     )
 
     init {

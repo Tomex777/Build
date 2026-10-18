@@ -19,6 +19,9 @@ internal class SurfaceDetailRenderer(
     // Optional coarse-field normal calculator must precede elevation.
     // Existing Mars/Moon constructors intentionally use trailing lambdas.
     private val coarseNormalHeight: ((Double, Double) -> Double)? = null,
+    private val coarseElevation: ((Double, Double) -> Double)? = null,
+    private val geologyRelief: ((Double, Double) -> Double)? = null,
+    private val drawStones: Boolean = true,
     private val elevation: (Double, Double) -> Double
 ) {
     private var midAnchorX = Double.NaN
@@ -69,7 +72,11 @@ internal class SurfaceDetailRenderer(
     fun prepare(centerX: Double, centerZ: Double) {
         if (!midAnchorX.isFinite() ||
             hypot(centerX - midAnchorX, centerZ - midAnchorZ) >= 0.028) {
-            val mid = SurfaceMidfieldMesh.build(centerX, centerZ, elevation, coarseNormalHeight)
+            val mid = SurfaceMidfieldMesh.build(
+                centerX, centerZ, coarseElevation ?: elevation,
+                coarseNormalHeight = coarseNormalHeight,
+                refinedHeight = if (coarseElevation != null) elevation else null
+            )
             midVertices = floats(mid.vertices, midVertices)
             midIndices = shorts(mid.indices, midIndices)
             midCount = mid.indices.size
@@ -81,13 +88,20 @@ internal class SurfaceDetailRenderer(
 
     private fun update(centerX: Double, centerZ: Double) {
         if (anchorX.isFinite() && hypot(centerX - anchorX, centerZ - anchorZ) < 0.0011) return
-        val patch = SurfaceDetailMesh.buildPatch(centerX, centerZ, elevation)
+        val patch = SurfaceDetailMesh.buildPatch(
+            centerX, centerZ, elevation,
+            geologyRelief ?: SurfaceDetailMesh::defaultMicroRelief
+        )
         val actualSurface: (Double, Double) -> Double = { x, z ->
-            SurfaceDetailMesh.surfaceHeightAt(x, z, centerX, centerZ, elevation)
+            SurfaceDetailMesh.surfaceHeightAt(
+                x, z, centerX, centerZ, elevation,
+                geologyRelief ?: SurfaceDetailMesh::defaultMicroRelief
+            )
         }
         // The rock bases and their shadows sample the identical ground
         // height field as the displayed mesh, not the unrefined DEM.
-        val rocks = SurfaceDetailMesh.buildRocks(centerX, centerZ, actualSurface)
+        val rocks = if (drawStones) SurfaceDetailMesh.buildRocks(centerX, centerZ, actualSurface)
+                    else SurfaceDetailMesh.Rocks(FloatArray(0), 0)
         patchVertices = floats(patch.vertices, patchVertices)
         patchIndices = shorts(patch.indices, patchIndices)
         patchCount = patch.indices.size

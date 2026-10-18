@@ -30,7 +30,7 @@ internal object SurfaceDetailMesh {
         return ((h xor (h ushr 16)).toLong() and 0xffffffffL).toDouble() / 4294967296.0
     }
 
-    private fun microRelief(x: Double, z: Double): Double {
+    fun defaultMicroRelief(x: Double, z: Double): Double {
         // Eroded regolith; <= 0.16 m vertical relief. Keep wavelengths
         // above four vertex spacings so the 1.05m mesh does not alias
         // sub-meter waves into diagonal bands at grazing lunar sunlight.
@@ -42,7 +42,8 @@ internal object SurfaceDetailMesh {
     private fun vertexHeightAt(
         x: Double, z: Double,
         centerX: Double, centerZ: Double,
-        elevation: (Double, Double) -> Double
+        elevation: (Double, Double) -> Double,
+        microRelief: (Double, Double) -> Double = ::defaultMicroRelief
     ): Double {
         val extent = (SIDE - 1) * STEP * 0.5
         val dx = kotlin.math.abs(x - centerX)
@@ -59,7 +60,8 @@ internal object SurfaceDetailMesh {
     fun surfaceHeightAt(
         x: Double, z: Double,
         centerX: Double, centerZ: Double,
-        elevation: (Double, Double) -> Double
+        elevation: (Double, Double) -> Double,
+        microRelief: (Double, Double) -> Double = ::defaultMicroRelief
     ): Double {
         val half = (SIDE - 1) * 0.5
         val gridX = (x - centerX) / STEP + half
@@ -75,7 +77,7 @@ internal object SurfaceDetailMesh {
         fun height(gx: Int, gz: Int): Double = vertexHeightAt(
             centerX + (gx - half) * STEP,
             centerZ + (gz - half) * STEP,
-            centerX, centerZ, elevation
+            centerX, centerZ, elevation, microRelief
         ).toFloat().toDouble()
         val b = height(ix + 1, iz)
         val cc = height(ix, iz + 1)
@@ -87,7 +89,11 @@ internal object SurfaceDetailMesh {
         }
     }
 
-    fun buildPatch(centerX: Double, centerZ: Double, elevation: (Double, Double) -> Double): Mesh {
+    fun buildPatch(
+        centerX: Double, centerZ: Double,
+        elevation: (Double, Double) -> Double,
+        microRelief: (Double, Double) -> Double = ::defaultMicroRelief
+    ): Mesh {
         val heights = FloatArray(SIDE * SIDE)
         val center = (SIDE - 1) * 0.5
         for (z in 0 until SIDE) for (x in 0 until SIDE) {
@@ -96,7 +102,7 @@ internal object SurfaceDetailMesh {
             val worldX = centerX + dx
             val worldZ = centerZ + dz
             heights[z * SIDE + x] = vertexHeightAt(
-                worldX, worldZ, centerX, centerZ, elevation
+                worldX, worldZ, centerX, centerZ, elevation, microRelief
             ).toFloat()
         }
 

@@ -59,7 +59,8 @@ internal object SurfaceMidfieldMesh {
     fun build(
         centerX: Double, centerZ: Double,
         coarse: (Double, Double) -> Double,
-        coarseNormalHeight: ((Double, Double) -> Double)? = null
+        coarseNormalHeight: ((Double, Double) -> Double)? = null,
+        refinedHeight: ((Double, Double) -> Double)? = null
     ): SurfaceDetailMesh.Mesh {
         val out = FloatArray(SIDE * SIDE * STRIDE)
         val heights = FloatArray(SIDE * SIDE)
@@ -76,8 +77,15 @@ internal object SurfaceMidfieldMesh {
             val weight = nearFade * outerFade
             val wx = centerX + localX
             val wz = centerZ + localZ
+            val baseline = coarse(wx,wz)
+            // Analytic mid-scale relief resolves tectonic plates and dune
+            // crests between orbital DEM pixels. Fade its displacement to
+            // ZERO before the outer tile's existing coarse triangles.
+            val blend = if (refinedHeight == null) 0.0 else
+                ((full-r)/.18).coerceIn(0.0,1.0).let { it*it*(3.0-2.0*it) }
             heights[z * SIDE + x] = (
-                coarse(wx, wz) + fineAmplitude(wx, wz) * weight
+                baseline + (refinedHeight?.invoke(wx,wz)?.minus(baseline) ?: 0.0)*blend +
+                fineAmplitude(wx, wz)*weight
             ).toFloat()
         }
 
