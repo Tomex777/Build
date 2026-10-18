@@ -15,7 +15,7 @@ class HymnDataTest(unittest.TestCase):
     def test_all_photo_hymns_have_lyrics_in_both_languages(self):
         hymns = {h["number"]: h for h in compile_asset()["hymns"]}
         self.assertEqual({n for n, h in hymns.items() if h["verses_yo"]}, set([*range(1, 18), 50]))
-        self.assertEqual({n for n, h in hymns.items() if h["verses_en"]}, set(range(1, 18)))
+        self.assertEqual({n for n, h in hymns.items() if h["verses_en"]}, set([*range(1, 18), 50]))
         for h in hymns.values():
             if not h["verses_yo"]:
                 self.assertEqual(h["text_status"], "missing")
