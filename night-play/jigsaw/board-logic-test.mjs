@@ -48,6 +48,16 @@ assert.equal(restored.placedCount,2);
 assert.equal(restored.edgeOnly,true,'edge filter persists');
 const c=restored.pieces.find(p=>p.id===a.id),d=restored.pieces.find(p=>p.id===b.id);
 assert.equal(c.group,d.group,'connections survive saving');
+wrapper.width=1280;wrapper.height=850;
+restored.resize();
+assert.equal(restored.placedCount,2,'rotation/resize preserves placed groups');
+assert.ok(restored.pieces.some(p=>!p.isPlaced&&p.x+p.offscreenCanvas.width-p.canvasMargin*2<restored.boardX),'desktop loose pieces can sit to left');
+assert.ok(restored.pieces.some(p=>!p.isPlaced&&p.x>restored.boardX+restored.boardWidth),'desktop loose pieces can sit to right');
+const placedBeforeSweep=restored.placedCount;
+restored.sweepLoose();
+assert.equal(restored.placedCount,placedBeforeSweep,'Sweep retains finished pieces');
+assert.equal(restored.pieces.find(p=>p.id===a.id).group,restored.pieces.find(p=>p.id===b.id).group,'Sweep retains grouped sections');
+wrapper.width=390;wrapper.height=844;
 
 // Verify high piece counts remain playable without precreating separate DOM nodes.
 board.setDimensions(12,12);board.buildPieces();
