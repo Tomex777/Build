@@ -229,7 +229,7 @@ try{
  assert.equal(await page.evaluate(()=>window.__nightJigsawTest.snapshot().pieces.length),144,'144 piece difficulty is playable');
  assert.equal(await page.locator('#progress').textContent(),'0 / 144');
  const huge=await page.evaluate(()=>window.__nightJigsawTest.snapshot());
- assert.ok(huge.tray.h>200,'Master difficulty retains an accessible loose-piece workspace');
+ assert.ok(huge.board.y>90,'Master difficulty still reserves space for loose pieces above the board');
  await page.locator('#pickPicture').click();
  assert.deepEqual(errors,[],'Jigsaw game must have no browser exceptions');
 
@@ -240,7 +240,7 @@ try{
  await desktop.goto(url+'/jigsaw/');await desktop.locator('[data-theme="photo-alpine-lake"]').click();
   await desktop.waitForFunction(()=>window.__nightJigsawTest?.snapshot().activeRound);
  const dl=await desktop.evaluate(()=>window.__nightJigsawTest.snapshot());
- assert.ok(dl.tray.x>dl.board.x+dl.board.w,'On desktop the tray sits alongside the board');
+ assert.ok(dl.board.x>90&&dl.board.x+dl.board.w<await desktop.evaluate(()=>document.getElementById('puzzleCanvas').width-90),'Desktop picture is centered between left and right scattering areas');
  assert.ok(await desktop.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+2));
  await desktop.screenshot({path:path.join(root,'visual-output/JIGSAW-PLAY-DESKTOP.jpg'),type:'jpeg',quality:75,fullPage:true});
  console.log('NIGHT_JIGSAW_DESKTOP_JPEG_BASE64='+(await desktop.screenshot({type:'jpeg',quality:50,fullPage:true})).toString('base64'));
