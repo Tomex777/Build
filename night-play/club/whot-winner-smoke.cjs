@@ -62,6 +62,9 @@ async function finish(page,winner){
    assert.equal(compact.overlap,true,'opponent cards form a compact physical stack');
    assert.ok(compact.width<(width<=600?205:245),'opponent backs never span the whole felt');
    assert.ok(compact.scrollWidth<=compact.clientWidth+1,'CPU stack never creates horizontal scroll');
+   const labels=await page.locator('.whot-opponent-hand .card-back').evaluateAll(cards=>
+     cards.map(c=>[...c.querySelectorAll('span')].some(x=>getComputedStyle(x).visibility==='visible')));
+   assert.deepEqual(labels,[false,false,true],'only the visible front CPU back has complete WHOT lettering');
    const geometry=await page.evaluate(()=>{
      const rect=s=>{const e=document.querySelector(s),r=e.getBoundingClientRect();return {x:r.x,y:r.y,w:r.width,h:r.height}};
      return {cpu:rect('.whot-opponent-hand'),market:rect('.whot-deck-back'),discard:rect('.card-pile>.whot-card'),hand:rect('.hand .card-row'),
@@ -192,6 +195,30 @@ async function finish(page,winner){
    assert.ok(overflow<=1,'no horizontal overflow at '+width+'px: '+overflow);
    assert.deepEqual(errors,[],'no console page exceptions');
    await page.close();
+   // CPU can accumulate a huge hand after chained penalties. Its compact
+   // visual stays three backs while the existing HUD remains truthful.
+   const fatCpu=await browser.newPage({viewport:{width,height:844},isMobile:width<=600,hasTouch:width<=600});
+   await fatCpu.goto(base+'/club/?game=whot');
+   await fatCpu.evaluate(()=>{
+     const key='night-play-club-v1',obj=JSON.parse(localStorage.getItem(key)),s=obj.whot;
+     s.hands[1].push(...s.deck.splice(0,Math.min(15,s.deck.length)));
+     localStorage.setItem(key,JSON.stringify(obj));
+   });
+   await fatCpu.reload();
+   await fatCpu.locator('.whot-seat-cpu strong').waitFor();
+   const tall=await fatCpu.evaluate(()=>{
+     const cpu=JSON.parse(localStorage.getItem('night-play-club-v1')).whot.hands[1].length;
+     const backs=[...document.querySelectorAll('.whot-opponent-hand .card-back')];
+     const zone=document.querySelector('.whot-opponent-hand').getBoundingClientRect();
+     const last=backs.at(-1).getBoundingClientRect();
+     return {cpu,backs:backs.length,shown:Number(document.querySelector('.whot-seat-cpu strong').textContent),
+       visibleInside:last.right<=zone.right+1,scroll:document.querySelector('.whot-opponent-hand').scrollWidth};
+   });
+   assert.ok(tall.cpu>=15,'fixture actually adds cards to the CPU hand');
+   assert.equal(tall.shown,tall.cpu,'HUD shows the REAL number of cards');
+   assert.equal(tall.backs,3,'large opponent hands never render more than three decorative card backs');
+   assert.equal(tall.visibleInside,true,'stack stays on the board with fifteen-plus CPU cards');
+   await fatCpu.close();
    // Independent game context: verify market draw reaches a newly created
    // card slot rather than animating onto the previous final card.
    const drawPage=await browser.newPage({viewport:{width,height:844},isMobile:width<=600,hasTouch:width<=600});
