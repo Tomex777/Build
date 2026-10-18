@@ -373,7 +373,7 @@ private fun HymnReader(
                                 fontSize = 16.sp * fontScale,
                                 color = MaterialTheme.colorScheme.primary,
                                 fontWeight = FontWeight.Bold)
-                            Text(verses[index].joinToString("\\n"),
+                            Text(verses[index].joinToString("\n"),
                                 fontFamily = FontFamily.Serif,
                                 fontSize = 19.sp * fontScale,
                                 lineHeight = 30.sp * fontScale,
