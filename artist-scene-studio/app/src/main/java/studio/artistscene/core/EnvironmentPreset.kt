@@ -23,7 +23,7 @@ enum class EnvironmentPreset(
     // Quiet outdoor reference set: distinct, low-contrast ground; hazy pale horizon;
     // gentle sky shading instead of a vivid blue / flat slate studio cutoff.
     // Original Mise palette, inspired by the neutral floor/sky treatment in pose editors.
-    PARK_SHADE("Soft outdoor", "#98A59B", 0.98f, 0x81B6DA, 0xBED6DF, 0xA9BBB8, 0.16f, 0.18f),
+    PARK_SHADE("Soft outdoor", "#98A59B", 0.98f, 0x8FBEDA, 0xD1E0E5, 0xB5C7C5, 0.27f, 0.70f),
     SUNSET("Warm Sunset", "#626876", 0.91f, 0x4F5A93, 0xF4C49A, 0x968079, 0.21f, 0.95f),
     OVERCAST("Soft Overcast", "#68737C", 0.98f, 0x7E98AA, 0xC4D0D7, 0xA2ADB6, 0.52f, 0.12f),
     CYC("Cyclorama", "#67747F", 0.94f, 0xB2BEC8, 0xC8D0D5, 0xA1AEB9, 0f, 0f),
