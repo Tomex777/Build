@@ -468,10 +468,8 @@ editor.write_text(editor_text)
 # prevented cached thumbnails from ever leaving their loading spinner.
 viewer_path = root / "app/src/main/java/com/night/later/ui/media/LaterMediaViewer.kt"
 viewer_text = viewer_path.read_text()
-# Existing image/editor source already imports BitmapFactory elsewhere.
-# Do not insert a duplicate import: Kotlin considers that ambiguous.
-if viewer_text.count("import android.graphics.BitmapFactory\n") != 1:
-    raise SystemExit("expected one BitmapFactory import in LaterMediaViewer")
+# Use the fully qualified BitmapFactory in the compatibility branch; another
+# Later source transform can manage imports independently without collisions.
 if viewer_text.count("import android.graphics.ImageDecoder\n") != 1:
     raise SystemExit("expected one ImageDecoder import in LaterMediaViewer")
 old_decode = """    return runCatching {
@@ -550,6 +548,8 @@ new_decode = """    return runCatching {
 """
 if viewer_text.count(old_decode) != 1:
     raise SystemExit("expected exactly one cached image decoder")
+# Keep the API 26 path independent of import ordering between transforms.
+new_decode = new_decode.replace("BitmapFactory.", "android.graphics.BitmapFactory.")
 viewer_path.write_text(viewer_text.replace(old_decode, new_decode, 1))
 
 # The full-screen image viewer/editor also decodes cached image files. Its
