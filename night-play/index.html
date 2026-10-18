@@ -24,7 +24,7 @@ window.__nightAccountBoot=fetch('/api/account',{
 /* Hide the sign-in action until the authoritative HttpOnly session is checked.
    Display none also avoids header reflow for already linked players. */
 html[data-night-account="checking"] .site-header [data-dialog="connect"]{display:none!important}
-</style>
+\n.night-newgame-thumb{position:relative;background:#dce6e0}.night-newgame-art{width:100%;height:100%;display:block}.night-newgame-thumb .tag{z-index:1}.night-newgame-thumb.memory-cover{background:#d8dfec}.night-newgame-thumb.connect-cover{background:#d7e4da}\n</style>
 <style>
 :root{--bg:#f7f7f7;--surface:#fff;--soft:#ededed;--ink:#1e242a;--dark:#080808;--muted:#777e83;--line:#e4e5e5;--radius:24px}
 *{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:var(--bg);color:var(--ink);font-family:Inter,"DM Sans",Arial,system-ui,sans-serif;-webkit-font-smoothing:antialiased}button,a{-webkit-tap-highlight-color:transparent}button{font:inherit;cursor:pointer}a{color:inherit;text-decoration:none}.wrap{max-width:1260px;padding:0 32px;margin:auto}
@@ -1079,7 +1079,7 @@ body{background:var(--bg)}
 <section class="site-page" id="view-games" data-view="games" hidden>
  <div class="inner-page-head"><div><span class="eyebrow">THE NIGHT ARCADE</span><h1>One more <span class="muted">round?</span></h1><p>Pick an arcade classic, solve a puzzle, or find your next favorite.</p></div></div>
  <div class="library-toolbar"><div class="filter-buttons" role="group" aria-label="Filter games"><button class="filter-btn active" type="button" data-filter="all" aria-pressed="true">All games</button><button class="filter-btn" type="button" data-filter="arcade" aria-pressed="false">Arcade</button><button class="filter-btn" type="button" data-filter="puzzle" aria-pressed="false">Puzzle</button><button class="filter-btn" type="button" data-filter="board" aria-pressed="false">Board games</button><button class="filter-btn" type="button" data-filter="story" aria-pressed="false">Stories</button></div><label class="searchbox"><svg class="ui-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><use href="#icon-search"></use></svg><input id="gameSearch" type="search" placeholder="Search games..." aria-label="Search games" autocomplete="off"></label></div>
- <div class="library-counter" id="libraryCount" aria-live="polite">Browse 16 games · 14 playable</div>
+ <div class="library-counter" id="libraryCount" aria-live="polite">Browse 19 games · 17 playable</div>
  <div class="grid library-grid" id="libraryGrid">
 <a class="gamecard library-card story-entry" data-cat="story" data-name="interactive fiction stories the last call suspense narrative" data-live="true" href="/stories/" aria-label="Read The Last Call, an Egyptian mythology adventure">
   <div class="thumb story-thumb">
@@ -1145,6 +1145,52 @@ body{background:var(--bg)}
 <g stroke="#8d5f37" stroke-width="3.4" stroke-linecap="round"><path d="M31 91 70 34M45 102 84 46" /><path d="M39 80 54 82M48 69 62 73M56 57 69 62M64 45 77 51" stroke-width="2.3"/></g>
 <path d="M94 18Q135 38 105 54T99 84Q83 112 65 108" stroke="#397c62" stroke-width="10" stroke-linecap="round" fill="none"/><path d="M94 18Q135 38 105 54T99 84Q83 112 65 108" stroke="#8dbb70" stroke-width="3.8" stroke-dasharray="7 9" stroke-linecap="round" fill="none"/><ellipse cx="65" cy="108" rx="8" ry="7" fill="#438961"/><circle cx="61" cy="105" r="1.5" fill="#fff"/><circle cx="66" cy="104" r="1.5" fill="#fff"/>
 <circle cx="23" cy="23" r="6" fill="#d97865" stroke="#fff6d9" stroke-width="2"/><circle cx="108" cy="88" r="6" fill="#e3bc55" stroke="#fff6d9" stroke-width="2"/></g></svg></div><div class="cardrow"><div><h3>Snakes & Ladders</h3><p>Race to square one hundred.</p></div></div></article>
+  <a class="gamecard library-card" data-cat="puzzle" data-name="sudoku number logic grid puzzle" data-live="true" href="/puzzles/?game=sudoku" aria-label="Play Sudoku">
+   <div class="thumb night-newgame-thumb sudoku-cover"><span class="tag">PLAYABLE · SOLO</span>
+    <svg class="night-newgame-art" viewBox="0 0 320 220" role="img" aria-label="A numbered Sudoku grid with highlighted squares" preserveAspectRatio="xMidYMid slice">
+     <defs><linearGradient id="su-grad" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#d8e4d9"/><stop offset="1" stop-color="#91ac9c"/></linearGradient></defs>
+     <rect width="320" height="220" fill="url(#su-grad)"/>
+     <g transform="translate(83 31)"><rect width="154" height="154" rx="7" fill="#f7faf5" stroke="#283b33" stroke-width="3"/>
+      <path d="M51.33 0V154M102.66 0V154M0 51.33H154M0 102.66H154" stroke="#31483b" stroke-width="2.6"/>
+      <path d="M17.1 0V154M34.2 0V154M68.4 0V154M85.5 0V154M119.8 0V154M136.9 0V154M0 17.1H154M0 34.2H154M0 68.4H154M0 85.5H154M0 119.8H154M0 136.9H154" stroke="#b9cabe" stroke-width=".8"/>
+      <rect x="51.8" y="51.8" width="16.2" height="16.2" fill="#92c8a7"/>
+      <g fill="#244936" font-family="Arial, sans-serif" font-size="13" font-weight="700" text-anchor="middle"><text x="26" y="14">7</text><text x="77" y="32">2</text><text x="128" y="48">4</text><text x="59.9" y="65.5">9</text><text x="43" y="101">6</text><text x="111" y="118">3</text><text x="145" y="152">1</text><text x="25" y="151">8</text></g>
+     </g>
+    </svg>
+   </div><div class="cardrow"><div><h3>Sudoku</h3><p>Logic in every square.</p></div></div>
+  </a>
+  <a class="gamecard library-card" data-cat="puzzle" data-name="memory match flip cards pairs concentration" data-live="true" href="/puzzles/?game=memory" aria-label="Play Memory Match">
+   <div class="thumb night-newgame-thumb memory-cover"><span class="tag">PLAYABLE · SOLO</span>
+    <svg class="night-newgame-art" viewBox="0 0 320 220" role="img" aria-label="A set of geometric matching cards" preserveAspectRatio="xMidYMid slice">
+     <rect width="320" height="220" fill="#d8dfec"/>
+     <g transform="translate(63 36)" stroke="#a6b6c5" stroke-width="1.4">
+      <rect width="88" height="132" rx="12" fill="#fefefe" transform="rotate(-9 44 66)"/><rect x="102" width="88" height="132" rx="12" fill="#fefefe" transform="rotate(9 146 66)"/>
+      <path d="M44 20 73 69 44 117 15 69Z" fill="#bb867d" stroke="none" opacity=".85"/>
+      <path d="M146 20 175 69 146 117 117 69Z" fill="#bb867d" stroke="none" opacity=".85"/>
+      <rect x="55" y="29" width="85" height="131" rx="11" fill="#375f78" stroke="#7f9dae" stroke-width="2"/>
+      <path d="M63 95 98 47 132 95 98 143Z" stroke="#98b7c5" fill="none" stroke-width="1.8"/>
+      <circle cx="98" cy="95" r="14" fill="#b4d1ce" stroke="none"/>
+     </g>
+    </svg>
+   </div><div class="cardrow"><div><h3>Memory Match</h3><p>Flip, remember, find pairs.</p></div></div>
+  </a>
+  <a class="gamecard library-card" data-cat="board" data-name="connect four 4 four in a row strategy versus computer" data-live="true" href="/puzzles/?game=connect" aria-label="Play Connect Four">
+   <div class="thumb night-newgame-thumb connect-cover"><span class="tag">VS BOT · LOCAL</span>
+    <svg class="night-newgame-art" viewBox="0 0 320 220" role="img" aria-label="A four-in-a-row board with coral and gold discs" preserveAspectRatio="xMidYMid slice">
+     <rect width="320" height="220" fill="#d7e4da"/>
+     <g transform="translate(41 39)"><rect width="238" height="142" rx="11" fill="#304c41"/>
+     <g fill="#f7f9f0">
+      <circle cx="23" cy="22" r="12"/><circle cx="55" cy="22" r="12"/><circle cx="87" cy="22" r="12"/><circle cx="119" cy="22" r="12"/><circle cx="151" cy="22" r="12"/><circle cx="183" cy="22" r="12"/><circle cx="215" cy="22" r="12"/>
+      <circle cx="23" cy="54" r="12"/><circle cx="55" cy="54" r="12"/><circle cx="87" cy="54" r="12"/><circle cx="119" cy="54" r="12"/><circle cx="151" cy="54" r="12"/><circle cx="183" cy="54" r="12"/><circle cx="215" cy="54" r="12"/>
+      <circle cx="23" cy="86" r="12"/><circle cx="55" cy="86" r="12"/><circle cx="87" cy="86" r="12"/><circle cx="119" cy="86" r="12"/><circle cx="151" cy="86" r="12"/><circle cx="183" cy="86" r="12"/><circle cx="215" cy="86" r="12"/>
+      <circle cx="23" cy="118" r="12"/><circle cx="55" cy="118" r="12"/><circle cx="87" cy="118" r="12"/><circle cx="119" cy="118" r="12"/><circle cx="151" cy="118" r="12"/><circle cx="183" cy="118" r="12"/><circle cx="215" cy="118" r="12"/>
+     </g>
+     <g fill="#e9c46e"><circle cx="55" cy="118" r="11"/><circle cx="87" cy="86" r="11"/><circle cx="119" cy="54" r="11"/><circle cx="151" cy="22" r="11"/><circle cx="183" cy="118" r="11"/></g>
+     <g fill="#dc947e"><circle cx="23" cy="118" r="11"/><circle cx="87" cy="118" r="11"/><circle cx="119" cy="118" r="11"/><circle cx="151" cy="118" r="11"/><circle cx="119" cy="86" r="11"/><circle cx="151" cy="86" r="11"/></g>
+     </g>
+    </svg>
+   </div><div class="cardrow"><div><h3>Connect Four</h3><p>Outthink a friend or the bot.</p></div></div>
+  </a>
  </div><p class="no-results" id="noGameResults" hidden>No games found. Try another name or category.</p>
 </section>
 <section class="site-page" id="view-profile" data-view="profile" hidden>
