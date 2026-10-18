@@ -146,6 +146,7 @@ try{
  assert.equal(await page.evaluate(()=>window.__nightJigsawTest.snapshot().pieces.length),48);
  assert.equal(await page.locator('#progress').textContent(),'0 / 48','Difficulty starts a clean new round');
  await page.locator('#hudMenuButton').click();await page.locator('#hudSettingsButton').click();
+ await page.locator('[data-close="settingsDialog"]').click();
  await page.locator('#hudMenuButton').click();await page.locator('#guideSwitch').check();
  assert.equal(await page.evaluate(()=>window.__nightJigsawTest.snapshot().guide),true,'Picture guide can be enabled');
  await page.locator('#guideSwitch').uncheck();
