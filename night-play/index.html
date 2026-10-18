@@ -963,6 +963,7 @@ body{background:var(--bg)}
 </style>
 <style>.story-resume{display:flex;justify-content:space-between;align-items:center;gap:20px;background:#20372e;color:#eef2e9;text-decoration:none;padding:22px 25px;border-radius:20px;margin:0 0 24px}.story-resume[hidden]{display:none}.story-resume span{font-size:11px;letter-spacing:.1em}.story-resume strong{display:block;font-size:25px;margin:8px 0}.story-resume small{font-size:12px;color:#bdcfbf}.story-resume>span{font-size:30px}.story-resume:focus-visible{outline:3px solid #90ad8c;outline-offset:4px}</style><style>.account-command{display:block;white-space:normal;overflow-wrap:anywhere;margin:20px 0;padding:18px;border:1px solid #d8ddd9;border-radius:12px;background:#f0f2ee;font-size:18px;line-height:1.6;user-select:all}.account-name{font-size:24px;font-weight:750}.account-expiry{font-size:12px;color:#69726c}#infoBody>.btn{margin:6px 8px 6px 0}</style>
 <link rel="stylesheet" href="/site-shell.css">
+<link rel="stylesheet" href="/audio/sfx.css">
 </head>
 <body>
 <!-- Locally authored, reusable vector icons and hand-drawn game artwork. No fonts, emoji or image dependencies. -->
@@ -1173,6 +1174,7 @@ body{background:var(--bg)}
 <div class="game-topline"><button type="button" data-close-game><svg class="ui-icon" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><use href="#icon-back"></use></svg> All games</button><span class="game-brand"><svg class="game-brand-mark" viewBox="0 0 108 108" aria-hidden="true"><use href="#icon-brand"></use></svg> NIGHT <span class="muted">PLAY</span></span><div class="game-top-actions"><button class="game-focus-button" id="gameFocus" type="button" aria-label="Expand arena" aria-pressed="false"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Focus</span></button><button class="game-settings-button" id="gameSettings" type="button" aria-label="Game settings"><svg viewBox="0 0 24 24" width="19" height="19" stroke="currentColor" stroke-width="1.7" fill="none" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M9.671 4.136a2.34 2.34 0 0 1 4.659 0 2.34 2.34 0 0 0 3.319 1.915 2.34 2.34 0 0 1 2.33 4.033 2.34 2.34 0 0 0 0 3.831 2.34 2.34 0 0 1-2.33 4.033 2.34 2.34 0 0 0-3.319 1.915 2.34 2.34 0 0 1-4.659 0 2.34 2.34 0 0 0-3.32-1.915 2.34 2.34 0 0 1-2.33-4.033 2.34 2.34 0 0 0 0-3.831A2.34 2.34 0 0 1 6.35 6.051a2.34 2.34 0 0 0 3.319-1.915"/></svg><span>Settings</span></button></div></div>
 <div class="game-wrap"><div class="game-intro"><span class="eyebrow" id="gameSubheading">THE ARCADE</span><h2 id="gameTitle">NIGHT Game</h2><p class="modalnote" id="gameHelp"></p></div><div id="gameRoot" class="playarea"></div><div class="modal-actions"><button class="btn outline" id="undo2048" type="button" hidden><svg class="ui-icon" viewBox="0 0 24 24" focusable="false" aria-hidden="true"><use href="#icon-undo"></use></svg> Undo</button><button class="btn" id="restart"><svg class="ui-icon" viewBox="0 0 24 24" focusable="false" aria-hidden="true"><use href="#icon-restart"></use></svg> New game</button><button class="btn outline" id="pauseGame" type="button"><svg class="ui-icon" viewBox="0 0 24 24" focusable="false" aria-hidden="true"><use href="#icon-pause"></use></svg> Pause</button><button class="btn outline" data-close-game><svg class="ui-icon" viewBox="0 0 24 24" focusable="false" aria-hidden="true"><use href="#icon-back"></use></svg> Exit</button></div><p class="game-status">Your progress is saved on this device.</p></div>
 </section>
+<script src="/audio/sfx.js"></script>
 <script>
 "use strict";
 const infoDialog=document.getElementById("infoDialog"),gameDialog=document.getElementById("gameDialog");
@@ -1185,6 +1187,7 @@ const TTT_DRAW_REVEAL_MS=300,TTT_DRAW_HOLD_MS=3000,TTT_DRAW_FADE_MS=240;
 let tttDrawRevealTimer=null,tttDrawResetTimer=null,tttDrawFadeTimer=null,tttDrawCountTimer=null,tttDrawSequence=0;
 let active="",snakeTimer=null,snake={},ttt=[],turn="X",mode="bot",tttFinished=false,grid=[],tileScore=0,gamePaused=false,boardRestore=null,gameOverRecorded=false;
 const scoreKey="night-play-v1-";
+const sfx=(name,detail)=>window.NightAudio?.play(name,detail);
 function best(key){try{return Number(localStorage.getItem(scoreKey+key)||0)||0}catch{return 0}}
 function record(key,value){if(value>best(key)){try{localStorage.setItem(scoreKey+key,String(value))}catch{}}}
 function modal(kind){
@@ -1654,7 +1657,7 @@ function drawSnake(){
  })
 }
 function finishSnake(){
- recordSession("snake",snake.score);
+ sfx("lose");recordSession("snake",snake.score);
  snake.alive=false;gamePaused=true;clearInterval(snakeTimer);snakeTimer=null;
  try{localStorage.removeItem("night-play-save-snake")}catch{}
  const overlay=document.getElementById("snakeOverlay");if(overlay){overlay.hidden=false;overlay.innerHTML='<strong>Game over</strong><small>Your score: '+snake.score+' · Best: '+best("snake")+'</small><span>Tap to play again <svg class="ui-icon" viewBox="0 0 24 24" focusable="false" aria-hidden="true"><use href="#icon-restart"></use></svg></span>'}
@@ -1670,7 +1673,7 @@ function stepSnake(){
  const occupied=eating?snake.body:snake.body.slice(0,-1);
  if(occupied.some(x=>x.x===p.x&&x.y===p.y)||snake.maze.some(x=>x.x===p.x&&x.y===p.y)){finishSnake();return}
  snake.body.unshift(p);if(!eating)snake.body.pop();
- else{snake.score+=10;record("snake",snake.score);snake.food=food();document.getElementById("score").textContent=snake.score;document.getElementById("best").textContent=best("snake");if(!snake.food){finishSnake();return}}
+ else{sfx("eat");snake.score+=10;record("snake",snake.score);snake.food=food();document.getElementById("score").textContent=snake.score;document.getElementById("best").textContent=best("snake");if(!snake.food){finishSnake();return}}
  try{localStorage.setItem("night-play-save-snake",JSON.stringify({size:snake.size,rows:snake.rows,body:snake.body,dir:snake.dir,next:snake.next,food:snake.food,score:snake.score,alive:snake.alive,mode:snake.mode,updatedAt:Date.now()}))}catch{}
  drawSnake()
 }
@@ -1781,6 +1784,7 @@ function botMoveTtt(){
 function moveTtt(i){
  if(active!=="ttt"||tttFinished||ttt[i]||gamePaused)return;
  ttt[i]=turn;if(isWin(ttt,turn)||!ttt.includes(""))tttFinished=true;else turn=turn==="X"?"O":"X";
+ sfx(tttFinished?(isWin(ttt,"X")||isWin(ttt,"O")?"win":"place"):"place");
  try{localStorage.setItem("night-play-save-ttt",JSON.stringify({board:ttt,turn,finished:tttFinished,mode,updatedAt:Date.now()}))}catch{}
  drawTtt();
  if(tttFinished&&!isWin(ttt,"X")&&!isWin(ttt,"O"))showTttDrawResult();
@@ -1821,7 +1825,8 @@ function move2048(dir){
  spawn();record(tileBestKey(),tileScore);
  try{localStorage.setItem("night-play-save-2048-"+size,JSON.stringify({grid,size,score:tileScore,updatedAt:Date.now()}))}catch{}
  draw2048(beforeGrid,dir);
- if(!grid.flat().includes(0)){let moves=false;for(let r=0;r<size;r++)for(let c=0;c<size;c++)if((r<size-1&&grid[r][c]===grid[r+1][c])||(c<size-1&&grid[r][c]===grid[r][c+1]))moves=true;if(!moves){if(!gameOverRecorded){recordSession(tileBestKey(),tileScore);gameOverRecorded=true}document.getElementById("gameHelp").textContent="No more moves! Start a new game to try again."}}
+ sfx(tileScore>previousScore?"merge":"move",tileScore-previousScore);
+ if(!grid.flat().includes(0)){let moves=false;for(let r=0;r<size;r++)for(let c=0;c<size;c++)if((r<size-1&&grid[r][c]===grid[r+1][c])||(c<size-1&&grid[r][c]===grid[r][c+1]))moves=true;if(!moves){if(!gameOverRecorded){recordSession(tileBestKey(),tileScore);gameOverRecorded=true}document.getElementById("gameHelp").textContent="No more moves! Start a new game to try again.";sfx("lose")}}
  }
 }
 function tileMovePaths(before,dir){
@@ -1968,6 +1973,7 @@ function showSettings(){
   }
   section.appendChild(buttons);settingsBody.appendChild(section)
  }
+ window.NightAudio?.attachToggle(settingsBody);
  const note=document.createElement("p");note.className="settings-foot";note.textContent="Saved on this device";settingsBody.appendChild(note);
  if(active==="snake")startSnakePreviews();
  settingsDialog.showModal();
