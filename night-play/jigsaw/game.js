@@ -156,7 +156,7 @@ async function startImage(id){
   await loadPhoto(id);
   if(loadVersion!==imageLoadVersion)return;
   timerStop();customData=null;theme=id;resetBoard(true);
-  showToast('Drag the pieces into the picture');
+  // Let the image and its pieces speak for themselves; no startup toast.
  }catch{
   if(loadVersion===imageLoadVersion)showToast('Picture could not load. Check your connection and retry.');
  }finally{card?.classList.remove('is-loading')}
