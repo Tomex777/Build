@@ -1,4 +1,4 @@
-name: EchoSpace genuine custom gain screenshots
+name: EchoSpace actual SVG interface screenshots
 
 on:
   workflow_dispatch:
@@ -17,11 +17,11 @@ jobs:
     timeout-minutes: 35
     steps:
       - uses: actions/checkout@v4
-      - name: Download actual ABR Android APK compiled and tested on Oct 17
+      - name: Download latest debug APK with authored SVG vector assets
         uses: actions/download-artifact@v4
         with:
           name: EchoSpace-debug-apk
-          run-id: 39012705001
+          run-id: 39082348075
           github-token: ${{ secrets.GITHUB_TOKEN }}
           path: actual-apk
       - name: Unpack test tools only
@@ -73,7 +73,15 @@ jobs:
             python3 -c 'import xml.etree.ElementTree as E; a=[n.attrib.get("text") for n in E.parse("qa/07-gain-after.xml").iter("node")]; assert "90%" not in a, "Gain value did not move: "+str(a); print("CUSTOM_GAIN_DRAG_VERIFIED")'
             adb shell logcat -d -v brief -s AndroidRuntime:E > qa/08-crashes.txt
             if grep -q 'FATAL EXCEPTION' qa/08-crashes.txt; then cat qa/08-crashes.txt; exit 1; fi
-            echo 'ECHOSPACE_REAL_SCREENSHOTS_CAPTURED'
+            python3 EchoSpace/tools/emulator_probe.py tap desc 'Close mixer'
+            sleep 1
+            python3 EchoSpace/tools/emulator_probe.py tap desc 'Add a sound'
+            sleep 2
+            adb exec-out screencap -p > qa/09-real-sound-library-with-SVG.png
+            adb shell input swipe 500 1500 500 650 450
+            sleep 2
+            adb exec-out screencap -p > qa/10-more-custom-sound-icons.png
+            echo 'ECHOSPACE_REAL_SVG_SCREENSHOTS_CAPTURED'
       - name: Publish genuine emulator screenshots
         uses: actions/upload-artifact@v4
         if: always()
