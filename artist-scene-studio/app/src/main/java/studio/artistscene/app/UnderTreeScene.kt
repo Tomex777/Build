@@ -5,6 +5,8 @@ import studio.artistscene.core.ActorKind
 import studio.artistscene.core.CharacterAppearanceSettings
 import studio.artistscene.core.EnvironmentPreset
 import studio.artistscene.core.HairStyle
+import studio.artistscene.core.LightSettings
+import studio.artistscene.core.LightType
 import studio.artistscene.core.ProjectMetadata
 import studio.artistscene.core.RigPose
 import studio.artistscene.core.SceneCamera
