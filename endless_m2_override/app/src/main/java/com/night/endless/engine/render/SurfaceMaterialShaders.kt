@@ -221,11 +221,15 @@ void main() {
         float smaller = 1.0 - smoothstep(0.018, 0.07,
             abs(sin(ridge.x * 2.8 - ridge.y * 1.43 + warp)));
         float weathering = noiseFiltered(ground * 3.1);
-        vec3 cleanIce = vec3(.74, .77, .755);
-        vec3 hydratedBrown = vec3(.34, .267, .235);
-        albedo = mix(cleanIce * (.85 + .20 * weathering),
-            hydratedBrown, clamp(darkBand * .57 + smaller * .09, 0.0, .63));
-        albedo *= .96 + .10 * granules;
+        // Europa's measured ice-dominated crust is high-albedo and
+        // spatially variable; dark red-brown material sits mostly along
+        // fractures rather than covering the whole plain uniformly.
+        vec3 cleanIce = vec3(.78, .81, .795);
+        vec3 hydratedBrown = vec3(.33, .245, .21);
+        float deposit = clamp(darkBand * .66 + smaller * .11, 0.0, .70);
+        albedo = mix(cleanIce * (.91 + .14 * weathering),
+            hydratedBrown, deposit);
+        albedo *= .98 + .065 * granules;
     } else if (uWorld == 5) {
         // Titan: fine organic dunes with broad alternating low albedo
         // streaks. Dunes have no sharp artificial polygon outlines.
@@ -301,6 +305,12 @@ void main() {
         : uWorld == 5
             ? 0.33 + 0.69 * direct * halfLambert
             : 0.055 + 1.38 * direct * halfLambert;
+    // Water-ice frost backscatter avoids grey-rock appearance without
+    // giving Europa an impossible internally glowing/snowy surface.
+    if (uWorld == 4) {
+        float iceFacing = clamp(dot(microNormal, sun), 0.0, 1.0);
+        light += .14 * pow(iceFacing, 1.7);
+    }
     float surfaceAo = mix(1.0, 0.78, pow(steepness, 0.7));
     // Geometrically modelled rocks are darker than surrounding loose dust.
     // Variation between buried basalt and dust-coated stones reduces

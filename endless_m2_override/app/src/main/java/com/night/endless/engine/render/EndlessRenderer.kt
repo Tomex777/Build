@@ -2226,7 +2226,8 @@ uniform int uHasJupiterTexture;
 out vec4 fragColor;
 
 const float TAN_HALF_FOV = 0.6619; // tan(67 deg / 2)
-const float JUPITER_ANGULAR_RADIUS = 0.1038; // atan(69911 / 671100)
+const float JUPITER_ANGULAR_RADIUS = 0.1061; // asin(71492km / Europa orbit 671100km)
+const float JUPITER_POLAR_RATIO = 0.9351; // polar / equatorial radii
 
 vec3 viewRay(vec2 uv) {
     vec2 ndc = uv * 2.0 - 1.0;
@@ -2268,30 +2269,50 @@ void main() {
         float solarGlow = pow(max(dot(ray, normalize(vec3(-.32,.58,.31))), 0.0), 30.0);
         sky += vec3(.065, .037, .016) * solarGlow * (1.0 - airMass * .27);
     } else if (uSkyWorld == 2 && uHasJupiterTexture == 1 && ray.y > 0.0) {
-        // Europa is essentially airless. At a near-sub-Jovian site the
-        // parent planet spans 11.9 degrees of sky; its direction relative
-        // to this *illustrative* landing patch is held fixed.
+        // Europa's near-side Jupiter view: physically small, oblate and
+        // directly illuminated by the same Sun used on the ice terrain.
+        // Camera-space fixed direction is illustrative: no ephemeris claim.
         vec3 towardJupiter = normalize(vec3(.88, .36, -.30));
         vec3 diskRight = normalize(cross(vec3(0.0, 1.0, 0.0), towardJupiter));
         vec3 diskUp = normalize(cross(towardJupiter, diskRight));
-        float cosSeparation = dot(ray, towardJupiter);
-        if (cosSeparation > cos(JUPITER_ANGULAR_RADIUS)) {
-            // Angular perspective projection of the visible hemisphere.
-            vec2 p = vec2(dot(ray, diskRight), dot(ray, diskUp)) /
-                sin(JUPITER_ANGULAR_RADIUS);
-            float rr = dot(p, p);
-            if (rr < 1.0) {
-                vec3 hemisphere = vec3(p, sqrt(max(1.0 - rr, 0.0)));
-                float longitude = atan(hemisphere.x, hemisphere.z);
-                float latitude = asin(clamp(hemisphere.y, -1.0, 1.0));
+        vec2 transverse = vec2(dot(ray, diskRight), dot(ray, diskUp)) /
+            sin(JUPITER_ANGULAR_RADIUS);
+        // Jupiter rotates fast enough to bulge at the equator: its polar
+        // radius is ~93.5% of its equatorial radius. A perfect circle
+        // looks like a flat coin and is measurably incorrect.
+        vec2 p = vec2(transverse.x, transverse.y / JUPITER_POLAR_RATIO);
+        float radiusSquared = dot(p, p);
+        if (dot(ray, towardJupiter) > 0.0 && radiusSquared < 1.045) {
+            float projectedRadius = sqrt(radiusSquared);
+            float rim = fwidth(projectedRadius) * 1.35;
+            float edgeAlpha = 1.0 - smoothstep(1.0 - rim, 1.0 + rim, projectedRadius);
+            if (edgeAlpha > 0.0) {
+                float depth = sqrt(max(1.0 - radiusSquared, 0.0));
+                // Band rotation is orbital presentation, not a screenshot
+                // pasted in a circle. Keep equirectangular band continuity.
+                float longitude = atan(p.x, depth);
+                float latitude = asin(clamp(p.y, -1.0, 1.0));
                 vec2 uv = vec2(fract(.50 + longitude / 6.2831853),
                                .50 - latitude / 3.14159265);
-                vec3 jovianColor = texture(uJupiterTexture, uv).rgb;
-                // Mild limb shading preserves the photograph's banding;
-                // never turn the sky disk into a uniformly colored orb.
-                float limb = .60 + .40 * sqrt(max(1.0 - rr, 0.0));
-                float alpha = 1.0 - smoothstep(.975, 1.0, sqrt(rr));
-                sky = mix(sky, jovianColor * limb * .90, alpha);
+                vec3 clouds = texture(uJupiterTexture, uv).rgb;
+
+                // A sphere needs *solar lighting and a terminator*, not
+                // a uniformly bright photograph. Camera-facing outward
+                // normal is the opposite of the ray toward Jupiter.
+                vec3 normalWorld = normalize(-towardJupiter * depth +
+                                            diskRight * p.x + diskUp * p.y);
+                vec3 sunlight = normalize(vec3(-.74, .38, .31));
+                float incident = dot(normalWorld, sunlight);
+                float lit = smoothstep(-.025, .070, incident);
+                float day = .12 + .88 * max(incident, 0.0);
+                float phase = mix(.018, day, lit);
+
+                // Jovian clouds scatter sunlight strongly but show a
+                // noticeable curved limb: attenuate grazing sight lines.
+                float limb = .56 + .44 * pow(depth, .39);
+                vec3 radiance = clouds * phase * limb;
+                // No air or false blue glow around the disk on Europa.
+                sky = mix(sky, radiance, edgeAlpha);
             }
         }
     }

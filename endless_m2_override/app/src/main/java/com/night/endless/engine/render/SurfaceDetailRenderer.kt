@@ -16,10 +16,10 @@ internal class SurfaceDetailRenderer(
     private val lightX: Double,
     private val lightY: Double,
     private val lightZ: Double,
-    private val elevation: (Double, Double) -> Double,
-    // Extended procedural worlds need the same analytic coarse-field
-    // normals at the LOD boundary; measured Mars/Moon use the default.
-    private val coarseNormalHeight: ((Double, Double) -> Double)? = null
+    // Optional coarse-field normal calculator must precede elevation.
+    // Existing Mars/Moon constructors intentionally use trailing lambdas.
+    private val coarseNormalHeight: ((Double, Double) -> Double)? = null,
+    private val elevation: (Double, Double) -> Double
 ) {
     private var midAnchorX = Double.NaN
     private var midAnchorZ = Double.NaN
