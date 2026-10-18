@@ -703,7 +703,9 @@ private fun SceneScope.ActorModelNode(
  * Keep a newly imported asset readable before the artist edits its transform. SceneView applies
  * this only while instantiating the model; the authored SceneProject transform remains untouched.
  */
-private fun Actor.initialDisplayDimensionMeters(): Float = when (asset?.assetId) {
+private fun Actor.initialDisplayDimensionMeters(): Float =
+    if (asset?.assetId?.startsWith("terrain.generated.") == true) 36f
+    else when (asset?.assetId) {
     "starter.mise.bicycle" -> 1.81f
     "starter.mise.car" -> 3.88f
     "starter.mise.tree" -> 3.65f
