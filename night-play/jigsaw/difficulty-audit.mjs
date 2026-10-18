@@ -50,6 +50,20 @@ try{
       density:loose.length/(r.width*r.height),zoom:s.zoom};
    });
    stats.device=width+'x'+height;stats.errors=errs;
+   assert.equal(stats.n,n,'Correct puzzle count at '+width+'×'+height);
+   assert.equal(stats.pageScroll,0,'No page scrolling at '+width+'×'+height+', '+n+' pieces');
+   assert.deepEqual(errs,[],'No runtime errors at '+width+'×'+height+', '+n+' pieces');
+   if(width<=390){
+    const visible=await page.locator('#focusButton').isVisible();
+    assert.equal(visible,n>=72,'High difficulty offers direct Magnify, low difficulty offers Sweep');
+    assert.equal(await page.locator('#sweepButton').isVisible(),n<72,'Never show two tools fighting for the same mobile slot');
+    assert.ok(stats.b.w>width*.89,'Puzzle board remains large at '+n+' pieces');
+   }
+   if(n>=72)assert.equal(stats.zoom,1,'High-count puzzle opens as a complete overview, not a clipped enlargement');
+   if(width===390&&n===144){
+    const hintUse=await page.locator('#hintButton use').getAttribute('href');
+    assert.equal(hintUse,'#icon-hint','The old diamond-shaped hint icon is gone');
+   }
    all.push(stats);
    const screenshot=await page.screenshot({type:'jpeg',quality:49});
    const name='NIGHT-'+width+'-'+n;
@@ -120,12 +134,16 @@ try{
   await send('touchStart',target.x,target.y);
   await p.waitForFunction(()=>window.__nightJigsawTest.snapshot().selected!==null,null,{timeout:3500});
   const selectedStart=await p.evaluate(()=>window.__nightJigsawTest.snapshot().selected);
+  const paintingStart=await p.evaluate(()=>window.__nightJigsawTest.snapshot());
   const dx=target.x<320?20:-20,dy=target.y>690?-24:24;
   for(let step=1;step<=12;step++){
    await send('touchMove',target.x+dx*step/12,target.y+dy*step/12);
    await new Promise(ok=>setTimeout(ok,14));
   }
   const selectedEnd=await p.evaluate(()=>window.__nightJigsawTest.snapshot().selected);
+  const paintingEnd=await p.evaluate(()=>window.__nightJigsawTest.snapshot());
+  assert.equal(paintingStart.staticPaints,paintingEnd.staticPaints,'144-piece finger tracking must not redraw full board');
+  assert.ok(paintingEnd.dragPaints>=paintingStart.dragPaints+5,'High-count drag layer redraws piece independently');
   assert.ok(Math.hypot(selectedEnd.x-selectedStart.x,selectedEnd.y-selectedStart.y)>7,
    'Android high-DPI loose piece follows finger while zoomed');
   await send('touchEnd',0,0);await touch.detach();
