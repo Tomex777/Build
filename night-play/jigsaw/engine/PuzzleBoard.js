@@ -21,7 +21,7 @@ export class PuzzleBoard{
  }
  resize(){
   const rect=this.wrapper.getBoundingClientRect();
-  const w=Math.max(300,Math.round(rect.width)),h=Math.max(460,Math.round(rect.height));
+  const w=Math.max(280,Math.round(rect.width)),h=Math.max(260,Math.round(rect.height));
   if(this.canvas.width===w&&this.canvas.height===h)return;
   const old={w:this.canvas.width,h:this.canvas.height,pw:this.pieceWidth,ph:this.pieceHeight};
   const anchors=new Map();
@@ -48,7 +48,7 @@ export class PuzzleBoard{
  setDimensions(rows,cols){this.rows=rows;this.cols=cols;this.totalPieces=rows*cols;}
  setupBoardLayout(){
   const cw=this.canvas.width,ch=this.canvas.height,mobile=cw<680;
-  this.boardWidth=mobile?Math.min(cw-20,780):Math.min(cw*.63,760,(ch-20)*4/3);
+  this.boardWidth=mobile?Math.min(cw-20,780):Math.min(cw*.68,935,(ch-24)*4/3);
   this.boardHeight=this.boardWidth*.75;
   this.boardX=(cw-this.boardWidth)/2;
   this.boardY=(ch-this.boardHeight)/2;
@@ -261,10 +261,13 @@ export class PuzzleBoard{
   this.staticPaintCount++;
   const ctx=this.ctx,w=this.canvas.width,h=this.canvas.height;
   ctx.clearRect(0,0,w,h);
-  ctx.fillStyle='#ded8cd';ctx.fillRect(0,0,w,h);
+  const matte=ctx.createLinearGradient(0,0,w,h);
+  matte.addColorStop(0,'#e5dcd0');matte.addColorStop(.55,'#ddd3c6');matte.addColorStop(1,'#d8cfc2');
+  ctx.fillStyle=matte;ctx.fillRect(0,0,w,h);
   // One-pixel tabletop frame — never a thick bezel consuming puzzle space.
-  ctx.fillStyle='#8a8175';ctx.fillRect(this.boardX,this.boardY,this.boardWidth,this.boardHeight);
-  ctx.strokeStyle='#696459';ctx.lineWidth=1;
+  ctx.save();ctx.shadowColor='#483d3140';ctx.shadowBlur=8;ctx.shadowOffsetY=3;
+  ctx.fillStyle='#837b6f';ctx.fillRect(this.boardX,this.boardY,this.boardWidth,this.boardHeight);ctx.restore();
+  ctx.strokeStyle='#71695e';ctx.lineWidth=1;
   ctx.strokeRect(this.boardX+.5,this.boardY+.5,this.boardWidth-1,this.boardHeight-1);
   if(this.showGhost){
    // Optional, intentionally very faint guide. Even Relaxed mode is a puzzle.
@@ -273,8 +276,9 @@ export class PuzzleBoard{
 
   for(const p of this.pieces)if(p.isPlaced){ctx.drawImage(p.offscreenCanvas,p.x-p.canvasMargin,p.y-p.canvasMargin);}
   for(const p of this.pieces)if(!p.isPlaced&&!this.selectedPieces.includes(p)){
-   if(this.edgeOnly&&p.row!==0&&p.col!==0&&p.row!==this.rows-1&&p.col!==this.cols-1)ctx.globalAlpha=.16;
-   ctx.save();ctx.shadowColor='#183b295c';ctx.shadowBlur=4;ctx.shadowOffsetY=2;
+   ctx.save();
+   if(this.edgeOnly&&p.row!==0&&p.col!==0&&p.row!==this.rows-1&&p.col!==this.cols-1)ctx.globalAlpha=.18;
+   ctx.shadowColor='#34271c66';ctx.shadowBlur=7;ctx.shadowOffsetY=3;
    ctx.drawImage(p.offscreenCanvas,p.x-p.canvasMargin,p.y-p.canvasMargin);ctx.restore();
   }
   if(confetti)confetti.updateAndRender(ctx);
