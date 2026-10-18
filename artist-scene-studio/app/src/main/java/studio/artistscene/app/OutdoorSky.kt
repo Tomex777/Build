@@ -1,6 +1,9 @@
 package studio.artistscene.app
 
+import android.content.Context
 import android.os.Build
+import java.nio.ByteOrder
+import java.util.zip.InflaterInputStream
 import com.google.android.filament.Engine
 import com.google.android.filament.Texture
 import java.nio.ByteBuffer
@@ -104,3 +107,42 @@ private fun colorChannels(color: Int): FloatArray =
         ((color shr 8) and 255) / 255f,
         (color and 255) / 255f,
     )
+
+/**
+ * Camera-orbitable photographic skybox from Poly Haven (CC0).
+ *
+ * The sky is *not* a lookalike gradient and not an image composited into the
+ * screenshot: it is true environment cubemap geometry, so it stays in world
+ * direction when the user orbits the camera, instead of tilting with the UI.
+ *
+ * Photographer Greg Zaal, sky edit Jarod Guest; original downloadable on:
+ * https://polyhaven.com/a/kloofendal_48d_partly_cloudy_puresky
+ */
+internal fun createPhotographicOutdoorSky(engine: Engine, context: Context): Texture {
+    val asset = context.assets.open("world/real_daylight_sky.misesky")
+    val pixels = asset.use { stream ->
+        val magic = ByteArray(8)
+        check(stream.read(magic) == 8 && String(magic, Charsets.US_ASCII) == "MISESKY1") {
+            "Invalid photographic sky cubemap"
+        }
+        val sizeBytes = ByteArray(4)
+        check(stream.read(sizeBytes) == 4)
+        val size = ByteBuffer.wrap(sizeBytes).order(ByteOrder.LITTLE_ENDIAN).int
+        require(size == 512) { "Unexpected photo cubemap dimension: $size" }
+        val byteCount = size * size * 4 * 6
+        val array = InflaterInputStream(stream).use { it.readBytes() }
+        require(array.size == byteCount) { "Incomplete photo cubemap" }
+        ByteBuffer.allocateDirect(byteCount).put(array).apply { flip() }
+    }
+    val size = 512
+    return Texture.Builder().width(size).height(size).levels(1)
+        .sampler(Texture.Sampler.SAMPLER_CUBEMAP)
+        .format(Texture.InternalFormat.SRGB8_A8)
+        .build(engine).also { texture ->
+            texture.setImage(
+                engine, 0,
+                Texture.PixelBufferDescriptor(pixels, Texture.Format.RGBA, Texture.Type.UBYTE),
+                IntArray(6) { it * size * size * 4 },
+            )
+        }
+}
