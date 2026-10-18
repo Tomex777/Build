@@ -177,7 +177,7 @@ function savedCandidate(){
  try{
   const saved=JSON.parse(safeRead(SAVE_KEY)||'null');
   return saved&&!saved.won&&dimMap[saved.pieces]&&
-   (choices.some(x=>x.id===saved.theme)||(saved.theme==='custom'&&saved.customData))?saved:null;
+   (getPhoto(saved.theme)||legacyArtIds.has(saved.theme)||(saved.theme==='custom'&&saved.customData))?saved:null;
  }catch{return null}
 }
 function continuePuzzle(){
@@ -189,6 +189,7 @@ function continuePuzzle(){
  if(!resumeSaved(saved)){showGallery();showToast('Your saved puzzle could not be restored')}
 }
 function showGallery(){
+ imageLoadVersion++;
  timerStop();if(activeRound&&!won)saveGame();
  endPreview();$('playScreen').hidden=true;$('resumePanel').hidden=true;$('openingPanel').hidden=true;
  activeRound=false;category='all';
@@ -200,21 +201,28 @@ function showGallery(){
 function showWelcome(saved){
  resumeCandidate=saved;
  const item=choices.find(x=>x.id===saved.theme);
- const label=item?.name||'Your photograph';
+ const label=item?.name||(saved.theme==='custom'?'Your photograph':'Your saved picture');
  $('resumeSummary').textContent=label+' · '+saved.pieces+' pieces · '+Math.min(saved.pieces,saved.board?.placedCount||saved.board?.pieces?.filter(p=>p.isPlaced).length||0)+' completed. Pick up exactly where you stopped.';
  $('openingPanel').hidden=true;$('playScreen').hidden=true;$('galleryPanel').hidden=true;$('resumePanel').hidden=false;
 }
 function resumeSaved(saved){
- if(!saved||!dimMap[saved.pieces]||(!choices.some(c=>c.id===saved.theme)&&saved.theme!=='custom')||saved.won)return false;
+ if(!saved||!dimMap[saved.pieces]||(!getPhoto(saved.theme)&&!legacyArtIds.has(saved.theme)&&saved.theme!=='custom')||saved.won)return false;
+ const loadVersion=++imageLoadVersion;
  theme=saved.theme;piecesCount=saved.pieces;customData=saved.customData||null;
  challengeMode=modeRules[saved.challengeMode]?saved.challengeMode:'relaxed';
  if(theme==='custom'){
   if(!customData)return false;
   const img=new Image();
-  img.onload=()=>{paintCustomSource(img);resetBoard(false,saved);};
-  img.onerror=()=>{showGallery();showToast('Could not restore your picture');};
+  img.onload=()=>{if(loadVersion!==imageLoadVersion)return;paintCustomSource(img);resetBoard(false,saved)};
+  img.onerror=()=>{if(loadVersion===imageLoadVersion){showGallery();showToast('Could not restore your picture')}};
   img.src=customData;
- }else resetBoard(false,saved);
+ }else if(getPhoto(theme)){
+  loadPhoto(theme).then(()=>{
+   if(loadVersion===imageLoadVersion)resetBoard(false,saved);
+  }).catch(()=>{
+   if(loadVersion===imageLoadVersion){showGallery();showToast('Saved picture could not load. Check your connection.')}
+  });
+ }else resetBoard(false,saved); // Legacy artwork stays unchanged.
  updateDifficultyButtons();return true;
 }
 function updateDifficultyButtons(){
