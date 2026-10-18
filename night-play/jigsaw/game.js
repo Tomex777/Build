@@ -206,6 +206,7 @@ function continuePuzzle(){
  if(!resumeSaved(saved)){showGallery();showToast('Your saved puzzle could not be restored')}
 }
 function showGallery(){
+ if(document.fullscreenElement)document.exitFullscreen().catch(()=>{});
  imageLoadVersion++;
  timerStop();if(activeRound&&!won)saveGame();
  endPreview();$('playScreen').hidden=true;$('resumePanel').hidden=true;$('openingPanel').hidden=true;
@@ -422,7 +423,31 @@ $('hintButton').addEventListener('click',()=>{
  usedHints++;sound.playSnap();setStats();board.render();updateHelpUI();saveGame();
  if(board.placedCount===board.totalPieces)celebrate();
 });
-$('restartButton').addEventListener('click',()=>{if(theme==='custom'&&!customData)return;resetBoard(true)});
+$('restartButton').addEventListener('click',()=>{
+ if(!activeRound||won)return;
+ if(theme==='custom'&&!customData)return;
+ $('settingsDialog').close();resetBoard(true);
+});
+const fullscreenButton=$('fullscreenButton');
+function updateFullscreenButton(){
+ const active=Boolean(document.fullscreenElement);
+ fullscreenButton.setAttribute('aria-pressed',String(active));
+ fullscreenButton.setAttribute('aria-label',active?'Exit full screen':'Enter full screen');
+ fullscreenButton.title=active?'Exit full screen':'Full screen';
+ fullscreenButton.querySelector('use').setAttribute('href',active?'#icon-contract':'#icon-expand');
+ // Browser viewport resizes synchronously after fullscreen transitions.
+ if(activeRound&&!$('playScreen').hidden)requestAnimationFrame(()=>{
+  board.resize();applyZoom();board.render();
+ });
+}
+fullscreenButton.addEventListener('click',async()=>{
+ try{
+  if(document.fullscreenElement)await document.exitFullscreen();
+  else if(document.documentElement.requestFullscreen)await document.documentElement.requestFullscreen();
+  else showToast('Full screen is not supported by this browser');
+ }catch{showToast('Full screen is unavailable on this device')}
+});
+document.addEventListener('fullscreenchange',updateFullscreenButton);
 $('victoryNext').addEventListener('click',()=>{$('victoryDialog').close();showGallery()});
 $('victoryReplay').addEventListener('click',()=>{$('victoryDialog').close();resetBoard(true)});
 $('imageFile').addEventListener('change',e=>onPhoto(e.target.files?.[0]));
@@ -431,7 +456,7 @@ resize.observe(wrapper);
 document.addEventListener('visibilitychange',()=>{if(document.hidden){timerStop();saveGame()}else timerStart()});
 window.addEventListener('pagehide',()=>{timerStop();saveGame()});
 window.addEventListener('keydown',e=>{
- if(e.key==='Escape'&&$('playScreen').hidden===false&&!['settingsDialog','previewDialog','victoryDialog'].some(id=>$(id).open))showGallery();
+ if(e.key==='Escape'&&!document.fullscreenElement&&$('playScreen').hidden===false&&!['settingsDialog','previewDialog','victoryDialog'].some(id=>$(id).open))showGallery();
 });
 // Gallery is intentionally NOT rendered on page load when a saved puzzle exists.
  // This prevents an unfinished puzzle from flashing the full gallery before resuming.

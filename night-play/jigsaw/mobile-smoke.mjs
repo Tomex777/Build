@@ -257,5 +257,55 @@ try{
   await page.locator('#resumeFromGallery').click();
   await page.waitForFunction(()=>window.__nightJigsawTest?.snapshot().activeRound&&window.__nightJigsawTest.snapshot().pieces.length===144);
   assert.equal(await page.locator('#playScreen').isVisible(),true,'Continue restores the unfinished Master puzzle');
+
+ // Separate mobile browser: help controls must remain within viewport, never below puzzle.
+ const hud=await browser.newPage({viewport:{width:390,height:844},isMobile:true,hasTouch:true,deviceScaleFactor:1});
+ const hudErrors=[];hud.on('pageerror',e=>hudErrors.push(String(e)));
+ await hud.route('https://images.unsplash.com/**',mockPhoto);
+ await hud.goto(url+'/jigsaw/');
+ await hud.locator('[data-theme="photo-alpine-lake"]').click();
+ await hud.waitForFunction(()=>window.__nightJigsawTest?.snapshot().activeRound);
+ const checkHud=()=>hud.evaluate(()=>{
+  const ids=['previewButton','hintButton','fullscreenButton','edgesButton','sweepButton'],rects={};
+  for(const id of ids){const r=document.getElementById(id).getBoundingClientRect();rects[id]={top:r.top,bottom:r.bottom,left:r.left,right:r.right,visible:r.width>=20&&r.height>=20&&r.top>=-1&&r.bottom<=innerHeight+1&&r.left>=-1&&r.right<=innerWidth+1}}
+  return {width:innerWidth,rects,toolbarBottom:document.querySelector('.play-hud').getBoundingClientRect().bottom,boardTop:document.querySelector('.play-mat').getBoundingClientRect().top,overflow:document.documentElement.scrollWidth>innerWidth+2};
+ });
+ let hudState=await checkHud();
+ assert.equal(hudState.overflow,false,'Puzzle has no horizontal overflow');
+ assert.ok(Object.values(hudState.rects).every(v=>v.visible),'All top tools visible without scrolling '+JSON.stringify(hudState));
+ assert.ok(hudState.toolbarBottom<=hudState.boardTop+2,'Assistance controls belong above the puzzle');
+ assert.equal(await hud.locator('#previewButton').count(),1);
+ assert.equal(await hud.locator('#hintButton').count(),1);
+ await hud.screenshot({path:path.join(root,'visual-output/JIGSAW-TOP-TOOLS-MOBILE.jpg'),type:'jpeg',quality:74});
+ await hud.locator('#fullscreenButton').click();
+ await hud.waitForTimeout(220);
+ hudState=await checkHud();
+ assert.ok(hudState.rects.previewButton.visible&&hudState.rects.hintButton.visible,'Full screen must retain visible Preview and Hint');
+ const full=await hud.evaluate(()=>Boolean(document.fullscreenElement));
+ if(full){
+  assert.equal(await hud.locator('#fullscreenButton').getAttribute('aria-pressed'),'true');
+  await hud.screenshot({path:path.join(root,'visual-output/JIGSAW-TRUE-FULLSCREEN.jpg'),type:'jpeg',quality:74});
+ }
+ await hud.locator('#previewButton').click();
+ assert.equal(await hud.locator('#previewDialog').isVisible(),true,'Preview works from upper toolbar');
+ await hud.locator('[data-close="previewDialog"]').click();
+ assert.equal(await hud.locator('#previewRemaining').innerText(),'2 left');
+ await hud.locator('#hintButton').click();
+ assert.equal(await hud.locator('#hintRemaining').innerText(),'2 left');
+ assert.ok((await hud.evaluate(()=>window.__nightJigsawTest.snapshot())).placed>0,'Upper hint still places piece');
+ await hud.locator('#settingsButton').click();
+ assert.equal(await hud.locator('#settingsDialog').isVisible(),true);
+ assert.equal(await hud.locator('#restartButton').count(),1);
+ await hud.locator('#restartButton').click();
+ assert.equal(await hud.locator('#settingsDialog').isVisible(),false);
+ assert.equal((await hud.evaluate(()=>window.__nightJigsawTest.snapshot())).placed,0,'Restart resets play');
+ if(await hud.evaluate(()=>Boolean(document.fullscreenElement)))await hud.locator('#fullscreenButton').click();
+ await hud.setViewportSize({width:320,height:700});
+ hudState=await checkHud();
+ assert.equal(hudState.overflow,false,'320px phone must not horizontally overflow '+JSON.stringify(hudState));
+ assert.ok(hudState.rects.previewButton.visible&&hudState.rects.hintButton.visible,'Help remains visible at 320px '+JSON.stringify(hudState));
+ await hud.screenshot({path:path.join(root,'visual-output/JIGSAW-TOP-TOOLS-COMPACT.jpg'),type:'jpeg',quality:74});
+ assert.deepEqual(hudErrors,[],'Fullscreen and compact HUD run without browser errors');
+ await hud.close();
  console.log('PASS NIGHT Play Jigsaw: photographic gallery, real touch drag, hints, save/reload, settings, upload, win and responsive desktop.');
 }finally{if(browser)await browser.close();await new Promise(ok=>server.close(ok))}

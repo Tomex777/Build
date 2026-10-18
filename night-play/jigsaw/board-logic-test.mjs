@@ -25,6 +25,9 @@ assert.ok(board.pieces.some(p=>p.y+p.canvasMargin<board.boardY),'some pieces abo
 assert.ok(board.pieces.some(p=>p.y>board.boardY+board.boardHeight),'some pieces below');
 assert.ok(new Set(board.pieces.map(p=>Math.round(p.x))).size>=12,'scattering is not a rigid tray grid');
 const a=board.pieces.find(p=>p.row===1&&p.col===1),b=board.pieces.find(p=>p.row===1&&p.col===2);
+// Isolate the intended connection; unrelated random neighbours can
+// accidentally fall within snap distance and make this test flaky.
+for(const p of board.pieces)if(p!==a&&p!==b){p.x=-10000;p.y=-10000;}
 a.x=34;a.y=30;b.x=a.x+board.pieceWidth+2;b.y=a.y+1;
 assert.equal(board.checkSnap(a),false,'free neighbour should join, not auto-solve');
 assert.equal(board.lastJoinCount,1,'adjacent jigsaw pieces must link');
