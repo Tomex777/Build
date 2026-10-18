@@ -68,7 +68,7 @@ function createSudoku(level="easy",seed=Date.now()){
  return {solution,puzzle,removed};
 }
 function memoryDeck(pairs=8,seed=Date.now()){
- const size=Math.max(2,Math.min(12,Math.round(pairs)||8)),ids=Array.from({length:size},(_,i)=>i);
+ const size=Math.max(2,Math.min(30,Math.round(pairs)||8)),ids=Array.from({length:size},(_,i)=>i);
  return shuffle(ids.concat(ids),rng(seed));
 }
 function createConnectBoard(){return Array.from({length:6},()=>Array(7).fill(0));}
