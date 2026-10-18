@@ -54,7 +54,10 @@ object PrototypeScene {
      * Other characters, bones and user-authored poses remain untouched.
      */
     fun resolveAnimePose(actor: Actor, definition: RigDefinition): Actor {
-        if (actor.asset?.assetId != ANIME_ASSET_ID || actor.id != "anime-hero") return actor
+        val isHero = actor.asset?.assetId == ANIME_ASSET_ID && actor.id == "anime-hero"
+        val isUnderTreeStudent = actor.metadata["misePose"] == UnderTreeScene.POSE_TAG &&
+            actor.asset?.assetId in setOf(ANIME_ASSET_ID, ANIME_FEMALE_ASSET_ID)
+        if (!isHero && !isUnderTreeStudent) return actor
         val pose = actor.rig ?: return actor
         val discoveredIds = definition.bones.map { it.id }.toSet()
         if (pose.joints.keys.all { it in discoveredIds }) return actor
