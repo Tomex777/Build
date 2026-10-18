@@ -3,6 +3,10 @@ package studio.artistscene.core
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.int
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -45,9 +49,9 @@ class TerrainMeshTest {
         assertTrue(text.contains("NORMAL"))
         assertTrue(text.contains("TEXCOORD_0"))
         assertTrue(text.contains("\"max\""))
-        assertEquals(0x004E4942, run {
-            stream.int.also { stream.int }
-        })
+        val binaryLength = stream.int
+        assertTrue(binaryLength > 100000)
+        assertEquals(0x004E4942, stream.int)
     }
 
     @Test fun sunPositionRotatesAndLowerAnglesMakeLongRealShadows() {
