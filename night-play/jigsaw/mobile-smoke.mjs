@@ -31,6 +31,10 @@ try{
  await page.goto(url+'/jigsaw/');
  await page.locator('#galleryGrid .gallery-card').first().waitFor();
  assert.equal(await page.locator('#galleryGrid .gallery-card').count(),15,'Fourteen photographic puzzles and a private photo upload');
+ const photoSources=await page.locator('#galleryGrid .gallery-image img').evaluateAll(imgs=>imgs.map(x=>x.src));
+ assert.equal(photoSources.length,14,'Every gallery item has a photograph');
+ assert.equal(new Set(photoSources).size,14,'Photographs are distinct');
+ assert.ok(photoSources.every(src=>src.startsWith('https://images.unsplash.com/photo-')),'No generated-art gallery cards');
  assert.equal(await page.locator('#playScreen').isVisible(),false,'Puzzle gallery opens before choosing picture');
  await page.screenshot({path:path.join(root,'visual-output/JIGSAW-GALLERY-MOBILE.jpg'),type:'jpeg',quality:80,fullPage:true});
  console.log('NIGHT_JIGSAW_GALLERY_JPEG_BASE64='+(await page.screenshot({type:'jpeg',quality:50,fullPage:true})).toString('base64'));
