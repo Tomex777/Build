@@ -57,3 +57,19 @@ internal fun createPhotographicGround(engine: Engine, context: Context): Texture
         source.recycle()
     }
 }
+
+/**
+ * Keep PBR textures alive as long as their Filament Engine. SceneView retains
+ * its textured MaterialInstances during Activity transitions; disposing a
+ * texture in an early Compose onDispose callback would abort the Filament
+ * backend because it is still bound to its material. A single cached ground
+ * texture per engine avoids repeated allocations and premature destruction.
+ * Native texture memory is reclaimed when the corresponding engine shuts down.
+ */
+internal object PhotographicGroundCache {
+    private val byEngine = java.util.WeakHashMap<Engine, Texture>()
+
+    @Synchronized
+    fun obtain(engine: Engine, context: Context): Texture =
+        byEngine.getOrPut(engine) { createPhotographicGround(engine, context) }
+}
