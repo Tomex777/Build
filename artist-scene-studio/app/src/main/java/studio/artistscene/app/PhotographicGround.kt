@@ -4,6 +4,7 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Canvas
+import android.graphics.ColorMatrixColorFilter
 import android.graphics.Paint
 import android.graphics.Rect
 import com.google.android.filament.Engine
@@ -27,7 +28,17 @@ internal fun createPhotographicGround(engine: Engine, context: Context): Texture
     val tiled = Bitmap.createBitmap(pixels, pixels, Bitmap.Config.ARGB_8888)
     try {
         val canvas = Canvas(tiled)
-        val paint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)
+        // Calibrate photographic albedo for the physically bright sun in the
+        // viewport. Without this, Filament's tone mapping clips brown/green
+        // leaf detail to pale yellow and the real shadow receiver reads flat.
+        val paint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG).apply {
+            colorFilter = ColorMatrixColorFilter(floatArrayOf(
+                0.60f, 0f, 0f, 0f, 0f,
+                0f, 0.66f, 0f, 0f, 0f,
+                0f, 0f, 0.58f, 0f, 0f,
+                0f, 0f, 0f, 1f, 0f,
+            ))
+        }
         for (row in 0 until tileCount) {
             for (column in 0 until tileCount) {
                 val dest = Rect(
