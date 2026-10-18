@@ -152,10 +152,7 @@ fun SceneViewport(
     // A low-chroma matte ground creates value separation from human skin and light clothing.
     // Keep it as Filament PBR geometry so it receives real shadow maps/contact shadows.
     val groundPhoto = remember(engine, preset) {
-        if (preset == EnvironmentPreset.PARK_SHADE) createPhotographicGround(engine, context) else null
-    }
-    DisposableEffect(groundPhoto) {
-        onDispose { groundPhoto?.let(engine::destroyTexture) }
+        if (preset == EnvironmentPreset.PARK_SHADE) PhotographicGroundCache.obtain(engine, context) else null
     }
     val floor = remember(materialLoader, preset, groundPhoto) {
         if (groundPhoto != null) {
