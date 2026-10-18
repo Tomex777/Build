@@ -6,6 +6,25 @@
 <meta name="theme-color" content="#f7f7f7">
 <meta name="description" content="NIGHT Play — a home for games, challenges, and friends.">
 <title>NIGHT Play — Play your way</title>
+<script>
+/* Start the cookie-backed session check while the HTML is still parsing.
+   The secure HttpOnly cookie goes automatically with this same-origin request.
+   The UI must never paint a false signed-out state before the result arrives. */
+document.documentElement.dataset.nightAccount='checking';
+window.__nightAccountBoot=fetch('/api/account',{
+ method:'GET',credentials:'same-origin',cache:'no-store',
+ signal:AbortSignal.timeout(15000)
+}).then(async response=>{
+ const data=await response.json();
+ if(!response.ok)throw new Error(data.error||'NIGHT connection is temporarily unavailable.');
+ return {data};
+}).catch(error=>({error:error?.message||'NIGHT connection is temporarily unavailable.'}));
+</script>
+<style>
+/* Hide the sign-in action until the authoritative HttpOnly session is checked.
+   Display none also avoids header reflow for already linked players. */
+html[data-night-account="checking"] .site-header [data-dialog="connect"]{display:none!important}
+</style>
 <style>
 :root{--bg:#f7f7f7;--surface:#fff;--soft:#ededed;--ink:#1e242a;--dark:#080808;--muted:#777e83;--line:#e4e5e5;--radius:24px}
 *{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:var(--bg);color:var(--ink);font-family:Inter,"DM Sans",Arial,system-ui,sans-serif;-webkit-font-smoothing:antialiased}button,a{-webkit-tap-highlight-color:transparent}button{font:inherit;cursor:pointer}a{color:inherit;text-decoration:none}.wrap{max-width:1260px;padding:0 32px;margin:auto}
