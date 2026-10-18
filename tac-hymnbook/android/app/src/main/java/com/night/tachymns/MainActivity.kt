@@ -6,6 +6,8 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -37,12 +39,13 @@ private val LightPalette = lightColorScheme(
     surface = Color.White, onSurface = Ink, surfaceVariant = Color(0xFFE9ECE6),
     onSurfaceVariant = Color(0xFF5A6A60), outline = Color(0xFFD8DFD7)
 )
+// Warm graphite and ivory in dark mode; no green-on-black accent.
 private val DarkPalette = darkColorScheme(
-    primary = Color(0xFFA3D6B0), onPrimary = Color(0xFF193623),
-    background = Color(0xFF141D19), onBackground = Color(0xFFF2F4EE),
-    surface = Color(0xFF202B25), onSurface = Color(0xFFF2F4EE),
-    surfaceVariant = Color(0xFF2D3A32), onSurfaceVariant = Color(0xFFBDCCC0),
-    outline = Color(0xFF45574B)
+    primary = Color(0xFFE9CBA1), onPrimary = Color(0xFF29231D),
+    background = Color(0xFF1B1C20), onBackground = Color(0xFFF6F3EE),
+    surface = Color(0xFF292B30), onSurface = Color(0xFFF6F3EE),
+    surfaceVariant = Color(0xFF36383E), onSurfaceVariant = Color(0xFFC4C0B9),
+    outline = Color(0xFF4D5058)
 )
 
 class MainActivity : ComponentActivity() {
@@ -52,6 +55,7 @@ class MainActivity : ComponentActivity() {
         val prefs = getSharedPreferences("reader", MODE_PRIVATE)
         setContent {
             var dark by remember { mutableStateOf(prefs.getBoolean("dark", false)) }
+            var englishMode by rememberSaveable { mutableStateOf(false) }
             var selectedNumber by rememberSaveable { mutableStateOf<Int?>(intent.getIntExtra("preview_hymn", -1).takeIf { it > 0 }) }
             var lastRead by remember { mutableIntStateOf(prefs.getInt("last", -1)) }
             var fontScale by remember { mutableFloatStateOf(prefs.getFloat("font_scale", 1f)) }
@@ -95,6 +99,8 @@ class MainActivity : ComponentActivity() {
                             previous = hymns.lastOrNull { it.number < selected.number },
                             next = hymns.firstOrNull { it.number > selected.number },
                             saved = selected.number in saved,
+                            english = englishMode,
+                            onLanguageChange = { englishMode = it },
                             fontScale = fontScale,
                             onChangeFontScale = {
                                 fontScale = it.coerceIn(0.85f, 1.55f)
@@ -296,15 +302,39 @@ private fun HymnReader(
     previous: Hymn?,
     next: Hymn?,
     saved: Boolean,
+    english: Boolean,
+    onLanguageChange: (Boolean) -> Unit,
     fontScale: Float,
     onChangeFontScale: (Float) -> Unit,
     onBack: () -> Unit,
     onOpen: (Int) -> Unit,
     onToggleSaved: () -> Unit
 ) {
-    var english by rememberSaveable(hymn.number) { mutableStateOf(false) }
-    val verses = if (english && hymn.hasEnglish) hymn.versesEn else hymn.versesYo
-    Column(Modifier.fillMaxSize()) {
+    val showEnglish = english && hymn.hasEnglish
+    val verses = if (showEnglish) hymn.versesEn else hymn.versesYo
+    // A horizontal swipe changes hymn, without disturbing vertical scrolling through long verses.
+    // Navigation buttons below remain for accessibility.
+    Column(
+        Modifier
+            .fillMaxSize()
+            .pointerInput(hymn.number, previous?.number, next?.number) {
+                var travel = 0f
+                detectHorizontalDragGestures(
+                    onDragStart = { travel = 0f },
+                    onHorizontalDrag = { change, delta ->
+                        travel += delta
+                        change.consume()
+                    },
+                    onDragEnd = {
+                        val threshold = 82.dp.toPx()
+                        when {
+                            travel < -threshold -> next?.let { onOpen(it.number) }
+                            travel > threshold -> previous?.let { onOpen(it.number) }
+                        }
+                    }
+                )
+            }
+    ) {
         Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = onBack) {
@@ -332,8 +362,8 @@ private fun HymnReader(
                 }
                 Spacer(Modifier.height(18.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    LanguageTab("Yorùbá", !english, hymn.hasYoruba) { english = false }
-                    LanguageTab("English", english, hymn.hasEnglish) { english = true }
+                    LanguageTab("Yorùbá", !showEnglish, hymn.hasYoruba) { onLanguageChange(false) }
+                    LanguageTab("English", showEnglish, hymn.hasEnglish) { onLanguageChange(true) }
                 }
                 Spacer(Modifier.height(18.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -384,6 +414,11 @@ private fun HymnReader(
             }
             item {
                 Column {
+                    if (hymn.textStatus.contains("partial")) {
+                        Text("Incomplete hymn · further page required",
+                            color = MaterialTheme.colorScheme.error, fontSize = 12.sp)
+                        Spacer(Modifier.height(6.dp))
+                    }
                     if (hymn.textStatus.contains("draft")) {
                         Text("Transcription being checked",
                             color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
