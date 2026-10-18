@@ -57,12 +57,12 @@ object HymnRepository {
                 number = item.getInt("number"),
                 collection = item.optString("collection", "main"),
                 titleYo = item.getString("title_yo"),
-                titleEn = item.optString("title_en").ifBlank { null },
+                titleEn = if (item.isNull("title_en")) null else item.optString("title_en").ifBlank { null },
                 sourcePages = item.optJSONArray("source_pages")?.intList().orEmpty(),
                 versesYo = item.optJSONArray("verses_yo")?.verseList().orEmpty(),
                 versesEn = item.optJSONArray("verses_en")?.verseList().orEmpty(),
                 textStatus = item.optString("text_status", "missing"),
-                sourceUrl = item.optString("source_url").ifBlank { null }
+                sourceUrl = if (item.isNull("source_url")) null else item.optString("source_url").ifBlank { null }
             )
         }.sortedBy { it.number }
             .also { hymns ->
