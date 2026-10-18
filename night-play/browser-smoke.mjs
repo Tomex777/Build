@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs'
 import { createServer } from 'node:http'
 import { chromium } from 'playwright'
 const html=readFileSync(new URL('./index.html',import.meta.url))
-const server=createServer((req,res)=>{if(req.url==='/account-client.js'){res.writeHead(200,{'content-type':'text/javascript'});res.end(readFileSync(new URL('./account-client.js',import.meta.url)));return}if(req.url==='/api/account'){res.writeHead(200,{'content-type':'application/json'});res.end(JSON.stringify({linked:false,profile:null}));return}res.writeHead(200,{'content-type':'text/html; charset=utf-8','cache-control':'no-store'});res.end(html)})
+const server=createServer((req,res)=>{if(req.url==='/site-shell.css'){res.writeHead(200,{'content-type':'text/css'});res.end(readFileSync(new URL('./site-shell.css',import.meta.url)));return}if(req.url==='/account-client.js'){res.writeHead(200,{'content-type':'text/javascript'});res.end(readFileSync(new URL('./account-client.js',import.meta.url)));return}if(req.url==='/api/account'){res.writeHead(200,{'content-type':'application/json'});res.end(JSON.stringify({linked:false,profile:null}));return}res.writeHead(200,{'content-type':'text/html; charset=utf-8','cache-control':'no-store'});res.end(html)})
 await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve))
 let browser
 try {
@@ -11,6 +11,28 @@ try {
  browser=await chromium.launch({headless:true,channel:'chrome',args:['--no-sandbox']})
  const page=await browser.newPage({viewport:{width:390,height:844},isMobile:true,hasTouch:true})
  const failures=[]
+ async function checkNav(destination){
+  const metrics=await page.evaluate(()=>{
+   const nav=document.querySelector('.mobile-nav'),box=nav.getBoundingClientRect();
+   const items=[...nav.querySelectorAll('a')].map(a=>{
+    const rect=a.getBoundingClientRect(),style=getComputedStyle(a);
+    return {name:a.textContent.trim(),height:rect.height,width:rect.width,current:a.getAttribute('aria-current'),background:style.backgroundColor}
+   });
+   return {display:getComputedStyle(nav).display,top:box.top,bottom:box.bottom,height:box.height,viewportHeight:innerHeight,
+    headerProfile:document.querySelectorAll('header .profile-icon').length,
+    overflow:document.documentElement.scrollWidth-innerWidth,items};
+  });
+  assert.equal(metrics.display,'grid','bottom navigation is balanced in three equal tracks');
+  assert.ok(Math.abs(metrics.bottom-metrics.viewportHeight)<=2,'bar anchors to bottom of visible viewport');
+  assert.equal(metrics.headerProfile,0,'no duplicated top-right profile shortcut');
+  assert.ok(metrics.items.every(item=>item.height>=44),'each tab has at least 44px height');
+  assert.equal(metrics.items.filter(item=>item.current==='page').length,1,'one active bottom destination');
+  assert.equal(metrics.items.find(item=>item.current==='page').name,destination);
+  assert.notEqual(metrics.items.find(item=>item.current==='page').background,'rgba(0, 0, 0, 0)','selected tab has a visible surface');
+  assert.ok(metrics.overflow<=2,'mobile navigation never introduces horizontal scrolling');
+  console.log('NIGHT_NAV_METRICS '+JSON.stringify(metrics));
+ }
+
  page.on('pageerror',err=>failures.push(String(err)))
  await page.goto(base+'/')
  await page.locator('#view-welcome').waitFor({state:'visible'})
@@ -35,7 +57,8 @@ try {
  assert.equal(await page.locator('header').evaluate(el=>getComputedStyle(el).position),'sticky')
  assert.equal(await page.locator('#announcementBar').evaluate(el=>getComputedStyle(el).position),'sticky')
  assert.equal(await page.locator('#view-dashboard #dashSnakeBest').count(),0)
- console.log('NIGHT_NAV_BEFORE_DASHBOARD='+(await page.screenshot({type:'jpeg',quality:68})).toString('base64'))
+ await checkNav('Home')
+ console.log('NIGHT_NAV_AFTER_DASHBOARD='+(await page.screenshot({type:'jpeg',quality:68})).toString('base64'))
  await page.evaluate(()=>{
   localStorage.setItem('night-play-v1-snake','90');
   localStorage.setItem('night-play-history-v1-snake',JSON.stringify([12,35,90]));
@@ -44,7 +67,8 @@ try {
  await page.locator('.mobile-nav a[href="/profile"]').click()
  await page.locator('#view-profile').waitFor({state:'visible'})
  assert.equal(new URL(page.url()).pathname,'/profile')
- console.log('NIGHT_NAV_BEFORE_PROFILE='+(await page.screenshot({type:'jpeg',quality:68})).toString('base64'))
+ await checkNav('Profile')
+ console.log('NIGHT_NAV_AFTER_PROFILE='+(await page.screenshot({type:'jpeg',quality:68})).toString('base64'))
  assert.equal(await page.locator('#view-profile .inner-page-head').count(),0,'Profile begins with player card, not a redundant heading')
  await page.locator('#editPlayerName').click()
  await page.locator('#playerNameInput').fill('Alex')
@@ -82,7 +106,8 @@ try {
  assert.equal(await page.locator('#selectedGameTitle').textContent(),'Game activity')
  await page.locator('.mobile-nav a[href="/games"]').click()
  await page.locator('#view-games').waitFor({state:'visible'})
- console.log('NIGHT_NAV_BEFORE_GAMES='+(await page.screenshot({type:'jpeg',quality:68})).toString('base64'))
+ await checkNav('Games')
+ console.log('NIGHT_NAV_AFTER_GAMES='+(await page.screenshot({type:'jpeg',quality:68})).toString('base64'))
  console.log('NIGHT_GAME_GALLERY_BASE64='+(await page.locator('#view-games').screenshot({type:'jpeg',quality:58})).toString('base64'));
  assert.equal(await page.locator('.brand-mark use').first().getAttribute('href'),'#icon-brand')
  assert.equal(await page.locator('.library-card .game-art').count(),9,'Other games retain their SVG thumbnails')
@@ -271,6 +296,12 @@ try {
  await page.locator('.mobile-nav a[href="/profile"]').click()
  await page.locator('#view-profile').waitFor({state:'visible'})
  await page.locator('footer').scrollIntoViewIfNeeded()
+ await page.evaluate(()=>window.scrollTo(0,document.documentElement.scrollHeight))
+ const mobileFooter=await page.evaluate(()=>{
+  const f=document.querySelector('footer').getBoundingClientRect(),nav=document.querySelector('.mobile-nav').getBoundingClientRect()
+  return {footerBottom:f.bottom,barTop:nav.top};
+ })
+ assert.ok(mobileFooter.footerBottom<=mobileFooter.barTop+3,'full footer remains accessible above bottom navigation')
  assert.equal(await page.locator('footer a[href="/terms"]').isVisible(),true)
  assert.equal(await page.locator('footer a[href="/privacy"]').isVisible(),true)
  await page.locator('footer a[href="/privacy"]').click()
@@ -287,7 +318,23 @@ try {
    const rect=document.querySelector('footer').getBoundingClientRect();
    return {absoluteBottom:rect.bottom+window.scrollY,documentHeight:document.documentElement.scrollHeight}
  })
- assert.ok(Math.abs(foot.absoluteBottom-foot.documentHeight)<5,'Footer must be the final document section')
- assert.deepEqual(failures,[],'Browser runtime errors')
+ const bottomNavSpace=await page.locator('.mobile-nav').evaluate(el=>el.getBoundingClientRect().height)
+  assert.ok(Math.abs(foot.absoluteBottom+bottomNavSpace-foot.documentHeight)<5,'Footer terminates before the dedicated navigation clearance')
+ 
+  // Compact phone: no clipped tabs, active label or sideways scroll.
+  await page.setViewportSize({width:320,height:700})
+  await checkNav('Home')
+  console.log('NIGHT_NAV_AFTER_320='+(await page.screenshot({type:'jpeg',quality:67})).toString('base64'))
+  // Tablet: top links must remain navigable after the phone dock disappears.
+  await page.setViewportSize({width:768,height:1024})
+  assert.equal(await page.locator('.mobile-nav').isVisible(),false,'no bottom dock on tablets')
+  assert.equal(await page.locator('header .links').isVisible(),true,'tablets expose the full top navigation')
+  assert.deepEqual(await page.locator('header .links a').allTextContents(),['Home','Games','Profile'])
+  await page.locator('header .links a[href="/profile"]').click()
+  assert.equal(new URL(page.url()).pathname,'/profile')
+  assert.equal(await page.locator('header .links a[aria-current="page"]').textContent(),'Profile')
+  assert.equal(await page.locator('header .profile-icon').count(),0,'no repeated desktop profile shortcut')
+  console.log('NIGHT_NAV_AFTER_TABLET='+(await page.screenshot({type:'jpeg',quality:67})).toString('base64'))
+  assert.deepEqual(failures,[],'Browser runtime errors')
  console.log('PASS NIGHT Play V10 mobile: authentic NIGHT logo, full-width game boards, restored Snake controls and user-configurable speed')
 } finally {if(browser)await browser.close();await new Promise(resolve=>server.close(resolve))}
