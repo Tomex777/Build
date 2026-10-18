@@ -1005,6 +1005,7 @@ body{background:var(--bg)}
 </style>
 <style>.story-resume{display:flex;justify-content:space-between;align-items:center;gap:20px;background:#20372e;color:#eef2e9;text-decoration:none;padding:22px 25px;border-radius:20px;margin:0 0 24px}.story-resume[hidden]{display:none}.story-resume span{font-size:11px;letter-spacing:.1em}.story-resume strong{display:block;font-size:25px;margin:8px 0}.story-resume small{font-size:12px;color:#bdcfbf}.story-resume>span{font-size:30px}.story-resume:focus-visible{outline:3px solid #90ad8c;outline-offset:4px}</style><style>.account-command{display:block;white-space:normal;overflow-wrap:anywhere;margin:20px 0;padding:18px;border:1px solid #d8ddd9;border-radius:12px;background:#f0f2ee;font-size:18px;line-height:1.6;user-select:all}.account-name{font-size:24px;font-weight:750}.account-expiry{font-size:12px;color:#69726c}#infoBody>.btn{margin:6px 8px 6px 0}</style>
 <link rel="stylesheet" href="/site-shell.css">
+<link rel="stylesheet" href="/profile-hub.css">
 </head>
 <body>
 <!-- Locally authored, reusable vector icons and hand-drawn game artwork. No fonts, emoji or image dependencies. -->
@@ -1198,16 +1199,27 @@ body{background:var(--bg)}
  <div class="profile-identity">
   <div class="profile-monogram" aria-hidden="true"><img id="profileAvatar" alt="" hidden><svg id="profileAvatarFallback" viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4.5 20c1.2-4.7 13.8-4.7 15 0"/></svg></div>
   <div class="player-card-name"><h2 id="playerDisplayName">Player</h2><span id="profileIdentityCaption" hidden></span></div>
-  <div class="profile-actions"><button id="editPlayerName" class="edit-name" type="button"><svg class="ui-icon" viewBox="0 0 24 24" focusable="false" aria-hidden="true"><use href="#icon-edit"></use></svg> Edit name</button><button id="profileAccountMenu" class="profile-account-menu" type="button" aria-label="Account settings" title="Account settings" hidden><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></svg></button></div>
+  <div class="profile-actions"><button id="editPlayerName" class="edit-name" type="button"><svg class="ui-icon" viewBox="0 0 24 24" focusable="false" aria-hidden="true"><use href="#icon-edit"></use></svg> Edit name</button></div>
  </div><form id="playerNameForm" class="player-name-form" hidden><label for="playerNameInput">Display name</label><div><input id="playerNameInput" name="playerName" maxlength="28" placeholder="What should we call you?" autocomplete="nickname"><button class="btn" type="submit">Save</button><button class="btn light" type="button" id="cancelPlayerName">Cancel</button></div><small>Saved on this device.</small></form>
 </div>
-
-<section class="night-profile-tool" aria-labelledby="nightToolHeading">
- <div class="night-tool-mark" aria-hidden="true"><svg class="ui-icon" viewBox="0 0 24 24"><use href="#icon-spark"></use></svg></div>
- <div class="night-tool-copy"><h2 id="nightToolHeading">Anonymous Nights</h2><p>Channel confession sessions</p></div>
- <a class="night-tool-launch" href="/anonymous/" aria-label="Open Anonymous Nights">Open Anonymous</a>
+<nav class="account-tabs" role="tablist" aria-label="Your profile sections">
+ <button type="button" id="accountTabProfile" role="tab" aria-controls="profilePaneProfile" data-profile-tab="profile" aria-selected="true">Profile</button>
+ <button type="button" id="accountTabGames" role="tab" aria-controls="profilePaneGames" data-profile-tab="games" aria-selected="false">Games</button>
+ <button type="button" id="accountTabChannels" role="tab" aria-controls="profilePaneChannels" data-profile-tab="channels" aria-selected="false">My Channels</button>
+ <button type="button" id="accountTabSettings" role="tab" aria-controls="profilePaneSettings" data-profile-tab="settings" aria-selected="false">Settings</button>
+</nav>
+<section class="profile-pane" id="profilePaneProfile" role="tabpanel" aria-labelledby="accountTabProfile" data-profile-pane="profile">
+ <div class="account-stats">
+  <div><strong id="accountRounds">0</strong><span>Rounds recorded</span></div>
+  <div><strong id="accountGames">0</strong><span>Games explored</span></div>
+  <div><strong id="accountBadges">0 / 4</strong><span>Achievements</span></div>
+ </div>
+ <div class="account-heading"><h2>Achievements</h2><small>Earned through play</small></div>
+ <div class="account-achievements" id="accountAchievements" aria-live="polite"></div>
+ <p class="account-note">Achievements reflect completed rounds recorded on this device, not online rankings.</p>
 </section>
-<div class="records-heading"><h2>Game records</h2></div>
+<section class="profile-pane" id="profilePaneGames" role="tabpanel" aria-labelledby="accountTabGames" data-profile-pane="games" hidden>
+ <div class="records-heading"><h2>Game records</h2></div>
 <div class="analytics-panel">
  <div class="analytics-top">
   <div><h3 id="selectedGameTitle">Game activity</h3><span class="analytics-subtitle" id="analyticsSubtitle">Completed rounds by game</span></div>
@@ -1229,6 +1241,22 @@ body{background:var(--bg)}
  </div>
  <p class="analytics-footnote" id="recordsGameCount">Scores saved on this device · Unranked</p>
 </div>
+</section>
+<section class="profile-pane" id="profilePaneChannels" role="tabpanel" aria-labelledby="accountTabChannels" data-profile-pane="channels" hidden>
+ <div class="account-heading"><h2>My Channels</h2></div>
+ <p class="account-note">Your WhatsApp Channels are separate from your games. NIGHT checks channel administrator access before enabling publishing.</p>
+ <article class="account-tile"><div><h3>Manage channels</h3><p>Check verified channels, connect a new channel or remove access.</p></div><a class="btn" href="/channels/">Open channels</a></article>
+ <article class="account-tile"><div><h3>Anonymous Nights</h3><p>Manage anonymous submissions for a channel you own.</p></div><a class="btn" href="/anonymous/">Open Anonymous</a></article>
+ <p class="account-note">Scheduled posts and channel challenges require verified publishing permissions and will appear here when connected.</p>
+</section>
+<section class="profile-pane" id="profilePaneSettings" role="tabpanel" aria-labelledby="accountTabSettings" data-profile-pane="settings" hidden>
+ <div class="account-heading"><h2>Settings</h2></div>
+ <div class="account-settings">
+  <div class="account-setting"><div><h3>Reduce animations</h3><p>Shorten interface transitions on this device. Game speed stays unchanged.</p></div><label class="account-toggle"><input id="accountReducedMotion" type="checkbox" aria-label="Reduce animations"><span class="switch" aria-hidden="true"></span></label></div>
+  <div class="account-setting"><div><h3>WhatsApp account</h3><p id="accountSettingsDescription">Check your NIGHT Play connection.</p></div><button id="profileAccountMenu" class="account-action" type="button" aria-label="Manage account" hidden>Manage account</button></div>
+ </div>
+ <p class="account-note" style="margin-top:14px">Most game progress remains in this browser unless a game explicitly supports online saves.</p>
+</section>
 </section>
 
 <section class="site-page legal-page" id="view-terms" data-view="terms" hidden>
@@ -1522,7 +1550,7 @@ function renderRoute(){
  document.title=({welcome:"NIGHT Play — Welcome",dashboard:"NIGHT Play — Home",games:"NIGHT Play — Games",profile:"NIGHT Play — Account",terms:"NIGHT Play — Terms",privacy:"NIGHT Play — Privacy"})[current];
  if(current==="dashboard")updateDashboard();
  if(current==="games")filterGames();
- if(current==="profile"){renderProfileRecords();syncPlayerName()}
+ if(current==="profile"){renderProfileRecords();syncPlayerName();window.NightProfileHub?.render()}
  if(current==="dashboard")updateGreeting();
  updateBell();window.scrollTo(0,0)
 }
@@ -2069,4 +2097,5 @@ if(location.pathname.startsWith("/play/")){const id=location.pathname.split("/")
 (function(){function updateStory(){try{const b=JSON.parse(localStorage.getItem('night-story:the-last-call:v3')||'null');if(!b)return;const active=b.playthroughs?.find(x=>x.id===b.active),r=active&&!active.ending?active:[...(b.playthroughs||[])].reverse().find(x=>!x.ending);if(!r)return;const card=document.querySelector('.story-entry'),home=document.getElementById('storyResume');const c=r.checkpoints?.at(-1)?.chapter||1;const resume=()=>{b.active=r.id;localStorage.setItem('night-story:the-last-call:v3',JSON.stringify(b))};if(card){card.setAttribute('aria-label','Continue reading The Last Call');card.querySelector('h3').textContent='Continue Reading';card.querySelector('.cardrow p').textContent='The Last Call · Chapter '+c+' of 38';card.style.outline='2px solid #9daf9a';card.style.outlineOffset='2px';card.onclick=resume}if(home){home.hidden=false;home.querySelector('small').textContent='Chapter '+c+' of 38';home.onclick=resume}}catch{}}updateStory();addEventListener('pageshow',updateStory);addEventListener('storage',updateStory);})();
 </script>
 <script src="/account-client.js" defer></script>
+<script src="/profile-hub.js" defer></script>
 </body></html>
