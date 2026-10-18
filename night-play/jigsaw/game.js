@@ -58,7 +58,9 @@ function updateDragTransform(){
  const p=board.selectedPiece;
  const dx=p&&board.dragAnchorX!==null?p.x-board.dragAnchorX:0;
  const dy=p&&board.dragAnchorY!==null?p.y-board.dragAnchorY:0;
- board.dragCanvas.style.transform='translate3d('+panX+'px,'+panY+'px,0) scale('+zoom+') translate3d('+dx+'px,'+dy+'px,0)';
+ const tx=panX+board.viewportWidth*(1-zoom)*.5+zoom*(board.dragBoundsX+dx);
+ const ty=panY+board.viewportHeight*(1-zoom)*.5+zoom*(board.dragBoundsY+dy);
+ board.dragCanvas.style.transform='translate3d('+tx+'px,'+ty+'px,0) scale('+zoom+')';
 }
 function applyZoom(){
  const maxX=(zoom-1)*board.viewportWidth*.5,maxY=(zoom-1)*board.viewportHeight*.5;
