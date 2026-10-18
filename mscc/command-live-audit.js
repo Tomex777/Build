@@ -27,7 +27,6 @@ export const LIVE_REACTION_NAMES = Object.freeze(
 )
 
 export const LIVE_CASES = Object.freeze({
-  ...Object.fromEntries(LIVE_REACTION_NAMES.map(name=>[name,{expected:'sticker'}])),
   ping:        { args:[], expected:'text' },
   about:       { args:[], expected:'text' },
   calc:        { args:['2+2'], expected:'text' },
@@ -83,6 +82,7 @@ export const LIVE_CASES = Object.freeze({
   vision:      { fixture:'image', args:['What is shown in this image?'], expected:'text', provider:true },
   tts:         { args:['NIGHT','WhatsApp','test'], expected:'audio', provider:true },
   tictactoe:   { expected:'image', menu:'tictactoe' },
+  ...Object.fromEntries(LIVE_REACTION_NAMES.map(name=>[name,{expected:'sticker'}])),
 })
 
 // The list is intentionally explicit. Even if a new command is registered,
