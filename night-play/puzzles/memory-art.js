@@ -52,21 +52,67 @@ function geometryArt(index){
 // these are not Disney artwork, likenesses or branded characters.
 const figureNames=["Amara","Leora","Selene","Riven","Maris","Yara","Thorne","Nyra","Cassia","Rowan","Astra","Elden","Zaria","Liora","Taryn","Soren","Mira","Kairo","Iris","Elian","Veda","Arden","Sable","Cleo","Rhea","Orion","Lyra","Sol","Isolde","Fen"];
 function storybookArt(i){
- const skin=["#d59c78","#a36e50","#edc6a1","#815745","#c78a69","#e1b391"][i%6],
- hair=["#211e31","#5b342f","#a66d42","#e7c77e","#242f3e","#6a4d66","#342119"][i%7],
- cloak=shades[(i*7+3)%shades.length],back=["#cdd5df","#e5d9d2","#bdced0","#d7c9df","#d3dfd5"][i%5],
- accent=["#f7db90","#f5eddf","#f4d2bb"][i%3],type=i%6;
- const crown=type===0||type===4?'<path d="m22 37 5-15 12 9 12-15 11 15 11-9 5 15-6 5H28Z" fill="'+accent+'" stroke="#8d6842" stroke-width="1.4"/><circle cx="51" cy="34" r="3" fill="'+cloak+'"/>':type===1?'<path d="M22 42Q50 8 77 42" fill="none" stroke="'+accent+'" stroke-width="5"/><path d="M41 24 50 11 59 24" fill="'+accent+'"/>':type===2?'<path d="M21 37Q50 4 80 37l-8 9H29Z" fill="'+cloak+'" stroke="'+accent+'" stroke-width="3"/>':type===3?'<path d="M45 19H55V35H45Z" fill="'+accent+'"/><path d="M34 27H66V35H34Z" fill="'+accent+'"/>':'<path d="M25 39 50 17 75 39" stroke="'+accent+'" stroke-width="4" fill="none"/>';
+ const skin=["#d59c78","#a36e50","#edc6a1","#815745","#c78a69","#e1b391"][i%6];
+ const hair=["#211e31","#5b342f","#a66d42","#e7c77e","#242f3e","#6a4d66","#342119"][i%7];
+ const cape=shades[(i*7+3)%shades.length],back=["#b2c5d6","#dccabf","#b2ccc5","#cfb9d3","#d4d1b0"][i%5];
+ const gold=["#f7db90","#f5eddf","#f4d2bb"][i%3],style=i%8,eyebrow=i%4;
+ const id='night-portrait-'+i;
+ const ears=style===4?'<path d="M27 56 14 43l5 24 11 2M73 56l13-13-5 24-11 2" fill="'+skin+'" stroke="#986956" stroke-width="1.2"/>':'';
+ const hairBack=style===3?
+  '<path d="M15 99Q8 57 21 27Q36 4 50 8Q74 7 81 29Q89 61 85 103L69 92L72 53L26 53L31 93Z" fill="'+cape+'" stroke="'+gold+'" stroke-width="2"/>':
+  '<path d="M15 107Q14 60 21 34Q24 11 50 10Q75 11 80 38Q86 64 86 106L72 113Q73 77 67 62L30 63Q26 88 29 113Z" fill="url(#'+id+'-hair)" stroke="#241b1c" stroke-opacity=".15"/>';
+ const headpiece=style===0||style===5?
+   '<path d="M20 37 25 19 36 29 50 12 64 29 75 19 80 37 73 42H27Z" fill="url(#'+id+'-metal)" stroke="#937044" stroke-width="1.3"/><circle cx="50" cy="31" r="4" fill="'+cape+'" stroke="#faf0cf" stroke-width="1.4"/>':
+  style===1||style===7?
+   '<path d="M24 41Q50 10 76 41" fill="none" stroke="url(#'+id+'-metal)" stroke-width="4"/><path d="M43 27 50 16 57 27 50 36Z" fill="'+gold+'"/><circle cx="50" cy="26" r="3" fill="'+cape+'"/>':
+  style===2?
+   '<path d="M20 41Q32 7 53 6L72 41Q57 35 20 41Z" fill="'+cape+'" stroke="'+gold+'" stroke-width="2"/><path d="M17 43Q52 34 79 43" stroke="'+gold+'" stroke-width="4" fill="none"/>':
+  style===3?'':style===4?
+   '<path d="M21 42Q49 16 79 42" fill="none" stroke="'+gold+'" stroke-width="3"/><circle cx="50" cy="25" r="4" fill="'+cape+'" stroke="'+gold+'" stroke-width="2"/>':
+  style===6?
+   '<path d="M26 36Q49 23 74 36" fill="none" stroke="'+gold+'" stroke-width="5"/><circle cx="49" cy="31" r="5" fill="'+cape+'" stroke="'+gold+'" stroke-width="1.3"/>':
+   '<path d="M23 36 49 24 77 36" fill="none" stroke="'+gold+'" stroke-width="3"/>';
+ const fringe=style===6?
+  '<path d="M25 48Q37 19 62 24Q74 30 76 49Q55 45 44 34Q35 48 25 48" fill="url(#'+id+'-hair)"/>':
+ style===7?
+  '<path d="M23 44Q32 13 58 21Q73 26 78 45Q60 32 47 35Q37 47 23 44" fill="url(#'+id+'-hair)"/>':
+ style===2?
+  '<path d="M26 48Q37 20 60 29L74 49Q60 40 48 38Q42 49 26 48" fill="url(#'+id+'-hair)"/>':
+  '<path d="M23 45Q25 15 50 18Q72 18 78 45Q63 40 57 28Q45 46 23 45" fill="url(#'+id+'-hair)"/>';
+ const beard=style===5?'<path d="M30 71Q32 94 51 98Q71 91 72 71L64 76Q54 91 49 86Q41 87 36 76Z" fill="'+hair+'"/><path d="M43 76h15" stroke="#eac9aa" stroke-width="1.3"/>':'';
+ const clothing=style===2?
+  '<path d="M25 97Q41 109 51 121Q63 107 75 96" stroke="'+gold+'" stroke-width="3.4" fill="none"/><circle cx="50" cy="105" r="5" fill="'+gold+'"/>':
+ style===5?
+  '<path d="M28 90 51 110 73 90" fill="none" stroke="'+gold+'" stroke-width="4"/><path d="M50 100v22M35 111h30" stroke="'+gold+'" stroke-width="1.6"/>':
+ style===4?
+  '<path d="M34 89 50 102 66 89" stroke="'+gold+'" stroke-width="4" fill="none"/><path d="M50 101 54 109 50 115 46 109Z" fill="'+gold+'"/>':
+  '<path d="M28 90 50 108 72 90" fill="none" stroke="'+gold+'" stroke-width="4"/><circle cx="50" cy="105" r="4" fill="'+gold+'"/>';
+ const hairDetails=style===1||style===6?
+  '<path d="M25 57Q16 80 23 106M74 56Q83 77 75 108" fill="none" stroke="#e8ca9a" stroke-opacity=".4" stroke-width="4"/>':
+  style===7?'<path d="M80 44Q96 59 82 88" fill="none" stroke="'+hair+'" stroke-width="7" stroke-linecap="round"/>':'';
  return '<svg class="memory-face-svg" viewBox="0 0 100 122" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">'+
- '<defs><linearGradient id="portrait'+i+'" x2="1" y2="1"><stop stop-color="'+back+'"/><stop offset="1" stop-color="#f9f2dc"/></linearGradient></defs>'+
- '<rect width="100" height="122" fill="url(#portrait'+i+')"/><path d="M-8 120Q7 80 50 79Q93 80 108 120Z" fill="'+cloak+'"/>'+
- '<path d="M27 85q-10-20-6-44 5-30 28-30 27 0 30 31l-6 44Z" fill="'+hair+'"/>'+
- '<ellipse cx="50" cy="57" rx="25" ry="34" fill="'+skin+'"/><path d="M26 46Q27 13 50 16Q74 17 75 46Q59 36 56 25Q45 43 26 46" fill="'+hair+'"/>'+
- '<path d="M36 56h7m14 0h7" stroke="#302723" stroke-width="2.5" stroke-linecap="round"/>'+
- '<path d="M47 69q3 4 7 0" fill="none" stroke="#774c43" stroke-width="1.8" stroke-linecap="round"/>'+
- crown+
- '<path d="M34 91 49 107 65 91" fill="none" stroke="'+accent+'" stroke-width="4"/>'+
- (i%4===0?'<circle cx="50" cy="108" r="5" fill="'+accent+'"/>':i%4===1?'<path d="M49 102h4v14h-4Z" fill="'+accent+'"/>':'')+
+ '<defs><linearGradient id="'+id+'-back" x2=".9" y2="1"><stop stop-color="'+back+'"/><stop offset="1" stop-color="#fbf2d9"/></linearGradient>'+
+ '<linearGradient id="'+id+'-skin" x1=".1" x2="1" y2="1"><stop stop-color="#ffe0b7"/><stop offset=".31" stop-color="'+skin+'"/><stop offset="1" stop-color="#8e5848"/></linearGradient>'+
+ '<linearGradient id="'+id+'-hair" x2="1" y2=".7"><stop stop-color="'+hair+'"/><stop offset=".5" stop-color="'+hair+'"/><stop offset="1" stop-color="#211e2a"/></linearGradient>'+
+ '<linearGradient id="'+id+'-cape" x2="1" y2="1"><stop stop-color="'+cape+'"/><stop offset="1" stop-color="#343f4d"/></linearGradient>'+
+ '<linearGradient id="'+id+'-metal" x2=".9" y2="1"><stop stop-color="#fff4bb"/><stop offset=".45" stop-color="'+gold+'"/><stop offset="1" stop-color="#a47c46"/></linearGradient></defs>'+
+ '<rect width="100" height="122" fill="url(#'+id+'-back)"/>'+
+ '<path d="M13 122V28Q51-8 87 28V122" stroke="#ffffff" stroke-opacity=".2" stroke-width="7" fill="none"/>'+
+ '<circle cx="85" cy="16" r="10" fill="#ffffff" opacity=".22"/><path d="m14 22 3 8 8 3-8 3-3 8-3-8-8-3 8-3Z" fill="'+gold+'" opacity=".35"/>'+
+ '<path d="M-9 124Q-2 92 25 86L43 81H57L75 86Q99 93 109 124Z" fill="url(#'+id+'-cape)"/>'+
+ hairBack+ears+'<path d="M43 78H57V94Q50 101 43 94Z" fill="'+skin+'"/>'+
+ '<ellipse cx="50" cy="53" rx="24" ry="32" fill="url(#'+id+'-skin)"/>'+
+ '<path d="M30 55Q28 36 38 30M70 55Q70 34 62 29" fill="none" stroke="#fbe2b9" stroke-opacity=".24" stroke-width="2"/>'+
+ fringe+hairDetails+
+ '<path d="M32 54q6-'+eyebrow+' -3 12 0M56 54q6-3 12 0" fill="none" stroke="#302b2a" stroke-width="1.8" stroke-linecap="round"/>'+
+ '<path d="M34 60Q39 57 44 60M56 60Q61 57 66 60" stroke="#312726" stroke-width="1.8" stroke-linecap="round" fill="none"/>'+
+ '<circle cx="40" cy="60" r="1.7" fill="#221c1b"/><circle cx="60" cy="60" r="1.7" fill="#221c1b"/>'+
+ '<path d="M50 62 48 71 53 71" stroke="#955e4d" stroke-opacity=".7" stroke-width="1.3" stroke-linecap="round" fill="none"/>'+
+ (style===5?'':'<path d="M43 77Q50 '+(i%2?'82':'79')+' 57 77" fill="none" stroke="#7f443f" stroke-width="1.7" stroke-linecap="round"/>')+
+ beard+headpiece+
+ '<path d="M26 87Q36 91 43 88M57 88Q67 91 75 87" stroke="#f8e5d1" stroke-opacity=".43" stroke-width="1.7" fill="none"/>'+
+ clothing+
+ '<path d="M4 111Q26 96 43 111M60 111Q84 96 96 111" fill="none" stroke="#fff" stroke-opacity=".12" stroke-width="2.5"/>'+
  '</svg>';
 }
 function photoUrl(theme,id){
