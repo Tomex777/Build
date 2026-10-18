@@ -25,7 +25,7 @@ const board=c.createConnectBoard();
 assert.equal(c.botColumn(board),3,'CPU favours strategic center opening');
 assert.equal(c.drop(board,3,1),5);
 assert.equal(c.drop(board,3,2),4);
-for(let n=0;n<4;n++)c.drop(board,0,1);
+for(let n=0;n<6;n++)c.drop(board,0,1);
 assert.equal(c.drop(board,0,2),-1,'full columns cannot accept moves');
 const horizontal=c.createConnectBoard();
 for(let col=1;col<=4;col++)c.drop(horizontal,col,1);
