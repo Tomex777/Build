@@ -69,7 +69,7 @@ def compile_asset() -> dict:
         })
     return {
         "schema": 1,
-        "description": "Offline TAC hymns 1–17 transcribed against photographed pages 1–6 with matched historical texts; some lyrics still under review.",
+        "description": "Offline TAC hymn catalogue: 1–17 from photographed lyric pages and hymn 50 from index p.437 with user-confirmed online match. Working drafts still require final review.",
         "hymns": hymns,
     }
 
