@@ -25,7 +25,7 @@ try{
  // Drive the actual scroll-based lazy image loading, rather than incorrectly
  // counting below-the-fold unfetched photos as broken placeholders.
  for(let i=0;i<await all.count();i++){
-  await all.nth(i).scrollIntoViewIfNeeded();
+  await page.locator('.gallery-card').nth(i).scrollIntoViewIfNeeded();
   await page.waitForFunction(index=>{
    const image=document.querySelectorAll('.gallery-image img')[index];
    return image.complete;
