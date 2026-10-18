@@ -12,7 +12,7 @@ export class PuzzleBoard{
   this.dragCanvas=wrapper.querySelector('#dragCanvas');
   this.dragCtx=this.dragCanvas.getContext('2d',{alpha:true});
   this.staticPaintCount=0;this.dragPaintCount=0;
-  this.dragAnchorX=null;this.dragAnchorY=null;
+  this.dragAnchorX=null;this.dragAnchorY=null;this.dragBoundsX=0;this.dragBoundsY=0;
   this.rows=3;this.cols=4;this.totalPieces=12;this.pieces=[];this.selectedPiece=null;
   this.boardX=0;this.boardY=0;this.boardWidth=0;this.boardHeight=0;
   this.pieceWidth=0;this.pieceHeight=0;this.tray={x:0,y:0,w:0,h:0};
@@ -33,8 +33,10 @@ export class PuzzleBoard{
    anchors.set(p.group||p.id,{row:p.row,col:p.col,x:p.x,y:p.y});
   this.viewportWidth=w;this.viewportHeight=h;this.dpr=dpr;
   this.canvas.width=Math.round(w*dpr);this.canvas.height=Math.round(h*dpr);
-  this.dragCanvas.width=this.canvas.width;this.dragCanvas.height=this.canvas.height;
-  this.ctx.setTransform(dpr,0,0,dpr,0,0);this.dragCtx.setTransform(dpr,0,0,dpr,0,0);
+  // A small cropped group sprite replaces the full-screen drag backing.
+  this.dragCanvas.width=1;this.dragCanvas.height=1;
+  this.dragCanvas.style.width='1px';this.dragCanvas.style.height='1px';
+  this.ctx.setTransform(dpr,0,0,dpr,0,0);
   this.setupBoardLayout();
   if(this.pieces.length){
    for(const p of this.pieces){
@@ -313,17 +315,40 @@ export class PuzzleBoard{
   this.renderDrag();
  }
  renderDrag(){
-  // Rasterize the picked-up group once, on pickup or other scene changes.
-  // Pointer moves translate this prepainted layer with a compositor transform,
-  // never clearing a full-screen high-DPI canvas or repainting shadows per move.
+  // 390x786 at DPR 2.5 previously required a 975x1965 composited canvas
+  // for a 31x23 piece. Allocate only the selected group's visible pixels.
   this.dragPaintCount++;
-  const ctx=this.dragCtx;
-  ctx.clearRect(0,0,this.viewportWidth,this.viewportHeight);
-  if(!this.selectedPiece){this.dragAnchorX=null;this.dragAnchorY=null;return;}
+  if(!this.selectedPiece||!this.selectedPieces.length){
+   this.dragAnchorX=null;this.dragAnchorY=null;
+   this.dragBoundsX=0;this.dragBoundsY=0;
+   if(this.dragCanvas.width!==1||this.dragCanvas.height!==1){
+    this.dragCanvas.width=1;this.dragCanvas.height=1;
+    this.dragCanvas.style.width='1px';this.dragCanvas.style.height='1px';
+   }else this.dragCtx.clearRect(0,0,1,1);
+   return;
+  }
+  const pad=16;
+  const bounds=this.selectedPieces.map(p=>({
+   left:p.x-p.canvasMargin,top:p.y-p.canvasMargin,
+   right:p.x-p.canvasMargin+p.renderWidth,
+   bottom:p.y-p.canvasMargin+p.renderHeight
+  }));
+  const left=Math.min(...bounds.map(b=>b.left))-pad;
+  const top=Math.min(...bounds.map(b=>b.top))-pad;
+  const right=Math.max(...bounds.map(b=>b.right))+pad;
+  const bottom=Math.max(...bounds.map(b=>b.bottom))+pad;
+  const width=Math.ceil(right-left),height=Math.ceil(bottom-top);
+  this.dragBoundsX=left;this.dragBoundsY=top;
   this.dragAnchorX=this.selectedPiece.x;this.dragAnchorY=this.selectedPiece.y;
+  this.dragCanvas.width=Math.max(1,Math.ceil(width*this.dpr));
+  this.dragCanvas.height=Math.max(1,Math.ceil(height*this.dpr));
+  this.dragCanvas.style.width=width+'px';
+  this.dragCanvas.style.height=height+'px';
+  const ctx=this.dragCtx;
+  ctx.setTransform(this.dpr,0,0,this.dpr,0,0);
   for(const p of this.selectedPieces){
    ctx.save();ctx.shadowColor='#332a205e';ctx.shadowBlur=8;ctx.shadowOffsetY=3;
-   ctx.drawImage(p.offscreenCanvas,p.x-p.canvasMargin,p.y-p.canvasMargin,p.renderWidth,p.renderHeight);
+   ctx.drawImage(p.offscreenCanvas,p.x-p.canvasMargin-left,p.y-p.canvasMargin-top,p.renderWidth,p.renderHeight);
    ctx.restore();
   }
  }
