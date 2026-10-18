@@ -1291,7 +1291,6 @@ body.whot-mode #newRound{min-height:32px!important;padding:7px 9px!important}
 @media(min-width:651px){body.whot-mode .table-surface{padding-top:2px!important}}
 body.whot-mode .whot-flight-flip .whot-flip-back .whot-deck-back,
 body.whot-mode .whot-flight-flip .whot-flip-back .card-back{border:0!important;background:#511b20!important;color:#f9fcfa!important;box-shadow:0 10px 15px #0003!important;border-radius:3px!important}
-body.whot-mode .whot-flight-flip .whot-flip-front .whot-card{border:0!important;background:#f9fcfa!important;color:#511b20!important;box-shadow:0 10px 15px #0003!important;border-radius:3px!important}
 
 /* Float shared NIGHT navigation above the reference-positioned tabletop
    rather than letting its header push the opponent and both market cards. */
@@ -1985,4 +1984,179 @@ body.whot-mode .whot-hand-help{
   animation:none!important;
   transition:none!important;
  }
+}
+
+/*
+ * WHOT PRINT MASTER — one card face, whether in the hand, on the pile,
+ * in the expanded hand, or portalled to <body> during a FLIP animation.
+ * The earlier handcrafted face was scoped to .table-surface, so clones
+ * briefly displayed an obsolete ornate card face as they flew.
+ * This final rule deliberately covers both the real and flight cards.
+ * All artwork is NIGHT-authored CSS/SVG, not copied upstream assets.
+ */
+body.whot-mode{
+ --whot-master-paper:#fffefb;
+ --whot-master-wine:#541a27;
+ --whot-master-rank:#1b2022;
+}
+body.whot-mode .table-surface .playing-card.whot-card,
+body.whot-mode .whot-hand-gallery>.playing-card.whot-card,
+body.whot-mode .playing-card.whot-flight-face{
+ --whot-ink:var(--whot-master-wine);
+ box-sizing:border-box!important;
+ padding:0!important;
+ color:var(--whot-master-wine)!important;
+ background:var(--whot-master-paper)!important;
+ background-image:none!important;
+ border:1px solid #e8e5dc!important;
+ border-radius:3px!important;
+ font-family:Arial,system-ui,sans-serif!important;
+ opacity:1!important;
+ filter:none!important;
+}
+body.whot-mode .playing-card.whot-flight-face::before,
+body.whot-mode .table-surface .playing-card.whot-card::before,
+body.whot-mode .whot-hand-gallery>.playing-card.whot-card::before{
+ content:none!important;display:none!important;
+}
+/* Portalled animation cards must have the EXACT same printed face details. */
+body.whot-mode .playing-card.whot-flight-face .whot-face,
+body.whot-mode .table-surface .playing-card.whot-card .whot-face,
+body.whot-mode .whot-hand-gallery>.playing-card.whot-card .whot-face{
+ display:grid!important;
+ place-items:center!important;
+ align-content:center!important;
+ width:100%!important;height:100%!important;
+ margin:0!important;padding:0!important;
+ color:var(--whot-master-wine)!important;
+ pointer-events:none;
+}
+body.whot-mode .playing-card.whot-flight-face .whot-corner,
+body.whot-mode .table-surface .playing-card.whot-card .whot-corner,
+body.whot-mode .whot-hand-gallery>.playing-card.whot-card .whot-corner{
+ display:flex!important;flex-direction:column!important;
+ align-items:center!important;gap:2px!important;
+ color:var(--whot-master-rank)!important;
+ font-family:Arial,system-ui,sans-serif!important;
+ line-height:1!important;
+ z-index:3;
+}
+body.whot-mode .playing-card.whot-flight-face .whot-corner strong,
+body.whot-mode .table-surface .playing-card.whot-card .whot-corner strong,
+body.whot-mode .whot-hand-gallery>.playing-card.whot-card .whot-corner strong{
+ color:var(--whot-master-rank)!important;
+ font:800 10px/1.05 Arial,system-ui,sans-serif!important;
+ letter-spacing:-.12px!important;
+}
+body.whot-mode .playing-card.whot-flight-face .whot-corner-top,
+body.whot-mode .table-surface .playing-card.whot-card .whot-corner-top,
+body.whot-mode .whot-hand-gallery>.playing-card.whot-card .whot-corner-top{
+ top:6px!important;left:6px!important;right:auto!important;bottom:auto!important;
+ transform:none!important;
+}
+body.whot-mode .playing-card.whot-flight-face .whot-corner-bottom,
+body.whot-mode .table-surface .playing-card.whot-card .whot-corner-bottom,
+body.whot-mode .whot-hand-gallery>.playing-card.whot-card .whot-corner-bottom{
+ bottom:6px!important;right:6px!important;left:auto!important;top:auto!important;
+ transform:rotate(180deg)!important;
+}
+body.whot-mode .playing-card.whot-flight-face .whot-suit-small,
+body.whot-mode .table-surface .playing-card.whot-card .whot-suit-small,
+body.whot-mode .whot-hand-gallery>.playing-card.whot-card .whot-suit-small{
+ display:block!important;width:8px!important;height:8px!important;
+ color:var(--whot-master-wine)!important;
+ fill:var(--whot-master-wine)!important;
+ flex:none;
+}
+body.whot-mode .playing-card.whot-flight-face .whot-suit-big,
+body.whot-mode .table-surface .playing-card.whot-card .whot-suit-big,
+body.whot-mode .whot-hand-gallery>.playing-card.whot-card .whot-suit-big{
+ display:block!important;
+ width:41px!important;height:41px!important;
+ color:var(--whot-master-wine)!important;
+ fill:var(--whot-master-wine)!important;
+ flex:none;
+}
+body.whot-mode .playing-card.whot-flight-face .whot-wild-mini,
+body.whot-mode .table-surface .playing-card.whot-card .whot-wild-mini,
+body.whot-mode .whot-hand-gallery>.playing-card.whot-card .whot-wild-mini{
+ font:900 9px/1 Arial,system-ui,sans-serif!important;
+ color:var(--whot-master-wine)!important;
+}
+body.whot-mode .playing-card.whot-flight-face .whot-twenty,
+body.whot-mode .table-surface .playing-card.whot-card .whot-twenty,
+body.whot-mode .whot-hand-gallery>.playing-card.whot-card .whot-twenty{
+ display:flex!important;flex-direction:column!important;
+ align-items:center!important;justify-content:center!important;
+ width:100%!important;gap:9px!important;
+ transform:none!important;
+}
+body.whot-mode .playing-card.whot-flight-face .whot-twenty b,
+body.whot-mode .table-surface .playing-card.whot-card .whot-twenty b,
+body.whot-mode .whot-hand-gallery>.playing-card.whot-card .whot-twenty b{
+ font:900 12px/1 Arial,system-ui,sans-serif!important;
+ letter-spacing:.045em!important;
+ color:var(--whot-master-wine)!important;
+}
+body.whot-mode .whot-twenty-divider{
+ display:block;width:35px;height:1px;flex:none;
+ background:var(--whot-master-wine);
+ opacity:.65;
+}
+body.whot-mode .playing-card.whot-flight-face .whot-twenty .whot-reversed,
+body.whot-mode .table-surface .playing-card.whot-card .whot-twenty .whot-reversed,
+body.whot-mode .whot-hand-gallery>.playing-card.whot-card .whot-twenty .whot-reversed{
+ transform:rotate(180deg)!important;
+}
+body.whot-mode .playing-card.whot-flight-face.playable{
+ outline:0!important;box-shadow:0 8px 15px #12090752!important;
+}
+body.whot-mode .whot-flip-front>.playing-card.whot-flight-face:disabled{
+ opacity:1!important;filter:none!important;
+}
+/* Do not animate font/border styles: only the physical card itself moves. */
+body.whot-mode .playing-card.whot-flight-face{
+ transition:none!important;
+}
+@media(min-width:651px){
+ body.whot-mode .playing-card.whot-flight-face .whot-corner strong,
+ body.whot-mode .table-surface .playing-card.whot-card .whot-corner strong,
+ body.whot-mode .whot-hand-gallery>.playing-card.whot-card .whot-corner strong{
+  font-size:12px!important;
+ }
+ body.whot-mode .playing-card.whot-flight-face .whot-corner-top,
+ body.whot-mode .table-surface .playing-card.whot-card .whot-corner-top,
+ body.whot-mode .whot-hand-gallery>.playing-card.whot-card .whot-corner-top{
+  top:8px!important;left:8px!important;
+ }
+ body.whot-mode .playing-card.whot-flight-face .whot-corner-bottom,
+ body.whot-mode .table-surface .playing-card.whot-card .whot-corner-bottom,
+ body.whot-mode .whot-hand-gallery>.playing-card.whot-card .whot-corner-bottom{
+  bottom:8px!important;right:8px!important;
+ }
+ body.whot-mode .playing-card.whot-flight-face .whot-suit-big,
+ body.whot-mode .table-surface .playing-card.whot-card .whot-suit-big,
+ body.whot-mode .whot-hand-gallery>.playing-card.whot-card .whot-suit-big{
+  width:51px!important;height:51px!important;
+ }
+ body.whot-mode .playing-card.whot-flight-face .whot-twenty b,
+ body.whot-mode .table-surface .playing-card.whot-card .whot-twenty b,
+ body.whot-mode .whot-hand-gallery>.playing-card.whot-card .whot-twenty b{
+  font-size:16px!important;
+ }
+ body.whot-mode .whot-twenty-divider{width:42px}
+}
+
+
+/* A legacy high-specificity .whot-flight-flip .whot-flip-front rule formerly
+   recoloured the revealed card to the OLD green-tinted stock despite the
+   unified face styles. Override at the same specificity after all versions. */
+body.whot-mode .whot-flight-flip .whot-flip-front>.playing-card.whot-flight-face{
+ background:var(--whot-master-paper)!important;
+ background-image:none!important;
+ color:var(--whot-master-wine)!important;
+ border:1px solid #e8e5dc!important;
+ border-radius:3px!important;
+ opacity:1!important;
+ filter:none!important;
 }

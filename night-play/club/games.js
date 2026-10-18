@@ -257,7 +257,7 @@ async function whotFly(origin,destination,{face=null,action="play"}={}){
  let ghost;
  let flipCore=null;
  if(flip){
-  ghost=document.createElement('div');ghost.className='whot-flight whot-flight-flip';
+  ghost=document.createElement('div');ghost.className='whot-flight whot-flight-flip whot-flight-identity';
   flipCore=document.createElement('div');flipCore.className='whot-flip-core';
   const back=document.createElement('div');back.className='whot-flip-side whot-flip-back';
   back.appendChild(origin.cloneNode(true));
@@ -267,11 +267,14 @@ async function whotFly(origin,destination,{face=null,action="play"}={}){
   else safe.appendChild(destination.cloneNode(true));
   const card=safe.firstElementChild;if(card){
    card.removeAttribute('data-card');card.disabled=true;
+   // Flight sprites are portalled under <body>. Their artwork MUST be
+   // identical to cards on the felt, not inherit the obsolete base card skin.
+   card.classList.add('whot-flight-face');
    front.appendChild(card);
   }
   flipCore.append(back,front);ghost.appendChild(flipCore);
  }else{
-  ghost=origin.cloneNode(true);ghost.classList.add('whot-flight');ghost.removeAttribute('data-card');
+  ghost=origin.cloneNode(true);ghost.classList.add('whot-flight','whot-flight-face');ghost.removeAttribute('data-card');
  }
  Object.assign(ghost.style,{position:'fixed',left:a.left+'px',top:a.top+'px',
   width:a.width+'px',height:a.height+'px',margin:'0',zIndex:'9999',
@@ -474,15 +477,13 @@ function whotShapeSvg(s,n,mini=false){
   '<path d="M50 7 62.5 34 92 37.5 70 58.5 77 89 50 74 23 89 30 58.5 8 37.5 37.5 34Z"/>'
  ];
  if(s===5)return '';
- return '<svg class="'+(mini?'whot-suit-small':'whot-suit-big')+'" viewBox="0 0 100 100" focusable="false" aria-hidden="true">'+tags[s]+
- (s===4&&!mini?'<text x="50" y="58" fill="#fffdf8" font-size="23" font-weight="850" text-anchor="middle" font-family="Inter,system-ui,sans-serif">'+(n*2)+'</text>':'')+
- '</svg>';
+ return '<svg class="'+(mini?'whot-suit-small':'whot-suit-big')+'" viewBox="0 0 100 100" shape-rendering="geometricPrecision" focusable="false" aria-hidden="true">'+tags[s]+'</svg>';
 }
 function whotFace(card,index,enabled){
  const wild=card.n===20;
  const cornerSymbol=wild?'<span class="whot-wild-mini">w</span>':whotShapeSvg(card.s,card.n,true);
  const large=wild
-  ?'<span class="whot-twenty"><b>WHOT</b><i class="whot-swirl" aria-hidden="true">⌁</i><b class="whot-reversed">WHOT</b></span>'
+  ?'<span class="whot-twenty"><b>WHOT</b><span class="whot-twenty-divider" aria-hidden="true"></span><b class="whot-reversed">WHOT</b></span>'
   :whotShapeSvg(card.s,card.n);
  return '<button class="playing-card whot-card'+(wild?' whot-wild':'')+(enabled?' playable':'')+'" data-card="'+index+'" type="button" '+(enabled?'':'disabled')+
  ' data-whot-key="'+card.s+'-'+card.n+'" aria-label="'+(wild?'WHOT 20, call a shape':card.n+" "+shapes[card.s])+'">'+
@@ -573,11 +574,13 @@ function layoutWhotHand(before=null){
   const spacing=count>1?mode==='spaced'
    ?Math.min(20,Math.max(0,(available-count*cardWidth)/(count-1)))
    :Math.min(cardWidth+10,(available-cardWidth)/(count-1)):0;
-  const step=mode==='spaced'?cardWidth+spacing:spacing;
+  const step=mode==='spaced'?cardWidth+spacing:Math.min(cardWidth+(available>550?34:8),(available-cardWidth)/(count-1));
   const groupWidth=cardWidth+(count-1)*step;
   const left=Math.max(0,(available-groupWidth)/2)+slot*step;
-  const tilt=mode==='fan'?(slot-(count-1)/2)*1.05:0;
-  const y=rowIndex*(h+rowGap)+(mode==='fan'?Math.abs(slot-(count-1)/2)*2:0);
+  // Card print must remain upright and legible: accommodate the whole
+  // hand with controlled overlap, never tilt it into an uneven pile.
+  const tilt=0;
+  const y=rowIndex*(h+rowGap);
   card.style.left=left.toFixed(2)+'px';
   card.style.top=y.toFixed(2)+'px';
   card.style.zIndex=String(10+index);
