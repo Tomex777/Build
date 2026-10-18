@@ -123,11 +123,20 @@ class AudioEngine(private val assets: AssetManager) {
                     (2.2*cos(t*.21+emitter.seed*.021)).toFloat())
             } else emitter.at
             val acoustic = AcousticSolver.evaluate(world,emitter,position)
-            voice.filterAlpha=(1.0-exp(-2.0*PI*acoustic.lowPassHz/SAMPLE_RATE))
+            voice.targetAlpha=(1.0-exp(-2.0*PI*acoustic.lowPassHz/SAMPLE_RATE))
                 .toFloat().coerceIn(.001f,1f)
-            voice.pan=acoustic.pan
-            voice.gain=(emitter.gain*acoustic.directGain).coerceAtMost(1.2f)
-            Layer(emitter, voice)
+            voice.targetPan=acoustic.pan
+            voice.targetGain=(emitter.gain*acoustic.directGain).coerceAtMost(1.2f)
+            val reflections=EarlyReflections.solve(world,position).mapIndexed { index, reflection ->
+                val alpha=(1.0-exp(-2.0*PI*reflection.cutoffHz/SAMPLE_RATE)).toFloat()
+                    .coerceIn(.001f,1f)
+                val pan=reflection.pan
+                ReflectionTap(reflection.delayFrames,
+                    sqrt(((1f-pan)*.5f).coerceAtLeast(0f))*reflection.gain*emitter.gain,
+                    sqrt(((1f+pan)*.5f).coerceAtLeast(0f))*reflection.gain*emitter.gain,
+                    alpha,index)
+            }
+            Layer(emitter,voice,reflections)
         }
         val room=world.zones.lastOrNull { it.contains(world.listener) }
         val decay=room?.decay ?: .28f
@@ -140,9 +149,13 @@ class AudioEngine(private val assets: AssetManager) {
             for(layer in layers) {
                 val voice=layer.voice
                 val sound=voice.next(layer.emitter.kind,world.wind,world.rain,world.storm,t)
+                // 50 ms ramps prevent zipper clicks when positioning sounds or crossing doors.
+                voice.gain += (voice.targetGain-voice.gain)*.00045f
+                voice.pan += (voice.targetPan-voice.pan)*.00045f
+                voice.filterAlpha += (voice.targetAlpha-voice.filterAlpha)*.00045f
                 voice.lowpass += (sound-voice.lowpass)*voice.filterAlpha
                 val filtered=voice.lowpass*voice.gain
-                // Equal-power pan and time-delay for the shadowed ear. Headphone-centric.
+                // Direct sound follows ear-shadow + fractional horizon direction.
                 val side=voice.pan
                 val lGain=sqrt(((1f-side)*.5f).coerceAtLeast(0f))
                 val rGain=sqrt(((1f+side)*.5f).coerceAtLeast(0f))
@@ -153,6 +166,22 @@ class AudioEngine(private val assets: AssetManager) {
                 left += (if(side>0f) shadow else filtered)*lGain
                 right += (if(side<0f) shadow else filtered)*rGain
                 voice.delayIndex=(voice.delayIndex+1)%voice.delay.size
+
+                // Specular early reflections travel to actual wall hit points.
+                // This separate delay line preserves reflected sound behind a
+                // direct-path obstruction when a clear reflected path exists.
+                val buffer=voice.echoLine
+                buffer[voice.echoIndex]=voice.lowpass
+                for(tap in layer.reflections) {
+                    val read=(voice.echoIndex-tap.delay+buffer.size)%buffer.size
+                    val sampleReflected=buffer[read]
+                    val filteredRef=voice.reflectionFilters[tap.slot]+
+                        (sampleReflected-voice.reflectionFilters[tap.slot])*tap.alpha
+                    voice.reflectionFilters[tap.slot]=filteredRef
+                    left+=filteredRef*tap.left
+                    right+=filteredRef*tap.right
+                }
+                voice.echoIndex=(voice.echoIndex+1)%buffer.size
             }
             // Bounded wet sends; shorter surfaces absorb more reverberant energy.
             reverb.process(left,right)
@@ -167,7 +196,10 @@ class AudioEngine(private val assets: AssetManager) {
     }
     private fun softClip(x: Float):Float = (x / (1.0f+0.38f*abs(x))).coerceIn(-1f,1f)
 
-    private data class Layer(val emitter:Emitter,val voice:Voice)
+    private data class ReflectionTap(val delay:Int,val left:Float,val right:Float,
+        val alpha:Float,val slot:Int)
+    private data class Layer(val emitter:Emitter,val voice:Voice,
+        val reflections:List<ReflectionTap>)
 
     private class Voice(seed:Int, private val recording:ShortArray?) {
         private var rng=if(seed==0) 1234567 else seed
@@ -209,11 +241,17 @@ class AudioEngine(private val assets: AssetManager) {
             return (sample/32768.0).toFloat()
         }
         var filterAlpha=.7f
+        var targetAlpha=.7f
         var lowpass=0f
         var gain=0f
+        var targetGain=0f
         var pan=0f
+        var targetPan=0f
         val delay=FloatArray(48)
         var delayIndex=0
+        val echoLine=FloatArray(16384)
+        var echoIndex=0
+        val reflectionFilters=FloatArray(4)
         private fun random01():Double {
             rng = rng * 1664525 + 1013904223
             return ((rng ushr 8) and 0xFFFFFF).toDouble()/0x1000000
