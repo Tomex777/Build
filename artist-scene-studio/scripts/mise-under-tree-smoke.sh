@@ -2,6 +2,13 @@
 # Capture the REAL Mise Android test and keep test failures visible in Actions.
 set -uo pipefail
 mkdir -p under-tree-proof
+# Higher-density real Android 16 render proof; API 26 retains its stable
+# compact GPU surface so minimum-SDK coverage remains reliable.
+if [[ "$(adb shell getprop ro.build.version.sdk | tr -d '\r')" -ge 35 ]]; then
+  adb shell wm size 720x1280
+  adb shell wm density 320
+  sleep 2
+fi
 gradle :app:connectedDebugAndroidTest \
   -Pandroid.injected.androidTest.leaveApksInstalledAfterRun=true \
   -Pandroid.testInstrumentationRunnerArguments.class=studio.artistscene.app.UnderTreeSceneInstrumentedTest \
