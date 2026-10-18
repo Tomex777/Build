@@ -5,10 +5,11 @@
   "title": "Ọlọ́run àwámárìdì!",
   "title_en": "Unsearchable God",
   "pages": [
-    4
+    4,
+    5
   ],
-  "status": "partial_from_photo",
-  "review_notes": "Only beginning visible on photographed page 4; hymn continues beyond supplied page. Do not label this hymn complete. English is a working translation of visible stanzas, not the historic hymn original.",
+  "status": "draft_photo_needs_review",
+  "review_notes": "Photo of page 5 provides stanzas 3–4, completing the printed hymn. Stanzas 1–2 and hand-copied English are drafts; all tone marks need final checking.",
   "online_comparison": null,
   "english_source": "Original explanatory translation from visible Yoruba lines",
   "verses": [
@@ -26,6 +27,22 @@
       "Àwọn àńgẹ́lì ń bojú wọ̀",
       "Síbẹ̀, oore Rẹ bí odò",
       "Ń ṣàn sórí iṣẹ́ Rẹ gbogbo"
+    ],
+    [
+      "Ìwọ orísun ìbùkún",
+      "Kín l'ohun tí wọ ṣe àìní?",
+      "Kín la lè fi tẹ́ Ọ l'ọ́run?",
+      "Síbẹ̀síbẹ̀, Ìwọ ń bẹ̀rẹ̀",
+      "Pé kí n lè f'ọkàn mi fún Ọ",
+      "Èyí nìkan, niwọ ń bẹ̀rẹ̀"
+    ],
+    [
+      "Ìwọ tí ìtẹ́ Rẹ ń bẹ l'ókè",
+      "Ìjọba Rẹ kò nípẹ̀kun",
+      "Ó ń pàṣẹ lórí gbogbo wọn",
+      "Síbẹ̀síbẹ̀, Ó tọ mi wá",
+      "Láti máa ṣe amọ̀nà mi",
+      "Títí n ó fi bá Ọ jọba"
     ]
   ],
   "verses_en": [
@@ -43,6 +60,22 @@
       "Even the angels veil their faces,",
       "Yet still His goodness flows like a river",
       "Over all the works of His hands."
+    ],
+    [
+      "You are the fountain of all blessings",
+      "What could You ever need?",
+      "What gift could we lay before You?",
+      "Yet still, You ask for one thing:",
+      "That I might give my heart to You",
+      "It is all that You require"
+    ],
+    [
+      "Your throne is established above",
+      "Your kingdom shall never end",
+      "Your rule extends over all creation",
+      "Yet You have come to seek me",
+      "To guide my path continually",
+      "Until I reign with You at last"
     ]
   ]
 }
