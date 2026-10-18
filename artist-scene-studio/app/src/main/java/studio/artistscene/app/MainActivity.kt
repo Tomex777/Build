@@ -78,6 +78,20 @@ class MainActivity : ComponentActivity() {
             }
         }
 
+        // Refresh the original sample's stock atmosphere once, without touching
+        // altered worlds, custom light settings, rig poses, or artist transforms.
+        if (!preferences.getBoolean(UNDER_TREE_ATMOSPHERE_KEY, false)) {
+            runCatching {
+                if (store.exists(UnderTreeScene.PROJECT_ID)) {
+                    val saved = store.load(UnderTreeScene.PROJECT_ID)
+                    val refreshed = UnderTreeScene.upgradeDefaultEnvironment(saved)
+                    if (refreshed != saved) store.save(refreshed)
+                }
+            }.onSuccess {
+                preferences.edit().putBoolean(UNDER_TREE_ATMOSPHERE_KEY, true).apply()
+            }.onFailure { Log.w(RUNTIME_LOG_TAG, "under-tree-atmosphere-upgrade-failed", it) }
+        }
+
         // Clean up presentation-only fixture labels from earlier development builds without
         // changing IDs, transforms, poses, assets, or any names the artist has already edited.
         if (store.exists(PrototypeScene.PROJECT_ID)) {
@@ -196,6 +210,7 @@ class MainActivity : ComponentActivity() {
 private const val STARTER_SEEDED_KEY = "starter-scene-seeded-v1"
 private const val ANIME_STUDY_SEEDED_KEY = "anime-pose-study-seeded-v1"
 private const val UNDER_TREE_SEEDED_KEY = "under-tree-scene-seeded-v1"
+private const val UNDER_TREE_ATMOSPHERE_KEY = "under-tree-atmosphere-softened-v2"
 
 internal fun studio.artistscene.core.SceneProject.propX(): Float =
     actors.firstOrNull { it.id == PrototypeScene.PROP_ID }?.transform?.position?.x ?: 0f
