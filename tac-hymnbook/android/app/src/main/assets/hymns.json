@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "description": "Offline TAC hymns 1–17 transcribed against photographed pages 1–6 with matched historical texts; some lyrics still under review.",
+  "description": "Offline TAC hymn catalogue: 1–17 from photographed lyric pages and hymn 50 from index p.437 with user-confirmed online match. Working drafts still require final review.",
   "hymns": [
     {
       "number": 1,
@@ -1303,6 +1303,81 @@
       ],
       "text_status": "online_full_first_verse_photo_matched",
       "source_url": "https://www.scribd.com/document/859543609/HYMN-NCGM"
+    },
+    {
+      "number": 50,
+      "collection": "main",
+      "title_yo": "A f'ọpẹ́ f'Ọlọ́run",
+      "title_en": "Now Thank We All Our God",
+      "source_pages": [
+        437
+      ],
+      "verses_yo": [
+        [
+          "A f'ọpẹ́ f'Ọlọ́run",
+          "L'ọkàn àti l'ohùn wa",
+          "Ẹni ṣe ohun ìyanu",
+          "Nínú Ẹni t'aráyé ń yọ̀",
+          "Gba t'a wà l'ọmọ ọwọ́",
+          "Òun náà ló ń tọ́jú wa",
+          "Ó sì f'ẹ̀bùn ìfẹ́",
+          "Ṣe ìtọ́jú wa síbẹ̀"
+        ],
+        [
+          "Ọba Oníbùọ̀rẹ́",
+          "Má fi wá sílẹ̀ láéláé",
+          "Ayọ̀ tí kò l'ọ́pin",
+          "Àti ìbùkún yóò jẹ́ tiwa",
+          "Pa wa mọ́ nínú ọ̀rẹ́",
+          "Tọ́ wa gbà bá dààmú",
+          "Yọ wa nínú ibi",
+          "L'ayé àti l'ọ̀run"
+        ],
+        [
+          "Ká f'ìyìn àti ọpẹ́",
+          "F'Ọlọ́run Baba, Ọmọ",
+          "Àti Ẹ̀mí Mímọ́",
+          "Tí Ó ga jùlọ l'ọ̀run",
+          "Ọlọ́run kan láéláé",
+          "T'ayé àti ọ̀run ń bọ̀",
+          "Bẹ́ẹ̀ ló wà d'ìsinsìnyí",
+          "Bẹ́ẹ̀ ní yóò wà láéláé. Àmín"
+        ]
+      ],
+      "verses_en": [
+        [
+          "Now thank we all our God",
+          "With heart and hands and voices",
+          "Who wondrous things has done",
+          "In whom His world rejoices",
+          "Who from our mothers' arms",
+          "Has blessed us on our way",
+          "With countless gifts of love",
+          "And still is ours today"
+        ],
+        [
+          "O may this bounteous God",
+          "Through all our life be near us",
+          "With ever joyful hearts",
+          "And blessed peace to cheer us",
+          "And keep us in His grace",
+          "And guide us when perplexed",
+          "And free us from all ills",
+          "In this world and the next"
+        ],
+        [
+          "All praise and thanks to God",
+          "The Father now be given",
+          "The Son, and Him who reigns",
+          "With Them in highest heaven",
+          "The one eternal God",
+          "Whom earth and heaven adore",
+          "For thus it was, is now",
+          "And shall be evermore. Amen"
+        ]
+      ],
+      "text_status": "online_match_user_confirmed_first_verse",
+      "source_url": "https://worshipandpraisesongs.blogspot.com/2017/11/"
     }
   ]
 }
