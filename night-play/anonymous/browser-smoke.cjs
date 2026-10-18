@@ -60,7 +60,7 @@ const server=http.createServer(async(req,res)=>{
   linked=true;down=true
   await page.goto(origin+'/anonymous/')
   await page.getByRole('heading',{name:'Channel unavailable'}).waitFor()
-  assert.equal(await page.locator('#anonStatusRetry').isVisible(),true)
+  assert.equal(await page.locator('#anonRetry').isVisible(),true)
   assert.equal(await page.getByRole('link',{name:'Connect WhatsApp'}).count(),0)
   down=false
   await page.locator('#anonRetry').click()
