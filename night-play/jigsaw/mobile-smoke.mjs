@@ -52,21 +52,21 @@ try{
  assert.equal(first.guide,false,'Picture guide must be off by default');
  assert.equal(await page.locator('#guideSwitch').isChecked(),false,'Guide switch starts unchecked');
  assert.equal(first.challengeMode,'relaxed');
- assert.equal(await page.locator('#previewRemaining').textContent(),'3 left');
- assert.equal(await page.locator('#hintRemaining').textContent(),'3 left');
+ assert.equal(await page.locator('#previewRemaining').textContent(),'3');
+ assert.equal(await page.locator('#hintRemaining').textContent(),'3');
  assert.equal(await page.locator('#canvasWrapper').evaluate(el=>getComputedStyle(el).borderTopWidth),'0px','No boxed tray frame');
  assert.ok(first.board.y>20&&first.board.y+first.board.h<await page.evaluate(()=>document.getElementById('puzzleCanvas').height-20),'Puzzle is centered between two loose-piece areas on mobile');
  assert.equal(await page.locator('#edgesButton').count(),1,'Edge-piece filtering is available');
  assert.equal(await page.locator('#zoomIn').count(),1,'Zoom control is available');
  assert.equal(first.zoom,1,'Tabletop starts at natural 100% size');
- await page.locator('#zoomIn').click();
+ await page.evaluate(()=>document.getElementById('zoomIn').click());
  assert.ok((await page.evaluate(()=>window.__nightJigsawTest.snapshot())).zoom>1,'Zoom control enlarges tabletop');
- await page.locator('#zoomReset').click();
+ await page.evaluate(()=>document.getElementById('zoomReset').click());
  assert.equal((await page.evaluate(()=>window.__nightJigsawTest.snapshot())).zoom,1,'Zoom reset restores natural size');
  await page.locator('#edgesButton').click();
  assert.equal((await page.evaluate(()=>window.__nightJigsawTest.snapshot())).edgeOnly,true,'Edges filter dims interior pieces');
  await page.locator('#edgesButton').click();
- assert.equal(await page.locator('.game-topline .top-settings').count(),1,'Game settings stay in the header');
+ assert.equal(await page.locator('.play-hud #hudMenuButton').count(),1,'Single puzzle menu replaces extra settings header');
  assert.equal(await page.locator('.game-topline .wordmark .brand-logo use').getAttribute('href'),'#night-mark','Actual NIGHT brand mark');
  await page.screenshot({path:path.join(root,'visual-output/JIGSAW-PLAY-MOBILE.jpg'),type:'jpeg',quality:80,fullPage:true});
  console.log('NIGHT_JIGSAW_PLAY_JPEG_BASE64='+(await page.screenshot({type:'jpeg',quality:60,fullPage:true})).toString('base64'));
@@ -141,20 +141,21 @@ try{
  assert.equal(afterReload.moves,beforeReload.moves,'Reload retains move count');
  assert.equal(afterReload.usedHints,1,'Reload must not refund a spent hint');
  // Customizes settings without leaving the full-screen game.
- await page.locator('#settingsButton').click();
+ await page.locator('#hudMenuButton').click();await page.locator('#hudSettingsButton').click();
  await page.locator('[data-pieces="48"]').click();
  assert.equal(await page.evaluate(()=>window.__nightJigsawTest.snapshot().pieces.length),48);
  assert.equal(await page.locator('#progress').textContent(),'0 / 48','Difficulty starts a clean new round');
- await page.locator('#settingsButton').click();
- await page.locator('#guideSwitch').check();
+ await page.locator('#hudMenuButton').click();await page.locator('#hudSettingsButton').click();
+ await page.locator('[data-close="settingsDialog"]').click();
+ await page.locator('#hudMenuButton').click();await page.locator('#guideSwitch').check();
  assert.equal(await page.evaluate(()=>window.__nightJigsawTest.snapshot().guide),true,'Picture guide can be enabled');
  await page.locator('#guideSwitch').uncheck();
  await page.locator('#soundSwitch').uncheck();
- await page.locator('[data-close="settingsDialog"]').click();
+ await page.locator('#hudMenuButton').click();
  await page.locator('#previewButton').click();
- assert.equal(await page.locator('#previewDialog').isVisible(),true,'Timed reference preview opens');
- assert.equal(await page.locator('#previewRemaining').textContent(),'2 left','Preview spends one peek');
- await page.locator('[data-close="previewDialog"]').click();
+ assert.equal(await page.locator('#previewOverlay').isVisible(),true,'Timed reference appears on playing surface');
+ assert.equal(await page.locator('#previewRemaining').textContent(),'2','Preview spends one peek');
+ await page.keyboard.press('Escape');
  await page.reload();
  assert.equal(await page.locator('#resumePanel').isVisible(),true,'Resume choice shown without a gallery flash');
  assert.equal(await page.locator('#galleryPanel').isVisible(),false,'Gallery stays hidden during resume prompt');
@@ -162,7 +163,7 @@ try{
  await page.waitForFunction(()=>window.__nightJigsawTest?.snapshot().activeRound);
  assert.equal(await page.locator('#guideSwitch').isChecked(),false,'Guide preference persists');
  assert.equal(await page.locator('#soundSwitch').isChecked(),false,'Audio preference persists');
- await page.locator('#pickPicture').click();
+ await page.locator('#hudMenuButton').click();await page.locator('#pickPicture').click();
  await page.locator('#galleryPanel').waitFor({state:'visible'});
  assert.equal(new URL(page.url()).pathname,'/jigsaw/','Gallery and board stay in the same full-screen game route');
  // Private user photo becomes a playable puzzle and survives a reload.
@@ -185,12 +186,12 @@ try{
  assert.equal(await page.evaluate(()=>localStorage.getItem('night-play-jigsaw-v1')),null,'Finished puzzle is not resumed as unfinished');
  // Help is scarce in every mode, including Relaxed.
  await page.locator('[data-theme="photo-tabby-cat"]').click();
- assert.equal(await page.locator('#previewRemaining').textContent(),'3 left');
+ assert.equal(await page.locator('#previewRemaining').textContent(),'3');
  for(let i=0;i<3;i++){
   await page.locator('#previewButton').click();
-  await page.locator('#previewDialog').waitFor({state:'visible'});
-  await page.locator('[data-close="previewDialog"]').click();
-  await page.locator('#previewDialog').waitFor({state:'hidden'});
+  await page.locator('#previewOverlay').waitFor({state:'visible'});
+  await page.keyboard.press('Escape');
+  await page.locator('#previewOverlay').waitFor({state:'hidden'});
  }
  assert.equal(await page.locator('#previewButton').isDisabled(),true,'Relaxed has max three preview peeks');
  for(let i=0;i<3;i++)await page.locator('#hintButton').click();
@@ -203,34 +204,34 @@ try{
  assert.equal(await page.locator('#hintButton').isDisabled(),true,'Reload cannot replenish hints');
  assert.equal(await page.locator('#previewButton').isDisabled(),true,'Reload cannot replenish peeks');
 
- await page.locator('#settingsButton').click();
+ await page.locator('#hudMenuButton').click();await page.locator('#hudSettingsButton').click();
  await page.locator('[data-mode="challenge"]').click();
  assert.equal(await page.evaluate(()=>window.__nightJigsawTest.snapshot().challengeMode),'challenge');
- assert.equal(await page.locator('#hintRemaining').textContent(),'1 left');
- assert.equal(await page.locator('#previewRemaining').textContent(),'1 left');
+ assert.equal(await page.locator('#hintRemaining').textContent(),'1');
+ assert.equal(await page.locator('#previewRemaining').textContent(),'1');
  await page.locator('#hintButton').click();
  assert.equal(await page.locator('#hintButton').isDisabled(),true,'Challenge grants one hint');
  await page.locator('#previewButton').click();
- await page.locator('[data-close="previewDialog"]').click();
+ await page.keyboard.press('Escape');
  assert.equal(await page.locator('#previewButton').isDisabled(),true,'Challenge grants one picture peek');
- await page.locator('#settingsButton').click();
+ await page.locator('#hudMenuButton').click();await page.locator('#hudSettingsButton').click();
  await page.locator('[data-mode="memory"]').click();
- await page.locator('#previewDialog').waitFor({state:'visible',timeout:2500});
+ await page.locator('#previewOverlay').waitFor({state:'visible',timeout:2500});
  assert.equal(await page.locator('#guideSwitch').isDisabled(),true,'Memory disables even the faint guide');
  assert.equal(await page.locator('#hintButton').isDisabled(),true,'Memory grants zero hints');
  assert.equal(await page.evaluate(()=>window.__nightJigsawTest.snapshot().usedPreviews),1,'Memory automatically shows the only preview');
- await page.locator('[data-close="previewDialog"]').click();
- await page.locator('#previewDialog').waitFor({state:'hidden'});
+ await page.keyboard.press('Escape');
+ await page.locator('#previewOverlay').waitFor({state:'hidden'});
  assert.equal(await page.locator('#previewButton').isDisabled(),true,'Memory cannot peek twice');
- await page.locator('#settingsButton').click();
+ await page.locator('#hudMenuButton').click();await page.locator('#hudSettingsButton').click();
  await page.locator('[data-pieces="144"]').click();
- await page.locator('#previewDialog').waitFor({state:'visible',timeout:2500});
- await page.locator('[data-close="previewDialog"]').click();
+ await page.locator('#previewOverlay').waitFor({state:'visible',timeout:2500});
+ await page.keyboard.press('Escape');
  assert.equal(await page.evaluate(()=>window.__nightJigsawTest.snapshot().pieces.length),144,'144 piece difficulty is playable');
  assert.equal(await page.locator('#progress').textContent(),'0 / 144');
  const huge=await page.evaluate(()=>window.__nightJigsawTest.snapshot());
  assert.ok(huge.board.y>90,'Master difficulty still reserves space for loose pieces above the board');
- await page.locator('#pickPicture').click();
+ await page.locator('#hudMenuButton').click();await page.locator('#pickPicture').click();
  assert.deepEqual(errors,[],'Jigsaw game must have no browser exceptions');
 
  // Desktop receives a side loose-piece space and no horizontal overflow.
@@ -242,6 +243,15 @@ try{
  const dl=await desktop.evaluate(()=>window.__nightJigsawTest.snapshot());
  assert.ok(dl.board.x>90&&dl.board.x+dl.board.w<await desktop.evaluate(()=>document.getElementById('puzzleCanvas').width-90),'Desktop picture is centered between left and right scattering areas');
  assert.ok(await desktop.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+2));
+ const desktopFill=await desktop.evaluate(()=>{
+  const box=document.querySelector('#puzzleCanvas').getBoundingClientRect();
+  return {coverage:box.width*box.height/(innerWidth*innerHeight),
+   top:box.top,scrollHeight:document.documentElement.scrollHeight,
+   viewportHeight:innerHeight};
+ });
+ assert.ok(desktopFill.coverage>.88,'Desktop Jigsaw occupies >=88% viewport '+JSON.stringify(desktopFill));
+ assert.ok(desktopFill.top<=64&&desktopFill.scrollHeight<=desktopFill.viewportHeight+1,
+  'Desktop full-screen game does not require scrolling '+JSON.stringify(desktopFill));
  await desktop.screenshot({path:path.join(root,'visual-output/JIGSAW-PLAY-DESKTOP.jpg'),type:'jpeg',quality:75,fullPage:true});
  console.log('NIGHT_JIGSAW_DESKTOP_JPEG_BASE64='+(await desktop.screenshot({type:'jpeg',quality:50,fullPage:true})).toString('base64'));
  assert.deepEqual(deskErrors,[]);
@@ -266,18 +276,28 @@ try{
  await hud.locator('[data-theme="photo-alpine-lake"]').click();
  await hud.waitForFunction(()=>window.__nightJigsawTest?.snapshot().activeRound);
  const checkHud=()=>hud.evaluate(()=>{
-  const ids=['previewButton','hintButton','fullscreenButton','edgesButton','sweepButton'],rects={};
+  const ids=['previewButton','hintButton','hudMenuButton','edgesButton','sweepButton'],rects={};
   for(const id of ids){const r=document.getElementById(id).getBoundingClientRect();rects[id]={top:r.top,bottom:r.bottom,left:r.left,right:r.right,visible:r.width>=20&&r.height>=20&&r.top>=-1&&r.bottom<=innerHeight+1&&r.left>=-1&&r.right<=innerWidth+1}}
   return {width:innerWidth,rects,toolbarBottom:document.querySelector('.play-hud').getBoundingClientRect().bottom,boardTop:document.querySelector('.play-mat').getBoundingClientRect().top,overflow:document.documentElement.scrollWidth>innerWidth+2};
  });
  let hudState=await checkHud();
  assert.equal(hudState.overflow,false,'Puzzle has no horizontal overflow');
+ assert.ok(hudState.toolbarBottom<=64,'Mobile puzzle toolbar fits in 64px');
+ assert.ok(hudState.boardTop<=64,'Board begins immediately below the one gameplay rail');
+ const mobileFill=await hud.evaluate(()=>{
+  const b=document.querySelector('#puzzleCanvas').getBoundingClientRect();
+  return b.width*b.height/(innerWidth*innerHeight);
+ });
+ assert.ok(mobileFill>.88,'Mobile puzzle must fill at least 88% of the viewport: '+mobileFill);
+ assert.ok(await hud.evaluate(()=>document.documentElement.scrollHeight<=innerHeight+1),'Mobile puzzle never scrolls');
  assert.ok(Object.values(hudState.rects).every(v=>v.visible),'All top tools visible without scrolling '+JSON.stringify(hudState));
  assert.ok(hudState.toolbarBottom<=hudState.boardTop+2,'Assistance controls belong above the puzzle');
  assert.equal(await hud.locator('#previewButton').count(),1);
+ assert.equal(await hud.locator('.play-hud').evaluate(el=>getComputedStyle(el).height),'58px');
+ assert.equal(await hud.locator('.game-topline').isVisible(),false,'Website branding row is not repeated during play');
  assert.equal(await hud.locator('#hintButton').count(),1);
  await hud.screenshot({path:path.join(root,'visual-output/JIGSAW-TOP-TOOLS-MOBILE.jpg'),type:'jpeg',quality:74});
- await hud.locator('#fullscreenButton').click();
+ await hud.locator('#hudMenuButton').click();await hud.locator('#fullscreenButton').click();
  await hud.waitForTimeout(220);
  hudState=await checkHud();
  assert.ok(hudState.rects.previewButton.visible&&hudState.rects.hintButton.visible,'Full screen must retain visible Preview and Hint');
@@ -287,19 +307,19 @@ try{
   await hud.screenshot({path:path.join(root,'visual-output/JIGSAW-TRUE-FULLSCREEN.jpg'),type:'jpeg',quality:74});
  }
  await hud.locator('#previewButton').click();
- assert.equal(await hud.locator('#previewDialog').isVisible(),true,'Preview works from upper toolbar');
- await hud.locator('[data-close="previewDialog"]').click();
- assert.equal(await hud.locator('#previewRemaining').innerText(),'2 left');
+ assert.equal(await hud.locator('#previewOverlay').isVisible(),true,'Preview works from upper toolbar');
+ await hud.keyboard.press('Escape');
+ assert.equal(await hud.locator('#previewRemaining').innerText(),'2');
  await hud.locator('#hintButton').click();
- assert.equal(await hud.locator('#hintRemaining').innerText(),'2 left');
+ assert.equal(await hud.locator('#hintRemaining').innerText(),'2');
  assert.ok((await hud.evaluate(()=>window.__nightJigsawTest.snapshot())).placed>0,'Upper hint still places piece');
- await hud.locator('#settingsButton').click();
+ await hud.locator('#hudMenuButton').click();await hud.locator('#hudSettingsButton').click();
  assert.equal(await hud.locator('#settingsDialog').isVisible(),true);
  assert.equal(await hud.locator('#restartButton').count(),1);
  await hud.locator('#restartButton').click();
  assert.equal(await hud.locator('#settingsDialog').isVisible(),false);
  assert.equal((await hud.evaluate(()=>window.__nightJigsawTest.snapshot())).placed,0,'Restart resets play');
- if(await hud.evaluate(()=>Boolean(document.fullscreenElement)))await hud.locator('#fullscreenButton').click();
+ if(await hud.evaluate(()=>Boolean(document.fullscreenElement)))await hud.locator('#hudMenuButton').click();await hud.locator('#fullscreenButton').click();
  await hud.setViewportSize({width:320,height:700});
  hudState=await checkHud();
  assert.equal(hudState.overflow,false,'320px phone must not horizontally overflow '+JSON.stringify(hudState));

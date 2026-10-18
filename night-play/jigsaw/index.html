@@ -19,6 +19,11 @@
 <symbol id="icon-zoom-out" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="7"/><path d="M16 16l5 5M7 10.5h7"/></symbol>
 <symbol id="icon-expand" viewBox="0 0 24 24"><path d="M8 3H3v5M16 3h5v5M3 16v5h5m13-5v5h-5"/></symbol>
 <symbol id="icon-contract" viewBox="0 0 24 24"><path d="M3 9h6V3m6 0v6h6M3 15h6v6m6 0v-6h6"/></symbol>
+<symbol id="icon-menu" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></symbol>
+<symbol id="icon-pause" viewBox="0 0 24 24"><path d="M8 5v14M16 5v14"/></symbol>
+<symbol id="icon-play" viewBox="0 0 24 24"><path d="m8 5 12 7-12 7z"/></symbol>
+<symbol id="icon-sound" viewBox="0 0 24 24"><path d="M4 9h4l5-4v14l-5-4H4zM17 9a4 4 0 0 1 0 6m2-9a8 8 0 0 1 0 12"/></symbol>
+<symbol id="icon-save" viewBox="0 0 24 24"><path d="m4 12 5 5 11-11"/></symbol>
 <symbol id="icon-check" viewBox="0 0 24 24"><path d="m4 12 5.5 5.5L20 7"/></symbol>
 </svg>
 <header class="game-topline">
@@ -50,32 +55,56 @@
   <p class="gallery-footnote">Photos via <a href="https://unsplash.com/license" target="_blank" rel="noopener noreferrer">Unsplash</a> · Gallery photos require internet · Your uploads stay on this device</p>
  </section>
  <section class="play-screen" id="playScreen" aria-label="Jigsaw gameplay" hidden>
-  <div class="play-hud" aria-label="Jigsaw puzzle controls">
-   <div class="match-strip">
-    <button class="picture-switch" id="pickPicture" type="button"><svg class="ico" aria-hidden="true"><use href="#icon-gallery"/></svg><span>Pictures</span></button>
-    <div class="match-stat"><span>TIME</span><strong id="timer">00:00</strong></div>
-    <div class="match-stat"><span>MOVES</span><strong id="moves">0</strong></div>
-    <div class="match-stat"><span>PIECES</span><strong id="progress">0 / 24</strong></div>
-    <button type="button" id="fullscreenButton" class="fullscreen-control" aria-label="Enter full screen" aria-pressed="false" title="Full screen"><svg class="ico" aria-hidden="true"><use href="#icon-expand"/></svg></button>
-   </div>
-   <div class="table-tools" role="group" aria-label="Puzzle workspace and help">
-    <div class="workspace-tools">
-     <button type="button" id="edgesButton" aria-pressed="false" title="Dim inner pieces to find edges" aria-label="Edges filter"><svg class="ico" aria-hidden="true"><use href="#icon-edge"/></svg><span>Edges</span></button>
-     <button type="button" id="sweepButton" title="Move loose pieces to the margins" aria-label="Sweep loose pieces"><svg class="ico" aria-hidden="true"><use href="#icon-sweep"/></svg><span>Sweep</span></button>
+  <div class="play-hud" aria-label="Puzzle tools">
+    <a class="hud-back tool-icon" href="/games" aria-label="Back to games" title="Back to games"><svg class="ico" aria-hidden="true"><use href="#icon-back"/></svg></a>
+    <span class="hud-title">Jigsaw</span>
+    <div class="hud-essential" role="group" aria-label="Puzzle helpers">
+      <button type="button" id="edgesButton" class="tool-icon" aria-label="Edges filter" aria-pressed="false" title="Dim inner pieces"><svg class="ico" aria-hidden="true"><use href="#icon-edge"/></svg></button>
+      <button type="button" id="previewButton" class="tool-icon hint-action" aria-label="Preview picture, 3 left" title="Preview picture"><svg class="ico" aria-hidden="true"><use href="#icon-eye"/></svg><small id="previewRemaining" class="use-count">3 left</small></button>
+      <button type="button" id="hintButton" class="tool-icon hint-action" aria-label="Use a hint, 3 left" title="Use a hint"><svg class="ico" aria-hidden="true"><use href="#icon-spark"/></svg><small id="hintRemaining" class="use-count">3 left</small></button>
+      <button type="button" id="sweepButton" class="tool-icon" aria-label="Sweep loose pieces" title="Sweep pieces to the edges"><svg class="ico" aria-hidden="true"><use href="#icon-sweep"/></svg></button>
     </div>
-    <div class="assistance-tools" role="group" aria-label="Puzzle help">
-     <button type="button" id="previewButton" class="tool-help" title="Preview picture" aria-label="Preview picture"><svg class="ico" aria-hidden="true"><use href="#icon-eye"/></svg><span class="help-label">Preview</span><small id="previewRemaining" class="use-count">3 left</small></button>
-     <button type="button" id="hintButton" class="tool-help" title="Use a hint" aria-label="Use a hint"><svg class="ico" aria-hidden="true"><use href="#icon-spark"/></svg><span class="help-label">Hint</span><small id="hintRemaining" class="use-count">3 left</small></button>
+    <div class="hud-right">
+      <div class="zoom-tools" role="group" aria-label="Zoom">
+        <button type="button" id="zoomOut" class="tool-icon" aria-label="Zoom out"><svg class="ico" aria-hidden="true"><use href="#icon-zoom-out"/></svg></button>
+        <button type="button" id="zoomReset" class="zoom-label" aria-label="Reset zoom">100%</button>
+        <button type="button" id="zoomIn" class="tool-icon" aria-label="Zoom in"><svg class="ico" aria-hidden="true"><use href="#icon-zoom-in"/></svg></button>
+      </div>
+      <button type="button" id="pauseButton" class="tool-icon" aria-label="Pause puzzle" aria-pressed="false" title="Pause"><svg class="ico" aria-hidden="true"><use href="#icon-pause"/></svg></button>
+      <button type="button" id="hudMenuButton" class="tool-icon" aria-haspopup="true" aria-expanded="false" aria-controls="hudMenu" aria-label="Puzzle menu" title="Puzzle menu"><svg class="ico" aria-hidden="true"><use href="#icon-menu"/></svg></button>
     </div>
-    <div class="zoom-tools" role="group" aria-label="Zoom and pan">
-     <button type="button" id="zoomOut" aria-label="Zoom out" title="Zoom out"><svg class="ico" aria-hidden="true"><use href="#icon-zoom-out"/></svg></button>
-     <button type="button" id="zoomReset" aria-label="Reset zoom" title="Reset zoom">100%</button>
-     <button type="button" id="zoomIn" aria-label="Zoom in" title="Zoom in"><svg class="ico" aria-hidden="true"><use href="#icon-zoom-in"/></svg></button>
+    <div class="hud-menu" id="hudMenu" hidden aria-label="More puzzle options">
+      <button type="button" id="pickPicture"><svg class="ico" aria-hidden="true"><use href="#icon-gallery"/></svg>Choose picture</button>
+      <button type="button" id="fullscreenButton" aria-label="Enter full screen" aria-pressed="false"><svg class="ico" aria-hidden="true"><use href="#icon-expand"/></svg>Fullscreen</button>
+      <button type="button" id="hudSettingsButton"><svg class="ico" aria-hidden="true"><use href="#icon-settings"/></svg>Difficulty & settings</button>
+      <div class="hud-menu-switches">
+        <label class="menu-switch" for="guideSwitch"><span>Picture guide</span><input id="guideSwitch" type="checkbox" aria-label="Picture guide"></label>
+        <label class="menu-switch" for="soundSwitch"><span>Game sounds</span><input id="soundSwitch" type="checkbox" checked aria-label="Game sounds"></label>
+      </div>
+      <button type="button" id="restartMenuButton"><svg class="ico" aria-hidden="true"><use href="#icon-restart"/></svg>Restart picture</button>
+      <div class="menu-zoom" aria-label="Zoom controls">Pinch to zoom on mobile · drag empty space to pan</div>
     </div>
-   </div>
   </div>
-  <div class="play-mat" id="canvasWrapper" aria-label="Jigsaw tabletop; drag pieces, use zoom controls to inspect details"><canvas id="puzzleCanvas" width="360" height="660" aria-label="Jigsaw tabletop. Move puzzle pieces onto the board or connect them to neighbouring pieces."></canvas><canvas id="dragCanvas" class="drag-layer" width="360" height="660" aria-hidden="true"></canvas></div>
-  <div class="completion-track" aria-label="Jigsaw progress"><div id="progressBar"></div></div>
+  <div class="play-mat" id="canvasWrapper" aria-label="Jigsaw tabletop, drag pieces to assemble the picture">
+    <canvas id="puzzleCanvas" width="360" height="660" aria-label="Puzzle workspace"></canvas>
+    <canvas id="dragCanvas" class="drag-layer" width="360" height="660" aria-hidden="true"></canvas>
+    <div class="inline-preview" id="previewOverlay" hidden aria-hidden="true">
+      <img id="previewImage" alt="">
+      <span id="previewCountdown" class="preview-countdown"></span>
+    </div>
+    <div class="play-status" aria-label="Puzzle progress" aria-live="off">
+      <span class="save-indicator"><svg class="ico" aria-hidden="true"><use href="#icon-save"/></svg>Saved</span>
+      <div class="status-right">
+        <span class="status-chip"><svg class="ico" aria-hidden="true"><use href="#icon-pause"/></svg><strong id="timer">00:00</strong></span>
+        <span class="status-chip"><strong id="progress">0 / 24</strong><span>pieces</span></span>
+        <span class="status-moves" aria-label="Moves"><strong id="moves">0</strong> moves</span>
+      </div>
+    </div>
+    <div class="pause-overlay" id="pauseOverlay" hidden>
+      <h2>Paused</h2><button type="button" id="resumeButton">Resume puzzle</button>
+    </div>
+  </div>
+  <div class="completion-track" aria-label="Jigsaw progress" hidden><div id="progressBar"></div></div>
   <p class="progress-footnote">Drag and connect pieces · Your progress saves automatically</p>
  </section>
 </main>
@@ -88,12 +117,11 @@
   <button data-mode="challenge" type="button"><strong>Challenge</strong><small>1 hint · 1 peek (4s)</small></button>
   <button data-mode="memory" type="button"><strong>Memory</strong><small>0 hints · 1 first look (5s)</small></button>
  </div>
- <label class="setting-switch"><span><b>Picture guide</b><small>Optional 7% picture outline · OFF by default</small></span><input id="guideSwitch" type="checkbox"></label>
- <label class="setting-switch"><span><b>Game sounds</b><small>Soft tactile pick-up, placement and completion sounds</small></span><input id="soundSwitch" type="checkbox" checked></label>
+ 
  <button type="button" id="restartButton" class="settings-restart"><svg class="ico" aria-hidden="true"><use href="#icon-restart"/></svg> Restart this picture</button>
  <p class="settings-note">Changing difficulty or mode begins a fresh round. Picture guide and sound apply immediately. Preview closes automatically.</p></div>
 </dialog>
-<dialog id="previewDialog" aria-label="Full puzzle reference" class="image-dialog"><div class="preview-head"><strong>YOUR PICTURE</strong><button class="close-sheet" data-close="previewDialog" aria-label="Close picture preview">✕</button></div><img id="previewImage" alt="Reference image for the jigsaw puzzle"><p id="previewExplanation">Study the picture. This peek closes automatically.</p></dialog>
+
 <dialog id="victoryDialog" aria-labelledby="victoryTitle" class="victory-dialog">
  <div class="victory-icon"><svg class="ico"><use href="#icon-check"/></svg></div>
  <span class="eyebrow">PUZZLE COMPLETE</span><h2 id="victoryTitle">Beautifully done!</h2><p>Every piece found its place.</p>

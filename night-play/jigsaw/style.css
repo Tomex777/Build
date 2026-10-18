@@ -153,3 +153,101 @@ body:has(#playScreen:not([hidden])) .play-mat{height:clamp(370px,calc(100dvh - 1
  .workspace-tools button{width:29px;min-width:29px}
  .play-hud .table-tools{gap:2px}
 }
+
+/* V4: one deliberate game rail, not a website nested around a puzzle.
+   All gallery, welcome and settings styles above remain unchanged. */
+body:has(#playScreen:not([hidden])){height:100dvh;min-height:0;overflow:hidden}
+body:has(#playScreen:not([hidden])) .game-topline{display:none}
+body:has(#playScreen:not([hidden])) main{width:100%;max-width:none;height:100dvh;min-height:0;overflow:hidden;padding:0;margin:0}
+body:has(#playScreen:not([hidden])) .play-screen{width:100%;height:100%;max-width:none;margin:0;padding:0;display:flex;flex-direction:column;min-height:0}
+body:has(#playScreen:not([hidden])) .play-hud{
+ position:relative;z-index:9;display:flex;align-items:center;flex:none;gap:8px;
+ height:62px;width:100%;margin:0;padding:0 clamp(9px,1.4vw,22px);
+ border-bottom:1px solid #e1e5dc;background:#fafaf8;box-shadow:0 1px 5px #00000010;isolation:auto
+}
+.play-hud .hud-back,.play-hud .hud-right,.play-hud .hud-essential,.play-hud .zoom-tools{display:flex;align-items:center;flex:none}
+.play-hud .hud-title{font-size:13px;font-weight:850;letter-spacing:-.45px;color:#273d31;white-space:nowrap}
+.play-hud .hud-essential{gap:4px;margin:auto}
+.play-hud .hud-right{gap:6px}
+.play-hud .tool-icon{display:inline-flex;align-items:center;justify-content:center;position:relative;flex:none;
+ width:42px;height:42px;min-width:42px;padding:0;gap:0;border:1px solid transparent;border-radius:11px;
+ color:#33483c;background:transparent;touch-action:manipulation}
+.play-hud .tool-icon:hover{background:#edf1e9}
+.play-hud .tool-icon:active{background:#e2e9df}
+.play-hud .tool-icon[aria-pressed="true"]{background:#e0ede2;color:#245940}
+.play-hud .tool-icon:disabled{opacity:.38;cursor:default}
+.play-hud .tool-icon .ico{width:19px;height:19px}
+.play-hud .hint-action .use-count{position:absolute;right:0;top:1px;min-width:12px;
+ padding:0 2px;border:0;border-radius:5px;background:#dcece0;color:#27543a;font-size:8px;line-height:13px;
+ letter-spacing:-.3px;white-space:nowrap;transform:translateX(1px)}
+.play-hud .hint-action{border-color:#e4e9df}
+.play-hud .zoom-tools{gap:0;background:#e9eee6;border-radius:12px;padding:2px}
+.play-hud .zoom-tools .tool-icon{width:33px;height:34px;min-width:33px;border:0;border-radius:9px}
+.play-hud .zoom-tools .ico{width:16px;height:16px}
+.play-hud .zoom-label{height:34px;min-width:45px;padding:0 4px;border:0;border-radius:7px;
+ color:#344a3c;background:transparent;font-size:11px;font-weight:800;font-variant-numeric:tabular-nums}
+.play-hud .hud-menu{position:absolute;right:9px;top:calc(100% + 5px);width:min(280px,calc(100vw - 18px));
+ padding:7px;border:1px solid #dce4d9;border-radius:15px;background:#fffffe;
+ box-shadow:0 15px 37px #15251940;z-index:18;overflow:auto;max-height:calc(100dvh - 75px)}
+.play-hud .hud-menu>button{display:flex;align-items:center;width:100%;gap:12px;min-height:44px;
+ padding:8px 13px;border:0;border-radius:9px;background:transparent;color:#2a3f34;text-align:left;font-size:12px;font-weight:730}
+.play-hud .hud-menu>button:hover,.play-hud .hud-menu>button:focus-visible{background:#e9f1e9}
+.play-hud .hud-menu .ico{width:18px;height:18px}
+.play-hud .hud-menu-switches{border-top:1px solid #e9ede7;border-bottom:1px solid #e9ede7;margin:6px 0;padding:4px 0}
+.play-hud .menu-switch{display:flex;align-items:center;justify-content:space-between;gap:15px;padding:9px 13px;font-size:12px;color:#2a3f34;font-weight:720;cursor:pointer}
+.play-hud .menu-switch input{appearance:none;position:relative;width:37px;height:22px;flex:none;margin:0;border-radius:20px;background:#becdc0;cursor:pointer}
+.play-hud .menu-switch input:after{content:'';position:absolute;left:3px;top:3px;width:16px;height:16px;border-radius:50%;background:white;transition:transform .15s}
+.play-hud .menu-switch input:checked{background:#348563}
+.play-hud .menu-switch input:checked:after{transform:translateX(15px)}
+.play-hud .menu-zoom{padding:8px 13px;font-size:10px;color:#788a7f;line-height:1.45}
+body:has(#playScreen:not([hidden])) .play-mat,
+body:has(#playScreen:not([hidden])) .play-mat.master-puzzle{
+ flex:1;min-height:0;height:auto;max-height:none;width:100%;margin:0;position:relative;border:0;border-radius:0;
+ box-shadow:none;overflow:hidden;background:#dfd7c9;isolation:isolate
+}
+.play-mat .inline-preview{position:absolute;z-index:4;pointer-events:none;overflow:hidden;
+ border:1px solid #ddccae;box-shadow:0 2px 18px #271e1459;transform-origin:center center}
+.play-mat .inline-preview img{width:100%;height:100%;display:block;object-fit:cover;opacity:.83}
+.play-mat .preview-countdown{position:absolute;right:8px;top:8px;border-radius:8px;background:#182c22d9;
+ color:#fff;padding:5px 9px;font-size:11px;font-weight:780;font-variant-numeric:tabular-nums}
+.play-mat .play-status{position:absolute;bottom:max(10px,env(safe-area-inset-bottom));left:clamp(10px,1.5vw,18px);
+ right:clamp(10px,1.5vw,18px);z-index:5;display:flex;align-items:flex-end;justify-content:space-between;
+ gap:8px;pointer-events:none;color:#fff;font-variant-numeric:tabular-nums}
+.play-status .save-indicator{display:flex;align-items:center;gap:4px;padding:6px 10px;font-size:10px;
+ font-weight:790;color:#2c4235;background:#fffffff0;border:1px solid #d6d9d0;border-radius:50px}
+.play-status .save-indicator .ico{width:13px;height:13px}
+.play-status .status-right{display:flex;align-items:center;gap:5px}
+.play-status .status-chip{display:flex;align-items:center;gap:6px;padding:7px 10px;background:#25312beb;
+ border:1px solid #f0fff012;border-radius:50px;font-size:10px}
+.play-status .status-chip .ico{width:14px;height:14px}
+.play-status .status-chip strong{font-size:12px}
+.play-status .status-moves{font-size:10px;padding:7px 9px;border-radius:50px;background:#25312beb}
+.play-status .pause-overlay{pointer-events:auto}
+.play-mat .pause-overlay{position:absolute;inset:0;display:flex;z-index:6;flex-direction:column;align-items:center;
+ justify-content:center;gap:17px;background:#16281cc7;backdrop-filter:blur(6px);color:white}
+.pause-overlay h2{font-size:clamp(27px,5vw,42px);font-weight:840;letter-spacing:-1px;margin:0}
+.pause-overlay button{background:#f9fcf8;color:#204632;font-weight:800;font-size:14px;border:0;border-radius:12px;padding:12px 30px;min-height:46px}
+body:has(#playScreen:not([hidden])) .completion-track{display:none}
+body:has(#playScreen:not([hidden])) .progress-footnote{display:none}
+:root:fullscreen,:root:fullscreen body{height:100dvh;overflow:hidden;background:#fafaf8}
+:root:fullscreen body:has(#playScreen:not([hidden])) main{padding:0;height:100dvh}
+:root:fullscreen body:has(#playScreen:not([hidden])) .play-hud{height:62px;padding:0 clamp(9px,1.4vw,22px)}
+:root:fullscreen body:has(#playScreen:not([hidden])) .play-mat{height:auto}
+@media(max-width:720px){
+ body:has(#playScreen:not([hidden])) .play-hud{height:58px;gap:3px;padding:0 6px}
+ .play-hud .hud-title,.play-hud .zoom-tools{display:none}
+ .play-hud .hud-essential{gap:3px;flex:1;justify-content:space-evenly;min-width:0}
+ .play-hud .hud-right{gap:2px}
+ .play-hud .tool-icon{width:42px;height:44px;min-width:42px;border-radius:9px}
+ .play-hud .tool-icon .ico{width:18px;height:18px}
+ .play-hud .hint-action .use-count{top:0;right:-1px;font-size:8px}
+ .play-hud .hud-menu{top:calc(100% + 2px)}
+ .play-status .status-moves{display:none}
+ :root:fullscreen body:has(#playScreen:not([hidden])) .play-hud{height:58px;padding:0 6px}
+}
+@media(max-width:370px){
+ .play-hud .hud-essential{gap:0}
+ .play-hud .tool-icon{width:40px;min-width:40px}
+ .play-status .status-chip{padding:6px 8px}
+ .play-status .save-indicator{padding:6px 7px}
+}
