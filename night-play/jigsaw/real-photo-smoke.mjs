@@ -21,8 +21,18 @@ try{
  const errors=[];page.on('pageerror',e=>errors.push(String(e)));page.on('console',m=>{if(m.type()==='error'&&errors.length<20)errors.push('console '+m.text().slice(0,220))});
  await page.goto('http://127.0.0.1:'+server.address().port+'/jigsaw/',{waitUntil:'domcontentloaded'});
  await page.locator('#galleryGrid .gallery-image img').first().waitFor({timeout:10000});
- await page.waitForFunction(()=>[...document.querySelectorAll('.gallery-image img')].some(img=>img.complete&&img.naturalWidth>=300),null,{timeout:28000}).catch(()=>{});
- const photos=await page.locator('.gallery-image img').evaluateAll(imgs=>imgs.map(img=>({alt:img.alt,width:img.naturalWidth,loaded:img.complete,url:img.currentSrc.slice(0,120)})));
+ const all=page.locator('.gallery-image img');
+ // Drive the actual scroll-based lazy image loading, rather than incorrectly
+ // counting below-the-fold unfetched photos as broken placeholders.
+ for(let i=0;i<await all.count();i++){
+  await all.nth(i).scrollIntoViewIfNeeded();
+  await page.waitForFunction(index=>{
+   const image=document.querySelectorAll('.gallery-image img')[index];
+   return image.complete;
+  },i,{timeout:10000}).catch(()=>{});
+ }
+ await page.evaluate(()=>scrollTo(0,0));
+ const photos=await all.evaluateAll(imgs=>imgs.map(img=>({alt:img.alt,width:img.naturalWidth,loaded:img.complete,url:img.currentSrc.slice(0,120)})));
  console.log('REAL_PHOTO_QA_GALLERY='+JSON.stringify(photos));
  const ga=await page.screenshot({type:'jpeg',quality:65,fullPage:true});
  writeFileSync(path.join(out,'JIGSAW-LIVE-PHOTOS-GALLERY.jpg'),ga);
@@ -39,5 +49,5 @@ try{
  const gp=await page.screenshot({type:'jpeg',quality:65,fullPage:true});
  writeFileSync(path.join(out,'JIGSAW-LIVE-PHOTO-PLAY.jpg'),gp);
  console.log('LIVE_PHOTO_GAME_BASE64='+gp.toString('base64'));
- if(!state.active||photos[0].width<300||state.imageVariance<15)process.exitCode=1;
+ if(!state.active||photos.some(photo=>photo.width<300)||state.imageVariance<15)process.exitCode=1;
  }finally{await browser?.close();await new Promise(ok=>server.close(ok));}
