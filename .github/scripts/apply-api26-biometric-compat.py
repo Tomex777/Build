@@ -537,3 +537,128 @@ new_decode = """    return runCatching {
 if viewer_text.count(old_decode) != 1:
     raise SystemExit("expected exactly one cached image decoder")
 viewer_path.write_text(viewer_text.replace(old_decode, new_decode, 1))
+
+
+# The editor's own attachment thumbnails ALSO used ImageDecoder unconditionally,
+# independent of the fullscreen decoder above. On API 26-27 that call is absent;
+# its swallowed failure left a permanent spinner despite successful imports.
+# Use bounded two-pass BitmapFactory decoding on ALL API levels so release R8
+# cannot inline API 28-only ImageDecoder callback types into the thumbnail path.
+editor_text = editor.read_text()
+old_import = "import android.graphics.ImageDecoder\n"
+if editor_text.count(old_import) != 1:
+    raise SystemExit("expected one editor ImageDecoder import")
+editor_text = editor_text.replace(
+    old_import,
+    "import android.graphics.BitmapFactory\n",
+    1,
+)
+start_marker = "@Composable\nprivate fun rememberAttachmentThumbnail("
+end_marker = "\nprivate fun normalizedEditorBlocks("
+if editor_text.count(start_marker) != 1 or editor_text.count(end_marker) != 1:
+    raise SystemExit("editor attachment thumbnail block changed unexpectedly")
+start = editor_text.index(start_marker)
+end = editor_text.index(end_marker, start)
+thumbnail_impl = """@Composable
+private fun rememberAttachmentThumbnail(
+    block: DraftCapsuleBlock
+): Bitmap? {
+    val context = LocalContext.current
+    var bitmap by remember(
+        block.sourcePath, block.sourceUri, block.type
+    ) { mutableStateOf<Bitmap?>(null) }
+
+    LaunchedEffect(block.sourcePath, block.sourceUri, block.type) {
+        bitmap = withContext(Dispatchers.IO) {
+            when (block.type) {
+                CapsuleBlockType.IMAGE -> {
+                    val local = block.sourcePath?.let(::File)?.takeIf { it.isFile }
+                    if (local != null) {
+                        decodeAttachmentBitmap(1280) { local.inputStream() }
+                    } else {
+                        val source = block.sourceUri ?: return@withContext null
+                        decodeAttachmentBitmap(1200) {
+                            context.contentResolver.openInputStream(Uri.parse(source))
+                        }
+                    }
+                }
+                CapsuleBlockType.VIDEO -> {
+                    val source = block.sourceUri ?: block.sourcePath
+                        ?: return@withContext null
+                    loadThumbnail(context, Uri.parse(source), block.type)
+                }
+                else -> null
+            }
+        }
+    }
+    return bitmap
+}
+
+/** Bounded decoding with fresh input per pass; safe from Android 8 onwards. */
+private fun decodeAttachmentBitmap(
+    maxSide: Int,
+    openInput: () -> java.io.InputStream?
+): Bitmap? = runCatching {
+    val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+    val first = openInput() ?: return@runCatching null
+    first.use { BitmapFactory.decodeStream(it, null, bounds) }
+    if (bounds.outWidth <= 0 || bounds.outHeight <= 0) {
+        return@runCatching null
+    }
+    var sample = 1
+    while (maxOf(
+        bounds.outWidth / (sample * 2),
+        bounds.outHeight / (sample * 2)
+    ) >= maxSide) {
+        sample *= 2
+    }
+    val options = BitmapFactory.Options().apply {
+        inSampleSize = sample
+        inPreferredConfig = Bitmap.Config.ARGB_8888
+    }
+    val second = openInput() ?: return@runCatching null
+    val decoded = second.use { BitmapFactory.decodeStream(it, null, options) }
+        ?: return@runCatching null
+    val largest = maxOf(decoded.width, decoded.height)
+    if (largest <= maxSide) {
+        decoded
+    } else {
+        val scale = maxSide.toFloat() / largest
+        val resized = Bitmap.createScaledBitmap(
+            decoded,
+            (decoded.width * scale).toInt().coerceAtLeast(1),
+            (decoded.height * scale).toInt().coerceAtLeast(1),
+            true
+        )
+        if (resized !== decoded) decoded.recycle()
+        resized
+    }
+}.getOrNull()
+
+private fun loadThumbnail(
+    context: Context,
+    uri: Uri,
+    type: CapsuleBlockType
+): Bitmap? = when (type) {
+    CapsuleBlockType.IMAGE ->
+        decodeAttachmentBitmap(1200) {
+            context.contentResolver.openInputStream(uri)
+        }
+    CapsuleBlockType.VIDEO -> runCatching {
+        val retriever = MediaMetadataRetriever()
+        try {
+            retriever.setDataSource(context, uri)
+            retriever.getFrameAtTime(
+                0, MediaMetadataRetriever.OPTION_CLOSEST_SYNC
+            )
+        } finally {
+            retriever.release()
+        }
+    }.getOrNull()
+    else -> null
+}
+"""
+editor_text = editor_text[:start] + thumbnail_impl + editor_text[end:]
+if "ImageDecoder" in editor_text or editor_text.count("decodeAttachmentBitmap(") != 4:
+    raise SystemExit("editor thumbnail compatibility rewrite incomplete")
+editor.write_text(editor_text)
