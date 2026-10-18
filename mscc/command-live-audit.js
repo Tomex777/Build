@@ -20,11 +20,42 @@ const sleep = ms => new Promise(resolve => setTimeout(resolve, ms))
 
 // Each selected command runs its REAL handler with a fixed, non-user fixture.
 // All unlisted commands remain explicitly unverified, never "passed".
+// Explicitly enumerated safe reaction handlers (never the moderation .kick).
+// In live mode these fetch real GIF sources and deliver actual rounded stickers.
+export const LIVE_REACTION_NAMES = Object.freeze(
+  'akick angry baka bite bleh blowkiss blush bonk bored carry clap confused cry cuddle dance facepalm feed handhold handshake happy highfive hug kabedon kill kiss lappillow laugh lurk nod nom nope nya pat peck poke pout punch run salute shake shocked shoot shrug sip slap sleep smile smug spin stare tableflip teehee think thumbsup tickle wag wave wink yawn yeet'.split(' ')
+)
+
 export const LIVE_CASES = Object.freeze({
+  ...Object.fromEntries(LIVE_REACTION_NAMES.map(name=>[name,{expected:'sticker'}])),
   ping:        { args:[], expected:'text' },
   about:       { args:[], expected:'text' },
   calc:        { args:['2+2'], expected:'text' },
   joke:        { args:[], expected:'text' },
+  uptime:      { args:[], expected:'text' },
+  random:      { args:['red','|','blue'], expected:'text' },
+  choose:      { args:['red','|','blue'], expected:'text' },
+  fact:        { args:[], expected:'text', provider:true },
+  define:      { args:['computer'], expected:'text', provider:true },
+  translate:   { args:['french','Hello','world'], expected:'text', provider:true },
+  weather:     { args:['Lagos'], expected:'text', provider:true },
+  github:      { args:['facebook/react'], expected:'text', provider:true },
+  wiki:        { args:['Nigeria'], expected:'text', provider:true },
+  news:        { args:['technology'], expected:'text', provider:true },
+  web:         { args:['OpenAI'], expected:'text', provider:true },
+  image:       { args:['Saturn','1'], expected:'image', provider:true },
+  quote:       { args:['This','is','a','NIGHT','test'], expected:'image' },
+  wanted:      { args:[], expected:'image' },
+  wasted:      { args:[], expected:'image' },
+  roast:       { args:['NIGHT'], expected:'text' },
+  caption:     { fixture:'image', args:['NIGHT','TEST'], expected:'image' },
+  sq:          { fixture:'text', args:['dark'], expected:'image' },
+  qr:          { args:['night-testall-qr'], expected:'image' },
+  reactions:   { args:[], expected:'text' },
+  emojimix:    { args:['😍','🔥'], expected:'sticker', provider:true },
+  ssweb:       { args:['https://github.com'], expected:'image', provider:true },
+  linkinfo:    { args:['https://example.com'], expected:'text', provider:true },
+
   sticker:     { fixture:'image', expected:'sticker' },
   toimg:       { fixture:'sticker', expected:'image' },
   togif:       { fixture:'animated-sticker', expected:'document' },
@@ -176,6 +207,7 @@ export async function makeTestFixtures() {
   const cache = { image, qr, pdf }
   return {
     async get(kind) {
+      if (kind === 'text') return Buffer.from('NIGHT text quote test')
       if (cache[kind]) return cache[kind]
       const file = join(dir,kind === 'video' ? 'source.mp4' : 'source.ogg')
       const common = [ '-hide_banner','-loglevel','error','-y' ]
@@ -213,6 +245,7 @@ export async function makeTestFixtures() {
 }
 
 export function fixtureMessage(kind, bytes) {
+  if (kind === 'text') return {text:'NIGHT screenshot quote test'}
   const label = 'NIGHT TEST SOURCE • '+kind
   if (kind === 'image' || kind === 'qr')
     return {image:bytes,mimetype:'image/png',caption:label}
@@ -281,6 +314,11 @@ export async function runLiveCase({ original, command, spec, fixtures, fixtureSe
     args:spec.args||[],
     rawArgs:(spec.args||[]).join(' '),
     reply:async text => safeSend(chat,{text:String(text)},{quoted:original.message}),
+    sendImageDataUrl:async(dataUrl,caption='')=>{
+      const match=String(dataUrl).match(/^data:image\/(png|jpe?g);base64,(.+)$/s)
+      if(!match) throw new Error('QR generated an invalid image data URI')
+      return safeSend(chat,{image:Buffer.from(match[2],'base64'),caption},{quoted:original.message})
+    },
   }
   let fakeMessage = original.message
   const sourceFor = async(kind, fresh=false) => {
