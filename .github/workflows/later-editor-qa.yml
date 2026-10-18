@@ -567,18 +567,6 @@ jobs:
           fi
           cat "${release_base}.sha256"
 
-      - name: API 36 release APK acceptance
-        uses: reactivecircus/android-emulator-runner@v2
-        env:
-          LATER_QA_APK: ${{ github.workspace }}/Later_V2_2_4_RELEASE_2026-09-28_X86_64_QA_SIGNED.apk
-        with:
-          api-level: 36
-          arch: x86_64
-          target: google_apis
-          disable-animations: true
-          emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
-          script: bash .github/scripts/later-editor-qa.sh && bash .github/scripts/later-media-qa.sh && bash .github/scripts/later-format-scroll-qa.sh && bash .github/scripts/later-production-ui-qa.sh
-
       - name: API 26 release sanity
         uses: reactivecircus/android-emulator-runner@v2
         env:
@@ -590,6 +578,18 @@ jobs:
           disable-animations: true
           emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
           script: bash .github/scripts/later-api26-release-smoke.sh && bash .github/scripts/later-media-qa.sh
+
+      - name: API 36 release APK acceptance
+        uses: reactivecircus/android-emulator-runner@v2
+        env:
+          LATER_QA_APK: ${{ github.workspace }}/Later_V2_2_4_RELEASE_2026-09-28_X86_64_QA_SIGNED.apk
+        with:
+          api-level: 36
+          arch: x86_64
+          target: google_apis
+          disable-animations: true
+          emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          script: bash .github/scripts/later-editor-qa.sh && bash .github/scripts/later-media-qa.sh && bash .github/scripts/later-format-scroll-qa.sh && bash .github/scripts/later-production-ui-qa.sh
 
       - name: Upload clean Later package
         uses: actions/upload-artifact@v4
