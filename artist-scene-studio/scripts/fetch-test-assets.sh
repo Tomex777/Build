@@ -102,3 +102,6 @@ python3 "$project_dir/scripts/extract-vrm-springs.py" "$female_file" "$asset_dir
 python3 "$project_dir/scripts/extract-vrm-expressions.py" "$female_file" "$asset_dir/mise_anime_female.expressions.json"
 
 python3 "$project_dir/scripts/build-scene-actors.py"
+# Bundle photographed CC0 sky and natural ground photo for the real outdoor
+# Mise scene; the app itself never contacts the Internet for these assets.
+bash "$project_dir/scripts/fetch-real-outdoors.sh"
