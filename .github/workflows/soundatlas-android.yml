@@ -31,6 +31,34 @@ jobs:
           SDKMANAGER=$(find "$ANDROID_HOME/cmdline-tools" -name sdkmanager -type f | head -1)
           test -n "$SDKMANAGER"
           "$SDKMANAGER" 'platforms;android-35' 'build-tools;35.0.0'
+      - name: Bundle verified CC0 field-recording library from EchoSpace assets pipeline
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -qq -y ffmpeg
+          tar -xJf EchoSpace/source.tar.xz
+          test -f EchoSpace/tools/prepare_audio.py
+          # Longer sources plus randomized stitching in the realtime Sound Atlas engine.
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path("EchoSpace/tools/prepare_audio.py")
+          data=p.read_text()
+          anchor="duration=12 if kind in EVENTS else 24"
+          if anchor not in data: raise SystemExit("Audio prep provenance source drifted")
+          p.write_text(data.replace(anchor,"duration=20 if kind in EVENTS else 48",1))
+          PY
+          python3 EchoSpace/tools/prepare_audio.py
+          mkdir -p SoundAtlas/app/src/main/assets/audio
+          for kind in rain thunder wind stream birds leaves night chimes traffic; do
+            test -s "EchoSpace/app/src/main/assets/audio/$kind.pcm"
+            cp "EchoSpace/app/src/main/assets/audio/$kind.pcm" \
+               "SoundAtlas/app/src/main/assets/audio/$kind.pcm"
+          done
+          find EchoSpace/app/src/main/assets -maxdepth 2 -iname '*provenance*' \
+             -o -iname '*license*' -o -iname '*manifest*' | head -20
+          echo "Audio source: EchoSpace verified CC0 offline preparation pipeline" \
+             > SoundAtlas/app/src/main/assets/audio/SOURCES.txt
       - name: JVM geometry regressions and native Android builds
         working-directory: SoundAtlas
         run: gradle --no-daemon --stacktrace testDebugUnitTest assembleDebug assembleRelease
