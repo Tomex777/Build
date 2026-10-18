@@ -1,0 +1,409 @@
+{
+  "source": "User photographed TAC Yorùbá hymnbook page 437, alphabetical hymn index (first collection)",
+  "page": 437,
+  "method": "match original printed TAC hymn number and Yorùbá first line against Redemption Hymnal, not by external numbering alone",
+  "status": "research_catalogue_not_public_app_content",
+  "notes": "Accents and a handful of lower-confidence first-line readings await checking. English titles are hypotheses unless number and meaning have been checked. The previous speculative mapping of 733 to Rock of Ages was incorrect: it is 341; To the Work is 568, not 424.",
+  "entries": [
+    {
+      "printed_number": 402,
+      "index_line_no": 1,
+      "first_line_yo_reading": "Adùn ayé kò jẹ́ nǹkan mọ́",
+      "reading_confidence": "high",
+      "redemption_english_title": "Earthly Pleasures Vainly Call Me",
+      "english_match_status": "number_and_meaning_checked",
+      "reference_url": "https://hymnary.org/hymn/RH2006/402",
+      "full_lyrics_imported": false
+    },
+    {
+      "printed_number": 531,
+      "index_line_no": 2,
+      "first_line_yo_reading": "Adúrà ni ẹ̀sọ̀ ọkàn",
+      "reading_confidence": "needs_review",
+      "redemption_english_title": "Prayer Is the Soul's Sincere Desire",
+      "english_match_status": "number_and_meaning_checked",
+      "reference_url": "https://hymnary.org/hymn/RH2006/531",
+      "full_lyrics_imported": false
+    },
+    {
+      "printed_number": 428,
+      "index_line_no": 3,
+      "first_line_yo_reading": "A fi Ẹ̀mí Mímọ́ fún mi",
+      "reading_confidence": "high",
+      "redemption_english_title": null,
+      "english_match_status": "not_yet_checked",
+      "reference_url": "https://hymnary.org/hymn/RH2006/428",
+      "full_lyrics_imported": false
+    },
+    {
+      "printed_number": 50,
+      "index_line_no": 4,
+      "first_line_yo_reading": "A f'ọpẹ́ f'Ọlọ́run",
+      "reading_confidence": "high",
+      "redemption_english_title": "Now Thank We All Our God",
+      "english_match_status": "number_and_meaning_checked",
+      "reference_url": "https://hymnary.org/hymn/RH2006/50",
+      "full_lyrics_imported": false
+    },
+    {
+      "printed_number": 648,
+      "index_line_no": 5,
+      "first_line_yo_reading": "Àgùntàn ni ...",
+      "reading_confidence": "needs_review",
+      "redemption_english_title": null,
+      "english_match_status": "not_yet_checked",
+      "reference_url": "https://hymnary.org/hymn/RH2006/648",
+      "full_lyrics_imported": false
+    },
+    {
+      "printed_number": 315,
+      "index_line_no": 6,
+      "first_line_yo_reading": "Agogo ayé ... ní ọ̀run lónìí",
+      "reading_confidence": "needs_review",
+      "redemption_english_title": null,
+      "english_match_status": "not_yet_checked",
+      "reference_url": "https://hymnary.org/hymn/RH2006/315",
+      "full_lyrics_imported": false
+    },
+    {
+      "printed_number": 302,
+      "index_line_no": 7,
+      "first_line_yo_reading": "Agogo ìyànrere a lù",
+      "reading_confidence": "high",
+      "redemption_english_title": null,
+      "english_match_status": "not_yet_checked",
+      "reference_url": "https://hymnary.org/hymn/RH2006/302",
+      "full_lyrics_imported": false
+    },
+    {
+      "printed_number": 219,
+      "index_line_no": 8,
+      "first_line_yo_reading": "Agbára t'ọjọ́ Pẹntikọsti",
+      "reading_confidence": "high",
+      "redemption_english_title": "The Power That Fell at Pentecost",
+      "english_match_status": "number_and_meaning_checked",
+      "reference_url": "https://hymnary.org/hymn/RH2006/219",
+      "full_lyrics_imported": false
+    },
+    {
+      "printed_number": 585,
+      "index_line_no": 9,
+      "first_line_yo_reading": "Agbàlágbà Rẹ ló fà mí",
+      "reading_confidence": "needs_review",
+      "redemption_english_title": null,
+      "english_match_status": "not_yet_checked",
+      "reference_url": "https://hymnary.org/hymn/RH2006/585",
+      "full_lyrics_imported": false
+    },
+    {
+      "printed_number": 196,
+      "index_line_no": 10,
+      "first_line_yo_reading": "A gbé ìkẹ̀nù wúrà dáró",
+      "reading_confidence": "needs_review",
+      "redemption_english_title": null,
+      "english_match_status": "not_yet_checked",
+      "reference_url": "https://hymnary.org/hymn/RH2006/196",
+      "full_lyrics_imported": false
+    },
+    {
+      "printed_number": 460,
+      "index_line_no": 11,
+      "first_line_yo_reading": "Àìgbàgbọ́ bíla, ... Olúwa",
+      "reading_confidence": "needs_review",
+      "redemption_english_title": null,
+      "english_match_status": "not_yet_checked",
+      "reference_url": "https://hymnary.org/hymn/RH2006/460",
+      "full_lyrics_imported": false
+    },
+    {
+      "printed_number": 339,
+      "index_line_no": 12,
+      "first_line_yo_reading": "Káì, ìgbàlà kíkún lèyí",
+      "reading_confidence": "high",
+      "redemption_english_title": null,
+      "english_match_status": "not_yet_checked",
+      "reference_url": "https://hymnary.org/hymn/RH2006/339",
+      "full_lyrics_imported": false
+    },
+    {
+      "printed_number": 321,
+      "index_line_no": 13,
+      "first_line_yo_reading": "Káì, Jésù, ìwọ ń dáró",
+      "reading_confidence": "high",
+      "redemption_english_title": null,
+      "english_match_status": "not_yet_checked",
+      "reference_url": "https://hymnary.org/hymn/RH2006/321",
+      "full_lyrics_imported": false
+    },
+    {
+      "printed_number": 390,
+      "index_line_no": 14,
+      "first_line_yo_reading": "Àjìgbọ̀sẹ̀ ... àánú",
+      "reading_confidence": "needs_review",
+      "redemption_english_title": null,
+      "english_match_status": "not_yet_checked",
+      "reference_url": "https://hymnary.org/hymn/RH2006/390",
+      "full_lyrics_imported": false
+    },
+    {
+      "printed_number": 29,
+      "index_line_no": 15,
+      "first_line_yo_reading": "A kí Jésù tán kan mọ́ ọ",
+      "reading_confidence": "needs_review",
+      "redemption_english_title": null,
+      "english_match_status": "not_yet_checked",
+      "reference_url": "https://hymnary.org/hymn/RH2006/29",
+      "full_lyrics_imported": false
+    },
+    {
+      "printed_number": 73,
+      "index_line_no": 16,
+      "first_line_yo_reading": "A kọ ayé sílẹ̀, a ń wá Jésù",
+      "reading_confidence": "needs_review",
+      "redemption_english_title": null,
+      "english_match_status": "not_yet_checked",
+      "reference_url": "https://hymnary.org/hymn/RH2006/73",
+      "full_lyrics_imported": false
+    },
+    {
+      "printed_number": 528,
+      "index_line_no": 17,
+      "first_line_yo_reading": "Aláfíà dé sínú ọkàn mi",
+      "reading_confidence": "high",
+      "redemption_english_title": "Peace Like a River Is Flooding My Soul",
+      "english_match_status": "number_and_meaning_checked",
+      "reference_url": "https://hymnary.org/hymn/RH2006/528",
+      "full_lyrics_imported": false
+    },
+    {
+      "printed_number": 188,
+      "index_line_no": 18,
+      "first_line_yo_reading": "Aláfíà fún ọjọ́ náà, Alleluya",
+      "reading_confidence": "high",
+      "redemption_english_title": "Hail the Day That Sees Him Rise",
+      "english_match_status": "number_and_meaning_checked",
+      "reference_url": "https://hymnary.org/hymn/RH2006/188",
+      "full_lyrics_imported": false
+    },
+    {
+      "printed_number": 754,
+      "index_line_no": 19,
+      "first_line_yo_reading": "Aláfíà fún Jésù",
+      "reading_confidence": "high",
+      "redemption_english_title": null,
+      "english_match_status": "not_yet_checked",
+      "reference_url": "https://hymnary.org/hymn/RH2006/754",
+      "full_lyrics_imported": false
+    },
+    {
+      "printed_number": 529,
+      "index_line_no": 20,
+      "first_line_yo_reading": "Aláfíà ní ayé ẹ̀ṣẹ̀ yìí",
+      "reading_confidence": "high",
+      "redemption_english_title": "Peace, Perfect Peace, in This Dark World of Sin?",
+      "english_match_status": "number_and_meaning_checked",
+      "reference_url": "https://hymnary.org/hymn/RH2006/529",
+      "full_lyrics_imported": false
+    },
+    {
+      "printed_number": 500,
+      "index_line_no": 21,
+      "first_line_yo_reading": "Aláfíà Ọlọ́run ń bẹ lọ́kàn mi",
+      "reading_confidence": "high",
+      "redemption_english_title": "God's Abiding Peace Is in My Soul Today",
+      "english_match_status": "number_and_meaning_checked",
+      "reference_url": "https://hymnary.org/hymn/RH2006/500",
+      "full_lyrics_imported": false
+    },
+    {
+      "printed_number": 506,
+      "index_line_no": 22,
+      "first_line_yo_reading": "Aláfíà ọ̀run, bí odò ńlá ni",
+      "reading_confidence": "high",
+      "redemption_english_title": "Like a River, Glorious",
+      "english_match_status": "number_and_meaning_checked",
+      "reference_url": "https://hymnary.org/hymn/RH2006/506",
+      "full_lyrics_imported": false
+    },
+    {
+      "printed_number": 26,
+      "index_line_no": 23,
+      "first_line_yo_reading": "Alélúyà, jẹ́ ká kọrin",
+      "reading_confidence": "high",
+      "redemption_english_title": null,
+      "english_match_status": "not_yet_checked",
+      "reference_url": "https://hymnary.org/hymn/RH2006/26",
+      "full_lyrics_imported": false
+    },
+    {
+      "printed_number": 695,
+      "index_line_no": 24,
+      "first_line_yo_reading": "Àmi ìjìnlẹ̀ ...",
+      "reading_confidence": "needs_review",
+      "redemption_english_title": "A Mighty Mystery We Set Forth",
+      "english_match_status": "number_and_meaning_checked",
+      "reference_url": "https://hymnary.org/hymn/RH2006/695",
+      "full_lyrics_imported": false
+    },
+    {
+      "printed_number": 171,
+      "index_line_no": 25,
+      "first_line_yo_reading": "A á kọrin ìyìn ẹni tó kú",
+      "reading_confidence": "needs_review",
+      "redemption_english_title": null,
+      "english_match_status": "not_yet_checked",
+      "reference_url": "https://hymnary.org/hymn/RH2006/171",
+      "full_lyrics_imported": false
+    },
+    {
+      "printed_number": 800,
+      "index_line_no": 26,
+      "first_line_yo_reading": "A á lọ sílé láéláé yìí",
+      "reading_confidence": "needs_review",
+      "redemption_english_title": "'Tis Eventide and from Thy House",
+      "english_match_status": "number_and_meaning_checked",
+      "reference_url": "https://hymnary.org/hymn/RH2006/800",
+      "full_lyrics_imported": false
+    },
+    {
+      "printed_number": 407,
+      "index_line_no": 27,
+      "first_line_yo_reading": "A á rí adùn nínú ìkorò",
+      "reading_confidence": "high",
+      "redemption_english_title": "We Shall See the Desert as the Rose",
+      "english_match_status": "number_and_meaning_checked",
+      "reference_url": "https://hymnary.org/hymn/RH2006/407",
+      "full_lyrics_imported": false
+    },
+    {
+      "printed_number": 119,
+      "index_line_no": 28,
+      "first_line_yo_reading": "A á ròkọ, a á fúnrúgbọn",
+      "reading_confidence": "high",
+      "redemption_english_title": "We Plough the Fields and Scatter",
+      "english_match_status": "number_and_meaning_checked",
+      "reference_url": "https://hymnary.org/hymn/RH2006/119",
+      "full_lyrics_imported": false
+    },
+    {
+      "printed_number": 424,
+      "index_line_no": 29,
+      "first_line_yo_reading": "Àánú Olúwa bí omi òkun ńlá",
+      "reading_confidence": "high",
+      "redemption_english_title": "The Mercy of God Is an Ocean Divine",
+      "english_match_status": "number_and_meaning_checked",
+      "reference_url": "https://hymnary.org/hymn/RH2006/424",
+      "full_lyrics_imported": false
+    },
+    {
+      "printed_number": 568,
+      "index_line_no": 30,
+      "first_line_yo_reading": "A ó ṣiṣẹ́, a ó ṣiṣẹ́, ọmọ Ọlọ́run ni wa",
+      "reading_confidence": "high",
+      "redemption_english_title": "To the Work",
+      "english_match_status": "number_and_meaning_checked",
+      "reference_url": "https://hymnary.org/hymn/RH2006/568",
+      "full_lyrics_imported": false
+    },
+    {
+      "printed_number": 272,
+      "index_line_no": 31,
+      "first_line_yo_reading": "Àà, ọ̀rọ̀ ìyanu ti Ọlọ́pá...",
+      "reading_confidence": "needs_review",
+      "redemption_english_title": "Oh, Wonderful Word!",
+      "english_match_status": "number_and_meaning_checked",
+      "reference_url": "https://hymnary.org/hymn/RH2006/272",
+      "full_lyrics_imported": false
+    },
+    {
+      "printed_number": 177,
+      "index_line_no": 32,
+      "first_line_yo_reading": "A pa Jésù fún mi, ní Kálfárì",
+      "reading_confidence": "high",
+      "redemption_english_title": "Jesus Was Slain for Me",
+      "english_match_status": "number_and_meaning_checked",
+      "reference_url": "https://hymnary.org/hymn/RH2006/177",
+      "full_lyrics_imported": false
+    },
+    {
+      "printed_number": 733,
+      "index_line_no": 33,
+      "first_line_yo_reading": "Apá Rẹ ni ojú wọ́n náà",
+      "reading_confidence": "needs_review",
+      "redemption_english_title": "Thine Arm, O Lord, in Days of Old",
+      "english_match_status": "number_and_meaning_checked",
+      "reference_url": "https://hymnary.org/hymn/RH2006/733",
+      "full_lyrics_imported": false
+    },
+    {
+      "printed_number": 341,
+      "index_line_no": 34,
+      "first_line_yo_reading": "Apáta ayérayé, ṣe ibi ìsádi mi",
+      "reading_confidence": "high",
+      "redemption_english_title": "Rock of Ages, Cleft for Me",
+      "english_match_status": "number_and_meaning_checked",
+      "reference_url": "https://hymnary.org/hymn/RH2006/341",
+      "full_lyrics_imported": false
+    },
+    {
+      "printed_number": 716,
+      "index_line_no": 35,
+      "first_line_yo_reading": "Ará, olùfẹ́ nínú Kristi",
+      "reading_confidence": "high",
+      "redemption_english_title": "Brethren in Christ, and Well Beloved",
+      "english_match_status": "number_and_meaning_checked",
+      "reference_url": "https://hymnary.org/hymn/RH2006/716",
+      "full_lyrics_imported": false
+    },
+    {
+      "printed_number": 348,
+      "index_line_no": 36,
+      "first_line_yo_reading": "Àárẹ̀ mú ọ, ayé sú ọ",
+      "reading_confidence": "high",
+      "redemption_english_title": "Art Thou Weary",
+      "english_match_status": "number_and_meaning_checked",
+      "reference_url": "https://hymnary.org/hymn/RH2006/348",
+      "full_lyrics_imported": false
+    },
+    {
+      "printed_number": 699,
+      "index_line_no": 37,
+      "first_line_yo_reading": "Arẹwà tí ó dára jù",
+      "reading_confidence": "needs_review",
+      "redemption_english_title": null,
+      "english_match_status": "not_yet_checked",
+      "reference_url": "https://hymnary.org/hymn/RH2006/699",
+      "full_lyrics_imported": false
+    },
+    {
+      "printed_number": 696,
+      "index_line_no": 38,
+      "first_line_yo_reading": "A jẹ́ a l'ọ́gbọ́n nítorí mi",
+      "reading_confidence": "needs_review",
+      "redemption_english_title": null,
+      "english_match_status": "not_yet_checked",
+      "reference_url": "https://hymnary.org/hymn/RH2006/696",
+      "full_lyrics_imported": false
+    },
+    {
+      "printed_number": 495,
+      "index_line_no": 39,
+      "first_line_yo_reading": "Àṣírí gbogbo ohun àìmò",
+      "reading_confidence": "needs_review",
+      "redemption_english_title": null,
+      "english_match_status": "not_yet_checked",
+      "reference_url": "https://hymnary.org/hymn/RH2006/495",
+      "full_lyrics_imported": false
+    },
+    {
+      "printed_number": 692,
+      "index_line_no": 40,
+      "first_line_yo_reading": "A ti sàn mi pẹ̀lú Kristi",
+      "reading_confidence": "needs_review",
+      "redemption_english_title": null,
+      "english_match_status": "not_yet_checked",
+      "reference_url": "https://hymnary.org/hymn/RH2006/692",
+      "full_lyrics_imported": false
+    }
+  ]
+}
