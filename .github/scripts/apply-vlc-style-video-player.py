@@ -263,6 +263,7 @@ for old, new in (
      "import androidx.compose.ui.semantics.ProgressBarRangeInfo\n"
      "import androidx.compose.ui.semantics.progressBarRangeInfo\n"
      "import androidx.compose.ui.semantics.setProgress\n"
+     "import androidx.compose.ui.semantics.stateDescription\n"
      "import androidx.compose.ui.semantics.semantics\n"),
 ):
     if text.count(old) != 1:
