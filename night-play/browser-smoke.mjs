@@ -80,7 +80,7 @@ try {
  assert.equal(await page.locator('#view-profile').getByText('Not connected').count(),0,'No repeated disconnected status')
  assert.equal(await page.locator('#view-profile button[data-dialog="connect"]').count(),0,'Card must not duplicate the connection CTA')
  assert.equal(await page.locator('header button[data-dialog="connect"]').isVisible(),true,'Only global connect CTA')
- assert.equal(await page.locator('#accountBadges').textContent(),'1 / 4','Device records earn only the first achievement');
+ assert.equal(await page.locator('#accountBadges').textContent(),'4 / 4','Device records unlock all four thresholds when met');
   assert.equal(await page.locator('#accountRounds').textContent(),'243','Correct activity total');
   assert.equal(await page.locator('[data-profile-tab="channels"]').textContent(),'My Channels');
   assert.equal(await page.locator('#profilePaneChannels').isVisible(),false,'No unrelated management controls on the Profile tab');
