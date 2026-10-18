@@ -3,11 +3,23 @@
     <application android:label="Sound Atlas" android:theme="@android:style/Theme.Material.NoActionBar"
         android:usesCleartextTraffic="false" android:allowBackup="false"
         android:supportsRtl="true">
+
+        <provider android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.files"
+            android:exported="false" android:grantUriPermissions="true">
+            <meta-data android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/atlas_share_paths"/>
+        </provider>
         <activity android:name=".MainActivity" android:exported="true"
             android:screenOrientation="unspecified">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <data android:scheme="content" android:mimeType="application/json"/>
             </intent-filter>
         </activity>
     </application>
