@@ -499,7 +499,6 @@ document.addEventListener('pointerdown',e=>{
  if(!$('hudMenu').hidden&&!$('hudMenu').contains(e.target)&&!$('hudMenuButton').contains(e.target))closeHudMenu();
 });
 $('hudSettingsButton').addEventListener('click',()=>$('settingsButton').click());
-$('restartMenuButton').addEventListener('click',()=>$('restartButton').click());
 function updatePauseButton(){
  $('pauseButton').setAttribute('aria-pressed',String(paused));
  $('pauseButton').setAttribute('aria-label',paused?'Resume puzzle':'Pause puzzle');
