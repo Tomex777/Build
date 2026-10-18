@@ -100,7 +100,7 @@ class AudioEngine(private val assets: AssetManager) {
                     val hi=raw[i*2+1].toInt()
                     pcm[i]=((hi shl 8) or lo).toShort()
                 }
-                result[type]=pcm
+                result[type]=PcmLeveler.normalize(pcm)
             } catch(_:Exception) {
                 // A source may be absent in test-only builds; procedural fallback is available.
             }
@@ -240,6 +240,10 @@ class AudioEngine(private val assets: AssetManager) {
                     else -> .08+random01()*.5
                 }
                 eventFreq=200+random01()*1800
+                if(kind==SoundKind.THUNDER || kind==SoundKind.BELL){
+                    clipPhase=0.0
+                    clipNextStart=0
+                }
                 nextEvent=when(kind) {
                     SoundKind.THUNDER -> (8.0+random01()*27.0)*(1.4-storm.coerceIn(0f,1f)*.9)
                     SoundKind.DRIP -> .3+random01()*2.3
@@ -312,7 +316,13 @@ class AudioEngine(private val assets: AssetManager) {
             }
             // Variable-length recordings + irregular synthesized events sound richer
             // while the procedural layer covers every sound without a bundled asset.
-            val real=fieldSample()
+            // One-shot recordings must not run continuously under an idle event
+            // generator. Thunder and bells restart at actual, irregular event onset.
+            val real=when(kind) {
+                SoundKind.THUNDER, SoundKind.BELL ->
+                    if(active>0.001) fieldSample()*active.toFloat() else 0f
+                else -> fieldSample()
+            }
             return if(recording==null) result.toFloat().coerceIn(-1f,1f)
             else (result.toFloat()*.49f+real*.68f).coerceIn(-1f,1f)
         }
