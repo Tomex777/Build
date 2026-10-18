@@ -1291,7 +1291,6 @@ body.whot-mode #newRound{min-height:32px!important;padding:7px 9px!important}
 @media(min-width:651px){body.whot-mode .table-surface{padding-top:2px!important}}
 body.whot-mode .whot-flight-flip .whot-flip-back .whot-deck-back,
 body.whot-mode .whot-flight-flip .whot-flip-back .card-back{border:0!important;background:#511b20!important;color:#f9fcfa!important;box-shadow:0 10px 15px #0003!important;border-radius:3px!important}
-body.whot-mode .whot-flight-flip .whot-flip-front .whot-card{border:0!important;background:#f9fcfa!important;color:#511b20!important;box-shadow:0 10px 15px #0003!important;border-radius:3px!important}
 
 /* Float shared NIGHT navigation above the reference-positioned tabletop
    rather than letting its header push the opponent and both market cards. */
