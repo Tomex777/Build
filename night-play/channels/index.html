@@ -46,13 +46,12 @@ svg{display:block}
 .channel-proof span{display:block;text-transform:uppercase;font-size:9px;font-weight:800;letter-spacing:.9px;color:#6c7b70}
 .channel-proof code{font-size:12px;font-family:ui-monospace,Consolas,monospace;font-weight:750;color:#234332;display:block;overflow-wrap:anywhere;margin-top:7px;user-select:text}
 .channel-actions{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
-.channel-anonymous{display:flex;align-items:center;justify-content:space-between;gap:15px;flex-wrap:wrap;border-top:1px solid #e5e9e3;padding-top:17px;margin-top:15px}
-.channel-anonymous-copy{min-width:0;flex:1 1 160px}
-.channel-anonymous h3{margin:0 0 4px;color:#202b24;font-size:14px;font-weight:850;letter-spacing:-.25px}
-.channel-anonymous p{margin:0;font-size:11px;line-height:1.55;color:#738078}
-.channel-anonymous .btn{white-space:nowrap;gap:6px}
-.channel-anonymous .btn svg{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
-@media(max-width:420px){.channel-anonymous .btn{width:100%}}
+.channel-actions{margin-top:17px;align-items:center}
+.channel-actions .channel-start{display:inline-flex;align-items:center;gap:8px;min-height:45px}
+.channel-actions .channel-start svg{width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.channel-actions .channel-start:disabled{opacity:1;background:#e5ebe6;border-color:#e5ebe6;color:#6a786e}
+.channel-start-note{font-size:11px;line-height:1.5;color:#748077;margin:8px 0 0}
+@media(max-width:420px){.channel-actions .channel-start{width:100%;justify-content:center}.channel-actions .danger{min-height:44px}}
 
 .channel-confirm{width:100%;background:#faf2ef;border:1px solid #ecdad4;padding:12px;border-radius:12px}
 .channel-confirm p{font-size:12px;line-height:1.6;margin:0 0 11px;color:#70483f}
@@ -234,8 +233,8 @@ function render() {
     nameGroup.append(name,pill)
     header.append(avatar,nameGroup)
     card.append(header)
-    const detail=connected?'Connected to your NIGHT Play account.':channel.status==='awaiting_admin'?'Make NIGHT an administrator in WhatsApp, then verify your channel.':'Publish the proof below as a new WhatsApp Channel post.'
-    card.append(make('p','channel-summary',detail))
+    const detail=channel.status==='awaiting_admin'?'Make NIGHT an administrator in WhatsApp, then verify your channel.':'Publish the proof below as a new WhatsApp Channel post.'
+    if(!connected)card.append(make('p','channel-summary',detail))
     let proof
     if(!connected){
       proof=make('div','channel-proof')
@@ -254,20 +253,29 @@ function render() {
         await load()
       },'btn primary'))
     }
+    if(connected){
+      // Each channel owns its own start control; there is no detached
+      // Anonymous Nights panel or additional "Open" step.
+      const start=action('Start Anonymous Night',async()=>{
+        const result=await api('anonymous:start',{channelId:channel.id})
+        const id=result?.sessionId
+        if(typeof id!=='string'||!/^[A-Za-z0-9_-]{12,96}$/.test(id)){
+          throw new Error('NIGHT could not open this channel session. Try again.')
+        }
+        const destination='/anonymous/?channel='+encodeURIComponent(channel.id)+'&session='+encodeURIComponent(id)
+        location.assign(destination)
+      },'btn primary channel-start')
+      start.setAttribute('aria-label','Start Anonymous Night for '+(channel.name||'WhatsApp Channel'))
+      start.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.5 18 12 8 18.5V5.5Z"/></svg><span>Start Anonymous Night</span>'
+      const enabled=channel.anonymousStartEnabled===true
+      start.disabled=!enabled
+      if(!enabled)start.title='Sessions will open when NIGHT Bot publishing is enabled.'
+      controls.append(start)
+    }
     controls.append(action('Disconnect',()=>requestDisconnect(channel,card),'btn danger'))
     card.append(controls)
-    if(connected){
-      const destination='/anonymous/?channel='+encodeURIComponent(channel.id)
-      const panel=make('div','channel-anonymous')
-      const copy=make('div','channel-anonymous-copy')
-      copy.append(make('h3',null,'Anonymous Nights'),make('p',null,'Anonymous submissions and publishing for this channel.'))
-      const entry=make('a','btn primary')
-      entry.href=destination
-      entry.setAttribute('aria-label','Open Anonymous Nights for '+(channel.name||'this channel'))
-      entry.append(document.createTextNode('Open Anonymous Nights'))
-      entry.insertAdjacentHTML('beforeend','<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14m-6-6 6 6-6 6"/></svg>')
-      panel.append(copy,entry)
-      card.append(panel)
+    if(connected&&channel.anonymousStartEnabled!==true){
+      card.append(make('p','channel-start-note','Anonymous sessions are not enabled on NIGHT Bot yet.'))
     }
     $('channels').append(card)
   }
