@@ -271,7 +271,7 @@ try{
   assert.equal(whotDeck.cards.length,54,"WHOT uses the real 54-card distribution");
   assert.equal(whotDeck.player,5,"WHOT starts with five cards");
   assert.equal(whotDeck.opponent,5);
-  assert.equal(await page.locator('.whot-opponent-hand .card-back').count(),3,'CPU cards use compact stack');
+  assert.equal(await page.locator('.whot-opponent-hand .card-back').count(),1,'CPU back is a clean stacked pile');
   assert.equal((await page.locator('.whot-seat-cpu strong').textContent()).trim(),'5','CPU count remains visible');
   const expected=[[1,2,3,4,5,7,8,10,11,12,13,14],[1,2,3,4,5,7,8,10,11,12,13,14],[1,2,3,5,7,10,11,13,14],[1,2,3,5,7,10,11,13,14],[1,2,3,4,5,7,8]];
   for(let s=0;s<5;s++)assert.deepEqual(whotDeck.cards.filter(x=>x.s===s).map(x=>x.n).sort((a,b)=>a-b),expected[s],"WHOT suit "+s+" matches OG distribution");
