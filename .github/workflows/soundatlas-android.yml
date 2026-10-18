@@ -1,0 +1,116 @@
+name: Sound Atlas native Android + emulator QA
+
+on:
+  push:
+    branches: [feature/sound-atlas-native-android]
+    paths:
+      - 'SoundAtlas/**'
+      - '.github/workflows/soundatlas-android.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  native-android:
+    runs-on: ubuntu-latest
+    timeout-minutes: 65
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.11.1'
+      - name: Install SDK 35
+        shell: bash
+        run: |
+          set -euo pipefail
+          SDKMANAGER=$(find "$ANDROID_HOME/cmdline-tools" -name sdkmanager -type f | head -1)
+          test -n "$SDKMANAGER"
+          "$SDKMANAGER" 'platforms;android-35' 'build-tools;35.0.0'
+      - name: JVM geometry regressions and native Android builds
+        working-directory: SoundAtlas
+        run: gradle --no-daemon --stacktrace testDebugUnitTest assembleDebug assembleRelease
+      - name: Verify app API floor and absence of default SeekBars
+        shell: bash
+        run: |
+          set -euo pipefail
+          if grep -R -E 'android.widget.SeekBar|androidx.compose.material.Slider|<SeekBar' SoundAtlas/app/src; then
+            echo 'Forbidden default slider found'; exit 1
+          fi
+          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging SoundAtlas/app/build/outputs/apk/debug/app-debug.apk | tee /tmp/soundatlas-badging.txt
+          grep -q "sdkVersion:'26'" /tmp/soundatlas-badging.txt
+          grep -q "package: name='com.night.soundatlas'" /tmp/soundatlas-badging.txt
+      - name: Android emulator install and real screenshot
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          arch: x86_64
+          target: default
+          profile: pixel_6
+          cores: 4
+          ram-size: 4096M
+          disk-size: 4096M
+          disable-animations: true
+          emulator-options: -no-window -no-snapshot -noaudio -no-boot-anim -gpu swiftshader_indirect
+          script: |
+            set -eu
+            mkdir -p SoundAtlas/qa
+            adb install -r SoundAtlas/app/build/outputs/apk/debug/app-debug.apk
+            adb shell am start -W -n com.night.soundatlas/.MainActivity
+            sleep 12
+            adb shell pidof com.night.soundatlas
+            adb shell screencap -p /sdcard/soundatlas-launch.png
+            adb pull /sdcard/soundatlas-launch.png SoundAtlas/qa/01-cathedral.png
+            # Touch the world library button; screen is 1080x2400 Pixel 6.
+            adb shell input tap 105 2220
+            sleep 2
+            adb shell screencap -p /sdcard/soundatlas-worlds.png
+            adb pull /sdcard/soundatlas-worlds.png SoundAtlas/qa/02-world-library.png
+            adb shell input tap 730 1850
+            sleep 2
+            adb shell screencap -p /sdcard/soundatlas-scene.png
+            adb pull /sdcard/soundatlas-scene.png SoundAtlas/qa/03-scene.png
+            adb shell pidof com.night.soundatlas
+            adb logcat -d -s AndroidRuntime:E > SoundAtlas/qa/crashes.txt
+            if grep -A 4 'FATAL EXCEPTION' SoundAtlas/qa/crashes.txt | grep -q 'com.night.soundatlas'; then
+              echo 'Fatal crash during UI interaction'; exit 1
+            fi
+      - name: Create and verify installable temporary-test-signed APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p SoundAtlas/release
+          umask 077
+          KEYSTORE="$RUNNER_TEMP/soundatlas-$GITHUB_RUN_ID.p12"
+          PASS="$(openssl rand -hex 24)"
+          trap 'rm -f "$KEYSTORE"' EXIT
+          keytool -genkeypair -noprompt -keystore "$KEYSTORE" -storetype PKCS12 \
+            -storepass "$PASS" -keypass "$PASS" -alias night-test -keyalg RSA \
+            -keysize 3072 -validity 365 \
+            -dname "CN=Sound Atlas Temporary Test, OU=NIGHT, O=NIGHT, C=NG"
+          APKSIGNER="$ANDROID_HOME/build-tools/35.0.0/apksigner"
+          "$APKSIGNER" sign --ks "$KEYSTORE" --ks-type PKCS12 \
+            --ks-key-alias night-test --ks-pass "pass:$PASS" --key-pass "pass:$PASS" \
+            --min-sdk-version 26 \
+            --out SoundAtlas/release/SoundAtlas-Android8-plus-test-signed.apk \
+            SoundAtlas/app/build/outputs/apk/release/app-release-unsigned.apk
+          "$APKSIGNER" verify --min-sdk-version 26 --print-certs \
+            SoundAtlas/release/SoundAtlas-Android8-plus-test-signed.apk
+          sha256sum SoundAtlas/release/SoundAtlas-Android8-plus-test-signed.apk
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: SoundAtlas-Android-emulator-screenshots
+          path: SoundAtlas/qa/
+          if-no-files-found: warn
+          retention-days: 60
+      - uses: actions/upload-artifact@v4
+        with:
+          name: SoundAtlas-test-signed-APK
+          path: SoundAtlas/release/SoundAtlas-Android8-plus-test-signed.apk
+          if-no-files-found: error
+          retention-days: 90
