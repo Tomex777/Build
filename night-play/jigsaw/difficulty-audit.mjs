@@ -68,6 +68,8 @@ try{
   if(await option.count()){await option.click({timeout:7000});console.log('REFERENCE_400_SELECTED');}
   const play=page.getByRole('link',{name:/play with/i}).first();
   if(await play.count()){await play.click({timeout:12000});await page.waitForTimeout(1800);}
+  await page.goto('https://playjigsaw.net/play/puz-orchard-goat-sheltered-edge-7894e43b/400',{waitUntil:'domcontentloaded',timeout:45000});
+  await page.waitForTimeout(2200);
   const ss=await page.screenshot({type:'jpeg',quality:55});
   writeFileSync(path.join(output,'REFERENCE-390-high.jpg'),ss);
   console.log('REFERENCE_390_HIGH='+ss.toString('base64'));
