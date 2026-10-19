@@ -439,6 +439,21 @@ export function createLiveAuditManager({ load=()=>loadCommands(PUBLIC,{capabilit
     ? '🌙 NIGHT live audit: '+active.done+'/'+active.total+' tests completed; '+active.failed+' failed. '+(active.name||'')
     : previous ? 'Last live audit: '+previous.passed+' passed; '+previous.failed.length+' failed; '+previous.skipped+' not live-tested.'
       : 'No NIGHT live test has run yet.'
+  const details=(filter='')=>{
+    if (!previous) return ['No completed live audit in memory. Run .testall live first.']
+    const normalized=String(filter||'').replace(/^\./,'').toLowerCase()
+    const entries=[...previous.results].filter(([name,result])=>
+      (!normalized || name===normalized) && (normalized || result.status!=='PASS'))
+    if (!entries.length) return [normalized
+      ? 'No recorded result for .'+normalized+' in the last live run.'
+      : 'No failed live checks in the last run.']
+    return [
+      '*NIGHT — LIVE TEST DIAGNOSTICS*',
+      ...entries.map(([name,result])=>
+        (result.status==='PASS'?'✅':'❌')+' *.'+name+'* — '+result.status+
+        '\n'+String(result.detail||'No reason returned').slice(0,230)),
+    ]
+  }
   const busy=()=>Boolean(active)
   const cancel=()=>{if (!active) return false;active.controller.abort();return true}
   const start=(ctx,{failedOnly=false}={})=>{
@@ -511,6 +526,6 @@ export function createLiveAuditManager({ load=()=>loadCommands(PUBLIC,{capabilit
     })
     return true
   }
-  return {start,status,cancel,busy,last:()=>previous}
+  return {start,status,cancel,busy,details,last:()=>previous}
 }
 export const liveCommandAudit=createLiveAuditManager()
