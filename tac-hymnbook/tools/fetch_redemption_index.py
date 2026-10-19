@@ -22,8 +22,8 @@ from bs4 import BeautifulSoup
 ROOT = Path(__file__).resolve().parents[1]
 OUTPUT = ROOT / "data" / "redemption-hymnal-index.json"
 HYMNAL_URL = "https://hymnary.org/hymnal/RH2006"
-LINK_RE = re.compile(r"/hymn/RH2006/(\\d+)([a-z]?)", re.I)
-NUMBER_RE = re.compile(r"^(\\d{1,3})([a-z])?$", re.I)
+LINK_RE = re.compile(r"/hymn/RH2006/(\d+)([a-z]?)", re.I)
+NUMBER_RE = re.compile(r"^(\d{1,3})([a-z])?$", re.I)
 
 
 def parse_index(html: str) -> list[dict]:
