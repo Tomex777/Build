@@ -79,6 +79,8 @@ class HymnDataTest(unittest.TestCase):
                 "not_yet_matched",
             })
         self.assertEqual(sum(e["lyrics_imported"] for e in entries), 18)
+        self.assertEqual(sum(e["english_title_status"] == "verified_from_RH2006_index" for e in entries), 177)
+        self.assertEqual(entries[176]["title_en"].lower(), "jesus was slain for me")
         self.assertLess(sum(e["title_en"] is not None for e in entries), 800)
 
     def test_akokun_is_a_distinct_addendum(self):
