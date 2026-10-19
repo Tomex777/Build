@@ -52,7 +52,7 @@ export class NightPlayParty {
   players(room) {
     // Verified user names are resolved on every read, not snapshotted. This
     // means Profile renames update active rosters, results and leaderboards.
-    return this.db.prepare("SELECT p.player_id id, p.auth_kind, p.auth_id, CASE WHEN p.auth_kind='user' THEN COALESCE(u.display_name,p.guest_name) ELSE p.guest_name END name FROM play_party_players p LEFT JOIN play_users u ON p.auth_kind='user' AND u.id=p.auth_id WHERE p.room_id=? ORDER BY p.joined_at,p.player_id").all(room.id)
+    return this.db.prepare("SELECT p.player_id id, p.auth_kind, p.auth_id, CASE WHEN p.auth_kind='user' THEN COALESCE(u.display_name,p.guest_name) ELSE p.guest_name END name FROM play_party_players p LEFT JOIN play_users u ON p.auth_kind='user' AND u.id=p.auth_id WHERE p.room_id=? ORDER BY p.joined_at,p.rowid").all(room.id)
   }
   actor(userId, guestSession) {
     if (userId) return {kind:'user',id:userId}
