@@ -1,4 +1,4 @@
-package com.nice.offlinegames
+package com.night.offlinegames
 
 import kotlin.random.Random
 

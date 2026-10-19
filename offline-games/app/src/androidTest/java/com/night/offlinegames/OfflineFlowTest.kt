@@ -1,4 +1,4 @@
-package com.nice.offlinegames
+package com.night.offlinegames
 
 import android.Manifest
 import android.content.pm.PackageManager

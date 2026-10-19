@@ -2,7 +2,7 @@
 
 Android app for an original offline game collection, expanding in tested batches toward 105+ games. The permanent public name is not yet chosen.
 
-- **Application ID:** `com.nice.offlinegames`, following the required `com.nice.<appname>` convention. Change the final segment consistently at renaming time.
+- **Application ID:** `com.night.offlinegames`, following the required `com.night.<appname>` convention. Change the final segment consistently at renaming time.
 - **Platform:** native Android / Kotlin / Compose, `minSdk 26`.
 - **Current playable catalog:** seven games, not 105 placeholders: native 2048; original NIGHT Play arcade implementations of Wing Hop, Block Drop, Minesweeper and Maze Chase; and Sudoku and Connect Four from the same owner’s Puzzle Room, all bundled offline.
 - **No INTERNET permission.** The embedded arcade loads under WebViewAssetLoader on the reserved `appassets.androidplatform.net` virtual host, with network loads blocked.

@@ -43,7 +43,7 @@ jobs:
           APK=offline-games/app/build/outputs/apk/debug/app-debug.apk
           test -s "$APK"
           "$ANDROID_HOME/build-tools/36.0.0/aapt" dump badging "$APK" | tee /tmp/offline-badging.txt
-          grep -q "package: name='com.nice.offlinegames'" /tmp/offline-badging.txt
+          grep -q "package: name='com.night.offlinegames'" /tmp/offline-badging.txt
           grep -q "sdkVersion:'26'" /tmp/offline-badging.txt
           unzip -Z1 "$APK" | grep -q "assets/arcade/games.js"
           unzip -Z1 "$APK" | grep -q "assets/arcade/style.css"
@@ -94,7 +94,7 @@ jobs:
             cd offline-games
             gradle --no-daemon :app:connectedDebugAndroidTest
             mkdir -p smoke-screenshots
-            adb pull /sdcard/Android/data/com.nice.offlinegames/files smoke-screenshots || true
+            adb pull /sdcard/Android/data/com.night.offlinegames/files smoke-screenshots || true
       - uses: actions/upload-artifact@v4
         if: always()
         with:
