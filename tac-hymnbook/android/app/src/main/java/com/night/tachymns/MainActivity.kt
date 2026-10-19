@@ -57,6 +57,19 @@ private val DarkPalette = darkColorScheme(
 )
 
 class MainActivity : ComponentActivity() {
+    private fun openYouTubeSearch(query: String) {
+        val uri = Uri.parse(
+            "https://www.youtube.com/results?search_query=" + Uri.encode(query)
+        )
+        try {
+            startActivity(
+                Intent(Intent.ACTION_VIEW, uri).addCategory(Intent.CATEGORY_BROWSABLE)
+            )
+        } catch (_: ActivityNotFoundException) {
+            Toast.makeText(this, "No browser available for YouTube.", Toast.LENGTH_LONG).show()
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         val hymns = HymnRepository.load(this)
@@ -116,16 +129,11 @@ class MainActivity : ComponentActivity() {
             }
             val onExploreRecording: (Hymn, Boolean) -> Unit = { hymn, english ->
                 val title = if (english) hymn.titleEn ?: hymn.titleYo else hymn.titleYo
-                val search = "$title hymn singing ${if (english) "English" else "Yoruba"}"
-                val uri = Uri.parse(
-                    "https://www.youtube.com/results?search_query=" + Uri.encode(search)
-                )
-                try {
-                    startActivity(Intent(Intent.ACTION_VIEW, uri)
-                        .addCategory(Intent.CATEGORY_BROWSABLE))
-                } catch (_: ActivityNotFoundException) {
-                    audioMessage = "No browser was found to open YouTube."
-                }
+                openYouTubeSearch("$title hymn singing ${if (english) "English" else "Yoruba"}")
+            }
+            val onExploreIndex: (HymnIndexEntry) -> Unit = { entry ->
+                val title = entry.titleYo ?: entry.titleEn.orEmpty()
+                openYouTubeSearch("$title hymn singing")
             }
             val onRemoveAudio: (StoredAudio) -> Unit = { entry ->
                 if (audioPlayer.activeKey == entry.key) audioPlayer.stop()
@@ -230,7 +238,8 @@ class MainActivity : ComponentActivity() {
                                 prefs.edit().putBoolean("dark", dark).apply()
                             },
                             onLearn = { learnMode = true },
-                            onOfflineAudio = { offlineAudioOpen = true }
+                            onOfflineAudio = { offlineAudioOpen = true },
+                            onExploreIndex = onExploreIndex
                         )
                     } else if (learnMode) {
                         key(selected.key) {
@@ -298,7 +307,8 @@ private fun HymnHub(
     onCollectionChange: (String) -> Unit,
     onToggleDark: () -> Unit,
     onLearn: () -> Unit,
-    onOfflineAudio: () -> Unit
+    onOfflineAudio: () -> Unit,
+    onExploreIndex: (HymnIndexEntry) -> Unit
 ) {
     var moreOpen by rememberSaveable { mutableStateOf(false) }
     val hasAkokun = index.any { it.collection == "akokun" }
@@ -423,7 +433,7 @@ private fun HymnHub(
                 item { EmptyHymnResults() }
             } else {
                 items(indexed, key = { it.key }) { entry ->
-                    IndexRow(entry, playable[entry.key], onOpen)
+                    IndexRow(entry, playable[entry.key], onOpen, onExploreIndex)
                 }
             }
         } else if (visible.isEmpty()) {
@@ -449,7 +459,12 @@ private fun EmptyHymnResults() {
 }
 
 @Composable
-private fun IndexRow(entry: HymnIndexEntry, hymn: Hymn?, onOpen: (Hymn) -> Unit) {
+private fun IndexRow(
+    entry: HymnIndexEntry,
+    hymn: Hymn?,
+    onOpen: (Hymn) -> Unit,
+    onExploreIndex: (HymnIndexEntry) -> Unit
+) {
     val tileModifier = if (hymn == null) Modifier.fillMaxWidth()
                        else Modifier.fillMaxWidth().clickable { onOpen(hymn) }
     Surface(modifier = tileModifier, color = MaterialTheme.colorScheme.surface,
@@ -479,6 +494,14 @@ private fun IndexRow(entry: HymnIndexEntry, hymn: Hymn?, onOpen: (Hymn) -> Unit)
                 Icon(painterResource(R.drawable.ic_next),
                     contentDescription = "Read hymn " + entry.number,
                     tint = MaterialTheme.colorScheme.primary)
+            } else {
+                IconButton(onClick = { onExploreIndex(entry) }) {
+                    Icon(
+                        painterResource(R.drawable.ic_audio),
+                        contentDescription = "Find a recording for hymn " + entry.number,
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                }
             }
         }
     }
