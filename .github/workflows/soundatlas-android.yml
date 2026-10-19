@@ -186,6 +186,11 @@ jobs:
           "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging SoundAtlas/app/build/outputs/apk/debug/app-debug.apk | tee /tmp/soundatlas-badging.txt
           grep -q "sdkVersion:'26'" /tmp/soundatlas-badging.txt
           grep -q "package: name='com.night.soundatlas'" /tmp/soundatlas-badging.txt
+          # Background spatial audio must remain user-initiated and foreground.
+          grep -q 'FOREGROUND_SERVICE_MEDIA_PLAYBACK' SoundAtlas/app/src/main/AndroidManifest.xml
+          grep -q 'android:foregroundServiceType="mediaPlayback"' SoundAtlas/app/src/main/AndroidManifest.xml
+          grep -q 'startForeground' SoundAtlas/app/src/main/java/com/night/soundatlas/AtlasPlaybackService.kt
+          grep -q 'ACTION_AUDIO_BECOMING_NOISY' SoundAtlas/app/src/main/java/com/night/soundatlas/AtlasPlaybackService.kt
       - name: Sign and verify installable Android APK
         shell: bash
         env:
