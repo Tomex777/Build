@@ -3,9 +3,10 @@
 Owner authorization: only the verified supreme owner (isSupremeOwner === true), whether public or private-control. Group admins and sudo users cannot start the audit.
 
 Commands:
-- .testall: full command registry and alias audit, safe local command smoke tests, and offline regression suites.
-- .testall live: opt-in REAL WhatsApp tests in the invoking DM. Sends fixtures and actual outputs for visual inspection, then reports results.
-- .testall live confirm: mandatory in groups; user authorizes many real media messages. No account, admin, member, or moderation mutations.
+- .testall: REAL owner-only WhatsApp command tests in the invoking DM by default; sends actual fixtures and outputs for visual inspection, then reports results. In groups a confirmation is required before any live sends.
+- .testall audit: full offline command registry and alias audit, safe local command smoke tests, and regression suites (formerly the bare .testall default).
+- .testall live: explicit alias for the DM live tests.
+- .testall live confirm (or .testall confirm): mandatory in groups; authorizes many real media messages. No account, admin, member, or moderation mutations.
 - .testall failed: retry last failed live cases; in groups add confirm.
 - .testall status / .testall cancel: progress and cancellation across offline/live modes.
 
@@ -15,7 +16,7 @@ The harness checks binary signatures, decodes images and PDFs, probes audio/vide
 
 Menus: the Tic-Tac-Toe bot and difficulty pickers are followed automatically in disposable state, with a real game board sent to the chat. Other interactive menus need individual safe cases; their unverified commands must not be labelled as passed.
 
-Live tests are restricted to the explicit allowlist: media, safe utilities/search, cards, and anime sticker reactions. No destructive commands, private control, group membership, permissions, broadcasts, account changes or restarts are executed live. Every omitted public command is listed as NOT LIVE-TESTED. Do not silently expand this allowlist.
+Both default and explicit live tests are restricted to the explicit allowlist: media, safe utilities/search, cards, and anime sticker reactions. No destructive commands, private control, group membership, permissions, broadcasts, account changes or restarts are executed live. Every omitted public command is listed as NOT LIVE-TESTED. Do not silently expand this allowlist.
 
 Sequential execution and pacing reduce WhatsApp flood and Azure media contention. A failure can mean no output, a returned error, an invalid output format, failed provider/API call, timeout, or WhatsApp rejection. Inspect per-command feedback. Test actual recipient playback separately with an authorized independent test account.
 
