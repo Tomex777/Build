@@ -120,7 +120,9 @@ class AudioEngine(private val assets: AssetManager) {
             SoundKind.WIND to "wind", SoundKind.WATER to "stream",
             SoundKind.BIRDS to "birds", SoundKind.LEAVES to "leaves",
             SoundKind.CRICKETS to "night", SoundKind.BELL to "chimes",
-            SoundKind.TRAFFIC to "traffic", SoundKind.CROWD to "cafe"
+            SoundKind.TRAFFIC to "traffic", SoundKind.CROWD to "cafe",
+            SoundKind.OCEAN to "ocean", SoundKind.FIRE to "fire",
+            SoundKind.OWL to "owl", SoundKind.TRAIN to "train"
         )
         val result=mutableMapOf<SoundKind,ShortArray>()
         files.forEach { (type,filename) ->
@@ -369,6 +371,7 @@ class AudioEngine(private val assets: AssetManager) {
                 eventLength=when(kind) {
                     SoundKind.THUNDER -> 2.7+random01()*4.0
                     SoundKind.METAL -> .55+random01()*.7
+                    SoundKind.OWL -> 1.2+random01()*2.6
                     SoundKind.BELL -> 1.5+random01()*1.6
                     SoundKind.BIRDS -> .12+random01()*.9
                     else -> .08+random01()*.5
@@ -387,6 +390,7 @@ class AudioEngine(private val assets: AssetManager) {
                     SoundKind.STEPS -> .4+random01()*.42
                     SoundKind.TRAFFIC -> 3.0+random01()*7.0
                     SoundKind.CRICKETS -> .24+random01()*.85
+                    SoundKind.OWL -> 8.0+random01()*24.0
                     SoundKind.CROWD -> .5+random01()*1.4
                     else -> 1.0+random01()*4.0
                 }
@@ -446,6 +450,25 @@ class AudioEngine(private val assets: AssetManager) {
                     // Receding pass-bys with slow spectral and amplitude changes.
                     val pass=sin(t*.23+eventFreq*.04).let{(.5+.5*it).pow(2.0)}
                     (low*1.35+mid*.27+osc(75.0)*.08)*(.25+pass*.7)
+                }
+                SoundKind.OCEAN -> {
+                    val swell=(.5+.5*sin(t*.19+eventFreq*.01)).pow(2.0)
+                    (low*.83+mid*.46+white*.08)*(.25+swell*.83)
+                }
+                SoundKind.FIRE -> {
+                    // Uncorrelated crackle events over a constant low fire bed.
+                    val crackle=if(white>.91)white*mid*.68 else 0.0
+                    mid*.17+low*.16+crackle
+                }
+                SoundKind.OWL -> {
+                    // Distant descending hoots; event gate rather than incessant oscillation.
+                    val hoot=eventFreq*.43*(1.0-.32*progress)
+                    osc(hoot)*active*.21
+                }
+                SoundKind.TRAIN -> {
+                    val approach=(.5+.5*sin(t*.14+eventFreq*.006)).pow(2.0)
+                    (low*.86+mid*.24+osc(70.0+6.0*sin(t*.43))*.10)*
+                        (.19+.85*approach)
                 }
             }
             // Variable-length recordings + irregular synthesized events sound richer
