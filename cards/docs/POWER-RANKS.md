@@ -1,10 +1,10 @@
-# NIGHT power scale
+# NIGHT form ranks
 
-The rank belongs to a specific character **in a specific form**. The same form keeps its grade across finishes. Nocturne, Tidelight, Emberglass and other finishes are visual compositions; their names never grant strength.
+Ranks compare exact forms **within their own universe and continuity**. BLEACH and Naruto are assessed independently; the same letter does not assert equal absolute power across franchises. The schema records `universe`, `continuity`, `formId` and the exact artwork SHA-256. Current BLEACH assessments use `bleach-manga`; the pending Hell Verse form has its separate film continuity.
 
-These are proposed collection grades. The current BLEACH file is a source-and-form-reviewed editorial proposal supported by official identity/profile references, **not a completed canonical feat audit**. The reference pages do not issue or certify these grades. The assignments need revision when more precise feat evidence or an incorrectly identified source version is found.
+These are NIGHT editorial proposals. The existing 85 letters are retained from the source/form review, not presented as a newly completed canonical feat audit. Official profiles establish identity and artwork provenance; they do not certify NIGHT grades. A later costume alone does not establish later training or an active release.
 
-| Grade | Collection-independent benchmark |
+| Grade | Relative benchmark within the universe |
 | --- | --- |
 | F | Human baseline without active supernatural combat power |
 | E | Enhanced physical capability, limited reach and versatility |
@@ -12,41 +12,35 @@ These are proposed collection grades. The current BLEACH file is a source-and-fo
 | C | Developed supernatural ability or trained combat specialist |
 | B | Elite supernatural offence or defence |
 | A | Exceptional mastery, speed, defence or special abilities, with meaningful limits |
-| S | Apex combatant able to decide large-scale conflicts |
+| S | Apex combatant able to decide major conflicts |
 | SS | Transcendent combat or conceptual powers, with explicit constraints |
-| SSS | Demonstrated world/reality-scale power; fame and divine titles do not qualify |
+| SSS | Exceptional upper limit for this universe and continuity |
+| EX | A documented exceptional form beyond that universe's SSS benchmark |
 
-The scale applies across collections. These broad benchmarks are editorial bands, not numeric physics thresholds, guaranteed match outcomes or an official hierarchy. When assessing a form, record its offensive capability, movement, defence, special effects, conditions, counters and continuity. Compare those capabilities with the shared benchmark, rather than the strongest person in that character's own anime. Do not interpret a conditional illusion, history effect or small local reality alteration as unlimited cosmic power.
+Assess offence, movement, defence, special abilities, conditions and counters together. Broad bands do not guarantee matchup outcomes. Creation, army command, divine titles or cosmological statements do not by themselves establish individual attack power.
 
-The 2026-10-18 collection pass checks each pinned illustration, names its depicted form, and excludes unseen later releases. It does not replace a detailed canonical feat audit. See [the collection review](COLLECTION-REVIEW.md) for every form boundary.
+SSS and EX require a verified feat record with a source URL, scene/chapter locator, claim, universe and continuity. The validator checks that the record matches; it cannot verify the interpretation itself. Neither tier has an acquired card or reviewed design. The renderer refuses to substitute a lower-tier design.
 
-## Current examples
+## Current boundaries
 
-| Specific form | Proposed grade | Boundary |
+| Exact form | Proposal | Boundary |
 | --- | --- | --- |
-| Human Ichigo, before supernatural combat powers | F | Artwork not acquired; do not relabel Shikai art |
-| Early Substitute Soul Reaper Ichigo | D | Early limited control; later training excluded |
-| Original Shikai Ichigo | B | Original Bankai and Hollow boosts excluded |
+| Human Ichigo before supernatural combat powers | F, pending art | Never relabel Shikai art as human |
+| Early Substitute Soul Reaper Ichigo | D | Later training excluded |
+| Original Shikai Ichigo | B | Bankai and Hollow boosts excluded |
 | Original Bankai Ichigo | A | Hollow mask and subsequent transformations excluded |
-| Restored Shikai Ichigo, Lost Agent / TYBW opening | A | Same form grade across two distinct poses; True Shikai and Bankai excluded |
-| Child Nel | D | Adult abilities excluded |
-| Adult Nelliel | A | Child form is independent; released form excluded |
-| Yoruichi in the depicted anti-Hierro armour | A | Later thunder transformations excluded |
+| Restored Shikai Ichigo, two distinct poses | A | Same form keeps the same grade; True Shikai and Bankai excluded |
+| Child Nel / adult unreleased Nelliel | D / A | Separate forms |
+| Kenpachi, pre-TYBW and ambiguous sealed-sword TYBW portrait | A / A | No inferred Nozarashi, Bankai or undated training bonus |
 
-Every acquired portrait has an explicit proposal. Standard TYBW portraits do not automatically receive Vollstandig, Royal Guard seal-release, Soul King absorption, or other transformed-state bonuses. None of the current portraits is forced into SSS simply to fill the top band. Future unassessed forms have `rank: null`, not an invented grade. The existing game/profile artwork is not precise enough to settle every form/feat comparison; read each proposal's `scope`, `basis` and `limits` before treating it as final.
+Unacquired forms remain pending; unassessed forms have a null rank rather than silently becoming F. [The collection review](COLLECTION-REVIEW.md) records every acquired form's exclusions.
 
-## Presentation and review
+Canonical in-world classifications are separate from NIGHT editorial grades. Early Jinwoo is explicitly an **E-rank hunter** in [Yen Press's first-volume description](https://yenpress.com/titles/9781975319434-solo-leveling-vol-1-comic).
 
-- Translucent glass lettering floats at the top-right corner, without a box, pill or background plate. The artwork refracts only inside the glyph outlines; the faces and bevel highlights are translucent. A 112×72 SVG-unit area reserves placement without drawing any container.
-- Main name size is 84% of the preserved composition, keeping position, font family and character artwork intact.
-- The renderer asserts title bounds, glyph bounds, unique references, image decoding and focal safety. Publication still requires manual review of actual 3000×4800 masters, native-pixel details and 320×512 phone proofs.
-- The human baseline is recorded as data only until the correct human illustration is acquired. No fake human card is produced.
-- Rank, evidence, form and artwork identity are part of the visual approval fingerprint. A changed rank cannot inherit an old approved master.
+[Ragnarok's official novel prologue](https://tapas.io/episode/3029603) describes multiple universes and Jinwoo's army defending against invaders. Our assessment is that this passage alone does not settle his exact final-form personal destructive capacity or establish an automatic EX assignment. The precise novel/comic form and specific feat evidence still need review before creating that card.
 
-## Official reference entry points
+## Visuals and review
 
-- [BLEACH anime character profiles](https://bleach-anime.com/en/character/)
-- [BLEACH: Brave Souls character profiles](https://www.bleach-bravesouls.com/en/character/)
-- Each assessment also retains its specific artwork/profile page.
+[The tier plan](TIER-PLAN.md) proposes a distinct design per grade. This remains a review arrangement; Parallax is rejected. Every card must show real head, hair, hand, clothing or weapon pixels crossing the inner frame. Aura stays behind the architecture. Alpha-crossing checks catch contained silhouettes, but baked-in effects still require visual judgment.
 
-The archived eight-tier rarity/finish experiment remains in `renderer/examples/ichigo-collection-proposal.json` for reproducibility. It no longer defines the active power model.
+Glass belongs to the rank glyphs at the top right, with no box or plate. Names retain the accepted 84% scale. Identity, continuity, rank, evidence, crop, masks and renderer participate in approval fingerprints. Inspect actual 3000×4800 masters, native-pixel details and 320×512 proofs before visual approval. An exported gallery does not approve or deploy the bot library.
