@@ -1,11 +1,10 @@
 {
-  "releaseId": "night-tiktok-nexia-ytdlp-20261019",
+  "releaseId": "night-party-rooms-20261019",
   "baseBranch": "mscc-azure",
-  "baseCommit": "2a062740e987013c333b46243cce36684e3d792f",
+  "baseCommit": "3877c4bedff3664f749bed4078ae1fd4e521daf9",
   "pullRequests": [
-    371,
-    372
+    387
   ],
-  "preparedAt": "2026-10-19T07:28:00+01:00",
-  "notes": "User-authorized combined release for NIGHT TikTok. PR #371 implements Nexia-style yt-dlp -> Siputzx -> ruhend-scraper -> TikWM public download fallback, canonical vt/vm link resolution, CDN video quality retries and media validation. PR #372 refreshes isolated Azure yt-dlp on install/release. User reported .tiktok https://vt.tiktok.com/ZSgMh8so3/ returning all-extractors-failed. Merge this ONE integration PR only after combined CI succeeds, then approve exactly one protected mscc-production Azure deployment, verify active version and live WhatsApp media delivery. Previous Thenkiri hotfix was waiting for protected approval; new release includes its already merged code and replaces stale waiting approval, never an active install."
+  "preparedAt": "2026-10-19T19:38:06.249Z",
+  "notes": "Combined protected NIGHT release for native NIGHT Play online party rooms, guest invitation links, durable vote/score state, verified WhatsApp host and profile rename propagation. Copy of tested PR #387. The companion web PR #386 targets NIGHT Play, not the Azure backend. Merge this ONE integration PR only after complete MSCC CI succeeds; approve the single protected mscc-production environment request and verify active Azure code before publishing production web links."
 }
