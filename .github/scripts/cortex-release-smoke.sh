@@ -120,7 +120,7 @@ wait_for_cortex_ui() {
       coords="$(python3 - "$UI_DUMP" <<'PY'
 import re, sys
 text=open(sys.argv[1], encoding='utf-8', errors='replace').read()
-m=re.search(r'resource-id="android:id/aerr_close"[^>]*bounds="\\[(\\d+),(\\d+)\\]\\[(\\d+),(\\d+)\\]"', text)
+m=re.search(r'resource-id="android:id/aerr_close"[^>]*bounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"', text)
 if m:
     x1,y1,x2,y2=map(int,m.groups())
     print((x1+x2)//2, (y1+y2)//2)
