@@ -70,6 +70,9 @@ assert.equal(guest(guest1,'party:state').players.some(p=>p.name==='Renamed Alice
 assert.equal(guest(guest1,'party:state').scores.some(p=>p.name==='Renamed Alice'),true,'leaderboard name propagates')
 const rebooted=new NightPlay(db,{now:()=>clock})
 assert.equal(rebooted.request({action:'party:state',guestSession:guest1,code}).phase,'finished','rooms persist after process restart')
+rebooted.request({action:'delete',session:aliceSession})
+assert.equal(rebooted.request({action:'party:state',guestSession:guest1,code}).players.some(p=>p.name==='Renamed Alice'),false,'account deletion clears player from every live room')
+assert.equal(db.prepare("SELECT COUNT(*) n FROM play_party_players WHERE auth_kind='user' AND auth_id=?").get(alice).n,0)
 clock+=86400001
 assert.throws(()=>rebooted.request({action:'party:state',guestSession:guest1,code}),e=>[404,410].includes(e.status),'expired rooms reject reads')
 rebooted.partyRooms.cleanup()
