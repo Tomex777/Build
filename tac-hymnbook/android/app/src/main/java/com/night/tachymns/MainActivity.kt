@@ -2,6 +2,8 @@ package com.night.tachymns
 
 import android.os.Bundle
 import android.content.Intent
+import android.net.Uri
+import android.content.ActivityNotFoundException
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -112,6 +114,23 @@ class MainActivity : ComponentActivity() {
                     }
                 }
             }
+            val onExploreRecording: (Hymn, Boolean) -> Unit = { hymn, english ->
+                val title = if (english) hymn.titleEn ?: hymn.titleYo else hymn.titleYo
+                val search = "$title hymn singing ${if (english) "English" else "Yoruba"}"
+                val uri = Uri.parse(
+                    "https://www.youtube.com/results?search_query=" + Uri.encode(search)
+                )
+                try {
+                    startActivity(Intent(Intent.ACTION_VIEW, uri)
+                        .addCategory(Intent.CATEGORY_BROWSABLE))
+                } catch (_: ActivityNotFoundException) {
+                    audioMessage = "No browser was found to open YouTube."
+                }
+            }
+            val onRemoveAudio: (StoredAudio) -> Unit = { entry ->
+                if (audioPlayer.activeKey == entry.key) audioPlayer.stop()
+                if (audioRepository.removeStoredAudio(entry)) libraryVersion++
+            }
             DisposableEffect(audioPlayer) { onDispose { audioPlayer.release() } }
             // Keep timing and A-B passage repeat running even when a long hymn scrolls
             // the playback panel out of a lazy list's visible window.
@@ -122,6 +141,7 @@ class MainActivity : ComponentActivity() {
                 }
             }
             var learnMode by rememberSaveable { mutableStateOf(false) }
+            var offlineAudioOpen by rememberSaveable { mutableStateOf(false) }
             var dark by remember { mutableStateOf(prefs.getBoolean("dark", false)) }
             var englishMode by rememberSaveable { mutableStateOf(false) }
             var hubQuery by rememberSaveable { mutableStateOf("") }
@@ -164,12 +184,24 @@ class MainActivity : ComponentActivity() {
                     )
                 ) audioPlayer.stop()
             }
-            BackHandler(enabled = selectedKey != null || learnMode) {
-                if (selectedKey != null) selectedKey = null else learnMode = false
+            BackHandler(enabled = selectedKey != null || learnMode || offlineAudioOpen) {
+                when {
+                    selectedKey != null -> selectedKey = null
+                    offlineAudioOpen -> offlineAudioOpen = false
+                    else -> learnMode = false
+                }
             }
             MaterialTheme(colorScheme = palette) {
                 Surface(modifier = Modifier.fillMaxSize(), color = palette.background) {
-                    if (selected == null && learnMode) {
+                    if (selected == null && offlineAudioOpen) {
+                        OfflineRecordingsScreen(
+                            repository = audioRepository,
+                            hymns = hymns,
+                            libraryVersion = libraryVersion,
+                            onBack = { offlineAudioOpen = false },
+                            onRemove = onRemoveAudio
+                        )
+                    } else if (selected == null && learnMode) {
                         LearnHymnsHome(
                             hymns = hymns,
                             onBack = { learnMode = false },
@@ -197,7 +229,8 @@ class MainActivity : ComponentActivity() {
                                 dark = !dark
                                 prefs.edit().putBoolean("dark", dark).apply()
                             },
-                            onLearn = { learnMode = true }
+                            onLearn = { learnMode = true },
+                            onOfflineAudio = { offlineAudioOpen = true }
                         )
                     } else if (learnMode) {
                         key(selected.key) {
@@ -211,7 +244,8 @@ class MainActivity : ComponentActivity() {
                                 libraryVersion = libraryVersion,
                                 downloading = downloading.toSet(),
                                 onImport = onImportAudio,
-                                onDownload = onDownloadAudio
+                                onDownload = onDownloadAudio,
+                                onExplore = onExploreRecording
                             )
                         }
                     } else {
@@ -236,7 +270,8 @@ class MainActivity : ComponentActivity() {
                             audioLibraryVersion = libraryVersion,
                             downloading = downloading.toSet(),
                             onImportAudio = onImportAudio,
-                            onDownloadAudio = onDownloadAudio
+                            onDownloadAudio = onDownloadAudio,
+                            onExploreRecording = onExploreRecording
                         )
                         }
                     }
@@ -262,7 +297,8 @@ private fun HymnHub(
     activeCollection: String,
     onCollectionChange: (String) -> Unit,
     onToggleDark: () -> Unit,
-    onLearn: () -> Unit
+    onLearn: () -> Unit,
+    onOfflineAudio: () -> Unit
 ) {
     var moreOpen by rememberSaveable { mutableStateOf(false) }
     val hasAkokun = index.any { it.collection == "akokun" }
@@ -298,6 +334,10 @@ private fun HymnHub(
                         DropdownMenuItem(
                             text = { Text("Learn hymns") },
                             onClick = { moreOpen = false; onLearn() }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Offline audio") },
+                            onClick = { moreOpen = false; onOfflineAudio() }
                         )
                         DropdownMenuItem(
                             text = { Text(if (dark) "Light mode" else "Dark mode") },
@@ -525,7 +565,8 @@ private fun HymnReader(
     audioLibraryVersion: Int,
     downloading: Set<String>,
     onImportAudio: (AudioKey) -> Unit,
-    onDownloadAudio: (AudioKey) -> Unit
+    onDownloadAudio: (AudioKey) -> Unit,
+    onExploreRecording: (Hymn, Boolean) -> Unit
 ) {
     val showEnglish = english && hymn.hasEnglish
     val verses = if (showEnglish) hymn.versesEn else hymn.versesYo
@@ -591,7 +632,8 @@ private fun HymnReader(
                     libraryVersion = audioLibraryVersion,
                     downloading = downloading,
                     onImport = onImportAudio,
-                    onDownload = onDownloadAudio
+                    onDownload = onDownloadAudio,
+                    onExplore = onExploreRecording
                 )
                 Spacer(Modifier.height(18.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
