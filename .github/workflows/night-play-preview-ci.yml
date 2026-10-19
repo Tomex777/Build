@@ -66,6 +66,8 @@ jobs:
         run: node night-play/puzzles/mobile-smoke.mjs
       - name: Play five new action arcade games on mobile and resize screens
         run: node night-play/action/mobile-smoke.mjs
+      - name: Actually play flying hazards, slicing animation and brick impact in Chromium
+        run: node night-play/action/real-play-corrections.mjs
       - name: Actually play the jumping game with touch movement for extended rounds
         run: node night-play/action/long-play.mjs
       - name: Capture mobile board visual diagnostics
