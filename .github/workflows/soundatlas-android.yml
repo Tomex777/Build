@@ -93,15 +93,27 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p /tmp/expanded SoundAtlas/app/src/main/assets/audio
-          gh run download 39210500200 --repo "$GITHUB_REPOSITORY" --name EchoSpace-production-hardening-test-signed --dir /tmp/expanded
-          for sample in cafe ocean fire owl train; do
-            unzip -p /tmp/expanded/EchoSpace-production-hardening-test.apk "assets/audio/$sample.pcm" > "SoundAtlas/app/src/main/assets/audio/$sample.pcm"
-            test -s "SoundAtlas/app/src/main/assets/audio/$sample.pcm"
-          done
+          if gh run download 39210500200 --repo "$GITHUB_REPOSITORY" --name EchoSpace-production-hardening-test-signed --dir /tmp/expanded; then
+            for sample in cafe ocean fire owl train; do
+              unzip -p /tmp/expanded/EchoSpace-production-hardening-test.apk "assets/audio/$sample.pcm" > "SoundAtlas/app/src/main/assets/audio/$sample.pcm"
+              test -s "SoundAtlas/app/src/main/assets/audio/$sample.pcm"
+            done
+          else
+            # A GitHub Actions artifact eventually expires: rebuild the same
+            # CC0 sample set directly from maintained, attributed source code.
+            git fetch --depth=1 origin feature/echospace-production-hardening
+            mkdir -p /tmp/atlas-asset-source/tools /tmp/atlas-asset-source/app/src/main
+            git show FETCH_HEAD:EchoSpace/tools/prepare_audio.py > /tmp/atlas-asset-source/tools/prepare_audio.py
+            command -v ffmpeg || { sudo apt-get update -qq && sudo apt-get install -y ffmpeg; }
+            python3 /tmp/atlas-asset-source/tools/prepare_audio.py
+            for sample in cafe ocean fire owl train; do
+              cp "/tmp/atlas-asset-source/app/src/main/assets/audio/$sample.pcm" "SoundAtlas/app/src/main/assets/audio/$sample.pcm"
+            done
+          fi
       - name: Verify offline library before compilation
         run: |
           set -euo pipefail
-          for kind in rain thunder wind stream birds leaves night chimes traffic; do
+          for kind in rain thunder wind stream birds leaves night chimes traffic cafe ocean fire owl train; do
             test -s "SoundAtlas/app/src/main/assets/audio/$kind.pcm"
           done
       - name: Verify CC0 provenance and integrity
