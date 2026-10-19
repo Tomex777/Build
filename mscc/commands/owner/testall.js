@@ -3,8 +3,8 @@ import { executeTestAll } from '../../command-audit.js'
 export default {
   name:'testall',
   aliases:['commandaudit'],
-  description:'Audit all NIGHT commands or safely execute selected real commands in this WhatsApp chat.',
-  usage:'.testall [live [confirm]|failed [confirm]|status|cancel]',
+  description:'Run verified-owner live WhatsApp command tests, or request the offline registry audit.',
+  usage:'.testall [audit|live [confirm]|failed [confirm]|status|cancel]',
   ownerOnly:true,
   async run(ctx) {
     // Group access is explicit and requires "confirm" for media-intensive
