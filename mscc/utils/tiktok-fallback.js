@@ -191,7 +191,8 @@ async function saveMedia(fetchImpl, url, file, mime, maxBytes) {
 }
 
 export async function tryPublicTikTokFallback(request, dir, { fetchImpl = globalThis.fetch, maxBytes = 64 * 1024 * 1024, scraperImpl } = {}) {
-  if (request.platform !== 'TikTok') throw new Error('TikTok fallback requires a TikTok post')
+  if (request.platform !== 'TikTok' || !/^https:\/\/(?:www\.|m\.|vm\.|vt\.)?tiktok\.com\//i.test(request.url) ||
+      !/^https:$/.test(new URL(request.url).protocol)) throw new Error('TikTok fallback requires an official HTTPS TikTok post')
   // Provider APIs often reject vt/vm short links while accepting their canonical post.
   // Retain the original as a backup if redirect resolution succeeds but a provider fails.
   const canonical = await resolveTikTokShortUrl(request.url,fetchImpl)
@@ -222,7 +223,9 @@ export async function tryPublicTikTokFallback(request, dir, { fetchImpl = global
               total += downloaded.size
               files.push({ file:actualFile, size:downloaded.size, mime:downloaded.mime, ext:downloaded.ext, name:actualName })
             }
-            return files
+            const label = typeof response?.data?.title === 'string' ? response.data.title :
+              typeof response?.data?.metadata?.title === 'string' ? response.data.metadata.title : ''
+            return files.map(file=>({...file,title:label.replace(/[\\r\\n\\t]+/g,' ').trim().slice(0,240)}))
           } catch (error) {
             for (const item of files) await rm(item.file,{ force:true }).catch(() => {})
             console.warn(`[NIGHT social] TikTok ${provider} media option ${variantIndex+1}/${variants.length} failed: ${error?.message || error}`)
