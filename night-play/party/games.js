@@ -67,7 +67,7 @@ function start(){
 }
 function progress(){return '<div class="party-progress"><span>ROUND '+(state.index+1)+' / '+state.questions.length+'</span><span>'+h(state.players[state.voter]||'Revealing')+'</span></div>'}
 function current(){return state.questions[state.index]}
-function choices(){if(state.mode==='mlt')return state.players.map((name,i)=>({value:i,label:name})).filter(p=>p.value!==state.voter);
+function choices(){if(state.mode==='mlt')return state.players.map((name,i)=>({value:i,label:name}));
  if(state.mode==='nhie')return [{value:0,label:'I have'},{value:1,label:'Never'}];
  return current().options.map((label,i)=>({value:i,label}))}
 function handoff(){
