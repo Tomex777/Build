@@ -9,7 +9,7 @@ let selected=MODES[query]?query:MODES[saved?.mode]?saved.mode:null,phase=selecte
 let people=Array.isArray(saved?.players)?saved.players.filter(x=>typeof x==='string'&&x.length>0&&x.length<=24).slice(0,8):[];
 let rounds=read(PREF,10);if(![5,10].includes(rounds))rounds=10;
 let draft=read(DRAFT,null);
-let verifiedIdentity=null,linkedPartyPlayer=read(BIND,null);
+let verifiedIdentity=null,linkedPartyPlayer=read(BIND,null),quizLocalSetup=false;
 if(!linkedPartyPlayer||typeof linkedPartyPlayer.id!=='string'||!Number.isInteger(linkedPartyPlayer.index)||linkedPartyPlayer.index<0||linkedPartyPlayer.index>=8)linkedPartyPlayer=null;
 const setBinding=value=>{linkedPartyPlayer=value;save(BIND,value)};
 if(!draft||!Array.isArray(draft.questions))draft={owner:'',title:'How well do you know me?',questions:[
@@ -35,7 +35,16 @@ function hub(){
  '<div class="party-game-grid">'+cards+'</div><a class="party-nomi-bridge" href="https://nomi-tomex777.vercel.app/#/live" target="_blank" rel="noopener noreferrer"><span><strong>Online rooms on Nomi ↗</strong><small>Opens Nomi separately. Its account may be required.</small></span><b aria-hidden="true">↗</b></a>';
 }
 function setup(){
- const m=MODES[selected];title(m[0],m[1],'LOCAL PARTY');box.className='party-content';
+ const m=MODES[selected];title(m[0],m[1],selected==='quiz'?'CREATE QUIZ':'LOCAL PARTY');box.className='party-content';
+ if(selected==='quiz'&&!quizLocalSetup){
+  box.innerHTML='<div class="party-topline">'+button('‹ All games','hub','party-text-btn')+'<span>CREATE FIRST · INVITE PLAYERS LATER</span></div>'+
+  '<div class="party-panel"><h2>Make your quiz.</h2><p>Write the questions first. People joining an online quiz enter their own names from the invitation link — the host never adds a player list.</p>'+
+  button('Write quiz questions','editor')+
+  '<a class="party-online-link" href="https://nomi-tomex777.vercel.app/#/create" target="_blank" rel="noopener noreferrer">Create a shareable online quiz on Nomi ↗</a>'+
+  '<p class="party-field-help">Online hosting currently uses Nomi. NIGHT account linking and shared online quiz rooms are not connected yet.</p>'+
+  button('Practice together on this phone','local-quiz-setup','party-secondary')+'</div>';return;
+ }
+
  const players=people.map((x,i)=>'<span class="party-player-pill">'+h(x)+'<button type="button" data-remove="'+i+'" aria-label="Remove '+h(x)+'">×</button></span>').join('');
  box.innerHTML='<div class="party-topline">'+button('‹ All games','hub','party-text-btn')+'<span>2–8 PLAYERS · SAME PHONE</span></div>'+
  '<div class="party-panel"><h2>Who is playing?</h2><p>Each person votes privately, then the group sees the results.</p><div class="party-player-list" '+(people.length?'':'hidden')+'>'+players+'</div>'+
@@ -43,7 +52,7 @@ function setup(){
  '<p class="party-field-help">'+people.length+' / 8 players · '+(selected==='quiz'?'Create the personal quiz first.':rounds+' questions')+'</p>'+
  (selected==='quiz'?button('Build personal quiz','editor','party-primary','id="quizBuilderButton"'):button('Start '+h(m[0]),'start','party-primary','id="startParty" '+(people.length<2?'disabled':'')))+'</div>';
 }
-function validQuiz(){return typeof draft.owner==='string'&&draft.owner.trim().length>0&&typeof draft.title==='string'&&draft.title.trim().length>0&&
+function validQuiz(){return typeof draft.title==='string'&&draft.title.trim().length>0&&
  draft.questions.length>=3&&draft.questions.length<=12&&draft.questions.every(q=>typeof q.prompt==='string'&&q.prompt.trim().length>=3&&
  Array.isArray(q.options)&&q.options.length===2&&q.options.every(v=>typeof v==='string'&&v.trim().length>0)&&[0,1].includes(q.correct))}
 function editor(){
@@ -55,10 +64,10 @@ function editor(){
  '<div class="party-correct">Correct answer <label><input type="radio" name="answer-'+i+'" data-correct="'+i+'" value="0" '+(q.correct===0?'checked':'')+'> Option 1</label>'+
  '<label><input type="radio" name="answer-'+i+'" data-correct="'+i+'" value="1" '+(q.correct===1?'checked':'')+'> Option 2</label></div></article>').join('');
  box.innerHTML='<div class="party-topline">'+button('‹ Back','setup','party-text-btn')+'<span>SAVED ON THIS DEVICE</span></div><section class="party-editor">'+
- '<label class="party-field">Your name<input class="party-input" id="quizOwner" maxlength="24" value="'+h(draft.owner)+'" placeholder="Quiz creator"></label>'+
+ '<p class="party-field-help">Created by '+h(verifiedIdentity?.displayName||draft.owner||'Quiz host')+'. Only people joining an online quiz provide player names.</p>'+
  '<label class="party-field">Quiz title<input class="party-input" id="quizTitle" maxlength="75" value="'+h(draft.title)+'" placeholder="Quiz title"></label>'+
  '<div class="party-editor-list">'+questions+'</div>'+(draft.questions.length<12?button('Add question','add-question','party-secondary'):'')+
- '<p class="party-field-help">This quiz is saved on your phone. Online responses and remote leaderboards are not connected.</p>'+button('Play this quiz','play-quiz')+'</section>';
+ '<p class="party-field-help">Draft saved here. Online responses require publishing through Nomi until NIGHT online rooms are connected.</p>'+button('Practice on this phone','play-quiz')+'</section>';
 }
 function start(){
  if(people.length<2){note('Add at least two players.');return}
@@ -124,7 +133,7 @@ function adoptIdentity(snapshot){
  if(linkedPartyPlayer?.id!==next.id){
    // Never rename the previous WhatsApp account's local game entry on a device switch.
    setBinding(null);
-   if(phase==='setup'&&people.length<8){
+   if(phase==='setup'&&selected!=='quiz'&&people.length<8){
      // Add the real verified account as an actual participant, not a text hint.
      // A reconnect to a different account never rewrites the previous player.
      const nameTaken=people.some(p=>p.toLowerCase()===next.displayName.toLowerCase());
@@ -142,20 +151,21 @@ function adoptIdentity(snapshot){
    if(state?.owner===old&&old!==next.displayName){state.owner=next.displayName;changed=true}
    setBinding({...linkedPartyPlayer,name:next.displayName});
  }
- if(!draft.owner&&phase==='setup'){draft.owner=next.displayName;save(DRAFT,draft);changed=true}
+ if((!draft.owner||selected==='quiz')&&draft.owner!==next.displayName){draft.owner=next.displayName;save(DRAFT,draft);changed=true}
  if(changed&&state)persist();
  // A periodic identity check must NOT throw away an in-progress vote or
  // the quiz creator's focused editor input unless the actual name changed.
  if(changed&&document.activeElement?.id!=='playerName')render();
 }
-function chooseMode(mode){if(!MODES[mode])return;stop();selected=mode;phase='setup';route(mode);render()}
+function chooseMode(mode){if(!MODES[mode])return;stop();quizLocalSetup=false;selected=mode;phase='setup';route(mode);render()}
 function action(type,src){
  switch(type){
- case 'hub':stop();selected=null;phase='hub';route(null);render();break;
+ case 'hub':stop();quizLocalSetup=false;selected=null;phase='hub';route(null);render();break;
  case 'setup':phase='setup';render();break;
+ case 'local-quiz-setup':quizLocalSetup=true;phase='setup';render();break;
  case 'editor':editor();break;
  case 'start':start();break;
- case 'play-quiz':if(!validQuiz())note('Complete your quiz first.');else{save(DRAFT,draft);start()}break;
+ case 'play-quiz':if(!validQuiz())note('Complete your quiz first.');else{save(DRAFT,draft);if(people.length<2){quizLocalSetup=true;phase='setup';render();note('Add two players to practice on one phone.')}else start()}break;
  case 'ready':phase='vote';persist();render();break;
  case 'next':if(state.index+1<state.questions.length){state.index++;state.voter=0;phase='handoff'}else phase='finished';persist();render();break;
  case 'replay':stop();phase='setup';render();break;
@@ -184,8 +194,8 @@ box.addEventListener('submit',e=>{
  render();box.querySelector('#playerName')?.focus();
 });
 box.addEventListener('input',e=>{
- const el=e.target;if(!el.matches('[data-field],#quizOwner,#quizTitle'))return;
- if(el.id==='quizOwner')draft.owner=el.value;else if(el.id==='quizTitle')draft.title=el.value;
+ const el=e.target;if(!el.matches('[data-field],#quizTitle'))return;
+ if(el.id==='quizTitle')draft.title=el.value;
  else{const q=draft.questions[Number(el.dataset.index)];if(!q)return;
  if(el.dataset.field==='prompt')q.prompt=el.value;
  else if(el.dataset.field?.startsWith('option-'))q.options[Number(el.dataset.field.slice(-1))]=el.value}
@@ -196,7 +206,7 @@ $('settingsButton').addEventListener('click',()=>{for(const b of $('roundOptions
 $('settingsClose').addEventListener('click',()=>dialog.close());
 dialog.addEventListener('click',e=>{if(e.target===dialog)dialog.close()});
 $('roundOptions').addEventListener('click',e=>{const b=e.target.closest('[data-rounds]');if(!b)return;rounds=Number(b.dataset.rounds);save(PREF,rounds);for(const c of $('roundOptions').querySelectorAll('button'))c.setAttribute('aria-pressed',String(c===b))});
-window.__nightPartyTest={snapshot:()=>JSON.parse(JSON.stringify({selected,phase,people,state,draft,linkedPartyPlayer,verifiedIdentity})),chooseMode,start};
+window.__nightPartyTest={snapshot:()=>JSON.parse(JSON.stringify({selected,phase,people,state,draft,linkedPartyPlayer,verifiedIdentity,quizLocalSetup})),chooseMode,start};
 window.NightPlayerIdentity?.onChange(adoptIdentity);
 render();
 })();
