@@ -491,7 +491,7 @@ private fun Header(
                     else -> "Server unavailable · retrying"
                 },
                 color = CortexMuted,
-                fontSize = 11.sp,
+                fontSize = 12.sp,
             )
         }
         if (configured) {
@@ -515,7 +515,7 @@ private fun Header(
                     },
                     modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp),
                     color = Color.White,
-                    fontSize = 9.sp,
+                    fontSize = 12.sp,
                     fontWeight = FontWeight.Bold,
                 )
             }
@@ -651,13 +651,13 @@ internal fun ConsolePage(
                             Text(
                                 if (state.agentReachable) "Streaming MSCC logs" else "Showing last received output",
                                 color = CortexMuted,
-                                fontSize = 8.sp,
+                                fontSize = 11.sp,
                             )
                         }
                         Text(
                             "${visibleLogs.size}/${state.logs.size}",
                             color = CortexMuted,
-                            fontSize = 8.sp,
+                            fontSize = 11.sp,
                         )
                         TextButton(
                             onClick = {
@@ -668,10 +668,10 @@ internal fun ConsolePage(
                                 }
                             }
                         ) {
-                            Text(level, fontSize = 8.sp)
+                            Text(level, fontSize = 11.sp)
                         }
                         TextButton(onClick = clear, enabled = state.logs.isNotEmpty()) {
-                            Text("CLEAR", fontSize = 8.sp)
+                            Text("CLEAR", fontSize = 11.sp)
                         }
                     }
                     OutlinedTextField(
@@ -683,7 +683,7 @@ internal fun ConsolePage(
                         label = { Text("Filter console") },
                         leadingIcon = { Icon(Icons.Rounded.Search, null, Modifier.size(16.dp)) },
                         singleLine = true,
-                        textStyle = MaterialTheme.typography.bodySmall.copy(fontSize = 10.sp),
+                        textStyle = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
                     )
                     HorizontalDivider(color = CortexLine)
                     SelectionContainer {
@@ -699,7 +699,7 @@ internal fun ConsolePage(
                                 Text(
                                     if (state.logs.isEmpty()) "No console output yet." else "No console lines match this filter.",
                                     color = CortexMuted,
-                                    fontSize = 10.sp,
+                                    fontSize = 12.sp,
                                     fontFamily = FontFamily.Monospace,
                                 )
                             } else {
@@ -713,7 +713,7 @@ internal fun ConsolePage(
                                     Text(
                                         line,
                                         color = color,
-                                        fontSize = 9.sp,
+                                        fontSize = 12.sp,
                                         lineHeight = 13.sp,
                                         fontFamily = FontFamily.Monospace,
                                     )
@@ -787,7 +787,7 @@ fun CortexPowerControls(
         ) {
             Icon(Icons.Rounded.PlayArrow, null, Modifier.size(15.dp))
             Spacer(Modifier.width(4.dp))
-            Text("Start", fontSize = 10.sp)
+            Text("Start", fontSize = 12.sp)
         }
         Button(
             onClick = { pending = HostingPowerAction.RESTART },
@@ -798,7 +798,7 @@ fun CortexPowerControls(
         ) {
             Icon(Icons.Rounded.RestartAlt, null, Modifier.size(15.dp))
             Spacer(Modifier.width(4.dp))
-            Text("Restart", fontSize = 10.sp)
+            Text("Restart", fontSize = 12.sp)
         }
         Button(
             onClick = { pending = HostingPowerAction.STOP },
@@ -809,7 +809,7 @@ fun CortexPowerControls(
         ) {
             Icon(Icons.Rounded.Stop, null, Modifier.size(15.dp))
             Spacer(Modifier.width(4.dp))
-            Text("Stop", fontSize = 10.sp)
+            Text("Stop", fontSize = 12.sp)
         }
     }
 
@@ -856,10 +856,10 @@ private fun MetricCard(label: String, value: String, sub: String, modifier: Modi
             Modifier.fillMaxSize().padding(12.dp),
             verticalArrangement = Arrangement.Center,
         ) {
-            Text(label, color = CortexMuted, fontSize = 9.sp)
+            Text(label, color = CortexMuted, fontSize = 12.sp)
             Spacer(Modifier.height(5.dp))
             Text(value, fontWeight = FontWeight.SemiBold, fontSize = 15.sp, maxLines = 1)
-            if (sub.isNotBlank()) Text(sub, color = CortexMuted, fontSize = 8.sp, maxLines = 1)
+            if (sub.isNotBlank()) Text(sub, color = CortexMuted, fontSize = 11.sp, maxLines = 1)
         }
     }
 }
@@ -949,7 +949,7 @@ private fun SmallAction(text: String, icon: androidx.compose.ui.graphics.vector.
     ) {
         Icon(icon, null, Modifier.size(15.dp))
         Spacer(Modifier.width(5.dp))
-        Text(text, fontSize = 10.sp)
+        Text(text, fontSize = 12.sp)
     }
 }
 
@@ -973,7 +973,7 @@ private fun FileRow(entry: HostingFileEntry, onOpen: () -> Unit, onMore: () -> U
             Text(
                 if (entry.type == "directory") (entry.modifiedAt ?: "") else "${bytes(entry.sizeBytes)}  ${entry.modifiedAt.orEmpty()}",
                 color = CortexMuted,
-                fontSize = 9.sp,
+                fontSize = 12.sp,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
@@ -1014,10 +1014,10 @@ internal fun BackupsPage(
             ) {
                 Icon(Icons.Rounded.Download, null, Modifier.size(15.dp))
                 Spacer(Modifier.width(5.dp))
-                Text("Download Project ZIP", fontSize = 10.sp)
+                Text("Download Project ZIP", fontSize = 12.sp)
             }
             OutlinedButton(onClick = onCreate, shape = RoundedCornerShape(10.dp)) {
-                Text("More", fontSize = 10.sp)
+                Text("More", fontSize = 12.sp)
             }
         }
         HorizontalDivider(color = CortexLine)
@@ -1037,11 +1037,11 @@ internal fun BackupsPage(
                         Icon(if (backup.privateBackup) Icons.Rounded.Warning else Icons.Rounded.Archive, null)
                         Spacer(Modifier.width(10.dp))
                         Column(Modifier.weight(1f)) {
-                            Text(backup.name, fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            Text(backup.name, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                             Text(
                                 "${bytes(backup.sizeBytes)} · ${backup.createdAt}",
                                 color = CortexMuted,
-                                fontSize = 9.sp,
+                                fontSize = 12.sp,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
                             )
@@ -1148,7 +1148,7 @@ internal fun StartupPage(
                 Text(
                     "Normal MSCC entry and temporary jobs",
                     color = CortexMuted,
-                    fontSize = 10.sp,
+                    fontSize = 12.sp,
                 )
             }
         }
@@ -1165,7 +1165,7 @@ internal fun StartupPage(
                             Text(
                                 startup?.entryFile?.ifBlank { "index.js" } ?: "index.js",
                                 color = CortexAccent,
-                                fontSize = 10.sp,
+                                fontSize = 12.sp,
                                 fontFamily = FontFamily.Monospace,
                             )
                         }
@@ -1185,7 +1185,7 @@ internal fun StartupPage(
                                 },
                                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp),
                                 color = if (normalRunning) CortexGood else CortexMuted,
-                                fontSize = 8.sp,
+                                fontSize = 11.sp,
                                 fontWeight = FontWeight.Bold,
                             )
                         }
@@ -1204,7 +1204,7 @@ internal fun StartupPage(
                             },
                         ).joinToString(" · ").ifBlank { "Runtime status unavailable" },
                         color = CortexMuted,
-                        fontSize = 9.sp,
+                        fontSize = 12.sp,
                     )
 
                     Spacer(Modifier.height(12.dp))
@@ -1222,7 +1222,7 @@ internal fun StartupPage(
                                 ) {
                                     Icon(Icons.Rounded.Stop, null, Modifier.size(15.dp))
                                     Spacer(Modifier.width(5.dp))
-                                    Text("Stop MSCC", fontSize = 10.sp)
+                                    Text("Stop MSCC", fontSize = 12.sp)
                                 }
                             }
                             !runnerRunning -> {
@@ -1234,7 +1234,7 @@ internal fun StartupPage(
                                 ) {
                                     Icon(Icons.Rounded.RestartAlt, null, Modifier.size(15.dp))
                                     Spacer(Modifier.width(5.dp))
-                                    Text("Return to MSCC", fontSize = 10.sp)
+                                    Text("Return to MSCC", fontSize = 12.sp)
                                 }
                             }
                         }
@@ -1242,7 +1242,7 @@ internal fun StartupPage(
                             onClick = installDependencies,
                             enabled = !state.loading && !runnerRunning,
                         ) {
-                            Text("Dependencies", fontSize = 9.sp)
+                            Text("Dependencies", fontSize = 12.sp)
                         }
                     }
                 }
@@ -1254,14 +1254,14 @@ internal fun StartupPage(
                 Text(
                     "Temporary entry",
                     color = CortexMuted,
-                    fontSize = 9.sp,
+                    fontSize = 12.sp,
                     fontWeight = FontWeight.Bold,
                 )
                 if (normalRunning) {
                     Text(
                         "Stop MSCC before running another entry.",
                         color = CortexMuted,
-                        fontSize = 9.sp,
+                        fontSize = 12.sp,
                         modifier = Modifier.padding(top = 3.dp),
                     )
                 }
@@ -1278,7 +1278,7 @@ internal fun StartupPage(
                         "No temporary .js or .sh entries found.",
                         modifier = Modifier.fillMaxWidth().padding(14.dp),
                         color = CortexMuted,
-                        fontSize = 10.sp,
+                        fontSize = 12.sp,
                     )
                 }
             }
@@ -1300,7 +1300,7 @@ internal fun StartupPage(
                     Column(Modifier.weight(1f)) {
                         Text(
                             entry.path,
-                            fontSize = 11.sp,
+                            fontSize = 12.sp,
                             fontFamily = FontFamily.Monospace,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
@@ -1308,7 +1308,7 @@ internal fun StartupPage(
                         Text(
                             if (entry.kind == "shell") "SHELL" else "JAVASCRIPT",
                             color = CortexMuted,
-                            fontSize = 7.sp,
+                            fontSize = 10.sp,
                             fontWeight = FontWeight.Bold,
                         )
                     }
@@ -1318,7 +1318,7 @@ internal fun StartupPage(
                     ) {
                         Icon(Icons.Rounded.PlayArrow, null, Modifier.size(14.dp))
                         Spacer(Modifier.width(3.dp))
-                        Text("Run", fontSize = 9.sp)
+                        Text("Run", fontSize = 12.sp)
                     }
                 }
                 HorizontalDivider(color = CortexLine)
@@ -1339,7 +1339,7 @@ internal fun StartupPage(
                             Column(Modifier.weight(1f)) {
                                 Text(
                                     runner.path.ifBlank { "Temporary job" },
-                                    fontSize = 11.sp,
+                                    fontSize = 12.sp,
                                     fontWeight = FontWeight.Medium,
                                     fontFamily = FontFamily.Monospace,
                                     maxLines = 1,
@@ -1355,7 +1355,7 @@ internal fun StartupPage(
                                         "failed" -> CortexDanger
                                         else -> CortexMuted
                                     },
-                                    fontSize = 8.sp,
+                                    fontSize = 11.sp,
                                 )
                             }
                             if (runnerRunning) {
@@ -1365,14 +1365,14 @@ internal fun StartupPage(
                                 ) {
                                     Icon(Icons.Rounded.Stop, null, Modifier.size(14.dp))
                                     Spacer(Modifier.width(3.dp))
-                                    Text("Stop", fontSize = 9.sp)
+                                    Text("Stop", fontSize = 12.sp)
                                 }
                             } else if (!normalRunning) {
                                 TextButton(
                                     onClick = restoreMscc,
                                     enabled = !state.loading,
                                 ) {
-                                    Text("Return to MSCC", fontSize = 9.sp)
+                                    Text("Return to MSCC", fontSize = 12.sp)
                                 }
                             }
                         }
@@ -1390,7 +1390,7 @@ internal fun StartupPage(
                                     Text(
                                         "Waiting for output…",
                                         color = CortexMuted,
-                                        fontSize = 9.sp,
+                                        fontSize = 12.sp,
                                         fontFamily = FontFamily.Monospace,
                                     )
                                 } else {
@@ -1398,7 +1398,7 @@ internal fun StartupPage(
                                         Text(
                                             line,
                                             color = if (line.startsWith("stderr ·")) CortexDanger else CortexText,
-                                            fontSize = 9.sp,
+                                            fontSize = 12.sp,
                                             lineHeight = 13.sp,
                                             fontFamily = FontFamily.Monospace,
                                         )
@@ -1417,7 +1417,7 @@ internal fun StartupPage(
 private fun SettingBlock(label: String, value: String, mono: Boolean = false) {
     Surface(color = CortexSurface, shape = RoundedCornerShape(10.dp)) {
         Column(Modifier.fillMaxWidth().padding(14.dp)) {
-            Text(label, color = CortexMuted, fontSize = 10.sp)
+            Text(label, color = CortexMuted, fontSize = 12.sp)
             Spacer(Modifier.height(6.dp))
             Text(value, fontSize = 12.sp, fontFamily = if (mono) FontFamily.Monospace else FontFamily.Default)
         }
@@ -1464,7 +1464,7 @@ internal fun SettingsPage(
                 Text(
                     "MSCC control and command behavior",
                     color = CortexMuted,
-                    fontSize = 10.sp,
+                    fontSize = 12.sp,
                 )
             }
         }
@@ -1474,7 +1474,7 @@ internal fun SettingsPage(
                 Text(
                     "Core controls",
                     color = CortexMuted,
-                    fontSize = 9.sp,
+                    fontSize = 12.sp,
                     fontWeight = FontWeight.Bold,
                 )
             }
@@ -1489,7 +1489,7 @@ internal fun SettingsPage(
                     Column(Modifier.weight(1f)) {
                         Text(setting.label, fontSize = 12.sp, fontWeight = FontWeight.Medium)
                         if (setting.description.isNotBlank()) {
-                            Text(setting.description, color = CortexMuted, fontSize = 9.sp)
+                            Text(setting.description, color = CortexMuted, fontSize = 12.sp)
                         }
                     }
                     Switch(
@@ -1508,21 +1508,21 @@ internal fun SettingsPage(
                     "Commands",
                     modifier = Modifier.weight(1f),
                     color = CortexMuted,
-                    fontSize = 9.sp,
+                    fontSize = 12.sp,
                     fontWeight = FontWeight.Bold,
                 )
                 if (registry != null) {
                     Text(
                         "${registry.commands.size}",
                         color = CortexMuted,
-                        fontSize = 8.sp,
+                        fontSize = 11.sp,
                     )
                     Spacer(Modifier.width(6.dp))
                     TextButton(
                         onClick = onReloadCommands,
                         enabled = !state.loading,
                     ) {
-                        Text("Reload registry", fontSize = 9.sp)
+                        Text("Reload registry", fontSize = 12.sp)
                     }
                 }
             }
@@ -1549,7 +1549,7 @@ internal fun SettingsPage(
                         Text(
                             "Other Cortex management features remain available.",
                             color = CortexMuted,
-                            fontSize = 9.sp,
+                            fontSize = 12.sp,
                         )
                     }
                 }
@@ -1560,7 +1560,7 @@ internal fun SettingsPage(
                     Text(
                         "PRIVATE",
                         color = CortexMuted,
-                        fontSize = 8.sp,
+                        fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
                     )
                 }
@@ -1582,7 +1582,7 @@ internal fun SettingsPage(
                     Text(
                         "PUBLIC",
                         color = CortexMuted,
-                        fontSize = 8.sp,
+                        fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
                     )
                 }
@@ -1604,7 +1604,7 @@ internal fun SettingsPage(
                     Text(
                         if (query.isBlank()) "No registered commands." else "No commands match this search.",
                         color = CortexMuted,
-                        fontSize = 10.sp,
+                        fontSize = 12.sp,
                         modifier = Modifier.padding(vertical = 10.dp),
                     )
                 }
@@ -1617,7 +1617,7 @@ internal fun SettingsPage(
                 Text(
                     "Modules",
                     color = CortexMuted,
-                    fontSize = 9.sp,
+                    fontSize = 12.sp,
                     fontWeight = FontWeight.Bold,
                 )
             }
@@ -1627,7 +1627,7 @@ internal fun SettingsPage(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Column(Modifier.weight(1f)) {
-                        Text(module.displayName, fontSize = 11.sp, fontWeight = FontWeight.Medium)
+                        Text(module.displayName, fontSize = 12.sp, fontWeight = FontWeight.Medium)
                         Text(
                             if (module.loadError.isBlank()) {
                                 if (module.enabled) module.status.ifBlank { "loaded" } else "disabled"
@@ -1635,14 +1635,14 @@ internal fun SettingsPage(
                                 "load error"
                             },
                             color = if (module.loadError.isBlank()) CortexMuted else CortexDanger,
-                            fontSize = 8.sp,
+                            fontSize = 11.sp,
                         )
                     }
                     TextButton(
                         onClick = { onReloadModule(module.id) },
                         enabled = !state.loading,
                     ) {
-                        Text("Reload", fontSize = 9.sp)
+                        Text("Reload", fontSize = 12.sp)
                     }
                 }
                 HorizontalDivider(color = CortexLine)
@@ -1654,7 +1654,7 @@ internal fun SettingsPage(
             Text(
                 "Server connection",
                 color = CortexMuted,
-                fontSize = 9.sp,
+                fontSize = 12.sp,
                 fontWeight = FontWeight.Bold,
             )
         }
@@ -1672,17 +1672,17 @@ internal fun SettingsPage(
                         Text(
                             state.baseUrl.ifBlank { "Not configured" },
                             color = CortexMuted,
-                            fontSize = 9.sp,
+                            fontSize = 12.sp,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                         )
                         Text(
                             if (state.hasToken) "Access token · saved securely" else "Access token · not saved",
                             color = CortexMuted,
-                            fontSize = 8.sp,
+                            fontSize = 11.sp,
                         )
                     }
-                    Text("Edit", color = CortexAccent, fontSize = 10.sp)
+                    Text("Edit", color = CortexAccent, fontSize = 12.sp)
                 }
             }
         }
@@ -1705,7 +1705,7 @@ private fun CommandControlRow(
                 Text(
                     ".${command.name}",
                     color = CortexAccent,
-                    fontSize = 11.sp,
+                    fontSize = 12.sp,
                     fontFamily = FontFamily.Monospace,
                     fontWeight = FontWeight.SemiBold,
                 )
@@ -1717,7 +1717,7 @@ private fun CommandControlRow(
                     Text(
                         capability.uppercase(),
                         color = CortexMuted,
-                        fontSize = 7.sp,
+                        fontSize = 10.sp,
                         fontWeight = FontWeight.Bold,
                     )
                 }
@@ -1726,7 +1726,7 @@ private fun CommandControlRow(
                 Text(
                     command.description,
                     color = CortexMuted,
-                    fontSize = 9.sp,
+                    fontSize = 12.sp,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                 )
@@ -1742,7 +1742,7 @@ private fun CommandControlRow(
             Text(
                 if (enabled) "ON" else "OFF",
                 color = if (enabled) CortexGood else CortexMuted,
-                fontSize = 8.sp,
+                fontSize = 11.sp,
                 fontWeight = FontWeight.Bold,
             )
         }
@@ -1775,13 +1775,13 @@ internal fun ActivityPage(state: ServerPanelState, refresh: () -> Unit) {
                         Icon(Icons.Rounded.History, null, tint = CortexMuted, modifier = Modifier.size(18.dp))
                         Spacer(Modifier.width(10.dp))
                         Column(Modifier.weight(1f)) {
-                            Text(activityTitle(entry.action), fontSize = 11.sp, fontWeight = FontWeight.Medium)
+                            Text(activityTitle(entry.action), fontSize = 12.sp, fontWeight = FontWeight.Medium)
                             val detail = activityDetail(entry)
                             if (detail.isNotBlank()) {
-                                Text(detail, color = CortexMuted, fontSize = 8.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                                Text(detail, color = CortexMuted, fontSize = 11.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
                             }
                         }
-                        Text(activityTime(entry.at), color = CortexMuted, fontSize = 8.sp)
+                        Text(activityTime(entry.at), color = CortexMuted, fontSize = 11.sp)
                     }
                     HorizontalDivider(color = CortexLine)
                 }
@@ -1903,13 +1903,13 @@ internal fun EditorScreen(
                     )
                     if (dirty) {
                         Spacer(Modifier.width(6.dp))
-                        Text("MODIFIED", color = CortexAccent, fontSize = 7.sp, fontWeight = FontWeight.Bold)
+                        Text("MODIFIED", color = CortexAccent, fontSize = 10.sp, fontWeight = FontWeight.Bold)
                     }
                 }
                 Text(
                     "Ln $line, Col $column · $totalLines lines · $path",
                     color = CortexMuted,
-                    fontSize = 8.sp,
+                    fontSize = 11.sp,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
@@ -1930,7 +1930,7 @@ internal fun EditorScreen(
             ) {
                 Icon(Icons.Rounded.Save, null, Modifier.size(15.dp))
                 Spacer(Modifier.width(5.dp))
-                Text("Save", fontSize = 10.sp)
+                Text("Save", fontSize = 12.sp)
             }
         }
 
@@ -1958,13 +1958,13 @@ internal fun EditorScreen(
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
                     OutlinedButton(onClick = ::findNext, enabled = search.isNotEmpty()) {
-                        Text("Next", fontSize = 9.sp)
+                        Text("Next", fontSize = 12.sp)
                     }
                     OutlinedButton(onClick = ::replaceSelection, enabled = search.isNotEmpty() && !busy) {
-                        Text("Replace", fontSize = 9.sp)
+                        Text("Replace", fontSize = 12.sp)
                     }
                     OutlinedButton(onClick = ::replaceAll, enabled = search.isNotEmpty() && !busy) {
-                        Text("Replace all", fontSize = 9.sp)
+                        Text("Replace all", fontSize = 12.sp)
                     }
                 }
             }
@@ -1977,7 +1977,7 @@ internal fun EditorScreen(
             modifier = Modifier.fillMaxSize(),
             textStyle = MaterialTheme.typography.bodySmall.copy(
                 fontFamily = FontFamily.Monospace,
-                fontSize = 11.sp,
+                fontSize = 12.sp,
                 lineHeight = 16.sp,
             ),
             visualTransformation = remember(path) { CortexCodeVisualTransformation(path) },
@@ -2298,7 +2298,7 @@ private fun FileActionsSheet(
         ) {
             Column(Modifier.padding(horizontal = 18.dp, vertical = 8.dp)) {
                 Text(entry.name, fontSize = 18.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                Text(if (entry.type == "directory") "Directory" else bytes(entry.sizeBytes), color = CortexMuted, fontSize = 10.sp)
+                Text(if (entry.type == "directory") "Directory" else bytes(entry.sizeBytes), color = CortexMuted, fontSize = 12.sp)
             }
             if (entry.type == "file") SheetAction(Icons.Rounded.Edit, "Edit", onEdit)
             SheetAction(Icons.Rounded.Edit, "Rename", onRename)
@@ -2338,14 +2338,14 @@ private fun BackupSheet(
                 "Project files only. Saved sign-in and private state are excluded.",
                 Modifier.padding(horizontal = 58.dp, vertical = 2.dp),
                 color = CortexMuted,
-                fontSize = 9.sp,
+                fontSize = 12.sp,
             )
             SheetAction(Icons.Rounded.Warning, "Full private backup", click = { onCreate(true) })
             Text(
                 "Includes saved sign-in and other private app state. Keep it private.",
                 Modifier.padding(horizontal = 58.dp, vertical = 2.dp),
                 color = CortexMuted,
-                fontSize = 9.sp,
+                fontSize = 12.sp,
             )
         }
     }
