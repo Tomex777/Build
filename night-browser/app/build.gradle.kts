@@ -4,7 +4,7 @@ plugins {
 }
 android {
     namespace = "com.night.browser"
-    compileSdk = 36
+    compileSdk { version = release(37) { minorApiLevel = 1 } }
     defaultConfig {
         applicationId = "com.night.browser"
         minSdk = 26
