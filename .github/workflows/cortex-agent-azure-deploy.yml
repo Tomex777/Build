@@ -14,7 +14,7 @@ on:
 # Source is the tested Cloud-enabled Cortex Agent commit. MSCC branch does
 # not contain the Agent sources; never deploy stale fallback Agent code.
 env:
-  CORTEX_AGENT_SOURCE_REF: 89c0eb714b3f55db64372c99e65648db38ca3817
+  CORTEX_AGENT_SOURCE_REF: 442ef1410fdedffdcb8c515bc31373b294ae387c
 
 permissions:
   contents: read
@@ -39,9 +39,13 @@ jobs:
         run: |
           set -euo pipefail
           node --check cortex-agent/index.js
+          node cortex-agent/redaction-selftest.js
           bash -n cortex-agent/cortex-agent-control
           grep -Fq 'MSCC_MEGA_SHARED_FOLDERS' cortex-agent/cortex-agent-control
           grep -Fq "key: 'MSCC_MEGA_PASSWORD'" cortex-agent/index.js
+          grep -Fq "key: 'AZURE_OPENAI_API_KEY'" cortex-agent/index.js
+          grep -Fq "key: 'AZURE_SPEECH_KEY'" cortex-agent/index.js
+          grep -Fq "AZURE_OPENAI_API_KEY" cortex-agent/cortex-agent-control
           grep -Fq "'/api/cortex/host/cloud'" cortex-agent/index.js
           grep -Fq "'/api/cortex/host/cloud/discover'" cortex-agent/index.js
           grep -Fq "'/api/cortex/host/cloud/verify'" cortex-agent/index.js
@@ -175,11 +179,13 @@ jobs:
                 const result = JSON.parse(data);
                 const entries = Array.isArray(result.entries) ? result.entries : [];
                 const keys = new Set(entries.map(entry => entry.key));
-                for (const key of ["MSCC_MEGA_EMAIL", "MSCC_MEGA_PASSWORD", "MSCC_MEGA_SHARED_FOLDERS"]) {
+                for (const key of ["MSCC_MEGA_EMAIL", "MSCC_MEGA_PASSWORD", "MSCC_MEGA_SHARED_FOLDERS", "AZURE_SPEECH_KEY", "AZURE_OPENAI_API_KEY", "GROQ_API_KEY"]) {
                   if (!keys.has(key)) process.exit(3);
                 }
-                const secret = entries.find(entry => entry.key === "MSCC_MEGA_PASSWORD");
-                if (secret?.secret !== true || secret?.value) process.exit(4);
+                for (const name of ["MSCC_MEGA_PASSWORD", "AZURE_SPEECH_KEY", "AZURE_OPENAI_API_KEY", "GROQ_API_KEY"]) {
+                  const secret = entries.find(entry => entry.key === name);
+                  if (secret?.secret !== true || secret?.value) process.exit(4);
+                }
                 console.log("Cortex MEGA environment API available (credentials not displayed).");
               });'
 
