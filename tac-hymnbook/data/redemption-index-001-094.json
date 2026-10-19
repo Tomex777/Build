@@ -1,0 +1,667 @@
+{
+  "collection": "redemption",
+  "source": "https://hymnary.org/hymnal/RH2006",
+  "scope": "number and English first line, not full lyrics",
+  "first": 1,
+  "last": 94,
+  "hymns": [
+    {
+      "number": 1,
+      "title_en": "Lord of all being, throned afar",
+      "source_url": "https://hymnary.org/hymn/RH2006/1",
+      "lyrics_included": false,
+      "source_status": "numbered_index_verified"
+    },
+    {
+      "number": 2,
+      "title_en": "All hail the power of Jesu's name!",
+      "source_url": "https://hymnary.org/hymn/RH2006/2",
+      "lyrics_included": false,
+      "source_status": "numbered_index_verified"
+    },
+    {
+      "number": 3,
+      "title_en": "Praise Him, praise Him, Jesus our blessed Redeemer",
+      "source_url": "https://hymnary.org/hymn/RH2006/3",
+      "lyrics_included": false,
+      "source_status": "numbered_index_verified"
+    },
+    {
+      "number": 4,
+      "title_en": "We worship and adore Thee",
+      "source_url": "https://hymnary.org/hymn/RH2006/4",
+      "lyrics_included": false,
+      "source_status": "numbered_index_verified"
+    },
+    {
+      "number": 5,
+      "title_en": "Praise, my soul, the King of heaven",
+      "source_url": "https://hymnary.org/hymn/RH2006/5",
+      "lyrics_included": false,
+      "source_status": "numbered_index_verified"
+    },
+    {
+      "number": 6,
+      "title_en": "The God of Abraham praise",
+      "source_url": "https://hymnary.org/hymn/RH2006/6",
+      "lyrics_included": false,
+      "source_status": "numbered_index_verified"
+    },
+    {
+      "number": 7,
+      "title_en": "With harps and with vials there stand a great throng",
+      "source_url": "https://hymnary.org/hymn/RH2006/7",
+      "lyrics_included": false,
+      "source_status": "numbered_index_verified"
+    },
+    {
+      "number": 8,
+      "title_en": "Oh, for a thousand tongues to sing",
+      "source_url": "https://hymnary.org/hymn/RH2006/8",
+      "lyrics_included": false,
+      "source_status": "numbered_index_verified"
+    },
+    {
+      "number": 9,
+      "title_en": "Ye servants of God",
+      "source_url": "https://hymnary.org/hymn/RH2006/9",
+      "lyrics_included": false,
+      "source_status": "numbered_index_verified"
+    },
+    {
+      "number": 10,
+      "title_en": "O worship the King",
+      "source_url": "https://hymnary.org/hymn/RH2006/10",
+      "lyrics_included": false,
+      "source_status": "numbered_index_verified"
+    },
+    {
+      "number": 11,
+      "title_en": "O God, of good the unfathomed sea!",
+      "source_url": "https://hymnary.org/hymn/RH2006/11",
+      "lyrics_included": false,
+      "source_status": "numbered_index_verified"
+    },
+    {
+      "number": 12,
+      "title_en": "O worship the Lord in the beauty of holiness!",
+      "source_url": "https://hymnary.org/hymn/RH2006/12",
+      "lyrics_included": false,
+      "source_status": "numbered_index_verified"
+    },
+    {
+      "number": 13,
+      "title_en": "Come, let us join our cheerful songs",
+      "source_url": "https://hymnary.org/hymn/RH2006/13",
+      "lyrics_included": false,
+      "source_status": "numbered_index_verified"
+    },
+    {
+      "number": 14,
+      "title_en": "Hark! the song of jubilee",
+      "source_url": "https://hymnary.org/hymn/RH2006/14",
+      "lyrics_included": false,
+      "source_status": "numbered_index_verified"
+    },
+    {
+      "number": 15,
+      "title_en": "O the deep, deep love of Jesus",
+      "source_url": "https://hymnary.org/hymn/RH2006/15",
+      "lyrics_included": false,
+      "source_status": "numbered_index_verified"
+    },
+    {
+      "number": 16,
+      "title_en": "With gladness we worship, rejoice as we sing",
+      "source_url": "https://hymnary.org/hymn/RH2006/16",
+      "lyrics_included": false,
+      "source_status": "numbered_index_verified"
+    },
+    {
+      "number": 17,
+      "title_en": "Salvation! O the joyful sound!",
+      "source_url": "https://hymnary.org/hymn/RH2006/17",
+      "lyrics_included": false,
+      "source_status": "numbered_index_verified"
+    },
+    {
+      "number": 18,
+      "title_en": "Thou, great Redeemer, dying Lamb",
+      "source_url": "https://hymnary.org/hymn/RH2006/18",
+      "lyrics_included": false,
+      "source_status": "numbered_index_verified"
+    },
+    {
+      "number": 19,
+      "title_en": "Praise ye the Lord! 'Tis good to raise",
+      "source_url": "https://hymnary.org/hymn/RH2006/19",
+      "lyrics_included": false,
+      "source_status": "numbered_index_verified"
+    },
+    {
+      "number": 20,
+      "title_en": "Now in a song of grateful praise",
+      "source_url": "https://hymnary.org/hymn/RH2006/20",
+      "lyrics_included": false,
+      "source_status": "numbered_index_verified"
+    },
+    {
+      "number": 21,
+      "title_en": "Begin, my soul, some heavenly theme",
+      "source_url": "https://hymnary.org/hymn/RH2006/21",
+      "lyrics_included": false,
+      "source_status": "numbered_index_verified"
+    },
+    {
+      "number": 22,
+      "title_en": "When morning gilds the skies",
+      "source_url": "https://hymnary.org/hymn/RH2006/22",
+      "lyrics_included": false,
+      "source_status": "numbered_index_verified"
+    },
+    {
+      "number": 23,
+      "title_en": "My heart and voice I raise",
+      "source_url": "https://hymnary.org/hymn/RH2006/23",
+      "lyrics_included": false,
+      "source_status": "numbered_index_verified"
+    },
+    {
+      "number": 24,
+      "title_en": "Come, sound His praise abroad",
+      "source_url": "https://hymnary.org/hymn/RH2006/24",
+      "lyrics_included": false,
+      "source_status": "numbered_index_verified"
+    },
+    {
+      "number": 25,
+      "title_en": "Lord, enthroned in heavenly splendour",
+      "source_url": "https://hymnary.org/hymn/RH2006/25",
+      "lyrics_included": false,
+      "source_status": "numbered_index_verified"
+    },
+    {
+      "number": 26,
+      "title_en": "Alleluia! sing to Jesus!",
+      "source_url": "https://hymnary.org/hymn/RH2006/26",
+      "lyrics_included": false,
+      "source_status": "numbered_index_verified"
+    },
+    {
+      "number": 27,
+      "title_en": "God is love; that anthem olden",
+      "source_url": "https://hymnary.org/hymn/RH2006/27",
+      "lyrics_included": false,
+      "source_status": "numbered_index_verified"
+    },
+    {
+      "number": 28,
+      "title_en": "Praise to the Holiest in the height",
+      "source_url": "https://hymnary.org/hymn/RH2006/28",
+      "lyrics_included": false,
+      "source_status": "numbered_index_verified"
+    },
+    {
+      "number": 29,
+      "title_en": "Hail, Thou once despised Jesus!",
+      "source_url": "https://hymnary.org/hymn/RH2006/29",
+      "lyrics_included": false,
+      "source_status": "numbered_index_verified"
+    },
+    {
+      "number": 30,
+      "title_en": "Come, my brethren, praise your Saviour",
+      "source_url": "https://hymnary.org/hymn/RH2006/30",
+      "lyrics_included": false,
+      "source_status": "numbered_index_verified"
+    },
+    {
+      "number": 31,
+      "title_en": "I'll praise my Maker while I've breath",
+      "source_url": "https://hymnary.org/hymn/RH2006/31",
+      "lyrics_included": false,
+      "source_status": "numbered_index_verified"
+    },
+    {
+      "number": 32,
+      "title_en": "My God, how wonderful Thou art",
+      "source_url": "https://hymnary.org/hymn/RH2006/32",
+      "lyrics_included": false,
+      "source_status": "numbered_index_verified"
+    },
+    {
+      "number": 33,
+      "title_en": "O Lord of heaven and earth and sea",
+      "source_url": "https://hymnary.org/hymn/RH2006/33",
+      "lyrics_included": false,
+      "source_status": "numbered_index_verified"
+    },
+    {
+      "number": 34,
+      "title_en": "Sing, O thou happy habitant",
+      "source_url": "https://hymnary.org/hymn/RH2006/34",
+      "lyrics_included": false,
+      "source_status": "numbered_index_verified"
+    },
+    {
+      "number": 35,
+      "title_en": "O Saviour, precious Saviour",
+      "source_url": "https://hymnary.org/hymn/RH2006/35",
+      "lyrics_included": false,
+      "source_status": "numbered_index_verified"
+    },
+    {
+      "number": 36,
+      "title_en": "Immortal, invisible, God only wise",
+      "source_url": "https://hymnary.org/hymn/RH2006/36",
+      "lyrics_included": false,
+      "source_status": "numbered_index_verified"
+    },
+    {
+      "number": 37,
+      "title_en": "Angel voices, ever singing",
+      "source_url": "https://hymnary.org/hymn/RH2006/37",
+      "lyrics_included": false,
+      "source_status": "numbered_index_verified"
+    },
+    {
+      "number": 38,
+      "title_en": "Praise the Lord! ye heavens, adore Him",
+      "source_url": "https://hymnary.org/hymn/RH2006/38",
+      "lyrics_included": false,
+      "source_status": "numbered_index_verified"
+    },
+    {
+      "number": 39,
+      "title_en": "Praise to the Lord, the Almighty, the King of creation",
+      "source_url": "https://hymnary.org/hymn/RH2006/39",
+      "lyrics_included": false,
+      "source_status": "numbered_index_verified"
+    },
+    {
+      "number": 40,
+      "title_en": "Eternal God! we raise to Thee",
+      "source_url": "https://hymnary.org/hymn/RH2006/40",
+      "lyrics_included": false,
+      "source_status": "numbered_index_verified"
+    },
+    {
+      "number": 41,
+      "title_en": "O Christ, whose glory fills our days",
+      "source_url": "https://hymnary.org/hymn/RH2006/41",
+      "lyrics_included": false,
+      "source_status": "numbered_index_verified"
+    },
+    {
+      "number": 42,
+      "title_en": "O magnify the Lord with me",
+      "source_url": "https://hymnary.org/hymn/RH2006/42",
+      "lyrics_included": false,
+      "source_status": "numbered_index_verified"
+    },
+    {
+      "number": 43,
+      "title_en": "Shall hymns of grateful love",
+      "source_url": "https://hymnary.org/hymn/RH2006/43",
+      "lyrics_included": false,
+      "source_status": "numbered_index_verified"
+    },
+    {
+      "number": 44,
+      "title_en": "Let me sing, for the glory of heaven",
+      "source_url": "https://hymnary.org/hymn/RH2006/44",
+      "lyrics_included": false,
+      "source_status": "numbered_index_verified"
+    },
+    {
+      "number": 45,
+      "title_en": "Be glad in the Lord, and rejoice",
+      "source_url": "https://hymnary.org/hymn/RH2006/45",
+      "lyrics_included": false,
+      "source_status": "numbered_index_verified"
+    },
+    {
+      "number": 46,
+      "title_en": "My God, I thank Thee, who hast made",
+      "source_url": "https://hymnary.org/hymn/RH2006/46",
+      "lyrics_included": false,
+      "source_status": "numbered_index_verified"
+    },
+    {
+      "number": 47,
+      "title_en": "To God be the glory, great things He hath done",
+      "source_url": "https://hymnary.org/hymn/RH2006/47",
+      "lyrics_included": false,
+      "source_status": "numbered_index_verified"
+    },
+    {
+      "number": 48,
+      "title_en": "My Saviour suffered on the tree",
+      "source_url": "https://hymnary.org/hymn/RH2006/48",
+      "lyrics_included": false,
+      "source_status": "numbered_index_verified"
+    },
+    {
+      "number": 49,
+      "title_en": "This is the day the Lord hath made",
+      "source_url": "https://hymnary.org/hymn/RH2006/49",
+      "lyrics_included": false,
+      "source_status": "numbered_index_verified"
+    },
+    {
+      "number": 50,
+      "title_en": "Now thank we all our God",
+      "source_url": "https://hymnary.org/hymn/RH2006/50",
+      "lyrics_included": false,
+      "source_status": "numbered_index_verified"
+    },
+    {
+      "number": 51,
+      "title_en": "My soul shouts glory to the Son of God",
+      "source_url": "https://hymnary.org/hymn/RH2006/51",
+      "lyrics_included": false,
+      "source_status": "numbered_index_verified"
+    },
+    {
+      "number": 52,
+      "title_en": "Praise the Saviour, ye who know Him",
+      "source_url": "https://hymnary.org/hymn/RH2006/52",
+      "lyrics_included": false,
+      "source_status": "numbered_index_verified"
+    },
+    {
+      "number": 53,
+      "title_en": "Praise, praise ye the name of Jehovah, our God",
+      "source_url": "https://hymnary.org/hymn/RH2006/53",
+      "lyrics_included": false,
+      "source_status": "numbered_index_verified"
+    },
+    {
+      "number": 54,
+      "title_en": "Joy to the world; the Lord is come",
+      "source_url": "https://hymnary.org/hymn/RH2006/54",
+      "lyrics_included": false,
+      "source_status": "numbered_index_verified"
+    },
+    {
+      "number": 55,
+      "title_en": "Praise the King of glory, He is God alone",
+      "source_url": "https://hymnary.org/hymn/RH2006/55",
+      "lyrics_included": false,
+      "source_status": "numbered_index_verified"
+    },
+    {
+      "number": 56,
+      "title_en": "Awake, awake, O heart of mine!",
+      "source_url": "https://hymnary.org/hymn/RH2006/56",
+      "lyrics_included": false,
+      "source_status": "numbered_index_verified"
+    },
+    {
+      "number": 57,
+      "title_en": "O Jesus, King most wonderful",
+      "source_url": "https://hymnary.org/hymn/RH2006/57",
+      "lyrics_included": false,
+      "source_status": "numbered_index_verified"
+    },
+    {
+      "number": 58,
+      "title_en": "When the morning stars were singing",
+      "source_url": "https://hymnary.org/hymn/RH2006/58",
+      "lyrics_included": false,
+      "source_status": "numbered_index_verified"
+    },
+    {
+      "number": 59,
+      "title_en": "Father, what can to Thee be given",
+      "source_url": "https://hymnary.org/hymn/RH2006/59",
+      "lyrics_included": false,
+      "source_status": "numbered_index_verified"
+    },
+    {
+      "number": 60,
+      "title_en": "Eternal Light! Eternal Light!",
+      "source_url": "https://hymnary.org/hymn/RH2006/60",
+      "lyrics_included": false,
+      "source_status": "numbered_index_verified"
+    },
+    {
+      "number": 61,
+      "title_en": "I need Thee, precious Saviour",
+      "source_url": "https://hymnary.org/hymn/RH2006/61",
+      "lyrics_included": false,
+      "source_status": "numbered_index_verified"
+    },
+    {
+      "number": 62,
+      "title_en": "Jesus, Thy boundless love to me",
+      "source_url": "https://hymnary.org/hymn/RH2006/62",
+      "lyrics_included": false,
+      "source_status": "numbered_index_verified"
+    },
+    {
+      "number": 63,
+      "title_en": "Jesus, my eyes are unto Thee",
+      "source_url": "https://hymnary.org/hymn/RH2006/63",
+      "lyrics_included": false,
+      "source_status": "numbered_index_verified"
+    },
+    {
+      "number": 64,
+      "title_en": "Jesus, stand among us",
+      "source_url": "https://hymnary.org/hymn/RH2006/64",
+      "lyrics_included": false,
+      "source_status": "numbered_index_verified"
+    },
+    {
+      "number": 65,
+      "title_en": "Fill Thou my life, O Lord my God",
+      "source_url": "https://hymnary.org/hymn/RH2006/65",
+      "lyrics_included": false,
+      "source_status": "numbered_index_verified"
+    },
+    {
+      "number": 66,
+      "title_en": "Let me come closer to Thee, Lord Jesus",
+      "source_url": "https://hymnary.org/hymn/RH2006/66",
+      "lyrics_included": false,
+      "source_status": "numbered_index_verified"
+    },
+    {
+      "number": 67,
+      "title_en": "Lord Jesus Christ, we seek Thy face",
+      "source_url": "https://hymnary.org/hymn/RH2006/67",
+      "lyrics_included": false,
+      "source_status": "numbered_index_verified"
+    },
+    {
+      "number": 68,
+      "title_en": "O for a closer walk with God",
+      "source_url": "https://hymnary.org/hymn/RH2006/68",
+      "lyrics_included": false,
+      "source_status": "numbered_index_verified"
+    },
+    {
+      "number": 69,
+      "title_en": "O Love Divine, how sweet Thou art!",
+      "source_url": "https://hymnary.org/hymn/RH2006/69",
+      "lyrics_included": false,
+      "source_status": "numbered_index_verified"
+    },
+    {
+      "number": 70,
+      "title_en": "My goal is God Himself, not joy, nor peace",
+      "source_url": "https://hymnary.org/hymn/RH2006/70",
+      "lyrics_included": false,
+      "source_status": "numbered_index_verified"
+    },
+    {
+      "number": 71,
+      "title_en": "Love divine, all loves excelling",
+      "source_url": "https://hymnary.org/hymn/RH2006/71",
+      "lyrics_included": false,
+      "source_status": "numbered_index_verified"
+    },
+    {
+      "number": 72,
+      "title_en": "My God, the spring of all my joys",
+      "source_url": "https://hymnary.org/hymn/RH2006/72",
+      "lyrics_included": false,
+      "source_status": "numbered_index_verified"
+    },
+    {
+      "number": 73,
+      "title_en": "Here from the world we turn",
+      "source_url": "https://hymnary.org/hymn/RH2006/73",
+      "lyrics_included": false,
+      "source_status": "numbered_index_verified"
+    },
+    {
+      "number": 74,
+      "title_en": "Lord of the worlds above",
+      "source_url": "https://hymnary.org/hymn/RH2006/74",
+      "lyrics_included": false,
+      "source_status": "numbered_index_verified"
+    },
+    {
+      "number": 75,
+      "title_en": "Thou Shepherd of Israel, and mine",
+      "source_url": "https://hymnary.org/hymn/RH2006/75",
+      "lyrics_included": false,
+      "source_status": "numbered_index_verified"
+    },
+    {
+      "number": 76,
+      "title_en": "Nearer, still nearer, close to Thy heart",
+      "source_url": "https://hymnary.org/hymn/RH2006/76",
+      "lyrics_included": false,
+      "source_status": "numbered_index_verified"
+    },
+    {
+      "number": 77,
+      "title_en": "It passeth knowledge, that dear love of Thine",
+      "source_url": "https://hymnary.org/hymn/RH2006/77",
+      "lyrics_included": false,
+      "source_status": "numbered_index_verified"
+    },
+    {
+      "number": 78,
+      "title_en": "If I but knew Thee as Thou art",
+      "source_url": "https://hymnary.org/hymn/RH2006/78",
+      "lyrics_included": false,
+      "source_status": "numbered_index_verified"
+    },
+    {
+      "number": 79,
+      "title_en": "Talk with us, Lord, Thyself reveal",
+      "source_url": "https://hymnary.org/hymn/RH2006/79",
+      "lyrics_included": false,
+      "source_status": "numbered_index_verified"
+    },
+    {
+      "number": 80,
+      "title_en": "I cannot breathe enough of Thee",
+      "source_url": "https://hymnary.org/hymn/RH2006/80",
+      "lyrics_included": false,
+      "source_status": "numbered_index_verified"
+    },
+    {
+      "number": 81,
+      "title_en": "No more veil! God bids me enter",
+      "source_url": "https://hymnary.org/hymn/RH2006/81",
+      "lyrics_included": false,
+      "source_status": "numbered_index_verified"
+    },
+    {
+      "number": 82,
+      "title_en": "Within the Veil: be this, beloved thy portion",
+      "source_url": "https://hymnary.org/hymn/RH2006/82",
+      "lyrics_included": false,
+      "source_status": "numbered_index_verified"
+    },
+    {
+      "number": 83,
+      "title_en": "Come ye yourselves apart, and rest awhile",
+      "source_url": "https://hymnary.org/hymn/RH2006/83",
+      "lyrics_included": false,
+      "source_status": "numbered_index_verified"
+    },
+    {
+      "number": 84,
+      "title_en": "Dear Lord and Father of mankind",
+      "source_url": "https://hymnary.org/hymn/RH2006/84",
+      "lyrics_included": false,
+      "source_status": "numbered_index_verified"
+    },
+    {
+      "number": 85,
+      "title_en": "Here is love, vast as the ocean",
+      "source_url": "https://hymnary.org/hymn/RH2006/85",
+      "lyrics_included": false,
+      "source_status": "numbered_index_verified"
+    },
+    {
+      "number": 86,
+      "title_en": "Nothing between, Lord, nothing between",
+      "source_url": "https://hymnary.org/hymn/RH2006/86",
+      "lyrics_included": false,
+      "source_status": "numbered_index_verified"
+    },
+    {
+      "number": 87,
+      "title_en": "The sands of time are sinking",
+      "source_url": "https://hymnary.org/hymn/RH2006/87",
+      "lyrics_included": false,
+      "source_status": "numbered_index_verified"
+    },
+    {
+      "number": 88,
+      "title_en": "Speak, Lord, in Thy stillness",
+      "source_url": "https://hymnary.org/hymn/RH2006/88",
+      "lyrics_included": false,
+      "source_status": "numbered_index_verified"
+    },
+    {
+      "number": 89,
+      "title_en": "Jesus, the very thought of Thee",
+      "source_url": "https://hymnary.org/hymn/RH2006/89",
+      "lyrics_included": false,
+      "source_status": "numbered_index_verified"
+    },
+    {
+      "number": 90,
+      "title_en": "Jesus, Jesus, Jesus",
+      "source_url": "https://hymnary.org/hymn/RH2006/90",
+      "lyrics_included": false,
+      "source_status": "numbered_index_verified"
+    },
+    {
+      "number": 91,
+      "title_en": "My heart is resting, O my God",
+      "source_url": "https://hymnary.org/hymn/RH2006/91",
+      "lyrics_included": false,
+      "source_status": "numbered_index_verified"
+    },
+    {
+      "number": 92,
+      "title_en": "I lift my heart to Thee, Saviour divine",
+      "source_url": "https://hymnary.org/hymn/RH2006/92",
+      "lyrics_included": false,
+      "source_status": "numbered_index_verified"
+    },
+    {
+      "number": 93,
+      "title_en": "Alone upon the mount of God I stand",
+      "source_url": "https://hymnary.org/hymn/RH2006/93",
+      "lyrics_included": false,
+      "source_status": "numbered_index_verified"
+    },
+    {
+      "number": 94,
+      "title_en": "Jesus, I am resting, resting",
+      "source_url": "https://hymnary.org/hymn/RH2006/94",
+      "lyrics_included": false,
+      "source_status": "numbered_index_verified"
+    }
+  ]
+}
