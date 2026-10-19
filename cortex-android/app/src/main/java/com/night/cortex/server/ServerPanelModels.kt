@@ -189,6 +189,7 @@ data class ServerPanelState(
     val environment: EnvironmentState? = null,
     val cloudDashboard: CloudDashboard? = null,
     val cloudConnectionFailed: Boolean = false,
+    val cloudSetupIssue: String? = null,
     val cloudVerificationMessage: String? = null,
     val cloudMounts: List<CloudMount> = emptyList(),
     val cloudMountsLoaded: Boolean = false,
