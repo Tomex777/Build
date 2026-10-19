@@ -64,7 +64,7 @@ try {
   const output=path.join(root,'visual-output');mkdirSync(output,{recursive:true});
   const hostURL=address+'/party/room/?game=wyr',invite=address+'/party/room/?code='+game.code;
   await host.goto(hostURL);
-  await host.locator('.party-room-code').waitFor();
+  await host.locator('.party-room-code').waitFor({timeout:8000}).catch(async error=>{console.error('HOST PAGE:',await host.locator('body').innerText());console.error('PAGE ERRORS:',errors);throw error});
   assert.equal(await host.locator('.party-room-code').textContent(),game.code);
   assert.equal(await host.locator('.party-player-pill').count(),0,'host is not added as a player');
   await host.screenshot({path:path.join(output,'party-online-host-lobby.jpg'),type:'jpeg',quality:78});
