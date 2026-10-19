@@ -112,7 +112,7 @@ class MainActivity : Activity() {
             View.SYSTEM_UI_FLAG_FULLSCREEN or View.SYSTEM_UI_FLAG_HIDE_NAVIGATION or
                 View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY or View.SYSTEM_UI_FLAG_LAYOUT_STABLE or
                 View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN or View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION)
-        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        // Never force the display awake for passive listening or editing.
         try { store.getString("last",null)?.let { world=AtlasCodec.decode(it) } }
         catch (_:Exception) { world=AtlasPresets.create(0) }
         surface=AtlasCanvas()
@@ -225,6 +225,7 @@ class MainActivity : Activity() {
     override fun onPause() {
         store.edit().putString("last",AtlasCodec.encode(world)).apply()
         inForeground=false
+        window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         stopPlayback()
         super.onPause()
     }
@@ -345,7 +346,7 @@ class MainActivity : Activity() {
             if(mode==Mode.EXPLORE){
                 tick++
                 if(tick%2L==0L)walkToTarget()
-                postInvalidateDelayed(33)
+                if(exploreRoute.isNotEmpty()) postInvalidateDelayed(33)
             }
         }
         private fun xy(v:V2)=V2(ww*.5f+(v.x-camera.x)*meter,hh*.47f+(v.y-camera.y)*meter)
@@ -546,6 +547,11 @@ class MainActivity : Activity() {
                             4->{
                                 sheet=Sheet.NONE;mode=if(mode==Mode.EXPLORE)Mode.EDIT else Mode.EXPLORE
                                 if(mode==Mode.EXPLORE && !audio.isPlaying)startPlayback()
+                                if(mode==Mode.EXPLORE) {
+                                    window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                                } else {
+                                    window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                                }
                             }
                         }
                         invalidate()
