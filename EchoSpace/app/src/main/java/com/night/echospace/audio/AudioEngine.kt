@@ -9,7 +9,7 @@ import com.night.echospace.model.SoundSource
 import java.util.concurrent.atomic.AtomicBoolean
 
 /** AudioTrack is always owned and released on the audio thread. */
-class AudioEngine(private val context: Context) {
+class AudioEngine(private val context: Context, private val onFatalAudioError:(String)->Unit = {}) {
     @Volatile private var living = true
     fun setLiving(value: Boolean) { living = value }
     @Volatile private var currentSources: List<SoundSource> = emptyList()
@@ -99,8 +99,11 @@ class AudioEngine(private val context: Context) {
                 }
             }
         } catch (e: Exception) {
-            if (alive.get()) failure = e.message ?: "Audio output failed"
-            playing.set(false)
+            if (alive.get()) {
+                failure = e.message ?: "Audio output failed"
+                playing.set(false)
+                onFatalAudioError(failure ?: "Audio output failed")
+            }
         } finally {
             try { track?.pause() } catch (_: Exception) {}
             try { track?.flush() } catch (_: Exception) {}
