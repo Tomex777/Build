@@ -51,7 +51,17 @@ class SpatialAudioService : Service() {
 
     override fun onCreate() {
         super.onCreate()
-        engine = AudioEngine(applicationContext)
+        engine = AudioEngine(applicationContext) { message ->
+            handler.post {
+                if(playing) {
+                    // Fatal AudioTrack errors (device route, hardware init, write)
+                    // must not leave a misleading foreground "Playing" notification.
+                    pause()
+                    getSharedPreferences("echospace_audio",MODE_PRIVATE).edit()
+                        .putString("last_error",message.take(160)).apply()
+                }
+            }
+        }
         audioManager = getSystemService(AUDIO_SERVICE) as AudioManager
         val routeFilter = IntentFilter(AudioManager.ACTION_AUDIO_BECOMING_NOISY)
         if (Build.VERSION.SDK_INT >= 33) {
