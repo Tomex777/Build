@@ -83,9 +83,11 @@ capture 03-selected-world.png
 assert_state 'World Ancient Forest. Panel NONE'
 tap_desc 'SOUNDS'
 capture 04-sound-library.png
-assert_state 'Panel SOUNDS'
-# First sound card in the two-column panel, ~height of sound sheet.
-tap_desc 'Add Rainfall'
+assert_state 'Panel SOUNDS page 1'
+# Verify that newly licensed sounds on the second page can actually be added.
+tap_desc 'NEXT SOUNDS'
+assert_state 'Panel SOUNDS page 2'
+tap_desc 'Add Ocean surf'
 capture 05-sound-inspector.png
 assert_state 'Panel INSPECT'
 # Close inspector and enter Explore mode.
