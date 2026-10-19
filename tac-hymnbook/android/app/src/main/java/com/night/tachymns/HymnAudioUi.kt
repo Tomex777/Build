@@ -17,7 +17,6 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import kotlinx.coroutines.delay
 
 /**
  * Ordinary reader: one small playback control beneath existing language tabs.
@@ -43,12 +42,6 @@ fun HymnAudioControls(
 
     LaunchedEffect(key) {
         if (player.activeKey != null && player.activeKey != key) player.stop()
-    }
-    LaunchedEffect(player.activeKey, player.playing, player.loading) {
-        while (player.activeKey != null && (player.playing || player.loading)) {
-            player.refresh()
-            delay(250)
-        }
     }
 
     Surface(
