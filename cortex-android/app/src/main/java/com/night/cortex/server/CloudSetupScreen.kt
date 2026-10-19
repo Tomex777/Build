@@ -3,6 +3,7 @@ package com.night.cortex.server
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -17,6 +18,7 @@ import androidx.compose.material3.RadioButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -32,6 +34,9 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.night.cortex.ui.theme.CortexMuted
+import com.night.cortex.ui.theme.CortexAccent
+import com.night.cortex.ui.theme.CortexLine
+import com.night.cortex.ui.theme.CortexSurface
 import com.night.cortex.ui.theme.CortexSurface2
 
 /**
@@ -87,7 +92,13 @@ internal fun CloudSetupPage(
                 )
                 if (emailSetting == null || passwordSetting == null) {
                     Text(
-                        "This Cortex Agent has not been updated with MEGA controls yet. Update the Cortex Agent before connecting.",
+                        state.cloudSetupIssue ?: "Secure MEGA settings are missing from this Cortex Agent. Update the Agent before entering credentials.",
+                        fontSize = 14.sp,
+                        color = com.night.cortex.ui.theme.CortexDanger,
+                        modifier = Modifier.testTag("cloud-credentials-unavailable"),
+                    )
+                    Text(
+                        "NIGHT being online does not mean its Cloud or ENV API is available. Nothing has been saved here.",
                         fontSize = 12.sp,
                         color = CortexMuted,
                     )
@@ -97,6 +108,13 @@ internal fun CloudSetupPage(
                         fontSize = 12.sp,
                     )
                     OutlinedTextField(
+                shape = RoundedCornerShape(10.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = CortexAccent,
+                    unfocusedBorderColor = CortexLine,
+                    focusedContainerColor = CortexSurface,
+                    unfocusedContainerColor = CortexSurface,
+                ),
                         value = email,
                         onValueChange = { if (!it.contains('\n') && it.length <= 254) email = it },
                         label = { Text("Primary MEGA email") },
@@ -116,6 +134,13 @@ internal fun CloudSetupPage(
                         fontSize = 12.sp,
                     )
                     OutlinedTextField(
+                shape = RoundedCornerShape(10.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = CortexAccent,
+                    unfocusedBorderColor = CortexLine,
+                    focusedContainerColor = CortexSurface,
+                    unfocusedContainerColor = CortexSurface,
+                ),
                         value = password,
                         onValueChange = { if (!it.contains('\n') && it.length <= 4096) password = it },
                         label = { Text("MEGA password") },
@@ -132,7 +157,7 @@ internal fun CloudSetupPage(
                     ) { Text("Save password securely") }
                     Text(
                         "The password stays in the protected Azure environment, not in GitHub or the public bot.",
-                        fontSize = 11.sp,
+                        fontSize = 12.sp,
                         color = CortexMuted,
                     )
                 }
@@ -146,7 +171,8 @@ internal fun CloudSetupPage(
                 Text(
                     when {
                         !configured -> "Save the primary account, then restart MSCC."
-                        state.cloudConnectionFailed -> "Connection check failed. Verify the primary credentials, MSCC deployment and network, then refresh."
+                        state.cloudSetupIssue != null -> state.cloudSetupIssue
+                        state.cloudConnectionFailed -> "Cloud service unavailable. Your credentials may still be correct."
                         dashboard == null -> "Status not loaded. Tap Refresh after restarting MSCC."
                         dashboard.configured -> "MEGA is configured. Primary account quota can be verified."
                         else -> "MEGA is not yet connected in the running MSCC process. Restart MSCC."
@@ -167,7 +193,7 @@ internal fun CloudSetupPage(
                         Text(
                             "${target.label} · ${target.mediaTypes.joinToString()} · " +
                                 if (target.detected && target.uploadEnabled) "ready" else "offline/not approved",
-                            fontSize = 11.sp,
+                            fontSize = 12.sp,
                         )
                         if (target.detected && target.uploadEnabled) {
                             OutlinedButton(
@@ -183,7 +209,7 @@ internal fun CloudSetupPage(
                         "These tests prove only that MSCC can download its upload. " +
                             "The contributor must separately confirm a normal test file opens in their own MEGA app.",
                         color = CortexMuted,
-                        fontSize = 11.sp,
+                        fontSize = 12.sp,
                     )
                 }
             }
@@ -209,7 +235,7 @@ internal fun CloudSetupPage(
                         "Mark one as Images; the remaining three become Video archives. " +
                         "No account passwords are required.",
                     color = CortexMuted,
-                    fontSize = 11.sp,
+                    fontSize = 12.sp,
                 )
                 mounts.take(20).forEach { mount ->
                     val selected = mount.nodeId in selectedFolderIds
@@ -235,7 +261,7 @@ internal fun CloudSetupPage(
                                     else -> "Video"
                                 },
                                 color = CortexMuted,
-                                fontSize = 11.sp,
+                                fontSize = 12.sp,
                             )
                         }
                         if (selected) {
@@ -244,7 +270,7 @@ internal fun CloudSetupPage(
                                 onClick = { imageFolderId = mount.nodeId },
                                 enabled = !state.loading,
                             )
-                            Text("Images", fontSize = 11.sp, modifier = Modifier.padding(top = 14.dp))
+                            Text("Images", fontSize = 12.sp, modifier = Modifier.padding(top = 14.dp))
                         }
                     }
                 }
@@ -254,23 +280,23 @@ internal fun CloudSetupPage(
                             "one image folder chosen"
                         else "select which one stores images",
                     color = CortexMuted,
-                    fontSize = 11.sp,
+                    fontSize = 12.sp,
                 )
                 if (configured && state.cloudMountsLoaded && mounts.size < 4) {
                     Text(
                         "Four distinct writable folder invitations are needed. " +
                             "Refresh after accepting them.",
-                        fontSize = 11.sp,
+                        fontSize = 12.sp,
                         color = CortexMuted,
                     )
                 }
                 if (sharesSetting == null) {
-                    Text("Folder mapping requires the updated Cortex Agent.", color = CortexMuted, fontSize = 11.sp)
+                    Text("Folder mapping requires the updated Cortex Agent.", color = CortexMuted, fontSize = 12.sp)
                 } else {
                     Text(
                         if (sharesSetting.hasValue) "Folder roles saved; changing them replaces the previous map."
                         else "Folder roles not assigned yet.",
-                        fontSize = 11.sp,
+                        fontSize = 12.sp,
                         color = CortexMuted,
                     )
                     Button(
@@ -281,7 +307,7 @@ internal fun CloudSetupPage(
                         "Cortex balances each new video upload across the three folders " +
                             "by visible bytes. Other media uses the primary account. " +
                             "Actual donor free space cannot be read from shared folders.",
-                        fontSize = 11.sp,
+                        fontSize = 12.sp,
                         color = CortexMuted,
                     )
                 }
@@ -292,7 +318,7 @@ internal fun CloudSetupPage(
             "After saving the folder layout, restart MSCC and test a small file. " +
                 "No uploaded WhatsApp data is archived without an explicit command.",
             color = CortexMuted,
-            fontSize = 11.sp,
+            fontSize = 12.sp,
         )
     }
 

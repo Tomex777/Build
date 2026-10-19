@@ -25,6 +25,7 @@ jobs:
       - name: Syntax check
         run: |
           node --check cortex-agent/index.js
+          node cortex-agent/redaction-selftest.js
           grep -Fq 'entries.forEach(validateRestoreEntry);' cortex-agent/index.js
           bash -n cortex-agent/install.sh
           bash -n cortex-agent/cortex-agent-control
@@ -571,6 +572,14 @@ jobs:
             http://127.0.0.1:47831/api/cortex/host/environment)
           test "$code" = '400'
           ! grep -q 'must-not-be-managed' /tmp/mscc.env
+          # AI credentials must be visible by key but never returned as plaintext.
+          AUTH_AI=$(curl -fsS -H "$AUTH" http://127.0.0.1:47831/api/cortex/host/environment)
+          python3 -c 'import json,sys; d={x["key"]:x for x in json.load(sys.stdin)["entries"]}; assert all(n in d for n in ["AZURE_SPEECH_KEY","AZURE_SPEECH_REGION","AZURE_OPENAI_API_KEY","AZURE_OPENAI_ENDPOINT","AZURE_OPENAI_VISION_DEPLOYMENT","GROQ_SMART_MODELS"]); assert all(d[n]["secret"] for n in ["AZURE_SPEECH_KEY","AZURE_OPENAI_API_KEY","GROQ_API_KEY"])' <<<"$AUTH_AI"
+          curl -fsS -H "$AUTH" -H 'Content-Type: application/json' \
+            -d '{"key":"AZURE_SPEECH_KEY","value":"dummy-unit-test-not-a-real-key"}' \
+            http://127.0.0.1:47831/api/cortex/host/environment >/tmp/cortex-ai-env-check.json
+          grep -Fq 'AZURE_SPEECH_KEY=dummy-unit-test-not-a-real-key' /tmp/mscc.env
+          if grep -Fq 'dummy-unit-test-not-a-real-key' /tmp/cortex-ai-env-check.json; then exit 1; fi
 
       - name: Verify command-driven settings contract
         shell: bash

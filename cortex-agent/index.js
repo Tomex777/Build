@@ -51,6 +51,18 @@ const DEFAULT_ENVIRONMENT_SCHEMA = [
   { key: 'GROUP_META_CACHE_MAX', label: 'Group metadata cache', description: 'Maximum in-memory group metadata entries.', type: 'integer', min: 16, max: 1024, requiresRestart: true },
   { key: 'MSCC_PERSONALITY_AI_ENABLED', label: 'Personality AI', description: 'Enable the optional AI personality response layer.', type: 'boolean', requiresRestart: true },
   { key: 'GROQ_API_KEY', label: 'Groq API key', description: 'Primary API key used by the MSCC personality layer.', secret: true, requiresRestart: true },
+  { key: 'MSCC_SMART_AI_ENABLED', label: 'Smart AI enabled', description: 'Enable conversational AI for NIGHT when a supported provider is configured.', type: 'boolean', requiresRestart: true },
+  { key: 'GROQ_SMART_MODELS', label: 'Groq model fallback order', description: 'Comma-separated smart AI model IDs, highest capability first.', requiresRestart: true },
+  { key: 'AZURE_SPEECH_KEY', label: 'Azure Speech key', description: 'Key for WhatsApp .stt and .tts speech processing.', secret: true, requiresRestart: true },
+  { key: 'AZURE_SPEECH_REGION', label: 'Azure Speech region', description: 'Azure Speech resource region, e.g. eastus or westeurope.', requiresRestart: true },
+  { key: 'AZURE_STT_LANGUAGE', label: 'Speech recognition language', description: 'BCP-47 language for .stt; default en-US.', requiresRestart: true },
+  { key: 'AZURE_TTS_LANGUAGE', label: 'Text-to-speech language', description: 'BCP-47 voice language for .tts; default en-US.', requiresRestart: true },
+  { key: 'AZURE_TTS_VOICE', label: 'Text-to-speech voice', description: 'Azure Speech voice name, e.g. en-US-AvaMultilingualNeural.', requiresRestart: true },
+  { key: 'AZURE_OPENAI_ENDPOINT', label: 'Azure OpenAI endpoint', description: 'Full HTTPS endpoint for .vision and image understanding.', requiresRestart: true },
+  { key: 'AZURE_OPENAI_API_KEY', label: 'Azure OpenAI API key', description: 'Private Azure OpenAI key for .vision and image understanding.', secret: true, requiresRestart: true },
+  { key: 'AZURE_OPENAI_VISION_DEPLOYMENT', label: 'Azure vision deployment', description: 'Name of an Azure OpenAI model deployment with image input support.', requiresRestart: true },
+  { key: 'AZURE_OPENAI_API_VERSION', label: 'Azure OpenAI API version', description: 'Supported Azure API version; leave blank to use NIGHT default.', requiresRestart: true },
+
   { key: 'GROQ_API_KEYS', label: 'Groq failover keys', description: 'Optional comma-separated failover keys for service resilience.', secret: true, requiresRestart: true },
   { key: 'GROQ_MODEL', label: 'Groq model', description: 'Model used by the MSCC personality layer.', requiresRestart: true },
   { key: 'MSCC_AI_TIMEOUT_MS', label: 'AI timeout', description: 'Maximum time in milliseconds for one personality AI request.', type: 'integer', min: 250, max: 30000, requiresRestart: true },
@@ -122,6 +134,16 @@ function authorized(req) {
 
 function redactLogLine(input) {
   let line = String(input ?? '');
+  // Baileys / Signal session objects printed by debugging and reconnection
+  // contain actual authentication ratchets and asymmetric key bytes. These
+  // MUST NOT leave the VM through /logs, SSE, or journal-derived activity.
+  const signalMaterial = /\b(?:baseKey|baseKeyType|privKey|pubKey|currentRatchet|ephemeralKeyPair|rootKey|chainKey|senderKey|identityKey|remoteIdentityKey|signedPreKey|signedKeyId|pendingPreKey|preKey|mediaKey|macKey|sessionKey|messageKeys|registrationId)\b\s*[:=]/i;
+  if (signalMaterial.test(line)) {
+    return line.replace(signalMaterial, '[SIGNAL SESSION]:').replace(/:[^:]*$/, ': [REDACTED]').slice(0, 320);
+  }
+  line = line.replace(/<Buffer\s+[^>\r\n]{0,8000}>/g, '<Buffer [REDACTED]>');
+  line = line.replace(/\b(?:[0-9a-f]{2}[ :]){18,}[0-9a-f]{2}\b/gi, '[REDACTED HEX]');
+
   line = line.replace(/(authorization\s*[:=]\s*bearer\s+)[^\s"',}]+/gi, '$1[REDACTED]');
   line = line.replace(/\bBearer\s+[A-Za-z0-9._~+\/=:-]{12,}/g, 'Bearer [REDACTED]');
   line = line.replace(
@@ -1214,7 +1236,7 @@ async function environmentSchema() {
       // Existing Azure installs may have an older persisted environment
       // schema. Always expose newly allowlisted MEGA keys in Cortex.
       const seen = new Set(entries.map(entry => String(entry?.key || '')));
-      for (const entry of DEFAULT_ENVIRONMENT_SCHEMA.filter(row => row.key.startsWith('MSCC_MEGA_'))) {
+      for (const entry of DEFAULT_ENVIRONMENT_SCHEMA.filter(row => row.key.startsWith('MSCC_MEGA_') || row.key.startsWith('AZURE_') || ['MSCC_SMART_AI_ENABLED','GROQ_SMART_MODELS'].includes(row.key))) {
         if (!seen.has(entry.key)) entries.push(entry);
       }
     }
@@ -1233,7 +1255,8 @@ async function environmentSchema() {
       key: String(entry.key),
       label: String(entry.label || entry.key).slice(0, 96),
       description: String(entry.description || '').slice(0, 500),
-      secret: entry.secret === true,
+      // A stale server-side schema must never downgrade a secret to plaintext.
+      secret: entry.secret === true || DEFAULT_ENVIRONMENT_SCHEMA.find(row => row.key === entry.key)?.secret === true,
       type: String(entry.type || 'string'),
       min: Number.isFinite(Number(entry.min)) ? Number(entry.min) : null,
       max: Number.isFinite(Number(entry.max)) ? Number(entry.max) : null,

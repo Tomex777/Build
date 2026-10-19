@@ -210,8 +210,13 @@ jobs:
           "$apksigner_bin" verify --verbose --print-certs cortex-release-package/Cortex_X86_64_INSTALLABLE.apk
           "$aapt_bin" dump badging cortex-release-package/Cortex_ARM64_INSTALLABLE.apk > cortex-release-package/Cortex_ARM64_badging.txt
           "$aapt_bin" dump badging cortex-release-package/Cortex_X86_64_INSTALLABLE.apk > cortex-release-package/Cortex_X86_64_badging.txt
+          # Keep artifact acceptance tied to the actual Gradle app version,
+          # rather than making every legitimate ABR version bump fail CI.
+          expected_version_code="$(sed -nE 's/^[[:space:]]*versionCode = ([0-9]+).*/\1/p' cortex-android/app/build.gradle.kts | head -n1)"
+          expected_version_name="$(sed -nE 's/^[[:space:]]*versionName = "([^"]+)".*/\1/p' cortex-android/app/build.gradle.kts | head -n1)"
+          test -n "$expected_version_code" && test -n "$expected_version_name"
           for badging in cortex-release-package/Cortex_ARM64_badging.txt cortex-release-package/Cortex_X86_64_badging.txt; do
-            grep -q "package: name='com.night.cortex' versionCode='101' versionName='1.0.1'" "$badging"
+            grep -Fq "package: name='com.night.cortex' versionCode='$expected_version_code' versionName='$expected_version_name'" "$badging"
             grep -q "sdkVersion:'26'" "$badging"
             grep -q "targetSdkVersion:'36'" "$badging"
             grep -Eq "application: label='Cortex' icon='[^']+'" "$badging"

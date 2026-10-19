@@ -46,7 +46,7 @@ class CortexServerApi(
 
     fun logs(limit: Int = 250): List<String> {
         val json = getJson("/api/cortex/host/logs?limit=${limit.coerceIn(20, 1000)}")
-        return json.optJSONArray("lines").strings()
+        return json.optJSONArray("lines").strings().map(SensitiveLogRedactor::sanitize)
     }
 
     fun power(action: HostingPowerAction) {
@@ -595,7 +595,7 @@ class CortexServerApi(
                         val payload = raw.removePrefix("data:").trim()
                         if (payload.isNotBlank()) {
                             val line = runCatching { JSONObject(payload).optString("line") }.getOrDefault("")
-                            if (line.isNotBlank()) onLine(line)
+                            if (line.isNotBlank()) onLine(SensitiveLogRedactor.sanitize(line))
                         }
                     }
                 }

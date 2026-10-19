@@ -25,6 +25,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -58,6 +59,11 @@ internal fun EnvironmentPage(
     onSave: (String, String) -> Unit,
 ) {
     val environment = state.environment
+    // ABR: Cloud owns MEGA credentials and shared-folder editing.
+    // Do not show a duplicate editor for those same settings in ENV.
+    val entries = environment?.entries.orEmpty().filterNot {
+        it.key in setOf("MSCC_MEGA_EMAIL", "MSCC_MEGA_PASSWORD", "MSCC_MEGA_SHARED_FOLDERS")
+    }
     var editing by remember { mutableStateOf<EnvironmentVariable?>(null) }
 
     Column(
@@ -68,9 +74,9 @@ internal fun EnvironmentPage(
         Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp)) {
             Text("Environment", fontSize = 19.sp, fontWeight = FontWeight.SemiBold)
             Text(
-                "Managed MSCC variables",
+                "AI keys and server configuration",
                 color = CortexMuted,
-                fontSize = 10.sp,
+                fontSize = 12.sp,
             )
         }
         HorizontalDivider(color = CortexLine)
@@ -84,10 +90,10 @@ internal fun EnvironmentPage(
                 Text(
                     "The connected Cortex Agent does not expose managed environment settings.",
                     color = CortexMuted,
-                    fontSize = 10.sp,
+                    fontSize = 12.sp,
                 )
             }
-        } else if (environment.entries.isEmpty()) {
+        } else if (entries.isEmpty()) {
             Column(
                 Modifier.fillMaxWidth().padding(18.dp),
                 verticalArrangement = Arrangement.spacedBy(4.dp),
@@ -96,7 +102,7 @@ internal fun EnvironmentPage(
                 Text(
                     "Only server-whitelisted MSCC variables appear here.",
                     color = CortexMuted,
-                    fontSize = 10.sp,
+                    fontSize = 12.sp,
                 )
             }
         } else {
@@ -114,13 +120,13 @@ internal fun EnvironmentPage(
                                 "Restart MSCC to apply the latest environment change.",
                                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
                                 color = CortexText,
-                                fontSize = 10.sp,
+                                fontSize = 12.sp,
                             )
                         }
                     }
                 }
 
-                items(environment.entries, key = { it.key }) { entry ->
+                items(entries, key = { it.key }) { entry ->
                     val revealed = state.revealedEnvironment[entry.key]
                     Row(
                         Modifier
@@ -141,7 +147,7 @@ internal fun EnvironmentPage(
                                     Text(
                                         "RESTART",
                                         color = CortexMuted,
-                                        fontSize = 7.sp,
+                                        fontSize = 10.sp,
                                         fontWeight = FontWeight.Bold,
                                     )
                                 }
@@ -149,14 +155,14 @@ internal fun EnvironmentPage(
                             Text(
                                 entry.key,
                                 color = CortexMuted,
-                                fontSize = 8.sp,
+                                fontSize = 11.sp,
                                 fontFamily = FontFamily.Monospace,
                             )
                             if (entry.description.isNotBlank()) {
                                 Text(
                                     entry.description,
                                     color = CortexMuted,
-                                    fontSize = 9.sp,
+                                    fontSize = 12.sp,
                                     maxLines = 2,
                                 )
                             }
@@ -169,7 +175,7 @@ internal fun EnvironmentPage(
                                     else -> entry.value
                                 },
                                 color = if (entry.secret && revealed != null) CortexText else CortexMuted,
-                                fontSize = 10.sp,
+                                fontSize = 12.sp,
                                 fontFamily = FontFamily.Monospace,
                                 maxLines = 1,
                             )
@@ -187,7 +193,7 @@ internal fun EnvironmentPage(
                                     null,
                                 )
                                 Spacer(Modifier.width(4.dp))
-                                Text(if (revealed == null) "Reveal" else "Hide", fontSize = 9.sp)
+                                Text(if (revealed == null) "Reveal" else "Hide", fontSize = 12.sp)
                             }
                         }
                         IconButton(
@@ -242,15 +248,22 @@ private fun EnvironmentEditSheet(
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             Text("Edit ${entry.label}", fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
-            Text(entry.key, color = CortexMuted, fontSize = 9.sp, fontFamily = FontFamily.Monospace)
+            Text(entry.key, color = CortexMuted, fontSize = 12.sp, fontFamily = FontFamily.Monospace)
             if (entry.secret && initialValue.isBlank() && entry.hasValue) {
                 Text(
                     "The saved value is masked. Enter a replacement, or reveal it from the Environment screen first.",
                     color = CortexMuted,
-                    fontSize = 10.sp,
+                    fontSize = 12.sp,
                 )
             }
             OutlinedTextField(
+                shape = RoundedCornerShape(10.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = CortexAccent,
+                    unfocusedBorderColor = CortexLine,
+                    focusedContainerColor = CortexSurface,
+                    unfocusedContainerColor = CortexSurface,
+                ),
                 value = value,
                 onValueChange = { if (!it.contains('\n') && it.length <= 4096) value = it },
                 modifier = Modifier.fillMaxWidth(),
@@ -262,7 +275,7 @@ private fun EnvironmentEditSheet(
                 Text(
                     "MSCC restart required after saving.",
                     color = CortexMuted,
-                    fontSize = 9.sp,
+                    fontSize = 12.sp,
                 )
             }
             Button(
@@ -277,7 +290,7 @@ private fun EnvironmentEditSheet(
                 Text(
                     "Saving a blank value clears this variable.",
                     color = CortexDanger,
-                    fontSize = 9.sp,
+                    fontSize = 12.sp,
                 )
             }
         }
