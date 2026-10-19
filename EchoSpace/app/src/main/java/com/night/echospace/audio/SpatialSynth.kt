@@ -25,6 +25,10 @@ class SpatialSynth(
     @Volatile private var living = true
     fun setLiving(enabled: Boolean) { living = enabled }
     private val voices = mutableMapOf<Int, Voice>()
+    private var measuredVoiceLimit=3
+    fun setMeasuredVoiceLimit(limit:Int) {
+        measuredVoiceLimit=limit.coerceIn(0,4)
+    }
     private data class OutgoingVoice(val voice: Voice, val source: SoundSource, var framesRemaining: Int)
     private val outgoing = mutableListOf<OutgoingVoice>()
     private var previousSources: Map<Int, SoundSource> = emptyMap()
@@ -42,6 +46,9 @@ class SpatialSynth(
         require(out.size % 2 == 0) { "Stereo output requires an even buffer length" }
         val active = sources.filterNot { it.muted || it.gain <= 0f }.take(16)
         val upcoming = active.associateBy { it.id }
+        val binauralIds=if(measuredHrtf==null || measuredVoiceLimit==0) emptySet() else
+            active.sortedByDescending { it.gain/(1.0f+1.28f*hypot(it.x,it.y)) }
+                .take(measuredVoiceLimit).mapTo(HashSet()) { it.id }
         // Presets reuse layer IDs. Keep old voices alive briefly when their kind
         // changes, and ramp down removed/muted layers instead of hard cutting.
         for ((id, voice) in voices.toMap()) {
@@ -56,12 +63,17 @@ class SpatialSynth(
             }
         }
         // Calculate target measured HRIR once per audio block (not per sample).
-        if (measuredHrtf != null) for (source in active) {
+        if (measuredHrtf != null) for (source in active.filter{it.id in binauralIds}) {
             val x = source.x.toDouble() * coFor(headingDegrees) + source.y.toDouble() * siFor(headingDegrees)
             val y = -source.x.toDouble() * siFor(headingDegrees) + source.y.toDouble() * coFor(headingDegrees)
             voices[source.id]?.hrtf?.direction(x,y)
         }
-        active.forEach { voices[it.id]?.updateEnvironment(sampleRate, living) }
+        active.forEach {
+            voices[it.id]?.let { voice ->
+                voice.measuredSelected=it.id in binauralIds
+                voice.updateEnvironment(sampleRate, living)
+            }
+        }
         outgoing.forEach { it.voice.updateEnvironment(sampleRate, living) }
         previousSources = upcoming
         // Keep the audio callback bounded even with rapid scene switching.
@@ -95,26 +107,32 @@ class SpatialSynth(
                 val filter = if (y > 0) 0.13 + (1.0 - y.coerceIn(0.0, 1.0)) * 0.39 else 0.66
                 v.toneFilter += (raw - v.toneFilter) * filter
                 val mono = v.toneFilter * attenuation * v.smoothGain * gain
-                if (v.hrtf != null) {
+                val measuredTarget=if(v.measuredSelected && v.hrtf!=null)1.0 else 0.0
+                v.binauralMix += (measuredTarget-v.binauralMix)*0.0015
+                // A 15-ms blend prevents clicks on mobile CPU quality changes.
+                if(v.hrtf!=null && v.binauralMix>0.001) {
                     v.hrtf.sample(mono)
-                    left += v.hrtf.outputL
-                    right += v.hrtf.outputR
-                } else {
-                    // Procedural/legacy fallback when no measured filters are bundled.
+                    left += v.hrtf.outputL*v.binauralMix
+                    right += v.hrtf.outputR*v.binauralMix
+                }
+                if(v.binauralMix<0.999) {
+                    // Lightweight fallback with interaural delay and equal-power pan.
                     val pan = x.coerceIn(-1.0, 1.0)
                     val theta = (pan + 1.0) * PI / 4.0
                     val leftGain = cos(theta)
                     val rightGain = sin(theta)
-                    val itd = (abs(pan) * sampleRate * 0.00052).toInt().coerceAtMost(v.delay.size - 2)
-                    v.delay[v.delayPos] = mono
-                    val delayed = v.delay[(v.delayPos - itd + v.delay.size) % v.delay.size]
-                    v.delayPos = (v.delayPos + 1) % v.delay.size
-                    if (pan >= 0) {
-                        left += delayed * leftGain
-                        right += mono * rightGain
+                    val itd = (abs(pan)*sampleRate*0.00052).toInt()
+                        .coerceAtMost(v.delay.size-2)
+                    v.delay[v.delayPos]=mono
+                    val delayed=v.delay[(v.delayPos-itd+v.delay.size)%v.delay.size]
+                    v.delayPos=(v.delayPos+1)%v.delay.size
+                    val fall=(1.0-v.binauralMix)
+                    if(pan>=0){
+                        left+=delayed*leftGain*fall
+                        right+=mono*rightGain*fall
                     } else {
-                        left += mono * leftGain
-                        right += delayed * rightGain
+                        left+=mono*leftGain*fall
+                        right+=delayed*rightGain*fall
                     }
                 }
             }
@@ -133,15 +151,11 @@ class SpatialSynth(
                 voice.toneFilter += (raw - voice.toneFilter) * filter
                 val amp = voice.toneFilter * fade * fade *
                     (1.0 / (1.0 + 1.28 * distance)) * voice.smoothGain * gain
-                if (voice.hrtf != null) {
-                    voice.hrtf.sample(amp)
-                    left += voice.hrtf.outputL
-                    right += voice.hrtf.outputR
-                } else {
-                    val theta = (x + 1.0) * PI / 4.0
-                    left += amp * cos(theta)
-                    right += amp * sin(theta)
-                }
+                // Outgoing sounds use the inexpensive fade pathway; otherwise
+                // 24 dying sources can overwhelm a small phone's FIR budget.
+                val theta=(x+1.0)*PI/4.0
+                left+=amp*cos(theta)
+                right+=amp*sin(theta)
                 tail.framesRemaining--
             }
             // Soft saturation controls unexpectedly dense scenes without hard clipping.
@@ -156,6 +170,8 @@ class SpatialSynth(
     private class Voice(val kind: SoundKind, seed: Long,
                         private val clip: ShortArray?, bank: MeasuredHrtf?) {
         val hrtf = bank?.let { HrtfVoice(it) }
+        var measuredSelected=false
+        var binauralMix=0.0
         private var clipPhase = if (clip == null || clip.isEmpty()) 0.0 else
             (abs(seed % 31).toDouble() / 37.0) * (clip.size - 1)
         // Choose a new, nonidentical entry on each loop; overlap at the seam.
