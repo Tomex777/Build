@@ -282,10 +282,11 @@ private fun HymnHub(
                             text = { Text("Learn hymns") },
                             onClick = { moreOpen = false; onLearn() }
                         )
+                        DropdownMenuItem(
+                            text = { Text(if (dark) "Light mode" else "Dark mode") },
+                            onClick = { moreOpen = false; onToggleDark() }
+                        )
                     }
-                }
-                TextButton(onClick = onToggleDark) {
-                    Text(if (dark) "Light mode" else "Dark mode")
                 }
             }
             Spacer(Modifier.height(24.dp))
