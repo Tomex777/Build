@@ -77,6 +77,17 @@ class JourneyStore(context: Context) {
         return node.id
     }
 
+    fun renameNode(journeyId: String, nodeId: String?, title: String) {
+        if (nodeId == null || title.isBlank()) return
+        journeys = journeys.map { journey ->
+            if (journey.id != journeyId) journey
+            else journey.copy(nodes = journey.nodes.map { node ->
+                if (node.id == nodeId) node.copy(title = title.take(180)) else node
+            })
+        }
+        persist()
+    }
+
     fun bookmark(url: String, title: String) {
         if (!url.startsWith("http")) return
         bookmarks = (listOf(Bookmark(url, title.ifBlank { url })) + bookmarks.filterNot { it.url == url }).take(300)

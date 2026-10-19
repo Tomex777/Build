@@ -125,7 +125,7 @@ private fun NightBrowser(browser: BrowserController, openSaved: (SavedPage) -> U
         browser.select(tab.id)
         page = if (tab.url.isBlank()) Page.HOME else Page.WEB
     }
-    BackHandler(enabled = page != Page.HOME || current.canGoBack || peekUrl != null) {
+    BackHandler(enabled = page != Page.HOME || peekUrl != null) {
         when {
             peekUrl != null -> peekUrl = null
             page == Page.WEB && current.canGoBack -> browser.goBack()

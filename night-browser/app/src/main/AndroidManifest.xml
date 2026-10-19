@@ -2,6 +2,7 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <application
         android:label="NIGHT Browser"
+        android:icon="@drawable/ic_night"
         android:theme="@style/Theme.Night"
         android:usesCleartextTraffic="false"
         android:allowBackup="false"

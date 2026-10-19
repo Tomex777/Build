@@ -74,7 +74,10 @@ class BrowserController(private val appContext: Context) {
         }
         session.contentDelegate = object : GeckoSession.ContentDelegate {
             override fun onTitleChange(session: GeckoSession, title: String?) {
-                if (!title.isNullOrBlank()) tab.title = title
+                if (!title.isNullOrBlank()) {
+                    tab.title = title
+                    store.renameNode(tab.journeyId, tab.lastNode, title)
+                }
             }
 
             override fun onContextMenu(
