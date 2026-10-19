@@ -32,12 +32,14 @@ fun HymnAudioControls(
     downloading: Set<String>,
     onImport: (AudioKey) -> Unit,
     onDownload: (AudioKey) -> Unit,
+    onExplore: (Hymn, Boolean) -> Unit,
     learning: Boolean = false
 ) {
     var voice by rememberSaveable(hymn.key, english, learning) { mutableStateOf("solo") }
     val key = AudioKey(hymn.collection, hymn.number, if (english) "en" else "yo", voice)
     val source = remember(key, libraryVersion) { repository.source(key) }
     val approved = remember(key) { repository.recording(key) }
+    val playbackSource = source ?: repository.stream(key)
     val isActive = player.activeKey == key
 
     LaunchedEffect(key) {
@@ -78,13 +80,25 @@ fun HymnAudioControls(
                 }
             }
             Spacer(Modifier.height(10.dp))
-            if (source == null) {
+            if (playbackSource == null) {
                 Text(
                     "No ${if (voice == "solo") "solo" else "choir"} recording available in " +
                         (if (english) "English" else "Yorùbá") + " yet.",
                     color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp
                 )
                 Spacer(Modifier.height(6.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    TextButton(onClick = { onExplore(hymn, english) }) {
+                        Text("Find on YouTube")
+                    }
+                    TextButton(onClick = { onImport(key) }) { Text("Add audio file") }
+                }
+            } else {
+                if (source == null && approved != null) {
+                    Text("Online audio · Internet required",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
+                    Spacer(Modifier.height(6.dp))
+                }
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     TextButton(onClick = { onImport(key) }) { Text("Add recording") }
                     if (approved != null) {
@@ -99,7 +113,7 @@ fun HymnAudioControls(
             } else {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     IconButton(
-                        onClick = { player.toggle(key, source) },
+                        onClick = { player.toggle(key, playbackSource) },
                         enabled = !(isActive && player.loading),
                         modifier = Modifier.size(43.dp)
                     ) {
@@ -138,9 +152,17 @@ fun HymnAudioControls(
                         fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
-                // File replacement is optional; no second play button or duplicate audio controls.
-                TextButton(onClick = { onImport(key) }, contentPadding = PaddingValues(horizontal = 3.dp)) {
-                    Text("Change recording", fontSize = 12.sp)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (source == null && approved != null) {
+                        TextButton(onClick = { onDownload(key) },
+                            enabled = key.token !in downloading) {
+                            Text(if (key.token in downloading) "Downloading…" else "Save offline")
+                        }
+                    }
+                    TextButton(onClick = { onImport(key) },
+                        contentPadding = PaddingValues(horizontal = 3.dp)) {
+                        Text(if (source == null) "Add own file" else "Change recording", fontSize = 12.sp)
+                    }
                 }
             }
             if (isActive && player.loading) {
@@ -154,8 +176,8 @@ fun HymnAudioControls(
             }
             if (learning) {
                 HorizontalDivider(Modifier.padding(vertical = 12.dp))
-                if (source == null) {
-                    Text("Add or download a recording to practise passages.",
+                if (playbackSource == null) {
+                    Text("Find or add a recording to practise passages.",
                         color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp)
                 } else {
                     Text("Practise a passage", fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
@@ -291,7 +313,8 @@ fun LearnHymnReader(
     libraryVersion: Int,
     downloading: Set<String>,
     onImport: (AudioKey) -> Unit,
-    onDownload: (AudioKey) -> Unit
+    onDownload: (AudioKey) -> Unit,
+    onExplore: (Hymn, Boolean) -> Unit
 ) {
     val actualEnglish = english && hymn.hasEnglish
     val verses = if (actualEnglish) hymn.versesEn else hymn.versesYo
@@ -325,7 +348,7 @@ fun LearnHymnReader(
                 Spacer(Modifier.height(13.dp))
                 HymnAudioControls(
                     hymn, actualEnglish, repository, player, libraryVersion,
-                    downloading, onImport, onDownload, learning = true
+                    downloading, onImport, onDownload, onExplore, learning = true
                 )
             }
             items(verses.size) { index ->
