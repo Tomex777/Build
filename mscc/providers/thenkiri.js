@@ -470,6 +470,22 @@ function sourceSlug(item) {
 }
 
 async function postForItem(item) {
+  const slug = sourceSlug(item)
+  const link = String(item?.sourceLink || '').trim()
+
+  // HTML-derived results carry a slug through the movie/TV selection token.
+  // Prefer that route so a missing REST API does not block detail/episode lookup.
+  if (slug) {
+    if (link) {
+      try {
+        return await postByUrl(link)
+      } catch {}
+    }
+    try {
+      return await postByUrl(new URL('/' + slug + '/', BASE).href)
+    } catch {}
+  }
+
   const id = sourcePostId(item)
   if (id) {
     try {
@@ -477,17 +493,9 @@ async function postForItem(item) {
     } catch {}
   }
 
-  const link = String(item?.sourceLink || '').trim()
   if (link) {
     try {
       return await postByUrl(link)
-    } catch {}
-  }
-
-  const slug = sourceSlug(item)
-  if (slug) {
-    try {
-      return await postByUrl(new URL('/' + slug + '/', BASE).href)
     } catch {}
   }
   return null
@@ -675,4 +683,5 @@ export const _test = {
   sourcePostId,
   downloadwellaForm,
   startDownloadUrl,
+  resolveDownloadwella,
 }
