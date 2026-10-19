@@ -140,3 +140,23 @@ The index is now sufficient to begin source matching for almost the entire Àk�
 - `data/audio-source-candidates.json` tracks externally discovered recordings and publisher/channel research separately; candidates must pass sung-audio inspection, actual TAC stanza/tune checks, language classification, and recording/distribution-rights checks before adding to either manifest.
 - YouTube links may be used for compliant online viewing, but **YouTube-sourced audio cannot be downloaded, stripped, or repackaged inside the APK through the YouTube API** without platform authorization. To support offline audio from YouTube performers, request an independent MP3 master and an explicit redistribution licence from the relevant rights holders rather than extracting the YouTube stream.
 - A hymn's text/tune being old or public domain does **not** automatically put modern choir/solo recordings, translations, arrangements or performances into the public domain. A Commons CC0 tag from a third-party uploader likewise needs rights-origin confirmation.
+
+
+## v0.7.0 — lightweight online listening and offline audio library
+
+This release implements the requested **small-APK hybrid strategy**. Bundling thousands of recordings is **not** the default.
+
+- **Normal hymn reader:** two vocal arrangement choices, solo/choir, in the chosen Yorùbá/English language. Actual approved recordings stream over HTTPS with native play/pause/seek. Where an approved file can be downloaded, **Save offline** makes a checksum-verified local copy. A saved version plays locally first. Playback from the internet requires an approved audio catalogue entry, not merely a matching YouTube title.
+- **No licensed files yet:** if no approved recording is available, **Find on YouTube** opens an external YouTube search for that hymn instead of claiming the hymn has playable in-app audio. This is a discovery path, not downloading YouTube recordings.
+- **Index search:** for index-only hymns whose verses have not been imported yet, the audio icon opens a labelled external search rather than an empty lyric page. The full original numbering stays intact for Redemption 1–800 and Àkọkún 1–305.
+- **More → Offline audio:** lists legitimately downloaded or locally imported recordings with their exact section, number, language and arrangement; shows local storage usage; deletes only app-owned audio copies. Removing a locally imported file link never deletes the source file on the phone. Confirmation is required.
+- **More → Learn hymns** is optional and separated from normal reading; offers passage repeat and slower playback.
+- CI now assembles native Android audio instrumentation tests and runs them on the API 28 emulator using a synthesized audio tone. The test audio is not shipped with the app and is not passed off as sung hymns.
+
+### Honest content status / release blocker
+
+- **18** Redemption hymn texts are available as local working drafts (1–17 and 50), some still requiring verification against the physical printed edition.
+- **800** Redemption numbers are reserved in the index, but only an incomplete subset has verified first-line titles.
+- **305** Àkọkún numbers are reserved, with **299** first-line identities in the photographed index draft; **zero** verified full Àkọkún lyrics imported.
+- **Zero** published singing recordings have approved distribution rights or are bundled/downloadable in-app. Research links and YouTube search results are **not** licensable media assets.
+- As a result, **the software feature set can be built and tested, but it would be false to label the entire 1,105-hymn bilingual content library or singing catalogue complete**. Completing the published content requires a legitimately reusable text source and authorized sound recording masters, with verse/tune verification.
