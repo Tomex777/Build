@@ -1,0 +1,107 @@
+{
+  "schema": 1,
+  "section": "akokun",
+  "source_index_pages": "459–467 supplied by the user",
+  "purpose": "Explicit verse-matching leads, not new hymn lyrics. Online hymnals may have different numbers, stanza structures, and translations.",
+  "candidates": [
+    {
+      "number": 1,
+      "collection": "akokun",
+      "candidate_english_title": "How Sweet the Name of Jesus Sounds (Blessed Be the Name)",
+      "source_url": "https://www.ferventxtian.com/yoruba-hymn-b-oruko-jesu-ti-dun-to-how-sweet-the-name-of-jesus-sounds/",
+      "match_evidence": "same_opening_line_and_refrain",
+      "verification_note": "The printed index adds the Glory-to-His-name refrain; do not substitute the plain John Newton variant without comparing stanza structure.",
+      "full_text_status": "not_imported",
+      "yoruba_translation_rights": "not_yet_cleared",
+      "tac_stanza_check": "not_yet_checked"
+    },
+    {
+      "number": 37,
+      "collection": "akokun",
+      "candidate_english_title": "Jesus Is All the World to Me",
+      "source_url": "https://mycollectionofyorubahymns.blogspot.com/2013/12/jesu-ni-gbogbo-aye-fun-mi.html",
+      "match_evidence": "meaning_only_needs_full_opening_line_comparison",
+      "verification_note": "User's index says Jésù ju gbogbo ayé fún mi; available online version begins Jésù ni gbogbo ayé fún mi. Treat as a possible variant, not a verified exact match.",
+      "full_text_status": "not_imported",
+      "yoruba_translation_rights": "not_yet_cleared",
+      "tac_stanza_check": "not_yet_checked"
+    },
+    {
+      "number": 45,
+      "collection": "akokun",
+      "candidate_english_title": "Jesus Paid It All",
+      "source_url": "https://www.scribd.com/document/859543609/HYMN-NCGM",
+      "match_evidence": "same_opening_line",
+      "verification_note": "Yorùbá first line matches Mo gbọ́ Jésù wí pé: agbára rẹ kéré. The linked collection uses a different numbering system.",
+      "full_text_status": "not_imported",
+      "yoruba_translation_rights": "not_yet_cleared",
+      "tac_stanza_check": "not_yet_checked"
+    },
+    {
+      "number": 47,
+      "collection": "akokun",
+      "candidate_english_title": "There Is Power in the Blood",
+      "source_url": "https://pjthe3.com/agbara-n-be-nnu-eje-jesu/",
+      "match_evidence": "same_opening_line",
+      "verification_note": "Online opening-line match only; refrain and verse count still need comparison with the printed Àkọkún version.",
+      "full_text_status": "not_imported",
+      "yoruba_translation_rights": "not_yet_cleared",
+      "tac_stanza_check": "not_yet_checked"
+    },
+    {
+      "number": 65,
+      "collection": "akokun",
+      "candidate_english_title": "Yield Not to Temptation",
+      "source_url": "https://mycollectionofyorubahymns.blogspot.com/2015/07/ma-fara-fundanwo.html",
+      "match_evidence": "same_opening_line",
+      "verification_note": "Traditional bilingual source; source labels it Yoruba Baptist Hymnal 650, not TAC Àkọkún 65.",
+      "full_text_status": "not_imported",
+      "yoruba_translation_rights": "not_yet_cleared",
+      "tac_stanza_check": "not_yet_checked"
+    },
+    {
+      "number": 101,
+      "collection": "akokun",
+      "candidate_english_title": "Sweet Hour of Prayer",
+      "source_url": "https://iom.webbuild.org.ng/hymn/534/sweet-hour-of-prayer-sweet-hour-of-prayer?lang=yor",
+      "match_evidence": "same_opening_line",
+      "verification_note": "Anglican numbering 534 is unrelated; retain TAC Àkọkún number 101. Compare the verse count.",
+      "full_text_status": "not_imported",
+      "yoruba_translation_rights": "not_yet_cleared",
+      "tac_stanza_check": "not_yet_checked"
+    },
+    {
+      "number": 104,
+      "collection": "akokun",
+      "candidate_english_title": "Work for the Night Is Coming",
+      "source_url": "https://evergreenyorubahymns.blogspot.com/search/label/work%20for%20the%20night%20is%20coming",
+      "match_evidence": "same_opening_line",
+      "verification_note": "Printed first line Ṣíṣẹ́ torí òru ń bọ̀ matches common Yoruba version; independent original number 104.",
+      "full_text_status": "not_imported",
+      "yoruba_translation_rights": "not_yet_cleared",
+      "tac_stanza_check": "not_yet_checked"
+    },
+    {
+      "number": 130,
+      "collection": "akokun",
+      "candidate_english_title": "Jesus Loves Me",
+      "source_url": "https://mycollectionofyorubahymns.blogspot.com/2015/03/jesu-fe-mi-emi-mo.html",
+      "match_evidence": "same_meaning_minor_opening_word_variant",
+      "verification_note": "Print reads Jésù fẹ́ mi, mo mọ̀ bẹ́ẹ̀; another Yoruba hymnal includes Èmi. Verse comparison required.",
+      "full_text_status": "not_imported",
+      "yoruba_translation_rights": "not_yet_cleared",
+      "tac_stanza_check": "not_yet_checked"
+    },
+    {
+      "number": 303,
+      "collection": "akokun",
+      "candidate_english_title": "Amazing Grace",
+      "source_url": "https://evergreenyorubahymns.blogspot.com/2021/09/",
+      "match_evidence": "same_opening_line",
+      "verification_note": "Print reads Oore ọ̀fẹ́, bó ti dùn tó. Public-domain English original; Yoruba edition/translator rights still must be checked.",
+      "full_text_status": "not_imported",
+      "yoruba_translation_rights": "not_yet_cleared",
+      "tac_stanza_check": "not_yet_checked"
+    }
+  ]
+}
