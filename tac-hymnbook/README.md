@@ -109,3 +109,23 @@ The index is now sufficient to begin source matching for almost the entire Àk�
 - Nine Àkọkún source comparisons (nos. 1, 37, 45, 47, 65, 101, 104, 130, and 303) are recorded in `data/akokun-source-matches.json`. Eight exact/near-exact English titles have been added to the index. This is **metadata matching**, not full lyric import: words/verse counts and rights still require validation.
 - An existing Google Play app, `com.deltreetech.tachymns`, is available as an independent public reference for the Apostolic Church hymnbook. Do not copy its proprietary database without explicit rights.
 
+
+
+## Audio playback and optional Learn Hymns (v0.6.0)
+
+- Every readable hymn has a small **Recording** panel directly under the Yorùbá / English choice.
+- Recording identity uses all four dimensions: `collection:number:language:voice`. Choose **Solo** or **Choir**, and the existing text-language choice determines the recording language. Overlapping Redemption and Àkọkún numbers never share recordings or bookmarks.
+- Audio genuinely plays through Android `MediaPlayer`, with play/pause, seek, time display, and correct release on screen exit. No fake playback placeholders or text-to-speech presented as a singer.
+- **Add recording** opens Android's system file picker for an audio file the user already has permission to use; persistable URI grants let the selection work offline after restarting. **Change recording** replaces the selected solo/choir/language version. No platform storage permission required.
+- When rights-cleared MP3 audio becomes available from a permitted source, add a `rights_verified` manifest entry to `android/app/src/main/assets/audio_catalog.json` containing `collection`, `number`, `language` (`yo` or `en`), `voice` (`solo` or `choir`), `url` (HTTPS MP3), `sha256`, `credit` and `rights`. The **Download** action saves and verifies the MP3 into private app storage. Playback then works without internet. Never add a track solely because an external recording's title resembles the TAC hymn.
+- **There are currently zero shipped recordings**: no licensed recordings have been supplied or approved yet. Audio playback is fully wired for legitimately imported user recordings and for future approved catalogue downloads. Do not describe all hymns as having audio coverage.
+- **More → Learn hymns** is deliberately separate from ordinary reading. It provides slow/normal playback and repeat of a user-marked passage (mark the start and end while listening). It does not misrepresent absent verse timing data as synchronized highlighting.
+- Bundled lyrics and indices remain offline and unaffected by audio availability. Android minSdk remains 26, and the app ID remains `com.night.tachymns`.
+
+### Audio acceptance checks
+
+1. Import a real MP3 through the device picker for Redemption 1, Yorùbá/Solo. Play, pause, seek, leave/return, and restart the app: the selected file should remain accessible and the player should stop on leaving.
+2. Change to choir or English and confirm the imported solo track does not incorrectly appear in another slot. Repeat in Àkọkún with the same number once text is available.
+3. Enter **More → Learn hymns** and practise a passage with start/end markers at 0.75× / 0.85× / 1×. Confirm repeat is confined to Learn Hymns and leaving the page stops playback.
+4. Supply a rights-cleared MP3 with a correct SHA-256 entry; download, disconnect the network, reopen, and verify playback. Reject mismatched hashes and oversized/non-MP3 responses.
+5. Perform on-device speaker/headphone playback and visual input testing in addition to the existing CI build, data tests and emulator screenshots before calling the feature production-complete.
