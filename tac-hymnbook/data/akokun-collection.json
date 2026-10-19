@@ -2,11 +2,4907 @@
   "id": "akokun",
   "display_name": "Àkọkún",
   "category": "supplement",
-  "status": "numbering_range_confirmed_titles_and_lyrics_pending",
-  "hymn_count": 305,
+  "status": "full_index_photographed_first_pass_transcribed",
   "numbering_scheme": "independent_from_redemption",
-  "hymns": [],
-  "notes": "Àkọkún uses its own hymn numbering, separate from Redemption 1–800. Its last printed number is confirmed as 305. Keep IDs as (collection, number), allowing Redemption 305 and Àkọkún 305 to coexist. Only populate titles and verses when sourced; do not expose empty lyric pages.",
+  "first_number": 1,
   "last_number": 305,
-  "count_basis": "305 is the last printed Àkọkún hymn number, confirmed by the user; assumes numbering begins at 1 without skipped numbers."
+  "hymn_count": 305,
+  "source_pages": [
+    459,
+    460,
+    461,
+    462,
+    463,
+    464,
+    465,
+    466,
+    467
+  ],
+  "source_images": 5,
+  "photographed_index_rows": 302,
+  "numbered_hymns_with_title": 299,
+  "missing_title_numbers": [
+    128,
+    188,
+    211,
+    219,
+    272,
+    281
+  ],
+  "shared_number_with_multiple_index_lines": [
+    138,
+    218,
+    288
+  ],
+  "notes": "From all nine alphabetical index pages photographed in five spreads. Title transcriptions are provisional and Yorùbá diacritics must be checked; duplicate-number lines are preserved as alternative index references, not overwrites. All 305 independent hymn numbers reserved. Full hymn lyrics are not present on the index pages and have NOT been imported; do not show blank hymn pages in the app.",
+  "external_source_candidates": [
+    {
+      "number": 47,
+      "first_line": "Agbára ń bẹ nínú ẹ̀jẹ̀ Jésù",
+      "source_url": "https://pjthe3.com/agbara-n-be-nnu-eje-jesu/",
+      "match_status": "opening_line_candidate_only",
+      "rights_status": "not_checked"
+    }
+  ],
+  "hymns": [
+    {
+      "number": 1,
+      "collection": "akokun",
+      "title_yo": "Bórúkọ Jésù ti dùn tó: Ògo ni fún orúkọ Rẹ",
+      "opening_lines": [
+        {
+          "text": "Bórúkọ Jésù ti dùn tó: Ògo ni fún orúkọ Rẹ",
+          "index_page": 460,
+          "index_row": 10
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 2,
+      "collection": "akokun",
+      "title_yo": "Nnú gbogbo àyídà ayé",
+      "opening_lines": [
+        {
+          "text": "Nnú gbogbo àyídà ayé",
+          "index_page": 465,
+          "index_row": 24
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 3,
+      "collection": "akokun",
+      "title_yo": "Gbogbo ògo, ìyìn, ọlá: fún Ọ Olùdándè",
+      "opening_lines": [
+        {
+          "text": "Gbogbo ògo, ìyìn, ọlá: fún Ọ Olùdándè",
+          "index_page": 461,
+          "index_row": 24
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 4,
+      "collection": "akokun",
+      "title_yo": "Ògo f'Ọlọ́run lókè ọ̀run",
+      "opening_lines": [
+        {
+          "text": "Ògo f'Ọlọ́run lókè ọ̀run",
+          "index_page": 465,
+          "index_row": 29
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 5,
+      "collection": "akokun",
+      "title_yo": "Fún àánú tó pọ̀ bíi yanrìn",
+      "opening_lines": [
+        {
+          "text": "Fún àánú tó pọ̀ bíi yanrìn",
+          "index_page": 461,
+          "index_row": 9
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 6,
+      "collection": "akokun",
+      "title_yo": "Kò ṣọ̀rẹ́ bíi tí Jésù Onírẹ̀lẹ̀",
+      "opening_lines": [
+        {
+          "text": "Kò ṣọ̀rẹ́ bíi tí Jésù Onírẹ̀lẹ̀",
+          "index_page": 463,
+          "index_row": 33
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 7,
+      "collection": "akokun",
+      "title_yo": "Ẹnikàn ń bẹ tó fẹ́ràn wa: Ààló fẹ́ wa",
+      "opening_lines": [
+        {
+          "text": "Ẹnikàn ń bẹ tó fẹ́ràn wa: Ààló fẹ́ wa",
+          "index_page": 460,
+          "index_row": 25
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 8,
+      "collection": "akokun",
+      "title_yo": "Mo ń bọ̀ níbi agbelebu",
+      "opening_lines": [
+        {
+          "text": "Mo ń bọ̀ níbi agbelebu",
+          "index_page": 464,
+          "index_row": 36
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 9,
+      "collection": "akokun",
+      "title_yo": "Mo ti kà ìtàn agbelebu",
+      "opening_lines": [
+        {
+          "text": "Mo ti kà ìtàn agbelebu",
+          "index_page": 465,
+          "index_row": 9
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 10,
+      "collection": "akokun",
+      "title_yo": "Gbà a bá fẹ́ yà mí kúrò lọ́dọ̀ Olúwa",
+      "opening_lines": [
+        {
+          "text": "Gbà a bá fẹ́ yà mí kúrò lọ́dọ̀ Olúwa",
+          "index_page": 461,
+          "index_row": 12
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 11,
+      "collection": "akokun",
+      "title_yo": "Alélúyà! Alélúyà! Alélúyà!!!",
+      "opening_lines": [
+        {
+          "text": "Alélúyà! Alélúyà! Alélúyà!!!",
+          "index_page": 459,
+          "index_row": 9
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 12,
+      "collection": "akokun",
+      "title_yo": "Gbà tágbaára Ọlọ́run dé",
+      "opening_lines": [
+        {
+          "text": "Gbà tágbaára Ọlọ́run dé",
+          "index_page": 461,
+          "index_row": 16
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 13,
+      "collection": "akokun",
+      "title_yo": "Ọkàn mi ṣípáyà, Olúwa",
+      "opening_lines": [
+        {
+          "text": "Ọkàn mi ṣípáyà, Olúwa",
+          "index_page": 466,
+          "index_row": 22
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 14,
+      "collection": "akokun",
+      "title_yo": "Rọ mọ́ Bíbélì bí a gbà nǹkan yòókù",
+      "opening_lines": [
+        {
+          "text": "Rọ mọ́ Bíbélì bí a gbà nǹkan yòókù",
+          "index_page": 467,
+          "index_row": 4
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 15,
+      "collection": "akokun",
+      "title_yo": "Bíbélì, ìwé ìyanu",
+      "opening_lines": [
+        {
+          "text": "Bíbélì, ìwé ìyanu",
+          "index_page": 460,
+          "index_row": 5
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 16,
+      "collection": "akokun",
+      "title_yo": "Bérù ẹ̀ṣẹ̀ rẹ bá ń wọ́ ọ l'ọ́run",
+      "opening_lines": [
+        {
+          "text": "Bérù ẹ̀ṣẹ̀ rẹ bá ń wọ́ ọ l'ọ́run",
+          "index_page": 460,
+          "index_row": 2
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 17,
+      "collection": "akokun",
+      "title_yo": "Ọjọ́ ńlá kan ń bọ̀ wa",
+      "opening_lines": [
+        {
+          "text": "Ọjọ́ ńlá kan ń bọ̀ wa",
+          "index_page": 466,
+          "index_row": 17
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 18,
+      "collection": "akokun",
+      "title_yo": "Ìpè tó ní bùkún látòkè ọ̀run",
+      "opening_lines": [
+        {
+          "text": "Ìpè tó ní bùkún látòkè ọ̀run",
+          "index_page": 462,
+          "index_row": 18
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 19,
+      "collection": "akokun",
+      "title_yo": "Mo ní Olùgbàlà kan",
+      "opening_lines": [
+        {
+          "text": "Mo ní Olùgbàlà kan",
+          "index_page": 465,
+          "index_row": 2
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 20,
+      "collection": "akokun",
+      "title_yo": "Wá nígbà tí Krístì ń pè Ọ",
+      "opening_lines": [
+        {
+          "text": "Wá nígbà tí Krístì ń pè Ọ",
+          "index_page": 467,
+          "index_row": 19
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 21,
+      "collection": "akokun",
+      "title_yo": "Olùgbàlà, gbọ́bùn mi",
+      "opening_lines": [
+        {
+          "text": "Olùgbàlà, gbọ́bùn mi",
+          "index_page": 465,
+          "index_row": 34
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 22,
+      "collection": "akokun",
+      "title_yo": "Lẹ́kan sí, a tún fi Jésù lọ Ọ",
+      "opening_lines": [
+        {
+          "text": "Lẹ́kan sí, a tún fi Jésù lọ Ọ",
+          "index_page": 464,
+          "index_row": 15
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 23,
+      "collection": "akokun",
+      "title_yo": "Ẹnikẹ́ni tí ó bá gba Jésù gbọ́",
+      "opening_lines": [
+        {
+          "text": "Ẹnikẹ́ni tí ó bá gba Jésù gbọ́",
+          "index_page": 460,
+          "index_row": 26
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 24,
+      "collection": "akokun",
+      "title_yo": "Lónìí ni Jésù ń pè: aṣáko, wá",
+      "opening_lines": [
+        {
+          "text": "Lónìí ni Jésù ń pè: aṣáko, wá",
+          "index_page": 464,
+          "index_row": 16
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 25,
+      "collection": "akokun",
+      "title_yo": "Àlejò kan máa ń kànkùn",
+      "opening_lines": [
+        {
+          "text": "Àlejò kan máa ń kànkùn",
+          "index_page": 459,
+          "index_row": 8
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 26,
+      "collection": "akokun",
+      "title_yo": "Ẹ tún wọ́n kọ fún mi kí ń gbọ́",
+      "opening_lines": [
+        {
+          "text": "Ẹ tún wọ́n kọ fún mi kí ń gbọ́",
+          "index_page": 461,
+          "index_row": 2
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 27,
+      "collection": "akokun",
+      "title_yo": "Wá, ọkàn tẹ̀rù ẹ̀ṣẹ̀ ń pa",
+      "opening_lines": [
+        {
+          "text": "Wá, ọkàn tẹ̀rù ẹ̀ṣẹ̀ ń pa",
+          "index_page": 467,
+          "index_row": 20
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 28,
+      "collection": "akokun",
+      "title_yo": "Ọkàn mi sún mọ́ ìtẹ́ àánú",
+      "opening_lines": [
+        {
+          "text": "Ọkàn mi sún mọ́ ìtẹ́ àánú",
+          "index_page": 466,
+          "index_row": 21
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 29,
+      "collection": "akokun",
+      "title_yo": "Wá gbà ìsinmi rẹ",
+      "opening_lines": [
+        {
+          "text": "Wá gbà ìsinmi rẹ",
+          "index_page": 467,
+          "index_row": 15
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 30,
+      "collection": "akokun",
+      "title_yo": "Yára wá sọ́dọ̀ Jésù",
+      "opening_lines": [
+        {
+          "text": "Yára wá sọ́dọ̀ Jésù",
+          "index_page": 467,
+          "index_row": 25
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 31,
+      "collection": "akokun",
+      "title_yo": "Gbọ́ ìtàn yannà ti ìgbàlà",
+      "opening_lines": [
+        {
+          "text": "Gbọ́ ìtàn yannà ti ìgbàlà",
+          "index_page": 461,
+          "index_row": 29
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 32,
+      "collection": "akokun",
+      "title_yo": "Olùṣọ́-àgùntàn ni ń pè mí",
+      "opening_lines": [
+        {
+          "text": "Olùṣọ́-àgùntàn ni ń pè mí",
+          "index_page": 465,
+          "index_row": 36
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 33,
+      "collection": "akokun",
+      "title_yo": "Ó pé tí mo ti ń ṣàkò, Olúwa",
+      "opening_lines": [
+        {
+          "text": "Ó pé tí mo ti ń ṣàkò, Olúwa",
+          "index_page": 466,
+          "index_row": 7
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 34,
+      "collection": "akokun",
+      "title_yo": "Krístì kú lórí agbelebu",
+      "opening_lines": [
+        {
+          "text": "Krístì kú lórí agbelebu",
+          "index_page": 464,
+          "index_row": 1
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 35,
+      "collection": "akokun",
+      "title_yo": "Baba, nípa ẹ̀jẹ̀ Ọ̀dọ́-àgùntàn",
+      "opening_lines": [
+        {
+          "text": "Baba, nípa ẹ̀jẹ̀ Ọ̀dọ́-àgùntàn",
+          "index_page": 459,
+          "index_row": 28
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 36,
+      "collection": "akokun",
+      "title_yo": "Jésù dùn láti sin, èrí mi lèyí",
+      "opening_lines": [
+        {
+          "text": "Jésù dùn láti sin, èrí mi lèyí",
+          "index_page": 462,
+          "index_row": 33
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 37,
+      "collection": "akokun",
+      "title_yo": "Jésù ju gbogbo ayé fún mi",
+      "opening_lines": [
+        {
+          "text": "Jésù ju gbogbo ayé fún mi",
+          "index_page": 463,
+          "index_row": 2
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 38,
+      "collection": "akokun",
+      "title_yo": "Lẹ́kan, mo wà nínú ìdè ẹ̀ṣẹ̀",
+      "opening_lines": [
+        {
+          "text": "Lẹ́kan, mo wà nínú ìdè ẹ̀ṣẹ̀",
+          "index_page": 464,
+          "index_row": 13
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 39,
+      "collection": "akokun",
+      "title_yo": "Gbogbo ohun tó ń fà mí, mo fi sílẹ̀",
+      "opening_lines": [
+        {
+          "text": "Gbogbo ohun tó ń fà mí, mo fi sílẹ̀",
+          "index_page": 461,
+          "index_row": 25
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 40,
+      "collection": "akokun",
+      "title_yo": "Báyé bá ń fà mí pẹ̀lú ògo rẹ",
+      "opening_lines": [
+        {
+          "text": "Báyé bá ń fà mí pẹ̀lú ògo rẹ",
+          "index_page": 459,
+          "index_row": 31
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 41,
+      "collection": "akokun",
+      "title_yo": "Jésù l'ohun gbogbo fún mi: Ọ̀rẹ́ òdodo ni",
+      "opening_lines": [
+        {
+          "text": "Jésù l'ohun gbogbo fún mi: Ọ̀rẹ́ òdodo ni",
+          "index_page": 463,
+          "index_row": 4
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 42,
+      "collection": "akokun",
+      "title_yo": "Krístì mímọ́, Olúwa mi",
+      "opening_lines": [
+        {
+          "text": "Krístì mímọ́, Olúwa mi",
+          "index_page": 464,
+          "index_row": 2
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 43,
+      "collection": "akokun",
+      "title_yo": "Èmi ó yin Olúwa fún ìfẹ́ Rẹ",
+      "opening_lines": [
+        {
+          "text": "Èmi ó yin Olúwa fún ìfẹ́ Rẹ",
+          "index_page": 460,
+          "index_row": 15
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 44,
+      "collection": "akokun",
+      "title_yo": "Jésù wí pé: Òun ni ọ̀nà",
+      "opening_lines": [
+        {
+          "text": "Jésù wí pé: Òun ni ọ̀nà",
+          "index_page": 463,
+          "index_row": 17
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 45,
+      "collection": "akokun",
+      "title_yo": "Mo gbọ́, Jésù wí pé: agbára rẹ kéré",
+      "opening_lines": [
+        {
+          "text": "Mo gbọ́, Jésù wí pé: agbára rẹ kéré",
+          "index_page": 464,
+          "index_row": 32
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 46,
+      "collection": "akokun",
+      "title_yo": "Bí a bá kọ ẹ̀ṣẹ̀ mi sílẹ̀",
+      "opening_lines": [
+        {
+          "text": "Bí a bá kọ ẹ̀ṣẹ̀ mi sílẹ̀",
+          "index_page": 460,
+          "index_row": 3
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 47,
+      "collection": "akokun",
+      "title_yo": "Agbára ń bẹ nínú ẹ̀jẹ̀ Jésù",
+      "opening_lines": [
+        {
+          "text": "Agbára ń bẹ nínú ẹ̀jẹ̀ Jésù",
+          "index_page": 459,
+          "index_row": 3
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 48,
+      "collection": "akokun",
+      "title_yo": "Krístì ni ìpín mi títí",
+      "opening_lines": [
+        {
+          "text": "Krístì ni ìpín mi títí",
+          "index_page": 464,
+          "index_row": 4
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 49,
+      "collection": "akokun",
+      "title_yo": "Mo l'ọ́rẹ́ kan tó wà ní tòsí",
+      "opening_lines": [
+        {
+          "text": "Mo l'ọ́rẹ́ kan tó wà ní tòsí",
+          "index_page": 464,
+          "index_row": 35
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 50,
+      "collection": "akokun",
+      "title_yo": "Ọ̀rọ̀ ayé lè dibàjẹ́",
+      "opening_lines": [
+        {
+          "text": "Ọ̀rọ̀ ayé lè dibàjẹ́",
+          "index_page": 466,
+          "index_row": 32
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 51,
+      "collection": "akokun",
+      "title_yo": "Lẹ́kan, mo jẹ́ ẹlẹ́ṣẹ̀, ṣùgbọ́n, mo",
+      "opening_lines": [
+        {
+          "text": "Lẹ́kan, mo jẹ́ ẹlẹ́ṣẹ̀, ṣùgbọ́n, mo",
+          "index_page": 464,
+          "index_row": 11
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 52,
+      "collection": "akokun",
+      "title_yo": "Mo ti dé bí orísun wẹ̀nùmọ́",
+      "opening_lines": [
+        {
+          "text": "Mo ti dé bí orísun wẹ̀nùmọ́",
+          "index_page": 465,
+          "index_row": 8
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 53,
+      "collection": "akokun",
+      "title_yo": "Lẹ́kan, ojú mi ti fọ́ s'ogo Olúwa",
+      "opening_lines": [
+        {
+          "text": "Lẹ́kan, ojú mi ti fọ́ s'ogo Olúwa",
+          "index_page": 464,
+          "index_row": 14
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 54,
+      "collection": "akokun",
+      "title_yo": "Lẹ́kan, ìbùkún Rẹ ni mo ń wá kiri",
+      "opening_lines": [
+        {
+          "text": "Lẹ́kan, ìbùkún Rẹ ni mo ń wá kiri",
+          "index_page": 464,
+          "index_row": 9
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 55,
+      "collection": "akokun",
+      "title_yo": "Lẹ́kan, mo bá ẹ̀ṣẹ̀ jà",
+      "opening_lines": [
+        {
+          "text": "Lẹ́kan, mo bá ẹ̀ṣẹ̀ jà",
+          "index_page": 464,
+          "index_row": 10
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 56,
+      "collection": "akokun",
+      "title_yo": "Lọ́wọ́ ọ̀fọ̀ ní mo tọ Jésù wá",
+      "opening_lines": [
+        {
+          "text": "Lọ́wọ́ ọ̀fọ̀ ní mo tọ Jésù wá",
+          "index_page": 464,
+          "index_row": 22
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 57,
+      "collection": "akokun",
+      "title_yo": "Mo ní orin kan tí mo fẹ́",
+      "opening_lines": [
+        {
+          "text": "Mo ní orin kan tí mo fẹ́",
+          "index_page": 465,
+          "index_row": 3
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 58,
+      "collection": "akokun",
+      "title_yo": "Mo l'ọ́rẹ́ kan tó ṣòwọn jù",
+      "opening_lines": [
+        {
+          "text": "Mo l'ọ́rẹ́ kan tó ṣòwọn jù",
+          "index_page": 464,
+          "index_row": 34
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 59,
+      "collection": "akokun",
+      "title_yo": "Èrò dídùn ni tẹ̀ṣé mi",
+      "opening_lines": [
+        {
+          "text": "Èrò dídùn ni tẹ̀ṣé mi",
+          "index_page": 460,
+          "index_row": 16
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 60,
+      "collection": "akokun",
+      "title_yo": "Mọ́lẹ̀ wá láfọ̀nfọ̀jí",
+      "opening_lines": [
+        {
+          "text": "Mọ́lẹ̀ wá láfọ̀nfọ̀jí",
+          "index_page": 465,
+          "index_row": 10
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 61,
+      "collection": "akokun",
+      "title_yo": "Mo ní láti ní Ọ, Jésù",
+      "opening_lines": [
+        {
+          "text": "Mo ní láti ní Ọ, Jésù",
+          "index_page": 465,
+          "index_row": 1
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 62,
+      "collection": "akokun",
+      "title_yo": "Mo fẹ́ kí ń dá bíi Jésù",
+      "opening_lines": [
+        {
+          "text": "Mo fẹ́ kí ń dá bíi Jésù",
+          "index_page": 464,
+          "index_row": 29
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 63,
+      "collection": "akokun",
+      "title_yo": "Jésù, Wọ ni tẹmi láéláé",
+      "opening_lines": [
+        {
+          "text": "Jésù, Wọ ni tẹmi láéláé",
+          "index_page": 463,
+          "index_row": 18
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 64,
+      "collection": "akokun",
+      "title_yo": "Ìwọ, níwájú ẹni tọ́kàn mi ń yọ",
+      "opening_lines": [
+        {
+          "text": "Ìwọ, níwájú ẹni tọ́kàn mi ń yọ",
+          "index_page": 462,
+          "index_row": 27
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 65,
+      "collection": "akokun",
+      "title_yo": "Má fara fún dánánwò, nítor ẹ̀ṣẹ̀ ni",
+      "opening_lines": [
+        {
+          "text": "Má fara fún dánánwò, nítor ẹ̀ṣẹ̀ ni",
+          "index_page": 464,
+          "index_row": 24
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 66,
+      "collection": "akokun",
+      "title_yo": "Krístì, Balógun wa níwájú ogun",
+      "opening_lines": [
+        {
+          "text": "Krístì, Balógun wa níwájú ogun",
+          "index_page": 463,
+          "index_row": 39
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 67,
+      "collection": "akokun",
+      "title_yo": "Ẹ dìde ọmọ ìgbàlà",
+      "opening_lines": [
+        {
+          "text": "Ẹ dìde ọmọ ìgbàlà",
+          "index_page": 460,
+          "index_row": 18
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 68,
+      "collection": "akokun",
+      "title_yo": "Ìṣẹ́gun wà ní ọkàn mi",
+      "opening_lines": [
+        {
+          "text": "Ìṣẹ́gun wà ní ọkàn mi",
+          "index_page": 462,
+          "index_row": 21
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 69,
+      "collection": "akokun",
+      "title_yo": "Aṣégun àti ajógun ni a jẹ́",
+      "opening_lines": [
+        {
+          "text": "Aṣégun àti ajógun ni a jẹ́",
+          "index_page": 459,
+          "index_row": 18
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 70,
+      "collection": "akokun",
+      "title_yo": "Gbọ́ ìró ní ọ̀pópó ayé",
+      "opening_lines": [
+        {
+          "text": "Gbọ́ ìró ní ọ̀pópó ayé",
+          "index_page": 461,
+          "index_row": 28
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 71,
+      "collection": "akokun",
+      "title_yo": "Krístẹni, má ṣe jáfara",
+      "opening_lines": [
+        {
+          "text": "Krístẹni, má ṣe jáfara",
+          "index_page": 463,
+          "index_row": 36
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 72,
+      "collection": "akokun",
+      "title_yo": "Gbàtí ìdánwò yí mí ká",
+      "opening_lines": [
+        {
+          "text": "Gbàtí ìdánwò yí mí ká",
+          "index_page": 461,
+          "index_row": 18
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 73,
+      "collection": "akokun",
+      "title_yo": "Mò ń jà láti tọ́nà ìyè",
+      "opening_lines": [
+        {
+          "text": "Mò ń jà láti tọ́nà ìyè",
+          "index_page": 465,
+          "index_row": 4
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 74,
+      "collection": "akokun",
+      "title_yo": "B'Olùṣọ́-àgùntàn rere",
+      "opening_lines": [
+        {
+          "text": "B'Olùṣọ́-àgùntàn rere",
+          "index_page": 460,
+          "index_row": 9
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 75,
+      "collection": "akokun",
+      "title_yo": "Wọ ìmọ́lẹ̀ láàrín òkùnkùn ayé",
+      "opening_lines": [
+        {
+          "text": "Wọ ìmọ́lẹ̀ láàrín òkùnkùn ayé",
+          "index_page": 467,
+          "index_row": 23
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 76,
+      "collection": "akokun",
+      "title_yo": "Jésù mímọ́, ọ̀rẹ́ àtìrí",
+      "opening_lines": [
+        {
+          "text": "Jésù mímọ́, ọ̀rẹ́ àtìrí",
+          "index_page": 463,
+          "index_row": 6
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 77,
+      "collection": "akokun",
+      "title_yo": "Ògo ni fún Jésù",
+      "opening_lines": [
+        {
+          "text": "Ògo ni fún Jésù",
+          "index_page": 465,
+          "index_row": 30
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 78,
+      "collection": "akokun",
+      "title_yo": "Láìfọyà lápá a Jésù",
+      "opening_lines": [
+        {
+          "text": "Láìfọyà lápá a Jésù",
+          "index_page": 464,
+          "index_row": 5
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 79,
+      "collection": "akokun",
+      "title_yo": "Ẹ̀rù jí kò bá mi, wọ́n yóò dékun",
+      "opening_lines": [
+        {
+          "text": "Ẹ̀rù jí kò bá mi, wọ́n yóò dékun",
+          "index_page": 460,
+          "index_row": 27
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 80,
+      "collection": "akokun",
+      "title_yo": "Gbẹ́kẹ̀ lé Ọlọ́run rẹ",
+      "opening_lines": [
+        {
+          "text": "Gbẹ́kẹ̀ lé Ọlọ́run rẹ",
+          "index_page": 461,
+          "index_row": 23
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 81,
+      "collection": "akokun",
+      "title_yo": "Ìgbàgbọ́ mi ń wò Ọ",
+      "opening_lines": [
+        {
+          "text": "Ìgbàgbọ́ mi ń wò Ọ",
+          "index_page": 462,
+          "index_row": 8
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 82,
+      "collection": "akokun",
+      "title_yo": "Mo fi gbogbo ọkàn mi tán ẹni tó lè gbẹ́mi mì lá",
+      "opening_lines": [
+        {
+          "text": "Mo fi gbogbo ọkàn mi tán ẹni tó lè gbẹ́mi mì lá",
+          "index_page": 464,
+          "index_row": 31
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 83,
+      "collection": "akokun",
+      "title_yo": "Nírúùmi àti jí ayé",
+      "opening_lines": [
+        {
+          "text": "Nírúùmi àti jí ayé",
+          "index_page": 465,
+          "index_row": 23
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 84,
+      "collection": "akokun",
+      "title_yo": "Nnú gbogbo dánánwò tí ń bá mi",
+      "opening_lines": [
+        {
+          "text": "Nnú gbogbo dánánwò tí ń bá mi",
+          "index_page": 465,
+          "index_row": 25
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 85,
+      "collection": "akokun",
+      "title_yo": "Nígbà tí ọ̀nà mi bá ṣókùn",
+      "opening_lines": [
+        {
+          "text": "Nígbà tí ọ̀nà mi bá ṣókùn",
+          "index_page": 465,
+          "index_row": 15
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 86,
+      "collection": "akokun",
+      "title_yo": "Àárẹ̀ mú ọ, ọkàn rẹ pòrúrúrù",
+      "opening_lines": [
+        {
+          "text": "Àárẹ̀ mú ọ, ọkàn rẹ pòrúrúrù",
+          "index_page": 459,
+          "index_row": 17
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 87,
+      "collection": "akokun",
+      "title_yo": "Àwọn tó gbẹ́kẹ̀lé Olúwa",
+      "opening_lines": [
+        {
+          "text": "Àwọn tó gbẹ́kẹ̀lé Olúwa",
+          "index_page": 459,
+          "index_row": 21
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 88,
+      "collection": "akokun",
+      "title_yo": "B'Ọlọ́run Ọba ọ̀run",
+      "opening_lines": [
+        {
+          "text": "B'Ọlọ́run Ọba ọ̀run",
+          "index_page": 460,
+          "index_row": 11
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 89,
+      "collection": "akokun",
+      "title_yo": "Gbẹ́kẹ̀ lé Ẹ, onígbàgbọ́",
+      "opening_lines": [
+        {
+          "text": "Gbẹ́kẹ̀ lé Ẹ, onígbàgbọ́",
+          "index_page": 461,
+          "index_row": 22
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 90,
+      "collection": "akokun",
+      "title_yo": "Kí ń gbẹ́kẹ̀lé Olùgbàlà",
+      "opening_lines": [
+        {
+          "text": "Kí ń gbẹ́kẹ̀lé Olùgbàlà",
+          "index_page": 463,
+          "index_row": 30
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 91,
+      "collection": "akokun",
+      "title_yo": "Jésù, mo gbẹ́kẹ̀ mi lé Ọ",
+      "opening_lines": [
+        {
+          "text": "Jésù, mo gbẹ́kẹ̀ mi lé Ọ",
+          "index_page": 463,
+          "index_row": 9
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 92,
+      "collection": "akokun",
+      "title_yo": "Ìfẹ́ tí Jésù ní sí mi",
+      "opening_lines": [
+        {
+          "text": "Ìfẹ́ tí Jésù ní sí mi",
+          "index_page": 462,
+          "index_row": 5
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 93,
+      "collection": "akokun",
+      "title_yo": "Ọkàn ayọ̀ mi ń kọrin",
+      "opening_lines": [
+        {
+          "text": "Ọkàn ayọ̀ mi ń kọrin",
+          "index_page": 466,
+          "index_row": 19
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 94,
+      "collection": "akokun",
+      "title_yo": "Kò sú wa láti máa kọ orin ti ìgbà nni",
+      "opening_lines": [
+        {
+          "text": "Kò sú wa láti máa kọ orin ti ìgbà nni",
+          "index_page": 463,
+          "index_row": 34
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 95,
+      "collection": "akokun",
+      "title_yo": "Jésù l'ọ́rẹ́ tó dára jùlọ",
+      "opening_lines": [
+        {
+          "text": "Jésù l'ọ́rẹ́ tó dára jùlọ",
+          "index_page": 463,
+          "index_row": 5
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 96,
+      "collection": "akokun",
+      "title_yo": "Ọkàn mi ń yọ̀ nínú Olúwa",
+      "opening_lines": [
+        {
+          "text": "Ọkàn mi ń yọ̀ nínú Olúwa",
+          "index_page": 466,
+          "index_row": 20
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 97,
+      "collection": "akokun",
+      "title_yo": "Olúwa tó mú Ísírẹ́lì la òkun já",
+      "opening_lines": [
+        {
+          "text": "Olúwa tó mú Ísírẹ́lì la òkun já",
+          "index_page": 466,
+          "index_row": 4
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 98,
+      "collection": "akokun",
+      "title_yo": "Ibìkan wà tí mo fẹ́ràn",
+      "opening_lines": [
+        {
+          "text": "Ibìkan wà tí mo fẹ́ràn",
+          "index_page": 462,
+          "index_row": 3
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 99,
+      "collection": "akokun",
+      "title_yo": "Jésù, ń bá ẹni Rẹ pàdé",
+      "opening_lines": [
+        {
+          "text": "Jésù, ń bá ẹni Rẹ pàdé",
+          "index_page": 463,
+          "index_row": 10
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 100,
+      "collection": "akokun",
+      "title_yo": "Sọ gbogbo àánú rẹ fún Jésù",
+      "opening_lines": [
+        {
+          "text": "Sọ gbogbo àánú rẹ fún Jésù",
+          "index_page": 467,
+          "index_row": 8
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 101,
+      "collection": "akokun",
+      "title_yo": "Wákàtí àdúrà dídùn",
+      "opening_lines": [
+        {
+          "text": "Wákàtí àdúrà dídùn",
+          "index_page": 467,
+          "index_row": 17
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 102,
+      "collection": "akokun",
+      "title_yo": "Ojú kan á bẹ́ tí kì í t'ògbẹ́",
+      "opening_lines": [
+        {
+          "text": "Ojú kan á bẹ́ tí kì í t'ògbẹ́",
+          "index_page": 465,
+          "index_row": 32
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 103,
+      "collection": "akokun",
+      "title_yo": "Gbọ́ bí Olúwa ti ń bẹ̀bẹ̀",
+      "opening_lines": [
+        {
+          "text": "Gbọ́ bí Olúwa ti ń bẹ̀bẹ̀",
+          "index_page": 461,
+          "index_row": 26
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 104,
+      "collection": "akokun",
+      "title_yo": "Ṣíṣẹ́ torí òru ń bọ̀",
+      "opening_lines": [
+        {
+          "text": "Ṣíṣẹ́ torí òru ń bọ̀",
+          "index_page": 467,
+          "index_row": 10
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 105,
+      "collection": "akokun",
+      "title_yo": "Pẹ̀lú ayọ̀ la óò ṣiṣẹ́ f'Olúwa",
+      "opening_lines": [
+        {
+          "text": "Pẹ̀lú ayọ̀ la óò ṣiṣẹ́ f'Olúwa",
+          "index_page": 467,
+          "index_row": 2
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 106,
+      "collection": "akokun",
+      "title_yo": "N ó ha lọ ní ọwọ́ òdo",
+      "opening_lines": [
+        {
+          "text": "N ó ha lọ ní ọwọ́ òdo",
+          "index_page": 465,
+          "index_row": 13
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 107,
+      "collection": "akokun",
+      "title_yo": "Ọkàn àárẹ̀, ilé kan ń bẹ",
+      "opening_lines": [
+        {
+          "text": "Ọkàn àárẹ̀, ilé kan ń bẹ",
+          "index_page": 466,
+          "index_row": 18
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 108,
+      "collection": "akokun",
+      "title_yo": "Mo gbọ́, Olùgbàlà mi ń pè",
+      "opening_lines": [
+        {
+          "text": "Mo gbọ́, Olùgbàlà mi ń pè",
+          "index_page": 464,
+          "index_row": 33
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 109,
+      "collection": "akokun",
+      "title_yo": "Olùgbàlà mi, ọwọ́n",
+      "opening_lines": [
+        {
+          "text": "Olùgbàlà mi, ọwọ́n",
+          "index_page": 465,
+          "index_row": 35
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 110,
+      "collection": "akokun",
+      "title_yo": "O ha ń fẹ́ wa fún Jésù nínú ìwà mímọ́?",
+      "opening_lines": [
+        {
+          "text": "O ha ń fẹ́ wa fún Jésù nínú ìwà mímọ́?",
+          "index_page": 465,
+          "index_row": 31
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 111,
+      "collection": "akokun",
+      "title_yo": "Mo f'ayé àt'ifẹ́ mi fún Ọ̀dọ́-àgùntàn tó kú fún mi",
+      "opening_lines": [
+        {
+          "text": "Mo f'ayé àt'ifẹ́ mi fún Ọ̀dọ́-àgùntàn tó kú fún mi",
+          "index_page": 464,
+          "index_row": 28
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 112,
+      "collection": "akokun",
+      "title_yo": "Ẹmi, ọkàn àtára",
+      "opening_lines": [
+        {
+          "text": "Ẹmi, ọkàn àtára",
+          "index_page": 460,
+          "index_row": 24
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 113,
+      "collection": "akokun",
+      "title_yo": "Fún mi níwà mímọ́, ìgbóná ọkàn",
+      "opening_lines": [
+        {
+          "text": "Fún mi níwà mímọ́, ìgbóná ọkàn",
+          "index_page": 461,
+          "index_row": 10
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 114,
+      "collection": "akokun",
+      "title_yo": "Tìrẹ títí láé làwa á ṣe",
+      "opening_lines": [
+        {
+          "text": "Tìrẹ títí láé làwa á ṣe",
+          "index_page": 467,
+          "index_row": 14
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 115,
+      "collection": "akokun",
+      "title_yo": "Èmi kò lè ṣàì lágbára",
+      "opening_lines": [
+        {
+          "text": "Èmi kò lè ṣàì lágbára",
+          "index_page": 460,
+          "index_row": 14
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 116,
+      "collection": "akokun",
+      "title_yo": "Kí ú fẹ́ Ọ sí I Krístì kí ń fẹ́ Ọ sí I",
+      "opening_lines": [
+        {
+          "text": "Kí ú fẹ́ Ọ sí I Krístì kí ń fẹ́ Ọ sí I",
+          "index_page": 463,
+          "index_row": 29
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 117,
+      "collection": "akokun",
+      "title_yo": "Gbàtí o bá ń lọ sílẹ̀ sinmi ọ̀run",
+      "opening_lines": [
+        {
+          "text": "Gbàtí o bá ń lọ sílẹ̀ sinmi ọ̀run",
+          "index_page": 461,
+          "index_row": 19
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 118,
+      "collection": "akokun",
+      "title_yo": "Sọ fún wa bóo ti ṣe gba ìdáríjì",
+      "opening_lines": [
+        {
+          "text": "Sọ fún wa bóo ti ṣe gba ìdáríjì",
+          "index_page": 467,
+          "index_row": 7
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 119,
+      "collection": "akokun",
+      "title_yo": "Mo fẹ́ kí ń jẹ́ ìmọ́lẹ̀ fún Jésù",
+      "opening_lines": [
+        {
+          "text": "Mo fẹ́ kí ń jẹ́ ìmọ́lẹ̀ fún Jésù",
+          "index_page": 464,
+          "index_row": 30
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 120,
+      "collection": "akokun",
+      "title_yo": "Ayé yìí lẹ́wà púpọ̀",
+      "opening_lines": [
+        {
+          "text": "Ayé yìí lẹ́wà púpọ̀",
+          "index_page": 459,
+          "index_row": 5
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 121,
+      "collection": "akokun",
+      "title_yo": "Baba mi, gbọ́ tẹmi",
+      "opening_lines": [
+        {
+          "text": "Baba mi, gbọ́ tẹmi",
+          "index_page": 459,
+          "index_row": 27
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 122,
+      "collection": "akokun",
+      "title_yo": "Jésù, Onírẹ̀lẹ̀",
+      "opening_lines": [
+        {
+          "text": "Jésù, Onírẹ̀lẹ̀",
+          "index_page": 463,
+          "index_row": 14
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 123,
+      "collection": "akokun",
+      "title_yo": "Káwe tó parí ẹ̀kọ́ wa",
+      "opening_lines": [
+        {
+          "text": "Káwe tó parí ẹ̀kọ́ wa",
+          "index_page": 463,
+          "index_row": 28
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 124,
+      "collection": "akokun",
+      "title_yo": "Má ṣe húwà ẹ̀ṣẹ̀",
+      "opening_lines": [
+        {
+          "text": "Má ṣe húwà ẹ̀ṣẹ̀",
+          "index_page": 464,
+          "index_row": 27
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 125,
+      "collection": "akokun",
+      "title_yo": "Nígbà kan ní Bẹ́tílẹ́hẹ́mù",
+      "opening_lines": [
+        {
+          "text": "Nígbà kan ní Bẹ́tílẹ́hẹ́mù",
+          "index_page": 465,
+          "index_row": 14
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 126,
+      "collection": "akokun",
+      "title_yo": "Ọ̀rẹ́ kan ń bẹ f'ọmọde",
+      "opening_lines": [
+        {
+          "text": "Ọ̀rẹ́ kan ń bẹ f'ọmọde",
+          "index_page": 466,
+          "index_row": 31
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 127,
+      "collection": "akokun",
+      "title_yo": "Ọ̀nà kan ló ń tọ́ka s'ọrun",
+      "opening_lines": [
+        {
+          "text": "Ọ̀nà kan ló ń tọ́ka s'ọrun",
+          "index_page": 466,
+          "index_row": 30
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 128,
+      "collection": "akokun",
+      "title_yo": null,
+      "opening_lines": [],
+      "title_status": "index_entry_not_yet_identified",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 129,
+      "collection": "akokun",
+      "title_yo": "Èwe ti Ọba ọ̀run",
+      "opening_lines": [
+        {
+          "text": "Èwe ti Ọba ọ̀run",
+          "index_page": 460,
+          "index_row": 17
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 130,
+      "collection": "akokun",
+      "title_yo": "Jésù fẹ́ mi, mo mọ̀ bẹ́ẹ̀",
+      "opening_lines": [
+        {
+          "text": "Jésù fẹ́ mi, mo mọ̀ bẹ́ẹ̀",
+          "index_page": 463,
+          "index_row": 1
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 131,
+      "collection": "akokun",
+      "title_yo": "Pàṣẹ bùkún Rẹ lókè wa",
+      "opening_lines": [
+        {
+          "text": "Pàṣẹ bùkún Rẹ lókè wa",
+          "index_page": 467,
+          "index_row": 1
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 132,
+      "collection": "akokun",
+      "title_yo": "Krístì nípìlẹ̀ tó dájú",
+      "opening_lines": [
+        {
+          "text": "Krístì nípìlẹ̀ tó dájú",
+          "index_page": 464,
+          "index_row": 3
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 133,
+      "collection": "akokun",
+      "title_yo": "Jí, sọ agbára rẹ d'ọtun",
+      "opening_lines": [
+        {
+          "text": "Jí, sọ agbára rẹ d'ọtun",
+          "index_page": 463,
+          "index_row": 25
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 134,
+      "collection": "akokun",
+      "title_yo": "Mò ń kébi òun òùngbẹ",
+      "opening_lines": [
+        {
+          "text": "Mò ń kébi òun òùngbẹ",
+          "index_page": 465,
+          "index_row": 5
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 135,
+      "collection": "akokun",
+      "title_yo": "Ta làwa ìbá ha tọ lọ?",
+      "opening_lines": [
+        {
+          "text": "Ta làwa ìbá ha tọ lọ?",
+          "index_page": 467,
+          "index_row": 11
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 136,
+      "collection": "akokun",
+      "title_yo": "Jésù yóò pẹ̀lú rẹ l'ọ́nà rẹ gbogbo",
+      "opening_lines": [
+        {
+          "text": "Jésù yóò pẹ̀lú rẹ l'ọ́nà rẹ gbogbo",
+          "index_page": 463,
+          "index_row": 21
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 137,
+      "collection": "akokun",
+      "title_yo": "Ọ̀rọ̀ àláàfíà, la ti sín yín ará",
+      "opening_lines": [
+        {
+          "text": "Ọ̀rọ̀ àláàfíà, la ti sín yín ará",
+          "index_page": 466,
+          "index_row": 33
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 138,
+      "collection": "akokun",
+      "title_yo": "Bikíblí tí Jésù wá, ewu kò sí",
+      "opening_lines": [
+        {
+          "text": "Bikíblí tí Jésù wá, ewu kò sí",
+          "index_page": 460,
+          "index_row": 8
+        },
+        {
+          "text": "Má gbẹ́kẹ̀ l'oníṣẹ́gun nítor ẹ̀ṣẹ̀ ni",
+          "index_page": 464,
+          "index_row": 26
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 139,
+      "collection": "akokun",
+      "title_yo": "Sinmi lé Olúwa, ẹ gbọ́",
+      "opening_lines": [
+        {
+          "text": "Sinmi lé Olúwa, ẹ gbọ́",
+          "index_page": 467,
+          "index_row": 6
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 140,
+      "collection": "akokun",
+      "title_yo": "Gbọ́ ìró ẹsẹ̀ Jésù, Ó ń kọjá lọ báyìí",
+      "opening_lines": [
+        {
+          "text": "Gbọ́ ìró ẹsẹ̀ Jésù, Ó ń kọjá lọ báyìí",
+          "index_page": 461,
+          "index_row": 27
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 141,
+      "collection": "akokun",
+      "title_yo": "Gbọ́ ohùn alóre",
+      "opening_lines": [
+        {
+          "text": "Gbọ́ ohùn alóre",
+          "index_page": 461,
+          "index_row": 30
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 142,
+      "collection": "akokun",
+      "title_yo": "Jí apá Ọlọ́run kòó jí",
+      "opening_lines": [
+        {
+          "text": "Jí apá Ọlọ́run kòó jí",
+          "index_page": 463,
+          "index_row": 22
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 143,
+      "collection": "akokun",
+      "title_yo": "Krístì, kí ìjọba rẹ dé",
+      "opening_lines": [
+        {
+          "text": "Krístì, kí ìjọba rẹ dé",
+          "index_page": 463,
+          "index_row": 37
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 144,
+      "collection": "akokun",
+      "title_yo": "Olùgbàlà, a óò f'ayọ̀ hàn",
+      "opening_lines": [
+        {
+          "text": "Olùgbàlà, a óò f'ayọ̀ hàn",
+          "index_page": 465,
+          "index_row": 33
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 145,
+      "collection": "akokun",
+      "title_yo": "Jésù ń bẹ, kọ ọ̀rọ̀ ayọ̀ náà",
+      "opening_lines": [
+        {
+          "text": "Jésù ń bẹ, kọ ọ̀rọ̀ ayọ̀ náà",
+          "index_page": 463,
+          "index_row": 7
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 146,
+      "collection": "akokun",
+      "title_yo": "Jésù ń bọ̀ l'ófurufú pẹ̀lú ayọ̀",
+      "opening_lines": [
+        {
+          "text": "Jésù ń bọ̀ l'ófurufú pẹ̀lú ayọ̀",
+          "index_page": 463,
+          "index_row": 8
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 147,
+      "collection": "akokun",
+      "title_yo": "Gbà Jésù dé láti fẹ̀rẹ́ fún wa",
+      "opening_lines": [
+        {
+          "text": "Gbà Jésù dé láti fẹ̀rẹ́ fún wa",
+          "index_page": 461,
+          "index_row": 15
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 148,
+      "collection": "akokun",
+      "title_yo": "Ẹ jẹ́ ká kọrin tí yóò dá wa lára yá",
+      "opening_lines": [
+        {
+          "text": "Ẹ jẹ́ ká kọrin tí yóò dá wa lára yá",
+          "index_page": 460,
+          "index_row": 23
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 149,
+      "collection": "akokun",
+      "title_yo": "Gbàtí iṣẹ́ òun dánwò bá parí",
+      "opening_lines": [
+        {
+          "text": "Gbàtí iṣẹ́ òun dánwò bá parí",
+          "index_page": 461,
+          "index_row": 20
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 150,
+      "collection": "akokun",
+      "title_yo": "Jérúsálẹ́mù t'ọrun",
+      "opening_lines": [
+        {
+          "text": "Jérúsálẹ́mù t'ọrun",
+          "index_page": 462,
+          "index_row": 30
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 151,
+      "collection": "akokun",
+      "title_yo": "Lówùúrò ọjọ́ àjíǹde",
+      "opening_lines": [
+        {
+          "text": "Lówùúrò ọjọ́ àjíǹde",
+          "index_page": 464,
+          "index_row": 23
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 152,
+      "collection": "akokun",
+      "title_yo": "Olúwa, ń kọ bẹ́ẹ̀ fún fadaka òun wúrà",
+      "opening_lines": [
+        {
+          "text": "Olúwa, ń kọ bẹ́ẹ̀ fún fadaka òun wúrà",
+          "index_page": 466,
+          "index_row": 2
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 153,
+      "collection": "akokun",
+      "title_yo": "Lọ́jọ́ kan ṣáá ti ń kọ lẹ́sẹ̀",
+      "opening_lines": [
+        {
+          "text": "Lọ́jọ́ kan ṣáá ti ń kọ lẹ́sẹ̀",
+          "index_page": 464,
+          "index_row": 19
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 154,
+      "collection": "akokun",
+      "title_yo": "Párádísè, párádísè",
+      "opening_lines": [
+        {
+          "text": "Párádísè, párádísè",
+          "index_page": 466,
+          "index_row": 36
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 155,
+      "collection": "akokun",
+      "title_yo": "Lọ́jọ́ kan, a óò dúró níbi ìdájọ́",
+      "opening_lines": [
+        {
+          "text": "Lọ́jọ́ kan, a óò dúró níbi ìdájọ́",
+          "index_page": 464,
+          "index_row": 18
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 156,
+      "collection": "akokun",
+      "title_yo": "Nhìn-ín mo jẹ́ alejò",
+      "opening_lines": [
+        {
+          "text": "Nhìn-ín mo jẹ́ alejò",
+          "index_page": 465,
+          "index_row": 17
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 157,
+      "collection": "akokun",
+      "title_yo": "Nilẹ̀ tí ọjọ́ kì í ṣú",
+      "opening_lines": [
+        {
+          "text": "Nilẹ̀ tí ọjọ́ kì í ṣú",
+          "index_page": 465,
+          "index_row": 18
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 158,
+      "collection": "akokun",
+      "title_yo": "Ilé ewà wọ́n nni, bó ti dára tó",
+      "opening_lines": [
+        {
+          "text": "Ilé ewà wọ́n nni, bó ti dára tó",
+          "index_page": 462,
+          "index_row": 12
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 159,
+      "collection": "akokun",
+      "title_yo": "À ń sọ̀rọ̀ ilẹ̀ bùkún mi",
+      "opening_lines": [
+        {
+          "text": "À ń sọ̀rọ̀ ilẹ̀ bùkún mi",
+          "index_page": 459,
+          "index_row": 11
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 160,
+      "collection": "akokun",
+      "title_yo": "Gbà t'ayé yìí bá kọjá",
+      "opening_lines": [
+        {
+          "text": "Gbà t'ayé yìí bá kọjá",
+          "index_page": 461,
+          "index_row": 17
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 161,
+      "collection": "akokun",
+      "title_yo": "Nhìn-ín làwa ń jẹ́ rora",
+      "opening_lines": [
+        {
+          "text": "Nhìn-ín làwa ń jẹ́ rora",
+          "index_page": 465,
+          "index_row": 16
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 162,
+      "collection": "akokun",
+      "title_yo": "Ìgbà àsálẹ́ ti dùn tó",
+      "opening_lines": [
+        {
+          "text": "Ìgbà àsálẹ́ ti dùn tó",
+          "index_page": 462,
+          "index_row": 6
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 163,
+      "collection": "akokun",
+      "title_yo": "Ìbànújẹ́ pọ̀ fún wa láyé yìí",
+      "opening_lines": [
+        {
+          "text": "Ìbànújẹ́ pọ̀ fún wa láyé yìí",
+          "index_page": 462,
+          "index_row": 2
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 164,
+      "collection": "akokun",
+      "title_yo": "A óò pàdé létí odò",
+      "opening_lines": [
+        {
+          "text": "A óò pàdé létí odò",
+          "index_page": 459,
+          "index_row": 14
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 165,
+      "collection": "akokun",
+      "title_yo": "A óò dé mi ládé wúrà, gbà mo bá délé",
+      "opening_lines": [
+        {
+          "text": "A óò dé mi ládé wúrà, gbà mo bá délé",
+          "index_page": 459,
+          "index_row": 13
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 166,
+      "collection": "akokun",
+      "title_yo": "Àwa ń ṣọ́nà, àwa ń dúró títí bójú yóò fi ya",
+      "opening_lines": [
+        {
+          "text": "Àwa ń ṣọ́nà, àwa ń dúró títí bójú yóò fi ya",
+          "index_page": 459,
+          "index_row": 20
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 167,
+      "collection": "akokun",
+      "title_yo": "Ìbànújẹ́ kò sí l'ọrun",
+      "opening_lines": [
+        {
+          "text": "Ìbànújẹ́ kò sí l'ọrun",
+          "index_page": 462,
+          "index_row": 1
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 168,
+      "collection": "akokun",
+      "title_yo": "Orin ń bẹ ní ọ̀run, ìrí èyí tí àwa kò mọ̀",
+      "opening_lines": [
+        {
+          "text": "Orin ń bẹ ní ọ̀run, ìrí èyí tí àwa kò mọ̀",
+          "index_page": 466,
+          "index_row": 9
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 169,
+      "collection": "akokun",
+      "title_yo": "Ilé àláàfíà kan wà",
+      "opening_lines": [
+        {
+          "text": "Ilé àláàfíà kan wà",
+          "index_page": 462,
+          "index_row": 13
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 170,
+      "collection": "akokun",
+      "title_yo": "Ìlú àìlópin kan wà",
+      "opening_lines": [
+        {
+          "text": "Ìlú àìlópin kan wà",
+          "index_page": 462,
+          "index_row": 10
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 171,
+      "collection": "akokun",
+      "title_yo": "Lẹ́yìn ọdún díẹ̀",
+      "opening_lines": [
+        {
+          "text": "Lẹ́yìn ọdún díẹ̀",
+          "index_page": 464,
+          "index_row": 8
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 172,
+      "collection": "akokun",
+      "title_yo": "Olúwa àláàfíà wa",
+      "opening_lines": [
+        {
+          "text": "Olúwa àláàfíà wa",
+          "index_page": 465,
+          "index_row": 38
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 173,
+      "collection": "akokun",
+      "title_yo": "Ọlọ́run mi, bojú wò mí",
+      "opening_lines": [
+        {
+          "text": "Ọlọ́run mi, bojú wò mí",
+          "index_page": 466,
+          "index_row": 27
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 174,
+      "collection": "akokun",
+      "title_yo": "Ìsìn ìdàpọ̀ mímọ́",
+      "opening_lines": [
+        {
+          "text": "Ìsìn ìdàpọ̀ mímọ́",
+          "index_page": 462,
+          "index_row": 19
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 175,
+      "collection": "akokun",
+      "title_yo": "Iṣẹ́ gbogbo tí àwa ń ṣe",
+      "opening_lines": [
+        {
+          "text": "Iṣẹ́ gbogbo tí àwa ń ṣe",
+          "index_page": 462,
+          "index_row": 22
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 176,
+      "collection": "akokun",
+      "title_yo": "Nínú gbogbo ewu òru",
+      "opening_lines": [
+        {
+          "text": "Nínú gbogbo ewu òru",
+          "index_page": 465,
+          "index_row": 19
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 177,
+      "collection": "akokun",
+      "title_yo": "Ìfẹ́ Rẹ dá wa sí lónìí",
+      "opening_lines": [
+        {
+          "text": "Ìfẹ́ Rẹ dá wa sí lónìí",
+          "index_page": 462,
+          "index_row": 4
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 178,
+      "collection": "akokun",
+      "title_yo": "Ó fún mi l'édìdì",
+      "opening_lines": [
+        {
+          "text": "Ó fún mi l'édìdì",
+          "index_page": 465,
+          "index_row": 26
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 179,
+      "collection": "akokun",
+      "title_yo": "Jésù, agbára mi",
+      "opening_lines": [
+        {
+          "text": "Jésù, agbára mi",
+          "index_page": 462,
+          "index_row": 31
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 180,
+      "collection": "akokun",
+      "title_yo": "Ilé ẹ̀kọ́ ọjọ́ ìsinmi",
+      "opening_lines": [
+        {
+          "text": "Ilé ẹ̀kọ́ ọjọ́ ìsinmi",
+          "index_page": 462,
+          "index_row": 11
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 181,
+      "collection": "akokun",
+      "title_yo": "Baba wa ọ̀run, àwa dé",
+      "opening_lines": [
+        {
+          "text": "Baba wa ọ̀run, àwa dé",
+          "index_page": 459,
+          "index_row": 30
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 182,
+      "collection": "akokun",
+      "title_yo": "Yóò dáhùn gbogbo àdúrà",
+      "opening_lines": [
+        {
+          "text": "Yóò dáhùn gbogbo àdúrà",
+          "index_page": 467,
+          "index_row": 27
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 183,
+      "collection": "akokun",
+      "title_yo": "Ìgbàgbọ́ tó rí lẹ́ẹ̀rí náà",
+      "opening_lines": [
+        {
+          "text": "Ìgbàgbọ́ tó rí lẹ́ẹ̀rí náà",
+          "index_page": 462,
+          "index_row": 9
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 184,
+      "collection": "akokun",
+      "title_yo": "Ọkàn wa kún f'ayọ̀ lónìí",
+      "opening_lines": [
+        {
+          "text": "Ọkàn wa kún f'ayọ̀ lónìí",
+          "index_page": 466,
+          "index_row": 23
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 185,
+      "collection": "akokun",
+      "title_yo": "Jí ọkàn mi, dìde léyọ̀",
+      "opening_lines": [
+        {
+          "text": "Jí ọkàn mi, dìde léyọ̀",
+          "index_page": 463,
+          "index_row": 24
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 186,
+      "collection": "akokun",
+      "title_yo": "Kò tó káwọn mímọ́ bẹ̀rù",
+      "opening_lines": [
+        {
+          "text": "Kò tó káwọn mímọ́ bẹ̀rù",
+          "index_page": 463,
+          "index_row": 35
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 187,
+      "collection": "akokun",
+      "title_yo": "Ṣàà dákẹ́ ọkàn mi",
+      "opening_lines": [
+        {
+          "text": "Ṣàà dákẹ́ ọkàn mi",
+          "index_page": 467,
+          "index_row": 5
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 188,
+      "collection": "akokun",
+      "title_yo": null,
+      "opening_lines": [],
+      "title_status": "index_entry_not_yet_identified",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 189,
+      "collection": "akokun",
+      "title_yo": "Ará, ẹ jẹ́ ká jùmọ̀ rìn",
+      "opening_lines": [
+        {
+          "text": "Ará, ẹ jẹ́ ká jùmọ̀ rìn",
+          "index_page": 459,
+          "index_row": 15
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 190,
+      "collection": "akokun",
+      "title_yo": "Alábùkún ni Jésù",
+      "opening_lines": [
+        {
+          "text": "Alábùkún ni Jésù",
+          "index_page": 459,
+          "index_row": 7
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 191,
+      "collection": "akokun",
+      "title_yo": "Ẹ yọ̀, Jésù jọba",
+      "opening_lines": [
+        {
+          "text": "Ẹ yọ̀, Jésù jọba",
+          "index_page": 461,
+          "index_row": 4
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 192,
+      "collection": "akokun",
+      "title_yo": "Bẹ́lẹ́ṣẹ̀ sọ wó pọ̀",
+      "opening_lines": [
+        {
+          "text": "Bẹ́lẹ́ṣẹ̀ sọ wó pọ̀",
+          "index_page": 460,
+          "index_row": 1
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 193,
+      "collection": "akokun",
+      "title_yo": "F'oore ọ̀fẹ́ Rẹ bá wa gbé",
+      "opening_lines": [
+        {
+          "text": "F'oore ọ̀fẹ́ Rẹ bá wa gbé",
+          "index_page": 461,
+          "index_row": 8
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 194,
+      "collection": "akokun",
+      "title_yo": "Ọ̀sẹ̀, ọ̀sẹ̀ rere: ìwọ ọjọ́ ìsinmi",
+      "opening_lines": [
+        {
+          "text": "Ọ̀sẹ̀, ọ̀sẹ̀ rere: ìwọ ọjọ́ ìsinmi",
+          "index_page": 466,
+          "index_row": 34
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 195,
+      "collection": "akokun",
+      "title_yo": "Lẹ́kan, mo jìnnà s'Olúwa",
+      "opening_lines": [
+        {
+          "text": "Lẹ́kan, mo jìnnà s'Olúwa",
+          "index_page": 464,
+          "index_row": 12
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 196,
+      "collection": "akokun",
+      "title_yo": "Èmi atarà ilé mi",
+      "opening_lines": [
+        {
+          "text": "Èmi atarà ilé mi",
+          "index_page": 460,
+          "index_row": 13
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 197,
+      "collection": "akokun",
+      "title_yo": "Lẹ́yìn ayé búburú yìí",
+      "opening_lines": [
+        {
+          "text": "Lẹ́yìn ayé búburú yìí",
+          "index_page": 464,
+          "index_row": 7
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 198,
+      "collection": "akokun",
+      "title_yo": "Àwa fẹ́ ohun ti ayé yìí",
+      "opening_lines": [
+        {
+          "text": "Àwa fẹ́ ohun ti ayé yìí",
+          "index_page": 459,
+          "index_row": 19
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 199,
+      "collection": "akokun",
+      "title_yo": "Ó sùn, ni Jésù wí",
+      "opening_lines": [
+        {
+          "text": "Ó sùn, ni Jésù wí",
+          "index_page": 466,
+          "index_row": 11
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 200,
+      "collection": "akokun",
+      "title_yo": "Ìtànná tó bògbé láṣọ",
+      "opening_lines": [
+        {
+          "text": "Ìtànná tó bògbé láṣọ",
+          "index_page": 462,
+          "index_row": 24
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 201,
+      "collection": "akokun",
+      "title_yo": "Baba, a tún pàdé l'ọ́ọ́kọ̀ Jésù",
+      "opening_lines": [
+        {
+          "text": "Baba, a tún pàdé l'ọ́ọ́kọ̀ Jésù",
+          "index_page": 459,
+          "index_row": 24
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 202,
+      "collection": "akokun",
+      "title_yo": "Baba, Ẹlẹ́dàá wa",
+      "opening_lines": [
+        {
+          "text": "Baba, Ẹlẹ́dàá wa",
+          "index_page": 459,
+          "index_row": 25
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 203,
+      "collection": "akokun",
+      "title_yo": "Baba òkè ọ̀run",
+      "opening_lines": [
+        {
+          "text": "Baba òkè ọ̀run",
+          "index_page": 459,
+          "index_row": 29
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 204,
+      "collection": "akokun",
+      "title_yo": "Hósánà s'Ọmọ Dáfídì",
+      "opening_lines": [
+        {
+          "text": "Hósánà s'Ọmọ Dáfídì",
+          "index_page": 461,
+          "index_row": 32
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 205,
+      "collection": "akokun",
+      "title_yo": "Ìyìn àìnípẹ̀kun",
+      "opening_lines": [
+        {
+          "text": "Ìyìn àìnípẹ̀kun",
+          "index_page": 462,
+          "index_row": 29
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 206,
+      "collection": "akokun",
+      "title_yo": "Lóòkò Jésù, kí gbogbo ẹ̀kún wọlé!",
+      "opening_lines": [
+        {
+          "text": "Lóòkò Jésù, kí gbogbo ẹ̀kún wọlé!",
+          "index_page": 464,
+          "index_row": 20
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 207,
+      "collection": "akokun",
+      "title_yo": "Alélúyà, orin tó dùn",
+      "opening_lines": [
+        {
+          "text": "Alélúyà, orin tó dùn",
+          "index_page": 459,
+          "index_row": 10
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 208,
+      "collection": "akokun",
+      "title_yo": "Ọlọ́run ìgbàlà wa",
+      "opening_lines": [
+        {
+          "text": "Ọlọ́run ìgbàlà wa",
+          "index_page": 466,
+          "index_row": 25
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 209,
+      "collection": "akokun",
+      "title_yo": "Onígbàgbọ́, ẹ bù s'ayọ̀",
+      "opening_lines": [
+        {
+          "text": "Onígbàgbọ́, ẹ bù s'ayọ̀",
+          "index_page": 466,
+          "index_row": 6
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 210,
+      "collection": "akokun",
+      "title_yo": "Lórí òkè, lẹ́yìn ìlú",
+      "opening_lines": [
+        {
+          "text": "Lórí òkè, lẹ́yìn ìlú",
+          "index_page": 464,
+          "index_row": 17
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 211,
+      "collection": "akokun",
+      "title_yo": null,
+      "opening_lines": [],
+      "title_status": "index_entry_not_yet_identified",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 212,
+      "collection": "akokun",
+      "title_yo": "Jésù yè títí ayé",
+      "opening_lines": [
+        {
+          "text": "Jésù yè títí ayé",
+          "index_page": 463,
+          "index_row": 20
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 213,
+      "collection": "akokun",
+      "title_yo": "Olúwa, yóò ti pé tó?",
+      "opening_lines": [
+        {
+          "text": "Olúwa, yóò ti pé tó?",
+          "index_page": 466,
+          "index_row": 5
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 214,
+      "collection": "akokun",
+      "title_yo": "Ọjọ́ dájọ́ òun bínú",
+      "opening_lines": [
+        {
+          "text": "Ọjọ́ dájọ́ òun bínú",
+          "index_page": 466,
+          "index_row": 13
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 215,
+      "collection": "akokun",
+      "title_yo": "Olúwa ń bọ̀, ayé yóò mi",
+      "opening_lines": [
+        {
+          "text": "Olúwa ń bọ̀, ayé yóò mi",
+          "index_page": 466,
+          "index_row": 1
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 216,
+      "collection": "akokun",
+      "title_yo": "Ọjọ́ dájọ́, ọjọ́ ẹ̀rù",
+      "opening_lines": [
+        {
+          "text": "Ọjọ́ dájọ́, ọjọ́ ẹ̀rù",
+          "index_page": 466,
+          "index_row": 14
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 217,
+      "collection": "akokun",
+      "title_yo": "Òru bá kọjá tán",
+      "opening_lines": [
+        {
+          "text": "Òru bá kọjá tán",
+          "index_page": 466,
+          "index_row": 10
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 218,
+      "collection": "akokun",
+      "title_yo": "Ọdún míràn ti kọjá",
+      "opening_lines": [
+        {
+          "text": "Ọdún míràn ti kọjá",
+          "index_page": 466,
+          "index_row": 12
+        },
+        {
+          "text": "Yọ̀, ẹyin onígbàgbọ́",
+          "index_page": 467,
+          "index_row": 28
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 219,
+      "collection": "akokun",
+      "title_yo": null,
+      "opening_lines": [],
+      "title_status": "index_entry_not_yet_identified",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 220,
+      "collection": "akokun",
+      "title_yo": "Ìjọ tí ń dúró pé",
+      "opening_lines": [
+        {
+          "text": "Ìjọ tí ń dúró pé",
+          "index_page": 462,
+          "index_row": 15
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 221,
+      "collection": "akokun",
+      "title_yo": "Lẹ́bàá odò Jọ́dánì ni",
+      "opening_lines": [
+        {
+          "text": "Lẹ́bàá odò Jọ́dánì ni",
+          "index_page": 464,
+          "index_row": 6
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 222,
+      "collection": "akokun",
+      "title_yo": "Wúndíá gbogbo, dìde",
+      "opening_lines": [
+        {
+          "text": "Wúndíá gbogbo, dìde",
+          "index_page": 467,
+          "index_row": 24
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 223,
+      "collection": "akokun",
+      "title_yo": "Jésù kigbe pé: Èmi dé!",
+      "opening_lines": [
+        {
+          "text": "Jésù kigbe pé: Èmi dé!",
+          "index_page": 463,
+          "index_row": 3
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 224,
+      "collection": "akokun",
+      "title_yo": "Káàbọ̀ ọjọ́ rere, la ó máa wí títí",
+      "opening_lines": [
+        {
+          "text": "Káàbọ̀ ọjọ́ rere, la ó máa wí títí",
+          "index_page": 463,
+          "index_row": 26
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 225,
+      "collection": "akokun",
+      "title_yo": "Jésù tó wà lókè ọ̀run",
+      "opening_lines": [
+        {
+          "text": "Jésù tó wà lókè ọ̀run",
+          "index_page": 463,
+          "index_row": 16
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 226,
+      "collection": "akokun",
+      "title_yo": "Ọmọ Ọlọ́run, a kò fi Ọ",
+      "opening_lines": [
+        {
+          "text": "Ọmọ Ọlọ́run, a kò fi Ọ",
+          "index_page": 466,
+          "index_row": 28
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 227,
+      "collection": "akokun",
+      "title_yo": "Ẹ fún pè náà kíkàn",
+      "opening_lines": [
+        {
+          "text": "Ẹ fún pè náà kíkàn",
+          "index_page": 460,
+          "index_row": 19
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 228,
+      "collection": "akokun",
+      "title_yo": "Lọ, wàásù ìyìn rere mi",
+      "opening_lines": [
+        {
+          "text": "Lọ, wàásù ìyìn rere mi",
+          "index_page": 464,
+          "index_row": 21
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 229,
+      "collection": "akokun",
+      "title_yo": "Fún rúgbìn lówùúrò",
+      "opening_lines": [
+        {
+          "text": "Fún rúgbìn lówùúrò",
+          "index_page": 461,
+          "index_row": 11
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 230,
+      "collection": "akokun",
+      "title_yo": "Ẹsẹ̀ wọ́n ti dára tó",
+      "opening_lines": [
+        {
+          "text": "Ẹsẹ̀ wọ́n ti dára tó",
+          "index_page": 461,
+          "index_row": 1
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 231,
+      "collection": "akokun",
+      "title_yo": "Padà, aṣáko sílé rẹ",
+      "opening_lines": [
+        {
+          "text": "Padà, aṣáko sílé rẹ",
+          "index_page": 466,
+          "index_row": 35
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 232,
+      "collection": "akokun",
+      "title_yo": "Ayé ṣi ń bẹ nílé Ọ̀dọ́-àgùntàn",
+      "opening_lines": [
+        {
+          "text": "Ayé ṣi ń bẹ nílé Ọ̀dọ́-àgùntàn",
+          "index_page": 459,
+          "index_row": 22
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 233,
+      "collection": "akokun",
+      "title_yo": "Ìwọ l'ọnà, ọ̀dọ̀ Rẹ ni",
+      "opening_lines": [
+        {
+          "text": "Ìwọ l'ọnà, ọ̀dọ̀ Rẹ ni",
+          "index_page": 462,
+          "index_row": 25
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 234,
+      "collection": "akokun",
+      "title_yo": "Baba mi gbà ń bá ń ṣàkò lọ",
+      "opening_lines": [
+        {
+          "text": "Baba mi gbà ń bá ń ṣàkò lọ",
+          "index_page": 459,
+          "index_row": 26
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 235,
+      "collection": "akokun",
+      "title_yo": "Ìsun kan wà tó kún fẹ́fẹ́",
+      "opening_lines": [
+        {
+          "text": "Ìsun kan wà tó kún fẹ́fẹ́",
+          "index_page": 462,
+          "index_row": 23
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 236,
+      "collection": "akokun",
+      "title_yo": "Ó gbọ́ ohùn Jésù tó ń wí",
+      "opening_lines": [
+        {
+          "text": "Ó gbọ́ ohùn Jésù tó ń wí",
+          "index_page": 465,
+          "index_row": 27
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 237,
+      "collection": "akokun",
+      "title_yo": "Ẹlẹ́ṣẹ̀, ẹ yí padà",
+      "opening_lines": [
+        {
+          "text": "Ẹlẹ́ṣẹ̀, ẹ yí padà",
+          "index_page": 460,
+          "index_row": 21
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 238,
+      "collection": "akokun",
+      "title_yo": "Ẹlẹ́ṣẹ̀, mo fẹ́ bùkún",
+      "opening_lines": [
+        {
+          "text": "Ẹlẹ́ṣẹ̀, mo fẹ́ bùkún",
+          "index_page": 460,
+          "index_row": 22
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 239,
+      "collection": "akokun",
+      "title_yo": "Ìwọ lọ́wọ́ ẹni tí ire ń ṣàn",
+      "opening_lines": [
+        {
+          "text": "Ìwọ lọ́wọ́ ẹni tí ire ń ṣàn",
+          "index_page": 462,
+          "index_row": 26
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 240,
+      "collection": "akokun",
+      "title_yo": "Jésù, nígbà dánwò",
+      "opening_lines": [
+        {
+          "text": "Jésù, nígbà dánwò",
+          "index_page": 463,
+          "index_row": 11
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 241,
+      "collection": "akokun",
+      "title_yo": "Jésù, Olùgbàlà, wo mí",
+      "opening_lines": [
+        {
+          "text": "Jésù, Olùgbàlà, wo mí",
+          "index_page": 463,
+          "index_row": 12
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 242,
+      "collection": "akokun",
+      "title_yo": "Kìí ṣe láìnírètí",
+      "opening_lines": [
+        {
+          "text": "Kìí ṣe láìnírètí",
+          "index_page": 463,
+          "index_row": 31
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 243,
+      "collection": "akokun",
+      "title_yo": "N óò fẹ́ràn Rẹ, wọ odí mi",
+      "opening_lines": [
+        {
+          "text": "N óò fẹ́ràn Rẹ, wọ odí mi",
+          "index_page": 465,
+          "index_row": 12
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 244,
+      "collection": "akokun",
+      "title_yo": "Jésù, Ọba, ayọ̀ aláàsáré",
+      "opening_lines": [
+        {
+          "text": "Jésù, Ọba, ayọ̀ aláàsáré",
+          "index_page": 463,
+          "index_row": 13
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 245,
+      "collection": "akokun",
+      "title_yo": "Gbàgbéèlèbúù rẹ ní Krístì wí",
+      "opening_lines": [
+        {
+          "text": "Gbàgbéèlèbúù rẹ ní Krístì wí",
+          "index_page": 461,
+          "index_row": 14
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 246,
+      "collection": "akokun",
+      "title_yo": "Wá, Páráklítì mímọ́",
+      "opening_lines": [
+        {
+          "text": "Wá, Páráklítì mímọ́",
+          "index_page": 467,
+          "index_row": 21
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 247,
+      "collection": "akokun",
+      "title_yo": "Wá, mí sí wa, Ẹ̀mí mímọ́",
+      "opening_lines": [
+        {
+          "text": "Wá, mí sí wa, Ẹ̀mí mímọ́",
+          "index_page": 467,
+          "index_row": 18
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 248,
+      "collection": "akokun",
+      "title_yo": "Ọpọ̀ ìkán omi, yanrìn kékééké",
+      "opening_lines": [
+        {
+          "text": "Ọpọ̀ ìkán omi, yanrìn kékééké",
+          "index_page": 466,
+          "index_row": 29
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 249,
+      "collection": "akokun",
+      "title_yo": "Báwo ni àwọn ewé wa",
+      "opening_lines": [
+        {
+          "text": "Báwo ni àwọn ewé wa",
+          "index_page": 459,
+          "index_row": 32
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 250,
+      "collection": "akokun",
+      "title_yo": "Jésù, Wọ Onírẹ̀lẹ̀",
+      "opening_lines": [
+        {
+          "text": "Jésù, Wọ Onírẹ̀lẹ̀",
+          "index_page": 463,
+          "index_row": 19
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 251,
+      "collection": "akokun",
+      "title_yo": "Ẹ yìn-ín, ẹ yìn-ín, gbogbo ẹyin ọmọde",
+      "opening_lines": [
+        {
+          "text": "Ẹ yìn-ín, ẹ yìn-ín, gbogbo ẹyin ọmọde",
+          "index_page": 461,
+          "index_row": 3
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 252,
+      "collection": "akokun",
+      "title_yo": "Sọ ìtàn ti Jésù fún mi",
+      "opening_lines": [
+        {
+          "text": "Sọ ìtàn ti Jésù fún mi",
+          "index_page": 467,
+          "index_row": 9
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 253,
+      "collection": "akokun",
+      "title_yo": "Gbà tó bá dé, gbà tó bá dé",
+      "opening_lines": [
+        {
+          "text": "Gbà tó bá dé, gbà tó bá dé",
+          "index_page": 461,
+          "index_row": 21
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 254,
+      "collection": "akokun",
+      "title_yo": "Bíbélì Mímọ́ t'ọrun",
+      "opening_lines": [
+        {
+          "text": "Bíbélì Mímọ́ t'ọrun",
+          "index_page": 460,
+          "index_row": 6
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 255,
+      "collection": "akokun",
+      "title_yo": "Tàn mọ́lẹ̀ Rẹ sí wa",
+      "opening_lines": [
+        {
+          "text": "Tàn mọ́lẹ̀ Rẹ sí wa",
+          "index_page": 467,
+          "index_row": 13
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 256,
+      "collection": "akokun",
+      "title_yo": "Wá, Jésù, fi ara hàn",
+      "opening_lines": [
+        {
+          "text": "Wá, Jésù, fi ara hàn",
+          "index_page": 467,
+          "index_row": 16
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 257,
+      "collection": "akokun",
+      "title_yo": "Ọlọ́run, a sọ ọ̀rọ̀ Rẹ",
+      "opening_lines": [
+        {
+          "text": "Ọlọ́run, a sọ ọ̀rọ̀ Rẹ",
+          "index_page": 466,
+          "index_row": 24
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 258,
+      "collection": "akokun",
+      "title_yo": "Bíbélì, ìwé ayérayé",
+      "opening_lines": [
+        {
+          "text": "Bíbélì, ìwé ayérayé",
+          "index_page": 460,
+          "index_row": 4
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 259,
+      "collection": "akokun",
+      "title_yo": "Nípa ìgbàgbọ́ nínú Krístì",
+      "opening_lines": [
+        {
+          "text": "Nípa ìgbàgbọ́ nínú Krístì",
+          "index_page": 465,
+          "index_row": 22
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 260,
+      "collection": "akokun",
+      "title_yo": "F'ọnà rẹ l'Olúwa lọ́wọ́",
+      "opening_lines": [
+        {
+          "text": "F'ọnà rẹ l'Olúwa lọ́wọ́",
+          "index_page": 461,
+          "index_row": 7
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 261,
+      "collection": "akokun",
+      "title_yo": "Olùṣọ́-àgùntàn yóò pèsè",
+      "opening_lines": [
+        {
+          "text": "Olùṣọ́-àgùntàn yóò pèsè",
+          "index_page": 465,
+          "index_row": 37
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 262,
+      "collection": "akokun",
+      "title_yo": "Ìgbà mi ń bẹ ní ọwọ́ Rẹ",
+      "opening_lines": [
+        {
+          "text": "Ìgbà mi ń bẹ ní ọwọ́ Rẹ",
+          "index_page": 462,
+          "index_row": 7
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 263,
+      "collection": "akokun",
+      "title_yo": "Ìjì ilé lè já yíká",
+      "opening_lines": [
+        {
+          "text": "Ìjì ilé lè já yíká",
+          "index_page": 462,
+          "index_row": 14
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 264,
+      "collection": "akokun",
+      "title_yo": "Dúró pẹ̀lú ọkàn kan",
+      "opening_lines": [
+        {
+          "text": "Dúró pẹ̀lú ọkàn kan",
+          "index_page": 460,
+          "index_row": 12
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 265,
+      "collection": "akokun",
+      "title_yo": "Ní ọ̀nàkọ̀nà, Olúwa yóò pèsè",
+      "opening_lines": [
+        {
+          "text": "Ní ọ̀nàkọ̀nà, Olúwa yóò pèsè",
+          "index_page": 465,
+          "index_row": 21
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 266,
+      "collection": "akokun",
+      "title_yo": "Múra tán kóo gba ara Olúwa",
+      "opening_lines": [
+        {
+          "text": "Múra tán kóo gba ara Olúwa",
+          "index_page": 465,
+          "index_row": 11
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 267,
+      "collection": "akokun",
+      "title_yo": "Ọjọ́ kọ, àṣẹ náà lẹ́yìí",
+      "opening_lines": [
+        {
+          "text": "Ọjọ́ kọ, àṣẹ náà lẹ́yìí",
+          "index_page": 466,
+          "index_row": 16
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 268,
+      "collection": "akokun",
+      "title_yo": "Ní òru ìbànújẹ́ ni",
+      "opening_lines": [
+        {
+          "text": "Ní òru ìbànújẹ́ ni",
+          "index_page": 465,
+          "index_row": 20
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 269,
+      "collection": "akokun",
+      "title_yo": "Krístì, ológo, ọlá",
+      "opening_lines": [
+        {
+          "text": "Krístì, ológo, ọlá",
+          "index_page": 463,
+          "index_row": 38
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 270,
+      "collection": "akokun",
+      "title_yo": "Máa gbàdúrà",
+      "opening_lines": [
+        {
+          "text": "Máa gbàdúrà",
+          "index_page": 464,
+          "index_row": 25
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 271,
+      "collection": "akokun",
+      "title_yo": "Gbàdúrà wa, ọba ayé",
+      "opening_lines": [
+        {
+          "text": "Gbàdúrà wa, ọba ayé",
+          "index_page": 461,
+          "index_row": 13
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 272,
+      "collection": "akokun",
+      "title_yo": null,
+      "opening_lines": [],
+      "title_status": "index_entry_not_yet_identified",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 273,
+      "collection": "akokun",
+      "title_yo": "Ìmọ́lẹ̀ ọ̀rọ̀ dídùn yìí",
+      "opening_lines": [
+        {
+          "text": "Ìmọ́lẹ̀ ọ̀rọ̀ dídùn yìí",
+          "index_page": 462,
+          "index_row": 17
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 274,
+      "collection": "akokun",
+      "title_yo": "Jí, ọkàn mi, bá òòrùn jí",
+      "opening_lines": [
+        {
+          "text": "Jí, ọkàn mi, bá òòrùn jí",
+          "index_page": 463,
+          "index_row": 23
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 275,
+      "collection": "akokun",
+      "title_yo": "Jésù, òòrùn òdodo mi",
+      "opening_lines": [
+        {
+          "text": "Jésù, òòrùn òdodo mi",
+          "index_page": 463,
+          "index_row": 15
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 276,
+      "collection": "akokun",
+      "title_yo": "Ògo f'Ọlọ́run lálẹ́ yìí",
+      "opening_lines": [
+        {
+          "text": "Ògo f'Ọlọ́run lálẹ́ yìí",
+          "index_page": 465,
+          "index_row": 28
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 277,
+      "collection": "akokun",
+      "title_yo": "Wá s'àdúrà òòrò",
+      "opening_lines": [
+        {
+          "text": "Wá s'àdúrà òòrò",
+          "index_page": 467,
+          "index_row": 22
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 278,
+      "collection": "akokun",
+      "title_yo": "A gbójú sókè sí Ọ",
+      "opening_lines": [
+        {
+          "text": "A gbójú sókè sí Ọ",
+          "index_page": 459,
+          "index_row": 4
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 279,
+      "collection": "akokun",
+      "title_yo": "Ká tó sùn Olùgbàlà wa",
+      "opening_lines": [
+        {
+          "text": "Ká tó sùn Olùgbàlà wa",
+          "index_page": 463,
+          "index_row": 27
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 280,
+      "collection": "akokun",
+      "title_yo": "Kóore ọ̀fẹ́ Krístì Olúwa",
+      "opening_lines": [
+        {
+          "text": "Kóore ọ̀fẹ́ Krístì Olúwa",
+          "index_page": 463,
+          "index_row": 32
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 281,
+      "collection": "akokun",
+      "title_yo": null,
+      "opening_lines": [],
+      "title_status": "index_entry_not_yet_identified",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 282,
+      "collection": "akokun",
+      "title_yo": "Aà! wọ́n ti gunlẹ̀ ṣebúùtè",
+      "opening_lines": [
+        {
+          "text": "Aà! wọ́n ti gunlẹ̀ ṣebúùtè",
+          "index_page": 459,
+          "index_row": 12
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 283,
+      "collection": "akokun",
+      "title_yo": "Àkókò wa gbogbo ló ń yára",
+      "opening_lines": [
+        {
+          "text": "Àkókò wa gbogbo ló ń yára",
+          "index_page": 459,
+          "index_row": 6
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 284,
+      "collection": "akokun",
+      "title_yo": "Ará, ìwọ síwájú wa lọ",
+      "opening_lines": [
+        {
+          "text": "Ará, ìwọ síwájú wa lọ",
+          "index_page": 459,
+          "index_row": 16
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 285,
+      "collection": "akokun",
+      "title_yo": "Ẹgbẹẹgbẹ̀rún àìmọye",
+      "opening_lines": [
+        {
+          "text": "Ẹgbẹẹgbẹ̀rún àìmọye",
+          "index_page": 460,
+          "index_row": 20
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 286,
+      "collection": "akokun",
+      "title_yo": "F'áwọn ènìyàn Rẹ tó lọ sinmi",
+      "opening_lines": [
+        {
+          "text": "F'áwọn ènìyàn Rẹ tó lọ sinmi",
+          "index_page": 461,
+          "index_row": 5
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 287,
+      "collection": "akokun",
+      "title_yo": "Gbọ́ ọkàn mi bí Àńgẹ́lì ti ń kọrin",
+      "opening_lines": [
+        {
+          "text": "Gbọ́ ọkàn mi bí Àńgẹ́lì ti ń kọrin",
+          "index_page": 461,
+          "index_row": 31
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 288,
+      "collection": "akokun",
+      "title_yo": "Ilé bùkún kan wà",
+      "opening_lines": [
+        {
+          "text": "Ilé bùkún kan wà",
+          "index_page": 462,
+          "index_row": 16
+        },
+        {
+          "text": "Yíká orí ìtẹ́ Ọlọ́run",
+          "index_page": 467,
+          "index_row": 26
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 289,
+      "collection": "akokun",
+      "title_yo": "Ìsinmi wà l'ọrun, kò sí láyé",
+      "opening_lines": [
+        {
+          "text": "Ìsinmi wà l'ọrun, kò sí láyé",
+          "index_page": 462,
+          "index_row": 20
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 290,
+      "collection": "akokun",
+      "title_yo": "Ránṣẹ́ Ọlọ́run ṣeun",
+      "opening_lines": [
+        {
+          "text": "Ránṣẹ́ Ọlọ́run ṣeun",
+          "index_page": 467,
+          "index_row": 3
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 291,
+      "collection": "akokun",
+      "title_yo": "Ta làwọn wọ̀nyí bí ìràwọ̀?",
+      "opening_lines": [
+        {
+          "text": "Ta làwọn wọ̀nyí bí ìràwọ̀?",
+          "index_page": 467,
+          "index_row": 12
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 292,
+      "collection": "akokun",
+      "title_yo": "Mo ti dé dé rere náà",
+      "opening_lines": [
+        {
+          "text": "Mo ti dé dé rere náà",
+          "index_page": 465,
+          "index_row": 7
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 293,
+      "collection": "akokun",
+      "title_yo": "A bẹ, a fẹ rí Ọ",
+      "opening_lines": [
+        {
+          "text": "A bẹ, a fẹ rí Ọ",
+          "index_page": 459,
+          "index_row": 1
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 294,
+      "collection": "akokun",
+      "title_yo": "Ayọ̀ ọjọ́ ìsinmi fún mi",
+      "opening_lines": [
+        {
+          "text": "Ayọ̀ ọjọ́ ìsinmi fún mi",
+          "index_page": 459,
+          "index_row": 23
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 295,
+      "collection": "akokun",
+      "title_yo": "Bí mo ti yọ láti gbọ́rọ̀",
+      "opening_lines": [
+        {
+          "text": "Bí mo ti yọ láti gbọ́rọ̀",
+          "index_page": 460,
+          "index_row": 7
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 296,
+      "collection": "akokun",
+      "title_yo": "Jésù, a fẹ́ pàdé",
+      "opening_lines": [
+        {
+          "text": "Jésù, a fẹ́ pàdé",
+          "index_page": 462,
+          "index_row": 32
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 297,
+      "collection": "akokun",
+      "title_yo": "Ọjọ́ mọ́lẹ̀ lẹ́yìí",
+      "opening_lines": [
+        {
+          "text": "Ọjọ́ mọ́lẹ̀ lẹ́yìí",
+          "index_page": 466,
+          "index_row": 15
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 298,
+      "collection": "akokun",
+      "title_yo": "Olúwa ọjọ́ ìsinmi",
+      "opening_lines": [
+        {
+          "text": "Olúwa ọjọ́ ìsinmi",
+          "index_page": 466,
+          "index_row": 3
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 299,
+      "collection": "akokun",
+      "title_yo": "Ọlọ́run wa ọ̀run",
+      "opening_lines": [
+        {
+          "text": "Ọlọ́run wa ọ̀run",
+          "index_page": 466,
+          "index_row": 26
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 300,
+      "collection": "akokun",
+      "title_yo": "Ìwọ tó ń mú ọkàn mọ́lẹ̀",
+      "opening_lines": [
+        {
+          "text": "Ìwọ tó ń mú ọkàn mọ́lẹ̀",
+          "index_page": 462,
+          "index_row": 28
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 301,
+      "collection": "akokun",
+      "title_yo": "Fẹ́ ẹnikeji rẹ",
+      "opening_lines": [
+        {
+          "text": "Fẹ́ ẹnikeji rẹ",
+          "index_page": 461,
+          "index_row": 6
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 302,
+      "collection": "akokun",
+      "title_yo": "Mò ń lọ, tálákà mi ń bẹ",
+      "opening_lines": [
+        {
+          "text": "Mò ń lọ, tálákà mi ń bẹ",
+          "index_page": 465,
+          "index_row": 6
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 303,
+      "collection": "akokun",
+      "title_yo": "Oore ọ̀fẹ́, bó ti dùn tó",
+      "opening_lines": [
+        {
+          "text": "Oore ọ̀fẹ́, bó ti dùn tó",
+          "index_page": 466,
+          "index_row": 8
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 304,
+      "collection": "akokun",
+      "title_yo": "Jésù farahàn nítòótọ́",
+      "opening_lines": [
+        {
+          "text": "Jésù farahàn nítòótọ́",
+          "index_page": 462,
+          "index_row": 34
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    },
+    {
+      "number": 305,
+      "collection": "akokun",
+      "title_yo": "A ní ìpìlẹ̀ yìí lẹ́lẹ̀",
+      "opening_lines": [
+        {
+          "text": "A ní ìpìlẹ̀ yìí lẹ́lẹ̀",
+          "index_page": 459,
+          "index_row": 2
+        }
+      ],
+      "title_status": "photographed_index_draft_needs_orthography_check",
+      "verses_yo": null,
+      "verses_en": null,
+      "lyrics_status": "not_imported"
+    }
+  ]
 }
