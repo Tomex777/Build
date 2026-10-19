@@ -62,6 +62,8 @@ jobs:
         run: node night-play/puzzles/mobile-smoke.mjs
       - name: Play five new action arcade games on mobile and resize screens
         run: node night-play/action/mobile-smoke.mjs
+      - name: Play Nomi-inspired party games across actual mobile viewports
+        run: node night-play/party/mobile-smoke.mjs
       - name: Capture mobile board visual diagnostics
         run: node night-play/visual-inspect.mjs
       - name: Upload game screenshots
