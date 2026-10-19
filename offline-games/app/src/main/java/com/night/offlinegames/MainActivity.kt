@@ -143,7 +143,8 @@ private val games = listOf(
     GameEntry("biketrail", "Bike Trail", "Racing", "Jump rocky hazards"),
     GameEntry("boat", "Boat Race", "Racing", "Navigate floating race gates"),
     GameEntry("drifthunt", "Drift Hunt", "Racing", "Build drifting combos"),
-    GameEntry("horse", "Horse Derby", "Racing", "Alternate strides to beat the CPU")
+    GameEntry("horse", "Horse Derby", "Racing", "Alternate strides to beat the CPU"),
+    GameEntry("memory", "Memory Match", "Memory", "Match illustrated animals, vehicles and space cards")
 
 
 )

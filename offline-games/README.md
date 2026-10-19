@@ -4,7 +4,7 @@ Android app for an original offline game collection, expanding in tested batches
 
 - **Application ID:** `com.night.offlinegames`, following the required `com.night.<appname>` convention. Change the final segment consistently at renaming time.
 - **Platform:** native Android / Kotlin / Compose, `minSdk 26`.
-- **Current playable catalog:** 66 implemented games, not 105 placeholders: native 2048; six existing NIGHT Play arcade/puzzle games bundled offline; and 59 newly implemented locally bundled logic, board, card and action games in `classics/`.
+- **Current playable catalog:** 67 implemented games, not 105 placeholders: native 2048; six existing NIGHT Play arcade/puzzle games bundled offline; and 60 newly implemented locally bundled logic, board, card and action games in `classics/`.
 - **No INTERNET permission.** The embedded arcade loads under WebViewAssetLoader on the reserved `appassets.androidplatform.net` virtual host, with network loads blocked.
 - **Progress:** 2048 persists the board and best in device preferences; arcade game scores persist in the WebView's local storage; hub remembers recent games and favourites.
 - **Style:** no ad SDK, online account requirement, global volume slider, placeholder tiles, or duplicate back buttons.
@@ -33,9 +33,13 @@ Added Car Dodge, Zigzag Path, Laser Dodge, Archery, Golf Putt, ten-frame Bowling
 
 Bundled the BSD-2-Clause `chess.js` v0.10.3 rules engine for legal chess (including castling, en passant, check, mate, promotion and stalemate), rendered with original SVG pieces and an offline computer opponent. Also added five original racing mechanics: Drag Race, Bike Trail, Boat Race, Drift Hunt and Horse Derby. Licensing is included under `assets/classics/CHESS-LICENSE.txt`. All games launch offline and do not request internet access.
 
+## Themed Memory Match (offline artwork)
+
+Added real illustrated memory cards rather than shape placeholders, with 18 distinct pictures each in Animals, Vehicles and Space. The default is 6×4; choose 4×4, 6×4, 6×5 or 6×6 only from the dedicated in-game Settings control. Cards flip smoothly, unmatched cards return face-down, matching pairs stay visible, and play state, move count and elapsed time can be resumed locally. Art is individually bundled SVG from Twemoji and attributed under CC BY 4.0, with the entire graphics license kept inside the app. No images are loaded over a network.
+
 ## Next game batches
 
-Continue with the requested, curated visual Memory Match and Jigsaw games, then complete the remaining board, action, sports and racing catalog. Never claim completion from a tile or stub. Shape-only Memory Match is intentionally withheld until its card themes meet the approved design. The NIGHT Play monolithic `index.html` depends on the website's account/channel shell and should **not** be copied blindly into the offline APK. Extract and adapt each game deliberately.
+Continue with the requested, curated visual Memory Match and Jigsaw games, then complete the remaining board, action, sports and racing catalog. Never claim completion from a tile or stub. Memory Match uses locally bundled illustrated picture sets rather than shape-only placeholder cards. The NIGHT Play monolithic `index.html` depends on the website's account/channel shell and should **not** be copied blindly into the offline APK. Extract and adapt each game deliberately.
 
 ## Manual device review needed
 
