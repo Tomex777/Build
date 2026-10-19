@@ -49,7 +49,6 @@ function renderJoin(){
   const name=verified?identity.profile.displayName:'';
   panel.innerHTML='<div class="party-panel">'+
     (verified?'<p>Your NIGHT Play account will join as <strong>'+esc(name)+'</strong>.</p>':
-      ''+
       '<form id="joinForm"><label class="party-field" for="guestName">Your name<input id="guestName" name="guestName" class="party-input" maxlength="24" autocomplete="nickname" placeholder="How should friends call you?" required></label>'+
       '<button class="party-primary" type="submit">Join this game</button></form>')+
       (verified?btn('Join as '+esc(name),'join'):'')+'</div>';
