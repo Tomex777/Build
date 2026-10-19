@@ -298,6 +298,7 @@ class MainActivity : Activity() {
         private var zoom=1f
         private var meter=1f
         private var sheet=Sheet.NONE
+        private var soundPage=0
         private var accessibilityState=""
         private var mode=Mode.EDIT
         private var wallMaterial=Material.STONE
@@ -326,7 +327,7 @@ class MainActivity : Activity() {
         override fun onDraw(canvas:Canvas) {
             super.onDraw(canvas)
             ww=width/density;hh=height/density
-            val state="Sound Atlas. World "+world.name+". Panel "+sheet.name+
+            val state="Sound Atlas. World "+world.name+". Panel "+sheet.name+(if(sheet==Sheet.SOUNDS)" page "+(soundPage+1) else "")+
                 ". Mode "+mode.name+". "+world.sounds.size+" sound sources."
             if(state!=accessibilityState){
                 accessibilityState=state
@@ -539,7 +540,7 @@ class MainActivity : Activity() {
                     action(c,name,x,hh-94f,inner-5f,74f,captions[index],active) {
                         when(index){
                             0->{sheet=Sheet.LIBRARY;mode=Mode.EDIT}
-                            1->{sheet=Sheet.SOUNDS;mode=Mode.EDIT}
+                            1->{sheet=Sheet.SOUNDS;soundPage=0;mode=Mode.EDIT}
                             2->{sheet=Sheet.MATERIALS;mode=Mode.DRAW_WALL}
                             3->{sheet=Sheet.ZONES;mode=Mode.ADD_ZONE}
                             4->{
@@ -611,11 +612,17 @@ class MainActivity : Activity() {
                     }
                 }
                 Sheet.SOUNDS->{
+                    val totalPages=(SoundKind.entries.size+9)/10
+                    val start=soundPage*10
+                    val pageItems=SoundKind.entries.drop(start).take(10)
                     val cell=(ww-47f)/2f;val gap=7f
-                    SoundKind.entries.forEachIndexed { i,kind->
+                    // Deliberately paginated: 18 cards never overlap the bottom
+                    // edge on smaller devices. Proper 48dp minimum tap targets.
+                    pageItems.forEachIndexed { i,kind->
                         val x=20f+(i%2)*(cell+gap)
-                        val y=top+58f+(i/2)*((height-74f)/7f)
-                        val ch=((height-88f)/7f).coerceAtLeast(32f)
+                        val step=(height-130f)/5f
+                        val y=top+78f+(i/2)*step
+                        val ch=(step-7f).coerceAtLeast(48f)
                         box(c,x,y,x+cell,y+ch,0xFF1B3440.toInt(),10f)
                         c.drawCircle(x+15f,y+ch/2,5f,paint(kind.color))
                         label(c,kind.title,x+28f,y+ch/2+4f,11f,text,true)
@@ -633,6 +640,18 @@ class MainActivity : Activity() {
                             world.sounds+=Emitter(id,kind,pos,.7f,true,false,id*7919+world.seed)
                             selectedId=id;selectedWall=-1;selectedZone=-1;sheet=Sheet.INSPECT
                             changed()
+                        }
+                    }
+                    val pageLabel=(soundPage+1).toString()+" / "+totalPages
+                    label(c,pageLabel,ww*.5f-12f,top+65f,11f,teal,true)
+                    if(soundPage>0) {
+                        smallButton(c,"PREVIOUS",20f,hh-57f,ww*.43f,42f){
+                            soundPage--;invalidate()
+                        }
+                    }
+                    if(soundPage<totalPages-1) {
+                        smallButton(c,"NEXT SOUNDS",ww*.56f,hh-57f,ww*.40f,42f){
+                            soundPage++;invalidate()
                         }
                     }
                 }
