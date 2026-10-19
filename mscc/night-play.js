@@ -129,7 +129,7 @@ export class NightPlay {
       return { ok:true }
     }
     if (typeof action === 'string' && action.startsWith('party:')) {
-      this.limit('party-client:' + String(client || 'unknown'), 160)
+      this.limit((action==='party:state'?'party-poll-client:':'party-client:') + String(client || 'unknown'), action==='party:state'?900:160)
       return this.partyRooms.request(action, {userId:row?.user_id,guestSession,code,mode,questions,guestName,answer})
     }
     if (!row?.user_id) throw new PlayError(401, 'Connect WhatsApp to continue.')
@@ -231,7 +231,7 @@ export function createNightPlayHandler(play, { publicKey = readFileSync(new URL(
       try { body = JSON.parse(raw) } catch { return reply(400, { error:'Invalid JSON.' }) }
       if (!body || Array.isArray(body) || typeof body !== 'object') return reply(400, { error:'Invalid request.' })
       play.limit('rpc-global', 1800)
-      play.limit('rpc-client:' + String(body.client || 'unknown'), 180)
+      play.limit((body.action==='party:state'?'rpc-poll-client:':'rpc-client:') + String(body.client || 'unknown'), body.action==='party:state'?900:180)
       const result = body.action === 'channel:verify' ? await (async () => {
         const userId = body.session ? play.session(body.session)?.user_id : null
         if (!userId) throw new PlayError(401,'Connect WhatsApp to continue.')
