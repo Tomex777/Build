@@ -13,8 +13,12 @@ import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.RectF
+import android.graphics.Rect
 import android.net.Uri
 import android.os.Bundle
+import androidx.core.view.ViewCompat
+import androidx.core.view.accessibility.AccessibilityNodeInfoCompat
+import androidx.customview.widget.ExploreByTouchHelper
 import android.view.MotionEvent
 import android.view.View
 import android.view.WindowManager
@@ -233,10 +237,56 @@ class MainActivity : Activity() {
 
     private enum class Sheet { NONE, LIBRARY, SOUNDS, MATERIALS, ZONES, ATMOSPHERE, INSPECT }
     private enum class Mode { EDIT, DRAW_WALL, ADD_ZONE, EXPLORE }
-    private data class Hit(val rect: RectF, val action: () -> Unit)
+    private data class Hit(val rect: RectF, val label:String, val action: () -> Unit)
 
     private inner class AtlasCanvas : View(this@MainActivity) {
         private val density=resources.displayMetrics.density
+        // Custom Canvas elements must be real TalkBack virtual buttons, not an
+        // unlabeled bitmap. This also makes QA inspect actual active controls.
+        private val accessibilityDelegate=object:ExploreByTouchHelper(this) {
+            override fun getVirtualViewAt(x:Float,y:Float):Int =
+                buttons.indices.reversed().firstOrNull {
+                    buttons[it].rect.contains(x/density,y/density)
+                } ?: INVALID_ID
+
+            override fun getVisibleVirtualViews(virtualViewIds:MutableList<Int>) {
+                virtualViewIds.addAll(buttons.indices.toList())
+            }
+            override fun onPopulateNodeForVirtualView(
+                virtualViewId:Int,node:AccessibilityNodeInfoCompat
+            ) {
+                val hit=buttons.getOrNull(virtualViewId)
+                if(hit==null){
+                    node.contentDescription="Unavailable control"
+                    node.setBoundsInParent(Rect(0,0,1,1))
+                    return
+                }
+                val bounds=hit.rect
+                node.contentDescription=hit.label
+                node.className="android.widget.Button"
+                node.isClickable=true
+                node.isEnabled=true
+                node.isFocusable=true
+                node.addAction(AccessibilityNodeInfoCompat.ACTION_CLICK)
+                node.setBoundsInParent(Rect(
+                    (bounds.left*density).roundToInt(),(bounds.top*density).roundToInt(),
+                    (bounds.right*density).roundToInt(),(bounds.bottom*density).roundToInt()
+                ))
+            }
+            override fun onPerformActionForVirtualView(
+                virtualViewId:Int,action:Int,arguments:Bundle?
+            ):Boolean {
+                if(action!=AccessibilityNodeInfoCompat.ACTION_CLICK)return false
+                val hit=buttons.getOrNull(virtualViewId)?:return false
+                hit.action()
+                invalidate()
+                invalidateRoot()
+                return true
+            }
+        }
+        init { ViewCompat.setAccessibilityDelegate(this,accessibilityDelegate) }
+        override fun dispatchHoverEvent(event:MotionEvent):Boolean =
+            accessibilityDelegate.dispatchHoverEvent(event) || super.dispatchHoverEvent(event)
         private val paint=Paint(Paint.ANTI_ALIAS_FLAG)
         private val background=0xFF08121B.toInt()
         private val card=0xFF101F2A.toInt()
@@ -409,7 +459,18 @@ class MainActivity : Activity() {
                 label(c,caption,x+(w-width)*.5f,y+h-10f,size,
                     if(active)teal else 0xFFC5D2D4.toInt(),true)
             }
-            buttons += Hit(RectF(x,y,x+w,y+h),onClick)
+            val spoken=if(caption.isNotBlank())caption else when(name){
+                "load"->"Import acoustic world"
+                "save"->"Save acoustic world"
+                "share"->"Share acoustic world"
+                "play"->"Play spatial audio"
+                "pause"->"Pause spatial audio"
+                "close"->"Close panel"
+                "plus"->"Increase value"
+                "minus"->"Decrease value"
+                else->name.replaceFirstChar{it.uppercase()}
+            }
+            buttons += Hit(RectF(x,y,x+w,y+h),spoken,onClick)
         }
         private fun drawSoundFieldReadout(c:Canvas) {
             if (hh<530f || sheet!=Sheet.NONE) return
@@ -461,7 +522,7 @@ class MainActivity : Activity() {
             box(c,ww-159f,68f,ww-17f,90f,0xFF20403F.toInt(),9f)
             icon(c,"weather",ww-142f,79f,teal)
             label(c,"ATMOSPHERE",ww-125f,83f,10f,teal,true)
-            buttons+=Hit(RectF(ww-159f,68f,ww-17f,90f)){
+            buttons+=Hit(RectF(ww-159f,68f,ww-17f,90f),"Edit rain, wind and storm"){
                 sheet=Sheet.ATMOSPHERE;invalidate()
             }
             if(sheet==Sheet.NONE) {
@@ -537,7 +598,7 @@ class MainActivity : Activity() {
                         box(c,x,y,x+cell,y+69f,0xFF1B3440.toInt(),12f)
                         label(c,("%02d".format(i+1)),x+10,y+20,10f,teal,true)
                         label(c,name.take(19),x+10,y+45,12f,text,true)
-                        buttons+=Hit(RectF(x,y,x+cell,y+69f)){
+                        buttons+=Hit(RectF(x,y,x+cell,y+69f),"Open "+name){
                             replace(AtlasPresets.create(i));exploreRoute.clear()
                             sheet=Sheet.NONE;invalidate()
                         }
@@ -558,7 +619,7 @@ class MainActivity : Activity() {
                         box(c,x,y,x+cell,y+ch,0xFF1B3440.toInt(),10f)
                         c.drawCircle(x+15f,y+ch/2,5f,paint(kind.color))
                         label(c,kind.title,x+28f,y+ch/2+4f,11f,text,true)
-                        buttons+=Hit(RectF(x,y,x+cell,y+ch)){
+                        buttons+=Hit(RectF(x,y,x+cell,y+ch),"Add "+kind.title){
                             if(world.sounds.size>=WorldLimits.MAX_SOURCES){
                                 Toast.makeText(this@MainActivity,
                                     "Maximum ${WorldLimits.MAX_SOURCES} layers for reliable audio",
@@ -582,7 +643,7 @@ class MainActivity : Activity() {
                             0xFF24514B.toInt() else 0xFF1B3440.toInt(),9f)
                         c.drawCircle(40f,y+17f,5f,paint(material.color))
                         label(c,material.title,55f,y+22f,12f,text,true)
-                        buttons+=Hit(RectF(22f,y,ww-22f,y+34f)){
+                        buttons+=Hit(RectF(22f,y,ww-22f,y+34f),"Choose "+material.title+" walls"){
                             wallMaterial=material;mode=Mode.DRAW_WALL;sheet=Sheet.NONE;invalidate()
                         }
                     }
@@ -595,7 +656,7 @@ class MainActivity : Activity() {
                         box(c,22f,y,ww-22f,y+47f,0xFF1B3440.toInt(),10f)
                         label(c,option.first,36f,y+21f,12f,text,true)
                         label(c,"Reverb  "+option.second.toString()+" s",36f,y+37f,10f,teal)
-                        buttons+=Hit(RectF(22f,y,ww-22f,y+47f)){
+                        buttons+=Hit(RectF(22f,y,ww-22f,y+47f),"Choose "+option.first+" room"){
                             selectedZoneType=i;mode=Mode.ADD_ZONE;sheet=Sheet.NONE;invalidate()
                         }
                     }
@@ -608,7 +669,7 @@ class MainActivity : Activity() {
         private fun smallButton(c:Canvas,title:String,x:Float,y:Float,w:Float,h:Float,click:()->Unit) {
             box(c,x,y,x+w,y+h,0xFF24514B.toInt(),11f)
             label(c,title,x+11f,y+h*.63f,11f,text,true)
-            buttons+=Hit(RectF(x,y,x+w,y+h),click)
+            buttons+=Hit(RectF(x,y,x+w,y+h),title,click)
         }
         private fun drawAtmosphere(c:Canvas,top:Float) {
             label(c,"Changes are audible while you explore.",22f,top+65f,11f,subtle)
