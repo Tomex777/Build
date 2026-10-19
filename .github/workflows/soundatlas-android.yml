@@ -78,7 +78,7 @@ jobs:
           PY
           python3 EchoSpace/tools/prepare_audio.py
           mkdir -p SoundAtlas/app/src/main/assets/audio
-          for kind in rain thunder wind stream birds leaves night chimes traffic; do
+          for kind in rain thunder wind stream birds leaves night chimes traffic cafe ocean fire owl train; do
             test -s "EchoSpace/app/src/main/assets/audio/$kind.pcm"
             cp "EchoSpace/app/src/main/assets/audio/$kind.pcm" \
                "SoundAtlas/app/src/main/assets/audio/$kind.pcm"
@@ -87,6 +87,17 @@ jobs:
              -o -iname '*license*' -o -iname '*manifest*' | head -20
           echo "Audio source: EchoSpace verified CC0 offline preparation pipeline" \
              > SoundAtlas/app/src/main/assets/audio/SOURCES.txt
+      - name: Bundle expanded fourteen-sound offline field library
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/expanded SoundAtlas/app/src/main/assets/audio
+          gh run download 39210500200 --repo "$GITHUB_REPOSITORY" --name EchoSpace-production-hardening-test-signed --dir /tmp/expanded
+          for sample in cafe ocean fire owl train; do
+            unzip -p /tmp/expanded/EchoSpace-production-hardening-test.apk "assets/audio/$sample.pcm" > "SoundAtlas/app/src/main/assets/audio/$sample.pcm"
+            test -s "SoundAtlas/app/src/main/assets/audio/$sample.pcm"
+          done
       - name: Verify offline library before compilation
         run: |
           set -euo pipefail
@@ -100,8 +111,8 @@ jobs:
           from pathlib import Path
           root=Path('SoundAtlas/app/src/main/assets')
           rows=json.loads((root/'recording_credits.json').read_text())
-          required={'rain','thunder','wind','stream','birds','leaves','night','chimes','traffic'}
-          assert {r['kind'] for r in rows}==required and len(rows)==9
+          required={'rain','thunder','wind','stream','birds','leaves','night','chimes','traffic','cafe','ocean','fire','owl','train'}
+          assert {r['kind'] for r in rows}==required and len(rows)==14
           for r in rows:
               assert r['license']=='CC0-1.0'
               assert r['url'].startswith('https://freesound.org/people/')
