@@ -42,7 +42,9 @@ try{
    assert.equal(await page.locator('#score').isVisible(),true,'one authoritative score remains');
    const mover=running.platforms.find(p=>p.moving);
    assert.ok(mover,'moving platforms appear at the very start of the game');
-   assert.ok(running.platforms.some(p=>p.fragile),'breaking platforms challenge early levels');
+   assert.ok(running.platforms.every(p=>p.fragile===undefined&&p.ttl===undefined),'platforms cannot crack, time out or disappear on landing');
+   assert.equal(running.hazardY,undefined,'no rising hazard forces a timed death');
+   assert.ok(running.platforms.every(p=>p.w>=55),'landing platforms remain wide enough to aim for');
    await page.waitForTimeout(220);
    const after=await snap(),nextMover=after.platforms.find(p=>p.baseX===mover.baseX&&p.phase===mover.phase);
    assert.ok(nextMover&&Math.abs(nextMover.x-mover.x)>0.2,'a moving platform changes its physical collision position');
