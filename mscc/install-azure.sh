@@ -134,8 +134,13 @@ test -f /usr/share/fonts/truetype/freefont/FreeSerif.ttf || { echo 'Chess font F
 # Do not replace system Python, other services, or install into site-packages.
 # An unavailable Python index must never abort a healthy MSCC deployment.
 YOUTUBE_VENV="$BASE/tools/yt-dlp"
-if [ ! -x "$YOUTUBE_VENV/bin/yt-dlp" ] || [ "${MSCC_YOUTUBE_UPDATE_YTDLP:-0}" = "1" ]; then
-  echo ">>> Installing optional YouTube extractor for MSCC..."
+# TikTok changes its extractor frequently: retaining a once-installed yt-dlp
+# indefinitely makes a working Nexia-style download fail on a newer share URL.
+# Refresh the isolated MSCC binary on each real Azure release by default.
+# Set MSCC_SOCIAL_UPDATE_YTDLP=0 to opt out of that refresh for a pinned VM.
+# The existing MSCC_YOUTUBE_UPDATE_YTDLP=1 flag still forces an update.
+if [ ! -x "$YOUTUBE_VENV/bin/yt-dlp" ] || [ "${MSCC_YOUTUBE_UPDATE_YTDLP:-0}" = "1" ] || [ "${MSCC_SOCIAL_UPDATE_YTDLP:-1}" = "1" ]; then
+  echo ">>> Installing/updating isolated MSCC yt-dlp for NIGHT public media..."
   if ! command -v python3 >/dev/null 2>&1 || ! python3 -m venv --help >/dev/null 2>&1; then
     echo "Optional YouTube extractor skipped: Python venv unavailable." >&2
   else
@@ -152,6 +157,13 @@ if [ ! -x "$YOUTUBE_VENV/bin/yt-dlp" ] || [ "${MSCC_YOUTUBE_UPDATE_YTDLP:-0}" = 
       fi
     fi
   fi
+fi
+# Safe version telemetry only: never echo user media links, account cookies,
+# yt-dlp verbose output, or network headers into deployment logs.
+if [ -x "$YOUTUBE_VENV/bin/yt-dlp" ]; then
+  echo ">>> MSCC yt-dlp version: $("$YOUTUBE_VENV/bin/yt-dlp" --version 2>/dev/null | head -n 1)"
+else
+  echo ">>> MSCC yt-dlp missing (social TikTok yt-dlp extraction unavailable)" >&2
 fi
 
 # Optional photo-post extractor for NIGHT's .dl command. This shares the

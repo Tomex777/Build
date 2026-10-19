@@ -207,7 +207,11 @@ export async function prepareSocialDownload(rawUrl, options = {}) {
     let lastError
     for (const engine of engines) {
       try {
-        await executeExtractor(request,dir,{ ...options,engine })
+        // Nexia bounded the initial TikTok yt-dlp attempt to 90 seconds.
+        // Keep other social platforms' existing 4-minute limit unchanged.
+        await executeExtractor(request,dir,{ ...options,engine,
+          ...(request.platform === 'TikTok' ? {timeoutMs:Math.min(options.timeoutMs || 90_000,90_000)} : {}),
+        })
         return { request, files:await mediaFiles(dir,options.maxBytes), cleanup }
       } catch (error) {
         lastError = error
