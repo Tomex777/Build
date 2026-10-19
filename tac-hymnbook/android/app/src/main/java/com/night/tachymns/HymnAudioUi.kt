@@ -100,18 +100,6 @@ fun HymnAudioControls(
                     Spacer(Modifier.height(6.dp))
                 }
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    TextButton(onClick = { onImport(key) }) { Text("Add recording") }
-                    if (approved != null) {
-                        TextButton(
-                            onClick = { onDownload(key) },
-                            enabled = key.token !in downloading
-                        ) {
-                            Text(if (key.token in downloading) "Downloading…" else "Download")
-                        }
-                    }
-                }
-            } else {
-                Row(verticalAlignment = Alignment.CenterVertically) {
                     IconButton(
                         onClick = { player.toggle(key, playbackSource) },
                         enabled = !(isActive && player.loading),
