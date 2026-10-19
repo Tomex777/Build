@@ -90,11 +90,37 @@ class HymnDataTest(unittest.TestCase):
         self.assertEqual(json.loads(asset.read_text(encoding="utf-8")), catalog)
         self.assertEqual(catalog["id"], "akokun")
         self.assertEqual(catalog["category"], "supplement")
-        self.assertEqual(catalog["hymns"], [])
         self.assertEqual(catalog["numbering_scheme"], "independent_from_redemption")
         self.assertEqual(catalog["last_number"], 305)
         self.assertEqual(catalog["hymn_count"], 305)
-        self.assertEqual(catalog["status"], "numbering_range_confirmed_titles_and_lyrics_pending")
+        self.assertEqual(catalog["source_pages"], list(range(459, 468)))
+        self.assertEqual([h["number"] for h in catalog["hymns"]], list(range(1, 306)))
+        self.assertEqual(catalog["photographed_index_rows"], 302)
+        self.assertEqual(catalog["numbered_hymns_with_title"], 299)
+        self.assertEqual(catalog["missing_title_numbers"], [128, 188, 211, 219, 272, 281])
+        self.assertEqual(catalog["shared_number_with_multiple_index_lines"], [138, 218, 288])
+        self.assertEqual(catalog["hymns"][304]["number"], 305)
+        self.assertIsNotNone(catalog["hymns"][304]["title_yo"])
+        self.assertTrue(all(h["verses_yo"] is None and h["verses_en"] is None for h in catalog["hymns"]))
+
+    def test_akokun_index_photographs_agree_with_merged_catalogue(self):
+        merged = json.loads((ROOT / "data/akokun-collection.json").read_text(encoding="utf-8"))
+        raw_entries = []
+        for p in range(459, 468):
+            path = ROOT / f"data/akokun-index-page-{p}.json"
+            page = json.loads(path.read_text(encoding="utf-8"))
+            self.assertEqual(page["printed_index_page"], p)
+            raw_entries.extend(page["entries"])
+        self.assertEqual(len(raw_entries), 302)
+        for entry in raw_entries:
+            number = entry["number"]
+            self.assertGreaterEqual(number, 1)
+            self.assertLessEqual(number, 305)
+            h = merged["hymns"][number - 1]
+            self.assertIn(entry["first_line_yo"], [x["text"] for x in h["opening_lines"]])
+        self.assertEqual(
+            sum(len(h["opening_lines"]) for h in merged["hymns"]), len(raw_entries)
+        )
 
     def test_yoruba_is_stored_as_unicode(self):
         hymns = compile_asset()["hymns"]
