@@ -230,8 +230,12 @@ function paintSlice(){
  * 560px/s jump, 1230px/s² gravity (~127 logical pixels of ascent).
  */
 function jumpPlatform(x,y,w,moving=false){
- return {x,y,w,moving,baseX:x,phase:rand(0,TAU),
-   range:rand(19,35),pace:rand(.8,1.45)};
+ // Keep the entire oscillation inside the playable board. Clamping each
+ // frame would pin a moving platform against an edge for long intervals.
+ const range=rand(19,35);
+ const center=moving?clamp(x,8+range,W-w-8-range):x;
+ return {x:center,y,w,moving,baseX:center,phase:rand(0,TAU),
+   range,pace:rand(.8,1.45)};
 }
 function initJump(){
  const platforms=[jumpPlatform(120,505,133)];
