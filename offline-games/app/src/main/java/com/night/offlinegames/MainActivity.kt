@@ -108,9 +108,32 @@ private val games = listOf(
     GameEntry("pong", "Pong Classic", "Arcade", "Outplay the computer paddle"),
     GameEntry("breakout", "Breakout", "Arcade", "Clear every brick"),
     GameEntry("invaders", "Space Invaders", "Arcade", "Defend against descending invaders"),
-    GameEntry("fruit", "Fruit Slash", "Action", "Slice fruit without hitting hazards")
+    GameEntry("fruit", "Fruit Slash", "Action", "Slice fruit without hitting hazards"),
+    GameEntry("snake", "Snake", "Arcade", "Grow longer, swipe to turn"),
+    GameEntry("frogger", "Frogger", "Arcade", "Dodge the moving traffic"),
+    GameEntry("stack", "Stack Tower", "Endless", "Time your moving layers"),
+    GameEntry("whack", "Whack-a-Bunny", "Action", "Tap the popping bunnies"),
+    GameEntry("quickdraw", "Quick Draw", "Action", "React when green appears"),
+    GameEntry("coins", "Coin Catcher", "Action", "Catch coins, dodge falling rocks"),
+    GameEntry("bubble", "Bubble Pop", "Action", "Pop rising bubbles against time"),
+    GameEntry("gravity", "Gravity Flip", "Endless", "Switch between floor and ceiling"),
+    GameEntry("go", "Go 5 × 5", "Board", "Capture stones and claim territory"),
+    GameEntry("morris", "Nine Men's Morris", "Board", "Form mills and capture pieces"),
+    GameEntry("golf", "Golf Solitaire", "Card", "Clear cards in ascending runs"),
+    GameEntry("pyramid", "Pyramid Solitaire", "Card", "Remove pairs adding to thirteen"),
+    GameEntry("tripeaks", "Tri Peaks", "Card", "Uncover three card peaks"),
+    GameEntry("freecell", "FreeCell", "Card", "Four cells, eight cascades"),
+    GameEntry("solitaire", "Solitaire", "Card", "Classic draw-one Klondike"),
+    GameEntry("mazerunner", "Maze Runner", "Puzzle", "Navigate a new carved labyrinth"),
+    GameEntry("darts", "Darts", "Sports", "Time your dart throws"),
+    GameEntry("basketball", "Basketball Shoot", "Sports", "Flick a ball into the basket"),
+    GameEntry("penalty", "Penalty Shootout", "Sports", "Beat the diving goalkeeper"),
+    GameEntry("ski", "Ski Slalom", "Sports", "Stay between the racing gates"),
+    GameEntry("bomb", "Bomb Diffuser", "Action", "Cut the correct wires in time")
+
+
 )
-private val categories = listOf("All", "Favourites", "Arcade", "Puzzle", "Board", "Memory", "Strategy", "Card", "Action")
+private val categories = listOf("All", "Favourites", "Arcade", "Puzzle", "Board", "Memory", "Strategy", "Card", "Action", "Endless", "Sports")
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {

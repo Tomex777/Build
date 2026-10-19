@@ -4,7 +4,7 @@ Android app for an original offline game collection, expanding in tested batches
 
 - **Application ID:** `com.night.offlinegames`, following the required `com.night.<appname>` convention. Change the final segment consistently at renaming time.
 - **Platform:** native Android / Kotlin / Compose, `minSdk 26`.
-- **Current playable catalog:** 31 implemented games, not 105 placeholders: native 2048; six existing NIGHT Play arcade/puzzle games bundled offline; and 24 newly implemented locally bundled logic, board, card and action games in `classics/`.
+- **Current playable catalog:** 52 implemented games, not 105 placeholders: native 2048; six existing NIGHT Play arcade/puzzle games bundled offline; and 45 newly implemented locally bundled logic, board, card and action games in `classics/`.
 - **No INTERNET permission.** The embedded arcade loads under WebViewAssetLoader on the reserved `appassets.androidplatform.net` virtual host, with network loads blocked.
 - **Progress:** 2048 persists the board and best in device preferences; arcade game scores persist in the WebView's local storage; hub remembers recent games and favourites.
 - **Style:** no ad SDK, online account requirement, global volume slider, placeholder tiles, or duplicate back buttons.
@@ -20,6 +20,10 @@ Wing Hop embeds Kenney Animal Pack Remastered / Background Elements Remastered s
 ## New original classic modules
 
 Added `classics/` with separate logic modules: Tic-Tac-Toe, Reversi, Dots & Boxes, Mancala, Hex, Battleship, Pentago, Lights Out, Sliding Puzzle, Tower of Hanoi, Color Sort, Nonogram, Simon, Pattern Recall, Take Away, Word Search, Higher or Lower, War, Snap, Crazy Eights, Pong, Breakout, Space Invaders and Fruit Slash. Each has interactive rules and a real win/score condition. The canvas action games use local requestAnimationFrame render loops with cleanup. These original games are implemented in-browser but bundled in the APK and blocked from requesting the Internet.
+
+## Further independently playable games
+
+Added original Snake, Frogger, Stack Tower, Whack-a-Bunny, Quick Draw, Coin Catcher, Bubble Pop, Gravity Flip; five complete solitaire variants (Golf, Pyramid, Tri Peaks, FreeCell and Klondike); Go 5×5 and Nine Men's Morris; Maze Runner, Darts, Basketball Shoot, Penalty Shootout, Ski Slalom and Bomb Diffuser. All are bundled as local HTML/JS game assets and run with WebView networking disabled. The board games enforce legal moves and have computer opponents where specified. Classic variants are in-app adaptations, not copied proprietary designs.
 
 ## Next game batches
 

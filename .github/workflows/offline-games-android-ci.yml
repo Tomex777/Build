@@ -38,6 +38,8 @@ jobs:
         run: |
           set -euo pipefail
           for file in offline-games/app/src/main/assets/classics/*.js; do node --check "$file"; done
+      - name: Verify playable-game registry
+        run: node offline-games/verify-catalog.cjs
       - name: Build installable debug APK
         working-directory: offline-games
         run: gradle --no-daemon :app:assembleDebug
@@ -63,6 +65,10 @@ jobs:
           unzip -Z1 "$APK" | grep -q "assets/classics/boards.js"
           unzip -Z1 "$APK" | grep -q "assets/classics/cards.js"
           unzip -Z1 "$APK" | grep -q "assets/classics/arcades.js"
+          unzip -Z1 "$APK" | grep -q "assets/classics/arcades2.js"
+          unzip -Z1 "$APK" | grep -q "assets/classics/solitaires.js"
+          unzip -Z1 "$APK" | grep -q "assets/classics/strategy.js"
+          unzip -Z1 "$APK" | grep -q "assets/classics/skills.js"
           if "$ANDROID_HOME/build-tools/36.0.0/aapt" dump permissions "$APK" | grep -q "android.permission.INTERNET"; then
             echo "Offline-only release unexpectedly requests internet permission" >&2
             exit 1
@@ -100,7 +106,7 @@ jobs:
           disable-animations: true
           script: |
             adb shell svc wifi disable
-            adb shell svc data disable
+            adb shell svc data disable || true
             cd offline-games
             gradle --no-daemon :app:connectedDebugAndroidTest
             mkdir -p smoke-screenshots
