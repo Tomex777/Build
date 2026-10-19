@@ -60,7 +60,7 @@ function renderRoom(){
   let html='<div class="party-topline"><a class="party-text-btn" href="/party/">‹ Party games</a><span>'+esc(room.players.length)+' PLAYERS · '+esc(room.code)+'</span></div>';
   if(phase==='lobby'){
     html+='<div class="party-panel">'+(host?invitePanel():'<span class="party-overline">WAITING ROOM</span><h2>You’re in.</h2><p>Waiting for '+esc(room.hostName)+' to start. Your place is saved when you refresh.</p><div class="party-player-list">'+room.players.map(p=>'<span class="party-player-pill">'+esc(p.name)+'</span>').join('')+'</div>')+
-    (host?btn('Start game','start','party-primary',''):'' )+'</div>';
+    (host?btn('Start game','start'):'' )+'</div>';
     if(host&&room.players.length<2)html=html.replace('data-action="start"','data-action="start" disabled');
   }else if(phase==='finished'){
     const ranks=room.scores||[];
@@ -103,7 +103,7 @@ async function synchronize(){
 async function act(action,details={}){
   if(pending)return;
   pending=true;
-  try{const data=await request('party:'+action,{code,...details});apply(data)}
+  try{const data=await request('party:'+action,{code,...details});apply(data);if(action==='join'&&!refreshTimer)refreshTimer=setInterval(synchronize,1750)}
   catch(e){alertUser(e.message)}
   finally{pending=false}
 }
