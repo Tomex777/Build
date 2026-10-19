@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """Use Hymnary's explicitly published 'Export as CSV' control for RH2006.
 
+Run once against the site's advertised CSV endpoint and respect access denials.
+
 This exports instance *metadata*, not lyrics. No fallback to protected
 HTML, no retry loops, and never generate made-up entries on failure.
 """
