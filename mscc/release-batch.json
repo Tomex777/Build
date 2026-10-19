@@ -1,10 +1,11 @@
 {
-  "releaseId": "night-cortex-agent-secure-bootstrap-20261019",
+  "releaseId": "night-party-rooms-cortex-agent-20261019",
   "baseBranch": "mscc-azure",
-  "baseCommit": "88fb1fb75474c6037dcf9bf688757c2f1dfcf9e8",
+  "baseCommit": "3877c4bedff3664f749bed4078ae1fd4e521daf9",
   "pullRequests": [
+    387,
     389
   ],
   "preparedAt": "2026-10-19T20:03:48.590Z",
-  "notes": "Cortex Agent secure production upgrade via approved MSCC deployment bootstrap. Only PR #389 changes to pinned Cortex Agent source. PREVIOUS pinned Agent/Helper versions are verified before update; unknown builds are not overwritten. Existing token and MSCC authenticated accounts preserved. Must merge ONLY after current pending NIGHT party-room production release #39313024337 finishes, rebase/retest if target advanced, and obtain ONE fresh protected mscc-production approval. An MSCC production release may restart NIGHT; never merge while another release is awaiting approval. This is not a standalone SSH bypass. Validate live ENV and Cloud after approved rollout."
+  "notes": "Combined protected NIGHT production release: already merged, validated NIGHT Play party-room backend PR #387 plus newly prepared, verified Cortex Agent SSH-safe upgrade PR #389. This supersedes only the earlier WAITING (not executing) party-room Azure approval #39313024337; use ONE new protected mscc-production approval for both, never approve the superseded run. Cortex Agent source is pinned by SHA and Git blob hashes; forced-command SSH stays restricted, existing Cortex token stays intact, unknown installed Agent versions are left untouched. Run integrated CI on this exact release SHA, deploy via the approved MSCC release workflow (which may restart MSCC), verify live WhatsApp service/production SHA/ENV/Cloud before claiming success. No other bot PRs included."
 }
