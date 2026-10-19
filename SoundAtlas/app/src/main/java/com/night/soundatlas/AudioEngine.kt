@@ -17,7 +17,7 @@ import kotlin.math.*
  * Source types are procedural: sounds never repeat a fixed 20- or 30-second recording.
  * Material attenuation, ITD/ILD and a feedback-tail model are approximations.
  */
-class AudioEngine(private val assets: AssetManager) {
+class AudioEngine(private val assets: AssetManager, private val onFatalError:(String)->Unit = {}) {
     companion object { const val SAMPLE_RATE = 44100; const val FRAMES = 768 }
     private val scene = AtomicReference<World?>(null)
     private val running = AtomicBoolean(false)
@@ -97,8 +97,10 @@ class AudioEngine(private val assets: AssetManager) {
                     }
                 }
             } catch (e: Exception) {
-                if(running.get() && generation.get()==session)
+                if(running.get() && generation.get()==session) {
                     error=e.message ?: e.javaClass.simpleName
+                    onFatalError(error ?: "Audio output failed")
+                }
             } finally {
                 try { track?.pause(); track?.flush(); track?.release() } catch (_: Exception) {}
                 if(generation.get()==session) running.set(false)
