@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
   push:
     branches: [feature/night-browser-prototype-20261019]
-    paths: ['.github/workflows/night-browser-visuals.yml']
+    paths: ['.github/workflows/night-browser-visuals.yml', 'night-browser/ci/**']
 
 permissions:
   contents: write
