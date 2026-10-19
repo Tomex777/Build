@@ -1,0 +1,590 @@
+{
+  "collection": "redemption",
+  "source": "https://hymnary.org/hymnal/RH2006?page=1",
+  "scope": "number and English first line only; lyrics absent",
+  "first": 95,
+  "last": 177,
+  "hymns": [
+    {
+      "number": 95,
+      "title_en": "Dwelling in the secret place",
+      "source_url": "https://hymnary.org/hymn/RH2006/95",
+      "lyrics_included": false,
+      "source_status": "first_line_verified_against_RH2006_index"
+    },
+    {
+      "number": 96,
+      "title_en": "Thou the Rose of Sharon",
+      "source_url": "https://hymnary.org/hymn/RH2006/96",
+      "lyrics_included": false,
+      "source_status": "first_line_verified_against_RH2006_index"
+    },
+    {
+      "number": 97,
+      "title_en": "There is a place of quiet rest",
+      "source_url": "https://hymnary.org/hymn/RH2006/97",
+      "lyrics_included": false,
+      "source_status": "first_line_verified_against_RH2006_index"
+    },
+    {
+      "number": 98,
+      "title_en": "Jesus, let Thy splendour",
+      "source_url": "https://hymnary.org/hymn/RH2006/98",
+      "lyrics_included": false,
+      "source_status": "first_line_verified_against_RH2006_index"
+    },
+    {
+      "number": 99,
+      "title_en": "The Lord's my Shepherd, I'll not want",
+      "source_url": "https://hymnary.org/hymn/RH2006/99",
+      "lyrics_included": false,
+      "source_status": "first_line_verified_against_RH2006_index"
+    },
+    {
+      "number": 100,
+      "title_en": "Pleasant are Thy courts above",
+      "source_url": "https://hymnary.org/hymn/RH2006/100",
+      "lyrics_included": false,
+      "source_status": "first_line_verified_against_RH2006_index"
+    },
+    {
+      "number": 101,
+      "title_en": "How lovely is Thy dwelling place",
+      "source_url": "https://hymnary.org/hymn/RH2006/101",
+      "lyrics_included": false,
+      "source_status": "first_line_verified_against_RH2006_index"
+    },
+    {
+      "number": 102,
+      "title_en": "From all that dwell below the skies",
+      "source_url": "https://hymnary.org/hymn/RH2006/102",
+      "lyrics_included": false,
+      "source_status": "first_line_verified_against_RH2006_index"
+    },
+    {
+      "number": 103,
+      "title_en": "The King of love my Shepherd is",
+      "source_url": "https://hymnary.org/hymn/RH2006/103",
+      "lyrics_included": false,
+      "source_status": "first_line_verified_against_RH2006_index"
+    },
+    {
+      "number": 104,
+      "title_en": "O God, our help in ages past",
+      "source_url": "https://hymnary.org/hymn/RH2006/104",
+      "lyrics_included": false,
+      "source_status": "first_line_verified_against_RH2006_index"
+    },
+    {
+      "number": 105,
+      "title_en": "Sweet is the work, my God, my King",
+      "source_url": "https://hymnary.org/hymn/RH2006/105",
+      "lyrics_included": false,
+      "source_status": "first_line_verified_against_RH2006_index"
+    },
+    {
+      "number": 106,
+      "title_en": "All people that on earth do dwell",
+      "source_url": "https://hymnary.org/hymn/RH2006/106",
+      "lyrics_included": false,
+      "source_status": "first_line_verified_against_RH2006_index"
+    },
+    {
+      "number": 107,
+      "title_en": "O thou, my soul bless God the Lord",
+      "source_url": "https://hymnary.org/hymn/RH2006/107",
+      "lyrics_included": false,
+      "source_status": "first_line_verified_against_RH2006_index"
+    },
+    {
+      "number": 108,
+      "title_en": "I to the hills will lift mine eyes",
+      "source_url": "https://hymnary.org/hymn/RH2006/108",
+      "lyrics_included": false,
+      "source_status": "first_line_verified_against_RH2006_index"
+    },
+    {
+      "number": 109,
+      "title_en": "Let us with a gladsome mind",
+      "source_url": "https://hymnary.org/hymn/RH2006/109",
+      "lyrics_included": false,
+      "source_status": "first_line_verified_against_RH2006_index"
+    },
+    {
+      "number": 110,
+      "title_en": "Praise the Lord, His glory show",
+      "source_url": "https://hymnary.org/hymn/RH2006/110",
+      "lyrics_included": false,
+      "source_status": "first_line_verified_against_RH2006_index"
+    },
+    {
+      "number": 111,
+      "title_en": "I waited for the Lord my God",
+      "source_url": "https://hymnary.org/hymn/RH2006/111",
+      "lyrics_included": false,
+      "source_status": "first_line_verified_against_RH2006_index"
+    },
+    {
+      "number": 112,
+      "title_en": "The Lord Jehovah reigns",
+      "source_url": "https://hymnary.org/hymn/RH2006/112",
+      "lyrics_included": false,
+      "source_status": "first_line_verified_against_RH2006_index"
+    },
+    {
+      "number": 113,
+      "title_en": "Holy, holy, holy, Lord God Almighty!",
+      "source_url": "https://hymnary.org/hymn/RH2006/113",
+      "lyrics_included": false,
+      "source_status": "first_line_verified_against_RH2006_index"
+    },
+    {
+      "number": 114,
+      "title_en": "Come, Thou almighty King",
+      "source_url": "https://hymnary.org/hymn/RH2006/114",
+      "lyrics_included": false,
+      "source_status": "first_line_verified_against_RH2006_index"
+    },
+    {
+      "number": 115,
+      "title_en": "Thou whose almighty word",
+      "source_url": "https://hymnary.org/hymn/RH2006/115",
+      "lyrics_included": false,
+      "source_status": "first_line_verified_against_RH2006_index"
+    },
+    {
+      "number": 116,
+      "title_en": "O God, Thou bottomless abyss!",
+      "source_url": "https://hymnary.org/hymn/RH2006/116",
+      "lyrics_included": false,
+      "source_status": "first_line_verified_against_RH2006_index"
+    },
+    {
+      "number": 117,
+      "title_en": "God moves in a mysterious way",
+      "source_url": "https://hymnary.org/hymn/RH2006/117",
+      "lyrics_included": false,
+      "source_status": "first_line_verified_against_RH2006_index"
+    },
+    {
+      "number": 118,
+      "title_en": "None is like Jeshurun's God",
+      "source_url": "https://hymnary.org/hymn/RH2006/118",
+      "lyrics_included": false,
+      "source_status": "first_line_verified_against_RH2006_index"
+    },
+    {
+      "number": 119,
+      "title_en": "We plough the fields and scatter",
+      "source_url": "https://hymnary.org/hymn/RH2006/119",
+      "lyrics_included": false,
+      "source_status": "first_line_verified_against_RH2006_index"
+    },
+    {
+      "number": 120,
+      "title_en": "When all Thy mercies, O my God",
+      "source_url": "https://hymnary.org/hymn/RH2006/120",
+      "lyrics_included": false,
+      "source_status": "first_line_verified_against_RH2006_index"
+    },
+    {
+      "number": 121,
+      "title_en": "Summer suns are glowing",
+      "source_url": "https://hymnary.org/hymn/RH2006/121",
+      "lyrics_included": false,
+      "source_status": "first_line_verified_against_RH2006_index"
+    },
+    {
+      "number": 122,
+      "title_en": "The spacious firmament on high",
+      "source_url": "https://hymnary.org/hymn/RH2006/122",
+      "lyrics_included": false,
+      "source_status": "first_line_verified_against_RH2006_index"
+    },
+    {
+      "number": 123,
+      "title_en": "Though troubles assail, And dangers affright",
+      "source_url": "https://hymnary.org/hymn/RH2006/123",
+      "lyrics_included": false,
+      "source_status": "first_line_verified_against_RH2006_index"
+    },
+    {
+      "number": 124,
+      "title_en": "I sing th'almighty power of God",
+      "source_url": "https://hymnary.org/hymn/RH2006/124",
+      "lyrics_included": false,
+      "source_status": "first_line_verified_against_RH2006_index"
+    },
+    {
+      "number": 125,
+      "title_en": "Standing at the portal",
+      "source_url": "https://hymnary.org/hymn/RH2006/125",
+      "lyrics_included": false,
+      "source_status": "first_line_verified_against_RH2006_index"
+    },
+    {
+      "number": 126,
+      "title_en": "High in the heav'ns, eternal God",
+      "source_url": "https://hymnary.org/hymn/RH2006/126",
+      "lyrics_included": false,
+      "source_status": "first_line_verified_against_RH2006_index"
+    },
+    {
+      "number": 127,
+      "title_en": "O love of God, how strong and true",
+      "source_url": "https://hymnary.org/hymn/RH2006/127",
+      "lyrics_included": false,
+      "source_status": "first_line_verified_against_RH2006_index"
+    },
+    {
+      "number": 128,
+      "title_en": "Come, ye thankful people, come",
+      "source_url": "https://hymnary.org/hymn/RH2006/128",
+      "lyrics_included": false,
+      "source_status": "first_line_verified_against_RH2006_index"
+    },
+    {
+      "number": 129,
+      "title_en": "For the beauty of the earth",
+      "source_url": "https://hymnary.org/hymn/RH2006/129",
+      "lyrics_included": false,
+      "source_status": "first_line_verified_against_RH2006_index"
+    },
+    {
+      "number": 130,
+      "title_en": "Oh come, all ye faithful",
+      "source_url": "https://hymnary.org/hymn/RH2006/130",
+      "lyrics_included": false,
+      "source_status": "first_line_verified_against_RH2006_index"
+    },
+    {
+      "number": 131,
+      "title_en": "While shepherds watch'd their flocks by night",
+      "source_url": "https://hymnary.org/hymn/RH2006/131",
+      "lyrics_included": false,
+      "source_status": "first_line_verified_against_RH2006_index"
+    },
+    {
+      "number": 132,
+      "title_en": "Christians, awake, salute the happy morn",
+      "source_url": "https://hymnary.org/hymn/RH2006/132",
+      "lyrics_included": false,
+      "source_status": "first_line_verified_against_RH2006_index"
+    },
+    {
+      "number": 133,
+      "title_en": "As with gladness men of old",
+      "source_url": "https://hymnary.org/hymn/RH2006/133",
+      "lyrics_included": false,
+      "source_status": "first_line_verified_against_RH2006_index"
+    },
+    {
+      "number": 134,
+      "title_en": "Brightest and best of the sons of the morning",
+      "source_url": "https://hymnary.org/hymn/RH2006/134",
+      "lyrics_included": false,
+      "source_status": "first_line_verified_against_RH2006_index"
+    },
+    {
+      "number": 135,
+      "title_en": "Hark! The herald angels sing",
+      "source_url": "https://hymnary.org/hymn/RH2006/135",
+      "lyrics_included": false,
+      "source_status": "first_line_verified_against_RH2006_index"
+    },
+    {
+      "number": 136,
+      "title_en": "Thou art the everlasting Word",
+      "source_url": "https://hymnary.org/hymn/RH2006/136",
+      "lyrics_included": false,
+      "source_status": "first_line_verified_against_RH2006_index"
+    },
+    {
+      "number": 137,
+      "title_en": "Oh, how sweet the glorious message",
+      "source_url": "https://hymnary.org/hymn/RH2006/137",
+      "lyrics_included": false,
+      "source_status": "first_line_verified_against_RH2006_index"
+    },
+    {
+      "number": 138,
+      "title_en": "Oh, where is He that trod the sea?",
+      "source_url": "https://hymnary.org/hymn/RH2006/138",
+      "lyrics_included": false,
+      "source_status": "first_line_verified_against_RH2006_index"
+    },
+    {
+      "number": 139,
+      "title_en": "O Thou who art love's primal flame",
+      "source_url": "https://hymnary.org/hymn/RH2006/139",
+      "lyrics_included": false,
+      "source_status": "first_line_verified_against_RH2006_index"
+    },
+    {
+      "number": 140,
+      "title_en": "Come, ev'ry joyful heart",
+      "source_url": "https://hymnary.org/hymn/RH2006/140",
+      "lyrics_included": false,
+      "source_status": "first_line_verified_against_RH2006_index"
+    },
+    {
+      "number": 141,
+      "title_en": "One there is above all others",
+      "source_url": "https://hymnary.org/hymn/RH2006/141",
+      "lyrics_included": false,
+      "source_status": "first_line_verified_against_RH2006_index"
+    },
+    {
+      "number": 142,
+      "title_en": "One day when heaven was filled with His praises",
+      "source_url": "https://hymnary.org/hymn/RH2006/142",
+      "lyrics_included": false,
+      "source_status": "first_line_verified_against_RH2006_index"
+    },
+    {
+      "number": 143,
+      "title_en": "When the Saviour dwelt below",
+      "source_url": "https://hymnary.org/hymn/RH2006/143",
+      "lyrics_included": false,
+      "source_status": "first_line_verified_against_RH2006_index"
+    },
+    {
+      "number": 144,
+      "title_en": "My song is love unknown",
+      "source_url": "https://hymnary.org/hymn/RH2006/144",
+      "lyrics_included": false,
+      "source_status": "first_line_verified_against_RH2006_index"
+    },
+    {
+      "number": 145,
+      "title_en": "Hark! The glad sound the Saviour comes",
+      "source_url": "https://hymnary.org/hymn/RH2006/145",
+      "lyrics_included": false,
+      "source_status": "first_line_verified_against_RH2006_index"
+    },
+    {
+      "number": 146,
+      "title_en": "Jesus my Saviour to Bethlehem came",
+      "source_url": "https://hymnary.org/hymn/RH2006/146",
+      "lyrics_included": false,
+      "source_status": "first_line_verified_against_RH2006_index"
+    },
+    {
+      "number": 147,
+      "title_en": "Thou didst leave Thy throne",
+      "source_url": "https://hymnary.org/hymn/RH2006/147",
+      "lyrics_included": false,
+      "source_status": "first_line_verified_against_RH2006_index"
+    },
+    {
+      "number": 148,
+      "title_en": "Wonderful birth, to a manger He came",
+      "source_url": "https://hymnary.org/hymn/RH2006/148",
+      "lyrics_included": false,
+      "source_status": "first_line_verified_against_RH2006_index"
+    },
+    {
+      "number": 149,
+      "title_en": "I cannot tell why He, whom angels worship",
+      "source_url": "https://hymnary.org/hymn/RH2006/149",
+      "lyrics_included": false,
+      "source_status": "first_line_verified_against_RH2006_index"
+    },
+    {
+      "number": 150,
+      "title_en": "Tell me the story of Jesus",
+      "source_url": "https://hymnary.org/hymn/RH2006/150",
+      "lyrics_included": false,
+      "source_status": "first_line_verified_against_RH2006_index"
+    },
+    {
+      "number": 151,
+      "title_en": "Thou who didst leave Thy Father's Throne",
+      "source_url": "https://hymnary.org/hymn/RH2006/151",
+      "lyrics_included": false,
+      "source_status": "first_line_verified_against_RH2006_index"
+    },
+    {
+      "number": 152,
+      "title_en": "Join all the glorious names",
+      "source_url": "https://hymnary.org/hymn/RH2006/152",
+      "lyrics_included": false,
+      "source_status": "first_line_verified_against_RH2006_index"
+    },
+    {
+      "number": 153,
+      "title_en": "Name of Jesus! Highest Name!",
+      "source_url": "https://hymnary.org/hymn/RH2006/153",
+      "lyrics_included": false,
+      "source_status": "first_line_verified_against_RH2006_index"
+    },
+    {
+      "number": 154,
+      "title_en": "Let earth and heav'n agree",
+      "source_url": "https://hymnary.org/hymn/RH2006/154",
+      "lyrics_included": false,
+      "source_status": "first_line_verified_against_RH2006_index"
+    },
+    {
+      "number": 155,
+      "title_en": "How sweet the Name of Jesus sounds",
+      "source_url": "https://hymnary.org/hymn/RH2006/155",
+      "lyrics_included": false,
+      "source_status": "first_line_verified_against_RH2006_index"
+    },
+    {
+      "number": 156,
+      "title_en": "There is a name I love to hear",
+      "source_url": "https://hymnary.org/hymn/RH2006/156",
+      "lyrics_included": false,
+      "source_status": "first_line_verified_against_RH2006_index"
+    },
+    {
+      "number": 157,
+      "title_en": "Crown Him with many crowns",
+      "source_url": "https://hymnary.org/hymn/RH2006/157",
+      "lyrics_included": false,
+      "source_status": "first_line_verified_against_RH2006_index"
+    },
+    {
+      "number": 158,
+      "title_en": "Take the name of Jesus with you",
+      "source_url": "https://hymnary.org/hymn/RH2006/158",
+      "lyrics_included": false,
+      "source_status": "first_line_verified_against_RH2006_index"
+    },
+    {
+      "number": 159,
+      "title_en": "I've found the 'Pearl of greatest price,'",
+      "source_url": "https://hymnary.org/hymn/RH2006/159",
+      "lyrics_included": false,
+      "source_status": "first_line_verified_against_RH2006_index"
+    },
+    {
+      "number": 160,
+      "title_en": "The name of Jesus is so sweet",
+      "source_url": "https://hymnary.org/hymn/RH2006/160",
+      "lyrics_included": false,
+      "source_status": "first_line_verified_against_RH2006_index"
+    },
+    {
+      "number": 161,
+      "title_en": "When I survey the wonderous cross",
+      "source_url": "https://hymnary.org/hymn/RH2006/161",
+      "lyrics_included": false,
+      "source_status": "first_line_verified_against_RH2006_index"
+    },
+    {
+      "number": 162,
+      "title_en": "O sacred head once wounded",
+      "source_url": "https://hymnary.org/hymn/RH2006/162",
+      "lyrics_included": false,
+      "source_status": "first_line_verified_against_RH2006_index"
+    },
+    {
+      "number": 163,
+      "title_en": "O head once fill'd with bruises",
+      "source_url": "https://hymnary.org/hymn/RH2006/163",
+      "lyrics_included": false,
+      "source_status": "first_line_verified_against_RH2006_index"
+    },
+    {
+      "number": 164,
+      "title_en": "What a wonderful, wonderful Saviour",
+      "source_url": "https://hymnary.org/hymn/RH2006/164",
+      "lyrics_included": false,
+      "source_status": "first_line_verified_against_RH2006_index"
+    },
+    {
+      "number": 165,
+      "title_en": "King of my life, I crown Thee now",
+      "source_url": "https://hymnary.org/hymn/RH2006/165",
+      "lyrics_included": false,
+      "source_status": "first_line_verified_against_RH2006_index"
+    },
+    {
+      "number": 166,
+      "title_en": "Extended on a cursèd tree",
+      "source_url": "https://hymnary.org/hymn/RH2006/166",
+      "lyrics_included": false,
+      "source_status": "first_line_verified_against_RH2006_index"
+    },
+    {
+      "number": 167,
+      "title_en": "'Tis finished! The Messias dies",
+      "source_url": "https://hymnary.org/hymn/RH2006/167",
+      "lyrics_included": false,
+      "source_status": "first_line_verified_against_RH2006_index"
+    },
+    {
+      "number": 168,
+      "title_en": "There is a green hill far away",
+      "source_url": "https://hymnary.org/hymn/RH2006/168",
+      "lyrics_included": false,
+      "source_status": "first_line_verified_against_RH2006_index"
+    },
+    {
+      "number": 169,
+      "title_en": "Not all the blood of beasts",
+      "source_url": "https://hymnary.org/hymn/RH2006/169",
+      "lyrics_included": false,
+      "source_status": "first_line_verified_against_RH2006_index"
+    },
+    {
+      "number": 170,
+      "title_en": "Man of Sorrows! What a name",
+      "source_url": "https://hymnary.org/hymn/RH2006/170",
+      "lyrics_included": false,
+      "source_status": "first_line_verified_against_RH2006_index"
+    },
+    {
+      "number": 171,
+      "title_en": "We sing the praise of Him who died",
+      "source_url": "https://hymnary.org/hymn/RH2006/171",
+      "lyrics_included": false,
+      "source_status": "first_line_verified_against_RH2006_index"
+    },
+    {
+      "number": 172,
+      "title_en": "Give me a sight, O Saviour",
+      "source_url": "https://hymnary.org/hymn/RH2006/172",
+      "lyrics_included": false,
+      "source_status": "first_line_verified_against_RH2006_index"
+    },
+    {
+      "number": 173,
+      "title_en": "O Love divine! What hast Thou done?",
+      "source_url": "https://hymnary.org/hymn/RH2006/173",
+      "lyrics_included": false,
+      "source_status": "first_line_verified_against_RH2006_index"
+    },
+    {
+      "number": 174,
+      "title_en": "Beneath the Cross of Jesus",
+      "source_url": "https://hymnary.org/hymn/RH2006/174",
+      "lyrics_included": false,
+      "source_status": "first_line_verified_against_RH2006_index"
+    },
+    {
+      "number": 175,
+      "title_en": "By the Cross of Jesus standing",
+      "source_url": "https://hymnary.org/hymn/RH2006/175",
+      "lyrics_included": false,
+      "source_status": "first_line_verified_against_RH2006_index"
+    },
+    {
+      "number": 176,
+      "title_en": "I stand amaz'd in the presence",
+      "source_url": "https://hymnary.org/hymn/RH2006/176",
+      "lyrics_included": false,
+      "source_status": "first_line_verified_against_RH2006_index"
+    },
+    {
+      "number": 177,
+      "title_en": "Jesus was slain for me",
+      "source_url": "https://hymnary.org/hymn/RH2006/177",
+      "lyrics_included": false,
+      "source_status": "first_line_verified_against_RH2006_index"
+    }
+  ]
+}
