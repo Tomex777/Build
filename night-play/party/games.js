@@ -40,14 +40,13 @@ function setup(){
   box.innerHTML='<div class="party-topline">'+button('‹ All games','hub','party-text-btn')+'<span>CREATE FIRST · INVITE PLAYERS LATER</span></div>'+
   '<div class="party-panel"><h2>Make your quiz.</h2><p>Write the questions first. People joining an online quiz enter their own names from the invitation link — the host never adds a player list.</p>'+
   button('Write quiz questions','editor')+
-  '<a class="party-online-link" href="https://nomi-tomex777.vercel.app/#/create" target="_blank" rel="noopener noreferrer">Create a shareable online quiz on Nomi ↗</a>'+
-  '<p class="party-field-help">Online hosting currently uses Nomi. NIGHT account linking and shared online quiz rooms are not connected yet.</p>'+
+  '<p class="party-field-help">Create your questions, then publish an online NIGHT room with an invitation link. Your WhatsApp profile supplies the host name.</p>'+
   button('Practice together on this phone','local-quiz-setup','party-secondary')+'</div>';return;
  }
 
  const players=people.map((x,i)=>'<span class="party-player-pill">'+h(x)+'<button type="button" data-remove="'+i+'" aria-label="Remove '+h(x)+'">×</button></span>').join('');
  box.innerHTML='<div class="party-topline">'+button('‹ All games','hub','party-text-btn')+'<span>ONLINE OR ONE PHONE</span></div>'+
- '<div class="party-panel"><a class="party-online-link" href="https://nomi-tomex777.vercel.app/#/live/setup/'+encodeURIComponent(selected)+'" target="_blank" rel="noopener noreferrer">Create online room &amp; invite by link ↗</a><p class="party-field-help">Players join through your link and enter their own names. Online rooms still run on Nomi separately; its account may be required.</p><h2>Playing on one phone?</h2><p>Add only the people who will take turns on this device.</p><div class="party-player-list" '+(people.length?'':'hidden')+'>'+players+'</div>'+
+ '<div class="party-panel"><a class="party-online-link" href="/party/room/?game='+encodeURIComponent(selected)+'">Create online room &amp; invite by link ↗</a><p class="party-field-help">Host using your NIGHT WhatsApp profile. Friends join on their own phones through your link, without creating an account.</p><h2>Playing on one phone?</h2><p>Add only the people who will take turns on this device.</p><div class="party-player-list" '+(people.length?'':'hidden')+'>'+players+'</div>'+
  '<form id="partyAddPlayer" class="party-player-form"><label class="sr-only" for="playerName">Player name</label><input class="party-input" id="playerName" maxlength="24" placeholder="Enter a player name" value="'+h(verifiedIdentity?.displayName||'')+'" autocomplete="off" required><button type="submit" class="party-add-btn">Add</button></form>'+
  '<p class="party-field-help">'+people.length+' / 8 players · '+(selected==='quiz'?'Create the personal quiz first.':rounds+' questions')+'</p>'+
  (selected==='quiz'?button('Build personal quiz','editor','party-primary','id="quizBuilderButton"'):button('Start '+h(m[0]),'start','party-primary','id="startParty" '+(people.length<2?'disabled':'')))+'</div>';
@@ -67,7 +66,7 @@ function editor(){
  '<p class="party-field-help">Created by '+h(verifiedIdentity?.displayName||draft.owner||'Quiz host')+'. Only people joining an online quiz provide player names.</p>'+
  '<label class="party-field">Quiz title<input class="party-input" id="quizTitle" maxlength="75" value="'+h(draft.title)+'" placeholder="Quiz title"></label>'+
  '<div class="party-editor-list">'+questions+'</div>'+(draft.questions.length<12?button('Add question','add-question','party-secondary'):'')+
- '<p class="party-field-help">Draft saved here. Online responses require publishing through Nomi until NIGHT online rooms are connected.</p>'+button('Practice on this phone','play-quiz')+'</section>';
+ '<p class="party-field-help">Your draft is saved here. Publish when all questions are ready.</p>'+button('Publish quiz &amp; get invite link','publish-quiz')+button('Practice on this phone','play-quiz','party-secondary')+'</section>';
 }
 function start(){
  if(people.length<2){note('Add at least two players.');return}
@@ -164,6 +163,7 @@ function action(type,src){
  case 'setup':phase='setup';render();break;
  case 'local-quiz-setup':quizLocalSetup=true;people=[];setBinding(null);phase='setup';render();break;
  case 'editor':editor();break;
+ case 'publish-quiz':if(!validQuiz())note('Complete all quiz questions first.');else if(draft.questions.length>10)note('Online quizzes support up to ten questions.');else{save(DRAFT,draft);location.assign('/party/room/?game=quiz')}break;
  case 'start':start();break;
  case 'play-quiz':if(!validQuiz())note('Complete your quiz first.');else{save(DRAFT,draft);if(!quizLocalSetup||people.length<2){if(!quizLocalSetup){people=[];setBinding(null)}quizLocalSetup=true;phase='setup';render();note('Add two players to practice on one phone.')}else start()}break;
  case 'ready':phase='vote';persist();render();break;
