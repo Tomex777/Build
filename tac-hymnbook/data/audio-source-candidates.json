@@ -1,0 +1,92 @@
+{
+  "schema_version": 1,
+  "purpose": "Research queue only. These are NOT downloadable audio tracks or verified TAC performances. Do not expose in the app as playable, released recordings before song/tune/rights review.",
+  "source_search_date": "2026-10-19",
+  "candidates": [
+    {
+      "collection": "main",
+      "number": 1,
+      "language": "en",
+      "voice": "unknown",
+      "title": "Lord Of All Being, Throned Afar",
+      "performer": "Squirrel 24 (upload attributed to Bethshan Tabernacle)",
+      "platform": "youtube",
+      "url": "https://www.youtube.com/watch?v=Q_CQcBNrNWc",
+      "status": "needs_listening_and_tune_match",
+      "redistribution_permission": "not_verified",
+      "notes": "Title matches Redemption 1 English; the TAC melody and whether audio is full sung rendition remain unverified."
+    },
+    {
+      "collection": "main",
+      "number": 2,
+      "language": "en",
+      "voice": "choir",
+      "title": "All Hail the Power of Jesus' Name! - Nairobi East Chorale (Official Video)",
+      "performer": "The Nairobi East Chorale",
+      "platform": "youtube",
+      "url": "https://www.youtube.com/watch?v=o9ViMDr2Ims",
+      "status": "needs_verse_and_tune_match",
+      "redistribution_permission": "not_verified",
+      "notes": "Title matches Redemption 2 English, but differing hymn-book tunes and verses must be checked against printed TAC hymn."
+    },
+    {
+      "collection": "main",
+      "number": 2,
+      "language": "yo",
+      "voice": "unknown",
+      "title": "Gbogbo Aye Gbe Jesu Ga",
+      "performer": "Pastor J. A. Adelakun",
+      "platform": "spotify",
+      "url": "https://open.spotify.com/album/5jiautwSXemDoqhBIos05I",
+      "status": "needs_verse_and_tune_match",
+      "redistribution_permission": "not_verified",
+      "notes": "Opening line matches Redemption 2 Yorùbá; do not import Spotify audio directly."
+    },
+    {
+      "collection": "main",
+      "number": 50,
+      "language": "yo",
+      "voice": "unknown",
+      "title": "A f'ope f'Olorun",
+      "performer": "FILM NIGERIA, UNILORIN",
+      "platform": "spotify",
+      "url": "https://open.spotify.com/track/3WGpCLRvA7YzRNFiKnxHkc",
+      "status": "needs_verse_and_tune_match",
+      "redistribution_permission": "not_verified",
+      "notes": "Opening line matches Redemption 50 Yorùbá. Different collection uses same first line; check arrangement and verse completeness."
+    },
+    {
+      "collection": "akokun",
+      "number": 1,
+      "language": "yo",
+      "voice": "solo",
+      "title": "B'oruko Jesu Ti Dun To",
+      "performer": "EmmaOMG",
+      "platform": "youtube",
+      "url": "https://www.youtube.com/watch?v=b4oV9mGUMfo",
+      "status": "needs_verse_and_tune_match",
+      "redistribution_permission": "not_verified",
+      "notes": "Opening line resembles photo-backed Àkọkún 1 title, but no Àkọkún full-text transcription or TAC melody verification yet. Commercial 2020 recording, not automatically reusable."
+    }
+  ],
+  "candidate_collections": [
+    {
+      "platform": "audiomack",
+      "url": "https://audiomack.com/gloriousvisiontv/album/choir-music-from-the-apostolic-church-lawna-international-convention-2022",
+      "name": "Glorious Vision TV: Choir Music from The Apostolic Church LAWNA International Convention 2022",
+      "notes": "Church choir recordings; mostly anthems. Individual hymn identities must be matched by first line and melody before inclusion."
+    },
+    {
+      "platform": "audiomack",
+      "url": "https://audiomack.com/tacbatv",
+      "name": "TACBA TV - official media department of The Apostolic Church Badagry Area",
+      "notes": "Potential local contact for consent and recording requests; not an automatic licence."
+    },
+    {
+      "platform": "smallchurchmusic",
+      "url": "https://www.smallchurchmusic.com/Song_Display-New.php?Search=%28Louvan",
+      "name": "Small Church Music: Lord of All Being, Throned Afar / Louvan",
+      "notes": "Includes vocals-and-organ and vocals-and-band versions but is not a verified TAC rendition; consult website and rights owner for app redistribution. Do not label as choir."
+    }
+  ]
+}
