@@ -1,0 +1,39 @@
+name: NIGHT Browser Android Prototype
+
+on:
+  push:
+    branches: [feature/night-browser-prototype-20261019]
+    paths:
+      - 'night-browser/**'
+      - '.github/workflows/night-browser-android.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'night-browser/**'
+      - '.github/workflows/night-browser-android.yml'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: 'platform-tools platforms;android-36 build-tools;36.0.0'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '9.7.1'
+      - name: Check pure Kotlin tests and compile native debug app
+        run: gradle --no-daemon --stacktrace -p night-browser :app:testDebugUnitTest :app:assembleDebug
+      - name: Upload installable prototype APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: night-browser-android-debug
+          path: night-browser/app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
