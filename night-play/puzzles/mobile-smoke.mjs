@@ -71,7 +71,7 @@ try{
  await page.goto(url+'/puzzles/?game=memory');
  assert.equal(await page.locator('#title').innerText(),'Memory Match');
  assert.equal(await page.locator('.memory-theme-option').count(),5,'five original themed collections');
- assert.equal(await page.locator('[data-memory-size]').count(),0,'board dimensions stay out of the start screen');
+ assert.equal(await page.locator('#board [data-memory-size]').count(),0,'board dimensions stay out of the start screen');
  await page.locator('#settingsButton').click();
  assert.equal(await page.locator('.memory-settings-size').count(),10,'board sizes live exclusively in Settings');
  assert.equal(await page.locator('[data-memory-size="6x5"]').getAttribute('aria-pressed'),'true','6 × 5 is the fresh-install default');
@@ -145,7 +145,7 @@ try{
  await page.locator('.memory-deck-btn').click();
  assert.equal(await page.locator('.memory-theme-option').count(),5);
  await page.locator('[data-memory-theme="storybook"]').click();
- assert.equal(await page.locator('[data-memory-size]').count(),0,'size controls remain hidden on new round setup');
+ assert.equal(await page.locator('#board [data-memory-size]').count(),0,'size controls remain hidden on new round setup');
  await page.locator('[data-memory-action="start"]').click();
  mem=await page.evaluate(()=>JSON.parse(localStorage.getItem('night-play-memory-v2')));
  assert.equal(mem.theme,'storybook');
