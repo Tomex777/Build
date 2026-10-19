@@ -34,6 +34,10 @@ jobs:
       - name: Test native gameplay
         working-directory: offline-games
         run: gradle --no-daemon :app:testDebugUnitTest
+      - name: Syntax-check all original offline games
+        run: |
+          set -euo pipefail
+          for file in offline-games/app/src/main/assets/classics/*.js; do node --check "$file"; done
       - name: Build installable debug APK
         working-directory: offline-games
         run: gradle --no-daemon :app:assembleDebug
@@ -53,6 +57,12 @@ jobs:
           unzip -Z1 "$APK" | grep -q "assets/puzzles/games.js"
           unzip -Z1 "$APK" | grep -q "assets/puzzles/core.js"
           unzip -Z1 "$APK" | grep -q "assets/puzzles/style.css"
+          unzip -Z1 "$APK" | grep -q "assets/classics/index.html"
+          unzip -Z1 "$APK" | grep -q "assets/classics/core.js"
+          unzip -Z1 "$APK" | grep -q "assets/classics/puzzles.js"
+          unzip -Z1 "$APK" | grep -q "assets/classics/boards.js"
+          unzip -Z1 "$APK" | grep -q "assets/classics/cards.js"
+          unzip -Z1 "$APK" | grep -q "assets/classics/arcades.js"
           if "$ANDROID_HOME/build-tools/36.0.0/aapt" dump permissions "$APK" | grep -q "android.permission.INTERNET"; then
             echo "Offline-only release unexpectedly requests internet permission" >&2
             exit 1

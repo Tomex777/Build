@@ -4,7 +4,7 @@ Android app for an original offline game collection, expanding in tested batches
 
 - **Application ID:** `com.night.offlinegames`, following the required `com.night.<appname>` convention. Change the final segment consistently at renaming time.
 - **Platform:** native Android / Kotlin / Compose, `minSdk 26`.
-- **Current playable catalog:** seven games, not 105 placeholders: native 2048; original NIGHT Play arcade implementations of Wing Hop, Block Drop, Minesweeper and Maze Chase; and Sudoku and Connect Four from the same owner’s Puzzle Room, all bundled offline.
+- **Current playable catalog:** 31 implemented games, not 105 placeholders: native 2048; six existing NIGHT Play arcade/puzzle games bundled offline; and 24 newly implemented locally bundled logic, board, card and action games in `classics/`.
 - **No INTERNET permission.** The embedded arcade loads under WebViewAssetLoader on the reserved `appassets.androidplatform.net` virtual host, with network loads blocked.
 - **Progress:** 2048 persists the board and best in device preferences; arcade game scores persist in the WebView's local storage; hub remembers recent games and favourites.
 - **Style:** no ad SDK, online account requirement, global volume slider, placeholder tiles, or duplicate back buttons.
@@ -17,9 +17,13 @@ The six browser games are copied from **this same owner's NIGHT Play** source tr
 
 Wing Hop embeds Kenney Animal Pack Remastered / Background Elements Remastered sprites as data URIs; source comments identify these as CC0 1.0. Keep asset provenance in future updates. Do not import unverified third-party games, photos, trademarks or copyrighted sprites on the assumption that the mechanics are open-source.
 
+## New original classic modules
+
+Added `classics/` with separate logic modules: Tic-Tac-Toe, Reversi, Dots & Boxes, Mancala, Hex, Battleship, Pentago, Lights Out, Sliding Puzzle, Tower of Hanoi, Color Sort, Nonogram, Simon, Pattern Recall, Take Away, Word Search, Higher or Lower, War, Snap, Crazy Eights, Pong, Breakout, Space Invaders and Fruit Slash. Each has interactive rules and a real win/score condition. The canvas action games use local requestAnimationFrame render loops with cleanup. These original games are implemented in-browser but bundled in the APK and blocked from requesting the Internet.
+
 ## Next game batches
 
-Implement separately and test before listing in the hub: Snake, Tic-Tac-Toe, themed Memory Match, Jigsaw, then card/board and action games. Shape-only Memory Match is intentionally withheld until its card themes meet the approved design. The NIGHT Play monolithic `index.html` depends on the website's account/channel shell and should **not** be copied blindly into the offline APK. Extract and adapt each game deliberately.
+Implement separately and test before listing in the hub: Snake, themed Memory Match, Jigsaw, Solitaire and other card/board and action games. Shape-only Memory Match is intentionally withheld until its card themes meet the approved design. The NIGHT Play monolithic `index.html` depends on the website's account/channel shell and should **not** be copied blindly into the offline APK. Extract and adapt each game deliberately.
 
 ## Manual device review needed
 

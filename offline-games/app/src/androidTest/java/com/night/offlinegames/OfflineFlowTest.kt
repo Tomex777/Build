@@ -49,6 +49,15 @@ class OfflineFlowTest {
 
             device.pressBack()
             assertNotNull("Did not return from arcade", device.wait(Until.findObject(By.text("Offline collection")), 7000))
+
+            // A newly implemented original offline game, not a leftover website shell.
+            val newGame = device.wait(Until.findObject(By.text("Tic-Tac-Toe")), 7000)
+            assertNotNull("Tic-Tac-Toe not listed", newGame)
+            newGame.click()
+            assertNotNull("New game did not render", device.wait(Until.findObject(By.text("Your turn · X")), 15000))
+            saveScreenshot(device, context, "04-tictactoe.png")
+            device.pressBack()
+            assertNotNull("Could not leave the new game", device.wait(Until.findObject(By.text("Offline collection")), 7000))
         }
     }
 

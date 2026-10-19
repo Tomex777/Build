@@ -84,9 +84,33 @@ private val games = listOf(
     GameEntry("bird", "Wing Hop", "Arcade", "Navigate the moving gaps"),
     GameEntry("maze", "Maze Chase", "Arcade", "Collect dots, dodge chasers"),
     GameEntry("sudoku", "Sudoku", "Puzzle", "Complete the number grid"),
-    GameEntry("connect", "Connect Four", "Board", "Outsmart the computer")
+    GameEntry("connect", "Connect Four", "Board", "Outsmart the computer"),
+    GameEntry("ttt", "Tic-Tac-Toe", "Board", "Challenge the perfect computer"),
+    GameEntry("reversi", "Reversi", "Board", "Flip your opponent's discs"),
+    GameEntry("dots", "Dots & Boxes", "Board", "Complete squares and claim points"),
+    GameEntry("mancala", "Mancala", "Board", "Sow seeds and capture stones"),
+    GameEntry("hex", "Hex", "Board", "Connect your opposite sides"),
+    GameEntry("battleship", "Battleship", "Board", "Find the hidden fleet"),
+    GameEntry("pentago", "Pentago", "Board", "Place and rotate to connect five"),
+    GameEntry("lights", "Lights Out", "Puzzle", "Switch every light off"),
+    GameEntry("sliding", "Sliding Puzzle", "Puzzle", "Restore the scrambled 15 tiles"),
+    GameEntry("hanoi", "Tower of Hanoi", "Puzzle", "Transfer five disks legally"),
+    GameEntry("colorsort", "Color Sort", "Puzzle", "Sort liquids into matching tubes"),
+    GameEntry("nonogram", "Nonogram", "Puzzle", "Decode the picture from clues"),
+    GameEntry("wordsearch", "Word Search", "Puzzle", "Find six words in the grid"),
+    GameEntry("simon", "Simon", "Memory", "Repeat a growing colour pattern"),
+    GameEntry("pattern", "Pattern Recall", "Memory", "Remember the highlighted tiles"),
+    GameEntry("nim", "Take Away", "Strategy", "Plan your last move"),
+    GameEntry("higher", "Higher or Lower", "Card", "Guess the next card"),
+    GameEntry("war", "War", "Card", "Reveal cards and compare ranks"),
+    GameEntry("snap", "Snap", "Card", "Spot identical ranks"),
+    GameEntry("crazyeights", "Crazy Eights", "Card", "Match cards against the CPU"),
+    GameEntry("pong", "Pong Classic", "Arcade", "Outplay the computer paddle"),
+    GameEntry("breakout", "Breakout", "Arcade", "Clear every brick"),
+    GameEntry("invaders", "Space Invaders", "Arcade", "Defend against descending invaders"),
+    GameEntry("fruit", "Fruit Slash", "Action", "Slice fruit without hitting hazards")
 )
-private val categories = listOf("All", "Favourites", "Arcade", "Puzzle", "Board")
+private val categories = listOf("All", "Favourites", "Arcade", "Puzzle", "Board", "Memory", "Strategy", "Card", "Action")
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -209,7 +233,7 @@ private fun OfflineHub() {
             // No INTERNET permission or remote script/assets are necessary.
             OfflineBundledGameView(
                 gameId = selected!!,
-                directory = if (selected == "sudoku" || selected == "connect") "puzzles" else "arcade",
+                directory = when (selected) { "sudoku", "connect" -> "puzzles"; "mines", "blocks", "bird", "maze" -> "arcade"; else -> "classics" },
                 onExit = { selected = null }
             )
         }
