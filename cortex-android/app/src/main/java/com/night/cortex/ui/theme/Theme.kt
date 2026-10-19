@@ -1,6 +1,9 @@
 package com.night.cortex.ui.theme
 
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Typography
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.unit.sp
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
@@ -33,6 +36,11 @@ private val CortexColors = darkColorScheme(
 fun CortexTheme(content: @Composable () -> Unit) {
     MaterialTheme(
         colorScheme = CortexColors,
+        typography = Typography(
+            bodyLarge = Typography().bodyLarge.copy(fontFamily = FontFamily.SansSerif, fontSize = 14.sp),
+            bodyMedium = Typography().bodyMedium.copy(fontFamily = FontFamily.SansSerif, fontSize = 14.sp),
+            labelLarge = Typography().labelLarge.copy(fontFamily = FontFamily.SansSerif, fontSize = 14.sp),
+        ),
         content = content,
     )
 }
