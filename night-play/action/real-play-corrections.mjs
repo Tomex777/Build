@@ -93,7 +93,7 @@ try{
   assert.ok(cut.fruits.every(f=>f.hit!==true),'intact sliced fruit is removed');
   await page.waitForTimeout(130);
   const later=await snap(page);
-  assert.ok(Math.abs(later.halves[0].x-later.halves[1].x)>12,'pieces fly apart after the swipe');
+  assert.ok(Math.hypot(later.halves[0].x-later.halves[1].x,later.halves[0].y-later.halves[1].y)>12,'pieces fly apart after the swipe');
   report.push({game:'slice',case:'gesture makes two separate pieces',score:later.score,halves:later.halves.length});
   await shot(page,'fruit-halves');await page.close();
  }
