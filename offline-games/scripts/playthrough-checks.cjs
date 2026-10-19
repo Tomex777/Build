@@ -18,6 +18,7 @@ async function main(){
   await page.goto('http://127.0.0.1:'+port+'/classics/index.html?game='+encodeURIComponent(id),{waitUntil:'load',timeout:20000});
   await fn(page);
   if(errors.length)throw new Error('Runtime: '+errors.join('; '));
+  if(id==='memory')await page.waitForTimeout(410);
   await page.screenshot({path:path.join(out,id+'-completed.png'),fullPage:false});
   cases.push({id,pass:true,message:(await page.locator('#status').innerText()).slice(0,180)});
   console.log('PLAYTHROUGH_PASS '+id);
