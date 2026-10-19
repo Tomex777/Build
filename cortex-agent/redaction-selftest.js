@@ -7,7 +7,7 @@ const source=await readFile(fileURLToPath(new URL('./index.js',import.meta.url))
 const start=source.indexOf('function redactLogLine(input)')
 const end=source.indexOf('function publicErrorMessage(',start)
 assert(start>=0&&end>start,'Agent redaction function must exist')
-const redact=runInNewContext(source.slice(start,end)+'\\nredactLogLine',{})
+const redact=runInNewContext(source.slice(start,end)+'\nredactLogLine',{})
 const samples=[
   '2026-10-19 08:13:30 baseKey: <Buffer 05 84 2f 5c 5e da>',
   '2026-10-19 08:13:30 privKey: <Buffer 98 8c 3e 45 22 aa>',
