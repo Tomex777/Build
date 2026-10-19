@@ -600,20 +600,23 @@ class MainActivity : Activity() {
             when(sheet) {
                 Sheet.LIBRARY->{
                     val gap=9f;val cell=(ww-54f-gap)/2f
+                    // Five rows plus footer fit even on short Android 8 displays.
+                    val row=((height-145f)/5f).coerceAtLeast(52f)
+                    val cardH=row-8f
                     AtlasPresets.titles.forEachIndexed { i,name->
-                        val x=22f+(i%2)*(cell+gap);val y=top+61f+(i/2)*77f
-                        box(c,x,y,x+cell,y+69f,0xFF1B3440.toInt(),12f)
+                        val x=22f+(i%2)*(cell+gap);val y=top+61f+(i/2)*row
+                        box(c,x,y,x+cell,y+cardH,0xFF1B3440.toInt(),12f)
                         label(c,("%02d".format(i+1)),x+10,y+20,10f,teal,true)
                         label(c,name.take(19),x+10,y+45,12f,text,true)
-                        buttons+=Hit(RectF(x,y,x+cell,y+69f),"Open "+name){
+                        buttons+=Hit(RectF(x,y,x+cell,y+cardH),"Open "+name){
                             replace(AtlasPresets.create(i));exploreRoute.clear()
                             sheet=Sheet.NONE;invalidate()
                         }
                     }
-                    smallButton(c,"NEW EMPTY WORLD",20f,top+455f,ww*.48f-24f,39f){
+                    smallButton(c,"NEW EMPTY WORLD",20f,top+height-59f,ww*.48f-24f,39f){
                         replace(World("Untitled Atlas",72f,84f,V2(36f,42f)))
                     }
-                    smallButton(c,"EXPORT .SATLAS",ww*.52f,top+455f,ww*.48f-20f,39f){
+                    smallButton(c,"EXPORT .SATLAS",ww*.52f,top+height-59f,ww*.48f-20f,39f){
                         sheet=Sheet.NONE;exportScene();invalidate()
                     }
                 }
