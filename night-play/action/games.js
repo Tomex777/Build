@@ -133,7 +133,7 @@ function paintSlice(){
  * Keep vertical platform gaps under 96px and horizontal wrap reachable.
  */
 function jumpPlatform(x,y,w,moving=false,fragile=false){
- return {x,y,w,moving,fragile,baseX:x,phase:rand(0,TAU),
+ return {x,y,w,moving,fragile,hits:0,baseX:x,phase:rand(0,TAU),
    range:rand(24,52),pace:rand(1.25,2.3),ttl:0};
 }
 function initJump(){
@@ -143,12 +143,15 @@ function initJump(){
    platforms.push(jumpPlatform(x,y,w,i===2||(i>0&&Math.random()<.34),
      i===4||(i>1&&Math.random()<.16)));
  }
- return {score:0,elapsed:0,bounce:0,player:{x:180,y:460,vy:-560,vx:0},
+ return {score:0,elapsed:0,bounce:0,hazardY:H+60,player:{x:180,y:460,vy:-560,vx:0},
    platforms,scroll:0};
 }
 function tickJump(dt){
  const p=state.player,prev=p.y;
  state.elapsed+=dt;state.bounce=Math.max(0,state.bounce-dt);
+ // The rising storm makes camping on one platform impossible.
+ // Good climbs scroll it away, so pressure comes from gameplay, not a timer UI.
+ state.hazardY-=dt*(33+Math.min(38,state.score/150));
  const desired=inputs.left?-260:inputs.right?260:
    inputs.drag?(inputs.lastX-p.x)*10:0;
  p.vx+=(clamp(desired,-295,295)-p.vx)*Math.min(1,dt*13);
@@ -165,13 +168,15 @@ function tickJump(dt){
    if(plat.ttl<0||!(prev+17<=plat.y+4&&p.y+17>=plat.y&&
        p.x+15>plat.x&&p.x-15<plat.x+plat.w))continue;
    p.y=plat.y-18;p.vy=-560;state.bounce=.12;
-   if(plat.fragile)plat.ttl=.105;
+   plat.hits=(plat.hits||0)+1;
+   if(plat.fragile||plat.hits>=2)plat.ttl=.105;
    audio('hit');break;
  }
  if(p.y<185){
    const shift=185-p.y;p.y=185;state.scroll+=shift;
    state.score=Math.max(state.score,Math.floor(state.scroll));
    for(const plat of state.platforms)plat.y+=shift;
+   state.hazardY+=shift;
  }
  state.platforms=state.platforms.filter(plat=>plat.y<H+30&&plat.ttl>=0);
  // Difficulty starts immediately and ramps through moving, fragile and
@@ -186,7 +191,8 @@ function tickJump(dt){
    const fragile=Math.random()<.14+.23*difficulty;
    state.platforms.push(jumpPlatform(x,high-gap,w,moving,fragile));
  }
- if(p.y>H+35)end('You fell!');
+ if(p.y+17>=state.hazardY)end('The storm caught you!');
+ else if(p.y>H+35)end('You fell!');
  updateHud();
 }
 function paintJump(){
@@ -218,6 +224,20 @@ function paintJump(){
    }
    if(plat.moving){disk(plat.x+9,plat.y+6,2,'#e3e9ff');disk(plat.x+plat.w-9,plat.y+6,2,'#e3e9ff')}
    ctx.restore();
+ }
+ // The danger is physically located in the game world and moves with scrolling.
+ if(state.hazardY<H+35){
+   const y=Math.max(0,state.hazardY);
+   const mist=ctx.createLinearGradient(0,y,0,Math.max(y+1,H));
+   mist.addColorStop(0,'#366875bd');mist.addColorStop(1,'#193c56f0');
+   ctx.fillStyle=mist;ctx.fillRect(0,y,W,H-y);
+   ctx.strokeStyle='#82afc7c2';ctx.lineWidth=3;
+   ctx.beginPath();
+   for(let x=0;x<=W;x+=7){
+     const a=y+Math.sin(x*.052+state.elapsed*2.2)*5;
+     if(x===0)ctx.moveTo(x,a);else ctx.lineTo(x,a);
+   }
+   ctx.stroke();
  }
  const p=state.player;
  ctx.save();ctx.translate(p.x,p.y);ctx.rotate(clamp(p.vx/1400,-.18,.18));
