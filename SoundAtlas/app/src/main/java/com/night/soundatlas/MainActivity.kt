@@ -248,6 +248,7 @@ class MainActivity : Activity() {
         private var zoom=1f
         private var meter=1f
         private var sheet=Sheet.NONE
+        private var accessibilityState=""
         private var mode=Mode.EDIT
         private var wallMaterial=Material.STONE
         private var selectedId:Int?=null
@@ -275,6 +276,12 @@ class MainActivity : Activity() {
         override fun onDraw(canvas:Canvas) {
             super.onDraw(canvas)
             ww=width/density;hh=height/density
+            val state="Sound Atlas. World "+world.name+". Panel "+sheet.name+
+                ". Mode "+mode.name+". "+world.sounds.size+" sound sources."
+            if(state!=accessibilityState){
+                accessibilityState=state
+                contentDescription=state
+            }
             canvas.save();canvas.scale(density,density)
             canvas.drawColor(background)
             buttons.clear()
