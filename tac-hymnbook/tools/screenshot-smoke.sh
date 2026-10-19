@@ -14,6 +14,12 @@ if ! timeout 90s adb install --no-streaming -r "$APK"; then
   timeout 90s adb shell pm install -r /data/local/tmp/tac-hymns.apk
 fi
 
+echo "Installing and running real MediaPlayer instrumented device tests"
+test -f ./dist/app-debug-androidTest.apk
+timeout 90s adb install --no-streaming -r ./dist/app-debug-androidTest.apk
+timeout 180s adb shell am instrument -w -r com.night.tachymns.test/androidx.test.runner.AndroidJUnitRunner | tee tac-hymns-device-test-results.txt
+grep -q "OK (3 tests)" tac-hymns-device-test-results.txt
+
 echo "Opening home"
 timeout 25s adb shell am start -W -n com.night.tachymns/.MainActivity
 sleep 5
