@@ -37,9 +37,9 @@ try:
         n.attrib.get("text","").strip().lower() == text or
         n.attrib.get("content-desc","").strip().lower() == text]
     for n in matches:
-        match = re.match(r"\\[(\\d+),(\\d+)\\]\\[(\\d+),(\\d+)\\]", n.attrib.get("bounds",""))
-        if match:
-            x1,y1,x2,y2 = map(int, match.groups())
+        values = [int(v) for v in re.findall("[0-9]+", n.attrib.get("bounds",""))]
+        if len(values) == 4:
+            x1,y1,x2,y2 = values
             print((x1+x2)//2, (y1+y2)//2)
             sys.exit(0)
 except Exception:
