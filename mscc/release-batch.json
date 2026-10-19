@@ -1,9 +1,8 @@
 {
-  "releaseId": "night-2026-10-18-live-whatsapp-tests",
+  "releaseId": "thenkiri-hotfix-20261019",
   "baseBranch": "mscc-azure",
-  "baseCommit": "15d6eecbe7941e941af68a814bcbcd6004165fdd",
-  "pullRequests": [
-    349
-  ],
-  "notes": "User-approved NIGHT .testall live WhatsApp command-testing upgrade (PR #349). Verified supreme owner only; DM runs directly, groups require explicit confirm. Real PNG/PDF/QR/audio/video/static+animated sticker fixtures, actual registered command handlers (safe allowlist), menu flow for isolated Tic-Tac-Toe, external provider diagnostics, deterministic output decoding/FFprobe, WhatsApp send acceptance and report; failed-only retry, progress/cancel, no admin/account/group changes. Commands beyond live allowlist are explicitly NOT LIVE-TESTED. Requires green combined release checks, single protected mscc-production approval, Azure health and live WhatsApp verification. No live success is claimed before those steps."
+  "baseCommit": "1c0ba84d558c0c899cca6bb2fd2806d78ee070f9",
+  "pullRequests": [],
+  "preparedAt": "2026-10-19T00:31:00Z",
+  "notes": "User-authorized focused release: repair MSCC TheNkiri movie/TV catalog, HTML fallback, Downloadwella direct-link creation and TV episode resolution. The provider and regression-test commits are already on mscc-azure at baseCommit; the release PR stages this tested state without including unrelated open PRs. Live Thenkiri proof passed on the same provider/test code, including playable movie and S01E01 streams plus native season/episode enumeration. Integrated Readiness and MSCC Azure validation passed at baseCommit. After merge, require the single protected mscc-production approval, verify deployed SHA and Azure health, and confirm live WhatsApp command behavior before claiming deployment complete."
 }
