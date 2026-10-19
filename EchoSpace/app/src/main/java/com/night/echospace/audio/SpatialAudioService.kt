@@ -1,4 +1,4 @@
-package com.nexa.echospace.audio
+package com.night.echospace.audio
 
 import android.app.Notification
 import android.app.NotificationChannel
@@ -17,10 +17,10 @@ import android.os.Binder
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
-import com.nexa.echospace.MainActivity
-import com.nexa.echospace.model.SceneStore
-import com.nexa.echospace.model.Scenes
-import com.nexa.echospace.model.SoundSource
+import com.night.echospace.MainActivity
+import com.night.echospace.model.SceneStore
+import com.night.echospace.model.Scenes
+import com.night.echospace.model.SoundSource
 
 /** Keeps soundscapes playing with the screen off and displays a media playback notification. */
 class SpatialAudioService : Service() {
@@ -194,9 +194,9 @@ class SpatialAudioService : Service() {
     }
 
     companion object {
-        const val ACTION_PLAY = "com.nexa.echospace.PLAY"
-        const val ACTION_PAUSE = "com.nexa.echospace.PAUSE"
-        const val ACTION_STOP = "com.nexa.echospace.STOP"
+        const val ACTION_PLAY = "com.night.echospace.PLAY"
+        const val ACTION_PAUSE = "com.night.echospace.PAUSE"
+        const val ACTION_STOP = "com.night.echospace.STOP"
         private const val CHANNEL_ID = "echospace_playback"
         private const val NOTIFICATION_ID = 510
     }

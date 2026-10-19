@@ -1,4 +1,4 @@
-package com.nexa.echospace.model
+package com.night.echospace.model
 
 import android.content.Context
 import org.json.JSONArray

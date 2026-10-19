@@ -5,11 +5,11 @@ plugins {
 }
 
 android {
-    namespace = "com.nexa.echospace"
+    namespace = "com.night.echospace"
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "com.nexa.echospace"
+        applicationId = "com.night.echospace"
         minSdk = 26
         targetSdk = 35
         versionCode = 10

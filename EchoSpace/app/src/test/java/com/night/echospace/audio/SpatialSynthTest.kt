@@ -1,9 +1,9 @@
-package com.nexa.echospace.audio
+package com.night.echospace.audio
 
-import com.nexa.echospace.model.Scenes
-import com.nexa.echospace.model.SoundPlacement
-import com.nexa.echospace.model.SoundKind
-import com.nexa.echospace.model.SoundSource
+import com.night.echospace.model.Scenes
+import com.night.echospace.model.SoundPlacement
+import com.night.echospace.model.SoundKind
+import com.night.echospace.model.SoundSource
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import kotlin.math.abs

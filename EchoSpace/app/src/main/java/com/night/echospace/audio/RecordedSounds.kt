@@ -1,7 +1,7 @@
-package com.nexa.echospace.audio
+package com.night.echospace.audio
 
 import android.content.res.AssetManager
-import com.nexa.echospace.model.SoundKind
+import com.night.echospace.model.SoundKind
 
 /** CC0 field recordings prepared at build time as signed 16-bit 22.05kHz mono samples. */
 object RecordedSounds {

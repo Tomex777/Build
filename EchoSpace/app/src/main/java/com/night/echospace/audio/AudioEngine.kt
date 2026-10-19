@@ -1,11 +1,11 @@
-package com.nexa.echospace.audio
+package com.night.echospace.audio
 
 import android.content.Context
 import android.media.AudioAttributes
 import android.media.AudioFormat
 import android.media.AudioTrack
 import android.os.Process
-import com.nexa.echospace.model.SoundSource
+import com.night.echospace.model.SoundSource
 import java.util.concurrent.atomic.AtomicBoolean
 
 /** AudioTrack is always owned and released on the audio thread. */

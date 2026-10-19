@@ -1,7 +1,7 @@
-package com.nexa.echospace.audio
+package com.night.echospace.audio
 
-import com.nexa.echospace.model.SoundKind
-import com.nexa.echospace.model.SoundSource
+import com.night.echospace.model.SoundKind
+import com.night.echospace.model.SoundSource
 import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.cos

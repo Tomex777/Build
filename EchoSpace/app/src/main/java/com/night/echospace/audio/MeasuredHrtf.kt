@@ -1,4 +1,4 @@
-package com.nexa.echospace.audio
+package com.night.echospace.audio
 
 import java.io.InputStream
 import kotlin.math.PI

@@ -1,6 +1,6 @@
 @file:OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 
-package com.nexa.echospace
+package com.night.echospace
 
 import android.Manifest
 import android.content.ComponentName
@@ -96,13 +96,13 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.nexa.echospace.audio.SpatialAudioService
-import com.nexa.echospace.model.SceneStore
-import com.nexa.echospace.model.Scenes
-import com.nexa.echospace.model.SoundKind
-import com.nexa.echospace.model.SoundScene
-import com.nexa.echospace.model.SoundSource
-import com.nexa.echospace.model.SoundPlacement
+import com.night.echospace.audio.SpatialAudioService
+import com.night.echospace.model.SceneStore
+import com.night.echospace.model.Scenes
+import com.night.echospace.model.SoundKind
+import com.night.echospace.model.SoundScene
+import com.night.echospace.model.SoundSource
+import com.night.echospace.model.SoundPlacement
 import kotlinx.coroutines.delay
 import kotlin.math.hypot
 import kotlin.math.atan2
