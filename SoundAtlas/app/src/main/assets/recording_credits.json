@@ -1,0 +1,83 @@
+[
+  {
+    "kind": "rain",
+    "creator": "yzhamua",
+    "sound_id": 188655,
+    "license": "CC0-1.0",
+    "url": "https://freesound.org/people/yzhamua/sounds/188655/",
+    "filename": "rain.pcm",
+    "seconds": 48
+  },
+  {
+    "kind": "thunder",
+    "creator": "roboroo",
+    "sound_id": 436790,
+    "license": "CC0-1.0",
+    "url": "https://freesound.org/people/roboroo/sounds/436790/",
+    "filename": "thunder.pcm",
+    "seconds": 4.17
+  },
+  {
+    "kind": "wind",
+    "creator": "Sheyvan",
+    "sound_id": 479430,
+    "license": "CC0-1.0",
+    "url": "https://freesound.org/people/Sheyvan/sounds/479430/",
+    "filename": "wind.pcm",
+    "seconds": 48
+  },
+  {
+    "kind": "chimes",
+    "creator": "OPMartin",
+    "sound_id": 324325,
+    "license": "CC0-1.0",
+    "url": "https://freesound.org/people/OPMartin/sounds/324325/",
+    "filename": "chimes.pcm",
+    "seconds": 20
+  },
+  {
+    "kind": "birds",
+    "creator": "guidofm",
+    "sound_id": 509176,
+    "license": "CC0-1.0",
+    "url": "https://freesound.org/people/guidofm/sounds/509176/",
+    "filename": "birds.pcm",
+    "seconds": 20.59
+  },
+  {
+    "kind": "night",
+    "creator": "nick121087",
+    "sound_id": 476887,
+    "license": "CC0-1.0",
+    "url": "https://freesound.org/people/nick121087/sounds/476887/",
+    "filename": "night.pcm",
+    "seconds": 48
+  },
+  {
+    "kind": "stream",
+    "creator": "ciccarelli",
+    "sound_id": 569457,
+    "license": "CC0-1.0",
+    "url": "https://freesound.org/people/ciccarelli/sounds/569457/",
+    "filename": "stream.pcm",
+    "seconds": 48
+  },
+  {
+    "kind": "leaves",
+    "creator": "Anya_Media",
+    "sound_id": 523389,
+    "license": "CC0-1.0",
+    "url": "https://freesound.org/people/Anya_Media/sounds/523389/",
+    "filename": "leaves.pcm",
+    "seconds": 48
+  },
+  {
+    "kind": "traffic",
+    "creator": "GustavoGE",
+    "sound_id": 404115,
+    "license": "CC0-1.0",
+    "url": "https://freesound.org/people/GustavoGE/sounds/404115/",
+    "filename": "traffic.pcm",
+    "seconds": 48
+  }
+]
