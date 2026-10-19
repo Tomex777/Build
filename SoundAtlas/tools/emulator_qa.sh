@@ -88,6 +88,7 @@ assert_state 'Panel SOUNDS page 1'
 tap_desc 'NEXT SOUNDS'
 assert_state 'Panel SOUNDS page 2'
 tap_desc 'Add Ocean surf'
+tap_desc 'WEST'
 capture 05-sound-inspector.png
 assert_state 'Panel INSPECT'
 # Close inspector and enter Explore mode.
