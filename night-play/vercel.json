@@ -38,6 +38,14 @@
       "destination": "/puzzles/index.html"
     },
     {
+      "source": "/action",
+      "destination": "/action/index.html"
+    },
+    {
+      "source": "/action/",
+      "destination": "/action/index.html"
+    },
+    {
       "source": "/arcade",
       "destination": "/arcade/index.html"
     },
