@@ -24,26 +24,12 @@ jobs:
         with:
           persist-credentials: true
 
-      - name: Verify private-source access token is configured
-        shell: bash
-        env:
-          TORRI_SOURCE_READ_TOKEN: ${{ secrets.TORRI_SOURCE_READ_TOKEN }}
-        run: |
-          set -euo pipefail
-          if [[ -z "$TORRI_SOURCE_READ_TOKEN" ]]; then
-            echo "::error::Build needs a READ-ONLY Torri source access token as Actions secret TORRI_SOURCE_READ_TOKEN."
-            echo "::error::The production keystore is already available in Build; do NOT move or replace that key."
-            exit 1
-          fi
-          echo "Torri private-source access secret is configured; continuing."
-
-      - name: Checkout approved Torri 1.1.0 private production source
+      - name: Checkout approved Torri 1.1.0 public source into Build
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: Tomex777/Torri
-          ref: 3f88fc357c6732659e2127eb577b0259b1b5943c
+          ref: b989daca2ab4dc04035cd96bbcd2ba14ce78c6f8
           path: torri-src
-          token: ${{ secrets.TORRI_SOURCE_READ_TOKEN }}
           persist-credentials: false
 
       - name: Check original permanent Torri signing certificate before building
