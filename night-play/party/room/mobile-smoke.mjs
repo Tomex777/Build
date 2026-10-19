@@ -64,8 +64,10 @@ try {
   const output=path.join(root,'visual-output');mkdirSync(output,{recursive:true});
   const hostURL=address+'/party/room/?game=wyr',invite=address+'/party/room/?code='+game.code;
   await host.goto(hostURL);
-  await host.locator('.party-room-code').waitFor({timeout:8000}).catch(async error=>{console.error('HOST PAGE:',await host.locator('body').innerText());console.error('PAGE ERRORS:',errors);throw error});
-  assert.equal(await host.locator('.party-room-code').textContent(),game.code);
+  await host.locator('.party-invite-url').waitFor({timeout:8000}).catch(async error=>{console.error('HOST PAGE:',await host.locator('body').innerText());console.error('PAGE ERRORS:',errors);throw error});
+  assert.ok((await host.locator('.party-invite-url').innerText()).includes('code='+game.code),'room invitation contains real join link');
+  assert.equal(await host.locator('[data-action="share"]').count(),1,'one clear invitation control');
+  assert.equal(await host.locator('[data-action="copy"]').count(),0,'no duplicate share/copy action');
   assert.equal(await host.locator('.party-player-pill').count(),0,'host is not added as a player');
   await host.screenshot({path:path.join(output,'party-online-host-lobby.jpg'),type:'jpeg',quality:78});
   await one.goto(invite);await two.goto(invite);
@@ -75,7 +77,9 @@ try {
   await one.locator('#joinForm button').click();
   await two.locator('#guestName').fill('Robin');
   await two.locator('#joinForm button').click();
-  await Promise.all([one.locator('.party-topline').waitFor(),two.locator('.party-topline').waitFor()]);
+  await Promise.all([one.locator('.party-panel').waitFor(),two.locator('.party-panel').waitFor()]);
+  await one.waitForFunction(()=>document.querySelector('h2')?.textContent==='You’re in.');
+  await two.waitForFunction(()=>document.querySelector('h2')?.textContent==='You’re in.');
   assert.equal(game.players.length,2,'both independent join requests completed');
   await host.waitForFunction(()=>document.querySelectorAll('.party-player-pill').length===2,{timeout:7000});
   await host.locator('[data-action="start"]').click();
