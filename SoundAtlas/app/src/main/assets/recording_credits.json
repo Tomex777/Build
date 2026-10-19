@@ -79,5 +79,50 @@
     "url": "https://freesound.org/people/GustavoGE/sounds/404115/",
     "filename": "traffic.pcm",
     "seconds": 48
+  },
+  {
+    "kind": "cafe",
+    "creator": "aidansamuel",
+    "sound_id": 540299,
+    "license": "CC0-1.0",
+    "url": "https://freesound.org/people/aidansamuel/sounds/540299/",
+    "filename": "cafe.pcm",
+    "seconds": 48
+  },
+  {
+    "kind": "ocean",
+    "creator": "Noted451",
+    "sound_id": 531015,
+    "license": "CC0-1.0",
+    "url": "https://freesound.org/people/Noted451/sounds/531015/",
+    "filename": "ocean.pcm",
+    "seconds": 48
+  },
+  {
+    "kind": "fire",
+    "creator": "StevenMyat_",
+    "sound_id": 676385,
+    "license": "CC0-1.0",
+    "url": "https://freesound.org/people/StevenMyat_/sounds/676385/",
+    "filename": "fire.pcm",
+    "seconds": 11.6
+  },
+  {
+    "kind": "owl",
+    "creator": "mael46",
+    "sound_id": 573771,
+    "license": "CC0-1.0",
+    "url": "https://freesound.org/people/mael46/sounds/573771/",
+    "filename": "owl.pcm",
+    "seconds": 12.75
+  },
+  {
+    "kind": "train",
+    "creator": "marion3825",
+    "sound_id": 510822,
+    "license": "CC0-1.0",
+    "url": "https://freesound.org/people/marion3825/sounds/510822/",
+    "filename": "train.pcm",
+    "seconds": 48
   }
 ]
