@@ -24,7 +24,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p EchoSpace/app/build/outputs/apk/debug
-          gh run download 39166545228 --repo "$GITHUB_REPOSITORY" \
+          gh run download 39210500200 --repo "$GITHUB_REPOSITORY" \
             --name EchoSpace-production-native-debug \
             --dir EchoSpace/app/build/outputs/apk/debug
           test -s EchoSpace/app/build/outputs/apk/debug/app-debug.apk
@@ -33,15 +33,15 @@ jobs:
         env:
           ECHOSPACE_DEBUG_APK: EchoSpace/app/build/outputs/apk/debug/app-debug.apk
         with:
-          api-level: 30
+          api-level: 35
           arch: x86_64
           target: default
-          profile: pixel_4
-          cores: 4
-          ram-size: 4096M
-          disk-size: 4096M
+          profile: pixel_3a
+          cores: 2
+          ram-size: 3072M
+          disk-size: 3072M
           disable-animations: true
-          emulator-options: -no-window -no-snapshot -noaudio -no-boot-anim -gpu swiftshader_indirect
+          emulator-options: -no-window -no-snapshot -noaudio -no-boot-anim -gpu off
           script: ECHOSPACE_DEBUG_APK=EchoSpace/app/build/outputs/apk/debug/app-debug.apk python3 .github/scripts/echospace_production_emulator.py
       - uses: actions/upload-artifact@v4
         if: always()
