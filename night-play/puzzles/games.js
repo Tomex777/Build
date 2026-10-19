@@ -61,7 +61,7 @@ function switchGame(next){
 }
 function startOver(setting){if(kind==="memory"){memory.restart();return;}cancelPending();newSession(kind,setting);renderOptions();render(true);updateMessage("A new round is ready.");if(dialog.open)dialog.close();}
 function renderOptions(){
- const x=$("gameOptions");x.replaceChildren();if(kind==="memory")return;
+ const x=$("gameOptions");x.replaceChildren();if(kind==="memory"){memory.renderSettings(x);return;}
  const label=document.createElement("span");label.className="puzzle-options-label";label.textContent=kind==="connect"?"PLAY MODE":"DIFFICULTY";x.append(label);
  const row=document.createElement("div");row.className="puzzle-options";
  const choices=kind==="connect"?[["cpu","Versus computer"],["local","2 players · same phone"]]:kind==="memory"?[["easy","4 × 4"],["medium","4 × 5"],["hard","6 × 4"]]:[["easy","Easy"],["medium","Medium"],["hard","Hard"]];

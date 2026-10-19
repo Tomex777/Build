@@ -71,7 +71,14 @@ try{
  await page.goto(url+'/puzzles/?game=memory');
  assert.equal(await page.locator('#title').innerText(),'Memory Match');
  assert.equal(await page.locator('.memory-theme-option').count(),5,'five original themed collections');
- assert.equal(await page.locator('.memory-size-option').count(),10,'sizes grow downward to 6 × 10');
+ assert.equal(await page.locator('#board [data-memory-size]').count(),0,'board dimensions stay out of the start screen');
+ await page.locator('#settingsButton').click();
+ assert.equal(await page.locator('.memory-settings-size').count(),10,'board sizes live exclusively in Settings');
+ assert.equal(await page.locator('[data-memory-size="6x5"]').getAttribute('aria-pressed'),'true','6 × 5 is the fresh-install default');
+ assert.match(await page.locator('#memorySizeNote').innerText(),/next round/);
+ console.log('NIGHT_MEMORY_SETTINGS_IMAGE_BASE64='+(await page.screenshot({type:'jpeg',quality:56})).toString('base64'));
+ await page.screenshot({path:path.join(folder,'memory-settings-mobile.jpg'),type:'jpeg',quality:76});
+ await page.locator('#settingsClose').click();
  assert.equal(await page.locator('.memory-card').count(),0,'pick cards before a fresh game');
  assert.equal(await page.locator('.memory-start').count(),1);
  await checkMobile();
@@ -79,7 +86,6 @@ try{
  await page.screenshot({path:path.join(folder,'memory-setup-mobile.jpg'),type:'jpeg',quality:70,fullPage:true});
  console.log('NIGHT_MEMORY_SETUP_IMAGE_BASE64='+(await page.screenshot({type:'jpeg',quality:48})).toString('base64'));
  // A 6×5 board: 6 columns across, 5 rows down. The entire board should fit a normal phone.
- await page.locator('[data-memory-size="6x5"]').click();
  await page.locator('[data-memory-theme="wildlife"]').click();
  await page.locator('[data-memory-action="start"]').click();
  let mem=await saved('memory');
@@ -109,6 +115,14 @@ try{
  console.log('NIGHT_MEMORY_READY_PHOTOS='+await page.locator('.memory-card img.ready').count());
  mem=await page.evaluate(()=>JSON.parse(localStorage.getItem('night-play-memory-v2')));
  assert.equal(mem.matched.filter(Boolean).length,2);
+ // Setting another grid size must not silently erase this active match.
+ await page.locator('#settingsButton').click();
+ await page.locator('[data-memory-size="6x10"]').click();
+ assert.equal(await page.locator('[data-memory-size="6x10"]').getAttribute('aria-pressed'),'true');
+ assert.match(await page.locator('#memorySizeNote').innerText(),/current 6 × 5 match stays intact/);
+ assert.equal(await page.evaluate(()=>JSON.parse(localStorage.getItem('night-play-memory-v2')).deck.length),30,'size setting does not restart the active match');
+ assert.equal(await page.evaluate(()=>JSON.parse(localStorage.getItem('night-play-memory-v2')).matched.filter(Boolean).length),2,'setting cannot discard found pairs');
+ await page.locator('#settingsClose').click();
  let unmatched=mem.deck.map((v,i)=>({v,i})).filter(x=>x.v!==first);
  const x=unmatched[0],y=unmatched.find(p=>p.v!==x.v);
  await page.locator('[data-memory="'+x.i+'"]').click();
@@ -131,7 +145,7 @@ try{
  await page.locator('.memory-deck-btn').click();
  assert.equal(await page.locator('.memory-theme-option').count(),5);
  await page.locator('[data-memory-theme="storybook"]').click();
- await page.locator('[data-memory-size="6x10"]').click();
+ assert.equal(await page.locator('#board [data-memory-size]').count(),0,'size controls remain hidden on new round setup');
  await page.locator('[data-memory-action="start"]').click();
  mem=await page.evaluate(()=>JSON.parse(localStorage.getItem('night-play-memory-v2')));
  assert.equal(mem.theme,'storybook');

@@ -104,15 +104,6 @@ button:focus-visible,a:focus-visible{outline:3px solid #488c72;outline-offset:3p
 .memory-theme-info{display:flex;flex-direction:column;padding:0 13px;min-width:0}
 .memory-theme-info strong{font-size:15px;font-weight:850;letter-spacing:-.3px}
 .memory-theme-info small{font-size:11px;color:#7d8a80;margin-top:3px;line-height:1.4}
-.memory-size-heading{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin:26px 0 11px}
-.memory-size-heading .memory-section-label{margin:0}
-.memory-size-heading span{font-size:11px;color:#819088}
-.memory-size-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px}
-.memory-size-option{background:#fff;border:1px solid #d9e1db;border-radius:12px;padding:13px 4px!important;display:flex!important;min-height:69px!important;flex-direction:column;gap:3px;align-items:center;justify-content:center}
-.memory-size-option strong{font-size:16px;white-space:nowrap;letter-spacing:-.25px;font-weight:850}
-.memory-size-option small{font-size:10px;color:#7e8b83}
-.memory-size-option.chosen{border:2px solid #3b7055;background:#e8f2e9;color:#1e4e34}
-.memory-layout-note,.memory-layout-credit{font-size:11px;color:#879289;line-height:1.65;text-align:center;max-width:410px;margin:15px auto 15px}
 .memory-layout-credit{margin:20px auto 2px}
 .memory-start{width:min(100%,440px);margin:18px auto 0;min-height:55px!important;display:flex!important;align-items:center;justify-content:center;gap:9px;background:#19382c;color:#fff;border:none;border-radius:14px;font-size:15px;font-weight:850;letter-spacing:-.1px}
 .memory-start:active{transform:translateY(1px)}
@@ -142,11 +133,9 @@ button:focus-visible,a:focus-visible{outline:3px solid #488c72;outline-offset:3p
 .memory-stat small{font-size:9px;font-weight:750;color:#849286;letter-spacing:.5px;text-transform:uppercase}
 .memory-deck-btn{min-height:43px;min-width:70px!important;padding:6px 8px!important;border:1px solid #cddbd1!important;background:#eaf0e9;border-radius:9px;color:#315a42;font-size:11px;font-weight:800;line-height:1.2}
 .memory-deck-btn:active{background:#dceadd}
-.memory-playing-board button:focus-visible,.memory-theme-option:focus-visible,.memory-size-option:focus-visible{outline:3px solid #4b936c;outline-offset:2px}
 @media (max-width:650px){
  .memory-theme-art{height:115px}
  .memory-theme-info strong{font-size:14px}
- .memory-size-grid{grid-template-columns:repeat(4,minmax(0,1fr))}
  #statusbar.memory-toolbar{top:60px}
 }
 @media (max-width:480px){
@@ -156,9 +145,6 @@ button:focus-visible,a:focus-visible{outline:3px solid #488c72;outline-offset:3p
  .memory-theme-info{padding:0 10px}
  .memory-theme-info strong{font-size:13.5px}
  .memory-theme-info small{font-size:10px}
- .memory-size-grid{gap:6px}
- .memory-size-option{min-height:61px!important;padding:9px 2px!important}
- .memory-size-option strong{font-size:14px}
  #board.memory-playing-board{gap:4px;width:100%}
  .memory-playing-board .memory-card{border-radius:7px}
  .memory-card-back,.memory-card-front{border-radius:7px}
@@ -170,7 +156,6 @@ button:focus-visible,a:focus-visible{outline:3px solid #488c72;outline-offset:3p
  .memory-stat strong{font-size:15px}
 }
 @media (max-width:350px){
- .memory-size-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
  #board.memory-playing-board{gap:3px}
  .memory-card-back:before{inset:3px}
 }
@@ -182,11 +167,21 @@ button:focus-visible,a:focus-visible{outline:3px solid #488c72;outline-offset:3p
 .memory-choice-workspace .memory-theme-option{display:block!important;text-align:left!important;border:1px solid #dfe5dc!important;width:100%;min-height:0;place-items:normal!important}
 .memory-choice-workspace .memory-theme-option.chosen{border:2px solid #3b6f54!important}
 .memory-theme-art{width:100%}
-.memory-choice-workspace .memory-size-option{border:1px solid #d9e1db!important}
-.memory-choice-workspace .memory-size-option.chosen{border:2px solid #3b7055!important}
 
 /* Keep game actions close to the board when there is no status message. */
 .memory-playing-board .memory-back-mark{width:58%}
 .puzzle-workspace:has(.memory-playing-board) .puzzle-tools:empty{display:none}
 .puzzle-workspace:has(.memory-playing-board) .puzzle-message:empty{display:none}
 .puzzle-workspace:has(.memory-playing-board) .puzzle-action{margin-top:13px}
+
+
+/* Grid density belongs to Settings, not the deck-selection screen. */
+.memory-settings-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:11px 0 0}
+.memory-settings-size{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:62px;padding:9px 5px;border:1px solid #dbe4dc;border-radius:11px;background:#fff;color:#253e30}
+.memory-settings-size strong{font-size:15px;font-weight:850;letter-spacing:-.25px}
+.memory-settings-size small{font-size:10px;color:#7f8d82;font-weight:650;margin-top:1px}
+.memory-settings-size[aria-pressed="true"]{background:#e9f4e9;border:2px solid #387453;color:#16462d}
+.memory-settings-note{font-size:12px;line-height:1.6;color:#6f8173;margin:10px 0 21px}
+@media(max-width:380px){.memory-settings-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+.memory-layout-credit{font-size:11px;color:#879289;line-height:1.65;text-align:center;max-width:410px;margin:15px auto 15px}
