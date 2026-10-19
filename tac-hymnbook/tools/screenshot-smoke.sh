@@ -21,12 +21,46 @@ timeout 15s adb shell pidof com.night.tachymns
 timeout 35s adb exec-out screencap -p > tac-hymns-home.png
 file tac-hymns-home.png
 
-echo "Switching the actual app to dark mode"
-# The Compose theme toggle is in the home toolbar on this 1080x1920 Pixel 2 emulator.
-timeout 15s adb shell input tap 908 250
-sleep 3
+# Use real accessibility semantics to tap labels instead of brittle screen coordinates.
+tap_text() {
+  local label="$1"
+  local xml
+  timeout 25s adb shell uiautomator dump /sdcard/window.xml >/dev/null
+  xml="$(timeout 15s adb exec-out cat /sdcard/window.xml)"
+  local coords
+  coords="$(printf '%s' "$xml" | python3 -c '
+import re, sys, xml.etree.ElementTree as ET
+text = sys.argv[1].lower()
+try:
+    root = ET.fromstring(sys.stdin.read())
+    matches = [n for n in root.iter("node") if
+        n.attrib.get("text","").strip().lower() == text or
+        n.attrib.get("content-desc","").strip().lower() == text]
+    for n in matches:
+        match = re.match(r"\\[(\\d+),(\\d+)\\]\\[(\\d+),(\\d+)\\]", n.attrib.get("bounds",""))
+        if match:
+            x1,y1,x2,y2 = map(int, match.groups())
+            print((x1+x2)//2, (y1+y2)//2)
+            sys.exit(0)
+except Exception:
+    pass
+sys.exit(1)
+' "$label")" || return 1
+  timeout 15s adb shell input tap $coords
+  sleep 2
+}
+
+echo "Switching the actual app to dark mode via More"
+tap_text "More"
+tap_text "Dark mode"
 timeout 35s adb exec-out screencap -p > tac-hymns-dark-home.png
 file tac-hymns-dark-home.png
+
+echo "Navigating through the separately accessible Learn Hymns screen"
+tap_text "More"
+tap_text "Learn hymns"
+timeout 35s adb exec-out screencap -p > tac-hymns-learn-home.png
+file tac-hymns-learn-home.png
 
 echo "Opening Yoruba hymn reader in persisted dark mode"
 timeout 20s adb shell am force-stop com.night.tachymns
@@ -36,6 +70,7 @@ timeout 15s adb shell pidof com.night.tachymns
 timeout 35s adb exec-out screencap -p > tac-hymns-reader.png
 file tac-hymns-reader.png
 cp tac-hymns-reader.png tac-hymns-dark-reader.png
+cp tac-hymns-reader.png tac-hymns-audio-reader.png
 
 echo "Opening the actual Àkọkún index"
 timeout 20s adb shell am force-stop com.night.tachymns
