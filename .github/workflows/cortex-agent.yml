@@ -582,7 +582,15 @@ jobs:
           curl -fsS -H "$AUTH" -H 'Content-Type: application/json' \
             -d '{"key":"AZURE_SPEECH_REGION","value":"westeurope"}' \
             http://127.0.0.1:47831/api/cortex/host/environment >/tmp/env-ai.json
-          grep -q '^AZURE_SPEECH_REGION=westeurope
+          grep -Fq 'AZURE_SPEECH_REGION=westeurope' /tmp/mscc.env
+          curl -fsS -H "$AUTH" -H 'Content-Type: application/json' \
+            -d '{"key":"AZURE_SPEECH_KEY","value":"cortex-fake-unit-key"}' \
+            http://127.0.0.1:47831/api/cortex/host/environment >/tmp/env-ai-secret.json
+          grep -Fq 'AZURE_SPEECH_KEY=cortex-fake-unit-key' /tmp/mscc.env
+          if grep -Fq 'cortex-fake-unit-key' /tmp/env-ai-secret.json; then
+            echo 'Secret value leaked in environment API response' >&2
+            exit 1
+          fi
 
       - name: Verify command-driven settings contract
         shell: bash
