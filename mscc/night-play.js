@@ -151,6 +151,7 @@ export class NightPlay {
     }
     if (action === 'delete') {
       this.matches.removeUser(row.user_id)
+      this.partyRooms.removeUser(row.user_id)
       this.channels.removeUser(row.user_id)
       this.db.prepare('DELETE FROM play_avatars WHERE user_id=?').run(row.user_id)
       this.db.prepare('DELETE FROM play_users WHERE id=?').run(row.user_id)
