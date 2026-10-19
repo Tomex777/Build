@@ -93,6 +93,23 @@ jobs:
           for kind in rain thunder wind stream birds leaves night chimes traffic; do
             test -s "SoundAtlas/app/src/main/assets/audio/$kind.pcm"
           done
+      - name: Verify CC0 provenance and integrity
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          root=Path('SoundAtlas/app/src/main/assets')
+          rows=json.loads((root/'recording_credits.json').read_text())
+          required={'rain','thunder','wind','stream','birds','leaves','night','chimes','traffic'}
+          assert {r['kind'] for r in rows}==required and len(rows)==9
+          for r in rows:
+              assert r['license']=='CC0-1.0'
+              assert r['url'].startswith('https://freesound.org/people/')
+              assert r['sound_id']>0
+              assert r['filename']==r['kind']+'.pcm'
+              assert (root/'audio'/r['filename']).stat().st_size>40000
+          print('PRODUCTION_AUDIO_CREDITS_VERIFIED')
+          PY
       - name: Include measured horizontal-plane KEMAR binaural responses
         env:
           GH_TOKEN: ${{ github.token }}
