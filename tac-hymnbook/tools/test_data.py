@@ -91,7 +91,7 @@ class HymnDataTest(unittest.TestCase):
         self.assertEqual(catalog["id"], "akokun")
         self.assertEqual(catalog["category"], "supplement")
         self.assertEqual(catalog["hymns"], [])
-        self.assertIsNone(catalog["numbering_scheme"])
+        self.assertEqual(catalog["numbering_scheme"], "independent_from_redemption")
 
     def test_yoruba_is_stored_as_unicode(self):
         hymns = compile_asset()["hymns"]
