@@ -1,0 +1,55 @@
+name: TAC Redemption Index (800)
+
+on:
+  push:
+    branches:
+      - feature/tac-hymnbook-foundation
+    paths:
+      - 'tac-hymnbook/tools/fetch_redemption_index.py'
+      - '.github/workflows/tac-redemption-index.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  index:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Python and parser dependencies
+        run: python3 -m pip install --disable-pip-version-check requests beautifulsoup4
+      - name: Obtain all numbered Redemption Hymnal first lines
+        run: python3 tac-hymnbook/tools/fetch_redemption_index.py
+      - name: Validate complete numbered catalogue
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          p = Path('tac-hymnbook/data/redemption-hymnal-index.json')
+          d = json.loads(p.read_text(encoding='utf8'))
+          ns = [h['number'] for h in d['hymns']]
+          assert ns == list(range(1, 801)), f"Incomplete index: {len(ns)}"
+          assert d['lyrics_included'] is False
+          assert d['hymns'][0]['title_en'].lower().startswith('lord of')
+          assert d['hymns'][49]['title_en'].lower().startswith('now thank')
+          print("All 800 canonical hymn numbers indexed without inventing lyrics")
+          PY
+      - name: Upload full catalogue for review
+        uses: actions/upload-artifact@v4
+        with:
+          name: TAC-Redemption-800-index
+          path: tac-hymnbook/data/redemption-hymnal-index.json
+      - name: Commit validated catalogue into hymnbook branch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add tac-hymnbook/data/redemption-hymnal-index.json
+          if git diff --cached --quiet; then
+            echo "No catalogue changes."
+          else
+            git commit -m "data(tac): catalogue the 800 Redemption Hymnal titles"
+            git push origin HEAD:feature/tac-hymnbook-foundation
+          fi
