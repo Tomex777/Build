@@ -37,6 +37,14 @@ timeout 35s adb exec-out screencap -p > tac-hymns-reader.png
 file tac-hymns-reader.png
 cp tac-hymns-reader.png tac-hymns-dark-reader.png
 
+echo "Opening the actual Àkọkún index"
+timeout 20s adb shell am force-stop com.night.tachymns
+timeout 25s adb shell am start -W -n com.night.tachymns/.MainActivity --es preview_collection akokun
+sleep 5
+timeout 15s adb shell pidof com.night.tachymns
+timeout 35s adb exec-out screencap -p > tac-hymns-akokun-index.png
+file tac-hymns-akokun-index.png
+
 echo "Checking for app crashes"
 if adb logcat -d -s AndroidRuntime:E | grep -A 8 'Process: com.night.tachymns'; then
   exit 1
