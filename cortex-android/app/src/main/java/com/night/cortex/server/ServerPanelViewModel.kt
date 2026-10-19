@@ -493,19 +493,24 @@ class ServerPanelViewModel(application: Application) : AndroidViewModel(applicat
         if (!_state.value.configured) return
         viewModelScope.launch {
             busy {
+                // ENV and the Cloud endpoint are independent: an older Agent or
+                // missing MSCC Cloud route must not hide the real failure.
                 val result = withContext(Dispatchers.IO) {
                     val client = api()
-                    val environment = client.environment()
-                    val cloudResult = runCatching { client.cloudDashboard() }
-                    val mounts = if (cloudResult.getOrNull()?.configured == true) {
+                    val environment = runCatching { client.environment() }
+                    val cloud = runCatching { client.cloudDashboard() }
+                    val mounts = if (cloud.getOrNull()?.configured == true) {
                         runCatching { client.cloudMounts() }.getOrNull()
                     } else emptyList()
-                    Triple(environment, cloudResult, mounts)
+                    Triple(environment, cloud, mounts)
                 }
+                val issue = result.first.exceptionOrNull()?.let(::cloudEnvironmentIssue)
+                    ?: result.second.exceptionOrNull()?.let(::cloudDashboardIssue)
                 _state.value = _state.value.copy(
-                    environment = result.first,
+                    environment = result.first.getOrNull(),
                     cloudDashboard = result.second.getOrNull(),
                     cloudConnectionFailed = result.second.isFailure,
+                    cloudSetupIssue = issue,
                     cloudMounts = result.third ?: emptyList(),
                     cloudMountsLoaded = result.third != null,
                 )
