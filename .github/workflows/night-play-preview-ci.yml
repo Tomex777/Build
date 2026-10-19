@@ -38,6 +38,8 @@ jobs:
         run: node night-play/account-selftest.cjs
       - name: Install Chromium test helper
         run: npm install --no-save playwright@1.56.1
+      - name: Play Nomi-inspired party games across actual mobile viewports
+        run: node night-play/party/mobile-smoke.mjs
       - name: Verify WhatsApp account screens on mobile and desktop
         run: node night-play/account-browser-smoke.cjs
       - name: Enforce WR behavior for anonymous sessions and online-game confirmation
