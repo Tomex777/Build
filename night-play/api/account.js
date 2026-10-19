@@ -83,9 +83,9 @@ function createHandler({ env = process.env, fetcher = fetch, now = Date.now } = 
         method:'POST',redirect:'error',signal:AbortSignal.timeout(12_000),
         headers:{'content-type':'application/json','x-night-timestamp':timestamp,'x-night-nonce':nonce,'x-night-signature':signature},body:raw,
       })
-      if (!response.ok && ![400,401,404,409,410,429].includes(response.status)) throw new Error('Backend unavailable')
+      if (!response.ok && ![400,401,403,404,409,410,429].includes(response.status)) throw new Error('Backend unavailable')
       let result=await response.json()
-      if (!response.ok && (action==='health' || (response.status===401 && result?.error!=='Connect WhatsApp to continue.'))) throw new Error('Bridge not ready')
+      if (!response.ok && (action==='health' || (response.status===401 && result?.error!=='Connect WhatsApp to continue.' && !String(action).startsWith('party:')))) throw new Error('Bridge not ready')
       if (action==='health' && response.ok) {
         if (result?.service!=='night-play' || result?.version!==1) throw new Error('Wrong backend')
         result={linked:false,profile:null}
