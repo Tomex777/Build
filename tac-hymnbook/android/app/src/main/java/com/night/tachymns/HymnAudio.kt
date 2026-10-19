@@ -1,7 +1,12 @@
 package com.night.tachymns
 
 import android.content.Context
+import android.content.BroadcastReceiver
+import android.content.Intent
+import android.content.IntentFilter
 import android.media.AudioAttributes
+import android.media.AudioFocusRequest
+import android.media.AudioManager
 import android.media.MediaPlayer
 import android.media.PlaybackParams
 import android.net.Uri
@@ -257,6 +262,68 @@ class HymnAudioRepository(private val context: Context) {
 /** A single real MediaPlayer instance, shared by the ordinary reader and optional Learning Mode. */
 class HymnAudioPlayer(private val context: Context) {
     private var media: MediaPlayer? = null
+    private val audioManager =
+        context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+    private val attributes = AudioAttributes.Builder()
+        .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+        .setUsage(AudioAttributes.USAGE_MEDIA)
+        .build()
+    private var hasFocus = false
+    private val focusListener = AudioManager.OnAudioFocusChangeListener { change ->
+        when (change) {
+            AudioManager.AUDIOFOCUS_LOSS,
+            AudioManager.AUDIOFOCUS_LOSS_TRANSIENT,
+            AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> pauseForInterruption()
+            AudioManager.AUDIOFOCUS_GAIN -> runCatching { media?.setVolume(1f, 1f) }
+        }
+    }
+    private val focusRequest: AudioFocusRequest by lazy {
+        AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
+            .setAudioAttributes(attributes)
+            .setWillPauseWhenDucked(true)
+            .setOnAudioFocusChangeListener(focusListener)
+            .build()
+    }
+    private val noisyReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            if (intent?.action == AudioManager.ACTION_AUDIO_BECOMING_NOISY) {
+                pauseForInterruption()
+            }
+        }
+    }
+    init {
+        context.registerReceiver(
+            noisyReceiver, IntentFilter(AudioManager.ACTION_AUDIO_BECOMING_NOISY)
+        )
+    }
+    private fun takeFocus(): Boolean {
+        if (hasFocus) return true
+        hasFocus = audioManager.requestAudioFocus(focusRequest) ==
+            AudioManager.AUDIOFOCUS_REQUEST_GRANTED
+        return hasFocus
+    }
+    private fun dropFocus() {
+        if (hasFocus) {
+            hasFocus = false
+            audioManager.abandonAudioFocusRequest(focusRequest)
+        }
+    }
+    private fun pauseForInterruption() {
+        if (playing) runCatching { media?.pause() }
+        playing = false
+        dropFocus()
+    }
+    private fun playPrepared(player: MediaPlayer) {
+        if (!takeFocus()) {
+            playing = false
+            error = "Another app is using audio. Try again shortly."
+            return
+        }
+        player.start()
+        applyRate()
+        playing = true
+        error = null
+    }
 
     var activeKey by mutableStateOf<AudioKey?>(null)
         private set
@@ -285,10 +352,9 @@ class HymnAudioPlayer(private val context: Context) {
                 if (playing) {
                     media?.pause()
                     playing = false
+                    dropFocus()
                 } else {
-                    media?.start()
-                    applyRate()
-                    playing = true
+                    media?.let { playPrepared(it) }
                 }
             } catch (e: Exception) {
                 fail("Unable to play this recording")
@@ -302,12 +368,7 @@ class HymnAudioPlayer(private val context: Context) {
         try {
             val player = MediaPlayer()
             media = player
-            player.setAudioAttributes(
-                AudioAttributes.Builder()
-                    .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
-                    .setUsage(AudioAttributes.USAGE_MEDIA)
-                    .build()
-            )
+            player.setAudioAttributes(attributes)
             when (source) {
                 is AudioSource.Imported -> player.setDataSource(context, source.uri)
                 is AudioSource.Downloaded -> player.setDataSource(source.file.absolutePath)
@@ -323,9 +384,7 @@ class HymnAudioPlayer(private val context: Context) {
                 durationMs = prepared.duration.coerceAtLeast(0)
                 loading = false
                 try {
-                    prepared.start()
-                    applyRate()
-                    playing = true
+                    playPrepared(prepared)
                 } catch (_: Exception) {
                     fail("Unable to start this recording")
                 }
@@ -335,12 +394,11 @@ class HymnAudioPlayer(private val context: Context) {
                 val start = startMark
                 if (loopEnabled && start != null) {
                     completed.seekTo(start)
-                    completed.start()
-                    applyRate()
-                    playing = true
+                    playPrepared(completed)
                 } else {
                     playing = false
                     positionMs = durationMs
+                    dropFocus()
                 }
             }
             player.setOnErrorListener { _, _, _ ->
@@ -417,6 +475,7 @@ class HymnAudioPlayer(private val context: Context) {
     }
 
     fun stop() {
+        dropFocus()
         media?.let { runCatching { it.reset(); it.release() } }
         media = null
         activeKey = null
@@ -427,5 +486,8 @@ class HymnAudioPlayer(private val context: Context) {
         clearLoop()
     }
 
-    fun release() = stop()
+    fun release() {
+        stop()
+        runCatching { context.unregisterReceiver(noisyReceiver) }
+    }
 }
