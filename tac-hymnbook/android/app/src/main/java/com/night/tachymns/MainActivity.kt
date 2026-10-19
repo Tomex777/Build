@@ -427,7 +427,7 @@ private fun IndexRow(entry: HymnIndexEntry, hymn: Hymn?, onOpen: (Hymn) -> Unit)
 }
 
 @Composable
-private fun SearchInput(value: String, onValueChange: (String) -> Unit) {
+internal fun SearchInput(value: String, onValueChange: (String) -> Unit) {
     Surface(shape = RoundedCornerShape(18.dp), color = MaterialTheme.colorScheme.surface,
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)) {
         Row(Modifier.fillMaxWidth().height(58.dp).padding(horizontal = 16.dp),
