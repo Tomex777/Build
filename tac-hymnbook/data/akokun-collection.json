@@ -67,7 +67,9 @@
       "title_status": "photographed_index_draft_needs_orthography_check",
       "verses_yo": null,
       "verses_en": null,
-      "lyrics_status": "not_imported"
+      "lyrics_status": "not_imported",
+      "title_en": "How Sweet the Name of Jesus Sounds (Blessed Be the Name)",
+      "title_en_status": "matched_candidate_opening_line_pending_verse_review"
     },
     {
       "number": 2,
@@ -771,7 +773,9 @@
       "title_status": "photographed_index_draft_needs_orthography_check",
       "verses_yo": null,
       "verses_en": null,
-      "lyrics_status": "not_imported"
+      "lyrics_status": "not_imported",
+      "title_en": "Jesus Paid It All",
+      "title_en_status": "matched_candidate_opening_line_pending_verse_review"
     },
     {
       "number": 46,
@@ -803,7 +807,9 @@
       "title_status": "photographed_index_draft_needs_orthography_check",
       "verses_yo": null,
       "verses_en": null,
-      "lyrics_status": "not_imported"
+      "lyrics_status": "not_imported",
+      "title_en": "There Is Power in the Blood",
+      "title_en_status": "matched_candidate_opening_line_pending_verse_review"
     },
     {
       "number": 48,
@@ -1091,7 +1097,9 @@
       "title_status": "photographed_index_draft_needs_orthography_check",
       "verses_yo": null,
       "verses_en": null,
-      "lyrics_status": "not_imported"
+      "lyrics_status": "not_imported",
+      "title_en": "Yield Not to Temptation",
+      "title_en_status": "matched_candidate_opening_line_pending_verse_review"
     },
     {
       "number": 66,
@@ -1667,7 +1675,9 @@
       "title_status": "photographed_index_draft_needs_orthography_check",
       "verses_yo": null,
       "verses_en": null,
-      "lyrics_status": "not_imported"
+      "lyrics_status": "not_imported",
+      "title_en": "Sweet Hour of Prayer",
+      "title_en_status": "matched_candidate_opening_line_pending_verse_review"
     },
     {
       "number": 102,
@@ -1715,7 +1725,9 @@
       "title_status": "photographed_index_draft_needs_orthography_check",
       "verses_yo": null,
       "verses_en": null,
-      "lyrics_status": "not_imported"
+      "lyrics_status": "not_imported",
+      "title_en": "Work for the Night Is Coming",
+      "title_en_status": "matched_candidate_opening_line_pending_verse_review"
     },
     {
       "number": 105,
@@ -2125,7 +2137,9 @@
       "title_status": "photographed_index_draft_needs_orthography_check",
       "verses_yo": null,
       "verses_en": null,
-      "lyrics_status": "not_imported"
+      "lyrics_status": "not_imported",
+      "title_en": "Jesus Loves Me",
+      "title_en_status": "matched_candidate_opening_line_pending_verse_review"
     },
     {
       "number": 131,
@@ -4878,7 +4892,9 @@
       "title_status": "photographed_index_draft_needs_orthography_check",
       "verses_yo": null,
       "verses_en": null,
-      "lyrics_status": "not_imported"
+      "lyrics_status": "not_imported",
+      "title_en": "Amazing Grace",
+      "title_en_status": "matched_candidate_opening_line_pending_verse_review"
     },
     {
       "number": 304,
