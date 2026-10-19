@@ -5,9 +5,11 @@
 set -euo pipefail
 umask 077
 
-readonly SOURCE_SHA=ad54464910918a2d62a4c560db565a2faaa4c20b
-readonly AGENT_BLOB=b353643bf6978d71d76a066f84400aca100baecd
-readonly HELPER_BLOB=b590dd2b6174c273ef3beef62f2825d6089d0311
+readonly SOURCE_SHA=442ef1410fdedffdcb8c515bc31373b294ae387c
+readonly AGENT_BLOB=558a8394d574aec9b8798e39d9d4475f6b6bf4a9
+readonly PREVIOUS_AGENT_BLOB=b353643bf6978d71d76a066f84400aca100baecd
+readonly HELPER_BLOB=4e0fa0455c604d3793a72254a1c3b4e260b67f4e
+readonly PREVIOUS_HELPER_BLOB=b590dd2b6174c273ef3beef62f2825d6089d0311
 readonly INSTALL_BLOB=a058b3cf0e8fa09a117e816e5111ccb6bc8b58d0
 readonly PACKAGE_BLOB=c2032a0fddf20a85e0cb1e9201bfd28652c046ba
 readonly SERVICE_BLOB=82518da0a5a09d5148671aac1d8d3cfa3d7fb7fc
@@ -241,18 +243,24 @@ fi
 rm -rf "$cloud_probe_dir"
 trap - EXIT
 
-# Never force an old pinned Agent over a subsequent, newer update.
-if sudo -n test -f "$BOOTSTRAP_MARK"; then
-  echo 'Cortex Cloud bootstrap already completed; leaving later Agent updates untouched.'
-  exit 0
-fi
-if [[ "$(git hash-object "$AGENT_TARGET")" == "$AGENT_BLOB" ]]; then
-  echo 'Cortex Cloud Agent already installed. Recording bootstrap state.'
+# Existing marker is historical evidence, NOT an upgrade gate. Only install
+# the new pinned Agent if the existing binaries match the known predecessor;
+# never overwrite a later/manual Agent revision or weaken forced-command SSH.
+current_agent_blob="$(git hash-object "$AGENT_TARGET")"
+current_helper_blob="$(git hash-object "$HELPER_TARGET")"
+if [[ "$current_agent_blob" == "$AGENT_BLOB" && "$current_helper_blob" == "$HELPER_BLOB" ]]; then
+  echo 'Approved Cortex Agent already active; retaining existing token and release.'
   sudo -n install -d -m 0750 /var/lib/cortex
   printf '%s\n' "$SOURCE_SHA" | sudo -n tee "$BOOTSTRAP_MARK" >/dev/null
   sudo -n chmod 0600 "$BOOTSTRAP_MARK"
   exit 0
 fi
+if [[ "$current_agent_blob" != "$PREVIOUS_AGENT_BLOB" ||
+      "$current_helper_blob" != "$PREVIOUS_HELPER_BLOB" ]]; then
+  echo 'Existing Cortex Agent differs from the approved predecessor; leaving it untouched. A dedicated audited upgrade is required.' >&2
+  exit 0
+fi
+echo 'Upgrading verified previous Cortex Agent via the authorized protected MSCC release.'
 
 # Do not leak the credential or any account data into CI logs.
 TOKEN="$(sudo -n sed -n 's/^CORTEX_AGENT_TOKEN=//p' /etc/cortex-agent.env | tail -n 1)"
@@ -324,11 +332,13 @@ curl -fsS --max-time 12 \
     process.stdin.on("end", () => {
       const response=JSON.parse(body);
       const entries=Array.isArray(response.entries)?response.entries:[];
-      const required=["MSCC_MEGA_EMAIL","MSCC_MEGA_PASSWORD","MSCC_MEGA_SHARED_FOLDERS"];
+      const required=["MSCC_MEGA_EMAIL","MSCC_MEGA_PASSWORD","MSCC_MEGA_SHARED_FOLDERS","GROQ_API_KEY","AZURE_SPEECH_KEY","AZURE_OPENAI_API_KEY"];
       if (required.some(key=>!entries.some(row=>row.key===key))) process.exit(2);
-      const password=entries.find(row=>row.key==="MSCC_MEGA_PASSWORD");
-      if (password?.secret!==true || password?.value) process.exit(3);
-      console.log("Cortex MEGA Cloud configuration route verified; secrets remain hidden.");
+      for (const key of ["MSCC_MEGA_PASSWORD","GROQ_API_KEY","AZURE_SPEECH_KEY","AZURE_OPENAI_API_KEY"]) {
+        const secret=entries.find(row=>row.key===key);
+        if (secret?.secret!==true || secret?.value) process.exit(3);
+      }
+      console.log("Cortex MEGA and AI environment controls verified; secrets remain hidden.");
     });'
 # Verify route exists; downstream /cloud may remain unavailable until the
 # separately authorized MSCC Cloud release is installed.

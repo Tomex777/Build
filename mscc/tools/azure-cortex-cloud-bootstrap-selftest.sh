@@ -7,9 +7,11 @@ INSTALL="$ROOT/install-azure.sh"
 bash -n "$UPGRADE" "$INSTALL"
 # Updater can only fetch an approved, fixed Cortex Agent revision and exact
 # Git blob hashes. Never let environment variables or SSH input set its SHA.
-grep -Fq 'readonly SOURCE_SHA=ad54464910918a2d62a4c560db565a2faaa4c20b' "$UPGRADE"
-grep -Fq 'readonly AGENT_BLOB=b353643bf6978d71d76a066f84400aca100baecd' "$UPGRADE"
-grep -Fq 'readonly HELPER_BLOB=b590dd2b6174c273ef3beef62f2825d6089d0311' "$UPGRADE"
+grep -Fq 'readonly SOURCE_SHA=442ef1410fdedffdcb8c515bc31373b294ae387c' "$UPGRADE"
+grep -Fq 'readonly AGENT_BLOB=558a8394d574aec9b8798e39d9d4475f6b6bf4a9' "$UPGRADE"
+grep -Fq 'readonly PREVIOUS_AGENT_BLOB=b353643bf6978d71d76a066f84400aca100baecd' "$UPGRADE"
+grep -Fq 'readonly HELPER_BLOB=4e0fa0455c604d3793a72254a1c3b4e260b67f4e' "$UPGRADE"
+grep -Fq 'readonly PREVIOUS_HELPER_BLOB=b590dd2b6174c273ef3beef62f2825d6089d0311' "$UPGRADE"
 grep -Fq 'readonly INSTALL_BLOB=a058b3cf0e8fa09a117e816e5111ccb6bc8b58d0' "$UPGRADE"
 grep -Fq 'readonly PACKAGE_BLOB=c2032a0fddf20a85e0cb1e9201bfd28652c046ba' "$UPGRADE"
 grep -Fq 'readonly SERVICE_BLOB=82518da0a5a09d5148671aac1d8d3cfa3d7fb7fc' "$UPGRADE"
@@ -40,9 +42,13 @@ grep -Fq 'systemctl restart cortex-agent.service' "$UPGRADE"
 
 grep -Fq "u:cortex-agent:r--" "$UPGRADE"
 grep -Fq 'getfacl -cp "$directory"' "$UPGRADE"
-grep -Fq 'if sudo -n test -f "$BOOTSTRAP_MARK"; then' "$UPGRADE"
+grep -Fq 'current_agent_blob="$(git hash-object "$AGENT_TARGET")"' "$UPGRADE"
+grep -Fq 'current_helper_blob="$(git hash-object "$HELPER_TARGET")"' "$UPGRADE"
+grep -Fq '"$current_agent_blob" != "$PREVIOUS_AGENT_BLOB"' "$UPGRADE"
+grep -Fq '"$current_helper_blob" != "$PREVIOUS_HELPER_BLOB"' "$UPGRADE"
+grep -Fq "Existing Cortex Agent differs from the approved predecessor; leaving it untouched." "$UPGRADE"
 env_line="$(grep -nF 'http://127.0.0.1:47831/api/cortex/host/environment' "$UPGRADE" | head -n 1 | cut -d: -f1)"
-mark_line="$(grep -nF 'if sudo -n test -f "$BOOTSTRAP_MARK"; then' "$UPGRADE" | head -n 1 | cut -d: -f1)"
+mark_line="$(grep -nF 'current_agent_blob="$(git hash-object "$AGENT_TARGET")"' "$UPGRADE" | head -n 1 | cut -d: -f1)"
 [[ "$env_line" -lt "$mark_line" ]] || { echo 'Bootstrap marker bypasses Cloud probe.' >&2; exit 1; }
 
 # Regression: Cloud can pass on loopback while Android HTTPS fails.
