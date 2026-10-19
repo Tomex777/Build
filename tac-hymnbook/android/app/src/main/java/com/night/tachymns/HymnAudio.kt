@@ -65,7 +65,10 @@ sealed class AudioSource {
     data class Imported(val uri: Uri) : AudioSource()
     data class Downloaded(val file: File) : AudioSource()
     data class Bundled(val assetPath: String) : AudioSource()
+    data class Stream(val httpsUrl: String) : AudioSource()
 }
+
+data class StoredAudio(val key: AudioKey, val kind: String, val bytes: Long)
 
 class HymnAudioRepository(private val context: Context) {
     private val prefs = context.getSharedPreferences("hymn_recordings", Context.MODE_PRIVATE)
@@ -131,6 +134,43 @@ class HymnAudioRepository(private val context: Context) {
     }
 
     fun recording(key: AudioKey): ApprovedRecording? = tracks[key.token]
+
+    fun stream(key: AudioKey): AudioSource.Stream? =
+        recording(key)?.let { AudioSource.Stream(it.url) }
+
+    fun storedRecordings(): List<StoredAudio> {
+        val entries = linkedMapOf<String, StoredAudio>()
+        for (field in prefs.all.keys) {
+            if (!field.startsWith("import:")) continue
+            val key = AudioKey.parse(field.removePrefix("import:")) ?: continue
+            entries[key.token] = StoredAudio(key, "Imported file", 0L)
+        }
+        val folder = File(context.filesDir, "recordings")
+        for (file in folder.listFiles().orEmpty()) {
+            if (!file.isFile || !file.name.endsWith(".mp3")) continue
+            val key = AudioKey.parse(file.name.removeSuffix(".mp3").replace('_', ':')) ?: continue
+            // One row per recording. If an import masks a download, show both so
+            // the user can independently reclaim app storage.
+            entries["download:" + key.token] = StoredAudio(key, "Downloaded", file.length())
+        }
+        return entries.values.sortedWith(
+            compareBy<StoredAudio>({ it.key.collection != "main" }, { it.key.number },
+                { it.key.language }, { it.key.voice }, { it.kind })
+        )
+    }
+
+    /** Removes only app-owned copies or the saved link, never a user's source document. */
+    fun removeStoredAudio(entry: StoredAudio): Boolean {
+        return when (entry.kind) {
+            "Imported file" -> {
+                val exists = prefs.contains("import:" + entry.key.token)
+                prefs.edit().remove("import:" + entry.key.token).apply()
+                exists
+            }
+            "Downloaded" -> downloadedFile(entry.key).delete()
+            else -> false
+        }
+    }
 
     private fun downloadedFile(key: AudioKey): File {
         val dir = File(context.filesDir, "recordings")
@@ -271,6 +311,7 @@ class HymnAudioPlayer(private val context: Context) {
             when (source) {
                 is AudioSource.Imported -> player.setDataSource(context, source.uri)
                 is AudioSource.Downloaded -> player.setDataSource(source.file.absolutePath)
+                is AudioSource.Stream -> player.setDataSource(source.httpsUrl)
                 is AudioSource.Bundled -> {
                     context.assets.openFd(source.assetPath).use { asset ->
                         player.setDataSource(asset.fileDescriptor, asset.startOffset, asset.length)
