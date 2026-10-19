@@ -225,7 +225,7 @@ export async function tryPublicTikTokFallback(request, dir, { fetchImpl = global
             }
             const label = typeof response?.data?.title === 'string' ? response.data.title :
               typeof response?.data?.metadata?.title === 'string' ? response.data.metadata.title : ''
-            return files.map(file=>({...file,title:label.replace(/[\\r\\n\\t]+/g,' ').trim().slice(0,240)}))
+            return files.map(file=>({...file,title:label.replace(/\s+/g,' ').trim().slice(0,240)}))
           } catch (error) {
             for (const item of files) await rm(item.file,{ force:true }).catch(() => {})
             console.warn(`[NIGHT social] TikTok ${provider} media option ${variantIndex+1}/${variants.length} failed: ${error?.message || error}`)
