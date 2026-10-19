@@ -184,6 +184,13 @@ class MainActivity : ComponentActivity() {
     override fun onStart() {
         super.onStart()
         bound = bindService(Intent(this, SpatialAudioService::class.java), connection, Context.BIND_AUTO_CREATE)
+        // Tell the user when hardware output failed while the app was backgrounded.
+        val diagnostics=getSharedPreferences("echospace_audio",MODE_PRIVATE)
+        diagnostics.getString("last_error",null)?.let { message ->
+            diagnostics.edit().remove("last_error").apply()
+            android.widget.Toast.makeText(this,"Playback interrupted: "+message,
+                android.widget.Toast.LENGTH_LONG).show()
+        }
     }
     override fun onStop() {
         if (bound) { unbindService(connection); bound = false }
