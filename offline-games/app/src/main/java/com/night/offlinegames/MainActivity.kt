@@ -226,7 +226,7 @@ private fun OfflineHub() {
                     Spacer(Modifier.height(7.dp))
                     Text("Offline collection", fontSize = 30.sp, fontWeight = FontWeight.Bold, letterSpacing = (-0.8).sp, color = ink)
                     Spacer(Modifier.height(7.dp))
-                    Text("${games.size} playable games · No internet needed", color = muted, fontSize = 13.sp)
+                    Text("${games.size} games", color = muted, fontSize = 13.sp)
                     Spacer(Modifier.height(19.dp))
                     Surface(shape = RoundedCornerShape(12.dp), color = Color.White, border = BorderStroke(1.dp, Color(0xFFDDE5DF))) {
                         BasicTextField(

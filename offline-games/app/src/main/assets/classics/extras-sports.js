@@ -48,7 +48,7 @@ G.add('swimming','Swimming Race','Tap rhythmically to swim 50 meters before the 
  c.addEventListener('pointerdown',stroke);G.action('Stroke',stroke,true);
  const stop=animate(dt=>{if(end)return;elapsed+=dt;computer=clamp(computer+3.9*dt,0,50);stamina=clamp(stamina+19*dt,0,100);if(computer>=50){end=true;G.status('Computer wins · '+progress.toFixed(1)+'m')};if(!end)G.status('You '+progress.toFixed(1)+'m · CPU '+computer.toFixed(1)+'m')},()=>{
  fill(ctx,0,0,360,520,'#1e586f');for(let y=100;y<420;y+=80){fill(ctx,0,y,360,4,'#d0cfa2');for(let x=12;x<360;x+=47)dot(ctx,x,y+30,4,'#5399a4')}
- rect(ctx,30,140,300,26,'#387b90');rect(ctx,30,140,progress*6,26,'#b7e0cc');rect(ctx,30,263,300,26,'#387b90');rect(ctx,30,263,computer*6,26,'#ddb28d');words(ctx,'YOU '+progress.toFixed(1)+'m',122,18);words(ctx,'CPU '+computer.toFixed(1)+'m',244,18);words(ctx,'STAMINA '+Math.round(stamina)+'%',425,16);words(ctx,'TIME '+elapsed.toFixed(1)+'s',55,19)});
+ fill(ctx,30,140,300,26,'#387b90');fill(ctx,30,140,progress*6,26,'#b7e0cc');fill(ctx,30,263,300,26,'#387b90');fill(ctx,30,263,computer*6,26,'#ddb28d');words(ctx,'YOU '+progress.toFixed(1)+'m',122,18);words(ctx,'CPU '+computer.toFixed(1)+'m',244,18);words(ctx,'STAMINA '+Math.round(stamina)+'%',425,16);words(ctx,'TIME '+elapsed.toFixed(1)+'s',55,19)});
  G.status('Swim 50m before the CPU');G.note('Tap with a steady rhythm. Very rapid taps drain stamina without adding much speed.');return stop});
 
 })();

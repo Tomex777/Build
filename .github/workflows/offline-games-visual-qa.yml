@@ -4,6 +4,8 @@ on:
     branches:
       - feature/offline-100-games-android-foundation
     paths:
+      - 'offline-games/app/src/main/assets/**'
+      - 'offline-games/app/src/main/java/com/night/offlinegames/MainActivity.kt'
       - 'offline-games/scripts/visual-audit.cjs'
       - 'offline-games/scripts/contact-sheet.py'
       - '.github/workflows/offline-games-visual-qa.yml'

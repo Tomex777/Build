@@ -15,7 +15,7 @@ const api={
  best(key){try{return Number(localStorage.getItem('night-offline-classic-best-'+key)||0)}catch{return 0}},
  shuffle(a){const out=a.slice();for(let i=out.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[out[i],out[j]]=[out[j],out[i]]}return out},
  clear(){cleanup();cleanup=()=>{}},
- run(id){const g=games[id];if(!g){api.status('Game unavailable');return}api.clear();$('title').textContent=g.title;$('description').textContent=g.desc;$('category').textContent=g.category.toUpperCase();document.title=g.title+' · NIGHT';api.board();api.actions();api.note('');api.status('');cleanup=g.init(api)||(()=>{})}
+ run(id){const g=games[id];if(!g){api.status('Game unavailable');return}api.clear();document.body.dataset.game=id;document.body.dataset.category=g.category.toLowerCase();$('title').textContent=g.title;$('description').textContent=g.desc;$('category').textContent=g.category.toUpperCase();document.title=g.title+' · NIGHT';api.board();api.actions();api.note('');api.status('');cleanup=g.init(api)||(()=>{})}
 };
 window.G=api;
 window.addEventListener('DOMContentLoaded',()=>{const id=new URL(location.href).searchParams.get('game')||'ttt';$('restart').addEventListener('click',()=>api.run(id));api.run(id)});

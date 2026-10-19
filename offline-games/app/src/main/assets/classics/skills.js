@@ -10,7 +10,7 @@ G.add('mazerunner','Maze Runner','Find the exit of a new carved maze. Swipe to m
  let player=[1,1],moves=0,done=false,start=null;
  function move(dx,dy){if(done)return;let x=player[0]+dx,y=player[1]+dy;if(x<0||y<0||x>=N||y>=N||board[key(x,y)]===1)return;player=[x,y];moves++;done=x===N-2&&y===N-2;if(done)G.score('mazerunner',Math.max(1,1000-moves));draw()}
  function draw(){G.status(done?'Maze escaped in '+moves+' steps!':'Moves '+moves+' · Reach the gold tile');G.grid(N,N,board.map((v,i)=>v?'':i===key(...player)?'●':i===key(N-2,N-2)?'◆':''),()=>{},(b,i)=>{b.disabled=true;b.style.fontSize='13px';b.style.borderRadius='1px';b.style.background=board[i]?'#304e3f':'#f8f8f1';if(i===key(...player)){b.style.background='#519275';b.style.color='#fff'}if(i===key(N-2,N-2))b.style.background='#dbc07c'});}
- draw();G.actions();for(const [name,dx,dy] of [['↑',0,-1],['←',-1,0],['↓',0,1],['→',1,0]])G.action(name,()=>move(dx,dy));const b=G.board();const onDown=e=>{start=[e.clientX,e.clientY]};const onUp=e=>{if(!start)return;const x=e.clientX-start[0],y=e.clientY-start[1];if(Math.max(Math.abs(x),Math.abs(y))>9){if(Math.abs(x)>Math.abs(y))move(Math.sign(x),0);else move(0,Math.sign(y))}start=null};b.addEventListener('pointerdown',onDown);b.addEventListener('pointerup',onUp);
+ draw();G.actions();for(const [name,dx,dy] of [['↑',0,-1],['←',-1,0],['↓',0,1],['→',1,0]])G.action(name,()=>move(dx,dy));const b=document.getElementById('board');const onDown=e=>{start=[e.clientX,e.clientY]};const onUp=e=>{if(!start)return;const x=e.clientX-start[0],y=e.clientY-start[1];if(Math.max(Math.abs(x),Math.abs(y))>9){if(Math.abs(x)>Math.abs(y))move(Math.sign(x),0);else move(0,Math.sign(y))}start=null};b.addEventListener('pointerdown',onDown);b.addEventListener('pointerup',onUp);
  function keyboard(e){const map={ArrowUp:[0,-1],ArrowDown:[0,1],ArrowLeft:[-1,0],ArrowRight:[1,0]};if(map[e.key])move(...map[e.key])}window.addEventListener('keydown',keyboard);
  G.note('A depth-first maze is newly generated on every restart. The exit is at bottom-right.');return()=>window.removeEventListener('keydown',keyboard)});
 G.add('darts','Darts','Time your throw as the moving crosshair passes over the bullseye. Ten throws.','Sports',()=>{
@@ -39,10 +39,37 @@ G.add('ski','Ski Slalom','Ski between the gate flags. Missing three gates ends t
  function frame(t){const dt=Math.min(.036,(t-last)/1000||.016);last=t;if(active&&!document.hidden){seconds-=dt;spawn-=dt;if(spawn<0){spawn=1.15;gates.push({x:rnd(100,260),y:-15,checked:false})}gates.forEach(g=>{g.y+=200*dt;if(!g.checked&&g.y>422){g.checked=true;if(Math.abs(skier-g.x)<47){score++;G.score('ski',score)}else misses++}});gates=gates.filter(g=>g.y<540);if(misses>=3||seconds<=0){active=false;G.status('Course finished · '+score+' gates')}else G.status('Gates '+score+' · Misses '+misses+'/3 · '+Math.ceil(seconds)+'s')}
  bg(ctx);ctx.fillStyle='#dbe4dc';ctx.fillRect(30,50,300,470);ctx.strokeStyle='#9aafa0';ctx.setLineDash([6,15]);ctx.beginPath();ctx.moveTo(70,50);ctx.lineTo(70,520);ctx.moveTo(290,50);ctx.lineTo(290,520);ctx.stroke();ctx.setLineDash([]);gates.forEach(g=>{ctx.strokeStyle='#2a6857';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(g.x-65,g.y-14);ctx.lineTo(g.x-65,g.y+14);ctx.moveTo(g.x+65,g.y-14);ctx.lineTo(g.x+65,g.y+14);ctx.stroke();ctx.fillStyle='#c96e64';ctx.fillRect(g.x-65,g.y-14,16,13);ctx.fillRect(g.x+49,g.y-14,16,13)});ctx.fillStyle='#356e59';ctx.beginPath();ctx.moveTo(skier,402);ctx.lineTo(skier-14,440);ctx.lineTo(skier+14,440);ctx.fill();title(ctx,'GATES '+score+' · MISSES '+misses);if(active)raf=requestAnimationFrame(frame)}
  G.status('Ski between the gates · 45 seconds');G.note('Drag horizontally to stay between each gate’s flag pair.');raf=requestAnimationFrame(frame);return()=>cancelAnimationFrame(raf)});
-G.add('bomb','Bomb Diffuser','Cut three specified wires in order before the countdown expires.','Action',()=>{
- const colors=[['RED','#b75e53'],['BLUE','#5793ac'],['GREEN','#65a27a'],['YELLOW','#dab35d'],['PURPLE','#9772b2']];
- let sequence=G.shuffle(colors).slice(0,3),step=0,seconds=18,done=false,lost=false,interval=0;
- const board=G.board();
- function draw(){board.replaceChildren();const instruction=G.el('p','hint','CUT IN ORDER: '+sequence.map(x=>x[0]).join(' → '));instruction.style.fontWeight='800';instruction.style.fontSize='16px';board.append(instruction);colors.forEach(([name,colour])=>{const btn=G.el('button','wire',name);btn.style.background=colour;btn.style.color='#fff';btn.disabled=done||lost||sequence.slice(0,step).some(c=>c[0]===name);btn.onclick=()=>{if(name!==sequence[step][0]){lost=true;G.status('Wrong wire · circuit triggered!')}else{step++;if(step===3){done=true;G.status('Diffused! '+seconds+' seconds left');G.score('bomb',seconds)}else G.status('Correct · '+(3-step)+' wires remaining')}draw()};board.append(btn)});if(!done&&!lost)G.status('Time '+seconds+'s · '+(3-step)+' wires remaining')}
- interval=setInterval(()=>{if(done||lost||document.hidden)return;seconds--;if(seconds<=0){lost=true;G.status('Time is up!')}draw()},1000);draw();G.note('A logic-and-speed game. The instruction remains visible so this is not blind guessing.');return()=>clearInterval(interval)});
+G.add('bomb','Bomb Diffuser','Read the circuit instructions and cut the three required wires in order.','Action',()=>{
+ const colors=[['RED','#d45e55'],['BLUE','#609fc4'],['GREEN','#63af83'],['YELLOW','#dfb956'],['PURPLE','#ac85c5']];
+ const sequence=G.shuffle(colors).slice(0,3);let step=0,seconds=22,done=false,lost=false,interval=null;
+ const board=G.board();const panel=G.el('div','bomb-panel');const timer=G.el('div','bomb-readout');const wires=G.el('div','bomb-wires');const guide=G.el('div','bomb-guide');
+ const top=G.el('p','bomb-caption','CIRCUIT SEQUENCE');panel.append(top);
+ const line=G.el('div','bomb-sequence');sequence.forEach(([name,color],i)=>{const part=G.el('span','bomb-step',name);part.style.borderBottomColor=color;line.append(part);if(i<2)line.append(G.el('span','bomb-join','→'))});panel.append(line);
+ timer.setAttribute('aria-label','Time remaining');panel.append(timer);
+ panel.append(G.el('div','bomb-wires-title','CUT ONLY IN THIS ORDER'));panel.append(wires);panel.append(guide);board.append(panel);
+ const svg='<svg viewBox="0 0 38 38" width="35" height="35" fill="none" aria-hidden="true"><rect x="2" y="9" width="34" height="20" rx="5" stroke="currentColor" stroke-width="2"/><path d="M8 19h22M13 14v10m12-10v10" stroke="currentColor" stroke-width="1.7"/></svg>';
+ const rowMap=new Map();
+ function show(){
+   timer.textContent=done?'SAFE':lost?'FAULT':String(seconds).padStart(2,'0')+' : 00';
+   timer.dataset.state=done?'safe':lost?'fault':seconds<7?'urgent':'ready';
+   guide.textContent=done?'Circuit disarmed.':lost?'The wrong cable triggered the circuit.':'Next wire: '+sequence[step][0];
+   for(const [name,row] of rowMap){const cut=sequence.slice(0,step).some(item=>item[0]===name);
+     row.disabled=done||lost||cut;row.dataset.cut=String(cut);
+     const label=row.querySelector('.wire-result');if(label)label.textContent=cut?'CUT':'CONNECT';
+   }
+ }
+ for(const [name,color] of colors){
+  const row=G.el('button','wire-cable');row.type='button';row.style.setProperty('--wire-color',color);
+  const icon=G.el('span','wire-icon');icon.innerHTML=svg;
+  const cable=G.el('span','wire-stripe');const label=G.el('span','wire-name',name);const result=G.el('span','wire-result','CONNECT');
+  row.append(icon,cable,label,result);row.setAttribute('aria-label','Cut '+name.toLowerCase()+' wire');
+  row.addEventListener('click',()=>{if(done||lost)return;if(name!==sequence[step][0]){lost=true;G.status('Wrong wire · circuit triggered!')}
+   else{step++;if(step===3){done=true;G.score('bomb',seconds);G.status('Circuit safely disarmed · '+seconds+' seconds remaining')}else G.status('Correct wire · '+(3-step)+' left')}show()});
+  wires.append(row);rowMap.set(name,row);
+ }
+ show();G.status('Follow the wire sequence · '+seconds+' seconds');
+ interval=setInterval(()=>{if(done||lost||document.hidden)return;seconds--;if(seconds<=0){lost=true;G.status('Time expired · circuit triggered!')}show()},1000);
+ G.note('This is a precision-and-sequence challenge, not guessing. A single incorrect cable ends the round.');
+ return()=>clearInterval(interval);
+});
 })();
