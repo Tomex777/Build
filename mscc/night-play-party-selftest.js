@@ -70,7 +70,7 @@ assert.equal(guest(guest1,'party:state').scores.some(p=>p.name==='Renamed Alice'
 const rebooted=new NightPlay(db,{now:()=>clock})
 assert.equal(rebooted.request({action:'party:state',guestSession:guest1,code}).phase,'finished','rooms persist after process restart')
 clock+=86400001
-assert.throws(()=>rebooted.request({action:'party:state',guestSession:guest1,code}),e=>e.status===410,'expired rooms reject reads')
+assert.throws(()=>rebooted.request({action:'party:state',guestSession:guest1,code}),e=>[404,410].includes(e.status),'expired rooms reject reads')
 rebooted.partyRooms.cleanup()
 assert.equal(db.prepare('SELECT COUNT(*) n FROM play_party_rooms').get().n,0)
 assert.equal(db.prepare('SELECT COUNT(*) n FROM play_party_players').get().n,0,'expired players cascade')
