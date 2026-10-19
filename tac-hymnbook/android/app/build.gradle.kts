@@ -12,6 +12,7 @@ android {
         applicationId = "com.night.tachymns"
         minSdk = 26
         targetSdk = 34
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         versionCode = 9
         versionName = "0.7.0"
     }
@@ -46,4 +47,7 @@ dependencies {
     implementation("androidx.compose.ui:ui-tooling-preview")
     implementation("androidx.core:core-ktx:1.15.0")
     debugImplementation("androidx.compose.ui:ui-tooling")
+    androidTestImplementation("androidx.test.ext:junit:1.2.1")
+    androidTestImplementation("androidx.test:runner:1.6.2")
+
 }
