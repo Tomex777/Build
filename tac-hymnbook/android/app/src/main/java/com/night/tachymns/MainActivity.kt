@@ -58,6 +58,7 @@ class MainActivity : ComponentActivity() {
             var englishMode by rememberSaveable { mutableStateOf(false) }
             var hubQuery by rememberSaveable { mutableStateOf("") }
             var hubFilter by rememberSaveable { mutableIntStateOf(0) }
+            var activeCollection by rememberSaveable { mutableStateOf("main") }
             var selectedKey by rememberSaveable { mutableStateOf<String?>(intent.getIntExtra("preview_hymn", -1).takeIf { it > 0 }?.let { "main:$it" }) }
             var lastRead by remember { mutableStateOf(prefs.getString("last_key", null) ?: prefs.getInt("last", -1).takeIf { it > 0 }?.let { "main:$it" }) }
             var fontScale by remember { mutableFloatStateOf(prefs.getFloat("font_scale", 1f)) }
@@ -94,6 +95,8 @@ class MainActivity : ComponentActivity() {
                             onQueryChange = { hubQuery = it },
                             filter = hubFilter,
                             onFilterChange = { hubFilter = it },
+                            activeCollection = activeCollection,
+                            onCollectionChange = { activeCollection = it },
                             onToggleDark = {
                                 dark = !dark
                                 prefs.edit().putBoolean("dark", dark).apply()
@@ -137,12 +140,16 @@ private fun HymnHub(
     onQueryChange: (String) -> Unit,
     filter: Int,
     onFilterChange: (Int) -> Unit,
+    activeCollection: String,
+    onCollectionChange: (String) -> Unit,
     onToggleDark: () -> Unit
 ) {
+    val hasAkokun = hymns.any { it.collection == "akokun" }
     val visible = hymns.filter { hymn ->
-        hymn.matches(query) && (filter != 1 || hymn.key in saved)
+        (if (hasAkokun) hymn.collection == activeCollection else hymn.collection != "akokun") &&
+            hymn.matches(query) && (filter != 1 || hymn.key in saved)
     }
-    val latest = hymns.firstOrNull { it.key == lastRead }
+    val latest = hymns.firstOrNull { it.key == lastRead && (!hasAkokun || it.collection == activeCollection) }
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(horizontal = 20.dp, vertical = 24.dp),
@@ -192,6 +199,27 @@ private fun HymnHub(
             }
         }
         item {
+            if (hasAkokun) {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    listOf("main" to "Redemption", "akokun" to "Àkọkún").forEach { (id, label) ->
+                        val chosen = activeCollection == id
+                        Surface(
+                            modifier = Modifier.clickable { onCollectionChange(id) },
+                            shape = RoundedCornerShape(14.dp),
+                            color = if (chosen) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surface,
+                            border = if (chosen) null else BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
+                        ) {
+                            Text(
+                                label,
+                                modifier = Modifier.padding(horizontal = 17.dp, vertical = 12.dp),
+                                color = if (chosen) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
+                                fontWeight = if (chosen) FontWeight.SemiBold else FontWeight.Normal
+                            )
+                        }
+                    }
+                }
+                Spacer(Modifier.height(20.dp))
+            }
             Text("Hymns", fontSize = 21.sp, fontWeight = FontWeight.SemiBold)
             Spacer(Modifier.height(14.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
