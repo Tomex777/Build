@@ -177,6 +177,63 @@ export async function dispatchNamespacedCommand({ privateRegistry, publicRegistr
   if (!publicParsed || !publicRegistry?.commands?.has(publicParsed.name)) return false
 
   const command = publicRegistry.commands.get(publicParsed.name)
-  if (!(await publicCommandAllowed(command, context))) return false
+  if (!(await publicCommandAllowed(command, context))) {
+    // In a direct chat, an assigned specialist mismatch otherwise looks like
+    // a dead command because dispatch silently returns false. Explain the
+    // profile/capability boundary without changing specialist routing. Groups
+    // stay silent here because every linked account receives the same message.
+    const message = context?.message
+    const chat = String(message?.key?.remoteJid || '')
+    const capability = String(command.capability || 'general').trim().toLowerCase() || 'general'
+    const profile = context?.botProfile || {}
+    const capabilityDenied = context.publicCommandsEnabled !== false &&
+      command.profileOnly == null &&
+      command.ownerOnly !== true &&
+      command.adminOnly !== true &&
+      typeof context.shouldExecutePublicCommand === 'function'
+    if (capabilityDenied && chat && !chat.endsWith('@g.us') && typeof context.reply === 'function') {
+      const profileName = String(profile.displayName || profile.id || 'this bot account').trim()
+      let targetProfile = null
+      if (typeof context.botProfiles === 'function') {
+        let assignedProfiles = null
+        if (typeof context.botAssignments === 'function') {
+          try {
+            const assignments = context.botAssignments()
+            if (Array.isArray(assignments)) {
+              assignedProfiles = new Set(assignments.map(row => String(row?.profile_id || '').trim()).filter(Boolean))
+            }
+          } catch {}
+        }
+        const candidates = context.botProfiles().map(candidate => {
+          const id = String(candidate?.id || '')
+          const explicit = (Array.isArray(candidate?.capabilities) ? candidate.capabilities : [])
+            .find(row => String(row?.capability || '').trim().toLowerCase() === capability)
+          const eligible = id !== 'control' && id !== 'unassigned' &&
+            (assignedProfiles == null || assignedProfiles.has(id)) &&
+            (explicit != null || candidate?.universal === true)
+          return {
+            profile:candidate,
+            eligible,
+            priority:explicit != null
+              ? Number(explicit.priority || 0)
+              : candidate?.universal === true ? Number(candidate.basePriority || 0) : Number.NEGATIVE_INFINITY,
+          }
+        }).filter(candidate => candidate.eligible)
+          .sort((a, b) => b.priority - a.priority ||
+            String(a.profile?.id || '').localeCompare(String(b.profile?.id || '')))
+        targetProfile = candidates[0]?.profile || null
+      }
+      const targetName = String(targetProfile?.displayName || targetProfile?.id || '').trim()
+      const nextStep = targetName
+        ? ' Try the *' + targetName + '* bot account for this command, or use a group where that specialist is connected.'
+        : ' Send it to the bot account assigned to that capability, or use a group where that specialist is connected.'
+      await context.reply(
+        'I received this command, but this bot account is assigned to *' + profileName +
+        '*, which is not enabled for *' + capability + '* commands.' + nextStep
+      )
+      return true
+    }
+    return false
+  }
   return runResolvedCommand(publicRegistry, publicParsed, context, { prefix: String(context.publicPrefix || '.') })
 }
