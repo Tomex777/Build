@@ -372,14 +372,20 @@ class AudioEngine(private val assets: AssetManager) {
                     SoundKind.THUNDER -> 2.7+random01()*4.0
                     SoundKind.METAL -> .55+random01()*.7
                     SoundKind.OWL -> 1.2+random01()*2.6
+                    SoundKind.TRAIN -> 12.0+random01()*14.0
                     SoundKind.BELL -> 1.5+random01()*1.6
                     SoundKind.BIRDS -> .12+random01()*.9
                     else -> .08+random01()*.5
                 }
                 eventFreq=200+random01()*1800
-                if(kind==SoundKind.THUNDER || kind==SoundKind.BELL){
+                if(kind==SoundKind.THUNDER || kind==SoundKind.BELL) {
                     clipPhase=0.0
                     clipNextStart=0
+                } else if(kind==SoundKind.OWL || kind==SoundKind.TRAIN) {
+                    // Start each hoot or train pass at a different part of its
+                    // recording, rather than playing the same opening repeatedly.
+                    val n=recording?.size?:0
+                    clipPhase=if(n>10)random01()*(n*.35) else 0.0
                 }
                 nextEvent=when(kind) {
                     SoundKind.THUNDER -> (8.0+random01()*27.0)*(1.4-storm.coerceIn(0f,1f)*.9)
@@ -391,14 +397,18 @@ class AudioEngine(private val assets: AssetManager) {
                     SoundKind.TRAFFIC -> 3.0+random01()*7.0
                     SoundKind.CRICKETS -> .24+random01()*.85
                     SoundKind.OWL -> 8.0+random01()*24.0
+                    SoundKind.TRAIN -> 22.0+random01()*37.0
                     SoundKind.CROWD -> .5+random01()*1.4
                     else -> 1.0+random01()*4.0
                 }
             }
             eventAge+=1.0/SAMPLE_RATE
             val progress=(eventAge/eventLength).coerceIn(0.0,1.0)
-            val active=if(eventAge<eventLength) (1.0-progress).pow(
-                if(kind==SoundKind.THUNDER) 1.5 else 2.6) else 0.0
+            val active=if(eventAge<eventLength) {
+                if(kind==SoundKind.TRAIN) sin(progress*PI).coerceAtLeast(0.0).pow(.7)
+                else (1.0-progress).pow(
+                    if(kind==SoundKind.THUNDER)1.5 else 2.6)
+            } else 0.0
             val result=when(kind) {
                 SoundKind.RAIN -> {
                     // Multiple spectral bands + slow intensity drift, not an audio loop.
@@ -468,7 +478,7 @@ class AudioEngine(private val assets: AssetManager) {
                 SoundKind.TRAIN -> {
                     val approach=(.5+.5*sin(t*.14+eventFreq*.006)).pow(2.0)
                     (low*.86+mid*.24+osc(70.0+6.0*sin(t*.43))*.10)*
-                        (.19+.85*approach)
+                        (.19+.85*approach)*active
                 }
             }
             // Variable-length recordings + irregular synthesized events sound richer
@@ -476,7 +486,7 @@ class AudioEngine(private val assets: AssetManager) {
             // One-shot recordings must not run continuously under an idle event
             // generator. Thunder and bells restart at actual, irregular event onset.
             val real=when(kind) {
-                SoundKind.THUNDER, SoundKind.BELL ->
+                SoundKind.THUNDER, SoundKind.BELL, SoundKind.OWL, SoundKind.TRAIN ->
                     if(active>0.001) fieldSample()*active.toFloat() else 0f
                 else -> fieldSample()
             }
