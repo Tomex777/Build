@@ -36,7 +36,17 @@ try{
   console.log('NIGHT_ACTION_STATE_'+game.toUpperCase()+'='+JSON.stringify({frame:running.frame,over:running.over,score:running.score,started:running.started}));
   assert.ok(running.frame>4,'animation frame runs for '+game);
   if(game==='slice')assert.ok(running.fruits.length>0,'Fruit Slice launches actual fruit or bombs');
-  if(game==='jump')assert.ok(running.platforms.length>=8,'Sky Jumper has a scrolling platform set');
+  if(game==='jump'){
+   assert.ok(running.platforms.length>=8,'Sky Jumper has a scrolling platform set');
+   assert.equal(await page.locator('#stat').isVisible(),false,'height is not duplicated as score');
+   assert.equal(await page.locator('#score').isVisible(),true,'one authoritative score remains');
+   const mover=running.platforms.find(p=>p.moving);
+   assert.ok(mover,'moving platforms appear at the very start of the game');
+   assert.ok(running.platforms.some(p=>p.fragile),'breaking platforms challenge early levels');
+   await page.waitForTimeout(220);
+   const after=await snap(),nextMover=after.platforms.find(p=>p.baseX===mover.baseX&&p.phase===mover.phase);
+   assert.ok(nextMover&&Math.abs(nextMover.x-mover.x)>0.2,'a moving platform changes its physical collision position');
+ }
   if(game==='runner')assert.ok(running.score>0&&running.speed>220,'Runner progresses and accelerates');
   if(game==='shooter')assert.ok(running.shots.length>0&&running.enemies.length>0,'Shooter generates shots and actual enemies');
   if(game==='bricks')assert.equal(running.bricks.length,42,'Brick Breaker creates the full first board');
