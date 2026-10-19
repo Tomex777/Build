@@ -42,6 +42,12 @@ export class NightPlayParty {
   cleanup() {
     this.db.prepare('DELETE FROM play_party_rooms WHERE expires_at<=?').run(this.now())
   }
+  removeUser(id) {
+    // Account deletion must also remove hosted rooms and all participant data.
+    // Guest-only players remain independent of account removal.
+    this.db.prepare('DELETE FROM play_party_rooms WHERE host_id=?').run(id)
+    this.db.prepare("DELETE FROM play_party_players WHERE auth_kind='user' AND auth_id=?").run(id)
+  }
   room(code) {
     if (!/^[A-HJ-NP-Z2-9]{8}$/.test(String(code||''))) fail(400,'Invalid invitation.')
     const row=this.db.prepare('SELECT * FROM play_party_rooms WHERE code=?').get(code)
