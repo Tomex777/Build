@@ -6,6 +6,7 @@ import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
@@ -112,6 +113,14 @@ class MainActivity : ComponentActivity() {
                 }
             }
             DisposableEffect(audioPlayer) { onDispose { audioPlayer.release() } }
+            // Keep timing and A-B passage repeat running even when a long hymn scrolls
+            // the playback panel out of a lazy list's visible window.
+            LaunchedEffect(audioPlayer.activeKey, audioPlayer.playing, audioPlayer.loading) {
+                while (audioPlayer.activeKey != null && (audioPlayer.playing || audioPlayer.loading)) {
+                    audioPlayer.refresh()
+                    delay(250)
+                }
+            }
             var learnMode by rememberSaveable { mutableStateOf(false) }
             var dark by remember { mutableStateOf(prefs.getBoolean("dark", false)) }
             var englishMode by rememberSaveable { mutableStateOf(false) }
