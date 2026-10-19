@@ -4,7 +4,7 @@ Android app for an original offline game collection, expanding in tested batches
 
 - **Application ID:** `com.night.offlinegames`, following the required `com.night.<appname>` convention. Change the final segment consistently at renaming time.
 - **Platform:** native Android / Kotlin / Compose, `minSdk 26`.
-- **Current playable catalog:** 96 implemented games, not 105 placeholders: native 2048; six existing NIGHT Play arcade/puzzle games bundled offline; and 89 newly implemented locally bundled logic, board, card and action games in `classics/`.
+- **Current playable catalog:** 105 implemented games, not 105 placeholders: native 2048; six existing NIGHT Play arcade/puzzle games bundled offline; and 98 newly implemented locally bundled logic, board, card and action games in `classics/`.
 - **No INTERNET permission.** The embedded arcade loads under WebViewAssetLoader on the reserved `appassets.androidplatform.net` virtual host, with network loads blocked.
 - **Progress:** 2048 persists the board and best in device preferences; arcade game scores persist in the WebView's local storage; hub remembers recent games and favourites.
 - **Style:** no ad SDK, online account requirement, global volume slider, placeholder tiles, or duplicate back buttons.
@@ -36,6 +36,9 @@ Bundled the BSD-2-Clause `chess.js` v0.10.3 rules engine for legal chess (includ
 ## Themed Memory Match (offline artwork)
 
 Added real illustrated memory cards rather than shape placeholders, with 18 distinct pictures each in Animals, Vehicles and Space. The default is 6×4; choose 4×4, 6×4, 6×5 or 6×6 only from the dedicated in-game Settings control. Cards flip smoothly, unmatched cards return face-down, matching pairs stay visible, and play state, move count and elapsed time can be resumed locally. Art is individually bundled SVG from Twemoji and attributed under CC BY 4.0, with the entire graphics license kept inside the app. No images are loaded over a network.
+
+## Milestone: 105 implemented game registrations (not final QA)
+Added nine original game engines: Pinball Wizard, Asteroids, Blackjack (no gambling), Poker Dice, Speed, Pattern Lock, Brick Builder, Centipede, and Galaga Blitz. The catalog now declares 105 distinct implementations with unique IDs and matching implementation registration, independently checked by `verify-catalog.cjs`. **This does not yet guarantee polished, verified play on devices.** Exact parity with the other 105-game commercial app is also not claimed. Offline photographic Jigsaw and the approved Nigerian Ludo remain pending.
 
 ## Next game batches
 

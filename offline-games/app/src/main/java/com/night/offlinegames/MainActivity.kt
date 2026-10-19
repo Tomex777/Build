@@ -173,7 +173,16 @@ private val games = listOf(
     GameEntry("paperplane", "Paper Plane", "Endless", "Glide between floating rings"),
     GameEntry("cats", "Cat Collector", "Endless", "Sort cats into coloured shelters"),
     GameEntry("wavesurfer", "Wave Surfer", "Endless", "Lean into the waves"),
-    GameEntry("tunnel", "Tunnel Rush", "Endless", "Dodge approaching tunnel panels")
+    GameEntry("tunnel", "Tunnel Rush", "Endless", "Dodge approaching tunnel panels"),
+    GameEntry("pinball", "Pinball Wizard", "Arcade", "Responsive flippers and bumpers"),
+    GameEntry("asteroids", "Asteroids", "Arcade", "Thrust, aim and clear drifting rocks"),
+    GameEntry("blackjack", "Blackjack", "Card", "Reach twenty-one against the dealer"),
+    GameEntry("pokerdice", "Poker Dice", "Card", "Roll and hold five dice combinations"),
+    GameEntry("speed", "Speed", "Card", "Race the CPU on two center piles"),
+    GameEntry("patternlock", "Pattern Lock", "Puzzle", "Remember the connected-dot sequence"),
+    GameEntry("brickbuilder", "Brick Builder", "Puzzle", "Clear complete lines and squares"),
+    GameEntry("centipede", "Centipede", "Arcade", "Shoot descending segmented enemies"),
+    GameEntry("galaga", "Galaga Blitz", "Arcade", "Survive five diving attack formations")
 )
 private val categories = listOf("All", "Favourites", "Arcade", "Puzzle", "Board", "Memory", "Strategy", "Card", "Action", "Endless", "Sports", "Racing")
 

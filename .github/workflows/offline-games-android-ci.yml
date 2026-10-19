@@ -84,6 +84,10 @@ jobs:
           unzip -Z1 "$APK" | grep -q "assets/classics/vendor/chess.js"
           unzip -Z1 "$APK" | grep -q "assets/classics/CHESS-LICENSE.txt"
           unzip -Z1 "$APK" | grep -q "assets/classics/memory.js"
+          unzip -Z1 "$APK" | grep -q "assets/classics/pinball-asteroids.js"
+          unzip -Z1 "$APK" | grep -q "assets/classics/cards-extra.js"
+          unzip -Z1 "$APK" | grep -q "assets/classics/pattern-brick.js"
+          unzip -Z1 "$APK" | grep -q "assets/classics/galaga-centipede.js"
           unzip -Z1 "$APK" | grep -q "assets/memory/ARTWORK-LICENSE.txt"
           if "$ANDROID_HOME/build-tools/36.0.0/aapt" dump permissions "$APK" | grep -q "android.permission.INTERNET"; then
             echo "Offline-only release unexpectedly requests internet permission" >&2
@@ -120,13 +124,8 @@ jobs:
           target: google_apis
           profile: pixel_5
           disable-animations: true
-          script: |
-            adb shell svc wifi disable
-            adb shell svc data disable || true
-            cd offline-games
-            gradle --no-daemon :app:connectedDebugAndroidTest
-            mkdir -p smoke-screenshots
-            adb pull /sdcard/Android/data/com.night.offlinegames/files smoke-screenshots || true
+          emulator-boot-timeout: 1200
+          script: bash offline-games/scripts/emulator-smoke.sh
       - uses: actions/upload-artifact@v4
         if: always()
         with:
