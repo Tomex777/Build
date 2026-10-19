@@ -41,6 +41,9 @@ fun HymnAudioControls(
     val approved = remember(key) { repository.recording(key) }
     val isActive = player.activeKey == key
 
+    LaunchedEffect(key) {
+        if (player.activeKey != null && player.activeKey != key) player.stop()
+    }
     LaunchedEffect(player.activeKey, player.playing, player.loading) {
         while (player.activeKey != null && (player.playing || player.loading)) {
             player.refresh()
@@ -247,13 +250,7 @@ fun LearnHymnsHome(
                     }
                 }
                 Spacer(Modifier.height(12.dp))
-                // Styled field, not a platform default EditText.
-                OutlinedTextField(
-                    value = query, onValueChange = { query = it },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true, placeholder = { Text("Hymn title or number") },
-                    shape = RoundedCornerShape(16.dp)
-                )
+                SearchInput(query) { query = it }
                 Spacer(Modifier.height(10.dp))
             }
             if (filtered.isEmpty()) {
