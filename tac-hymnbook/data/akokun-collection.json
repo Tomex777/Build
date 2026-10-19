@@ -37,6 +37,14 @@
   "notes": "From all nine alphabetical index pages photographed in five spreads. Title transcriptions are provisional and Yorùbá diacritics must be checked; duplicate-number lines are preserved as alternative index references, not overwrites. All 305 independent hymn numbers reserved. Full hymn lyrics are not present on the index pages and have NOT been imported; do not show blank hymn pages in the app.",
   "external_source_candidates": [
     {
+      "number": 1,
+      "first_line": "Bórúkọ Jésù ti dùn tó: Ògo ni fún orúkọ Rẹ",
+      "source_url": "https://www.ebenezerdaramola.com/2020/04/cac-ghb-69-how-sweet-name-of-jesus.html",
+      "english_counterpart": "How Sweet the Name of Jesus Sounds (Blessed Be the Name arrangement)",
+      "match_status": "opening_line_and_chorus_candidate",
+      "rights_status": "not_checked"
+    },
+    {
       "number": 47,
       "first_line": "Agbára ń bẹ nínú ẹ̀jẹ̀ Jésù",
       "source_url": "https://pjthe3.com/agbara-n-be-nnu-eje-jesu/",
