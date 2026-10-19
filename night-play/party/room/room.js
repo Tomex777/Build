@@ -9,7 +9,7 @@ const esc=x=>String(x??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'
 const btn=(text,action,style='party-primary')=>'<button type="button" class="'+style+'" data-action="'+action+'">'+text+'</button>';
 function alertUser(s){toast.textContent=s;clearTimeout(alertUser.timer);alertUser.timer=setTimeout(()=>toast.textContent='',5500)}
 function title(t,sub,tag='LIVE PARTY'){$('title').textContent=t;$('subtitle').textContent=sub;$('kicker').textContent=tag;document.title=t+' · NIGHT Play'}
-function panelMessage(head,body,back){panel.innerHTML='<div class="party-panel"><h2>'+esc(head)+'</h2><p>'+esc(body)+'</p><a class="party-secondary party-online-return" href="'+esc(back||'/party/')+'">Back to party games</a></div>'}
+function panelMessage(head,body,back){panel.innerHTML='<div class="party-panel"><h2>'+esc(head)+'</h2><p>'+esc(body)+'</p>'+(back==='/profile'?'<a class="party-primary party-online-return" href="/profile">Connect WhatsApp</a>':'')+'</div>'}
 const shareLink=c=>location.origin+'/party/room/?code='+encodeURIComponent(c);
 async function request(action,body={}){
   const response=await fetch('/api/account',{method:'POST',credentials:'same-origin',cache:'no-store',
@@ -37,18 +37,19 @@ function questionsForGame(selected){
 function invitePanel(){
   const link=shareLink(room.code);
   const chips=room.players.map(p=>'<span class="party-player-pill">'+esc(p.name)+'</span>').join('');
-  return '<div class="party-invite"><span class="party-overline">YOUR ROOM CODE</span><strong class="party-room-code">'+esc(room.code)+'</strong><p>Share this link. Each friend joins with their own name — you do not add a player list.</p>'+
-    '<div class="party-invite-url" aria-label="Invite link">'+esc(link)+'</div>'+
-    '<div class="party-room-tools">'+btn('Share invitation','share')+btn('Copy link','copy','party-secondary')+'</div></div>'+
-    '<div class="party-room-members"><strong>Players joined · '+room.players.length+' / 16</strong><div class="party-player-list">'+chips+'</div></div>';
+  return '<div class="party-invite"><span class="party-overline">INVITATION</span><h2>Your room is ready.</h2>'+
+    '<p>Send this link to your friends. They join and enter their own names.</p>'+
+    '<div class="party-invite-url" aria-label="Invitation link">'+esc(link)+'</div>'+
+    '<div class="party-room-tools"><button type="button" class="party-primary" data-action="share"><svg class="party-inline-icon" aria-hidden="true"><use href="#party-icon-share"></use></svg>Share invitation</button></div></div>'+
+    '<div class="party-room-members"><strong>Players · '+room.players.length+' / 16</strong><div class="party-player-list">'+chips+'</div></div>';
 }
 function renderJoin(){
-  title('Join a party room','Your invitation is ready. Choose the name your friends will see.','YOU ARE INVITED');
+  title('Join the game','Enter your name to join the online room.','YOU ARE INVITED');
   const verified=identity?.status==='linked'&&identity.profile;
   const name=verified?identity.profile.displayName:'';
   panel.innerHTML='<div class="party-panel"><span class="party-overline">INVITATION · '+esc(code)+'</span><h2>Ready to join?</h2>'+
     (verified?'<p>Your NIGHT Play account will join as <strong>'+esc(name)+'</strong>.</p>':
-      '<p>Enter your name. It is used for this room only — no host-created roster.</p>'+
+      '<p>The host does not add participant names.</p>'+
       '<form id="joinForm"><label class="party-field" for="guestName">Your name<input id="guestName" name="guestName" class="party-input" maxlength="24" autocomplete="nickname" placeholder="How should friends call you?" required></label>'+
       '<button class="party-primary" type="submit">Join this game</button></form>')+
       (verified?btn('Join as '+esc(name),'join'):'')+'</div>';
@@ -56,10 +57,10 @@ function renderJoin(){
 function renderRoom(){
   if(!room)return;
   const host=room.host,playing=Boolean(room.me),phase=room.phase;
-  title(modes[room.mode]||'Party game',host?'Your guests enter through the link. You control the round.':'Hosted by '+room.hostName,'LIVE · '+esc(room.code));
-  let html='<div class="party-topline"><a class="party-text-btn" href="/party/">‹ Party games</a><span>'+esc(room.players.length)+' PLAYERS · '+esc(room.code)+'</span></div>';
+  title(modes[room.mode]||'Party game',host?'Invite friends, then start the game.':'Hosted by '+room.hostName,'LIVE ROOM');
+  let html='';
   if(phase==='lobby'){
-    html+='<div class="party-panel">'+(host?invitePanel():'<span class="party-overline">WAITING ROOM</span><h2>You’re in.</h2><p>Waiting for '+esc(room.hostName)+' to start. Your place is saved when you refresh.</p><div class="party-player-list">'+room.players.map(p=>'<span class="party-player-pill">'+esc(p.name)+'</span>').join('')+'</div>')+
+    html+='<div class="party-panel">'+(host?invitePanel():'<span class="party-overline">WAITING ROOM</span><h2>You’re in.</h2><p>Waiting for '+esc(room.hostName)+' to start.</p><div class="party-player-list">'+room.players.map(p=>'<span class="party-player-pill">'+esc(p.name)+'</span>').join('')+'</div>')+
     (host?btn('Start game','start'):'' )+'</div>';
     if(host&&room.players.length<2)html=html.replace('data-action="start"','data-action="start" disabled');
   }else if(phase==='finished'){
@@ -67,7 +68,7 @@ function renderRoom(){
     html+='<div class="party-summary"><span class="party-overline">GAME COMPLETE</span><h2>Thanks for playing.</h2>'+
       ((room.mode==='quiz'||room.mode==='trivia')?'<div class="party-leaderboard">'+ranks.map((p,i)=>'<div><span>'+esc(i+1)+'. '+esc(p.name)+'</span><b>'+p.points+' / '+room.total+'</b></div>').join('')+'</div>':
        '<p>'+room.players.length+' players · '+room.total+' rounds together.</p>')+
-      '<a class="party-secondary party-online-return" href="/party/?game='+encodeURIComponent(room.mode)+'">New game</a></div>';
+      '<a class="party-secondary party-online-return" href="/party/">All games</a></div>';
   }else{
     const q=room.question,choices=q?.choices||[];
     html+='<div class="party-progress"><span>ROUND '+(room.round+1)+' / '+room.total+'</span><span>'+room.votedCount+' / '+room.players.length+' ANSWERED</span></div>';
@@ -110,17 +111,19 @@ async function act(action,details={}){
 async function share(){
   const url=shareLink(code);
   try{
-    if(navigator.share)await navigator.share({title:'Join my NIGHT Play game',text:'Play together on NIGHT Play',url});
-    else{await navigator.clipboard.writeText(url);alertUser('Invitation link copied.')}
-  }catch(e){if(e.name!=='AbortError')alertUser('Use Copy link to share this room.')}
+    if(navigator.share){await navigator.share({title:'Join my NIGHT Play game',url});return;}
+    await navigator.clipboard.writeText(url);alertUser('Invitation link copied.');
+  }catch(e){
+    if(e.name==='AbortError')return;
+    try{await navigator.clipboard.writeText(url);alertUser('Invitation link copied.')}
+    catch{alertUser('Select the invitation link above to copy it.')}
+  }
 }
 panel.addEventListener('click',async e=>{
   const answer=e.target.closest('[data-answer]');
   if(answer){await act('vote',{answer:Number(answer.dataset.answer)});return}
   const b=e.target.closest('[data-action]');if(!b)return;
   const action=b.dataset.action;
-  if(action==='copy'){try{await navigator.clipboard.writeText(shareLink(code));alertUser('Invitation link copied.')}
-    catch{alertUser('Select the invitation link above to copy it.')}return}
   if(action==='share'){await share();return}
   if(action==='join'){await act('join');return}
   if(['start','advance'].includes(action))await act(action);
