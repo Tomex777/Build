@@ -58,12 +58,12 @@ class MainActivity : ComponentActivity() {
             var englishMode by rememberSaveable { mutableStateOf(false) }
             var hubQuery by rememberSaveable { mutableStateOf("") }
             var hubFilter by rememberSaveable { mutableIntStateOf(0) }
-            var selectedNumber by rememberSaveable { mutableStateOf<Int?>(intent.getIntExtra("preview_hymn", -1).takeIf { it > 0 }) }
-            var lastRead by remember { mutableIntStateOf(prefs.getInt("last", -1)) }
+            var selectedKey by rememberSaveable { mutableStateOf<String?>(intent.getIntExtra("preview_hymn", -1).takeIf { it > 0 }?.let { "main:$it" }) }
+            var lastRead by remember { mutableStateOf(prefs.getString("last_key", null) ?: prefs.getInt("last", -1).takeIf { it > 0 }?.let { "main:$it" }) }
             var fontScale by remember { mutableFloatStateOf(prefs.getFloat("font_scale", 1f)) }
             val saved = remember {
-                mutableStateListOf<Int>().apply {
-                    addAll(prefs.getStringSet("saved", emptySet()).orEmpty().mapNotNull { it.toIntOrNull() })
+                mutableStateListOf<String>().apply {
+                    addAll(prefs.getStringSet("saved", emptySet()).orEmpty().map { if (":" in it) it else "main:$it" })
                 }
             }
             val palette = if (dark) DarkPalette else LightPalette
@@ -74,17 +74,17 @@ class MainActivity : ComponentActivity() {
                 controls.isAppearanceLightStatusBars = !dark
                 controls.isAppearanceLightNavigationBars = !dark
             }
-            val openHymn: (Int) -> Unit = { number ->
-                selectedNumber = number
-                lastRead = number
-                prefs.edit().putInt("last", number).apply()
+            val openHymn: (Hymn) -> Unit = { hymn ->
+                selectedKey = hymn.key
+                lastRead = hymn.key
+                prefs.edit().putString("last_key", hymn.key).apply()
             }
-            val toggleSaved: (Int) -> Unit = { number ->
-                if (saved.contains(number)) saved.remove(number) else saved.add(number)
-                prefs.edit().putStringSet("saved", saved.map { it.toString() }.toSet()).apply()
+            val toggleSaved: (Hymn) -> Unit = { hymn ->
+                if (saved.contains(hymn.key)) saved.remove(hymn.key) else saved.add(hymn.key)
+                prefs.edit().putStringSet("saved", saved.toSet()).apply()
             }
-            val selected = hymns.firstOrNull { it.number == selectedNumber }
-            BackHandler(enabled = selectedNumber != null) { selectedNumber = null }
+            val selected = hymns.firstOrNull { it.key == selectedKey }
+            BackHandler(enabled = selectedKey != null) { selectedKey = null }
             MaterialTheme(colorScheme = palette) {
                 Surface(modifier = Modifier.fillMaxSize(), color = palette.background) {
                     if (selected == null) {
@@ -100,12 +100,12 @@ class MainActivity : ComponentActivity() {
                             }
                         )
                     } else {
-                        key(selected.number) {
+                        key(selected.key) {
                         HymnReader(
                             hymn = selected,
-                            previous = hymns.lastOrNull { it.number < selected.number },
-                            next = hymns.firstOrNull { it.number > selected.number },
-                            saved = selected.number in saved,
+                            previous = hymns.lastOrNull { it.collection == selected.collection && it.number < selected.number },
+                            next = hymns.firstOrNull { it.collection == selected.collection && it.number > selected.number },
+                            saved = selected.key in saved,
                             english = englishMode,
                             onLanguageChange = { englishMode = it },
                             fontScale = fontScale,
@@ -113,9 +113,9 @@ class MainActivity : ComponentActivity() {
                                 fontScale = it.coerceIn(0.85f, 1.55f)
                                 prefs.edit().putFloat("font_scale", fontScale).apply()
                             },
-                            onBack = { selectedNumber = null },
+                            onBack = { selectedKey = null },
                             onOpen = openHymn,
-                            onToggleSaved = { toggleSaved(selected.number) }
+                            onToggleSaved = { toggleSaved(selected) }
                         )
                         }
                     }
@@ -128,11 +128,11 @@ class MainActivity : ComponentActivity() {
 @Composable
 private fun HymnHub(
     hymns: List<Hymn>,
-    saved: List<Int>,
-    lastRead: Int,
+    saved: List<String>,
+    lastRead: String?,
     dark: Boolean,
-    onOpen: (Int) -> Unit,
-    onToggleSaved: (Int) -> Unit,
+    onOpen: (Hymn) -> Unit,
+    onToggleSaved: (Hymn) -> Unit,
     query: String,
     onQueryChange: (String) -> Unit,
     filter: Int,
@@ -140,9 +140,9 @@ private fun HymnHub(
     onToggleDark: () -> Unit
 ) {
     val visible = hymns.filter { hymn ->
-        hymn.matches(query) && (filter != 1 || hymn.number in saved)
+        hymn.matches(query) && (filter != 1 || hymn.key in saved)
     }
-    val latest = hymns.firstOrNull { it.number == lastRead }
+    val latest = hymns.firstOrNull { it.key == lastRead }
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(horizontal = 20.dp, vertical = 24.dp),
@@ -169,7 +169,7 @@ private fun HymnHub(
         if (query.isBlank() && latest != null) {
             item {
                 Surface(
-                    modifier = Modifier.fillMaxWidth().clickable { onOpen(latest.number) },
+                    modifier = Modifier.fillMaxWidth().clickable { onOpen(latest) },
                     color = MaterialTheme.colorScheme.primary,
                     shape = RoundedCornerShape(20.dp)
                 ) {
@@ -222,10 +222,10 @@ private fun HymnHub(
                 }
             }
         } else {
-            items(visible, key = { it.number }) { hymn ->
-                HymnRow(hymn, hymn.number in saved,
-                    onClick = { onOpen(hymn.number) },
-                    onToggleSaved = { onToggleSaved(hymn.number) })
+            items(visible, key = { it.key }) { hymn ->
+                HymnRow(hymn, hymn.key in saved,
+                    onClick = { onOpen(hymn) },
+                    onToggleSaved = { onToggleSaved(hymn) })
             }
         }
     }
@@ -305,7 +305,7 @@ private fun HymnReader(
     fontScale: Float,
     onChangeFontScale: (Float) -> Unit,
     onBack: () -> Unit,
-    onOpen: (Int) -> Unit,
+    onOpen: (Hymn) -> Unit,
     onToggleSaved: () -> Unit
 ) {
     val showEnglish = english && hymn.hasEnglish
@@ -326,8 +326,8 @@ private fun HymnReader(
                     onDragEnd = {
                         val threshold = 82.dp.toPx()
                         when {
-                            travel < -threshold -> next?.let { onOpen(it.number) }
-                            travel > threshold -> previous?.let { onOpen(it.number) }
+                            travel < -threshold -> next?.let { onOpen(it) }
+                            travel > threshold -> previous?.let { onOpen(it) }
                         }
                     }
                 )
@@ -338,7 +338,7 @@ private fun HymnReader(
             IconButton(onClick = onBack) {
                 Icon(painterResource(R.drawable.ic_back), contentDescription = "Back to hymns")
             }
-            Text("Hymn " + hymn.number, fontSize = 17.sp, fontWeight = FontWeight.SemiBold,
+            Text(hymn.sectionLabel + " " + hymn.number, fontSize = 17.sp, fontWeight = FontWeight.SemiBold,
                 modifier = Modifier.weight(1f))
             IconButton(onClick = onToggleSaved) {
                 Icon(painterResource(if (saved) R.drawable.ic_bookmark_filled else R.drawable.ic_bookmark),
@@ -422,13 +422,13 @@ private fun HymnReader(
         Surface(color = MaterialTheme.colorScheme.surface) {
             Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 10.dp),
                 horizontalArrangement = Arrangement.SpaceBetween) {
-                TextButton(onClick = { previous?.let { onOpen(it.number) } }, enabled = previous != null) {
+                TextButton(onClick = { previous?.let { onOpen(it) } }, enabled = previous != null) {
                     Icon(painterResource(R.drawable.ic_back), null, Modifier.size(18.dp))
                     Spacer(Modifier.width(6.dp))
-                    Text(previous?.let { "Hymn " + it.number } ?: "Previous")
+                    Text(previous?.let { it.sectionLabel + " " + it.number } ?: "Previous")
                 }
-                TextButton(onClick = { next?.let { onOpen(it.number) } }, enabled = next != null) {
-                    Text(next?.let { "Hymn " + it.number } ?: "Next")
+                TextButton(onClick = { next?.let { onOpen(it) } }, enabled = next != null) {
+                    Text(next?.let { it.sectionLabel + " " + it.number } ?: "Next")
                     Spacer(Modifier.width(6.dp))
                     Icon(painterResource(R.drawable.ic_next), null, Modifier.size(18.dp))
                 }
