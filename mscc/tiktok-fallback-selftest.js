@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { mkdtemp, readFile, rm } from 'node:fs/promises'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
-import { validTikTokMediaUrl, extractTikTokMedia, tryPublicTikTokFallback } from './utils/tiktok-fallback.js'
+import { validTikTokMediaUrl, canonicalTikTokUrl, resolveTikTokShortUrl, extractTikTokMedia, extractTikTokMediaVariants, tryPublicTikTokFallback } from './utils/tiktok-fallback.js'
 
 const link = 'https://vt.tiktok.com/ZSg2yBaXt/'
 const request = { platform:'TikTok', url:link }
@@ -66,3 +66,44 @@ try {
   await assert.rejects(tryPublicTikTokFallback(request,badDir,{fetchImpl:hostile}),/all public extractors/)
 } finally { await rm(badDir,{force:true,recursive:true}) }
 console.log('PASS Nexia-style public TikTok fallback and private-network blocking')
+
+const newerLink = 'https://vt.tiktok.com/ZSgMh8so3/'
+const canonical = 'https://www.tiktok.com/@night/video/7630000000000000000'
+assert.equal(canonicalTikTokUrl(canonical+'?utm_source=share'),canonical)
+assert.equal(canonicalTikTokUrl('https://www.tiktok.com/login?next=/@night/video/7630000000000000000'),null)
+assert.equal(validTikTokMediaUrl('https://v16.tiktokcdn-us.com/path/video.mp4'),'https://v16.tiktokcdn-us.com/path/video.mp4')
+assert.equal(extractTikTokMediaVariants('tikwm',{code:0,data:{hdplay:'https://www.tikwm.com/bad.mp4',play:'https://www.tikwm.com/good.mp4'}}).length,2)
+
+const seen = []
+const expansionFetch = async (url, init={}) => {
+  const address = String(url)
+  seen.push(address)
+  if (address === newerLink) return new Response('',{status:302,headers:{location:canonical+'?share_item_id=1'}})
+  if (address.includes('api.siputzx.my.id')) return new Response(JSON.stringify({status:false}))
+  if (address.includes('tikwm.com/api/')) {
+    return new Response(JSON.stringify({code:0,data:{
+      hdplay:'https://www.tikwm.com/video/bad.mp4',
+      play:'https://v16.tiktokcdn-us.com/video/good.mp4',
+    }}))
+  }
+  if (address.includes('/video/bad.mp4')) return new Response('blocked',{status:403})
+  if (address.includes('/video/good.mp4')) return new Response(mp4,{headers:{'content-type':'video/mp4'}})
+  throw Error('unexpected request: '+address)
+}
+const normalizedDir = await mkdtemp(join(tmpdir(),'night-tiktok-short-'))
+try {
+  assert.equal(await resolveTikTokShortUrl(newerLink,expansionFetch),canonical)
+  const files = await tryPublicTikTokFallback({platform:'TikTok',url:newerLink},normalizedDir,{fetchImpl:expansionFetch})
+  assert.equal(files.length,1,'HD fail must fall back to SD, not send two video variants')
+  assert.deepEqual(await readFile(files[0].file),mp4)
+  assert.ok(seen.some(u => u.includes(encodeURIComponent(canonical))),'API must receive canonical video URL')
+} finally { await rm(normalizedDir,{force:true,recursive:true}) }
+
+const unsafeSeen = []
+const unsafeResolver = async url => {
+  unsafeSeen.push(String(url))
+  return new Response('',{status:302,headers:{location:'https://127.0.0.1/private'}})
+}
+assert.equal(await resolveTikTokShortUrl(newerLink,unsafeResolver),null)
+assert.deepEqual(unsafeSeen,[newerLink],'short-link expansion must not follow redirects to private hosts')
+console.log('PASS TikTok share-link expansion, video quality retry and CDN allowlist')
