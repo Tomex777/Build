@@ -59,7 +59,9 @@ class MainActivity : ComponentActivity() {
             var englishMode by rememberSaveable { mutableStateOf(false) }
             var hubQuery by rememberSaveable { mutableStateOf("") }
             var hubFilter by rememberSaveable { mutableIntStateOf(0) }
-            var activeCollection by rememberSaveable { mutableStateOf("main") }
+            var activeCollection by rememberSaveable {
+                mutableStateOf(intent.getStringExtra("preview_collection").takeIf { it == "akokun" } ?: "main")
+            }
             var selectedKey by rememberSaveable { mutableStateOf<String?>(intent.getIntExtra("preview_hymn", -1).takeIf { it > 0 }?.let { "main:$it" }) }
             var lastRead by remember { mutableStateOf(prefs.getString("last_key", null) ?: prefs.getInt("last", -1).takeIf { it > 0 }?.let { "main:$it" }) }
             var fontScale by remember { mutableFloatStateOf(prefs.getFloat("font_scale", 1f)) }
