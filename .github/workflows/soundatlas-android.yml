@@ -186,22 +186,40 @@ jobs:
           "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging SoundAtlas/app/build/outputs/apk/debug/app-debug.apk | tee /tmp/soundatlas-badging.txt
           grep -q "sdkVersion:'26'" /tmp/soundatlas-badging.txt
           grep -q "package: name='com.night.soundatlas'" /tmp/soundatlas-badging.txt
-      - name: Create and verify installable temporary-test-signed APK
+      - name: Sign and verify installable Android APK
         shell: bash
+        env:
+          NIGHT_KEYSTORE_B64: ${{ secrets.SOUNDATLAS_SIGNING_KEYSTORE_B64 }}
+          NIGHT_STORE_PASSWORD: ${{ secrets.SOUNDATLAS_SIGNING_STORE_PASSWORD }}
+          NIGHT_KEY_PASSWORD: ${{ secrets.SOUNDATLAS_SIGNING_KEY_PASSWORD }}
+          NIGHT_KEY_ALIAS: ${{ secrets.SOUNDATLAS_SIGNING_ALIAS }}
         run: |
           set -euo pipefail
           mkdir -p SoundAtlas/release
           umask 077
           KEYSTORE="$RUNNER_TEMP/soundatlas-$GITHUB_RUN_ID.p12"
-          PASS="$(openssl rand -hex 24)"
           trap 'rm -f "$KEYSTORE"' EXIT
-          keytool -genkeypair -noprompt -keystore "$KEYSTORE" -storetype PKCS12 \
-            -storepass "$PASS" -keypass "$PASS" -alias night-test -keyalg RSA \
-            -keysize 3072 -validity 365 \
-            -dname "CN=Sound Atlas Temporary Test, OU=NIGHT, O=NIGHT, C=NG"
+          if [ -n "${NIGHT_KEYSTORE_B64:-}" ]; then
+            test -n "$NIGHT_STORE_PASSWORD" && test -n "$NIGHT_KEY_PASSWORD"
+            test -n "$NIGHT_KEY_ALIAS"
+            printf '%s' "$NIGHT_KEYSTORE_B64" | base64 --decode > "$KEYSTORE"
+            PASS="$NIGHT_STORE_PASSWORD"
+            KEY_PASS="$NIGHT_KEY_PASSWORD"
+            KEY_ALIAS="$NIGHT_KEY_ALIAS"
+            echo "PERSISTENT_RELEASE_SIGNING_ENABLED"
+          else
+            PASS="$(openssl rand -hex 24)"
+            KEY_PASS="$PASS"
+            KEY_ALIAS=night-test
+            keytool -genkeypair -noprompt -keystore "$KEYSTORE" -storetype PKCS12 \
+              -storepass "$PASS" -keypass "$PASS" -alias "$KEY_ALIAS" -keyalg RSA \
+              -keysize 3072 -validity 365 \
+              -dname "CN=Sound Atlas Temporary Test, OU=NIGHT, O=NIGHT, C=NG"
+            echo "TEMPORARY_CI_SIGNING_ONLY_NOT_PRODUCTION"
+          fi
           APKSIGNER="$ANDROID_HOME/build-tools/35.0.0/apksigner"
           "$APKSIGNER" sign --ks "$KEYSTORE" --ks-type PKCS12 \
-            --ks-key-alias night-test --ks-pass "pass:$PASS" --key-pass "pass:$PASS" \
+            --ks-key-alias "$KEY_ALIAS" --ks-pass "pass:$PASS" --key-pass "pass:$KEY_PASS" \
             --min-sdk-version 26 \
             --out SoundAtlas/release/SoundAtlas-Android8-plus-test-signed.apk \
             SoundAtlas/app/build/outputs/apk/release/app-release-unsigned.apk
