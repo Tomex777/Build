@@ -366,7 +366,7 @@ function tickRunner(dt){
      playerTop<bounds.bottom-3&&playerBottom>bounds.top+3){
    end('An obstacle caught you');break;
   }
-  if(prevX>=p.x&&o.x+o.w<p.x&&!o.passed){o.passed=true;state.passed++}
+  if(o.x+o.w<playerLeft&&!o.passed){o.passed=true;state.passed++}
  }
  state.obstacles=state.obstacles.filter(o=>o.x+o.w>-10);
  updateHud();
