@@ -75,7 +75,8 @@ try {
   await one.locator('#joinForm button').click();
   await two.locator('#guestName').fill('Robin');
   await two.locator('#joinForm button').click();
-  assert.equal(game.players.length,2);
+  await Promise.all([one.locator('.party-topline').waitFor(),two.locator('.party-topline').waitFor()]);
+  assert.equal(game.players.length,2,'both independent join requests completed');
   await host.waitForFunction(()=>document.querySelectorAll('.party-player-pill').length===2,{timeout:7000});
   await host.locator('[data-action="start"]').click();
   await one.locator('[data-answer="0"]').waitFor({timeout:7000});
