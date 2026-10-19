@@ -2,9 +2,11 @@
   "id": "akokun",
   "display_name": "Àkọkún",
   "category": "supplement",
-  "status": "numbering_confirmed_content_pending",
-  "hymn_count": null,
+  "status": "numbering_range_confirmed_titles_and_lyrics_pending",
+  "hymn_count": 305,
   "numbering_scheme": "independent_from_redemption",
   "hymns": [],
-  "notes": "Confirmed by the owner of the pictured TAC book: Àkọkún has its own hymn numbering, independent of Redemption Hymns 1–800. The first Àkọkún number, final number, hymn names, and contents still need confirmation from its index or opening page. Keep collection ID in every hymn key; do not import other denominations' similarly named addenda."
+  "notes": "Àkọkún uses its own hymn numbering, separate from Redemption 1–800. Its last printed number is confirmed as 305. Keep IDs as (collection, number), allowing Redemption 305 and Àkọkún 305 to coexist. Only populate titles and verses when sourced; do not expose empty lyric pages.",
+  "last_number": 305,
+  "count_basis": "305 is the last printed Àkọkún hymn number, confirmed by the user; assumes numbering begins at 1 without skipped numbers."
 }
