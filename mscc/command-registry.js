@@ -193,9 +193,32 @@ export async function dispatchNamespacedCommand({ privateRegistry, publicRegistr
       typeof context.shouldExecutePublicCommand === 'function'
     if (capabilityDenied && chat && !chat.endsWith('@g.us') && typeof context.reply === 'function') {
       const profileName = String(profile.displayName || profile.id || 'this bot account').trim()
+      let targetProfile = null
+      if (typeof context.botProfiles === 'function') {
+        const candidates = context.botProfiles().map(candidate => {
+          const explicit = (Array.isArray(candidate?.capabilities) ? candidate.capabilities : [])
+            .find(row => String(row?.capability || '').trim().toLowerCase() === capability)
+          const eligible = candidate?.id !== 'control' && candidate?.id !== 'unassigned' &&
+            (explicit != null || candidate?.universal === true)
+          return {
+            profile:candidate,
+            eligible,
+            priority:explicit != null
+              ? Number(explicit.priority || 0)
+              : candidate?.universal === true ? Number(candidate.basePriority || 0) : Number.NEGATIVE_INFINITY,
+          }
+        }).filter(candidate => candidate.eligible)
+          .sort((a, b) => b.priority - a.priority ||
+            String(a.profile?.id || '').localeCompare(String(b.profile?.id || '')))
+        targetProfile = candidates[0]?.profile || null
+      }
+      const targetName = String(targetProfile?.displayName || targetProfile?.id || '').trim()
+      const nextStep = targetName
+        ? ' Try the *' + targetName + '* bot account for this command, or use a group where that specialist is connected.'
+        : ' Send it to the bot account assigned to that capability, or use a group where that specialist is connected.'
       await context.reply(
         'I received this command, but this bot account is assigned to *' + profileName +
-        '*, which is not enabled for *' + capability + '* commands. Send it to the bot account assigned to that capability, or use a group where that specialist is connected.'
+        '*, which is not enabled for *' + capability + '* commands.' + nextStep
       )
       return true
     }
