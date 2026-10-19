@@ -23,6 +23,7 @@ android {
 }
 dependencies {
     implementation("androidx.core:core:1.13.1")
+    implementation("androidx.customview:customview:1.1.0")
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.json:json:20240303")
 }
