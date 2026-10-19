@@ -107,6 +107,7 @@ fun HymnAudioControls(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     IconButton(
                         onClick = { player.toggle(key, source) },
+                        enabled = !(isActive && player.loading),
                         modifier = Modifier.size(43.dp)
                     ) {
                         Icon(
