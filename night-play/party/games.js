@@ -31,8 +31,8 @@ function route(v){const u=new URL(location.href);v?u.searchParams.set('game',v):
 function hub(){
  title('Party games','Pick a game. Bring your friends.','PLAY TOGETHER');box.className='party-content party-hub';
  const cards=Object.entries(MODES).map(([id,m],i)=>'<button type="button" class="party-game-card mode-'+id+'" data-mode="'+id+'"><span class="party-game-art" aria-hidden="true">'+String(i+1).padStart(2,'0')+'</span><strong>'+h(m[0])+'</strong><small>'+h(m[1])+'</small><span class="party-card-arrow" aria-hidden="true">↗</span></button>').join('');
- box.innerHTML='<div class="party-intro"><span class="party-overline">THE PARTY ROOM</span><h2>Better with company.</h2><p>Quick games, private votes and real results. One phone, passed between friends.</p></div>'+
- '<div class="party-game-grid">'+cards+'</div><a class="party-nomi-bridge" href="https://nomi-tomex777.vercel.app/#/live" target="_blank" rel="noopener noreferrer"><span><strong>Online rooms on Nomi ↗</strong><small>Opens Nomi separately. Its account may be required.</small></span><b aria-hidden="true">↗</b></a>';
+ box.innerHTML='<div class="party-intro"><span class="party-overline">THE PARTY ROOM</span><h2>Better with company.</h2><p>Host a room and send a link, or play locally on one phone.</p></div>'+
+ '<div class="party-game-grid">'+cards+'</div>';
 }
 function setup(){
  const m=MODES[selected];title(m[0],m[1],selected==='quiz'?'CREATE QUIZ':'LOCAL PARTY');box.className='party-content';
@@ -46,8 +46,8 @@ function setup(){
  }
 
  const players=people.map((x,i)=>'<span class="party-player-pill">'+h(x)+'<button type="button" data-remove="'+i+'" aria-label="Remove '+h(x)+'">×</button></span>').join('');
- box.innerHTML='<div class="party-topline">'+button('‹ All games','hub','party-text-btn')+'<span>2–8 PLAYERS · SAME PHONE</span></div>'+
- '<div class="party-panel"><h2>Who is playing?</h2><p>Each person votes privately, then the group sees the results.</p><div class="party-player-list" '+(people.length?'':'hidden')+'>'+players+'</div>'+
+ box.innerHTML='<div class="party-topline">'+button('‹ All games','hub','party-text-btn')+'<span>ONLINE OR ONE PHONE</span></div>'+
+ '<div class="party-panel"><a class="party-online-link" href="https://nomi-tomex777.vercel.app/#/live/setup/'+encodeURIComponent(selected)+'" target="_blank" rel="noopener noreferrer">Create online room &amp; invite by link ↗</a><p class="party-field-help">Players join through your link and enter their own names. Online rooms still run on Nomi separately; its account may be required.</p><h2>Playing on one phone?</h2><p>Add only the people who will take turns on this device.</p><div class="party-player-list" '+(people.length?'':'hidden')+'>'+players+'</div>'+
  '<form id="partyAddPlayer" class="party-player-form"><label class="sr-only" for="playerName">Player name</label><input class="party-input" id="playerName" maxlength="24" placeholder="Enter a player name" value="'+h(verifiedIdentity?.displayName||'')+'" autocomplete="off" required><button type="submit" class="party-add-btn">Add</button></form>'+
  '<p class="party-field-help">'+people.length+' / 8 players · '+(selected==='quiz'?'Create the personal quiz first.':rounds+' questions')+'</p>'+
  (selected==='quiz'?button('Build personal quiz','editor','party-primary','id="quizBuilderButton"'):button('Start '+h(m[0]),'start','party-primary','id="startParty" '+(people.length<2?'disabled':'')))+'</div>';
