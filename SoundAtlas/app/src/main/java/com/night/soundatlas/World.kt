@@ -40,7 +40,12 @@ enum class SoundKind(val title: String, val family: String, val color: Int) {
     METAL("Metal creaks", "Industrial", 0xFFC5A7A1.toInt()),
     STEPS("Footsteps", "Human", 0xFFBEAD91.toInt()),
     CROWD("Distant crowd", "Human", 0xFFB5A4B5.toInt()),
-    TRAFFIC("Passing traffic", "Urban", 0xFF90A2A9.toInt())
+    TRAFFIC("Passing traffic", "Urban", 0xFF90A2A9.toInt()),
+    // Append-only: scene files encode SoundKind ordinal for version 1.
+    OCEAN("Ocean surf", "Water", 0xFF73A7C0.toInt()),
+    FIRE("Crackling fire", "Nature", 0xFFD3986D.toInt()),
+    OWL("Owl calls", "Wildlife", 0xFFAFA9BD.toInt()),
+    TRAIN("Passing train", "Urban", 0xFFAFB4C3.toInt())
 }
 
 data class Wall(var a: V2, var b: V2, var material: Material = Material.STONE)
@@ -172,6 +177,7 @@ object AtlasPresets {
                 add(SoundKind.BIRDS,15f,18f,.9f,true); add(SoundKind.BIRDS,64f,29f,.8f,true)
                 add(SoundKind.WATER,10f,65f,.74f); add(SoundKind.CRICKETS,57f,75f,.62f)
                 add(SoundKind.LEAVES,34f,32f,.92f);add(SoundKind.WIND,61f,17f,.45f)
+                add(SoundKind.OWL,58f,61f,.31f)
                 world.wind=.36f;world.listener=V2(34f,48f)
             }
             2 -> {
@@ -197,7 +203,7 @@ object AtlasPresets {
                 zone("Stone tunnel",9f,29f,55f,20f,3.6f,.09f)
                 rect(world,9f,29f,55f,20f,Material.STONE)
                 world.walls += Wall(V2(9f,39f),V2(27f,39f),Material.METAL)
-                add(SoundKind.TRAFFIC,67f,39f,.72f,true);add(SoundKind.DRIP,26f,35f,.66f)
+                add(SoundKind.TRAIN,67f,39f,.72f,true);add(SoundKind.DRIP,26f,35f,.66f)
                 add(SoundKind.METAL,53f,44f,.58f);add(SoundKind.WIND,6f,39f,.55f)
                 world.listener=V2(19f,44f)
             }
@@ -224,6 +230,7 @@ object AtlasPresets {
                 add(SoundKind.METAL,16f,20f,.77f)
                 add(SoundKind.BELL,58f,11f,.66f)
                 add(SoundKind.CROWD,50f,41f,.54f)
+                add(SoundKind.FIRE,18f,21f,.43f)
                 add(SoundKind.STEPS,41f,59f,.52f,true)
                 add(SoundKind.BIRDS,62f,72f,.62f,true)
                 add(SoundKind.WIND,9f,67f,.30f)
@@ -250,7 +257,7 @@ object AtlasPresets {
                 world.walls+=Wall(V2(11f,61f),V2(26f,72f),Material.STONE)
                 world.walls+=Wall(V2(38f,72f),V2(64f,65f),Material.STONE)
                 world.walls+=Wall(V2(64f,65f),V2(61f,13f),Material.STONE)
-                add(SoundKind.WATER,35f,75f,.94f)
+                add(SoundKind.OCEAN,35f,75f,.94f)
                 add(SoundKind.DRIP,18f,28f,.78f)
                 add(SoundKind.DRIP,59f,46f,.6f)
                 add(SoundKind.WIND,52f,67f,.53f)
