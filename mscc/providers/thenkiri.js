@@ -1,4 +1,6 @@
 const BASE = 'https://thenkiri.com'
+const SITE_BASES = [BASE, 'https://nkiri.ink']
+const SITE_HOSTS = new Set(['thenkiri.com', 'www.thenkiri.com', 'nkiri.ink', 'www.nkiri.ink'])
 const UA = 'Mozilla/5.0 (Linux; Android 16; SM-A165F) AppleWebKit/537.36 Chrome/140.0 Mobile Safari/537.36'
 import { materializeCandidates } from './stream-copy.js'
 
@@ -137,7 +139,9 @@ function downloadwellaForm(html, baseUrl) {
       const name = attr(input, 'name')
       if (name) fields[name] = attr(input, 'value')
     }
-    if (String(fields.op || '').toLowerCase() !== 'download2') continue
+    const op = String(fields.op || '').toLowerCase()
+    const hasFreeFields = Boolean(fields.id && fields.rand && Object.prototype.hasOwnProperty.call(fields, 'method_free'))
+    if (op !== 'download2' && !hasFreeFields) continue
     const open = new RegExp('^<form\\b[^>]*>', 'i').exec(form)?.[0] || ''
     const action = new URL(attr(open, 'action') || baseUrl, baseUrl).href
     return { action, fields }
@@ -152,9 +156,15 @@ function startDownloadUrl(html, baseUrl) {
   while ((match = pattern.exec(source))) {
     const href = attr(match[1], 'href').trim()
     if (!href || /^javascript:/i.test(href)) continue
-    const text = stripHtml(match[2]).toLowerCase()
     const absolute = new URL(href, baseUrl).href
-    if (text === 'start download' && new URL(absolute).pathname.includes('/d/')) return absolute
+    const text = stripHtml(match[2]).toLowerCase()
+    const pathname = new URL(absolute).pathname.toLowerCase()
+    const downloadButton = /<button\\b[^>]*class\\s*=\\s*["'][^"']*\\bdownloadbtn\\b/i.test(match[2]) ||
+      /\\bdownloadbtn\\b/i.test(match[1])
+    const legacyStartLink = /\\bstart\\s+download\\b/i.test(text) && pathname.includes('/d/')
+    const directDownloadLink = pathname.includes('/d/') && /download/i.test(text)
+    // Downloadwella's current flow returns an anchor containing a button with class downloadbtn.
+    if (downloadButton || legacyStartLink || directDownloadLink) return absolute
   }
   return ''
 }
@@ -170,7 +180,7 @@ async function resolveDownloadwella(link, sourceReferer = '') {
   const postResponse = await downloadwellaRequest(form.action, {
     method:'POST',
     body:new URLSearchParams(form.fields).toString(),
-    referer:sourceReferer || page,
+    referer:page,
     jar,
   })
   const postHtml = await postResponse.text()
@@ -264,20 +274,223 @@ async function getJson(url, retries = 2) {
   throw lastError
 }
 
+function siteHtmlCandidates(value) {
+  const target = new URL(value, BASE)
+  if (!SITE_HOSTS.has(target.hostname.toLowerCase())) {
+    throw new Error('Refusing to fetch a non-TheNkiri page.')
+  }
+  const path = target.pathname + target.search + target.hash
+  return [...new Set([target.href, ...SITE_BASES.map(origin => new URL(path, origin).href)])]
+}
+
+async function getHtmlPage(value) {
+  let lastError
+  for (const url of siteHtmlCandidates(value)) {
+    const controller = new AbortController()
+    const timer = setTimeout(() => controller.abort(), 10000)
+    try {
+      const response = await fetch(url, {
+        headers:{
+          'user-agent':UA,
+          accept:'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+          'accept-language':'en-US,en;q=0.9',
+          'accept-encoding':'identity',
+        },
+        redirect:'follow',
+        signal:controller.signal,
+      })
+      if (!response.ok) throw new Error('TheNkiri HTML HTTP ' + response.status)
+      const html = await response.text()
+      if (!html || html.length < 100) throw new Error('TheNkiri returned an empty HTML page.')
+      return { html, url:response.url || url }
+    } catch (error) {
+      lastError = error
+    } finally {
+      clearTimeout(timer)
+    }
+  }
+  throw lastError || new Error('TheNkiri HTML page could not be fetched.')
+}
+
+function contentPermalink(value, baseUrl) {
+  try {
+    const url = new URL(value, baseUrl)
+    if (!SITE_HOSTS.has(url.hostname.toLowerCase())) return ''
+    const path = url.pathname.replace(/\/+$/, '')
+    if (!path) return ''
+    const parts = path.split('/').filter(Boolean)
+    if (parts.length !== 1) return ''
+    const slug = parts[0].toLowerCase()
+    const reserved = new Set([
+      'home', 'movies', 'movie', 'series', 'tv-series', 'genre', 'genres',
+      'category', 'tag', 'search', 'page', 'how-to-download',
+      'new-server-how-to-download', 'about', 'about-us', 'contact',
+      'privacy-policy', 'terms', 'feed', 'wp-json',
+    ])
+    if (reserved.has(slug)) return ''
+    return url.href
+  } catch {
+    return ''
+  }
+}
+
+function postIdNear(html, index) {
+  const articleStart = html.lastIndexOf('<article', index)
+  const articleEnd = html.indexOf('</article>', index)
+  if (articleStart >= 0 && articleEnd >= index && articleEnd - articleStart < 100000) {
+    const article = html.slice(articleStart, articleEnd + 10)
+    const match = /\bpost-(\d+)\b/i.exec(article) ||
+      /\bid=["'][^"']*(\d+)[^"']*["']/i.exec(article)
+    if (match) return Number(match[1]) || 0
+  }
+  return 0
+}
+
+function parseHtmlListing(html, baseUrl = BASE, limit = 20) {
+  const source = String(html || '')
+  const rows = []
+  const seen = new Set()
+  const headingPattern = /<h[23]\b[^>]*>([\s\S]*?)<\/h[23]>/gi
+  let heading
+  while ((heading = headingPattern.exec(source)) && rows.length < limit) {
+    const anchor = /<a\b([^>]*)>([\s\S]*?)<\/a>/i.exec(heading[1])
+    if (!anchor) continue
+    const rawUrl = attr(anchor[1], 'href').trim()
+    const link = contentPermalink(rawUrl, baseUrl)
+    if (!link || seen.has(link)) continue
+    const rawTitle = attr(anchor[1], 'title') || attr(anchor[2], 'alt') || stripHtml(anchor[2])
+    const title = cleanTitle(rawTitle)
+    if (!title || title.length < 3) continue
+    const slug = new URL(link).pathname.split('/').filter(Boolean).at(-1) || ''
+    if (!slug) continue
+    seen.add(link)
+    const postId = postIdNear(source, heading.index)
+    const item = normalizePost({
+      id:slug,
+      link,
+      title:{ rendered:rawTitle },
+      content:{ rendered:'' },
+    })
+    // Keep the slug in id because media flows retain that field but drop provider-only fields.
+    item.id = 'thenkiri:' + slug
+    item.sourcePostId = postId
+    item.sourceLink = link
+    item.type = inferType(rawTitle, '')
+    item.title = item.type === 'tv' ? cleanSeriesTitle(rawTitle) : cleanTitle(rawTitle)
+    rows.push(item)
+  }
+  return rows
+}
+
+function titleFromHtml(html) {
+  const h1 = /<h1\b[^>]*>([\s\S]*?)<\/h1>/i.exec(String(html || ''))
+  const title = /<title\b[^>]*>([\s\S]*?)<\/title>/i.exec(String(html || ''))
+  return stripHtml(h1 ? h1[1] : title ? title[1] : '')
+}
+
+function normalizeHtmlPost(html, pageUrl) {
+  const rawTitle = titleFromHtml(html)
+  if (!rawTitle) throw new Error('TheNkiri post title was not found.')
+  const url = new URL(pageUrl, BASE)
+  if (!SITE_HOSTS.has(url.hostname.toLowerCase())) throw new Error('Refusing a non-TheNkiri post URL.')
+  const slug = url.pathname.split('/').filter(Boolean).at(-1) || ''
+  if (!slug) throw new Error('TheNkiri post URL did not contain a slug.')
+  const articleId = postIdNear(html, Math.max(0, String(html).indexOf('<h1')))
+  const item = normalizePost({
+    id:slug,
+    link:url.href,
+    title:{ rendered:rawTitle },
+    content:{ rendered:'' },
+  })
+  item.id = 'thenkiri:' + slug
+  item.sourcePostId = articleId
+  item.sourceLink = url.href
+  item.releaseLinks = extractReleaseLinks(html)
+  item.available = item.releaseLinks.length > 0
+  item.type = inferType(rawTitle, '')
+  item.title = item.type === 'tv' ? cleanSeriesTitle(rawTitle) : cleanTitle(rawTitle)
+  return item
+}
+
 async function posts(query = '', limit = 20, { content = false } = {}) {
+  const requestedLimit = Math.min(Math.max(Number(limit) || 20, 1), 20)
   const url = new URL('/wp-json/wp/v2/posts', BASE)
-  url.searchParams.set('per_page', String(Math.min(Math.max(Number(limit) || 20, 1), 20)))
+  url.searchParams.set('per_page', String(requestedLimit))
   url.searchParams.set('_fields', content ? 'id,date,slug,link,title,content' : 'id,date,slug,link,title')
   if (String(query || '').trim()) url.searchParams.set('search', String(query).trim())
 
-  const rows = await getJson(url)
-  return Array.isArray(rows) ? rows.map(normalizePost).filter(row => row.sourcePostId && row.title) : []
+  let apiError = null
+  try {
+    const rows = await getJson(url, 1)
+    const normalized = Array.isArray(rows)
+      ? rows.map(normalizePost).filter(row => row.sourcePostId && row.title)
+      : []
+    if (normalized.length) return normalized.slice(0, requestedLimit)
+  } catch (error) {
+    apiError = error
+  }
+
+  let htmlLoaded = false
+  let htmlError = null
+  for (const origin of SITE_BASES) {
+    const listingUrl = new URL('/', origin)
+    listingUrl.searchParams.set('post_type', 'post')
+    if (String(query || '').trim()) listingUrl.searchParams.set('s', String(query).trim())
+    try {
+      const page = await getHtmlPage(listingUrl.href)
+      htmlLoaded = true
+      const fallback = parseHtmlListing(page.html, page.url, requestedLimit)
+      if (fallback.length) return fallback
+    } catch (error) {
+      htmlError = error
+    }
+  }
+
+  if (apiError && !htmlLoaded) {
+    throw new Error('TheNkiri catalog API and HTML fallback failed: ' +
+      apiError.message + (htmlError ? '; ' + htmlError.message : ''))
+  }
+  return []
 }
 
 async function postById(id) {
   const url = new URL('/wp-json/wp/v2/posts/' + encodeURIComponent(String(id)), BASE)
   url.searchParams.set('_fields', 'id,date,slug,link,title,content')
-  return normalizePost(await getJson(url))
+  return normalizePost(await getJson(url, 1))
+}
+
+async function postByUrl(value) {
+  const page = await getHtmlPage(value)
+  return normalizeHtmlPost(page.html, page.url)
+}
+
+function sourceSlug(item) {
+  const raw = String(item?.id || '').replace(/^thenkiri:/i, '').trim()
+  return raw && !/^\d+$/.test(raw) && /^[a-z0-9_-]+$/i.test(raw) ? raw : ''
+}
+
+async function postForItem(item) {
+  const id = sourcePostId(item)
+  if (id) {
+    try {
+      return await postById(id)
+    } catch {}
+  }
+
+  const link = String(item?.sourceLink || '').trim()
+  if (link) {
+    try {
+      return await postByUrl(link)
+    } catch {}
+  }
+
+  const slug = sourceSlug(item)
+  if (slug) {
+    try {
+      return await postByUrl(new URL('/' + slug + '/', BASE).href)
+    } catch {}
+  }
+  return null
 }
 
 function matchingLinks(links, { type = '', season = 0, episode = 0 } = {}) {
@@ -348,10 +561,8 @@ function episodesFromRelease(item, seasonNumber) {
 }
 
 async function fullTvPost(item) {
-  const id = sourcePostId(item)
-  if (!id) return null
-  const post = await postById(id)
-  return post.type === 'tv' ? post : null
+  const post = await postForItem(item)
+  return post?.type === 'tv' ? post : null
 }
 
 export async function listTheNkiriSeasons({ item } = {}) {
@@ -366,16 +577,24 @@ export async function listTheNkiriEpisodes({ item, seasonNumber } = {}) {
 
 export async function resolveTheNkiriRelease({ item, title, type = '', season = 0, episode = 0 } = {}) {
   const expectedType = String(type || item?.type || '').toLowerCase()
-  const directId = Number(item?.sourcePostId || String(item?.id || '').replace(/^thenkiri:/i, '')) || 0
   const candidates = []
-  if (directId) {
-    candidates.push(await postById(directId))
-  } else {
+  const direct = await postForItem(item)
+  if (direct) candidates.push(direct)
+
+  // HTML search fallback is also needed when REST API results stop being available.
+  if (!direct || !direct.releaseLinks.length) {
     const parts = [String(title || item?.title || '').trim()]
-    if (expectedType === 'tv' && Number(season) > 0) parts.push('S' + String(Number(season)).padStart(2, '0'))
+    if (expectedType === 'tv' && Number(season) > 0) {
+      parts.push('S' + String(Number(season)).padStart(2, '0'))
+    }
     const rows = (await posts(parts.filter(Boolean).join(' '), 12))
       .filter(row => !expectedType || row.type === expectedType)
-    for (const row of rows.slice(0, 6)) candidates.push(await postById(row.sourcePostId))
+    for (const row of rows.slice(0, 6)) {
+      const full = await postForItem(row)
+      if (full && !candidates.some(existing => existing.sourceLink === full.sourceLink)) {
+        candidates.push(full)
+      }
+    }
   }
 
   for (const full of candidates) {
@@ -440,6 +659,9 @@ export async function inspectTheNkiriAvailability({ item, title, type = '', seas
 export const _test = {
   stripHtml,
   extractYear,
+  parseHtmlListing,
+  titleFromHtml,
+  normalizeHtmlPost,
   inferType,
   cleanTitle,
   cleanSeriesTitle,
