@@ -87,7 +87,13 @@ internal fun CloudSetupPage(
                 )
                 if (emailSetting == null || passwordSetting == null) {
                     Text(
-                        "This Cortex Agent has not been updated with MEGA controls yet. Update the Cortex Agent before connecting.",
+                        state.cloudSetupIssue ?: "Secure MEGA settings are missing from this Cortex Agent. Update the Agent before entering credentials.",
+                        fontSize = 14.sp,
+                        color = com.night.cortex.ui.theme.CortexDanger,
+                        modifier = Modifier.testTag("cloud-credentials-unavailable"),
+                    )
+                    Text(
+                        "NIGHT being online does not mean its Cloud or ENV API is available. Nothing has been saved here.",
                         fontSize = 12.sp,
                         color = CortexMuted,
                     )
@@ -146,7 +152,8 @@ internal fun CloudSetupPage(
                 Text(
                     when {
                         !configured -> "Save the primary account, then restart MSCC."
-                        state.cloudConnectionFailed -> "Connection check failed. Verify the primary credentials, MSCC deployment and network, then refresh."
+                        state.cloudSetupIssue != null -> state.cloudSetupIssue
+                        state.cloudConnectionFailed -> "Cloud service unavailable. Your credentials may still be correct."
                         dashboard == null -> "Status not loaded. Tap Refresh after restarting MSCC."
                         dashboard.configured -> "MEGA is configured. Primary account quota can be verified."
                         else -> "MEGA is not yet connected in the running MSCC process. Restart MSCC."
