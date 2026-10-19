@@ -8,6 +8,7 @@ on:
       - 'offline-games/app/src/main/java/com/night/offlinegames/MainActivity.kt'
       - 'offline-games/scripts/visual-audit.cjs'
       - 'offline-games/scripts/contact-sheet.py'
+      - 'offline-games/scripts/playthrough-checks.cjs'
       - '.github/workflows/offline-games-visual-qa.yml'
   workflow_dispatch:
 
@@ -31,6 +32,8 @@ jobs:
           python3 -m pip install --user --quiet pillow
       - name: Interact with every registered game and screenshot the result
         run: node offline-games/scripts/visual-audit.cjs
+      - name: Play full win sequences in seven representative games
+        run: node offline-games/scripts/playthrough-checks.cjs
       - name: Build mobile screenshot contact sheets
         if: always()
         run: |
@@ -58,7 +61,10 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git checkout -b "qa/offline-games-visual-${GITHUB_RUN_ID}"
           git add -f offline-games/qa-evidence/contact-*.png offline-games/qa-evidence/audit.json offline-games/qa-evidence/summary.md
+          if test -f offline-games/qa-evidence/playthrough/results.json; then
+            git add -f offline-games/qa-evidence/playthrough/*
+          fi
           git commit -m "test(offline-games): visual gameplay evidence for ${GITHUB_SHA}"
           git push origin "HEAD:refs/heads/qa/offline-games-visual-${GITHUB_RUN_ID}"
           echo "## Screenshot branch" >> "$GITHUB_STEP_SUMMARY"
-          echo "`qa/offline-games-visual-${GITHUB_RUN_ID}`" >> "$GITHUB_STEP_SUMMARY"
+          printf 'qa/offline-games-visual-%s\n' "$GITHUB_RUN_ID" >> "$GITHUB_STEP_SUMMARY"
