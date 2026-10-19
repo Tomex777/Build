@@ -282,7 +282,7 @@ class HymnAudioPlayer(private val context: Context) {
         }
     }
 
-    fun setRate(value: Float) {
+    fun changeSpeed(value: Float) {
         rate = value.coerceIn(0.65f, 1.25f)
         if (playing) applyRate()
     }
