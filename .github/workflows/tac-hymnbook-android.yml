@@ -84,4 +84,6 @@ jobs:
             tac-hymns-dark-home.png
             tac-hymns-dark-reader.png
             tac-hymns-akokun-index.png
+            tac-hymns-audio-reader.png
+            tac-hymns-learn-home.png
           if-no-files-found: warn
