@@ -69,7 +69,7 @@ object IndexRepository {
                 collection = "akokun",
                 number = item.getInt("number"),
                 titleYo = title,
-                titleEn = null,
+                titleEn = item.stringOrNull("title_en"),
                 alternateLines = aliases.filter { it != title }
             ))
         }
