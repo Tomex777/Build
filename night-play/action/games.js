@@ -12,7 +12,7 @@ const dpr=Math.min(2.5,Math.max(1,window.devicePixelRatio||1));
 canvas.width=Math.round(W*dpr);canvas.height=Math.round(H*dpr);
 ctx.setTransform(dpr,0,0,dpr,0,0);
 const defs={
- slice:{title:'Fruit Slice',subtitle:'Slice the fruit. Never touch the bombs.',rules:'Drag a finger across fruit to slice it. Avoid black bombs and do not miss three pieces of fruit. Mouse dragging works on desktop.',label:'MISSES'},
+ slice:{title:'Fruit Slice',subtitle:'Slice the fruit. Never touch the bombs.',rules:'Drag a finger across fruit to slice it. Avoid black bombs and do not miss five pieces of fruit. Mouse dragging works on desktop.',label:'LIVES'},
  jump:{title:'Sky Jumper',subtitle:'Climb higher. Land every jump.',rules:'Guide the jumper left and right with the controls, arrow keys, A/D or by dragging horizontally across the screen. Jumping is automatic. Fall below the screen and the run ends.',label:'HEIGHT'},
  runner:{title:'Endless Runner',subtitle:'Jump, slide and survive the run.',rules:'Tap or press Space to jump. Swipe down or hold Slide to duck underneath flying obstacles. On desktop, use Up/Space to jump and Down to duck. The pace gets faster over time.',label:'SPEED'},
  shooter:{title:'Space Shooter',subtitle:'Defend the skies against endless waves.',rules:'Drag your ship left and right; it fires automatically. Dodge enemy shots, collect green shields and survive increasingly difficult waves. Use arrows or A/D on desktop.',label:'WAVE'},
