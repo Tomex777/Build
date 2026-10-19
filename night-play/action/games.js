@@ -38,7 +38,7 @@ function updateHud(){
  $('best').textContent=String(Math.floor(Math.max(readBest(),state?.score||0)));
  $('statLabel').textContent=defs[game].label;
  let value=0;
- if(state){if(game==='slice')value=Math.max(0,3-state.misses);
+ if(state){if(game==='slice')value=Math.max(0,5-state.misses);
  if(game==='jump')value=Math.floor(state.score);
  if(game==='runner')value=(state.speed/220).toFixed(1)+'×';
  if(game==='shooter')value=state.wave;
@@ -110,7 +110,7 @@ function tickSlice(dt){
  }
  state.fruits=state.fruits.filter(f=>f.y<H+95);
  state.trail=state.trail.filter(p=>(p.a-=dt*4)>0);
- if(state.misses>=3)end('Too many missed fruit');
+ if(state.misses>=5)end('Too many missed fruit');
 }
 function paintSlice(){
  bg('#e3f1da','#bcdcc4');
@@ -119,7 +119,7 @@ function paintSlice(){
  for(const f of state.fruits)drawFruit(f);
  if(state.trail.length){ctx.lineWidth=5;ctx.lineCap='round';
   for(let i=1;i<state.trail.length;i++){const a=state.trail[i-1],b=state.trail[i];ctx.strokeStyle='rgba(255,255,255,'+b.a+')';ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.stroke();}}
- for(let i=0;i<3;i++)disk(30+i*21,30,7,i<3-state.misses?'#db836d':'#e8e4db');
+ for(let i=0;i<5;i++)disk(30+i*21,30,7,i<5-state.misses?'#db836d':'#e8e4db');
 }
 function initJump(){
  const platforms=[{x:120,y:500,w:154,moving:false}];
