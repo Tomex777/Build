@@ -146,15 +146,19 @@ class BrowserController(private val appContext: Context) {
             notice = "Open a webpage before saving a copy."
             return
         }
+        val snapshotUrl = tab.url
+        val snapshotTitle = tab.title
         tab.session.saveAsPdf().accept({ input ->
             Thread {
                 try {
                     val folder = File(appContext.filesDir, "saved-pages").apply { mkdirs() }
                     val fileName = "page-" + System.currentTimeMillis() + "-" +
                         UUID.randomUUID().toString().take(8) + ".pdf"
-                    input.use { stream -> File(folder, fileName).outputStream().use { stream.copyTo(it) } }
+                    requireNotNull(input) { "PDF stream was empty" }.use { stream ->
+                        File(folder, fileName).outputStream().use { stream.copyTo(it) }
+                    }
                     Handler(Looper.getMainLooper()).post {
-                        store.savePage(fileName, tab.url, tab.title)
+                        store.savePage(fileName, snapshotUrl, snapshotTitle)
                         notice = "PDF copy saved in Time Machine"
                     }
                 } catch (error: Exception) {
