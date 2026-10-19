@@ -1,0 +1,10 @@
+{
+  "id": "akokun",
+  "display_name": "Àkọkún",
+  "category": "supplement",
+  "status": "awaiting_specific_TAС_section_photo",
+  "hymn_count": null,
+  "numbering_scheme": null,
+  "hymns": [],
+  "notes": "Àkọkún means a supplement/addendum in the hymnbook context. It appears in more than one Yoruba denomination's hymnal; don't silently import Methodist Akokun content or assign Redemption Hymnal numbers to this section. A title/section page or numbered index from the user's TAC book is required to confirm this edition."
+}
