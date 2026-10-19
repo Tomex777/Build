@@ -1,0 +1,5 @@
+{
+  "schema_version": 1,
+  "description": "Approved offline recordings embedded in the APK. Empty until sound recordings with verified distribution rights are obtained.",
+  "recordings": []
+}
