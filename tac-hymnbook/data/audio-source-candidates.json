@@ -67,6 +67,123 @@
       "status": "needs_verse_and_tune_match",
       "redistribution_permission": "not_verified",
       "notes": "Opening line resembles photo-backed Àkọkún 1 title, but no Àkọkún full-text transcription or TAC melody verification yet. Commercial 2020 recording, not automatically reusable."
+    },
+    {
+      "collection": "main",
+      "number": 2,
+      "language": "yo",
+      "voice": "unknown",
+      "title": "Gbogbo Aye Gbe Jesu Ga / Video Hymn / Yoruba hymn",
+      "performer": "Yoruba Hymnal",
+      "platform": "youtube",
+      "url": "https://www.youtube.com/watch?v=l16W88-PfCM",
+      "status": "needs_listening_and_verse_match",
+      "redistribution_permission": "not_verified",
+      "notes": "Channel labels as Yoruba song and video hymn; confirm actual sung audio and exact TAC verses/tune. 2021 recording."
+    },
+    {
+      "collection": "main",
+      "number": 2,
+      "language": "yo",
+      "voice": "unknown",
+      "title": "All Hail the Power of Jesus' Name | Gbogbo Aye Gbe Jesu Ga",
+      "performer": "Bukunmi Falona",
+      "platform": "youtube",
+      "url": "https://www.youtube.com/watch?v=8LUBUzG6vSo",
+      "status": "needs_listening_and_verse_match",
+      "redistribution_permission": "not_verified",
+      "notes": "Creator describes Yoruba and English lyrics in a 2026 devotional video; verify actual bilingual singing or performance before classification."
+    },
+    {
+      "collection": "main",
+      "number": 3,
+      "language": "yo",
+      "voice": "unknown",
+      "title": "FI IYIN FUN JESU OLURAPADA WA (Praise Him, Praise Him, Jesus our blessed redeemer)",
+      "performer": "Yoruba Hymn Serenade",
+      "platform": "youtube",
+      "url": "https://www.youtube.com/watch?v=qPO-oke-n00",
+      "status": "needs_listening_and_verse_match",
+      "redistribution_permission": "not_verified",
+      "notes": "Creator labels hymn, lyrics and acapella. Source title matches TAC Redemption 3; verify full rendition and arrangement."
+    },
+    {
+      "collection": "main",
+      "number": 3,
+      "language": "yo",
+      "voice": "unknown",
+      "title": "Fi yin fun Jesu olurapada wa",
+      "performer": "Oyeronke Hymns",
+      "platform": "soundcloud",
+      "url": "https://soundcloud.com/user-527180616/fi-yin-fun-jesu-olurapada-wa",
+      "status": "needs_listening_and_verse_match",
+      "redistribution_permission": "all_rights_reserved",
+      "notes": "SoundCloud explicitly marks all rights reserved. Candidate for permission inquiry, not in-app download."
+    },
+    {
+      "collection": "main",
+      "number": 5,
+      "language": "yo",
+      "voice": "unknown",
+      "title": "Okan Mi, Yin Oba Orun / Praise, My Soul, The King of Heaven Yoruba Hymn",
+      "performer": "Hymns in Yoruba",
+      "platform": "youtube",
+      "url": "https://www.youtube.com/watch?v=CetpFrut25k",
+      "status": "needs_listening_and_verse_match",
+      "redistribution_permission": "not_verified",
+      "notes": "Description names the classic LAUDA ANIMA tune and verse; must verify it matches TAC's preferred tune."
+    },
+    {
+      "collection": "main",
+      "number": 5,
+      "language": "en",
+      "voice": "unknown",
+      "title": "Praise, my soul, the King of heaven.ogg",
+      "performer": "St. Paul's Episcopal Church, Indianapolis (attributed by Commons uploader)",
+      "platform": "wikimedia_commons",
+      "url": "https://commons.wikimedia.org/wiki/File:Praise,_my_soul,_the_King_of_heaven.ogg",
+      "status": "requires_rights_origin_confirmation",
+      "redistribution_permission": "cc0_claim_by_third_party_uploader_not_confirmed",
+      "notes": "Wikimedia labels CC0 but describes Vimeo source and uploader not necessarily rights holder; seek confirmation from St Paul's rather than bundling as cleared without permission. Not yet checked full audio contents."
+    },
+    {
+      "collection": "main",
+      "number": 6,
+      "language": "yo",
+      "voice": "duet",
+      "title": "Yin Olorun Abraham (The God of Abraham praise)",
+      "performer": "Yoruba Hymn Serenade",
+      "platform": "youtube",
+      "url": "https://www.youtube.com/watch?v=xuYTmOzJN8A",
+      "status": "needs_listening_and_verse_match",
+      "redistribution_permission": "not_verified",
+      "notes": "Creator explicitly describes a Yoruba duet. Not exactly SOLO or CHOIR; do not mislabel to fill the solo slot."
+    },
+    {
+      "collection": "main",
+      "number": 50,
+      "language": "yo",
+      "voice": "unknown",
+      "title": "A F'ope f'Olorun hymn / Yoruba hymn / Video Hymn",
+      "performer": "Yoruba Hymnal",
+      "platform": "youtube",
+      "url": "https://www.youtube.com/watch?v=r9nuXMsdy78",
+      "status": "needs_listening_and_verse_match",
+      "redistribution_permission": "not_verified",
+      "notes": "Creator describes a Yoruba hymn video for same opening line. Confirm exact text/tune and presence of real vocals."
+    },
+    {
+      "collection": "akokun",
+      "number": 1,
+      "language": "yo",
+      "voice": "unknown",
+      "title": "B'ORUKO JESU TI DUN TO (YORUBA HYMNS)",
+      "performer": "Owah Janet Adenike A OJAA",
+      "platform": "youtube",
+      "url": "https://www.youtube.com/watch?v=rwTJVMV4ugQ",
+      "status": "high_risk_verse_variant_needs_review",
+      "redistribution_permission": "not_verified",
+      "notes": "Creator's lyrics begin with first line similar to photographed Àkọkún 1, but alternate Anglican version exists with materially different verses. Do NOT assume identity or publish in app before exact comparison."
     }
   ],
   "candidate_collections": [
@@ -87,6 +204,55 @@
       "url": "https://www.smallchurchmusic.com/Song_Display-New.php?Search=%28Louvan",
       "name": "Small Church Music: Lord of All Being, Throned Afar / Louvan",
       "notes": "Includes vocals-and-organ and vocals-and-band versions but is not a verified TAC rendition; consult website and rights owner for app redistribution. Do not label as choir."
+    },
+    {
+      "platform": "youtube",
+      "url": "https://www.youtube.com/channel/UCbr7XSpPkWcCXsSycrOER4A",
+      "name": "Yoruba Hymnal (channel)",
+      "notes": "Channel of Yoruba hymns including YouTube recordings of Gbogbo Aye Gbe Jesu Ga and A F'ope F'Olorun. Request rights if audio suitable."
+    },
+    {
+      "platform": "hymnary",
+      "url": "https://hymnary.org/hymnal/SCM",
+      "name": "Small Church Music collection (Clyde McLennan, Hymnary)",
+      "notes": "Nearly 10,000 MP3 recordings mainly organ/piano/band, NOT a source for claimed solo/choir vocals. Non-commercial usage permitted by Hymnary on page; for distributed app seek written permission / applicability: manager@hymnary.org."
+    },
+    {
+      "platform": "youtube",
+      "url": "https://www.youtube.com/watch?v=qPO-oke-n00",
+      "name": "Yoruba Hymn Serenade",
+      "notes": "Explicit hymn acapella / duet publisher, likely useful for sourcing clear Yoruba performances and negotiating licences."
+    },
+    {
+      "platform": "youtube",
+      "url": "https://www.youtube.com/watch?v=CetpFrut25k",
+      "name": "Hymns in Yoruba",
+      "notes": "Actual Yoruba hymn channel with named tunes. Check each recording against printed TAC lyrics."
+    },
+    {
+      "platform": "facebook",
+      "url": "https://www.facebook.com/TACBATV/videos/-50-days-of-the-service-of-50-hymnsday-350-redemption-hymnal-19praise-ye-the-lor/2322272838584803/",
+      "name": "TACBA TV: 50 Days of 50 Hymns series",
+      "notes": "Promising direct denominational source. Need to index individual hymn numbers without conflating recordings with rights-cleared audio. Search Redemption 19,20 etc."
+    },
+    {
+      "platform": "spotify",
+      "url": "https://open.spotify.com/track/05mGj2QH5xN0rw2VYW6mnR",
+      "name": "Oluwalonibisi: Choral Hymn album",
+      "notes": "Published 2025 GOD AND I RECORDS; explicitly Yoruba hymns track names including Gbogbo Aye Gbe Jesu Ga and Fi Iyin Fun Jesu Olurapada Wa. Contact rights holder; streaming platform download is not authorized."
+    },
+    {
+      "platform": "wikimedia_commons",
+      "url": "https://commons.wikimedia.org/wiki/Category:Audio_files_of_Christian_hymns",
+      "name": "Commons audio files of Christian hymns",
+      "notes": "Check actual performer rights and uploader authority for CC0/CC BY audio; many files are instrumental or unrelated hymns."
+    },
+    {
+      "platform": "thehymnalproject",
+      "url": "https://www.thehymnalproject.com/come-let-us-join-our-cheerful-songs",
+      "name": "The Hymnal Project (Redemption 13 English hymn)",
+      "notes": "Downloadable reference recordings, but recording uses specific hymn tune; obtain explicit redistribution licence and verify the correct TAC tune."
     }
-  ]
+  ],
+  "sourcing_strategy": "Prefer permission-cleared standalone MP3/OGG master files for offline inclusion. YouTube URLs are reference links only, not downloads. Do not add third-party recordings to shipped audio_catalog.json without verifying performance, lyrics, tune, recording owners, and permissions."
 }
