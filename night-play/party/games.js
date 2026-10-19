@@ -74,7 +74,7 @@ function start(){
  if(selected==='quiz'&&!validQuiz()){note('Complete your quiz first.');return}
  let questions=selected==='quiz'?draft.questions.map((q,i)=>({id:'personal-'+i,prompt:q.prompt.trim(),options:q.options.map(x=>x.trim()),correct:q.correct})):packs[selected].slice();
  if(selected!=='quiz'){for(let i=questions.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[questions[i],questions[j]]=[questions[j],questions[i]]}questions=questions.slice(0,rounds)}
- state={mode:selected,players:people.slice(),questions,index:0,voter:0,votes:questions.map(()=>Array(people.length).fill(null)),points:Array(people.length).fill(0),owner:selected==='quiz'?draft.owner.trim():'',startedAt:Date.now()};
+ state={mode:selected,players:people.slice(),questions,index:0,voter:0,votes:questions.map(()=>Array(people.length).fill(null)),points:Array(people.length).fill(0),owner:selected==='quiz'?(verifiedIdentity?.displayName||draft.owner.trim()||'Quiz host'):'',startedAt:Date.now()};
  phase='handoff';persist();route(selected);render();
 }
 function progress(){return '<div class="party-progress"><span>ROUND '+(state.index+1)+' / '+state.questions.length+'</span><span>'+h(state.players[state.voter]||'Revealing')+'</span></div>'}
