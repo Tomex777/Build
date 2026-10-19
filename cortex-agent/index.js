@@ -137,12 +137,12 @@ function redactLogLine(input) {
   // Baileys / Signal session objects printed by debugging and reconnection
   // contain actual authentication ratchets and asymmetric key bytes. These
   // MUST NOT leave the VM through /logs, SSE, or journal-derived activity.
-  const signalMaterial = /\\b(?:baseKey|baseKeyType|privKey|pubKey|currentRatchet|ephemeralKeyPair|rootKey|chainKey|senderKey|identityKey|remoteIdentityKey|signedPreKey|signedKeyId|pendingPreKey|preKey|mediaKey|macKey|sessionKey|messageKeys|registrationId)\\b\\s*[:=]/i;
+  const signalMaterial = /\b(?:baseKey|baseKeyType|privKey|pubKey|currentRatchet|ephemeralKeyPair|rootKey|chainKey|senderKey|identityKey|remoteIdentityKey|signedPreKey|signedKeyId|pendingPreKey|preKey|mediaKey|macKey|sessionKey|messageKeys|registrationId)\b\s*[:=]/i;
   if (signalMaterial.test(line)) {
     return line.replace(signalMaterial, '[SIGNAL SESSION]:').replace(/:[^:]*$/, ': [REDACTED]').slice(0, 320);
   }
-  line = line.replace(/<Buffer\\s+[^>\\r\\n]{0,8000}>/g, '<Buffer [REDACTED]>');
-  line = line.replace(/\\b(?:[0-9a-f]{2}[ :]){18,}[0-9a-f]{2}\\b/gi, '[REDACTED HEX]');
+  line = line.replace(/<Buffer\s+[^>\r\n]{0,8000}>/g, '<Buffer [REDACTED]>');
+  line = line.replace(/\b(?:[0-9a-f]{2}[ :]){18,}[0-9a-f]{2}\b/gi, '[REDACTED HEX]');
 
   line = line.replace(/(authorization\s*[:=]\s*bearer\s+)[^\s"',}]+/gi, '$1[REDACTED]');
   line = line.replace(/\bBearer\s+[A-Za-z0-9._~+\/=:-]{12,}/g, 'Bearer [REDACTED]');
