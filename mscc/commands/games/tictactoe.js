@@ -9,7 +9,7 @@ import {
   ticTacToeCoord,
   pickTicTacToeBotMove,
 } from '../../utils/tictactoe-game.js'
-import { renderTicTacToeBoard,renderNexiaTicTacToePicture } from '../../utils/tictactoe-renderer.js'
+import { renderNexiaTicTacToePicture } from '../../utils/tictactoe-renderer.js'
 import { gameMenuArt } from '../../utils/game-menu-art.js'
 import { findOtherActiveGame, otherGameMessage, userForStoredGame } from '../../utils/game-session.js'
 import { getTicTacToeTheme, normalizeTicTacToeTheme } from '../../utils/game-themes.js'
@@ -61,28 +61,6 @@ function labelFor(game, player) {
   if (player === game.playerX) return game.xName || 'X'
   if (player === game.playerO) return game.oName || 'O'
   return 'Player'
-}
-
-function statusCaption(game, note = '') {
-  let status
-  if (game.winner) {
-    status = `🏆 ${labelFor(game, game.winner)} wins.`
-  } else if (game.isDraw) {
-    status = '🤝 Draw.'
-  } else {
-    status = `Turn: ${labelFor(game, game.currentTurn)} (${game.markFor(game.currentTurn)})`
-  }
-
-  return [
-    '*Tic-Tac-Toe*',
-    note,
-    status,
-    '',
-    `❌ ${game.xName || 'X'}`,
-    `⭕ ${game.oName || 'O'}`,
-    '',
-    game.winner || game.isDraw ? '' : 'Send a number from *1–9* to place your mark.',
-  ].filter(Boolean).join('\n')
 }
 
 function classicCaption(game,note='') {
