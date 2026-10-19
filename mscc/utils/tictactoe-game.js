@@ -144,55 +144,6 @@ function winnerFor(board) {
   return ''
 }
 
-function minimax(board, botMark, opponentMark, maximizing, depth = 0) {
-  const winner = winnerFor(board)
-  if (winner === botMark) return 10 - depth
-  if (winner === opponentMark) return depth - 10
-  const available = board.flatMap((cell,index) => cell ? [] : [index])
-  if (!available.length) return 0
-
-  if (maximizing) {
-    let best = -Infinity
-    for (const index of available) {
-      board[index] = botMark
-      best = Math.max(best, minimax(board, botMark, opponentMark, false, depth + 1))
-      board[index] = null
-    }
-    return best
-  }
-
-  let best = Infinity
-  for (const index of available) {
-    board[index] = opponentMark
-    best = Math.min(best, minimax(board, botMark, opponentMark, true, depth + 1))
-    board[index] = null
-  }
-  return best
-}
-
-function perfectMove(game, random = Math.random) {
-  const board = [...game.board]
-  const botMark = game.markFor(game.currentTurn)
-  if (botMark !== 'X' && botMark !== 'O') return -1
-  const opponentMark = botMark === 'X' ? 'O' : 'X'
-  let bestScore = -Infinity
-  let best = []
-
-  for (const index of game.availableMoves()) {
-    board[index] = botMark
-    const score = minimax(board, botMark, opponentMark, false, 0)
-    board[index] = null
-    if (score > bestScore) {
-      bestScore = score
-      best = [index]
-    } else if (score === bestScore) {
-      best.push(index)
-    }
-  }
-
-  return best.length ? best[Math.floor(random() * best.length)] : -1
-}
-
 // Parity with Nexia's modules/games/ttt/ai.js: minimax plus tier-specific
 // mistake chances, immediate-win/block heuristics and genuinely random beginner.
 const NEXIA_MISTAKES = Object.freeze({beginner:.85,easy:.55,medium:.30,hard:.12,expert:0})
