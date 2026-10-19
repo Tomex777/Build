@@ -190,3 +190,61 @@ export function renderTicTacToeMenuArt() {
 
   return canvas.toBuffer('image/png')
 }
+
+// Nexia picture-game visual parity: 592×592 JPEG, A–C / 1–3 coordinates,
+// cached empty grid, gold X, blue O, last-move highlight and green win line.
+// This is separate from NIGHT's customizable numbered board renderer.
+const NEXIA_PX=592, NEXIA_MARGIN=56, NEXIA_CELL=160
+let nexiaTemplate
+function nexiaCenter(index){
+  return { x:NEXIA_MARGIN+(index%3)*NEXIA_CELL+NEXIA_CELL/2,
+    y:NEXIA_MARGIN+Math.floor(index/3)*NEXIA_CELL+NEXIA_CELL/2 }
+}
+function buildNexiaTemplate(){
+  const canvas=createCanvas(NEXIA_PX,NEXIA_PX),ctx=canvas.getContext('2d')
+  ctx.fillStyle='#0e0e0e';ctx.fillRect(0,0,NEXIA_PX,NEXIA_PX)
+  ctx.fillStyle='#888888';ctx.font='bold 22px "DejaVu Sans Bold", sans-serif'
+  ctx.textAlign='center';ctx.textBaseline='middle'
+  for(let i=0;i<3;i++){
+    ctx.fillText('ABC'[i],NEXIA_MARGIN+(i+.5)*NEXIA_CELL,NEXIA_MARGIN/2)
+    ctx.fillText(String(i+1),NEXIA_MARGIN/2,NEXIA_MARGIN+(i+.5)*NEXIA_CELL)
+  }
+  ctx.strokeStyle='#333333';ctx.lineWidth=3
+  for(let i=0;i<=3;i++){
+    const at=NEXIA_MARGIN+i*NEXIA_CELL
+    ctx.beginPath();ctx.moveTo(at,NEXIA_MARGIN);ctx.lineTo(at,NEXIA_MARGIN+480);ctx.stroke()
+    ctx.beginPath();ctx.moveTo(NEXIA_MARGIN,at);ctx.lineTo(NEXIA_MARGIN+480,at);ctx.stroke()
+  }
+  return canvas
+}
+export function renderNexiaTicTacToePicture(game) {
+  const canvas=createCanvas(NEXIA_PX,NEXIA_PX),ctx=canvas.getContext('2d')
+  nexiaTemplate ||= buildNexiaTemplate()
+  ctx.drawImage(nexiaTemplate,0,0)
+  if(Number.isInteger(game.lastMove)&&game.lastMove>=0&&game.lastMove<=8) {
+    const index=game.lastMove
+    ctx.fillStyle='rgba(255,255,255,0.06)'
+    ctx.fillRect(NEXIA_MARGIN+(index%3)*NEXIA_CELL,
+      NEXIA_MARGIN+Math.floor(index/3)*NEXIA_CELL,NEXIA_CELL,NEXIA_CELL)
+  }
+  for(let i=0;i<9;i++){
+    const mark=game.board[i]
+    if(!mark)continue
+    const {x,y}=nexiaCenter(i)
+    ctx.strokeStyle=mark==='X'?'#c9a84c':'#4ca9c9'
+    ctx.lineWidth=10;ctx.lineCap='round';ctx.beginPath()
+    if(mark==='X'){
+      const radius=NEXIA_CELL*.28
+      ctx.moveTo(x-radius,y-radius);ctx.lineTo(x+radius,y+radius)
+      ctx.moveTo(x+radius,y-radius);ctx.lineTo(x-radius,y+radius)
+    } else ctx.arc(x,y,NEXIA_CELL*.30,0,Math.PI*2)
+    ctx.stroke()
+  }
+  if(game.winningLine?.length===3){
+    const a=nexiaCenter(game.winningLine[0]),c=nexiaCenter(game.winningLine[2])
+    ctx.strokeStyle='#4ccf6e';ctx.lineWidth=8;ctx.lineCap='round'
+    ctx.globalAlpha=.85;ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(c.x,c.y);ctx.stroke()
+    ctx.globalAlpha=1
+  }
+  return canvas.toBuffer('image/jpeg',{quality:.92})
+}

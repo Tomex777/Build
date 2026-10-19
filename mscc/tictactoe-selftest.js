@@ -4,10 +4,13 @@ import {
   TICTACTOE_BOT_ID,
   TicTacToeGame,
   parseTicTacToeInput,
+  renderNexiaTicTacToeText,
+  ticTacToeCoord,
+  TICTACTOE_LEVELS,
   pickTicTacToeBotMove,
   ticTacToeRecordAcceptsInput,
 } from './utils/tictactoe-game.js'
-import { renderTicTacToeBoard, renderTicTacToeMenuArt, TICTACTOE_BOARD_SIZE } from './utils/tictactoe-renderer.js'
+import { renderTicTacToeBoard, renderTicTacToeMenuArt,renderNexiaTicTacToePicture,TICTACTOE_BOARD_SIZE } from './utils/tictactoe-renderer.js'
 import {
   applyTicTacToePreset,
   getTicTacToeTheme,
@@ -32,6 +35,16 @@ assert.deepEqual(game.winningLine, [0,1,2])
 assert.deepEqual(parseTicTacToeInput('9'), { type:'move', index:8 })
 assert.deepEqual(parseTicTacToeInput('surrender'), { type:'resign' })
 assert.equal(parseTicTacToeInput('10'), null)
+assert.equal(TICTACTOE_LEVELS.length,5)
+assert.deepEqual(TICTACTOE_LEVELS.map(level=>level.id),['beginner','easy','medium','hard','expert'])
+assert.deepEqual(parseTicTacToeInput('B2','picture'),{type:'move',index:4})
+assert.deepEqual(parseTicTacToeInput('c3','picture'),{type:'move',index:8})
+assert.equal(parseTicTacToeInput('1','picture'),null)
+assert.equal(parseTicTacToeInput('B2','classic'),null)
+assert.equal(ticTacToeCoord(4),'B2')
+assert.equal(renderNexiaTicTacToeText(new TicTacToeGame()).split('\n').length,3)
+assert.ok(renderNexiaTicTacToeText(game).includes('❎'))
+
 
 const botGame = new TicTacToeGame({
   playerX:'human',
@@ -87,6 +100,11 @@ assert.equal(TICTACTOE_BOARD_SIZE, 600)
 assert.equal(image.subarray(1,4).toString('ascii'), 'PNG')
 assert.ok(image.length > 5000)
 
+const nexiaPicture=renderNexiaTicTacToePicture(preview)
+assert.equal(nexiaPicture[0],0xff)
+assert.equal(nexiaPicture[1],0xd8)
+assert.ok(nexiaPicture.length>5000)
+
 const menuArt = renderTicTacToeMenuArt()
 assert.equal(menuArt.subarray(1,4).toString('ascii'), 'PNG')
 assert.ok(menuArt.length > 5000)
@@ -100,5 +118,76 @@ assert.equal(registry.commands.get('tictactoe')?.capability, 'games')
 assert.equal(registry.commands.get('ttt')?.name, 'tictactoe')
 assert.equal(registry.commands.get('xo')?.name, 'tictactoe')
 assert.equal(registry.commands.get('game')?.capability, 'games')
+assert.equal(registry.commands.get('tttpic')?.name,'tictactoe')
+assert.equal(registry.commands.get('tttboard')?.name,'tictactoe')
+
+// Exercise the actual command handler: Nexia room waiting/join, bare 1-9
+// moves, per-player turn enforcement, winner cleanup, picture coordinates
+// and the immediate single-image bot turn.
+const command=registry.commands.get('tictactoe')
+const messages=[]
+const sock={sendMessage:async(chat,payload)=>{
+  messages.push({chat,payload})
+  return {key:{id:'test-'+messages.length}}
+}}
+function chatCtx(user,content,args=[]){
+  return {
+    userKey:user,
+    groupKey:'night-test@g.us',
+    shared,
+    publicPrefix:'.',
+    rawCommandText:content,
+    args,
+    message:{key:{remoteJid:'night-test@g.us',participant:user+'@s.whatsapp.net'},
+      pushName:user},
+    account:{sock},
+    reply:async text=>{messages.push({chat:'night-test@g.us',payload:{text}});return true},
+  }
+}
+await command.run(chatCtx('alice','.ttt'))
+assert.match(messages.at(-1).payload.text,/Waiting for opponent/)
+assert.match(messages.at(-1).payload.text,/\.ttt/)
+const lobby=shared.get('tictactoe-game','night-test@g.us')
+assert.equal(lobby.state,'WAITING')
+assert.equal(lobby.style,'classic')
+await command.run(chatCtx('bob','.ttt'))
+assert.ok(messages.at(-1).payload.text.includes('1️⃣2️⃣3️⃣'))
+const started=shared.get('tictactoe-game','night-test@g.us')
+assert.equal(started.game.playerX,'alice')
+assert.equal(started.game.playerO,'bob')
+await command.run({...chatCtx('bob','2',['~input']),commandReplyInput:'2'})
+assert.match(messages.at(-1).payload.text,/not your turn/i)
+await command.run({...chatCtx('alice','1',['~input']),commandReplyInput:'1'})
+assert.match(messages.at(-1).payload.text,/❎2️⃣3️⃣/)
+await command.run({...chatCtx('alice','3',['~input']),commandReplyInput:'3'})
+assert.match(messages.at(-1).payload.text,/not your turn/i)
+await command.run({...chatCtx('bob','4',['~input']),commandReplyInput:'4'})
+await command.run({...chatCtx('alice','2',['~input']),commandReplyInput:'2'})
+await command.run({...chatCtx('bob','5',['~input']),commandReplyInput:'5'})
+await command.run({...chatCtx('alice','3',['~input']),commandReplyInput:'3'})
+assert.match(messages.at(-1).payload.text,/wins the game/i)
+assert.equal(shared.get('tictactoe-game','night-test@g.us'),null)
+await command.run(chatCtx('alice','.tttpic'))
+assert.equal(shared.get('tictactoe-game','night-test@g.us').style,'picture')
+await command.run(chatCtx('bob','.tttpic'))
+assert.ok(Buffer.isBuffer(messages.at(-1).payload.image))
+await command.run({...chatCtx('alice','B2',['~input']),commandReplyInput:'B2'})
+assert.ok(Buffer.isBuffer(messages.at(-1).payload.image))
+assert.equal(shared.get('tictactoe-game','night-test@g.us').game.board[4],'X')
+await command.run({...chatCtx('bob','surrender',['~input']),commandReplyInput:'surrender'})
+assert.match(messages.at(-1).payload.text,/resigned/i)
+assert.equal(shared.get('tictactoe-game','night-test@g.us'),null)
+const dmCtx={...chatCtx('alice','.tttpic bot expert',['bot','expert']),
+  groupKey:null,
+  message:{key:{remoteJid:'alice@s.whatsapp.net'},pushName:'Alice'},
+}
+await command.run(dmCtx)
+const before=messages.length
+await command.run({...dmCtx,args:['~input'],commandReplyInput:'B2',
+  rawCommandText:'B2'})
+assert.equal(messages.length,before+1,'bot turn must send one board, not two')
+assert.ok(Buffer.isBuffer(messages.at(-1).payload.image))
+assert.equal(shared.get('tictactoe-game','alice@s.whatsapp.net').game.turns,2)
+
 
 console.log('PASS Tic-Tac-Toe + game editor selftest')

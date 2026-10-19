@@ -374,7 +374,7 @@ export async function runLiveCase({ original, command, spec, fixtures, fixtureSe
     } else if (spec.menu === 'tictactoe') {
       const rows=[]
       const ui={bottomSheet:async options=>{rows.push(...(options.rows||[]));return true}}
-      await command.run({...base,message:original.message,args:[],rawArgs:'',ui})
+      await command.run({...base,message:original.message,args:['menu'],rawArgs:'menu',ui})
       if (!rows.some(row=>String(row.id||'').includes('~bot'))) throw new Error('Bot option absent from game menu')
       const levels=[]
       await command.run({...base,message:original.message,args:['~bot'],rawArgs:'~bot',
