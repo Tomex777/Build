@@ -61,6 +61,36 @@ class HymnDataTest(unittest.TestCase):
         self.assertEqual({e["printed_number"] for e in entries if e["full_lyrics_imported"]}, {50})
         self.assertEqual(set(numbers).intersection(range(1, 18)), set())
 
+    def test_redemption_catalogue_all_800_numbers(self):
+        source = ROOT / "data/redemption-hymnal-catalogue.json"
+        asset = ROOT / "android/app/src/main/assets/redemption_index.json"
+        catalog = json.loads(source.read_text(encoding="utf-8"))
+        self.assertEqual(json.loads(asset.read_text(encoding="utf-8")), catalog)
+        entries = catalog["entries"]
+        self.assertEqual(len(entries), 800)
+        self.assertEqual([e["number"] for e in entries], list(range(1, 801)))
+        self.assertEqual(entries[0]["title_en"].lower(), "lord of all being, throned afar")
+        self.assertEqual(entries[49]["title_en"].lower(), "now thank we all our god")
+        self.assertEqual(entries[733 - 1]["number"], 733)
+        for entry in entries:
+            self.assertIn(entry["english_title_status"], {
+                "verified_from_RH2006_index",
+                "candidate_from_photographed_index",
+                "not_yet_matched",
+            })
+        self.assertEqual(sum(e["lyrics_imported"] for e in entries), 18)
+        self.assertLess(sum(e["title_en"] is not None for e in entries), 800)
+
+    def test_akokun_is_a_distinct_addendum(self):
+        source = ROOT / "data/akokun-collection.json"
+        asset = ROOT / "android/app/src/main/assets/akokun_index.json"
+        catalog = json.loads(source.read_text(encoding="utf-8"))
+        self.assertEqual(json.loads(asset.read_text(encoding="utf-8")), catalog)
+        self.assertEqual(catalog["id"], "akokun")
+        self.assertEqual(catalog["category"], "supplement")
+        self.assertEqual(catalog["hymns"], [])
+        self.assertIsNone(catalog["numbering_scheme"])
+
     def test_yoruba_is_stored_as_unicode(self):
         hymns = compile_asset()["hymns"]
         self.assertIn("Ọ", hymns[0]["title_yo"])
