@@ -29,7 +29,7 @@ data class AudioKey(
 ) {
     init {
         require(collection == "main" || collection == "akokun")
-        require(number in 1..800)
+        require(number in 1..(if (collection == "akokun") 305 else 800))
         require(language == "yo" || language == "en")
         require(voice == "solo" || voice == "choir")
     }
