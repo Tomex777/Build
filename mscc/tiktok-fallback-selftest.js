@@ -73,6 +73,12 @@ try {
   }
   await assert.rejects(tryPublicTikTokFallback(request,badDir,{fetchImpl:hostile,scraperImpl:noScraper}),/all public extractors/)
 } finally { await rm(badDir,{force:true,recursive:true}) }
+const restrictedDir=await mkdtemp(join(tmpdir(),'night-tiktok-badrequest-'))
+try {
+  await assert.rejects(tryPublicTikTokFallback({platform:'TikTok',url:'https://example.com/video/1'},restrictedDir,{
+    fetchImpl:async()=>{throw Error('must not send a request')},scraperImpl:noScraper,
+  }),/official HTTPS TikTok/)
+} finally {await rm(restrictedDir,{force:true,recursive:true})}
 console.log('PASS Nexia-style public TikTok fallback and private-network blocking')
 
 const newerLink = 'https://vt.tiktok.com/ZSgMh8so3/'
@@ -136,6 +142,7 @@ try {
     }
   }})
   assert.equal(files.length,1,'quality variants are retries, not separate WhatsApp videos')
+  assert.equal(files[0].title,'Nexia parity')
   assert.deepEqual(await readFile(files[0].file),mp4)
   assert.ok(used.some(x=>x.endsWith('/nexia-hd.mp4')))
   assert.ok(used.some(x=>x.endsWith('/nexia-sd.mp4')))
