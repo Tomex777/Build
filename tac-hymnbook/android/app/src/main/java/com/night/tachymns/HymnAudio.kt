@@ -483,6 +483,7 @@ class HymnAudioPlayer(private val context: Context) {
         loading = false
         positionMs = 0
         durationMs = 0
+        rate = 1f
         clearLoop()
     }
 
