@@ -92,6 +92,49 @@ try {
   assert.ok(performance.now() - musicStart < 1800)
   console.log('PASS music source deadline and bounded fallback')
 
+  // Movie and TV search/season lookups must use the same shared deadline.
+  for (const [capability, action] of [['movies','search'], ['tv','seasons']]) {
+    let signal = null
+    const mediaRegistry = new SourceRegistry({
+      rootUrl:new URL('./sources/', import.meta.url),
+      storage:{ brandForCapability:() => 'NIGHT' },
+    })
+    mediaRegistry.sources.set(capability + ':stalled', {
+      id:'stalled', capability, name:'Stalled media source', fallbackOrder:10,
+      async run({ context }) {
+        signal = context.signal
+        return new Promise(() => {})
+      },
+    })
+    const lookupStart = performance.now()
+    const timedOut = await mediaRegistry.execute({
+      capability,
+      explicitSource:'stalled',
+      payload:{ action, query:'Example title', item:{ id:'example', title:'Example title' } },
+    })
+    assert.equal(timedOut.status, 'source-error', capability + ' lookup must fail clearly on timeout')
+    assert.equal(timedOut.error.code, 'source-lookup-timeout', capability + ' must return the typed timeout')
+    assert.ok(signal?.aborted, capability + ' source receives an aborted signal')
+    assert.ok(performance.now() - lookupStart < 1800, capability + ' lookup must not leave the command hanging')
+
+    let transferHadSignal = false
+    mediaRegistry.sources.set(capability + ':healthy', {
+      id:'healthy', capability, name:'Healthy transfer source',
+      async run({ context }) {
+        transferHadSignal = Boolean(context.signal)
+        return { delivered:true }
+      },
+    })
+    const transfer = await mediaRegistry.execute({
+      capability,
+      explicitSource:'healthy',
+      payload:{ action:'download', item:{ id:'example', title:'Example title' } },
+    })
+    assert.equal(transfer.status, 'ok', capability + ' media transfer remains independent')
+    assert.equal(transferHadSignal, false, capability + ' transfer must not inherit lookup cancellation')
+  }
+  console.log('PASS movie/TV lookup deadlines and independent media transfers')
+
   console.log('PASS anime source deadline and cancellation (no WhatsApp session touched)')
 } finally {
   if (before === undefined) delete process.env.MSCC_SOURCE_LOOKUP_TIMEOUT_MS
