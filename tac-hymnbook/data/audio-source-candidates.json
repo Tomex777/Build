@@ -184,6 +184,58 @@
       "status": "high_risk_verse_variant_needs_review",
       "redistribution_permission": "not_verified",
       "notes": "Creator's lyrics begin with first line similar to photographed Àkọkún 1, but alternate Anglican version exists with materially different verses. Do NOT assume identity or publish in app before exact comparison."
+    },
+    {
+      "collection": "akokun",
+      "number": 2,
+      "language": "yo",
+      "voice": "unknown",
+      "title": "Nnu Gbogbo Ayida Aye",
+      "performer": "Oluwabusayo",
+      "platform": "apple_music",
+      "url": "https://music.apple.com/us/album/nnu-gbogbo-ayida-aye/6807528005?i=6807528006",
+      "status": "possible_short_fragment_only_needs_review",
+      "redistribution_permission": "not_verified",
+      "notes": "Released 2026-09-01, only 1:14 long. First-line match to Àkọkún 2; not proof of full rendition or same lyrics/tune; ask performer for full-length licensed master."
+    },
+    {
+      "collection": "akokun",
+      "number": 3,
+      "language": "yo",
+      "voice": "unknown",
+      "title": "Gbogb’ogo iyin, ola",
+      "performer": "Yemi Durojaye (credited)",
+      "platform": "performer_page",
+      "url": "https://www.pjthe3.com/gbogbogo-iyin-ola/",
+      "status": "recording_presence_unclear_needs_confirmation",
+      "redistribution_permission": "not_verified",
+      "notes": "Potential related hymn page showing same first line and artist attribution; confirm that an actual audio recording exists; do not classify as an audio result without playback."
+    },
+    {
+      "collection": "akokun",
+      "number": 47,
+      "language": "yo",
+      "voice": "unknown",
+      "title": "Agbara nbe ninu eje Jesu",
+      "performer": "Valentina Omirin Hephzibah Bekky",
+      "platform": "audiomack",
+      "url": "https://audiomack.com/valentina-omirin-hephzibah-bekky",
+      "status": "potential_chorus_not_full_hymn",
+      "redistribution_permission": "not_verified",
+      "notes": "Artist lists a similarly titled track; popular worship chorus may not match the TAC Àkọkún 47 full hymn. Check melody, lyric verses and rights."
+    },
+    {
+      "collection": "akokun",
+      "number": 47,
+      "language": "yo",
+      "voice": "unknown",
+      "title": "Agbara nbe ninu eje Jesu",
+      "performer": "Sunday Babalola (Beacon Minstrel)",
+      "platform": "youtube",
+      "url": "https://www.youtube.com/watch?v=NrxSJ2keKso",
+      "status": "potential_chorus_not_full_hymn",
+      "redistribution_permission": "not_verified",
+      "notes": "Short worship clip appears to use opening line but may be an unrelated chorus; no direct evidence matching printed Àkọkún stanzas."
     }
   ],
   "candidate_collections": [
