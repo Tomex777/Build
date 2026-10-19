@@ -93,6 +93,10 @@ try{
   }
   assert.equal((await snap()).game,saved.game,'resizing cannot change the game');
   await page.setViewportSize({width:390,height:844});
+  // A real action round may legitimately end while we exercise multiple
+  // slow CI viewports. Begin a fresh round before testing Pause/Resume.
+  if((await snap()).over)await page.locator('#overlayStart').click();
+  assert.equal((await snap()).started,true,'game can start a fresh playable round');
   await page.locator('#pauseButton').click();
   assert.equal((await snap()).paused,true,'Pause interrupts '+game);
   const pausedFrame=(await snap()).frame;await page.waitForTimeout(100);
