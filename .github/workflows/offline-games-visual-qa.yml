@@ -1,0 +1,62 @@
+name: NIGHT Offline Games Visual Gameplay Audit
+on:
+  push:
+    branches:
+      - feature/offline-100-games-android-foundation
+    paths:
+      - 'offline-games/scripts/visual-audit.cjs'
+      - 'offline-games/scripts/contact-sheet.py'
+      - '.github/workflows/offline-games-visual-qa.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  mobile-chromium-audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install browser automation and screenshots
+        working-directory: offline-games
+        run: |
+          google-chrome --version
+          npm install --no-save --ignore-scripts --no-audit --no-fund playwright-core@1.55.0
+          python3 -m pip install --user --quiet pillow
+      - name: Interact with every registered game and screenshot the result
+        run: node offline-games/scripts/visual-audit.cjs
+      - name: Build mobile screenshot contact sheets
+        if: always()
+        run: |
+          if test -f offline-games/qa-evidence/audit.json; then
+            python3 offline-games/scripts/contact-sheet.py
+            cat offline-games/qa-evidence/summary.md >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - name: Upload individual screenshots, machine checks and contact sheets
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: night-offline-games-interaction-screenshots
+          path: offline-games/qa-evidence/
+          retention-days: 14
+      - name: Publish review contact sheets on a separate QA branch
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! compgen -G 'offline-games/qa-evidence/contact-*.png' > /dev/null; then
+            echo 'No screenshots generated; skip publication.'
+            exit 0
+          fi
+          git config user.name "NIGHT QA Automation"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git checkout -b "qa/offline-games-visual-${GITHUB_RUN_ID}"
+          git add -f offline-games/qa-evidence/contact-*.png offline-games/qa-evidence/audit.json offline-games/qa-evidence/summary.md
+          git commit -m "test(offline-games): visual gameplay evidence for ${GITHUB_SHA}"
+          git push origin "HEAD:refs/heads/qa/offline-games-visual-${GITHUB_RUN_ID}"
+          echo "## Screenshot branch" >> "$GITHUB_STEP_SUMMARY"
+          echo "`qa/offline-games-visual-${GITHUB_RUN_ID}`" >> "$GITHUB_STEP_SUMMARY"
