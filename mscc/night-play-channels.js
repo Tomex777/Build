@@ -18,13 +18,16 @@ function infoOf(meta) {
   return {id,name:clean((typeof meta?.name==='string'?meta.name:meta?.name?.text)||meta?.thread_metadata?.name?.text||meta?.subject||'WhatsApp Channel'),role:roleOf(meta)}
 }
 const view=r=>({id:r.channel_id,name:r.name,status:r.state,verifiedAt:r.verified_at||null,
-  ...(r.state!=='connected'?{proof:r.proof,expiresAt:r.expires_at}:{} )})
+  ...(r.state!=='connected'?{proof:r.proof,expiresAt:r.expires_at}:{}),
+  ...(r.state==='connected'&&r.photo_image&&r.photo_mime
+    ?{photoData:'data:'+r.photo_mime+';base64,'+Buffer.from(r.photo_image).toString('base64')}:{} )})
 export class NightPlayChannels {
   constructor(play,{now=Date.now}={}) {
     this.play=play;this.db=play.db;this.now=now
     this.db.exec('CREATE TABLE IF NOT EXISTS play_channel_consent(user_id TEXT PRIMARY KEY REFERENCES play_users(id) ON DELETE CASCADE,account_id TEXT NOT NULL,channel_id TEXT NOT NULL,channel_name TEXT NOT NULL,expires_at INTEGER NOT NULL);'
       +'CREATE TABLE IF NOT EXISTS play_channel_claims(user_id TEXT NOT NULL REFERENCES play_users(id) ON DELETE CASCADE,channel_id TEXT NOT NULL,account_id TEXT NOT NULL,name TEXT NOT NULL,state TEXT NOT NULL CHECK(state IN (\'awaiting_admin\',\'awaiting_proof\',\'connected\')),proof TEXT NOT NULL,created_at INTEGER NOT NULL,expires_at INTEGER NOT NULL,verified_at INTEGER,PRIMARY KEY(user_id,channel_id));'
-      +'CREATE INDEX IF NOT EXISTS play_channel_claim_by_channel ON play_channel_claims(channel_id);')
+      +'CREATE INDEX IF NOT EXISTS play_channel_claim_by_channel ON play_channel_claims(channel_id);'
+      +'CREATE TABLE IF NOT EXISTS play_channel_photos (user_id TEXT NOT NULL,channel_id TEXT NOT NULL,mime TEXT NOT NULL,image BLOB NOT NULL,updated_at INTEGER NOT NULL,PRIMARY KEY(user_id,channel_id),FOREIGN KEY(user_id,channel_id) REFERENCES play_channel_claims(user_id,channel_id) ON DELETE CASCADE);')
   }
   owner(identity) {
     const p=this.play.linkedProfile(identity)
@@ -33,7 +36,23 @@ export class NightPlayChannels {
   }
   list(userId) {
     if(!userId)fail(401,'Connect WhatsApp to continue.')
-    return {channels:this.db.prepare('SELECT * FROM play_channel_claims WHERE user_id=? ORDER BY verified_at DESC,created_at DESC LIMIT 40').all(userId).map(view)}
+    return {channels:this.db.prepare('SELECT c.*,p.mime AS photo_mime,p.image AS photo_image FROM play_channel_claims c LEFT JOIN play_channel_photos p ON p.user_id=c.user_id AND p.channel_id=c.channel_id WHERE c.user_id=? ORDER BY c.verified_at DESC,c.created_at DESC LIMIT 40').all(userId).map(view)}
+  }
+  canUsePhoto(userId,channelId){
+    return Boolean(this.db.prepare("SELECT 1 FROM play_channel_claims WHERE user_id=? AND channel_id=? AND state='connected'").get(userId,channelId))
+  }
+  photoAccount(userId,channelId){
+    const row=this.db.prepare("SELECT account_id FROM play_channel_claims WHERE user_id=? AND channel_id=? AND state='connected'").get(userId,channelId)
+    return row?.account_id||''
+  }
+  savePhoto(userId,channelId,data){
+    if(!Buffer.isBuffer(data)||!data.length||data.length>98304||!this.canUsePhoto(userId,channelId))return false
+    const jpeg=data.length>3&&data[0]===255&&data[1]===216&&data[2]===255
+    const png=data.subarray(0,8).equals(Buffer.from([137,80,78,71,13,10,26,10]))
+    if(!jpeg&&!png)return false
+    this.db.prepare('INSERT INTO play_channel_photos VALUES (?,?,?,?,?) ON CONFLICT(user_id,channel_id) DO UPDATE SET mime=excluded.mime,image=excluded.image,updated_at=excluded.updated_at')
+      .run(userId,channelId,jpeg?'image/jpeg':'image/png',data,this.now())
+    return true
   }
   async begin(identity, account, invite) {
     const userId=this.owner(identity)
@@ -122,12 +141,14 @@ export class NightPlayChannels {
   }
   remove(userId,id){
     if(!JID.test(str(id)))fail(400,'Invalid channel.')
+    this.db.prepare('DELETE FROM play_channel_photos WHERE user_id=? AND channel_id=?').run(userId,id)
     const result=this.db.prepare('DELETE FROM play_channel_claims WHERE user_id=? AND channel_id=?').run(userId,id)
     if(!result.changes)fail(404,'This channel is not connected to your account.')
     return {ok:true}
   }
   removeUser(userId) {
     this.db.prepare('DELETE FROM play_channel_consent WHERE user_id=?').run(userId)
+    this.db.prepare('DELETE FROM play_channel_photos WHERE user_id=?').run(userId)
     this.db.prepare('DELETE FROM play_channel_claims WHERE user_id=?').run(userId)
   }
 }
