@@ -1,8 +1,11 @@
 {
-  "releaseId": "thenkiri-hotfix-20261019",
+  "releaseId": "night-tiktok-nexia-ytdlp-20261019",
   "baseBranch": "mscc-azure",
-  "baseCommit": "1c0ba84d558c0c899cca6bb2fd2806d78ee070f9",
-  "pullRequests": [],
-  "preparedAt": "2026-10-19T00:31:00Z",
-  "notes": "User-authorized focused release: repair MSCC TheNkiri movie/TV catalog, HTML fallback, Downloadwella direct-link creation and TV episode resolution. The provider and regression-test commits are already on mscc-azure at baseCommit; the release PR stages this tested state without including unrelated open PRs. Live Thenkiri proof passed on the same provider/test code, including playable movie and S01E01 streams plus native season/episode enumeration. Integrated Readiness and MSCC Azure validation passed at baseCommit. After merge, require the single protected mscc-production approval, verify deployed SHA and Azure health, and confirm live WhatsApp command behavior before claiming deployment complete."
+  "baseCommit": "2a062740e987013c333b46243cce36684e3d792f",
+  "pullRequests": [
+    371,
+    372
+  ],
+  "preparedAt": "2026-10-19T07:28:00+01:00",
+  "notes": "User-authorized combined release for NIGHT TikTok. PR #371 implements Nexia-style yt-dlp -> Siputzx -> ruhend-scraper -> TikWM public download fallback, canonical vt/vm link resolution, CDN video quality retries and media validation. PR #372 refreshes isolated Azure yt-dlp on install/release. User reported .tiktok https://vt.tiktok.com/ZSgMh8so3/ returning all-extractors-failed. Merge this ONE integration PR only after combined CI succeeds, then approve exactly one protected mscc-production Azure deployment, verify active version and live WhatsApp media delivery. Previous Thenkiri hotfix was waiting for protected approval; new release includes its already merged code and replaces stale waiting approval, never an active install."
 }

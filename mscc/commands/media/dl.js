@@ -11,11 +11,13 @@ async function send(ctx, request, document = false) {
   try {
     result = await prepareSocialDownload(request)
     for (const [index,file] of result.files.entries()) {
-      const caption = [
-        `📥 *NIGHT • ${request.platform}*`,
-        result.files.length > 1 ? `Item ${index + 1}/${result.files.length}` : '',
-        request.displayUrl,
-      ].filter(Boolean).join('\n')
+      const caption = request.platform === 'TikTok' && result.files.length === 1
+        ? ['*DOWNLOADED BY NIGHT*', file.title ? `📝 Title: ${file.title}` : ''].filter(Boolean).join('\n\n')
+        : [
+          `📥 *NIGHT • ${request.platform}*`,
+          result.files.length > 1 ? `Item ${index + 1}/${result.files.length}` : '',
+          request.displayUrl,
+        ].filter(Boolean).join('\n')
       const payload = document || !['video/mp4','image/jpeg','image/png','image/webp'].includes(file.mime)
         ? { document:{url:file.file}, mimetype:file.mime, fileName:file.name, caption }
         : file.mime.startsWith('image/')
