@@ -16,6 +16,8 @@ export async function extractAnimatedWebpFrames(bytes, directory) {
   if (!Buffer.isBuffer(bytes) || bytes.length<16 || bytes.length>MAX_SOURCE) {
     throw new Error('Sticker media is empty or too large to convert.')
   }
+  // node-webpmux requires its WebP decoder to be initialized explicitly.
+  await WebP.Image.initLib()
   const image=new WebP.Image()
   await image.load(bytes)
   if (!image.hasAnim || !image.frames?.length) {
