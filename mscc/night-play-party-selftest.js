@@ -38,6 +38,7 @@ assert.equal(guest(guest1,'party:join',{guestName:'Another name'}).players.lengt
 assert.throws(()=>guest(guest2,'party:join',{guestName:'guest one'}),e=>e.status===409,'duplicate guest names forbidden')
 assert.equal(guest(guest2,'party:join',{guestName:'Guest Two'}).players.length,2)
 assert.equal(call(aliceSession,'party:join',{code,guestName:'Impostor'}).players.some(p=>p.name==='WhatsApp Alice'),true,'verified name supersedes submitted guestName')
+for(let poll=0;poll<220;poll++)assert.equal(guest(guest1,'party:state').phase,'lobby','shared-network room refreshes must not hit mutation throttles')
 assert.throws(()=>guest(guest1,'party:start'),e=>e.status===403)
 let state=call(hostSession,'party:start',{code})
 assert.equal(state.phase,'vote')
