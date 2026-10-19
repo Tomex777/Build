@@ -64,11 +64,43 @@ data class ApprovedRecording(
 sealed class AudioSource {
     data class Imported(val uri: Uri) : AudioSource()
     data class Downloaded(val file: File) : AudioSource()
+    data class Bundled(val assetPath: String) : AudioSource()
 }
 
 class HymnAudioRepository(private val context: Context) {
     private val prefs = context.getSharedPreferences("hymn_recordings", Context.MODE_PRIVATE)
     private val tracks: Map<String, ApprovedRecording> = loadCatalog()
+    private val bundled: Map<String, String> = loadBundledCatalog()
+
+    private fun loadBundledCatalog(): Map<String, String> {
+        val manifest = JSONObject(
+            context.assets.open("bundled_audio_catalog.json").bufferedReader(Charsets.UTF_8)
+                .use { it.readText() }
+        ).getJSONArray("recordings")
+        val result = linkedMapOf<String, String>()
+        for (i in 0 until manifest.length()) {
+            val row = manifest.getJSONObject(i)
+            // Bundled recordings require rights confirmation just as downloaded files do.
+            if (!row.optBoolean("rights_verified", false)) continue
+            val key = AudioKey(
+                row.getString("collection"), row.getInt("number"),
+                row.getString("language"), row.getString("voice")
+            )
+            val path = row.getString("asset_path")
+            require(path.matches(Regex("audio/[a-z0-9_]+\\.mp3"))) {
+                "Invalid bundled audio asset path"
+            }
+            require(row.getString("credit").isNotBlank() && row.getString("rights").isNotBlank()) {
+                "Bundled audio credits and permissions must be recorded"
+            }
+            require(result.put(key.token, path) == null) {
+                "Duplicate bundled audio entry: ${key.token}"
+            }
+            // Validate the actual asset exists; no hidden play button for phantom assets.
+            context.assets.openFd(path).use { require(it.length > 0L) }
+        }
+        return result
+    }
 
     private fun loadCatalog(): Map<String, ApprovedRecording> {
         val catalog = JSONObject(
@@ -111,7 +143,8 @@ class HymnAudioRepository(private val context: Context) {
             return AudioSource.Imported(Uri.parse(stored))
         }
         val file = downloadedFile(key)
-        return if (file.isFile && file.length() > 0L) AudioSource.Downloaded(file) else null
+        if (file.isFile && file.length() > 0L) return AudioSource.Downloaded(file)
+        return bundled[key.token]?.let(AudioSource::Bundled)
     }
 
     fun hasRecording(hymn: Hymn): Boolean =
@@ -238,6 +271,11 @@ class HymnAudioPlayer(private val context: Context) {
             when (source) {
                 is AudioSource.Imported -> player.setDataSource(context, source.uri)
                 is AudioSource.Downloaded -> player.setDataSource(source.file.absolutePath)
+                is AudioSource.Bundled -> {
+                    context.assets.openFd(source.assetPath).use { asset ->
+                        player.setDataSource(asset.fileDescriptor, asset.startOffset, asset.length)
+                    }
+                }
             }
             player.setOnPreparedListener { prepared ->
                 if (media !== prepared) return@setOnPreparedListener
