@@ -129,11 +129,19 @@ private val games = listOf(
     GameEntry("basketball", "Basketball Shoot", "Sports", "Flick a ball into the basket"),
     GameEntry("penalty", "Penalty Shootout", "Sports", "Beat the diving goalkeeper"),
     GameEntry("ski", "Ski Slalom", "Sports", "Stay between the racing gates"),
-    GameEntry("bomb", "Bomb Diffuser", "Action", "Cut the correct wires in time")
+    GameEntry("bomb", "Bomb Diffuser", "Action", "Cut the correct wires in time"),
+    GameEntry("car", "Car Dodge", "Racing", "Weave between speeding traffic"),
+    GameEntry("zigzag", "Zigzag Path", "Endless", "Survive the winding path"),
+    GameEntry("laser", "Laser Dodge", "Action", "Evade timed sweeping beams"),
+    GameEntry("archery", "Archery", "Sports", "Aim against shifting wind"),
+    GameEntry("golfputt", "Golf Putt", "Sports", "Play three precision holes"),
+    GameEntry("bowling", "Bowling", "Sports", "Ten frames, strikes and spares"),
+    GameEntry("swimming", "Swimming Race", "Sports", "Race fifty meters with rhythm"),
+    GameEntry("checkers", "Checkers", "Board", "Capture, crown, and chain-jump")
 
 
 )
-private val categories = listOf("All", "Favourites", "Arcade", "Puzzle", "Board", "Memory", "Strategy", "Card", "Action", "Endless", "Sports")
+private val categories = listOf("All", "Favourites", "Arcade", "Puzzle", "Board", "Memory", "Strategy", "Card", "Action", "Endless", "Sports", "Racing")
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
