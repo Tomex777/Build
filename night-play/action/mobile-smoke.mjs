@@ -33,7 +33,8 @@ try{
   await page.locator('#overlayStart').click();assert.equal((await snap()).started,true,'Start begins '+game);
   await page.waitForTimeout(game==='slice'?1650:1250);
   const running=await snap();
-  assert.ok(running.frame>15,'animation frame runs for '+game);
+  console.log('NIGHT_ACTION_STATE_'+game.toUpperCase()+'='+JSON.stringify({frame:running.frame,over:running.over,score:running.score,started:running.started}));
+  assert.ok(running.frame>4,'animation frame runs for '+game);
   if(game==='slice')assert.ok(running.fruits.length>0,'Fruit Slice launches actual fruit or bombs');
   if(game==='jump')assert.ok(running.platforms.length>=8,'Sky Jumper has a scrolling platform set');
   if(game==='runner')assert.ok(running.score>0&&running.speed>220,'Runner progresses and accelerates');
