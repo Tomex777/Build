@@ -295,6 +295,24 @@ export async function executeTestAll(ctx) {
   }
   const action=String(ctx.args?.[0]||'').trim().toLowerCase()
   const confirm=String(ctx.args?.[1]||'').trim().toLowerCase()==='confirm'
+  if (action==='details') {
+    const filter=String(ctx.args?.[1]||'').trim()
+    if (filter && !/^\.*[a-z][\w-]{0,40}$/i.test(filter)) {
+      return ctx.reply('Use .testall details or .testall details <command>.')
+    }
+    const lines=liveCommandAudit.details(filter)
+    // Each message stays well under WhatsApp's practical text length.
+    let buffer=''
+    for (const line of lines) {
+      if (buffer && buffer.length+line.length+1>2500) {
+        await ctx.reply(buffer)
+        buffer=''
+      }
+      buffer+=(buffer?'\n':'')+line
+    }
+    if (buffer) await ctx.reply(buffer)
+    return undefined
+  }
   if (action==='status') {
     return ctx.reply(commandAudit.busy() ? commandAudit.status() :
       liveCommandAudit.busy() ? liveCommandAudit.status() :
@@ -318,7 +336,7 @@ export async function executeTestAll(ctx) {
     return started ? undefined : ctx.reply('A live audit is already running.')
   }
   if (action && action!=='run') {
-    return ctx.reply('Use .testall, .testall live, .testall failed, .testall status, or .testall cancel.'+
+    return ctx.reply('Use .testall, .testall live, .testall failed, .testall details, .testall status, or .testall cancel.'+
       (isGroupTest(ctx)?'\nIn groups, live and failed tests require the final word confirm.':''))
   }
   if (commandAudit.busy() || liveCommandAudit.busy()) {
