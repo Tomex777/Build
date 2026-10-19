@@ -119,18 +119,36 @@ jobs:
           grep -q 'applyImmersiveBars' EchoSpace/app/src/main/java/com/night/echospace/MainActivity.kt
           grep -q 'ACTION_AUDIO_BECOMING_NOISY' EchoSpace/app/src/main/java/com/night/echospace/audio/SpatialAudioService.kt
       - name: Test-sign the ARM64 release APK, verify and upload
+        env:
+          NIGHT_KEYSTORE_B64: ${{ secrets.ECHOSPACE_SIGNING_KEYSTORE_B64 }}
+          NIGHT_STORE_PASSWORD: ${{ secrets.ECHOSPACE_SIGNING_STORE_PASSWORD }}
+          NIGHT_KEY_PASSWORD: ${{ secrets.ECHOSPACE_SIGNING_KEY_PASSWORD }}
+          NIGHT_KEY_ALIAS: ${{ secrets.ECHOSPACE_SIGNING_ALIAS }}
         run: |
           set -euo pipefail
           mkdir -p release
           KEYSTORE="$RUNNER_TEMP/echospace-ci-test.p12"
-          PASSWORD="$(openssl rand -hex 20)"
           trap 'rm -f "$KEYSTORE"' EXIT
-          keytool -genkeypair -noprompt -keystore "$KEYSTORE" -storetype PKCS12 \
-            -storepass "$PASSWORD" -keypass "$PASSWORD" -alias echotest -keyalg RSA \
-            -keysize 3072 -validity 365 -dname "CN=EchoSpace Test, OU=NIGHT, O=NIGHT, C=NG"
+          if [ -n "${NIGHT_KEYSTORE_B64:-}" ]; then
+            test -n "$NIGHT_STORE_PASSWORD" && test -n "$NIGHT_KEY_PASSWORD"
+            test -n "$NIGHT_KEY_ALIAS"
+            printf '%s' "$NIGHT_KEYSTORE_B64" | base64 --decode > "$KEYSTORE"
+            PASSWORD="$NIGHT_STORE_PASSWORD"
+            KEY_PASS="$NIGHT_KEY_PASSWORD"
+            KEY_ALIAS="$NIGHT_KEY_ALIAS"
+            echo "PERSISTENT_RELEASE_SIGNING_ENABLED"
+          else
+            PASSWORD="$(openssl rand -hex 20)"
+            KEY_PASS="$PASSWORD"
+            KEY_ALIAS=echotest
+            keytool -genkeypair -noprompt -keystore "$KEYSTORE" -storetype PKCS12 \
+              -storepass "$PASSWORD" -keypass "$PASSWORD" -alias "$KEY_ALIAS" -keyalg RSA \
+              -keysize 3072 -validity 365 -dname "CN=EchoSpace Test, OU=NIGHT, O=NIGHT, C=NG"
+            echo "TEMPORARY_CI_SIGNING_ONLY_NOT_PRODUCTION"
+          fi
           "$ANDROID_HOME/build-tools/35.0.0/apksigner" sign --ks "$KEYSTORE" \
-            --ks-pass "pass:$PASSWORD" --key-pass "pass:$PASSWORD" \
-            --min-sdk-version 26 \
+            --ks-pass "pass:$PASSWORD" --key-pass "pass:$KEY_PASS" \
+            --ks-key-alias "$KEY_ALIAS" --min-sdk-version 26 \
             --out release/EchoSpace-production-hardening-test.apk \
             EchoSpace/app/build/outputs/apk/release/app-release-unsigned.apk
           "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify \
