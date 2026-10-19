@@ -77,3 +77,7 @@ To continue digitizing, use:
 - The printed TAC page or a rights-cleared Yoruba translation, preserving its stanza count.
 - Separate collection keys for Àkọkún; do not give a shared number the same identity in both sections.
 - Quality checks for text, accents, section boundaries, and physical-device UX before release.
+
+### Àkọkún numbered ending confirmed
+
+The user checked the physical TAC book and confirmed that the last Àkọkún hymn is **305**. Treat the separate collection as numbered 1–305, provisionally assuming no missing numbers. This is **not** a claim that its 305 titles or lyrics have already been imported: those remain empty until source material is available. Àkọkún numbering is distinct from the 800-hymn Redemption section.
