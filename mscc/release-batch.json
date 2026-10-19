@@ -1,10 +1,10 @@
 {
-  "releaseId": "night-party-rooms-20261019",
+  "releaseId": "night-cortex-agent-secure-bootstrap-20261019",
   "baseBranch": "mscc-azure",
-  "baseCommit": "3877c4bedff3664f749bed4078ae1fd4e521daf9",
+  "baseCommit": "88fb1fb75474c6037dcf9bf688757c2f1dfcf9e8",
   "pullRequests": [
-    387
+    389
   ],
-  "preparedAt": "2026-10-19T19:38:06.249Z",
-  "notes": "Combined protected NIGHT release for native NIGHT Play online party rooms, guest invitation links, durable vote/score state, verified WhatsApp host and profile rename propagation. Copy of tested PR #387. The companion web PR #386 targets NIGHT Play, not the Azure backend. Merge this ONE integration PR only after complete MSCC CI succeeds; approve the single protected mscc-production environment request and verify active Azure code before publishing production web links."
+  "preparedAt": "2026-10-19T20:03:48.590Z",
+  "notes": "Cortex Agent secure production upgrade via approved MSCC deployment bootstrap. Only PR #389 changes to pinned Cortex Agent source. PREVIOUS pinned Agent/Helper versions are verified before update; unknown builds are not overwritten. Existing token and MSCC authenticated accounts preserved. Must merge ONLY after current pending NIGHT party-room production release #39313024337 finishes, rebase/retest if target advanced, and obtain ONE fresh protected mscc-production approval. An MSCC production release may restart NIGHT; never merge while another release is awaiting approval. This is not a standalone SSH bypass. Validate live ENV and Cloud after approved rollout."
 }
