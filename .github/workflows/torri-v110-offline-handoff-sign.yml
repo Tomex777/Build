@@ -1,0 +1,157 @@
+name: Torri 1.1.0 permanent signature from unsigned private build
+
+# This workflow receives distributable UNSIGNED APKs only, never the private Torri
+# source tree. Existing original signing key remains exclusively in Build secrets.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  sign_and_verify:
+    if: github.repository == 'Tomex777/Build'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 55
+    env:
+      TORRI_HANDOFF_URL: 'PENDING_SHORT_LIVED_HANDOFF_URL'
+      TORRI_EXPECTED_SOURCE_SHA: 'de0d0ae46d05e6079dfbb1f85447fb9e1bbdefb9'
+      TORRI_EXPECTED_CERT_SHA256: '6b1ab58169e3a8dd4370860d5d03060b035476b43cceaf2bd8da7ca1fe37ab44'
+    steps:
+      - name: Checkout protected signing pipeline
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Receive ONLY unsigned APKs from verified private Torri compilation
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$TORRI_HANDOFF_URL" != PENDING_SHORT_LIVED_HANDOFF_URL
+          mkdir -p handoff dist
+          curl --fail --location --silent --show-error --retry 3 --max-time 180 \
+            --output "$RUNNER_TEMP/torri-unsigned-handoff.zip" "$TORRI_HANDOFF_URL"
+          unzip -q "$RUNNER_TEMP/torri-unsigned-handoff.zip" -d handoff
+          echo "Verifying source commit and SHA256 checksums"
+          SHA_FILE="$(find handoff -type f -name source-commit.txt -print -quit)"
+          test -s "$SHA_FILE"
+          test "$(tr -d '\r\n' < "$SHA_FILE")" = "$TORRI_EXPECTED_SOURCE_SHA"
+          CHECKSUM_FILE="$(find handoff -type f -name SHA256SUMS.txt -print -quit)"
+          test -s "$CHECKSUM_FILE"
+          cd "$(dirname "$CHECKSUM_FILE")"
+          sha256sum -c SHA256SUMS.txt
+          echo "PASS: both unsigned APKs received intact from verified private source SHA"
+      - name: Validate package ID, versions, and unsigned release content
+        shell: bash
+        run: |
+          set -euo pipefail
+          TOOLS="$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -1)"
+          echo "$TOOLS" > "$RUNNER_TEMP/torri-tools-path.txt"
+          for variant in arm64-v8a universal; do
+            APK="$(find handoff -name "Torri-1.1.0-$variant-unsigned.apk" -print -quit)"
+            test -s "$APK"
+            "$TOOLS/aapt" dump badging "$APK" | grep -Eq "^package: name='app.torri' versionCode='10001' versionName='1.1.0'"
+            if "$TOOLS/apksigner" verify "$APK" >/dev/null 2>&1; then
+              echo "::error::Unexpected pre-existing signature in unsigned handoff"
+              exit 1
+            fi
+          done
+          echo "PASS: production package app.torri, version 1.1.0 code 10001, no other signing identity"
+      - name: Sign with original, permanently pinned Torri v1.0.0 key
+        env:
+          TORRI_RELEASE_KEYSTORE_B64: ${{ secrets.TORRI_RELEASE_KEYSTORE_B64 }}
+          TORRI_RELEASE_KEY_ALIAS: ${{ secrets.TORRI_RELEASE_KEY_ALIAS }}
+          TORRI_RELEASE_KEYSTORE_PASSWORD: ${{ secrets.TORRI_RELEASE_KEYSTORE_PASSWORD }}
+          TORRI_RELEASE_KEY_PASSWORD: ${{ secrets.TORRI_RELEASE_KEY_PASSWORD }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          for key in TORRI_RELEASE_KEYSTORE_B64 TORRI_RELEASE_KEY_ALIAS TORRI_RELEASE_KEYSTORE_PASSWORD TORRI_RELEASE_KEY_PASSWORD; do
+            test -n "${!key}" || { echo "::error::Original Torri signing secret missing"; exit 1; }
+          done
+          umask 077
+          KEYSTORE="$RUNNER_TEMP/torri-original-production.jks"
+          trap 'rm -f "$KEYSTORE"' EXIT
+          printf '%s' "$TORRI_RELEASE_KEYSTORE_B64" | base64 --decode > "$KEYSTORE"
+          actual="$(keytool -list -v -keystore "$KEYSTORE" -storepass "$TORRI_RELEASE_KEYSTORE_PASSWORD" -alias "$TORRI_RELEASE_KEY_ALIAS" 2>/dev/null | sed -n 's/^[[:space:]]*SHA256: //p' | head -1 | tr -d ':[:space:]' | tr '[:upper:]' '[:lower:]')"
+          test "$actual" = "$TORRI_EXPECTED_CERT_SHA256" || { echo "::error::Original Torri certificate mismatch"; exit 1; }
+          TOOLS="$(cat "$RUNNER_TEMP/torri-tools-path.txt")"
+          for variant in arm64-v8a universal; do
+            SRC="$(find handoff -name "Torri-1.1.0-$variant-unsigned.apk" -print -quit)"
+            "$TOOLS/zipalign" -P 16 -f 4 "$SRC" "$RUNNER_TEMP/Torri-$variant-aligned.apk"
+            "$TOOLS/apksigner" sign \
+              --ks "$KEYSTORE" --ks-key-alias "$TORRI_RELEASE_KEY_ALIAS" \
+              --ks-pass env:TORRI_RELEASE_KEYSTORE_PASSWORD \
+              --key-pass env:TORRI_RELEASE_KEY_PASSWORD \
+              --out "dist/Torri-1.1.0-$variant-release.apk" "$RUNNER_TEMP/Torri-$variant-aligned.apk"
+            "$TOOLS/apksigner" verify --verbose --print-certs "dist/Torri-1.1.0-$variant-release.apk" > "$RUNNER_TEMP/signing-$variant.txt"
+            CERT="$(sed -n 's/^Signer #1 certificate SHA-256 digest: //p' "$RUNNER_TEMP/signing-$variant.txt" | head -1 | tr -d ':[:space:]' | tr '[:upper:]' '[:lower:]')"
+            test "$CERT" = "$TORRI_EXPECTED_CERT_SHA256" || { echo "::error::Signer certificate mismatch"; exit 1; }
+            sha256sum "dist/Torri-1.1.0-$variant-release.apk" >> dist/SHA256SUMS.txt
+          done
+          echo "PASS: original permanent Torri certificate signed ARM64 + universal 1.1.0"
+      - name: Get old permanent-signed 1.0.0 for an IN-PLACE upgrade test
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/old"
+          gh run download 37137601978 -R Tomex777/Build \
+            --name Torri-1.0.0-universal-portfolio-apk --dir "$RUNNER_TEMP/old"
+          OLD="$(find "$RUNNER_TEMP/old" -name '*.apk' -type f -print -quit)"
+          test -s "$OLD"
+          TOOLS="$(cat "$RUNNER_TEMP/torri-tools-path.txt")"
+          "$TOOLS/aapt" dump badging "$OLD" | grep -Eq "^package: name='app.torri' versionCode='10000' versionName='1.0.0'"
+          OLD_CERT="$("$TOOLS/apksigner" verify --print-certs "$OLD" | sed -n 's/^Signer #1 certificate SHA-256 digest: //p' | head -1 | tr -d ':[:space:]' | tr '[:upper:]' '[:lower:]')"
+          test "$OLD_CERT" = "$TORRI_EXPECTED_CERT_SHA256" || { echo "::error::Existing Torri certificate incompatible"; exit 1; }
+          cp "$OLD" "$RUNNER_TEMP/torri-previous-v1.0.0.apk"
+      - name: Free space and enable emulator
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo rm -rf /usr/share/dotnet /usr/local/share/powershell /opt/hostedtoolcache/CodeQL
+          sudo rm -rf "$ANDROID_HOME/ndk"
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Install and upgrade permanent-signed Torri without uninstalling
+        uses: ReactiveCircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2
+        with:
+          api-level: 35
+          target: google_apis
+          arch: x86_64
+          profile: pixel_6
+          disk-size: 2048M
+          ram-size: 2048M
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim
+          script: bash .github/scripts/torri-v110-production-upgrade.sh
+      - name: Stage PRIVATE DRAFT upgrade after verifiable successful tests
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          TAG=torri-v1.1.0-production-signed
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "::error::Existing release; refusing to replace trusted signatures"
+            exit 1
+          fi
+          cat > dist/RELEASE-NOTES.txt <<'EOF'
+          Torri by NIGHT 1.1.0 — PERMANENT ORIGINAL-KEY SIGNED DRAFT
+          Package app.torri, version 1.1.0 code 10001.
+          Original certificate: 6b1ab58169e3a8dd4370860d5d03060b035476b43cceaf2bd8da7ca1fe37ab44.
+          Built entirely from the private Torri source. Transferred only unsigned
+          APKs to Build; no private source or keystore ever left its protected repo.
+          Features: Mihon 0.21.2 upgrades, Torri Theme Studio, added themes,
+          compact Continue Reading shortcut.
+          CAUTION: Export and verify a Torri library backup before upgrading.
+          Database migrations may be irreversible. Real populated-library
+          migration testing remains outstanding; draft pending manual review.
+          EOF
+          gh release create "$TAG" --draft --prerelease \
+            --title 'Torri by NIGHT 1.1.0 — original permanent signing key' \
+            --notes-file dist/RELEASE-NOTES.txt \
+            dist/Torri-1.1.0-arm64-v8a-release.apk \
+            dist/Torri-1.1.0-universal-release.apk \
+            dist/SHA256SUMS.txt \
+            "$RUNNER_TEMP/torri-v110-upgrade-android15.png"
+          gh release view "$TAG" --json url,isDraft,isPrerelease,assets
