@@ -24,6 +24,7 @@ class AudioEngine(private val assets: AssetManager) {
     private val generation = AtomicInteger(0)
     private val voices = mutableMapOf<Int, Voice>()
     private var fieldRecordings: Map<SoundKind, ShortArray> = emptyMap()
+    private var recordingsReady=false
     private var measuredHrir: MeasuredHrir? = null
     private val governor=AudioQualityGovernor()
     private val reverb = DiffuseReverb()
@@ -36,22 +37,36 @@ class AudioEngine(private val assets: AssetManager) {
 
     val isPlaying: Boolean get() = running.get()
     fun update(world: World) { scene.set(world.copyForAudio()) }
-    fun start(world: World) {
+    @Synchronized fun start(world: World) {
         update(world)
         if (!running.compareAndSet(false,true)) return
         error = null
         val session = generation.incrementAndGet()
+        val predecessor=worker
         worker = thread(name="SoundAtlasAudio",isDaemon=true) {
             Process.setThreadPriority(Process.THREAD_PRIORITY_AUDIO)
             var track: AudioTrack? = null
             try {
+                // Don't create a second AudioTrack while a previous blocking
+                // write is still releasing the hardware. Never wait on UI.
+                if(predecessor?.isAlive==true) {
+                    predecessor.join(3000L)
+                    check(!predecessor.isAlive) { "Previous audio output has not released" }
+                }
+                if(!running.get() || generation.get()!=session)return@thread
                 val requested = AudioTrack.getMinBufferSize(SAMPLE_RATE,
                     AudioFormat.CHANNEL_OUT_STEREO,AudioFormat.ENCODING_PCM_16BIT)
                 require(requested>0) { "Stereo PCM output unavailable" }
-                fieldRecordings=readOfflineFieldRecordings()
-                measuredHrir=try {
-                    MeasuredHrir.read(assets.open("kemar_44100.hrir"))
-                } catch(_:Exception) { null }
+                if(!recordingsReady){
+                    fieldRecordings=readOfflineFieldRecordings()
+                    recordingsReady=true
+                }
+                if(measuredHrir==null) {
+                    measuredHrir=try {
+                        MeasuredHrir.read(assets.open("kemar_44100.hrir"))
+                    } catch(_:Exception) { null }
+                }
+                if(!running.get() || generation.get()!=session)return@thread
                 track = AudioTrack(
                     AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_MEDIA)
                         .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC).build(),
@@ -74,18 +89,19 @@ class AudioEngine(private val assets: AssetManager) {
                     if(n<0) error("AudioTrack write failed: $n")
                 }
             } catch (e: Exception) {
-                error=e.message ?: e.javaClass.simpleName
+                if(running.get() && generation.get()==session)
+                    error=e.message ?: e.javaClass.simpleName
             } finally {
                 try { track?.pause(); track?.flush(); track?.release() } catch (_: Exception) {}
                 if(generation.get()==session) running.set(false)
             }
         }
     }
-    fun stop() {
+    @Synchronized fun stop() {
         running.set(false)
         generation.incrementAndGet()
         worker?.interrupt()
-        worker=null
+        // Retain the old thread so a rapid restart can join it off the UI thread.
     }
     fun close() = stop()
 
