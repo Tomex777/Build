@@ -1,5 +1,6 @@
 import './night-play-avatar-selftest.js'
 import './night-play-matches-selftest.js'
+import './night-play-party-selftest.js'
 import './night-play-channels-selftest.js'
 import './night-channel-links-selftest.js'
 import assert from 'node:assert/strict'
