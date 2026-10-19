@@ -1,11 +1,8 @@
 name: TAC Redemption Official CSV Metadata
 
+# An attempted official Hymnary CSV export also received HTTP 403 from CI.
+# Keep this workflow manual-only until data access is voluntarily provided.
 on:
-  push:
-    branches:
-      - feature/tac-hymnbook-foundation
-    paths:
-      - 'tac-hymnbook/tools/fetch_redemption_csv.py'
   workflow_dispatch:
 
 permissions:
