@@ -177,6 +177,29 @@ export async function dispatchNamespacedCommand({ privateRegistry, publicRegistr
   if (!publicParsed || !publicRegistry?.commands?.has(publicParsed.name)) return false
 
   const command = publicRegistry.commands.get(publicParsed.name)
-  if (!(await publicCommandAllowed(command, context))) return false
+  if (!(await publicCommandAllowed(command, context))) {
+    // In a direct chat, an assigned specialist mismatch otherwise looks like
+    // a dead command because dispatch silently returns false. Explain the
+    // profile/capability boundary without changing specialist routing. Groups
+    // stay silent here because every linked account receives the same message.
+    const message = context?.message
+    const chat = String(message?.key?.remoteJid || '')
+    const capability = String(command.capability || 'general').trim().toLowerCase() || 'general'
+    const profile = context?.botProfile || {}
+    const capabilityDenied = context.publicCommandsEnabled !== false &&
+      command.profileOnly == null &&
+      command.ownerOnly !== true &&
+      command.adminOnly !== true &&
+      typeof context.shouldExecutePublicCommand === 'function'
+    if (capabilityDenied && chat && !chat.endsWith('@g.us') && typeof context.reply === 'function') {
+      const profileName = String(profile.displayName || profile.id || 'this bot account').trim()
+      await context.reply(
+        'I received this command, but this bot account is assigned to *' + profileName +
+        '*, which is not enabled for *' + capability + '* commands. Send it to the bot account assigned to that capability, or use a group where that specialist is connected.'
+      )
+      return true
+    }
+    return false
+  }
   return runResolvedCommand(publicRegistry, publicParsed, context, { prefix: String(context.publicPrefix || '.') })
 }
