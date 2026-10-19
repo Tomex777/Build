@@ -63,8 +63,8 @@ The source `data/redemption-hymnal-catalogue.json` contains **all canonical hymn
 
 **Do not confuse an index with completed lyrics.** At this stage:
 - Number slots: **800/800**.
-- Titles confirmed directly against the public RH2006 numbered first-line index: **94/800** (hymns 1–94).
-- A further ~20 English names are tentative matches from the user's photographed page 437, and are explicitly tagged candidate, not verified.
+- Titles confirmed directly against the public RH2006 numbered first-line index: **177/800** (hymns 1–177).
+- A further ~18 English names are tentative matches from the user's photographed page 437, and are explicitly tagged candidate, not verified.
 - Complete bilingual working-draft hymn entries in the playable reader: **18** (1–17 and 50).
 - No guessed lyrics or blank entries from the remaining numbered slots are presented as finished hymns.
 
