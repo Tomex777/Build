@@ -137,7 +137,13 @@ private val games = listOf(
     GameEntry("golfputt", "Golf Putt", "Sports", "Play three precision holes"),
     GameEntry("bowling", "Bowling", "Sports", "Ten frames, strikes and spares"),
     GameEntry("swimming", "Swimming Race", "Sports", "Race fifty meters with rhythm"),
-    GameEntry("checkers", "Checkers", "Board", "Capture, crown, and chain-jump")
+    GameEntry("checkers", "Checkers", "Board", "Capture, crown, and chain-jump"),
+    GameEntry("chess", "Chess", "Board", "Full legal chess against the CPU"),
+    GameEntry("drag", "Drag Race", "Racing", "Shift perfectly through four hundred meters"),
+    GameEntry("biketrail", "Bike Trail", "Racing", "Jump rocky hazards"),
+    GameEntry("boat", "Boat Race", "Racing", "Navigate floating race gates"),
+    GameEntry("drifthunt", "Drift Hunt", "Racing", "Build drifting combos"),
+    GameEntry("horse", "Horse Derby", "Racing", "Alternate strides to beat the CPU")
 
 
 )

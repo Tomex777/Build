@@ -4,7 +4,7 @@ Android app for an original offline game collection, expanding in tested batches
 
 - **Application ID:** `com.night.offlinegames`, following the required `com.night.<appname>` convention. Change the final segment consistently at renaming time.
 - **Platform:** native Android / Kotlin / Compose, `minSdk 26`.
-- **Current playable catalog:** 60 implemented games, not 105 placeholders: native 2048; six existing NIGHT Play arcade/puzzle games bundled offline; and 53 newly implemented locally bundled logic, board, card and action games in `classics/`.
+- **Current playable catalog:** 66 implemented games, not 105 placeholders: native 2048; six existing NIGHT Play arcade/puzzle games bundled offline; and 59 newly implemented locally bundled logic, board, card and action games in `classics/`.
 - **No INTERNET permission.** The embedded arcade loads under WebViewAssetLoader on the reserved `appassets.androidplatform.net` virtual host, with network loads blocked.
 - **Progress:** 2048 persists the board and best in device preferences; arcade game scores persist in the WebView's local storage; hub remembers recent games and favourites.
 - **Style:** no ad SDK, online account requirement, global volume slider, placeholder tiles, or duplicate back buttons.
@@ -28,6 +28,10 @@ Added original Snake, Frogger, Stack Tower, Whack-a-Bunny, Quick Draw, Coin Catc
 ## Batch expansion: eight more completed game engines
 
 Added Car Dodge, Zigzag Path, Laser Dodge, Archery, Golf Putt, ten-frame Bowling (with strike/spare bonus scoring), Swimming Race, and American Checkers (mandatory capture and chain jumps). All are separate implementations, using original offline JavaScript/Canvas logic and no web services.
+
+## Rules-complete chess and first racing batch
+
+Bundled the BSD-2-Clause `chess.js` v0.10.3 rules engine for legal chess (including castling, en passant, check, mate, promotion and stalemate), rendered with original SVG pieces and an offline computer opponent. Also added five original racing mechanics: Drag Race, Bike Trail, Boat Race, Drift Hunt and Horse Derby. Licensing is included under `assets/classics/CHESS-LICENSE.txt`. All games launch offline and do not request internet access.
 
 ## Next game batches
 

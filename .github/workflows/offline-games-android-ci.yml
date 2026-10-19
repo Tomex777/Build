@@ -72,6 +72,10 @@ jobs:
           unzip -Z1 "$APK" | grep -q "assets/classics/checkers.js"
           unzip -Z1 "$APK" | grep -q "assets/classics/extras-arcade.js"
           unzip -Z1 "$APK" | grep -q "assets/classics/extras-sports.js"
+          unzip -Z1 "$APK" | grep -q "assets/classics/racing.js"
+          unzip -Z1 "$APK" | grep -q "assets/classics/chess-game.js"
+          unzip -Z1 "$APK" | grep -q "assets/classics/vendor/chess.js"
+          unzip -Z1 "$APK" | grep -q "assets/classics/CHESS-LICENSE.txt"
           if "$ANDROID_HOME/build-tools/36.0.0/aapt" dump permissions "$APK" | grep -q "android.permission.INTERNET"; then
             echo "Offline-only release unexpectedly requests internet permission" >&2
             exit 1
