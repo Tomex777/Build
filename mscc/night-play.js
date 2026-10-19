@@ -1,6 +1,7 @@
 import { createHash, randomBytes, randomUUID, verify, createPublicKey } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { NightPlayMatches } from './night-play-matches.js'
+import { NightPlayParty } from './night-play-party.js'
 import { NightPlayChannels, ChannelError } from './night-play-channels.js'
 
 export const PLAY_URL = 'https://night-play-combined-preview.vercel.app'
@@ -39,6 +40,7 @@ export class NightPlay {
     `)
     this.nextCleanup = 0
     this.matches = new NightPlayMatches(db, { now })
+    this.partyRooms = new NightPlayParty(db, { now })
     this.channels = new NightPlayChannels(this, { now })
   }
   transaction(fn) {
@@ -53,6 +55,7 @@ export class NightPlay {
     }
     this.db.prepare('DELETE FROM play_channel_consent WHERE expires_at<=?').run(this.now())
     this.db.prepare("DELETE FROM play_channel_claims WHERE state!='connected' AND expires_at<=?").run(this.now())
+    this.partyRooms.cleanup()
     this.nextCleanup = this.now() + 60_000
   }
   limit(key, maximum, window = 60_000) {
@@ -90,7 +93,7 @@ export class NightPlay {
       .run(id, jpeg ? 'image/jpeg' : 'image/png', data, this.now())
     return true
   }
-  request({ action, session, client, displayName, matchId, code, cell, channelId }) {
+  request({ action, session, client, displayName, matchId, code, cell, channelId, mode, questions, guestName, guestSession, answer }) {
     this.cleanup()
     if (action === 'health') return { ok:true, service:'night-play', version:1 }
     if (action === 'status') {
@@ -124,6 +127,10 @@ export class NightPlay {
     if (action === 'logout') {
       if (row) this.db.prepare('DELETE FROM play_sessions WHERE id=?').run(row.id)
       return { ok:true }
+    }
+    if (typeof action === 'string' && action.startsWith('party:')) {
+      this.limit('party-client:' + String(client || 'unknown'), 160)
+      return this.partyRooms.request(action, {userId:row?.user_id,guestSession,code,mode,questions,guestName,answer})
     }
     if (!row?.user_id) throw new PlayError(401, 'Connect WhatsApp to continue.')
     if (action === 'channel:list') {
@@ -210,7 +217,7 @@ export function createNightPlayHandler(play, { publicKey = readFileSync(new URL(
       const chunks = []; let size = 0
       for await (const chunk of req) {
         size += chunk.length
-        if (size > 4096) return reply(413, { error:'Request too large.' })
+        if (size > 8192) return reply(413, { error:'Request too large.' })
         chunks.push(chunk)
       }
       const raw = Buffer.concat(chunks).toString('utf8')
