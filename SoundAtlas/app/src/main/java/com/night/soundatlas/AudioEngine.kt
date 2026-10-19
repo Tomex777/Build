@@ -85,8 +85,16 @@ class AudioEngine(private val assets: AssetManager) {
                     if(world!=null) render(world,buffer)
                     else buffer.fill(0)
                     governor.record(System.nanoTime()-renderStart)
-                    val n=track.write(buffer,0,buffer.size,AudioTrack.WRITE_BLOCKING)
-                    if(n<0) error("AudioTrack write failed: $n")
+                    // Even WRITE_BLOCKING may return fewer PCM shorts during
+                    // Bluetooth route changes; consume the entire buffer.
+                    var offset=0
+                    while(offset<buffer.size && running.get() &&
+                        generation.get()==session){
+                        val written=track.write(buffer,offset,buffer.size-offset,
+                            AudioTrack.WRITE_BLOCKING)
+                        check(written>0) { "AudioTrack write failed: $written" }
+                        offset+=written
+                    }
                 }
             } catch (e: Exception) {
                 if(running.get() && generation.get()==session)
