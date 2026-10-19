@@ -58,6 +58,11 @@ internal fun EnvironmentPage(
     onSave: (String, String) -> Unit,
 ) {
     val environment = state.environment
+    // ABR: Cloud owns MEGA credentials and shared-folder editing.
+    // Do not show a duplicate editor for those same settings in ENV.
+    val entries = environment?.entries.orEmpty().filterNot {
+        it.key in setOf("MSCC_MEGA_EMAIL", "MSCC_MEGA_PASSWORD", "MSCC_MEGA_SHARED_FOLDERS")
+    }
     var editing by remember { mutableStateOf<EnvironmentVariable?>(null) }
 
     Column(
@@ -68,7 +73,7 @@ internal fun EnvironmentPage(
         Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 14.dp)) {
             Text("Environment", fontSize = 19.sp, fontWeight = FontWeight.SemiBold)
             Text(
-                "Managed MSCC variables",
+                "AI keys and server configuration",
                 color = CortexMuted,
                 fontSize = 12.sp,
             )
@@ -87,7 +92,7 @@ internal fun EnvironmentPage(
                     fontSize = 12.sp,
                 )
             }
-        } else if (environment.entries.isEmpty()) {
+        } else if (entries.isEmpty()) {
             Column(
                 Modifier.fillMaxWidth().padding(18.dp),
                 verticalArrangement = Arrangement.spacedBy(4.dp),
@@ -120,7 +125,7 @@ internal fun EnvironmentPage(
                     }
                 }
 
-                items(environment.entries, key = { it.key }) { entry ->
+                items(entries, key = { it.key }) { entry ->
                     val revealed = state.revealedEnvironment[entry.key]
                     Row(
                         Modifier
