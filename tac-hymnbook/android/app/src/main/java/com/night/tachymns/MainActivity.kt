@@ -1,6 +1,10 @@
 package com.night.tachymns
 
 import android.os.Bundle
+import android.content.Intent
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import kotlinx.coroutines.launch
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
@@ -55,6 +59,52 @@ class MainActivity : ComponentActivity() {
         val index = IndexRepository.load(this)
         val prefs = getSharedPreferences("reader", MODE_PRIVATE)
         setContent {
+            val audioRepository = remember { HymnAudioRepository(applicationContext) }
+            val audioPlayer = remember { HymnAudioPlayer(applicationContext) }
+            var libraryVersion by remember { mutableIntStateOf(0) }
+            var pendingAudioKey by rememberSaveable { mutableStateOf<String?>(null) }
+            var audioMessage by remember { mutableStateOf<String?>(null) }
+            val downloading = remember { mutableStateListOf<String>() }
+            val scope = rememberCoroutineScope()
+            val importPicker = rememberLauncherForActivityResult(
+                ActivityResultContracts.OpenDocument()
+            ) { uri ->
+                val requested = AudioKey.parse(pendingAudioKey)
+                pendingAudioKey = null
+                if (uri != null && requested != null) {
+                    runCatching {
+                        contentResolver.takePersistableUriPermission(
+                            uri, Intent.FLAG_GRANT_READ_URI_PERMISSION
+                        )
+                        audioRepository.import(requested, uri)
+                        audioPlayer.stop()
+                        libraryVersion++
+                        audioMessage = null
+                    }.onFailure { audioMessage = "Unable to access that audio file." }
+                }
+            }
+            val onImportAudio: (AudioKey) -> Unit = { key ->
+                pendingAudioKey = key.token
+                importPicker.launch(arrayOf("audio/*"))
+            }
+            val onDownloadAudio: (AudioKey) -> Unit = { key ->
+                if (key.token !in downloading) {
+                    downloading.add(key.token)
+                    scope.launch {
+                        try {
+                            audioRepository.download(key)
+                            libraryVersion++
+                            audioMessage = null
+                        } catch (error: Exception) {
+                            audioMessage = error.message ?: "Audio download failed"
+                        } finally {
+                            downloading.remove(key.token)
+                        }
+                    }
+                }
+            }
+            DisposableEffect(audioPlayer) { onDispose { audioPlayer.release() } }
+            var learnMode by rememberSaveable { mutableStateOf(false) }
             var dark by remember { mutableStateOf(prefs.getBoolean("dark", false)) }
             var englishMode by rememberSaveable { mutableStateOf(false) }
             var hubQuery by rememberSaveable { mutableStateOf("") }
@@ -88,10 +138,27 @@ class MainActivity : ComponentActivity() {
                 prefs.edit().putStringSet("saved", saved.toSet()).apply()
             }
             val selected = hymns.firstOrNull { it.key == selectedKey }
-            BackHandler(enabled = selectedKey != null) { selectedKey = null }
+            LaunchedEffect(selectedKey, englishMode) {
+                val active = audioPlayer.activeKey
+                val language = if (englishMode && selected?.hasEnglish == true) "en" else "yo"
+                if (active != null && (
+                        selectedKey == null || active.hymnKey != selectedKey ||
+                        active.language != language
+                    )
+                ) audioPlayer.stop()
+            }
+            BackHandler(enabled = selectedKey != null || learnMode) {
+                if (selectedKey != null) selectedKey = null else learnMode = false
+            }
             MaterialTheme(colorScheme = palette) {
                 Surface(modifier = Modifier.fillMaxSize(), color = palette.background) {
-                    if (selected == null) {
+                    if (selected == null && learnMode) {
+                        LearnHymnsHome(
+                            hymns = hymns,
+                            onBack = { learnMode = false },
+                            onOpen = { selectedKey = it.key }
+                        )
+                    } else if (selected == null) {
                         HymnHub(
                             hymns = hymns,
                             index = index,
@@ -112,8 +179,24 @@ class MainActivity : ComponentActivity() {
                             onToggleDark = {
                                 dark = !dark
                                 prefs.edit().putBoolean("dark", dark).apply()
-                            }
+                            },
+                            onLearn = { learnMode = true }
                         )
+                    } else if (learnMode) {
+                        key(selected.key) {
+                            LearnHymnReader(
+                                hymn = selected,
+                                english = englishMode,
+                                onLanguageChange = { englishMode = it },
+                                onBack = { selectedKey = null },
+                                repository = audioRepository,
+                                player = audioPlayer,
+                                libraryVersion = libraryVersion,
+                                downloading = downloading.toSet(),
+                                onImport = onImportAudio,
+                                onDownload = onDownloadAudio
+                            )
+                        }
                     } else {
                         key(selected.key) {
                         HymnReader(
@@ -130,7 +213,13 @@ class MainActivity : ComponentActivity() {
                             },
                             onBack = { selectedKey = null },
                             onOpen = openHymn,
-                            onToggleSaved = { toggleSaved(selected) }
+                            onToggleSaved = { toggleSaved(selected) },
+                            audioRepository = audioRepository,
+                            audioPlayer = audioPlayer,
+                            audioLibraryVersion = libraryVersion,
+                            downloading = downloading.toSet(),
+                            onImportAudio = onImportAudio,
+                            onDownloadAudio = onDownloadAudio
                         )
                         }
                     }
@@ -155,8 +244,10 @@ private fun HymnHub(
     onFilterChange: (Int) -> Unit,
     activeCollection: String,
     onCollectionChange: (String) -> Unit,
-    onToggleDark: () -> Unit
+    onToggleDark: () -> Unit,
+    onLearn: () -> Unit
 ) {
+    var moreOpen by rememberSaveable { mutableStateOf(false) }
     val hasAkokun = index.any { it.collection == "akokun" }
     val hasReadable = hymns.any { it.collection == activeCollection }
     val showIndex = !hasReadable || filter == 1
@@ -183,6 +274,15 @@ private fun HymnHub(
                     Text("Orin Ìyìn", fontFamily = FontFamily.Serif,
                         fontSize = 35.sp, fontWeight = FontWeight.SemiBold)
                     Text("Hymnbook", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 14.sp)
+                }
+                Box {
+                    TextButton(onClick = { moreOpen = true }) { Text("More") }
+                    DropdownMenu(expanded = moreOpen, onDismissRequest = { moreOpen = false }) {
+                        DropdownMenuItem(
+                            text = { Text("Learn hymns") },
+                            onClick = { moreOpen = false; onLearn() }
+                        )
+                    }
                 }
                 TextButton(onClick = onToggleDark) {
                     Text(if (dark) "Light mode" else "Dark mode")
@@ -401,7 +501,13 @@ private fun HymnReader(
     onChangeFontScale: (Float) -> Unit,
     onBack: () -> Unit,
     onOpen: (Hymn) -> Unit,
-    onToggleSaved: () -> Unit
+    onToggleSaved: () -> Unit,
+    audioRepository: HymnAudioRepository,
+    audioPlayer: HymnAudioPlayer,
+    audioLibraryVersion: Int,
+    downloading: Set<String>,
+    onImportAudio: (AudioKey) -> Unit,
+    onDownloadAudio: (AudioKey) -> Unit
 ) {
     val showEnglish = english && hymn.hasEnglish
     val verses = if (showEnglish) hymn.versesEn else hymn.versesYo
@@ -458,6 +564,17 @@ private fun HymnReader(
                     LanguageTab("Yorùbá", !showEnglish, hymn.hasYoruba) { onLanguageChange(false) }
                     LanguageTab("English", showEnglish, hymn.hasEnglish) { onLanguageChange(true) }
                 }
+                Spacer(Modifier.height(18.dp))
+                HymnAudioControls(
+                    hymn = hymn,
+                    english = showEnglish,
+                    repository = audioRepository,
+                    player = audioPlayer,
+                    libraryVersion = audioLibraryVersion,
+                    downloading = downloading,
+                    onImport = onImportAudio,
+                    onDownload = onDownloadAudio
+                )
                 Spacer(Modifier.height(18.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text("Text size", fontSize = 12.sp,
