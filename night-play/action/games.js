@@ -140,8 +140,8 @@ function initJump(){
  const platforms=[jumpPlatform(120,505,133)];
  for(let y=428,i=0;y>=-90;y-=rand(70,84),i++){
    const w=rand(58,90),x=rand(15,W-w-15);
-   platforms.push(jumpPlatform(x,y,w,i>0&&Math.random()<.34,
-     i>1&&Math.random()<.16));
+   platforms.push(jumpPlatform(x,y,w,i===2||(i>0&&Math.random()<.34),
+     i===4||(i>1&&Math.random()<.16)));
  }
  return {score:0,elapsed:0,bounce:0,player:{x:180,y:460,vy:-560,vx:0},
    platforms,scroll:0};
