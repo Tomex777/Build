@@ -5,9 +5,11 @@ import {
   TicTacToeGame,
   normalizeTicTacToeLevel,
   parseTicTacToeInput,
+  renderNexiaTicTacToeText,
+  ticTacToeCoord,
   pickTicTacToeBotMove,
 } from '../../utils/tictactoe-game.js'
-import { renderTicTacToeBoard } from '../../utils/tictactoe-renderer.js'
+import { renderTicTacToeBoard,renderNexiaTicTacToePicture } from '../../utils/tictactoe-renderer.js'
 import { gameMenuArt } from '../../utils/game-menu-art.js'
 import { findOtherActiveGame, otherGameMessage, userForStoredGame } from '../../utils/game-session.js'
 import { getTicTacToeTheme, normalizeTicTacToeTheme } from '../../utils/game-themes.js'
@@ -55,7 +57,7 @@ function clearRecord(ctx) {
 }
 
 function labelFor(game, player) {
-  if (player === TICTACTOE_BOT_ID) return 'MSCC Bot'
+  if (player === TICTACTOE_BOT_ID) return '🤖 Bot'
   if (player === game.playerX) return game.xName || 'X'
   if (player === game.playerO) return game.oName || 'O'
   return 'Player'
@@ -83,13 +85,54 @@ function statusCaption(game, note = '') {
   ].filter(Boolean).join('\n')
 }
 
-async function sendBoard(ctx, game, theme, note = '') {
-  const chat = chatKey(ctx)
-  if (!chat || !ctx.account?.sock) throw new Error('Tic-Tac-Toe connection is unavailable.')
-  return ctx.account.sock.sendMessage(chat, {
-    image:renderTicTacToeBoard(game, theme),
-    caption:statusCaption(game, note),
-  }, { quoted:ctx.message })
+function classicCaption(game,note='') {
+  const cells=renderNexiaTicTacToeText(game)
+  const status=game.winner
+    ? '🎉 '+labelFor(game,game.winner)+' wins the game!'
+    : game.isDraw
+      ? '🤝 Game ended in a draw!'
+      : '🎲 Turn: '+labelFor(game,game.currentTurn)+' ('+
+        (game.markFor(game.currentTurn)==='X'?'❎':'⭕')+')'
+  return [
+    '🎮 *TicTacToe Game*',
+    note,
+    status,
+    '',
+    cells,
+    '',
+    '▢ Player ❎: '+labelFor(game,game.playerX),
+    '▢ Player ⭕: '+labelFor(game,game.playerO),
+    '',
+    game.winner||game.isDraw ? '' : '• Type a number (1-9) to make your move',
+    game.winner||game.isDraw ? '' : '• Type *surrender* to give up',
+  ].filter(Boolean).join('\n')
+}
+
+function pictureCaption(game,note='') {
+  const status=game.winner ? '🎉 '+labelFor(game,game.winner)+' wins the game!'
+    :game.isDraw ? '🤝 Game ended in a draw!'
+    :'🎲 Turn: '+labelFor(game,game.currentTurn)+' ('+
+       (game.markFor(game.currentTurn)==='X'?'❎':'⭕')+')'
+  return [
+    '🎮 *Picture Tic-Tac-Toe*',
+    note,status,'',
+    '▢ Player ❎: '+labelFor(game,game.playerX),
+    '▢ Player ⭕: '+labelFor(game,game.playerO),
+    '',
+    game.winner||game.isDraw ? '' : '• Send a square like *B2* to move',
+    game.winner||game.isDraw ? '' : '• Type *surrender* to give up',
+  ].filter(Boolean).join('\n')
+}
+
+// A classic Nexia .ttt game sends emoji text, not a picture. The separate
+// picture mode sends Nexia's cached 592px labelled JPEG board.
+async function sendBoard(ctx,game,theme,note='',style='picture') {
+  const chat=chatKey(ctx)
+  if(!chat||!ctx.account?.sock)throw new Error('Tic-Tac-Toe connection is unavailable.')
+  const payload=style==='classic'
+    ? {text:classicCaption(game,note)}
+    : {image:renderNexiaTicTacToePicture(game),caption:pictureCaption(game,note)}
+  return ctx.account.sock.sendMessage(chat,payload,{quoted:ctx.message})
 }
 
 async function showModePicker(ctx) {
@@ -129,82 +172,67 @@ async function showBotLevels(ctx) {
   })
 }
 
-function newWaitingRecord(ctx, invitedUser = '') {
-  const user = String(ctx.userKey || '')
+function newWaitingRecord(ctx,invitedUser='',style='classic',roomName='') {
+  const user=String(ctx.userKey||'')
   return {
-    id:randomUUID(),
+    id:'tictactoe-'+randomUUID(),
     state:'WAITING',
+    style,
+    roomName,
     mode:'human',
     createdBy:user,
     createdByName:playerName(ctx),
-    invitedUser:String(invitedUser || ''),
-    theme:getTicTacToeTheme(ctx.shared, user),
+    invitedUser:String(invitedUser||''),
+    theme:getTicTacToeTheme(ctx.shared,user),
     game:new TicTacToeGame().toRecord(),
   }
 }
 
-async function createHumanChallenge(ctx, invitedUser = '') {
-  if (!ctx.groupKey) {
-    return ctx.reply('Human-vs-human Tic-Tac-Toe starts in a group chat. In a DM, choose *Play the bot*.')
-  }
-
-  const existing = loadRecord(ctx)
-  if (existing) return ctx.reply('There is already a Tic-Tac-Toe game or challenge in this chat.')
-
-  const record = saveRecord(ctx, newWaitingRecord(ctx, invitedUser))
-  const prefix = String(ctx.publicPrefix || '.')
-  const invitedLine = invitedUser
-    ? 'This challenge is reserved for the player you selected.'
-    : 'Anyone else in this group can join.'
-
-  return ctx.ui.joinCancel({
-    title:'Tic-Tac-Toe challenge',
-    text:`${playerName(ctx)} opened a game.\n\n${invitedLine}`,
-    buttonText:'Tic-Tac-Toe',
-    joinText:'Join game',
-    joinDescription:'X and O are assigned randomly',
-    joinId:`${prefix}ttt ~join ${record.id}`,
-    cancelText:'Cancel challenge',
-    cancelDescription:'Only the challenger can cancel',
-    cancelId:`${prefix}ttt ~cancel ${record.id}`,
-  })
+async function createHumanChallenge(ctx,invitedUser='',style='classic',roomName='') {
+  if(!ctx.groupKey)
+    return ctx.reply('Human-vs-human Tic-Tac-Toe starts in a group chat. In a DM, try *.tttpic bot*.')
+  const existing=loadRecord(ctx)
+  if(existing) return ctx.reply('There is already a Tic-Tac-Toe game or challenge in this chat.')
+  const conflict=findOtherActiveGame(ctx,NAMESPACE)
+  if(conflict)return ctx.reply(otherGameMessage(conflict))
+  const record=saveRecord(ctx,newWaitingRecord(ctx,invitedUser,style,roomName))
+  const command=style==='picture'?'tttpic':'ttt'
+  const name=roomName?' '+roomName:''
+  return ctx.reply('⏳ *Waiting for opponent*\nType *.'+command+name+'* to join!\n'+
+    '▢ *Room ID:* '+record.id+
+    (invitedUser?'\nThis challenge is reserved for your chosen player.':''))
 }
 
-async function joinHumanChallenge(ctx, id) {
-  const record = loadRecord(ctx)
-  const user = String(ctx.userKey || '')
-
-  if (!record || record.state !== 'WAITING' || record.mode !== 'human' || record.id !== id) {
+async function joinHumanChallenge(ctx,id='',style='',name='') {
+  const record=loadRecord(ctx)
+  const user=String(ctx.userKey||'')
+  if(!record||record.state!=='WAITING'||record.mode!=='human'||
+     (id&&record.id!==id))
     return ctx.reply('That Tic-Tac-Toe challenge is no longer available.')
-  }
-  if (record.createdBy === user) return ctx.reply('You cannot join your own challenge.')
-  if (record.invitedUser && record.invitedUser !== user) {
+  if(style&&record.style!==style)
+    return ctx.reply('That room is for *.'+(record.style==='picture'?'tttpic':'ttt')+'*.')
+  if(record.roomName!==name&& !id)
+    return ctx.reply('That room has a different name. Join with *.'+
+      (record.style==='picture'?'tttpic':'ttt')+
+      (record.roomName?' '+record.roomName:'')+'*.')
+  if(record.createdBy===user)return ctx.reply('You cannot join your own challenge.')
+  if(record.invitedUser&&record.invitedUser!==user)
     return ctx.reply('That challenge was opened for someone else.')
-  }
-
-  const challenger = String(record.createdBy || '')
-  const challengerName = String(record.createdByName || 'Challenger')
-  const joinerName = playerName(ctx)
-  const challengerIsX = Math.random() < 0.5
-  const game = new TicTacToeGame({
-    playerX:challengerIsX ? challenger : user,
-    playerO:challengerIsX ? user : challenger,
-    xName:challengerIsX ? challengerName : joinerName,
-    oName:challengerIsX ? joinerName : challengerName,
+  // Nexia assigns X to the room creator and O to the joining player.
+  const game=new TicTacToeGame({
+    playerX:String(record.createdBy),
+    playerO:user,
+    xName:String(record.createdByName||'Challenger'),
+    oName:playerName(ctx),
   })
-
-  saveRecord(ctx, {
-    ...record,
-    state:'PLAYING',
-    game:game.toRecord(),
-  })
-
-  return sendBoard(
-    ctx,
-    game,
-    normalizeTicTacToeTheme(record.theme),
-    `Sides randomized — ${game.xName} is X, ${game.oName} is O. X moves first.`,
-  )
+  saveRecord(ctx,{...record,state:'PLAYING',game:game.toRecord()})
+  const instructions=record.style==='picture'
+    ? 'Send a square like *B2* (columns A–C, rows 1–3).'
+    : 'Send a number (1–9) to place your symbol.'
+  return sendBoard(ctx,game,record.theme,
+    '🎮 Game started! '+game.xName+' is ❎ and moves first.\n'+
+    '▢ *Room ID:* '+record.id+'\n'+instructions,
+    record.style||'classic')
 }
 
 async function cancelChallenge(ctx, id = '') {
@@ -216,41 +244,32 @@ async function cancelChallenge(ctx, id = '') {
   return ctx.reply('Tic-Tac-Toe challenge cancelled.')
 }
 
-async function startBotGame(ctx, level) {
-  if (loadRecord(ctx)) return ctx.reply('There is already an active Tic-Tac-Toe game in this chat.')
-
-  const user = String(ctx.userKey || '')
-  const name = playerName(ctx)
-  const userIsX = Math.random() < 0.5
-  const game = new TicTacToeGame({
-    playerX:userIsX ? user : TICTACTOE_BOT_ID,
-    playerO:userIsX ? TICTACTOE_BOT_ID : user,
-    xName:userIsX ? name : 'MSCC Bot',
-    oName:userIsX ? 'MSCC Bot' : name,
+async function startBotGame(ctx,level) {
+  if(loadRecord(ctx))return ctx.reply('There is already an active Tic-Tac-Toe game in this chat.')
+  const conflict=findOtherActiveGame(ctx,NAMESPACE)
+  if(conflict)return ctx.reply(otherGameMessage(conflict))
+  const user=String(ctx.userKey||'')
+  const game=new TicTacToeGame({
+    playerX:user,
+    playerO:TICTACTOE_BOT_ID,
+    xName:playerName(ctx),
+    oName:'🤖 Bot',
   })
-  const theme = getTicTacToeTheme(ctx.shared, user)
-
-  let note = `Bot difficulty: ${level}. You are ${userIsX ? 'X' : 'O'}.`
-  if (!userIsX) {
-    const botIndex = pickTicTacToeBotMove(game, level)
-    if (botIndex >= 0) {
-      const result = game.move(TICTACTOE_BOT_ID, botIndex)
-      if (!result.ok) throw new Error(result.reason || 'Bot opening move failed.')
-      note += ` MSCC Bot is X and opened on ${botIndex + 1}.`
-    }
-  }
-
-  saveRecord(ctx, {
-    id:randomUUID(),
+  const theme=getTicTacToeTheme(ctx.shared,user)
+  saveRecord(ctx,{
+    id:'tttpic-'+randomUUID(),
     state:'PLAYING',
     mode:'bot',
+    style:'picture',
     level,
     createdBy:user,
     theme,
     game:game.toRecord(),
   })
-
-  return sendBoard(ctx, game, theme, note)
+  return sendBoard(ctx,game,theme,
+    "You're ❎, 🤖 Bot is ⭕. Your move first.\nBot difficulty: *"+level+
+    '*.\nSend *B2* to move. Type *surrender* to quit.',
+    'picture')
 }
 
 async function resignGame(ctx, game) {
@@ -261,109 +280,97 @@ async function resignGame(ctx, game) {
   return ctx.reply(`🏳️ ${labelFor(game, user)} resigned. ${labelFor(game, winner)} wins.`)
 }
 
-async function handleMoveInput(ctx, text) {
-  const record = loadRecord(ctx)
-  if (!record || record.state !== 'PLAYING') return false
-
-  const game = new TicTacToeGame(record.game)
-  const user = String(ctx.userKey || '')
-  if (![game.playerX, game.playerO].includes(user)) return false
-
-  const parsed = parseTicTacToeInput(text)
-  if (!parsed) return false
-  if (parsed.type === 'resign') return resignGame(ctx, game)
-
-  const result = game.move(user, parsed.index)
-  if (!result.ok) return ctx.reply(result.reason)
-
-  const theme = normalizeTicTacToeTheme(record.theme)
-  const humanNote = `${labelFor(game, user)} played ${parsed.index + 1}.`
-
-  if (game.winner || game.isDraw) {
-    clearRecord(ctx)
-    await sendBoard(ctx, game, theme, humanNote)
-    return true
-  }
-
-  if (record.mode === 'bot') {
-    saveRecord(ctx, { ...record, game:game.toRecord() })
-    await sendBoard(ctx, game, theme, humanNote)
-
-    const botIndex = pickTicTacToeBotMove(game, record.level || 'normal')
-    if (botIndex >= 0) {
-      const botResult = game.move(TICTACTOE_BOT_ID, botIndex)
-      if (!botResult.ok) throw new Error(botResult.reason || 'Bot move failed.')
+async function handleMoveInput(ctx,text) {
+  const record=loadRecord(ctx)
+  if(!record||record.state!=='PLAYING')return false
+  const game=new TicTacToeGame(record.game)
+  const user=String(ctx.userKey||'')
+  if(![game.playerX,game.playerO].includes(user))return false
+  const style=record.style||'picture' // legacy saved NIGHT boards were images
+  const parsed=parseTicTacToeInput(text,style)
+  if(!parsed)return false
+  if(parsed.type==='resign')return resignGame(ctx,game)
+  const result=game.move(user,parsed.index)
+  if(!result.ok)return ctx.reply(result.reason)
+  const theme=normalizeTicTacToeTheme(record.theme)
+  let note=labelFor(game,user)+' played '+
+    (style==='picture'?ticTacToeCoord(parsed.index):parsed.index+1)+'.'
+  // Nexia's picture bot responds in the SAME board image, not two consecutive
+  // images that flood WhatsApp and make the animation feel laggy.
+  if(!game.winner&&!game.isDraw&&record.mode==='bot'){
+    const botIndex=pickTicTacToeBotMove(game,record.level||'expert')
+    if(botIndex>=0){
+      const played=game.move(TICTACTOE_BOT_ID,botIndex)
+      if(!played.ok)throw Error(played.reason||'Bot move failed.')
+      note+='\n🤖 Bot played *'+ticTacToeCoord(botIndex)+'*.'
     }
-
-    if (game.winner || game.isDraw) clearRecord(ctx)
-    else saveRecord(ctx, { ...record, game:game.toRecord() })
-
-    await sendBoard(
-      ctx,
-      game,
-      theme,
-      botIndex >= 0 ? `MSCC Bot played ${botIndex + 1}.` : 'MSCC Bot has no move.',
-    )
-    return true
   }
-
-  saveRecord(ctx, { ...record, game:game.toRecord() })
-  await sendBoard(ctx, game, theme, humanNote)
+  if(!game.winner&&!game.isDraw)
+    saveRecord(ctx,{...record,game:game.toRecord()})
+  await sendBoard(ctx,game,theme,note,style)
+  if(game.winner||game.isDraw)clearRecord(ctx)
   return true
 }
 
-async function showCurrentGame(ctx, record) {
-  if (record.state === 'WAITING') {
-    return ctx.reply('A Tic-Tac-Toe challenge is waiting in this chat. Someone else can tap *Join game*.')
+async function showCurrentGame(ctx,record) {
+  if(record.state==='WAITING'){
+    const command=record.style==='picture'?'tttpic':'ttt'
+    return ctx.reply('⏳ *Waiting for opponent*\nType *.'+command+
+      (record.roomName?' '+record.roomName:'')+'* to join!\n'+
+      'Room ID: '+record.id)
   }
-  const game = new TicTacToeGame(record.game)
-  return sendBoard(ctx, game, normalizeTicTacToeTheme(record.theme))
+  return sendBoard(ctx,new TicTacToeGame(record.game),normalizeTicTacToeTheme(record.theme),'',record.style||'picture')
 }
 
 export default {
   name:'tictactoe',
-  aliases:['ttt','xo'],
-  description:'Play visual Tic-Tac-Toe against another person or the bot.',
-  usage:'.ttt',
+  aliases:['ttt','xo','tttpic','tttboard','imgttt','picttt'],
+  description:'Play Nexia-style emoji Tic-Tac-Toe, or a picture game with five bot levels.',
+  usage:'.ttt [room name] | .tttpic [room name] | .tttpic bot [beginner|easy|medium|hard|expert]',
   async run(ctx) {
     try {
-      const args = Array.isArray(ctx.args) ? ctx.args.map(String) : []
-      const first = String(args[0] || '').toLowerCase()
-      const existing = loadRecord(ctx)
-      if (existing) ctx = { ...ctx, userKey:userForStoredGame(ctx, existing) }
-
-      if (first === '~input') {
-        return handleMoveInput(ctx, String(ctx.commandReplyInput || args.slice(1).join(' ')))
+      const args=Array.isArray(ctx.args)?ctx.args.map(String):[]
+      const first=String(args[0]||'').toLowerCase()
+      const invoked=String(ctx.rawCommandText||'').trim().match(/^[^\w\s]?([a-z]+)/i)?.[1]?.toLowerCase()
+      const requestedStyle=['tttpic','tttboard','imgttt','picttt'].includes(invoked)?'picture':'classic'
+      const existing=loadRecord(ctx)
+      if(existing)ctx={...ctx,userKey:userForStoredGame(ctx,existing)}
+      if(first==='~input')
+        return handleMoveInput(ctx,String(ctx.commandReplyInput||args.slice(1).join(' ')))
+      if(first==='~person')return createHumanChallenge(ctx)
+      if(first==='~join')return joinHumanChallenge(ctx,String(args[1]||''))
+      if(first==='~cancel')return cancelChallenge(ctx,String(args[1]||''))
+      if(first==='~bot')return showBotLevels(ctx)
+      if(first==='~botlevel'){
+        const level=normalizeTicTacToeLevel(args[1])
+        return level?startBotGame(ctx,level):showBotLevels(ctx)
       }
-      if (first === '~person') return createHumanChallenge(ctx)
-      if (first === '~join') return joinHumanChallenge(ctx, String(args[1] || ''))
-      if (first === '~cancel') return cancelChallenge(ctx, String(args[1] || ''))
-      if (first === '~bot') return showBotLevels(ctx)
-      if (first === '~botlevel') {
-        const level = normalizeTicTacToeLevel(args[1])
-        return level ? startBotGame(ctx, level) : showBotLevels(ctx)
+      if(first==='cancel')return cancelChallenge(ctx)
+      if(first==='menu'||first==='mode')return showModePicker(ctx)
+      if(first==='bot'){
+        const level=normalizeTicTacToeLevel(args[1])
+        return level?startBotGame(ctx,level):showBotLevels(ctx)
       }
-
-      if (first === 'cancel') return cancelChallenge(ctx)
-      if (first === 'bot') {
-        const level = normalizeTicTacToeLevel(args[1]) || 'normal'
-        return startBotGame(ctx, level)
+      if(first==='person'||first==='player'||first==='human')
+        return createHumanChallenge(ctx,'',requestedStyle,args.slice(1).join(' ').trim())
+      const input=args.join(' ')
+      if(input&&parseTicTacToeInput(input,existing?.style||requestedStyle))
+        return handleMoveInput(ctx,input)
+      if(input&&typeof ctx.resolveCommandTarget==='function'&&input.startsWith('@')){
+        const target=await ctx.resolveCommandTarget(input)
+        if(target?.phoneNumber)return createHumanChallenge(ctx,target.phoneNumber,requestedStyle)
       }
-      if (first === 'person' || first === 'player' || first === 'human') return createHumanChallenge(ctx)
-
-      if (args.length && parseTicTacToeInput(args.join(' '))) {
-        return handleMoveInput(ctx, args.join(' '))
+      // Nexia: sending .ttt with no parameters joins the existing unnamed
+      // WAITING room. Named rooms are joined using the exact room name.
+      if(existing?.state==='WAITING'){
+        if(String(existing.createdBy)===String(ctx.userKey))
+          return showCurrentGame(ctx,existing)
+        return joinHumanChallenge(ctx,'',requestedStyle,input.trim())
       }
-
-      if (args.length && typeof ctx.resolveCommandTarget === 'function') {
-        const target = await ctx.resolveCommandTarget(args[0])
-        if (target?.phoneNumber) return createHumanChallenge(ctx, target.phoneNumber)
-      }
-
-      if (existing) return showCurrentGame(ctx, existing)
-      return showModePicker(ctx)
-    } catch (error) {
-      console.error('MSCC Tic-Tac-Toe failed:', error)
+      if(existing)return showCurrentGame(ctx,existing)
+      return createHumanChallenge(ctx,'',requestedStyle,input.trim())
+    } catch(error) {
+      console.error('NIGHT Nexia Tic-Tac-Toe failed:',error)
       return ctx.reply('I could not continue that Tic-Tac-Toe game.')
     }
   },
