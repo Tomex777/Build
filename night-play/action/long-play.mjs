@@ -29,28 +29,40 @@ try{
   await page.goto(url+'/action/?game=jump');
   await page.locator('#overlayStart').click();
   const bounds=await page.locator('#screen').boundingBox();
-  let maxScore=0,maxMoving=0,seenVanishing=false,collisions=0,lastVy=0,deathStep=-1;
+  let maxScore=0,maxMoving=0,seenVanishing=false,collisions=0,lastVy=0,deathStep=-1,aim=null;
   await page.mouse.move(bounds.x+bounds.width*.46,bounds.y+bounds.height*.65);
   await page.mouse.down();
   for(let i=0;i<steps;i++){
    const s=await page.evaluate(()=>window.__nightActionTest.snapshot());
    maxScore=Math.max(maxScore,s.score);maxMoving=Math.max(maxMoving,s.platforms.filter(p=>p.moving).length);
    if(s.platforms.some(p=>p.fragile||p.ttl!==undefined))seenVanishing=true;
-   if(lastVy>0&&s.player.vy<0)collisions++;
+   if(lastVy>0&&s.player.vy<0){collisions++;aim=null}
    lastVy=s.player.vy;
    if(s.over){deathStep=i;break}
    if(strategy==='steer'){
-    const p=s.player;
-    // Land on the closest available platform in the current fall path,
-    // selecting collision surfaces instead of automating the game engine.
-    const choices=s.platforms.filter(q=>q.y>p.y+11&&q.y<p.y+165);
-    choices.sort((a,b)=>{
-      const dist=q=>Math.min(Math.abs(q.x+q.w/2-p.x),390-Math.abs(q.x+q.w/2-p.x));
-      return (a.y-p.y)*.15+dist(a)*.7-(b.y-p.y)*.15-dist(b)*.7;
-    });
-    const t=choices[0];
-    if(t){const x=Math.min(384,Math.max(6,t.x+t.w/2));
-      await page.mouse.move(bounds.x+x/390*bounds.width,bounds.y+bounds.height*.65);}
+    const p=s.player,foot=p.y+17;
+    if(aim&&!s.platforms.some(q=>q.baseX===aim.baseX&&q.w===aim.w))aim=null;
+    if(!aim){
+      // A skilled Doodle Jump player aims UPWARD while rising, then lands
+      // while falling. Find platforms inside the real ballistic jump arc,
+      // reject unreachable horizontal moves and prefer real height gain.
+      const apexFoot=foot-Math.min(0,p.vy)**2/(2*1230);
+      const choices=s.platforms.filter(q=>q.y>=apexFoot-4&&q.y<foot-24)
+        .filter(q=>{
+          const d=Math.abs(q.x+q.w*.5-p.x),wrapped=Math.min(d,390-d);
+          const discriminant=p.vy*p.vy+2*1230*(q.y-foot);
+          if(discriminant<0)return false;
+          const landingTime=(-p.vy+Math.sqrt(discriminant))/1230;
+          return wrapped<Math.max(50,landingTime*285)+q.w*.3;
+        }).sort((a,b)=>a.y-b.y);
+      const selected=choices[0];
+      if(selected)aim={baseX:selected.baseX,w:selected.w};
+    }
+    const chosen=aim&&s.platforms.find(q=>q.baseX===aim.baseX&&q.w===aim.w);
+    if(chosen){
+      const x=Math.min(384,Math.max(6,chosen.x+chosen.w/2));
+      await page.mouse.move(bounds.x+x/390*bounds.width,bounds.y+bounds.height*.65);
+    }
    }
    await page.waitForTimeout(70);
   }
@@ -65,4 +77,5 @@ try{
  console.log('SKY_JUMPER_REAL_POINTER_PLAY='+JSON.stringify(results));
  assert.ok(results.every(x=>x.moving>0&&!x.vanishing),'moving platforms can challenge without disappearing or breaking');
  assert.ok(results.some(x=>x.collisions>=1),'actual play must cause a bounce off a landing platform');
+ assert.ok(results.find(x=>x.strategy==='steer').maxScore>=80,'skilled touch-guided play must climb at least 80px, not just bounce forever at zero height');
 }finally{await browser.close();await new Promise(resolve=>server.close(resolve))}
