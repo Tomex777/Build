@@ -8,7 +8,7 @@ export { brandedTitle } from './utils/media/branding.js'
 // Bound interactive source metadata lookups, never media transfers. Keep a
 // single deadline across fallback sources so a long chain cannot block a reply
 // for several minutes. Drivers that support context.signal stop work early.
-const LOOKUP_ACTIONS = new Set(['search', 'browse', 'episodes', 'options'])
+const LOOKUP_ACTIONS = new Set(['search', 'browse', 'seasons', 'episodes', 'options'])
 const sourceLookupTimeoutMs = () => {
   const configured = Number(process.env.MSCC_SOURCE_LOOKUP_TIMEOUT_MS || 60000)
   return Number.isFinite(configured) ? Math.min(180000, Math.max(100, configured)) : 60000
@@ -148,7 +148,7 @@ export class SourceRegistry {
         .filter(Boolean)
     )
     const available = this.list(cap).filter(source => !excluded.has(source.id))
-    const isLookup = ['anime', 'manga', 'music'].includes(cap) && LOOKUP_ACTIONS.has(String(payload?.action || ''))
+    const isLookup = ['anime', 'manga', 'music', 'movies', 'tv'].includes(cap) && LOOKUP_ACTIONS.has(String(payload?.action || ''))
     const controller = isLookup ? new AbortController() : null
     let timeoutHandle
     // The timer fires once for the complete selection/fallback attempt. It is
