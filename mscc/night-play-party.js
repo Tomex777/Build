@@ -155,7 +155,7 @@ export class NightPlayParty {
     }
     if(action==='party:advance'){
       if(!host)fail(403,'Only the host can move to the next question.')
-      if(room.phase!=='reveal')fail(409,'Wait for everyone's vote.')
+      if(room.phase!=='reveal')fail(409,"Wait for everyone's vote.")
       return this.transaction(()=>{
         const round=room.round+1,total=JSON.parse(room.questions).length
         const phase=round>=total?'finished':'vote'
