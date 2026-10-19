@@ -56,6 +56,13 @@ tap_text "Dark mode"
 timeout 35s adb exec-out screencap -p > tac-hymns-dark-home.png
 file tac-hymns-dark-home.png
 
+echo "Opening offline audio storage management through More"
+tap_text "More"
+tap_text "Offline audio"
+timeout 35s adb exec-out screencap -p > tac-hymns-offline-audio.png
+file tac-hymns-offline-audio.png
+tap_text "Back to hymnbook"
+
 echo "Navigating through the separately accessible Learn Hymns screen"
 tap_text "More"
 tap_text "Learn hymns"
