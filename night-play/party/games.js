@@ -162,10 +162,10 @@ function action(type,src){
  switch(type){
  case 'hub':stop();quizLocalSetup=false;selected=null;phase='hub';route(null);render();break;
  case 'setup':phase='setup';render();break;
- case 'local-quiz-setup':quizLocalSetup=true;phase='setup';render();break;
+ case 'local-quiz-setup':quizLocalSetup=true;people=[];setBinding(null);phase='setup';render();break;
  case 'editor':editor();break;
  case 'start':start();break;
- case 'play-quiz':if(!validQuiz())note('Complete your quiz first.');else{save(DRAFT,draft);if(people.length<2){quizLocalSetup=true;phase='setup';render();note('Add two players to practice on one phone.')}else start()}break;
+ case 'play-quiz':if(!validQuiz())note('Complete your quiz first.');else{save(DRAFT,draft);if(!quizLocalSetup||people.length<2){if(!quizLocalSetup){people=[];setBinding(null)}quizLocalSetup=true;phase='setup';render();note('Add two players to practice on one phone.')}else start()}break;
  case 'ready':phase='vote';persist();render();break;
  case 'next':if(state.index+1<state.questions.length){state.index++;state.voter=0;phase='handoff'}else phase='finished';persist();render();break;
  case 'replay':stop();phase='setup';render();break;
