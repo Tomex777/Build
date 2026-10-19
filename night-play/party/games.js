@@ -124,8 +124,15 @@ function adoptIdentity(snapshot){
  if(linkedPartyPlayer?.id!==next.id){
    // Never rename the previous WhatsApp account's local game entry on a device switch.
    setBinding(null);
-   if(phase==='setup'&&people.length===0){
-     people.push(next.displayName);setBinding({id:next.id,index:0,name:next.displayName});changed=true;
+   if(phase==='setup'&&people.length<8){
+     // Add the real verified account as an actual participant, not a text hint.
+     // A reconnect to a different account never rewrites the previous player.
+     const nameTaken=people.some(p=>p.toLowerCase()===next.displayName.toLowerCase());
+     if(!nameTaken){
+       people.push(next.displayName);
+       setBinding({id:next.id,index:people.length-1,name:next.displayName});
+       changed=true;
+     }
    }
  }else{
    const idx=linkedPartyPlayer.index,old=linkedPartyPlayer.name;
@@ -135,10 +142,11 @@ function adoptIdentity(snapshot){
    if(state?.owner===old&&old!==next.displayName){state.owner=next.displayName;changed=true}
    setBinding({...linkedPartyPlayer,name:next.displayName});
  }
- if(!draft.owner&&phase==='setup'){draft.owner=next.displayName;save(DRAFT,draft)}
+ if(!draft.owner&&phase==='setup'){draft.owner=next.displayName;save(DRAFT,draft);changed=true}
  if(changed&&state)persist();
- if(phase==='setup'&&document.activeElement?.id==='playerName')return;
- if(changed||phase==='setup'||phase==='editor'||phase==='handoff'||phase==='vote'||phase==='reveal'||phase==='finished')render();
+ // A periodic identity check must NOT throw away an in-progress vote or
+ // the quiz creator's focused editor input unless the actual name changed.
+ if(changed&&document.activeElement?.id!=='playerName')render();
 }
 function chooseMode(mode){if(!MODES[mode])return;stop();selected=mode;phase='setup';route(mode);render()}
 function action(type,src){
