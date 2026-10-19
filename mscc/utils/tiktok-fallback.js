@@ -23,8 +23,8 @@ export function canonicalTikTokUrl(value) {
   try { url = new URL(value) } catch { return null }
   if (url.protocol !== 'https:' || url.username || url.password || url.port ||
       !['tiktok.com','www.tiktok.com','m.tiktok.com'].includes(url.hostname.toLowerCase()) ||
-      !/^\\/@[A-Za-z0-9_.-]+\\/(?:video|photo)\\/\\d+\\/?$/.test(url.pathname)) return null
-  return `https://www.tiktok.com${url.pathname.replace(/\\/$/,'')}`
+      !/^\/@[A-Za-z0-9_.-]+\/(?:video|photo)\/\d+\/?$/.test(url.pathname)) return null
+  return `https://www.tiktok.com${url.pathname.replace(/\/$/,'')}`
 }
 
 export async function resolveTikTokShortUrl(value, fetchImpl = globalThis.fetch) {
@@ -35,7 +35,7 @@ export async function resolveTikTokShortUrl(value, fetchImpl = globalThis.fetch)
   if (current.protocol !== 'https:' || current.username || current.password || current.port ||
       !['vt.tiktok.com','vm.tiktok.com','www.tiktok.com','tiktok.com'].includes(current.hostname.toLowerCase())) return null
   if (!['vt.tiktok.com','vm.tiktok.com'].includes(current.hostname.toLowerCase()) &&
-      !/^\\/t\\/[A-Za-z0-9_-]+\\/?$/.test(current.pathname)) return null
+      !/^\/t\/[A-Za-z0-9_-]+\/?$/.test(current.pathname)) return null
   for (let hop = 0; hop < 5; hop++) {
     let response
     try {
