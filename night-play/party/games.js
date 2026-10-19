@@ -38,7 +38,7 @@ function setup(){
  const m=MODES[selected];title(m[0],m[1],'LOCAL PARTY');box.className='party-content';
  const players=people.map((x,i)=>'<span class="party-player-pill">'+h(x)+'<button type="button" data-remove="'+i+'" aria-label="Remove '+h(x)+'">×</button></span>').join('');
  box.innerHTML='<div class="party-topline">'+button('‹ All games','hub','party-text-btn')+'<span>2–8 PLAYERS · SAME PHONE</span></div>'+
- '<div class="party-panel"><h2>Who is playing?</h2><p>Each person votes privately, then the group sees the results.</p><div class="party-player-list">'+players+'</div>'+
+ '<div class="party-panel"><h2>Who is playing?</h2><p>Each person votes privately, then the group sees the results.</p><div class="party-player-list" '+(people.length?'':'hidden')+'>'+players+'</div>'+
  '<form id="partyAddPlayer" class="party-player-form"><label class="sr-only" for="playerName">Player name</label><input class="party-input" id="playerName" maxlength="24" placeholder="Enter a player name" value="'+h(verifiedIdentity?.displayName||'')+'" autocomplete="off" required><button type="submit" class="party-add-btn">Add</button></form>'+
  '<p class="party-field-help">'+people.length+' / 8 players · '+(selected==='quiz'?'Create the personal quiz first.':rounds+' questions')+'</p>'+
  (selected==='quiz'?button('Build personal quiz','editor','party-primary','id="quizBuilderButton"'):button('Start '+h(m[0]),'start','party-primary','id="startParty" '+(people.length<2?'disabled':'')))+'</div>';
