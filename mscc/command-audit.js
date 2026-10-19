@@ -226,7 +226,7 @@ export function createCommandAuditManager({
   runSuite=runAuditSuite,
 }={}) {
   let active=null
-  const status=()=>!active ? 'No NIGHT audit running. Send .testall to start.' :
+  const status=()=>!active ? 'No NIGHT offline audit running. Send .testall audit to start.' :
     '🌙 NIGHT audit: '+active.done+'/'+active.total+' suites; '+
     active.failed+' failures.'+(active.controller.signal.aborted?' Cancelling…':' In progress.')
   const cancel=()=>{
@@ -288,37 +288,49 @@ export function createCommandAuditManager({
 
 export const commandAudit=createCommandAuditManager()
 
+// Bare .testall is the owner's REAL WhatsApp smoke test, not the offline
+// inventory scan. Keep the offline audit explicitly available as .testall audit.
+// Group tests still require an explicit confirm to prevent chat flooding.
+export function parseTestAllRequest(args=[]) {
+  const action=String(args?.[0]||'').trim().toLowerCase()
+  const confirm=action==='confirm' || String(args?.[1]||'').trim().toLowerCase()==='confirm'
+  const mode=!action || action==='confirm' || action==='live' ? 'live' :
+    action==='failed' ? 'failed' :
+    action==='audit' || action==='run' ? 'audit' :
+    action==='status' || action==='cancel' ? action : 'invalid'
+  return {mode,confirm}
+}
+
 export async function executeTestAll(ctx) {
   // Enforce owner identity in both the private-control and public route.
   if (ctx?.isSupremeOwner !== true) {
     return ctx.reply('Only the verified NIGHT supreme owner can run command audits.')
   }
-  const action=String(ctx.args?.[0]||'').trim().toLowerCase()
-  const confirm=String(ctx.args?.[1]||'').trim().toLowerCase()==='confirm'
-  if (action==='status') {
+  const {mode,confirm}=parseTestAllRequest(ctx.args)
+  if (mode==='status') {
     return ctx.reply(commandAudit.busy() ? commandAudit.status() :
       liveCommandAudit.busy() ? liveCommandAudit.status() :
       commandAudit.status()+' '+liveCommandAudit.status())
   }
-  if (action==='cancel') {
+  if (mode==='cancel') {
     const stopped=commandAudit.cancel() || liveCommandAudit.cancel()
     return ctx.reply(stopped
       ? '🛑 Cancellation requested. NIGHT will stop unfinished checks.'
       : 'No running NIGHT audit to cancel.')
   }
-  if (action==='live' || action==='failed') {
+  if (mode==='live' || mode==='failed') {
     const auth=authorizeTest(ctx,'live',confirm)
     if (auth) return ctx.reply(auth.replace('.testall live confirm',
-      action==='failed'?'.testall failed confirm':'.testall live confirm'))
+      mode==='failed'?'.testall failed confirm':'.testall live confirm'))
     if (liveCommandAudit.busy() || commandAudit.busy()) {
       return ctx.reply('A NIGHT audit is already running. Use .testall status or .testall cancel.')
     }
-    const started=liveCommandAudit.start(ctx,{failedOnly:action==='failed'})
+    const started=liveCommandAudit.start(ctx,{failedOnly:mode==='failed'})
     if (started===null) return ctx.reply('No failed live tests to retry yet. Run .testall live first.')
     return started ? undefined : ctx.reply('A live audit is already running.')
   }
-  if (action && action!=='run') {
-    return ctx.reply('Use .testall, .testall live, .testall failed, .testall status, or .testall cancel.'+
+  if (mode==='invalid') {
+    return ctx.reply('Use .testall (live DM), .testall audit (offline), .testall live confirm (group), .testall failed, .testall status, or .testall cancel.'+
       (isGroupTest(ctx)?'\nIn groups, live and failed tests require the final word confirm.':''))
   }
   if (commandAudit.busy() || liveCommandAudit.busy()) {
