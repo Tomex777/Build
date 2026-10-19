@@ -97,3 +97,15 @@ The user has now supplied **five photographs covering all nine consecutive alpha
 - Once lyrics are cleared and added, section-safe IDs `akokun:<number>` and the existing reader will keep bookmarks and navigation independent from `main:<number>`.
 
 The index is now sufficient to begin source matching for almost the entire Àkọkún section. Additional page photography is only useful for correcting the six unresolved numbers or confirming individual variant lyrics, not for re-photographing this index.
+
+
+## New in v0.5.2 — Index browsing with no blank hymn screens
+
+- The real Android hub now exposes **Redemption** and **Àkọkún** as separate collections.
+- Index browsing loads `redemption_index.json` and `akokun_index.json` from bundled assets; the 299 currently identified Àkọkún first lines are locally searchable by number or Yoruba text (with or without tone marks).
+- Redemption has **Read**, **Index**, and **Saved** modes; Àkọkún opens straight to the **Index** until its lyric text is available.
+- Only already-imported hymn texts open the verse reader. Index-only rows are reference entries, not dead-end reader pages. No progress counters, transcription statuses, or research badges are shown to worshippers.
+- For each section, bookmarks, most recently read hymn, and previous/next controls use `collection:number` identities so overlapping numbers stay independent.
+- Nine Àkọkún source comparisons (nos. 1, 37, 45, 47, 65, 101, 104, 130, and 303) are recorded in `data/akokun-source-matches.json`. Eight exact/near-exact English titles have been added to the index. This is **metadata matching**, not full lyric import: words/verse counts and rights still require validation.
+- An existing Google Play app, `com.deltreetech.tachymns`, is available as an independent public reference for the Apostolic Church hymnbook. Do not copy its proprietary database without explicit rights.
+
