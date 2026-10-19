@@ -48,7 +48,7 @@ async function request(method='GET',body,extra={},fn=handler){
   const guest=await request('POST',{action:'party:join',code:'ABCDEFGH',guestName:'Sam'})
   assert.equal(guest.status,200)
   assert.match(guest.headers['Set-Cookie'],/^__Host-night_party=[A-Za-z0-9_-]{43}; Path=\/; HttpOnly; Secure; SameSite=Lax; Max-Age=86400$/)
-  assert.equal(calls.at(-1).session,'','guest invite doesn't pretend to be linked WhatsApp')
+  assert.equal(calls.at(-1).session,'','guest invitation is not a WhatsApp login')
   const guestCookie=guest.headers['Set-Cookie'].split(';')[0]
   await request('POST',{action:'party:state',code:'ABCDEFGH'},{cookie:guestCookie})
   assert.equal(calls.at(-1).guestSession,guestCookie.split('=')[1],'same private guest bearer can resume room')
