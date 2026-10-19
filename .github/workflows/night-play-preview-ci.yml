@@ -40,6 +40,8 @@ jobs:
         run: npm install --no-save playwright@1.56.1
       - name: Play Nomi-inspired party games across actual mobile viewports
         run: node night-play/party/mobile-smoke.mjs
+      - name: Play online party room as a host and two independent guests
+        run: node night-play/party/room/mobile-smoke.mjs
       - name: Verify WhatsApp account screens on mobile and desktop
         run: node night-play/account-browser-smoke.cjs
       - name: Enforce WR behavior for anonymous sessions and online-game confirmation
