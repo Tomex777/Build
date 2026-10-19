@@ -71,7 +71,7 @@ jobs:
       - name: Set up JDK
         uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
         with:
-          java-version-file: torri-src/.github/.java-version
+          java-version: '21'
           distribution: temurin
 
       - name: Set up Gradle
