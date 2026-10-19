@@ -11,6 +11,7 @@ import { loadCommands } from './command-registry.js'
 import { runMediaProcess } from './utils/extended-media.js'
 import { mediaToSticker } from './utils/media-conversion.js'
 import { clearMediaSession } from './utils/media-toolkit.js'
+import { downloadImageUrl } from './utils/remote-image.js'
 
 const PUBLIC = new URL('./commands/', import.meta.url)
 const CHAT_GAP_MS = 650
@@ -39,7 +40,7 @@ export const LIVE_CASES = Object.freeze({
   translate:   { args:['french','Hello','world'], expected:'text', provider:true },
   weather:     { args:['Lagos'], expected:'text', provider:true },
   github:      { args:['facebook/react'], expected:'text', provider:true },
-  wiki:        { args:['Nigeria'], expected:'text', provider:true },
+  wiki:        { args:['Nigeria'], expected:'imageOrText', provider:true },
   news:        { args:['technology'], expected:'text', provider:true },
   web:         { args:['OpenAI'], expected:'text', provider:true },
   image:       { args:['Saturn','1'], expected:'image', provider:true },
@@ -197,13 +198,19 @@ export function verdictForOutputs(outputs, expected, contains='') {
   const actual = outputs.filter(o => o.delivered)
   if (!actual.length) return {status:'FAILED',detail:'No WhatsApp messages accepted'}
   const candidates = actual.filter(o =>
-    expected === 'imageOrDocument' ? ['image','document'].includes(o.kind) : o.kind === expected)
-  if (!candidates.length) return {status:'FAILED',detail:'Expected '+expected+'; got '+actual.map(o=>o.kind).join(', ')}
+    expected === 'imageOrDocument' ? ['image','document'].includes(o.kind) :
+    expected === 'imageOrText' ? ['image','text'].includes(o.kind) : o.kind === expected)
+  if (!candidates.length) {
+    const explanation=actual.filter(o=>o.kind==='text').map(o=>o.text).filter(Boolean).join(' | ')
+    return {status:'FAILED',detail:'Expected '+expected+'; got '+actual.map(o=>o.kind).join(', ')+
+      (explanation?' — '+explanation.slice(0,200):'')}
+  }
   const good = candidates.filter(o => o.valid)
   if (!good.length) return {status:'FAILED',detail:'Output media validation failed'}
-  if (expected === 'text') {
-    const goodText = good.filter(o => !BAD_RESPONSE.test(o.text.trim()))
-    if (!goodText.length) return {status:'FAILED',detail:'Command responded with an error or usage prompt: '+good[0].text.slice(0,140)}
+  if (expected === 'text' || expected === 'imageOrText') {
+    const goodText = good.filter(o=>o.kind==='text' && !BAD_RESPONSE.test(o.text.trim()))
+    const goodImages = expected === 'imageOrText' ? good.filter(o=>o.kind==='image') : []
+    if (!goodText.length && !goodImages.length) return {status:'FAILED',detail:'Command responded with an error or usage prompt: '+good[0].text.slice(0,200)}
     if (contains && !goodText.some(o=>o.text.includes(contains))) return {status:'FAILED',detail:'Output does not contain expected test content'}
   }
   return {status:'PASS',detail:good.length+' valid output(s) accepted by WhatsApp (recipient playback not verified)'}
@@ -334,6 +341,17 @@ export async function runLiveCase({ original, command, spec, fixtures, fixtureSe
     args:spec.args||[],
     rawArgs:(spec.args||[]).join(' '),
     reply:async text => safeSend(chat,{text:String(text)},{quoted:original.message}),
+    sendImageUrl:async(url,caption='')=>{
+      // Use the same public-only, SSRF-guarded downloader as ordinary commands;
+      // capture the image through the audited socket instead of the original
+      // context's callback (which bypasses our delivery instrumentation).
+      const result=await downloadImageUrl(url)
+      if (!Buffer.isBuffer(result?.buffer) || !result.buffer.length) {
+        throw new Error('Public thumbnail returned no usable image.')
+      }
+      return safeSend(chat,{image:result.buffer,caption:String(caption||'')},
+        {quoted:original.message})
+    },
     sendImageDataUrl:async(dataUrl,caption='')=>{
       const match=String(dataUrl).match(/^data:image\/(png|jpe?g);base64,(.+)$/s)
       if(!match) throw new Error('QR generated an invalid image data URI')
