@@ -136,7 +136,7 @@ function fitWingBoard(){
   state.gap=wingGap(newLogicalHeight);
   const min=state.gap/2+34,max=newPlay-state.gap/2-34;
   for(const p of state.pipes)p.y=Math.max(min,Math.min(max,p.y/oldPlay*newPlay));
-  c.height=newLogicalHeight;rebuildWingBackdrop();
+  c.height=newLogicalHeight;rebuildWingBackdrop();if(finished)birdFrame(0);
  }
 }
 function scheduleWingFit(){
