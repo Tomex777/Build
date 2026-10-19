@@ -32,9 +32,9 @@ jobs:
           gradle-version: '8.11.1'
       - name: Check tracked native app exists
         run: |
-          test -s EchoSpace/app/src/main/java/com/nexa/echospace/MainActivity.kt
-          test -s EchoSpace/app/src/main/java/com/nexa/echospace/audio/SpatialAudioService.kt
-          test -s EchoSpace/app/src/main/java/com/nexa/echospace/audio/MeasuredHrtf.kt
+          test -s EchoSpace/app/src/main/java/com/night/echospace/MainActivity.kt
+          test -s EchoSpace/app/src/main/java/com/night/echospace/audio/SpatialAudioService.kt
+          test -s EchoSpace/app/src/main/java/com/night/echospace/audio/MeasuredHrtf.kt
           ! grep -R -E 'android.widget.SeekBar|Slider[[:space:]]*\(|<SeekBar' \
             EchoSpace/app/src/main/java
       - name: Android SDK
@@ -115,9 +115,9 @@ jobs:
           APK=EchoSpace/app/build/outputs/apk/release/app-release-unsigned.apk
           "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging "$APK" | tee /tmp/echo-badging.txt
           grep -q "sdkVersion:'26'" /tmp/echo-badging.txt
-          grep -q "package: name='com.nexa.echospace'" /tmp/echo-badging.txt
-          grep -q 'applyImmersiveBars' EchoSpace/app/src/main/java/com/nexa/echospace/MainActivity.kt
-          grep -q 'ACTION_AUDIO_BECOMING_NOISY' EchoSpace/app/src/main/java/com/nexa/echospace/audio/SpatialAudioService.kt
+          grep -q "package: name='com.night.echospace'" /tmp/echo-badging.txt
+          grep -q 'applyImmersiveBars' EchoSpace/app/src/main/java/com/night/echospace/MainActivity.kt
+          grep -q 'ACTION_AUDIO_BECOMING_NOISY' EchoSpace/app/src/main/java/com/night/echospace/audio/SpatialAudioService.kt
       - name: Test-sign the ARM64 release APK, verify and upload
         run: |
           set -euo pipefail
