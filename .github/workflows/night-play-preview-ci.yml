@@ -64,6 +64,8 @@ jobs:
         run: node night-play/puzzles/mobile-smoke.mjs
       - name: Play five new action arcade games on mobile and resize screens
         run: node night-play/action/mobile-smoke.mjs
+      - name: Actually play the jumping game with touch movement for extended rounds
+        run: node night-play/action/long-play.mjs
       - name: Capture mobile board visual diagnostics
         run: node night-play/visual-inspect.mjs
       - name: Upload game screenshots

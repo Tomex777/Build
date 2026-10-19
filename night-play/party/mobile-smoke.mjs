@@ -5,10 +5,16 @@ import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {chromium} from 'playwright';
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
-const routes={'/party':'party/index.html','/party/':'party/index.html',
+let mockProfile=null;
+const routes={'/player-identity.js':'player-identity.js','/party':'party/index.html','/party/':'party/index.html',
 '/party/games.js':'party/games.js','/party/questions.js':'party/questions.js','/party/style.css':'party/style.css','/game-shell.css':'game-shell.css','/games':'index.html'};
 const server=createServer((req,res)=>{
- const file=routes[new URL(req.url,'http://localhost').pathname];
+ const pathname=new URL(req.url,'http://localhost').pathname;
+ if(pathname==='/api/account'){
+   res.writeHead(200,{'content-type':'application/json','cache-control':'no-store'});
+   res.end(JSON.stringify({linked:!!mockProfile,profile:mockProfile}));return;
+ }
+ const file=routes[pathname];
  if(!file){res.writeHead(404);res.end('Not found');return}
  res.writeHead(200,{'content-type':file.endsWith('.css')?'text/css':file.endsWith('.js')?'text/javascript':'text/html'});
  res.end(readFileSync(path.join(root,file)));
@@ -102,6 +108,29 @@ try{
  assert.equal((await snap()).phase,'handoff');
  await page.reload();
  assert.equal((await snap()).phase,'handoff','quiz answers saved after reload');
+ // Real WhatsApp display name, not an input placeholder or decorative badge:
+ // it must become the participant in the saved, playable match.
+ await page.evaluate(()=>localStorage.clear());
+ mockProfile={id:'verified-whatsapp-alice',displayName:'WhatsApp Alice'};
+ await page.goto(url+'/party/?game=wyr');
+ await page.waitForFunction(()=>window.__nightPartyTest.snapshot().people[0]==='WhatsApp Alice');
+ assert.deepEqual((await snap()).people,['WhatsApp Alice'],'verified account auto-joins an empty local lobby');
+ assert.equal((await snap()).linkedPartyPlayer.id,mockProfile.id,'participant is bound to stable WhatsApp ID');
+ await page.locator('#playerName').fill('Sam');
+ await page.locator('#partyAddPlayer button').click();
+ await page.locator('#startParty').click();
+ assert.deepEqual((await snap()).state.players,['WhatsApp Alice','Sam']);
+ mockProfile={...mockProfile,displayName:'Aster'};
+ await page.evaluate(()=>window.NightPlayerIdentity.refresh());
+ assert.deepEqual((await snap()).state.players,['Aster','Sam'],'server rename rewrites actual active match players');
+ await page.reload();
+ await page.waitForFunction(()=>window.__nightPartyTest.snapshot().verifiedIdentity?.displayName==='Aster');
+ assert.deepEqual((await snap()).state.players,['Aster','Sam'],'verified name persists in saved round, not merely UI');
+ await page.evaluate(()=>localStorage.clear());
+ mockProfile={id:'different-whatsapp-user',displayName:'Jordan'};
+ await page.goto(url+'/party/?game=wyr');
+ await page.waitForFunction(()=>window.__nightPartyTest.snapshot().verifiedIdentity?.displayName==='Jordan');
+ assert.deepEqual((await snap()).people,['Jordan'],'a different account never inherits the previous name');
  assert.deepEqual(errors,[],'no browser page errors');
  console.log('PASS: Nomi-inspired NIGHT party games, five real private-vote loops, accurate results, quiz creation, reload, five viewports.');
 }finally{if(browser)await browser.close();await new Promise(resolve=>server.close(resolve))}

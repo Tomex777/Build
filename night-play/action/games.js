@@ -6,6 +6,11 @@
 (()=>{'use strict';
 const $=id=>document.getElementById(id),canvas=$('screen'),ctx=canvas.getContext('2d',{alpha:false});
 const W=390,H=550,PI=Math.PI,TAU=PI*2;
+// Render at real device resolution instead of blurring a 390px canvas on
+// high-density phones. All gameplay coordinates remain in logical pixels.
+const dpr=Math.min(2.5,Math.max(1,window.devicePixelRatio||1));
+canvas.width=Math.round(W*dpr);canvas.height=Math.round(H*dpr);
+ctx.setTransform(dpr,0,0,dpr,0,0);
 const defs={
  slice:{title:'Fruit Slice',subtitle:'Slice the fruit. Never touch the bombs.',rules:'Drag a finger across fruit to slice it. Avoid black bombs and do not miss three pieces of fruit. Mouse dragging works on desktop.',label:'MISSES'},
  jump:{title:'Sky Jumper',subtitle:'Climb higher. Land every jump.',rules:'Guide the jumper left and right with the controls, arrow keys, A/D or by dragging horizontally across the screen. Jumping is automatic. Fall below the screen and the run ends.',label:'HEIGHT'},
@@ -34,6 +39,7 @@ function audio(type='tap'){
 function readBest(){try{return Number(localStorage.getItem(bestKey(game)))||0}catch{return 0}}
 function saveBest(n){try{if(n>readBest())localStorage.setItem(bestKey(game),String(n))}catch{}}
 function updateHud(){
+ $('stat').parentElement.classList.toggle('action-stat-hidden',game==='jump');
  $('score').textContent=String(Math.floor(state?.score||0));
  $('best').textContent=String(Math.floor(Math.max(readBest(),state?.score||0)));
  $('statLabel').textContent=defs[game].label;
@@ -121,48 +127,136 @@ function paintSlice(){
   for(let i=1;i<state.trail.length;i++){const a=state.trail[i-1],b=state.trail[i];ctx.strokeStyle='rgba(255,255,255,'+b.a+')';ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.stroke();}}
  for(let i=0;i<5;i++)disk(30+i*21,30,7,i<5-state.misses?'#db836d':'#e8e4db');
 }
+/* SKY JUMPER: real moving/breaking platforms, increasingly demanding
+ * reachable jumps and a crisp illustrated player. Height IS the score.
+ * 560px/s jump, 1230px/s² gravity => ~127 logical px maximum ascent.
+ * Keep vertical platform gaps under 96px and horizontal wrap reachable.
+ */
+function jumpPlatform(x,y,w,moving=false,fragile=false){
+ return {x,y,w,moving,fragile,hits:0,baseX:x,phase:rand(0,TAU),
+   range:rand(24,52),pace:rand(1.25,2.3),ttl:0};
+}
 function initJump(){
- const platforms=[{x:120,y:500,w:154,moving:false}];
- for(let y=424;y>=-90;y-=75){platforms.push({x:rand(30,255),y,w:rand(72,100),moving:false})}
- return {score:0,player:{x:180,y:460,vy:-520,vx:0},platforms,scroll:0};
+ const platforms=[jumpPlatform(120,505,133)];
+ for(let y=428,i=0;y>=-90;y-=rand(70,84),i++){
+   const w=rand(58,90),x=rand(15,W-w-15);
+   platforms.push(jumpPlatform(x,y,w,i===2||(i>0&&Math.random()<.34),
+     i===4||(i>1&&Math.random()<.16)));
+ }
+ return {score:0,elapsed:0,bounce:0,hazardY:H+60,player:{x:180,y:460,vy:-560,vx:0},
+   platforms,scroll:0};
 }
 function tickJump(dt){
  const p=state.player,prev=p.y;
- const desired=inputs.left?-230:inputs.right?230:inputs.drag?(inputs.lastX-p.x)*9:0;
- p.vx=clamp(desired,-290,290);p.x+=p.vx*dt;
- if(p.x>W+17)p.x=-15;if(p.x< -18)p.x=W+14;
+ state.elapsed+=dt;state.bounce=Math.max(0,state.bounce-dt);
+ // The rising storm makes camping on one platform impossible.
+ // Good climbs scroll it away, so pressure comes from gameplay, not a timer UI.
+ state.hazardY-=dt*(33+Math.min(38,state.score/150));
+ const desired=inputs.left?-260:inputs.right?260:
+   inputs.drag?(inputs.lastX-p.x)*10:0;
+ p.vx+=(clamp(desired,-295,295)-p.vx)*Math.min(1,dt*13);
+ p.x+=p.vx*dt;
+ if(p.x>W+18)p.x=-17;if(p.x< -18)p.x=W+17;
  p.vy+=1230*dt;p.y+=p.vy*dt;
- if(p.vy>0)for(const plat of state.platforms)if(prev+17<=plat.y+4&&p.y+17>=plat.y&&p.x+15>plat.x&&p.x-15<plat.x+plat.w){
-  p.y=plat.y-18;p.vy=-560;audio('hit');break;
+ // Moving platforms must actually MOVE, not merely have a cosmetic flag.
+ for(const plat of state.platforms){
+   if(plat.moving)plat.x=clamp(plat.baseX+
+     Math.sin(state.elapsed*plat.pace+plat.phase)*plat.range,8,W-plat.w-8);
+   if(plat.ttl>0)plat.ttl-=dt;
+ }
+ if(p.vy>0)for(const plat of state.platforms){
+   if(plat.ttl<0||!(prev+17<=plat.y+4&&p.y+17>=plat.y&&
+       p.x+15>plat.x&&p.x-15<plat.x+plat.w))continue;
+   p.y=plat.y-18;p.vy=-560;state.bounce=.12;
+   plat.hits=(plat.hits||0)+1;
+   if(plat.fragile||plat.hits>=2)plat.ttl=.105;
+   audio('hit');break;
  }
  if(p.y<185){
-  const shift=185-p.y; p.y=185;state.scroll+=shift;state.score=Math.max(state.score,Math.floor(state.scroll));
-  for(const plat of state.platforms)plat.y+=shift;
+   const shift=185-p.y;p.y=185;state.scroll+=shift;
+   state.score=Math.max(state.score,Math.floor(state.scroll));
+   for(const plat of state.platforms)plat.y+=shift;
+   state.hazardY+=shift;
  }
- state.platforms=state.platforms.filter(plat=>plat.y<H+30);
+ state.platforms=state.platforms.filter(plat=>plat.y<H+30&&plat.ttl>=0);
+ // Difficulty starts immediately and ramps through moving, fragile and
+ // narrow platforms instead of waiting until thousands of points.
+ const difficulty=Math.min(1,state.score/3400);
  while(state.platforms.length<11){
-  const high=Math.min(...state.platforms.map(q=>q.y));
-  const x=rand(25,W-125);
-  state.platforms.push({x,y:high-rand(63,79),w:rand(66,107),moving:state.score>600&&Math.random()<.14});
+   const high=Math.min(...state.platforms.map(q=>q.y));
+   const gap=rand(70+8*difficulty,84+12*difficulty);
+   const w=rand(52-11*difficulty,85-15*difficulty);
+   const x=rand(12,W-w-12);
+   const moving=Math.random()<.32+.24*difficulty;
+   const fragile=Math.random()<.14+.23*difficulty;
+   state.platforms.push(jumpPlatform(x,high-gap,w,moving,fragile));
  }
- if(p.y>H+35)end('You fell!');
+ if(p.y+17>=state.hazardY)end('The storm caught you!');
+ else if(p.y>H+35)end('You fell!');
  updateHud();
 }
 function paintJump(){
- bg('#d2e8f4','#f0f6e7');
+ bg('#bedcef','#f2f0d8');
+ // Subtle distant cloud layers: intentionally soft, not repeated white blobs.
  for(let i=0;i<8;i++){
-  const x=(i*117+30)%W,y=((i*106+35)+state.scroll*.22)%670-90;
-  disk(x,y,13,'#ffffffac');disk(x+16,y+3,18,'#ffffffac');disk(x+37,y,12,'#ffffffac');
+   const x=(i*127+46)%W,y=((i*121+30)+state.scroll*.12)%(H+110)-65;
+   ctx.fillStyle='#ffffff76';ctx.beginPath();
+   ctx.ellipse(x,y,30,13,0,0,TAU);ctx.fill();
+   ctx.beginPath();ctx.ellipse(x+11,y-8,17,13,0,0,TAU);ctx.fill();
  }
- for(const p of state.platforms){
-  fill(p.x,p.y,p.w,11,p.moving?'#a1a5d4':'#6ab38a',7);
-  fill(p.x+4,p.y+9,p.w-8,4,'#407d62',2);
+ ctx.fillStyle='#789c9e24';ctx.beginPath();ctx.moveTo(0,H);
+ for(let x=0;x<=W;x+=12)ctx.lineTo(x,H-52-15*Math.sin(x*.03+state.scroll*.0005));
+ ctx.lineTo(W,H);ctx.closePath();ctx.fill();
+ for(const plat of state.platforms){
+   ctx.save();
+   if(plat.moving){ctx.shadowColor='#6472a244';ctx.shadowBlur=8}
+   else {ctx.shadowColor='#427a5248';ctx.shadowBlur=6}
+   fill(plat.x,plat.y+4,plat.w,11,'#244e42a8',6);
+   fill(plat.x,plat.y,plat.w,12,
+     plat.fragile?'#d9a875':plat.moving?'#7989d0':'#4b9f73',6);
+   ctx.shadowBlur=0;
+   fill(plat.x+5,plat.y+2,plat.w-10,2,'#ffffff75',1);
+   if(plat.fragile){
+     ctx.beginPath();ctx.moveTo(plat.x+plat.w*.45,plat.y+1);
+     ctx.lineTo(plat.x+plat.w*.51,plat.y+7);
+     ctx.lineTo(plat.x+plat.w*.48,plat.y+11);
+     ctx.strokeStyle='#7e5541';ctx.lineWidth=2;ctx.stroke();
+   }
+   if(plat.moving){disk(plat.x+9,plat.y+6,2,'#e3e9ff');disk(plat.x+plat.w-9,plat.y+6,2,'#e3e9ff')}
+   ctx.restore();
  }
- const p=state.player;ctx.save();ctx.translate(p.x,p.y);
- fill(-13,-22,26,33,'#df9269',9);fill(-17,-26,34,13,'#32574c',6);
- disk(-5,-8,2,'#243328');disk(6,-8,2,'#243328');
- fill(-12,9,10,10,'#435c56',3);fill(4,9,10,10,'#435c56',3);ctx.restore();
- text('HEIGHT  '+Math.floor(state.score),W-15,26,13,'#417c68',800,'right');
+ // The danger is physically located in the game world and moves with scrolling.
+ if(state.hazardY<H+35){
+   const y=Math.max(0,state.hazardY);
+   const mist=ctx.createLinearGradient(0,y,0,Math.max(y+1,H));
+   mist.addColorStop(0,'#366875bd');mist.addColorStop(1,'#193c56f0');
+   ctx.fillStyle=mist;ctx.fillRect(0,y,W,H-y);
+   ctx.strokeStyle='#82afc7c2';ctx.lineWidth=3;
+   ctx.beginPath();
+   for(let x=0;x<=W;x+=7){
+     const a=y+Math.sin(x*.052+state.elapsed*2.2)*5;
+     if(x===0)ctx.moveTo(x,a);else ctx.lineTo(x,a);
+   }
+   ctx.stroke();
+ }
+ const p=state.player;
+ ctx.save();ctx.translate(p.x,p.y);ctx.rotate(clamp(p.vx/1400,-.18,.18));
+ // Two-direction scarf tail makes steering visible at a glance.
+ ctx.fillStyle='#f0c253';ctx.beginPath();ctx.moveTo(-9,-15);
+ ctx.lineTo(-9-clamp(p.vx/17,-15,15),-8);
+ ctx.lineTo(-11-clamp(p.vx/22,-12,12),-18);ctx.closePath();ctx.fill();
+ fill(-14,-19,28,29,'#f2a47c',9);
+ fill(-17,-24,34,12,'#315f56',5);
+ fill(-12,-28,24,5,'#467f6a',3);
+ fill(-17,-11,5,17,'#d78165',3);
+ fill(12,-11,5,17,'#d78165',3);
+ disk(-6,-10,2.4,'#20362e');disk(6,-10,2.4,'#20362e');
+ fill(-8,11,11,9,'#315c55',3);fill(3,11,11,9,'#315c55',3);
+ ctx.restore();
+ if(state.bounce>0){
+   ctx.fillStyle='#ffffff80';ctx.beginPath();
+   ctx.ellipse(p.x,p.y+23,18*(1-state.bounce/.15),3,0,0,TAU);ctx.fill();
+ }
 }
 function initRunner(){return {score:0,speed:220,player:{x:88,y:442,vy:0,duck:false},obstacles:[],spawn:1.35,distance:0,duckTimer:0};}
 function jumpRunner(){

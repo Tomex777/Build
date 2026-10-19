@@ -1,7 +1,7 @@
 (()=>{'use strict';
 const $=id=>document.getElementById(id),box=$('content'),toast=$('toast'),dialog=$('settingsDialog'),packs=window.NIGHTPartyPacks;
 const MODES={wyr:['Would You Rather','Impossible choices. See where your friends stand.'],mlt:['Most Likely To','Vote for the person who fits the question.'],tot:['This or That','Fast picks, surprising disagreements.'],nhie:['Never Have I Ever','Find out what everyone has tried.'],trivia:['Trivia','Get the answers right. Take the top spot.'],quiz:['Who Knows Me Best?','Create a quiz, then challenge your friends.']};
-const KEY='night-play-party-v1',PREF='night-play-party-pref-v1',DRAFT='night-play-personal-quiz-v1';
+const KEY='night-play-party-v1',PREF='night-play-party-pref-v1',DRAFT='night-play-personal-quiz-v1',BIND='night-play-party-verified-player-v1';
 const h=v=>String(v??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
 const read=(k,f)=>{try{return JSON.parse(localStorage.getItem(k))??f}catch{return f}},save=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch{}};
 const saved=read(KEY,null),query=new URLSearchParams(location.search).get('game');
@@ -9,6 +9,9 @@ let selected=MODES[query]?query:MODES[saved?.mode]?saved.mode:null,phase=selecte
 let people=Array.isArray(saved?.players)?saved.players.filter(x=>typeof x==='string'&&x.length>0&&x.length<=24).slice(0,8):[];
 let rounds=read(PREF,10);if(![5,10].includes(rounds))rounds=10;
 let draft=read(DRAFT,null);
+let verifiedIdentity=null,linkedPartyPlayer=read(BIND,null);
+if(!linkedPartyPlayer||typeof linkedPartyPlayer.id!=='string'||!Number.isInteger(linkedPartyPlayer.index)||linkedPartyPlayer.index<0||linkedPartyPlayer.index>=8)linkedPartyPlayer=null;
+const setBinding=value=>{linkedPartyPlayer=value;save(BIND,value)};
 if(!draft||!Array.isArray(draft.questions))draft={owner:'',title:'How well do you know me?',questions:[
  {prompt:'Which place would I choose?',options:['Mountains','Beach'],correct:0},
  {prompt:'Which would I rather do?',options:['Go out','Stay in'],correct:1},
@@ -35,8 +38,8 @@ function setup(){
  const m=MODES[selected];title(m[0],m[1],'LOCAL PARTY');box.className='party-content';
  const players=people.map((x,i)=>'<span class="party-player-pill">'+h(x)+'<button type="button" data-remove="'+i+'" aria-label="Remove '+h(x)+'">×</button></span>').join('');
  box.innerHTML='<div class="party-topline">'+button('‹ All games','hub','party-text-btn')+'<span>2–8 PLAYERS · SAME PHONE</span></div>'+
- '<div class="party-panel"><h2>Who is playing?</h2><p>Each person votes privately, then the group sees the results.</p><div class="party-player-list">'+players+'</div>'+
- '<form id="partyAddPlayer" class="party-player-form"><label class="sr-only" for="playerName">Player name</label><input class="party-input" id="playerName" maxlength="24" placeholder="Enter a player name" autocomplete="off" required><button type="submit" class="party-add-btn">Add</button></form>'+
+ '<div class="party-panel"><h2>Who is playing?</h2><p>Each person votes privately, then the group sees the results.</p><div class="party-player-list" '+(people.length?'':'hidden')+'>'+players+'</div>'+
+ '<form id="partyAddPlayer" class="party-player-form"><label class="sr-only" for="playerName">Player name</label><input class="party-input" id="playerName" maxlength="24" placeholder="Enter a player name" value="'+h(verifiedIdentity?.displayName||'')+'" autocomplete="off" required><button type="submit" class="party-add-btn">Add</button></form>'+
  '<p class="party-field-help">'+people.length+' / 8 players · '+(selected==='quiz'?'Create the personal quiz first.':rounds+' questions')+'</p>'+
  (selected==='quiz'?button('Build personal quiz','editor','party-primary','id="quizBuilderButton"'):button('Start '+h(m[0]),'start','party-primary','id="startParty" '+(people.length<2?'disabled':'')))+'</div>';
 }
@@ -108,6 +111,43 @@ function finished(){
  box.innerHTML=text+button('Play again','replay')+button('More party games','hub','party-secondary')+'</div>';
 }
 function render(){if(phase==='hub')hub();else if(phase==='setup')setup();else if(phase==='editor')editor();else if(phase==='handoff')handoff();else if(phase==='vote')vote();else if(phase==='reveal')reveal();else if(phase==='finished')finished()}
+/* The verified name is an account field, not a cosmetic label. Update the
+ * actual player rows in saved local rounds and the authored quiz.
+ * Other players on the shared device are never renamed by accident.
+ */
+function adoptIdentity(snapshot){
+ if(snapshot.status!=='linked'||!snapshot.profile)return;
+ const next={id:snapshot.profile.id,displayName:snapshot.profile.displayName.trim().slice(0,24)};
+ if(!next.displayName)return;
+ verifiedIdentity=next;
+ let changed=false;
+ if(linkedPartyPlayer?.id!==next.id){
+   // Never rename the previous WhatsApp account's local game entry on a device switch.
+   setBinding(null);
+   if(phase==='setup'&&people.length<8){
+     // Add the real verified account as an actual participant, not a text hint.
+     // A reconnect to a different account never rewrites the previous player.
+     const nameTaken=people.some(p=>p.toLowerCase()===next.displayName.toLowerCase());
+     if(!nameTaken){
+       people.push(next.displayName);
+       setBinding({id:next.id,index:people.length-1,name:next.displayName});
+       changed=true;
+     }
+   }
+ }else{
+   const idx=linkedPartyPlayer.index,old=linkedPartyPlayer.name;
+   if(people[idx]===old&&old!==next.displayName){people[idx]=next.displayName;changed=true}
+   if(state?.players?.[idx]===old&&old!==next.displayName){state.players[idx]=next.displayName;changed=true}
+   if(draft.owner===old&&old!==next.displayName){draft.owner=next.displayName;save(DRAFT,draft);changed=true}
+   if(state?.owner===old&&old!==next.displayName){state.owner=next.displayName;changed=true}
+   setBinding({...linkedPartyPlayer,name:next.displayName});
+ }
+ if(!draft.owner&&phase==='setup'){draft.owner=next.displayName;save(DRAFT,draft);changed=true}
+ if(changed&&state)persist();
+ // A periodic identity check must NOT throw away an in-progress vote or
+ // the quiz creator's focused editor input unless the actual name changed.
+ if(changed&&document.activeElement?.id!=='playerName')render();
+}
 function chooseMode(mode){if(!MODES[mode])return;stop();selected=mode;phase='setup';route(mode);render()}
 function action(type,src){
  switch(type){
@@ -124,7 +164,12 @@ function action(type,src){
  }}
 box.addEventListener('click',e=>{
  const mode=e.target.closest('[data-mode]');if(mode){chooseMode(mode.dataset.mode);return}
- const remove=e.target.closest('[data-remove]');if(remove&&phase==='setup'){people.splice(Number(remove.dataset.remove),1);render();return}
+ const remove=e.target.closest('[data-remove]');if(remove&&phase==='setup'){
+   const index=Number(remove.dataset.remove);
+   people.splice(index,1);
+   if(linkedPartyPlayer){if(index===linkedPartyPlayer.index)setBinding(null);
+     else if(index<linkedPartyPlayer.index)setBinding({...linkedPartyPlayer,index:linkedPartyPlayer.index-1})}
+   render();return}
  const answer=e.target.closest('[data-answer]');if(answer&&phase==='vote'){cast(Number(answer.dataset.answer));return}
  const target=e.target.closest('[data-action]');if(target)action(target.dataset.action,target);
 });
@@ -133,7 +178,10 @@ box.addEventListener('submit',e=>{
  if(!name){note('Enter a name.');return}
  if(people.some(v=>v.toLowerCase()===name.toLowerCase())){note('That name is already playing.');return}
  if(people.length>=8){note('Maximum eight players on one phone.');return}
- people.push(name);render();box.querySelector('#playerName')?.focus();
+ people.push(name);
+ if(verifiedIdentity&&name===verifiedIdentity.displayName&&!linkedPartyPlayer)
+   setBinding({id:verifiedIdentity.id,index:people.length-1,name});
+ render();box.querySelector('#playerName')?.focus();
 });
 box.addEventListener('input',e=>{
  const el=e.target;if(!el.matches('[data-field],#quizOwner,#quizTitle'))return;
@@ -148,6 +196,7 @@ $('settingsButton').addEventListener('click',()=>{for(const b of $('roundOptions
 $('settingsClose').addEventListener('click',()=>dialog.close());
 dialog.addEventListener('click',e=>{if(e.target===dialog)dialog.close()});
 $('roundOptions').addEventListener('click',e=>{const b=e.target.closest('[data-rounds]');if(!b)return;rounds=Number(b.dataset.rounds);save(PREF,rounds);for(const c of $('roundOptions').querySelectorAll('button'))c.setAttribute('aria-pressed',String(c===b))});
-window.__nightPartyTest={snapshot:()=>JSON.parse(JSON.stringify({selected,phase,people,state,draft})),chooseMode,start};
+window.__nightPartyTest={snapshot:()=>JSON.parse(JSON.stringify({selected,phase,people,state,draft,linkedPartyPlayer,verifiedIdentity})),chooseMode,start};
+window.NightPlayerIdentity?.onChange(adoptIdentity);
 render();
 })();

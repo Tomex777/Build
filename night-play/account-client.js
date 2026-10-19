@@ -13,6 +13,7 @@
   }
   const element=(tag,text,className) => {const node=document.createElement(tag);if(text)node.textContent=text;if(className)node.className=className;return node}
   const stop=()=>{clearTimeout(timer);clearInterval(expiryTimer);timer=null;expiryTimer=null;requestId++}
+  const signalIdentity=()=>{try{localStorage.setItem('night-play-identity-updated-v1',String(Date.now()))}catch{}}
   const update=next => {
     profile=next||null
     window.NightAccount.profile=profile
@@ -121,7 +122,7 @@
     try{const state=await api();if(id!==requestId)return;statusGeneration++;update(state.profile);if(profile)connected();else await begin()}
     catch(error){if(id===requestId)errorView(error.message,()=>window.NightAccount.open())}
     finally{busy=false}
-  },saveName:async displayName=>{const data=await api('profile',{displayName});statusGeneration++;update(data.profile)}}
+  },saveName:async displayName=>{const data=await api('profile',{displayName});statusGeneration++;update(data.profile);signalIdentity();return data.profile}}
   document.getElementById('profileAccountMenu').addEventListener('click',()=>window.NightAccount.open())
   dialog.addEventListener('close',stop)
   document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&!dialog.open)checkSession()})
