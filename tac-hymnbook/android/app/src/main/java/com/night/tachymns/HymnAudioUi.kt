@@ -199,7 +199,7 @@ fun HymnAudioControls(
                         listOf(0.75f, 0.85f, 1f).forEach { rate ->
                             FilterChip(
                                 selected = player.rate == rate,
-                                onClick = { player.setRate(rate) },
+                                onClick = { player.changeSpeed(rate) },
                                 label = { Text(if (rate == 1f) "Normal" else "${rate}×", fontSize = 12.sp) }
                             )
                         }
