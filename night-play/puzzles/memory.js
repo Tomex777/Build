@@ -5,7 +5,7 @@
 "use strict";
 const core=root.NIGHTPuzzleCore,art=root.NIGHTMemoryArt;
 if(!core||!art)throw new Error("Memory engine requires rule and art modules");
-const KEY="night-play-memory-v2",OLD_KEY="night-play-puzzle-room-v1-memory";
+const KEY="night-play-memory-v2",OLD_KEY="night-play-puzzle-room-v1-memory",PREF_KEY="night-play-memory-board-size-v1";
 const SIZES=[[4,4],[4,5],[4,6],[4,8],[4,10],[5,6],[6,5],[6,6],[6,8],[6,10]];
 const DEFAULT={theme:"wildlife",cols:6,rows:5};
 const isSize=(c,r)=>SIZES.some(([a,b])=>a===c&&b===r);
@@ -42,8 +42,17 @@ function initial(){
  return {version:2,type:"memory",phase:"setup",...DEFAULT,
   deck:core.memoryDeck(15,seed),matched:Array(30).fill(false),moves:0,elapsed:0,done:false};
 }
+function preferredSize(){
+ const pref=safeParse(PREF_KEY);
+ return pref&&isSize(pref.cols,pref.rows)?{cols:pref.cols,rows:pref.rows}:{cols:DEFAULT.cols,rows:DEFAULT.rows};
+}
+function saveSize(cols,rows){
+ if(!isSize(cols,rows))return false;
+ try{localStorage.setItem(PREF_KEY,JSON.stringify({cols,rows}));}catch{}
+ return true;
+}
 function create({board,tools,status,message,newButton}){
- let state=initial(),draft={theme:state.theme,cols:state.cols,rows:state.rows};
+ let state=initial(),draft={theme:state.theme,...preferredSize()};
  let timer=null,pending=null,active=false,lock=false,flipped=[],statusMessage="";
  function save(){try{localStorage.setItem(KEY,JSON.stringify(state));}catch{}}
  function clearPending(){if(pending!==null){clearTimeout(pending);pending=null;}lock=false;flipped=[];}
@@ -77,17 +86,44 @@ function create({board,tools,status,message,newButton}){
   const options=art.themes.map(t=>'<button type="button" class="memory-theme-option'+(draft.theme===t.id?' chosen':'')+
    '" data-memory-theme="'+t.id+'" aria-pressed="'+(draft.theme===t.id)+'" aria-label="Choose '+art.escapeText(t.name)+' deck">'+
    themePreview(t.id)+'<span class="memory-theme-info"><strong>'+art.escapeText(t.name)+'</strong><small>'+art.escapeText(t.caption)+'</small></span></button>').join("");
-  const grids=SIZES.map(([cols,rows])=>'<button type="button" class="memory-size-option'+(draft.cols===cols&&draft.rows===rows?' chosen':'')+
-   '" data-memory-size="'+cols+'x'+rows+'" aria-pressed="'+(draft.cols===cols&&draft.rows===rows)+'">'+
-   '<strong>'+cols+' × '+rows+'</strong><small>'+cols*rows+' cards</small></button>').join("");
   board.innerHTML='<div class="memory-setup-top"><div class="memory-setup-overline">MAKE IT YOURS</div><h2>Pick your world.</h2><p>A deck you love. A challenge that fits.</p></div>'+
    '<h3 class="memory-section-label">CARD COLLECTION</h3><div class="memory-theme-grid">'+options+'</div>'+
-   '<div class="memory-size-heading"><h3 class="memory-section-label">BOARD SIZE</h3><span>More rows, not smaller cards</span></div>'+
-   '<div class="memory-size-grid">'+grids+'</div>'+
-   '<p class="memory-layout-note">Large boards extend downward. Scroll to discover more cards; never squeeze them onto one screen.</p>'+
    '<button type="button" class="memory-start" data-memory-action="start">Start matching <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="m5 12h14m-6-6 6 6-6 6" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></button>'+
    (state.moves>0&&!state.done?'<button type="button" class="memory-return" data-memory-action="resume">Return to saved match</button>':'')+
    '<p class="memory-layout-credit">Original NIGHT artwork. Photography from Unsplash; photos require a connection.</p>';
+ }
+ // Grid choice lives in the existing top-right Settings sheet, never on the
+ // deck picker. Persist the preference separately so changing it leaves the
+ // active match untouched; it takes effect only after explicitly starting over.
+ function renderSettings(host){
+  host.replaceChildren();
+  const title=document.createElement("span");title.className="puzzle-options-label";
+  title.textContent="BOARD SIZE";host.append(title);
+  const options=document.createElement("div");options.className="memory-settings-grid";
+  const preferred=preferredSize();
+  for(const [cols,rows] of SIZES){
+   const button=document.createElement("button");
+   button.type="button";button.className="memory-settings-size";
+   button.dataset.memorySize=cols+"x"+rows;
+   const selected=preferred.cols===cols&&preferred.rows===rows;
+   button.setAttribute("aria-pressed",String(selected));
+   button.innerHTML="<strong>"+cols+" × "+rows+"</strong><small>"+(cols*rows)+" cards</small>";
+   options.append(button);
+  }
+  host.append(options);
+  const note=document.createElement("p");note.className="memory-settings-note";note.id="memorySizeNote";
+  note.textContent=state.phase==="playing"
+   ?"Saved for your next round. Your current "+state.cols+" × "+state.rows+" match stays intact."
+   :"Saved for the next round. Extra rows scroll vertically.";
+  host.append(note);
+ }
+ function changePreferredSize(e){
+  const button=e.target.closest("[data-memory-size]");
+  if(!button)return;
+  const [cols,rows]=button.dataset.memorySize.split("x").map(Number);
+  if(!saveSize(cols,rows))return;
+  draft.cols=cols;draft.rows=rows;
+  renderSettings(e.currentTarget);
  }
  function buildBoard(){
   board.className="puzzle-board memory-grid memory-playing-board";
@@ -126,7 +162,7 @@ function create({board,tools,status,message,newButton}){
   save();showPlaying();window.scrollTo(0,0);
  }
  function toSetup(){
-  clearPending();draft={theme:state.theme,cols:state.cols,rows:state.rows};renderSetup();window.scrollTo(0,0);
+  clearPending();draft={theme:state.theme,...preferredSize()};renderSetup();window.scrollTo(0,0);
  }
  function pick(i){
   if(state.phase!=="playing"||state.done||lock||state.matched[i]||flipped.includes(i))return;
@@ -151,11 +187,6 @@ function create({board,tools,status,message,newButton}){
   if(theme&&state.phase==="setup"){
    draft.theme=theme.dataset.memoryTheme;renderSetup();return;
   }
-  const size=e.target.closest("[data-memory-size]");
-  if(size&&state.phase==="setup"){
-   const [cols,rows]=size.dataset.memorySize.split("x").map(Number);
-   if(isSize(cols,rows)){draft.cols=cols;draft.rows=rows;renderSetup();}return;
-  }
   const action=e.target.closest("[data-memory-action]");
   if(action){
    if(action.dataset.memoryAction==="start"){start();return;}
@@ -171,13 +202,14 @@ function create({board,tools,status,message,newButton}){
   if(e.type==="load"&&img.naturalWidth>0)img.classList.add("ready");
   if(e.type==="error")img.remove();
  }
+ document.getElementById("gameOptions").addEventListener("click",changePreferredSize);
  board.addEventListener("click",click);
  board.addEventListener("load",imageEvent,true);
  board.addEventListener("error",imageEvent,true);
  status.addEventListener("click",click);
  function mount(){
   active=true;state=valid(safeParse(KEY))?safeParse(KEY):initial();
-  draft={theme:state.theme,cols:state.cols,rows:state.rows};
+  draft={theme:state.theme,...preferredSize()};
   if(state.phase==="playing"){showPlaying();if(state.done)showMessage("All "+(state.deck.length/2)+" pairs found in "+state.moves+" moves · "+formatTime(state.elapsed));}
   else renderSetup();
  }
@@ -190,7 +222,7 @@ function create({board,tools,status,message,newButton}){
  function restart(){
   if(!active)return;
   if(state.phase==="setup"){start();return;}
-  draft={theme:state.theme,cols:state.cols,rows:state.rows};start();
+  draft={theme:state.theme,...preferredSize()};start();
  }
  function pageHide(){
   if(!active)return;
@@ -200,7 +232,7 @@ function create({board,tools,status,message,newButton}){
  }
  document.addEventListener("visibilitychange",pageHide);
  root.addEventListener("pagehide",save);
- return {mount,unmount,restart,phase:()=>state.phase,snapshot:()=>JSON.parse(JSON.stringify(state))};
+ return {mount,unmount,restart,renderSettings,phase:()=>state.phase,snapshot:()=>JSON.parse(JSON.stringify(state))};
 }
 root.NIGHTMemory={create,SIZES,valid};
 })(typeof window!=="undefined"?window:globalThis);
