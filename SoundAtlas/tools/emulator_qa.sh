@@ -36,7 +36,6 @@ capture() {
 }
 adb shell pidof com.night.soundatlas
 capture 01-cathedral.png
-assert_state 'World Storm Cathedral. Panel NONE'
 # The custom Canvas docks bottom actions: World, Sounds, Walls, Rooms, Explore.
 # All taps are calculated from current physical dimensions and measured density.
 tap_dp() {
@@ -74,6 +73,7 @@ assert_state() {
   fi
   echo "ATLAS_UI_STATE_VERIFIED: $expected"
 }
+assert_state 'World Storm Cathedral. Panel NONE'
 tap_desc 'WORLD'
 capture 02-world-library.png
 assert_state 'Panel LIBRARY'
