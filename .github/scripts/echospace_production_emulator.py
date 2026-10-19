@@ -21,11 +21,25 @@ def hierarchy():
             root=ET.fromstring(raw)
             bad=[n.attrib.get("text","") for n in root.iter("node")
                  if "not responding" in n.attrib.get("text","").lower()]
-            if bad:raise RuntimeError(f"Android System UI ANR dialog: {bad}")
+            if bad:
+                # Hosted KVM occasionally freezes *Pixel System UI*, not the app.
+                # Explicitly choose Wait instead of falsely accepting the OS dialog.
+                wait=next((n for n in root.iter("node")
+                    if n.attrib.get("text","")=="Wait"),None)
+                if wait is not None:
+                    bounds=list(map(int,re.findall(r"\\d+",wait.attrib.get("bounds",""))))
+                    if len(bounds)==4:
+                        adb("shell","input","tap",str((bounds[0]+bounds[2])//2),
+                            str((bounds[1]+bounds[3])//2),timeout=20)
+                time.sleep(5+attempt*3)
+                if attempt>0:
+                    adb("shell","am","start","-n",
+                        "com.night.echospace/.MainActivity",timeout=30)
+                continue
             return list(root.iter("node"))
         except (subprocess.TimeoutExpired,ET.ParseError,subprocess.CalledProcessError):
             time.sleep(3)
-    raise RuntimeError("Could not read a real Android UI tree")
+    raise RuntimeError("Could not read a real Android UI tree; System UI kept obscuring app")
 def match(nodes,text,attribute):
     return next((n for n in nodes if n.attrib.get(attribute,"")==text),None)
 def ensure(text,attribute="text"):
