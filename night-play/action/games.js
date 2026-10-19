@@ -202,7 +202,7 @@ function tickSlice(dt){
  if(state.spawn<0){addFruit();state.spawn=rand(.68,1.04)*Math.max(.62,1-state.score/2400);}
  for(const f of state.fruits){
   f.x+=f.vx*dt;f.y+=f.vy*dt;f.vy+=1010*dt;f.rotation+=f.spin*dt;
-  if(f.y>H+f.r+4&&!f.hit&&f.kind!=='bomb'){f.hit=true;state.misses++;audio('bad')}
+  if(f.vy>0&&f.y>H+f.r+4&&!f.hit&&f.kind!=='bomb'){f.hit=true;state.misses++;audio('bad')}
  }
  state.fruits=state.fruits.filter(f=>!f.hit&&f.y<H+95);
  for(const h of state.halves){h.x+=h.vx*dt;h.y+=h.vy*dt;h.vy+=1010*dt;h.rotation+=h.spin*dt;h.age+=dt}
