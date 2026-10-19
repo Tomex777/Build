@@ -1,7 +1,7 @@
 import { createHash, randomBytes, randomUUID, verify, createPublicKey } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { NightPlayMatches } from './night-play-matches.js'
-import { NightPlayParty } from './night-play-party.js'
+import { NightPlayParty, PartyRoomError } from './night-play-party.js'
 import { NightPlayChannels, ChannelError } from './night-play-channels.js'
 
 export const PLAY_URL = 'https://night-play-combined-preview.vercel.app'
@@ -245,7 +245,7 @@ export function createNightPlayHandler(play, { publicKey = readFileSync(new URL(
       }
       return reply(200, result)
     } catch (error) {
-      return reply((error instanceof PlayError || error instanceof ChannelError) ? error.status : 500, { error:(error instanceof PlayError || error instanceof ChannelError) ? error.message : 'NIGHT Play could not process the request.' })
+      return reply((error instanceof PlayError || error instanceof ChannelError || error instanceof PartyRoomError) ? error.status : 500, { error:(error instanceof PlayError || error instanceof ChannelError || error instanceof PartyRoomError) ? error.message : 'NIGHT Play could not process the request.' })
     }
   }
 }
