@@ -133,7 +133,7 @@ private enum class ServerTab(val label: String) {
     CONSOLE("Console"),
     PAIRING("Pairing"),
     CLOUD("Cloud"),
-    ENVIRONMENT("Environment"),
+    ENVIRONMENT("ENV"),
     FILES("Files"),
     BACKUPS("Backups"),
     STARTUP("Startup"),
@@ -543,14 +543,14 @@ private fun ServerTabs(tab: ServerTab, onTab: (ServerTab) -> Unit) {
                         role = Role.Tab,
                     )
                     .testTag("server-tab-${item.name.lowercase()}")
-                    .padding(horizontal = 12.dp, vertical = 12.dp),
+                    .padding(horizontal = 14.dp, vertical = 14.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 Text(
                     item.label,
                     color = if (selected) Color.White else CortexMuted,
-                    fontSize = 12.sp,
-                    fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
+                    fontSize = 14.sp,
+                    fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
                 )
                 Spacer(Modifier.height(8.dp))
                 Box(
