@@ -127,72 +127,66 @@ function paintSlice(){
   for(let i=1;i<state.trail.length;i++){const a=state.trail[i-1],b=state.trail[i];ctx.strokeStyle='rgba(255,255,255,'+b.a+')';ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.stroke();}}
  for(let i=0;i<5;i++)disk(30+i*21,30,7,i<5-state.misses?'#db836d':'#e8e4db');
 }
-/* SKY JUMPER: real moving/breaking platforms, increasingly demanding
- * reachable jumps and a crisp illustrated player. Height IS the score.
- * 560px/s jump, 1230px/s² gravity => ~127 logical px maximum ascent.
- * Keep vertical platform gaps under 96px and horizontal wrap reachable.
+/* SKY JUMPER: permanent landing platforms, automatic bouncing, and
+ * camera-based culling only after a platform moves off screen. Platforms
+ * never break or disappear on contact; difficulty is in aiming each jump.
+ * 560px/s jump, 1230px/s² gravity (~127 logical pixels of ascent).
  */
-function jumpPlatform(x,y,w,moving=false,fragile=false){
- return {x,y,w,moving,fragile,hits:0,baseX:x,phase:rand(0,TAU),
-   range:rand(24,52),pace:rand(1.25,2.3),ttl:0};
+function jumpPlatform(x,y,w,moving=false){
+ return {x,y,w,moving,baseX:x,phase:rand(0,TAU),
+   range:rand(19,35),pace:rand(.8,1.45)};
 }
 function initJump(){
  const platforms=[jumpPlatform(120,505,133)];
- for(let y=428,i=0;y>=-90;y-=rand(70,84),i++){
-   const w=rand(58,90),x=rand(15,W-w-15);
-   platforms.push(jumpPlatform(x,y,w,i===2||(i>0&&Math.random()<.34),
-     i===4||(i>1&&Math.random()<.16)));
+ let last=platforms[0];
+ for(let y=428,i=0;y>=-90;y-=rand(66,81),i++){
+   const w=rand(69,96);
+   // Keep a reachable stepping route rather than independent random Xs.
+   const x=clamp(last.x+rand(-112,112),12,W-w-12);
+   const plat=jumpPlatform(x,y,w,i===2||(i>3&&Math.random()<.19));
+   platforms.push(plat);last=plat;
  }
- return {score:0,elapsed:0,bounce:0,hazardY:H+60,player:{x:180,y:460,vy:-560,vx:0},
+ return {score:0,elapsed:0,bounce:0,player:{x:180,y:460,vy:-560,vx:0},
    platforms,scroll:0};
 }
 function tickJump(dt){
  const p=state.player,prev=p.y;
  state.elapsed+=dt;state.bounce=Math.max(0,state.bounce-dt);
- // The rising storm makes camping on one platform impossible.
- // Good climbs scroll it away, so pressure comes from gameplay, not a timer UI.
- state.hazardY-=dt*(33+Math.min(38,state.score/150));
  const desired=inputs.left?-260:inputs.right?260:
    inputs.drag?(inputs.lastX-p.x)*10:0;
  p.vx+=(clamp(desired,-295,295)-p.vx)*Math.min(1,dt*13);
  p.x+=p.vx*dt;
  if(p.x>W+18)p.x=-17;if(p.x< -18)p.x=W+17;
  p.vy+=1230*dt;p.y+=p.vy*dt;
- // Moving platforms must actually MOVE, not merely have a cosmetic flag.
- for(const plat of state.platforms){
-   if(plat.moving)plat.x=clamp(plat.baseX+
+ // A moving platform's actual collision area follows its rendered position.
+ for(const plat of state.platforms)if(plat.moving){
+   plat.x=clamp(plat.baseX+
      Math.sin(state.elapsed*plat.pace+plat.phase)*plat.range,8,W-plat.w-8);
-   if(plat.ttl>0)plat.ttl-=dt;
  }
  if(p.vy>0)for(const plat of state.platforms){
-   if(plat.ttl<0||!(prev+17<=plat.y+4&&p.y+17>=plat.y&&
+   if(!(prev+17<=plat.y+4&&p.y+17>=plat.y&&
        p.x+15>plat.x&&p.x-15<plat.x+plat.w))continue;
    p.y=plat.y-18;p.vy=-560;state.bounce=.12;
-   plat.hits=(plat.hits||0)+1;
-   if(plat.fragile||plat.hits>=2)plat.ttl=.105;
+   // Platforms always remain solid, no matter how many landings.
    audio('hit');break;
  }
  if(p.y<185){
    const shift=185-p.y;p.y=185;state.scroll+=shift;
    state.score=Math.max(state.score,Math.floor(state.scroll));
    for(const plat of state.platforms)plat.y+=shift;
-   state.hazardY+=shift;
  }
- state.platforms=state.platforms.filter(plat=>plat.y<H+30&&plat.ttl>=0);
- // Difficulty starts immediately and ramps through moving, fragile and
- // narrow platforms instead of waiting until thousands of points.
- const difficulty=Math.min(1,state.score/3400);
+ // Scrolling out of sight is the only reason to cull a platform.
+ state.platforms=state.platforms.filter(plat=>plat.y<H+30);
+ const difficulty=Math.min(1,state.score/4000);
  while(state.platforms.length<11){
-   const high=Math.min(...state.platforms.map(q=>q.y));
-   const gap=rand(70+8*difficulty,84+12*difficulty);
-   const w=rand(52-11*difficulty,85-15*difficulty);
-   const x=rand(12,W-w-12);
-   const moving=Math.random()<.32+.24*difficulty;
-   const fragile=Math.random()<.14+.23*difficulty;
-   state.platforms.push(jumpPlatform(x,high-gap,w,moving,fragile));
+   const last=state.platforms.reduce((top,plat)=>plat.y<top.y?plat:top);
+   const gap=rand(67+5*difficulty,81+9*difficulty);
+   const w=rand(70-12*difficulty,92-11*difficulty);
+   const x=clamp(last.baseX+rand(-110-18*difficulty,110+18*difficulty),12,W-w-12);
+   const moving=Math.random()<.16+.20*difficulty;
+   state.platforms.push(jumpPlatform(x,last.y-gap,w,moving));
  }
- if(p.y+17>=state.hazardY)end('The storm caught you!');
- else if(p.y>H+35)end('You fell!');
+ if(p.y>H+35)end('You fell!');
  updateHud();
 }
 function paintJump(){
@@ -213,31 +207,11 @@ function paintJump(){
    else {ctx.shadowColor='#427a5248';ctx.shadowBlur=6}
    fill(plat.x,plat.y+4,plat.w,11,'#244e42a8',6);
    fill(plat.x,plat.y,plat.w,12,
-     plat.fragile?'#d9a875':plat.moving?'#7989d0':'#4b9f73',6);
+     plat.moving?'#7989d0':'#4b9f73',6);
    ctx.shadowBlur=0;
    fill(plat.x+5,plat.y+2,plat.w-10,2,'#ffffff75',1);
-   if(plat.fragile){
-     ctx.beginPath();ctx.moveTo(plat.x+plat.w*.45,plat.y+1);
-     ctx.lineTo(plat.x+plat.w*.51,plat.y+7);
-     ctx.lineTo(plat.x+plat.w*.48,plat.y+11);
-     ctx.strokeStyle='#7e5541';ctx.lineWidth=2;ctx.stroke();
-   }
    if(plat.moving){disk(plat.x+9,plat.y+6,2,'#e3e9ff');disk(plat.x+plat.w-9,plat.y+6,2,'#e3e9ff')}
    ctx.restore();
- }
- // The danger is physically located in the game world and moves with scrolling.
- if(state.hazardY<H+35){
-   const y=Math.max(0,state.hazardY);
-   const mist=ctx.createLinearGradient(0,y,0,Math.max(y+1,H));
-   mist.addColorStop(0,'#366875bd');mist.addColorStop(1,'#193c56f0');
-   ctx.fillStyle=mist;ctx.fillRect(0,y,W,H-y);
-   ctx.strokeStyle='#82afc7c2';ctx.lineWidth=3;
-   ctx.beginPath();
-   for(let x=0;x<=W;x+=7){
-     const a=y+Math.sin(x*.052+state.elapsed*2.2)*5;
-     if(x===0)ctx.moveTo(x,a);else ctx.lineTo(x,a);
-   }
-   ctx.stroke();
  }
  const p=state.player;
  ctx.save();ctx.translate(p.x,p.y);ctx.rotate(clamp(p.vx/1400,-.18,.18));

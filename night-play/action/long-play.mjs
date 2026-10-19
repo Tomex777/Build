@@ -29,13 +29,13 @@ try{
   await page.goto(url+'/action/?game=jump');
   await page.locator('#overlayStart').click();
   const bounds=await page.locator('#screen').boundingBox();
-  let maxScore=0,maxMoving=0,seenFragile=false,collisions=0,lastVy=0,deathStep=-1;
+  let maxScore=0,maxMoving=0,seenVanishing=false,collisions=0,lastVy=0,deathStep=-1;
   await page.mouse.move(bounds.x+bounds.width*.46,bounds.y+bounds.height*.65);
   await page.mouse.down();
   for(let i=0;i<steps;i++){
    const s=await page.evaluate(()=>window.__nightActionTest.snapshot());
    maxScore=Math.max(maxScore,s.score);maxMoving=Math.max(maxMoving,s.platforms.filter(p=>p.moving).length);
-   if(s.platforms.some(p=>p.fragile))seenFragile=true;
+   if(s.platforms.some(p=>p.fragile||p.ttl!==undefined))seenVanishing=true;
    if(lastVy>0&&s.player.vy<0)collisions++;
    lastVy=s.player.vy;
    if(s.over){deathStep=i;break}
@@ -43,7 +43,7 @@ try{
     const p=s.player;
     // Land on the closest available platform in the current fall path,
     // selecting collision surfaces instead of automating the game engine.
-    const choices=s.platforms.filter(q=>q.y>p.y+11&&q.y<p.y+165&&q.ttl>=0);
+    const choices=s.platforms.filter(q=>q.y>p.y+11&&q.y<p.y+165);
     choices.sort((a,b)=>{
       const dist=q=>Math.min(Math.abs(q.x+q.w/2-p.x),390-Math.abs(q.x+q.w/2-p.x));
       return (a.y-p.y)*.15+dist(a)*.7-(b.y-p.y)*.15-dist(b)*.7;
@@ -56,13 +56,13 @@ try{
   }
   await page.mouse.up();
   const end=await page.evaluate(()=>window.__nightActionTest.snapshot());
-  const result={strategy,maxScore,deathStep,collisions,moving:maxMoving,fragile:seenFragile,over:end.over};
+  const result={strategy,maxScore,deathStep,collisions,moving:maxMoving,vanishing:seenVanishing,over:end.over};
   results.push(result);
   await page.screenshot({path:path.join(dir,'action-jump-longplay-'+strategy+'.jpg'),type:'jpeg',quality:80});
   await page.close();
  }
  assert.deepEqual(errors,[],'long-play should never throw a browser exception');
  console.log('SKY_JUMPER_REAL_POINTER_PLAY='+JSON.stringify(results));
- assert.ok(results.every(x=>x.moving>0&&x.fragile),'early hazards must appear on each attempt');
- assert.ok(results.some(x=>x.deathStep>=0),'at least one real test player should lose during an early run');
+ assert.ok(results.every(x=>x.moving>0&&!x.vanishing),'moving platforms can challenge without disappearing or breaking');
+ assert.ok(results.some(x=>x.collisions>=1),'actual play must cause a bounce off a landing platform');
 }finally{await browser.close();await new Promise(resolve=>server.close(resolve))}

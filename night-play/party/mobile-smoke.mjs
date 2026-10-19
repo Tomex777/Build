@@ -40,7 +40,7 @@ try{
  }
  await page.goto(url+'/party/');
  assert.equal(await page.locator('.party-game-card').count(),6,'six distinct modes in hub');
- assert.equal(await page.locator('a.party-nomi-bridge').getAttribute('href'),'https://nomi-tomex777.vercel.app/#/live');
+ assert.equal(await page.locator('.party-online-link').count(),0,'room links are per game, not a duplicate global control');
  assert.equal(await page.locator('.night-brand-mark use').getAttribute('href'),'#night-mark');
  await geometry('hub');
  await page.screenshot({path:path.join(output,'party-hub-390x844.jpg'),type:'jpeg',quality:75});
@@ -48,6 +48,7 @@ try{
  for(const mode of ['wyr','mlt','tot','nhie','trivia']){
   await page.goto(url+'/party/?game='+mode);
   assert.equal((await snap()).phase,'setup','each game shows its own setup');
+  assert.equal(await page.locator('a.party-online-link').getAttribute('href'),'https://nomi-tomex777.vercel.app/#/live/setup/'+mode,'each multiplayer mode has its own invite-first room destination');
   assert.equal(await page.locator('.party-vote-option').count(),0,'no premature choices');
   await page.locator('#settingsButton').click();
   await page.locator('[data-rounds="5"]').click();
@@ -93,13 +94,17 @@ try{
   assert.equal(await page.locator('.party-game-card').count(),6);
  }
  await page.goto(url+'/party/?game=quiz');
+ assert.equal(await page.locator('#playerName').count(),0,'host does not enter a player roster');
+ assert.equal(await page.locator('#quizOwner').count(),0,'host does not type a separate name');
+ assert.ok(await page.locator('.party-online-link').getAttribute('href'),'online hosting clearly routes to Nomi');
+ await page.locator('[data-action="editor"]').click();
+ assert.equal(await page.locator('.party-editor-question').count(),3);
+ await page.locator('#quizTitle').fill('How well do you know Alex?');
+ await page.screenshot({path:path.join(output,'party-quiz-editor.jpg'),type:'jpeg',quality:74});
+ await page.locator('[data-action="play-quiz"]').click();
+ assert.equal((await snap()).phase,'setup','local-only practice must ask names when selected');
  for(const name of ['Alex','Sam']){await page.locator('#playerName').fill(name);await page.locator('#partyAddPlayer button').click()}
  await page.locator('#quizBuilderButton').click();
- assert.equal(await page.locator('.party-editor-question').count(),3);
- await page.locator('#quizOwner').fill('Alex');
- await page.locator('#quizTitle').fill('Alex in three questions');
- const editor=await snap();assert.equal(editor.draft.owner,'Alex');
- await page.screenshot({path:path.join(output,'party-quiz-editor.jpg'),type:'jpeg',quality:74});
  await page.locator('[data-action="play-quiz"]').click();
  assert.equal((await snap()).phase,'handoff');
  assert.equal((await snap()).state.questions.length,3);
