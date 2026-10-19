@@ -2,6 +2,7 @@ package com.night.tachymns
 
 import android.os.Bundle
 import android.content.Intent
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import kotlinx.coroutines.launch
@@ -65,6 +66,13 @@ class MainActivity : ComponentActivity() {
             var pendingAudioKey by rememberSaveable { mutableStateOf<String?>(null) }
             var audioMessage by remember { mutableStateOf<String?>(null) }
             val downloading = remember { mutableStateListOf<String>() }
+            LaunchedEffect(audioMessage) {
+                val notice = audioMessage
+                if (notice != null) {
+                    Toast.makeText(applicationContext, notice, Toast.LENGTH_LONG).show()
+                    audioMessage = null
+                }
+            }
             val scope = rememberCoroutineScope()
             val importPicker = rememberLauncherForActivityResult(
                 ActivityResultContracts.OpenDocument()
