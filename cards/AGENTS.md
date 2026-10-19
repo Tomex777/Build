@@ -3,6 +3,8 @@
 This is the reusable card library on the dedicated `cards` branch. Preserve the existing renderer and Obsidian archive. Implement new integration in `src/` rather than rewriting old designs.
 
 - Finished cards must be programmed SVG/raster exports. Do not use image generation.
+- Every card, design and tier must place the actual character silhouette across the inner frame. Aura stays behind the architecture; aura overlap alone does not count. Byakuya, Rukia and Ichigo are accepted depth references.
+- Use in-universe, form-specific ranks. Bleach and Naruto do not determine each other's grades. Keep canonical in-world ranks distinct from NIGHT editorial grades. EX is available above SSS but needs explicit evidence for the particular form and continuity. The tier-style mapping remains a proposal until the user approves it; Parallax is rejected.
 - Keep Nocturne's circular backdrop and the old bottom-right emblem absent.
 - Bind artwork to its actual character and form. Do not relabel another form's artwork. Unacquired forms stay pending.
 - Record the source, exact original bytes, SHA-256, native dimensions, rights and crop for every image. Official publication does not imply an open license.

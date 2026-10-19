@@ -1,11 +1,12 @@
 import fs from 'node:fs/promises';
 import {fileURLToPath} from 'node:url';
 
-// Shared by every collection. Finishes, popularity and drop rates never enter
-// this scale. These are NIGHT editorial grades, not author-issued statistics.
+// Each universe is assessed independently. These are form-specific NIGHT
+// editorial grades, not author-issued statistics or cross-universe equivalence.
 export const POWER_SCALE = Object.freeze({
-  id: 'night-power-v1',
-  ranks: Object.freeze(['F', 'E', 'D', 'C', 'B', 'A', 'S', 'SS', 'SSS']),
+  id: 'night-universe-power-v1',
+  scope: 'in-universe',
+  ranks: Object.freeze(['F', 'E', 'D', 'C', 'B', 'A', 'S', 'SS', 'SSS', 'EX']),
   benchmarks: Object.freeze({
     F: 'Human baseline; no active supernatural combat power.',
     E: 'Enhanced physical ability, with limited reach and versatility.',
@@ -15,7 +16,8 @@ export const POWER_SCALE = Object.freeze({
     A: 'Exceptional mastery, speed, defence or special abilities, with meaningful limits.',
     S: 'Apex combatant capable of deciding large-scale conflicts.',
     SS: 'Transcendent combat or conceptual powers beyond the apex band, with documented limits.',
-    SSS: 'Demonstrated world/reality-scale power; neither fame nor a divine title qualifies.'
+    SSS: 'Exceptional upper limit of this universe, assessed for this exact form and continuity.',
+    EX: 'A documented exceptional form beyond the universe\'s SSS benchmark; a specific feat review is required.'
   })
 });
 
@@ -28,6 +30,12 @@ export function validatePower(power, card) {
     throw Error(`Missing power assessment: ${card.id}`);
   if (power.status === 'pending' ? power.rank !== null : rankValue(power.rank) < 0)
     throw Error(`Invalid power grade: ${card.id}`);
+  if(!/^[a-z][a-z0-9-]*$/.test(power.universe??'')||power.universe!==card.universe)
+    throw Error(`Power assessment belongs to another universe: ${card.id}`);
+  if(!power.continuity?.trim())throw Error(`Missing power continuity: ${card.id}`);
+  const feat=power.featReview;
+  if(['SSS','EX'].includes(power.rank)&&(feat?.status!=='verified'||feat.universe!==power.universe||feat.continuity!==power.continuity||!feat.locator?.trim()||!feat.claim?.trim()||!feat.reference?.startsWith('https://')))
+    throw Error(`Tier ${power.rank} needs specific verified feat evidence: ${card.id}`);
   if (power.formId !== card.formId || power.artworkSHA256 !== card.source.sha256)
     throw Error(`Power assessment needs a form/artwork review: ${card.id}`);
   if(power.review && (power.review.status!=='source-and-form-reviewed'||power.review.artworkSHA256!==card.source.sha256||!/^\d{4}-\d{2}-\d{2}$/.test(power.review.date)))
@@ -43,7 +51,7 @@ export function validatePower(power, card) {
 export function validateFormGrades(cards) {
   const forms=new Map();
   for(const card of cards){
-    const key=card.character+'/'+card.formId,previous=forms.get(key);
+    const key=card.power.universe+'/'+card.power.continuity+'/'+card.character+'/'+card.formId,previous=forms.get(key);
     if(previous && previous!==card.power.rank)throw Error(`Conflicting grade for the same form: ${key}`);
     forms.set(key,card.power.rank);
   }
@@ -53,14 +61,14 @@ export async function loadPowerAssessments(series, cards, pendingForms = []) {
   if (!/^[a-z][a-z0-9-]*$/.test(series)) throw Error('Invalid power series');
   const file = fileURLToPath(new URL(`../catalog/power/${series}.json`, import.meta.url));
   const data = JSON.parse(await fs.readFile(file, 'utf8'));
-  if (data.scale !== POWER_SCALE.id || data.series !== series) throw Error('Power catalogue scale/series mismatch');
+  if (data.scale !== POWER_SCALE.id || data.series !== series || data.universe!==series || data.scope!=='in-universe') throw Error('Power catalogue scale/series mismatch');
   const expected = new Set([...cards.map(c => c.id), ...pendingForms.map(c => c.id)]);
   for (const id of Object.keys(data.assessments)) if (!expected.has(id)) throw Error(`Unknown power identity: ${id}`);
   for (const card of cards) card.power = validatePower(data.assessments[card.id], card);
   validateFormGrades(cards);
   for (const form of pendingForms) {
     const power = data.assessments[form.id];
-    if (!power || power.scale !== POWER_SCALE.id || power.formId !== form.form ||
+    if (!power || power.scale !== POWER_SCALE.id || power.universe!==series || !power.continuity?.trim() || power.formId !== form.form ||
         (power.status === 'pending' ? power.rank !== null : rankValue(power.rank) < 0))
       throw Error(`Missing pending-form power assessment: ${form.id}`);
     form.power = power;
@@ -113,7 +121,7 @@ export function powerPresentation(svg, card, design, {nameScale = .84} = {}) {
   const size = rank.length > 2 ? 42 : rank.length > 1 ? 50 : 56;
   const family = ['nocturne','tidelight'].includes(design) ? 'NightSans' : design === 'obsidian' ? 'AtelierSans' : 'NSans';
   const description = card.power.rank
-    ? `NIGHT power rank ${rank}. ${card.power.scope}. ${card.power.basis}`
+    ? `NIGHT ${card.power.universe.toUpperCase()} form rank ${rank}. ${card.power.scope}. ${card.power.basis}`
     : `Power rank awaiting form assessment. ${card.power.scope}`;
   // Glass exists only inside the letter outlines. The copied artwork is
   // refracted through the glyphs, with translucent faces and bevel highlights.
@@ -152,5 +160,5 @@ export function powerPresentation(svg, card, design, {nameScale = .84} = {}) {
   const boundary = svg.indexOf('</defs>');
   if (boundary < 0 || !svg.endsWith('</svg>')) throw Error('Unexpected SVG root structure');
   svg = svg.slice(0, boundary + 7) + `<g id="${p}scene">` + svg.slice(boundary + 7, -6) + '</g>' + badge + '</svg>';
-  return svg.replace('<svg ', `<svg data-power-scale="${POWER_SCALE.id}" data-power-status="${card.power.status}" `);
+  return svg.replace('<svg ', `<svg data-power-scale="${POWER_SCALE.id}" data-power-universe="${card.power.universe}" data-power-status="${card.power.status}" `);
 }

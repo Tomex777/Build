@@ -5,8 +5,9 @@ import {POWER_SCALE,rankValue,validatePower,powerPresentation,validateFormGrades
 import {acquireArtwork} from '../src/artwork.mjs';
 import {cardSvg} from '../src/render.mjs';
 
-test('one collection-independent scale preserves human baseline and distinct Ichigo forms',async()=>{
-  assert.deepEqual(POWER_SCALE.ranks,['F','E','D','C','B','A','S','SS','SSS']);
+test('one in-universe scale preserves human baseline and distinct Ichigo forms',async()=>{
+  assert.deepEqual(POWER_SCALE.ranks,['F','E','D','C','B','A','S','SS','SSS','EX']);
+  assert.equal(POWER_SCALE.scope,'in-universe');
   const catalogue=await loadCatalogue();
   assert.equal(catalogue.pendingForms.find(c=>c.id==='ichigo/human').power.rank,'F');
   const rank=id=>catalogue.cards.find(c=>c.id===id).power.rank;
@@ -25,6 +26,9 @@ test('an assessment cannot silently transfer to different artwork, a new form, o
   assert.throws(()=>validatePower(c.power,{...c,formId:'human'}),/form\/artwork/);
   assert.throws(()=>validatePower(c.power,{...c,source:{...c.source,sha256:'0'.repeat(64)}}),/form\/artwork/);
   assert.throws(()=>validatePower({...c.power,references:['javascript:alert(1)']},c),/reference/);
+  assert.throws(()=>validatePower({...c.power,universe:'naruto'},c),/another universe/);
+  assert.throws(()=>validatePower({...c.power,continuity:''},c),/continuity/);
+  for(const rank of ['SSS','EX'])assert.throws(()=>validatePower({...c.power,rank},c),/verified feat evidence/);
 });
 
 test('power changes invalidate approval and rank filters do not confuse a finish with strength',async()=>{
@@ -39,7 +43,7 @@ test('power changes invalidate approval and rank filters do not confuse a finish
 
 test('every finish renders a smaller title with the form grade, while depth remains outside the inner frame',async()=>{
   const catalogue=await loadCatalogue();
-  for (const id of ['ichigo-original-shikai','yoruichi-featured','aizen-featured','ichigo-original-bankai','ichigo-substitute-soul-reaper','kenpachi-featured','aizen-muken','byakuya-senbonzakura','kenpachi-tybw','rukia-tybw','yoruichi-flash-step','ichigo-restored-shikai','ichigo-restored-shikai-standing']) {
+  for (const id of ['ichigo-original-shikai','yoruichi-featured','aizen-featured','ichigo-original-bankai','ichigo-substitute-soul-reaper','kenpachi-featured','aizen-muken','byakuya-senbonzakura','kenpachi-tybw','rukia-tybw','yoruichi-flash-step','ichigo-restored-shikai','ichigo-restored-shikai-standing','isane-featured','riruka-featured','ichibe-hyosube-tybw','kon-featured']) {
     const card=catalogue.cards.find(c=>c.id===id),assets=await acquireArtwork(card);
     for (const design of card.designs) {
       const svg=await cardSvg(card,assets,design);

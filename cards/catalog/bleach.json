@@ -20,7 +20,7 @@
         "Aizen"
       ],
       "designs": [
-        "nocturne"
+        "emberglass"
       ],
       "status": "candidate",
       "source": {
@@ -49,9 +49,19 @@
         "focal": [
           0.5,
           0.3
-        ]
+        ],
+        "artworkPlacement": {
+          "emberglass": {
+            "x": 0,
+            "y": 70,
+            "width": 1000
+          }
+        }
       },
-      "number": 1
+      "number": 1,
+      "previousDesigns": [
+        "nocturne"
+      ]
     },
     {
       "id": "barragan-featured",
@@ -97,7 +107,10 @@
           0.3
         ]
       },
-      "number": 2
+      "number": 2,
+      "previousDesigns": [
+        "nocturne"
+      ]
     },
     {
       "id": "byakuya-featured",
@@ -112,7 +125,7 @@
         "Byakuya"
       ],
       "designs": [
-        "ivory"
+        "nocturne"
       ],
       "status": "candidate",
       "source": {
@@ -144,9 +157,36 @@
         ],
         "horizontalShift": {
           "ivory": 240
+        },
+        "artworkPlacement": {
+          "nocturne": {
+            "x": 0,
+            "y": 25,
+            "width": 1000
+          }
+        },
+        "depthLayers": {
+          "nocturne": {
+            "mask": {
+              "localPath": "artwork/masks/byakuya-featured-character.svg",
+              "sha256": "fc050b7ffe9d5c2e3a2d6fcfbc5309b710c86d129f32549b45772c8e3b6f4d17",
+              "sourceSHA256": "a28be745ead9aa953cb2b971e987f1904508bb875f256b3e966e48ec1129b84d",
+              "crop": [
+                0,
+                0,
+                750,
+                750
+              ]
+            },
+            "auraOpacity": 0.2,
+            "cropEdgeFade": 0.025
+          }
         }
       },
-      "number": 3
+      "number": 3,
+      "previousDesigns": [
+        "ivory"
+      ]
     },
     {
       "id": "ganju-featured",
@@ -161,7 +201,7 @@
         "Ganju"
       ],
       "designs": [
-        "nocturne"
+        "voltage"
       ],
       "status": "candidate",
       "source": {
@@ -190,9 +230,19 @@
         "focal": [
           0.5,
           0.3
-        ]
+        ],
+        "artworkPlacement": {
+          "voltage": {
+            "x": -50,
+            "y": 90,
+            "width": 1100
+          }
+        }
       },
-      "number": 4
+      "number": 4,
+      "previousDesigns": [
+        "nocturne"
+      ]
     },
     {
       "id": "gin-featured",
@@ -255,7 +305,10 @@
           }
         }
       },
-      "number": 5
+      "number": 5,
+      "previousDesigns": [
+        "nocturne"
+      ]
     },
     {
       "id": "ginjo-featured",
@@ -318,7 +371,10 @@
           }
         }
       },
-      "number": 6
+      "number": 6,
+      "previousDesigns": [
+        "nocturne"
+      ]
     },
     {
       "id": "grimmjow-featured",
@@ -364,7 +420,10 @@
           0.3
         ]
       },
-      "number": 7
+      "number": 7,
+      "previousDesigns": [
+        "nocturne"
+      ]
     },
     {
       "id": "hachigen-featured",
@@ -410,7 +469,10 @@
           0.3
         ]
       },
-      "number": 8
+      "number": 8,
+      "previousDesigns": [
+        "nocturne"
+      ]
     },
     {
       "id": "halibel-featured",
@@ -456,7 +518,10 @@
           0.3
         ]
       },
-      "number": 9
+      "number": 9,
+      "previousDesigns": [
+        "nocturne"
+      ]
     },
     {
       "id": "hinamori-featured",
@@ -471,7 +536,7 @@
         "Momo"
       ],
       "designs": [
-        "nocturne"
+        "tidelight"
       ],
       "status": "candidate",
       "source": {
@@ -502,7 +567,10 @@
           0.3
         ]
       },
-      "number": 10
+      "number": 10,
+      "previousDesigns": [
+        "nocturne"
+      ]
     },
     {
       "id": "hirako-featured",
@@ -546,9 +614,36 @@
         "focal": [
           0.5,
           0.3
-        ]
+        ],
+        "artworkPlacement": {
+          "nocturne": {
+            "x": 0,
+            "y": 25,
+            "width": 1000
+          }
+        },
+        "depthLayers": {
+          "nocturne": {
+            "mask": {
+              "localPath": "artwork/masks/hirako-featured-character.svg",
+              "sha256": "5ab7da2573a6279c055d4d4d1fa3279c6b2b7da503327a14d0eccdeb4bac9738",
+              "sourceSHA256": "2afc8888f7813bab62b3f98a36ebcfd20f6ed797a595e5f78a238f96e8e08035",
+              "crop": [
+                0,
+                0,
+                750,
+                750
+              ]
+            },
+            "auraOpacity": 0.2,
+            "cropEdgeFade": 0.025
+          }
+        }
       },
-      "number": 11
+      "number": 11,
+      "previousDesigns": [
+        "nocturne"
+      ]
     },
     {
       "id": "hisagi-featured",
@@ -563,7 +658,7 @@
         "Shuhei"
       ],
       "designs": [
-        "nocturne"
+        "tidelight"
       ],
       "status": "candidate",
       "source": {
@@ -594,7 +689,7 @@
           0.3
         ],
         "depthLayers": {
-          "nocturne": {
+          "tidelight": {
             "mask": {
               "localPath": "artwork/masks/hisagi-character.svg",
               "sha256": "6cf395e6b2934aa27932f1998de059991ce809bafb31ed7aad83d2f440ac1d5e",
@@ -611,7 +706,10 @@
           }
         }
       },
-      "number": 12
+      "number": 12,
+      "previousDesigns": [
+        "nocturne"
+      ]
     },
     {
       "id": "hitsugaya-featured",
@@ -657,7 +755,10 @@
           0.3
         ]
       },
-      "number": 13
+      "number": 13,
+      "previousDesigns": [
+        "nocturne"
+      ]
     },
     {
       "id": "hiyori-featured",
@@ -672,7 +773,7 @@
         "Hiyori"
       ],
       "designs": [
-        "nocturne"
+        "tidelight"
       ],
       "status": "candidate",
       "source": {
@@ -701,9 +802,19 @@
         "focal": [
           0.5,
           0.3
-        ]
+        ],
+        "artworkPlacement": {
+          "tidelight": {
+            "x": -100,
+            "y": 0,
+            "width": 1200
+          }
+        }
       },
-      "number": 14
+      "number": 14,
+      "previousDesigns": [
+        "nocturne"
+      ]
     },
     {
       "id": "ichigo-original-bankai",
@@ -718,7 +829,7 @@
         "Kurosaki Ichigo"
       ],
       "designs": [
-        "voltage"
+        "nocturne"
       ],
       "status": "candidate",
       "source": {
@@ -749,7 +860,10 @@
           0.26
         ]
       },
-      "number": 15
+      "number": 15,
+      "previousDesigns": [
+        "voltage"
+      ]
     },
     {
       "id": "ichigo-original-shikai",
@@ -764,7 +878,7 @@
         "Kurosaki Ichigo"
       ],
       "designs": [
-        "nocturne"
+        "tidelight"
       ],
       "status": "candidate",
       "source": {
@@ -795,7 +909,10 @@
           0.45
         ]
       },
-      "number": 16
+      "number": 16,
+      "previousDesigns": [
+        "nocturne"
+      ]
     },
     {
       "id": "ichigo-substitute-soul-reaper",
@@ -810,7 +927,7 @@
         "Kurosaki Ichigo"
       ],
       "designs": [
-        "vanguard"
+        "voltage"
       ],
       "status": "candidate",
       "source": {
@@ -839,9 +956,19 @@
         "focal": [
           0.49,
           0.26
-        ]
+        ],
+        "artworkPlacement": {
+          "voltage": {
+            "x": -50,
+            "y": 90,
+            "width": 1100
+          }
+        }
       },
-      "number": 17
+      "number": 17,
+      "previousDesigns": [
+        "vanguard"
+      ]
     },
     {
       "id": "ikkaku-featured",
@@ -856,7 +983,7 @@
         "Ikkaku"
       ],
       "designs": [
-        "nocturne"
+        "tidelight"
       ],
       "status": "candidate",
       "source": {
@@ -887,7 +1014,10 @@
           0.3
         ]
       },
-      "number": 18
+      "number": 18,
+      "previousDesigns": [
+        "nocturne"
+      ]
     },
     {
       "id": "isane-featured",
@@ -902,7 +1032,7 @@
         "Isane"
       ],
       "designs": [
-        "nocturne"
+        "crimson"
       ],
       "status": "candidate",
       "source": {
@@ -931,9 +1061,29 @@
         "focal": [
           0.5,
           0.3
-        ]
+        ],
+        "depthLayers": {
+          "crimson": {
+            "mask": {
+              "localPath": "artwork/masks/isane-featured-character.svg",
+              "sha256": "e7f294d384140ac463351e886469f28d9c3294a8f5ac08e9f3954659b0f24b8c",
+              "sourceSHA256": "24f3a1ed59a01e9b02b191b36fca176d9259e3dccad1784881c3e56ce0b51658",
+              "crop": [
+                0,
+                40,
+                750,
+                750
+              ]
+            },
+            "auraOpacity": 0.2,
+            "cropEdgeFade": 0.025
+          }
+        }
       },
-      "number": 19
+      "number": 19,
+      "previousDesigns": [
+        "nocturne"
+      ]
     },
     {
       "id": "isshin-featured",
@@ -979,7 +1129,10 @@
           0.3
         ]
       },
-      "number": 20
+      "number": 20,
+      "previousDesigns": [
+        "nocturne"
+      ]
     },
     {
       "id": "kaien-featured",
@@ -994,7 +1147,7 @@
         "Kaien"
       ],
       "designs": [
-        "nocturne"
+        "tidelight"
       ],
       "status": "candidate",
       "source": {
@@ -1025,7 +1178,7 @@
           0.3
         ],
         "depthLayers": {
-          "nocturne": {
+          "tidelight": {
             "mask": {
               "localPath": "artwork/masks/kaien-character.svg",
               "sha256": "71ccfe532105c98715fb919023bf056ce100df689932b4bfd0f3a55e9e7b1a79",
@@ -1042,7 +1195,10 @@
           }
         }
       },
-      "number": 21
+      "number": 21,
+      "previousDesigns": [
+        "nocturne"
+      ]
     },
     {
       "id": "kenpachi-featured",
@@ -1057,7 +1213,7 @@
         "Kenpachi"
       ],
       "designs": [
-        "crimson"
+        "nocturne"
       ],
       "status": "candidate",
       "source": {
@@ -1086,9 +1242,51 @@
         "focal": [
           0.5,
           0.3
-        ]
+        ],
+        "artworkPlacement": {
+          "nocturne": {
+            "x": 0,
+            "y": 55,
+            "width": 1000
+          }
+        },
+        "depthLayers": {
+          "nocturne": {
+            "mask": {
+              "localPath": "artwork/masks/kenpachi-featured-character.svg",
+              "sha256": "88658d37e876ce360e25e138d18eea32c5fc6b7baa4338eb7a527402aef41ddd",
+              "sourceSHA256": "965b8ca7b19600eb9e4c43d165347452eef468e1391e1309f0624c6b7b3662c0",
+              "crop": [
+                0,
+                0,
+                750,
+                750
+              ]
+            },
+            "auraOpacity": 0.2,
+            "cropEdgeFade": 0.1
+          },
+          "crimson": {
+            "mask": {
+              "localPath": "artwork/masks/kenpachi-featured-character.svg",
+              "sha256": "88658d37e876ce360e25e138d18eea32c5fc6b7baa4338eb7a527402aef41ddd",
+              "sourceSHA256": "965b8ca7b19600eb9e4c43d165347452eef468e1391e1309f0624c6b7b3662c0",
+              "crop": [
+                0,
+                0,
+                750,
+                750
+              ]
+            },
+            "auraOpacity": 0.1,
+            "cropEdgeFade": 0.1
+          }
+        }
       },
-      "number": 22
+      "number": 22,
+      "previousDesigns": [
+        "crimson"
+      ]
     },
     {
       "id": "kensei-featured",
@@ -1151,7 +1349,10 @@
           }
         }
       },
-      "number": 23
+      "number": 23,
+      "previousDesigns": [
+        "nocturne"
+      ]
     },
     {
       "id": "kira-featured",
@@ -1166,7 +1367,7 @@
         "Izuru"
       ],
       "designs": [
-        "nocturne"
+        "tidelight"
       ],
       "status": "candidate",
       "source": {
@@ -1197,7 +1398,10 @@
           0.3
         ]
       },
-      "number": 24
+      "number": 24,
+      "previousDesigns": [
+        "nocturne"
+      ]
     },
     {
       "id": "komamura-featured",
@@ -1243,7 +1447,10 @@
           0.3
         ]
       },
-      "number": 25
+      "number": 25,
+      "previousDesigns": [
+        "nocturne"
+      ]
     },
     {
       "id": "kon-featured",
@@ -1258,7 +1465,7 @@
         "Kon"
       ],
       "designs": [
-        "nocturne"
+        "ivory"
       ],
       "status": "candidate",
       "source": {
@@ -1287,9 +1494,19 @@
         "focal": [
           0.5,
           0.3
-        ]
+        ],
+        "artworkPlacement": {
+          "ivory": {
+            "x": -50,
+            "y": 90,
+            "width": 1100
+          }
+        }
       },
-      "number": 26
+      "number": 26,
+      "previousDesigns": [
+        "nocturne"
+      ]
     },
     {
       "id": "kukaku-featured",
@@ -1304,7 +1521,7 @@
         "Kukaku"
       ],
       "designs": [
-        "nocturne"
+        "crimson"
       ],
       "status": "candidate",
       "source": {
@@ -1335,7 +1552,10 @@
           0.3
         ]
       },
-      "number": 27
+      "number": 27,
+      "previousDesigns": [
+        "nocturne"
+      ]
     },
     {
       "id": "kyoraku-featured",
@@ -1350,7 +1570,7 @@
         "Shunsui"
       ],
       "designs": [
-        "nocturne"
+        "emberglass"
       ],
       "status": "candidate",
       "source": {
@@ -1379,9 +1599,19 @@
         "focal": [
           0.47,
           0.35
-        ]
+        ],
+        "artworkPlacement": {
+          "emberglass": {
+            "x": 0,
+            "y": 70,
+            "width": 1000
+          }
+        }
       },
-      "number": 28
+      "number": 28,
+      "previousDesigns": [
+        "nocturne"
+      ]
     },
     {
       "id": "lisa-featured",
@@ -1396,7 +1626,7 @@
         "Lisa"
       ],
       "designs": [
-        "nocturne"
+        "tidelight"
       ],
       "status": "candidate",
       "source": {
@@ -1427,7 +1657,10 @@
           0.3
         ]
       },
-      "number": 29
+      "number": 29,
+      "previousDesigns": [
+        "nocturne"
+      ]
     },
     {
       "id": "mashiro-featured",
@@ -1442,7 +1675,7 @@
         "Mashiro"
       ],
       "designs": [
-        "nocturne"
+        "tidelight"
       ],
       "status": "candidate",
       "source": {
@@ -1473,7 +1706,7 @@
           0.3
         ],
         "depthLayers": {
-          "nocturne": {
+          "tidelight": {
             "mask": {
               "localPath": "artwork/masks/mashiro-character.svg",
               "sha256": "3f38a8e1d89d45482dc4d9f555733e5e50e62fe9b13e4527e72cebf1b46715a2",
@@ -1488,9 +1721,19 @@
             "auraOpacity": 0.32,
             "cropEdgeFade": 0.025
           }
+        },
+        "artworkPlacement": {
+          "tidelight": {
+            "x": -100,
+            "y": -30,
+            "width": 1200
+          }
         }
       },
-      "number": 30
+      "number": 30,
+      "previousDesigns": [
+        "nocturne"
+      ]
     },
     {
       "id": "mayuri-featured",
@@ -1536,7 +1779,10 @@
           0.3
         ]
       },
-      "number": 31
+      "number": 31,
+      "previousDesigns": [
+        "nocturne"
+      ]
     },
     {
       "id": "nanao-featured",
@@ -1551,7 +1797,7 @@
         "Nanao"
       ],
       "designs": [
-        "nocturne"
+        "crimson"
       ],
       "status": "candidate",
       "source": {
@@ -1582,7 +1828,10 @@
           0.3
         ]
       },
-      "number": 32
+      "number": 32,
+      "previousDesigns": [
+        "nocturne"
+      ]
     },
     {
       "id": "nel-featured",
@@ -1597,7 +1846,7 @@
         "Nel"
       ],
       "designs": [
-        "nocturne"
+        "voltage"
       ],
       "status": "candidate",
       "source": {
@@ -1626,9 +1875,19 @@
         "focal": [
           0.5,
           0.3
-        ]
+        ],
+        "artworkPlacement": {
+          "voltage": {
+            "x": -50,
+            "y": 90,
+            "width": 1100
+          }
+        }
       },
-      "number": 33
+      "number": 33,
+      "previousDesigns": [
+        "nocturne"
+      ]
     },
     {
       "id": "nelliel-featured",
@@ -1674,7 +1933,10 @@
           0.3
         ]
       },
-      "number": 34
+      "number": 34,
+      "previousDesigns": [
+        "nocturne"
+      ]
     },
     {
       "id": "nemu-featured",
@@ -1689,7 +1951,7 @@
         "Nemu"
       ],
       "designs": [
-        "nocturne"
+        "tidelight"
       ],
       "status": "candidate",
       "source": {
@@ -1718,9 +1980,19 @@
         "focal": [
           0.5,
           0.3
-        ]
+        ],
+        "artworkPlacement": {
+          "tidelight": {
+            "x": -150,
+            "y": 40,
+            "width": 1300
+          }
+        }
       },
-      "number": 35
+      "number": 35,
+      "previousDesigns": [
+        "nocturne"
+      ]
     },
     {
       "id": "nnoitora-featured",
@@ -1766,7 +2038,10 @@
           0.3
         ]
       },
-      "number": 36
+      "number": 36,
+      "previousDesigns": [
+        "nocturne"
+      ]
     },
     {
       "id": "orihime-featured",
@@ -1781,7 +2056,7 @@
         "Orihime"
       ],
       "designs": [
-        "nocturne"
+        "tidelight"
       ],
       "status": "candidate",
       "source": {
@@ -1812,7 +2087,10 @@
           0.3
         ]
       },
-      "number": 37
+      "number": 37,
+      "previousDesigns": [
+        "nocturne"
+      ]
     },
     {
       "id": "rangiku-featured",
@@ -1827,7 +2105,7 @@
         "Rangiku"
       ],
       "designs": [
-        "nocturne"
+        "tidelight"
       ],
       "status": "candidate",
       "source": {
@@ -1858,7 +2136,7 @@
           0.3
         ],
         "depthLayers": {
-          "nocturne": {
+          "tidelight": {
             "mask": {
               "localPath": "artwork/masks/rangiku-character.svg",
               "sha256": "87c905136fe8445d1142f6393d7423457d5b1c385404f6515060aacd27a030a8",
@@ -1875,7 +2153,10 @@
           }
         }
       },
-      "number": 38
+      "number": 38,
+      "previousDesigns": [
+        "nocturne"
+      ]
     },
     {
       "id": "renji-featured",
@@ -1890,7 +2171,7 @@
         "Renji"
       ],
       "designs": [
-        "nocturne"
+        "tidelight"
       ],
       "status": "candidate",
       "source": {
@@ -1921,7 +2202,10 @@
           0.3
         ]
       },
-      "number": 39
+      "number": 39,
+      "previousDesigns": [
+        "nocturne"
+      ]
     },
     {
       "id": "riruka-featured",
@@ -1936,7 +2220,7 @@
         "Riruka"
       ],
       "designs": [
-        "nocturne"
+        "crimson"
       ],
       "status": "candidate",
       "source": {
@@ -1965,9 +2249,29 @@
         "focal": [
           0.5,
           0.3
-        ]
+        ],
+        "depthLayers": {
+          "crimson": {
+            "mask": {
+              "localPath": "artwork/masks/riruka-featured-character.svg",
+              "sha256": "9e788cfa766cd59be65225835538ebf9fb43f982aff049dac06c4a6a08f76fb9",
+              "sourceSHA256": "72d119f83d1ef23c730a2b833d8a84af0f0f0d1eb1cb20f0bf9297dff915bb8e",
+              "crop": [
+                0,
+                0,
+                750,
+                750
+              ]
+            },
+            "auraOpacity": 0.2,
+            "cropEdgeFade": 0.025
+          }
+        }
       },
-      "number": 40
+      "number": 40,
+      "previousDesigns": [
+        "nocturne"
+      ]
     },
     {
       "id": "rojuro-featured",
@@ -2013,7 +2317,10 @@
           0.3
         ]
       },
-      "number": 41
+      "number": 41,
+      "previousDesigns": [
+        "nocturne"
+      ]
     },
     {
       "id": "rukia-featured",
@@ -2059,7 +2366,10 @@
           0.3
         ]
       },
-      "number": 42
+      "number": 42,
+      "previousDesigns": [
+        "tidelight"
+      ]
     },
     {
       "id": "sado-featured",
@@ -2074,7 +2384,7 @@
         "Chad"
       ],
       "designs": [
-        "nocturne"
+        "tidelight"
       ],
       "status": "candidate",
       "source": {
@@ -2105,7 +2415,7 @@
           0.3
         ],
         "depthLayers": {
-          "nocturne": {
+          "tidelight": {
             "mask": {
               "localPath": "artwork/masks/sado-character.svg",
               "sha256": "5e5de7cd304ceada04b8941663c3ca88e2bf7c4272ec7402098e5ede3d982b8e",
@@ -2122,7 +2432,10 @@
           }
         }
       },
-      "number": 43
+      "number": 43,
+      "previousDesigns": [
+        "nocturne"
+      ]
     },
     {
       "id": "soifon-featured",
@@ -2168,7 +2481,10 @@
           0.3
         ]
       },
-      "number": 44
+      "number": 44,
+      "previousDesigns": [
+        "nocturne"
+      ]
     },
     {
       "id": "stark-featured",
@@ -2212,9 +2528,36 @@
         "focal": [
           0.5,
           0.3
-        ]
+        ],
+        "artworkPlacement": {
+          "nocturne": {
+            "x": 0,
+            "y": 45,
+            "width": 1000
+          }
+        },
+        "depthLayers": {
+          "nocturne": {
+            "mask": {
+              "localPath": "artwork/masks/stark-featured-character.svg",
+              "sha256": "217fb5c1d4496254cf192ec17eae849fd1f30da9be2eb7af06f11f8ac0047398",
+              "sourceSHA256": "4eb28a2504cc5769358d9e278a6e104181f8c57c0a7a0f9fb6ca620f4da7b0ed",
+              "crop": [
+                0,
+                33,
+                750,
+                750
+              ]
+            },
+            "auraOpacity": 0.2,
+            "cropEdgeFade": 0.025
+          }
+        }
       },
-      "number": 45
+      "number": 45,
+      "previousDesigns": [
+        "nocturne"
+      ]
     },
     {
       "id": "szayelaporro-featured",
@@ -2260,7 +2603,10 @@
           0.3
         ]
       },
-      "number": 46
+      "number": 46,
+      "previousDesigns": [
+        "nocturne"
+      ]
     },
     {
       "id": "tosen-featured",
@@ -2306,7 +2652,10 @@
           0.3
         ]
       },
-      "number": 47
+      "number": 47,
+      "previousDesigns": [
+        "nocturne"
+      ]
     },
     {
       "id": "tsukishima-featured",
@@ -2352,7 +2701,10 @@
           0.3
         ]
       },
-      "number": 48
+      "number": 48,
+      "previousDesigns": [
+        "nocturne"
+      ]
     },
     {
       "id": "ukitake-featured",
@@ -2398,7 +2750,10 @@
           0.3
         ]
       },
-      "number": 49
+      "number": 49,
+      "previousDesigns": [
+        "nocturne"
+      ]
     },
     {
       "id": "ulquiorra-featured",
@@ -2459,9 +2814,19 @@
             "auraOpacity": 0.32,
             "cropEdgeFade": 0.025
           }
+        },
+        "artworkPlacement": {
+          "nocturne": {
+            "x": -100,
+            "y": 20,
+            "width": 1200
+          }
         }
       },
-      "number": 50
+      "number": 50,
+      "previousDesigns": [
+        "nocturne"
+      ]
     },
     {
       "id": "unohana-featured",
@@ -2476,7 +2841,7 @@
         "Unohana"
       ],
       "designs": [
-        "nocturne"
+        "emberglass"
       ],
       "status": "candidate",
       "source": {
@@ -2507,7 +2872,7 @@
           0.3
         ],
         "depthLayers": {
-          "nocturne": {
+          "emberglass": {
             "mask": {
               "localPath": "artwork/masks/unohana-character.svg",
               "sha256": "ece68dad28782b18929c19c101d1a4c5ab8b394d80a4b3716a3c3b3083033065",
@@ -2522,9 +2887,19 @@
             "auraOpacity": 0.32,
             "cropEdgeFade": 0.025
           }
+        },
+        "artworkPlacement": {
+          "emberglass": {
+            "x": 0,
+            "y": 70,
+            "width": 1000
+          }
         }
       },
-      "number": 51
+      "number": 51,
+      "previousDesigns": [
+        "nocturne"
+      ]
     },
     {
       "id": "urahara-featured",
@@ -2570,7 +2945,10 @@
           0.3
         ]
       },
-      "number": 52
+      "number": 52,
+      "previousDesigns": [
+        "nocturne"
+      ]
     },
     {
       "id": "uryu-featured",
@@ -2585,7 +2963,7 @@
         "Uryu"
       ],
       "designs": [
-        "nocturne"
+        "tidelight"
       ],
       "status": "candidate",
       "source": {
@@ -2616,7 +2994,10 @@
           0.3
         ]
       },
-      "number": 53
+      "number": 53,
+      "previousDesigns": [
+        "nocturne"
+      ]
     },
     {
       "id": "yachiru-featured",
@@ -2631,7 +3012,7 @@
         "Yachiru"
       ],
       "designs": [
-        "nocturne"
+        "crimson"
       ],
       "status": "candidate",
       "source": {
@@ -2662,7 +3043,10 @@
           0.3
         ]
       },
-      "number": 54
+      "number": 54,
+      "previousDesigns": [
+        "nocturne"
+      ]
     },
     {
       "id": "yamamoto-featured",
@@ -2677,7 +3061,7 @@
         "Yamamoto"
       ],
       "designs": [
-        "nocturne"
+        "emberglass"
       ],
       "status": "candidate",
       "source": {
@@ -2706,9 +3090,19 @@
         "focal": [
           0.5,
           0.3
-        ]
+        ],
+        "artworkPlacement": {
+          "emberglass": {
+            "x": 0,
+            "y": 70,
+            "width": 1000
+          }
+        }
       },
-      "number": 55
+      "number": 55,
+      "previousDesigns": [
+        "nocturne"
+      ]
     },
     {
       "id": "yammy-featured",
@@ -2754,7 +3148,10 @@
           0.3
         ]
       },
-      "number": 56
+      "number": 56,
+      "previousDesigns": [
+        "nocturne"
+      ]
     },
     {
       "id": "yoruichi-featured",
@@ -2820,7 +3217,10 @@
           }
         }
       },
-      "number": 57
+      "number": 57,
+      "previousDesigns": [
+        "nocturne"
+      ]
     },
     {
       "id": "yumichika-featured",
@@ -2835,7 +3235,7 @@
         "Yumichika"
       ],
       "designs": [
-        "nocturne"
+        "tidelight"
       ],
       "status": "candidate",
       "source": {
@@ -2866,7 +3266,10 @@
           0.3
         ]
       },
-      "number": 58
+      "number": 58,
+      "previousDesigns": [
+        "nocturne"
+      ]
     },
     {
       "id": "as-nodt-tybw",
@@ -2912,7 +3315,10 @@
           0.3
         ]
       },
-      "number": 59
+      "number": 59,
+      "previousDesigns": [
+        "nocturne"
+      ]
     },
     {
       "id": "askin-nakk-le-vaar-tybw",
@@ -2927,7 +3333,7 @@
         "askin-nakk-le-vaar"
       ],
       "designs": [
-        "nocturne"
+        "emberglass"
       ],
       "status": "candidate",
       "source": {
@@ -2956,9 +3362,19 @@
         "focal": [
           0.5,
           0.3
-        ]
+        ],
+        "artworkPlacement": {
+          "emberglass": {
+            "x": 0,
+            "y": 70,
+            "width": 1000
+          }
+        }
       },
-      "number": 60
+      "number": 60,
+      "previousDesigns": [
+        "nocturne"
+      ]
     },
     {
       "id": "bambietta-basterbine-tybw",
@@ -3004,7 +3420,10 @@
           0.3
         ]
       },
-      "number": 61
+      "number": 61,
+      "previousDesigns": [
+        "nocturne"
+      ]
     },
     {
       "id": "bazz-b-tybw",
@@ -3050,7 +3469,10 @@
           0.3
         ]
       },
-      "number": 62
+      "number": 62,
+      "previousDesigns": [
+        "nocturne"
+      ]
     },
     {
       "id": "candice-catnipp-tybw",
@@ -3096,7 +3518,10 @@
           0.3
         ]
       },
-      "number": 63
+      "number": 63,
+      "previousDesigns": [
+        "nocturne"
+      ]
     },
     {
       "id": "gerard-valkyrie-tybw",
@@ -3111,7 +3536,7 @@
         "gerard-valkyrie"
       ],
       "designs": [
-        "nocturne"
+        "emberglass"
       ],
       "status": "candidate",
       "source": {
@@ -3140,9 +3565,19 @@
         "focal": [
           0.5,
           0.23
-        ]
+        ],
+        "artworkPlacement": {
+          "emberglass": {
+            "x": 0,
+            "y": 70,
+            "width": 1000
+          }
+        }
       },
-      "number": 64
+      "number": 64,
+      "previousDesigns": [
+        "nocturne"
+      ]
     },
     {
       "id": "giselle-gewelle-tybw",
@@ -3188,7 +3623,10 @@
           0.3
         ]
       },
-      "number": 65
+      "number": 65,
+      "previousDesigns": [
+        "nocturne"
+      ]
     },
     {
       "id": "gremmy-thoumeaux-tybw",
@@ -3203,7 +3641,7 @@
         "gremmy-thoumeaux"
       ],
       "designs": [
-        "nocturne"
+        "emberglass"
       ],
       "status": "candidate",
       "source": {
@@ -3232,9 +3670,19 @@
         "focal": [
           0.5,
           0.3
-        ]
+        ],
+        "artworkPlacement": {
+          "emberglass": {
+            "x": 0,
+            "y": 70,
+            "width": 1000
+          }
+        }
       },
-      "number": 66
+      "number": 66,
+      "previousDesigns": [
+        "nocturne"
+      ]
     },
     {
       "id": "ichibe-hyosube-tybw",
@@ -3249,7 +3697,7 @@
         "ichibe-hyosube"
       ],
       "designs": [
-        "nocturne"
+        "obsidian"
       ],
       "status": "candidate",
       "source": {
@@ -3278,9 +3726,19 @@
         "focal": [
           0.5,
           0.3
-        ]
+        ],
+        "artworkPlacement": {
+          "obsidian": {
+            "x": 0,
+            "y": 70,
+            "width": 1000
+          }
+        }
       },
-      "number": 67
+      "number": 67,
+      "previousDesigns": [
+        "nocturne"
+      ]
     },
     {
       "id": "jugram-haschwalth-tybw",
@@ -3295,7 +3753,7 @@
         "jugram-haschwalth"
       ],
       "designs": [
-        "nocturne"
+        "emberglass"
       ],
       "status": "candidate",
       "source": {
@@ -3324,9 +3782,19 @@
         "focal": [
           0.35,
           0.23
-        ]
+        ],
+        "artworkPlacement": {
+          "emberglass": {
+            "x": 0,
+            "y": 70,
+            "width": 1000
+          }
+        }
       },
-      "number": 68
+      "number": 68,
+      "previousDesigns": [
+        "nocturne"
+      ]
     },
     {
       "id": "kirio-hikifune-tybw",
@@ -3341,7 +3809,7 @@
         "kirio-hikifune"
       ],
       "designs": [
-        "nocturne"
+        "emberglass"
       ],
       "status": "candidate",
       "source": {
@@ -3370,9 +3838,19 @@
         "focal": [
           0.5,
           0.3
-        ]
+        ],
+        "artworkPlacement": {
+          "emberglass": {
+            "x": 0,
+            "y": 70,
+            "width": 1000
+          }
+        }
       },
-      "number": 69
+      "number": 69,
+      "previousDesigns": [
+        "nocturne"
+      ]
     },
     {
       "id": "lille-barro-tybw",
@@ -3387,7 +3865,7 @@
         "lille-barro"
       ],
       "designs": [
-        "nocturne"
+        "emberglass"
       ],
       "status": "candidate",
       "source": {
@@ -3416,9 +3894,19 @@
         "focal": [
           0.5,
           0.3
-        ]
+        ],
+        "artworkPlacement": {
+          "emberglass": {
+            "x": 0,
+            "y": 70,
+            "width": 1000
+          }
+        }
       },
-      "number": 70
+      "number": 70,
+      "previousDesigns": [
+        "nocturne"
+      ]
     },
     {
       "id": "liltotto-lamperd-tybw",
@@ -3462,9 +3950,19 @@
         "focal": [
           0.5,
           0.3
-        ]
+        ],
+        "artworkPlacement": {
+          "nocturne": {
+            "x": 9,
+            "y": 85,
+            "width": 982
+          }
+        }
       },
-      "number": 71
+      "number": 71,
+      "previousDesigns": [
+        "nocturne"
+      ]
     },
     {
       "id": "meninas-mcallon-tybw",
@@ -3508,9 +4006,19 @@
         "focal": [
           0.5,
           0.3
-        ]
+        ],
+        "artworkPlacement": {
+          "nocturne": {
+            "x": 9,
+            "y": 85,
+            "width": 982
+          }
+        }
       },
-      "number": 72
+      "number": 72,
+      "previousDesigns": [
+        "nocturne"
+      ]
     },
     {
       "id": "oh-etsu-nimaiya-tybw",
@@ -3525,7 +4033,7 @@
         "oh-etsu-nimaiya"
       ],
       "designs": [
-        "nocturne"
+        "emberglass"
       ],
       "status": "candidate",
       "source": {
@@ -3554,9 +4062,19 @@
         "focal": [
           0.5,
           0.3
-        ]
+        ],
+        "artworkPlacement": {
+          "emberglass": {
+            "x": 0,
+            "y": 70,
+            "width": 1000
+          }
+        }
       },
-      "number": 73
+      "number": 73,
+      "previousDesigns": [
+        "nocturne"
+      ]
     },
     {
       "id": "pernida-parnkgjas-tybw",
@@ -3571,7 +4089,7 @@
         "pernida-parnkgjas"
       ],
       "designs": [
-        "nocturne"
+        "emberglass"
       ],
       "status": "candidate",
       "source": {
@@ -3600,9 +4118,19 @@
         "focal": [
           0.5,
           0.3
-        ]
+        ],
+        "artworkPlacement": {
+          "emberglass": {
+            "x": 0,
+            "y": 70,
+            "width": 1000
+          }
+        }
       },
-      "number": 74
+      "number": 74,
+      "previousDesigns": [
+        "nocturne"
+      ]
     },
     {
       "id": "quilge-opie-tybw",
@@ -3648,7 +4176,10 @@
           0.3
         ]
       },
-      "number": 75
+      "number": 75,
+      "previousDesigns": [
+        "nocturne"
+      ]
     },
     {
       "id": "senjumaru-shutara-tybw",
@@ -3663,7 +4194,7 @@
         "senjumaru-shutara"
       ],
       "designs": [
-        "nocturne"
+        "emberglass"
       ],
       "status": "candidate",
       "source": {
@@ -3692,9 +4223,19 @@
         "focal": [
           0.5,
           0.28
-        ]
+        ],
+        "artworkPlacement": {
+          "emberglass": {
+            "x": 0,
+            "y": 70,
+            "width": 1000
+          }
+        }
       },
-      "number": 76
+      "number": 76,
+      "previousDesigns": [
+        "nocturne"
+      ]
     },
     {
       "id": "tenjiro-kirinji-tybw",
@@ -3709,7 +4250,7 @@
         "tenjiro-kirinji"
       ],
       "designs": [
-        "nocturne"
+        "emberglass"
       ],
       "status": "candidate",
       "source": {
@@ -3738,9 +4279,19 @@
         "focal": [
           0.5,
           0.3
-        ]
+        ],
+        "artworkPlacement": {
+          "emberglass": {
+            "x": 0,
+            "y": 70,
+            "width": 1000
+          }
+        }
       },
-      "number": 77
+      "number": 77,
+      "previousDesigns": [
+        "nocturne"
+      ]
     },
     {
       "id": "yhwach-tybw",
@@ -3755,7 +4306,7 @@
         "yhwach"
       ],
       "designs": [
-        "nocturne"
+        "emberglass"
       ],
       "status": "candidate",
       "source": {
@@ -3784,9 +4335,19 @@
         "focal": [
           0.5,
           0.23
-        ]
+        ],
+        "artworkPlacement": {
+          "emberglass": {
+            "x": 0,
+            "y": 70,
+            "width": 1000
+          }
+        }
       },
-      "number": 78
+      "number": 78,
+      "previousDesigns": [
+        "nocturne"
+      ]
     },
     {
       "id": "aizen-muken",
@@ -3801,7 +4362,7 @@
         "Aizen"
       ],
       "designs": [
-        "obsidian"
+        "emberglass"
       ],
       "status": "candidate",
       "source": {
@@ -3836,10 +4397,18 @@
             "x": 85,
             "y": 155,
             "width": 830
+          },
+          "emberglass": {
+            "x": 0,
+            "y": 70,
+            "width": 1000
           }
         }
       },
-      "number": 79
+      "number": 79,
+      "previousDesigns": [
+        "obsidian"
+      ]
     },
     {
       "id": "byakuya-senbonzakura",
@@ -3885,7 +4454,10 @@
           0.3
         ]
       },
-      "number": 80
+      "number": 80,
+      "previousDesigns": [
+        "nocturne"
+      ]
     },
     {
       "id": "kenpachi-tybw",
@@ -3931,7 +4503,10 @@
           0.3
         ]
       },
-      "number": 81
+      "number": 81,
+      "previousDesigns": [
+        "nocturne"
+      ]
     },
     {
       "id": "rukia-tybw",
@@ -3946,7 +4521,7 @@
         "Rukia"
       ],
       "designs": [
-        "nocturne"
+        "tidelight"
       ],
       "status": "candidate",
       "source": {
@@ -3977,7 +4552,10 @@
           0.3
         ]
       },
-      "number": 82
+      "number": 82,
+      "previousDesigns": [
+        "nocturne"
+      ]
     },
     {
       "id": "yoruichi-flash-step",
@@ -3992,7 +4570,7 @@
         "Yoruichi"
       ],
       "designs": [
-        "emberglass"
+        "nocturne"
       ],
       "status": "candidate",
       "source": {
@@ -4026,7 +4604,10 @@
           "emberglass": "dark"
         }
       },
-      "number": 83
+      "number": 83,
+      "previousDesigns": [
+        "emberglass"
+      ]
     },
     {
       "id": "ichigo-restored-shikai",
@@ -4041,7 +4622,7 @@
         "Kurosaki Ichigo"
       ],
       "designs": [
-        "ivory"
+        "nocturne"
       ],
       "status": "candidate",
       "source": {
@@ -4079,7 +4660,10 @@
           }
         }
       },
-      "number": 84
+      "number": 84,
+      "previousDesigns": [
+        "ivory"
+      ]
     },
     {
       "id": "ichigo-restored-shikai-standing",
@@ -4094,7 +4678,7 @@
         "Kurosaki Ichigo"
       ],
       "designs": [
-        "tidelight"
+        "nocturne"
       ],
       "status": "candidate",
       "source": {
@@ -4125,7 +4709,10 @@
           0.3
         ]
       },
-      "number": 85
+      "number": 85,
+      "previousDesigns": [
+        "tidelight"
+      ]
     }
   ],
   "pendingForms": [
@@ -4134,7 +4721,7 @@
       "character": "ichigo",
       "form": "human",
       "displayName": "Human / everyday Ichigo",
-      "continuity": "anime",
+      "continuity": "bleach-manga",
       "artworkProfile": null,
       "artworkStatus": "requires-form-matched-artwork"
     },
@@ -4143,7 +4730,7 @@
       "character": "ichigo",
       "form": "fullbring",
       "displayName": "Fullbring",
-      "continuity": "anime",
+      "continuity": "bleach-manga",
       "artworkProfile": null,
       "artworkStatus": "requires-form-matched-artwork"
     },
@@ -4152,7 +4739,7 @@
       "character": "ichigo",
       "form": "hollow-mask",
       "displayName": "Hollow-mask Ichigo",
-      "continuity": "anime",
+      "continuity": "bleach-manga",
       "artworkProfile": null,
       "artworkStatus": "requires-form-matched-artwork"
     },
@@ -4161,7 +4748,7 @@
       "character": "ichigo",
       "form": "full-hollow",
       "displayName": "Full Hollow (commonly called Vasto Lorde)",
-      "continuity": "anime",
+      "continuity": "bleach-manga",
       "artworkProfile": null,
       "artworkStatus": "requires-form-matched-artwork"
     },
@@ -4170,7 +4757,7 @@
       "character": "ichigo",
       "form": "fullbring-bankai",
       "displayName": "Fullbring-enhanced Bankai",
-      "continuity": "anime",
+      "continuity": "bleach-manga",
       "artworkProfile": null,
       "artworkStatus": "requires-form-matched-artwork"
     },
@@ -4179,7 +4766,7 @@
       "character": "ichigo",
       "form": "dangai",
       "displayName": "Dangai-trained Ichigo",
-      "continuity": "anime",
+      "continuity": "bleach-manga",
       "artworkProfile": null,
       "artworkStatus": "requires-form-matched-artwork"
     },
@@ -4188,7 +4775,7 @@
       "character": "ichigo",
       "form": "true-shikai",
       "displayName": "True Shikai",
-      "continuity": "anime",
+      "continuity": "bleach-manga",
       "artworkProfile": null,
       "artworkStatus": "requires-form-matched-artwork"
     },
@@ -4197,7 +4784,7 @@
       "character": "ichigo",
       "form": "mugetsu",
       "displayName": "Final Getsuga Tensho — Mugetsu",
-      "continuity": "anime",
+      "continuity": "bleach-manga",
       "artworkProfile": null,
       "artworkStatus": "requires-form-matched-artwork"
     },
@@ -4206,7 +4793,7 @@
       "character": "ichigo",
       "form": "true-bankai",
       "displayName": "True Bankai",
-      "continuity": "anime",
+      "continuity": "bleach-manga",
       "artworkProfile": null,
       "artworkStatus": "requires-form-matched-artwork"
     },
@@ -4215,7 +4802,7 @@
       "character": "ichigo",
       "form": "horn-of-salvation",
       "displayName": "Horn of Salvation",
-      "continuity": "anime",
+      "continuity": "bleach-manga",
       "artworkProfile": null,
       "artworkStatus": "requires-form-matched-artwork"
     },
@@ -4224,7 +4811,7 @@
       "character": "ichigo",
       "form": "hell-verse",
       "displayName": "Hell Verse empowered Ichigo",
-      "continuity": "film-hell-verse",
+      "continuity": "bleach-hell-verse-film",
       "artworkProfile": null,
       "artworkStatus": "requires-form-matched-artwork"
     },
@@ -4233,7 +4820,7 @@
       "character": "ichigo",
       "form": "blood-chains",
       "displayName": "Blood Chains Ichigo",
-      "continuity": "anime",
+      "continuity": "bleach-manga",
       "artworkProfile": null,
       "artworkStatus": "requires-form-matched-artwork"
     }
@@ -4241,7 +4828,7 @@
   "failures": [],
   "artworkPolicy": {
     "distinctPerEdition": true,
-    "notes": "Each active edition uses a distinct pinned original illustration. Matching form grades are independent of finish."
+    "notes": "Each active edition uses a distinct pinned original illustration. Form determines rank within BLEACH; rank selects the proposed tier design."
   },
   "pendingEditions": [
     {
@@ -4250,5 +4837,25 @@
       "design": "tidelight",
       "reason": "Requires a distinct illustration matching the unreleased form; the duplicate source is not a separate collectible."
     }
-  ]
+  ],
+  "tierPolicy": {
+    "mode": "power-selects-design",
+    "status": "proposed",
+    "scope": "in-universe",
+    "mapping": {
+      "F": "vanguard",
+      "E": "ivory",
+      "D": "voltage",
+      "C": "crimson",
+      "B": "tidelight",
+      "A": "nocturne",
+      "S": "emberglass",
+      "SS": "obsidian"
+    },
+    "reserved": [
+      "SSS",
+      "EX"
+    ],
+    "notes": "Working arrangement for visual review. Parallax rejected; no SSS or EX design approved. Existing character/form grades remain editorial proposals, not a completed canonical feat audit."
+  }
 }

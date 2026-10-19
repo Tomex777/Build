@@ -15,7 +15,8 @@
     "verify": "node bin/cards.mjs verify",
     "pack": "node bin/cards.mjs pack",
     "gallery": "node bin/cards.mjs gallery",
-    "test:gallery": "node bin/verify-gallery.mjs"
+    "test:gallery": "node bin/verify-gallery.mjs",
+    "test:breakout": "node bin/verify-breakout.mjs"
   },
   "dependencies": {
     "sharp": "0.35.5",

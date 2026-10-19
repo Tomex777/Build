@@ -8,5 +8,5 @@ test('gallery preserves exact forms, strongest-first ordering and safely embedde
   assert.deepEqual([...report.cards].sort(collectionOrder).map(c=>c.id),['a','b']);
   const html=collectionGallery(report),data=html.match(/<script id="collection-data" type="application\/json">([\s\S]*?)<\/script>/)[1];
   const cards=JSON.parse(data);assert.equal(cards[0].form,card.form);assert.equal(cards[0].image,'a.jpg');assert.equal(cards[0].name,card.name);assert.ok(!data.includes('<'));
-  assert.match(html,/aria-label="Finish"/);assert.match(html,/aria-label="Power rank"/);assert.match(html,/Rank reasoning/);
+  assert.doesNotMatch(html,/aria-label="Finish"/);assert.match(html,/aria-label="Power rank"/);assert.match(html,/Rank reasoning/);
 });

@@ -1,13 +1,14 @@
 import fs from 'node:fs/promises';
 import sharp from 'sharp';
 import {inside,digest} from './catalogue.mjs';
+import {FRAME_PATHS} from './frame-depth.mjs';
 
-/** Prepare a foreground matte from the pinned original pixels. Other finishes
- * keep their original artwork; no replacement or generated pixels are used. */
+/** Prepare a foreground matte from the pinned original pixels. No replacement
+ * or generated RGB pixels are used. */
 export async function prepareDepthLayers(card,pixels,info,pad) {
   const layers={};
   for(const [design,spec] of Object.entries(card.recipe.depthLayers??{})){
-    if(!['nocturne','tidelight'].includes(design))throw Error('Depth layers need a framed design');
+    if(!FRAME_PATHS[design])throw Error('Depth layers need a framed design');
     if(!Number.isFinite(spec.auraOpacity)||spec.auraOpacity<0||spec.auraOpacity>.4)throw Error('Invalid aura opacity');
     const cropEdgeFade=spec.cropEdgeFade??0;
     if(!Number.isFinite(cropEdgeFade)||cropEdgeFade<0||cropEdgeFade>.12)throw Error('Invalid foreground crop-edge fade');
@@ -36,16 +37,14 @@ export async function prepareDepthLayers(card,pixels,info,pad) {
 /** The aura stays inside the architectural opening. Only the isolated figure
  * receives the existing foreground cast shadow, rim and frame overlap. */
 export function composeDepthLayers(svg,assets,layer,design) {
-  const images=[...svg.matchAll(/<image\b[^>]*\bid="([^"]*subject)"[^>]*\/>/g)];
+  const images=[...svg.matchAll(/<image\b[^>]*\bid="([^"]*(?:subject|hero|characterSource))"[^>]*\/>/g)];
   if(images.length!==1)throw Error('Expected one framed foreground illustration');
   const [definition,sourceId]=images[0],auraId=sourceId+'-aura',clipId=sourceId+'-aura-window';
   const auraDefinition=definition.replace(`id="${sourceId}"`,`id="${auraId}"`).replace(/\bhref="[^"]*"/,`href="${assets.art}"`);
-  const opening=design==='nocturne'
-    ?'M125 215L170 173H830L875 215V997L824 1048H176L125 997Z'
-    :'M88 240Q198 160 397 180L809 193Q893 196 912 298L889 810Q816 985 581 1053L205 1040Q96 1024 94 892Z';
+  const opening=FRAME_PATHS[design];
   svg=svg.replace(definition,definition+auraDefinition+`<clipPath id="${clipId}"><path d="${opening}"/></clipPath>`);
   let placed=0;
-  svg=svg.replace(/<g data-depth="subject"[^>]*>/,subject=>{
+  svg=svg.replace(/<g\b(?=[^>]*(?:data-depth="subject"|data-layer="(?:hero|character)"))[^>]*>/,subject=>{
     placed++;
     return `<g data-layer="illustration-aura" data-aura-opacity="${layer.auraOpacity}" clip-path="url(#${clipId})" opacity="${layer.auraOpacity}"><use href="#${auraId}"/></g>`+subject;
   });

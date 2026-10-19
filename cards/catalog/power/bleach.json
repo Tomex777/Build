@@ -1,20 +1,12 @@
 {
   "version": 1,
   "series": "bleach",
-  "scale": "night-power-v1",
+  "scale": "night-universe-power-v1",
   "status": "editorial-proposal",
-  "notes": [
-    "One shared power scale across franchises; no BLEACH-specific calibration.",
-    "These are proposed NIGHT assessments, not official rankings or a completed canonical feat audit.",
-    "Finishes do not grant rank. Every acquired form is explicitly assessed; unknown forms remain pending, never F by default.",
-    "Human Ichigo is F. An adult, released, transformed or later-arc version never transfers its power to another form.",
-    "Rank reflects combat capability, speed, defence, special abilities and their limits rather than popularity or rarity.",
-    "SSS is reserved for sufficiently evidenced world/reality-scale forms; no existing portrait is forced into that band.",
-    "2026-10-18: all acquired illustrations received explicit form scopes and exclusions; grades remain editorial proposals. Each finish now has distinct original artwork."
-  ],
+  "notes": "Form-specific NIGHT editorial proposals within BLEACH; other universes are assessed independently. Source/form review is not an exhaustive canonical feat audit.",
   "assessments": {
     "aizen-featured": {
-      "scale": "night-power-v1",
+      "scale": "night-universe-power-v1",
       "status": "proposed",
       "rank": "S",
       "formId": "arrancar-unreleased",
@@ -31,10 +23,12 @@
         "artworkSHA256": "dadc1f94cb2366e60fa48ec6a803d78031b6fa619911a293050286771276c19f",
         "confidence": "medium",
         "method": "Pinned illustration and official source profile checked. Transformed and later-arc capabilities explicitly bounded. The grade is NIGHT editorial judgment, not an official statistic or an exhaustive chapter-by-chapter feat audit."
-      }
+      },
+      "universe": "bleach",
+      "continuity": "bleach-manga"
     },
     "barragan-featured": {
-      "scale": "night-power-v1",
+      "scale": "night-universe-power-v1",
       "status": "proposed",
       "rank": "A",
       "formId": "unreleased",
@@ -51,10 +45,12 @@
         "artworkSHA256": "44d92e09e9bd2e7d8599fa1504cde375e08c0bc384a9fc2fa7c373cab5763a39",
         "confidence": "medium",
         "method": "Pinned illustration and official source profile checked. Transformed and later-arc capabilities explicitly bounded. The grade is NIGHT editorial judgment, not an official statistic or an exhaustive chapter-by-chapter feat audit."
-      }
+      },
+      "universe": "bleach",
+      "continuity": "bleach-manga"
     },
     "byakuya-featured": {
-      "scale": "night-power-v1",
+      "scale": "night-universe-power-v1",
       "status": "proposed",
       "rank": "A",
       "formId": "senbonzakura",
@@ -71,10 +67,12 @@
         "artworkSHA256": "a28be745ead9aa953cb2b971e987f1904508bb875f256b3e966e48ec1129b84d",
         "confidence": "medium",
         "method": "Pinned illustration and official source profile checked. Transformed and later-arc capabilities explicitly bounded. The grade is NIGHT editorial judgment, not an official statistic or an exhaustive chapter-by-chapter feat audit."
-      }
+      },
+      "universe": "bleach",
+      "continuity": "bleach-manga"
     },
     "ganju-featured": {
-      "scale": "night-power-v1",
+      "scale": "night-universe-power-v1",
       "status": "proposed",
       "rank": "D",
       "formId": "shiba-outfit",
@@ -91,10 +89,12 @@
         "artworkSHA256": "ecc9bfc105d50f30b0af08162d6f237513b64cd9c508d43750f8d739cc8c5d20",
         "confidence": "medium",
         "method": "Pinned illustration and official source profile checked. Transformed and later-arc capabilities explicitly bounded. The grade is NIGHT editorial judgment, not an official statistic or an exhaustive chapter-by-chapter feat audit."
-      }
+      },
+      "universe": "bleach",
+      "continuity": "bleach-manga"
     },
     "gin-featured": {
-      "scale": "night-power-v1",
+      "scale": "night-universe-power-v1",
       "status": "proposed",
       "rank": "A",
       "formId": "shinso",
@@ -111,10 +111,12 @@
         "artworkSHA256": "2deddc3f41735328378bccd2970b49493e1d4d45c82db453c08105d5556da8c1",
         "confidence": "medium",
         "method": "Pinned illustration and official source profile checked. Transformed and later-arc capabilities explicitly bounded. The grade is NIGHT editorial judgment, not an official statistic or an exhaustive chapter-by-chapter feat audit."
-      }
+      },
+      "universe": "bleach",
+      "continuity": "bleach-manga"
     },
     "ginjo-featured": {
-      "scale": "night-power-v1",
+      "scale": "night-universe-power-v1",
       "status": "proposed",
       "rank": "A",
       "formId": "enhanced-fullbring",
@@ -131,10 +133,12 @@
         "artworkSHA256": "fbf76c0bc9ce743fc92fd9fef94da8cf1d8eeba8fb88668c5a6301fb2c6c1401",
         "confidence": "medium",
         "method": "Pinned illustration and official source profile checked. Transformed and later-arc capabilities explicitly bounded. The grade is NIGHT editorial judgment, not an official statistic or an exhaustive chapter-by-chapter feat audit."
-      }
+      },
+      "universe": "bleach",
+      "continuity": "bleach-manga"
     },
     "grimmjow-featured": {
-      "scale": "night-power-v1",
+      "scale": "night-universe-power-v1",
       "status": "proposed",
       "rank": "A",
       "formId": "unreleased",
@@ -151,10 +155,12 @@
         "artworkSHA256": "f62ff3b9128db7e2e4a85f963987ea884a1fbadd9fdae688623451e6a8038b27",
         "confidence": "medium",
         "method": "Pinned illustration and official source profile checked. Transformed and later-arc capabilities explicitly bounded. The grade is NIGHT editorial judgment, not an official statistic or an exhaustive chapter-by-chapter feat audit."
-      }
+      },
+      "universe": "bleach",
+      "continuity": "bleach-manga"
     },
     "hachigen-featured": {
-      "scale": "night-power-v1",
+      "scale": "night-universe-power-v1",
       "status": "proposed",
       "rank": "A",
       "formId": "visored-barriers",
@@ -171,10 +177,12 @@
         "artworkSHA256": "585afad8f56c2caa43585506211338e90e7efca77c885e1c82e24fb3a9a5803b",
         "confidence": "medium",
         "method": "Pinned illustration and official source profile checked. Transformed and later-arc capabilities explicitly bounded. The grade is NIGHT editorial judgment, not an official statistic or an exhaustive chapter-by-chapter feat audit."
-      }
+      },
+      "universe": "bleach",
+      "continuity": "bleach-manga"
     },
     "halibel-featured": {
-      "scale": "night-power-v1",
+      "scale": "night-universe-power-v1",
       "status": "proposed",
       "rank": "A",
       "formId": "unreleased",
@@ -191,10 +199,12 @@
         "artworkSHA256": "d3756403cb0c71596225c1389f43f6eec22801f07f188138e7ae10c5f733197e",
         "confidence": "medium",
         "method": "Pinned illustration and official source profile checked. Transformed and later-arc capabilities explicitly bounded. The grade is NIGHT editorial judgment, not an official statistic or an exhaustive chapter-by-chapter feat audit."
-      }
+      },
+      "universe": "bleach",
+      "continuity": "bleach-manga"
     },
     "hinamori-featured": {
-      "scale": "night-power-v1",
+      "scale": "night-universe-power-v1",
       "status": "proposed",
       "rank": "B",
       "formId": "tobiume",
@@ -211,10 +221,12 @@
         "artworkSHA256": "88ea146962b3a9bda3942bb2a4f588a083d60ed9e92fcbe99c6e7cde423e6e6b",
         "confidence": "medium",
         "method": "Pinned illustration and official source profile checked. Transformed and later-arc capabilities explicitly bounded. The grade is NIGHT editorial judgment, not an official statistic or an exhaustive chapter-by-chapter feat audit."
-      }
+      },
+      "universe": "bleach",
+      "continuity": "bleach-manga"
     },
     "hirako-featured": {
-      "scale": "night-power-v1",
+      "scale": "night-universe-power-v1",
       "status": "proposed",
       "rank": "A",
       "formId": "sakanade",
@@ -231,10 +243,12 @@
         "artworkSHA256": "2afc8888f7813bab62b3f98a36ebcfd20f6ed797a595e5f78a238f96e8e08035",
         "confidence": "medium",
         "method": "Pinned illustration and official source profile checked. Transformed and later-arc capabilities explicitly bounded. The grade is NIGHT editorial judgment, not an official statistic or an exhaustive chapter-by-chapter feat audit."
-      }
+      },
+      "universe": "bleach",
+      "continuity": "bleach-manga"
     },
     "hisagi-featured": {
-      "scale": "night-power-v1",
+      "scale": "night-universe-power-v1",
       "status": "proposed",
       "rank": "B",
       "formId": "kazeshini",
@@ -251,10 +265,12 @@
         "artworkSHA256": "2f6f069915022c0ab245b1779c8d0e7467ef4582ff15a792bef50c674faf5a86",
         "confidence": "medium",
         "method": "Pinned illustration and official source profile checked. Transformed and later-arc capabilities explicitly bounded. The grade is NIGHT editorial judgment, not an official statistic or an exhaustive chapter-by-chapter feat audit."
-      }
+      },
+      "universe": "bleach",
+      "continuity": "bleach-manga"
     },
     "hitsugaya-featured": {
-      "scale": "night-power-v1",
+      "scale": "night-universe-power-v1",
       "status": "proposed",
       "rank": "A",
       "formId": "hyorinmaru-lost-agent",
@@ -271,10 +287,12 @@
         "artworkSHA256": "0fd8922583cd2062d1763dd0d4c07d85afce0c7300f4116c48e5b656f7243775",
         "confidence": "medium",
         "method": "Pinned illustration and official source profile checked. Transformed and later-arc capabilities explicitly bounded. The grade is NIGHT editorial judgment, not an official statistic or an exhaustive chapter-by-chapter feat audit."
-      }
+      },
+      "universe": "bleach",
+      "continuity": "bleach-manga"
     },
     "hiyori-featured": {
-      "scale": "night-power-v1",
+      "scale": "night-universe-power-v1",
       "status": "proposed",
       "rank": "B",
       "formId": "visored-unmasked",
@@ -291,10 +309,12 @@
         "artworkSHA256": "17d25e3c34f2cca383a4178d89fbf901400ece4789829eb93bc81f26d6ec92f0",
         "confidence": "medium",
         "method": "Pinned illustration and official source profile checked. Transformed and later-arc capabilities explicitly bounded. The grade is NIGHT editorial judgment, not an official statistic or an exhaustive chapter-by-chapter feat audit."
-      }
+      },
+      "universe": "bleach",
+      "continuity": "bleach-manga"
     },
     "ichigo-original-bankai": {
-      "scale": "night-power-v1",
+      "scale": "night-universe-power-v1",
       "status": "proposed",
       "rank": "A",
       "formId": "original-bankai",
@@ -312,10 +332,12 @@
         "artworkSHA256": "ebe412483d41abab007584d83052f4362d9b88fa67e507e08bc75859b1c20b66",
         "confidence": "medium",
         "method": "Pinned illustration and official source profile checked. Transformed and later-arc capabilities explicitly bounded. The grade is NIGHT editorial judgment, not an official statistic or an exhaustive chapter-by-chapter feat audit."
-      }
+      },
+      "universe": "bleach",
+      "continuity": "bleach-manga"
     },
     "ichigo-original-shikai": {
-      "scale": "night-power-v1",
+      "scale": "night-universe-power-v1",
       "status": "proposed",
       "rank": "B",
       "formId": "original-shikai",
@@ -333,10 +355,12 @@
         "artworkSHA256": "1498936a73f8d281abf14e2b5b3b452bf5f73f9e4b05f17ea5756b1599cfa079",
         "confidence": "medium",
         "method": "Pinned illustration and official source profile checked. Transformed and later-arc capabilities explicitly bounded. The grade is NIGHT editorial judgment, not an official statistic or an exhaustive chapter-by-chapter feat audit."
-      }
+      },
+      "universe": "bleach",
+      "continuity": "bleach-manga"
     },
     "ichigo-substitute-soul-reaper": {
-      "scale": "night-power-v1",
+      "scale": "night-universe-power-v1",
       "status": "proposed",
       "rank": "D",
       "formId": "substitute-soul-reaper",
@@ -354,10 +378,12 @@
         "artworkSHA256": "946c5441f729654e0dbd4f230a3ada760720677a577c6eade090cba233633a71",
         "confidence": "medium",
         "method": "Pinned illustration and official source profile checked. Transformed and later-arc capabilities explicitly bounded. The grade is NIGHT editorial judgment, not an official statistic or an exhaustive chapter-by-chapter feat audit."
-      }
+      },
+      "universe": "bleach",
+      "continuity": "bleach-manga"
     },
     "ikkaku-featured": {
-      "scale": "night-power-v1",
+      "scale": "night-universe-power-v1",
       "status": "proposed",
       "rank": "B",
       "formId": "bankai-ryumon-hozukimaru",
@@ -374,10 +400,12 @@
         "artworkSHA256": "decd80b04d20203b8bba9bc71716745f9340432b8b06a1a9a5cab1a2ba4c9f06",
         "confidence": "medium",
         "method": "Pinned illustration and official source profile checked. Transformed and later-arc capabilities explicitly bounded. The grade is NIGHT editorial judgment, not an official statistic or an exhaustive chapter-by-chapter feat audit."
-      }
+      },
+      "universe": "bleach",
+      "continuity": "bleach-manga"
     },
     "isane-featured": {
-      "scale": "night-power-v1",
+      "scale": "night-universe-power-v1",
       "status": "proposed",
       "rank": "C",
       "formId": "squad-four",
@@ -394,10 +422,12 @@
         "artworkSHA256": "24f3a1ed59a01e9b02b191b36fca176d9259e3dccad1784881c3e56ce0b51658",
         "confidence": "medium",
         "method": "Pinned illustration and official source profile checked. Transformed and later-arc capabilities explicitly bounded. The grade is NIGHT editorial judgment, not an official statistic or an exhaustive chapter-by-chapter feat audit."
-      }
+      },
+      "universe": "bleach",
+      "continuity": "bleach-manga"
     },
     "isshin-featured": {
-      "scale": "night-power-v1",
+      "scale": "night-universe-power-v1",
       "status": "proposed",
       "rank": "A",
       "formId": "soul-reaper-unreleased",
@@ -414,10 +444,12 @@
         "artworkSHA256": "b8eff2a14e402f3d2eff5afacea1c9216ffd039a7210c1538a5e686cbbb62c65",
         "confidence": "medium",
         "method": "Pinned illustration and official source profile checked. Transformed and later-arc capabilities explicitly bounded. The grade is NIGHT editorial judgment, not an official statistic or an exhaustive chapter-by-chapter feat audit."
-      }
+      },
+      "universe": "bleach",
+      "continuity": "bleach-manga"
     },
     "kaien-featured": {
-      "scale": "night-power-v1",
+      "scale": "night-universe-power-v1",
       "status": "proposed",
       "rank": "B",
       "formId": "nejibana",
@@ -434,10 +466,12 @@
         "artworkSHA256": "f9cb9ca9b93ff513c37717dca907dc4f7d9929a543fe638a3c67ac58a9bb0e32",
         "confidence": "medium",
         "method": "Pinned illustration and official source profile checked. Transformed and later-arc capabilities explicitly bounded. The grade is NIGHT editorial judgment, not an official statistic or an exhaustive chapter-by-chapter feat audit."
-      }
+      },
+      "universe": "bleach",
+      "continuity": "bleach-manga"
     },
     "kenpachi-featured": {
-      "scale": "night-power-v1",
+      "scale": "night-universe-power-v1",
       "status": "proposed",
       "rank": "A",
       "formId": "pre-tybw-sealed",
@@ -455,10 +489,12 @@
         "artworkSHA256": "965b8ca7b19600eb9e4c43d165347452eef468e1391e1309f0624c6b7b3662c0",
         "confidence": "medium",
         "method": "Pinned illustration and official source profile checked. Transformed and later-arc capabilities explicitly bounded. The grade is NIGHT editorial judgment, not an official statistic or an exhaustive chapter-by-chapter feat audit."
-      }
+      },
+      "universe": "bleach",
+      "continuity": "bleach-manga"
     },
     "kensei-featured": {
-      "scale": "night-power-v1",
+      "scale": "night-universe-power-v1",
       "status": "proposed",
       "rank": "A",
       "formId": "bankai-tekken-tachikaze",
@@ -475,10 +511,12 @@
         "artworkSHA256": "bfe74b7baa32497ea739416b3b2c34b2910952f3156408d64e5b3a29c0006e85",
         "confidence": "medium",
         "method": "Pinned illustration and official source profile checked. Transformed and later-arc capabilities explicitly bounded. The grade is NIGHT editorial judgment, not an official statistic or an exhaustive chapter-by-chapter feat audit."
-      }
+      },
+      "universe": "bleach",
+      "continuity": "bleach-manga"
     },
     "kira-featured": {
-      "scale": "night-power-v1",
+      "scale": "night-universe-power-v1",
       "status": "proposed",
       "rank": "B",
       "formId": "wabisuke",
@@ -495,10 +533,12 @@
         "artworkSHA256": "9e7a4ebce4bf4bcf7a2b46c7be1cbb055eb0ea764d438adf2a1f15e8c6e32df3",
         "confidence": "medium",
         "method": "Pinned illustration and official source profile checked. Transformed and later-arc capabilities explicitly bounded. The grade is NIGHT editorial judgment, not an official statistic or an exhaustive chapter-by-chapter feat audit."
-      }
+      },
+      "universe": "bleach",
+      "continuity": "bleach-manga"
     },
     "komamura-featured": {
-      "scale": "night-power-v1",
+      "scale": "night-universe-power-v1",
       "status": "proposed",
       "rank": "A",
       "formId": "captain-unreleased",
@@ -515,10 +555,12 @@
         "artworkSHA256": "94da1f1ba45dbdd2e7801fb8d9fb05d18dad53568564c7b7665db876cfbcff5f",
         "confidence": "medium",
         "method": "Pinned illustration and official source profile checked. Transformed and later-arc capabilities explicitly bounded. The grade is NIGHT editorial judgment, not an official statistic or an exhaustive chapter-by-chapter feat audit."
-      }
+      },
+      "universe": "bleach",
+      "continuity": "bleach-manga"
     },
     "kon-featured": {
-      "scale": "night-power-v1",
+      "scale": "night-universe-power-v1",
       "status": "proposed",
       "rank": "E",
       "formId": "plush-body",
@@ -535,10 +577,12 @@
         "artworkSHA256": "1dd56bbe7fc18703e15d1c618282826d4dd0c66cdd833ba502620a62d1eb695c",
         "confidence": "medium",
         "method": "Pinned illustration and official source profile checked. Transformed and later-arc capabilities explicitly bounded. The grade is NIGHT editorial judgment, not an official statistic or an exhaustive chapter-by-chapter feat audit."
-      }
+      },
+      "universe": "bleach",
+      "continuity": "bleach-manga"
     },
     "kukaku-featured": {
-      "scale": "night-power-v1",
+      "scale": "night-universe-power-v1",
       "status": "proposed",
       "rank": "C",
       "formId": "shiba-outfit",
@@ -555,10 +599,12 @@
         "artworkSHA256": "671b4e7bf3e0e804d25a8a646d64688ed185ff378786e70d74b92c18a747568a",
         "confidence": "medium",
         "method": "Pinned illustration and official source profile checked. Transformed and later-arc capabilities explicitly bounded. The grade is NIGHT editorial judgment, not an official statistic or an exhaustive chapter-by-chapter feat audit."
-      }
+      },
+      "universe": "bleach",
+      "continuity": "bleach-manga"
     },
     "kyoraku-featured": {
-      "scale": "night-power-v1",
+      "scale": "night-universe-power-v1",
       "status": "proposed",
       "rank": "S",
       "formId": "shikai",
@@ -575,10 +621,12 @@
         "artworkSHA256": "a8b6a4e14980f1907e4db84041a0ec7e8acbf1cc885c7c2e9e2a3da025fab7f4",
         "confidence": "medium",
         "method": "Pinned illustration and official source profile checked. Transformed and later-arc capabilities explicitly bounded. The grade is NIGHT editorial judgment, not an official statistic or an exhaustive chapter-by-chapter feat audit."
-      }
+      },
+      "universe": "bleach",
+      "continuity": "bleach-manga"
     },
     "lisa-featured": {
-      "scale": "night-power-v1",
+      "scale": "night-universe-power-v1",
       "status": "proposed",
       "rank": "B",
       "formId": "visored-polearm",
@@ -595,10 +643,12 @@
         "artworkSHA256": "e1b64cba03f74ff35c1424884f34decc0348728c38ad0bdf55b8f9aed29eeb09",
         "confidence": "medium",
         "method": "Pinned illustration and official source profile checked. Transformed and later-arc capabilities explicitly bounded. The grade is NIGHT editorial judgment, not an official statistic or an exhaustive chapter-by-chapter feat audit."
-      }
+      },
+      "universe": "bleach",
+      "continuity": "bleach-manga"
     },
     "mashiro-featured": {
-      "scale": "night-power-v1",
+      "scale": "night-universe-power-v1",
       "status": "proposed",
       "rank": "B",
       "formId": "visored-unmasked",
@@ -615,10 +665,12 @@
         "artworkSHA256": "a6a117562f79512d057623636313d86b6128c18f535dabae2ed0edc8bbbdbcf7",
         "confidence": "medium",
         "method": "Pinned illustration and official source profile checked. Transformed and later-arc capabilities explicitly bounded. The grade is NIGHT editorial judgment, not an official statistic or an exhaustive chapter-by-chapter feat audit."
-      }
+      },
+      "universe": "bleach",
+      "continuity": "bleach-manga"
     },
     "mayuri-featured": {
-      "scale": "night-power-v1",
+      "scale": "night-universe-power-v1",
       "status": "proposed",
       "rank": "A",
       "formId": "captain-unreleased",
@@ -635,10 +687,12 @@
         "artworkSHA256": "006592264851a28dae43ee3512772342130a262b49c57784376e1790ceeeee09",
         "confidence": "medium",
         "method": "Pinned illustration and official source profile checked. Transformed and later-arc capabilities explicitly bounded. The grade is NIGHT editorial judgment, not an official statistic or an exhaustive chapter-by-chapter feat audit."
-      }
+      },
+      "universe": "bleach",
+      "continuity": "bleach-manga"
     },
     "nanao-featured": {
-      "scale": "night-power-v1",
+      "scale": "night-universe-power-v1",
       "status": "proposed",
       "rank": "C",
       "formId": "lieutenant-kido",
@@ -656,10 +710,12 @@
         "artworkSHA256": "3102788a236aee2e23e164632328fd256485fc0e09d110182b39ae261c94bc52",
         "confidence": "medium",
         "method": "Pinned illustration and official source profile checked. Transformed and later-arc capabilities explicitly bounded. The grade is NIGHT editorial judgment, not an official statistic or an exhaustive chapter-by-chapter feat audit."
-      }
+      },
+      "universe": "bleach",
+      "continuity": "bleach-manga"
     },
     "nel-featured": {
-      "scale": "night-power-v1",
+      "scale": "night-universe-power-v1",
       "status": "proposed",
       "rank": "D",
       "formId": "child",
@@ -676,10 +732,12 @@
         "artworkSHA256": "09ebbce606b16482502d0edcc256fffb8303ce2b6b71a9d37acd52d385ba25b8",
         "confidence": "medium",
         "method": "Pinned illustration and official source profile checked. Transformed and later-arc capabilities explicitly bounded. The grade is NIGHT editorial judgment, not an official statistic or an exhaustive chapter-by-chapter feat audit."
-      }
+      },
+      "universe": "bleach",
+      "continuity": "bleach-manga"
     },
     "nelliel-featured": {
-      "scale": "night-power-v1",
+      "scale": "night-universe-power-v1",
       "status": "proposed",
       "rank": "A",
       "formId": "adult-unreleased",
@@ -696,10 +754,12 @@
         "artworkSHA256": "fefc9fddbef1201ebfb1a005d6431edfff0c9408aa675f513e8bd92d4c35c401",
         "confidence": "medium",
         "method": "Pinned illustration and official source profile checked. Transformed and later-arc capabilities explicitly bounded. The grade is NIGHT editorial judgment, not an official statistic or an exhaustive chapter-by-chapter feat audit."
-      }
+      },
+      "universe": "bleach",
+      "continuity": "bleach-manga"
     },
     "nemu-featured": {
-      "scale": "night-power-v1",
+      "scale": "night-universe-power-v1",
       "status": "proposed",
       "rank": "B",
       "formId": "standard-body",
@@ -717,10 +777,12 @@
         "artworkSHA256": "2df47d1526b76b5cf75ac7b5f5610ef4d1c9cd04902363a8505f551bd0719d76",
         "confidence": "medium",
         "method": "Pinned illustration and official source profile checked. Transformed and later-arc capabilities explicitly bounded. The grade is NIGHT editorial judgment, not an official statistic or an exhaustive chapter-by-chapter feat audit."
-      }
+      },
+      "universe": "bleach",
+      "continuity": "bleach-manga"
     },
     "nnoitora-featured": {
-      "scale": "night-power-v1",
+      "scale": "night-universe-power-v1",
       "status": "proposed",
       "rank": "A",
       "formId": "unreleased",
@@ -737,10 +799,12 @@
         "artworkSHA256": "bb30581c87c86741ef8030ad1ea6fddd50c1e7eea7493ca32a1fbd90e7655417",
         "confidence": "medium",
         "method": "Pinned illustration and official source profile checked. Transformed and later-arc capabilities explicitly bounded. The grade is NIGHT editorial judgment, not an official statistic or an exhaustive chapter-by-chapter feat audit."
-      }
+      },
+      "universe": "bleach",
+      "continuity": "bleach-manga"
     },
     "orihime-featured": {
-      "scale": "night-power-v1",
+      "scale": "night-universe-power-v1",
       "status": "proposed",
       "rank": "B",
       "formId": "lost-agent",
@@ -757,10 +821,12 @@
         "artworkSHA256": "dbeb309905a61de9a54e4d6df899b9186fd0b7e1876d2d616c543ddbe1b1bf52",
         "confidence": "medium",
         "method": "Pinned illustration and official source profile checked. Transformed and later-arc capabilities explicitly bounded. The grade is NIGHT editorial judgment, not an official statistic or an exhaustive chapter-by-chapter feat audit."
-      }
+      },
+      "universe": "bleach",
+      "continuity": "bleach-manga"
     },
     "rangiku-featured": {
-      "scale": "night-power-v1",
+      "scale": "night-universe-power-v1",
       "status": "proposed",
       "rank": "B",
       "formId": "haineko",
@@ -777,10 +843,12 @@
         "artworkSHA256": "494e3a2948b7a465eb533a9ccac78ee8bd9ad1c2d73afac23760f0a0b05c74d5",
         "confidence": "medium",
         "method": "Pinned illustration and official source profile checked. Transformed and later-arc capabilities explicitly bounded. The grade is NIGHT editorial judgment, not an official statistic or an exhaustive chapter-by-chapter feat audit."
-      }
+      },
+      "universe": "bleach",
+      "continuity": "bleach-manga"
     },
     "renji-featured": {
-      "scale": "night-power-v1",
+      "scale": "night-universe-power-v1",
       "status": "proposed",
       "rank": "B",
       "formId": "zabimaru-lost-agent",
@@ -797,10 +865,12 @@
         "artworkSHA256": "3232534811e56237dc2dcda96f993d178cb0c2b25889735b94bfbb56de1c7c07",
         "confidence": "medium",
         "method": "Pinned illustration and official source profile checked. Transformed and later-arc capabilities explicitly bounded. The grade is NIGHT editorial judgment, not an official statistic or an exhaustive chapter-by-chapter feat audit."
-      }
+      },
+      "universe": "bleach",
+      "continuity": "bleach-manga"
     },
     "riruka-featured": {
-      "scale": "night-power-v1",
+      "scale": "night-universe-power-v1",
       "status": "proposed",
       "rank": "C",
       "formId": "dollhouse",
@@ -817,10 +887,12 @@
         "artworkSHA256": "72d119f83d1ef23c730a2b833d8a84af0f0f0d1eb1cb20f0bf9297dff915bb8e",
         "confidence": "medium",
         "method": "Pinned illustration and official source profile checked. Transformed and later-arc capabilities explicitly bounded. The grade is NIGHT editorial judgment, not an official statistic or an exhaustive chapter-by-chapter feat audit."
-      }
+      },
+      "universe": "bleach",
+      "continuity": "bleach-manga"
     },
     "rojuro-featured": {
-      "scale": "night-power-v1",
+      "scale": "night-universe-power-v1",
       "status": "proposed",
       "rank": "A",
       "formId": "kinshara",
@@ -837,10 +909,12 @@
         "artworkSHA256": "3bb7132aac9b33fa118b81c93e166a1f1d3002d9085fae9c33cd9f986041dee9",
         "confidence": "medium",
         "method": "Pinned illustration and official source profile checked. Transformed and later-arc capabilities explicitly bounded. The grade is NIGHT editorial judgment, not an official statistic or an exhaustive chapter-by-chapter feat audit."
-      }
+      },
+      "universe": "bleach",
+      "continuity": "bleach-manga"
     },
     "rukia-featured": {
-      "scale": "night-power-v1",
+      "scale": "night-universe-power-v1",
       "status": "proposed",
       "rank": "B",
       "formId": "sode-no-shirayuki-lost-agent",
@@ -858,10 +932,12 @@
         "artworkSHA256": "a3fc224c4d45b3b01b113d084c6a3ab38b30dc435478b437e4f7f1aa45170550",
         "confidence": "medium",
         "method": "Pinned illustration and official source profile checked. Transformed and later-arc capabilities explicitly bounded. The grade is NIGHT editorial judgment, not an official statistic or an exhaustive chapter-by-chapter feat audit."
-      }
+      },
+      "universe": "bleach",
+      "continuity": "bleach-manga"
     },
     "sado-featured": {
-      "scale": "night-power-v1",
+      "scale": "night-universe-power-v1",
       "status": "proposed",
       "rank": "B",
       "formId": "fullbring-two-arms",
@@ -878,10 +954,12 @@
         "artworkSHA256": "e0f4c9ab600aa7296c826409835203c7166aa6aff7ee044ca3f0f06e8794d648",
         "confidence": "medium",
         "method": "Pinned illustration and official source profile checked. Transformed and later-arc capabilities explicitly bounded. The grade is NIGHT editorial judgment, not an official statistic or an exhaustive chapter-by-chapter feat audit."
-      }
+      },
+      "universe": "bleach",
+      "continuity": "bleach-manga"
     },
     "soifon-featured": {
-      "scale": "night-power-v1",
+      "scale": "night-universe-power-v1",
       "status": "proposed",
       "rank": "A",
       "formId": "suzumebachi",
@@ -898,10 +976,12 @@
         "artworkSHA256": "9c292251191f1143fff885ba7c7a5da5aaca5e1cf98aadb1e80c7d4c8ddc016c",
         "confidence": "medium",
         "method": "Pinned illustration and official source profile checked. Transformed and later-arc capabilities explicitly bounded. The grade is NIGHT editorial judgment, not an official statistic or an exhaustive chapter-by-chapter feat audit."
-      }
+      },
+      "universe": "bleach",
+      "continuity": "bleach-manga"
     },
     "stark-featured": {
-      "scale": "night-power-v1",
+      "scale": "night-universe-power-v1",
       "status": "proposed",
       "rank": "A",
       "formId": "unreleased",
@@ -918,10 +998,12 @@
         "artworkSHA256": "4eb28a2504cc5769358d9e278a6e104181f8c57c0a7a0f9fb6ca620f4da7b0ed",
         "confidence": "medium",
         "method": "Pinned illustration and official source profile checked. Transformed and later-arc capabilities explicitly bounded. The grade is NIGHT editorial judgment, not an official statistic or an exhaustive chapter-by-chapter feat audit."
-      }
+      },
+      "universe": "bleach",
+      "continuity": "bleach-manga"
     },
     "szayelaporro-featured": {
-      "scale": "night-power-v1",
+      "scale": "night-universe-power-v1",
       "status": "proposed",
       "rank": "A",
       "formId": "unreleased",
@@ -938,10 +1020,12 @@
         "artworkSHA256": "7efa77bd58729a12c5eb606d3b573c15e02f849b26e9990f4a8b52e9f538d0c2",
         "confidence": "medium",
         "method": "Pinned illustration and official source profile checked. Transformed and later-arc capabilities explicitly bounded. The grade is NIGHT editorial judgment, not an official statistic or an exhaustive chapter-by-chapter feat audit."
-      }
+      },
+      "universe": "bleach",
+      "continuity": "bleach-manga"
     },
     "tosen-featured": {
-      "scale": "night-power-v1",
+      "scale": "night-universe-power-v1",
       "status": "proposed",
       "rank": "A",
       "formId": "soul-reaper-unreleased",
@@ -958,10 +1042,12 @@
         "artworkSHA256": "96adbf17985d3b5a63667229ff6b4952ee88c9eb87884286dc2f75e5463bdbe1",
         "confidence": "medium",
         "method": "Pinned illustration and official source profile checked. Transformed and later-arc capabilities explicitly bounded. The grade is NIGHT editorial judgment, not an official statistic or an exhaustive chapter-by-chapter feat audit."
-      }
+      },
+      "universe": "bleach",
+      "continuity": "bleach-manga"
     },
     "tsukishima-featured": {
-      "scale": "night-power-v1",
+      "scale": "night-universe-power-v1",
       "status": "proposed",
       "rank": "A",
       "formId": "book-of-the-end",
@@ -978,10 +1064,12 @@
         "artworkSHA256": "b77c4ff53478a3f088aedd4cf8d9939f1cd8c3f462fa7dae27cf3133b98fca09",
         "confidence": "medium",
         "method": "Pinned illustration and official source profile checked. Transformed and later-arc capabilities explicitly bounded. The grade is NIGHT editorial judgment, not an official statistic or an exhaustive chapter-by-chapter feat audit."
-      }
+      },
+      "universe": "bleach",
+      "continuity": "bleach-manga"
     },
     "ukitake-featured": {
-      "scale": "night-power-v1",
+      "scale": "night-universe-power-v1",
       "status": "proposed",
       "rank": "A",
       "formId": "shikai",
@@ -999,10 +1087,12 @@
         "artworkSHA256": "c22dfa701fc8dc0777c3fd3f7bc07ed2d03ff94ec47c048719443c2d74d5fde3",
         "confidence": "medium",
         "method": "Pinned illustration and official source profile checked. Transformed and later-arc capabilities explicitly bounded. The grade is NIGHT editorial judgment, not an official statistic or an exhaustive chapter-by-chapter feat audit."
-      }
+      },
+      "universe": "bleach",
+      "continuity": "bleach-manga"
     },
     "ulquiorra-featured": {
-      "scale": "night-power-v1",
+      "scale": "night-universe-power-v1",
       "status": "proposed",
       "rank": "A",
       "formId": "unreleased",
@@ -1019,10 +1109,12 @@
         "artworkSHA256": "5dcb2cd62bc8d92636debc5179300e2e5f03cc1609d45722ae2bf980bd4406b7",
         "confidence": "medium",
         "method": "Pinned illustration and official source profile checked. Transformed and later-arc capabilities explicitly bounded. The grade is NIGHT editorial judgment, not an official statistic or an exhaustive chapter-by-chapter feat audit."
-      }
+      },
+      "universe": "bleach",
+      "continuity": "bleach-manga"
     },
     "unohana-featured": {
-      "scale": "night-power-v1",
+      "scale": "night-universe-power-v1",
       "status": "proposed",
       "rank": "S",
       "formId": "captain-healing",
@@ -1039,10 +1131,12 @@
         "artworkSHA256": "8f214436774eaafeef480aafb9f277f8224e0a071f0a1bf87f49786efa2cc836",
         "confidence": "medium",
         "method": "Pinned illustration and official source profile checked. Transformed and later-arc capabilities explicitly bounded. The grade is NIGHT editorial judgment, not an official statistic or an exhaustive chapter-by-chapter feat audit."
-      }
+      },
+      "universe": "bleach",
+      "continuity": "bleach-manga"
     },
     "urahara-featured": {
-      "scale": "night-power-v1",
+      "scale": "night-universe-power-v1",
       "status": "proposed",
       "rank": "A",
       "formId": "shikai",
@@ -1059,10 +1153,12 @@
         "artworkSHA256": "dad820240cd754c674dc0a3169506db5157a8ca9375c8b39b8a8168a13b59886",
         "confidence": "medium",
         "method": "Pinned illustration and official source profile checked. Transformed and later-arc capabilities explicitly bounded. The grade is NIGHT editorial judgment, not an official statistic or an exhaustive chapter-by-chapter feat audit."
-      }
+      },
+      "universe": "bleach",
+      "continuity": "bleach-manga"
     },
     "uryu-featured": {
-      "scale": "night-power-v1",
+      "scale": "night-universe-power-v1",
       "status": "proposed",
       "rank": "B",
       "formId": "lost-agent-bow",
@@ -1079,10 +1175,12 @@
         "artworkSHA256": "1b868459980bacc70bdc09a7dd6f201b02df2f6e13f2b3494e6ae9cefa2aa6c4",
         "confidence": "medium",
         "method": "Pinned illustration and official source profile checked. Transformed and later-arc capabilities explicitly bounded. The grade is NIGHT editorial judgment, not an official statistic or an exhaustive chapter-by-chapter feat audit."
-      }
+      },
+      "universe": "bleach",
+      "continuity": "bleach-manga"
     },
     "yachiru-featured": {
-      "scale": "night-power-v1",
+      "scale": "night-universe-power-v1",
       "status": "proposed",
       "rank": "C",
       "formId": "lieutenant-unreleased",
@@ -1100,10 +1198,12 @@
         "artworkSHA256": "1a0f25fadbf1375f25a687723a4b3d6d529921f64c239e544ca32348e5b6b9fc",
         "confidence": "medium",
         "method": "Pinned illustration and official source profile checked. Transformed and later-arc capabilities explicitly bounded. The grade is NIGHT editorial judgment, not an official statistic or an exhaustive chapter-by-chapter feat audit."
-      }
+      },
+      "universe": "bleach",
+      "continuity": "bleach-manga"
     },
     "yamamoto-featured": {
-      "scale": "night-power-v1",
+      "scale": "night-universe-power-v1",
       "status": "proposed",
       "rank": "S",
       "formId": "captain-sealed",
@@ -1120,10 +1220,12 @@
         "artworkSHA256": "593fa9236bceb029bdf32d93a6bd2dc9970e6430c735a2c37b04215baabd2dc1",
         "confidence": "medium",
         "method": "Pinned illustration and official source profile checked. Transformed and later-arc capabilities explicitly bounded. The grade is NIGHT editorial judgment, not an official statistic or an exhaustive chapter-by-chapter feat audit."
-      }
+      },
+      "universe": "bleach",
+      "continuity": "bleach-manga"
     },
     "yammy-featured": {
-      "scale": "night-power-v1",
+      "scale": "night-universe-power-v1",
       "status": "proposed",
       "rank": "A",
       "formId": "unreleased",
@@ -1140,10 +1242,12 @@
         "artworkSHA256": "582e39ae426b6beaa1f776bc0558ecbd52e77038465b07bc963573ecb1954022",
         "confidence": "medium",
         "method": "Pinned illustration and official source profile checked. Transformed and later-arc capabilities explicitly bounded. The grade is NIGHT editorial judgment, not an official statistic or an exhaustive chapter-by-chapter feat audit."
-      }
+      },
+      "universe": "bleach",
+      "continuity": "bleach-manga"
     },
     "yoruichi-featured": {
-      "scale": "night-power-v1",
+      "scale": "night-universe-power-v1",
       "status": "proposed",
       "rank": "A",
       "formId": "anti-hierro",
@@ -1160,10 +1264,12 @@
         "artworkSHA256": "21d3775be7a29808702611641cb865ce294c8e4d16a294e9f0bccfa488e4644a",
         "confidence": "medium",
         "method": "Pinned illustration and official source profile checked. Transformed and later-arc capabilities explicitly bounded. The grade is NIGHT editorial judgment, not an official statistic or an exhaustive chapter-by-chapter feat audit."
-      }
+      },
+      "universe": "bleach",
+      "continuity": "bleach-manga"
     },
     "yumichika-featured": {
-      "scale": "night-power-v1",
+      "scale": "night-universe-power-v1",
       "status": "proposed",
       "rank": "B",
       "formId": "ruriiro-kujaku",
@@ -1180,10 +1286,12 @@
         "artworkSHA256": "fb92de2941ae3596910c75a3519beb044f15283f60d2cb5a397a0b0f0d9e13f5",
         "confidence": "medium",
         "method": "Pinned illustration and official source profile checked. Transformed and later-arc capabilities explicitly bounded. The grade is NIGHT editorial judgment, not an official statistic or an exhaustive chapter-by-chapter feat audit."
-      }
+      },
+      "universe": "bleach",
+      "continuity": "bleach-manga"
     },
     "as-nodt-tybw": {
-      "scale": "night-power-v1",
+      "scale": "night-universe-power-v1",
       "status": "proposed",
       "rank": "A",
       "formId": "tybw-standard",
@@ -1200,10 +1308,12 @@
         "artworkSHA256": "513f4f0d81cc590a188340c47cf7bd2c038402042d47250cdb71ba1d25b03a27",
         "confidence": "medium",
         "method": "Pinned illustration and official source profile checked. Transformed and later-arc capabilities explicitly bounded. The grade is NIGHT editorial judgment, not an official statistic or an exhaustive chapter-by-chapter feat audit."
-      }
+      },
+      "universe": "bleach",
+      "continuity": "bleach-manga"
     },
     "askin-nakk-le-vaar-tybw": {
-      "scale": "night-power-v1",
+      "scale": "night-universe-power-v1",
       "status": "proposed",
       "rank": "S",
       "formId": "tybw-standard",
@@ -1220,10 +1330,12 @@
         "artworkSHA256": "7ef2e51ec17cebbddcc02d502859712b980bb7ab5e59fa427a6a746bc045176e",
         "confidence": "medium",
         "method": "Pinned illustration and official source profile checked. Transformed and later-arc capabilities explicitly bounded. The grade is NIGHT editorial judgment, not an official statistic or an exhaustive chapter-by-chapter feat audit."
-      }
+      },
+      "universe": "bleach",
+      "continuity": "bleach-manga"
     },
     "bambietta-basterbine-tybw": {
-      "scale": "night-power-v1",
+      "scale": "night-universe-power-v1",
       "status": "proposed",
       "rank": "A",
       "formId": "tybw-standard",
@@ -1240,10 +1352,12 @@
         "artworkSHA256": "46aa951d419e020726fba8dc647fb75a120919e445d86d7b50b12075c604be3c",
         "confidence": "medium",
         "method": "Pinned illustration and official source profile checked. Transformed and later-arc capabilities explicitly bounded. The grade is NIGHT editorial judgment, not an official statistic or an exhaustive chapter-by-chapter feat audit."
-      }
+      },
+      "universe": "bleach",
+      "continuity": "bleach-manga"
     },
     "bazz-b-tybw": {
-      "scale": "night-power-v1",
+      "scale": "night-universe-power-v1",
       "status": "proposed",
       "rank": "A",
       "formId": "tybw-standard",
@@ -1260,10 +1374,12 @@
         "artworkSHA256": "1416bb4be2c5dbefd1e7239de3b764927c7956825274174f65be6942c84c7553",
         "confidence": "medium",
         "method": "Pinned illustration and official source profile checked. Transformed and later-arc capabilities explicitly bounded. The grade is NIGHT editorial judgment, not an official statistic or an exhaustive chapter-by-chapter feat audit."
-      }
+      },
+      "universe": "bleach",
+      "continuity": "bleach-manga"
     },
     "candice-catnipp-tybw": {
-      "scale": "night-power-v1",
+      "scale": "night-universe-power-v1",
       "status": "proposed",
       "rank": "A",
       "formId": "tybw-standard",
@@ -1280,10 +1396,12 @@
         "artworkSHA256": "942e2b932ee53d9060d2ea1c418b676531f677cf23811f88922a34a1bae7e7c3",
         "confidence": "medium",
         "method": "Pinned illustration and official source profile checked. Transformed and later-arc capabilities explicitly bounded. The grade is NIGHT editorial judgment, not an official statistic or an exhaustive chapter-by-chapter feat audit."
-      }
+      },
+      "universe": "bleach",
+      "continuity": "bleach-manga"
     },
     "gerard-valkyrie-tybw": {
-      "scale": "night-power-v1",
+      "scale": "night-universe-power-v1",
       "status": "proposed",
       "rank": "S",
       "formId": "tybw-standard",
@@ -1300,10 +1418,12 @@
         "artworkSHA256": "65c80e0a7604c880fa1508c29cfeb1f6dfa52bd65b73775f4aa2e7f2de56e429",
         "confidence": "medium",
         "method": "Pinned illustration and official source profile checked. Transformed and later-arc capabilities explicitly bounded. The grade is NIGHT editorial judgment, not an official statistic or an exhaustive chapter-by-chapter feat audit."
-      }
+      },
+      "universe": "bleach",
+      "continuity": "bleach-manga"
     },
     "giselle-gewelle-tybw": {
-      "scale": "night-power-v1",
+      "scale": "night-universe-power-v1",
       "status": "proposed",
       "rank": "A",
       "formId": "tybw-standard",
@@ -1320,10 +1440,12 @@
         "artworkSHA256": "63521a06b4a67d94601a7f29d20654853a6121dc775faea340b198ce9eb68e60",
         "confidence": "medium",
         "method": "Pinned illustration and official source profile checked. Transformed and later-arc capabilities explicitly bounded. The grade is NIGHT editorial judgment, not an official statistic or an exhaustive chapter-by-chapter feat audit."
-      }
+      },
+      "universe": "bleach",
+      "continuity": "bleach-manga"
     },
     "gremmy-thoumeaux-tybw": {
-      "scale": "night-power-v1",
+      "scale": "night-universe-power-v1",
       "status": "proposed",
       "rank": "S",
       "formId": "tybw-standard",
@@ -1341,10 +1463,12 @@
         "artworkSHA256": "5251525e493dc6285caad335e9f0268bb020c1e910762d2999004efc48149b7a",
         "confidence": "medium",
         "method": "Pinned illustration and official source profile checked. Transformed and later-arc capabilities explicitly bounded. The grade is NIGHT editorial judgment, not an official statistic or an exhaustive chapter-by-chapter feat audit."
-      }
+      },
+      "universe": "bleach",
+      "continuity": "bleach-manga"
     },
     "ichibe-hyosube-tybw": {
-      "scale": "night-power-v1",
+      "scale": "night-universe-power-v1",
       "status": "proposed",
       "rank": "SS",
       "formId": "tybw-standard",
@@ -1362,10 +1486,12 @@
         "artworkSHA256": "aae80ce1ace0f7704fe1c8455fb8638bfe1ec6b56a9a8f5e67a89fdff2126992",
         "confidence": "medium",
         "method": "Pinned illustration and official source profile checked. Transformed and later-arc capabilities explicitly bounded. The grade is NIGHT editorial judgment, not an official statistic or an exhaustive chapter-by-chapter feat audit."
-      }
+      },
+      "universe": "bleach",
+      "continuity": "bleach-manga"
     },
     "jugram-haschwalth-tybw": {
-      "scale": "night-power-v1",
+      "scale": "night-universe-power-v1",
       "status": "proposed",
       "rank": "S",
       "formId": "tybw-standard",
@@ -1382,10 +1508,12 @@
         "artworkSHA256": "958059832b3e9a078e4d43fe0c2c556d777fd3f00edeee883be8bd0f32fafd46",
         "confidence": "medium",
         "method": "Pinned illustration and official source profile checked. Transformed and later-arc capabilities explicitly bounded. The grade is NIGHT editorial judgment, not an official statistic or an exhaustive chapter-by-chapter feat audit."
-      }
+      },
+      "universe": "bleach",
+      "continuity": "bleach-manga"
     },
     "kirio-hikifune-tybw": {
-      "scale": "night-power-v1",
+      "scale": "night-universe-power-v1",
       "status": "proposed",
       "rank": "S",
       "formId": "tybw-standard",
@@ -1403,10 +1531,12 @@
         "artworkSHA256": "3686ab95e821b58ede0c8ca0e20b8938f6ad67ca18d4ceab0428cb6c9cb0774c",
         "confidence": "medium",
         "method": "Pinned illustration and official source profile checked. Transformed and later-arc capabilities explicitly bounded. The grade is NIGHT editorial judgment, not an official statistic or an exhaustive chapter-by-chapter feat audit."
-      }
+      },
+      "universe": "bleach",
+      "continuity": "bleach-manga"
     },
     "lille-barro-tybw": {
-      "scale": "night-power-v1",
+      "scale": "night-universe-power-v1",
       "status": "proposed",
       "rank": "S",
       "formId": "tybw-standard",
@@ -1424,10 +1554,12 @@
         "artworkSHA256": "49d6e4ac5240b885bd47d43779a8b30d1db9eee40665fe68cccf108cef9ff936",
         "confidence": "medium",
         "method": "Pinned illustration and official source profile checked. Transformed and later-arc capabilities explicitly bounded. The grade is NIGHT editorial judgment, not an official statistic or an exhaustive chapter-by-chapter feat audit."
-      }
+      },
+      "universe": "bleach",
+      "continuity": "bleach-manga"
     },
     "liltotto-lamperd-tybw": {
-      "scale": "night-power-v1",
+      "scale": "night-universe-power-v1",
       "status": "proposed",
       "rank": "A",
       "formId": "tybw-standard",
@@ -1444,10 +1576,12 @@
         "artworkSHA256": "59156b95cf939c96cb916a085214ea0fa9d0fabb1e8ad9924414d7eeeb4ca700",
         "confidence": "medium",
         "method": "Pinned illustration and official source profile checked. Transformed and later-arc capabilities explicitly bounded. The grade is NIGHT editorial judgment, not an official statistic or an exhaustive chapter-by-chapter feat audit."
-      }
+      },
+      "universe": "bleach",
+      "continuity": "bleach-manga"
     },
     "meninas-mcallon-tybw": {
-      "scale": "night-power-v1",
+      "scale": "night-universe-power-v1",
       "status": "proposed",
       "rank": "A",
       "formId": "tybw-standard",
@@ -1464,10 +1598,12 @@
         "artworkSHA256": "a4175dd409277248b769b83fcd7f6e15b1fb3ea0aed16dc218d09d5c81750570",
         "confidence": "medium",
         "method": "Pinned illustration and official source profile checked. Transformed and later-arc capabilities explicitly bounded. The grade is NIGHT editorial judgment, not an official statistic or an exhaustive chapter-by-chapter feat audit."
-      }
+      },
+      "universe": "bleach",
+      "continuity": "bleach-manga"
     },
     "oh-etsu-nimaiya-tybw": {
-      "scale": "night-power-v1",
+      "scale": "night-universe-power-v1",
       "status": "proposed",
       "rank": "S",
       "formId": "tybw-standard",
@@ -1485,10 +1621,12 @@
         "artworkSHA256": "7242a9734ba533498190408a19b6e01cc44774dfbd466736242bde5ea047facc",
         "confidence": "medium",
         "method": "Pinned illustration and official source profile checked. Transformed and later-arc capabilities explicitly bounded. The grade is NIGHT editorial judgment, not an official statistic or an exhaustive chapter-by-chapter feat audit."
-      }
+      },
+      "universe": "bleach",
+      "continuity": "bleach-manga"
     },
     "pernida-parnkgjas-tybw": {
-      "scale": "night-power-v1",
+      "scale": "night-universe-power-v1",
       "status": "proposed",
       "rank": "S",
       "formId": "tybw-standard",
@@ -1506,10 +1644,12 @@
         "artworkSHA256": "80db6a0faa0ffab54582297ac9add745bc05f3494d29218efc826ee83340f06c",
         "confidence": "medium",
         "method": "Pinned illustration and official source profile checked. Transformed and later-arc capabilities explicitly bounded. The grade is NIGHT editorial judgment, not an official statistic or an exhaustive chapter-by-chapter feat audit."
-      }
+      },
+      "universe": "bleach",
+      "continuity": "bleach-manga"
     },
     "quilge-opie-tybw": {
-      "scale": "night-power-v1",
+      "scale": "night-universe-power-v1",
       "status": "proposed",
       "rank": "A",
       "formId": "tybw-standard",
@@ -1526,10 +1666,12 @@
         "artworkSHA256": "08117c1efb846a338077bc33b6bd788c53c97751e61b634356def9a6dffd6dda",
         "confidence": "medium",
         "method": "Pinned illustration and official source profile checked. Transformed and later-arc capabilities explicitly bounded. The grade is NIGHT editorial judgment, not an official statistic or an exhaustive chapter-by-chapter feat audit."
-      }
+      },
+      "universe": "bleach",
+      "continuity": "bleach-manga"
     },
     "senjumaru-shutara-tybw": {
-      "scale": "night-power-v1",
+      "scale": "night-universe-power-v1",
       "status": "proposed",
       "rank": "S",
       "formId": "tybw-standard",
@@ -1547,10 +1689,12 @@
         "artworkSHA256": "27223acfc7a8713e360f2cdc03308f8d701506310c4ac98f1e7897e1f0395c15",
         "confidence": "medium",
         "method": "Pinned illustration and official source profile checked. Transformed and later-arc capabilities explicitly bounded. The grade is NIGHT editorial judgment, not an official statistic or an exhaustive chapter-by-chapter feat audit."
-      }
+      },
+      "universe": "bleach",
+      "continuity": "bleach-manga"
     },
     "tenjiro-kirinji-tybw": {
-      "scale": "night-power-v1",
+      "scale": "night-universe-power-v1",
       "status": "proposed",
       "rank": "S",
       "formId": "tybw-standard",
@@ -1568,10 +1712,12 @@
         "artworkSHA256": "45cdad94e81b208dec8bd6c928c1e78734729ab1978c717345e76e527152967e",
         "confidence": "medium",
         "method": "Pinned illustration and official source profile checked. Transformed and later-arc capabilities explicitly bounded. The grade is NIGHT editorial judgment, not an official statistic or an exhaustive chapter-by-chapter feat audit."
-      }
+      },
+      "universe": "bleach",
+      "continuity": "bleach-manga"
     },
     "yhwach-tybw": {
-      "scale": "night-power-v1",
+      "scale": "night-universe-power-v1",
       "status": "proposed",
       "rank": "S",
       "formId": "tybw-standard",
@@ -1588,10 +1734,12 @@
         "artworkSHA256": "14a804a5db1ab4cb6a34d2e1075bfd9c896ce4151b9180d66b380269532867b9",
         "confidence": "medium",
         "method": "Pinned illustration and official source profile checked. Transformed and later-arc capabilities explicitly bounded. The grade is NIGHT editorial judgment, not an official statistic or an exhaustive chapter-by-chapter feat audit."
-      }
+      },
+      "universe": "bleach",
+      "continuity": "bleach-manga"
     },
     "ichigo/human": {
-      "scale": "night-power-v1",
+      "scale": "night-universe-power-v1",
       "status": "proposed",
       "rank": "F",
       "formId": "human",
@@ -1601,10 +1749,12 @@
       "limits": "Form-matched artwork is still required. Do not substitute another Ichigo illustration.",
       "references": [
         "https://bleach-anime.com/en/character/"
-      ]
+      ],
+      "universe": "bleach",
+      "continuity": "bleach-manga"
     },
     "ichigo/fullbring": {
-      "scale": "night-power-v1",
+      "scale": "night-universe-power-v1",
       "status": "pending",
       "rank": null,
       "formId": "fullbring",
@@ -1614,10 +1764,12 @@
       "limits": "Form-matched artwork is still required. Do not substitute another Ichigo illustration.",
       "references": [
         "https://bleach-anime.com/en/character/"
-      ]
+      ],
+      "universe": "bleach",
+      "continuity": "bleach-manga"
     },
     "ichigo/hollow-mask": {
-      "scale": "night-power-v1",
+      "scale": "night-universe-power-v1",
       "status": "pending",
       "rank": null,
       "formId": "hollow-mask",
@@ -1627,10 +1779,12 @@
       "limits": "Form-matched artwork is still required. Do not substitute another Ichigo illustration.",
       "references": [
         "https://bleach-anime.com/en/character/"
-      ]
+      ],
+      "universe": "bleach",
+      "continuity": "bleach-manga"
     },
     "ichigo/full-hollow": {
-      "scale": "night-power-v1",
+      "scale": "night-universe-power-v1",
       "status": "pending",
       "rank": null,
       "formId": "full-hollow",
@@ -1640,10 +1794,12 @@
       "limits": "Form-matched artwork is still required. Do not substitute another Ichigo illustration.",
       "references": [
         "https://bleach-anime.com/en/character/"
-      ]
+      ],
+      "universe": "bleach",
+      "continuity": "bleach-manga"
     },
     "ichigo/fullbring-bankai": {
-      "scale": "night-power-v1",
+      "scale": "night-universe-power-v1",
       "status": "pending",
       "rank": null,
       "formId": "fullbring-bankai",
@@ -1653,10 +1809,12 @@
       "limits": "Form-matched artwork is still required. Do not substitute another Ichigo illustration.",
       "references": [
         "https://bleach-anime.com/en/character/"
-      ]
+      ],
+      "universe": "bleach",
+      "continuity": "bleach-manga"
     },
     "ichigo/dangai": {
-      "scale": "night-power-v1",
+      "scale": "night-universe-power-v1",
       "status": "pending",
       "rank": null,
       "formId": "dangai",
@@ -1666,10 +1824,12 @@
       "limits": "Form-matched artwork is still required. Do not substitute another Ichigo illustration.",
       "references": [
         "https://bleach-anime.com/en/character/"
-      ]
+      ],
+      "universe": "bleach",
+      "continuity": "bleach-manga"
     },
     "ichigo/true-shikai": {
-      "scale": "night-power-v1",
+      "scale": "night-universe-power-v1",
       "status": "pending",
       "rank": null,
       "formId": "true-shikai",
@@ -1679,10 +1839,12 @@
       "limits": "Form-matched artwork is still required. Do not substitute another Ichigo illustration.",
       "references": [
         "https://bleach-anime.com/en/character/"
-      ]
+      ],
+      "universe": "bleach",
+      "continuity": "bleach-manga"
     },
     "ichigo/mugetsu": {
-      "scale": "night-power-v1",
+      "scale": "night-universe-power-v1",
       "status": "pending",
       "rank": null,
       "formId": "mugetsu",
@@ -1692,10 +1854,12 @@
       "limits": "Form-matched artwork is still required. Do not substitute another Ichigo illustration.",
       "references": [
         "https://bleach-anime.com/en/character/"
-      ]
+      ],
+      "universe": "bleach",
+      "continuity": "bleach-manga"
     },
     "ichigo/true-bankai": {
-      "scale": "night-power-v1",
+      "scale": "night-universe-power-v1",
       "status": "pending",
       "rank": null,
       "formId": "true-bankai",
@@ -1705,10 +1869,12 @@
       "limits": "Form-matched artwork is still required. Do not substitute another Ichigo illustration.",
       "references": [
         "https://bleach-anime.com/en/character/"
-      ]
+      ],
+      "universe": "bleach",
+      "continuity": "bleach-manga"
     },
     "ichigo/horn-of-salvation": {
-      "scale": "night-power-v1",
+      "scale": "night-universe-power-v1",
       "status": "pending",
       "rank": null,
       "formId": "horn-of-salvation",
@@ -1718,10 +1884,12 @@
       "limits": "Form-matched artwork is still required. Do not substitute another Ichigo illustration.",
       "references": [
         "https://bleach-anime.com/en/character/"
-      ]
+      ],
+      "universe": "bleach",
+      "continuity": "bleach-manga"
     },
     "ichigo/hell-verse": {
-      "scale": "night-power-v1",
+      "scale": "night-universe-power-v1",
       "status": "pending",
       "rank": null,
       "formId": "hell-verse",
@@ -1731,10 +1899,12 @@
       "limits": "Form-matched artwork is still required. Do not substitute another Ichigo illustration.",
       "references": [
         "https://bleach-anime.com/en/character/"
-      ]
+      ],
+      "universe": "bleach",
+      "continuity": "bleach-hell-verse-film"
     },
     "ichigo/blood-chains": {
-      "scale": "night-power-v1",
+      "scale": "night-universe-power-v1",
       "status": "pending",
       "rank": null,
       "formId": "blood-chains",
@@ -1744,10 +1914,12 @@
       "limits": "Form-matched artwork is still required. Do not substitute another Ichigo illustration.",
       "references": [
         "https://bleach-anime.com/en/character/"
-      ]
+      ],
+      "universe": "bleach",
+      "continuity": "bleach-manga"
     },
     "aizen-muken": {
-      "scale": "night-power-v1",
+      "scale": "night-universe-power-v1",
       "status": "proposed",
       "rank": "S",
       "formId": "muken",
@@ -1764,10 +1936,12 @@
         "artworkSHA256": "6b94f0c44f78ccddc3361506f5db0e0d1ee3c67023e0d99f6bbb9100f626bb5f",
         "confidence": "medium",
         "method": "Pinned illustration and official source profile checked. Transformed and later-arc capabilities explicitly bounded. The grade is NIGHT editorial judgment, not an official statistic or an exhaustive chapter-by-chapter feat audit."
-      }
+      },
+      "universe": "bleach",
+      "continuity": "bleach-manga"
     },
     "byakuya-senbonzakura": {
-      "scale": "night-power-v1",
+      "scale": "night-universe-power-v1",
       "status": "proposed",
       "rank": "A",
       "formId": "senbonzakura",
@@ -1784,10 +1958,12 @@
         "artworkSHA256": "8b3cc980ecb0e667517cb8bb57e4392ea2677e7088bfffee7d3250b020817485",
         "confidence": "medium",
         "method": "Pinned illustration and official source profile checked. Transformed and later-arc capabilities explicitly bounded. The grade is NIGHT editorial judgment, not an official statistic or an exhaustive chapter-by-chapter feat audit."
-      }
+      },
+      "universe": "bleach",
+      "continuity": "bleach-manga"
     },
     "kenpachi-tybw": {
-      "scale": "night-power-v1",
+      "scale": "night-universe-power-v1",
       "status": "proposed",
       "rank": "A",
       "formId": "tybw-sealed",
@@ -1805,10 +1981,12 @@
         "artworkSHA256": "4c46cb344fa5b210dfccab14b4e3eb55357ee4e82afad75247833a68b5bd22ef",
         "confidence": "medium",
         "method": "Pinned illustration and official source profile checked. Transformed and later-arc capabilities explicitly bounded. The grade is NIGHT editorial judgment, not an official statistic or an exhaustive chapter-by-chapter feat audit."
-      }
+      },
+      "universe": "bleach",
+      "continuity": "bleach-manga"
     },
     "rukia-tybw": {
-      "scale": "night-power-v1",
+      "scale": "night-universe-power-v1",
       "status": "proposed",
       "rank": "B",
       "formId": "tybw-unreleased",
@@ -1826,10 +2004,12 @@
         "artworkSHA256": "7715ac264ebf212e3cb2991c4184589a3efa52589506a166c6f22d6c5e12091b",
         "confidence": "medium",
         "method": "Pinned illustration and official source profile checked. Transformed and later-arc capabilities explicitly bounded. The grade is NIGHT editorial judgment, not an official statistic or an exhaustive chapter-by-chapter feat audit."
-      }
+      },
+      "universe": "bleach",
+      "continuity": "bleach-manga"
     },
     "yoruichi-flash-step": {
-      "scale": "night-power-v1",
+      "scale": "night-universe-power-v1",
       "status": "proposed",
       "rank": "A",
       "formId": "flash-step",
@@ -1846,10 +2026,12 @@
         "artworkSHA256": "8e442d925c55435880dbe5e9a302fa4d1aad1ba94da9f4779612118096077caa",
         "confidence": "medium",
         "method": "Pinned illustration and official source profile checked. Transformed and later-arc capabilities explicitly bounded. The grade is NIGHT editorial judgment, not an official statistic or an exhaustive chapter-by-chapter feat audit."
-      }
+      },
+      "universe": "bleach",
+      "continuity": "bleach-manga"
     },
     "ichigo-restored-shikai": {
-      "scale": "night-power-v1",
+      "scale": "night-universe-power-v1",
       "status": "proposed",
       "rank": "A",
       "formId": "restored-shikai",
@@ -1866,10 +2048,12 @@
         "artworkSHA256": "1b70c3af420dbcf67369d59b21ebff7f4b7fdb1ea1486df5df054bd6593b5d09",
         "confidence": "medium",
         "method": "Pinned illustration and official source profile checked. Transformed and later-arc capabilities explicitly bounded. The grade is NIGHT editorial judgment, not an official statistic or an exhaustive chapter-by-chapter feat audit."
-      }
+      },
+      "universe": "bleach",
+      "continuity": "bleach-manga"
     },
     "ichigo-restored-shikai-standing": {
-      "scale": "night-power-v1",
+      "scale": "night-universe-power-v1",
       "status": "proposed",
       "rank": "A",
       "formId": "restored-shikai",
@@ -1886,7 +2070,11 @@
         "artworkSHA256": "5ca2c3384b8dc6796ad3749abd987f9bb94252d149459e2237e095eba440d4b7",
         "confidence": "medium",
         "method": "Pinned illustration and official source profile checked. Transformed and later-arc capabilities explicitly bounded. The grade is NIGHT editorial judgment, not an official statistic or an exhaustive chapter-by-chapter feat audit."
-      }
+      },
+      "universe": "bleach",
+      "continuity": "bleach-manga"
     }
-  }
+  },
+  "universe": "bleach",
+  "scope": "in-universe"
 }

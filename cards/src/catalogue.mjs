@@ -3,6 +3,7 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import {fileURLToPath} from 'node:url';
 import {loadPowerAssessments} from './power.mjs';
+import {validateTierStyles} from './tiers.mjs';
 
 export const ROOT = fileURLToPath(new URL('../', import.meta.url));
 export const DESIGNS = ['vanguard','ivory','voltage','crimson','emberglass','obsidian','tidelight','nocturne'];
@@ -37,6 +38,7 @@ export async function loadCatalogue(series='bleach') {
   const catalogue = JSON.parse(await fs.readFile(inside(`catalog/${series}.json`),'utf8'));
   const ids = new Set(), numbers = new Set();
   for (const card of catalogue.cards) {
+    card.universe=series;
     if (!/^[a-z][a-z0-9-]{0,70}$/.test(card.id) || ids.has(card.id)) throw Error('Invalid or duplicate card identity');
     ids.add(card.id);
     if (!Number.isInteger(card.number) || card.number<1 || card.number>9999 || numbers.has(card.number)) throw Error('Invalid stable catalogue number');
@@ -52,6 +54,7 @@ export async function loadCatalogue(series='bleach') {
   }
   validateCollectionArtwork(catalogue);
   await loadPowerAssessments(series,catalogue.cards,catalogue.pendingForms);
+  validateTierStyles(catalogue);
   return catalogue;
 }
 export async function rendererDigest() {
