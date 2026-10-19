@@ -12,8 +12,8 @@ H=$(adb shell wm size | sed -n 's/.*x\([0-9]*\)/\1/p' | head -1)
 D=$(adb shell wm density | sed -n 's/.*: \([0-9]*\)/\1/p' | head -1)
 test -n "$W" && test -n "$H" && test -n "$D"
 echo "Actual emulator: $W x $H, density=$D"
-adb shell uiautomator dump /sdcard/atlas-hierarchy.xml >/dev/null 2>&1 || true
-if adb shell cat /sdcard/atlas-hierarchy.xml 2>/dev/null | grep -q 'text="Got it"'; then
+adb shell uiautomator dump /data/local/tmp/atlas-hierarchy.xml >/dev/null 2>&1 || true
+if adb shell cat /data/local/tmp/atlas-hierarchy.xml 2>/dev/null | grep -q 'text="Got it"'; then
   adb shell input tap $((W*84/100)) $((H/4))
   sleep 3
 fi
@@ -44,8 +44,8 @@ tap_dp() {
 }
 tap_desc() {
   local label="$1"
-  adb shell uiautomator dump /sdcard/atlas-hierarchy.xml >/dev/null
-  adb exec-out cat /sdcard/atlas-hierarchy.xml > SoundAtlas/qa/hierarchy-current.xml
+  adb shell uiautomator dump /data/local/tmp/atlas-hierarchy.xml >/dev/null
+  adb shell cat /data/local/tmp/atlas-hierarchy.xml > SoundAtlas/qa/hierarchy-current.xml
   python3 - "$label" SoundAtlas/qa/hierarchy-current.xml <<'PY'
 import re,subprocess,sys,xml.etree.ElementTree as ET
 label,path=sys.argv[1:]
@@ -66,8 +66,8 @@ PY
 }
 assert_state() {
   local expected="$1"
-  adb shell uiautomator dump /sdcard/atlas-hierarchy.xml >/dev/null
-  adb exec-out cat /sdcard/atlas-hierarchy.xml > SoundAtlas/qa/hierarchy-current.xml
+  adb shell uiautomator dump /data/local/tmp/atlas-hierarchy.xml >/dev/null
+  adb shell cat /data/local/tmp/atlas-hierarchy.xml > SoundAtlas/qa/hierarchy-current.xml
   if ! grep -Fq "$expected" SoundAtlas/qa/hierarchy-current.xml; then
     echo "UI_STATE_MISMATCH: expected '$expected'"; exit 1
   fi
