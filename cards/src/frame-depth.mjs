@@ -6,7 +6,9 @@ export const FRAME_PATHS = Object.freeze({
   voltage:'M115 265L185 195H885V1010L810 1120H115Z',
   crimson:'M132 274L188 218H868V1000L792 1096H132Z',
   emberglass:'M108 276L220 216H892V1004L780 1112H108Z',
-  obsidian:'M130 290V244H870V1096H130Z'
+  obsidian:'M130 290V244H870V1096H130Z',
+  eclipse:'M120 365C120 272 230 220 500 220C770 220 880 272 880 365V922C880 1036 697 1092 500 1135C303 1092 120 1036 120 922Z',
+  ascendant:'M154 315L390 192H824L892 326V1000L655 1126H176L108 992Z'
 });
 const PALETTES={vanguard:['#74838a','#1b252c'],ivory:['#7e9da5','#d9e4df'],voltage:['#ccdf79','#172c2d'],emberglass:['#d5a475','#2b1e1b'],obsidian:['#a97f5e','#111b20']};
 
@@ -15,7 +17,7 @@ export function frameDepth(svg,design) {
   const d=FRAME_PATHS[design];
   if(!d)throw Error('Missing inner-frame geometry');
   const restored=['nocturne','tidelight'].includes(design);
-  if(!restored && design!=='crimson') {
+  if(!restored && !['crimson','eclipse','ascendant'].includes(design)) {
     const [metal,field]=PALETTES[design];
     const rear=`<g data-depth="rear" data-inner-frame="${design}"><path d="${d}" fill="${field}" fill-opacity=".16" stroke="#030a0e" stroke-opacity=".5" stroke-width="13"/><path d="${d}" fill="none" stroke="${metal}" stroke-opacity=".72" stroke-width="${design==='vanguard'?1.8:3}"/><path d="${d}" fill="none" stroke="#fff1d6" stroke-width=".65" opacity=".44" transform="translate(2 2)"/></g>`;
     let found=0;

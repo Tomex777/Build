@@ -9,6 +9,7 @@ import {powerPresentation} from './power.mjs';
 import {composeDepthLayers} from './depth-layers.mjs';
 import {frameDepth} from './frame-depth.mjs';
 import {renderCrimson} from './crimson.mjs';
+import {renderApex} from './apex.mjs';
 
 export async function cardSvg(card,assets,design) {
   let subtitle=(card.formId==='featured'?card.name:card.name+' · '+card.form).toUpperCase();
@@ -22,7 +23,8 @@ export async function cardSvg(card,assets,design) {
     def.edition=(card.formId==='featured'?card.name:card.form.split(' / ')[0]).toUpperCase();
     def.number=String(card.number).padStart(3,'0');
     svg=renderRestoredCard(def,depth?{...assets,art:depth.foreground}:assets);
-  }else if(design==='crimson')svg=renderCrimson(card,depth?{...assets,art:depth.foreground}:assets);
+  }else if(['eclipse','ascendant'].includes(design))svg=renderApex(card,depth?{...assets,art:depth.foreground}:assets,design);
+  else if(design==='crimson')svg=renderCrimson(card,depth?{...assets,art:depth.foreground}:assets);
   else svg=renderNoctisCard(profile,depth?{...assets,art:depth.foreground}:assets,{design,prefix:`library-${card.id}-${design}-`});
   const shift=card.recipe.horizontalShift?.[design];
   if(shift!==undefined){
@@ -42,7 +44,7 @@ export async function cardSvg(card,assets,design) {
   if(depth)svg=composeDepthLayers(svg,assets,depth,design);
   svg=frameDepth(svg,design);
   svg=powerPresentation(svg,card,design);
-  return svg.replace('<svg ',`<svg data-catalogue-id="${card.id}" data-design="${design}" `);
+  return svg.replace('<svg ',`<svg data-catalogue-id="${card.id}" data-design="${design}" ${card.recipe.sourceMatte?`data-source-matte-sha256="${card.recipe.sourceMatte.sha256}" `:''}`);
 }
 
 export async function createSession() {
@@ -107,7 +109,7 @@ export async function createSession() {
           if(alpha(a.x-dy/n*8,a.y+dx/n*8)>180&&alpha(a.x+dy/n*8,a.y-dx/n*8)>180){crossing+=3;run+=3;maxRun=Math.max(maxRun,run);}else run=0;
         }
         if(maxRun<24)throw Error(`Character does not visibly cross the inner frame (longest crossing ${maxRun}px)`);
-        return {artworkDecoded:true,uniqueIDs:true,validReferences:true,nameInkWithinCard:true,powerRank:rankText.textContent,powerUniverse:root.dataset.powerUniverse,powerGlyphWithinBounds:true,powerBackgroundAbsent:true,nameScale:Number(names[0].dataset.titleScale),circleAbsent:root.dataset.design==='nocturne'?true:null,focalPosition:[Math.round(p.x),Math.round(p.y)],characterBreakout:{required:true,crossingLength:crossing,longestCrossing:maxRun,foregroundMask:root.dataset.foregroundMaskSha256??'source-alpha'}};
+        return {artworkDecoded:true,uniqueIDs:true,validReferences:true,nameInkWithinCard:true,powerRank:rankText.textContent,powerUniverse:root.dataset.powerUniverse,powerGlyphWithinBounds:true,powerBackgroundAbsent:true,nameScale:Number(names[0].dataset.titleScale),circleAbsent:root.dataset.design==='nocturne'?true:null,focalPosition:[Math.round(p.x),Math.round(p.y)],characterBreakout:{required:true,crossingLength:crossing,longestCrossing:maxRun,foregroundMask:root.dataset.foregroundMaskSha256??root.dataset.sourceMatteSha256??'source-alpha'}};
       },focal);
       const png=await page.locator('svg').screenshot({omitBackground:true,timeout:120000});
       const m=await sharp(png).metadata();if(m.width!==width||m.height!==width*1.6)throw Error('Incorrect export dimensions');

@@ -21,9 +21,21 @@ export async function acquireArtwork(card,{fetchImpl=fetch}={}) {
   }
   if(digest(bytes)!==s.sha256)throw Error('Artwork checksum mismatch');
   const metadata=await sharp(bytes,{limitInputPixels:30e6}).metadata();
-  if(!['png','jpeg','webp'].includes(metadata.format)||metadata.width!==s.width||metadata.height!==s.height||s.width<500||s.height<900||!metadata.hasAlpha)throw Error('Artwork resolution, transparency or format failed');
+  if(!['png','jpeg','webp'].includes(metadata.format)||metadata.width!==s.width||metadata.height!==s.height||s.width<500||s.height<900||(!metadata.hasAlpha&&!card.recipe.sourceMatte))throw Error('Artwork resolution, transparency or format failed');
   const [left,top,width,height]=card.recipe.crop;
   const {data,info}=await sharp(bytes).extract({left,top,width,height}).ensureAlpha().raw().toBuffer({resolveWithObject:true});
+  // Opaque official posters retain their original bytes/RGB. An explicit,
+  // source-bound matte removes the published background before composition.
+  if(card.recipe.sourceMatte){
+    const spec=card.recipe.sourceMatte;
+    if(spec.sourceSHA256!==s.sha256||JSON.stringify(spec.crop)!==JSON.stringify(card.recipe.crop))throw Error('Source matte belongs to another artwork or crop');
+    const mask=await fs.readFile(inside(spec.localPath));
+    if(digest(mask)!==spec.sha256)throw Error('Source matte checksum mismatch');
+    const m=await sharp(mask).metadata();
+    if(m.width!==width||m.height!==height)throw Error('Source matte dimensions differ from crop');
+    const matte=await sharp(mask).ensureAlpha().raw().toBuffer();
+    for(let i=3;i<data.length;i+=4)data[i]=Math.round(data[i]*matte[i]/255);
+  }
   const originalPixels=card.recipe.depthLayers?Buffer.from(data):null;
   let visible=0,clear=0;
   for(let i=3;i<data.length;i+=4){if(data[i]>32)visible++;else clear++;}

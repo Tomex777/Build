@@ -75,15 +75,15 @@ The seed script is a reproducible first-import tool and refuses to overwrite an 
 
 ## Forms and tiers
 
-Ichigo's substitute, original Shikai and original Bankai illustrations are separate records. Other forms remain in the proposal until matching art is acquired. Blood Chains is not fabricated using Shikai artwork. TYBW portraits are labeled for their source arc; general game portraits are not assigned an unverified transformation.
+Ichigo's substitute, original Shikai and original Bankai illustrations are separate records. Six more forms are acquired: Human, mastered Hollow mask, Full Hollow, Dangai, Mugetsu and anime Blood Chains. Six other forms remain pending matching artwork. Blood Chains uses its official 2026 visual. TYBW portraits are labeled for their source arc; general game portraits are not assigned an unverified transformation.
 
-The eight finishes remain available: Vanguard, Ivory, Voltage, Crimson, Emberglass, Obsidian, Tidelight and Nocturne. The working tier proposal selects a design from the form’s power grade. This arrangement is for review; it has not been accepted as a production tier system. The superseded rarity/finish proposal is preserved unchanged in `renderer/examples/ichigo-collection-proposal.json`; active pending-form records no longer use it.
+Ten finishes are available: Vanguard, Ivory, Voltage, Crimson, Emberglass, Obsidian, Tidelight, Nocturne, Eclipse and Ascendant. The working tier proposal selects a design from the form’s power grade. This arrangement is for review; it has not been accepted as a production tier system. The superseded rarity/finish proposal is preserved unchanged in `renderer/examples/ichigo-collection-proposal.json`; active pending-form records no longer use it.
 
 ### In-universe power scale
 
 `src/power.mjs` defines independent form-specific assessments within each universe: **F → E → D → C → B → A → S → SS → SSS → EX**. It considers combat strength, speed, defence, special abilities, conditions and limitations. Fame, finish and drop rates do not determine the grade. See [the power-ranking notes](docs/POWER-RANKS.md) for the benchmarks and remaining assessment limits.
 
-`catalog/power/bleach.json` holds explicit, **proposed NIGHT editorial assessments**, not official power levels or a completed scene-by-scene feat audit. Every existing entry has a separate assessment bound to its form ID and artwork checksum. Human Ichigo has the lowest grade, F, but stays pending until matching artwork is acquired. Other unassessed future forms keep a null rank; the system never silently assigns them F or imports a later transformation's power.
+`catalog/power/bleach.json` holds explicit, **proposed NIGHT editorial assessments**, not official power levels or a completed scene-by-scene feat audit. Every existing entry has a separate assessment bound to its form ID and artwork checksum. Human Ichigo now has matching artwork and the lowest grade, F. Other unassessed future forms keep a null rank; the system never silently assigns them F or imports a later transformation's power.
 
 The rank is included in review fingerprints, export metadata, gallery filtering and bot lookup (`{rank:'A'}`). Changing a form, source or grade invalidates its approval. The gallery starts with the strongest proposed grades and combines search with a rank filter. The rank glyphs themselves refract the actual scene and use translucent faces with fine bevel highlights. They float over the artwork without a box, pill, border or background plate. The two decorative four-point sparkle icons are omitted from new Nocturne/Tidelight exports. Character depth layers remain intact.
 
@@ -91,11 +91,11 @@ This work does not set the bot's drop rates, pricing or trading economy, and doe
 
 The phone proof is a 320px display check. It is not an actual WhatsApp transmission/compression test.
 
-Yoruichi's Nocturne recipe separates her silhouette from the baked-in aura. `recipe.depthLayers.nocturne` pins a vector mask to the original source checksum and exact crop. The isolated original character pixels receive the existing foreground shadow and overlap; the dimmed aura is clipped inside the rear architectural opening. `cropEdgeFade` feathers only the cut canvas boundaries. The same source-bound matte mechanism supports all eight inner-frame geometries. Changing the mask checksum, opacity or recipe requires a new visual review.
+Yoruichi's Nocturne recipe separates her silhouette from the baked-in aura. `recipe.depthLayers.nocturne` pins a vector mask to the original source checksum and exact crop. The isolated original character pixels receive the existing foreground shadow and overlap; the dimmed aura is clipped inside the rear architectural opening. `cropEdgeFade` feathers only the cut canvas boundaries. The same source-bound matte mechanism supports all ten inner-frame geometries. Changing the mask checksum, opacity or recipe requires a new visual review.
 
 ## Collection-wide review
 
-The active catalogue now has 85 editions and 85 distinct pinned original illustrations across 76 characters. Seven repeated-art slots have new illustrations, sixteen additional sources use separate foreground mattes, and every acquired form has explicit power boundaries. The extra Ulquiorra Tidelight edition is pending matching distinct artwork. See [the review](docs/COLLECTION-REVIEW.md) for changed grades, sources and per-form exclusions.
+The active catalogue now has 91 editions and 91 distinct pinned original sources across 76 characters. The original 85 website assets retain their reviewed release provenance; [six new forms](docs/ichigo-expansion-2026-10-19.md) have new master reviews. Seven repeated-art slots have new illustrations, sixteen additional sources use separate foreground mattes, and every acquired form has explicit power boundaries. The extra Ulquiorra Tidelight edition is pending matching distinct artwork. See [the review](docs/COLLECTION-REVIEW.md) for changed grades, sources and per-form exclusions.
 
 Run `npm run gallery -- --out dist/bleach-refined-masters --file dist/Bleach-Collection.html` after a complete current build to create a self-contained searchable gallery. Exporting a gallery does not approve or publish the bot library.
 
@@ -105,4 +105,4 @@ Create the PDF review book after a full build with `python3 bin/review-book.py d
 
 Every active card must place real character pixels across its inner frame. The outer edge is print trim. `npm run test:breakout` checks that a contained figure cannot pass merely because its separate aura extends past the frame; manual inspection is still required for artwork with baked-in effects. Foreground masks and per-design placements preserve the original illustration pixels.
 
-Crimson now uses muted oxblood and dark steel through `src/crimson.mjs`. Archived renderers are unchanged. [The tier plan](docs/TIER-PLAN.md) records the reviewable mapping, occupied tiers, pending human artwork and open SSS/EX designs. [Validation](docs/COLLECTION-VALIDATION.md) records the completed checks. No production publication or bot deployment is included.
+Crimson now uses muted oxblood and dark steel through `src/crimson.mjs`. Archived renderers are unchanged. [The tier plan](docs/TIER-PLAN.md) records the reviewable mapping, all ten occupied tiers and the new SSS/EX designs. [Validation](docs/COLLECTION-VALIDATION.md) records the completed checks. The existing website is updated under user authorization. No bot deployment is included.

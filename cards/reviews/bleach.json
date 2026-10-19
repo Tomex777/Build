@@ -1030,5 +1030,71 @@
       "320×512"
     ],
     "recovery": "Restored after scratch maintenance from the completed visual review of this exact renderer and these artwork recipes; CI does not grant approval."
+  },
+  "ichigo-hollow-mask--emberglass": {
+    "status": "approved",
+    "fingerprint": "57ee8898e4da14a8109a3b348bdae49018fe94a1919d2c54f5b7b8d97071d399",
+    "reviewer": "Codex",
+    "reviewedAt": "2026-10-19T17:37:28.567Z",
+    "sizes": [
+      "3000×4800",
+      "native-pixel crops",
+      "320×512"
+    ]
+  },
+  "ichigo-full-hollow--emberglass": {
+    "status": "approved",
+    "fingerprint": "4d64eb0584e35111e6ff51f9ff7fb737d5e0d874b81cdbf857c17844d8701462",
+    "reviewer": "Codex",
+    "reviewedAt": "2026-10-19T17:37:28.582Z",
+    "sizes": [
+      "3000×4800",
+      "native-pixel crops",
+      "320×512"
+    ]
+  },
+  "ichigo-dangai--obsidian": {
+    "status": "approved",
+    "fingerprint": "5f74971ec51f8796aa752c9a78b26476773ea457f7286de873e74a22d9d1ed91",
+    "reviewer": "Codex",
+    "reviewedAt": "2026-10-19T17:37:28.593Z",
+    "sizes": [
+      "3000×4800",
+      "native-pixel crops",
+      "320×512"
+    ]
+  },
+  "ichigo-mugetsu--eclipse": {
+    "status": "approved",
+    "fingerprint": "06c54645854e85de02490e5364a4bd53afb94ca92043cd3e89b5a03be90429ee",
+    "reviewer": "Codex",
+    "reviewedAt": "2026-10-19T17:37:28.596Z",
+    "sizes": [
+      "3000×4800",
+      "native-pixel crops",
+      "320×512"
+    ]
+  },
+  "ichigo-human--vanguard": {
+    "status": "approved",
+    "fingerprint": "4fa80a9e3d4c8b0c9445794d5860cfe25dab45149d84acc0bdeb22271c63da4e",
+    "reviewer": "Codex",
+    "reviewedAt": "2026-10-19T17:44:48.573Z",
+    "sizes": [
+      "3000×4800",
+      "native-pixel crops",
+      "320×512"
+    ]
+  },
+  "ichigo-blood-chains--ascendant": {
+    "status": "approved",
+    "fingerprint": "e6f1f7bb46ffe02e5f6a62b58b40e8abdcd86c548fc5b030d7345f8e332ee450",
+    "reviewer": "Codex",
+    "reviewedAt": "2026-10-19T17:44:48.580Z",
+    "sizes": [
+      "3000×4800",
+      "native-pixel crops",
+      "320×512"
+    ]
   }
 }

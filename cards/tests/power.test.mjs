@@ -9,7 +9,7 @@ test('one in-universe scale preserves human baseline and distinct Ichigo forms',
   assert.deepEqual(POWER_SCALE.ranks,['F','E','D','C','B','A','S','SS','SSS','EX']);
   assert.equal(POWER_SCALE.scope,'in-universe');
   const catalogue=await loadCatalogue();
-  assert.equal(catalogue.pendingForms.find(c=>c.id==='ichigo/human').power.rank,'F');
+  assert.equal(catalogue.cards.find(c=>c.id==='ichigo-human').power.rank,'F');
   const rank=id=>catalogue.cards.find(c=>c.id===id).power.rank;
   assert.ok(rankValue(rank('ichigo-substitute-soul-reaper'))<rankValue(rank('ichigo-original-shikai')));
   assert.ok(rankValue(rank('ichigo-original-shikai'))<rankValue(rank('ichigo-original-bankai')));
@@ -43,7 +43,7 @@ test('power changes invalidate approval and rank filters do not confuse a finish
 
 test('every finish renders a smaller title with the form grade, while depth remains outside the inner frame',async()=>{
   const catalogue=await loadCatalogue();
-  for (const id of ['ichigo-original-shikai','yoruichi-featured','aizen-featured','ichigo-original-bankai','ichigo-substitute-soul-reaper','kenpachi-featured','aizen-muken','byakuya-senbonzakura','kenpachi-tybw','rukia-tybw','yoruichi-flash-step','ichigo-restored-shikai','ichigo-restored-shikai-standing','isane-featured','riruka-featured','ichibe-hyosube-tybw','kon-featured']) {
+  for (const id of ['ichigo-original-shikai','yoruichi-featured','aizen-featured','ichigo-original-bankai','ichigo-substitute-soul-reaper','kenpachi-featured','aizen-muken','byakuya-senbonzakura','kenpachi-tybw','rukia-tybw','yoruichi-flash-step','ichigo-restored-shikai','ichigo-restored-shikai-standing','ichigo-human','ichigo-blood-chains','ichigo-mugetsu','isane-featured','riruka-featured','ichibe-hyosube-tybw','kon-featured']) {
     const card=catalogue.cards.find(c=>c.id===id),assets=await acquireArtwork(card);
     for (const design of card.designs) {
       const svg=await cardSvg(card,assets,design);
@@ -78,4 +78,10 @@ test('distinct artwork poses of the same form retain one grade and source review
   assert.equal(cards.length,2);assert.notEqual(cards[0].source.sha256,cards[1].source.sha256);assert.equal(cards[0].power.rank,cards[1].power.rank);
   assert.throws(()=>validateFormGrades([cards[0],{...cards[1],power:{...cards[1].power,rank:'SSS'}}]),/Conflicting grade/);
   assert.throws(()=>validatePower({...cards[0].power,review:{...cards[0].power.review,artworkSHA256:'0'.repeat(64)}},cards[0]),/Stale source/);
+});
+
+test('an upper-tier feat review stays bound to the exact form and source artwork',async()=>{
+  const card=(await loadCatalogue()).cards.find(c=>c.id==='ichigo-blood-chains');
+  for(const [key,value] of [['formId','true-bankai'],['continuity','bleach-manga'],['artworkSHA256','0'.repeat(64)]])
+    assert.throws(()=>validatePower({...card.power,featReview:{...card.power.featReview,[key]:value}},card),/verified feat evidence/);
 });

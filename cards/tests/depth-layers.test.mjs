@@ -48,3 +48,17 @@ test('a silhouette cannot silently transfer to another source, crop or checksum'
     await assert.rejects(()=>acquireArtwork(changed),/Silhouette mask/);
   }
 });
+
+test('opaque poster cutouts preserve the original face RGB and reject stale mattes',async()=>{
+  const card=(await loadCatalogue()).cards.find(c=>c.id==='ichigo-blood-chains');
+  const assets=await acquireArtwork(card),decoded=await decode(assets.art);
+  const [left,top,width,height]=card.recipe.crop;
+  const original=await sharp(await fs.readFile(inside(card.source.localPath))).extract({left,top,width,height}).ensureAlpha().raw().toBuffer();
+  const index=(Math.round(height*.17)*width+Math.round(width*.51))*4;
+  assert.deepEqual(decoded.data.subarray(index,index+3),original.subarray(index,index+3));
+  assert.ok(decoded.data[index+3]>240);
+  for(const field of ['sourceSHA256','crop','sha256']){
+    const changed=structuredClone(card);changed.recipe.sourceMatte[field]=field==='crop'?[0,0,100,100]:'0'.repeat(64);
+    await assert.rejects(()=>acquireArtwork(changed),/Source matte/);
+  }
+});

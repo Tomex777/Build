@@ -23,7 +23,7 @@ export async function presentation(report,out) {
     }
     layers.push({input:Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="1744" height="1250"><g font-family="sans-serif">${texts.join('')}</g></svg>`),left:0,top:0});
     const filename=`contact-${String(start/10+1).padStart(2,'0')}.png`;
-    await sharp({create:{width:1744,height:1250,channels:4,background:'#10151a'}}).composite(layers).png().toFile(path.join(out,filename));
+    await atomic(path.join(out,filename),await sharp({create:{width:1744,height:1250,channels:4,background:'#10151a'}}).composite(layers).png().toBuffer());
     report.boards.push(filename);
   }
 }

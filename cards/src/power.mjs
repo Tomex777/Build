@@ -34,7 +34,7 @@ export function validatePower(power, card) {
     throw Error(`Power assessment belongs to another universe: ${card.id}`);
   if(!power.continuity?.trim())throw Error(`Missing power continuity: ${card.id}`);
   const feat=power.featReview;
-  if(['SSS','EX'].includes(power.rank)&&(feat?.status!=='verified'||feat.universe!==power.universe||feat.continuity!==power.continuity||!feat.locator?.trim()||!feat.claim?.trim()||!feat.reference?.startsWith('https://')))
+  if(['SSS','EX'].includes(power.rank)&&(feat?.status!=='verified'||feat.universe!==power.universe||feat.continuity!==power.continuity||feat.formId!==card.formId||feat.artworkSHA256!==card.source.sha256||!feat.locator?.trim()||!feat.claim?.trim()||!feat.reference?.startsWith('https://')))
     throw Error(`Tier ${power.rank} needs specific verified feat evidence: ${card.id}`);
   if (power.formId !== card.formId || power.artworkSHA256 !== card.source.sha256)
     throw Error(`Power assessment needs a form/artwork review: ${card.id}`);

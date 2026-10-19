@@ -1738,21 +1738,6 @@
       "universe": "bleach",
       "continuity": "bleach-manga"
     },
-    "ichigo/human": {
-      "scale": "night-universe-power-v1",
-      "status": "proposed",
-      "rank": "F",
-      "formId": "human",
-      "artworkSHA256": null,
-      "scope": "Human / everyday Ichigo",
-      "basis": "Ordinary human Ichigo before acquiring supernatural combat powers.",
-      "limits": "Form-matched artwork is still required. Do not substitute another Ichigo illustration.",
-      "references": [
-        "https://bleach-anime.com/en/character/"
-      ],
-      "universe": "bleach",
-      "continuity": "bleach-manga"
-    },
     "ichigo/fullbring": {
       "scale": "night-universe-power-v1",
       "status": "pending",
@@ -1760,36 +1745,6 @@
       "formId": "fullbring",
       "artworkSHA256": null,
       "scope": "Fullbring",
-      "basis": "Exact form and demonstrated capabilities require a separate assessment.",
-      "limits": "Form-matched artwork is still required. Do not substitute another Ichigo illustration.",
-      "references": [
-        "https://bleach-anime.com/en/character/"
-      ],
-      "universe": "bleach",
-      "continuity": "bleach-manga"
-    },
-    "ichigo/hollow-mask": {
-      "scale": "night-universe-power-v1",
-      "status": "pending",
-      "rank": null,
-      "formId": "hollow-mask",
-      "artworkSHA256": null,
-      "scope": "Hollow-mask Ichigo",
-      "basis": "Exact form and demonstrated capabilities require a separate assessment.",
-      "limits": "Form-matched artwork is still required. Do not substitute another Ichigo illustration.",
-      "references": [
-        "https://bleach-anime.com/en/character/"
-      ],
-      "universe": "bleach",
-      "continuity": "bleach-manga"
-    },
-    "ichigo/full-hollow": {
-      "scale": "night-universe-power-v1",
-      "status": "pending",
-      "rank": null,
-      "formId": "full-hollow",
-      "artworkSHA256": null,
-      "scope": "Full Hollow (commonly called Vasto Lorde)",
       "basis": "Exact form and demonstrated capabilities require a separate assessment.",
       "limits": "Form-matched artwork is still required. Do not substitute another Ichigo illustration.",
       "references": [
@@ -1813,21 +1768,6 @@
       "universe": "bleach",
       "continuity": "bleach-manga"
     },
-    "ichigo/dangai": {
-      "scale": "night-universe-power-v1",
-      "status": "pending",
-      "rank": null,
-      "formId": "dangai",
-      "artworkSHA256": null,
-      "scope": "Dangai-trained Ichigo",
-      "basis": "Exact form and demonstrated capabilities require a separate assessment.",
-      "limits": "Form-matched artwork is still required. Do not substitute another Ichigo illustration.",
-      "references": [
-        "https://bleach-anime.com/en/character/"
-      ],
-      "universe": "bleach",
-      "continuity": "bleach-manga"
-    },
     "ichigo/true-shikai": {
       "scale": "night-universe-power-v1",
       "status": "pending",
@@ -1835,21 +1775,6 @@
       "formId": "true-shikai",
       "artworkSHA256": null,
       "scope": "True Shikai",
-      "basis": "Exact form and demonstrated capabilities require a separate assessment.",
-      "limits": "Form-matched artwork is still required. Do not substitute another Ichigo illustration.",
-      "references": [
-        "https://bleach-anime.com/en/character/"
-      ],
-      "universe": "bleach",
-      "continuity": "bleach-manga"
-    },
-    "ichigo/mugetsu": {
-      "scale": "night-universe-power-v1",
-      "status": "pending",
-      "rank": null,
-      "formId": "mugetsu",
-      "artworkSHA256": null,
-      "scope": "Final Getsuga Tensho — Mugetsu",
       "basis": "Exact form and demonstrated capabilities require a separate assessment.",
       "limits": "Form-matched artwork is still required. Do not substitute another Ichigo illustration.",
       "references": [
@@ -1902,21 +1827,6 @@
       ],
       "universe": "bleach",
       "continuity": "bleach-hell-verse-film"
-    },
-    "ichigo/blood-chains": {
-      "scale": "night-universe-power-v1",
-      "status": "pending",
-      "rank": null,
-      "formId": "blood-chains",
-      "artworkSHA256": null,
-      "scope": "Blood Chains Ichigo",
-      "basis": "Exact form and demonstrated capabilities require a separate assessment.",
-      "limits": "Form-matched artwork is still required. Do not substitute another Ichigo illustration.",
-      "references": [
-        "https://bleach-anime.com/en/character/"
-      ],
-      "universe": "bleach",
-      "continuity": "bleach-manga"
     },
     "aizen-muken": {
       "scale": "night-universe-power-v1",
@@ -2073,6 +1983,153 @@
       },
       "universe": "bleach",
       "continuity": "bleach-manga"
+    },
+    "ichigo-human": {
+      "scale": "night-universe-power-v1",
+      "status": "proposed",
+      "rank": "F",
+      "universe": "bleach",
+      "continuity": "bleach-anime",
+      "formId": "human",
+      "artworkSHA256": "acfba7afacdc7187f5d5c49b1d4f615f3b521b42fe0ac2428a53c81417fc4e73",
+      "scope": "Human / everyday Ichigo within BLEACH anime continuity.",
+      "basis": "Everyday human state before receiving active Soul Reaper combat powers. F is the baseline grade for the depicted state.",
+      "limits": "Spiritual awareness is not the same as active supernatural combat power. This grade does not describe his later transformations.",
+      "references": [
+        "https://www.tv-tokyo.co.jp/anime/bleach_2012/episodes/episodes01/index.html",
+        "https://bleach-anime.com/stories/"
+      ],
+      "review": {
+        "status": "source-and-form-reviewed",
+        "artworkSHA256": "acfba7afacdc7187f5d5c49b1d4f615f3b521b42fe0ac2428a53c81417fc4e73",
+        "date": "2026-10-19"
+      }
+    },
+    "ichigo-hollow-mask": {
+      "scale": "night-universe-power-v1",
+      "status": "proposed",
+      "rank": "S",
+      "universe": "bleach",
+      "continuity": "bleach-anime",
+      "formId": "hollow-mask",
+      "artworkSHA256": "f69ffae62000945a5555e0d09e92bb358fefaa3a1e84d83f3082f04d51a33183",
+      "scope": "Hollow mask / mastered within BLEACH anime continuity.",
+      "basis": "Mastered Hollow-mask enhancement adds a major speed and striking boost to the original Bankai; this is the Arrancar-era masked combat state.",
+      "limits": "Mask duration and control remain constraints. This is not Full Hollow, Horn of Salvation or Blood Chains.",
+      "references": [
+        "https://www.tv-tokyo.co.jp/anime/bleach_2012/episodes/episodes15/index.html",
+        "https://bleach-anime.com/news/?id=71073"
+      ],
+      "review": {
+        "status": "source-and-form-reviewed",
+        "artworkSHA256": "f69ffae62000945a5555e0d09e92bb358fefaa3a1e84d83f3082f04d51a33183",
+        "date": "2026-10-19"
+      }
+    },
+    "ichigo-full-hollow": {
+      "scale": "night-universe-power-v1",
+      "status": "proposed",
+      "rank": "S",
+      "universe": "bleach",
+      "continuity": "bleach-anime",
+      "formId": "full-hollow",
+      "artworkSHA256": "73b804ab6d25beeb027e0dfefb4a01756accbf3c75400663f19dee0299d6bf37",
+      "scope": "Full Hollow / Ulquiorra battle within BLEACH anime continuity.",
+      "basis": "The uncontrolled transformation that overwhelms Ulquiorra in the Hueco Mundo battle. Its destructive combat burst merits the proposed S band.",
+      "limits": "Control and ally safety are severe limits. Vasto Lorde is a common fan label, not the canonical species assigned to this transformation.",
+      "references": [
+        "https://www.tv-tokyo.co.jp/anime/bleach_2012/episodes/episodes23/index.html",
+        "https://bleach-anime.com/stories/"
+      ],
+      "review": {
+        "status": "source-and-form-reviewed",
+        "artworkSHA256": "73b804ab6d25beeb027e0dfefb4a01756accbf3c75400663f19dee0299d6bf37",
+        "date": "2026-10-19"
+      }
+    },
+    "ichigo-dangai": {
+      "scale": "night-universe-power-v1",
+      "status": "proposed",
+      "rank": "SS",
+      "universe": "bleach",
+      "continuity": "bleach-anime",
+      "formId": "dangai",
+      "artworkSHA256": "26852af2ba40f6b7cf875b598d55ab9f9b525d0616f99273e22b4ff817d74c1b",
+      "scope": "Dangai-trained Ichigo within BLEACH anime continuity.",
+      "basis": "After training in the Dangai, Ichigo reaches spiritual pressure that Hogyoku-fused Aizen cannot sense; the official Bandai profile documents this distinction.",
+      "limits": "This card depicts the long-haired, sword-fused training result before Mugetsu. Game attack multipliers are not used as story feats.",
+      "references": [
+        "https://bleach-ros.bn-ent.net/character/index.php?chara=ichigo-kurosaki-the_final_getsugatensho"
+      ],
+      "review": {
+        "status": "source-and-form-reviewed",
+        "artworkSHA256": "26852af2ba40f6b7cf875b598d55ab9f9b525d0616f99273e22b4ff817d74c1b",
+        "date": "2026-10-19"
+      }
+    },
+    "ichigo-mugetsu": {
+      "scale": "night-universe-power-v1",
+      "status": "proposed",
+      "rank": "SSS",
+      "universe": "bleach",
+      "continuity": "bleach-anime",
+      "formId": "mugetsu",
+      "artworkSHA256": "619ace4526dcaf3d723547b84bf4fffaca749ec50441f0d35470308f184e3faa",
+      "scope": "Final Getsuga Tensho / Mugetsu within BLEACH anime continuity.",
+      "basis": "The Final Getsuga Tensho is the exceptional one-use peak used against evolved Aizen. SSS is our proposed burst-power placement, above the sustained Dangai state.",
+      "limits": "A brief, sacrificial peak: using the Final Getsuga Tensho costs his Soul Reaper powers. This is not permanent strength or an assertion of universal destructive power.",
+      "references": [
+        "https://www.tv-tokyo.co.jp/anime/bleach_2012/episodes/episodes26/index.html",
+        "https://bleach-anime.com/news/?id=69977"
+      ],
+      "review": {
+        "status": "source-and-form-reviewed",
+        "artworkSHA256": "619ace4526dcaf3d723547b84bf4fffaca749ec50441f0d35470308f184e3faa",
+        "date": "2026-10-19"
+      },
+      "featReview": {
+        "status": "verified",
+        "universe": "bleach",
+        "continuity": "bleach-anime",
+        "formId": "mugetsu",
+        "artworkSHA256": "619ace4526dcaf3d723547b84bf4fffaca749ec50441f0d35470308f184e3faa",
+        "reference": "https://www.tv-tokyo.co.jp/anime/bleach_2012/episodes/episodes26/index.html",
+        "locator": "Episode 309 and 310 official synopses",
+        "claim": "The official episode synopsis identifies the exceptional Final Getsuga Tensho power reached against evolved Aizen; the following episode records its bodily cost.",
+        "reviewedAt": "2026-10-19"
+      }
+    },
+    "ichigo-blood-chains": {
+      "scale": "night-universe-power-v1",
+      "status": "proposed",
+      "rank": "EX",
+      "universe": "bleach",
+      "continuity": "bleach-anime",
+      "formId": "blood-chains",
+      "artworkSHA256": "f3116ea23f64444290e1475e83142a46106b60b5b85e427c6a04330ca118b736",
+      "scope": "Blood Chains Ichigo within BLEACH anime continuity.",
+      "basis": "The official anime profile describes an ultimate transformation after Hollow awakening and Bankai, with increased reiatsu, physical ability and reactions against Soul-King-absorbed Yhwach. EX is our proposed placement for that specific anime form.",
+      "limits": "Anime continuity, not the manga True Bankai. The qualitative official description does not establish a universal or multiversal destructive feat; the EX letter is a NIGHT editorial proposal.",
+      "references": [
+        "https://bleach-anime.com/keyword/",
+        "https://bleach-anime.com/news/?id=71062"
+      ],
+      "review": {
+        "status": "source-and-form-reviewed",
+        "artworkSHA256": "f3116ea23f64444290e1475e83142a46106b60b5b85e427c6a04330ca118b736",
+        "date": "2026-10-19"
+      },
+      "featReview": {
+        "status": "verified",
+        "universe": "bleach",
+        "continuity": "bleach-anime",
+        "formId": "blood-chains",
+        "artworkSHA256": "f3116ea23f64444290e1475e83142a46106b60b5b85e427c6a04330ca118b736",
+        "reference": "https://bleach-anime.com/keyword/",
+        "locator": "KEY WORD: 血鎖の一護 (Blood Chains Ichigo), episode 45",
+        "claim": "The official profile identifies a further transformation after Hollow awakening and Bankai, with increased reiatsu, physical function and reactions against Soul-King-absorbed Yhwach.",
+        "reviewedAt": "2026-10-19"
+      }
     }
   },
   "universe": "bleach",

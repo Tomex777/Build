@@ -1,6 +1,6 @@
 # NIGHT form ranks
 
-Ranks compare exact forms **within their own universe and continuity**. BLEACH and Naruto are assessed independently; the same letter does not assert equal absolute power across franchises. The schema records `universe`, `continuity`, `formId` and the exact artwork SHA-256. Current BLEACH assessments use `bleach-manga`; the pending Hell Verse form has its separate film continuity.
+Ranks compare exact forms **within their own universe and continuity**. BLEACH and Naruto are assessed independently; the same letter does not assert equal absolute power across franchises. The schema records `universe`, `continuity`, `formId` and the exact artwork SHA-256. The original 85 BLEACH assessments retain `bleach-manga`; the six new form records use `bleach-anime`. The pending Hell Verse form has its separate film continuity.
 
 These are NIGHT editorial proposals. The existing 85 letters are retained from the source/form review, not presented as a newly completed canonical feat audit. Official profiles establish identity and artwork provenance; they do not certify NIGHT grades. A later costume alone does not establish later training or an active release.
 
@@ -19,13 +19,13 @@ These are NIGHT editorial proposals. The existing 85 letters are retained from t
 
 Assess offence, movement, defence, special abilities, conditions and counters together. Broad bands do not guarantee matchup outcomes. Creation, army command, divine titles or cosmological statements do not by themselves establish individual attack power.
 
-SSS and EX require a verified feat record with a source URL, scene/chapter locator, claim, universe and continuity. The validator checks that the record matches; it cannot verify the interpretation itself. Neither tier has an acquired card or reviewed design. The renderer refuses to substitute a lower-tier design.
+SSS and EX require a verified feat record with a source URL, scene/chapter locator, claim, universe, continuity, form ID and artwork SHA. The validator checks that the record matches; it cannot verify the interpretation itself. Mugetsu now has the proposed SSS / Eclipse design, and anime Blood Chains has EX / Ascendant. Their source-bound records remain editorial interpretations, not official grades.
 
 ## Current boundaries
 
 | Exact form | Proposal | Boundary |
 | --- | --- | --- |
-| Human Ichigo before supernatural combat powers | F, pending art | Never relabel Shikai art as human |
+| Human Ichigo before supernatural combat powers | F | Never relabel Shikai art as human |
 | Early Substitute Soul Reaper Ichigo | D | Later training excluded |
 | Original Shikai Ichigo | B | Bankai and Hollow boosts excluded |
 | Original Bankai Ichigo | A | Hollow mask and subsequent transformations excluded |

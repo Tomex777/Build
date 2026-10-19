@@ -1,7 +1,7 @@
 // A reviewable design proposal, not a user-approved production tier system.
 export const TIER_STYLES = Object.freeze({
   F:'vanguard', E:'ivory', D:'voltage', C:'crimson', B:'tidelight',
-  A:'nocturne', S:'emberglass', SS:'obsidian', SSS:null, EX:null
+  A:'nocturne', S:'emberglass', SS:'obsidian', SSS:'eclipse', EX:'ascendant'
 });
 export function designForRank(rank) {
   if (!Object.hasOwn(TIER_STYLES,rank)) throw Error('Unknown power tier');

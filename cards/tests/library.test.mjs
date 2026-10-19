@@ -10,9 +10,9 @@ import {discover} from '../src/discovery.mjs';
 
 test('catalogue keeps exact Ichigo forms and does not substitute unacquired forms',async()=>{
   const c=await loadCatalogue();const ichigo=c.cards.filter(c=>c.character==='ichigo');
-  assert.equal(ichigo.length,5);assert.equal(findEntries(ichigo,'Ichigo',{form:'original-bankai'}).length,1);
-  assert.equal(findEntries(ichigo,'Ichigo',{form:'blood-chains'}).length,0);
-  assert.ok(JSON.stringify(c.pendingForms).includes('blood'));
+  assert.equal(ichigo.length,11);assert.equal(findEntries(ichigo,'Ichigo',{form:'original-bankai'}).length,1);
+  assert.equal(findEntries(ichigo,'Ichigo',{form:'blood-chains'}).length,1);
+  assert.ok(!JSON.stringify(c.pendingForms).includes('blood'));assert.ok(JSON.stringify(c.pendingForms).includes('true-bankai'));
   assert.ok(c.cards.length>=70);assert.equal(new Set(c.cards.map(c=>c.number)).size,c.cards.length);
 });
 test('review fingerprints bind identity, artwork, crop, finish and renderer',async()=>{
@@ -51,7 +51,7 @@ test('discovery limits official candidates without inventing a license',async()=
 
 test('active collectible editions cannot reuse the same original illustration',async()=>{
   const catalogue=await loadCatalogue();
-  assert.equal(catalogue.cards.length,85);assert.equal(new Set(catalogue.cards.map(c=>c.source.sha256)).size,85);
+  assert.equal(catalogue.cards.length,91);assert.equal(new Set(catalogue.cards.map(c=>c.source.sha256)).size,91);
   const card=catalogue.cards[0];
   assert.throws(()=>validateCollectionArtwork({artworkPolicy:{distinctPerEdition:true},cards:[{...card,designs:['ivory','nocturne']}]}),/Repeated edition artwork/);
   assert.throws(()=>validateCollectionArtwork({artworkPolicy:{distinctPerEdition:true},cards:[card,{...card,id:'other'}]}),/Repeated edition artwork/);

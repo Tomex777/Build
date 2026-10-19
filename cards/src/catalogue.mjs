@@ -6,7 +6,7 @@ import {loadPowerAssessments} from './power.mjs';
 import {validateTierStyles} from './tiers.mjs';
 
 export const ROOT = fileURLToPath(new URL('../', import.meta.url));
-export const DESIGNS = ['vanguard','ivory','voltage','crimson','emberglass','obsidian','tidelight','nocturne'];
+export const DESIGNS = ['vanguard','ivory','voltage','crimson','emberglass','obsidian','tidelight','nocturne','eclipse','ascendant'];
 export const digest = bytes => crypto.createHash('sha256').update(bytes).digest('hex');
 export const normalise = value => String(value).normalize('NFKD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim();
 export function stable(value) {
