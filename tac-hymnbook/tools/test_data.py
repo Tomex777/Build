@@ -143,6 +143,10 @@ class HymnDataTest(unittest.TestCase):
             self.assertEqual(candidate["yoruba_translation_rights"], "not_yet_cleared")
             self.assertEqual(candidate["tac_stanza_check"], "not_yet_checked")
         self.assertEqual(catalogue["numbered_hymns_with_title"], 299)
+        self.assertEqual(sum(bool(h.get("title_en")) for h in catalogue["hymns"]), 8)
+        for number in (1, 45, 47, 65, 101, 104, 130, 303):
+            self.assertTrue(catalogue["hymns"][number - 1].get("title_en"))
+        self.assertIsNone(catalogue["hymns"][36].get("title_en"))
 
     def test_yoruba_is_stored_as_unicode(self):
         hymns = compile_asset()["hymns"]
