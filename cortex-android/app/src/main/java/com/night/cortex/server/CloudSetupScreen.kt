@@ -138,7 +138,7 @@ internal fun CloudSetupPage(
                     ) { Text("Save password securely") }
                     Text(
                         "The password stays in the protected Azure environment, not in GitHub or the public bot.",
-                        fontSize = 11.sp,
+                        fontSize = 12.sp,
                         color = CortexMuted,
                     )
                 }
@@ -174,7 +174,7 @@ internal fun CloudSetupPage(
                         Text(
                             "${target.label} · ${target.mediaTypes.joinToString()} · " +
                                 if (target.detected && target.uploadEnabled) "ready" else "offline/not approved",
-                            fontSize = 11.sp,
+                            fontSize = 12.sp,
                         )
                         if (target.detected && target.uploadEnabled) {
                             OutlinedButton(
@@ -190,7 +190,7 @@ internal fun CloudSetupPage(
                         "These tests prove only that MSCC can download its upload. " +
                             "The contributor must separately confirm a normal test file opens in their own MEGA app.",
                         color = CortexMuted,
-                        fontSize = 11.sp,
+                        fontSize = 12.sp,
                     )
                 }
             }
@@ -216,7 +216,7 @@ internal fun CloudSetupPage(
                         "Mark one as Images; the remaining three become Video archives. " +
                         "No account passwords are required.",
                     color = CortexMuted,
-                    fontSize = 11.sp,
+                    fontSize = 12.sp,
                 )
                 mounts.take(20).forEach { mount ->
                     val selected = mount.nodeId in selectedFolderIds
@@ -242,7 +242,7 @@ internal fun CloudSetupPage(
                                     else -> "Video"
                                 },
                                 color = CortexMuted,
-                                fontSize = 11.sp,
+                                fontSize = 12.sp,
                             )
                         }
                         if (selected) {
@@ -251,7 +251,7 @@ internal fun CloudSetupPage(
                                 onClick = { imageFolderId = mount.nodeId },
                                 enabled = !state.loading,
                             )
-                            Text("Images", fontSize = 11.sp, modifier = Modifier.padding(top = 14.dp))
+                            Text("Images", fontSize = 12.sp, modifier = Modifier.padding(top = 14.dp))
                         }
                     }
                 }
@@ -261,23 +261,23 @@ internal fun CloudSetupPage(
                             "one image folder chosen"
                         else "select which one stores images",
                     color = CortexMuted,
-                    fontSize = 11.sp,
+                    fontSize = 12.sp,
                 )
                 if (configured && state.cloudMountsLoaded && mounts.size < 4) {
                     Text(
                         "Four distinct writable folder invitations are needed. " +
                             "Refresh after accepting them.",
-                        fontSize = 11.sp,
+                        fontSize = 12.sp,
                         color = CortexMuted,
                     )
                 }
                 if (sharesSetting == null) {
-                    Text("Folder mapping requires the updated Cortex Agent.", color = CortexMuted, fontSize = 11.sp)
+                    Text("Folder mapping requires the updated Cortex Agent.", color = CortexMuted, fontSize = 12.sp)
                 } else {
                     Text(
                         if (sharesSetting.hasValue) "Folder roles saved; changing them replaces the previous map."
                         else "Folder roles not assigned yet.",
-                        fontSize = 11.sp,
+                        fontSize = 12.sp,
                         color = CortexMuted,
                     )
                     Button(
@@ -288,7 +288,7 @@ internal fun CloudSetupPage(
                         "Cortex balances each new video upload across the three folders " +
                             "by visible bytes. Other media uses the primary account. " +
                             "Actual donor free space cannot be read from shared folders.",
-                        fontSize = 11.sp,
+                        fontSize = 12.sp,
                         color = CortexMuted,
                     )
                 }
@@ -299,7 +299,7 @@ internal fun CloudSetupPage(
             "After saving the folder layout, restart MSCC and test a small file. " +
                 "No uploaded WhatsApp data is archived without an explicit command.",
             color = CortexMuted,
-            fontSize = 11.sp,
+            fontSize = 12.sp,
         )
     }
 
