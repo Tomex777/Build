@@ -95,7 +95,7 @@ ui_is_cortex() {
 }
 
 wait_for_cortex_ui() {
-  local attempt wait_used=0 coords wait_x wait_y
+  local attempt wait_used=0 launcher_close_used=0 coords wait_x wait_y
   for attempt in $(seq 1 18); do
     dump_ui
     if ui_is_cortex; then return 0; fi
@@ -106,6 +106,36 @@ wait_for_cortex_ui() {
       cat "$UI_DUMP" >&2
       echo "Release Cortex displayed an ANR dialog." >&2
       return 1
+    fi
+
+    # Some Android 16 hosted emulators repeatedly ANR the Pixel Launcher,
+    # even after three explicit Wait clicks. After recording three attempts,
+    # close ONLY that specific launcher process once and relaunch Cortex.
+    # Never dismiss a Cortex ANR, a different application, or declare success
+    # without observing and capturing the real Cortex UI afterward.
+    if (( wait_used == 3 && launcher_close_used == 0 )) &&
+       test -s "$UI_DUMP" &&
+       grep -Fq "Pixel Launcher isn't responding" "$UI_DUMP" &&
+       ! grep -Fq "Cortex isn't responding" "$UI_DUMP"; then
+      coords="$(python3 - "$UI_DUMP" <<'PY'
+import re, sys
+text=open(sys.argv[1], encoding='utf-8', errors='replace').read()
+m=re.search(r'resource-id="android:id/aerr_close"[^>]*bounds="\\[(\\d+),(\\d+)\\]\\[(\\d+),(\\d+)\\]"', text)
+if m:
+    x1,y1,x2,y2=map(int,m.groups())
+    print((x1+x2)//2, (y1+y2)//2)
+PY
+)"
+      read -r close_x close_y <<<"$coords"
+      if [[ "$close_x" =~ ^[0-9]+$ && "$close_y" =~ ^[0-9]+$ ]]; then
+        echo "Closing unresponsive Pixel Launcher only; Cortex must still pass real foreground + UI checks." >>"$DIAGNOSTICS"
+        adb shell input tap "$close_x" "$close_y"
+        launcher_close_used=1
+        wait_for_android
+        wake_and_unlock
+        adb shell am start -n com.night.cortex/.MainActivity >/dev/null
+        continue
+      fi
     fi
 
     # Software-only emulator images can surface unrelated platform/app ANRs
