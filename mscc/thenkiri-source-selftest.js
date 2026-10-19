@@ -69,6 +69,64 @@ assert.equal(_test.hostKind('https://www.downloadwella.com/abc/file.mkv.html'), 
 assert.equal(_test.hostKind('https://wetafiles.com/abc/file.mkv.html'), 'wetafiles')
 assert.equal(_test.hostKind('https://example.com/file.mkv'), '')
 
+// HTML fallback fixtures mirror the live site's h2 > a search cards when the
+// WordPress REST endpoint is unavailable or returns no posts.
+const listingHtml = [
+  '<article id="post-101" class="post"><h2><a href="https://thenkiri.com/seriously-single-too-2026-download-movie/" title="Download Seriously Single Too (2026) | Download Movie">Seriously Single Too (2026) | Download Movie</a></h2></article>',
+  '<article id="post-202" class="post"><h2><a href="https://thenkiri.com/hollywood-arts-s01-complete-tv-series/" title="Hollywood Arts S01 (Episode 1 – 12 Added) | TV Series">Hollywood Arts S01 (Episode 1 – 12 Added) | TV Series</a></h2></article>',
+  '<h2><a href="https://thenkiri.com/tv-series/">TV Series</a></h2>',
+].join('')
+const scraped = _test.parseHtmlListing(listingHtml, 'https://thenkiri.com/?s=sample', 20)
+assert.equal(scraped.length, 2, 'listing fallback ignores navigation/category links')
+assert.equal(scraped[0].id, 'thenkiri:seriously-single-too-2026-download-movie')
+assert.equal(scraped[0].sourcePostId, 101)
+assert.equal(scraped[0].type, 'movie')
+assert.equal(scraped[0].title, 'Seriously Single Too (2026)')
+assert.equal(scraped[1].id, 'thenkiri:hollywood-arts-s01-complete-tv-series')
+assert.equal(scraped[1].sourcePostId, 202)
+assert.equal(scraped[1].type, 'tv')
+assert.equal(scraped[1].title, 'Hollywood Arts')
+
+const detailHtml = [
+  '<html><head><title>DOWNLOAD Example Show S01 (Complete) | TV Series - TheNkiri.com</title></head><body>',
+  '<article id="post-303"><h1>DOWNLOAD Example Show S01 (Complete) | TV Series - TheNkiri.com</h1>',
+  '<a href="https://downloadwella.com/a/Example.Show.S01E01.%28THENKIRI.COM%29.mkv.html">Download Episode</a>',
+  '</article></body></html>',
+].join('')
+const htmlPost = _test.normalizeHtmlPost(detailHtml, 'https://thenkiri.com/example-show-s01-complete-tv-series/')
+assert.equal(htmlPost.type, 'tv')
+assert.equal(htmlPost.title, 'Example Show')
+assert.equal(htmlPost.sourcePostId, 303)
+assert.equal(htmlPost.releaseLinks.length, 1)
+assert.equal(htmlPost.releaseLinks[0].episode, 1)
+
+// Downloadwella's current free-download form returns an anchor containing
+// a button with class=downloadbtn, not the old "Start Download" anchor.
+const downloadwellaHtml = [
+  '<form action="/ekwhijx6ax8p/example.mkv.html" method="POST">',
+  '<input type="hidden" name="op" value="download2">',
+  '<input type="hidden" name="id" value="abc123">',
+  '<input type="hidden" name="rand" value="xyz987">',
+  '<input type="hidden" name="referer" value="">',
+  '<input type="hidden" name="method_free" value="Free Download">',
+  '<button type="submit">Create download link</button></form>',
+].join('')
+const downloadForm = _test.downloadwellaForm(downloadwellaHtml, 'https://downloadwella.com/file.html')
+assert.ok(downloadForm)
+assert.equal(downloadForm.action, 'https://downloadwella.com/ekwhijx6ax8p/example.mkv.html')
+assert.equal(downloadForm.fields.op, 'download2')
+assert.equal(downloadForm.fields.id, 'abc123')
+assert.equal(downloadForm.fields.rand, 'xyz987')
+assert.equal(downloadForm.fields.method_free, 'Free Download')
+assert.equal(
+  _test.startDownloadUrl(
+    '<a href="/d/generated-token"><button class="btn downloadbtn">Download</button></a>',
+    'https://downloadwella.com/ekwhijx6ax8p/example.mkv.html',
+  ),
+  'https://downloadwella.com/d/generated-token',
+)
+
+
 // Runtime tests: prove both adapters pass the right media identity, send the
 // resolved file through the WhatsApp context, and always clean temporary files.
 assert.equal(typeof movieSource.run, 'function')
