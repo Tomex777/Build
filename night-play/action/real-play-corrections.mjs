@@ -79,8 +79,8 @@ try{
  // independently moving pieces, with visible juice droplets on the canvas.
  {
   const page=await pageFor('slice',.5);
-  await waitFor(page,()=>window.__nightActionTest.snapshot().fruits.some(f=>f.kind!=='bomb'&&f.y>130&&f.y<490));
-  const fruit=(await snap(page)).fruits.find(f=>f.kind!=='bomb'&&f.y>130&&f.y<490);
+  await waitFor(page,()=>window.__nightActionTest.snapshot().fruits.some(f=>f.kind!=='bomb'&&Math.abs(f.vy)<140&&f.y>110&&f.y<450));
+  const fruit=(await snap(page)).fruits.find(f=>f.kind!=='bomb'&&Math.abs(f.vy)<140&&f.y>110&&f.y<450);
   assert.ok(fruit);
   const box=await page.locator('canvas').boundingBox();
   const x=box.x+fruit.x/390*box.width,y=box.y+fruit.y/550*box.height;
