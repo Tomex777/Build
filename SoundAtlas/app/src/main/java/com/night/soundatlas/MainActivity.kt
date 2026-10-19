@@ -30,79 +30,77 @@ import kotlin.math.*
 
 class MainActivity : Activity() {
     private lateinit var surface: AtlasCanvas
-    private val audio by lazy { AudioEngine(assets) }
     private val store by lazy { getSharedPreferences("atlas-worlds", MODE_PRIVATE) }
     private var world=AtlasPresets.create(0)
     private var pendingExport: String? = null
-    private val audioManager by lazy { getSystemService(Context.AUDIO_SERVICE) as AudioManager }
-    private var shouldResumeAfterTransientLoss=false
-    private var inForeground=false
-    private var noisyRegistered=false
-    private val focusListener=AudioManager.OnAudioFocusChangeListener { focus ->
-        when(focus) {
-            AudioManager.AUDIOFOCUS_GAIN -> {
-                if (shouldResumeAfterTransientLoss && inForeground) {
-                    shouldResumeAfterTransientLoss=false
-                    audio.start(world)
-                    surface.invalidate()
-                }
+    private var playbackService:AtlasPlaybackService?=null
+    private var serviceBound=false
+    private var playbackRequested=false
+    private val connection=object:android.content.ServiceConnection {
+        override fun onServiceConnected(name:android.content.ComponentName?,
+            binder:android.os.IBinder?) {
+            val service=(binder as? AtlasPlaybackService.LocalBinder)?.service()?:return
+            playbackService=service
+            playbackRequested=service.isPlaying()
+            service.update(world)
+            service.onChanged={
+                playbackRequested=service.isPlaying()
+                if(::surface.isInitialized)surface.post{surface.invalidate()}
             }
-            AudioManager.AUDIOFOCUS_LOSS_TRANSIENT,
-            AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> {
-                shouldResumeAfterTransientLoss=audio.isPlaying
-                audio.stop()
-                surface.invalidate()
-            }
-            AudioManager.AUDIOFOCUS_LOSS -> {
-                shouldResumeAfterTransientLoss=false
-                audio.stop()
-                surface.invalidate()
-            }
+            if(::surface.isInitialized)surface.invalidate()
+        }
+        override fun onServiceDisconnected(name:android.content.ComponentName?) {
+            playbackService=null
+            if(::surface.isInitialized)surface.invalidate()
         }
     }
-    private val focusRequest by lazy {
-        AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
-            .setAudioAttributes(
-                AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_MEDIA)
-                    .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC).build())
-            .setOnAudioFocusChangeListener(focusListener)
-            .setAcceptsDelayedFocusGain(false)
-            .build()
-    }
-    private val noisyReceiver=object:BroadcastReceiver() {
-        override fun onReceive(context:Context?,intent:Intent?) {
-            if(intent?.action==AudioManager.ACTION_AUDIO_BECOMING_NOISY) stopPlayback()
-        }
+    private val audio=object {
+        val isPlaying:Boolean get()=playbackService?.isPlaying()?:playbackRequested
+        fun update(next:World){playbackService?.update(next)}
     }
     private fun startPlayback() {
-        shouldResumeAfterTransientLoss=false
-        val outcome=audioManager.requestAudioFocus(focusRequest)
-        if(outcome!=AudioManager.AUDIOFOCUS_REQUEST_GRANTED){
-            Toast.makeText(this,"Audio output is being used by another app",Toast.LENGTH_SHORT).show()
-            return
+        try {
+            val encoded=AtlasCodec.encode(world)
+            store.edit().putString("last",encoded).apply()
+            playbackRequested=true
+            androidx.core.content.ContextCompat.startForegroundService(this,
+                Intent(this,AtlasPlaybackService::class.java)
+                    .setAction(AtlasPlaybackService.ACTION_PLAY)
+                    .putExtra("world",encoded))
+        } catch(e:Exception) {
+            playbackRequested=false
+            Toast.makeText(this,"Unable to start audio: "+e.message,Toast.LENGTH_LONG).show()
         }
-        audio.start(world)
-        surface.invalidate()
-    }
-    private fun stopPlayback() {
-        shouldResumeAfterTransientLoss=false
-        audio.stop()
-        audioManager.abandonAudioFocusRequest(focusRequest)
         if(::surface.isInitialized)surface.invalidate()
     }
-    override fun onResume() { super.onResume();inForeground=true }
+    private fun stopPlayback() {
+        playbackRequested=false
+        if(playbackService!=null) playbackService?.pause()
+        else startService(Intent(this,AtlasPlaybackService::class.java)
+            .setAction(AtlasPlaybackService.ACTION_PAUSE))
+        if(::surface.isInitialized)surface.invalidate()
+    }
     override fun onStart() {
         super.onStart()
-        if(!noisyRegistered){
-            androidx.core.content.ContextCompat.registerReceiver(this,noisyReceiver,
-                IntentFilter(AudioManager.ACTION_AUDIO_BECOMING_NOISY),
-                androidx.core.content.ContextCompat.RECEIVER_NOT_EXPORTED)
-            noisyRegistered=true
-        }
+        serviceBound=bindService(Intent(this,AtlasPlaybackService::class.java),
+            connection,Context.BIND_AUTO_CREATE)
     }
     override fun onStop() {
-        if(noisyRegistered){unregisterReceiver(noisyReceiver);noisyRegistered=false}
+        if(serviceBound){
+            playbackService?.onChanged=null
+            unbindService(connection)
+            playbackService=null
+            serviceBound=false
+        }
         super.onStop()
+    }
+    override fun onResume() {
+        super.onResume()
+        val err=getSharedPreferences("atlas-audio-error",MODE_PRIVATE)
+        err.getString("last_error",null)?.let{
+            err.edit().remove("last_error").apply()
+            Toast.makeText(this,"Audio playback interrupted: "+it,Toast.LENGTH_LONG).show()
+        }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -224,12 +222,12 @@ class MainActivity : Activity() {
     }
     override fun onPause() {
         store.edit().putString("last",AtlasCodec.encode(world)).apply()
-        inForeground=false
         window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-        stopPlayback()
+        // The started foreground service, not the editor Activity, owns audio
+        // playback. This allows screen-off ambience and avoids accidental stops.
         super.onPause()
     }
-    override fun onDestroy() { audio.close();super.onDestroy() }
+    override fun onDestroy() { super.onDestroy() }
     @Deprecated("Activity back handling on minSdk 26")
     override fun onBackPressed() {
         if(surface.closeSheetOrExitExplore())return
