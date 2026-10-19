@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs'
 import { createServer } from 'node:http'
 import { chromium } from 'playwright'
 const html=readFileSync(new URL('./index.html',import.meta.url))
-const server=createServer((req,res)=>{res.writeHead(200,{'content-type':'text/html; charset=utf-8','cache-control':'no-store'});res.end(html)})
+const server=createServer((req,res)=>{if(req.url==='/site-shell.css'){res.writeHead(200,{'content-type':'text/css'});res.end(readFileSync(new URL('./site-shell.css',import.meta.url)));return}if(req.url==='/account-client.js'){res.writeHead(200,{'content-type':'text/javascript'});res.end(readFileSync(new URL('./account-client.js',import.meta.url)));return}if(req.url==='/api/account'){res.writeHead(200,{'content-type':'application/json'});res.end(JSON.stringify({linked:false,profile:null}));return}res.writeHead(200,{'content-type':'text/html; charset=utf-8','cache-control':'no-store'});res.end(html)})
 await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve))
 let browser
 try {
@@ -11,6 +11,29 @@ try {
  browser=await chromium.launch({headless:true,channel:'chrome',args:['--no-sandbox']})
  const page=await browser.newPage({viewport:{width:390,height:844},isMobile:true,hasTouch:true})
  const failures=[]
+ async function checkNav(destination){
+  const metrics=await page.evaluate(()=>{
+   const nav=document.querySelector('.mobile-nav'),box=nav.getBoundingClientRect();
+   const items=[...nav.querySelectorAll('a')].map(a=>{
+    const rect=a.getBoundingClientRect(),style=getComputedStyle(a);
+    return {name:a.textContent.trim(),height:rect.height,width:rect.width,current:a.getAttribute('aria-current'),background:style.backgroundColor}
+   });
+   return {display:getComputedStyle(nav).display,top:box.top,bottom:box.bottom,height:box.height,viewportHeight:innerHeight,
+    headerProfile:document.querySelectorAll('header .profile-icon').length,
+    overflow:document.documentElement.scrollWidth-innerWidth,viewportWidth:innerWidth,items};
+  });
+  assert.equal(metrics.display,'grid','bottom navigation is balanced in three equal tracks');
+  assert.ok(Math.abs(metrics.bottom-metrics.viewportHeight)<=2,'bar anchors to bottom of visible viewport');
+  assert.equal(metrics.headerProfile,0,'no duplicated top-right profile shortcut');
+  assert.ok(metrics.items.every(item=>item.height>=44),'each tab has at least 44px height');
+  assert.equal(metrics.items.filter(item=>item.current==='page').length,1,'one active bottom destination');
+  assert.equal(metrics.items.find(item=>item.current==='page').name,destination);
+  assert.notEqual(metrics.items.find(item=>item.current==='page').background,'rgba(0, 0, 0, 0)','selected tab has a visible surface');
+  assert.ok(metrics.overflow<=2,'mobile navigation never introduces horizontal scrolling');
+   assert.ok(Math.abs(metrics.viewportWidth-(page.viewportSize()?.width||390))<=1,'mobile layout must not auto-zoom due to oversized header');
+  console.log('NIGHT_NAV_METRICS '+JSON.stringify(metrics));
+ }
+
  page.on('pageerror',err=>failures.push(String(err)))
  await page.goto(base+'/')
  await page.locator('#view-welcome').waitFor({state:'visible'})
@@ -35,6 +58,8 @@ try {
  assert.equal(await page.locator('header').evaluate(el=>getComputedStyle(el).position),'sticky')
  assert.equal(await page.locator('#announcementBar').evaluate(el=>getComputedStyle(el).position),'sticky')
  assert.equal(await page.locator('#view-dashboard #dashSnakeBest').count(),0)
+ await checkNav('Home')
+ console.log('NIGHT_NAV_AFTER_DASHBOARD='+(await page.screenshot({type:'jpeg',quality:68})).toString('base64'))
  await page.evaluate(()=>{
   localStorage.setItem('night-play-v1-snake','90');
   localStorage.setItem('night-play-history-v1-snake',JSON.stringify([12,35,90]));
@@ -43,6 +68,8 @@ try {
  await page.locator('.mobile-nav a[href="/profile"]').click()
  await page.locator('#view-profile').waitFor({state:'visible'})
  assert.equal(new URL(page.url()).pathname,'/profile')
+ await checkNav('Profile')
+ console.log('NIGHT_NAV_AFTER_PROFILE='+(await page.screenshot({type:'jpeg',quality:68})).toString('base64'))
  assert.equal(await page.locator('#view-profile .inner-page-head').count(),0,'Profile begins with player card, not a redundant heading')
  await page.locator('#editPlayerName').click()
  await page.locator('#playerNameInput').fill('Alex')
@@ -80,8 +107,15 @@ try {
  assert.equal(await page.locator('#selectedGameTitle').textContent(),'Game activity')
  await page.locator('.mobile-nav a[href="/games"]').click()
  await page.locator('#view-games').waitFor({state:'visible'})
+ await checkNav('Games')
+ console.log('NIGHT_NAV_AFTER_GAMES='+(await page.screenshot({type:'jpeg',quality:68})).toString('base64'))
+ console.log('NIGHT_GAME_GALLERY_BASE64='+(await page.locator('#view-games').screenshot({type:'jpeg',quality:58})).toString('base64'));
  assert.equal(await page.locator('.brand-mark use').first().getAttribute('href'),'#icon-brand')
- assert.equal(await page.locator('.library-card .game-art').count(),11,'All game thumbnails render custom SVG')
+ assert.equal(await page.locator('.library-card .game-art').count(),9,'Other games retain their SVG thumbnails')
+ assert.equal(await page.locator('.library-card[data-jigsaw] .jigsaw-cover-photo').count(),1,'Jigsaw no longer uses the old generated puzzle illustration')
+ assert.equal(await page.locator('.library-card[data-name="wing hop flappy bird"] .wing-preview-bird').count(),1,'Wing Hop uses actual bundled character artwork')
+ assert.equal(await page.locator('.library-card[data-club="ludo"]').count(),0,'Unfinished Ludo is hidden from the public game library')
+ assert.equal(await page.locator('.library-card[data-jigsaw]').count(),1,'Jigsaw is listed among puzzle games')
  assert.equal(await page.locator('.mobile-nav .ui-icon').count(),3,'All mobile tabs render SVG icons')
  assert.equal(await page.locator('.library-card .game-emoji').count(),0,'No emoji artwork')
  assert.ok(await page.locator('.library-card').first().evaluate(el=>getComputedStyle(el).borderTopWidth)==='1px','Cards have thin border')
@@ -95,6 +129,29 @@ try {
  assert.equal(await page.locator('#gameDialog').getAttribute('data-skin'),'2048','Game-specific visual skin is applied')
 
  assert.equal(await page.locator('#board2048 .tile').count(),16)
+ assert.match(await page.locator('#gameSettings svg path').getAttribute('d'),/^M9\.671 /,'2048 has the approved gear icon');
+ const btn2048=await page.locator('#gameSettings').boundingBox();
+ assert.ok(btn2048.width>=37&&btn2048.width<=100,'2048 settings icon matches compact Jigsaw button');
+ // Re-rendering and swiping must not remount the grid or hide its cell surfaces.
+ const stable2048=await page.evaluate(()=>{
+  grid=[[0,0,0,2],[0,0,0,0],[0,0,0,0],[0,0,0,0]];tileScore=0;draw2048();
+  const board=document.getElementById('board2048'),before=[...board.querySelectorAll(':scope > .tile')];
+  move2048('left');
+  const after=[...board.querySelectorAll(':scope > .tile')];
+  return {sameNodes:before.every((node,i)=>node===after[i]),sliding:board.classList.contains('tile-sliding'),
+   visible:after.every(node=>getComputedStyle(node).visibility==='visible'),
+   opaque:after.every(node=>getComputedStyle(node).backgroundColor!=='rgba(0, 0, 0, 0)'),
+   movingTiles:board.querySelectorAll(':scope > .tile-layer .tile-ghost').length};
+ });
+ assert.equal(stable2048.sameNodes,true,'2048 must retain grid cell nodes on swipe');
+ assert.equal(stable2048.sliding,true,'2048 retains the sliding-tile animation');
+ assert.equal(stable2048.visible,true,'2048 grid cells remain visible during animation');
+ assert.equal(stable2048.opaque,true,'2048 grid cells have an opaque backing throughout animation');
+ assert.ok(stable2048.movingTiles>0,'2048 animated tiles are rendered above stable grid');
+ await page.evaluate(()=>{move2048('right');move2048('left')});
+ await page.waitForTimeout(230);
+ assert.equal(await page.locator('#board2048').evaluate(board=>board.classList.contains('tile-sliding')),false,'Rapid swipes must clean up the latest animation');
+ assert.equal(await page.locator('#board2048 .tile-layer').count(),0,'No stale 2048 animation overlay after rapid swipes');
  assert.ok(await page.locator('#board2048').evaluate(el=>el.getBoundingClientRect().width)>=376,'2048 arena occupies nearly full 390px viewport')
  const title2048=await page.locator('#gameTitle').boundingBox();
  assert.ok(title2048.y<130,'Game title is at the TOP, not alongside the board');
@@ -129,6 +186,8 @@ try {
  assert.ok(await page.evaluate(()=>Boolean(localStorage.getItem('night-play-save-2048-5'))))
  await page.locator('[data-close-game]').first().click()
  await page.locator('.library-card[data-game="snake"]').click()
+ assert.match(await page.locator('#gameSettings svg path').getAttribute('d'),/^M9\.671 /,'Snake has the corrected settings icon');
+ console.log('NIGHT_SNAKE_SETTINGS_JPEG_BASE64='+(await page.screenshot({type:'jpeg',quality:48})).toString('base64'));
  assert.equal(await page.locator('.dpad').count(),0,'No Snake directional buttons exist')
  const tallArena=await page.locator('.snake-shell').evaluate(el=>{const r=el.getBoundingClientRect();return {width:r.width,height:r.height,ratio:r.height/r.width}});
  assert.ok(tallArena.width>=375,'Snake retains nearly full device width on tall phones');
@@ -181,6 +240,8 @@ try {
  await page.locator('#snakeOverlay').click()
  await page.locator('[data-close-game]').first().click()
  await page.locator('.library-card[data-game="ttt"]').click()
+ assert.match(await page.locator('#gameSettings svg path').getAttribute('d'),/^M9\.671 /,'Tic-Tac-Toe has the corrected settings icon');
+ console.log('NIGHT_TTT_SETTINGS_JPEG_BASE64='+(await page.screenshot({type:'jpeg',quality:48})).toString('base64'));
  await page.locator('#gameSettings').click()
  await page.getByRole('button',{name:'Hard'}).click()
  await page.locator('#closeSettings').click()
@@ -197,13 +258,51 @@ try {
  assert.equal(await page.locator('#gameFocus').getAttribute('aria-pressed'),'false')
 
  await page.locator('#tttboard button').first().click()
+ await page.evaluate(()=>{window.__nightTttXMark=document.querySelector('#tttboard .ttt-cell .ttt-mark')});
  await page.waitForFunction(()=>Array.from(document.querySelectorAll('#tttboard button')).some(b=>b.textContent==='O'),null,{timeout:10000})
+ assert.equal(await page.evaluate(()=>document.querySelector('#tttboard .ttt-cell .ttt-mark')===window.__nightTttXMark),true,'Existing X must retain its SVG after bot plays O');
+ await page.evaluate(()=>drawTtt());
+ assert.equal(await page.evaluate(()=>document.querySelector('#tttboard .ttt-cell .ttt-mark')===window.__nightTttXMark),true,'Unrelated Tic-Tac-Toe renders must never replay the X animation');
+ // A completely filled draw should show a centered result card for ~3s,
+ // then start the next local round on the very same game screen.
+ const tiedBoard=['X','O','X','X','O','O','O','X',''];
+ await page.evaluate(tie=>{
+  mode='local';ttt=[...tie];turn='X';tttFinished=false;gamePaused=false;
+  drawTtt();moveTtt(8);
+ },tiedBoard);
+ assert.equal(await page.locator('#tttboard .ttt-cell').count(),9);
+ await page.locator('#tttboard .ttt-draw-overlay').waitFor({state:'visible',timeout:2000});
+ assert.equal(await page.locator('.ttt-draw-card h3').textContent(),"It's a draw!",'A draw must display its animated result card');
+ assert.equal(await page.locator('.ttt-draw-seconds').textContent(),'3s','Draw card holds a 3-second countdown');
+ assert.equal(await page.evaluate(()=>ttt.every(Boolean)&&tttFinished),true,'Filled round stays on screen while result appears');
+ await page.waitForFunction(()=>!tttFinished&&ttt.every(mark=>mark===''),null,{timeout:5000});
+ await page.locator('#tttboard .ttt-draw-overlay').waitFor({state:'detached',timeout:2000});
+ assert.equal(await page.evaluate(()=>mode),'local','Automatic next round keeps 2-player mode');
+ assert.equal(await page.evaluate(()=>turn),'X','Automatic next round begins with X');
+ assert.equal(new URL(page.url()).pathname,'/play/ttt','Auto-start must not navigate to another page');
+ assert.deepEqual(await page.evaluate(()=>JSON.parse(localStorage.getItem('night-play-save-ttt')).board),Array(9).fill(''),'Next round is saved with blank cells');
+
+ // Restart cancels a pending result timer; it must never erase a newly played X.
+ await page.evaluate(tie=>{ttt=[...tie];turn='X';tttFinished=false;mode='local';drawTtt();moveTtt(8)},tiedBoard);
+ await page.locator('#tttboard .ttt-draw-overlay').waitFor({state:'visible',timeout:2000});
+ await page.locator('#restart').click();
+ assert.equal(await page.locator('#tttboard .ttt-draw-overlay').count(),0,'Restart dismisses draw overlay');
+ await page.evaluate(()=>{mode='local';drawTtt();moveTtt(0)});
+ await page.waitForTimeout(3400);
+ assert.equal(await page.evaluate(()=>ttt[0]),'X','Old result timeout cannot erase new-round moves');
+ assert.equal(await page.locator('#tttboard .ttt-draw-overlay').count(),0);
  await page.locator('[data-close-game]').first().click()
  await page.locator('.mobile-nav a[href="/dashboard"]').click()
  assert.match((await page.locator('#homeGreeting').textContent())||'',/^Good (morning|afternoon|evening|night), Alex\.$/)
  await page.locator('.mobile-nav a[href="/profile"]').click()
  await page.locator('#view-profile').waitFor({state:'visible'})
  await page.locator('footer').scrollIntoViewIfNeeded()
+ await page.evaluate(()=>window.scrollTo(0,document.documentElement.scrollHeight))
+ const mobileFooter=await page.evaluate(()=>{
+  const f=document.querySelector('footer').getBoundingClientRect(),nav=document.querySelector('.mobile-nav').getBoundingClientRect()
+  return {footerBottom:f.bottom,barTop:nav.top};
+ })
+ assert.ok(mobileFooter.footerBottom<=mobileFooter.barTop+3,'full footer remains accessible above bottom navigation')
  assert.equal(await page.locator('footer a[href="/terms"]').isVisible(),true)
  assert.equal(await page.locator('footer a[href="/privacy"]').isVisible(),true)
  await page.locator('footer a[href="/privacy"]').click()
@@ -220,7 +319,23 @@ try {
    const rect=document.querySelector('footer').getBoundingClientRect();
    return {absoluteBottom:rect.bottom+window.scrollY,documentHeight:document.documentElement.scrollHeight}
  })
- assert.ok(Math.abs(foot.absoluteBottom-foot.documentHeight)<5,'Footer must be the final document section')
- assert.deepEqual(failures,[],'Browser runtime errors')
+ const bottomNavSpace=await page.locator('.mobile-nav').evaluate(el=>el.getBoundingClientRect().height)
+  assert.ok(Math.abs(foot.absoluteBottom+bottomNavSpace-foot.documentHeight)<5,'Footer terminates before the dedicated navigation clearance')
+ 
+  // Compact phone: no clipped tabs, active label or sideways scroll.
+  await page.setViewportSize({width:320,height:700})
+  await checkNav('Home')
+  console.log('NIGHT_NAV_AFTER_320='+(await page.screenshot({type:'jpeg',quality:67})).toString('base64'))
+  // Tablet: top links must remain navigable after the phone dock disappears.
+  await page.setViewportSize({width:768,height:1024})
+  assert.equal(await page.locator('.mobile-nav').isVisible(),false,'no bottom dock on tablets')
+  assert.equal(await page.locator('header .links').isVisible(),true,'tablets expose the full top navigation')
+  assert.deepEqual(await page.locator('header .links a').allTextContents(),['Home','Games','Profile'])
+  await page.locator('header .links a[href="/profile"]').click()
+  assert.equal(new URL(page.url()).pathname,'/profile')
+  assert.equal(await page.locator('header .links a[aria-current="page"]').textContent(),'Profile')
+  assert.equal(await page.locator('header .profile-icon').count(),0,'no repeated desktop profile shortcut')
+  console.log('NIGHT_NAV_AFTER_TABLET='+(await page.screenshot({type:'jpeg',quality:67})).toString('base64'))
+  assert.deepEqual(failures,[],'Browser runtime errors')
  console.log('PASS NIGHT Play V10 mobile: authentic NIGHT logo, full-width game boards, restored Snake controls and user-configurable speed')
 } finally {if(browser)await browser.close();await new Promise(resolve=>server.close(resolve))}

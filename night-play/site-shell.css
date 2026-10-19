@@ -1,0 +1,53 @@
+/* NIGHT Play site chrome. Shared by Home, Games, Profile and Your Channels. */
+:root{--bg:#f7f7f5;--surface:#fff;--soft:#eeefe9;--ink:#1c2328;--dark:#080808;--muted:#777e83;--line:#dbe1da;--focus:#306b55;--green:#2e6b57;--green-deep:#214c40}
+.site-header{height:88px;display:flex;align-items:center;position:sticky;top:0;z-index:60;border-bottom:1px solid var(--line);background:#f7f7f7;box-shadow:none}
+.site-header .wrap{width:100%}
+.wrap{max-width:1260px;margin:0 auto;padding:0 32px}
+.site-header .nav{display:flex;align-items:center;justify-content:space-between;width:100%;gap:22px}
+.site-header .logo{display:flex;align-items:center;gap:10px;font-size:21px;font-weight:900;letter-spacing:-1.2px;color:#1c2924;white-space:nowrap}
+.site-header .logo>.brand-mark,.site-header .brand-mark{width:38px;height:38px;flex:0 0 38px;display:block;border:0;border-radius:10px;overflow:hidden;background:#0b0f11}
+.site-header .brand-sub{font-size:9px;font-weight:800;background:none;color:#3c705d;border:1px solid #c9dacd;border-radius:3px;padding:4px 6px;letter-spacing:1.05px;vertical-align:middle;margin-left:2px}
+.site-header .links{display:flex;gap:28px;font-size:13px;color:#6b7074}
+.site-header .links a:hover{color:#080808}
+.site-header .links a[aria-current="page"]{color:#080808;font-weight:850}
+.site-header .actions{display:flex;align-items:center;gap:11px;margin-left:auto}
+.site-header .profile-icon{width:39px;height:39px;display:grid;place-items:center;border-radius:50%;background:#ededed;color:#1e1e1e}
+.site-header .profile-icon:hover{background:#ddd}
+.mobile-nav{display:none}
+/* Responsive NIGHT site chrome, shared with Channels as well as the main site. */
+@media(max-width:900px){.site-header{height:72px}}
+@media(min-width:601px) and (max-width:900px){
+ .site-header .nav{gap:14px}
+ .site-header .links{display:flex;gap:clamp(10px,2vw,19px);font-size:12px}
+ .site-header .actions{margin-left:0}
+}
+@media(max-width:600px){
+ :root{--night-mobile-nav-height:74px}
+ .wrap{padding:0 18px}
+ .site-header .links{display:none}
+ .site-header .brand-sub{display:none}
+ .site-header .logo>.brand-mark,.site-header .brand-mark{width:33px;height:33px;flex-basis:33px}
+ /* Bottom tabs already expose Profile: don't duplicate it in the header. */
+ .site-header .profile-icon{display:none}
+ .mobile-nav{
+  position:fixed;z-index:55;inset:auto 0 0;
+  display:grid;grid-template-columns:repeat(3,minmax(0,1fr));
+  justify-content:stretch;align-items:center;gap:6px;
+  width:100%;height:calc(var(--night-mobile-nav-height) + env(safe-area-inset-bottom));
+  padding:7px max(14px,env(safe-area-inset-right)) calc(7px + env(safe-area-inset-bottom)) max(14px,env(safe-area-inset-left));
+  background:#fafbf9;border:0;border-top:1px solid #dce4dd;
+  box-shadow:0 -3px 12px #1e322008;backdrop-filter:none;
+ }
+ .mobile-nav a{
+  min-width:0;min-height:54px;width:100%;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:4px;margin:0;padding:7px 6px 6px;
+  border-radius:12px;background:transparent;
+  color:#69766d;text-align:center;
+  font:700 11px/1.2 Inter,"DM Sans",Arial,system-ui,sans-serif;
+ }
+ .mobile-nav .ui-icon{display:block;width:23px;height:23px;flex:none}
+ .mobile-nav a[aria-current="page"]{background:#e6eee8;color:#24573d;font-weight:850}
+ .mobile-nav a:focus-visible{outline:2px solid #356e4b;outline-offset:-2px}
+}
+@media(max-width:350px){.mobile-nav{gap:4px;padding-left:9px;padding-right:9px}}

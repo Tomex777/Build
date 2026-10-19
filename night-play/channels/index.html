@@ -1,0 +1,338 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#f7f7f5">
+<title>Your Channels · NIGHT Play</title>
+<style>
+:root{--bg:#f7f7f5;--paper:#fff;--ink:#1c2328;--muted:#777e83;--line:#dbe1da;--green:#2e6b57}
+*{box-sizing:border-box}
+html{min-height:100%}
+body{margin:0;min-height:100dvh;background:var(--bg);color:var(--ink);font-family:Inter,"DM Sans",Arial,system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+button,a{-webkit-tap-highlight-color:transparent}button{font:inherit;cursor:pointer}a{text-decoration:none;color:inherit}
+button:focus-visible,a:focus-visible{outline:3px solid #73a68a;outline-offset:3px}
+svg{display:block}
+.ui-icon{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.85;stroke-linecap:round;stroke-linejoin:round}
+.channel-main{padding-top:43px;padding-bottom:90px}
+.channel-hero{margin:0 0 30px}
+.channel-hero h1{font-size:clamp(35px,4.8vw,58px);font-weight:850;letter-spacing:-2.4px;line-height:1.08;margin:0 0 11px;color:#161a18}
+.channel-hero p{font-size:13px;color:#737b76;line-height:1.65;max-width:570px;margin:0}
+.channel-content{max-width:900px}
+.channel-state{background:#fff;border:1px solid #e2e6e0;border-radius:17px;padding:21px 24px}
+.channel-state h2{font-size:18px;margin:0 0 7px;letter-spacing:-.5px}
+.channel-state p{margin:0;color:#707b74;font-size:13px;line-height:1.65;max-width:630px}
+.channel-state .btn{margin-top:18px}
+.btn{display:inline-flex;align-items:center;justify-content:center;min-height:42px;padding:10px 17px;border:1px solid #cbd6ce;border-radius:11px;background:#fff;color:#26382e;font-size:12px;font-weight:800}
+.btn:hover{background:#f1f5f1}
+.btn.primary{background:#285c46;color:#fff;border-color:#285c46}
+.btn.primary:hover{background:#377057}
+.btn.danger{color:#a05248;border-color:#e6d9d4;background:#fff}
+.btn.danger:hover{background:#fff4f1}
+.btn:disabled{opacity:.55;cursor:default}
+.channel-count{margin:0 0 13px;color:#68756e;font-size:11px;font-weight:750}
+.channel-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:13px}
+.channel-card{border:1px solid #e0e5df;border-radius:17px;background:#fff;padding:20px;min-width:0}
+.channel-card-top{display:flex;gap:12px;align-items:center}
+.channel-avatar{display:grid;place-items:center;width:46px;height:46px;flex:0 0 46px;border-radius:13px;background:#e7eee7;color:#2e5940;font-size:21px;font-weight:850;overflow:hidden}
+.channel-avatar img{width:100%;height:100%;display:block;object-fit:cover}
+.channel-name{font-size:16px;font-weight:800;letter-spacing:-.35px;margin:0 0 5px;overflow-wrap:anywhere}
+.channel-pill{font-size:11px;color:#916a31;font-weight:650}
+.channel-pill.ready{color:#2e7854}
+.channel-pill::before{content:"";display:inline-block;width:6px;height:6px;margin-right:7px;border-radius:50%;background:#c59e61;vertical-align:1px}
+.channel-pill.ready::before{background:#50956b}
+.channel-summary{font-size:12px;color:#6f7b72;line-height:1.6;margin:15px 0 13px}
+.channel-proof{background:#f0f5ef;border:1px solid #dbe7db;padding:13px;border-radius:11px;margin-bottom:13px}
+.channel-proof span{display:block;text-transform:uppercase;font-size:9px;font-weight:800;letter-spacing:.9px;color:#6c7b70}
+.channel-proof code{font-size:12px;font-family:ui-monospace,Consolas,monospace;font-weight:750;color:#234332;display:block;overflow-wrap:anywhere;margin-top:7px;user-select:text}
+.channel-actions{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.channel-actions{margin-top:17px;align-items:center}
+.channel-actions .channel-start{display:inline-flex;align-items:center;gap:8px;min-height:45px}
+.channel-actions .channel-start svg{width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.channel-actions .channel-start:disabled{opacity:1;background:#e5ebe6;border-color:#e5ebe6;color:#6a786e}
+.channel-start-note{font-size:11px;line-height:1.5;color:#748077;margin:8px 0 0}
+@media(max-width:420px){.channel-actions .channel-start{width:100%;justify-content:center}.channel-actions .danger{min-height:44px}}
+
+.channel-confirm{width:100%;background:#faf2ef;border:1px solid #ecdad4;padding:12px;border-radius:12px}
+.channel-confirm p{font-size:12px;line-height:1.6;margin:0 0 11px;color:#70483f}
+.channel-confirm .actions{display:flex;flex-wrap:wrap;gap:8px}
+.channel-guide{margin-top:22px;padding-top:20px;border-top:1px solid #dbe1da}
+.channel-guide h2{font-size:15px;letter-spacing:-.35px;margin:0 0 8px}
+.channel-guide p{font-size:12px;color:#66756c;line-height:1.75;margin:0;max-width:720px}
+.channel-guide strong{color:#285641}
+.channel-toast{position:fixed;z-index:80;bottom:100px;left:50%;transform:translateX(-50%);width:max-content;max-width:calc(100vw - 42px);border-radius:12px;background:#1e4030;color:#fff;padding:13px 17px;font-size:12px;line-height:1.5;box-shadow:0 9px 26px #142a2225}
+[hidden]{display:none!important}
+@media(max-width:900px){.channel-main{padding-top:35px}}
+@media(max-width:600px){
+ .channel-main{padding-top:30px;padding-bottom:110px}
+ .channel-hero{margin-bottom:24px}
+ .channel-hero h1{font-size:39px;letter-spacing:-1.8px}
+ .channel-hero p{font-size:12px;line-height:1.6}
+ .channel-grid{grid-template-columns:1fr;gap:10px}
+ .channel-state{padding:19px;border-radius:15px}
+ .channel-card{padding:16px;border-radius:15px}
+ .channel-avatar{width:44px;height:44px;flex-basis:44px}
+ .channel-guide{margin-top:20px;padding-top:17px}
+}
+</style>
+<link rel="stylesheet" href="/site-shell.css">
+</head>
+<body data-view="channels">
+<svg aria-hidden="true" style="position:absolute;width:0;height:0;overflow:hidden" xmlns="http://www.w3.org/2000/svg">
+<symbol id="icon-brand" viewBox="0 0 108 108"><path fill="#0B0F11" d="M0 0h108v108H0z"/><path fill="#F4F5F6" d="M24 54 C24 37.43 37.43 24 54 24 C70.57 24 84 37.43 84 54 L24 54 Z"/><path fill="#F4F5F6" d="M22 66h64v6H22z"/></symbol>
+<symbol id="icon-home" viewBox="0 0 24 24"><path d="m3 10 9-7 9 7v10H3z"/><path d="M9 20v-7h6v7"/></symbol>
+<symbol id="icon-games" viewBox="0 0 24 24"><rect x="2" y="6" width="20" height="13" rx="5"/><path d="M6 12h6M9 9v6"/><circle cx="17" cy="11" r=".9"/><circle cx="19" cy="14" r=".9"/></symbol>
+<symbol id="icon-profile" viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.6"/><path d="M4.5 20c.8-6 14.2-6 15 0"/></symbol>
+</svg>
+<header class="site-header"><div class="wrap nav">
+<a href="/dashboard" class="logo" aria-label="NIGHT Play home"><svg class="brand-mark" viewBox="0 0 108 108" aria-hidden="true"><use href="#icon-brand"></use></svg><span>NIGHT <span class="brand-sub">PLAY</span></span></a>
+<nav class="links" aria-label="Main navigation"><a href="/dashboard">Home</a><a href="/games">Games</a></nav>
+<div class="actions"><a class="profile-icon" href="/profile" aria-label="My profile" title="My profile"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4.5 20c1.2-4.7 13.8-4.7 15 0"/></svg></a></div>
+</div></header>
+<nav class="mobile-nav" aria-label="Bottom navigation">
+<a href="/dashboard"><svg class="ui-icon" aria-hidden="true" viewBox="0 0 24 24"><use href="#icon-home"></use></svg>Home</a>
+<a href="/games"><svg class="ui-icon" aria-hidden="true" viewBox="0 0 24 24"><use href="#icon-games"></use></svg>Games</a>
+<a href="/profile" aria-current="page"><svg class="ui-icon" aria-hidden="true" viewBox="0 0 24 24"><use href="#icon-profile"></use></svg>Profile</a>
+</nav>
+<main class="wrap channel-main">
+<div class="channel-content">
+<div class="channel-hero"><h1>Your channels</h1><p>WhatsApp Channels connected to your NIGHT Play account.</p></div>
+<section id="state" class="channel-state" role="status" aria-live="polite">
+<h2 id="stateTitle">Checking your channels…</h2>
+<p id="stateText">Checking your WhatsApp connection.</p>
+<a id="stateLink" class="btn primary" href="/profile" hidden>Connect WhatsApp</a>
+<button id="retry" class="btn" type="button" hidden>Try again</button>
+</section>
+<p id="count" class="channel-count" aria-live="polite" hidden></p>
+<div id="channels" class="channel-grid" aria-live="polite" hidden></div>
+<section id="connect" class="channel-guide" hidden aria-labelledby="connectTitle">
+<h2 id="connectTitle">Connect another channel</h2>
+<p>Send its link privately to NIGHT on WhatsApp, then type <strong>.joinchannel</strong>. Choose Yes or No. To publish, grant NIGHT channel-admin permission and complete the one-time verification.</p>
+</section>
+</div>
+</main>
+<div id="toast" class="channel-toast" role="status" hidden></div>
+<script>
+(() => {
+'use strict'
+const $=id=>document.getElementById(id)
+let profile=null,channels=[],version=0
+const make=(tag,className,text)=>{
+  const el=document.createElement(tag)
+  if(className)el.className=className
+  if(text!==undefined)el.textContent=text
+  return el
+}
+const notify=message=>{
+  const el=$('toast')
+  el.textContent=message
+  el.hidden=false
+  clearTimeout(notify.timer)
+  notify.timer=setTimeout(()=>{el.hidden=true},3800)
+}
+async function api(action,values={}) {
+  const read=action==='status'
+  const response=await fetch('/api/account',{
+    method:read?'GET':'POST',cache:'no-store',credentials:'same-origin',
+    headers:read?{}:{'content-type':'application/json'},
+    body:read?undefined:JSON.stringify({action,...values}),
+    signal:AbortSignal.timeout(14000),
+  })
+  const data=await response.json().catch(()=>({error:'NIGHT is temporarily unavailable.'}))
+  if(!response.ok)throw Error(data.error||'NIGHT could not complete that request.')
+  return data
+}
+function showState(title,body,{connect=false,retry=false}={}) {
+  $('state').hidden=false
+  $('stateTitle').textContent=title
+  $('stateText').textContent=body
+  $('stateLink').hidden=!connect
+  $('retry').hidden=!retry
+  $('channels').hidden=true
+  $('count').hidden=true
+  $('connect').hidden=true
+}
+function action(label,fn,style='btn') {
+  const button=make('button',style,label)
+  button.type='button'
+  button.addEventListener('click',async()=>{
+    button.disabled=true
+    try{await fn()}catch(error){notify(error.message||'Please try again.')}
+    finally{button.disabled=false}
+  })
+  return button
+}
+async function copy(value,code) {
+  if(navigator.clipboard&&window.isSecureContext) {
+    try{await navigator.clipboard.writeText(value);notify('Verification code copied');return}
+    catch{}
+  }
+  const selection=window.getSelection()
+  if(selection&&code) {
+    const range=document.createRange()
+    range.selectNodeContents(code)
+    selection.removeAllRanges()
+    selection.addRange(range)
+    notify('Select and copy the highlighted verification code')
+  }
+}
+function requestDisconnect(channel,container) {
+  const previous=container.querySelector('.channel-confirm')
+  if(previous){previous.remove();return}
+  const box=make('div','channel-confirm')
+  box.append(make('p',null,'Disconnect '+channel.name+' from NIGHT Play? This does not remove NIGHT as a WhatsApp admin. Revoke that permission separately in WhatsApp.'))
+  const controls=make('div','actions')
+  controls.append(action('Keep channel',()=>box.remove()))
+  controls.append(action('Disconnect channel',async()=>{
+    await api('channel:remove',{channelId:channel.id})
+    notify('Channel disconnected')
+    await load()
+  },'btn danger'))
+  box.append(controls)
+  container.append(box)
+}
+function render() {
+  $('channels').replaceChildren()
+  $('state').hidden=true
+  $('count').hidden=false
+  $('count').textContent=channels.length+' '+(channels.length===1?'channel':'channels')
+  $('channels').hidden=false
+  $('connect').hidden=false
+  if(!channels.length) {
+    $('state').hidden=false
+    $('stateTitle').textContent='No channels connected'
+    $('stateText').textContent='Send a WhatsApp Channel link privately to NIGHT, then type .joinchannel.'
+    $('stateLink').hidden=true
+    $('retry').hidden=true
+    $('count').hidden=true
+    $('channels').hidden=true
+    $('connect').hidden=true
+    return
+  }
+  for(const channel of channels){
+    const card=make('article','channel-card')
+    const header=make('div','channel-card-top')
+    const avatar=make('span','channel-avatar')
+    // Avoid splitting surrogate pairs when a channel name begins with emoji.
+    avatar.innerHTML='<svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="3"/><path d="M6.5 10h11M6.5 14h7"/></svg>'
+    const image=channel.photoData
+    if(typeof image==='string'&&/^data:image\/(?:png|jpeg);base64,[A-Za-z0-9+/=]+$/.test(image)){
+      const photo=make('img')
+      photo.src=image
+      photo.alt=''
+      photo.loading='lazy'
+      photo.decoding='async'
+      const fallback=avatar.firstElementChild
+      photo.addEventListener('error',()=>photo.replaceWith(fallback))
+      avatar.replaceChildren(photo)
+    }
+    const nameGroup=make('div')
+    const name=make('h2','channel-name',channel.name||'WhatsApp Channel')
+    const connected=channel.status==='connected'
+    const pill=make('span','channel-pill'+(connected?' ready':''),connected?'Verified':channel.status==='awaiting_admin'?'Waiting for admin permission':'Verification required')
+    nameGroup.append(name,pill)
+    header.append(avatar,nameGroup)
+    card.append(header)
+    const detail=channel.status==='awaiting_admin'?'Make NIGHT an administrator in WhatsApp, then verify your channel.':'Publish the proof below as a new WhatsApp Channel post.'
+    if(!connected)card.append(make('p','channel-summary',detail))
+    let proof
+    if(!connected){
+      proof=make('div','channel-proof')
+      proof.append(make('span',null,'One-time verification post'))
+      const code=make('code',null,channel.proof||'')
+      proof.append(code)
+      card.append(proof)
+    }
+    const controls=make('div','channel-actions')
+    if(!connected){
+      controls.append(action('Copy proof',()=>copy(channel.proof,proof?.querySelector('code'))))
+      controls.append(action('Check access',async()=>{
+        const result=await api('channel:verify',{channelId:channel.id})
+        if(result.connected)notify('Channel verified')
+        else notify(result.reason==='admin'?'NIGHT still needs channel admin permission.':'Publish the verification code, then check again.')
+        await load()
+      },'btn primary'))
+    }
+    if(connected){
+      // Each channel owns its own start control; there is no detached
+      // Anonymous Nights panel or additional "Open" step.
+      const start=action('Start Anonymous Night',async()=>{
+        const result=await api('anonymous:start',{channelId:channel.id})
+        const id=result?.sessionId
+        if(typeof id!=='string'||!/^[A-Za-z0-9_-]{12,96}$/.test(id)){
+          throw new Error('NIGHT could not open this channel session. Try again.')
+        }
+        const destination='/anonymous/?channel='+encodeURIComponent(channel.id)+'&session='+encodeURIComponent(id)
+        location.assign(destination)
+      },'btn primary channel-start')
+      start.setAttribute('aria-label','Start Anonymous Night for '+(channel.name||'WhatsApp Channel'))
+      start.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.5 18 12 8 18.5V5.5Z"/></svg><span>Start Anonymous Night</span>'
+      const enabled=channel.anonymousStartEnabled===true
+      start.disabled=!enabled
+      if(!enabled)start.title='Sessions will open when NIGHT Bot publishing is enabled.'
+      controls.append(start)
+    }
+    controls.append(action('Disconnect',()=>requestDisconnect(channel,card),'btn danger'))
+    card.append(controls)
+    if(connected&&channel.anonymousStartEnabled!==true){
+      card.append(make('p','channel-start-note','Anonymous sessions are not enabled on NIGHT Bot yet.'))
+    }
+    $('channels').append(card)
+  }
+}
+async function load(){
+  const current=++version
+  showState('Checking your channels…','Checking your NIGHT Play account.')
+  try {
+    const status=await api('status')
+    if(current!==version)return
+    if(!status.linked||!status.profile){
+      profile=null
+      channels=[]
+      showState('Connect WhatsApp','Connect your WhatsApp account in Profile to see and manage your channels.',{connect:true})
+      return
+    }
+    profile=status.profile
+    const data=await api('channel:list')
+    if(current!==version)return
+    channels=Array.isArray(data.channels)?data.channels:[]
+    render()
+    // MSCC fetches missing WhatsApp pictures asynchronously so it never
+    // stalls this page. Check just once after initial display, updating image
+    // nodes in place rather than rerendering the cards and stealing focus.
+    if(channels.some(c=>c.status==='connected'&&!c.photoData)){
+      setTimeout(async()=>{
+        if(current!==version||document.hidden)return
+        try{
+          const refreshed=await api('channel:list')
+          if(current!==version||!Array.isArray(refreshed.channels))return
+          const cards=[...$('channels').children]
+          for(const [i,original] of channels.entries()){
+            const updated=refreshed.channels.find(c=>c.id===original.id)
+            if(!updated?.photoData||original.photoData)continue
+            if(!/^data:image\/(?:png|jpeg);base64,[A-Za-z0-9+/=]+$/.test(updated.photoData))continue
+            const avatar=cards[i]?.querySelector('.channel-avatar')
+            if(!avatar||avatar.querySelector('img'))continue
+            const fallback=avatar.firstElementChild
+            const img=make('img')
+            img.src=updated.photoData;img.alt='';img.decoding='async'
+            img.addEventListener('error',()=>img.replaceWith(fallback))
+            avatar.replaceChildren(img)
+            original.photoData=updated.photoData
+          }
+        }catch{ /* Keep the SVG if WhatsApp is temporarily unavailable. */ }
+      },3800)
+    }
+  } catch (error) {
+    if(current!==version)return
+    channels=[]
+    showState('Channels unavailable','NIGHT could not verify your account or load channels on this deployment. This does not mean your WhatsApp account is disconnected.',{retry:true})
+  }
+}
+$('retry').addEventListener('click',load)
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')load()})
+load()
+})()
+</script>
+</body>
+</html>

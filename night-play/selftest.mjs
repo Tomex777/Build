@@ -3,6 +3,21 @@ import { readFileSync } from 'node:fs'
 import vm from 'node:vm'
 const html = readFileSync(new URL('./index.html', import.meta.url), 'utf8')
 const vercel = JSON.parse(readFileSync(new URL('./vercel.json', import.meta.url), 'utf8'))
+/* ABR: navigational arrows are SVG, not text characters or generated CSS labels. */
+for(const asset of [
+ './index.html','./jigsaw/index.html','./jigsaw/style.css','./club/games.js',
+ './arcade/index.html','./stories/index.html','./stories/library.html',
+ './stories/short-edition.html','./multiplayer/ttt/index.html'
+]){
+ const source=readFileSync(new URL(asset,import.meta.url),'utf8')
+ assert.doesNotMatch(source,/[\u2190-\u21ff\u2794-\u27bf]/u,asset+' must use real vector SVGs for arrow icons')
+}
+new vm.Script(readFileSync(new URL('./club/games.js',import.meta.url),'utf8'),{filename:'night-play/club/games.js'})
+assert.ok(html.includes('class="jigsaw-cover-photo"'),'Jigsaw game tile should not use the old synthetic puzzle image')
+assert.ok(!html.includes('jthumb-sky'),'Remove original procedural library tile image')
+const jigsawCss=readFileSync(new URL('./jigsaw/style.css',import.meta.url),'utf8')
+assert.ok(!jigsawCss.includes('START PUZZLE'),'The gallery picture is the button: no redundant Start Puzzle badge')
+
 const scripts = [...html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/g)].map(x=>x[1])
 assert.ok(scripts.length >= 1)
 for (const script of scripts) new vm.Script(script, {filename:'night-play-inline.js'})
@@ -49,8 +64,12 @@ assert.ok(html.includes('function plotSVG('))
 assert.ok(html.includes('document.body.dataset.view=current'))
 assert.ok(html.includes('class="site-footer"'))
 assert.ok(html.includes('body[data-view="welcome"] .mobile-nav'))
-assert.equal((html.match(/class="game-art"/g)||[]).length,11,'all 11 game thumbnails use original SVGs')
-assert.equal((html.match(/<symbol id="art-/g)||[]).length,11,'all game SVG illustrations must be defined locally')
+assert.equal((html.match(/class="game-art(?: premium-game-art)?"/g)||[]).length,9,'remaining non-Club thumbnails retain original SVG artwork')
+assert.match(html,/data-jigsaw[\s\S]*?class="jigsaw-cover-photo"/,'Jigsaw thumbnail uses a real photograph rather than the removed puzzle illustration')
+assert.match(html,/class="wing-preview-bird"/,'Wing Hop presents real Kenney character artwork')
+assert.doesNotMatch(html,/data-club="ludo"/,'Ludo is not listed in the game library')
+assert.match(html,/data-jigsaw/,'Jigsaw is discoverable in the puzzle library')
+assert.equal((html.match(/<symbol id="art-/g)||[]).length,12,'all game SVG illustrations must be defined locally')
 assert.ok((html.match(/<symbol id="icon-/g)||[]).length>=20,'navigation and actions use local SVG icons')
 assert.equal(/class="game-emoji"/.test(html),false,'game preview artwork must not rely on emoji fonts')
 assert.equal(/<div class="floating/.test(html),false,'remove generic floating overlay cards')
@@ -77,7 +96,7 @@ assert.ok(html.includes('id="undo2048"'),'2048 must have working Undo control')
 assert.ok(html.includes('--board-size:min(calc(100vw - 10px)'),'V10 mobile near edge-to-edge sizing')
 assert.ok(html.includes('class="ttt-mark"'),'TTT mark SVG')
 assert.ok(html.includes('class="ttt-win-line"'),'TTT win line')
-assert.ok(html.includes('NIGHT Play · Updated 13 October 2026'))
+assert.ok(html.includes('NIGHT Play · Updated 16 October 2026'))
 assert.equal(/<span class="status-pill">PREVIEW<\/span>/.test(html),false)
 assert.equal(/class="gamecard library-card"[^>]+\bdisabled/.test(html),false)
 
@@ -99,7 +118,11 @@ const declared = new Set([...html.matchAll(/id="([^"]+)"/g)].map(x=>x[1]))
 for(const id of [...html.matchAll(/getElementById\("([^"]+)"\)/g)].map(x=>x[1])){
  assert.ok(declared.has(id)||dynamicIds.has(id), 'missing element '+id)
 }
-const engine = 'function minimaxTtt('+scripts[0].split('function minimaxTtt(')[1].split('function botMoveTtt()')[0]
+// Multiple independent inline scripts may run before the game engine (for
+// example an early cookie-session prefetch). Locate the engine by content.
+const gameScript=scripts.find(source=>source.includes('function minimaxTtt(')&&source.includes('function move2048'))
+assert.ok(gameScript,'missing primary arcade game script')
+const engine = 'function minimaxTtt('+gameScript.split('function minimaxTtt(')[1].split('function botMoveTtt()')[0]
 const sandbox={};vm.runInNewContext('const isWin = (b,m)=>'+
  '[[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]].some(line=>line.every(i=>b[i]===m));\n'+
  engine+'this.evalMove=(b,mark)=>minimaxTtt(b,mark);',sandbox)
@@ -107,11 +130,11 @@ assert.equal(sandbox.evalMove(['X','X','X','','','','','',''],'O'), -10)
 assert.equal(sandbox.evalMove(['O','O','O','','','','','',''],'X'), 10)
 const full=['X','O','X','X','O','O','O','X','X']
 assert.equal(sandbox.evalMove(full,'O'),0)
-const slideSrc='function slide'+scripts[0].split('function slide')[1].split('function move2048')[0]
+const slideSrc='function slide'+gameScript.split('function slide')[1].split('function move2048')[0]
 const smod={};vm.runInNewContext('let grid=Array(4).fill(0).map(()=>Array(4).fill(0));let tileScore=0;\n'+slideSrc+'this.evalSlide=(row,len)=>{grid=Array(len).fill(0).map(()=>Array(len).fill(0));tileScore=0;const out=slide(row);return {out,points:tileScore}};',smod)
 assert.equal(JSON.stringify(smod.evalSlide([2,2,4,0],4)),JSON.stringify({out:[4,4,0,0],points:4}))
 assert.equal(JSON.stringify(smod.evalSlide([2,2,4,4,2,2],6)),JSON.stringify({out:[4,8,4,0,0,0],points:16}))
-const mazeSource='function makeSnakeMaze('+scripts[0].split('function makeSnakeMaze(')[1].split('function snakeModeName(')[0]
+const mazeSource='function makeSnakeMaze('+gameScript.split('function makeSnakeMaze(')[1].split('function snakeModeName(')[0]
 const mazeSandbox={}
 vm.runInNewContext(mazeSource+'this.build=(mode,size)=>makeSnakeMaze(mode,size);',mazeSandbox)
 assert.equal(mazeSandbox.build('wrap',18).length,0)
@@ -120,3 +143,6 @@ assert.ok(mazeSandbox.build('maze1',18).length>10)
 assert.ok(mazeSandbox.build('maze2',18).length>10)
 assert.ok(mazeSandbox.build('maze3',18).length>10)
 console.log('PASS NIGHT Play V9: identity, 11 SVG artworks, 2048 motion, immersive boards and unchanged gameplay rules')
+await import('./club/logic-test.mjs');
+await import('./jigsaw/board-logic-test.mjs');
+

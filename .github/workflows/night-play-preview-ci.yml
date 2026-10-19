@@ -34,14 +34,36 @@ jobs:
           node-version: '22'
       - name: NIGHT Play smoke and game-rule tests
         run: node night-play/selftest.mjs
+      - name: Verify website account gateway
+        run: node night-play/account-selftest.cjs
       - name: Install Chromium test helper
         run: npm install --no-save playwright@1.56.1
+      - name: Play Nomi-inspired party games across actual mobile viewports
+        run: node night-play/party/mobile-smoke.mjs
+      - name: Verify WhatsApp account screens on mobile and desktop
+        run: node night-play/account-browser-smoke.cjs
+      - name: Enforce WR behavior for anonymous sessions and online-game confirmation
+        run: node night-play/wr-browser-smoke.cjs
+      - name: Inspect channel onboarding and consent across mobile and desktop
+        run: node night-play/channels/browser-smoke.cjs
+      - name: Verify Anonymous Nights owner navigation and truthfulness
+        run: node night-play/anonymous/browser-smoke.cjs
       - name: Exercise mobile interactions
         run: node night-play/browser-smoke.mjs
+      - name: Verify Jigsaw game mechanics and mobile experience
+        run: node night-play/jigsaw/mobile-smoke.mjs
+      - name: Inspect the actual photographic gallery and first playable image
+        run: node night-play/jigsaw/real-photo-smoke.mjs
       - name: Verify mobile Ludo, property trading, card games, drawing, snakes and draughts
         run: node night-play/club/mobile-smoke.mjs
       - name: Verify four mobile arcade games
         run: node night-play/arcade/mobile-smoke.mjs
+      - name: Validate Sudoku, matching pairs, Connect Four and library links
+        run: node night-play/puzzles/logic-test.mjs
+      - name: Verify three new games in mobile Chromium
+        run: node night-play/puzzles/mobile-smoke.mjs
+      - name: Play five new action arcade games on mobile and resize screens
+        run: node night-play/action/mobile-smoke.mjs
       - name: Capture mobile board visual diagnostics
         run: node night-play/visual-inspect.mjs
       - name: Upload game screenshots

@@ -2,6 +2,22 @@
   "version": 2,
   "rewrites": [
     {
+      "source": "/channels",
+      "destination": "/channels/index.html"
+    },
+    {
+      "source": "/channels/",
+      "destination": "/channels/index.html"
+    },
+    {
+      "source": "/multiplayer/ttt",
+      "destination": "/multiplayer/ttt/index.html"
+    },
+    {
+      "source": "/multiplayer/ttt/",
+      "destination": "/multiplayer/ttt/index.html"
+    },
+    {
       "source": "/anonymous/join/:token",
       "destination": "/anonymous/index.html"
     },
@@ -12,6 +28,30 @@
     {
       "source": "/anonymous/",
       "destination": "/anonymous/index.html"
+    },
+    {
+      "source": "/puzzles",
+      "destination": "/puzzles/index.html"
+    },
+    {
+      "source": "/puzzles/",
+      "destination": "/puzzles/index.html"
+    },
+    {
+      "source": "/party",
+      "destination": "/party/index.html"
+    },
+    {
+      "source": "/party/",
+      "destination": "/party/index.html"
+    },
+    {
+      "source": "/action",
+      "destination": "/action/index.html"
+    },
+    {
+      "source": "/action/",
+      "destination": "/action/index.html"
     },
     {
       "source": "/arcade",
