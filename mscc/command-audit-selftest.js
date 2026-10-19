@@ -5,7 +5,19 @@ import {
   runSafeCommandSmokes,
   renderAudit,
   discoverAuditInventory,
+  parseTestAllRequest,
 } from './command-audit.js'
+
+// Owner's bare .testall must execute real safe WhatsApp tests; offline is explicit.
+assert.deepEqual(parseTestAllRequest([]),{mode:'live',confirm:false})
+assert.deepEqual(parseTestAllRequest(['live']),{mode:'live',confirm:false})
+assert.deepEqual(parseTestAllRequest(['confirm']),{mode:'live',confirm:true})
+assert.deepEqual(parseTestAllRequest(['live','confirm']),{mode:'live',confirm:true})
+assert.deepEqual(parseTestAllRequest(['audit']),{mode:'audit',confirm:false})
+assert.deepEqual(parseTestAllRequest(['run']),{mode:'audit',confirm:false})
+assert.deepEqual(parseTestAllRequest(['failed','confirm']),{mode:'failed',confirm:true})
+assert.deepEqual(parseTestAllRequest(['status']),{mode:'status',confirm:false})
+assert.deepEqual(parseTestAllRequest(['delete']),{mode:'invalid',confirm:false})
 
 // Every command and alias must be resolvable without invoking the command body.
 const neverExecute = {name:'unsafe',aliases:['danger'],usage:'.unsafe',async run(){throw Error('destructive run')}}
