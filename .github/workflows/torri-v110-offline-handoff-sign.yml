@@ -14,30 +14,27 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 55
     env:
-      TORRI_HANDOFF_URL: 'PENDING_SHORT_LIVED_HANDOFF_URL'
-      TORRI_EXPECTED_SOURCE_SHA: 'de0d0ae46d05e6079dfbb1f85447fb9e1bbdefb9'
+      TORRI_EXPECTED_SOURCE_SHA: 'b989daca2ab4dc04035cd96bbcd2ba14ce78c6f8'
       TORRI_EXPECTED_CERT_SHA256: '6b1ab58169e3a8dd4370860d5d03060b035476b43cceaf2bd8da7ca1fe37ab44'
     steps:
       - name: Checkout protected signing pipeline
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - name: Receive ONLY unsigned APKs from verified private Torri compilation
+      - name: Reassemble ONLY checksum-verified unsigned APKs from Torri private handoff
         shell: bash
         run: |
           set -euo pipefail
-          test "$TORRI_HANDOFF_URL" != PENDING_SHORT_LIVED_HANDOFF_URL
-          mkdir -p handoff dist
-          curl --fail --location --silent --show-error --retry 3 --max-time 180 \
-            --output "$RUNNER_TEMP/torri-unsigned-handoff.zip" "$TORRI_HANDOFF_URL"
-          unzip -q "$RUNNER_TEMP/torri-unsigned-handoff.zip" -d handoff
-          echo "Verifying source commit and SHA256 checksums"
-          SHA_FILE="$(find handoff -type f -name source-commit.txt -print -quit)"
-          test -s "$SHA_FILE"
-          test "$(tr -d '\r\n' < "$SHA_FILE")" = "$TORRI_EXPECTED_SOURCE_SHA"
-          CHECKSUM_FILE="$(find handoff -type f -name SHA256SUMS.txt -print -quit)"
-          test -s "$CHECKSUM_FILE"
-          cd "$(dirname "$CHECKSUM_FILE")"
+          test -s handoff/relay/source-commit.txt
+          test "$(tr -d '\r\n' < handoff/relay/source-commit.txt)" = "$TORRI_EXPECTED_SOURCE_SHA"
+          mkdir -p handoff/unsigned dist
+          for variant in arm64-v8a universal; do
+            test -s "handoff/relay/$variant/part-000"
+            cat "handoff/relay/$variant/part-"* | base64 --decode > "handoff/unsigned/Torri-1.1.0-$variant-unsigned.apk"
+            test -s "handoff/unsigned/Torri-1.1.0-$variant-unsigned.apk"
+          done
+          cp handoff/relay/SHA256SUMS.txt handoff/unsigned/SHA256SUMS.txt
+          cd handoff/unsigned
           sha256sum -c SHA256SUMS.txt
-          echo "PASS: both unsigned APKs received intact from verified private source SHA"
+          echo "PASS: verified Torri SHA, complete unsigned APK byte-for-byte checksums, no private source transfer"
       - name: Validate package ID, versions, and unsigned release content
         shell: bash
         run: |
