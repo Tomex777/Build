@@ -332,11 +332,13 @@ curl -fsS --max-time 12 \
     process.stdin.on("end", () => {
       const response=JSON.parse(body);
       const entries=Array.isArray(response.entries)?response.entries:[];
-      const required=["MSCC_MEGA_EMAIL","MSCC_MEGA_PASSWORD","MSCC_MEGA_SHARED_FOLDERS"];
+      const required=["MSCC_MEGA_EMAIL","MSCC_MEGA_PASSWORD","MSCC_MEGA_SHARED_FOLDERS","GROQ_API_KEY","AZURE_SPEECH_KEY","AZURE_OPENAI_API_KEY"];
       if (required.some(key=>!entries.some(row=>row.key===key))) process.exit(2);
-      const password=entries.find(row=>row.key==="MSCC_MEGA_PASSWORD");
-      if (password?.secret!==true || password?.value) process.exit(3);
-      console.log("Cortex MEGA Cloud configuration route verified; secrets remain hidden.");
+      for (const key of ["MSCC_MEGA_PASSWORD","GROQ_API_KEY","AZURE_SPEECH_KEY","AZURE_OPENAI_API_KEY"]) {
+        const secret=entries.find(row=>row.key===key);
+        if (secret?.secret!==true || secret?.value) process.exit(3);
+      }
+      console.log("Cortex MEGA and AI environment controls verified; secrets remain hidden.");
     });'
 # Verify route exists; downstream /cloud may remain unavailable until the
 # separately authorized MSCC Cloud release is installed.
