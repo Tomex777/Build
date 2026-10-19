@@ -44,12 +44,12 @@ function invitePanel(){
     '<div class="party-room-members"><strong>Players · '+room.players.length+' / 16</strong><div class="party-player-list">'+chips+'</div></div>';
 }
 function renderJoin(){
-  title('Join the game','Enter your name to join the online room.','YOU ARE INVITED');
+  title('You’re invited.','Choose your name and join the game.','LIVE INVITATION');
   const verified=identity?.status==='linked'&&identity.profile;
   const name=verified?identity.profile.displayName:'';
-  panel.innerHTML='<div class="party-panel"><span class="party-overline">INVITATION · '+esc(code)+'</span><h2>Ready to join?</h2>'+
+  panel.innerHTML='<div class="party-panel">'+
     (verified?'<p>Your NIGHT Play account will join as <strong>'+esc(name)+'</strong>.</p>':
-      '<p>The host does not add participant names.</p>'+
+      ''+
       '<form id="joinForm"><label class="party-field" for="guestName">Your name<input id="guestName" name="guestName" class="party-input" maxlength="24" autocomplete="nickname" placeholder="How should friends call you?" required></label>'+
       '<button class="party-primary" type="submit">Join this game</button></form>')+
       (verified?btn('Join as '+esc(name),'join'):'')+'</div>';
