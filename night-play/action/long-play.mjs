@@ -62,7 +62,7 @@ try{
   await page.close();
  }
  assert.deepEqual(errors,[],'long-play should never throw a browser exception');
+ console.log('SKY_JUMPER_REAL_POINTER_PLAY='+JSON.stringify(results));
  assert.ok(results.every(x=>x.moving>0&&x.fragile),'early hazards must appear on each attempt');
  assert.ok(results.some(x=>x.deathStep>=0),'at least one real test player should lose during an early run');
- console.log('SKY_JUMPER_REAL_POINTER_PLAY='+JSON.stringify(results));
 }finally{await browser.close();await new Promise(resolve=>server.close(resolve))}
