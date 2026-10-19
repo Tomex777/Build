@@ -34,14 +34,21 @@ jobs:
         with:
           gradle-version: '8.9'
 
-      - name: Build Android APK
-        run: gradle -p tac-hymnbook/android :app:assembleDebug --no-daemon --stacktrace
+      - name: Build Android APK and instrumentation test APK
+        run: gradle -p tac-hymnbook/android :app:assembleDebug :app:assembleDebugAndroidTest --no-daemon --stacktrace
 
       - name: Upload installable APK
         uses: actions/upload-artifact@v4
         with:
           name: TAC-Hymns-debug-apk
           path: tac-hymnbook/android/app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
+
+      - name: Upload emulator instrumentation APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: TAC-Hymns-device-tests
+          path: tac-hymnbook/android/app/build/outputs/apk/androidTest/debug/*.apk
           if-no-files-found: error
 
   smoke:
@@ -58,6 +65,10 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           name: TAC-Hymns-debug-apk
+          path: ./dist
+      - uses: actions/download-artifact@v4
+        with:
+          name: TAC-Hymns-device-tests
           path: ./dist
       - name: Enable hardware acceleration
         run: |
