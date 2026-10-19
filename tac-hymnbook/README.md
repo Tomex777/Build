@@ -81,3 +81,19 @@ To continue digitizing, use:
 ### Àkọkún numbered ending confirmed
 
 The user checked the physical TAC book and confirmed that the last Àkọkún hymn is **305**. Treat the separate collection as numbered 1–305, provisionally assuming no missing numbers. This is **not** a claim that its 305 titles or lyrics have already been imported: those remain empty until source material is available. Àkọkún numbering is distinct from the 800-hymn Redemption section.
+
+
+## Àkọkún complete alphabetical index (photographed pages 459–467)
+
+The user has now supplied **five photographs covering all nine consecutive alphabetical index pages, 459–467**. The nine raw photo-backed drafts live in `data/akokun-index-page-{459..467}.json`; they are combined into `data/akokun-collection.json` and bundled offline as `android/app/src/main/assets/akokun_index.json`.
+
+- **305** independently numbered Àkọkún hymn identities reserved (different from Redemption 1–800).
+- **302 printed index lines transcribed**, representing **299 distinct numbered hymn identities** in the current first pass.
+- **Six numbers without a confidently identified first line yet:** 128, 188, 211, 219, 272, 281.
+- **Three repeated numbers with distinct index lines** (potential multiple titles or transcription alignment errors): 138, 218, 288. The raw strings and page references are preserved for follow-up, not silently resolved.
+- All Yorùbá titles and tone marks are **first-pass transcriptions**, not final approved readings.
+- Online first-line candidates found for Àkọkún hymn **1** (“B'orúkọ Jésù ti dùn tó”) and hymn **47** (“Agbára ń bẹ nínú ẹ̀jẹ̀ Jésù”); they still need verse-level matching and reuse permission checks.
+- **0 Àkọkún full lyrics currently imported**. The Android public hymn list does not expose blank pages for these index-only entries.
+- Once lyrics are cleared and added, section-safe IDs `akokun:<number>` and the existing reader will keep bookmarks and navigation independent from `main:<number>`.
+
+The index is now sufficient to begin source matching for almost the entire Àkọkún section. Additional page photography is only useful for correcting the six unresolved numbers or confirming individual variant lyrics, not for re-photographing this index.
