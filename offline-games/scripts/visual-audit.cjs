@@ -52,6 +52,14 @@ async function audit(browser,serverPort,entry,worker){
      const candidates=['#actions button:not([disabled])','#board button:not([disabled])','#board canvas'];
      const first=candidates.map(s=>page.locator(s).first());
      let target=null;for(const c of first)if(await c.count()&&await c.isVisible()){target=c;break}
+     // Speed is a simultaneous CPU race: the human may have no legal card until
+     // the computer changes a centre pile. Wait instead of counting it broken.
+     if(!target&&id==='speed'){
+       for(let t=0;t<8&&!target;t++){
+         await page.waitForTimeout(600);
+         for(const candidate of first)if(await candidate.count()&&await candidate.isVisible()){target=candidate;break}
+       }
+     }
      if(target){
        if(await target.evaluate(x=>x.tagName==='CANVAS')){
          const bb=await target.boundingBox();
