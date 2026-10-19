@@ -193,6 +193,7 @@ fun HymnAudioControls(
                             FilterChip(
                                 selected = player.rate == rate,
                                 onClick = { player.changeSpeed(rate) },
+                                colors = learningChipColors(),
                                 label = { Text(if (rate == 1f) "Normal" else "${rate}×", fontSize = 12.sp) }
                             )
                         }
@@ -240,7 +241,7 @@ fun LearnHymnsHome(
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     listOf("main" to "Redemption", "akokun" to "Àkọkún").forEach { (id, label) ->
                         FilterChip(selected = id == collection, onClick = { collection = id },
-                            label = { Text(label) })
+                            colors = learningChipColors(), label = { Text(label) })
                     }
                 }
                 Spacer(Modifier.height(12.dp))
@@ -317,7 +318,7 @@ fun LearnHymnReader(
                         FilterChip(
                             selected = actualEnglish == isEnglish,
                             enabled = available, onClick = { onLanguageChange(isEnglish) },
-                            label = { Text(label) }
+                            colors = learningChipColors(), label = { Text(label) }
                         )
                     }
                 }
@@ -340,3 +341,11 @@ fun LearnHymnReader(
         }
     }
 }
+
+@Composable
+private fun learningChipColors() = FilterChipDefaults.filterChipColors(
+    containerColor = MaterialTheme.colorScheme.surface,
+    labelColor = MaterialTheme.colorScheme.onSurface,
+    selectedContainerColor = MaterialTheme.colorScheme.primary,
+    selectedLabelColor = MaterialTheme.colorScheme.onPrimary
+)
