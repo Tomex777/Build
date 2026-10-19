@@ -159,9 +159,9 @@ function startDownloadUrl(html, baseUrl) {
     const absolute = new URL(href, baseUrl).href
     const text = stripHtml(match[2]).toLowerCase()
     const pathname = new URL(absolute).pathname.toLowerCase()
-    const downloadButton = /<button\\b[^>]*class\\s*=\\s*["'][^"']*\\bdownloadbtn\\b/i.test(match[2]) ||
-      /\\bdownloadbtn\\b/i.test(match[1])
-    const legacyStartLink = /\\bstart\\s+download\\b/i.test(text) && pathname.includes('/d/')
+    const downloadButton = /<button\b[^>]*class\s*=\s*["'][^"']*\bdownloadbtn\b/i.test(match[2]) ||
+      /\bdownloadbtn\b/i.test(match[1])
+    const legacyStartLink = /\bstart\s+download\b/i.test(text) && pathname.includes('/d/')
     const directDownloadLink = pathname.includes('/d/') && /download/i.test(text)
     // Downloadwella's current flow returns an anchor containing a button with class downloadbtn.
     if (downloadButton || legacyStartLink || directDownloadLink) return absolute
