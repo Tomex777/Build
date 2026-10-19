@@ -52,6 +52,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         val hymns = HymnRepository.load(this)
+        val index = IndexRepository.load(this)
         val prefs = getSharedPreferences("reader", MODE_PRIVATE)
         setContent {
             var dark by remember { mutableStateOf(prefs.getBoolean("dark", false)) }
@@ -90,13 +91,22 @@ class MainActivity : ComponentActivity() {
                 Surface(modifier = Modifier.fillMaxSize(), color = palette.background) {
                     if (selected == null) {
                         HymnHub(
-                            hymns, saved, lastRead, dark, openHymn, toggleSaved,
+                            hymns = hymns,
+                            index = index,
+                            saved = saved,
+                            lastRead = lastRead,
+                            dark = dark,
+                            onOpen = openHymn,
+                            onToggleSaved = toggleSaved,
                             query = hubQuery,
                             onQueryChange = { hubQuery = it },
                             filter = hubFilter,
                             onFilterChange = { hubFilter = it },
                             activeCollection = activeCollection,
-                            onCollectionChange = { activeCollection = it },
+                            onCollectionChange = {
+                                activeCollection = it
+                                hubFilter = if (it == "akokun" && hymns.none { h -> h.collection == it }) 1 else 0
+                            },
                             onToggleDark = {
                                 dark = !dark
                                 prefs.edit().putBoolean("dark", dark).apply()
@@ -131,6 +141,7 @@ class MainActivity : ComponentActivity() {
 @Composable
 private fun HymnHub(
     hymns: List<Hymn>,
+    index: List<HymnIndexEntry>,
     saved: List<String>,
     lastRead: String?,
     dark: Boolean,
@@ -144,12 +155,18 @@ private fun HymnHub(
     onCollectionChange: (String) -> Unit,
     onToggleDark: () -> Unit
 ) {
-    val hasAkokun = hymns.any { it.collection == "akokun" }
+    val hasAkokun = index.any { it.collection == "akokun" }
+    val hasReadable = hymns.any { it.collection == activeCollection }
+    val showIndex = !hasReadable || filter == 1
     val visible = hymns.filter { hymn ->
-        (if (hasAkokun) hymn.collection == activeCollection else hymn.collection != "akokun") &&
-            hymn.matches(query) && (filter != 1 || hymn.key in saved)
+        hymn.collection == activeCollection &&
+            hymn.matches(query) && (filter != 2 || hymn.key in saved)
     }
-    val latest = hymns.firstOrNull { it.key == lastRead && (!hasAkokun || it.collection == activeCollection) }
+    val indexed = index.filter { it.collection == activeCollection && it.matches(query) }
+    val playable = hymns.associateBy { it.key }
+    val latest = hymns.firstOrNull {
+        it.key == lastRead && it.collection == activeCollection
+    }
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(horizontal = 20.dp, vertical = 24.dp),
@@ -173,7 +190,7 @@ private fun HymnHub(
             SearchInput(query, onQueryChange)
             Spacer(Modifier.height(10.dp))
         }
-        if (query.isBlank() && latest != null) {
+        if (query.isBlank() && latest != null && !showIndex && filter != 2) {
             item {
                 Surface(
                     modifier = Modifier.fillMaxWidth().clickable { onOpen(latest) },
@@ -220,40 +237,88 @@ private fun HymnHub(
                 }
                 Spacer(Modifier.height(20.dp))
             }
-            Text("Hymns", fontSize = 21.sp, fontWeight = FontWeight.SemiBold)
-            Spacer(Modifier.height(14.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                listOf("All", "Saved").forEachIndexed { index, label ->
-                    val active = filter == index
-                    Surface(
-                        modifier = Modifier.clickable { onFilterChange(index) },
-                        shape = RoundedCornerShape(30.dp),
-                        color = if (active) MaterialTheme.colorScheme.primary
-                                else MaterialTheme.colorScheme.surface,
-                        border = if (active) null else BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
-                    ) {
-                        Text(label, modifier = Modifier.padding(horizontal = 14.dp, vertical = 9.dp),
-                            color = if (active) MaterialTheme.colorScheme.onPrimary
-                                    else MaterialTheme.colorScheme.onSurface,
-                            fontSize = 13.sp)
+            Text(if (showIndex) "Index" else if (filter == 2) "Saved" else "Hymns",
+                fontSize = 21.sp, fontWeight = FontWeight.SemiBold)
+            if (hasReadable) {
+                Spacer(Modifier.height(14.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    listOf(0 to "Read", 1 to "Index", 2 to "Saved").forEach { (mode, label) ->
+                        val active = filter == mode
+                        Surface(
+                            modifier = Modifier.clickable { onFilterChange(mode) },
+                            shape = RoundedCornerShape(30.dp),
+                            color = if (active) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surface,
+                            border = if (active) null else BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
+                        ) {
+                            Text(label, modifier = Modifier.padding(horizontal = 14.dp, vertical = 9.dp),
+                                color = if (active) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
+                                fontSize = 13.sp)
+                        }
                     }
                 }
             }
         }
-        if (visible.isEmpty()) {
-            item {
-                Column(Modifier.fillMaxWidth().padding(vertical = 50.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("No hymns found", fontWeight = FontWeight.SemiBold)
-                    Text("Try a title, lyric, or hymn number.",
-                        color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp)
+        if (showIndex) {
+            if (indexed.isEmpty()) {
+                item { EmptyHymnResults() }
+            } else {
+                items(indexed, key = { it.key }) { entry ->
+                    IndexRow(entry, playable[entry.key], onOpen)
                 }
             }
+        } else if (visible.isEmpty()) {
+            item { EmptyHymnResults() }
         } else {
             items(visible, key = { it.key }) { hymn ->
                 HymnRow(hymn, hymn.key in saved,
                     onClick = { onOpen(hymn) },
                     onToggleSaved = { onToggleSaved(hymn) })
+            }
+        }
+    }
+}
+
+@Composable
+private fun EmptyHymnResults() {
+    Column(Modifier.fillMaxWidth().padding(vertical = 50.dp),
+        horizontalAlignment = Alignment.CenterHorizontally) {
+        Text("No hymns found", fontWeight = FontWeight.SemiBold)
+        Text("Try a title or hymn number.",
+            color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp)
+    }
+}
+
+@Composable
+private fun IndexRow(entry: HymnIndexEntry, hymn: Hymn?, onOpen: (Hymn) -> Unit) {
+    val tileModifier = if (hymn == null) Modifier.fillMaxWidth()
+                       else Modifier.fillMaxWidth().clickable { onOpen(hymn) }
+    Surface(modifier = tileModifier, color = MaterialTheme.colorScheme.surface,
+        shape = RoundedCornerShape(18.dp),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.8f))) {
+        Row(Modifier.padding(horizontal = 15.dp, vertical = 15.dp),
+            verticalAlignment = Alignment.CenterVertically) {
+            Surface(shape = RoundedCornerShape(12.dp),
+                color = MaterialTheme.colorScheme.surfaceVariant) {
+                Box(Modifier.size(49.dp), contentAlignment = Alignment.Center) {
+                    Text(entry.number.toString(), color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                }
+            }
+            Spacer(Modifier.width(14.dp))
+            Column(Modifier.weight(1f)) {
+                Text(entry.displayTitle, fontSize = 15.sp, fontWeight = FontWeight.SemiBold,
+                    lineHeight = 21.sp)
+                if (entry.titleYo != null && entry.titleEn != null) {
+                    Spacer(Modifier.height(4.dp))
+                    Text(entry.titleEn, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontSize = 12.sp)
+                }
+            }
+            if (hymn != null) {
+                Spacer(Modifier.width(8.dp))
+                Icon(painterResource(R.drawable.ic_next),
+                    contentDescription = "Read hymn " + entry.number,
+                    tint = MaterialTheme.colorScheme.primary)
             }
         }
     }
