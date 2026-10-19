@@ -580,7 +580,7 @@ class MainActivity : Activity() {
             }
         }
         private fun drawSheet(c:Canvas) {
-            val height=when(sheet){Sheet.SOUNDS->min(500f,hh*.75f);Sheet.INSPECT->290f
+            val height=when(sheet){Sheet.SOUNDS->min(500f,hh*.75f);Sheet.INSPECT->min(400f,hh*.77f)
                 Sheet.LIBRARY->min(530f,hh*.77f);Sheet.MATERIALS->340f
                 Sheet.ZONES->320f;Sheet.ATMOSPHERE->354f
                 else->0f}
@@ -746,7 +746,18 @@ class MainActivity : Activity() {
                     ww*.5f+5f,top+180f,(ww-50)/2f,39f){
                     source.moving=!source.moving;changed()
                 }
-                smallButton(c,"REMOVE SOURCE",20f,top+231f,ww-40f,37f){
+                label(c,"POSITION · MOVE 1 METER",22f,top+249f,11f,teal,true)
+                val cell=(ww-43f)/4f
+                val commands=listOf(
+                    Triple("WEST",-1f,0f),Triple("NORTH",0f,-1f),
+                    Triple("SOUTH",0f,1f),Triple("EAST",1f,0f))
+                commands.forEachIndexed { index,(caption,dx,dy)->
+                    smallButton(c,caption,18f+index*cell,top+267f,cell-6f,44f){
+                        source.at=world.bound(source.at.moved(dx,dy))
+                        changed()
+                    }
+                }
+                smallButton(c,"REMOVE SOURCE",20f,top+335f,ww-40f,42f){
                     world.sounds.removeAll {it.id==selectedId};selectedId=null
                     sheet=Sheet.NONE;changed()
                 }
