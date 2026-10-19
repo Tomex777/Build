@@ -124,7 +124,7 @@ function paintSlice(){
 function initJump(){
  const platforms=[{x:120,y:500,w:154,moving:false}];
  for(let y=424;y>=-90;y-=75){platforms.push({x:rand(30,255),y,w:rand(72,100),moving:false})}
- return {score:0,player:{x:180,y:460,vy:-520,vx:0},platforms,scroll:0,frame:0};
+ return {score:0,player:{x:180,y:460,vy:-520,vx:0},platforms,scroll:0};
 }
 function tickJump(dt){
  const p=state.player,prev=p.y;
