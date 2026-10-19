@@ -67,6 +67,7 @@ class AudioEngine(private val context: Context) {
             val recordings = RecordedSounds.load(context.assets)
             val hrtf = RecordedSounds.hrtf(context.assets)
             val synth = SpatialSynth(sampleRate, recordings, hrtf)
+            val governor=BinauralQualityBudget(512,sampleRate)
             val buffer = ShortArray(512 * 2)
             var active = false
             while (alive.get()) {
@@ -84,7 +85,10 @@ class AudioEngine(private val context: Context) {
                     active = true
                 }
                 synth.setLiving(living)
+                synth.setMeasuredVoiceLimit(governor.measuredVoiceLimit)
+                val renderStart=System.nanoTime()
                 synth.renderInto(buffer, currentSources, currentVolume, currentHeading)
+                governor.record(System.nanoTime()-renderStart)
                 var written = 0
                 while (written < buffer.size && alive.get() && playing.get()) {
                     val count = track.write(buffer, written, buffer.size - written, AudioTrack.WRITE_BLOCKING)
