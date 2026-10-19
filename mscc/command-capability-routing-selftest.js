@@ -54,6 +54,11 @@ const directContext = {
   message:{ key:{ remoteJid:'user@s.whatsapp.net' } },
   botProfile:{ id:'unassigned', displayName:'Unassigned' },
   botProfiles:() => profiles,
+  botAssignments:() => [
+    { account_id:'B', profile_id:'josiah' },
+    { account_id:'C', profile_id:'nami' },
+    { account_id:'D', profile_id:'mimi' },
+  ],
   shouldExecutePublicCommand:async () => false,
   reply:async value => { replies.push(String(value)); return value },
 }
