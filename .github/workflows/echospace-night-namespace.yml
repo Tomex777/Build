@@ -1,4 +1,5 @@
 name: EchoSpace NIGHT namespace migration
+run-name: Migrate EchoSpace app and source to NIGHT Android ID
 
 on:
   push:
