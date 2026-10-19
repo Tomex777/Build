@@ -141,7 +141,7 @@ jobs:
               --out "dist/Torri-1.1.0-$variant-release.apk" \
               "$RUNNER_TEMP/torri-$variant-aligned.apk"
             "$TOOLS/apksigner" verify --verbose --print-certs "dist/Torri-1.1.0-$variant-release.apk" | tee "$RUNNER_TEMP/signing-$variant.txt"
-            actual="$(sed -n 's/^Signer #1 certificate SHA-256 digest: //p' "$RUNNER_TEMP/signing-$variant.txt" | head -1 | tr -d ':[:space:]' | tr '[:upper:]' '[:lower:]')"
+            actual="$(sed -n 's/^.*certificate SHA-256 digest: //p' "$RUNNER_TEMP/signing-$variant.txt" | head -1 | tr -d ':[:space:]' | tr '[:upper:]' '[:lower:]')"
             test "$actual" = "$expected" || { echo "::error::Torri production certificate mismatch"; exit 1; }
             sha256sum "dist/Torri-1.1.0-$variant-release.apk" >> dist/SHA256SUMS.txt
           done
@@ -160,7 +160,7 @@ jobs:
           test -s "$OLD"
           TOOLS="$(cat "$RUNNER_TEMP/android-build-tools.txt")"
           "$TOOLS/aapt" dump badging "$OLD" | grep -E "^package: name='app.torri' versionCode='10000' versionName='1.0.0'"
-          actual="$("$TOOLS/apksigner" verify --print-certs "$OLD" | sed -n 's/^Signer #1 certificate SHA-256 digest: //p' | head -1)"
+          actual="$("$TOOLS/apksigner" verify --print-certs "$OLD" | sed -n 's/^.*certificate SHA-256 digest: //p' | head -1)"
           test "$actual" = "6b1ab58169e3a8dd4370860d5d03060b035476b43cceaf2bd8da7ca1fe37ab44"
           cp "$OLD" "$RUNNER_TEMP/torri-previous-v1.0.0.apk"
 
