@@ -1,12 +1,8 @@
 name: TAC Redemption Index (800)
 
+# Disabled automatic fetches: Hymnary responded HTTP 403 to CI; respect access policy.
+# Only re-enable after an authorized, exportable source is provided.
 on:
-  push:
-    branches:
-      - feature/tac-hymnbook-foundation
-    paths:
-      - 'tac-hymnbook/tools/fetch_redemption_index.py'
-      - '.github/workflows/tac-redemption-index.yml'
   workflow_dispatch:
 
 permissions:
