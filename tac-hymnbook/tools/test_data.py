@@ -122,6 +122,28 @@ class HymnDataTest(unittest.TestCase):
             sum(len(h["opening_lines"]) for h in merged["hymns"]), len(raw_entries)
         )
 
+    def test_source_matching_queue_does_not_publish_unchecked_lyrics(self):
+        path = ROOT / "data/akokun-source-matches.json"
+        data = json.loads(path.read_text(encoding="utf-8"))
+        candidates = data["candidates"]
+        self.assertEqual(len(candidates), 9)
+        self.assertEqual(
+            [x["number"] for x in candidates],
+            [1, 37, 45, 47, 65, 101, 104, 130, 303]
+        )
+        catalogue = json.loads(
+            (ROOT / "data/akokun-collection.json").read_text(encoding="utf-8")
+        )
+        for candidate in candidates:
+            number = candidate["number"]
+            self.assertEqual(candidate["collection"], "akokun")
+            self.assertTrue(catalogue["hymns"][number - 1]["title_yo"])
+            self.assertTrue(candidate["source_url"].startswith("https://"))
+            self.assertEqual(candidate["full_text_status"], "not_imported")
+            self.assertEqual(candidate["yoruba_translation_rights"], "not_yet_cleared")
+            self.assertEqual(candidate["tac_stanza_check"], "not_yet_checked")
+        self.assertEqual(catalogue["numbered_hymns_with_title"], 299)
+
     def test_yoruba_is_stored_as_unicode(self):
         hymns = compile_asset()["hymns"]
         self.assertIn("Ọ", hymns[0]["title_yo"])
