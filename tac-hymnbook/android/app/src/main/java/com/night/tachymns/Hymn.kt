@@ -21,6 +21,8 @@ data class Hymn(
     val textStatus: String,
     val sourceUrl: String?
 ) {
+    val key: String get() = "$collection:$number"
+    val sectionLabel: String get() = if (collection == "akokun") "Àkọkún" else "Hymn"
     val hasYoruba: Boolean get() = versesYo.isNotEmpty()
     val hasEnglish: Boolean get() = versesEn.isNotEmpty()
 
@@ -64,10 +66,10 @@ object HymnRepository {
                 textStatus = item.optString("text_status", "missing"),
                 sourceUrl = if (item.isNull("source_url")) null else item.optString("source_url").ifBlank { null }
             )
-        }.sortedBy { it.number }
+        }.sortedWith(compareBy<Hymn>({ if (it.collection == "akokun") 1 else 0 }, { it.number }))
             .also { hymns ->
-                require(hymns.map { it.number }.distinct().size == hymns.size) {
-                    "Duplicate TAC hymn numbers in the main collection"
+                require(hymns.map { it.key }.distinct().size == hymns.size) {
+                    "Duplicate hymn identity within a collection"
                 }
             }
     }
