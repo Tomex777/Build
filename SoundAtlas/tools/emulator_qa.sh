@@ -43,6 +43,28 @@ tap_dp() {
   adb shell input tap "$(( $1 * W / 100 ))" "$(( H - $2 * D / 160 ))"
   sleep 2
 }
+tap_desc() {
+  local label="$1"
+  adb shell uiautomator dump /sdcard/atlas-hierarchy.xml >/dev/null
+  adb exec-out cat /sdcard/atlas-hierarchy.xml > SoundAtlas/qa/hierarchy-current.xml
+  python3 - "$label" SoundAtlas/qa/hierarchy-current.xml <<'PY'
+import re,subprocess,sys,xml.etree.ElementTree as ET
+label,path=sys.argv[1:]
+root=ET.parse(path).getroot()
+matches=[n for n in root.iter("node") if n.attrib.get("content-desc")==label]
+if not matches:
+    found=[n.attrib.get("content-desc","") for n in root.iter("node")
+           if n.attrib.get("content-desc")]
+    raise SystemExit(f"ACCESSIBLE_CONTROL_NOT_FOUND {label}: {found[:35]}")
+bounds=list(map(int,re.findall(r"\d+",matches[-1].attrib.get("bounds",""))))
+assert len(bounds)==4,bounds
+x=(bounds[0]+bounds[2])//2
+y=(bounds[1]+bounds[3])//2
+subprocess.run(["adb","shell","input","tap",str(x),str(y)],check=True,timeout=20)
+print("REAL_TALKBACK_CONTROL_ACTIVATED",label,x,y,flush=True)
+PY
+  sleep 2
+}
 assert_state() {
   local expected="$1"
   adb shell uiautomator dump /sdcard/atlas-hierarchy.xml >/dev/null
@@ -52,29 +74,28 @@ assert_state() {
   fi
   echo "ATLAS_UI_STATE_VERIFIED: $expected"
 }
-tap_dp 10 65
+tap_desc 'WORLD'
 capture 02-world-library.png
 assert_state 'Panel LIBRARY'
 # First-row right card, within world-library sheet (370dp tall).
-tap_dp 75 435
+tap_desc 'Open Ancient Forest'
 capture 03-selected-world.png
 assert_state 'World Ancient Forest. Panel NONE'
-tap_dp 30 65
+tap_desc 'SOUNDS'
 capture 04-sound-library.png
 assert_state 'Panel SOUNDS'
 # First sound card in the two-column panel, ~height of sound sheet.
-tap_dp 26 425
+tap_desc 'Add Rainfall'
 capture 05-sound-inspector.png
 assert_state 'Panel INSPECT'
 # Close inspector and enter Explore mode.
-tap_dp 91 263
-tap_dp 90 65
+tap_desc 'Close panel'
+tap_desc 'EXPLORE'
 capture 06-explore.png
 assert_state 'Mode EXPLORE'
 # Enter atmospheric editor from the header after returning to edit.
-tap_dp 90 65
-adb shell input tap $(( W - 95 * D / 160 )) $(( 79 * D / 160 ))
-sleep 2
+tap_desc 'EDIT'
+tap_desc 'Edit rain, wind and storm'
 capture 07-atmosphere.png
 assert_state 'Panel ATMOSPHERE'
 adb shell pidof com.night.soundatlas
