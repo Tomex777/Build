@@ -60,6 +60,7 @@ try{
     assert.equal((await snap()).phase,'handoff');
     await page.locator('[data-action="ready"]').click();
     assert.equal((await snap()).phase,'vote');
+    if(mode==='mlt')assert.equal(await page.locator('[data-answer]').count(),2,'two-player Most Likely To must offer two real choices');
     await geometry(mode);
     if(round===0&&voter===0){
      await page.screenshot({path:path.join(output,'party-'+mode+'-390x844.jpg'),type:'jpeg',quality:73});
