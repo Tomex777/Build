@@ -17,7 +17,7 @@ assert.equal(new Set(declared).size,declared.length,'Duplicated hub ids');
 assert.equal(new Set(implementations).size,implementations.length,'Duplicated game registrations');
 for(const id of declared)assert(special.has(id)||implementations.includes(id), 'No implementation for '+id);
 for(const id of implementations)assert(declared.includes(id),'Hidden, unlisted game '+id);
-assert.equal(declared.length,67,'Update documented count and review new games when expanding');
+assert.equal(declared.length,96,'Update documented count and review new games when expanding');
 const html=fs.readFileSync(path.join(folder,'index.html'),'utf8');
 for(const script of scripts)assert(html.includes('/classics/'+script),'Missing script tag '+script);
 console.log('Catalog validated:',declared.length,'registered playable games');

@@ -144,9 +144,36 @@ private val games = listOf(
     GameEntry("boat", "Boat Race", "Racing", "Navigate floating race gates"),
     GameEntry("drifthunt", "Drift Hunt", "Racing", "Build drifting combos"),
     GameEntry("horse", "Horse Derby", "Racing", "Alternate strides to beat the CPU"),
-    GameEntry("memory", "Memory Match", "Memory", "Match illustrated animals, vehicles and space cards")
-
-
+    GameEntry("memory", "Memory Match", "Memory", "Match illustrated animals, vehicles and space cards"),
+    GameEntry("speedboat", "Speed Boat", "Racing", "Boost past river rocks"),
+    GameEntry("jetsprint", "Jet Sprint", "Racing", "Navigate a narrowing canyon"),
+    GameEntry("spacerace", "Space Race", "Racing", "Collect beacons by inertia"),
+    GameEntry("cycle", "Cycle Sprint", "Racing", "Alternate left and right pedals"),
+    GameEntry("kart", "Kart Circuit", "Racing", "Race three laps"),
+    GameEntry("rally", "Rally Cross", "Racing", "Steer on loose gravel"),
+    GameEntry("driftking", "Drift King", "Racing", "Choose the correct corner drift"),
+    GameEntry("football", "Football Kick", "Sports", "Curve free kicks past defenders"),
+    GameEntry("tabletennis", "Table Tennis", "Sports", "Return balls to eleven"),
+    GameEntry("boxing", "Boxing Tap", "Sports", "Read and counter incoming punches"),
+    GameEntry("longjump", "Long Jump", "Sports", "Perfect the takeoff"),
+    GameEntry("weightlifting", "Weight Lifting", "Sports", "Control five lifts"),
+    GameEntry("dartwheel", "Dart Wheel", "Sports", "Place darts on a spinning wheel"),
+    GameEntry("tapshooter", "Tap Shooter", "Action", "Hit quick moving targets"),
+    GameEntry("zombies", "Zombie Zapper", "Action", "Defend the barricade"),
+    GameEntry("ninja", "Ninja Stars", "Action", "Avoid previously placed stars"),
+    GameEntry("colorclash", "Color Clash", "Action", "Tap the requested colour"),
+    GameEntry("shield", "Shield Block", "Action", "Rotate toward incoming projectiles"),
+    GameEntry("balloonguard", "Balloon Guard", "Action", "Protect a rising balloon"),
+    GameEntry("towerdefense", "Tower Defense", "Strategy", "Build towers against ten waves"),
+    GameEntry("bikerunner", "Bike Runner", "Endless", "Duck and jump over trail hazards"),
+    GameEntry("colorswitch", "Color Switch", "Endless", "Match a spinning hoop"),
+    GameEntry("ballbounce", "Ball Bounce", "Endless", "Climb bouncing platforms"),
+    GameEntry("helix", "Helix Jump", "Endless", "Align gaps in the rotating tower"),
+    GameEntry("tapdash", "Tap Tap Dash", "Endless", "Tap at the highlighted corners"),
+    GameEntry("paperplane", "Paper Plane", "Endless", "Glide between floating rings"),
+    GameEntry("cats", "Cat Collector", "Endless", "Sort cats into coloured shelters"),
+    GameEntry("wavesurfer", "Wave Surfer", "Endless", "Lean into the waves"),
+    GameEntry("tunnel", "Tunnel Rush", "Endless", "Dodge approaching tunnel panels")
 )
 private val categories = listOf("All", "Favourites", "Arcade", "Puzzle", "Board", "Memory", "Strategy", "Card", "Action", "Endless", "Sports", "Racing")
 
