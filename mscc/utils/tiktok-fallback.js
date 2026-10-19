@@ -1,5 +1,6 @@
-// Anonymous public-post fallbacks. Based on Nexia's yt-dlp -> Siputzx
-// strategy, with TikWM as an independent backup. No auth or private cookies.
+// Public TikTok downloader: preserve Nexia's fallback order
+// yt-dlp (social-download) -> Siputzx -> ruhend-scraper/ttdl, with TikWM as
+// an additional source. No auth, TikTok cookies or private media bypass.
 import { open, rm, rename } from 'node:fs/promises'
 import { join } from 'node:path'
 
@@ -83,7 +84,9 @@ export function extractTikTokMediaVariants(provider, response) {
   if (gallery.length) return [gallery]
   const raw = provider === 'siputzx'
     ? [...(Array.isArray(body.urls) ? body.urls : []), body.video_url, body.download_url, body.url]
-    : [body.hdplay, body.play, body.wmplay]
+    : provider === 'ruhend'
+      ? [body.video_hd, body.video, body.video_wm]
+      : [body.hdplay, body.play, body.wmplay]
   const urls = [...new Set(raw.map(urlFor).filter(Boolean))]
   return urls.slice(0,6).map(url => [{ url, ext:'mp4', mime:'video/mp4' }])
 }
@@ -107,6 +110,27 @@ async function fetchJson(fetchImpl, url, init = {}) {
     chunks.push(chunk)
   }
   return JSON.parse(Buffer.concat(chunks).toString('utf8'))
+}
+
+// Nexia's exact third extractor was ruhend-scraper's `ttdl` function,
+// returning a FLAT object (video_hd/video/video_wm) rather than a data array.
+// Import lazily only if yt-dlp and Siputzx fail; bounded to avoid holding a
+// media worker indefinitely if the scraper hangs on a changed TikTok page.
+export async function getRuhendTikTokData(postUrl, scraperImpl) {
+  const run = async () => {
+    const scraper = scraperImpl || await import('ruhend-scraper')
+    const ttdl = typeof scraper === 'function' ? scraper :
+      scraper?.ttdl || scraper?.default?.ttdl
+    if (typeof ttdl !== 'function') throw new Error('ruhend ttdl extractor missing')
+    return ttdl(postUrl)
+  }
+  let timeout
+  try {
+    return await Promise.race([
+      run(),
+      new Promise((_,reject) => {timeout=setTimeout(() => reject(new Error('ruhend timeout')),PROVIDER_TIMEOUT_MS)})
+    ])
+  } finally {clearTimeout(timeout)}
 }
 
 async function getProviderData(fetchImpl, provider, endpoint, originalUrl) {
@@ -166,7 +190,7 @@ async function saveMedia(fetchImpl, url, file, mime, maxBytes) {
   } finally { await handle.close().catch(() => {}) }
 }
 
-export async function tryPublicTikTokFallback(request, dir, { fetchImpl = globalThis.fetch, maxBytes = 64 * 1024 * 1024 } = {}) {
+export async function tryPublicTikTokFallback(request, dir, { fetchImpl = globalThis.fetch, maxBytes = 64 * 1024 * 1024, scraperImpl } = {}) {
   if (request.platform !== 'TikTok') throw new Error('TikTok fallback requires a TikTok post')
   // Provider APIs often reject vt/vm short links while accepting their canonical post.
   // Retain the original as a backup if redirect resolution succeeds but a provider fails.
@@ -175,11 +199,14 @@ export async function tryPublicTikTokFallback(request, dir, { fetchImpl = global
   for (const postUrl of urls) {
     const providers = [
       ['siputzx', `https://api.siputzx.my.id/api/d/tiktok?url=${encodeURIComponent(postUrl)}`],
+      ['ruhend', null],
       ['tikwm', `https://www.tikwm.com/api/?url=${encodeURIComponent(postUrl)}&hd=1`],
     ]
     for (const [provider,endpoint] of providers) {
       try {
-        const variants = extractTikTokMediaVariants(provider,await getProviderData(fetchImpl,provider,endpoint,postUrl))
+        const response = provider === 'ruhend' ? {data:await getRuhendTikTokData(postUrl,scraperImpl)} :
+          await getProviderData(fetchImpl,provider,endpoint,postUrl)
+        const variants = extractTikTokMediaVariants(provider,response)
         if (!variants.length) throw new Error('provider returned no supported media URLs')
         for (const [variantIndex, medias] of variants.entries()) {
           const files = []
