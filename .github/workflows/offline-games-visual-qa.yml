@@ -60,7 +60,7 @@ jobs:
           git config user.name "NIGHT QA Automation"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git checkout -b "qa/offline-games-visual-${GITHUB_RUN_ID}"
-          git add -f offline-games/qa-evidence/contact-*.png offline-games/qa-evidence/audit.json offline-games/qa-evidence/summary.md
+          git add -f offline-games/qa-evidence/contact-*.png offline-games/qa-evidence/compact-*.png offline-games/qa-evidence/audit.json offline-games/qa-evidence/summary.md
           if test -f offline-games/qa-evidence/playthrough/results.json; then
             git add -f offline-games/qa-evidence/playthrough/*
           fi

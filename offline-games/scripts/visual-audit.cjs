@@ -84,6 +84,19 @@ async function audit(browser,serverPort,entry,worker){
    await page.waitForTimeout(520);
    statusAfter=(await snapshot.count())?(await snapshot.first().innerText().catch(()=>'')):'';
    lastSnap='screenshots/'+safe(id)+'-played.png';await page.screenshot({path:path.join(out,lastSnap),fullPage:false,timeout:9000});
+   // Reflow the running game to the smallest supported common phone width.
+   // This is an actual Chromium layout measurement, not static CSS review.
+   await page.setViewportSize({width:320,height:720});
+   await page.waitForTimeout(60);
+   const compact=await page.evaluate(()=>{
+     const board=document.getElementById('board')||document.querySelector('.canvas-shell');
+     const box=board?.getBoundingClientRect();
+     return{width:document.documentElement.scrollWidth,view:window.innerWidth,boardWidth:box?.width||0,boardHeight:box?.height||0};
+   });
+   measures.compact=compact;
+   if(compact.width>compact.view+4)errors.push('320px horizontal overflow '+compact.width+' > '+compact.view);
+   if(compact.boardWidth<115)errors.push('320px board too narrow: '+compact.boardWidth);
+   await page.screenshot({path:path.join(out,'screenshots/'+safe(id)+'-compact.png'),fullPage:false,timeout:9000});
    if(!interacted)errors.push('No playable input found');
  }catch(e){errors.push('AUDIT '+String(e).slice(0,350))}
  finally{await page.close().catch(()=>{})}

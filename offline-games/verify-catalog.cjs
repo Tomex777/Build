@@ -20,7 +20,7 @@ for(const id of implementations)assert(declared.includes(id),'Hidden, unlisted g
 assert.equal(declared.length,105,'Update documented count and review new games when expanding');
 const html=fs.readFileSync(path.join(folder,'index.html'),'utf8');
 for(const script of scripts)assert(html.includes('/classics/'+script),'Missing script tag '+script);
-console.log('Catalog validated:',declared.length,'registered playable games');
+console.log('Catalog registered:',declared.length,'unique implementations; gameplay QA is separate');
 
 // Enforce all 54 on-device illustrations; no hotlinked images or fake empty cards.
 const memoryCode = fs.readFileSync(path.join(folder,'memory.js'),'utf8');

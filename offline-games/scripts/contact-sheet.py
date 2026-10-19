@@ -32,3 +32,26 @@ for page in range(math.ceil(len(items) / per_sheet)):
     target = folder / f"contact-{page+1:02}.png"
     image.save(target, optimize=True)
     print(f"QA_CONTACT {target.name} {target.stat().st_size} bytes")
+
+# A second view at 320 CSS pixels catches cramped cards, clipped controls and
+# overflow invisible in screenshots from the main 390px phone viewport.
+compact_items = [r for r in report["results"] if (folder/"screenshots"/(r["id"]+"-compact.png")).is_file()]
+for page in range(math.ceil(len(compact_items)/per_sheet)):
+    chosen = compact_items[page*per_sheet:(page+1)*per_sheet]
+    image = Image.new("RGB", (4*225, 3*425+60), "#f1f4ef")
+    draw = ImageDraw.Draw(image)
+    draw.text((16, 12), f"NIGHT OFFLINE • Compact QA {page+1}/{math.ceil(len(compact_items)/per_sheet)}", fill="#234d37", font=label)
+    draw.text((16, 35), "320 CSS px viewport • AFTER game interaction", fill="#596e60", font=font)
+    for i,r in enumerate(chosen):
+        x=(i%4)*225
+        y=(i//4)*425+60
+        snap=Image.open(folder/"screenshots"/(r["id"]+"-compact.png")).convert("RGB")
+        snap.thumbnail((208,374),Image.Resampling.LANCZOS)
+        image.paste(snap,(x+8+(208-snap.width)//2,y+32))
+        draw.text((x+8,y+2),f"{page*per_sheet+i+1}. {r['name'][:21]}",fill="#163b2a",font=label)
+        compact=r.get("measures",{}).get("compact",{})
+        good=compact.get("width",999)<=compact.get("view",0)+4
+        draw.text((x+8,y+406),"FITS 320px" if good else "OVERFLOW",fill="#297247" if good else "#a13b32",font=font)
+    target=folder/f"compact-{page+1:02}.png"
+    image.save(target,optimize=True)
+    print(f"QA_COMPACT {target.name} {target.stat().st_size} bytes")
