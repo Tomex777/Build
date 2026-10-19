@@ -19,7 +19,7 @@ import kotlin.math.sqrt
  */
 class SpatialSynth(
     private val sampleRate: Int = 44_100,
-    private val recordings: Map<SoundKind, FloatArray> = emptyMap(),
+    private val recordings: Map<SoundKind, ShortArray> = emptyMap(),
     private val measuredHrtf: MeasuredHrtf? = null
 ) {
     @Volatile private var living = true
@@ -154,7 +154,7 @@ class SpatialSynth(
     private fun softClip(x: Double): Double = (x / (1.0 + abs(x) * 0.32)).coerceIn(-1.0, 1.0)
 
     private class Voice(val kind: SoundKind, seed: Long,
-                        private val clip: FloatArray?, bank: MeasuredHrtf?) {
+                        private val clip: ShortArray?, bank: MeasuredHrtf?) {
         val hrtf = bank?.let { HrtfVoice(it) }
         private var clipPhase = if (clip == null || clip.isEmpty()) 0.0 else
             (abs(seed % 31).toDouble() / 37.0) * (clip.size - 1)
@@ -249,7 +249,7 @@ class SpatialSynth(
                     nextLoopStart = (choice * (clip.size - crossfade - 2) * 0.32).toInt()
                     loopSpeed = 0.987 + abs(noise()) * 0.026
                 }
-                return sample * movement
+                return sample * movement / 32768.0
             }
             val n = noise()
             return movement * when (kind) {
