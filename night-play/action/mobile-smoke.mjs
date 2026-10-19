@@ -45,9 +45,18 @@ try{
    assert.ok(running.platforms.every(p=>p.fragile===undefined&&p.ttl===undefined),'platforms cannot crack, time out or disappear on landing');
    assert.equal(running.hazardY,undefined,'no rising hazard forces a timed death');
    assert.ok(running.platforms.every(p=>p.w>=55),'landing platforms remain wide enough to aim for');
-   await page.waitForTimeout(220);
-   const after=await snap(),nextMover=after.platforms.find(p=>p.baseX===mover.baseX&&p.phase===mover.phase);
-   assert.ok(nextMover&&Math.abs(nextMover.x-mover.x)>0.2,'a moving platform changes its physical collision position');
+   // Sample several real gameplay frames, not just two instants. A sine
+   // platform can return to nearly the same X near its turning point even
+   // though its collision body has moved during the interval.
+   const positions=[mover.x];
+   for(const delay of [170,170,200]){
+    await page.waitForTimeout(delay);
+    const updated=await snap(),nextMover=updated.platforms.find(p=>p.baseX===mover.baseX&&p.phase===mover.phase);
+    assert.ok(nextMover,'the first moving platform remains present while on screen');
+    positions.push(nextMover.x);
+   }
+   assert.ok(Math.max(...positions)-Math.min(...positions)>0.35,
+    'the moving platform visibly changes its true physical collision position');
  }
   if(game==='runner')assert.ok(running.score>0&&running.speed>220,'Runner progresses and accelerates');
   if(game==='shooter')assert.ok(running.shots.length>0&&running.enemies.length>0,'Shooter generates shots and actual enemies');
