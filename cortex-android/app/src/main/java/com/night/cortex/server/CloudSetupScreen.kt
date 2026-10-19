@@ -3,6 +3,7 @@ package com.night.cortex.server
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -17,6 +18,7 @@ import androidx.compose.material3.RadioButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -32,6 +34,9 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.night.cortex.ui.theme.CortexMuted
+import com.night.cortex.ui.theme.CortexAccent
+import com.night.cortex.ui.theme.CortexLine
+import com.night.cortex.ui.theme.CortexSurface
 import com.night.cortex.ui.theme.CortexSurface2
 
 /**
@@ -103,6 +108,13 @@ internal fun CloudSetupPage(
                         fontSize = 12.sp,
                     )
                     OutlinedTextField(
+                shape = RoundedCornerShape(10.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = CortexAccent,
+                    unfocusedBorderColor = CortexLine,
+                    focusedContainerColor = CortexSurface,
+                    unfocusedContainerColor = CortexSurface,
+                ),
                         value = email,
                         onValueChange = { if (!it.contains('\n') && it.length <= 254) email = it },
                         label = { Text("Primary MEGA email") },
@@ -122,6 +134,13 @@ internal fun CloudSetupPage(
                         fontSize = 12.sp,
                     )
                     OutlinedTextField(
+                shape = RoundedCornerShape(10.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = CortexAccent,
+                    unfocusedBorderColor = CortexLine,
+                    focusedContainerColor = CortexSurface,
+                    unfocusedContainerColor = CortexSurface,
+                ),
                         value = password,
                         onValueChange = { if (!it.contains('\n') && it.length <= 4096) password = it },
                         label = { Text("MEGA password") },
