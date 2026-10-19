@@ -1,0 +1,6 @@
+Introducing Torri by Night, based on Mihon v0.20.4.
+
+• New Torri identity and app ID
+• Minimal torii-gate icon and dark launch screen
+• Signature Night theme
+• Torri-branded About screen, notifications, exports, and project metadata

@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Torri branding override. Keep upstream i18n resources untouched for easier Mihon merges. -->
+    <string name="app_name" translatable="false">Torri</string>
+</resources>

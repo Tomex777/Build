@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Distinguish side-by-side test builds from the installed Torri app. -->
+    <string name="app_name" translatable="false">Torri Preview</string>
+</resources>
