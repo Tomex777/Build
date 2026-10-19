@@ -195,10 +195,21 @@ export async function dispatchNamespacedCommand({ privateRegistry, publicRegistr
       const profileName = String(profile.displayName || profile.id || 'this bot account').trim()
       let targetProfile = null
       if (typeof context.botProfiles === 'function') {
+        let assignedProfiles = null
+        if (typeof context.botAssignments === 'function') {
+          try {
+            const assignments = context.botAssignments()
+            if (Array.isArray(assignments)) {
+              assignedProfiles = new Set(assignments.map(row => String(row?.profile_id || '').trim()).filter(Boolean))
+            }
+          } catch {}
+        }
         const candidates = context.botProfiles().map(candidate => {
+          const id = String(candidate?.id || '')
           const explicit = (Array.isArray(candidate?.capabilities) ? candidate.capabilities : [])
             .find(row => String(row?.capability || '').trim().toLowerCase() === capability)
-          const eligible = candidate?.id !== 'control' && candidate?.id !== 'unassigned' &&
+          const eligible = id !== 'control' && id !== 'unassigned' &&
+            (assignedProfiles == null || assignedProfiles.has(id)) &&
             (explicit != null || candidate?.universal === true)
           return {
             profile:candidate,
