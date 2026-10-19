@@ -6,6 +6,7 @@ import { downloadMediaMessage } from '@itsliaaa/baileys'
 import { contextInfo, messageMedia, quotedMessage } from './whatsapp/messages.js'
 import { normalizeJid } from './whatsapp/jid.js'
 import { applyStickerMetadata } from './sticker-metadata.js'
+import { extractAnimatedWebpFrames } from './animated-webp-frames.js'
 
 export const STICKER_CANVAS = 512
 // Nexia_bot.zip: utils/stickerUtils.js uses a 20px rounded-square alpha mask.
@@ -280,19 +281,16 @@ export async function stickerToPng(buffer) {
 
 export async function stickerToGif(buffer) {
   return serializedConversion(() => withTempDir('togif', async directory => {
-    const input = join(directory, 'sticker.webp')
-    const output = join(directory, 'sticker.gif')
-    await writeFile(input, buffer)
+    const { manifest } = await extractAnimatedWebpFrames(buffer,directory)
+    const output=join(directory,'sticker.gif')
     const filter =
-      '[0:v]fps=15,scale=512:512:force_original_aspect_ratio=decrease:flags=lanczos,' +
-      'setsar=1,split[v0][v1];' +
-      '[v0]palettegen=reserve_transparent=1:stats_mode=diff[p];' +
+      '[0:v]fps=15,scale=512:512:force_original_aspect_ratio=decrease:flags=lanczos,'+
+      'setsar=1,split[v0][v1];'+
+      '[v0]palettegen=reserve_transparent=1:stats_mode=diff[p];'+
       '[v1][p]paletteuse=dither=sierra2_4a:alpha_threshold=128'
     await runFfmpeg([
-      '-i', input,
-      '-filter_complex', filter,
-      '-loop', '0',
-      output,
+      '-f','concat','-safe','0','-i',manifest,
+      '-filter_complex',filter,'-loop','0',output,
     ])
     return readFile(output)
   }))
@@ -300,18 +298,13 @@ export async function stickerToGif(buffer) {
 
 export async function stickerToVideo(buffer) {
   return serializedConversion(() => withTempDir('tovideo', async directory => {
-    const input = join(directory, 'sticker.webp')
-    const output = join(directory, 'sticker.mp4')
-    await writeFile(input, buffer)
+    const {manifest}=await extractAnimatedWebpFrames(buffer,directory)
+    const output=join(directory,'sticker.mp4')
     await runFfmpeg([
-      '-i', input,
-      '-an',
-      '-vf', 'scale=trunc(iw/2)*2:trunc(ih/2)*2:flags=lanczos,format=yuv420p',
-      '-c:v', 'libx264',
-      '-preset', 'veryfast',
-      '-crf', '23',
-      '-movflags', '+faststart',
-      output,
+      '-f','concat','-safe','0','-i',manifest,
+      '-an','-vf','fps=15,scale=trunc(iw/2)*2:trunc(ih/2)*2:flags=lanczos,format=yuv420p',
+      '-c:v','libx264','-preset','veryfast','-crf','23',
+      '-movflags','+faststart',output,
     ])
     return readFile(output)
   }))
