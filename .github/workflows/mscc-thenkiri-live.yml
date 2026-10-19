@@ -8,6 +8,7 @@ on:
       - 'mscc/sources/movies/thenkiri.js'
       - 'mscc/sources/tv/thenkiri.js'
       - 'mscc/thenkiri-live-probe.js'
+      - 'mscc/thenkiri-source-selftest.js'
       - '.github/workflows/mscc-thenkiri-live.yml'
   push:
     branches: [mscc-azure]
@@ -16,6 +17,7 @@ on:
       - 'mscc/sources/movies/thenkiri.js'
       - 'mscc/sources/tv/thenkiri.js'
       - 'mscc/thenkiri-live-probe.js'
+      - 'mscc/thenkiri-source-selftest.js'
       - '.github/workflows/mscc-thenkiri-live.yml'
   workflow_dispatch:
 
@@ -28,6 +30,9 @@ jobs:
       - uses: actions/setup-node@v5
         with:
           node-version: '24'
+      - name: Run offline Thenkiri regression fixtures
+        working-directory: mscc
+        run: node --check providers/thenkiri.js && node thenkiri-source-selftest.js
       - name: Install FFmpeg for live playable-stream verification
         shell: bash
         run: |
