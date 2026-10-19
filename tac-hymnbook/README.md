@@ -55,3 +55,25 @@ Hymns 12–17 use the original TAC numbering and matching English Redemption Hym
 - Hymn **50** is the **first index-only bilingual lyrics import**, via `data/hymns-050.seed.json` and `data/drafts/hymn-050.yo.json`: a prior user check confirmed the online Yorùbá opening verse against the physical book. Further verses/redistribution status remain working-draft rather than asserted exact TAC text.
 - Previous speculative matches were corrected: **Rock of Ages = 341 (not 733)**; **To the Work = 568 (not 424)**; **The Mercy of God Is an Ocean Divine = 424**; **733 = Thine Arm, O Lord, in Days of Old**. Treat pairings by number **and** meaning.
 - Only entries with actual bilingual verses belong in the public hymn reader. Unfilled index entries remain in internal research data, not broken user-facing hymn pages.
+
+
+## Whole Redemption Hymnal and Àkọkún (October 2026)
+
+The source `data/redemption-hymnal-catalogue.json` contains **all canonical hymn number identifiers 1–800**, in the correct Redemption Hymnal order. It is independently bundled for future offline indexing in `android/app/src/main/assets/redemption_index.json`.
+
+**Do not confuse an index with completed lyrics.** At this stage:
+- Number slots: **800/800**.
+- Titles confirmed directly against the public RH2006 numbered first-line index: **94/800** (hymns 1–94).
+- A further ~20 English names are tentative matches from the user's photographed page 437, and are explicitly tagged candidate, not verified.
+- Complete bilingual working-draft hymn entries in the playable reader: **18** (1–17 and 50).
+- No guessed lyrics or blank entries from the remaining numbered slots are presented as finished hymns.
+
+**Àkọkún** means addendum/supplement in Yoruba hymnbook use. It may have its own numbering, distinct from the Redemption section. Its independent source record is `data/akokun-collection.json`, bundled in the app as `akokun_index.json`; its size and hymn identity have **not yet been established from this user's edition**. The existence of Methodist/Baptist Àkọkún lists does **not** establish that their hymns or numbering match this TAC edition.
+
+Hymnary RH2006 enumerates the complete 800, but direct automated requests from GitHub Actions received HTTP 403. The automated external fetch is **disabled** rather than bypassing access controls. We manually verified the first 94 first-line entries, and the remaining metadata can come from photographs or appropriately licensed structured sources. Full lyrics require verse-level source checks and any necessary reuse rights: a traditional hymn's age does not automatically clear a later translation or arrangement.
+
+To continue digitizing, use:
+- Full public-domain or licensed English text matched to the Redemption title and hymn number.
+- The printed TAC page or a rights-cleared Yoruba translation, preserving its stanza count.
+- Separate collection keys for Àkọkún; do not give a shared number the same identity in both sections.
+- Quality checks for text, accents, section boundaries, and physical-device UX before release.
