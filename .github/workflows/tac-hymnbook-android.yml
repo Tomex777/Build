@@ -86,4 +86,5 @@ jobs:
             tac-hymns-akokun-index.png
             tac-hymns-audio-reader.png
             tac-hymns-learn-home.png
+            tac-hymns-offline-audio.png
           if-no-files-found: warn
