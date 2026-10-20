@@ -60,6 +60,7 @@ jobs:
         run: |
           set -euo pipefail
           python3 annie-android/scripts/test-repair-contract.py
+          python3 annie-android/ci/check-abr.py
           python3 annie-android/scripts/repair-m0b-merge.py
           sh annie-android/scripts/check-annie-types.sh
       - name: Run unit tests and build debug and release APKs
@@ -266,6 +267,7 @@ jobs:
         run: |
           set -euo pipefail
           python3 annie-android/scripts/test-repair-contract.py
+          python3 annie-android/ci/check-abr.py
           python3 annie-android/scripts/repair-m0b-merge.py
           sh annie-android/scripts/check-annie-types.sh
       - name: Warm API 26 test dependencies with retry
