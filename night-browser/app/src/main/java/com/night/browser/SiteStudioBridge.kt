@@ -112,7 +112,7 @@ class SiteStudioBridge(
     companion object {
         const val EXTENSION_ID = "site-studio@night.browser"
         const val EXTENSION_LOCATION = "resource://android/assets/site_studio/"
-        const val NATIVE_APP = "night-site-studio"
+        const val NATIVE_APP = "night.site_studio"
         private const val TAG = "NightSiteStudio"
     }
 }
