@@ -24,7 +24,16 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p EchoSpace/app/build/outputs/apk/debug
-          gh run download 39210500200 --repo "$GITHUB_REPOSITORY" \
+          # The fixed build number quickly becomes stale as the app evolves.
+          # Always validate the newest successful native APK from this branch.
+          RUN_ID=$(gh run list --repo "$GITHUB_REPOSITORY" \
+            --workflow echospace-production-ci.yml \
+            --branch feature/echospace-production-hardening \
+            --status success --limit 1 --json databaseId \
+            --jq '.[0].databaseId')
+          test -n "$RUN_ID" && test "$RUN_ID" != null
+          echo "QA_SOURCE_BUILD_RUN=$RUN_ID"
+          gh run download "$RUN_ID" --repo "$GITHUB_REPOSITORY" \
             --name EchoSpace-production-native-debug \
             --dir EchoSpace/app/build/outputs/apk/debug
           test -s EchoSpace/app/build/outputs/apk/debug/app-debug.apk
@@ -33,15 +42,17 @@ jobs:
         env:
           ECHOSPACE_DEBUG_APK: EchoSpace/app/build/outputs/apk/debug/app-debug.apk
         with:
-          api-level: 35
+          # API 35 hosted Pixel System UI repeatedly ANR'd before app QA.
+          # Run real UI gestures on an earlier supported Android version too.
+          api-level: 33
           arch: x86_64
           target: default
           profile: pixel_3a
           cores: 2
-          ram-size: 3072M
+          ram-size: 4096M
           disk-size: 3072M
           disable-animations: true
-          emulator-options: -no-window -no-snapshot -noaudio -no-boot-anim -gpu off
+          emulator-options: -no-window -no-snapshot -noaudio -no-boot-anim -gpu swiftshader_indirect
           script: ECHOSPACE_DEBUG_APK=EchoSpace/app/build/outputs/apk/debug/app-debug.apk python3 .github/scripts/echospace_production_emulator.py
       - uses: actions/upload-artifact@v4
         if: always()
