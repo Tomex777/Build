@@ -153,7 +153,7 @@ try{
   assert.equal(await tiles.locator('#board2048 .tile').count(),size*size,'correct live board dimensions for '+size+'×'+size);
   await tiles.keyboard.press('ArrowLeft');
   assert.equal(await tiles.locator('#score').textContent(),'4','real merge earns 4 on '+size+'×'+size);
-  assert.equal(await tiles.locator('#board2048 .tile[data-v="4"]').count(),1);
+  assert.ok(await tiles.locator('#board2048 .tile[data-v="4"]').count()>=1,'merge produced a 4 tile even if random spawn also makes 4');
   await tiles.locator('#undo2048').click();
   assert.equal(await tiles.locator('#score').textContent(),'0','undo works on '+size+'×'+size);
   await tiles.keyboard.press('ArrowLeft');
