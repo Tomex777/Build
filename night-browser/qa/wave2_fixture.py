@@ -150,7 +150,7 @@ class Handler(BaseHTTPRequestHandler):
                 self.state.form_posted = True
             else:
                 self.state.upload_length = len(body)
-                self.state.upload_verified = (b\"NIGHT_QA_UPLOAD_TEST_ONLY\" in body)
+                self.state.upload_verified = (b"NIGHT_QA_UPLOAD_TEST_ONLY" in body)
         return self.send(self.page("POST COMPLETE"))
 
     @staticmethod
