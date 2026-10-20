@@ -2,7 +2,7 @@ name: NIGHT Shield Hero Card Candidates
 
 on:
   push:
-    branches: [feature/cards-shieldhero-20261020]
+    branches: [feature/cards-shield-hero-20261020]
     paths:
       - 'cards/catalog/shieldhero*'
       - 'cards/bin/seed-shieldhero.mjs'
