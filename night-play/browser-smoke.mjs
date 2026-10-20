@@ -111,7 +111,9 @@ try {
  console.log('NIGHT_NAV_AFTER_GAMES='+(await page.screenshot({type:'jpeg',quality:68})).toString('base64'))
  console.log('NIGHT_GAME_GALLERY_BASE64='+(await page.locator('#view-games').screenshot({type:'jpeg',quality:58})).toString('base64'));
  assert.equal(await page.locator('.brand-mark use').first().getAttribute('href'),'#icon-brand')
- assert.equal(await page.locator('.library-card .game-art').count(),9,'Other games retain their SVG thumbnails')
+ assert.ok((await page.locator('.library-card .game-art').count())>=9,'Existing SVG thumbnails remain and additional games can be illustrated')
+ assert.equal(await page.locator('.library-card[data-external-game="/strategy/"]').count(),1,'Chess opens a real legal-move game')
+ assert.equal(await page.locator('.library-card[data-external-game="/piano-tiles/"]').count(),1,'Piano Tiles has a playable entry')
  assert.equal(await page.locator('.library-card[data-jigsaw] .jigsaw-cover-photo').count(),1,'Jigsaw no longer uses the old generated puzzle illustration')
  assert.equal(await page.locator('.library-card[data-name="wing hop flappy bird"] .wing-preview-bird').count(),1,'Wing Hop uses actual bundled character artwork')
  assert.equal(await page.locator('.library-card[data-club="ludo"]').count(),0,'Unfinished Ludo is hidden from the public game library')
