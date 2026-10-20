@@ -175,7 +175,7 @@ private fun NightBrowser(browser: BrowserController, openSaved: (SavedPage) -> U
                                         duration = SnackbarDuration.Short
                                     )
                                     if (response == SnackbarResult.ActionPerformed &&
-                                        browser.undoCloseTab()) page = Page.WEB
+                                        browser.undoCloseTab(tab.id)) page = Page.WEB
                                 }
                             }
                         },
