@@ -49,7 +49,7 @@ private enum class LibSection(val label: String) {
 fun NightLibraryScreen(browser: BrowserController, onOpen: (String) -> Unit) {
     val context = LocalContext.current
     val repo = remember(browser) { LibraryRepository(context.applicationContext, browser.store) }
-    val downloads = remember { DownloadLibrary(context.applicationContext) }
+    val downloads = remember { DownloadLibrary.shared(context.applicationContext) }
     val scope = rememberCoroutineScope()
     var section by remember { mutableStateOf(LibSection.BOOKMARKS) }
     var query by remember { mutableStateOf("") }
@@ -216,7 +216,7 @@ fun NightLibraryScreen(browser: BrowserController, onOpen: (String) -> Unit) {
                                         export = row
                                         chooseExport.launch(row.fileName)
                                     }) { Text("Export") }
-                                } else if (row.status == DownloadManager.STATUS_FAILED) {
+                                } else if (row.status == DownloadManager.STATUS_FAILED && row.localFile.isBlank()) {
                                     TextButton(onClick = {
                                         downloads.retry(row).exceptionOrNull()?.let { notify(it.message) }
                                     }) { Text("Retry") }
