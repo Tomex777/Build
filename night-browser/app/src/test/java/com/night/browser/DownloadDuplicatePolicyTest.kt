@@ -17,10 +17,10 @@ class DownloadDuplicatePolicyTest {
         ))
     }
 
-    @Test fun sameSourceWithNewDownloadNameWarns() {
-        assertTrue(DownloadDuplicatePolicy.matches(
-            "https://EXAMPLE.org/files/get?token=new", "renamed.pdf",
-            "https://example.org/files/get?token=old", "original.pdf"
+    @Test fun unrelatedFilesFromSameGenericDownloadEndpointDoNotWarn() {
+        assertFalse(DownloadDuplicatePolicy.matches(
+            "https://EXAMPLE.org/files/get?id=2", "second.pdf",
+            "https://example.org/files/get?id=1", "first.pdf"
         ))
     }
 
