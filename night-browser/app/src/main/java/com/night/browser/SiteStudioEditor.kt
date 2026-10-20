@@ -63,6 +63,8 @@ fun SiteStudioEditor(
     onPreview: (SiteRule) -> Unit,
     onSave: (SiteRule) -> Unit,
     onReset: () -> Unit,
+    canUndo: Boolean = false,
+    onUndo: () -> Unit = {},
     onDismiss: () -> Unit
 ) {
     val origin = remember(pageUrl) { SiteOrigins.fromUrl(pageUrl) }
@@ -156,7 +158,12 @@ fun SiteStudioEditor(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                TextButton(onClick = onReset) { Text("Reset site") }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    TextButton(onClick = onReset) { Text("Reset") }
+                    if (canUndo) {
+                        TextButton(onClick = onUndo) { Text("Undo") }
+                    }
+                }
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     OutlinedButton(enabled = allowActions, onClick = { onPreview(draft) }) {
                         Text("Preview")
