@@ -150,9 +150,9 @@ private fun NightBrowser(browser: BrowserController, openSaved: (SavedPage) -> U
         Column(Modifier.fillMaxSize().padding(padding)) {
             Box(Modifier.weight(1f).fillMaxWidth()) {
                 when (page) {
-                    Page.HOME -> HomePanel(browser,
-                        onJourney = { page = Page.JOURNEYS },
-                        onOpen = { url -> browser.navigate(url); page = Page.WEB })
+                    Page.HOME -> NightStartPage(browser,
+                        onOpen = { raw -> browser.navigate(raw); page = Page.WEB },
+                        onJourneys = { page = Page.JOURNEYS })
                     Page.WEB -> WebSurface(current)
                     Page.TABS -> TabPanel(browser,
                         onOpen = { openTab(it) },
@@ -188,6 +188,9 @@ private fun NightBrowser(browser: BrowserController, openSaved: (SavedPage) -> U
                 )
             }
 
+            // The custom start page owns the sole omnibar on Home.
+            // Website address entry belongs to real web browsing only.
+            if (page == Page.WEB) {
             Row(
                 Modifier.fillMaxWidth().background(Ink)
                     .padding(horizontal = 14.dp, vertical = 8.dp),
@@ -220,6 +223,7 @@ private fun NightBrowser(browser: BrowserController, openSaved: (SavedPage) -> U
                 ChromeIcon(Icons.Rounded.ArrowUpward, "Go", enabled = address.isNotBlank()) {
                     openAddress()
                 }
+            }
             }
             HorizontalDivider(color = Border, thickness = 1.dp)
             Row(
