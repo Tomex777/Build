@@ -54,7 +54,7 @@ def make_wav() -> bytes:
         writer.setnchannels(1)
         writer.setsampwidth(2)
         writer.setframerate(8000)
-        writer.writeframes(b"\\x00\\x00" * 800)
+        writer.writeframes(bytes(1600))
     return out.getvalue()
 
 
