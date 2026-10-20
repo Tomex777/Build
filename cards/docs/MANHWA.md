@@ -1,21 +1,40 @@
-# NIGHT / Manhwa — first candidate collection (21 October 2026)
+# NIGHT / Manhwa — expanded candidate collection (21 October 2026)
 
-**Implemented foundation:** 23 distinct collectible *edition specifications* across three manhwa worlds. This is not a claim that 23 illustrated cards are finished. Original artwork has not been acquired or visually approved; the lock is deliberately empty. The live NIGHT website and WhatsApp bot have **not** been changed.
+**Implemented catalogue:** **82 distinct collectible edition candidates**, expanded from 23, across three manhwa worlds. This is **not** a claim that 82 illustrated cards are finished. Every candidate remains pending chapter-level adaptation confirmation and original artwork verification. Original artwork has not been acquired or visually approved; the lock is deliberately empty. The live NIGHT website and WhatsApp bot have **not** been changed.
 
 ## Card families and series
 
 | Series | Power | Story spotlight | Romance duo | Total |
 | --- | ---: | ---: | ---: | ---: |
-| SSS-Class Revival Hunter | 6 | 1 | 1 | 8 |
-| The Infinite Mage | 5 | 3 | 1 | 9 |
-| Study Group | 0 | 6 | 0 | 6 |
-| **Total** | **11** | **10** | **2** | **23** |
+| SSS-Class Revival Hunter | 11 | 12 | 1 | 24 |
+| The Infinite Mage | 10 | 23 | 1 | 34 |
+| Study Group | 0 | 24 | 0 | 24 |
+| **Total** | **21** | **59** | **2** | **82** |
 
 **Power** means a specific form in its own manhwa continuity; candidate ranks remain **null** until a reference-located feat audit. A character's official Tower guild standing or magical school rank is *not* a NIGHT editorial F–EX grade. A manhwa's late-novel exploits must never be retroactively pinned to a school-age webcomic portrait.
 
 **Story spotlight** covers significant characters without giving everyone an invented combat ranking. In particular, *Study Group* has a grounded fighting/school narrative and receives no fantasy F–EX ladder. Scenes of Gamin's protection of his friends, Hankyeong's mentorship, and study-group friendships are appropriate source-specific spotlight designs.
 
 **Romance duo** is a separate family, with two individually identified subjects and an actual relationship theme rather than power grading. Initial story-spoiler concepts are Gong-ja × Raviel (*SSS-Class Revival Hunter*) and Sirone × Amy (*Infinite Mage*). Each must use authentic **two-subject art** from the correct story continuity; neither can be fabricated by relabeling a solo portrait. The shared NIGHT finishes are a starting material choice, not a new romance-exclusive frame design.
+
+## Expanded cast and strict publication boundaries
+
+The additional **59 editions** include 16 SSS-Class Revival Hunter candidates, 25 Infinite Mage candidates and 18 Study Group candidates. Stable IDs from the original 23 editions remain unchanged.
+
+- **SSS-Class Revival Hunter:** Countess, Heresy Inquisitor, Paladin, Viper, Marcus Calenbury / Sword Saint, Master Alchemist, Sylvia Evanail, Ester / Demon King of Fall Rain (distinct forms), Uburka, Hamustra, Hellfire Maiden, Lefanta Aegim, Sarbast Aegim and Goddess of Protection. Multiple versions of Sylvia require distinct poses and provenance.
+- **The Infinite Mage:** Adrias Miro, Arin, Bishop Ogent, Cerielle Portris, Cuan Parka, Fermi Ardino, Guy Ogent, Isis Karmis, Jake Ardius, Kanis, Kanya, Klump Ogent, Lucas, Mark Slider, Marsha Clay, Olina Arian, Rai Ogent, Reina Ogent, Richard Pyger, Shakora Karmis, Sienna Olypher, Tess Elzaine, Thad, Victor Arcane and Vincent Arian.
+- **Study Group:** Geonyeob Park, Hyunwoo Lee, Jun Lee, Minhwan Ma, Siwan Cheon, Sunchul Kim, Minho Kim, Sangin Bang, Jaehwang Chu, Taehwan Ahn / Anti, Dohoon Jung, Junghwa Oh, Yeonbaek Phi, Hansol Phi, Wooyeol Park, Jaehee Hong, Junmin Yoon and Seokdae Um.
+
+These are **candidate identities, not 82 independently chapter-verified appearances**. Community character indexes may include figures or forms whose only substantiated appearance is in the source novel or a different adaptation. The roster records `research.verification = candidate-not-confirmed` and `webcomicAppearance = requires-chapter-check` for *all* 82 until the adapted episode is reviewed. A chapter-verified claim must include its episode number, publisher episode URL, reviewer, and review date; a publisher's general series page alone cannot pass for episode proof.
+
+Story cards must never imply the protagonist's in-universe power rankings exist where they do not. In Study Group, even skilled martial artists are **not** assigned the fantasy power scale. Story and relationship editions may depict accurate school rivalries, bonds, turning points, or mentorship, after verifying those scenes.
+
+### Source-identity rules
+
+- A *character* is not the same as a *form*: Ester's saintess image cannot label her Demon King body; Sylvia's academy dress cannot substitute a later chamberlain appearance.
+- Long-running stories are **continuity-specific**. For Infinite Mage and SSS-Class Revival Hunter, do not assign later novel feats to webcomic-era character images.
+- Naming aliases (e.g. Sirone/Shirone, Viper/Venomous Snake, Gamin Yoon/Yoon Ga-min) are search aids, **not additional card editions**.
+- The two initial romance duos must remain two-subject art editions rather than a single protagonist portrait with a romantic caption.
 
 ## Existing NIGHT visual contract
 
@@ -30,7 +49,7 @@
 
 - **SSS-Class Revival Hunter:** [official Tapas publication](https://tapas.io/series/sss-class-revival-hunter/info), [Yen Press](https://yenpress.com/series/sss-class-revival-hunter), [character identity reference (community, spoiler-heavy)](https://sss-class-revival-hunter.fandom.com/wiki/Category:Character).
 - **The Infinite Mage:** [official Tapas webcomic](https://tapas.io/series/the-infinite-mage/info), [official Tapas novel](https://tapas.io/series/the-infinite-mage-novel/info) *only for separating adaptations, never to inflate webcomic tiers*, [cast index (community)](https://infinite-mage.fandom.com/wiki/Category:Characters).
-- **Study Group:** [official WEBTOON](https://www.webtoons.com/en/action/study-group/list?title_no=3595), [YLAB publisher entry](https://welcon.kocca.kr/en/directory/content/study-group--8938), [member list (community)](https://study-group.fandom.com/wiki/Characters).
+- **Study Group:** [official WEBTOON](https://www.webtoons.com/en/action/study-group/list?title_no=3595), [YLAB publisher entry](https://welcon.kocca.kr/en/directory/content/study-group--8938), [member list (community)](https://webtoon.fandom.com/id/wiki/Study_Group).
 
 Published translations vary (Gong-ja / Confucius Kim, Sirone / Shirone, Gamin Yoon / Youn Ga-min). Catalogue IDs are stable, and editorial display names follow the webcomic-first convention. Wikipedia, Fandom, and community articles are **discovery evidence**, not sufficient to verify an SSS/EX feat or issue a commercial image license.
 
