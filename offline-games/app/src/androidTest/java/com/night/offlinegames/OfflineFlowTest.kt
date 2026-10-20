@@ -153,7 +153,10 @@ class OfflineFlowTest {
     """.trimIndent())
 
     private fun saveScreenshot(device: UiDevice, context: android.content.Context, filename: String) {
-        val directory = context.getExternalFilesDir(null) ?: return
-        device.takeScreenshot(File(directory, filename))
+        val directory = context.getExternalFilesDir(null)
+        assertNotNull("Android screenshot directory unavailable", directory)
+        val file = File(directory!!, filename)
+        org.junit.Assert.assertTrue("Capture failed: $filename", device.takeScreenshot(file))
+        org.junit.Assert.assertTrue("Screenshot empty: $filename", file.exists() && file.length() > 1000L)
     }
 }
