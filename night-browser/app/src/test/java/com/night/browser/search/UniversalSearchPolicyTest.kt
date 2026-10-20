@@ -94,6 +94,36 @@ class UniversalSearchPolicyTest {
         assertTrue(UniversalSearchPolicy.eligibleCandidates(listOf(page)).isEmpty())
     }
 
+    @Test fun urlOrEmailHiddenInsideTitleIsNeverSentAsContext() {
+        val pages = listOf(
+            SearchSource("u1", "https://example.com/docs?auth=secret", "https://example.com/docs", "Bookmark"),
+            SearchSource("u2", "docs.example.com/sensitive/route", "https://example.com/docs", "Bookmark"),
+            SearchSource("u3", "Receipt for jane@example.com", "https://example.com/receipts", "Visit"),
+            SearchSource("u4", "https%3A%2F%2Fexample.com%2Faccount%3Ftoken%3Dsecret",
+                "https://example.com/landing", "Visit"),
+            SearchSource("u5", "Documentation\\nAuthorization: secret", "https://example.com/wiki", "Visit"),
+        )
+        assertTrue(UniversalSearchPolicy.eligibleCandidates(pages).isEmpty())
+    }
+
+    @Test fun doubleEncodedSensitiveRoutesAreRejected() {
+        val encoded = SearchSource("encoded", "Welcome",
+            "https://example.com/%256Cogin", "Visit")
+        assertTrue(UniversalSearchPolicy.eligibleCandidates(listOf(encoded)).isEmpty())
+    }
+
+    @Test fun duplicateIdsCannotAccidentallyApproveDifferentPages() {
+        val secondWithSameId = secondBookmark.copy(id = publicBookmark.id)
+        val eligible = UniversalSearchPolicy.eligibleCandidates(
+            listOf(publicBookmark, secondWithSameId)
+        )
+        assertEquals(listOf(publicBookmark), eligible)
+        val ready = UniversalSearchPolicy.prepare(
+            "My page", eligible, setOf(publicBookmark.id), true, false
+        ) as SearchPreparation.Ready
+        assertEquals(listOf(publicBookmark), ready.sources.map { it.original })
+    }
+
     @Test fun missingSelectionAndBlankQuestionAreRejected() {
         assertTrue(
             UniversalSearchPolicy.prepare("", listOf(publicBookmark), setOf("S1"), true, false)
