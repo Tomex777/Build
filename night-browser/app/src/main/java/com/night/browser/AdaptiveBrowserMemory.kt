@@ -21,11 +21,11 @@ class AdaptiveBrowserMemory(
     @Deprecated("Android framework callback, still used on API 26+")
     override fun onTrimMemory(level: Int) {
         when {
+            level == ComponentCallbacks2.TRIM_MEMORY_UI_HIDDEN ->
+                trimPreviews(dropAllInactive = false)
             level >= ComponentCallbacks2.TRIM_MEMORY_RUNNING_CRITICAL ->
                 trimPreviews(dropAllInactive = true)
             level >= ComponentCallbacks2.TRIM_MEMORY_RUNNING_LOW ->
-                trimPreviews(dropAllInactive = false)
-            level == ComponentCallbacks2.TRIM_MEMORY_UI_HIDDEN ->
                 trimPreviews(dropAllInactive = false)
         }
     }
