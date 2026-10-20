@@ -44,7 +44,7 @@ object UniversalSearchPolicy {
     // contain personal email addresses. Titles are SENT to the provider, so treating
     // the URL field alone as sensitive would accidentally leak full URLs or tokens.
     private val urlOrEmailInTitle = Regex(
-        """(?i)(?:\\b(?:https?://|www\\.)|\\b[a-z0-9.-]+\\.[a-z]{2,}/\\S*|[a-z0-9._%+-]+@[a-z0-9.-]+\\.[a-z]{2,})"""
+        """(?i)(?:\b(?:https?://|www\.)|\b[a-z0-9.-]+\.[a-z]{2,}/\S*|[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,})"""
     )
 
     // Sites sometimes double-percent-encode sensitive routes. Decode for the
