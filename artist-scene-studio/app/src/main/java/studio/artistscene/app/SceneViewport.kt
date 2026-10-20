@@ -50,7 +50,8 @@ import io.github.sceneview.rememberMaterialLoader
 import io.github.sceneview.rememberModelLoader
 import io.github.sceneview.rememberView
 import io.github.sceneview.gesture.CameraGestureDetector
-import io.github.sceneview.node.ImageNode
+import io.github.sceneview.texture.ImageTexture
+import io.github.sceneview.texture.setBitmap
 import io.github.sceneview.node.LightNode
 import io.github.sceneview.node.PlaneNode
 import java.io.ByteArrayOutputStream
@@ -196,11 +197,20 @@ fun SceneViewport(
     }
     // A genuine ground-plane reference grid, not a 2D UI overlay. It follows
     // perspective as the artist orbits and can be hidden for clean story scenes.
-    val gridBitmap = remember(project.world.gridEnabled) {
-        if (project.world.gridEnabled) createReferenceGridBitmap() else null
+    // SceneView 3.6's ImageNode destructor can free its texture while its
+    // MaterialLoader still holds a JNI wrapper for the textured MaterialInstance.
+    // Filament aborts natively on scene close: "Invalid texture still bound".
+    // A PlaneNode with the ORIGINAL loader-owned instance avoids that lifecycle bug.
+    // Keep this image texture alive until MaterialLoader/Engine teardown.
+    val gridBitmap = remember(engine) { createReferenceGridBitmap() }
+    val gridTexture = remember(engine) {
+        ImageTexture.Builder().bitmap(gridBitmap).build(engine)
+    }
+    val gridMaterial = remember(materialLoader, gridTexture) {
+        materialLoader.createImageInstance(gridTexture)
     }
     DisposableEffect(gridBitmap) {
-        onDispose { gridBitmap?.recycle() }
+        onDispose { gridBitmap.recycle() }
     }
     val mainLightNode = rememberMainLightNode(engine)
     // Shadow maps are part of Filament's scene rendering, independent of the
@@ -342,9 +352,9 @@ fun SceneViewport(
             )
         }
 
-        if (project.world.groundEnabled && project.world.gridEnabled && gridBitmap != null) {
-            ImageNode(
-                bitmap = gridBitmap,
+        if (project.world.groundEnabled && project.world.gridEnabled) {
+            PlaneNode(
+                materialInstance = gridMaterial,
                 size = Size(24f, 0f, 24f),
                 normal = Direction(0f, 1f, 0f),
                 position = Position(0f, 0.007f, 0f),
@@ -360,9 +370,23 @@ fun SceneViewport(
             val bitmap = rememberReferenceBitmap(context, reference)
             if (bitmap != null) {
                 val t = reference.transform
-                key(reference.id, bitmap, t) {
-                    ImageNode(
-                        bitmap = bitmap,
+                key(reference.id, reference.persistedUri) {
+                    // One texture and one loader-owned MaterialInstance per reference URI,
+                    // updated in place when opacity changes. The reference plane no longer
+                    // destroys a bound texture before its MaterialInstance on navigation.
+                    val texture = remember(engine) {
+                        ImageTexture.Builder().bitmap(bitmap).build(engine)
+                    }
+                    LaunchedEffect(texture, bitmap) {
+                        texture.setBitmap(engine, bitmap)
+                    }
+                    val imageMaterial = remember(materialLoader, texture) {
+                        materialLoader.createImageInstance(texture)
+                    }
+                    val maxSide = maxOf(bitmap.width, bitmap.height).toFloat().coerceAtLeast(1f)
+                    PlaneNode(
+                        materialInstance = imageMaterial,
+                        size = Size(bitmap.width / maxSide, bitmap.height / maxSide, 0f),
                         normal = Direction(0f, 0f, 1f),
                         position = Position(t.position.x, t.position.y, t.position.z),
                         rotation = Rotation(
