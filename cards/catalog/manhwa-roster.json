@@ -87,7 +87,21 @@
           320,
           512
         ]
-      }
+      },
+      "research": {
+        "evidence": [
+          "https://tapas.io/series/sss-class-revival-hunter/info",
+          "https://sss-class-revival-hunter.fandom.com/wiki/Category:Character"
+        ],
+        "evidenceType": "publisher-series-plus-community-character-index",
+        "webcomicAppearance": "requires-chapter-check",
+        "verification": "candidate-not-confirmed"
+      },
+      "aliases": [
+        "Kim Gongja",
+        "Gong-ja Kim",
+        "Confucius Kim"
+      ]
     },
     {
       "id": "gong-ja-demonic-arts",
@@ -133,7 +147,20 @@
           320,
           512
         ]
-      }
+      },
+      "research": {
+        "evidence": [
+          "https://tapas.io/series/sss-class-revival-hunter/info",
+          "https://sss-class-revival-hunter.fandom.com/wiki/Category:Character"
+        ],
+        "evidenceType": "publisher-series-plus-community-character-index",
+        "webcomicAppearance": "requires-chapter-check",
+        "verification": "candidate-not-confirmed"
+      },
+      "aliases": [
+        "Kim Gongja",
+        "Gong-ja Kim"
+      ]
     },
     {
       "id": "heavenly-demon",
@@ -179,7 +206,17 @@
           320,
           512
         ]
-      }
+      },
+      "research": {
+        "evidence": [
+          "https://tapas.io/series/sss-class-revival-hunter/info",
+          "https://sss-class-revival-hunter.fandom.com/wiki/Category:Character"
+        ],
+        "evidenceType": "publisher-series-plus-community-character-index",
+        "webcomicAppearance": "requires-chapter-check",
+        "verification": "candidate-not-confirmed"
+      },
+      "aliases": []
     },
     {
       "id": "sword-emperor",
@@ -225,7 +262,17 @@
           320,
           512
         ]
-      }
+      },
+      "research": {
+        "evidence": [
+          "https://tapas.io/series/sss-class-revival-hunter/info",
+          "https://sss-class-revival-hunter.fandom.com/wiki/Category:Character"
+        ],
+        "evidenceType": "publisher-series-plus-community-character-index",
+        "webcomicAppearance": "requires-chapter-check",
+        "verification": "candidate-not-confirmed"
+      },
+      "aliases": []
     },
     {
       "id": "black-witch",
@@ -271,7 +318,20 @@
           320,
           512
         ]
-      }
+      },
+      "research": {
+        "evidence": [
+          "https://tapas.io/series/sss-class-revival-hunter/info",
+          "https://sss-class-revival-hunter.fandom.com/wiki/Category:Character"
+        ],
+        "evidenceType": "publisher-series-plus-community-character-index",
+        "webcomicAppearance": "requires-chapter-check",
+        "verification": "candidate-not-confirmed"
+      },
+      "aliases": [
+        "Anastasia Zelenski",
+        "Witch of the Black Dragon"
+      ]
     },
     {
       "id": "yoo-soo-ha",
@@ -317,7 +377,20 @@
           320,
           512
         ]
-      }
+      },
+      "research": {
+        "evidence": [
+          "https://tapas.io/series/sss-class-revival-hunter/info",
+          "https://sss-class-revival-hunter.fandom.com/wiki/Category:Character"
+        ],
+        "evidenceType": "publisher-series-plus-community-character-index",
+        "webcomicAppearance": "requires-chapter-check",
+        "verification": "candidate-not-confirmed"
+      },
+      "aliases": [
+        "Yoo Soo Ha",
+        "Flame Emperor"
+      ]
     },
     {
       "id": "raviel-ivansia",
@@ -356,7 +429,20 @@
           320,
           512
         ]
-      }
+      },
+      "research": {
+        "evidence": [
+          "https://tapas.io/series/sss-class-revival-hunter/info",
+          "https://sss-class-revival-hunter.fandom.com/wiki/Category:Character"
+        ],
+        "evidenceType": "publisher-series-plus-community-character-index",
+        "webcomicAppearance": "requires-chapter-check",
+        "verification": "candidate-not-confirmed"
+      },
+      "aliases": [
+        "Raviel Ivansi",
+        "Lady of the Silver Lily"
+      ]
     },
     {
       "id": "gong-ja-raviel",
@@ -403,7 +489,20 @@
           320,
           512
         ]
-      }
+      },
+      "research": {
+        "evidence": [
+          "https://tapas.io/series/sss-class-revival-hunter/info",
+          "https://sss-class-revival-hunter.fandom.com/wiki/Category:Character"
+        ],
+        "evidenceType": "publisher-series-plus-community-character-index",
+        "webcomicAppearance": "requires-chapter-check",
+        "verification": "candidate-not-confirmed"
+      },
+      "aliases": [
+        "Kim Gongja × Raviel",
+        "Gong-ja and Raviel"
+      ]
     },
     {
       "id": "sirone-academy",
@@ -449,7 +548,20 @@
           320,
           512
         ]
-      }
+      },
+      "research": {
+        "evidence": [
+          "https://tapas.io/series/the-infinite-mage/info",
+          "https://infinite-mage.fandom.com/wiki/Category:Characters"
+        ],
+        "evidenceType": "publisher-series-plus-community-character-index",
+        "webcomicAppearance": "requires-chapter-check",
+        "verification": "candidate-not-confirmed"
+      },
+      "aliases": [
+        "Shirone",
+        "Sirone"
+      ]
     },
     {
       "id": "sirone-photon",
@@ -495,7 +607,19 @@
           320,
           512
         ]
-      }
+      },
+      "research": {
+        "evidence": [
+          "https://tapas.io/series/the-infinite-mage/info",
+          "https://infinite-mage.fandom.com/wiki/Category:Characters"
+        ],
+        "evidenceType": "publisher-series-plus-community-character-index",
+        "webcomicAppearance": "requires-chapter-check",
+        "verification": "candidate-not-confirmed"
+      },
+      "aliases": [
+        "Shirone"
+      ]
     },
     {
       "id": "amy-karmis",
@@ -541,7 +665,17 @@
           320,
           512
         ]
-      }
+      },
+      "research": {
+        "evidence": [
+          "https://tapas.io/series/the-infinite-mage/info",
+          "https://infinite-mage.fandom.com/wiki/Category:Characters"
+        ],
+        "evidenceType": "publisher-series-plus-community-character-index",
+        "webcomicAppearance": "requires-chapter-check",
+        "verification": "candidate-not-confirmed"
+      },
+      "aliases": []
     },
     {
       "id": "alpheas-mirhy",
@@ -587,7 +721,17 @@
           320,
           512
         ]
-      }
+      },
+      "research": {
+        "evidence": [
+          "https://tapas.io/series/the-infinite-mage/info",
+          "https://infinite-mage.fandom.com/wiki/Category:Characters"
+        ],
+        "evidenceType": "publisher-series-plus-community-character-index",
+        "webcomicAppearance": "requires-chapter-check",
+        "verification": "candidate-not-confirmed"
+      },
+      "aliases": []
     },
     {
       "id": "ethella-romie",
@@ -633,7 +777,17 @@
           320,
           512
         ]
-      }
+      },
+      "research": {
+        "evidence": [
+          "https://tapas.io/series/the-infinite-mage/info",
+          "https://infinite-mage.fandom.com/wiki/Category:Characters"
+        ],
+        "evidenceType": "publisher-series-plus-community-character-index",
+        "webcomicAppearance": "requires-chapter-check",
+        "verification": "candidate-not-confirmed"
+      },
+      "aliases": []
     },
     {
       "id": "rian-ogent",
@@ -672,7 +826,17 @@
           320,
           512
         ]
-      }
+      },
+      "research": {
+        "evidence": [
+          "https://tapas.io/series/the-infinite-mage/info",
+          "https://infinite-mage.fandom.com/wiki/Category:Characters"
+        ],
+        "evidenceType": "publisher-series-plus-community-character-index",
+        "webcomicAppearance": "requires-chapter-check",
+        "verification": "candidate-not-confirmed"
+      },
+      "aliases": []
     },
     {
       "id": "iruki-mercodain",
@@ -711,7 +875,19 @@
           320,
           512
         ]
-      }
+      },
+      "research": {
+        "evidence": [
+          "https://tapas.io/series/the-infinite-mage/info",
+          "https://infinite-mage.fandom.com/wiki/Category:Characters"
+        ],
+        "evidenceType": "publisher-series-plus-community-character-index",
+        "webcomicAppearance": "requires-chapter-check",
+        "verification": "candidate-not-confirmed"
+      },
+      "aliases": [
+        "Eruki Mercodain"
+      ]
     },
     {
       "id": "nade-west",
@@ -750,7 +926,17 @@
           320,
           512
         ]
-      }
+      },
+      "research": {
+        "evidence": [
+          "https://tapas.io/series/the-infinite-mage/info",
+          "https://infinite-mage.fandom.com/wiki/Category:Characters"
+        ],
+        "evidenceType": "publisher-series-plus-community-character-index",
+        "webcomicAppearance": "requires-chapter-check",
+        "verification": "candidate-not-confirmed"
+      },
+      "aliases": []
     },
     {
       "id": "sirone-amy",
@@ -797,7 +983,19 @@
           320,
           512
         ]
-      }
+      },
+      "research": {
+        "evidence": [
+          "https://tapas.io/series/the-infinite-mage/info",
+          "https://infinite-mage.fandom.com/wiki/Category:Characters"
+        ],
+        "evidenceType": "publisher-series-plus-community-character-index",
+        "webcomicAppearance": "requires-chapter-check",
+        "verification": "candidate-not-confirmed"
+      },
+      "aliases": [
+        "Shirone and Amy"
+      ]
     },
     {
       "id": "gamin-yoon",
@@ -836,7 +1034,21 @@
           320,
           512
         ]
-      }
+      },
+      "research": {
+        "evidence": [
+          "https://www.webtoons.com/en/action/study-group/list?title_no=3595",
+          "https://webtoon.fandom.com/id/wiki/Study_Group"
+        ],
+        "evidenceType": "publisher-series-plus-community-character-index",
+        "webcomicAppearance": "requires-chapter-check",
+        "verification": "candidate-not-confirmed"
+      },
+      "aliases": [
+        "Yoon Ga-min",
+        "Youn Gamin",
+        "Yoon Gamin"
+      ]
     },
     {
       "id": "hankyeong-lee",
@@ -875,7 +1087,20 @@
           320,
           512
         ]
-      }
+      },
+      "research": {
+        "evidence": [
+          "https://www.webtoons.com/en/action/study-group/list?title_no=3595",
+          "https://webtoon.fandom.com/id/wiki/Study_Group"
+        ],
+        "evidenceType": "publisher-series-plus-community-character-index",
+        "webcomicAppearance": "requires-chapter-check",
+        "verification": "candidate-not-confirmed"
+      },
+      "aliases": [
+        "Lee Han-kyung",
+        "Lee Han-gyeong"
+      ]
     },
     {
       "id": "sehyun-kim",
@@ -914,7 +1139,19 @@
           320,
           512
         ]
-      }
+      },
+      "research": {
+        "evidence": [
+          "https://www.webtoons.com/en/action/study-group/list?title_no=3595",
+          "https://webtoon.fandom.com/id/wiki/Study_Group"
+        ],
+        "evidenceType": "publisher-series-plus-community-character-index",
+        "webcomicAppearance": "requires-chapter-check",
+        "verification": "candidate-not-confirmed"
+      },
+      "aliases": [
+        "Kim Se-hyun"
+      ]
     },
     {
       "id": "jiwoo-lee",
@@ -953,7 +1190,19 @@
           320,
           512
         ]
-      }
+      },
+      "research": {
+        "evidence": [
+          "https://www.webtoons.com/en/action/study-group/list?title_no=3595",
+          "https://webtoon.fandom.com/id/wiki/Study_Group"
+        ],
+        "evidenceType": "publisher-series-plus-community-character-index",
+        "webcomicAppearance": "requires-chapter-check",
+        "verification": "candidate-not-confirmed"
+      },
+      "aliases": [
+        "Lee Ji-woo"
+      ]
     },
     {
       "id": "heewon-choi",
@@ -992,7 +1241,19 @@
           320,
           512
         ]
-      }
+      },
+      "research": {
+        "evidence": [
+          "https://www.webtoons.com/en/action/study-group/list?title_no=3595",
+          "https://webtoon.fandom.com/id/wiki/Study_Group"
+        ],
+        "evidenceType": "publisher-series-plus-community-character-index",
+        "webcomicAppearance": "requires-chapter-check",
+        "verification": "candidate-not-confirmed"
+      },
+      "aliases": [
+        "Choi Hee-won"
+      ]
     },
     {
       "id": "hanwool-phi",
@@ -1031,7 +1292,20 @@
           320,
           512
         ]
-      }
+      },
+      "research": {
+        "evidence": [
+          "https://www.webtoons.com/en/action/study-group/list?title_no=3595",
+          "https://webtoon.fandom.com/id/wiki/Study_Group"
+        ],
+        "evidenceType": "publisher-series-plus-community-character-index",
+        "webcomicAppearance": "requires-chapter-check",
+        "verification": "candidate-not-confirmed"
+      },
+      "aliases": [
+        "Pi Han-wool",
+        "Phi Hanwool"
+      ]
     },
     {
       "id": "countess-babylon",
@@ -1079,7 +1353,8 @@
         "evidenceType": "publisher-series-plus-community-character-index",
         "webcomicAppearance": "requires-chapter-check",
         "verification": "candidate-not-confirmed"
-      }
+      },
+      "aliases": []
     },
     {
       "id": "heretic-inquisitor",
@@ -1134,7 +1409,11 @@
         "evidenceType": "publisher-series-plus-community-character-index",
         "webcomicAppearance": "requires-chapter-check",
         "verification": "candidate-not-confirmed"
-      }
+      },
+      "aliases": [
+        "Heretic Questioner",
+        "Heretic Interrogator"
+      ]
     },
     {
       "id": "paladin",
@@ -1182,7 +1461,11 @@
         "evidenceType": "publisher-series-plus-community-character-index",
         "webcomicAppearance": "requires-chapter-check",
         "verification": "candidate-not-confirmed"
-      }
+      },
+      "aliases": [
+        "Crusader",
+        "Patricia"
+      ]
     },
     {
       "id": "viper-martial",
@@ -1237,7 +1520,12 @@
         "evidenceType": "publisher-series-plus-community-character-index",
         "webcomicAppearance": "requires-chapter-check",
         "verification": "candidate-not-confirmed"
-      }
+      },
+      "aliases": [
+        "Venomous Snake",
+        "Liao Fan",
+        "Poisonous Viper"
+      ]
     },
     {
       "id": "marcus-sword-saint",
@@ -1292,7 +1580,11 @@
         "evidenceType": "publisher-series-plus-community-character-index",
         "webcomicAppearance": "requires-chapter-check",
         "verification": "candidate-not-confirmed"
-      }
+      },
+      "aliases": [
+        "Sword Saint",
+        "Blade Saint"
+      ]
     },
     {
       "id": "master-alchemist",
@@ -1340,7 +1632,8 @@
         "evidenceType": "publisher-series-plus-community-character-index",
         "webcomicAppearance": "requires-chapter-check",
         "verification": "candidate-not-confirmed"
-      }
+      },
+      "aliases": []
     },
     {
       "id": "sylvia-academy",
@@ -1388,7 +1681,12 @@
         "evidenceType": "publisher-series-plus-community-character-index",
         "webcomicAppearance": "requires-chapter-check",
         "verification": "candidate-not-confirmed"
-      }
+      },
+      "aliases": [
+        "Lady of the Golden Silk",
+        "Sylvia Evanaila",
+        "Lady Goldencup"
+      ]
     },
     {
       "id": "ester-saintess",
@@ -1436,7 +1734,11 @@
         "evidenceType": "publisher-series-plus-community-character-index",
         "webcomicAppearance": "requires-chapter-check",
         "verification": "candidate-not-confirmed"
-      }
+      },
+      "aliases": [
+        "Estelle",
+        "Preta"
+      ]
     },
     {
       "id": "fall-rain-demon-king",
@@ -1491,7 +1793,12 @@
         "evidenceType": "publisher-series-plus-community-character-index",
         "webcomicAppearance": "requires-chapter-check",
         "verification": "candidate-not-confirmed"
-      }
+      },
+      "aliases": [
+        "Demon King of Autumn Rain",
+        "Estelle",
+        "Preta"
+      ]
     },
     {
       "id": "uburka",
@@ -1539,7 +1846,8 @@
         "evidenceType": "publisher-series-plus-community-character-index",
         "webcomicAppearance": "requires-chapter-check",
         "verification": "candidate-not-confirmed"
-      }
+      },
+      "aliases": []
     },
     {
       "id": "hamustra",
@@ -1587,7 +1895,8 @@
         "evidenceType": "publisher-series-plus-community-character-index",
         "webcomicAppearance": "requires-chapter-check",
         "verification": "candidate-not-confirmed"
-      }
+      },
+      "aliases": []
     },
     {
       "id": "hellfire-maiden",
@@ -1635,7 +1944,8 @@
         "evidenceType": "publisher-series-plus-community-character-index",
         "webcomicAppearance": "requires-chapter-check",
         "verification": "candidate-not-confirmed"
-      }
+      },
+      "aliases": []
     },
     {
       "id": "lefanta-aegim",
@@ -1683,7 +1993,8 @@
         "evidenceType": "publisher-series-plus-community-character-index",
         "webcomicAppearance": "requires-chapter-check",
         "verification": "candidate-not-confirmed"
-      }
+      },
+      "aliases": []
     },
     {
       "id": "sarbast-aegim",
@@ -1731,7 +2042,8 @@
         "evidenceType": "publisher-series-plus-community-character-index",
         "webcomicAppearance": "requires-chapter-check",
         "verification": "candidate-not-confirmed"
-      }
+      },
+      "aliases": []
     },
     {
       "id": "goddess-of-protection",
@@ -1786,7 +2098,8 @@
         "evidenceType": "publisher-series-plus-community-character-index",
         "webcomicAppearance": "requires-chapter-check",
         "verification": "candidate-not-confirmed"
-      }
+      },
+      "aliases": []
     },
     {
       "id": "sylvia-chamberlain",
@@ -1834,7 +2147,10 @@
         "evidenceType": "publisher-series-plus-community-character-index",
         "webcomicAppearance": "requires-chapter-check",
         "verification": "candidate-not-confirmed"
-      }
+      },
+      "aliases": [
+        "Sylvia Evanaila"
+      ]
     },
     {
       "id": "adrias-miro",
@@ -1882,7 +2198,8 @@
         "evidenceType": "publisher-series-plus-community-character-index",
         "webcomicAppearance": "requires-chapter-check",
         "verification": "candidate-not-confirmed"
-      }
+      },
+      "aliases": []
     },
     {
       "id": "arin-darkness",
@@ -1937,7 +2254,8 @@
         "evidenceType": "publisher-series-plus-community-character-index",
         "webcomicAppearance": "requires-chapter-check",
         "verification": "candidate-not-confirmed"
-      }
+      },
+      "aliases": []
     },
     {
       "id": "bishop-ogent",
@@ -1985,7 +2303,8 @@
         "evidenceType": "publisher-series-plus-community-character-index",
         "webcomicAppearance": "requires-chapter-check",
         "verification": "candidate-not-confirmed"
-      }
+      },
+      "aliases": []
     },
     {
       "id": "cerielle-portris",
@@ -2033,7 +2352,8 @@
         "evidenceType": "publisher-series-plus-community-character-index",
         "webcomicAppearance": "requires-chapter-check",
         "verification": "candidate-not-confirmed"
-      }
+      },
+      "aliases": []
     },
     {
       "id": "cuan-parka",
@@ -2081,7 +2401,8 @@
         "evidenceType": "publisher-series-plus-community-character-index",
         "webcomicAppearance": "requires-chapter-check",
         "verification": "candidate-not-confirmed"
-      }
+      },
+      "aliases": []
     },
     {
       "id": "fermi-ardino",
@@ -2129,7 +2450,8 @@
         "evidenceType": "publisher-series-plus-community-character-index",
         "webcomicAppearance": "requires-chapter-check",
         "verification": "candidate-not-confirmed"
-      }
+      },
+      "aliases": []
     },
     {
       "id": "guy-ogent",
@@ -2177,7 +2499,8 @@
         "evidenceType": "publisher-series-plus-community-character-index",
         "webcomicAppearance": "requires-chapter-check",
         "verification": "candidate-not-confirmed"
-      }
+      },
+      "aliases": []
     },
     {
       "id": "isis-karmis",
@@ -2225,7 +2548,8 @@
         "evidenceType": "publisher-series-plus-community-character-index",
         "webcomicAppearance": "requires-chapter-check",
         "verification": "candidate-not-confirmed"
-      }
+      },
+      "aliases": []
     },
     {
       "id": "jake-ardius",
@@ -2273,7 +2597,8 @@
         "evidenceType": "publisher-series-plus-community-character-index",
         "webcomicAppearance": "requires-chapter-check",
         "verification": "candidate-not-confirmed"
-      }
+      },
+      "aliases": []
     },
     {
       "id": "kanis-darkness",
@@ -2328,7 +2653,10 @@
         "evidenceType": "publisher-series-plus-community-character-index",
         "webcomicAppearance": "requires-chapter-check",
         "verification": "candidate-not-confirmed"
-      }
+      },
+      "aliases": [
+        "Canis"
+      ]
     },
     {
       "id": "kanya",
@@ -2376,7 +2704,8 @@
         "evidenceType": "publisher-series-plus-community-character-index",
         "webcomicAppearance": "requires-chapter-check",
         "verification": "candidate-not-confirmed"
-      }
+      },
+      "aliases": []
     },
     {
       "id": "klump-ogent",
@@ -2424,7 +2753,8 @@
         "evidenceType": "publisher-series-plus-community-character-index",
         "webcomicAppearance": "requires-chapter-check",
         "verification": "candidate-not-confirmed"
-      }
+      },
+      "aliases": []
     },
     {
       "id": "lucas",
@@ -2472,7 +2802,8 @@
         "evidenceType": "publisher-series-plus-community-character-index",
         "webcomicAppearance": "requires-chapter-check",
         "verification": "candidate-not-confirmed"
-      }
+      },
+      "aliases": []
     },
     {
       "id": "mark-slider",
@@ -2520,7 +2851,8 @@
         "evidenceType": "publisher-series-plus-community-character-index",
         "webcomicAppearance": "requires-chapter-check",
         "verification": "candidate-not-confirmed"
-      }
+      },
+      "aliases": []
     },
     {
       "id": "marsha-clay",
@@ -2568,7 +2900,8 @@
         "evidenceType": "publisher-series-plus-community-character-index",
         "webcomicAppearance": "requires-chapter-check",
         "verification": "candidate-not-confirmed"
-      }
+      },
+      "aliases": []
     },
     {
       "id": "olina-arian",
@@ -2616,7 +2949,8 @@
         "evidenceType": "publisher-series-plus-community-character-index",
         "webcomicAppearance": "requires-chapter-check",
         "verification": "candidate-not-confirmed"
-      }
+      },
+      "aliases": []
     },
     {
       "id": "rai-ogent",
@@ -2664,7 +2998,8 @@
         "evidenceType": "publisher-series-plus-community-character-index",
         "webcomicAppearance": "requires-chapter-check",
         "verification": "candidate-not-confirmed"
-      }
+      },
+      "aliases": []
     },
     {
       "id": "reina-ogent",
@@ -2712,7 +3047,8 @@
         "evidenceType": "publisher-series-plus-community-character-index",
         "webcomicAppearance": "requires-chapter-check",
         "verification": "candidate-not-confirmed"
-      }
+      },
+      "aliases": []
     },
     {
       "id": "richard-pyger",
@@ -2760,7 +3096,8 @@
         "evidenceType": "publisher-series-plus-community-character-index",
         "webcomicAppearance": "requires-chapter-check",
         "verification": "candidate-not-confirmed"
-      }
+      },
+      "aliases": []
     },
     {
       "id": "shakora-karmis",
@@ -2808,7 +3145,8 @@
         "evidenceType": "publisher-series-plus-community-character-index",
         "webcomicAppearance": "requires-chapter-check",
         "verification": "candidate-not-confirmed"
-      }
+      },
+      "aliases": []
     },
     {
       "id": "sienna-olypher",
@@ -2863,7 +3201,8 @@
         "evidenceType": "publisher-series-plus-community-character-index",
         "webcomicAppearance": "requires-chapter-check",
         "verification": "candidate-not-confirmed"
-      }
+      },
+      "aliases": []
     },
     {
       "id": "tess-elzaine",
@@ -2911,7 +3250,11 @@
         "evidenceType": "publisher-series-plus-community-character-index",
         "webcomicAppearance": "requires-chapter-check",
         "verification": "candidate-not-confirmed"
-      }
+      },
+      "aliases": [
+        "Tess Elzine",
+        "Tes Elzine"
+      ]
     },
     {
       "id": "thad",
@@ -2966,7 +3309,8 @@
         "evidenceType": "publisher-series-plus-community-character-index",
         "webcomicAppearance": "requires-chapter-check",
         "verification": "candidate-not-confirmed"
-      }
+      },
+      "aliases": []
     },
     {
       "id": "victor-arcane",
@@ -3021,7 +3365,8 @@
         "evidenceType": "publisher-series-plus-community-character-index",
         "webcomicAppearance": "requires-chapter-check",
         "verification": "candidate-not-confirmed"
-      }
+      },
+      "aliases": []
     },
     {
       "id": "vincent-arian",
@@ -3069,7 +3414,8 @@
         "evidenceType": "publisher-series-plus-community-character-index",
         "webcomicAppearance": "requires-chapter-check",
         "verification": "candidate-not-confirmed"
-      }
+      },
+      "aliases": []
     },
     {
       "id": "geonyeob-park",
@@ -3117,7 +3463,10 @@
         "evidenceType": "publisher-series-plus-community-character-index",
         "webcomicAppearance": "requires-chapter-check",
         "verification": "candidate-not-confirmed"
-      }
+      },
+      "aliases": [
+        "Park Geon-yeop"
+      ]
     },
     {
       "id": "hyunwoo-lee",
@@ -3165,7 +3514,11 @@
         "evidenceType": "publisher-series-plus-community-character-index",
         "webcomicAppearance": "requires-chapter-check",
         "verification": "candidate-not-confirmed"
-      }
+      },
+      "aliases": [
+        "Lee Hyun-woo",
+        "Hyeonu Lee"
+      ]
     },
     {
       "id": "jun-lee",
@@ -3213,7 +3566,8 @@
         "evidenceType": "publisher-series-plus-community-character-index",
         "webcomicAppearance": "requires-chapter-check",
         "verification": "candidate-not-confirmed"
-      }
+      },
+      "aliases": []
     },
     {
       "id": "minhwan-ma",
@@ -3261,7 +3615,10 @@
         "evidenceType": "publisher-series-plus-community-character-index",
         "webcomicAppearance": "requires-chapter-check",
         "verification": "candidate-not-confirmed"
-      }
+      },
+      "aliases": [
+        "Ma Min-hwan"
+      ]
     },
     {
       "id": "siwan-cheon",
@@ -3309,7 +3666,8 @@
         "evidenceType": "publisher-series-plus-community-character-index",
         "webcomicAppearance": "requires-chapter-check",
         "verification": "candidate-not-confirmed"
-      }
+      },
+      "aliases": []
     },
     {
       "id": "sunchul-kim",
@@ -3357,7 +3715,11 @@
         "evidenceType": "publisher-series-plus-community-character-index",
         "webcomicAppearance": "requires-chapter-check",
         "verification": "candidate-not-confirmed"
-      }
+      },
+      "aliases": [
+        "Kim Sun-chul",
+        "Kim Soon-chul"
+      ]
     },
     {
       "id": "minho-kim",
@@ -3405,7 +3767,8 @@
         "evidenceType": "publisher-series-plus-community-character-index",
         "webcomicAppearance": "requires-chapter-check",
         "verification": "candidate-not-confirmed"
-      }
+      },
+      "aliases": []
     },
     {
       "id": "sangin-bang",
@@ -3453,7 +3816,8 @@
         "evidenceType": "publisher-series-plus-community-character-index",
         "webcomicAppearance": "requires-chapter-check",
         "verification": "candidate-not-confirmed"
-      }
+      },
+      "aliases": []
     },
     {
       "id": "jaehwang-chu",
@@ -3501,7 +3865,10 @@
         "evidenceType": "publisher-series-plus-community-character-index",
         "webcomicAppearance": "requires-chapter-check",
         "verification": "candidate-not-confirmed"
-      }
+      },
+      "aliases": [
+        "Chu Jae-hwang"
+      ]
     },
     {
       "id": "taehwan-ahn",
@@ -3549,7 +3916,10 @@
         "evidenceType": "publisher-series-plus-community-character-index",
         "webcomicAppearance": "requires-chapter-check",
         "verification": "candidate-not-confirmed"
-      }
+      },
+      "aliases": [
+        "Anti"
+      ]
     },
     {
       "id": "dohoon-jung",
@@ -3597,7 +3967,10 @@
         "evidenceType": "publisher-series-plus-community-character-index",
         "webcomicAppearance": "requires-chapter-check",
         "verification": "candidate-not-confirmed"
-      }
+      },
+      "aliases": [
+        "Jung Do-hoon"
+      ]
     },
     {
       "id": "junghwa-oh",
@@ -3645,7 +4018,8 @@
         "evidenceType": "publisher-series-plus-community-character-index",
         "webcomicAppearance": "requires-chapter-check",
         "verification": "candidate-not-confirmed"
-      }
+      },
+      "aliases": []
     },
     {
       "id": "yeonbaek-phi",
@@ -3693,7 +4067,8 @@
         "evidenceType": "publisher-series-plus-community-character-index",
         "webcomicAppearance": "requires-chapter-check",
         "verification": "candidate-not-confirmed"
-      }
+      },
+      "aliases": []
     },
     {
       "id": "hansol-phi",
@@ -3741,7 +4116,8 @@
         "evidenceType": "publisher-series-plus-community-character-index",
         "webcomicAppearance": "requires-chapter-check",
         "verification": "candidate-not-confirmed"
-      }
+      },
+      "aliases": []
     },
     {
       "id": "wooyeol-park",
@@ -3789,7 +4165,8 @@
         "evidenceType": "publisher-series-plus-community-character-index",
         "webcomicAppearance": "requires-chapter-check",
         "verification": "candidate-not-confirmed"
-      }
+      },
+      "aliases": []
     },
     {
       "id": "jaehee-hong",
@@ -3837,7 +4214,8 @@
         "evidenceType": "publisher-series-plus-community-character-index",
         "webcomicAppearance": "requires-chapter-check",
         "verification": "candidate-not-confirmed"
-      }
+      },
+      "aliases": []
     },
     {
       "id": "junmin-yoon",
@@ -3885,7 +4263,8 @@
         "evidenceType": "publisher-series-plus-community-character-index",
         "webcomicAppearance": "requires-chapter-check",
         "verification": "candidate-not-confirmed"
-      }
+      },
+      "aliases": []
     },
     {
       "id": "seokdae-um",
@@ -3933,7 +4312,8 @@
         "evidenceType": "publisher-series-plus-community-character-index",
         "webcomicAppearance": "requires-chapter-check",
         "verification": "candidate-not-confirmed"
-      }
+      },
+      "aliases": []
     }
   ],
   "expanded": "2026-10-21",
