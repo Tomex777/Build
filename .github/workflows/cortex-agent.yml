@@ -29,6 +29,7 @@ jobs:
           node --check cortex-agent/index.js
           node cortex-agent/redaction-selftest.js
           node cortex-agent/client-contract-selftest.js
+          node cortex-agent/protected-settings-write-selftest.cjs
           grep -Fq 'entries.forEach(validateRestoreEntry);' cortex-agent/index.js
           bash -n cortex-agent/install.sh
           bash -n cortex-agent/cortex-agent-control
@@ -61,6 +62,9 @@ jobs:
           grep -Fq 'ReadWritePaths=/etc/systemd/system ' cortex-agent/cortex-agent.service
           grep -Fq 'cortex-agent ALL=(root) NOPASSWD: /usr/local/libexec/cortex-agent-control start' cortex-agent/install.sh
           grep -Fq 'cortex-agent ALL=(root) NOPASSWD: /usr/local/libexec/cortex-agent-control env-set *' cortex-agent/install.sh
+          grep -Fq 'cortex-agent ALL=(root) NOPASSWD: /usr/local/libexec/cortex-agent-control setting-set *' cortex-agent/install.sh
+          grep -Fq '/usr/local/libexec/cortex-agent-settings-write.cjs' cortex-agent/cortex-agent-control
+          grep -Fq 'install -m 0644 "$SCRIPT_DIR/protected-settings-write.cjs"' cortex-agent/install.sh
           grep -Fq 'cortex-agent ALL=(root) NOPASSWD: /usr/local/libexec/cortex-agent-control runner-start *' cortex-agent/install.sh
           grep -Fq 'cortex-agent ALL=(root) NOPASSWD: /usr/local/libexec/cortex-agent-control runner-stop' cortex-agent/install.sh
           grep -Fq 'RUNNER_USER=cortex-runner' cortex-agent/install.sh
