@@ -85,7 +85,7 @@ def uploaded_part_sha256(body: bytes, content_type: str) -> str | None:
 
 def has_test_cookie(header: str) -> bool:
     # Do not count another cookie whose name merely ends with the marker.
-    return re.search(r"(?:^|;\\s*)nightQa=fixture(?:;|$)", header) is not None
+    return re.search(r"(?:^|;\s*)nightQa=fixture(?:;|$)", header) is not None
 
 
 class State:
