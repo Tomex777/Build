@@ -758,20 +758,21 @@
       }
     },
     {
-      "id": "madara-war",
+      "id": "obito-masked-persona",
       "number": 15,
-      "character": "madara",
-      "name": "Madara Uchiha",
-      "title": "Madara Uchiha",
-      "form": "Living / war-era",
-      "formId": "war",
+      "character": "obito",
+      "name": "Obito Uchiha",
+      "title": "Obito Uchiha",
+      "form": "Tobi / disguised as Madara",
+      "formId": "masked-madara-persona",
       "aliases": [
-        "Madara Uchiha",
-        "madara",
-        "Living / war-era"
+        "Obito Uchiha",
+        "Tobi",
+        "Masked Obito",
+        "Madara impersonation"
       ],
       "designs": [
-        "emberglass"
+        "nocturne"
       ],
       "status": "candidate",
       "source": {
@@ -781,7 +782,7 @@
         "credit": "Bandai Namco Naruto Shippuden Ultimate Ninja Storm 4 official site",
         "rights": "© Masashi Kishimoto / Shueisha, TV Tokyo, Pierrot; © Bandai Namco Entertainment Inc. All rights reserved.",
         "usage": "reference-only",
-        "localPath": "artwork/naruto/madara-war.png",
+        "localPath": "artwork/naruto/obito-masked-persona.png",
         "sha256": "2dbad30790959902f317801169c6fda276390e93233690c5a59bf1fba4248c95",
         "width": 770,
         "height": 1500,
@@ -802,7 +803,7 @@
           0.32
         ],
         "artworkPlacement": {
-          "emberglass": {
+          "nocturne": {
             "x": 0,
             "y": 28,
             "width": 1000
@@ -1447,17 +1448,17 @@
       }
     },
     {
-      "id": "pain-deva",
+      "id": "pain-six-paths",
       "number": 28,
       "character": "pain",
       "name": "Pain",
       "title": "Pain",
-      "form": "Deva Path / Six Paths",
-      "formId": "deva-path",
+      "form": "Six Paths of Pain / ensemble",
+      "formId": "six-paths-ensemble",
       "aliases": [
         "Pain",
-        "pain",
-        "Deva Path / Six Paths"
+        "Six Paths of Pain",
+        "Nagato's Six Paths"
       ],
       "designs": [
         "nocturne"
@@ -1470,7 +1471,7 @@
         "credit": "Bandai Namco Naruto Shippuden Ultimate Ninja Storm 4 official site",
         "rights": "© Masashi Kishimoto / Shueisha, TV Tokyo, Pierrot; © Bandai Namco Entertainment Inc. All rights reserved.",
         "usage": "reference-only",
-        "localPath": "artwork/naruto/pain-deva.png",
+        "localPath": "artwork/naruto/pain-six-paths.png",
         "sha256": "81d3cb45cdbf18b0824d3fcbef053035bff9bd856de8766e47f7f0cc49fa7fc2",
         "width": 770,
         "height": 1500,
@@ -1665,6 +1666,13 @@
       "form": "two-blue-vortex",
       "status": "pending-art",
       "reason": "Requires independent verified official source cutout and form-specific feat assessment. Never relabel an existing portrait."
+    },
+    {
+      "id": "madara-living",
+      "character": "madara",
+      "form": "living-real-madara",
+      "status": "pending-art",
+      "reason": "The 08_08 official portrait is masked Obito impersonating Madara, not the real Madara Uchiha. Acquire distinct verified official art for living Madara."
     }
   ]
 }

@@ -162,6 +162,18 @@
       "width": 770,
       "height": 1500,
       "image": "https://naruto-game.bngames.net/images/character/01_11/img_character.png"
+    },
+    "obito-masked-persona": {
+      "sha256": "2dbad30790959902f317801169c6fda276390e93233690c5a59bf1fba4248c95",
+      "width": 770,
+      "height": 1500,
+      "image": "https://naruto-game.bngames.net/images/character/08_08/img_character.png"
+    },
+    "pain-six-paths": {
+      "sha256": "81d3cb45cdbf18b0824d3fcbef053035bff9bd856de8766e47f7f0cc49fa7fc2",
+      "width": 770,
+      "height": 1500,
+      "image": "https://naruto-game.bngames.net/images/character/08_06/img_character.png"
     }
   }
 }

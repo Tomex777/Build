@@ -231,15 +231,15 @@
       "universe": "naruto",
       "continuity": "naruto-storm4"
     },
-    "madara-war": {
+    "obito-masked-persona": {
       "scale": "night-universe-power-v1",
       "status": "proposed",
-      "rank": "S",
-      "formId": "war",
+      "rank": "A",
+      "formId": "masked-madara-persona",
       "artworkSHA256": "2dbad30790959902f317801169c6fda276390e93233690c5a59bf1fba4248c95",
-      "scope": "Madara Uchiha — Living / war-era",
-      "basis": "Exceptional ocular and battlefield control capabilities.",
-      "limits": "Not automatically Juubi-jinchūriki form.",
+      "scope": "Obito Uchiha — Tobi's masked 'Madara' persona",
+      "basis": "Kamui intangibility, spatial movement, planned deception and formidable battlefield tactics.",
+      "limits": "Despite the 'Madara' identity on the historical game roster, the masked figure is Obito impersonating Madara; not living Madara, the Edo reanimation or the Ten-Tails host.",
       "references": [
         "https://naruto-game.bngames.net/character/08_08.html",
         "https://naruto-game.bngames.net/images/character/08_08/img_character.png"
@@ -439,15 +439,15 @@
       "universe": "naruto",
       "continuity": "naruto-storm4"
     },
-    "pain-deva": {
+    "pain-six-paths": {
       "scale": "night-universe-power-v1",
       "status": "proposed",
       "rank": "A",
-      "formId": "deva-path",
+      "formId": "six-paths-ensemble",
       "artworkSHA256": "81d3cb45cdbf18b0824d3fcbef053035bff9bd856de8766e47f7f0cc49fa7fc2",
-      "scope": "Pain — Deva Path / Six Paths",
-      "basis": "Gravity manipulation and remote coordinated Rinnegan powers.",
-      "limits": "Distance, timing and Nagato control limit techniques.",
+      "scope": "Six Paths of Pain — six coordinated bodies",
+      "basis": "Shared Rinnegan vision and coordinated specialised paths, including Deva gravity, summons, and Naraka restoration.",
+      "limits": "This official artwork shows all six bodies, not only the Deva Path. Abilities depend on Nagato's chakra, distance and timing.",
       "references": [
         "https://naruto-game.bngames.net/character/08_06.html",
         "https://naruto-game.bngames.net/images/character/08_06/img_character.png"
@@ -703,6 +703,21 @@
       "formId": "two-blue-vortex",
       "artworkSHA256": null,
       "scope": "sarada / two-blue-vortex",
+      "basis": "Pending verified original form-specific illustration and feats.",
+      "limits": "Do not assign another form image or grade.",
+      "references": [
+        "https://naruto-game.bngames.net/character/"
+      ],
+      "universe": "naruto",
+      "continuity": "naruto-and-boruto"
+    },
+    "madara-living": {
+      "scale": "night-universe-power-v1",
+      "status": "pending",
+      "rank": null,
+      "formId": "living-real-madara",
+      "artworkSHA256": null,
+      "scope": "madara / living-real-madara",
       "basis": "Pending verified original form-specific illustration and feats.",
       "limits": "Do not assign another form image or grade.",
       "references": [
