@@ -83,11 +83,10 @@ private fun SavedPdfReader(uri: Uri?, onClose: () -> Unit) {
     val displayWidth = with(LocalDensity.current) {
         (LocalConfiguration.current.screenWidthDp.dp.toPx()).toInt().coerceIn(360, 1400)
     }
-    val rendered by produceState<Bitmap?>(
-        initialValue = null, key1 = uri, key2 = safeIndex, key3 = displayWidth,
-        key4 = pageCount
+    val renderResult by produceState<Pair<Boolean, Bitmap?>>(
+        initialValue = false to null, key1 = uri, key2 = safeIndex, key3 = displayWidth to pageCount
     ) {
-        value = withContext(Dispatchers.IO) {
+        value = true to withContext(Dispatchers.IO) {
             if (uri == null || pageCount <= 0 ||
                 uri.authority != "com.night.browser.files") return@withContext null
             runCatching {
@@ -139,9 +138,11 @@ private fun SavedPdfReader(uri: Uri?, onClose: () -> Unit) {
                 pageCount == -1 -> CircularProgressIndicator(color = PdfAccent)
                 pageCount == 0 -> Text(
                     "This PDF cannot be opened.", color = PdfText, fontSize = 14.sp)
-                rendered == null -> CircularProgressIndicator(color = PdfAccent)
+                !renderResult.first -> CircularProgressIndicator(color = PdfAccent)
+                renderResult.second == null -> Text(
+                    "Could not render this PDF page.", color = PdfText, fontSize = 14.sp)
                 else -> {
-                    val bitmap = rendered!!
+                    val bitmap = renderResult.second!!
                     Box(Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
                         contentAlignment = Alignment.TopCenter) {
                         Image(
