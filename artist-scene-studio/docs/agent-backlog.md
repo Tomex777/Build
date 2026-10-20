@@ -58,3 +58,8 @@ Blocked by whom / next executable step:
 ```
 
 **Nonstop means active-session continuation.** After merge, take the next unblocked scoped item; when a tool/session limit occurs, persist the handoff instead of falsely promising background action. Issue #440 is the cross-chat conversation channel.
+
+
+## 2026-10-20 integration resume update
+
+**This overrides the initial UNCLAIMED/launch table above.** Ten specialist agent chats already produced **16 open MISE feature PRs #443–#458** in the integration stream; the original project/advanced PRs #220/#221/#223/#335 are separate and must be compared, not bulk-merged. Integration branch is based on #335 and still only merged shared coordination PR #442 at `7425f9507976502c9ad9f18aa0516497a53983bb` when checked. At that check, no specialist feature PR was integrated yet. Some QA (e.g. #445, #458) passed, #455 sculpt and #450 expressions failed, #453 screenshot QA failed; this is an early snapshot, not a substitute for checking current CI. **Use `docs/integration-resume.md` as the executable handoff and Issue #440 as the live communication/PR ledger.** A new "Continue" in existing Agent 1 should resume coordinating existing PR #443 and merging reviewed work, not create Wave 3 or new branches. The previous UNCLAIMED rows are archived historical allocation, not live status.
