@@ -55,6 +55,7 @@ fun NightLibraryScreen(browser: BrowserController, onOpen: (String) -> Unit) {
     var query by remember { mutableStateOf("") }
     var edit by remember { mutableStateOf<LibraryBookmark?>(null) }
     var addLink by remember { mutableStateOf(false) }
+    var repeatLink by remember { mutableStateOf<String?>(null) }
     var export by remember { mutableStateOf<LibraryDownload?>(null) }
     fun notify(message: String?) {
         Toast.makeText(context, message ?: "Operation failed", Toast.LENGTH_LONG).show()
@@ -282,13 +283,43 @@ fun NightLibraryScreen(browser: BrowserController, onOpen: (String) -> Unit) {
             },
             confirmButton = {
                 TextButton(onClick = {
-                    val result = downloads.enqueue(url.trim())
-                    if (result.isSuccess) addLink = false
-                    else notify(result.exceptionOrNull()?.message)
+                    val target = url.trim()
+                    if (!LibraryRules.validWebUrl(target)) {
+                        notify("Enter a valid HTTP(S) file link.")
+                    } else {
+                        val parsed = Uri.parse(target)
+                        val proposed = DownloadFileNames.safe(parsed.lastPathSegment)
+                        if (downloads.existingCompletedDuplicate(target, proposed) != null) {
+                            repeatLink = target
+                            addLink = false
+                        } else {
+                            val result = downloads.enqueue(target)
+                            if (result.isSuccess) addLink = false
+                            else notify(result.exceptionOrNull()?.message)
+                        }
+                    }
                 }) { Text("Download") }
             },
             dismissButton = { TextButton(onClick = { addLink = false }) { Text("Cancel") } },
             containerColor = LibSurface)
+    }
+    repeatLink?.let { target ->
+        AlertDialog(
+            onDismissRequest = { repeatLink = null },
+            title = { Text("Download again?") },
+            text = { Text("This file was already downloaded. Download another copy?") },
+            confirmButton = {
+                TextButton(onClick = {
+                    val result = downloads.enqueue(target)
+                    if (result.isFailure) notify(result.exceptionOrNull()?.message)
+                    repeatLink = null
+                }) { Text("Download again") }
+            },
+            dismissButton = {
+                TextButton(onClick = { repeatLink = null }) { Text("Cancel") }
+            },
+            containerColor = LibSurface
+        )
     }
 }
 
