@@ -519,7 +519,7 @@ class Device:
                     name = item.get("file", "")
                     if (item.get("url") != URL + "/landing" or
                             item.get("title") != "NIGHT QA REDIRECT LANDING" or
-                            not re.fullmatch(r"page-[0-9]+-[0-9a-f]{8}\\.pdf", name)):
+                            not re.fullmatch(r"page-[0-9]+-[0-9a-f]{8}\.pdf", name)):
                         continue
                     data = adb("exec-out", "run-as", PKG, "cat",
                                "files/saved-pages/" + name,
