@@ -1,0 +1,75 @@
+10-20 01:27:08.588   649  1070 D CoreBackPreview: Window{ab03232 u0 com.nice.browser/com.nice.browser.MainActivity}: Setting back callback OnBackInvokedCallbackInfo{mCallback=android.window.IOnBackInvokedCallback$Stub$Proxy@8f79b73, mPriority=-1, mIsAnimationCallback=false, mOverrideBehavior=0}
+10-20 01:27:08.589   649  1307 D CoreBackPreview: Window{ab03232 u0 com.nice.browser/com.nice.browser.MainActivity}: Setting back callback OnBackInvokedCallbackInfo{mCallback=android.window.IOnBackInvokedCallback$Stub$Proxy@bc6a30, mPriority=0, mIsAnimationCallback=true, mOverrideBehavior=0}
+10-20 01:27:08.590   649  1307 D CoreBackPreview: Window{ab03232 u0 com.nice.browser/com.nice.browser.MainActivity}: Setting back callback OnBackInvokedCallbackInfo{mCallback=android.window.IOnBackInvokedCallback$Stub$Proxy@9b406a9, mPriority=0, mIsAnimationCallback=true, mOverrideBehavior=0}
+10-20 01:27:09.202   649   707 I AppsFilter: interaction: PackageSetting{d332479 com.nice.browser/10216} -> PackageSetting{ff90551 com.google.android.youtube/10153} BLOCKED
+10-20 01:27:09.225   649   707 I AppsFilter: interaction: PackageSetting{d332479 com.nice.browser/10216} -> PackageSetting{a4c21b6 com.google.android.apps.messaging/10145} BLOCKED
+10-20 01:27:09.226   649   707 I AppsFilter: interaction: PackageSetting{d332479 com.nice.browser/10216} -> PackageSetting{d73feb7 com.google.android.as/10144} BLOCKED
+10-20 01:27:09.346   649   778 I ImeTracker: com.nice.browser:f5c4b4d: onRequestHide at ORIGIN_SERVER reason HIDE_UNSPECIFIED_WINDOW fromUser false
+10-20 01:27:09.568  2974  2974 I ImeTracker: com.nice.browser:f5c4b4d: onCancelled at PHASE_CLIENT_ALREADY_HIDDEN
+10-20 01:27:09.638  1484  1484 I GoogleInputMethodService: GoogleInputMethodService.onStartInput():1293 onStartInput(EditorInfo{EditorInfo{packageName=com.nice.browser, inputType=0, inputTypeString=NULL, enableLearning=false, autoCorrection=false, autoComplete=false, imeOptions=0, privateImeOptions=null, actionName=UNSPECIFIED, actionLabel=null, initialSelStart=-1, initialSelEnd=-1, initialCapsMode=0, label=null, fieldId=0, fieldName=null, extras=null, hintText=null, hintLocales=[]}}, false)
+10-20 01:27:09.738   649  2035 W PackageConfigPersister: App-specific configuration not found for packageName: com.nice.browser and userId: 0
+10-20 01:27:13.801  4813  4813 D AndroidRuntime: >>>>>> START com.android.internal.os.RuntimeInit uid 2000 <<<<<<
+10-20 01:27:13.863  4813  4813 I AndroidRuntime: Using default boot image
+10-20 01:27:13.863  4813  4813 I AndroidRuntime: Leaving lock profiling enabled
+10-20 01:27:14.413  4813  4813 D AndroidRuntime: Calling main entry com.android.commands.uiautomator.Launcher
+10-20 01:27:15.841  4813  4813 D AndroidRuntime: Shutting down VM
+10-20 01:27:17.230   649  2035 D CoreBackPreview: Window{ab03232 u0 com.nice.browser/com.nice.browser.MainActivity}: Setting back callback null
+10-20 01:27:17.554   649  2035 D CoreBackPreview: Window{43135cd u0 com.nice.browser/com.nice.browser.MainActivity}: Setting back callback OnBackInvokedCallbackInfo{mCallback=android.window.IOnBackInvokedCallback$Stub$Proxy@3caaee5, mPriority=0, mIsAnimationCallback=true, mOverrideBehavior=0}
+10-20 01:27:17.753   649   778 I ImeTracker: com.nice.browser:67ba49ff: onRequestHide at ORIGIN_SERVER reason HIDE_UNSPECIFIED_WINDOW fromUser false
+10-20 01:27:17.755  2974  2974 I ImeTracker: com.nice.browser:67ba49ff: onCancelled at PHASE_CLIENT_ALREADY_HIDDEN
+10-20 01:27:17.769  1484  1484 I GoogleInputMethodService: GoogleInputMethodService.onStartInput():1293 onStartInput(EditorInfo{EditorInfo{packageName=com.nice.browser, inputType=0, inputTypeString=NULL, enableLearning=false, autoCorrection=false, autoComplete=false, imeOptions=0, privateImeOptions=null, actionName=UNSPECIFIED, actionLabel=null, initialSelStart=-1, initialSelEnd=-1, initialCapsMode=0, label=null, fieldId=0, fieldName=null, extras=null, hintText=null, hintLocales=[]}}, false)
+10-20 01:27:17.775   649  2035 W PackageConfigPersister: App-specific configuration not found for packageName: com.nice.browser and userId: 0
+10-20 01:27:22.135  4938  4938 D AndroidRuntime: >>>>>> START com.android.internal.os.RuntimeInit uid 2000 <<<<<<
+10-20 01:27:22.149  4938  4938 I AndroidRuntime: Using default boot image
+10-20 01:27:22.149  4938  4938 I AndroidRuntime: Leaving lock profiling enabled
+10-20 01:27:22.332   649   707 I AppsFilter: interaction: PackageSetting{d332479 com.nice.browser/10216} -> PackageSetting{8ce4c2a com.google.android.as/10144} BLOCKED
+10-20 01:27:22.332   649   707 I AppsFilter: interaction: PackageSetting{d332479 com.nice.browser/10216} -> PackageSetting{8dd00f6 com.google.android.photopicker/10212} BLOCKED
+10-20 01:27:22.521  4938  4938 D AndroidRuntime: Calling main entry com.android.commands.uiautomator.Launcher
+10-20 01:27:23.719  4938  4938 D AndroidRuntime: Shutting down VM
+10-20 01:27:24.854   649  2059 D CoreBackPreview: Window{43135cd u0 com.nice.browser/com.nice.browser.MainActivity}: Setting back callback OnBackInvokedCallbackInfo{mCallback=android.window.IOnBackInvokedCallback$Stub$Proxy@5aea4d3, mPriority=-1, mIsAnimationCallback=false, mOverrideBehavior=0}
+10-20 01:27:27.072  5057  5057 D AndroidRuntime: >>>>>> START com.android.internal.os.RuntimeInit uid 2000 <<<<<<
+10-20 01:27:27.082  5057  5057 I AndroidRuntime: Using default boot image
+10-20 01:27:27.086  5057  5057 I AndroidRuntime: Leaving lock profiling enabled
+10-20 01:27:27.389  5057  5057 D AndroidRuntime: Calling main entry com.android.commands.uiautomator.Launcher
+10-20 01:27:28.866  5057  5057 D AndroidRuntime: Shutting down VM
+10-20 01:27:30.125   649  1711 D CoreBackPreview: Window{849be5 u0 com.nice.browser/com.nice.browser.MainActivity}: Setting back callback OnBackInvokedCallbackInfo{mCallback=android.window.IOnBackInvokedCallback$Stub$Proxy@6e88b99, mPriority=-1, mIsAnimationCallback=false, mOverrideBehavior=0}
+10-20 01:27:30.125   649  1711 D CoreBackPreview: Window{849be5 u0 com.nice.browser/com.nice.browser.MainActivity}: Setting back callback OnBackInvokedCallbackInfo{mCallback=android.window.IOnBackInvokedCallback$Stub$Proxy@ce23e5e, mPriority=0, mIsAnimationCallback=true, mOverrideBehavior=0}
+10-20 01:27:30.189   649  1711 D CoreBackPreview: Window{849be5 u0 com.nice.browser/com.nice.browser.MainActivity}: Setting back callback OnBackInvokedCallbackInfo{mCallback=android.window.IOnBackInvokedCallback$Stub$Proxy@43be35b, mPriority=0, mIsAnimationCallback=true, mOverrideBehavior=0}
+10-20 01:27:30.865   649   778 I ImeTracker: com.nice.browser:88f1ca54: onRequestHide at ORIGIN_SERVER reason HIDE_UNSPECIFIED_WINDOW fromUser false
+10-20 01:27:30.876  2974  2974 I ImeTracker: com.nice.browser:88f1ca54: onCancelled at PHASE_CLIENT_ALREADY_HIDDEN
+10-20 01:27:31.083  1484  1484 I GoogleInputMethodService: GoogleInputMethodService.onStartInput():1293 onStartInput(EditorInfo{EditorInfo{packageName=com.nice.browser, inputType=0, inputTypeString=NULL, enableLearning=false, autoCorrection=false, autoComplete=false, imeOptions=0, privateImeOptions=null, actionName=UNSPECIFIED, actionLabel=null, initialSelStart=-1, initialSelEnd=-1, initialCapsMode=0, label=null, fieldId=0, fieldName=null, extras=null, hintText=null, hintLocales=[]}}, false)
+10-20 01:27:31.119   649  1711 W PackageConfigPersister: App-specific configuration not found for packageName: com.nice.browser and userId: 0
+10-20 01:27:32.279  5097  5097 D AndroidRuntime: >>>>>> START com.android.internal.os.RuntimeInit uid 2000 <<<<<<
+10-20 01:27:32.302  5097  5097 I AndroidRuntime: Using default boot image
+10-20 01:27:32.302  5097  5097 I AndroidRuntime: Leaving lock profiling enabled
+10-20 01:27:32.732  2974  2974 W com.nice.browser: type=1400 audit(0.0:49): avc:  denied  { nlmsg_readpriv } for  comm=536F636B657420546872656164 scontext=u:r:untrusted_app:s0:c216,c256,c512,c768 tcontext=u:r:untrusted_app:s0:c216,c256,c512,c768 tclass=netlink_route_socket permissive=0 bug=b/155595000 app=com.nice.browser
+10-20 01:27:32.790  5097  5097 D AndroidRuntime: Calling main entry com.android.commands.uiautomator.Launcher
+10-20 01:27:34.102  5097  5097 D AndroidRuntime: Shutting down VM
+10-20 01:27:35.243   649  2062 D CoreBackPreview: Window{849be5 u0 com.nice.browser/com.nice.browser.MainActivity}: Setting back callback null
+10-20 01:27:35.305   649  2062 D CoreBackPreview: Window{43135cd u0 com.nice.browser/com.nice.browser.MainActivity}: Setting back callback OnBackInvokedCallbackInfo{mCallback=android.window.IOnBackInvokedCallback$Stub$Proxy@53c6962, mPriority=0, mIsAnimationCallback=true, mOverrideBehavior=0}
+10-20 01:27:35.497   649   778 I ImeTracker: com.nice.browser:abfaf32d: onRequestHide at ORIGIN_SERVER reason HIDE_UNSPECIFIED_WINDOW fromUser false
+10-20 01:27:35.498  2974  2974 I ImeTracker: com.nice.browser:abfaf32d: onCancelled at PHASE_CLIENT_ALREADY_HIDDEN
+10-20 01:27:35.507  1484  1484 I GoogleInputMethodService: GoogleInputMethodService.onStartInput():1293 onStartInput(EditorInfo{EditorInfo{packageName=com.nice.browser, inputType=0, inputTypeString=NULL, enableLearning=false, autoCorrection=false, autoComplete=false, imeOptions=0, privateImeOptions=null, actionName=UNSPECIFIED, actionLabel=null, initialSelStart=-1, initialSelEnd=-1, initialCapsMode=0, label=null, fieldId=0, fieldName=null, extras=null, hintText=null, hintLocales=[]}}, false)
+10-20 01:27:35.524   649   736 W PackageConfigPersister: App-specific configuration not found for packageName: com.nice.browser and userId: 0
+10-20 01:27:39.730  5159  5159 D AndroidRuntime: >>>>>> START com.android.internal.os.RuntimeInit uid 2000 <<<<<<
+10-20 01:27:39.752  5159  5159 I AndroidRuntime: Using default boot image
+10-20 01:27:39.752  5159  5159 I AndroidRuntime: Leaving lock profiling enabled
+10-20 01:27:39.893  5159  5159 D AndroidRuntime: Calling main entry com.android.commands.uiautomator.Launcher
+10-20 01:27:40.967  5159  5159 D AndroidRuntime: Shutting down VM
+10-20 01:27:41.882   649  1251 D CoreBackPreview: Window{5aa703a u0 com.nice.browser/com.nice.browser.MainActivity}: Setting back callback OnBackInvokedCallbackInfo{mCallback=android.window.IOnBackInvokedCallback$Stub$Proxy@e1faf4, mPriority=-1, mIsAnimationCallback=false, mOverrideBehavior=0}
+10-20 01:27:41.882   649  1251 D CoreBackPreview: Window{5aa703a u0 com.nice.browser/com.nice.browser.MainActivity}: Setting back callback OnBackInvokedCallbackInfo{mCallback=android.window.IOnBackInvokedCallback$Stub$Proxy@766621d, mPriority=0, mIsAnimationCallback=true, mOverrideBehavior=0}
+10-20 01:27:41.883   649  1251 D CoreBackPreview: Window{5aa703a u0 com.nice.browser/com.nice.browser.MainActivity}: Setting back callback OnBackInvokedCallbackInfo{mCallback=android.window.IOnBackInvokedCallback$Stub$Proxy@7eacc92, mPriority=0, mIsAnimationCallback=true, mOverrideBehavior=0}
+10-20 01:27:42.147   649   778 I ImeTracker: com.nice.browser:3ab60dfa: onRequestHide at ORIGIN_SERVER reason HIDE_UNSPECIFIED_WINDOW fromUser false
+10-20 01:27:42.169  1484  1484 I GoogleInputMethodService: GoogleInputMethodService.onStartInput():1293 onStartInput(EditorInfo{EditorInfo{packageName=com.nice.browser, inputType=0, inputTypeString=NULL, enableLearning=false, autoCorrection=false, autoComplete=false, imeOptions=0, privateImeOptions=null, actionName=UNSPECIFIED, actionLabel=null, initialSelStart=-1, initialSelEnd=-1, initialCapsMode=0, label=null, fieldId=0, fieldName=null, extras=null, hintText=null, hintLocales=[]}}, false)
+10-20 01:27:42.174   649  1251 W PackageConfigPersister: App-specific configuration not found for packageName: com.nice.browser and userId: 0
+10-20 01:27:42.309  2974  2974 I ImeTracker: com.nice.browser:3ab60dfa: onCancelled at PHASE_CLIENT_ALREADY_HIDDEN
+10-20 01:27:43.913  5180  5180 D AndroidRuntime: >>>>>> START com.android.internal.os.RuntimeInit uid 2000 <<<<<<
+10-20 01:27:43.921  5180  5180 I AndroidRuntime: Using default boot image
+10-20 01:27:43.922  5180  5180 I AndroidRuntime: Leaving lock profiling enabled
+10-20 01:27:44.018  5180  5180 D AndroidRuntime: Calling main entry com.android.commands.uiautomator.Launcher
+10-20 01:27:45.096  5180  5180 D AndroidRuntime: Shutting down VM
+10-20 01:27:46.016   649  2035 D CoreBackPreview: Window{5aa703a u0 com.nice.browser/com.nice.browser.MainActivity}: Setting back callback null
+10-20 01:27:46.114   649   778 I ImeTracker: com.nice.browser:5150b2e1: onRequestHide at ORIGIN_SERVER reason HIDE_UNSPECIFIED_WINDOW fromUser false
+10-20 01:27:46.119  2974  2974 I ImeTracker: com.nice.browser:5150b2e1: onCancelled at PHASE_CLIENT_ALREADY_HIDDEN
+10-20 01:27:46.120  1484  1484 I GoogleInputMethodService: GoogleInputMethodService.onStartInput():1293 onStartInput(EditorInfo{EditorInfo{packageName=com.nice.browser, inputType=0, inputTypeString=NULL, enableLearning=false, autoCorrection=false, autoComplete=false, imeOptions=0, privateImeOptions=null, actionName=UNSPECIFIED, actionLabel=null, initialSelStart=-1, initialSelEnd=-1, initialCapsMode=0, label=null, fieldId=0, fieldName=null, extras=null, hintText=null, hintLocales=[]}}, false)
+10-20 01:27:46.121   649  1251 W PackageConfigPersister: App-specific configuration not found for packageName: com.nice.browser and userId: 0
