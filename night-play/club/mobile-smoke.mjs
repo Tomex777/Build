@@ -10,7 +10,7 @@ const dir=path.dirname(fileURLToPath(import.meta.url));
 const root=path.resolve(dir,"..");
 const server=createServer((req,res)=>{
   const pathname=new URL(req.url,"http://localhost").pathname;
-  const files={"/club/":"club/index.html","/club":"club/index.html","/club/index.html":"club/index.html","/club/style.css":"club/style.css","/game-shell.css":"game-shell.css","/club/ludo-immersive.css":"club/ludo-immersive.css","/club/games.js":"club/games.js","/club/naija-ludo.js":"club/naija-ludo.js","/club/ludo-motion.js":"club/ludo-motion.js","/club/ludo-dice-3d.js":"club/ludo-dice-3d.js","/games":"index.html","/index.html":"index.html"};
+  const files={"/club/":"club/index.html","/club":"club/index.html","/club/index.html":"club/index.html","/club/style.css":"club/style.css","/game-shell.css":"game-shell.css","/club/ludo-immersive.css":"club/ludo-immersive.css","/club/games.js":"club/games.js","/club/naija-ludo.js":"club/naija-ludo.js","/club/ludo-motion.js":"club/ludo-motion.js","/club/ludo-dice-3d.js":"club/ludo-dice-3d.js","/strategy/":"strategy/index.html","/strategy":"strategy/index.html","/strategy/index.html":"strategy/index.html","/strategy/style.css":"strategy/style.css","/strategy/game.js":"strategy/game.js","/strategy/chess-v0.10.3.js":"strategy/chess-v0.10.3.js","/games":"index.html","/index.html":"index.html"};
   const rel=files[pathname];
   if(!rel){res.writeHead(404);res.end("Not found");return;}
   const kind=rel.endsWith(".css")?"text/css":rel.endsWith(".js")?"text/javascript":"text/html";
@@ -517,6 +517,53 @@ try{
     assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+2),"no sideways mobile scroll on "+name);
     if(["estate","whot","colors","draw","snakes"].includes(name))console.log("NIGHT_CLUB_SCREEN_"+name.toUpperCase()+"_JPEG_BASE64="+(await page.screenshot({type:"jpeg",quality:50,fullPage:true})).toString("base64"));
   }
+
+  // Chess is a complete local game rather than the planned crossplay placeholder.
+  await page.goto(base+'/strategy/');
+  assert.equal(await page.locator('[data-square]').count(),64,'Chess draws all board squares');
+  assert.equal(await page.locator('.piece').count(),32,'Chess starts with 32 original SVG pieces');
+  assert.equal(await page.evaluate(()=>window.__nightChessQA().mode),'computer');
+  await page.locator('[data-square="e2"]').click();
+  assert.equal(await page.locator('[data-square="e4"].legal').count(),1,'legal pawn target is visible');
+  assert.equal(await page.locator('[data-square="e5"].legal').count(),0,'illegal jump is not offered');
+  await page.locator('[data-square="e4"]').click();
+  await page.waitForFunction(()=>{
+   const s=window.__nightChessQA();
+   return s.moves.length===2&&!s.busy&&s.turn==='w';
+  },null,{timeout:10000});
+  assert.equal(await page.locator('.piece').count(),32,'CPU must make a legal response');
+  const persistedFen=await page.evaluate(()=>window.__nightChessQA().fen);
+  await page.reload();
+  await page.locator('.piece').first().waitFor();
+  assert.equal(await page.evaluate(()=>window.__nightChessQA().fen),persistedFen,'a real position with castling rights resumes');
+  for(const width of [320,360,390,412,900]){
+   await page.setViewportSize({width,height:844});
+   const measurements=await page.evaluate(()=>{
+    const board=document.querySelector('.chess-board').getBoundingClientRect();
+    return {square:Math.abs(board.width-board.height)<2,overflow:document.documentElement.scrollWidth>innerWidth+2};
+   });
+   assert.equal(measurements.square,true,'Chess board remains square on '+width);
+   assert.equal(measurements.overflow,false,'Chess has no horizontal overflow on '+width);
+  }
+  await page.setViewportSize({width:390,height:844});
+  await page.screenshot({path:'night-play/visual-output/CHESS-CPU-MOBILE.jpg',type:'jpeg',quality:82,fullPage:true});
+  await page.locator('#vsLocal').click();
+  assert.equal(await page.evaluate(()=>window.__nightChessQA().mode),'local','two-player mode is clearly separate from CPU');
+  const playChess=async(from,to,index)=>{
+   await page.locator('[data-square="'+from+'"]').click();
+   assert.equal(await page.locator('[data-square="'+to+'"].legal').count(),1,from+' to '+to+' must be a legal move');
+   await page.locator('[data-square="'+to+'"]').click();
+   await page.waitForFunction(n=>window.__nightChessQA().moves.length===n&&!window.__nightChessQA().busy,index,{timeout:4000});
+  };
+  await playChess('e2','e4',1);await playChess('e7','e5',2);
+  await playChess('f1','c4',3);await playChess('b8','c6',4);
+  await playChess('d1','h5',5);await playChess('g8','f6',6);
+  await playChess('h5','f7',7);
+  assert.equal(await page.evaluate(()=>window.__nightChessQA().gameOver),true,'checkmate ends a complete played match');
+  assert.ok((await page.locator('#matchStatus').innerText()).includes('White wins by checkmate'));
+  await page.screenshot({path:'night-play/visual-output/CHESS-SCHOLARS-MATE.jpg',type:'jpeg',quality:83,fullPage:true});
+  await page.locator('#newMatch').click();
+  assert.equal(await page.evaluate(()=>window.__nightChessQA().moves.length),0,'restart clears moves');
   await page.goto(base+"/games");
   await page.locator("#view-games").waitFor({state:"visible"});
   assert.equal(await page.locator("[data-club]").count(),6,"Six public Club games; Ludo is archived");
