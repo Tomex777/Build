@@ -151,3 +151,23 @@ test('oversized style and script payloads do not get injected', async () => {
   });
   assert.equal(appended.length, 0);
 });
+
+test('async reply fails closed when document origin disagrees with protocol/host', async () => {
+  // The old reconstructed-host fallback would apply styles despite an
+  // inconsistent location.origin; the canonical origin alone is authoritative.
+  const { appended } = await runCase({
+    pageOrigin: 'https://other.test',
+    pageProtocol: 'https:', pageHost: 'example.com',
+    reply: { origin: 'https://example.com', css: 'body{display:none}', javascript: '' }
+  });
+  assert.equal(appended.length, 0);
+});
+
+test('same hostname with a non-default port cannot receive another origin rule', async () => {
+  const { appended } = await runCase({
+    pageOrigin: 'https://example.com:8443',
+    pageProtocol: 'https:', pageHost: 'example.com:8443',
+    reply: { origin: 'https://example.com', css: 'body{display:none}', javascript: 'alert(1)' }
+  });
+  assert.equal(appended.length, 0);
+});
