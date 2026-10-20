@@ -292,14 +292,28 @@ class Acceptance:
         return "Opened actual Gecko private tab (cookie isolation remains unverified)"
 
     def offline(self):
-        # Disables both services temporarily; always restore connectivity.
+        # The previous case deliberately leaves a PRIVATE tab active. Its Home
+        # should display "Private browsing", not the regular Quick access tiles.
+        # Verify that private Home works offline, then explicitly switch to a
+        # regular tab and verify the regular start page; never confuse profiles.
         self.shell("svc", "wifi", "disable", check=False)
         self.shell("svc", "data", "disable", check=False)
         try:
             self.tap("Home")
+            self.wait_for("Private browsing")
+            self.shot("09-offline-private-home")
+            self.tap("Tabs")
+            labels = [self.label(n) for n in self.nodes()
+                      if n.get("package") == PACKAGE]
+            regular = next((value for value in labels
+                            if re.fullmatch(r"Regular\\s+\\d+", value)), None)
+            if regular is None:
+                raise AssertionError("Cannot select regular profile from private tabs")
+            self.tap(regular)
+            self.tap("New tab")
             self.wait_for("Quick access")
-            self.shot("09-offline-home")
-            return "Home remains accessible with device network services toggled off"
+            self.shot("09-offline-regular-home")
+            return "Private and regular Home accessible offline with correct profile isolation"
         finally:
             self.shell("svc", "wifi", "enable", check=False)
             self.shell("svc", "data", "enable", check=False)
