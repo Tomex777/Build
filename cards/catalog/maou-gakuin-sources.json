@@ -1,0 +1,456 @@
+{
+  "version": 1,
+  "series": "maou-gakuin",
+  "name": "The Misfit of Demon King Academy / NIGHT Collection",
+  "dimensions": [
+    3000,
+    4800
+  ],
+  "status": "artwork-acquisition-candidates",
+  "sourcePage": "https://maohgakuin.com/",
+  "rights": "Official character cutouts are rights reserved; reference-only candidate artworks, not licensed for commercial redistribution.",
+  "sources": [
+    {
+      "id": "anos-academy",
+      "character": "anos",
+      "name": "Anos Voldigoad",
+      "title": "Anos",
+      "form": "Reincarnated / academy uniform",
+      "formId": "reincarnated-academy",
+      "number": 1,
+      "continuity": "maou-gakuin-anime-s2",
+      "aliases": [
+        "Anos Voldigoad",
+        "Anos",
+        "anos"
+      ],
+      "source": {
+        "provider": "maohgakuin-anime-official",
+        "page": "https://maohgakuin.com/",
+        "image": "https://maohgakuin.com/assets/img/character/img_anos.png",
+        "rights": "© Shu/KADOKAWA/Demon King Academy production committee. All rights reserved.",
+        "usage": "reference-only",
+        "credit": "Official The Misfit of Demon King Academy II character illustration",
+        "artist": "SILVER LINK. / series production"
+      },
+      "rank": {
+        "letter": "SS",
+        "scope": "Anos Voldigoad — Reincarnated / academy uniform",
+        "basis": "Reincarnated Demon King with overwhelming source magic and Venuzdonoa; this source depicts his academy-era appearance.",
+        "limits": "Does not depict late-novel Abyss or final-volume feats.",
+        "references": [
+          "https://maohgakuin.com/",
+          "https://demonkingacademy-anime.com/"
+        ]
+      }
+    },
+    {
+      "id": "militia-creation",
+      "character": "militia",
+      "name": "Militia",
+      "title": "Militia",
+      "form": "Goddess of Creation / anime",
+      "formId": "goddess-creation",
+      "number": 2,
+      "continuity": "maou-gakuin-anime-s2",
+      "aliases": [
+        "Militia",
+        "Militia",
+        "militia"
+      ],
+      "source": {
+        "provider": "maohgakuin-anime-official",
+        "page": "https://maohgakuin.com/",
+        "image": "https://maohgakuin.com/assets/img/character/img_militia.png",
+        "rights": "© Shu/KADOKAWA/Demon King Academy production committee. All rights reserved.",
+        "usage": "reference-only",
+        "credit": "Official The Misfit of Demon King Academy II character illustration",
+        "artist": "SILVER LINK. / series production"
+      },
+      "rank": {
+        "letter": "SS",
+        "scope": "Militia — Goddess of Creation / anime",
+        "basis": "Creation goddess who shaped the world and governs the Order of Creation.",
+        "limits": "Creation authority does not equate to endgame Silverwater Sea dominance.",
+        "references": [
+          "https://maohgakuin.com/",
+          "https://demonkingacademy-anime.com/"
+        ]
+      }
+    },
+    {
+      "id": "lay-sword",
+      "character": "lay",
+      "name": "Lay Glanzudlii",
+      "title": "Lay",
+      "form": "Reincarnated Kanon / demon sword",
+      "formId": "lay-sword",
+      "number": 3,
+      "continuity": "maou-gakuin-anime-s2",
+      "aliases": [
+        "Lay Glanzudlii",
+        "Lay",
+        "lay"
+      ],
+      "source": {
+        "provider": "maohgakuin-anime-official",
+        "page": "https://maohgakuin.com/",
+        "image": "https://maohgakuin.com/assets/img/character/img_lay.png",
+        "rights": "© Shu/KADOKAWA/Demon King Academy production committee. All rights reserved.",
+        "usage": "reference-only",
+        "credit": "Official The Misfit of Demon King Academy II character illustration",
+        "artist": "SILVER LINK. / series production"
+      },
+      "rank": {
+        "letter": "S",
+        "scope": "Lay Glanzudlii — Reincarnated Kanon / demon sword",
+        "basis": "Hero Kanon's reincarnation, exceptional swordsman who can contend with Shin.",
+        "limits": "Late-novel amplified editions require different matching artwork.",
+        "references": [
+          "https://maohgakuin.com/",
+          "https://demonkingacademy-anime.com/"
+        ]
+      }
+    },
+    {
+      "id": "shin-swordsman",
+      "character": "shin",
+      "name": "Shin Reglia",
+      "title": "Shin",
+      "form": "Demon King's right hand",
+      "formId": "thousand-swords",
+      "number": 4,
+      "continuity": "maou-gakuin-anime-s2",
+      "aliases": [
+        "Shin Reglia",
+        "Shin",
+        "shin"
+      ],
+      "source": {
+        "provider": "maohgakuin-anime-official",
+        "page": "https://maohgakuin.com/",
+        "image": "https://maohgakuin.com/assets/img/character/img_shin.png",
+        "rights": "© Shu/KADOKAWA/Demon King Academy production committee. All rights reserved.",
+        "usage": "reference-only",
+        "credit": "Official The Misfit of Demon King Academy II character illustration",
+        "artist": "SILVER LINK. / series production"
+      },
+      "rank": {
+        "letter": "S",
+        "scope": "Shin Reglia — Demon King's right hand",
+        "basis": "Legendary swordsman of the Mythical Age; master of a thousand demon swords.",
+        "limits": "Shown anime version, not extrapolated later power-ups.",
+        "references": [
+          "https://maohgakuin.com/",
+          "https://demonkingacademy-anime.com/"
+        ]
+      }
+    },
+    {
+      "id": "erdomaid-teacher",
+      "character": "erdomaid",
+      "name": "Erdomaid Dittijohn",
+      "title": "Erdomaid",
+      "form": "Blaze Death King / teacher",
+      "formId": "teacher",
+      "number": 5,
+      "continuity": "maou-gakuin-anime-s2",
+      "aliases": [
+        "Erdomaid Dittijohn",
+        "Erdomaid",
+        "erdomaid"
+      ],
+      "source": {
+        "provider": "maohgakuin-anime-official",
+        "page": "https://maohgakuin.com/",
+        "image": "https://maohgakuin.com/assets/img/character/img_erdomaid.png",
+        "rights": "© Shu/KADOKAWA/Demon King Academy production committee. All rights reserved.",
+        "usage": "reference-only",
+        "credit": "Official The Misfit of Demon King Academy II character illustration",
+        "artist": "SILVER LINK. / series production"
+      },
+      "rank": {
+        "letter": "S",
+        "scope": "Erdomaid Dittijohn — Blaze Death King / teacher",
+        "basis": "Four Evil Royals magician who usurped the Heavenly Father God's order.",
+        "limits": "Specific divine abilities depend on the anime's time period.",
+        "references": [
+          "https://maohgakuin.com/",
+          "https://demonkingacademy-anime.com/"
+        ]
+      }
+    },
+    {
+      "id": "arcana-chosen",
+      "character": "arcana",
+      "name": "Arcana",
+      "title": "Arcana",
+      "form": "Chosen God / Moon of Creation",
+      "formId": "selection-god",
+      "number": 6,
+      "continuity": "maou-gakuin-anime-s2",
+      "aliases": [
+        "Arcana",
+        "Arcana",
+        "arcana"
+      ],
+      "source": {
+        "provider": "maohgakuin-anime-official",
+        "page": "https://maohgakuin.com/",
+        "image": "https://maohgakuin.com/assets/img/character/img_arcana.png",
+        "rights": "© Shu/KADOKAWA/Demon King Academy production committee. All rights reserved.",
+        "usage": "reference-only",
+        "credit": "Official The Misfit of Demon King Academy II character illustration",
+        "artist": "SILVER LINK. / series production"
+      },
+      "rank": {
+        "letter": "A",
+        "scope": "Arcana — Chosen God / Moon of Creation",
+        "basis": "Uses the Moon of Creation and participates in the Selection Trial.",
+        "limits": "Order-dependent authority is not an unconditional victory condition.",
+        "references": [
+          "https://maohgakuin.com/",
+          "https://demonkingacademy-anime.com/"
+        ]
+      }
+    },
+    {
+      "id": "leno-spirit",
+      "character": "leno",
+      "name": "Great Spirit Leno",
+      "title": "Leno",
+      "form": "Mother of all spirits",
+      "formId": "mother-of-spirits",
+      "number": 7,
+      "continuity": "maou-gakuin-anime-s2",
+      "aliases": [
+        "Great Spirit Leno",
+        "Leno",
+        "leno"
+      ],
+      "source": {
+        "provider": "maohgakuin-anime-official",
+        "page": "https://maohgakuin.com/",
+        "image": "https://maohgakuin.com/assets/img/character/img_leno.png",
+        "rights": "© Shu/KADOKAWA/Demon King Academy production committee. All rights reserved.",
+        "usage": "reference-only",
+        "credit": "Official The Misfit of Demon King Academy II character illustration",
+        "artist": "SILVER LINK. / series production"
+      },
+      "rank": {
+        "letter": "A",
+        "scope": "Great Spirit Leno — Mother of all spirits",
+        "basis": "Great Spirit with exceptional power in protecting her family and spirits.",
+        "limits": "No unshown late-novel feats are attributed to this depiction.",
+        "references": [
+          "https://maohgakuin.com/",
+          "https://demonkingacademy-anime.com/"
+        ]
+      }
+    },
+    {
+      "id": "sasha-ruin",
+      "character": "sasha",
+      "name": "Sasha Necron",
+      "title": "Sasha",
+      "form": "Witch of Ruin / destructive eyes",
+      "formId": "witch-of-ruin",
+      "number": 8,
+      "continuity": "maou-gakuin-anime-s2",
+      "aliases": [
+        "Sasha Necron",
+        "Sasha",
+        "sasha"
+      ],
+      "source": {
+        "provider": "maohgakuin-anime-official",
+        "page": "https://maohgakuin.com/",
+        "image": "https://maohgakuin.com/assets/img/character/img_sasha.png",
+        "rights": "© Shu/KADOKAWA/Demon King Academy production committee. All rights reserved.",
+        "usage": "reference-only",
+        "credit": "Official The Misfit of Demon King Academy II character illustration",
+        "artist": "SILVER LINK. / series production"
+      },
+      "rank": {
+        "letter": "A",
+        "scope": "Sasha Necron — Witch of Ruin / destructive eyes",
+        "basis": "Magic Eyes of Destruction and powerful direct offensive magic.",
+        "limits": "Not Aisha fusion or late-novel awakened Sasha.",
+        "references": [
+          "https://maohgakuin.com/",
+          "https://demonkingacademy-anime.com/"
+        ]
+      }
+    },
+    {
+      "id": "misha-creation",
+      "character": "misha",
+      "name": "Misha Necron",
+      "title": "Misha",
+      "form": "Ice and creation magic",
+      "formId": "academy-creation",
+      "number": 9,
+      "continuity": "maou-gakuin-anime-s2",
+      "aliases": [
+        "Misha Necron",
+        "Misha",
+        "misha"
+      ],
+      "source": {
+        "provider": "maohgakuin-anime-official",
+        "page": "https://maohgakuin.com/",
+        "image": "https://maohgakuin.com/assets/img/character/img_misha.png",
+        "rights": "© Shu/KADOKAWA/Demon King Academy production committee. All rights reserved.",
+        "usage": "reference-only",
+        "credit": "Official The Misfit of Demon King Academy II character illustration",
+        "artist": "SILVER LINK. / series production"
+      },
+      "rank": {
+        "letter": "A",
+        "scope": "Misha Necron — Ice and creation magic",
+        "basis": "Powerful ice and construction magic; highly adaptable support and combat.",
+        "limits": "Not Aisha fusion or late-novel awakened Misha.",
+        "references": [
+          "https://maohgakuin.com/",
+          "https://demonkingacademy-anime.com/"
+        ]
+      }
+    },
+    {
+      "id": "misa-spirit",
+      "character": "misa",
+      "name": "Misa Ilioroagu",
+      "title": "Misa",
+      "form": "Half-spirit / academy",
+      "formId": "half-spirit",
+      "number": 10,
+      "continuity": "maou-gakuin-anime-s2",
+      "aliases": [
+        "Misa Ilioroagu",
+        "Misa",
+        "misa"
+      ],
+      "source": {
+        "provider": "maohgakuin-anime-official",
+        "page": "https://maohgakuin.com/",
+        "image": "https://maohgakuin.com/assets/img/character/img_misa.png",
+        "rights": "© Shu/KADOKAWA/Demon King Academy production committee. All rights reserved.",
+        "usage": "reference-only",
+        "credit": "Official The Misfit of Demon King Academy II character illustration",
+        "artist": "SILVER LINK. / series production"
+      },
+      "rank": {
+        "letter": "B",
+        "scope": "Misa Ilioroagu — Half-spirit / academy",
+        "basis": "Half-spirit, half-demon with spirit abilities and important connections to Avos Dilhevia.",
+        "limits": "Not Avos Dilhevia's transformed form.",
+        "references": [
+          "https://maohgakuin.com/",
+          "https://demonkingacademy-anime.com/"
+        ]
+      }
+    },
+    {
+      "id": "eleonore-magic",
+      "character": "eleonore",
+      "name": "Eleonore Bianca",
+      "title": "Eleonore",
+      "form": "Source-clone magic",
+      "formId": "magic",
+      "number": 11,
+      "continuity": "maou-gakuin-anime-s2",
+      "aliases": [
+        "Eleonore Bianca",
+        "Eleonore",
+        "eleonore"
+      ],
+      "source": {
+        "provider": "maohgakuin-anime-official",
+        "page": "https://maohgakuin.com/",
+        "image": "https://maohgakuin.com/assets/img/character/img_eleonore.png",
+        "rights": "© Shu/KADOKAWA/Demon King Academy production committee. All rights reserved.",
+        "usage": "reference-only",
+        "credit": "Official The Misfit of Demon King Academy II character illustration",
+        "artist": "SILVER LINK. / series production"
+      },
+      "rank": {
+        "letter": "B",
+        "scope": "Eleonore Bianca — Source-clone magic",
+        "basis": "Sentient origin magic with extraordinary capacity to create source clones.",
+        "limits": "Does not mean she outclasses top gods in a solo duel.",
+        "references": [
+          "https://maohgakuin.com/",
+          "https://demonkingacademy-anime.com/"
+        ]
+      }
+    },
+    {
+      "id": "zeshia-clone",
+      "character": "zeshia",
+      "name": "Zeshia Bianca",
+      "title": "Zeshia",
+      "form": "Hero Academy / source clone",
+      "formId": "hero-clone",
+      "number": 12,
+      "continuity": "maou-gakuin-anime-s2",
+      "aliases": [
+        "Zeshia Bianca",
+        "Zeshia",
+        "zeshia"
+      ],
+      "source": {
+        "provider": "maohgakuin-anime-official",
+        "page": "https://maohgakuin.com/",
+        "image": "https://maohgakuin.com/assets/img/character/img_zeshia.png",
+        "rights": "© Shu/KADOKAWA/Demon King Academy production committee. All rights reserved.",
+        "usage": "reference-only",
+        "credit": "Official The Misfit of Demon King Academy II character illustration",
+        "artist": "SILVER LINK. / series production"
+      },
+      "rank": {
+        "letter": "C",
+        "scope": "Zeshia Bianca — Hero Academy / source clone",
+        "basis": "Combat-trained source clone with supernatural abilities.",
+        "limits": "Not the mass army acting as a collective.",
+        "references": [
+          "https://maohgakuin.com/",
+          "https://demonkingacademy-anime.com/"
+        ]
+      }
+    },
+    {
+      "id": "emilia-teacher",
+      "character": "emilia",
+      "name": "Emilia Ludowell",
+      "title": "Emilia",
+      "form": "Reborn / Hero Academy teacher",
+      "formId": "reborn-teacher",
+      "number": 13,
+      "continuity": "maou-gakuin-anime-s2",
+      "aliases": [
+        "Emilia Ludowell",
+        "Emilia",
+        "emilia"
+      ],
+      "source": {
+        "provider": "maohgakuin-anime-official",
+        "page": "https://maohgakuin.com/",
+        "image": "https://maohgakuin.com/assets/img/character/img_emilia.png",
+        "rights": "© Shu/KADOKAWA/Demon King Academy production committee. All rights reserved.",
+        "usage": "reference-only",
+        "credit": "Official The Misfit of Demon King Academy II character illustration",
+        "artist": "SILVER LINK. / series production"
+      },
+      "rank": {
+        "letter": "C",
+        "scope": "Emilia Ludowell — Reborn / Hero Academy teacher",
+        "basis": "Experienced magic teacher and combat-capable demon.",
+        "limits": "Does not use the unproven royal strength from before reincarnation.",
+        "references": [
+          "https://maohgakuin.com/",
+          "https://demonkingacademy-anime.com/"
+        ]
+      }
+    }
+  ]
+}
