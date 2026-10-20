@@ -126,7 +126,7 @@ fun NightStartPage(
         val query = search.trim()
         (shortcuts.sites.asSequence() +
             recentPages.asSequence().map {
-                StartSite(it.title.ifBlank { _ -> it.url }, it.url)
+                StartSite(it.title.ifBlank { it.url }, it.url)
             })
             .filter { it.title.contains(query, ignoreCase = true) ||
                 it.url.contains(query, ignoreCase = true) }
