@@ -363,7 +363,7 @@ await page.waitForTimeout(1000);
 const ghostAfter=await page.evaluate(()=>window.__nightArcadeTest.snapshot().ghosts.map(g=>[g.x,g.y]));
 assert.notDeepEqual(ghostAfter,ghostBefore,"Chasing ghosts really move during play");
 mkdirSync(path.join(root,"visual-output"),{recursive:true});
-writeFileSync(path.join(root,"visual-output","maze-chase-power.png"),await page.screenshot({fullPage:true,type:"png"}));
+writeFileSync(path.join(root,"visual-output","maze-chase-power.jpg"),await page.screenshot({fullPage:true,type:"jpeg",quality:84}));
 console.log('NIGHT_MAZE_CHASE_POWER_PELLET_JPEG_BASE64='+
  (await page.screenshot({type:'jpeg',quality:55,fullPage:true})).toString('base64'));
 await page.locator('[data-control="down"]').click();
