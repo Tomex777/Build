@@ -156,6 +156,16 @@ class JourneyStore(context: Context) {
         persist()
     }
 
+    /** Remove one saved visit and preserve all descendants for Library history. */
+    fun deleteVisit(journeyId: String, nodeId: String) {
+        journeys = journeys.map { journey ->
+            if (journey.id == journeyId) {
+                journey.copy(nodes = JourneyGraph.removeVisit(journey.nodes, nodeId))
+            } else journey
+        }
+        persist()
+    }
+
     /** Delete node plus children, not just one row of the tree. */
     fun deleteSubtree(journeyId: String, nodeId: String) {
         journeys = journeys.map { journey ->
