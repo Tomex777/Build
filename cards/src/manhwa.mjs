@@ -54,7 +54,7 @@ export function validateManhwaRoster(data) {
       if (research.webcomicAppearance!=='confirmed-in-webcomic'
         || !Number.isInteger(episode?.number)||episode.number<1
         || !safeURL(episode?.url)||!nonempty(episode?.reviewer)
-        || !/^\\d{4}-\\d{2}-\\d{2}$/.test(episode?.reviewDate??''))
+        || !/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(episode?.reviewDate??''))
         throw Error('Chapter-verified manhwa claim needs reviewer and episode proof: '+card.id);
     }
     if (s.mode === 'character-story-only' && card.family === 'power')
