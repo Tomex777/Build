@@ -154,8 +154,22 @@ class BrowserController(
 
             override fun onExternalResponse(session: GeckoSession, response: WebResponse) {
                 val sink = downloadHandler
-                if (sink != null) sink(response)
-                else notice = "Download manager is not connected yet."
+                if (sink == null) {
+                    // Gecko's WebResponse owns an open HTTP body stream. Ignoring
+                    // it without closing would leak a socket and keep the download
+                    // request alive even though Library has no handler yet.
+                    runCatching { response.body?.close() }
+                    notice = "Download manager is not connected yet."
+                    return
+                }
+                try {
+                    // Contract with Agent 6: successful callback assumes ownership
+                    // of response.body and MUST close it after copying/cancellation.
+                    sink(response)
+                } catch (_: Exception) {
+                    runCatching { response.body?.close() }
+                    notice = "Couldn't start this download."
+                }
             }
 
             override fun onKill(session: GeckoSession) {
@@ -185,6 +199,9 @@ class BrowserController(
             }
             override fun onPageStart(session: GeckoSession, url: String) {
                 tab.isLoading = true
+                // The prior origin's TLS indicator must not appear on a new page.
+                tab.secureConnection = false
+                tab.mixedContent = false
             }
             override fun onPageStop(session: GeckoSession, success: Boolean) {
                 tab.isLoading = false
