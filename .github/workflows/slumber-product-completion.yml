@@ -34,6 +34,7 @@ on:
       - ".ci/slumber_114_long_holds/**"
       - ".ci/slumber_115_hold_regression/**"
       - ".ci/slumber_116_long_hold_stability/**"
+      - ".ci/slumber_117_web_criticism/**"
   pull_request:
     branches: ["slumber-087-build"]
     paths:
@@ -67,6 +68,7 @@ on:
       - ".ci/slumber_114_long_holds/**"
       - ".ci/slumber_115_hold_regression/**"
       - ".ci/slumber_116_long_hold_stability/**"
+      - ".ci/slumber_117_web_criticism/**"
 
 permissions:
   actions: read
@@ -396,6 +398,19 @@ jobs:
           patch --fuzz=0 -d /tmp/slumber-088 -p1 < .ci/slumber_116_long_hold_stability/hold-visual-and-song-state.patch
           grep -q 'SlumberTilesChart.heldBounds' /tmp/slumber-088/app/src/main/java/com/night/pianohub/ui/components/SlumberTilesField.kt
           grep -q 'var started by remember(song.id)' /tmp/slumber-088/app/src/main/java/com/night/pianohub/ui/screens/PlayScreen.kt
+
+      - name: Carry NIGHT Play Piano Tiles feedback into native Slumber
+        shell: bash
+        run: |
+          set -euo pipefail
+          OUT=/tmp/slumber-088
+          base64 -d .ci/slumber_117_web_criticism/web-parity.patch.gz.b64 | gzip -dc > "$OUT/web-parity.patch"
+          echo 'd8e0237eeb052c79452025ac6c8db31bbb237a40a5a9c63da8155a1531a96ea6  /tmp/slumber-088/web-parity.patch' | sha256sum -c -
+          patch --fuzz=0 -d "$OUT" -p1 < "$OUT/web-parity.patch"
+          grep -q 'visibleCandidate(' "$OUT/app/src/main/java/com/night/pianohub/ui/components/SlumberTilesField.kt"
+          grep -q 'BUNDLED_C5_ID' "$OUT/app/src/main/java/com/night/pianohub/ui/screens/PlayScreen.kt"
+          ! grep -q 'pulseLane' "$OUT/app/src/main/java/com/night/pianohub/ui/components/SlumberTilesField.kt"
+          grep -q 'pauseDoesNotAwardUnfinishedHeldTail' "$OUT/app/src/test/java/com/night/pianohub/music/EndlessTilesRunTest.kt"
 
       - uses: actions/setup-java@v4
         with:
