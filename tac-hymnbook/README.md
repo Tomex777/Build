@@ -16,7 +16,7 @@ Independent offline-first **Yorùbá and English hymnbook** project for The Apos
 
 | Collection | Numbered entries | English first-line index | Yorùbá first lines / complete text |
 | --- | ---: | --- | --- |
-| Redemption | 800 (1–800) | 800 titles indexed from RH2006 (requires independent printed-edition check) | **57** Yorùbá first-line titles identified, but only **18** bilingual working lyric drafts (hymns 1–17 and 50). No other complete Yorùbá lyric texts imported. |
+| Redemption | 800 (1–800) | 800 titles indexed from RH2006 (requires independent printed-edition check) | **59** Yorùbá first-line titles identified, but only **18** bilingual working lyric drafts (hymns 1–17 and 50). No other complete Yorùbá lyric texts imported. |
 | Àkọkún | 305 (1–305) | 8 linked candidate equivalents | 299 opening-line titles from photographed index; **no full lyric texts** imported yet. |
 
 In Redemption, **7 additional historical English-only alternative full texts** are readable (178, 187, 188, 190, 195, 200, 207), and their stanzas are **not** claimed to exactly match the printed TAC edition. Therefore **25/800** numbered Redemption hymns have any readable full or draft verses; **18/800** have bilingual working drafts. A numbered title **is not the complete hymn**.
@@ -80,4 +80,4 @@ JSON format:
 }
 ```
 
-These are **format placeholders, not hymn words**. Import checks for full stanzas, numbers in 1–800, duplicates, valid NFC tone marks and a <=4MB size limit. Each hymn should be proofread against the *TAC Nigeria* printed Redemption book. Scans/PDFs can be converted outside the app into the same schema when the rights holder grants reuse and a clean source is available; the Android app itself currently imports **JSON, not PDF**.
+These are **format placeholders, not hymn words**. Import checks for full stanzas, numbers in 1–800, duplicates, normalised Unicode NFC tone marks and a <=4MB size limit. Each hymn should be proofread against the *TAC Nigeria* printed Redemption book. Scans/PDFs can be converted outside the app into the same schema when the rights holder grants reuse and a clean source is available; the Android app itself currently imports **JSON, not PDF**.
