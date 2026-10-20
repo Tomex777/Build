@@ -55,12 +55,13 @@ async function chooseSource(ctx, query) {
 }
 
 function outcomeError(ctx, outcome) {
-  if (outcome?.status === 'no-sources') return ctx.reply('No movie sources are installed yet.')
-  if (outcome?.status === 'source-error') return ctx.reply(`${outcome.source?.name || 'The source'} could not complete that movie request.`)
-  if (outcome?.status === 'all-failed') return ctx.reply('All configured movie sources failed for that request.')
-  return ctx.reply('Could not complete that movie request.')
+  if (outcome?.status === 'no-sources') return 'No movie sources are installed yet.'
+  if (outcome?.status === 'source-error') {
+    return String(outcome.source?.name || 'The source') + ' could not complete that movie request. Please retry or choose another source.'
+  }
+  if (outcome?.status === 'all-failed') return 'All configured movie sources failed for that request.'
+  return 'Could not complete that movie request.'
 }
-
 async function retryAliases(ctx, { query, sourceId, firstOutcome }) {
   if (!query || typeof ctx.resolveTmdbTitles !== 'function' || firstOutcome?.status !== 'ok' || hasContent(firstOutcome.result)) {
     return firstOutcome
@@ -145,20 +146,49 @@ async function getOptions(ctx, sourceId, movie) {
   }
 }
 
-async function deliver(ctx, { sourceId, movie, quality, delivery }) {
+async function performDelivery(ctx, { sourceId, movie, quality, delivery }) {
   const outcome = await ctx.executeSource({
     capability:'movies',
     explicitSource:sourceId,
     payload:{ action:'download', itemId:movie.id, item:movie, quality, delivery },
   })
-  if (outcome.status !== 'ok') return outcomeError(ctx, outcome)
+  if (outcome.status !== 'ok') return { ok:false, message:outcomeError(ctx, outcome) }
   const result = outcome.result
-  if (result?.delivered === true) return true
-  if (typeof result === 'string') return ctx.reply(result)
-  if (result?.text) return ctx.reply(String(result.text))
-  return ctx.reply(`Download started: ${movie.title} (${quality}, ${delivery}).`)
+  if (result?.delivered === true) return { ok:true, message:'✅ *' + movie.title + '* was sent.' }
+  if (typeof result === 'string') return { ok:true, message:result }
+  if (result?.text) return { ok:true, message:String(result.text) }
+  return { ok:true, message:'The download request for ' + movie.title + ' completed, but the source did not confirm delivery.' }
 }
 
+// Acknowledge first, then perform long media work outside the inbound chat queue.
+// This lets later commands and ping stay responsive while a large file is prepared.
+async function startDelivery(ctx, details) {
+  const movieTitle = titleOf(details.movie)
+  const opening = '⏳ *' + movieTitle + '* download queued. I will send the file when it is ready.'
+  let progress = null
+  if (typeof ctx.progress === 'function') { try { progress = await ctx.progress(opening) } catch {} }
+  if (!progress) { try { await ctx.reply(opening) } catch {} }
+  const report = async (message, failed = false) => {
+    if (progress) {
+      const update = failed ? progress.fail : progress.done
+      if (typeof update === 'function') { try { await update.call(progress, message); return } catch {} }
+    }
+    try { await ctx.reply(message) } catch {}
+  }
+  setImmediate(() => {
+    void (async () => {
+      try {
+        const result = await performDelivery(ctx, details)
+        await report(result.message, !result.ok)
+      } catch (error) {
+        const detail = String(error?.message || '').replace(/\s+/g, ' ').slice(0, 160)
+        const message = '❌ *' + movieTitle + '* download failed' + (detail ? ': ' + detail : '.')
+        await report(message, true)
+      }
+    })().catch(() => {})
+  })
+  return true
+}
 async function tvCounterpartRows(ctx, movie) {
   if (!movie.tmdbId || typeof ctx.resolveScreenCounterparts !== 'function') return []
   const rows = await ctx.resolveScreenCounterparts({ tmdbId:movie.tmdbId, type:'movie' })
@@ -201,7 +231,7 @@ async function selectMovie(ctx, { sourceId, movie }) {
     } else if (status) {
       await ctx.reply(status)
     }
-    return deliver(ctx, { sourceId, movie:resolved, quality:saved.quality, delivery:saved.delivery })
+    return startDelivery(ctx, { sourceId, movie:resolved, quality:saved.quality, delivery:saved.delivery })
   }
 
   const options = await getOptions(ctx, sourceId, resolved)
@@ -274,7 +304,7 @@ export async function runMovieCommand(ctx, { args = [] } = {}) {
     }
 
     if (first === '~download') {
-      return deliver(ctx, {
+      return startDelivery(ctx, {
         sourceId:String(args[1] || ''),
         movie:untoken(args[2]),
         quality:String(args[3] || 'source'),

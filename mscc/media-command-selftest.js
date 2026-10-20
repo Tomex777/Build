@@ -1,4 +1,8 @@
 import assert from 'node:assert/strict'
+import { mkdtemp, open, rm, writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { prepareCommandMediaPayload } from './utils/whatsapp/prepare-command-media-payload.js'
 import { loadCommands } from './command-registry.js'
 
 const registry = await loadCommands(new URL('./commands/', import.meta.url), {
@@ -43,6 +47,20 @@ for (const name of ['sticker', 'take', 'ps', 'toimg', 'togif', 'tovideo', 'sfx',
   assert.equal(command.adminOnly === true, false, `${name} unexpectedly became admin-only`)
 }
 
+const mediaFixtureDir = await mkdtemp(join(tmpdir(), 'mscc-media-payload-test-'))
+try {
+  const smallPath = join(mediaFixtureDir, 'small.txt')
+  const largePath = join(mediaFixtureDir, 'large.mkv')
+  await writeFile(smallPath, 'small media fixture')
+  const largeFile = await open(largePath, 'w')
+  try { await largeFile.truncate(8 * 1024 * 1024 + 1) } finally { await largeFile.close() }
+  const prepared = await prepareCommandMediaPayload({ document:{ url:largePath }, image:{ url:smallPath } })
+  assert.deepEqual(prepared.document, { url:largePath }, 'large local media must remain a local path for Baileys streaming')
+  assert.ok(Buffer.isBuffer(prepared.image), 'small local media retains the legacy Buffer path')
+} finally {
+  await rm(mediaFixtureDir, { recursive:true, force:true })
+}
+console.log('PASS local media payload streams files above 8 MiB without buffering them')
 console.log('media command registry self-test passed')
 
 // Reuse the ordinary media registry CI step for exhaustive SFX FFmpeg checks.

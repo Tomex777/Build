@@ -114,6 +114,7 @@ import {
 import { createWhatsAppUi } from './utils/whatsapp/ui.js'
 import { deleteQuotedGroupMessage } from './group-delete.js'
 import { sendText, sendImageDataUrl, startProgress } from './utils/whatsapp/replies.js'
+import { prepareCommandMediaPayload } from './utils/whatsapp/prepare-command-media-payload.js'
 import { findGroupParticipant, groupMemberLabel, groupTargetJid, memberIdentityKey, participantIds, updateSucceeded, verifiedPhoneNumber } from './group-member-identity.js'
 
 // Shared WhatsApp nativeFlow implementation lives in utils/whatsapp/native-flow.js.
@@ -2384,23 +2385,6 @@ async function sendCommandImageFile(account, msg, file, caption = '') {
     image,
     caption:String(caption || ''),
   }, { quoted:msg })
-}
-
-async function prepareCommandMediaPayload(payload) {
-  if (!payload || typeof payload !== 'object') return payload
-  const next = { ...payload }
-  for (const kind of ['image', 'video', 'audio', 'document', 'sticker']) {
-    const media = next[kind]
-    if (!media || typeof media !== 'object' || typeof media.url !== 'string') continue
-    const url = String(media.url)
-    if (!url.startsWith('/')) continue
-    try {
-      next[kind] = await readFile(url)
-    } catch (error) {
-      throw new Error('Unable to read local ' + kind + ' media: ' + (error?.message || error))
-    }
-  }
-  return next
 }
 
 async function describe(account, msg) {
