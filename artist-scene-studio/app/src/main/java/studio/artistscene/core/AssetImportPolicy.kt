@@ -1,9 +1,10 @@
 package studio.artistscene.core
 
-import java.nio.ByteBuffer
-import java.nio.ByteOrder
 import java.io.File
 import java.io.RandomAccessFile
+import java.nio.ByteBuffer
+import java.nio.ByteOrder
+import java.nio.charset.CodingErrorAction
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
@@ -15,135 +16,180 @@ sealed interface AssetImportValidation {
 }
 
 /**
- * Defensive intake policy for user supplied 3D files before they are ever handed to Filament.
- * GLB is preferred. JSON glTF is accepted only when every URI dependency is embedded as a data URI.
+ * Validates untrusted model containers before passing them to the renderer.
+ * In particular, the GLB JSON chunk is bounded and read independently: a 128 MiB import must
+ * never require a 128 MiB Java heap allocation simply to verify its headers.
  */
 object AssetImportPolicy {
     const val MAX_BYTES: Long = 128L * 1024L * 1024L
     const val MAX_GLTF_JSON_BYTES: Long = 16L * 1024L * 1024L
 
-    /** Validates a staged import without reading a binary GLB into the Java heap. */
+    private const val GLB_JSON_CHUNK = 0x4E4F534A
+    private const val GLB_BINARY_CHUNK = 0x004E4942
+
+    /** The file path is the SAF-staged local copy, never an untrusted remote pathname. */
     fun validate(fileName: String, reportedSize: Long?, file: File): AssetImportValidation {
-        val length = file.length()
-        val size = reportedSize ?: length
-        if (size > MAX_BYTES || length > MAX_BYTES) {
-            return AssetImportValidation.Rejected("Model is larger than the 128 MiB import limit.")
-        }
-        if (!file.isFile || length == 0L) {
+        if (!file.isFile || file.length() == 0L) {
             return AssetImportValidation.Rejected("The selected model is empty.")
         }
-        val lowerName = fileName.lowercase()
+        if (file.length() > MAX_BYTES || (reportedSize != null && reportedSize > MAX_BYTES)) {
+            return AssetImportValidation.Rejected("Model is larger than the 128 MiB import limit.")
+        }
+        val name = fileName.lowercase()
         return when {
-            lowerName.endsWith(".glb") || file.hasGlbMagic() -> validateGlb(file)
-            lowerName.endsWith(".gltf") -> {
-                if (length > MAX_GLTF_JSON_BYTES) {
+            name.endsWith(".glb") || name.endsWith(".vrm") || file.hasGlbMagic() ->
+                RandomAccessFile(file, "r").use { raf ->
+                    validateGlb(file.length()) { offset, count ->
+                        ByteArray(count).also { raf.seek(offset); raf.readFully(it) }
+                    }
+                }
+            name.endsWith(".gltf") ->
+                if (file.length() > MAX_GLTF_JSON_BYTES) {
                     AssetImportValidation.Rejected("This glTF file is too large to inspect safely. Export it as GLB and try again.")
                 } else {
-                    validateGltf(file.readBytes())
+                    validateGltf(file.readBytes(), standalone = true, hasBinaryChunk = false)
                 }
-            }
             else -> AssetImportValidation.Rejected("Choose a GLB, VRM, or self-contained glTF 2.0 model.")
         }
     }
 
     fun validate(fileName: String, reportedSize: Long?, bytes: ByteArray): AssetImportValidation {
-        if (reportedSize != null && reportedSize > MAX_BYTES) {
-            return AssetImportValidation.Rejected("Model is larger than the 128 MiB mobile import limit.")
-        }
-        if (bytes.size.toLong() > MAX_BYTES) {
-            return AssetImportValidation.Rejected("Model is larger than the 128 MiB mobile import limit.")
+        if (bytes.size.toLong() > MAX_BYTES || (reportedSize != null && reportedSize > MAX_BYTES)) {
+            return AssetImportValidation.Rejected("Model is larger than the 128 MiB import limit.")
         }
         if (bytes.isEmpty()) {
             return AssetImportValidation.Rejected("The selected model is empty.")
         }
-
-        val lowerName = fileName.lowercase()
+        val name = fileName.lowercase()
         return when {
-            lowerName.endsWith(".glb") || bytes.hasGlbMagic() -> validateGlb(bytes)
-            lowerName.endsWith(".gltf") -> validateGltf(bytes)
+            name.endsWith(".glb") || name.endsWith(".vrm") || bytes.hasGlbMagic() ->
+                validateGlb(bytes.size.toLong()) { offset, count ->
+                    bytes.copyOfRange(offset.toInt(), offset.toInt() + count)
+                }
+            name.endsWith(".gltf") ->
+                if (bytes.size.toLong() > MAX_GLTF_JSON_BYTES) {
+                    AssetImportValidation.Rejected("This glTF file is too large to inspect safely. Export it as GLB and try again.")
+                } else {
+                    validateGltf(bytes, standalone = true, hasBinaryChunk = false)
+                }
             else -> AssetImportValidation.Rejected("Choose a GLB, VRM, or self-contained glTF 2.0 model.")
         }
     }
 
-    private fun validateGlb(bytes: ByteArray): AssetImportValidation {
-        if (bytes.size < 12 || !bytes.hasGlbMagic()) {
+    /** Walk GLB chunk headers without loading the binary buffers or textures into memory. */
+    private fun validateGlb(
+        length: Long,
+        read: (offset: Long, count: Int) -> ByteArray,
+    ): AssetImportValidation {
+        if (length < 20 || length % 4L != 0L) {
+            return AssetImportValidation.Rejected("The GLB is missing its required JSON chunk.")
+        }
+        val header = ByteBuffer.wrap(read(0, 12)).order(ByteOrder.LITTLE_ENDIAN)
+        if (header.int != 0x46546C67) {
             return AssetImportValidation.Rejected("The file does not contain a valid GLB header.")
         }
-        val header = ByteBuffer.wrap(bytes, 4, 8).order(ByteOrder.LITTLE_ENDIAN)
-        val version = header.int
-        val declaredLength = header.int.toLong() and 0xffffffffL
-        if (version != 2) {
+        if (header.int != 2) {
             return AssetImportValidation.Rejected("Only glTF 2.0 / GLB version 2 is supported.")
         }
-        if (declaredLength != bytes.size.toLong()) {
+        val declaredLength = header.int.toLong() and 0xFFFF_FFFFL
+        if (declaredLength != length) {
             return AssetImportValidation.Rejected("The GLB is truncated or has an invalid declared length.")
         }
-        return AssetImportValidation.Accepted("glb")
+
+        var offset = 12L
+        var jsonLength = 0
+        var jsonOffset = -1L
+        var hasBinaryChunk = false
+        var chunkIndex = 0
+        while (offset < length) {
+            if (length - offset < 8L) {
+                return AssetImportValidation.Rejected("The GLB contains an incomplete chunk header.")
+            }
+            val chunkHeader = ByteBuffer.wrap(read(offset, 8)).order(ByteOrder.LITTLE_ENDIAN)
+            val chunkLength = chunkHeader.int.toLong() and 0xFFFF_FFFFL
+            val chunkType = chunkHeader.int
+            offset += 8
+            if (chunkLength % 4L != 0L || chunkLength > length - offset) {
+                return AssetImportValidation.Rejected("The GLB contains a truncated or misaligned chunk.")
+            }
+            if (chunkIndex == 0) {
+                if (chunkType != GLB_JSON_CHUNK || chunkLength == 0L || chunkLength > MAX_GLTF_JSON_BYTES) {
+                    return AssetImportValidation.Rejected("The GLB must start with a JSON chunk no larger than 16 MiB.")
+                }
+                jsonOffset = offset
+                jsonLength = chunkLength.toInt()
+            } else if (chunkType == GLB_BINARY_CHUNK) {
+                hasBinaryChunk = true
+            }
+            offset += chunkLength
+            chunkIndex++
+        }
+        if (jsonOffset < 0L) {
+            return AssetImportValidation.Rejected("The GLB does not contain a JSON chunk.")
+        }
+        return when (val result = validateGltf(read(jsonOffset, jsonLength), standalone = false, hasBinaryChunk)) {
+            is AssetImportValidation.Accepted -> AssetImportValidation.Accepted("glb")
+            is AssetImportValidation.Rejected -> result
+        }
     }
 
-    private fun validateGlb(file: File): AssetImportValidation {
-        if (file.length() < 12 || !file.hasGlbMagic()) {
-            return AssetImportValidation.Rejected("The file does not contain a valid GLB header.")
-        }
-        val header = ByteArray(8)
-        RandomAccessFile(file, "r").use { raf ->
-            raf.seek(4)
-            raf.readFully(header)
-        }
-        val values = ByteBuffer.wrap(header).order(ByteOrder.LITTLE_ENDIAN)
-        val version = values.int
-        val declaredLength = values.int.toLong() and 0xffffffffL
-        if (version != 2) return AssetImportValidation.Rejected("Only glTF 2.0 / GLB version 2 is supported.")
-        if (declaredLength != file.length()) {
-            return AssetImportValidation.Rejected("The GLB is truncated or has an invalid declared length.")
-        }
-        return AssetImportValidation.Accepted("glb")
-    }
-
-    private fun validateGltf(bytes: ByteArray): AssetImportValidation {
-        val text = runCatching { bytes.toString(Charsets.UTF_8) }.getOrElse {
+    private fun validateGltf(
+        bytes: ByteArray,
+        standalone: Boolean,
+        hasBinaryChunk: Boolean,
+    ): AssetImportValidation {
+        val text = runCatching {
+            Charsets.UTF_8.newDecoder()
+                .onMalformedInput(CodingErrorAction.REPORT)
+                .onUnmappableCharacter(CodingErrorAction.REPORT)
+                .decode(ByteBuffer.wrap(bytes))
+                .toString()
+                .trimEnd('\u0000', ' ')
+        }.getOrElse {
             return AssetImportValidation.Rejected("The glTF JSON could not be decoded as UTF-8.")
         }
         val root = runCatching { Json.parseToJsonElement(text).jsonObject }.getOrElse {
             return AssetImportValidation.Rejected("The glTF JSON is malformed.")
         }
-        val version = runCatching {
-            root["asset"]?.jsonObject?.get("version")?.jsonPrimitive?.content
-        }.getOrNull()
-        if (version == null || !version.startsWith("2")) {
+        val version = runCatching { root["asset"]?.jsonObject?.get("version")?.jsonPrimitive?.content }.getOrNull()
+        if (version != "2.0") {
             return AssetImportValidation.Rejected("Only glTF 2.0 models are supported.")
         }
-
-        val externalUris = runCatching {
-            buildList {
-                root["buffers"]?.jsonArray?.forEach { entry ->
-                    entry.jsonObject["uri"]?.jsonPrimitive?.content?.let { uri ->
-                        if (!uri.startsWith("data:")) add(uri)
-                    }
-                }
-                root["images"]?.jsonArray?.forEach { entry ->
-                    entry.jsonObject["uri"]?.jsonPrimitive?.content?.let { uri ->
-                        if (!uri.startsWith("data:")) add(uri)
-                    }
-                }
+        val invalidDependencies = runCatching {
+            var unembeddedBuffer = false
+            var externalUri = false
+            root["buffers"]?.jsonArray?.forEach { entry ->
+                val uri = entry.jsonObject["uri"]?.jsonPrimitive?.content
+                if (uri == null) unembeddedBuffer = true
+                else if (!uri.isEmbeddedDataUri()) externalUri = true
             }
+            root["images"]?.jsonArray?.forEach { entry ->
+                val uri = entry.jsonObject["uri"]?.jsonPrimitive?.content
+                if (uri != null && !uri.isEmbeddedDataUri()) externalUri = true
+            }
+            externalUri to unembeddedBuffer
         }.getOrElse {
             return AssetImportValidation.Rejected("The glTF JSON has an invalid buffers or images structure.")
         }
-        if (externalUris.isNotEmpty()) {
+        if (invalidDependencies.first) {
             return AssetImportValidation.Rejected(
                 "This glTF depends on external files. Export it as GLB or embed its buffers and textures first.",
+            )
+        }
+        if (invalidDependencies.second && (standalone || !hasBinaryChunk)) {
+            return AssetImportValidation.Rejected(
+                "The glTF has a missing binary buffer. Export it as GLB or embed its buffers first.",
             )
         }
         return AssetImportValidation.Accepted("gltf")
     }
 
+    private fun String.isEmbeddedDataUri(): Boolean =
+        startsWith("data:") && indexOf(',') > "data:".length
+
     private fun ByteArray.hasGlbMagic(): Boolean =
-        size >= 4 &&
-            this[0] == 'g'.code.toByte() &&
-            this[1] == 'l'.code.toByte() &&
-            this[2] == 'T'.code.toByte() &&
-            this[3] == 'F'.code.toByte()
+        size >= 4 && this[0] == 'g'.code.toByte() && this[1] == 'l'.code.toByte() &&
+            this[2] == 'T'.code.toByte() && this[3] == 'F'.code.toByte()
 
     private fun File.hasGlbMagic(): Boolean = inputStream().use { stream ->
         stream.read() == 'g'.code && stream.read() == 'l'.code &&
