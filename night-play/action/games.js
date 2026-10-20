@@ -563,61 +563,108 @@ function paintShooter(){
  if(state.breaches>0)text('BREACHES '+state.breaches,15,H-16,11,'#abcad5',750,'left');
 }
 
+/* BRICK BREAKER — six distinct stages, controlled bounce angles and
+ * bounded hit effects. Brick collisions remain swept (single earliest face). */
+const BRICK_FINAL_LEVEL=6;
 function makeBrickRow(level){
  const grid=[],rows=Math.min(8,6+Math.floor((level-1)/2));
  for(let row=0;row<rows;row++)for(let col=0;col<7;col++){
-  grid.push({x:15+col*52,y:66+row*27,w:46,h:21,
-   hp:row<Math.min(rows,2+Math.floor(level/3))?2:1,maxHp:row<Math.min(rows,2+Math.floor(level/3))?2:1});
+  // Stage 1 stays a complete 42-brick board. Later stages introduce
+  // corridors and angled pockets, not identical copies of the first board.
+  const gap=level>=2&&(
+   level===2?(row%3===1&&(col===1||col===5)):
+   level===3?((row===2||row===5)&&col===3):
+   level===4?((row+col)%6===0):
+   level===5?(row%2===0&&col===3):
+   ((row===0||row===rows-1)&&(col===1||col===5)));
+  if(gap)continue;
+  const hp=row<Math.min(rows,2+Math.floor(level/3))?
+   (level>=4&&row===0?3:2):
+   (level>=3&&row===rows-2&&col%3===0?2:1);
+  grid.push({x:15+col*52,y:66+row*27,w:46,h:21,hp,maxHp:hp});
  }
  return grid;
 }
+function brickSpeed(q){return Math.min(690,390+(q.level-1)*30+q.hits*3.3);}
 function initBricks(){
- return {score:0,level:1,lives:3,hits:0,paddle:195,
-  ball:{x:195,y:479,vx:0,vy:-355},attached:true,bricks:makeBrickRow(1),trail:[]};
+ return {score:0,level:1,lives:3,hits:0,paddle:195,paddleWidth:72,
+  ball:{x:195,y:479,vx:0,vy:-390},attached:true,bricks:makeBrickRow(1),
+  trail:[],particles:[],impact:0,won:false};
 }
 function newBricksLevel(){
  state.bricks=makeBrickRow(state.level);state.hits=0;
- state.ball={x:state.paddle,y:479,vx:0,vy:-355};state.attached=true;state.trail=[];
+ state.paddleWidth=Math.max(52,72-(state.level-1)*4);
+ state.ball={x:state.paddle,y:479,vx:0,vy:-brickSpeed(state)};
+ state.attached=true;state.trail=[];state.particles=[];state.impact=0;
 }
 function launchBall(){
  if(state?.attached&&started){
-  state.attached=false;const angle=rand(-.36,.36);
-  state.ball.vx=Math.sin(angle)*360;state.ball.vy=-Math.cos(angle)*360;audio('hit');
+  state.attached=false;
+  // Launches must not travel vertically forever after a lucky centre hit.
+  const direction=Math.random()<.5?-1:1,angle=direction*rand(.15,.38);
+  const speed=brickSpeed(state);
+  state.ball.vx=Math.sin(angle)*speed;state.ball.vy=-Math.cos(angle)*speed;
+  audio('hit');
  }
 }
-// The moving ball is a point against an expanded brick: earliest entry
-// gives the actual impacted face, not every adjacent block in a row.
 function sweptBrick(x,y,dx,dy,brick){
+ // Point versus expanded AABB. Choose only the first touched brick.
  const minX=brick.x-8,maxX=brick.x+brick.w+8,minY=brick.y-8,maxY=brick.y+brick.h+8;
  let enter=-Infinity,exit=Infinity,nx=0,ny=0;
- if(Math.abs(dx)<.00001){if(x<=minX||x>=maxX)return null}
+ if(Math.abs(dx)<.00001){if(x<=minX||x>=maxX)return null;}
  else{
   const a=(minX-x)/dx,b=(maxX-x)/dx,t=Math.min(a,b),f=Math.max(a,b);
-  if(t>enter){enter=t;nx=a<b?-1:1;ny=0}exit=Math.min(exit,f);
+  if(t>enter){enter=t;nx=a<b?-1:1;ny=0;}exit=Math.min(exit,f);
  }
- if(Math.abs(dy)<.00001){if(y<=minY||y>=maxY)return null}
+ if(Math.abs(dy)<.00001){if(y<=minY||y>=maxY)return null;}
  else{
   const a=(minY-y)/dy,b=(maxY-y)/dy,t=Math.min(a,b),f=Math.max(a,b);
-  if(t>enter){enter=t;nx=0;ny=a<b?-1:1}exit=Math.min(exit,f);
+  if(t>enter){enter=t;nx=0;ny=a<b?-1:1;}exit=Math.min(exit,f);
  }
  return enter>=0&&enter<=1&&exit>=enter?{t:enter,nx,ny}:null;
 }
+function brickSparks(q,x,y,color){
+ for(let i=0;i<9;i++){
+  const a=rand(0,TAU),speed=rand(35,125),life=rand(.18,.43);
+  q.particles.push({x,y,vx:Math.cos(a)*speed,vy:Math.sin(a)*speed,life,maxLife:life,color,r:rand(1.2,3)});
+ }
+ if(q.particles.length>75)q.particles.splice(0,q.particles.length-75);
+}
+function completeBricks(){
+ const q=state;q.won=true;over=true;paused=false;started=false;
+ saveBest(Math.floor(q.score));updateHud();
+ overlay('VICTORY','All six stages cleared','Final score '+Math.floor(q.score)+' · Best '+Math.floor(readBest()),'Play again');
+ $('message').textContent='Arcade cleared!';audio('point');
+}
 function tickBricks(dt){
- const q=state,b=q.ball;
- if(inputs.left)q.paddle-=365*dt;if(inputs.right)q.paddle+=365*dt;
- if(inputs.drag)q.paddle=inputs.lastX;q.paddle=clamp(q.paddle,43,W-43);
- if(q.attached){b.x=q.paddle;q.trail=[];return}
+ const q=state,b=q.ball,half=q.paddleWidth/2;
+ if(inputs.left)q.paddle-=435*dt;
+ if(inputs.right)q.paddle+=435*dt;
+ if(inputs.drag)q.paddle=inputs.lastX;
+ q.paddle=clamp(q.paddle,half+8,W-half-8);
+ q.impact=Math.max(0,q.impact-dt*3.7);
+ for(const p of q.particles){p.x+=p.vx*dt;p.y+=p.vy*dt;p.vy+=160*dt;p.life-=dt;}
+ q.particles=q.particles.filter(p=>p.life>0);
+ if(q.attached){b.x=q.paddle;q.trail=[];return;}
  const oldX=b.x,oldY=b.y,dx=b.vx*dt,dy=b.vy*dt;
  b.x+=dx;b.y+=dy;
- if(b.x<8){b.x=16-b.x;b.vx=Math.abs(b.vx)}
- if(b.x>W-8){b.x=2*(W-8)-b.x;b.vx=-Math.abs(b.vx)}
- if(b.y<8){b.y=16-b.y;b.vy=Math.abs(b.vy)}
- // Paddle is 76px across; the impact offset controls a bounded real angle.
- if(b.vy>0&&oldY+8<=490&&b.y+8>=490&&Math.abs(b.x-q.paddle)<43){
-  b.y=482;
-  const hit=clamp((b.x-q.paddle)/38,-1,1),speed=Math.min(590,370+q.hits*5);
-  const angle=hit*1.05;
-  b.vx=Math.sin(angle)*speed;b.vy=-Math.cos(angle)*speed;audio('hit');
+ if(b.x<8){b.x=16-b.x;b.vx=Math.abs(b.vx);}
+ if(b.x>W-8){b.x=2*(W-8)-b.x;b.vx=-Math.abs(b.vx);}
+ if(b.y<8){b.y=16-b.y;b.vy=Math.abs(b.vy);}
+ // Calculate impact point at paddle height, so a fast diagonal bounce is
+ // never granted for a ball that has already passed off the paddle edge.
+ const bottomBefore=oldY+8,bottomAfter=oldY+dy+8;
+ if(b.vy>0&&bottomBefore<=490&&bottomAfter>=490){
+  const fraction=clamp((490-bottomBefore)/(bottomAfter-bottomBefore||1),0,1);
+  const touchX=oldX+dx*fraction;
+  if(Math.abs(touchX-q.paddle)<=half+8){
+   b.y=482;
+   const offset=clamp((touchX-q.paddle)/(half+3),-1,1);
+   const angle=Math.abs(offset)<.12?(b.vx>=0?.17:-.17):offset*1.08;
+   const speed=brickSpeed(q);
+   b.vx=Math.sin(angle)*speed;b.vy=-Math.cos(angle)*speed;
+   q.impact=.22;audio('hit');
+  }
  }
  let impacted=null;
  for(const brick of q.bricks){
@@ -630,42 +677,71 @@ function tickBricks(dt){
   b.x=oldX+dx*Math.max(0,t-.0005)+nx*.2;
   b.y=oldY+dy*Math.max(0,t-.0005)+ny*.2;
   if(nx)b.vx=-b.vx;else b.vy=-b.vy;
-  brick.hp--;q.hits++;q.score+=brick.hp===0?15:4;audio('point');
-  // Resist near-horizontal, endlessly sweeping shots while keeping paddle control.
-  const speed=Math.min(590,Math.max(355,Math.hypot(b.vx,b.vy)+3.5));
-  let vx=b.vx,vy=b.vy,mag=Math.hypot(vx,vy)||1;
-  vx=vx/mag*speed;vy=vy/mag*speed;
-  if(Math.abs(vy)<speed*.48){vy=Math.sign(vy||-1)*speed*.48;
-   vx=Math.sign(vx||1)*Math.sqrt(speed*speed-vy*vy)}
+  brick.hp--;q.hits++;
+  q.score+=brick.hp===0?15:5;
+  audio('point');q.impact=.28;
+  brickSparks(q,b.x,b.y,brick.hp?'#f3dcb8':'#fff6c4');
+  const speed=brickSpeed(q),mag=Math.hypot(b.vx,b.vy)||1;
+  let vx=b.vx/mag*speed,vy=b.vy/mag*speed;
+  if(Math.abs(vy)<speed*.46){
+   vy=Math.sign(vy||-1)*speed*.46;
+   vx=Math.sign(vx||1)*Math.sqrt(speed*speed-vy*vy);
+  }
+  if(Math.abs(vx)<speed*.16){
+   vx=Math.sign(vx||1)*speed*.16;
+   vy=Math.sign(vy||-1)*Math.sqrt(speed*speed-vx*vx);
+  }
   b.vx=vx;b.vy=vy;
   q.bricks=q.bricks.filter(item=>item.hp>0);
-  if(!q.bricks.length){q.level++;newBricksLevel();audio('point');return}
+  if(!q.bricks.length){
+   if(q.level>=BRICK_FINAL_LEVEL){completeBricks();return;}
+   q.level++;newBricksLevel();audio('point');updateHud();return;
+  }
  }
- q.trail.push({x:b.x,y:b.y});if(q.trail.length>5)q.trail.shift();
+ q.trail.push({x:b.x,y:b.y});
+ if(q.trail.length>7)q.trail.shift();
  if(b.y>H+14){
-  q.lives--;
-  if(q.lives<=0)end('Out of balls');
-  else{q.ball={x:q.paddle,y:479,vx:0,vy:-355};q.attached=true;q.trail=[];audio('bad')}
+  q.lives--;audio('bad');
+  if(q.lives<=0){end('Out of balls');return;}
+  else{
+   q.ball={x:q.paddle,y:479,vx:0,vy:-brickSpeed(q)};
+   q.attached=true;q.trail=[];q.particles=[];
+  }
  }
  updateHud();
 }
 function paintBricks(){
- bg('#e6eee3','#bed9c9');
- ctx.strokeStyle='#ffffff25';ctx.lineWidth=1;
- for(let y=57;y<475;y+=25){ctx.beginPath();ctx.moveTo(8,y);ctx.lineTo(W-8,y);ctx.stroke()}
- fill(0,521,W,29,'#aecbb9');
- const colors=['#df856e','#dfb367','#6ea18a','#789abe','#a18bb4','#559da3','#c49a75','#729c7a'];
- for(const b of state.bricks){
+ bg('#e6eee4','#b8d4c3');
+ ctx.strokeStyle='#ffffff24';ctx.lineWidth=1;
+ for(let y=57;y<475;y+=25){ctx.beginPath();ctx.moveTo(8,y);ctx.lineTo(W-8,y);ctx.stroke();}
+ fill(0,521,W,29,'#9ebda9');
+ const colors=['#d97f70','#dba55d','#639d87','#759abb','#a18bb7','#5397a0','#bd9470','#709e7f'];
+ const q=state;
+ for(const b of q.bricks){
   const row=Math.round((b.y-66)/27),col=colors[row%colors.length];
-  fill(b.x,b.y,b.w,b.h,col,4);
-  fill(b.x+2,b.y+2,b.w-4,3,'#ffffff4a',2);
-  if(b.hp>1){fill(b.x+4,b.y+b.h-6,b.w-8,2,'#1e3c3755',1)}
+  fill(b.x,b.y,b.w,b.h,col,5);
+  fill(b.x+3,b.y+3,b.w-6,3,'#ffffff70',2);
+  if(b.maxHp>1){
+   fill(b.x+5,b.y+b.h-7,b.w-10,2,'#17362c44',1);
+   fill(b.x+5,b.y+b.h-7,(b.w-10)*b.hp/b.maxHp,2,'#fff2db',1);
+  }
  }
- for(let i=0;i<state.trail.length;i++){const p=state.trail[i];disk(p.x,p.y,2+i*.9,'#ffffff35')}
- const p=state.paddle;fill(p-38,490,76,11,'#1e5647',6);fill(p-29,491,58,3,'#b2e7c8',2);
- const ball=state.ball;disk(ball.x,ball.y,8,'#fcfff5');disk(ball.x-2,ball.y-2,3,'#c7d9d2');
- text('LEVEL '+state.level,15,28,13,'#476d5c',800,'left');
- if(state.attached&&started)text('TAP TO LAUNCH',W/2,353,16,'#4a7960',850);
+ for(const p of q.particles){
+  ctx.globalAlpha=Math.min(1,p.life/p.maxLife);
+  disk(p.x,p.y,p.r,p.color);
+ }
+ ctx.globalAlpha=1;
+ for(let i=0;i<q.trail.length;i++){
+  const p=q.trail[i];disk(p.x,p.y,2+i*.72,'#ffffff'+(Math.round(10+i*7)).toString(16).padStart(2,'0'));
+ }
+ const p=q.paddle,half=q.paddleWidth/2;
+ fill(p-half,490,q.paddleWidth,12,q.impact>0?'#45896d':'#205c49',6);
+ fill(p-half+7,492,q.paddleWidth-14,3,'#c1ebd3',2);
+ const ball=q.ball;
+ disk(ball.x,ball.y,8,'#ffffff');disk(ball.x-2,ball.y-2,3,'#d3e5df');
+ text('LEVEL '+q.level+' / '+BRICK_FINAL_LEVEL,15,28,13,'#3e6655',850,'left');
+ text(q.bricks.length+' LEFT',W-15,28,12,'#3e6655',750,'right');
+ if(q.attached&&started)text('TAP TO LAUNCH',W/2,353,16,'#4a7960',850);
 }
 
 const INIT={slice:initSlice,jump:initJump,runner:initRunner,shooter:initShooter,bricks:initBricks};
