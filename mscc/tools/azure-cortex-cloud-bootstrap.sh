@@ -297,6 +297,9 @@ current_agent_blob="$(git hash-object "$AGENT_TARGET")"
 current_helper_blob="$(git hash-object "$HELPER_TARGET")"
 if [[ "$current_agent_blob" == "$AGENT_BLOB" && "$current_helper_blob" == "$HELPER_BLOB" && \
       "$(sudo -n test -f "$SETTINGS_WRITE_TARGET" && sudo -n git hash-object "$SETTINGS_WRITE_TARGET" || true)" == "$SETTINGS_WRITE_BLOB" ]]; then
+  sudo -n grep -Fxq 'cortex-agent ALL=(root) NOPASSWD: /usr/local/libexec/cortex-agent-control setting-set *' /etc/sudoers.d/cortex-agent || {
+    echo 'The protected Cortex settings write capability is not configured.' >&2; exit 1;
+  }
   echo 'Approved Cortex Agent already active; retaining existing token and release.'
   sudo -n install -d -m 0750 /var/lib/cortex
   printf '%s\n' "$SOURCE_SHA" | sudo -n tee "$BOOTSTRAP_MARK" >/dev/null
@@ -328,9 +331,17 @@ rollback() {
   code=$?
   trap - EXIT
   if ((code != 0 && changed == 1)); then
-    echo 'Cortex bootstrap failed; restoring only the former Agent and helper.' >&2
+    echo 'Cortex bootstrap failed; restoring only the former Agent, helper and privilege policy.' >&2
     sudo -n install -m 0644 "$tmp/previous-index.js" "$AGENT_TARGET" || true
     sudo -n install -m 0755 "$tmp/previous-helper.sh" "$HELPER_TARGET" || true
+    if [[ -f "$tmp/previous-sudoers" ]]; then
+      sudo -n install -m 0440 "$tmp/previous-sudoers" /etc/sudoers.d/cortex-agent || true
+    fi
+    if [[ -f "$tmp/previous-settings-helper" ]]; then
+      sudo -n install -m 0644 "$tmp/previous-settings-helper" "$SETTINGS_WRITE_TARGET" || true
+    else
+      sudo -n rm -f "$SETTINGS_WRITE_TARGET" || true
+    fi
     sudo -n systemctl restart cortex-agent.service || true
   fi
   rm -rf "$tmp"
@@ -357,9 +368,29 @@ bash -n "$tmp/cortex-agent-control"
 node --check "$tmp/protected-settings-write.cjs"
 cp "$AGENT_TARGET" "$tmp/previous-index.js"
 sudo -n cat "$HELPER_TARGET" > "$tmp/previous-helper.sh"
+sudo -n cat /etc/sudoers.d/cortex-agent > "$tmp/previous-sudoers"
+if sudo -n test -e "$SETTINGS_WRITE_TARGET"; then
+  # This is a new managed binary; never silently overwrite an unrelated file.
+  [[ "$(sudo -n git hash-object "$SETTINGS_WRITE_TARGET")" == "$SETTINGS_WRITE_BLOB" ]] || {
+    echo 'Existing protected Cortex writer does not match the approved pinned revision.' >&2; exit 1;
+  }
+  sudo -n cat "$SETTINGS_WRITE_TARGET" > "$tmp/previous-settings-helper"
+fi
 
-sudo -n install -m 0644 "$tmp/index.js" "$AGENT_TARGET"
+grep -Fq 'cortex-agent ALL=(root) NOPASSWD: /usr/local/libexec/cortex-agent-control env-set *' "$tmp/previous-sudoers" || {
+  echo 'Existing Cortex sudoers contract is incompatible; refusing to broaden privileges.' >&2; exit 1;
+}
+cp "$tmp/previous-sudoers" "$tmp/new-sudoers"
+if ! grep -Fxq 'cortex-agent ALL=(root) NOPASSWD: /usr/local/libexec/cortex-agent-control setting-set *' "$tmp/new-sudoers"; then
+  printf '%s\\n' 'cortex-agent ALL=(root) NOPASSWD: /usr/local/libexec/cortex-agent-control setting-set *' >> "$tmp/new-sudoers"
+fi
+sudo -n visudo -cf "$tmp/new-sudoers" >/dev/null
+
+# All bytes and sudo policy are validated before modifying production.
 changed=1
+sudo -n install -m 0644 "$tmp/protected-settings-write.cjs" "$SETTINGS_WRITE_TARGET"
+sudo -n install -m 0440 "$tmp/new-sudoers" /etc/sudoers.d/cortex-agent
+sudo -n install -m 0644 "$tmp/index.js" "$AGENT_TARGET"
 sudo -n install -m 0755 "$tmp/cortex-agent-control" "$HELPER_TARGET"
 sudo -n systemctl restart cortex-agent.service
 
