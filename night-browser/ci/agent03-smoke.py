@@ -4,6 +4,7 @@
 Runs against an installed emulator and captures reproducible screenshots.
 This does not replace human visual inspection or real login-cookie isolation tests.
 """
+import atexit
 import re
 import subprocess
 import time
@@ -53,6 +54,28 @@ def screenshot(name):
     subprocess.run(["adb", "pull", "/sdcard/agent03.png", str(OUT / name)], check=True)
 
 
+def diagnostics():
+    # Preserve evidence on assertion failures, not just on successful completion.
+    try:
+        screenshot("final-ui.png")
+        dump()
+        log = adb("logcat", "-d", "-t", "10000")
+        (OUT / "logcat.txt").write_text("\\n".join(
+            line for line in log.splitlines()
+            if "AndroidRuntime" in line or "FATAL EXCEPTION" in line
+            or "com.night.browser" in line
+        )[-16000:])
+        for n in dump().iter("node"):
+            label = n.get("text") or n.get("content-desc")
+            if label:
+                print("Final UI:", label[:100], n.get("bounds", ""))
+    except Exception as exc:
+        print("Diagnostic capture failed:", repr(exc))
+
+
+atexit.register(diagnostics)
+
+
 def site(domain):
     root = dump()
     input_node = next((n for n in root.iter("node")
@@ -66,9 +89,14 @@ def site(domain):
         raise AssertionError("Address field inaccessible to UI test")
     x, y = center(input_node)
     adb("shell", "input", "tap", str(x), str(y))
+    # New Gecko tabs may initially show about:blank; always clear the editable
+    # address, rather than appending a hostname to it.
+    adb("shell", "input", "keyevent", "KEYCODE_MOVE_END")
+    adb("shell", "input", "keyevent", *(["KEYCODE_DEL"] * 50))
     adb("shell", "input", "text", domain)
+    time.sleep(0.5)
     tap("Go")
-    time.sleep(9)
+    time.sleep(8)
 
 
 def count_profile(prefix):
@@ -102,8 +130,12 @@ sites = [
 for index, domain in enumerate(sites):
     if index:
         tap("Tabs")
+        if index == 1:
+            screenshot("01-first-tabs.png")
         tap("New tab")
     site(domain)
+    if index == 0:
+        screenshot("01-first-web.png")
 tap("Tabs")
 assert count_profile("Regular") >= len(sites), "Normal tabs are not independently created"
 screenshot("02-regular-tabs.png")
