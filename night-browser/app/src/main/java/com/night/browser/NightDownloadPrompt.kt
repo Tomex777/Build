@@ -42,6 +42,13 @@ class WebDownloadConsent(private val downloads: DownloadLibrary) {
         private set
 
     fun offer(response: WebResponse, privateMode: Boolean = false) {
+        // The SAF picker belongs to the pending original stream. Never swap a second
+        // response underneath it: that would save the wrong bytes under its filename.
+        if (selectingDestination) {
+            runCatching { response.body?.close() }
+            eventMessage = "Finish saving the previous file first."
+            return
+        }
         // Gecko delegate delivers on the main thread. Close previous body if a site launches
         // multiple download requests while one is awaiting user consent.
         dismiss()
