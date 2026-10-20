@@ -7,7 +7,7 @@ test -s "$APK"
 adb install -r "$APK"
 adb shell wm size 1080x1920
 adb shell wm density 420
-adb shell am start -n com.night.browser/.MainActivity
+adb shell am start -n com.nice.browser/.MainActivity
 sleep 15
 
 capture() {
@@ -67,8 +67,8 @@ tap_ui "More"
 tap_ui "Time Machine"
 capture "07-time-machine.png"
 adb shell dumpsys activity activities > "$DIR/activity.txt"
-adb logcat -d -t 10000 | grep -E 'FATAL EXCEPTION|AndroidRuntime|com.night.browser' | tail -350 > "$DIR/logcat.txt" || true
-if grep -E 'FATAL EXCEPTION.*|Process: com.night.browser' "$DIR/logcat.txt"; then
+adb logcat -d -t 10000 | grep -E 'FATAL EXCEPTION|AndroidRuntime|com.nice.browser' | tail -350 > "$DIR/logcat.txt" || true
+if grep -E 'FATAL EXCEPTION.*|Process: com.nice.browser' "$DIR/logcat.txt"; then
   echo 'Detected browser crash' >&2
   exit 1
 fi

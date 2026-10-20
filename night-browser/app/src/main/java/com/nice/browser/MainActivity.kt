@@ -1,4 +1,4 @@
-package com.night.browser
+package com.nice.browser
 
 import android.content.Intent
 import android.os.Bundle
@@ -73,7 +73,7 @@ class MainActivity : ComponentActivity() {
                         browser.notice = "The saved copy is missing."
                     } else {
                         val uri = FileProvider.getUriForFile(
-                            this, "com.night.browser.files", file)
+                            this, "com.nice.browser.files", file)
                         val intent = Intent(Intent.ACTION_VIEW)
                             .setDataAndType(uri, "application/pdf")
                             .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)

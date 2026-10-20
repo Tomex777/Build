@@ -3,10 +3,10 @@ plugins {
     id("org.jetbrains.kotlin.plugin.compose")
 }
 android {
-    namespace = "com.night.browser"
+    namespace = "com.nice.browser"
     compileSdk { version = release(37) { minorApiLevel = 1 } }
     defaultConfig {
-        applicationId = "com.night.browser"
+        applicationId = "com.nice.browser"
         minSdk = 26
         targetSdk = 36
         versionCode = 1

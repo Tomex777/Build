@@ -1,4 +1,4 @@
-package com.night.browser
+package com.nice.browser
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background

@@ -1,4 +1,4 @@
-package com.night.browser
+package com.nice.browser
 
 import java.net.URI
 import java.net.URLEncoder

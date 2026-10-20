@@ -1,4 +1,4 @@
-package com.night.browser
+package com.nice.browser
 
 import android.content.Context
 import android.graphics.Bitmap
