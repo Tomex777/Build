@@ -3,6 +3,8 @@
 These tests never launch an emulator and never count an unverified feature as PASS.
 """
 import unittest
+from unittest.mock import patch
+from xml.etree import ElementTree
 
 from acceptance import Acceptance
 from wave2_blackbox import Device
@@ -31,6 +33,32 @@ class NativeUiContracts(unittest.TestCase):
             {"package": "com.android.inputmethod.latin", "text": "88"},
         ]
         self.assertEqual(qa.count_tabs(), 4)
+
+    def test_browser_chrome_is_not_tapped_through_visible_keyboard(self):
+        qa = Device.__new__(Device)
+        node = ElementTree.Element("node", {"text": "Tabs", "bounds": "[10,800][100,900]"})
+        qa.find = lambda *args, **kwargs: node
+        calls = []
+        def shell(*args, **kwargs):
+            calls.append(args)
+            return "mInputShown=true" if args[:2] == ("dumpsys", "input_method") else ""
+        with patch("wave2_blackbox.shell", side_effect=shell), patch("wave2_blackbox.time.sleep"):
+            qa.click("Tabs")
+        self.assertLess(calls.index(("input", "keyevent", "4")),
+                        calls.index(("input", "tap", "55", "850")))
+
+    def test_hidden_keyboard_never_causes_surprise_back_navigation(self):
+        qa = Device.__new__(Device)
+        qa.find = lambda *args, **kwargs: ElementTree.Element(
+            "node", {"text": "Home", "bounds": "[0,0][100,100]"})
+        calls = []
+        def shell(*args, **kwargs):
+            calls.append(args)
+            return "mShowRequested=true; mInputShown=false"
+        with patch("wave2_blackbox.shell", side_effect=shell), patch("wave2_blackbox.time.sleep"):
+            qa.click("Home")
+        self.assertNotIn(("input", "keyevent", "4"), calls)
+        self.assertIn(("input", "tap", "50", "50"), calls)
 
     def test_private_entry_uses_real_tabs_filter(self):
         qa = Acceptance.__new__(Acceptance)
