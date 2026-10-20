@@ -15,7 +15,7 @@ const defs={
  slice:{title:'Fruit Slice',subtitle:'Slice the fruit. Never touch the bombs.',rules:'Drag a finger across fruit to slice it. Avoid black bombs and do not miss five pieces of fruit. Mouse dragging works on desktop.',label:'LIVES'},
  jump:{title:'Sky Jumper',subtitle:'Climb higher. Land every jump.',rules:'Guide the jumper left and right with the controls, arrow keys, A/D or by dragging horizontally across the screen. Jumping is automatic. Fall below the screen and the run ends.',label:'HEIGHT'},
  runner:{title:'Endless Runner',subtitle:'Jump, slide and survive the run.',rules:'Tap or press Space to jump. Swipe down or hold Slide to duck underneath flying obstacles. On desktop, use Up/Space to jump and Down to duck. The pace gets faster over time.',label:'SPEED'},
- shooter:{title:'Space Shooter',subtitle:'Defend the skies against endless waves.',rules:'Drag your ship left and right; it fires automatically. Dodge enemy shots, collect green shields and survive increasingly difficult waves. Use arrows or A/D on desktop.',label:'WAVE'},
+ shooter:{title:'Space Shooter',subtitle:'Defend the skies against endless waves.',rules:'Drag your ship left and right; it fires automatically. Dodge enemy shots, collect green shields and survive increasingly difficult waves. Use arrows or A/D on desktop.',label:'HULL'},
  bricks:{title:'Brick Breaker',subtitle:'Break them all. Control the bounce.',rules:'Drag the paddle or use left/right arrows to keep the ball in play. Tap the game board to launch the ball. Clear every brick to reach the next level.',label:'LIVES'}
 };
 const soundKey='night-play-action-sfx-v1',bestKey=id=>'night-play-v1-action-'+id;
@@ -47,7 +47,7 @@ function updateHud(){
  if(state){if(game==='slice')value=Math.max(0,5-state.misses);
  if(game==='jump')value=Math.floor(state.score);
  if(game==='runner')value=(state.speed/220).toFixed(1)+'×';
- if(game==='shooter')value=state.wave;
+ if(game==='shooter')value=state.lives;
  if(game==='bricks')value=state.lives}
  $('stat').textContent=String(value);
 }
@@ -559,7 +559,7 @@ function paintShooter(){
  ctx.restore();
  if(p.shield>0){ctx.strokeStyle='#75f6cb';ctx.lineWidth=2.5;ctx.beginPath();ctx.arc(p.x,p.y,29,0,TAU);ctx.stroke();}
  text('WAVE '+state.wave,15,27,13,'#d9f2e6',850,'left');
- text('HULL '+Math.max(0,state.lives),W-15,27,13,state.notice>0?'#ffb39e':'#d9f2e6',850,'right');
+ if(state.notice>0)text('DANGER',W-15,27,13,'#ffb39e',850,'right');
  if(state.breaches>0)text('BREACHES '+state.breaches,15,H-16,11,'#abcad5',750,'left');
 }
 
