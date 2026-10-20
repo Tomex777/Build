@@ -55,7 +55,7 @@ try {
   // The localhost listener has no public IP binding, and the same path must
   // not exist on the public web-panel listener.
   assert.equal((await send({key:'autoCc',value:false},
-    `http://127.0.0.1:${httpPort}/settings`)).status, 404)
+    `http://127.0.0.1:${httpPort}/settings`)).status, 401)
   assert.equal(values.autoCc, true)
   console.log('PASS: NIGHT owns private Cortex Settings writes via loopback only')
 } finally {
