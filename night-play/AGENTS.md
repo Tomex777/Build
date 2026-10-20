@@ -1,3 +1,11 @@
+# WAVE 2 (20 OCT 2026) — PRIORITY ROUTER
+
+When an existing NIGHT Play coding chat receives "Continue" or "You are NIGHT Play Agent N", first read `night-play/agents/README.md`, your `night-play/agents/agent-NN.md`, **GitHub issue #459 (latest comments)**, and the current code on `feature/party-online-rooms-20261019`. **This is now a second-wave improvement/release-quality assignment, not a repetition of first-wave implementation.** The first ten-agent integration PR #436 has MERGED and its gameplay CI passed; do not follow stale tables below suggesting those agents have not started or that #436 remains unmerged. The open Snake swipe PR #435 and live-server QA remain high priorities. Never infer the preview alias has a particular deployed SHA without inspecting Vercel.
+
+All agents share one continuously integrated codebase with isolated small PR branches, rapid coordinator merging and Issue #459 check-ins; avoid simultaneous writes to `action/games.js`, `arcade/games.js`, shared CSS/index. Use "CLAIM / HANDOFF / READY / VERIFIED / INTEGRATED" comments with dependencies acknowledged. Release requires complete actual playing and device/browser QA, not a compilation badge. User opens chats; Markdown is not perpetual execution.
+
+---
+
 # AGENTS.md — NIGHT Play web engineering team
 
 These instructions apply to `night-play/` and all subdirectories. They are a work agreement for coding agents, **not an always-running execution service**.

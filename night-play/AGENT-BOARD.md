@@ -1,3 +1,9 @@
+# WAVE 2 — updated board
+
+As of 2026-10-20, the original ten-specialist source was **integrated through merged PR #436** into `feature/party-online-rooms-20261019`; original first-wave statuses below are archived. **Current** assignments and quality goals: `night-play/agents/README.md` and individual `agents/agent-NN.md`. Shared communications: [Issue #459](https://github.com/Tomex777/Build/issues/459). Open priority item PR #435 for dropped Snake gestures. Gameplay CI on integrated PR #436: all checked jobs succeeded. Do not mistake passing automation for physical-device, production multiplayer or subjective play quality.
+
+---
+
 # NIGHT Play — ten-agent development board
 
 **20 October 2026 · Owner: Agent 1 Lead Coordinator**
