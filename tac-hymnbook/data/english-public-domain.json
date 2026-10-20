@@ -229,6 +229,59 @@
       "rights": "public_domain_historical_english_text",
       "edition_match": "first_line_matches_RH2006; stanza_order_and_wording_need_TAC_book_check",
       "text_status": "public_domain_english_alternate_needs_edition_review"
+    },
+    {
+      "number": 207,
+      "title_en": "Open my eyes, that I may see",
+      "author": "Clara H. Scott",
+      "published": 1895,
+      "source_url": "https://library.timelesstruths.org/music/Open_My_Eyes_That_I_May_See/",
+      "source_first_line": "Open my eyes, that I may see",
+      "verses_en": [
+        [
+          "Open my eyes, that I may see",
+          "Glimpses of truth Thou hast for me;",
+          "Place in my hands the wonderful key",
+          "That shall unclasp and set me free.",
+          "Silently now I wait for Thee,",
+          "Ready, my God, Thy will to see.",
+          "Open my eyes, illumine me,",
+          "Spirit divine!"
+        ],
+        [
+          "Open my ears, that I may hear",
+          "Voices of truth Thou sendest clear;",
+          "And while the wave notes fall on my ear,",
+          "Everything false will disappear.",
+          "Silently now I wait for Thee,",
+          "Ready, my God, Thy will to see.",
+          "Open my ears, illumine me,",
+          "Spirit divine!"
+        ],
+        [
+          "Open my mind, that I may read",
+          "More of Thy love in word and deed;",
+          "What shall I fear while yet Thou dost lead?",
+          "Only for light from Thee I plead.",
+          "Silently now I wait for Thee,",
+          "Ready, my God, Thy will to see.",
+          "Open my mind, illumine me,",
+          "Spirit divine!"
+        ],
+        [
+          "Open my mouth, and let me bear",
+          "Gladly the warm truth everywhere;",
+          "Open my heart and let me prepare",
+          "Love with Thy children thus to share.",
+          "Silently now I wait for Thee,",
+          "Ready, my God, Thy will to see.",
+          "Open my heart, illumine me,",
+          "Spirit divine!"
+        ]
+      ],
+      "rights": "public_domain_historical_english_text",
+      "edition_match": "first_line_matches_RH2006; stanza_order_and_wording_need_TAC_book_check",
+      "text_status": "public_domain_english_alternate_needs_edition_review"
     }
   ]
 }
