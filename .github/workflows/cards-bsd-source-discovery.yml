@@ -1,0 +1,35 @@
+name: NIGHT BSD Official Art Discovery
+on:
+  push:
+    branches: [feature/cards-bungo-stray-dogs-20261020]
+    paths: ['.github/workflows/cards-bsd-source-discovery.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Inspect source image references without importing artwork
+        shell: python
+        run: |
+          import re, urllib.request, html
+          pages=[
+            'https://bungosd.com/character/',
+            'https://bungo-stray-dogs.jp/character/',
+            'https://bungo-stray-dogs.jp/tv/character/',
+          ]
+          for url in pages:
+            print('\n===',url,'===')
+            try:
+              req=urllib.request.Request(url,headers={'User-Agent':'Mozilla/5.0'})
+              raw=urllib.request.urlopen(req,timeout=20).read().decode('utf-8','replace')
+            except Exception as exc:
+              print('FETCH ERROR',exc);continue
+            print('HTML LENGTH',len(raw))
+            refs=list(dict.fromkeys(html.unescape(s) for s in re.findall(r'(?:src|data-src|href|content|data-image)=["\']([^"\']+(?:\\.png|\\.webp|\\.jpg|\\.jpeg)(?:\\?[^"\']*)?)',raw,re.I)))
+            print('IMAGE REFS COUNT',len(refs))
+            for s in refs[:160]:print('IMG',s)
+            for marker in ['中島敦','太宰治','芥川龍之介','中原中也','char-img','chara-img','character-item','charImage']:
+              i=raw.find(marker)
+              print('MARKER',marker,raw[max(0,i-260):i+450].replace('\n',' ')[:710] if i>=0 else 'missing')
