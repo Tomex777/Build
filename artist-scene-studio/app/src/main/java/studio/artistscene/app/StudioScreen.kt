@@ -88,7 +88,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.rememberModalBottomSheetState
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.Text
@@ -2020,11 +2019,11 @@ private fun EditorContextSheet(
                         var renaming by remember(actor.id) { mutableStateOf(false) }
                         if (renaming) {
                             var name by remember(actor.id, actor.name) { mutableStateOf(actor.name) }
-                            OutlinedTextField(
+                            BrowserTextInput(
                                 value = name,
-                                onValueChange = { name = it },
-                                label = { Text("Object name") },
-                                singleLine = true,
+                                onValueChange = { name = it.take(80) },
+                                placeholder = "Object name",
+                                label = "Object name",
                                 modifier = Modifier.fillMaxWidth().testTag("actor-name"),
                             )
                             Row(
