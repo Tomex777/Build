@@ -41,11 +41,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -124,7 +125,7 @@ fun NativeReversiScreen(onExit: () -> Unit) {
             border = BorderStroke(2.dp, Color(0xFF134A36))
         ) {
             Canvas(
-                Modifier.fillMaxSize().pointerInput(state.cells, state.finished) {
+                Modifier.fillMaxSize().semantics { contentDescription = "Reversi board" }.pointerInput(state.cells, state.finished) {
                     detectTapGestures { point ->
                         if (state.finished) return@detectTapGestures
                         val x = (point.x / (size.width / 8f)).toInt().coerceIn(0, 7)
