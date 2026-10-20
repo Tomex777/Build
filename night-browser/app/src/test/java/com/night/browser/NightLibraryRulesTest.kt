@@ -24,7 +24,7 @@ class NightLibraryRulesTest {
         assertEquals("image.png", DownloadFileNames.safe("image.png", "image/png"))
         assertEquals("download.pdf", DownloadFileNames.safe("..", "application/pdf"))
         assertEquals("download", DownloadFileNames.safe(null, null))
-        assertEquals("report.pdf", DownloadFileNames.safe("report\\u202E.pdf"))
+        assertEquals("report.pdf", DownloadFileNames.safe("report" + 0x202E.toChar() + ".pdf")
     }
 
     @Test fun downloadDispositionAndRedactionDoNotLeakSecrets() {
