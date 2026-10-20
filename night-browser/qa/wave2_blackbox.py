@@ -529,7 +529,12 @@ class Device:
         # The user should not have to dismiss a keyboard just to see Home.
         if any("inputmethod" in n.get("package", "").casefold() for n in tree):
             raise AssertionError("Keyboard unexpectedly obscures cold Home")
-        return "Visible Home shortcuts with keyboard closed"
+        # UIAutomator sometimes omits Gboard's entire hierarchy on API26.
+        # The IME itself is a separate Android system-window accessibility root.
+        state = shell("dumpsys", "input_method", check=False)
+        if "mInputShown=true" in state or "mShowRequested=true" in state:
+            raise AssertionError("IME visible over cold Home")
+        return "Home shortcuts visible with IME hidden"
 
     def offline_home(self):
         shell("svc", "wifi", "disable", check=False)
