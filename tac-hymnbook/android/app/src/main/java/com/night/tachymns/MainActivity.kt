@@ -554,7 +554,7 @@ private fun HymnRow(hymn: Hymn, saved: Boolean, onClick: () -> Unit, onToggleSav
             Column(Modifier.weight(1f)) {
                 Text(hymn.titleYo, fontSize = 15.sp, fontWeight = FontWeight.SemiBold,
                     lineHeight = 21.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                hymn.titleEn?.let {
+                hymn.titleEn?.takeIf { it != hymn.titleYo }?.let {
                     Spacer(Modifier.height(3.dp))
                     Text(it, color = MaterialTheme.colorScheme.onSurfaceVariant,
                         fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -591,7 +591,7 @@ private fun HymnReader(
     onDownloadAudio: (AudioKey) -> Unit,
     onExploreRecording: (Hymn, Boolean) -> Unit
 ) {
-    val showEnglish = english && hymn.hasEnglish
+    val showEnglish = (english || !hymn.hasYoruba) && hymn.hasEnglish
     val verses = if (showEnglish) hymn.versesEn else hymn.versesYo
     // A horizontal swipe changes hymn, without disturbing vertical scrolling through long verses.
     // Navigation buttons below remain for accessibility.
@@ -637,7 +637,7 @@ private fun HymnReader(
             item {
                 Text(hymn.titleYo, fontFamily = FontFamily.Serif,
                     fontSize = 29.sp, lineHeight = 37.sp, fontWeight = FontWeight.Medium)
-                hymn.titleEn?.let {
+                hymn.titleEn?.takeIf { it != hymn.titleYo }?.let {
                     Spacer(Modifier.height(8.dp))
                     Text(it, fontSize = 15.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
