@@ -33,7 +33,11 @@ test('Series and character identities are never silently swapped',()=>{
   }
   assert.equal(byId.get('ranpo-edogawa').proposedRank,'F','Non-supernatural deduction is not destructive power');
   assert.equal(byId.get('osamu-dazai').ability,'No Longer Human');
-  assert.equal(byId.get('chuya-nakahara').proposedRank,'A','Corruption is separate');
+  assert.equal(byId.get('osamu-dazai').proposedRank,'A','Nullification is stronger than ordinary duel damage, but conditional');
+  assert.equal(byId.get('ranpo-edogawa').proposedRank,'F','Direct supernatural power differs from strategic talent');
+  assert.equal(byId.get('fyodor-dostoevsky').spoiler,true);
+  assert.equal(roster.continuity,'bsd-mainline-manga');
+  assert.equal(byId.get('chuya-nakahara').proposedRank,'S','Corruption is separate');
   assert.equal(byId.get('ochi-fukuchi').proposedRank,'S');
   assert.ok(!roster.roster.some(c=>['SSS','EX'].includes(c.proposedRank)),
     'SSS and EX require an actual feat audit and form-specific review');
