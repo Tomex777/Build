@@ -414,6 +414,25 @@ jobs:
           sha256sum --check SHA256SUMS.txt
           printf 'commit=%s\napi26=PASSED\napi36=PASSED\n' "$GITHUB_SHA" > ACCEPTANCE.txt
           echo 'ready=true' >> "$GITHUB_OUTPUT"
+      # Distribute the update-compatible, owner-signed ARM64 APK separately from
+      # the 600+ MB multi-format archive. The artifact is created ONLY after both
+      # API acceptance jobs and permanent-key install/reinstall have passed.
+      - name: Checksum the validated ARM64 APK
+        if: steps.release.outputs.ready == 'true'
+        shell: bash
+        run: |
+          cd signed/production
+          sha256sum Annie-1.0.0-arm64-v8a-production-signed.apk > ARM64-SHA256.txt
+      - uses: actions/upload-artifact@v4
+        if: steps.release.outputs.ready == 'true'
+        with:
+          name: Annie-1.0.0-validated-arm64-apk
+          path: |
+            signed/production/Annie-1.0.0-arm64-v8a-production-signed.apk
+            signed/production/ARM64-SHA256.txt
+            signed/production/ACCEPTANCE.txt
+          if-no-files-found: error
+          retention-days: 30
       - uses: actions/upload-artifact@v4
         continue-on-error: true
         if: steps.release.outputs.ready == 'true'
