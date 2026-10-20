@@ -2,18 +2,16 @@ name: NIGHT Browser Wave 2 independent API26/API36 matrix
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - agent/browser-v2-10-qa
-    paths:
-      - 'night-browser/qa/wave2_*'
-      - '.github/workflows/night-browser-wave2-qa.yml'
   pull_request:
     branches:
       - feature/night-browser-multi-agent-20261020
     paths:
       - 'night-browser/**'
       - '.github/workflows/night-browser-wave2-qa.yml'
+
+concurrency:
+  group: night-browser-wave2-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
