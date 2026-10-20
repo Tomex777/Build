@@ -183,7 +183,11 @@ class DownloadLibrary private constructor(private val context: Context) {
             if (row.localFile.isNotBlank()) {
                 runCatching { findLocalFile(row).isFile }.getOrDefault(false)
             } else {
-                runCatching { manager.getUriForDownloadedFile(row.id) != null }
+                runCatching {
+                    val fileUri = manager.getUriForDownloadedFile(row.id)
+                    fileUri != null && context.contentResolver.openFileDescriptor(fileUri, "r")
+                        ?.use { true } == true
+                }
                     .getOrDefault(false)
             }
         }
