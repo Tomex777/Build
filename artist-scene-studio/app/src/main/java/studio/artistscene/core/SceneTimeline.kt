@@ -146,12 +146,27 @@ private fun AnimationTrack.sampleAt(timeSeconds: Float): AnimatedValue? {
     // All normal authoring writes sorted unique frames. Imported/legacy scenes can contain
     // unordered, duplicated or non-finite keys: the last duplicate authored at a time wins.
     // Reject invalid values instead of forwarding NaN transforms/weights to Filament.
-    val ordered = keyframes.asSequence()
-        .filter { it.timeSeconds.isFinite() && it.timeSeconds >= 0f && it.value.isValidFor(propertyPath) }
-        .sortedBy { it.timeSeconds }
-        .toList()
-    val keys = ordered.filterIndexed { index, key ->
-        index == ordered.lastIndex || key.timeSeconds != ordered[index + 1].timeSeconds
+    // Fast path: normal authored tracks are already sorted, unique and finite. Avoid
+    // allocating/sorting 40+ rig/morph tracks on every rendered animation frame.
+    var previousTime = Float.NEGATIVE_INFINITY
+    var cleanAndOrdered = true
+    for (frame in keyframes) {
+        if (!frame.timeSeconds.isFinite() || frame.timeSeconds < 0f ||
+            frame.timeSeconds <= previousTime || !frame.value.isValidFor(propertyPath)
+        ) {
+            cleanAndOrdered = false
+            break
+        }
+        previousTime = frame.timeSeconds
+    }
+    val keys = if (cleanAndOrdered) keyframes else {
+        val ordered = keyframes.asSequence()
+            .filter { it.timeSeconds.isFinite() && it.timeSeconds >= 0f && it.value.isValidFor(propertyPath) }
+            .sortedBy { it.timeSeconds }
+            .toList()
+        ordered.filterIndexed { index, key ->
+            index == ordered.lastIndex || key.timeSeconds != ordered[index + 1].timeSeconds
+        }
     }
     if (keys.isEmpty()) return null
     if (keys.size == 1 || timeSeconds <= keys.first().timeSeconds) return keys.first().value
@@ -196,7 +211,8 @@ private fun interpolate(a: AnimatedValue, b: AnimatedValue, amount: Float): Anim
         },
     )
 
-private fun lerp(a: Float, b: Float, amount: Float): Float = a + (b - a) * amount
+private fun lerp(a: Float, b: Float, amount: Float): Float =
+    (a.toDouble() + (b.toDouble() - a.toDouble()) * amount.toDouble()).toFloat()
 
 private fun lerp(a: Vec3, b: Vec3, amount: Float): Vec3 = Vec3(
     lerp(a.x, b.x, amount),
