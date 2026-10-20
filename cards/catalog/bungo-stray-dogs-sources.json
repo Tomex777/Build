@@ -2,7 +2,7 @@
   "version": 1,
   "series": "bungo-stray-dogs",
   "provider": "official BSD anime character pages",
-  "status": "11-official-cutouts-matched",
+  "status": "19-official-cutouts-matched",
   "rules": [
     "Map an original image only after matching exact named anime character and costume.",
     "Do not auto-assign art by unverified HTML ordering or file number.",
@@ -107,6 +107,78 @@
       "page": "https://bungo-stray-dogs.jp/character/?character=tanizaki-jun-ichiro",
       "image": "https://bungo-stray-dogs.jp/images/character/tanizaki-jun-ichiro/body-vnxizspvvi4w.png",
       "reviewedBy": "Manual source-identity inspection of the official full-body portrait",
+      "formLabel": "Official anime appearance"
+    },
+    {
+      "id": "motojiro-kajii",
+      "verifiedCharacter": "Motojiro Kajii",
+      "verifiedForm": "standard",
+      "page": "https://bungo-stray-dogs.jp/character/?character=kajii-motojiro",
+      "image": "https://bungo-stray-dogs.jp/images/character/kajii-motojiro/body-h3qkyscrdi7z.png",
+      "reviewedBy": "Manual identity matching on official named anime character page, full-body illustration",
+      "formLabel": "Official anime appearance"
+    },
+    {
+      "id": "koyo-ozaki",
+      "verifiedCharacter": "Koyo Ozaki",
+      "verifiedForm": "standard",
+      "page": "https://bungo-stray-dogs.jp/character/?character=ozaki-kouyou",
+      "image": "https://bungo-stray-dogs.jp/images/character/ozaki-kouyou/body-8ghr41hj155s.png",
+      "reviewedBy": "Manual identity matching on official named anime character page, full-body illustration",
+      "formLabel": "Official anime appearance"
+    },
+    {
+      "id": "ichiyo-higuchi",
+      "verifiedCharacter": "Ichiyo Higuchi",
+      "verifiedForm": "standard",
+      "page": "https://bungo-stray-dogs.jp/character/?character=higuchi-ichiyou",
+      "image": "https://bungo-stray-dogs.jp/images/character/higuchi-ichiyou/body-332wtcvtumga.png",
+      "reviewedBy": "Manual identity matching on official named anime character page, full-body illustration",
+      "formLabel": "Official anime appearance"
+    },
+    {
+      "id": "ogai-mori",
+      "verifiedCharacter": "Ogai Mori",
+      "verifiedForm": "standard",
+      "page": "https://bungo-stray-dogs.jp/character/?character=mori-ougai",
+      "image": "https://bungo-stray-dogs.jp/images/character/mori-ougai/body-so9yNhRWVL3M.png",
+      "reviewedBy": "Manual identity matching on official named anime character page, full-body illustration",
+      "formLabel": "Official anime appearance"
+    },
+    {
+      "id": "francis-fitzgerald",
+      "verifiedCharacter": "Francis Scott Key Fitzgerald",
+      "verifiedForm": "standard",
+      "page": "https://bungo-stray-dogs.jp/character/?character=francis-f",
+      "image": "https://bungo-stray-dogs.jp/images/character/francis-f/body-sRR8pj9JixQV.png",
+      "reviewedBy": "Manual identity matching on official named anime character page, full-body illustration",
+      "formLabel": "Official anime appearance"
+    },
+    {
+      "id": "lucy-montgomery",
+      "verifiedCharacter": "Lucy Maud Montgomery",
+      "verifiedForm": "standard",
+      "page": "https://bungo-stray-dogs.jp/character/?character=lucy-m",
+      "image": "https://bungo-stray-dogs.jp/images/character/lucy-m/body-p9BWAKhudw4R.png",
+      "reviewedBy": "Manual identity matching on official named anime character page, full-body illustration",
+      "formLabel": "Official anime appearance"
+    },
+    {
+      "id": "edgar-allan-poe",
+      "verifiedCharacter": "Edgar Allan Poe",
+      "verifiedForm": "standard",
+      "page": "https://bungo-stray-dogs.jp/character/?character=poe",
+      "image": "https://bungo-stray-dogs.jp/images/character/poe/body-posdahtuee.png",
+      "reviewedBy": "Manual identity matching on official named anime character page, full-body illustration",
+      "formLabel": "Official anime appearance"
+    },
+    {
+      "id": "fyodor-dostoevsky",
+      "verifiedCharacter": "Fyodor Dostoevsky",
+      "verifiedForm": "standard",
+      "page": "https://bungo-stray-dogs.jp/character/?character=fyodor",
+      "image": "https://bungo-stray-dogs.jp/images/character/fyodor/body-heuhgj.png",
+      "reviewedBy": "Manual identity matching on official named anime character page, full-body illustration",
       "formLabel": "Official anime appearance"
     }
   ]
