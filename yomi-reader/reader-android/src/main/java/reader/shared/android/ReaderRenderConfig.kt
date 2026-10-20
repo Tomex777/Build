@@ -9,6 +9,7 @@ data class ReaderRenderConfig(
     val cropBorders: Boolean = false,
     val backgroundColor: Int = 0xFF000000.toInt(),
     val pageTransitions: Boolean = true,
+    val navigateToPan: Boolean = false,
     val alwaysShowChapterTransition: Boolean = false,
     val volumeKeysEnabled: Boolean = false,
     val volumeKeysInverted: Boolean = false,

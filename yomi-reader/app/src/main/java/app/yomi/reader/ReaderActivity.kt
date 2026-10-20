@@ -370,6 +370,12 @@ class ReaderActivity : ComponentActivity(), ReaderViewerHost {
                             refreshChrome()
                         },
                         landscapeZoom = prefs.getBoolean(PREF_LANDSCAPE_ZOOM, false),
+                        navigateToPan = prefs.getBoolean(PREF_NAVIGATE_TO_PAN, false),
+                        onNavigateToPanChange = { value ->
+                            prefs.edit().putBoolean(PREF_NAVIGATE_TO_PAN, value).apply()
+                            installViewer()
+                            refreshChrome()
+                        },
                         onLandscapeZoomChange = { value ->
                             prefs.edit().putBoolean(PREF_LANDSCAPE_ZOOM, value).apply()
                             installViewer()
@@ -725,6 +731,7 @@ class ReaderActivity : ComponentActivity(), ReaderViewerHost {
         val renderConfig = ReaderRenderConfig(
             zoomStartPosition = zoomStartPosition,
             landscapeZoom = getPreferences(MODE_PRIVATE).getBoolean(PREF_LANDSCAPE_ZOOM, false),
+            navigateToPan = getPreferences(MODE_PRIVATE).getBoolean(PREF_NAVIGATE_TO_PAN, false),
             webtoonSidePaddingPercent = getPreferences(MODE_PRIVATE).getInt(PREF_WEBTOON_PADDING, 0).coerceIn(0, 25),
             doubleTapZoom = getPreferences(MODE_PRIVATE).getBoolean(PREF_WEBTOON_DOUBLE_TAP, true),
             webtoonZoomOutDisabled = getPreferences(MODE_PRIVATE).getBoolean(PREF_WEBTOON_DISABLE_ZOOM_OUT, false),
@@ -1490,6 +1497,7 @@ class ReaderActivity : ComponentActivity(), ReaderViewerHost {
         private const val PREF_SCALE_MODE = "scale_mode"
         private const val PREF_ZOOM_START = "reader_zoom_start"
         private const val PREF_LANDSCAPE_ZOOM = "reader_landscape_zoom"
+        private const val PREF_NAVIGATE_TO_PAN = "reader_navigate_to_pan"
         private const val PREF_WEBTOON_PADDING = "reader_webtoon_padding"
         private const val PREF_WEBTOON_DOUBLE_TAP = "reader_webtoon_double_tap_zoom"
         private const val PREF_WEBTOON_DISABLE_ZOOM_OUT = "reader_webtoon_disable_zoom_out"

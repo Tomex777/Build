@@ -49,6 +49,8 @@ fun ReaderSettingsDialog(
     onZoomStartChange: (String) -> Unit,
     landscapeZoom: Boolean,
     onLandscapeZoomChange: (Boolean) -> Unit,
+    navigateToPan: Boolean,
+    onNavigateToPanChange: (Boolean) -> Unit,
     webtoonSidePadding: Int,
     onWebtoonSidePaddingChange: (Int) -> Unit,
     webtoonDoubleTapZoom: Boolean,
@@ -166,6 +168,7 @@ fun ReaderSettingsDialog(
                                         onChange = onZoomStartChange,
                                     )
                                     SettingSwitch("Landscape zoom", landscapeZoom, onLandscapeZoomChange)
+                                    SettingSwitch("Navigate to pan", navigateToPan, onNavigateToPanChange)
                                 }
                                 if (readingMode == ReadingMode.WEBTOON) {
                                     // Ported from Mihon's WebtoonViewerSettings: 0–25%

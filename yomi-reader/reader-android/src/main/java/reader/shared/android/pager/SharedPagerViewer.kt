@@ -204,9 +204,9 @@ class SharedPagerViewer(
 
     private fun moveRight() {
         val holder = (currentItem as? ViewerPage)?.let(::pageHolder)
-        // A zoomed page remains pannable even at the last page of a book.
-        // Check pan room before clamping the page index.
-        if (holder != null && holder.canPanRight()) {
+        // Mihon only pans a zoomed page on turn actions when the reader's
+        // Navigate to pan setting is enabled (off by default).
+        if (holder != null && config.navigateToPan && holder.canPanRight()) {
             holder.panRight()
         } else if (pager.currentItem < adapter.count - 1) {
             pager.setCurrentItem(pager.currentItem + 1, config.pageTransitions)
@@ -215,7 +215,7 @@ class SharedPagerViewer(
 
     private fun moveLeft() {
         val holder = (currentItem as? ViewerPage)?.let(::pageHolder)
-        if (holder != null && holder.canPanLeft()) {
+        if (holder != null && config.navigateToPan && holder.canPanLeft()) {
             holder.panLeft()
         } else if (pager.currentItem > 0) {
             pager.setCurrentItem(pager.currentItem - 1, config.pageTransitions)
