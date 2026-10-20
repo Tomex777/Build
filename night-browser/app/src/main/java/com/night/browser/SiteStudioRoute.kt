@@ -2,6 +2,9 @@ package com.night.browser
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import org.mozilla.geckoview.GeckoSession
 
 /**
@@ -22,6 +25,18 @@ fun SiteStudioRoute(
     onClose: () -> Unit,
     onNotice: (String) -> Unit
 ) {
+    if (!bridge.isSessionAllowed(session)) {
+        AlertDialog(
+            onDismissRequest = onClose,
+            title = { Text("Site Studio") },
+            text = { Text("This tab does not allow saved site changes.") },
+            confirmButton = {
+                TextButton(onClick = onClose) { Text("Close") }
+            }
+        )
+        return
+    }
+
     val initial = remember(session, pageUrl) {
         bridge.editorRule(session, pageUrl)
     }
