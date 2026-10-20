@@ -10,6 +10,8 @@ from collections import Counter
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
 import hashlib
+import io
+import wave
 import re
 from threading import Lock
 from urllib.parse import urlsplit
@@ -45,6 +47,18 @@ def make_pdf():
 
 PDF = make_pdf()
 BIN = b"NIGHT-BROWSER-QA-DOWNLOAD-V1\n" * 256
+def make_wav() -> bytes:
+    """A real, license-free 0.1-second silent mono WAV for media downloads."""
+    out = io.BytesIO()
+    with wave.open(out, "wb") as writer:
+        writer.setnchannels(1)
+        writer.setsampwidth(2)
+        writer.setframerate(8000)
+        writer.writeframes(b"\\x00\\x00" * 800)
+    return out.getvalue()
+
+
+WAV = make_wav()
 UPLOAD_BYTES = b"NIGHT_BROWSER_UPLOAD_TEST_V1_NO_PRIVATE_DATA\n" * 16
 
 def uploaded_part_sha256(body: bytes, content_type: str) -> str | None:
@@ -140,6 +154,9 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/file.pdf":
             return self.send(PDF, "application/pdf", headers={
                 "Content-Disposition": "attachment; filename=night-qa.pdf"})
+        if path == "/media.wav":
+            return self.send(WAV, "audio/wav", headers={
+                "Content-Disposition": "attachment; filename=night-qa-audio.wav"})
         if path == "/file.bin":
             return self.send(BIN, "application/octet-stream", headers={
                 "Content-Disposition": "attachment; filename=night-qa.bin"})
