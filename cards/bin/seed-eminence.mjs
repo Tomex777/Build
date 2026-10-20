@@ -13,7 +13,7 @@ const roster=JSON.parse(await fs.readFile(inside('catalog/eminence-roster.json')
 const specs=[
  ['shadow-base','shadow-adult'],['cid-student','sid-adult'],
  ['alpha-seven','alpha-adult'],['beta-combat','beta-adult'],
- ['gamma-base','gamma-adult'],['delta-hunt','delta-adult'],
+ ['delta-hunt','delta-adult'],
  ['epsilon-slime','epsilon-adult'],['zeta-secret','zeta-adult'],
  ['eta-equipment','eta-adult'],['beatrix-war-goddess','beatrix'],
  ['alexia-midgar','alexia'],['rose-empowered','rose'],
@@ -73,10 +73,10 @@ for(const [id,name] of specs){
 }
 // Responsive composition corrections for compact official portrait art: ensure
 // actual silhouettes cross the inner architectural border, not just effects.
-const larger=new Set(['beta-combat','gamma-base','zeta-secret','rose-empowered']);
+const larger=new Set(['beta-combat','zeta-secret','rose-empowered']);
 for(const card of cards)if(larger.has(card.id)){
  const design=card.designs[0];
- card.recipe.artworkPlacement[design]=['gamma-base','rose-empowered'].includes(card.id)
+ card.recipe.artworkPlacement[design]=card.id==='rose-empowered'
    ?{x:-400,y:-255,width:1800}
    :{x:-250,y:-65,width:1500};
 }
