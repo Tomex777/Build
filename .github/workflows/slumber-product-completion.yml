@@ -37,6 +37,7 @@ on:
       - ".ci/slumber_117_web_criticism/**"
       - ".ci/slumber_118_compact_hud/**"
       - ".ci/slumber_119_melody_library/**"
+      - ".ci/slumber_120_audio_previews/**"
   pull_request:
     branches: ["slumber-087-build"]
     paths:
@@ -73,6 +74,7 @@ on:
       - ".ci/slumber_117_web_criticism/**"
       - ".ci/slumber_118_compact_hud/**"
       - ".ci/slumber_119_melody_library/**"
+      - ".ci/slumber_120_audio_previews/**"
 
 permissions:
   actions: read
@@ -435,6 +437,17 @@ jobs:
           grep -q 'fun recordTileSelection' "$OUT/app/src/main/java/com/night/pianohub/ui/AppState.kt"
           grep -q 'LazyColumn(' "$OUT/app/src/main/java/com/night/pianohub/ui/screens/TilesLibraryScreen.kt"
           grep -q 'class TilesLibraryBrowseTest' "$OUT/app/src/test/java/com/night/pianohub/music/TilesLibraryBrowseTest.kt"
+
+      - name: Add real sampled-piano library audio previews
+        shell: bash
+        run: |
+          set -euo pipefail
+          OUT=/tmp/slumber-088
+          base64 -d .ci/slumber_120_audio_previews/native-preview.patch.gz.b64 | gzip -dc > "$OUT/native-preview.patch"
+          echo 'f8e7aa982cf0eca3d591265e7acc1173b555460b7a75069aa3171baa92dc7a2f  /tmp/slumber-088/native-preview.patch' | sha256sum -c -
+          patch --fuzz=0 -d "$OUT" -p1 < "$OUT/native-preview.patch"
+          grep -q 'Hear ${song.title}' "$OUT/app/src/main/java/com/night/pianohub/ui/screens/TilesLibraryScreen.kt"
+          grep -q 'audioEngine = audioEngine' "$OUT/app/src/main/java/com/night/pianohub/ui/PianoHubApp.kt"
 
       - uses: actions/setup-java@v4
         with:
