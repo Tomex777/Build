@@ -30,6 +30,7 @@ sealed interface SearchPreparation {
 
 object UniversalSearchPolicy {
     const val MAX_CANDIDATES = 60
+    const val MAX_LOCAL_INDEX = 2000
     const val MAX_SHARED_SOURCES = 12
 
     // Conservative suppression of pages whose titles or URLs could expose account or sensitive data.
@@ -93,13 +94,16 @@ object UniversalSearchPolicy {
     }
 
     /** Local candidate listing does not send any data to a model or network. */
-    fun eligibleCandidates(raw: List<SearchSource>): List<SearchSource> {
+    fun eligibleCandidates(
+        raw: List<SearchSource>,
+        limit: Int = MAX_CANDIDATES,
+    ): List<SearchSource> {
         val usedUrls = HashSet<String>()
         val usedIds = HashSet<String>()
         return raw.asSequence()
             .filter { safeHost(it.url) != null && !isSensitive(it) }
             .filter { usedUrls.add(it.url) && usedIds.add(it.id) }
-            .take(MAX_CANDIDATES).toList()
+            .take(limit.coerceIn(0, MAX_LOCAL_INDEX)).toList()
     }
 
     /**
@@ -119,9 +123,12 @@ object UniversalSearchPolicy {
         if (text.isBlank()) return SearchPreparation.Rejected("Enter a question.")
         if (text.length > 500) return SearchPreparation.Rejected("Use a shorter question (500 characters maximum).")
         if (selectedIds.isEmpty()) return SearchPreparation.Rejected("Select at least one page.")
-        val sources = eligibleCandidates(eligible).asSequence()
-            .filter { selectedIds.contains(it.id) }
-            .take(MAX_SHARED_SOURCES)
+        // Consent can target a page outside the default 60 visible rows. Filter
+        // *selected* IDs before applying the 12-page network cap.
+        val sources = eligibleCandidates(
+            eligible.filter { selectedIds.contains(it.id) },
+            limit = MAX_SHARED_SOURCES,
+        ).asSequence()
             .mapIndexedNotNull { index, source ->
                 safeHost(source.url)?.let { host ->
                     // Model-visible aliases are ephemeral, not local URL-derived IDs.
