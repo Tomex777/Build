@@ -59,7 +59,7 @@ try{
     'the moving platform visibly changes its true physical collision position');
  }
   if(game==='runner')assert.ok(running.score>0&&running.speed>220,'Runner progresses and accelerates');
-  if(game==='shooter')assert.ok(running.shots.length>0&&running.enemies.length>0,'Shooter generates shots and actual enemies');
+  if(game==='shooter')assert.ok(running.shots.length>0&&(running.enemies.length>0||running.kills>0),'Shooter fires and either presents enemies or has already defeated them');
   if(game==='bricks')assert.equal(running.bricks.length,42,'Brick Breaker creates the full first board');
   await page.screenshot({path:path.join(output,'action-'+game+'-390x844.jpg'),type:'jpeg',quality:73});
   console.log('NIGHT_ACTION_VISUAL_'+game.toUpperCase()+'_BASE64='+(await page.screenshot({type:'jpeg',quality:54})).toString('base64'));
