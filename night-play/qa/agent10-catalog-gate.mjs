@@ -192,7 +192,7 @@ try {
         const target=new URL(base+result.expectedRoute);
         await page.waitForURL(url=>url.pathname===target.pathname && url.search===target.search,{timeout:6000});
         if(item.game) {
-          await page.locator('#gameDialog[open]').waitFor({timeout:4000});
+          await page.locator('#gameDialog.active').waitFor({timeout:4000});
         } else {
           const heading=await page.locator('h1,h2').first().innerText({timeout:4000});
           assert.ok(heading.trim().length>0,'no visible heading');
