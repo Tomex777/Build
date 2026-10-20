@@ -33,9 +33,13 @@ object TwoBoneIk {
         end: IkPoint,
         target: IkPoint,
     ): TwoBoneIkSolution? {
+        // A camera-plane projection can temporarily collapse a limb, or deliver invalid points
+        // during a viewport transition. Never write non-finite rotations into a real rig.
+        if (!root.isFinite() || !mid.isFinite() || !end.isFinite() || !target.isFinite()) return null
         val upperLength = distance(root, mid)
         val lowerLength = distance(mid, end)
-        if (upperLength <= EPSILON || lowerLength <= EPSILON) return null
+        if (!upperLength.isFinite() || !lowerLength.isFinite() ||
+            upperLength <= EPSILON || lowerLength <= EPSILON) return null
 
         val currentUpper = angle(root, mid)
         val currentLower = angle(mid, end)
@@ -45,6 +49,7 @@ object TwoBoneIk {
         val targetDx = target.x - root.x
         val targetDy = target.y - root.y
         val requestedDistance = hypot(targetDx, targetDy)
+        if (!requestedDistance.isFinite()) return null
         val maxReach = (upperLength + lowerLength).coerceAtLeast(EPSILON)
         val minReach = (abs(upperLength - lowerLength) + REACH_EPSILON).coerceAtMost(maxReach)
         val distance = requestedDistance.coerceIn(minReach, maxReach)
@@ -54,17 +59,20 @@ object TwoBoneIk {
             currentUpper
         }
 
+        // Compute the law-of-cosines terms as Doubles: Float-square overflow on large but
+        // finite world/screen projections otherwise produces NaN joints (even after clamping).
+        val upper = upperLength.toDouble()
+        val lower = lowerLength.toDouble()
+        val reach = distance.toDouble()
         val rootOffsetCos = (
-            (upperLength * upperLength + distance * distance - lowerLength * lowerLength) /
-                (2f * upperLength * distance)
-            ).coerceIn(-1f, 1f)
-        val rootOffset = acos(rootOffsetCos)
+            (upper * upper + reach * reach - lower * lower) / (2.0 * upper * reach)
+            ).coerceIn(-1.0, 1.0)
+        val rootOffset = acos(rootOffsetCos).toFloat()
 
         val elbowInteriorCos = (
-            (upperLength * upperLength + lowerLength * lowerLength - distance * distance) /
-                (2f * upperLength * lowerLength)
-            ).coerceIn(-1f, 1f)
-        val elbowInterior = acos(elbowInteriorCos)
+            (upper * upper + lower * lower - reach * reach) / (2.0 * upper * lower)
+            ).coerceIn(-1.0, 1.0)
+        val elbowInterior = acos(elbowInteriorCos).toFloat()
 
         val desiredUpper = targetHeading - bendSign * rootOffset
         val desiredRelative = bendSign * (PI.toFloat() - elbowInterior)
@@ -74,6 +82,8 @@ object TwoBoneIk {
             midDeltaDegrees = radiansToNormalizedDegrees(desiredRelative - currentRelative),
         )
     }
+
+    private fun IkPoint.isFinite(): Boolean = x.isFinite() && y.isFinite()
 
     private fun distance(a: IkPoint, b: IkPoint): Float = hypot(b.x - a.x, b.y - a.y)
 
