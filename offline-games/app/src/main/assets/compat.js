@@ -2,6 +2,18 @@
    Keep this ES5 syntax: it must run before every bundled game engine. */
 (function () {
   'use strict';
+  // Keep JavaScript launch failures inspectable in the offline emulator tests.
+  window.__nightGameErrors = [];
+  window.addEventListener('error', function (event) {
+    window.__nightGameErrors.push({
+      message: event.message || 'script error',
+      file: event.filename || '',
+      line: event.lineno || 0
+    });
+  });
+  window.addEventListener('unhandledrejection', function (event) {
+    window.__nightGameErrors.push({ message: String(event.reason || 'unhandled rejection') });
+  });
   function replaceChildren() {
     while (this.firstChild) this.removeChild(this.firstChild);
     for (var i = 0; i < arguments.length; i++) {
