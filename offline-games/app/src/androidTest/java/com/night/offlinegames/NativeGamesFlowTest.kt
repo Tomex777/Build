@@ -8,6 +8,7 @@ import androidx.test.uiautomator.UiDevice
 import androidx.test.uiautomator.Until
 import java.io.File
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertTrue
 import org.junit.runner.RunWith
 import org.junit.Test
 
@@ -77,6 +78,27 @@ class NativeGamesFlowTest {
             device.findObject(By.text("Pause")).click()
             assertNotNull(device.wait(Until.findObject(By.text("Paused")), 5000))
             snap(device, context, "10-native-snake-paused.png")
+            device.pressBack()
+            assertNotNull(device.wait(Until.findObject(By.text("Offline collection")), 9000))
+
+            // Native Reversi is tested by tapping a real square, not by invoking its model.
+            val reversiSearch = device.wait(Until.findObject(By.clazz("android.widget.EditText")), 5000)
+            assertNotNull(reversiSearch)
+            reversiSearch!!.text = "Reversi"
+            val reversi = device.wait(Until.findObject(By.text("Reversi")), 9000)
+            assertNotNull("Native Reversi missing from hub", reversi)
+            reversi!!.click()
+            val board = device.wait(Until.findObject(By.desc("Reversi board")), 9000)
+            assertNotNull("Native Reversi Canvas is missing", board)
+            snap(device, context, "11-native-reversi-opening.png")
+            val bounds = board!!.visibleBounds
+            val tapX = bounds.left + (bounds.width() * 3.5f / 8f).toInt()
+            val tapY = bounds.top + (bounds.height() * 2.5f / 8f).toInt()
+            device.click(tapX, tapY)
+            val undo = device.wait(Until.findObject(By.text("Undo")), 5000)
+            assertNotNull("Native Reversi move did not complete", undo)
+            assertTrue("Native Reversi move not registered", undo!!.isEnabled)
+            snap(device, context, "12-native-reversi-played.png")
             device.pressBack()
             assertNotNull(device.wait(Until.findObject(By.text("Offline collection")), 9000))
         }
