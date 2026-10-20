@@ -425,6 +425,20 @@ jobs:
             adb logcat -d -v threadtime > yomi-output/runtime-api26/logcat.txt
             bash yomi-reader/scripts/assert_no_yomi_crash.sh yomi-output/runtime-api26/logcat.txt
 
+            # SAF folder containing a .cbz chapter: first draw, real image
+            # decode, indexed temp copy and a second page from random access.
+            # Unlike the synthetic direct-CBZ fixture, this covers the nested
+            # folder + chapter archive adapter and its cleanup-aware cache.
+            i=0; until adb logcat -c; do i=$((i + 1)); [ "$i" -lt 6 ] || exit 1; sleep 2; done
+            adb shell am force-stop app.yomi.reader.dev
+            adb shell am start -n app.yomi.reader.dev/app.yomi.reader.YomiCiFixtureActivity --es kind folder-archive --es mode LTR_PAGED --ez reset true
+            i=0; until adb logcat -d -v brief YomiReader:I '*:S' | grep -Fq 'indexed-saf-chapter-ready'; do i=$((i + 1)); [ "$i" -lt 60 ] || { echo 'SAF folder chapter was not copied into indexed reader cache' >&2; adb logcat -d -v threadtime > yomi-output/runtime-api26/saf-zip-cache-failure.txt || true; exit 1; }; sleep 2; done
+            i=0; until adb logcat -d -v brief YomiReader:I '*:S' | grep -Fq 'page-image-ready name=1.png'; do i=$((i + 1)); [ "$i" -lt 60 ] || { echo 'SAF zipped chapter first image could not decode' >&2; exit 1; }; sleep 2; done
+            adb shell input tap 900 900
+            i=0; until adb logcat -d -v brief YomiReader:I '*:S' | grep -Fq 'position title=Yomi CI ZIP Folder mode=LTR_PAGED label=page 2/3'; do i=$((i + 1)); [ "$i" -lt 60 ] || { echo 'SAF chapter ZIP did not turn to page 2' >&2; exit 1; }; sleep 2; done
+            i=0; until adb logcat -d -v brief YomiReader:I '*:S' | grep -Fq 'indexed-cbz-page-open name=2.png'; do i=$((i + 1)); [ "$i" -lt 60 ] || { echo 'SAF chapter ZIP did not use indexed page access' >&2; exit 1; }; sleep 2; done
+            bash yomi-reader/scripts/capture_clean_screen.sh yomi-output/runtime-api26/yomi-saf-zipped-chapter.png
+
             # Regression: opening a CBZ from Android Files must reach the reader,
             # not silently stop after populating the library. The generated archive
             # was written by YomiCiFixtureActivity above.
