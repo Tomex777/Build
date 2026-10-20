@@ -37,6 +37,17 @@ class JourneyVisitTrackerTest {
                 .map { it.depth })
     }
 
+    @Test fun staleStopCallbackMustNotConsumePendingBackNavigation() {
+        val h = Harness()
+        val a = h.visit("a")
+        val b = h.visit("b")
+        h.tracker.expectBack()
+        // Gecko may fire PageStop before LocationChange, still showing B.
+        assertEquals(b, h.visit("b"))
+        assertEquals(a, h.visit("a"))
+        assertEquals(2, h.nodes.size)
+    }
+
     @Test fun forwardAndReloadReuseNodes() {
         val h = Harness()
         h.visit("a")
