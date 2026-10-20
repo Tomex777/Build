@@ -58,6 +58,25 @@ export function buildStickerExif(options = {}) {
   return exif
 }
 
+// Read the *saved WebP*, not the options passed to the encoder. This checks
+// that the name WhatsApp receives is actually inside the transmitted file.
+export async function readStickerMetadata(buffer) {
+  if (!Buffer.isBuffer(buffer) || !buffer.length) return null
+  const image = new webpMux.Image()
+  await image.load(buffer)
+  const exif = image.exif
+  if (!exif || exif.length < 22) return null
+  const bytes = Buffer.from(exif)
+  const length = bytes.readUInt32LE(14)
+  if (!length || length > bytes.length - 22) return null
+  try {
+    const decoded = JSON.parse(bytes.subarray(22, 22 + length).toString('utf8'))
+    return decoded && typeof decoded === 'object' ? decoded : null
+  } catch {
+    return null
+  }
+}
+
 export async function applyStickerMetadata(buffer, options = {}) {
   if (!Buffer.isBuffer(buffer) || !buffer.length) {
     throw new Error('Sticker data is empty.')

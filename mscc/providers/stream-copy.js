@@ -4,7 +4,19 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 const UA = 'Mozilla/5.0 (Linux; Android 16; SM-A165F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0 Mobile Safari/537.36'
-const DEFAULT_TIMEOUT_MS = Math.max(60_000, Number(process.env.MSCC_STREAM_COPY_TIMEOUT_MS || 4 * 60 * 60_000))
+const DEFAULT_TIMEOUT_MS = 45 * 60_000
+const MIN_TIMEOUT_MS = 60_000
+const MAX_TIMEOUT_MS = 60 * 60_000
+
+function normalizeTimeoutMs(value) {
+  if (value === undefined || value === null || String(value).trim() === '') return DEFAULT_TIMEOUT_MS
+  const configured = Number(value)
+  if (!Number.isFinite(configured)) return DEFAULT_TIMEOUT_MS
+  return Math.min(MAX_TIMEOUT_MS, Math.max(MIN_TIMEOUT_MS, Math.trunc(configured)))
+}
+
+// Let long streams finish, but cap a stuck ffmpeg/ffprobe child at one hour.
+const STREAM_COPY_TIMEOUT_MS = normalizeTimeoutMs(process.env.MSCC_STREAM_COPY_TIMEOUT_MS)
 let queue = Promise.resolve()
 
 function headerBlob(headers = {}) {
@@ -18,7 +30,7 @@ function headerBlob(headers = {}) {
     .join('')
 }
 
-function run(command, args, timeoutMs = DEFAULT_TIMEOUT_MS) {
+function run(command, args, timeoutMs = STREAM_COPY_TIMEOUT_MS) {
   return new Promise((resolve, reject) => {
     const child = spawn(command, args, { stdio:['ignore','pipe','pipe'] })
     let stdout = ''
@@ -217,6 +229,7 @@ export async function materializeCandidates(candidates, quality = 'source', deli
 }
 
 export const _test = {
+  normalizeTimeoutMs,
   programRows,
   streamHeights,
   wantedHeight,

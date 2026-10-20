@@ -236,6 +236,50 @@ const cloud = JSON.parse(fs.readFileSync(process.argv[3], 'utf8'));
 if (typeof cloud.configured !== 'boolean') throw new Error('Cortex HTTPS Cloud response is invalid');
 console.log('Cortex nginx HTTPS ingress verified for authenticated Cloud and masked environment routes.');
 VERIFY_HTTPS_CLOUD
+  # Production must prove the actual phone-facing read-only routes, not only
+  # the ENV and Cloud pages. Mask all response bodies: they may contain logs,
+  # account metadata or private file names. Never echo the bearer token.
+  # A 200 HTML fallback is not valid: verify the expected JSON shape too.
+  while IFS='|' read -r label endpoint shape; do
+    [[ -n "$label" ]] || continue
+    api_code="$(curl --silent --show-error --max-time 12 \
+      --resolve "$https_resolution" \
+      --output "$cloud_probe_dir/endpoint-check.json" --write-out '%{http_code}' \
+      -H "Authorization: Bearer $CLOUD_TOKEN" \
+      "$https_origin$endpoint")" || {
+        echo "Cortex HTTPS $label endpoint is unreachable (transport/TLS error)." >&2
+        exit 1
+      }
+    if [[ "$api_code" != 200 ]]; then
+      echo "Cortex HTTPS $label endpoint failed: HTTP $api_code." >&2
+      exit 1
+    fi
+    if ! node - "$cloud_probe_dir/endpoint-check.json" "$shape" <<'VERIFY_ENDPOINT_JSON'
+const fs = require('node:fs');
+const [file, shape] = process.argv.slice(2);
+let data;
+try { data = JSON.parse(fs.readFileSync(file, 'utf8')); } catch { process.exit(2); }
+if (!data || typeof data !== 'object' || Array.isArray(data)) process.exit(3);
+if (shape === 'state' && typeof data.state !== 'string') process.exit(4);
+if (shape !== 'state' && !Array.isArray(data[shape])) process.exit(5);
+VERIFY_ENDPOINT_JSON
+    then
+      echo "Cortex HTTPS $label returned an incompatible response shape." >&2
+      exit 1
+    fi
+  done <<'CORTEX_READ_ONLY_ENDPOINTS'
+Status|/api/cortex/host/status|state
+Console|/api/cortex/host/logs?limit=20|lines
+Files|/api/cortex/host/files?path=%2F|entries
+Startup|/api/cortex/host/startup|entries
+Settings|/api/cortex/host/settings|entries
+Activity|/api/cortex/host/activity?limit=10|entries
+Backups|/api/cortex/host/backups|entries
+Pairing|/api/cortex/mscc/pairing|accounts
+Registry|/api/cortex/mscc/registry|modules
+CORTEX_READ_ONLY_ENDPOINTS
+  echo 'Cortex HTTPS read-only endpoint contract passed: status, logs, files, startup, settings, activity, backups, pairing, registry.'
+
 else
   echo 'Cortex standard nginx HTTPS site not found: local Cloud works, phone-facing HTTPS is UNVERIFIED.'
 fi
