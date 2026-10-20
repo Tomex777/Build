@@ -78,7 +78,16 @@ async function main(){
       return pairs
    });
    assert(pairs.length===12,'Memory cards are not 12 pairs');
-   for(const [i,j] of pairs){await page.locator('.memory-card').nth(i).click();await page.locator('.memory-card').nth(j).click()}
+   const [first,second]=pairs[0];
+   await page.locator('.memory-card').nth(first).click();
+   await page.locator('.memory-card').nth(second).click();
+   await page.waitForTimeout(1150);
+   await page.reload({waitUntil:'load'});
+   assert(await page.locator('.memory-card').nth(first).getAttribute('data-matched')==='true',
+     'Memory saved pairs were not restored after page recreation');
+   assert((await page.locator('.memory-stats').innerText()).includes('PAIRS 1/12'),
+     'Memory score did not survive reload');
+   for(const [i,j] of pairs.slice(1)){await page.locator('.memory-card').nth(i).click();await page.locator('.memory-card').nth(j).click()}
    assert((await page.locator('#status').innerText()).includes('All 12 pairs'),'Memory win condition missing');
  });
  await run('chess',async page=>{
@@ -95,6 +104,52 @@ async function main(){
    assert((await page.locator('#board .cell').count())===64,'Checkers board vanished');
    const moved=await cell(page,to).getAttribute('data-active');
    assert(moved==='true','Expected legal opening move 40->33 to be occupied by dark piece, got '+moved);
+ });
+ await run('hanoi',async page=>{
+   const moves=[];
+   const solve=(n,from,to,via)=>{if(!n)return;solve(n-1,from,via,to);moves.push([from,to]);solve(n-1,via,to,from)};
+   solve(5,0,2,1);
+   for(const [from,to] of moves){
+     await page.locator('#board .peg').nth(from).click();
+     await page.locator('#board .peg').nth(to).click();
+   }
+   assert((await page.locator('#status').innerText()).includes('Solved in 31 moves'),
+     'Hanoi did not complete 31-move solution');
+ });
+ await run('lights',async page=>{
+   const steps=await page.evaluate(()=>{
+     const initial=[...document.querySelectorAll('#board .tiles .cell')].map(b=>b.dataset.active==='true'?1:0);
+     if(initial.length!==25)throw new Error('Lights Out grid missing');
+     for(let mask=0;mask<32;mask++){
+       const board=initial.slice(),moves=[];
+       const flip=i=>{const x=i%5,y=Math.floor(i/5);
+         for(const [dx,dy] of [[0,0],[1,0],[-1,0],[0,1],[0,-1]]){
+           const a=x+dx,b=y+dy;if(a>=0&&a<5&&b>=0&&b<5)board[b*5+a]^=1
+         }
+       };
+       for(let x=0;x<5;x++)if(mask&(1<<x)){moves.push(x);flip(x)}
+       for(let row=1;row<5;row++)for(let x=0;x<5;x++)if(board[(row-1)*5+x]){
+         const i=row*5+x;moves.push(i);flip(i);
+       }
+       if(!board.includes(1))return moves;
+     }
+     throw new Error('Generated Lights Out puzzle is not solvable');
+   });
+   for(const i of steps)await cell(page,i).click();
+   assert((await page.locator('#status').innerText()).includes('All lights cleared'),
+     'Lights Out did not end in victory');
+ });
+ await run('ttt',async page=>{
+   for(let turn=0;turn<5;turn++){
+     const status=await page.locator('#status').innerText();
+     if(/Draw|wins|win/i.test(status))break;
+     const open=page.locator('#board button.cell:not([disabled])').first();
+     assert(await open.count()>0,'No playable cells before game over');
+     await open.click();
+     assert((await page.locator('#board .cell').count())===9,'Tic-Tac-Toe board disappeared');
+   }
+   const result=await page.locator('#status').innerText();
+   assert(/Draw|wins|win/i.test(result),'Tic-Tac-Toe did not reach finished state: '+result);
  });
  await run('swimming',async page=>{
    for(let i=0;i<22;i++){if((await page.locator('#status').innerText()).includes('You win'))break;await page.getByRole('button',{name:'Stroke'}).click();await page.waitForTimeout(390)}
