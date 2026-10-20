@@ -15,3 +15,10 @@ for(const url of [...art.map(x=>base+x),...more]){
    console.log(JSON.stringify({url,status:res.status,mime,length,bytes:buf.length,png,...info}));
   }catch(e){console.log(JSON.stringify({url,error:e.message}));}
 }
+
+for(const edition of ['1st','2nd']){
+ const url='https://shadow-garden.jp/'+edition+'/assets/js/jquery.character.js';
+ const response=await fetch(url+'?1792536229',{signal:AbortSignal.timeout(15000)});
+ const content=await response.text();
+ console.log('MODAL SCRIPT',edition,response.status,content.length,content.slice(0,13000));
+}
