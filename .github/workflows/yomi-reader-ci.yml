@@ -442,6 +442,13 @@ jobs:
             i=0; until adb logcat -d -v brief YomiReader:I '*:S' | grep -Fq 'indexed-cbz-page-open name=2.png'; do i=$((i + 1)); [ "$i" -lt 60 ] || { echo 'SAF chapter ZIP did not use indexed page access' >&2; exit 1; }; sleep 2; done
             bash yomi-reader/scripts/capture_clean_screen.sh yomi-output/runtime-api26/yomi-saf-zipped-chapter.png
 
+            # Returning to Home must repair a missing thumbnail for that
+            # externally provided nested chapter archive inside a SAF folder.
+            adb logcat -c
+            adb shell am force-stop app.yomi.reader.dev
+            adb shell am start -n app.yomi.reader.dev/app.yomi.reader.MainActivity
+            i=0; until adb logcat -d -v brief YomiStartup:I '*:S' | grep -Fq 'folder-cover-restored title=Yomi CI ZIP Folder'; do i=$((i + 1)); [ "$i" -lt 60 ] || { echo 'SAF folder library cover could not be generated on Android 8' >&2; adb logcat -d -v threadtime > yomi-output/runtime-api26/folder-cover-repair-failure.txt || true; exit 1; }; sleep 2; done
+
             # Regression: opening a CBZ from Android Files must reach the reader,
             # not silently stop after populating the library. The generated archive
             # was written by YomiCiFixtureActivity above.
