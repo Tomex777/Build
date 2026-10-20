@@ -70,8 +70,8 @@ jobs:
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           mkdir -p cards/previews/maou-gakuin
           cp cards/dist/maou-gakuin/index.html cards/previews/maou-gakuin/index.html
-          find cards/dist/maou-gakuin -maxdepth 1 -name '*--view.jpg' -exec cp {} cards/previews/maou-gakuin/ +
-          find cards/dist/maou-gakuin -maxdepth 1 -name '*--phone.png' -exec cp {} cards/previews/maou-gakuin/ +
+          cp cards/dist/maou-gakuin/*--view.jpg cards/previews/maou-gakuin/
+          cp cards/dist/maou-gakuin/*--phone.png cards/previews/maou-gakuin/
           git add cards/catalog/maou-gakuin-source-lock.json cards/catalog/maou-gakuin.json cards/catalog/power/maou-gakuin.json
           git add cards/previews/maou-gakuin
           if ! git diff --cached --quiet; then
