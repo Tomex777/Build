@@ -61,8 +61,12 @@ class OfflineFlowTest {
                     .getString("board", null))
             org.junit.Assert.assertTrue("Minesweeper tap did not reach Kotlin engine",
                 savedMineState != null && savedMineState.revealed.isNotEmpty())
-            assertNotNull("Native Minesweeper did not reveal the first safe square",
-                device.wait(Until.findObject(By.descContains("Mine cell 5, 5: revealed")), 7000))
+            // UIAutomator can retain an outdated accessibility snapshot of
+            // Compose Canvas cells. Verify the actual tapped native cell and HUD.
+            org.junit.Assert.assertTrue("Minesweeper center square was not revealed",
+                4 * NativeMinesEngine.side + 4 in savedMineState!!.revealed)
+            assertNotNull("Native Minesweeper HUD failed to render after reveal",
+                device.wait(Until.findObject(By.textStartsWith("SAFE ")), 7000))
             saveScreenshot(device, context, "03-native-minesweeper-revealed.png")
             device.pressBack()
             assertNotNull("Did not return from native Minesweeper",
