@@ -144,6 +144,41 @@ class FoundationTest {
     }
 
     @Test
+    fun nestedChapterArchivesAreNotDropped() {
+        val chapters = BookStructure.detect(
+            listOf(
+                LocalEntry("Volumes/Volume 1/Chapter 10.cbz", LocalEntry.Kind.ARCHIVE),
+                LocalEntry("Volumes/Volume 1/Chapter 2.cbz", LocalEntry.Kind.ARCHIVE),
+                LocalEntry("Volumes/Volume 1/Chapter 1.zip", LocalEntry.Kind.ARCHIVE),
+            ),
+        )
+        assertEquals(listOf("Chapter 1", "Chapter 2", "Chapter 10"), chapters.map { it.title })
+        assertEquals(listOf(0, 1, 2), chapters.map { it.order })
+        assertEquals("Volumes/Volume 1/Chapter 2.cbz", chapters[1].members.single().relativePath)
+    }
+
+    @Test
+    fun mixedChapterFoldersArchivesAndRootImagesRemainReadable() {
+        val chapters = BookStructure.detect(
+            listOf(
+                LocalEntry("001.png", LocalEntry.Kind.IMAGE),
+                LocalEntry("Chapter 1/1.jpg", LocalEntry.Kind.IMAGE),
+                LocalEntry("Chapter 1/2.jpg", LocalEntry.Kind.IMAGE),
+                LocalEntry("Chapter 2.cbz", LocalEntry.Kind.ARCHIVE),
+                LocalEntry("Volumes/Chapter 3.zip", LocalEntry.Kind.ARCHIVE),
+                LocalEntry("README.txt", LocalEntry.Kind.OTHER),
+            ),
+        )
+        assertEquals(4, chapters.size)
+        assertEquals(5, chapters.sumOf { it.members.size })
+        assertEquals(
+            setOf("001.png", "Chapter 1/1.jpg", "Chapter 1/2.jpg", "Chapter 2.cbz", "Volumes/Chapter 3.zip"),
+            chapters.flatMap { it.members }.map { it.relativePath }.toSet(),
+        )
+        assertEquals((0..3).toList(), chapters.map { it.order })
+    }
+
+    @Test
     fun unsafeArchivePathsAreRejected() {
         val result = ArchiveSafety.validate(
             listOf(ArchiveEntryDescriptor("../outside.jpg", 1024)),
