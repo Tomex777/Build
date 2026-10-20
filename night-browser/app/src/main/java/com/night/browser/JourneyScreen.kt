@@ -183,7 +183,7 @@ fun JourneyScreen(
                             var actions by remember { mutableStateOf(false) }
                             Box {
                                 IconButton(onClick = { actions = true }) {
-                                    Icon(Icons.Rounded.MoreVert, "Journey actions", tint = journeySubtle)
+                                    Icon(Icons.Rounded.MoreVert, "Actions for ${journey.name}", tint = journeySubtle)
                                 }
                                 DropdownMenu(
                                     expanded = actions, onDismissRequest = { actions = false },
@@ -407,7 +407,7 @@ private fun JourneyNodeRow(
         }
         Box {
             IconButton(onClick = { menu = true }, modifier = Modifier.size(40.dp)) {
-                Icon(Icons.Rounded.MoreVert, "Page actions", tint = journeySubtle,
+                Icon(Icons.Rounded.MoreVert, "Actions for ${row.node.title.ifBlank { row.node.url }}", tint = journeySubtle,
                     modifier = Modifier.size(19.dp))
             }
             DropdownMenu(expanded = menu, onDismissRequest = { menu = false },
