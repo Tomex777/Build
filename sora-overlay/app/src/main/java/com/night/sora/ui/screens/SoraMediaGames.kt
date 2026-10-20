@@ -87,12 +87,6 @@ fun MediaTriviaArcade(category: String, modifier: Modifier = Modifier) {
     val bestKey = "quiz_best_" + category
     var best by remember(category) { mutableIntStateOf(prefs.getInt(bestKey,0)) }
     val finished = index >= questions.size
-    val title = when(category) {
-        "who" -> "Who am I?"
-        "quotes" -> "Who said it?"
-        "bible" -> "Bible trivia"
-        else -> "Daily 5"
-    }
     LaunchedEffect(finished,points) {
         if (finished && points > best) {
             best = points
@@ -112,9 +106,8 @@ fun MediaTriviaArcade(category: String, modifier: Modifier = Modifier) {
                 modifier=Modifier.fillMaxWidth().padding(bottom=18.dp),color=SoraAccent)
             Surface(color=SoraSurfaceHigh,shape=RoundedCornerShape(20.dp),modifier=Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(20.dp)) {
-                    Text(title.uppercase(),color=SoraAccent,fontSize=11.sp,fontWeight=FontWeight.Bold)
                     Text(current.prompt,fontSize=23.sp,lineHeight=29.sp,fontWeight=FontWeight.Bold,
-                        modifier=Modifier.padding(top=15.dp,bottom=10.dp))
+                        modifier=Modifier.padding(bottom=10.dp))
                 }
             }
             Spacer(Modifier.height(15.dp))
@@ -172,21 +165,19 @@ fun RatherArcade(modifier: Modifier = Modifier) {
     val prefs = remember { context.getSharedPreferences("sora_arcade_v1",Context.MODE_PRIVATE) }
     var index by remember { mutableIntStateOf(0) }
     var selected by remember(index) { mutableStateOf<Int?>(null) }
-    var finished by remember { mutableIntStateOf(0) }
     val prompt = ratherPrompts[index%ratherPrompts.size]
     fun choose(value: Int) {
         if (selected != null) return
         selected = value
         val key = "rather_" + (index%ratherPrompts.size) + "_" + value
         prefs.edit().putInt(key,prefs.getInt(key,0)+1).apply()
-        finished++
     }
     Column(modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal=20.dp),
         horizontalAlignment=Alignment.CenterHorizontally) {
-        Text("Make your choice",fontSize=21.sp,fontWeight=FontWeight.Bold,modifier=Modifier.padding(vertical=16.dp))
         Text("ROUND " + (index%ratherPrompts.size+1) + " / " + ratherPrompts.size,
-            color=SoraAccent,fontSize=12.sp,fontWeight=FontWeight.Bold)
-        Spacer(Modifier.height(22.dp))
+            color=SoraAccent,fontSize=12.sp,fontWeight=FontWeight.Bold,
+            modifier=Modifier.padding(top=12.dp))
+        Spacer(Modifier.height(18.dp))
         listOf(prompt.a,prompt.b).forEachIndexed { number,option ->
             val picked = selected==number
             Surface(
@@ -201,13 +192,7 @@ fun RatherArcade(modifier: Modifier = Modifier) {
             }
         }
         if (selected!=null) {
-            val key = "rather_" + (index%ratherPrompts.size) + "_" + selected
-            Text("Choice saved on this device · selected " + prefs.getInt(key,0) + " time(s)",
-                fontSize=12.sp,color=SoraMuted,textAlign=TextAlign.Center)
             Button(onClick={index++},modifier=Modifier.padding(top=16.dp)) { Text("Next choice") }
-        } else {
-            Text("A personal choice game; no fabricated worldwide votes.",
-                fontSize=12.sp,color=SoraMuted,textAlign=TextAlign.Center)
         }
     }
 }
@@ -267,18 +252,6 @@ fun MemeCaptionArcade(library: List<LibraryEntry>, modifier: Modifier = Modifier
             Button(enabled=caption.isNotBlank(),onClick={
                 prefs.edit().putString(meme.id,caption).apply()
             },modifier=Modifier.weight(1f)) { Text("Save caption") }
-        }
-        OutlinedButton(enabled=caption.isNotBlank(),onClick={
-            runCatching {
-                context.startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).apply {
-                    type="text/plain"
-                    putExtra(Intent.EXTRA_TEXT,caption+"\n"+meme.artworkUrl.orEmpty())
-                },"Share caption and source link"))
-            }
-        },modifier=Modifier.fillMaxWidth().padding(top=8.dp)) {
-            Icon(Icons.Rounded.Share,null,modifier=Modifier.size(17.dp))
-            Spacer(Modifier.width(8.dp))
-            Text("Share caption text and meme link")
         }
         Button(
             enabled=caption.isNotBlank() && !exporting,
