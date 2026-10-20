@@ -382,7 +382,7 @@ grep -Fq 'cortex-agent ALL=(root) NOPASSWD: /usr/local/libexec/cortex-agent-cont
 }
 cp "$tmp/previous-sudoers" "$tmp/new-sudoers"
 if ! grep -Fxq 'cortex-agent ALL=(root) NOPASSWD: /usr/local/libexec/cortex-agent-control setting-set *' "$tmp/new-sudoers"; then
-  printf '%s\\n' 'cortex-agent ALL=(root) NOPASSWD: /usr/local/libexec/cortex-agent-control setting-set *' >> "$tmp/new-sudoers"
+  printf '%s\n' 'cortex-agent ALL=(root) NOPASSWD: /usr/local/libexec/cortex-agent-control setting-set *' >> "$tmp/new-sudoers"
 fi
 sudo -n visudo -cf "$tmp/new-sudoers" >/dev/null
 
