@@ -13,6 +13,7 @@ import org.mozilla.geckoview.GeckoSession
 import java.io.File
 import java.io.FileOutputStream
 import java.util.UUID
+import java.util.concurrent.atomic.AtomicBoolean
 
 /**
  * Explicit, local PDF captures. This does not save website HTML, session state,
@@ -47,6 +48,7 @@ class TimeMachineArchive(context: Context) {
     private val folder = File(appContext.filesDir, "saved-pages")
     private val prefs = appContext.getSharedPreferences("night_time_machine_v2", Context.MODE_PRIVATE)
     private val main = Handler(Looper.getMainLooper())
+    private val captureBusy = AtomicBoolean(false)
     private val validName = Regex("[A-Za-z0-9._-]{1,100}\\.pdf")
 
     var versions by mutableStateOf(readVersions())
@@ -105,6 +107,11 @@ class TimeMachineArchive(context: Context) {
             onNotice("Time Machine storage is full. Delete an older PDF copy first.")
             return
         }
+        // A second tap cannot race the first copy through the storage quota.
+        if (!captureBusy.compareAndSet(false, true)) {
+            onNotice("A PDF copy is already being saved.")
+            return
+        }
         // Gecko's PDF capture is explicitly initiated from the browser page menu.
         runCatching {
             session.saveAsPdf().accept({ input ->
@@ -151,6 +158,7 @@ class TimeMachineArchive(context: Context) {
                         main.post {
                             versions = (listOf(item) + versions).sortedByDescending { it.capturedAt }
                             persist()
+                            captureBusy.set(false)
                             onNotice("PDF version saved in Time Machine.")
                         }
                         return@Thread
@@ -163,12 +171,17 @@ class TimeMachineArchive(context: Context) {
                         part.delete()
                     }
                     finalFile.delete()
-                    main.post { onNotice(message) }
+                    main.post {
+                        captureBusy.set(false)
+                        onNotice(message)
+                    }
                 }.start()
             }, {
+                captureBusy.set(false)
                 onNotice("Couldn't create a PDF copy of this page.")
             })
         }.onFailure {
+            captureBusy.set(false)
             onNotice("Couldn't create a PDF copy of this page.")
         }
     }
