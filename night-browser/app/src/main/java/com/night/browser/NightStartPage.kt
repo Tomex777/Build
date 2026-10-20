@@ -265,7 +265,7 @@ fun NightStartPage(
             }
             Spacer(Modifier.height(if (compactHome || localSuggestions.isNotEmpty()) 19.dp else 35.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("Shortcuts", color = HomeText, fontWeight = FontWeight.SemiBold,
+                Text("Quick access", color = HomeText, fontWeight = FontWeight.SemiBold,
                     fontSize = 17.sp, modifier = Modifier.weight(1f))
                 TextButton(onClick = { editMode = !editMode }) {
                     Icon(if (editMode) Icons.Rounded.Done else Icons.Rounded.Edit,
@@ -412,7 +412,7 @@ private fun StartSiteTile(
             Box(
                 modifier = Modifier.size(60.dp)
                     .background(HomeTile, RoundedCornerShape(18.dp))
-                    .then(Modifier.clip(RoundedCornerShape(18.dp))),
+                    .clip(RoundedCornerShape(18.dp)),
                 contentAlignment = Alignment.Center
             ) {
                 SameOriginFavicon(site)
@@ -536,8 +536,16 @@ private fun SameOriginFavicon(site: StartSite) {
         Text(site.title.take(1).uppercase(), color = HomeText, fontSize = 23.sp,
             fontWeight = FontWeight.Medium)
     } else {
-        Image(image!!.asImageBitmap(), contentDescription = null,
-            contentScale = ContentScale.Fit, modifier = Modifier.size(29.dp))
+        // Many sites publish a dark or transparent monochrome favicon (e.g. GitHub).
+        // A light icon backing keeps those genuinely sourced marks legible in dark mode.
+        Box(
+            modifier = Modifier.size(36.dp)
+                .background(Color(0xFFF3F5F9), RoundedCornerShape(11.dp)),
+            contentAlignment = Alignment.Center
+        ) {
+            Image(image!!.asImageBitmap(), contentDescription = null,
+                contentScale = ContentScale.Fit, modifier = Modifier.size(28.dp))
+        }
     }
 }
 
