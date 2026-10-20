@@ -163,16 +163,16 @@ fun SharkSurvivalScreen(onExit: () -> Unit) {
                             color = Color(0xFF47645D), fontSize = 13.sp
                         )
                         Spacer(Modifier.height(18.dp))
-                        Button(
-                            onClick = {
-                                if (state.finished) {
+                        if (state.finished) {
+                            Button(
+                                onClick = {
                                     state = SharkEngine.newGame()
                                     prefs.edit().putString("run", SharkEngine.encode(state)).apply()
-                                }
-                                paused = false
-                            },
-                            colors = ButtonDefaults.buttonColors(containerColor = oceanInk)
-                        ) { Text(if (state.finished) "New dive" else "Resume") }
+                                    paused = false
+                                },
+                                colors = ButtonDefaults.buttonColors(containerColor = oceanInk)
+                            ) { Text("New dive") }
+                        }
                     }
                 }
             }
