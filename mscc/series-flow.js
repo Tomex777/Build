@@ -717,7 +717,8 @@ async function retryAnimeEpisodeDelivery(ctx, {
   ]).slice(0, 3)
   const sources = ctx.listSources('anime')
     .filter(source => source?.id && source.id !== sourceId)
-    .slice(0, 3)
+    .sort((a, b) => Number(a.fallbackOrder || 1000) - Number(b.fallbackOrder || 1000))
+    .slice(0, 4)
 
   for (const alternative of sources) {
     const candidatesById = new Map()
@@ -744,7 +745,6 @@ async function retryAnimeEpisodeDelivery(ctx, {
         const previous = candidatesById.get(id)
         if (!previous || score > previous.score) candidatesById.set(id, { candidate, score })
       }
-      if (candidatesById.size) break
     }
 
     const candidates = [...candidatesById.values()]
