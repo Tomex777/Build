@@ -26,7 +26,12 @@ import com.night.echospace.model.SoundSource
 class SpatialAudioService : Service() {
     inner class LocalBinder : Binder() { fun service(): SpatialAudioService = this@SpatialAudioService }
     private val binder = LocalBinder()
-    private lateinit var engine: AudioEngine
+    // Never open an AudioTrack just because the editor binds: audio output is
+    // created on the first explicit Play, and retried after a route failure.
+    private var engine: AudioEngine? = null
+    private var currentSources: List<SoundSource> = emptyList()
+    private var currentHeading: Float = 0f
+    private var currentLiving: Boolean = true
     private lateinit var audioManager: AudioManager
     private val handler = Handler(Looper.getMainLooper())
     private var scheduledStop: Runnable? = null
@@ -51,17 +56,6 @@ class SpatialAudioService : Service() {
 
     override fun onCreate() {
         super.onCreate()
-        engine = AudioEngine(applicationContext) { message ->
-            handler.post {
-                if(playing) {
-                    // Fatal AudioTrack errors (device route, hardware init, write)
-                    // must not leave a misleading foreground "Playing" notification.
-                    pause()
-                    getSharedPreferences("echospace_audio",MODE_PRIVATE).edit()
-                        .putString("last_error",message.take(160)).apply()
-                }
-            }
-        }
         audioManager = getSystemService(AUDIO_SERVICE) as AudioManager
         val routeFilter = IntentFilter(AudioManager.ACTION_AUDIO_BECOMING_NOISY)
         if (Build.VERSION.SDK_INT >= 33) {
@@ -74,11 +68,10 @@ class SpatialAudioService : Service() {
         val store = SceneStore(this)
         val restored = store.restore()
         currentSceneTitle = restored?.first ?: Scenes.rainChamber.title
-        engine.setSources(restored?.second ?: Scenes.rainChamber.sources)
-        sessionVolume = store.volume()
-        engine.setMasterVolume(sessionVolume)
-        engine.setHeading(store.heading())
-        engine.setLiving(store.living())
+        currentSources = restored?.second ?: Scenes.rainChamber.sources
+        sessionVolume = 1f // Only Android's physical volume keys set final loudness.
+        currentHeading = store.heading()
+        currentLiving = store.living()
         val manager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
         manager.createNotificationChannel(
             NotificationChannel(CHANNEL_ID, "Soundscape playback", NotificationManager.IMPORTANCE_LOW)
@@ -91,17 +84,20 @@ class SpatialAudioService : Service() {
         val titleChanged = currentSceneTitle != title
         currentSceneTitle = title
         sessionVolume = volume.coerceIn(0f, 1f)
-        engine.setSources(sources)
-        engine.setMasterVolume(sessionVolume)
-        engine.setHeading(heading)
-        engine.setLiving(living)
+        currentSources = sources.toList()
+        currentHeading = heading
+        currentLiving = living
+        engine?.setSources(currentSources)
+        engine?.setMasterVolume(sessionVolume)
+        engine?.setHeading(currentHeading)
+        engine?.setLiving(currentLiving)
         // Dragging a marker updates the audio instantly. Rebuilding the Android
         // notification on every drag event causes needless main-thread work.
         if (playing && titleChanged) notificationManager().notify(NOTIFICATION_ID, notification())
     }
 
     fun isPlaying(): Boolean = playing
-    fun error(): String? = engine.failure
+    fun error(): String? = engine?.failure
     fun remainingSeconds(): Long = if (stopAtMs == 0L) 0L else
         ((stopAtMs - System.currentTimeMillis() + 999L) / 1000L).coerceAtLeast(0L)
 
@@ -140,22 +136,43 @@ class SpatialAudioService : Service() {
     }
 
     private fun play() {
-        // A foreground service must enter foreground promptly after startForegroundService().
-        startForeground(NOTIFICATION_ID, notification())
         if (!playing) {
             if (!requestFocus()) {
                 pause()
                 return
             }
+            // A failed or unplugged audio route must not permanently brick Play.
+            // Rebuilding only after explicit Play also avoids idle decoder/track
+            // allocation merely from entering EchoSpace.
+            if (engine?.failure != null) {
+                engine?.close()
+                engine = null
+            }
+            if (engine == null) {
+                engine = AudioEngine(applicationContext) { message ->
+                    handler.post {
+                        // Retain failures even if the user was switching activities.
+                        getSharedPreferences("echospace_audio", MODE_PRIVATE).edit()
+                            .putString("last_error", message.take(160)).apply()
+                        if (playing) pause()
+                    }
+                }
+            }
+            engine?.setSources(currentSources)
+            engine?.setMasterVolume(sessionVolume)
+            engine?.setHeading(currentHeading)
+            engine?.setLiving(currentLiving)
             playing = true
-            engine.setPlaying(true)
+            // Android requires foreground promptly after startForegroundService.
+            startForeground(NOTIFICATION_ID, notification())
+            engine?.setPlaying(true)
         }
         notificationManager().notify(NOTIFICATION_ID, notification())
     }
 
     private fun pause() {
         playing = false
-        engine.setPlaying(false)
+        engine?.setPlaying(false)
         focusRequest?.let(audioManager::abandonAudioFocusRequest)
         focusRequest = null
         stopForeground(STOP_FOREGROUND_REMOVE)
@@ -198,7 +215,7 @@ class SpatialAudioService : Service() {
             noisyRegistered = false
         }
         scheduledStop?.let(handler::removeCallbacks)
-        engine.close()
+        engine?.close()
         focusRequest?.let(audioManager::abandonAudioFocusRequest)
         super.onDestroy()
     }
