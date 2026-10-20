@@ -17,6 +17,7 @@ import androidx.compose.material.icons.rounded.AccountTree
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.ArrowOutward
 import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.ChevronRight
 import androidx.compose.material.icons.rounded.DeleteOutline
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.ExpandLess
@@ -63,9 +64,13 @@ fun JourneyScreen(
 ) {
     var query by remember { mutableStateOf("") }
     val expanded = remember { mutableStateListOf<String>() }
+    // Branch collapse is scoped per Journey; searching temporarily reveals
+    // matching descendants without erasing the user's expansion choices.
+    val collapsedBranches = remember { mutableStateMapOf<String, Set<String>>() }
     LaunchedEffect(store.journeys.map { it.id }) {
         val validIds = store.journeys.mapTo(HashSet()) { it.id }
         expanded.retainAll(validIds)
+        collapsedBranches.keys.retainAll(validIds)
         if (expanded.isEmpty()) store.journeys.firstOrNull()?.let { expanded.add(it.id) }
     }
     var edit by remember { mutableStateOf<EditTarget?>(null) }
@@ -150,7 +155,8 @@ fun JourneyScreen(
             verticalArrangement = Arrangement.spacedBy(7.dp)
         ) {
             store.journeys.forEach { journey ->
-                val matched = JourneyGraph.rows(journey, query)
+                val collapsed = collapsedBranches[journey.id].orEmpty()
+                val matched = JourneyGraph.rows(journey, query, collapsed)
                 val show = query.isBlank() || matched.isNotEmpty() ||
                     journey.name.contains(query, ignoreCase = true)
                 if (!show) return@forEach
@@ -241,10 +247,17 @@ fun JourneyScreen(
                     } else {
                         val visible = if (query.isBlank() ||
                             journey.name.contains(query, ignoreCase = true)
-                        ) JourneyGraph.rows(journey) else matched
+                        ) JourneyGraph.rows(journey, collapsedIds = if (query.isBlank()) collapsed else emptySet()) else matched
                         items(visible, key = { "node-${it.node.id}" }) { row ->
                             JourneyNodeRow(
                                 row = row,
+                                isCollapsed = row.node.id in collapsed && query.isBlank(),
+                                onToggleBranch = {
+                                    val previous = collapsedBranches[journey.id].orEmpty()
+                                    collapsedBranches[journey.id] =
+                                        if (row.node.id in previous) previous - row.node.id
+                                        else previous + row.node.id
+                                },
                                 onClick = { onResume(journey, row.node) },
                                 onRename = {
                                     edit = EditTarget(journey.id, row.node.id,
@@ -354,6 +367,8 @@ fun JourneyScreen(
 @Composable
 private fun JourneyNodeRow(
     row: JourneyRow,
+    isCollapsed: Boolean,
+    onToggleBranch: () -> Unit,
     onClick: () -> Unit,
     onRename: () -> Unit,
     onDelete: (Boolean) -> Unit
@@ -404,6 +419,16 @@ private fun JourneyNodeRow(
                 maxLines = 1, overflow = TextOverflow.Ellipsis)
             Text(row.node.url, color = journeySubtle, fontSize = 11.sp,
                 maxLines = 1, overflow = TextOverflow.Ellipsis)
+        }
+        if (row.hasChildren) {
+            IconButton(onClick = onToggleBranch, modifier = Modifier.size(40.dp)) {
+                Icon(
+                    if (isCollapsed) Icons.Rounded.ChevronRight else Icons.Rounded.ExpandMore,
+                    contentDescription = if (isCollapsed) "Expand branch" else "Collapse branch",
+                    tint = journeySubtle,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
         }
         Box {
             IconButton(onClick = { menu = true }, modifier = Modifier.size(40.dp)) {
