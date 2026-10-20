@@ -40,6 +40,7 @@ on:
       - ".ci/slumber_120_audio_previews/**"
       - ".ci/slumber_121_library_polish/**"
       - ".ci/slumber_122_catalog_copy/**"
+      - ".ci/slumber_123_api26_safe_json/**"
   pull_request:
     branches: ["slumber-087-build"]
     paths:
@@ -79,6 +80,7 @@ on:
       - ".ci/slumber_120_audio_previews/**"
       - ".ci/slumber_121_library_polish/**"
       - ".ci/slumber_122_catalog_copy/**"
+      - ".ci/slumber_123_api26_safe_json/**"
 
 permissions:
   actions: read
@@ -471,6 +473,15 @@ jobs:
           base64 -d .ci/slumber_122_catalog_copy/singular-count.patch.gz.b64 | gzip -dc > "$OUT/singular-count.patch"
           echo '7f70917415ce1978bf7bfa9e64a55ebdbb3cfa22249e1748406352330e42bb60  /tmp/slumber-088/singular-count.patch' | sha256sum -c -
           patch --fuzz=0 -d "$OUT" -p1 < "$OUT/singular-count.patch"
+
+      - name: Harden saved melodies persistence for Android 8
+        shell: bash
+        run: |
+          set -euo pipefail
+          OUT=/tmp/slumber-088
+          base64 -d .ci/slumber_123_api26_safe_json/legacy-json.patch.gz.b64 | gzip -dc > "$OUT/legacy-json.patch"
+          echo '4ba77ac382fab5dcac3989fd60dca6ba1a84ca2e2f54cbc38fbfb22e289ed14b  /tmp/slumber-088/legacy-json.patch' | sha256sum -c -
+          patch --fuzz=0 -d "$OUT" -p1 < "$OUT/legacy-json.patch"
 
       - uses: actions/setup-java@v4
         with:
