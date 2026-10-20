@@ -71,7 +71,10 @@ object UniversalSearchPolicy {
         if (host.length > 253 || host.isBlank() || host == "localhost" ||
             host.endsWith(".local") || host.endsWith(".internal") ||
             host.endsWith(".localhost") || host.endsWith(".test") ||
-            host.endsWith(".invalid") || host.contains(':') ||
+            host.endsWith(".invalid") || host.endsWith(".lan") ||
+            host.endsWith(".home") || host.endsWith(".home.arpa") ||
+            host.endsWith(".corp") || host.endsWith(".intranet") ||
+            host.endsWith(".onion") || host.contains(':') ||
             host.all { it.isDigit() || it == '.' } || !host.contains('.')
         ) return null
         if (host.split('.').any { it.isEmpty() }) return null
