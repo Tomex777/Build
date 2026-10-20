@@ -1,0 +1,170 @@
+{
+  "version": 1,
+  "sources": {
+    "luffy-film-red": {
+      "originalSHA256": "2d441b4ca63ec8209e3204d35b2d6e8a034dea4001e5115d90de3268f0a67b01",
+      "processedSHA256": "7c134b80796ec8c161bc24b4ad774d5ccc27e83c3f42f1c5c8d1c8cedd850c21",
+      "width": 700,
+      "height": 1358,
+      "nativeOriginal": [
+        1800,
+        1346
+      ],
+      "isolatedPixels": [
+        602,
+        1198
+      ],
+      "url": "https://www.onepiece-film.jp/wordpress/wp-content/themes/onepiece-film-red/common/character/chara03.png"
+    },
+    "zoro-film-red": {
+      "originalSHA256": "fb957fdc588672541af04df8b07bc6316eb10fc16e4e5802154715d2939a6c89",
+      "processedSHA256": "d7a68f9ca348fde6448bb45fea4636d75f39096f99d93ba11540c5c4840a32bf",
+      "width": 777,
+      "height": 1459,
+      "nativeOriginal": [
+        1800,
+        1346
+      ],
+      "isolatedPixels": [
+        697,
+        1299
+      ],
+      "url": "https://www.onepiece-film.jp/wordpress/wp-content/themes/onepiece-film-red/common/character/chara04.png"
+    },
+    "nami-film-red": {
+      "originalSHA256": "33e027f578097386347a8fd04c7394ad689d74ef7b43d5a890d0ddbe43b9d0e7",
+      "processedSHA256": "ddec0371d02ba995cc1dd25787c774bfc4530b863c71b8f39b241c36e63b5f9e",
+      "width": 700,
+      "height": 1335,
+      "nativeOriginal": [
+        1800,
+        1346
+      ],
+      "isolatedPixels": [
+        464,
+        1175
+      ],
+      "url": "https://www.onepiece-film.jp/wordpress/wp-content/themes/onepiece-film-red/common/character/chara05.png"
+    },
+    "usopp-film-red": {
+      "originalSHA256": "90d34d8c225aa8c14cd26d3d14f3e12b8562d304811819ef8f88ff0f688230e1",
+      "processedSHA256": "e63dfca51eceaf31bc13cd640432576117583b4c5f01f0c2e8ce1c09b6223553",
+      "width": 735,
+      "height": 1180,
+      "nativeOriginal": [
+        1800,
+        1346
+      ],
+      "isolatedPixels": [
+        655,
+        1020
+      ],
+      "url": "https://www.onepiece-film.jp/wordpress/wp-content/themes/onepiece-film-red/common/character/chara06.png"
+    },
+    "sanji-film-red": {
+      "originalSHA256": "1326aa1f9bc1752f853d0118a8555b13d5d727be219c5490fcb263290c877872",
+      "processedSHA256": "6af3572454136a2190f0f86e3de35730f475e0a83a3f513958412ca501f63dd9",
+      "width": 700,
+      "height": 1368,
+      "nativeOriginal": [
+        1800,
+        1346
+      ],
+      "isolatedPixels": [
+        432,
+        1208
+      ],
+      "url": "https://www.onepiece-film.jp/wordpress/wp-content/themes/onepiece-film-red/common/character/chara07.png"
+    },
+    "chopper-film-red": {
+      "originalSHA256": "0472a7b9adedd293b22f467b986167b213549e6c3e8d2c16e0193217db2a6fe5",
+      "processedSHA256": "37664d043549964b614c064fb38aeaaf919dc744a950713ce7e0954792575bda",
+      "width": 742,
+      "height": 1100,
+      "nativeOriginal": [
+        1800,
+        1346
+      ],
+      "isolatedPixels": [
+        662,
+        726
+      ],
+      "url": "https://www.onepiece-film.jp/wordpress/wp-content/themes/onepiece-film-red/common/character/chara08.png"
+    },
+    "robin-film-red": {
+      "originalSHA256": "a1464b5d8bb1db8d2ad3c2f77db16706008b6fb2d8c8fc8edbfb78e6a8c123e9",
+      "processedSHA256": "157e138c2a868dab3f5e53692cf51fa8881405824bd23bc6bd4e486409983ae2",
+      "width": 837,
+      "height": 1426,
+      "nativeOriginal": [
+        1800,
+        1346
+      ],
+      "isolatedPixels": [
+        757,
+        1266
+      ],
+      "url": "https://www.onepiece-film.jp/wordpress/wp-content/themes/onepiece-film-red/common/character/chara09.png"
+    },
+    "franky-film-red": {
+      "originalSHA256": "fb5e59c4deb1a1dca82244e57ab83b8fc627e1c06ba7aea5c87ea4df4b418d8b",
+      "processedSHA256": "8c4e6289147979a956ff9dcd440f2d2e8755394bbc52683e0aff97aaa9a48e19",
+      "width": 1255,
+      "height": 1452,
+      "nativeOriginal": [
+        1800,
+        1346
+      ],
+      "isolatedPixels": [
+        1175,
+        1292
+      ],
+      "url": "https://www.onepiece-film.jp/wordpress/wp-content/themes/onepiece-film-red/common/character/chara10.png"
+    },
+    "brook-film-red": {
+      "originalSHA256": "e761276136a21efd7488000cbe4715b269e7d413943507127ccc918308a6fd49",
+      "processedSHA256": "8f7e11455ad2a43d791167f49819fdaf36350625c9b60e84408ba587c273054b",
+      "width": 790,
+      "height": 1439,
+      "nativeOriginal": [
+        1800,
+        1346
+      ],
+      "isolatedPixels": [
+        710,
+        1279
+      ],
+      "url": "https://www.onepiece-film.jp/wordpress/wp-content/themes/onepiece-film-red/common/character/chara11.png"
+    },
+    "jinbe-film-red": {
+      "originalSHA256": "58f763d39be41d02afdb63e78c671ed23811cc30c99b993654fd6de41d63604e",
+      "processedSHA256": "ee62e4a0010b9e78c7094518af2578a615a763ad601daeb9eaa4c6db372a1e82",
+      "width": 956,
+      "height": 1425,
+      "nativeOriginal": [
+        1800,
+        1346
+      ],
+      "isolatedPixels": [
+        876,
+        1265
+      ],
+      "url": "https://www.onepiece-film.jp/wordpress/wp-content/themes/onepiece-film-red/common/character/chara12.png"
+    },
+    "shanks-film-red": {
+      "originalSHA256": "b6076fc4459c98c60ca69cac63f5fa9d6b04f5c57ec9a31d82417e209dd53daf",
+      "processedSHA256": "985a819ae7e9ec924c3d71200630357e62ab9e23137e36568a12b8f1980f358e",
+      "width": 746,
+      "height": 1494,
+      "nativeOriginal": [
+        1200,
+        1840
+      ],
+      "isolatedPixels": [
+        666,
+        1334
+      ],
+      "url": "https://www.onepiece-film.jp/wordpress/wp-content/themes/onepiece-film-red/common/character/chara13.png"
+    }
+  }
+}

@@ -1,0 +1,422 @@
+{
+  "version": 1,
+  "series": "one-piece",
+  "activeSourceEditionCount": 11,
+  "pendingCount": 59,
+  "rule": "Do not invent art or reuse another character/form's cutout. Pending entries are not cards and cannot appear as finished cards in the live gallery.",
+  "pending": [
+    {
+      "character": "Monkey D. Luffy",
+      "form": "East Blue",
+      "status": "pending-matching-original-art",
+      "rank": null,
+      "note": "Source distinct official artwork and verify actual pictured form before assigning a NIGHT power tier."
+    },
+    {
+      "character": "Monkey D. Luffy",
+      "form": "Gear Second",
+      "status": "pending-matching-original-art",
+      "rank": null,
+      "note": "Source distinct official artwork and verify actual pictured form before assigning a NIGHT power tier."
+    },
+    {
+      "character": "Monkey D. Luffy",
+      "form": "Gear Third",
+      "status": "pending-matching-original-art",
+      "rank": null,
+      "note": "Source distinct official artwork and verify actual pictured form before assigning a NIGHT power tier."
+    },
+    {
+      "character": "Monkey D. Luffy",
+      "form": "Gear Fourth: Boundman",
+      "status": "pending-matching-original-art",
+      "rank": null,
+      "note": "Source distinct official artwork and verify actual pictured form before assigning a NIGHT power tier."
+    },
+    {
+      "character": "Monkey D. Luffy",
+      "form": "Gear Fourth: Snakeman",
+      "status": "pending-matching-original-art",
+      "rank": null,
+      "note": "Source distinct official artwork and verify actual pictured form before assigning a NIGHT power tier."
+    },
+    {
+      "character": "Monkey D. Luffy",
+      "form": "Gear Fifth",
+      "status": "pending-matching-original-art",
+      "rank": null,
+      "note": "Source distinct official artwork and verify actual pictured form before assigning a NIGHT power tier."
+    },
+    {
+      "character": "Roronoa Zoro",
+      "form": "East Blue",
+      "status": "pending-matching-original-art",
+      "rank": null,
+      "note": "Source distinct official artwork and verify actual pictured form before assigning a NIGHT power tier."
+    },
+    {
+      "character": "Roronoa Zoro",
+      "form": "Asura",
+      "status": "pending-matching-original-art",
+      "rank": null,
+      "note": "Source distinct official artwork and verify actual pictured form before assigning a NIGHT power tier."
+    },
+    {
+      "character": "Roronoa Zoro",
+      "form": "King of Hell",
+      "status": "pending-matching-original-art",
+      "rank": null,
+      "note": "Source distinct official artwork and verify actual pictured form before assigning a NIGHT power tier."
+    },
+    {
+      "character": "Sanji",
+      "form": "Diable Jambe",
+      "status": "pending-matching-original-art",
+      "rank": null,
+      "note": "Source distinct official artwork and verify actual pictured form before assigning a NIGHT power tier."
+    },
+    {
+      "character": "Sanji",
+      "form": "Raid Suit",
+      "status": "pending-matching-original-art",
+      "rank": null,
+      "note": "Source distinct official artwork and verify actual pictured form before assigning a NIGHT power tier."
+    },
+    {
+      "character": "Sanji",
+      "form": "Ifrit Jambe",
+      "status": "pending-matching-original-art",
+      "rank": null,
+      "note": "Source distinct official artwork and verify actual pictured form before assigning a NIGHT power tier."
+    },
+    {
+      "character": "Nami",
+      "form": "Zeus Clima-Tact",
+      "status": "pending-matching-original-art",
+      "rank": null,
+      "note": "Source distinct official artwork and verify actual pictured form before assigning a NIGHT power tier."
+    },
+    {
+      "character": "Usopp",
+      "form": "Sogeking",
+      "status": "pending-matching-original-art",
+      "rank": null,
+      "note": "Source distinct official artwork and verify actual pictured form before assigning a NIGHT power tier."
+    },
+    {
+      "character": "Usopp",
+      "form": "Observation Haki",
+      "status": "pending-matching-original-art",
+      "rank": null,
+      "note": "Source distinct official artwork and verify actual pictured form before assigning a NIGHT power tier."
+    },
+    {
+      "character": "Tony Tony Chopper",
+      "form": "Monster Point",
+      "status": "pending-matching-original-art",
+      "rank": null,
+      "note": "Source distinct official artwork and verify actual pictured form before assigning a NIGHT power tier."
+    },
+    {
+      "character": "Nico Robin",
+      "form": "Demonio Fleur",
+      "status": "pending-matching-original-art",
+      "rank": null,
+      "note": "Source distinct official artwork and verify actual pictured form before assigning a NIGHT power tier."
+    },
+    {
+      "character": "Franky",
+      "form": "General Franky",
+      "status": "pending-matching-original-art",
+      "rank": null,
+      "note": "Source distinct official artwork and verify actual pictured form before assigning a NIGHT power tier."
+    },
+    {
+      "character": "Brook",
+      "form": "Soul Solid",
+      "status": "pending-matching-original-art",
+      "rank": null,
+      "note": "Source distinct official artwork and verify actual pictured form before assigning a NIGHT power tier."
+    },
+    {
+      "character": "Jinbe",
+      "form": "Fish-Man Karate combat",
+      "status": "pending-matching-original-art",
+      "rank": null,
+      "note": "Source distinct official artwork and verify actual pictured form before assigning a NIGHT power tier."
+    },
+    {
+      "character": "Shanks",
+      "form": "Emperor / ordinary outfit",
+      "status": "pending-matching-original-art",
+      "rank": null,
+      "note": "Source distinct official artwork and verify actual pictured form before assigning a NIGHT power tier."
+    },
+    {
+      "character": "Portgas D. Ace",
+      "form": "Flame-Flame Fruit",
+      "status": "pending-matching-original-art",
+      "rank": null,
+      "note": "Source distinct official artwork and verify actual pictured form before assigning a NIGHT power tier."
+    },
+    {
+      "character": "Sabo",
+      "form": "Revolutionary Army",
+      "status": "pending-matching-original-art",
+      "rank": null,
+      "note": "Source distinct official artwork and verify actual pictured form before assigning a NIGHT power tier."
+    },
+    {
+      "character": "Trafalgar D. Water Law",
+      "form": "Awakened Ope Ope no Mi",
+      "status": "pending-matching-original-art",
+      "rank": null,
+      "note": "Source distinct official artwork and verify actual pictured form before assigning a NIGHT power tier."
+    },
+    {
+      "character": "Eustass Kid",
+      "form": "Magnetism awakening",
+      "status": "pending-matching-original-art",
+      "rank": null,
+      "note": "Source distinct official artwork and verify actual pictured form before assigning a NIGHT power tier."
+    },
+    {
+      "character": "Killer",
+      "form": "Dual bladed combat",
+      "status": "pending-matching-original-art",
+      "rank": null,
+      "note": "Source distinct official artwork and verify actual pictured form before assigning a NIGHT power tier."
+    },
+    {
+      "character": "Yamato",
+      "form": "Hybrid Zoan",
+      "status": "pending-matching-original-art",
+      "rank": null,
+      "note": "Source distinct official artwork and verify actual pictured form before assigning a NIGHT power tier."
+    },
+    {
+      "character": "Kaido",
+      "form": "Azure Dragon",
+      "status": "pending-matching-original-art",
+      "rank": null,
+      "note": "Source distinct official artwork and verify actual pictured form before assigning a NIGHT power tier."
+    },
+    {
+      "character": "Kaido",
+      "form": "Hybrid Zoan",
+      "status": "pending-matching-original-art",
+      "rank": null,
+      "note": "Source distinct official artwork and verify actual pictured form before assigning a NIGHT power tier."
+    },
+    {
+      "character": "Charlotte Linlin",
+      "form": "Big Mom",
+      "status": "pending-matching-original-art",
+      "rank": null,
+      "note": "Source distinct official artwork and verify actual pictured form before assigning a NIGHT power tier."
+    },
+    {
+      "character": "Gol D. Roger",
+      "form": "Pirate King",
+      "status": "pending-matching-original-art",
+      "rank": null,
+      "note": "Source distinct official artwork and verify actual pictured form before assigning a NIGHT power tier."
+    },
+    {
+      "character": "Edward Newgate",
+      "form": "Whitebeard",
+      "status": "pending-matching-original-art",
+      "rank": null,
+      "note": "Source distinct official artwork and verify actual pictured form before assigning a NIGHT power tier."
+    },
+    {
+      "character": "Marshall D. Teach",
+      "form": "Blackbeard",
+      "status": "pending-matching-original-art",
+      "rank": null,
+      "note": "Source distinct official artwork and verify actual pictured form before assigning a NIGHT power tier."
+    },
+    {
+      "character": "Dracule Mihawk",
+      "form": "Black Sword Yoru",
+      "status": "pending-matching-original-art",
+      "rank": null,
+      "note": "Source distinct official artwork and verify actual pictured form before assigning a NIGHT power tier."
+    },
+    {
+      "character": "Crocodile",
+      "form": "Suna Suna no Mi",
+      "status": "pending-matching-original-art",
+      "rank": null,
+      "note": "Source distinct official artwork and verify actual pictured form before assigning a NIGHT power tier."
+    },
+    {
+      "character": "Buggy",
+      "form": "Bara Bara no Mi",
+      "status": "pending-matching-original-art",
+      "rank": null,
+      "note": "Source distinct official artwork and verify actual pictured form before assigning a NIGHT power tier."
+    },
+    {
+      "character": "Boa Hancock",
+      "form": "Mero Mero no Mi",
+      "status": "pending-matching-original-art",
+      "rank": null,
+      "note": "Source distinct official artwork and verify actual pictured form before assigning a NIGHT power tier."
+    },
+    {
+      "character": "Donquixote Doflamingo",
+      "form": "Ito Ito awakening",
+      "status": "pending-matching-original-art",
+      "rank": null,
+      "note": "Source distinct official artwork and verify actual pictured form before assigning a NIGHT power tier."
+    },
+    {
+      "character": "Bartholomew Kuma",
+      "form": "Paw-Paw Fruit",
+      "status": "pending-matching-original-art",
+      "rank": null,
+      "note": "Source distinct official artwork and verify actual pictured form before assigning a NIGHT power tier."
+    },
+    {
+      "character": "Monkey D. Garp",
+      "form": "Marine hero",
+      "status": "pending-matching-original-art",
+      "rank": null,
+      "note": "Source distinct official artwork and verify actual pictured form before assigning a NIGHT power tier."
+    },
+    {
+      "character": "Koby",
+      "form": "Marine combat",
+      "status": "pending-matching-original-art",
+      "rank": null,
+      "note": "Source distinct official artwork and verify actual pictured form before assigning a NIGHT power tier."
+    },
+    {
+      "character": "Sakazuki",
+      "form": "Fleet Admiral / magma",
+      "status": "pending-matching-original-art",
+      "rank": null,
+      "note": "Source distinct official artwork and verify actual pictured form before assigning a NIGHT power tier."
+    },
+    {
+      "character": "Kuzan",
+      "form": "Ice-Ice Fruit",
+      "status": "pending-matching-original-art",
+      "rank": null,
+      "note": "Source distinct official artwork and verify actual pictured form before assigning a NIGHT power tier."
+    },
+    {
+      "character": "Borsalino",
+      "form": "Light-Light Fruit",
+      "status": "pending-matching-original-art",
+      "rank": null,
+      "note": "Source distinct official artwork and verify actual pictured form before assigning a NIGHT power tier."
+    },
+    {
+      "character": "Issho",
+      "form": "Fujitora / gravity",
+      "status": "pending-matching-original-art",
+      "rank": null,
+      "note": "Source distinct official artwork and verify actual pictured form before assigning a NIGHT power tier."
+    },
+    {
+      "character": "Aramaki",
+      "form": "Ryokugyu / forest",
+      "status": "pending-matching-original-art",
+      "rank": null,
+      "note": "Source distinct official artwork and verify actual pictured form before assigning a NIGHT power tier."
+    },
+    {
+      "character": "Rob Lucci",
+      "form": "Awakened leopard",
+      "status": "pending-matching-original-art",
+      "rank": null,
+      "note": "Source distinct official artwork and verify actual pictured form before assigning a NIGHT power tier."
+    },
+    {
+      "character": "Charlotte Katakuri",
+      "form": "Mochi awakening",
+      "status": "pending-matching-original-art",
+      "rank": null,
+      "note": "Source distinct official artwork and verify actual pictured form before assigning a NIGHT power tier."
+    },
+    {
+      "character": "King",
+      "form": "Pteranodon / Lunarian",
+      "status": "pending-matching-original-art",
+      "rank": null,
+      "note": "Source distinct official artwork and verify actual pictured form before assigning a NIGHT power tier."
+    },
+    {
+      "character": "Queen",
+      "form": "Cyborg / Brachiosaurus",
+      "status": "pending-matching-original-art",
+      "rank": null,
+      "note": "Source distinct official artwork and verify actual pictured form before assigning a NIGHT power tier."
+    },
+    {
+      "character": "Marco",
+      "form": "Phoenix Zoan",
+      "status": "pending-matching-original-art",
+      "rank": null,
+      "note": "Source distinct official artwork and verify actual pictured form before assigning a NIGHT power tier."
+    },
+    {
+      "character": "Enel",
+      "form": "Rumble-Rumble Fruit",
+      "status": "pending-matching-original-art",
+      "rank": null,
+      "note": "Source distinct official artwork and verify actual pictured form before assigning a NIGHT power tier."
+    },
+    {
+      "character": "Perona",
+      "form": "Hollow-Hollow Fruit",
+      "status": "pending-matching-original-art",
+      "rank": null,
+      "note": "Source distinct official artwork and verify actual pictured form before assigning a NIGHT power tier."
+    },
+    {
+      "character": "Silvers Rayleigh",
+      "form": "Dark King",
+      "status": "pending-matching-original-art",
+      "rank": null,
+      "note": "Source distinct official artwork and verify actual pictured form before assigning a NIGHT power tier."
+    },
+    {
+      "character": "Shirahoshi",
+      "form": "Poseidon (noncombat)",
+      "status": "pending-matching-original-art",
+      "rank": null,
+      "note": "Source distinct official artwork and verify actual pictured form before assigning a NIGHT power tier."
+    },
+    {
+      "character": "Bon Clay",
+      "form": "Clone-Clone Fruit",
+      "status": "pending-matching-original-art",
+      "rank": null,
+      "note": "Source distinct official artwork and verify actual pictured form before assigning a NIGHT power tier."
+    },
+    {
+      "character": "Nefertari Vivi",
+      "form": "Alabasta royal",
+      "status": "pending-matching-original-art",
+      "rank": null,
+      "note": "Source distinct official artwork and verify actual pictured form before assigning a NIGHT power tier."
+    },
+    {
+      "character": "Kozuki Oden",
+      "form": "Samurai",
+      "status": "pending-matching-original-art",
+      "rank": null,
+      "note": "Source distinct official artwork and verify actual pictured form before assigning a NIGHT power tier."
+    },
+    {
+      "character": "Kin'emon",
+      "form": "Foxfire style",
+      "status": "pending-matching-original-art",
+      "rank": null,
+      "note": "Source distinct official artwork and verify actual pictured form before assigning a NIGHT power tier."
+    }
+  ]
+}
