@@ -58,7 +58,7 @@ class BrowserController(private val appContext: Context) {
             saved.tabs.take(40).forEach { entry ->
                 val validJourney = store.journeys.find { it.id == entry.journeyId }?.id
                     ?: store.journeys.first().id
-                newTab(journeyId = validJourney, restored = entry)
+                createTab(journeyId = validJourney, restored = entry)
             }
             select(saved.activeId?.takeIf { id -> tabs.any { it.id == id } }
                 ?: tabs.last().id)
@@ -66,6 +66,12 @@ class BrowserController(private val appContext: Context) {
     }
 
     fun newTab(
+        url: String? = null,
+        journeyId: String = store.journeys.first().id,
+        privateMode: Boolean = false
+    ): BrowserTab = createTab(url, journeyId, privateMode, null)
+
+    private fun createTab(
         url: String? = null,
         journeyId: String = store.journeys.first().id,
         privateMode: Boolean = false,
@@ -193,7 +199,7 @@ class BrowserController(private val appContext: Context) {
         lastClosedNormal = null
         val journey = store.journeys.find { it.id == closed.journeyId }?.id
             ?: store.journeys.first().id
-        newTab(journeyId = journey, restored = closed)
+        createTab(journeyId = journey, restored = closed)
         return true
     }
 
