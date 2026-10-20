@@ -1,0 +1,48 @@
+name: NIGHT Play Agent 5 Puzzle Gameplay
+
+on:
+  push:
+    branches:
+      - agent5/night-play-puzzle-quality-20261020
+    paths:
+      - 'night-play/**'
+      - '.github/workflows/night-agent5-puzzle-playtest.yml'
+  pull_request:
+    paths:
+      - 'night-play/**'
+      - '.github/workflows/night-agent5-puzzle-playtest.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  playable-puzzles:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check browser test source and all game rule modules
+        run: |
+          node --check night-play/agent5-puzzle-playtest.mjs
+          node --check night-play/puzzles/memory.js
+          node night-play/puzzles/logic-test.mjs
+          node night-play/jigsaw/board-logic-test.mjs
+          node night-play/selftest.mjs
+      - name: Install pinned Playwright browser helper
+        run: npm install --no-save playwright@1.56.1
+      - name: Actually play Memory Match and 2048 with mobile touch and keyboard
+        run: node night-play/agent5-puzzle-playtest.mjs
+      - name: Actually play Jigsaw on touchscreen and check 24-to-144-piece dragging
+        run: node night-play/jigsaw/mobile-smoke.mjs
+      - name: Upload screenshots and mobile gameplay evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: agent5-night-puzzle-playtest
+          path: night-play/visual-output/*.jpg
+          if-no-files-found: ignore
+          retention-days: 14
