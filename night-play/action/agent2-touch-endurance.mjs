@@ -12,7 +12,7 @@ const routes={'/action/':'action/index.html','/action/style.css':'action/style.c
  '/action/games.js':'action/games.js','/game-shell.css':'game-shell.css'};
 const server=createServer((req,res)=>{
  const key=new URL(req.url,'http://127.0.0.1').pathname,file=routes[key];
- if(!file){res.writeHead(404);res.end('No route');return;}
+ if(!file){res.writeHead(key==='/favicon.ico'?204:404);res.end();return;}
  res.writeHead(200,{'content-type':file.endsWith('.js')?'text/javascript':file.endsWith('.css')?'text/css':'text/html'});
  res.end(readFileSync(path.join(root,file)));
 });
@@ -94,7 +94,7 @@ try{
  assert.ok(touches>=12,'real touch test must actually drive slices throughout the long session: '+touches);
  assert.ok(successful>=5,'five or more TOUCH-REGISTERED cuts must score without duplicate swipes: '+JSON.stringify({touches,successful}));
  assert.ok(frameProgress>=1300,'animation must progress for 3 minutes: '+frameProgress);
- assert.ok(captures.filter(f=>/endurance-\\d+/.test(f)).length===4,'visual snapshots at four mobile widths');
+ assert.equal(sizes.filter(s=>captures.includes('action-agent2-endurance-'+s.w+'.jpg')).length,4,'visual snapshots at four mobile widths');
  const summary={durationSeconds:Math.round((Date.now()-start)/1000),sizes,touches,successful,
   firstAttemptRate:Number((successful/Math.max(1,touches)).toFixed(3)),
   deaths,restarts,maxRoundScore,comboEvents,skippedBombs,frameProgress,
