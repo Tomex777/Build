@@ -66,7 +66,7 @@ object NativeSnakeEngine {
         return vacancies[random.nextInt(vacancies.size)]
     }
 
-    fun tickMillis(score: Int): Long = (160 - (score / 40).coerceAtMost(9) * 10).toLong()
+    fun tickMillis(score: Int): Long = (200 - (score / 40).coerceAtMost(10) * 10).toLong()
 
     fun encode(s: NativeSnakeState): String = listOf(
         savedVersion, s.heading.ordinal, s.pending.ordinal, s.fruit.x, s.fruit.y,

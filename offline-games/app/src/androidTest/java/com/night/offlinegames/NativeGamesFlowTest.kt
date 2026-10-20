@@ -71,11 +71,13 @@ class NativeGamesFlowTest {
             assertNotNull("Native Snake missing from hub", snake)
             snake!!.click()
             assertNotNull("Native Snake score HUD missing", device.wait(Until.findObject(By.textStartsWith("SCORE")), 9000))
-            snap(device, context, "09-native-snake-playing.png")
             device.swipe(
                 device.displayWidth / 2, device.displayHeight * 2 / 3,
                 device.displayWidth / 2, device.displayHeight / 3, 12
             )
+            assertNotNull("Snake did not begin after swipe",
+                device.wait(Until.findObject(By.text("Pause")), 6000))
+            snap(device, context, "09-native-snake-playing.png")
             device.findObject(By.text("Pause")).click()
             assertNotNull(device.wait(Until.findObject(By.text("Paused")), 5000))
             snap(device, context, "10-native-snake-paused.png")

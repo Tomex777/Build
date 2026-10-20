@@ -59,6 +59,8 @@ fun NativeSnakeScreen(onExit: () -> Unit) {
     var state by remember { mutableStateOf(NativeSnakeEngine.decode(prefs.getString("board", null)) ?: NativeSnakeEngine.newGame()) }
     var best by remember { mutableIntStateOf(prefs.getInt("best", 0)) }
     var paused by remember { mutableStateOf(false) }
+    // Never advance into a wall before the player has made the first swipe.
+    var awaitingSwipe by remember { mutableStateOf(!state.over && !state.victory) }
 
     fun save() {
         prefs.edit().putString("board", NativeSnakeEngine.encode(state))
@@ -80,8 +82,8 @@ fun NativeSnakeScreen(onExit: () -> Unit) {
         }
     }
 
-    LaunchedEffect(paused, state.over, state.victory) {
-        if (paused || state.over || state.victory) return@LaunchedEffect
+    LaunchedEffect(paused, awaitingSwipe, state.over, state.victory) {
+        if (paused || awaitingSwipe || state.over || state.victory) return@LaunchedEffect
         while (true) {
             delay(NativeSnakeEngine.tickMillis(state.score))
             state = NativeSnakeEngine.tick(state)
@@ -107,7 +109,7 @@ fun NativeSnakeScreen(onExit: () -> Unit) {
                 modifier = Modifier.weight(1f))
             Button(
                 onClick = { paused = !paused },
-                enabled = !state.over && !state.victory,
+                enabled = !state.over && !state.victory && !awaitingSwipe,
                 colors = ButtonDefaults.buttonColors(containerColor = snakeInk)
             ) {
                 Text(if (paused) "Resume" else "Pause")
@@ -142,13 +144,14 @@ fun NativeSnakeScreen(onExit: () -> Unit) {
                                 if (ax > 0) SnakeHeading.RIGHT else SnakeHeading.LEFT
                             } else if (ay > 0) SnakeHeading.DOWN else SnakeHeading.UP
                             state = NativeSnakeEngine.requestTurn(state, turn)
+                            awaitingSwipe = false
                         }
                     }
                 )
             }) {
                 drawNativeSnake(state)
             }
-            if (state.over || state.victory || paused) {
+            if (state.over || state.victory || paused || awaitingSwipe) {
                 Column(
                     Modifier.background(Color(0xEBF5FAF6),
                         androidx.compose.foundation.shape.RoundedCornerShape(15.dp))
@@ -158,7 +161,8 @@ fun NativeSnakeScreen(onExit: () -> Unit) {
                     Text(when {
                         state.victory -> "Board cleared!"
                         state.over -> "Game over"
-                        else -> "Paused"
+                        paused -> "Paused"
+                        else -> "Swipe to start"
                     }, fontSize = 27.sp, fontWeight = FontWeight.Bold, color = snakeInk)
                     if (state.over || state.victory) {
                         Spacer(Modifier.height(12.dp))
@@ -167,6 +171,7 @@ fun NativeSnakeScreen(onExit: () -> Unit) {
                         Button(onClick = {
                             state = NativeSnakeEngine.newGame()
                             paused = false
+                            awaitingSwipe = true
                             save()
                         }, colors = ButtonDefaults.buttonColors(containerColor = snakeInk)) {
                             Text("Play again")
