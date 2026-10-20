@@ -1,0 +1,28 @@
+name: Mise Agent 10 - Screenshot Proof Unit QA
+
+on:
+  pull_request:
+    branches: [integrate/mise-studio-completion-20261020]
+    paths:
+      - "artist-scene-studio/scripts/verify-acceptance-frames.py"
+      - "artist-scene-studio/scripts/test-verify-acceptance-frames.py"
+      - "artist-scene-studio/scripts/fresh-editor-instrumentation.sh"
+      - ".github/workflows/mise-agent10-frame-qa.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  evidence-validator:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Check QA wrapper shell syntax
+        run: bash -n artist-scene-studio/scripts/fresh-editor-instrumentation.sh
+      - name: Test genuine, static, out-of-canvas and corrupted screenshot classification
+        run: python3 artist-scene-studio/scripts/test-verify-acceptance-frames.py -v
