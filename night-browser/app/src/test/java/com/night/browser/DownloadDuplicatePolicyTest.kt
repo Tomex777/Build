@@ -83,4 +83,13 @@ class DownloadDuplicatePolicyTest {
             requested, "video.mp4", listOf(pending, failed)) { true })
     }
 
+    @Test fun mediaAndArchivesUseTheSameWarningRule() {
+        listOf("movie.mp4", "song.mp3", "photo.webp", "notes.pdf", "assets.zip").forEach { name ->
+            assertTrue(DownloadDuplicatePolicy.matches(
+                "https://example.org/files/" + name + "?v=2", name,
+                "https://example.org/files/" + name + "?v=1", name
+            ))
+        }
+    }
+
 }
