@@ -37,7 +37,7 @@ class JourneyStore(context: Context) {
         }
     }
 
-    fun setJourneyRecordingEnabled(enabled: Boolean) {
+    fun changeJourneyRecording(enabled: Boolean) {
         if (journeyRecordingEnabled == enabled) return
         journeyRecordingEnabled = enabled
         prefs.edit().putBoolean("journey_recording", enabled).apply()
