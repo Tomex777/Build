@@ -89,6 +89,8 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.window.DialogWindowProvider
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
@@ -113,6 +115,26 @@ import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import kotlin.math.roundToInt
 import kotlin.math.sin
+
+/** ModalBottomSheet owns a Dialog window, so hiding only Activity system bars
+ * leaves status/navigation bars visible on the spatial sound editor.
+ * Keep both dialog windows immersive with the same swipe-to-reveal policy.
+ */
+@Composable
+private fun ImmersiveModalBars() {
+    val view = LocalView.current
+    SideEffect {
+        val dialogWindow = (view.parent as? DialogWindowProvider)?.window
+        if (dialogWindow != null) {
+            val controller = WindowCompat.getInsetsController(
+                dialogWindow, dialogWindow.decorView
+            )
+            controller.systemBarsBehavior =
+                WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+            controller.hide(WindowInsetsCompat.Type.systemBars())
+        }
+    }
+}
 
 private val ink = Color(0xFF050911)
 private val white = Color(0xFFF3F7F7)
@@ -398,6 +420,7 @@ private fun EchoSpaceScreen(service: SpatialAudioService?, dispatch: (String) ->
             contentColor = white,
             dragHandle = { BottomSheetDefaults.DragHandle(color = Color(0xFF718998)) }
         ) {
+            ImmersiveModalBars()
             ExpandedSoundMixer(
                 sources = sources,
                 selectedId = selectedId,
@@ -435,6 +458,7 @@ private fun EchoSpaceScreen(service: SpatialAudioService?, dispatch: (String) ->
     if (addOpen) {
         ModalBottomSheet(onDismissRequest = { addOpen = false }, containerColor = Color(0xFF111D29),
             contentColor = white, dragHandle = { BottomSheetDefaults.DragHandle(color = Color(0xFF667D8C)) }) {
+            ImmersiveModalBars()
             Row(Modifier.fillMaxWidth().padding(start = 23.dp, end = 13.dp, bottom = 12.dp),
                 verticalAlignment = Alignment.CenterVertically) {
                 Text("Add a sound", color = white, fontSize = 21.sp, fontWeight = FontWeight.SemiBold,
