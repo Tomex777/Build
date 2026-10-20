@@ -399,6 +399,9 @@ jobs:
             # actually composed. Require the visible accessibility tree to
             # include Mihon's three settings tabs on the real device surface.
             bash yomi-reader/scripts/capture_settings_hierarchy.sh yomi-output/runtime-api26/reader-settings-hierarchy.xml
+            # Prove the modal tabs themselves accept real screen taps. Merely
+            # logging settings-opened or dumping the tab labels is insufficient.
+            python3 yomi-reader/scripts/verify_reader_settings_taps.py
             bash yomi-reader/scripts/capture_clean_screen.sh yomi-output/runtime-api26/yomi-mihon-reader-settings-sheet.png
             adb shell input keyevent KEYCODE_BACK
 
