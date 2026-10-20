@@ -6,7 +6,7 @@ from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 from http.server import ThreadingHTTPServer
 
-from wave2_fixture import Handler, State, BIN, PNG, PDF
+from wave2_fixture import Handler, State, BIN, PNG, PDF, WAV
 from wave2_blackbox import Device, Blocked
 
 
@@ -59,6 +59,18 @@ class FixtureTests(unittest.TestCase):
             self.assertIn("attachment", response.headers["Content-Disposition"])
         self.assertTrue(PDF.startswith(b"%PDF"))
         self.assertTrue(PNG.startswith(b"\x89PNG"))
+
+    def test_audio_attachment_is_a_real_wav(self):
+        import wave
+        import io
+        data, response = self.fetch("/media.wav")
+        self.assertEqual(response.headers["Content-Type"], "audio/wav")
+        self.assertEqual(data, WAV)
+        self.assertTrue(data.startswith(b"RIFF"))
+        with wave.open(io.BytesIO(data), "rb") as recording:
+            self.assertEqual(recording.getnchannels(), 1)
+            self.assertEqual(recording.getframerate(), 8000)
+            self.assertEqual(recording.getnframes(), 800)
 
     def test_limited_upload_post_without_persisting_bytes(self):
         content = b"TEST-ONLY-FIXTURE" * 100
