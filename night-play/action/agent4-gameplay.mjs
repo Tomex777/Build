@@ -28,6 +28,13 @@ try{
   await p.waitForFunction(()=>window.__nightActionTest.snapshot().score>0,null,{timeout:6500,polling:40});
   const hit=await snap(p);assert.equal(hit.bricks.length,41,'one actual brick hit');assert.equal(hit.score,15);assert.ok(Math.hypot(hit.ball.vx,hit.ball.vy)>390,'ball accelerates');
   await shot(p,'bricks-hit');
+  // Actual rendered-game evidence that the hit feedback eventually expires
+  // without a reset. Earlier versions permanently retained each spark.
+  await p.waitForFunction(()=>{
+   const q=window.__nightActionTest.snapshot();
+   return q.score>0&&q.particles.length===0&&q.impact===0;
+  },null,{timeout:4500,polling:40});
+  await shot(p,'bricks-faded');
   const box=await p.locator('canvas').boundingBox();
   for(let i=0;i<280;i++){
    const s=await snap(p);if(s.over)break;
