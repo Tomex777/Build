@@ -156,16 +156,14 @@ private fun NightBrowser(browser: BrowserController, openSaved: (SavedPage) -> U
                         onOpen = { openTab(it) },
                         onClose = { browser.closeTab(it.id) },
                         onNew = { browser.newTab(); page = Page.HOME })
-                    Page.JOURNEYS -> JourneyPanel(browser,
+                    Page.JOURNEYS -> JourneyScreen(
+                        store = browser.store,
                         onNew = { newJourneyDialog = true },
-                        onOpen = { j, url ->
-                            browser.newTab(url, j.id)
-                            page = Page.WEB
-                        },
-                        onSelect = { j ->
-                            browser.newTab(journeyId = j.id)
-                            page = Page.HOME
-                        })
+                        onResume = { journey, node ->
+                            browser.newTab(node?.url, journey.id, node?.id)
+                            page = if (node == null) Page.HOME else Page.WEB
+                        }
+                    )
                     Page.LIBRARY -> LibraryPanel(browser,
                         onOpen = { browser.newTab(it); page = Page.WEB })
                     Page.TIME_MACHINE -> TimeMachinePanel(browser, openSaved)
