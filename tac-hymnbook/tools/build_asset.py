@@ -67,9 +67,48 @@ def compile_asset() -> dict:
             "text_status": draft.get("status", "draft_photo_checked") if draft else "missing",
             "source_url": entry["external_source_url"],
         })
+    # Public-domain English alternates are intentionally separate from the
+    # photo-verified Yorùbá drafts. Never invent Yorùbá text or mark these
+    # versions as the exact TAC wording before comparing printed verses.
+    additional_path = SEED_DIR / "english-public-domain.json"
+    if additional_path.exists():
+        addendum = json.loads(additional_path.read_text(encoding="utf-8"))
+        if addendum.get("collection") != "main":
+            raise ValueError("English public-domain drafts must belong to Redemption")
+        seen = {h["number"] for h in hymns}
+        for item in addendum["hymns"]:
+            number = item["number"]
+            if number in seen or not (1 <= number <= 800):
+                raise ValueError(f"Duplicate or invalid public-domain hymn {number}")
+            if item["rights"] != "public_domain_historical_english_text":
+                raise ValueError(f"Public-domain provenance missing for hymn {number}")
+            if item["text_status"] != "public_domain_english_alternate_needs_edition_review":
+                raise ValueError(f"Incorrect English-only draft status for hymn {number}")
+            if not item["source_url"].startswith("https://"):
+                raise ValueError(f"English text requires HTTPS source: hymn {number}")
+            verses_en = item["verses_en"]
+            if not verses_en or not all(
+                isinstance(verse, list) and verse and
+                all(isinstance(line, str) and line.strip() for line in verse)
+                for verse in verses_en
+            ):
+                raise ValueError(f"English-only draft has invalid verses: {number}")
+            hymns.append({
+                "number": number,
+                "collection": "main",
+                "title_yo": item["title_en"],  # display fallback, not a Yorùbá translation
+                "title_en": item["title_en"],
+                "source_pages": [],
+                "verses_yo": [],
+                "verses_en": verses_en,
+                "text_status": item["text_status"],
+                "source_url": item["source_url"],
+            })
+            seen.add(number)
+    hymns.sort(key=lambda entry: (entry["collection"], entry["number"]))
     return {
         "schema": 1,
-        "description": "Offline TAC hymn catalogue: 1–17 from photographed lyric pages and hymn 50 from index p.437 with user-confirmed online match. Working drafts still require final review.",
+        "description": "TAC photographed Yorùbá drafts and carefully separated public-domain English alternative texts. English-only texts remain pending TAC edition comparison.",
         "hymns": hymns,
     }
 
