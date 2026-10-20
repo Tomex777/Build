@@ -17,6 +17,37 @@ if adb shell cat /data/local/tmp/atlas-hierarchy.xml 2>/dev/null | grep -q 'text
   adb shell input tap $((W*84/100)) $((H/4))
   sleep 3
 fi
+# Hosted AVDs occasionally produce Android *System UI* ANR dialogs while the
+# Sound Atlas Activity is healthy. A real app assertion must not inspect that
+# system dialog as though it were the editor's TalkBack hierarchy.
+hierarchy_ready() {
+  local file=SoundAtlas/qa/hierarchy-current.xml
+  for attempt in 1 2 3 4; do
+    adb shell uiautomator dump /data/local/tmp/atlas-hierarchy.xml >/dev/null 2>&1 || true
+    adb shell cat /data/local/tmp/atlas-hierarchy.xml > "$file" 2>/dev/null || true
+    if grep -Eq "System UI isn't responding|Launcher isn't responding|System process isn't responding" "$file"; then
+      echo "AVD_SYSTEM_UI_ANR attempt $attempt; choosing Wait, not closing the app"
+      python3 - "$file" <<'PY'
+import re,subprocess,sys,xml.etree.ElementTree as ET
+root=ET.parse(sys.argv[1]).getroot()
+wait=next((n for n in root.iter('node') if n.attrib.get('text')=='Wait'),None)
+if wait is None: raise SystemExit('AVD_ANR_NO_WAIT_BUTTON')
+a=list(map(int,re.findall(r'\d+',wait.attrib.get('bounds',''))))
+if len(a)!=4: raise SystemExit('AVD_ANR_INVALID_BOUNDS')
+subprocess.run(['adb','shell','input','tap',str((a[0]+a[2])//2),str((a[1]+a[3])//2)],check=True)
+PY
+      sleep 6
+      continue
+    fi
+    if grep -q 'package="com.night.soundatlas"' "$file"; then
+      return 0
+    fi
+    echo "AVD_NO_APP_ACCESSIBILITY_TREE attempt $attempt"
+    sleep 5
+  done
+  echo "QA_FAIL: app accessibility tree unavailable; hierarchy retained as artifact"
+  return 1
+}
 capture() {
   local target="$1"
   local output="SoundAtlas/qa/$target"
@@ -44,8 +75,7 @@ tap_dp() {
 }
 tap_desc() {
   local label="$1"
-  adb shell uiautomator dump /data/local/tmp/atlas-hierarchy.xml >/dev/null
-  adb shell cat /data/local/tmp/atlas-hierarchy.xml > SoundAtlas/qa/hierarchy-current.xml
+  hierarchy_ready
   python3 - "$label" SoundAtlas/qa/hierarchy-current.xml <<'PY'
 import re,subprocess,sys,xml.etree.ElementTree as ET
 label,path=sys.argv[1:]
@@ -66,10 +96,18 @@ PY
 }
 assert_state() {
   local expected="$1"
-  adb shell uiautomator dump /data/local/tmp/atlas-hierarchy.xml >/dev/null
-  adb shell cat /data/local/tmp/atlas-hierarchy.xml > SoundAtlas/qa/hierarchy-current.xml
+  hierarchy_ready
   if ! grep -Fq "$expected" SoundAtlas/qa/hierarchy-current.xml; then
-    echo "UI_STATE_MISMATCH: expected '$expected'"; exit 1
+    echo "UI_STATE_MISMATCH: expected '$expected'"
+    echo "Observed TalkBack descriptions:"
+    python3 - SoundAtlas/qa/hierarchy-current.xml <<'PY'
+import sys,xml.etree.ElementTree as ET
+root=ET.parse(sys.argv[1]).getroot()
+for n in root.iter('node'):
+    label=n.attrib.get('content-desc') or n.attrib.get('text')
+    if label: print('  ',label[:180])
+PY
+    exit 1
   fi
   echo "ATLAS_UI_STATE_VERIFIED: $expected"
 }
