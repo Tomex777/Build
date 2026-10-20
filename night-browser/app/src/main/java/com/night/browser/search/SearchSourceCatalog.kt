@@ -4,6 +4,7 @@ import com.night.browser.Bookmark
 import com.night.browser.Journey
 import java.nio.charset.StandardCharsets
 import java.security.MessageDigest
+import java.util.Locale
 
 /**
  * Construct the *local* eligible source catalog. IDs must stay bound to URLs,
@@ -12,7 +13,8 @@ import java.security.MessageDigest
  * the 60 eligible-page display limit; sensitive pages must not crowd out safe ones.
  */
 object SearchSourceCatalog {
-    fun collect(
+    /** A bounded *on-device* index, never sent wholesale to a provider. */
+    fun index(
         bookmarks: List<Bookmark>,
         journeys: List<Journey>,
     ): List<SearchSource> {
@@ -35,8 +37,39 @@ object SearchSourceCatalog {
                     category = "Visit",
                 )
             }
-        return UniversalSearchPolicy.eligibleCandidates((marks + visited).toList())
+        return UniversalSearchPolicy.eligibleCandidates(
+            (marks + visited).toList(), limit = UniversalSearchPolicy.MAX_LOCAL_INDEX
+        )
     }
+
+    /** The visible 60-row shortlist is filtered/ranked entirely on-device. */
+    fun match(index: List<SearchSource>, localQuery: String): List<SearchSource> {
+        val terms = localQuery.trim().lowercase(Locale.ROOT)
+            .split(Regex("\\s+")).filter { it.isNotEmpty() }.take(8)
+        if (terms.isEmpty()) return index.take(UniversalSearchPolicy.MAX_CANDIDATES)
+
+        data class Ranked(val source: SearchSource, val points: Int, val order: Int)
+        return index.mapIndexedNotNull { order, source ->
+            val title = source.title.lowercase(Locale.ROOT)
+            val host = UniversalSearchPolicy.safeHost(source.url).orEmpty()
+            if (!terms.all { title.contains(it) || host.contains(it) }) null
+            else Ranked(source, terms.sumOf { term ->
+                when {
+                    title.startsWith(term) -> 4
+                    title.contains(term) -> 3
+                    host.contains(term) -> 1
+                    else -> 0
+                }
+            }, order)
+        }.sortedWith(compareByDescending<Ranked> { it.points }.thenBy { it.order })
+            .take(UniversalSearchPolicy.MAX_CANDIDATES)
+            .map { it.source }
+    }
+
+    fun collect(
+        bookmarks: List<Bookmark>,
+        journeys: List<Journey>,
+    ): List<SearchSource> = match(index(bookmarks, journeys), "")
 
     internal fun stableId(url: String): String {
         val bytes = MessageDigest.getInstance("SHA-256")
