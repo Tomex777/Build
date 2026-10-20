@@ -1,0 +1,32 @@
+name: NIGHT Play Agent 9 UI browser audit
+on:
+  pull_request:
+    paths:
+      - 'night-play/site-shell.css'
+      - 'night-play/ui/**'
+      - '.github/workflows/night-play-agent9-ui.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  visual-browser-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install browser test helper
+        run: npm install --no-save playwright@1.56.1
+      - name: Exercise site and game navigation across seven viewports
+        run: node night-play/ui/site-chrome-smoke.mjs
+      - name: Upload real Chromium site/game screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: night-play-agent9-site-chrome
+          path: night-play/ui/visual-output/*.png
+          retention-days: 14

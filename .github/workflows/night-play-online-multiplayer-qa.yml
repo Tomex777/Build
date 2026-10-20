@@ -1,0 +1,36 @@
+name: NIGHT Play Online Multiplayer QA
+
+on:
+  pull_request:
+    paths:
+      - 'night-play/multiplayer/**'
+      - 'night-play/party/room/**'
+      - '.github/workflows/night-play-online-multiplayer-qa.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  two-clients:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install browser automation dependency
+        run: npm install --no-save playwright@1.56.1
+      - name: Actually play Tic-Tac-Toe in two separate browser contexts
+        run: node night-play/multiplayer/ttt/mobile-smoke.cjs
+      - name: Play five remote party rounds with independent browsers and reconnect
+        run: node night-play/party/room/mobile-smoke.mjs
+      - name: Save screenshots for independent visual inspection
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: night-play-online-multiplayer-visual-evidence
+          path: night-play/visual-output/*.jpg
+          retention-days: 14
+          if-no-files-found: warn
