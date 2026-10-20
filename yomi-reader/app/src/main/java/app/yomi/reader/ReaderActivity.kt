@@ -122,6 +122,8 @@ class ReaderActivity : ComponentActivity(), ReaderViewerHost {
     private lateinit var chrome: ComposeView
     private var loadingView: View? = null
     private var tapZoneOverlay: ReaderNavigationOverlayView? = null
+    private var topBarBottomPx = 0f
+    private var bottomBarTopPx = Float.MAX_VALUE
     // Page-change callbacks may enqueue several IO jobs during a fast swipe.
     // Serialize their commits and reject stale snapshots so the last page wins.
     private val progressWriteMutex = Mutex()
@@ -279,6 +281,8 @@ class ReaderActivity : ComponentActivity(), ReaderViewerHost {
                         refreshChrome()
                     },
                     onClickSettings = ::showReaderSettings,
+                    onTopBarBottom = { topBarBottomPx = it },
+                    onBottomBarTop = { bottomBarTopPx = it },
                     )
                 }
                 if (quickReadingModeOpen.value) {
@@ -510,10 +514,11 @@ class ReaderActivity : ComponentActivity(), ReaderViewerHost {
 
             override fun dispatchTouchEvent(event: MotionEvent): Boolean {
                 if (event.actionMasked == MotionEvent.ACTION_DOWN) {
-                    val topBarBottom = dp(112).toFloat()
-                    val bottomBarTop = height.toFloat() - dp(205).toFloat()
+                    // Upstream reader bars vary with window insets, screen
+                    // width and chapter title wrapping. Fixed 112/205dp
+                    // touch masks blocked page turns on compact phones.
                     routingToChrome = menuVisible &&
-                        (event.y < topBarBottom || event.y > bottomBarTop)
+                        (event.y <= topBarBottomPx || event.y >= bottomBarTopPx)
                 }
                 val handled = routingToChrome && super.dispatchTouchEvent(event)
                 if (event.actionMasked == MotionEvent.ACTION_UP ||
