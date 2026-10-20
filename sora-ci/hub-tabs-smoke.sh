@@ -225,6 +225,42 @@ if cmp -s "$OUT/games-2048-board.png" "$OUT/games-2048-after-swipe.png"; then
   echo '2048 board was visually unchanged after three gestures.' >&2
   exit 1
 fi
+
+# 2048 must restore the *same* playable round, not only a best score, after
+# navigating away or Android destroys the process.
+adb shell run-as com.night.sora cat shared_prefs/sora_arcade_v1.xml | grep -q 'name="tiles_board"'
+capture_2048_tiles() {
+  dump_ui
+  python3 - <<'PYTILES'
+import re, xml.etree.ElementTree as ET
+root=ET.parse('/tmp/sora-hub-window.xml').getroot()
+tiles=[]
+for node in root.iter('node'):
+    value=(node.attrib.get('text') or '').strip()
+    if not re.fullmatch(r'(?:2|4|8|16|32|64|128|256|512|1024|2048|4096|8192|16384)', value):
+        continue
+    bounds=node.attrib.get('bounds','')
+    if re.fullmatch(r'\[\d+,\d+\]\[\d+,\d+\]', bounds):
+        tiles.append((bounds,value))
+assert len(tiles)>=2, f'2048 board has no visible tiles: {tiles}'
+for item in sorted(tiles): print(*item)
+PYTILES
+}
+capture_2048_tiles > /tmp/sora-2048-before-relaunch.txt
+shot games-2048-before-relaunch
+adb shell am force-stop com.night.sora
+adb shell am start -W -n com.night.sora/.MainActivity >/dev/null
+sleep 2
+tap Games
+tap "2048"
+wait_for "SCORE"
+capture_2048_tiles > /tmp/sora-2048-after-relaunch.txt
+if ! diff -u /tmp/sora-2048-before-relaunch.txt /tmp/sora-2048-after-relaunch.txt; then
+  shot games-2048-failed-restore
+  echo '2048 round was not restored after process restart.' >&2
+  exit 1
+fi
+shot games-2048-restored
 tap "All games"
 
 tap "Tic-tac-toe"
