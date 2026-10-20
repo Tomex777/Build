@@ -29,11 +29,18 @@ import com.night.sora.ui.theme.*
 private data class GameStats(val quizzes: Int, val correct: Int, val bestStreak: Int)
 
 @Composable
-fun GamesScreen(modifier: Modifier = Modifier, library: List<LibraryEntry>) {
+fun GamesScreen(
+    modifier: Modifier = Modifier,
+    library: List<LibraryEntry>,
+    onOpenNightGame: (String) -> Unit = {},
+) {
     var selectedGame by rememberSaveable { mutableStateOf("") }
     BackHandler(enabled = selectedGame.isNotBlank()) { selectedGame = "" }
     if (selectedGame != "quiz") {
-        SoraArcadePage(selectedGame, onSelect = { selectedGame = it }, library = library, modifier = modifier)
+        SoraArcadePage(
+            selectedGame, onSelect = { selectedGame = it }, library = library,
+            onOpenNightGame = onOpenNightGame, modifier = modifier,
+        )
         return
     }
     val context = LocalContext.current

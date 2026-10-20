@@ -41,7 +41,13 @@ private val arcadeEntries = listOf(
 )
 
 @Composable
-fun SoraArcadePage(selected: String, onSelect: (String) -> Unit, library: List<LibraryEntry>, modifier: Modifier = Modifier) {
+fun SoraArcadePage(
+    selected: String,
+    onSelect: (String) -> Unit,
+    library: List<LibraryEntry>,
+    onOpenNightGame: (String) -> Unit = {},
+    modifier: Modifier = Modifier,
+) {
     if (selected.isEmpty()) {
         // Cards are intentionally bigger than the original compact list:
         // game SVGs are readable at 360dp and the entire card is touchable.
@@ -57,6 +63,33 @@ fun SoraArcadePage(selected: String, onSelect: (String) -> Unit, library: List<L
             item(span = { GridItemSpan(maxLineSpan) }) {
                 Text("Games", fontSize = 24.sp, fontWeight = FontWeight.ExtraBold,
                     modifier = Modifier.fillMaxWidth())
+            }
+            item(span = { GridItemSpan(maxLineSpan) }) {
+                Surface(
+                    modifier = Modifier.fillMaxWidth().clickable { onOpenNightGame(soraNightStory.id) },
+                    shape = RoundedCornerShape(16.dp),
+                    color = SoraSurfaceHigh,
+                    border = androidx.compose.foundation.BorderStroke(1.dp, SoraAccent.copy(alpha = .34f)),
+                ) {
+                    Row(
+                        Modifier.fillMaxWidth().padding(18.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(14.dp),
+                    ) {
+                        Surface(shape = RoundedCornerShape(12.dp), color = SoraSurfaceRaised) {
+                            Icon(soraNightStory.icon, null, tint = SoraAccent,
+                                modifier = Modifier.padding(12.dp).size(31.dp))
+                        }
+                        Column(Modifier.weight(1f)) {
+                            Text("INTERACTIVE FICTION", color = SoraAccent, fontSize = 9.sp,
+                                fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
+                            Text(soraNightStory.name, fontSize = 19.sp, fontWeight = FontWeight.ExtraBold)
+                            Text("A branching novel with three endings and saved choices",
+                                color = SoraMuted, fontSize = 11.sp, lineHeight = 14.sp)
+                        }
+                        Icon(Icons.Rounded.ChevronRight, null, tint = SoraAccent)
+                    }
+                }
             }
             items(arcadeEntries, key = { it.key }) { game ->
                 Surface(
@@ -85,6 +118,36 @@ fun SoraArcadePage(selected: String, onSelect: (String) -> Unit, library: List<L
                             Text(game.title, fontSize = 15.sp,
                                 fontWeight = FontWeight.Bold, maxLines = 1)
                             Text(game.subtitle, color = SoraMuted, fontSize = 10.sp,
+                                lineHeight = 13.sp, maxLines = 2)
+                        }
+                    }
+                }
+            }
+            // Playable games reused from NIGHT Play. They open fullscreen,
+            // retain their own offline scores, and share no duplicate launcher.
+            items(soraNightGames, key = { it.id }) { game ->
+                Surface(
+                    modifier = Modifier.fillMaxWidth().clickable { onOpenNightGame(game.id) },
+                    color = SoraSurfaceHigh,
+                    shape = RoundedCornerShape(15.dp),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = .055f)),
+                ) {
+                    Column(
+                        Modifier.fillMaxWidth().height(164.dp).padding(14.dp),
+                        verticalArrangement = Arrangement.SpaceBetween,
+                    ) {
+                        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top,
+                            horizontalArrangement = Arrangement.SpaceBetween) {
+                            Surface(shape = RoundedCornerShape(12.dp), color = SoraSurfaceRaised) {
+                                Icon(game.icon, contentDescription = null, tint = SoraAccent,
+                                    modifier = Modifier.padding(10.dp).size(40.dp))
+                            }
+                            Text(game.category.uppercase(), fontSize = 9.sp, color = SoraMuted,
+                                fontWeight = FontWeight.Bold)
+                        }
+                        Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                            Text(game.name, fontSize = 15.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+                            Text(game.description, color = SoraMuted, fontSize = 10.sp,
                                 lineHeight = 13.sp, maxLines = 2)
                         }
                     }

@@ -62,6 +62,7 @@ sealed interface AppScreen {
     data class Reader(val session: ReaderSession) : AppScreen
     data class VideoPlayer(val session: PlaybackSession) : AppScreen
     data object NowPlaying : AppScreen
+    data class NightGame(val id: String) : AppScreen
 }
 
 @Composable
@@ -194,7 +195,11 @@ fun SoraApp() {
                     progressEntries = repository.mediaProgress,
                     onOpenMedia = ::openMedia,
                 )
-                RootTab.GAMES -> GamesScreen(Modifier.padding(padding), repository.library)
+                RootTab.GAMES -> GamesScreen(
+                    modifier = Modifier.padding(padding),
+                    library = repository.library,
+                    onOpenNightGame = { push(AppScreen.NightGame(it)) },
+                )
                 RootTab.MORE -> MoreScreen(
                     modifier = Modifier.padding(padding),
                     extensionCount = extensions.count {
@@ -294,6 +299,7 @@ fun SoraApp() {
                     }
                 },
             )
+            is AppScreen.NightGame -> NightPlayGameScreen(current.id, onClose = ::pop)
             AppScreen.NowPlaying -> NowPlayingScreen(
                 player = musicPlayer,
                 isSaved = repository::isSaved,
