@@ -1,0 +1,245 @@
+{
+  "version": 1,
+  "series": "maou-gakuin",
+  "universe": "maou-gakuin",
+  "scope": "in-universe",
+  "scale": "night-universe-power-v1",
+  "status": "editorial-proposal",
+  "notes": "Anime-depicted forms only. These grades are editorial proposals; light-novel endgame editions remain separate.",
+  "assessments": {
+    "anos-academy": {
+      "scale": "night-universe-power-v1",
+      "status": "proposed",
+      "rank": "SS",
+      "formId": "reincarnated-academy",
+      "artworkSHA256": "52701b2068080e6bf1e55ca481b6298b5be17d1c66b40ae2af70a4c4e12c4849",
+      "scope": "Anos Voldigoad — Reincarnated / academy uniform",
+      "basis": "Reincarnated Demon King with overwhelming source magic and Venuzdonoa; this source depicts his academy-era appearance.",
+      "limits": "Does not depict late-novel Abyss or final-volume feats.",
+      "references": [
+        "https://maohgakuin.com/",
+        "https://maohgakuin.com/assets/img/character/img_anos.png",
+        "https://maohgakuin.com/",
+        "https://demonkingacademy-anime.com/"
+      ],
+      "universe": "maou-gakuin",
+      "continuity": "maou-gakuin-anime-s2"
+    },
+    "militia-creation": {
+      "scale": "night-universe-power-v1",
+      "status": "proposed",
+      "rank": "SS",
+      "formId": "goddess-creation",
+      "artworkSHA256": "c4ace032e6ca8d47462c704522d58bb52fbe3c8fd1760a2eba2c54b1cab69f59",
+      "scope": "Militia — Goddess of Creation / anime",
+      "basis": "Creation goddess who shaped the world and governs the Order of Creation.",
+      "limits": "Creation authority does not equate to endgame Silverwater Sea dominance.",
+      "references": [
+        "https://maohgakuin.com/",
+        "https://maohgakuin.com/assets/img/character/img_militia.png",
+        "https://maohgakuin.com/",
+        "https://demonkingacademy-anime.com/"
+      ],
+      "universe": "maou-gakuin",
+      "continuity": "maou-gakuin-anime-s2"
+    },
+    "lay-sword": {
+      "scale": "night-universe-power-v1",
+      "status": "proposed",
+      "rank": "S",
+      "formId": "lay-sword",
+      "artworkSHA256": "b726a3fc14a523ad7f468d935db4c73c6a104280b4f7ded1e50d5f8b1d09ea7e",
+      "scope": "Lay Glanzudlii — Reincarnated Kanon / demon sword",
+      "basis": "Hero Kanon's reincarnation, exceptional swordsman who can contend with Shin.",
+      "limits": "Late-novel amplified editions require different matching artwork.",
+      "references": [
+        "https://maohgakuin.com/",
+        "https://maohgakuin.com/assets/img/character/img_lay.png",
+        "https://maohgakuin.com/",
+        "https://demonkingacademy-anime.com/"
+      ],
+      "universe": "maou-gakuin",
+      "continuity": "maou-gakuin-anime-s2"
+    },
+    "shin-swordsman": {
+      "scale": "night-universe-power-v1",
+      "status": "proposed",
+      "rank": "S",
+      "formId": "thousand-swords",
+      "artworkSHA256": "d9023e147a2d7205018992e3a570a46fae068bae484ae22a81ecd60fc88fcd6b",
+      "scope": "Shin Reglia — Demon King's right hand",
+      "basis": "Legendary swordsman of the Mythical Age; master of a thousand demon swords.",
+      "limits": "Shown anime version, not extrapolated later power-ups.",
+      "references": [
+        "https://maohgakuin.com/",
+        "https://maohgakuin.com/assets/img/character/img_shin.png",
+        "https://maohgakuin.com/",
+        "https://demonkingacademy-anime.com/"
+      ],
+      "universe": "maou-gakuin",
+      "continuity": "maou-gakuin-anime-s2"
+    },
+    "erdomaid-teacher": {
+      "scale": "night-universe-power-v1",
+      "status": "proposed",
+      "rank": "S",
+      "formId": "teacher",
+      "artworkSHA256": "910f6793e662d995f10a3d5a7ab041f945617799735b1aefc2941010b71312a9",
+      "scope": "Erdomaid Dittijohn — Blaze Death King / teacher",
+      "basis": "Four Evil Royals magician who usurped the Heavenly Father God's order.",
+      "limits": "Specific divine abilities depend on the anime's time period.",
+      "references": [
+        "https://maohgakuin.com/",
+        "https://maohgakuin.com/assets/img/character/img_erdomaid.png",
+        "https://maohgakuin.com/",
+        "https://demonkingacademy-anime.com/"
+      ],
+      "universe": "maou-gakuin",
+      "continuity": "maou-gakuin-anime-s2"
+    },
+    "arcana-chosen": {
+      "scale": "night-universe-power-v1",
+      "status": "proposed",
+      "rank": "A",
+      "formId": "selection-god",
+      "artworkSHA256": "0e024970be9539ec6d7405c1abfa5ad108f08908bc67d1c7dea0f7230f8f2eb8",
+      "scope": "Arcana — Chosen God / Moon of Creation",
+      "basis": "Uses the Moon of Creation and participates in the Selection Trial.",
+      "limits": "Order-dependent authority is not an unconditional victory condition.",
+      "references": [
+        "https://maohgakuin.com/",
+        "https://maohgakuin.com/assets/img/character/img_arcana.png",
+        "https://maohgakuin.com/",
+        "https://demonkingacademy-anime.com/"
+      ],
+      "universe": "maou-gakuin",
+      "continuity": "maou-gakuin-anime-s2"
+    },
+    "leno-spirit": {
+      "scale": "night-universe-power-v1",
+      "status": "proposed",
+      "rank": "A",
+      "formId": "mother-of-spirits",
+      "artworkSHA256": "80e3e9e2696aa0e6d1903233257e1837ea644ef613e51b049c323855f44b7fa5",
+      "scope": "Great Spirit Leno — Mother of all spirits",
+      "basis": "Great Spirit with exceptional power in protecting her family and spirits.",
+      "limits": "No unshown late-novel feats are attributed to this depiction.",
+      "references": [
+        "https://maohgakuin.com/",
+        "https://maohgakuin.com/assets/img/character/img_leno.png",
+        "https://maohgakuin.com/",
+        "https://demonkingacademy-anime.com/"
+      ],
+      "universe": "maou-gakuin",
+      "continuity": "maou-gakuin-anime-s2"
+    },
+    "sasha-ruin": {
+      "scale": "night-universe-power-v1",
+      "status": "proposed",
+      "rank": "A",
+      "formId": "witch-of-ruin",
+      "artworkSHA256": "5e4afd90ed855d8f7689a89bf016c7f80f6450fd38c3ce6d48c6283013bef634",
+      "scope": "Sasha Necron — Witch of Ruin / destructive eyes",
+      "basis": "Magic Eyes of Destruction and powerful direct offensive magic.",
+      "limits": "Not Aisha fusion or late-novel awakened Sasha.",
+      "references": [
+        "https://maohgakuin.com/",
+        "https://maohgakuin.com/assets/img/character/img_sasha.png",
+        "https://maohgakuin.com/",
+        "https://demonkingacademy-anime.com/"
+      ],
+      "universe": "maou-gakuin",
+      "continuity": "maou-gakuin-anime-s2"
+    },
+    "misha-creation": {
+      "scale": "night-universe-power-v1",
+      "status": "proposed",
+      "rank": "A",
+      "formId": "academy-creation",
+      "artworkSHA256": "2347413638b91562d0b67c5dd0af5eed33d7bcf235f85ce3088a725836edf0ff",
+      "scope": "Misha Necron — Ice and creation magic",
+      "basis": "Powerful ice and construction magic; highly adaptable support and combat.",
+      "limits": "Not Aisha fusion or late-novel awakened Misha.",
+      "references": [
+        "https://maohgakuin.com/",
+        "https://maohgakuin.com/assets/img/character/img_misha.png",
+        "https://maohgakuin.com/",
+        "https://demonkingacademy-anime.com/"
+      ],
+      "universe": "maou-gakuin",
+      "continuity": "maou-gakuin-anime-s2"
+    },
+    "misa-spirit": {
+      "scale": "night-universe-power-v1",
+      "status": "proposed",
+      "rank": "B",
+      "formId": "half-spirit",
+      "artworkSHA256": "c22fe7f2dd88dd7842c710aac1b5f3eb91ea28e82519b979f36a8f23306f0b93",
+      "scope": "Misa Ilioroagu — Half-spirit / academy",
+      "basis": "Half-spirit, half-demon with spirit abilities and important connections to Avos Dilhevia.",
+      "limits": "Not Avos Dilhevia's transformed form.",
+      "references": [
+        "https://maohgakuin.com/",
+        "https://maohgakuin.com/assets/img/character/img_misa.png",
+        "https://maohgakuin.com/",
+        "https://demonkingacademy-anime.com/"
+      ],
+      "universe": "maou-gakuin",
+      "continuity": "maou-gakuin-anime-s2"
+    },
+    "eleonore-magic": {
+      "scale": "night-universe-power-v1",
+      "status": "proposed",
+      "rank": "B",
+      "formId": "magic",
+      "artworkSHA256": "7ed671dd789fc7378bdf43deada9c33442fbf67764f5e11fba0ce17101119855",
+      "scope": "Eleonore Bianca — Source-clone magic",
+      "basis": "Sentient origin magic with extraordinary capacity to create source clones.",
+      "limits": "Does not mean she outclasses top gods in a solo duel.",
+      "references": [
+        "https://maohgakuin.com/",
+        "https://maohgakuin.com/assets/img/character/img_eleonore.png",
+        "https://maohgakuin.com/",
+        "https://demonkingacademy-anime.com/"
+      ],
+      "universe": "maou-gakuin",
+      "continuity": "maou-gakuin-anime-s2"
+    },
+    "zeshia-clone": {
+      "scale": "night-universe-power-v1",
+      "status": "proposed",
+      "rank": "C",
+      "formId": "hero-clone",
+      "artworkSHA256": "348d9e3097e6ff28b4fa15c3d0255f92131c0492e04b32ccaf62471a4b5f1f01",
+      "scope": "Zeshia Bianca — Hero Academy / source clone",
+      "basis": "Combat-trained source clone with supernatural abilities.",
+      "limits": "Not the mass army acting as a collective.",
+      "references": [
+        "https://maohgakuin.com/",
+        "https://maohgakuin.com/assets/img/character/img_zeshia.png",
+        "https://maohgakuin.com/",
+        "https://demonkingacademy-anime.com/"
+      ],
+      "universe": "maou-gakuin",
+      "continuity": "maou-gakuin-anime-s2"
+    },
+    "emilia-teacher": {
+      "scale": "night-universe-power-v1",
+      "status": "proposed",
+      "rank": "C",
+      "formId": "reborn-teacher",
+      "artworkSHA256": "7bd04656535c142e91a05b2a757b56bbec2ae2aeee56dc98dd3969c0d7307c0e",
+      "scope": "Emilia Ludowell — Reborn / Hero Academy teacher",
+      "basis": "Experienced magic teacher and combat-capable demon.",
+      "limits": "Does not use the unproven royal strength from before reincarnation.",
+      "references": [
+        "https://maohgakuin.com/",
+        "https://maohgakuin.com/assets/img/character/img_emilia.png",
+        "https://maohgakuin.com/",
+        "https://demonkingacademy-anime.com/"
+      ],
+      "universe": "maou-gakuin",
+      "continuity": "maou-gakuin-anime-s2"
+    }
+  }
+}

@@ -1,4 +1,122 @@
 {
   "version": 1,
-  "sources": {}
+  "sources": {
+    "anos-academy": {
+      "sha256": "52701b2068080e6bf1e55ca481b6298b5be17d1c66b40ae2af70a4c4e12c4849",
+      "width": 1440,
+      "height": 1760,
+      "originalSha256": "b7d2d4a52317ba7408ed3c7b1eefd32d2e9b7a79453f920e7359c9fb49af107f",
+      "originalWidth": 720,
+      "originalHeight": 880,
+      "image": "https://maohgakuin.com/assets/img/character/img_anos.png"
+    },
+    "militia-creation": {
+      "sha256": "c4ace032e6ca8d47462c704522d58bb52fbe3c8fd1760a2eba2c54b1cab69f59",
+      "width": 1440,
+      "height": 1760,
+      "originalSha256": "aa8094a8a2ca074db0ec70511ab2f00ff8ea1f04216b7c48c087f2713f82a480",
+      "originalWidth": 720,
+      "originalHeight": 880,
+      "image": "https://maohgakuin.com/assets/img/character/img_militia.png"
+    },
+    "lay-sword": {
+      "sha256": "b726a3fc14a523ad7f468d935db4c73c6a104280b4f7ded1e50d5f8b1d09ea7e",
+      "width": 1440,
+      "height": 1760,
+      "originalSha256": "c301eb973ea336d522b54ba611451d873332317ea991387e56d5f4a97128281d",
+      "originalWidth": 720,
+      "originalHeight": 880,
+      "image": "https://maohgakuin.com/assets/img/character/img_lay.png"
+    },
+    "shin-swordsman": {
+      "sha256": "d9023e147a2d7205018992e3a570a46fae068bae484ae22a81ecd60fc88fcd6b",
+      "width": 1440,
+      "height": 1760,
+      "originalSha256": "97471a86bcaaabd6d680765ae8449656fcc51a6aa924d7084209f650074dcdd2",
+      "originalWidth": 720,
+      "originalHeight": 880,
+      "image": "https://maohgakuin.com/assets/img/character/img_shin.png"
+    },
+    "erdomaid-teacher": {
+      "sha256": "910f6793e662d995f10a3d5a7ab041f945617799735b1aefc2941010b71312a9",
+      "width": 1440,
+      "height": 1760,
+      "originalSha256": "0cc53b31f457c0bee3c07d786cc0ac39acb6af08a79073dc68e1e1cd5c179148",
+      "originalWidth": 720,
+      "originalHeight": 880,
+      "image": "https://maohgakuin.com/assets/img/character/img_erdomaid.png"
+    },
+    "arcana-chosen": {
+      "sha256": "0e024970be9539ec6d7405c1abfa5ad108f08908bc67d1c7dea0f7230f8f2eb8",
+      "width": 1440,
+      "height": 1760,
+      "originalSha256": "ecbce30158338dd03ebde2a195e10efaabe4d12ad6c14de6bfad4160f5e93197",
+      "originalWidth": 720,
+      "originalHeight": 880,
+      "image": "https://maohgakuin.com/assets/img/character/img_arcana.png"
+    },
+    "leno-spirit": {
+      "sha256": "80e3e9e2696aa0e6d1903233257e1837ea644ef613e51b049c323855f44b7fa5",
+      "width": 1440,
+      "height": 1760,
+      "originalSha256": "7bdaf915f77ed7bb06ed9f8e927ade641b1c5d1a9402e5261b86c23586ee8ebf",
+      "originalWidth": 720,
+      "originalHeight": 880,
+      "image": "https://maohgakuin.com/assets/img/character/img_leno.png"
+    },
+    "sasha-ruin": {
+      "sha256": "5e4afd90ed855d8f7689a89bf016c7f80f6450fd38c3ce6d48c6283013bef634",
+      "width": 1440,
+      "height": 1760,
+      "originalSha256": "e81ed04a466e4866f95a8be20c51344676c344c8d9b7c60a596cf3af72a8e57a",
+      "originalWidth": 720,
+      "originalHeight": 880,
+      "image": "https://maohgakuin.com/assets/img/character/img_sasha.png"
+    },
+    "misha-creation": {
+      "sha256": "2347413638b91562d0b67c5dd0af5eed33d7bcf235f85ce3088a725836edf0ff",
+      "width": 1440,
+      "height": 1760,
+      "originalSha256": "ea6e54b168e451923b8eb5748dd908ec93edd7fb1e60f680ae68cfe9c12392db",
+      "originalWidth": 720,
+      "originalHeight": 880,
+      "image": "https://maohgakuin.com/assets/img/character/img_misha.png"
+    },
+    "misa-spirit": {
+      "sha256": "c22fe7f2dd88dd7842c710aac1b5f3eb91ea28e82519b979f36a8f23306f0b93",
+      "width": 1440,
+      "height": 1760,
+      "originalSha256": "342dc473bee41bdae68e009785a8ec91cf8399ec39887fdc7d5d413fa6c289b6",
+      "originalWidth": 720,
+      "originalHeight": 880,
+      "image": "https://maohgakuin.com/assets/img/character/img_misa.png"
+    },
+    "eleonore-magic": {
+      "sha256": "7ed671dd789fc7378bdf43deada9c33442fbf67764f5e11fba0ce17101119855",
+      "width": 1440,
+      "height": 1760,
+      "originalSha256": "f33221772c446723751ea99f6dbf604bf1313f2d440125501f352d27a7fbda81",
+      "originalWidth": 720,
+      "originalHeight": 880,
+      "image": "https://maohgakuin.com/assets/img/character/img_eleonore.png"
+    },
+    "zeshia-clone": {
+      "sha256": "348d9e3097e6ff28b4fa15c3d0255f92131c0492e04b32ccaf62471a4b5f1f01",
+      "width": 1440,
+      "height": 1760,
+      "originalSha256": "219fbae7a640c3810ded1ea9ed93c7f4fc0ad4c38166ef236e1975a9a69cc839",
+      "originalWidth": 720,
+      "originalHeight": 880,
+      "image": "https://maohgakuin.com/assets/img/character/img_zeshia.png"
+    },
+    "emilia-teacher": {
+      "sha256": "7bd04656535c142e91a05b2a757b56bbec2ae2aeee56dc98dd3969c0d7307c0e",
+      "width": 1440,
+      "height": 1760,
+      "originalSha256": "7870653698abc9a1a3e4ec17db7097540ea339889b0c319f25897de9efba26dc",
+      "originalWidth": 720,
+      "originalHeight": 880,
+      "image": "https://maohgakuin.com/assets/img/character/img_emilia.png"
+    }
+  }
 }

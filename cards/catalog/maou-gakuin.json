@@ -1,0 +1,758 @@
+{
+  "version": 1,
+  "series": "maou-gakuin",
+  "name": "The Misfit of Demon King Academy / NIGHT Collection",
+  "dimensions": [
+    3000,
+    4800
+  ],
+  "artworkPolicy": {
+    "distinctPerEdition": true
+  },
+  "tierPolicy": {
+    "mode": "power-selects-design"
+  },
+  "rightsNote": "Original anime artwork is copyright protected; reference-only preview candidates.",
+  "cards": [
+    {
+      "id": "anos-academy",
+      "character": "anos",
+      "name": "Anos Voldigoad",
+      "title": "Anos",
+      "form": "Reincarnated / academy uniform",
+      "formId": "reincarnated-academy",
+      "number": 1,
+      "aliases": [
+        "Anos Voldigoad",
+        "Anos",
+        "anos"
+      ],
+      "designs": [
+        "obsidian"
+      ],
+      "status": "candidate",
+      "source": {
+        "provider": "maohgakuin-anime-official",
+        "page": "https://maohgakuin.com/",
+        "image": "https://maohgakuin.com/assets/img/character/img_anos.png",
+        "rights": "© Shu/KADOKAWA/Demon King Academy production committee. All rights reserved.",
+        "usage": "reference-only",
+        "credit": "Official The Misfit of Demon King Academy II character illustration",
+        "artist": "SILVER LINK. / series production",
+        "localPath": "artwork/maou-gakuin/anos-academy.png",
+        "sha256": "52701b2068080e6bf1e55ca481b6298b5be17d1c66b40ae2af70a4c4e12c4849",
+        "width": 1440,
+        "height": 1760,
+        "originalSha256": "b7d2d4a52317ba7408ed3c7b1eefd32d2e9b7a79453f920e7359c9fb49af107f",
+        "originalWidth": 720,
+        "originalHeight": 880,
+        "processing": "Lanczos3 2x upscale of original official alpha cutout; no added character details"
+      },
+      "recipe": {
+        "crop": [
+          0,
+          0,
+          1440,
+          1760
+        ],
+        "bottomPadding": 0.16,
+        "edgeFade": 0.005,
+        "bottomFade": 0.02,
+        "focal": [
+          0.5,
+          0.34
+        ],
+        "artworkPlacement": {
+          "obsidian": {
+            "x": 0,
+            "y": 15,
+            "width": 1000
+          }
+        }
+      }
+    },
+    {
+      "id": "militia-creation",
+      "character": "militia",
+      "name": "Militia",
+      "title": "Militia",
+      "form": "Goddess of Creation / anime",
+      "formId": "goddess-creation",
+      "number": 2,
+      "aliases": [
+        "Militia",
+        "militia"
+      ],
+      "designs": [
+        "obsidian"
+      ],
+      "status": "candidate",
+      "source": {
+        "provider": "maohgakuin-anime-official",
+        "page": "https://maohgakuin.com/",
+        "image": "https://maohgakuin.com/assets/img/character/img_militia.png",
+        "rights": "© Shu/KADOKAWA/Demon King Academy production committee. All rights reserved.",
+        "usage": "reference-only",
+        "credit": "Official The Misfit of Demon King Academy II character illustration",
+        "artist": "SILVER LINK. / series production",
+        "localPath": "artwork/maou-gakuin/militia-creation.png",
+        "sha256": "c4ace032e6ca8d47462c704522d58bb52fbe3c8fd1760a2eba2c54b1cab69f59",
+        "width": 1440,
+        "height": 1760,
+        "originalSha256": "aa8094a8a2ca074db0ec70511ab2f00ff8ea1f04216b7c48c087f2713f82a480",
+        "originalWidth": 720,
+        "originalHeight": 880,
+        "processing": "Lanczos3 2x upscale of original official alpha cutout; no added character details"
+      },
+      "recipe": {
+        "crop": [
+          0,
+          0,
+          1440,
+          1760
+        ],
+        "bottomPadding": 0.16,
+        "edgeFade": 0.005,
+        "bottomFade": 0.02,
+        "focal": [
+          0.5,
+          0.34
+        ],
+        "artworkPlacement": {
+          "obsidian": {
+            "x": 0,
+            "y": 15,
+            "width": 1000
+          }
+        }
+      }
+    },
+    {
+      "id": "lay-sword",
+      "character": "lay",
+      "name": "Lay Glanzudlii",
+      "title": "Lay",
+      "form": "Reincarnated Kanon / demon sword",
+      "formId": "lay-sword",
+      "number": 3,
+      "aliases": [
+        "Lay Glanzudlii",
+        "Lay",
+        "lay"
+      ],
+      "designs": [
+        "emberglass"
+      ],
+      "status": "candidate",
+      "source": {
+        "provider": "maohgakuin-anime-official",
+        "page": "https://maohgakuin.com/",
+        "image": "https://maohgakuin.com/assets/img/character/img_lay.png",
+        "rights": "© Shu/KADOKAWA/Demon King Academy production committee. All rights reserved.",
+        "usage": "reference-only",
+        "credit": "Official The Misfit of Demon King Academy II character illustration",
+        "artist": "SILVER LINK. / series production",
+        "localPath": "artwork/maou-gakuin/lay-sword.png",
+        "sha256": "b726a3fc14a523ad7f468d935db4c73c6a104280b4f7ded1e50d5f8b1d09ea7e",
+        "width": 1440,
+        "height": 1760,
+        "originalSha256": "c301eb973ea336d522b54ba611451d873332317ea991387e56d5f4a97128281d",
+        "originalWidth": 720,
+        "originalHeight": 880,
+        "processing": "Lanczos3 2x upscale of original official alpha cutout; no added character details"
+      },
+      "recipe": {
+        "crop": [
+          0,
+          0,
+          1440,
+          1760
+        ],
+        "bottomPadding": 0.16,
+        "edgeFade": 0.005,
+        "bottomFade": 0.02,
+        "focal": [
+          0.5,
+          0.34
+        ],
+        "artworkPlacement": {
+          "emberglass": {
+            "x": 0,
+            "y": 15,
+            "width": 1000
+          }
+        }
+      }
+    },
+    {
+      "id": "shin-swordsman",
+      "character": "shin",
+      "name": "Shin Reglia",
+      "title": "Shin",
+      "form": "Demon King's right hand",
+      "formId": "thousand-swords",
+      "number": 4,
+      "aliases": [
+        "Shin Reglia",
+        "Shin",
+        "shin"
+      ],
+      "designs": [
+        "emberglass"
+      ],
+      "status": "candidate",
+      "source": {
+        "provider": "maohgakuin-anime-official",
+        "page": "https://maohgakuin.com/",
+        "image": "https://maohgakuin.com/assets/img/character/img_shin.png",
+        "rights": "© Shu/KADOKAWA/Demon King Academy production committee. All rights reserved.",
+        "usage": "reference-only",
+        "credit": "Official The Misfit of Demon King Academy II character illustration",
+        "artist": "SILVER LINK. / series production",
+        "localPath": "artwork/maou-gakuin/shin-swordsman.png",
+        "sha256": "d9023e147a2d7205018992e3a570a46fae068bae484ae22a81ecd60fc88fcd6b",
+        "width": 1440,
+        "height": 1760,
+        "originalSha256": "97471a86bcaaabd6d680765ae8449656fcc51a6aa924d7084209f650074dcdd2",
+        "originalWidth": 720,
+        "originalHeight": 880,
+        "processing": "Lanczos3 2x upscale of original official alpha cutout; no added character details"
+      },
+      "recipe": {
+        "crop": [
+          0,
+          0,
+          1440,
+          1760
+        ],
+        "bottomPadding": 0.16,
+        "edgeFade": 0.005,
+        "bottomFade": 0.02,
+        "focal": [
+          0.5,
+          0.34
+        ],
+        "artworkPlacement": {
+          "emberglass": {
+            "x": 0,
+            "y": 15,
+            "width": 1000
+          }
+        }
+      }
+    },
+    {
+      "id": "erdomaid-teacher",
+      "character": "erdomaid",
+      "name": "Erdomaid Dittijohn",
+      "title": "Erdomaid",
+      "form": "Blaze Death King / teacher",
+      "formId": "teacher",
+      "number": 5,
+      "aliases": [
+        "Erdomaid Dittijohn",
+        "Erdomaid",
+        "erdomaid"
+      ],
+      "designs": [
+        "emberglass"
+      ],
+      "status": "candidate",
+      "source": {
+        "provider": "maohgakuin-anime-official",
+        "page": "https://maohgakuin.com/",
+        "image": "https://maohgakuin.com/assets/img/character/img_erdomaid.png",
+        "rights": "© Shu/KADOKAWA/Demon King Academy production committee. All rights reserved.",
+        "usage": "reference-only",
+        "credit": "Official The Misfit of Demon King Academy II character illustration",
+        "artist": "SILVER LINK. / series production",
+        "localPath": "artwork/maou-gakuin/erdomaid-teacher.png",
+        "sha256": "910f6793e662d995f10a3d5a7ab041f945617799735b1aefc2941010b71312a9",
+        "width": 1440,
+        "height": 1760,
+        "originalSha256": "0cc53b31f457c0bee3c07d786cc0ac39acb6af08a79073dc68e1e1cd5c179148",
+        "originalWidth": 720,
+        "originalHeight": 880,
+        "processing": "Lanczos3 2x upscale of original official alpha cutout; no added character details"
+      },
+      "recipe": {
+        "crop": [
+          0,
+          0,
+          1440,
+          1760
+        ],
+        "bottomPadding": 0.16,
+        "edgeFade": 0.005,
+        "bottomFade": 0.02,
+        "focal": [
+          0.5,
+          0.34
+        ],
+        "artworkPlacement": {
+          "emberglass": {
+            "x": 0,
+            "y": 15,
+            "width": 1000
+          }
+        }
+      }
+    },
+    {
+      "id": "arcana-chosen",
+      "character": "arcana",
+      "name": "Arcana",
+      "title": "Arcana",
+      "form": "Chosen God / Moon of Creation",
+      "formId": "selection-god",
+      "number": 6,
+      "aliases": [
+        "Arcana",
+        "arcana"
+      ],
+      "designs": [
+        "nocturne"
+      ],
+      "status": "candidate",
+      "source": {
+        "provider": "maohgakuin-anime-official",
+        "page": "https://maohgakuin.com/",
+        "image": "https://maohgakuin.com/assets/img/character/img_arcana.png",
+        "rights": "© Shu/KADOKAWA/Demon King Academy production committee. All rights reserved.",
+        "usage": "reference-only",
+        "credit": "Official The Misfit of Demon King Academy II character illustration",
+        "artist": "SILVER LINK. / series production",
+        "localPath": "artwork/maou-gakuin/arcana-chosen.png",
+        "sha256": "0e024970be9539ec6d7405c1abfa5ad108f08908bc67d1c7dea0f7230f8f2eb8",
+        "width": 1440,
+        "height": 1760,
+        "originalSha256": "ecbce30158338dd03ebde2a195e10efaabe4d12ad6c14de6bfad4160f5e93197",
+        "originalWidth": 720,
+        "originalHeight": 880,
+        "processing": "Lanczos3 2x upscale of original official alpha cutout; no added character details"
+      },
+      "recipe": {
+        "crop": [
+          0,
+          0,
+          1440,
+          1760
+        ],
+        "bottomPadding": 0.16,
+        "edgeFade": 0.005,
+        "bottomFade": 0.02,
+        "focal": [
+          0.5,
+          0.34
+        ],
+        "artworkPlacement": {
+          "nocturne": {
+            "x": 0,
+            "y": 15,
+            "width": 1000
+          }
+        }
+      }
+    },
+    {
+      "id": "leno-spirit",
+      "character": "leno",
+      "name": "Great Spirit Leno",
+      "title": "Leno",
+      "form": "Mother of all spirits",
+      "formId": "mother-of-spirits",
+      "number": 7,
+      "aliases": [
+        "Great Spirit Leno",
+        "Leno",
+        "leno"
+      ],
+      "designs": [
+        "nocturne"
+      ],
+      "status": "candidate",
+      "source": {
+        "provider": "maohgakuin-anime-official",
+        "page": "https://maohgakuin.com/",
+        "image": "https://maohgakuin.com/assets/img/character/img_leno.png",
+        "rights": "© Shu/KADOKAWA/Demon King Academy production committee. All rights reserved.",
+        "usage": "reference-only",
+        "credit": "Official The Misfit of Demon King Academy II character illustration",
+        "artist": "SILVER LINK. / series production",
+        "localPath": "artwork/maou-gakuin/leno-spirit.png",
+        "sha256": "80e3e9e2696aa0e6d1903233257e1837ea644ef613e51b049c323855f44b7fa5",
+        "width": 1440,
+        "height": 1760,
+        "originalSha256": "7bdaf915f77ed7bb06ed9f8e927ade641b1c5d1a9402e5261b86c23586ee8ebf",
+        "originalWidth": 720,
+        "originalHeight": 880,
+        "processing": "Lanczos3 2x upscale of original official alpha cutout; no added character details"
+      },
+      "recipe": {
+        "crop": [
+          0,
+          0,
+          1440,
+          1760
+        ],
+        "bottomPadding": 0.16,
+        "edgeFade": 0.005,
+        "bottomFade": 0.02,
+        "focal": [
+          0.5,
+          0.34
+        ],
+        "artworkPlacement": {
+          "nocturne": {
+            "x": -175,
+            "y": -170,
+            "width": 1350
+          }
+        }
+      }
+    },
+    {
+      "id": "sasha-ruin",
+      "character": "sasha",
+      "name": "Sasha Necron",
+      "title": "Sasha",
+      "form": "Witch of Ruin / destructive eyes",
+      "formId": "witch-of-ruin",
+      "number": 8,
+      "aliases": [
+        "Sasha Necron",
+        "Sasha",
+        "sasha"
+      ],
+      "designs": [
+        "nocturne"
+      ],
+      "status": "candidate",
+      "source": {
+        "provider": "maohgakuin-anime-official",
+        "page": "https://maohgakuin.com/",
+        "image": "https://maohgakuin.com/assets/img/character/img_sasha.png",
+        "rights": "© Shu/KADOKAWA/Demon King Academy production committee. All rights reserved.",
+        "usage": "reference-only",
+        "credit": "Official The Misfit of Demon King Academy II character illustration",
+        "artist": "SILVER LINK. / series production",
+        "localPath": "artwork/maou-gakuin/sasha-ruin.png",
+        "sha256": "5e4afd90ed855d8f7689a89bf016c7f80f6450fd38c3ce6d48c6283013bef634",
+        "width": 1440,
+        "height": 1760,
+        "originalSha256": "e81ed04a466e4866f95a8be20c51344676c344c8d9b7c60a596cf3af72a8e57a",
+        "originalWidth": 720,
+        "originalHeight": 880,
+        "processing": "Lanczos3 2x upscale of original official alpha cutout; no added character details"
+      },
+      "recipe": {
+        "crop": [
+          0,
+          0,
+          1440,
+          1760
+        ],
+        "bottomPadding": 0.16,
+        "edgeFade": 0.005,
+        "bottomFade": 0.02,
+        "focal": [
+          0.5,
+          0.34
+        ],
+        "artworkPlacement": {
+          "nocturne": {
+            "x": -175,
+            "y": -170,
+            "width": 1350
+          }
+        }
+      }
+    },
+    {
+      "id": "misha-creation",
+      "character": "misha",
+      "name": "Misha Necron",
+      "title": "Misha",
+      "form": "Ice and creation magic",
+      "formId": "academy-creation",
+      "number": 9,
+      "aliases": [
+        "Misha Necron",
+        "Misha",
+        "misha"
+      ],
+      "designs": [
+        "nocturne"
+      ],
+      "status": "candidate",
+      "source": {
+        "provider": "maohgakuin-anime-official",
+        "page": "https://maohgakuin.com/",
+        "image": "https://maohgakuin.com/assets/img/character/img_misha.png",
+        "rights": "© Shu/KADOKAWA/Demon King Academy production committee. All rights reserved.",
+        "usage": "reference-only",
+        "credit": "Official The Misfit of Demon King Academy II character illustration",
+        "artist": "SILVER LINK. / series production",
+        "localPath": "artwork/maou-gakuin/misha-creation.png",
+        "sha256": "2347413638b91562d0b67c5dd0af5eed33d7bcf235f85ce3088a725836edf0ff",
+        "width": 1440,
+        "height": 1760,
+        "originalSha256": "ea6e54b168e451923b8eb5748dd908ec93edd7fb1e60f680ae68cfe9c12392db",
+        "originalWidth": 720,
+        "originalHeight": 880,
+        "processing": "Lanczos3 2x upscale of original official alpha cutout; no added character details"
+      },
+      "recipe": {
+        "crop": [
+          0,
+          0,
+          1440,
+          1760
+        ],
+        "bottomPadding": 0.16,
+        "edgeFade": 0.005,
+        "bottomFade": 0.02,
+        "focal": [
+          0.5,
+          0.34
+        ],
+        "artworkPlacement": {
+          "nocturne": {
+            "x": -175,
+            "y": -170,
+            "width": 1350
+          }
+        }
+      }
+    },
+    {
+      "id": "misa-spirit",
+      "character": "misa",
+      "name": "Misa Ilioroagu",
+      "title": "Misa",
+      "form": "Half-spirit / academy",
+      "formId": "half-spirit",
+      "number": 10,
+      "aliases": [
+        "Misa Ilioroagu",
+        "Misa",
+        "misa"
+      ],
+      "designs": [
+        "tidelight"
+      ],
+      "status": "candidate",
+      "source": {
+        "provider": "maohgakuin-anime-official",
+        "page": "https://maohgakuin.com/",
+        "image": "https://maohgakuin.com/assets/img/character/img_misa.png",
+        "rights": "© Shu/KADOKAWA/Demon King Academy production committee. All rights reserved.",
+        "usage": "reference-only",
+        "credit": "Official The Misfit of Demon King Academy II character illustration",
+        "artist": "SILVER LINK. / series production",
+        "localPath": "artwork/maou-gakuin/misa-spirit.png",
+        "sha256": "c22fe7f2dd88dd7842c710aac1b5f3eb91ea28e82519b979f36a8f23306f0b93",
+        "width": 1440,
+        "height": 1760,
+        "originalSha256": "342dc473bee41bdae68e009785a8ec91cf8399ec39887fdc7d5d413fa6c289b6",
+        "originalWidth": 720,
+        "originalHeight": 880,
+        "processing": "Lanczos3 2x upscale of original official alpha cutout; no added character details"
+      },
+      "recipe": {
+        "crop": [
+          0,
+          0,
+          1440,
+          1760
+        ],
+        "bottomPadding": 0.16,
+        "edgeFade": 0.005,
+        "bottomFade": 0.02,
+        "focal": [
+          0.5,
+          0.34
+        ],
+        "artworkPlacement": {
+          "tidelight": {
+            "x": -175,
+            "y": -170,
+            "width": 1350
+          }
+        }
+      }
+    },
+    {
+      "id": "eleonore-magic",
+      "character": "eleonore",
+      "name": "Eleonore Bianca",
+      "title": "Eleonore",
+      "form": "Source-clone magic",
+      "formId": "magic",
+      "number": 11,
+      "aliases": [
+        "Eleonore Bianca",
+        "Eleonore",
+        "eleonore"
+      ],
+      "designs": [
+        "tidelight"
+      ],
+      "status": "candidate",
+      "source": {
+        "provider": "maohgakuin-anime-official",
+        "page": "https://maohgakuin.com/",
+        "image": "https://maohgakuin.com/assets/img/character/img_eleonore.png",
+        "rights": "© Shu/KADOKAWA/Demon King Academy production committee. All rights reserved.",
+        "usage": "reference-only",
+        "credit": "Official The Misfit of Demon King Academy II character illustration",
+        "artist": "SILVER LINK. / series production",
+        "localPath": "artwork/maou-gakuin/eleonore-magic.png",
+        "sha256": "7ed671dd789fc7378bdf43deada9c33442fbf67764f5e11fba0ce17101119855",
+        "width": 1440,
+        "height": 1760,
+        "originalSha256": "f33221772c446723751ea99f6dbf604bf1313f2d440125501f352d27a7fbda81",
+        "originalWidth": 720,
+        "originalHeight": 880,
+        "processing": "Lanczos3 2x upscale of original official alpha cutout; no added character details"
+      },
+      "recipe": {
+        "crop": [
+          0,
+          0,
+          1440,
+          1760
+        ],
+        "bottomPadding": 0.16,
+        "edgeFade": 0.005,
+        "bottomFade": 0.02,
+        "focal": [
+          0.5,
+          0.34
+        ],
+        "artworkPlacement": {
+          "tidelight": {
+            "x": -175,
+            "y": -170,
+            "width": 1350
+          }
+        }
+      }
+    },
+    {
+      "id": "zeshia-clone",
+      "character": "zeshia",
+      "name": "Zeshia Bianca",
+      "title": "Zeshia",
+      "form": "Hero Academy / source clone",
+      "formId": "hero-clone",
+      "number": 12,
+      "aliases": [
+        "Zeshia Bianca",
+        "Zeshia",
+        "zeshia"
+      ],
+      "designs": [
+        "crimson"
+      ],
+      "status": "candidate",
+      "source": {
+        "provider": "maohgakuin-anime-official",
+        "page": "https://maohgakuin.com/",
+        "image": "https://maohgakuin.com/assets/img/character/img_zeshia.png",
+        "rights": "© Shu/KADOKAWA/Demon King Academy production committee. All rights reserved.",
+        "usage": "reference-only",
+        "credit": "Official The Misfit of Demon King Academy II character illustration",
+        "artist": "SILVER LINK. / series production",
+        "localPath": "artwork/maou-gakuin/zeshia-clone.png",
+        "sha256": "348d9e3097e6ff28b4fa15c3d0255f92131c0492e04b32ccaf62471a4b5f1f01",
+        "width": 1440,
+        "height": 1760,
+        "originalSha256": "219fbae7a640c3810ded1ea9ed93c7f4fc0ad4c38166ef236e1975a9a69cc839",
+        "originalWidth": 720,
+        "originalHeight": 880,
+        "processing": "Lanczos3 2x upscale of original official alpha cutout; no added character details"
+      },
+      "recipe": {
+        "crop": [
+          0,
+          0,
+          1440,
+          1760
+        ],
+        "bottomPadding": 0.16,
+        "edgeFade": 0.005,
+        "bottomFade": 0.02,
+        "focal": [
+          0.5,
+          0.34
+        ],
+        "artworkPlacement": {
+          "crimson": {
+            "x": 0,
+            "y": 15,
+            "width": 1000
+          }
+        }
+      }
+    },
+    {
+      "id": "emilia-teacher",
+      "character": "emilia",
+      "name": "Emilia Ludowell",
+      "title": "Emilia",
+      "form": "Reborn / Hero Academy teacher",
+      "formId": "reborn-teacher",
+      "number": 13,
+      "aliases": [
+        "Emilia Ludowell",
+        "Emilia",
+        "emilia"
+      ],
+      "designs": [
+        "crimson"
+      ],
+      "status": "candidate",
+      "source": {
+        "provider": "maohgakuin-anime-official",
+        "page": "https://maohgakuin.com/",
+        "image": "https://maohgakuin.com/assets/img/character/img_emilia.png",
+        "rights": "© Shu/KADOKAWA/Demon King Academy production committee. All rights reserved.",
+        "usage": "reference-only",
+        "credit": "Official The Misfit of Demon King Academy II character illustration",
+        "artist": "SILVER LINK. / series production",
+        "localPath": "artwork/maou-gakuin/emilia-teacher.png",
+        "sha256": "7bd04656535c142e91a05b2a757b56bbec2ae2aeee56dc98dd3969c0d7307c0e",
+        "width": 1440,
+        "height": 1760,
+        "originalSha256": "7870653698abc9a1a3e4ec17db7097540ea339889b0c319f25897de9efba26dc",
+        "originalWidth": 720,
+        "originalHeight": 880,
+        "processing": "Lanczos3 2x upscale of original official alpha cutout; no added character details"
+      },
+      "recipe": {
+        "crop": [
+          0,
+          0,
+          1440,
+          1760
+        ],
+        "bottomPadding": 0.16,
+        "edgeFade": 0.005,
+        "bottomFade": 0.02,
+        "focal": [
+          0.5,
+          0.34
+        ],
+        "artworkPlacement": {
+          "crimson": {
+            "x": 0,
+            "y": 15,
+            "width": 1000
+          }
+        }
+      }
+    }
+  ],
+  "pendingForms": []
+}
