@@ -3,6 +3,7 @@ name: NIGHT Play Preview CI
 on:
   push:
     branches:
+      - feature/party-online-rooms-20261019
       - feature/night-play-v4-profile-announcements-game-settings
       - feature/night-play-v5-greetings-snake-profile
       - feature/night-play-v6-account-profile-analytics
