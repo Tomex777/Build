@@ -367,10 +367,10 @@ shot games-bible-trivia-result
 tap "All games"
 
 tap_scrolling "Would you rather?"
-wait_for "Make your choice"
+wait_for "ROUND 1 / 10"
 shot games-would-rather
 tap "Finish your favorite manga in one night"
-wait_for "Choice saved on this device"
+wait_for "Next choice"
 adb shell run-as com.night.sora cat shared_prefs/sora_arcade_v1.xml | grep -q 'name="rather_0_0" value="1"'
 tap "Next choice"
 wait_for "ROUND 2 / 10"
@@ -671,7 +671,7 @@ wait_for "QUESTION"
 shot responsive-360dp-trivia
 tap "All games"
 tap_scrolling "Would you rather?"
-wait_for "Make your choice"
+wait_for "ROUND 1 / 10"
 shot responsive-360dp-rather
 tap "All games"
 
