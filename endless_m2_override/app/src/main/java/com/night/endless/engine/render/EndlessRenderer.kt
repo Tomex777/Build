@@ -1167,11 +1167,9 @@ class EndlessRenderer(
         for (body in bodies) {
             body.position = when {
                 body.id == "sun" -> Vec3d.ZERO
-                // Ceres is illustrative; the JPL eight-planet table excludes Ceres.
-                body.id == "ceres" -> {
-                    val angle = body.phaseRad + 2.0 * PI * days / body.orbitPeriodDays
-                    Vec3d(cos(angle) * body.orbitRadius, 0.0, sin(angle) * body.orbitRadius)
-                }
+                // Ceres now follows a two-body elliptical/inclined orbit
+                // based on NASA/JPL Small-Body Database elements. The orbit
+                // is approximate and not a high-precision SPICE trajectory.
                 body.id == "europa" || body.id == "titan" -> {
                     // Circular parent-relative moon orbits are illustrative.
                     val angle = body.phaseRad + 2.0*PI*days/body.orbitPeriodDays

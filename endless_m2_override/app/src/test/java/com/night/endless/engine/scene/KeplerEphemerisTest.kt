@@ -38,4 +38,29 @@ class KeplerEphemerisTest {
         val anomaly = KeplerEphemeris.solveEccentricAnomaly(mean, e)
         assertEquals(mean, anomaly - e * kotlin.math.sin(anomaly), 1e-12)
     }
+
+    @org.junit.Test fun ceresIsInclinedAndEccentricNotAFlatCircle() {
+        val baseMillis = 1521504000000L // near JPL SBDB epoch JD 2458200.5
+        val periodMillis = (1681.2142 * 86400000.0).toLong()
+        val mid = KeplerEphemeris.position("ceres", baseMillis, 14.55)
+            ?: throw AssertionError("Ceres orbit is missing")
+        org.junit.Assert.assertTrue(mid.length() > 10.0)
+        var least = Double.POSITIVE_INFINITY
+        var greatest = 0.0
+        var maxOutOfPlane = 0.0
+        for (i in 0..144) {
+            val p = KeplerEphemeris.position(
+                "ceres", baseMillis + periodMillis * i / 144, 14.55
+            ) ?: throw AssertionError("missing orbital sample")
+            val distance = p.length()
+            least = minOf(least,distance)
+            greatest = maxOf(greatest,distance)
+            maxOutOfPlane = maxOf(maxOutOfPlane,kotlin.math.abs(p.y))
+        }
+        org.junit.Assert.assertTrue("Ceres must be significantly elliptical", greatest / least > 1.15)
+        org.junit.Assert.assertTrue("Ceres inclination should be visible", maxOutOfPlane > 1.8)
+        val path = KeplerEphemeris.orbitPoints("ceres",baseMillis,14.55,180)
+            ?: throw AssertionError("Ceres orbital path missing")
+        org.junit.Assert.assertEquals(540,path.size)
+    }
 }

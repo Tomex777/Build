@@ -142,3 +142,14 @@ NASA JPL/USGS Europa globe (optional):
   not terrain elevation and not a fully color-calibrated Galileo photograph.
   At simulated Europa landings, the terrain remains illustrative and does
   not claim to reproduce this observed image's local geography.
+
+Ceres orbit improvement:
+- Orbital elements of asteroid 1 Ceres from the NASA/JPL Small-Body
+  Database, osculating epoch JD 2458200.5 (2018), mean ecliptic J2000.
+  a=2.76704624850 AU, e=0.07553461024, i=10.59351 degrees,
+  ascending node=80.30992 degrees, argument perihelion=73.11534 degrees,
+  mean anomaly=352.23046 degrees, period=1681.2142 days.
+  Reference: https://ssd.jpl.nasa.gov/tools/sbdb_lookup.html#/?sstr=1
+- Ceres is outside JPL's planet approximation table. This is a bounded
+  two-body Keplerian approximation using a dated osculating solution and
+  schematic in-app distance scale, not JPL Horizons/SPICE.

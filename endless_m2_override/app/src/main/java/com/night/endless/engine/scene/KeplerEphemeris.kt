@@ -16,7 +16,11 @@ import kotlin.math.sqrt
  * https://ssd.jpl.nasa.gov/planets/approx_pos.html
  */
 object KeplerEphemeris {
-    private data class Elements(val base: DoubleArray, val rate: DoubleArray)
+    private data class Elements(
+        val base: DoubleArray,
+        val rate: DoubleArray,
+        val epochJd: Double = 2451545.0
+    )
     private val elements = mapOf(
         "mercury" to Elements(
             doubleArrayOf(.38709927, .20563593, 7.00497902, 252.25032350, 77.45779628, 48.33076593),
@@ -31,6 +35,17 @@ object KeplerEphemeris {
         "mars" to Elements(
             doubleArrayOf(1.52371034, .09339410, 1.84969142, -4.55343205, -23.94362959, 49.55953891),
             doubleArrayOf(.00001847, .00007882, -.00813131, 19140.30268499, .44441088, -.29257343)),
+        // Ceres is not in JPL's eight-planet approximate Table 1.
+        // NASA/JPL SBDB osculating J2000-ecliptic elements (2018 epoch
+        // JD 2458200.5), propagated as a two-body Kepler approximation.
+        // Do not misrepresent this as a Horizons/SPICE integrated solution.
+        "ceres" to Elements(
+            doubleArrayOf(2.76704624850, .07553461024, 10.593509797,
+                145.655721835, 153.425260657, 80.309918656),
+            doubleArrayOf(0.0, 0.0, 0.0,
+                .2141309515334 * 36525.0, 0.0, 0.0),
+            epochJd = 2458200.5
+        ),
         "jupiter" to Elements(
             doubleArrayOf(5.20288700, .04838624, 1.30439695, 34.39644051, 14.72847983, 100.47390909),
             doubleArrayOf(-.00011607, -.00013253, -.00183714, 3034.74612775, .21252668, .20469106)),
@@ -48,7 +63,7 @@ object KeplerEphemeris {
     /** Returns a position with ecliptic north mapped to the renderer's +Y axis. */
     fun position(id: String, utcMillis: Long, displaySemiMajor: Double): Vec3d? {
         val raw = elements[id] ?: return null
-        val centuries = ((utcMillis / 86_400_000.0 + 2440587.5) - 2451545.0) / 36525.0
+        val centuries = ((utcMillis / 86_400_000.0 + 2440587.5) - raw.epochJd) / 36525.0
         val p = DoubleArray(6) { raw.base[it] + raw.rate[it] * centuries }
         val a = p[0]
         val e = p[1]
