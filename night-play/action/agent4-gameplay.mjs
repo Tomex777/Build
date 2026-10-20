@@ -69,7 +69,31 @@ try{
   await p.locator('#restart').click();
   assert.equal(await p.evaluate(()=>window.__nightArcadeTest.snapshot().started),false);
   assert.equal(await p.evaluate(()=>window.__nightArcadeTest.snapshot().pipes.length),0);
-  console.log('AGENT4_FLAPPY='+JSON.stringify({speed:flight.speed,gap:flight.pipes[0].gap,loss:true,restart:true}));await p.close();
+  // Play by observing the live position/velocity and issuing physical
+  // taps, not by modifying game state. Demonstrate at least one valid pass.
+  await p.locator('canvas').tap();
+  let passed=false,flaps=1,maxSpeed=2.4,lastPosition=null;
+  for(let i=0;i<240;i++){
+   const bird=await p.evaluate(()=>window.__nightArcadeTest.snapshot());
+   const score=await p.evaluate(()=>window.__nightArcadeTest.flags().points);
+   maxSpeed=Math.max(maxSpeed,bird.speed||2.4);
+   if(score>=1){passed=true;lastPosition=bird;break;}
+   if(await p.evaluate(()=>window.__nightArcadeTest.flags().finished)){lastPosition=bird;break;}
+   const pipe=bird.pipes.find(pipe=>pipe.x+62>bird.x-12);
+   const canvasHeight=await p.locator('canvas').evaluate(c=>c.height);
+   const target=pipe?pipe.y:(canvasHeight-42)/2;
+   // Estimate where the falling bird will be ~eight frames ahead. Flap
+   // early enough to stay inside the physical gap, even on short boards.
+   const forecast=bird.y+Math.max(0,bird.vy)*7;
+   if((forecast>target+8&&bird.vy>-1)||(bird.y>target+62&&bird.vy>-.8)){
+    await p.locator('canvas').tap();flaps++;
+   }
+   await p.waitForTimeout(60);
+  }
+  if(passed)await shot(p,'flappy-scored');
+  console.log('AGENT4_FLAPPY_SCORE_PLAY='+JSON.stringify({passed,flaps,maxSpeed,position:lastPosition&&{y:lastPosition.y,vy:lastPosition.vy,distance:lastPosition.distance}}));
+  assert.equal(passed,true,'At least one pipe must be passed by real touch inputs');
+  console.log('AGENT4_FLAPPY='+JSON.stringify({speed:flight.speed,gap:flight.pipes[0].gap,loss:true,restart:true,scored:true}));await p.close();
  }
  assert.deepEqual(errors,[]);
  console.log('PASS Agent4 interaction: bricks, shooter, wing hop with pointer gameplay, loss, restart and 5 viewports.');
