@@ -35,12 +35,14 @@ def center(node):
     return (x1 + x2) // 2, (y1 + y2) // 2
 
 
-def tap(label, contains=False):
+def tap(label, contains=False, aliases=()):
     for attempt in range(3):
         root = dump()
         for node in root.iter("node"):
             fields = (node.get("content-desc", ""), node.get("text", ""))
-            if any((label in v if contains else label == v) for v in fields):
+            labels = (label, *aliases)
+            if any((wanted in v if contains else wanted == v)
+                   for v in fields for wanted in labels):
                 x, y = center(node)
                 adb("shell", "input", "tap", str(x), str(y))
                 time.sleep(1.4)
@@ -95,7 +97,9 @@ def site(domain):
     adb("shell", "input", "keyevent", *(["KEYCODE_DEL"] * 50))
     adb("shell", "input", "text", domain)
     time.sleep(0.5)
-    tap("Go")
+    # Agent 2 Home exposes a semantic action label different from the WEB omnibar.
+    # Both should drive the real Gecko controller, not just change a screenshot.
+    tap("Go", aliases=("Go to address or search",))
     time.sleep(8)
 
 
