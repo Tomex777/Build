@@ -64,7 +64,7 @@ function clearRun(){
  if(raf)cancelAnimationFrame(raf);raf=0;closeSounds();notes=chart();
  held.clear();keyHeld.clear();ripples=[];score=0;streak=0;complete=0;
  elapsed=0;previous=0;running=false;paused=false;ended=false;
- updateHud();setPauseButton();$("restart").hidden=true;$("status").textContent="Ready";render();
+ updateHud();setPauseButton();$("restart").hidden=true;$("status").textContent="";render();
 }
 function begin(){
  clearRun();running=true;paused=false;ended=false;
@@ -76,7 +76,7 @@ function lose(reason){
  ended=true;running=false;paused=false;
  if(raf)cancelAnimationFrame(raf);raf=0;
  closeSounds();held.clear();keyHeld.clear();saveBest();updateHud();setPauseButton();$("restart").hidden=true;
- $("status").textContent=reason;
+ $("status").textContent="";
  cover("ROUND OVER",reason,"Score "+score+" · "+complete+" / "+notes.length+" notes","Play again");
  render();
 }
@@ -84,7 +84,7 @@ function win(){
  if(ended)return;ended=true;running=false;paused=false;
  if(raf)cancelAnimationFrame(raf);raf=0;
  closeSounds();held.clear();keyHeld.clear();saveBest();updateHud();setPauseButton();
- $("status").textContent="Song complete";
+ $("status").textContent="";
  cover("SONG COMPLETE","Beautifully played.","Score "+score+" · "+complete+" notes","Play again");
  render();
 }
@@ -96,10 +96,10 @@ function pause(){
   // Pausing mid-hold should not forfeit the current note; its held pointer
   // still owns the tile and the logical clock stays frozen.
   cover("PAUSED","Take your time.","Use Resume in the top bar.",null);
-  $("status").textContent="Paused";
+  $("status").textContent="";
  }else{
   $("cover").hidden=true;previous=0;
-  $("status").textContent="Keep the rhythm";
+  $("status").textContent="";
   raf=requestAnimationFrame(tick);
  }
 }
