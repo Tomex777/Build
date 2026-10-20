@@ -240,15 +240,17 @@ jobs:
       - name: Android emulator install and real screenshot
         uses: reactivecircus/android-emulator-runner@v2
         with:
-          api-level: 35
+          # Android 15 hosted System UI ANRs prevented deterministic touch QA.
+          # Preserve SDK35 compilation, exercise actual gestures on API33.
+          api-level: 33
           arch: x86_64
           target: default
           profile: pixel_3a
           cores: 2
-          ram-size: 3072M
+          ram-size: 4096M
           disk-size: 3072M
           disable-animations: true
-          emulator-options: -no-window -no-snapshot -noaudio -no-boot-anim -gpu off
+          emulator-options: -no-window -no-snapshot -noaudio -no-boot-anim -gpu swiftshader_indirect
           script: bash SoundAtlas/tools/emulator_qa.sh
       - uses: actions/upload-artifact@v4
         if: always()
