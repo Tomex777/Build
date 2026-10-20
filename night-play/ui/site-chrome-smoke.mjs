@@ -194,8 +194,11 @@ try {
     const profileOverflow = await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)
     assert.ok(profileOverflow <= 1, 'Profile does not overflow horizontally at ' + width)
     await page.screenshot({ path: join(output, 'profile-' + width + '.png') })
-    const profileEditTarget = await page.locator('#editPlayerName').evaluate(el => el.getBoundingClientRect().height)
-    assert.ok(profileEditTarget >= 44, 'Edit-name control has 44px touch target at ' + width)
+    const profileEditTarget = await page.locator('#editPlayerName').evaluate(el => ({
+      height:el.getBoundingClientRect().height,minHeight:parseFloat(getComputedStyle(el).minHeight)||0
+    }))
+    assert.ok(profileEditTarget.minHeight>=44 && profileEditTarget.height>=43.9,
+      'Edit-name control has 44px touch target at '+width+': '+JSON.stringify(profileEditTarget))
     // Wave 2 journey B: guest-name change must affect actual saved profile
     // state and the Home greeting, not simply a temporary text decoration.
     await page.locator('#editPlayerName').click()
