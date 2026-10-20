@@ -1652,10 +1652,11 @@ function bindSwipeGesture(board,turn,{threshold=10,allowMultiple=false}={}){
   const dx=e.clientX-pointer.x,dy=e.clientY-pointer.y;
   if(Math.max(Math.abs(dx),Math.abs(dy))<threshold)return;
   const dir=Math.abs(dx)>Math.abs(dy)?dx>0?"right":"left":dy>0?"down":"up";
-  if(turn(dir)!==false){
-   if(allowMultiple){pointer.x=e.clientX;pointer.y=e.clientY}
-   else pointer.fired=true;
-  }
+  const accepted=turn(dir)!==false;
+  if(allowMultiple){
+   // Re-anchor after each stroke (even a rejected one) so it cannot mask the next swipe.
+   pointer.x=e.clientX;pointer.y=e.clientY;
+  }else if(accepted)pointer.fired=true;
  },{passive:true});
  function release(e){
   if(pointer?.id!==e.pointerId)return;
@@ -1715,7 +1716,10 @@ function snakeTurn(dir){
  const opposite={up:"down",down:"up",left:"right",right:"left"};
  const queue=snake.turnQueue||(snake.turnQueue=[]);
  const last=queue.length?queue[queue.length-1]:snake.dir;
- if(dir===last||dir===opposite[last]||queue.length>=2)return false;
+ if(dir===last||dir===opposite[last])return false;
+ // Buffer short corner sequences that arrive between 115ms movement ticks.
+ // A two-turn cap intermittently dropped otherwise legal quick swipes.
+ if(queue.length>=4)return false;
  queue.push(dir);
  snake.next=queue[0];return true;
 }
