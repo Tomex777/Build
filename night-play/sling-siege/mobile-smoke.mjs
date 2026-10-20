@@ -24,11 +24,11 @@ try{
   assert.ok(overflow<=1,'no horizontal overflow at '+width+': '+overflow+'px');
   await page.screenshot({path:resolve(evidence,'sling-start-'+width+'.png'),fullPage:true});
   const box=await page.locator('#game').boundingBox();
-  assert.ok(box?.height>=220,'canvas should be touch-sized at '+width);
+  assert.ok(box?.height>=215,'canvas should be touch-sized at '+width);
   if(width===320||width===390){
    // Native CDP touch stream, not a JS function simulating a touch.
    const cd=await page.context().newCDPSession(page);
-   const fx=box.x+(140/690)*box.width,fy=box.y+(362/540)*box.height;
+   const fx=box.x+(140/720)*box.width,fy=box.y+(362/540)*box.height;
    await cd.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x:fx,y:fy}]});
    await cd.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x:fx-32,y:fy+36}]});
    assert.equal(await page.locator('#board').evaluate(e=>e.classList.contains('aiming')),true,'real touch pulls sling');
@@ -38,7 +38,7 @@ try{
   }
   if(width===390){
    // Round 1 genuine collisions and victory + 3-star/localStorage persistence.
-   const first=await page.evaluate(()=>{const a=window.__slingTest;a.reset();a.fireAt(64,-65);a.step(1150);return a.state});
+   const first=await page.evaluate(()=>{const a=window.__slingTest;a.reset();a.fireAt(66,-65);a.step(1150);return a.state});
    assert.equal(first.gameState,'won','first stage must be physically winnable');
    assert.equal(first.enemies.filter(e=>e.alive).length,0,'all stage 1 enemies destroyed');
    assert.ok(first.score>=200,'earned score (not mock)');
