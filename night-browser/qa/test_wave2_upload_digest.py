@@ -32,6 +32,14 @@ class UploadDigestTests(unittest.TestCase):
         self.assertIsNone(uploaded_part_sha256(body, "text/plain"))
         self.assertIsNone(uploaded_part_sha256(body, "multipart/form-data; boundary=night-test"))
 
+    def test_filename_cannot_masquerade_as_field_name(self):
+        body = (b"--night-test\r\n"
+                b'Content-Disposition: form-data; name="other"; filename="qa-file"\r\n\r\n'
+                + UPLOAD_BYTES + b"\r\n--night-test--\r\n")
+        self.assertIsNone(uploaded_part_sha256(
+            body, "multipart/form-data; boundary=night-test"
+        ))
+
     def test_missing_closing_crlf_does_not_hash_partial_bytes(self):
         body = (b"--night-test\r\n"
                 b'Content-Disposition: form-data; name="qa-file"; filename="file.txt"\r\n\r\n'
