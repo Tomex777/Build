@@ -8,6 +8,9 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.res.painterResource
+import java.net.URI
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
@@ -27,8 +30,9 @@ private val Ink = Color(0xFF0C1017)
 private val Raised = Color(0xFF171D27)
 private val Border = Color(0xFF2B3441)
 private val Bright = Color(0xFFF3F5F9)
-private val Muted = Color(0xFF8F9BAC)
+private val Muted = Color(0xFFA6AFBD)
 private val Accent = Color(0xFFB9BEFF)
+private val BlankCanvas = Color(0xFF121924)
 
 @Composable
 internal fun TabPanel(
@@ -56,13 +60,13 @@ internal fun TabPanel(
             if (tab.id !in keep) tab.thumbnail = null
         }
     }
-    Column(Modifier.fillMaxSize()) {
+    Column(Modifier.fillMaxSize().background(Ink)) {
         Row(
             Modifier.fillMaxWidth()
-                .padding(start = 20.dp, end = 10.dp, top = 13.dp, bottom = 2.dp),
+                .padding(start = 22.dp, end = 12.dp, top = 16.dp, bottom = 4.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(if (privateGrid) "Private tabs" else "Tabs", fontSize = 25.sp,
+            Text(if (privateGrid) "Private tabs" else "Tabs", fontSize = 26.sp,
                 fontWeight = FontWeight.SemiBold, color = Bright)
             Spacer(Modifier.weight(1f))
             TabGridIcon(Icons.Rounded.Add,
@@ -72,22 +76,36 @@ internal fun TabPanel(
         }
         Row(
             modifier = Modifier.fillMaxWidth()
-                .padding(start = 18.dp, end = 18.dp, bottom = 13.dp),
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                .padding(start = 20.dp, end = 20.dp, bottom = 17.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             FilterChip(
                 selected = !privateGrid,
                 onClick = { privateGrid = false },
-                label = { Text("Regular  " + normalCount) }
+                shape = RoundedCornerShape(14.dp),
+                colors = FilterChipDefaults.filterChipColors(
+                    containerColor = Raised,
+                    labelColor = Muted,
+                    selectedContainerColor = Accent.copy(alpha = 0.20f),
+                    selectedLabelColor = Bright
+                ),
+                label = { Text("Regular  $normalCount", fontSize = 13.sp) }
             )
             FilterChip(
                 selected = privateGrid,
                 onClick = { privateGrid = true },
+                shape = RoundedCornerShape(14.dp),
+                colors = FilterChipDefaults.filterChipColors(
+                    containerColor = Raised,
+                    labelColor = Muted,
+                    selectedContainerColor = Accent.copy(alpha = 0.20f),
+                    selectedLabelColor = Bright
+                ),
                 leadingIcon = {
-                    Icon(Icons.Rounded.Lock, null,
-                        modifier = Modifier.size(16.dp))
+                    Icon(Icons.Rounded.Lock, contentDescription = null,
+                        modifier = Modifier.size(15.dp))
                 },
-                label = { Text("Private  " + privateCount) }
+                label = { Text("Private  $privateCount", fontSize = 13.sp) }
             )
         }
         if (shown.isEmpty()) {
@@ -107,68 +125,119 @@ internal fun TabPanel(
                 }
             }
         } else {
-            LazyVerticalGrid(
-                columns = GridCells.Fixed(2),
-                modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(start = 14.dp, end = 14.dp, bottom = 16.dp),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                items(shown.size, key = { shown[it].id }) { index ->
-                    val tab = shown[index]
-                    val selected = tab.id == browser.activeId
-                    Surface(
-                        modifier = Modifier.fillMaxWidth().height(248.dp)
-                            .clickable { onOpen(tab) },
-                        shape = RoundedCornerShape(16.dp),
-                        color = Raised,
-                        border = BorderStroke(
-                            if (selected) 2.dp else 1.dp,
-                            if (selected) Accent else Border
-                        )
-                    ) {
-                        Column {
-                            Row(
-                                Modifier.fillMaxWidth().height(51.dp)
-                                    .padding(start = 12.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(tab.title, maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                    color = Bright, fontSize = 12.sp,
-                                    fontWeight = FontWeight.Medium,
-                                    modifier = Modifier.weight(1f))
-                                TabGridIcon(Icons.Rounded.Close, "Close " + tab.title) {
-                                    onClose(tab)
-                                }
-                            }
-                            Box(
-                                Modifier.fillMaxWidth().weight(1f).background(Ink),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                val preview = tab.thumbnail
-                                if (preview != null) {
-                                    Image(
-                                        bitmap = preview.asImageBitmap(),
-                                        contentDescription = "Preview of " + tab.title,
-                                        modifier = Modifier.fillMaxSize(),
-                                        contentScale = ContentScale.Crop
-                                    )
-                                } else {
-                                    Icon(
-                                        if (tab.isPrivate) Icons.Rounded.Lock
-                                        else Icons.Rounded.Public,
-                                        null, tint = Muted, modifier = Modifier.size(36.dp)
-                                    )
-                                }
-                            }
-                            Text(
-                                if (tab.isPrivate) "Private browsing"
-                                else tab.url.ifBlank { "New tab" },
-                                modifier = Modifier.fillMaxWidth().padding(9.dp),
-                                color = Muted, fontSize = 10.sp,
-                                maxLines = 1, overflow = TextOverflow.Ellipsis
+            // Fit the device instead of showing fixed, huge cards in every orientation.
+            BoxWithConstraints(Modifier.fillMaxSize()) {
+                val columns = when {
+                    maxWidth >= 840.dp -> 4
+                    maxWidth >= 520.dp -> 3
+                    else -> 2
+                }
+                LazyVerticalGrid(
+                    columns = GridCells.Fixed(columns),
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(start = 14.dp, end = 14.dp, bottom = 18.dp),
+                    horizontalArrangement = Arrangement.spacedBy(11.dp),
+                    verticalArrangement = Arrangement.spacedBy(11.dp)
+                ) {
+                    items(shown.size, key = { shown[it].id }) { index ->
+                        val tab = shown[index]
+                        val selected = tab.id == browser.activeId
+                        val siteName = tabSiteName(tab.url)
+                        Surface(
+                            modifier = Modifier.fillMaxWidth().height(214.dp)
+                                .clickable { onOpen(tab) },
+                            shape = RoundedCornerShape(17.dp),
+                            color = Raised,
+                            border = BorderStroke(
+                                if (selected) 2.dp else 1.dp,
+                                if (selected) Accent else Border
                             )
+                        ) {
+                            Column {
+                                Row(
+                                    Modifier.fillMaxWidth().height(44.dp)
+                                        .padding(start = 12.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        tab.title.ifBlank { if (tab.isPrivate) "Private tab" else "New tab" },
+                                        maxLines = 1, overflow = TextOverflow.Ellipsis,
+                                        color = Bright, fontSize = 12.sp,
+                                        fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                    TabGridIcon(Icons.Rounded.Close, "Close " + tab.title) {
+                                        onClose(tab)
+                                    }
+                                }
+                                Box(
+                                    Modifier.fillMaxWidth().weight(1f).background(BlankCanvas),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    val preview = tab.thumbnail?.takeUnless { it.isRecycled }
+                                    if (preview != null) {
+                                        // Pixels come from GeckoView's compositor, never invented thumbnails.
+                                        Image(
+                                            bitmap = preview.asImageBitmap(),
+                                            contentDescription = "Preview of " + tab.title,
+                                            modifier = Modifier.fillMaxSize(),
+                                            contentScale = ContentScale.Crop
+                                        )
+                                    } else {
+                                        // An explicit placeholder is more honest than a fake webpage.
+                                        Column(
+                                            horizontalAlignment = Alignment.CenterHorizontally,
+                                            verticalArrangement = Arrangement.Center,
+                                            modifier = Modifier.fillMaxSize().padding(10.dp)
+                                        ) {
+                                            Box(
+                                                modifier = Modifier.size(52.dp)
+                                                    .background(Raised, RoundedCornerShape(17.dp)),
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                when {
+                                                    tab.isPrivate -> Icon(
+                                                        Icons.Rounded.Lock,
+                                                        contentDescription = "Private tab",
+                                                        tint = Accent, modifier = Modifier.size(23.dp)
+                                                    )
+                                                    siteName != null -> Text(
+                                                        siteName.take(1).uppercase(),
+                                                        color = Accent, fontSize = 23.sp,
+                                                        fontWeight = FontWeight.Bold
+                                                    )
+                                                    else -> Image(
+                                                        painter = painterResource(R.drawable.ic_night),
+                                                        contentDescription = "NIGHT new tab",
+                                                        modifier = Modifier.size(26.dp)
+                                                    )
+                                                }
+                                            }
+                                            if (!tab.isPrivate && siteName != null) {
+                                                Spacer(Modifier.height(10.dp))
+                                                Text(
+                                                    siteName, color = Muted, fontSize = 11.sp,
+                                                    maxLines = 1, overflow = TextOverflow.Ellipsis
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                                // Never surface private URLs or persist their preview pixels.
+                                if (tab.isPrivate || siteName != null) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth().height(27.dp)
+                                            .padding(horizontal = 10.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text(
+                                            if (tab.isPrivate) "Private browsing" else siteName.orEmpty(),
+                                            color = Muted, fontSize = 10.sp,
+                                            maxLines = 1, overflow = TextOverflow.Ellipsis
+                                        )
+                                    }
+                                }
+                            }
                         }
                     }
                 }
@@ -176,6 +245,14 @@ internal fun TabPanel(
         }
     }
 }
+
+// The grid labels only valid website hosts; private cards never request this label.
+private fun tabSiteName(url: String): String? = runCatching {
+    val uri = URI(url)
+    if (!uri.scheme.equals("https", ignoreCase = true) &&
+        !uri.scheme.equals("http", ignoreCase = true)) return@runCatching null
+    uri.host?.removePrefix("www.")?.takeIf { it.isNotBlank() }
+}.getOrNull()
 
 @Composable
 private fun TabGridIcon(icon: ImageVector, label: String, onClick: () -> Unit) {
