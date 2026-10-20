@@ -402,7 +402,7 @@ void main() {
     // reflective ice brighter than lunar-grey stone. Exposure is NOT
     // fictitious additional sunlight. Keep Mars/Moon exactly calibrated.
     if (uWorld == 4) {
-        color *= 1.86;
+        color *= 1.47;
         // Broad waxy ice reflection, restrained by microfacet roughness
         // and only visible where the surface actually faces the Sun.
         vec3 viewDirection = normalize(vec3(
@@ -410,9 +410,15 @@ void main() {
             uViewAnchor.y - vPosition.z));
         float glossy = max(dot(microNormal, normalize(sun+viewDirection)),0.0);
         float glint = pow(glossy, 48.0) * direct;
-        color += vec3(.08,.092,.096)*glint;
+        color += vec3(.045,.050,.053)*glint;
     } else if (uWorld == 5) {
         color *= 1.13;
+    } else if (uWorld == 2 || uWorld == 3) {
+        // Airless Mercury and Ceres are dark in absolute reflected sunlight.
+        // As with Apollo cameras, set a darker-scene exposure rather than
+        // adding fictional atmospheric ambient light. Keep the sky black.
+        // The earlier frame was nearly featureless charcoal on a dark panel.
+        color *= 1.58;
     }
     // Filmic highlight compression, not flat ambient emissive haze.
     color = color / (vec3(1.0) + color * 0.48);

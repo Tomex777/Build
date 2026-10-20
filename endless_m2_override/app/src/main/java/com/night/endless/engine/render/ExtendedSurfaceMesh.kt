@@ -54,13 +54,13 @@ internal object ExtendedSurfaceMesh {
             "europa" -> {
                 val warp = (valueNoise(x*55.0,z*55.0)-.5)*.018
                 val fault = kotlin.math.abs(sin((x+warp)*97.0+(z-warp)*30.0))
-                exp(-fault*fault/.006)*.000065 +
-                    fractal(x*200.0,z*200.0)*.000035
+                exp(-fault*fault/.006)*.00014 +
+                    fractal(x*200.0,z*200.0)*.000042
             }
             "titan" -> {
                 val warp=(valueNoise(x*85.0,z*85.0)-.5)*.004
-                .000008 * sin((x+warp)*520.0+z*135.0) +
-                    .000004 * fractal(x*500.0,z*500.0)
+                .000019 * sin((x+warp)*520.0+z*135.0) +
+                    .000006 * fractal(x*500.0,z*500.0)
             }
             else -> .000018 * fractal(x*560.0,z*560.0)
         }
@@ -97,6 +97,10 @@ internal object ExtendedSurfaceMesh {
                 // Titan's wind-aligned organic dunes, tens of metres
                 // tall; their placement is an illustrative approximation.
                 .016 * sin(xx*2.9+zz*5.9+.8*fractal(xx*.7,zz*.7)) +
+                // Secondary wind-aligned dune sets resolve at the NASA-map
+                // raster scale (~510m samples), unlike sub-grid pinstripes.
+                // 1.5-3km spacing; height in the tens of metres on Titan.
+                .008 * sin(xx*7.8+zz*2.7+.42*fractal(xx*1.5,zz*1.5)) +
                 .006 * sin(xx*5.9+zz*11.7+.8*fractal(xx*1.4,zz*1.4)) +
                 .016 * fractal(xx*.42,zz*.42)
         }

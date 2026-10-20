@@ -132,3 +132,13 @@ NASA Hubble observed Jupiter clouds (optional):
 - A failed optional NASA download preserves the verified Solar System
   Scope CC BY 4.0 2K texture. GLES3 low-memory and 2048px-max GPUs
   decode lower-resolution mipmaps rather than failing the GL upload.
+
+NASA JPL/USGS Europa globe (optional):
+- Europa's actual grayscale global Voyager orbital mosaic (1440 x 720),
+  available from the JPL Solar System Simulator texture maps.
+  https://maps.jpl.nasa.gov/tmaps/jupiter.html
+  File: jup2vss2.jpg. Credits: NASA/JPL/USGS, David Seal.
+- This is authentic planetary albedo with coverage/processing limitations,
+  not terrain elevation and not a fully color-calibrated Galileo photograph.
+  At simulated Europa landings, the terrain remains illustrative and does
+  not claim to reproduce this observed image's local geography.

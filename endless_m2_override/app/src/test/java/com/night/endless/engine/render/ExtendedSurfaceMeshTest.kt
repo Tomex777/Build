@@ -38,6 +38,20 @@ class ExtendedSurfaceMeshTest {
         assertTrue(terrainHashes.size > 1)
     }
 
+    @Test fun duneAndFractureDetailIsFineRatherThanChunky() {
+        for (id in listOf("europa", "titan")) {
+            for (i in 0..100) {
+                val x = i * 0.00013
+                val z = i * 0.00009
+                val relief = ExtendedSurfaceMesh.nearReliefAt(id, x, z)
+                assertTrue("Finite surface relief for $id", relief.isFinite())
+                // Metre-scale local relief must not become toy-sized 10m
+                // steps that collide with a 2.34m first-person camera.
+                assertTrue("Excessive micro relief $id: $relief", abs(relief) < .001)
+            }
+        }
+    }
+
     @Test fun landingCollisionHasContinuousFiniteHeight() {
         for (body in listOf("mercury", "ceres", "europa", "titan")) {
             for (z in -5..5) for (x in -5..5) {

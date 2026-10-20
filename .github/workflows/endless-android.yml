@@ -139,6 +139,30 @@ jobs:
             echo "::warning::NASA Hubble map unavailable; verified 2K Jupiter fallback retained."
           fi
           rm -f "$HUBBLE_SOURCE" "$HUBBLE_RESULT"
+
+          # NASA JPL/USGS Voyager global reflectance map. It contains
+          # real cracks and ice terrain across Europa's actual globe,
+          # unlike the featureless colored sphere used without a texture.
+          # Original calibrated greyscale; don't falsely colorize imagery.
+          EUROPA_SOURCE="$RUNNER_TEMP/europa-voyager-observed.jpg"
+          if timeout 80 curl -fL --retry 2 --connect-timeout 15 --max-time 65 "https://maps.jpl.nasa.gov/tmaps/pix/jup2vss2.jpg" -o "$EUROPA_SOURCE" &&
+            python3 - "$EUROPA_SOURCE" <<'PY_EUROPA'
+          from PIL import Image
+          import sys
+          with Image.open(sys.argv[1]) as im:
+              im.verify()
+          with Image.open(sys.argv[1]) as im:
+              assert im.format == 'JPEG' and im.width >= 1024
+              assert im.width == im.height * 2, (im.width, im.height)
+          PY_EUROPA
+          then
+            cp "$EUROPA_SOURCE" "$OUT/planet_europa.jpg"
+            echo "Observed Voyager/JPL equirectangular Europa texture included."
+          else
+            rm -f "$OUT/planet_europa.jpg"
+            echo "::warning::NASA Europa mosaic unavailable; illustrative orbital color fallback retained."
+          fi
+          rm -f "$EUROPA_SOURCE"
           # Retain NASA mission DEM source only on the CI runner. The shipped APK
           # contains compact 161x161 elevation tiles, not 65MB raw archives.
           curl -fL --retry 4 --retry-delay 3 --max-time 360 \
