@@ -44,7 +44,7 @@ function fixture(count){
     bottom:row===rows-1?0:h[row][col],left:col===0?0:-v[row][col-1]}
   });
  }
- return {format:1,photoId:'photo-alpine-lake',count,rows,cols,revision:0,moves:0,
+ return {format:1,roundId:'00000000-0000-4000-8000-000000000001',photoId:'photo-alpine-lake',count,rows,cols,revision:0,moves:0,
   finishedAt:null,pieces};
 }
 for(const count of [24,48,144]){
@@ -83,6 +83,7 @@ for(const count of [24,48,144]){
  assert.ok(Math.abs(landed.x-pos.x)<1e-6,'dropped position maps consistently on mobile');
  const op=makeDropCommand(board,item.id,item.version,'transportMutation0123');
  assert.equal(op.type,'drop');assert.equal(op.pieceId,'0-0');
+ assert.equal(op.roundId,snapshot.roundId,'every operation is bound to the live server round');
  assert.ok(Math.abs(op.x-1.3)<1e-6&&Math.abs(op.y-1.1)<1e-6);
  // Server placement is authoritative; local client never decides a snap.
  const placed=structuredClone(moved);
@@ -92,6 +93,15 @@ for(const count of [24,48,144]){
  applyServerSnapshot(board,placed);
  assert.equal(board.placedCount,1);
  assert.ok(board.pieces.find(p=>p.id==='0-0').isPlaced);
+ const stale=applyServerSnapshot(board,moved);
+ assert.equal(stale.ignored,true,'older room update must not roll back server-authored placement');
+ assert.equal(board.placedCount,1);
+ const otherRound=structuredClone(snapshot);
+ otherRound.roundId='00000000-0000-4000-8000-000000000002';
+ applyServerSnapshot(board,otherRound);
+ assert.equal(board.placedCount,0,'new server round invalidates all prior pieces');
+ assert.throws(()=>makeDropCommand(board,'0-0',0,'bad'),/Invalid piece drop metadata/);
+ applyServerSnapshot(board,placed); // Reset the old test round only for assertions below.
  assert.throws(()=>makeDropCommand(board,'0-0',2,'transportMutation0124'),/not movable/);
  // Resizing must project canonical x/y again without sharing viewport ratios.
  wrapper.width=1280;wrapper.height=850;board.resize();
