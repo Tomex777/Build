@@ -35,8 +35,9 @@ internal class TabSessionStore(context: Context) {
     data class Snapshot(val activeId: String?, val tabs: List<Entry>)
 
     fun read(): Snapshot? = runCatching {
+        require(file.baseFile.length() <= TabPersistencePolicy.MAX_MANIFEST_BYTES)
         val data = file.readFully()
-        require(data.size > 29 && data[0] == 1.toByte())
+        require(data.size in 30..TabPersistencePolicy.MAX_MANIFEST_BYTES && data[0] == 1.toByte())
         val nonce = data.copyOfRange(1, 13)
         val cipher = Cipher.getInstance("AES/GCM/NoPadding")
         cipher.init(Cipher.DECRYPT_MODE, getKey(), GCMParameterSpec(128, nonce))
@@ -44,24 +45,25 @@ internal class TabSessionStore(context: Context) {
         require(root.optInt("version") == 1)
         val list = root.optJSONArray("tabs") ?: JSONArray()
         val tabs = buildList {
-            for (i in 0 until minOf(list.length(), 80)) {
+            for (i in 0 until minOf(list.length(), TabPersistencePolicy.MAX_TABS)) {
                 val value = list.optJSONObject(i) ?: continue
-                val url = value.optString("url").take(4096)
-                if (url.isNotBlank() && !isWebUrl(url)) continue
+                val url = TabPersistencePolicy.sanitizeUrl(value.optString("url")) ?: continue
                 val id = value.optString("id")
                 val journey = value.optString("journey")
-                if (id.isBlank() || journey.isBlank()) continue
+                if (!TabPersistencePolicy.validId(id) || !TabPersistencePolicy.validId(journey)) continue
                 add(Entry(
                     id = id,
                     journeyId = journey,
                     url = url,
                     title = value.optString("title").take(180),
-                    lastNode = value.optString("node").ifBlank { null },
-                    sessionState = value.optString("state").takeIf { it.isNotBlank() }
+                    lastNode = value.optString("node").takeIf(TabPersistencePolicy::validId),
+                    sessionState = TabPersistencePolicy.safeState(value.optString("state"))
                 ))
             }
         }
-        Snapshot(root.optString("active").ifBlank { null }, tabs.distinctBy { it.id })
+        val uniqueTabs = tabs.distinctBy { it.id }
+        val active = root.optString("active").takeIf { id -> uniqueTabs.any { it.id == id } }
+        Snapshot(active, uniqueTabs)
     }.getOrNull()
 
     /**
@@ -70,23 +72,31 @@ internal class TabSessionStore(context: Context) {
      */
     fun write(snapshot: Snapshot) {
         val rows = JSONArray()
-        snapshot.tabs.take(80).forEach { tab ->
-            if (tab.url.isNotBlank() && !isWebUrl(tab.url)) return@forEach
+        val writtenIds = mutableSetOf<String>()
+        snapshot.tabs.take(TabPersistencePolicy.MAX_TABS).forEach { tab ->
+            val url = TabPersistencePolicy.sanitizeUrl(tab.url) ?: return@forEach
+            if (!TabPersistencePolicy.validId(tab.id) ||
+                !TabPersistencePolicy.validId(tab.journeyId) ||
+                !writtenIds.add(tab.id)) return@forEach
             rows.put(JSONObject()
                 .put("id", tab.id).put("journey", tab.journeyId)
-                .put("url", tab.url.take(4096)).put("title", tab.title.take(180))
-                .put("node", tab.lastNode ?: "")
-                // Large session states can include oversized pages. URL restoration is fallback.
-                .put("state", tab.sessionState?.takeIf { it.length <= 128_000 } ?: ""))
+                .put("url", url).put("title", tab.title.take(180))
+                .put("node", tab.lastNode?.takeIf(TabPersistencePolicy::validId) ?: "")
+                // Oversized Gecko SessionState is omitted in full, never truncated into
+                // malformed JSON. URL-only restoration remains available.
+                .put("state", TabPersistencePolicy.safeState(tab.sessionState) ?: ""))
         }
         val json = JSONObject().put("version", 1)
-            .put("active", snapshot.activeId ?: "").put("tabs", rows)
+            .put("active", snapshot.activeId?.takeIf { it in writtenIds } ?: "").put("tabs", rows)
             .toString().toByteArray(Charsets.UTF_8)
         val cipher = Cipher.getInstance("AES/GCM/NoPadding")
         cipher.init(Cipher.ENCRYPT_MODE, getKey())
         val nonce = cipher.iv
         require(nonce.size == 12)
         val payload = byteArrayOf(1) + nonce + cipher.doFinal(json)
+        require(payload.size <= TabPersistencePolicy.MAX_MANIFEST_BYTES) {
+            "Tab session manifest exceeds the bounded encrypted storage size"
+        }
         val stream = file.startWrite()
         try {
             stream.write(payload)
@@ -111,7 +121,4 @@ internal class TabSessionStore(context: Context) {
         return generator.generateKey()
     }
 
-    private fun isWebUrl(value: String) =
-        value.startsWith("https://", ignoreCase = true) ||
-            value.startsWith("http://", ignoreCase = true)
 }

@@ -43,6 +43,19 @@ internal fun TabPanel(
     val normalCount = browser.tabs.count { !it.isPrivate }
     val privateCount = browser.tabs.size - normalCount
     val shown = browser.tabs.filter { it.isPrivate == privateGrid }
+    // Only real Gecko pixel captures enter the grid. Evict oldest previews as soon
+    // as the overview opens; do not retain 30+ large Bitmaps on modest devices.
+    LaunchedEffect(browser.tabs.size, browser.activeId, privateGrid) {
+        val slots = browser.tabs.mapNotNull { tab ->
+            tab.thumbnail?.takeUnless { it.isRecycled }?.let { pixels ->
+                TabPreviewBudget.Preview(tab.id, pixels.allocationByteCount.toLong())
+            }
+        }
+        val keep = TabPreviewBudget.retainedIds(slots, browser.activeId)
+        browser.tabs.forEach { tab ->
+            if (tab.id !in keep) tab.thumbnail = null
+        }
+    }
     Column(Modifier.fillMaxSize()) {
         Row(
             Modifier.fillMaxWidth()
