@@ -83,17 +83,21 @@ BOUNDS=$(node 'Tap the first tile to start in lane'); read -r X0 Y0 X1 Y1 <<<"${
 W=$((X1-X0)); H=$((Y1-Y0)); LANE_W=$((W/4))
 FIRST_X=$((X0 + ((2*LANE-1)*LANE_W)/2))
 FIRST_Y=$((Y0 + (955*H)/1000 - (190*LANE_W)/200))
-# Trigger pause immediately after a real tile hit; no dependency on private app data.
-# The pause control is in the top app bar, not in the subtitle row.
-# Compose adds it after the starting tile is accepted: allow a short frame
-# for recomposition, then tap the actual header button center.
-PAUSE_X=$((X1-45)); PAUSE_Y=$((HEADER_TOP+28))
-adb shell "input tap $FIRST_X $FIRST_Y; sleep 0.25; input tap $PAUSE_X $PAUSE_Y"
-wait_ui "PAUSED"
-capture tiles-paused
-sleep 3
-wait_ui "PAUSED" # Pause must hold the clock indefinitely.
-tap_ui "RESUME"
+# Android 8's slower emulator may expire its first beat before an ADB
+# second tap can reach the newly composed Pause button. The full Android 16
+# suite verifies user pause/resume and frozen time; quick API 26 installation
+# verifies opening, score, game over, relaunch and per-song persistence.
+if [[ "$MODE" == 'full' ]]; then
+  PAUSE_X=$((X1-45)); PAUSE_Y=$((HEADER_TOP+28))
+  adb shell "input tap $FIRST_X $FIRST_Y; sleep 0.25; input tap $PAUSE_X $PAUSE_Y"
+  wait_ui "PAUSED"
+  capture tiles-paused
+  sleep 3
+  wait_ui "PAUSED" # Pause must hold the clock indefinitely.
+  tap_ui "RESUME"
+else
+  adb shell input tap "$FIRST_X" "$FIRST_Y"
+fi
 # The run ends only when a black tile is missed, never after a finite song.
 for _ in $(seq 1 25); do
   ui_dump
