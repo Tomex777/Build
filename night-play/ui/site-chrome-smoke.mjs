@@ -94,13 +94,17 @@ try {
         const el = document.querySelector(selector)
         const rect = el.getBoundingClientRect()
         const style = getComputedStyle(el)
-        return { width: rect.width, height: rect.height, outline: style.outlineColor }
+        return { width: rect.width, height: rect.height, minHeight: parseFloat(style.minHeight)||0,
+          outline: style.outlineColor }
       }
       return { filter: box('#view-games [data-filter="puzzle"]'),
         search: box('#view-games #gameSearch'),
         overflow: document.documentElement.scrollWidth - innerWidth }
     })
-    assert.ok(discovery.filter.height >= 44, 'Puzzle filter has 44px touch target at ' + width)
+    // CSS subpixel rounding can expose 43.999px during screenshots; require
+    // the actual 44px computed minimum plus no meaningful rendered undersize.
+    assert.ok(discovery.filter.minHeight>=44&&discovery.filter.height>=43.9,
+      'Puzzle filter has 44px touch target at '+width+': '+JSON.stringify(discovery.filter))
     assert.ok(discovery.search.height >= 44, 'Search field has 44px touch target at ' + width)
     assert.ok(discovery.overflow <= 1, 'Discovery layout must not overflow at ' + width)
     console.log('NIGHT_UI_WAVE2_DISCOVERY ' + JSON.stringify({ width, ...discovery }))
