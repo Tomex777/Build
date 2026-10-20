@@ -17,6 +17,38 @@ import kotlin.test.assertIs
 
 class FoundationTest {
     @Test
+    fun continueReadingUsesExactArchivePageInsteadOfPercentEstimation() {
+        assertEquals(
+            "Resume at page 4 of 10",
+            continueReadingLocation(LibraryLocationType.DOCUMENT, 10, 3),
+        )
+    }
+
+    @Test
+    fun folderResumeDoesNotTreatTotalBookPagesAsChapterPages() {
+        assertEquals(
+            "Resume at page 3",
+            continueReadingLocation(LibraryLocationType.TREE, 120, 2),
+        )
+    }
+
+    @Test
+    fun continuationHandlesUnopenedAndOutOfRangeBooks() {
+        assertEquals(
+            "Resume where you left off",
+            continueReadingLocation(LibraryLocationType.DOCUMENT, 10, null),
+        )
+        assertEquals(
+            "Resume at page 10 of 10",
+            continueReadingLocation(LibraryLocationType.DOCUMENT, 10, 999),
+        )
+        assertEquals(
+            "Resume at page 5",
+            continueReadingLocation(LibraryLocationType.TREE, null, 4),
+        )
+    }
+
+    @Test
     fun naturalPageOrderIsNumericAware() {
         val pages = listOf("10.jpg", "2.jpg", "1.jpg", "001.jpg", "page20.webp", "page3.webp")
             .sortedWith(NaturalOrder)
@@ -144,6 +176,41 @@ class FoundationTest {
     }
 
     @Test
+    fun nestedChapterArchivesAreNotDropped() {
+        val chapters = BookStructure.detect(
+            listOf(
+                LocalEntry("Volumes/Volume 1/Chapter 10.cbz", LocalEntry.Kind.ARCHIVE),
+                LocalEntry("Volumes/Volume 1/Chapter 2.cbz", LocalEntry.Kind.ARCHIVE),
+                LocalEntry("Volumes/Volume 1/Chapter 1.zip", LocalEntry.Kind.ARCHIVE),
+            ),
+        )
+        assertEquals(listOf("Chapter 1", "Chapter 2", "Chapter 10"), chapters.map { it.title })
+        assertEquals(listOf(0, 1, 2), chapters.map { it.order })
+        assertEquals("Volumes/Volume 1/Chapter 2.cbz", chapters[1].members.single().relativePath)
+    }
+
+    @Test
+    fun mixedChapterFoldersArchivesAndRootImagesRemainReadable() {
+        val chapters = BookStructure.detect(
+            listOf(
+                LocalEntry("001.png", LocalEntry.Kind.IMAGE),
+                LocalEntry("Chapter 1/1.jpg", LocalEntry.Kind.IMAGE),
+                LocalEntry("Chapter 1/2.jpg", LocalEntry.Kind.IMAGE),
+                LocalEntry("Chapter 2.cbz", LocalEntry.Kind.ARCHIVE),
+                LocalEntry("Volumes/Chapter 3.zip", LocalEntry.Kind.ARCHIVE),
+                LocalEntry("README.txt", LocalEntry.Kind.OTHER),
+            ),
+        )
+        assertEquals(4, chapters.size)
+        assertEquals(5, chapters.sumOf { it.members.size })
+        assertEquals(
+            setOf("001.png", "Chapter 1/1.jpg", "Chapter 1/2.jpg", "Chapter 2.cbz", "Volumes/Chapter 3.zip"),
+            chapters.flatMap { it.members }.map { it.relativePath }.toSet(),
+        )
+        assertEquals((0..3).toList(), chapters.map { it.order })
+    }
+
+    @Test
     fun unsafeArchivePathsAreRejected() {
         val result = ArchiveSafety.validate(
             listOf(ArchiveEntryDescriptor("../outside.jpg", 1024)),
@@ -205,6 +272,96 @@ class FoundationTest {
         val read = ZipArchiveScanner.readPage(ByteArrayInputStream(archive), "2.jpg")
         val page = assertIs<ArchivePageRead.Success>(read)
         assertContentEquals(byteArrayOf(2, 2), page.bytes)
+    }
+
+    @Test
+    fun pageReadRejectsTargetThatPushesArchiveOverTotalExpandedLimit() {
+        val archive = zipOf(
+            "notes.txt" to ByteArray(6) { 1 },
+            "001.jpg" to ByteArray(10) { 2 },
+        )
+        assertEquals(
+            ArchivePageRead.Rejected("archive-too-large"),
+            ZipArchiveScanner.readPage(
+                ByteArrayInputStream(archive),
+                "001.jpg",
+                ArchiveLimits(maxSingleEntryBytes = 20, maxExpandedBytes = 12),
+            ),
+        )
+    }
+
+    @Test
+    fun pageReadRejectsFirstPageExceedingArchiveLimit() {
+        val archive = zipOf("001.jpg" to ByteArray(10) { 2 })
+        assertEquals(
+            ArchivePageRead.Rejected("archive-too-large"),
+            ZipArchiveScanner.readPage(
+                ByteArrayInputStream(archive),
+                "001.jpg",
+                ArchiveLimits(maxSingleEntryBytes = 20, maxExpandedBytes = 8),
+            ),
+        )
+    }
+
+    @Test
+    fun pageReadAcceptsTargetExactlyAtTotalExpandedLimit() {
+        val archive = zipOf(
+            "notes.txt" to ByteArray(6) { 1 },
+            "001.jpg" to ByteArray(10) { 2 },
+        )
+        val result = ZipArchiveScanner.readPage(
+            ByteArrayInputStream(archive),
+            "001.jpg",
+            ArchiveLimits(maxSingleEntryBytes = 20, maxExpandedBytes = 16),
+        )
+        assertContentEquals(ByteArray(10) { 2 }, assertIs<ArchivePageRead.Success>(result).bytes)
+    }
+
+    @Test
+    fun extensionlessImagesAreRecognizedByRealImageMagic() {
+        val jpg = byteArrayOf(0xFF.toByte(), 0xD8.toByte(), 0xFF.toByte(), 0xE0.toByte())
+        val png = byteArrayOf(
+            0x89.toByte(), 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
+        )
+        val gif = "GIF89a".encodeToByteArray()
+        val webp = "RIFF".encodeToByteArray() +
+            byteArrayOf(0, 0, 0, 0) + "WEBP".encodeToByteArray()
+        val archive = zipOf(
+            "Chapter 1/001" to jpg,
+            "Chapter 1/002.data" to png,
+            "Chapter 1/003.gifdata" to gif,
+            "Chapter 1/004.bin" to webp,
+            "note.txt" to "not an image".encodeToByteArray(),
+        )
+        val scan = assertIs<ArchiveScanResult.Success>(
+            ZipArchiveScanner.scan(ByteArrayInputStream(archive)),
+        )
+        assertEquals(
+            listOf("Chapter 1/001", "Chapter 1/002.data", "Chapter 1/003.gifdata", "Chapter 1/004.bin"),
+            scan.catalog.pages.map { it.name },
+        )
+        val page = assertIs<ArchivePageRead.Success>(
+            ZipArchiveScanner.readPage(ByteArrayInputStream(archive), "Chapter 1/002.data"),
+        )
+        assertContentEquals(png, page.bytes)
+        assertEquals(
+            scan.catalog.pages.map { it.name },
+            ZipArchiveCatalog.scan(ByteArrayInputStream(archive)).map { it.name },
+        )
+    }
+
+    @Test
+    fun macOsResourceForksAreNotIndexedAsUnreadablePages() {
+        val archive = zipOf(
+            "__MACOSX/._001.jpg" to byteArrayOf(1),
+            "Chapter 1/._002.png" to byteArrayOf(1),
+            "Chapter 1/001.jpg" to byteArrayOf(1),
+            ".DS_Store" to byteArrayOf(1),
+        )
+        val scan = assertIs<ArchiveScanResult.Success>(
+            ZipArchiveScanner.scan(ByteArrayInputStream(archive)),
+        )
+        assertEquals(listOf("Chapter 1/001.jpg"), scan.catalog.pages.map { it.name })
     }
 
     @Test

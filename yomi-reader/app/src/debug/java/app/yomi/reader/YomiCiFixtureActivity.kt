@@ -10,6 +10,7 @@ import android.graphics.Paint
 import android.net.Uri
 import android.os.Bundle
 import android.provider.DocumentsContract
+import android.util.Log
 import app.yomi.reader.core.ReadingMode
 import app.yomi.reader.local.LibraryLocationType
 import app.yomi.reader.local.LocalLibraryStore
@@ -22,16 +23,74 @@ class YomiCiFixtureActivity : Activity() {
         super.onCreate(savedInstanceState)
 
         val kind = intent.getStringExtra(EXTRA_KIND) ?: KIND_ARCHIVE
+        if (kind == KIND_MUTATE_CORRUPT_ARCHIVE) {
+            // The provider keeps the same URI as the previously valid book.
+            // A broken reimport must not replace Yomi's last good private copy.
+            File(cacheDir, "yomi-ci-book.cbz").writeText("damaged archive; not a ZIP")
+            Log.i("YomiReader", "ci-source-archive-corrupted")
+            finish()
+            return
+        }
+        if (kind == KIND_MUTATE_ARCHIVE) {
+            // The content provider keeps exactly the same document URI.
+            // Rewrite the underlying source so CI can prove Yomi refreshes
+            // an old private copy rather than displaying stale CBZ pages.
+            writeFixture(File(cacheDir, "yomi-ci-book.cbz"), updated = true)
+            Log.i("YomiReader", "ci-source-archive-updated")
+            finish()
+            return
+        }
         val requestedMode = intent.getStringExtra(EXTRA_MODE)
             ?.let { runCatching { ReadingMode.valueOf(it) }.getOrNull() }
             ?: ReadingMode.LTR_PAGED
 
-        val target = if (kind == KIND_FOLDER) {
+        val target = if (kind == KIND_FOLDER_ARCHIVE) {
+            // Exercise chapter ZIP files supplied by a SAF tree, which must
+            // be indexed once instead of scanning all previous pages on turns.
+            val archive = File(cacheDir, "yomi-ci-book.cbz")
+            if (!archive.exists() || intent.getBooleanExtra(EXTRA_RESET, false)) writeFixture(archive)
+            val tree = DocumentsContract.buildTreeDocumentUri(
+                packageName + YomiCiDocumentsProvider.AUTHORITY_SUFFIX,
+                YomiCiDocumentsProvider.ARCHIVE_FOLDER_ID,
+            )
+            Triple(tree, "folder", "Yomi CI ZIP Folder")
+        } else if (kind == KIND_FOLDER) {
             val uri = DocumentsContract.buildTreeDocumentUri(
                 packageName + YomiCiDocumentsProvider.AUTHORITY_SUFFIX,
                 YomiCiDocumentsProvider.ROOT_ID,
             )
             Triple(uri, "folder", "Yomi CI Folder")
+        } else if (kind == KIND_ANIMATED_GIF) {
+            val archive = File(cacheDir, "yomi-ci-animated-gif.cbz")
+            if (!archive.exists() || intent.getBooleanExtra(EXTRA_RESET, false)) {
+                archive.parentFile?.mkdirs()
+                ZipOutputStream(archive.outputStream().buffered()).use { zip ->
+                    // Keep the archive member extensionless to verify both
+                    // signature-based animated classification and Coil GIF decode.
+                    zip.putNextEntry(ZipEntry("Chapter 1/1"))
+                    assets.open("animated-reader-test.gif").use { it.copyTo(zip) }
+                    zip.closeEntry()
+                }
+            }
+            Triple(Uri.fromFile(archive), "archive", "Yomi CI Animated GIF")
+        } else if (kind == KIND_EXTENSIONLESS) {
+            // Test actual Android decoding of a PNG whose ZIP member has no
+            // suffix. Mihon detects images from their content signatures.
+            val archive = File(cacheDir, "yomi-ci-extensionless.cbz")
+            if (!archive.exists() || intent.getBooleanExtra(EXTRA_RESET, false)) {
+                archive.parentFile?.mkdirs()
+                ZipOutputStream(archive.outputStream().buffered()).use { zip ->
+                    writePage(zip, "Chapter 1/1", Color.rgb(42, 56, 86))
+                    writePage(zip, "Chapter 1/2", Color.rgb(68, 86, 122))
+                    writePage(zip, "Chapter 1/3", Color.rgb(94, 116, 154))
+                }
+            }
+            Triple(Uri.fromFile(archive), "archive", "Yomi CI Extensionless")
+        } else if (kind == KIND_IMPORTED) {
+            val stored = File(filesDir, "imported-books").walkTopDown()
+                .firstOrNull { it.isFile && it.extension.equals("cbz", true) }
+                ?: error("No privately retained CBZ found; ACTION_VIEW import regression failed")
+            Triple(Uri.fromFile(stored), "archive", stored.name)
         } else {
             val archive = File(cacheDir, "yomi-ci-book.cbz")
             if (!archive.exists() || intent.getBooleanExtra(EXTRA_RESET, false)) {
@@ -43,8 +102,12 @@ class YomiCiFixtureActivity : Activity() {
         LocalLibraryStore(this).upsert(
             uri = target.first,
             title = target.third,
-            locationType = if (kind == KIND_FOLDER) LibraryLocationType.TREE else LibraryLocationType.DOCUMENT,
-            pageCount = if (kind == KIND_FOLDER) 4 else ARCHIVE_PAGE_COUNT,
+            locationType = if (kind == KIND_FOLDER || kind == KIND_FOLDER_ARCHIVE) LibraryLocationType.TREE else LibraryLocationType.DOCUMENT,
+            pageCount = when (kind) {
+                KIND_FOLDER -> 4
+                KIND_ANIMATED_GIF -> 1
+                else -> ARCHIVE_PAGE_COUNT
+            },
         )
 
         val readerIntent = ReaderActivity.newIntent(this, target.first.toString(), target.second, target.third)
@@ -55,7 +118,7 @@ class YomiCiFixtureActivity : Activity() {
         if (intent.getBooleanExtra(EXTRA_OPEN_SETTINGS, false)) {
             readerIntent.putExtra(ReaderActivity.EXTRA_CI_OPEN_SETTINGS, true)
         }
-        if (kind == KIND_FOLDER) {
+        if (kind == KIND_FOLDER || kind == KIND_FOLDER_ARCHIVE) {
             // Match ACTION_OPEN_DOCUMENT_TREE: the reader receives the tree URI through
             // ClipData and read/persistable grant flags. A bare URI string is not a valid
             // SAF grant and makes the fixture exercise a permission failure instead of a
@@ -75,10 +138,14 @@ class YomiCiFixtureActivity : Activity() {
         finish()
     }
 
-    private fun writeFixture(target: File) {
+    private fun writeFixture(target: File, updated: Boolean = false) {
         target.parentFile?.mkdirs()
         ZipOutputStream(target.outputStream().buffered()).use { zip ->
-            writePage(zip, "Chapter 1/1.png", Color.rgb(42, 56, 86))
+            writePage(
+                zip,
+                if (updated) "Chapter 1/1-revised.png" else "Chapter 1/1.png",
+                if (updated) Color.rgb(184, 44, 78) else Color.rgb(42, 56, 86),
+            )
             zip.putNextEntry(ZipEntry("Chapter 1/notes.txt"))
             zip.write("ignored by Yomi".encodeToByteArray())
             zip.closeEntry()
@@ -122,5 +189,11 @@ class YomiCiFixtureActivity : Activity() {
         const val EXTRA_OPEN_SETTINGS = "openSettings"
         const val KIND_ARCHIVE = "archive"
         const val KIND_FOLDER = "folder"
+        const val KIND_FOLDER_ARCHIVE = "folder-archive"
+        const val KIND_IMPORTED = "imported"
+        const val KIND_EXTENSIONLESS = "extensionless"
+        const val KIND_ANIMATED_GIF = "animated-gif"
+        const val KIND_MUTATE_ARCHIVE = "mutate-archive"
+        const val KIND_MUTATE_CORRUPT_ARCHIVE = "mutate-corrupt-archive"
     }
 }

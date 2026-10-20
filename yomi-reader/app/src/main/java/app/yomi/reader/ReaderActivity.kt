@@ -1,12 +1,24 @@
 package app.yomi.reader
 
 import android.app.Dialog
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.ContentResolver
 import android.content.Context
+import android.content.res.Configuration
+import android.content.res.ColorStateList
 import android.content.Intent
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.content.pm.ActivityInfo
 import android.graphics.Color
+import android.graphics.ColorMatrix
+import android.graphics.ColorMatrixColorFilter
+import android.graphics.Paint
+import android.graphics.Typeface
 import android.graphics.drawable.ColorDrawable
 import android.graphics.drawable.GradientDrawable
+import android.graphics.drawable.RippleDrawable
 import android.net.Uri
 import android.os.Bundle
 import android.util.Log
@@ -17,14 +29,39 @@ import android.view.View
 import android.view.ViewGroup
 import android.view.ViewTreeObserver
 import android.view.WindowManager
-import android.widget.Button
 import android.widget.FrameLayout
 import android.widget.ImageButton
 import android.widget.LinearLayout
+import android.widget.ProgressBar
 import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.ComponentActivity
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.graphics.BlendMode
+import androidx.compose.ui.Modifier
+import eu.kanade.presentation.reader.ReaderPageIndicator
+import eu.kanade.presentation.reader.ReaderPageActionsDialog
+import eu.kanade.presentation.reader.ReaderChapterTransition
+import eu.kanade.presentation.reader.ReadingModeSelectDialog
+import eu.kanade.presentation.reader.OrientationSelectDialog
+import eu.kanade.presentation.reader.ReaderContentOverlay
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.darkColorScheme
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.ui.graphics.Color as ComposeColor
+import androidx.compose.ui.platform.ComposeView
+import eu.kanade.presentation.reader.appbars.ReaderAppBars
+import eu.kanade.presentation.reader.settings.ReaderSettingsDialog
+import eu.kanade.tachiyomi.ui.reader.setting.ReaderOrientation as MihonReaderOrientation
+import eu.kanade.tachiyomi.ui.reader.setting.ReadingMode as MihonReadingMode
+import androidx.core.content.FileProvider
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
@@ -46,21 +83,35 @@ import app.yomi.reader.local.ReaderBookmark
 import app.yomi.reader.local.ReaderBookmarkStore
 import app.yomi.reader.local.SharedPreferencesProgressSink
 import app.yomi.reader.local.TreeBookCatalog
+import app.yomi.reader.local.UnsafeArchiveException
 import app.yomi.reader.local.ZipDocumentPageSource
 import com.davemorrissey.labs.subscaleview.SubsamplingScaleImageView
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import reader.shared.android.ReaderPageImageView
 import reader.shared.android.ReaderRenderConfig
 import reader.shared.android.ReaderViewerHost
 import reader.shared.android.Viewer
+import reader.shared.android.model.ChapterTransition
 import reader.shared.android.model.ViewerChapter
 import reader.shared.android.model.ViewerChapters
 import reader.shared.android.model.ViewerPage
 import reader.shared.android.pager.PagerDirection
 import reader.shared.android.pager.SharedPagerViewer
+import reader.shared.android.navigation.DisabledNavigation
+import reader.shared.android.navigation.EdgeNavigation
+import reader.shared.android.navigation.KindlishNavigation
+import reader.shared.android.navigation.LNavigation
+import reader.shared.android.navigation.RightAndLeftNavigation
+import reader.shared.android.navigation.ViewerNavigation
+import reader.shared.android.navigation.ReaderNavigationOverlayView
 import reader.shared.android.webtoon.SharedWebtoonViewer
+import java.io.BufferedInputStream
+import java.io.File
 
 class ReaderActivity : ComponentActivity(), ReaderViewerHost {
     override val context: Context get() = this
@@ -68,8 +119,47 @@ class ReaderActivity : ComponentActivity(), ReaderViewerHost {
         private set
 
     private lateinit var root: FrameLayout
-    private lateinit var topControls: LinearLayout
-    private lateinit var controls: LinearLayout
+    private lateinit var chrome: ComposeView
+    private var loadingView: View? = null
+    private var tapZoneOverlay: ReaderNavigationOverlayView? = null
+    private var topBarBottomPx = 0f
+    private var bottomBarTopPx = Float.MAX_VALUE
+    // Page-change callbacks may enqueue several IO jobs during a fast swipe.
+    // Serialize their commits and reject stale snapshots so the last page wins.
+    private val progressWriteMutex = Mutex()
+    @Volatile private var latestProgressRevision = 0L
+    private val chromeRevision = mutableIntStateOf(0)
+    private val settingsOpen = mutableStateOf(false)
+    private val pageActions = mutableStateOf<ViewerPage?>(null)
+    private val quickReadingModeOpen = mutableStateOf(false)
+    private val quickOrientationOpen = mutableStateOf(false)
+    private var pendingSavePage: ViewerPage? = null
+    private val savePageLauncher = registerForActivityResult(
+        ActivityResultContracts.StartActivityForResult(),
+    ) { result ->
+        val page = pendingSavePage
+        pendingSavePage = null
+        val destination = result.data?.data
+        if (page != null && destination != null) {
+            lifecycleScope.launch {
+                runCatching {
+                    withContext(Dispatchers.IO) {
+                        page.open().use { input ->
+                            val output = contentResolver.openOutputStream(destination, "w")
+                                ?: error("Unable to write selected document")
+                            output.use { input.copyTo(it) }
+                        }
+                    }
+                }.onSuccess {
+                    Toast.makeText(this@ReaderActivity, "Page saved", Toast.LENGTH_SHORT).show()
+                }.onFailure {
+                    Log.e(READER_TAG, "page-save-failed", it)
+                    Toast.makeText(this@ReaderActivity, "Unable to save this page", Toast.LENGTH_LONG).show()
+                }
+            }
+        }
+    }
+    // Kept for diagnostic log continuity while migrating reader UI to Mihon's bars.
     private lateinit var positionLabel: TextView
     private val hideChromeRunnable = Runnable {
         if (!isFinishing && menuVisible) hideMenu()
@@ -79,6 +169,11 @@ class ReaderActivity : ComponentActivity(), ReaderViewerHost {
     private var viewerChapters: List<ViewerChapter> = emptyList()
     private var activeChapterIndex = 0
     private var chapterPromotionJob: Job? = null
+    private var chapterNavigationJob: Job? = null
+    // Repeated next/previous presses while SAF chapters load should queue the
+    // requested destination rather than reopening the same chapter twice.
+    private var pendingChapterIndex: Int? = null
+    private var chapterNavigationRevision = 0L
     private var title: String = "Book"
     private var mode: ReadingMode = ReadingMode.LTR_PAGED
     private val progressSink by lazy { SharedPreferencesProgressSink(this) }
@@ -99,49 +194,397 @@ class ReaderActivity : ComponentActivity(), ReaderViewerHost {
         WindowCompat.setDecorFitsSystemWindows(window, false)
         root = FrameLayout(this).apply { setBackgroundColor(Color.BLACK) }
         setContentView(root)
+        showBookLoading()
         readIntentReaderState()
         applySavedOrientation()
+        applyCustomBrightness()
+        applyScreenAwake()
         Log.i(READER_TAG, "activity-created title=$title mode=$mode")
-        topControls = buildTopControls()
-        controls = buildControls()
-        root.addView(
-            topControls,
-            FrameLayout.LayoutParams(
-                FrameLayout.LayoutParams.MATCH_PARENT,
-                FrameLayout.LayoutParams.WRAP_CONTENT,
-                Gravity.TOP,
-            ).apply {
-                leftMargin = dp(12)
-                rightMargin = dp(12)
-                topMargin = dp(12)
-            },
-        )
-        root.addView(
-            controls,
-            FrameLayout.LayoutParams(
-                FrameLayout.LayoutParams.MATCH_PARENT,
-                FrameLayout.LayoutParams.WRAP_CONTENT,
-                Gravity.BOTTOM,
-            ).apply {
-                leftMargin = dp(12)
-                rightMargin = dp(12)
-                bottomMargin = dp(12)
-            },
-        )
-        ViewCompat.setOnApplyWindowInsetsListener(root) { _, insets ->
-            val bars = insets.getInsetsIgnoringVisibility(WindowInsetsCompat.Type.systemBars())
-            (topControls.layoutParams as? FrameLayout.LayoutParams)?.let { params ->
-                params.topMargin = bars.top + dp(8)
-                topControls.layoutParams = params
+        // Mihon's original Compose reader bars occupy a transparent overlay.
+        // Empty space passes touch gestures through to the original page viewer.
+        positionLabel = TextView(this)
+        chrome = ComposeView(this)
+        chrome.setContent {
+            chromeRevision.intValue // refresh on page/mode/bookmark/chrome state
+            MaterialTheme(
+                colorScheme = darkColorScheme(
+                    primary = ComposeColor(0xFFD4E4FF),
+                    surface = ComposeColor(0xFF111722),
+                    onSurface = ComposeColor.White,
+                ),
+            ) {
+                val selectedChapter = viewerChapters.getOrNull(activeChapterIndex)
+                val pages = selectedChapter?.pages.orEmpty()
+                Box(modifier = Modifier.fillMaxSize()) {
+                    val displayPrefs = getPreferences(MODE_PRIVATE)
+                    ReaderContentOverlay(
+                        brightness = if (displayPrefs.getBoolean(PREF_CUSTOM_BRIGHTNESS, false)) {
+                            displayPrefs.getInt(PREF_BRIGHTNESS_VALUE, 0).coerceIn(-75, 100)
+                        } else {
+                            0
+                        },
+                        color = displayPrefs.getInt(PREF_TINT_COLOR, 0).takeIf { it != 0 },
+                        colorBlendMode = when (displayPrefs.getInt(PREF_COLOR_BLEND_MODE, 0)) {
+                            1 -> BlendMode.Modulate
+                            2 -> BlendMode.Screen
+                            3 -> BlendMode.Overlay
+                            4 -> BlendMode.Lighten
+                            5 -> BlendMode.Darken
+                            else -> BlendMode.SrcOver
+                        },
+                    )
+                    // Mihon displays its outlined page indicator only when the
+                    // toolbars are hidden, above the viewer's image layer.
+                    if (!menuVisible && getPreferences(MODE_PRIVATE).getBoolean(PREF_SHOW_PAGE_NUMBER, true)) {
+                        ReaderPageIndicator(
+                            currentPage = (lastLocation?.pageIndex ?: selectedChapter?.requestedPage ?: 0) + 1,
+                            totalPages = pages.size,
+                            modifier = Modifier.align(Alignment.BottomCenter).navigationBarsPadding(),
+                        )
+                    }
+                    ReaderAppBars(
+                    visible = menuVisible,
+                    mangaTitle = title,
+                    chapterTitle = selectedChapter?.chapter?.title?.takeIf { viewerChapters.size > 1 },
+                    navigateUp = ::finish,
+                    onClickTopAppBar = {},
+                    bookmarked = lastLocation?.let(bookmarkStore::contains) ?: false,
+                    onToggleBookmarked = {
+                        lastLocation?.let { bookmarkStore.toggle(it) }
+                        refreshChrome()
+                    },
+                    onOpenInWebView = null,
+                    onOpenInBrowser = null,
+                    onShare = null,
+                    isRtl = mode == ReadingMode.RTL_PAGED,
+                    onNextChapter = { changeChapter(1) },
+                    enabledNext = activeChapterIndex < viewerChapters.lastIndex,
+                    onPreviousChapter = { changeChapter(-1) },
+                    enabledPrevious = activeChapterIndex > 0,
+                    currentPage = ((lastLocation?.takeIf { it.chapterId == selectedChapter?.chapter?.id }?.pageIndex
+                        ?: selectedChapter?.requestedPage ?: 0) + 1).coerceAtLeast(1),
+                    totalPages = pages.size,
+                    onPageIndexChange = ::navigateToPage,
+                    readingMode = when (mode) {
+                        ReadingMode.LTR_PAGED -> MihonReadingMode.LEFT_TO_RIGHT
+                        ReadingMode.RTL_PAGED -> MihonReadingMode.RIGHT_TO_LEFT
+                        ReadingMode.VERTICAL_PAGED -> MihonReadingMode.VERTICAL
+                        ReadingMode.WEBTOON -> MihonReadingMode.WEBTOON
+                    },
+                    onClickReadingMode = ::showReadingModePicker,
+                    orientation = when (getPreferences(MODE_PRIVATE).getString(PREF_ORIENTATION, ORIENTATION_AUTO)) {
+                        ORIENTATION_PORTRAIT -> MihonReaderOrientation.PORTRAIT
+                        ORIENTATION_LANDSCAPE -> MihonReaderOrientation.LANDSCAPE
+                        else -> MihonReaderOrientation.DEFAULT
+                    },
+                    onClickOrientation = ::showOrientationPicker,
+                    cropEnabled = getPreferences(MODE_PRIVATE).getBoolean(PREF_CROP, false),
+                    onClickCropBorder = {
+                        val prefs = getPreferences(MODE_PRIVATE)
+                        prefs.edit().putBoolean(PREF_CROP, !prefs.getBoolean(PREF_CROP, false)).apply()
+                        installViewer()
+                        refreshChrome()
+                    },
+                    onClickSettings = ::showReaderSettings,
+                    onTopBarBottom = { topBarBottomPx = it },
+                    onBottomBarTop = { bottomBarTopPx = it },
+                    )
+                }
+                if (quickReadingModeOpen.value) {
+                    ReadingModeSelectDialog(
+                        current = mode,
+                        onDismissRequest = {
+                            quickReadingModeOpen.value = false
+                            showMenu()
+                        },
+                        onApply = { selected ->
+                            quickReadingModeOpen.value = false
+                            if (mode != selected) {
+                                mode = selected
+                                saveMode(selected)
+                                installViewer()
+                            }
+                            showMenu()
+                        },
+                    )
+                }
+                if (quickOrientationOpen.value) {
+                    OrientationSelectDialog(
+                        current = getPreferences(MODE_PRIVATE)
+                            .getString(PREF_ORIENTATION, ORIENTATION_AUTO) ?: ORIENTATION_AUTO,
+                        onDismissRequest = {
+                            quickOrientationOpen.value = false
+                            showMenu()
+                        },
+                        onApply = { selected ->
+                            quickOrientationOpen.value = false
+                            getPreferences(MODE_PRIVATE).edit()
+                                .putString(PREF_ORIENTATION, selected).apply()
+                            applySavedOrientation()
+                            refreshChrome()
+                            showMenu()
+                        },
+                    )
+                }
+                pageActions.value?.let { page ->
+                    ReaderPageActionsDialog(
+                        onDismissRequest = {
+                            pageActions.value = null
+                            if (menuVisible) scheduleChromeHide()
+                        },
+                        onSetAsCover = { saveAsBookCover(page) },
+                        onCopy = { shareReaderPage(page, copyToClipboard = true) },
+                        onShare = { shareReaderPage(page, copyToClipboard = false) },
+                        onSave = { promptSavePage(page) },
+                    )
+                }
+                if (settingsOpen.value) {
+                    val prefs = getPreferences(MODE_PRIVATE)
+                    ReaderSettingsDialog(
+                        onDismissRequest = {
+                            settingsOpen.value = false
+                            showMenu()
+                        },
+                        onShowMenus = ::showMenu,
+                        onHideMenus = ::hideMenu,
+                        readingMode = mode,
+                        onReadingModeChange = { selected ->
+                            if (mode != selected) {
+                                mode = selected
+                                saveMode(selected)
+                                installViewer()
+                                refreshChrome()
+                            }
+                        },
+                        orientation = prefs.getString(PREF_ORIENTATION, ORIENTATION_AUTO) ?: ORIENTATION_AUTO,
+                        onOrientationChange = { value ->
+                            prefs.edit().putString(PREF_ORIENTATION, value).apply()
+                            applySavedOrientation()
+                            refreshChrome()
+                        },
+                        scaleMode = loadScaleMode(),
+                        onScaleModeChange = { value ->
+                            prefs.edit().putString(PREF_SCALE_MODE, value.name).apply()
+                            installViewer()
+                            refreshChrome()
+                        },
+                        zoomStart = prefs.getString(PREF_ZOOM_START, "auto") ?: "auto",
+                        onZoomStartChange = { value ->
+                            prefs.edit().putString(PREF_ZOOM_START, value).apply()
+                            installViewer()
+                            refreshChrome()
+                        },
+                        landscapeZoom = prefs.getBoolean(PREF_LANDSCAPE_ZOOM, false),
+                        navigateToPan = prefs.getBoolean(PREF_NAVIGATE_TO_PAN, false),
+                        onNavigateToPanChange = { value ->
+                            prefs.edit().putBoolean(PREF_NAVIGATE_TO_PAN, value).apply()
+                            installViewer()
+                            refreshChrome()
+                        },
+                        onLandscapeZoomChange = { value ->
+                            prefs.edit().putBoolean(PREF_LANDSCAPE_ZOOM, value).apply()
+                            installViewer()
+                            refreshChrome()
+                        },
+                        webtoonSidePadding = prefs.getInt(PREF_WEBTOON_PADDING, 0).coerceIn(0, 25),
+                        onWebtoonSidePaddingChange = { value ->
+                            prefs.edit().putInt(PREF_WEBTOON_PADDING, value.coerceIn(0, 25)).apply()
+                            installViewer()
+                            refreshChrome()
+                        },
+                        webtoonDoubleTapZoom = prefs.getBoolean(PREF_WEBTOON_DOUBLE_TAP, true),
+                        onWebtoonDoubleTapZoomChange = { value ->
+                            prefs.edit().putBoolean(PREF_WEBTOON_DOUBLE_TAP, value).apply()
+                            installViewer()
+                            refreshChrome()
+                        },
+                        webtoonZoomOutDisabled = prefs.getBoolean(PREF_WEBTOON_DISABLE_ZOOM_OUT, false),
+                        onWebtoonZoomOutDisabledChange = { value ->
+                            prefs.edit().putBoolean(PREF_WEBTOON_DISABLE_ZOOM_OUT, value).apply()
+                            installViewer()
+                            refreshChrome()
+                        },
+                        cropEnabled = prefs.getBoolean(PREF_CROP, false),
+                        onCropChange = { value ->
+                            prefs.edit().putBoolean(PREF_CROP, value).apply()
+                            installViewer()
+                            refreshChrome()
+                        },
+                        showPageNumber = prefs.getBoolean(PREF_SHOW_PAGE_NUMBER, true),
+                        onShowPageNumberChange = { value ->
+                            prefs.edit().putBoolean(PREF_SHOW_PAGE_NUMBER, value).apply()
+                            updatePositionLabel(lastLocation)
+                            refreshChrome()
+                        },
+                        fullscreen = prefs.getBoolean(PREF_FULLSCREEN, true),
+                        onFullscreenChange = { value ->
+                            prefs.edit().putBoolean(PREF_FULLSCREEN, value).apply()
+                            applyImmersive()
+                            refreshChrome()
+                        },
+                        keepScreenOn = prefs.getBoolean(PREF_KEEP_SCREEN_ON, false),
+                        onKeepScreenOnChange = { value ->
+                            prefs.edit().putBoolean(PREF_KEEP_SCREEN_ON, value).apply()
+                            applyScreenAwake()
+                            refreshChrome()
+                        },
+                        readWithLongTap = prefs.getBoolean(PREF_READ_WITH_LONG_TAP, true),
+                        onReadWithLongTapChange = { value ->
+                            prefs.edit().putBoolean(PREF_READ_WITH_LONG_TAP, value).apply()
+                            installViewer()
+                            refreshChrome()
+                        },
+                        volumeKeys = prefs.getBoolean(PREF_VOLUME_KEYS, false),
+                        onVolumeKeysChange = { value ->
+                            prefs.edit().putBoolean(PREF_VOLUME_KEYS, value).apply()
+                            installViewer()
+                            refreshChrome()
+                        },
+                        volumeKeysInverted = prefs.getBoolean(PREF_VOLUME_KEYS_INVERTED, false),
+                        onVolumeKeysInvertedChange = { value ->
+                            prefs.edit().putBoolean(PREF_VOLUME_KEYS_INVERTED, value).apply()
+                            installViewer()
+                            refreshChrome()
+                        },
+                        pageTransitions = prefs.getBoolean(PREF_PAGE_TRANSITIONS, true),
+                        onPageTransitionsChange = { value ->
+                            prefs.edit().putBoolean(PREF_PAGE_TRANSITIONS, value).apply()
+                            installViewer()
+                            refreshChrome()
+                        },
+                        alwaysShowChapterTransition = prefs.getBoolean(PREF_ALWAYS_SHOW_TRANSITION, false),
+                        onAlwaysShowChapterTransitionChange = { value ->
+                            prefs.edit().putBoolean(PREF_ALWAYS_SHOW_TRANSITION, value).apply()
+                            installViewer()
+                            refreshChrome()
+                        },
+                        tapZones = prefs.getString(PREF_TAP_ZONES, "default") ?: "default",
+                        onTapZonesChange = { value ->
+                            prefs.edit().putString(PREF_TAP_ZONES, value).apply()
+                            installViewer()
+                            refreshChrome()
+                        },
+                        tapZoneInvert = prefs.getString(PREF_TAP_ZONE_INVERT, "none") ?: "none",
+                        onTapZoneInvertChange = { value ->
+                            prefs.edit().putString(PREF_TAP_ZONE_INVERT, value).apply()
+                            installViewer()
+                            refreshChrome()
+                        },
+                        onPreviewTapZones = ::previewTapZones,
+                        background = prefs.getString(PREF_BACKGROUND, "black") ?: "black",
+                        onBackgroundChange = { value ->
+                            prefs.edit().putString(PREF_BACKGROUND, value).apply()
+                            root.setBackgroundColor(backgroundColor())
+                            installViewer()
+                            refreshChrome()
+                        },
+                        customBrightness = prefs.getBoolean(PREF_CUSTOM_BRIGHTNESS, false),
+                        onCustomBrightnessChange = { value ->
+                            prefs.edit().putBoolean(PREF_CUSTOM_BRIGHTNESS, value).apply()
+                            applyCustomBrightness()
+                            refreshChrome()
+                        },
+                        brightnessValue = prefs.getInt(PREF_BRIGHTNESS_VALUE, 0).coerceIn(-75, 100),
+                        onBrightnessValueChange = { value ->
+                            prefs.edit().putInt(PREF_BRIGHTNESS_VALUE, value.coerceIn(-75, 100)).apply()
+                            applyCustomBrightness()
+                            refreshChrome()
+                        },
+                        colorTint = prefs.getInt(PREF_TINT_COLOR, 0),
+                        onColorTintChange = { value ->
+                            prefs.edit().putInt(PREF_TINT_COLOR, value).apply()
+                            refreshChrome()
+                        },
+                        filterBlendMode = prefs.getInt(PREF_COLOR_BLEND_MODE, 0),
+                        onFilterBlendModeChange = { value ->
+                            prefs.edit().putInt(PREF_COLOR_BLEND_MODE, value).apply()
+                            refreshChrome()
+                        },
+                        grayscale = prefs.getBoolean(PREF_GRAYSCALE, false),
+                        onGrayscaleChange = { value ->
+                            prefs.edit().putBoolean(PREF_GRAYSCALE, value).apply()
+                            applyPageColorMatrix()
+                            refreshChrome()
+                        },
+                        invertedColors = prefs.getBoolean(PREF_INVERTED_COLORS, false),
+                        onInvertedColorsChange = { value ->
+                            prefs.edit().putBoolean(PREF_INVERTED_COLORS, value).apply()
+                            applyPageColorMatrix()
+                            refreshChrome()
+                        },
+                    )
+                }
             }
-            (controls.layoutParams as? FrameLayout.LayoutParams)?.let { params ->
-                params.bottomMargin = bars.bottom + dp(10)
-                controls.layoutParams = params
-            }
-            insets
         }
+        // ComposeView is final. Instead of subclassing it, host Mihon's Compose
+        // chrome in a transparent FrameLayout that only accepts gestures inside
+        // the visible reader bars. The remaining center area must be handled by
+        // the underlying Mihon pager/webtoon viewer, including page taps and zoom.
+        val chromeTouchHost = object : FrameLayout(this) {
+            private var routingToChrome = false
+
+            override fun dispatchTouchEvent(event: MotionEvent): Boolean {
+                if (event.actionMasked == MotionEvent.ACTION_DOWN) {
+                    // Upstream reader bars vary with window insets, screen
+                    // width and chapter title wrapping. Fixed 112/205dp
+                    // touch masks blocked page turns on compact phones.
+                    // Dialogs live in the same ComposeView above the page
+                    // renderer. Give their entire modal surface touch priority:
+                    // a toolbar-only hit mask made settings tabs, sliders and
+                    // outside-to-dismiss taps unresponsive in the middle.
+                    val dialogOpen = settingsOpen.value || pageActions.value != null ||
+                        quickReadingModeOpen.value || quickOrientationOpen.value
+                    routingToChrome = dialogOpen ||
+                        (menuVisible && (event.y <= topBarBottomPx || event.y >= bottomBarTopPx))
+                }
+                val handled = routingToChrome && super.dispatchTouchEvent(event)
+                if (event.actionMasked == MotionEvent.ACTION_UP ||
+                    event.actionMasked == MotionEvent.ACTION_CANCEL
+                ) {
+                    routingToChrome = false
+                }
+                return handled
+            }
+        }.apply {
+            isClickable = false
+            addView(
+                chrome,
+                FrameLayout.LayoutParams(
+                    FrameLayout.LayoutParams.MATCH_PARENT,
+                    FrameLayout.LayoutParams.MATCH_PARENT,
+                ),
+            )
+        }
+        root.addView(
+            chromeTouchHost,
+            FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT),
+        )
         applyImmersive()
         openIntentBook()
+    }
+
+    private fun showBookLoading() {
+        val content = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER
+            setPadding(dp(24), dp(24), dp(24), dp(24))
+            addView(ProgressBar(this@ReaderActivity).apply {
+                isIndeterminate = true
+                contentDescription = "Opening book"
+            })
+            addView(TextView(this@ReaderActivity).apply {
+                text = "Opening your book…"
+                setTextColor(0xFFCFD8E5.toInt())
+                textSize = 15f
+                gravity = Gravity.CENTER
+                setPadding(0, dp(20), 0, 0)
+            })
+        }
+        loadingView = content
+        root.addView(
+            content,
+            FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT),
+        )
     }
 
     private fun readIntentReaderState() {
@@ -178,7 +621,7 @@ class ReaderActivity : ComponentActivity(), ReaderViewerHost {
                 val bindings = withContext(Dispatchers.IO) {
                     if (kind == "folder") {
                         Log.i(READER_TAG, "tree-discovery-start uri=$uri")
-                        TreeBookCatalog(contentResolver, uri).chapters(bookId, title)
+                        TreeBookCatalog(contentResolver, uri, scratchDir = File(cacheDir, "yomi-chapter-index")).chapters(bookId, title)
                     } else {
                         val chapter = ReaderChapter(
                             id = ReaderChapterId(bookId.value + "#root"),
@@ -222,16 +665,28 @@ class ReaderActivity : ComponentActivity(), ReaderViewerHost {
                 libraryStore.setAvailability(bookId, LibraryAvailability.AVAILABLE)
                 installViewer()
             } catch (t: Throwable) {
+                if (t is kotlinx.coroutines.CancellationException) throw t
                 Log.e(READER_TAG, "open-book-failed title=$title kind=$kind uri=$uriString", t)
                 libraryStore.setAvailability(
                     bookId,
                     if (t is SecurityException) LibraryAvailability.PERMISSION_LOST else LibraryAvailability.UNAVAILABLE,
                 )
                 showFatal(
-                    if (t is SecurityException) {
-                        "Yomi no longer has access to this book. Add it again from Home."
-                    } else {
-                        "Check that the book is still available, then try opening it again."
+                    when {
+                        t is SecurityException ->
+                            "Yomi no longer has access to this file. Add it again from your library."
+                        t is UnsafeArchiveException && t.message == "no-image-pages" ->
+                            "No readable JPG, PNG, GIF or WebP pages were found in this archive."
+                        t is UnsafeArchiveException &&
+                            t.message in setOf("entry-count", "entry-too-large", "archive-too-large", "expanded-size-overflow") ->
+                            "This archive exceeds Yomi's safe file-size or page-count limits."
+                        t is UnsafeArchiveException &&
+                            t.message in setOf("path-traversal", "duplicate-name", "encrypted") ->
+                            "This archive has unsupported or unsafe entries. Try a clean CBZ export."
+                        t is UnsafeArchiveException ->
+                            "The CBZ/ZIP cannot be decoded. It may be damaged or incomplete."
+                        else ->
+                            "Check that the book is still available, then try opening it again."
                     },
                 )
             }
@@ -239,11 +694,17 @@ class ReaderActivity : ComponentActivity(), ReaderViewerHost {
     }
 
     private suspend fun prepareWindow(index: Int) {
+        // The selected chapter is the only blocking load. A preceding large
+        // SAF chapter archive must never delay opening the page the user asked
+        // for; adjacent chapters can be fetched in the background.
         withContext(Dispatchers.IO) {
-            viewerChapters.getOrNull(index - 1)?.load()
             viewerChapters.getOrNull(index)?.load()
-            viewerChapters.getOrNull(index + 1)?.load()
         }
+    }
+
+    private fun preloadNearbyChapters(index: Int) {
+        viewerChapters.getOrNull(index - 1)?.let(::requestPreloadChapter)
+        viewerChapters.getOrNull(index + 1)?.let(::requestPreloadChapter)
     }
 
     private fun window(index: Int = activeChapterIndex): ViewerChapters {
@@ -256,15 +717,40 @@ class ReaderActivity : ComponentActivity(), ReaderViewerHost {
 
     private fun installViewer() {
         if (viewerChapters.isEmpty()) return
+        loadingView?.let(root::removeView)
+        loadingView = null
         viewer?.destroy()
         viewer?.getView()?.let(root::removeView)
 
+        val zoomStart = getPreferences(MODE_PRIVATE).getString(PREF_ZOOM_START, "auto")
+        val zoomStartPosition = when (zoomStart) {
+            "left" -> ReaderPageImageView.ZoomStartPosition.LEFT
+            "right" -> ReaderPageImageView.ZoomStartPosition.RIGHT
+            "center" -> ReaderPageImageView.ZoomStartPosition.CENTER
+            else -> when (mode) {
+                ReadingMode.LTR_PAGED -> ReaderPageImageView.ZoomStartPosition.LEFT
+                ReadingMode.RTL_PAGED -> ReaderPageImageView.ZoomStartPosition.RIGHT
+                else -> ReaderPageImageView.ZoomStartPosition.CENTER
+            }
+        }
         val renderConfig = ReaderRenderConfig(
+            zoomStartPosition = zoomStartPosition,
+            landscapeZoom = getPreferences(MODE_PRIVATE).getBoolean(PREF_LANDSCAPE_ZOOM, false),
+            navigateToPan = getPreferences(MODE_PRIVATE).getBoolean(PREF_NAVIGATE_TO_PAN, false),
+            webtoonSidePaddingPercent = getPreferences(MODE_PRIVATE).getInt(PREF_WEBTOON_PADDING, 0).coerceIn(0, 25),
+            doubleTapZoom = getPreferences(MODE_PRIVATE).getBoolean(PREF_WEBTOON_DOUBLE_TAP, true),
+            webtoonZoomOutDisabled = getPreferences(MODE_PRIVATE).getBoolean(PREF_WEBTOON_DISABLE_ZOOM_OUT, false),
             cropBorders = getPreferences(MODE_PRIVATE).getBoolean(PREF_CROP, false),
             backgroundColor = backgroundColor(),
             volumeKeysEnabled = getPreferences(MODE_PRIVATE).getBoolean(PREF_VOLUME_KEYS, false),
+            volumeKeysInverted = getPreferences(MODE_PRIVATE).getBoolean(PREF_VOLUME_KEYS_INVERTED, false),
             minimumScaleType = minimumScaleType(),
-            pageTransitions = true,
+            pageTransitions = getPreferences(MODE_PRIVATE).getBoolean(PREF_PAGE_TRANSITIONS, true),
+            alwaysShowChapterTransition = getPreferences(MODE_PRIVATE)
+                .getBoolean(PREF_ALWAYS_SHOW_TRANSITION, false),
+            longTapEnabled = getPreferences(MODE_PRIVATE).getBoolean(PREF_READ_WITH_LONG_TAP, true),
+            pagerNavigation = readerTapZones(pager = true),
+            webtoonNavigation = readerTapZones(pager = false),
         )
 
         viewer = when (mode) {
@@ -283,10 +769,10 @@ class ReaderActivity : ComponentActivity(), ReaderViewerHost {
             ),
         )
         viewer!!.setChapters(window())
+        preloadNearbyChapters(activeChapterIndex)
+        applyPageColorMatrix()
         updatePositionLabel(lastLocation)
-        val chromeVisibility = if (menuVisible) View.VISIBLE else View.GONE
-        topControls.visibility = chromeVisibility
-        controls.visibility = chromeVisibility
+        refreshChrome()
         if (menuVisible) scheduleChromeHide()
         Log.i(READER_TAG, "viewer-installed title=$title mode=$mode")
         reportReaderFirstDraw()
@@ -295,21 +781,19 @@ class ReaderActivity : ComponentActivity(), ReaderViewerHost {
     override fun hideMenu() {
         menuVisible = false
         if (::root.isInitialized) root.removeCallbacks(hideChromeRunnable)
-        if (::topControls.isInitialized) topControls.visibility = View.GONE
-        if (::controls.isInitialized) controls.visibility = View.GONE
+        refreshChrome()
         applyImmersive()
     }
 
     override fun showMenu() {
         menuVisible = true
-        if (::topControls.isInitialized) topControls.visibility = View.VISIBLE
-        if (::controls.isInitialized) controls.visibility = View.VISIBLE
+        refreshChrome()
         applyImmersive()
         scheduleChromeHide()
     }
 
     private fun scheduleChromeHide() {
-        if (!::root.isInitialized || keepChromeVisibleForCi) return
+        if (!::root.isInitialized || keepChromeVisibleForCi || settingsOpen.value) return
         root.removeCallbacks(hideChromeRunnable)
         root.postDelayed(hideChromeRunnable, 2400L)
     }
@@ -342,29 +826,40 @@ class ReaderActivity : ComponentActivity(), ReaderViewerHost {
             overallProgress = overall,
         )
         lastLocation = location
+        val progressRevision = ++latestProgressRevision
         updatePositionLabel(location)
 
         lifecycleScope.launch(Dispatchers.IO) {
-            Log.i(
-                READER_TAG,
-                "progress-save-start title=$title chapter=${location.chapterId.value} page=${page.index + 1}/$pageCount",
-            )
-            try {
-                progressSink.onLocationChanged(location)
+            progressWriteMutex.withLock {
+                // An older coroutine can resume after the user has already turned
+                // another page; never commit an outdated chapter/page in that case.
+                if (progressRevision != latestProgressRevision) return@withLock
                 Log.i(
                     READER_TAG,
-                    "progress-saved title=$title chapter=${location.chapterId.value} page=${page.index + 1}/$pageCount",
+                    "progress-save-start title=$title chapter=${location.chapterId.value} page=${page.index + 1}/$pageCount",
                 )
-            } catch (error: Throwable) {
-                Log.e(
-                    READER_TAG,
-                    "progress-save-failed title=$title chapter=${location.chapterId.value} page=${page.index + 1}/$pageCount",
-                    error,
-                )
+                try {
+                    progressSink.onLocationChanged(location)
+                    Log.i(
+                        READER_TAG,
+                        "progress-saved title=$title chapter=${location.chapterId.value} page=${page.index + 1}/$pageCount",
+                    )
+                } catch (error: Throwable) {
+                    Log.e(
+                        READER_TAG,
+                        "progress-save-failed title=$title chapter=${location.chapterId.value} page=${page.index + 1}/$pageCount",
+                        error,
+                    )
+                }
             }
         }
 
         if (chapterIndex != activeChapterIndex) {
+            // A real page transition takes precedence over a pending explicit
+            // chapter button request, which may still be opening on IO.
+            chapterNavigationRevision++
+            pendingChapterIndex = null
+            chapterNavigationJob?.cancel()
             activeChapterIndex = chapterIndex
             chapterPromotionJob?.cancel()
             chapterPromotionJob = lifecycleScope.launch {
@@ -372,6 +867,7 @@ class ReaderActivity : ComponentActivity(), ReaderViewerHost {
                     prepareWindow(chapterIndex)
                     if (activeChapterIndex == chapterIndex) {
                         viewer?.setChapters(window(chapterIndex))
+                        preloadNearbyChapters(chapterIndex)
                     }
                 } catch (_: Throwable) {
                     // Keep the current loaded page visible; the next interaction can retry.
@@ -380,15 +876,56 @@ class ReaderActivity : ComponentActivity(), ReaderViewerHost {
         }
     }
 
+    override fun createChapterTransitionView(transition: ChapterTransition): View =
+        ComposeView(this).apply {
+            layoutParams = ViewGroup.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+            )
+            setContent {
+                MaterialTheme(
+                    colorScheme = darkColorScheme(
+                        primary = ComposeColor(0xFFD4E4FF),
+                        surface = ComposeColor(0xFF111722),
+                        onSurface = ComposeColor.White,
+                    ),
+                ) {
+                    Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                        ReaderChapterTransition(transition)
+                    }
+                }
+            }
+        }
+
     override fun onPageLongTap(page: ViewerPage): Boolean {
-        showMenu()
+        if (isFinishing) return false
+        root.removeCallbacks(hideChromeRunnable)
+        pageActions.value = page
         return true
     }
 
     override fun requestPreloadChapter(chapter: ViewerChapter) {
         if (chapter.pages != null) return
         lifecycleScope.launch {
-            withContext(Dispatchers.IO) { chapter.load() }
+            try {
+                withContext(Dispatchers.IO) { chapter.load() }
+                // In Mihon's reader the page-loader state flow refreshes the
+                // adapter when a pending adjacent chapter becomes available.
+                // The local file adapter must explicitly publish that window;
+                // otherwise the reader can strand users at a transition page.
+                if (!isFinishing && chapter in viewerChapters &&
+                    chapter in listOfNotNull(
+                        viewerChapters.getOrNull(activeChapterIndex - 1),
+                        viewerChapters.getOrNull(activeChapterIndex + 1),
+                    )
+                ) {
+                    viewer?.setChapters(window())
+                }
+            } catch (error: kotlinx.coroutines.CancellationException) {
+                throw error
+            } catch (error: Exception) {
+                Log.e(READER_TAG, "chapter-preload-failed chapter=${chapter.chapter.id.value}", error)
+            }
         }
     }
 
@@ -400,11 +937,29 @@ class ReaderActivity : ComponentActivity(), ReaderViewerHost {
         return viewer?.handleGenericMotionEvent(ev) == true || super.dispatchGenericMotionEvent(ev)
     }
 
+    override fun onConfigurationChanged(newConfig: Configuration) {
+        super.onConfigurationChanged(newConfig)
+        // Manifest handles orientation itself (as in Mihon), so Android does
+        // not recreate this activity. Refresh the image viewer using its
+        // selected page and new window dimensions; otherwise Webtoon rows
+        // retain their old portrait/landscape aspect-ratio heights.
+        if (::root.isInitialized && viewer != null && viewerChapters.isNotEmpty() && !isFinishing) {
+            installViewer()
+            applyImmersive()
+        }
+    }
+
     override fun onStop() {
         super.onStop()
         lastLocation?.let { location ->
+            val revision = latestProgressRevision
             lifecycleScope.launch(Dispatchers.IO) {
-                progressSink.onSessionClosed(location)
+                progressWriteMutex.withLock {
+                    if (revision == latestProgressRevision) {
+                        runCatching { progressSink.onSessionClosed(location) }
+                            .onFailure { Log.e(READER_TAG, "progress-close-failed", it) }
+                    }
+                }
             }
         }
     }
@@ -412,278 +967,101 @@ class ReaderActivity : ComponentActivity(), ReaderViewerHost {
     override fun onDestroy() {
         if (::root.isInitialized) root.removeCallbacks(hideChromeRunnable)
         chapterPromotionJob?.cancel()
+        chapterNavigationJob?.cancel()
         viewer?.destroy()
+        tapZoneOverlay?.let(root::removeView)
+        tapZoneOverlay = null
         pageSources.distinct().forEach { source -> runCatching { source.close() } }
         pageSources.clear()
         super.onDestroy()
     }
 
-    private fun buildTopControls(): LinearLayout {
-        return LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-            setPadding(dp(6), dp(4), dp(8), dp(4))
-            background = roundedPanel(0xD9111722.toInt(), dp(20).toFloat())
+    private fun refreshChrome() {
+        chromeRevision.intValue += 1
+    }
 
-            addView(
-                ImageButton(this@ReaderActivity).apply {
-                    setImageResource(R.drawable.ic_yomi_back)
-                    setBackgroundColor(Color.TRANSPARENT)
-                    setColorFilter(Color.WHITE)
-                    contentDescription = "Back"
-                    setPadding(dp(10), dp(10), dp(10), dp(10))
-                    setOnClickListener { finish() }
-                },
-                LinearLayout.LayoutParams(dp(44), dp(44)),
-            )
-            addView(
-                TextView(this@ReaderActivity).apply {
-                    text = title
-                    textSize = 16f
-                    setTextColor(Color.WHITE)
-                    maxLines = 1
-                    ellipsize = android.text.TextUtils.TruncateAt.END
-                    setPadding(dp(8), 0, dp(8), 0)
-                },
-                LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f),
-            )
+    private fun navigateToPage(index: Int) {
+        val current = viewerChapters.getOrNull(activeChapterIndex) ?: return
+        val pages = current.pages.orEmpty()
+        if (index !in pages.indices) return
+        current.requestedPage = index
+        current.requestedOffsetFraction = 0.0
+        viewer?.moveToPage(pages[index], 0.0)
+        refreshChrome()
+    }
+
+    private fun changeChapter(offset: Int) {
+        val target = (pendingChapterIndex ?: activeChapterIndex) + offset
+        if (target !in viewerChapters.indices) return
+        pendingChapterIndex = target
+        val revision = ++chapterNavigationRevision
+        chapterNavigationJob?.cancel()
+        chapterNavigationJob = lifecycleScope.launch {
+            try {
+                prepareWindow(target)
+                // A later tap or swipe wins even when the old SAF read finishes
+                // out of order. Never jump back to a stale chapter.
+                if (revision != chapterNavigationRevision || isFinishing) return@launch
+                check(viewerChapters[target].pages?.isNotEmpty() == true) {
+                    "Selected chapter has no readable pages"
+                }
+                activeChapterIndex = target
+                lastLocation = null
+                viewer?.setChapters(window(target))
+                preloadNearbyChapters(target)
+                refreshChrome()
+            } catch (error: kotlinx.coroutines.CancellationException) {
+                throw error
+            } catch (error: Exception) {
+                if (revision == chapterNavigationRevision && !isFinishing) {
+                    Log.e(READER_TAG, "chapter-navigation-failed", error)
+                    Toast.makeText(this@ReaderActivity, "Could not open chapter", Toast.LENGTH_SHORT).show()
+                }
+            } finally {
+                if (revision == chapterNavigationRevision) {
+                    pendingChapterIndex = null
+                    chapterNavigationJob = null
+                }
+            }
         }
     }
 
-    private fun buildControls(): LinearLayout {
-        return LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-            setPadding(dp(16), dp(6), dp(6), dp(6))
-            background = roundedPanel(0xE6111722.toInt(), dp(20).toFloat())
+    private fun showReadingModePicker() {
+        if (isFinishing) return
+        root.removeCallbacks(hideChromeRunnable)
+        quickReadingModeOpen.value = true
+    }
 
-            positionLabel = TextView(this@ReaderActivity).apply {
-                textSize = 13f
-                setTextColor(0xFFD7DEEA.toInt())
-                maxLines = 1
-                ellipsize = android.text.TextUtils.TruncateAt.END
-            }
-            addView(
-                positionLabel,
-                LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f),
-            )
+    private fun showOrientationPicker() {
+        if (isFinishing) return
+        root.removeCallbacks(hideChromeRunnable)
+        quickOrientationOpen.value = true
+    }
 
-            addView(
-                ImageButton(this@ReaderActivity).apply {
-                    setImageResource(R.drawable.ic_yomi_settings)
-                    setBackgroundColor(Color.TRANSPARENT)
-                    setColorFilter(0xFFD7DEEA.toInt())
-                    contentDescription = "Reader settings"
-                    setPadding(dp(10), dp(10), dp(10), dp(10))
-                    setOnClickListener { showReaderSettings() }
-                },
-                LinearLayout.LayoutParams(dp(44), dp(44)),
-            )
+    private fun previewTapZones() {
+        settingsOpen.value = false
+        val navigation = readerTapZones(pager = mode != ReadingMode.WEBTOON)
+        if (navigation is DisabledNavigation) {
+            Toast.makeText(this, "No page-turn tap zones selected", Toast.LENGTH_SHORT).show()
+            return
         }
+        tapZoneOverlay?.let(root::removeView)
+        root.removeCallbacks(hideChromeRunnable)
+        val overlay = ReaderNavigationOverlayView(this)
+        tapZoneOverlay = overlay
+        root.addView(
+            overlay,
+            FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT),
+        )
+        overlay.setNavigation(navigation, showOnStart = true)
+        Log.i(READER_TAG, "reader-tap-zones-preview mode=$mode")
     }
 
     private fun showReaderSettings() {
         if (isFinishing) return
         root.removeCallbacks(hideChromeRunnable)
-        val prefs = getPreferences(MODE_PRIVATE)
-        val dialog = Dialog(this)
-        val sheet = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(dp(22), dp(20), dp(22), dp(22))
-            background = roundedPanel(0xFF171C25.toInt(), dp(26).toFloat())
-        }
-
-        sheet.addView(
-            TextView(this).apply {
-                text = "Reader settings"
-                textSize = 20f
-                setTextColor(Color.WHITE)
-                setPadding(0, 0, 0, dp(14))
-            },
-        )
-        sheet.addView(sectionLabel("Reading mode"))
-
-        listOf(
-            ReadingMode.LTR_PAGED to "Left to right",
-            ReadingMode.RTL_PAGED to "Right to left",
-            ReadingMode.VERTICAL_PAGED to "Vertical pages",
-            ReadingMode.WEBTOON to "Webtoon",
-        ).forEach { (target, label) ->
-            sheet.addView(
-                settingsOption(label, target == mode) {
-                    if (mode != target) {
-                        mode = target
-                        saveMode(target)
-                        installViewer()
-                    }
-                    dialog.dismiss()
-                },
-            )
-        }
-
-        sheet.addView(sectionLabel("Page"))
-        val cropEnabled = prefs.getBoolean(PREF_CROP, false)
-        sheet.addView(
-            settingsOption("Crop borders · " + if (cropEnabled) "On" else "Off") {
-                prefs.edit().putBoolean(PREF_CROP, !cropEnabled).apply()
-                installViewer()
-                dialog.dismiss()
-            },
-        )
-        val showPageNumber = prefs.getBoolean(PREF_SHOW_PAGE_NUMBER, true)
-        sheet.addView(
-            settingsOption("Page number · " + if (showPageNumber) "On" else "Off") {
-                prefs.edit().putBoolean(PREF_SHOW_PAGE_NUMBER, !showPageNumber).apply()
-                updatePositionLabel(lastLocation)
-                dialog.dismiss()
-            },
-        )
-        val volumeEnabled = prefs.getBoolean(PREF_VOLUME_KEYS, false)
-        sheet.addView(
-            settingsOption("Volume keys · " + if (volumeEnabled) "On" else "Off") {
-                prefs.edit().putBoolean(PREF_VOLUME_KEYS, !volumeEnabled).apply()
-                installViewer()
-                dialog.dismiss()
-            },
-        )
-
-        val currentLocation = lastLocation
-        val currentBook = book
-        if (currentLocation != null && currentBook != null) {
-            sheet.addView(sectionLabel("Bookmarks"))
-            val bookmarked = bookmarkStore.contains(currentLocation)
-            sheet.addView(
-                settingsOption(if (bookmarked) "Remove bookmark" else "Bookmark this page") {
-                    val added = bookmarkStore.toggle(currentLocation)
-                    Toast.makeText(
-                        this,
-                        if (added) "Bookmark added" else "Bookmark removed",
-                        Toast.LENGTH_SHORT,
-                    ).show()
-                    dialog.dismiss()
-                },
-            )
-            bookmarkStore.list(currentBook.id).forEach { bookmark ->
-                val chapter = viewerChapters.firstOrNull { it.chapter.id == bookmark.chapterId }
-                val chapterLabel = if (viewerChapters.size > 1) {
-                    (chapter?.chapter?.title ?: "Chapter") + " · "
-                } else {
-                    ""
-                }
-                sheet.addView(
-                    settingsOption(chapterLabel + "page " + (bookmark.pageIndex + 1)) {
-                        dialog.dismiss()
-                        openBookmark(bookmark)
-                    },
-                )
-            }
-        }
-
-        sheet.addView(sectionLabel("Scale"))
-        val scaleMode = loadScaleMode()
-        listOf(
-            ReaderScaleMode.FIT_SCREEN to "Fit screen",
-            ReaderScaleMode.STRETCH to "Stretch",
-            ReaderScaleMode.FIT_WIDTH to "Fit width",
-            ReaderScaleMode.FIT_HEIGHT to "Fit height",
-            ReaderScaleMode.ORIGINAL to "Original size",
-            ReaderScaleMode.SMART_FIT to "Smart fit",
-        ).forEach { (value, label) ->
-            sheet.addView(
-                settingsOption(label, scaleMode == value) {
-                    prefs.edit().putString(PREF_SCALE_MODE, value.name).apply()
-                    installViewer()
-                    dialog.dismiss()
-                },
-            )
-        }
-
-        sheet.addView(sectionLabel("Orientation"))
-        val orientation = prefs.getString(PREF_ORIENTATION, ORIENTATION_AUTO) ?: ORIENTATION_AUTO
-        listOf(
-            ORIENTATION_AUTO to "Auto",
-            ORIENTATION_PORTRAIT to "Portrait",
-            ORIENTATION_LANDSCAPE to "Landscape",
-        ).forEach { (value, label) ->
-            sheet.addView(
-                settingsOption(label, orientation == value) {
-                    prefs.edit().putString(PREF_ORIENTATION, value).apply()
-                    applySavedOrientation()
-                    dialog.dismiss()
-                },
-            )
-        }
-
-        sheet.addView(sectionLabel("Background"))
-        listOf(
-            "black" to "Black",
-            "dark" to "Dark gray",
-            "light" to "Light",
-        ).forEach { (value, label) ->
-            val selected = prefs.getString(PREF_BACKGROUND, "black") == value
-            sheet.addView(
-                settingsOption(label, selected) {
-                    prefs.edit().putString(PREF_BACKGROUND, value).apply()
-                    root.setBackgroundColor(backgroundColor())
-                    installViewer()
-                    dialog.dismiss()
-                },
-            )
-        }
-
-        val scroll = ScrollView(this).apply {
-            isFillViewport = false
-            addView(sheet)
-        }
-        dialog.setContentView(scroll)
-        dialog.setCanceledOnTouchOutside(true)
-        dialog.setOnDismissListener {
-            if (menuVisible) scheduleChromeHide()
-        }
-        dialog.show()
+        settingsOpen.value = true
         Log.i(READER_TAG, "reader-settings-opened")
-        dialog.window?.apply {
-            setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
-            setLayout(
-                WindowManager.LayoutParams.MATCH_PARENT,
-                (resources.displayMetrics.heightPixels * 0.86f).toInt(),
-            )
-            setGravity(Gravity.BOTTOM)
-            decorView.setPadding(dp(10), 0, dp(10), dp(10))
-        }
-    }
-
-    private fun sectionLabel(label: String): TextView {
-        return TextView(this).apply {
-            text = label.uppercase()
-            textSize = 11f
-            letterSpacing = 0.08f
-            setTextColor(0xFF8E9AAF.toInt())
-            setPadding(dp(4), dp(10), dp(4), dp(6))
-        }
-    }
-
-    private fun settingsOption(
-        label: String,
-        selected: Boolean = false,
-        onClick: () -> Unit,
-    ): TextView {
-        return TextView(this).apply {
-            text = if (selected) "$label   ✓" else label
-            textSize = 16f
-            gravity = Gravity.CENTER_VERTICAL
-            setTextColor(if (selected) 0xFFD4E4FF.toInt() else 0xFFE7ECF5.toInt())
-            setPadding(dp(14), dp(13), dp(14), dp(13))
-            setOnClickListener { onClick() }
-        }
-    }
-
-    private fun roundedPanel(color: Int, radius: Float): GradientDrawable {
-        return GradientDrawable().apply {
-            shape = GradientDrawable.RECTANGLE
-            setColor(color)
-            cornerRadius = radius
-        }
     }
 
     private fun updatePositionLabel(location: ReaderLocation?) {
@@ -704,6 +1082,7 @@ class ReaderActivity : ComponentActivity(), ReaderViewerHost {
             }
         }
         Log.i(READER_TAG, "position title=$title mode=$mode label=${positionLabel.text}")
+        refreshChrome()
     }
 
     private fun reportReaderFirstDraw() {
@@ -726,9 +1105,22 @@ class ReaderActivity : ComponentActivity(), ReaderViewerHost {
     }
 
     private fun applyImmersive() {
+        val fullscreen = getPreferences(MODE_PRIVATE).getBoolean(PREF_FULLSCREEN, true)
         WindowInsetsControllerCompat(window, window.decorView).apply {
             systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
-            if (menuVisible) show(WindowInsetsCompat.Type.systemBars()) else hide(WindowInsetsCompat.Type.systemBars())
+            if (menuVisible || !fullscreen) {
+                show(WindowInsetsCompat.Type.systemBars())
+            } else {
+                hide(WindowInsetsCompat.Type.systemBars())
+            }
+        }
+    }
+
+    private fun applyScreenAwake() {
+        if (getPreferences(MODE_PRIVATE).getBoolean(PREF_KEEP_SCREEN_ON, false)) {
+            window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        } else {
+            window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         }
     }
 
@@ -764,6 +1156,176 @@ class ReaderActivity : ComponentActivity(), ReaderViewerHost {
         }
     }
 
+    private fun promptSavePage(page: ViewerPage) {
+        pendingSavePage = page
+        val name = page.displayName
+            .replace('/', '_')
+            .replace('\\', '_')
+            .take(120)
+            .ifBlank { "page.png" }
+        val mime = when (name.substringAfterLast('.', "").lowercase()) {
+            "jpeg", "jpg" -> "image/jpeg"
+            "gif" -> "image/gif"
+            "webp" -> "image/webp"
+            "png" -> "image/png"
+            else -> "image/*"
+        }
+        savePageLauncher.launch(
+            Intent(Intent.ACTION_CREATE_DOCUMENT).apply {
+                addCategory(Intent.CATEGORY_OPENABLE)
+                type = mime
+                putExtra(Intent.EXTRA_TITLE, name)
+            },
+        )
+    }
+
+    private fun shareReaderPage(page: ViewerPage, copyToClipboard: Boolean) {
+        lifecycleScope.launch {
+            runCatching {
+                val file = withContext(Dispatchers.IO) { stageReaderPage(page) }
+                val sharedUri = FileProvider.getUriForFile(
+                    this@ReaderActivity,
+                    "${packageName}.fileprovider",
+                    file,
+                )
+                if (copyToClipboard) {
+                    val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                    clipboard.setPrimaryClip(
+                        ClipData.newUri(contentResolver, page.displayName, sharedUri),
+                    )
+                    Toast.makeText(this@ReaderActivity, "Page copied", Toast.LENGTH_SHORT).show()
+                } else {
+                    val share = Intent(Intent.ACTION_SEND).apply {
+                        type = "image/*"
+                        putExtra(Intent.EXTRA_STREAM, sharedUri)
+                        clipData = ClipData.newRawUri("Yomi reader page", sharedUri)
+                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                    }
+                    startActivity(Intent.createChooser(share, "Share page"))
+                }
+            }.onFailure {
+                Log.e(READER_TAG, "page-export-failed", it)
+                Toast.makeText(this@ReaderActivity, "Unable to share this page", Toast.LENGTH_LONG).show()
+            }
+        }
+    }
+
+    private suspend fun stageReaderPage(page: ViewerPage): File {
+        val directory = File(cacheDir, "reader-pages").apply { mkdirs() }
+        val expiry = System.currentTimeMillis() - 24L * 60L * 60L * 1000L
+        directory.listFiles()?.filter { it.lastModified() < expiry }?.forEach { it.delete() }
+        val stream = BufferedInputStream(page.open())
+        return stream.use { input ->
+            input.mark(12)
+            val magic = ByteArray(12)
+            var readBytes = 0
+            while (readBytes < magic.size) {
+                val count = input.read(magic, readBytes, magic.size - readBytes)
+                if (count <= 0) break
+                readBytes += count
+            }
+            input.reset()
+            val ext = when {
+                readBytes >= 8 && magic[0] == 0x89.toByte() &&
+                    magic[1] == 'P'.code.toByte() && magic[2] == 'N'.code.toByte() -> ".png"
+                readBytes >= 4 && magic[0] == 'G'.code.toByte() &&
+                    magic[1] == 'I'.code.toByte() && magic[2] == 'F'.code.toByte() -> ".gif"
+                readBytes >= 12 && String(magic, 0, 4, Charsets.US_ASCII) == "RIFF" &&
+                    String(magic, 8, 4, Charsets.US_ASCII) == "WEBP" -> ".webp"
+                else -> ".jpg"
+            }
+            val target = File.createTempFile("yomi-page-", ext, directory)
+            try {
+                target.outputStream().buffered().use { output ->
+                    val buffer = ByteArray(32 * 1024)
+                    var total = 0L
+                    while (true) {
+                        val count = input.read(buffer)
+                        if (count < 0) break
+                        if (count == 0) continue
+                        total += count
+                        require(total <= 128L * 1024 * 1024) { "Page too large to share" }
+                        output.write(buffer, 0, count)
+                    }
+                }
+                target
+            } catch (error: Throwable) {
+                target.delete()
+                throw error
+            }
+        }
+    }
+
+    private fun saveAsBookCover(page: ViewerPage) {
+        val currentBook = book ?: return
+        lifecycleScope.launch {
+            runCatching {
+                val coverUri = withContext(Dispatchers.IO) {
+                    val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+                    page.open().use { BitmapFactory.decodeStream(it, null, bounds) }
+                    require(bounds.outWidth > 0 && bounds.outHeight > 0 &&
+                        bounds.outWidth.toLong() * bounds.outHeight <= 250_000_000L) {
+                        "Invalid cover image dimensions"
+                    }
+                    var sample = 1
+                    while (maxOf(bounds.outWidth, bounds.outHeight) / sample > 640) sample *= 2
+                    val bitmap = page.open().use {
+                        BitmapFactory.decodeStream(
+                            it, null, BitmapFactory.Options().apply { inSampleSize = sample },
+                        )
+                    } ?: error("Could not decode this page as a cover")
+                    try {
+                        val directory = File(filesDir, "covers").apply { mkdirs() }
+                        val safeId = currentBook.id.value.filter {
+                            it.isLetterOrDigit() || it == '-' || it == '_'
+                        }.ifBlank { "book" }
+                        val destination = File(directory, "$safeId.jpg")
+                        val staging = File.createTempFile("cover-", ".jpg", directory)
+                        try {
+                            staging.outputStream().buffered().use {
+                                check(bitmap.compress(Bitmap.CompressFormat.JPEG, 84, it))
+                            }
+                            if (!staging.renameTo(destination)) {
+                                staging.copyTo(destination, overwrite = true)
+                            }
+                        } finally {
+                            staging.delete()
+                        }
+                        Uri.fromFile(destination).toString()
+                    } finally {
+                        bitmap.recycle()
+                    }
+                }
+                libraryStore.setCover(currentBook.id, coverUri)
+            }.onSuccess {
+                Toast.makeText(this@ReaderActivity, "Book cover updated", Toast.LENGTH_SHORT).show()
+            }.onFailure {
+                Log.e(READER_TAG, "page-set-cover-failed", it)
+                Toast.makeText(this@ReaderActivity, "Unable to set this cover", Toast.LENGTH_LONG).show()
+            }
+        }
+    }
+
+    private fun readerTapZones(pager: Boolean): ViewerNavigation {
+        val preferences = getPreferences(MODE_PRIVATE)
+        val layout = preferences.getString(PREF_TAP_ZONES, "default")
+        val navigation = when (layout) {
+            "disabled" -> DisabledNavigation()
+            "edge" -> EdgeNavigation()
+            "kindle" -> KindlishNavigation()
+            "l" -> LNavigation()
+            "right_left" -> RightAndLeftNavigation()
+            else -> if (pager) RightAndLeftNavigation() else LNavigation()
+        }
+        navigation.invertMode = when (preferences.getString(PREF_TAP_ZONE_INVERT, "none")) {
+            "horizontal" -> ViewerNavigation.InvertMode.HORIZONTAL
+            "vertical" -> ViewerNavigation.InvertMode.VERTICAL
+            "both" -> ViewerNavigation.InvertMode.BOTH
+            else -> ViewerNavigation.InvertMode.NONE
+        }
+        return navigation
+    }
+
     private fun loadScaleMode(): ReaderScaleMode {
         return getPreferences(MODE_PRIVATE)
             .getString(PREF_SCALE_MODE, ReaderScaleMode.FIT_SCREEN.name)
@@ -782,6 +1344,26 @@ class ReaderActivity : ComponentActivity(), ReaderViewerHost {
         }
     }
 
+    /**
+     * Mihon brightness semantics: a positive value overrides Android window
+     * brightness, a negative value uses minimal brightness plus a Compose
+     * black overlay, and zero returns control to system brightness.
+     */
+    private fun applyCustomBrightness() {
+        val prefs = getPreferences(MODE_PRIVATE)
+        val value = if (prefs.getBoolean(PREF_CUSTOM_BRIGHTNESS, false)) {
+            prefs.getInt(PREF_BRIGHTNESS_VALUE, 0).coerceIn(-75, 100)
+        } else {
+            0
+        }
+        val screenBrightness = when {
+            value > 0 -> value / 100f
+            value < 0 -> 0.01f
+            else -> WindowManager.LayoutParams.BRIGHTNESS_OVERRIDE_NONE
+        }
+        window.attributes = window.attributes.apply { this.screenBrightness = screenBrightness }
+    }
+
     private fun applySavedOrientation() {
         requestedOrientation = when (
             getPreferences(MODE_PRIVATE).getString(PREF_ORIENTATION, ORIENTATION_AUTO)
@@ -790,6 +1372,40 @@ class ReaderActivity : ComponentActivity(), ReaderViewerHost {
             ORIENTATION_LANDSCAPE -> ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
             else -> ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
         }
+    }
+
+    /**
+     * Faithful port of Mihon's ReaderActivity.ReaderConfig.getCombinedPaint().
+     * The paint is applied to the page viewer, never to Compose controls, and
+     * leaves image bytes unchanged in the imported archive.
+     */
+    private fun applyPageColorMatrix() {
+        val pageView = viewer?.getView() ?: return
+        val prefs = getPreferences(MODE_PRIVATE)
+        val grayscale = prefs.getBoolean(PREF_GRAYSCALE, false)
+        val inverted = prefs.getBoolean(PREF_INVERTED_COLORS, false)
+        if (!grayscale && !inverted) {
+            pageView.setLayerType(View.LAYER_TYPE_NONE, null)
+            return
+        }
+        val matrix = ColorMatrix().apply {
+            if (grayscale) setSaturation(0f)
+            if (inverted) {
+                postConcat(
+                    ColorMatrix(
+                        floatArrayOf(
+                            -1f, 0f, 0f, 0f, 255f,
+                            0f, -1f, 0f, 0f, 255f,
+                            0f, 0f, -1f, 0f, 255f,
+                            0f, 0f, 0f, 1f, 0f,
+                        ),
+                    ),
+                )
+            }
+        }
+        val paint = Paint().apply { colorFilter = ColorMatrixColorFilter(matrix) }
+        pageView.setLayerType(View.LAYER_TYPE_HARDWARE, paint)
+        Log.i(READER_TAG, "reader-page-filter grayscale=$grayscale inverted=$inverted")
     }
 
     private fun backgroundColor(): Int {
@@ -812,6 +1428,7 @@ class ReaderActivity : ComponentActivity(), ReaderViewerHost {
     }
 
     private fun showFatal(message: String) {
+        loadingView = null
         root.removeCallbacks(hideChromeRunnable)
         root.removeAllViews()
         root.setBackgroundColor(0xFF0A0D12.toInt())
@@ -839,10 +1456,15 @@ class ReaderActivity : ComponentActivity(), ReaderViewerHost {
                     },
                 )
                 addView(
-                    Button(this@ReaderActivity).apply {
-                        text = "Back to library"
-                        setOnClickListener { finish() }
-                    },
+                    errorAction("Retry", filled = true) { recreate() },
+                    LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.MATCH_PARENT,
+                        dp(52),
+                    ).apply { bottomMargin = dp(10) },
+                )
+                addView(
+                    errorAction("Back to library", filled = false) { finish() },
+                    LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(52)),
                 )
             },
             FrameLayout.LayoutParams(
@@ -850,6 +1472,31 @@ class ReaderActivity : ComponentActivity(), ReaderViewerHost {
                 FrameLayout.LayoutParams.MATCH_PARENT,
             ),
         )
+    }
+
+    // This is Yomi's file-opening error surface, outside the Mihon reader UI.
+    // Keep both recovery actions intentional and visually consistent, rather
+    // than falling back to Android's default unthemed widget buttons.
+    private fun errorAction(label: String, filled: Boolean, onClick: () -> Unit): TextView {
+        val shape = GradientDrawable().apply {
+            cornerRadius = dp(14).toFloat()
+            setColor(if (filled) 0xFFD4E4FF.toInt() else 0xFF1A2230.toInt())
+            if (!filled) setStroke(dp(1), 0xFF39465B.toInt())
+        }
+        return TextView(this).apply {
+            text = label
+            textSize = 16f
+            setTypeface(typeface, Typeface.BOLD)
+            setTextColor(if (filled) 0xFF15223A.toInt() else Color.WHITE)
+            gravity = Gravity.CENTER
+            background = RippleDrawable(
+                ColorStateList.valueOf(if (filled) 0x3315223A else 0x33D4E4FF),
+                shape,
+                null,
+            )
+            isFocusable = true
+            setOnClickListener { onClick() }
+        }
     }
 
     private fun dp(value: Int): Int = (value * resources.displayMetrics.density).toInt()
@@ -866,19 +1513,47 @@ class ReaderActivity : ComponentActivity(), ReaderViewerHost {
         private const val PREF_MODE = "reader_mode"
         private const val PREF_CROP = "crop_borders"
         private const val PREF_VOLUME_KEYS = "volume_keys"
+        private const val PREF_VOLUME_KEYS_INVERTED = "volume_keys_inverted"
+        private const val PREF_PAGE_TRANSITIONS = "page_transitions"
+        private const val PREF_ALWAYS_SHOW_TRANSITION = "reader_always_show_chapter_transition"
+        private const val PREF_TAP_ZONES = "reader_tap_zones"
+        private const val PREF_TAP_ZONE_INVERT = "reader_tap_zone_invert"
         private const val PREF_SHOW_PAGE_NUMBER = "show_page_number"
+        private const val PREF_FULLSCREEN = "reader_fullscreen"
+        private const val PREF_KEEP_SCREEN_ON = "reader_keep_screen_on"
+        private const val PREF_READ_WITH_LONG_TAP = "reader_long_tap"
         private const val PREF_SCALE_MODE = "scale_mode"
+        private const val PREF_ZOOM_START = "reader_zoom_start"
+        private const val PREF_LANDSCAPE_ZOOM = "reader_landscape_zoom"
+        private const val PREF_NAVIGATE_TO_PAN = "reader_navigate_to_pan"
+        private const val PREF_WEBTOON_PADDING = "reader_webtoon_padding"
+        private const val PREF_WEBTOON_DOUBLE_TAP = "reader_webtoon_double_tap_zoom"
+        private const val PREF_WEBTOON_DISABLE_ZOOM_OUT = "reader_webtoon_disable_zoom_out"
         private const val PREF_ORIENTATION = "orientation"
         private const val PREF_BACKGROUND = "background"
+        private const val PREF_CUSTOM_BRIGHTNESS = "reader_custom_brightness"
+        private const val PREF_BRIGHTNESS_VALUE = "reader_brightness_value"
+        private const val PREF_TINT_COLOR = "reader_color_tint"
+        private const val PREF_COLOR_BLEND_MODE = "reader_color_filter_blend_mode"
+        private const val PREF_GRAYSCALE = "reader_grayscale"
+        private const val PREF_INVERTED_COLORS = "reader_inverted_colors"
         private const val ORIENTATION_AUTO = "auto"
         private const val ORIENTATION_PORTRAIT = "portrait"
         private const val ORIENTATION_LANDSCAPE = "landscape"
 
         fun newIntent(context: Context, uri: String, kind: String, title: String): Intent {
-            return Intent(context, ReaderActivity::class.java)
-                .putExtra(EXTRA_URI, uri)
-                .putExtra(EXTRA_KIND, kind)
-                .putExtra(EXTRA_TITLE, title)
+            return Intent(context, ReaderActivity::class.java).apply {
+                putExtra(EXTRA_URI, uri)
+                putExtra(EXTRA_KIND, kind)
+                putExtra(EXTRA_TITLE, title)
+                // An ACTION_VIEW grant can be temporary. Forward the actual content
+                // URI so ReaderActivity keeps permission after leaving MainActivity.
+                val bookUri = Uri.parse(uri)
+                if (bookUri.scheme == ContentResolver.SCHEME_CONTENT) {
+                    clipData = ClipData.newRawUri("Yomi book", bookUri)
+                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                }
+            }
         }
     }
 }

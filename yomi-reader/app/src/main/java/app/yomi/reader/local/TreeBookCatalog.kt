@@ -10,6 +10,7 @@ import app.yomi.reader.core.ReaderPage
 import app.yomi.reader.core.ReaderPageId
 import app.yomi.reader.core.ReaderPageSource
 import java.io.InputStream
+import java.io.File
 import java.util.ArrayDeque
 import java.util.Locale
 
@@ -21,6 +22,7 @@ data class LocalChapterBinding(
 class TreeBookCatalog(
     private val resolver: ContentResolver,
     private val treeUri: Uri,
+    private val scratchDir: File? = null,
 ) {
     suspend fun chapters(bookId: ReaderBookId, bookTitle: String): List<LocalChapterBinding> {
         val documents = discover()
@@ -49,7 +51,7 @@ class TreeBookCatalog(
             val members = detected.members.mapNotNull { byPath[it.relativePath] }
 
             val source = if (members.size == 1 && members.single().isArchive) {
-                ZipDocumentPageSource(resolver, members.single().uri)
+                ZipDocumentPageSource(resolver, members.single().uri, scratchDir = scratchDir)
             } else {
                 FixedTreeImagePageSource(resolver, members.filter { it.isImage })
             }
@@ -120,7 +122,7 @@ class TreeBookCatalog(
     }
 
     private fun isSupportedImage(name: String, mime: String?): Boolean {
-        if (mime == "image/jpeg" || mime == "image/png" || mime == "image/webp") return true
+        if (mime == "image/jpeg" || mime == "image/png" || mime == "image/gif" || mime == "image/webp") return true
         return name.substringAfterLast('.', "").lowercase(Locale.ROOT) in IMAGE_EXTENSIONS
     }
 
@@ -175,7 +177,7 @@ class TreeBookCatalog(
 
     private companion object {
         const val MAX_DOCUMENTS = 20_000
-        val IMAGE_EXTENSIONS = setOf("jpg", "jpeg", "png", "webp")
+        val IMAGE_EXTENSIONS = setOf("jpg", "jpeg", "png", "gif", "webp")
         val ARCHIVE_EXTENSIONS = setOf("cbz", "zip")
     }
 }

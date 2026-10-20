@@ -99,6 +99,13 @@ class LocalLibraryStore(context: Context) {
         ) { "Unable to persist Yomi reading progress" }
     }
 
+    fun setCover(id: ReaderBookId, coverUri: String) {
+        require(get(id) != null) { "Unknown Yomi book" }
+        check(
+            prefs.edit().putString(prefix(id) + KEY_COVER, coverUri).commit(),
+        ) { "Unable to persist Yomi book cover" }
+    }
+
     fun setAvailability(id: ReaderBookId, availability: LibraryAvailability) {
         if (get(id) == null) return
         check(

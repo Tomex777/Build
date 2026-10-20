@@ -8,7 +8,9 @@ import android.os.Bundle
 import android.provider.OpenableColumns
 import android.util.Log
 import android.view.ViewTreeObserver
+import android.widget.Toast
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -19,6 +21,9 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -28,6 +33,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
@@ -37,6 +43,7 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -44,8 +51,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextField
-import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -59,15 +64,27 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import app.yomi.reader.local.ArchiveCatalog
 import app.yomi.reader.local.ArchiveScanResult
 import app.yomi.reader.local.LibraryAvailability
 import app.yomi.reader.local.LibraryBook
@@ -80,10 +97,14 @@ import app.yomi.reader.local.LocalLibraryStore
 import app.yomi.reader.local.ReaderBookmarkStore
 import app.yomi.reader.local.SharedPreferencesProgressSink
 import app.yomi.reader.local.TreeBookCatalog
+import app.yomi.reader.local.continueReadingLocation
 import app.yomi.reader.local.ZipArchiveScanner
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.io.File
+import java.util.zip.ZipFile
 
 class MainActivity : ComponentActivity() {
     private val libraryStore by lazy { LocalLibraryStore(this) }
@@ -91,21 +112,60 @@ class MainActivity : ComponentActivity() {
     private val bookmarkStore by lazy { ReaderBookmarkStore(this) }
     private val progressStore by lazy { SharedPreferencesProgressSink(this) }
     private val libraryRevision = mutableIntStateOf(0)
+    private val incomingArchiveUri = mutableStateOf<Uri?>(null)
+    private val appearancePrefs by lazy { getSharedPreferences("yomi-appearance", MODE_PRIVATE) }
+    private var appearanceId by mutableStateOf(YomiAppearances.DEFAULT_ID)
+    private var customAppearanceHex by mutableStateOf(YomiAppearances.DEFAULT_CUSTOM_HEX)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         Log.i(STARTUP_TAG, "activity-created")
+        incomingArchiveUri.value = archiveUriFromIntent(intent)
+        appearanceId = appearancePrefs.getString("palette", YomiAppearances.DEFAULT_ID)
+            ?: YomiAppearances.DEFAULT_ID
+        customAppearanceHex = YomiAppearances.normalizedHex(
+            appearancePrefs.getString("hex", YomiAppearances.DEFAULT_CUSTOM_HEX).orEmpty(),
+        ) ?: YomiAppearances.DEFAULT_CUSTOM_HEX
+        Log.i(STARTUP_TAG, "appearance-restored palette=$appearanceId hex=$customAppearanceHex")
         enableEdgeToEdge()
         WindowCompat.getInsetsController(window, window.decorView).apply {
             isAppearanceLightStatusBars = false
             isAppearanceLightNavigationBars = false
         }
         setContent {
-            YomiTheme {
+            val appearance = YomiAppearances.resolve(appearanceId, customAppearanceHex)
+            LaunchedEffect(appearance.light) {
+                WindowCompat.getInsetsController(window, window.decorView).apply {
+                    isAppearanceLightStatusBars = appearance.light
+                    isAppearanceLightNavigationBars = appearance.light
+                }
+            }
+            YomiTheme(appearance) {
                 YomiHome()
             }
         }
         Log.i(STARTUP_TAG, "compose-content-attached")
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        incomingArchiveUri.value = archiveUriFromIntent(intent)
+    }
+
+    private fun archiveUriFromIntent(intent: Intent?): Uri? {
+        val candidate = when (intent?.action) {
+            Intent.ACTION_VIEW -> intent.data
+            Intent.ACTION_SEND -> {
+                // Some Android file explorers offer Share instead of Open with
+                // when they don't have a registered CBZ MIME association.
+                @Suppress("DEPRECATION")
+                val shared = intent.getParcelableExtra<Uri>(Intent.EXTRA_STREAM)
+                shared ?: intent.clipData?.getItemAt(0)?.uri
+            }
+            else -> null
+        }
+        return candidate?.takeIf { it.scheme == "content" || it.scheme == "file" }
     }
 
     override fun onResume() {
@@ -113,14 +173,14 @@ class MainActivity : ComponentActivity() {
         libraryRevision.intValue += 1
     }
 
-    private fun persistSelection(uri: Uri, kind: String, pageCount: Int? = null): LibraryBook {
+    private fun persistSelection(uri: Uri, kind: String, pageCount: Int? = null, titleOverride: String? = null): LibraryBook {
         try {
             contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
         } catch (_: SecurityException) {
             // Some document providers grant durable access without accepting this explicit call.
         }
 
-        val title = if (kind == "folder") {
+        val title = titleOverride ?: if (kind == "folder") {
             uri.lastPathSegment?.substringAfterLast(':')?.substringAfterLast('/') ?: "Folder"
         } else {
             queryDisplayName(uri) ?: uri.lastPathSegment?.substringAfterLast('/') ?: "Book"
@@ -140,31 +200,188 @@ class MainActivity : ComponentActivity() {
         return stream.use(ZipArchiveScanner::scan)
     }
 
+    /**
+     * Documents picked through ACTION_OPEN_DOCUMENT generally have persistent
+     * access. A CBZ opened from My Files with ACTION_VIEW usually does not.
+     * Store that temporary-grant archive in the app's private library so it
+     * remains readable after Android revokes the sender's permission.
+     */
+    private data class RetainedArchive(val uri: Uri, val catalog: ArchiveCatalog)
+
+    private fun validateArchive(file: File): ArchiveCatalog {
+        return when (val result = file.inputStream().buffered().use(ZipArchiveScanner::scan)) {
+            is ArchiveScanResult.Success -> result.catalog
+            is ArchiveScanResult.Rejected -> throw IllegalArgumentException("cbz:" + result.reason)
+        }
+    }
+
+    private suspend fun retainExternalArchive(uri: Uri): RetainedArchive = withContext(Dispatchers.IO) {
+        if (uri.scheme == "file" && uri.path?.startsWith(filesDir.canonicalPath + java.io.File.separator) == true) {
+            // Even an app-private URI may have been replaced since the last open.
+            val file = File(checkNotNull(uri.path))
+            return@withContext RetainedArchive(uri, validateArchive(file))
+        }
+
+        // Persist the original grant when available, but still mirror the
+        // archive once to private storage. Stream-only content:// providers
+        // otherwise require decompressing preceding ZIP pages on every turn.
+        if (uri.scheme == "content") {
+            runCatching {
+                contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+        }
+
+        val sourceName = runCatching { queryDisplayName(uri) }.getOrNull()
+            ?: uri.lastPathSegment?.substringAfterLast('/') ?: "Imported.cbz"
+        val safeName = sourceName.replace(Regex("[^A-Za-z0-9._ -]"), "_")
+            .take(120)
+            .ifBlank { "Imported.cbz" }
+            .let { if (it.endsWith(".cbz", true) || it.endsWith(".zip", true)) it else "$it.cbz" }
+        val key = java.security.MessageDigest.getInstance("SHA-256")
+            .digest(uri.toString().toByteArray(Charsets.UTF_8))
+            .joinToString("") { "%02x".format(it.toInt() and 0xff) }
+        val directory = java.io.File(filesDir, "imported-books/$key").apply { mkdirs() }
+        // Display names are mutable even for an unchanged Android document URI.
+        // Reusing a prior private path preserves its book ID, bookmarks, and
+        // progress instead of importing a duplicate whenever a file is renamed.
+        val originalLocation = libraryStore.list().firstNotNullOfOrNull { book ->
+            val oldUri = Uri.parse(book.locationUri)
+            if (oldUri.scheme != "file") return@firstNotNullOfOrNull null
+            oldUri.path?.let(::File)?.takeIf { oldFile ->
+                oldFile.parentFile?.canonicalFile == directory.canonicalFile &&
+                    (oldFile.name.endsWith(".cbz", true) || oldFile.name.endsWith(".zip", true))
+            }
+        }
+        val stored = originalLocation ?: java.io.File(directory, safeName)
+        // A picked document can keep the same content URI after its contents
+        // are replaced or repaired. Always refresh the private mirror on an
+        // explicit import/relink; a nonempty older copy may be stale or corrupt.
+
+        val staging = java.io.File.createTempFile("yomi-import-", ".tmp", directory)
+        try {
+            val stream = contentResolver.openInputStream(uri)
+                ?: throw java.io.IOException("Unable to read Android file provider")
+            stream.use { input ->
+                staging.outputStream().buffered().use { out ->
+                    val buffer = ByteArray(64 * 1024)
+                    var total = 0L
+                    while (true) {
+                        val count = input.read(buffer)
+                        if (count < 0) break
+                        if (count == 0) continue
+                        total += count
+                        if (total > 4L * 1024 * 1024 * 1024) {
+                            throw java.io.IOException("CBZ exceeds Yomi's archive size limit")
+                        }
+                        out.write(buffer, 0, count)
+                    }
+                }
+            }
+            // Never overwrite the last known-good imported archive with a
+            // corrupt or oversized reimport. Validate the complete temporary
+            // ZIP first; failed scans leave both library metadata and the
+            // previously retained file untouched.
+            val catalog = validateArchive(staging)
+            if (!staging.renameTo(stored)) {
+                // Same-directory rename normally replaces the old copy
+                // atomically. On providers/filesystems where rename fails,
+                // move the fully checked staging file with replacement.
+                java.nio.file.Files.move(
+                    staging.toPath(),
+                    stored.toPath(),
+                    java.nio.file.StandardCopyOption.REPLACE_EXISTING,
+                )
+            }
+            Log.i(STARTUP_TAG, "external-archive-copied-to-private-library bytes=${stored.length()}")
+            RetainedArchive(Uri.fromFile(stored), catalog)
+        } finally {
+            staging.delete()
+        }
+    }
+
+    private suspend fun importArchive(retained: RetainedArchive, titleOverride: String? = null): LibraryBook {
+        val uri = retained.uri
+        val catalog = retained.catalog
+        val book = persistSelection(uri, "archive", catalog.pages.size, titleOverride)
+        // Real-world CBZs sometimes begin with an unsupported/corrupt front-matter
+        // image. Find the first *decodable* page rather than silently dropping the
+        // cover because only the first catalog entry was attempted.
+        val coverUri = withContext(Dispatchers.IO) {
+            catalog.pages.take(8).firstNotNullOfOrNull { page ->
+                createCoverThumbnail(uri, page.name, book.id.value)
+            }
+        }
+        if (coverUri == null) {
+            Log.w(STARTUP_TAG, "archive-cover-unavailable title=${book.title} checked=${minOf(catalog.pages.size, 8)}")
+        }
+        if (coverUri != null) {
+            libraryStore.upsert(
+                uri = uri,
+                title = book.title,
+                locationType = LibraryLocationType.DOCUMENT,
+                pageCount = catalog.pages.size,
+                coverUri = coverUri,
+            )
+            Log.i(STARTUP_TAG, "archive-cover-created title=${book.title}")
+        }
+        return book
+    }
+
     private fun createCoverThumbnail(uri: Uri, pageName: String, bookId: String): String? {
         return runCatching {
-            val input = contentResolver.openInputStream(uri) ?: return@runCatching null
-            val pageBytes = input.use { ZipArchiveScanner.readPage(it, pageName) }
-            val bytes = (pageBytes as? app.yomi.reader.local.ArchivePageRead.Success)?.bytes ?: return@runCatching null
-
-            val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-            BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bounds)
-            if (bounds.outWidth <= 0 || bounds.outHeight <= 0 || bounds.outWidth.toLong() * bounds.outHeight > 250_000_000L) return@runCatching null
-            var sampleSize = 1
-            while (maxOf(bounds.outWidth, bounds.outHeight) / sampleSize > 640) sampleSize *= 2
-            val bitmap = BitmapFactory.decodeByteArray(
-                bytes,
-                0,
-                bytes.size,
-                BitmapFactory.Options().apply { inSampleSize = sampleSize },
-            ) ?: return@runCatching null
-
-            val directory = java.io.File(filesDir, "covers").apply { mkdirs() }
-            val filename = bookId.filter { it.isLetterOrDigit() || it == '-' || it == '_' }.ifBlank { "book" } + ".jpg"
-            val file = java.io.File(directory, filename)
-            file.outputStream().buffered().use { bitmap.compress(Bitmap.CompressFormat.JPEG, 84, it) }
-            bitmap.recycle()
-            Uri.fromFile(file).toString()
+            val bitmap = if (uri.scheme == "file") {
+                // Imported ACTION_VIEW books live in app-private files. Decode only
+                // the requested ZIP member instead of allocating its whole image
+                // and decompressing all earlier chapters for every cover attempt.
+                val local = uri.path?.let(::File)?.takeIf { it.isFile }
+                    ?: return@runCatching null
+                ZipFile(local).use { archive ->
+                    val entry = archive.getEntry(pageName)
+                        ?: archive.entries().asSequence().firstOrNull {
+                            it.name.replace('\\', '/') == pageName
+                        }
+                        ?: return@runCatching null
+                    if (entry.isDirectory) return@runCatching null
+                    val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+                    archive.getInputStream(entry).use { BitmapFactory.decodeStream(it, null, bounds) }
+                    if (!isSafeCoverDimensions(bounds)) return@runCatching null
+                    archive.getInputStream(entry).use {
+                        BitmapFactory.decodeStream(
+                            it,
+                            null,
+                            BitmapFactory.Options().apply { inSampleSize = coverSampleSize(bounds) },
+                        )
+                    }
+                }
+            } else {
+                // SAF-only providers without a seekable file retain the bounded
+                // sequential ZIP scanner. Do not require private storage access.
+                val source = contentResolver.openInputStream(uri) ?: return@runCatching null
+                val read = source.use { ZipArchiveScanner.readPage(it, pageName) }
+                val bytes = (read as? app.yomi.reader.local.ArchivePageRead.Success)?.bytes
+                    ?: return@runCatching null
+                val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+                BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bounds)
+                if (!isSafeCoverDimensions(bounds)) return@runCatching null
+                BitmapFactory.decodeByteArray(
+                    bytes,
+                    0,
+                    bytes.size,
+                    BitmapFactory.Options().apply { inSampleSize = coverSampleSize(bounds) },
+                )
+            } ?: return@runCatching null
+            saveCoverBitmap(bitmap, bookId)
         }.getOrNull()
+    }
+
+    private fun isSafeCoverDimensions(bounds: BitmapFactory.Options): Boolean =
+        bounds.outWidth > 0 && bounds.outHeight > 0 &&
+            bounds.outWidth.toLong() * bounds.outHeight.toLong() <= 250_000_000L
+
+    private fun coverSampleSize(bounds: BitmapFactory.Options): Int {
+        var sample = 1
+        while (maxOf(bounds.outWidth, bounds.outHeight) / sample > 640) sample *= 2
+        return sample
     }
 
     private suspend fun inspectFolder(
@@ -177,18 +394,23 @@ class MainActivity : ComponentActivity() {
 
         var pageCount = 0
         var coverUri: String? = null
+        var coverAttempts = 0
         try {
             bindings.forEach { binding ->
                 val pages = binding.source.pages(binding.chapter)
                 pageCount += pages.size
-                if (coverUri == null) {
-                    val firstPage = pages.firstOrNull()
-                    if (firstPage != null) {
+                // As with CBZ covers, real image folders sometimes start with
+                // damaged front matter. Try a bounded number of later pages,
+                // even when the first chapter has no decodable cover.
+                if (coverUri == null && coverAttempts < 8) {
+                    for (page in pages.take(8 - coverAttempts)) {
+                        coverAttempts++
                         coverUri = createCoverThumbnail(
                             source = binding.source,
-                            page = firstPage,
+                            page = page,
                             bookId = bookId.value,
                         )
+                        if (coverUri != null) break
                     }
                 }
             }
@@ -230,17 +452,22 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun saveCoverBitmap(bitmap: Bitmap, bookId: String): String? {
-        return runCatching {
-            val directory = java.io.File(filesDir, "covers").apply { mkdirs() }
-            val filename = bookId.filter { it.isLetterOrDigit() || it == '-' || it == '_' }
-                .ifBlank { "book" } + ".jpg"
-            val file = java.io.File(directory, filename)
-            file.outputStream().buffered().use {
-                bitmap.compress(Bitmap.CompressFormat.JPEG, 84, it)
-            }
+        return try {
+            runCatching {
+                val directory = java.io.File(filesDir, "covers").apply { mkdirs() }
+                val filename = bookId.filter { it.isLetterOrDigit() || it == '-' || it == '_' }
+                    .ifBlank { "book" } + ".jpg"
+                val file = java.io.File(directory, filename)
+                file.outputStream().buffered().use {
+                    check(bitmap.compress(Bitmap.CompressFormat.JPEG, 84, it)) {
+                        "Could not encode thumbnail"
+                    }
+                }
+                Uri.fromFile(file).toString()
+            }.getOrNull()
+        } finally {
             bitmap.recycle()
-            Uri.fromFile(file).toString()
-        }.getOrNull()
+        }
     }
 
     private fun folderTitle(uri: Uri): String {
@@ -260,13 +487,25 @@ class MainActivity : ComponentActivity() {
         )
     }
 
-    private fun queryDisplayName(uri: Uri): String? =
-        contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)
+    private fun queryDisplayName(uri: Uri): String? {
+        if (uri.scheme == "file") return uri.lastPathSegment?.substringAfterLast('/')
+        return contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)
             ?.use { cursor ->
                 if (!cursor.moveToFirst()) return@use null
                 val index = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
                 if (index >= 0) cursor.getString(index) else null
             }
+    }
+
+    private fun missingCover(book: LibraryBook): Boolean {
+        val location = book.coverUri?.takeIf { it.isNotBlank() } ?: return true
+        val uri = runCatching { Uri.parse(location) }.getOrNull() ?: return true
+        return when (uri.scheme) {
+            "file" -> uri.path?.let { File(it).isFile } != true
+            "content" -> false
+            else -> true
+        }
+    }
 
     @OptIn(ExperimentalMaterial3Api::class)
     @Composable
@@ -275,57 +514,152 @@ class MainActivity : ComponentActivity() {
         var library by remember(revision) { mutableStateOf(libraryStore.list()) }
         StartupDrawProbe()
 
+        // Upgrade existing libraries: older Yomi builds saved CBZ books without
+        // a real cover. Regenerate a thumbnail without deleting progress or the
+        // original file. Do this off the main thread to avoid a blank home screen.
+        LaunchedEffect(revision) {
+            val missingCovers = libraryStore.list().filter {
+                it.availability == LibraryAvailability.AVAILABLE && missingCover(it)
+            }.take(8)
+            if (missingCovers.isNotEmpty()) {
+                withContext(Dispatchers.IO) {
+                    missingCovers.forEach { item ->
+                        try {
+                            val uri = Uri.parse(item.locationUri)
+                            when (item.locationType) {
+                                LibraryLocationType.DOCUMENT -> {
+                                    val scan = inspectArchive(uri)
+                                    if (scan is ArchiveScanResult.Success) {
+                                        val cover = scan.catalog.pages.take(8).firstNotNullOfOrNull { page ->
+                                            createCoverThumbnail(uri, page.name, item.id.value)
+                                        }
+                                        if (cover != null) {
+                                            libraryStore.upsert(
+                                                uri = uri,
+                                                title = item.title,
+                                                locationType = LibraryLocationType.DOCUMENT,
+                                                pageCount = scan.catalog.pages.size,
+                                                coverUri = cover,
+                                            )
+                                            Log.i(STARTUP_TAG, "archive-cover-restored title=${item.title}")
+                                        }
+                                    }
+                                }
+                                LibraryLocationType.TREE -> {
+                                    val inspection = inspectFolder(uri, item.id, item.title)
+                                    if (inspection.coverUri != null) {
+                                        libraryStore.upsert(
+                                            uri = uri,
+                                            title = item.title,
+                                            locationType = LibraryLocationType.TREE,
+                                            pageCount = inspection.pageCount,
+                                            coverUri = inspection.coverUri,
+                                        )
+                                        Log.i(STARTUP_TAG, "folder-cover-restored title=${item.title}")
+                                    }
+                                }
+                            }
+                        } catch (error: CancellationException) {
+                            throw error
+                        } catch (error: Exception) {
+                            Log.w(STARTUP_TAG, "book-cover-repair-failed title=${item.title}", error)
+                            if (error is SecurityException) {
+                                libraryStore.setAvailability(item.id, LibraryAvailability.PERMISSION_LOST)
+                            }
+                        }
+                    }
+                }
+                library = libraryStore.list()
+            }
+        }
+
         LaunchedEffect(Unit) {
             Log.i(STARTUP_TAG, "home-content-composed sections=Home,Folders")
         }
 
         var showAddSheet by remember { mutableStateOf(false) }
         var showSortSheet by remember { mutableStateOf(false) }
+        var showThemeStudio by remember { mutableStateOf(false) }
         var actionBook by remember { mutableStateOf<LibraryBook?>(null) }
         var pendingRelink by remember { mutableStateOf<LibraryBook?>(null) }
         var sortMode by remember { mutableStateOf(LibrarySort.RECENT) }
         var destination by remember { mutableStateOf(HomeDestination.HOME) }
+        var previousDestination by remember { mutableStateOf(HomeDestination.HOME) }
         var searchQuery by remember { mutableStateOf("") }
         var importError by remember { mutableStateOf<String?>(null) }
         val scope = rememberCoroutineScope()
 
-        val openBook = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
-            if (uri != null) {
-                scope.launch {
-                    when (val scan = withContext(Dispatchers.IO) { inspectArchive(uri) }) {
-                        is ArchiveScanResult.Success -> {
-                            val book = persistSelection(uri, "archive", scan.catalog.pages.size)
-                            val coverUri = withContext(Dispatchers.IO) {
-                                createCoverThumbnail(uri, scan.catalog.pages.first().name, book.id.value)
-                            }
-                            if (coverUri != null) {
-                                libraryStore.upsert(
-                                    uri = uri,
-                                    title = book.title,
-                                    locationType = LibraryLocationType.DOCUMENT,
-                                    pageCount = scan.catalog.pages.size,
-                                    coverUri = coverUri,
-                                )
-                            }
-                            library = libraryStore.list()
-                            importError = null
-                        }
-                        is ArchiveScanResult.Rejected -> {
-                            importError = "This file couldn’t be opened as a CBZ or ZIP book."
-                        }
+        var importingArchive by remember { mutableStateOf(false) }
+        var importingFolder by remember { mutableStateOf(false) }
+
+        suspend fun importAndOpenArchive(uri: Uri, fromExternalApp: Boolean = false) {
+            if (importingArchive) return
+            importingArchive = true
+            importError = null
+            try {
+                val originalTitle = runCatching { queryDisplayName(uri) }.getOrNull()
+                    ?: uri.lastPathSegment?.substringAfterLast('/')
+                val retained = retainExternalArchive(uri)
+                val storedUri = retained.uri
+                if (storedUri != uri) {
+                    // Upgrade older picked CBZ entries in place. Keep their
+                    // bookmark/progress ID while switching to the faster
+                    // random-access app-private archive.
+                    val oldEntry = libraryStore.list().firstOrNull { it.locationUri == uri.toString() }
+                    val alreadyRetained = libraryStore.list().any { it.locationUri == storedUri.toString() }
+                    if (oldEntry != null && !alreadyRetained) {
+                        libraryStore.relink(oldEntry.id, storedUri, title = originalTitle)
                     }
                 }
+                val book = importArchive(retained, originalTitle)
+                library = libraryStore.list()
+                Log.i(STARTUP_TAG, "archive-imported-and-opening title=${book.title}")
+                openReader(book)
+            } catch (error: Exception) {
+                if (error is CancellationException) throw error
+                Log.e(STARTUP_TAG, "archive-import-or-open-failed", error)
+                importError = when {
+                    error is SecurityException ->
+                        "Yomi can't access this file. Choose it again from your device's files."
+                    error.message == "cbz:no-image-pages" ->
+                        "This archive has no JPG, PNG, or WebP pages to read."
+                    error is IllegalArgumentException && error.message?.startsWith("cbz:") == true ->
+                        "This CBZ/ZIP couldn't be read. It may be damaged, encrypted, or too large."
+                    else -> "Couldn't open this CBZ/ZIP. Try another file or check that it isn't damaged."
+                }
+            } finally {
+                importingArchive = false
+            }
+        }
+
+        val openBook = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+            if (uri != null) {
+                scope.launch { importAndOpenArchive(uri) }
+            }
+        }
+
+        // ACTION_VIEW files from Android Files must use the same validation and reader
+        // launch as CBZ documents chosen through Yomi's own "Open a book" button.
+        val incoming = incomingArchiveUri.value
+        LaunchedEffect(incoming) {
+            if (incoming != null) {
+                importAndOpenArchive(incoming, fromExternalApp = true)
+                incomingArchiveUri.value = null
             }
         }
 
         val addFolder = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
             if (uri != null) {
                 scope.launch {
-                    val title = folderTitle(uri)
-                    val bookId = identityStore.getOrCreate(uri)
-                    runCatching {
-                        withContext(Dispatchers.IO) { inspectFolder(uri, bookId, title) }
-                    }.onSuccess { inspection ->
+                    if (importingFolder) return@launch
+                    importingFolder = true
+                    importError = null
+                    try {
+                        val title = folderTitle(uri)
+                        val bookId = identityStore.getOrCreate(uri)
+                        val inspection = withContext(Dispatchers.IO) {
+                            inspectFolder(uri, bookId, title)
+                        }
                         val book = persistSelection(uri, "folder", inspection.pageCount)
                         if (inspection.coverUri != null) {
                             libraryStore.upsert(
@@ -337,9 +671,17 @@ class MainActivity : ComponentActivity() {
                             )
                         }
                         library = libraryStore.list()
-                        importError = null
-                    }.onFailure {
-                        importError = "Choose a folder that contains supported images or chapter archives."
+                    } catch (error: CancellationException) {
+                        throw error
+                    } catch (error: Exception) {
+                        Log.e(STARTUP_TAG, "folder-import-failed uri=$uri", error)
+                        importError = if (error is SecurityException) {
+                            "Yomi lost access to that folder. Choose it again and allow file access."
+                        } else {
+                            "No readable images or chapter archives found in this folder."
+                        }
+                    } finally {
+                        importingFolder = false
                     }
                 }
             }
@@ -350,33 +692,32 @@ class MainActivity : ComponentActivity() {
             pendingRelink = null
             if (uri != null && item != null) {
                 scope.launch {
-                    when (val scan = withContext(Dispatchers.IO) { inspectArchive(uri) }) {
-                        is ArchiveScanResult.Success -> {
-                            runCatching {
-                                contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                            }
-                            val title = queryDisplayName(uri) ?: item.title
-                            val coverUri = withContext(Dispatchers.IO) {
-                                createCoverThumbnail(uri, scan.catalog.pages.first().name, item.id.value)
-                            }
-                            runCatching {
-                                libraryStore.relink(
-                                    id = item.id,
-                                    uri = uri,
-                                    title = title,
-                                    pageCount = scan.catalog.pages.size,
-                                    coverUri = coverUri,
-                                )
-                            }.onSuccess {
-                                library = libraryStore.list()
-                                importError = null
-                            }.onFailure {
-                                importError = "Yomi couldn’t reconnect this book. Try choosing it again."
+                    try {
+                        val title = runCatching { queryDisplayName(uri) }.getOrNull() ?: item.title
+                        // Repair must use the same durable, indexed archive
+                        // path as first import. Keeping the original content://
+                        // here previously lost the speed and lifetime guarantees.
+                        val retained = retainExternalArchive(uri)
+                        val storedUri = retained.uri
+                        val coverUri = withContext(Dispatchers.IO) {
+                            retained.catalog.pages.take(8).firstNotNullOfOrNull { page ->
+                                createCoverThumbnail(storedUri, page.name, item.id.value)
                             }
                         }
-                        is ArchiveScanResult.Rejected -> {
-                            importError = "Choose the CBZ or ZIP file for this book."
-                        }
+                        libraryStore.relink(
+                            id = item.id,
+                            uri = storedUri,
+                            title = title,
+                            pageCount = retained.catalog.pages.size,
+                            coverUri = coverUri,
+                        )
+                        library = libraryStore.list()
+                        importError = null
+                    } catch (error: CancellationException) {
+                        throw error
+                    } catch (error: Exception) {
+                        Log.e(STARTUP_TAG, "archive-relink-failed title=${item.title}", error)
+                        importError = "Yomi couldn’t reconnect this book. Try choosing it again."
                     }
                 }
             }
@@ -441,6 +782,15 @@ class MainActivity : ComponentActivity() {
         val currentBook = recent.firstOrNull { it.progress < 1.0 }
         val visibleLibrary = sortedLibrary.filter { it.title.contains(searchQuery.trim(), ignoreCase = true) }
 
+        LaunchedEffect(destination) {
+            Log.i(STARTUP_TAG, "home-destination=${destination.name}")
+        }
+
+        BackHandler(enabled = destination == HomeDestination.SEARCH) {
+            destination = previousDestination
+            searchQuery = ""
+        }
+
         val openOrRecover: (LibraryBook) -> Unit = { item ->
             if (item.availability == LibraryAvailability.AVAILABLE) {
                 openReader(item)
@@ -450,18 +800,35 @@ class MainActivity : ComponentActivity() {
         }
 
         Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-            Column(modifier = Modifier.fillMaxSize().safeDrawingPadding()) {
+            Column(modifier = Modifier.fillMaxSize().safeDrawingPadding().imePadding()) {
                 Header(
                     searchMode = destination == HomeDestination.SEARCH,
                     searchQuery = searchQuery,
                     onSearchQueryChange = { searchQuery = it },
-                    onSearch = { destination = HomeDestination.SEARCH },
+                    onSearch = {
+                        previousDestination = destination
+                        destination = HomeDestination.SEARCH
+                    },
                     onCloseSearch = {
-                        destination = HomeDestination.HOME
+                        destination = previousDestination
                         searchQuery = ""
                     },
                     onAdd = { showAddSheet = true },
+                    onTheme = { showThemeStudio = true },
                 )
+                if (importingArchive || importingFolder) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+                        Text(
+                            if (importingFolder) "Adding folder…" else "Opening CBZ/ZIP…",
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
 
                 when (destination) {
                     HomeDestination.HOME -> HomeContent(
@@ -497,6 +864,37 @@ class MainActivity : ComponentActivity() {
                     BottomNavigation(destination = destination, onChange = { destination = it })
                 }
             }
+        }
+
+        if (showThemeStudio) {
+            ThemeStudioSheet(
+                selectedId = appearanceId,
+                customHex = customAppearanceHex,
+                onSelectPreset = { id ->
+                    // A very fast process stop after selection must not lose
+                    // the preference: commit before reporting the choice.
+                    if (appearancePrefs.edit().putString("palette", id).commit()) {
+                        appearanceId = id
+                        Log.i(STARTUP_TAG, "appearance-selected palette=$id")
+                    } else {
+                        Toast.makeText(this@MainActivity, "Theme could not be saved", Toast.LENGTH_SHORT).show()
+                    }
+                },
+                onApplyCustomHex = { hex ->
+                    if (appearancePrefs.edit()
+                            .putString("hex", hex)
+                            .putString("palette", YomiAppearances.CUSTOM_ID)
+                            .commit()
+                    ) {
+                        customAppearanceHex = hex
+                        appearanceId = YomiAppearances.CUSTOM_ID
+                        Log.i(STARTUP_TAG, "appearance-selected palette=custom hex=$hex")
+                    } else {
+                        Toast.makeText(this@MainActivity, "Theme could not be saved", Toast.LENGTH_SHORT).show()
+                    }
+                },
+                onDismiss = { showThemeStudio = false },
+            )
         }
 
         if (showAddSheet) {
@@ -575,6 +973,24 @@ class MainActivity : ComponentActivity() {
                             progressStore.clear(item.id)
                             identityStore.forget(item.id)
                             item.coverUri?.let { Uri.parse(it).path }?.let { java.io.File(it).delete() }
+                            // The original user-owned book must remain untouched,
+                            // but removing a privately mirrored CBZ should reclaim
+                            // its potentially large app-storage copy. Restrict this
+                            // cleanup to our exact imported-books/<hash>/<file> tree.
+                            val removedUri = Uri.parse(item.locationUri)
+                            if (removedUri.scheme == "file") {
+                                val importedRoot = java.io.File(filesDir, "imported-books").canonicalFile
+                                val retainedFile = removedUri.path?.let { java.io.File(it).canonicalFile }
+                                if (retainedFile != null &&
+                                    retainedFile.parentFile?.parentFile == importedRoot &&
+                                    libraryStore.list().none { it.locationUri == item.locationUri }
+                                ) {
+                                    if (retainedFile.isFile) check(retainedFile.delete()) {
+                                        "Could not remove the private copy of this book"
+                                    }
+                                    retainedFile.parentFile?.delete()
+                                }
+                            }
                         }
                         library = libraryStore.list()
                         actionBook = null
@@ -615,12 +1031,13 @@ class MainActivity : ComponentActivity() {
             } else {
                 currentBook?.let { book -> item { ContinueReading(book, onOpen = { onOpen(book) }) } }
 
-                if (recent.isNotEmpty()) {
+                val uniqueRecent = recent.filterNot { it.id == currentBook?.id }
+                if (uniqueRecent.isNotEmpty()) {
                     item {
                         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                             SectionTitle("Recently opened")
                             LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                                items(recent.take(5), key = { "recent-${it.id.value}" }) { book ->
+                                items(uniqueRecent.take(5), key = { "recent-${it.id.value}" }) { book ->
                                     RecentBookCard(book, onOpen = { onOpen(book) })
                                 }
                             }
@@ -703,12 +1120,15 @@ class MainActivity : ComponentActivity() {
             contentPadding = PaddingValues(horizontal = 20.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
-            if (query.isBlank()) {
-                item { Text("Search books and folders in your library.", color = MaterialTheme.colorScheme.onSurfaceVariant) }
-            } else if (books.isEmpty()) {
-                item { EmptyMessage("No matches", "Try another title or folder name.") }
+            if (books.isEmpty()) {
+                item {
+                    if (query.isBlank()) EmptyMessage("No books yet", "Add a book from Home.")
+                    else EmptyMessage("No matches", "Try a different title or folder name.")
+                }
             } else {
-                item { SectionTitle("${books.size} result${if (books.size == 1) "" else "s"}") }
+                if (query.isNotBlank()) {
+                    item { SectionTitle("${books.size} result${if (books.size == 1) "" else "s"}") }
+                }
                 items(books, key = { "search-${it.id.value}" }) { book ->
                     LibraryListItem(book, onOpen = { onOpen(book) }, onManage = { onManage(book) })
                 }
@@ -747,25 +1167,45 @@ class MainActivity : ComponentActivity() {
         onSearch: () -> Unit,
         onCloseSearch: () -> Unit,
         onAdd: () -> Unit,
+        onTheme: () -> Unit,
     ) {
+        val focusRequester = remember { FocusRequester() }
+        val keyboardController = LocalSoftwareKeyboardController.current
+        LaunchedEffect(searchMode) {
+            if (searchMode) focusRequester.requestFocus()
+        }
         Row(
             modifier = Modifier.fillMaxWidth().padding(start = 18.dp, end = 8.dp, top = 8.dp, bottom = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             if (searchMode) {
-                TextField(
+                BasicTextField(
                     value = searchQuery,
                     onValueChange = onSearchQueryChange,
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier.weight(1f)
+                        .height(52.dp)
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(MaterialTheme.colorScheme.surfaceVariant)
+                        .focusRequester(focusRequester)
+                        .semantics { contentDescription = "Search books and folders" }
+                        .padding(horizontal = 16.dp, vertical = 14.dp),
                     singleLine = true,
-                    placeholder = { Text("Search books and folders") },
-                    shape = RoundedCornerShape(16.dp),
-                    colors = TextFieldDefaults.colors(
-                        focusedContainerColor = MaterialTheme.colorScheme.surface,
-                        unfocusedContainerColor = MaterialTheme.colorScheme.surface,
-                        focusedIndicatorColor = Color.Transparent,
-                        unfocusedIndicatorColor = Color.Transparent,
+                    textStyle = TextStyle(
+                        color = MaterialTheme.colorScheme.onSurface,
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Medium,
                     ),
+                    cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                    keyboardActions = KeyboardActions(onSearch = { keyboardController?.hide() }),
+                    decorationBox = { innerTextField ->
+                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.CenterStart) {
+                            if (searchQuery.isEmpty()) {
+                                Text("Search books and folders", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                            innerTextField()
+                        }
+                    },
                 )
                 IconAction(R.drawable.ic_yomi_close, "Close search", onCloseSearch)
             } else {
@@ -776,6 +1216,7 @@ class MainActivity : ComponentActivity() {
                     fontWeight = FontWeight.Black,
                     letterSpacing = (-0.6).sp,
                 )
+                IconAction(R.drawable.ic_yomi_palette, "Theme studio", onTheme)
                 IconAction(R.drawable.ic_yomi_search, "Search library", onSearch)
                 IconAction(R.drawable.ic_yomi_add, "Add to library", onAdd)
             }
@@ -803,7 +1244,9 @@ class MainActivity : ComponentActivity() {
     @Composable
     private fun NavigationItem(label: String, icon: Int, active: Boolean, onClick: () -> Unit) {
         Row(
-            modifier = Modifier.clip(RoundedCornerShape(14.dp)).clickable(onClick = onClick)
+            modifier = Modifier.clip(RoundedCornerShape(14.dp))
+                .clickable(role = Role.Tab, onClick = onClick)
+                .semantics { selected = active }
                 .background(if (active) MaterialTheme.colorScheme.surfaceVariant else Color.Transparent)
                 .padding(horizontal = 18.dp, vertical = 8.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -825,7 +1268,12 @@ class MainActivity : ComponentActivity() {
                 modifier = Modifier.size(60.dp).background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(18.dp)),
                 contentAlignment = Alignment.Center,
             ) {
-                Text("Y", fontSize = 30.sp, fontWeight = FontWeight.Black, color = MaterialTheme.colorScheme.primary)
+                Icon(
+                    painter = painterResource(R.drawable.ic_yomi),
+                    contentDescription = null,
+                    modifier = Modifier.size(52.dp).clip(RoundedCornerShape(14.dp)),
+                    tint = Color.Unspecified,
+                )
             }
             Spacer(Modifier.height(2.dp))
             Text("Your library is empty", fontSize = 23.sp, fontWeight = FontWeight.Bold)
@@ -838,7 +1286,6 @@ class MainActivity : ComponentActivity() {
     private fun EmptyFolders(onAddFolder: () -> Unit) {
         Column(verticalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.padding(top = 12.dp)) {
             Text("No folders yet", fontSize = 19.sp, fontWeight = FontWeight.Bold)
-            Text("Add an image folder to read it in Yomi.", color = MaterialTheme.colorScheme.onSurfaceVariant)
             Button(onClick = onAddFolder) { Text("Add a folder") }
         }
     }
@@ -858,18 +1305,19 @@ class MainActivity : ComponentActivity() {
 
     @Composable
     private fun ContinueReading(item: LibraryBook, onOpen: () -> Unit) {
-        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
             SectionTitle("Continue reading")
             Row(
-                modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).clickable(onClick = onOpen)
-                    .background(MaterialTheme.colorScheme.surface).padding(14.dp),
+                modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).clickable(onClick = onOpen)
+                    .background(MaterialTheme.colorScheme.surface).padding(10.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                CoverPlaceholder(84.dp, 112.dp, item.title, item.coverUri)
-                Column(modifier = Modifier.weight(1f).padding(start = 14.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
-                    Text(item.title, fontWeight = FontWeight.Bold, fontSize = 17.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                    Text(resumePosition(item), color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp)
-                    Text(progressText(item), color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                // Keep this compact: the full-size cover is already in Library.
+                CoverPlaceholder(62.dp, 82.dp, item.title, item.coverUri)
+                Column(modifier = Modifier.weight(1f).padding(start = 12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(item.title, fontWeight = FontWeight.Bold, fontSize = 15.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                    Text(resumePosition(item), color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
+                    Text(progressText(item), color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold, fontSize = 12.sp)
                 }
             }
         }
@@ -978,10 +1426,13 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun resumePosition(item: LibraryBook): String {
-        val pageCount = item.pageCount ?: return "Resume where you left off"
-        if (pageCount <= 0) return "Resume where you left off"
-        val page = (item.progress * (pageCount - 1)).toInt().coerceIn(0, pageCount - 1) + 1
-        return "Resume at page $page of $pageCount"
+        // "progress" is a book-wide fraction, not an exact page number when
+        // different chapters have different lengths. Use the actual saved
+        // chapter page instead of presenting a misleading approximation.
+        val pageIndex = getSharedPreferences("yomi_reader_progress", MODE_PRIVATE)
+            .getInt("book.${item.id.value}.page", -1)
+            .takeIf { it >= 0 }
+        return continueReadingLocation(item.locationType, item.pageCount, pageIndex)
     }
 
     @Composable
@@ -1024,18 +1475,32 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-private fun YomiTheme(content: @Composable () -> Unit) {
-    MaterialTheme(
-        colorScheme = androidx.compose.material3.darkColorScheme(
-            primary = Color(0xFFD4E4FF),
-            onPrimary = Color(0xFF15223A),
-            background = Color(0xFF0A0D12),
-            onBackground = Color(0xFFE7ECF5),
-            surface = Color(0xFF111722),
-            onSurface = Color(0xFFE7ECF5),
-            surfaceVariant = Color(0xFF1A2230),
-            onSurfaceVariant = Color(0xFFAAB6C9),
-        ),
-        content = content,
-    )
+private fun YomiTheme(appearance: YomiAppearance, content: @Composable () -> Unit) {
+    // The default reproduces Yomi's existing Midnight palette. Alternative
+    // gallery options only change the Home/Library chrome, not manga pages.
+    val onPrimary = if (appearance.primary.luminance() > 0.5f) Color(0xFF15223A) else Color.White
+    val scheme = if (appearance.light) {
+        androidx.compose.material3.lightColorScheme(
+            primary = appearance.primary,
+            onPrimary = onPrimary,
+            background = appearance.background,
+            onBackground = appearance.foreground,
+            surface = appearance.surface,
+            onSurface = appearance.foreground,
+            surfaceVariant = appearance.surfaceVariant,
+            onSurfaceVariant = appearance.secondaryText,
+        )
+    } else {
+        androidx.compose.material3.darkColorScheme(
+            primary = appearance.primary,
+            onPrimary = onPrimary,
+            background = appearance.background,
+            onBackground = appearance.foreground,
+            surface = appearance.surface,
+            onSurface = appearance.foreground,
+            surfaceVariant = appearance.surfaceVariant,
+            onSurfaceVariant = appearance.secondaryText,
+        )
+    }
+    MaterialTheme(colorScheme = scheme, content = content)
 }
