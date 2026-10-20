@@ -174,6 +174,20 @@ class DownloadLibrary private constructor(private val context: Context) {
         record
     }
 
+    /**
+     * Warn only for a finished download we still own or can open.
+     * Never consult this normal-profile history from private browsing.
+     */
+    fun existingCompletedDuplicate(url: String, filename: String): LibraryDownload? =
+        DownloadDuplicatePolicy.findCompleted(url, filename, items) { row ->
+            if (row.localFile.isNotBlank()) {
+                runCatching { findLocalFile(row).isFile }.getOrDefault(false)
+            } else {
+                runCatching { manager.getUriForDownloadedFile(row.id) != null }
+                    .getOrDefault(false)
+            }
+        }
+
     /** Query the Android provider off the UI thread, then update observable state on main. */
     suspend fun refresh() {
         val systemRecords = items.filter { it.localFile.isBlank() }
