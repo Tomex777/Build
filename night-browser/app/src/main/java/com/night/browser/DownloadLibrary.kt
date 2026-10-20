@@ -356,6 +356,55 @@ class DownloadLibrary private constructor(private val context: Context) {
         }, "night-gecko-download").start()
     }
 
+    /**
+     * Private-tab downloads are explicitly exported with SAF. Their Gecko stream
+     * goes directly to the user-selected document, never to DownloadManager or
+     * the persistent Library download index. A cancelled picker closes the body.
+     * Agent 1 must pass BrowserTab.isPrivate to WebDownloadConsent.offer after A3.
+     */
+    fun exportPrivateGeckoResponse(
+        response: WebResponse, destination: Uri, onEvent: (String) -> Unit = {}
+    ) {
+        val body = response.body
+        if (body == null || response.statusCode !in 200..299) {
+            runCatching { body?.close() }
+            onEvent("The website did not provide a downloadable file.")
+            return
+        }
+        val length = response.headers.entries.firstOrNull {
+            it.key.equals("content-length", true)
+        }?.value?.toLongOrNull()?.takeIf { it > 0 } ?: -1L
+        Thread({
+            try {
+                var count = 0L
+                body.use { input ->
+                    val sink = context.contentResolver.openOutputStream(destination, "w")
+                        ?: throw IOException("Cannot write to the selected location.")
+                    sink.use { output ->
+                        val chunk = ByteArray(64 * 1024)
+                        while (true) {
+                            val n = input.read(chunk)
+                            if (n < 0) break
+                            output.write(chunk, 0, n)
+                            count += n
+                        }
+                    }
+                }
+                if (length > 0 && count != length) throw IOException("Incomplete transfer.")
+                mainThread.post { onEvent("Private file saved") }
+            } catch (error: Exception) {
+                runCatching { body.close() }
+                // ACTION_CREATE_DOCUMENT created this URI just for this transfer;
+                // remove the incomplete document when a provider permits deletion.
+                runCatching { context.contentResolver.delete(destination, null, null) }
+                mainThread.post {
+                    onEvent("Couldn't save private file: " +
+                        (error.message ?: "storage or connection error"))
+                }
+            }
+        }, "night-private-download").start()
+    }
+
     fun statusText(row: LibraryDownload): String = when (row.status) {
         DownloadManager.STATUS_SUCCESSFUL -> "Completed"
         DownloadManager.STATUS_PENDING -> "Waiting"
