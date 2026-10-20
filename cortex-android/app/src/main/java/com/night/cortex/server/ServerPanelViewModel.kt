@@ -269,6 +269,13 @@ class ServerPanelViewModel(application: Application) : AndroidViewModel(applicat
         viewModelScope.launch {
             busy("Power command sent.") {
                 withContext(Dispatchers.IO) { api().power(action) }
+                if (action == HostingPowerAction.RESTART) {
+                    _state.value = _state.value.copy(
+                        cloudCredentialsPendingRestart = false,
+                        cloudDashboard = null,
+                        cloudServiceIssue = null,
+                    )
+                }
                 val (snapshot, logs) = withContext(Dispatchers.IO) {
                     api().let { it.snapshot() to it.logs() }
                 }
@@ -647,6 +654,36 @@ class ServerPanelViewModel(application: Application) : AndroidViewModel(applicat
                         "Environment saved."
                     },
                 )
+            }
+        }
+    }
+
+    /**
+     * Cloud credentials are saved to Azure, not authenticated by the ENV API.
+     * Only clear a typed password after the Agent acknowledges persistence:
+     * failed network/permission writes must leave it available for retry.
+     */
+    fun saveCloudCredential(key: String, value: String, onSaved: () -> Unit) {
+        if (!_state.value.configured) return
+        if (key !in setOf("MSCC_MEGA_EMAIL", "MSCC_MEGA_PASSWORD") || value.isBlank()) return
+        viewModelScope.launch {
+            busy {
+                val environment = withContext(Dispatchers.IO) { api().setEnvironment(key, value) }
+                val entry = environment.entries.firstOrNull { it.key == key }
+                check(entry?.hasValue == true &&
+                    (key != "MSCC_MEGA_EMAIL" || entry.value == value.trim())) {
+                    "Azure did not confirm that this setting was saved."
+                }
+                _state.value = _state.value.copy(
+                    environment = environment,
+                    cloudCredentialsPendingRestart = true,
+                    cloudDashboard = null,
+                    cloudServiceIssue = null,
+                    cloudConnectionFailed = false,
+                    revealedEnvironment = _state.value.revealedEnvironment - key,
+                    message = "MEGA setting saved on Azure; NIGHT must be restarted before it can use the new credentials. This does not confirm MEGA sign-in.",
+                )
+                onSaved()
             }
         }
     }
