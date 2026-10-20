@@ -21,6 +21,9 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
+      - name: Install image inspector
+        working-directory: cards
+        run: npm ci
       - name: Validate rank candidate roster
         working-directory: cards
         run: node --test tests/eminence-roster.test.mjs
