@@ -1,6 +1,8 @@
 package com.night.browser.search
 
 import java.net.URI
+import java.net.URLDecoder
+import java.nio.charset.StandardCharsets
 import java.util.Locale
 
 /**
@@ -38,6 +40,27 @@ object UniversalSearchPolicy {
             "2fa|otp|verification.?code|session.?id|access.?token|refresh.?token)"
     )
 
+    // Page titles can be a URL (Gecko's fallback when no document title exists), or
+    // contain personal email addresses. Titles are SENT to the provider, so treating
+    // the URL field alone as sensitive would accidentally leak full URLs or tokens.
+    private val urlOrEmailInTitle = Regex(
+        """(?i)(?:\\b(?:https?://|www\\.)|\\b[a-z0-9.-]+\\.[a-z]{2,}/\\S*|[a-z0-9._%+-]+@[a-z0-9.-]+\\.[a-z]{2,})"""
+    )
+
+    // Sites sometimes double-percent-encode sensitive routes. Decode for the
+    // classification ONLY; the original URL is never included in a request.
+    private fun decodeForSafety(value: String): String {
+        var decoded = value
+        repeat(3) {
+            decoded = try {
+                URLDecoder.decode(decoded, StandardCharsets.UTF_8.name())
+            } catch (_: IllegalArgumentException) {
+                return decoded
+            }
+        }
+        return decoded
+    }
+
     /** Original URLs stay on device. Only safe hostname and title can be submitted. */
     fun safeHost(url: String): String? {
         val uri = try { URI(url.trim()) } catch (_: Exception) { return null }
@@ -56,21 +79,26 @@ object UniversalSearchPolicy {
     }
 
     fun isSensitive(source: SearchSource): Boolean {
-        if (source.title.isBlank() || source.title.length > 240) return true
+        val title = source.title.trim()
+        if (title.isBlank() || title.length > 240 || title.any { it.isISOControl() }) return true
         val uri = try { URI(source.url) } catch (_: Exception) { return true }
         // URL query parameters and fragments may carry private tokens; never index or share them.
         if (uri.rawQuery != null || uri.rawFragment != null || uri.rawUserInfo != null) return true
-        return sensitiveTerms.containsMatchIn(source.title) ||
+        val inspectedTitle = decodeForSafety(title)
+        val inspectedPath = decodeForSafety(uri.rawPath.orEmpty())
+        return urlOrEmailInTitle.containsMatchIn(inspectedTitle) ||
+            sensitiveTerms.containsMatchIn(inspectedTitle) ||
             sensitiveTerms.containsMatchIn(uri.host.orEmpty()) ||
-            sensitiveTerms.containsMatchIn(uri.path.orEmpty())
+            sensitiveTerms.containsMatchIn(inspectedPath)
     }
 
     /** Local candidate listing does not send any data to a model or network. */
     fun eligibleCandidates(raw: List<SearchSource>): List<SearchSource> {
         val usedUrls = HashSet<String>()
+        val usedIds = HashSet<String>()
         return raw.asSequence()
             .filter { safeHost(it.url) != null && !isSensitive(it) }
-            .filter { usedUrls.add(it.url) }
+            .filter { usedUrls.add(it.url) && usedIds.add(it.id) }
             .take(MAX_CANDIDATES).toList()
     }
 
