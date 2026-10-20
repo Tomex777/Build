@@ -1,0 +1,1037 @@
+{
+  "version": 1,
+  "id": "night-manhwa-foundation",
+  "created": "2026-10-21",
+  "status": "research-candidates-not-published",
+  "imagePolicy": "No generated art, no source substitution. Original source SHA-256, native dimensions, rights and crop must be pinned before rendering.",
+  "powerPolicy": "Only the same work and continuity can be compared; no NIGHT F-EX rank until source-located feats are checked.",
+  "families": [
+    "power",
+    "character",
+    "romance"
+  ],
+  "series": [
+    {
+      "id": "sss-revival",
+      "name": "SSS-Class Revival Hunter",
+      "medium": "manhwa",
+      "source": "https://tapas.io/series/sss-class-revival-hunter/info",
+      "continuity": "webcomic",
+      "mode": "combat-and-story",
+      "publisher": "Tapas / Fansia",
+      "rights": "© Bill K, Neida, Sinnoa / Fansia. All rights reserved."
+    },
+    {
+      "id": "infinite-mage",
+      "name": "The Infinite Mage",
+      "medium": "manhwa",
+      "source": "https://tapas.io/series/the-infinite-mage/info",
+      "continuity": "webcomic",
+      "mode": "combat-and-story",
+      "publisher": "Tapas / REDICE STUDIO",
+      "rights": "© Themis, kiraz (REDICE STUDIO), kim chi woo, Aditi / REDICE STUDIO. All rights reserved."
+    },
+    {
+      "id": "study-group",
+      "name": "Study Group",
+      "medium": "manhwa",
+      "source": "https://www.webtoons.com/en/action/study-group/list?title_no=3595",
+      "continuity": "webcomic",
+      "mode": "character-story-only",
+      "publisher": "WEBTOON / YLAB",
+      "rights": "© Hyungwuk Shin, Seungyeon Ryu / YLAB. All rights reserved."
+    }
+  ],
+  "editions": [
+    {
+      "id": "gong-ja-regressor",
+      "series": "sss-revival",
+      "family": "power",
+      "title": "Kim Gong-ja",
+      "form": "Returner / Tower",
+      "subjects": [
+        "Kim Gong-ja"
+      ],
+      "story": {
+        "descriptor": "Regresses after death; exact webcomic-era form must match artwork.",
+        "role": "Regression is not raw offensive power.",
+        "spoiler": false,
+        "source": "https://tapas.io/series/sss-class-revival-hunter/info"
+      },
+      "power": {
+        "status": "pending-feat-review",
+        "tier": null,
+        "scope": "in-universe-only",
+        "continuity": "webcomic",
+        "reference": "https://tapas.io/series/sss-class-revival-hunter/info"
+      },
+      "artwork": {
+        "status": "awaiting-verified-cutout",
+        "subjectSlots": [
+          "Kim Gong-ja"
+        ],
+        "sourcePage": "https://tapas.io/series/sss-class-revival-hunter/info",
+        "provenance": null,
+        "usage": "reference-only",
+        "licensedForDistribution": false
+      },
+      "design": {
+        "family": "NIGHT",
+        "finish": "nocturne",
+        "breakoutRequired": true,
+        "renderSize": [
+          3000,
+          4800
+        ],
+        "phoneProof": [
+          320,
+          512
+        ]
+      }
+    },
+    {
+      "id": "gong-ja-demonic-arts",
+      "series": "sss-revival",
+      "family": "power",
+      "title": "Kim Gong-ja",
+      "form": "Demonic Arts",
+      "subjects": [
+        "Kim Gong-ja"
+      ],
+      "story": {
+        "descriptor": "A later martial-arts development requiring separate era-accurate source imagery.",
+        "role": "Different form; no reused early Tower portrait.",
+        "spoiler": true,
+        "source": "https://tapas.io/series/sss-class-revival-hunter/info"
+      },
+      "power": {
+        "status": "pending-feat-review",
+        "tier": null,
+        "scope": "in-universe-only",
+        "continuity": "webcomic",
+        "reference": "https://tapas.io/series/sss-class-revival-hunter/info"
+      },
+      "artwork": {
+        "status": "awaiting-verified-cutout",
+        "subjectSlots": [
+          "Kim Gong-ja"
+        ],
+        "sourcePage": "https://tapas.io/series/sss-class-revival-hunter/info",
+        "provenance": null,
+        "usage": "reference-only",
+        "licensedForDistribution": false
+      },
+      "design": {
+        "family": "NIGHT",
+        "finish": "nocturne",
+        "breakoutRequired": true,
+        "renderSize": [
+          3000,
+          4800
+        ],
+        "phoneProof": [
+          320,
+          512
+        ]
+      }
+    },
+    {
+      "id": "heavenly-demon",
+      "series": "sss-revival",
+      "family": "power",
+      "title": "Heavenly Demon",
+      "form": "Martial Arts Master",
+      "subjects": [
+        "Seo Baek-hyang"
+      ],
+      "story": {
+        "descriptor": "Martial master encountered through the Tower story.",
+        "role": "Martial mastery; source-era feat audit required.",
+        "spoiler": true,
+        "source": "https://tapas.io/series/sss-class-revival-hunter/info"
+      },
+      "power": {
+        "status": "pending-feat-review",
+        "tier": null,
+        "scope": "in-universe-only",
+        "continuity": "webcomic",
+        "reference": "https://tapas.io/series/sss-class-revival-hunter/info"
+      },
+      "artwork": {
+        "status": "awaiting-verified-cutout",
+        "subjectSlots": [
+          "Seo Baek-hyang"
+        ],
+        "sourcePage": "https://tapas.io/series/sss-class-revival-hunter/info",
+        "provenance": null,
+        "usage": "reference-only",
+        "licensedForDistribution": false
+      },
+      "design": {
+        "family": "NIGHT",
+        "finish": "nocturne",
+        "breakoutRequired": true,
+        "renderSize": [
+          3000,
+          4800
+        ],
+        "phoneProof": [
+          320,
+          512
+        ]
+      }
+    },
+    {
+      "id": "sword-emperor",
+      "series": "sss-revival",
+      "family": "power",
+      "title": "Sword Emperor",
+      "form": "Mentor",
+      "subjects": [
+        "Sword Emperor"
+      ],
+      "story": {
+        "descriptor": "Sword-master mentor linked to Gong-ja's development.",
+        "role": "Spiritual and physical manifestation must not be conflated.",
+        "spoiler": false,
+        "source": "https://tapas.io/series/sss-class-revival-hunter/info"
+      },
+      "power": {
+        "status": "pending-feat-review",
+        "tier": null,
+        "scope": "in-universe-only",
+        "continuity": "webcomic",
+        "reference": "https://tapas.io/series/sss-class-revival-hunter/info"
+      },
+      "artwork": {
+        "status": "awaiting-verified-cutout",
+        "subjectSlots": [
+          "Sword Emperor"
+        ],
+        "sourcePage": "https://tapas.io/series/sss-class-revival-hunter/info",
+        "provenance": null,
+        "usage": "reference-only",
+        "licensedForDistribution": false
+      },
+      "design": {
+        "family": "NIGHT",
+        "finish": "nocturne",
+        "breakoutRequired": true,
+        "renderSize": [
+          3000,
+          4800
+        ],
+        "phoneProof": [
+          320,
+          512
+        ]
+      }
+    },
+    {
+      "id": "black-witch",
+      "series": "sss-revival",
+      "family": "power",
+      "title": "Black Witch",
+      "form": "Guild Leader",
+      "subjects": [
+        "Black Witch"
+      ],
+      "story": {
+        "descriptor": "Prominent Tower guild leader.",
+        "role": "Support and tactical influence differ from raw attack power.",
+        "spoiler": false,
+        "source": "https://tapas.io/series/sss-class-revival-hunter/info"
+      },
+      "power": {
+        "status": "pending-feat-review",
+        "tier": null,
+        "scope": "in-universe-only",
+        "continuity": "webcomic",
+        "reference": "https://tapas.io/series/sss-class-revival-hunter/info"
+      },
+      "artwork": {
+        "status": "awaiting-verified-cutout",
+        "subjectSlots": [
+          "Black Witch"
+        ],
+        "sourcePage": "https://tapas.io/series/sss-class-revival-hunter/info",
+        "provenance": null,
+        "usage": "reference-only",
+        "licensedForDistribution": false
+      },
+      "design": {
+        "family": "NIGHT",
+        "finish": "nocturne",
+        "breakoutRequired": true,
+        "renderSize": [
+          3000,
+          4800
+        ],
+        "phoneProof": [
+          320,
+          512
+        ]
+      }
+    },
+    {
+      "id": "yoo-soo-ha",
+      "series": "sss-revival",
+      "family": "power",
+      "title": "Yoo Soo-ha",
+      "form": "Flame Emperor",
+      "subjects": [
+        "Yoo Soo-ha"
+      ],
+      "story": {
+        "descriptor": "Early Tower rank-one hunter.",
+        "role": "In-universe Tower leaderboard is not NIGHT tier.",
+        "spoiler": false,
+        "source": "https://tapas.io/series/sss-class-revival-hunter/info"
+      },
+      "power": {
+        "status": "pending-feat-review",
+        "tier": null,
+        "scope": "in-universe-only",
+        "continuity": "webcomic",
+        "reference": "https://tapas.io/series/sss-class-revival-hunter/info"
+      },
+      "artwork": {
+        "status": "awaiting-verified-cutout",
+        "subjectSlots": [
+          "Yoo Soo-ha"
+        ],
+        "sourcePage": "https://tapas.io/series/sss-class-revival-hunter/info",
+        "provenance": null,
+        "usage": "reference-only",
+        "licensedForDistribution": false
+      },
+      "design": {
+        "family": "NIGHT",
+        "finish": "nocturne",
+        "breakoutRequired": true,
+        "renderSize": [
+          3000,
+          4800
+        ],
+        "phoneProof": [
+          320,
+          512
+        ]
+      }
+    },
+    {
+      "id": "raviel-ivansia",
+      "series": "sss-revival",
+      "family": "character",
+      "title": "Raviel Ivansia",
+      "form": "The Lady of Silver Lily",
+      "subjects": [
+        "Raviel Ivansia"
+      ],
+      "story": {
+        "descriptor": "A defining figure in the romance narrative.",
+        "role": "Character spotlight, not an arbitrary combat grade.",
+        "spoiler": true,
+        "source": "https://tapas.io/series/sss-class-revival-hunter/info"
+      },
+      "artwork": {
+        "status": "awaiting-verified-cutout",
+        "subjectSlots": [
+          "Raviel Ivansia"
+        ],
+        "sourcePage": "https://tapas.io/series/sss-class-revival-hunter/info",
+        "provenance": null,
+        "usage": "reference-only",
+        "licensedForDistribution": false
+      },
+      "design": {
+        "family": "NIGHT",
+        "finish": "ivory",
+        "breakoutRequired": true,
+        "renderSize": [
+          3000,
+          4800
+        ],
+        "phoneProof": [
+          320,
+          512
+        ]
+      }
+    },
+    {
+      "id": "gong-ja-raviel",
+      "series": "sss-revival",
+      "family": "romance",
+      "title": "Gong-ja × Raviel",
+      "form": "Bound by Returns",
+      "subjects": [
+        "Kim Gong-ja",
+        "Raviel Ivansia"
+      ],
+      "story": {
+        "descriptor": "A relationship-centered two-character edition.",
+        "role": "Romance / devotion / shared memory, never a power ranking.",
+        "spoiler": true,
+        "source": "https://tapas.io/series/sss-class-revival-hunter/info"
+      },
+      "bond": {
+        "grade": null,
+        "focus": "Romance / devotion / shared memory, never a power ranking.",
+        "continuity": "webcomic",
+        "relationshipStatus": "story-spoiler"
+      },
+      "artwork": {
+        "status": "awaiting-verified-cutout",
+        "subjectSlots": [
+          "Kim Gong-ja",
+          "Raviel Ivansia"
+        ],
+        "sourcePage": "https://tapas.io/series/sss-class-revival-hunter/info",
+        "provenance": null,
+        "usage": "reference-only",
+        "licensedForDistribution": false
+      },
+      "design": {
+        "family": "NIGHT",
+        "finish": "tidelight",
+        "breakoutRequired": true,
+        "renderSize": [
+          3000,
+          4800
+        ],
+        "phoneProof": [
+          320,
+          512
+        ]
+      }
+    },
+    {
+      "id": "sirone-academy",
+      "series": "infinite-mage",
+      "family": "power",
+      "title": "Sirone Arian",
+      "form": "Magic Academy",
+      "subjects": [
+        "Sirone Arian"
+      ],
+      "story": {
+        "descriptor": "Young mage learning the Spirit Zone.",
+        "role": "School-era magic; do not use eventual novel feats.",
+        "spoiler": false,
+        "source": "https://tapas.io/series/the-infinite-mage/info"
+      },
+      "power": {
+        "status": "pending-feat-review",
+        "tier": null,
+        "scope": "in-universe-only",
+        "continuity": "webcomic",
+        "reference": "https://tapas.io/series/the-infinite-mage/info"
+      },
+      "artwork": {
+        "status": "awaiting-verified-cutout",
+        "subjectSlots": [
+          "Sirone Arian"
+        ],
+        "sourcePage": "https://tapas.io/series/the-infinite-mage/info",
+        "provenance": null,
+        "usage": "reference-only",
+        "licensedForDistribution": false
+      },
+      "design": {
+        "family": "NIGHT",
+        "finish": "nocturne",
+        "breakoutRequired": true,
+        "renderSize": [
+          3000,
+          4800
+        ],
+        "phoneProof": [
+          320,
+          512
+        ]
+      }
+    },
+    {
+      "id": "sirone-photon",
+      "series": "infinite-mage",
+      "family": "power",
+      "title": "Sirone Arian",
+      "form": "Light Magic",
+      "subjects": [
+        "Sirone Arian"
+      ],
+      "story": {
+        "descriptor": "Distinct later magic expression and artwork needed.",
+        "role": "Only demonstrable webcomic powers considered.",
+        "spoiler": true,
+        "source": "https://tapas.io/series/the-infinite-mage/info"
+      },
+      "power": {
+        "status": "pending-feat-review",
+        "tier": null,
+        "scope": "in-universe-only",
+        "continuity": "webcomic",
+        "reference": "https://tapas.io/series/the-infinite-mage/info"
+      },
+      "artwork": {
+        "status": "awaiting-verified-cutout",
+        "subjectSlots": [
+          "Sirone Arian"
+        ],
+        "sourcePage": "https://tapas.io/series/the-infinite-mage/info",
+        "provenance": null,
+        "usage": "reference-only",
+        "licensedForDistribution": false
+      },
+      "design": {
+        "family": "NIGHT",
+        "finish": "nocturne",
+        "breakoutRequired": true,
+        "renderSize": [
+          3000,
+          4800
+        ],
+        "phoneProof": [
+          320,
+          512
+        ]
+      }
+    },
+    {
+      "id": "amy-karmis",
+      "series": "infinite-mage",
+      "family": "power",
+      "title": "Amy Karmis",
+      "form": "Fire Mage",
+      "subjects": [
+        "Amy Karmis"
+      ],
+      "story": {
+        "descriptor": "Academy fire-magic combatant.",
+        "role": "Exact school-era form; grade awaits feat review.",
+        "spoiler": false,
+        "source": "https://tapas.io/series/the-infinite-mage/info"
+      },
+      "power": {
+        "status": "pending-feat-review",
+        "tier": null,
+        "scope": "in-universe-only",
+        "continuity": "webcomic",
+        "reference": "https://tapas.io/series/the-infinite-mage/info"
+      },
+      "artwork": {
+        "status": "awaiting-verified-cutout",
+        "subjectSlots": [
+          "Amy Karmis"
+        ],
+        "sourcePage": "https://tapas.io/series/the-infinite-mage/info",
+        "provenance": null,
+        "usage": "reference-only",
+        "licensedForDistribution": false
+      },
+      "design": {
+        "family": "NIGHT",
+        "finish": "nocturne",
+        "breakoutRequired": true,
+        "renderSize": [
+          3000,
+          4800
+        ],
+        "phoneProof": [
+          320,
+          512
+        ]
+      }
+    },
+    {
+      "id": "alpheas-mirhy",
+      "series": "infinite-mage",
+      "family": "power",
+      "title": "Alpheas Mirhy",
+      "form": "Academy Head",
+      "subjects": [
+        "Alpheas Mirhy"
+      ],
+      "story": {
+        "descriptor": "Head of Alpheas School of Magic.",
+        "role": "Authority is not automatically superior combat potency.",
+        "spoiler": false,
+        "source": "https://tapas.io/series/the-infinite-mage/info"
+      },
+      "power": {
+        "status": "pending-feat-review",
+        "tier": null,
+        "scope": "in-universe-only",
+        "continuity": "webcomic",
+        "reference": "https://tapas.io/series/the-infinite-mage/info"
+      },
+      "artwork": {
+        "status": "awaiting-verified-cutout",
+        "subjectSlots": [
+          "Alpheas Mirhy"
+        ],
+        "sourcePage": "https://tapas.io/series/the-infinite-mage/info",
+        "provenance": null,
+        "usage": "reference-only",
+        "licensedForDistribution": false
+      },
+      "design": {
+        "family": "NIGHT",
+        "finish": "nocturne",
+        "breakoutRequired": true,
+        "renderSize": [
+          3000,
+          4800
+        ],
+        "phoneProof": [
+          320,
+          512
+        ]
+      }
+    },
+    {
+      "id": "ethella-romie",
+      "series": "infinite-mage",
+      "family": "power",
+      "title": "Ethella Romie",
+      "form": "Mage Instructor",
+      "subjects": [
+        "Ethella Romie"
+      ],
+      "story": {
+        "descriptor": "Experienced magical instructor.",
+        "role": "Match source version and observed spells.",
+        "spoiler": false,
+        "source": "https://tapas.io/series/the-infinite-mage/info"
+      },
+      "power": {
+        "status": "pending-feat-review",
+        "tier": null,
+        "scope": "in-universe-only",
+        "continuity": "webcomic",
+        "reference": "https://tapas.io/series/the-infinite-mage/info"
+      },
+      "artwork": {
+        "status": "awaiting-verified-cutout",
+        "subjectSlots": [
+          "Ethella Romie"
+        ],
+        "sourcePage": "https://tapas.io/series/the-infinite-mage/info",
+        "provenance": null,
+        "usage": "reference-only",
+        "licensedForDistribution": false
+      },
+      "design": {
+        "family": "NIGHT",
+        "finish": "nocturne",
+        "breakoutRequired": true,
+        "renderSize": [
+          3000,
+          4800
+        ],
+        "phoneProof": [
+          320,
+          512
+        ]
+      }
+    },
+    {
+      "id": "rian-ogent",
+      "series": "infinite-mage",
+      "family": "character",
+      "title": "Rian Ogent",
+      "form": "Swordsman",
+      "subjects": [
+        "Rian Ogent"
+      ],
+      "story": {
+        "descriptor": "Sirone's loyal companion.",
+        "role": "Character importance does not equal a cross-genre tier.",
+        "spoiler": false,
+        "source": "https://tapas.io/series/the-infinite-mage/info"
+      },
+      "artwork": {
+        "status": "awaiting-verified-cutout",
+        "subjectSlots": [
+          "Rian Ogent"
+        ],
+        "sourcePage": "https://tapas.io/series/the-infinite-mage/info",
+        "provenance": null,
+        "usage": "reference-only",
+        "licensedForDistribution": false
+      },
+      "design": {
+        "family": "NIGHT",
+        "finish": "ivory",
+        "breakoutRequired": true,
+        "renderSize": [
+          3000,
+          4800
+        ],
+        "phoneProof": [
+          320,
+          512
+        ]
+      }
+    },
+    {
+      "id": "iruki-mercodain",
+      "series": "infinite-mage",
+      "family": "character",
+      "title": "Iruki Mercodain",
+      "form": "Classmate",
+      "subjects": [
+        "Iruki Mercodain"
+      ],
+      "story": {
+        "descriptor": "One of Sirone's peers.",
+        "role": "A story-led character spotlight.",
+        "spoiler": false,
+        "source": "https://tapas.io/series/the-infinite-mage/info"
+      },
+      "artwork": {
+        "status": "awaiting-verified-cutout",
+        "subjectSlots": [
+          "Iruki Mercodain"
+        ],
+        "sourcePage": "https://tapas.io/series/the-infinite-mage/info",
+        "provenance": null,
+        "usage": "reference-only",
+        "licensedForDistribution": false
+      },
+      "design": {
+        "family": "NIGHT",
+        "finish": "ivory",
+        "breakoutRequired": true,
+        "renderSize": [
+          3000,
+          4800
+        ],
+        "phoneProof": [
+          320,
+          512
+        ]
+      }
+    },
+    {
+      "id": "nade-west",
+      "series": "infinite-mage",
+      "family": "character",
+      "title": "Nade West",
+      "form": "Classmate",
+      "subjects": [
+        "Nade West"
+      ],
+      "story": {
+        "descriptor": "Member of Sirone's school circle.",
+        "role": "A story-led character spotlight.",
+        "spoiler": false,
+        "source": "https://tapas.io/series/the-infinite-mage/info"
+      },
+      "artwork": {
+        "status": "awaiting-verified-cutout",
+        "subjectSlots": [
+          "Nade West"
+        ],
+        "sourcePage": "https://tapas.io/series/the-infinite-mage/info",
+        "provenance": null,
+        "usage": "reference-only",
+        "licensedForDistribution": false
+      },
+      "design": {
+        "family": "NIGHT",
+        "finish": "ivory",
+        "breakoutRequired": true,
+        "renderSize": [
+          3000,
+          4800
+        ],
+        "phoneProof": [
+          320,
+          512
+        ]
+      }
+    },
+    {
+      "id": "sirone-amy",
+      "series": "infinite-mage",
+      "family": "romance",
+      "title": "Sirone × Amy",
+      "form": "A Growing Bond",
+      "subjects": [
+        "Sirone Arian",
+        "Amy Karmis"
+      ],
+      "story": {
+        "descriptor": "Their relationship has important developments across versions.",
+        "role": "Romance storytelling; use only art matching the depicted continuity.",
+        "spoiler": true,
+        "source": "https://tapas.io/series/the-infinite-mage/info"
+      },
+      "bond": {
+        "grade": null,
+        "focus": "Romance storytelling; use only art matching the depicted continuity.",
+        "continuity": "webcomic",
+        "relationshipStatus": "story-spoiler"
+      },
+      "artwork": {
+        "status": "awaiting-verified-cutout",
+        "subjectSlots": [
+          "Sirone Arian",
+          "Amy Karmis"
+        ],
+        "sourcePage": "https://tapas.io/series/the-infinite-mage/info",
+        "provenance": null,
+        "usage": "reference-only",
+        "licensedForDistribution": false
+      },
+      "design": {
+        "family": "NIGHT",
+        "finish": "tidelight",
+        "breakoutRequired": true,
+        "renderSize": [
+          3000,
+          4800
+        ],
+        "phoneProof": [
+          320,
+          512
+        ]
+      }
+    },
+    {
+      "id": "gamin-yoon",
+      "series": "study-group",
+      "family": "character",
+      "title": "Gamin Yoon",
+      "form": "Study Group Founder",
+      "subjects": [
+        "Gamin Yoon"
+      ],
+      "story": {
+        "descriptor": "A gifted fighter determined to succeed academically.",
+        "role": "Determination / protectiveness / school story.",
+        "spoiler": false,
+        "source": "https://www.webtoons.com/en/action/study-group/list?title_no=3595"
+      },
+      "artwork": {
+        "status": "awaiting-verified-cutout",
+        "subjectSlots": [
+          "Gamin Yoon"
+        ],
+        "sourcePage": "https://www.webtoons.com/en/action/study-group/list?title_no=3595",
+        "provenance": null,
+        "usage": "reference-only",
+        "licensedForDistribution": false
+      },
+      "design": {
+        "family": "NIGHT",
+        "finish": "ivory",
+        "breakoutRequired": true,
+        "renderSize": [
+          3000,
+          4800
+        ],
+        "phoneProof": [
+          320,
+          512
+        ]
+      }
+    },
+    {
+      "id": "hankyeong-lee",
+      "series": "study-group",
+      "family": "character",
+      "title": "Hankyeong Lee",
+      "form": "Tutor & Teacher",
+      "subjects": [
+        "Hankyeong Lee"
+      ],
+      "story": {
+        "descriptor": "Gamin's former tutor and teacher.",
+        "role": "Mentorship, not a combat tier.",
+        "spoiler": false,
+        "source": "https://www.webtoons.com/en/action/study-group/list?title_no=3595"
+      },
+      "artwork": {
+        "status": "awaiting-verified-cutout",
+        "subjectSlots": [
+          "Hankyeong Lee"
+        ],
+        "sourcePage": "https://www.webtoons.com/en/action/study-group/list?title_no=3595",
+        "provenance": null,
+        "usage": "reference-only",
+        "licensedForDistribution": false
+      },
+      "design": {
+        "family": "NIGHT",
+        "finish": "ivory",
+        "breakoutRequired": true,
+        "renderSize": [
+          3000,
+          4800
+        ],
+        "phoneProof": [
+          320,
+          512
+        ]
+      }
+    },
+    {
+      "id": "sehyun-kim",
+      "series": "study-group",
+      "family": "character",
+      "title": "Sehyun Kim",
+      "form": "First Recruit",
+      "subjects": [
+        "Sehyun Kim"
+      ],
+      "story": {
+        "descriptor": "Early member of the Study Group.",
+        "role": "Growth / friendship / studies.",
+        "spoiler": false,
+        "source": "https://www.webtoons.com/en/action/study-group/list?title_no=3595"
+      },
+      "artwork": {
+        "status": "awaiting-verified-cutout",
+        "subjectSlots": [
+          "Sehyun Kim"
+        ],
+        "sourcePage": "https://www.webtoons.com/en/action/study-group/list?title_no=3595",
+        "provenance": null,
+        "usage": "reference-only",
+        "licensedForDistribution": false
+      },
+      "design": {
+        "family": "NIGHT",
+        "finish": "ivory",
+        "breakoutRequired": true,
+        "renderSize": [
+          3000,
+          4800
+        ],
+        "phoneProof": [
+          320,
+          512
+        ]
+      }
+    },
+    {
+      "id": "jiwoo-lee",
+      "series": "study-group",
+      "family": "character",
+      "title": "Jiwoo Lee",
+      "form": "Study Group Member",
+      "subjects": [
+        "Jiwoo Lee"
+      ],
+      "story": {
+        "descriptor": "Core study group member.",
+        "role": "Friendship / school-life, no invented ranking.",
+        "spoiler": false,
+        "source": "https://www.webtoons.com/en/action/study-group/list?title_no=3595"
+      },
+      "artwork": {
+        "status": "awaiting-verified-cutout",
+        "subjectSlots": [
+          "Jiwoo Lee"
+        ],
+        "sourcePage": "https://www.webtoons.com/en/action/study-group/list?title_no=3595",
+        "provenance": null,
+        "usage": "reference-only",
+        "licensedForDistribution": false
+      },
+      "design": {
+        "family": "NIGHT",
+        "finish": "ivory",
+        "breakoutRequired": true,
+        "renderSize": [
+          3000,
+          4800
+        ],
+        "phoneProof": [
+          320,
+          512
+        ]
+      }
+    },
+    {
+      "id": "heewon-choi",
+      "series": "study-group",
+      "family": "character",
+      "title": "Heewon Choi",
+      "form": "Study Group Member",
+      "subjects": [
+        "Heewon Choi"
+      ],
+      "story": {
+        "descriptor": "Core study group member.",
+        "role": "Solidarity / academic ambition.",
+        "spoiler": false,
+        "source": "https://www.webtoons.com/en/action/study-group/list?title_no=3595"
+      },
+      "artwork": {
+        "status": "awaiting-verified-cutout",
+        "subjectSlots": [
+          "Heewon Choi"
+        ],
+        "sourcePage": "https://www.webtoons.com/en/action/study-group/list?title_no=3595",
+        "provenance": null,
+        "usage": "reference-only",
+        "licensedForDistribution": false
+      },
+      "design": {
+        "family": "NIGHT",
+        "finish": "ivory",
+        "breakoutRequired": true,
+        "renderSize": [
+          3000,
+          4800
+        ],
+        "phoneProof": [
+          320,
+          512
+        ]
+      }
+    },
+    {
+      "id": "hanwool-phi",
+      "series": "study-group",
+      "family": "character",
+      "title": "Hanwool Phi",
+      "form": "Yusung Antagonist",
+      "subjects": [
+        "Hanwool Phi"
+      ],
+      "story": {
+        "descriptor": "A school power-broker and opponent.",
+        "role": "Narrative rivalry, not a supernatural scale.",
+        "spoiler": false,
+        "source": "https://www.webtoons.com/en/action/study-group/list?title_no=3595"
+      },
+      "artwork": {
+        "status": "awaiting-verified-cutout",
+        "subjectSlots": [
+          "Hanwool Phi"
+        ],
+        "sourcePage": "https://www.webtoons.com/en/action/study-group/list?title_no=3595",
+        "provenance": null,
+        "usage": "reference-only",
+        "licensedForDistribution": false
+      },
+      "design": {
+        "family": "NIGHT",
+        "finish": "ivory",
+        "breakoutRequired": true,
+        "renderSize": [
+          3000,
+          4800
+        ],
+        "phoneProof": [
+          320,
+          512
+        ]
+      }
+    }
+  ]
+}
