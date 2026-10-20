@@ -120,6 +120,17 @@ if [ "$TEST_SUITE" != editor ] && [ "$TEST_SUITE" != humanoid ] && [ "$TEST_SUIT
     cp "$PROOF_DIR/mechanical-${stage}.png" "artist-scene-studio-${API_TAG}-mechanical-${stage}.png" || fail "Mechanical $stage screenshot was missing"
     python3 scripts/check-viewport-pixels.py "artist-scene-studio-${API_TAG}-mechanical-${stage}.png" || fail "Mechanical $stage viewport was black"
   done
+  if [ "$TEST_SUITE" != tree ]; then
+    # A non-black renderer is insufficient: verify the actor really moved
+    # between *two unmodified Android screenshots* in the main 3D canvas.
+    python3 scripts/verify-acceptance-frames.py \
+      --case "$TEST_SUITE-part-transform-api$API_LEVEL" \
+      --before "$PROOF_DIR/mechanical-$TEST_SUITE-before.png" \
+      --after "$PROOF_DIR/mechanical-$TEST_SUITE-after.png" \
+      --minimum-pct 0.10 \
+      --json "$PROOF_DIR/qa-$TEST_SUITE-visible-change.json" \
+      || fail "Mechanical $TEST_SUITE before/after screenshots show no meaningful viewport change"
+  fi
   echo "Fresh API $API_LEVEL mechanical actors passed with all screenshot proof"
   exit 0
 fi
@@ -134,6 +145,13 @@ if [ "$TEST_SUITE" = anime ]; then
     cp "$PROOF_DIR/anime-${stage}.png" "artist-scene-studio-${API_TAG}-anime-${stage}.png" || fail "Anime $stage screenshot was missing"
     python3 scripts/check-viewport-pixels.py "artist-scene-studio-${API_TAG}-anime-${stage}.png" || fail "Anime $stage viewport was black"
   done
+  python3 scripts/verify-acceptance-frames.py \
+    --case "anime-pose-api$API_LEVEL" \
+    --before "$PROOF_DIR/anime-neutral.png" \
+    --after "$PROOF_DIR/anime-posed.png" \
+    --minimum-pct 0.10 \
+    --json "$PROOF_DIR/qa-anime-visible-pose.json" \
+    || fail "Anime neutral/posed screenshots do not show a visible scene change"
   echo "Fresh API $API_LEVEL anime rig pose and neutral deformation proved with screenshots"
   exit 0
 fi
@@ -147,6 +165,13 @@ for stage in before hair-short hair-afro hair-bob appearance posed; do
   cp "$PROOF_DIR/humanoid-${stage}.png" "artist-scene-studio-${API_TAG}-humanoid-${stage}.png" || fail "Humanoid $stage screenshot was missing"
   python3 scripts/check-viewport-pixels.py "artist-scene-studio-${API_TAG}-humanoid-${stage}.png" || fail "Humanoid $stage viewport was black"
 done
+python3 scripts/verify-acceptance-frames.py \
+  --case "humanoid-pose-and-appearance-api$API_LEVEL" \
+  --before "$PROOF_DIR/humanoid-before.png" \
+  --after "$PROOF_DIR/humanoid-posed.png" \
+  --minimum-pct 0.10 \
+  --json "$PROOF_DIR/qa-humanoid-visible-change.json" \
+  || fail "Humanoid before/posed screenshots do not show a visible character change"
 fi
 
 echo "Fresh API $API_LEVEL instrumentation passed with all screenshot proof"
