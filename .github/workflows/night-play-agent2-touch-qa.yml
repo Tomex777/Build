@@ -1,0 +1,34 @@
+name: NIGHT Play Agent 2 Three-Minute Touch QA
+
+on:
+  pull_request:
+    paths:
+      - 'night-play/action/**'
+      - '.github/workflows/night-play-agent2-touch-qa.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  fruit-touch-endurance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install Chromium test helper
+        run: npm install --no-save playwright@1.56.1
+      - name: Play Fruit Slice for three real minutes on four phone widths
+        run: node night-play/action/agent2-touch-endurance.mjs
+      - name: Upload long-session gameplay screenshots and evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: night-play-agent2-real-touch-endurance
+          path: |
+            night-play/visual-output/action-agent2-endurance-*.jpg
+            night-play/visual-output/action-agent2-endurance-results.json
+          retention-days: 14
