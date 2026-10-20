@@ -185,7 +185,10 @@ class MainActivity : ComponentActivity() {
             val selected = hymns.firstOrNull { it.key == selectedKey }
             LaunchedEffect(selectedKey, englishMode) {
                 val active = audioPlayer.activeKey
-                val language = if (englishMode && selected?.hasEnglish == true) "en" else "yo"
+                val language = if (
+                    selected?.hasEnglish == true &&
+                    (englishMode || !selected.hasYoruba)
+                ) "en" else "yo"
                 if (active != null && (
                         selectedKey == null || active.hymnKey != selectedKey ||
                         active.language != language
