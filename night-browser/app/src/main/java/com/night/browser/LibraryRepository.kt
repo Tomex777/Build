@@ -32,8 +32,11 @@ data class HistoryVisit(
 )
 
 internal object LibraryRules {
-    fun validWebUrl(url: String): Boolean = url.startsWith("https://", true) ||
-        url.startsWith("http://", true)
+    fun validWebUrl(url: String): Boolean = runCatching {
+        val parsed = java.net.URI(url)
+        (parsed.scheme.equals("https", true) || parsed.scheme.equals("http", true)) &&
+            !parsed.host.isNullOrBlank() && parsed.userInfo == null
+    }.getOrDefault(false)
     fun cleanTitle(title: String, url: String): String =
         title.trim().take(180).ifBlank { url.take(180) }
     fun cleanFolder(name: String): String = name.trim().replace("/", " / ").take(50)
@@ -58,7 +61,7 @@ class LibraryRepository(context: Context, private val journeys: JourneyStore) {
             val legacy = journeys.bookmarks.filter {
                 it.url !in overridden && it.url !in hiddenLegacy
             }.map {
-                LibraryBookmark("legacy:" + it.url, it.url, it.title)
+                LibraryBookmark("legacy:" + it.url, it.url, it.title, savedAt = 0L)
             }
             return (editedBookmarks + legacy).sortedByDescending { it.savedAt }
         }
