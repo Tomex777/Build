@@ -131,11 +131,19 @@ class Acceptance:
     def count_tabs(self):
         """Compose shows a heading 'Tabs' and a separate numeric tab count."""
         self.wait_for("New tab")
-        for node in self.nodes():
+        # Agent 3 splits Regular / Private counts into filter chips. Previous
+        # prototype used a separate numeric Text element next to "Tabs".
+        nodes = self.nodes()
+        for node in nodes:
+            value = self.label(node)
+            matched = re.fullmatch(r"Regular\s+(\d+)", value)
+            if matched:
+                return int(matched.group(1))
+        for node in nodes:
             value = node.get("text", "").strip()
             if value.isdecimal():
                 return int(value)
-        raise AssertionError("Could not find numeric tab count in tab overview")
+        raise AssertionError("Could not find regular tab count in tab overview")
 
     def record(self, case, kind, func):
         print(f"[QA] {kind}: {case}", flush=True)
@@ -264,14 +272,20 @@ class Acceptance:
         return f"Restored {restored} tabs after force-stop"
 
     def private_tabs(self):
-        self.tap("More")
-        try:
-            options = [self.label(n).lower() for n in self.nodes()]
-            if not any("private" in s or "incognito" in s for s in options):
-                raise AssertionError("Private browsing entry point absent; cannot assert cookie isolation")
-            return "Private entry present; cookie isolation still needs separate on-device test"
-        finally:
-            self.shell("input", "keyevent", "4", check=False)
+        self.tap("Tabs")
+        # Private browsing must be an actual separate tab creation flow, not
+        # just a label in the More menu. Cookie isolation is a separate test.
+        private_filter = next((self.label(n) for n in self.nodes()
+                               if re.fullmatch(r"Private\s+\d+", self.label(n))), None)
+        if private_filter is None:
+            raise AssertionError("Private tab filter absent in tab overview")
+        self.tap(private_filter)
+        self.tap("New private tab")
+        self.tap("Tabs")
+        private_labels = [self.label(n) for n in self.nodes()]
+        if not any(re.fullmatch(r"Private\s+[1-9]\d*", x) for x in private_labels):
+            raise AssertionError("New private tab was not counted in private profile")
+        return "Created private tab through UI; cookie/storage separation still needs test"
 
     def offline(self):
         # Disables both services temporarily; always restore connectivity.
