@@ -746,7 +746,7 @@ for(let row=0;row<10;row++)for(let c=0;c<10;c++){const base=(9-row)*10+1,num=(9-
 let tokens=s.players.map((p,i)=>p.pos===num?'<span style="color:'+p.color+'" title="'+p.name+'">●</span>':"").join("");
 let jump=ups[num]?"<span class='jump' aria-label='Ladder to "+ups[num]+"'><svg class='direction-svg' aria-hidden='true' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2.1' stroke-linecap='round' stroke-linejoin='round'><path d='M5 19 19 5M9 5h10v10'/></svg></span>":downs[num]?"<span class='jump' aria-label='Snake to "+downs[num]+"'><svg class='direction-svg' aria-hidden='true' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2.1' stroke-linecap='round' stroke-linejoin='round'><path d='m5 5 14 14M19 9v10H9'/></svg></span>":"";
 html+='<div class="square" role="gridcell" aria-label="Square '+num+'" style="grid-row:'+(row+1)+';grid-column:'+(c+1)+'">'+num+jump+'<span class="marker">'+tokens+'</span></div>';
-} 
+}
 if(s.winner!==null){
  html+='<div class="club-result-layer snakes-result-layer" role="status" aria-live="polite"><div class="club-result-card"><span class="club-result-eyebrow">RACE COMPLETE</span><strong>'+h(s.players[s.winner].name)+' wins!</strong><span>First to square 100.</span><button type="button" class="club-result-retry" data-action="snakes-reset">Play again</button></div></div>';
 }
