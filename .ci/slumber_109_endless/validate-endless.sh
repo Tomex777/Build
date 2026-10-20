@@ -42,6 +42,8 @@ wait_ui() {
   done
   echo "UI element not found: $text" >&2
   cp "$OUT/current.xml" "$OUT/last-failure.xml" || true
+  # Preserve the actual app exception (not just a generic emulator crash dialog).
+  timeout 20s adb logcat -d -v time -t 4500 > "$OUT/failure-logcat.txt" || true
   exit 1
 }
 tap_ui() {
@@ -83,6 +85,7 @@ tap_ui "Stop preview"
 wait_ui "Hear Jingle Bells"
 # Save is real persistent app state, not an unconnected heart icon.
 tap_ui "Save Jingle Bells"
+capture tiles-saved
 tap_ui "Jingle Bells"
 wait_ui "ENDLESS TILES"
 wait_ui "Tap the first tile to start in lane"
