@@ -72,6 +72,26 @@ if [ "$ACTION" = "env-set" ]; then
   exit 0
 fi
 
+# Narrow privileged write for the single NIGHT command-settings JSON. The
+# unprivileged Agent may read settings but deliberately cannot write into the
+# private MSCC data directory. Accept only a schema-listed boolean key.
+if [ "$ACTION" = "setting-set" ]; then
+  KEY="${2:-}"
+  [[ "$KEY" =~ ^[A-Za-z_][A-Za-z0-9._-]{0,79}$ ]] || {
+    echo "Invalid setting key." >&2
+    exit 64
+  }
+  VALUE="$(cat)"
+  [[ "$VALUE" == true || "$VALUE" == false ]] || {
+    echo "A boolean value is required." >&2
+    exit 64
+  }
+  exec /usr/bin/node /usr/local/libexec/cortex-agent-settings-write.cjs \
+    /var/lib/mscc/data/cortex-settings-schema.json \
+    /var/lib/mscc/data/mscc-settings.json \
+    "$KEY" "$VALUE"
+fi
+
 if [ "$ACTION" = "runner-start" ]; then
   [ -r "$ENV_FILE" ] || {
     echo "Cortex Agent environment is unavailable." >&2
