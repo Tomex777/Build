@@ -305,6 +305,8 @@ private fun OfflineHub() {
             }
         } else if (selected == "2048") {
             Game2048Screen(onExit = { selected = null })
+        } else if (selected == "ttt") {
+            NativeTicTacToeScreen(onExit = { selected = null })
         } else if (selected == "colorsort") {
             WaterSortScreen(onExit = { selected = null })
         } else if (selected == "shark") {
