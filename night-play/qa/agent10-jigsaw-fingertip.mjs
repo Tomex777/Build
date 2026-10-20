@@ -13,7 +13,7 @@ const cdp=await page.context().newCDPSession(page);let selected=0,match=0,miss=0
 for(let i=0;i<Math.min(26,start.pieces.length);i++){const p=start.pieces[Math.floor((i+0.5)*start.pieces.length/Math.min(26,start.pieces.length))];
 await cdp.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x:p.x,y:p.y,id:100+i}]});await page.waitForTimeout(38);
 let s=await page.evaluate(()=>window.__nightJigsawTest.snapshot().selected);await cdp.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
-const isMatch=!!s&&Math.abs(s.correctX-p.cx)<0.1&&Math.abs(s.correctY-p.cy)<0.1;selected+=!!s;match+=isMatch;miss+=!isMatch;selectionLog.push({target:p.id,got:s?.id,exact:isMatch,x:Math.round(p.x),y:Math.round(p.y)});
+const isMatch=!!s&&s.id===p.id;selected+=!!s;match+=isMatch;miss+=!isMatch;selectionLog.push({target:p.id,got:s?.id,exact:isMatch,x:Math.round(p.x),y:Math.round(p.y)});
 }
 console.log('FINGER_PRECISION',JSON.stringify({width,total:start.pieces.length,tries:selectionLog.length,selected,correctPiece:match,wrongOrNone:miss,sample:selectionLog.slice(0,15),errors}));await page.close();}
 }finally{await b.close();await new Promise(ok=>server.close(ok));}
