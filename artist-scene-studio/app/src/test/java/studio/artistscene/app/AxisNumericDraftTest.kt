@@ -27,7 +27,7 @@ class AxisNumericDraftTest {
     }
 
     @Test fun maintainsPrecisionOnSmallPositiveAndNegativeValues() {
-        assertEquals("0.01", AxisNumericDraft.display(0.01f))
+        assertEquals("0.010", AxisNumericDraft.display(0.01f))
         assertEquals("-0.005", AxisNumericDraft.display(-0.005f))
         assertEquals("1.25", AxisNumericDraft.display(1.25f))
         assertEquals("—", AxisNumericDraft.display(Float.NaN))
