@@ -294,7 +294,7 @@ fun JourneyScreen(
             title = { Text("Merge ${source.name} into…") },
             text = {
                 Column {
-                    Text("All branches and their relationships will be kept.",
+                    Text("Recent pages are kept up to the 600-node Journey limit.",
                         fontSize = 13.sp, color = journeySubtle)
                     Spacer(Modifier.height(12.dp))
                     store.journeys.filterNot { it.id == source.id }.forEach { destination ->
