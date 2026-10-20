@@ -1,0 +1,83 @@
+name: NIGHT KonoSuba Collector Cards
+
+on:
+  push:
+    branches: [feature/cards-konosuba-20261020]
+    paths:
+      - 'cards/catalog/konosuba*'
+      - 'cards/bin/seed-konosuba.mjs'
+      - 'cards/bin/konosuba-gallery.mjs'
+      - 'cards/tests/konosuba-sources.test.mjs'
+      - '.github/workflows/cards-konosuba.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: night-konosuba-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  source-backed-candidates:
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    defaults:
+      run:
+        working-directory: cards
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: true
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: cards/package-lock.json
+      - name: Install pinned packages
+        run: npm ci
+      - name: Source and form grade tests
+        run: npm test
+      - name: Retrieve exact official cutout bytes and audit native quality
+        run: node bin/seed-konosuba.mjs
+      - name: Summarize included and missing artwork
+        run: |
+          node -e "const a=require('./catalog/konosuba-artwork-audit.json');console.log(JSON.stringify({accepted:a.accepted,pending:a.pending,issues:a.sourceIssues},null,2))"
+      - name: Install browser prerequisites
+        run: npx playwright install-deps chromium
+      - name: Install deterministic Chrome renderer
+        run: |
+          curl --fail --location --retry 3 https://storage.googleapis.com/chrome-for-testing-public/131.0.6778.204/linux64/chrome-headless-shell-linux64.zip -o "$RUNNER_TEMP/night-chrome.zip"
+          unzip -q "$RUNNER_TEMP/night-chrome.zip" -d "$RUNNER_TEMP/night-browser"
+          chmod +x "$RUNNER_TEMP/night-browser/chrome-headless-shell-linux64/chrome-headless-shell"
+          echo "NIGHT_BROWSER_PATH=$RUNNER_TEMP/night-browser/chrome-headless-shell-linux64/chrome-headless-shell" >> "$GITHUB_ENV"
+      - name: Render original shared NIGHT masters, frame-breaking phone proofs and contact sheets
+        run: npm run build -- --series konosuba --width 3000 --out dist/konosuba
+      - name: Build full standalone candidate gallery
+        run: |
+          npm run gallery -- --series konosuba --out dist/konosuba --file dist/KonoSuba-Collection.html
+          node bin/konosuba-gallery.mjs dist/KonoSuba-Collection.html
+      - name: Pin acquired artworks and proposed assessments (never auto-approve)
+        if: success() && github.event_name == 'push'
+        working-directory: .
+        run: |
+          git config user.name 'NIGHT Cards Provenance'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add cards/catalog/konosuba.json cards/catalog/konosuba-source-lock.json cards/catalog/konosuba-artwork-audit.json cards/catalog/power/konosuba.json
+          if ! git diff --cached --quiet; then
+            git commit -m "cards(konosuba): pin official source checksums and form assessments"
+            git push origin "HEAD:$GITHUB_REF_NAME"
+          fi
+      - name: Candidate images, 320px phone checks, galleries and audit
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: NIGHT-KonoSuba-Candidate-Cards
+          path: |
+            cards/dist/konosuba/
+            cards/dist/KonoSuba-Collection.html
+            cards/catalog/konosuba*.json
+            cards/catalog/power/konosuba.json
+          if-no-files-found: warn
+          compression-level: 0
+          retention-days: 14
