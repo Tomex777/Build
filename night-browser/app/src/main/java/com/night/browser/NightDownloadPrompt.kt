@@ -105,6 +105,7 @@ class WebDownloadConsent(private val downloads: DownloadLibrary) {
         pending = null
         privateMode = false
         selectingDestination = false
+        isRepeatDownload = false
     }
 
     fun consumeMessage(): String? = eventMessage.also { eventMessage = null }
