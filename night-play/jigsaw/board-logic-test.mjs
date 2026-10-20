@@ -81,6 +81,9 @@ class FakeAudioContext{
 globalThis.window={AudioContext:FakeAudioContext};
 const sound=new SoundSynth();
 assert.equal(sound.audioCtx,null,'no audio should start before gameplay');
+// The test invokes five different gestures in a single synchronous tick.
+// Bypass production anti-spam cooldowns so all *different* events are measured.
+sound.lastPickup=-Infinity;sound.lastDrop=-Infinity;
 sound.playPickup();sound.playDrop();sound.playSnap();sound.playSnap({joined:true});sound.playVictory();
 assert.ok(emitted>=18,'tactile effects comprise layered independent envelopes');
 const before=emitted;sound.enabled=false;sound.playSnap();sound.playVictory();
