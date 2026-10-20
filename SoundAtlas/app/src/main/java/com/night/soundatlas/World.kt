@@ -45,7 +45,12 @@ enum class SoundKind(val title: String, val family: String, val color: Int) {
     OCEAN("Ocean surf", "Water", 0xFF73A7C0.toInt()),
     FIRE("Crackling fire", "Nature", 0xFFD3986D.toInt()),
     OWL("Owl calls", "Wildlife", 0xFFAFA9BD.toInt()),
-    TRAIN("Passing train", "Urban", 0xFFAFB4C3.toInt())
+    TRAIN("Passing train", "Urban", 0xFFAFB4C3.toInt()),
+    // Append-only: preserve stable ordinal IDs of the original 18 sound types.
+    WATERFALL("Waterfall", "Water", 0xFF85BACC.toInt()),
+    FROGS("Frog chorus", "Wildlife", 0xFFA1BA77.toInt()),
+    DRIZZLE("Light drizzle", "Weather", 0xFF9EC0D9.toInt()),
+    SLEET("Sleet on windows", "Weather", 0xFFB2C8D9.toInt())
 }
 
 data class Wall(var a: V2, var b: V2, var material: Material = Material.STONE)
