@@ -129,29 +129,28 @@ class BrowserPlatformHost(private val activity: ComponentActivity) :
         session: GeckoSession,
         perm: GeckoSession.PermissionDelegate.ContentPermission
     ): GeckoResult<Int> {
-        val value = GeckoSession.PermissionDelegate.ContentPermission
-        if (perm.value != value.VALUE_PROMPT) return GeckoResult.fromValue(perm.value)
+        if (perm.value != GeckoSession.PermissionDelegate.ContentPermission.VALUE_PROMPT) return GeckoResult.fromValue(perm.value)
         // Enabling trackers is not a sensible response to a generic page
         // request, and persistent storage requires an explicit settings flow.
         if (perm.permission == GeckoSession.PermissionDelegate.PERMISSION_TRACKING ||
             perm.permission == GeckoSession.PermissionDelegate.PERMISSION_PERSISTENT_STORAGE
-        ) return GeckoResult.fromValue(value.VALUE_DENY)
+        ) return GeckoResult.fromValue(GeckoSession.PermissionDelegate.ContentPermission.VALUE_DENY)
         val reason = when (perm.permission) {
             GeckoSession.PermissionDelegate.PERMISSION_GEOLOCATION -> "your location"
             GeckoSession.PermissionDelegate.PERMISSION_DESKTOP_NOTIFICATION -> "notifications"
             GeckoSession.PermissionDelegate.PERMISSION_AUTOPLAY_AUDIBLE -> "automatic sound playback"
             GeckoSession.PermissionDelegate.PERMISSION_AUTOPLAY_INAUDIBLE -> "automatic silent playback"
             GeckoSession.PermissionDelegate.PERMISSION_STORAGE_ACCESS -> "third-party cookie access"
-            else -> return GeckoResult.fromValue(value.VALUE_DENY)
+            else -> return GeckoResult.fromValue(GeckoSession.PermissionDelegate.ContentPermission.VALUE_DENY)
         }
         val result = GeckoResult<Int>()
         perm.notifyShown()
         AlertDialog.Builder(activity)
             .setTitle("Website permission")
             .setMessage("${safeHost(perm.uri)} wants access to ${reason}.")
-            .setPositiveButton("Allow") { _, _ -> result.complete(value.VALUE_ALLOW) }
-            .setNegativeButton("Block") { _, _ -> result.complete(value.VALUE_DENY) }
-            .setOnCancelListener { result.complete(value.VALUE_DENY) }
+            .setPositiveButton("Allow") { _, _ -> result.complete(GeckoSession.PermissionDelegate.ContentPermission.VALUE_ALLOW) }
+            .setNegativeButton("Block") { _, _ -> result.complete(GeckoSession.PermissionDelegate.ContentPermission.VALUE_DENY) }
+            .setOnCancelListener { result.complete(GeckoSession.PermissionDelegate.ContentPermission.VALUE_DENY) }
             .show()
         return result
     }
