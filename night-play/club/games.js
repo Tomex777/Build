@@ -12,7 +12,7 @@ let checkerMotionBusy=false,checkerMotionEpoch=0,checkerCpuTimer=null;
 const whotMotion={
  player:175,cpu:185,draw:185,cpuDelay:95,
  deal:220,dealDelay:15,dealStagger:20,opponentDeal:210,
- settle:85,recenter:125,drawFlip:195
+ settle:85,recenter:150,drawFlip:195
 };
 const cardMotionMetrics={deals:0,plays:0,cpuPlays:0,draws:0,activeFlights:0,lastFlightDuration:0,lastFlightAction:null};
 const motionEnabled=()=>!matchMedia("(prefers-reduced-motion: reduce)").matches;
