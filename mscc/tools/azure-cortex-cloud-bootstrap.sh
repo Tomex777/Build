@@ -5,16 +5,18 @@
 set -euo pipefail
 umask 077
 
-readonly SOURCE_SHA=442ef1410fdedffdcb8c515bc31373b294ae387c
-readonly AGENT_BLOB=558a8394d574aec9b8798e39d9d4475f6b6bf4a9
-readonly PREVIOUS_AGENT_BLOB=b353643bf6978d71d76a066f84400aca100baecd
-readonly HELPER_BLOB=4e0fa0455c604d3793a72254a1c3b4e260b67f4e
-readonly PREVIOUS_HELPER_BLOB=b590dd2b6174c273ef3beef62f2825d6089d0311
-readonly INSTALL_BLOB=a058b3cf0e8fa09a117e816e5111ccb6bc8b58d0
+readonly SOURCE_SHA=d280c2a67dd8ebce6927962cfb341122447ec777
+readonly AGENT_BLOB=781d3dcd7b35a00e236abd8be70298170928f3c5
+readonly PREVIOUS_AGENT_BLOB=558a8394d574aec9b8798e39d9d4475f6b6bf4a9
+readonly HELPER_BLOB=8bc55110b92f60bfe31b8097cbc5dad32ae0a820
+readonly PREVIOUS_HELPER_BLOB=4e0fa0455c604d3793a72254a1c3b4e260b67f4e
+readonly INSTALL_BLOB=e5ac0fe87511310cc4248aa261a6cb185e3afe9d
 readonly PACKAGE_BLOB=c2032a0fddf20a85e0cb1e9201bfd28652c046ba
 readonly SERVICE_BLOB=82518da0a5a09d5148671aac1d8d3cfa3d7fb7fc
 readonly AGENT_TARGET=/opt/cortex-agent/index.js
 readonly HELPER_TARGET=/usr/local/libexec/cortex-agent-control
+readonly SETTINGS_WRITE_BLOB=ad3f66e3b02ffca4367de009cda505e7f189db66
+readonly SETTINGS_WRITE_TARGET=/usr/local/libexec/cortex-agent-settings-write.cjs
 readonly BOOTSTRAP_MARK=/var/lib/cortex/.mscc-mega-cloud-bootstrapped
 
 if [[ "$(id -u)" -eq 0 ]]; then
@@ -38,13 +40,14 @@ if [[ ! -f "$AGENT_TARGET" || ! -f "$HELPER_TARGET" ]] ||
   echo 'Existing Cortex Agent incomplete or inactive; performing pinned first-time installation.'
   setup_dir="$(mktemp -d)"
   trap 'rm -rf "$setup_dir"' EXIT
-  for row in index.js cortex-agent-control install.sh package.json cortex-agent.service; do
+  for row in index.js cortex-agent-control install.sh package.json cortex-agent.service protected-settings-write.cjs; do
     curl --fail --silent --show-error --location --retry 3 --max-time 50 \
       "https://raw.githubusercontent.com/Tomex777/Build/$SOURCE_SHA/cortex-agent/$row" \
       --output "$setup_dir/$row"
   done
   for expected in \
     "$AGENT_BLOB index.js" "$HELPER_BLOB cortex-agent-control" \
+    "$SETTINGS_WRITE_BLOB protected-settings-write.cjs" \
     "$INSTALL_BLOB install.sh" "$PACKAGE_BLOB package.json" \
     "$SERVICE_BLOB cortex-agent.service"; do
     read -r blob filename <<< "$expected"
@@ -292,7 +295,8 @@ trap - EXIT
 # never overwrite a later/manual Agent revision or weaken forced-command SSH.
 current_agent_blob="$(git hash-object "$AGENT_TARGET")"
 current_helper_blob="$(git hash-object "$HELPER_TARGET")"
-if [[ "$current_agent_blob" == "$AGENT_BLOB" && "$current_helper_blob" == "$HELPER_BLOB" ]]; then
+if [[ "$current_agent_blob" == "$AGENT_BLOB" && "$current_helper_blob" == "$HELPER_BLOB" && \
+      "$(sudo -n test -f "$SETTINGS_WRITE_TARGET" && sudo -n git hash-object "$SETTINGS_WRITE_TARGET" || true)" == "$SETTINGS_WRITE_BLOB" ]]; then
   echo 'Approved Cortex Agent already active; retaining existing token and release.'
   sudo -n install -d -m 0750 /var/lib/cortex
   printf '%s\n' "$SOURCE_SHA" | sudo -n tee "$BOOTSTRAP_MARK" >/dev/null
@@ -334,7 +338,7 @@ rollback() {
 }
 trap rollback EXIT
 
-for row in index.js cortex-agent-control; do
+for row in index.js cortex-agent-control protected-settings-write.cjs; do
   curl --fail --silent --show-error --location --retry 3 --max-time 40 \
     "https://raw.githubusercontent.com/Tomex777/Build/$SOURCE_SHA/cortex-agent/$row" \
     --output "$tmp/$row"
@@ -345,8 +349,12 @@ done
 [[ "$(git hash-object "$tmp/cortex-agent-control")" == "$HELPER_BLOB" ]] || {
   echo 'Cortex Cloud helper does not match pinned Git blob.' >&2; exit 1;
 }
+[[ "$(git hash-object "$tmp/protected-settings-write.cjs")" == "$SETTINGS_WRITE_BLOB" ]] || {
+  echo 'Cortex private settings helper does not match pinned Git blob.' >&2; exit 1;
+}
 node --check "$tmp/index.js"
 bash -n "$tmp/cortex-agent-control"
+node --check "$tmp/protected-settings-write.cjs"
 cp "$AGENT_TARGET" "$tmp/previous-index.js"
 sudo -n cat "$HELPER_TARGET" > "$tmp/previous-helper.sh"
 
