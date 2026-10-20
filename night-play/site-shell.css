@@ -116,3 +116,11 @@ body.in-game .mobile-nav {
   #gameDialog .game-top-actions{gap:4px}
   #gameDialog .game-brand{gap:4px;font-size:12px}
 }
+
+/* On 320px screens the game viewport may scroll its own overflow as its
+   action row changes height. Keep the primary game exit/settings visible. */
+#gameDialog .game-topline {
+  position:sticky;
+  top:0;
+  z-index:10;
+}
