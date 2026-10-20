@@ -1,0 +1,227 @@
+#!/usr/bin/env node
+/* Play-to-outcome browser scenarios for visually identified high-risk games.
+ * Unlike single-input catalog smoke, these play through win conditions.
+ */
+'use strict';
+const {chromium}=require('playwright-core'),fs=require('node:fs'),path=require('node:path'),http=require('node:http');
+const root=path.resolve(__dirname,'../app/src/main/assets'),out=path.resolve(__dirname,'../qa-evidence/playthrough');
+const mime={'.html':'text/html','.js':'text/javascript','.css':'text/css','.svg':'image/svg+xml','.png':'image/png','.jpg':'image/jpeg'};
+const server=http.createServer((req,res)=>{const name=path.resolve(root,'.'+new URL(req.url,'http://localhost').pathname);if(!name.startsWith(root+path.sep)){res.writeHead(403);res.end();return}fs.readFile(name,(e,b)=>{if(e){res.writeHead(404);res.end();return}res.writeHead(200,{'content-type':mime[path.extname(name)]||'text/plain'});res.end(b)})});
+async function main(){
+ fs.mkdirSync(out,{recursive:true});await new Promise(res=>server.listen(0,'127.0.0.1',res));const port=server.address().port;
+ const browser=await chromium.launch({channel:'chrome',headless:true,args:['--no-sandbox','--disable-dev-shm-usage']});
+ const cases=[];let failed=0;
+ async function run(id,fn){
+ const page=await browser.newPage({viewport:{width:390,height:844},isMobile:true,hasTouch:true});const errors=[];
+ page.on('pageerror',e=>errors.push(e.message));
+ try{
+  await page.goto('http://127.0.0.1:'+port+'/classics/index.html?game='+encodeURIComponent(id),{waitUntil:'load',timeout:20000});
+  await fn(page);
+  if(errors.length)throw new Error('Runtime: '+errors.join('; '));
+  if(id==='memory')await page.waitForTimeout(410);
+  await page.screenshot({path:path.join(out,id+'-completed.png'),fullPage:false});
+  cases.push({id,pass:true,message:(await page.locator('#status').innerText()).slice(0,180)});
+  console.log('PLAYTHROUGH_PASS '+id);
+ }catch(e){failed++;cases.push({id,pass:false,error:String(e).slice(0,500)});console.log('PLAYTHROUGH_FAIL '+id+' '+String(e).slice(0,500));await page.screenshot({path:path.join(out,id+'-FAILED.png'),fullPage:false}).catch(()=>{})}
+ finally{await page.close()}
+ }
+ const assert=(ok,msg)=>{if(!ok)throw new Error(msg)};
+ const cell=(page,i)=>page.locator('#board .tiles .cell').nth(i);
+ await run('wordsearch',async page=>{
+  for(const word of ['NIGHT','GAME','PUZZLE','SNAKE','BOARD','PLAY']){
+   const data=await page.evaluate(word=>{
+    const chars=[...document.querySelectorAll('#board .tiles .cell')].map(e=>e.textContent.trim());
+    if(chars.length!==81)throw new Error('Word Search grid missing');
+    for(let y=0;y<9;y++)for(let x=0;x<9;x++)for(const [dx,dy] of [[1,0],[0,1],[1,1],[1,-1],[-1,0],[0,-1],[-1,-1],[-1,1]]){
+     const coord=Array.from({length:word.length},(_,i)=>[x+i*dx,y+i*dy]);
+     if(coord.every(([a,b],k)=>a>=0&&a<9&&b>=0&&b<9&&chars[b*9+a]===word[k]))return [y*9+x,coord.at(-1)[1]*9+coord.at(-1)[0]];
+    }
+    throw new Error('Word cannot be found: '+word);
+   },word);
+   await cell(page,data[0]).click();await cell(page,data[1]).click();
+  }
+  const status=await page.locator('#status').innerText();
+  assert(status.includes('All six words found'),'Wordsearch not won: '+status);
+ });
+ await run('mazerunner',async page=>{
+  const route=await page.evaluate(()=>{
+   const elements=[...document.querySelectorAll('#board .tiles .cell')];
+   if(elements.length!==169)throw new Error('Maze grid missing');
+   const pass=i=>elements[i].style.background!=='rgb(48, 78, 63)';
+   let queue=[14],prev=new Map([[14,null]]);
+   while(queue.length){const i=queue.shift();if(i===154)break;const x=i%13,y=Math.floor(i/13);
+    for(const [dx,dy,key] of [[1,0,'ArrowRight'],[-1,0,'ArrowLeft'],[0,1,'ArrowDown'],[0,-1,'ArrowUp']]){
+     const nx=x+dx,ny=y+dy,j=ny*13+nx;
+     if(nx<0||nx>=13||ny<0||ny>=13||prev.has(j)||!pass(j))continue;
+     prev.set(j,[i,key]);queue.push(j)
+    }
+   }
+   if(!prev.has(154))throw new Error('No path to goal');
+   const result=[];for(let cur=154;cur!==14;){const [parent,key]=prev.get(cur);result.push(key);cur=parent}return result.reverse();
+  });
+  for(const key of route)await page.keyboard.press(key);
+  const status=await page.locator('#status').innerText();
+  assert(status.includes('Maze escaped'),'Maze does not report win: '+status);
+ });
+ await run('bomb',async page=>{
+  const names=await page.locator('.bomb-step').allInnerTexts();
+  assert(names.length===3,'Bomb missing 3-step circuit instructions');
+  for(const name of names)await page.getByRole('button',{name:'Cut '+name.toLowerCase()+' wire'}).click();
+  assert((await page.locator('#status').innerText()).includes('safely disarmed'),'Bomb success not reported');
+ });
+ await run('memory',async page=>{
+   const pairs=await page.evaluate(()=>{
+      const cards=[...document.querySelectorAll('.memory-card img')];
+      if(cards.length!==24)throw new Error('Memory default 24 cards missing');
+      const seen=new Map(),pairs=[];
+      for(let i=0;i<cards.length;i++){const name=cards[i].getAttribute('src');if(seen.has(name))pairs.push([seen.get(name),i]);else seen.set(name,i)}
+      return pairs
+   });
+   assert(pairs.length===12,'Memory cards are not 12 pairs');
+   const [first,second]=pairs[0];
+   await page.locator('.memory-card').nth(first).click();
+   await page.locator('.memory-card').nth(second).click();
+   await page.waitForTimeout(1150);
+   await page.reload({waitUntil:'load'});
+   assert(await page.locator('.memory-card').nth(first).getAttribute('data-matched')==='true',
+     'Memory saved pairs were not restored after page recreation');
+   assert((await page.locator('.memory-stats').innerText()).includes('PAIRS 1/12'),
+     'Memory score did not survive reload');
+   for(const [i,j] of pairs.slice(1)){await page.locator('.memory-card').nth(i).click();await page.locator('.memory-card').nth(j).click()}
+   assert((await page.locator('#status').innerText()).includes('All 12 pairs'),'Memory win condition missing');
+ });
+ await run('chess',async page=>{
+   await page.locator('button[aria-label^="e2 "]').click();
+   await page.locator('button[aria-label^="e4 "]').click();
+   await page.waitForTimeout(800);
+   const moved=await page.locator('button[aria-label^="e4 "]').getAttribute('aria-label');
+   assert(moved.includes('White p'),'e2-e4 move failed: '+moved);
+   assert((await page.locator('#board .cell').count())===64,'Chess board not 64 cells');
+ });
+ await run('checkers',async page=>{
+   const from=40,to=33;
+   await cell(page,from).click();await cell(page,to).click();
+   assert((await page.locator('#board .cell').count())===64,'Checkers board vanished');
+   const moved=await cell(page,to).getAttribute('data-active');
+   assert(moved==='true','Expected legal opening move 40->33 to be occupied by dark piece, got '+moved);
+ });
+ await run('hanoi',async page=>{
+   const moves=[];
+   const solve=(n,from,to,via)=>{if(!n)return;solve(n-1,from,via,to);moves.push([from,to]);solve(n-1,via,to,from)};
+   solve(5,0,2,1);
+   for(const [from,to] of moves){
+     await page.locator('#board .peg').nth(from).click();
+     await page.locator('#board .peg').nth(to).click();
+   }
+   assert((await page.locator('#status').innerText()).includes('Solved in 31 moves'),
+     'Hanoi did not complete 31-move solution');
+ });
+ await run('lights',async page=>{
+   const steps=await page.evaluate(()=>{
+     const initial=[...document.querySelectorAll('#board .tiles .cell')].map(b=>b.dataset.active==='true'?1:0);
+     if(initial.length!==25)throw new Error('Lights Out grid missing');
+     for(let mask=0;mask<32;mask++){
+       const board=initial.slice(),moves=[];
+       const flip=i=>{const x=i%5,y=Math.floor(i/5);
+         for(const [dx,dy] of [[0,0],[1,0],[-1,0],[0,1],[0,-1]]){
+           const a=x+dx,b=y+dy;if(a>=0&&a<5&&b>=0&&b<5)board[b*5+a]^=1
+         }
+       };
+       for(let x=0;x<5;x++)if(mask&(1<<x)){moves.push(x);flip(x)}
+       for(let row=1;row<5;row++)for(let x=0;x<5;x++)if(board[(row-1)*5+x]){
+         const i=row*5+x;moves.push(i);flip(i);
+       }
+       if(!board.includes(1))return moves;
+     }
+     throw new Error('Generated Lights Out puzzle is not solvable');
+   });
+   for(const i of steps)await cell(page,i).click();
+   assert((await page.locator('#status').innerText()).includes('All lights cleared'),
+     'Lights Out did not end in victory');
+ });
+ await run('ttt',async page=>{
+   for(let turn=0;turn<5;turn++){
+     const status=await page.locator('#status').innerText();
+     if(/Draw|wins|win/i.test(status))break;
+     const open=page.locator('#board button.cell:not([disabled])').first();
+     assert(await open.count()>0,'No playable cells before game over');
+     await open.click();
+     assert((await page.locator('#board .cell').count())===9,'Tic-Tac-Toe board disappeared');
+   }
+   const result=await page.locator('#status').innerText();
+   assert(/Draw|wins|win/i.test(result),'Tic-Tac-Toe did not reach finished state: '+result);
+ });
+ await run('swimming',async page=>{
+   for(let i=0;i<22;i++){if((await page.locator('#status').innerText()).includes('You win'))break;await page.getByRole('button',{name:'Stroke'}).click();await page.waitForTimeout(390)}
+   const status=await page.locator('#status').innerText();assert(status.includes('You win'),'Swimming 50m not reached: '+status);
+ });
+
+ // Play complete games, not only one initial tap. The final win/loss/draw
+ // state must be reached through real pointer interactions with visible controls.
+ await run('higher',async page=>{
+   let turns=0;
+   while(await page.getByRole('button',{name:'Higher',exact:true}).count()){
+     await page.getByRole('button',{name:'Higher',exact:true}).click();
+     if(++turns>51)throw new Error('Higher or Lower never ends after 51 reveals');
+   }
+   assert(turns===51,'Expected all 51 card reveals, got '+turns);
+   assert((await page.locator('#status').innerText()).includes('Deck complete'),'Higher/Lower end missing');
+ });
+ await run('snap',async page=>{
+   let rounds=0;
+   while(await page.getByRole('button',{name:'Next pair',exact:true}).count()){
+     await page.getByRole('button',{name:'Next pair',exact:true}).click();
+     if(++rounds>26)throw new Error('Snap never ends after 26 pairs');
+   }
+   assert(rounds===26,'Snap did not consume entire deck');
+   assert((await page.locator('#status').innerText()).includes('Deck complete'),'Snap end missing');
+ });
+ await run('war',async page=>{
+   let flips=0;
+   while(await page.getByRole('button',{name:'Flip cards',exact:true}).count()){
+     await page.getByRole('button',{name:'Flip cards',exact:true}).click();
+     if(++flips>26)throw new Error('War dealt more than original 26 pairs');
+   }
+   assert(flips>0,'War never dealt the deck');
+   assert(/win|Draw/i.test(await page.locator('#status').innerText()),'War no match outcome');
+ });
+ await run('reversi',async page=>{
+   let turns=0;
+   for(;turns<65;turns++){
+     if(/You win|Computer wins|Draw/i.test(await page.locator('#status').innerText()))break;
+     const pass=page.getByRole('button',{name:'Pass turn',exact:true});
+     if(await pass.count()){await pass.click();continue;}
+     const legal=page.locator('#board button.cell:not([disabled])');
+     assert(await legal.count()>0,'Reversi unfinished with no legal action');
+     await legal.first().click();
+   }
+   assert(turns<65,'Reversi did not finish after all board moves');
+   assert(/You win|Computer wins|Draw/i.test(await page.locator('#status').innerText()),'Reversi no end result');
+ });
+ await run('dots',async page=>{
+   let turns=0;
+   for(;turns<25;turns++){
+     if(/You win|Computer wins|Draw/i.test(await page.locator('#status').innerText()))break;
+     const legal=page.locator('#board button.edge:not([disabled])');
+     assert(await legal.count()>0,'Dots & Boxes no free edges but no result');
+     await legal.first().click();
+   }
+   assert(turns<25,'Dots & Boxes did not finish after edge claims');
+   assert(/You win|Computer wins|Draw/i.test(await page.locator('#status').innerText()),'Dots & Boxes no winner');
+ });
+ await run('mancala',async page=>{
+   let turns=0;
+   for(;turns<130;turns++){
+     if(/You win|Computer wins|Draw/i.test(await page.locator('#status').innerText()))break;
+     const legal=page.locator('#board button.pit:not([disabled])');
+     assert(await legal.count()>0,'Mancala no legal pit but not finished');
+     await legal.first().click();
+   }
+   assert(turns<130,'Mancala did not reach the final-stones condition');
+   assert(/You win|Computer wins|Draw/i.test(await page.locator('#status').innerText()),'Mancala no winner');
+ });
+ fs.writeFileSync(path.join(out,'results.json'),JSON.stringify(cases,null,2));await browser.close();server.close();
+ console.log('PLAYTHROUGH_TOTALS '+JSON.stringify({cases:cases.length,passed:cases.length-failed,failed}));
+ if(failed)process.exitCode=1;
+}
+main().catch(e=>{console.error(e);server.close();process.exitCode=2});

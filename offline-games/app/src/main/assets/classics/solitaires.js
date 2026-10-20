@@ -1,0 +1,56 @@
+/* Five classic solo card puzzle implementations. All cards are local text/shape UI. */
+(()=>{'use strict';const G=window.G,SUITS=['♠','♥','♦','♣'],rank=n=>['','A','2','3','4','5','6','7','8','9','10','J','Q','K'][n];
+const pack=()=>G.shuffle(Array.from({length:52},(_,i)=>({n:i%13+1,suit:SUITS[Math.floor(i/13)]})));
+const red=c=>c&&['♥','♦'].includes(c.suit),label=c=>c?rank(c.n)+c.suit:'·';
+function button(c,fn,{hidden=false,chosen=false,disabled=false}={}){const b=G.el('button','sol-card'+(red(c)?' red':'')+(hidden?' covered':'')+(chosen?' selected':''),
+hidden?'◆':label(c));b.type='button';b.disabled=disabled;b.setAttribute('aria-label',hidden?'Face-down card':c?rank(c.n)+' of '+c.suit:'Empty slot');if(fn)b.onclick=fn;return b}
+function counter(n){G.status(n+' cards cleared')}
+function frame(title){let x=G.el('p','eyebrow',title);G.board().append(x)}
+function makeColumn(cards,onTap){let col=G.el('div','sol-column');cards.forEach((c,i)=>col.append(button(c,()=>onTap(i))));return col}
+G.add('golf','Golf Solitaire','Remove cards one rank above or below the face-up card. Clear all seven columns.','Card',()=>{
+ const cards=pack();let rows=Array.from({length:7},()=>cards.splice(0,5)),stock=cards,up=stock.pop(),removed=0,ended=false;
+ function render(){G.status(ended?'All columns cleared!':removed+'/35 cards cleared · '+stock.length+' in stock');const area=G.board(),columns=G.el('div','sol-columns');rows.forEach((column,i)=>{let pile=G.el('div','sol-column');column.forEach((c,j)=>pile.append(button(c,()=>{if(ended||j!==column.length-1||Math.abs(c.n-up.n)!==1)return;up=column.pop();removed++;if(removed===35){ended=true;G.score('golf',1)}render()},{disabled:j!==column.length-1})));columns.append(pile)});area.append(columns);const bottom=G.el('div','sol-bottom');bottom.append(button(up,()=>{},{}));const draw=G.el('button','sol-card covered',stock.length?'DRAW':'EMPTY');draw.disabled=!stock.length;draw.onclick=()=>{up=stock.pop();render()};bottom.append(draw);area.append(bottom)}render();G.note('Tap the visible bottom card of a column. Aces and Kings are not adjacent in this version.');});
+G.add('pyramid','Pyramid Solitaire','Remove exposed cards that total thirteen. Kings can be removed alone.','Card',()=>{
+ const cards=pack();let triangle=cards.splice(0,28),stock=cards,exposed=stock.pop(),discarded=new Set(),selected=null,score=0,done=false;
+ const rowStart=r=>r*(r+1)/2;
+ function available(i){if(discarded.has(i))return false;let row=0;while(row<7&&i>=rowStart(row+1))row++;if(row===6)return true;const col=i-rowStart(row),child=rowStart(row+1)+col;return discarded.has(child)&&discarded.has(child+1)}
+ function remove(id){if(id==='waste'){exposed=null;return}discarded.add(id);score++}
+ function choose(id,card){if(done)return;if(card.n===13){remove(id);selected=null;if(discarded.size===28)done=true;render();return}if(!selected){selected={id,card};render();return}if(selected.id===id){selected=null;render();return}if(selected.card.n+card.n===13){remove(id);remove(selected.id);selected=null;if(discarded.size===28){done=true;G.score('pyramid',1)}}else selected=null;render()}
+ function render(){G.status(done?'Pyramid cleared!':discarded.size+'/28 pyramid cards removed');const area=G.board(),tri=G.el('div','pyramid-board');for(let r=0;r<7;r++){const line=G.el('div','pyramid-row');for(let c=0;c<=r;c++){const i=rowStart(r)+c,deleted=discarded.has(i);line.append(button(deleted?null:triangle[i],()=>{if(available(i))choose(i,triangle[i])},{chosen:(selected&&selected.id)===i,disabled:deleted||!available(i)}))}tri.append(line)}area.append(tri);const bottom=G.el('div','sol-bottom');bottom.append(button(exposed,()=>{if(exposed)choose('waste',exposed)},{chosen:(selected&&selected.id)==='waste',disabled:!exposed}));const draw=G.el('button','sol-card covered',stock.length?'DRAW':'EMPTY');draw.disabled=!stock.length;draw.onclick=()=>{if(exposed){/* Waste serves as a single top card. */}exposed=stock.pop();selected=null;render()};bottom.append(draw);area.append(bottom)}render();G.note('Exposed pyramid cards have no remaining cards covering them. Select two that add to 13.');});
+G.add('tripeaks','Tri Peaks','Remove uncovered cards one rank above or below the discard card.','Card',()=>{
+ const cards=pack();let table=cards.splice(0,28),stock=cards,up=stock.pop(),gone=new Set(),win=false;
+ function children(i){if(i<3)return[3+i*2,4+i*2];if(i<9){let p=Math.floor((i-3)/2),j=(i-3)%2;return [9+p*3+j,10+p*3+j]}if(i<18)return[18+(i-9),19+(i-9)];return[]}
+ function playable(i){return !gone.has(i)&&children(i).every(c=>gone.has(c))}
+ function render(){G.status(win?'All peaks cleared!':gone.size+'/28 cleared · '+stock.length+' draws');const area=G.board(),mount=G.el('div','tripeaks-board');[[0,3],[3,9],[9,18],[18,28]].forEach(([s,e],row)=>{const band=G.el('div','tripeaks-row');for(let i=s;i<e;i++){const visible=gone.has(i);band.append(button(visible?null:table[i],()=>{if(!playable(i)||!up||Math.abs(table[i].n-up.n)!==1)return;up=table[i];gone.add(i);win=gone.size===28;if(win)G.score('tripeaks',1);render()},{disabled:visible||!playable(i)}))}mount.append(band)});area.append(mount);const bottom=G.el('div','sol-bottom');bottom.append(button(up));const b=G.el('button','sol-card covered',stock.length?'DRAW':'EMPTY');b.disabled=!stock.length;b.onclick=()=>{up=stock.pop();render()};bottom.append(b);area.append(bottom)}render();G.note('Each card must have both covering cards removed. The stock is finite.');});
+G.add('freecell','FreeCell','Move cards by alternating colour in descending order. Build four suit foundations.','Card',()=>{
+ const cards=pack();let cols=Array.from({length:8},()=>[]),free=Array(4).fill(null),found=Array.from({length:4},()=>[]),selected=null,won=false;
+ cards.forEach((c,i)=>cols[i%8].push(c));
+ const canStack=(a,b)=>!b||(a.n===b.n-1&&red(a)!==red(b));
+ const current=()=>selected?(selected.zone==='column'?cols[selected.i].at(-1):free[selected.i]):null;
+ function take(){if(!selected)return null;return selected.zone==='column'?cols[selected.i].pop():free.splice(selected.i,1,null)[0]}
+ function target(zone,i){if(won)return;if(!selected){if(zone==='column'&&cols[i].length||zone==='free'&&free[i])selected={zone,i};render();return}
+ if(selected.zone===zone&&selected.i===i){selected=null;render();return}
+ const c=current();if(!c){selected=null;render();return}
+ let valid=false;if(zone==='column')valid=canStack(c,cols[i].at(-1));if(zone==='free')valid=!free[i];if(zone==='foundation'){const f=found[i],top=f.at(-1);valid=SUITS.indexOf(c.suit)===i&&(top?top.n+1===c.n:c.n===1)}
+ if(valid){const moved=take();if(zone==='column')cols[i].push(moved);else if(zone==='free')free[i]=moved;else found[i].push(moved);won=found.every(f=>f.length===13);if(won)G.score('freecell',1)}selected=null;render()}
+ function render(){G.status(won?'All 52 cards on foundations!':'Foundations '+found.reduce((x,a)=>x+a.length,0)+'/52');const area=G.board(),upper=G.el('div','freecell-top');free.forEach((c,i)=>upper.append(button(c,()=>target('free',i),{chosen:(selected&&selected.zone)==='free'&&selected.i===i})));found.forEach((f,i)=>upper.append(button(f.at(-1)||{n:0,suit:SUITS[i]},()=>target('foundation',i),{hidden:false})));area.append(upper);const columns=G.el('div','sol-columns');cols.forEach((column,i)=>{let p=G.el('div','sol-column');column.forEach((c,j)=>p.append(button(c,()=>{if(j===column.length-1)target('column',i)},{disabled:j!==column.length-1,chosen:(selected&&selected.zone)==='column'&&selected.i===i&&j===column.length-1})));if(!column.length)p.append(button(null,()=>target('column',i)));columns.append(p)});area.append(columns)}
+ render();G.note('Select a top card, then its destination. One card moves at a time; empty free cells are storage.');});
+G.add('solitaire','Solitaire','Classic draw-one Klondike. Arrange colours alternately, build each suit from Ace to King.','Card',()=>{
+ const cards=pack();let tableau=Array.from({length:7},(_,i)=>Array.from({length:i+1},(_,j)=>({card:cards.pop(),up:j===i}))),stock=cards,waste=[],found=Array.from({length:4},()=>[]),selected=null,won=false;
+ const top=src=>src==='waste'?waste.at(-1):(tableau[src.pile]&&tableau[src.pile][src.index]&&tableau[src.pile][src.index].card);
+ const isValidRun=(pile,i)=>pile.slice(i).every((entry,k,a)=>entry.up&&(k===0||a[k-1].card.n===entry.card.n+1&&red(a[k-1].card)!==red(entry.card)));
+ function transfer(target,index){if(!selected)return;const src=selected.source;const c=top(src);if(!c){selected=null;render();return}
+ if(target==='foundation'){const f=found[index],last=f.at(-1);if(src!=='waste'&&src.index!==tableau[src.pile].length-1){selected=null;render();return}if(SUITS.indexOf(c.suit)!==index||c.n!==(last?last.n+1:1)){selected=null;render();return}f.push(src==='waste'?waste.pop():tableau[src.pile].pop().card)}
+ if(target==='column'){if(src!=='waste'&&src.pile===index){selected=null;render();return}const dest=tableau[index],last=(dest.at(-1)&&dest.at(-1).card);if(!((last&&c.n===last.n-1&&red(c)!==red(last))||(!last&&c.n===13))){selected=null;render();return}
+ const pieces=src==='waste'?[{card:waste.pop(),up:true}]:tableau[src.pile].splice(src.index);dest.push(...pieces)}
+ tableau.forEach(p=>{if(p.length)p[p.length-1].up=true});selected=null;won=found.every(p=>p.length===13);if(won)G.score('solitaire',1);render()}
+ function clickSource(src){if(won)return;if(selected){if(src!=='waste'&&src.pile!=null&&src.index===tableau[src.pile].length-1){transfer('column',src.pile);return}selected=null;render();return}if(src==='waste'&&waste.length||src!=='waste'&&(tableau[src.pile][src.index]&&tableau[src.pile][src.index].up)&&isValidRun(tableau[src.pile],src.index)){selected={source:src};render()}}
+ function drawStock(){selected=null;if(stock.length)waste.push(stock.pop());else if(waste.length){stock=waste.reverse();waste=[]}render()}
+ function render(){G.status(won?'Solitaire completed!':'Foundations '+found.reduce((n,a)=>n+a.length,0)+'/52 · Stock '+stock.length);
+ const area=G.board(),toprow=G.el('div','sol-bottom');
+ const draw=G.el('button','sol-card covered',stock.length?'DRAW':waste.length?'RESET':'EMPTY');draw.disabled=!stock.length&&!waste.length;draw.onclick=drawStock;toprow.append(draw);
+ toprow.append(button(waste.at(-1),()=>clickSource('waste'),{chosen:(selected&&selected.source)==='waste',disabled:!waste.length}));
+ found.forEach((f,i)=>toprow.append(button(f.at(-1)||{n:0,suit:SUITS[i]},()=>{if(selected)transfer('foundation',i);else if(f.length)return},{disabled:false})));area.append(toprow);
+ const columns=G.el('div','sol-columns');tableau.forEach((pile,p)=>{const col=G.el('div','sol-column');pile.forEach((entry,i)=>col.append(button(entry.card,()=>clickSource({pile:p,index:i}),{hidden:!entry.up,disabled:!entry.up,chosen:(selected&&selected.source&&selected.source.pile)===p&&selected.source.index===i})));if(!pile.length)col.append(button(null,()=>transfer('column',p)));else if(selected){const drop=G.el('button','sol-drop','Place here');drop.onclick=()=>transfer('column',p);col.append(drop);}columns.append(col)});area.append(columns)}
+ render();G.note('Tap a visible card to select a run, then tap a destination column or matching suit foundation.');});
+})();

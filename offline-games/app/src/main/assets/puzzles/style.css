@@ -1,0 +1,86 @@
+:root{--surface:#fff;--ink:#19211e;--muted:#6b7670;--line:#dce2dc;--selected:#243d32;--board:#e7ece6}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{margin:0;background:#f8f9f6;color:var(--ink);font:400 15px/1.5 Inter,Arial,system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+button{font:inherit;cursor:pointer;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+button:focus-visible,a:focus-visible{outline:3px solid #488c72;outline-offset:3px}
+.puzzle-shell{width:min(100%,830px);margin:0 auto;padding:19px 16px 36px}
+.night-game-intro{text-align:center;margin:0 auto 14px}
+.night-game-intro h1{margin:5px 0 2px;font-size:clamp(29px,5vw,43px);letter-spacing:-1.7px;line-height:1.15}
+.night-game-intro p{margin:5px 0 0;color:var(--muted);font-size:13px}
+.puzzle-status{display:flex;justify-content:center;align-items:center;flex-wrap:wrap;gap:8px;margin:9px auto 16px}
+.puzzle-status span{background:#edf0eb;color:#3e574a;border-radius:10px;font-size:11px;font-weight:800;padding:7px 11px;letter-spacing:.15px}
+.puzzle-workspace{display:flex;flex-direction:column;align-items:center;min-width:0}
+.puzzle-board{width:min(100%,470px);min-width:0;position:relative;user-select:none;-webkit-user-select:none}
+.puzzle-tools{width:min(100%,470px);margin:14px auto 2px}
+.puzzle-message{min-height:21px;font-size:13px;text-align:center;color:#416451;margin:12px 0 4px;font-weight:650;max-width:480px}
+.puzzle-action{margin:12px 0 0;display:flex;justify-content:center}
+.puzzle-action button{border-radius:12px;padding:12px 22px;display:inline-flex;gap:9px;align-items:center;min-height:45px;font-weight:750}
+.puzzle-action svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.8}
+.puzzle-board button{display:grid;place-items:center;min-width:0;min-height:0;padding:0;border:0}
+.sudoku-grid{width:100%;display:grid;grid-template-columns:repeat(9,minmax(0,1fr));aspect-ratio:1;border:2px solid #344b40;background:#aabbb0;overflow:hidden;border-radius:8px;gap:1px;touch-action:manipulation}
+.sudoku-cell{position:relative;background:#fff;color:#254034;font-weight:570;font-size:clamp(17px,4.9vw,25px);border-right:0;transition:background .09s}
+.sudoku-cell.block-right{box-shadow:inset -2px 0 0 #728b7d}
+.sudoku-cell.block-bottom{border-bottom:2px solid #728b7d}
+.sudoku-cell.given{color:#161f1b;font-weight:850;background:#f2f4ef}
+.sudoku-cell.peer{background:#e5ede7}
+.sudoku-cell.selected{background:#b9dac7!important;box-shadow:inset 0 0 0 2px #3c8162;z-index:2}
+.sudoku-cell.matched-digit{background:#d4e7d9}
+.sudoku-cell.conflict{color:#c34643;background:#f9e5e3}
+.sudoku-cell .notes{display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(3,1fr);width:100%;height:100%;font-size:clamp(6px,1.7vw,10px);line-height:1.1;font-weight:700;color:#73867b;align-items:center;justify-items:center}
+.sudoku-cell .notes i{font-style:normal}
+.sudoku-keypad{display:grid;grid-template-columns:repeat(9,minmax(0,1fr));gap:6px;width:100%}
+.sudoku-keypad button,.sudoku-actions button{background:#fff;color:#263d30;border:1px solid var(--line);border-radius:10px;min-height:48px;font-weight:800}
+.sudoku-keypad button{font-size:21px}
+.sudoku-keypad button:disabled{opacity:.4}
+.sudoku-actions{display:flex;gap:8px;justify-content:space-between;margin-top:8px}
+.sudoku-actions button{flex:1;display:flex;justify-content:center;align-items:center;gap:6px;font-size:12px;min-height:45px}
+.sudoku-actions button[aria-pressed="true"]{background:#1e4432;color:white}
+.sudoku-actions svg{height:18px;width:18px;fill:none;stroke:currentColor;stroke-width:1.8}
+.memory-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px;width:100%;padding:4px}
+.memory-grid.cols-6{grid-template-columns:repeat(6,minmax(0,1fr))}
+.memory-card{position:relative;aspect-ratio:.85;border:1px solid #d5ded8!important;background:#e7eee8;border-radius:12px;overflow:hidden;perspective:650px}
+.memory-card:before{content:"";position:absolute;inset:10%;border:1.5px solid #adc2b1;border-radius:8px;transform:rotate(14deg)}
+.memory-card:after{content:"";position:absolute;width:18px;height:18px;border-radius:50%;background:#8da999;box-shadow:0 0 0 7px #e1ece4}
+.memory-card .memory-shape{position:absolute;inset:0;display:grid;place-items:center;background:#fff;opacity:0;transform:rotateY(-90deg) scale(.8);transition:transform .18s ease,opacity .12s}
+.memory-card.flipped .memory-shape,.memory-card.matched .memory-shape{opacity:1;transform:rotateY(0) scale(1)}
+.memory-card.flipped:after,.memory-card.matched:after{display:none}
+.memory-card.matched{border-color:#82ad93!important;background:#f2faf2}
+.memory-card.matched .memory-shape{background:#f2faf2}
+.memory-card svg{width:68%;max-width:62px;aspect-ratio:1}
+.memory-card:disabled{cursor:default;opacity:1}
+.connect-board{width:100%;aspect-ratio:7/6.28;background:#213a34;border:5px solid #213a34;border-radius:15px;display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px;box-shadow:0 12px 0 #b7c9bf;overflow:hidden}
+.connect-col{display:flex!important;flex-direction:column;gap:4px;background:#355749;padding:4px;border-radius:7px}
+.connect-col:disabled{cursor:default;opacity:1}
+.connect-cell{flex:1;min-height:0;width:100%;background:#edf3ec;border-radius:50%;box-shadow:inset 0 3px 6px #102e2938;position:relative}
+.connect-cell.red{background:#f2b88e;box-shadow:inset 0 3px 7px #9e552e80}
+.connect-cell.yellow{background:#efdb84;box-shadow:inset 0 3px 7px #98793666}
+.connect-col:not(:disabled):active{background:#5d8770}
+.connect-col[aria-label]:focus-visible{outline:3px solid #e2ab52;outline-offset:-2px}
+.mode-pill-row{display:flex;justify-content:center;gap:8px;flex-wrap:wrap;margin-top:13px}
+.mode-pill-row span{font-size:12px;color:#596b60}
+.puzzle-options{display:flex;flex-wrap:wrap;gap:7px;margin:9px 0 18px}
+.puzzle-options button{border:1px solid #d7ded7;background:#fff;color:#263a2e;border-radius:9px;font-size:12px;min-height:42px;padding:8px 14px;font-weight:740}
+.puzzle-options button[aria-pressed="true"]{background:#253b30;color:white;border-color:#253b30}
+.puzzle-options-label{display:block;font-size:11px;letter-spacing:1px;font-weight:800;color:#738079;margin-top:19px}
+.night-sheet-rule{font-size:13px;line-height:1.75;color:#65766a;margin:7px 0 4px}
+@media(max-width:530px){
+ .puzzle-shell{padding:10px 7px 25px}
+ .night-game-intro{margin-bottom:7px}
+ .night-game-intro h1{font-size:28px}
+ .night-game-intro p{font-size:12px}
+ .puzzle-status{margin:8px 0 10px;gap:5px}
+ .puzzle-status span{font-size:10px;padding:6px 9px}
+ .sudoku-grid{border-width:1px;border-radius:5px}
+ .sudoku-keypad{grid-template-columns:repeat(5,minmax(0,1fr));gap:5px}
+ .sudoku-keypad button{font-size:19px;min-height:42px}
+ .memory-grid{gap:5px}
+ .memory-card{border-radius:8px}
+ .memory-card:before{inset:8%}
+ .memory-card:after{width:13px;height:13px}
+ .connect-board{border-width:3px;gap:2px;border-radius:10px}
+ .connect-col{gap:3px;padding:2px;border-radius:4px}
+ .puzzle-tools{margin-top:12px}
+ .sudoku-actions button{min-height:44px;font-size:11px}
+}
+@media(prefers-reduced-motion:reduce){.sudoku-cell,.memory-card .memory-shape{transition:none!important}}
