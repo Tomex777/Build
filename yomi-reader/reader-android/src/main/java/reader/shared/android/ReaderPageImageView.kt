@@ -45,6 +45,10 @@ open class ReaderPageImageView @JvmOverloads constructor(
     private var imageGeneration = 0L
 
     var onImageLoaded: (() -> Unit)? = null
+    // Webtoon rows need their decoded image aspect ratio before the placeholder
+    // can be removed. A WRAP_CONTENT SSIV inside a FrameLayout has no intrinsic
+    // height, which previously collapsed pages to an invisible zero-height row.
+    var onImageDimensionsAvailable: ((width: Int, height: Int) -> Unit)? = null
     var onImageLoadError: ((Throwable?) -> Unit)? = null
     var onScaleChanged: ((Float) -> Unit)? = null
 
@@ -106,6 +110,9 @@ open class ReaderPageImageView @JvmOverloads constructor(
                             ZoomStartPosition.CENTER -> Unit
                         }
                         selectedDirection?.let { this@ReaderPageImageView.onPageSelected(it) }
+                        if (isWebtoon && sWidth > 0 && sHeight > 0) {
+                            this@ReaderPageImageView.onImageDimensionsAvailable?.invoke(sWidth, sHeight)
+                        }
                         this@ReaderPageImageView.onImageLoaded?.invoke()
                     }
 
@@ -163,6 +170,9 @@ open class ReaderPageImageView @JvmOverloads constructor(
                     if (generation != imageGeneration) return@target
                     val drawable = result.asDrawable(context.resources)
                     view.setImageDrawable(drawable)
+                    if (isWebtoon && drawable.intrinsicWidth > 0 && drawable.intrinsicHeight > 0) {
+                        onImageDimensionsAvailable?.invoke(drawable.intrinsicWidth, drawable.intrinsicHeight)
+                    }
                     // GIF decoding must produce a running Animatable. A
                     // successful still first frame is NOT equivalent to a
                     // working animated comic page, especially on API 26.
