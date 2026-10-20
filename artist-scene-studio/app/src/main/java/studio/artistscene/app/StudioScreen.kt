@@ -164,6 +164,7 @@ import studio.artistscene.core.LightingLook
 import studio.artistscene.core.IkPoint
 import studio.artistscene.core.TwoBoneIk
 import studio.artistscene.core.evaluateTimeline
+import studio.artistscene.core.evaluateTimelineAtPlayhead
 import studio.artistscene.core.poseKeyTimes
 import studio.artistscene.core.transformKeyTimes
 import java.util.UUID
@@ -669,10 +670,10 @@ internal fun StudioScreen(
         Box(Modifier.fillMaxSize()) {
             Box(Modifier.fillMaxSize().testTag("scene-viewport").semantics { contentDescription = "3D scene" }) {
             SceneViewport(
-                project = if (timelinePlaying || activeSheet == "motion") {
-                    editor.project.evaluateTimeline(timelineTime)
-                } else {
-                    editor.project
+                project = when {
+                    timelinePlaying -> editor.project.evaluateTimeline(timelineTime)
+                    activeSheet == "motion" -> editor.project.evaluateTimelineAtPlayhead(timelineTime)
+                    else -> editor.project
                 },
                 selectedActorId = editor.selectedActorId,
                 modifier = Modifier.fillMaxSize(),
