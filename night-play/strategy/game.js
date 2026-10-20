@@ -8,6 +8,33 @@ const $=id=>document.getElementById(id);
 const board=$('chessBoard'),promotionLayer=$('promotionLayer'),PERSIST='night-chess-match-v1';
 const ICONS={p:'p',r:'r',n:'n',b:'b',q:'q',k:'k'};
 const files='abcdefgh';
+const SOUND_BASE='https://raw.githubusercontent.com/sharechess/sharechess/main/public/sfx/';
+const SOUND_PREF='night-play-chess-samples-v1';
+let soundOn=true;try{soundOn=localStorage.getItem(SOUND_PREF)!=='off'}catch{}
+// Public-domain recorded wooden board piece sounds (not synthesized bleeps).
+const samples={move:new Audio(SOUND_BASE+'move.mp3'),capture:new Audio(SOUND_BASE+'snap.mp3')};
+Object.values(samples).forEach(a=>{a.preload='auto';a.volume=.45});
+function moveSound(move){
+ if(!soundOn)return;
+ const a=samples[move.captured?'capture':'move'];
+ try{a.pause();a.currentTime=0;a.play()?.catch(()=>{})}catch{}
+}
+function renderFinish(){
+ const el=$('chessFinish');
+ if(!match.game_over()){el.hidden=true;return;}
+ const draw=match.in_draw()||match.in_stalemate()||match.in_threefold_repetition();
+ const won=match.in_checkmate()&&match.turn()==='b';
+ const result=draw?'draw':mode==='local'?'local':won?'win':'loss';
+ el.dataset.result=result;
+ $('chessFinishTitle').textContent=draw?'Draw':mode==='local'?(match.turn()==='b'?'White wins!':'Black wins!'):won?'You won!':'You lost';
+ $('chessFinishDetail').textContent=gameLabel();
+ el.hidden=false;
+}
+function soundButton(){
+ $('chessSound').textContent=soundOn?'Sound on':'Sound off';
+ $('chessSound').setAttribute('aria-pressed',String(soundOn));
+}
+
 let match=new Chess(),mode='computer',selected=null,available=[],lastMove=null;
 let busy=false,epoch=0,cpuTimer=null,cpuWorker=null,cpuWatchdog=null,promotionPending=null,difficulty='normal';
 let cpuWorkerReplies=0,lastCpuNodes=0,lastCpuDepth=0;
@@ -82,7 +109,7 @@ function render(){
  $('cpuDifficulty').value=difficulty;
  $('undo').disabled=busy||!match.history().length;
  $('localNote').textContent=mode==='computer'?'Computer plays black.':'Two players on one device.';
- renderMoves();save();
+ renderMoves();renderFinish();soundButton();save();
 }
 function cancel(){
  epoch++;busy=false;selected=null;available=[];promotionPending=null;
@@ -123,7 +150,7 @@ function animatePiece(from,to){
  document.body.appendChild(ghost);source.style.visibility='hidden';
  const dx=b.left+b.width/2-a.left-a.width/2,dy=b.top+b.height/2-a.top-a.height/2;
  const flight=ghost.animate([{transform:'translate3d(0,0,0)'},{offset:.65,transform:'translate3d('+(dx*.65)+'px,'+(dy*.65-4)+'px,0)'},{transform:'translate3d('+dx+'px,'+dy+'px,0)'}],
-  {duration:250,easing:'cubic-bezier(.2,.74,.2,1)',fill:'forwards'});
+  {duration:145,easing:'cubic-bezier(.2,.74,.2,1)',fill:'forwards'});
  return flight.finished.catch(()=>{}).finally(()=>{source.style.visibility='';ghost.remove()});
 }
 async function commitMove(move){
@@ -136,7 +163,7 @@ async function commitMove(move){
   if(token!==epoch)return false;
   const result=match.move({...move,promotion:move.promotion||'q'});
   if(!result)return false;
-  lastMove=result;render();return true;
+  lastMove=result;moveSound(result);render();return true;
  }finally{
   if(token===epoch){
    busy=false;
@@ -188,7 +215,7 @@ function queueCPU(){
    clearTimeout(cpuWatchdog);cpuWatchdog=null;
    fallback();
   }
- },160);
+ },65);
 }
 board.addEventListener('click',e=>{const cell=e.target.closest('[data-square]');if(cell)squareClicked(cell.dataset.square)});
 $('vsCpu').addEventListener('click',()=>{if(mode!=='computer')newMatch('computer')});
@@ -200,6 +227,11 @@ $('cpuDifficulty').addEventListener('change',event=>{
  else save();
 });
 $('newMatch').addEventListener('click',()=>newMatch());
+$('chessFinishAgain').addEventListener('click',()=>newMatch());
+$('chessSound').addEventListener('click',()=>{soundOn=!soundOn;
+ try{localStorage.setItem(SOUND_PREF,soundOn?'on':'off')}catch{}
+ soundButton();
+});
 $('undo').addEventListener('click',()=>{
  if(busy||!match.history().length)return;
  cancel();
@@ -212,6 +244,6 @@ $('promotionChoices').addEventListener('click',e=>{
  commitMove({...promotionPending,promotion:button.dataset.promote});
 });
 $('promotionCancel').addEventListener('click',()=>{promotionPending=null;promotionLayer.hidden=true;render()});
-window.__nightChessQA=()=>({fen:match.fen(),turn:match.turn(),moves:match.history(),gameOver:match.game_over(),inCheck:match.in_check(),mode,busy,legalSquares:available.map(m=>m.to),pendingPromotion:!!promotionPending,difficulty,thinking:!!cpuWorker||cpuTimer!==null,cpuWorkerReplies,lastCpuNodes,lastCpuDepth});
+window.__nightChessQA=()=>({fen:match.fen(),turn:match.turn(),moves:match.history(),gameOver:match.game_over(),inCheck:match.in_check(),mode,busy,legalSquares:available.map(m=>m.to),pendingPromotion:!!promotionPending,difficulty,thinking:!!cpuWorker||cpuTimer!==null,cpuWorkerReplies,lastCpuNodes,lastCpuDepth,soundOn,resultVisible:!$('chessFinish').hidden});
 read();render();if(mode==='computer'&&match.turn()==='b'&&!match.game_over())queueCPU();
 })();
