@@ -359,9 +359,10 @@ class Device:
     def download(self, path):
         # This is deliberately a FULL byte-verified download acceptance, not a
         # pass for merely issuing GET or opening a consent dialog.
-        from wave2_fixture import PNG, PDF
+        from wave2_fixture import PNG, PDF, BIN
         expected = {"/file.png": ("night-qa.png", PNG),
-                    "/file.pdf": ("night-qa.pdf", PDF)}
+                    "/file.pdf": ("night-qa.pdf", PDF),
+                    "/secure/file.bin": ("night-secure-qa.bin", BIN)}
         if path not in expected:
             raise AssertionError("No reference fixture for download")
         filename, original = expected[path]
@@ -395,6 +396,20 @@ class Device:
             raise AssertionError("Byte-verified download missing from Library: " + filename)
         return ("Original Gecko response bytes verified SHA256; Library shows "
                 + filename + " (" + str(observed[1]) + " bytes)")
+
+    def authenticated_download(self):
+        """Cookie-bearing Gecko original-response bytes, never a bare GET pass."""
+        before = fixture()["secure_download_ok"]
+        self.go("/cookie/set")
+        self.go("/cookie/echo")
+        echoes = list(fixture()["cookie_seen"].values())
+        if not echoes or not echoes[-1]:
+            raise AssertionError("Normal Gecko profile did not send the control cookie")
+        outcome = self.download("/secure/file.bin")
+        after = fixture()["secure_download_ok"]
+        if after <= before:
+            raise AssertionError("Protected endpoint never saw the Gecko session cookie")
+        return outcome + "; cookie-authenticated fixture response confirmed"
 
     def duplicate_download(self):
         """Never silently overwrite or re-transfer a completed previous file."""
@@ -646,8 +661,8 @@ class Device:
                   lambda: self._unverified("Requires getUserMedia, OS prompt and permission-revocation assertion"))
         self.test("C34", "Open saved PDF offline", self.offline_pdf,
                   prerequisites=("C26",), screenshot=True)
-        self.test("C35", "Authenticated downloads verify byte SHA",
-                  lambda: self._unverified("Requires login test fixture + download consent and SHA256"))
+        self.test("C35", "Authenticated download cookie and SHA256",
+                  self.authenticated_download, prerequisites=("C04",))
         self.test("C36", "Real thumbnail quality",
                   lambda: self._unverified("Nonblank thumbnail screenshots must be reviewed"))
         self.test("C37", "Scroll jank and frame timing",
