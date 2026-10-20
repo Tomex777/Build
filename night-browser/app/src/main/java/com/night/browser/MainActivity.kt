@@ -156,16 +156,14 @@ private fun NightBrowser(browser: BrowserController, openSaved: (SavedPage) -> U
                         onOpen = { openTab(it) },
                         onClose = { browser.closeTab(it.id) },
                         onNew = { browser.newTab(); page = Page.HOME })
-                    Page.JOURNEYS -> JourneyPanel(browser,
+                    Page.JOURNEYS -> JourneyScreen(
+                        store = browser.store,
                         onNew = { newJourneyDialog = true },
-                        onOpen = { j, url ->
-                            browser.newTab(url, j.id)
-                            page = Page.WEB
-                        },
-                        onSelect = { j ->
-                            browser.newTab(journeyId = j.id)
-                            page = Page.HOME
-                        })
+                        onResume = { journey, node ->
+                            browser.newTab(node?.url, journey.id, node?.id)
+                            page = if (node == null) Page.HOME else Page.WEB
+                        }
+                    )
                     Page.LIBRARY -> LibraryPanel(browser,
                         onOpen = { browser.newTab(it); page = Page.WEB })
                     Page.TIME_MACHINE -> TimeMachinePanel(browser, openSaved)
@@ -290,7 +288,7 @@ private fun NightBrowser(browser: BrowserController, openSaved: (SavedPage) -> U
             dismissButton = {
                 TextButton(onClick = {
                     browser.contextLink = null
-                    browser.newTab(link)
+                    browser.newChildTab(link)
                     page = Page.WEB
                 }) { Text("New tab") }
             },
@@ -302,7 +300,7 @@ private fun NightBrowser(browser: BrowserController, openSaved: (SavedPage) -> U
         PeekDialog(browser, url,
             onDismiss = { peekUrl = null },
             onOpen = {
-                browser.newTab(url)
+                browser.newChildTab(url)
                 peekUrl = null
                 page = Page.WEB
             })
