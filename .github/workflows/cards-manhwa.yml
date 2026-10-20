@@ -1,0 +1,51 @@
+name: NIGHT Manhwa Candidate Foundation
+
+on:
+  push:
+    branches: [feature/cards-manhwa-foundation-20261021]
+    paths:
+      - 'cards/catalog/manhwa-*.json'
+      - 'cards/src/manhwa.mjs'
+      - 'cards/bin/manhwa.mjs'
+      - 'cards/tests/manhwa.test.mjs'
+      - 'cards/docs/MANHWA.md'
+      - '.github/workflows/cards-manhwa.yml'
+  pull_request:
+    paths:
+      - 'cards/catalog/manhwa-*.json'
+      - 'cards/src/manhwa.mjs'
+      - 'cards/bin/manhwa.mjs'
+      - 'cards/tests/manhwa.test.mjs'
+      - '.github/workflows/cards-manhwa.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  candidate-audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    defaults:
+      run:
+        working-directory: cards
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: cards/package-lock.json
+      - run: npm ci
+      - name: Regression tests, including existing BLEACH renderer catalogue
+        run: npm test
+      - name: Validate verified 23-edition roster and unacquired art gate
+        run: node bin/manhwa.mjs audit
+      - name: Ensure missing art never produces fake cards
+        run: |
+          node bin/manhwa.mjs prepare
+          test ! -e catalog/sss-revival.json
+          test ! -e catalog/infinite-mage.json
+          test ! -e catalog/study-group.json
