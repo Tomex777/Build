@@ -10,7 +10,7 @@ import java.util.UUID
 
 data class JourneyNode(
     val id: String, val url: String, val title: String,
-    val parent: String?, val timestamp: Long
+    val parent: String?, val timestamp: Long, val customTitle: Boolean = false
 )
 data class Journey(val id: String, val name: String, val nodes: List<JourneyNode>)
 data class Bookmark(val url: String, val title: String)
@@ -39,7 +39,8 @@ class JourneyStore(context: Context) {
                 val safe = JourneyGraph.safeUrl(x.optString("url")) ?: return@mapNotNull null
                 JourneyNode(
                     x.getString("id"), safe, x.optString("title"),
-                    x.optString("parent").ifBlank { null }, x.optLong("time")
+                    x.optString("parent").ifBlank { null }, x.optLong("time"),
+                    x.optBoolean("custom", false)
                 )
             }
             Journey(obj.getString("id"), obj.optString("name").ifBlank { "Untitled journey" },
@@ -118,7 +119,20 @@ class JourneyStore(context: Context) {
         journeys = journeys.map { journey ->
             if (journey.id != journeyId) journey
             else journey.copy(nodes = journey.nodes.map { node ->
-                if (node.id == nodeId) node.copy(title = label) else node
+                if (node.id == nodeId) node.copy(title = label, customTitle = true) else node
+            })
+        }
+        persist()
+    }
+
+    /** Page title updates must not undo a user's explicit label. */
+    fun updatePageTitle(journeyId: String, nodeId: String?, title: String) {
+        val label = title.trim().take(180)
+        if (nodeId == null || label.isBlank()) return
+        journeys = journeys.map { journey ->
+            if (journey.id != journeyId) journey
+            else journey.copy(nodes = journey.nodes.map { node ->
+                if (node.id == nodeId && !node.customTitle) node.copy(title = label) else node
             })
         }
         persist()
@@ -186,7 +200,8 @@ class JourneyStore(context: Context) {
             val arr = JSONArray()
             j.nodes.forEach { n ->
                 arr.put(JSONObject().put("id", n.id).put("url", n.url).put("title", n.title)
-                    .put("parent", n.parent ?: "").put("time", n.timestamp))
+                    .put("parent", n.parent ?: "").put("time", n.timestamp)
+                    .put("custom", n.customTitle))
             }
             journeyJson.put(JSONObject().put("id", j.id).put("name", j.name).put("nodes", arr))
         }
