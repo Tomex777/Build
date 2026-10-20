@@ -45,7 +45,7 @@ python3 -m unittest discover -s tac-hymnbook/tools -p 'test_*.py' -v
 gradle -p tac-hymnbook/android :app:assembleDebug :app:assembleDebugAndroidTest
 ```
 
-GitHub Actions: `.github/workflows/tac-hymnbook-android.yml` builds the APK, runs offline data and source checks, then installs the APK and runs **three Android instrumentation tests** on the API 28 emulator. The UI smoke verifies Yoruba and English hymn readers plus the independent Àkọkún index. Never equate a successful APK build with fully verified hymn content.
+GitHub Actions: `.github/workflows/tac-hymnbook-android.yml` builds the APK, runs offline data and source checks, then installs the APK and runs **five Android instrumentation tests** on the API 28 emulator. The UI smoke verifies Yoruba and English hymn readers plus the independent Àkọkún index. Never equate a successful APK build with fully verified hymn content.
 
 ## Research archive
 
@@ -54,3 +54,30 @@ Older `data/audio-research-queue.json` and `data/audio-source-candidates.json` a
 ## App Building Rules
 
 No duplicate controls, no filler copy, custom-styled inputs, real vectors, clear lyrics, correct Yorùbá diacritics, Android minSdk 26 and real emulator/device validation.
+
+## Private Yorùbá pack import (v0.8.1)
+
+The app can now load an **offline, user-supplied source** of all **800 Yorùbá Redemption hymns** in one tiny JSON file. This is a capacity feature, not evidence that all 800 texts have already been acquired or approved. Existing 18 working drafts remain available; user-imported hymns are held only on the user's own device, and no imported lyrics are posted back to GitHub or distributed to other users.
+
+**More → Import Yorùbá hymns** opens Android's document picker. A valid pack can contain 1–800 independently numbered entries; repeated imports update only matching hymn numbers and retain other earlier private imports. The import runs offline and atomically so invalid files cannot replace the saved set. Reader, search, collection tabs and navigation immediately include the newly imported hymns. The home screen reports the actual number with Yorùbá verses (initially **18/800**).
+
+JSON format:
+
+```json
+{
+  "schema_version": 1,
+  "collection": "main",
+  "hymns": [
+    {
+      "number": 25,
+      "title_yo": "<actual Yorùbá first line from authorized book>",
+      "verses_yo": [
+        ["<first line, stanza 1>", "<second line, stanza 1>"],
+        ["<first line, stanza 2>", "<second line, stanza 2>"]
+      ]
+    }
+  ]
+}
+```
+
+These are **format placeholders, not hymn words**. Import checks for full stanzas, numbers in 1–800, duplicates, valid NFC tone marks and a <=4MB size limit. Each hymn should be proofread against the *TAC Nigeria* printed Redemption book. Scans/PDFs can be converted outside the app into the same schema when the rights holder grants reuse and a clean source is available; the Android app itself currently imports **JSON, not PDF**.
