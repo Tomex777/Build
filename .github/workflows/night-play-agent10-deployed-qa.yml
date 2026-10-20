@@ -1,0 +1,47 @@
+name: NIGHT Play Agent 10 Deployed Gameplay QA
+
+on:
+  push:
+    branches:
+      - agent10/night-play-qa-20261020
+    paths:
+      - 'night-play/qa/agent10-deployed-gameplay.mjs'
+      - '.github/workflows/night-play-agent10-deployed-qa.yml'
+  workflow_dispatch:
+    inputs:
+      deployment_url:
+        description: 'Exact deployed NIGHT Play URL to playtest (canonical URL to certify a release)'
+        required: true
+        default: 'https://night-play-combined-preview.vercel.app'
+
+permissions:
+  contents: read
+
+jobs:
+  actual-browser-gameplay:
+    name: Chrome: real mobile touch, scoring, collisions, loss and restart
+    runs-on: ubuntu-latest
+    timeout-minutes: 9
+    env:
+      # This branch tests the known READY candidate. To certify the live
+      # published website, manually dispatch against the canonical URL.
+      NIGHT_PLAY_BASE_URL: ${{ inputs.deployment_url || 'https://night-play-combined-preview-p0uc189jp-tomex777.vercel.app' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install real Chromium and Playwright
+        run: |
+          npm install --no-save playwright@1.56.1
+          npx playwright install --with-deps chromium
+      - name: Play deployed games with real touch and reviewable evidence
+        run: node night-play/qa/agent10-deployed-gameplay.mjs
+      - name: Upload screenshots and structured QA results even on test failures
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: agent10-real-deployed-gameplay
+          path: night-play/visual-output/agent10/
+          if-no-files-found: warn
+          retention-days: 14
