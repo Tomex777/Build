@@ -30,6 +30,12 @@ class BrowserPlatformHost(private val activity: ComponentActivity) :
     private var pendingFile: Pair<GeckoSession.PromptDelegate.FilePrompt,
         GeckoResult<GeckoSession.PromptDelegate.PromptResponse>>? = null
     private var pendingAndroid: GeckoSession.PermissionDelegate.Callback? = null
+    private data class PendingMedia(
+        val callback: GeckoSession.PermissionDelegate.MediaCallback,
+        val video: GeckoSession.PermissionDelegate.MediaSource?,
+        val audio: GeckoSession.PermissionDelegate.MediaSource?
+    )
+    private var pendingMedia: PendingMedia? = null
 
     private val documents = activity.registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
@@ -56,10 +62,17 @@ class BrowserPlatformHost(private val activity: ComponentActivity) :
     private val androidPermissions = activity.registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { grants ->
+        val allowed = grants.isNotEmpty() && grants.values.all { it }
+        val media = pendingMedia
+        pendingMedia = null
+        if (media != null) {
+            if (allowed) media.callback.grant(media.video, media.audio)
+            else media.callback.reject()
+            return@registerForActivityResult
+        }
         val callback = pendingAndroid ?: return@registerForActivityResult
         pendingAndroid = null
-        if (grants.isNotEmpty() && grants.values.all { it }) callback.grant()
-        else callback.reject()
+        if (allowed) callback.grant() else callback.reject()
     }
 
     override fun onFilePrompt(
@@ -116,7 +129,7 @@ class BrowserPlatformHost(private val activity: ComponentActivity) :
             callback.grant()
             return
         }
-        if (pendingAndroid != null) { callback.reject(); return }
+        if (pendingAndroid != null || pendingMedia != null) { callback.reject(); return }
         pendingAndroid = callback
         try { androidPermissions.launch(requested.toTypedArray()) }
         catch (_: RuntimeException) {
@@ -178,12 +191,6 @@ class BrowserPlatformHost(private val activity: ComponentActivity) :
         val camera = !video.isNullOrEmpty()
         val microphone = !audio.isNullOrEmpty()
         if (!camera && !microphone) { callback.reject(); return }
-        if (camera && ContextCompat.checkSelfPermission(
-                activity, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED
-        ) { callback.reject(); return }
-        if (microphone && ContextCompat.checkSelfPermission(
-                activity, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED
-        ) { callback.reject(); return }
         val reason = when {
             camera && microphone -> "camera and microphone"
             camera -> "camera"
@@ -192,7 +199,29 @@ class BrowserPlatformHost(private val activity: ComponentActivity) :
         AlertDialog.Builder(activity)
             .setTitle("Website device access")
             .setMessage("${safeHost(uri)} wants to use your ${reason}.")
-            .setPositiveButton("Allow") { _, _ -> callback.grant(video?.firstOrNull(), audio?.firstOrNull()) }
+            .setPositiveButton("Allow") { _, _ ->
+                val required = buildList {
+                    if (camera) add(Manifest.permission.CAMERA)
+                    if (microphone) add(Manifest.permission.RECORD_AUDIO)
+                }
+                val missing = required.filter {
+                    ContextCompat.checkSelfPermission(activity, it) != PackageManager.PERMISSION_GRANTED
+                }
+                if (missing.isEmpty()) {
+                    callback.grant(video?.firstOrNull(), audio?.firstOrNull())
+                } else if (pendingAndroid != null || pendingMedia != null) {
+                    // Avoid confusing overlapping OS permission popups from tabs.
+                    callback.reject()
+                } else {
+                    pendingMedia = PendingMedia(
+                        callback, video?.firstOrNull(), audio?.firstOrNull())
+                    try { androidPermissions.launch(missing.toTypedArray()) }
+                    catch (_: RuntimeException) {
+                        pendingMedia = null
+                        callback.reject()
+                    }
+                }
+            }
             .setNegativeButton("Block") { _, _ -> callback.reject() }
             .setOnCancelListener { callback.reject() }
             .show()
