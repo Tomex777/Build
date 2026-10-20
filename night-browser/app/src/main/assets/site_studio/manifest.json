@@ -1,0 +1,23 @@
+{
+  "manifest_version": 2,
+  "name": "NIGHT Site Studio",
+  "version": "1.0.0",
+  "description": "User-approved, exact-origin site styling. Off by default.",
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "site-studio@night.browser"
+    }
+  },
+  "permissions": [
+    "geckoViewAddons",
+    "nativeMessaging",
+    "nativeMessagingFromContent"
+  ],
+  "content_scripts": [{
+    "matches": ["http://*/*", "https://*/*"],
+    "all_frames": false,
+    "match_about_blank": false,
+    "run_at": "document_idle",
+    "js": ["content.js"]
+  }]
+}
