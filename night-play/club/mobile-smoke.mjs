@@ -609,6 +609,14 @@ try{
   await page.reload();
   assert.equal(await page.locator('#cpuDifficulty').inputValue(),'hard','chosen difficulty survives reload');
   await page.locator('#newMatch').click();
+  const startHard=Date.now();
+  await page.locator('[data-square="e2"]').click();
+  await page.locator('[data-square="e4"]').click();
+  await page.waitForFunction(()=>window.__nightChessQA().moves.length===2&&!window.__nightChessQA().busy,null,{timeout:10000});
+  const hardQA=await page.evaluate(()=>window.__nightChessQA());
+  assert.ok(hardQA.cpuWorkerReplies>=2&&hardQA.lastCpuNodes>0,'challenging computer move is computed off-thread');
+  assert.ok(Date.now()-startHard<9500,'challenging mode returns a response within the gameplay budget');
+  await page.locator('#newMatch').click();
   await page.locator('[data-square="e2"]').click();
   await page.locator('[data-square="e4"]').click();
   await page.waitForFunction(()=>window.__nightChessQA().moves.length===1&&!window.__nightChessQA().busy);
