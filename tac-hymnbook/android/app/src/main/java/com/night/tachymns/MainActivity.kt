@@ -1,6 +1,12 @@
 package com.night.tachymns
 
 import android.os.Bundle
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
@@ -51,10 +57,47 @@ private val DarkPalette = darkColorScheme(
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        val hymns = HymnRepository.load(this)
-        val index = IndexRepository.load(this)
+        val baseHymns = HymnRepository.load(this)
+        val baseIndex = IndexRepository.load(this)
         val prefs = getSharedPreferences("reader", MODE_PRIVATE)
         setContent {
+            var privatePack by remember { mutableStateOf(YorubaHymnPack.read(applicationContext)) }
+            val hymns = remember(privatePack) {
+                YorubaHymnPack.combine(baseHymns, baseIndex, privatePack)
+            }
+            val index = remember(privatePack) {
+                YorubaHymnPack.overlayIndex(baseIndex, privatePack)
+            }
+            val scope = rememberCoroutineScope()
+            var importing by remember { mutableStateOf(false) }
+            val importPicker = rememberLauncherForActivityResult(
+                ActivityResultContracts.OpenDocument()
+            ) { uri ->
+                if (uri != null && !importing) {
+                    importing = true
+                    scope.launch {
+                        try {
+                            val result = withContext(Dispatchers.IO) {
+                                YorubaHymnPack.importFromUri(applicationContext, uri)
+                            }
+                            privatePack = YorubaHymnPack.read(applicationContext)
+                            Toast.makeText(
+                                applicationContext,
+                                "Imported ${result.count} Yorùbá ${if (result.count == 1) "hymn" else "hymns"}",
+                                Toast.LENGTH_LONG
+                            ).show()
+                        } catch (e: Exception) {
+                            Toast.makeText(
+                                applicationContext,
+                                e.message ?: "Cannot import this Yorùbá hymn file",
+                                Toast.LENGTH_LONG
+                            ).show()
+                        } finally {
+                            importing = false
+                        }
+                    }
+                }
+            }
             var dark by remember { mutableStateOf(prefs.getBoolean("dark", false)) }
             var englishMode by rememberSaveable { mutableStateOf(false) }
             var hubQuery by rememberSaveable { mutableStateOf("") }
@@ -112,7 +155,13 @@ class MainActivity : ComponentActivity() {
                             onToggleDark = {
                                 dark = !dark
                                 prefs.edit().putBoolean("dark", dark).apply()
-                            }
+                            },
+                            onImportYoruba = {
+                                if (!importing) {
+                                    importPicker.launch(arrayOf("application/json", "text/plain"))
+                                }
+                            },
+                            importing = importing
                         )
                     } else {
                         key(selected.key) {
@@ -155,8 +204,11 @@ private fun HymnHub(
     onFilterChange: (Int) -> Unit,
     activeCollection: String,
     onCollectionChange: (String) -> Unit,
-    onToggleDark: () -> Unit
+    onToggleDark: () -> Unit,
+    onImportYoruba: () -> Unit,
+    importing: Boolean
 ) {
+    var moreOpen by rememberSaveable { mutableStateOf(false) }
     val hasAkokun = index.any { it.collection == "akokun" }
     val hasReadable = hymns.any { it.collection == activeCollection }
     val showIndex = !hasReadable || filter == 1
@@ -184,8 +236,19 @@ private fun HymnHub(
                         fontSize = 35.sp, fontWeight = FontWeight.SemiBold)
                     Text("Hymnbook", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 14.sp)
                 }
-                TextButton(onClick = onToggleDark) {
-                    Text(if (dark) "Light mode" else "Dark mode")
+                Box {
+                    TextButton(onClick = { moreOpen = true }) { Text("More") }
+                    DropdownMenu(expanded = moreOpen, onDismissRequest = { moreOpen = false }) {
+                        DropdownMenuItem(
+                            text = { Text(if (dark) "Light mode" else "Dark mode") },
+                            onClick = { moreOpen = false; onToggleDark() }
+                        )
+                        DropdownMenuItem(
+                            text = { Text(if (importing) "Importing…" else "Import Yorùbá hymns") },
+                            onClick = { moreOpen = false; onImportYoruba() },
+                            enabled = !importing
+                        )
+                    }
                 }
             }
             Spacer(Modifier.height(24.dp))
@@ -241,6 +304,15 @@ private fun HymnHub(
             }
             Text(if (showIndex) "Index" else if (filter == 2) "Saved" else "Hymns",
                 fontSize = 21.sp, fontWeight = FontWeight.SemiBold)
+            if (activeCollection == "main") {
+                val count = hymns.count { it.collection == "main" && it.hasYoruba }
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    "$count / 800 Yorùbá hymns with verses",
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
             if (hasReadable) {
                 Spacer(Modifier.height(14.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
