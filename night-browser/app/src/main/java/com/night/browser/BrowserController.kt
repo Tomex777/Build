@@ -351,28 +351,6 @@ class BrowserController(
             "Peek only supports HTTP(S) pages"
         }
         return GeckoSession().also { peek ->
-            // Disposable previews are denied all powerful permissions. A Peek
-            // must not become a second permission-owning browser profile.
-            peek.permissionDelegate = object : GeckoSession.PermissionDelegate {
-                override fun onAndroidPermissionsRequest(
-                    session: GeckoSession, permissions: Array<out String>?,
-                    callback: GeckoSession.PermissionDelegate.Callback
-                ) { callback.reject() }
-
-                override fun onContentPermissionRequest(
-                    session: GeckoSession,
-                    perm: GeckoSession.PermissionDelegate.ContentPermission
-                ): GeckoResult<Int> = GeckoResult.fromValue(
-                    GeckoSession.PermissionDelegate.ContentPermission.VALUE_DENY
-                )
-
-                override fun onMediaPermissionRequest(
-                    session: GeckoSession, uri: String,
-                    video: Array<out GeckoSession.PermissionDelegate.MediaSource>?,
-                    audio: Array<out GeckoSession.PermissionDelegate.MediaSource>?,
-                    callback: GeckoSession.PermissionDelegate.MediaCallback
-                ) { callback.reject() }
-            }
             peek.navigationDelegate = object : GeckoSession.NavigationDelegate {
                 override fun onLoadRequest(
                     session: GeckoSession,
