@@ -102,7 +102,11 @@ class HymnDataTest(unittest.TestCase):
         for hymn in entries:
             self.assertEqual(hymn["rights"], "public_domain_historical_english_text")
             self.assertEqual(hymn["text_status"], "public_domain_english_alternate_needs_edition_review")
-            self.assertTrue(hymn["source_url"].startswith("https://hymnary.org/"))
+            self.assertTrue(hymn["source_url"].startswith((
+                "https://hymnary.org/",
+                "https://www.hymnary.org/",
+                "https://library.timelesstruths.org/",
+            )))
             self.assertGreaterEqual(len(hymn["verses_en"]), 3)
             self.assertFalse("verses_yo" in hymn)
 
