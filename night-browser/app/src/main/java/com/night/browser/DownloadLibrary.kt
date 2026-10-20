@@ -25,6 +25,8 @@ import android.os.Looper
 import org.mozilla.geckoview.WebResponse
 import java.net.URLDecoder
 import java.util.Locale
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 /**
  * System DownloadManager supplies real progress, state and persistence after process death.
@@ -139,23 +141,29 @@ class DownloadLibrary private constructor(private val context: Context) {
         record
     }
 
-    fun refresh() {
-        val updated = items.map { original ->
-            if (original.localFile.isNotBlank()) return@map original
-            runCatching {
-                manager.query(DownloadManager.Query().setFilterById(original.id))?.use { cursor ->
-                    if (cursor.moveToFirst()) original.copy(
-                        status = cursor.long(DownloadManager.COLUMN_STATUS).toInt(),
-                        bytes = cursor.long(DownloadManager.COLUMN_BYTES_DOWNLOADED_SO_FAR),
-                        totalBytes = cursor.long(DownloadManager.COLUMN_TOTAL_SIZE_BYTES),
-                        reason = cursor.long(DownloadManager.COLUMN_REASON).toInt()
-                    ) else original.copy(
-                        status = DownloadManager.STATUS_FAILED,
-                        reason = DownloadManager.ERROR_FILE_ERROR
-                    )
-                } ?: original
-            }.getOrDefault(original)
+    /** Query the Android provider off the UI thread, then update observable state on main. */
+    suspend fun refresh() {
+        val systemRecords = items.filter { it.localFile.isBlank() }
+        if (systemRecords.isEmpty()) return
+        val checked = withContext(Dispatchers.IO) {
+            systemRecords.associate { original ->
+                original.id to runCatching {
+                    manager.query(DownloadManager.Query().setFilterById(original.id))?.use { cursor ->
+                        if (cursor.moveToFirst()) original.copy(
+                            status = cursor.long(DownloadManager.COLUMN_STATUS).toInt(),
+                            bytes = cursor.long(DownloadManager.COLUMN_BYTES_DOWNLOADED_SO_FAR),
+                            totalBytes = cursor.long(DownloadManager.COLUMN_TOTAL_SIZE_BYTES),
+                            reason = cursor.long(DownloadManager.COLUMN_REASON).toInt()
+                        ) else original.copy(
+                            status = DownloadManager.STATUS_FAILED,
+                            reason = DownloadManager.ERROR_FILE_ERROR
+                        )
+                    } ?: original
+                }.getOrDefault(original)
+            }
         }
+        // The set may change during I/O (new download, retry, cancel); never resurrect old IDs.
+        val updated = items.map { row -> checked[row.id] ?: row }
         if (updated != items) {
             items = updated
             persist()
