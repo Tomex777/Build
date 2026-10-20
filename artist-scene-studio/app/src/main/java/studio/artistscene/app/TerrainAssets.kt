@@ -100,7 +100,6 @@ internal class TerrainAssets(private val context: Context) {
                 relativePath = revisionPath,
                 byteSize = bytes.size.toLong(),
                 checksumSha256 = sha256(bytes),
-                checksumSha256 = sha256(bytes),
             ),
             metadata = existing.metadata +
                 ("terrainRevision" to revision.toString()) +
@@ -147,6 +146,7 @@ internal class TerrainAssets(private val context: Context) {
                 creator = "Mise / Scene artist",
                 storage = AssetStorage.PROJECT_FILE,
                 byteSize = bytes.size.toLong(),
+                checksumSha256 = sha256(bytes),
             ),
             metadata = mapOf("terrainOrigin" to provenance),
         )
