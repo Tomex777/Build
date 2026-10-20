@@ -44,10 +44,10 @@ jobs:
           path: tac-hymnbook/android/app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
 
-      - name: Upload emulator instrumentation APK
+      - name: Upload hymn-text instrumentation APK
         uses: actions/upload-artifact@v4
         with:
-          name: TAC-Hymns-device-tests
+          name: TAC-Hymns-text-device-tests
           path: tac-hymnbook/android/app/build/outputs/apk/androidTest/debug/*.apk
           if-no-files-found: error
 
@@ -95,8 +95,5 @@ jobs:
             tac-hymns-dark-home.png
             tac-hymns-dark-reader.png
             tac-hymns-akokun-index.png
-            tac-hymns-audio-reader.png
-            tac-hymns-learn-home.png
-            tac-hymns-offline-audio.png
             tac-hymns-redemption-190-english.png
           if-no-files-found: warn
