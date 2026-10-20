@@ -2,12 +2,12 @@ name: NIGHT Browser Android Prototype
 
 on:
   push:
-    branches: [feature/night-browser-prototype-20261019]
+    branches: [feature/night-browser-prototype-20261019, feature/night-browser-multi-agent-20261020]
     paths:
       - 'night-browser/**'
       - '.github/workflows/night-browser-android.yml'
   pull_request:
-    branches: [main]
+    branches: [main, feature/night-browser-prototype-20261019, feature/night-browser-multi-agent-20261020]
     paths:
       - 'night-browser/**'
       - '.github/workflows/night-browser-android.yml'
@@ -19,6 +19,10 @@ jobs:
     timeout-minutes: 35
     steps:
       - uses: actions/checkout@v4
+      - name: Verify Browser integration invariants and guard tests
+        run: |
+          python3 -m unittest discover -s night-browser/ci -p 'test_integration_guard.py' -v
+          python3 night-browser/ci/integration_guard.py
       - uses: actions/setup-java@v5
         with:
           distribution: temurin

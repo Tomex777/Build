@@ -1,6 +1,7 @@
 package com.night.browser
 
 import android.content.Context
+import android.graphics.Bitmap
 import android.os.Handler
 import android.os.Looper
 import androidx.compose.runtime.getValue
@@ -25,6 +26,8 @@ class BrowserTab(
     var canGoBack by mutableStateOf(false)
     var canGoForward by mutableStateOf(false)
     var lastNode by mutableStateOf<String?>(null)
+    // In-memory reduced page preview. Never written to the browsing-history store.
+    var thumbnail by mutableStateOf<Bitmap?>(null)
 }
 
 class BrowserController(private val appContext: Context) {
