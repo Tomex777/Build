@@ -33,7 +33,12 @@ test('Exact form identity is not confused with a future transformation',()=>{
  assert.match(get('naruto-child').source.image,/09_02/);
  assert.match(get('sasuke-rinne-sharingan').source.image,/01_02/);
  assert.match(get('sasuke-eternal-mangekyo').source.image,/07_06/);
- assert.notEqual(get('madara-war').source.image,get('madara-edo').source.image);
+ assert.equal(get('obito-masked-persona').character,'obito');
+ assert.equal(get('obito-masked-persona').formId,'masked-madara-persona');
+ assert.equal(get('obito-masked-persona').rank.letter,'A');
+ assert.notEqual(get('obito-masked-persona').source.image,get('madara-edo').source.image);
+ assert.notEqual(get('obito-masked-persona').source.image,get('obito-war').source.image);
+ assert.ok(data.pendingForms.some(x=>x.id==='madara-living'));
  for(const expected of ['naruto-baryon-mode','naruto-kcm1','naruto-sage-mode','kakashi-double-mangekyo','madara-ten-tails']){
    assert.ok(data.pendingForms.some(x=>x.id===expected));
    assert.ok(!data.sources.some(x=>x.id===expected));
