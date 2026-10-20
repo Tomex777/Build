@@ -1,0 +1,105 @@
+{
+  "sourceCount": 18,
+  "accepted": 2,
+  "pending": 16,
+  "sourceIssues": [
+    {
+      "id": "aqua-adventurer",
+      "reason": "Needs a higher-native-resolution, transparent character cutout (367×669, alpha=true)",
+      "source": "https://konosuba.com/3rd/character/img/aqua.png",
+      "sha256": "11a7dbf7eddcf7a09f9ce3b9695ec7b9f089ca1a3ea348147389e70277c6c241"
+    },
+    {
+      "id": "vanir-masked",
+      "reason": "Needs a higher-native-resolution, transparent character cutout (367×669, alpha=true)",
+      "source": "https://konosuba.com/3rd/character/img/vanir.png",
+      "sha256": "2fb0dd07967f9b1bca38cf9b57368bb75a338d516e357b263a84489da63f2ddf"
+    },
+    {
+      "id": "wiz-lich",
+      "reason": "Needs a higher-native-resolution, transparent character cutout (367×669, alpha=true)",
+      "source": "https://konosuba.com/3rd/character/img/wiz.png",
+      "sha256": "ef79bc622b69bc1b57a141113bd6ff372eb0be7465bb51526c41a35fb3caac0f"
+    },
+    {
+      "id": "iris-royal",
+      "reason": "Needs a higher-native-resolution, transparent character cutout (367×669, alpha=true)",
+      "source": "https://konosuba.com/3rd/character/img/iris.png",
+      "sha256": "2d249c893c6a13b22a00ed75d0dab765492fbace94897e7f8883586dab9d33b0"
+    },
+    {
+      "id": "megumin-explosion",
+      "reason": "Needs a higher-native-resolution, transparent character cutout (367×669, alpha=true)",
+      "source": "https://konosuba.com/3rd/character/img/megumin.png",
+      "sha256": "a0cd5a01e4eff1e88226fa5ca2820243cc0371d26f1c9f738bd6de5fbe0e217e"
+    },
+    {
+      "id": "yunyun-archwizard",
+      "reason": "Needs a higher-native-resolution, transparent character cutout (367×669, alpha=true)",
+      "source": "https://konosuba.com/3rd/character/img/yunyun.png",
+      "sha256": "57cc3c2b344e94a58aa45d93e5f5b32ca6144f3e5d87a3b4a38c4d3ebbd112b3"
+    },
+    {
+      "id": "mitsurugi-gram",
+      "reason": "Needs a higher-native-resolution, transparent character cutout (367×669, alpha=true)",
+      "source": "https://konosuba.com/3rd/character/img/mitsurugi.png",
+      "sha256": "4fc6181065f3b5137d462044dbb341a676a37f8f87e954eb5a6a7236d16d8f7e"
+    },
+    {
+      "id": "darkness-crusader",
+      "reason": "Needs a higher-native-resolution, transparent character cutout (367×669, alpha=true)",
+      "source": "https://konosuba.com/3rd/character/img/darkness.png",
+      "sha256": "bda5294ca18b583c11915d2cbfd98508a74a1d00da6d768235557303bf4bbbc2"
+    },
+    {
+      "id": "kazuma-adventurer",
+      "reason": "Needs a higher-native-resolution, transparent character cutout (367×669, alpha=true)",
+      "source": "https://konosuba.com/3rd/character/img/kazuma.png",
+      "sha256": "f8c43afadf6da009ce0adb390d54dae066b4a52aa94571f35ebfc99b1a2e7f68"
+    },
+    {
+      "id": "chris-thief",
+      "reason": "Needs a higher-native-resolution, transparent character cutout (367×669, alpha=true)",
+      "source": "https://konosuba.com/3rd/character/img/chris.png",
+      "sha256": "bbb02925444156894e2ebf677eef0197a881f262873660161be3f486fe4e4062"
+    },
+    {
+      "id": "rain-mage",
+      "reason": "Needs a higher-native-resolution, transparent character cutout (367×669, alpha=true)",
+      "source": "https://konosuba.com/3rd/character/img/lain.png",
+      "sha256": "5ecb65ea4313fa9f7059979660482a8ce9e7838e9fc3e5c72452b87356d4510f"
+    },
+    {
+      "id": "megumin-student",
+      "reason": "Needs a higher-native-resolution, transparent character cutout (488×689, alpha=true)",
+      "source": "https://konosuba.com/bakuen/character/img/megmin.png",
+      "sha256": "d37ddc03556925a5b1ec59e8aa02a3f85591a0e3669c7272c8ae6b3917551476"
+    },
+    {
+      "id": "yunyun-student",
+      "reason": "Needs a higher-native-resolution, transparent character cutout (488×689, alpha=true)",
+      "source": "https://konosuba.com/bakuen/character/img/yunyun.png",
+      "sha256": "88441be3d21efe9a26679a2c66eeb38142fa1dcf5ae5bea566db5e047f038b65"
+    },
+    {
+      "id": "komekko-child",
+      "reason": "Needs a higher-native-resolution, transparent character cutout (488×689, alpha=true)",
+      "source": "https://konosuba.com/bakuen/character/img/komekko.png",
+      "sha256": "405170b270adb5efc0fcb1b55edd6c0c1a57b6c7792e1e3b9df8cbfd470ec57c"
+    },
+    {
+      "id": "arue-student",
+      "reason": "Needs a higher-native-resolution, transparent character cutout (488×689, alpha=true)",
+      "source": "https://konosuba.com/bakuen/character/img/arue.png",
+      "sha256": "eb052d327753281828aa771e8afa13cf1d413eeff64e41871b12bc5b6cee1fb4"
+    },
+    {
+      "id": "cecily-priest",
+      "reason": "Needs a higher-native-resolution, transparent character cutout (488×689, alpha=true)",
+      "source": "https://konosuba.com/bakuen/character/img/cecili.png",
+      "sha256": "2f96b01b24bc0635fb43f17ce59f2eeecb341190c5fbbe9b491228ca01ab3a4c"
+    }
+  ],
+  "rights": "Official anime assets are copyright-protected reference-only artwork; no commercial redistribution permission is implied.",
+  "notes": "Does not establish that a card is rendered or visually reviewed."
+}

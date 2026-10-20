@@ -1,0 +1,267 @@
+{
+  "version": 1,
+  "series": "konosuba",
+  "universe": "konosuba",
+  "scope": "in-universe",
+  "scale": "night-universe-power-v1",
+  "status": "editorial-proposal",
+  "notes": "KonoSuba light novel feats inform overall powers; artwork is the identified character and not proof of unseen form-specific gear. All tiers are NIGHT editorial hypotheses, never official numerical rankings.",
+  "assessments": {
+    "aqua-adventurer": {
+      "scale": "night-universe-power-v1",
+      "status": "pending",
+      "rank": null,
+      "formId": "adventurer-goddess",
+      "universe": "konosuba",
+      "continuity": "konosuba-main",
+      "scope": "Aqua — Archpriest / embodied goddess",
+      "basis": "Purifies poisoned waters, defeats undead through divine holy arts, restores allies and resurrects the recently dead.",
+      "limits": "Anti-undead and anti-devil specialization; intelligence and battle choices impair practical outcomes.",
+      "references": [
+        "https://konosuba.com/3rd/character/",
+        "https://konosuba.com/2nd/story/?id=10&mode=detail"
+      ]
+    },
+    "vanir-masked": {
+      "scale": "night-universe-power-v1",
+      "status": "pending",
+      "rank": null,
+      "formId": "masked-manifestation",
+      "universe": "konosuba",
+      "continuity": "konosuba-main",
+      "scope": "Vanir — Masked devil / manifested body",
+      "basis": "Duke of Hell with foresight, devastating magic, possession and enough extra lives that he cannot count them.",
+      "limits": "Can lose a manifested body; holy purifiers are dangerous and clairvoyance has exclusions.",
+      "references": [
+        "https://konosuba.com/3rd/character/",
+        "https://cgtranslations.me/konosuba-qa-vanir/"
+      ]
+    },
+    "wiz-lich": {
+      "scale": "night-universe-power-v1",
+      "status": "pending",
+      "rank": null,
+      "formId": "lich",
+      "universe": "konosuba",
+      "continuity": "konosuba-main",
+      "scope": "Wiz — Lich / archwizard",
+      "basis": "Extremely powerful lich mage with devastating spellcraft, drain touch and unusual undead survival.",
+      "limits": "Holy purification remains a critical counter; shopkeeper outfit is not a separate power form.",
+      "references": [
+        "https://konosuba.com/3rd/character/"
+      ]
+    },
+    "iris-royal": {
+      "scale": "night-universe-power-v1",
+      "status": "pending",
+      "rank": null,
+      "formId": "royal-heir",
+      "universe": "konosuba",
+      "continuity": "konosuba-main",
+      "scope": "Iris — Royal heir / trained combatant",
+      "basis": "Royal training, inherited magic and exceptional combat potential established in the novels.",
+      "limits": "Official portrait is civilian dress; no Aigis armour or ultimate equipment is claimed here.",
+      "references": [
+        "https://konosuba.com/3rd/character/"
+      ]
+    },
+    "megumin-explosion": {
+      "scale": "night-universe-power-v1",
+      "status": "pending",
+      "rank": null,
+      "formId": "explosion-archwizard",
+      "universe": "konosuba",
+      "continuity": "konosuba-main",
+      "scope": "Megumin — Explosion Archwizard",
+      "basis": "Exceptional one-shot destructive Explosion magic capable of defeating formidable enemies.",
+      "limits": "Normally unable to cast again without rest or externally supplied mana.",
+      "references": [
+        "https://konosuba.com/3rd/character/"
+      ]
+    },
+    "yunyun-archwizard": {
+      "scale": "night-universe-power-v1",
+      "status": "pending",
+      "rank": null,
+      "formId": "archwizard",
+      "universe": "konosuba",
+      "continuity": "konosuba-main",
+      "scope": "Yunyun — Crimson Demon / archwizard",
+      "basis": "Advanced, flexible elemental magic, tactical awareness and reliable repeat casting.",
+      "limits": "Less peak one-hit destructive output than Explosion magic.",
+      "references": [
+        "https://konosuba.com/3rd/character/"
+      ]
+    },
+    "mitsurugi-gram": {
+      "scale": "night-universe-power-v1",
+      "status": "pending",
+      "rank": null,
+      "formId": "gram-wielder",
+      "universe": "konosuba",
+      "continuity": "konosuba-main",
+      "scope": "Kyouya Mitsurugi — Swordmaster / Gram",
+      "basis": "A powerful swordfighter using the divinely granted magical sword Gram.",
+      "limits": "Power is weapon-dependent; removing Gram drastically changes this assessment.",
+      "references": [
+        "https://konosuba.com/3rd/character/"
+      ]
+    },
+    "darkness-crusader": {
+      "scale": "night-universe-power-v1",
+      "status": "pending",
+      "rank": null,
+      "formId": "crusader",
+      "universe": "konosuba",
+      "continuity": "konosuba-main",
+      "scope": "Darkness — Crusader / frontline defender",
+      "basis": "Near-unmatched damage absorption, endurance and exceptional physical strength.",
+      "limits": "Attacks seldom connect; durability must not be mistaken for reliable offensive output.",
+      "references": [
+        "https://konosuba.com/3rd/character/"
+      ]
+    },
+    "kazuma-adventurer": {
+      "scale": "night-universe-power-v1",
+      "status": "pending",
+      "rank": null,
+      "formId": "adventurer",
+      "universe": "konosuba",
+      "continuity": "konosuba-main",
+      "scope": "Kazuma Satou — Versatile adventurer",
+      "basis": "Excellent luck and tactical skill; Steal, Bind, Drain Touch and combinations compensate for lower stats.",
+      "limits": "Not a direct physical equal of top generals; Demon King victory is highly conditional.",
+      "references": [
+        "https://konosuba.com/3rd/character/"
+      ]
+    },
+    "chris-thief": {
+      "scale": "night-universe-power-v1",
+      "status": "pending",
+      "rank": null,
+      "formId": "thief",
+      "universe": "konosuba",
+      "continuity": "konosuba-main",
+      "scope": "Chris — Thief / mortal identity",
+      "basis": "Exceptional luck, movement, stealth, escape and thief utility.",
+      "limits": "This is not unrestricted Eris; hidden divine identity does not automatically grant full heavenly authority.",
+      "references": [
+        "https://konosuba.com/3rd/character/"
+      ]
+    },
+    "rain-mage": {
+      "scale": "night-universe-power-v1",
+      "status": "pending",
+      "rank": null,
+      "formId": "royal-mage",
+      "universe": "konosuba",
+      "continuity": "konosuba-main",
+      "scope": "Rain — Royal mage / escort",
+      "basis": "Competent court mage and royal escort with sustained spellcasting.",
+      "limits": "Not established above elite archwizards in direct offence.",
+      "references": [
+        "https://konosuba.com/3rd/character/"
+      ]
+    },
+    "megumin-student": {
+      "scale": "night-universe-power-v1",
+      "status": "pending",
+      "rank": null,
+      "formId": "academy-student",
+      "universe": "konosuba",
+      "continuity": "konosuba-bakuen",
+      "scope": "Megumin — Crimson Demon / academy student",
+      "basis": "Gifted Crimson Demon magic student before developing her later Explosion-focused combat specialization.",
+      "limits": "Early academy form; must not receive late-series repeated Explosion feats.",
+      "references": [
+        "https://konosuba.com/bakuen/character/"
+      ]
+    },
+    "megumin-journey": {
+      "scale": "night-universe-power-v1",
+      "status": "proposed",
+      "rank": "A",
+      "formId": "novice-explosion",
+      "artworkSHA256": "75c9faefaaeaa1a46bf02930d28c233ab066037cd0ac161ca962defe3c013e12",
+      "universe": "konosuba",
+      "continuity": "konosuba-bakuen",
+      "scope": "Megumin — Explosion / first adventures",
+      "basis": "Newly acquired top-tier Explosion magic and strong raw magical potential.",
+      "limits": "Single cast exhausts her and battle experience is still limited.",
+      "references": [
+        "https://konosuba.com/bakuen/character/"
+      ]
+    },
+    "yunyun-student": {
+      "scale": "night-universe-power-v1",
+      "status": "pending",
+      "rank": null,
+      "formId": "academy-student",
+      "universe": "konosuba",
+      "continuity": "konosuba-bakuen",
+      "scope": "Yunyun — Crimson Demon / academy student",
+      "basis": "Magically gifted Crimson Demon apprentice with conventional tactical discipline.",
+      "limits": "Earlier training stage lacks mature archwizard mastery.",
+      "references": [
+        "https://konosuba.com/bakuen/character/"
+      ]
+    },
+    "yunyun-journey": {
+      "scale": "night-universe-power-v1",
+      "status": "proposed",
+      "rank": "B",
+      "formId": "early-adventurer",
+      "artworkSHA256": "a59ce20608e6fcf9ba68bb64d81462d92b361b8335ebeff18af5510e2686f3cb",
+      "universe": "konosuba",
+      "continuity": "konosuba-bakuen",
+      "scope": "Yunyun — Crimson Demon / early adventurer",
+      "basis": "Advanced spell training with a versatile combat toolkit compared with the average adventurer.",
+      "limits": "Earlier experience level, not the late-series specialist.",
+      "references": [
+        "https://konosuba.com/bakuen/character/"
+      ]
+    },
+    "komekko-child": {
+      "scale": "night-universe-power-v1",
+      "status": "pending",
+      "rank": null,
+      "formId": "young-prodigy",
+      "universe": "konosuba",
+      "continuity": "konosuba-bakuen",
+      "scope": "Komekko — Crimson Demon / young prodigy",
+      "basis": "Surprising affinity for dangerous creatures and summoned entities, with natural Crimson Demon talent.",
+      "limits": "Her summoning success is situation-dependent; she lacks proven sustained duelling feats.",
+      "references": [
+        "https://konosuba.com/bakuen/character/"
+      ]
+    },
+    "arue-student": {
+      "scale": "night-universe-power-v1",
+      "status": "pending",
+      "rank": null,
+      "formId": "academy-student",
+      "universe": "konosuba",
+      "continuity": "konosuba-bakuen",
+      "scope": "Arue — Crimson Demon / academy student",
+      "basis": "Trained Crimson Demon magical talent with potential offensive spellcasting.",
+      "limits": "School-era student; no inferred late-series ultimate techniques.",
+      "references": [
+        "https://konosuba.com/bakuen/character/"
+      ]
+    },
+    "cecily-priest": {
+      "scale": "night-universe-power-v1",
+      "status": "pending",
+      "rank": null,
+      "formId": "axis-priest",
+      "universe": "konosuba",
+      "continuity": "konosuba-bakuen",
+      "scope": "Cecily — Axis Cult / priest",
+      "basis": "Religious spellcaster with healing and clerical utility.",
+      "limits": "Limited demonstrated high-end offensive feats and low tactical reliability.",
+      "references": [
+        "https://konosuba.com/bakuen/character/"
+      ]
+    }
+  }
+}
