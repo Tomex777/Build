@@ -187,16 +187,14 @@ try{
  // Seeded RNG controls spawn arrangement; touch moves still go via Chromium CDP.
  {
   const page=await pageFor('slice',.1);
-  // Catch the FIRST two-fruit wave on its upward flight, before a later
-  // timed volley enters the arena. The old apex-only wait could run into a
-  // second wave and accidentally assert four visible fruit must equal two.
-  await waitFor(page,()=>{
-   const fruits=window.__nightActionTest.snapshot().fruits;
-   return fruits.length===2&&fruits.every(f=>
-    f.kind!=='bomb'&&!f.hit&&f.y>300&&f.y<460&&f.vy< -200);
-  },5000);
-  const targets=(await snap(page)).fruits;
-  assert.equal(targets.length,2,'a genuine isolated two-fruit volley is launched');
+  // Choose the two bodies genuinely passing through their shared apex.
+  // Other volleys can coexist farther down the screen, so do not require
+  // ALL live fruit to equal two; do require exactly two apex targets.
+  const atApex=fruits=>fruits.filter(f=>f.kind!=='bomb'&&!f.hit&&
+   Math.abs(f.vy)<75&&f.y>110&&f.y<300);
+  await waitFor(page,()=>atApex(window.__nightActionTest.snapshot().fruits).length===2,5000);
+  const targets=atApex((await snap(page)).fruits);
+  assert.equal(targets.length,2,'two distinct fruit are at the apex of their real volley');
   assert.ok(Math.abs(targets[0].x-targets[1].x)>80,'volley fruits remain visually distinguishable');
   const targetY=targets[0].y,left=Math.max(6,Math.min(...targets.map(f=>f.x))-44),
    right=Math.min(384,Math.max(...targets.map(f=>f.x))+44);
