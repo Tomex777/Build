@@ -216,7 +216,11 @@ fun UniversalSearchPanel(
         }
 
         if (showResult) {
-            Column(Modifier.weight(1f).padding(horizontal = 18.dp, vertical = 8.dp)) {
+            Column(
+                Modifier.weight(1f)
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 18.dp, vertical = 8.dp)
+            ) {
                 TextButton(onClick = { showResult = false }) { Text("Change selected pages") }
                 when (val current = outcome) {
                     is AiSearchOutcome.Answer -> {
