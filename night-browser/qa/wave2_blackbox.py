@@ -338,6 +338,17 @@ class Device:
             raise Blocked("dumpsys meminfo did not expose total PSS")
         return "PSS estimate " + (total or alt).group(1) + " KB; threshold not established"
 
+    def home_visual(self):
+        self.click("Home")
+        tree = self.ui()
+        if not any(n.get("text", "") == "Quick access" for n in tree):
+            raise AssertionError("Home shortcuts section not exposed")
+        # Capture the actual start page, not Gboard's first-run onboarding popover.
+        # The user should not have to dismiss a keyboard just to see Home.
+        if any("inputmethod" in n.get("package", "").casefold() for n in tree):
+            raise AssertionError("Keyboard unexpectedly obscures cold Home")
+        return "Visible Home shortcuts with keyboard closed"
+
     def offline_home(self):
         shell("svc", "wifi", "disable", check=False)
         shell("svc", "data", "disable", check=False)
@@ -402,9 +413,8 @@ class Device:
         adb("wait-for-device", timeout=140)
         adb("logcat", "-c", check=False)
         self.test("C01", "Cold Activity launch", self.cold_start)
-        self.test("C02", "Quick access UI", lambda: self.click("Quick access")
-                  if not self.find("Quick access") else "Quick access visible", prerequisites=("C01",),
-                  screenshot=True)
+        self.test("C02", "Home layout without unwanted keyboard", self.home_visual,
+                  prerequisites=("C01",), screenshot=True)
         self.test("C03", "Real external HTTPS website", self.external, prerequisites=("C01",))
         self.test("C04", "Gecko local website loads", lambda: self.go("/"), prerequisites=("C01",), screenshot=True)
         self.test("C05", "Gecko follows HTTP redirect", self.redirect, prerequisites=("C04",))
