@@ -97,3 +97,22 @@ body.in-game .mobile-nav {
   .site-header .logo{font-size:16px;gap:6px}
   .site-header .actions .btn{padding:8px 9px;font-size:10px;max-width:125px;white-space:normal}
 }
+
+/* The game has a permanent All games button in its own top bar.
+   A second Exit button below the board performs exactly the same action,
+   and wraps onto a second row at 320px: remove the redundant control. */
+#gameDialog .modal-actions > [data-close-game] {
+  display:none!important;
+}
+@media (max-width:360px) {
+  /* Keep the real back button legible on narrow phones without a two-line label. */
+  #gameDialog .game-topline{gap:4px;padding-inline:5px}
+  #gameDialog .game-topline > [data-close-game]{
+    white-space:nowrap;
+    min-width:0;
+    padding-inline:6px;
+    font-size:10px;
+  }
+  #gameDialog .game-top-actions{gap:4px}
+  #gameDialog .game-brand{gap:4px;font-size:12px}
+}
