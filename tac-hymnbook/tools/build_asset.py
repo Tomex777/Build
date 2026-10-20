@@ -105,6 +105,23 @@ def compile_asset() -> dict:
                 "source_url": item["source_url"],
             })
             seen.add(number)
+    approved_path = SEED_DIR / "approved-redemption.json"
+    if approved_path.exists():
+        from redemption_import import validate_batch
+        approved = json.loads(approved_path.read_text(encoding="utf-8"))
+        existing = {h["number"]: h for h in hymns}
+        approved_hymns = validate_batch(approved, known_numbers=set(existing))
+        for reviewed in approved_hymns:
+            # Only licensed, printed-edition-reviewed text can replace a draft.
+            existing[reviewed["number"]] = {
+                k: reviewed[k]
+                for k in (
+                    "number", "collection", "title_yo", "title_en",
+                    "source_pages", "verses_yo", "verses_en",
+                    "text_status", "source_url",
+                )
+            }
+        hymns = list(existing.values())
     hymns.sort(key=lambda entry: (entry["collection"], entry["number"]))
     return {
         "schema": 1,
