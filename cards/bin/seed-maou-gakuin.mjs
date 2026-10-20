@@ -64,11 +64,13 @@ for(const item of sources.sources) {
   // Keep authentic body alpha intact and let NIGHT's global renderer
   // implement foreground frame crossing and glass tier lettering.
   const crop=[0,0,info.width,info.height];
+  const needsBreakout=new Set(['leno-spirit','sasha-ruin','misha-creation','misa-spirit','eleonore-magic']);
+  const pose=needsBreakout.has(item.id)?{x:-175,y:-170,width:1350}:{x:0,y:15,width:1000};
   const record={id:item.id,character:item.character,name:item.name,title:item.title,form:item.form,formId:item.formId,
     number:item.number,aliases:[...new Set(item.aliases)],designs:[design],status:'candidate',
     source:{...item.source,localPath:file,sha256:sha,width:info.width,height:info.height,originalSha256,originalWidth:originalInfo.width,originalHeight:originalInfo.height,processing:'Lanczos3 2x upscale of original official alpha cutout; no added character details'},
     recipe:{crop,bottomPadding:0.16,edgeFade:0.005,bottomFade:0.02,focal:[0.5,0.34],
-      artworkPlacement:{[design]:{x:0,y:15,width:1000}}}};
+      artworkPlacement:{[design]:pose}}};
   catalogue.cards.push(record);
   power.assessments[item.id]={scale:power.scale,status:'proposed',rank:item.rank.letter,formId:item.formId,
     artworkSHA256:sha,scope:item.rank.scope,basis:item.rank.basis,limits:item.rank.limits,
