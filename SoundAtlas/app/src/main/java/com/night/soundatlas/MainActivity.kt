@@ -316,8 +316,9 @@ class MainActivity : Activity() {
         private val exploreRoute=mutableListOf<V2>()
         private val buttons=mutableListOf<Hit>()
         private var tick=0L
+        private var exploreLastFrameMs=0L
 
-        fun resetCamera() { camera=world.listener.copy();zoom=1f;sheet=Sheet.NONE;mode=Mode.EDIT;selectedId=null;selectedWall=-1;selectedZone=-1;invalidate() }
+        fun resetCamera() { camera=world.listener.copy();zoom=1f;sheet=Sheet.NONE;mode=Mode.EDIT;exploreLastFrameMs=0L;selectedId=null;selectedWall=-1;selectedZone=-1;invalidate() }
         fun closeSheetOrExitExplore():Boolean {
             if(sheet!=Sheet.NONE) {sheet=Sheet.NONE;invalidate();return true}
             if(mode!=Mode.EDIT) {mode=Mode.EDIT;invalidate();return true}
@@ -341,11 +342,17 @@ class MainActivity : Activity() {
             drawChrome(canvas)
             if(sheet!=Sheet.NONE)drawSheet(canvas)
             canvas.restore()
-            if(mode==Mode.EXPLORE){
+            if(mode==Mode.EXPLORE && exploreRoute.isNotEmpty()){
                 tick++
-                if(tick%2L==0L)walkToTarget()
+                // Walking is elapsed-time based, never dependent on render FPS.
+                // An overloaded Android device must not change travel speed.
+                val now=android.os.SystemClock.uptimeMillis()
+                val seconds=if(exploreLastFrameMs==0L) 0f
+                    else ((now-exploreLastFrameMs).coerceIn(0L,80L))/1000f
+                exploreLastFrameMs=now
+                walkToTarget(seconds)
                 if(exploreRoute.isNotEmpty()) postInvalidateDelayed(33)
-            }
+            } else exploreLastFrameMs=0L
         }
         private fun xy(v:V2)=V2(ww*.5f+(v.x-camera.x)*meter,hh*.47f+(v.y-camera.y)*meter)
         private fun unxy(v:V2)=V2((v.x-ww*.5f)/meter+camera.x,
@@ -544,6 +551,7 @@ class MainActivity : Activity() {
                             3->{sheet=Sheet.ZONES;mode=Mode.ADD_ZONE}
                             4->{
                                 sheet=Sheet.NONE;mode=if(mode==Mode.EXPLORE)Mode.EDIT else Mode.EXPLORE
+                                exploreLastFrameMs=0L
                                 if(mode==Mode.EXPLORE && !audio.isPlaying)startPlayback()
                                 if(mode==Mode.EXPLORE) {
                                     window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
@@ -815,18 +823,24 @@ class MainActivity : Activity() {
             }
             return -2
         }
-        private fun walkToTarget() {
+        private fun walkToTarget(deltaSeconds:Float) {
             val target=exploreRoute.firstOrNull()?:return
             val dx=target.x-world.listener.x;val dy=target.y-world.listener.y
             val distance=hypot(dx,dy)
-            if(distance<.18f){exploreRoute.removeAt(0);return}
-            val amount=min(.24f,distance)
+            if(distance<.07f){exploreRoute.removeAt(0);return}
+            // 1.45 m/s is a normal walking pace; older frame-stepped travel
+            // was closer to running and became inconsistent under load.
+            val amount=min(1.45f*deltaSeconds.coerceIn(0f,.08f),distance)
+            if(amount<=0f)return
             val proposed=world.bound(world.listener.moved(dx/distance*amount,dy/distance*amount))
             if(!AtlasNavigator.traversable(world,world.listener,proposed)){
                 exploreRoute.clear();return
             }
             world.listener=proposed
-            world.facing=atan2(dx,-dy)
+            val desired=atan2(dx,-dy)
+            // Smooth the shortest turn to avoid sudden full-scene head flips.
+            val turn=atan2(sin(desired-world.facing),cos(desired-world.facing))
+            world.facing+=turn.coerceIn(-2.6f*deltaSeconds,2.6f*deltaSeconds)
             camera=world.listener.copy()
             audio.update(world)
         }
