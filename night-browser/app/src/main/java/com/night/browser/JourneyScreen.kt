@@ -250,7 +250,7 @@ fun JourneyScreen(
                         ) JourneyGraph.rows(journey, collapsedIds = if (query.isBlank()) collapsed else emptySet()) else matched
                         items(visible, key = { "node-${it.node.id}" }) { row ->
                             JourneyNodeRow(
-                                row = row,
+                                row = if (query.isBlank()) row else row.copy(hasChildren = false),
                                 isCollapsed = row.node.id in collapsed && query.isBlank(),
                                 onToggleBranch = {
                                     val previous = collapsedBranches[journey.id].orEmpty()
