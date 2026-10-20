@@ -48,7 +48,7 @@ fun LibraryScreen(
     var searchOpen by remember { mutableStateOf(false) }
     var searchQuery by remember { mutableStateOf("") }
 
-    val visible = remember(entries, filter, activeOnly, sortTitle) {
+    val visible = remember(entries, filter, activeOnly, sortTitle, searchQuery, progressEntries) {
         entries.filter { entry ->
             val typeMatch = when (filter) {
                 LibraryType.ALL -> entry.contentType != null
