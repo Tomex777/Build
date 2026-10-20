@@ -38,6 +38,8 @@ jobs:
         run: node night-play/agent5-puzzle-playtest.mjs
       - name: Actually play Jigsaw on touchscreen and check 24-to-144-piece dragging
         run: node night-play/jigsaw/mobile-smoke.mjs
+      - name: Render and inspect real Jigsaw photos, including 144-piece mobile detail
+        run: node night-play/jigsaw/real-photo-smoke.mjs
       - name: Upload screenshots and mobile gameplay evidence
         if: always()
         uses: actions/upload-artifact@v4
