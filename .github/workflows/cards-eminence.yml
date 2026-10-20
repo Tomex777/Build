@@ -10,12 +10,12 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   source-inventory:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -33,6 +33,51 @@ jobs:
       - name: Verify official cutout source dimensions
         working-directory: cards
         run: node bin/eminence-probe.mjs
+      - name: Pin verified original images and generate source-bound catalogue
+        working-directory: cards
+        run: node bin/seed-eminence.mjs --write-lock
+      - name: Validate all shared card renderer invariants
+        working-directory: cards
+        run: npm test
+      - name: Install Chromium runtime
+        run: npx playwright install-deps chromium
+      - name: Install reference Chrome renderer
+        run: |
+          curl --fail --location --retry 3 https://storage.googleapis.com/chrome-for-testing-public/131.0.6778.204/linux64/chrome-headless-shell-linux64.zip -o "$RUNNER_TEMP/night-chrome.zip"
+          unzip -q "$RUNNER_TEMP/night-chrome.zip" -d "$RUNNER_TEMP/night-browser"
+          chmod +x "$RUNNER_TEMP/night-browser/chrome-headless-shell-linux64/chrome-headless-shell"
+          echo "NIGHT_BROWSER_PATH=$RUNNER_TEMP/night-browser/chrome-headless-shell-linux64/chrome-headless-shell" >> "$GITHUB_ENV"
+      - name: Render 3000x4800 master and 320px phone proofs
+        working-directory: cards
+        run: node bin/cards.mjs build --series eminence --width 3000 --out dist/eminence
+      - name: Export source-bound real-asset gallery
+        working-directory: cards
+        run: node bin/cards.mjs gallery --series eminence --out dist/eminence --file dist/Eminence-Collection.html
+      - name: Commit verified artwork pins and power assessments
+        if: success()
+        run: |
+          git config user.name 'NIGHT Cards Provenance'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add cards/catalog/eminence-source-lock.json cards/catalog/eminence.json cards/catalog/power/eminence.json
+          if ! git diff --cached --quiet; then
+            git commit -m "cards(eminence): pin official source checksums, forms and rank evidence"
+            git push origin "HEAD:$GITHUB_REF_NAME"
+          fi
+      - name: Preserve official art inventory and actual candidate renders
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: NIGHT-Eminence-Candidate-Card-Masters
+          path: |
+            cards/dist/eminence/
+            cards/dist/Eminence-Collection.html
+            cards/dist/eminence-discovery.json
+            cards/catalog/eminence.json
+            cards/catalog/power/eminence.json
+            cards/catalog/eminence-source-lock.json
+          if-no-files-found: warn
+          compression-level: 0
+          retention-days: 14
       - name: Preserve public source inventory
         if: always()
         uses: actions/upload-artifact@v4
