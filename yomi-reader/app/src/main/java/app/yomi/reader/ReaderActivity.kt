@@ -517,8 +517,14 @@ class ReaderActivity : ComponentActivity(), ReaderViewerHost {
                     // Upstream reader bars vary with window insets, screen
                     // width and chapter title wrapping. Fixed 112/205dp
                     // touch masks blocked page turns on compact phones.
-                    routingToChrome = menuVisible &&
-                        (event.y <= topBarBottomPx || event.y >= bottomBarTopPx)
+                    // Dialogs live in the same ComposeView above the page
+                    // renderer. Give their entire modal surface touch priority:
+                    // a toolbar-only hit mask made settings tabs, sliders and
+                    // outside-to-dismiss taps unresponsive in the middle.
+                    val dialogOpen = settingsOpen.value || pageActions.value != null ||
+                        quickReadingModeOpen.value || quickOrientationOpen.value
+                    routingToChrome = dialogOpen ||
+                        (menuVisible && (event.y <= topBarBottomPx || event.y >= bottomBarTopPx))
                 }
                 val handled = routingToChrome && super.dispatchTouchEvent(event)
                 if (event.actionMasked == MotionEvent.ACTION_UP ||
