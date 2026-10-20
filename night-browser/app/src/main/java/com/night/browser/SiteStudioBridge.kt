@@ -124,9 +124,9 @@ class SiteStudioBridge(
             ?: store.get(pageUrl) ?: SiteRule(origin)
     }
 
-    fun discardPreview(session: GeckoSession) {
-        previews.remove(session)
-    }
+    /** True only if an applied temporary rule was present and needs reload. */
+    fun discardPreview(session: GeckoSession): Boolean =
+        previews.remove(session) != null
 
     private fun register(session: GeckoSession) {
         extension?.let {
