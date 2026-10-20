@@ -50,7 +50,7 @@ if(id==="snakes"){state.snakes={players:[{name:"Red",color:colors.red,pos:1},{na
 if(id==="checkers"){checkerMotionEpoch++;checkerMotionBusy=false;clearTimeout(checkerCpuTimer);checkerCpuTimer=null;const mode=state.checkers?.mode==='computer'?'computer':'local';const cells=Array(64).fill(null);for(let r=0;r<8;r++)for(let c=0;c<8;c++)if((r+c)%2===1){if(r<3)cells[r*8+c]="b";if(r>4)cells[r*8+c]="w";}state.checkers={cells,turn:"w",selected:null,forced:null,winner:null,mode,msg:"White moves first."};}
 save();render();
 }
-function render(){if(timer){clearInterval(timer);timer=null;}if(active==="ludo")renderLudo();if(active==="estate")renderEstate();if(active==="whot"){renderCards("whot");$("whotModeBadge").textContent=whotOptions.mode==="career"?whotRank().name.toUpperCase():whotOptions.mode==="tournament"?"TOURNAMENT":"VS CPU";}if(active==="colors")renderCards("colors");if(active==="draw")renderDraw();if(active==="snakes")renderSnakes();if(active==="checkers")renderCheckers();save();}
+function render(){document.body.classList.toggle('club-match-finished',(active==='checkers'&&state.checkers?.winner!==null)||(active==='snakes'&&state.snakes?.winner!==null));if(timer){clearInterval(timer);timer=null;}if(active==="ludo")renderLudo();if(active==="estate")renderEstate();if(active==="whot"){renderCards("whot");$("whotModeBadge").textContent=whotOptions.mode==="career"?whotRank().name.toUpperCase():whotOptions.mode==="tournament"?"TOURNAMENT":"VS CPU";}if(active==="colors")renderCards("colors");if(active==="draw")renderDraw();if(active==="snakes")renderSnakes();if(active==="checkers")renderCheckers();save();}
 const track=[[6,1],[6,2],[6,3],[6,4],[6,5],[5,6],[4,6],[3,6],[2,6],[1,6],[0,6],[0,7],[0,8],[1,8],[2,8],[3,8],[4,8],[5,8],[6,9],[6,10],[6,11],[6,12],[6,13],[6,14],[7,14],[8,14],[8,13],[8,12],[8,11],[8,10],[8,9],[9,8],[10,8],[11,8],[12,8],[13,8],[14,8],[14,7],[14,6],[13,6],[12,6],[11,6],[10,6],[9,6],[8,5],[8,4],[8,3],[8,2],[8,1],[8,0],[7,0],[6,0]];
 const starts={red:0,green:13,yellow:26,blue:39};
 const safe=new Set([0,8,13,21,26,34,39,47]);
@@ -746,7 +746,11 @@ for(let row=0;row<10;row++)for(let c=0;c<10;c++){const base=(9-row)*10+1,num=(9-
 let tokens=s.players.map((p,i)=>p.pos===num?'<span style="color:'+p.color+'" title="'+p.name+'">●</span>':"").join("");
 let jump=ups[num]?"<span class='jump' aria-label='Ladder to "+ups[num]+"'><svg class='direction-svg' aria-hidden='true' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2.1' stroke-linecap='round' stroke-linejoin='round'><path d='M5 19 19 5M9 5h10v10'/></svg></span>":downs[num]?"<span class='jump' aria-label='Snake to "+downs[num]+"'><svg class='direction-svg' aria-hidden='true' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2.1' stroke-linecap='round' stroke-linejoin='round'><path d='m5 5 14 14M19 9v10H9'/></svg></span>":"";
 html+='<div class="square" role="gridcell" aria-label="Square '+num+'" style="grid-row:'+(row+1)+';grid-column:'+(c+1)+'">'+num+jump+'<span class="marker">'+tokens+'</span></div>';
-}board.innerHTML=html+"</div>";
+}
+if(s.winner!==null){
+ html+='<div class="club-result-layer snakes-result-layer" role="status" aria-live="polite"><div class="club-result-card"><span class="club-result-eyebrow">RACE COMPLETE</span><strong>'+h(s.players[s.winner].name)+' wins!</strong><span>First to square 100.</span><button type="button" class="club-result-retry" data-action="snakes-reset">Play again</button></div></div>';
+}
+board.innerHTML=html+"</div>";
 setStatus(s.winner!==null?s.players[s.winner].name+" won the race to 100!":s.players[s.turn].name+"'s turn. "+s.msg);
 controlsHTML('<div class="dice">'+("⚀⚁⚂⚃⚄⚅"[(s.last||1)-1])+'</div><button type="button" class="primary" data-action="snakes-roll" '+(s.winner!==null?"disabled":"")+'>Roll dice</button>'+scoreList(s.players,x=>"Square "+x.pos)+choosePlayers("snakes",s.players.length,4));
 rules("Snakes & Ladders","Roll one die to advance. Ladders take you up to higher squares; snakes send you down to lower squares. You must land on exactly 100 to win. Players share the same phone.");
@@ -776,7 +780,8 @@ function renderCheckers(){
   const piece=p?'<span class="checker-piece '+(p.toLowerCase()==="w"?"white":"black")+(s.selected===i?" selected":"")+(isKing?" king":"")+'">'+(isKing?'<svg class="checker-crown" viewBox="0 0 40 40" aria-hidden="true"><path d="M7 27 4 11l11 9 5-13 6 13 11-9-4 16ZM8 31h24v4H8z"/></svg>':"")+'</span>':"";
   html+='<button type="button" data-checker="'+i+'" class="checker-square '+(dark?"dark":"light")+(isTarget?" target":"")+(from?" movable":"")+(s.selected===i?" origin":"")+'" aria-label="'+(p?(p.toLowerCase()==="w"?"White":"Black")+(isKing?" king":" piece"):"Empty")+' row '+(Math.floor(i/8)+1)+' column '+(i%8+1)+'"'+(!dark?' tabindex="-1"':'')+'>'+piece+'</button>';
  }
- const markup=html+'</div></div><p class="checker-instruction">Tap your piece, then choose a glowing square <span>•</span> Captures are mandatory</p><button type="button" class="checker-mode-toggle" data-checker-mode="'+(s.mode==='computer'?'local':'computer')+'">'+(s.mode==='computer'?'Switch to 2 players':'Play against computer')+'</button></div>';
+ const resultMarkup=s.winner!==null?'<div class="club-result-layer checker-result-layer" role="status" aria-live="polite"><div class="club-result-card"><span class="club-result-eyebrow">MATCH COMPLETE</span><strong>'+(s.mode==='computer'?(s.winner==='w'?'You won!':'You lost'):(s.winner==='w'?'White wins!':'Black wins!'))+'</strong><span>'+(s.mode==='computer'?(s.winner==='w'?'You defeated the computer.':'The computer won this match.'):'Draughts · local match')+'</span><button type="button" class="club-result-retry" data-action="checkers-reset">New match</button></div></div>':'';
+ const markup=html+'</div>'+resultMarkup+'</div><p class="checker-instruction">Tap your piece, then choose a glowing square <span>•</span> Captures are mandatory</p><button type="button" class="checker-mode-toggle" data-checker-mode="'+(s.mode==='computer'?'local':'computer')+'">'+(s.mode==='computer'?'Switch to 2 players':'Play against computer')+'</button></div>';
  const mounted=board.querySelector(".checker-stage"),oldCells=mounted?.querySelectorAll("[data-checker]");
  if(oldCells?.length===64){
   // Do not destroy/recreate the 64 counters whenever a player selects a square.
@@ -794,6 +799,11 @@ function renderCheckers(){
   if(oldHud.innerHTML!==newHud.innerHTML)oldHud.innerHTML=newHud.innerHTML;
   const oldMode=mounted.querySelector('[data-checker-mode]'),newMode=next.querySelector('[data-checker-mode]');
   if(oldMode&&newMode){oldMode.dataset.checkerMode=newMode.dataset.checkerMode;oldMode.textContent=newMode.textContent;}
+  // Preserve board/piece nodes during a match; insert or remove result only on state change.
+  const oldResult=mounted.querySelector('.checker-result-layer'),newResult=next.querySelector('.checker-result-layer');
+  if(oldResult&&!newResult)oldResult.remove();
+  else if(newResult&&!oldResult)mounted.querySelector('.checker-frame').appendChild(newResult);
+  else if(newResult&&oldResult&&oldResult.innerHTML!==newResult.innerHTML)oldResult.innerHTML=newResult.innerHTML;
  }else board.innerHTML=markup;
  setStatus(s.winner!==null?label+"!":label+". "+s.msg);
  controlsHTML('<div class="checker-sidebar-head"><span class="badge">WHITE '+whites+'</span><span class="badge">BLACK '+blacks+'</span></div>');
@@ -976,7 +986,7 @@ const card=e.target.closest("[data-card]");if(card){if(Number(card.dataset.card)
 const sq=e.target.closest("[data-estate-info]");if(sq&&active==="estate"){state.estate.inspect=Number(sq.dataset.estateInfo);render();return;}
 const action=e.target.closest("[data-action]");if(!action)return;
 switch(action.dataset.action){case"whot-hand-open":whotOpenExpanded();break;case"whot-hand-close":whotCloseExpanded();break;case"ludo-roll":ludoRoll();break;case"ludo-new":if(confirm("Restart the Ludo match?")){closeLudoSettings();reset("ludo");}break;case"ludo-sound":state.ludo.sound=!state.ludo.sound;render();break;case"estate-roll":estateRoll();break;case"estate-buy":estateDecision(true);break;case"estate-pass":estateDecision(false);break;case"estate-end":estateEnd();break;case"card-draw":cardDraw(active);break;case"whot-rematch":if(active==="whot"&&state.whot.winner!==null){if(whotOptions.mode==="tournament"&&Math.max(...(whotCareer.tournamentWins||[0,0]))>=2){whotCareer.tournamentWins=[0,0];whotStore()}reset("whot")}break;
-case"whot-last-call":if(active==="whot"&&state.whot.turn===0&&state.whot.hands[0].length===1){state.whot.calledLast=[true,Boolean(state.whot.calledLast?.[1])];state.whot.msg="Last card declared!";render()}break;case"whot-call-cancel":if(active==='whot'&&!cardMotionBusy){state.whot.pendingWhot=null;render();}break;case"snakes-roll":snakesRoll();break;case"draw-ready":drawReady();break;case"draw-next":drawNext();break;case"draw-guess":drawReadyToGuess();break;case"draw-clear":if(drawCtx){drawCtx.clearRect(0,0,800,600);}break;case"draw-erase":setBrush("erase");break;case"checkers-reset":reset("checkers");break;}
+case"whot-last-call":if(active==="whot"&&state.whot.turn===0&&state.whot.hands[0].length===1){state.whot.calledLast=[true,Boolean(state.whot.calledLast?.[1])];state.whot.msg="Last card declared!";render()}break;case"whot-call-cancel":if(active==='whot'&&!cardMotionBusy){state.whot.pendingWhot=null;render();}break;case"snakes-roll":snakesRoll();break;case"snakes-reset":reset("snakes");break;case"draw-ready":drawReady();break;case"draw-next":drawNext();break;case"draw-guess":drawReadyToGuess();break;case"draw-clear":if(drawCtx){drawCtx.clearRect(0,0,800,600);}break;case"draw-erase":setBrush("erase");break;case"checkers-reset":reset("checkers");break;}
 });
 // Read-only diagnostics for two-player and CPU match verification.
 window.__nightCheckersQA=()=>({mode:state.checkers?.mode||'local',turn:state.checkers?.turn,winner:state.checkers?.winner,
