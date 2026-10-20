@@ -8,7 +8,12 @@ const source=readFileSync(new URL('./games.js',import.meta.url),'utf8');
 const first=source.indexOf('const BRICK_FINAL_LEVEL=6;');
 const last=source.indexOf('\nfunction paintBricks(){',first);
 assert.ok(first>0&&last>first,'find the actual Brick Breaker engine');
+// Fixed-seed PRNG makes a full six-stage run repeatable in CI.
+let seed=7;
+const stableMath=Object.create(Math);
+stableMath.random=()=>((seed=(Math.imul(seed,1664525)+1013904223)>>>0)/4294967296);
 const sandbox={
+ Math:stableMath,
  W:390,H:550,TAU:Math.PI*2,
  inputs:{left:false,right:false,drag:false,lastX:0},
  started:true,state:null,
@@ -20,7 +25,7 @@ const sandbox={
 };
 createContext(sandbox);
 const bricks=runInContext(source.slice(first,last)+
- '\n({initBricks,makeBrickRow,newBricksLevel,tickBricks,brickSpeed})',sandbox);
+ '\n({initBricks,makeBrickRow,newBricksLevel,tickBricks,brickSpeed,launchBall})',sandbox);
 function fixture(level=6,paddle=195){
  const q=bricks.initBricks();
  sandbox.state=q;
@@ -77,4 +82,40 @@ let stationary,moving;
 }
 assert.ok(moving>stationary+50,'moving the paddle must steer ball direction');
 assert.equal(sandbox.state.paddle,210);
-console.log('PASS Brick Breaker actual physics: 42 bricks, stage 6 shrink, sparks decay, contact timing, collision edges and real paddle spin.');
+// Full progression: this bot manipulates the same paddle INPUT as a player
+// and invokes the exact production tick. It cannot remove bricks, skip levels,
+// change ball position or inject a win flag. This is a fast physics SIMULATION,
+// not a replacement for a browser touch/visual playthrough.
+{
+ const q=bricks.initBricks();sandbox.state=q;
+ sandbox.inputs.left=sandbox.inputs.right=sandbox.inputs.drag=false;
+ const stages=new Set([q.level]);
+ function mirrorSideWalls(x){
+  const period=2*(390-16),r=((x-8)%period+period)%period;
+  return 8+(r<=390-16?r:period-r);
+ }
+ let frames=0;
+ for(;frames<120000&&!q.won&&q.lives>0;frames++){
+  if(q.attached)bricks.launchBall();
+  else if(q.ball.vy>0&&q.ball.y>=270){
+   const ball=q.ball,remaining=(482-ball.y)/ball.vy;
+   const landing=mirrorSideWalls(ball.x+ball.vx*remaining);
+   const target=q.bricks.reduce((best,b)=>
+    Math.abs(b.x+b.w/2-landing)<Math.abs(best.x+best.w/2-landing)?b:best);
+   const angle=Math.max(-.85,Math.min(.85,Math.atan(
+    (target.x+target.w/2-landing)/(482-target.y-target.h/2))));
+   sandbox.inputs.drag=true;
+   sandbox.inputs.lastX=Math.max(q.paddleWidth/2,
+    Math.min(390-q.paddleWidth/2,landing-angle/1.02*(q.paddleWidth/2+3)));
+  }
+  bricks.tickBricks(.016);
+  stages.add(q.level);
+ }
+ assert.equal(q.won,true,'production physics must allow a complete six-stage clear');
+ assert.equal(stages.size,6,'each of the six stages must be reached organically');
+ assert.ok(q.score>=4500,'full clear must be scored');
+ assert.ok(q.lives>0,'automation did not cheat by bypassing loss accounting');
+ console.log('SIMULATION six real stages cleared: '+JSON.stringify({frames,
+  simulatedSeconds:Math.round(frames*.016),score:q.score,lives:q.lives}));
+}
+console.log('PASS Brick Breaker actual physics: 42 bricks, all six stages, shrink, sparks decay, contact timing, collision edges and paddle spin.');
