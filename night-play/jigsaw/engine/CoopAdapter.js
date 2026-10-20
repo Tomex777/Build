@@ -135,7 +135,7 @@ function projectedPositions(board,snapshot) {
 export function previewServerSnapshot(board,snapshot) {
  return projectedPositions(board,snapshot);
 }
-export function applyServerSnapshot(board,snapshot,{render=true,preserveDragging=true}={}) {
+export function applyServerSnapshot(board,snapshot,{render=true,preserveDragging=true,allowRoundChange=false}={}) {
  validateSnapshot(snapshot);
  if(!board || typeof board.resize!=='function' || typeof board.setupBoardLayout!=='function' ||
     typeof board.damageForPieces!=='function' || typeof board.render!=='function')
@@ -144,6 +144,9 @@ export function applyServerSnapshot(board,snapshot,{render=true,preserveDragging
     snapshot.revision<=board.lastCoopRevision)
   return {revision:board.lastCoopRevision,changed:[],completed:snapshot.finishedAt!==null,ignored:true};
  const roundChanged=board.lastCoopRoundId && board.lastCoopRoundId!==snapshot.roundId;
+ // Out-of-order events from a finished previous round must never silently
+ // replace a newer game. Only a verified explicit new-round action may reset it.
+ if(roundChanged && !allowRoundChange)throw Error('New co-op round requires explicit server confirmation.');
  const dimensionChanged=board.rows!==snapshot.rows || board.cols!==snapshot.cols;
  if(dimensionChanged || roundChanged){
   board.pieces=[];board.selectedPieces=[];board.selectedPiece=null;
