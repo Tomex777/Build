@@ -1240,18 +1240,19 @@ class MainActivity : ComponentActivity() {
 
     @Composable
     private fun ContinueReading(item: LibraryBook, onOpen: () -> Unit) {
-        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
             SectionTitle("Continue reading")
             Row(
-                modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).clickable(onClick = onOpen)
-                    .background(MaterialTheme.colorScheme.surface).padding(14.dp),
+                modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).clickable(onClick = onOpen)
+                    .background(MaterialTheme.colorScheme.surface).padding(10.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                CoverPlaceholder(84.dp, 112.dp, item.title, item.coverUri)
-                Column(modifier = Modifier.weight(1f).padding(start = 14.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
-                    Text(item.title, fontWeight = FontWeight.Bold, fontSize = 17.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                    Text(resumePosition(item), color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp)
-                    Text(progressText(item), color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                // Keep this compact: the full-size cover is already in Library.
+                CoverPlaceholder(62.dp, 82.dp, item.title, item.coverUri)
+                Column(modifier = Modifier.weight(1f).padding(start = 12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(item.title, fontWeight = FontWeight.Bold, fontSize = 15.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                    Text(resumePosition(item), color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
+                    Text(progressText(item), color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold, fontSize = 12.sp)
                 }
             }
         }
