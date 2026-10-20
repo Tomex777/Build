@@ -163,7 +163,7 @@ fun UniversalSearchPanel(
             )
             Spacer(Modifier.height(3.dp))
             Text(
-                "Only the pages you tick below can be used. The model receives your question, selected page titles and website domains—not page contents, full URLs, cookies or all your history.",
+                "The model receives your question exactly as typed, plus the titles and domains of pages you select. Do not type passwords or private links. No page bodies, cookies, or other browsing history are attached.",
                 style = MaterialTheme.typography.bodySmall,
                 color = colors.onSurfaceVariant,
             )
@@ -354,8 +354,9 @@ fun UniversalSearchPanel(
                 // Hiding extra sources behind "+ N more" would not be informed consent.
                 Column(Modifier.heightIn(max = 360.dp).verticalScroll(rememberScrollState())) {
                     Text(
-                        "Send this question and the page titles/domains below to OpenAI once? " +
-                            "The full URLs, page contents, cookies and other history stay on your device. " +
+                        "Send your question exactly as typed, plus these page titles and domains, " +
+                            "to OpenAI once? Avoid including secrets or private links in your question. " +
+                            "Full source URLs, page bodies, cookies and other history are not attached. " +
                             "Once sent, the request cannot be retracted."
                     )
                     Spacer(Modifier.height(8.dp))
