@@ -4,6 +4,7 @@
  * Coordinates are canonical puzzle CELL units, never viewport pixels.
  */
 'use strict';
+const {randomUUID}=require('node:crypto');
 const SHAPES=Object.freeze({24:[4,6],48:[6,8],144:[12,12]});
 const LEASE_MS=12000, MAX_PLAYERS=16, MAX_LOG=96;
 const has=(object,key)=>Object.prototype.hasOwnProperty.call(object,key);
@@ -14,8 +15,9 @@ function random(seed){
  let a=seed>>>0;
  return ()=>{a=(a+0x6d2b79f5)>>>0;let t=a;t=Math.imul(t^(t>>>15),t|1);t^=t+Math.imul(t^(t>>>7),t|61);return ((t^(t>>>14))>>>0)/4294967296;};
 }
-function createPuzzle({photoId,count=24,hostId,hostName,seed=1},now=Date.now()){
- if(!Number.isInteger(count)||!has(SHAPES,count)||!validId(hostId)||!display(hostName)||
+function createPuzzle({photoId,count=24,hostId,hostName,seed=1,roundId=randomUUID()},now=Date.now()){
+ if(typeof roundId!=='string'||!/^[0-9a-f-]{36}$/i.test(roundId)||
+    !Number.isInteger(count)||!has(SHAPES,count)||!validId(hostId)||!display(hostName)||
     typeof photoId!=='string'||!/^photo-[a-z0-9-]{1,40}$/.test(photoId)||
     !Number.isSafeInteger(seed)||seed<0||seed>0xffffffff)throw Error('Invalid puzzle configuration.');
  const [rows,cols]=SHAPES[count],rnd=random(seed),edgeRnd=random(seed^0x9e3779b9),pieces=[];
@@ -32,7 +34,7 @@ function createPuzzle({photoId,count=24,hostId,hostName,seed=1},now=Date.now()){
    bottom:r===rows-1?0:hEdges[r][c],left:c===0?0:-vEdges[r][c-1]
   }});
  }
- return {format:1,photoId,count,rows,cols,seed,revision:0,moves:0,
+ return {format:1,roundId,photoId,count,rows,cols,seed,revision:0,moves:0,
   startedAt:now,updatedAt:now,finishedAt:null,hostId,
   players:[{id:hostId,name:display(hostName),joinedAt:now,lastSeen:now}],
   pieces,leases:[],opLog:[]};
@@ -42,7 +44,7 @@ function groupMembers(state,piece){return state.pieces.filter(p=>p.group===piece
 function error(state,message){return {accepted:false,state,error:message};}
 function liveLease(state,group,now){return state.leases.find(l=>l.group===group&&l.expiresAt>now);}
 function publicSnapshot(state,viewer,now=Date.now()){
- return {format:state.format,photoId:state.photoId,count:state.count,
+ return {format:state.format,roundId:state.roundId,photoId:state.photoId,count:state.count,
   rows:state.rows,cols:state.cols,seed:state.seed,revision:state.revision,
   moves:state.moves,finishedAt:state.finishedAt,
   players:state.players.map(p=>({name:p.name,host:p.id===state.hostId,
@@ -57,6 +59,7 @@ function publicSnapshot(state,viewer,now=Date.now()){
 function applyCommand(current,command,now=Date.now()){
  if(!current||current.format!==1||!command||!validId(command.actor))return error(current,'Invalid command.');
  if(!Number.isSafeInteger(now)||now<0)return error(current,'Invalid timestamp.');
+ if(command.roundId!==current.roundId)return error(current,'This move belongs to an older puzzle. Refresh the room.');
  if(command.type==='join'){
   if(member(current,command.actor))return {accepted:true,state:current,duplicate:true};
   if(current.players.length>=MAX_PLAYERS)return error(current,'Room is full.');
