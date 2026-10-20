@@ -2,12 +2,12 @@ name: NIGHT Browser Android Prototype
 
 on:
   push:
-    branches: [feature/night-browser-prototype-20261019]
+    branches: [feature/night-browser-prototype-20261019, feature/night-browser-multi-agent-20261020]
     paths:
       - 'night-browser/**'
       - '.github/workflows/night-browser-android.yml'
   pull_request:
-    branches: [main]
+    branches: [main, feature/night-browser-prototype-20261019]
     paths:
       - 'night-browser/**'
       - '.github/workflows/night-browser-android.yml'
