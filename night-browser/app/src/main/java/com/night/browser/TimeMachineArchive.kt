@@ -78,6 +78,13 @@ class TimeMachineArchive(context: Context) {
             versions = (versions + migrated).sortedByDescending { it.capturedAt }
             persist(migrated = true)
         }
+        // Legacy copies were imported (or already imported on a previous start).
+        // Remove only the superseded legacy PDF index after the new index is durable.
+        // Otherwise a deleted archive entry would leave its old URL/title behind.
+        if (prefs.getBoolean("legacy_migrated", false)) {
+            appContext.getSharedPreferences("night_data_v1", Context.MODE_PRIVATE)
+                .edit().remove("pages").commit()
+        }
         recoverInterruptedCaptures()
     }
 
