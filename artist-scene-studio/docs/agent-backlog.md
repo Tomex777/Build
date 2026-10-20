@@ -1,6 +1,6 @@
 # MISE — Live 10-agent completion backlog
 
-Updated 2026-10-20. Canonical integration: `integrate/mise-studio-completion-20261020`. **Communication hub: issue #440 (https://github.com/Tomex777/Build/issues/440).**
+Updated 2026-10-20 (A1 startup audit). Canonical integration: `integrate/mise-studio-completion-20261020`. **Communication hub: issue #440 (https://github.com/Tomex777/Build/issues/440).**
 
 **State: launch instructions prepared; not evidence that 10 autonomous workers are running.** Project owner must open separate coding chats. Each agent claims a task and posts a GitHub comment; Agent 1 owns integration. No "done" until code is merged, built, installed and interaction-tested.
 
@@ -12,11 +12,19 @@ Updated 2026-10-20. Canonical integration: `integrate/mise-studio-completion-202
 - Real terrain meshes, sun orbit lighting, versioned project data, real PBR surfaces and two students under tree present in #335 source. User's direct terrain brush, terrain painting, visible sun disk/gizmo and advanced grass/structure interiors were explicitly not completed.
 - Build/run proof for latest integrated head **not checked or accepted**. Source inspect is not visual QA.
 
+## Coordinator's verified integration audit (2026-10-20)
+
+- Integration at launch: `7425f9507976502c9ad9f18aa0516497a53983bb`. The #221 environment branch, #223 anime branch and #335 under-tree branch are **all ancestors** of integration (`ahead_by=0` on `compare_commits`): do not cherry-pick or merge them again.
+- #220 immersive Inspector PR diverges from integration (`ahead_by=15; behind_by=237`) and overlaps `MainActivity.kt`, `StudioScreen.kt`, and `PrototypeScene.kt`. **Do not merge #220 wholesale.** Port small scoped features with fresh tests: A1 owns editor window policy; A2 owns inspector/custom XYZ UI; A3/A8 check any additional demo seeding contracts.
+- Coordinator feature PR: **#443** (`agent/mise-01-coord`) implements editor status-bar hiding/browser restoration with Android transition assertions. **Draft/QA pending**, not merged or installed. Initial integration QA run: **39378406981**, queued at first audit; #443 QA: **39380143250**, queued when posted.
+- Agent 1 owns shared `MainActivity.kt` change window until #443 is reviewed. Coordinate A2 viewport/UI changes, A7 renderer, A8 schema, A9 workflows and A10 device acceptance through issue #440. No other specialist activity should be asserted without their own GitHub check-ins.
+- Before landing #443: inspect CI results and ideally get A10's separate emulator touch/screenshot evidence; then merge to **integration only**, and update this ledger with the exact SHA.
+
 ## Task queue (owners are *role assignments*, not claim of live execution)
 
 | ID | Agent | Priority | Status | Task |
 | --- | --- | --- | --- | --- |
-| M-001 | A1 | P0 | UNCLAIMED | Coordinator: branch/release integration, reconcile stacked PRs, locks, continuous PR merging, end-to-end APK |
+| M-001 | A1 | P0 | ACTIVE — #443 in QA | Coordinator: branch/release integration, reconcile stacked PRs, locks, continuous PR merging, end-to-end APK |
 | M-002 | A2 | P0 | UNCLAIMED | Editor UI: immersive professional workspace, custom inputs, tool discoverability, reliable touch gestures and inspector |
 | M-003 | A3 | P0 | UNCLAIMED | Characters: detailed anime/real model bases, actual hair/facial appearance, selection and accessories |
 | M-004 | A4 | P0 | UNCLAIMED | Rigging/animation: independent pose/IK, morphs, timeline, playback and keyframes |
@@ -26,7 +34,7 @@ Updated 2026-10-20. Canonical integration: `integrate/mise-studio-completion-202
 | M-008 | A8 | P0 | UNCLAIMED | Project model: reliable hierarchy, undo/redo, saving, migration, correct attachments and animation tracks |
 | M-009 | A9 | P0 | UNCLAIMED | Android health: FPS/memory, asset packaging, build CI, device compatibility and signing guard |
 | M-010 | A10 | P0 | UNCLAIMED | Independent QA: API 26/36 installation, real taps/3D screens, scene screenshots, regressions |
-| M-011 | A1 | P0 | UNCLAIMED | Combine PRs into one running APK and inspect on Android before candidate release |
+| M-011 | A1 | P0 | BLOCKED — combined QA | Combine PRs into one running APK and inspect on Android before candidate release |
 | M-012 | A5 | P1 | UNCLAIMED | Investigate requested in-app terrain sculpting/terrain painting vs existing heightmap import |
 | M-013 | A3 | P1 | UNCLAIMED | Verify character artwork quality/hair and face differentiation with real rendered screenshots |
 | M-014 | A9 | P1 | UNCLAIMED | Reduce cold start/memory/perf issues with a representative heavy multi-character scene |
